@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net7.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<UseWPF>true</UseWPF>
+		<Platforms>x64</Platforms>
+        <AppendTargetFrameworkToOutputPath>False</AppendTargetFrameworkToOutputPath>
+        <BaseOutputPath>$(SolutionDir)</BaseOutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Include="App.xaml.cs" />
+	  <Compile Include="AssemblyInfo.cs" />
+	  <Compile Include="MainWindow.xaml.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Page Include="MainWindow.xaml" />
+	</ItemGroup>
+
+</Project>
