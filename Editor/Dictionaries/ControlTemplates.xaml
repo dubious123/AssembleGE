@@ -4,7 +4,7 @@
     <Style x:Key="AssembleWindowStyle" TargetType="Window">
         <Setter Property="WindowChrome.WindowChrome">
             <Setter.Value>
-                <WindowChrome CornerRadius="0" ResizeBorderThickness="{x:Static SystemParameters.WindowResizeBorderThickness}"
+                <WindowChrome CornerRadius="10" ResizeBorderThickness="{x:Static SystemParameters.WindowResizeBorderThickness}"
                               GlassFrameThickness="0" CaptionHeight="20" NonClientFrameEdges ="None"
                               UseAeroCaptionButtons="False" />
             </Setter.Value>
@@ -12,10 +12,11 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Window">
-                    <Border>
+                    <Border CornerRadius="5">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource Editor.Window.GrayBrush5}"/>
                             </Style>
                         </Border.Style>
                         <Grid>
@@ -24,34 +25,81 @@
                             </AdornerDecorator>
                             <DockPanel VerticalAlignment="Top" LastChildFill="False">
                                 <DockPanel.Resources>
-                                    <Style TargetType="Button">
+                                    <Style TargetType="{x:Type Button}" x:Key="window_default_btn_style">
                                         <Setter Property="DockPanel.Dock" Value="Right"/>
                                         <Setter Property="Height" Value="30"/>
                                         <Setter Property="Width" Value="45"/>
                                         <Setter Property="VerticalAlignment" Value="Top"/>
                                         <Setter Property="Background" Value="Black"/>
-                                        <Setter Property="Foreground" Value="White"/>
+                                        <Setter Property="Foreground" Value="{StaticResource Editor.FontColor}"/>
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type Button}">
+                                                    <Border x:Name="border" Background="{TemplateBinding Background}" SnapsToDevicePixels="True" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                                        <ContentPresenter Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Focusable="False" RecognizesAccessKey="True"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" TargetName="border" Value="{StaticResource Editor.Window.GrayBrush4}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                    <Style BasedOn="{StaticResource window_default_btn_style}" TargetType="Button" x:Key="restore_btn_style">
+                                        <Setter Property="Content">
+                                            <Setter.Value>
+                                                <Rectangle Width="10" Height="10" Stroke="{StaticResource Editor.FontBrush}" StrokeThickness="1"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}}" Value="Maximized">
+                                                <Setter Property="Content">
+                                                    <Setter.Value>
+                                                        <Grid>
+                                                            <Rectangle Width="9" Height="9" Margin="0,2.5,2.5,0" Stroke="{StaticResource Editor.FontBrush}"/>
+                                                            <Path Data="M2.5,0 L11.5,0" Stroke="{StaticResource Editor.FontBrush}"/>
+                                                            <Path Data="M11.5,0 L11.5,9" Stroke="{StaticResource Editor.FontBrush}"/>
+                                                            <Path Data="M2.5,0 L2.5,2.5" Stroke="{StaticResource Editor.FontBrush}"/>
+                                                            <Path Data="M11.5,9 L9,9" Stroke="{StaticResource Editor.FontBrush}"/>
+                                                        </Grid>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DockPanel.Resources>
+
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="5,0,0,5" Text="{TemplateBinding Title}" Foreground="White"/>
-                                <Button x:Name="btn_close" Click="On_CloseBtn_Click">
+                                <Button x:Name="btn_close" Click="On_CloseBtn_Click" Style="{StaticResource window_default_btn_style}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="{x:Type Button}">
+                                            <Border x:Name="border" Background="{TemplateBinding Background}" SnapsToDevicePixels="True" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0,5,0,0">
+                                                <ContentPresenter Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Focusable="False" RecognizesAccessKey="True"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" TargetName="border" Value="{StaticResource Editor.RedBrush2}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
                                     <Button.Content>
                                         <Grid>
-                                            <Path Data="M0,0 L10,10" Margin="0" Stroke="White"/>
-                                            <Path Data="M0,10 L10,0" Margin="0" Stroke="White"/>
+                                            <Path Data="M0,0 L10,10" Margin="0" Stroke="{StaticResource Editor.FontBrush}"/>
+                                            <Path Data="M0,10 L10,0" Margin="0" Stroke="{StaticResource Editor.FontBrush}"/>
                                         </Grid>
                                     </Button.Content>
                                 </Button>
-                                <Button x:Name="btn_restore" Click="On_RestoreBtn_Click">
+                                <Button x:Name="btn_restore" Click="On_RestoreBtn_Click" Style="{StaticResource restore_btn_style}"/>
+                                <Button x:Name="btn_minimize" Click="On_MinimizeBtn_Click" Style="{StaticResource window_default_btn_style}">
                                     <Button.Content>
-                                        <Rectangle Width="10" Height="10" Stroke="White" StrokeThickness="1"/>
-                                    </Button.Content>
-                                </Button>
-                                <Button x:Name="btn_minimize" Click="On_MinimizeBtn_Click">
-                                    <Button.Content>
-                                        <Rectangle Width="10" Height="1" Stroke="White" StrokeThickness="1"/>
+                                        <Rectangle Width="10" Height="1" Stroke="{StaticResource Editor.FontBrush}" StrokeThickness="1"/>
                                     </Button.Content>
                                 </Button>
                             </DockPanel>

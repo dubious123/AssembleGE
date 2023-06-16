@@ -22,6 +22,9 @@
 	  <Page Include="Dictionaries\ControlTemplates.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </Page>
+	  <Page Include="Dictionaries\EditorColors.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </Page>
 	  <Page Include="MainWindow.xaml" />
 	  <Page Include="WorldEditorView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
