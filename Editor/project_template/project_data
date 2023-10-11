@@ -1,0 +1,19 @@
+<project id="" name="{0}" desc="" last_opened_date="2023-09-23 15:13" path="{1}" starred="false">
+    <scenes>
+        <scene id="" name="untitled">
+            <worlds>
+                <world id="" name="main">
+                    <entities>
+
+                    </entities>
+                    <systems>
+
+                    </systems>
+                    <subworlds>
+                        
+                    </subworlds>
+                </world>
+            </worlds>
+        </scene>
+    </scenes>
+</project>

@@ -8,6 +8,7 @@
 		<Platforms>x64</Platforms>
         <AppendTargetFrameworkToOutputPath>False</AppendTargetFrameworkToOutputPath>
         <BaseOutputPath>$(SolutionDir)</BaseOutputPath>
+        <Configurations>Debug;Release;DebugEditor;ReleaseEditor</Configurations>
 	</PropertyGroup>
 
 	<ItemGroup>
