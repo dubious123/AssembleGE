@@ -1,7 +1,7 @@
 #pragma once
-#include <chrono>
+#include <string>
 
-namespace Editor::Utilities::Timing
+namespace editor::utilities::Timing
 {
 	std::string Now_Str();
 }

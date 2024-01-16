@@ -40,20 +40,12 @@
     <ClCompile Include="game_project\game_project.cpp" />
     <ClCompile Include="external\include\pugixml\pugixml.cpp" />
     <ClCompile Include="utilities\Timing.cpp" />
-    <ClCompile Include="views\view_hierarchy.cpp" />
-    <ClCompile Include="game_project\game_project_scene.cpp" />
-    <ClCompile Include="utilities\id.cpp" />
+    <ClCompile Include="widgets.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="platform.cpp" />
+    <ClCompile Include="style.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="editor_constants.h">
-      <Filter>editor</Filter>
-    </ClInclude>
-    <ClInclude Include="editor_common.h">
-      <Filter>editor</Filter>
-    </ClInclude>
-    <ClInclude Include="logger.h">
-      <Filter>editor</Filter>
-    </ClInclude>
     <ClInclude Include="external\include\imgui\imconfig.h" />
     <ClInclude Include="external\include\imgui\imgui.h" />
     <ClInclude Include="external\include\imgui\imgui_impl_dx12.h" />
@@ -99,9 +91,7 @@
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
     <ClInclude Include="utilities\Timing.h" />
-    <ClInclude Include="views\view_hierarchy.h" />
-    <ClInclude Include="game_project\game_project_scene.h" />
-    <ClInclude Include="utilities\id.h" />
+    <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">
@@ -116,8 +106,5 @@
     <Filter Include="editor">
       <UniqueIdentifier>{fc6e6a16-f01b-43de-8d7d-9011b9b6a2b8}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="CaptionMenu.xml" />
   </ItemGroup>
 </Project>

@@ -8,13 +8,14 @@
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 #include "editor.h"
 
-// #pragma comment(lib, "spdlog.lib")
+// #pragma comment(lib, "external/lib/spdlog.lib")
+// #pragma comment(lib, "external/lib/nfd.lib")
 #pragma comment(lib, "nfd.lib")
 #pragma comment(lib, "Rpcrt4.lib")	  // for uuid
 
 int main(int, char**)
 {
-	Editor::Init();
-	Editor::Run();
+	editor::init();
+	editor::Run();
 	return 0;
 }

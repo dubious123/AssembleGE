@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<root>
+	<ctx_item name="Main Menu">
+		<ctx_item name="File">
+			<ctx_item name="Save" shortcut="Ctrl+S"/>
+			<ctx_item name="Build" shortcut="Ctrl+B"/>
+		</ctx_item>
+
+		<ctx_item name="Edit">
+			<ctx_item name="Undo" shortcut="Ctrl+Z"/>
+			<ctx_item name="Redo" shortcut="Ctrl+Shift+Z"/>
+		</ctx_item>
+
+		<ctx_item name="Window">
+			<ctx_item name="Scene" shortcut="Ctrl+1"/>
+			<ctx_item name="Game" shortcut="Ctrl+2"/>
+			<ctx_item name="Console" shortcut="Ctrl+3"/>
+			<ctx_item name="Hierarchy" shortcut="Ctrl+4"/>
+			<ctx_item name="Inspector" shortcut="Ctrl+5"/>
+			<ctx_item name ="Test1" shortcut="ff">
+				<ctx_item name="Test2" shortcut="ff"/>
+				<ctx_item name="Test3" shortcut="ff"/>
+			</ctx_item>
+			<ctx_item name="Test4" shortcut="ff">
+				<ctx_item name="Test5" shortcut="ff">
+					<ctx_item name="Test6" shortcut="ff">
+						<ctx_item name="Test7" shortcut="ff">
+						</ctx_item>
+					</ctx_item>
+				</ctx_item>
+			</ctx_item>
+		</ctx_item>
+	</ctx_item>
+	<ctx_item name="Project">
+		
+	</ctx_item>
+	<ctx_item name="Scene">
+		<ctx_item name="Add New Scene" separator="true"/>
+		<ctx_item name="Remove Scene" separator="true"/> 
+		<ctx_item name="Copy" shortcut="Ctrl+C" separator="false"/>
+		<ctx_item name="Add New World"/>
+	</ctx_item>
+	<ctx_item name="World">
+		<ctx_item name="Delete"/>
+		<ctx_item name="Rename" shortcut="F2"/>
+		<ctx_item name="Entity">
+			<ctx_item name="Create Empty" separator="true"/>
+			<ctx_item name="3D Entity">
+				<ctx_item name="Cube"/>
+				<ctx_item name="Sphere"/>
+			</ctx_item>
+		</ctx_item>
+		<ctx_item name="System">
+			<ctx_item name="Add New System"/>
+		</ctx_item>
+	</ctx_item>
+	<ctx_item name="Subworld">
+
+	</ctx_item>
+	<ctx_item name="Entity">
+		<ctx_item name="Create Empty" separator="true"/>
+		<ctx_item name="Delete"/>
+		<ctx_item name="3D Entity">
+			<ctx_item name="Cube"/>
+			<ctx_item name="Sphere"/>
+		</ctx_item>
+		<ctx_item name="Add New Component"/>
+		<ctx_item name="Add Component">
+			<!--<ctx_item name="Empty"/>
+			<ctx_item name="Transform"/>
+			<ctx_item name="Hierarchy"/>
+			<ctx_item name="User_Component"/>-->
+		</ctx_item>
+	</ctx_item>
+	<ctx_item name="Text">
+		<ctx_item name="Cut" shortcut="Ctrl+X"/>
+		<ctx_item name="Copy" shortcut="Ctrl+C"/>
+		<ctx_item name="Paste" shortcut="Ctrl+P"/>
+	</ctx_item>
+</root>

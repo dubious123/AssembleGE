@@ -1,8 +1,9 @@
-<project id="" name="{0}" desc="" last_opened_date="2023-09-23 15:13" path="{1}" starred="false">
+<project name="{0}" desc="" last_opened_date="2023-09-23 15:13" path="{1}" starred="false">
+    <active_scene></active_scene>
     <scenes>
-        <scene id="" name="untitled">
+        <scene name="untitled">
             <worlds>
-                <world id="" name="main">
+                <world name="main">
                     <entities>
 
                     </entities>

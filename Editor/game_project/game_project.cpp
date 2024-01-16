@@ -1,34 +1,161 @@
-#include <Windows.h>
-#include <array>
-#include <shlobj_core.h>
-#include <filesystem>
-#include <fstream>
-#include <chrono>
+#include "pch.h"
 
 #include "../editor.h"
-#include "../editor_common.h"
 #include "game_project.h"
-#include "pugixml/pugixml.hpp"
-#include "nativefiledialog\nfd.h"
 #include "../utilities/Timing.h"
 
-namespace Editor::GameProject
+namespace editor::game
 {
 	namespace
 	{
-		std::vector<Project_Open_Data> _project_open_datas;
-		std::wstring				   _application_data_directory_path;
-		std::wstring				   _project_open_data_path;
-		Game_Project				   _current_project;
-		pugi::xml_document			   _project_open_data_xml;
-		pugi::xml_node				   _project_list_node;
+		bool _build_load_dll(std::string project_directory_path, std::string proj_name);
+	}
+
+	namespace
+	{
+		size_t (*_get_registered_component_count)();
+		size_t (*_get_registered_scene_count)();
+		size_t (*_get_registered_world_count)();
+		struct_info* (*_get_component_info)(size_t index);
+		scene_info* (*_get_scene_info)(size_t index);
+		world_info* (*_get_world_info)(size_t index);
+
+		auto _project_open_datas			  = std::vector<project_open_data>();
+		auto _application_data_directory_path = std::wstring();
+		auto _project_open_data_path		  = std::wstring();
+		auto _current_project				  = game_project();
+		auto _project_open_data_xml			  = pugi::xml_document();
+		auto _project_list_node				  = pugi::xml_node();
+		auto _project_dll					  = HMODULE();
+
+		const editor_command _cmd_save {
+			"Save",
+			ImGuiKey_S | ImGuiMod_Ctrl,
+			[](editor_id _) {
+				// todo only when modified
+				return true;
+			},
+			[](editor_id _) {
+				save();
+			}
+		};
+
+		const editor_command _cmd_build_load {
+			"Build",
+			ImGuiKey_B | ImGuiMod_Ctrl,
+			[](editor_id) {
+				return true;
+			},
+			[](editor_id) {
+				if (_project_dll)
+				{
+					FreeLibrary(_project_dll);
+				}
+				editor::widgets::progress_modal("Building project",
+												[] {
+													auto res = _build_load_dll(_current_project.directory_path, _current_project.name);
+													if (res)
+													{
+														logger::info("Build Success");
+													}
+													else
+													{
+														logger::error("Build Failed");
+													}
+													return res;
+												});
+			}
+		};
+
+		unsigned long _run_cmd(std::wstring cmd, std::string* p_child_out)
+		{
+			// auto h_child_std_in_rd	= HANDLE(nullptr);
+			// auto h_child_std_in_wr	= HANDLE(nullptr);
+
+			auto want_output = p_child_out is_not_nullptr;
+
+			auto want_input	  = false;
+			auto want_inherit = want_output or want_input;
+			auto error_code	  = 1ul;
+
+			auto hchild_in_rd  = HANDLE(nullptr);
+			auto hchild_out_rd = HANDLE(nullptr);
+			auto hchild_out_wr = HANDLE(nullptr);
+
+			auto saAttr					= SECURITY_ATTRIBUTES();
+			saAttr.nLength				= sizeof(SECURITY_ATTRIBUTES);
+			saAttr.bInheritHandle		= true;
+			saAttr.lpSecurityDescriptor = nullptr;
+
+			if (CreatePipe(&hchild_out_rd, &hchild_out_wr, &saAttr, 0) is_false) return 1;
+
+			if (SetHandleInformation(hchild_out_rd, HANDLE_FLAG_INHERIT, 0) is_false) return 1;
+
+			auto pi = PROCESS_INFORMATION();
+			auto si = STARTUPINFO();
+			ZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+			ZeroMemory(&si, sizeof(STARTUPINFO));
+			si.cb = sizeof(STARTUPINFO);
+			if (want_input)
+			{
+				// si.hStdInput = hchild_in_rd;
+			}
+			if (want_output)
+			{
+				si.hStdError  = hchild_out_wr;
+				si.hStdOutput = hchild_out_wr;
+			}
+			if (want_inherit)
+			{
+				si.dwFlags |= STARTF_USESTDHANDLES;
+			}
+
+			auto create_process_success = CreateProcess(NULL,
+														_wcsdup(cmd.c_str()),													// command line
+														NULL,																	// process security attributes
+														NULL,																	// primary thread security attributes
+														want_inherit,															// handles are inherited
+														NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,	// creation flags
+														NULL,																	// use parent's environment
+														NULL,																	// use parent's current directory
+														&si,																	// STARTUPINFO pointer
+														&pi);																	// receives PROCESS_INFORMATION
+
+			if (create_process_success is_false) return 1;
+
+			// todo
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			GetExitCodeProcess(pi.hProcess, &error_code);
+
+			if (create_process_success)
+			{
+				CloseHandle(pi.hProcess);
+				CloseHandle(pi.hThread);
+				CloseHandle(hchild_out_wr);
+			}
+
+			if (want_output)
+			{
+				auto dwRead		 = 0ul;
+				char chBuf[4096] = { 0 };
+				auto write_pos	 = 0ul;
+				while (ReadFile(hchild_out_rd, chBuf, 4096, &dwRead, nullptr))
+				{
+					write_pos += dwRead;
+				}
+
+				*p_child_out = write_pos > 2 ? std::string(chBuf, write_pos - 2) : std::string(chBuf);
+			}
+
+			return error_code;
+		}
 
 		void _load_project_open_datas()
 		{
 			_project_open_datas.clear();
 			for (auto project_node : _project_list_node)
 			{
-				_project_open_datas.emplace_back(Project_Open_Data(
+				_project_open_datas.emplace_back(project_open_data(
 					project_node.attribute("name").value(),
 					project_node.attribute("desc").value(),
 					project_node.attribute("last_opened_date").value(),
@@ -36,19 +163,87 @@ namespace Editor::GameProject
 					project_node.attribute("starred").as_bool()));
 			}
 		}
+
+		void _unload_dll()
+		{
+			assert(_project_dll is_not_nullptr);
+			FreeLibrary(_project_dll);
+			_current_project.is_ready = false;
+			editor::on_project_unloaded();
+		}
+
+		bool _build_load_dll(std::string project_directory_path, std::string proj_name)
+		{
+			_get_registered_component_count = nullptr;
+			_get_registered_scene_count		= nullptr;
+			_get_registered_world_count		= nullptr;
+			_get_component_info				= nullptr;
+			_get_scene_info					= nullptr;
+			_get_world_info					= nullptr;
+
+			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
+			auto p_program86_path = PWSTR { nullptr };
+			::SHGetKnownFolderPath(FOLDERID_ProgramFilesX86, 0, NULL, &p_program86_path);
+			auto find_msbuild_command = std::format(L"\"{}\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", p_program86_path);
+			auto ms_build_path		  = std::string();
+			_run_cmd(find_msbuild_command, &ms_build_path);
+
+#ifdef _DEBUG_EDITOR
+			auto build_command = std::format("\"{}\" \"{}\" /property:Configuration=DebugEditor /property:platform=x64", ms_build_path, sln_path);
+			auto dll_path	   = std::format("{}\\x64\\DebugEditor\\{}.dll", project_directory_path, proj_name);
+#else ifdef _RELEASE_EDITOR
+			auto build_command = std::format("\"{}\" \"{}\" /property:Configuration=ReleaseEditor /property:platform=x64", ms_build_path, sln_path);
+			auto dll_path	   = std::format("{}\\x64\\ReleaseEditor\\{}.dll", project_directory_path, proj_name);
+#endif	  // _DEBUG_EDITOR
+
+			wchar_t bffer[500] { 0 };
+			std::copy_n(build_command.begin(), build_command.size(), bffer);
+			auto build_success = _run_cmd(bffer, nullptr) == 0;
+
+			if (build_success is_false) return false;
+
+			_project_dll = LoadLibraryA(dll_path.c_str());
+
+			_get_registered_component_count = LOAD_FUNC(size_t(*)(), "get_registered_component_count", _project_dll);
+			_get_registered_scene_count		= LOAD_FUNC(size_t(*)(), "get_registered_scene_count", _project_dll);
+			_get_registered_world_count		= LOAD_FUNC(size_t(*)(), "get_registered_world_count", _project_dll);
+			_get_component_info				= LOAD_FUNC(struct_info * (*)(size_t), "get_component_info", _project_dll);
+			_get_scene_info					= LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", _project_dll);
+			_get_world_info					= LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
+
+			auto scene_count = _get_registered_scene_count();
+			for (auto scene_idx = 0; scene_idx < scene_count; ++scene_idx)
+			{
+				auto* p_scene_info = _get_scene_info(scene_idx);
+				auto  id		   = scene::create();
+				auto  p_scene	   = scene::find(id);
+				p_scene->name	   = p_scene_info->name;
+				p_scene->p_info	   = p_scene_info;
+
+				for (auto i = 0; i < p_scene_info->world_count; ++i)
+				{
+					auto* p_w_info	= _get_world_info(i + p_scene_info->world_idx);
+					auto  p_world	= p_scene->find_world(p_scene->create_world());
+					p_world->p_info = p_w_info;
+					p_world->name	= p_w_info->name;
+				}
+			}
+
+			return build_success;
+		}
 	}	 // namespace
 
-	Project_Open_Data::Project_Open_Data(const char* name, const char* desc, const char* date, const char* path, bool starred)
+	project_open_data::project_open_data(const char* name, const char* desc, const char* date, const char* path, bool starred)
 	{
-		Id				 = Editor::ID::GetNew(DataType_Project);
-		Name			 = name;
-		Desc			 = desc;
-		Last_Opened_Date = date;
-		Path			 = path;
-		Starred			 = starred;
+		// this->id			   = editor::id::get(DataType_Project);
+		this->name			   = name;
+		this->desc			   = desc;
+		this->last_opened_date = date;
+		this->path			   = path;
+		this->starred		   = starred;
 	}
 
-	void Init()
+	void init()
 	{
 		PWSTR p_folder_path;
 		::SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &p_folder_path);
@@ -67,7 +262,7 @@ namespace Editor::GameProject
 		::CoTaskMemFree((void*)p_folder_path);
 	}
 
-	void Save_Project_Open_Datas()
+	void save_project_open_datas()
 	{
 		std::wofstream xml_stream(_project_open_data_path);
 		_project_open_data_xml.reset();
@@ -75,83 +270,90 @@ namespace Editor::GameProject
 		for (auto project_od : _project_open_datas)
 		{
 			auto project_node = _project_list_node.append_child("project");
-			project_node.append_attribute("name").set_value(project_od.Name.c_str());
-			project_node.append_attribute("desc").set_value(project_od.Desc.c_str());
-			project_node.append_attribute("last_opened_date").set_value(project_od.Last_Opened_Date.c_str());
-			project_node.append_attribute("path").set_value(project_od.Path.c_str());
-			project_node.append_attribute("starred").set_value(project_od.Starred);
+			project_node.append_attribute("name").set_value(project_od.name.c_str());
+			project_node.append_attribute("desc").set_value(project_od.desc.c_str());
+			project_node.append_attribute("last_opened_date").set_value(project_od.last_opened_date.c_str());
+			project_node.append_attribute("path").set_value(project_od.path.c_str());
+			project_node.append_attribute("starred").set_value(project_od.starred);
 		}
 
 		_project_open_data_xml.save(xml_stream);
 		xml_stream.close();
 	}
 
-	bool Save()
+	bool save()
 	{
 		auto doc		  = pugi::xml_document();
-		auto success	  = doc.load_file(_current_project.Project_Data_File_Path.c_str());
-		auto xml_stream	  = std::wofstream(_current_project.Project_Data_File_Path);
+		auto success	  = doc.load_file(_current_project.project_file_path.c_str());
+		auto xml_stream	  = std::wofstream(_current_project.project_file_path);
 		auto project_node = doc.child("project");
 		project_node.remove_children();
 
 		auto scenes_node = project_node.append_child("scenes");
-		for (auto scene : _current_project.Scenes)
+		for (auto p_scene : models::scene::all())
 		{
 			auto scene_node	 = scenes_node.append_child("scene");
 			auto worlds_node = scene_node.append_child("worlds");
-			scene_node.append_attribute("id").set_value(scene.Id.ToString().c_str());
-			scene_node.append_attribute("name").set_value(scene.Name.c_str());
+			scene_node.append_attribute("name").set_value(p_scene->name.c_str());
 
-			for (auto world : scene.Worlds)
-			{
-				auto world_node		 = worlds_node.append_child("world");
-				auto entities_node	 = world_node.append_child("entities");
-				auto systems_node	 = world_node.append_child("systems");
-				auto sub_worlds_node = world_node.append_child("sub_worlds");
+			// for (auto& world_id : scene.worlds)
+			//{
+			//	auto p_world		 = world::get(world_id);
+			//	auto world_node		 = worlds_node.append_child("world");
+			//	auto entities_node	 = world_node.append_child("entities");
+			//	auto systems_node	 = world_node.append_child("systems");
+			//	auto sub_worlds_node = world_node.append_child("sub_worlds");
 
-				world_node.append_attribute("id").set_value(world.Id.ToString().c_str());
-				world_node.append_attribute("name").set_value(world.Name.c_str());
+			//	world_node.append_attribute("id").set_value(world_id.ToString().c_str());
+			//	world_node.append_attribute("name").set_value(p_world->name.c_str());
 
-				for (auto entity : world.Entities)
-				{
-					auto entity_node	 = entities_node.append_child("entity");
-					auto components_node = entity_node.append_child("components");
-					entity_node.append_attribute("id").set_value(entity.Id.ToString().c_str());
-					entity_node.append_attribute("name").set_value(entity.Name.c_str());
+			//	for (auto& entity_id : p_world->entities)
+			//	{
+			//		auto p_entity		 = entity::find(entity_id);
+			//		auto entity_node	 = entities_node.append_child("entity");
+			//		auto components_node = entity_node.append_child("components");
+			//		entity_node.append_attribute("id").set_value(entity_id.ToString().c_str());
+			//		entity_node.append_attribute("name").set_value(p_entity->name.c_str());
 
-					for (auto component : entity.Components)
-					{
-						auto component_node = components_node.append_child("component");
-						entity_node.append_attribute("id").set_value(entity.Id.ToString().c_str());
-						entity_node.append_attribute("name").set_value(entity.Name.c_str());
-					}
-				}
+			//		for (auto& component_id : p_entity->components)
+			//		{
+			//			auto p_component	= component::find(component_id);
+			//			auto component_node = components_node.append_child("component");
+			//			component_node.append_attribute("id").set_value(component_id.ToString().c_str());
+			//			component_node.append_attribute("name").set_value(p_component->name.c_str());
+			//		}
+			//	}
 
-				for (auto system : world.Systems)
-				{
-					auto system_node = systems_node.append_child("system");
-					system_node.append_attribute("id").set_value(system.Id.ToString().c_str());
-					system_node.append_attribute("name").set_value(system.Name.c_str());
-				}
+			//	for (auto& system_id : p_world->systems)
+			//	{
+			//		auto system_node = systems_node.append_child("system");
+			//		auto p_system	 = system::find(system_id);
+			//		system_node.append_attribute("id").set_value(system_id.ToString().c_str());
+			//		system_node.append_attribute("name").set_value(p_system->name.c_str());
+			//	}
 
-				for (auto sub_world : world.SubWorlds)
-				{
-					auto sub_world_node = sub_worlds_node.append_child("sub_world");
-					sub_world_node.append_attribute("id").set_value(sub_world.Id.ToString().c_str());
-					sub_world_node.append_attribute("name").set_value(sub_world.Name.c_str());
-				}
-			}
+			//	// for (auto& sub_world : world.SubWorlds)
+			//	//{
+			//	//	auto sub_world_node = sub_worlds_node.append_child("sub_world");
+			//	//	sub_world_node.append_attribute("id").set_value(sub_world.Id.ToString().c_str());
+			//	//	sub_world_node.append_attribute("name").set_value(sub_world.Name.c_str());
+			//	// }
+			//}
 		}
+
+		auto active_scene_node = project_node.append_child("active_scene");
+		active_scene_node.append_attribute("name").set_value(models::scene::get_current()->name.c_str());
 
 		doc.save(xml_stream);
 		xml_stream.close();
 
-		Editor::Logger::Info("Project save completed");
+		editor::logger::info("Project save completed");
 		return success;
 	}
 
-	bool Open(std::filesystem::path project_directory_path)
+	bool open_async(std::filesystem::path project_directory_path)
 	{
+		widgets::update_progress(0, "Reading project data");
 		auto project_data_path = std::filesystem::path(project_directory_path)
 									 .append(PROJECT_EXTENSION)
 									 .append(PROJECT_DATA_FILE_NAME);
@@ -166,44 +368,130 @@ namespace Editor::GameProject
 
 		if (!success) return false;
 
-		_current_project.Project_Data_File_Path = project_data_path.string();
-		_current_project.Name					= project_node.attribute("name").value();
-		_current_project.Description			= project_node.attribute("desc").value();
-		_current_project.Last_Opened_Date		= Editor::Utilities::Timing::Now_Str();
-		_current_project.Ready					= true;
+		_current_project.directory_path	   = project_directory_path.string();
+		_current_project.project_file_path = project_data_path.string();
+		_current_project.name			   = project_node.attribute("name").value();
+		_current_project.description	   = project_node.attribute("desc").value();
+		_current_project.last_opened_date  = editor::utilities::Timing::Now_Str();
+
+		widgets::update_progress(30, "Build and load dll");
+
+		if (_build_load_dll(_current_project.directory_path, _current_project.name) is_false)
+		{
+			return false;
+		}
+
+		widgets::update_progress(70, "Loading project");
+
+		// for (auto& scene_node : project_node.child("scenes").children())
+		//{
+		//	assert(strcmp(scene_node.name(), "scene") == 0);
+
+		//	// auto scene_id = editor::id::read(scene_node.attribute("id").value());
+		//	// editor::cmd_add_new(scene_id);
+		//	auto scene_id = scene::create();
+		//	assert(scene::is_alive(scene_id));
+		//	scene::get(scene_id).name = scene_node.attribute("name").value();
+
+		//	for (auto& world_node : scene_node.child("worlds").children())
+		//	{
+		//		scene::set_active(scene_id);
+		//		assert(strcmp(world_node.name(), "world") == 0);
+
+		//		auto world_id = id::read(world_node.attribute("id").value());
+		//		editor::cmd_add_new(world_id);
+		//		auto p_world  = world::get(world_id);
+		//		p_world->name = world_node.attribute("name").value();
+
+		//		assert(p_world->scene_id == scene_id);
+
+		//		for (auto& entity_node : world_node.child("entities").children())
+		//		{
+		//			select(world_id);
+		//			assert(strcmp(entity_node.name(), "entity") == 0);
+
+		//			auto entity_id = id::read(entity_node.attribute("id").value());
+		//			editor::cmd_add_new(entity_id);
+		//			auto p_entity  = entity::find(entity_id);
+		//			p_entity->name = entity_node.attribute("name").value();
+
+		//			assert(p_entity->world_id == world_id);
+
+		//			for (auto& component_node : entity_node.child("components").children())
+		//			{
+		//				select(entity_id);
+		//				auto component_id = id::read(component_node.attribute("id").value());
+		//				editor::cmd_add_new(component_id);
+		//				auto p_component  = component::find(component_id);
+		//				p_component->name = component_node.attribute("name").value();
+
+		//				assert(p_component->entity_id == entity_id);
+		//			}
+		//		}
+
+		//		for (auto& system_node : world_node.child("systems").children())
+		//		{
+		//			select(world_id);
+		//			assert(strcmp(system_node.name(), "system") == 0);
+
+		//			auto system_id = id::read(system_node.attribute("id").value());
+		//			editor::cmd_add_new(system_id);
+		//			auto p_system  = system::find(system_id);
+		//			p_system->name = system_node.attribute("name").value();
+
+		//			assert(p_system->world_id == world_id);
+		//		}
+		//	}
+		//}
+
+		// if (project_node.child("active_scene"))
+		//{
+		//	editor::models::scene::set_active(editor::id::read(project_node.child("active_scene").attribute("id").value()));
+		// }
+
+		widgets::update_progress(100, "Done");
+		logger::info("Open Completed");
+
 
 		for (auto& data : _project_open_datas)
 		{
-			if (_current_project.Name == data.Name)
+			if (_current_project.name == data.name)
 			{
-				data.Last_Opened_Date = _current_project.Last_Opened_Date;
+				data.last_opened_date = _current_project.last_opened_date;
 				return true;
 			}
 		}
 
-		Project_Open_Data od;
-		od.Name				= _current_project.Name;
-		od.Desc				= _current_project.Description;
-		od.Last_Opened_Date = _current_project.Last_Opened_Date;
-		od.Path.assign(project_directory_path.native().begin(), project_directory_path.native().end());
-		od.Starred = false;
+		project_open_data od;
+		od.name				= _current_project.name;
+		od.desc				= _current_project.description;
+		od.last_opened_date = _current_project.last_opened_date;
+		od.path				= project_directory_path.string();
+		// od.Path.assign(project_directory_path.native().begin(), project_directory_path.native().end());
+		od.starred = false;
 
 		_project_open_datas.emplace_back(od);
 
 		return success;
 	}
 
-	bool Project_Opened()
+	void on_project_loaded()
 	{
-		return _current_project.Ready;
+		editor::add_context_item("Main Menu\\File\\Save", &_cmd_save);
+		editor::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
 	}
 
-	const Game_Project* Get_Current_PProject()
+	bool project_opened()
+	{
+		return _current_project.is_ready;
+	}
+
+	game_project* get_current_p_project()
 	{
 		return &_current_project;
 	}
 
-	bool Create(const char* proj_name, const char* path, char* err_msg = nullptr)
+	bool create(const char* proj_name, const char* path, char* err_msg = nullptr)
 	{
 		constexpr int min_proj_name_len = 3;
 		char		  bad_chars[]		= { '!', '@', '%', '^', '*', '~', '|' };
@@ -212,9 +500,7 @@ namespace Editor::GameProject
 		bool		  success			= true;
 
 		std::string proj_name_str(proj_name);
-		std::string solution_template_str;
-		std::string project_template_str;
-		std::string project_data_template_str;
+		std::string solution_template_str, project_template_str, project_data_template_str, main_cpp_str, components_h_str;
 		std::string arg_0, arg_1, arg_2, arg_3;
 
 		std::filesystem::path directory_path;
@@ -226,7 +512,7 @@ namespace Editor::GameProject
 
 		for (auto c : bad_chars)
 		{
-			if (proj_name_str.find(proj_name_str, c) != -1)
+			if (proj_name_str.find((proj_name_str, c) != -1))
 			{
 				valid_name = false;
 				break;
@@ -256,32 +542,11 @@ namespace Editor::GameProject
 			TCHAR current_dirctory_path[MAX_PATH];
 			::GetCurrentDirectory(MAX_PATH, current_dirctory_path);
 
-			{
-				solution_template_path = std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_solution");
-				std::ifstream solution_template;
-				solution_template.open(solution_template_path);
-				std::stringstream ss_solution;
-				ss_solution << solution_template.rdbuf();
-				solution_template_str = ss_solution.str();
-			}
-
-			{
-				project_template_path = std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_project");
-				std::ifstream project_template;
-				project_template.open(project_template_path);
-				std::stringstream ss_project;
-				ss_project << project_template.rdbuf();
-				project_template_str = ss_project.str();
-			}
-
-			{
-				project_data_template_path = std::filesystem::path(current_dirctory_path).append("project_template\\").append("project_data");
-				std::ifstream project_data_template;
-				project_data_template.open(project_data_template_path);
-				std::stringstream ss_project_data;
-				ss_project_data << project_data_template.rdbuf();
-				project_data_template_str = ss_project_data.str();
-			}
+			solution_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_solution"));
+			project_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_project"));
+			project_data_template_str = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("project_data"));
+			main_cpp_str			  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("main_cpp"));
+			components_h_str		  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("components_h"));
 		}
 
 		// get template arguments
@@ -315,7 +580,8 @@ namespace Editor::GameProject
 			arg_0 = proj_name_str;
 			arg_1 = "{" + uuid_str_0 + "}";
 			arg_2 = "{" + uuid_str_1 + "}";
-			arg_3 = directory_path.string();
+			// todo lib path
+			arg_3 = std::string("C:\\Users\\JH\\Desktop\\projects\\AssembleGE");	// directory_path.string();	// engine lib path
 		}
 
 		// create msvc solution file
@@ -330,64 +596,37 @@ namespace Editor::GameProject
 		}
 
 		// create msvc project file
-		{
-			auto project_file_content = std::vformat(project_template_str, std::make_format_args(arg_0, arg_1, arg_2, arg_3));
-			auto project_file_path	  = std::filesystem::path(gamecode_directory_path);
-
-			project_file_path.append(proj_name + std::string(".vcxproj"));
-			std::wofstream project_file(project_file_path);
-			project_file << project_file_content.c_str();
-			project_file.close();
-		}
+		utilities::create_file(
+			std::filesystem::path(gamecode_directory_path) / std::format("{}.vcxproj", proj_name),
+			std::vformat(project_template_str, std::make_format_args(arg_0, arg_1, arg_2, arg_3)));
 
 		// create project data
-		{
-			auto project_data_content = std::vformat(project_data_template_str, std::make_format_args(arg_0, arg_3));
-			auto project_data_path	  = std::filesystem::path(internal_project_dir_path);
+		utilities::create_file(
+			std::filesystem::path(internal_project_dir_path) / PROJECT_DATA_FILE_NAME,
+			std::vformat(project_data_template_str, std::make_format_args(arg_0, arg_3)));
 
-			project_data_path.append(PROJECT_DATA_FILE_NAME);
-			std::wofstream project_file(project_data_path);
-			project_file << project_data_content.c_str();
-			project_file.close();
-		}
+		utilities::create_file(
+			std::filesystem::path(gamecode_directory_path) / "main.cpp",
+			main_cpp_str);
+
+		utilities::create_file(
+			std::filesystem::path(gamecode_directory_path) / "components.h",
+			components_h_str);
 
 		assert(success);
 		return success;
 	}
+}	 // namespace editor::game
 
-	bool Add_Scene(std::string name)
-	{
-		if (name.empty())
-		{
-			Editor::Logger::Warn("Scene name is empty");
-			return false;
-		}
-
-		for (auto scene : _current_project.Scenes)
-		{
-			if (scene.Name == name)
-			{
-				Editor::Logger::Warn("Scenes can not have the same name");
-				return false;
-			}
-		}
-
-		auto scene = Scene();
-		scene.Id   = Editor::ID::GetNew(DataType_Scene);
-		scene.Name = name;
-
-		_current_project.Scenes.emplace_back(scene);
-		return true;
-	}
-}	 // namespace Editor::GameProject
-
-namespace Editor::GameProject::Browser
+namespace editor::view::project_browser
 {
+	using editor::game::_project_open_datas;
+
 	namespace
 	{
 		constexpr size_t _char_buffer_size = 100;
 
-		Project_Open_Data* _p_selected_project_open_data = nullptr;
+		editor::game::project_open_data* _p_selected_project_open_data = nullptr;
 
 		char _buffer[_char_buffer_size];
 
@@ -443,7 +682,7 @@ namespace Editor::GameProject::Browser
 			return points;
 		}
 
-		void _draw_star(ImDrawList* p_draw_list, ImVec2 pos_abs, float size, ImColor col)
+		void _draw_star(ImVec2 pos_abs, float size, ImColor col)
 		{
 			static constexpr auto star_offsets = _cal_star_points_pos_rel(1, 0.5f);
 
@@ -453,7 +692,7 @@ namespace Editor::GameProject::Browser
 				star_points_abs[i] = pos_abs - ImVec2(star_offsets[i].x * size, star_offsets[i].y * size);
 			}
 
-			p_draw_list->AddConvexPolyFilled(star_points_abs, 10, col);
+			widgets::draw_poly_filled(star_points_abs, 10, col);
 		}
 
 		void _sort_project_open_data()
@@ -462,7 +701,7 @@ namespace Editor::GameProject::Browser
 			for (int i = 0; i < _project_open_datas.size(); ++i)
 			{
 				auto project = _project_open_datas[i];
-				if (project.Starred)
+				if (project.starred)
 				{
 					if (i != star_index)
 					{
@@ -474,42 +713,43 @@ namespace Editor::GameProject::Browser
 			}
 		}
 
-		void _item_project_open_data(Project_Open_Data& project_od)
+		void _item_project_open_data(editor::game::project_open_data& project_od)
 		{
-			auto   p_draw_list = ImGui::GetCurrentWindowRead()->DrawList;
-			bool   item_hovered, item_clicked, star_hovered, star_clicked;
-			ImVec2 local_pos = _next_draw_pos - ImGui::GetCurrentWindowRead()->Pos;	   // ImVec2(_next_item_pos.x - ImGui::GetCurrentWindowRead()->Pos.x, _next_item_pos.y - ImGui::GetCurrentWindowRead()->Pos.y);
+			bool item_hovered, item_clicked, star_hovered, star_clicked;
 
-			ImGui::ItemAdd(ImRect(_next_draw_pos + _draw_pos_star, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star)), ImGui::GetID(project_od.Name.c_str()));
-			star_hovered = ImGui::IsItemHovered();
-			star_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+			ImVec2 local_pos = _next_draw_pos - platform::get_window_pos();	   // ImVec2(_next_item_pos.x - ImGui::GetCurrentWindowRead()->Pos.x, _next_item_pos.y - ImGui::GetCurrentWindowRead()->Pos.y);
 
-			ImGui::ItemAdd(ImRect(_next_draw_pos + _draw_pos_item, _next_draw_pos + _draw_pos_item + _item_size), ImGui::GetID("##item_rect"));
-			item_hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-			item_clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left) and not star_clicked;
+			widgets::add_item(ImRect(_next_draw_pos + _draw_pos_star, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star)), widgets::get_id(project_od.name.c_str()));
+			star_hovered = widgets::is_item_hovered();
+			star_clicked = widgets::is_item_clicked(ImGuiMouseButton_Left);
+
+			widgets::add_item(ImRect(_next_draw_pos + _draw_pos_item, _next_draw_pos + _draw_pos_item + _item_size), widgets::get_id("##item_rect"));
+			item_hovered = widgets::is_item_hovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+			item_clicked = widgets::is_item_clicked(ImGuiMouseButton_Left) and not star_clicked;
 
 			if (item_hovered)
 			{
-				p_draw_list->AddRectFilled(_next_draw_pos + _draw_pos_item, _next_draw_pos + _draw_pos_item + _item_size, ImColor(COL_GRAY_2), _item_rounding);
+				widgets::draw_rect_filled({ _next_draw_pos + _draw_pos_item, _next_draw_pos + _draw_pos_item + _item_size }, ImColor(COL_GRAY_2), _item_rounding);
 				if (star_hovered)
 				{
-					p_draw_list->AddRectFilled(_next_draw_pos + _draw_pos_star, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star), ImColor(COL_GRAY_3), _item_rounding);
-					_draw_star(p_draw_list, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_GRAY_8));
+
+					widgets::draw_rect_filled({ _next_draw_pos + _draw_pos_star, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) }, ImColor(COL_GRAY_3), _item_rounding);
+					_draw_star(_next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_GRAY_8));
 				}
 				else
 				{
-					_draw_star(p_draw_list, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_TEXT_GRAY));
+					_draw_star(_next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_TEXT_GRAY));
 					// p_draw_list->AddRectFilled(_next_item_pos + _draw_pos_star, _next_item_pos + _draw_pos_star + ImVec2(_width_star, _width_star), ImColor(COL_GRAY_3));
 				}
 			}
-			else if (project_od.Starred)
+			else if (project_od.starred)
 			{
-				_draw_star(p_draw_list, _next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_TEXT_GRAY));
+				_draw_star(_next_draw_pos + _draw_pos_star + ImVec2(_width_star, _width_star) * 0.5f, _width_star * 0.2f, ImColor(COL_TEXT_GRAY));
 			}
 
 			if (star_clicked)
 			{
-				project_od.Starred = !project_od.Starred;
+				project_od.starred = !project_od.starred;
 				_project_need_sort = true;
 			}
 
@@ -517,50 +757,56 @@ namespace Editor::GameProject::Browser
 			{
 				_p_selected_project_open_data = &project_od;
 
-				bool success = Open(project_od.Path);
-				if (success)
-				{
-					project_od.Name				= _current_project.Name;
-					project_od.Desc				= _current_project.Description;
-					project_od.Last_Opened_Date = _current_project.Last_Opened_Date;
-					_project_need_sort			= true;
-				}
-				else
-				{
-					_open_popup_open_project_failed = true;
-				}
+				widgets::progress_modal(
+					"Open project",
+					[project_od]() {
+						return editor::game::open_async(project_od.path);
+					},
+					[](bool successed) {
+						if (successed)
+						{
+							_sort_project_open_data();
+							editor::on_project_loaded();
+							editor::game::_current_project.is_ready = true;
+						}
+						else
+						{
+							editor::on_project_unloaded();
+							_open_popup_open_project_failed = true;
+						}
+					});
 			}
 
-			ImGui::PushFont(GEctx->P_Font_Arial_Bold_13_5);
-			p_draw_list->AddText(_next_draw_pos + _draw_pos_name, ImColor(GImGui->Style.Colors[ImGuiCol_Text]), project_od.Name.c_str());
-			ImGui::PopFont();
+			widgets::push_font(GEctx->p_font_arial_bold_13_5);
+			widgets::draw_text(_next_draw_pos + _draw_pos_name, style::get_color_u32(ImGuiCol_Text), project_od.name.c_str());
+			widgets::pop_font();
 
-			p_draw_list->AddText(_next_draw_pos + _draw_pos_desc, ImColor(COL_TEXT_GRAY), project_od.Desc.c_str());
-			p_draw_list->AddText(_next_draw_pos + _draw_pos_last_opened, ImColor(COL_TEXT_GRAY), project_od.Last_Opened_Date.c_str());
+			widgets::draw_text(_next_draw_pos + _draw_pos_desc, ImColor(COL_TEXT_GRAY), project_od.desc.c_str());
+			widgets::draw_text(_next_draw_pos + _draw_pos_last_opened, ImColor(COL_TEXT_GRAY), project_od.last_opened_date.c_str());
 
-			ImVec2 path_text_size = ImGui::CalcTextSize(project_od.Path.c_str());
+			ImVec2 path_text_size = widgets::calc_text_size(project_od.path.c_str());
 			if (path_text_size.x > _width_path)
 			{
-				auto target_text_width = _width_path - ImGui::CalcTextSize("...").x;
-				auto location_text_end = &project_od.Path[project_od.Path.length() - 1];
+				auto target_text_width = _width_path - widgets::calc_text_size("...").x;
+				auto location_text_end = &project_od.path[project_od.path.length() - 1];
 				while (path_text_size.x > target_text_width)
 				{
 					const char	char_end	= *(location_text_end--);
-					const float char_width	= (int)char_end < GEctx->P_Font_Arial_Default_13_5->IndexAdvanceX.Size ? GEctx->P_Font_Arial_Default_13_5->IndexAdvanceX.Data[char_end] : GEctx->P_Font_Arial_Default_13_5->FallbackAdvanceX;
+					const float char_width	= (int)char_end < GEctx->p_font_arial_default_13_5->IndexAdvanceX.Size ? GEctx->p_font_arial_default_13_5->IndexAdvanceX.Data[char_end] : GEctx->p_font_arial_default_13_5->FallbackAdvanceX;
 					path_text_size.x	   -= char_width;
 				}
 
-				p_draw_list->AddText(_next_draw_pos + _draw_pos_path, ImColor(COL_TEXT_GRAY), project_od.Path.c_str(), location_text_end + 1);
-				p_draw_list->AddText(_next_draw_pos + _draw_pos_path + ImVec2(path_text_size.x, 0), ImColor(COL_TEXT_GRAY), "...");
+				widgets::draw_text(_next_draw_pos + _draw_pos_path, ImColor(COL_TEXT_GRAY), project_od.path.c_str(), location_text_end + 1);
+				widgets::draw_text(_next_draw_pos + _draw_pos_path + ImVec2(path_text_size.x, 0), ImColor(COL_TEXT_GRAY), "...");
 			}
 			else
 			{
-				p_draw_list->AddText(_next_draw_pos + _draw_pos_path, ImColor(COL_TEXT_GRAY), project_od.Path.c_str());
+				widgets::draw_text(_next_draw_pos + _draw_pos_path, ImColor(COL_TEXT_GRAY), project_od.path.c_str());
 			}
 
-			ImGui::SetCursorPos(local_pos + _draw_pos_item);
-			ImGui::ItemSize(_item_size);
-			_next_draw_pos.y += _item_size.y;	 // +GImGui->Style.ItemSpacing.y;
+			widgets::set_cursor_pos(local_pos + _draw_pos_item);
+			widgets::item_size(_item_size);
+			_next_draw_pos.y += _item_size.y;	 // +style::item_spacing().y;
 		}
 
 		void _dialog_new_project()
@@ -573,48 +819,49 @@ namespace Editor::GameProject::Browser
 			ImVec2				 input_text_size;
 			ImRect				 input_text_newProject_rect;
 
-			if (ImGui::BeginPopupModal("New Project", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
+			if (widgets::begin_popup_modal("New Project", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
 			{
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.FramePadding.y);
-				ImGui::Text("Project Name");
-				button_size_x = ImGui::GetItemRectSize().x;
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::frame_padding().y);
+				widgets::text("Project Name");
+				button_size_x = widgets::get_item_rect().GetSize().x;
 
-				ImGui::SameLine();
+				widgets::sameline();
 
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() - GImGui->Style.FramePadding.y);
-				ImGui::InputText("##new project name", new_project_name, str_name_max_len);
-				input_text_size			   = ImGui::GetItemRectSize();
-				input_text_newProject_rect = ImRect(ImGui::GetItemRectMin() + ImVec2(0, input_text_size.y + GImGui->Style.ItemSpacing.y), ImGui::GetItemRectMax() + ImVec2(0, input_text_size.y + GImGui->Style.ItemSpacing.y));
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.FramePadding.y);
-				ImGui::Text("Project Path");
-				ImGui::SameLine(button_size_x + GImGui->Style.ItemSpacing.x + GImGui->Style.WindowPadding.x);
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() - style::frame_padding().y);
+				widgets::input_text("##new project name", new_project_name, str_name_max_len);
+				input_text_size			   = widgets::get_item_rect().GetSize();
+				input_text_newProject_rect = ImRect(widgets::get_item_rect().Min + ImVec2(0, input_text_size.y + style::item_spacing().y), widgets::get_item_rect().Max + ImVec2(0, input_text_size.y + style::item_spacing().y));
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::frame_padding().y);
+				widgets::text("Project Path");
+				widgets::sameline(button_size_x + style::item_spacing().x + style::window_padding().x);
 
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() - GImGui->Style.FramePadding.y);
-				ImGui::ItemAdd(input_text_newProject_rect, ImGui::GetCurrentWindowRead()->GetID("##new project path"));
-				ImGui::ItemSize(input_text_newProject_rect);
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() - style::frame_padding().y);
+				widgets::add_item(input_text_newProject_rect, widgets::get_id("##new project path"));
+				widgets::item_size(input_text_newProject_rect.GetSize());
 
-				ImGui::RenderFrame(input_text_newProject_rect.Min, input_text_newProject_rect.Max, ImGui::GetColorU32(ImGuiCol_FrameBg), true, GImGui->Style.FrameRounding);
-				ImGui::SetCursorPos((ImGui::GetCursorPos() + GImGui->Style.FramePadding));
-				auto open_dialog_directory = ImGui::IsItemClicked();
-				auto path_text_size		   = ImGui::CalcTextSize(new_project_path.c_str());
+				widgets::draw_frame(input_text_newProject_rect.Min, input_text_newProject_rect.Max, style::get_color_u32(ImGuiCol_FrameBg), true, style::frame_rounding());
+				widgets::set_cursor_pos((widgets::get_cursor_pos() + style::frame_padding()));
+				auto open_dialog_directory = widgets::is_item_clicked();
+				auto path_text_size		   = widgets::calc_text_size(new_project_path.c_str());
 				auto path_text_need_clip   = path_text_size.x > input_text_newProject_rect.GetSize().x;
-				auto p_draw_list		   = ImGui::GetWindowDrawList();
+				// auto p_draw_list		   = ImGui::GetWindowDrawList();
 				if (path_text_need_clip)
 				{
-					auto target_text_width	  = input_text_newProject_rect.GetSize().x - GImGui->Style.FramePadding.x * 2 - ImGui::CalcTextSize("...").x;
+					auto target_text_width	  = input_text_newProject_rect.GetSize().x - style::frame_padding().x * 2 - widgets::calc_text_size("...").x;
 					auto new_project_text_end = new_project_path.end() - 1;
 					while (path_text_size.x > target_text_width)
 					{
 						const char	char_end	= *(new_project_text_end--);
-						const float char_width	= (int)char_end < GEctx->P_Font_Arial_Default_13_5->IndexAdvanceX.Size ? GEctx->P_Font_Arial_Default_13_5->IndexAdvanceX.Data[char_end] : GEctx->P_Font_Arial_Default_13_5->FallbackAdvanceX;
+						const float char_width	= (int)char_end < GEctx->p_font_arial_default_13_5->IndexAdvanceX.Size ? GEctx->p_font_arial_default_13_5->IndexAdvanceX.Data[char_end] : GEctx->p_font_arial_default_13_5->FallbackAdvanceX;
 						path_text_size.x	   -= char_width;
 					}
-					p_draw_list->AddText(input_text_newProject_rect.Min + GImGui->Style.FramePadding, ImColor(COL_TEXT), new_project_path.c_str(), new_project_text_end._Ptr + 1);
-					p_draw_list->AddText(input_text_newProject_rect.Min + GImGui->Style.FramePadding + ImVec2(path_text_size.x, 0), ImColor(COL_TEXT), "...");
+
+					widgets::draw_text(input_text_newProject_rect.Min + style::frame_padding(), ImColor(COL_TEXT), new_project_path.c_str(), new_project_text_end._Ptr + 1);
+					widgets::draw_text(input_text_newProject_rect.Min + style::frame_padding() + ImVec2(path_text_size.x, 0), ImColor(COL_TEXT), "...");
 				}
 				else
 				{
-					ImGui::RenderTextClipped(input_text_newProject_rect.Min + GImGui->Style.FramePadding, input_text_newProject_rect.Max - GImGui->Style.FramePadding, new_project_path.c_str(), nullptr, 0, ImVec2(), &input_text_newProject_rect);
+					widgets::draw_text_clipped(input_text_newProject_rect.Min + style::frame_padding(), input_text_newProject_rect.Max - style::frame_padding(), new_project_path.c_str(), nullptr, 0, ImVec2(), &input_text_newProject_rect);
 				}
 
 				if (open_dialog_directory)
@@ -630,20 +877,25 @@ namespace Editor::GameProject::Browser
 						free(outPath);
 					}
 
-					GImGui->IO.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
-					GImGui->IO.AddMouseButtonEvent(0, false);
+					platform::add_mouse_source_event(ImGuiMouseSource_Mouse);
+					platform::add_mouse_button_event(ImGuiMouseSource_Mouse, false);
 				}
 
-				ImGui::Separator();
+				widgets::separator();
 
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.FramePadding.y);
-				if (ImGui::Button("Create", ImVec2(button_size_x, 0)))
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::frame_padding().y);
+				if (widgets::button("Create", ImVec2(button_size_x, 0)))
 				{
-					auto success = true;
-					if (Create(new_project_name, new_project_path.c_str()))
+					if (editor::game::create(new_project_name, new_project_path.c_str()))
 					{
-						// todo : error handling, is it possible to fail to open after create?
-						assert(Open(std::filesystem::path(new_project_path).append(new_project_name)));
+						// todo : error handling, is it possible to fail to open after create? => yes when build is failed
+
+						assert(editor::game::open_async(std::filesystem::path(new_project_path).append(new_project_name)));
+
+						_sort_project_open_data();
+						editor::on_project_loaded();
+						editor::game::_current_project.is_ready = true;
+
 						_open_dialog_new_project = false;
 						show_error_msg			 = false;
 					}
@@ -653,8 +905,8 @@ namespace Editor::GameProject::Browser
 					}
 				}
 
-				ImGui::SameLine();
-				if (ImGui::Button("Cancel", ImVec2(button_size_x, 0)))
+				widgets::sameline();
+				if (widgets::button("Cancel", ImVec2(button_size_x, 0)))
 				{
 					_open_dialog_new_project = false;
 					show_error_msg			 = false;
@@ -662,13 +914,13 @@ namespace Editor::GameProject::Browser
 
 				if (show_error_msg)
 				{
-					ImGui::TextColored(ImColor(COL_RED), "Create Project Failed");
+					widgets::text_colored(ImColor(COL_RED), "Create Project Failed");
 				}
 
-				ImGui::EndPopup();
+				widgets::end_popup();
 			}
 
-			ImGui::OpenPopup("New Project");
+			widgets::open_popup("New Project");
 		}
 
 		void _dialog_add_project()
@@ -686,112 +938,115 @@ namespace Editor::GameProject::Browser
 				}
 			}
 
-			if (open_project_path.empty() is_false and Open(open_project_path) is_false)
-			{
-				_open_popup_add_project_failed = true;
-			}
+			editor::widgets::progress_modal(
+				"Open project", [open_project_path]() { return editor::game::open_async(open_project_path); }, [](bool res) {
+					if (res)
+					{
+						_sort_project_open_data();
+						game::on_project_loaded();
+						editor::game::_current_project.is_ready = true;
+					}
+					else
+					{
+						_open_popup_add_project_failed = true;
+					} });
+
 
 			_open_dialog_add_project = false;
 		}
 
 		void _popup_open_project_failed()
 		{
-			if (ImGui::BeginPopupModal("Open Project Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar))
+			if (_p_selected_project_open_data is_nullptr) return;
+
+			if (widgets::begin_popup_modal("Open Project Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar))
 			{
-				assert(_p_selected_project_open_data is_not_nullptr);
 				{
-					ImGui::PushFont(GEctx->P_Font_Arial_Bold_18);
-					ImGui::Text("Project failed to open");
-					ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y);
-					ImGui::PopFont();
+					widgets::push_font(GEctx->p_font_arial_bold_18);
+					widgets::text("Project failed to open");
+					widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::item_spacing().y);
+					widgets::pop_font();
 				}
 
-				ImGui::Separator();
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y);
-				ImGui::Text("%s could not be opened and will be removed from the list.", _p_selected_project_open_data->Name.c_str());
-				ImGui::SetCursorPos(ImVec2(ImGui::GetItemRectSize().x - (ImGui::CalcTextSize("  Ok  ").x + GImGui->Style.FramePadding.x) /*+ GImGui->Style.FramePadding.x * 2*/, ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y));
-				if (ImGui::Button("  Ok  "))
+				widgets::separator();
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::item_spacing().y);
+				widgets::text("%s could not be opened and will be removed from the list.", _p_selected_project_open_data->name.c_str());
+				widgets::set_cursor_pos(ImVec2(widgets::get_item_rect().GetSize().x - (widgets::calc_text_size("  Ok  ").x + style::frame_padding().x) /*+ style::frame_padding().x * 2*/, widgets::get_cursor_pos_y() + style::item_spacing().y));
+				if (widgets::button("  Ok  "))
 				{
 					_project_open_datas.erase(std::find_if(_project_open_datas.begin(), _project_open_datas.end(),
-														   [](Project_Open_Data od)
-														   { return od.Name == _p_selected_project_open_data->Name; }));
+														   [](editor::game::project_open_data od) { return od.name == _p_selected_project_open_data->name; }));
 
-					_open_popup_open_project_failed = false;
-					_p_selected_project_open_data	= nullptr;
+					_p_selected_project_open_data = nullptr;
 				}
 
-				ImGui::EndPopup();
+				widgets::end_popup();
 			}
-
-			ImGui::OpenPopup("Open Project Failed");
 		}
 
 		void _popup_add_project_failed()
 		{
-			if (ImGui::BeginPopupModal("Add Project Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar))
+			if (widgets::begin_popup_modal("Add Project Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar))
 			{
-				ImGui::PushFont(GEctx->P_Font_Arial_Bold_18);
-				ImGui::Text("Project failed to add");
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y);
-				ImGui::PopFont();
+				widgets::push_font(GEctx->p_font_arial_bold_18);
+				widgets::text("Project failed to add");
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::item_spacing().y);
+				widgets::pop_font();
 
-				auto got_it_button_pos_x = ImGui::GetItemRectSize().x - GImGui->Style.FramePadding.x - ImGui::CalcTextSize("  Got it  ").x;
-				ImGui::Separator();
+				auto got_it_button_pos_x = widgets::get_item_rect().GetSize().x - style::frame_padding().x - widgets::calc_text_size("  Got it  ").x;
+				widgets::separator();
 
-				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y);
-				ImGui::Text("Project is not valid");
-				ImGui::SetCursorPos(ImVec2(got_it_button_pos_x, ImGui::GetCursorPosY() + GImGui->Style.ItemSpacing.y));
-				if (ImGui::Button("  Got it  "))
+				widgets::set_cursor_pos_y(widgets::get_cursor_pos_y() + style::item_spacing().y);
+				widgets::text("Project is not valid");
+				widgets::set_cursor_pos({ got_it_button_pos_x, widgets::get_cursor_pos_y() + style::item_spacing().y });
+				if (widgets::button("  Got it  "))
 				{
-					_open_popup_add_project_failed = false;
-					_p_selected_project_open_data  = nullptr;
+					widgets::close_popup();
+					_p_selected_project_open_data = nullptr;
 				}
 
-				ImGui::EndPopup();
+				widgets::end_popup();
 			}
-
-			ImGui::OpenPopup("Add Project Failed");
 		}
 
 		void _childwindow_project_list()
 		{
-			if (ImGui::BeginChild("Header", ImVec2(_project_list_child_window_size.x, _header_height + GImGui->Style.ItemSpacing.y * 4)))
+			if (widgets::begin_child("Header", ImVec2(_project_list_child_window_size.x, _header_height + style::item_spacing().y * 4)))
 			{
-				_next_draw_pos = ImGui::GetCurrentWindowRead()->Pos + GImGui->Style.FramePadding;
+				_next_draw_pos = platform::get_window_pos() + style::frame_padding();
 
-				auto p_draw_list			= ImGui::GetCurrentWindowRead()->DrawList;
-				auto item_spacing_x			= GImGui->Style.ItemSpacing.x;
-				auto frame_padding_x		= GImGui->Style.FramePadding.x;
-				auto draw_pos_header_text_y = (_header_height - GImGui->FontSize) / 2;
+				auto item_spacing_x			= style::item_spacing().x;
+				auto frame_padding_x		= style::frame_padding().x;
+				auto draw_pos_header_text_y = (_header_height - style::font_size()) / 2;
 
-				p_draw_list->AddRectFilled(_next_draw_pos, _next_draw_pos + ImVec2(_header_size.x, _header_height), ImColor(COL_GRAY_1));
-				p_draw_list->AddRect(_next_draw_pos, _next_draw_pos + ImVec2(_header_size.x, _header_height), ImColor(COL_TEXT_GRAY));
-				p_draw_list->AddLine(_next_draw_pos + ImVec2(_draw_pos_star.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_star.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
-				p_draw_list->AddLine(_next_draw_pos + ImVec2(_draw_pos_name.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_name.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
-				p_draw_list->AddLine(_next_draw_pos + ImVec2(_draw_pos_last_opened.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_last_opened.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
-				p_draw_list->AddLine(_next_draw_pos + ImVec2(_draw_pos_path.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_path.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
-				p_draw_list->AddLine(_next_draw_pos + ImVec2(_draw_pos_path.x + _width_path + frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_path.x + _width_path + frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_rect_filled({ _next_draw_pos, _next_draw_pos + ImVec2(_header_size.x, _header_height) }, ImColor(COL_GRAY_1));
+				widgets::draw_rect(_next_draw_pos, _next_draw_pos + ImVec2(_header_size.x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_line(_next_draw_pos + ImVec2(_draw_pos_star.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_star.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_line(_next_draw_pos + ImVec2(_draw_pos_name.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_name.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_line(_next_draw_pos + ImVec2(_draw_pos_last_opened.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_last_opened.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_line(_next_draw_pos + ImVec2(_draw_pos_path.x - frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_path.x - frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
+				widgets::draw_line(_next_draw_pos + ImVec2(_draw_pos_path.x + _width_path + frame_padding_x, 0), _next_draw_pos + ImVec2(_draw_pos_path.x + _width_path + frame_padding_x, _header_height), ImColor(COL_TEXT_GRAY));
 
-				_draw_star(p_draw_list, _next_draw_pos + ImVec2(_draw_pos_star.x, 0) + ImVec2(_width_star, _header_height) * 0.5f, _width_star * 0.25f, ImColor(COL_TEXT_GRAY));
+				_draw_star(_next_draw_pos + ImVec2(_draw_pos_star.x, 0) + ImVec2(_width_star, _header_height) * 0.5f, _width_star * 0.25f, ImColor(COL_TEXT_GRAY));
 
-				ImGui::PushFont(GEctx->P_Font_Arial_Bold_13_5);
-				p_draw_list->AddText(_next_draw_pos + ImVec2(_draw_pos_name.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Name");
-				p_draw_list->AddText(_next_draw_pos + ImVec2(_draw_pos_last_opened.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Last Opened");
-				p_draw_list->AddText(_next_draw_pos + ImVec2(_draw_pos_path.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Path");
-				ImGui::PopFont();
+				widgets::push_font(GEctx->p_font_arial_bold_13_5);
+				widgets::draw_text(_next_draw_pos + ImVec2(_draw_pos_name.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Name");
+				widgets::draw_text(_next_draw_pos + ImVec2(_draw_pos_last_opened.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Last Opened");
+				widgets::draw_text(_next_draw_pos + ImVec2(_draw_pos_path.x, draw_pos_header_text_y), ImColor(COL_TEXT), "Path");
+				widgets::pop_font();
 
-				_next_draw_pos.y += _header_height + GImGui->Style.ItemSpacing.y * 2 + GImGui->Style.FramePadding.y;
+				_next_draw_pos.y += _header_height + style::item_spacing().y * 2 + style::frame_padding().y;
 			}
 
-			ImGui::EndChild();
+			widgets::end_child();
 
-			if (ImGui::BeginChild("Project List", _project_list_child_window_size, false, ImGuiWindowFlags_NoScrollbar))
+			if (widgets::begin_child("Project List", _project_list_child_window_size, false, ImGuiWindowFlags_NoScrollbar))
 			{
 				static auto scroll_ratio	 = 0.f;
-				int			item_count		 = _project_list_child_window_size.y / _item_size.y;
+				auto		item_count		 = _project_list_child_window_size.y / _item_size.y;
 				auto		need_scrollbar	 = item_count < _project_open_datas.size();
-				int			item_start_index = (_project_open_datas.size() - item_count) * scroll_ratio;
-				int			item_end_index	 = min(_project_open_datas.size(), item_start_index + item_count);
+				auto		item_start_index = (int)((_project_open_datas.size() - item_count) * scroll_ratio);
+				auto		item_end_index	 = min(_project_open_datas.size(), item_start_index + item_count);
 
 				for (int i = item_start_index; i < item_end_index; ++i)
 				{
@@ -809,12 +1064,11 @@ namespace Editor::GameProject::Browser
 					auto   grab_hovered	  = false;
 					auto   grab_held	  = false;
 					auto   scrollbar_held = false;
-					auto   window		  = ImGui::GetCurrentWindowRead();
-					auto   scrollbar_id	  = window->GetID("scrollbar");
-					auto   grab_id		  = window->GetID("scrollbar_grab");
-					auto   grab_size	  = 60.f * GEctx->Dpi_Scale;
+					auto   scrollbar_id	  = widgets::get_id("scrollbar");
+					auto   grab_id		  = widgets::get_id("scrollbar_grab");
+					auto   grab_size	  = 60.f * platform::dpi_scale();
 					ImRect scrollbar_bb {
-						ImVec2(_next_draw_pos.x + _draw_pos_path.x + _width_path + GImGui->Style.FramePadding.x * 2, window->Pos.y),
+						ImVec2(_next_draw_pos.x + _draw_pos_path.x + _width_path + style::frame_padding().x * 2, platform::get_window_pos().y),
 						ImVec2(_next_draw_pos.x + _header_size.x, _next_draw_pos.y)
 					};
 
@@ -824,14 +1078,14 @@ namespace Editor::GameProject::Browser
 						grab_bb.Max.y = grab_bb.Min.y + grab_size;
 					}
 
-					ImGui::ItemAdd(scrollbar_bb, scrollbar_id, nullptr, ImGuiItemFlags_NoNav);
-					ImGui::ItemAdd(grab_bb, grab_id);
-					ImGui::ButtonBehavior(grab_bb, grab_id, &grab_hovered, &grab_held);
-					ImGui::ButtonBehavior(scrollbar_bb, scrollbar_id, nullptr, &scrollbar_held);
+					widgets::add_item(scrollbar_bb, scrollbar_id, nullptr, ImGuiItemFlags_NoNav);
+					widgets::add_item(grab_bb, grab_id);
+					widgets::button_behavior(grab_bb, grab_id, &grab_hovered, &grab_held);
+					widgets::button_behavior(scrollbar_bb, scrollbar_id, nullptr, &scrollbar_held);
 
 					if (scrollbar_held)
 					{
-						scroll_ratio  = std::clamp((ImGui::GetMousePos().y - (scrollbar_bb.Min.y + grab_size * 0.5f)) / (scrollbar_bb.GetSize().y - grab_size), 0.f, 1.f);
+						scroll_ratio  = std::clamp((platform::get_mouse_pos().y - (scrollbar_bb.Min.y + grab_size * 0.5f)) / (scrollbar_bb.GetSize().y - grab_size), 0.f, 1.f);
 						grab_bb.Min	  = ImVec2(scrollbar_bb.Min.x, scrollbar_bb.Min.y + (scrollbar_bb.GetSize().y - grab_size) * scroll_ratio);
 						grab_bb.Max.y = grab_bb.Min.y + grab_size;
 					}
@@ -840,13 +1094,13 @@ namespace Editor::GameProject::Browser
 						static float anchor			  = 0.f;
 						static auto	 before_grab_rect = ImRect();
 
-						if (GImGui->IO.MouseClicked[0])
+						if (platform::mouse_clicked())
 						{
-							anchor			 = ImGui::GetMousePos().y;
+							anchor			 = platform::get_mouse_pos().y;
 							before_grab_rect = grab_bb;
 						}
 
-						auto delta_move = ImGui::GetMousePos().y - anchor;
+						auto delta_move = platform::get_mouse_pos().y - anchor;
 						auto new_pos_y	= std::clamp(before_grab_rect.Min.y + delta_move, scrollbar_bb.Min.y, scrollbar_bb.Max.y - grab_size);
 
 						grab_bb.Min.y = new_pos_y;
@@ -854,98 +1108,122 @@ namespace Editor::GameProject::Browser
 
 						scroll_ratio = (grab_bb.Min.y - scrollbar_bb.Min.y) / (scrollbar_bb.GetSize().y - grab_size);
 					}
-					else if (GImGui->IO.MouseWheel)
+					else if (platform::get_mouse_wheel() > 0)
 					{
 						// todo
-						scroll_ratio += -GImGui->IO.MouseWheel * 0.1f;
+						scroll_ratio += -platform::get_mouse_wheel() * 0.1f;
 						scroll_ratio  = std::clamp(scroll_ratio, 0.f, 1.f);
 					}
 
 					// window->DrawList->AddRectFilled(scrollbar_bb.Min, scrollbar_bb.Max, ImGui::GetColorU32(ImGuiCol_ScrollbarBg));
-					window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, ImGui::GetColorU32(grab_held ? ImGuiCol_ScrollbarGrabActive : grab_hovered ? ImGuiCol_ScrollbarGrabHovered
-																																						 : ImGuiCol_ScrollbarGrab),
-													_item_rounding);
+					widgets::draw_rect_filled(grab_bb, style::get_color_u32(grab_held ? ImGuiCol_ScrollbarGrabActive : grab_hovered ? ImGuiCol_ScrollbarGrabHovered
+																																	: ImGuiCol_ScrollbarGrab),
+											  _item_rounding);
 				}
-
-				ImGui::EndChild();
 			}
+
+			widgets::end_child();
 		}
 
+		void _draw()
+		{
+			bool filter_changed = widgets::input_text_with_hint("##Search", "Search", _buffer, _char_buffer_size);
+
+			widgets::push_font(GEctx->p_font_arial_bold_13_5);
+			widgets::sameline();
+			if (widgets::button(" Add "))
+			{
+				_open_dialog_add_project = true;
+			}
+
+			widgets::sameline();
+			if (widgets::button(" New "))
+			{
+				_open_dialog_new_project = true;
+			}
+
+			widgets::pop_font();
+			widgets::separator();
+
+			_childwindow_project_list();
+
+			if (_open_dialog_new_project)
+			{
+				_dialog_new_project();
+			}
+			else if (_open_dialog_add_project)
+			{
+				_dialog_add_project();
+			}
+
+			if (_open_popup_open_project_failed)
+			{
+				widgets::open_popup("Open Project Failed");
+				_open_popup_open_project_failed = false;
+			}
+			else if (_open_popup_add_project_failed)
+			{
+				widgets::open_popup("Add Project Failed");
+				_open_popup_add_project_failed = false;
+			}
+
+
+			_popup_add_project_failed();
+			_popup_open_project_failed();
+		}
 	}	 // namespace
 
-	void Update_Dpi_Scale()
+	void update_dpi_scale()
 	{
-		auto frame_padding = GImGui->Style.FramePadding;
-		auto _item_spacing = GImGui->Style.ItemSpacing;
+		auto frame_padding = style::frame_padding();
+		auto _item_spacing = style::item_spacing();
 
-		_project_list_child_window_size	   = ImGui::GetPlatformIO().Monitors[0].MainSize;
+		_project_list_child_window_size	   = platform::get_monitor_size();
 		_project_list_child_window_size.x *= 0.50f;
 		_project_list_child_window_size.y *= 0.50f;
 
 		_header_size.x = _project_list_child_window_size.x - frame_padding.x * 2;
-		_header_size.y = frame_padding.y * 2 + _item_spacing.y * 3 + GImGui->FontSize * 2;
+		_header_size.y = frame_padding.y * 2 + _item_spacing.y * 3 + style::font_size() * 2;
 
 		_width_star		   = _header_size.y - frame_padding.y * 2;
-		_width_name_desc   = _project_list_child_window_size.x * 0.4;
-		_width_last_opened = ImGui::CalcTextSize("0000-00-00-00:00").x;
+		_width_name_desc   = _project_list_child_window_size.x * 0.4f;
+		_width_last_opened = widgets::calc_text_size("0000-00-00-00:00").x;
 		_width_path		   = _header_size.x - (_width_star + _width_name_desc + _width_last_opened + frame_padding.x * 14);
 
 		_header_height = _width_star;
 		{
-			int max_rendered_item_num		  = _project_list_child_window_size.y / _header_size.y;
+			auto max_rendered_item_num		  = (int)(_project_list_child_window_size.y / _header_size.y);
 			_project_list_child_window_size.y = max_rendered_item_num * _header_size.y + frame_padding.y;
 		}
 
 		_draw_pos_item		  = ImVec2(frame_padding.x * 3, 0);
 		_draw_pos_star		  = ImVec2(frame_padding.x * 4, frame_padding.y);
 		_draw_pos_name		  = _draw_pos_star + ImVec2(_width_star + frame_padding.x * 2, _item_spacing.y);
-		_draw_pos_desc		  = _draw_pos_name + ImVec2(0, GImGui->FontSize + _item_spacing.y);
-		_draw_pos_last_opened = ImVec2(_draw_pos_desc.x + _width_name_desc + frame_padding.x * 2, (_header_size.y - GImGui->FontSize) / 2);
+		_draw_pos_desc		  = _draw_pos_name + ImVec2(0, style::font_size() + _item_spacing.y);
+		_draw_pos_last_opened = ImVec2(_draw_pos_desc.x + _width_name_desc + frame_padding.x * 2, (_header_size.y - style::font_size()) / 2);
 		_draw_pos_path		  = _draw_pos_last_opened + ImVec2(_width_last_opened + frame_padding.x * 2, 0);
 
 		_item_size		= _header_size;
 		_item_size.x   -= _draw_pos_item.x * 2;
-		_item_rounding	= 5.f * GEctx->Dpi_Scale;
+		_item_rounding	= 5.f * GEctx->dpi_scale;
 	}
 
-	void Draw()
+	void show()
 	{
-		bool filter_changed = ImGui::InputTextWithHint("##Search", "Search", _buffer, _char_buffer_size);
+		static auto opened = false;
+		if (editor::game::project_opened())
+			return;
 
-		ImGui::PushFont(GEctx->P_Font_Arial_Bold_13_5);
-		ImGui::SameLine();
-		if (ImGui::Button(" Add "))
+		if (widgets::begin_popup_modal("Project_Browser", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 		{
-			_open_dialog_add_project = true;
+			_draw();
+			widgets::end_popup();
 		}
 
-		ImGui::SameLine();
-		if (ImGui::Button(" New "))
+		if (opened is_false)
 		{
-			_open_dialog_new_project = true;
-		}
-
-		ImGui::PopFont();
-		ImGui::Separator();
-
-		_childwindow_project_list();
-
-		if (_open_dialog_new_project)
-		{
-			_dialog_new_project();
-		}
-		else if (_open_dialog_add_project)
-		{
-			_dialog_add_project();
-		}
-
-		if (_open_popup_open_project_failed)
-		{
-			_popup_open_project_failed();
-		}
-		else if (_open_popup_add_project_failed)
-		{
-			_popup_add_project_failed();
+			widgets::open_popup("Project_Browser");
+			opened = true;
 		}
 	}
-}	 // namespace Editor::GameProject::Browser
+}	 // namespace editor::view::project_browser

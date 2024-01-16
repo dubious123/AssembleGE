@@ -1,125 +1,49 @@
 #pragma once
 #include <string>
-#include <vector>
-#include "../utilities/id.h"
 
-namespace Editor::GameProject
+namespace editor::game
 {
 #define SCENE_NAME_MAX_LEN 20
+	using namespace editor::models;
 
-	enum ComponentType
+	struct project_open_data
 	{
-		ComponentType_Transform,
-		ComponentType_Player,
-		ComponentType_Count,
-		ComponentType_InValid = -1,
+		editor_id	id;
+		std::string name;
+		std::string desc;
+		std::string last_opened_date;
+		std::string path;
+		bool		starred = false;
+
+		project_open_data() = default;
+		project_open_data(const char* name, const char* desc, const char* date, const char* path, bool starred);
 	};
 
-	enum SystemType
+	struct game_project
 	{
-		SystemType_Count,
-		SystemType_InValid = -1,
+		std::string directory_path;
+		std::string project_file_path;
+		std::string name;
+		std::string description;
+		std::string last_opened_date;
+		bool		is_ready = false;
 	};
 
-	struct Project_Open_Data;
-	struct Game_Project;
-	struct Scene;
-	struct World;
-	struct SubWorld;
-	struct Entity;
-	struct Component;
-	struct System;
+	void init();
 
-	struct Project_Open_Data
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-		std::string			   Desc;
-		std::string			   Last_Opened_Date;
-		std::string			   Path;
-		bool				   Starred = false;
+	bool project_opened();
 
-		Project_Open_Data() = default;
-		Project_Open_Data(const char* name, const char* desc, const char* date, const char* path, bool starred);
-	};
+	void on_project_loaded();
 
-	struct Game_Project
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Project_Data_File_Path;
-		std::string			   Name;
-		std::string			   Description;
-		std::string			   Last_Opened_Date;
-		std::vector<Scene>	   Scenes;
-		bool				   Ready = false;
-	};
+	void save_project_open_datas();
 
-	struct Scene
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-		std::vector<World>	   Worlds;
-	};
+	bool save();
 
-	struct World
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-		std::vector<Entity>	   Entities;
-		std::vector<System>	   Systems;
-		std::vector<SubWorld>  SubWorlds;
-	};
+	game_project* get_current_p_project();
+}	 // namespace editor::game
 
-	struct SubWorld
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-	};
-
-	struct Entity
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-		std::vector<Component> Components;
-	};
-
-	struct Component
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-	};
-
-	struct System
-	{
-		Editor::ID::AssembleID Id;
-		std::string			   Name;
-	};
-
-	void Init();
-
-	bool Project_Opened();
-
-	void Save_Project_Open_Datas();
-
-	bool Save();
-
-	const Game_Project* Get_Current_PProject();
-
-	bool Add_Scene(std::string name);
-
-	bool Add_World(std::string name, Editor::ID::AssembleID scene_id);
-
-	bool Add_SubWorld(std::string name, Editor::ID::AssembleID world_id);
-
-	bool Add_Entity(std::string name, Editor::ID::AssembleID world_id);
-
-	bool Add_System(SystemType system_type, Editor::ID::AssembleID world_id);
-
-	bool Add_Component(ComponentType component_type, Editor::ID::AssembleID entity_id);
-}	 // namespace Editor::GameProject
-
-namespace Editor::GameProject::Browser
+namespace editor::view::project_browser
 {
-	void Update_Dpi_Scale();
-	void Draw();
-}	 // namespace Editor::GameProject::Browser
+	void update_dpi_scale();
+	void show();
+}	 // namespace editor::view::project_browser

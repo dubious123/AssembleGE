@@ -1,6 +1,7 @@
+#include "pch.h"
 #include "Timing.h"
 
-namespace Editor::Utilities::Timing
+namespace editor::utilities::Timing
 {
 	std::string Now_Str()
 	{
@@ -11,4 +12,4 @@ namespace Editor::Utilities::Timing
 		std::chrono::hh_mm_ss		hms { std::chrono::floor<std::chrono::milliseconds>(now - dp) };
 		return std::format("{}-{:02}-{:02} {:02}:{:02}", ymd.year(), (unsigned int)ymd.month(), (unsigned int)ymd.day(), hms.hours().count(), hms.minutes().count());
 	}
-}	 // namespace Editor::Utilities::Timing
+}	 // namespace editor::utilities::Timing

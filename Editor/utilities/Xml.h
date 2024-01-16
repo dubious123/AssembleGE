@@ -2,6 +2,6 @@
 #include <string>
 #include "pugixml/pugixml.hpp"
 
-namespace Editor::Utilities::Xml
+namespace editor::utilities::Xml
 {
-}	 // namespace Editor::Utilities::Xml
+}	 // namespace editor::utilities::Xml

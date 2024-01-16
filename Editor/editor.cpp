@@ -1,26 +1,9 @@
-#ifndef IMGUI_DEFINE_MATH_OPERATORS
-	#define IMGUI_DEFINE_MATH_OPERATORS
-#endif
+#include "pch.h"
 
-#ifndef WIN32_LEAN_AND_MEAN
-	#define WIN32_LEAN_AND_MEAN
-#endif
-#include <Windows.h>
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <dwmapi.h>
-
+#include "stb_image.h"
 #include "editor.h"
 #include "editor_view.h"
-#include "logger.h"
 #include "game_project\game_project.h"
-#include "imgui\imgui.h"
-#include "imgui\imgui_internal.h"
-#include "imgui\imgui_impl_win32.h"
-#include "imgui\imgui_impl_dx12.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 // #ifdef _DEBUG
 //	#define DX12_ENABLE_DEBUG_LAYER
@@ -41,7 +24,7 @@
 	#define GET_Y_PARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
-EditorContext* GEctx = nullptr;
+editor_context* GEctx = nullptr;
 
 struct FrameContext
 {
@@ -71,6 +54,16 @@ static ID3D12Resource*			   g_mainRenderTargetResource[NUM_BACK_BUFFERS]	  = {};
 static D3D12_CPU_DESCRIPTOR_HANDLE g_mainRenderTargetDescriptor[NUM_BACK_BUFFERS] = {};
 
 // Forward declarations of helper functions
+namespace editor
+{
+	namespace
+	{
+		void _custom_buttons();
+		void _custom_caption();
+		void _load_ctx_menu();
+	}	 // namespace
+}	 // namespace editor
+
 bool		  CreateDeviceD3D(HWND hWnd);
 void		  CleanupDeviceD3D();
 void		  CreateRenderTarget();
@@ -83,14 +76,14 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace
 {
-	void Reset_Colors()
+	void _reset_colors()
 	{
 		ImGuiStyle& style							 = ImGui::GetStyle();
 		style.Colors[ImGuiCol_Text]					 = COL_TEXT;
 		style.Colors[ImGuiCol_TextDisabled]			 = COL_TEXT_DISABLED;
 		style.Colors[ImGuiCol_WindowBg]				 = COL_BLACK;		   // COL_BG_WINDOW;
 		style.Colors[ImGuiCol_ChildBg]				 = COL_BLACK;		   // COL_BG_WINDOW;	   // COL_BG_POPUP;
-		style.Colors[ImGuiCol_PopupBg]				 = COL_BLACK;		   // COL_BG_WINDOW;	   // COL_BG_POPUP;
+		style.Colors[ImGuiCol_PopupBg]				 = COL_BG_ACTIVE;	   // COL_BG_WINDOW;	   // COL_BG_POPUP;
 		style.Colors[ImGuiCol_Border]				 = COL_BD_SELECTED;	   // ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
 		style.Colors[ImGuiCol_BorderShadow]			 = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 		style.Colors[ImGuiCol_FrameBg]				 = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
@@ -111,8 +104,8 @@ namespace
 		style.Colors[ImGuiCol_ButtonHovered]		 = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
 		style.Colors[ImGuiCol_ButtonActive]			 = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
 		style.Colors[ImGuiCol_Header]				 = ImVec4(0.22f, 0.22f, 0.22f, 1.00f);
-		style.Colors[ImGuiCol_HeaderHovered]		 = COL_GRAY_1;	  // ImVec4(0.25f, 0.25f, 0.25f, 1.00f); //selectable hovered
-		style.Colors[ImGuiCol_HeaderActive]			 = COL_GRAY_2;	  // ImVec4(0.67f, 0.67f, 0.67f, 0.39f); //selectable active
+		style.Colors[ImGuiCol_HeaderHovered]		 = COL_BG_SELECTED;	   // ImVec4(0.25f, 0.25f, 0.25f, 1.00f); //selectable hovered
+		style.Colors[ImGuiCol_HeaderActive]			 = COL_GRAY_2;		   // ImVec4(0.67f, 0.67f, 0.67f, 0.39f); //selectable active
 		style.Colors[ImGuiCol_Separator]			 = style.Colors[ImGuiCol_Border];
 		style.Colors[ImGuiCol_SeparatorHovered]		 = ImVec4(0.41f, 0.42f, 0.44f, 1.00f);
 		style.Colors[ImGuiCol_SeparatorActive]		 = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
@@ -143,44 +136,122 @@ namespace
 		}
 	}
 
-	void Reset_Style()
+	void _reset_style()
 	{
-		ImGuiStyle& style		= ImGui::GetStyle();
-		style.WindowBorderSize	= 1.0f;
-		style.ChildBorderSize	= 1.0f;
-		style.PopupBorderSize	= 1.0f;
-		style.FrameBorderSize	= 1.0f;
-		style.TabBorderSize		= 0.0f;
-		style.WindowRounding	= 0.0f;
-		style.ChildRounding		= 0.0f;
-		style.PopupRounding		= 0.0f;
-		style.FrameRounding		= 2.3f;
-		style.ScrollbarRounding = 0.0f;
-		style.GrabRounding		= 2.3f;
-		style.TabRounding		= 0.0f;
-		style.FramePadding		= ImVec2(6.f, 6.f);
-		style.PopupBorderSize	= .4f;
-		style.ItemSpacing.y		= 3.f;
-		// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+		ImGuiStyle& style		 = ImGui::GetStyle();
+		style.WindowBorderSize	 = 1.0f;
+		style.ChildBorderSize	 = 1.0f;
+		style.PopupBorderSize	 = 1.0f;
+		style.FrameBorderSize	 = 1.0f;
+		style.TabBorderSize		 = 0.0f;
+		style.WindowRounding	 = 0.0f;
+		style.ChildRounding		 = 0.0f;
+		style.PopupRounding		 = 0.0f;
+		style.FrameRounding		 = 2.3f;
+		style.ScrollbarRounding	 = 0.0f;
+		style.GrabRounding		 = 2.3f;
+		style.TabRounding		 = 0.0f;
+		style.FramePadding		 = ImVec2(6.f, 6.f);	// ImVec2(6.f, 6.f);
+		style.PopupBorderSize	 = .4f;
+		style.ItemSpacing.y		 = 3.f;
+		style.ItemInnerSpacing.x = 0;
+		// style.ItemSpacing		= ImVec2(8.4f, 3.f);	// ImVec2(8.4f, 3.f);					   // 3.f;
+		style.WindowPadding = ImVec2(8.f, 8.f);	   // 3.f;
+		style.WindowMinSize = ImVec2(1.f, 1.f);
+
+		// style.SelectableTextAlign = ImVec2(0, 0.5f);
+		// style.ItemSpacing		= MENU_ITEM_PADDING * 2;				// ImVec2(8.4f, 3.f);					   // 3.f;
+		// style.WindowPadding		= POPUP_PADDING + style.ItemSpacing;	// 3.f;
+		//     When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
 		if (GImGui->IO.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
 			style.WindowRounding = 0.0f;
 		}
 	}
+
+	void _update_dpi_scale(float new_dpi_scale)
+	{
+		ImGuiIO& io = ImGui::GetIO();
+
+		ImGui_ImplDX12_InvalidateDeviceObjects();
+
+		// Setup Dear ImGui style
+		ImGuiStyle& style	 = ImGui::GetStyle();
+		ImGuiStyle	styleold = style;
+		style				 = ImGuiStyle();
+		_reset_style();
+		CopyMemory(style.Colors, styleold.Colors, sizeof(style.Colors));	// Restore colors
+
+		style.ScaleAllSizes(new_dpi_scale);
+		GEctx->dpi_scale = new_dpi_scale;
+		io.Fonts->Clear();
+
+		GEctx->p_font_arial_default_13_5 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 13.5f * new_dpi_scale);
+		GEctx->p_font_arial_bold_13_5	 = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 13.5f * new_dpi_scale);
+
+		GEctx->p_font_arial_default_16 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 16.f * new_dpi_scale);
+		GEctx->p_font_arial_bold_16	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 16.f * new_dpi_scale);
+
+		GEctx->p_font_arial_default_18 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 18.f * new_dpi_scale);
+		GEctx->p_font_arial_bold_18	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 18.f * new_dpi_scale);
+
+		GImGui->Font = GEctx->p_font_arial_default_13_5;
+
+		ImGui_ImplDX12_CreateDeviceObjects();
+
+		GEctx->dpi_changed = true;
+		// todo
+		// Editor::View::Update_Dpi_Scale();
+	}
+
+	bool _is_window_maximized(void* hwnd)
+	{
+		WINDOWPLACEMENT placement = { 0 };
+		placement.length		  = sizeof(WINDOWPLACEMENT);
+		if (::GetWindowPlacement((HWND)hwnd, &placement))
+		{
+			return placement.showCmd == SW_SHOWMAXIMIZED;
+		}
+
+		return false;
+	}
+
+	bool inline _is_mouse_in_client(POINT mouseScreenPos)
+	{
+		return mouseScreenPos.y >= CAPTION_HIGHT * editor::platform::dpi_scale() or GEctx->main_menu_rect.Contains(ImVec2((float)mouseScreenPos.x, (float)mouseScreenPos.y));
+	}
+
+	void _close()
+	{
+		WaitForLastSubmittedFrame();
+
+		// Cleanup
+		g_p_icon_texture->Release();
+
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+
+		CleanupDeviceD3D();
+		::DestroyWindow((HWND)GEctx->hwnd);
+		::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+
+		delete GEctx;
+	}
 }	 // namespace
 
-void Editor::Init()
+void editor::init()
 {
 	// Create application window
 	wc = { sizeof(wc), /*CS_CLASSDC*/ CS_HREDRAW | CS_VREDRAW | CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"AssembleGE Editor", nullptr };
 	::RegisterClassExW(&wc);
 
-	int window_style = WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VISIBLE;
+	auto window_style = WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VISIBLE;
 	ImGui_ImplWin32_EnableDpiAwareness();
 	BOOL USE_DARK_MODE = true;
 
 	float dpi_scale = ::GetDpiForSystem() / 96.f;
-	HWND  hwnd		= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, 100, 100, 1280 * dpi_scale, 800 * dpi_scale, nullptr, nullptr, wc.hInstance, nullptr);
+	HWND  hwnd		= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, 100, 100, (int)(1280 * dpi_scale), (int)(800 * dpi_scale), nullptr, nullptr, wc.hInstance, nullptr);
 
 	// Initialize Direct3D
 	if (!CreateDeviceD3D(hwnd))
@@ -198,9 +269,9 @@ void Editor::Init()
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	GEctx			 = new EditorContext();
-	GEctx->Hwnd		 = hwnd;
-	GEctx->Dpi_Scale = ::GetDpiForSystem() / 96.f;
+	GEctx			 = new editor_context();
+	GEctx->hwnd		 = hwnd;
+	GEctx->dpi_scale = ::GetDpiForSystem() / 96.f;
 
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -211,8 +282,8 @@ void Editor::Init()
 	io.ConfigViewportsNoAutoMerge	 = true;
 	io.ConfigViewportsNoTaskBarIcon	 = true;
 
-	Reset_Colors();
-	Editor::Update_Dpi_Scale(dpi_scale);
+	_reset_colors();
+	_update_dpi_scale(dpi_scale);
 
 	// GEctx->P_Font_Arial_Default = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 13.5f * GEctx->Dpi_Scale);
 	// GEctx->P_Font_Arial_Bold	= io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 13.5f * GEctx->Dpi_Scale);
@@ -253,50 +324,18 @@ void Editor::Init()
 	bool ret = LoadTextureFromFile("AssembleGE_Icon.png", g_pd3dDevice, my_texture_srv_cpu_handle, &g_p_icon_texture, &my_image_width, &my_image_height);
 	IM_ASSERT(ret);
 
-	GEctx->Icon_Texture_Id = my_texture_srv_gpu_handle.ptr;
+	GEctx->icon_texture_id = my_texture_srv_gpu_handle.ptr;
 #pragma endregion
 
-	Editor::Logger::Init();
-	Editor::View::Init();
-	Editor::GameProject::Init();
+	// editor::id::init();
+	//_load_ctx_menu();
+	editor::logger::init();
+	editor::view::init();
+	editor::game::init();
+	// Editor::UndoRedo::Init();
 }
 
-void Editor::Update_Dpi_Scale(float new_dpi_scale)
-{
-	ImGuiIO& io = ImGui::GetIO();
-
-	ImGui_ImplDX12_InvalidateDeviceObjects();
-
-	// Setup Dear ImGui style
-	ImGuiStyle& style	 = ImGui::GetStyle();
-	ImGuiStyle	styleold = style;
-	style				 = ImGuiStyle();
-	Reset_Style();
-	CopyMemory(style.Colors, styleold.Colors, sizeof(style.Colors));	// Restore colors
-
-	style.ScaleAllSizes(new_dpi_scale);
-	GEctx->Dpi_Scale = new_dpi_scale;
-	io.Fonts->Clear();
-
-	GEctx->P_Font_Arial_Default_13_5 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 13.5f * GEctx->Dpi_Scale);
-	GEctx->P_Font_Arial_Bold_13_5	 = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 13.5f * GEctx->Dpi_Scale);
-
-	GEctx->P_Font_Arial_Default_16 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 16.f * GEctx->Dpi_Scale);
-	GEctx->P_Font_Arial_Bold_16	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 16.f * GEctx->Dpi_Scale);
-
-	GEctx->P_Font_Arial_Default_18 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 18.f * GEctx->Dpi_Scale);
-	GEctx->P_Font_Arial_Bold_18	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 18.f * GEctx->Dpi_Scale);
-
-	GImGui->Font = GEctx->P_Font_Arial_Default_13_5;
-
-	ImGui_ImplDX12_CreateDeviceObjects();
-
-	GEctx->Dpi_Changed = true;
-	// todo
-	// Editor::View::Update_Dpi_Scale();
-}
-
-void Editor::Run()
+void editor::Run()
 {
 	// Our state
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.f);
@@ -323,37 +362,32 @@ void Editor::Run()
 
 		COLORREF BORDER_COLOR = ::GetFocus() != NULL ? RGB(113, 96, 232) : RGB(61, 61, 61);
 		::DwmSetWindowAttribute(
-			(HWND)GEctx->Hwnd, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR,
+			(HWND)GEctx->hwnd, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR,
 			&BORDER_COLOR, sizeof(BORDER_COLOR));
 
 		// Start the Dear ImGui frame
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
+		// if (ImGui::FindWindowByName("Project_Browser") and ImGui::FindWindowByName("Project_Browser")->Flags == 0)
+		//{
+		//	int a = 1;
+		// }
 		ImGui::NewFrame();
-		if (GEctx->Dpi_Changed)
+
+
+		if (GEctx->dpi_changed)
 		{
-			Editor::GameProject::Browser::Update_Dpi_Scale();
-			Editor::View::Update_Dpi_Scale();
-			GEctx->Dpi_Changed = false;
+			editor::view::update_dpi_scale();
+			GEctx->dpi_changed = false;
 		}
 
-		Editor::Show_Custom_Caption();
-		Editor::View::Main_Dock();
+		_custom_caption();
 
-		Editor::View::Show();
+		editor::view::show();
 
 		ImGui::ShowDemoWindow();
 
-		if (Editor::GameProject::Project_Opened() is_false)
-		{
-			Editor::Show_Project_Browser();
-			if (Editor::GameProject::Project_Opened()) Editor::GameProject::Save_Project_Open_Datas();
-		}
-
-		// Editor::View::Show();
-
-		// Rendering
-		// Editor::On_Frame_End();
+		editor::on_frame_end();
 		ImGui::Render();
 
 		FrameContext* frameCtx		= WaitForNextFrameResources();
@@ -399,25 +433,7 @@ void Editor::Run()
 		frameCtx->FenceValue	 = fenceValue;
 	}
 
-	Editor::Close();
-}
-
-void Editor::Close()
-{
-	WaitForLastSubmittedFrame();
-
-	// Cleanup
-	g_p_icon_texture->Release();
-
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-
-	CleanupDeviceD3D();
-	::DestroyWindow((HWND)GEctx->Hwnd);
-	::UnregisterClassW(wc.lpszClassName, wc.hInstance);
-
-	delete GEctx;
+	_close();
 }
 
 // Helper functions
@@ -823,131 +839,8 @@ bool LoadTextureFromFile(const char* filename, ID3D12Device* d3d_device, D3D12_C
 	return true;
 }
 
-void Editor::Show_Custom_Caption()
-{
-	ImGuiViewport*	 viewport		   = ImGui::GetMainViewport();
-	ImGuiWindowFlags window_flags	   = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
-	GImGui->NextWindowData.Flags	  |= ImGuiNextWindowDataFlags_HasViewport;
-	GImGui->NextWindowData.ViewportId  = viewport->ID;
-	ImVec2 menuSize					   = viewport->Size;
-	menuSize.y						   = CAPTION_HIGHT * GEctx->Dpi_Scale;
-
-	ImGui::SetNextWindowViewport(viewport->ID);
-	ImGui::SetNextWindowPos(viewport->Pos);
-	ImGui::SetNextWindowSize(menuSize);
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, GImGui->Style.Colors[ImGuiCol_TitleBg]);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, menuSize);	   // Lift normal size constraint
-	if (ImGui::Begin("MainMenu", NULL, window_flags))
-	{
-		ImGui::PopStyleVar(4);
-		ImGui::PopStyleColor();
-
-		ImGui::SetCursorPos(ImVec2(CAPTION_ICON_CPOS.x * GEctx->Dpi_Scale, CAPTION_ICON_CPOS.y * GEctx->Dpi_Scale));
-		ImGui::Image(GEctx->Icon_Texture_Id, ImVec2(CAPTION_ICON_SIZE.x * GEctx->Dpi_Scale, CAPTION_ICON_SIZE.y * GEctx->Dpi_Scale));
-
-		Editor::View::Main_Menu();
-
-		Editor::Draw_Caption_Buttons();
-	}
-
-	ImGui::End();
-}
-
-void Editor::Draw_Caption_Buttons()
-{
-	float  dpi_scale				   = GEctx->Dpi_Scale;
-	auto   style					   = GImGui->Style;
-	float  caption_button_icon_width   = 5.f * dpi_scale;
-	float  caption_restore_icon_offset = 2.f * dpi_scale;
-	ImVec2 caption_button_size		   = ImVec2(CAPTION_BUTTON_SIZE.x * dpi_scale, CAPTION_BUTTON_SIZE.y * dpi_scale);
-	ImVec2 draw_pos					   = ImVec2(GImGui->CurrentWindow->Rect().Max.x - caption_button_size.x * 3, GImGui->CurrentWindow->Pos.y);
-	ImVec2 caption_button_icon_center  = ImVec2(draw_pos.x + caption_button_size.x / 2, draw_pos.y + caption_button_size.y / 2);
-
-	ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
-	if (GEctx->Caption_Hovered_Button != Caption_Button_None)
-	{
-		ImColor button_color = GEctx->Caption_Held_Button == GEctx->Caption_Hovered_Button ? style.Colors[ImGuiCol_ButtonActive] : style.Colors[ImGuiCol_ButtonHovered];
-		ImVec2	p_min		 = ImVec2(draw_pos.x + CAPTION_BUTTON_SIZE.x * (int)GEctx->Caption_Hovered_Button * GEctx->Dpi_Scale, draw_pos.y);
-		ImVec2	p_max		 = ImVec2(p_min.x + CAPTION_BUTTON_SIZE.x * GEctx->Dpi_Scale, draw_pos.y + CAPTION_BUTTON_SIZE.y * GEctx->Dpi_Scale);
-		draw_list->AddRectFilled(p_min, p_max, button_color);
-	}
-
-	draw_list->AddLine(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y), ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-
-	draw_pos.x					 += caption_button_size.x;
-	caption_button_icon_center.x += caption_button_size.x;
-
-	if (Is_Window_Maximized(GEctx->Hwnd))
-	{
-		draw_list->AddRect(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
-						   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), 0.f, ImDrawFlags_None, dpi_scale);
-
-		draw_list->AddLine(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
-						   ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-
-		draw_list->AddLine(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width),
-						   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-
-		draw_list->AddLine(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
-						   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-
-		draw_list->AddLine(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset),
-						   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-	}
-	else
-	{
-		draw_list->AddRect(ImVec2(draw_pos.x + caption_button_size.x / 2 - caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 - caption_button_icon_width), ImVec2(draw_pos.x + caption_button_size.x / 2 + caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 + caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), 0.f, ImDrawFlags_None, dpi_scale);
-	}
-
-	draw_pos.x					 += caption_button_size.x;
-	caption_button_icon_center.x += caption_button_size.x;
-
-	draw_list->AddLine(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
-					   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-	draw_list->AddLine(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width),
-					   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), ImColor(style.Colors[ImGuiCol_Text]), dpi_scale);
-}
-
-void Editor::Show_Project_Browser()
-{
-	if (ImGui::BeginPopupModal("Project_Browser", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
-	{
-		Editor::GameProject::Browser::Draw();
-		ImGui::EndPopup();
-	}
-
-	ImGui::OpenPopup("Project_Browser");
-}
-
-bool Editor::Is_Window_Maximized(void* hwnd)
-{
-	WINDOWPLACEMENT placement = { 0 };
-	placement.length		  = sizeof(WINDOWPLACEMENT);
-	if (::GetWindowPlacement((HWND)hwnd, &placement))
-	{
-		return placement.showCmd == SW_SHOWMAXIMIZED;
-	}
-
-	return false;
-}
-
-bool IsMousePosInClient(POINT mouseScreenPos)
-{
-	return mouseScreenPos.y >= CAPTION_HIGHT * GEctx->Dpi_Scale or GEctx->Main_Menu_Rect.Contains(ImVec2((float)mouseScreenPos.x, (float)mouseScreenPos.y));
-}
-
-// Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Win32 message handler
-// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	// todo change imgui source file
@@ -957,22 +850,22 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		{
 		case HTCAPTION:
 		{
-			GEctx->Caption_Hovered_Button = Caption_Button_None;
+			GEctx->caption_hovered_btn = Caption_Button_None;
 			break;
 		}
 		case HTMINBUTTON:
 		{
-			GEctx->Caption_Hovered_Button = CaptionButton::Caption_Button_Min;
+			GEctx->caption_hovered_btn = caption_button::Caption_Button_Min;
 			break;
 		}
 		case HTMAXBUTTON:
 		{
-			GEctx->Caption_Hovered_Button = CaptionButton::Caption_Button_Max;
+			GEctx->caption_hovered_btn = caption_button::Caption_Button_Max;
 			break;
 		}
 		case HTCLOSE:
 		{
-			GEctx->Caption_Hovered_Button = CaptionButton::Caption_Button_Close;
+			GEctx->caption_hovered_btn = caption_button::Caption_Button_Close;
 			break;
 		}
 		}
@@ -1047,23 +940,23 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			return HTTOP;
 		}
 
-		if (IsMousePosInClient(cursor_point))
+		if (_is_mouse_in_client(cursor_point))
 		{
-			GEctx->Caption_Hovered_Button = Caption_Button_None;
-			GEctx->Caption_Held_Button	  = Caption_Button_None;
+			GEctx->caption_hovered_btn = Caption_Button_None;
+			GEctx->caption_held_btn	   = Caption_Button_None;
 			return HTCLIENT;
 		}
 
 		float cxDiff = ImGui::GetMainViewport()->Size.x - cursor_point.x;
-		if (cxDiff > CAPTION_BUTTON_SIZE.x * GEctx->Dpi_Scale * 3)
+		if (cxDiff > CAPTION_BUTTON_SIZE.x * editor::platform::dpi_scale() * 3)
 		{
 			return HTCAPTION;
 		}
-		if (cxDiff > CAPTION_BUTTON_SIZE.x * GEctx->Dpi_Scale * 2)
+		if (cxDiff > CAPTION_BUTTON_SIZE.x * editor::platform::dpi_scale() * 2)
 		{
 			return HTMINBUTTON;
 		}
-		if (cxDiff > CAPTION_BUTTON_SIZE.x * GEctx->Dpi_Scale)
+		if (cxDiff > CAPTION_BUTTON_SIZE.x * editor::platform::dpi_scale())
 		{
 			return HTMAXBUTTON;
 		}
@@ -1075,37 +968,33 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		POINT cursor_point = { GET_X_PARAM(lParam), GET_Y_PARAM(lParam) };
 		ScreenToClient(hWnd, &cursor_point);
-		// if (GEctx->Main_Menu_Rect.Contains(ImVec2((float)cursor_point.x, (float)cursor_point.y)) == false)
-		//{
-		//	GEctx->Main_Menu_State = Menu_State_None;
-		// }
 
-		if (GEctx->Caption_Hovered_Button == Caption_Button_None)
+		if (GEctx->caption_hovered_btn == Caption_Button_None)
 		{
 			break;
 			// return 0;
 		}
 
-		GEctx->Caption_Held_Button = GEctx->Caption_Hovered_Button;
+		GEctx->caption_held_btn = GEctx->caption_hovered_btn;
 		return 0;
 	}
 	case WM_NCLBUTTONUP:
 	{
-		if (GEctx->Caption_Held_Button != GEctx->Caption_Hovered_Button)
+		if (GEctx->caption_held_btn != GEctx->caption_hovered_btn)
 		{
 			break;
 		}
 
-		GEctx->Caption_Held_Button = Caption_Button_None;
+		GEctx->caption_held_btn = Caption_Button_None;
 
-		switch (GEctx->Caption_Hovered_Button)
+		switch (GEctx->caption_hovered_btn)
 		{
 		case Caption_Button_Min:
 			::ShowWindow(hWnd, SW_MINIMIZE);
 			return 0;
 		case Caption_Button_Max:
 		{
-			int mode = Editor::Is_Window_Maximized(GEctx->Hwnd) ? SW_NORMAL : SW_MAXIMIZE;
+			int mode = _is_window_maximized(GEctx->hwnd) ? SW_NORMAL : SW_MAXIMIZE;
 			::ShowWindow(hWnd, mode);
 		}
 			return 0;
@@ -1123,20 +1012,20 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 
-		UINT dpi = GetDpiForWindow(hWnd);
+		auto dpi = GetDpiForWindow(hWnd);
 
-		int frame_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
-		int frame_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
-		int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+		auto frame_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
+		auto frame_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+		auto padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
 
-		NCCALCSIZE_PARAMS* params				 = (NCCALCSIZE_PARAMS*)lParam;
-		RECT*			   requested_client_rect = params->rgrc;
+		auto* params				= (NCCALCSIZE_PARAMS*)lParam;
+		auto* requested_client_rect = params->rgrc;
 
 		requested_client_rect->right  -= frame_x + padding;
 		requested_client_rect->left	  += frame_x + padding;
 		requested_client_rect->bottom -= frame_y + padding;
 
-		if (Editor::Is_Window_Maximized(hWnd))
+		if (_is_window_maximized(hWnd))
 		{
 			requested_client_rect->top += padding;
 		}
@@ -1153,10 +1042,10 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		// todo
 		// only work when release mode? wtf?
-		RECT* rect = (RECT*)lParam;
+		auto* rect = (RECT*)lParam;
 		IM_ASSERT(LOWORD(wParam) == HIWORD(wParam));
 		::SetWindowPos(hWnd, NULL, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER);
-		Editor::Update_Dpi_Scale((float)LOWORD(wParam) / (float)USER_DEFAULT_SCREEN_DPI);
+		_update_dpi_scale((float)LOWORD(wParam) / (float)USER_DEFAULT_SCREEN_DPI);
 		return 0;
 	}
 	case WM_DESTROY:
@@ -1167,4 +1056,1164 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 
 	return DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+namespace editor
+{
+	namespace
+	{
+		static constinit auto _context_menu_xml_path = "Editor_CtxMenu.xml";
+
+		auto _ctx_item_doc		= pugi::xml_document();
+		auto _ctx_item_xml_node = pugi::xml_node();
+
+		auto _cmd_id			   = 0;
+		auto _show_ctx_menu		   = false;
+		auto _selected_vec		   = std::vector<editor_id>();
+		auto _shortcut_command_vec = std::vector<const editor_command*>();
+		// auto _current_select_ctx_item = editor_id();
+
+		auto _command_lut  = std::vector<const editor_command*>();
+		auto _ctx_node_lut = std::vector<pugi::xml_node>(DataType_Count);
+
+		void _load_ctx_menu()
+		{
+			auto index = 0, parent_index = -1;
+			int	 ctx_item_count = 0, item_index = 0;
+			_ctx_item_doc.load_file(_context_menu_xml_path);
+			_ctx_item_xml_node = _ctx_item_doc.first_child().first_child();
+			for (auto node = _ctx_item_xml_node.next_sibling(); node; node = node.next_sibling())
+			{
+				if (strcmp(node.attribute("name").value(), "Scene") == 0)
+				{
+					_ctx_node_lut[DataType_Scene] = node;
+				}
+				else if (strcmp(node.attribute("name").value(), "World") == 0)
+				{
+					_ctx_node_lut[DataType_World] = node;
+				}
+				else if (strcmp(node.attribute("name").value(), "Entity") == 0)
+				{
+					_ctx_node_lut[DataType_Entity] = node;
+				}
+			}
+		}
+
+		void _context_item(const pugi::xml_node& node)
+		{
+			bool has_child = node.first_child();
+			auto name	   = node.attribute("name").value();
+			if (has_child)
+			{
+				if (editor::widgets::begin_menu(name, nullptr))
+				{
+					for (auto child = node.first_child(); child; child = child.next_sibling())
+					{
+						_context_item(child);
+					}
+
+					editor::widgets::end_menu();
+				}
+			}
+			else
+			{
+				auto command_id = node.attribute("__cmd_id") ? node.attribute("__cmd_id").as_int() : -1;
+				if (editor::widgets::menu_item(name,
+											   nullptr,
+											   node.attribute("shortcut").value(),
+											   false,
+											   command_id >= 0 ? _command_lut[command_id]->can_execute() : false))
+				{
+					_command_lut[command_id]->execute();
+				}
+			}
+
+			if (node.attribute("separator"))
+			{
+				widgets::separator();
+			}
+		}
+
+		void _menu_bar()
+		{
+			static auto window_size	 = ImVec2();
+			auto		window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+
+			widgets::set_cursor_pos({ CAPTION_ICON_CPOS.x * platform::dpi_scale(), CAPTION_ICON_CPOS.y * platform::dpi_scale() });
+			widgets::image(GEctx->icon_texture_id, ImVec2(CAPTION_ICON_SIZE.x * platform::dpi_scale(), CAPTION_ICON_SIZE.y * platform::dpi_scale()));
+			widgets::sameline();
+
+			style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
+			style::push_var(ImGuiStyleVar_ItemSpacing, ImVec2());
+			style::push_color(ImGuiCol_HeaderHovered, COL_BG_SELECTED);
+			style::push_color(ImGuiCol_HeaderActive, style::get_color_v4(ImGuiCol_PopupBg));
+			widgets::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * platform::dpi_scale() + CAPTION_ICON_SIZE.y * platform::dpi_scale() - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
+			if (widgets::begin_child("Main Menu Bar", window_size, false, window_flags))
+			{
+				const auto& main_menu_node						= _ctx_item_xml_node;	 //_ctx_items[0];
+				platform::get_window_info().layout()			= ImGuiLayoutType_Horizontal;
+				platform::get_window_info().menubar_appending() = true;
+				platform::get_window_info().nav_layer()			= ImGuiNavLayer_Menu;
+				window_size										= ImVec2();
+				style::push_var(ImGuiStyleVar_WindowPadding, ImVec2(8.f, 8.f) * platform::dpi_scale());
+
+				for (auto header_node = main_menu_node.first_child(); header_node; header_node = header_node.next_sibling())
+				{
+					_context_item(header_node);
+
+					window_size.x += widgets::get_item_rect().GetSize().x;
+					window_size.y  = widgets::get_item_rect().GetSize().y;
+				}
+
+				window_size.y			  += 1;
+				GEctx->main_menu_rect.Max  = widgets::get_item_rect().Max;
+
+				style::pop_var(1);
+			}
+			style::pop_var(2);
+			style::pop_color(2);
+			widgets::end_child();
+		}
+
+		void _custom_buttons()
+		{
+			auto  dpi_scale					  = platform::dpi_scale();
+			auto& style						  = GImGui->Style;
+			auto  caption_button_icon_width	  = 5.f * dpi_scale;
+			auto  caption_restore_icon_offset = 2.f * dpi_scale;
+			auto  caption_button_size		  = ImVec2(CAPTION_BUTTON_SIZE.x * dpi_scale, CAPTION_BUTTON_SIZE.y * dpi_scale);
+			auto  draw_pos					  = ImVec2(platform::get_window_pos().x + platform::get_window_size().x - caption_button_size.x * 3, platform::get_window_pos().y);
+			auto  caption_button_icon_center  = ImVec2(draw_pos.x + caption_button_size.x / 2, draw_pos.y + caption_button_size.y / 2);
+
+			if (GEctx->caption_hovered_btn != Caption_Button_None)
+			{
+				auto p_min = ImVec2(draw_pos.x + CAPTION_BUTTON_SIZE.x * (int)GEctx->caption_hovered_btn * platform::dpi_scale(), draw_pos.y);
+				auto p_max = ImVec2(p_min.x + CAPTION_BUTTON_SIZE.x * platform::dpi_scale(), draw_pos.y + CAPTION_BUTTON_SIZE.y * platform::dpi_scale());
+				widgets::draw_rect_filled({ p_min, p_max }, style::get_color_u32(GEctx->caption_held_btn == GEctx->caption_hovered_btn ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered));
+			}
+
+			widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y), ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+			draw_pos.x					 += caption_button_size.x;
+			caption_button_icon_center.x += caption_button_size.x;
+
+			if (_is_window_maximized(GEctx->hwnd))
+			{
+				widgets::draw_rect(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), 0.f, ImDrawFlags_None, dpi_scale);
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
+								   ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+			}
+			else
+			{
+				widgets::draw_rect(ImVec2(draw_pos.x + caption_button_size.x / 2 - caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 - caption_button_icon_width), ImVec2(draw_pos.x + caption_button_size.x / 2 + caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), 0.f, ImDrawFlags_None, dpi_scale);
+			}
+
+			draw_pos.x					 += caption_button_size.x;
+			caption_button_icon_center.x += caption_button_size.x;
+
+			widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
+							   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+			widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width),
+							   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+		}
+
+		void _custom_caption()
+		{
+			auto viewport	  = platform::get_main_viewport();
+			auto window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+			auto menuSize	  = ImVec2(viewport.size().x, CAPTION_HIGHT * platform::dpi_scale());
+
+			style::push_color(ImGuiCol_WindowBg, style::get_color_v4(ImGuiCol_TitleBg));
+			style::push_color(ImGuiCol_ChildBg, style::get_color_v4(ImGuiCol_TitleBg));
+			style::push_var(ImGuiStyleVar_WindowBorderSize, 0.0f);
+			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2());
+
+			widgets::set_next_window_viewport(viewport.id());
+			widgets::set_next_window_pos(viewport.pos());
+			widgets::set_next_window_size(menuSize);
+			if (widgets::begin("Caption", nullptr, window_flags))
+			{
+				_menu_bar();
+				_custom_buttons();
+			}
+
+			style::pop_var(2);
+			style::pop_color(2);
+
+			widgets::end();
+		}
+	}	 // namespace
+
+	void on_frame_end()
+	{
+		static bool close_ctx_popup = false;
+
+		style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
+		style::push_color(ImGuiCol_Header, style::get_color_v4(ImGuiCol_HeaderHovered));
+		if (widgets::begin_popup("ctx menu"))
+		{
+			if (is_selection_vec_empty() is_false)
+			{
+				for (auto node = _ctx_node_lut[get_current_selection().type()].first_child(); node; node = node.next_sibling())
+				{
+					_context_item(node);
+				}
+			}
+			else
+			{
+				close_ctx_popup = true;
+			}
+
+			if (close_ctx_popup)
+			{
+				widgets::close_popup();
+				close_ctx_popup = false;
+			}
+
+			widgets::end_popup();
+		}
+		style::pop_color();
+		style::pop_var();
+
+		for (auto p_command : _shortcut_command_vec)
+		{
+			constexpr auto key_mask = 0x07ff;
+
+			auto mode_shift = (p_command->_shortcut_key & ImGuiMod_Shift) != 0;
+			auto mode_ctrl	= (p_command->_shortcut_key & ImGuiMod_Ctrl) != 0;
+			auto key		= p_command->_shortcut_key & key_mask;
+			auto res		= true;
+
+			//               has mod / does not have mod
+			// pressed         0             X
+			// not pressed     X             O            not A xor B
+			res &= (mode_shift == platform::is_key_down(ImGuiMod_Shift));
+			res &= (mode_ctrl == platform::is_key_down(ImGuiMod_Ctrl));
+			res &= ((key != ImGuiKey_None) == platform::is_key_pressed((ImGuiKey)key));
+
+			if (res)
+			{
+				(*p_command)(/*current_source()*/);
+				close_ctx_popup = true;
+			}
+		}
+
+		if (_show_ctx_menu)
+		{
+			widgets::open_popup("ctx menu");
+			_show_ctx_menu = false;
+		}
+
+		widgets::on_frame_end();
+	}
+
+	bool add_context_item(std::string path, const editor_command* p_command)
+	{
+		auto item_node = _ctx_item_xml_node.parent();
+		auto stream	   = std::istringstream(path);
+		for (std::string str; std::getline(stream, str, '\\');)
+		{
+			auto node = item_node.find_child([str](pugi::xml_node item) { return strcmp(item.attribute("name").value(), str.c_str()) == 0; });
+			if (node.empty())
+			{
+				auto child = item_node.append_child("ctx_item");
+				child.append_attribute("name").set_value(str.c_str());
+				item_node = child;
+			}
+			else
+			{
+				item_node = node;
+			}
+		}
+
+		// todo
+		if (p_command is_nullptr) return false;
+
+		_command_lut.emplace_back(p_command);
+
+
+		item_node.append_attribute("__cmd_id").set_value(_cmd_id++);
+		assert(_cmd_id == _command_lut.size());
+
+
+		if (p_command->_shortcut_key != ImGuiKey_None)
+		{
+			_shortcut_command_vec.push_back(p_command);
+		}
+
+		return true;
+	}
+
+	void on_project_loaded()
+	{
+		_load_ctx_menu();
+
+		logger::clear();
+		UndoRedo::on_project_loaded();
+		models::on_project_loaded();
+		view::on_project_loaded();
+		game::on_project_loaded();
+		editor::game::save_project_open_datas();
+		_selected_vec.clear();
+	}
+
+	void on_project_unloaded()
+	{
+		models::on_project_unloaded();
+		//_cmd_id = 0;
+		_selected_vec.clear();
+		//_current_select_ctx_item = INVALID_ID;
+	}
+}	 // namespace editor
+
+namespace editor::UndoRedo
+{
+	namespace
+	{
+		std::vector<undo_redo_cmd> _undo_vec;
+		std::vector<undo_redo_cmd> _redo_vec;
+
+		editor_command _cmd_undo {
+			"Undo",
+			ImGuiKey_Z | ImGuiKey_ModCtrl,
+			[](editor_id _) {
+				return _undo_vec.empty() is_false;
+			},
+			[](editor_id _) {
+				auto command = _undo_vec.back();
+				_undo_vec.pop_back();
+				command.undo();
+				_redo_vec.emplace_back(command);
+
+				editor::logger::info(std::format("undo command : {}", command.name));
+			}
+		};
+		editor_command _cmd_redo {
+			"Redo",
+			ImGuiKey_Z | ImGuiKey_ModCtrl | ImGuiKey_ModShift,
+			[](editor_id _) {
+				return _redo_vec.empty() is_false;
+			},
+			[](editor_id _) {
+				auto command = _redo_vec.back();
+				_redo_vec.pop_back();
+				command.redo();
+				_undo_vec.emplace_back(command);
+
+				editor::logger::info(std::format("redo command : {}", command.name));
+			}
+		};
+	}	 // namespace
+
+	void on_project_loaded()
+	{
+		_redo_vec.clear();
+		_undo_vec.clear();
+
+		auto res  = editor::add_context_item("Main Menu\\Edit\\Undo", &_cmd_undo);
+		res		 &= editor::add_context_item("Main Menu\\Edit\\Redo", &_cmd_redo);
+		assert(res);
+	}
+
+	void add(undo_redo_cmd& undo_redo)
+	{
+		_undo_vec.emplace_back(undo_redo);
+		_redo_vec.clear();
+	}
+
+	void print_all()
+	{
+		logger::info("Redo----------------------------");
+		for (auto& redo : _redo_vec)
+		{
+			logger::info("Redo : {}", redo.name);
+		}
+
+		logger::info("Undo----------------------------");
+
+		for (auto& undo : _undo_vec)
+		{
+			logger::info("Undo : {}", undo.name);
+		}
+		logger::info("----------------------------");
+	}
+}	 // namespace editor::UndoRedo
+
+namespace editor::models
+{
+	namespace scene
+	{
+		namespace
+		{
+			constexpr const editor_id _invalid_id	 = editor_id(((uint64)DataType_Scene << 56) | 0xffff);
+			uint8					  _count		 = 0;
+			uint16					  _hole_head_idx = INVALID_IDX;
+			uint16					  _head_idx		 = INVALID_IDX;
+			uint16					  _tail_idx		 = INVALID_IDX;
+			auto					  _current		 = _invalid_id;
+			std::vector<em_scene>	  _scenes;
+
+			uint16 _calc_idx(editor_id id)
+			{
+				return id.value & 0xffff;
+			}
+
+			uint8 _calc_gen(editor_id id)
+			{
+				return (id.value & 0x0000'0000'00ff'0000) >> 16;
+			}
+
+			editor_id _make_id(uint16 idx)
+			{
+				return (DataType_Scene << 56) | idx;
+			}
+
+			editor_id _make_id(uint16 idx, uint8 gen)
+			{
+				return (DataType_Scene << 56) | (((uint16)(gen + 1)) << 16) | idx;
+			}
+
+		}	 // namespace
+
+		em_scene* find(editor_id id)
+		{
+			auto idx = _calc_idx(id);
+
+			if (id.type() != DataType_Scene)
+			{
+				return nullptr;
+			}
+
+			if (idx >= _scenes.size())
+			{
+				return nullptr;
+			}
+
+			auto& s		= _scenes[idx];
+			auto  valid = s.id == id and s.alive;
+
+			if (valid is_false)
+			{
+				return nullptr;
+			}
+
+			return &s;
+		}
+
+		editor_id create()
+		{
+			assert(_hole_head_idx == INVALID_IDX or _hole_head_idx < _scenes.size());
+			size_t idx	   = INVALID_IDX;
+			auto   no_hole = _hole_head_idx == INVALID_IDX;
+			if (no_hole)
+			{
+				idx		= _scenes.size();
+				auto& s = _scenes.emplace_back();
+				s.id	= _make_id(idx);
+			}
+			else
+			{
+				idx			   = _hole_head_idx;
+				auto& s		   = _scenes[_hole_head_idx];
+				s.id		   = _make_id(idx, _calc_gen(s.id) + 1);
+				_hole_head_idx = _calc_idx(s.next);
+			}
+
+			auto& new_s = _scenes[idx];
+
+			if (_count == 0)
+			{
+				assert(_tail_idx == INVALID_IDX and _head_idx == INVALID_IDX);
+
+				_head_idx  = idx;
+				_tail_idx  = idx;
+				new_s.prev = _invalid_id;
+				new_s.next = _invalid_id;
+			}
+			else
+			{
+				assert(_tail_idx != INVALID_IDX and _head_idx != INVALID_IDX);
+				auto& prev_s = _scenes[_tail_idx];
+				assert(prev_s.next == _invalid_id);
+				prev_s.next = new_s.id;
+				new_s.prev	= prev_s.id;
+				new_s.next	= _invalid_id;
+				_tail_idx	= idx;
+			}
+
+			++_count;
+			new_s.alive = true;
+			new_s.name	= std::format("new_scene##{0}", new_s.id.str());
+			return new_s.id;
+		}
+
+		void remove(editor_id id)
+		{
+			auto idx = _calc_idx(id);
+			if (idx >= _scenes.size() or idx == INVALID_IDX) return;
+
+			auto& s		= _scenes[idx];
+			auto  valid = s.id == id;
+
+			if (valid is_false) return;
+
+			if (s.id == _current)
+			{
+				if (find(s.prev))
+				{
+					_current = s.prev;
+				}
+				else if (find(s.next))
+				{
+					_current = s.next;
+				}
+				else
+				{
+					assert(false);
+				}
+			}
+
+			if (s.prev != _invalid_id)
+			{
+				auto  prev_idx = _calc_idx(s.prev);
+				auto& prev_s   = _scenes[prev_idx];
+				prev_s.next	   = s.next;
+			}
+			else
+			{
+				assert(_head_idx == idx);
+				_head_idx = _calc_idx(s.next);
+			}
+
+			if (s.next != _invalid_id)
+			{
+				auto  next_idx = _calc_idx(s.next);
+				auto& next_s   = _scenes[next_idx];
+				next_s.prev	   = s.prev;
+			}
+			else
+			{
+				assert(_tail_idx == idx);
+				_tail_idx = _calc_idx(s.prev);
+			}
+
+			if (_hole_head_idx != INVALID_IDX)
+			{
+				s.next						 = _scenes[_hole_head_idx].id;
+				_scenes[_hole_head_idx].prev = s.id;
+			}
+			else
+			{
+				s.next = _invalid_id;
+			}
+
+
+			s.prev = _invalid_id;
+
+			--_count;
+			_hole_head_idx = idx;
+			s.alive		   = false;
+			s.id		   = _make_id(idx, _calc_gen(s.id) + 1);
+		}
+
+		size_t count()
+		{
+			return _count;
+		}
+
+		std::vector<em_scene*> all()
+		{
+			auto res = _scenes |
+					   std::views::filter([](em_scene& s) { return s.alive; }) |
+					   std::views::transform([](em_scene& s) { return &s; });
+			return std::vector(res.begin(), res.end());
+		}
+
+		void set_current(editor_id id)
+		{
+			if (find(id))
+			{
+				_current = id;
+				editor::select_new(_current);
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+
+		em_scene* get_current()
+		{
+			if (_current == _invalid_id)
+			{
+				assert(_scenes.empty() is_false);
+				_current = _scenes[_head_idx].id;
+			}
+
+			return find(_current);
+		}
+
+		editor_command cmd_create(
+			"New Scene",
+			ImGuiKey_N | ImGuiMod_Ctrl,
+			[](editor_id _) { return true; },
+			[](editor_id _) {
+				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto backup_current = _current;
+				cmd.name			= "new scene";
+				cmd.redo			= []() { set_current(create()); };
+				cmd.undo			= [=]() {
+					   remove(_scenes[_tail_idx].id);
+					   set_current(backup_current);
+				};
+
+				UndoRedo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		editor_command cmd_remove(
+			"Delete Scene",
+			ImGuiKey_Delete,
+			[](editor_id _) {
+				return _count - get_all_selections().size() > 0 and std::ranges::all_of(get_all_selections(), [](editor_id id) { return find(id) != nullptr; });
+			},
+			[](editor_id _) {
+				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto id_vec			= editor::get_all_selections();
+				auto backup_vec		= std::vector<em_scene>();
+				auto backup_current = _current;
+				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return *find(id); });
+
+				cmd.name = "delete scene";
+				cmd.redo = [=]() {
+					for (auto id : id_vec)
+					{
+						remove(id);
+					}
+				};
+				cmd.undo = [=]() {
+					auto backup_it = backup_vec.rbegin();
+					for (auto it = id_vec.rbegin(); it != id_vec.rend(); ++it, ++backup_it)
+					{
+						auto& s	   = *find(create());
+						auto  prev = s.prev;
+						auto  next = s.next;
+						s		   = *backup_it;
+						s.prev	   = prev;
+						s.next	   = next;
+					}
+
+					_current = backup_current;
+				};
+
+				UndoRedo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		editor_command cmd_set_current(
+			"Set Current",
+			ImGuiKey_None,
+			[](editor_id id) { return id != _current and find(id) != nullptr; },
+			[](editor_id id) {
+				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto backup_current = _current;
+
+				cmd.name = std::format("set current scene from {} to {}", backup_current.str(), id.str());
+				cmd.undo = [=]() { _current = backup_current; };
+				cmd.redo = [=]() { _current = id; };
+
+				UndoRedo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		void on_project_unloaded()
+		{
+			_count		   = 0;
+			_hole_head_idx = INVALID_IDX;
+			_head_idx	   = INVALID_IDX;
+			_tail_idx	   = INVALID_IDX;
+			_current	   = _invalid_id;
+			_scenes.clear();
+		}
+
+		void on_project_loaded()
+		{
+			auto res  = true;
+			res		 &= add_context_item("Scene\\Add New Scene", &scene::cmd_create);
+			res		 &= add_context_item("Scene\\Remove Scene", &scene::cmd_remove);
+			assert(res);
+		}
+	}	 // namespace scene
+
+	namespace world
+	{
+		namespace
+		{
+			constexpr const editor_id _invalid_id = editor_id(((uint64)DataType_World << 56) | 0x00ff'ff00'ffff);
+
+			uint16 _calc_idx(editor_id id)
+			{
+				return id.value & 0xffff;
+			}
+
+			uint8 _calc_gen(editor_id id)
+			{
+				return (id.value & 0x0000'0000'00ff'0000) >> 16;
+			}
+
+			editor_id _make_id(uint16 idx)
+			{
+				return (DataType_World << 56) | idx;
+			}
+
+			editor_id _make_id(uint16 idx, uint8 gen)
+			{
+				return (DataType_World << 56) | (((uint16)(gen + 1)) << 16) | idx;
+			}
+
+			em_world* _find(editor_id id, em_scene* p_scene)
+			{
+				if (p_scene == nullptr) return nullptr;
+
+				auto& worlds = p_scene->worlds;
+				auto  idx	 = _calc_idx(id);
+
+				if (id.type() != DataType_World)
+				{
+					return nullptr;
+				}
+
+				if (idx >= worlds.size())
+				{
+					return nullptr;
+				}
+
+				auto& w		= worlds[idx];
+				auto  valid = w.id == id and w.alive;
+
+				if (valid is_false)
+				{
+					return nullptr;
+				}
+
+				return &w;
+			}
+		}	 // namespace
+
+		editor_command cmd_create(
+			"New World",
+			ImGuiKey_None,
+			[](editor_id _) { return editor::get_current_selection().type() == DataType_Scene and editor::get_all_selections().size() == 1; },
+			[](editor_id _) {
+				auto cmd = UndoRedo::undo_redo_cmd();
+				cmd.name = "new world";
+				cmd.redo = []() { scene::get_current()->create_world(); };
+				cmd.undo = []() { scene::get_current()->remove_tail_world(); };
+
+				UndoRedo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		editor_command cmd_remove(
+			"Remove World",
+			ImGuiKey_Delete,
+			[](editor_id _) { return editor::get_all_selections().empty() is_false and std::ranges::all_of(editor::get_all_selections(), [](editor_id id) { return scene::get_current()->find_world(id) is_not_nullptr; }); },
+			[](editor_id _) {
+				auto cmd		= UndoRedo::undo_redo_cmd();
+				auto id_vec		= editor::get_all_selections();
+				auto backup_vec = std::vector<em_world>();
+				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return *scene::get_current()->find_world(id); });
+
+				cmd.name = "Delete World";
+				cmd.redo = [=]() {
+					auto p_scene = scene::get_current();
+					for (auto id : id_vec)
+					{
+						p_scene->remove_world(id);
+					}
+				};
+				cmd.undo = [=]() {
+					auto p_scene   = scene::get_current();
+					auto backup_it = backup_vec.rbegin();
+					for (auto it = id_vec.rbegin(); it != id_vec.rend(); ++it, ++backup_it)
+					{
+						auto& w	   = *p_scene->find_world(p_scene->create_world());
+						auto  prev = w.prev;
+						auto  next = w.next;
+						w		   = *backup_it;
+						w.prev	   = prev;
+						w.next	   = next;
+					}
+				};
+
+				UndoRedo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		void on_project_unloaded()
+		{
+		}
+
+		void on_project_loaded()
+		{
+			auto res  = true;
+			res		 &= add_context_item("Scene\\Add New World", &world::cmd_create);
+			res		 &= add_context_item("World\\Remove World", &world::cmd_remove);
+			assert(res);
+		}
+	}	 // namespace world
+
+	em_entity::em_entity(editor_id world_id, editor_id parent_id, size_t idx_in_world, std::string name) : world_id(world_id), parent_id(parent_id), idx_in_world(idx_in_world), name(name) {};
+
+	em_component::em_component(component_id id, editor_id entity_id, std::string name) : id(id), entity_id(entity_id), name(name) {};
+
+	em_world* em_scene::find_world(editor_id id)
+	{
+		auto idx = world::_calc_idx(id);
+
+		if (id.type() != DataType_World)
+		{
+			return nullptr;
+		}
+
+		if (idx >= worlds.size())
+		{
+			return nullptr;
+		}
+
+		auto& w		= worlds[idx];
+		auto  valid = w.id == id and w.alive;
+
+		if (valid is_false)
+		{
+			return nullptr;
+		}
+
+		return &w;
+	}
+
+	editor_id em_scene::create_world()
+	{
+		assert(_world_hole_head_idx == INVALID_IDX or _world_hole_head_idx < worlds.size());
+		size_t idx	   = INVALID_IDX;
+		auto   no_hole = _world_hole_head_idx == INVALID_IDX;
+		if (no_hole)
+		{
+			idx		= worlds.size();
+			auto& w = worlds.emplace_back();
+			w.id	= world::_make_id(idx);
+		}
+		else
+		{
+			idx					 = _world_hole_head_idx;
+			auto& w				 = worlds[_world_hole_head_idx];
+			w.id				 = world::_make_id(idx, world::_calc_gen(w.id) + 1);
+			_world_hole_head_idx = world::_calc_idx(w.next);
+		}
+
+		auto& new_w = worlds[idx];
+
+		if (_world_count == 0)
+		{
+			assert(_world_tail_idx == INVALID_IDX and _world_head_idx == INVALID_IDX);
+
+			_world_head_idx = idx;
+			_world_tail_idx = idx;
+			new_w.prev		= world::_invalid_id;
+			new_w.next		= world::_invalid_id;
+		}
+		else
+		{
+			assert(_world_tail_idx != INVALID_IDX and _world_head_idx != INVALID_IDX);
+			auto& prev_w = worlds[_world_tail_idx];
+			assert(prev_w.next == world::_invalid_id);
+			prev_w.next		= new_w.id;
+			new_w.prev		= prev_w.id;
+			new_w.next		= world::_invalid_id;
+			_world_tail_idx = idx;
+		}
+
+		++_world_count;
+		new_w.alive = true;
+		new_w.name	= std::format("new_world##{0}", new_w.id.str());
+		return new_w.id;
+	}
+
+	void em_scene::remove_world(editor_id id)
+	{
+		auto idx = world::_calc_idx(id);
+		if (idx >= worlds.size() or idx == INVALID_IDX) return;
+
+		auto& w		= worlds[idx];
+		auto  valid = w.id == id;
+
+		if (valid is_false) return;
+
+		if (w.prev != world::_invalid_id)
+		{
+			auto  prev_idx = world::_calc_idx(w.prev);
+			auto& prev_w   = worlds[prev_idx];
+			prev_w.next	   = w.next;
+		}
+		else
+		{
+			assert(_world_head_idx == idx);
+			_world_head_idx = world::_calc_idx(w.next);
+		}
+
+		if (w.next != world::_invalid_id)
+		{
+			auto  next_idx = world::_calc_idx(w.next);
+			auto& next_s   = worlds[next_idx];
+			next_s.prev	   = w.prev;
+		}
+		else
+		{
+			assert(_world_tail_idx == idx);
+			_world_tail_idx = world::_calc_idx(w.prev);
+		}
+
+		if (_world_hole_head_idx != INVALID_IDX)
+		{
+			w.next							  = worlds[_world_hole_head_idx].id;
+			worlds[_world_hole_head_idx].prev = w.id;
+		}
+		else
+		{
+			w.next = world::_invalid_id;
+		}
+
+
+		w.prev = world::_invalid_id;
+
+		--_world_count;
+		_world_hole_head_idx = idx;
+		w.alive				 = false;
+		w.id				 = world::_make_id(idx, world::_calc_gen(w.id) + 1);
+	}
+
+	void em_scene::remove_tail_world()
+	{
+		if (_world_count == 0) return;
+
+		assert(_world_tail_idx != INVALID_IDX and _world_tail_idx < worlds.size());
+		remove_world(worlds[_world_tail_idx].id);
+	}
+
+	size_t em_scene::world_count()
+	{
+		return _world_count;
+	}
+
+	std::vector<em_world*> em_scene::all_worlds()
+	{
+		auto res = worlds |
+				   std::views::filter([](em_world& w) { return w.alive; }) |
+				   std::views::transform([](em_world& w) { return &w; });
+		return std::vector(res.begin(), res.end());
+	}
+}	 // namespace editor::models
+
+// commands
+namespace editor
+{
+	bool is_selected(editor_id id)
+	{
+		return std::find(_selected_vec.begin(), _selected_vec.end(), id) != _selected_vec.end();
+	}
+
+	void select_new(editor_id id)
+	{
+		_selected_vec.clear();
+		_selected_vec.push_back(id);
+	}
+
+	void add_select(editor_id id)
+	{
+		_selected_vec.push_back(id);
+	}
+
+	void deselect(editor_id id)
+	{
+		_selected_vec.erase(std::ranges::find(_selected_vec, id));
+	}
+
+	void add_right_click_source(editor_id id)
+	{
+		if (ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonRight) and widgets::is_item_hovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))
+		{
+			auto it = std::find(_selected_vec.begin(), _selected_vec.end(), id);
+			if (it == _selected_vec.end())
+			{
+				select_new(id);
+			}
+			else
+			{
+				std::iter_swap(it, _selected_vec.rbegin());
+			}
+
+			_show_ctx_menu = true;
+		}
+	}
+
+	void add_left_click_source(editor_id id)
+	{
+		if (widgets::is_item_clicked(ImGuiPopupFlags_MouseButtonLeft))
+		{
+			if (platform::is_key_down(ImGuiKey_LeftCtrl))
+			{
+				if (is_selected(id))
+				{
+					cmd_deselect(id);
+
+					// deselect(id);
+				}
+				else
+				{
+					cmd_add_select(id);
+					// add_select(id);
+				}
+			}
+			else
+			{
+				cmd_select_new(id);
+				// select_new(id);
+			}
+		}
+	}
+
+	editor_id get_current_selection()
+	{
+		return _selected_vec.empty() ? editor_id() : _selected_vec.back();
+	}
+
+	const std::vector<editor_id>& get_all_selections()
+	{
+		return _selected_vec;
+	}
+
+	bool is_selection_vec_empty()
+	{
+		return _selected_vec.empty();
+	}
+
+	const editor_command cmd_select_new(
+		"Select new",
+		ImGuiKey_None,
+		[](editor_id id) { return _selected_vec.empty() or get_current_selection() != id; },
+		[](editor_id id) {
+			auto _selected_before = _selected_vec;
+			auto cmd			  = UndoRedo::undo_redo_cmd();
+			cmd.name			  = std::format("Select {}", id.str());
+			cmd.redo			  = [id]() {
+				 _selected_vec.clear();
+				 _selected_vec.push_back(id);
+			};
+			cmd.undo = [id, _selected_before]() {
+				_selected_vec = _selected_before;
+			};
+
+			UndoRedo::add(cmd);
+			logger::info(cmd.name);
+			cmd.redo();
+		});
+
+	const editor_command cmd_add_select(
+		"Add Select",
+		ImGuiKey_None,
+		[](editor_id id) {
+			return get_current_selection().type() == id.type() and
+				   std::find(_selected_vec.begin(), _selected_vec.end(), id) == _selected_vec.end();
+		},
+		[](editor_id id) {
+			auto cmd = UndoRedo::undo_redo_cmd();
+			cmd.name = std::format("Add Select {}", id.str());
+			cmd.redo = [id]() {
+				_selected_vec.push_back(id);
+			};
+			cmd.undo = [id]() {
+				_selected_vec.pop_back();
+			};
+
+			UndoRedo::add(cmd);
+			logger::info(cmd.name);
+			cmd.redo();
+		});
+
+	const editor_command cmd_deselect(
+		"Deselect",
+		ImGuiKey_None,
+		[](editor_id id) { return std::ranges::find(_selected_vec, id) != _selected_vec.end(); },
+		[](editor_id id) {
+			auto cmd   = UndoRedo::undo_redo_cmd();
+			auto index = std::ranges::find(_selected_vec, id) - _selected_vec.begin();
+			cmd.name   = std::format("Deselect {}", id.str());
+
+			cmd.redo = [=]() {
+				_selected_vec.erase(std::next(_selected_vec.begin(), index));
+			};
+			cmd.undo = [=]() {
+				_selected_vec.insert(std::next(_selected_vec.begin(), index), id);
+			};
+
+			UndoRedo::add(cmd);
+			logger::info(cmd.name);
+			cmd.redo();
+		});
+}	 // namespace editor
+
+void editor::models::on_project_unloaded()
+{
+	scene::on_project_unloaded();
+	world::on_project_unloaded();
+}
+
+void editor::models::on_project_loaded()
+{
+	scene::on_project_loaded();
+	world::on_project_loaded();
+	// res		 |= add_context_item("Scene\\Add New World", &cmd_add_world);
+
+	// res |= Register_Command("World\\Create Empty", &World::Cmd_Add_Entity);
+	// res |= add_context_item("World\\Delete", &cmd_remove);
+	// res		 |= Register_Command("World\\Rename", &Editor::Cmd_Rename);
+
+	// res |= add_context_item("World\\Entity\\Create Empty", &world::cmd_add_entity);
+	// res |= add_context_item("World\\System\\Add New System", &world::cmd_add_system);
+
+	// res |= add_context_item("Entity\\Create Empty", &cmd_add_new);
+	// res |= add_context_item("Entity\\Delete", &cmd_remove);
+	// res |= add_context_item("Entity\\Add New Component", &entity::cmd_add_component);
+}
+
+std::string editor::utilities::read_file(const std::filesystem::path path)
+{
+	std::ifstream stream;
+	stream.open(path);
+	std::stringstream ss_project_data;
+	ss_project_data << stream.rdbuf();
+	return ss_project_data.str();
+}
+
+void editor::utilities::create_file(const std::filesystem::path path, const std::string content)
+{
+	std::wofstream project_file(path);
+	project_file << content.c_str();
+	project_file.close();
 }
