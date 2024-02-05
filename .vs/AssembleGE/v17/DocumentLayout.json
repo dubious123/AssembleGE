@@ -3,12 +3,24 @@
   "WorkspaceRootPath": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\editor_view.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\editor.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__reflection.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__reflection.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__engine.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\ENGINE\\__ECS.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:ENGINE\\__ECS.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -19,43 +31,27 @@
       "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\game_project\\game_project.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\ENGINE\\__ECS.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:ENGINE\\__ECS.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\ENGINE\\__REFLECTION.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:ENGINE\\__REFLECTION.H||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{94B8D0F4-95DC-4800-8C8A-904A4F8F97C0}|EngineTest\\EngineTest.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\EngineTest\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{94B8D0F4-95DC-4800-8C8A-904A4F8F97C0}|EngineTest\\EngineTest.vcxproj|solutionrelative:EngineTest\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__reflection.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__engine.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\editor_view.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\widgets.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\widgets.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\JH\\Desktop\\test\\.assemble\\project_data.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\logger.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\logger.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\utilities\\Timing.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\utilities\\Timing.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__data_structures.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{94B8D0F4-95DC-4800-8C8A-904A4F8F97C0}|EngineTest\\EngineTest.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\EngineTest\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{94B8D0F4-95DC-4800-8C8A-904A4F8F97C0}|EngineTest\\EngineTest.vcxproj|solutionrelative:EngineTest\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\JH\\Desktop\\test\\.assemble\\project_data.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\functional||{3B902123-F8A7-4915-9F01-361F908088D0}|"
@@ -64,22 +60,7 @@
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\xmemory||{3B902123-F8A7-4915-9F01-361F908088D0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\editor_view.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__data_structures.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__common.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{20255AED-67F1-4402-8D17-6FD9C4CD5536}|Engine\\Engine.vcxproj|solutionrelative:Engine\\__common.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xmemory||{3B902123-F8A7-4915-9F01-361F908088D0}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\functional||{3B902123-F8A7-4915-9F01-361F908088D0}|"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\type_traits||{3B902123-F8A7-4915-9F01-361F908088D0}|"
@@ -89,6 +70,27 @@
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xutility||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\functional||{3B902123-F8A7-4915-9F01-361F908088D0}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\utilities\\Timing.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\utilities\\Timing.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\logger.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\logger.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}|Editor\\Editor.vcxproj|solutionrelative:Editor\\editor_view.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\vector||{3B902123-F8A7-4915-9F01-361F908088D0}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\utility||{3B902123-F8A7-4915-9F01-361F908088D0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -97,9 +99,132 @@
       "VerticalTabListWidth": 256,
       "DocumentGroups": [
         {
-          "DockedWidth": 443,
-          "SelectedChildIndex": 12,
+          "DockedWidth": 377,
+          "SelectedChildIndex": 5,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "__engine.h",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h",
+              "RelativeDocumentMoniker": "Engine\\__engine.h",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h",
+              "RelativeToolTip": "Engine\\__engine.h",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAQAAAAUAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-02-02T07:42:55.153Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "__reflection.h",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.h",
+              "RelativeDocumentMoniker": "Engine\\__reflection.h",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.h",
+              "RelativeToolTip": "Engine\\__reflection.h",
+              "ViewState": "AQIAAGwAAAAAAAAAAAAQwGgAAAAhAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-02-05T01:27:46.669Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "__reflection.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp",
+              "RelativeDocumentMoniker": "Engine\\__reflection.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp",
+              "RelativeToolTip": "Engine\\__reflection.cpp",
+              "ViewState": "AQIAAEkAAAAAAAAAAAAhwFcAAAAhAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-08T01:37:26.769Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "__ecs.h",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__ecs.h",
+              "RelativeDocumentMoniker": "Engine\\__ecs.h",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__ecs.h",
+              "RelativeToolTip": "Engine\\__ecs.h",
+              "ViewState": "AQIAABkAAAAAAAAAAAAAABgAAAAcAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2023-12-08T01:30:29.312Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "editor.h",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.h",
+              "RelativeDocumentMoniker": "Editor\\editor.h",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.h",
+              "RelativeToolTip": "Editor\\editor.h",
+              "ViewState": "AQIAAIsCAAAAAAAAAAAowJgCAAAiAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2023-12-20T08:43:10.818Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "editor.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.cpp",
+              "RelativeDocumentMoniker": "Editor\\editor.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.cpp",
+              "RelativeToolTip": "Editor\\editor.cpp",
+              "ViewState": "AQIAAEQHAAAAAAAAAAAAAFoHAAAmAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-08T01:15:36.147Z",
+              "IsPinned": true,
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "game_project.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\game_project\\game_project.cpp",
+              "RelativeDocumentMoniker": "Editor\\game_project\\game_project.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\game_project\\game_project.cpp",
+              "RelativeToolTip": "Editor\\game_project\\game_project.cpp",
+              "ViewState": "AQIAAP8AAAAAAAAAAAAQwA0BAAAnAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-08T01:10:06.223Z",
+              "IsPinned": true
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "widgets.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\widgets.cpp",
+              "RelativeDocumentMoniker": "Editor\\widgets.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\widgets.cpp",
+              "RelativeToolTip": "Editor\\widgets.cpp",
+              "ViewState": "AQIAAC0EAAAAAAAAAAAAADoEAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-12T03:21:19.884Z",
+              "IsPinned": true
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "editor_view.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp",
+              "RelativeDocumentMoniker": "Editor\\editor_view.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp",
+              "RelativeToolTip": "Editor\\editor_view.cpp",
+              "ViewState": "AQIAAJwAAAAAAAAAAAAAAKUAAABCAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-18T02:35:12.342Z",
+              "IsPinned": true
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
@@ -126,126 +251,43 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "__engine.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h",
-              "RelativeDocumentMoniker": "Engine\\__engine.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__engine.h",
-              "RelativeToolTip": "Engine\\__engine.h",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAgAAAAaAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-11-15T03:45:32.5Z",
-              "IsPinned": true
+              "DocumentIndex": 23,
+              "Title": "vector",
+              "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\vector",
+              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\vector",
+              "ToolTip": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\vector",
+              "RelativeToolTip": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\vector",
+              "ViewState": "AQIAAFsHAAAAAAAAAAAIwGQHAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-02-02T07:46:01.658Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "__reflection.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp",
-              "RelativeDocumentMoniker": "Engine\\__reflection.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.cpp",
-              "RelativeToolTip": "Engine\\__reflection.cpp",
-              "ViewState": "AQIAADIAAAAAAAAAAAAgwD4AAABFAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-08T01:37:26.769Z",
-              "IsPinned": true
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "__ecs.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__ecs.h",
-              "RelativeDocumentMoniker": "Engine\\__ecs.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__ecs.h",
-              "RelativeToolTip": "Engine\\__ecs.h",
-              "ViewState": "AQIAADADAAAAAAAAAAAQwB0AAAALAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-12-08T01:30:29.312Z",
-              "IsPinned": true
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "__reflection.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.h",
-              "RelativeDocumentMoniker": "Engine\\__reflection.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__reflection.h",
-              "RelativeToolTip": "Engine\\__reflection.h",
-              "ViewState": "AQIAACwAAAAAAAAAAAAAADIAAAABAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-12-08T01:37:22.473Z",
-              "IsPinned": true
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "editor.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.h",
-              "RelativeDocumentMoniker": "Editor\\editor.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.h",
-              "RelativeToolTip": "Editor\\editor.h",
-              "ViewState": "AQIAAP8AAAAAAAAAAAASwBEBAAArAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-12-20T08:43:10.818Z",
-              "IsPinned": true
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "editor.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.cpp",
-              "RelativeDocumentMoniker": "Editor\\editor.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor.cpp",
-              "RelativeToolTip": "Editor\\editor.cpp",
-              "ViewState": "AQIAAPYHAAAAAAAAAAAqwAIIAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-08T01:15:36.147Z",
-              "IsPinned": true,
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "editor_view.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp",
-              "RelativeDocumentMoniker": "Editor\\editor_view.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.cpp",
-              "RelativeToolTip": "Editor\\editor_view.cpp",
-              "ViewState": "AQIAAEEAAAAAAAAAAAAawFUAAAAdAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-18T02:35:12.342Z",
-              "IsPinned": true,
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "game_project.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\game_project\\game_project.cpp",
-              "RelativeDocumentMoniker": "Editor\\game_project\\game_project.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\game_project\\game_project.cpp",
-              "RelativeToolTip": "Editor\\game_project\\game_project.cpp",
-              "ViewState": "AQIAANgAAAAAAAAAAADwv+MAAAAMAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-08T01:10:06.223Z",
-              "IsPinned": true
+              "DocumentIndex": 24,
+              "Title": "utility",
+              "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\utility",
+              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\utility",
+              "ToolTip": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\utility",
+              "RelativeToolTip": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33428\\include\\utility",
+              "ViewState": "AQIAACYBAAAAAAAAAAAAwDQBAABDAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-02-02T06:59:16.574Z"
             },
             {
               "$type": "Document",
               "DocumentIndex": 9,
-              "Title": "widgets.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\widgets.cpp",
-              "RelativeDocumentMoniker": "Editor\\widgets.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\widgets.cpp",
-              "RelativeToolTip": "Editor\\widgets.cpp",
-              "ViewState": "AQIAALIEAAAAAAAAAAAwwMAEAAAiAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-12T03:21:19.884Z",
-              "IsPinned": true
+              "Title": "__data_structures.h",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h",
+              "RelativeDocumentMoniker": "Engine\\__data_structures.h",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h",
+              "RelativeToolTip": "Engine\\__data_structures.h",
+              "ViewState": "AQIAAKUAAAAAAAAAAAAlwLAAAAAcAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2024-02-02T06:50:30.289Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 18,
               "Title": "xutility",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xutility",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xutility",
@@ -257,7 +299,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
+              "Title": "main.cpp",
+              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\main.cpp",
+              "RelativeDocumentMoniker": "Editor\\main.cpp",
+              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\main.cpp",
+              "RelativeToolTip": "Editor\\main.cpp",
+              "ViewState": "AQIAAAEAAAAAAAAAAAAQwBEAAAAKAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2023-12-08T03:45:11.345Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
               "Title": "Main.cpp",
               "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\EngineTest\\Main.cpp",
               "RelativeDocumentMoniker": "EngineTest\\Main.cpp",
@@ -269,7 +323,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 17,
               "Title": "vector",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\vector",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\vector",
@@ -281,7 +335,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 12,
               "Title": "project_data.xml",
               "DocumentMoniker": "C:\\Users\\JH\\Desktop\\test\\.assemble\\project_data.xml",
               "RelativeDocumentMoniker": "..\\..\\test\\.assemble\\project_data.xml",
@@ -293,7 +347,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 15,
               "Title": "xmemory",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xmemory",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\xmemory",
@@ -305,7 +359,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 19,
               "Title": "functional",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\functional",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\functional",
@@ -317,7 +371,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 16,
               "Title": "type_traits",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\type_traits",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33321\\include\\type_traits",
@@ -329,7 +383,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 13,
               "Title": "functional",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\functional",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\functional",
@@ -341,7 +395,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 14,
               "Title": "xmemory",
               "DocumentMoniker": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\xmemory",
               "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Program Files\\Microsoft Visual Studio\\2022\\Preview\\VC\\Tools\\MSVC\\14.39.33218\\include\\xmemory",
@@ -353,7 +407,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 20,
               "Title": "Timing.cpp",
               "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\utilities\\Timing.cpp",
               "RelativeDocumentMoniker": "Editor\\utilities\\Timing.cpp",
@@ -365,31 +419,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
-              "Title": "main.cpp",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\main.cpp",
-              "RelativeDocumentMoniker": "Editor\\main.cpp",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\main.cpp",
-              "RelativeToolTip": "Editor\\main.cpp",
-              "ViewState": "AQIAAAQAAAAAAAAAAAAjwBAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2023-12-08T03:45:11.345Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 21,
               "Title": "logger.cpp",
               "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\logger.cpp",
               "RelativeDocumentMoniker": "Editor\\logger.cpp",
               "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\logger.cpp",
               "RelativeToolTip": "Editor\\logger.cpp",
-              "ViewState": "AQIAAEAAAAAAAAAAAAA0wEcAAAAPAAAA",
+              "ViewState": "AQIAAD8AAAAAAAAAAABCwEcAAAAPAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2023-12-08T03:45:12.716Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 22,
               "Title": "editor_view.h",
               "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Editor\\editor_view.h",
               "RelativeDocumentMoniker": "Editor\\editor_view.h",
@@ -398,30 +440,16 @@
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAAgAAAAGAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2023-12-08T03:45:12.185Z"
-            },
+            }
+          ]
+        },
+        {
+          "DockedWidth": 113,
+          "SelectedChildIndex": -1,
+          "Children": [
             {
-              "$type": "Document",
-              "DocumentIndex": 18,
-              "Title": "__common.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__common.h",
-              "RelativeDocumentMoniker": "Engine\\__common.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__common.h",
-              "RelativeToolTip": "Engine\\__common.h",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-12-08T03:24:41.185Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 17,
-              "Title": "__data_structures.h",
-              "DocumentMoniker": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h",
-              "RelativeDocumentMoniker": "Engine\\__data_structures.h",
-              "ToolTip": "C:\\Users\\JH\\Desktop\\projects\\AssembleGE\\Engine\\__data_structures.h",
-              "RelativeToolTip": "Engine\\__data_structures.h",
-              "ViewState": "AQIAAFoAAAAAAAAAAAAUwGYAAAA1AAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2023-12-08T03:29:14.684Z"
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{8e5c1d1a-8a91-4406-aa56-5bf27c97d63c}"
             }
           ]
         }

@@ -1,0 +1,7 @@
+#pragma comment(lib, "engine.lib")
+#include "components.h"
+
+int main()
+{
+	return 0;
+}

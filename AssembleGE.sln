@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.33711.374
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Launcher", "Launcher\Launcher.csproj", "{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Engine", "Engine\Engine.vcxproj", "{20255AED-67F1-4402-8D17-6FD9C4CD5536}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EngineTest", "EngineTest\EngineTest.vcxproj", "{94B8D0F4-95DC-4800-8C8A-904A4F8F97C0}"
@@ -31,22 +29,6 @@ Global
 		ReleaseEditor|x86 = ReleaseEditor|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Debug|x64.ActiveCfg = Debug|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Debug|x64.Build.0 = Debug|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Debug|x86.ActiveCfg = Debug|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Debug|x86.Build.0 = Debug|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.DebugEditor|x64.ActiveCfg = DebugEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.DebugEditor|x64.Build.0 = DebugEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.DebugEditor|x86.ActiveCfg = DebugEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.DebugEditor|x86.Build.0 = DebugEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Release|x64.ActiveCfg = Release|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Release|x64.Build.0 = Release|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Release|x86.ActiveCfg = Release|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.Release|x86.Build.0 = Release|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.ReleaseEditor|x64.ActiveCfg = ReleaseEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.ReleaseEditor|x64.Build.0 = ReleaseEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.ReleaseEditor|x86.ActiveCfg = ReleaseEditor|x64
-		{0F3D607F-4A03-4A3C-BE79-77AE4EDEE22F}.ReleaseEditor|x86.Build.0 = ReleaseEditor|x64
 		{20255AED-67F1-4402-8D17-6FD9C4CD5536}.Debug|x64.ActiveCfg = Debug|x64
 		{20255AED-67F1-4402-8D17-6FD9C4CD5536}.Debug|x64.Build.0 = Debug|x64
 		{20255AED-67F1-4402-8D17-6FD9C4CD5536}.Debug|x86.ActiveCfg = Debug|x64

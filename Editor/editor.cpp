@@ -186,14 +186,16 @@ namespace
 		GEctx->dpi_scale = new_dpi_scale;
 		io.Fonts->Clear();
 
-		GEctx->p_font_arial_default_13_5 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 13.5f * new_dpi_scale);
-		GEctx->p_font_arial_bold_13_5	 = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 13.5f * new_dpi_scale);
+		auto res = std::filesystem::absolute("Resources/arial.ttf");
 
-		GEctx->p_font_arial_default_16 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 16.f * new_dpi_scale);
-		GEctx->p_font_arial_bold_16	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 16.f * new_dpi_scale);
+		GEctx->p_font_arial_default_13_5 = io.Fonts->AddFontFromFileTTF("Resources/arial.ttf", 13.5f * new_dpi_scale);
+		GEctx->p_font_arial_bold_13_5	 = io.Fonts->AddFontFromFileTTF("Resources/arialbd.ttf", 13.5f * new_dpi_scale);
 
-		GEctx->p_font_arial_default_18 = io.Fonts->AddFontFromFileTTF("../Resources/arial.ttf", 18.f * new_dpi_scale);
-		GEctx->p_font_arial_bold_18	   = io.Fonts->AddFontFromFileTTF("../Resources/arialbd.ttf", 18.f * new_dpi_scale);
+		GEctx->p_font_arial_default_16 = io.Fonts->AddFontFromFileTTF("Resources/arial.ttf", 16.f * new_dpi_scale);
+		GEctx->p_font_arial_bold_16	   = io.Fonts->AddFontFromFileTTF("Resources/arialbd.ttf", 16.f * new_dpi_scale);
+
+		GEctx->p_font_arial_default_18 = io.Fonts->AddFontFromFileTTF("Resources/arial.ttf", 18.f * new_dpi_scale);
+		GEctx->p_font_arial_bold_18	   = io.Fonts->AddFontFromFileTTF("Resources/arialbd.ttf", 18.f * new_dpi_scale);
 
 		GImGui->Font = GEctx->p_font_arial_default_13_5;
 
@@ -321,7 +323,7 @@ void editor::init()
 	my_texture_srv_gpu_handle.ptr						  += (handle_increment * descriptor_index);
 
 	// Load the texture from a file
-	bool ret = LoadTextureFromFile("AssembleGE_Icon.png", g_pd3dDevice, my_texture_srv_cpu_handle, &g_p_icon_texture, &my_image_width, &my_image_height);
+	bool ret = LoadTextureFromFile("Resources/AssembleGE_Icon.png", g_pd3dDevice, my_texture_srv_cpu_handle, &g_p_icon_texture, &my_image_width, &my_image_height);
 	IM_ASSERT(ret);
 
 	GEctx->icon_texture_id = my_texture_srv_gpu_handle.ptr;
@@ -368,12 +370,7 @@ void editor::Run()
 		// Start the Dear ImGui frame
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
-		// if (ImGui::FindWindowByName("Project_Browser") and ImGui::FindWindowByName("Project_Browser")->Flags == 0)
-		//{
-		//	int a = 1;
-		// }
 		ImGui::NewFrame();
-
 
 		if (GEctx->dpi_changed)
 		{
@@ -1062,7 +1059,7 @@ namespace editor
 {
 	namespace
 	{
-		static constinit auto _context_menu_xml_path = "Editor_CtxMenu.xml";
+		static constinit auto _context_menu_xml_path = "Resources/Editor_CtxMenu.xml";
 
 		auto _ctx_item_doc		= pugi::xml_document();
 		auto _ctx_item_xml_node = pugi::xml_node();
@@ -1879,6 +1876,38 @@ namespace editor::models
 		}
 	}	 // namespace world
 
+	namespace component
+	{
+		namespace
+		{
+			std::vector<struct_info*> _structs;
+		}	 // namespace
+
+		uint64 register_struct(struct_info* p_struct_info)
+		{
+			_structs.push_back(p_struct_info);
+			p_struct_info->id;
+		}
+
+		struct_info* find_struct(size_t idx)
+		{
+			return _structs[idx];
+		}
+
+		void on_project_unloaded()
+		{
+			_structs.clear();
+		}
+
+		void on_project_loaded()
+		{
+			auto res  = true;
+			res		 &= add_context_item("Scene\\Add New World", &world::cmd_create);
+			res		 &= add_context_item("World\\Remove World", &world::cmd_remove);
+			assert(res);
+		}
+	}	 // namespace component
+
 	em_entity::em_entity(editor_id world_id, editor_id parent_id, size_t idx_in_world, std::string name) : world_id(world_id), parent_id(parent_id), idx_in_world(idx_in_world), name(name) {};
 
 	em_component::em_component(component_id id, editor_id entity_id, std::string name) : id(id), entity_id(entity_id), name(name) {};
@@ -2027,6 +2056,10 @@ namespace editor::models
 				   std::views::filter([](em_world& w) { return w.alive; }) |
 				   std::views::transform([](em_world& w) { return &w; });
 		return std::vector(res.begin(), res.end());
+	}
+
+	editor_id em_world::add_component()
+	{
 	}
 }	 // namespace editor::models
 
@@ -2182,12 +2215,14 @@ void editor::models::on_project_unloaded()
 {
 	scene::on_project_unloaded();
 	world::on_project_unloaded();
+	component::on_project_unloaded();
 }
 
 void editor::models::on_project_loaded()
 {
 	scene::on_project_loaded();
 	world::on_project_loaded();
+	component::on_project_loaded();
 	// res		 |= add_context_item("Scene\\Add New World", &cmd_add_world);
 
 	// res |= Register_Command("World\\Create Empty", &World::Cmd_Add_Entity);

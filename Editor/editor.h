@@ -65,9 +65,10 @@ constexpr ImVec4 COL_BD_ACTIVE	 = ImVec4(0.26f, 0.26f, 0.26f, 1.f);
 
 constexpr UINT LOG_BUFFER_SIZE = 1024 * 1024 * 256;	   // 256 Mb
 
-constexpr auto PROJECT_EXTENSION	  = ".assemble";
-constexpr auto GAMECODE_DIRECTORY	  = "game_code";
-constexpr auto PROJECT_DATA_FILE_NAME = "project_data.xml";
+constexpr auto PROJECT_EXTENSION			= ".assemble";
+constexpr auto GAMECODE_DIRECTORY			= "game_code";
+constexpr auto GAMECODE_GENERATED_DIRECTORY = "generated";
+constexpr auto PROJECT_DATA_FILE_NAME		= "project_data.xml";
 
 using uint64 = uint64_t;
 using uint32 = uint32_t;
@@ -509,6 +510,7 @@ namespace editor::models
 	struct struct_info
 	{
 		struct_info(const char* name);
+		uint64		id;
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
@@ -523,8 +525,17 @@ namespace editor::models
 
 	struct world_info
 	{
-		size_t		scene_idx;
 		const char* name;
+		size_t		scene_idx;
+		size_t		component_count;
+		size_t		component_idx;
+	};
+
+	struct component_info
+	{
+		uint64 struct_idx;
+		size_t scene_idx;
+		size_t world_idx;
 	};
 
 	struct project_open_data;
@@ -548,11 +559,14 @@ namespace editor::models
 		std::string			   name;
 		bool				   applied_to_engine;
 		bool				   alive;
+		std::vector<editor_id> components;
 		std::vector<editor_id> entities;
 		std::vector<editor_id> systems;
 		std::vector<editor_id> subworlds;
 
 		em_world() : p_info(nullptr), applied_to_engine(false), alive(true) {};
+
+		editor_id add_component();
 	};
 
 	struct em_subworld
@@ -629,9 +643,7 @@ namespace editor::models
 		// editor_id => idx => scene_key_list
 		//
 		// remove => increase generation => different id
-		em_scene* find(editor_id id);
-		// std::optional<const em_scene&> find_prev(editor_id id);
-		// std::optional<const em_scene&> find_next(editor_id id);
+		em_scene*			   find(editor_id id);
 		editor_id			   create();
 		void				   remove(editor_id id);
 		size_t				   count();
@@ -646,6 +658,12 @@ namespace editor::models
 		extern editor_command cmd_create;
 		extern editor_command cmd_remove;
 	}	 // namespace world
+
+	namespace component
+	{
+		uint64		 register_struct(struct_info* p_struct_info);
+		struct_info* find_struct(size_t idx);
+	}	 // namespace component
 
 	// namespace entity
 	//{

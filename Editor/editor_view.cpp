@@ -64,7 +64,7 @@ namespace editor::view::Hierarchy
 
 			widgets::separator();
 
-			for (const auto& p_w : p_s_current->all_worlds())
+			for (const auto p_w : p_s_current->all_worlds())
 			{
 				auto world_selected			= editor::is_selected(p_w->id);
 				auto world_tree_node_opened = ImGui::TreeNodeEx(p_w->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_w->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
@@ -156,9 +156,24 @@ namespace editor::view::Inspector
 
 	void _draw_world(editor_id world_id)
 	{
-		// auto p_world = world::get(world_id);
+		auto p_scene = scene::get_current();
+		auto p_world = p_scene->find_world(world_id);
+		if (p_world is_nullptr) return;
 
-		// ImGui::Text((p_world->name).c_str());
+		ImGui::Text((p_world->name).c_str());
+		for (auto c = 0; c < p_world->p_info->component_count; ++c)
+		{
+			auto p_c_info = p_world->find_component(p_world->p_info->component_idx + c);
+			widgets::text(p_c_info->name);
+
+			for (auto f = 0; f < p_c_info->field_count; ++f)
+			{
+				auto p_f_info = (p_c_info->fields + f);
+				widgets::text(p_f_info->name);
+				widgets::text(p_f_info->type);
+				widgets::text(p_f_info->serialized_value);
+			}
+		}
 
 		// widgets::separator();
 

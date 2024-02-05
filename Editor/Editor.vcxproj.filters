@@ -107,4 +107,9 @@
       <UniqueIdentifier>{fc6e6a16-f01b-43de-8d7d-9011b9b6a2b8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <Font Include="..\Resources\arial.ttf" />
+    <Font Include="..\Resources\arialbd.ttf" />
+    <Font Include="..\Resources\CascadiaMono.ttf" />
+  </ItemGroup>
 </Project>

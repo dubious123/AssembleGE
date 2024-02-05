@@ -8,17 +8,20 @@ namespace editor::game
 {
 	namespace
 	{
+		void _unload_dll();
+		bool _generate_code(std::string project_directory_path, std::string proj_name);
 		bool _build_load_dll(std::string project_directory_path, std::string proj_name);
-	}
+	}	 // namespace
 
 	namespace
 	{
-		size_t (*_get_registered_component_count)();
+		size_t (*_get_registered_struct_count)();
 		size_t (*_get_registered_scene_count)();
 		size_t (*_get_registered_world_count)();
-		struct_info* (*_get_component_info)(size_t index);
+		struct_info* (*_get_struct_info)(size_t index);
 		scene_info* (*_get_scene_info)(size_t index);
 		world_info* (*_get_world_info)(size_t index);
+		component_info* (*_get_component_info)(size_t index);
 
 		auto _project_open_datas			  = std::vector<project_open_data>();
 		auto _application_data_directory_path = std::wstring();
@@ -49,11 +52,13 @@ namespace editor::game
 			[](editor_id) {
 				if (_project_dll)
 				{
-					FreeLibrary(_project_dll);
+					_unload_dll();
+					//_generate_code
 				}
 				editor::widgets::progress_modal("Building project",
 												[] {
-													auto res = _build_load_dll(_current_project.directory_path, _current_project.name);
+													auto res  = _generate_code(_current_project.directory_path, _current_project.name);
+													res		 &= _build_load_dll(_current_project.directory_path, _current_project.name);
 													if (res)
 													{
 														logger::info("Build Success");
@@ -172,14 +177,33 @@ namespace editor::game
 			editor::on_project_unloaded();
 		}
 
+		bool _generate_code(std::string project_directory_path, std::string proj_name)
+		{
+			constexpr const char* indent = "				";
+			constexpr const char* scene_template =
+				"SERIALIZE_SCENE({0},\
+				SERIALIZE_WORLD(my_first_world, transform, bullet, rigid_body),\
+				SERIALIZE_WORLD(my_second_world, transform, rigid_body))";
+
+			const auto& scenes = editor::models::scene::all();
+			for (auto* p_s : scenes)
+			{
+				const auto& worlds = p_s->all_worlds();
+				for (auto* p_w : worlds)
+				{
+				}
+			}
+			return true;
+		}
+
 		bool _build_load_dll(std::string project_directory_path, std::string proj_name)
 		{
-			_get_registered_component_count = nullptr;
-			_get_registered_scene_count		= nullptr;
-			_get_registered_world_count		= nullptr;
-			_get_component_info				= nullptr;
-			_get_scene_info					= nullptr;
-			_get_world_info					= nullptr;
+			_get_registered_struct_count = nullptr;
+			_get_registered_scene_count	 = nullptr;
+			_get_registered_world_count	 = nullptr;
+			_get_struct_info			 = nullptr;
+			_get_scene_info				 = nullptr;
+			_get_world_info				 = nullptr;
 
 			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
 			auto p_program86_path = PWSTR { nullptr };
@@ -189,27 +213,40 @@ namespace editor::game
 			_run_cmd(find_msbuild_command, &ms_build_path);
 
 #ifdef _DEBUG_EDITOR
-			auto build_command = std::format("\"{}\" \"{}\" /property:Configuration=DebugEditor /property:platform=x64", ms_build_path, sln_path);
+			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=DebugEditor /p:platform=x64 /p:PreBuildEventUseInBuild=true", ms_build_path, sln_path);
 			auto dll_path	   = std::format("{}\\x64\\DebugEditor\\{}.dll", project_directory_path, proj_name);
 #else ifdef _RELEASE_EDITOR
-			auto build_command = std::format("\"{}\" \"{}\" /property:Configuration=ReleaseEditor /property:platform=x64", ms_build_path, sln_path);
+			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=ReleaseEditor /p:platform=x64", ms_build_path, sln_path);
 			auto dll_path	   = std::format("{}\\x64\\ReleaseEditor\\{}.dll", project_directory_path, proj_name);
 #endif	  // _DEBUG_EDITOR
 
 			wchar_t bffer[500] { 0 };
 			std::copy_n(build_command.begin(), build_command.size(), bffer);
-			auto build_success = _run_cmd(bffer, nullptr) == 0;
+			std::string output;
+			auto		build_success = _run_cmd(bffer, &output) == 0;
 
-			if (build_success is_false) return false;
+			if (build_success is_false)
+			{
+				return false;
+			}
 
 			_project_dll = LoadLibraryA(dll_path.c_str());
 
-			_get_registered_component_count = LOAD_FUNC(size_t(*)(), "get_registered_component_count", _project_dll);
-			_get_registered_scene_count		= LOAD_FUNC(size_t(*)(), "get_registered_scene_count", _project_dll);
-			_get_registered_world_count		= LOAD_FUNC(size_t(*)(), "get_registered_world_count", _project_dll);
-			_get_component_info				= LOAD_FUNC(struct_info * (*)(size_t), "get_component_info", _project_dll);
-			_get_scene_info					= LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", _project_dll);
-			_get_world_info					= LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
+			_get_registered_struct_count = LOAD_FUNC(size_t(*)(), "get_registered_struct_count", _project_dll);
+			_get_registered_scene_count	 = LOAD_FUNC(size_t(*)(), "get_registered_scene_count", _project_dll);
+			_get_registered_world_count	 = LOAD_FUNC(size_t(*)(), "get_registered_world_count", _project_dll);
+			_get_struct_info			 = LOAD_FUNC(struct_info * (*)(size_t), "get_struct_info", _project_dll);
+			_get_scene_info				 = LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", _project_dll);
+			_get_world_info				 = LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
+			_get_component_info			 = LOAD_FUNC(component_info * (*)(size_t), "get_component_info", _project_dll);
+
+			auto struct_count = _get_registered_struct_count();
+
+			for (auto struct_idx = 0; struct_idx < struct_count; ++struct_idx)
+			{
+				auto p_struct_info = _get_struct_info(struct_idx);
+				editor::models::component::register_struct(p_struct_info);
+			}
 
 			auto scene_count = _get_registered_scene_count();
 			for (auto scene_idx = 0; scene_idx < scene_count; ++scene_idx)
@@ -223,12 +260,22 @@ namespace editor::game
 				for (auto i = 0; i < p_scene_info->world_count; ++i)
 				{
 					auto* p_w_info	= _get_world_info(i + p_scene_info->world_idx);
-					auto  p_world	= p_scene->find_world(p_scene->create_world());
+					auto* p_world	= p_scene->find_world(p_scene->create_world());
 					p_world->p_info = p_w_info;
 					p_world->name	= p_w_info->name;
+
+					for (auto j = 0; j < p_w_info->component_count; ++j)
+					{
+						auto* p_c_info	   = _get_component_info(j + p_w_info->component_idx);
+						auto  c_id		   = p_world->add_component();
+						auto* p_c		   = component::find_struct(c_id);
+						p_c->p_info		   = p_c_info;
+						p_c->p_struct_info = _get_struct_info(p_c_info->struct_idx);
+					}
 				}
 			}
 
+			_current_project.is_ready = true;
 			return build_success;
 		}
 	}	 // namespace
@@ -500,11 +547,12 @@ namespace editor::game
 		bool		  success			= true;
 
 		std::string proj_name_str(proj_name);
-		std::string solution_template_str, project_template_str, project_data_template_str, main_cpp_str, components_h_str;
+		std::string solution_template_str, project_template_str, project_data_template_str, main_cpp_str, components_h_str, __common_h_str;
 		std::string arg_0, arg_1, arg_2, arg_3;
 
 		std::filesystem::path directory_path;
 		std::filesystem::path gamecode_directory_path;
+		std::filesystem::path gamecode_generated_directory_path;
 		std::filesystem::path internal_project_dir_path;
 		std::filesystem::path solution_template_path;
 		std::filesystem::path project_template_path;
@@ -529,10 +577,13 @@ namespace editor::game
 			directory_path.append(proj_name_str);
 			gamecode_directory_path = std::filesystem::path(directory_path);
 			gamecode_directory_path.append(GAMECODE_DIRECTORY);
+			gamecode_generated_directory_path = gamecode_directory_path;
+			gamecode_generated_directory_path.append(GAMECODE_GENERATED_DIRECTORY);
 			internal_project_dir_path = std::filesystem::path(directory_path);
 			internal_project_dir_path.append(PROJECT_EXTENSION);
 			success &= std::filesystem::create_directory(directory_path);
 			success &= std::filesystem::create_directory(gamecode_directory_path);
+			success &= std::filesystem::create_directory(gamecode_generated_directory_path);
 			success &= std::filesystem::create_directory(internal_project_dir_path);
 			::SetFileAttributes(internal_project_dir_path.c_str(), FILE_ATTRIBUTE_HIDDEN);
 		}
@@ -542,11 +593,12 @@ namespace editor::game
 			TCHAR current_dirctory_path[MAX_PATH];
 			::GetCurrentDirectory(MAX_PATH, current_dirctory_path);
 
-			solution_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_solution"));
-			project_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("msvc_project"));
-			project_data_template_str = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("project_data"));
-			main_cpp_str			  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("main_cpp"));
-			components_h_str		  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("project_template\\").append("components_h"));
+			solution_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("msvc_solution"));
+			project_template_str	  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("msvc_project"));
+			project_data_template_str = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("project_data"));
+			main_cpp_str			  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("main_cpp"));
+			components_h_str		  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("components_h"));
+			__common_h_str			  = utilities::read_file(std::filesystem::path(current_dirctory_path).append("resources\\project_template\\").append("common_h"));
 		}
 
 		// get template arguments
@@ -612,6 +664,8 @@ namespace editor::game
 		utilities::create_file(
 			std::filesystem::path(gamecode_directory_path) / "components.h",
 			components_h_str);
+		utilities::create_file(
+			std::filesystem::path(gamecode_generated_directory_path) / "__common.h", __common_h_str);
 
 		assert(success);
 		return success;

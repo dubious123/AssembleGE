@@ -5,31 +5,34 @@
 
 #define OFFSET(struct_name, field_name) ((size_t) & (((__detail__struct_name*)(nullptr))->field_name))
 
-#define COMPONENT_BEGIN(struct_name)                               \
-	struct struct_name                                             \
-	{                                                              \
-	  public:                                                      \
-		static constinit const uint64 id = STR_HASH(#struct_name); \
-                                                                   \
-	  private:                                                     \
-		typedef struct_name		  __detail_self;                   \
-		static inline const char* __detail__struct_name = []() {   \
-			reflection::register_struct(#struct_name);             \
-			return #struct_name;                                   \
-		}();                                                       \
-                                                                   \
+#define COMPONENT_BEGIN(struct_name)                                           \
+	struct struct_name                                                         \
+	{                                                                          \
+	  public:                                                                  \
+		static constinit const uint64 id = STR_HASH(#struct_name);             \
+                                                                               \
+                                                                               \
+	  private:                                                                 \
+		typedef struct_name		  __detail_self;                               \
+		static inline const char* __detail__struct_name = []() {               \
+			/*reflection::register_struct(id, #struct_name);               \*/ \
+			reflection::register_struct(#struct_name);                         \
+			return #struct_name;                                               \
+		}();                                                                   \
+                                                                               \
 	  public:
 
 
-#define SERIALIZE_FIELD(type, field_name, ...)                                                                                                                \
-	type field_name { __VA_ARGS__ };                                                                                                                          \
-                                                                                                                                                              \
-  private:                                                                                                                                                    \
-	static inline bool __detail__field_init_##field_name = []() {                                                                                             \
-		reflection::register_field(__detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__); \
-		return false;                                                                                                                                         \
-	}();                                                                                                                                                      \
-                                                                                                                                                              \
+#define SERIALIZE_FIELD(type, field_name, ...)                                                                                                                          \
+	type field_name { __VA_ARGS__ };                                                                                                                                    \
+                                                                                                                                                                        \
+  private:                                                                                                                                                              \
+	static inline bool __detail__field_init_##field_name = []() {                                                                                                       \
+		/*reflection::register_field(id, __detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__); \*/ \
+		reflection::register_field(__detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__);           \
+		return false;                                                                                                                                                   \
+	}();                                                                                                                                                                \
+                                                                                                                                                                        \
   public:
 #define COMPNENT_END() \
 	}                  \
@@ -61,7 +64,9 @@ namespace reflection
 
 	struct struct_info
 	{
-		struct_info(const char* name);
+		struct_info();
+		struct_info(uint64 idx, const char* name);
+		uint64		idx;
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
@@ -76,8 +81,17 @@ namespace reflection
 
 	struct world_info
 	{
-		size_t		scene_idx;
 		const char* name;
+		size_t		scene_idx;
+		size_t		component_count;
+		size_t		component_idx;
+	};
+
+	struct component_info
+	{
+		uint64 struct_idx;
+		size_t scene_idx;
+		size_t world_idx;
 	};
 
 	void register_struct(const char* name);
@@ -88,13 +102,16 @@ namespace reflection
 
 	void register_world(const char* name);
 
-	EDITOR_API size_t get_registered_component_count();
+	void register_component_to_world(uint64 struct_idx);
+
+	EDITOR_API size_t get_registered_struct_count();
 	EDITOR_API size_t get_registered_scene_count();
 	EDITOR_API size_t get_registered_world_count();
 
-	EDITOR_API struct_info* get_component_info(size_t index);
-	EDITOR_API scene_info*	get_scene_info(size_t index);
-	EDITOR_API world_info*	get_world_info(size_t index);
+	EDITOR_API struct_info*	   get_struct_info(uint64 component_id);
+	EDITOR_API scene_info*	   get_scene_info(size_t index);
+	EDITOR_API world_info*	   get_world_info(size_t index);
+	EDITOR_API component_info* get_component_info(size_t index);
 }	 // namespace reflection
 
 namespace reflection
@@ -107,6 +124,10 @@ namespace reflection
 		world_wrapper()
 		{
 			reflection::register_world(str_wrapper.value);
+			([] {
+				reflection::register_component_to_world(c::id);
+			}(),
+			 ...);
 		}
 	};
 

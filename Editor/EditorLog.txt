@@ -1,0 +1,2 @@
+[2024-02-05 09:46:31.827] [Editor Logger] [info] Hi
+[2024-02-05 09:46:34.706] [Editor Logger] [info] Open Completed

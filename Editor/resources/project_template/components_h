@@ -1,0 +1,11 @@
+#pragma once
+#include "__components.h"
+#include "__reflection.h"
+
+//do not include this file
+
+COMPONENT_BEGIN(transform2)
+SERIALIZE_FIELD(float3, position, 0, 0, 0)
+SERIALIZE_FIELD(float3, scale, 1, 1, 1)
+SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
+COMPNENT_END()
