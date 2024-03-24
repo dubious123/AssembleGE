@@ -137,9 +137,9 @@ namespace editor::logger
 	}
 }	 // namespace editor::logger
 
-namespace editor::view::Logger
+namespace editor::view::logger
 {
 	void init();
 	void show();
 	void on_project_loaded();
-}	 // namespace editor::view::Logger
+}	 // namespace editor::view::logger

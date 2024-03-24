@@ -28,17 +28,12 @@ namespace reflection
 			static data_structure::vector<world_info> _vec;
 			return _vec;
 		}
-
-		data_structure::vector<component_info>& _component_info_vec()
-		{
-			static data_structure::vector<component_info> _vec;
-			return _vec;
-		}
 	}	 // namespace
 
 	struct_info::struct_info()
 	{
 		this->idx		  = -1;
+		this->hash_id	  = 0;
 		this->name		  = nullptr;
 		this->fields	  = nullptr;
 		this->field_count = 0;
@@ -47,14 +42,24 @@ namespace reflection
 	struct_info::struct_info(uint64 idx, const char* name)
 	{
 		this->idx		  = idx;
+		this->hash_id	  = 0;
 		this->name		  = name;
 		this->fields	  = nullptr;
 		this->field_count = 0;
 	}
 
-	void register_struct(const char* name)
+	struct_info::struct_info(uint64 idx, uint64 hash_id, const char* name)
 	{
-		_struct_info_vec().emplace_back(_struct_info_vec().size(), name);
+		this->idx		  = idx;
+		this->hash_id	  = hash_id;
+		this->name		  = name;
+		this->fields	  = nullptr;
+		this->field_count = 0;
+	}
+
+	void register_struct(const char* name, uint64 hash_id)
+	{
+		_struct_info_vec().emplace_back(_struct_info_vec().size(), hash_id, name);
 		_field_info_vec().emplace_back();
 	}
 
@@ -85,17 +90,19 @@ namespace reflection
 		++scene_info.world_count;
 	}
 
-	void register_component_to_world(uint64 struct_idx)
+	void register_component_to_world(uint64 struct_hash_id)
 	{
 		auto& world_info = _world_info_vec().back();
 
-		if (world_info.component_count == 0)
+		for (auto i = 0; i < _struct_info_vec().size(); ++i)
 		{
-			world_info.component_idx = _component_info_vec().size();
+			auto& struct_info = _struct_info_vec()[i];
+			if (struct_info.hash_id == struct_hash_id)
+			{
+				world_info.struct_idx_vec[world_info.struct_count++] = i;
+				break;
+			}
 		}
-
-		++world_info.component_count;
-		_component_info_vec().emplace_back(struct_idx, world_info.scene_idx, _world_info_vec().size() - 1);
 	}
 
 	size_t get_registered_struct_count()
@@ -133,7 +140,6 @@ namespace reflection
 
 	component_info* get_component_info(size_t index)
 	{
-		auto& res = _component_info_vec()[index];
-		return &res;
+		return nullptr;
 	}
 }	 // namespace reflection

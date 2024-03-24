@@ -16,7 +16,7 @@
 		typedef struct_name		  __detail_self;                               \
 		static inline const char* __detail__struct_name = []() {               \
 			/*reflection::register_struct(id, #struct_name);               \*/ \
-			reflection::register_struct(#struct_name);                         \
+			reflection::register_struct(#struct_name, id);                     \
 			return #struct_name;                                               \
 		}();                                                                   \
                                                                                \
@@ -66,7 +66,9 @@ namespace reflection
 	{
 		struct_info();
 		struct_info(uint64 idx, const char* name);
+		struct_info(uint64 idx, uint64 hash_id, const char* name);
 		uint64		idx;
+		uint64		hash_id;
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
@@ -83,8 +85,8 @@ namespace reflection
 	{
 		const char* name;
 		size_t		scene_idx;
-		size_t		component_count;
-		size_t		component_idx;
+		uint64		struct_count;
+		uint64		struct_idx_vec[64];
 	};
 
 	struct component_info
@@ -94,7 +96,7 @@ namespace reflection
 		size_t world_idx;
 	};
 
-	void register_struct(const char* name);
+	void register_struct(const char* name, uint64 hash_id);
 
 	void register_field(const char* struct_name, const char* type, const char* name, size_t offset, const char* serialized_value);
 
@@ -102,7 +104,7 @@ namespace reflection
 
 	void register_world(const char* name);
 
-	void register_component_to_world(uint64 struct_idx);
+	void register_component_to_world(uint64 struct_hash_id);
 
 	EDITOR_API size_t get_registered_struct_count();
 	EDITOR_API size_t get_registered_scene_count();

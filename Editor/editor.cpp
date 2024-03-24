@@ -337,7 +337,7 @@ void editor::init()
 	// Editor::UndoRedo::Init();
 }
 
-void editor::Run()
+void editor::run()
 {
 	// Our state
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.f);
@@ -360,7 +360,10 @@ void editor::Run()
 				done = true;
 			}
 		}
-		if (done) break;
+		if (done)
+		{
+			break;
+		}
 
 		COLORREF BORDER_COLOR = ::GetFocus() != NULL ? RGB(113, 96, 232) : RGB(61, 61, 61);
 		::DwmSetWindowAttribute(
@@ -1357,7 +1360,7 @@ namespace editor
 		_load_ctx_menu();
 
 		logger::clear();
-		UndoRedo::on_project_loaded();
+		undoredo::on_project_loaded();
 		models::on_project_loaded();
 		view::on_project_loaded();
 		game::on_project_loaded();
@@ -1370,11 +1373,75 @@ namespace editor
 		models::on_project_unloaded();
 		//_cmd_id = 0;
 		_selected_vec.clear();
+		id::reset();
 		//_current_select_ctx_item = INVALID_ID;
 	}
 }	 // namespace editor
 
-namespace editor::UndoRedo
+namespace editor::id
+{
+	namespace
+	{
+		std::array<editor_id, DataType_Count> _next_id_vec = []() {
+			std::array<editor_id, DataType_Count> arr;
+			for (auto i = 0; i < DataType_Count; ++i)
+			{
+				arr[i] = editor_id(i, 0, 0);
+			}
+
+			return arr;
+		}();
+		std::vector<editor_id> _deleted_id_set[DataType_Count];
+	}	 // namespace
+
+	void reset()
+	{
+		for (auto vec : _deleted_id_set)
+		{
+			vec.clear();
+		}
+
+		for (auto i = 0; i < DataType_Count; ++i)
+		{
+			_next_id_vec[i] = editor_id(i, 0, 0);
+		}
+	}
+
+	editor_id get_new(editor_data_type type)
+	{
+		if (_deleted_id_set[type].empty())
+		{
+			auto res		   = _next_id_vec[type];
+			_next_id_vec[type] = editor_id(type, 0, (res.key() + 1));
+			return res;
+		}
+		else
+		{
+			auto res = _deleted_id_set[type].back();
+			res.increase_gen();
+
+			_deleted_id_set[type].pop_back();
+			return res;
+		}
+	}
+
+	void delete_id(editor_id id)
+	{
+		if (std::ranges::find(_deleted_id_set[id.type()], id) == _deleted_id_set[id.type()].end())
+		{
+			_deleted_id_set[id.type()].push_back(id);
+		}
+	}
+
+	void restore(editor_id id)
+	{
+		auto it = std::ranges::find(_deleted_id_set[id.type()], id);
+		assert(it != _deleted_id_set[id.type()].end());
+		_deleted_id_set[id.type()].erase(it);
+	}
+}	 // namespace editor::id
+
+namespace editor::undoredo
 {
 	namespace
 	{
@@ -1445,196 +1512,223 @@ namespace editor::UndoRedo
 		}
 		logger::info("----------------------------");
 	}
-}	 // namespace editor::UndoRedo
+}	 // namespace editor::undoredo
 
 namespace editor::models
 {
+	namespace reflection
+	{
+		namespace
+		{
+			std::unordered_map<editor_id, uint64, editor_id::hash_func>					   _struct_idx_map;
+			std::unordered_map<editor_id, std::pair<uint64, uint64>, editor_id::hash_func> _field_idx_map;
+
+			std::vector<em_struct>			   _structs;
+			std::vector<std::vector<em_field>> _fields;
+		}	 // namespace
+
+		em_struct* find_struct(editor_id id)
+		{
+			if (_struct_idx_map.contains(id) is_false)
+			{
+				return nullptr;
+			}
+
+			return &_structs[_struct_idx_map[id]];
+		}
+
+		em_struct* find_struct(const char* name)
+		{
+			auto res = std::ranges::find_if(
+				_structs, [=](em_struct s) { return s.name == name; });
+			return &_structs[std::distance(_structs.begin(), res)];
+		}
+
+		editor_id create_struct()
+		{
+			auto  id = id::get_new(DataType_Struct);
+			auto& s	 = _structs.emplace_back();
+			_fields.emplace_back();
+			_struct_idx_map.insert({ id, _structs.size() - 1 });
+			s.id = id;
+
+			return id;
+		}
+
+		void remove_struct(editor_id struct_id)
+		{
+			if (_struct_idx_map.contains(struct_id) is_false)
+			{
+				return;
+			}
+
+			auto idx						  = _struct_idx_map[struct_id];
+			_structs[idx]					  = _structs.back();
+			_struct_idx_map[_structs[idx].id] = idx;
+			_structs.pop_back();
+			_struct_idx_map.erase(struct_id);
+
+			std::ranges::for_each(_fields[idx], [](em_field& f) { remove_field(f.id); });
+
+			_fields[idx] = _fields.back();
+			_fields.pop_back();
+
+			std::ranges::for_each(_fields[idx], [=](em_field& f) { _field_idx_map[f.id].first = idx; });
+
+			id::delete_id(struct_id);
+		}
+
+		editor_id add_field(editor_id struct_id)
+		{
+			auto  id		 = id::get_new(DataType_Field);
+			auto  struct_idx = _struct_idx_map[struct_id];
+			auto& f			 = _fields[struct_idx].emplace_back();
+			f.id			 = id;
+			f.struct_id		 = struct_id;
+			_field_idx_map.insert({
+				id, {struct_idx, _fields[struct_idx].size() - 1}
+			   });
+
+			return id;
+		}
+
+		void remove_field(editor_id field_id)
+		{
+			auto& pair	 = _field_idx_map[field_id];
+			auto  s_idx	 = pair.first;
+			auto  f_idx	 = pair.second;
+			auto& f		 = _fields[f_idx];
+			auto& f_vec	 = _fields[s_idx];
+			f_vec[f_idx] = f_vec.back();
+			f_vec.pop_back();
+
+			_field_idx_map.erase(field_id);
+			_field_idx_map[f_vec[f_idx].id].second = f_idx;
+
+			id::delete_id(field_id);
+		}
+
+		std::vector<em_struct*> all_structs()
+		{
+			auto res = _structs |
+					   std::views::transform([](em_struct& s) { return &s; });
+			return std::vector(res.begin(), res.end());
+		}
+
+		std::vector<em_field*> all_fields(editor_id struct_id)
+		{
+			auto idx = _struct_idx_map[struct_id];
+			auto res = _fields[idx] |
+					   std::views::transform([](em_field& f) { return &f; });
+			return std::vector(res.begin(), res.end());
+		}
+
+		em_field* find_field(editor_id id)
+		{
+			if (_field_idx_map.contains(id) is_false)
+			{
+				return nullptr;
+			}
+
+			auto& pair = _field_idx_map[id];
+			return &_fields[pair.first][pair.second];
+		}
+
+		std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec)
+		{
+			auto view = struct_id_vec |
+						std::views::filter([](auto id) { return _field_idx_map.contains(id); }) |
+						std::views::transform([](auto id) {
+							auto& pair = _field_idx_map[id];
+							return &_fields[pair.first][pair.second];
+						});
+
+			return std::vector<em_field*>(view.begin(), view.end());	// c++ 23 => std::views::to
+		}
+
+		void on_project_unloaded()
+		{
+			_struct_idx_map.clear();
+			_field_idx_map.clear();
+			_structs.clear();
+			_fields.clear();
+		}
+
+		void on_project_loaded()
+		{
+			auto res = true;
+			// res		 &= add_context_item("Scene\\Add New World", &editor::models::world::cmd_create);
+			// res		 &= add_context_item("World\\Remove World", &editor::models::world::cmd_remove);
+			assert(res);
+		}
+	}	 // namespace reflection
+
 	namespace scene
 	{
 		namespace
 		{
-			constexpr const editor_id _invalid_id	 = editor_id(((uint64)DataType_Scene << 56) | 0xffff);
-			uint8					  _count		 = 0;
-			uint16					  _hole_head_idx = INVALID_IDX;
-			uint16					  _head_idx		 = INVALID_IDX;
-			uint16					  _tail_idx		 = INVALID_IDX;
-			auto					  _current		 = _invalid_id;
-			std::vector<em_scene>	  _scenes;
-
-			uint16 _calc_idx(editor_id id)
-			{
-				return id.value & 0xffff;
-			}
-
-			uint8 _calc_gen(editor_id id)
-			{
-				return (id.value & 0x0000'0000'00ff'0000) >> 16;
-			}
-
-			editor_id _make_id(uint16 idx)
-			{
-				return (DataType_Scene << 56) | idx;
-			}
-
-			editor_id _make_id(uint16 idx, uint8 gen)
-			{
-				return (DataType_Scene << 56) | (((uint16)(gen + 1)) << 16) | idx;
-			}
-
+			std::vector<em_scene>										_scenes;
+			std::unordered_map<editor_id, uint32, editor_id::hash_func> _idx_map;
+			editor_id													_current;
 		}	 // namespace
 
 		em_scene* find(editor_id id)
 		{
-			auto idx = _calc_idx(id);
-
-			if (id.type() != DataType_Scene)
+			auto res = _idx_map.find(id);
+			if (res != _idx_map.end())
+			{
+				return &_scenes[res->second];
+			}
+			else
 			{
 				return nullptr;
 			}
-
-			if (idx >= _scenes.size())
-			{
-				return nullptr;
-			}
-
-			auto& s		= _scenes[idx];
-			auto  valid = s.id == id and s.alive;
-
-			if (valid is_false)
-			{
-				return nullptr;
-			}
-
-			return &s;
 		}
 
 		editor_id create()
 		{
-			assert(_hole_head_idx == INVALID_IDX or _hole_head_idx < _scenes.size());
-			size_t idx	   = INVALID_IDX;
-			auto   no_hole = _hole_head_idx == INVALID_IDX;
-			if (no_hole)
-			{
-				idx		= _scenes.size();
-				auto& s = _scenes.emplace_back();
-				s.id	= _make_id(idx);
-			}
-			else
-			{
-				idx			   = _hole_head_idx;
-				auto& s		   = _scenes[_hole_head_idx];
-				s.id		   = _make_id(idx, _calc_gen(s.id) + 1);
-				_hole_head_idx = _calc_idx(s.next);
-			}
+			auto  id = id::get_new(DataType_Scene);
+			auto& s	 = _scenes.emplace_back();
+			s.name	 = std::format("new_scene##{0}", s.id.str());
+			s.id	 = id;
 
-			auto& new_s = _scenes[idx];
+			_idx_map.insert({ id, _scenes.size() - 1 });
+			_current = id;
 
-			if (_count == 0)
-			{
-				assert(_tail_idx == INVALID_IDX and _head_idx == INVALID_IDX);
-
-				_head_idx  = idx;
-				_tail_idx  = idx;
-				new_s.prev = _invalid_id;
-				new_s.next = _invalid_id;
-			}
-			else
-			{
-				assert(_tail_idx != INVALID_IDX and _head_idx != INVALID_IDX);
-				auto& prev_s = _scenes[_tail_idx];
-				assert(prev_s.next == _invalid_id);
-				prev_s.next = new_s.id;
-				new_s.prev	= prev_s.id;
-				new_s.next	= _invalid_id;
-				_tail_idx	= idx;
-			}
-
-			++_count;
-			new_s.alive = true;
-			new_s.name	= std::format("new_scene##{0}", new_s.id.str());
-			return new_s.id;
+			return s.id;
 		}
 
 		void remove(editor_id id)
 		{
-			auto idx = _calc_idx(id);
-			if (idx >= _scenes.size() or idx == INVALID_IDX) return;
-
-			auto& s		= _scenes[idx];
-			auto  valid = s.id == id;
-
-			if (valid is_false) return;
-
-			if (s.id == _current)
+			if (_idx_map.contains(id) is_false)
 			{
-				if (find(s.prev))
-				{
-					_current = s.prev;
-				}
-				else if (find(s.next))
-				{
-					_current = s.next;
-				}
-				else
-				{
-					assert(false);
-				}
+				return;
 			}
 
-			if (s.prev != _invalid_id)
+			auto  idx = _idx_map[id];
+			auto& s	  = _scenes[idx];
+
+			if (idx != _scenes.size() - 1)
 			{
-				auto  prev_idx = _calc_idx(s.prev);
-				auto& prev_s   = _scenes[prev_idx];
-				prev_s.next	   = s.next;
-			}
-			else
-			{
-				assert(_head_idx == idx);
-				_head_idx = _calc_idx(s.next);
+				_scenes[idx]			  = _scenes.back();
+				_idx_map[_scenes[idx].id] = idx;
 			}
 
-			if (s.next != _invalid_id)
-			{
-				auto  next_idx = _calc_idx(s.next);
-				auto& next_s   = _scenes[next_idx];
-				next_s.prev	   = s.prev;
-			}
-			else
-			{
-				assert(_tail_idx == idx);
-				_tail_idx = _calc_idx(s.prev);
-			}
-
-			if (_hole_head_idx != INVALID_IDX)
-			{
-				s.next						 = _scenes[_hole_head_idx].id;
-				_scenes[_hole_head_idx].prev = s.id;
-			}
-			else
-			{
-				s.next = _invalid_id;
-			}
-
-
-			s.prev = _invalid_id;
-
-			--_count;
-			_hole_head_idx = idx;
-			s.alive		   = false;
-			s.id		   = _make_id(idx, _calc_gen(s.id) + 1);
+			_scenes.pop_back();
+			_idx_map.erase(id);
+			id::delete_id(id);
 		}
 
 		size_t count()
 		{
-			return _count;
+			return _scenes.size();
 		}
 
 		std::vector<em_scene*> all()
 		{
 			auto res = _scenes |
-					   std::views::filter([](em_scene& s) { return s.alive; }) |
 					   std::views::transform([](em_scene& s) { return &s; });
-			return std::vector(res.begin(), res.end());
+			return std::vector(res.begin(), res.end());	   // todo c++23 std::views::to
 		}
 
 		void set_current(editor_id id)
@@ -1652,13 +1746,8 @@ namespace editor::models
 
 		em_scene* get_current()
 		{
-			if (_current == _invalid_id)
-			{
-				assert(_scenes.empty() is_false);
-				_current = _scenes[_head_idx].id;
-			}
-
-			return find(_current);
+			auto p_s = find(_current);
+			return p_s ? p_s : &_scenes[0];
 		}
 
 		editor_command cmd_create(
@@ -1666,16 +1755,16 @@ namespace editor::models
 			ImGuiKey_N | ImGuiMod_Ctrl,
 			[](editor_id _) { return true; },
 			[](editor_id _) {
-				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto cmd			= undoredo::undo_redo_cmd();
 				auto backup_current = _current;
 				cmd.name			= "new scene";
 				cmd.redo			= []() { set_current(create()); };
 				cmd.undo			= [=]() {
-					   remove(_scenes[_tail_idx].id);
+					   remove(_scenes.back().id);
 					   set_current(backup_current);
 				};
 
-				UndoRedo::add(cmd);
+				undoredo::add(cmd);
 				logger::info(cmd.name);
 				cmd.redo();
 			});
@@ -1684,38 +1773,47 @@ namespace editor::models
 			"Delete Scene",
 			ImGuiKey_Delete,
 			[](editor_id _) {
-				return _count - get_all_selections().size() > 0 and std::ranges::all_of(get_all_selections(), [](editor_id id) { return find(id) != nullptr; });
+				return count() - get_all_selections().size() > 0 and std::ranges::all_of(get_all_selections(), [](editor_id id) { return find(id) != nullptr; });
 			},
 			[](editor_id _) {
-				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto cmd			= undoredo::undo_redo_cmd();
 				auto id_vec			= editor::get_all_selections();
-				auto backup_vec		= std::vector<em_scene>();
+				auto backup_vec		= std::vector<std::pair<em_scene, uint32>>();
 				auto backup_current = _current;
-				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return *find(id); });
+				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return std::pair(*find(id), _idx_map[id]); });
 
 				cmd.name = "delete scene";
 				cmd.redo = [=]() {
-					for (auto id : id_vec)
-					{
+					std::ranges::for_each(id_vec, [](editor_id id) {
+						// backup_vec.emplace_back(*find(id), _idx_map[id]);
 						remove(id);
-					}
+					});
 				};
 				cmd.undo = [=]() {
-					auto backup_it = backup_vec.rbegin();
-					for (auto it = id_vec.rbegin(); it != id_vec.rend(); ++it, ++backup_it)
-					{
-						auto& s	   = *find(create());
-						auto  prev = s.prev;
-						auto  next = s.next;
-						s		   = *backup_it;
-						s.prev	   = prev;
-						s.next	   = next;
-					}
+					std::ranges::for_each(backup_vec | std::views::reverse, [](auto pair) {
+						auto& s	  = pair.first;
+						auto  idx = pair.second;
+						if (_scenes.size() == idx)
+						{
+							_scenes.emplace_back(s);
+							_scenes[idx]   = s;
+							_idx_map[s.id] = idx;
+						}
+						else
+						{
+							_scenes.push_back(_scenes[idx]);
+							_scenes[idx]			  = s;
+							_idx_map[_scenes[idx].id] = _scenes.size() - 1;
+							_idx_map[s.id]			  = idx;
+						}
+
+						id::restore(s.id);
+					});
 
 					_current = backup_current;
 				};
 
-				UndoRedo::add(cmd);
+				undoredo::add(cmd);
 				logger::info(cmd.name);
 				cmd.redo();
 			});
@@ -1725,26 +1823,22 @@ namespace editor::models
 			ImGuiKey_None,
 			[](editor_id id) { return id != _current and find(id) != nullptr; },
 			[](editor_id id) {
-				auto cmd			= UndoRedo::undo_redo_cmd();
+				auto cmd			= undoredo::undo_redo_cmd();
 				auto backup_current = _current;
 
 				cmd.name = std::format("set current scene from {} to {}", backup_current.str(), id.str());
 				cmd.undo = [=]() { _current = backup_current; };
 				cmd.redo = [=]() { _current = id; };
 
-				UndoRedo::add(cmd);
+				undoredo::add(cmd);
 				logger::info(cmd.name);
 				cmd.redo();
 			});
 
 		void on_project_unloaded()
 		{
-			_count		   = 0;
-			_hole_head_idx = INVALID_IDX;
-			_head_idx	   = INVALID_IDX;
-			_tail_idx	   = INVALID_IDX;
-			_current	   = _invalid_id;
 			_scenes.clear();
+			_idx_map.clear();
 		}
 
 		void on_project_loaded()
@@ -1760,68 +1854,100 @@ namespace editor::models
 	{
 		namespace
 		{
-			constexpr const editor_id _invalid_id = editor_id(((uint64)DataType_World << 56) | 0x00ff'ff00'ffff);
-
-			uint16 _calc_idx(editor_id id)
-			{
-				return id.value & 0xffff;
-			}
-
-			uint8 _calc_gen(editor_id id)
-			{
-				return (id.value & 0x0000'0000'00ff'0000) >> 16;
-			}
-
-			editor_id _make_id(uint16 idx)
-			{
-				return (DataType_World << 56) | idx;
-			}
-
-			editor_id _make_id(uint16 idx, uint8 gen)
-			{
-				return (DataType_World << 56) | (((uint16)(gen + 1)) << 16) | idx;
-			}
-
-			em_world* _find(editor_id id, em_scene* p_scene)
-			{
-				if (p_scene == nullptr) return nullptr;
-
-				auto& worlds = p_scene->worlds;
-				auto  idx	 = _calc_idx(id);
-
-				if (id.type() != DataType_World)
-				{
-					return nullptr;
-				}
-
-				if (idx >= worlds.size())
-				{
-					return nullptr;
-				}
-
-				auto& w		= worlds[idx];
-				auto  valid = w.id == id and w.alive;
-
-				if (valid is_false)
-				{
-					return nullptr;
-				}
-
-				return &w;
-			}
+			std::vector<std::vector<em_world>>											   _worlds;
+			std::unordered_map<editor_id, std::pair<uint32, uint32>, editor_id::hash_func> _idx_map;
+			// _worlds => [scene_idx][world_idx]
+			// _idx_map => [world_id] [pair<scene_idx, world_idx>]
 		}	 // namespace
+
+		em_world* find(editor_id id)
+		{
+			if (_idx_map.contains(id))
+			{
+				auto idx_pair = _idx_map[id];
+				return &_worlds[idx_pair.first][idx_pair.second];
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+
+		editor_id create(editor_id scene_id)
+		{
+			assert(scene::find(scene_id) != nullptr);
+
+			auto scene_idx = scene::_idx_map[scene_id];
+
+			if (_worlds.size() <= scene_idx)
+			{
+				_worlds.resize(scene_idx + 1);
+			}
+
+			auto  world_idx = _worlds[scene_idx].size();
+			auto& w			= _worlds[scene_idx].emplace_back();
+			w.id			= id::get_new(DataType_World);
+			w.name			= std::format("new_world##{0}", w.id.str());
+			w.scene_id		= scene_id;
+			_idx_map.insert({ w.id, std::pair(scene_idx, world_idx) });
+			return w.id;
+		}
+
+		void add_struct(editor_id world_id, editor_id struct_id)
+		{
+			auto* p_w = find(world_id);
+			if (p_w is_nullptr or p_w->struct_count == 64)
+			{
+				return;
+			}
+
+			p_w->structs[p_w->struct_count++] = struct_id;
+		}
+
+		void remove(editor_id id)
+		{
+			if (_idx_map.contains(id) is_false)
+			{
+				return;
+			}
+
+			auto& idx_pair				  = _idx_map[id];
+			auto  scene_idx				  = idx_pair.first;
+			auto  world_idx				  = idx_pair.second;
+			auto  back_idx				  = _worlds[scene_idx].size() - 1;
+			_worlds[scene_idx][world_idx] = _worlds[scene_idx][back_idx];
+			_worlds[scene_idx].pop_back();
+			_idx_map.erase(id);
+			id::delete_id(id);
+		}
+
+		std::vector<em_world*> all(editor_id scene_id)
+		{
+			assert(scene::find(scene_id) != nullptr);
+			auto scene_idx = scene::_idx_map[scene_id];
+
+			if (_worlds.size() <= scene_idx)
+			{
+				return std::vector<em_world*>();
+			}
+
+			auto res = _worlds[scene_idx] |
+					   std::views::transform([](em_world& w) { return &w; });
+			return std::vector(res.begin(), res.end());
+		}
 
 		editor_command cmd_create(
 			"New World",
 			ImGuiKey_None,
 			[](editor_id _) { return editor::get_current_selection().type() == DataType_Scene and editor::get_all_selections().size() == 1; },
 			[](editor_id _) {
-				auto cmd = UndoRedo::undo_redo_cmd();
-				cmd.name = "new world";
-				cmd.redo = []() { scene::get_current()->create_world(); };
-				cmd.undo = []() { scene::get_current()->remove_tail_world(); };
+				auto cmd  = undoredo::undo_redo_cmd();
+				auto s_id = editor::get_current_selection();
+				cmd.name  = "new world";
+				cmd.redo  = [=]() { create(s_id); };
+				cmd.undo  = [=]() { remove(_worlds[scene::_idx_map[s_id]].back().id); };
 
-				UndoRedo::add(cmd);
+				undoredo::add(cmd);
 				logger::info(cmd.name);
 				cmd.redo();
 			});
@@ -1829,42 +1955,53 @@ namespace editor::models
 		editor_command cmd_remove(
 			"Remove World",
 			ImGuiKey_Delete,
-			[](editor_id _) { return editor::get_all_selections().empty() is_false and std::ranges::all_of(editor::get_all_selections(), [](editor_id id) { return scene::get_current()->find_world(id) is_not_nullptr; }); },
+			[](editor_id _) { return editor::get_all_selections().empty() is_false and std::ranges::all_of(editor::get_all_selections(), [](editor_id id) { return find(id) != nullptr; }); },
 			[](editor_id _) {
-				auto cmd		= UndoRedo::undo_redo_cmd();
+				auto cmd		= undoredo::undo_redo_cmd();
 				auto id_vec		= editor::get_all_selections();
-				auto backup_vec = std::vector<em_world>();
-				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return *scene::get_current()->find_world(id); });
+				auto backup_vec = std::vector<std::pair<em_world, std::pair<uint32, uint32>>>();
+				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return std::pair(*find(id), _idx_map[id]); });
 
-				cmd.name = "Delete World";
-				cmd.redo = [=]() {
-					auto p_scene = scene::get_current();
-					for (auto id : id_vec)
-					{
-						p_scene->remove_world(id);
-					}
+				cmd.name = "remove world";
+				cmd.redo = [=, &backup_vec]() {
+					std::ranges::for_each(id_vec, [&backup_vec](editor_id id) {
+						// backup_vec.emplace_back(*find(id), _idx_map[id]);
+						remove(id);
+					});
 				};
 				cmd.undo = [=]() {
-					auto p_scene   = scene::get_current();
-					auto backup_it = backup_vec.rbegin();
-					for (auto it = id_vec.rbegin(); it != id_vec.rend(); ++it, ++backup_it)
-					{
-						auto& w	   = *p_scene->find_world(p_scene->create_world());
-						auto  prev = w.prev;
-						auto  next = w.next;
-						w		   = *backup_it;
-						w.prev	   = prev;
-						w.next	   = next;
-					}
+					std::ranges::for_each(backup_vec | std::views::reverse, [](auto pair) {
+						auto& w			= pair.first;
+						auto  idx_pair	= pair.second;
+						auto  scene_idx = idx_pair.first;
+						auto  world_idx = idx_pair.second;
+						if (_worlds[scene_idx].size() == world_idx)
+						{
+							_worlds[scene_idx].emplace_back(w);
+							_idx_map[w.id] = idx_pair;
+						}
+						else
+						{
+							_worlds[scene_idx].emplace_back(_worlds[scene_idx][world_idx]);
+							_worlds[scene_idx][world_idx]				  = w;
+							_idx_map[_worlds[scene_idx].back().id].second = _worlds[scene_idx].size() - 1;
+							_idx_map[w.id]								  = idx_pair;
+						}
+
+
+						id::restore(w.id);
+					});
 				};
 
-				UndoRedo::add(cmd);
+				undoredo::add(cmd);
 				logger::info(cmd.name);
 				cmd.redo();
 			});
 
 		void on_project_unloaded()
 		{
+			_worlds.clear();
+			_idx_map.clear();
 		}
 
 		void on_project_loaded()
@@ -1880,187 +2017,8 @@ namespace editor::models
 	{
 		namespace
 		{
-			std::vector<struct_info*> _structs;
 		}	 // namespace
-
-		uint64 register_struct(struct_info* p_struct_info)
-		{
-			_structs.push_back(p_struct_info);
-			p_struct_info->id;
-		}
-
-		struct_info* find_struct(size_t idx)
-		{
-			return _structs[idx];
-		}
-
-		void on_project_unloaded()
-		{
-			_structs.clear();
-		}
-
-		void on_project_loaded()
-		{
-			auto res  = true;
-			res		 &= add_context_item("Scene\\Add New World", &world::cmd_create);
-			res		 &= add_context_item("World\\Remove World", &world::cmd_remove);
-			assert(res);
-		}
-	}	 // namespace component
-
-	em_entity::em_entity(editor_id world_id, editor_id parent_id, size_t idx_in_world, std::string name) : world_id(world_id), parent_id(parent_id), idx_in_world(idx_in_world), name(name) {};
-
-	em_component::em_component(component_id id, editor_id entity_id, std::string name) : id(id), entity_id(entity_id), name(name) {};
-
-	em_world* em_scene::find_world(editor_id id)
-	{
-		auto idx = world::_calc_idx(id);
-
-		if (id.type() != DataType_World)
-		{
-			return nullptr;
-		}
-
-		if (idx >= worlds.size())
-		{
-			return nullptr;
-		}
-
-		auto& w		= worlds[idx];
-		auto  valid = w.id == id and w.alive;
-
-		if (valid is_false)
-		{
-			return nullptr;
-		}
-
-		return &w;
-	}
-
-	editor_id em_scene::create_world()
-	{
-		assert(_world_hole_head_idx == INVALID_IDX or _world_hole_head_idx < worlds.size());
-		size_t idx	   = INVALID_IDX;
-		auto   no_hole = _world_hole_head_idx == INVALID_IDX;
-		if (no_hole)
-		{
-			idx		= worlds.size();
-			auto& w = worlds.emplace_back();
-			w.id	= world::_make_id(idx);
-		}
-		else
-		{
-			idx					 = _world_hole_head_idx;
-			auto& w				 = worlds[_world_hole_head_idx];
-			w.id				 = world::_make_id(idx, world::_calc_gen(w.id) + 1);
-			_world_hole_head_idx = world::_calc_idx(w.next);
-		}
-
-		auto& new_w = worlds[idx];
-
-		if (_world_count == 0)
-		{
-			assert(_world_tail_idx == INVALID_IDX and _world_head_idx == INVALID_IDX);
-
-			_world_head_idx = idx;
-			_world_tail_idx = idx;
-			new_w.prev		= world::_invalid_id;
-			new_w.next		= world::_invalid_id;
-		}
-		else
-		{
-			assert(_world_tail_idx != INVALID_IDX and _world_head_idx != INVALID_IDX);
-			auto& prev_w = worlds[_world_tail_idx];
-			assert(prev_w.next == world::_invalid_id);
-			prev_w.next		= new_w.id;
-			new_w.prev		= prev_w.id;
-			new_w.next		= world::_invalid_id;
-			_world_tail_idx = idx;
-		}
-
-		++_world_count;
-		new_w.alive = true;
-		new_w.name	= std::format("new_world##{0}", new_w.id.str());
-		return new_w.id;
-	}
-
-	void em_scene::remove_world(editor_id id)
-	{
-		auto idx = world::_calc_idx(id);
-		if (idx >= worlds.size() or idx == INVALID_IDX) return;
-
-		auto& w		= worlds[idx];
-		auto  valid = w.id == id;
-
-		if (valid is_false) return;
-
-		if (w.prev != world::_invalid_id)
-		{
-			auto  prev_idx = world::_calc_idx(w.prev);
-			auto& prev_w   = worlds[prev_idx];
-			prev_w.next	   = w.next;
-		}
-		else
-		{
-			assert(_world_head_idx == idx);
-			_world_head_idx = world::_calc_idx(w.next);
-		}
-
-		if (w.next != world::_invalid_id)
-		{
-			auto  next_idx = world::_calc_idx(w.next);
-			auto& next_s   = worlds[next_idx];
-			next_s.prev	   = w.prev;
-		}
-		else
-		{
-			assert(_world_tail_idx == idx);
-			_world_tail_idx = world::_calc_idx(w.prev);
-		}
-
-		if (_world_hole_head_idx != INVALID_IDX)
-		{
-			w.next							  = worlds[_world_hole_head_idx].id;
-			worlds[_world_hole_head_idx].prev = w.id;
-		}
-		else
-		{
-			w.next = world::_invalid_id;
-		}
-
-
-		w.prev = world::_invalid_id;
-
-		--_world_count;
-		_world_hole_head_idx = idx;
-		w.alive				 = false;
-		w.id				 = world::_make_id(idx, world::_calc_gen(w.id) + 1);
-	}
-
-	void em_scene::remove_tail_world()
-	{
-		if (_world_count == 0) return;
-
-		assert(_world_tail_idx != INVALID_IDX and _world_tail_idx < worlds.size());
-		remove_world(worlds[_world_tail_idx].id);
-	}
-
-	size_t em_scene::world_count()
-	{
-		return _world_count;
-	}
-
-	std::vector<em_world*> em_scene::all_worlds()
-	{
-		auto res = worlds |
-				   std::views::filter([](em_world& w) { return w.alive; }) |
-				   std::views::transform([](em_world& w) { return &w; });
-		return std::vector(res.begin(), res.end());
-	}
-
-	editor_id em_world::add_component()
-	{
-	}
+	}		 // namespace component
 }	 // namespace editor::models
 
 // commands
@@ -2152,7 +2110,7 @@ namespace editor
 		[](editor_id id) { return _selected_vec.empty() or get_current_selection() != id; },
 		[](editor_id id) {
 			auto _selected_before = _selected_vec;
-			auto cmd			  = UndoRedo::undo_redo_cmd();
+			auto cmd			  = undoredo::undo_redo_cmd();
 			cmd.name			  = std::format("Select {}", id.str());
 			cmd.redo			  = [id]() {
 				 _selected_vec.clear();
@@ -2162,7 +2120,7 @@ namespace editor
 				_selected_vec = _selected_before;
 			};
 
-			UndoRedo::add(cmd);
+			undoredo::add(cmd);
 			logger::info(cmd.name);
 			cmd.redo();
 		});
@@ -2175,7 +2133,7 @@ namespace editor
 				   std::find(_selected_vec.begin(), _selected_vec.end(), id) == _selected_vec.end();
 		},
 		[](editor_id id) {
-			auto cmd = UndoRedo::undo_redo_cmd();
+			auto cmd = undoredo::undo_redo_cmd();
 			cmd.name = std::format("Add Select {}", id.str());
 			cmd.redo = [id]() {
 				_selected_vec.push_back(id);
@@ -2184,7 +2142,7 @@ namespace editor
 				_selected_vec.pop_back();
 			};
 
-			UndoRedo::add(cmd);
+			undoredo::add(cmd);
 			logger::info(cmd.name);
 			cmd.redo();
 		});
@@ -2194,7 +2152,7 @@ namespace editor
 		ImGuiKey_None,
 		[](editor_id id) { return std::ranges::find(_selected_vec, id) != _selected_vec.end(); },
 		[](editor_id id) {
-			auto cmd   = UndoRedo::undo_redo_cmd();
+			auto cmd   = undoredo::undo_redo_cmd();
 			auto index = std::ranges::find(_selected_vec, id) - _selected_vec.begin();
 			cmd.name   = std::format("Deselect {}", id.str());
 
@@ -2205,7 +2163,7 @@ namespace editor
 				_selected_vec.insert(std::next(_selected_vec.begin(), index), id);
 			};
 
-			UndoRedo::add(cmd);
+			undoredo::add(cmd);
 			logger::info(cmd.name);
 			cmd.redo();
 		});
@@ -2213,17 +2171,19 @@ namespace editor
 
 void editor::models::on_project_unloaded()
 {
+	reflection::on_project_unloaded();
 	scene::on_project_unloaded();
 	world::on_project_unloaded();
-	component::on_project_unloaded();
+	// component::on_project_unloaded();
 }
 
 void editor::models::on_project_loaded()
 {
+	reflection::on_project_loaded();
 	scene::on_project_loaded();
 	world::on_project_loaded();
-	component::on_project_loaded();
-	// res		 |= add_context_item("Scene\\Add New World", &cmd_add_world);
+	// component::on_project_loaded();
+	//  res		 |= add_context_item("Scene\\Add New World", &cmd_add_world);
 
 	// res |= Register_Command("World\\Create Empty", &World::Cmd_Add_Entity);
 	// res |= add_context_item("World\\Delete", &cmd_remove);

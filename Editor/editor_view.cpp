@@ -2,11 +2,11 @@
 #include "editor_view.h"
 #include "game_project/game_project.h"
 
-namespace editor::view::Hierarchy
+namespace editor::view::hierarchy
 {
 	auto _open = true;
 
-	const auto _cmd_open = editor_command {
+	const auto cmd_open = editor_command {
 		"Open Hierarchy Window",
 		ImGuiKey_None,
 		[](editor_id _) {
@@ -17,7 +17,7 @@ namespace editor::view::Hierarchy
 		}
 	};
 
-	void _show()
+	void show()
 	{
 		if (_open is_false) return;
 		if (editor::game::get_current_p_project()->is_ready is_false) return;
@@ -64,11 +64,11 @@ namespace editor::view::Hierarchy
 
 			widgets::separator();
 
-			for (const auto p_w : p_s_current->all_worlds())
+
+			for (const auto p_w : models::world::all(p_s_current->id))
 			{
 				auto world_selected			= editor::is_selected(p_w->id);
-				auto world_tree_node_opened = ImGui::TreeNodeEx(p_w->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_w->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
-
+				auto world_tree_node_opened = widgets::tree_node(p_w->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_w->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
 
 				editor::add_right_click_source(p_w->id);
 				editor::add_left_click_source(p_w->id);
@@ -103,7 +103,7 @@ namespace editor::view::Hierarchy
 
 				// Widgets::Separator();
 
-				ImGui::TreePop();
+				widgets::tree_pop();
 
 				// for (const auto& sub_world_id : p_world->SubWorlds)
 				//{
@@ -128,14 +128,14 @@ namespace editor::view::Hierarchy
 
 		widgets::end();
 	}
-}	 // namespace editor::view::Hierarchy
+}	 // namespace editor::view::hierarchy
 
-namespace editor::view::Inspector
+namespace editor::view::inspector
 {
 	using namespace editor::models;
 	auto _open = true;
 
-	const auto _cmd_open = editor_command {
+	const auto cmd_open = editor_command {
 		"Open Inspector Window",
 		ImGuiKey_None,
 		[](editor_id _) {
@@ -151,29 +151,53 @@ namespace editor::view::Inspector
 		auto p_scene = scene::get_current();
 		widgets::text(p_scene->name.c_str());
 		widgets::text("scene idx : {%d}", p_scene->id);
-		widgets::text("world count : {%d}", p_scene->world_count());
+		// widgets::text("world count : {%d}", p_scene->world_count());
 	}
 
 	void _draw_world(editor_id world_id)
 	{
-		auto p_scene = scene::get_current();
-		auto p_world = p_scene->find_world(world_id);
+		auto p_world = world::find(world_id);
 		if (p_world is_nullptr) return;
 
-		ImGui::Text((p_world->name).c_str());
-		for (auto c = 0; c < p_world->p_info->component_count; ++c)
-		{
-			auto p_c_info = p_world->find_component(p_world->p_info->component_idx + c);
-			widgets::text(p_c_info->name);
+		auto p_scene = scene::find(p_world->scene_id);
 
-			for (auto f = 0; f < p_c_info->field_count; ++f)
-			{
-				auto p_f_info = (p_c_info->fields + f);
-				widgets::text(p_f_info->name);
-				widgets::text(p_f_info->type);
-				widgets::text(p_f_info->serialized_value);
-			}
+		widgets::text((p_world->name).c_str());
+
+		if (p_world->struct_count == 0)
+		{
+			return;
 		}
+
+		if (widgets::tree_node("archetype"))
+		{
+			std::ranges::for_each_n(p_world->structs, p_world->struct_count, [](editor_id struct_id) {
+				auto* p_struct = models::reflection::find_struct(struct_id);
+				if (widgets::tree_node(p_struct->name))
+				{
+					std::ranges::for_each(models::reflection::all_fields(p_struct->id), [](em_field* p_f) {
+						widgets::tree_node(std::format("{}({}) : {}", p_f->name, p_f->p_info->type, p_f->p_info->serialized_value).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					});
+					widgets::tree_pop();
+				}
+			});
+			widgets::tree_pop();
+		}
+
+
+		// for (auto c = 0; c < p_world->p_info->component_count; ++c)
+		//{
+		//	auto p_c_info = p_world->find_component(p_world->p_info->component_idx + c);
+		//	auto p_s_info = reflection::find_struct(p_c_info->struct_id);
+		//	widgets::text(p_s_info->name);
+
+		//	for (auto f = 0; f < p_s_info->field_count; ++f)
+		//	{
+		//		auto p_f_info = (p_s_info->fields + f);
+		//		widgets::text(p_f_info->name);
+		//		widgets::text(p_f_info->type);
+		//		widgets::text(p_f_info->serialized_value);
+		//	}
+		//}
 
 		// widgets::separator();
 
@@ -244,10 +268,10 @@ namespace editor::view::Inspector
 		// }
 	}
 
-	void _show()
+	void show()
 	{
 		if (_open is_false) return;
-		if (ImGui::Begin("Inspector", &_open))
+		if (widgets::begin("Inspector", &_open))
 		{
 			auto id = get_current_selection();
 			switch (id.type())
@@ -266,9 +290,50 @@ namespace editor::view::Inspector
 			}
 		}
 
-		ImGui::End();
+		widgets::end();
 	}
-}	 // namespace editor::view::Inspector
+}	 // namespace editor::view::inspector
+
+namespace editor::view::reflection
+{
+	using namespace editor::models;
+
+	auto _open = true;
+
+	const auto cmd_open = editor_command {
+		"Open reflection Window",
+		ImGuiKey_None,
+		[](editor_id _) {
+			return true;
+		},
+		[](editor_id _) {
+			_open ^= true;
+		}
+	};
+
+	void show()
+	{
+		if (_open is_false) return;
+
+		if (widgets::begin("Reflection", &_open))
+		{
+			std::ranges::for_each(editor::models::reflection::all_structs(), [](em_struct* p_s) {
+				if (widgets::tree_node(p_s->name.c_str()))
+				{
+					std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
+						auto selected = false;
+						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, p_f->p_info->type, p_f->p_info->serialized_value), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+					});
+
+
+					widgets::tree_pop();
+				}
+			});
+		}
+
+		widgets::end();
+	}
+}	 // namespace editor::view::reflection
 
 namespace editor::view
 {
@@ -281,19 +346,19 @@ namespace editor::view
 			auto   mainViewPort = ImGui::GetMainViewport();
 			auto   size			= mainViewPort->Size - ImVec2(0, CAPTION_HIGHT * GEctx->dpi_scale);
 			ImVec2 pos			= mainViewPort->Pos + ImVec2(0, CAPTION_HIGHT * GEctx->dpi_scale);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2());
+			style::push_var(ImGuiStyleVar_WindowRounding, 0.0f);
+			style::push_var(ImGuiStyleVar_WindowBorderSize, 0.0f);
+			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2());
 			ImGui::SetNextWindowPos(pos);
 			ImGui::SetNextWindowSize(size);
 			ImGui::SetNextWindowViewport(mainViewPort->ID);
-			if (ImGui::Begin("MainView", NULL, window_flags))
+			if (widgets::begin("MainView", NULL, window_flags))
 			{
 				ImGui::DockSpace(ImGui::GetID("DockSpace"), size, ImGuiDockNodeFlags_None);	   // | ImGuiDockNodeFlags_NoSplit);
 			}
 
-			ImGui::End();
-			ImGui::PopStyleVar(3);
+			widgets::end();
+			style::pop_var(3);
 		}
 	}	 // namespace
 
@@ -304,14 +369,17 @@ namespace editor::view
 
 	void init()
 	{
-		Logger::init();
+		logger::init();
 	}
 
 	void on_project_loaded()
 	{
-		editor::add_context_item("Main Menu\\Window\\Hierarchy", &Hierarchy::_cmd_open);
-		editor::add_context_item("Main Menu\\Window\\Inspector", &Inspector::_cmd_open);
-		Logger::on_project_loaded();
+		auto res  = true;
+		res		 &= editor::add_context_item("Main Menu\\Window\\Hierarchy", &hierarchy::cmd_open);
+		res		 &= editor::add_context_item("Main Menu\\Window\\Inspector", &inspector::cmd_open);
+		res		 &= editor::add_context_item("Main Menu\\Window\\Reflection", &reflection::cmd_open);
+		assert(res);
+		logger::on_project_loaded();
 	}
 
 	void show()
@@ -320,8 +388,9 @@ namespace editor::view
 		project_browser::show();
 		if (editor::game::project_opened() is_false) return;
 
-		Logger::show();
-		Hierarchy::_show();
-		Inspector::_show();
+		logger::show();
+		hierarchy::show();
+		inspector::show();
+		reflection::show();
 	}
 }	 // namespace editor::view

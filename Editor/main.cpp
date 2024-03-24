@@ -16,6 +16,6 @@
 int main(int, char**)
 {
 	editor::init();
-	editor::Run();
+	editor::run();
 	return 0;
 }

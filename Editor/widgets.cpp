@@ -301,6 +301,39 @@ bool editor::widgets::button(const char* label, const ImVec2& size)
 	return ImGui::Button(label, size);
 }
 
+bool editor::widgets::tree_node(std::string label, ImGuiTreeNodeFlags flags)
+{
+	ImGuiWindow* window = GetCurrentWindow();
+	if (window->SkipItems)
+	{
+		return false;
+	}
+
+	return TreeNodeBehavior(window->GetID(label.c_str()), flags, label.c_str(), NULL);
+}
+
+void editor::widgets::tree_pop()
+{
+	ImGuiContext& g		 = *GImGui;
+	ImGuiWindow*  window = g.CurrentWindow;
+	Unindent();
+
+	window->DC.TreeDepth--;
+	ImU32 tree_depth_mask = (1 << window->DC.TreeDepth);
+
+	// Handle Left arrow to move to parent tree node (when ImGuiTreeNodeFlags_NavLeftJumpsBackHere is enabled)
+	if (g.NavMoveDir == ImGuiDir_Left && g.NavWindow == window && NavMoveRequestButNoResultYet())
+		if (g.NavIdIsAlive && (window->DC.TreeJumpToParentOnPopMask & tree_depth_mask))
+		{
+			SetNavID(window->IDStack.back(), g.NavLayer, 0, ImRect());
+			NavMoveRequestCancel();
+		}
+	window->DC.TreeJumpToParentOnPopMask &= tree_depth_mask - 1;
+
+	IM_ASSERT(window->IDStack.Size > 1);	// There should always be 1 element in the IDStack (pushed during window creation). If this triggers you called TreePop/PopID too much.
+	PopID();
+}
+
 bool editor::widgets::selectable(std::string label, bool selected, ImGuiSelectableFlags flags, const ImVec2& size_arg, bool border)
 {
 	return selectable(label.c_str(), selected, flags, size_arg, border);

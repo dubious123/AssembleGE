@@ -58,7 +58,7 @@ namespace editor::logger
 
 }	 // namespace editor::logger
 
-namespace editor::view::Logger
+namespace editor::view::logger
 {
 	namespace
 	{
@@ -124,4 +124,4 @@ namespace editor::view::Logger
 		}
 		ImGui::End();
 	}
-}	 // namespace editor::view::Logger
+}	 // namespace editor::view::logger

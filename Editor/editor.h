@@ -113,12 +113,14 @@ enum editor_data_type : unsigned long long
 	DataType_SubWorld,
 	DataType_Component,
 	DataType_System,
+	DataType_Struct,
+	DataType_Field,
 	DataType_Editor_Text,
 	DataType_Editor_Command,
 	DataType_Editor_UndoRedo,
 	DataType_Count,
 
-	DataType_InValid = 0x7f,
+	DataType_InValid = 0xff,
 };
 
 enum caption_button
@@ -190,17 +192,7 @@ struct editor_command;
 
 struct editor_id
 {
-	// editor_id => if not entity : [0][type(7bit)][index(56bit)]
-	//			    if     entity : [1]            [index(63bit)]
-	//
-	// if object type is entity => sign bit is one, else sign bit is 0
-	// if object type is entity => index range is 0~0x7fff'ffff'ffff'ffff; (0x7fff'ffff'ffff'ffff is invalid)
-	// if object type is not entity => index range is 0~0x00ff'ffff'ffff'ffff; (0x00ff'ffff'ffff'ffff is invalid)
-	// on engine side, entity index range is 0 ~ 0xffff'ffff'ffff'ffff per world
-	// so when total entity number is more than 0x0x7fff'ffff'ffff'ffff,
-	// the result is undefined.
-	// but if you created that much of entities, program will not function anyway so I think this is not a big issue;
-
+	//[type (8)][gen (4)][key (52)]
   public:
 	uint64 value;
 
@@ -212,23 +204,14 @@ struct editor_id
 		}
 	};
 
-	// constexpr inline editor_id(uint8 type, uint64 idx)
-	//{
-	//	uint64 is_entity = type == DataType_Entity;
-	//	assert(is_entity == 0 || is_entity == 1);
-	//	value = (0x8000'0000'0000'0000 & is_entity) | ((uint64)type << 56) | idx;
-	// }
-
 	constexpr inline editor_id(uint64 value) : value(value) {};
 
 	constexpr inline editor_id() : value(0x7fff'ffff'ffff'ffff) {};
 
-	// inline uint64 idx() const
-	//{
-	//	auto	   is_entity = value >> 63;
-	//	const auto idx		 = value & ((is_entity & 0x7f00'0000'0000'0000) | 0x00ff'ffff'ffff'ffff);
-	//	return idx;
-	// }
+	constexpr inline editor_id(uint64 type, uint8 gen, uint64 key) : value((type << 56) | (((uint64)gen & 0x0f) << 52) | (key & 0x000f'ffff'ffff'ffff)) {};
+
+	constexpr inline editor_id(uint64 type, uint8 gen) : value((type << 56) | (((uint64)gen & 0x0f) << 52)) {};
+
 	inline std::string str() const
 	{
 		return std::format("{:#016x}", value);
@@ -236,9 +219,26 @@ struct editor_id
 
 	inline editor_data_type type() const
 	{
-		auto	   is_entity = value >> 63;
-		const auto type		 = (editor_data_type)((value & (0xffff'ffff'ffff'ffff + is_entity)) >> 56);
+		const auto type = (editor_data_type)((value >> 56) & 0x00ff);
 		return type;
+	}
+
+	inline uint8 gen() const
+	{
+
+		const uint8 gen = (value >> 52) & 0x0f;
+		return gen;
+	}
+
+	inline uint64 key() const
+	{
+		const uint64 key = value & 0x000f'ffff'ffff'ffff;
+		return key;
+	}
+
+	inline void increase_gen()
+	{
+		value += 0x0010'0000'0000'0000;
 	}
 
 	inline bool operator==(const editor_id& other) const
@@ -263,40 +263,6 @@ struct editor_context
 	ImFont*		   p_font_arial_bold_18		 = nullptr;
 	bool		   dpi_changed				 = false;
 };
-
-extern editor_context* GEctx;	 // Current implicit context pointer
-
-// constinit static inline auto invalid_id = editor_id(DataType_InValid, 0);
-
-namespace editor
-{
-	extern const editor_command cmd_add_new;
-	extern const editor_command cmd_remove;
-	extern const editor_command cmd_select_new;
-	extern const editor_command cmd_add_select;
-	extern const editor_command cmd_deselect;
-
-	void init();
-	void Run();
-	void on_frame_end();
-	void on_project_loaded();
-	void on_project_unloaded();
-
-	void select_new(editor_id);
-	void add_select(editor_id);
-	void deselect(editor_id);
-	bool is_selected(editor_id id);
-	void add_right_click_source(editor_id id);
-	void add_left_click_source(editor_id id);
-
-	editor_id					  get_current_selection();
-	const std::vector<editor_id>& get_all_selections();
-	bool						  is_selection_vec_empty();
-
-	// inline bool is_valid_id(editor_id id) { return id != INVALID_ID; }
-
-	bool add_context_item(std::string path, const editor_command* command);
-}	 // namespace editor
 
 struct editor_command
 {
@@ -334,6 +300,47 @@ struct editor_command
 		}
 	}
 };
+
+extern editor_context* GEctx;	 // Current implicit context pointer
+
+namespace editor
+{
+	extern const editor_command cmd_add_new;
+	extern const editor_command cmd_remove;
+	extern const editor_command cmd_select_new;
+	extern const editor_command cmd_add_select;
+	extern const editor_command cmd_deselect;
+
+	void init();
+	void run();
+	void on_frame_end();
+	void on_project_loaded();
+	void on_project_unloaded();
+
+	void select_new(editor_id);
+	void add_select(editor_id);
+	void deselect(editor_id);
+	bool is_selected(editor_id id);
+	void add_right_click_source(editor_id id);
+	void add_left_click_source(editor_id id);
+
+	editor_id					  get_current_selection();
+	const std::vector<editor_id>& get_all_selections();
+	bool						  is_selection_vec_empty();
+
+	bool add_context_item(std::string path, const editor_command* command);
+}	 // namespace editor
+
+namespace editor::id
+{
+	editor_id get_new(editor_data_type type);
+
+	void delete_id(editor_id id);
+
+	void restore(editor_id id);
+
+	void reset();
+}	 // namespace editor::id
 
 namespace editor::style
 {
@@ -454,6 +461,10 @@ namespace editor::widgets
 
 	bool button(const char* label, const ImVec2& size = ImVec2(0, 0));
 
+	bool tree_node(std::string label, ImGuiTreeNodeFlags flags = 0);
+
+	void tree_pop();
+
 	void separator();
 	void sameline(float offset_from_start_x = 0.0f, float spacing = -1.0f);
 	void newline();
@@ -473,7 +484,7 @@ namespace editor::widgets
 	void on_frame_end();
 }	 // namespace editor::widgets
 
-namespace editor::UndoRedo
+namespace editor::undoredo
 {
 	struct undo_redo_cmd
 	{
@@ -487,7 +498,7 @@ namespace editor::UndoRedo
 	void on_project_loaded();
 
 	// void Init();
-}	 // namespace editor::UndoRedo
+}	 // namespace editor::undoredo
 
 namespace editor::models
 {
@@ -496,6 +507,18 @@ namespace editor::models
 	using entity_idx   = uint64;
 	using component_id = uint64;
 	using archetype_t  = uint64;
+
+	struct project_open_data;
+	struct game_project;
+
+	struct em_field;
+	struct em_struct;
+	struct em_scene;
+	struct em_world;
+	struct em_subworld;
+	struct em_entity;
+	struct em_component;
+	struct em_system;
 
 	struct field_info
 	{
@@ -509,8 +532,8 @@ namespace editor::models
 
 	struct struct_info
 	{
-		struct_info(const char* name);
-		uint64		id;
+		uint64		idx;
+		uint64		hash_id;
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
@@ -527,8 +550,8 @@ namespace editor::models
 	{
 		const char* name;
 		size_t		scene_idx;
-		size_t		component_count;
-		size_t		component_idx;
+		uint64		struct_count;
+		uint64		struct_idx_vec[64];
 	};
 
 	struct component_info
@@ -538,35 +561,47 @@ namespace editor::models
 		size_t world_idx;
 	};
 
-	struct project_open_data;
-	struct game_project;
+	struct em_struct
+	{
+		editor_id	 id;
+		struct_info* p_info;
+		std::string	 name;
+		uint64		 field_count;
 
-	struct em_scene;
-	struct em_world;
-	struct em_subworld;
-	struct em_entity;
-	struct em_component;
-	struct em_system;
+		em_struct(struct_info* p_info) : p_info(p_info), field_count(0) {};
+		em_struct() : em_struct(nullptr) {};
+	};
+
+	struct em_field
+	{
+		editor_id	id;
+		editor_id	struct_id;
+		field_info* p_info;
+		std::string name;
+
+		em_field(field_info* p_info) : p_info(p_info) {};
+		em_field() : em_field(nullptr) {};
+	};
+
+	struct em_scene
+	{
+		editor_id	id;
+		scene_info* p_info;
+		std::string name;
+
+		em_scene() : p_info(nullptr) {};
+	};
 
 	struct em_world
 	{
-		editor_id			   id;
-		editor_id			   prev;
-		editor_id			   next;
-		editor_id			   scene_id;
-		world_info*			   p_info;
-		size_t				   idx_in_scene;
-		std::string			   name;
-		bool				   applied_to_engine;
-		bool				   alive;
-		std::vector<editor_id> components;
-		std::vector<editor_id> entities;
-		std::vector<editor_id> systems;
-		std::vector<editor_id> subworlds;
+		editor_id	id;
+		editor_id	scene_id;
+		world_info* p_info;
+		std::string name;
+		uint32		struct_count;
+		editor_id	structs[64];
 
-		em_world() : p_info(nullptr), applied_to_engine(false), alive(true) {};
-
-		editor_id add_component();
+		em_world() : p_info(nullptr), struct_count(0) {};
 	};
 
 	struct em_subworld
@@ -576,22 +611,18 @@ namespace editor::models
 
 	struct em_entity
 	{
-		editor_id			   world_id;
-		editor_id			   parent_id;
-		size_t				   idx_in_world;
-		std::string			   name;
-		std::vector<editor_id> components;
-
-		em_entity(editor_id world_id, editor_id parent_id, size_t idx_in_world, std::string name = "");
+		editor_id	world_id;
+		editor_id	parent_id;
+		size_t		idx_in_world;
+		std::string name;
 	};
 
 	struct em_component
 	{
-		component_id id;
-		editor_id	 entity_id;
-		std::string	 name;
-
-		em_component(component_id id, editor_id entity_id, std::string name = "");
+		editor_id	id;
+		editor_id	struct_id;
+		editor_id	entity_id;
+		std::string name;
 	};
 
 	struct em_system
@@ -600,40 +631,21 @@ namespace editor::models
 		std::string name;
 	};
 
-	class em_scene
+	namespace reflection
 	{
-	  public:
-		editor_id id;
-		editor_id prev;
-		editor_id next;
+		em_struct* find_struct(editor_id id);
+		em_struct* find_struct(const char* name);
+		editor_id  create_struct();
+		void	   remove_struct(editor_id struct_id);
 
-		scene_info*			  p_info;
-		std::string			  name;
-		std::vector<em_world> worlds;
-		bool				  applied_to_engine;
-		bool				  alive;
+		em_field*			   find_field(editor_id id);
+		std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec);
+		editor_id			   add_field(editor_id struct_id);
+		void				   remove_field(editor_id field_id);
 
-	  private:
-		uint8  _world_count			= 0;
-		uint16 _world_hole_head_idx = INVALID_IDX;
-		uint16 _world_head_idx		= INVALID_IDX;
-		uint16 _world_tail_idx		= INVALID_IDX;
-
-	  public:
-		em_scene() : p_info(nullptr), applied_to_engine(false), alive(true) {};
-
-		em_world* find_world(editor_id id);
-
-		editor_id create_world();
-
-		void remove_world(editor_id id);
-
-		void remove_tail_world();
-
-		size_t world_count();
-
-		std::vector<em_world*> all_worlds();
-	};
+		std::vector<em_struct*> all_structs();
+		std::vector<em_field*>	all_fields(editor_id struct_id);
+	};	  // namespace reflection
 
 	namespace scene
 	{
@@ -657,12 +669,16 @@ namespace editor::models
 	{
 		extern editor_command cmd_create;
 		extern editor_command cmd_remove;
+
+		em_world*			   find(editor_id id);
+		editor_id			   create(editor_id scene_id);
+		void				   add_struct(editor_id world_id, editor_id struct_id);
+		std::vector<em_world*> all(editor_id scene_id);
 	}	 // namespace world
 
 	namespace component
 	{
-		uint64		 register_struct(struct_info* p_struct_info);
-		struct_info* find_struct(size_t idx);
+
 	}	 // namespace component
 
 	// namespace entity

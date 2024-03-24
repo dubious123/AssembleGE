@@ -188,10 +188,10 @@ namespace editor::game
 			const auto& scenes = editor::models::scene::all();
 			for (auto* p_s : scenes)
 			{
-				const auto& worlds = p_s->all_worlds();
-				for (auto* p_w : worlds)
-				{
-				}
+				// const auto& worlds = p_s->all_worlds();
+				// for (auto* p_w : worlds)
+				//{
+				// }
 			}
 			return true;
 		}
@@ -240,40 +240,75 @@ namespace editor::game
 			_get_world_info				 = LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
 			_get_component_info			 = LOAD_FUNC(component_info * (*)(size_t), "get_component_info", _project_dll);
 
-			auto struct_count = _get_registered_struct_count();
-
-			for (auto struct_idx = 0; struct_idx < struct_count; ++struct_idx)
-			{
+			std::ranges::for_each(std::views::iota(0ul, _get_registered_struct_count()), [](auto struct_idx) {
 				auto p_struct_info = _get_struct_info(struct_idx);
-				editor::models::component::register_struct(p_struct_info);
-			}
+				auto s_id		   = reflection::create_struct();
+				auto p_s		   = reflection::find_struct(s_id);
+				p_s->p_info		   = p_struct_info;
+				p_s->name		   = p_struct_info->name;
 
-			auto scene_count = _get_registered_scene_count();
-			for (auto scene_idx = 0; scene_idx < scene_count; ++scene_idx)
-			{
+				std::ranges::for_each(std::views::iota(0ul, p_struct_info->field_count), [=](auto field_idx) {
+					auto p_field_info = field_idx + p_struct_info->fields;
+					auto f_id		  = reflection::add_field(s_id);
+					auto p_f		  = reflection::find_field(f_id);
+					p_f->p_info		  = p_field_info;
+					p_f->name		  = p_field_info->name;
+					p_f->struct_id	  = s_id;
+				});
+			});
+
+			std::ranges::for_each(std::views::iota(0ul, _get_registered_scene_count()), [](auto scene_idx) {
 				auto* p_scene_info = _get_scene_info(scene_idx);
-				auto  id		   = scene::create();
-				auto  p_scene	   = scene::find(id);
+				auto  s_id		   = scene::create();
+				auto  p_scene	   = scene::find(s_id);
 				p_scene->name	   = p_scene_info->name;
 				p_scene->p_info	   = p_scene_info;
 
-				for (auto i = 0; i < p_scene_info->world_count; ++i)
-				{
-					auto* p_w_info	= _get_world_info(i + p_scene_info->world_idx);
-					auto* p_world	= p_scene->find_world(p_scene->create_world());
+				std::ranges::for_each(std::views::iota(p_scene_info->world_idx) | std::views::take(p_scene_info->world_count), [=](auto world_idx) {
+					auto* p_w_info	= _get_world_info(world_idx);
+					auto  w_id		= world::create(p_scene->id);
+					auto  p_world	= world::find(w_id);
 					p_world->p_info = p_w_info;
 					p_world->name	= p_w_info->name;
 
-					for (auto j = 0; j < p_w_info->component_count; ++j)
-					{
-						auto* p_c_info	   = _get_component_info(j + p_w_info->component_idx);
-						auto  c_id		   = p_world->add_component();
-						auto* p_c		   = component::find_struct(c_id);
-						p_c->p_info		   = p_c_info;
-						p_c->p_struct_info = _get_struct_info(p_c_info->struct_idx);
-					}
-				}
-			}
+					std::ranges::for_each(p_w_info->struct_idx_vec | std::views::take(p_w_info->struct_count), [=](auto struct_idx) {
+						auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
+						world::add_struct(w_id, p_s->id);
+					});
+
+					// for (auto j = 0; j < p_w_info->component_count; ++j)
+					//{
+					//	auto* p_c_info	  = _get_component_info(p_w_info->component_idx + j);
+					//	auto* p_s_info	  = _get_struct_info(p_c_info->struct_idx);
+					//	auto  s_id		  = find_struct(p_s_info)->idx;
+					//	auto* p_component = p_world->find_component(p_world->add_component(s_id));
+
+					//	// p_component->p_info		   = p_c_info;
+					//	// p_component->p_struct_info = p_s_info;
+					//}
+				});
+			});
+
+			// auto scene_count = _get_registered_scene_count();
+			// for (auto scene_idx = 0; scene_idx < scene_count; ++scene_idx)
+			//{
+			//	auto* p_scene_info = _get_scene_info(scene_idx);
+			//	auto  s_id		   = scene::create();
+			//	auto  p_scene	   = scene::find(s_id);
+			//	p_scene->name	   = p_scene_info->name;
+			//	p_scene->p_info	   = p_scene_info;
+
+			//	for (auto i = 0; i < p_scene_info->world_count; ++i)
+			//	{
+			//		auto* p_w_info	= _get_world_info(i + p_scene_info->world_idx);
+			//		auto  w_id		= world::create(p_scene->id);
+			//		auto  p_world	= world::find(w_id);
+			//		p_world->p_info = p_w_info;
+			//		p_world->name	= p_w_info->name;
+
+
+			//	}
+			//}
 
 			_current_project.is_ready = true;
 			return build_success;
