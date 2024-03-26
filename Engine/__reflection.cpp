@@ -111,8 +111,18 @@ namespace reflection
 		}
 	}
 
-	void register_entity(const char* entity_name, ecs::entity_idx)
+	void register_entity(const char* entity_name, ecs::entity_idx e_idx, const ecs::world_base& w)
 	{
+		auto w_idx = _world_info_vec().size() - 1;
+		while (_entity_info_vec().size() <= w_idx)
+		{
+			_entity_info_vec().emplace_back();
+		}
+
+		auto& e_info	 = _entity_info_vec()[w_idx].emplace_back();
+		e_info.name		 = entity_name;
+		e_info.idx		 = e_idx;
+		e_info.archetype = w.entities[e_idx].archetype;
 	}
 
 	size_t get_registered_struct_count()

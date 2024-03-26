@@ -75,13 +75,10 @@ namespace editor::view::hierarchy
 
 				if (world_tree_node_opened is_false) continue;
 
-				// for (const auto& entity_id : p_w->entities)
-				//{
-				//	auto p_entity = models::entity::get(entity_id);
-				//	ImGui::TreeNodeEx(p_entity->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(entity_id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
-				//	editor::selection_source(entity_id);
-				//	editor::ctx_source(entity_id);
-				// }
+				std::ranges::for_each(models::entity::all(p_w->id), [](const auto* p_e) {
+					ImGui::TreeNodeEx(p_e->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(p_e->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
+					editor::add_left_click_source(p_e->id);
+				});
 
 				// if (p_w->entities.empty() is_false)
 				//{
@@ -241,6 +238,10 @@ namespace editor::view::inspector
 
 	void _draw_entity(editor_id entity_id)
 	{
+		auto p_e = models::entity::find(entity_id);
+		widgets::text(std::format("name : {}", p_e->name).c_str());
+		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
+		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 		// auto p_entity = entity::get(entity_id);
 
 		// ImGui::Text((p_entity->name).c_str());
@@ -336,8 +337,7 @@ namespace editor::view
 	{
 		void _main_dock_space()
 		{
-			auto window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-								ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoDocking;
+			auto   window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoDocking;
 			auto   mainViewPort = ImGui::GetMainViewport();
 			auto   size			= mainViewPort->Size - ImVec2(0, CAPTION_HIGHT * GEctx->dpi_scale);
 			ImVec2 pos			= mainViewPort->Pos + ImVec2(0, CAPTION_HIGHT * GEctx->dpi_scale);

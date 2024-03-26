@@ -119,7 +119,11 @@ SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ENTITY_END()
 WORLD_END()
 
-// SERIALIZE_SCENE(my_second_scene, world_001, world_002)
+WORLD_BEGIN(world_004)
+WORLD_END()
+
+
+SERIALIZE_SCENE(my_second_scene, world_001, world_002)
 //
 // SERIALIZE_SCENE(my_third_scene, world_002, world_003)
 //  1. scene_wrapper() => scene reflection
@@ -130,7 +134,7 @@ WORLD_END()
 //		a. call scene constructor => create scene and world
 //		b. call world_wrapper::init(w) => create entity and reflection for entity
 
-SERIALIZE_SCENE(my_first_scene, world_000, world_001)
+// SERIALIZE_SCENE(my_first_scene, world_003)
 
 static inline auto& v = []() -> auto& {
 	static data_structure::vector<uint32> s;
@@ -139,9 +143,10 @@ static inline auto& v = []() -> auto& {
 }();
 
 
-auto s = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>();
-
+auto  s		  = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>();
+auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform, rigid_body>>();
 auto& world_2 = s.get_world<0>();
+auto& world_3 = s_2.get_world<0>();
 
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
@@ -210,6 +215,8 @@ int main()
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+
+	// reflection::register_entity("entity", world_3.new_entity<transform>(), world_2);
 	return 0;
 	// a b c d , a => 0
 	assert(get_c_idx(0b1111, 0) == 0);

@@ -561,6 +561,13 @@ namespace editor::models
 		size_t world_idx;
 	};
 
+	struct entity_info
+	{
+		const char* name;
+		uint64		idx;
+		uint64		archetype;
+	};
+
 	struct em_struct
 	{
 		editor_id	 id;
@@ -610,9 +617,9 @@ namespace editor::models
 
 	struct em_entity
 	{
+		editor_id	id;
 		editor_id	world_id;
-		editor_id	parent_id;
-		size_t		idx_in_world;
+		uint64		archetype;
 		std::string name;
 	};
 
@@ -675,6 +682,16 @@ namespace editor::models
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		std::vector<em_world*> all(editor_id scene_id);
 	}	 // namespace world
+
+	namespace entity
+	{
+		extern editor_command cmd_create;
+		extern editor_command cmd_remove;
+
+		em_entity*				find(editor_id id);
+		editor_id				create(editor_id entity_id);
+		std::vector<em_entity*> all(editor_id world_id);
+	}	 // namespace entity
 
 	namespace component
 	{

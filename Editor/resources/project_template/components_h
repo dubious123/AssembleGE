@@ -4,8 +4,16 @@
 
 //do not include this file
 
-COMPONENT_BEGIN(transform2)
+COMPONENT_BEGIN(transform)
 SERIALIZE_FIELD(float3, position, 0, 0, 0)
 SERIALIZE_FIELD(float3, scale, 1, 1, 1)
 SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
 COMPNENT_END()
+
+WORLD_BEGIN(world_0, transform)
+ENTITY_BEGIN(entity_0, transform)
+SET_COMPONENT(transform, .position, { 0, 0, 1 })
+ENTITY_END()
+WORLD_END()
+
+SERIALIZE_SCENE(scene_0, world_0)

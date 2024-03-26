@@ -15,13 +15,15 @@ namespace editor::game
 
 	namespace
 	{
-		size_t (*_get_registered_struct_count)();
-		size_t (*_get_registered_scene_count)();
-		size_t (*_get_registered_world_count)();
-		struct_info* (*_get_struct_info)(size_t index);
-		scene_info* (*_get_scene_info)(size_t index);
-		world_info* (*_get_world_info)(size_t index);
+		size_t			(*_get_registered_struct_count)();
+		size_t			(*_get_registered_scene_count)();
+		size_t			(*_get_registered_world_count)();
+		size_t			(*_get_registered_entity_count)(size_t world_index);
+		struct_info*	(*_get_struct_info)(size_t index);
+		scene_info*		(*_get_scene_info)(size_t index);
+		world_info*		(*_get_world_info)(size_t index);
 		component_info* (*_get_component_info)(size_t index);
+		entity_info*	(*_get_entity_info)(size_t world_index, size_t entity_index);
 
 		auto _project_open_datas			  = std::vector<project_open_data>();
 		auto _application_data_directory_path = std::wstring();
@@ -179,9 +181,8 @@ namespace editor::game
 
 		bool _generate_code(std::string project_directory_path, std::string proj_name)
 		{
-			constexpr const char* indent = "				";
-			constexpr const char* scene_template =
-				"SERIALIZE_SCENE({0},\
+			constexpr const char* indent		 = "				";
+			constexpr const char* scene_template = "SERIALIZE_SCENE({0},\
 				SERIALIZE_WORLD(my_first_world, transform, bullet, rigid_body),\
 				SERIALIZE_WORLD(my_second_world, transform, rigid_body))";
 
@@ -201,9 +202,12 @@ namespace editor::game
 			_get_registered_struct_count = nullptr;
 			_get_registered_scene_count	 = nullptr;
 			_get_registered_world_count	 = nullptr;
-			_get_struct_info			 = nullptr;
-			_get_scene_info				 = nullptr;
-			_get_world_info				 = nullptr;
+			_get_registered_entity_count = nullptr;
+
+			_get_struct_info = nullptr;
+			_get_scene_info	 = nullptr;
+			_get_world_info	 = nullptr;
+			_get_entity_info = nullptr;
 
 			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
 			auto p_program86_path = PWSTR { nullptr };
@@ -235,10 +239,13 @@ namespace editor::game
 			_get_registered_struct_count = LOAD_FUNC(size_t(*)(), "get_registered_struct_count", _project_dll);
 			_get_registered_scene_count	 = LOAD_FUNC(size_t(*)(), "get_registered_scene_count", _project_dll);
 			_get_registered_world_count	 = LOAD_FUNC(size_t(*)(), "get_registered_world_count", _project_dll);
-			_get_struct_info			 = LOAD_FUNC(struct_info * (*)(size_t), "get_struct_info", _project_dll);
-			_get_scene_info				 = LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", _project_dll);
-			_get_world_info				 = LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
-			_get_component_info			 = LOAD_FUNC(component_info * (*)(size_t), "get_component_info", _project_dll);
+			_get_registered_entity_count = LOAD_FUNC(size_t(*)(size_t), "get_registered_entity_count", _project_dll);
+
+			_get_struct_info	= LOAD_FUNC(struct_info * (*)(size_t), "get_struct_info", _project_dll);
+			_get_scene_info		= LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", _project_dll);
+			_get_world_info		= LOAD_FUNC(world_info * (*)(size_t), "get_world_info", _project_dll);
+			_get_component_info = LOAD_FUNC(component_info * (*)(size_t), "get_component_info", _project_dll);
+			_get_entity_info	= LOAD_FUNC(entity_info * (*)(size_t, size_t), "get_entity_info", _project_dll);
 
 			std::ranges::for_each(std::views::iota(0ul, _get_registered_struct_count()), [](auto struct_idx) {
 				auto p_struct_info = _get_struct_info(struct_idx);
@@ -268,24 +275,24 @@ namespace editor::game
 					auto* p_w_info	= _get_world_info(world_idx);
 					auto  w_id		= world::create(p_scene->id);
 					auto  p_world	= world::find(w_id);
+					p_world->id		= w_id;
 					p_world->p_info = p_w_info;
 					p_world->name	= p_w_info->name;
 
 					std::ranges::for_each(p_w_info->struct_idx_vec | std::views::take(p_w_info->struct_count), [=](auto struct_idx) {
 						auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
 						world::add_struct(w_id, p_s->id);
+
+						std::ranges::for_each(std::views::iota(0ul, _get_registered_entity_count(world_idx)), [=](auto entity_idx) {
+							auto* p_e_info		= _get_entity_info(world_idx, entity_idx);
+							auto  e_id			= entity::create(w_id);
+							auto  p_entity		= entity::find(e_id);
+							p_entity->id		= e_id;
+							p_entity->name		= p_e_info->name;
+							p_entity->archetype = p_e_info->archetype;
+							p_entity->world_id	= w_id;
+						});
 					});
-
-					// for (auto j = 0; j < p_w_info->component_count; ++j)
-					//{
-					//	auto* p_c_info	  = _get_component_info(p_w_info->component_idx + j);
-					//	auto* p_s_info	  = _get_struct_info(p_c_info->struct_idx);
-					//	auto  s_id		  = find_struct(p_s_info)->idx;
-					//	auto* p_component = p_world->find_component(p_world->add_component(s_id));
-
-					//	// p_component->p_info		   = p_c_info;
-					//	// p_component->p_struct_info = p_s_info;
-					//}
 				});
 			});
 
@@ -338,7 +345,11 @@ namespace editor::game
 			xml_stream.close();
 		}
 
-		assert(_project_open_data_xml.load_file(_project_open_data_path.c_str()));
+		if (_project_open_data_xml.load_file(_project_open_data_path.c_str()) is_false)
+		{
+			// todo create raw xml file
+		}
+
 		_project_list_node = _project_open_data_xml.child("project_list");
 		_load_project_open_datas();
 		::CoTaskMemFree((void*)p_folder_path);
@@ -593,14 +604,7 @@ namespace editor::game
 		std::filesystem::path project_template_path;
 		std::filesystem::path project_data_template_path;
 
-		for (auto c : bad_chars)
-		{
-			if (proj_name_str.find((proj_name_str, c) != -1))
-			{
-				valid_name = false;
-				break;
-			}
-		}
+		valid_name = std::ranges::all_of(bad_chars, [&](const auto& c) { return std::ranges::find(proj_name_str, c) == proj_name_str.end(); });
 
 		valid_name &= proj_name_str.length() >= min_proj_name_len;
 
@@ -668,7 +672,7 @@ namespace editor::game
 			arg_1 = "{" + uuid_str_0 + "}";
 			arg_2 = "{" + uuid_str_1 + "}";
 			// todo lib path
-			arg_3 = std::string("C:\\Users\\JH\\Desktop\\projects\\AssembleGE");	// directory_path.string();	// engine lib path
+			arg_3 = std::filesystem::current_path().parent_path().string();	   // std::string("C:\\Users\\JH\\Desktop\\projects\\AssembleGE");	engine lib path
 		}
 
 		// create msvc solution file

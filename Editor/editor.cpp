@@ -252,8 +252,10 @@ void editor::init()
 	ImGui_ImplWin32_EnableDpiAwareness();
 	BOOL USE_DARK_MODE = true;
 
-	float dpi_scale = ::GetDpiForSystem() / 96.f;
-	HWND  hwnd		= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, 100, 100, (int)(1280 * dpi_scale), (int)(800 * dpi_scale), nullptr, nullptr, wc.hInstance, nullptr);
+	float dpi_scale		= ::GetDpiForSystem() / 96.f;
+	auto  screen_size_x = ::GetSystemMetrics(SM_CXSCREEN);
+	auto  screen_size_y = ::GetSystemMetrics(SM_CYSCREEN);
+	HWND  hwnd			= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, screen_size_x / 5, screen_size_y / 5, screen_size_x * 3 / 5, screen_size_y * 3 / 5, nullptr, nullptr, wc.hInstance, nullptr);
 
 	// Initialize Direct3D
 	if (!CreateDeviceD3D(hwnd))
@@ -523,8 +525,7 @@ bool CreateDeviceD3D(HWND hWnd)
 		if (g_pd3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&g_frameContext[i].CommandAllocator)) != S_OK)
 			return false;
 
-	if (g_pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, g_frameContext[0].CommandAllocator, nullptr, IID_PPV_ARGS(&g_pd3dCommandList)) != S_OK ||
-		g_pd3dCommandList->Close() != S_OK)
+	if (g_pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, g_frameContext[0].CommandAllocator, nullptr, IID_PPV_ARGS(&g_pd3dCommandList)) != S_OK || g_pd3dCommandList->Close() != S_OK)
 		return false;
 
 	if (g_pd3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&g_fence)) != S_OK)
@@ -1590,9 +1591,7 @@ namespace editor::models
 			auto& f			 = _fields[struct_idx].emplace_back();
 			f.id			 = id;
 			f.struct_id		 = struct_id;
-			_field_idx_map.insert({
-				id, {struct_idx, _fields[struct_idx].size() - 1}
-			   });
+			_field_idx_map.insert({ id, { struct_idx, _fields[struct_idx].size() - 1 } });
 
 			return id;
 		}
@@ -1615,16 +1614,14 @@ namespace editor::models
 
 		std::vector<em_struct*> all_structs()
 		{
-			auto res = _structs |
-					   std::views::transform([](em_struct& s) { return &s; });
+			auto res = _structs | std::views::transform([](em_struct& s) { return &s; });
 			return std::vector(res.begin(), res.end());
 		}
 
 		std::vector<em_field*> all_fields(editor_id struct_id)
 		{
 			auto idx = _struct_idx_map[struct_id];
-			auto res = _fields[idx] |
-					   std::views::transform([](em_field& f) { return &f; });
+			auto res = _fields[idx] | std::views::transform([](em_field& f) { return &f; });
 			return std::vector(res.begin(), res.end());
 		}
 
@@ -1641,9 +1638,7 @@ namespace editor::models
 
 		std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec)
 		{
-			auto view = struct_id_vec |
-						std::views::filter([](auto id) { return _field_idx_map.contains(id); }) |
-						std::views::transform([](auto id) {
+			auto view = struct_id_vec | std::views::filter([](auto id) { return _field_idx_map.contains(id); }) | std::views::transform([](auto id) {
 							auto& pair = _field_idx_map[id];
 							return &_fields[pair.first][pair.second];
 						});
@@ -1731,8 +1726,7 @@ namespace editor::models
 
 		std::vector<em_scene*> all()
 		{
-			auto res = _scenes |
-					   std::views::transform([](em_scene& s) { return &s; });
+			auto res = _scenes | std::views::transform([](em_scene& s) { return &s; });
 			return std::vector(res.begin(), res.end());	   // todo c++23 std::views::to
 		}
 
@@ -1948,8 +1942,7 @@ namespace editor::models
 				return std::vector<em_world*>();
 			}
 
-			auto res = _worlds[scene_idx] |
-					   std::views::transform([](em_world& w) { return &w; });
+			auto res = _worlds[scene_idx] | std::views::transform([](em_world& w) { return &w; });
 			return std::vector(res.begin(), res.end());
 		}
 
@@ -2018,8 +2011,7 @@ namespace editor::models
 		editor_command cmd_add_struct(
 			"Add Struct",
 			ImGuiKey_None,
-			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and
-											 std::ranges::all_of(get_all_selections(), [=](const auto& id) {
+			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and std::ranges::all_of(get_all_selections(), [=](const auto& id) {
 												 const auto* p_w = world::find(id);
 												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) == p_w->structs.end();
 											 }); },
@@ -2049,8 +2041,7 @@ namespace editor::models
 			"Remove Struct",
 			ImGuiKey_None,
 			// todo check that no entities uses that struct
-			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and
-											 std::ranges::all_of(get_all_selections(), [=](const auto& id) {
+			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and std::ranges::all_of(get_all_selections(), [=](const auto& id) {
 												 const auto* p_w = world::find(id);
 												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) != p_w->structs.end();
 											 }); },
@@ -2095,6 +2086,102 @@ namespace editor::models
 			assert(res);
 		}
 	}	 // namespace world
+
+	namespace entity
+	{
+		namespace
+		{
+			std::vector<std::vector<em_entity>>											   _entities;
+			std::unordered_map<editor_id, std::pair<uint32, uint32>, editor_id::hash_func> _idx_map;	// key : entity id, value : [world index, entity index]
+		}																								// namespace
+
+		em_entity* find(editor_id entity_id)
+		{
+			if (_idx_map.contains(entity_id))
+			{
+				auto idx_pair = _idx_map[entity_id];
+				return &_entities[idx_pair.first][idx_pair.second];
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+
+		editor_id create(editor_id world_id)
+		{
+			assert(world::find(world_id) != nullptr);
+
+			auto world_idx = world::_idx_map[world_id].second;
+
+			if (_entities.size() <= world_idx)
+			{
+				_entities.resize(world_idx + 1);
+			}
+
+			auto  entity_idx = _entities[world_idx].size();
+			auto& e			 = _entities[world_idx].emplace_back();
+			e.id			 = id::get_new(DataType_Entity);
+			e.name			 = std::format("new_world##{0}", e.id.str());
+			e.world_id		 = world_id;
+			_idx_map.insert({ e.id, std::pair(world_idx, entity_idx) });
+			return e.id;
+		}
+
+		// void add_struct(editor_id world_id, editor_id struct_id)
+		//{
+		//	// todo
+		//	// problem 1 : archetype ordering => based on hash_id => solved
+		//	// problem 2 : cannot select struct => what is the name of this struct? component? struct? archetype? => add remove struct from world
+		//	// problem 3 : duplications => solved
+		//	auto* p_w = find(world_id);
+		//	if (p_w is_nullptr or p_w->structs.size() == 64 /*or std::ranges::find(p_w->structs, struct_id) != p_w->structs.end()*/)
+		//	{
+		//		return;
+		//	}
+
+		//	p_w->structs.insert(std::ranges::upper_bound(p_w->structs, struct_id,
+		//												 [](const auto& comp_id, const auto id) { return reflection::find_struct(comp_id)->p_info->hash_id < reflection::find_struct(id)->p_info->hash_id; }),
+		//						struct_id);
+		//}
+
+		// void remove_struct(editor_id world_id, editor_id struct_id)
+		//{
+		//	auto* p_w = find(world_id);
+		//	std::erase(p_w->structs, struct_id);
+		// }
+
+		// void remove(editor_id id)
+		//{
+		//	if (_idx_map.contains(id) is_false)
+		//	{
+		//		return;
+		//	}
+
+		//	auto& idx_pair				  = _idx_map[id];
+		//	auto  scene_idx				  = idx_pair.first;
+		//	auto  world_idx				  = idx_pair.second;
+		//	auto  back_idx				  = _worlds[scene_idx].size() - 1;
+		//	_worlds[scene_idx][world_idx] = _worlds[scene_idx][back_idx];
+		//	_worlds[scene_idx].pop_back();
+		//	_idx_map.erase(id);
+		//	id::delete_id(id);
+		//}
+
+		std::vector<em_entity*> all(editor_id world_id)
+		{
+			assert(world::find(world_id) != nullptr);
+			auto world_idx = world::_idx_map[world_id].second;
+
+			if (_entities.size() <= world_idx)
+			{
+				return std::vector<em_entity*>();
+			}
+
+			auto res = _entities[world_idx] | std::views::transform([](em_entity& e) { return &e; });
+			return std::vector(res.begin(), res.end());
+		}
+	}	 // namespace entity
 
 	namespace component
 	{
@@ -2212,8 +2299,7 @@ namespace editor
 		"Add Select",
 		ImGuiKey_None,
 		[](editor_id id) {
-			return get_current_selection().type() == id.type() and
-				   std::find(_selected_vec.begin(), _selected_vec.end(), id) == _selected_vec.end();
+			return get_current_selection().type() == id.type() and std::find(_selected_vec.begin(), _selected_vec.end(), id) == _selected_vec.end();
 		},
 		[](editor_id id) {
 			auto cmd = undoredo::undo_redo_cmd();

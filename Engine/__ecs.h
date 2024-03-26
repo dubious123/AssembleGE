@@ -407,6 +407,12 @@ namespace ecs
 
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
+
+		world_base(const world_base&&)		= delete;
+		world_base(const world_base&)		= delete;
+		world_base& operator=(world_base&&) = delete;
+		world_base& operator=(world_base&)	= delete;
+		world_base()						= default;
 	};
 
 	template <typename... c>
@@ -794,6 +800,11 @@ namespace ecs
 			e.archetype	  = new_archetype;
 		}
 
+		archetype_t get_archetype(entity_idx idx) const
+		{
+			return entities[idx].archetype;
+		}
+
 		template <typename... t>
 		void update(void (*func)(entity_idx, t...))
 		{
@@ -853,6 +864,11 @@ namespace ecs
 
 			free(worlds);
 		}
+
+		scene(const scene&&)	  = delete;
+		scene(const scene&)		  = delete;
+		scene& operator=(scene&&) = delete;
+		scene& operator=(scene&)  = delete;
 
 		template <unsigned int N>
 		world_at<N>& get_world()

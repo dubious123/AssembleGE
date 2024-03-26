@@ -63,7 +63,7 @@
 #define ENTITY_BEGIN(entity_name, ...)        \
 	{                                         \
 		auto e = w.new_entity<__VA_ARGS__>(); \
-		reflection::register_entity(#entity_name, e);
+		reflection::register_entity(#entity_name, e, (const ecs::world_base&)w);
 
 #define ENTITY_END() }
 
@@ -147,7 +147,7 @@ namespace reflection
 
 	void register_component_to_world(uint64 struct_hash_id);
 
-	void register_entity(const char* name, ecs::entity_idx idx);
+	void register_entity(const char* name, ecs::entity_idx idx, const ecs::world_base& w);
 
 	EDITOR_API size_t get_registered_struct_count();
 	EDITOR_API size_t get_registered_scene_count();
