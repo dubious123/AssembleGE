@@ -63,7 +63,7 @@
 #define ENTITY_BEGIN(entity_name, ...)        \
 	{                                         \
 		auto e = w.new_entity<__VA_ARGS__>(); \
-		reflection::register_entity(entity_name, e);
+		reflection::register_entity(#entity_name, e);
 
 #define ENTITY_END() }
 
