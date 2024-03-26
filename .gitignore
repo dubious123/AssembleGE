@@ -226,3 +226,8 @@ obj
 *.exe
 *.out
 *.app
+
+# Do not ignore these
+!.gitignore
+!editor/external/lib
+!editor/external/lib/*
