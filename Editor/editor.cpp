@@ -1117,14 +1117,15 @@ namespace editor
 			}
 			else
 			{
-				auto command_id = node.attribute("__cmd_id") ? node.attribute("__cmd_id").as_int() : -1;
+				auto	  command_id = node.attribute("__cmd_id") ? node.attribute("__cmd_id").as_int() : -1;
+				editor_id arg		 = node.attribute("__arg") ? node.attribute("__arg").as_ullong() : INVALID_ID;
 				if (editor::widgets::menu_item(name,
 											   nullptr,
 											   node.attribute("shortcut").value(),
 											   false,
-											   command_id >= 0 ? _command_lut[command_id]->can_execute() : false))
+											   command_id >= 0 ? _command_lut[command_id]->can_execute(arg) : false))
 				{
-					_command_lut[command_id]->execute();
+					_command_lut[command_id]->execute(arg);
 				}
 			}
 
@@ -1318,7 +1319,7 @@ namespace editor
 		widgets::on_frame_end();
 	}
 
-	bool add_context_item(std::string path, const editor_command* p_command)
+	bool add_context_item(std::string path, const editor_command* p_command, editor_id id)
 	{
 		auto item_node = _ctx_item_xml_node.parent();
 		auto stream	   = std::istringstream(path);
@@ -1342,8 +1343,12 @@ namespace editor
 
 		_command_lut.emplace_back(p_command);
 
-
 		item_node.append_attribute("__cmd_id").set_value(_cmd_id++);
+		if (id.value != INVALID_ID)
+		{
+			item_node.append_attribute("__arg").set_value(id.value);
+		}
+
 		assert(_cmd_id == _command_lut.size());
 
 
@@ -1895,13 +1900,25 @@ namespace editor::models
 
 		void add_struct(editor_id world_id, editor_id struct_id)
 		{
+			// todo
+			// problem 1 : archetype ordering => based on hash_id => solved
+			// problem 2 : cannot select struct => what is the name of this struct? component? struct? archetype? => add remove struct from world
+			// problem 3 : duplications => solved
 			auto* p_w = find(world_id);
-			if (p_w is_nullptr or p_w->struct_count == 64)
+			if (p_w is_nullptr or p_w->structs.size() == 64 /*or std::ranges::find(p_w->structs, struct_id) != p_w->structs.end()*/)
 			{
 				return;
 			}
 
-			p_w->structs[p_w->struct_count++] = struct_id;
+			p_w->structs.insert(std::ranges::upper_bound(p_w->structs, struct_id,
+														 [](const auto& comp_id, const auto id) { return reflection::find_struct(comp_id)->p_info->hash_id < reflection::find_struct(id)->p_info->hash_id; }),
+								struct_id);
+		}
+
+		void remove_struct(editor_id world_id, editor_id struct_id)
+		{
+			auto* p_w = find(world_id);
+			std::erase(p_w->structs, struct_id);
 		}
 
 		void remove(editor_id id)
@@ -1957,9 +1974,9 @@ namespace editor::models
 			ImGuiKey_Delete,
 			[](editor_id _) { return editor::get_all_selections().empty() is_false and std::ranges::all_of(editor::get_all_selections(), [](editor_id id) { return find(id) != nullptr; }); },
 			[](editor_id _) {
-				auto cmd		= undoredo::undo_redo_cmd();
-				auto id_vec		= editor::get_all_selections();
-				auto backup_vec = std::vector<std::pair<em_world, std::pair<uint32, uint32>>>();
+				auto  cmd		 = undoredo::undo_redo_cmd();
+				auto& id_vec	 = editor::get_all_selections();
+				auto  backup_vec = std::vector<std::pair<em_world, std::pair<uint32, uint32>>>();
 				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return std::pair(*find(id), _idx_map[id]); });
 
 				cmd.name = "remove world";
@@ -1998,6 +2015,67 @@ namespace editor::models
 				cmd.redo();
 			});
 
+		editor_command cmd_add_struct(
+			"Add Struct",
+			ImGuiKey_None,
+			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and
+											 std::ranges::all_of(get_all_selections(), [=](const auto& id) {
+												 const auto* p_w = world::find(id);
+												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) == p_w->structs.end();
+											 }); },
+			[](editor_id struct_id) {
+				auto  cmd	 = undoredo::undo_redo_cmd();
+				auto  p_s	 = reflection::find_struct(struct_id);
+				auto& id_vec = get_all_selections();
+
+				cmd.name = "add struct";
+				cmd.redo = [=]() {
+					std::ranges::for_each(id_vec, [=](const auto& id) {
+						world::add_struct(id, struct_id);
+					});
+				};
+				cmd.undo = [=]() {
+					std::ranges::for_each(id_vec | std::views::reverse, [=](const auto& id) {
+						remove_struct(id, struct_id);
+					});
+				};
+
+				undoredo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
+		editor_command cmd_remove_struct(
+			"Remove Struct",
+			ImGuiKey_None,
+			// todo check that no entities uses that struct
+			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and
+											 std::ranges::all_of(get_all_selections(), [=](const auto& id) {
+												 const auto* p_w = world::find(id);
+												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) != p_w->structs.end();
+											 }); },
+			[](editor_id struct_id) {
+				auto  cmd	 = undoredo::undo_redo_cmd();
+				auto  p_s	 = reflection::find_struct(struct_id);
+				auto& id_vec = get_all_selections();
+
+				cmd.name = "remove struct";
+				cmd.redo = [=]() {
+					std::ranges::for_each(id_vec, [=](const auto& id) {
+						world::remove_struct(id, struct_id);
+					});
+				};
+				cmd.undo = [=]() {
+					std::ranges::for_each(id_vec | std::views::reverse, [=](const auto& id) {
+						add_struct(id, struct_id);
+					});
+				};
+
+				undoredo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
 		void on_project_unloaded()
 		{
 			_worlds.clear();
@@ -2009,6 +2087,11 @@ namespace editor::models
 			auto res  = true;
 			res		 &= add_context_item("Scene\\Add New World", &world::cmd_create);
 			res		 &= add_context_item("World\\Remove World", &world::cmd_remove);
+
+			std::ranges::for_each(reflection::all_structs(), [&](const em_struct* p_s) {
+				res &= add_context_item(std::format("World\\Add Struct\\{}", p_s->name), &cmd_add_struct, p_s->id);
+				res &= add_context_item(std::format("World\\Remove Struct\\{}", p_s->name), &cmd_remove_struct, p_s->id);
+			});
 			assert(res);
 		}
 	}	 // namespace world
@@ -2047,7 +2130,7 @@ namespace editor
 
 	void add_right_click_source(editor_id id)
 	{
-		if (ImGui::IsMouseReleased(ImGuiPopupFlags_MouseButtonRight) and widgets::is_item_hovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) and widgets::is_item_hovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))
 		{
 			auto it = std::find(_selected_vec.begin(), _selected_vec.end(), id);
 			if (it == _selected_vec.end())
@@ -2065,7 +2148,7 @@ namespace editor
 
 	void add_left_click_source(editor_id id)
 	{
-		if (widgets::is_item_clicked(ImGuiPopupFlags_MouseButtonLeft))
+		if (widgets::is_item_clicked(ImGuiMouseButton_Left))
 		{
 			if (platform::is_key_down(ImGuiKey_LeftCtrl))
 			{

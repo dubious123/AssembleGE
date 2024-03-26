@@ -39,7 +39,7 @@
     <ClCompile Include="editor_view.cpp" />
     <ClCompile Include="game_project\game_project.cpp" />
     <ClCompile Include="external\include\pugixml\pugixml.cpp" />
-    <ClCompile Include="utilities\Timing.cpp" />
+    <ClCompile Include="utilities\timing.cpp" />
     <ClCompile Include="widgets.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="platform.cpp" />
@@ -90,7 +90,7 @@
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp" />
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
-    <ClInclude Include="utilities\Timing.h" />
+    <ClInclude Include="utilities\timing.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
@@ -106,10 +106,5 @@
     <Filter Include="editor">
       <UniqueIdentifier>{fc6e6a16-f01b-43de-8d7d-9011b9b6a2b8}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="..\Resources\arial.ttf" />
-    <Font Include="..\Resources\arialbd.ttf" />
-    <Font Include="..\Resources\CascadiaMono.ttf" />
   </ItemGroup>
 </Project>

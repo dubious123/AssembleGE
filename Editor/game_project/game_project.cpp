@@ -454,7 +454,7 @@ namespace editor::game
 		_current_project.project_file_path = project_data_path.string();
 		_current_project.name			   = project_node.attribute("name").value();
 		_current_project.description	   = project_node.attribute("desc").value();
-		_current_project.last_opened_date  = editor::utilities::Timing::Now_Str();
+		_current_project.last_opened_date  = editor::utilities::timing::now_str();
 
 		widgets::update_progress(30, "Build and load dll");
 

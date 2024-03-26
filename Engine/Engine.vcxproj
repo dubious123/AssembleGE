@@ -28,6 +28,7 @@
     <ClInclude Include="__data_structures.h" />
     <ClInclude Include="__ecs.h" />
     <ClInclude Include="__engine.h" />
+    <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__meta.h" />
     <ClInclude Include="__math.h" />
     <ClInclude Include="__reflection.h" />

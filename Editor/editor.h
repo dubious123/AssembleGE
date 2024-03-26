@@ -328,7 +328,7 @@ namespace editor
 	const std::vector<editor_id>& get_all_selections();
 	bool						  is_selection_vec_empty();
 
-	bool add_context_item(std::string path, const editor_command* command);
+	bool add_context_item(std::string path, const editor_command* command, editor_id id = INVALID_ID);
 }	 // namespace editor
 
 namespace editor::id
@@ -594,14 +594,13 @@ namespace editor::models
 
 	struct em_world
 	{
-		editor_id	id;
-		editor_id	scene_id;
-		world_info* p_info;
-		std::string name;
-		uint32		struct_count;
-		editor_id	structs[64];
+		editor_id			   id;
+		editor_id			   scene_id;
+		world_info*			   p_info;
+		std::string			   name;
+		std::vector<editor_id> structs;
 
-		em_world() : p_info(nullptr), struct_count(0) {};
+		em_world() : p_info(nullptr) {};
 	};
 
 	struct em_subworld
@@ -673,6 +672,7 @@ namespace editor::models
 		em_world*			   find(editor_id id);
 		editor_id			   create(editor_id scene_id);
 		void				   add_struct(editor_id world_id, editor_id struct_id);
+		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		std::vector<em_world*> all(editor_id scene_id);
 	}	 // namespace world
 

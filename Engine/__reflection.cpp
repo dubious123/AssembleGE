@@ -28,6 +28,12 @@ namespace reflection
 			static data_structure::vector<world_info> _vec;
 			return _vec;
 		}
+
+		data_structure::vector<data_structure::vector<entity_info>>& _entity_info_vec()
+		{
+			static data_structure::vector<data_structure::vector<entity_info>> _vec;
+			return _vec;
+		}
 	}	 // namespace
 
 	struct_info::struct_info()
@@ -63,7 +69,7 @@ namespace reflection
 		_field_info_vec().emplace_back();
 	}
 
-	void reflection::register_field(const char* struct_name, const char* type, const char* name, size_t offset, const char* serialized_value)
+	void register_field(const char* struct_name, const char* type, const char* name, size_t offset, const char* serialized_value)
 	{
 		auto info			  = field_info();
 		info.name			  = name;
@@ -77,12 +83,12 @@ namespace reflection
 		_struct_info_vec().back().field_count = field_vec.size();
 	}
 
-	void reflection::register_scene(const char* scene_name)
+	void register_scene(const char* scene_name)
 	{
 		_scene_info_vec().emplace_back(scene_name, 0ui64, _world_info_vec().size());
 	}
 
-	void reflection::register_world(const char* world_name)
+	void register_world(const char* world_name)
 	{
 		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul, 0ul);
 		auto& scene_info = _scene_info_vec().back();
@@ -105,6 +111,10 @@ namespace reflection
 		}
 	}
 
+	void register_entity(const char* entity_name, ecs::entity_idx)
+	{
+	}
+
 	size_t get_registered_struct_count()
 	{
 		return _struct_info_vec().size();
@@ -118,6 +128,16 @@ namespace reflection
 	size_t get_registered_world_count()
 	{
 		return _world_info_vec().size();
+	}
+
+	size_t get_registered_entity_count(size_t world_idx)
+	{
+		// if (_entity_info_vec().size() <= world_idx)
+		//{
+		//	return 0;
+		// }
+
+		return _entity_info_vec()[world_idx].size();
 	}
 
 	struct_info* get_struct_info(uint64 struct_idx)
@@ -141,5 +161,10 @@ namespace reflection
 	component_info* get_component_info(size_t index)
 	{
 		return nullptr;
+	}
+
+	entity_info* get_entity_info(size_t world_idx, size_t entity_idx)
+	{
+		return &_entity_info_vec()[world_idx][entity_idx];
 	}
 }	 // namespace reflection

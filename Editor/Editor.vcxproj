@@ -50,7 +50,7 @@
     </ClCompile>
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="style.cpp" />
-    <ClCompile Include="utilities\Timing.cpp">
+    <ClCompile Include="utilities\timing.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -76,7 +76,7 @@
     <ClInclude Include="game_project\game_project.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="utilities\Timing.h" />
+    <ClInclude Include="utilities\timing.h" />
     <ClInclude Include="utilities\Xml.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -224,9 +224,9 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <ItemGroup>
-  <Content Include="resources\**\*.*">
-    <Link>Resources\%(RecursiveDir)%(Filename)%(Extension)</Link>
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </Content>
+    <Content Include="resources\**\*.*">
+      <Link>Resources\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

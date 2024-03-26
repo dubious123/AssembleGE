@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-namespace editor::utilities::Timing
+namespace editor::utilities::timing
 {
-	std::string Now_Str();
+	std::string now_str();
 }

@@ -1,5 +1,7 @@
 #pragma once
 #include <type_traits>
+#include <array>
+#include "__macro_foreach.h"
 #define STR_HASH(x) (meta::MM<sizeof(x) - 1>::crc32(x))
 
 namespace meta

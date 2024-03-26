@@ -26,7 +26,6 @@
 	#define DBG_NEW new
 #endif
 
-
 #include <windows.h>
 #include <algorithm>	// for max
 #include <cstdio>		// for printf
@@ -71,7 +70,6 @@ constexpr auto arr = []() {
 #include <cstdlib>
 #include <crtdbg.h>
 #include <Sysinfoapi.h>
-
 #include "../Engine/__reflection.h"
 #include "../Engine/__engine.h"
 #include "../Engine/__data_structures.h"
@@ -95,16 +93,53 @@ COMPNENT_END()
 
 COMPONENT_BEGIN(rigid_body)
 SERIALIZE_FIELD(float3, ac, 1, 1, 1)
-
 COMPNENT_END()
 
-SERIALIZE_SCENE(my_first_scene,
-				SERIALIZE_WORLD(my_first_world, transform, bullet, rigid_body),
-				SERIALIZE_WORLD(my_second_world, transform, rigid_body))
+WORLD_BEGIN(world_000, transform, bullet)
+ENTITY_BEGIN(entity_000, transform, bullet)
+SET_COMPONENT(transform, .position.x, 1)
+ENTITY_END()
+WORLD_END()
 
-auto s = ecs::scene<
-	ecs::world<transform, bullet, rigid_body>,
-	ecs::world<transform, rigid_body>>();
+WORLD_BEGIN(world_001, transform, rigid_body)
+ENTITY_BEGIN(entity_000, transform, rigid_body)
+SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
+ENTITY_END()
+WORLD_END()
+
+WORLD_BEGIN(world_002, transform, bullet, rigid_body)
+ENTITY_BEGIN(entity_000, transform, rigid_body)
+SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
+ENTITY_END()
+WORLD_END()
+
+WORLD_BEGIN(world_003, transform)
+ENTITY_BEGIN(entity_000, transform)
+SET_COMPONENT(transform, .position, { 0, 0, 1 })
+ENTITY_END()
+WORLD_END()
+
+// SERIALIZE_SCENE(my_second_scene, world_001, world_002)
+//
+// SERIALIZE_SCENE(my_third_scene, world_002, world_003)
+//  1. scene_wrapper() => scene reflection
+//  2. world_lambda()
+//		a. connect init lambda
+//		b. call world_wrapper constructor => world reflection
+//  3. scene_wrapper::value()
+//		a. call scene constructor => create scene and world
+//		b. call world_wrapper::init(w) => create entity and reflection for entity
+
+SERIALIZE_SCENE(my_first_scene, world_000, world_001)
+
+static inline auto& v = []() -> auto& {
+	static data_structure::vector<uint32> s;
+	s.emplace_back(2u);
+	return s;
+}();
+
+
+auto s = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>();
 
 auto& world_2 = s.get_world<0>();
 
@@ -175,6 +210,7 @@ int main()
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+	return 0;
 	// a b c d , a => 0
 	assert(get_c_idx(0b1111, 0) == 0);
 	assert(get_c_idx(0b1111, 1) == 1);
@@ -232,6 +268,7 @@ int main()
 	auto e2 = world_2.new_entity<transform>();
 	auto e3 = world_2.new_entity<rigid_body, transform>();
 	auto e4 = world_2.new_entity<bullet>();
+
 	// auto e5 = world_2.new_entity<bullet, transform, rigid_body>();
 
 	auto ee = world_2.new_entity<transform>();
@@ -248,7 +285,6 @@ int main()
 	world_2.remove_component<transform, rigid_body>(ee);
 	assert(world_2.has_component<bullet>(ee));
 	assert((world_2.has_component<rigid_body, transform>(ee) == false));
-
 
 	for (auto i = 0; i < 10000; ++i)
 	{

@@ -163,14 +163,9 @@ namespace editor::view::inspector
 
 		widgets::text((p_world->name).c_str());
 
-		if (p_world->struct_count == 0)
+		if (widgets::tree_node("archetype", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			return;
-		}
-
-		if (widgets::tree_node("archetype"))
-		{
-			std::ranges::for_each_n(p_world->structs, p_world->struct_count, [](editor_id struct_id) {
+			std::ranges::for_each(p_world->structs, [](editor_id struct_id) {
 				auto* p_struct = models::reflection::find_struct(struct_id);
 				if (widgets::tree_node(p_struct->name))
 				{
