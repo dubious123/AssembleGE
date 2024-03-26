@@ -229,5 +229,5 @@ obj
 
 # Do not ignore these
 !.gitignore
-!editor/external/lib
-!editor/external/lib/*
+!Editor/external/lib
+!Editor/external/lib/*
