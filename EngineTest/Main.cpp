@@ -119,20 +119,40 @@ SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ENTITY_END()
 WORLD_END()
 
-WORLD_BEGIN(world_004)
-WORLD_END()
+// static inline auto world_003 = []() {
+//	using world_wrapper_t = reflection::world_wrapper<"world_003", transform>;
+//	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {
+//		world_wrapper_t::serialize();
+//		{
+//			auto e = w.new_entity<transform>(); reflection::register_entity("entity_000", e, (const ecs::world_base&)w);
+//			w.get_component<transform>(e).position = { 0, 0, 1 };
+//		}
+//		{
+//
+//		}
+//	}; return world_wrapper_t(); };
 
+
+// static inline auto& my_second_scene = []() -> auto& {
+//	using t_scene_wrapper = reflection::scene_wrapper<"my_second_scene",
+//		decltype(world_001()),
+//		decltype(world_002())>;
+//	t_scene_wrapper();  // scene reflection
+//	world_001();;       // connect init, world reflection, entity reflection
+//	world_002();;
+//	return t_scene_wrapper::value(); }();
 
 SERIALIZE_SCENE(my_second_scene, world_001, world_002)
 //
 // SERIALIZE_SCENE(my_third_scene, world_002, world_003)
 //  1. scene_wrapper() => scene reflection
-//  2. world_lambda()
-//		a. connect init lambda
-//		b. call world_wrapper constructor => world reflection
+//  2. world_lambda() => connect init lambda
 //  3. scene_wrapper::value()
 //		a. call scene constructor => create scene and world
 //		b. call world_wrapper::init(w) => create entity and reflection for entity
+// 			1. world::serialize() => register world and structs
+//			2. create entity
+// 			3. register_entity
 
 // SERIALIZE_SCENE(my_first_scene, world_003)
 

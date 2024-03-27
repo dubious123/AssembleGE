@@ -608,6 +608,14 @@ namespace editor::models
 		std::vector<editor_id> structs;
 
 		em_world() : p_info(nullptr) {};
+
+		void inline init(editor_id w_id, editor_id s_id, world_info* p_info)
+		{
+			id			 = w_id;
+			scene_id	 = s_id;
+			this->p_info = p_info;
+			name		 = p_info->name;
+		}
 	};
 
 	struct em_subworld
@@ -619,8 +627,16 @@ namespace editor::models
 	{
 		editor_id	id;
 		editor_id	world_id;
-		uint64		archetype;
 		std::string name;
+		uint64		archetype;
+
+		void inline init(editor_id e_id, editor_id w_id, entity_info* p_info)
+		{
+			id		  = e_id;
+			world_id  = w_id;
+			name	  = p_info->name;
+			archetype = p_info->archetype;
+		}
 	};
 
 	struct em_component

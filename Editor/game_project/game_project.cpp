@@ -15,15 +15,15 @@ namespace editor::game
 
 	namespace
 	{
-		size_t			(*_get_registered_struct_count)();
-		size_t			(*_get_registered_scene_count)();
-		size_t			(*_get_registered_world_count)();
-		size_t			(*_get_registered_entity_count)(size_t world_index);
-		struct_info*	(*_get_struct_info)(size_t index);
-		scene_info*		(*_get_scene_info)(size_t index);
-		world_info*		(*_get_world_info)(size_t index);
+		size_t (*_get_registered_struct_count)();
+		size_t (*_get_registered_scene_count)();
+		size_t (*_get_registered_world_count)();
+		size_t (*_get_registered_entity_count)(size_t world_index);
+		struct_info* (*_get_struct_info)(size_t index);
+		scene_info* (*_get_scene_info)(size_t index);
+		world_info* (*_get_world_info)(size_t index);
 		component_info* (*_get_component_info)(size_t index);
-		entity_info*	(*_get_entity_info)(size_t world_index, size_t entity_index);
+		entity_info* (*_get_entity_info)(size_t world_index, size_t entity_index);
 
 		auto _project_open_datas			  = std::vector<project_open_data>();
 		auto _application_data_directory_path = std::wstring();
@@ -272,26 +272,21 @@ namespace editor::game
 				p_scene->p_info	   = p_scene_info;
 
 				std::ranges::for_each(std::views::iota(p_scene_info->world_idx) | std::views::take(p_scene_info->world_count), [=](auto world_idx) {
-					auto* p_w_info	= _get_world_info(world_idx);
-					auto  w_id		= world::create(p_scene->id);
-					auto  p_world	= world::find(w_id);
-					p_world->id		= w_id;
-					p_world->p_info = p_w_info;
-					p_world->name	= p_w_info->name;
+					auto* p_w_info = _get_world_info(world_idx);
+					auto  w_id	   = world::create(p_scene->id);
+					auto  p_world  = world::find(w_id);
+					p_world->init(w_id, p_scene->id, p_w_info);
 
 					std::ranges::for_each(p_w_info->struct_idx_vec | std::views::take(p_w_info->struct_count), [=](auto struct_idx) {
 						auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
 						world::add_struct(w_id, p_s->id);
+					});
 
-						std::ranges::for_each(std::views::iota(0ul, _get_registered_entity_count(world_idx)), [=](auto entity_idx) {
-							auto* p_e_info		= _get_entity_info(world_idx, entity_idx);
-							auto  e_id			= entity::create(w_id);
-							auto  p_entity		= entity::find(e_id);
-							p_entity->id		= e_id;
-							p_entity->name		= p_e_info->name;
-							p_entity->archetype = p_e_info->archetype;
-							p_entity->world_id	= w_id;
-						});
+					std::ranges::for_each(std::views::iota(0ul, _get_registered_entity_count(world_idx)), [=](auto entity_idx) {
+						auto* p_e_info = _get_entity_info(world_idx, entity_idx);
+						auto  e_id	   = entity::create(w_id);
+						auto  p_entity = entity::find(e_id);
+						p_entity->init(e_id, w_id, p_e_info);
 					});
 				});
 			});

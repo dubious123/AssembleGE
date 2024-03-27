@@ -48,9 +48,10 @@
 #define SCENE_ARGS(world_wrapper_lambda) decltype(world_wrapper_lambda())
 
 #define WORLD_BEGIN(world_name, ...) \
-	static inline auto world_name = []() {													\
-	using world_wrapper_t = reflection::world_wrapper<#world_name, __VA_ARGS__>;  \
-	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {
+	static inline auto world_name = []() {											\
+	using world_wrapper_t = reflection::world_wrapper<#world_name, __VA_ARGS__>;	\
+	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {				\
+	world_wrapper_t::serialize();
 
 
 #define WORLD_END()           \
@@ -170,13 +171,22 @@ namespace reflection
 
 		static inline void (*init_func)(world_type& w);
 
-		world_wrapper()
+		static inline void serialize()
 		{
 			reflection::register_world(str_wrapper.value);
 			([] {
 				reflection::register_component_to_world(c::id);
 			}(),
 			 ...);
+		}
+
+		world_wrapper()
+		{
+			// reflection::register_world(str_wrapper.value);
+			//([] {
+			//	reflection::register_component_to_world(c::id);
+			// }(),
+			//  ...);
 		}
 	};
 
