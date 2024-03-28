@@ -1,12 +1,2 @@
-[2024-03-27 17:49:02.519] [Editor Logger] [info] Hi
-[2024-03-27 17:49:04.915] [Editor Logger] [info] Open Completed
-[2024-03-27 17:49:06.581] [Editor Logger] [info] Select 0x00000000000000
-[2024-03-27 17:49:07.132] [Editor Logger] [info] Select 0x00000000000002
-[2024-03-27 17:49:07.572] [Editor Logger] [info] Select 0x00000000000004
-[2024-03-27 17:49:09.055] [Editor Logger] [info] set current scene from 0x200000000000002 to 0x200000000000000
-[2024-03-27 17:49:09.979] [Editor Logger] [info] Select 0x00000000000002
-[2024-03-27 17:49:10.363] [Editor Logger] [info] Select 0x00000000000004
-[2024-03-27 17:49:10.737] [Editor Logger] [info] Select 0x00000000000000
-[2024-03-27 17:49:11.613] [Editor Logger] [info] Select 0x00000000000001
-[2024-03-27 17:49:11.929] [Editor Logger] [info] Select 0x00000000000003
-[2024-03-27 17:49:12.220] [Editor Logger] [info] Select 0x00000000000005
+[2024-03-28 13:38:00.455] [Editor Logger] [info] Hi
+[2024-03-28 13:38:05.366] [Editor Logger] [info] Open Completed

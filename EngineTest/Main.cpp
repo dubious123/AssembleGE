@@ -285,12 +285,12 @@ int main()
 	assert(get_c_idx(0b0100, 2) == 0);
 	assert(get_c_idx(0b1000, 3) == 0);
 
-
 	using namespace ecs;
 	using tpl		   = tuple_sort<component_comparator, transform, bullet, rigid_body>::type;
 	constexpr auto idx = tuple_index<transform, tpl>::value;
 	using components   = component_wrapper<transform, bullet, rigid_body>;
 	components::calc_archetype<transform, bullet>();
+	int world_idx = 0;
 
 	auto e2 = world_2.new_entity<transform>();
 	auto e3 = world_2.new_entity<rigid_body, transform>();

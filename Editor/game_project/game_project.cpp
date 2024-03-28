@@ -1264,14 +1264,14 @@ namespace editor::view::project_browser
 	void update_dpi_scale()
 	{
 		auto frame_padding = style::frame_padding();
-		auto _item_spacing = style::item_spacing();
+		auto item_spacing  = style::item_spacing();
 
 		_project_list_child_window_size	   = platform::get_monitor_size();
 		_project_list_child_window_size.x *= 0.50f;
 		_project_list_child_window_size.y *= 0.50f;
 
 		_header_size.x = _project_list_child_window_size.x - frame_padding.x * 2;
-		_header_size.y = frame_padding.y * 2 + _item_spacing.y * 3 + style::font_size() * 2;
+		_header_size.y = frame_padding.y * 2 + item_spacing.y * 3 + style::font_size() * 2;
 
 		_width_star		   = _header_size.y - frame_padding.y * 2;
 		_width_name_desc   = _project_list_child_window_size.x * 0.4f;
@@ -1286,8 +1286,8 @@ namespace editor::view::project_browser
 
 		_draw_pos_item		  = ImVec2(frame_padding.x * 3, 0);
 		_draw_pos_star		  = ImVec2(frame_padding.x * 4, frame_padding.y);
-		_draw_pos_name		  = _draw_pos_star + ImVec2(_width_star + frame_padding.x * 2, _item_spacing.y);
-		_draw_pos_desc		  = _draw_pos_name + ImVec2(0, style::font_size() + _item_spacing.y);
+		_draw_pos_name		  = _draw_pos_star + ImVec2(_width_star + frame_padding.x * 2, item_spacing.y);
+		_draw_pos_desc		  = _draw_pos_name + ImVec2(0, style::font_size() + item_spacing.y);
 		_draw_pos_last_opened = ImVec2(_draw_pos_desc.x + _width_name_desc + frame_padding.x * 2, (_header_size.y - style::font_size()) / 2);
 		_draw_pos_path		  = _draw_pos_last_opened + ImVec2(_width_last_opened + frame_padding.x * 2, 0);
 
@@ -1299,8 +1299,6 @@ namespace editor::view::project_browser
 	void show()
 	{
 		static auto opened = false;
-		if (editor::game::project_opened())
-			return;
 
 		if (widgets::begin_popup_modal("Project_Browser", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 		{

@@ -385,6 +385,7 @@ void editor::run()
 
 		_custom_caption();
 
+		editor::models::update();
 		editor::view::show();
 
 		ImGui::ShowDemoWindow();
@@ -2168,6 +2169,10 @@ namespace editor::models
 		//	id::delete_id(id);
 		//}
 
+		void update()
+		{
+		}
+
 		std::vector<em_entity*> all(editor_id world_id)
 		{
 			assert(world::find(world_id) != nullptr);
@@ -2189,6 +2194,31 @@ namespace editor::models
 		{
 		}	 // namespace
 	}		 // namespace component
+
+	void update()
+	{
+		if (editor::game::project_opened() is_false)
+		{
+			return;
+		}
+
+		entity::update();
+	}
+
+	void on_project_unloaded()
+	{
+		reflection::on_project_unloaded();
+		scene::on_project_unloaded();
+		world::on_project_unloaded();
+		// component::on_project_unloaded();
+	}
+
+	void on_project_loaded()
+	{
+		reflection::on_project_loaded();
+		scene::on_project_loaded();
+		world::on_project_loaded();
+	}
 }	 // namespace editor::models
 
 // commands
@@ -2337,34 +2367,6 @@ namespace editor
 			cmd.redo();
 		});
 }	 // namespace editor
-
-void editor::models::on_project_unloaded()
-{
-	reflection::on_project_unloaded();
-	scene::on_project_unloaded();
-	world::on_project_unloaded();
-	// component::on_project_unloaded();
-}
-
-void editor::models::on_project_loaded()
-{
-	reflection::on_project_loaded();
-	scene::on_project_loaded();
-	world::on_project_loaded();
-	// component::on_project_loaded();
-	//  res		 |= add_context_item("Scene\\Add New World", &cmd_add_world);
-
-	// res |= Register_Command("World\\Create Empty", &World::Cmd_Add_Entity);
-	// res |= add_context_item("World\\Delete", &cmd_remove);
-	// res		 |= Register_Command("World\\Rename", &Editor::Cmd_Rename);
-
-	// res |= add_context_item("World\\Entity\\Create Empty", &world::cmd_add_entity);
-	// res |= add_context_item("World\\System\\Add New System", &world::cmd_add_system);
-
-	// res |= add_context_item("Entity\\Create Empty", &cmd_add_new);
-	// res |= add_context_item("Entity\\Delete", &cmd_remove);
-	// res |= add_context_item("Entity\\Add New Component", &entity::cmd_add_component);
-}
 
 std::string editor::utilities::read_file(const std::filesystem::path path)
 {

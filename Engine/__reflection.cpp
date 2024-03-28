@@ -123,6 +123,12 @@ namespace reflection
 		e_info.name		 = entity_name;
 		e_info.idx		 = e_idx;
 		e_info.archetype = w.entities[e_idx].archetype;
+		// problem 1 archetype may change => p_archetype
+		// problem 2 components may change => if use pointer => position within memory block may change + if structural change happen p_memory_block may change
+		//=> use pp_memory_block
+		// problem 3 if use pp => if more entities are pushed, w.entities.data will be reallocated => no longer valid
+		// sol only save e_idx
+		// if we need any data => use engine api
 	}
 
 	size_t get_registered_struct_count()

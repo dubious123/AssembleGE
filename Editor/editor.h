@@ -629,13 +629,15 @@ namespace editor::models
 		editor_id	world_id;
 		std::string name;
 		uint64		archetype;
+		uint64		ecs_entity_idx;
 
 		void inline init(editor_id e_id, editor_id w_id, entity_info* p_info)
 		{
-			id		  = e_id;
-			world_id  = w_id;
-			name	  = p_info->name;
-			archetype = p_info->archetype;
+			id			   = e_id;
+			world_id	   = w_id;
+			name		   = p_info->name;
+			archetype	   = p_info->archetype;
+			ecs_entity_idx = p_info->idx;
 		}
 	};
 
@@ -707,6 +709,24 @@ namespace editor::models
 		em_entity*				find(editor_id id);
 		editor_id				create(editor_id entity_id);
 		std::vector<em_entity*> all(editor_id world_id);
+
+		void update();
+		// A. change from editor => need to effect ecs engine directly (no later change)
+		// B. change from engine before play => after build, will be updated
+		// C. change from editor during play => will be reverted, ??
+		//		1. crete copy
+		//		2. run game
+		//		3. if game end, recover copy
+		//
+		// D. editor need to loop over graphic system => need same ecs engine... (without changing data)
+		//  graphic system => const system, no structural changes
+		//  every change from editor need to be applied to ecs engine at the same time,and also need to be undo_redo_able
+		//
+		//  ex. name
+		//  1. (before) all read write of name (no need for release build) => reflection namespace => hard to synchronize
+		//  2. in ecs + with preprocessor (if debug mode => no name), editor directly access to ecs engine
+		//
+		//  if 2. all scene need to have key => how? type is templated, all world need to have key (already true... ?
 	}	 // namespace entity
 
 	namespace component
@@ -751,6 +771,7 @@ namespace editor::models
 	//}	 // namespace system
 
 	// void register_component(pod::component_info* p_info);
+	void update();
 	void on_project_loaded();
 	void on_project_unloaded();
 }	 // namespace editor::models

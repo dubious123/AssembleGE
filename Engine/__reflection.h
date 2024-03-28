@@ -129,6 +129,7 @@ namespace reflection
 		uint64 struct_idx;
 		size_t scene_idx;
 		size_t world_idx;
+		void*  p_value;
 	};
 
 	struct entity_info

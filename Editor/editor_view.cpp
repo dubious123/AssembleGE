@@ -380,12 +380,17 @@ namespace editor::view
 	void show()
 	{
 		_main_dock_space();
-		project_browser::show();
-		if (editor::game::project_opened() is_false) return;
 
-		logger::show();
-		hierarchy::show();
-		inspector::show();
-		reflection::show();
+		if (editor::game::project_opened() is_false)
+		{
+			project_browser::show();
+		}
+		else
+		{
+			logger::show();
+			hierarchy::show();
+			inspector::show();
+			reflection::show();
+		}
 	}
 }	 // namespace editor::view
