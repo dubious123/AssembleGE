@@ -711,22 +711,109 @@ namespace editor::models
 		std::vector<em_entity*> all(editor_id world_id);
 
 		void update();
-		// A. change from editor => need to effect ecs engine directly (no later change)
-		// B. change from engine before play => after build, will be updated
-		// C. change from editor during play => will be reverted, ??
-		//		1. crete copy
-		//		2. run game
-		//		3. if game end, recover copy
+		// 에디터에서 ecs의 무언가를 변경했을때
+		// 1. 단순 수치변경 (ex. entity component's value change) : get entity idx and access to p_momory directly
+		// 2. sturctural change (ex. add new component to entity or world) : rebuild?
+		// 3. how to render from editor
+		//	a. render after game play : build => run game loop
+		//	b. render before game play : ???
+		//		i) scene은 서로 다른 world를 가진다
+		//		ii) 서로 다른 world중 어떤 world는 서로 다른 render pipeline의 대상이 된다 => editor에서 어떻게 이를 알수 있지?
+		//		iii) render pipeline중 일부는 engine에 미리 정의되어있지만, 유저가 따로 새로운 render pipeline을 만들수 있다.
+		//		iv) scene이 서로 다른 render pipeline을 가질수 있나?
+		//		v) render의 주체는 과연 world일까 pipeline일까? 일단은 pipeline이라고 생각하자
+		//		vi) 이미 정의된 pipeline이던, 유저가 작성한 pipeline이던, 모두 reflection을 통해 build후 editor에게 노출된다.
+		//		vii) 유저는 각 scene에 쓰일 default render pipeline을 정의할수 있어야한다...? pipe().update(world)와 같이 각 world마다 pipe의 update 대상이
+		//			될지 말지 유저가 코드를 통해 정한다.
+		//		viii) 각 scene은 독립적으로 존재하며 editor에서 render 가능해야한다.
+		//		ix) editor는 어떠한 pipeline이 render pipeline인지 모른다. ...render_pipeline은 일반 pipe_line과 무엇이 다르지? 아마 gpu에 대한 접근이 가능해야겠지
+		//      x) 그렇다면 다른 pipeline은 이에대한 접근을 금지해야 하나? 아니 그것이 가능할것인가?
+		//		xi) 아니면 그냥 각 scene마다 phase를 정해두고 그중 render phase에 실행되는 모든 pipe들은 render pipeline이라고 치는 것은?
+		//		xii) awake - update - render ...과 같은 phase... ? => compile time?
+		//		play mode에서는 update - render ... 모두 실행하는데
+		//		edit mode에서는 render만 실행하는거지
+		//		근데 render mode에서 어떠한 pipline들이 어떠한 순서대로 실행되는건지, 그리고 각 단계에서의 중간단계들을 debug할수 있어야 한다 (unity의 frame debugger)
+		//		즉 각 phase와 pipe들을 연결하는것 또한 serialized되야한다.
 		//
-		// D. editor need to loop over graphic system => need same ecs engine... (without changing data)
-		//  graphic system => const system, no structural changes
-		//  every change from editor need to be applied to ecs engine at the same time,and also need to be undo_redo_able
+		//		유저는 각 scene을 정의하고 특정한 macro를 사용하여 scene의 각 phase와 pipe(+pipe.update의 매개변수인 world또한 (아마 world의 이름을 적는게 가장 좋겠지만
+		//		그것이 어렵다면 world의 index를 적어야겠지)
+		//		를 연결한다
 		//
-		//  ex. name
-		//  1. (before) all read write of name (no need for release build) => reflection namespace => hard to synchronize
-		//  2. in ecs + with preprocessor (if debug mode => no name), editor directly access to ecs engine
+		//		gamemode에서는 scene_phase_render() { pipe1.update(w1); pipe2.update(w2); ...} 와 같은 형태로 될것 같은데
 		//
-		//  if 2. all scene need to have key => how? type is templated, all world need to have key (already true... ?
+		//		editor에서는 scene_phase_render() {pipe1.update(w1); REFLECTION(pipe1, w1); editor::debug_breakable(); pipe2.update(w2); REFLECTION(pipe1, w2);...
+		//
+		//		처럼 보이지 않을까...
+		//
+		//		근데 condition이나 loop같은것은 어떻게 처리되는거지? => 일단은 없는걸로
+		//
+		//		일단 editor는
+		//		1. 어떠한 pipe들이 정의되어있는지,
+		//		2. 현재 어떠한 pipe들이 실행되고 있는지
+		//			1. 각 pipe들중 어떠한 function들이 실행되고있는지
+		//		3. 각 pipe의 구조는 어떠한지
+		//		알수 있어야한다.
+		//
+		//		scene의 각 phase는 결국 하나의 pipe로 정의될 수 있다.
+		//		scene의 template parameter로 pipe를 박기에는 좀 무리가 있다.
+		//		그렇다면 결국 상위 개념인 game에서 동적으로 scene과 pipe를 연결해야한다는 것인데... (macro를 통해서?)
+		//
+		//		그런데 scene과 world를 연결할려면 world에게 이름이 있어야 하는데 이것이 힘들다 (index만 있다.)
+		//
+		//		사실 game에서 어떤 scene부터 update할것인지 그런것들을 정의한다고 생각하면 이게 더 나을수도
+		//
+		//		그럼 editor에서는 단순히 현재 scene의 render_pipe().update(??) 를 call하면 끝나는 건가
+		//
+		//		scene에서 어떤 phase는 미리 정해져 있고, 어떤 phase는 정해져 유저가 정의할 수 있게 하고싶은데 가능할려나
+		//
+		//		기존에는 scene_wrapper가 일종의 reflection만을 위한 역할을 해왔는데
+		//		이것을 조금 비틀어서 scene_builder + reflection을 합친 역할을 한다고 치면
+		//
+		//		world(builder) 정의
+		//		pipeline(builder) 정의 => editor에서 break 가능 여부 등등은 macro로 여기서
+		//		phase function(builder) 정의
+		//
+		//		결국 phase의 연결도 직렬이라면 pipe와 다를것이 없다.
+		//
+		//		다른점은 pipe는 연결됬다면 중간에 있는 sub(?)_pipe만 따로 실행할수가 없는데
+		//		phase는 하나만 따로 실행할수 있다는 점?
+		//
+		//		pipe에서 loop는 몰라도 branch는 있어야 할것 같은데... => added branch node
+		//		될것 같기도 하다
+		//		branch<cond, pipe1, pipe2>
+		//
+		//		what about loop?
+		//		loop<3, pipe>
+		//
+		//		what about for loop?
+		//
+		//		loop<cond, pipe> => game_loop //kind a dangerous...
+		//
+		//
+		//		all scene has predefined phase : update, graphic (pure func)
+		//
+		//		phase : function vs pipe
+		//		if function => no problem : inline func => later define
+		//		if pipe => need to be template argument : doesn't look good but, user will use macro anyway... (easier to do reflection)
+		//			=> cannot indentify world...
+		//			=> if pipe, all parameter is one world
+		//			=> can we bind?
+		//
+		//		what about world alias?
+		//		maybe inherit scene and add type alias by macro
+		//		or do it inside lambda
+		//
+		//		phase에서 input(optional) update(optional) render(optional)...
+		//
+		//
+		//		나중에 scene 정의시  scene_builder<phase_builder, pipeline_builder, world_builder> 이렇게 하고 그 결과로
+		//		static inline auto& s = scene<w1, w2, w3...>를 생성하게 하는것은 가능할것 같음
+		//
+		//		어차피 이 위에 game 개념이 있으면
+		//		scene도 각각 key를 가질 수 있으니깐 (scene_base* scenes 가능)
+		//
+		//
+		//
 	}	 // namespace entity
 
 	namespace component

@@ -217,6 +217,16 @@ void test_func7(ecs::entity_idx idx, transform& t, rigid_body& rb)
 	t.position.z += 1;
 }
 
+bool cond_func1()
+{
+	return true;
+}
+
+bool cond_func2()
+{
+	return false;
+}
+
 // world a b c d
 // archetype a d
 // c_idx from world => 0, 3
@@ -237,7 +247,6 @@ int main()
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
 	// reflection::register_entity("entity", world_3.new_entity<transform>(), world_2);
-	return 0;
 	// a b c d , a => 0
 	assert(get_c_idx(0b1111, 0) == 0);
 	assert(get_c_idx(0b1111, 1) == 1);
@@ -357,6 +366,8 @@ int main()
 	// static_assert(variadic_unique<int, double, float> == true);
 
 
+	// no par<test_func1, pipe1> ...
+	// maybe par<test_func1, pipe1()> work
 	using pipe1_2 = pipeline<
 		par<test_func4, test_func5>,
 		seq<test_func2>,
@@ -368,9 +379,16 @@ int main()
 	using pipe3_2 = pipeline<
 		seq<test_func>,
 		par<pipe1_2, pipe2_2>,
-		seq<test_func>,
 		wt<pipe1_2, pipe2_2>>;
+
+	using pipe4_2 = pipeline<
+		cond<cond_func1, pipe1_2, pipe2_2>,
+		cond<cond_func2, test_func, test_func2>>;
+
+
 	pipe3_2().update(world_2);
+
+	pipe4_2().update(world_2);
 
 	// auto& t = world_2.get_component<transform>(e5);
 

@@ -79,6 +79,9 @@ namespace ecs
 	template <typename t>
 	concept is_wt = requires { t::_wt; };
 
+	template <typename t>
+	concept is_cond = requires { t::_cond; };
+
 	template <typename... ts>
 	requires meta::variadic_unique<ts...>
 	struct __seq
@@ -101,6 +104,14 @@ namespace ecs
 	{
 		constinit static inline const auto _wt = true;
 		using tpl_t							   = std::tuple<ts...>;
+	};
+
+	template <typename... ts>
+	requires meta::variadic_unique<ts...>
+	struct __cond
+	{
+		constinit static inline const auto _cond = true;
+		using tpl_t								 = std::tuple<ts...>;
 	};
 
 	template <auto... fn>
@@ -139,6 +150,21 @@ namespace ecs
 		return __wt<meta::type_wrapper<pipeline>...>();
 	}
 
+	template <auto cond_fn, auto fn1, auto fn2>
+	auto cond()
+	{
+		return __cond<meta::auto_wrapper<cond_fn>, meta::auto_wrapper<fn1>, meta::auto_wrapper<fn2>>();
+	}
+
+	template <auto cond_fn, typename p1, typename p2>
+	auto cond()
+	{
+		return __cond<meta::auto_wrapper<cond_fn>, meta::type_wrapper<p1>, meta::type_wrapper<p2>>();
+	}
+
+	// todo seq<func, pipe> is not possible, fix (maybe seq<func, pipe1()>)
+	// this is because pipe is type and function is value
+	// loop node?
 	template <auto... wrapper_fn>
 	class pipeline
 	{
@@ -174,6 +200,22 @@ namespace ecs
 				}(),
 				 ...);
 			}
+			else if constexpr (ecs::is_cond<decltype(node)>)
+			{
+				DEBUG_LOG("---cond (func)---");
+				// node_t =__cond<meta::auto_wrapper<cond_fn>, meta::auto_wrapper<p1>, meta::auto_wrapper<p2>>();
+				if (meta::variadic_at_t<0, wrapper<fn>...>::value())
+				{
+					int a = 1;
+					// world.update(std::get<1>(typename decltype(node)::tpl_t()));
+				}
+				else
+				{
+					int b = 2;
+					// world.update(std::get<2>(typename decltype(node)::tpl_t()));
+					//  world.update(meta::variadic_at_t<2, typename decltype(node)::tpl_t>::value);
+				}
+			}
 			else
 			{
 				assert(false and "invalid node type");
@@ -203,6 +245,28 @@ namespace ecs
 					_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>].join();
 				}(),
 				 ...);
+			}
+			else
+			{
+				assert(false and "invalid node type");
+			}
+		}
+
+		template <auto cond_fn, typename... pipelines>
+		void _update(auto& world, __cond<auto_wrapper<cond_fn>, type_wrapper<pipelines>...> node)
+		{
+			if constexpr (ecs::is_cond<decltype(node)>)
+			{
+				DEBUG_LOG("---cond (func)---");
+				// node_t =__cond<meta::auto_wrapper<cond_fn>, meta::type_wrapper<p1>, meta::type_wrapper<p2>>();
+				if (cond_fn())
+				{
+					variadic_at_t<0, pipelines...>().update(world);
+				}
+				else
+				{
+					variadic_at_t<1, pipelines...>().update(world);
+				}
 			}
 			else
 			{
@@ -886,6 +950,7 @@ namespace ecs
 	// bool is_idx_valid(uint16);
 
 	bool is_id_valid(uint64);
+
 	// bool is_id_valid(uint32);
 	// bool is_id_valid(uint16);
 	// EDITOR_API scene_base get_scene(size_t index);
