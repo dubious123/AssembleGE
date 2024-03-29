@@ -369,17 +369,13 @@ int main()
 	// no par<test_func1, pipe1> ...
 	// maybe par<test_func1, pipe1()> work
 	using pipe1_2 = pipeline<
-		par<test_func4, test_func5>,
-		seq<test_func2>,
-		wt<test_func4, test_func5>>;
+		par<test_func4, test_func5, test_func2>>;
 	using pipe2_2 = pipeline<
 		seq<test_func3>,
-		par<test_func6, test_func7>,
-		wt<test_func6, test_func7>>;
+		par<test_func6, test_func7>>;
 	using pipe3_2 = pipeline<
 		seq<test_func>,
-		par<pipe1_2, pipe2_2>,
-		wt<pipe1_2, pipe2_2>>;
+		par<pipe1_2, pipe2_2>>;
 
 	using pipe4_2 = pipeline<
 		cond<cond_func1, pipe1_2, pipe2_2>,

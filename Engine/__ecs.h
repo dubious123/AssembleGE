@@ -76,8 +76,8 @@ namespace ecs
 	template <typename t>
 	concept is_par = requires { t::_par; };
 
-	template <typename t>
-	concept is_wt = requires { t::_wt; };
+	// template <typename t>
+	// concept is_wt = requires { t::_wt; };
 
 	template <typename t>
 	concept is_cond = requires { t::_cond; };
@@ -98,13 +98,13 @@ namespace ecs
 		using tpl_t								= std::tuple<ts...>;
 	};
 
-	template <typename... ts>
-	requires meta::variadic_unique<ts...>
-	struct __wt
-	{
-		constinit static inline const auto _wt = true;
-		using tpl_t							   = std::tuple<ts...>;
-	};
+	// template <typename... ts>
+	// requires meta::variadic_unique<ts...>
+	// struct __wt
+	//{
+	//	constinit static inline const auto _wt = true;
+	//	using tpl_t							   = std::tuple<ts...>;
+	// };
 
 	template <typename... ts>
 	requires meta::variadic_unique<ts...>
@@ -138,17 +138,17 @@ namespace ecs
 		return __par<meta::type_wrapper<pipeline>...>();
 	}
 
-	template <auto... fn>
-	auto wt()
-	{
-		return __wt<meta::auto_wrapper<fn>...>();
-	}
+	// template <auto... fn>
+	// auto wt()
+	//{
+	//	return __wt<meta::auto_wrapper<fn>...>();
+	// }
 
-	template <typename... pipeline>
-	auto wt()
-	{
-		return __wt<meta::type_wrapper<pipeline>...>();
-	}
+	// template <typename... pipeline>
+	// auto wt()
+	//{
+	//	return __wt<meta::type_wrapper<pipeline>...>();
+	// }
 
 	template <auto cond_fn, auto fn1, auto fn2>
 	auto cond()
@@ -172,9 +172,9 @@ namespace ecs
 		constinit static inline const auto _pipeline = true;
 
 	  private:
-		using tpl_par_t = meta::tuple_cat_t<std::conditional_t<ecs::is_par<decltype(wrapper_fn())>, typename decltype(wrapper_fn())::tpl_t, std::tuple<>>...>;
+		// using tpl_par_t = meta::tuple_cat_t<std::conditional_t<ecs::is_par<decltype(wrapper_fn())>, typename decltype(wrapper_fn())::tpl_t, std::tuple<>>...>;
 
-		std::thread _threads[std::tuple_size_v<tpl_par_t>];
+		// std::thread _threads[std::tuple_size_v<tpl_par_t>];
 
 		template <template <typename...> typename node_t, template <auto> typename wrapper, auto... fn>
 		void _update(auto& world, node_t<wrapper<fn>...> node)
@@ -187,19 +187,34 @@ namespace ecs
 			else if constexpr (ecs::is_par<decltype(node)>)
 			{
 				DEBUG_LOG("---par (func)---");
-				([&world, this] {
-					_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>] = std::thread([&world, this]() { world.update(fn); });
+				std::thread _threads[sizeof...(fn)];
+				auto		idx = 0;
+				([&, this] {
+					_threads[idx++] = std::thread([&world, this]() { world.update(fn); });
 				}(),
 				 ...);
+
+				for (auto& th : _threads)
+				{
+					th.join();
+				}
 			}
-			else if constexpr (ecs::is_wt<decltype(node)>)
-			{
-				DEBUG_LOG("---wt (func)---");
-				([this]() {
-					_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>].join();
-				}(),
-				 ...);
-			}
+			// else if constexpr (ecs::is_par<decltype(node)>)
+			//{
+			//	DEBUG_LOG("---par (func)---");
+			//	([&world, this] {
+			//		_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>] = std::thread([&world, this]() { world.update(fn); });
+			//	}(),
+			//	 ...);
+			// }
+			// else if constexpr (ecs::is_wt<decltype(node)>)
+			//{
+			//	DEBUG_LOG("---wt (func)---");
+			//	([this]() {
+			//		_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>].join();
+			//	}(),
+			//	 ...);
+			// }
 			else if constexpr (ecs::is_cond<decltype(node)>)
 			{
 				DEBUG_LOG("---cond (func)---");
@@ -233,19 +248,34 @@ namespace ecs
 			else if constexpr (ecs::is_par<decltype(node)>)
 			{
 				DEBUG_LOG("---par (pipe)---");
-				([&world, this] {
-					_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>] = std::thread([&world]() { pipelines().update(world); });
+				std::thread _threads[sizeof...(pipelines)];
+				auto		idx = 0;
+				([&, this] {
+					_threads[idx++] = std::thread([&world]() { pipelines().update(world); });
 				}(),
 				 ...);
+
+				for (auto& th : _threads)
+				{
+					th.join();
+				}
 			}
-			else if constexpr (ecs::is_wt<decltype(node)>)
-			{
-				DEBUG_LOG("---wt (pipe)---");
-				([this]() {
-					_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>].join();
-				}(),
-				 ...);
-			}
+			// else if constexpr (ecs::is_par<decltype(node)>)
+			//{
+			//	DEBUG_LOG("---par (pipe)---");
+			//	([&world, this] {
+			//		_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>] = std::thread([&world]() { pipelines().update(world); });
+			//	}(),
+			//	 ...);
+			// }
+			//  else if constexpr (ecs::is_wt<decltype(node)>)
+			//{
+			//	DEBUG_LOG("---wt (pipe)---");
+			//	([this]() {
+			//		_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>].join();
+			//	}(),
+			//	 ...);
+			//  }
 			else
 			{
 				assert(false and "invalid node type");
