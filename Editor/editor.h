@@ -795,7 +795,7 @@ namespace editor::models
 		//
 		//
 		//
-		// all node = seq<node..., par<child nodes>>; can we generalize?
+		// all node = seq<node..., par<child nodes>>;  can we generalize?
 		// node = all callable struct => any void(*)()
 		//
 		// pipeline => only for one world
