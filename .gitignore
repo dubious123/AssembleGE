@@ -231,3 +231,6 @@ obj
 !.gitignore
 !Editor/external/lib
 !Editor/external/lib/*
+
+# Ignore .vs folder
+.vs/
