@@ -165,6 +165,7 @@ namespace ecs
 	// todo seq<func, pipe> is not possible, fix (maybe seq<func, pipe1()>)
 	// this is because pipe is type and function is value
 	// loop node?
+	// rename to system
 	template <auto... wrapper_fn>
 	class pipeline
 	{
@@ -172,10 +173,6 @@ namespace ecs
 		constinit static inline const auto _pipeline = true;
 
 	  private:
-		// using tpl_par_t = meta::tuple_cat_t<std::conditional_t<ecs::is_par<decltype(wrapper_fn())>, typename decltype(wrapper_fn())::tpl_t, std::tuple<>>...>;
-
-		// std::thread _threads[std::tuple_size_v<tpl_par_t>];
-
 		template <template <typename...> typename node_t, template <auto> typename wrapper, auto... fn>
 		void _update(auto& world, node_t<wrapper<fn>...> node)
 		{
@@ -199,36 +196,16 @@ namespace ecs
 					th.join();
 				}
 			}
-			// else if constexpr (ecs::is_par<decltype(node)>)
-			//{
-			//	DEBUG_LOG("---par (func)---");
-			//	([&world, this] {
-			//		_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>] = std::thread([&world, this]() { world.update(fn); });
-			//	}(),
-			//	 ...);
-			// }
-			// else if constexpr (ecs::is_wt<decltype(node)>)
-			//{
-			//	DEBUG_LOG("---wt (func)---");
-			//	([this]() {
-			//		_threads[meta::tuple_index_v<meta::auto_wrapper<fn>, tpl_par_t>].join();
-			//	}(),
-			//	 ...);
-			// }
 			else if constexpr (ecs::is_cond<decltype(node)>)
 			{
 				DEBUG_LOG("---cond (func)---");
-				// node_t =__cond<meta::auto_wrapper<cond_fn>, meta::auto_wrapper<p1>, meta::auto_wrapper<p2>>();
-				if (meta::variadic_at_t<0, wrapper<fn>...>::value())
+				if (meta::variadic_auto_at_v<0, fn...>)
 				{
-					int a = 1;
-					// world.update(std::get<1>(typename decltype(node)::tpl_t()));
+					world.update(meta::variadic_auto_at_v<1, fn...>);
 				}
 				else
 				{
-					int b = 2;
-					// world.update(std::get<2>(typename decltype(node)::tpl_t()));
-					//  world.update(meta::variadic_at_t<2, typename decltype(node)::tpl_t>::value);
+					world.update(meta::variadic_auto_at_v<2, fn...>);
 				}
 			}
 			else
@@ -260,22 +237,6 @@ namespace ecs
 					th.join();
 				}
 			}
-			// else if constexpr (ecs::is_par<decltype(node)>)
-			//{
-			//	DEBUG_LOG("---par (pipe)---");
-			//	([&world, this] {
-			//		_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>] = std::thread([&world]() { pipelines().update(world); });
-			//	}(),
-			//	 ...);
-			// }
-			//  else if constexpr (ecs::is_wt<decltype(node)>)
-			//{
-			//	DEBUG_LOG("---wt (pipe)---");
-			//	([this]() {
-			//		_threads[meta::tuple_index_v<meta::type_wrapper<pipelines>, tpl_par_t>].join();
-			//	}(),
-			//	 ...);
-			//  }
 			else
 			{
 				assert(false and "invalid node type");
@@ -308,6 +269,82 @@ namespace ecs
 		void update(auto& world)
 		{
 			(_update(world, wrapper_fn()), ...);
+		}
+	};
+
+	template <typename fn, typename... ts>
+	struct _binder
+	{
+		const std::pair<fn, std::tuple<ts...>> _pair;
+
+		_binder(fn&& f, ts&&... args)
+			: _pair(std::forward<fn>(f), std::tuple(std::forward<ts>(args)...)) { }
+
+		void operator()()
+		{
+			meta::call_w_tpl_args(_pair.first, _pair.second);
+		}
+	};
+
+	template <typename fn, typename... ts>
+	auto bind(fn&& f, ts&&... args)
+	{
+		return _binder<fn, ts...>(std::forward<fn>(f), std::forward<ts>(args)...);
+	}
+
+	template <auto... fn>
+	void n_seq()
+	{
+		([] {
+			fn();
+		}(),
+		 ...);
+	}
+
+	template <auto... fn>
+	void n_par()
+	{
+		std::thread threads[sizeof...(fn)];
+		auto		idx = 0;
+		([&]() {
+			threads[idx++] = std::thread([] { fn(); });
+		}(),
+		 ...);
+
+		for (auto& th : threads)
+		{
+			th.join();
+		}
+	}
+
+	template <auto cond, auto f1, auto f2>
+	void n_cond()
+	{
+		if (cond())
+		{
+			f1();
+		}
+		else
+		{
+			f2();
+		}
+	}
+
+	template <auto... wrapper_fn>
+	struct node
+	{
+		// using fn_tpl = std::tuple<auto_wrapper<wrapper_fn>...>;
+
+		template <typename... ts>
+		void operator()(ts&&... args) const
+		{
+			auto arg_tpl = std::tuple(std::forward<ts>(args)...);
+			// auto fn_tpl	 = std::tuple(auto_wrapper<wrapper_fn>...);
+			//  std::apply([](auto&&... args) { ((std::cout << args << '\n'), ...); }, ts);
+			([&] {
+				meta::call_w_tpl_args(wrapper_fn, arg_tpl);
+			}(),
+			 ...);
 		}
 	};
 
@@ -969,6 +1006,8 @@ namespace ecs
 		{
 			return *(world_at<N>*)(void*)(worlds + N);
 		}
+
+		// inline void loop();
 	};
 
 	struct subworld

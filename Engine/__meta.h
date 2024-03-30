@@ -300,4 +300,33 @@ namespace meta
 			}
 		}
 	};
+
+	template <int... n>
+	struct __seq
+	{
+	};
+
+	// int_seq<4> => int_seq<3,3> => int_seq<2,2,3> => int_seq<1,1,2,3> => int_seq<0,0,1,2,3> => type : __seq<0,1,2,3>
+	template <int h, int... t>
+	struct int_seq : int_seq<h - 1, h - 1, t...>
+	{
+	};
+
+	template <int... t>
+	struct int_seq<0, t...>
+	{
+		using type = __seq<t...>;
+	};
+
+	template <typename fn, typename t, int... s>
+	void __call(fn&& f, t tpl, __seq<s...>)
+	{
+		f(std::get<s>(tpl)...);
+	}
+
+	template <typename fn, typename... ts>
+	void call_w_tpl_args(fn&& f, std::tuple<ts...> tpl)
+	{
+		__call(std::forward<fn>(f), std::forward<std::tuple<ts...>>(tpl), int_seq<sizeof...(ts)>::type());
+	}
 }	 // namespace meta

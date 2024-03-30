@@ -728,104 +728,37 @@ namespace editor::models
 		//
 		//		scene<world_group<w1, w2, w3...>, phase_group<bind<p1,w1> ,<p2,w2>,<p3,w3>...>>
 		//
-		// 	using pipe1_2 = pipeline<
-		//		par<test_func4, test_func5>,
-		//		seq<test_func2>,
-		//		wt < test_func4, test_func5 >> ;
-		//	pipe1_2().update(w2) // not pretty + cannot update w3 at the same time
 		//
-		// tree-graph = seq<node(head),par<child...>> ... no exception? yes, no more wt
+		// system = system<seq<f1,f2>,par<f1,f2>, cond<f1,f2>, ...>(); //do not need scene
+		// pipeline = p_seq<p_seq<s,0,1,2>,p_par<s2,0,1>,...>          //backed as a scene template parameter, value (funciton pointer)
 		//
 		//
-		//  using node1 = ecs::bind<pipe1, w1>;
-		//  using node2 = ecs::bind<pipe2, w2>;
+		// system :
+		// s_seq<param> param : any func(entity_idx, component&...) or s_seq or s_par or s_cond or...
+		// s_seq<f1> (o)
+		// s_seq<f1,s_seq<f2,f3>> => s_seq<f1,f2,f3>
 		//
-		// std::bind => bind(f, 1,2,3)
+		// s_seq<f1,s_par<f2,f3>> => ???
 		//
+		// system().update(world) =>
 		//
-		// ecs::bind => bind(
+		// pipeline
 		//
-		// 1. node = node<node>
-		// 2. node = node<func>
-		// 3. node = node<node, node, ...
-		// 4. node = node<bind<func, w>, bind<func, w>, ...>
-		// 5. node = node<seq<...>,par<...>,cond<f,n1,n2>,sel<f, n1,n2,n3,...>>
-		// 6. node = bind_seq<func, w...>, bind_par<func, w...> == bind_seq<pipe_line<seq<func>>, w...> ...(x) just callable obj
-		// 7. node = bind_seq<pipe, w...>, bind_par<pipe, w...> ...(x) just callable obj
-		//
-		// using node0 = node<bind_seq<func, w1,w2,w3>>
-		// using node1 = node<bind_par<pipe, w1,w2,w3>>
-		// using node2 = node<node0, node1> => template<typename t...>
-		// using node3 = node<seq<node0, node1>, par<node<func>, node0, node1>> => template< template<typaname ...> typename t...>
-		// using node4 = node<node0, par<node0, node1>> => ?
-		//
-		// node<t...> => t1(); t2(); t3(); ...
-		// seq<t...> => t1(); t2(); ...
-		// par<t...> =>
-		// std::thread thds[sizeof...(t)]
-		// ([&](){
-		//		thds[idx++] = std::thread([]{t();));
-		// }(),...);
-		// for(auto& th : thds){
-		//	th.join();
-		// }
-		//
-		// bind_seq<typename pipe, w...> => node<[]{
-		// ([](){
-		//		pipe().update(w);
-		// }(),...);  } ...(x) cannot use lambda expression as a template parameter directly
-		//
-		// instead
-		//
-		// bind_seq<typename pipe, w...> => cnstructor=>
-		// ([](){
-		//		pipe().update(w);
-		// }(),...);  }
-		//
-		// bind_par<typename pipe, w...> => cnstructor=>
-		// std::thread thds[sizeof...(w)]
-		// ([&](){
-		//		thds[idx++] = std::thread([]{pipe().update(w);));
-		// }(),...);  }
-		// for...join;
-		//
-		// bind_seq<auto func, w...> => bind_seq<pipeline<seq<func>>, w...>
-		//
-		// bind_par<auto func, w...> => bind_par<pipeline<seq<func>>, w...>
+		// p_seq<s,0,1,2> => system().update(scene.get_world<0>()); ...
+		// p_par<s,0,1,2> => ...
 		//
 		//
+		// let's define loop
 		//
-		// all node = seq<node..., par<child nodes>>;  can we generalize?
-		// node = all callable struct => any void(*)()
+		// game => graphic
+		//										(same result)
+		// game_mode => game => graphic				|=> write some data to p_memory(not sure what)
+		// edit_mode => game(empty) => graphic      |=> write some data to p_memory
 		//
-		// pipeline => only for one world
-		// pipeline + world binded => node
-		// node => any void(*)()
-		// graph => sets of nodes
+		// scene::game_pipeline = p_seq<p_seq<s,0,1,2>, p_par<s, 0,1,2>, ...
+		// scene::graphic_pipeline = p_seq<graphic_system, 0,1,2,3,...>
 		//
-		// world 1 => ui
-		// world 2 => physics
-		// world 3 => managers
-		//
-		// graphic => ui + physics world ... yes we need this feature
-		//
-		//
-		//
-		//		1. fucntion :
-		//			1. function pointer : more data, memory jump
-		//			2. while defining function, need to identify world => define of function need to be followed by scene macro
-		//			3. hard to parallize pipe (ex. p1 updates w1, w2, w3 parallel
-		//		2. pipe :
-		//			1. no function pointer
-		//
-		//
-		//
-		//		각 scene은 phase_pipe을 가지고 있다.
-		//		이들은 compile time에 정의된다 (template parameter로)
-		//
-		//		각 pipe(또는 function)은 대상 world를 매개변수로 가진다. => bind... or index
-		//
-		//
+		// engine => while(!done){current_scene::game_pipeline(); current_scene::graphic_pipeline();} ...
 		//
 		//
 	}	 // namespace entity

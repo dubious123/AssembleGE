@@ -34,6 +34,7 @@
 #include <any>
 #include <variant>
 #include <iostream>
+#include <functional>
 
 #include <libloaderapi.h>
 #define Find(Type, Id) Model::Type::Find(Id)
@@ -227,6 +228,54 @@ bool cond_func2()
 	return false;
 }
 
+void test_add(int a, int b)
+{
+	a + b;
+}
+
+void test_add2(uint64 a, uint64 b, uint64 c, uint64 d, uint64 e, uint64 f)
+{
+	a + b;
+}
+
+void test_update(auto& w, auto p)
+{
+	p().update(w);
+}
+
+using namespace ecs;
+
+
+using pipe1_2 = pipeline<
+	par<test_func4, test_func5>>;
+using pipe2_2 = pipeline<
+	seq<test_func3>,
+	par<test_func6, test_func7>>;
+using pipe3_2 = pipeline<
+	seq<test_func>,
+	par<pipe1_2, pipe2_2>>;
+
+using pipe4_2 = pipeline<
+	cond<cond_func1, pipe1_2, pipe2_2>,
+	cond<cond_func2, test_func, test_func2>>;
+
+// pipeline<func,par<func,func,seq<f,f>>,seq<f>>()
+
+// using s_type = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>;
+//
+// void s_type::loop()
+//{
+//	auto& w1 = get_world<0>();
+//	auto& w2 = get_world<1>();
+//
+//
+//	//if you want some par
+//	//write your own code...?
+//	pipe4_2().update(w1); //seq
+// }
+//
+// auto sss_1 = s_type();
+
 // world a b c d
 // archetype a d
 // c_idx from world => 0, 3
@@ -242,12 +291,31 @@ uint8 get_c_idx(ecs::archetype_t a, uint8 idx)
 
 int main()
 {
+	// sss_1.loop();
+
+	// auto n = node<n_seq<test_func2, n_par<test_func3, test_func7>>>();
+
+
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
-	// reflection::register_entity("entity", world_3.new_entity<transform>(), world_2);
-	// a b c d , a => 0
+	auto n0 = node<cond_func2, cond_func1>();
+	auto n1 = node<n_seq<cond_func1, cond_func2, n_par<cond_func1, cond_func2>>, n_par<cond_func1, cond_func2>>();
+	auto n2 = node<n_par<n_cond<cond_func2, cond_func1, cond_func2>, cond_func1>, n0, n1>();
+
+	auto n3	  = bind(test_add, 1, 2);	 // not constructural type
+	auto jjjj = sizeof(n3);
+	auto n4	  = node<test_add>();
+	n3();
+
+	n4(1, 2);
+	// auto n3 = node<n_par<n1, n2>>();
+	// auto n4 = node<test_add>(1, 2);
+	//  auto n5 = node<n_bind<test_update, world_2, test_add>>();//not possible world_2 is not compile-time constant expression
+	// n3();
+	//  reflection::register_entity("entity", world_3.new_entity<transform>(), world_2);
+	//  a b c d , a => 0
 	assert(get_c_idx(0b1111, 0) == 0);
 	assert(get_c_idx(0b1111, 1) == 1);
 	assert(get_c_idx(0b1111, 2) == 2);
@@ -294,7 +362,6 @@ int main()
 	assert(get_c_idx(0b0100, 2) == 0);
 	assert(get_c_idx(0b1000, 3) == 0);
 
-	using namespace ecs;
 	using tpl		   = tuple_sort<component_comparator, transform, bullet, rigid_body>::type;
 	constexpr auto idx = tuple_index<transform, tpl>::value;
 	using components   = component_wrapper<transform, bullet, rigid_body>;
@@ -322,21 +389,21 @@ int main()
 	assert(world_2.has_component<bullet>(ee));
 	assert((world_2.has_component<rigid_body, transform>(ee) == false));
 
-	for (auto i = 0; i < 10000; ++i)
-	{
+	// for (auto i = 0; i < 10000; ++i)
+	//{
 
-		auto eeeee = world_2.new_entity<transform>();
-		world_2.add_component<rigid_body, bullet>(eeeee);
-		world_2.add_component<bullet, rigid_body>(world_2.new_entity<transform>());
-		world_2.add_component<transform>(world_2.new_entity<bullet, rigid_body>());
-		world_2.remove_component<rigid_body>(world_2.new_entity<transform, rigid_body>());
-		world_2.remove_component<transform, rigid_body>(world_2.new_entity<bullet, transform, rigid_body>());
+	//	auto eeeee = world_2.new_entity<transform>();
+	//	world_2.add_component<rigid_body, bullet>(eeeee);
+	//	world_2.add_component<bullet, rigid_body>(world_2.new_entity<transform>());
+	//	world_2.add_component<transform>(world_2.new_entity<bullet, rigid_body>());
+	//	world_2.remove_component<rigid_body>(world_2.new_entity<transform, rigid_body>());
+	//	world_2.remove_component<transform, rigid_body>(world_2.new_entity<bullet, transform, rigid_body>());
 
-		if (i % 7 == 0)
-		{
-			world_2.delete_entity(eeeee);
-		}
-	}
+	//	if (i % 7 == 0)
+	//	{
+	//		world_2.delete_entity(eeeee);
+	//	}
+	//}
 
 	world_2.new_entity<bullet, transform, rigid_body>();
 	world_2.new_entity<bullet, transform, rigid_body>();
@@ -367,24 +434,14 @@ int main()
 
 
 	// no par<test_func1, pipe1> ...
-	// maybe par<test_func1, pipe1()> work
-	using pipe1_2 = pipeline<
-		par<test_func4, test_func5, test_func2>>;
-	using pipe2_2 = pipeline<
-		seq<test_func3>,
-		par<test_func6, test_func7>>;
-	using pipe3_2 = pipeline<
-		seq<test_func>,
-		par<pipe1_2, pipe2_2>>;
+	// maybe par<test_func1, pipe1()> wor
 
-	using pipe4_2 = pipeline<
-		cond<cond_func1, pipe1_2, pipe2_2>,
-		cond<cond_func2, test_func, test_func2>>;
+	// s.
 
 
-	pipe3_2().update(world_2);
+	// pipe3_2().update(world_2);
 
-	pipe4_2().update(world_2);
+	// pipe4_2().update(world_2);
 
 	// auto& t = world_2.get_component<transform>(e5);
 
