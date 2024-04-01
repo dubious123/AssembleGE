@@ -169,6 +169,119 @@ auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform
 auto& world_2 = s.get_world<0>();
 auto& world_3 = s_2.get_world<0>();
 
+template <typename w>
+struct system_1
+{
+	w& world;
+
+	system_1(w&& ww) : world(ww) {};
+
+	void on_system_begin() { }
+
+	void on_thread_init() { }
+
+	void update(transform& t, rigid_body& v) {};
+
+	void on_thread_dispose() { }
+
+	void on_system_end() { }
+};
+
+template <typename w>
+struct system_2
+{
+	w& world;
+
+	system_2(w&& ww) : world(ww) {};
+
+	void update(transform& t, bullet& v) {};
+};
+
+template <template <typename> typename s>
+auto build_system(auto&& world)
+{
+	return s<decltype(world)>(std::forward<decltype(world)>(world));
+}
+
+template <typename w, template <typename> typename... s>
+struct system_group
+{
+	using system_tpl = std::tuple<s<w>...>;
+
+	system_tpl tpl;
+
+	system_group(w&& world) : tpl(build_system<s>(world)...) { }
+
+	void run()
+	{
+	}
+};
+
+template <template <typename> typename... s>
+auto build_system_group(auto&& world)
+{
+	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
+}
+
+auto ss			= system_1<decltype(world_2)>(world_2);
+auto sss		= build_system<system_1>(world_2);
+auto system_g	= system_group<decltype(world_2), system_1, system_2>(world_2);
+auto system_ggg = build_system_group<system_1, system_2>(world_2);
+
+template <typename... s>
+struct s_par
+{
+};
+
+template <typename... s>
+struct s_seq
+{
+};
+
+template <typename w, typename... node>
+struct system_group2
+{
+
+	system_group2(w&& world) { }
+
+	void run()
+	{
+	}
+};
+
+template <typename w, typename... s>
+struct s_par2
+{
+};
+
+template <typename w, typename... s>
+struct s_seq2
+{
+};
+
+template <template <typename> typename... s>
+auto build_system_group2(auto&& world)
+{
+	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
+}
+
+// seq -> seq<system>
+// par -> par<system>
+// system -> system
+// par<s...>, seq => type
+// system => template
+// par<par, system> => <type, template> ... error
+auto system_gg	  = system_group2<decltype(world_2), s_seq<system_1<decltype(world_2)>, s_par<system_2<decltype(world_2)>, system_1<decltype(world_2)>>>>(world_2);
+auto system_gggg  = system_group2<decltype(world_2), decltype(system_gg), s_par<system_1<decltype(world_2)>, decltype(system_gg)>>(world_2);
+auto system_ggggg = build_system_group2(world_2);
+
+// template <template <template <typename w> typename s> typename s_g, typename world_t>
+// struct build_system_group
+//{
+//	using type = s_g::system_type<world_t>;
+// };
+
+
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
