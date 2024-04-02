@@ -169,118 +169,104 @@ auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform
 auto& world_2 = s.get_world<0>();
 auto& world_3 = s_2.get_world<0>();
 
-template <typename w>
 struct system_1
 {
-	w& world;
-
-	system_1(w&& ww) : world(ww) {};
-
-	void on_system_begin() { }
+	void on_system_begin(auto& w) { }
 
 	void on_thread_init() { }
 
-	void update(transform& t, rigid_body& v) {};
+	void update(auto& world, transform& t, rigid_body& v) {};
 
 	void on_thread_dispose() { }
 
 	void on_system_end() { }
 };
 
-template <typename w>
 struct system_2
 {
-	w& world;
-
-	system_2(w&& ww) : world(ww) {};
-
-	void update(transform& t, bullet& v) {};
+	void update(auto& world, transform& t, bullet& v) {};
 };
 
-template <template <typename> typename s>
-auto build_system(auto&& world)
-{
-	return s<decltype(world)>(std::forward<decltype(world)>(world));
-}
+// template <template <typename> typename s>
+// auto build_system(auto&& world)
+//{
+//	return s<decltype(world)>(std::forward<decltype(world)>(world));
+// }
 
-template <typename w, template <typename> typename... s>
-struct system_group
-{
-	using system_tpl = std::tuple<s<w>...>;
 
-	system_tpl tpl;
+// template <template <typename> typename... s>
+// auto build_system_group(auto&& world)
+//{
+//	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
+// }
 
-	system_group(w&& world) : tpl(build_system<s>(world)...) { }
+// auto ss			= system_1<decltype(world_2)>(world_2);
+// auto sss		= build_system<system_1>(world_2);
+// auto system_g	= system_group<decltype(world_2), system_1, system_2>(world_2);
+// auto system_ggg = build_system_group<system_1, system_2>(world_2);
 
-	void run()
-	{
-	}
-};
+// system or node
 
-template <template <typename> typename... s>
-auto build_system_group(auto&& world)
-{
-	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
-}
+template <typename t>
+concept is_node = ecs::is_par<t> || ecs::is_seq<t>;
 
-auto ss			= system_1<decltype(world_2)>(world_2);
-auto sss		= build_system<system_1>(world_2);
-auto system_g	= system_group<decltype(world_2), system_1, system_2>(world_2);
-auto system_ggg = build_system_group<system_1, system_2>(world_2);
+template <typename t>
+concept has_on_system_begin = requires { t::on_system_begin; };
+
+template <typename t>
+concept has_on_thread_init = requires { t::on_thread_init; };
+
+template <typename t>
+concept has_update = requires { t::update; };
+
+template <typename t>
+concept has_on_thread_dispose = requires { t::on_thread_dispose; };
+
+template <typename t>
+concept has_on_system_end = requires { t::on_system_end; };
 
 template <typename... s>
 struct s_par
 {
+	constinit static inline const auto _par = true;
 };
 
 template <typename... s>
 struct s_seq
 {
+	constinit static inline const auto _seq = true;
 };
 
-template <typename w, typename... node>
-struct system_group2
+template <typename f, typename... ts>
+void variadic_for_each(f&& func, ts... s)
 {
-
-	system_group2(w&& world) { }
-
-	void run()
-	{
-	}
-};
-
-template <typename w, typename... s>
-struct s_par2
-{
-};
-
-template <typename w, typename... s>
-struct s_seq2
-{
-};
-
-template <template <typename> typename... s>
-auto build_system_group2(auto&& world)
-{
-	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
+	([=]() {
+		func(s);
+	}(),
+	 ...);
 }
 
-// seq -> seq<system>
-// par -> par<system>
-// system -> system
-// par<s...>, seq => type
-// system => template
-// par<par, system> => <type, template> ... error
-auto system_gg	  = system_group2<decltype(world_2), s_seq<system_1<decltype(world_2)>, s_par<system_2<decltype(world_2)>, system_1<decltype(world_2)>>>>(world_2);
-auto system_gggg  = system_group2<decltype(world_2), decltype(system_gg), s_par<system_1<decltype(world_2)>, decltype(system_gg)>>(world_2);
-auto system_ggggg = build_system_group2(world_2);
+template <typename... s>
+struct system_group
+{
+	std::tuple<s...> tpl;
 
-// template <template <template <typename w> typename s> typename s_g, typename world_t>
-// struct build_system_group
-//{
-//	using type = s_g::system_type<world_t>;
-// };
-
+	void update(auto& world)
+	{
+		([this]() {
+			auto node = meta::get_tuple_value<s>(std::forward<decltype(tpl)>(tpl));
+			if constexpr (true)
+			{
+				int a = 1;
+			}
+			else
+			{
+				int a = 2;
+			}
+		}(),
+		 ...);
+	}
+};
 
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
@@ -405,10 +391,15 @@ uint8 get_c_idx(ecs::archetype_t a, uint8 idx)
 int main()
 {
 	// sss_1.loop();
-
 	// auto n = node<n_seq<test_func2, n_par<test_func3, test_func7>>>();
+	variadic_for_each([](auto i) { std::cout << i << " "; }, 1, 2, 3);
 
-
+	auto ss = system_group<system_1, s_par<system_1, s_seq<system_1, system_2>>>();
+	ss.update(world_2);
+	// using s_g_t = system_group<system_1, s_par<system_1, system_2>, system_2>;
+	// auto s_g_1	= s_g_t();
+	// auto s_g_2	= system_group<system_1, s_par<system_1, s_g_t>, s_g_t>();
+	// s_g_2.update(world_2);
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);

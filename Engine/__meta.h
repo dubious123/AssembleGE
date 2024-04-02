@@ -200,6 +200,18 @@ namespace meta
 	template <typename t, typename tuple>
 	inline constinit size_t tuple_index_v = tuple_index<t, tuple>::value;
 
+	template <typename t, typename... ts>
+	t get_tuple_value(std::tuple<ts...>&& tpl)
+	{
+		return std::get<variadic_index_v<t, ts...>>(tpl);
+	}
+
+	// template <typename t, typename tuple>
+	// t get_tuple_value(tuple tpl)
+	//{
+	//	return std::get<tuple_index_v<t, tuple>>(tpl);
+	// }
+
 	template <typename... ts>
 	using tuple_cat_t = decltype(std::tuple_cat(std::declval<ts>()...));
 
