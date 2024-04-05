@@ -29,10 +29,11 @@ namespace ecs
 
 	struct entity
 	{
-		entity_idx	  idx;
-		archetype_t	  archetype;
-		memory_block* p_mem_block;
-		uint64		  memory_idx;
+		entity_idx	idx;
+		archetype_t archetype;
+		// memory_block* p_mem_block;
+		uint64 mem_block_idx;
+		uint64 memory_idx;
 	};
 
 	template <typename c1, typename c2>
@@ -76,11 +77,40 @@ namespace ecs
 	template <typename t>
 	concept is_par = requires { t::_par; };
 
-	// template <typename t>
-	// concept is_wt = requires { t::_wt; };
-
 	template <typename t>
 	concept is_cond = requires { t::_cond; };
+
+	template <typename system>
+	concept has_on_system_begin = requires(system s) { s.on_system_begin; };
+
+	template <typename system>
+	concept has_on_system_begin_w = requires(system s) { s.on_system_begin_w; };
+
+	template <typename system>
+	concept has_on_thread_init = requires(system s) { s.on_thread_init; };
+
+	template <typename system>
+	concept has_on_thread_init_w = requires(system s) { s.on_thread_init_w; };
+
+	template <typename system>
+	concept has_update = requires(system s) { s.update; };
+
+	template <typename system>
+	concept has_update_w = requires(system s) { s.update_init_w; };
+
+	template <typename system>
+	concept has_on_thread_dispose = requires(system s) { s.on_thread_dispose; };
+
+
+	template <typename system>
+	concept has_on_thread_dispose_w = requires(system s) { s.on_thread_dispose_w; };
+
+	template <typename system>
+	concept has_on_system_end = requires(system s) { s.on_system_end; };
+
+
+	template <typename system>
+	concept has_on_system_end_w = requires(system s) { s.on_system_end_w; };
 
 	template <typename... ts>
 	requires meta::variadic_unique<ts...>
@@ -492,8 +522,8 @@ namespace ecs
 			 ...);
 
 			write_count(m_idx + 1);
-			e.memory_idx  = m_idx;
-			e.p_mem_block = this;
+			e.memory_idx = m_idx;
+			// e.p_mem_block = this;
 		}
 
 		template <typename... t>
@@ -533,8 +563,9 @@ namespace ecs
 
 	struct world_base
 	{
-		data_structure::vector<entity>													   entities;
-		data_structure::vector<std::pair<archetype_t, data_structure::list<memory_block>>> memory_block_list_vec;
+		data_structure::vector<entity>										   entities;
+		data_structure::map<archetype_t, data_structure::vector<memory_block>> memory_block_vec_map;
+		// data_structure::vector<std::pair<archetype_t, data_structure::list<memory_block>>> memory_block_list_vec;
 
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
@@ -575,6 +606,12 @@ namespace ecs
 			return entities.size() - entity_hole_count;
 		}
 
+		memory_block* get_p_mem_block(entity& e)
+		{
+			assert(memory_block_vec_map.contains(e.archetype));
+			return &memory_block_vec_map[e.archetype][e.mem_block_idx];
+		}
+
 		template <typename... t>
 		entity_idx new_entity()
 		{
@@ -582,46 +619,33 @@ namespace ecs
 			static constinit const auto capacity  = MEMORY_BLOCK_SIZE / size;
 			static constinit const auto archetype = _calc_archetype<t...>();
 
-			data_structure::list<memory_block>* p_block_list = nullptr;
-			memory_block*						p_block		 = nullptr;
+			auto&		  block_list	= memory_block_vec_map[archetype];
+			memory_block* p_block		= nullptr;
+			size_t		  mem_block_idx = -1;
 
-			for (auto i = 0; i < memory_block_list_vec.size(); ++i)
+			auto res = std::ranges::find_if(block_list, [&](auto& block) { 
+					++mem_block_idx;
+					return block.is_full() is_false; });
+
+
+			if (res == block_list.end())
 			{
-				if (archetype == memory_block_list_vec[i].first)
-				{
-					p_block_list = &(memory_block_list_vec[i].second);
-					break;
-				}
-			}
-
-			if (p_block_list == nullptr)
-			{
-				auto& pair	 = memory_block_list_vec.emplace_back(archetype, data_structure::list<memory_block>());
-				p_block_list = &pair.second;
-			}
-
-
-			for (auto p_node = p_block_list->front(); p_node != nullptr; p_node = p_node->next)
-			{
-				if (p_node->value.is_full() == false)
-				{
-					p_block = &(p_node->value);
-					break;
-				}
-			}
-
-			if (p_block == nullptr)
-			{
-				auto& block = p_block_list->emplace_back();
+				auto& block = block_list.emplace_back();
 				memory_block::init<t...>(block);
-				p_block = &block;
+				p_block		  = &block;
+				mem_block_idx = 0;
+			}
+			else
+			{
+				p_block = &(*res);
 			}
 
 			if (entity_hole_count == 0)
 			{
-				auto& e		= entities.emplace_back();
-				e.archetype = archetype;
-				e.idx		= entities.size() - 1;
+				auto& e			= entities.emplace_back();
+				e.archetype		= archetype;
+				e.idx			= entities.size() - 1;
+				e.mem_block_idx = mem_block_idx;
 				p_block->new_entity<t...>(e);
 				return e.idx;
 			}
@@ -632,7 +656,8 @@ namespace ecs
 				e.idx				  = entity_hole_begin_idx;
 				entity_hole_begin_idx = next_hole_idx;
 				--entity_hole_count;
-				e.archetype = archetype;
+				e.archetype		= archetype;
+				e.mem_block_idx = mem_block_idx;
 				p_block->new_entity<t...>(e);
 
 				return e.idx;
@@ -642,7 +667,7 @@ namespace ecs
 		void delete_entity(entity_idx idx)
 		{
 			auto& e = entities[idx];
-			e.p_mem_block->remove_entity(e.memory_idx);
+			get_p_mem_block(e)->remove_entity(e.memory_idx);
 			entities[idx].idx	  = entity_hole_begin_idx;
 			entity_hole_begin_idx = idx;
 			++entity_hole_count;
@@ -660,7 +685,7 @@ namespace ecs
 		{
 			assert(has_component<t>(idx));
 			auto& e = entities[idx];
-			return *(t*)(e.p_mem_block->get_component_ptr(e.memory_idx, _calc_component_idx<t>(e.archetype)));
+			return *(t*)(memory_block_vec_map[e.archetype][e.mem_block_idx].get_component_ptr(e.memory_idx, _calc_component_idx<t>(e.archetype)));
 		}
 
 		template <typename... t>
@@ -680,44 +705,26 @@ namespace ecs
 				return arr;
 			}();
 
-			data_structure::list<memory_block>* p_block_list = nullptr;
-			memory_block*						p_new_block	 = nullptr;
+			auto&		  block_list		= memory_block_vec_map[new_archetype];
+			memory_block* p_new_block		= nullptr;
+			size_t		  new_mem_block_idx = -1;
 
-			for (auto i = 0; i < memory_block_list_vec.size(); ++i)
+			auto res = std::ranges::find_if(block_list, [&new_mem_block_idx](auto& block) {
+				++new_mem_block_idx;
+				return block.is_full() == false;
+			});
+
+			if (res == block_list.end())
 			{
-				if (new_archetype == memory_block_list_vec[i].first)
-				{
-					p_block_list = &(memory_block_list_vec[i].second);
-					break;
-				}
-			}
-
-			if (p_block_list == nullptr)
-			{
-				auto& pair	 = memory_block_list_vec.emplace_back(new_archetype, data_structure::list<memory_block>());
-				p_block_list = &pair.second;
-			}
-
-
-			for (auto p_node = p_block_list->front(); p_node != nullptr; p_node = p_node->next)
-			{
-				if (p_node->value.is_full() == false)
-				{
-					p_new_block = &(p_node->value);
-					break;
-				}
-			}
-
-			if (p_new_block == nullptr)
-			{
-				auto& block = p_block_list->emplace_back();
-				p_new_block = &block;
+				auto& block		  = block_list.emplace_back();
+				new_mem_block_idx = 0;
+				p_new_block		  = &block;
 
 				p_new_block->write_count(0);
 
 				auto	   memory			  = p_new_block->memory;
-				const auto size_per_archetype = e.p_mem_block->calc_size_per_archetype() + (sizeof(t) + ... + 0);
-				const auto component_count	  = e.p_mem_block->get_component_count() + sizeof...(t);
+				const auto size_per_archetype = get_p_mem_block(e)->calc_size_per_archetype() + (sizeof(t) + ... + 0);
+				const auto component_count	  = get_p_mem_block(e)->get_component_count() + sizeof...(t);
 				const auto capacity			  = (MEMORY_BLOCK_SIZE - 6 - sizeof(uint32) * component_count) / size_per_archetype;
 
 
@@ -734,8 +741,8 @@ namespace ecs
 					auto new_c_size = component_wrapper<t...>::sizes[i];
 					for (; c_idx < new_c_idx; ++c_idx)
 					{
-						p_new_block->write_component_data(c_idx, offset, e.p_mem_block->get_component_size(c_idx - i));
-						offset += capacity + e.p_mem_block->get_component_size(c_idx);
+						p_new_block->write_component_data(c_idx, offset, get_p_mem_block(e)->get_component_size(c_idx - i));
+						offset += capacity + get_p_mem_block(e)->get_component_size(c_idx);
 					}
 
 					assert(c_idx == new_c_idx);
@@ -747,14 +754,18 @@ namespace ecs
 
 				for (; c_idx < component_count; ++c_idx)
 				{
-					p_new_block->write_component_data(c_idx, offset, e.p_mem_block->get_component_size(c_idx - i));
-					offset += capacity + e.p_mem_block->get_component_size(c_idx);
+					p_new_block->write_component_data(c_idx, offset, get_p_mem_block(e)->get_component_size(c_idx - i));
+					offset += capacity + get_p_mem_block(e)->get_component_size(c_idx);
 				}
+			}
+			else
+			{
+				p_new_block = &(*res);
 			}
 
 			const auto new_component_count = __popcnt(new_archetype);
 			const auto new_m_idx		   = p_new_block->get_count();
-			assert(new_component_count == e.p_mem_block->get_component_count() + sizeof...(t));
+			assert(new_component_count == get_p_mem_block(e)->get_component_count() + sizeof...(t));
 			assert(p_new_block->is_full() == false);
 
 			auto i	   = 0;
@@ -763,11 +774,11 @@ namespace ecs
 				auto new_c_idx = c_idx_arr[i];
 				for (; c_idx < new_c_idx; ++c_idx)
 				{
-					assert(p_new_block->get_component_size(c_idx) == e.p_mem_block->get_component_size(c_idx - i));
+					assert(p_new_block->get_component_size(c_idx) == get_p_mem_block(e)->get_component_size(c_idx - i));
 					memcpy(
 						p_new_block->get_component_ptr(new_m_idx, c_idx),
-						e.p_mem_block->get_component_ptr(e.memory_idx, c_idx - i),
-						(size_t)(e.p_mem_block->get_component_size(c_idx - i)));
+						get_p_mem_block(e)->get_component_ptr(e.memory_idx, c_idx - i),
+						(size_t)(get_p_mem_block(e)->get_component_size(c_idx - i)));
 				}
 
 				assert(c_idx == new_c_idx);
@@ -779,21 +790,21 @@ namespace ecs
 
 			for (; c_idx < new_component_count; ++c_idx)
 			{
-				assert(p_new_block->get_component_size(c_idx) == e.p_mem_block->get_component_size(c_idx - i));
+				assert(p_new_block->get_component_size(c_idx) == get_p_mem_block(e)->get_component_size(c_idx - i));
 				memcpy(
 					p_new_block->get_component_ptr(new_m_idx, c_idx),
-					e.p_mem_block->get_component_ptr(e.memory_idx, c_idx - i),
-					(size_t)(e.p_mem_block->get_component_size(c_idx - i)));
+					get_p_mem_block(e)->get_component_ptr(e.memory_idx, c_idx - i),
+					(size_t)(get_p_mem_block(e)->get_component_size(c_idx - i)));
 			}
 
 			p_new_block->write_count(p_new_block->get_count() + 1);
 			p_new_block->write_entity_idx(new_m_idx, e.idx);
 
-			e.p_mem_block->remove_entity(e.memory_idx);
+			get_p_mem_block(e)->remove_entity(e.memory_idx);
 
-			e.p_mem_block = p_new_block;
-			e.memory_idx  = new_m_idx;
-			e.archetype	  = new_archetype;
+			e.mem_block_idx = new_mem_block_idx;
+			e.memory_idx	= new_m_idx;
+			e.archetype		= new_archetype;
 		}
 
 		template <typename... t>
@@ -805,9 +816,8 @@ namespace ecs
 			// todo
 			if (new_archetype == 0)
 			{
-				e.p_mem_block->remove_entity(e.memory_idx);
-				e.p_mem_block = nullptr;
-				e.archetype	  = 0;
+				get_p_mem_block(e)->remove_entity(e.memory_idx);
+				e.archetype = 0;
 			}
 
 			const auto c_idx_arr = [&] {
@@ -820,44 +830,26 @@ namespace ecs
 				return arr;
 			}();
 
-			data_structure::list<memory_block>* p_block_list = nullptr;
-			memory_block*						p_new_block	 = nullptr;
+			auto&		  block_list		= memory_block_vec_map[new_archetype];
+			auto*		  p_prev_block		= get_p_mem_block(e);
+			memory_block* p_new_block		= nullptr;
+			size_t		  new_mem_block_idx = -1;
 
-			for (auto i = 0; i < memory_block_list_vec.size(); ++i)
+			auto res = std::ranges::find_if(block_list, [&](auto& mem_block) { 
+				++new_mem_block_idx; 
+				return mem_block.is_full() is_false; });
+
+			if (res == block_list.end())
 			{
-				if (new_archetype == memory_block_list_vec[i].first)
-				{
-					p_block_list = &(memory_block_list_vec[i].second);
-					break;
-				}
-			}
-
-			if (p_block_list == nullptr)
-			{
-				auto& pair	 = memory_block_list_vec.emplace_back(new_archetype, data_structure::list<memory_block>());
-				p_block_list = &pair.second;
-			}
-
-
-			for (auto p_node = p_block_list->front(); p_node != nullptr; p_node = p_node->next)
-			{
-				if (p_node->value.is_full() == false)
-				{
-					p_new_block = &(p_node->value);
-					break;
-				}
-			}
-
-			if (p_new_block == nullptr)
-			{
-				auto& block = p_block_list->emplace_back();
+				auto& block = block_list.emplace_back();
 				p_new_block = &block;
 
 				p_new_block->write_count(0);
 
-				auto	   memory			  = p_new_block->memory;
-				const auto size_per_archetype = e.p_mem_block->calc_size_per_archetype() - (sizeof(t) + ... + 0);
-				const auto component_count	  = e.p_mem_block->get_component_count() - sizeof...(t);
+				auto memory = p_new_block->memory;
+
+				const auto size_per_archetype = p_prev_block->calc_size_per_archetype() - (sizeof(t) + ... + 0);
+				const auto component_count	  = p_prev_block->get_component_count() - sizeof...(t);
 				const auto capacity			  = (MEMORY_BLOCK_SIZE - 6 - sizeof(uint32) * component_count) / size_per_archetype;
 
 				assert(component_count != 0);
@@ -876,8 +868,8 @@ namespace ecs
 					auto new_c_size = component_wrapper<t...>::sizes[i];
 					for (; c_idx < new_c_idx; ++c_idx)
 					{
-						p_new_block->write_component_data(c_idx, offset, e.p_mem_block->get_component_size(c_idx + i));
-						offset += capacity + e.p_mem_block->get_component_size(c_idx);
+						p_new_block->write_component_data(c_idx, offset, p_prev_block->get_component_size(c_idx + i));
+						offset += capacity + p_prev_block->get_component_size(c_idx);
 					}
 
 					assert(c_idx == new_c_idx);
@@ -886,9 +878,13 @@ namespace ecs
 
 				for (; c_idx < component_count; ++c_idx)
 				{
-					p_new_block->write_component_data(c_idx, offset, e.p_mem_block->get_component_size(c_idx + i));
-					offset += capacity + e.p_mem_block->get_component_size(c_idx);
+					p_new_block->write_component_data(c_idx, offset, p_prev_block->get_component_size(c_idx + i));
+					offset += capacity + p_prev_block->get_component_size(c_idx);
 				}
+			}
+			else
+			{
+				p_new_block = &(*res);
 			}
 
 			const auto new_component_count = __popcnt(new_archetype);
@@ -901,11 +897,11 @@ namespace ecs
 				auto new_c_idx = c_idx_arr[i];
 				for (; c_idx < new_c_idx; ++c_idx)
 				{
-					assert(p_new_block->get_component_size(c_idx) == e.p_mem_block->get_component_size(c_idx + i));
+					assert(p_new_block->get_component_size(c_idx) == p_prev_block->get_component_size(c_idx + i));
 					memcpy(
 						p_new_block->get_component_ptr(new_m_idx, c_idx),
-						e.p_mem_block->get_component_ptr(e.memory_idx, c_idx + i),
-						(size_t)(e.p_mem_block->get_component_size(c_idx + i)));
+						p_prev_block->get_component_ptr(e.memory_idx, c_idx + i),
+						(size_t)(p_prev_block->get_component_size(c_idx + i)));
 				}
 
 				assert(c_idx == new_c_idx);
@@ -913,22 +909,22 @@ namespace ecs
 
 			for (; c_idx < new_component_count; ++c_idx)
 			{
-				assert(p_new_block->get_component_size(c_idx) == e.p_mem_block->get_component_size(c_idx + i));
+				assert(p_new_block->get_component_size(c_idx) == p_prev_block->get_component_size(c_idx + i));
 				memcpy(
 					p_new_block->get_component_ptr(new_m_idx, c_idx),
-					e.p_mem_block->get_component_ptr(e.memory_idx, c_idx + i),
-					(size_t)(e.p_mem_block->get_component_size(c_idx + i)));
+					p_prev_block->get_component_ptr(e.memory_idx, c_idx + i),
+					(size_t)(p_prev_block->get_component_size(c_idx + i)));
 			}
 
 
 			p_new_block->write_count(p_new_block->get_count() + 1);
 			p_new_block->write_entity_idx(new_m_idx, e.idx);
 
-			e.p_mem_block->remove_entity(e.memory_idx);
+			p_prev_block->remove_entity(e.memory_idx);
 
-			e.p_mem_block = p_new_block;
-			e.memory_idx  = new_m_idx;
-			e.archetype	  = new_archetype;
+			e.memory_idx	= new_m_idx;
+			e.archetype		= new_archetype;
+			e.mem_block_idx = new_mem_block_idx;
 		}
 
 		archetype_t get_archetype(entity_idx idx) const
@@ -940,24 +936,86 @@ namespace ecs
 		void update(void (*func)(entity_idx, t...))
 		{
 			auto archetype = _calc_archetype<std::remove_const_t<std::remove_reference_t<t>>...>();
-			for (auto i = 0; i < memory_block_list_vec.size(); ++i)
-			{
-				auto  block_archetype = memory_block_list_vec[i].first;
-				auto& block_list	  = memory_block_list_vec[i].second;
-				if ((archetype & block_archetype) != archetype) continue;
+			auto threads   = data_structure::vector<std::jthread>();
 
-				assert(block_list.empty() == false);
-				for (auto p_node = block_list.front(); p_node != nullptr; p_node = p_node->next)
+			std::ranges::for_each(
+				memory_block_vec_map
+					| std::views::filter([](auto& pair) { return pair.first & archetype != 0; }),
+				/*| std::views::transform([=](auto& pair) { return pair.second; })*/
+				[func, &threads](auto& pair) {
+					auto th = std::jthread(
+						[func, &threads, &pair]() {
+							for (auto& mem_block : pair.second)
+							{
+								auto count = mem_block.get_count();
+								for (auto m_idx = 0; m_idx < count; ++m_idx)
+								{
+									// func(
+									//  mem_block.get_entity_idx(m_idx),
+									//  *(std::remove_const_t<std::remove_reference_t<t>>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+
+									func(
+										mem_block.get_entity_idx(m_idx),
+										*(std::remove_reference_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+								}
+							}
+						});
+
+					threads.emplace_back(th);
+				});
+
+			std::ranges::for_each(threads, [](auto& th) { th.join(); });
+		}
+
+		template <typename sys_group>
+		void perform(sys_group& group)
+		{
+			if constexpr (has_on_system_begin<sys_group>)
+			{
+				group.on_system_begin();
+			}
+			else if constexpr (has_on_system_begin_w<sys_group>)
+			{
+				group.on_system_begin_w(std::forward<decltype(world)>(world));
+			}
+
+			auto thread_init_func = [this, &group]() {
+				if constexpr (has_on_thread_init<sys_group>)
 				{
-					auto& block = p_node->value;
-					auto  count = block.get_count();
-					for (auto m_idx = 0; m_idx < count; ++m_idx)
-					{
-						func(
-							block.get_entity_idx(m_idx),																																					   // entity_idx
-							*(std::remove_const_t<std::remove_reference_t<t>>*)(block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(block_archetype)))...);	   // read_component<std::remove_const_t<std::remove_reference_t<t>>>(block, k, meta::tuple_index_v<std::remove_const_t<std::remove_reference_t<t>>, component_tpl>))...);
-					}
+					group.on_thread_init();
 				}
+				else if constexpr (has_on_thread_init_w<sys_group>)
+				{
+					group.on_thread_init_w(std::forward<decltype(world)>(world));
+				}
+
+				if constexpr (has_on_thread_dispose<sys_group>)
+				{
+					group.on_thread_dispose();
+				}
+				else if constexpr (has_on_thread_dispose_w<sys_group>)
+				{
+					group.on_thread_dispose_w(std::forward<decltype(world)>(world));
+				}
+			};
+
+			if constexpr (has_update<sys_group>)
+			{
+				// group.update();
+			}
+			else if constexpr (has_update_w<sys_group>)
+			{
+				// group.update_w(std::forward<decltype(world)>(world));
+			}
+
+
+			if constexpr (has_on_system_end<sys_group>)
+			{
+				group.on_system_end();
+			}
+			else if constexpr (has_on_system_end_w<sys_group>)
+			{
+				group.on_system_end_w(std::forward<decltype(world)>(world));
 			}
 		}
 	};

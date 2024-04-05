@@ -131,6 +131,15 @@ namespace meta
 	template <auto t, auto h, auto... ts>
 	constinit static inline const auto variadic_auto_constains_v = variadic_contains<t, h, ts...>();
 
+	template <typename t, typename ret, typename... args>
+	consteval bool param_constains(ret (*func)(args...))
+	{
+		return meta::variadic_constains_v<t, args...>;
+	};
+
+	template <typename t, auto f>
+	constinit static inline const auto param_constains_v = param_constains<t>(f);
+
 	template <unsigned int idx, typename head, typename... tails>
 	struct variadic_at
 	{
@@ -160,6 +169,33 @@ namespace meta
 
 	template <unsigned int idx, auto... tails>
 	inline constexpr const auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
+
+	template <std::size_t idx, auto func>
+	struct param_at;
+
+	template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
+	struct param_at<i, func>
+	{
+		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	};
+
+	// template <std::size_t i, typename ret, typename... args, ret (*func)(args..., ...)>
+	// struct param_at<i, func>
+	//{
+	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	// };
+
+	template <std::size_t idx, auto func>
+	struct param_count;
+
+	template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
+	struct param_count<i, func>
+	{
+		static const constinit auto value = sizeof...(args);
+	};
+
+	template <std::size_t idx, auto func>
+	inline constexpr const auto param_count = param_at<idx, func>::value;
 
 	template <typename t, typename head, typename... tails>
 	consteval size_t get_variadic_index()

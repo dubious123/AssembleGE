@@ -169,17 +169,31 @@ auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform
 auto& world_2 = s.get_world<0>();
 auto& world_3 = s_2.get_world<0>();
 
+template <typename world>
+concept ecs_world = std::derived_from<world, ecs::world_base>;
+
 struct system_1
 {
-	void on_system_begin(auto& w) { }
+	void on_system_begin_w(ecs_world auto& w)
+	{
+	}
 
-	void on_thread_init() { }
+	void on_thread_init_w(ecs_world auto& w) { }
 
-	void update(auto& world, transform& t, rigid_body& v) {};
+	void update(ecs_world auto& world, transform& t, rigid_body& v) {};
 
 	void on_thread_dispose() { }
 
 	void on_system_end() { }
+
+	system_1()
+	{
+		int a = 1;
+	};
+
+	~system_1()
+	{
+	}
 };
 
 struct system_2
@@ -210,41 +224,25 @@ struct system_2
 template <typename t>
 concept is_node = ecs::is_par<t> || ecs::is_seq<t>;
 
-template <typename t>
-concept has_on_system_begin = requires { t::on_system_begin; };
-
-template <typename t>
-concept has_on_thread_init = requires { t::on_thread_init; };
-
-template <typename t>
-concept has_update = requires { t::update; };
-
-template <typename t>
-concept has_on_thread_dispose = requires { t::on_thread_dispose; };
-
-template <typename t>
-concept has_on_system_end = requires { t::on_system_end; };
-
 template <typename... s>
 struct s_par
 {
 	constinit static inline const auto _par = true;
+
+	void update(auto& w)
+	{
+	}
 };
 
 template <typename... s>
 struct s_seq
 {
 	constinit static inline const auto _seq = true;
-};
 
-template <typename f, typename... ts>
-void variadic_for_each(f&& func, ts... s)
-{
-	([=]() {
-		func(s);
-	}(),
-	 ...);
-}
+	void update(auto& w)
+	{
+	}
+};
 
 template <typename... s>
 struct system_group
@@ -253,15 +251,16 @@ struct system_group
 
 	void update(auto& world)
 	{
-		([this]() {
+		([this, &world]() {
 			auto node = meta::get_tuple_value<s>(std::forward<decltype(tpl)>(tpl));
-			if constexpr (true)
+			if constexpr (is_node<s>)
 			{
-				int a = 1;
+				int a = 2;
+				node.update(world);
 			}
 			else
 			{
-				int a = 2;
+				world.perform(this);
 			}
 		}(),
 		 ...);
@@ -390,12 +389,13 @@ uint8 get_c_idx(ecs::archetype_t a, uint8 idx)
 
 int main()
 {
-	// sss_1.loop();
-	// auto n = node<n_seq<test_func2, n_par<test_func3, test_func7>>>();
-	variadic_for_each([](auto i) { std::cout << i << " "; }, 1, 2, 3);
 
-	auto ss = system_group<system_1, s_par<system_1, s_seq<system_1, system_2>>>();
-	ss.update(world_2);
+	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
+	meta::param_at<1, test_func2> eeeee;
+
+	auto ss
+		= system_group<system_1, s_par<system_1, s_seq<system_1, system_2>>>();
+	ss.update(world_3);
 	// using s_g_t = system_group<system_1, s_par<system_1, system_2>, system_2>;
 	// auto s_g_1	= s_g_t();
 	// auto s_g_2	= system_group<system_1, s_par<system_1, s_g_t>, s_g_t>();
@@ -493,21 +493,21 @@ int main()
 	assert(world_2.has_component<bullet>(ee));
 	assert((world_2.has_component<rigid_body, transform>(ee) == false));
 
-	// for (auto i = 0; i < 10000; ++i)
-	//{
+	for (auto i = 0; i < 10000; ++i)
+	{
 
-	//	auto eeeee = world_2.new_entity<transform>();
-	//	world_2.add_component<rigid_body, bullet>(eeeee);
-	//	world_2.add_component<bullet, rigid_body>(world_2.new_entity<transform>());
-	//	world_2.add_component<transform>(world_2.new_entity<bullet, rigid_body>());
-	//	world_2.remove_component<rigid_body>(world_2.new_entity<transform, rigid_body>());
-	//	world_2.remove_component<transform, rigid_body>(world_2.new_entity<bullet, transform, rigid_body>());
+		auto eeeee = world_2.new_entity<transform>();
+		world_2.add_component<rigid_body, bullet>(eeeee);
+		world_2.add_component<bullet, rigid_body>(world_2.new_entity<transform>());
+		world_2.add_component<transform>(world_2.new_entity<bullet, rigid_body>());
+		world_2.remove_component<rigid_body>(world_2.new_entity<transform, rigid_body>());
+		world_2.remove_component<transform, rigid_body>(world_2.new_entity<bullet, transform, rigid_body>());
 
-	//	if (i % 7 == 0)
-	//	{
-	//		world_2.delete_entity(eeeee);
-	//	}
-	//}
+		if (i % 7 == 0)
+		{
+			world_2.delete_entity(eeeee);
+		}
+	}
 
 	world_2.new_entity<bullet, transform, rigid_body>();
 	world_2.new_entity<bullet, transform, rigid_body>();
@@ -543,9 +543,9 @@ int main()
 	// s.
 
 
-	// pipe3_2().update(world_2);
+	pipe3_2().update(world_2);
 
-	// pipe4_2().update(world_2);
+	pipe4_2().update(world_2);
 
 	// auto& t = world_2.get_component<transform>(e5);
 
@@ -563,50 +563,50 @@ int main()
 	list.emplace_back(7);
 	list.emplace_back(8);
 	list.emplace_back(9);
-	list.emplace_back(10);
+	// list.emplace_back(10);
 
-	auto* node = list.back();
-	node	   = node->prev->prev;
-	list.insert(node, 100);
-	list.insert(node, 99);
-	list.insert(node, 98);
-	list.insert(node, 97);
+	// auto* node = list.back();
+	// node	   = node->prev->prev;
+	// list.insert(node, 100);
+	// list.insert(node, 99);
+	// list.insert(node, 98);
+	// list.insert(node, 97);
 
-	list.pop_back();
-	list.pop_back();
+	// list.pop_back();
+	// list.pop_back();
 
-	list.pop_front();
-	list.pop_front();
+	// list.pop_front();
+	// list.pop_front();
 
-	list.erase(node);
+	// list.erase(node);
 
-	list2.emplace_front(4);
-	list2.emplace_front(3);
-	list2.emplace_front(2);
-	list2.emplace_front(1);
-	list2.emplace_front(0);
+	// list2.emplace_front(4);
+	// list2.emplace_front(3);
+	// list2.emplace_front(2);
+	// list2.emplace_front(1);
+	// list2.emplace_front(0);
 
-	list2.emplace_back(5);
-	list2.emplace_back(6);
-	list2.emplace_back(7);
-	list2.emplace_back(8);
-	list2.emplace_back(9);
-	list2.emplace_back(10);
+	// list2.emplace_back(5);
+	// list2.emplace_back(6);
+	// list2.emplace_back(7);
+	// list2.emplace_back(8);
+	// list2.emplace_back(9);
+	// list2.emplace_back(10);
 
-	auto* node2 = list2.back();
-	node2		= node2->prev->prev;
-	list2.insert(node2, 100);
-	list2.insert(node2, 99);
-	list2.insert(node2, 98);
-	list2.insert(node2, 97);
+	// auto* node2 = list2.back();
+	// node2		= node2->prev->prev;
+	// list2.insert(node2, 100);
+	// list2.insert(node2, 99);
+	// list2.insert(node2, 98);
+	// list2.insert(node2, 97);
 
-	list2.pop_back();
-	list2.pop_back();
+	// list2.pop_back();
+	// list2.pop_back();
 
-	list2.pop_front();
-	list2.pop_front();
+	// list2.pop_front();
+	// list2.pop_front();
 
-	list2.erase(node2);
+	// list2.erase(node2);
 
 
 	// vector<chunk_entry*> __v;

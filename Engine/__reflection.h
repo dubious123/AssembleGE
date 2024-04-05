@@ -122,6 +122,8 @@ namespace reflection
 		size_t		scene_idx;
 		uint64		struct_count;
 		uint64		struct_idx_vec[64];
+
+		world_info(const char* name, size_t s_idx, uint64 s_count);
 	};
 
 	struct component_info

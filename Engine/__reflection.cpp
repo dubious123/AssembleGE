@@ -63,6 +63,8 @@ namespace reflection
 		this->field_count = 0;
 	}
 
+	world_info::world_info(const char* name, uint64 idx, size_t s_count) : name(name), scene_idx(idx), struct_count(s_count) { }
+
 	void register_struct(const char* name, uint64 hash_id)
 	{
 		_struct_info_vec().emplace_back(_struct_info_vec().size(), hash_id, name);
@@ -90,7 +92,7 @@ namespace reflection
 
 	void register_world(const char* world_name)
 	{
-		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul, 0ul);
+		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul);
 		auto& scene_info = _scene_info_vec().back();
 
 		++scene_info.world_count;

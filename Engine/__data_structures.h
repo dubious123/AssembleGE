@@ -3,13 +3,17 @@
 #include <memory>
 #include <utility>
 #include <type_traits>
+#include <algorithm>
+#include <ranges>
+#include <numeric>
 
 
 #define min(a, b) (a) < (b) ? (a) : (b)
 #define max(a, b) (a) > (b) ? (a) : (b)
-//   #define USE_STL_VECTOR
+#define USE_STL_VECTOR
 #define USE_STL_SET
-// #define USE_STL_MAP
+#define USE_STL_LIST
+#define USE_STL_MAP
 #ifdef USE_STL_VECTOR
 	#include <vector>
 
@@ -178,6 +182,16 @@ namespace data_structure
 }	 // namespace data_structure
 #endif
 
+
+#ifdef USE_STL_LIST
+	#include <list>
+
+namespace data_structure
+{
+	template <typename T>
+	using list = std::list<T>;
+}
+#else
 namespace data_structure
 {
 	template <typename T>
@@ -367,3 +381,4 @@ namespace data_structure
 		}
 	};
 }	 // namespace data_structure
+#endif
