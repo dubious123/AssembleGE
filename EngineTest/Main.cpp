@@ -79,6 +79,9 @@ constexpr auto arr = []() {
 #include <type_traits>
 #include <sstream>
 #include <format>
+#include <cstdlib>
+#include <ctime>
+#include <chrono>
 using namespace data_structure;
 
 COMPONENT_BEGIN(transform)
@@ -144,6 +147,7 @@ WORLD_END()
 //	return t_scene_wrapper::value(); }();
 
 SERIALIZE_SCENE(my_second_scene, world_001, world_002)
+
 //
 // SERIALIZE_SCENE(my_third_scene, world_002, world_003)
 //  1. scene_wrapper() => scene reflection
@@ -157,162 +161,52 @@ SERIALIZE_SCENE(my_second_scene, world_001, world_002)
 
 // SERIALIZE_SCENE(my_first_scene, world_003)
 
-static inline auto& v = []() -> auto& {
-	static data_structure::vector<uint32> s;
-	s.emplace_back(2u);
-	return s;
-}();
-
-
-auto  s		  = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>();
-auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform, rigid_body>>();
-auto& world_2 = s.get_world<0>();
-auto& world_3 = s_2.get_world<0>();
-
-template <typename world>
-concept ecs_world = std::derived_from<world, ecs::world_base>;
-
-struct system_1
-{
-	void on_system_begin_w(ecs_world auto& w)
-	{
-	}
-
-	void on_thread_init_w(ecs_world auto& w) { }
-
-	void update(ecs_world auto& world, transform& t, rigid_body& v) {};
-
-	void on_thread_dispose() { }
-
-	void on_system_end() { }
-
-	system_1()
-	{
-		int a = 1;
-	};
-
-	~system_1()
-	{
-	}
-};
-
-struct system_2
-{
-	void update(auto& world, transform& t, bullet& v) {};
-};
-
-// template <template <typename> typename s>
-// auto build_system(auto&& world)
-//{
-//	return s<decltype(world)>(std::forward<decltype(world)>(world));
-// }
-
-
-// template <template <typename> typename... s>
-// auto build_system_group(auto&& world)
-//{
-//	return system_group<decltype(world), s...>(std::forward<decltype(world)>(world));
-// }
-
-// auto ss			= system_1<decltype(world_2)>(world_2);
-// auto sss		= build_system<system_1>(world_2);
-// auto system_g	= system_group<decltype(world_2), system_1, system_2>(world_2);
-// auto system_ggg = build_system_group<system_1, system_2>(world_2);
-
-// system or node
-
-template <typename t>
-concept is_node = ecs::is_par<t> || ecs::is_seq<t>;
-
-template <typename... s>
-struct s_par
-{
-	constinit static inline const auto _par = true;
-
-	void update(auto& w)
-	{
-	}
-};
-
-template <typename... s>
-struct s_seq
-{
-	constinit static inline const auto _seq = true;
-
-	void update(auto& w)
-	{
-	}
-};
-
-template <typename... s>
-struct system_group
-{
-	std::tuple<s...> tpl;
-
-	void update(auto& world)
-	{
-		([this, &world]() {
-			auto node = meta::get_tuple_value<s>(std::forward<decltype(tpl)>(tpl));
-			if constexpr (is_node<s>)
-			{
-				int a = 2;
-				node.update(world);
-			}
-			else
-			{
-				world.perform(this);
-			}
-		}(),
-		 ...);
-	}
-};
-
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func1 : " << a++);
+	// DEBUG_LOG("test_func1 : " << a++);
 	t.position.x += 1;
 }
 
 void test_func2(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func2 : " << a++);
+	// DEBUG_LOG("test_func2 : " << a++);
 	t.position.y += 1;
 }
 
 void test_func3(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func3 : " << a++);
+	// DEBUG_LOG("test_func3 : " << a++);
 	t.position.z += 1;
 }
 
 void test_func4(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func4 : " << a++);
+	// DEBUG_LOG("test_func4 : " << a++);
 	t.position.x += 1;
 }
 
 void test_func5(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func5 : " << a++);
+	// DEBUG_LOG("test_func5 : " << a++);
 	t.position.y += 1;
 }
 
 void test_func6(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func6 : " << a++);
+	// DEBUG_LOG("test_func6 : " << a++);
 	t.position.z += 1;
 }
 
 void test_func7(ecs::entity_idx idx, transform& t, rigid_body& rb)
 {
 	static int a = 0;
-	DEBUG_LOG("test_func7 : " << a++);
+	// DEBUG_LOG("test_func7 : " << a++);
 	t.position.z += 1;
 }
 
@@ -341,130 +235,71 @@ void test_update(auto& w, auto p)
 	p().update(w);
 }
 
-using namespace ecs;
+static inline auto& v = []() -> auto& {
+	static data_structure::vector<uint32> s;
+	s.emplace_back(2u);
+	return s;
+}();
 
 
-using pipe1_2 = pipeline<
-	par<test_func4, test_func5>>;
-using pipe2_2 = pipeline<
-	seq<test_func3>,
-	par<test_func6, test_func7>>;
-using pipe3_2 = pipeline<
-	seq<test_func>,
-	par<pipe1_2, pipe2_2>>;
+auto  s		  = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>();
+auto  s_2	  = ecs::scene<ecs::world<transform, rigid_body>, ecs::world<transform, rigid_body>>();
+auto& world_2 = s.get_world<0>();
+auto& world_3 = s_2.get_world<0>();
 
-using pipe4_2 = pipeline<
-	cond<cond_func1, pipe1_2, pipe2_2>,
-	cond<cond_func2, test_func, test_func2>>;
+template <typename world>
+concept ecs_world = std::derived_from<world, ecs::world_base>;
 
-// pipeline<func,par<func,func,seq<f,f>>,seq<f>>()
-
-// using s_type = ecs::scene<ecs::world<transform, bullet, rigid_body>, ecs::world<transform, rigid_body>>;
-//
-// void s_type::loop()
-//{
-//	auto& w1 = get_world<0>();
-//	auto& w2 = get_world<1>();
-//
-//
-//	//if you want some par
-//	//write your own code...?
-//	pipe4_2().update(w1); //seq
-// }
-//
-// auto sss_1 = s_type();
-
-// world a b c d
-// archetype a d
-// c_idx from world => 0, 3
-// c_idx from archetype => 0, 1
-//  with archetype 1001 => c_idx for d is 1 ( __popcnz(((1 << (index_of(d) + 1)) - 1) & 1001 )
-//  decode 0 => 0, 3 => 1
-// from c_idx => component_size, component_offset (4byte)
-
-uint8 get_c_idx(ecs::archetype_t a, uint8 idx)
+struct system_1
 {
-	return __popcnt(((1 << idx) - 1) & a);
-}
+	int* p_int;
+
+	void on_system_begin_w(auto& world)
+	{
+	}
+
+	void on_thread_init_w(auto& world) { }
+
+	void update_w(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+
+	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+
+	void on_thread_dispose() { }
+
+	void on_system_end() { }
+
+	void test_mem_func(int a, int b) { }
+
+	system_1()
+	{
+		int a = 1;
+		p_int = new (int);
+	};
+
+	~system_1()
+	{
+		delete p_int;
+	}
+};
+
+struct system_2
+{
+	void update_w(auto& world, transform& t, bullet& v) {};
+};
+
+using namespace ecs;
 
 int main()
 {
-
-	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
-	meta::param_at<1, test_func2> eeeee;
-
-	auto ss
-		= system_group<system_1, s_par<system_1, s_seq<system_1, system_2>>>();
-	ss.update(world_3);
-	// using s_g_t = system_group<system_1, s_par<system_1, system_2>, system_2>;
-	// auto s_g_1	= s_g_t();
-	// auto s_g_2	= system_group<system_1, s_par<system_1, s_g_t>, s_g_t>();
-	// s_g_2.update(world_2);
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
-	auto n0 = node<cond_func2, cond_func1>();
-	auto n1 = node<n_seq<cond_func1, cond_func2, n_par<cond_func1, cond_func2>>, n_par<cond_func1, cond_func2>>();
-	auto n2 = node<n_par<n_cond<cond_func2, cond_func1, cond_func2>, cond_func1>, n0, n1>();
+	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
+	meta::param_at<1, test_func2> eeeee;
 
-	auto n3	  = bind(test_add, 1, 2);	 // not constructural type
-	auto jjjj = sizeof(n3);
-	auto n4	  = node<test_add>();
-	n3();
-
-	n4(1, 2);
-	// auto n3 = node<n_par<n1, n2>>();
-	// auto n4 = node<test_add>(1, 2);
-	//  auto n5 = node<n_bind<test_update, world_2, test_add>>();//not possible world_2 is not compile-time constant expression
-	// n3();
-	//  reflection::register_entity("entity", world_3.new_entity<transform>(), world_2);
-	//  a b c d , a => 0
-	assert(get_c_idx(0b1111, 0) == 0);
-	assert(get_c_idx(0b1111, 1) == 1);
-	assert(get_c_idx(0b1111, 2) == 2);
-	assert(get_c_idx(0b1111, 3) == 3);
-
-
-	assert(get_c_idx(0b1110, 1) == 0);
-	assert(get_c_idx(0b1110, 2) == 1);
-	assert(get_c_idx(0b1110, 3) == 2);
-
-	assert(get_c_idx(0b1101, 0) == 0);
-	assert(get_c_idx(0b1101, 2) == 1);
-	assert(get_c_idx(0b1101, 3) == 2);
-
-	assert(get_c_idx(0b1011, 0) == 0);
-	assert(get_c_idx(0b1011, 1) == 1);
-	assert(get_c_idx(0b1011, 3) == 2);
-
-	assert(get_c_idx(0b0111, 0) == 0);
-	assert(get_c_idx(0b0111, 1) == 1);
-	assert(get_c_idx(0b0111, 2) == 2);
-
-
-	assert(get_c_idx(0b0011, 0) == 0);
-	assert(get_c_idx(0b0011, 1) == 1);
-
-	assert(get_c_idx(0b0101, 0) == 0);
-	assert(get_c_idx(0b0101, 2) == 1);
-
-	assert(get_c_idx(0b1001, 0) == 0);
-	assert(get_c_idx(0b1001, 3) == 1);
-
-	assert(get_c_idx(0b0110, 1) == 0);
-	assert(get_c_idx(0b0110, 2) == 1);
-
-	assert(get_c_idx(0b1010, 1) == 0);
-	assert(get_c_idx(0b1010, 3) == 1);
-
-	assert(get_c_idx(0b1100, 2) == 0);
-	assert(get_c_idx(0b1100, 3) == 1);
-
-	assert(get_c_idx(0b0001, 0) == 0);
-	assert(get_c_idx(0b0010, 1) == 0);
-	assert(get_c_idx(0b0100, 2) == 0);
-	assert(get_c_idx(0b1000, 3) == 0);
+	using group_t = system_group<system_1, system_2>;
+	auto group	  = system_group<system_1, par<system_1, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
 
 	using tpl		   = tuple_sort<component_comparator, transform, bullet, rigid_body>::type;
 	constexpr auto idx = tuple_index<transform, tpl>::value;
@@ -475,8 +310,6 @@ int main()
 	auto e2 = world_2.new_entity<transform>();
 	auto e3 = world_2.new_entity<rigid_body, transform>();
 	auto e4 = world_2.new_entity<bullet>();
-
-	// auto e5 = world_2.new_entity<bullet, transform, rigid_body>();
 
 	auto ee = world_2.new_entity<transform>();
 	world_2.add_component<rigid_body>(ee);
@@ -493,20 +326,15 @@ int main()
 	assert(world_2.has_component<bullet>(ee));
 	assert((world_2.has_component<rigid_body, transform>(ee) == false));
 
+	std::srand(std::time(nullptr));
 	for (auto i = 0; i < 10000; ++i)
 	{
-
 		auto eeeee = world_2.new_entity<transform>();
 		world_2.add_component<rigid_body, bullet>(eeeee);
 		world_2.add_component<bullet, rigid_body>(world_2.new_entity<transform>());
 		world_2.add_component<transform>(world_2.new_entity<bullet, rigid_body>());
 		world_2.remove_component<rigid_body>(world_2.new_entity<transform, rigid_body>());
 		world_2.remove_component<transform, rigid_body>(world_2.new_entity<bullet, transform, rigid_body>());
-
-		if (i % 7 == 0)
-		{
-			world_2.delete_entity(eeeee);
-		}
 	}
 
 	world_2.new_entity<bullet, transform, rigid_body>();
@@ -516,6 +344,7 @@ int main()
 
 	auto& rb = world_2.get_component<rigid_body>(e2);
 	world_2.add_component<bullet>(e2);
+	group.update(world_2);
 
 	static_assert(std::is_same_v<typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type, typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type>);
 
@@ -532,83 +361,4 @@ int main()
 
 	static_assert(variadic_auto_unique<test_func, test_func, test_func, test_func3> == false);
 	static_assert(variadic_unique<int, double, float, int> == false);
-
-	// static_assert(variadic_auto_unique<test_func, test_func2, test_func3> == true);
-	// static_assert(variadic_unique<int, double, float> == true);
-
-
-	// no par<test_func1, pipe1> ...
-	// maybe par<test_func1, pipe1()> wor
-
-	// s.
-
-
-	pipe3_2().update(world_2);
-
-	pipe4_2().update(world_2);
-
-	// auto& t = world_2.get_component<transform>(e5);
-
-	auto  list_list = data_structure::list<data_structure::list<int>>();
-	auto& list		= list_list.emplace_front();
-	auto& list2		= list_list.emplace_back();
-	list.emplace_front(4);
-	list.emplace_front(3);
-	list.emplace_front(2);
-	list.emplace_front(1);
-	list.emplace_front(0);
-
-	list.emplace_back(5);
-	list.emplace_back(6);
-	list.emplace_back(7);
-	list.emplace_back(8);
-	list.emplace_back(9);
-	// list.emplace_back(10);
-
-	// auto* node = list.back();
-	// node	   = node->prev->prev;
-	// list.insert(node, 100);
-	// list.insert(node, 99);
-	// list.insert(node, 98);
-	// list.insert(node, 97);
-
-	// list.pop_back();
-	// list.pop_back();
-
-	// list.pop_front();
-	// list.pop_front();
-
-	// list.erase(node);
-
-	// list2.emplace_front(4);
-	// list2.emplace_front(3);
-	// list2.emplace_front(2);
-	// list2.emplace_front(1);
-	// list2.emplace_front(0);
-
-	// list2.emplace_back(5);
-	// list2.emplace_back(6);
-	// list2.emplace_back(7);
-	// list2.emplace_back(8);
-	// list2.emplace_back(9);
-	// list2.emplace_back(10);
-
-	// auto* node2 = list2.back();
-	// node2		= node2->prev->prev;
-	// list2.insert(node2, 100);
-	// list2.insert(node2, 99);
-	// list2.insert(node2, 98);
-	// list2.insert(node2, 97);
-
-	// list2.pop_back();
-	// list2.pop_back();
-
-	// list2.pop_front();
-	// list2.pop_front();
-
-	// list2.erase(node2);
-
-
-	// vector<chunk_entry*> __v;
-	//__v.emplace_back();
 }

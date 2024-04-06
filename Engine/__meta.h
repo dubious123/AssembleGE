@@ -83,6 +83,13 @@ namespace meta
 		using type = t;
 	};
 
+	template <template <typename...> typename t>
+	struct template_wrapper
+	{
+		template <typename... ts>
+		using type = t<ts...>;
+	};
+
 	template <typename t, typename h, typename... ts>
 	consteval bool variadic_contains()
 	{
@@ -237,7 +244,7 @@ namespace meta
 	inline constinit size_t tuple_index_v = tuple_index<t, tuple>::value;
 
 	template <typename t, typename... ts>
-	t get_tuple_value(std::tuple<ts...>&& tpl)
+	auto& get_tuple_value(std::tuple<ts...>&& tpl)
 	{
 		return std::get<variadic_index_v<t, ts...>>(tpl);
 	}
@@ -377,4 +384,40 @@ namespace meta
 	{
 		__call(std::forward<fn>(f), std::forward<std::tuple<ts...>>(tpl), int_seq<sizeof...(ts)>::type());
 	}
+
+	template <typename t>
+	struct func_args;
+
+	template <typename res, typename... args>
+	struct func_args<res(args...)>
+	{
+		using type = std::tuple<args...>;
+	};
+
+	template <typename class_t, typename res, typename... args>
+	struct func_args<res (class_t::*)(args...)>
+	{
+		using type = std::tuple<args...>;
+	};
+
+	template <typename t>
+	using func_args_t = func_args<t>::type;
+
+	template <typename t>
+	struct func_ret;
+
+	template <typename res, typename... args>
+	struct func_ret<res(args...)>
+	{
+		using type = res;
+	};
+
+	template <typename class_t, typename res, typename... args>
+	struct func_ret<res (class_t::*)(args...)>
+	{
+		using type = res;
+	};
+
+	template <typename t>
+	using func_ret_t = func_ret<t>::type;
 }	 // namespace meta
