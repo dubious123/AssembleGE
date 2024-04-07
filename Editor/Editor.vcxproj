@@ -35,6 +35,7 @@
     <ClCompile Include="external\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="external\include\pugixml\pugixml.cpp" />
+    <ClCompile Include="game_project\ecs.cpp" />
     <ClCompile Include="game_project\game_project.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
@@ -73,7 +74,7 @@
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp" />
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
-    <ClInclude Include="game_project\game_project.h" />
+    <ClInclude Include="game_project\game.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="utilities\timing.h" />

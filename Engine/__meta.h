@@ -385,7 +385,8 @@ namespace meta
 		__call(std::forward<fn>(f), std::forward<std::tuple<ts...>>(tpl), int_seq<sizeof...(ts)>::type());
 	}
 
-	template <typename t>
+	// use case : meta::func_args_t<decltype(func)>() ...
+	template <typename f>
 	struct func_args;
 
 	template <typename res, typename... args>
@@ -402,6 +403,12 @@ namespace meta
 
 	template <typename t>
 	using func_args_t = func_args<t>::type;
+
+	// template <typename res, typename... args>
+	// using func_args_t<res(args...)> = func_args<res(args...)>::type;
+
+	// template <typename class_t, typename res, typename... args>
+	// using func_args_t<res (class_t::*)(args...)> = func_args<res (class_t::*)(args...)>::type;
 
 	template <typename t>
 	struct func_ret;

@@ -3,7 +3,7 @@
 #include "stb_image.h"
 #include "editor.h"
 #include "editor_view.h"
-#include "game_project\game_project.h"
+#include "game_project\game.h"
 
 // #ifdef _DEBUG
 //	#define DX12_ENABLE_DEBUG_LAYER

@@ -268,8 +268,6 @@ struct system_1
 
 	void on_system_end() { }
 
-	void test_mem_func(int a, int b) { }
-
 	system_1()
 	{
 		int a = 1;
@@ -285,7 +283,11 @@ struct system_1
 struct system_2
 {
 	void update_w(auto& world, transform& t, bullet& v) {};
+
+	static void test_fu(int a, int b) { }
 };
+
+void test_add3(int a, int b) { }
 
 using namespace ecs;
 
@@ -300,6 +302,9 @@ int main()
 
 	using group_t = system_group<system_1, system_2>;
 	auto group	  = system_group<system_1, par<system_1, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
+
+	auto tpl2 = meta::func_args<decltype(system_2::test_fu)>::type();
+	auto tpl3 = meta::func_args_t<decltype(test_add3)>();
 
 	using tpl		   = tuple_sort<component_comparator, transform, bullet, rigid_body>::type;
 	constexpr auto idx = tuple_index<transform, tpl>::value;

@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "editor_view.h"
-#include "game_project/game_project.h"
+#include "game_project/game.h"
 
 namespace editor::view::hierarchy
 {
@@ -242,6 +242,11 @@ namespace editor::view::inspector
 		widgets::text(std::format("name : {}", p_e->name).c_str());
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
+
+		std::ranges::for_each(p_e->components, [=](auto strtuct_id) {
+			auto p_struct = models::reflection::find_struct(strtuct_id);
+			widgets::text(std::format("{}", p_struct->name).c_str());
+		});
 		// auto p_entity = entity::get(entity_id);
 
 		// ImGui::Text((p_entity->name).c_str());

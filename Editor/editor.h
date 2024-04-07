@@ -7,7 +7,7 @@
 
 
 #define LOAD_FUNC(func_type, func_name, library)                       \
-	[]() {                                                             \
+	[=]() {                                                            \
 		using lib_func = func_type;                                    \
 		auto func	   = (lib_func)GetProcAddress(library, func_name); \
 		assert(func);                                                  \
@@ -15,7 +15,7 @@
 	}()
 
 #define LOAD_RUN_FUNC(func_type, func_name, library)                   \
-	[]() {                                                             \
+	[=]() {                                                            \
 		using lib_func = func_type;                                    \
 		auto func	   = (lib_func)GetProcAddress(library, func_name); \
 		return func();                                                 \
@@ -625,11 +625,12 @@ namespace editor::models
 
 	struct em_entity
 	{
-		editor_id	id;
-		editor_id	world_id;
-		std::string name;
-		uint64		archetype;
-		uint64		ecs_entity_idx;
+		editor_id			   id;
+		editor_id			   world_id;
+		std::string			   name;
+		uint64				   archetype;
+		uint64				   ecs_entity_idx;
+		std::vector<editor_id> components;
 
 		void inline init(editor_id e_id, editor_id w_id, entity_info* p_info)
 		{

@@ -44,6 +44,7 @@
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="style.cpp" />
+    <ClCompile Include="game_project\ecs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\include\imgui\imconfig.h" />
@@ -86,7 +87,7 @@
     </ClInclude>
     <ClInclude Include="utilities\Xml.h" />
     <ClInclude Include="editor_view.h" />
-    <ClInclude Include="game_project\game_project.h" />
+    <ClInclude Include="game_project\game.h" />
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp" />
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
