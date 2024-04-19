@@ -42,54 +42,53 @@ namespace reflection
 		}
 	}	 // namespace
 
-	struct_info::struct_info()
+	struct_info::struct_info(uint64 idx, uint64 hash_id, const char* name, void* p_value)
+		: idx(idx), hash_id(hash_id), name(name), p_default_value(p_value), fields(nullptr), field_count(0)
 	{
-		this->idx		  = -1;
-		this->hash_id	  = 0;
-		this->name		  = nullptr;
-		this->fields	  = nullptr;
-		this->field_count = 0;
 	}
 
-	struct_info::struct_info(uint64 idx, const char* name)
+	struct_info::struct_info(struct_info&& other) noexcept
+		: idx(other.idx), hash_id(other.hash_id), name(other.name), p_default_value(other.p_default_value), fields(nullptr), field_count(0)
 	{
-		this->idx		  = idx;
-		this->hash_id	  = 0;
-		this->name		  = name;
-		this->fields	  = nullptr;
-		this->field_count = 0;
+		other.p_default_value = nullptr;
 	}
 
-	struct_info::struct_info(uint64 idx, uint64 hash_id, const char* name)
+	struct_info& struct_info::operator=(struct_info&& other) noexcept
 	{
-		this->idx		  = idx;
-		this->hash_id	  = hash_id;
-		this->name		  = name;
-		this->fields	  = nullptr;
-		this->field_count = 0;
+		assert(p_default_value is_not_nullptr);
+		free(p_default_value);
+
+		idx				= other.idx;
+		hash_id			= other.hash_id;
+		name			= other.name;
+		p_default_value = other.p_default_value;
+		fields			= other.fields;
+		field_count		= other.field_count;
+
+		other.p_default_value = nullptr;
+		return *this;
 	}
 
 	struct_info::~struct_info()
 	{
-		free(p_value);
+		free(p_default_value);
 	}
 
 	world_info::world_info(const char* name, uint64 idx, size_t s_count) : name(name), scene_idx(idx), struct_count(s_count) { }
 
 	void register_struct(const char* name, uint64 hash_id, void* p_value)
 	{
-		_struct_info_vec().emplace_back(_struct_info_vec().size(), hash_id, name);
+		_struct_info_vec().emplace_back(_struct_info_vec().size(), hash_id, name, p_value);
 		_field_info_vec().emplace_back();
 	}
 
-	void register_field(const char* struct_name, e_primitive_type type, const char* name, size_t offset, const char* serialized_value)
+	void register_field(const char* struct_name, e_primitive_type type, const char* name, size_t offset)
 	{
-		auto info			  = field_info();
-		info.name			  = name;
-		info.type			  = type;
-		info.offset			  = offset;
-		info.serialized_value = serialized_value;
-		info.p_value		  = nullptr;
+		auto info	 = field_info();
+		info.name	 = name;
+		info.type	 = type;
+		info.offset	 = offset;
+		info.p_value = nullptr;
 
 		auto& field_vec = _field_info_vec().back();
 		field_vec.emplace_back(info);

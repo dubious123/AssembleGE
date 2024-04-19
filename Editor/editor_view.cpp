@@ -143,6 +143,41 @@ namespace editor::view::inspector
 		}
 	};
 
+	void* _offset_to_ptr(size_t offset, const void* ptr)
+	{
+		return (void*)((char*)ptr + offset);
+	}
+
+	void _draw_struct(editor_id struct_id, const void* ptr)
+	{
+		auto* p_s = editor::models::reflection::find_struct(struct_id);
+		// auto& str_vec = editor::models::reflection::utils::deserialize(struct_id, ptr);
+		if (widgets::tree_node(p_s->name.c_str()))
+		{
+			std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
+				auto selected = false;
+				widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, _offset_to_ptr(p_f->offset, ptr))), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+			});
+
+			widgets::tree_pop();
+		}
+	}
+
+	void _draw_struct(editor_id struct_id)
+	{
+		auto* p_s = editor::models::reflection::find_struct(struct_id);
+		// auto& str_vec = editor::models::reflection::utils::deserialize(struct_id, ptr);
+		if (widgets::tree_node(p_s->name.c_str()))
+		{
+			std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
+				auto selected = false;
+				widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+			});
+
+			widgets::tree_pop();
+		}
+	}
+
 	void _draw_scene(editor_id _)
 	{
 		auto p_scene = scene::get_current();
@@ -163,14 +198,15 @@ namespace editor::view::inspector
 		if (widgets::tree_node("archetype", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			std::ranges::for_each(p_world->structs, [](editor_id struct_id) {
-				auto* p_struct = models::reflection::find_struct(struct_id);
-				if (widgets::tree_node(p_struct->name))
-				{
-					std::ranges::for_each(models::reflection::all_fields(p_struct->id), [](em_field* p_f) {
-						widgets::tree_node(std::format("{}({}) : {}", p_f->name, models::reflection::utils::type_to_string(p_f->p_info->type), p_f->p_info->serialized_value).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
-					});
-					widgets::tree_pop();
-				}
+				_draw_struct(struct_id);
+				// auto* p_struct = models::reflection::find_struct(struct_id);
+				// if (widgets::tree_node(p_struct->name))
+				//{
+				//	std::ranges::for_each(models::reflection::all_fields(p_struct->id), [](em_field* p_f) {
+				//		widgets::tree_node(std::format("{}({}) : {}", p_f->name, models::reflection::utils::type_to_string(p_f->type), p_f->serialized_value).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+				//	});
+				//	widgets::tree_pop();
+				// }
 			});
 			widgets::tree_pop();
 		}
@@ -244,8 +280,9 @@ namespace editor::view::inspector
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
-			auto p_struct = models::reflection::find_struct(p_c->struct_id);
-			widgets::text(std::format("{}", p_struct->name).c_str());
+			_draw_struct(p_c->struct_id, p_c->p_value);
+			// auto p_struct = models::reflection::find_struct(p_c->struct_id);
+			// widgets::text(std::format("{}", p_struct->name).c_str());
 		});
 		// auto p_entity = entity::get(entity_id);
 
@@ -323,7 +360,7 @@ namespace editor::view::reflection
 				{
 					std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
 						auto selected = false;
-						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->p_info->type), p_f->p_info->serialized_value), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					});
 
 

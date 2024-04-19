@@ -441,8 +441,8 @@ namespace editor::models
 	struct project_open_data;
 	struct game_project;
 
-	struct struct_info;
-	struct field_info;
+	// struct struct_info;
+	// struct field_info;
 
 	struct em_field;
 	struct em_struct;
@@ -453,65 +453,67 @@ namespace editor::models
 	struct em_component;
 	struct em_system;
 
-	struct struct_info
-	{
-		uint64		idx;
-		uint64		hash_id;
-		const char* name;
-		size_t		field_count;
-		field_info* fields;
+	// struct struct_info
+	//{
+	//	uint64		idx;
+	//	uint64		hash_id;
+	//	const char* name;
+	//	size_t		field_count;
+	//	field_info* fields;
 
-		const void* p_value;
-	};
+	//	const void* p_default_value;
+	//};
 
-	struct field_info
-	{
-		const char*		 name;
-		e_primitive_type type;
-		const char*		 serialized_value;
-		void*			 p_value;
-		size_t			 offset;
-		// std::string				child_count;
-		// std::vector<field_info> childs;
-	};
+	// struct field_info
+	//{
+	//	const char*		 name;
+	//	e_primitive_type type;
+	//	const char*		 serialized_value;
+	//	void*			 p_value;
+	//	size_t			 offset;
+	//	// std::string				child_count;
+	//	// std::vector<field_info> childs;
+	// };
 
-	struct scene_info
-	{
-		const char* name;
-		size_t		world_count;
-		size_t		world_idx;
-	};
+	// struct scene_info
+	//{
+	//	const char* name;
+	//	size_t		world_count;
+	//	size_t		world_idx;
+	// };
 
-	struct world_info
-	{
-		const char* name;
-		size_t		scene_idx;
-		uint64		struct_count;
-		uint64		struct_idx_vec[64];
-	};
+	// struct world_info
+	//{
+	//	const char* name;
+	//	size_t		scene_idx;
+	//	uint64		struct_count;
+	//	uint64		struct_idx_vec[64];
+	// };
 
-	struct component_info
-	{
-		size_t size;
-		void*  p_value;
-	};
+	// struct component_info
+	//{
+	//	size_t size;
+	//	void*  p_value;
+	// };
 
-	struct entity_info
-	{
-		const char* name;
-		uint64		idx;
-		uint64		archetype;
-	};
+	// struct entity_info
+	//{
+	//	const char* name;
+	//	uint64		idx;
+	//	uint64		archetype;
+	// };
 
 	struct em_struct
 	{
-		editor_id	 id;
-		struct_info* p_info;
-		std::string	 name;
-		uint64		 field_count;
+		editor_id id;
+		uint64	  hash_id;
+		// struct_info* p_info;
+		std::string name;
+		uint64		field_count;
+		const void* p_default_value;
 
-		em_struct(struct_info* p_info) : p_info(p_info), field_count(0) {};
-		em_struct() : em_struct(nullptr) {};
+		em_struct(/*struct_info* p_info*/) : /*p_info(p_info), */ field_count(0) {};
+		// em_struct() : em_struct(nullptr) {};
 	};
 
 	struct em_field
@@ -519,17 +521,16 @@ namespace editor::models
 		editor_id		 id;
 		editor_id		 struct_id;
 		e_primitive_type type;
-		field_info*		 p_info;
-		std::string		 name;
+		size_t			 offset;
+		// field_info*		 p_info;
+		void*		p_value;
+		std::string name;
 	};
 
 	struct em_scene
 	{
 		editor_id	id;
-		scene_info* p_info;
 		std::string name;
-
-		em_scene() : p_info(nullptr) {};
 	};
 
 	struct em_world
@@ -537,20 +538,8 @@ namespace editor::models
 		editor_id			   id;
 		editor_id			   scene_id;
 		uint64				   ecs_world_idx;
-		world_info*			   p_info;
 		std::string			   name;
 		std::vector<editor_id> structs;
-
-		em_world() : p_info(nullptr) {};
-
-		void inline init(editor_id w_id, editor_id s_id, uint64 ecs_w_idx, world_info* p_info)
-		{
-			id			  = w_id;
-			scene_id	  = s_id;
-			ecs_world_idx = ecs_w_idx;
-			this->p_info  = p_info;
-			name		  = p_info->name;
-		}
 	};
 
 	struct em_subworld
@@ -565,15 +554,6 @@ namespace editor::models
 		std::string name;
 		uint64		archetype;
 		uint64		ecs_entity_idx;
-
-		void inline init(editor_id e_id, editor_id w_id, entity_info* p_info)
-		{
-			id			   = e_id;
-			world_id	   = w_id;
-			name		   = p_info->name;
-			archetype	   = p_info->archetype;
-			ecs_entity_idx = p_info->idx;
-		}
 	};
 
 	struct em_component
@@ -608,8 +588,11 @@ namespace editor::models
 
 	namespace reflection::utils
 	{
-		const char* type_to_string(e_primitive_type type);
-	}
+		const char*				 type_to_string(e_primitive_type type);
+		std::string				 deserialize(e_primitive_type type, const void* ptr);
+		std::vector<std::string> deserialize(editor_id struct_id);
+		std::vector<std::string> deserialize(editor_id struct_id, const void* ptr);
+	}	 // namespace reflection::utils
 
 	namespace scene
 	{

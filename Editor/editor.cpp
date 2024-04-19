@@ -1672,44 +1672,140 @@ namespace editor::models
 	{
 		namespace
 		{
-			const char* _type_names[primitive_type_count] {
-				"int2",
-				"int3",
-				"int4",
+			struct type_info
+			{
+				const char* name;
+				size_t		size;
+			};
 
-				"uint2",
-				"uint3",
-				"uint4",
+			type_info _info_lut[primitive_type_count] {
+				{ "int2", sizeof(int2) },
+				{ "int3", sizeof(int3) },
+				{ "int4", sizeof(int4) },
 
-				"float2",
-				"float2a",
-				"float3",
-				"float3a",
-				"float4",
-				"float4a",
+				{ "uint2", sizeof(uint2) },
+				{ "uint3", sizeof(uint3) },
+				{ "uint4", sizeof(uint4) },
 
-				"float3x3",
-				"float4x4",
-				"float4x4a",
+				{ "float2", sizeof(float2) },
+				{ "float2a", sizeof(float2a) },
+				{ "float3", sizeof(float3) },
+				{ "float3a", sizeof(float3a) },
+				{ "float4", sizeof(float4) },
+				{ "float4a", sizeof(float4a) },
 
-				"uint64",
-				"uint32",
-				"uint16",
-				"uint8",
+				{ "float3x3", sizeof(float3x3) },
+				{ "float4x4", sizeof(float4x4) },
+				{ "float4x4a", sizeof(float4x4a) },
 
-				"int64",
-				"int32",
-				"int16",
-				"int8",
+				{ "uint64", sizeof(uint64) },
+				{ "uint32", sizeof(uint32) },
+				{ "uint16", sizeof(uint16) },
+				{ "uint8", sizeof(uint8) },
 
-				"float32",
-				"double64",
+				{ "int64", sizeof(int64) },
+				{ "int32", sizeof(int32) },
+				{ "int16", sizeof(int16) },
+				{ "int8", sizeof(int8) },
+
+				{ "float32", sizeof(float32) },
+				{ "double64", sizeof(double64) },
 			};
 		}	 // namespace
 
 		const char* type_to_string(e_primitive_type type)
 		{
-			return _type_names[type];
+			return _info_lut[type].name;
+		}
+
+		std::string deserialize(e_primitive_type type, const void* ptr)
+		{
+			switch (type)
+			{
+			case primitive_type_int2:
+				return std::format("( {},{} )", ((int2*)ptr)->x, ((int2*)ptr)->y);
+			case primitive_type_int3:
+				return std::format("( {},{},{} )", ((int3*)ptr)->x, ((int3*)ptr)->y, ((int3*)ptr)->z);
+			case primitive_type_int4:
+				return std::format("( {},{},{},{} )", ((int4*)ptr)->x, ((int4*)ptr)->y, ((int4*)ptr)->z, ((int4*)ptr)->w);
+			case primitive_type_uint2:
+				return std::format("( {},{} )", ((uint2*)ptr)->x, ((uint2*)ptr)->y);
+			case primitive_type_uint3:
+				return std::format("( {},{},{} )", ((uint3*)ptr)->x, ((uint3*)ptr)->y, ((uint3*)ptr)->z);
+			case primitive_type_uint4:
+				return std::format("( {},{},{},{} )", ((uint4*)ptr)->x, ((uint4*)ptr)->y, ((uint4*)ptr)->z, ((uint4*)ptr)->w);
+
+			case primitive_type_float2:
+				return std::format("( {},{} )", ((float2*)ptr)->x, ((float2*)ptr)->y);
+			case primitive_type_float2a:
+				return std::format("( {},{} )", ((float2a*)ptr)->x, ((float2a*)ptr)->y);
+			case primitive_type_float3:
+				return std::format("( {},{},{} )", ((float3*)ptr)->x, ((float3*)ptr)->y, ((float3*)ptr)->z);
+			case primitive_type_float3a:
+				return std::format("( {},{},{} )", ((float3a*)ptr)->x, ((float3a*)ptr)->y, ((float3a*)ptr)->z);
+			case primitive_type_float4:
+				return std::format("( {},{},{},{} )", ((float4*)ptr)->x, ((float4*)ptr)->y, ((float4*)ptr)->z, ((float4*)ptr)->w);
+			case primitive_type_float4a:
+				return std::format("( {},{},{},{} )", ((float4a*)ptr)->x, ((float4a*)ptr)->y, ((float4a*)ptr)->z, ((float4a*)ptr)->w);
+
+			case primitive_type_float3x3:
+				return std::format("( {},{} )",
+								   ((float3x3*)ptr)->_11, ((float3x3*)ptr)->_12, ((float3x3*)ptr)->_13,
+								   ((float3x3*)ptr)->_21, ((float3x3*)ptr)->_22, ((float3x3*)ptr)->_23,
+								   ((float3x3*)ptr)->_31, ((float3x3*)ptr)->_32, ((float3x3*)ptr)->_33);
+			case primitive_type_float4x4:
+				return std::format("( {},{} )",
+								   ((float4x4*)ptr)->_11, ((float4x4*)ptr)->_12, ((float4x4*)ptr)->_13,
+								   ((float4x4*)ptr)->_21, ((float4x4*)ptr)->_22, ((float4x4*)ptr)->_23,
+								   ((float4x4*)ptr)->_31, ((float4x4*)ptr)->_32, ((float4x4*)ptr)->_33,
+								   ((float4x4*)ptr)->_41, ((float4x4*)ptr)->_42, ((float4x4*)ptr)->_43);
+			case primitive_type_float4x4a:
+				return std::format("( {},{} )",
+								   ((float4x4a*)ptr)->_11, ((float4x4a*)ptr)->_12, ((float4x4a*)ptr)->_13,
+								   ((float4x4a*)ptr)->_21, ((float4x4a*)ptr)->_22, ((float4x4a*)ptr)->_23,
+								   ((float4x4a*)ptr)->_31, ((float4x4a*)ptr)->_32, ((float4x4a*)ptr)->_33,
+								   ((float4x4a*)ptr)->_41, ((float4x4a*)ptr)->_42, ((float4x4a*)ptr)->_43);
+			case primitive_type_uint64:
+				return std::format("{}", *(uint64*)ptr);
+			case primitive_type_uint32:
+				return std::format("{}", *(uint32*)ptr);
+			case primitive_type_uint16:
+				return std::format("{}", *(uint16*)ptr);
+			case primitive_type_uint8:
+				return std::format("{}", *(uint8*)ptr);
+			case primitive_type_int64:
+				return std::format("{}", *(int64*)ptr);
+			case primitive_type_int32:
+				return std::format("{}", *(int32*)ptr);
+			case primitive_type_int16:
+				return std::format("{}", *(int16*)ptr);
+			case primitive_type_int8:
+				return std::format("{}", *(int8*)ptr);
+			case primitive_type_float32:
+				return std::format("{}", *(float32*)ptr);
+			case primitive_type_double64:
+				return std::format("{}", *(double64*)ptr);
+			default:
+				break;
+			}
+
+			// todo nested
+			assert(false);
+			return {};
+		}
+
+		std::vector<std::string> deserialize(editor_id struct_id)
+		{
+			auto p_s = reflection::find_struct(struct_id);
+			auto res = reflection::all_fields(struct_id) | std::views::transform([=](auto* p_field) { return deserialize(p_field->type, p_s->p_default_value); });
+			return { res.begin(), res.end() };
+		}
+
+		std::vector<std::string> deserialize(editor_id struct_id, const void* ptr)
+		{
+			auto p_s = reflection::find_struct(struct_id);
+			auto res = reflection::all_fields(struct_id) | std::views::transform([=](auto* p_field) { return deserialize(p_field->type, ptr); });
+			return { res.begin(), res.end() };
 		}
 	}	 // namespace reflection::utils
 
@@ -1955,7 +2051,7 @@ namespace editor::models
 			}
 
 			p_w->structs.insert(std::ranges::upper_bound(p_w->structs, struct_id,
-														 [](const auto& comp_id, const auto id) { return reflection::find_struct(comp_id)->p_info->hash_id < reflection::find_struct(id)->p_info->hash_id; }),
+														 [](const auto& comp_id, const auto id) { return reflection::find_struct(comp_id)->hash_id < reflection::find_struct(id)->hash_id; }),
 								struct_id);
 		}
 

@@ -2,19 +2,30 @@
 #include "editor.h"
 #include "game.h"
 
+#include "../Engine/__reflection.h"
+
+namespace
+{
+	using struct_info	 = reflection::struct_info;
+	using scene_info	 = reflection::scene_info;
+	using world_info	 = reflection::world_info;
+	using component_info = reflection::component_info;
+	using entity_info	 = reflection::entity_info;
+}	 // namespace
+
 namespace editor::game::ecs
 {
 	using namespace editor::models;
 
-	size_t (*_get_registered_struct_count)();
-	size_t (*_get_registered_scene_count)();
-	size_t (*_get_registered_world_count)();
-	size_t (*_get_registered_entity_count)(size_t world_index);
-	struct_info* (*_get_struct_info)(size_t index);
-	scene_info* (*_get_scene_info)(size_t index);
-	world_info* (*_get_world_info)(size_t index);
+	size_t		   (*_get_registered_struct_count)();
+	size_t		   (*_get_registered_scene_count)();
+	size_t		   (*_get_registered_world_count)();
+	size_t		   (*_get_registered_entity_count)(size_t world_index);
+	struct_info*   (*_get_struct_info)(size_t index);
+	scene_info*	   (*_get_scene_info)(size_t index);
+	world_info*	   (*_get_world_info)(size_t index);
 	component_info (*_get_component_info)(size_t world_idx, size_t entity_idx, size_t component_idx);
-	entity_info* (*_get_entity_info)(size_t world_index, size_t entity_index);
+	entity_info*   (*_get_entity_info)(size_t world_index, size_t entity_index);
 
 	bool init(HMODULE proj_dll)
 	{
@@ -44,16 +55,23 @@ namespace editor::game::ecs
 			auto* p_struct_info = _get_struct_info(struct_idx);
 			auto  s_id			= reflection::create_struct();
 			auto* p_s			= reflection::find_struct(s_id);
-			p_s->p_info			= p_struct_info;
-			p_s->name			= p_struct_info->name;
+			{
+				p_s->name			 = p_struct_info->name;
+				p_s->p_default_value = p_struct_info->p_default_value;
+				p_s->hash_id		 = p_struct_info->hash_id;
+			}
 
 			std::ranges::for_each(std::views::iota(0ul, p_struct_info->field_count), [=](auto field_idx) {
 				auto* p_field_info = &p_struct_info->fields[field_idx];
 				auto  f_id		   = reflection::add_field(s_id);
 				auto* p_f		   = reflection::find_field(f_id);
-				p_f->name		   = p_field_info->name;
-				p_f->struct_id	   = s_id;
-				p_f->p_info		   = p_field_info;
+				{
+					p_f->struct_id = s_id;
+					p_f->name	   = p_field_info->name;
+					p_f->p_value   = (void*)((char*)(p_s->p_default_value) + p_field_info->offset);
+					p_f->type	   = p_field_info->type;
+					p_f->offset	   = p_field_info->offset;
+				}
 			});
 		});
 
@@ -61,14 +79,20 @@ namespace editor::game::ecs
 			auto* p_scene_info = _get_scene_info(scene_idx);
 			auto  s_id		   = scene::create();
 			auto  p_scene	   = scene::find(s_id);
-			p_scene->name	   = p_scene_info->name;
-			p_scene->p_info	   = p_scene_info;
+			{
+				p_scene->name = p_scene_info->name;
+			}
 
 			std::ranges::for_each(std::views::iota(p_scene_info->world_idx) | std::views::take(p_scene_info->world_count), [=](auto world_idx) {
 				auto* p_w_info = _get_world_info(world_idx);
 				auto  w_id	   = world::create(p_scene->id);
 				auto  p_world  = world::find(w_id);
-				p_world->init(w_id, p_scene->id, world_idx, p_w_info);
+				{
+					p_world->id			   = w_id;
+					p_world->scene_id	   = s_id;
+					p_world->ecs_world_idx = world_idx;
+					p_world->name		   = p_w_info->name;
+				}
 
 				std::ranges::for_each(p_w_info->struct_idx_vec | std::views::take(p_w_info->struct_count), [=](auto struct_idx) {
 					auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
@@ -79,7 +103,13 @@ namespace editor::game::ecs
 					auto* p_e_info = _get_entity_info(world_idx, entity_idx);
 					auto  e_id	   = entity::create(w_id);
 					auto  p_entity = entity::find(e_id);
-					p_entity->init(e_id, w_id, p_e_info);
+					{
+						p_entity->id			 = e_id;
+						p_entity->world_id		 = w_id;
+						p_entity->name			 = p_e_info->name;
+						p_entity->archetype		 = p_e_info->archetype;
+						p_entity->ecs_entity_idx = p_e_info->idx;
+					}
 
 					std::ranges::for_each(std::views::iota(0ul, p_world->structs.size()), [=](auto world_s_idx) {
 						if (p_entity->archetype >> world_s_idx)

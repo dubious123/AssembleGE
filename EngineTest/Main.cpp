@@ -297,7 +297,19 @@ int main()
 	static_assert(ecs::has_update<system_1> == false);
 	static_assert(ecs::has_update_w<system_1, decltype(world_2)> == true, "!!!");
 	// static_assert(false);
-	std::cout << std::format("{:04x}-{:016x}", 1, -1);
+	std::cout << std::format("{:04x} - {:016x}\n", 1, -1);
+	uint2 uint22 { (uint32)(0 - 1), 2 };
+	std::cout << std::format("{},{}\n", uint22.x, uint22.y);
+
+	float2 float22 { -1.f, 2.f };
+	std::cout << std::format("{:.3f},{:.4f}\n", float22.x, float22.y);
+
+	double64 ddddd = -10.252525;
+	std::cout << std::format("{}\n", ddddd);
+
+	uint64 iiii = (0ull - 1ull);
+	std::cout << std::format("{}\n", iiii);
+
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
