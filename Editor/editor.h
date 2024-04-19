@@ -1,10 +1,10 @@
 #pragma once
 #include "imgui\imgui_internal.h"
+#include "..\Engine\__math.h"
 #include <string>
 #include <functional>
 #include <filesystem>
 #include <ranges>
-
 
 #define LOAD_FUNC(func_type, func_name, library)                       \
 	[=]() {                                                            \
@@ -70,40 +70,6 @@ constexpr auto GAMECODE_DIRECTORY			= "game_code";
 constexpr auto GAMECODE_GENERATED_DIRECTORY = "generated";
 constexpr auto PROJECT_DATA_FILE_NAME		= "project_data.xml";
 
-using uint64 = uint64_t;
-using uint32 = uint32_t;
-using uint16 = uint16_t;
-using uint8	 = uint8_t;
-
-using int64 = int64_t;
-using int32 = int32_t;
-using int16 = int16_t;
-using int8	= int8_t;
-
-using float32  = float;
-using double64 = double;
-
-#if defined(_WIN64)
-	#include <DirectXMath.h>
-using float_2	 = DirectX::XMFLOAT2;
-using float_2a	 = DirectX::XMFLOAT2A;
-using float_3	 = DirectX::XMFLOAT3;
-using float_3a	 = DirectX::XMFLOAT3A;
-using float_4	 = DirectX::XMFLOAT4;
-using float_4a	 = DirectX::XMFLOAT4A;
-using uint_2	 = DirectX::XMUINT2;
-using uint_3	 = DirectX::XMUINT3;
-using uint_4	 = DirectX::XMUINT4;
-using int_2		 = DirectX::XMINT2;
-using int_3		 = DirectX::XMINT3;
-using int_4		 = DirectX::XMINT4;
-using float_3x3	 = DirectX::XMFLOAT3X3;
-using float_4x4	 = DirectX::XMFLOAT4X4;
-using float_4x4a = DirectX::XMFLOAT4X4A;
-#endif
-
-// constexpr auto CONTEXT_POPUP		  = "ctx popup";
-
 enum editor_data_type : unsigned long long
 {
 	DataType_Entity,
@@ -129,39 +95,6 @@ enum caption_button
 	Caption_Button_Max,
 	Caption_Button_Close,
 	Caption_Button_None,
-};
-
-enum PrimitiveType
-{
-	PrimitiveType_Int64,
-	PrimitiveType_Int16,
-	PrimitiveType_Int8,
-	PrimitiveType_Uint64,
-	PrimitiveType_Uint16,
-	PrimitiveType_Uint8,
-	PrimitiveType_Double64,
-
-	PrimitiveType_Int32,
-	PrimitiveType_Int2,
-	PrimitiveType_Int3,
-	PrimitiveType_Int4,
-	PrimitiveType_Uint2,
-	PrimitiveType_Uint3,
-	PrimitiveType_Uint4,
-
-	PrimitiveType_Float32,
-	PrimitiveType_Float2,
-	PrimitiveType_Float3,
-	PrimitiveType_Float4,
-	PrimitiveType_Float2a,
-	PrimitiveType_Float3a,
-	PrimitiveType_Float4a,
-
-
-	PrimitiveType_Float3x3,
-	PrimitiveType_Float4x4,
-	PrimitiveType_Float4x4a,
-	PrimitiveType_Count
 };
 
 struct window_info
@@ -264,15 +197,14 @@ struct editor_context
 	bool		   dpi_changed				 = false;
 };
 
+extern editor_context* GEctx;
+
 struct editor_command
 {
 	std::string						  _name;
 	int								  _shortcut_key = ImGuiKey_None;
 	std::function<bool(editor_id id)> _can_execute_func;
 	std::function<void(editor_id)>	  _execute_func;
-
-	// editor_command(std::string name, int shortcut_key, bool (*can_execute_func)(editor_id), void (*execute_func)(editor_id))
-	//	: _name(name), _shortcut_key(shortcut_key), _can_execute_func(can_execute_func), _execute_func(execute_func) {};
 
 	bool can_execute(editor_id id = INVALID_ID) const
 	{
@@ -300,8 +232,6 @@ struct editor_command
 		}
 	}
 };
-
-extern editor_context* GEctx;	 // Current implicit context pointer
 
 namespace editor
 {
@@ -511,6 +441,9 @@ namespace editor::models
 	struct project_open_data;
 	struct game_project;
 
+	struct struct_info;
+	struct field_info;
+
 	struct em_field;
 	struct em_struct;
 	struct em_scene;
@@ -520,16 +453,6 @@ namespace editor::models
 	struct em_component;
 	struct em_system;
 
-	struct field_info
-	{
-		const char* name;
-		const char* type;
-		const char* serialized_value;
-		size_t		offset;
-		// std::string				child_count;
-		// std::vector<field_info> childs;
-	};
-
 	struct struct_info
 	{
 		uint64		idx;
@@ -537,6 +460,19 @@ namespace editor::models
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
+
+		const void* p_value;
+	};
+
+	struct field_info
+	{
+		const char*		 name;
+		e_primitive_type type;
+		const char*		 serialized_value;
+		void*			 p_value;
+		size_t			 offset;
+		// std::string				child_count;
+		// std::vector<field_info> childs;
 	};
 
 	struct scene_info
@@ -556,9 +492,8 @@ namespace editor::models
 
 	struct component_info
 	{
-		uint64 struct_idx;
-		size_t scene_idx;
-		size_t world_idx;
+		size_t size;
+		void*  p_value;
 	};
 
 	struct entity_info
@@ -581,13 +516,11 @@ namespace editor::models
 
 	struct em_field
 	{
-		editor_id	id;
-		editor_id	struct_id;
-		field_info* p_info;
-		std::string name;
-
-		em_field(field_info* p_info) : p_info(p_info) {};
-		em_field() : em_field(nullptr) {};
+		editor_id		 id;
+		editor_id		 struct_id;
+		e_primitive_type type;
+		field_info*		 p_info;
+		std::string		 name;
 	};
 
 	struct em_scene
@@ -603,18 +536,20 @@ namespace editor::models
 	{
 		editor_id			   id;
 		editor_id			   scene_id;
+		uint64				   ecs_world_idx;
 		world_info*			   p_info;
 		std::string			   name;
 		std::vector<editor_id> structs;
 
 		em_world() : p_info(nullptr) {};
 
-		void inline init(editor_id w_id, editor_id s_id, world_info* p_info)
+		void inline init(editor_id w_id, editor_id s_id, uint64 ecs_w_idx, world_info* p_info)
 		{
-			id			 = w_id;
-			scene_id	 = s_id;
-			this->p_info = p_info;
-			name		 = p_info->name;
+			id			  = w_id;
+			scene_id	  = s_id;
+			ecs_world_idx = ecs_w_idx;
+			this->p_info  = p_info;
+			name		  = p_info->name;
 		}
 	};
 
@@ -625,12 +560,11 @@ namespace editor::models
 
 	struct em_entity
 	{
-		editor_id			   id;
-		editor_id			   world_id;
-		std::string			   name;
-		uint64				   archetype;
-		uint64				   ecs_entity_idx;
-		std::vector<editor_id> components;
+		editor_id	id;
+		editor_id	world_id;
+		std::string name;
+		uint64		archetype;
+		uint64		ecs_entity_idx;
 
 		void inline init(editor_id e_id, editor_id w_id, entity_info* p_info)
 		{
@@ -644,10 +578,10 @@ namespace editor::models
 
 	struct em_component
 	{
-		editor_id	id;
-		editor_id	struct_id;
-		editor_id	entity_id;
-		std::string name;
+		editor_id id;
+		editor_id struct_id;
+		editor_id entity_id;
+		void*	  p_value;
 	};
 
 	struct em_system
@@ -671,6 +605,11 @@ namespace editor::models
 		std::vector<em_struct*> all_structs();
 		std::vector<em_field*>	all_fields(editor_id struct_id);
 	};	  // namespace reflection
+
+	namespace reflection::utils
+	{
+		const char* type_to_string(e_primitive_type type);
+	}
 
 	namespace scene
 	{
@@ -710,62 +649,13 @@ namespace editor::models
 		em_entity*				find(editor_id id);
 		editor_id				create(editor_id entity_id);
 		std::vector<em_entity*> all(editor_id world_id);
-
-		void update();
-		// 에디터에서 ecs의 무언가를 변경했을때
-		// 1. 단순 수치변경 (ex. entity component's value change) : get entity idx and access to p_momory directly
-		// 2. sturctural change (ex. add new component to entity or world) : rebuild?
-		// 3. how to render from editor
-		//	a. render after game play : build => run game loop
-		//	b. render before game play : ???
-		//		ii) 서로 다른 world중 어떤 world는 서로 다른 render pipeline의 대상이 된다 => editor에서 어떻게 이를 알수 있지? => serialize scene => add new macro (world type alias)
-		//		xi) 아니면 그냥 각 scene마다 phase를 정해두고 그중 render phase에 실행되는 모든 pipe들은 render pipeline이라고 치는 것은?
-		//		play mode에서는 update - render ... 모두 실행하는데
-		//		edit mode에서는 render만 실행하는거지
-		//		즉 각 phase와 pipe들을 연결하는것 또한 serialized되야한다.
-		//		나중에 scene 정의시  scene_builder<phase_builder, world_builder> 이렇게 하고 그 결과로
-		//		static inline auto& s = scene<w1, w2, w3...>를 생성하게 하는것은 가능할것 같음
-		//		phase는 pipe인가 function인가
-		//
-		//		scene<world_group<w1, w2, w3...>, phase_group<bind<p1,w1> ,<p2,w2>,<p3,w3>...>>
-		//
-		//
-		// system = system<seq<f1,f2>,par<f1,f2>, cond<f1,f2>, ...>(); //do not need scene
-		// pipeline = p_seq<p_seq<s,0,1,2>,p_par<s2,0,1>,...>          //backed as a scene template parameter, value (funciton pointer)
-		//
-		//
-		// system :
-		// s_seq<param> param : any func(entity_idx, component&...) or s_seq or s_par or s_cond or...
-		// s_seq<f1> (o)
-		// s_seq<f1,s_seq<f2,f3>> => s_seq<f1,f2,f3>
-		//
-		// s_seq<f1,s_par<f2,f3>> => ???
-		//
-		// system().update(world) =>
-		//
-		// pipeline
-		//
-		// p_seq<s,0,1,2> => system().update(scene.get_world<0>()); ...
-		// p_par<s,0,1,2> => ...
-		//
-		//
-		// let's define loop
-		//
-		// game => graphic
-		//										(same result)
-		// game_mode => game => graphic				|=> write some data to p_memory(not sure what)
-		// edit_mode => game(empty) => graphic      |=> write some data to p_memory
-		//
-		// scene::game_pipeline = p_seq<p_seq<s,0,1,2>, p_par<s, 0,1,2>, ...
-		// scene::graphic_pipeline = p_seq<graphic_system, 0,1,2,3,...>
-		//
-		// engine => while(!done){current_scene::game_pipeline(); current_scene::graphic_pipeline();} ...
-		//
-		//
 	}	 // namespace entity
 
 	namespace component
 	{
+		em_component*			   find(editor_id id);
+		editor_id				   create(editor_id entity_id, editor_id struct_id);
+		std::vector<em_component*> all(editor_id entity_id);
 
 	}	 // namespace component
 
@@ -806,7 +696,6 @@ namespace editor::models
 	//}	 // namespace system
 
 	// void register_component(pod::component_info* p_info);
-	void update();
 	void on_project_loaded();
 	void on_project_unloaded();
 }	 // namespace editor::models

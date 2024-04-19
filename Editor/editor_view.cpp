@@ -167,7 +167,7 @@ namespace editor::view::inspector
 				if (widgets::tree_node(p_struct->name))
 				{
 					std::ranges::for_each(models::reflection::all_fields(p_struct->id), [](em_field* p_f) {
-						widgets::tree_node(std::format("{}({}) : {}", p_f->name, p_f->p_info->type, p_f->p_info->serialized_value).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+						widgets::tree_node(std::format("{}({}) : {}", p_f->name, models::reflection::utils::type_to_string(p_f->p_info->type), p_f->p_info->serialized_value).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					});
 					widgets::tree_pop();
 				}
@@ -243,8 +243,8 @@ namespace editor::view::inspector
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 
-		std::ranges::for_each(p_e->components, [=](auto strtuct_id) {
-			auto p_struct = models::reflection::find_struct(strtuct_id);
+		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
+			auto p_struct = models::reflection::find_struct(p_c->struct_id);
 			widgets::text(std::format("{}", p_struct->name).c_str());
 		});
 		// auto p_entity = entity::get(entity_id);
@@ -323,7 +323,7 @@ namespace editor::view::reflection
 				{
 					std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
 						auto selected = false;
-						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, p_f->p_info->type, p_f->p_info->serialized_value), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->p_info->type), p_f->p_info->serialized_value), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					});
 
 

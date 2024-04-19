@@ -255,7 +255,7 @@ void editor::init()
 	float dpi_scale		= ::GetDpiForSystem() / 96.f;
 	auto  screen_size_x = ::GetSystemMetrics(SM_CXSCREEN);
 	auto  screen_size_y = ::GetSystemMetrics(SM_CYSCREEN);
-	HWND  hwnd			= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, screen_size_x / 5, screen_size_y / 5, screen_size_x * 3 / 5, screen_size_y * 3 / 5, nullptr, nullptr, wc.hInstance, nullptr);
+	HWND  hwnd			= ::CreateWindowW(wc.lpszClassName, L"AssembleGE Editor", window_style /*WS_DLGFRAME*/, screen_size_x / 10, screen_size_y / 10, screen_size_x * 4 / 5, screen_size_y * 4 / 5, nullptr, nullptr, wc.hInstance, nullptr);
 
 	// Initialize Direct3D
 	if (!CreateDeviceD3D(hwnd))
@@ -385,7 +385,6 @@ void editor::run()
 
 		_custom_caption();
 
-		editor::models::update();
 		editor::view::show();
 
 		ImGui::ShowDemoWindow();
@@ -1523,6 +1522,11 @@ namespace editor::undoredo
 
 namespace editor::models
 {
+	// why not std::unordered_map<em_scene, editor_id, editor_id::hash_func> _scenes;
+	// 1. ordering
+	// 2. hard to query ex. find(entity) => scene -> world -> entity
+
+	// todo unoredered_map => index based sparsed array
 	namespace reflection
 	{
 		namespace
@@ -1663,6 +1667,51 @@ namespace editor::models
 			assert(res);
 		}
 	}	 // namespace reflection
+
+	namespace reflection::utils
+	{
+		namespace
+		{
+			const char* _type_names[primitive_type_count] {
+				"int2",
+				"int3",
+				"int4",
+
+				"uint2",
+				"uint3",
+				"uint4",
+
+				"float2",
+				"float2a",
+				"float3",
+				"float3a",
+				"float4",
+				"float4a",
+
+				"float3x3",
+				"float4x4",
+				"float4x4a",
+
+				"uint64",
+				"uint32",
+				"uint16",
+				"uint8",
+
+				"int64",
+				"int32",
+				"int16",
+				"int8",
+
+				"float32",
+				"double64",
+			};
+		}	 // namespace
+
+		const char* type_to_string(e_primitive_type type)
+		{
+			return _type_names[type];
+		}
+	}	 // namespace reflection::utils
 
 	namespace scene
 	{
@@ -2100,7 +2149,7 @@ namespace editor::models
 		{
 			if (_idx_map.contains(entity_id))
 			{
-				auto idx_pair = _idx_map[entity_id];
+				auto& idx_pair = _idx_map[entity_id];
 				return &_entities[idx_pair.first][idx_pair.second];
 			}
 			else
@@ -2123,7 +2172,7 @@ namespace editor::models
 			auto  entity_idx = _entities[world_idx].size();
 			auto& e			 = _entities[world_idx].emplace_back();
 			e.id			 = id::get_new(DataType_Entity);
-			e.name			 = std::format("new_world##{0}", e.id.str());
+			e.name			 = std::format("new_entity##{0}", e.id.str());
 			e.world_id		 = world_id;
 			_idx_map.insert({ e.id, std::pair(world_idx, entity_idx) });
 			return e.id;
@@ -2169,10 +2218,6 @@ namespace editor::models
 		//	id::delete_id(id);
 		//}
 
-		void update()
-		{
-		}
-
 		std::vector<em_entity*> all(editor_id world_id)
 		{
 			assert(world::find(world_id) != nullptr);
@@ -2186,30 +2231,87 @@ namespace editor::models
 			auto res = _entities[world_idx] | std::views::transform([](em_entity& e) { return &e; });
 			return std::vector(res.begin(), res.end());
 		}
+
+		void on_project_unloaded()
+		{
+			_entities.clear();
+			_idx_map.clear();
+		}
+
+		void on_project_loaded()
+		{
+			auto res = true;
+			// res		 &= add_context_item("Entity\\Add New Entity", &entity::cmd_create);
+			// res		 &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
+			assert(res);
+		}
 	}	 // namespace entity
 
 	namespace component
 	{
 		namespace
 		{
-		}	 // namespace
-	}		 // namespace component
+			std::vector<std::vector<em_component>>										   _components;
+			std::unordered_map<editor_id, std::pair<uint32, uint32>, editor_id::hash_func> _idx_map;	// key: component_id, value: [entity_idx,component_idx]
+		}																								// namespace
 
-	void update()
-	{
-		if (editor::game::project_opened() is_false)
+		em_component* find(editor_id component_id)
 		{
-			return;
+			if (_idx_map.contains(component_id))
+			{
+				auto& idx_pair = _idx_map[component_id];
+				return &_components[idx_pair.first][idx_pair.second];
+			}
+			else
+			{
+				return nullptr;
+			}
 		}
 
-		entity::update();
-	}
+		editor_id create(editor_id entity_id, editor_id struct_id)
+		{
+			assert(entity::find(entity_id) != nullptr);
+			assert(reflection::find_struct(struct_id) != nullptr);
+
+			auto entity_idx = entity::_idx_map[entity_id].second;
+
+			if (_components.size() <= entity_idx)
+			{
+				_components.resize(entity_idx + 1);
+			}
+
+			auto  component_idx = _components[entity_idx].size();
+			auto& s				= _components[entity_idx].emplace_back();
+			s.id				= id::get_new(DataType_Component);
+			s.entity_id			= entity_id;
+			s.struct_id			= struct_id;
+			_idx_map.insert({ s.id, std::pair(entity_idx, component_idx) });
+			return s.id;
+		}
+
+		std::vector<em_component*> all(editor_id entity_id)
+		{
+			assert(entity::find(entity_id) != nullptr);
+			auto entity_idx = entity::_idx_map[entity_id].second;
+
+			if (_components.size() <= entity_idx)
+			{
+				return std::vector<em_component*>();
+			}
+
+			auto res = _components[entity_idx] | std::views::transform([](em_component& s) { return &s; });
+			return std::vector(res.begin(), res.end());
+		}
+
+		// namespace
+	}	 // namespace component
 
 	void on_project_unloaded()
 	{
 		reflection::on_project_unloaded();
 		scene::on_project_unloaded();
 		world::on_project_unloaded();
+		entity::on_project_unloaded();
 		// component::on_project_unloaded();
 	}
 
@@ -2218,6 +2320,7 @@ namespace editor::models
 		reflection::on_project_loaded();
 		scene::on_project_loaded();
 		world::on_project_loaded();
+		entity::on_project_loaded();
 	}
 }	 // namespace editor::models
 

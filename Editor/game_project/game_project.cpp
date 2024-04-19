@@ -17,16 +17,6 @@ namespace editor::game
 
 	namespace
 	{
-		size_t			(*_get_registered_struct_count)();
-		size_t			(*_get_registered_scene_count)();
-		size_t			(*_get_registered_world_count)();
-		size_t			(*_get_registered_entity_count)(size_t world_index);
-		struct_info*	(*_get_struct_info)(size_t index);
-		scene_info*		(*_get_scene_info)(size_t index);
-		world_info*		(*_get_world_info)(size_t index);
-		component_info* (*_get_component_info)(size_t index);
-		entity_info*	(*_get_entity_info)(size_t world_index, size_t entity_index);
-
 		auto _project_open_datas			  = std::vector<project_open_data>();
 		auto _application_data_directory_path = std::wstring();
 		auto _project_open_data_path		  = std::wstring();
@@ -201,16 +191,6 @@ namespace editor::game
 
 		bool _build_load_dll(std::string project_directory_path, std::string proj_name)
 		{
-			_get_registered_struct_count = nullptr;
-			_get_registered_scene_count	 = nullptr;
-			_get_registered_world_count	 = nullptr;
-			_get_registered_entity_count = nullptr;
-
-			_get_struct_info = nullptr;
-			_get_scene_info	 = nullptr;
-			_get_world_info	 = nullptr;
-			_get_entity_info = nullptr;
-
 			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
 			auto p_program86_path = PWSTR { nullptr };
 			::SHGetKnownFolderPath(FOLDERID_ProgramFilesX86, 0, NULL, &p_program86_path);

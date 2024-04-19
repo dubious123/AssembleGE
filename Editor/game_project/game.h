@@ -58,10 +58,10 @@ namespace editor::game::ecs
 	// draw component(editor_id struct_id, void* p_data)
 	bool init(HMODULE proj_dll);
 
-	bool			   update_models();	   // for runtime
-	void*			   get_p_component(editor_id entity_id, uint64 component_idx);
-	std::vector<void*> get_p_components(editor_id entity_id);
-	void			   set_components(editor_id entity_id, uint64 component_idx, void* p_value);
+	bool						   update_models();	   // for runtime
+	editor::models::component_info get_component(editor_id entity_id, uint64 component_idx);
+	std::vector<void*>			   get_components(editor_id entity_id);
+	void						   set_components(editor_id entity_id, uint64 component_idx, void* p_value);
 }	 // namespace editor::game::ecs
 
 namespace editor::view::project_browser

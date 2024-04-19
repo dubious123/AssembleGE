@@ -15,6 +15,10 @@
 
 #define MEMORY_BLOCK_SIZE (sizeof(uint8) * 1024 * 16)
 
+// todo
+// no runtime calculation from memory_block , do compile time calculation from world
+// world => memoryblock_interpretor => take archetype and return void* ptr
+
 namespace ecs
 {
 	using namespace meta;
@@ -50,7 +54,6 @@ namespace ecs
 			auto arr = std::array<size_t, sizeof...(c)>();
 			auto i	 = 0;
 			([&arr, &i] {
-				// arr[tuple_index_v<c, tuple_sort<component_comparator, c...>::type>] = sizeof(c);
 				arr[tuple_index<c, component_tpl>::value]										  = sizeof(c);
 				arr[tuple_index<c, typename tuple_sort<component_comparator, c...>::type>::value] = sizeof(c);
 				++i;
@@ -71,6 +74,12 @@ namespace ecs
 		};
 	};
 
+	// template <typename... s>
+	// struct par;
+
+	// template <typename t>
+	// concept is_seq = requires { meta::is_same_template_v<t, par>; };
+
 	template <typename t>
 	concept is_seq = requires { t::_seq; };
 
@@ -84,34 +93,34 @@ namespace ecs
 	concept is_node = ecs::is_par<t> || ecs::is_seq<t> || is_cond<t>;
 
 	template <typename system>
-	concept has_on_system_begin = requires(system s) { s.on_system_begin; };
+	concept has_on_system_begin = requires() { &system::on_system_begin; };
+
+	template <typename system, typename world>
+	concept has_on_system_begin_w = requires() { &system::template on_system_begin<world>; };
 
 	template <typename system>
-	concept has_on_system_begin_w = requires(system s) { s.on_system_begin_w; };
+	concept has_on_thread_init = requires() { &system::on_thread_init; };
+
+	template <typename system, typename world>
+	concept has_on_thread_init_w = requires() { &system::template on_thread_init<world>; };
 
 	template <typename system>
-	concept has_on_thread_init = requires(system s) { s.on_thread_init; };
+	concept has_update = requires() { &system::update; };
+
+	template <typename system, typename world>
+	concept has_update_w = requires() { &system::template update<world>; };
 
 	template <typename system>
-	concept has_on_thread_init_w = requires(system s) { s.on_thread_init_w; };
+	concept has_on_thread_dispose = requires() { &system::on_thread_dispose; };
+
+	template <typename system, typename world>
+	concept has_on_thread_dispose_w = requires() { &system::template on_thread_dispose<world>; };
 
 	template <typename system>
-	concept has_update = requires(system s) { s.update; };
+	concept has_on_system_end = requires() { system::on_system_end; };
 
-	template <typename system>
-	concept has_update_w = requires(system s) { s.update_w; };
-
-	template <typename system>
-	concept has_on_thread_dispose = requires(system s) { s.on_thread_dispose; };
-
-	template <typename system>
-	concept has_on_thread_dispose_w = requires(system s) { s.on_thread_dispose_w; };
-
-	template <typename system>
-	concept has_on_system_end = requires(system s) { s.on_system_end; };
-
-	template <typename system>
-	concept has_on_system_end_w = requires(system s) { s.on_system_end_w; };
+	template <typename system, typename world>
+	concept has_on_system_end_w = requires() { system::template on_system_end<world>; };
 
 	template <typename... s>
 	struct par
@@ -120,13 +129,13 @@ namespace ecs
 
 		std::tuple<s...> tpl;
 
-		void update(auto& world)
+		void update(auto&& world)
 		{
 			DEBUG_LOG("---par start (func)---");
 
 			std::vector<std::thread> threads;
 			([&]() {
-				auto& node = meta::get_tuple_value<s>(std::forward<std::tuple<s...>>(tpl));
+				auto& node = meta::get_tuple_value<s>(tpl);
 				if constexpr (is_node<s>)
 				{
 					threads.emplace_back([&]() {
@@ -161,11 +170,11 @@ namespace ecs
 
 		std::tuple<s...> tpl;
 
-		void update(auto& world)
+		void update(auto&& world)
 		{
 			DEBUG_LOG("---seq start (func)---");
 			([&]() {
-				auto& node = meta::get_tuple_value<s>(std::forward<std::tuple<s...>>(tpl));
+				auto& node = meta::get_tuple_value<s>(tpl);
 				if constexpr (is_node<s>)
 				{
 					int a = 2;
@@ -191,7 +200,7 @@ namespace ecs
 		s_l left;
 		s_r right;
 
-		void update(auto& world)
+		void update(auto&& world)
 		{
 			DEBUG_LOG("---cond start (func)---");
 			if (cond_func())
@@ -451,53 +460,53 @@ namespace ecs
 		template <typename sys, typename... t>
 		static consteval archetype_t _calc_func_archetype(void (sys::*)(t...))
 		{
-			return _calc_archetype<std::remove_reference_t<t>...>();
+			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename... t>
 		static consteval archetype_t _calc_func_archetype(void (sys::*)(entity_idx, t...))
 		{
-			return _calc_archetype<std::remove_reference_t<t>...>();
+			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename w, typename... t>
 		static consteval archetype_t _calc_func_archetype(void (sys::*)(w, t...))
 		{
-			return _calc_archetype<std::remove_reference_t<t>...>();
+			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename w, typename... t>
 		static consteval archetype_t _calc_func_archetype(void (sys::*)(w, entity_idx, t...))
 		{
-			return _calc_archetype<std::remove_reference_t<t>...>();
+			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename system_t, typename... t>
 		void _update_entity(system_t& sys, void (system_t::*func)(t...), memory_block& mem_block, uint16 m_idx)
 		{
-			static constinit const auto archetype = _calc_archetype<std::remove_const_t<std::remove_reference_t<t>>...>();
-			(sys.*func)(mem_block.get_entity_idx(m_idx), *(std::remove_const_t<std::remove_reference_t<t>>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
+			(sys.*func)(*(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename system_t, typename... t>
 		void _update_entity(system_t& sys, void (system_t::*func)(entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
-			static constinit const auto archetype = _calc_archetype<std::remove_const_t<std::remove_reference_t<t>>...>();
-			(sys.*func)(*(std::remove_const_t<std::remove_reference_t<t>>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
+			(sys.*func)(mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
 		void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
-			static constinit const auto archetype = _calc_archetype<std::remove_const_t<std::remove_reference_t<t>>...>();
-			(sys.*func)(world, mem_block.get_entity_idx(m_idx), *(std::remove_const_t<std::remove_reference_t<t>>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
+			(sys.*func)(world, mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
 		void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, t...), memory_block& mem_block, uint16 m_idx)
 		{
-			static constinit const auto archetype = _calc_archetype<std::remove_const_t<std::remove_reference_t<t>>...>();
-			(sys.*func)(world, *(std::remove_const_t<std::remove_reference_t<t>>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_const_t<std::remove_reference_t<t>>>(archetype)))...);
+			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
+			(sys.*func)(world, *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename sys>
@@ -505,11 +514,16 @@ namespace ecs
 		{
 			if constexpr (has_update<sys>)
 			{
+				// return 0;
 				return _calc_func_archetype(&sys::update);
 			}
-			else if constexpr (has_update_w<sys>)
+			// else if constexpr (has_update_w<sys>)
+			//{
+			//	return _calc_func_archetype(&sys::template update_w<ecs::world<c...>>);
+			// }
+			else if constexpr (has_update_w<sys, world<c...>>)
 			{
-				return _calc_func_archetype(&sys::template update_w<ecs::world<c...>>);
+				return _calc_func_archetype(&sys::template update<ecs::world<c...>>);
 			}
 			else
 			{
@@ -864,9 +878,9 @@ namespace ecs
 			{
 				sys.on_system_begin();
 			}
-			else if constexpr (has_on_system_begin_w<system_t>)
+			else if constexpr (has_on_system_begin_w<system_t, world_t>)
 			{
-				sys.on_system_begin_w(*this);
+				sys.on_system_begin(*this);
 			}
 
 			auto threads = data_structure::vector<std::thread>();
@@ -882,9 +896,9 @@ namespace ecs
 								{
 									sys.on_thread_init();
 								}
-								else if constexpr (has_on_thread_init_w<system_t>)
+								else if constexpr (has_on_thread_init_w<system_t, world_t>)
 								{
-									sys.on_thread_init_w(*this);
+									sys.on_thread_init(*this);
 								}
 
 								auto count = mem_block.get_count();
@@ -894,9 +908,9 @@ namespace ecs
 									{
 										_update_entity(sys, &system_t::update, mem_block, m_idx);
 									}
-									else if constexpr (has_update_w<system_t>)
+									else if constexpr (has_update_w<system_t, world_t>)
 									{
-										_update_entity((*this), sys, &system_t::template update_w<ecs::world<c...>>, mem_block, m_idx);
+										_update_entity((*this), sys, &system_t::template update<world_t>, mem_block, m_idx);
 									}
 								}
 
@@ -904,9 +918,9 @@ namespace ecs
 								{
 									sys.on_thread_dispose();
 								}
-								else if constexpr (has_on_thread_dispose_w<system_t>)
+								else if constexpr (has_on_thread_dispose_w<system_t, world_t>)
 								{
-									sys.on_thread_dispose_w(*this);
+									sys.on_thread_dispose(*this);
 								}
 							});
 					}
@@ -918,9 +932,9 @@ namespace ecs
 			{
 				sys.on_system_end();
 			}
-			else if constexpr (has_on_system_end_w<system_t>)
+			else if constexpr (has_on_system_end_w<system_t, world_t>)
 			{
-				sys.on_system_end_w(*this);
+				sys.on_system_end(*this);
 			}
 
 			DEBUG_LOG("sys perform end");

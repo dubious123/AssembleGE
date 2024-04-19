@@ -192,17 +192,17 @@ namespace meta
 	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
 	// };
 
-	template <std::size_t idx, auto func>
-	struct param_count;
+	// template <std::size_t idx, auto func>
+	// struct param_count;
 
-	template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
-	struct param_count<i, func>
-	{
-		static const constinit auto value = sizeof...(args);
-	};
+	// template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
+	// struct param_count<i, func>
+	//{
+	//	static const constinit auto value = sizeof...(args);
+	// };
 
-	template <std::size_t idx, auto func>
-	inline constexpr const auto param_count = param_at<idx, func>::value;
+	// template <std::size_t idx, auto func>
+	// inline constexpr const auto param_count = param_at<idx, func>::value;
 
 	template <typename t, typename head, typename... tails>
 	consteval size_t get_variadic_index()
@@ -249,11 +249,11 @@ namespace meta
 		return std::get<variadic_index_v<t, ts...>>(tpl);
 	}
 
-	// template <typename t, typename tuple>
-	// t get_tuple_value(tuple tpl)
-	//{
-	//	return std::get<tuple_index_v<t, tuple>>(tpl);
-	// }
+	template <typename t, typename... ts>
+	auto& get_tuple_value(std::tuple<ts...>& tpl)
+	{
+		return std::get<variadic_index_v<t, ts...>>(tpl);
+	}
 
 	template <typename... ts>
 	using tuple_cat_t = decltype(std::tuple_cat(std::declval<ts>()...));
@@ -374,15 +374,21 @@ namespace meta
 	};
 
 	template <typename fn, typename t, int... s>
-	void __call(fn&& f, t tpl, __seq<s...>)
+	void __call(fn&& f, t&& tpl, __seq<s...>)
 	{
-		f(std::get<s>(tpl)...);
+		f(std::get<s>(std::forward<t>(tpl))...);
 	}
 
 	template <typename fn, typename... ts>
-	void call_w_tpl_args(fn&& f, std::tuple<ts...> tpl)
+	void call_w_tpl_args(fn&& f, std::tuple<ts...>& tpl)
 	{
-		__call(std::forward<fn>(f), std::forward<std::tuple<ts...>>(tpl), int_seq<sizeof...(ts)>::type());
+		__call(std::forward<fn>(f), tpl, int_seq<sizeof...(ts)>::type());
+	}
+
+	template <typename fn, typename... ts>
+	void call_w_tpl_args(fn&& f, std::tuple<ts...>&& tpl)
+	{
+		__call(std::forward<fn>(f), tpl, int_seq<sizeof...(ts)>::type());
 	}
 
 	// use case : meta::func_args_t<decltype(func)>() ...
@@ -427,4 +433,17 @@ namespace meta
 
 	template <typename t>
 	using func_ret_t = func_ret<t>::type;
+
+	template <template <typename...> class, template <typename...> class>
+	struct is_same_template : std::false_type
+	{
+	};
+
+	template <template <typename...> class t>
+	struct is_same_template<t, t> : std::true_type
+	{
+	};
+
+	template <template <typename...> class tl, template <typename...> class tr>
+	static inline constinit const auto is_same_template_v = is_same_template<tr, tr>::value;
 }	 // namespace meta

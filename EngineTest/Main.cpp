@@ -254,19 +254,19 @@ struct system_1
 {
 	int* p_int;
 
-	void on_system_begin_w(auto& world)
+	void on_system_begin(auto& world)
 	{
 	}
 
-	void on_thread_init_w(auto& world) { }
+	void on_thread_init(auto& world) { }
 
-	void update_w(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	void on_thread_dispose() { }
 
-	void on_system_end() { }
+	void on_system_end(auto& world) { }
 
 	system_1()
 	{
@@ -282,7 +282,8 @@ struct system_1
 
 struct system_2
 {
-	void update_w(auto& world, transform& t, bullet& v) {};
+	// void update_w(auto& world, transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -293,6 +294,9 @@ using namespace ecs;
 
 int main()
 {
+	static_assert(ecs::has_update<system_1> == false);
+	static_assert(ecs::has_update_w<system_1, decltype(world_2)> == true, "!!!");
+	// static_assert(false);
 	std::cout << std::format("{:04x}-{:016x}", 1, -1);
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);

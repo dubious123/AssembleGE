@@ -23,16 +23,16 @@
 	  public:
 
 
-#define SERIALIZE_FIELD(type, field_name, ...)                                                                                                                          \
-	type field_name { __VA_ARGS__ };                                                                                                                                    \
-                                                                                                                                                                        \
-  private:                                                                                                                                                              \
-	static inline bool __detail__field_init_##field_name = []() {                                                                                                       \
-		/*reflection::register_field(id, __detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__); \*/ \
-		reflection::register_field(__detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__);           \
-		return false;                                                                                                                                                   \
-	}();                                                                                                                                                                \
-                                                                                                                                                                        \
+#define SERIALIZE_FIELD(type, field_name, ...)                                                                                                                                \
+	type field_name { __VA_ARGS__ };                                                                                                                                          \
+                                                                                                                                                                              \
+  private:                                                                                                                                                                    \
+	static inline bool __detail__field_init_##field_name = []() {                                                                                                             \
+		/*reflection::register_field(id, __detail__struct_name, #type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__); \*/       \
+		reflection::register_field(__detail__struct_name, primitive_type_##type, #field_name, field_offset<__detail_self, type, &__detail_self::field_name>(), #__VA_ARGS__); \
+		return false;                                                                                                                                                         \
+	}();                                                                                                                                                                      \
+                                                                                                                                                                              \
   public:
 #define COMPNENT_END() \
 	}                  \
@@ -89,10 +89,11 @@ namespace reflection
 {
 	struct field_info
 	{
-		const char* name;
-		const char* type;
-		const char* serialized_value;
-		size_t		offset;
+		const char*		 name;
+		e_primitive_type type;
+		const char*		 serialized_value;
+		void*			 p_value;
+		size_t			 offset;
 		// std::string				child_count;
 		// std::vector<field_info> childs;
 	};
@@ -102,11 +103,16 @@ namespace reflection
 		struct_info();
 		struct_info(uint64 idx, const char* name);
 		struct_info(uint64 idx, uint64 hash_id, const char* name);
+
+		~struct_info();
+
 		uint64		idx;
 		uint64		hash_id;
 		const char* name;
 		size_t		field_count;
 		field_info* fields;
+
+		void* p_value;
 	};
 
 	struct scene_info
@@ -128,10 +134,10 @@ namespace reflection
 
 	struct component_info
 	{
-		uint64 struct_idx;
-		size_t scene_idx;
-		size_t world_idx;
+		size_t size;
 		void*  p_value;
+
+		component_info(size_t size, void* p_value) : size(size), p_value(p_value) {};
 	};
 
 	struct entity_info
@@ -143,7 +149,7 @@ namespace reflection
 
 	void register_struct(const char* name, uint64 hash_id);
 
-	void register_field(const char* struct_name, const char* type, const char* name, size_t offset, const char* serialized_value);
+	void register_field(const char* struct_name, e_primitive_type type, const char* name, size_t offset, const char* serialized_value);
 
 	void register_scene(const char* name);
 
@@ -158,15 +164,23 @@ namespace reflection
 	EDITOR_API size_t get_registered_world_count();
 	EDITOR_API size_t get_registered_entity_count(size_t world_idx);
 
-	EDITOR_API struct_info*	   get_struct_info(uint64 component_id);
-	EDITOR_API scene_info*	   get_scene_info(size_t index);
-	EDITOR_API world_info*	   get_world_info(size_t index);
-	EDITOR_API component_info* get_component_info(size_t index);
-	EDITOR_API entity_info*	   get_entity_info(size_t world_idx, size_t entity_idx);
+	EDITOR_API struct_info*	  get_struct_info(uint64 component_id);
+	EDITOR_API scene_info*	  get_scene_info(size_t index);
+	EDITOR_API world_info*	  get_world_info(size_t index);
+	EDITOR_API component_info get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx);
+	EDITOR_API entity_info*	  get_entity_info(size_t world_idx, size_t entity_idx);
 }	 // namespace reflection
 
 namespace reflection
 {
+	template <typename t>
+	t* malloc_struct()
+	{
+		t* ptr = malloc(sizeof(t));
+		new (ptr) t();
+		return ptr;
+	}
+
 	template <meta::string_wrapper str_wrapper, typename... c>
 	struct world_wrapper
 	{
