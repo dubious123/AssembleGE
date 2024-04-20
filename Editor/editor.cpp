@@ -1149,7 +1149,7 @@ namespace editor
 			style::push_var(ImGuiStyleVar_ItemSpacing, ImVec2());
 			style::push_color(ImGuiCol_HeaderHovered, COL_BG_SELECTED);
 			style::push_color(ImGuiCol_HeaderActive, style::get_color_v4(ImGuiCol_PopupBg));
-			widgets::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * platform::dpi_scale() + CAPTION_ICON_SIZE.y * platform::dpi_scale() - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
+			platform::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * platform::dpi_scale() + CAPTION_ICON_SIZE.y * platform::dpi_scale() - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
 			if (widgets::begin_child("Main Menu Bar", window_size, false, window_flags))
 			{
 				const auto& main_menu_node						= _ctx_item_xml_node;	 //_ctx_items[0];
@@ -1241,9 +1241,9 @@ namespace editor
 			style::push_var(ImGuiStyleVar_WindowBorderSize, 0.0f);
 			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2());
 
-			widgets::set_next_window_viewport(viewport.id());
-			widgets::set_next_window_pos(viewport.pos());
-			widgets::set_next_window_size(menuSize);
+			platform::set_next_window_viewport(viewport.id());
+			platform::set_next_window_pos(viewport.pos());
+			platform::set_next_window_size(menuSize);
 			if (widgets::begin("Caption", nullptr, window_flags))
 			{
 				_menu_bar();
@@ -1496,7 +1496,7 @@ namespace editor::undoredo
 		assert(res);
 	}
 
-	void add(undo_redo_cmd& undo_redo)
+	void add(const undo_redo_cmd& undo_redo)
 	{
 		_undo_vec.emplace_back(undo_redo);
 		_redo_vec.clear();
@@ -1712,6 +1712,11 @@ namespace editor::models
 				{ "double64", sizeof(double64) },
 			};
 		}	 // namespace
+
+		size_t type_size(e_primitive_type type)
+		{
+			return _info_lut[type].size;
+		}
 
 		const char* type_to_string(e_primitive_type type)
 		{
@@ -2377,12 +2382,12 @@ namespace editor::models
 			}
 
 			auto  component_idx = _components[entity_idx].size();
-			auto& s				= _components[entity_idx].emplace_back();
-			s.id				= id::get_new(DataType_Component);
-			s.entity_id			= entity_id;
-			s.struct_id			= struct_id;
-			_idx_map.insert({ s.id, std::pair(entity_idx, component_idx) });
-			return s.id;
+			auto& c				= _components[entity_idx].emplace_back();
+			c.id				= id::get_new(DataType_Component);
+			c.entity_id			= entity_id;
+			c.struct_id			= struct_id;
+			_idx_map.insert({ c.id, std::pair(entity_idx, component_idx) });
+			return c.id;
 		}
 
 		std::vector<em_component*> all(editor_id entity_id)

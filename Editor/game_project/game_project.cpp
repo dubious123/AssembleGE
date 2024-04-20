@@ -135,15 +135,15 @@ namespace editor::game
 
 			if (want_output)
 			{
-				auto dwRead		 = 0ul;
-				char chBuf[4096] = { 0 };
+				char c_buf[4096] = { 0 };
+				auto read_count	 = 0ul;
 				auto write_pos	 = 0ul;
-				while (ReadFile(hchild_out_rd, chBuf, 4096, &dwRead, nullptr))
+				while (ReadFile(hchild_out_rd, c_buf, 4096, &read_count, nullptr))
 				{
-					write_pos += dwRead;
+					write_pos += read_count;
 				}
 
-				*p_child_out = write_pos > 2 ? std::string(chBuf, write_pos - 2) : std::string(chBuf);
+				*p_child_out = std::string(c_buf);
 			}
 
 			return error_code;
@@ -198,6 +198,8 @@ namespace editor::game
 			auto ms_build_path		  = std::string();
 			_run_cmd(find_msbuild_command, &ms_build_path);
 
+			ms_build_path.resize(ms_build_path.size() - 2);	   // to remove /r/n
+
 #ifdef _DEBUG_EDITOR
 			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=DebugEditor /p:platform=x64 /p:PreBuildEventUseInBuild=true", ms_build_path, sln_path);
 			auto dll_path	   = std::format("{}\\x64\\DebugEditor\\{}.dll", project_directory_path, proj_name);
@@ -213,6 +215,7 @@ namespace editor::game
 
 			if (build_success is_false)
 			{
+				logger::error(output);
 				return false;
 			}
 

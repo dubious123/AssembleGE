@@ -1,3 +1,0 @@
-[2024-04-20 03:41:04.828] [Editor Logger] [info] Hi
-[2024-04-20 03:41:06.669] [Editor Logger] [info] Open Completed
-[2024-04-20 03:41:11.013] [Editor Logger] [info] Select 0x00000000000000

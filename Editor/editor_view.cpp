@@ -152,11 +152,22 @@ namespace editor::view::inspector
 	{
 		auto* p_s = editor::models::reflection::find_struct(struct_id);
 		// auto& str_vec = editor::models::reflection::utils::deserialize(struct_id, ptr);
-		if (widgets::tree_node(p_s->name.c_str()))
+		if (widgets::tree_node(p_s->name))
 		{
 			std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
 				auto selected = false;
 				widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, _offset_to_ptr(p_f->offset, ptr))), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+
+				// widgets::component_drag(std::format("##{}", p_f->id.value), p_f->type, _offset_to_ptr(p_f->offset, ptr));
+
+				if (widgets::is_item_activated())
+				{
+					editor::logger::info("start value : {:f}", *(float*)(_offset_to_ptr(p_f->offset, ptr)));
+				}
+				else if (widgets::is_item_deactivated_after_edit())
+				{
+					editor::logger::info("end value : {:f}", *(float*)(_offset_to_ptr(p_f->offset, ptr)));
+				}
 			});
 
 			widgets::tree_pop();
@@ -280,7 +291,7 @@ namespace editor::view::inspector
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
-			_draw_struct(p_c->struct_id, p_c->p_value);
+			widgets::component_drag(p_c->id);
 			// auto p_struct = models::reflection::find_struct(p_c->struct_id);
 			// widgets::text(std::format("{}", p_struct->name).c_str());
 		});
@@ -386,9 +397,9 @@ namespace editor::view
 			style::push_var(ImGuiStyleVar_WindowRounding, 0.0f);
 			style::push_var(ImGuiStyleVar_WindowBorderSize, 0.0f);
 			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2());
-			ImGui::SetNextWindowPos(pos);
-			ImGui::SetNextWindowSize(size);
-			ImGui::SetNextWindowViewport(mainViewPort->ID);
+			platform::set_next_window_pos(pos);
+			platform::set_next_window_size(size);
+			platform::set_next_window_viewport(mainViewPort->ID);
 			if (widgets::begin("MainView", NULL, window_flags))
 			{
 				ImGui::DockSpace(ImGui::GetID("DockSpace"), size, ImGuiDockNodeFlags_None);	   // | ImGuiDockNodeFlags_NoSplit);

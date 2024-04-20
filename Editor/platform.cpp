@@ -55,6 +55,30 @@ window_info editor::platform::get_window_info()
 	return { ImGui::GetCurrentWindowRead() };
 }
 
+void editor::platform::set_next_window_pos(const ImVec2& pos, ImGuiCond cond, const ImVec2& pivot)
+{
+	assert(cond == 0 || (cond != 0 && (cond & (cond - 1)) == 0));	 // Make sure the user doesn't attempt to combine multiple condition flags.
+	GImGui->NextWindowData.Flags	   |= ImGuiNextWindowDataFlags_HasPos;
+	GImGui->NextWindowData.PosVal		= pos;
+	GImGui->NextWindowData.PosPivotVal	= pivot;
+	GImGui->NextWindowData.PosCond		= cond ? cond : ImGuiCond_Always;
+	GImGui->NextWindowData.PosUndock	= true;
+}
+
+void editor::platform::set_next_window_size(const ImVec2& size, ImGuiCond cond)
+{
+	assert(cond == 0 || (cond != 0 && (cond & (cond - 1)) == 0));	 // Make sure the user doesn't attempt to combine multiple condition flags.
+	GImGui->NextWindowData.Flags	|= ImGuiNextWindowDataFlags_HasSize;
+	GImGui->NextWindowData.SizeVal	 = size;
+	GImGui->NextWindowData.SizeCond	 = cond ? cond : ImGuiCond_Always;
+}
+
+void editor::platform::set_next_window_viewport(ImGuiID id)
+{
+	GImGui->NextWindowData.Flags	  |= ImGuiNextWindowDataFlags_HasViewport;
+	GImGui->NextWindowData.ViewportId  = id;
+}
+
 bool editor::platform::mouse_clicked(ImGuiMouseButton mouse_button)
 {
 	return GImGui->IO.MouseClicked[mouse_button];

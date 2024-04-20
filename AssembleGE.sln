@@ -11,6 +11,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EngineTest", "EngineTest\En
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Editor", "Editor\Editor.vcxproj", "{26A6AA71-9CF0-4E3B-BEDD-54A33E01FF7B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{20255AED-67F1-4402-8D17-6FD9C4CD5536} = {20255AED-67F1-4402-8D17-6FD9C4CD5536}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GameProjectExample", "GameProjectExample\GameProjectExample.vcxproj", "{2B0F4984-9797-4348-AFB0-891D35CC600B}"
 	ProjectSection(ProjectDependencies) = postProject

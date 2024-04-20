@@ -10,6 +10,11 @@ const ImVec2& editor::style::item_spacing()
 	return GImGui->Style.ItemSpacing;
 }
 
+const ImVec2& editor::style::item_inner_spacing()
+{
+	return GImGui->Style.ItemInnerSpacing;
+}
+
 const float& editor::style::frame_rounding()
 {
 	return GImGui->Style.FrameRounding;

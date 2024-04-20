@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "editor.h"
+
 using namespace ImGui;
 
 namespace
@@ -198,6 +199,31 @@ bool editor::widgets::is_item_hovered(ImGuiHoveredFlags flags)
 	}
 
 	return true;
+}
+
+bool editor::widgets::is_item_active()
+{
+	return ImGui::IsItemActive();
+}
+
+bool editor::widgets::is_item_edited()
+{
+	return ImGui::IsItemEdited();
+}
+
+bool editor::widgets::is_item_activated()
+{
+	return ImGui::IsItemActivated();
+}
+
+bool editor::widgets::is_item_deactivated()
+{
+	return ImGui::IsItemDeactivated();
+}
+
+bool editor::widgets::is_item_deactivated_after_edit()
+{
+	return ImGui::IsItemDeactivatedAfterEdit();
 }
 
 bool editor::widgets::begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
@@ -509,10 +535,7 @@ bool editor::widgets::selectable(const char* label, bool selected, ImGuiSelectab
 	RenderTextClipped(text_min, text_max, label, NULL, &label_size, style.SelectableTextAlign, &bb);
 
 	// Automatically close popups
-	if (pressed and
-		(p_window->Flags & ImGuiWindowFlags_Popup) and
-		not(flags & ImGuiSelectableFlags_DontClosePopups) and
-		not(g.LastItemData.InFlags & ImGuiItemFlags_SelectableDontClosePopup))
+	if (pressed and (p_window->Flags & ImGuiWindowFlags_Popup) and not(flags & ImGuiSelectableFlags_DontClosePopups) and not(g.LastItemData.InFlags & ImGuiItemFlags_SelectableDontClosePopup))
 	{
 		CloseCurrentPopup();
 	}
@@ -939,30 +962,6 @@ void editor::widgets::item_size(const ImVec2& size, float text_baseline_y)
 	ImGui::ItemSize(size, text_baseline_y);
 }
 
-void editor::widgets::set_next_window_pos(const ImVec2& pos, ImGuiCond cond, const ImVec2& pivot)
-{
-	assert(cond == 0 || (cond != 0 && (cond & (cond - 1)) == 0));	 // Make sure the user doesn't attempt to combine multiple condition flags.
-	GImGui->NextWindowData.Flags	   |= ImGuiNextWindowDataFlags_HasPos;
-	GImGui->NextWindowData.PosVal		= pos;
-	GImGui->NextWindowData.PosPivotVal	= pivot;
-	GImGui->NextWindowData.PosCond		= cond ? cond : ImGuiCond_Always;
-	GImGui->NextWindowData.PosUndock	= true;
-}
-
-void editor::widgets::set_next_window_size(const ImVec2& size, ImGuiCond cond)
-{
-	assert(cond == 0 || (cond != 0 && (cond & (cond - 1)) == 0));	 // Make sure the user doesn't attempt to combine multiple condition flags.
-	GImGui->NextWindowData.Flags	|= ImGuiNextWindowDataFlags_HasSize;
-	GImGui->NextWindowData.SizeVal	 = size;
-	GImGui->NextWindowData.SizeCond	 = cond ? cond : ImGuiCond_Always;
-}
-
-void editor::widgets::set_next_window_viewport(ImGuiID id)
-{
-	GImGui->NextWindowData.Flags	  |= ImGuiNextWindowDataFlags_HasViewport;
-	GImGui->NextWindowData.ViewportId  = id;
-}
-
 const ImRect& editor::widgets::get_item_rect()
 {
 	return GImGui->LastItemData.Rect;
@@ -1250,4 +1249,189 @@ void _handle_progress_modal()
 void editor::widgets::on_frame_end()
 {
 	_handle_progress_modal();
+}
+
+// widgets for editor_id and undo-redo
+
+namespace
+{
+	constexpr const auto DRAG_MOUSE_THRESHOLD_FACTOR = 0.5f;
+
+	std::unordered_map<uint32, void*> _backup_map;
+
+	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+
+	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
+	{
+		void* prev_value = *(void**)p_data;
+		auto  res		 = ImGui::DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, flags);
+		auto  item_id	 = GImGui->LastItemData.ID;
+		if (editor::widgets::is_item_activated())
+		{
+			_backup_map[item_id] = prev_value;
+		}
+
+		if (editor::widgets::is_item_deactivated_after_edit())
+		{
+			editor::undoredo::add(
+				{ "edit scalar",
+				  [=]() {
+					  // assert(_backup_map.contains(GImGui->LastItemData.ID));
+					  void* backup = *(void**)p_data;
+					  memcpy(p_data, &_backup_map[item_id], DataTypeGetInfo(data_type)->Size);
+					  _backup_map[item_id] = backup;
+				  },
+				  [=]() {
+					  void* backup = *(void**)p_data;
+					  memcpy(p_data, &_backup_map[item_id], DataTypeGetInfo(data_type)->Size);
+					  _backup_map[item_id] = backup;
+				  } });
+		}
+
+
+		return res;
+	}
+
+	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
+	{
+		auto* window = GetCurrentWindow();
+		if (window->SkipItems)
+			return false;
+
+		bool value_changed = false;
+		BeginGroup();
+		PushID((const void*)id.value);
+		PushMultiItemsWidths(components, CalcItemWidth());
+		size_t type_size = DataTypeGetInfo(data_type)->Size;
+
+		for (int i = 0; i < components; i++)
+		{
+			PushID(i);
+			if (i > 0)
+			{
+				SameLine(0, editor::style::item_inner_spacing().x);
+			}
+
+			value_changed |= _drag_scalar(data_type, p_data, v_speed, p_min, p_max, format, flags);
+			PopID();
+			PopItemWidth();
+			p_data = (void*)((char*)p_data + type_size);
+		}
+		PopID();
+
+		// const char* label_end = FindRenderedTextEnd(label);
+		// if (label != label_end)
+		//{
+		//	SameLine(0, editor::style::item_inner_spacing().x);
+		//	TextEx(label, label_end);
+		// }
+
+		EndGroup();
+		return value_changed;
+	}
+
+	void* _offset_to_ptr(size_t offset, const void* ptr)
+	{
+		return (void*)((char*)ptr + offset);
+	}
+}	 // namespace
+
+bool primitive_drag(editor_id id, e_primitive_type type, void* ptr)
+{
+	constexpr const float f_max = FLT_MAX;
+	constexpr const float f_min = -FLT_MAX;
+	switch (type)
+	{
+	case primitive_type_int2:
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 2);
+	case primitive_type_int3:
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 3);
+	case primitive_type_int4:
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 4);
+
+	case primitive_type_uint2:
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 2);
+	case primitive_type_uint3:
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 3);
+	case primitive_type_uint4:
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 4);
+
+	case primitive_type_float2:
+	case primitive_type_float2a:
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 2);
+	case primitive_type_float3:
+	case primitive_type_float3a:
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3);
+	case primitive_type_float4:
+	case primitive_type_float4a:
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4);
+	case primitive_type_uint64:
+		return _drag_scalar(ImGuiDataType_U64, ptr);
+	case primitive_type_uint32:
+		return _drag_scalar(ImGuiDataType_U32, ptr);
+	case primitive_type_uint16:
+		return _drag_scalar(ImGuiDataType_U16, ptr);
+	case primitive_type_uint8:
+		return _drag_scalar(ImGuiDataType_U8, ptr);
+	case primitive_type_int64:
+		return _drag_scalar(ImGuiDataType_U64, ptr);
+	case primitive_type_int32:
+		return _drag_scalar(ImGuiDataType_U32, ptr);
+	case primitive_type_int16:
+		return _drag_scalar(ImGuiDataType_U16, ptr);
+	case primitive_type_int8:
+		return _drag_scalar(ImGuiDataType_U8, ptr);
+	case primitive_type_float32:
+		return _drag_scalar(ImGuiDataType_Float, ptr);
+	case primitive_type_double64:
+		return _drag_scalar(ImGuiDataType_Double, ptr);
+	case primitive_type_float3x3:
+	{
+		auto res = false;
+		std::ranges::for_each(std::views::iota(0, 3), [&](auto row) {
+			PushID(row);
+			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3);
+			ptr	 = (void*)((char*)ptr + sizeof(float) * 3);
+			PopID();
+		});
+		return res;
+	}
+	case primitive_type_float4x4:
+	case primitive_type_float4x4a:
+	{
+		auto res = false;
+		std::ranges::for_each(std::views::iota(0, 4), [&](auto row) {
+			PushID(row);
+			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4);
+			ptr	 = (void*)((char*)ptr + sizeof(float) * 4);
+			PopID();
+		});
+		return res;
+	}
+	default:
+		break;
+	}
+
+	return false;
+}
+
+bool editor::widgets::component_drag(editor_id c_id)
+{
+	using namespace editor::models;
+	constexpr const float f_max = FLT_MAX;
+	constexpr const float f_min = -FLT_MAX;
+
+	auto* p_component = component::find(c_id);
+	auto* p_struct	  = reflection::find_struct(p_component->struct_id);
+
+	ImGui::PushID((const void*)c_id.value);
+	std::ranges::for_each(reflection::all_fields(p_struct->id), [=](auto* p_f) {
+		primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, p_component->p_value));
+	});
+
+	ImGui::PopID();
+
+
+	return false;
 }

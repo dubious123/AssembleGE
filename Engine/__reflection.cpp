@@ -48,7 +48,7 @@ namespace reflection
 	}
 
 	struct_info::struct_info(struct_info&& other) noexcept
-		: idx(other.idx), hash_id(other.hash_id), name(other.name), p_default_value(other.p_default_value), fields(nullptr), field_count(0)
+		: idx(other.idx), hash_id(other.hash_id), name(other.name), p_default_value(other.p_default_value), fields(other.fields), field_count(other.field_count)
 	{
 		other.p_default_value = nullptr;
 	}
@@ -92,6 +92,7 @@ namespace reflection
 
 		auto& field_vec = _field_info_vec().back();
 		field_vec.emplace_back(info);
+		auto& struct_info					  = _struct_info_vec().back();
 		_struct_info_vec().back().fields	  = &field_vec[0];
 		_struct_info_vec().back().field_count = field_vec.size();
 	}
@@ -195,6 +196,8 @@ namespace reflection
 		auto&		 e			  = p_world_base->entities[e_info->idx];
 
 		auto& mem_block = p_world_base->memory_block_vec_map[e.archetype][e.mem_block_idx];
+		auto* ptr		= mem_block.get_component_ptr(e.memory_idx, component_idx);
+		auto  size		= mem_block.get_component_size(component_idx);
 		return { mem_block.get_component_size(component_idx), mem_block.get_component_ptr(e.memory_idx, component_idx) };
 	}
 

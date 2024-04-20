@@ -276,6 +276,7 @@ namespace editor::style
 {
 	const ImVec2& frame_padding();
 	const ImVec2& item_spacing();
+	const ImVec2& item_inner_spacing();
 	const float&  frame_rounding();
 	const ImVec2& window_padding();
 	float		  font_size();
@@ -313,6 +314,10 @@ namespace editor::platform
 
 	window_info get_window_info();
 
+	void set_next_window_pos(const ImVec2& pos, ImGuiCond cond = 0, const ImVec2& pivot = ImVec2(0, 0));
+	void set_next_window_size(const ImVec2& size, ImGuiCond cond = 0);
+	void set_next_window_viewport(ImGuiID id);
+
 	bool mouse_clicked(ImGuiMouseButton mouse_button = 0);
 }	 // namespace editor::platform
 
@@ -328,10 +333,14 @@ namespace editor::widgets
 	void draw_text_clipped(const ImVec2& pos_min, const ImVec2& pos_max, const char* text, const char* text_end, const ImVec2* text_size_if_known, const ImVec2& align = ImVec2(0, 0), const ImRect* clip_rect = nullptr);
 	void draw_frame(ImVec2 p_min, ImVec2 p_max, ImU32 fill_col, bool border = true, float rounding = 0.0f);
 
-
 	bool button_behavior(const ImRect& bb, ImGuiID id, bool* out_hovered, bool* out_held, ImGuiButtonFlags flags = 0);
 	bool is_item_clicked(ImGuiMouseButton mouse_button = 0);
 	bool is_item_hovered(ImGuiHoveredFlags flags = 0);
+	bool is_item_active();
+	bool is_item_edited();
+	bool is_item_activated();
+	bool is_item_deactivated();
+	bool is_item_deactivated_after_edit();
 
 
 	bool begin(const char* name, bool* p_open = nullptr, ImGuiWindowFlags flags = 0);
@@ -360,10 +369,6 @@ namespace editor::widgets
 	bool add_item(const ImRect& bb, ImGuiID id, const ImRect* nav_bb = nullptr, ImGuiItemFlags extra_flags = 0);
 
 	void item_size(const ImVec2& size, float text_baseline_y = -1.0f);
-
-	void set_next_window_pos(const ImVec2& pos, ImGuiCond cond = 0, const ImVec2& pivot = ImVec2(0, 0));
-	void set_next_window_size(const ImVec2& size, ImGuiCond cond = 0);
-	void set_next_window_viewport(ImGuiID id);
 
 	const ImRect& get_item_rect();
 
@@ -414,6 +419,11 @@ namespace editor::widgets
 	void on_frame_end();
 }	 // namespace editor::widgets
 
+namespace editor::widgets
+{
+	bool component_drag(editor_id c_id);
+}
+
 namespace editor::undoredo
 {
 	struct undo_redo_cmd
@@ -424,7 +434,7 @@ namespace editor::undoredo
 		std::function<void()> redo;
 	};
 
-	void add(undo_redo_cmd& undo_redo);
+	void add(const undo_redo_cmd& undo_redo);
 	void on_project_loaded();
 
 	// void Init();
@@ -588,6 +598,7 @@ namespace editor::models
 
 	namespace reflection::utils
 	{
+		size_t					 type_size(e_primitive_type type);
 		const char*				 type_to_string(e_primitive_type type);
 		std::string				 deserialize(e_primitive_type type, const void* ptr);
 		std::vector<std::string> deserialize(editor_id struct_id);

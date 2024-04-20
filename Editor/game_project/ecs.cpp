@@ -17,15 +17,15 @@ namespace editor::game::ecs
 {
 	using namespace editor::models;
 
-	size_t		   (*_get_registered_struct_count)();
-	size_t		   (*_get_registered_scene_count)();
-	size_t		   (*_get_registered_world_count)();
-	size_t		   (*_get_registered_entity_count)(size_t world_index);
-	struct_info*   (*_get_struct_info)(size_t index);
-	scene_info*	   (*_get_scene_info)(size_t index);
-	world_info*	   (*_get_world_info)(size_t index);
+	size_t (*_get_registered_struct_count)();
+	size_t (*_get_registered_scene_count)();
+	size_t (*_get_registered_world_count)();
+	size_t (*_get_registered_entity_count)(size_t world_index);
+	struct_info* (*_get_struct_info)(size_t index);
+	scene_info* (*_get_scene_info)(size_t index);
+	world_info* (*_get_world_info)(size_t index);
 	component_info (*_get_component_info)(size_t world_idx, size_t entity_idx, size_t component_idx);
-	entity_info*   (*_get_entity_info)(size_t world_index, size_t entity_index);
+	entity_info* (*_get_entity_info)(size_t world_index, size_t entity_index);
 
 	bool init(HMODULE proj_dll)
 	{
@@ -112,8 +112,9 @@ namespace editor::game::ecs
 					}
 
 					std::ranges::for_each(std::views::iota(0ul, p_world->structs.size()), [=](auto world_s_idx) {
-						if (p_entity->archetype >> world_s_idx)
+						if (((p_entity->archetype >> world_s_idx) & 1ul) != 0)
 						{
+							// todo c_info.p_value is invalid
 							auto  c_info		 = _get_component_info(world_idx, entity_idx, world_s_idx);
 							auto  c_id			 = component::create(e_id, p_world->structs[world_s_idx]);
 							auto* p_component	 = component::find(c_id);
