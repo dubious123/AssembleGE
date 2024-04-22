@@ -18,7 +18,8 @@ namespace
 			auto buf_size = buf.size();
 			assert(_write_pos + buf_size < LOG_BUFFER_SIZE && "Too many logs");
 			_line_offsets.push_back(_write_pos);
-			memcpy(&_log_buf[_write_pos], buf.begin(), buf.size());
+			// memcpy(&_log_buf[_write_pos], buf.begin(), buf.size());
+			memcpy(&_log_buf[_write_pos], buf.c_str(), buf.size());
 			_write_pos += (int)buf_size;
 			++_log_count;
 		}

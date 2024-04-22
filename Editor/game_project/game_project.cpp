@@ -66,13 +66,15 @@ namespace editor::game
 			}
 		};
 
-		unsigned long _run_cmd(std::wstring cmd, std::string* p_child_out)
+		int32 _run_cmd(std::wstring cmd, uint32* p_out_exit_code, void* p_out_buf, size_t buf_size, size_t* p_write_size)
 		{
 			// auto h_child_std_in_rd	= HANDLE(nullptr);
 			// auto h_child_std_in_wr	= HANDLE(nullptr);
 
-			auto want_output = p_child_out is_not_nullptr;
+			auto want_output = p_out_buf is_not_nullptr;
 
+			// todo std input
+			// todo code clean up
 			auto want_input	  = false;
 			auto want_inherit = want_output or want_input;
 			auto error_code	  = 1ul;
@@ -86,9 +88,14 @@ namespace editor::game
 			saAttr.bInheritHandle		= true;
 			saAttr.lpSecurityDescriptor = nullptr;
 
-			if (CreatePipe(&hchild_out_rd, &hchild_out_wr, &saAttr, 0) is_false) return 1;
+			// parent          child
+			// child_in_wr	-> child_in_rd
+			// child_out_rd <- child_out_wr
+			if (::CreatePipe(&hchild_out_rd, &hchild_out_wr, &saAttr, 0) is_false) return 1;
 
-			if (SetHandleInformation(hchild_out_rd, HANDLE_FLAG_INHERIT, 0) is_false) return 1;
+			// if (SetHandleInformation(hchild_out_rd, HANDLE_FLAG_INHERIT, 0) is_false) return 1;
+			if (::SetHandleInformation(hchild_out_rd, HANDLE_FLAG_INHERIT, 0) is_false) return 1;
+			// if (SetHandleInformation(hchild_out_wr, HANDLE_FLAG_INHERIT, 0) is_false) return 1;
 
 			auto pi = PROCESS_INFORMATION();
 			auto si = STARTUPINFO();
@@ -109,44 +116,103 @@ namespace editor::game
 				si.dwFlags |= STARTF_USESTDHANDLES;
 			}
 
-			auto create_process_success = CreateProcess(NULL,
-														_wcsdup(cmd.c_str()),													// command line
-														NULL,																	// process security attributes
-														NULL,																	// primary thread security attributes
-														want_inherit,															// handles are inherited
-														NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,	// creation flags
-														NULL,																	// use parent's environment
-														NULL,																	// use parent's current directory
-														&si,																	// STARTUPINFO pointer
-														&pi);																	// receives PROCESS_INFORMATION
+			auto create_process_success = ::CreateProcess(NULL,
+														  _wcsdup(cmd.c_str()),													  // command line
+														  NULL,																	  // process security attributes
+														  NULL,																	  // primary thread security attributes
+														  want_inherit,															  // handles are inherited
+														  NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,	  // creation flags
+														  NULL,																	  // use parent's environment
+														  NULL,																	  // use parent's current directory
+														  &si,																	  // STARTUPINFO pointer
+														  &pi);																	  // receives PROCESS_INFORMATION
 
-			if (create_process_success is_false) return 1;
-
-			// todo
-			WaitForSingleObject(pi.hProcess, INFINITE);
-			GetExitCodeProcess(pi.hProcess, &error_code);
-
-			if (create_process_success)
+			if (create_process_success is_false)
 			{
-				CloseHandle(pi.hProcess);
-				CloseHandle(pi.hThread);
-				CloseHandle(hchild_out_wr);
+				return 1;
 			}
+
+
+			::CloseHandle(hchild_out_wr);
+			//::CloseHandle(hchild_in_rd);
+
+			// auto res = WaitForSingleObject(pi.hProcess, INFINITE);
+			// GetExitCodeProcess(pi.hProcess, &error_code);
 
 			if (want_output)
 			{
-				char c_buf[4096] = { 0 };
-				auto read_count	 = 0ul;
-				auto write_pos	 = 0ul;
-				while (ReadFile(hchild_out_rd, c_buf, 4096, &read_count, nullptr))
-				{
-					write_pos += read_count;
-				}
+				// char buffer[4096] { 0 };
+				// auto buf_left	= buf_size - 2;
+				auto max_buf_size = buf_size - 1;
+				auto read_count	  = 0ul;
+				auto write_pos	  = 0ul;
 
-				*p_child_out = std::string(c_buf);
+				// auto byte_read				 = 0ul;
+				// auto total_bytes_avail		 = 0ul;
+				// auto bytes_left_this_message = 0ul;
+				auto error = 0;
+				// todo https://stackoverflow.com/questions/54416116/readfile-does-not-return-while-reading-stdout-from-a-child-process-after-it-ends
+				while (true)
+				{
+					// auto res = PeekNamedPipe(
+					//	hchild_out_rd,				  //[in]            HANDLE  hNamedPipe,
+					//	buffer,						  //[out, optional] LPVOID  lpBuffer,
+					//	4096,						  //[in]            DWORD   nBufferSize,
+					//	&byte_read,					  //[out, optional] LPDWORD lpBytesRead,
+					//	&total_bytes_avail,			  //[out, optional] LPDWORD lpTotalBytesAvail,
+					//	&bytes_left_this_message);	  //[out, optional] LPDWORD lpBytesLeftThisMessage))
+					// if (res is_false)
+					//{
+					//	error = GetLastError();
+					//	if (error == ERROR_BROKEN_PIPE)
+					//	{
+					//		break;
+					//	}
+					//	else
+					//	{
+
+
+					//		int a = 1;
+					//	}
+					//}
+					// else
+					//{
+					//	logger::info("total_bytes_avail : {}", total_bytes_avail);
+					//	logger::info("bytes_left_this_message : {}", bytes_left_this_message);
+					//}
+
+					if (::ReadFile(hchild_out_rd, p_out_buf, 4096, &read_count, nullptr))
+					{
+						write_pos += read_count;
+						if (write_pos >= max_buf_size)
+						{
+							// todo
+							break;
+						}
+
+						p_out_buf = (char*)p_out_buf + read_count;
+					}
+					else
+					{
+						error = GetLastError();
+						if (error == ERROR_BROKEN_PIPE)
+						{
+							*p_write_size = write_pos;
+							break;
+						}
+
+						assert(false and "wut?");
+					}
+				}
 			}
 
-			return error_code;
+			//::CloseHandle(hchild_in_wr);
+			::CloseHandle(hchild_out_rd);
+			::GetExitCodeProcess(pi.hProcess, (unsigned long*)p_out_exit_code);
+			::CloseHandle(pi.hThread);
+			::CloseHandle(pi.hProcess);
+
+			return 1;
 		}
 
 		void _load_project_open_datas()
@@ -191,32 +257,45 @@ namespace editor::game
 
 		bool _build_load_dll(std::string project_directory_path, std::string proj_name)
 		{
+			char		   buf[4096 * 3];
+			constexpr auto buf_size		  = 4096ui64 * 3;
+			auto		   buf_write_size = 0ui64;
+
 			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
 			auto p_program86_path = PWSTR { nullptr };
 			::SHGetKnownFolderPath(FOLDERID_ProgramFilesX86, 0, NULL, &p_program86_path);
-			auto find_msbuild_command = std::format(L"\"{}\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", p_program86_path);
-			auto ms_build_path		  = std::string();
-			_run_cmd(find_msbuild_command, &ms_build_path);
 
+			auto find_msbuild_command = std::format(L"\"{}\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", p_program86_path);
+			_run_cmd(find_msbuild_command, (void*)(buf), buf_size, &buf_write_size);
+
+			auto ms_build_path = std::string(buf, buf_write_size);
 			ms_build_path.resize(ms_build_path.size() - 2);	   // to remove /r/n
+
+			memset(buf, 0, sizeof(buf));
 
 #ifdef _DEBUG_EDITOR
 			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=DebugEditor /p:platform=x64 /p:PreBuildEventUseInBuild=true", ms_build_path, sln_path);
 			auto dll_path	   = std::format("{}\\x64\\DebugEditor\\{}.dll", project_directory_path, proj_name);
 #else ifdef _RELEASE_EDITOR
-			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=ReleaseEditor /p:platform=x64", ms_build_path, sln_path);
+			auto build_command = std::format("\"{}\" \"{}\" /p:Configuration=ReleaseEditor /p:platform=x64 /p:PreBuildEventUseInBuild=true", ms_build_path, sln_path);
 			auto dll_path	   = std::format("{}\\x64\\ReleaseEditor\\{}.dll", project_directory_path, proj_name);
 #endif	  // _DEBUG_EDITOR
 
 			wchar_t bffer[500] { 0 };
 			std::copy_n(build_command.begin(), build_command.size(), bffer);
-			std::string output;
-			auto		build_success = _run_cmd(bffer, &output) == 0;
 
+			auto build_success = _run_cmd(bffer, buf, buf_size, &buf_write_size) == 0;
+			// auto build_success = _run_cmd(bffer, nullptr, buf_size, &buf_write_size) == 0;
+
+			auto w_out = std::string(buf, buf_write_size + 1);
 			if (build_success is_false)
 			{
-				logger::error(output);
+				logger::error(w_out);
 				return false;
+			}
+			else
+			{
+				logger::info(w_out);
 			}
 
 			_project_dll = LoadLibraryA(dll_path.c_str());

@@ -12,6 +12,7 @@
 // #pragma comment(lib, "external/lib/nfd.lib")
 #pragma comment(lib, "nfd.lib")
 #pragma comment(lib, "Rpcrt4.lib")	  // for uuid
+#pragma comment(lib, "spdlog.lib")
 
 int main(int, char**)
 {

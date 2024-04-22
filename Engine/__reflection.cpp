@@ -104,6 +104,7 @@ namespace reflection
 
 	void register_world(const char* world_name)
 	{
+		// todo register world base
 		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul);
 		auto& scene_info = _scene_info_vec().back();
 
@@ -192,12 +193,10 @@ namespace reflection
 	component_info get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx)
 	{
 		entity_info* e_info		  = get_entity_info(world_idx, entity_idx);
-		auto*		 p_world_base = _world_base_vec()[world_idx];
+		auto*		 p_world_base = _world_base_vec()[entity_idx];
 		auto&		 e			  = p_world_base->entities[e_info->idx];
 
 		auto& mem_block = p_world_base->memory_block_vec_map[e.archetype][e.mem_block_idx];
-		auto* ptr		= mem_block.get_component_ptr(e.memory_idx, component_idx);
-		auto  size		= mem_block.get_component_size(component_idx);
 		return { mem_block.get_component_size(component_idx), mem_block.get_component_ptr(e.memory_idx, component_idx) };
 	}
 

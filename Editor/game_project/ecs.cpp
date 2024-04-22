@@ -115,7 +115,8 @@ namespace editor::game::ecs
 						if (((p_entity->archetype >> world_s_idx) & 1ul) != 0)
 						{
 							// todo c_info.p_value is invalid
-							auto  c_info		 = _get_component_info(world_idx, entity_idx, world_s_idx);
+							auto  component_idx	 = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
+							auto  c_info		 = _get_component_info(world_idx, entity_idx, component_idx);
 							auto  c_id			 = component::create(e_id, p_world->structs[world_s_idx]);
 							auto* p_component	 = component::find(c_id);
 							p_component->p_value = c_info.p_value;

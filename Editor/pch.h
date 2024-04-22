@@ -9,6 +9,11 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
+#define DSPDLOG_COMPILED_LIB
+#define SPDLOG_WCHAR_TO_UTF8_SUPPORT
+// #define SPDLOG_WCHAR_FILENAMES
+#define SPDLOG_USE_STD_FORMAT
+
 #define is_true		   == true
 #define is_false	   == false
 #define is_not_nullptr != nullptr
@@ -64,8 +69,86 @@ namespace editor::logger
 
 	void clear();
 
+	// template <typename... Args>
+	// inline void trace(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->trace(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void trace(const T& msg)
+	//{
+	//	detail::_logger->trace(msg);
+	// }
+
+	// template <typename... Args>
+	// inline void debug(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->debug(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void debug(const T& msg)
+	//{
+	//	detail::_logger->debug(msg);
+	// }
+
+	// template <typename... Args>
+	// inline void info(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->info(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void info(const T& msg)
+	//{
+	//	detail::_logger->info(msg);
+	// }
+
+	// template <typename... Args>
+	// inline void warn(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->warn(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void warn(const T& msg)
+	//{
+	//	detail::_logger->warn(msg);
+	// }
+
+	// template <typename... Args>
+	// inline void error(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->error(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void error(const T& msg)
+	//{
+	//	detail::_logger->error(msg);
+	// }
+
+	// template <typename... Args>
+	// inline void critical(fmt::format_string<Args...> fmt, Args&&... args)
+	//{
+	//	detail::_logger->critical(fmt, std::forward<Args>(args)...);
+	// }
+
+	// template <typename T>
+	// inline void critical(const T& msg)
+	//{
+	//	detail::_logger->critical(msg);
+	// }
+
 	template <typename... Args>
-	inline void trace(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void trace(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->trace(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void trace(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->trace(fmt, std::forward<Args>(args)...);
 	}
@@ -77,7 +160,13 @@ namespace editor::logger
 	}
 
 	template <typename... Args>
-	inline void debug(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void debug(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->debug(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void debug(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->debug(fmt, std::forward<Args>(args)...);
 	}
@@ -89,7 +178,13 @@ namespace editor::logger
 	}
 
 	template <typename... Args>
-	inline void info(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void info(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->info(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void info(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->info(fmt, std::forward<Args>(args)...);
 	}
@@ -101,7 +196,13 @@ namespace editor::logger
 	}
 
 	template <typename... Args>
-	inline void warn(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void warn(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->warn(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void warn(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->warn(fmt, std::forward<Args>(args)...);
 	}
@@ -113,7 +214,13 @@ namespace editor::logger
 	}
 
 	template <typename... Args>
-	inline void error(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void error(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->error(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void error(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->error(fmt, std::forward<Args>(args)...);
 	}
@@ -125,7 +232,13 @@ namespace editor::logger
 	}
 
 	template <typename... Args>
-	inline void critical(fmt::format_string<Args...> fmt, Args&&... args)
+	inline void critical(std::format_string<Args...> fmt, Args&&... args)
+	{
+		detail::_logger->critical(fmt, std::forward<Args>(args)...);
+	}
+
+	template <typename... Args>
+	inline void critical(std::wformat_string<Args...> fmt, Args&&... args)
 	{
 		detail::_logger->critical(fmt, std::forward<Args>(args)...);
 	}

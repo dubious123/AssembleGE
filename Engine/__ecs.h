@@ -621,8 +621,7 @@ namespace ecs
 		t& get_component(entity_idx idx)
 		{
 			assert(has_component<t>(idx));
-			auto& e	  = entities[idx];
-			auto& res = *(t*)(memory_block_vec_map[e.archetype][e.mem_block_idx].get_component_ptr(e.memory_idx, _calc_component_idx<t>(e.archetype)));
+			auto& e = entities[idx];
 			return *(t*)(memory_block_vec_map[e.archetype][e.mem_block_idx].get_component_ptr(e.memory_idx, _calc_component_idx<t>(e.archetype)));
 		}
 
