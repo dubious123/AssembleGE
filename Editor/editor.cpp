@@ -154,7 +154,7 @@ namespace
 		style.FramePadding		 = ImVec2(6.f, 6.f);	// ImVec2(6.f, 6.f);
 		style.PopupBorderSize	 = .4f;
 		style.ItemSpacing.y		 = 3.f;
-		style.ItemInnerSpacing.x = 0;
+		style.ItemInnerSpacing.x = 5.f;
 		// style.ItemSpacing		= ImVec2(8.4f, 3.f);	// ImVec2(8.4f, 3.f);					   // 3.f;
 		style.WindowPadding = ImVec2(8.f, 8.f);	   // 3.f;
 		style.WindowMinSize = ImVec2(1.f, 1.f);
@@ -2404,6 +2404,16 @@ namespace editor::models
 			return std::vector(res.begin(), res.end());
 		}
 
+		void on_project_unloaded()
+		{
+			_components.clear();
+			_idx_map.clear();
+		}
+
+		void on_project_loaded()
+		{
+		}
+
 		// namespace
 	}	 // namespace component
 
@@ -2413,6 +2423,7 @@ namespace editor::models
 		scene::on_project_unloaded();
 		world::on_project_unloaded();
 		entity::on_project_unloaded();
+		component::on_project_unloaded();
 		// component::on_project_unloaded();
 	}
 
@@ -2422,6 +2433,7 @@ namespace editor::models
 		scene::on_project_loaded();
 		world::on_project_loaded();
 		entity::on_project_loaded();
+		component::on_project_loaded();
 	}
 }	 // namespace editor::models
 

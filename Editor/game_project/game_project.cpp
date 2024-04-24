@@ -70,7 +70,7 @@ namespace editor::game
 		{
 			// auto h_child_std_in_rd	= HANDLE(nullptr);
 			// auto h_child_std_in_wr	= HANDLE(nullptr);
-
+			auto error		 = 0;
 			auto want_output = p_out_buf is_not_nullptr;
 
 			// todo std input
@@ -116,71 +116,32 @@ namespace editor::game
 				si.dwFlags |= STARTF_USESTDHANDLES;
 			}
 
-			auto create_process_success = ::CreateProcess(NULL,
-														  _wcsdup(cmd.c_str()),													  // command line
-														  NULL,																	  // process security attributes
-														  NULL,																	  // primary thread security attributes
-														  want_inherit,															  // handles are inherited
-														  NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,	  // creation flags
-														  NULL,																	  // use parent's environment
-														  NULL,																	  // use parent's current directory
-														  &si,																	  // STARTUPINFO pointer
-														  &pi);																	  // receives PROCESS_INFORMATION
-
-			if (create_process_success is_false)
+			if (::CreateProcess(NULL,
+								_wcsdup(cmd.c_str()),													// command line
+								NULL,																	// process security attributes
+								NULL,																	// primary thread security attributes
+								want_inherit,															// handles are inherited
+								NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP,	// creation flags
+								NULL,																	// use parent's environment
+								NULL,																	// use parent's current directory
+								&si,																	// STARTUPINFO pointer
+								&pi) is_false)															// receives PROCESS_INFORMATION)
 			{
-				return 1;
+				return GetLastError();
 			}
 
 
 			::CloseHandle(hchild_out_wr);
 			//::CloseHandle(hchild_in_rd);
 
-			// auto res = WaitForSingleObject(pi.hProcess, INFINITE);
-			// GetExitCodeProcess(pi.hProcess, &error_code);
-
 			if (want_output)
 			{
-				// char buffer[4096] { 0 };
-				// auto buf_left	= buf_size - 2;
 				auto max_buf_size = buf_size - 1;
 				auto read_count	  = 0ul;
 				auto write_pos	  = 0ul;
 
-				// auto byte_read				 = 0ul;
-				// auto total_bytes_avail		 = 0ul;
-				// auto bytes_left_this_message = 0ul;
-				auto error = 0;
-				// todo https://stackoverflow.com/questions/54416116/readfile-does-not-return-while-reading-stdout-from-a-child-process-after-it-ends
 				while (true)
 				{
-					// auto res = PeekNamedPipe(
-					//	hchild_out_rd,				  //[in]            HANDLE  hNamedPipe,
-					//	buffer,						  //[out, optional] LPVOID  lpBuffer,
-					//	4096,						  //[in]            DWORD   nBufferSize,
-					//	&byte_read,					  //[out, optional] LPDWORD lpBytesRead,
-					//	&total_bytes_avail,			  //[out, optional] LPDWORD lpTotalBytesAvail,
-					//	&bytes_left_this_message);	  //[out, optional] LPDWORD lpBytesLeftThisMessage))
-					// if (res is_false)
-					//{
-					//	error = GetLastError();
-					//	if (error == ERROR_BROKEN_PIPE)
-					//	{
-					//		break;
-					//	}
-					//	else
-					//	{
-
-
-					//		int a = 1;
-					//	}
-					//}
-					// else
-					//{
-					//	logger::info("total_bytes_avail : {}", total_bytes_avail);
-					//	logger::info("bytes_left_this_message : {}", bytes_left_this_message);
-					//}
-
 					if (::ReadFile(hchild_out_rd, p_out_buf, 4096, &read_count, nullptr))
 					{
 						write_pos += read_count;
@@ -208,11 +169,15 @@ namespace editor::game
 
 			//::CloseHandle(hchild_in_wr);
 			::CloseHandle(hchild_out_rd);
-			::GetExitCodeProcess(pi.hProcess, (unsigned long*)p_out_exit_code);
+			if (p_out_exit_code is_not_nullptr)
+			{
+				::GetExitCodeProcess(pi.hProcess, (unsigned long*)p_out_exit_code);
+			}
+
 			::CloseHandle(pi.hThread);
 			::CloseHandle(pi.hProcess);
 
-			return 1;
+			return ERROR_SUCCESS;
 		}
 
 		void _load_project_open_datas()
@@ -266,7 +231,7 @@ namespace editor::game
 			::SHGetKnownFolderPath(FOLDERID_ProgramFilesX86, 0, NULL, &p_program86_path);
 
 			auto find_msbuild_command = std::format(L"\"{}\\Microsoft Visual Studio\\Installer\\vswhere.exe\" -latest -prerelease -products * -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe", p_program86_path);
-			_run_cmd(find_msbuild_command, (void*)(buf), buf_size, &buf_write_size);
+			_run_cmd(find_msbuild_command, nullptr, (void*)(buf), buf_size, &buf_write_size);
 
 			auto ms_build_path = std::string(buf, buf_write_size);
 			ms_build_path.resize(ms_build_path.size() - 2);	   // to remove /r/n
@@ -284,18 +249,13 @@ namespace editor::game
 			wchar_t bffer[500] { 0 };
 			std::copy_n(build_command.begin(), build_command.size(), bffer);
 
-			auto build_success = _run_cmd(bffer, buf, buf_size, &buf_write_size) == 0;
-			// auto build_success = _run_cmd(bffer, nullptr, buf_size, &buf_write_size) == 0;
+			auto build_success = SUCCEEDED(_run_cmd(bffer, nullptr, buf, buf_size, &buf_write_size));
+			auto w_out		   = std::string(buf, buf_write_size + 1);
 
-			auto w_out = std::string(buf, buf_write_size + 1);
 			if (build_success is_false)
 			{
 				logger::error(w_out);
 				return false;
-			}
-			else
-			{
-				logger::info(w_out);
 			}
 
 			_project_dll = LoadLibraryA(dll_path.c_str());
@@ -306,7 +266,7 @@ namespace editor::game
 			}
 
 			_current_project.is_ready = true;
-			return build_success;
+			return true;
 		}
 	}	 // namespace
 

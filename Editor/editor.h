@@ -384,6 +384,8 @@ namespace editor::widgets
 
 	void text(const char* fmt, ...);
 
+	void text(std::string, ...);
+
 	void text_colored(const ImVec4& col, const char* fmt, ...);
 
 	bool selectable(const char* label, bool selected, ImGuiSelectableFlags flags = 0, const ImVec2& size_arg = { 0, 0 }, bool border = false);

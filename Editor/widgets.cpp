@@ -1041,6 +1041,14 @@ void editor::widgets::text(const char* fmt, ...)
 	va_end(args);
 }
 
+void editor::widgets::text(std::string fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	ImGui::TextV(fmt.c_str(), args);
+	va_end(args);
+}
+
 void editor::widgets::text_colored(const ImVec4& col, const char* fmt, ...)
 {
 	va_list args;
@@ -1424,14 +1432,30 @@ bool editor::widgets::component_drag(editor_id c_id)
 
 	auto* p_component = component::find(c_id);
 	auto* p_struct	  = reflection::find_struct(p_component->struct_id);
-
 	ImGui::PushID((const void*)c_id.value);
-	std::ranges::for_each(reflection::all_fields(p_struct->id), [=](auto* p_f) {
-		primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, p_component->p_value));
-	});
+
+	if (widgets::tree_node(p_struct->name))
+	{
+		if (ImGui::BeginTable("", 2, ImGuiTableFlags_SizingStretchProp))
+		{
+			std::ranges::for_each(reflection::all_fields(p_struct->id), [=](auto* p_f) {
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				widgets::text(p_f->name);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::BeginGroup();
+				primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, p_component->p_value));
+				ImGui::EndGroup();
+			});
+
+			ImGui::EndTable();
+		}
+
+		widgets::tree_pop();
+	}
 
 	ImGui::PopID();
-
 
 	return false;
 }

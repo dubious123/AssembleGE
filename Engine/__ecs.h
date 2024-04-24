@@ -74,12 +74,6 @@ namespace ecs
 		};
 	};
 
-	// template <typename... s>
-	// struct par;
-
-	// template <typename t>
-	// concept is_seq = requires { meta::is_same_template_v<t, par>; };
-
 	template <typename t>
 	concept is_seq = requires { t::_seq; };
 
@@ -242,7 +236,33 @@ namespace ecs
 
 	struct memory_block
 	{
-		uint8 memory[MEMORY_BLOCK_SIZE];
+		// uint8 memory[MEMORY_BLOCK_SIZE];
+		uint8* memory;
+
+		memory_block()
+		{
+			memory = (uint8*)malloc(MEMORY_BLOCK_SIZE);
+		}
+
+		memory_block(memory_block&& other) noexcept : memory(other.memory)
+		{
+			other.memory = nullptr;
+		}
+
+		memory_block& operator=(memory_block&& other) noexcept
+		{
+			memory		 = other.memory;
+			other.memory = nullptr;
+		}
+
+		~memory_block()
+		{
+			free(memory);
+		}
+
+		memory_block(const memory_block& other) = delete;
+
+		memory_block& operator=(memory_block& other) = delete;
 
 		// 16kb => n component, (0 < n <= 64)
 		//  2 byte => size,
@@ -517,10 +537,6 @@ namespace ecs
 				// return 0;
 				return _calc_func_archetype(&sys::update);
 			}
-			// else if constexpr (has_update_w<sys>)
-			//{
-			//	return _calc_func_archetype(&sys::template update_w<ecs::world<c...>>);
-			// }
 			else if constexpr (has_update_w<sys, world<c...>>)
 			{
 				return _calc_func_archetype(&sys::template update<ecs::world<c...>>);
