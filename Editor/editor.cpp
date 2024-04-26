@@ -1728,48 +1728,43 @@ namespace editor::models
 			switch (type)
 			{
 			case primitive_type_int2:
-				return std::format("( {},{} )", ((int2*)ptr)->x, ((int2*)ptr)->y);
+				return std::format("{}, {}", ((int2*)ptr)->x, ((int2*)ptr)->y);
 			case primitive_type_int3:
-				return std::format("( {},{},{} )", ((int3*)ptr)->x, ((int3*)ptr)->y, ((int3*)ptr)->z);
+				return std::format("{}, {}, {}", ((int3*)ptr)->x, ((int3*)ptr)->y, ((int3*)ptr)->z);
 			case primitive_type_int4:
-				return std::format("( {},{},{},{} )", ((int4*)ptr)->x, ((int4*)ptr)->y, ((int4*)ptr)->z, ((int4*)ptr)->w);
+				return std::format("{}, {}, {}, {}", ((int4*)ptr)->x, ((int4*)ptr)->y, ((int4*)ptr)->z, ((int4*)ptr)->w);
 			case primitive_type_uint2:
-				return std::format("( {},{} )", ((uint2*)ptr)->x, ((uint2*)ptr)->y);
+				return std::format("{}, {}", ((uint2*)ptr)->x, ((uint2*)ptr)->y);
 			case primitive_type_uint3:
-				return std::format("( {},{},{} )", ((uint3*)ptr)->x, ((uint3*)ptr)->y, ((uint3*)ptr)->z);
+				return std::format("{}, {}, {}", ((uint3*)ptr)->x, ((uint3*)ptr)->y, ((uint3*)ptr)->z);
 			case primitive_type_uint4:
-				return std::format("( {},{},{},{} )", ((uint4*)ptr)->x, ((uint4*)ptr)->y, ((uint4*)ptr)->z, ((uint4*)ptr)->w);
+				return std::format("{}, {}, {}, {}", ((uint4*)ptr)->x, ((uint4*)ptr)->y, ((uint4*)ptr)->z, ((uint4*)ptr)->w);
 
 			case primitive_type_float2:
-				return std::format("( {},{} )", ((float2*)ptr)->x, ((float2*)ptr)->y);
+				return std::format("{:.5f}, {:.5f}", ((float2*)ptr)->x, ((float2*)ptr)->y);
 			case primitive_type_float2a:
-				return std::format("( {},{} )", ((float2a*)ptr)->x, ((float2a*)ptr)->y);
+				return std::format("{:.5f}, {:.5f}", ((float2a*)ptr)->x, ((float2a*)ptr)->y);
 			case primitive_type_float3:
-				return std::format("( {},{},{} )", ((float3*)ptr)->x, ((float3*)ptr)->y, ((float3*)ptr)->z);
+				return std::format("{:.5f}, {:.5f}, {:.5f}", ((float3*)ptr)->x, ((float3*)ptr)->y, ((float3*)ptr)->z);
 			case primitive_type_float3a:
-				return std::format("( {},{},{} )", ((float3a*)ptr)->x, ((float3a*)ptr)->y, ((float3a*)ptr)->z);
+				return std::format("{:.5f}, {:.5f}, {:.5f}", ((float3a*)ptr)->x, ((float3a*)ptr)->y, ((float3a*)ptr)->z);
 			case primitive_type_float4:
-				return std::format("( {},{},{},{} )", ((float4*)ptr)->x, ((float4*)ptr)->y, ((float4*)ptr)->z, ((float4*)ptr)->w);
+				return std::format("{:.5f}, {:.5f}, {:.5f}, {:.5f}", ((float4*)ptr)->x, ((float4*)ptr)->y, ((float4*)ptr)->z, ((float4*)ptr)->w);
 			case primitive_type_float4a:
-				return std::format("( {},{},{},{} )", ((float4a*)ptr)->x, ((float4a*)ptr)->y, ((float4a*)ptr)->z, ((float4a*)ptr)->w);
+				return std::format("{:.5f}, {:.5f}, {:.5f}, {:.5f}", ((float4a*)ptr)->x, ((float4a*)ptr)->y, ((float4a*)ptr)->z, ((float4a*)ptr)->w);
 
 			case primitive_type_float3x3:
-				return std::format("( {},{} )",
+				return std::format("{{{:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}}}",
 								   ((float3x3*)ptr)->_11, ((float3x3*)ptr)->_12, ((float3x3*)ptr)->_13,
 								   ((float3x3*)ptr)->_21, ((float3x3*)ptr)->_22, ((float3x3*)ptr)->_23,
 								   ((float3x3*)ptr)->_31, ((float3x3*)ptr)->_32, ((float3x3*)ptr)->_33);
 			case primitive_type_float4x4:
-				return std::format("( {},{} )",
-								   ((float4x4*)ptr)->_11, ((float4x4*)ptr)->_12, ((float4x4*)ptr)->_13,
-								   ((float4x4*)ptr)->_21, ((float4x4*)ptr)->_22, ((float4x4*)ptr)->_23,
-								   ((float4x4*)ptr)->_31, ((float4x4*)ptr)->_32, ((float4x4*)ptr)->_33,
-								   ((float4x4*)ptr)->_41, ((float4x4*)ptr)->_42, ((float4x4*)ptr)->_43);
 			case primitive_type_float4x4a:
-				return std::format("( {},{} )",
-								   ((float4x4a*)ptr)->_11, ((float4x4a*)ptr)->_12, ((float4x4a*)ptr)->_13,
-								   ((float4x4a*)ptr)->_21, ((float4x4a*)ptr)->_22, ((float4x4a*)ptr)->_23,
-								   ((float4x4a*)ptr)->_31, ((float4x4a*)ptr)->_32, ((float4x4a*)ptr)->_33,
-								   ((float4x4a*)ptr)->_41, ((float4x4a*)ptr)->_42, ((float4x4a*)ptr)->_43);
+				return std::format("{{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}",
+								   ((float4x4a*)ptr)->_11, ((float4x4a*)ptr)->_12, ((float4x4a*)ptr)->_13, ((float4x4a*)ptr)->_14,
+								   ((float4x4a*)ptr)->_21, ((float4x4a*)ptr)->_22, ((float4x4a*)ptr)->_23, ((float4x4a*)ptr)->_24,
+								   ((float4x4a*)ptr)->_31, ((float4x4a*)ptr)->_32, ((float4x4a*)ptr)->_33, ((float4x4a*)ptr)->_34,
+								   ((float4x4a*)ptr)->_41, ((float4x4a*)ptr)->_42, ((float4x4a*)ptr)->_43, ((float4x4a*)ptr)->_44);
 			case primitive_type_uint64:
 				return std::format("{}", *(uint64*)ptr);
 			case primitive_type_uint32:
@@ -2427,6 +2422,11 @@ namespace editor::models
 		// component::on_project_unloaded();
 	}
 
+	bool change_exists()
+	{
+		return true;
+	}
+
 	void on_project_loaded()
 	{
 		reflection::on_project_loaded();
@@ -2595,7 +2595,7 @@ std::string editor::utilities::read_file(const std::filesystem::path path)
 
 void editor::utilities::create_file(const std::filesystem::path path, const std::string content)
 {
-	std::wofstream project_file(path);
+	std::ofstream project_file(path);
 	project_file << content.c_str();
 	project_file.close();
 }

@@ -371,7 +371,7 @@ namespace editor::view::reflection
 				{
 					std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
 						auto selected = false;
-						widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+						widgets::tree_node(std::format("{} ({}) : ( {} )", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					});
 
 

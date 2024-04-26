@@ -44,15 +44,23 @@ namespace editor::game
 				return true;
 			},
 			[](editor_id) {
-				if (_project_dll)
-				{
-					_unload_dll();
-					//_generate_code
-				}
 				editor::widgets::progress_modal("Building project",
 												[] {
-													auto res  = _generate_code(_current_project.directory_path, _current_project.name);
-													res		 &= _build_load_dll(_current_project.directory_path, _current_project.name);
+													auto res = true;
+													if (editor::models::change_exists())
+													{
+														editor::widgets::progress_modal_msg("generating code");
+														res &= _generate_code(_current_project.directory_path, _current_project.name);
+													}
+
+													if (_project_dll)
+													{
+														editor::widgets::progress_modal_msg("unloading dll");
+														_unload_dll();
+													}
+
+													editor::widgets::progress_modal_msg("building dll");
+													res &= _build_load_dll(_current_project.directory_path, _current_project.name);
 													if (res)
 													{
 														logger::info("Build Success");
@@ -197,26 +205,93 @@ namespace editor::game
 		void _unload_dll()
 		{
 			assert(_project_dll is_not_nullptr);
-			FreeLibrary(_project_dll);
+			::FreeLibrary(_project_dll);
 			_current_project.is_ready = false;
 			editor::on_project_unloaded();
 		}
 
 		bool _generate_code(std::string project_directory_path, std::string proj_name)
 		{
-			constexpr const char* indent		 = "				";
-			constexpr const char* scene_template = "SERIALIZE_SCENE({0},\
-				SERIALIZE_WORLD(my_first_world, transform, bullet, rigid_body),\
-				SERIALIZE_WORLD(my_second_world, transform, rigid_body))";
+			using namespace editor::models;
+			using namespace std::ranges;
+			static constexpr auto* target_file_name = "components.h";
 
-			const auto& scenes = editor::models::scene::all();
-			for (auto* p_s : scenes)
-			{
-				// const auto& worlds = p_s->all_worlds();
-				// for (auto* p_w : worlds)
-				//{
-				// }
-			}
+			static constexpr auto* file_begin = "#pragma once \n#include \"__components.h\"\n\n //generated from editor\n\n";
+
+			static constexpr auto* template_component_begin = "COMPONENT_BEGIN({})\n";
+			static constexpr auto* template_serialize_field = "SERIALIZE_FIELD({}, {}, {})\n";
+			static constexpr auto* template_component_end	= "COMPNENT_END()\n\n";
+
+			static constexpr auto* template_world_begin = "WORLD_BEGIN({}{})\n";
+
+			// todo maybe entity without component?
+			static constexpr auto* template_entity_begin		 = "ENTITY_BEGIN({}{})\n";
+			static constexpr auto* template_entity_set_component = "SET_COMPONENT({}, {}, {})\n";
+			static constexpr auto* template_entity_end			 = "ENTITY_END()\n";
+			static constexpr auto* template_world_end			 = "WORLD_END()\n\n";
+
+			static constexpr auto* template_serialize_scene = "SERIALIZE_SCENE({}{})\n";
+
+			auto& target_file = std::filesystem::path(project_directory_path)
+									.append(GAMECODE_DIRECTORY)
+									.append("test_output.h");
+
+			auto content = std::string(file_begin);
+
+			// todo maybe better way to concat string than just +=
+			for_each(reflection::all_structs(), [&](const em_struct* p_struct) {
+				content += std::format(template_component_begin, p_struct->name);
+
+				for_each(reflection::all_fields(p_struct->id), [&](const em_field* p_field) {
+					content += std::format(template_serialize_field, reflection::utils::type_to_string(p_field->type), p_field->name, reflection::utils::deserialize(p_field->type, p_field->p_value));
+				});
+
+				content += template_component_end;
+			});
+
+			for_each(scene::all(), [&](const em_scene* p_scene) {
+				auto worlds_str = std::string();
+				for_each(world::all(p_scene->id), [&](const em_world* p_world) {
+					worlds_str			  += ", " + p_world->name;
+					auto world_struct_str  = std::string();
+
+					for_each(p_world->structs, [&](editor_id s_id) {
+						world_struct_str += ", " + reflection::find_struct(s_id)->name;
+					});
+
+					content += std::format(template_world_begin, p_world->name, world_struct_str);
+
+					for_each(entity::all(p_world->id), [&](const em_entity* p_entity) {
+						auto archetype_str = std::string();
+						for_each(component::all(p_entity->id), [&](const em_component* p_component) {
+							archetype_str += ", " + reflection::find_struct(p_component->struct_id)->name;
+						});
+
+						content += std::format(template_entity_begin, p_entity->name, archetype_str);
+
+						for_each(component::all(p_entity->id), [&](const em_component* p_component) {
+							auto* p_struct = reflection::find_struct(p_component->struct_id);
+							for_each(reflection::all_fields(p_struct->id), [&](const em_field* p_field) {
+								if (memcmp((char*)p_component->p_value + p_field->offset, p_field->p_value, reflection::utils::type_size(p_field->type)) != 0)
+								{
+									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, reflection::utils::deserialize(p_field->type, p_component->p_value));
+								}
+							});
+
+							// content += std::format(template_entity_set_component,)
+						});
+
+						content += template_entity_end;
+					});
+
+					content += template_world_end;
+				});
+
+				content += std::format(template_serialize_scene, p_scene->name, worlds_str);
+			});
+
+
+			editor::utilities::create_file(target_file, content);
 			return true;
 		}
 
@@ -394,7 +469,7 @@ namespace editor::game
 
 	bool open_async(std::filesystem::path project_directory_path)
 	{
-		widgets::update_progress(0, "Reading project data");
+		widgets::progress_modal_msg("Reading project data");
 		auto project_data_path = std::filesystem::path(project_directory_path)
 									 .append(PROJECT_EXTENSION)
 									 .append(PROJECT_DATA_FILE_NAME);
@@ -415,82 +490,14 @@ namespace editor::game
 		_current_project.description	   = project_node.attribute("desc").value();
 		_current_project.last_opened_date  = editor::utilities::timing::now_str();
 
-		widgets::update_progress(30, "Build and load dll");
+		widgets::progress_modal_msg("Build and load dll");
 
 		if (_build_load_dll(_current_project.directory_path, _current_project.name) is_false)
 		{
 			return false;
 		}
 
-		widgets::update_progress(70, "Loading project");
-
-		// for (auto& scene_node : project_node.child("scenes").children())
-		//{
-		//	assert(strcmp(scene_node.name(), "scene") == 0);
-
-		//	// auto scene_id = editor::id::read(scene_node.attribute("id").value());
-		//	// editor::cmd_add_new(scene_id);
-		//	auto scene_id = scene::create();
-		//	assert(scene::is_alive(scene_id));
-		//	scene::get(scene_id).name = scene_node.attribute("name").value();
-
-		//	for (auto& world_node : scene_node.child("worlds").children())
-		//	{
-		//		scene::set_active(scene_id);
-		//		assert(strcmp(world_node.name(), "world") == 0);
-
-		//		auto world_id = id::read(world_node.attribute("id").value());
-		//		editor::cmd_add_new(world_id);
-		//		auto p_world  = world::get(world_id);
-		//		p_world->name = world_node.attribute("name").value();
-
-		//		assert(p_world->scene_id == scene_id);
-
-		//		for (auto& entity_node : world_node.child("entities").children())
-		//		{
-		//			select(world_id);
-		//			assert(strcmp(entity_node.name(), "entity") == 0);
-
-		//			auto entity_id = id::read(entity_node.attribute("id").value());
-		//			editor::cmd_add_new(entity_id);
-		//			auto p_entity  = entity::find(entity_id);
-		//			p_entity->name = entity_node.attribute("name").value();
-
-		//			assert(p_entity->world_id == world_id);
-
-		//			for (auto& component_node : entity_node.child("components").children())
-		//			{
-		//				select(entity_id);
-		//				auto component_id = id::read(component_node.attribute("id").value());
-		//				editor::cmd_add_new(component_id);
-		//				auto p_component  = component::find(component_id);
-		//				p_component->name = component_node.attribute("name").value();
-
-		//				assert(p_component->entity_id == entity_id);
-		//			}
-		//		}
-
-		//		for (auto& system_node : world_node.child("systems").children())
-		//		{
-		//			select(world_id);
-		//			assert(strcmp(system_node.name(), "system") == 0);
-
-		//			auto system_id = id::read(system_node.attribute("id").value());
-		//			editor::cmd_add_new(system_id);
-		//			auto p_system  = system::find(system_id);
-		//			p_system->name = system_node.attribute("name").value();
-
-		//			assert(p_system->world_id == world_id);
-		//		}
-		//	}
-		//}
-
-		// if (project_node.child("active_scene"))
-		//{
-		//	editor::models::scene::set_active(editor::id::read(project_node.child("active_scene").attribute("id").value()));
-		// }
-
-		widgets::update_progress(100, "Done");
+		widgets::progress_modal_msg("Loading project");
 		logger::info("Open Completed");
 
 
@@ -513,6 +520,7 @@ namespace editor::game
 
 		_project_open_datas.emplace_back(od);
 
+		widgets::progress_modal_msg("Open Project Done");
 		return success;
 	}
 

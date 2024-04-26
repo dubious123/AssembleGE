@@ -415,7 +415,7 @@ namespace editor::widgets
 
 	ImVec2 calc_text_size(const char* text, const char* text_end = nullptr, bool hide_text_after_double_hash = false, float wrap_width = -1.0f);
 
-	void update_progress(int progress, const char* msg);
+	void progress_modal_msg(std::string msg);
 	void progress_modal(const char* title, std::function<bool()> task, std::function<void(bool)> callback = std::function<void(bool)>());
 
 	void on_frame_end();
@@ -655,43 +655,9 @@ namespace editor::models
 
 	}	 // namespace component
 
-	// namespace entity
-	//{
-	//	// extern const Editor_Command Cmd_Add_New;
-	//	// extern const Editor_Command Cmd_Set_Active;
-	//	// extern const Editor_Command Cmd_Remove;
-	//	extern const editor_command cmd_add_component;
+	// any change from editor needs to be applied to project exists?
+	bool change_exists();
 
-	//	editor_id create(editor_id parent_id);
-	//	void	  remove(editor_id entity_id);
-	//	void	  add_component(editor_id entity_id, editor_id component_id);
-
-	//	em_entity& get(editor_id id);
-
-	//	bool					is_alive(editor_id id);
-	//	std::vector<em_entity>& all();
-	//}	 // namespace entity
-
-	// namespace component
-	//{
-	//	// extern const Editor_Command Cmd_Add_New;
-	//	// extern const Editor_Command Cmd_Set_Active;
-	//	// extern const Editor_Command Cmd_Remove;
-	//	bool					   is_valid(editor_id component_id);
-	//	em_component*			   find(editor_id id);
-	//	std::vector<em_component>& all();
-	// }	 // namespace component
-
-	// namespace system
-	//{
-	//	// extern const Editor_Command Cmd_Add_New;
-	//	// extern const Editor_Command Cmd_Set_Active;
-	//	// extern const Editor_Command Cmd_Remove;
-
-	//	em_system* find(editor_id id);
-	//}	 // namespace system
-
-	// void register_component(pod::component_info* p_info);
 	void on_project_loaded();
 	void on_project_unloaded();
 }	 // namespace editor::models

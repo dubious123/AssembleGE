@@ -1,8 +1,5 @@
 #pragma once
 #include "__components.h"
-#include "__reflection.h"
-
-//do not include this file
 
 COMPONENT_BEGIN(transform)
 SERIALIZE_FIELD(float3, position, 0, 0, 0)

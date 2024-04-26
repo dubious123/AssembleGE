@@ -1113,7 +1113,6 @@ namespace
 	auto		   _progress_modal_popup_id		   = ImGuiID();
 	auto		   _wait_madal_title			   = std::string();
 	auto		   _wait_modal_msg				   = std::string();
-	auto		   _wait_modal_percentage		   = int(0);
 	auto		   _p_window_progress_modal_caller = (ImGuiWindow*)nullptr;
 	auto		   _callback					   = std::function<void(bool)>();
 	auto		   _aysnc_result				   = std::future<bool>();
@@ -1132,10 +1131,9 @@ void editor::widgets::progress_modal(const char* title, std::function<bool()> ta
 	_aysnc_result = std::async(task);
 }
 
-void editor::widgets::update_progress(int progress, const char* msg)
+void editor::widgets::progress_modal_msg(std::string msg)
 {
-	_wait_modal_percentage = progress;
-	_wait_modal_msg		   = msg;
+	_wait_modal_msg = msg;
 }
 
 void close_popup(ImGuiID id)
@@ -1214,8 +1212,8 @@ void _handle_progress_modal()
 	{
 		if (BeginPopupModal(_wait_madal_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))	  //, _wait_modal_id_str, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 		{
-			Text(_wait_modal_msg.c_str());
-			Text("%d%%", _wait_modal_percentage);
+			editor::logger::info(ImGui::GetWindowSize().x);
+			editor::widgets::text(_wait_modal_msg);
 			EndPopup();
 		}
 	}

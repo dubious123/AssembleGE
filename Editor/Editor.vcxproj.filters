@@ -5,7 +5,6 @@
     <ClCompile Include="logger.cpp">
       <Filter>editor</Filter>
     </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui.cpp" />
     <ClCompile Include="external\include\imgui\imgui_demo.cpp" />
     <ClCompile Include="external\include\imgui\imgui_draw.cpp" />
     <ClCompile Include="external\include\imgui\imgui_impl_dx12.cpp" />
@@ -13,9 +12,6 @@
     <ClCompile Include="external\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="external\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="external\include\imgui\imgui_widgets.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui.cpp">
       <Filter>external\include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="external\include\imgui\imgui_demo.cpp">
@@ -45,10 +41,10 @@
     <ClCompile Include="platform.cpp" />
     <ClCompile Include="style.cpp" />
     <ClCompile Include="game_project\ecs.cpp" />
+    <ClCompile Include="external\include\imgui\imgui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\include\imgui\imconfig.h" />
-    <ClInclude Include="external\include\imgui\imgui.h" />
     <ClInclude Include="external\include\imgui\imgui_impl_dx12.h" />
     <ClInclude Include="external\include\imgui\imgui_impl_win32.h" />
     <ClInclude Include="external\include\imgui\imgui_internal.h" />
@@ -56,9 +52,6 @@
     <ClInclude Include="external\include\imgui\imstb_textedit.h" />
     <ClInclude Include="external\include\imgui\imstb_truetype.h" />
     <ClInclude Include="external\include\imgui\imconfig.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui.h">
       <Filter>external\include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="external\include\imgui\imgui_impl_dx12.h">
@@ -93,6 +86,7 @@
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
     <ClInclude Include="utilities\timing.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="external\include\imgui\imgui.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

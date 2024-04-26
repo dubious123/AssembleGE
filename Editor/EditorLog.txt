@@ -1,9 +1,0 @@
-[2024-04-24 10:32:47.378] [Editor Logger] [info] Hi
-[2024-04-24 10:32:49.643] [Editor Logger] [info] Open Completed
-[2024-04-24 10:32:50.910] [Editor Logger] [info] Select 0x00000000000000
-[2024-04-24 10:32:54.367] [Editor Logger] [info] Select 0x00000000000001
-[2024-04-24 10:33:01.147] [Editor Logger] [info] Select 0x00000000000000
-[2024-04-24 10:33:01.598] [Editor Logger] [info] Select 0x00000000000001
-[2024-04-24 10:33:02.456] [Editor Logger] [info] Select 0x00000000000000
-[2024-04-24 10:33:02.905] [Editor Logger] [info] Select 0x00000000000001
-[2024-04-24 10:33:06.378] [Editor Logger] [info] Select 0x00000000000000
