@@ -35,5 +35,4 @@ int main()
 	// auto world2_scene3_idx = new_world(scene3_idx);
 	// auto world3_scene3_idx = new_world(scene3_idx);
 	//_CrtDumpMemoryLeaks();
-	return 0;
 }

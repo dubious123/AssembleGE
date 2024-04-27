@@ -1498,10 +1498,10 @@ static void ShowDemoWindowWidgets()
 		if (ImGui::TreeNode("Grid"))
 		{
 			static char selected[4][4] = {
-				{1,	 0, 0, 0},
-				{ 0, 1, 0, 0},
-				{ 0, 0, 1, 0},
-				{ 0, 0, 0, 1}
+				{ 1, 0, 0, 0 },
+				{ 0, 1, 0, 0 },
+				{ 0, 0, 1, 0 },
+				{ 0, 0, 0, 1 }
 			};
 
 			// Add in a bit of silly fun...
@@ -1580,17 +1580,16 @@ static void ShowDemoWindowWidgets()
 		{
 			// Note: we are using a fixed-sized buffer for simplicity here. See ImGuiInputTextFlags_CallbackResize
 			// and the code in misc/cpp/imgui_stdlib.h for how to setup InputText() for dynamically resizing strings.
-			static char text[1024 * 16] =
-				"/*\n"
-				" The Pentium F00F bug, shorthand for F0 0F C7 C8,\n"
-				" the hexadecimal encoding of one offending instruction,\n"
-				" more formally, the invalid operand with locked CMPXCHG8B\n"
-				" instruction bug, is a design flaw in the majority of\n"
-				" Intel Pentium, Pentium MMX, and Pentium OverDrive\n"
-				" processors (all in the P5 microarchitecture).\n"
-				"*/\n\n"
-				"label:\n"
-				"\tlock cmpxchg8b eax\n";
+			static char text[1024 * 16] = "/*\n"
+										  " The Pentium F00F bug, shorthand for F0 0F C7 C8,\n"
+										  " the hexadecimal encoding of one offending instruction,\n"
+										  " more formally, the invalid operand with locked CMPXCHG8B\n"
+										  " instruction bug, is a design flaw in the majority of\n"
+										  " Intel Pentium, Pentium MMX, and Pentium OverDrive\n"
+										  " processors (all in the P5 microarchitecture).\n"
+										  "*/\n\n"
+										  "label:\n"
+										  "\tlock cmpxchg8b eax\n";
 
 			static ImGuiInputTextFlags flags = ImGuiInputTextFlags_AllowTabInput;
 			HelpMarker("You can use the ImGuiInputTextFlags_CallbackResize facility if you need to wire InputTextMultiline() to a dynamic string type. See misc/cpp/imgui_stdlib.h for an example. (This is not demonstrated in imgui_demo.cpp because we don't want to include <string> in here)");
@@ -4171,11 +4170,11 @@ static void EditTableSizingFlags(ImGuiTableFlags* p_flags)
 	};
 
 	static const EnumDesc policies[] = {
-		{ImGuiTableFlags_None,				"Default",						   "Use default sizing policy:\n- ImGuiTableFlags_SizingFixedFit if ScrollX is on or if host window has ImGuiWindowFlags_AlwaysAutoResize.\n- ImGuiTableFlags_SizingStretchSame otherwise."},
-		{ ImGuiTableFlags_SizingFixedFit,	  "ImGuiTableFlags_SizingFixedFit",	"Columns default to _WidthFixed (if resizable) or _WidthAuto (if not resizable), matching contents width."																			   },
-		{ ImGuiTableFlags_SizingFixedSame,   "ImGuiTableFlags_SizingFixedSame",	  "Columns are all the same width, matching the maximum contents width.\nImplicitly disable ImGuiTableFlags_Resizable and enable ImGuiTableFlags_NoKeepColumnsVisible."					},
-		{ ImGuiTableFlags_SizingStretchProp, "ImGuiTableFlags_SizingStretchProp", "Columns default to _WidthStretch with weights proportional to their widths."																											},
-		{ ImGuiTableFlags_SizingStretchSame, "ImGuiTableFlags_SizingStretchSame", "Columns default to _WidthStretch with same weights."																																	}
+		{ ImGuiTableFlags_None, "Default", "Use default sizing policy:\n- ImGuiTableFlags_SizingFixedFit if ScrollX is on or if host window has ImGuiWindowFlags_AlwaysAutoResize.\n- ImGuiTableFlags_SizingStretchSame otherwise." },
+		{ ImGuiTableFlags_SizingFixedFit, "ImGuiTableFlags_SizingFixedFit", "Columns default to _WidthFixed (if resizable) or _WidthAuto (if not resizable), matching contents width." },
+		{ ImGuiTableFlags_SizingFixedSame, "ImGuiTableFlags_SizingFixedSame", "Columns are all the same width, matching the maximum contents width.\nImplicitly disable ImGuiTableFlags_Resizable and enable ImGuiTableFlags_NoKeepColumnsVisible." },
+		{ ImGuiTableFlags_SizingStretchProp, "ImGuiTableFlags_SizingStretchProp", "Columns default to _WidthStretch with weights proportional to their widths." },
+		{ ImGuiTableFlags_SizingStretchSame, "ImGuiTableFlags_SizingStretchSame", "Columns default to _WidthStretch with same weights." }
 	};
 	int idx;
 	for (idx = 0; idx < IM_ARRAYSIZE(policies); idx++)
@@ -5367,15 +5366,15 @@ static void ShowDemoWindowTables()
 			};
 
 			static const MyTreeNode nodes[] = {
-				{"Root",						   "Folder",		-1,		1,  3 }, // 0
-				{ "Music",						   "Folder",		 -1,	 4,	2 }, // 1
-				{ "Textures",					  "Folder",		-1,		6,  3 }, // 2
-				{ "desktop.ini",					 "System file", 1024,	  -1, -1}, // 3
-				{ "File1_a.wav",					 "Audio file",  123000, -1, -1}, // 4
-				{ "File1_b.wav",					 "Audio file",  456000, -1, -1}, // 5
-				{ "Image001.png",				  "Image file",	203128, -1, -1}, // 6
-				{ "Copy of Image001.png",		  "Image file",	203256, -1, -1}, // 7
-				{ "Copy of Image001 (Final2).png", "Image file",	 203512, -1, -1}, // 8
+				{ "Root", "Folder", -1, 1, 3 },										  // 0
+				{ "Music", "Folder", -1, 4, 2 },									  // 1
+				{ "Textures", "Folder", -1, 6, 3 },									  // 2
+				{ "desktop.ini", "System file", 1024, -1, -1 },						  // 3
+				{ "File1_a.wav", "Audio file", 123000, -1, -1 },					  // 4
+				{ "File1_b.wav", "Audio file", 456000, -1, -1 },					  // 5
+				{ "Image001.png", "Image file", 203128, -1, -1 },					  // 6
+				{ "Copy of Image001.png", "Image file", 203256, -1, -1 },			  // 7
+				{ "Copy of Image001 (Final2).png", "Image file", 203512, -1, -1 },	  // 8
 			};
 
 			MyTreeNode::DisplayNode(&nodes[0], nodes);
@@ -5647,8 +5646,7 @@ static void ShowDemoWindowTables()
 		}
 
 		// Options
-		static ImGuiTableFlags flags =
-			ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
+		static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 		PushStyleCompact();
 		ImGui::CheckboxFlags("ImGuiTableFlags_SortMulti", &flags, ImGuiTableFlags_SortMulti);
 		ImGui::SameLine();
@@ -5719,8 +5717,7 @@ static void ShowDemoWindowTables()
 	IMGUI_DEMO_MARKER("Tables/Advanced");
 	if (ImGui::TreeNode("Advanced"))
 	{
-		static ImGuiTableFlags flags =
-			ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
+		static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingFixedFit;
 
 		enum ContentsType
 		{

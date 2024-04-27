@@ -1210,9 +1210,9 @@ void _handle_progress_modal()
 
 	if (window_stack.size() == end_call_stack.size())
 	{
-		if (BeginPopupModal(_wait_madal_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))	  //, _wait_modal_id_str, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+		ImGui::SetNextWindowSizeConstraints({ ImGui::CalcTextSize(_wait_madal_title.c_str()).x + editor::style::window_padding().x * 2, 0 }, { FLT_MAX, FLT_MAX });
+		if (BeginPopupModal(_wait_madal_title.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings))	 //, _wait_modal_id_str, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
 		{
-			editor::logger::info(ImGui::GetWindowSize().x);
 			editor::widgets::text(_wait_modal_msg);
 			EndPopup();
 		}
