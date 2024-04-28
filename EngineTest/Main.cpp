@@ -295,20 +295,27 @@ using namespace ecs;
 int main()
 {
 	static_assert(ecs::has_update<system_1> == false);
-	static_assert(ecs::has_update_w<system_1, decltype(world_2)> == true, "!!!");
-	// static_assert(false);
-	std::cout << std::format("{:04x} - {:016x}\n", 1, -1);
-	uint2 uint22 { (uint32)(0 - 1), 2 };
-	std::cout << std::format("{},{}\n", uint22.x, uint22.y);
+	// static_assert(ecs::has_update_w<system_1, decltype(world_2)> == true, "!!!");
 
-	float2 float22 { -1.f, 2.f };
-	std::cout << std::format("{:.3f},{:.4f}\n", float22.x, float22.y);
+	// auto empty_entity = world_2.new_entity<>();
+	// world_2.add_component<transform>(empty_entity); // will crash
 
-	double64 ddddd = -10.252525;
-	std::cout << std::format("{}\n", ddddd);
+	// auto entity_1 = world_2.new_entity<transform>();
+	// world_2.remove_component<transform>(entity_1);
 
-	uint64 iiii = (0ull - 1ull);
-	std::cout << std::format("{}\n", iiii);
+	//  static_assert(false);
+	// std::cout << std::format("{:04x} - {:016x}\n", 1, -1);
+	// uint2 uint22 { (uint32)(0 - 1), 2 };
+	// std::cout << std::format("{},{}\n", uint22.x, uint22.y);
+
+	// float2 float22 { -1.f, 2.f };
+	// std::cout << std::format("{:.3f},{:.4f}\n", float22.x, float22.y);
+
+	// double64 ddddd = -10.252525;
+	// std::cout << std::format("{}\n", ddddd);
+
+	// uint64 iiii = (0ull - 1ull);
+	// std::cout << std::format("{}\n", iiii);
 
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
@@ -318,6 +325,7 @@ int main()
 
 	using group_t = system_group<system_1, system_2>;
 	auto group	  = system_group<system_1, par<system_1, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
+	// auto group = system_group<system_2>();
 
 	auto tpl2 = meta::func_args<decltype(system_2::test_fu)>::type();
 	auto tpl3 = meta::func_args_t<decltype(test_add3)>();
@@ -331,6 +339,36 @@ int main()
 	auto e2 = world_2.new_entity<transform>();
 	auto e3 = world_2.new_entity<rigid_body, transform>();
 	auto e4 = world_2.new_entity<bullet>();
+
+	{
+		auto test_e1 = world_2.new_entity<>();
+
+		auto test_e2 = world_2.new_entity<transform>();
+		auto test_e3 = world_2.new_entity<bullet>();
+		auto test_e4 = world_2.new_entity<rigid_body>();
+
+		auto test_e5 = world_2.new_entity<bullet, rigid_body>();
+		auto test_e6 = world_2.new_entity<transform, rigid_body>();
+		auto test_e7 = world_2.new_entity<transform, bullet>();
+
+		auto test_e8 = world_2.new_entity<transform, bullet, rigid_body>();
+
+		auto& test_transform1 = world_2.get_component<transform>(test_e2);
+		auto& test_transform2 = world_2.get_component<transform>(test_e6);
+		auto& test_transform3 = world_2.get_component<transform>(test_e7);
+		auto& test_transform4 = world_2.get_component<transform>(test_e8);
+
+		auto& test_bullet1 = world_2.get_component<bullet>(test_e3);
+		auto& test_bullet2 = world_2.get_component<bullet>(test_e5);
+		auto& test_bullet3 = world_2.get_component<bullet>(test_e7);
+		auto& test_bullet4 = world_2.get_component<bullet>(test_e8);
+
+		auto& test_rigid_body1 = world_2.get_component<rigid_body>(test_e4);
+		auto& test_rigid_body2 = world_2.get_component<rigid_body>(test_e5);
+		auto& test_rigid_body3 = world_2.get_component<rigid_body>(test_e6);
+		auto& test_rigid_body4 = world_2.get_component<rigid_body>(test_e8);
+	}
+
 
 	auto ee = world_2.new_entity<transform>();
 	world_2.add_component<rigid_body>(ee);

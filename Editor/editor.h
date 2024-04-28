@@ -634,6 +634,7 @@ namespace editor::models
 		editor_id			   create(editor_id scene_id);
 		void				   add_struct(editor_id world_id, editor_id struct_id);
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
+		uint64				   archetype(editor_id world_id, editor_id struct_id);
 		std::vector<em_world*> all(editor_id scene_id);
 	}	 // namespace world
 
@@ -641,6 +642,7 @@ namespace editor::models
 	{
 		extern editor_command cmd_create;
 		extern editor_command cmd_remove;
+		extern editor_command cmd_create_empty;
 
 		em_entity*				find(editor_id id);
 		editor_id				create(editor_id entity_id);
@@ -655,11 +657,21 @@ namespace editor::models
 
 	}	 // namespace component
 
+	namespace text
+	{
+		editor_id	create(const char* text);
+		void		remove(editor_id id);
+		const char* find(editor_id id);
+	}	 // namespace text
+
+	extern editor_command cmd_rename;
+
 	// any change from editor needs to be applied to project exists?
 	bool change_exists();
 
 	void on_project_loaded();
 	void on_project_unloaded();
+
 }	 // namespace editor::models
 
 namespace editor::utilities

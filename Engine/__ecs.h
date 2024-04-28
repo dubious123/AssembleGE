@@ -1,5 +1,6 @@
 #pragma once
 #include <thread>
+#include <bit>
 #include <intrin.h>
 #include "__common.h"
 #include "__meta.h"
@@ -8,12 +9,13 @@
 	#include <sstream>
 	#include <string>
 	#include <iostream>
-	#define DEBUG_LOG(message) [] {std::stringstream ss; ss << message << std::endl; std::cout<<ss.str(); }();
+	#define DEBUG_LOG(message) [&] {std::stringstream ss; ss << message << std::endl; std::cout<<ss.str(); }();
 #else
 	#define DEBUG_LOG(message)
 #endif
 
-#define MEMORY_BLOCK_SIZE (sizeof(uint8) * 1024 * 16)
+#define MEMORY_BLOCK_SIZE	 (sizeof(uint8) * 1024 * 16)
+#define INVALID_MEMBLOCK_IDX -1
 
 // todo
 // no runtime calculation from memory_block , do compile time calculation from world
@@ -72,6 +74,15 @@ namespace ecs
 			 ...);
 			return archetype;
 		};
+
+		static inline size_t calc_total_size(archetype_t archetype)
+		{
+			auto v = std::views::iota(0, std::bit_width(archetype))
+				   | std::views::filter([=](auto nth_c) { return (archetype >> nth_c) & 1; })
+				   | std::views::transform([=](auto nth_c) { return sizes[nth_c]; });
+			auto size_total = std::accumulate(v.begin(), v.end(), 0);
+			return size_total;
+		}
 	};
 
 	template <typename t>
@@ -270,6 +281,14 @@ namespace ecs
 		//  2 byte => component_count
 		//  4 * n byte => {component_size, offset}
 		//
+		//  sizeof(entity_idx) * capacity => entity_idx ... why?
+		//  => system iterate base on mem_idx not entity_idx
+		//	=> to get entity_idx inside update function
+		//	memory_block must save entity_idx
+		//  => maybe make every entity to have component {entity}
+		//
+		//	=> solves empty entity problem
+		//
 		//  6 <= header_size <= 6 + 4 * 64 = 6 + 256 = 262
 		// write component => know type(new entity) or not(add component) (== copy)
 		// read component => know type
@@ -280,6 +299,15 @@ namespace ecs
 		//   ex) if archetype is a c d (0b1101) component_idx of component a is 0
 		//    ex) if archetype is a c d (0b1101) component_idx of component c is 1
 		//    ex) if archetype is a c d (0b1101) component_idx of component d is 2
+
+		// for empty entity
+		// for not doing if(archetype == 0) every time
+		// 6byte memory_block will be added
+
+		// unused_memory_size
+		// MEMORY_BLOCK_SIZE - header_size - (sizeof(entity_id) + size_per_archetype) * capacity
+		//
+
 		uint16 get_count() const
 		{
 			return *(uint16*)memory;
@@ -297,11 +325,13 @@ namespace ecs
 
 		uint16 get_component_size(uint8 c_idx) const
 		{
+			assert(c_idx < get_component_count());
 			return (uint16)((*(uint32*)(memory + 6 + c_idx * 4)) >> 16);
 		}
 
 		uint16 get_component_offset(uint8 c_idx) const
 		{
+			assert(c_idx < get_component_count());
 			return (uint16)((*(uint32*)(memory + 6 + c_idx * 4)));
 		}
 
@@ -312,24 +342,34 @@ namespace ecs
 
 		entity_idx get_entity_idx(uint16 m_idx) const
 		{
+			assert(m_idx < get_count());
 			return *(entity_idx*)(memory + get_header_size() + m_idx * sizeof(entity_idx));
 		}
 
 		void* get_component_ptr(uint16 m_idx, uint8 c_idx) const
 		{
+			assert(c_idx < get_component_count());
 			return (void*)(memory + get_component_offset(c_idx) + m_idx * get_component_size(c_idx));
 		}
 
+		// sizeof entity_idx + sizeof all component size
 		uint16 calc_size_per_archetype() const
 		{
 			auto   c_count = get_component_count();
 			uint16 size	   = sizeof(entity_idx);
+			// todo maybe more optimized way to do this?
 			for (auto c_idx = 0; c_idx < c_count; ++c_idx)
 			{
 				size += get_component_size(c_idx);
 			}
 
 			return size;
+		}
+
+		uint16 calc_unused_mem_size() const
+		{
+			assert(MEMORY_BLOCK_SIZE > get_header_size() + calc_size_per_archetype() * get_capacity());
+			return MEMORY_BLOCK_SIZE - get_header_size() - calc_size_per_archetype() * get_capacity();
 		}
 
 		void write_count(uint16 new_count)
@@ -408,38 +448,17 @@ namespace ecs
 			// e.p_mem_block = this;
 		}
 
-		template <typename... t>
-		static void init(memory_block& block)
+		template <>
+		void new_entity(entity& e)
 		{
-			using sorted_component_tpl											 = component_wrapper<t...>::component_tpl;
-			static const std::array<size_t, sizeof...(t)> sorted_component_sizes = []() {
-				std::array<size_t, sizeof...(t)> arr;
-				([&arr] {
-					arr[meta::tuple_index_v<t, sorted_component_tpl>] = sizeof(t);
-				}(),
-				 ...);
-				return arr;
-			}();
+			assert(0 == get_component_count());
 
-			assert(sizeof...(t) <= 64);
-			assert(sizeof...(t) > 0);
-			const auto size_per_archetype = sizeof(entity_idx) + (sizeof(t) + ... + 0);
-			const auto component_count	  = sizeof...(t);
-			const auto capacity			  = (MEMORY_BLOCK_SIZE - 6 - 4 * component_count) / size_per_archetype;
+			auto m_idx = get_count();
 
-			block.write_count(0);
-			block.write_capacity(capacity);
-			block.write_component_count(component_count);
+			write_entity_idx(m_idx, e.idx);
 
-			uint16 offset = block.get_header_size() + sizeof(entity_idx) * capacity;	// header + entity_idx
-			for (auto c_idx = 0; c_idx < sizeof...(t); ++c_idx)
-			{
-				block.write_component_data(c_idx, offset, sorted_component_sizes[c_idx]);
-				offset += capacity * (sorted_component_sizes[c_idx]);
-			}
-
-			assert(MEMORY_BLOCK_SIZE > offset);
-			assert(MEMORY_BLOCK_SIZE - offset < size_per_archetype);
+			write_count(m_idx + 1);
+			e.memory_idx = m_idx;
 		}
 	};
 
@@ -489,41 +508,41 @@ namespace ecs
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
-		template <typename sys, typename w, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(w, t...))
+		template <typename sys, typename... t>
+		static consteval archetype_t _calc_func_archetype(void (sys::*)(world_t&, t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
-		template <typename sys, typename w, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(w, entity_idx, t...))
+		template <typename sys, typename... t>
+		static consteval archetype_t _calc_func_archetype(void (sys::*)(world_t&, entity_idx, t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename system_t, typename... t>
-		void _update_entity(system_t& sys, void (system_t::*func)(t...), memory_block& mem_block, uint16 m_idx)
+		static void _update_entity(system_t& sys, void (system_t::*func)(t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(*(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename system_t, typename... t>
-		void _update_entity(system_t& sys, void (system_t::*func)(entity_idx, t...), memory_block& mem_block, uint16 m_idx)
+		static void _update_entity(system_t& sys, void (system_t::*func)(entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
-		void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, entity_idx, t...), memory_block& mem_block, uint16 m_idx)
+		static void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(world, mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
-		void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, t...), memory_block& mem_block, uint16 m_idx)
+		static void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(world, *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
@@ -548,9 +567,74 @@ namespace ecs
 		}
 
 		template <typename t>
-		inline uint8 _calc_component_idx(archetype_t a) const
+		static inline uint8 _calc_component_idx(archetype_t a)
 		{
 			return __popcnt(((1 << tuple_index_v<t, component_tpl>)-1) & a);
+		}
+
+		static inline uint8 _calc_component_idx(archetype_t a, uint32 nth_component)
+		{
+			assert(nth_component < 64);
+			assert(nth_component >= 0);
+			return __popcnt64(((1 << nth_component) - 1) & a);
+		}
+
+		static void _init_mem_block(archetype_t archetype, size_t size_per_archetype, memory_block* p_block)
+		{
+			assert((sizeof...(c) <= 64) and (sizeof...(c) > 0));
+			assert(p_block is_not_nullptr);
+
+			const auto component_count = __popcnt64(archetype);
+			const auto capacity		   = (MEMORY_BLOCK_SIZE - (6 + sizeof(uint32) * component_count)) / size_per_archetype;
+
+			p_block->write_component_count(component_count);
+			p_block->write_capacity(capacity);
+			p_block->write_count(0);
+
+
+			auto offset = p_block->get_header_size() + sizeof(entity_idx) * capacity;	 // header + entity_idx
+			auto c_idx	= 0;
+			std::ranges::for_each(std::views::iota(0, std::bit_width(archetype)) | std::views::filter([=](auto nth_bit) { return (archetype >> nth_bit) & 1; }),
+								  [=, &offset, &c_idx](auto nth_bit) {
+									  auto c_size = component_wrapper<c...>::sizes[nth_bit];
+									  p_block->write_component_data(c_idx, offset, c_size);
+									  offset += c_size * capacity;
+									  ++c_idx;
+								  });
+
+			assert(p_block->get_header_size() == 6 + sizeof(uint32) * component_count);
+			assert(offset + p_block->calc_unused_mem_size() == MEMORY_BLOCK_SIZE);
+		}
+
+		// static void _init_mem_block(archetype_t archetype, memory_block* p_block)
+		//{
+		//	_init_mem_block(archetype, component_wrapper<c...>::calc_total_size(archetype) + sizeof(entity_idx), p_block);
+		// }
+
+		static void _copy_components(archetype_t a_old, archetype_t a_new, memory_block* p_mem_old, memory_block* p_mem_new, uint16 old_m_idx, uint16 new_m_idx)
+		{
+			assert(a_old != a_new);
+			assert(p_mem_old is_not_nullptr);
+			assert(p_mem_new is_not_nullptr);
+
+			auto archetype_to_copy = a_old & a_new;
+			std::ranges::for_each(
+				std::views::iota(0, std::bit_width(archetype_to_copy)) | std::views::filter([archetype_to_copy](auto nth_c) { return (archetype_to_copy >> nth_c) & 1; }),
+				[=](auto nth_component) {
+					auto c_idx_old = _calc_component_idx(a_old, nth_component);
+					auto c_idx_new = _calc_component_idx(a_new, nth_component);
+
+					memcpy(
+						p_mem_new->get_component_ptr(new_m_idx, c_idx_new),
+						p_mem_old->get_component_ptr(old_m_idx, c_idx_old),
+						(size_t)(p_mem_old->get_component_size(c_idx_old)));
+
+					assert((a_old >> nth_component) & 1);
+					assert((a_new >> nth_component) & 1);
+					assert(p_mem_new->get_component_size(c_idx_new) == p_mem_old->get_component_size(c_idx_old));
+					assert(p_mem_new->get_component_size(c_idx_new) == component_wrapper<c...>::sizes[nth_component]);
+					assert(p_mem_old->get_component_size(c_idx_old) == component_wrapper<c...>::sizes[nth_component]);
+				});
 		}
 
 	  public:
@@ -568,53 +652,48 @@ namespace ecs
 		template <typename... t>
 		entity_idx new_entity()
 		{
-			static constinit const auto size	  = sizeof(entity_idx) + (sizeof(t) + ...);
-			static constinit const auto capacity  = MEMORY_BLOCK_SIZE / size;
 			static constinit const auto archetype = _calc_archetype<t...>();
 
-			auto&		  block_list	= memory_block_vec_map[archetype];
-			memory_block* p_block		= nullptr;
-			size_t		  mem_block_idx = -1;
+			auto& block_list	= memory_block_vec_map[archetype];
+			auto* p_block		= (memory_block*)nullptr;
+			auto  mem_block_idx = 0;
+			auto* p_entity		= (entity*)nullptr;
 
-			auto res = std::ranges::find_if(block_list, [&](auto& block) { 
-					++mem_block_idx;
-					return block.is_full() is_false; });
+			auto res = std::ranges::find_if(block_list, [&](auto& block) { return block.is_full() is_false; });
 
-
-			if (res == block_list.end())
+			if (res != block_list.end())
 			{
-				auto& block = block_list.emplace_back();
-				memory_block::init<t...>(block);
-				p_block		  = &block;
-				mem_block_idx = 0;
+				p_block		  = &(*res);
+				mem_block_idx = res - block_list.begin();
 			}
 			else
 			{
-				p_block = &(*res);
+				p_block		  = &block_list.emplace_back();
+				mem_block_idx = 0;
+
+				_init_mem_block(archetype, (sizeof(t) + ... + sizeof(entity_idx)), p_block);
 			}
 
 			if (entity_hole_count == 0)
 			{
-				auto& e			= entities.emplace_back();
-				e.archetype		= archetype;
-				e.idx			= entities.size() - 1;
-				e.mem_block_idx = mem_block_idx;
-				p_block->new_entity<t...>(e);
-				return e.idx;
+				p_entity	  = &entities.emplace_back();
+				p_entity->idx = entities.size() - 1;
 			}
 			else
 			{
-				auto& e				  = entities[entity_hole_begin_idx];
-				auto  next_hole_idx	  = e.idx;
-				e.idx				  = entity_hole_begin_idx;
+				p_entity = &entities[entity_hole_begin_idx];
+
+				auto next_hole_idx	  = p_entity->idx;
+				p_entity->idx		  = entity_hole_begin_idx;
 				entity_hole_begin_idx = next_hole_idx;
 				--entity_hole_count;
-				e.archetype		= archetype;
-				e.mem_block_idx = mem_block_idx;
-				p_block->new_entity<t...>(e);
-
-				return e.idx;
 			}
+
+			p_entity->archetype		= archetype;
+			p_entity->mem_block_idx = mem_block_idx;
+
+			p_block->new_entity<t...>(*p_entity);
+			return p_entity->idx;
 		}
 
 		void delete_entity(entity_idx idx)
@@ -645,111 +724,38 @@ namespace ecs
 		void add_component(entity_idx idx)
 		{
 			assert(has_component<t...>(idx) == false);
-			auto& e				= entities[idx];
-			auto  new_archetype = e.archetype | _calc_archetype<t...>();
+			auto& e					= entities[idx];
+			auto  new_archetype		= e.archetype | _calc_archetype<t...>();
+			auto& block_list		= memory_block_vec_map[new_archetype];
+			auto* p_new_block		= (memory_block*)nullptr;
+			auto  new_mem_block_idx = 0;
+			auto* p_prev_block		= get_p_mem_block(e);
 
-			const auto c_idx_arr = [&] {
-				auto arr = std::array<size_t, sizeof...(t)>();
-				auto i	 = 0;
-				([&] {
-					arr[tuple_index_v<t, component_wrapper<t...>::component_tpl>] = __popcnt(((1 << tuple_index_v<t, component_tpl>)-1) & new_archetype);
-				}(),
-				 ...);
-				return arr;
-			}();
-
-			auto&		  block_list		= memory_block_vec_map[new_archetype];
-			memory_block* p_new_block		= nullptr;
-			size_t		  new_mem_block_idx = -1;
-
-			auto res = std::ranges::find_if(block_list, [&new_mem_block_idx](auto& block) {
-				++new_mem_block_idx;
+			auto res = std::ranges::find_if(block_list, [](auto& block) {
 				return block.is_full() == false;
 			});
 
-			if (res == block_list.end())
+			if (res != block_list.end())
 			{
-				auto& block		  = block_list.emplace_back();
-				new_mem_block_idx = 0;
-				p_new_block		  = &block;
-
-				p_new_block->write_count(0);
-
-				auto	   memory			  = p_new_block->memory;
-				const auto size_per_archetype = get_p_mem_block(e)->calc_size_per_archetype() + (sizeof(t) + ... + 0);
-				const auto component_count	  = get_p_mem_block(e)->get_component_count() + sizeof...(t);
-				const auto capacity			  = (MEMORY_BLOCK_SIZE - 6 - sizeof(uint32) * component_count) / size_per_archetype;
-
-
-				p_new_block->write_count(0);
-				p_new_block->write_capacity(capacity);
-				p_new_block->write_component_count(component_count);
-
-				auto c_idx	= 0;
-				auto offset = p_new_block->get_header_size() + sizeof(entity_idx) * capacity;
-				auto i		= 0;
-				for (; i < sizeof...(t); ++i)
-				{
-					auto new_c_idx	= c_idx_arr[i];
-					auto new_c_size = component_wrapper<t...>::sizes[i];
-					for (; c_idx < new_c_idx; ++c_idx)
-					{
-						p_new_block->write_component_data(c_idx, offset, get_p_mem_block(e)->get_component_size(c_idx - i));
-						offset += capacity + get_p_mem_block(e)->get_component_size(c_idx);
-					}
-
-					assert(c_idx == new_c_idx);
-					p_new_block->write_component_data(c_idx, offset, new_c_size);
-					offset += capacity * new_c_size;
-					++c_idx;
-				}
-
-
-				for (; c_idx < component_count; ++c_idx)
-				{
-					p_new_block->write_component_data(c_idx, offset, get_p_mem_block(e)->get_component_size(c_idx - i));
-					offset += capacity + get_p_mem_block(e)->get_component_size(c_idx);
-				}
+				new_mem_block_idx = res - block_list.begin();
+				p_new_block		  = &block_list[new_mem_block_idx];
 			}
 			else
 			{
-				p_new_block = &(*res);
+				new_mem_block_idx = 0;
+				p_new_block		  = &block_list.emplace_back();
+
+				auto new_size = p_prev_block->calc_size_per_archetype() + (sizeof(t) + ...);
+				_init_mem_block(new_archetype, new_size, p_new_block);
 			}
 
-			const auto new_component_count = __popcnt(new_archetype);
-			const auto new_m_idx		   = p_new_block->get_count();
-			assert(new_component_count == get_p_mem_block(e)->get_component_count() + sizeof...(t));
-			assert(p_new_block->is_full() == false);
+			const auto new_m_idx = p_new_block->get_count();
 
-			auto i	   = 0;
-			auto c_idx = 0;
-			([&]() {
-				auto new_c_idx = c_idx_arr[i];
-				for (; c_idx < new_c_idx; ++c_idx)
-				{
-					assert(p_new_block->get_component_size(c_idx) == get_p_mem_block(e)->get_component_size(c_idx - i));
-					memcpy(
-						p_new_block->get_component_ptr(new_m_idx, c_idx),
-						get_p_mem_block(e)->get_component_ptr(e.memory_idx, c_idx - i),
-						(size_t)(get_p_mem_block(e)->get_component_size(c_idx - i)));
-				}
-
-				assert(c_idx == new_c_idx);
+			_copy_components(e.archetype, new_archetype, p_prev_block, p_new_block, e.memory_idx, new_m_idx);
+			([=]() {
 				new (p_new_block->get_component_ptr(new_m_idx, _calc_component_idx<t>(new_archetype))) t();
-				++c_idx;
-				++i;
 			}(),
 			 ...);
-
-			for (; c_idx < new_component_count; ++c_idx)
-			{
-				assert(p_new_block->get_component_size(c_idx) == get_p_mem_block(e)->get_component_size(c_idx - i));
-				memcpy(
-					p_new_block->get_component_ptr(new_m_idx, c_idx),
-					get_p_mem_block(e)->get_component_ptr(e.memory_idx, c_idx - i),
-					(size_t)(get_p_mem_block(e)->get_component_size(c_idx - i)));
-			}
-
 			p_new_block->write_count(p_new_block->get_count() + 1);
 			p_new_block->write_entity_idx(new_m_idx, e.idx);
 
@@ -764,115 +770,35 @@ namespace ecs
 		void remove_component(entity_idx idx)
 		{
 			assert(has_component<t...>(idx));
-			auto& e				= entities[idx];
-			auto  new_archetype = e.archetype ^ _calc_archetype<t...>();
-			// todo
-			if (new_archetype == 0)
+			auto& e					= entities[idx];
+			auto  new_archetype		= e.archetype ^ _calc_archetype<t...>();
+			auto& block_list		= memory_block_vec_map[new_archetype];
+			auto* p_prev_block		= get_p_mem_block(e);
+			auto* p_new_block		= (memory_block*)nullptr;
+			auto  new_mem_block_idx = 0u;
+
+			auto res = std::ranges::find_if(block_list, [](auto& mem_block) { return mem_block.is_full() is_false; });
+
+			if (res != block_list.end())
 			{
-				get_p_mem_block(e)->remove_entity(e.memory_idx);
-				e.archetype = 0;
-			}
-
-			const auto c_idx_arr = [&] {
-				auto arr = std::array<size_t, sizeof...(t)>();
-				auto i	 = 0;
-				([&] {
-					arr[tuple_index_v<t, component_wrapper<t...>::component_tpl>] = __popcnt(((1 << tuple_index_v<t, component_tpl>)-1) & new_archetype);
-				}(),
-				 ...);
-				return arr;
-			}();
-
-			auto&		  block_list		= memory_block_vec_map[new_archetype];
-			auto*		  p_prev_block		= get_p_mem_block(e);
-			memory_block* p_new_block		= nullptr;
-			size_t		  new_mem_block_idx = -1;
-
-			auto res = std::ranges::find_if(block_list, [&](auto& mem_block) { 
-				++new_mem_block_idx; 
-				return mem_block.is_full() is_false; });
-
-			if (res == block_list.end())
-			{
-				auto& block = block_list.emplace_back();
-				p_new_block = &block;
-
-				p_new_block->write_count(0);
-
-				auto memory = p_new_block->memory;
-
-				const auto size_per_archetype = p_prev_block->calc_size_per_archetype() - (sizeof(t) + ... + 0);
-				const auto component_count	  = p_prev_block->get_component_count() - sizeof...(t);
-				const auto capacity			  = (MEMORY_BLOCK_SIZE - 6 - sizeof(uint32) * component_count) / size_per_archetype;
-
-				assert(component_count != 0);
-
-				p_new_block->write_count(0);
-				p_new_block->write_capacity(capacity);
-				p_new_block->write_component_count(component_count);
-
-				auto c_idx	= 0;
-				auto offset = p_new_block->get_header_size() + sizeof(entity_idx) * capacity;
-
-				auto i = 0;
-				for (; i < sizeof...(t); ++i)
-				{
-					auto new_c_idx	= c_idx_arr[i];
-					auto new_c_size = component_wrapper<t...>::sizes[i];
-					for (; c_idx < new_c_idx; ++c_idx)
-					{
-						p_new_block->write_component_data(c_idx, offset, p_prev_block->get_component_size(c_idx + i));
-						offset += capacity + p_prev_block->get_component_size(c_idx);
-					}
-
-					assert(c_idx == new_c_idx);
-					//++c_idx;
-				}
-
-				for (; c_idx < component_count; ++c_idx)
-				{
-					p_new_block->write_component_data(c_idx, offset, p_prev_block->get_component_size(c_idx + i));
-					offset += capacity + p_prev_block->get_component_size(c_idx);
-				}
+				new_mem_block_idx = res - block_list.begin();
+				p_new_block		  = &block_list[new_mem_block_idx];
 			}
 			else
 			{
-				p_new_block = &(*res);
+				new_mem_block_idx = 0;
+				p_new_block		  = &block_list.emplace_back();
+
+				auto new_size = p_prev_block->calc_size_per_archetype() - (sizeof(t) + ...);
+				_init_mem_block(new_archetype, new_size, p_new_block);
 			}
 
-			const auto new_component_count = __popcnt(new_archetype);
-			const auto new_m_idx		   = p_new_block->get_count();
+			const auto new_m_idx = p_new_block->get_count();
 
-			auto i	   = 0;
-			auto c_idx = 0;
-			for (; i < sizeof...(t); ++i)
-			{
-				auto new_c_idx = c_idx_arr[i];
-				for (; c_idx < new_c_idx; ++c_idx)
-				{
-					assert(p_new_block->get_component_size(c_idx) == p_prev_block->get_component_size(c_idx + i));
-					memcpy(
-						p_new_block->get_component_ptr(new_m_idx, c_idx),
-						p_prev_block->get_component_ptr(e.memory_idx, c_idx + i),
-						(size_t)(p_prev_block->get_component_size(c_idx + i)));
-				}
-
-				assert(c_idx == new_c_idx);
-			}
-
-			for (; c_idx < new_component_count; ++c_idx)
-			{
-				assert(p_new_block->get_component_size(c_idx) == p_prev_block->get_component_size(c_idx + i));
-				memcpy(
-					p_new_block->get_component_ptr(new_m_idx, c_idx),
-					p_prev_block->get_component_ptr(e.memory_idx, c_idx + i),
-					(size_t)(p_prev_block->get_component_size(c_idx + i)));
-			}
-
+			_copy_components(e.archetype, new_archetype, p_prev_block, p_new_block, e.memory_idx, new_m_idx);
 
 			p_new_block->write_count(p_new_block->get_count() + 1);
 			p_new_block->write_entity_idx(new_m_idx, e.idx);
-
 			p_prev_block->remove_entity(e.memory_idx);
 
 			e.memory_idx	= new_m_idx;
@@ -890,6 +816,7 @@ namespace ecs
 		{
 			DEBUG_LOG("sys perform begin");
 			static constinit const auto archetype = _calc_sys_archetype<system_t>();
+			auto						s		  = archetype;
 			if constexpr (has_on_system_begin<system_t>)
 			{
 				sys.on_system_begin();
@@ -902,7 +829,7 @@ namespace ecs
 			auto threads = data_structure::vector<std::thread>();
 
 			std::ranges::for_each(
-				memory_block_vec_map | std::views::filter([](auto& pair) { return (pair.first & archetype) != 0; }),
+				memory_block_vec_map | std::views::filter([](auto& pair) { return (pair.first & archetype) == archetype; }),
 				[&, this](auto& pair) {
 					for (auto& mem_block : pair.second)
 					{

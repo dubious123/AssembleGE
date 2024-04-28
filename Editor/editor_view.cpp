@@ -286,7 +286,26 @@ namespace editor::view::inspector
 	void _draw_entity(editor_id entity_id)
 	{
 		auto p_e = models::entity::find(entity_id);
-		widgets::text(std::format("name : {}", p_e->name).c_str());
+
+		{
+			// frame background
+			style::push_color(ImGuiCol_FrameBg, COL_BLACK);
+			// style::push_var(ImGuiStyleVar_FramePadding, { style::frame_padding().x, 0 });
+			style::push_var(ImGuiStyleVar_FrameRounding, 0);
+			char c_buf[500] { 0 };
+			memcpy(c_buf, p_e->name.c_str(), p_e->name.size());
+			widgets::input_text(std::format("##{}", entity_id.value).c_str(), c_buf, 500);
+
+			if (widgets::is_item_deactivated_after_edit())
+			{
+				editor::models::cmd_rename(editor::models::text::create(c_buf));
+			}
+
+			style::pop_var(1);
+			style::pop_color();
+		}
+
+
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 

@@ -232,9 +232,9 @@ namespace editor::game
 
 			static constexpr auto* template_serialize_scene = "SERIALIZE_SCENE({}{})\n";
 
-			auto& target_file = std::filesystem::path(project_directory_path)
-									.append(GAMECODE_DIRECTORY)
-									.append("test_output.h");
+			auto target_file = std::filesystem::path(project_directory_path)
+								   .append(GAMECODE_DIRECTORY)
+								   .append(target_file_name);
 
 			auto content = std::string(file_begin);
 
@@ -274,7 +274,7 @@ namespace editor::game
 							for_each(reflection::all_fields(p_struct->id), [&](const em_field* p_field) {
 								if (memcmp((char*)p_component->p_value + p_field->offset, p_field->p_value, reflection::utils::type_size(p_field->type)) != 0)
 								{
-									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, reflection::utils::deserialize(p_field->type, p_component->p_value));
+									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, "{" + reflection::utils::deserialize(p_field->type, p_component->p_value) + "}");
 								}
 							});
 
@@ -324,11 +324,15 @@ namespace editor::game
 			wchar_t bffer[500] { 0 };
 			std::copy_n(build_command.begin(), build_command.size(), bffer);
 
-			auto build_success = SUCCEEDED(_run_cmd(bffer, nullptr, buf, buf_size, &buf_write_size));
+			auto ms_build_exit_code = 0ui32;
+			auto cmd_res			= _run_cmd(bffer, &ms_build_exit_code, buf, buf_size, &buf_write_size);
+
+			auto build_success = SUCCEEDED(cmd_res) and (ms_build_exit_code == 0);
 			auto w_out		   = std::string(buf, buf_write_size + 1);
 
 			if (build_success is_false)
 			{
+				// todo enter safe mode
 				logger::error(w_out);
 				return false;
 			}

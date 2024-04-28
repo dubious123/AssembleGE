@@ -1754,13 +1754,13 @@ namespace editor::models
 				return std::format("{:.5f}, {:.5f}, {:.5f}, {:.5f}", ((float4a*)ptr)->x, ((float4a*)ptr)->y, ((float4a*)ptr)->z, ((float4a*)ptr)->w);
 
 			case primitive_type_float3x3:
-				return std::format("{{{:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}}}",
+				return std::format("{:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}",
 								   ((float3x3*)ptr)->_11, ((float3x3*)ptr)->_12, ((float3x3*)ptr)->_13,
 								   ((float3x3*)ptr)->_21, ((float3x3*)ptr)->_22, ((float3x3*)ptr)->_23,
 								   ((float3x3*)ptr)->_31, ((float3x3*)ptr)->_32, ((float3x3*)ptr)->_33);
 			case primitive_type_float4x4:
 			case primitive_type_float4x4a:
-				return std::format("{{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}, {{{:.5f}, {:.5f}, {:.5f}, {:.5f}}}",
+				return std::format("{:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}, {:.5f}",
 								   ((float4x4a*)ptr)->_11, ((float4x4a*)ptr)->_12, ((float4x4a*)ptr)->_13, ((float4x4a*)ptr)->_14,
 								   ((float4x4a*)ptr)->_21, ((float4x4a*)ptr)->_22, ((float4x4a*)ptr)->_23, ((float4x4a*)ptr)->_24,
 								   ((float4x4a*)ptr)->_31, ((float4x4a*)ptr)->_32, ((float4x4a*)ptr)->_33, ((float4x4a*)ptr)->_34,
@@ -2061,6 +2061,26 @@ namespace editor::models
 			std::erase(p_w->structs, struct_id);
 		}
 
+		uint64 archetype(editor_id world_id, editor_id struct_id)
+		{
+			auto p_w = find(world_id);
+			if (p_w is_nullptr)
+			{
+				return 0;
+			}
+
+			auto it = std::ranges::find(p_w->structs, struct_id);
+
+			if (it == p_w->structs.end())
+			{
+				return 0;
+			}
+
+			auto index = it - p_w->structs.begin();
+			assert(index < 64);
+			return 1 << index;
+		}
+
 		void remove(editor_id id)
 		{
 			if (_idx_map.contains(id) is_false)
@@ -2187,9 +2207,12 @@ namespace editor::models
 			"Remove Struct",
 			ImGuiKey_None,
 			// todo check that no entities uses that struct
-			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and std::ranges::all_of(get_all_selections(), [=](const auto& id) {
-												 const auto* p_w = world::find(id);
-												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) != p_w->structs.end();
+			[](editor_id struct_id) { return reflection::find_struct(struct_id) is_not_nullptr
+										 and std::ranges::all_of(get_all_selections(), [=](const auto& w_id) {
+												 return std::ranges::all_of(entity::all(w_id), [=](em_entity* p_e) {
+													 auto arc = archetype(w_id, struct_id);
+													 return arc != 0 and ((p_e->archetype & arc) == 0);
+												 });
 											 }); },
 			[](editor_id struct_id) {
 				auto  cmd	 = undoredo::undo_redo_cmd();
@@ -2274,45 +2297,23 @@ namespace editor::models
 			return e.id;
 		}
 
-		// void add_struct(editor_id world_id, editor_id struct_id)
-		//{
-		//	// todo
-		//	// problem 1 : archetype ordering => based on hash_id => solved
-		//	// problem 2 : cannot select struct => what is the name of this struct? component? struct? archetype? => add remove struct from world
-		//	// problem 3 : duplications => solved
-		//	auto* p_w = find(world_id);
-		//	if (p_w is_nullptr or p_w->structs.size() == 64 /*or std::ranges::find(p_w->structs, struct_id) != p_w->structs.end()*/)
-		//	{
-		//		return;
-		//	}
+		void remove(editor_id entity_id)
+		{
+			if (_idx_map.contains(entity_id) is_false)
+			{
+				return;
+			}
 
-		//	p_w->structs.insert(std::ranges::upper_bound(p_w->structs, struct_id,
-		//												 [](const auto& comp_id, const auto id) { return reflection::find_struct(comp_id)->p_info->hash_id < reflection::find_struct(id)->p_info->hash_id; }),
-		//						struct_id);
-		//}
+			auto idx_pair	= _idx_map[entity_id];
+			auto world_idx	= idx_pair.first;
+			auto entity_idx = idx_pair.second;
 
-		// void remove_struct(editor_id world_id, editor_id struct_id)
-		//{
-		//	auto* p_w = find(world_id);
-		//	std::erase(p_w->structs, struct_id);
-		// }
-
-		// void remove(editor_id id)
-		//{
-		//	if (_idx_map.contains(id) is_false)
-		//	{
-		//		return;
-		//	}
-
-		//	auto& idx_pair				  = _idx_map[id];
-		//	auto  scene_idx				  = idx_pair.first;
-		//	auto  world_idx				  = idx_pair.second;
-		//	auto  back_idx				  = _worlds[scene_idx].size() - 1;
-		//	_worlds[scene_idx][world_idx] = _worlds[scene_idx][back_idx];
-		//	_worlds[scene_idx].pop_back();
-		//	_idx_map.erase(id);
-		//	id::delete_id(id);
-		//}
+			auto back_idx					 = _entities[world_idx].size() - 1;
+			_entities[world_idx][entity_idx] = _entities[world_idx][back_idx];
+			_entities[world_idx].pop_back();
+			_idx_map.erase(entity_id);
+			id::delete_id(entity_id);
+		}
 
 		std::vector<em_entity*> all(editor_id world_id)
 		{
@@ -2328,6 +2329,28 @@ namespace editor::models
 			return std::vector(res.begin(), res.end());
 		}
 
+		editor_command cmd_create_empty(
+			"Create Emtpy Entity",
+			ImGuiKey_None,
+			// todo check that no entities uses that struct
+			[](editor_id _) { auto w_id = editor::get_current_selection(); return w_id.type() == DataType_World and world::find(w_id) != nullptr; },
+			[](editor_id _) {
+				auto  cmd = undoredo::undo_redo_cmd();
+				auto* p_w = world::find(editor::get_current_selection());
+
+				cmd.name = "create empty entity";
+				cmd.redo = [=]() {
+					create(p_w->id);
+				};
+				cmd.undo = [=]() {
+					remove(_entities[world::_idx_map[p_w->id].second].back().id);
+				};
+
+				undoredo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			});
+
 		void on_project_unloaded()
 		{
 			_entities.clear();
@@ -2339,6 +2362,7 @@ namespace editor::models
 			auto res = true;
 			// res		 &= add_context_item("Entity\\Add New Entity", &entity::cmd_create);
 			// res		 &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
+			res &= add_context_item("World\\Entity\\Create Empty", &entity::cmd_create_empty);
 			assert(res);
 		}
 	}	 // namespace entity
@@ -2411,6 +2435,98 @@ namespace editor::models
 
 		// namespace
 	}	 // namespace component
+
+	namespace text
+	{
+		namespace
+		{
+			std::unordered_map<editor_id, const char*, editor_id::hash_func> _text_map;
+		}
+
+		editor_id create(const char* p_text)
+		{
+			auto id = id::get_new(DataType_Editor_Text);
+			_text_map.insert({ id, p_text });
+			return id;
+		}
+
+		void remove(editor_id id)
+		{
+			_text_map.erase(id);
+		}
+
+		const char* find(editor_id id)
+		{
+			return _text_map[id];
+		}
+	}	 // namespace text
+
+	editor_command cmd_rename(
+		"Rename",
+		ImGuiKey_None,
+		// todo check that no entities uses that struct
+		[](editor_id text_id) { return text_id.type() == DataType_Editor_Text; },
+		[](editor_id text_id) {
+			auto id = editor::get_current_selection();
+			//  todo
+			//  change editor command signature to take void*
+			//  or create editor object with corresponding datatype and editor_id (ex. editor::models::text::create(const char* )
+			//  const char* new_text = editor::models::text::find(text_id);
+
+			// todo maybe another way to to do this
+			std::string str = text::find(text_id);
+			text::remove(text_id);
+
+			switch (id.type())
+			{
+			default:
+				break;
+			case DataType_Entity:
+			{
+				auto* p_e = entity::find(id);
+				if (p_e is_nullptr)
+				{
+					return;
+				}
+
+				auto cmd	 = undoredo::undo_redo_cmd();
+				auto reserve = p_e->name;
+				cmd.name	 = std::format("rename entity {} from {} to {}", id.value, p_e->name, str);
+				cmd.undo	 = [=]() { p_e->name = reserve; };
+				cmd.redo	 = [=]() { p_e->name = str; };
+				undoredo::add(cmd);
+				logger::info(cmd.name);
+				cmd.redo();
+			}
+			break;
+			case DataType_Project:
+				break;
+			case DataType_Scene:
+				break;
+			case DataType_World:
+				break;
+			case DataType_SubWorld:
+				break;
+			case DataType_Component:
+				break;
+			case DataType_System:
+				break;
+			case DataType_Struct:
+				break;
+			case DataType_Field:
+				break;
+			case DataType_Editor_Text:
+				break;
+			case DataType_Editor_Command:
+				break;
+			case DataType_Editor_UndoRedo:
+				break;
+			case DataType_Count:
+				break;
+			case DataType_InValid:
+				break;
+			}
+		});
 
 	void on_project_unloaded()
 	{
