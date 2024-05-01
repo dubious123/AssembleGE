@@ -204,7 +204,7 @@ namespace editor::view::inspector
 
 		auto p_scene = scene::find(p_world->scene_id);
 
-		widgets::text((p_world->name).c_str());
+		widgets::editable_header(world_id, p_world->name);
 
 		if (widgets::tree_node("archetype", ImGuiTreeNodeFlags_DefaultOpen))
 		{
@@ -287,32 +287,12 @@ namespace editor::view::inspector
 	{
 		auto p_e = models::entity::find(entity_id);
 
-		{
-			// frame background
-			style::push_color(ImGuiCol_FrameBg, COL_BLACK);
-			// style::push_var(ImGuiStyleVar_FramePadding, { style::frame_padding().x, 0 });
-			style::push_var(ImGuiStyleVar_FrameRounding, 0);
-			char c_buf[500] { 0 };
-			memcpy(c_buf, p_e->name.c_str(), p_e->name.size());
-			widgets::input_text(std::format("##{}", entity_id.value).c_str(), c_buf, 500);
-
-			if (widgets::is_item_deactivated_after_edit())
-			{
-				editor::models::cmd_rename(editor::models::text::create(c_buf));
-			}
-
-			style::pop_var(1);
-			style::pop_color();
-		}
-
-
+		widgets::editable_header(entity_id, p_e->name);
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
 			widgets::component_drag(p_c->id);
-			// auto p_struct = models::reflection::find_struct(p_c->struct_id);
-			// widgets::text(std::format("{}", p_struct->name).c_str());
 		});
 		// auto p_entity = entity::get(entity_id);
 

@@ -320,6 +320,9 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
+	ecs::scene<>();
+	ecs::world<>();
+
 	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
 	meta::param_at<1, test_func2> eeeee;
 

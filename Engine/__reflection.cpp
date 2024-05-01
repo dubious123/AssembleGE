@@ -102,9 +102,10 @@ namespace reflection
 		_scene_info_vec().emplace_back(scene_name, 0ui64, _world_info_vec().size());
 	}
 
-	void register_world(const char* world_name)
+	void register_world(const char* world_name, const ecs::world_base& w)
 	{
 		// todo register world base
+		_world_base_vec().emplace_back(&(ecs::world_base&)w);
 		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul);
 		auto& scene_info = _scene_info_vec().back();
 
@@ -138,13 +139,7 @@ namespace reflection
 		e_info.name		 = entity_name;
 		e_info.idx		 = e_idx;
 		e_info.archetype = w.entities[e_idx].archetype;
-		_world_base_vec().emplace_back(&(ecs::world_base&)w);
-		// problem 1 archetype may change => p_archetype
-		// problem 2 components may change => if use pointer => position within memory block may change + if structural change happen p_memory_block may change
-		//=> use pp_memory_block
-		// problem 3 if use pp => if more entities are pushed, w.entities.data will be reallocated => no longer valid
-		// sol only save e_idx
-		// if we need any data => use engine api
+		// _world_base_vec().emplace_back(&(ecs::world_base&)w);
 	}
 
 	size_t get_registered_struct_count()
@@ -164,11 +159,6 @@ namespace reflection
 
 	size_t get_registered_entity_count(size_t world_idx)
 	{
-		// if (_entity_info_vec().size() <= world_idx)
-		//{
-		//	return 0;
-		// }
-
 		return _entity_info_vec()[world_idx].size();
 	}
 
@@ -193,7 +183,7 @@ namespace reflection
 	component_info get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx)
 	{
 		entity_info* e_info		  = get_entity_info(world_idx, entity_idx);
-		auto*		 p_world_base = _world_base_vec()[entity_idx];
+		auto*		 p_world_base = _world_base_vec()[world_idx];
 		auto&		 e			  = p_world_base->entities[e_info->idx];
 
 		auto& mem_block = p_world_base->memory_block_vec_map[e.archetype][e.mem_block_idx];

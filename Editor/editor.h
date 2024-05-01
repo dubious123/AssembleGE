@@ -424,7 +424,8 @@ namespace editor::widgets
 namespace editor::widgets
 {
 	bool component_drag(editor_id c_id);
-}
+	bool editable_header(editor_id target_id, std::string target_name);
+}	 // namespace editor::widgets
 
 namespace editor::undoredo
 {
@@ -664,7 +665,10 @@ namespace editor::models
 		const char* find(editor_id id);
 	}	 // namespace text
 
-	extern editor_command cmd_rename;
+	extern editor_command cmd_rename_selection;
+
+	void*		 find(editor_id);
+	std::string* get_name(editor_id);
 
 	// any change from editor needs to be applied to project exists?
 	bool change_exists();

@@ -1457,3 +1457,22 @@ bool editor::widgets::component_drag(editor_id c_id)
 
 	return false;
 }
+
+bool editor::widgets::editable_header(editor_id target_id, std::string target_name)
+{
+	char c_buf[50] { 0 };
+	memcpy(c_buf, target_name.c_str(), target_name.size());
+	style::push_color(ImGuiCol_FrameBg, COL_BLACK);
+	style::push_var(ImGuiStyleVar_FrameRounding, 0);
+	auto res = widgets::input_text(std::format("##{}", target_id.value).c_str(), c_buf, 50);
+
+	if (widgets::is_item_deactivated_after_edit())
+	{
+		assert(editor::get_current_selection() == target_id);
+		editor::models::cmd_rename_selection(editor::models::text::create(c_buf));
+	}
+
+	style::pop_var(1);
+	style::pop_color(1);
+	return res;
+}

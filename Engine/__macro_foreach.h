@@ -1,8 +1,10 @@
 #pragma once
-#define CALL(f)		f();
+#define CALL(f) f();
+
 #define __EXPAND(x) x
 
 #pragma region for each arg
+#define __FOR_EACH_ARG_0(what, x, ...)
 #define __FOR_EACH_ARG_1(what, x, ...) what(x)
 #define __FOR_EACH_ARG_2(what, x, ...) \
 	what(x),                           \
@@ -199,6 +201,8 @@
 #pragma endregion
 
 #pragma region for each
+#define __FOR_EACH_0(what, x, ...) ;
+
 #define __FOR_EACH_1(what, x, ...) what(x);
 #define __FOR_EACH_2(what, x, ...) \
 	what(x);                       \
@@ -408,7 +412,7 @@
 		19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 #define __CONCATENATE(x, y)			 x##y
-#define __FOR_EACH_(N, what, ...)	 __EXPAND(__CONCATENATE(__FOR_EACH_, N)(what, __VA_ARGS__))
-#define FOR_EACH(what, ...)			 __FOR_EACH_(__FOR_EACH_NARG(__VA_ARGS__), what, __VA_ARGS__)
-#define __FOR_EACH_ARG(N, what, ...) __EXPAND(__CONCATENATE(__FOR_EACH_ARG_, N)(what, __VA_ARGS__))
-#define FOR_EACH_ARG(what, ...)		 __FOR_EACH_ARG(__FOR_EACH_NARG(__VA_ARGS__), what, __VA_ARGS__)
+#define __FOR_EACH_(N, what, ...)	 __EXPAND(__CONCATENATE(__FOR_EACH_, N)(what __VA_OPT__(, ) __VA_ARGS__))
+#define FOR_EACH(what, ...)			 __FOR_EACH_(__FOR_EACH_NARG(__VA_ARGS__), what __VA_OPT__(, ) __VA_ARGS__)
+#define __FOR_EACH_ARG(N, what, ...) __EXPAND(__CONCATENATE(__FOR_EACH_ARG_, N)(what __VA_OPT__(, ) __VA_ARGS__))
+#define FOR_EACH_ARG(what, ...)		 __FOR_EACH_ARG(__FOR_EACH_NARG(__VA_ARGS__), what __VA_OPT__(, ) __VA_ARGS__)

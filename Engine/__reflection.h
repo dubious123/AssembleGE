@@ -49,9 +49,9 @@
 
 #define WORLD_BEGIN(world_name, ...) \
 	static inline auto world_name = []() {											\
-	using world_wrapper_t = reflection::world_wrapper<#world_name, __VA_ARGS__>;	\
+	using world_wrapper_t = reflection::world_wrapper<#world_name  __VA_OPT__(,) __VA_ARGS__>;	\
 	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {				\
-	world_wrapper_t::serialize();
+	world_wrapper_t::serialize(w);
 
 
 #define WORLD_END()           \
@@ -70,14 +70,22 @@
 
 #define SET_COMPONENT(type, path, ...) w.get_component<type>(e) path = __VA_ARGS__;
 
-#define SERIALIZE_SCENE(scene_name, ...)                                                                       \
-	static inline auto& scene_name = []() -> auto& {                                                           \
-		using t_scene_wrapper = reflection::scene_wrapper<#scene_name, FOR_EACH_ARG(SCENE_ARGS, __VA_ARGS__)>; \
-		t_scene_wrapper();			/*reflction*/                                                              \
-		FOR_EACH(CALL, __VA_ARGS__) /*connect init func + world reflection*/                                   \
-		/*static auto s = ;*/                                                                                  \
-		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/       \
+#define SERIALIZE_SCENE(scene_name, ...)                                                                                    \
+	static inline auto& scene_name = []() -> auto& {                                                                        \
+		using t_scene_wrapper = reflection::scene_wrapper<#scene_name __VA_OPT__(, FOR_EACH_ARG(SCENE_ARGS, __VA_ARGS__))>; \
+		t_scene_wrapper();						/*reflction*/                                                               \
+		__VA_OPT__(FOR_EACH(CALL, __VA_ARGS__)) /*connect init func + world reflection*/                                    \
+		/*static auto s = ;*/                                                                                               \
+		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/                    \
 	}();
+
+//#define SERIALIZE_SCENE(scene_name)                                                                      \
+//	static inline auto& scene_name = []() -> auto& {                                                     \
+//		using t_scene_wrapper = reflection::scene_wrapper<#scene_name>;                                  \
+//		t_scene_wrapper(); /*reflction*/                                                                 \
+//		/*static auto s = ;*/                                                                            \
+//		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/ \
+//	}();
 
 template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
 static size_t field_offset()
@@ -155,7 +163,7 @@ namespace reflection
 
 	void register_scene(const char* name);
 
-	void register_world(const char* name);
+	void register_world(const char* name, const ecs::world_base& w);
 
 	void register_component_to_world(uint64 struct_hash_id);
 
@@ -190,9 +198,9 @@ namespace reflection
 
 		static inline void (*init_func)(world_type& w);
 
-		static inline void serialize()
+		static inline void serialize(world_type& w)
 		{
-			reflection::register_world(str_wrapper.value);
+			reflection::register_world(str_wrapper.value, (const ecs::world_base&)(w));
 			([] {
 				reflection::register_component_to_world(c::id);
 			}(),

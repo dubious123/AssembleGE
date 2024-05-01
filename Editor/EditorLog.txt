@@ -1,18 +1,6 @@
-[2024-04-28 20:28:52.610] [Editor Logger] [info] Hi
-[2024-04-28 20:28:54.097] [Editor Logger] [info] Open Completed
-[2024-04-28 20:28:55.352] [Editor Logger] [info] Select 0x00000000000000
-[2024-04-28 20:28:57.469] [Editor Logger] [info] Project save completed
-[2024-04-28 20:28:58.267] [Editor Logger] [info] undo command : Select 0x00000000000000
-[2024-04-28 20:28:59.017] [Editor Logger] [info] redo command : Select 0x00000000000000
-[2024-04-28 20:29:01.141] [Editor Logger] [info] rename entity 0 from entity_0 to entity_0asdfsdf
-[2024-04-28 20:29:01.650] [Editor Logger] [info] Project save completed
-[2024-04-28 20:29:02.384] [Editor Logger] [info] undo command : rename entity 0 from entity_0 to entity_0asdfsdf
-[2024-04-28 20:29:03.132] [Editor Logger] [info] redo command : rename entity 0 from entity_0 to entity_0asdfsdf
-[2024-04-28 20:29:03.474] [Editor Logger] [info] undo command : rename entity 0 from entity_0 to entity_0asdfsdf
-[2024-04-28 20:29:05.749] [Editor Logger] [info] Select 0x00000000000003
-[2024-04-28 20:29:16.661] [Editor Logger] [info] rename entity 3 from new_entity##0x20000000000003 to game_manager
-[2024-04-28 20:29:25.027] [Editor Logger] [info] Build Success
-[2024-04-28 20:29:25.750] [Editor Logger] [info] Select 0x00000000000003
-[2024-04-28 20:29:26.258] [Editor Logger] [info] Select 0x00000000000004
-[2024-04-28 20:29:27.399] [Editor Logger] [info] Select 0x00000000000001
-[2024-04-28 20:29:28.698] [Editor Logger] [info] Select 0x00000000000002
+[2024-05-01 17:48:54.039] [Editor Logger] [info] Hi
+[2024-05-01 17:48:55.485] [Editor Logger] [info] Open Completed
+[2024-05-01 17:48:56.974] [Editor Logger] [info] Select 0x00000000000006
+[2024-05-01 17:48:57.925] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
+[2024-05-01 17:48:58.634] [Editor Logger] [info] Select 0x00000000000000
+[2024-05-01 17:48:58.865] [Editor Logger] [info] Select 0x00000000000001

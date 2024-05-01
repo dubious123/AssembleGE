@@ -2260,9 +2260,9 @@ namespace editor::models
 	{
 		namespace
 		{
-			std::vector<std::vector<em_entity>>											   _entities;
-			std::unordered_map<editor_id, std::pair<uint32, uint32>, editor_id::hash_func> _idx_map;	// key : entity id, value : [world index, entity index]
-		}																								// namespace
+			std::unordered_map<editor_id, std::vector<em_entity>, editor_id::hash_func>		  _entities;	// key : world_id, value : em_entity
+			std::unordered_map<editor_id, std::pair<editor_id, uint32>, editor_id::hash_func> _idx_map;		// key : entity id, value : [world id, entity index]
+		}																									// namespace
 
 		em_entity* find(editor_id entity_id)
 		{
@@ -2281,19 +2281,19 @@ namespace editor::models
 		{
 			assert(world::find(world_id) != nullptr);
 
-			auto world_idx = world::_idx_map[world_id].second;
+			// auto world_idx = world::_idx_map[world_id].second;
 
-			if (_entities.size() <= world_idx)
-			{
-				_entities.resize(world_idx + 1);
-			}
+			// if (_entities.size() <= world_idx)
+			//{
+			//	_entities.resize(world_idx + 1);
+			// }
 
-			auto  entity_idx = _entities[world_idx].size();
-			auto& e			 = _entities[world_idx].emplace_back();
+			auto  entity_idx = _entities[world_id].size();
+			auto& e			 = _entities[world_id].emplace_back();
 			e.id			 = id::get_new(DataType_Entity);
 			e.name			 = std::format("new_entity##{0}", e.id.str());
 			e.world_id		 = world_id;
-			_idx_map.insert({ e.id, std::pair(world_idx, entity_idx) });
+			_idx_map.insert({ e.id, std::pair(world_id, entity_idx) });
 			return e.id;
 		}
 
@@ -2304,13 +2304,11 @@ namespace editor::models
 				return;
 			}
 
-			auto idx_pair	= _idx_map[entity_id];
-			auto world_idx	= idx_pair.first;
-			auto entity_idx = idx_pair.second;
+			auto& [world_id, entity_idx] = _idx_map[entity_id];
 
-			auto back_idx					 = _entities[world_idx].size() - 1;
-			_entities[world_idx][entity_idx] = _entities[world_idx][back_idx];
-			_entities[world_idx].pop_back();
+			auto back_idx					= _entities[world_id].size() - 1;
+			_entities[world_id][entity_idx] = _entities[world_id][back_idx];
+			_entities[world_id].pop_back();
 			_idx_map.erase(entity_id);
 			id::delete_id(entity_id);
 		}
@@ -2318,14 +2316,8 @@ namespace editor::models
 		std::vector<em_entity*> all(editor_id world_id)
 		{
 			assert(world::find(world_id) != nullptr);
-			auto world_idx = world::_idx_map[world_id].second;
 
-			if (_entities.size() <= world_idx)
-			{
-				return std::vector<em_entity*>();
-			}
-
-			auto res = _entities[world_idx] | std::views::transform([](em_entity& e) { return &e; });
+			auto res = _entities[world_id] | std::views::transform([](em_entity& e) { return &e; });
 			return std::vector(res.begin(), res.end());
 		}
 
@@ -2343,7 +2335,7 @@ namespace editor::models
 					create(p_w->id);
 				};
 				cmd.undo = [=]() {
-					remove(_entities[world::_idx_map[p_w->id].second].back().id);
+					remove(_entities[p_w->id].back().id);
 				};
 
 				undoredo::add(cmd);
@@ -2371,16 +2363,16 @@ namespace editor::models
 	{
 		namespace
 		{
-			std::vector<std::vector<em_component>>										   _components;
-			std::unordered_map<editor_id, std::pair<uint32, uint32>, editor_id::hash_func> _idx_map;	// key: component_id, value: [entity_idx,component_idx]
-		}																								// namespace
+			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func>	  _components;	  // key : endity_id
+			std::unordered_map<editor_id, std::pair<editor_id, uint32>, editor_id::hash_func> _idx_map;		  // key: component_id, value: [entity_id,component_idx]
+		}																									  // namespace
 
 		em_component* find(editor_id component_id)
 		{
 			if (_idx_map.contains(component_id))
 			{
-				auto& idx_pair = _idx_map[component_id];
-				return &_components[idx_pair.first][idx_pair.second];
+				auto& [entity_id, component_idx] = _idx_map[component_id];
+				return &_components[entity_id][component_idx];
 			}
 			else
 			{
@@ -2393,33 +2385,20 @@ namespace editor::models
 			assert(entity::find(entity_id) != nullptr);
 			assert(reflection::find_struct(struct_id) != nullptr);
 
-			auto entity_idx = entity::_idx_map[entity_id].second;
-
-			if (_components.size() <= entity_idx)
-			{
-				_components.resize(entity_idx + 1);
-			}
-
-			auto  component_idx = _components[entity_idx].size();
-			auto& c				= _components[entity_idx].emplace_back();
+			auto  component_idx = _components[entity_id].size();
+			auto& c				= _components[entity_id].emplace_back();
 			c.id				= id::get_new(DataType_Component);
 			c.entity_id			= entity_id;
 			c.struct_id			= struct_id;
-			_idx_map.insert({ c.id, std::pair(entity_idx, component_idx) });
+			_idx_map[c.id]		= { entity_id, component_idx };
 			return c.id;
 		}
 
 		std::vector<em_component*> all(editor_id entity_id)
 		{
-			assert(entity::find(entity_id) != nullptr);
-			auto entity_idx = entity::_idx_map[entity_id].second;
+			assert(entity::find(entity_id) is_not_nullptr);
 
-			if (_components.size() <= entity_idx)
-			{
-				return std::vector<em_component*>();
-			}
-
-			auto res = _components[entity_idx] | std::views::transform([](em_component& s) { return &s; });
+			auto res = _components[entity_id] | std::views::transform([](em_component& s) { return &s; });
 			return std::vector(res.begin(), res.end());
 		}
 
@@ -2461,71 +2440,32 @@ namespace editor::models
 		}
 	}	 // namespace text
 
-	editor_command cmd_rename(
+	editor_command cmd_rename_selection(
 		"Rename",
 		ImGuiKey_None,
 		// todo check that no entities uses that struct
-		[](editor_id text_id) { return text_id.type() == DataType_Editor_Text; },
+		[](editor_id text_id) { return text_id.type() == DataType_Editor_Text and find(get_current_selection()); },
 		[](editor_id text_id) {
-			auto id = editor::get_current_selection();
 			//  todo
 			//  change editor command signature to take void*
 			//  or create editor object with corresponding datatype and editor_id (ex. editor::models::text::create(const char* )
 			//  const char* new_text = editor::models::text::find(text_id);
 
 			// todo maybe another way to to do this
-			std::string str = text::find(text_id);
+			auto id			= editor::get_current_selection();
+			auto backup_str = *get_name(id);
+			auto text_str	= std::string(text::find(text_id));
+
+			auto cmd = undoredo::undo_redo_cmd();
+
+			cmd.name = std::format("rename {} from {} to {}", id.value, *get_name(id), text_str);
+			cmd.undo = [=]() { *get_name(id) = backup_str; };
+			cmd.redo = [=]() { *get_name(id) = text_str; };
+			undoredo::add(cmd);
+			logger::info(cmd.name);
+			cmd.redo();
+
 			text::remove(text_id);
-
-			switch (id.type())
-			{
-			default:
-				break;
-			case DataType_Entity:
-			{
-				auto* p_e = entity::find(id);
-				if (p_e is_nullptr)
-				{
-					return;
-				}
-
-				auto cmd	 = undoredo::undo_redo_cmd();
-				auto reserve = p_e->name;
-				cmd.name	 = std::format("rename entity {} from {} to {}", id.value, p_e->name, str);
-				cmd.undo	 = [=]() { p_e->name = reserve; };
-				cmd.redo	 = [=]() { p_e->name = str; };
-				undoredo::add(cmd);
-				logger::info(cmd.name);
-				cmd.redo();
-			}
-			break;
-			case DataType_Project:
-				break;
-			case DataType_Scene:
-				break;
-			case DataType_World:
-				break;
-			case DataType_SubWorld:
-				break;
-			case DataType_Component:
-				break;
-			case DataType_System:
-				break;
-			case DataType_Struct:
-				break;
-			case DataType_Field:
-				break;
-			case DataType_Editor_Text:
-				break;
-			case DataType_Editor_Command:
-				break;
-			case DataType_Editor_UndoRedo:
-				break;
-			case DataType_Count:
-				break;
-			case DataType_InValid:
-				break;
-			}
 		});
 
 	void on_project_unloaded()
@@ -2536,6 +2476,87 @@ namespace editor::models
 		entity::on_project_unloaded();
 		component::on_project_unloaded();
 		// component::on_project_unloaded();
+	}
+
+	void* find(editor_id id)
+	{
+		switch (id.type())
+		{
+		case DataType_Entity:
+			return entity::find(id);
+		case DataType_Project:
+			return nullptr;
+		case DataType_Scene:
+			return scene::find(id);
+		case DataType_World:
+			return world::find(id);
+		case DataType_SubWorld:
+			return nullptr;
+		case DataType_Component:
+			return component::find(id);
+		case DataType_System:
+			return nullptr;
+		case DataType_Struct:
+			return reflection::find_struct(id);
+		case DataType_Field:
+			return reflection::find_field(id);
+		case DataType_Editor_Text:
+			return (void*)text::find(id);
+		case DataType_Editor_Command:
+		case DataType_Editor_UndoRedo:
+		case DataType_Count:
+		case DataType_InValid:
+			return nullptr;
+		}
+
+		return nullptr;
+	}
+
+	std::string* get_name(editor_id id)
+	{
+		switch (id.type())
+		{
+		case DataType_Entity:
+		{
+			auto* ptr = entity::find(id);
+			return ptr is_nullptr ? nullptr : &ptr->name;
+		}
+		case DataType_Project:
+			return nullptr;
+		case DataType_Scene:
+		{
+			auto* ptr = scene::find(id);
+			return ptr is_nullptr ? nullptr : &ptr->name;
+		}
+		case DataType_World:
+		{
+			auto* ptr = world::find(id);
+			return ptr is_nullptr ? nullptr : &ptr->name;
+		}
+		case DataType_SubWorld:
+			return nullptr;
+		case DataType_Component:
+		case DataType_System:
+			return nullptr;
+		case DataType_Struct:
+		{
+			auto* ptr = reflection::find_struct(id);
+			return ptr is_nullptr ? nullptr : &ptr->name;
+		}
+		case DataType_Field:
+		{
+			auto* ptr = reflection::find_field(id);
+			return ptr is_nullptr ? nullptr : &ptr->name;
+		}
+		case DataType_Editor_Text:
+		case DataType_Editor_Command:
+		case DataType_Editor_UndoRedo:
+		case DataType_Count:
+		case DataType_InValid:
+			return nullptr;
+		}
+
+		return nullptr;
 	}
 
 	bool change_exists()

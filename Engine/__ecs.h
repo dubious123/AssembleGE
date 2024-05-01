@@ -482,7 +482,7 @@ namespace ecs
 	class world : public world_base
 	{
 	  private:
-		using component_tpl = tuple_sort<component_comparator, c...>::type;
+		using component_tpl = tuple_sort<component_comparator, std::tuple<c...>>::type;
 		using world_t		= world<c...>;
 
 		template <typename... t>
@@ -928,8 +928,11 @@ namespace ecs
 		{
 			return *(world_at<N>*)(void*)(worlds + N);
 		}
+	};
 
-		// inline void loop();
+	template <>
+	struct scene<> : scene_base
+	{
 	};
 
 	struct subworld
