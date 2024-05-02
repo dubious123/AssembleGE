@@ -383,6 +383,49 @@ namespace editor::view::reflection
 	}
 }	 // namespace editor::view::reflection
 
+namespace editor::view::world_editor
+{
+	using namespace editor::models;
+
+	auto _open = true;
+
+	const auto cmd_open = editor_command {
+		"Open reflection Window",
+		ImGuiKey_None,
+		[](editor_id _) {
+			return true;
+		},
+		[](editor_id _) {
+			_open ^= true;
+		}
+	};
+
+	void show()
+	{
+		if (_open is_false) return;
+
+		if (widgets::begin("World Editor", &_open))
+		{
+
+			widgets::text("Hi Im World Editor");
+			// std::ranges::for_each(editor::models::reflection::all_structs(), [](em_struct* p_s) {
+			//	if (widgets::tree_node(p_s->name.c_str()))
+			//	{
+			//		std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
+			//			auto selected = false;
+			//			widgets::tree_node(std::format("{} ({}) : ( {} )", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+			//		});
+
+
+			//		widgets::tree_pop();
+			//	}
+			//});
+		}
+
+		widgets::end();
+	}
+}	 // namespace editor::view::world_editor
+
 namespace editor::view
 {
 	namespace
@@ -425,6 +468,7 @@ namespace editor::view
 		res		 &= editor::add_context_item("Main Menu\\Window\\Hierarchy", &hierarchy::cmd_open);
 		res		 &= editor::add_context_item("Main Menu\\Window\\Inspector", &inspector::cmd_open);
 		res		 &= editor::add_context_item("Main Menu\\Window\\Reflection", &reflection::cmd_open);
+		res		 &= editor::add_context_item("Main Menu\\Window\\World_Editor", &editor::view::world_editor::cmd_open);
 		assert(res);
 		logger::on_project_loaded();
 	}
@@ -443,6 +487,7 @@ namespace editor::view
 			hierarchy::show();
 			inspector::show();
 			reflection::show();
+			world_editor::show();
 		}
 	}
 }	 // namespace editor::view

@@ -79,14 +79,27 @@
 		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/                    \
 	}();
 
-//#define SERIALIZE_SCENE(scene_name)                                                                      \
-//	static inline auto& scene_name = []() -> auto& {                                                     \
-//		using t_scene_wrapper = reflection::scene_wrapper<#scene_name>;                                  \
-//		t_scene_wrapper(); /*reflction*/                                                                 \
-//		/*static auto s = ;*/                                                                            \
-//		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/ \
-//	}();
+// 1. scene_wrapper() => reflection::register_scene(str_wrapper.value);
+// 2. foreach world, call world lambda
+//		a. connect init func
+//		b. return world_wrapper_t() => constructor => does nothing
+//		c. why return when return value is ignored?
+//
+// 3. scene_wrapper.value()
+//		a. ecs::scene()
+//		b. foreach world,  w_wrapper::init_func()
+//			1. serialize world()
+//				a. register world
+//				b. foreach component, register component to world
+//			2. ecs::entity()
+//			3. register entity
+//			4. world_wrapper_t() => does nothing
+//
 
+
+// what to do
+//
+//
 template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
 static size_t field_offset()
 {
@@ -209,11 +222,6 @@ namespace reflection
 
 		world_wrapper()
 		{
-			// reflection::register_world(str_wrapper.value);
-			//([] {
-			//	reflection::register_component_to_world(c::id);
-			// }(),
-			//  ...);
 		}
 	};
 
@@ -234,23 +242,6 @@ namespace reflection
 			 ...);
 
 			return s;
-			// static auto v = []() {
-			//	auto s	 = scene_type();
-			//	auto idx = 0;
-			//	([&]() {
-			//		// w_wrapper();	// reflection
-			//		auto* p_w = (typename w_wrapper::world_type*)(s.worlds + idx);
-			//		w_wrapper::init_func((typename w_wrapper::world_type&)(*p_w));
-			//		++idx;
-			//		// scene_type::worlds auto& world = s.get_world<meta::variadic_index_v<w, w...>>();
-			//		// meta::variadic_at_t<meta::variadic_index_v<w, w...>, w...>::init_func(world);
-			//	}(),
-			//	 ...);
-
-			//	return s;
-			//}();
-
-			// return v;
 		}
 
 		scene_wrapper()

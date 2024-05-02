@@ -144,19 +144,36 @@ namespace editor::game
 
 			if (want_output)
 			{
-				auto max_buf_size = buf_size - 1;
-				auto read_count	  = 0ul;
-				auto write_pos	  = 0ul;
+				auto max_buf_size  = buf_size - 1;
+				auto read_count	   = 0ul;
+				auto write_pos	   = 0ul;
+				auto bytes_to_read = 0ul;
 
 				while (true)
 				{
-					if (::ReadFile(hchild_out_rd, p_out_buf, 4096, &read_count, nullptr))
+					if (::PeekNamedPipe(
+							hchild_out_rd,	   //[in] HANDLE				  hNamedPipe,
+							nullptr,		   //[ out, optional ] LPVOID  lpBuffer,
+							0,				   //[in] DWORD				  nBufferSize,
+							nullptr,		   //[ out, optional ] LPDWORD lpBytesRead,
+							&bytes_to_read,	   //[ out, optional ] LPDWORD lpTotalBytesAvail,
+							nullptr			   //[ out, optional ] LPDWORD lpBytesLeftThisMessage))
+							))
+					{
+						if (max_buf_size < write_pos + bytes_to_read)
+						{
+							*p_write_size = write_pos;
+							logger::error("not enough buffer size");
+							break;
+						}
+					}
+
+					if (::ReadFile(hchild_out_rd, p_out_buf, bytes_to_read, &read_count, nullptr))
 					{
 						write_pos += read_count;
 						if (write_pos >= max_buf_size)
 						{
-							// todo
-							break;
+							assert(false);
 						}
 
 						p_out_buf = (char*)p_out_buf + read_count;
@@ -329,6 +346,7 @@ namespace editor::game
 
 			auto build_success = SUCCEEDED(cmd_res) and (ms_build_exit_code == 0);
 			auto w_out		   = std::string(buf, buf_write_size + 1);
+			// w_out.append("\n");
 
 			if (build_success is_false)
 			{

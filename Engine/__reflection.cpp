@@ -107,6 +107,7 @@ namespace reflection
 		// todo register world base
 		_world_base_vec().emplace_back(&(ecs::world_base&)w);
 		_world_info_vec().emplace_back(world_name, _scene_info_vec().size() - 1, 0ul);
+		_entity_info_vec().emplace_back();
 		auto& scene_info = _scene_info_vec().back();
 
 		++scene_info.world_count;
@@ -130,10 +131,7 @@ namespace reflection
 	void register_entity(const char* entity_name, ecs::entity_idx e_idx, const ecs::world_base& w)
 	{
 		auto w_idx = _world_info_vec().size() - 1;
-		while (_entity_info_vec().size() <= w_idx)
-		{
-			_entity_info_vec().emplace_back();
-		}
+		assert(_entity_info_vec().size() > w_idx);
 
 		auto& e_info	 = _entity_info_vec()[w_idx].emplace_back();
 		e_info.name		 = entity_name;

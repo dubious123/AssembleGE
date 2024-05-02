@@ -2032,7 +2032,7 @@ namespace editor::models
 			auto  world_idx = _worlds[scene_idx].size();
 			auto& w			= _worlds[scene_idx].emplace_back();
 			w.id			= id::get_new(DataType_World);
-			w.name			= std::format("new_world##{0}", w.id.str());
+			w.name			= std::format("new_world_{}", w.id.str());
 			w.scene_id		= scene_id;
 			_idx_map.insert({ w.id, std::pair(scene_idx, world_idx) });
 			return w.id;
