@@ -38,68 +38,43 @@
 	}                  \
 	;
 
-// #define SERIALIZE_WORLD(world_name, ...) reflection::world_wrapper<#world_name, __VA_ARGS__>
-//
-// #define SERIALIZE_SCENE(scene_name, ...) static inline auto scene_name = [] {	   \
-//	using t_scene_wrapper = reflection::scene_wrapper<#scene_name,__VA_ARGS__>;	   \
-//	t_scene_wrapper();															   \
-//	return t_scene_wrapper::scene_type(); }();
+#define REGISTER_COMPONENT_TO_WORLD(component) reflection::register_component_to_world(component::id);
 
-#define SCENE_ARGS(world_wrapper_lambda) decltype(world_wrapper_lambda())
+#define SCENE_BEGIN(scene_name) \
+	static inline auto& scene_name = []() -> auto& {			\
+return reflection::scene_wrapper<#scene_name>::init( 0
+
 
 #define WORLD_BEGIN(world_name, ...) \
-	static inline auto world_name = []() {											\
-	using world_wrapper_t = reflection::world_wrapper<#world_name  __VA_OPT__(,) __VA_ARGS__>;	\
-	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {				\
-	world_wrapper_t::serialize(w);
+	, []() {																								\
+using w_wrapper	   = reflection::world_wrapper<#world_name __VA_OPT__(,) __VA_ARGS__>;					\
+w_wrapper::init_func = [](ecs::world_base& world) -> void {													\
+	using world_t = ecs::world<__VA_ARGS__>;																\
+	reflection::register_world(#world_name, world);															\
+__VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 
+#define ENTITY_BEGIN(entity_name, ...)                             \
+	{                                                              \
+		auto entity = ((world_t&)world).new_entity<__VA_ARGS__>(); \
+		reflection::register_entity(#entity_name, entity, world);
 
-#define WORLD_END()           \
-	}                         \
-	;                         \
-	return world_wrapper_t(); \
-	}                         \
-	;
-
-#define ENTITY_BEGIN(entity_name, ...)        \
-	{                                         \
-		auto e = w.new_entity<__VA_ARGS__>(); \
-		reflection::register_entity(#entity_name, e, (const ecs::world_base&)w);
+#define SET_COMPONENT(type, path, ...) ((world_t&)world).get_component<type>(entity) path = __VA_ARGS__;
 
 #define ENTITY_END() }
 
-#define SET_COMPONENT(type, path, ...) w.get_component<type>(e) path = __VA_ARGS__;
+#define WORLD_END()     \
+	}                   \
+	;                   \
+                        \
+	return w_wrapper(); \
+	}                   \
+	()
 
-#define SERIALIZE_SCENE(scene_name, ...)                                                                                    \
-	static inline auto& scene_name = []() -> auto& {                                                                        \
-		using t_scene_wrapper = reflection::scene_wrapper<#scene_name __VA_OPT__(, FOR_EACH_ARG(SCENE_ARGS, __VA_ARGS__))>; \
-		t_scene_wrapper();						/*reflction*/                                                               \
-		__VA_OPT__(FOR_EACH(CALL, __VA_ARGS__)) /*connect init func + world reflection*/                                    \
-		/*static auto s = ;*/                                                                                               \
-		return t_scene_wrapper::value(); /*scene constructor + world reflection + call world init func*/                    \
-	}();
+#define SCENE_END() \
+	);              \
+	}               \
+	();
 
-// 1. scene_wrapper() => reflection::register_scene(str_wrapper.value);
-// 2. foreach world, call world lambda
-//		a. connect init func
-//		b. return world_wrapper_t() => constructor => does nothing
-//		c. why return when return value is ignored?
-//
-// 3. scene_wrapper.value()
-//		a. ecs::scene()
-//		b. foreach world,  w_wrapper::init_func()
-//			1. serialize world()
-//				a. register world
-//				b. foreach component, register component to world
-//			2. ecs::entity()
-//			3. register entity
-//			4. world_wrapper_t() => does nothing
-//
-
-
-// what to do
-//
-//
 template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
 static size_t field_offset()
 {
@@ -208,45 +183,26 @@ namespace reflection
 	struct world_wrapper
 	{
 		using world_type = ecs::world<c...>;
-
-		static inline void (*init_func)(world_type& w);
-
-		static inline void serialize(world_type& w)
-		{
-			reflection::register_world(str_wrapper.value, (const ecs::world_base&)(w));
-			([] {
-				reflection::register_component_to_world(c::id);
-			}(),
-			 ...);
-		}
-
-		world_wrapper()
-		{
-		}
+		static inline void (*init_func)(ecs::world_base& world_base);
 	};
 
-	template <meta::string_wrapper str_wrapper, typename... w_wrapper>
+	template <meta::string_wrapper str_wrapper>
 	struct scene_wrapper
 	{
-		using scene_type = ecs::scene<typename w_wrapper::world_type...>;
-
-		static scene_type& value()
+		template <typename... w_wrapper>
+		static auto& init(int place_holder, w_wrapper&&...)
 		{
-			static auto s	= scene_type();
-			auto		idx = 0;
+			static auto s = ecs::scene<typename w_wrapper::world_type...>();
+			reflection::register_scene(str_wrapper.value);
+
+			auto idx = 0;
 			([&]() {
-				auto* p_w = (typename w_wrapper::world_type*)(s.worlds + idx);
-				w_wrapper::init_func((typename w_wrapper::world_type&)(*p_w));
+				w_wrapper::init_func(*(s.worlds + idx));
 				++idx;
 			}(),
 			 ...);
 
 			return s;
-		}
-
-		scene_wrapper()
-		{
-			reflection::register_scene(str_wrapper.value);
 		}
 	};
 }	 // namespace reflection

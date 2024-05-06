@@ -258,6 +258,9 @@ namespace meta
 	template <typename... ts>
 	using tuple_cat_t = decltype(std::tuple_cat(std::declval<ts>()...));
 
+	template <typename tpl, typename... ts>
+	using tuple_append_t = tuple_cat_t<tpl, std::tuple<ts...>>;
+
 	template <typename t, typename... ts>
 	using tuple_remove_t = tuple_cat_t<
 		std::conditional_t<

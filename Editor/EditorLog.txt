@@ -1,15 +1,4 @@
-[2024-05-02 17:34:31.477] [Editor Logger] [info] Hi
-[2024-05-02 17:34:33.041] [Editor Logger] [info] Open Completed
-[2024-05-02 17:34:36.200] [Editor Logger] [info] set current scene from 0x200000000000002 to 0x200000000000001
-[2024-05-02 17:34:39.374] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000002
-[2024-05-02 17:34:40.509] [Editor Logger] [info] set current scene from 0x200000000000002 to 0x200000000000001
-[2024-05-02 17:34:41.208] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
-[2024-05-02 17:34:42.872] [Editor Logger] [info] set current scene from 0x200000000000000 to 0x200000000000001
-[2024-05-02 17:34:43.699] [Editor Logger] [info] Select 0x300000000000003
-[2024-05-02 17:34:48.287] [Editor Logger] [info] rename 216172782113783811 from new_world3 to new_world34
-[2024-05-02 17:34:49.839] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
-[2024-05-02 17:34:55.315] [Editor Logger] [info] Build Success
-[2024-05-02 17:34:56.742] [Editor Logger] [info] set current scene from 0x200000000000002 to 0x200000000000000
-[2024-05-02 17:34:57.743] [Editor Logger] [info] set current scene from 0x200000000000000 to 0x200000000000001
-[2024-05-02 17:35:00.165] [Editor Logger] [info] Select 0x300000000000003
-[2024-05-02 17:35:01.751] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
+[2024-05-06 20:00:59.241] [Editor Logger] [info] Hi
+[2024-05-06 20:01:01.889] [Editor Logger] [info] Open Completed
+[2024-05-06 20:01:03.594] [Editor Logger] [info] Select 0x00000000000001
+[2024-05-06 20:01:03.962] [Editor Logger] [info] Select 0x00000000000000

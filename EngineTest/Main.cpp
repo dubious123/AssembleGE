@@ -99,6 +99,8 @@ COMPONENT_BEGIN(rigid_body)
 SERIALIZE_FIELD(float3, ac, 1, 1, 1)
 COMPNENT_END()
 
+
+SCENE_BEGIN(my_second_scene)
 WORLD_BEGIN(world_000, transform, bullet)
 ENTITY_BEGIN(entity_000, transform, bullet)
 SET_COMPONENT(transform, .position.x, 1)
@@ -122,6 +124,7 @@ ENTITY_BEGIN(entity_000, transform)
 SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ENTITY_END()
 WORLD_END()
+SCENE_END()
 
 // static inline auto world_003 = []() {
 //	using world_wrapper_t = reflection::world_wrapper<"world_003", transform>;
@@ -145,8 +148,6 @@ WORLD_END()
 //	world_001();;       // connect init, world reflection, entity reflection
 //	world_002();;
 //	return t_scene_wrapper::value(); }();
-
-SERIALIZE_SCENE(my_second_scene, world_001, world_002)
 
 //
 // SERIALIZE_SCENE(my_third_scene, world_002, world_003)
@@ -291,6 +292,60 @@ struct system_2
 void test_add3(int a, int b) { }
 
 using namespace ecs;
+
+
+// 1. reflection scene
+// 2. reflection world
+// 3. reflection entity
+// 4. reflection components
+// 5. return ecs scene
+
+// scene_begin
+// world_begin
+// entity_begin
+// set_component
+// entity_end
+// world_end
+// scene_end
+
+static inline auto& new_scene = []() -> auto& {
+	return reflection::scene_wrapper<"new_scene">::init(
+		0
+
+		,
+		[]() {
+			using new_world__wrapper_type	   = reflection::world_wrapper<"new_world", transform>;
+			new_world__wrapper_type::init_func = [](ecs::world_base& world) -> void {
+				using world_t = ecs::world<transform>;
+				reflection::register_world("new_world", world);
+
+				reflection::register_component_to_world(transform::id);
+
+				{
+					// entity begin
+					auto entity = ((world_t&)world).new_entity<transform>();
+					reflection::register_entity("new_entity", entity, world);
+
+					((world_t&)world).get_component<transform>(entity);
+					// entity end
+				}
+			};
+
+			return new_world__wrapper_type();
+		}()
+
+	);
+}();
+
+SCENE_BEGIN(new_scene_3)
+WORLD_BEGIN(new_world_2, transform)
+ENTITY_BEGIN(new_entity)
+ENTITY_END()
+ENTITY_BEGIN(new_entity2, transform)
+SET_COMPONENT(transform, .position.x, 100.f)
+ENTITY_END()
+WORLD_END()
+SCENE_END()
 
 int main()
 {
