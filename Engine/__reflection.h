@@ -23,7 +23,7 @@
 	  public:
 
 
-#define SERIALIZE_FIELD(type, field_name, ...)                                                                                                                          \
+#define __SERIALIZE_FIELD(type, field_name, ...)                                                                                                                        \
 	type field_name { __VA_ARGS__ };                                                                                                                                    \
                                                                                                                                                                         \
   private:                                                                                                                                                              \
@@ -45,7 +45,7 @@
 return reflection::scene_wrapper<#scene_name>::init( 0
 
 
-#define WORLD_BEGIN(world_name, ...) \
+#define __WORLD_BEGIN(world_name, ...) \
 	, []() {																								\
 using w_wrapper	   = reflection::world_wrapper<#world_name __VA_OPT__(,) __VA_ARGS__>;					\
 w_wrapper::init_func = [](ecs::world_base& world) -> void {													\
@@ -53,16 +53,16 @@ w_wrapper::init_func = [](ecs::world_base& world) -> void {													\
 	reflection::register_world(#world_name, world);															\
 __VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 
-#define ENTITY_BEGIN(entity_name, ...)                             \
+#define ____ENTITY_BEGIN(entity_name, ...)                         \
 	{                                                              \
 		auto entity = ((world_t&)world).new_entity<__VA_ARGS__>(); \
 		reflection::register_entity(#entity_name, entity, world);
 
-#define SET_COMPONENT(type, path, ...) ((world_t&)world).get_component<type>(entity) path = __VA_ARGS__;
+#define ______SET_COMPONENT(type, path, ...) ((world_t&)world).get_component<type>(entity) path = __VA_ARGS__;
 
-#define ENTITY_END() }
+#define ____ENTITY_END() }
 
-#define WORLD_END()     \
+#define __WORLD_END()   \
 	}                   \
 	;                   \
                         \

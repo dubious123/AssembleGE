@@ -27,20 +27,20 @@
 #endif
 
 #include <windows.h>
-#include <algorithm>	// for max
-#include <cstdio>		// for printf
-#include <utility>		// for exchange, move
-#include <vector>		// for vector
-#include <any>
-#include <variant>
-#include <iostream>
-#include <functional>
+// #include <algorithm>	// for max
+// #include <cstdio>		// for printf
+// #include <utility>		// for exchange, move
+// #include <vector>		// for vector
+// #include <any>
+// #include <variant>
+// #include <iostream>
+// #include <functional>
+
 
 #include <libloaderapi.h>
 #define Find(Type, Id) Model::Type::Find(Id)
 
 typedef int (*import_func)();
-#include <map>
 
 #define LOAD_FUN(func_type, func_name, library)                        \
 	[library]() {                                                      \
@@ -76,54 +76,56 @@ constexpr auto arr = []() {
 #include "../Engine/__data_structures.h"
 #include "../Engine/__meta.h"
 
-#include <type_traits>
-#include <sstream>
-#include <format>
-#include <cstdlib>
-#include <ctime>
-#include <chrono>
+// #include <type_traits>
+// #include <sstream>
+// #include <format>
+// #include <cstdlib>
+// #include <ctime>
+// #include <chrono>
+import std;
+
 using namespace data_structure;
 
 COMPONENT_BEGIN(transform)
-SERIALIZE_FIELD(float3, position, 0, 0, 0)
-SERIALIZE_FIELD(float3, scale, 1, 1, 1)
-SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
+__SERIALIZE_FIELD(float3, position, 0, 0, 0)
+__SERIALIZE_FIELD(float3, scale, 1, 1, 1)
+__SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
 COMPNENT_END()
 
 COMPONENT_BEGIN(bullet)
-SERIALIZE_FIELD(float3, vel, 1, 0, 1)
-SERIALIZE_FIELD(float3, ac, 1, 1, 1)
+__SERIALIZE_FIELD(float3, vel, 1, 0, 1)
+__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
 COMPNENT_END()
 
 COMPONENT_BEGIN(rigid_body)
-SERIALIZE_FIELD(float3, ac, 1, 1, 1)
+__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
 COMPNENT_END()
 
 
 SCENE_BEGIN(my_second_scene)
-WORLD_BEGIN(world_000, transform, bullet)
-ENTITY_BEGIN(entity_000, transform, bullet)
-SET_COMPONENT(transform, .position.x, 1)
-ENTITY_END()
-WORLD_END()
+__WORLD_BEGIN(world_000, transform, bullet)
+____ENTITY_BEGIN(entity_000, transform, bullet)
+______SET_COMPONENT(transform, .position.x, 1)
+____ENTITY_END()
+__WORLD_END()
 
-WORLD_BEGIN(world_001, transform, rigid_body)
-ENTITY_BEGIN(entity_000, transform, rigid_body)
-SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
-ENTITY_END()
-WORLD_END()
+__WORLD_BEGIN(world_001, transform, rigid_body)
+____ENTITY_BEGIN(entity_000, transform, rigid_body)
+______SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
+____ENTITY_END()
+__WORLD_END()
 
-WORLD_BEGIN(world_002, transform, bullet, rigid_body)
-ENTITY_BEGIN(entity_000, transform, rigid_body)
-SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
-ENTITY_END()
-WORLD_END()
+__WORLD_BEGIN(world_002, transform, bullet, rigid_body)
+____ENTITY_BEGIN(entity_000, transform, rigid_body)
+______SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
+____ENTITY_END()
+__WORLD_END()
 
-WORLD_BEGIN(world_003, transform)
-ENTITY_BEGIN(entity_000, transform)
-SET_COMPONENT(transform, .position, { 0, 0, 1 })
-ENTITY_END()
-WORLD_END()
+__WORLD_BEGIN(world_003, transform)
+____ENTITY_BEGIN(entity_000, transform)
+______SET_COMPONENT(transform, .position, { 0, 0, 1 })
+____ENTITY_END()
+__WORLD_END()
 SCENE_END()
 
 // static inline auto world_003 = []() {

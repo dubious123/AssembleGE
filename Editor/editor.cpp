@@ -1619,15 +1619,12 @@ namespace editor::models
 
 		std::vector<em_struct*> all_structs()
 		{
-			auto res = _structs | std::views::transform([](em_struct& s) { return &s; });
-			return std::vector(res.begin(), res.end());
+			return std::ranges::to<std::vector>(_structs | std::views::transform([](em_struct& s) { return &s; }));
 		}
 
 		std::vector<em_field*> all_fields(editor_id struct_id)
 		{
-			auto idx = _struct_idx_map[struct_id];
-			auto res = _fields[idx] | std::views::transform([](em_field& f) { return &f; });
-			return std::vector(res.begin(), res.end());
+			return std::ranges::to<std::vector>(_fields[_struct_idx_map[struct_id]] | std::views::transform([](em_field& f) { return &f; }));
 		}
 
 		em_field* find_field(editor_id id)
@@ -1835,7 +1832,7 @@ namespace editor::models
 		{
 			auto  id = id::get_new(DataType_Scene);
 			auto& s	 = _scenes.emplace_back();
-			s.name	 = std::format("new_scene##{0}", s.id.str());
+			s.name	 = std::format("new_scene_{0}", s.id.str());
 			s.id	 = id;
 
 			_idx_map.insert({ id, _scenes.size() - 1 });
@@ -1872,8 +1869,7 @@ namespace editor::models
 
 		std::vector<em_scene*> all()
 		{
-			auto res = _scenes | std::views::transform([](em_scene& s) { return &s; });
-			return std::vector(res.begin(), res.end());	   // todo c++23 std::views::to
+			return std::ranges::to<std::vector>(_scenes | std::views::transform([](em_scene& s) { return &s; }));
 		}
 
 		void set_current(editor_id id)
@@ -1923,9 +1919,10 @@ namespace editor::models
 			[](editor_id _) {
 				auto cmd			= undoredo::undo_redo_cmd();
 				auto id_vec			= editor::get_all_selections();
-				auto backup_vec		= std::vector<std::pair<em_scene, uint32>>();
 				auto backup_current = _current;
-				std::ranges::transform(editor::get_all_selections(), std::back_inserter(backup_vec), [](editor_id id) { return std::pair(*find(id), _idx_map[id]); });
+				auto backup_vec		= std::ranges::to<std::vector<std::pair<em_scene, uint32>>>(
+					editor::get_all_selections()
+					| std::views::transform([](editor_id id) { return std::pair(*find(id), _idx_map[id]); }));
 
 				cmd.name = "delete scene";
 				cmd.redo = [=]() {
@@ -2103,13 +2100,13 @@ namespace editor::models
 			assert(scene::find(scene_id) != nullptr);
 			auto scene_idx = scene::_idx_map[scene_id];
 
-			if (_worlds.size() <= scene_idx)
+			if (scene_idx >= _worlds.size())
 			{
-				return std::vector<em_world*>();
+				// when new scene is created
+				return {};
 			}
 
-			auto res = _worlds[scene_idx] | std::views::transform([](em_world& w) { return &w; });
-			return std::vector(res.begin(), res.end());
+			return std::ranges::to<std::vector>(_worlds[scene_idx] | std::views::transform([](em_world& w) { return &w; }));
 		}
 
 		editor_command cmd_create(
@@ -2317,8 +2314,7 @@ namespace editor::models
 		{
 			assert(world::find(world_id) != nullptr);
 
-			auto res = _entities[world_id] | std::views::transform([](em_entity& e) { return &e; });
-			return std::vector(res.begin(), res.end());
+			return std::ranges::to<std::vector>(_entities[world_id] | std::views::transform([](em_entity& e) { return &e; }));
 		}
 
 		editor_command cmd_create_empty(
@@ -2398,8 +2394,7 @@ namespace editor::models
 		{
 			assert(entity::find(entity_id) is_not_nullptr);
 
-			auto res = _components[entity_id] | std::views::transform([](em_component& s) { return &s; });
-			return std::vector(res.begin(), res.end());
+			return std::ranges::to<std::vector>(_components[entity_id] | std::views::transform([](em_component& s) { return &s; }));
 		}
 
 		void on_project_unloaded()

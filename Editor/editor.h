@@ -454,9 +454,6 @@ namespace editor::models
 	struct project_open_data;
 	struct game_project;
 
-	// struct struct_info;
-	// struct field_info;
-
 	struct em_field;
 	struct em_struct;
 	struct em_scene;
@@ -465,56 +462,6 @@ namespace editor::models
 	struct em_entity;
 	struct em_component;
 	struct em_system;
-
-	// struct struct_info
-	//{
-	//	uint64		idx;
-	//	uint64		hash_id;
-	//	const char* name;
-	//	size_t		field_count;
-	//	field_info* fields;
-
-	//	const void* p_default_value;
-	//};
-
-	// struct field_info
-	//{
-	//	const char*		 name;
-	//	e_primitive_type type;
-	//	const char*		 serialized_value;
-	//	void*			 p_value;
-	//	size_t			 offset;
-	//	// std::string				child_count;
-	//	// std::vector<field_info> childs;
-	// };
-
-	// struct scene_info
-	//{
-	//	const char* name;
-	//	size_t		world_count;
-	//	size_t		world_idx;
-	// };
-
-	// struct world_info
-	//{
-	//	const char* name;
-	//	size_t		scene_idx;
-	//	uint64		struct_count;
-	//	uint64		struct_idx_vec[64];
-	// };
-
-	// struct component_info
-	//{
-	//	size_t size;
-	//	void*  p_value;
-	// };
-
-	// struct entity_info
-	//{
-	//	const char* name;
-	//	uint64		idx;
-	//	uint64		archetype;
-	// };
 
 	struct em_struct
 	{

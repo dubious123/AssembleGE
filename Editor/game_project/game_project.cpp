@@ -236,18 +236,16 @@ namespace editor::game
 			static constexpr auto* file_begin = "#pragma once \n#include \"__components.h\"\n\n //generated from editor\n\n";
 
 			static constexpr auto* template_component_begin = "COMPONENT_BEGIN({})\n";
-			static constexpr auto* template_serialize_field = "SERIALIZE_FIELD({}, {}, {})\n";
+			static constexpr auto* template_serialize_field = "__SERIALIZE_FIELD({}, {}, {})\n";
 			static constexpr auto* template_component_end	= "COMPNENT_END()\n\n";
 
-			static constexpr auto* template_world_begin = "WORLD_BEGIN({}{})\n";
-
-			// todo maybe entity without component?
-			static constexpr auto* template_entity_begin		 = "ENTITY_BEGIN({}{})\n";
-			static constexpr auto* template_entity_set_component = "SET_COMPONENT({}, {}, {})\n";
-			static constexpr auto* template_entity_end			 = "ENTITY_END()\n";
-			static constexpr auto* template_world_end			 = "WORLD_END()\n\n";
-
-			static constexpr auto* template_serialize_scene = "SERIALIZE_SCENE({}{})\n";
+			static constexpr auto* template_scene_begin			 = "SCENE_BEGIN({})\n";
+			static constexpr auto* template_world_begin			 = "__WORLD_BEGIN({}{})\n";
+			static constexpr auto* template_entity_begin		 = "____ENTITY_BEGIN({}{})\n";
+			static constexpr auto* template_entity_set_component = "______SET_COMPONENT({}, {}, {})\n";
+			static constexpr auto* template_entity_end			 = "____ENTITY_END()\n";
+			static constexpr auto* template_world_end			 = "__WORLD_END()\n";
+			static constexpr auto* template_scene_end			 = "SCENE_END()\n\n";
 
 			auto target_file = std::filesystem::path(project_directory_path)
 								   .append(GAMECODE_DIRECTORY)
@@ -267,10 +265,10 @@ namespace editor::game
 			});
 
 			for_each(scene::all(), [&](const em_scene* p_scene) {
-				auto worlds_str = std::string();
+				content += std::format(template_scene_begin, p_scene->name);
+
 				for_each(world::all(p_scene->id), [&](const em_world* p_world) {
-					worlds_str			  += ", " + p_world->name;
-					auto world_struct_str  = std::string();
+					auto world_struct_str = std::string();
 
 					for_each(p_world->structs, [&](editor_id s_id) {
 						world_struct_str += ", " + reflection::find_struct(s_id)->name;
@@ -304,7 +302,7 @@ namespace editor::game
 					content += template_world_end;
 				});
 
-				content += std::format(template_serialize_scene, p_scene->name, worlds_str);
+				content += template_scene_end;
 			});
 
 
