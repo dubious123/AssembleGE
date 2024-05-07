@@ -54,13 +54,13 @@ namespace ecs
 
 		static inline constinit auto sizes = [] {
 			auto arr = std::array<size_t, sizeof...(c)>();
-			auto i	 = 0;
-			([&arr, &i] {
-				arr[tuple_index<c, component_tpl>::value]										  = sizeof(c);
-				arr[tuple_index<c, typename tuple_sort<component_comparator, c...>::type>::value] = sizeof(c);
-				++i;
-			}(),
-			 ...);
+			// auto i	 = 0;
+			//([&arr, &i] {
+			//	arr[tuple_index<c, component_tpl>::value] = sizeof(c);
+			//	// arr[tuple_index<c, typename tuple_sort<component_comparator, c...>::type>::value] = sizeof(c);
+			//	++i;
+			// }(),
+			//  ...);
 			return arr;
 		}();
 
@@ -581,7 +581,7 @@ namespace ecs
 
 		static void _init_mem_block(archetype_t archetype, size_t size_per_archetype, memory_block* p_block)
 		{
-			assert((sizeof...(c) <= 64) and (sizeof...(c) > 0));
+			assert((sizeof...(c) <= 64) and (sizeof...(c) >= 0));
 			assert(p_block is_not_nullptr);
 
 			const auto component_count = __popcnt64(archetype);

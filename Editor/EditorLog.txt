@@ -1,2 +1,11 @@
-[2024-05-07 15:37:09.244] [Editor Logger] [info] Hi
-[2024-05-07 15:37:12.122] [Editor Logger] [info] Open Completed
+[2024-05-07 16:36:45.426] [Editor Logger] [info] Hi
+[2024-05-07 16:36:48.467] [Editor Logger] [info] Open Completed
+[2024-05-07 16:36:49.800] [Editor Logger] [info] Select 0x00000000000002
+[2024-05-07 16:36:50.934] [Editor Logger] [info] Select 0x300000000000002
+[2024-05-07 16:36:51.699] [Editor Logger] [info] Select 0x00000000000002
+[2024-05-07 16:36:52.644] [Editor Logger] [info] Select 0x300000000000002
+[2024-05-07 16:36:54.707] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
+[2024-05-07 16:36:56.743] [Editor Logger] [info] Select 0x300000000000001
+[2024-05-07 16:37:03.078] [Editor Logger] [info] set current scene from 0x200000000000000 to 0x200000000000001
+[2024-05-07 16:37:06.568] [Editor Logger] [info] Build Success
+[2024-05-07 16:37:07.627] [Editor Logger] [info] Select 0x00000000000002

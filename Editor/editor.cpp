@@ -2288,7 +2288,7 @@ namespace editor::models
 			auto  entity_idx = _entities[world_id].size();
 			auto& e			 = _entities[world_id].emplace_back();
 			e.id			 = id::get_new(DataType_Entity);
-			e.name			 = std::format("new_entity##{0}", e.id.str());
+			e.name			 = std::format("new_entity");
 			e.world_id		 = world_id;
 			_idx_map.insert({ e.id, std::pair(world_id, entity_idx) });
 			return e.id;

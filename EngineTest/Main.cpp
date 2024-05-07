@@ -85,7 +85,6 @@ constexpr auto arr = []() {
 import std;
 
 using namespace data_structure;
-
 COMPONENT_BEGIN(transform)
 __SERIALIZE_FIELD(float3, position, 0, 0, 0)
 __SERIALIZE_FIELD(float3, scale, 1, 1, 1)
@@ -100,7 +99,6 @@ COMPNENT_END()
 COMPONENT_BEGIN(rigid_body)
 __SERIALIZE_FIELD(float3, ac, 1, 1, 1)
 COMPNENT_END()
-
 
 SCENE_BEGIN(my_second_scene)
 __WORLD_BEGIN(world_000, transform, bullet)
@@ -127,42 +125,6 @@ ______SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ____ENTITY_END()
 __WORLD_END()
 SCENE_END()
-
-// static inline auto world_003 = []() {
-//	using world_wrapper_t = reflection::world_wrapper<"world_003", transform>;
-//	world_wrapper_t::init_func = [](world_wrapper_t::world_type& w) {
-//		world_wrapper_t::serialize();
-//		{
-//			auto e = w.new_entity<transform>(); reflection::register_entity("entity_000", e, (const ecs::world_base&)w);
-//			w.get_component<transform>(e).position = { 0, 0, 1 };
-//		}
-//		{
-//
-//		}
-//	}; return world_wrapper_t(); };
-
-
-// static inline auto& my_second_scene = []() -> auto& {
-//	using t_scene_wrapper = reflection::scene_wrapper<"my_second_scene",
-//		decltype(world_001()),
-//		decltype(world_002())>;
-//	t_scene_wrapper();  // scene reflection
-//	world_001();;       // connect init, world reflection, entity reflection
-//	world_002();;
-//	return t_scene_wrapper::value(); }();
-
-//
-// SERIALIZE_SCENE(my_third_scene, world_002, world_003)
-//  1. scene_wrapper() => scene reflection
-//  2. world_lambda() => connect init lambda
-//  3. scene_wrapper::value()
-//		a. call scene constructor => create scene and world
-//		b. call world_wrapper::init(w) => create entity and reflection for entity
-// 			1. world::serialize() => register world and structs
-//			2. create entity
-// 			3. register_entity
-
-// SERIALIZE_SCENE(my_first_scene, world_003)
 
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
@@ -316,19 +278,15 @@ static inline auto& new_scene = []() -> auto& {
 
 		,
 		[]() {
-			using new_world__wrapper_type	   = reflection::world_wrapper<"new_world", transform>;
+			using new_world__wrapper_type	   = reflection::world_wrapper<"new_world">;
 			new_world__wrapper_type::init_func = [](ecs::world_base& world) -> void {
-				using world_t = ecs::world<transform>;
+				using world_t = ecs::world<>;
 				reflection::register_world("new_world", world);
-
-				reflection::register_component_to_world(transform::id);
 
 				{
 					// entity begin
-					auto entity = ((world_t&)world).new_entity<transform>();
+					auto entity = ((world_t&)world).new_entity<>();
 					reflection::register_entity("new_entity", entity, world);
-
-					((world_t&)world).get_component<transform>(entity);
 					// entity end
 				}
 			};
@@ -340,13 +298,13 @@ static inline auto& new_scene = []() -> auto& {
 }();
 
 SCENE_BEGIN(new_scene_3)
-WORLD_BEGIN(new_world_2, transform)
-ENTITY_BEGIN(new_entity)
-ENTITY_END()
-ENTITY_BEGIN(new_entity2, transform)
-SET_COMPONENT(transform, .position.x, 100.f)
-ENTITY_END()
-WORLD_END()
+__WORLD_BEGIN(new_world_2, transform)
+____ENTITY_BEGIN(new_entity)
+____ENTITY_END()
+____ENTITY_BEGIN(new_entity2, transform)
+______SET_COMPONENT(transform, .position.x, 100.f)
+____ENTITY_END()
+__WORLD_END()
 SCENE_END()
 
 int main()
@@ -392,8 +350,11 @@ int main()
 
 	using tpl		   = tuple_sort<component_comparator, transform, bullet, rigid_body>::type;
 	constexpr auto idx = tuple_index<transform, tpl>::value;
-	using components   = component_wrapper<transform, bullet, rigid_body>;
-	components::calc_archetype<transform, bullet>();
+
+	// static_assert(std::same_as<std::tuple<transform, rigid_body, bullet>, tuple_sort<component_comparator, transform, bullet, rigid_body>::type> == false);
+	//  static_assert(std::same_as<tuple_sort<component_comparator, transform, bullet, rigid_body>::type, std::tuple<>>);
+	//  using components = component_wrapper<transform, bullet, rigid_body>;
+	//  components::calc_archetype<transform, bullet>();
 	int world_idx = 0;
 
 	auto e2 = world_2.new_entity<transform>();

@@ -271,8 +271,11 @@ namespace meta
 	template <unsigned n, typename... ts>
 	using tuple_remove_at_t = tuple_remove_t<variadic_at_t<n, ts...>, ts...>;
 
+	template <template <typename, typename> typename comparator, typename... t>
+	struct tuple_sort;
+
 	template <template <typename, typename> typename comparator, typename h, typename... t>
-	struct tuple_sort
+	struct tuple_sort<comparator, h, t...>
 	{
 		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
 		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
@@ -287,10 +290,28 @@ namespace meta
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 
-	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
-	struct tuple_sort<comparator, tuple<h>>
+	// template <template <typename, typename> typename comparator, typename h, typename t>
+	// struct tuple_sort<comparator, h, t>
+	//{
+	//	using type = std::tuple<std::conditional_t<comparator<h, t>::value, t, h>>;
+	// };
+
+	template <template <typename, typename> typename comparator, typename h>
+	struct tuple_sort<comparator, h>
 	{
 		using type = std::tuple<h>;
+	};
+
+	template <template <typename, typename> typename comparator>
+	struct tuple_sort<comparator>
+	{
+		using type = std::tuple<>;
+	};
+
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
+	struct tuple_sort<comparator, tuple<>, tuple<>>
+	{
+		using type = std::tuple<>;
 	};
 
 	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
@@ -299,11 +320,11 @@ namespace meta
 		using type = std::tuple<>;
 	};
 
-	// template <template <typename, typename> typename comparator>
-	// struct tuple_sort
-	//{
-	//	using type = std::tuple<>;
-	// };
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
+	struct tuple_sort<comparator, tuple<h>>
+	{
+		using type = std::tuple<h>;
+	};
 
 	template <typename t, typename... ts>
 	consteval size_t variadic_count()
