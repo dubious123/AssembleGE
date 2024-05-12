@@ -19,16 +19,18 @@ namespace editor::view::hierarchy
 
 	void show()
 	{
+		using namespace std::ranges;
+
 		if (_open is_false) return;
 		if (editor::game::get_current_p_project()->is_ready is_false) return;
 
 		if (widgets::begin("Hierarchy", &_open))
 		{
-			static auto selection_mask = 2;
-			static char buffer[SCENE_NAME_MAX_LEN];
-			static auto rename_scene = false;
-			auto		node_clicked = -1;
-			auto*		p_project	 = editor::game::get_current_p_project();
+			// static auto selection_mask = 2;
+			// static char buffer[SCENE_NAME_MAX_LEN];
+			// static auto rename_scene = false;
+			// auto		node_clicked = -1;
+			// auto* p_project = editor::game::get_current_p_project();
 
 			widgets::set_cursor_pos_x((platform::get_window_size().x - platform::get_window_info().default_item_width()) * 0.5f);
 			auto p_s_current = editor::models::scene::get_current();
@@ -39,17 +41,17 @@ namespace editor::view::hierarchy
 				return;
 			}
 
+			// todo widget begin combo
 			if (ImGui::BeginCombo("##scene_combo", p_s_current->name.c_str(), ImGuiComboFlags_NoArrowButton))
 			{
 				auto current_id = models::scene::get_current();
-				for (auto& p_scene : models::scene::all())
+				for (const auto* p_scene : models::scene::all())
 				{
 					auto is_current = p_scene->id == p_s_current->id;
 					if (widgets::selectable(p_scene->name, is_current))
 					{
 						models::scene::cmd_set_current(p_scene->id);
 						editor::select_new(p_scene->id);
-						// editor::cmd_select_new(p_scene->id);
 					}
 
 					if (is_current)
@@ -60,57 +62,62 @@ namespace editor::view::hierarchy
 				ImGui::EndCombo();
 			}
 
-			editor::add_right_click_source(p_s_current->id);
 
 			widgets::separator();
 
-
-			for (const auto p_w : models::world::all(p_s_current->id))
+			if (widgets::tree_node(p_s_current->name, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_s_current->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None)))
 			{
-				auto world_selected			= editor::is_selected(p_w->id);
-				auto world_tree_node_opened = widgets::tree_node(p_w->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_w->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
+				editor::add_left_right_click_source(p_s_current->id);
 
-				editor::add_right_click_source(p_w->id);
-				editor::add_left_click_source(p_w->id);
+				for (const auto* p_w : models::world::all(p_s_current->id))
+				{
+					auto world_selected			= editor::is_selected(p_w->id);
+					auto world_tree_node_opened = widgets::tree_node(p_w->name, ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | (editor::is_selected(p_w->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
 
-				if (world_tree_node_opened is_false) continue;
+					editor::add_left_right_click_source(p_w->id);
 
-				std::ranges::for_each(models::entity::all(p_w->id), [](const auto* p_e) {
-					ImGui::TreeNodeEx(p_e->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(p_e->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
-					editor::add_left_click_source(p_e->id);
-				});
+					if (world_tree_node_opened is_false) continue;
 
-				// if (p_w->entities.empty() is_false)
-				//{
-				//	widgets::separator();
-				// }
+					std::ranges::for_each(models::entity::all(p_w->id), [](const auto* p_e) {
+						ImGui::TreeNodeEx(p_e->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(p_e->id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
+						editor::add_left_right_click_source(p_e->id);
+					});
 
-				// for (const auto& system_id : p_w->systems)
-				//{
-				//	auto p_system = models::system::find(system_id);
-				//	ImGui::TreeNodeEx(p_system->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(system_id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
-				//	editor::selection_source(system_id);
-				//	editor::ctx_source(system_id);
-				// }
+					// if (p_w->entities.empty() is_false)
+					//{
+					//	widgets::separator();
+					// }
 
-				// if (p_w->systems.empty() is_false)
-				//{
-				//	widgets::separator();
-				// }
+					// for (const auto& system_id : p_w->systems)
+					//{
+					//	auto p_system = models::system::find(system_id);
+					//	ImGui::TreeNodeEx(p_system->name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | (editor::is_selected(system_id) ? ImGuiTreeNodeFlags_Selected : ImGuiTreeNodeFlags_None));
+					//	editor::selection_source(system_id);
+					//	editor::ctx_source(system_id);
+					// }
 
-				// Widgets::Separator();
+					// if (p_w->systems.empty() is_false)
+					//{
+					//	widgets::separator();
+					// }
+
+					// Widgets::Separator();
+
+					widgets::tree_pop();
+
+					// for (const auto& sub_world_id : p_world->SubWorlds)
+					//{
+					//	auto p_sub_world = Models::World::Find(sub_world_id);
+					//	if (ImGui::TreeNode(p_sub_world->Name.c_str()))
+					//	{
+					//		ImGui::TreePop();
+					//	}
+					// }
+				}
 
 				widgets::tree_pop();
-
-				// for (const auto& sub_world_id : p_world->SubWorlds)
-				//{
-				//	auto p_sub_world = Models::World::Find(sub_world_id);
-				//	if (ImGui::TreeNode(p_sub_world->Name.c_str()))
-				//	{
-				//		ImGui::TreePop();
-				//	}
-				// }
 			}
+
 
 			// if (node_clicked != -1)
 			//{
@@ -286,6 +293,7 @@ namespace editor::view::inspector
 	void _draw_entity(editor_id entity_id)
 	{
 		auto p_e = models::entity::find(entity_id);
+		if (p_e is_nullptr) return;
 
 		widgets::editable_header(entity_id, p_e->name);
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());

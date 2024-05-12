@@ -16,6 +16,7 @@ namespace
 namespace editor::game::ecs
 {
 	using namespace editor::models;
+	using namespace std::views;
 
 	size_t (*_get_registered_struct_count)();
 	size_t (*_get_registered_scene_count)();
@@ -50,8 +51,8 @@ namespace editor::game::ecs
 			   && _get_component_info
 			   && _get_entity_info);
 
-
-		std::ranges::for_each(std::views::iota(0ul, _get_registered_struct_count()), [](auto struct_idx) {
+		for (const auto struct_idx : iota(0ul, _get_registered_struct_count()))
+		{
 			auto* p_struct_info = _get_struct_info(struct_idx);
 			auto  s_id			= reflection::create_struct();
 			auto* p_s			= reflection::find_struct(s_id);
@@ -61,7 +62,8 @@ namespace editor::game::ecs
 				p_s->hash_id		 = p_struct_info->hash_id;
 			}
 
-			std::ranges::for_each(std::views::iota(0ul, p_struct_info->field_count), [=](auto field_idx) {
+			for (const auto field_idx : iota(0ul, p_struct_info->field_count))
+			{
 				auto* p_field_info = &p_struct_info->fields[field_idx];
 				auto  f_id		   = reflection::add_field(s_id);
 				auto* p_f		   = reflection::find_field(f_id);
@@ -72,10 +74,11 @@ namespace editor::game::ecs
 					p_f->type	   = p_field_info->type;
 					p_f->offset	   = p_field_info->offset;
 				}
-			});
-		});
+			}
+		}
 
-		std::ranges::for_each(std::views::iota(0ul, _get_registered_scene_count()), [](auto scene_idx) {
+		for (const auto scene_idx : iota(0ul, _get_registered_scene_count()))
+		{
 			auto* p_scene_info = _get_scene_info(scene_idx);
 			auto  s_id		   = scene::create();
 			auto  p_scene	   = scene::find(s_id);
@@ -83,7 +86,8 @@ namespace editor::game::ecs
 				p_scene->name = p_scene_info->name;
 			}
 
-			std::ranges::for_each(std::views::iota(p_scene_info->world_idx) | std::views::take(p_scene_info->world_count), [=](auto world_idx) {
+			for (const auto world_idx : iota(p_scene_info->world_idx) | take(p_scene_info->world_count))
+			{
 				auto* p_w_info = _get_world_info(world_idx);
 				auto  w_id	   = world::create(p_scene->id);
 				auto  p_world  = world::find(w_id);
@@ -94,12 +98,14 @@ namespace editor::game::ecs
 					p_world->name		   = p_w_info->name;
 				}
 
-				std::ranges::for_each(p_w_info->struct_idx_vec | std::views::take(p_w_info->struct_count), [=](auto struct_idx) {
+				for (const auto struct_idx : p_w_info->struct_idx_vec | take(p_w_info->struct_count))
+				{
 					auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
 					world::add_struct(w_id, p_s->id);
-				});
+				}
 
-				std::ranges::for_each(std::views::iota(0ul, _get_registered_entity_count(world_idx)), [=](auto entity_idx) {
+				for (const auto entity_idx : iota(0ul, _get_registered_entity_count(world_idx)))
+				{
 					auto* p_e_info = _get_entity_info(world_idx, entity_idx);
 					auto  e_id	   = entity::create(w_id);
 					auto  p_entity = entity::find(e_id);
@@ -111,20 +117,19 @@ namespace editor::game::ecs
 						p_entity->ecs_entity_idx = p_e_info->idx;
 					}
 
-					std::ranges::for_each(std::views::iota(0ul, p_world->structs.size()), [=](auto world_s_idx) {
-						if (((p_entity->archetype >> world_s_idx) & 1ul) != 0)
-						{
-							// todo c_info.p_value is invalid
-							auto  component_idx	 = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
-							auto  c_info		 = _get_component_info(world_idx, entity_idx, component_idx);
-							auto  c_id			 = component::create(e_id, p_world->structs[world_s_idx]);
-							auto* p_component	 = component::find(c_id);
-							p_component->p_value = c_info.p_value;
-						}
-					});
-				});
-			});
-		});
+					for (const auto world_s_idx : iota(0ul, p_world->structs.size()) | filter([p_entity](const auto idx) { return ((p_entity->archetype >> idx) & 1ul) != 0; }))
+					{
+						// todo c_info.p_value is invalid
+						auto  component_idx	 = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
+						auto  c_info		 = _get_component_info(world_idx, entity_idx, component_idx);
+						auto  c_id			 = component::create(e_id, p_world->structs[world_s_idx]);
+						auto* p_component	 = component::find(c_id);
+						p_component->p_value = c_info.p_value;
+					}
+				}
+			}
+		}
+
 
 		return true;
 	}

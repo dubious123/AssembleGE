@@ -46,11 +46,11 @@ return reflection::scene_wrapper<#scene_name>::init( 0
 
 
 #define __WORLD_BEGIN(world_name, ...) \
-	, []() {																								\
+	, []() {																							\
 using w_wrapper	   = reflection::world_wrapper<#world_name __VA_OPT__(,) __VA_ARGS__>;					\
-w_wrapper::init_func = [](ecs::world_base& world) -> void {													\
-	using world_t = ecs::world<__VA_ARGS__>;																\
-	reflection::register_world(#world_name, world);															\
+w_wrapper::init_func = [](ecs::world_base& world) -> void {												\
+	using world_t = ecs::world<__VA_ARGS__>;															\
+	reflection::register_world(#world_name, world);													\
 __VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 
 #define ____ENTITY_BEGIN(entity_name, ...)                         \

@@ -253,6 +253,7 @@ namespace editor
 	bool is_selected(editor_id id);
 	void add_right_click_source(editor_id id);
 	void add_left_click_source(editor_id id);
+	void add_left_right_click_source(editor_id id);
 
 	editor_id					  get_current_selection();
 	const std::vector<editor_id>& get_all_selections();

@@ -1,5 +1,6 @@
 #pragma once
 #include <thread>
+#include <execution>
 #include <bit>
 #include <intrin.h>
 #include "__common.h"
@@ -54,13 +55,12 @@ namespace ecs
 
 		static inline constinit auto sizes = [] {
 			auto arr = std::array<size_t, sizeof...(c)>();
-			// auto i	 = 0;
-			//([&arr, &i] {
-			//	arr[tuple_index<c, component_tpl>::value] = sizeof(c);
-			//	// arr[tuple_index<c, typename tuple_sort<component_comparator, c...>::type>::value] = sizeof(c);
-			//	++i;
-			// }(),
-			//  ...);
+			auto i	 = 0;
+			([&arr, &i] {
+				arr[tuple_index<c, component_tpl>::value] = sizeof(c);
+				++i;
+			}(),
+			 ...);
 			return arr;
 		}();
 
@@ -132,37 +132,24 @@ namespace ecs
 	{
 		constinit static inline const auto _par = true;
 
-		std::tuple<s...> tpl;
+		std::array<std::tuple<s...>, 1> tpl_arr { std::tuple<s...>() };
 
 		void update(auto&& world)
 		{
 			DEBUG_LOG("---par start (func)---");
 
-			std::vector<std::thread> threads;
-			([&]() {
-				auto& node = meta::get_tuple_value<s>(tpl);
-				if constexpr (is_node<s>)
-				{
-					threads.emplace_back([&]() {
-						int a = 2;
-						node.update(std::forward<decltype(world)>(world));
-					});
-				}
-				else
-				{
-					threads.emplace_back([&]() {
-						world.perform(node);
-					});
-
-					// system
-					//
-				}
-			}(),
-			 ...);
-
-			std::ranges::for_each(threads, [](auto& th) {
-				th.join();
-			});
+			auto v = tpl_arr | std::views::elements<0>;
+			std::for_each(std::execution::par_unseq, v.begin(), v.end(),
+						  [&](auto& node) {
+							  if constexpr (is_node<decltype(node)>)
+							  {
+								  node.update(std::forward<decltype(world)>(world));
+							  }
+							  else
+							  {
+								  world.perform(node);
+							  }
+						  });
 
 			DEBUG_LOG("---par end (func)---");
 		}
@@ -182,14 +169,11 @@ namespace ecs
 				auto& node = meta::get_tuple_value<s>(tpl);
 				if constexpr (is_node<s>)
 				{
-					int a = 2;
 					node.update(std::forward<decltype(world)>(world));
 				}
 				else
 				{
 					world.perform(node);
-					// system
-					// world.update(node);
 				}
 			}(),
 			 ...);
@@ -212,28 +196,22 @@ namespace ecs
 			{
 				if constexpr (is_node<s_l>)
 				{
-					int a = 2;
 					left.update(std::forward<decltype(world)>(world));
 				}
 				else
 				{
 					world.perform(left);
-					// system
-					// world.update(node);
 				}
 			}
 			else
 			{
 				if constexpr (is_node<s_r>)
 				{
-					int a = 2;
 					right.update(std::forward<decltype(world)>(world));
 				}
 				else
 				{
 					world.perform(right);
-					// system
-					// world.update(node);
 				}
 			}
 			DEBUG_LOG("---cond end (func)---");
@@ -247,7 +225,6 @@ namespace ecs
 
 	struct memory_block
 	{
-		// uint8 memory[MEMORY_BLOCK_SIZE];
 		uint8* memory;
 
 		memory_block()
@@ -390,7 +367,7 @@ namespace ecs
 		void write_component_data(uint8 c_idx, uint16 offset, uint16 size)
 		{
 			auto component_info_ptr			   = memory + 6 + sizeof(uint32) * c_idx;
-			*(uint16*)component_info_ptr	   = offset;	// offset
+			*(uint16*)component_info_ptr	   = offset;
 			*(uint16*)(component_info_ptr + 2) = size;
 		}
 
@@ -445,7 +422,6 @@ namespace ecs
 
 			write_count(m_idx + 1);
 			e.memory_idx = m_idx;
-			// e.p_mem_block = this;
 		}
 
 		template <>
@@ -466,7 +442,6 @@ namespace ecs
 	{
 		data_structure::vector<entity>										   entities;
 		data_structure::map<archetype_t, data_structure::vector<memory_block>> memory_block_vec_map;
-		// data_structure::vector<std::pair<archetype_t, data_structure::list<memory_block>>> memory_block_list_vec;
 
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
@@ -553,7 +528,6 @@ namespace ecs
 		{
 			if constexpr (has_update<sys>)
 			{
-				// return 0;
 				return _calc_func_archetype(&sys::update);
 			}
 			else if constexpr (has_update_w<sys, world<c...>>)
@@ -581,6 +555,8 @@ namespace ecs
 
 		static void _init_mem_block(archetype_t archetype, size_t size_per_archetype, memory_block* p_block)
 		{
+			using namespace std::views;
+
 			assert((sizeof...(c) <= 64) and (sizeof...(c) >= 0));
 			assert(p_block is_not_nullptr);
 
@@ -594,13 +570,14 @@ namespace ecs
 
 			auto offset = p_block->get_header_size() + sizeof(entity_idx) * capacity;	 // header + entity_idx
 			auto c_idx	= 0;
-			std::ranges::for_each(std::views::iota(0, std::bit_width(archetype)) | std::views::filter([=](auto nth_bit) { return (archetype >> nth_bit) & 1; }),
-								  [=, &offset, &c_idx](auto nth_bit) {
-									  auto c_size = component_wrapper<c...>::sizes[nth_bit];
-									  p_block->write_component_data(c_idx, offset, c_size);
-									  offset += c_size * capacity;
-									  ++c_idx;
-								  });
+
+			for (const auto nth_bit : iota(0, std::bit_width(archetype)) | filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; }))
+			{
+				auto c_size = component_wrapper<c...>::sizes[nth_bit];
+				p_block->write_component_data(c_idx, offset, c_size);
+				offset += c_size * capacity;
+				++c_idx;
+			}
 
 			assert(p_block->get_header_size() == 6 + sizeof(uint32) * component_count);
 			assert(offset + p_block->calc_unused_mem_size() == MEMORY_BLOCK_SIZE);
@@ -613,28 +590,28 @@ namespace ecs
 
 		static void _copy_components(archetype_t a_old, archetype_t a_new, memory_block* p_mem_old, memory_block* p_mem_new, uint16 old_m_idx, uint16 new_m_idx)
 		{
+			using namespace std::views;
 			assert(a_old != a_new);
 			assert(p_mem_old is_not_nullptr);
 			assert(p_mem_new is_not_nullptr);
 
 			auto archetype_to_copy = a_old & a_new;
-			std::ranges::for_each(
-				std::views::iota(0, std::bit_width(archetype_to_copy)) | std::views::filter([archetype_to_copy](auto nth_c) { return (archetype_to_copy >> nth_c) & 1; }),
-				[=](auto nth_component) {
-					auto c_idx_old = _calc_component_idx(a_old, nth_component);
-					auto c_idx_new = _calc_component_idx(a_new, nth_component);
+			for (auto nth_component : iota(0, std::bit_width(archetype_to_copy)) | filter([archetype_to_copy](auto nth_c) { return (archetype_to_copy >> nth_c) & 1; }))
+			{
+				auto c_idx_old = _calc_component_idx(a_old, nth_component);
+				auto c_idx_new = _calc_component_idx(a_new, nth_component);
 
-					memcpy(
-						p_mem_new->get_component_ptr(new_m_idx, c_idx_new),
-						p_mem_old->get_component_ptr(old_m_idx, c_idx_old),
-						(size_t)(p_mem_old->get_component_size(c_idx_old)));
+				memcpy(
+					p_mem_new->get_component_ptr(new_m_idx, c_idx_new),
+					p_mem_old->get_component_ptr(old_m_idx, c_idx_old),
+					(size_t)(p_mem_old->get_component_size(c_idx_old)));
 
-					assert((a_old >> nth_component) & 1);
-					assert((a_new >> nth_component) & 1);
-					assert(p_mem_new->get_component_size(c_idx_new) == p_mem_old->get_component_size(c_idx_old));
-					assert(p_mem_new->get_component_size(c_idx_new) == component_wrapper<c...>::sizes[nth_component]);
-					assert(p_mem_old->get_component_size(c_idx_old) == component_wrapper<c...>::sizes[nth_component]);
-				});
+				assert((a_old >> nth_component) & 1);
+				assert((a_new >> nth_component) & 1);
+				assert(p_mem_new->get_component_size(c_idx_new) == p_mem_old->get_component_size(c_idx_old));
+				assert(p_mem_new->get_component_size(c_idx_new) == component_wrapper<c...>::sizes[nth_component]);
+				assert(p_mem_old->get_component_size(c_idx_old) == component_wrapper<c...>::sizes[nth_component]);
+			}
 		}
 
 	  public:
@@ -814,6 +791,8 @@ namespace ecs
 		template <typename system_t>
 		void perform(system_t& sys)
 		{
+			using namespace std::views;
+
 			DEBUG_LOG("sys perform begin");
 			static constinit const auto archetype = _calc_sys_archetype<system_t>();
 			auto						s		  = archetype;
@@ -826,50 +805,47 @@ namespace ecs
 				sys.on_system_begin(*this);
 			}
 
-			auto threads = data_structure::vector<std::thread>();
+			auto mem_blocks_view = memory_block_vec_map
+								 | filter([](auto& pair) { return (pair.first & archetype) == archetype; })
+								 | transform([](auto& pair) -> auto& { return pair.second; })
+								 | join;
 
-			std::ranges::for_each(
-				memory_block_vec_map | std::views::filter([](auto& pair) { return (pair.first & archetype) == archetype; }),
-				[&, this](auto& pair) {
-					for (auto& mem_block : pair.second)
+			std::for_each(
+				std::execution::par,
+				mem_blocks_view.begin(),
+				mem_blocks_view.end(),
+				[&, this](memory_block& mem_block) {
+					if constexpr (has_on_thread_init<system_t>)
 					{
-						threads.emplace_back(
-							[&, this]() {
-								if constexpr (has_on_thread_init<system_t>)
-								{
-									sys.on_thread_init();
-								}
-								else if constexpr (has_on_thread_init_w<system_t, world_t>)
-								{
-									sys.on_thread_init(*this);
-								}
+						sys.on_thread_init();
+					}
+					else if constexpr (has_on_thread_init_w<system_t, world_t>)
+					{
+						sys.on_thread_init(*this);
+					}
 
-								auto count = mem_block.get_count();
-								for (auto m_idx = 0; m_idx < count; ++m_idx)
-								{
-									if constexpr (has_update<system_t>)
-									{
-										_update_entity(sys, &system_t::update, mem_block, m_idx);
-									}
-									else if constexpr (has_update_w<system_t, world_t>)
-									{
-										_update_entity((*this), sys, &system_t::template update<world_t>, mem_block, m_idx);
-									}
-								}
+					auto count = mem_block.get_count();
+					for (auto m_idx = 0; m_idx < count; ++m_idx)
+					{
+						if constexpr (has_update<system_t>)
+						{
+							_update_entity(sys, &system_t::update, mem_block, m_idx);
+						}
+						else if constexpr (has_update_w<system_t, world_t>)
+						{
+							_update_entity((*this), sys, &system_t::template update<world_t>, mem_block, m_idx);
+						}
+					}
 
-								if constexpr (has_on_thread_dispose<system_t>)
-								{
-									sys.on_thread_dispose();
-								}
-								else if constexpr (has_on_thread_dispose_w<system_t, world_t>)
-								{
-									sys.on_thread_dispose(*this);
-								}
-							});
+					if constexpr (has_on_thread_dispose<system_t>)
+					{
+						sys.on_thread_dispose();
+					}
+					else if constexpr (has_on_thread_dispose_w<system_t, world_t>)
+					{
+						sys.on_thread_dispose(*this);
 					}
 				});
-
-			std::ranges::for_each(threads, [](auto& th) { th.join(); });
 
 			if constexpr (has_on_system_end<system_t>)
 			{
