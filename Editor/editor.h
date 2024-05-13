@@ -178,6 +178,26 @@ struct editor_id
 	{
 		return value == other.value;
 	};
+
+	inline bool operator<=(const editor_id& other) const
+	{
+		return value <= other.value;
+	}
+
+	inline bool operator<(const editor_id& other) const
+	{
+		return value < other.value;
+	}
+
+	inline bool operator>=(const editor_id& other) const
+	{
+		return value >= other.value;
+	}
+
+	inline bool operator>(const editor_id& other) const
+	{
+		return value > other.value;
+	}
 };
 
 struct editor_context
