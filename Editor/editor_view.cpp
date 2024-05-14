@@ -199,7 +199,8 @@ namespace editor::view::inspector
 	void _draw_scene(editor_id _)
 	{
 		auto p_scene = scene::get_current();
-		widgets::text(p_scene->name.c_str());
+		widgets::editable_header(p_scene->id, p_scene->name);
+
 		widgets::text("scene idx : {%d}", p_scene->id);
 		// widgets::text("world count : {%d}", p_scene->world_count());
 	}

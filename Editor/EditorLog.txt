@@ -1,25 +1,3 @@
-[2024-05-13 17:50:51.685] [Editor Logger] [info] Hi
-[2024-05-13 17:50:53.821] [Editor Logger] [info] Open Completed
-[2024-05-13 17:50:55.807] [Editor Logger] [info] set current scene from 0x200000000000001 to 0x200000000000000
-[2024-05-13 17:50:56.405] [Editor Logger] [info] Select 0x300000000000000
-[2024-05-13 17:50:57.097] [Editor Logger] [info] Add Select 0x300000000000001
-[2024-05-13 17:51:24.105] [Editor Logger] [info] Select 0x200000000000000
-[2024-05-13 17:51:24.539] [Editor Logger] [info] Select 0x300000000000000
-[2024-05-13 17:51:25.188] [Editor Logger] [info] Add Select 0x300000000000001
-[2024-05-13 17:51:26.737] [Editor Logger] [info] remove world
-[2024-05-13 17:51:27.745] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:28.595] [Editor Logger] [info] redo command : remove world
-[2024-05-13 17:51:29.352] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:31.293] [Editor Logger] [info] Select 0x300000000000002
-[2024-05-13 17:51:31.669] [Editor Logger] [info] Select 0x300000000000001
-[2024-05-13 17:51:33.568] [Editor Logger] [info] remove world
-[2024-05-13 17:51:34.309] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:35.250] [Editor Logger] [info] redo command : remove world
-[2024-05-13 17:51:35.732] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:36.559] [Editor Logger] [info] Select 0x300000000000000
-[2024-05-13 17:51:41.332] [Editor Logger] [info] remove world
-[2024-05-13 17:51:42.197] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:43.449] [Editor Logger] [info] Select 0x300000000000002
-[2024-05-13 17:51:46.365] [Editor Logger] [info] remove world
-[2024-05-13 17:51:46.979] [Editor Logger] [info] undo command : remove world
-[2024-05-13 17:51:48.371] [Editor Logger] [info] Project save completed
+[2024-05-15 02:43:51.683] [Editor Logger] [info] Hi
+[2024-05-15 02:43:53.317] [Editor Logger] [info] Open Completed
+[2024-05-15 02:43:56.155] [Editor Logger] [info] Select 0x200000000000002

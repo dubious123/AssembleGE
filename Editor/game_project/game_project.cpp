@@ -11,8 +11,8 @@ namespace editor::game
 	namespace
 	{
 		void _unload_dll();
-		bool _generate_code(std::string project_directory_path, std::string proj_name);
-		bool _build_load_dll(std::string project_directory_path, std::string proj_name);
+		bool _generate_code(std::string& project_directory_path, std::string& proj_name);
+		bool _build_load_dll(std::string& project_directory_path, std::string& proj_name);
 	}	 // namespace
 
 	namespace
@@ -227,7 +227,7 @@ namespace editor::game
 			editor::on_project_unloaded();
 		}
 
-		bool _generate_code(std::string project_directory_path, std::string proj_name)
+		bool _generate_code(std::string& project_directory_path, std::string& proj_name)
 		{
 			using namespace editor::models;
 			using namespace std::ranges;
@@ -310,7 +310,7 @@ namespace editor::game
 			return true;
 		}
 
-		bool _build_load_dll(std::string project_directory_path, std::string proj_name)
+		bool _build_load_dll(std::string& project_directory_path, std::string& proj_name)
 		{
 			char		   buf[4096 * 3];
 			constexpr auto buf_size		  = 4096ui64 * 3;

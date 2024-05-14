@@ -2208,16 +2208,18 @@ namespace editor::models
 	{
 		namespace
 		{
-			std::unordered_map<editor_id, std::vector<em_entity>, editor_id::hash_func>		  _entities;	// key : world_id, value : em_entity
-			std::unordered_map<editor_id, std::pair<editor_id, uint32>, editor_id::hash_func> _idx_map;		// key : entity id, value : [world id, entity index]
-		}																									// namespace
+			std::unordered_map<editor_id, std::map<editor_id, em_entity>, editor_id::hash_func> _entities;		  // key : world_id, value : map [  entity_id, em_entity ]
+			std::unordered_map<editor_id, editor_id, editor_id::hash_func>						_world_id_lut;	  // key : entity id, value : world_id
+		}																										  // namespace
 
 		em_entity* find(editor_id entity_id)
 		{
-			if (_idx_map.contains(entity_id))
+			if (_world_id_lut.contains(entity_id))
 			{
-				auto& idx_pair = _idx_map[entity_id];
-				return &_entities[idx_pair.first][idx_pair.second];
+				auto world_id = _world_id_lut[entity_id];
+				assert(world::find(world_id));
+
+				return &_entities[world_id][entity_id];
 			}
 			else
 			{
@@ -2227,32 +2229,31 @@ namespace editor::models
 
 		editor_id create(editor_id world_id)
 		{
-			assert(world::find(world_id) != nullptr);
+			assert(world::find(world_id));
 
-			auto  entity_idx = _entities[world_id].size();
-			auto& e			 = _entities[world_id].emplace_back();
-			e.id			 = id::get_new(DataType_Entity);
-			e.name			 = std::format("new_entity");
-			e.world_id		 = world_id;
-			_idx_map.insert({ e.id, std::pair(world_id, entity_idx) });
-			return e.id;
+			auto entity_id = id::get_new(DataType_Entity);
+
+			{
+				auto& e	   = _entities[world_id][entity_id];
+				e.id	   = entity_id;
+				e.name	   = std::format("new_entity");
+				e.world_id = world_id;
+			}
+
+			_world_id_lut[entity_id] = world_id;
+			return entity_id;
 		}
 
 		void remove(editor_id entity_id)
 		{
-			if (_idx_map.contains(entity_id) is_false)
+			if (_world_id_lut.contains(entity_id) is_false)
 			{
 				return;
 			}
 
-			auto& [world_id, entity_idx] = _idx_map[entity_id];
-			auto& entity_vec			 = _entities[world_id];
-			auto  back_idx				 = entity_vec.size() - 1;
-
-			entity_vec[entity_idx] = entity_vec[back_idx];
-			entity_vec.pop_back();
-			_idx_map.erase(entity_id);
-			_idx_map[entity_vec[entity_idx].id].second = entity_idx;
+			auto world_id = _world_id_lut[entity_id];
+			_entities[world_id].erase(entity_id);
+			_world_id_lut.erase(entity_id);
 			id::delete_id(entity_id);
 		}
 
@@ -2260,7 +2261,7 @@ namespace editor::models
 		{
 			assert(world::find(world_id) != nullptr);
 
-			return std::ranges::to<std::vector>(_entities[world_id] | std::views::transform([](em_entity& e) { return &e; }));
+			return std::ranges::to<std::vector>(_entities[world_id] | std::views::transform([](auto&& pair) { return &pair.second; }));
 		}
 
 		editor_command cmd_create_empty(
@@ -2273,42 +2274,18 @@ namespace editor::models
 				auto cmd = undoredo::undo_redo_cmd();
 
 				auto selections = editor::get_all_selections();
-				auto backup_vec = std::ranges::to<std::vector>(
-					editor::get_all_selections()
-					| std::views::transform([](editor_id id) { return std::pair(*find(id), _idx_map[id]); }));
 
 				cmd.name = "create empty entity";
 				cmd.redo = [=]() {
 					std::ranges::for_each(selections, create);
 				};
+
 				cmd.undo = [=]() {
-					for (auto&& [e, idx_pair] : backup_vec | std::views::reverse)
-					{
-						auto&& [w_id, e_idx] = idx_pair;
-						auto& entity_vec	 = _entities[w_id];
-
-						if (entity_vec.size() <= e_idx)
-						{
-							entity_vec.resize(e_idx + 1);
-							entity_vec[e_idx] = e;
-						}
-						else if (find(entity_vec[e_idx].id) is_not_nullptr)
-						{
-							entity_vec.insert(entity_vec.begin() + e_idx, e);
-
-							for (auto& back_e : entity_vec | std::views::drop(e_idx + 1))
-							{
-								_idx_map[back_e.id].second += 1;
-							}
-						}
-						else
-						{
-							entity_vec[e_idx] = e;
-						}
-
-						_idx_map[e.id] = idx_pair;
-						id::restore(e.id);
-					}
+					std::ranges::for_each(selections
+											  | std::views::transform([](auto world_id) { return *_entities[world_id].rbegin(); })
+											  | std::views::keys
+											  | std::views::reverse,
+										  remove);
 				};
 
 				undoredo::add(cmd);
@@ -2325,18 +2302,20 @@ namespace editor::models
 			[](editor_id _) {
 				auto cmd		= undoredo::undo_redo_cmd();
 				auto selections = editor::get_all_selections();
+				auto backup_vec = std::ranges::to<std::vector>(
+					editor::get_all_selections()
+					| std::views::transform([](editor_id entity_id) { return *find(entity_id); }));
 
 				cmd.name = "remove entities";
 				cmd.redo = [=]() {
-					for (const auto e_id : selections)
-					{
-						remove(e_id);
-					}
+					std::ranges::for_each(selections, remove);
 				};
 
 				cmd.undo = [=]() {
-					for (const auto e_id : selections | std::views::reverse)
+					for (auto&& e : backup_vec | std::views::reverse)
 					{
+						_entities[e.world_id][e.id] = e;
+						_world_id_lut[e.id]			= e.world_id;
 					}
 				};
 
@@ -2348,7 +2327,7 @@ namespace editor::models
 		void on_project_unloaded()
 		{
 			_entities.clear();
-			_idx_map.clear();
+			_world_id_lut.clear();
 		}
 
 		void on_project_loaded()
