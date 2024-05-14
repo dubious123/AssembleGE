@@ -1,3 +1,0 @@
-[2024-05-15 02:43:51.683] [Editor Logger] [info] Hi
-[2024-05-15 02:43:53.317] [Editor Logger] [info] Open Completed
-[2024-05-15 02:43:56.155] [Editor Logger] [info] Select 0x200000000000002
