@@ -234,3 +234,6 @@ obj
 
 # Ignore .vs folder
 .vs/
+
+# Ignore log file
+Editor/EditorLog.txt
