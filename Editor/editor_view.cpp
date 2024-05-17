@@ -302,6 +302,12 @@ namespace editor::view::inspector
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
 			widgets::component_drag(p_c->id);
+			// todo
+
+			// when right click, no response
+			// rethink about editor select system
+			// rethink about editor xml
+			editor::add_left_right_click_source(p_c->id);
 		});
 		// auto p_entity = entity::get(entity_id);
 
@@ -341,6 +347,12 @@ namespace editor::view::inspector
 				break;
 			case DataType_Entity:
 				_draw_entity(id);
+				break;
+			case DataType_Component:
+				if (component::find(id))
+				{
+					_draw_entity(component::find(id)->entity_id);
+				}
 				break;
 			default:
 				break;

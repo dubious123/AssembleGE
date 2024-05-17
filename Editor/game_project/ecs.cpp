@@ -74,6 +74,9 @@ namespace editor::game::ecs
 					p_f->type	   = p_field_info->type;
 					p_f->offset	   = p_field_info->offset;
 				}
+				{
+					p_s->size += reflection::utils::type_size(p_field_info->type);
+				}
 			}
 		}
 
@@ -120,11 +123,9 @@ namespace editor::game::ecs
 					for (const auto world_s_idx : iota(0ul, p_world->structs.size()) | filter([p_entity](const auto idx) { return ((p_entity->archetype >> idx) & 1ul) != 0; }))
 					{
 						// todo c_info.p_value is invalid
-						auto  component_idx	 = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
-						auto  c_info		 = _get_component_info(world_idx, entity_idx, component_idx);
-						auto  c_id			 = component::create(e_id, p_world->structs[world_s_idx]);
-						auto* p_component	 = component::find(c_id);
-						p_component->p_value = c_info.p_value;
+						auto component_idx = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
+						auto c_info		   = _get_component_info(world_idx, entity_idx, component_idx);
+						auto c_id		   = component::create(e_id, p_world->structs[world_s_idx], c_info.p_value);
 					}
 				}
 			}

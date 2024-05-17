@@ -466,11 +466,7 @@ namespace editor::undoredo
 
 namespace editor::models
 {
-	using scene_id	   = uint16;
-	using world_idx	   = uint16;
-	using entity_idx   = uint64;
-	using component_id = uint64;
-	using archetype_t  = uint64;
+	using archetype_t = uint64;
 
 	struct project_open_data;
 	struct game_project;
@@ -491,6 +487,7 @@ namespace editor::models
 		// struct_info* p_info;
 		std::string name;
 		uint64		field_count;
+		size_t		size = 0;
 		const void* p_default_value;
 
 		em_struct(/*struct_info* p_info*/) : /*p_info(p_info), */ field_count(0) {};
@@ -543,6 +540,20 @@ namespace editor::models
 		editor_id struct_id;
 		editor_id entity_id;
 		void*	  p_value;
+
+		bool need_cleanup = false;
+
+		~em_component();
+
+		em_component() = default;
+
+		em_component(const em_component& other);
+
+		em_component& operator=(const em_component& other);
+
+		em_component(em_component&& other) noexcept;
+
+		em_component& operator=(em_component&& other) noexcept;
 	};
 
 	struct em_system
@@ -621,7 +632,9 @@ namespace editor::models
 	namespace component
 	{
 		em_component*			   find(editor_id id);
-		editor_id				   create(editor_id entity_id, editor_id struct_id);
+		em_component*			   find(editor_id entity_id, editor_id struct_id);
+		editor_id				   create(editor_id entity_id, editor_id struct_id, void* p_value = nullptr);
+		void					   remove(editor_id component_id);
 		std::vector<em_component*> all(editor_id entity_id);
 
 	}	 // namespace component
