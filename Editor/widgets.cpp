@@ -1432,7 +1432,10 @@ bool editor::widgets::component_drag(editor_id c_id)
 	auto* p_struct	  = reflection::find_struct(p_component->struct_id);
 	ImGui::PushID((const void*)c_id.value);
 
-	if (widgets::tree_node(p_struct->name))
+	auto node_opened = widgets::tree_node(p_struct->name);
+	editor::add_left_right_click_source(c_id);
+
+	if (node_opened)
 	{
 		if (ImGui::BeginTable("", 2, ImGuiTableFlags_SizingStretchProp))
 		{
@@ -1452,6 +1455,7 @@ bool editor::widgets::component_drag(editor_id c_id)
 
 		widgets::tree_pop();
 	}
+
 
 	ImGui::PopID();
 

@@ -304,10 +304,17 @@ namespace editor::view::inspector
 			widgets::component_drag(p_c->id);
 			// todo
 
-			// when right click, no response
+			// when right click, allow various context munu popup?
+			//	ex. struct => may show context menu (reflection) or may not show context menu (world archetype)
+			//  ex. add struct / remove struct => contxt menu item whit checkbox
+			//  ex. world => show different "add component"
+			//	ex. entity in hiarachy vs in ecs debugger vs inspector
+			//		each context (hiarachy -> entity vs ecs debugger -> entity vs inspector -> entity, maybe id stack) may have different context menu
+			//
+			//
 			// rethink about editor select system
 			// rethink about editor xml
-			editor::add_left_right_click_source(p_c->id);
+			// context menu item size too big (world -> add struct/ remove struct)
 		});
 		// auto p_entity = entity::get(entity_id);
 
