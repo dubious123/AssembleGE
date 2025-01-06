@@ -1,2 +1,8 @@
-[2025-01-05 14:59:37.733] [Editor Logger] [info] Hi
-[2025-01-05 14:59:41.635] [Editor Logger] [info] Open Completed
+[2025-01-06 23:58:36.385] [Editor Logger] [info] Hi
+[2025-01-06 23:58:39.633] [Editor Logger] [info] Open Completed
+[2025-01-06 23:58:41.869] [Editor Logger] [info] set current scene from 0x200000000000002 to 0x200000000000000
+[2025-01-06 23:58:42.401] [Editor Logger] [info] Select 0x00000000000003
+[2025-01-06 23:58:42.772] [Editor Logger] [info] Select 0x300000000000001
+[2025-01-06 23:58:43.069] [Editor Logger] [info] Select 0x00000000000001
+[2025-01-06 23:58:44.367] [Editor Logger] [info] Select 0x00000000000000
+[2025-01-06 23:58:46.218] [Editor Logger] [info] Select 0x500000000000000
