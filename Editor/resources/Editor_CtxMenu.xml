@@ -17,18 +17,6 @@
 			<ctx_item name="Console" shortcut="Ctrl+3"/>
 			<ctx_item name="Hierarchy" shortcut="Ctrl+4"/>
 			<ctx_item name="Inspector" shortcut="Ctrl+5"/>
-			<ctx_item name ="Test1" shortcut="ff">
-				<ctx_item name="Test2" shortcut="ff"/>
-				<ctx_item name="Test3" shortcut="ff"/>
-			</ctx_item>
-			<ctx_item name="Test4" shortcut="ff">
-				<ctx_item name="Test5" shortcut="ff">
-					<ctx_item name="Test6" shortcut="ff">
-						<ctx_item name="Test7" shortcut="ff">
-						</ctx_item>
-					</ctx_item>
-				</ctx_item>
-			</ctx_item>
 		</ctx_item>
 	</ctx_item>
 	<ctx_item name="Project">
@@ -64,13 +52,8 @@
 			<ctx_item name="Cube"/>
 			<ctx_item name="Sphere"/>
 		</ctx_item>
-		<ctx_item name="Add New Component"/>
-		<ctx_item name="Add Component">
-			<!--<ctx_item name="Empty"/>
-			<ctx_item name="Transform"/>
-			<ctx_item name="Hierarchy"/>
-			<ctx_item name="User_Component"/>-->
-		</ctx_item>
+	</ctx_item>
+	<ctx_item name="Component">
 	</ctx_item>
 	<ctx_item name="Text">
 		<ctx_item name="Cut" shortcut="Ctrl+X"/>

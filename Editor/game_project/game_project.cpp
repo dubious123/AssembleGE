@@ -916,6 +916,8 @@ namespace editor::view::project_browser
 							editor::on_project_unloaded();
 							_open_popup_open_project_failed = true;
 						}
+
+						::SetForegroundWindow((HWND)GEctx->hwnd);	 // not sure why main window get behind but this will fix the bug
 					});
 			}
 

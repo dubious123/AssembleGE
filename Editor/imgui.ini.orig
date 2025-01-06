@@ -295,8 +295,13 @@ Size=1920,1081
 Collapsed=0
 
 [Window][Reflection]
+<<<<<<< HEAD
 Pos=956,530
 Size=608,614
+=======
+Pos=956,1107
+Size=912,605
+>>>>>>> 2d977ca2dc50df3a6182eb2df8a61106d6478ffc
 Collapsed=0
 DockId=0x00000008,0
 
@@ -307,8 +312,13 @@ Size=1395,1166
 Collapsed=0
 
 [Window][World Editor]
-Pos=956,852
+<<<<<<< HEAD
+Pos=956,284
 Size=608,244
+=======
+Pos=956,852
+Size=912,253
+>>>>>>> 2d977ca2dc50df3a6182eb2df8a61106d6478ffc
 Collapsed=0
 DockId=0x0000000A,0
 

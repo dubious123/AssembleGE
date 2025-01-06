@@ -302,6 +302,19 @@ namespace editor::view::inspector
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
 			widgets::component_drag(p_c->id);
+			// todo
+
+			// when right click, allow various context munu popup?
+			//	ex. struct => may show context menu (reflection) or may not show context menu (world archetype)
+			//  ex. add struct / remove struct => contxt menu item whit checkbox
+			//  ex. world => show different "add component"
+			//	ex. entity in hiarachy vs in ecs debugger vs inspector
+			//		each context (hiarachy -> entity vs ecs debugger -> entity vs inspector -> entity, maybe id stack) may have different context menu
+			//
+			//
+			// rethink about editor select system
+			// rethink about editor xml
+			// context menu item size too big (world -> add struct/ remove struct)
 		});
 		// auto p_entity = entity::get(entity_id);
 
@@ -341,6 +354,12 @@ namespace editor::view::inspector
 				break;
 			case DataType_Entity:
 				_draw_entity(id);
+				break;
+			case DataType_Component:
+				if (component::find(id))
+				{
+					_draw_entity(component::find(id)->entity_id);
+				}
 				break;
 			default:
 				break;

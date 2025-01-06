@@ -1097,10 +1097,6 @@ namespace editor
 				{
 					_ctx_node_lut[DataType_Entity] = node;
 				}
-				else if (strcmp(node.attribute("name").value(), "Component") == 0)
-				{
-					_ctx_node_lut[DataType_Component] = node;
-				}
 			}
 		}
 
@@ -1526,56 +1522,6 @@ namespace editor::undoredo
 
 namespace editor::models
 {
-	em_component::~em_component()
-	{
-		if (need_cleanup)
-		{
-			free(p_value);
-		}
-	}
-
-	em_component::em_component(const em_component& other) : id(other.id), struct_id(other.struct_id), entity_id(other.entity_id), need_cleanup(other.need_cleanup)
-	{
-		if (need_cleanup)
-		{
-			auto size = reflection::find_struct(struct_id)->size;
-			p_value	  = malloc(size);
-			memcpy(p_value, other.p_value, size);
-		}
-	}
-
-	em_component& em_component::operator=(const em_component& other)
-	{
-		this->~em_component();
-
-		id			 = other.id;
-		struct_id	 = other.struct_id;
-		entity_id	 = other.entity_id;
-		need_cleanup = other.need_cleanup;
-
-		if (need_cleanup)
-		{
-			auto size = reflection::find_struct(other.struct_id)->size;
-			p_value	  = malloc(size);
-			memcpy(p_value, other.p_value, size);
-		}
-
-		return *this;
-	}
-
-	em_component::em_component(em_component&& other) noexcept : id(other.id), struct_id(other.struct_id), entity_id(other.entity_id), need_cleanup(other.need_cleanup), p_value(other.p_value)
-	{
-		other.p_value	   = nullptr;
-		other.need_cleanup = false;
-	}
-
-	em_component& em_component::operator=(em_component&& other) noexcept
-	{
-		this->~em_component();
-		*this = { other };
-		return *this;
-	}
-
 	namespace reflection
 	{
 		namespace
@@ -2378,32 +2324,6 @@ namespace editor::models
 				cmd.redo();
 			});
 
-		editor_command cmd_add_component(
-			"Add Component",
-			ImGuiKey_None,
-			[](editor_id struct_id) { return std::ranges::all_of(
-										  editor::get_all_selections() | std::views::transform(entity::find),
-										  [=](auto* p_e) { return world::archetype(p_e->world_id, struct_id) != 0 and component::find(p_e->id, struct_id) is_nullptr; }); },
-			[](editor_id struct_id) {
-				auto  cmd		 = undoredo::undo_redo_cmd();
-				auto& selections = editor::get_all_selections();
-				auto  backup_vec = std::ranges::to<std::vector>(selections
-																| std::views::transform([=](auto e_id) { return component::find(e_id, struct_id); }));
-
-				cmd.name = "add component";
-				cmd.redo = [=]() {
-					std::ranges::for_each(selections, [=](auto e_id) { component::create(e_id, struct_id); });
-				};
-
-				cmd.undo = [=]() {
-					std::ranges::for_each(selections, [=](auto e_id) { component::remove(component::find(e_id, struct_id)->id); });
-				};
-
-				undoredo::add(cmd);
-				logger::info(cmd.name);
-				cmd.redo();
-			});
-
 		void on_project_unloaded()
 		{
 			_entities.clear();
@@ -2417,12 +2337,6 @@ namespace editor::models
 			// res		 &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
 			res &= add_context_item("World\\Entity\\Create Empty", &entity::cmd_create_empty);
 			res &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
-
-			std::ranges::for_each(reflection::_structs, [&res](auto&& s) {
-				res &= add_context_item(std::format("Entity\\Add Component\\{}", s.name), &cmd_add_component, s.id);
-			});
-
-
 			assert(res);
 		}
 	}	 // namespace entity
@@ -2431,79 +2345,35 @@ namespace editor::models
 	{
 		namespace
 		{
-			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func> _components;		  // key : endity_id, value : [key : component_id, value : em_component]
-			std::unordered_map<editor_id, editor_id, editor_id::hash_func>				   _entity_id_lut;	  // key: component_id, value: entity_id
+			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func>	  _components;	  // key : endity_id
+			std::unordered_map<editor_id, std::pair<editor_id, uint32>, editor_id::hash_func> _idx_map;		  // key: component_id, value: [entity_id,component_idx]
 		}	 // namespace
 
 		em_component* find(editor_id component_id)
 		{
-			if (_entity_id_lut.contains(component_id))
+			if (_idx_map.contains(component_id))
 			{
-				auto e_id = _entity_id_lut[component_id];
-				auto res  = std::ranges::find_if(_components[e_id], [=](auto&& c) { return c.id == component_id; });
-				if (res != _components[e_id].end())
-				{
-					return &(*res);
-				}
-			}
-
-			return nullptr;
-		}
-
-		em_component* find(editor_id entity_id, editor_id struct_id)
-		{
-			if (_components.contains(entity_id))
-			{
-				auto res = std::ranges::find_if(_components[entity_id], [=](auto&& c) { return c.struct_id == struct_id; });
-				if (res != _components[entity_id].end())
-				{
-					return &(*res);
-				}
-			}
-
-			return nullptr;
-		}
-
-		editor_id create(editor_id entity_id, editor_id struct_id, void* p_value)
-		{
-			auto* p_s = reflection::find_struct(struct_id);
-			assert(entity::find(entity_id));
-			assert(p_s);
-
-			auto&& em_c = em_component();
-
-			em_c.id		   = id::get_new(DataType_Component);
-			em_c.entity_id = entity_id;
-			em_c.struct_id = struct_id;
-			if (p_value is_not_nullptr)
-			{
-				em_c.need_cleanup = false;
-				em_c.p_value	  = p_value;
+				auto& [entity_id, component_idx] = _idx_map[component_id];
+				return &_components[entity_id][component_idx];
 			}
 			else
 			{
-				em_c.need_cleanup = true;
-				em_c.p_value	  = malloc(p_s->size);
-				memcpy(em_c.p_value, p_s->p_default_value, p_s->size);
+				return nullptr;
 			}
-
-
-			_entity_id_lut[em_c.id] = entity_id;
-
-			auto it = _components[entity_id].insert(std::ranges::upper_bound(_components[entity_id], struct_id, std::ranges::less {}, &em_component::struct_id), std::move(em_c));
-			return em_c.id;
 		}
 
-		void remove(editor_id component_id)
+		editor_id create(editor_id entity_id, editor_id struct_id)
 		{
-			if (_entity_id_lut.contains(component_id))
-			{
-				auto e_id = _entity_id_lut[component_id];
-				_components[e_id].erase(std::ranges::find_if(_components[e_id], [=](auto&& c) { return c.id == component_id; }));
-				_entity_id_lut.erase(component_id);
+			assert(entity::find(entity_id) != nullptr);
+			assert(reflection::find_struct(struct_id) != nullptr);
 
-				id::delete_id(component_id);
-			}
+			auto  component_idx = _components[entity_id].size();
+			auto& c				= _components[entity_id].emplace_back();
+			c.id				= id::get_new(DataType_Component);
+			c.entity_id			= entity_id;
+			c.struct_id			= struct_id;
+			_idx_map[c.id]		= { entity_id, component_idx };
+			return c.id;
 		}
 
 		std::vector<em_component*> all(editor_id entity_id)
@@ -2513,51 +2383,14 @@ namespace editor::models
 			return std::ranges::to<std::vector>(_components[entity_id] | std::views::transform([](em_component& s) { return &s; }));
 		}
 
-		editor_command cmd_remove_component(
-			"Add Component",
-			ImGuiKey_None,
-			[](editor_id _) { return std::ranges::all_of(editor::get_all_selections(), [](auto c_id) { return find(c_id) is_not_nullptr; }); },
-			[](editor_id _) {
-				auto  cmd		 = undoredo::undo_redo_cmd();
-				auto& selections = editor::get_all_selections();
-
-				auto backup_vec = std::ranges::to<std::vector>(
-					editor::get_all_selections()
-					| std::views::transform([](auto id) { return *find(id); }));
-
-				cmd.name = "remove component";
-				cmd.redo = [=]() {
-					std::ranges::for_each(selections, remove);
-				};
-
-				cmd.undo = [=]() {
-					std::ranges::for_each(backup_vec, [=](auto&& c) {
-						id::restore(c.id);
-
-						component::_entity_id_lut[c.id] = c.entity_id;
-
-						component::_components[c.entity_id].insert(
-							std::ranges::upper_bound(_components[c.entity_id], c.struct_id, std::ranges::less {}, &em_component::struct_id), c);
-					});
-				};
-
-				undoredo::add(cmd);
-				logger::info(cmd.name);
-				cmd.redo();
-			});
-
 		void on_project_unloaded()
 		{
 			_components.clear();
-			_entity_id_lut.clear();
+			_idx_map.clear();
 		}
 
 		void on_project_loaded()
 		{
-			auto res  = true;
-			res		 &= add_context_item("Component\\Remove Component", &cmd_remove_component);
-
-			assert(res);
 		}
 
 		// namespace

@@ -2431,9 +2431,15 @@ namespace editor::models
 	{
 		namespace
 		{
+<<<<<<< HEAD
+			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func>	  _components;	  // key : endity_id
+			std::unordered_map<editor_id, std::pair<editor_id, uint32>, editor_id::hash_func> _idx_map;		  // key: component_id, value: [entity_id,component_idx]
+		}	 // namespace
+=======
 			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func> _components;		  // key : endity_id, value : [key : component_id, value : em_component]
 			std::unordered_map<editor_id, editor_id, editor_id::hash_func>				   _entity_id_lut;	  // key: component_id, value: entity_id
-		}	 // namespace
+		}																									  // namespace
+>>>>>>> 2d977ca2dc50df3a6182eb2df8a61106d6478ffc
 
 		em_component* find(editor_id component_id)
 		{

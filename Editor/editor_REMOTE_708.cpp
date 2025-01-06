@@ -1853,7 +1853,7 @@ namespace editor::models
 			auto p_s = reflection::find_struct(struct_id);
 			return std::ranges::to<std::vector>(
 				reflection::all_fields(struct_id)
-				| std::views::transform([=](auto* p_field) { return deserialize(p_field->type, (char*)ptr + p_field->offset); }));
+				| std::views::transform([=](auto* p_field) { return deserialize(p_field->type, ptr); }));
 		}
 	}	 // namespace reflection::utils
 
@@ -1867,7 +1867,7 @@ namespace editor::models
 
 			std::map<editor_id, em_scene> _scenes;	  // does not support reordering -> change id?
 			editor_id					  _current;
-		}	 // namespace
+		}											  // namespace
 
 		em_scene* find(editor_id id)
 		{
@@ -2181,7 +2181,7 @@ namespace editor::models
 			ImGuiKey_None,
 			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr and std::ranges::all_of(get_all_selections(), [=](const auto& id) {
 												 const auto* p_w = world::find(id);
-												 return p_w is_not_nullptr and std::ranges::find(p_w->structs, struct_id) == p_w->structs.end();
+												 return p_w	 is_not_nullptr and std::ranges::find(p_w->structs, struct_id) == p_w->structs.end();
 											 }); },
 			[](editor_id struct_id) {
 				auto  cmd	 = undoredo::undo_redo_cmd();
@@ -2264,7 +2264,7 @@ namespace editor::models
 		{
 			std::unordered_map<editor_id, std::map<editor_id, em_entity>, editor_id::hash_func> _entities;		  // key : world_id, value : map [  entity_id, em_entity ]
 			std::unordered_map<editor_id, editor_id, editor_id::hash_func>						_world_id_lut;	  // key : entity id, value : world_id
-		}	 // namespace
+		}																										  // namespace
 
 		em_entity* find(editor_id entity_id)
 		{
@@ -2433,7 +2433,7 @@ namespace editor::models
 		{
 			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func> _components;		  // key : endity_id, value : [key : component_id, value : em_component]
 			std::unordered_map<editor_id, editor_id, editor_id::hash_func>				   _entity_id_lut;	  // key: component_id, value: entity_id
-		}	 // namespace
+		}																									  // namespace
 
 		em_component* find(editor_id component_id)
 		{
