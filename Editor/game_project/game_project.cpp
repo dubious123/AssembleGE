@@ -11,8 +11,8 @@ namespace editor::game
 	namespace
 	{
 		void _unload_dll();
-		bool _generate_code(std::string& project_directory_path, std::string& proj_name);
-		bool _build_load_dll(std::string& project_directory_path, std::string& proj_name);
+		bool _generate_code();
+		bool _build_load_dll();
 	}	 // namespace
 
 	namespace
@@ -46,11 +46,12 @@ namespace editor::game
 			[](editor_id) {
 				editor::widgets::progress_modal("Building project",
 												[] {
-													auto res = true;
+													auto res  = true;
+													res		 &= save();
 													if (editor::models::change_exists())
 													{
 														editor::widgets::progress_modal_msg("generating code");
-														res &= _generate_code(_current_project.directory_path, _current_project.name);
+														res &= _generate_code();
 													}
 
 													if (_project_dll)
@@ -60,7 +61,12 @@ namespace editor::game
 													}
 
 													editor::widgets::progress_modal_msg("building dll");
-													res &= _build_load_dll(_current_project.directory_path, _current_project.name);
+													res &= _build_load_dll();
+													if (res)
+													{
+														// todo - background build, load
+														res &= ecs::init_from_project_data(_current_project.project_file_path);
+													}
 													if (res)
 													{
 														logger::info("Build Success");
@@ -227,7 +233,7 @@ namespace editor::game
 			editor::on_project_unloaded();
 		}
 
-		bool _generate_code(std::string& project_directory_path, std::string& proj_name)
+		bool _generate_code()
 		{
 			using namespace editor::models;
 			using namespace std::ranges;
@@ -247,7 +253,7 @@ namespace editor::game
 			static constexpr auto* template_world_end			 = "__WORLD_END()\n";
 			static constexpr auto* template_scene_end			 = "SCENE_END()\n\n";
 
-			auto target_file = std::filesystem::path(project_directory_path)
+			auto target_file = std::filesystem::path(_current_project.directory_path)
 								   .append(GAMECODE_DIRECTORY)
 								   .append(target_file_name);
 
@@ -310,11 +316,13 @@ namespace editor::game
 			return true;
 		}
 
-		bool _build_load_dll(std::string& project_directory_path, std::string& proj_name)
+		bool _build_load_dll()
 		{
 			char		   buf[4096 * 3];
-			constexpr auto buf_size		  = 4096ui64 * 3;
-			auto		   buf_write_size = 0ui64;
+			constexpr auto buf_size				  = 4096ui64 * 3;
+			auto		   buf_write_size		  = 0ui64;
+			auto&		   proj_name			  = _current_project.name;
+			auto&		   project_directory_path = _current_project.directory_path;
 
 			auto sln_path		  = std::format("{}\\{}.sln", project_directory_path, proj_name);
 			auto p_program86_path = PWSTR { nullptr };
@@ -355,7 +363,7 @@ namespace editor::game
 
 			_project_dll = LoadLibraryA(dll_path.c_str());
 
-			if (game::ecs::init(_project_dll) is_false)
+			if (game::ecs::init_from_dll(_project_dll) is_false)
 			{
 				return false;
 			}
@@ -425,12 +433,77 @@ namespace editor::game
 		auto project_node = doc.child("project");
 		project_node.remove_children();
 
+		auto structs_node = project_node.append_child("structs");
+		for (auto* p_struct : reflection::all_structs())
+		{
+			auto struct_node = structs_node.append_child("struct");
+			auto fields_node = struct_node.append_child("fields");
+			struct_node.append_attribute("name").set_value(p_struct->name.c_str());
+			struct_node.append_attribute("id").set_value(p_struct->id.str().c_str());
+			struct_node.append_attribute("hash_id").set_value(p_struct->hash_id);
+			struct_node.append_attribute("field_count").set_value(p_struct->field_count);
+
+			for (auto* p_field : reflection::all_fields(p_struct->id))
+			{
+				auto field_node = fields_node.append_child("field");
+
+				field_node.append_attribute("name").set_value(p_field->name.c_str());
+				field_node.append_attribute("id").set_value(p_field->id.str().c_str());
+				field_node.append_attribute("type").set_value(reflection::utils::type_to_string(p_field->type));
+				field_node.append_attribute("offset").set_value(p_field->offset);
+				field_node.append_attribute("value").set_value(reflection::utils::deserialize(p_field->type, p_field->p_value).c_str());
+			}
+		}
+
 		auto scenes_node = project_node.append_child("scenes");
-		for (auto p_scene : models::scene::all())
+		for (auto* p_scene : models::scene::all())
 		{
 			auto scene_node	 = scenes_node.append_child("scene");
 			auto worlds_node = scene_node.append_child("worlds");
 			scene_node.append_attribute("name").set_value(p_scene->name.c_str());
+
+			for (auto* p_world : models::world::all(p_scene->id))
+			{
+				auto world_node	   = worlds_node.append_child("world");
+				auto entities_node = world_node.append_child("entities");
+				// auto systems_node  = world_node.append_child("systems");
+
+				world_node.append_attribute("id").set_value(p_world->id.str().c_str());
+				world_node.append_attribute("name").set_value(p_world->name.c_str());
+
+				for (auto* p_entity : models::entity::all(p_world->id))
+				{
+					auto entity_node	 = entities_node.append_child("entity");
+					auto components_node = entity_node.append_child("components");
+					entity_node.append_attribute("id").set_value(p_entity->id.str().c_str());
+					entity_node.append_attribute("name").set_value(p_entity->name.c_str());
+
+					for (auto* p_component : models::component::all(p_entity->id))
+					{
+						auto* p_struct		 = reflection::find_struct(p_component->struct_id);
+						auto  component_node = components_node.append_child("component");
+						auto  fields_node	 = component_node.append_child("fields");
+						component_node.append_attribute("id").set_value(p_component->id.str().c_str());
+						component_node.append_attribute("struct_id").set_value(p_struct->id.str().c_str());
+						component_node.append_attribute("name").set_value(p_struct->name.c_str());
+
+
+						auto fields = reflection::all_fields(p_struct->id);
+						auto values = reflection::utils::deserialize(p_struct->id, p_component->p_value);
+						for (auto field_idx : std::views::iota(0ul, p_struct->field_count))
+						{
+							auto  field_node = fields_node.append_child("field");
+							auto  field		 = fields[field_idx];
+							auto& value		 = values[field_idx];
+
+							field_node.append_attribute("name").set_value(field->name.c_str());
+							field_node.append_attribute("value").set_value(value.c_str());
+						}
+					}
+				}
+			}
+
+			_generate_code();
 
 			// for (auto& world_id : scene.worlds)
 			//{
@@ -512,7 +585,7 @@ namespace editor::game
 
 		widgets::progress_modal_msg("Build and load dll");
 
-		if (_build_load_dll(_current_project.directory_path, _current_project.name) is_false)
+		if (_build_load_dll() is_false)
 		{
 			return false;
 		}

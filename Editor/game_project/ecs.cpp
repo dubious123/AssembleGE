@@ -28,7 +28,7 @@ namespace editor::game::ecs
 	component_info (*_get_component_info)(size_t world_idx, size_t entity_idx, size_t component_idx);
 	entity_info* (*_get_entity_info)(size_t world_index, size_t entity_index);
 
-	bool init(HMODULE proj_dll)
+	bool init_from_dll(HMODULE proj_dll)
 	{
 		_get_registered_struct_count = LOAD_FUNC(size_t(*)(), "get_registered_struct_count", proj_dll);
 		_get_registered_scene_count	 = LOAD_FUNC(size_t(*)(), "get_registered_scene_count", proj_dll);
@@ -60,6 +60,7 @@ namespace editor::game::ecs
 				p_s->name			 = p_struct_info->name;
 				p_s->p_default_value = p_struct_info->p_default_value;
 				p_s->hash_id		 = p_struct_info->hash_id;
+				p_s->field_count	 = p_struct_info->field_count;
 			}
 
 			for (const auto field_idx : iota(0ul, p_struct_info->field_count))
@@ -130,7 +131,26 @@ namespace editor::game::ecs
 			}
 		}
 
+		// apply .assemble to ecs models
 
+		return true;
+	}
+
+	bool init_from_project_data(std::string& project_file_path)
+	{
+		auto project_file_xml = pugi::xml_document();
+		{
+			if (project_file_xml.load_file(project_file_path.c_str()) is_false)
+			{
+				return false;
+			}
+		}
+
+		auto scenes_node = project_file_xml.find_child_by_attribute("name", "scenes");
+		for (auto scene_node : scenes_node.children())
+		{
+			models::scene::create();
+		}
 		return true;
 	}
 
@@ -153,7 +173,6 @@ namespace editor::game::ecs
 		auto p_w   = world::find(p_e->world_id);
 		auto e_idx = p_e->ecs_entity_idx;
 		auto w_idx = p_w->ecs_world_idx;
-
 
 		return std::vector<void*>();
 	}

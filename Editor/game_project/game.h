@@ -56,7 +56,8 @@ namespace editor::game::ecs
 	// what we need
 	// draw field(field type, void* p_data)
 	// draw component(editor_id struct_id, void* p_data)
-	bool init(HMODULE proj_dll);
+	bool init_from_dll(HMODULE proj_dll);
+	bool init_from_project_data(std::string& project_file_path);
 
 	bool update_models();	 // for runtime
 	// component_info	   get_component(editor_id entity_id, uint64 component_idx);

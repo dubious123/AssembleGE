@@ -3,6 +3,8 @@
 #include "__meta.h"
 #include "__ecs.h"
 
+// todo more generic reflection
+
 #define OFFSET(struct_name, field_name) ((size_t) & (((__detail__struct_name*)(nullptr))->field_name))
 
 #define COMPONENT_BEGIN(struct_name)                                                                 \
