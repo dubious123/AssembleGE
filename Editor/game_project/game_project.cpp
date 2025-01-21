@@ -358,6 +358,7 @@ namespace editor::game
 			{
 				// todo enter safe mode
 				logger::error(w_out);
+				logger::clear();
 				return false;
 			}
 
@@ -1087,7 +1088,7 @@ namespace editor::view::project_browser
 					if (res)
 					{
 						_sort_project_open_data();
-						game::on_project_loaded();
+						editor::on_project_loaded();
 						editor::game::_current_project.is_ready = true;
 					}
 					else

@@ -42,7 +42,6 @@ namespace editor::game::ecs
 		_get_entity_info	= LOAD_FUNC(entity_info * (*)(size_t, size_t), "get_entity_info", proj_dll);
 
 		assert(_get_registered_struct_count
-			   && _get_registered_scene_count
 			   && _get_registered_world_count
 			   && _get_registered_entity_count
 			   && _get_struct_info
