@@ -64,27 +64,31 @@ namespace ecs
 
 	struct memory_block
 	{
-		uint8* memory;
+		uint8* _memory;
 
 		memory_block()
 		{
-			memory = (uint8*)malloc(MEMORY_BLOCK_SIZE);
+			_memory = (uint8*)malloc(MEMORY_BLOCK_SIZE);
 		}
 
-		memory_block(memory_block&& other) noexcept : memory(other.memory)
+		memory_block(void* memory) : _memory((uint8*)memory)
 		{
-			other.memory = nullptr;
+		}
+
+		memory_block(memory_block&& other) noexcept : _memory(other._memory)
+		{
+			other._memory = nullptr;
 		}
 
 		memory_block& operator=(memory_block&& other) noexcept
 		{
-			memory		 = other.memory;
-			other.memory = nullptr;
+			_memory		  = other._memory;
+			other._memory = nullptr;
 		}
 
 		~memory_block()
 		{
-			free(memory);
+			free(_memory);
 		}
 
 		memory_block(const memory_block& other) = delete;
@@ -126,29 +130,29 @@ namespace ecs
 
 		uint16 get_count() const
 		{
-			return *(uint16*)memory;
+			return *(uint16*)_memory;
 		}
 
 		uint16 get_capacity() const
 		{
-			return *(uint16*)(memory + 2);
+			return *(uint16*)(_memory + 2);
 		}
 
 		uint16 get_component_count() const
 		{
-			return *(uint16*)(memory + 4);
+			return *(uint16*)(_memory + 4);
 		}
 
 		uint16 get_component_size(uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
-			return (uint16)((*(uint32*)(memory + 6 + c_idx * 4)) >> 16);
+			return (uint16)((*(uint32*)(_memory + 6 + c_idx * 4)) >> 16);
 		}
 
 		uint16 get_component_offset(uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
-			return (uint16)((*(uint32*)(memory + 6 + c_idx * 4)));
+			return (uint16)((*(uint32*)(_memory + 6 + c_idx * 4)));
 		}
 
 		uint16 get_header_size() const
@@ -159,13 +163,13 @@ namespace ecs
 		entity_idx get_entity_idx(uint16 m_idx) const
 		{
 			assert(m_idx < get_count());
-			return *(entity_idx*)(memory + get_header_size() + m_idx * sizeof(entity_idx));
+			return *(entity_idx*)(_memory + get_header_size() + m_idx * sizeof(entity_idx));
 		}
 
 		void* get_component_ptr(uint16 m_idx, uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
-			return (void*)(memory + get_component_offset(c_idx) + m_idx * get_component_size(c_idx));
+			return (void*)(_memory + get_component_offset(c_idx) + m_idx * get_component_size(c_idx));
 		}
 
 		// sizeof entity_idx + sizeof all component size
@@ -190,34 +194,34 @@ namespace ecs
 
 		void write_count(uint16 new_count)
 		{
-			*(uint16*)memory = new_count;
+			*(uint16*)_memory = new_count;
 		}
 
 		void write_capacity(uint16 capacity)
 		{
-			*(uint16*)(memory + 2) = capacity;
+			*(uint16*)(_memory + 2) = capacity;
 		}
 
 		void write_component_count(uint16 count)
 		{
-			*(uint16*)(memory + 4) = count;
+			*(uint16*)(_memory + 4) = count;
 		}
 
 		void write_component_data(uint8 c_idx, uint16 offset, uint16 size)
 		{
-			auto component_info_ptr			   = memory + 6 + sizeof(uint32) * c_idx;
+			auto component_info_ptr			   = _memory + 6 + sizeof(uint32) * c_idx;
 			*(uint16*)component_info_ptr	   = offset;
 			*(uint16*)(component_info_ptr + 2) = size;
 		}
 
 		void write_component_data(uint8 c_idx, uint32 c_data)
 		{
-			*(uint32*)(memory + 6 + sizeof(uint32) * c_idx) = c_data;
+			*(uint32*)(_memory + 6 + sizeof(uint32) * c_idx) = c_data;
 		}
 
 		void write_entity_idx(uint8 m_idx, entity_idx idx)
 		{
-			*(entity_idx*)(memory + get_header_size() + m_idx * sizeof(entity_idx)) = idx;
+			*(entity_idx*)(_memory + get_header_size() + m_idx * sizeof(entity_idx)) = idx;
 		}
 
 		void remove_entity(uint16 m_idx)

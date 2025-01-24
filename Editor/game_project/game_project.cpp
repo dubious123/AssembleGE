@@ -466,11 +466,19 @@ namespace editor::game
 			for (auto* p_world : models::world::all(p_scene->id))
 			{
 				auto world_node	   = worlds_node.append_child("world");
+				auto structs_node  = world_node.append_child("structs");
 				auto entities_node = world_node.append_child("entities");
 				// auto systems_node  = world_node.append_child("systems");
 
 				world_node.append_attribute("id").set_value(p_world->id.str().c_str());
 				world_node.append_attribute("name").set_value(p_world->name.c_str());
+
+				for (auto* p_struct : p_world->structs | std::views::transform([](auto id) { return models::reflection::find_struct(id); }))
+				{
+					auto struct_node = structs_node.append_child("struct");
+					struct_node.append_attribute("id").set_value(p_struct->id.str().c_str());
+					struct_node.append_attribute("name").set_value(p_struct->name.c_str());
+				}
 
 				for (auto* p_entity : models::entity::all(p_world->id))
 				{
@@ -478,6 +486,7 @@ namespace editor::game
 					auto components_node = entity_node.append_child("components");
 					entity_node.append_attribute("id").set_value(p_entity->id.str().c_str());
 					entity_node.append_attribute("name").set_value(p_entity->name.c_str());
+					entity_node.append_attribute("archetype").set_value(p_entity->archetype);
 
 					for (auto* p_component : models::component::all(p_entity->id))
 					{
@@ -494,11 +503,13 @@ namespace editor::game
 						for (auto field_idx : std::views::iota(0ul, p_struct->field_count))
 						{
 							auto  field_node = fields_node.append_child("field");
-							auto  field		 = fields[field_idx];
+							auto  p_field	 = fields[field_idx];
 							auto& value		 = values[field_idx];
 
-							field_node.append_attribute("name").set_value(field->name.c_str());
+							field_node.append_attribute("name").set_value(p_field->name.c_str());
 							field_node.append_attribute("value").set_value(value.c_str());
+							field_node.append_attribute("offset").set_value(p_field->offset);
+							field_node.append_attribute("type").set_value(reflection::utils::type_to_string(p_field->type));
 						}
 					}
 				}
@@ -586,7 +597,11 @@ namespace editor::game
 
 		widgets::progress_modal_msg("Build and load dll");
 
-		if (_build_load_dll() is_false)
+		// if (_build_load_dll() is_false)
+		//{
+		//	return false;
+		// }
+		if (ecs::init_from_project_data(_current_project.project_file_path) is_false)
 		{
 			return false;
 		}
@@ -622,6 +637,11 @@ namespace editor::game
 	{
 		editor::add_context_item("Main Menu\\File\\Save", &_cmd_save);
 		editor::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
+	}
+
+	void on_project_unloaded()
+	{
+		editor::game::ecs::clear_models();
 	}
 
 	bool project_opened()

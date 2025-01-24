@@ -37,6 +37,7 @@
 #include <future>
 #include <ranges>
 #include <numeric>
+#include <regex>
 
 #include "imgui\imgui.h"
 #include "imgui\imgui_internal.h"

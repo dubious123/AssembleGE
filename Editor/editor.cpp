@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 
 #include "stb_image.h"
 #include "editor.h"
@@ -1381,6 +1381,7 @@ namespace editor
 	void on_project_unloaded()
 	{
 		models::on_project_unloaded();
+		game::on_project_unloaded();
 		//_cmd_id = 0;
 		_selected_vec.clear();
 		id::reset();
@@ -1724,7 +1725,7 @@ namespace editor::models
 				size_t		size;
 			};
 
-			type_info _info_lut[primitive_type_count] {
+			const type_info _info_lut[primitive_type_count] {
 				{ "int2", sizeof(int2) },
 				{ "int3", sizeof(int3) },
 				{ "int4", sizeof(int4) },
@@ -1757,6 +1758,40 @@ namespace editor::models
 				{ "float32", sizeof(float32) },
 				{ "double64", sizeof(double64) },
 			};
+
+			const std::unordered_map<std::string, e_primitive_type> _string_to_enum_map {
+				{ std::string("int2"), e_primitive_type::primitive_type_int2 },
+				{ std::string("int3"), e_primitive_type::primitive_type_int3 },
+				{ std::string("int4"), e_primitive_type::primitive_type_int4 },
+
+				{ std::string("uint2"), e_primitive_type::primitive_type_uint2 },
+				{ std::string("uint3"), e_primitive_type::primitive_type_uint3 },
+				{ std::string("uint4"), e_primitive_type::primitive_type_uint4 },
+
+				{ std::string("float2"), e_primitive_type::primitive_type_float2 },
+				{ std::string("float2a"), e_primitive_type::primitive_type_float2a },
+				{ std::string("float3"), e_primitive_type::primitive_type_float3 },
+				{ std::string("float3a"), e_primitive_type::primitive_type_float3a },
+				{ std::string("float4"), e_primitive_type::primitive_type_float4 },
+				{ std::string("float4a"), e_primitive_type::primitive_type_float4a },
+
+				{ std::string("float3x3"), e_primitive_type::primitive_type_float3x3 },
+				{ std::string("float4x4"), e_primitive_type::primitive_type_float4x4 },
+				{ std::string("float4x4a"), e_primitive_type::primitive_type_float4x4a },
+
+				{ std::string("uint64"), e_primitive_type::primitive_type_uint64 },
+				{ std::string("uint32"), e_primitive_type::primitive_type_uint32 },
+				{ std::string("uint16"), e_primitive_type::primitive_type_uint16 },
+				{ std::string("uint8"), e_primitive_type::primitive_type_uint8 },
+
+				{ std::string("int64"), e_primitive_type::primitive_type_int64 },
+				{ std::string("int32"), e_primitive_type::primitive_type_int32 },
+				{ std::string("int16"), e_primitive_type::primitive_type_int16 },
+				{ std::string("int8"), e_primitive_type::primitive_type_int8 },
+
+				{ std::string("float32"), e_primitive_type::primitive_type_float32 },
+				{ std::string("double64"), e_primitive_type::primitive_type_double64 },
+			};
 		}	 // namespace
 
 		size_t type_size(e_primitive_type type)
@@ -1767,6 +1802,16 @@ namespace editor::models
 		const char* type_to_string(e_primitive_type type)
 		{
 			return _info_lut[type].name;
+		}
+
+		e_primitive_type string_to_type(const char* c_str)
+		{
+			return string_to_type(std::string(c_str));
+		}
+
+		e_primitive_type string_to_type(std::string str)
+		{
+			return _string_to_enum_map.find(str)->second;
 		}
 
 		std::string deserialize(e_primitive_type type, const void* ptr)
@@ -1838,6 +1883,157 @@ namespace editor::models
 			// todo nested
 			assert(false);
 			return {};
+		}
+
+		/// <param name="p_mem">allocated memory pointer</param>
+		void serialize(e_primitive_type type, const char* s_str, void* p_mem)
+		{
+			serialize(type, std::string(s_str), p_mem);
+		}
+
+		void serialize(e_primitive_type type, std::string s_str, void* p_mem)
+		{
+			auto tokens = editor::utilities::split_string(s_str, std::string(',', ' '));
+			switch (type)
+			{
+			case primitive_type_int2:
+			{
+				new (p_mem) int2(stoi(tokens[0]), stoi(tokens[1]));
+				return;
+			}
+			case primitive_type_int3:
+			{
+				new (p_mem) int3(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]));
+				return;
+			}
+			case primitive_type_int4:
+			{
+				new (p_mem) int4(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));
+				return;
+			}
+			case primitive_type_uint2:
+			{
+				new (p_mem) uint2(stoul(tokens[0]), stoul(tokens[1]));
+				return;
+			}
+
+			case primitive_type_uint3:
+			{
+				new (p_mem) uint3(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]));
+				return;
+			}
+
+			case primitive_type_uint4:
+			{
+				new (p_mem) uint4(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]), stoul(tokens[3]));
+				return;
+			}
+
+			case primitive_type_float2:
+			{
+				new (p_mem) float2(stof(tokens[0]), stof(tokens[1]));
+				return;
+			}
+			case primitive_type_float2a:
+			{
+				new (p_mem) float2a(stof(tokens[0]), stof(tokens[1]));
+
+				return;
+			}
+			case primitive_type_float3:
+			{
+				new (p_mem) float3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
+				return;
+			}
+			case primitive_type_float3a:
+			{
+				new (p_mem) float3a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
+				return;
+			}
+			case primitive_type_float4:
+			{
+				new (p_mem) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
+				return;
+			}
+			case primitive_type_float4a:
+			{
+				new (p_mem) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
+				return;
+			}
+
+			case primitive_type_float3x3:
+			{
+				new (p_mem) float3x3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]),
+									 stof(tokens[3]), stof(tokens[4]), stof(tokens[5]),
+									 stof(tokens[6]), stof(tokens[7]), stof(tokens[8]));
+				return;
+			}
+			case primitive_type_float4x4:
+			case primitive_type_float4x4a:
+			{
+				new (p_mem) float4x4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]),
+									  stof(tokens[4]), stof(tokens[5]), stof(tokens[6]), stof(tokens[7]),
+									  stof(tokens[8]), stof(tokens[9]), stof(tokens[10]), stof(tokens[11]),
+									  stof(tokens[12]), stof(tokens[13]), stof(tokens[14]), stof(tokens[15]));
+				return;
+			}
+			case primitive_type_uint64:
+			{
+				*(uint64*)p_mem = stoull(tokens[0]);
+				return;
+			}
+			case primitive_type_uint32:
+			{
+				*(uint32*)p_mem = stoul(tokens[0]);
+				return;
+			}
+			case primitive_type_uint16:
+			{
+				*(uint16*)p_mem = (uint16)stoul(tokens[0]);
+				return;
+			}
+			case primitive_type_uint8:
+			{
+				*(uint8*)p_mem = (uint8)stoul(tokens[0]);
+				return;
+			}
+
+			case primitive_type_int64:
+			{
+				*(int64*)p_mem = stoul(tokens[0]);
+				return;
+			}
+			case primitive_type_int32:
+			{
+				*(int32*)p_mem = stoi(tokens[0]);
+				return;
+			}
+			case primitive_type_int16:
+			{
+				*(int16*)p_mem = (int16)stoi(tokens[0]);
+				return;
+			}
+			case primitive_type_int8:
+			{
+				*(int8*)p_mem = (int8)stoi(tokens[0]);
+				return;
+			}
+			case primitive_type_float32:
+			{
+				*(float32*)p_mem = (float32)stof(tokens[0]);
+				return;
+			}
+			case primitive_type_double64:
+			{
+				*(double64*)p_mem = (double64)stod(tokens[0]);
+				return;
+			}
+			default:
+				break;
+			}
+
+			// todo nested
+			assert(false);
 		}
 
 		std::vector<std::string> deserialize(editor_id struct_id)
@@ -2482,9 +2678,9 @@ namespace editor::models
 			}
 			else
 			{
-				em_c.need_cleanup = true;
-				em_c.p_value	  = malloc(p_s->size);
-				memcpy(em_c.p_value, p_s->p_default_value, p_s->size);
+				// em_c.need_cleanup = true;
+				// em_c.p_value	  = malloc(p_s->size);
+				// memcpy(em_c.p_value, p_s->p_default_value, p_s->size);
 			}
 
 
@@ -2889,4 +3085,11 @@ void editor::utilities::create_file(const std::filesystem::path path, const std:
 	std::ofstream project_file(path);
 	project_file << content.c_str();
 	project_file.close();
+}
+
+std::vector<std::string> editor::utilities::split_string(const std::string& str, const std::string& delims)
+{
+	std::regex				   re(std::format("[{}]", delims));
+	std::sregex_token_iterator first { str.begin(), str.end(), re, -1 }, last;
+	return { first, last };
 }

@@ -19,7 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="__ecs.cpp" />
     <ClCompile Include="__components.h" />
     <ClCompile Include="__reflection.cpp" />
   </ItemGroup>

@@ -488,7 +488,7 @@ namespace editor::models
 		std::string name;
 		uint64		field_count;
 		size_t		size = 0;
-		const void* p_default_value;
+		void*		p_default_value;
 
 		em_struct(/*struct_info* p_info*/) : /*p_info(p_info), */ field_count(0) {};
 		// em_struct() : em_struct(nullptr) {};
@@ -580,8 +580,12 @@ namespace editor::models
 
 	namespace reflection::utils
 	{
+		e_primitive_type		 string_to_type(const char*);
+		e_primitive_type		 string_to_type(std::string);
 		size_t					 type_size(e_primitive_type type);
 		const char*				 type_to_string(e_primitive_type type);
+		void					 serialize(e_primitive_type type, const char* s_str, void* p_mem);
+		void					 serialize(e_primitive_type type, std::string s_str, void* p_mem);
 		std::string				 deserialize(e_primitive_type type, const void* ptr);
 		std::vector<std::string> deserialize(editor_id struct_id);
 		std::vector<std::string> deserialize(editor_id struct_id, const void* ptr);
@@ -663,4 +667,6 @@ namespace editor::utilities
 {
 	std::string read_file(const std::filesystem::path path);
 	void		create_file(const std::filesystem::path path, const std::string content);
+
+	std::vector<std::string> split_string(const std::string& str, const std::string& delims);
 }	 // namespace editor::utilities

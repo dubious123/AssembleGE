@@ -34,6 +34,8 @@ namespace editor::game
 
 	void on_project_loaded();
 
+	void on_project_unloaded();
+
 	void save_project_open_datas();
 
 	bool save();
@@ -60,6 +62,8 @@ namespace editor::game::ecs
 	bool init_from_project_data(std::string& project_file_path);
 
 	bool update_models();	 // for runtime
+	void clear_models();
+
 	// component_info	   get_component(editor_id entity_id, uint64 component_idx);
 	std::vector<void*> get_components(editor_id entity_id);
 	void			   set_components(editor_id entity_id, uint64 component_idx, void* p_value);

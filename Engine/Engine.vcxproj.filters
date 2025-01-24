@@ -3,7 +3,6 @@
   <ItemGroup>
     <ClCompile Include="__reflection.cpp" />
     <ClCompile Include="__components.h" />
-    <ClCompile Include="__ecs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__reflection.h" />
