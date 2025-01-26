@@ -1446,7 +1446,7 @@ bool editor::widgets::component_drag(editor_id c_id)
 
 				ImGui::TableSetColumnIndex(1);
 				ImGui::BeginGroup();
-				primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, p_component->p_value));
+				primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, component::get_memory(p_component->id)));
 				ImGui::EndGroup();
 			});
 

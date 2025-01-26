@@ -45,26 +45,18 @@ namespace editor::game
 
 namespace editor::game::ecs
 {
-	/*bool is_entity_alive(editor_id entity_id);*/
-	// what we know
-	// 1. struct name
-	// 2. fields count
-	// 3. fields type (const char*)
-	// 4. fileds name
-	// 5. field offsets
-	// 5. fields value(const char*)
-	// 6. entity key => archetype, memory block idx, memory idx
-
-	// what we need
-	// draw field(field type, void* p_data)
-	// draw component(editor_id struct_id, void* p_data)
 	bool init_from_dll(HMODULE proj_dll);
 	bool init_from_project_data(std::string& project_file_path);
 
 	bool update_models();	 // for runtime
 	void clear_models();
 
-	// component_info	   get_component(editor_id entity_id, uint64 component_idx);
+	uint64 new_entity(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 archetype = 0ull);
+	void   delete_entity(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx);
+	void   add_component(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx);
+	void   remove_component(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx);
+	void*  get_component_memory(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx);
+
 	std::vector<void*> get_components(editor_id entity_id);
 	void			   set_components(editor_id entity_id, uint64 component_idx, void* p_value);
 }	 // namespace editor::game::ecs

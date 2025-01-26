@@ -25,8 +25,6 @@
 #define INVALID_ID					  0x7f00'0000'0000'0000
 #define INVALID_IDX					  0xffff
 
-typedef unsigned int UINT;
-
 constexpr auto POPUP_PADDING = ImVec2(6.f, 6.f);
 
 constexpr auto POPUP_BORDER		 = .4f;
@@ -63,7 +61,7 @@ constexpr ImVec4 COL_BG_ACTIVE	 = COL_BG_POPUP;
 constexpr ImVec4 COL_BD_SELECTED = ImVec4(0.44f, 0.44f, 0.44f, 1.f);
 constexpr ImVec4 COL_BD_ACTIVE	 = ImVec4(0.26f, 0.26f, 0.26f, 1.f);
 
-constexpr UINT LOG_BUFFER_SIZE = 1024 * 1024 * 256;	   // 256 Mb
+constexpr uint32 LOG_BUFFER_SIZE = 1024 * 1024 * 256;	 // 256 Mb
 
 constexpr auto PROJECT_EXTENSION			= ".assemble";
 constexpr auto GAMECODE_DIRECTORY			= "game_code";
@@ -482,16 +480,15 @@ namespace editor::models
 
 	struct em_struct
 	{
-		editor_id id;
-		uint64	  hash_id;
-		// struct_info* p_info;
+		editor_id	id;
+		uint64		hash_id;
 		std::string name;
 		uint64		field_count;
 		size_t		size = 0;
-		void*		p_default_value;
 
-		em_struct(/*struct_info* p_info*/) : /*p_info(p_info), */ field_count(0) {};
-		// em_struct() : em_struct(nullptr) {};
+		void* p_default_value;
+
+		uint64 ecs_idx;
 	};
 
 	struct em_field
@@ -500,24 +497,26 @@ namespace editor::models
 		editor_id		 struct_id;
 		e_primitive_type type;
 		size_t			 offset;
-		// field_info*		 p_info;
-		void*		p_value;
-		std::string name;
+		void*			 p_value;
+		std::string		 name;
 	};
 
 	struct em_scene
 	{
 		editor_id	id;
 		std::string name;
+
+		uint32 ecs_idx;
 	};
 
 	struct em_world
 	{
 		editor_id			   id;
 		editor_id			   scene_id;
-		uint64				   ecs_world_idx;
 		std::string			   name;
 		std::vector<editor_id> structs;
+
+		uint32 ecs_idx;
 	};
 
 	struct em_subworld
@@ -531,7 +530,8 @@ namespace editor::models
 		editor_id	world_id;
 		std::string name;
 		uint64		archetype;
-		uint64		ecs_entity_idx;
+
+		uint64 ecs_idx;
 	};
 
 	struct em_component
@@ -539,21 +539,6 @@ namespace editor::models
 		editor_id id;
 		editor_id struct_id;
 		editor_id entity_id;
-		void*	  p_value;
-
-		bool need_cleanup = false;
-
-		~em_component();
-
-		em_component() = default;
-
-		em_component(const em_component& other);
-
-		em_component& operator=(const em_component& other);
-
-		em_component(em_component&& other) noexcept;
-
-		em_component& operator=(em_component&& other) noexcept;
 	};
 
 	struct em_system
@@ -629,7 +614,11 @@ namespace editor::models
 		extern editor_command cmd_create_empty;
 
 		em_entity*				find(editor_id id);
-		editor_id				create(editor_id entity_id);
+		editor_id				create(editor_id world_id, archetype_t archetype = 0);
+		editor_id				create(editor_id world_id, const char* name, archetype_t archetype = 0);
+		editor_id				create(editor_id world_id, std::string name, archetype_t archetype = 0);
+		editor_id				add_component(editor_id entity_id, editor_id struct_id);
+		void					remove_component(editor_id entity_id, editor_id struct_id);
 		std::vector<em_entity*> all(editor_id world_id);
 	}	 // namespace entity
 
@@ -637,10 +626,11 @@ namespace editor::models
 	{
 		em_component*			   find(editor_id id);
 		em_component*			   find(editor_id entity_id, editor_id struct_id);
-		editor_id				   create(editor_id entity_id, editor_id struct_id, void* p_value = nullptr);
+		editor_id				   create(editor_id entity_id, editor_id struct_id);
 		void					   remove(editor_id component_id);
 		std::vector<em_component*> all(editor_id entity_id);
 
+		void* get_memory(editor_id id);
 	}	 // namespace component
 
 	namespace text

@@ -292,10 +292,12 @@ namespace editor::game
 
 						for_each(component::all(p_entity->id), [&](const em_component* p_component) {
 							auto* p_struct = reflection::find_struct(p_component->struct_id);
-							for_each(reflection::all_fields(p_struct->id), [&](const em_field* p_field) {
-								if (memcmp((char*)p_component->p_value + p_field->offset, p_field->p_value, reflection::utils::type_size(p_field->type)) != 0)
+							auto* p_value  = component::get_memory(p_component->id);
+
+							for_each(reflection::all_fields(p_struct->id), [&, p_value](const em_field* p_field) {
+								if (memcmp((char*)p_value + p_field->offset, p_field->p_value, reflection::utils::type_size(p_field->type)) != 0)
 								{
-									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, "{" + reflection::utils::deserialize(p_field->type, p_component->p_value) + "}");
+									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, "{" + reflection::utils::deserialize(p_field->type, p_value) + "}");
 								}
 							});
 
@@ -499,7 +501,7 @@ namespace editor::game
 
 
 						auto fields = reflection::all_fields(p_struct->id);
-						auto values = reflection::utils::deserialize(p_struct->id, p_component->p_value);
+						auto values = reflection::utils::deserialize(p_struct->id, component::get_memory(p_component->id));
 						for (auto field_idx : std::views::iota(0ul, p_struct->field_count))
 						{
 							auto  field_node = fields_node.append_child("field");

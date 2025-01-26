@@ -1527,56 +1527,6 @@ namespace editor::undoredo
 
 namespace editor::models
 {
-	em_component::~em_component()
-	{
-		if (need_cleanup)
-		{
-			free(p_value);
-		}
-	}
-
-	em_component::em_component(const em_component& other) : id(other.id), struct_id(other.struct_id), entity_id(other.entity_id), need_cleanup(other.need_cleanup)
-	{
-		if (need_cleanup)
-		{
-			auto size = reflection::find_struct(struct_id)->size;
-			p_value	  = malloc(size);
-			memcpy(p_value, other.p_value, size);
-		}
-	}
-
-	em_component& em_component::operator=(const em_component& other)
-	{
-		this->~em_component();
-
-		id			 = other.id;
-		struct_id	 = other.struct_id;
-		entity_id	 = other.entity_id;
-		need_cleanup = other.need_cleanup;
-
-		if (need_cleanup)
-		{
-			auto size = reflection::find_struct(other.struct_id)->size;
-			p_value	  = malloc(size);
-			memcpy(p_value, other.p_value, size);
-		}
-
-		return *this;
-	}
-
-	em_component::em_component(em_component&& other) noexcept : id(other.id), struct_id(other.struct_id), entity_id(other.entity_id), need_cleanup(other.need_cleanup), p_value(other.p_value)
-	{
-		other.p_value	   = nullptr;
-		other.need_cleanup = false;
-	}
-
-	em_component& em_component::operator=(em_component&& other) noexcept
-	{
-		this->~em_component();
-		*this = { other };
-		return *this;
-	}
-
 	namespace reflection
 	{
 		namespace
@@ -2477,20 +2427,41 @@ namespace editor::models
 			}
 		}
 
-		editor_id create(editor_id world_id)
+		editor_id create(editor_id world_id, archetype_t archetype)
+		{
+			return create(world_id, std::format("new_entity_{}", _entities[world_id].size()), archetype);
+		}
+
+		editor_id create(editor_id world_id, const char* name, archetype_t archetype)
+		{
+			return create(world_id, std::string(name), archetype);
+		}
+
+		editor_id create(editor_id world_id, std::string name, archetype_t archetype)
 		{
 			assert(world::find(world_id));
 
-			auto entity_id = id::get_new(DataType_Entity);
-
+			auto  entity_id = id::get_new(DataType_Entity);
+			auto* p_world	= world::find(world_id);
+			auto* p_scene	= scene::find(p_world->scene_id);
+			auto& e			= _entities[world_id][entity_id];
 			{
-				auto& e	   = _entities[world_id][entity_id];
-				e.id	   = entity_id;
-				e.name	   = std::format("new_entity");
-				e.world_id = world_id;
+				e.id		= entity_id;
+				e.name		= std::format("new_entity_{}", _entities[world_id].size());
+				e.world_id	= world_id;
+				e.archetype = archetype;
+				e.name		= name;
+				e.ecs_idx	= editor::game::ecs::new_entity(p_scene->ecs_idx, p_world->ecs_idx, archetype);
 			}
 
 			_world_id_lut[entity_id] = world_id;
+			std::ranges::for_each(
+				std::views::iota(0, std::bit_width(archetype))
+					| std::views::filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; })
+					| std::views::transform([p_world](auto nth_component) { return p_world->structs[nth_component]; }),
+				[entity_id](auto struct_id) {
+					component::create(entity_id, struct_id);
+				});
 			return entity_id;
 		}
 
@@ -2500,11 +2471,47 @@ namespace editor::models
 			{
 				return;
 			}
+			std::ranges::for_each(
+				component::all(entity_id) | std::views::transform([](auto* p_c) { return p_c->id; }),
+				component::remove);
 
 			auto world_id = _world_id_lut[entity_id];
+			{
+				auto* p_entity = entity::find(entity_id);
+				auto* p_world  = world::find(world_id);
+				auto* p_scene  = scene::find(p_world->scene_id);
+				editor::game::ecs::delete_entity(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx);
+			}
+
+
 			_entities[world_id].erase(entity_id);
 			_world_id_lut.erase(entity_id);
 			id::delete_id(entity_id);
+		}
+
+		editor_id add_component(editor_id entity_id, editor_id struct_id)
+		{
+			auto* p_entity = entity::find(entity_id);
+			auto* p_world  = world::find(p_entity->world_id);
+			auto* p_scene  = scene::find(p_world->scene_id);
+			auto* p_struct = reflection::find_struct(struct_id);
+
+			game::ecs::add_component(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx, p_struct->ecs_idx);
+
+			return component::create(entity_id, struct_id);
+		}
+
+		void remove_component(editor_id entity_id, editor_id struct_id)
+		{
+			auto* p_entity = entity::find(entity_id);
+			auto* p_world  = world::find(p_entity->world_id);
+			auto* p_scene  = scene::find(p_world->scene_id);
+			auto* p_struct = reflection::find_struct(struct_id);
+
+			game::ecs::remove_component(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx, p_struct->ecs_idx);
+
+
+			component::remove(component::find(entity_id, struct_id)->id);
 		}
 
 		std::vector<em_entity*> all(editor_id world_id)
@@ -2527,7 +2534,7 @@ namespace editor::models
 
 				cmd.name = "create empty entity";
 				cmd.redo = [=]() {
-					std::ranges::for_each(selections, create);
+					std::ranges::for_each(selections, [](auto w_id) { create(w_id); });
 				};
 
 				cmd.undo = [=]() {
@@ -2588,11 +2595,11 @@ namespace editor::models
 
 				cmd.name = "add component";
 				cmd.redo = [=]() {
-					std::ranges::for_each(selections, [=](auto e_id) { component::create(e_id, struct_id); });
+					std::ranges::for_each(selections, [=](auto e_id) { entity::add_component(e_id, struct_id); });
 				};
 
 				cmd.undo = [=]() {
-					std::ranges::for_each(selections, [=](auto e_id) { component::remove(component::find(e_id, struct_id)->id); });
+					std::ranges::for_each(selections, [=](auto e_id) { entity::remove_component(e_id, struct_id); });
 				};
 
 				undoredo::add(cmd);
@@ -2660,29 +2667,18 @@ namespace editor::models
 			return nullptr;
 		}
 
-		editor_id create(editor_id entity_id, editor_id struct_id, void* p_value)
+		editor_id create(editor_id entity_id, editor_id struct_id)
 		{
-			auto* p_s = reflection::find_struct(struct_id);
-			assert(entity::find(entity_id));
-			assert(p_s);
+			auto* p_entity = entity::find(entity_id);
+			auto* p_struct = reflection::find_struct(struct_id);
+			assert(p_entity and p_struct);
 
 			auto&& em_c = em_component();
-
-			em_c.id		   = id::get_new(DataType_Component);
-			em_c.entity_id = entity_id;
-			em_c.struct_id = struct_id;
-			if (p_value is_not_nullptr)
 			{
-				em_c.need_cleanup = false;
-				em_c.p_value	  = p_value;
+				em_c.id		   = id::get_new(DataType_Component);
+				em_c.entity_id = entity_id;
+				em_c.struct_id = struct_id;
 			}
-			else
-			{
-				// em_c.need_cleanup = true;
-				// em_c.p_value	  = malloc(p_s->size);
-				// memcpy(em_c.p_value, p_s->p_default_value, p_s->size);
-			}
-
 
 			_entity_id_lut[em_c.id] = entity_id;
 
@@ -2707,6 +2703,18 @@ namespace editor::models
 			assert(entity::find(entity_id) is_not_nullptr);
 
 			return std::ranges::to<std::vector>(_components[entity_id] | std::views::transform([](em_component& s) { return &s; }));
+		}
+
+		void* get_memory(editor_id c_id)
+		{
+			auto* p_component = component::find(c_id);
+			auto* p_struct	  = reflection::find_struct(p_component->struct_id);
+
+			auto* p_entity = entity::find(p_component->entity_id);
+			auto* p_world  = world::find(p_entity->world_id);
+			auto* p_scene  = scene::find(p_world->scene_id);
+
+			return game::ecs::get_component_memory(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx, p_struct->ecs_idx);
 		}
 
 		editor_command cmd_remove_component(
