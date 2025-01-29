@@ -135,13 +135,13 @@ struct editor_id
 		}
 	};
 
-	constexpr inline editor_id(uint64 value) : value(value) {};
+	constexpr inline editor_id(uint64 value) : value(value) { };
 
-	constexpr inline editor_id() : value(0x7fff'ffff'ffff'ffff) {};
+	constexpr inline editor_id() : value(0x7fff'ffff'ffff'ffff) { };
 
-	constexpr inline editor_id(uint64 type, uint8 gen, uint64 key) : value((type << 56) | (((uint64)gen & 0x0f) << 52) | (key & 0x000f'ffff'ffff'ffff)) {};
+	constexpr inline editor_id(uint64 type, uint8 gen, uint64 key) : value((type << 56) | (((uint64)gen & 0x0f) << 52) | (key & 0x000f'ffff'ffff'ffff)) { };
 
-	constexpr inline editor_id(uint64 type, uint8 gen) : value((type << 56) | (((uint64)gen & 0x0f) << 52)) {};
+	constexpr inline editor_id(uint64 type, uint8 gen) : value((type << 56) | (((uint64)gen & 0x0f) << 52)) { };
 
 	inline std::string str() const
 	{
@@ -223,6 +223,7 @@ struct editor_command
 	int								  _shortcut_key = ImGuiKey_None;
 	std::function<bool(editor_id id)> _can_execute_func;
 	std::function<void(editor_id)>	  _execute_func;
+	void*							  _memory;
 
 	bool can_execute(editor_id id = INVALID_ID) const
 	{
@@ -451,12 +452,50 @@ namespace editor::undoredo
 	struct undo_redo_cmd
 	{
 		// Editor::ID::AssembleID Id;
-		std::string			  name;
-		std::function<void()> undo;
-		std::function<void()> redo;
+		std::string					name;
+		std::function<void(void**)> undo;
+		std::function<void(void**)> redo;
+		void*						_memory;
+
+		undo_redo_cmd(std::string name, std::function<void(void**)> redo, std::function<void(void**)> undo)
+			: name(name), redo(redo), undo(undo), _memory(nullptr) { }
+
+		undo_redo_cmd(std::string name, std::function<void(void**)> redo, std::function<void(void**)> undo, void* p_mem)
+			: name(name), redo(redo), undo(undo), _memory(p_mem) { }
+
+		~undo_redo_cmd()
+		{
+			if (_memory)
+			{
+				free(_memory);
+			}
+		}
+
+		undo_redo_cmd(undo_redo_cmd&& other) noexcept
+			: name(other.name), undo(other.undo), redo(other.redo), _memory(other._memory)
+		{
+			other._memory = nullptr;
+		}
+
+		undo_redo_cmd& operator=(undo_redo_cmd&& other) noexcept
+		{
+			if (this != &other)
+			{
+				name		  = other.name;
+				undo		  = other.undo;
+				redo		  = other.redo;
+				other._memory = nullptr;
+			}
+
+			return *this;
+		}
+
+		undo_redo_cmd(const undo_redo_cmd&)		 = delete;
+		undo_redo_cmd& operator=(undo_redo_cmd&) = delete;
 	};
 
-	void add(const undo_redo_cmd& undo_redo);
+	void add(undo_redo_cmd&& undo_redo);
+	void add_and_redo(undo_redo_cmd&& undo_redo);
 	void on_project_loaded();
 
 	// void Init();
@@ -600,7 +639,8 @@ namespace editor::models
 		extern editor_command cmd_remove;
 
 		em_world*			   find(editor_id id);
-		editor_id			   create(editor_id scene_id);
+		editor_id			   create(editor_id scene_id, const char* name, std::vector<em_struct*>&& p_struct_vector);
+		editor_id			   create(editor_id scene_id, std::string name, std::vector<em_struct*>&& p_struct_vector);
 		void				   add_struct(editor_id world_id, editor_id struct_id);
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		uint64				   archetype(editor_id world_id, editor_id struct_id);
@@ -617,6 +657,7 @@ namespace editor::models
 		editor_id				create(editor_id world_id, archetype_t archetype = 0);
 		editor_id				create(editor_id world_id, const char* name, archetype_t archetype = 0);
 		editor_id				create(editor_id world_id, std::string name, archetype_t archetype = 0);
+		editor_id				restore(em_entity&& e, void*& p_memory);
 		editor_id				add_component(editor_id entity_id, editor_id struct_id);
 		void					remove_component(editor_id entity_id, editor_id struct_id);
 		std::vector<em_entity*> all(editor_id world_id);

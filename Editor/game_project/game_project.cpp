@@ -464,6 +464,7 @@ namespace editor::game
 			auto scene_node	 = scenes_node.append_child("scene");
 			auto worlds_node = scene_node.append_child("worlds");
 			scene_node.append_attribute("name").set_value(p_scene->name.c_str());
+			scene_node.append_attribute("world_count").set_value(models::world::all(p_scene->id).size());
 
 			for (auto* p_world : models::world::all(p_scene->id))
 			{
@@ -474,6 +475,7 @@ namespace editor::game
 
 				world_node.append_attribute("id").set_value(p_world->id.str().c_str());
 				world_node.append_attribute("name").set_value(p_world->name.c_str());
+				world_node.append_attribute("world_count").set_value(p_world->structs.size());
 
 				for (auto* p_struct : p_world->structs | std::views::transform([](auto id) { return models::reflection::find_struct(id); }))
 				{

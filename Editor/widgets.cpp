@@ -1263,36 +1263,39 @@ namespace
 {
 	constexpr const auto DRAG_MOUSE_THRESHOLD_FACTOR = 0.5f;
 
-	std::unordered_map<uint32, void*> _backup_map;
+	std::unordered_map<ImGuiID, uint64*> _backup_map;
 
 	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
 	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
 
 	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
 	{
-		void* prev_value = *(void**)p_data;
-		auto  res		 = ImGui::DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, flags);
-		auto  item_id	 = GImGui->LastItemData.ID;
+		uint64 prev_value = *(uint64*)p_data;
+		auto   res		  = ImGui::DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, flags);
+		auto   item_id	  = GImGui->LastItemData.ID;
 		if (editor::widgets::is_item_activated())
 		{
-			_backup_map[item_id] = prev_value;
+			_backup_map[item_id]  = (uint64*)malloc(sizeof(uint64));
+			*_backup_map[item_id] = prev_value;
 		}
 
 		if (editor::widgets::is_item_deactivated_after_edit())
 		{
 			editor::undoredo::add(
 				{ "edit scalar",
-				  [=]() {
+				  [=](void** pp_mem) {
 					  // assert(_backup_map.contains(GImGui->LastItemData.ID));
-					  void* backup = *(void**)p_data;
-					  memcpy(p_data, &_backup_map[item_id], DataTypeGetInfo(data_type)->Size);
-					  _backup_map[item_id] = backup;
+					  uint64 backup = *(uint64*)p_data;
+					  memcpy(p_data, *pp_mem, DataTypeGetInfo(data_type)->Size);
+					  **((uint64**)pp_mem) = backup;
 				  },
-				  [=]() {
-					  void* backup = *(void**)p_data;
-					  memcpy(p_data, &_backup_map[item_id], DataTypeGetInfo(data_type)->Size);
-					  _backup_map[item_id] = backup;
-				  } });
+				  [=](void** pp_mem) {
+					  uint64 backup = *(uint64*)p_data;
+					  memcpy(p_data, *pp_mem, DataTypeGetInfo(data_type)->Size);
+					  **((uint64**)pp_mem) = backup;
+				  },
+				  (void*)_backup_map[item_id] });
+			_backup_map.erase(item_id);
 		}
 
 

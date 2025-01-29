@@ -29,7 +29,10 @@
 #include <algorithm>
 #include <sstream>
 #include <format>
+
 #include <array>
+#include <span>
+
 #include <filesystem>
 #include <fstream>
 #include <chrono>

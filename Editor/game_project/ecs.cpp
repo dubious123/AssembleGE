@@ -50,7 +50,7 @@ namespace
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
 
-		ecs_world(const ecs_world&&)	  = delete;
+		ecs_world(ecs_world&&)			  = delete;
 		ecs_world(const ecs_world&)		  = delete;
 		ecs_world& operator=(ecs_world&&) = delete;
 		ecs_world& operator=(ecs_world&)  = delete;
@@ -260,8 +260,8 @@ namespace
 				new_mem_block_idx = 0;
 				p_new_block		  = &block_list.emplace_back();
 
-				auto new_size = p_prev_block->calc_size_per_archetype() + _calc_archetype_size(archetype_to_add);
-				assert(new_size == _calc_archetype_size(e.archetype | archetype_to_add));
+				auto new_size = _calc_archetype_size(e.archetype | archetype_to_add);
+				assert(new_size == p_prev_block->calc_size_per_archetype() + _calc_archetype_size(archetype_to_add));
 
 				init_mem_block(new_archetype, new_size, p_new_block);
 			}
@@ -338,8 +338,9 @@ namespace
 	struct ecs_scene
 	{
 		ecs_world* worlds;
+		uint32	   world_count = 0ul;
 
-		ecs_scene(const ecs_scene&&)	  = delete;
+		ecs_scene(ecs_scene&&)			  = delete;
 		ecs_scene(const ecs_scene&)		  = delete;
 		ecs_scene& operator=(ecs_scene&&) = delete;
 		ecs_scene& operator=(ecs_scene&)  = delete;
@@ -366,10 +367,10 @@ namespace editor::game::ecs
 
 	bool init_from_dll(HMODULE proj_dll)
 	{
-		_get_registered_struct_count = LOAD_FUNC(size_t(*)(), "get_registered_struct_count", proj_dll);
-		_get_registered_scene_count	 = LOAD_FUNC(size_t(*)(), "get_registered_scene_count", proj_dll);
-		_get_registered_world_count	 = LOAD_FUNC(size_t(*)(), "get_registered_world_count", proj_dll);
-		_get_registered_entity_count = LOAD_FUNC(size_t(*)(size_t), "get_registered_entity_count", proj_dll);
+		_get_registered_struct_count = LOAD_FUNC(size_t (*)(), "get_registered_struct_count", proj_dll);
+		_get_registered_scene_count	 = LOAD_FUNC(size_t (*)(), "get_registered_scene_count", proj_dll);
+		_get_registered_world_count	 = LOAD_FUNC(size_t (*)(), "get_registered_world_count", proj_dll);
+		_get_registered_entity_count = LOAD_FUNC(size_t (*)(size_t), "get_registered_entity_count", proj_dll);
 
 		_get_struct_info	= LOAD_FUNC(struct_info * (*)(size_t), "get_struct_info", proj_dll);
 		_get_scene_info		= LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", proj_dll);
@@ -428,7 +429,7 @@ namespace editor::game::ecs
 			for (const auto world_idx : iota(p_scene_info->world_idx) | take(p_scene_info->world_count))
 			{
 				auto* p_w_info = _get_world_info(world_idx);
-				auto  w_id	   = world::create(p_scene->id);
+				auto  w_id	   = world::create(p_scene->id, p_w_info->name, {});
 				auto  p_world  = world::find(w_id);
 				{
 					p_world->id		  = w_id;
@@ -535,22 +536,15 @@ namespace editor::game::ecs
 
 		scene_count = std::distance(root_node.child("scenes").children().begin(), root_node.child("scenes").children().end());
 		scenes		= (ecs_scene*)malloc(sizeof(ecs_scene) * scene_count);
+		for (auto s_idx : std::views::iota(0ul, scene_count))
+		{
+			new (scenes + s_idx) ecs_scene();
+		}
 
 		auto scene_idx = 0ul;
 
 		for (auto scene_node : root_node.child("scenes").children())
 		{
-			auto* p_ecs_scene = &scenes[scene_idx];
-			{
-				auto world_count	= std::distance(scene_node.child("worlds").children().begin(), scene_node.child("worlds").children().end());
-				p_ecs_scene->worlds = (ecs_world*)malloc(sizeof(ecs_world) * world_count);
-
-				for (auto i : std::views::iota(0, world_count))
-				{
-					new (p_ecs_scene->worlds + i) ecs_world();
-				}
-			}
-
 			auto s_id	 = scene::create();
 			auto p_scene = scene::find(s_id);
 			{
@@ -558,19 +552,12 @@ namespace editor::game::ecs
 				p_scene->ecs_idx = scene_idx;
 			}
 
-			auto world_idx = 0ul;
-
 			for (auto world_node : scene_node.child("worlds").children())
 			{
-				auto* p_ecs_world = &p_ecs_scene->worlds[world_idx];
-				auto  w_id		  = world::create(p_scene->id);
-				auto  p_world	  = world::find(w_id);
-				{
-					p_world->id		  = w_id;
-					p_world->scene_id = s_id;
-					p_world->ecs_idx  = world_idx;
-					p_world->name	  = world_node.attribute("name").value();
-				}
+				auto w_id = world::create(s_id, world_node.attribute("name").value(),
+										  world_node.child("structs").children()
+											  | std::views::transform([](const auto node) { return reflection::find_struct(node.attribute("name").value()); })
+											  | std::ranges::to<std::vector>());
 
 				for (auto struct_node : world_node.child("structs").children())
 				{
@@ -578,11 +565,7 @@ namespace editor::game::ecs
 					models::world::add_struct(w_id, p_s->id);
 				}
 
-				for (auto s_id : p_world->structs)
-				{
-					p_ecs_world->ecs_struct_idx_vec.push_back(reflection::find_struct(s_id)->ecs_idx);
-				}
-
+				auto* p_ecs_world = &scenes[scene_idx].worlds[world::find(w_id)->ecs_idx];
 
 				auto entities_node = world_node.child("entities");
 				{
@@ -613,8 +596,6 @@ namespace editor::game::ecs
 						}
 					}
 				}
-
-				++world_idx;
 			}
 
 			++scene_idx;
@@ -628,10 +609,14 @@ namespace editor::game::ecs
 		{
 			free(info.p_default_value);
 		}
-
-		for (auto scene_idx : std::views::iota(0ul, scene_count))
+		for (const auto& s : std::span(scenes, scene_count))
 		{
-			free(scenes[scene_idx].worlds);
+			for (auto w_idx : std::views::iota(0ul, s.world_count))
+			{
+				(s.worlds + w_idx)->~ecs_world();
+			}
+
+			free(s.worlds);
 		}
 
 		free(scenes);
@@ -668,7 +653,32 @@ namespace editor::game::ecs
 
 namespace editor::game::ecs
 {
-	uint64 new_entity(uint32 ecs_scene_idx, uint32 ecs_world_idx, archetype_t archetype)
+	ecs::world_idx new_world(ecs::scene_idx ecs_scene_idx, std::vector<struct_idx>&& ecs_struct_idx_vec)
+	{
+		auto* p_scene = &scenes[ecs_scene_idx];
+		{
+			if (p_scene->world_count == 0)
+			{
+				p_scene->world_count = 1;
+				p_scene->worlds		 = (ecs_world*)malloc(sizeof(ecs_world));
+			}
+			else
+			{
+				++p_scene->world_count;
+				p_scene->worlds = (ecs_world*)realloc(p_scene->worlds, sizeof(ecs_world) * (p_scene->world_count));
+			}
+		}
+
+		assert(p_scene->worlds);
+
+		auto* p_world = &p_scene->worlds[p_scene->world_count - 1];
+		new (p_world) ecs_world();
+		p_world->ecs_struct_idx_vec.assign_range(std::move(ecs_struct_idx_vec));
+
+		return ecs::world_idx(p_scene->world_count - 1);
+	}
+
+	uint64 new_entity(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::archetype_t archetype)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world	   = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
@@ -676,14 +686,14 @@ namespace editor::game::ecs
 		return p_ecs_entity->idx;
 	}
 
-	void delete_entity(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx)
+	void delete_entity(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
 		p_world->delete_entity(ecs_entity_idx);
 	}
 
-	void add_component(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx)
+	void add_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
@@ -691,7 +701,42 @@ namespace editor::game::ecs
 		p_world->add_component(ecs_entity_idx, ecs_struct_idx);
 	}
 
-	void remove_component(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx)
+	archetype_t get_archetype(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx)
+	{
+		return scenes[ecs_scene_idx].worlds[ecs_world_idx].entities[ecs_entity_idx].archetype;
+	}
+
+	std::vector<struct_idx> get_struct_idx_vec(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, archetype_t archetype)
+	{
+		auto* p_w = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
+		return std::views::iota(0, std::bit_width(archetype))
+			 | std::views::filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; })
+			 | std::views::transform([=](auto nth_bit) { return p_w->ecs_struct_idx_vec[nth_bit]; })
+			 | std::ranges::to<std::vector>();
+	}
+
+	size_t get_archetype_size(ecs::scene_idx s_idx, ecs::world_idx w_idx, archetype_t a)
+	{
+		if (scenes[s_idx].worlds[w_idx].archetype_size_map.contains(a))
+		{
+			return scenes[s_idx].worlds[w_idx].archetype_size_map[a];
+		}
+		else
+		{
+			auto p_world = &scenes[s_idx].worlds[w_idx];
+			return std::ranges::fold_left(std::views::iota(0, std::bit_width(a))
+											  | std::views::filter([a](auto nth_bit) { return (a >> nth_bit) & 1; })
+											  | std::views::transform([=](auto nth_bit) { return struct_info_vec[p_world->ecs_struct_idx_vec[nth_bit]].size; }),
+										  0, std::plus {});
+		}
+	}
+
+	size_t get_struct_size(ecs::struct_idx ecs_struct_idx)
+	{
+		return struct_info_vec[ecs_struct_idx].size;
+	}
+
+	void remove_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
@@ -699,10 +744,23 @@ namespace editor::game::ecs
 		p_world->remove_component(ecs_entity_idx, ecs_struct_idx);
 	}
 
-	void* get_component_memory(uint32 ecs_scene_idx, uint32 ecs_world_idx, uint64 ecs_entity_idx, uint64 ecs_struct_idx)
+	void* get_component_memory(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
 	{
 		auto* p_world  = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
 		auto* p_entity = &p_world->entities[ecs_entity_idx];
 		return p_world->get_component(ecs_entity_idx, ecs_struct_idx);
+	}
+
+	void copy_archetype_memory(void* p_dest, ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx)
+	{
+		auto* p_w		= &scenes[ecs_scene_idx].worlds[ecs_world_idx];
+		auto* p_e		= &p_w->entities[ecs_entity_idx];
+		auto  archetype = p_e->archetype;
+		for (auto struct_idx : std::views::iota(0, std::bit_width(archetype))
+								   | std::views::filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; })
+								   | std::views::transform([=](auto nth_bit) { return p_w->ecs_struct_idx_vec[nth_bit]; }))
+		{
+			memcpy(p_dest, p_w->get_component(ecs_entity_idx, struct_idx), struct_info_vec[struct_idx].size);
+		}
 	}
 }	 // namespace editor::game::ecs
