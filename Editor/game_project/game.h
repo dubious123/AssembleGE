@@ -46,8 +46,8 @@ namespace editor::game
 namespace editor::game::ecs
 {
 	using struct_idx  = uint64;
-	using scene_idx	  = uint32;
-	using world_idx	  = uint32;
+	using scene_idx	  = uint16;
+	using world_idx	  = uint16;
 	using entity_idx  = uint64;
 	using archetype_t = uint64;
 
@@ -57,7 +57,23 @@ namespace editor::game::ecs
 	bool update_models();	 // for runtime
 	void clear_models();
 
+	scene_idx new_scene();
+	void	  delete_scene(scene_idx ecs_scene_idx, utilities::memory_handle* p_backup);
+	void	  restore_scene(scene_idx, utilities::memory_handle* p_backup);
+
 	world_idx new_world(scene_idx ecs_scene_idx, std::vector<struct_idx>&& ecs_struct_idx_vec);
+	void	  delete_world(scene_idx, world_idx, utilities::memory_handle* p_backup);
+	void	  restore_world(scene_idx, world_idx, utilities::memory_handle* p_backup);
+	/// <summary>
+	/// assume the world does not contain the struct
+	/// </summary>
+	void world_add_struct(scene_idx, world_idx, struct_idx);
+	/// <summary>
+	/// <para> assume the world contains the struct </para>
+	///
+	/// <para> assume no entities exists with the struct to remove </para>
+	/// </summary>
+	void world_remove_struct(scene_idx, world_idx, struct_idx);
 
 	entity_idx				new_entity(scene_idx ecs_scene_idx, world_idx ecs_world_idx, archetype_t archetype = 0ull);
 	void					delete_entity(scene_idx ecs_scene_idx, world_idx ecs_world_idx, entity_idx ecs_entity_idx);
@@ -69,9 +85,22 @@ namespace editor::game::ecs
 	size_t					get_struct_size(struct_idx ecs_struct_idx);
 	void*					get_component_memory(scene_idx ecs_scene_idx, world_idx ecs_world_idx, entity_idx ecs_entity_idx, struct_idx ecs_struct_idx);
 	void					copy_archetype_memory(void* p_dest, scene_idx ecs_scene_idx, world_idx ecs_world_idx, entity_idx ecs_entity_idx);
+	void					restore_archetype_memory(scene_idx ecs_scene_idx, world_idx ecs_world_idx, entity_idx ecs_entity_idx, void* p_src);
 
 	std::vector<void*> get_components(editor_id entity_id);
 	void			   set_components(editor_id entity_id, uint64 component_idx, void* p_value);
+
+	archetype_t calc_archetype_remove_component(archetype_t, uint8 nth_component);
+}	 // namespace editor::game::ecs
+
+// helper functions
+namespace editor::game::ecs
+{
+	entity_idx new_entity(editor_id w_id, ecs::archetype_t a = 0ull);
+	void	   delete_entity(editor_id e_id);
+
+	void world_add_struct(editor_id w_id, editor_id s_id);
+	void world_remove_struct(editor_id w_id, editor_id s_id);
 }	 // namespace editor::game::ecs
 
 namespace editor::view::project_browser

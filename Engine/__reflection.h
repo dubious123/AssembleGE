@@ -5,7 +5,7 @@
 
 // todo more generic reflection
 
-#define OFFSET(struct_name, field_name) ((size_t) & (((__detail__struct_name*)(nullptr))->field_name))
+#define OFFSET(struct_name, field_name) ((size_t)&(((__detail__struct_name*)(nullptr))->field_name))
 
 #define COMPONENT_BEGIN(struct_name)                                                                 \
 	struct struct_name                                                                               \
@@ -77,10 +77,10 @@ __VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 	}               \
 	();
 
-template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
+template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::* Field>
 static size_t field_offset()
 {
-	return (size_t) & ((_Tstruct*)(0)->*Field);
+	return (size_t)&((_Tstruct*)(0)->*Field);
 }
 
 namespace reflection
@@ -137,7 +137,7 @@ namespace reflection
 		size_t size;
 		void*  p_value;
 
-		component_info(size_t size, void* p_value) : size(size), p_value(p_value) {};
+		component_info(size_t size, void* p_value) : size(size), p_value(p_value) { };
 	};
 
 	struct entity_info

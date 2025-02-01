@@ -470,4 +470,6 @@ namespace meta
 
 	template <template <typename...> class tl, template <typename...> class tr>
 	static inline constinit const auto is_same_template_v = is_same_template<tr, tr>::value;
+
+	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 }	 // namespace meta

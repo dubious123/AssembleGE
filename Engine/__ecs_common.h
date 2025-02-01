@@ -224,16 +224,16 @@ namespace ecs
 			*(entity_idx*)(_memory + get_header_size() + m_idx * sizeof(entity_idx)) = idx;
 		}
 
-		void remove_entity(uint16 m_idx)
+		entity_idx remove_entity(uint16 m_idx)
 		{
-			auto count		= get_count();
-			auto last_m_idx = count - 1;
-
+			auto count			   = get_count();
+			auto last_m_idx		   = count - 1;
+			auto last_entity_index = get_entity_idx(last_m_idx);
 			if (m_idx != last_m_idx)
 			{
 				auto c_count = get_component_count();
 
-				write_entity_idx(m_idx, get_entity_idx(last_m_idx));
+				write_entity_idx(m_idx, last_entity_index);
 				for (auto c_idx = 0; c_idx < c_count; ++c_idx)
 				{
 					memcpy(get_component_ptr(m_idx, c_idx), get_component_ptr(last_m_idx, c_idx), get_component_size(c_idx));
@@ -241,6 +241,8 @@ namespace ecs
 			}
 
 			write_count(count - 1);
+
+			return last_entity_index;
 		}
 
 		bool is_full() const

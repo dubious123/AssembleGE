@@ -25,10 +25,10 @@ namespace
 		void*  p_default_value;
 	};
 
-	uint32	   scene_count;
-	ecs_scene* scenes;
-	// std::vector<void*> struct_default_value_vec;
-
+	ecs_scene*					 scenes;
+	uint32						 scene_count;
+	editor::game::ecs::scene_idx scene_hole_begin_idx = -1;
+	editor::game::ecs::scene_idx scene_hole_count	  = 0;
 	std::vector<ecs_struct_info> struct_info_vec;
 }	 // namespace
 
@@ -36,16 +36,38 @@ namespace
 {
 	using ecs_entity = ecs::entity;
 
+	struct ecs_world;
+
+	struct ecs_scene
+	{
+		// todo data structure
+		ecs_world*	   worlds		  = nullptr;
+		uint32		   world_count	  = 0ul;
+		ecs::world_idx world_capacity = 0ul;
+
+		ecs::world_idx world_hole_begin_idx = -1;
+		ecs::world_idx world_hole_count		= 0;
+
+		editor::game::ecs::scene_idx idx;
+
+		ecs_scene(ecs_scene&&)			  = delete;
+		ecs_scene(const ecs_scene&)		  = delete;
+		ecs_scene& operator=(ecs_scene&&) = delete;
+		ecs_scene& operator=(ecs_scene&)  = delete;
+
+		ecs_scene() = default;
+	};
+
 	struct ecs_world
 	{
 		std::vector<ecs_entity>												  entities;
 		std::map<ecs::archetype_t, data_structure::vector<ecs::memory_block>> memory_block_vec_map;
 
 		// editor only
-		// std::vector<editor_id>			   component_info_vec;
 		std::map<ecs::archetype_t, size_t> archetype_size_map;
 		std::vector<uint64>				   ecs_struct_idx_vec;
 
+		ecs::world_idx idx;
 
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
@@ -222,10 +244,11 @@ namespace
 
 		void delete_entity(ecs::entity_idx ecs_entity_idx)
 		{
-			auto& e = entities[ecs_entity_idx];
-			get_p_mem_block(e)->remove_entity(e.memory_idx);
-			entities[ecs_entity_idx].idx = entity_hole_begin_idx;
-			entity_hole_begin_idx		 = ecs_entity_idx;
+			auto& e										= entities[ecs_entity_idx];
+			auto  entity_idx_need_update				= get_p_mem_block(e)->remove_entity(e.memory_idx);
+			entities[entity_idx_need_update].memory_idx = e.memory_idx;
+			entities[ecs_entity_idx].idx				= entity_hole_begin_idx;
+			entity_hole_begin_idx						= ecs_entity_idx;
 			++entity_hole_count;
 		}
 
@@ -260,8 +283,8 @@ namespace
 				new_mem_block_idx = 0;
 				p_new_block		  = &block_list.emplace_back();
 
-				auto new_size = _calc_archetype_size(e.archetype | archetype_to_add);
-				assert(new_size == p_prev_block->calc_size_per_archetype() + _calc_archetype_size(archetype_to_add));
+				auto new_size = p_prev_block->calc_size_per_archetype() + _calc_archetype_size(archetype_to_add);
+				assert(new_size == sizeof(ecs::entity_idx) + _calc_archetype_size(e.archetype | archetype_to_add));
 
 				init_mem_block(new_archetype, new_size, p_new_block);
 			}
@@ -334,19 +357,6 @@ namespace
 			return memory_block_vec_map[e.archetype][e.mem_block_idx].get_component_ptr(e.memory_idx, _calc_component_idx(e.archetype, _calc_nth_component(ecs_struct_idx)));
 		}
 	};
-
-	struct ecs_scene
-	{
-		ecs_world* worlds;
-		uint32	   world_count = 0ul;
-
-		ecs_scene(ecs_scene&&)			  = delete;
-		ecs_scene(const ecs_scene&)		  = delete;
-		ecs_scene& operator=(ecs_scene&&) = delete;
-		ecs_scene& operator=(ecs_scene&)  = delete;
-
-		ecs_scene() = default;
-	};
 }	 // namespace
 
 // dll related
@@ -417,56 +427,56 @@ namespace editor::game::ecs
 			}
 		}
 
-		for (const auto scene_idx : iota(0ul, _get_registered_scene_count()))
-		{
-			auto* p_scene_info = _get_scene_info(scene_idx);
-			auto  s_id		   = scene::create();
-			auto  p_scene	   = scene::find(s_id);
-			{
-				p_scene->name = p_scene_info->name;
-			}
+		// for (const auto scene_idx : iota(0ul, _get_registered_scene_count()))
+		//{
+		//	auto* p_scene_info = _get_scene_info(scene_idx);
+		//	auto  s_id		   = scene::create();
+		//	auto  p_scene	   = scene::find(s_id);
+		//	{
+		//		p_scene->name = p_scene_info->name;
+		//	}
 
-			for (const auto world_idx : iota(p_scene_info->world_idx) | take(p_scene_info->world_count))
-			{
-				auto* p_w_info = _get_world_info(world_idx);
-				auto  w_id	   = world::create(p_scene->id, p_w_info->name, {});
-				auto  p_world  = world::find(w_id);
-				{
-					p_world->id		  = w_id;
-					p_world->scene_id = s_id;
-					p_world->ecs_idx  = world_idx;
-					p_world->name	  = p_w_info->name;
-				}
+		//	for (const auto world_idx : iota(p_scene_info->world_idx) | take(p_scene_info->world_count))
+		//	{
+		//		auto* p_w_info = _get_world_info(world_idx);
+		//		auto  w_id	   = world::create(p_scene->id, p_w_info->name, {});
+		//		auto  p_world  = world::find(w_id);
+		//		{
+		//			p_world->id		  = w_id;
+		//			p_world->scene_id = s_id;
+		//			p_world->ecs_idx  = world_idx;
+		//			p_world->name	  = p_w_info->name;
+		//		}
 
-				for (const auto struct_idx : p_w_info->struct_idx_vec | take(p_w_info->struct_count))
-				{
-					auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
-					world::add_struct(w_id, p_s->id);
-				}
+		//		for (const auto struct_idx : p_w_info->struct_idx_vec | take(p_w_info->struct_count))
+		//		{
+		//			auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
+		//			world::add_struct(w_id, p_s->id);
+		//		}
 
-				for (const auto entity_idx : iota(0ul, _get_registered_entity_count(world_idx)))
-				{
-					auto* p_e_info = _get_entity_info(world_idx, entity_idx);
-					auto  e_id	   = entity::create(w_id);
-					auto  p_entity = entity::find(e_id);
-					{
-						p_entity->id		= e_id;
-						p_entity->world_id	= w_id;
-						p_entity->name		= p_e_info->name;
-						p_entity->archetype = p_e_info->archetype;
-						p_entity->ecs_idx	= p_e_info->idx;
-					}
+		//		for (const auto entity_idx : iota(0ul, _get_registered_entity_count(world_idx)))
+		//		{
+		//			auto* p_e_info = _get_entity_info(world_idx, entity_idx);
+		//			auto  e_id	   = entity::create(w_id);
+		//			auto  p_entity = entity::find(e_id);
+		//			{
+		//				p_entity->id		= e_id;
+		//				p_entity->world_id	= w_id;
+		//				p_entity->name		= p_e_info->name;
+		//				p_entity->archetype = p_e_info->archetype;
+		//				p_entity->ecs_idx	= p_e_info->idx;
+		//			}
 
-					for (const auto world_s_idx : iota(0ul, p_world->structs.size()) | filter([p_entity](const auto idx) { return ((p_entity->archetype >> idx) & 1ul) != 0; }))
-					{
-						// todo c_info.p_value is invalid
-						auto component_idx = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
-						auto c_info		   = _get_component_info(world_idx, entity_idx, component_idx);
-						// auto c_id		   = component::add(e_id, p_world->structs[world_s_idx], c_info.p_value);
-					}
-				}
-			}
-		}
+		//			for (const auto world_s_idx : iota(0ul, p_world->structs.size()) | filter([p_entity](const auto idx) { return ((p_entity->archetype >> idx) & 1ul) != 0; }))
+		//			{
+		//				// todo c_info.p_value is invalid
+		//				auto component_idx = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
+		//				auto c_info		   = _get_component_info(world_idx, entity_idx, component_idx);
+		//				// auto c_id		   = component::add(e_id, p_world->structs[world_s_idx], c_info.p_value);
+		//			}
+		//		}
+		//	}
+		//}
 
 		// apply .assemble to ecs models
 
@@ -534,23 +544,15 @@ namespace editor::game::ecs
 			}
 		}
 
-		scene_count = std::distance(root_node.child("scenes").children().begin(), root_node.child("scenes").children().end());
-		scenes		= (ecs_scene*)malloc(sizeof(ecs_scene) * scene_count);
-		for (auto s_idx : std::views::iota(0ul, scene_count))
-		{
-			new (scenes + s_idx) ecs_scene();
-		}
-
-		auto scene_idx = 0ul;
+		scenes = (ecs_scene*)malloc(sizeof(ecs_scene) * root_node.child("scenes").attribute("scene_count").as_ullong());
+		// new (scenes) ecs_scene();
+		// scenes->idx = 0;
+		// scene_count = 1;
 
 		for (auto scene_node : root_node.child("scenes").children())
 		{
-			auto s_id	 = scene::create();
-			auto p_scene = scene::find(s_id);
-			{
-				p_scene->name	 = scene_node.attribute("name").value();
-				p_scene->ecs_idx = scene_idx;
-			}
+			auto  s_id		 = scene::create(scene_node.attribute("name").as_string(), game::ecs::new_scene());
+			auto* p_em_scene = scene::find(s_id);
 
 			for (auto world_node : scene_node.child("worlds").children())
 			{
@@ -559,13 +561,7 @@ namespace editor::game::ecs
 											  | std::views::transform([](const auto node) { return reflection::find_struct(node.attribute("name").value()); })
 											  | std::ranges::to<std::vector>());
 
-				for (auto struct_node : world_node.child("structs").children())
-				{
-					auto* p_s = reflection::find_struct(struct_node.attribute("name").value());
-					models::world::add_struct(w_id, p_s->id);
-				}
-
-				auto* p_ecs_world = &scenes[scene_idx].worlds[world::find(w_id)->ecs_idx];
+				auto* p_ecs_world = &scenes[p_em_scene->ecs_idx].worlds[world::find(w_id)->ecs_idx];
 
 				auto entities_node = world_node.child("entities");
 				{
@@ -597,8 +593,6 @@ namespace editor::game::ecs
 					}
 				}
 			}
-
-			++scene_idx;
 		}
 		return true;
 	}
@@ -609,18 +603,20 @@ namespace editor::game::ecs
 		{
 			free(info.p_default_value);
 		}
-		for (const auto& s : std::span(scenes, scene_count))
-		{
-			for (auto w_idx : std::views::iota(0ul, s.world_count))
+
+		std::ranges::for_each(std::views::iota(scenes) | take(scene_count), [](auto* p_scene) {
+			for (auto* p_w : std::views::iota(p_scene->worlds) | take(p_scene->world_count))
 			{
-				(s.worlds + w_idx)->~ecs_world();
+				p_w->~ecs_world();
 			}
 
-			free(s.worlds);
-		}
+			free(p_scene->worlds);
+		});
 
 		free(scenes);
 		struct_info_vec.clear();
+		scene_hole_begin_idx = -1;
+		scene_hole_count	 = 0;
 	}
 
 	bool update_models()
@@ -653,29 +649,177 @@ namespace editor::game::ecs
 
 namespace editor::game::ecs
 {
+	ecs::scene_idx new_scene()
+	{
+		scene_idx s_idx;
+		if (scene_hole_count > 0)
+		{
+			s_idx				 = scene_hole_begin_idx;
+			scene_hole_begin_idx = scenes[s_idx].idx;
+			--scene_hole_count;
+		}
+		else
+		{
+			s_idx  = scene_count;
+			scenes = (ecs_scene*)realloc(scenes, sizeof(ecs_scene) * (scene_count + 1));
+		}
+
+		++scene_count;
+		new (scenes + s_idx) ecs_scene();
+		scenes[s_idx].idx = s_idx;
+		return s_idx;
+	}
+
+	void delete_scene(ecs::scene_idx ecs_scene_idx, utilities::memory_handle* p_backup)
+	{
+		auto* p_s = &scenes[ecs_scene_idx];
+
+		if (p_backup)
+		{
+			p_backup->p_data		= malloc(sizeof(ecs_scene));
+			p_backup->clean_up_func = [](void* p_mem) {
+				auto p_scene = (ecs_scene*)p_mem;
+				for (auto* p_w : std::views::iota(p_scene->worlds) | take(p_scene->world_count))
+				{
+					p_w->~ecs_world();
+				}
+
+				free(p_scene->worlds);
+			};
+
+			memcpy(p_backup->p_data, p_s, sizeof(ecs_scene));
+		}
+
+		--scene_count;
+		++scene_hole_count;
+		std::swap(scene_hole_begin_idx, p_s->idx);
+	}
+
+	void restore_scene(ecs::scene_idx ecs_scene_idx, utilities::memory_handle* p_backup)
+	{
+		auto* p_s = &scenes[ecs_scene_idx];
+
+		assert(scene_hole_begin_idx == ecs_scene_idx);
+
+		scene_hole_begin_idx = p_s->idx;
+		--scene_hole_count;
+		++scene_count;
+
+		memcpy(p_s, p_backup->p_data, sizeof(ecs_scene));
+		p_backup->clean_up_func = nullptr;
+	}
+
 	ecs::world_idx new_world(ecs::scene_idx ecs_scene_idx, std::vector<struct_idx>&& ecs_struct_idx_vec)
 	{
-		auto* p_scene = &scenes[ecs_scene_idx];
+		auto* p_scene	= &scenes[ecs_scene_idx];
+		auto* p_world	= (ecs_world*)nullptr;
+		auto  world_idx = (ecs::world_idx)0;
 		{
 			if (p_scene->world_count == 0)
 			{
-				p_scene->world_count = 1;
-				p_scene->worlds		 = (ecs_world*)malloc(sizeof(ecs_world));
+				p_scene->world_capacity = 1;
+				p_scene->worlds			= (ecs_world*)malloc(sizeof(ecs_world));
+
+				p_world = &p_scene->worlds[0];
+			}
+			else if (p_scene->world_count < p_scene->world_capacity)
+			{
+				world_idx					  = p_scene->world_hole_begin_idx;
+				p_world						  = &p_scene->worlds[world_idx];
+				p_scene->world_hole_begin_idx = p_world->idx;
+				--p_scene->world_hole_count;
 			}
 			else
 			{
-				++p_scene->world_count;
-				p_scene->worlds = (ecs_world*)realloc(p_scene->worlds, sizeof(ecs_world) * (p_scene->world_count));
+				world_idx = p_scene->world_count;
+				++p_scene->world_capacity;
+				p_scene->worlds = (ecs_world*)realloc(p_scene->worlds, sizeof(ecs_world) * (p_scene->world_count + 1));
+
+				p_world = &p_scene->worlds[p_scene->world_count];
 			}
+
+			++p_scene->world_count;
 		}
 
-		assert(p_scene->worlds);
-
-		auto* p_world = &p_scene->worlds[p_scene->world_count - 1];
+		assert(p_world);
 		new (p_world) ecs_world();
-		p_world->ecs_struct_idx_vec.assign_range(std::move(ecs_struct_idx_vec));
+		{
+			p_world->ecs_struct_idx_vec.assign_range(std::move(ecs_struct_idx_vec));
+			p_world->idx = p_scene->world_count - 1;
+			p_world->idx = world_idx;
+		}
 
-		return ecs::world_idx(p_scene->world_count - 1);
+		return p_world->idx;
+	}
+
+	void delete_world(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, utilities::memory_handle* p_backup)
+	{
+		auto* p_s = &scenes[ecs_scene_idx];
+		auto* p_w = &p_s->worlds[ecs_world_idx];
+
+		if (p_backup)
+		{
+			p_backup->p_data		= malloc(sizeof(ecs_world));
+			p_backup->clean_up_func = [](void* p_mem) {
+				((ecs_world*)p_mem)->~ecs_world();
+				free(p_mem);
+			};
+
+			memcpy(p_backup->p_data, p_w, sizeof(ecs_world));
+		}
+
+		--p_s->world_count;
+		++p_s->world_hole_count;
+		std::swap(p_s->world_hole_begin_idx, p_w->idx);
+	}
+
+	void restore_world(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, utilities::memory_handle* p_backup)
+	{
+		auto* p_s = &scenes[ecs_scene_idx];
+		auto* p_w = &p_s->worlds[ecs_world_idx];
+
+		assert(p_s->world_hole_begin_idx == ecs_world_idx);
+
+		p_s->world_hole_begin_idx = p_w->idx;
+		--p_s->world_hole_count;
+		++p_s->world_count;
+
+		memcpy(p_w, p_backup->p_data, sizeof(ecs_world));
+		p_backup->clean_up_func = nullptr;
+	}
+
+	void world_add_struct(ecs::scene_idx scene_idx, ecs::world_idx world_idx, ecs::struct_idx struct_idx)
+	{
+		auto* p_scene = &scenes[scene_idx];
+		auto* p_world = &p_scene->worlds[world_idx];
+		p_world->ecs_struct_idx_vec.emplace_back(struct_idx);
+	}
+
+	void world_remove_struct(ecs::scene_idx scene_idx, ecs::world_idx world_idx, ecs::struct_idx struct_idx)
+	{
+		// A B C D
+		// archetype = 0101(C, A)
+
+		// delete B
+		// A C D
+		// archetype = 011(C, A) = 010 | 0001
+		auto* p_scene		 = &scenes[scene_idx];
+		auto* p_world		 = &p_scene->worlds[world_idx];
+		auto  nth_struct_idx = std::distance(p_world->ecs_struct_idx_vec.begin(), std::ranges::find(p_world->ecs_struct_idx_vec, struct_idx));
+
+		for (auto& e : p_world->entities)
+		{
+			e.archetype = calc_archetype_remove_component(e.archetype, nth_struct_idx);
+		}
+
+		// p_world->memory_block_vec_map = decltype(p_world->memory_block_vec_map) {};
+		auto backup = decltype(p_world->memory_block_vec_map) {};
+		backup.merge(p_world->memory_block_vec_map);
+		for (auto&& [archetype, mem_block_vec] : backup)
+		{
+			auto new_archetype							 = calc_archetype_remove_component(archetype, nth_struct_idx);
+			p_world->memory_block_vec_map[new_archetype] = std::move(mem_block_vec);
+		}
 	}
 
 	uint64 new_entity(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::archetype_t archetype)
@@ -762,5 +906,64 @@ namespace editor::game::ecs
 		{
 			memcpy(p_dest, p_w->get_component(ecs_entity_idx, struct_idx), struct_info_vec[struct_idx].size);
 		}
+	}
+
+	void restore_archetype_memory(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, void* p_src)
+	{
+		auto* p_w = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
+		auto* p_e = &p_w->entities[ecs_entity_idx];
+
+		auto ecs_struct_idx_view = std::views::iota(0, std::bit_width(p_e->archetype))
+								 | std::views::filter([archetype = p_e->archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; })
+								 | std::views::transform([p_w](auto nth_component) { return p_w->ecs_struct_idx_vec[nth_component]; });
+
+
+		std::ranges::for_each(ecs_struct_idx_view, [p_mem = (uint8*)p_src, p_w, ecs_entity_idx](auto s_idx) mutable {
+			memcpy(p_w->get_component(ecs_entity_idx, s_idx), p_mem, struct_info_vec[s_idx].size);
+			p_mem += struct_info_vec[s_idx].size;
+		});
+	}
+
+	archetype_t calc_archetype_remove_component(archetype_t a, uint8 nth_component)
+	{
+		return (a >> 1) | (((1ull << nth_component) - 1) & a);
+	}
+}	 // namespace editor::game::ecs
+
+// helper
+namespace editor::game::ecs
+{
+	ecs::entity_idx new_entity(editor_id w_id, archetype_t a)
+	{
+		auto* p_w = world::find(w_id);
+		auto* p_s = scene::find(p_w->scene_id);
+
+		return ecs::new_entity(p_s->ecs_idx, p_w->ecs_idx, a);
+	}
+
+	void delete_entity(editor_id e_id)
+	{
+		auto* p_entity = entity::find(e_id);
+		auto* p_world  = world::find(p_entity->world_id);
+		auto* p_scene  = scene::find(p_world->scene_id);
+		ecs::delete_entity(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx);
+	}
+
+	void world_add_struct(editor_id w_id, editor_id s_id)
+	{
+		auto* p_em_world  = world::find(w_id);
+		auto* p_em_scene  = scene::find(p_em_world->scene_id);
+		auto* p_em_struct = reflection::find_struct(s_id);
+
+		world_add_struct(p_em_scene->ecs_idx, p_em_world->ecs_idx, p_em_struct->ecs_idx);
+	}
+
+	void world_remove_struct(editor_id w_id, editor_id s_id)
+	{
+		auto* p_em_world  = world::find(w_id);
+		auto* p_em_scene  = scene::find(p_em_world->scene_id);
+		auto* p_em_struct = reflection::find_struct(s_id);
+
+		world_remove_struct(p_em_scene->ecs_idx, p_em_world->ecs_idx, p_em_struct->ecs_idx);
 	}
 }	 // namespace editor::game::ecs

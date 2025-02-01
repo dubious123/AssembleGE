@@ -9,15 +9,15 @@
             </fields>
         </struct>
     </structs>
-    <scenes>
-        <scene name="untitled">
+    <scenes scene_count="1">
+        <scene name="untitled" world_count="1">
             <worlds>
                 <world id="0x300000000000000" name="main">
                     <structs>
                         <struct id="0x700000000000000" name="transform"/>
                     </structs>
                     <entities>
-                        <entity id="0x00000000000000" name="entity">
+                        <entity id="0x00000000000000" name="entity" archetype="1">
                             <components>
                                 <component id="0x500000000000000" struct_id="0x700000000000000" name="transform">
                                     <fields>

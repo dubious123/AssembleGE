@@ -475,7 +475,6 @@ namespace editor::game
 
 				world_node.append_attribute("id").set_value(p_world->id.str().c_str());
 				world_node.append_attribute("name").set_value(p_world->name.c_str());
-				world_node.append_attribute("world_count").set_value(p_world->structs.size());
 
 				for (auto* p_struct : p_world->structs | std::views::transform([](auto id) { return models::reflection::find_struct(id); }))
 				{

@@ -121,6 +121,58 @@ struct viewport_info
 
 struct editor_command;
 
+namespace editor::utilities
+{
+	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
+
+	struct memory_handle
+	{
+		std::function<void(void*)> clean_up_func = nullptr;
+		void*					   p_data		 = nullptr;
+
+		memory_handle() = default;
+		memory_handle(std::function<void(void*)> clean_up_func, void* p_data) : clean_up_func(clean_up_func), p_data(p_data) { };
+
+		memory_handle(const memory_handle&)			   = delete;
+		memory_handle& operator=(const memory_handle&) = delete;
+
+		memory_handle(memory_handle&& other) noexcept : clean_up_func(other.clean_up_func), p_data(other.p_data)
+		{
+			other.clean_up_func = nullptr;
+		}
+
+		memory_handle& operator=(memory_handle&& other) noexcept
+		{
+			if (this != &other)
+			{
+				clean_up_func = other.clean_up_func;
+				p_data		  = other.p_data;
+
+				other.clean_up_func = nullptr;
+
+				return *this;
+			}
+		}
+
+		~memory_handle()
+		{
+			if (p_data and clean_up_func)
+			{
+				clean_up_func(p_data);
+			}
+		}
+
+		void release()
+		{
+			if (p_data and clean_up_func)
+			{
+				clean_up_func(p_data);
+				clean_up_func = nullptr;
+			}
+		}
+	};
+}	 // namespace editor::utilities
+
 struct editor_id
 {
 	//[type (8)][gen (4)][key (52)]
@@ -452,39 +504,28 @@ namespace editor::undoredo
 	struct undo_redo_cmd
 	{
 		// Editor::ID::AssembleID Id;
-		std::string					name;
-		std::function<void(void**)> undo;
-		std::function<void(void**)> redo;
-		void*						_memory;
+		std::string											   name;
+		std::function<void(editor::utilities::memory_handle*)> undo;
+		std::function<void(editor::utilities::memory_handle*)> redo;
+		editor::utilities::memory_handle					   _memory_handle;
 
-		undo_redo_cmd(std::string name, std::function<void(void**)> redo, std::function<void(void**)> undo)
-			: name(name), redo(redo), undo(undo), _memory(nullptr) { }
+		undo_redo_cmd(std::string name, std::function<void(editor::utilities::memory_handle*)> redo, std::function<void(editor::utilities::memory_handle*)> undo)
+			: name(name), redo(redo), undo(undo), _memory_handle() { }
 
-		undo_redo_cmd(std::string name, std::function<void(void**)> redo, std::function<void(void**)> undo, void* p_mem)
-			: name(name), redo(redo), undo(undo), _memory(p_mem) { }
-
-		~undo_redo_cmd()
-		{
-			if (_memory)
-			{
-				free(_memory);
-			}
-		}
+		undo_redo_cmd(std::string name, std::function<void(utilities::memory_handle*)> redo, std::function<void(utilities::memory_handle*)> undo, void* p_mem)
+			: name(name), redo(redo), undo(undo), _memory_handle({ nullptr, p_mem }) { }
 
 		undo_redo_cmd(undo_redo_cmd&& other) noexcept
-			: name(other.name), undo(other.undo), redo(other.redo), _memory(other._memory)
-		{
-			other._memory = nullptr;
-		}
+			: name(other.name), undo(other.undo), redo(other.redo), _memory_handle(std::move(other._memory_handle)) { }
 
 		undo_redo_cmd& operator=(undo_redo_cmd&& other) noexcept
 		{
 			if (this != &other)
 			{
-				name		  = other.name;
-				undo		  = other.undo;
-				redo		  = other.redo;
-				other._memory = nullptr;
+				name		   = other.name;
+				undo		   = other.undo;
+				redo		   = other.redo;
+				_memory_handle = std::move(other._memory_handle);
 			}
 
 			return *this;
@@ -624,8 +665,9 @@ namespace editor::models
 		//
 		// remove => increase generation => different id
 		em_scene*			   find(editor_id id);
-		editor_id			   create();
+		editor_id			   create(std::string name, uint16 s_ecs_idx);
 		void				   remove(editor_id id);
+		editor_id			   restore(const em_scene& em_s);
 		size_t				   count();
 		std::vector<em_scene*> all();
 		void				   set_current(editor_id id);
@@ -637,6 +679,8 @@ namespace editor::models
 	{
 		extern editor_command cmd_create;
 		extern editor_command cmd_remove;
+		extern editor_command cmd_add_struct;
+		extern editor_command cmd_remove_struct;
 
 		em_world*			   find(editor_id id);
 		editor_id			   create(editor_id scene_id, const char* name, std::vector<em_struct*>&& p_struct_vector);
@@ -644,6 +688,8 @@ namespace editor::models
 		void				   add_struct(editor_id world_id, editor_id struct_id);
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		uint64				   archetype(editor_id world_id, editor_id struct_id);
+		void				   remove(editor_id world_id);
+		editor_id			   restore(const em_world& em_w);
 		std::vector<em_world*> all(editor_id scene_id);
 	}	 // namespace world
 
@@ -657,10 +703,12 @@ namespace editor::models
 		editor_id				create(editor_id world_id, archetype_t archetype = 0);
 		editor_id				create(editor_id world_id, const char* name, archetype_t archetype = 0);
 		editor_id				create(editor_id world_id, std::string name, archetype_t archetype = 0);
-		editor_id				restore(em_entity&& e, void*& p_memory);
+		void					remove(editor_id entity_id);
+		editor_id				restore(const em_entity& em_c);
 		editor_id				add_component(editor_id entity_id, editor_id struct_id);
 		void					remove_component(editor_id entity_id, editor_id struct_id);
 		std::vector<em_entity*> all(editor_id world_id);
+		size_t					count(editor_id world_id);
 	}	 // namespace entity
 
 	namespace component
@@ -669,7 +717,9 @@ namespace editor::models
 		em_component*			   find(editor_id entity_id, editor_id struct_id);
 		editor_id				   create(editor_id entity_id, editor_id struct_id);
 		void					   remove(editor_id component_id);
+		void					   restore(const em_component& em_c);
 		std::vector<em_component*> all(editor_id entity_id);
+		size_t					   count(editor_id entity_id);
 
 		void* get_memory(editor_id id);
 	}	 // namespace component

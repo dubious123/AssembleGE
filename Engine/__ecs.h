@@ -402,10 +402,11 @@ namespace ecs
 
 		void delete_entity(entity_idx idx)
 		{
-			auto& e = entities[idx];
-			get_p_mem_block(e)->remove_entity(e.memory_idx);
-			entities[idx].idx	  = entity_hole_begin_idx;
-			entity_hole_begin_idx = idx;
+			auto& e										= entities[idx];
+			auto  entity_idx_need_update				= get_p_mem_block(e)->remove_entity(e.memory_idx);
+			entities[entity_idx_need_update].memory_idx = e.memory_idx;
+			entities[idx].idx							= entity_hole_begin_idx;
+			entity_hole_begin_idx						= idx;
 			++entity_hole_count;
 		}
 

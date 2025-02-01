@@ -299,10 +299,14 @@ namespace editor::view::inspector
 		widgets::editable_header(entity_id, p_e->name);
 		widgets::text(std::format("world : {}", models::world::find(p_e->world_id)->name).c_str());
 		widgets::text(std::format("archetype : {}", p_e->archetype).c_str());
+		widgets::text(std::format("ecs_idx : {}", p_e->ecs_idx).c_str());
 
 		std::ranges::for_each(component::all(entity_id), [=](auto* p_c) {
 			widgets::component_drag(p_c->id);
 			// todo
+			auto p_w = world::find(p_e->world_id);
+			auto p_s = scene::find(p_w->scene_id);
+			widgets::text(std::format("memory : {}", game::ecs::get_component_memory(p_s->ecs_idx, p_w->ecs_idx, p_e->ecs_idx, editor::models::reflection::find_struct(p_c->struct_id)->ecs_idx)).c_str());
 
 			// when right click, allow various context munu popup?
 			//	ex. struct => may show context menu (reflection) or may not show context menu (world archetype)
@@ -316,6 +320,7 @@ namespace editor::view::inspector
 			// rethink about editor xml
 			// context menu item size too big (world -> add struct/ remove struct)
 		});
+
 		// auto p_entity = entity::get(entity_id);
 
 		// ImGui::Text((p_entity->name).c_str());
