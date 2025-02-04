@@ -20,7 +20,6 @@
 		</ctx_item>
 	</ctx_item>
 	<ctx_item name="Project">
-		
 	</ctx_item>
 	<ctx_item name="Scene">
 		<ctx_item name="Add New Scene" separator="true"/>
@@ -42,7 +41,7 @@
 			<ctx_item name="Add New System"/>
 		</ctx_item>
 	</ctx_item>
-	<ctx_item name="Subworld">
+	<ctx_item name="SubWorld">
 
 	</ctx_item>
 	<ctx_item name="Entity">

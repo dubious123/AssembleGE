@@ -256,7 +256,6 @@ namespace editor::logger
 
 namespace editor::view::logger
 {
-	void init();
 	void show();
 	void on_project_loaded();
 }	 // namespace editor::view::logger

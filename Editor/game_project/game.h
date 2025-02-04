@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 
 namespace editor::game
 {
@@ -43,9 +42,19 @@ namespace editor::game
 	game_project* get_current_p_project();
 }	 // namespace editor::game
 
+// reflection
 namespace editor::game::ecs
 {
-	using struct_idx  = uint64;
+	using struct_idx = uint64;
+	using field_idx	 = uint32;
+
+	struct_idx new_struct();
+	field_idx  add_field(struct_idx, e_primitive_type f_type, std::string field_value);
+	void*	   get_field_pvalue(struct_idx, field_idx);
+}	 // namespace editor::game::ecs
+
+namespace editor::game::ecs
+{
 	using scene_idx	  = uint16;
 	using world_idx	  = uint16;
 	using entity_idx  = uint64;
@@ -61,8 +70,8 @@ namespace editor::game::ecs
 	void	  delete_scene(scene_idx ecs_scene_idx, utilities::memory_handle* p_backup);
 	void	  restore_scene(scene_idx, utilities::memory_handle* p_backup);
 
-	world_idx new_world(scene_idx ecs_scene_idx, std::vector<struct_idx>&& ecs_struct_idx_vec);
-	void	  delete_world(scene_idx, world_idx, utilities::memory_handle* p_backup);
+	world_idx new_world(scene_idx ecs_scene_idx);
+	void	  delete_world(scene_idx, world_idx, utilities::memory_handle* p_backup = nullptr);
 	void	  restore_world(scene_idx, world_idx, utilities::memory_handle* p_backup);
 	/// <summary>
 	/// assume the world does not contain the struct
@@ -96,6 +105,9 @@ namespace editor::game::ecs
 // helper functions
 namespace editor::game::ecs
 {
+	world_idx new_world(editor_id s_id);
+	void	  delete_world(editor_id s_id, editor_id w_id);
+
 	entity_idx new_entity(editor_id w_id, ecs::archetype_t a = 0ull);
 	void	   delete_entity(editor_id e_id);
 

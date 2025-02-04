@@ -1,5 +1,7 @@
 #include "pch.h"
+#include "Editor.h"
 #include "editor_view.h"
+#include "editor_ctx_item.h"
 #include "game_project/game.h"
 
 namespace editor::view::hierarchy
@@ -189,7 +191,11 @@ namespace editor::view::inspector
 		{
 			std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
 				auto selected = false;
-				widgets::tree_node(std::format("{} ({}) : {}", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+				widgets::tree_node(std::format("{} ({}) : {}",
+											   p_f->name,
+											   models::reflection::utils::type_to_string(p_f->type),
+											   models::reflection::utils::deserialize(p_f->type, game::ecs::get_field_pvalue(p_s->ecs_idx, p_f->ecs_idx))),
+								   ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 			});
 
 			widgets::tree_pop();
@@ -398,12 +404,16 @@ namespace editor::view::reflection
 
 		if (widgets::begin("Reflection", &_open))
 		{
-			std::ranges::for_each(editor::models::reflection::all_structs(), [](em_struct* p_s) {
+			std::ranges::for_each(models::reflection::all_structs(), [](em_struct* p_s) {
 				if (widgets::tree_node(p_s->name.c_str()))
 				{
-					std::ranges::for_each(editor::models::reflection::all_fields(p_s->id), [](em_field* p_f) {
+					std::ranges::for_each(models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
 						auto selected = false;
-						widgets::tree_node(std::format("{} ({}) : ( {} )", p_f->name, editor::models::reflection::utils::type_to_string(p_f->type), editor::models::reflection::utils::deserialize(p_f->type, p_f->p_value)), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+						widgets::tree_node(std::format("{} ({}) : ( {} )",
+													   p_f->name,
+													   models::reflection::utils::type_to_string(p_f->type),
+													   models::reflection::utils::deserialize(p_f->type, game::ecs::get_field_pvalue(p_s->ecs_idx, p_f->ecs_idx))),
+										   ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					});
 
 
@@ -485,6 +495,17 @@ namespace editor::view
 		}
 	}	 // namespace
 
+	void on_project_loaded()
+	{
+		auto res  = true;
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Hierarchy", &hierarchy::cmd_open);
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Inspector", &inspector::cmd_open);
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Reflection", &reflection::cmd_open);
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\World_Editor", &editor::view::world_editor::cmd_open);
+		assert(res);
+		logger::on_project_loaded();
+	}
+
 	void update_dpi_scale()
 	{
 		project_browser::update_dpi_scale();
@@ -492,18 +513,6 @@ namespace editor::view
 
 	void init()
 	{
-		logger::init();
-	}
-
-	void on_project_loaded()
-	{
-		auto res  = true;
-		res		 &= editor::add_context_item("Main Menu\\Window\\Hierarchy", &hierarchy::cmd_open);
-		res		 &= editor::add_context_item("Main Menu\\Window\\Inspector", &inspector::cmd_open);
-		res		 &= editor::add_context_item("Main Menu\\Window\\Reflection", &reflection::cmd_open);
-		res		 &= editor::add_context_item("Main Menu\\Window\\World_Editor", &editor::view::world_editor::cmd_open);
-		assert(res);
-		logger::on_project_loaded();
 	}
 
 	void show()
@@ -521,6 +530,11 @@ namespace editor::view
 			inspector::show();
 			reflection::show();
 			world_editor::show();
+			ctx_popup::show();
 		}
+	}
+
+	void on_project_unloaded()
+	{
 	}
 }	 // namespace editor::view

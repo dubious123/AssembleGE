@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "../editor.h"
+#include "../editor_ctx_item.h"
 #include "../utilities/timing.h"
 #include "game.h"
 
@@ -259,12 +260,16 @@ namespace editor::game
 
 			auto content = std::string(file_begin);
 
-			// todo maybe better way to concat string than just +=
+			// todo maybe better way to concat string
 			for_each(reflection::all_structs(), [&](const em_struct* p_struct) {
 				content += std::format(template_component_begin, p_struct->name);
 
 				for_each(reflection::all_fields(p_struct->id), [&](const em_field* p_field) {
-					content += std::format(template_serialize_field, reflection::utils::type_to_string(p_field->type), p_field->name, reflection::utils::deserialize(p_field->type, p_field->p_value));
+					content += std::format(
+						template_serialize_field,
+						reflection::utils::type_to_string(p_field->type),
+						p_field->name,
+						reflection::utils::deserialize(p_field->type, game::ecs::get_field_pvalue(p_struct->ecs_idx, p_field->ecs_idx)));
 				});
 
 				content += template_component_end;
@@ -295,7 +300,7 @@ namespace editor::game
 							auto* p_value  = component::get_memory(p_component->id);
 
 							for_each(reflection::all_fields(p_struct->id), [&, p_value](const em_field* p_field) {
-								if (memcmp((char*)p_value + p_field->offset, p_field->p_value, reflection::utils::type_size(p_field->type)) != 0)
+								if (memcmp((char*)p_value + p_field->offset, game::ecs::get_field_pvalue(p_struct->ecs_idx, p_field->ecs_idx), reflection::utils::type_size(p_field->type)) != 0)
 								{
 									content += std::format(template_entity_set_component, p_struct->name, "." + p_field->name, "{" + reflection::utils::deserialize(p_field->type, p_value) + "}");
 								}
@@ -454,7 +459,7 @@ namespace editor::game
 				field_node.append_attribute("id").set_value(p_field->id.str().c_str());
 				field_node.append_attribute("type").set_value(reflection::utils::type_to_string(p_field->type));
 				field_node.append_attribute("offset").set_value(p_field->offset);
-				field_node.append_attribute("value").set_value(reflection::utils::deserialize(p_field->type, p_field->p_value).c_str());
+				field_node.append_attribute("value").set_value(reflection::utils::deserialize(p_field->type, game::ecs::get_field_pvalue(p_struct->ecs_idx, p_field->ecs_idx)).c_str());
 			}
 		}
 
@@ -500,19 +505,12 @@ namespace editor::game
 						component_node.append_attribute("struct_id").set_value(p_struct->id.str().c_str());
 						component_node.append_attribute("name").set_value(p_struct->name.c_str());
 
-
-						auto fields = reflection::all_fields(p_struct->id);
 						auto values = reflection::utils::deserialize(p_struct->id, component::get_memory(p_component->id));
 						for (auto field_idx : std::views::iota(0ul, p_struct->field_count))
 						{
-							auto  field_node = fields_node.append_child("field");
-							auto  p_field	 = fields[field_idx];
-							auto& value		 = values[field_idx];
-
-							field_node.append_attribute("name").set_value(p_field->name.c_str());
-							field_node.append_attribute("value").set_value(value.c_str());
-							field_node.append_attribute("offset").set_value(p_field->offset);
-							field_node.append_attribute("type").set_value(reflection::utils::type_to_string(p_field->type));
+							fields_node.append_child("field")
+								.append_attribute("value")
+								.set_value(values[field_idx].c_str());
 						}
 					}
 				}
@@ -638,8 +636,8 @@ namespace editor::game
 
 	void on_project_loaded()
 	{
-		editor::add_context_item("Main Menu\\File\\Save", &_cmd_save);
-		editor::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
+		editor::ctx_item::add_context_item("Main Menu\\File\\Save", &_cmd_save);
+		editor::ctx_item::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
 	}
 
 	void on_project_unloaded()

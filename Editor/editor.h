@@ -577,8 +577,9 @@ namespace editor::models
 		editor_id		 struct_id;
 		e_primitive_type type;
 		size_t			 offset;
-		void*			 p_value;
-		std::string		 name;
+		// void*			 p_value;
+		uint32		ecs_idx;
+		std::string name;
 	};
 
 	struct em_scene
@@ -631,12 +632,12 @@ namespace editor::models
 	{
 		em_struct* find_struct(editor_id id);
 		em_struct* find_struct(const char* name);
-		editor_id  create_struct();
+		editor_id  create_struct(std::string name, uint64 hash_id, uint64 ecs_idx);
 		void	   remove_struct(editor_id struct_id);
 
 		em_field*			   find_field(editor_id id);
 		std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec);
-		editor_id			   add_field(editor_id struct_id);
+		editor_id			   add_field(editor_id struct_id, e_primitive_type, std::string name, uint32 offset, uint32 ecs_idx);
 		void				   remove_field(editor_id field_id);
 
 		std::vector<em_struct*> all_structs();
@@ -683,8 +684,7 @@ namespace editor::models
 		extern editor_command cmd_remove_struct;
 
 		em_world*			   find(editor_id id);
-		editor_id			   create(editor_id scene_id, const char* name, std::vector<em_struct*>&& p_struct_vector);
-		editor_id			   create(editor_id scene_id, std::string name, std::vector<em_struct*>&& p_struct_vector);
+		editor_id			   create(editor_id scene_id, std::string name, uint16 ecs_world_idx);
 		void				   add_struct(editor_id world_id, editor_id struct_id);
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		uint64				   archetype(editor_id world_id, editor_id struct_id);
@@ -700,9 +700,8 @@ namespace editor::models
 		extern editor_command cmd_create_empty;
 
 		em_entity*				find(editor_id id);
-		editor_id				create(editor_id world_id, archetype_t archetype = 0);
-		editor_id				create(editor_id world_id, const char* name, archetype_t archetype = 0);
-		editor_id				create(editor_id world_id, std::string name, archetype_t archetype = 0);
+		editor_id				create(editor_id world_id, archetype_t archetype, uint64 ecs_e_idx);
+		editor_id				create(editor_id world_id, std::string name, archetype_t archetype, uint64 ecs_e_idx);
 		void					remove(editor_id entity_id);
 		editor_id				restore(const em_entity& em_c);
 		editor_id				add_component(editor_id entity_id, editor_id struct_id);

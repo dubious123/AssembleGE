@@ -19,10 +19,17 @@ namespace
 // static data
 namespace
 {
+	struct ecs_field_info
+	{
+		e_primitive_type type;
+		uint32			 mem_offset;
+	};
+
 	struct ecs_struct_info
 	{
-		size_t size;
-		void*  p_default_value;
+		size_t						size;
+		std::vector<ecs_field_info> field_info_vec;
+		void*						p_default_value;
 	};
 
 	ecs_scene*					 scenes;
@@ -397,35 +404,35 @@ namespace editor::game::ecs
 			   && _get_component_info
 			   && _get_entity_info);
 
-		for (const auto struct_idx : iota(0ul, _get_registered_struct_count()))
-		{
-			auto* p_struct_info = _get_struct_info(struct_idx);
-			auto  s_id			= reflection::create_struct();
-			auto* p_s			= reflection::find_struct(s_id);
-			{
-				p_s->name = p_struct_info->name;
-				// p_s->p_default_value = p_struct_info->p_default_value;
-				p_s->hash_id	 = p_struct_info->hash_id;
-				p_s->field_count = p_struct_info->field_count;
-			}
+		// for (const auto struct_idx : iota(0ul, _get_registered_struct_count()))
+		//{
+		//	auto* p_struct_info = _get_struct_info(struct_idx);
+		//	auto  s_id			= reflection::create_struct();
+		//	auto* p_s			= reflection::find_struct(s_id);
+		//	{
+		//		p_s->name = p_struct_info->name;
+		//		// p_s->p_default_value = p_struct_info->p_default_value;
+		//		p_s->hash_id	 = p_struct_info->hash_id;
+		//		p_s->field_count = p_struct_info->field_count;
+		//	}
 
-			for (const auto field_idx : iota(0ul, p_struct_info->field_count))
-			{
-				auto* p_field_info = &p_struct_info->fields[field_idx];
-				auto  f_id		   = reflection::add_field(s_id);
-				auto* p_f		   = reflection::find_field(f_id);
-				{
-					p_f->struct_id = s_id;
-					p_f->name	   = p_field_info->name;
-					// p_f->p_value   = (void*)((char*)(p_s->p_default_value) + p_field_info->offset);
-					p_f->type	= p_field_info->type;
-					p_f->offset = p_field_info->offset;
-				}
-				{
-					p_s->size += reflection::utils::type_size(p_field_info->type);
-				}
-			}
-		}
+		//	for (const auto field_idx : iota(0ul, p_struct_info->field_count))
+		//	{
+		//		auto* p_field_info = &p_struct_info->fields[field_idx];
+		//		auto  f_id		   = reflection::add_field(s_id);
+		//		auto* p_f		   = reflection::find_field(f_id);
+		//		{
+		//			p_f->struct_id = s_id;
+		//			p_f->name	   = p_field_info->name;
+		//			// p_f->p_value   = (void*)((char*)(p_s->p_default_value) + p_field_info->offset);
+		//			p_f->type	= p_field_info->type;
+		//			p_f->offset = p_field_info->offset;
+		//		}
+		//		{
+		//			p_s->size += reflection::utils::type_size(p_field_info->type);
+		//		}
+		//	}
+		//}
 
 		// for (const auto scene_idx : iota(0ul, _get_registered_scene_count()))
 		//{
@@ -504,50 +511,23 @@ namespace editor::game::ecs
 
 		for (auto struct_node : root_node.child("structs").children())
 		{
-			auto  s_id				= reflection::create_struct();
-			auto* p_s				= reflection::find_struct(s_id);
-			auto  default_value_vec = std::vector<std::string>();
-			{
-				p_s->name = struct_node.attribute("name").value();	  // p_struct_info->name;
-				// p_s->p_default_value = p_struct_info->p_default_value;
-				p_s->hash_id = struct_node.attribute("hash_id").as_ullong();
-			}
+			auto ecs_struct_idx = game::ecs::new_struct();
+			auto s_id			= reflection::create_struct(
+				  struct_node.attribute("name").as_string(),
+				  struct_node.attribute("hash_id").as_ullong(),
+				  ecs_struct_idx);
 
 			for (auto field_node : struct_node.child("fields"))
 			{
-				++p_s->field_count;
-
-				auto  f_id = reflection::add_field(s_id);
-				auto* p_f  = reflection::find_field(f_id);
-				{
-					p_f->struct_id = s_id;
-					p_f->name	   = field_node.attribute("name").value();
-					p_f->type	   = editor::models::reflection::utils::string_to_type(field_node.attribute("type").value());	 // p_field_info->type;
-					p_f->offset	   = field_node.attribute("offset").as_ullong();												 // p_field_info->offset;
-				}
-				{
-					p_s->size += reflection::utils::type_size(p_f->type);
-					default_value_vec.push_back(field_node.attribute("value").value());
-				}
-			}
-
-			p_s->ecs_idx		 = struct_info_vec.size();
-			p_s->p_default_value = malloc(p_s->size);
-
-			struct_info_vec.emplace_back(p_s->size, p_s->p_default_value);
-			auto it = default_value_vec.begin();
-			for (auto p_field : reflection::all_fields(p_s->id))
-			{
-				p_field->p_value = (void*)((char*)(struct_info_vec[p_s->ecs_idx].p_default_value) + p_field->offset);
-				reflection::utils::serialize(p_field->type, *it, p_field->p_value);
-				++it;
+				auto field_type = editor::models::reflection::utils::string_to_type(field_node.attribute("type").as_string());
+				reflection::add_field(
+					s_id,
+					field_type,
+					field_node.attribute("name").as_string(),
+					field_node.attribute("offset").as_ullong(),
+					game::ecs::add_field(ecs_struct_idx, field_type, field_node.attribute("value").as_string()));
 			}
 		}
-
-		scenes = (ecs_scene*)malloc(sizeof(ecs_scene) * root_node.child("scenes").attribute("scene_count").as_ullong());
-		// new (scenes) ecs_scene();
-		// scenes->idx = 0;
-		// scene_count = 1;
 
 		for (auto scene_node : root_node.child("scenes").children())
 		{
@@ -556,39 +536,31 @@ namespace editor::game::ecs
 
 			for (auto world_node : scene_node.child("worlds").children())
 			{
-				auto w_id = world::create(s_id, world_node.attribute("name").value(),
-										  world_node.child("structs").children()
-											  | std::views::transform([](const auto node) { return reflection::find_struct(node.attribute("name").value()); })
-											  | std::ranges::to<std::vector>());
+				auto  ecs_world_idx = game::ecs::new_world(p_em_scene->ecs_idx);
+				auto  w_id			= world::create(s_id, world_node.attribute("name").as_string(), ecs_world_idx);
+				auto* p_em_world	= world::find(w_id);
 
-				auto* p_ecs_world = &scenes[p_em_scene->ecs_idx].worlds[world::find(w_id)->ecs_idx];
-
-				auto entities_node = world_node.child("entities");
+				for (auto* p_em_struct : world_node.child("structs").children() | std::views::transform([](const auto node) { return reflection::find_struct(node.attribute("name").value()); }))
 				{
-					for (auto entity_node : entities_node)
+					game::ecs::world_add_struct(p_em_scene->ecs_idx, ecs_world_idx, p_em_struct->ecs_idx);
+					world::add_struct(w_id, p_em_struct->id);
+				}
+
+				for (auto entity_node : world_node.child("entities"))
+				{
+					auto  archetype	  = entity_node.attribute("archetype").as_ullong();
+					auto  e_id		  = entity::create(w_id, entity_node.attribute("name").as_string(), archetype, game::ecs::new_entity(p_em_scene->ecs_idx, p_em_world->ecs_idx, archetype));
+					auto* p_em_entity = entity::find(e_id);
+
+					for (auto component_idx = 0; auto component_node : entity_node.child("components"))
 					{
-						auto archetype = entity_node.attribute("archetype").as_ullong();
-						auto e_id	   = entity::create(w_id, entity_node.attribute("name").value(), archetype);
-						auto p_entity  = entity::find(e_id);
-
-						auto* p_ecs_entity = &p_ecs_world->entities[p_entity->ecs_idx];
-
-						auto components_node = entity_node.child("components");
-
-						auto component_idx = 0;
-						for (auto component_node : components_node)
+						auto* p_em_struct = reflection::find_struct(component_node.attribute("name").value());
+						auto* p_mem		  = game::ecs::get_component_memory(p_em_scene->ecs_idx, p_em_world->ecs_idx, p_em_entity->ecs_idx, p_em_struct->ecs_idx);
+						for (auto f_info_it = struct_info_vec[p_em_struct->ecs_idx].field_info_vec.begin();
+							 auto field_node : component_node.child("fields").children())
 						{
-							auto* p_struct				  = reflection::find_struct(component_node.attribute("name").value());
-							auto  p_ecs_compoonent_memory = p_ecs_world->get_p_mem_block(*p_ecs_entity)->get_component_ptr(p_ecs_entity->memory_idx, component_idx);
-							auto  p_component			  = component::find(e_id, p_struct->id);
-							for (auto field_node : component_node.child("fields").children())
-							{
-								auto offset = field_node.attribute("offset").as_uint();
-								auto c_type = reflection::utils::string_to_type(field_node.attribute("type").value());
-								reflection::utils::serialize(c_type, field_node.attribute("value").value(), (uint8*)p_ecs_compoonent_memory + offset);
-							}
-
-							++component_idx;
+							reflection::utils::serialize(f_info_it->type, field_node.attribute("value").value(), (uint8*)p_mem + f_info_it->mem_offset);
+							++f_info_it;
 						}
 					}
 				}
@@ -649,9 +621,52 @@ namespace editor::game::ecs
 
 namespace editor::game::ecs
 {
+	ecs::struct_idx new_struct()
+	{
+		struct_info_vec.emplace_back();
+		return struct_info_vec.size() - 1;
+	}
+
+	ecs::field_idx add_field(ecs::struct_idx s_idx, e_primitive_type f_type, std::string f_value)
+	{
+		auto* p_s		 = &struct_info_vec[s_idx];
+		auto* p_f		 = &p_s->field_info_vec.emplace_back();
+		p_f->type		 = f_type;
+		p_f->mem_offset	 = p_s->size;
+		p_s->size		+= editor::models::reflection::utils::type_size(p_f->type);
+
+		if (p_s->p_default_value is_nullptr)
+		{
+			p_s->p_default_value = malloc(p_s->size);
+		}
+		else
+		{
+			p_s->p_default_value = realloc(p_s->p_default_value, p_s->size);
+		}
+
+		editor::models::reflection::utils::serialize(p_f->type, f_value, (uint8*)p_s->p_default_value + p_f->mem_offset);
+		return (ecs::field_idx)p_s->field_info_vec.size() - 1;
+	}
+
+	void* get_field_pvalue(ecs::struct_idx struct_idx, ecs::field_idx field_idx)
+	{
+		auto* p_s = &struct_info_vec[struct_idx];
+		auto* p_f = &p_s->field_info_vec[field_idx];
+
+		return (uint8*)p_s->p_default_value + p_f->mem_offset;
+	}
+}	 // namespace editor::game::ecs
+
+namespace editor::game::ecs
+{
 	ecs::scene_idx new_scene()
 	{
-		scene_idx s_idx;
+		ecs::scene_idx s_idx;
+		if (scenes is_nullptr)
+		{
+			scenes = (ecs_scene*)malloc(sizeof(ecs_scene));
+			s_idx  = 0;
+		}
 		if (scene_hole_count > 0)
 		{
 			s_idx				 = scene_hole_begin_idx;
@@ -709,7 +724,7 @@ namespace editor::game::ecs
 		p_backup->clean_up_func = nullptr;
 	}
 
-	ecs::world_idx new_world(ecs::scene_idx ecs_scene_idx, std::vector<struct_idx>&& ecs_struct_idx_vec)
+	ecs::world_idx new_world(ecs::scene_idx ecs_scene_idx)
 	{
 		auto* p_scene	= &scenes[ecs_scene_idx];
 		auto* p_world	= (ecs_world*)nullptr;
@@ -744,7 +759,6 @@ namespace editor::game::ecs
 		assert(p_world);
 		new (p_world) ecs_world();
 		{
-			p_world->ecs_struct_idx_vec.assign_range(std::move(ecs_struct_idx_vec));
 			p_world->idx = p_scene->world_count - 1;
 			p_world->idx = world_idx;
 		}
@@ -837,7 +851,7 @@ namespace editor::game::ecs
 		p_world->delete_entity(ecs_entity_idx);
 	}
 
-	void add_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
+	void add_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::struct_idx ecs_struct_idx)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
@@ -880,7 +894,7 @@ namespace editor::game::ecs
 		return struct_info_vec[ecs_struct_idx].size;
 	}
 
-	void remove_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
+	void remove_component(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::struct_idx ecs_struct_idx)
 	{
 		assert(ecs_scene_idx < scene_count);
 		auto* p_world = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
@@ -888,7 +902,7 @@ namespace editor::game::ecs
 		p_world->remove_component(ecs_entity_idx, ecs_struct_idx);
 	}
 
-	void* get_component_memory(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::archetype_t ecs_struct_idx)
+	void* get_component_memory(ecs::scene_idx ecs_scene_idx, ecs::world_idx ecs_world_idx, ecs::entity_idx ecs_entity_idx, ecs::struct_idx ecs_struct_idx)
 	{
 		auto* p_world  = &scenes[ecs_scene_idx].worlds[ecs_world_idx];
 		auto* p_entity = &p_world->entities[ecs_entity_idx];
@@ -933,6 +947,19 @@ namespace editor::game::ecs
 // helper
 namespace editor::game::ecs
 {
+	ecs::world_idx new_world(editor_id s_id)
+	{
+		auto* p_s = scene::find(s_id);
+		return ecs::new_world(p_s->ecs_idx);
+	}
+
+	void delete_world(editor_id s_id, editor_id w_id)
+	{
+		auto* p_s = scene::find(s_id);
+		auto* p_w = world::find(w_id);
+		ecs::delete_world(p_s->ecs_idx, p_w->ecs_idx);
+	}
+
 	ecs::entity_idx new_entity(editor_id w_id, archetype_t a)
 	{
 		auto* p_w = world::find(w_id);

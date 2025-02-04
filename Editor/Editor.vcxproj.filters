@@ -42,6 +42,7 @@
     <ClCompile Include="style.cpp" />
     <ClCompile Include="game_project\ecs.cpp" />
     <ClCompile Include="external\include\imgui\imgui.cpp" />
+    <ClCompile Include="editor_ctx_item.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\include\imgui\imconfig.h" />
@@ -87,6 +88,7 @@
     <ClInclude Include="utilities\timing.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="external\include\imgui\imgui.h" />
+    <ClInclude Include="editor_ctx_item.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

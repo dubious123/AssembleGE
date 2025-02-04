@@ -1,5 +1,4 @@
 #pragma once
-#include "Editor.h"
 
 namespace editor::view
 {
@@ -7,9 +6,10 @@ namespace editor::view
 	void init();
 	void show();
 	void on_project_loaded();
+	void on_project_unloaded();
 }	 // namespace editor::view
 
-	 //
+//
 // namespace Editor::View::Hierarchy
 //{
 //	void Init();

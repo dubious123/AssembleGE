@@ -3,6 +3,7 @@
 #include "stb_image.h"
 #include "editor.h"
 #include "editor_view.h"
+#include "editor_ctx_item.h"
 #include "game_project\game.h"
 
 // #ifdef _DEBUG
@@ -60,7 +61,6 @@ namespace editor
 	{
 		void _custom_buttons();
 		void _custom_caption();
-		void _load_ctx_menu();
 	}	 // namespace
 }	 // namespace editor
 
@@ -367,15 +367,15 @@ void editor::run()
 			break;
 		}
 
-		COLORREF BORDER_COLOR = ::GetFocus() != NULL ? RGB(113, 96, 232) : RGB(61, 61, 61);
-		::DwmSetWindowAttribute(
-			(HWND)GEctx->hwnd, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR,
-			&BORDER_COLOR, sizeof(BORDER_COLOR));
-
 		// Start the Dear ImGui frame
 		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
+
+		COLORREF BORDER_COLOR = ::GetFocus() != NULL ? RGB(113, 96, 232) : RGB(61, 61, 61);
+		::DwmSetWindowAttribute(
+			(HWND)GEctx->hwnd, DWMWINDOWATTRIBUTE::DWMWA_BORDER_COLOR,
+			&BORDER_COLOR, sizeof(BORDER_COLOR));
 
 		if (GEctx->dpi_changed)
 		{
@@ -1063,123 +1063,7 @@ namespace editor
 {
 	namespace
 	{
-		static constinit auto _context_menu_xml_path = "Resources/Editor_CtxMenu.xml";
-
-		auto _ctx_item_doc		= pugi::xml_document();
-		auto _ctx_item_xml_node = pugi::xml_node();
-
-		auto _cmd_id			   = 0;
-		auto _show_ctx_menu		   = false;
-		auto _selected_vec		   = std::vector<editor_id>();
-		auto _shortcut_command_vec = std::vector<const editor_command*>();
-		// auto _current_select_ctx_item = editor_id();
-
-		auto _command_lut  = std::vector<const editor_command*>();
-		auto _ctx_node_lut = std::vector<pugi::xml_node>(DataType_Count);
-
-		void _load_ctx_menu()
-		{
-			auto index = 0, parent_index = -1;
-			int	 ctx_item_count = 0, item_index = 0;
-			_ctx_item_doc.load_file(_context_menu_xml_path);
-			_ctx_item_xml_node = _ctx_item_doc.first_child().first_child();
-			for (auto node = _ctx_item_xml_node.next_sibling(); node; node = node.next_sibling())
-			{
-				if (strcmp(node.attribute("name").value(), "Scene") == 0)
-				{
-					_ctx_node_lut[DataType_Scene] = node;
-				}
-				else if (strcmp(node.attribute("name").value(), "World") == 0)
-				{
-					_ctx_node_lut[DataType_World] = node;
-				}
-				else if (strcmp(node.attribute("name").value(), "Entity") == 0)
-				{
-					_ctx_node_lut[DataType_Entity] = node;
-				}
-				else if (strcmp(node.attribute("name").value(), "Component") == 0)
-				{
-					_ctx_node_lut[DataType_Component] = node;
-				}
-			}
-		}
-
-		void _context_item(const pugi::xml_node& node)
-		{
-			bool has_child = node.first_child();
-			auto name	   = node.attribute("name").value();
-			if (has_child)
-			{
-				if (editor::widgets::begin_menu(name, nullptr))
-				{
-					for (auto child = node.first_child(); child; child = child.next_sibling())
-					{
-						_context_item(child);
-					}
-
-					editor::widgets::end_menu();
-				}
-			}
-			else
-			{
-				auto	  command_id = node.attribute("__cmd_id") ? node.attribute("__cmd_id").as_int() : -1;
-				editor_id arg		 = node.attribute("__arg") ? node.attribute("__arg").as_ullong() : INVALID_ID;
-				if (editor::widgets::menu_item(name,
-											   nullptr,
-											   node.attribute("shortcut").value(),
-											   false,
-											   command_id >= 0 ? _command_lut[command_id]->can_execute(arg) : false))
-				{
-					_command_lut[command_id]->execute(arg);
-				}
-			}
-
-			if (node.attribute("separator"))
-			{
-				widgets::separator();
-			}
-		}
-
-		void _menu_bar()
-		{
-			static auto window_size	 = ImVec2();
-			auto		window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
-
-			widgets::set_cursor_pos({ CAPTION_ICON_CPOS.x * platform::dpi_scale(), CAPTION_ICON_CPOS.y * platform::dpi_scale() });
-			widgets::image(GEctx->icon_texture_id, ImVec2(CAPTION_ICON_SIZE.x * platform::dpi_scale(), CAPTION_ICON_SIZE.y * platform::dpi_scale()));
-			widgets::sameline();
-
-			style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
-			style::push_var(ImGuiStyleVar_ItemSpacing, ImVec2());
-			style::push_color(ImGuiCol_HeaderHovered, COL_BG_SELECTED);
-			style::push_color(ImGuiCol_HeaderActive, style::get_color_v4(ImGuiCol_PopupBg));
-			platform::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * platform::dpi_scale() + CAPTION_ICON_SIZE.y * platform::dpi_scale() - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
-			if (widgets::begin_child("Main Menu Bar", window_size, false, window_flags))
-			{
-				const auto& main_menu_node						= _ctx_item_xml_node;	 //_ctx_items[0];
-				platform::get_window_info().layout()			= ImGuiLayoutType_Horizontal;
-				platform::get_window_info().menubar_appending() = true;
-				platform::get_window_info().nav_layer()			= ImGuiNavLayer_Menu;
-				window_size										= ImVec2();
-				style::push_var(ImGuiStyleVar_WindowPadding, ImVec2(8.f, 8.f) * platform::dpi_scale());
-
-				for (auto header_node = main_menu_node.first_child(); header_node; header_node = header_node.next_sibling())
-				{
-					_context_item(header_node);
-
-					window_size.x += widgets::get_item_rect().GetSize().x;
-					window_size.y  = widgets::get_item_rect().GetSize().y;
-				}
-
-				window_size.y			  += 1;
-				GEctx->main_menu_rect.Max  = widgets::get_item_rect().Max;
-
-				style::pop_var(1);
-			}
-			style::pop_var(2);
-			style::pop_color(2);
-			widgets::end_child();
-		}
+		auto _selected_vec = std::vector<editor_id>();
 
 		void _custom_buttons()
 		{
@@ -1250,7 +1134,7 @@ namespace editor
 			platform::set_next_window_size(menuSize);
 			if (widgets::begin("Caption", nullptr, window_flags))
 			{
-				_menu_bar();
+				editor::view::main_menu_bar::show();
 				_custom_buttons();
 			}
 
@@ -1263,113 +1147,14 @@ namespace editor
 
 	void on_frame_end()
 	{
-		static bool close_ctx_popup = false;
-
-		style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
-		style::push_color(ImGuiCol_Header, style::get_color_v4(ImGuiCol_HeaderHovered));
-		if (widgets::begin_popup("ctx menu"))
-		{
-			if (is_selection_vec_empty() is_false)
-			{
-				for (auto node = _ctx_node_lut[get_current_selection().type()].first_child(); node; node = node.next_sibling())
-				{
-					_context_item(node);
-				}
-			}
-			else
-			{
-				close_ctx_popup = true;
-			}
-
-			if (close_ctx_popup)
-			{
-				widgets::close_popup();
-				close_ctx_popup = false;
-			}
-
-			widgets::end_popup();
-		}
-		style::pop_color();
-		style::pop_var();
-
-		for (auto p_command : _shortcut_command_vec)
-		{
-			constexpr auto key_mask = 0x07ff;
-
-			auto mode_shift = (p_command->_shortcut_key & ImGuiMod_Shift) != 0;
-			auto mode_ctrl	= (p_command->_shortcut_key & ImGuiMod_Ctrl) != 0;
-			auto key		= p_command->_shortcut_key & key_mask;
-			auto res		= true;
-
-			//               has mod / does not have mod
-			// pressed         0             X
-			// not pressed     X             O            not A xor B
-			res &= (mode_shift == platform::is_key_down(ImGuiMod_Shift));
-			res &= (mode_ctrl == platform::is_key_down(ImGuiMod_Ctrl));
-			res &= ((key != ImGuiKey_None) == platform::is_key_pressed((ImGuiKey)key));
-
-			if (res)
-			{
-				(*p_command)(/*current_source()*/);
-				close_ctx_popup = true;
-			}
-		}
-
-		if (_show_ctx_menu)
-		{
-			widgets::open_popup("ctx menu");
-			_show_ctx_menu = false;
-		}
-
+		ctx_item::on_frame_end();
 		widgets::on_frame_end();
-	}
-
-	bool add_context_item(std::string path, const editor_command* p_command, editor_id id)
-	{
-		auto item_node = _ctx_item_xml_node.parent();
-		auto stream	   = std::istringstream(path);
-		for (std::string str; std::getline(stream, str, '\\');)
-		{
-			auto node = item_node.find_child([str](pugi::xml_node item) { return strcmp(item.attribute("name").value(), str.c_str()) == 0; });
-			if (node.empty())
-			{
-				auto child = item_node.append_child("ctx_item");
-				child.append_attribute("name").set_value(str.c_str());
-				item_node = child;
-			}
-			else
-			{
-				item_node = node;
-			}
-		}
-
-		// todo
-		if (p_command is_nullptr) return false;
-
-		_command_lut.emplace_back(p_command);
-
-		item_node.append_attribute("__cmd_id").set_value(_cmd_id++);
-		if (id.value != INVALID_ID)
-		{
-			item_node.append_attribute("__arg").set_value(id.value);
-		}
-
-		assert(_cmd_id == _command_lut.size());
-
-
-		if (p_command->_shortcut_key != ImGuiKey_None)
-		{
-			_shortcut_command_vec.push_back(p_command);
-		}
-
-		return true;
 	}
 
 	void on_project_loaded()
 	{
-		_load_ctx_menu();
-
 		logger::clear();
+		ctx_item::on_project_loaded();
 		undoredo::on_project_loaded();
 		models::on_project_loaded();
 		view::on_project_loaded();
@@ -1380,9 +1165,11 @@ namespace editor
 
 	void on_project_unloaded()
 	{
+		ctx_item::on_project_unloaded();
 		models::on_project_unloaded();
 		game::on_project_unloaded();
 		//_cmd_id = 0;
+		view::on_project_unloaded();
 		_selected_vec.clear();
 		id::reset();
 		//_current_select_ctx_item = INVALID_ID;
@@ -1494,8 +1281,8 @@ namespace editor::undoredo
 		_redo_vec.clear();
 		_undo_vec.clear();
 
-		auto res  = editor::add_context_item("Main Menu\\Edit\\Undo", &_cmd_undo);
-		res		 &= editor::add_context_item("Main Menu\\Edit\\Redo", &_cmd_redo);
+		auto res  = editor::ctx_item::add_context_item("Main Menu\\Edit\\Undo", &_cmd_undo);
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Edit\\Redo", &_cmd_redo);
 		assert(res);
 	}
 
@@ -1588,15 +1375,18 @@ namespace editor::models
 			return &_structs[std::distance(_structs.begin(), res)];
 		}
 
-		editor_id create_struct()
+		editor_id create_struct(std::string name, uint64 hash_id, game::ecs::struct_idx ecs_idx)
 		{
-			auto  id = id::get_new(DataType_Struct);
-			auto& s	 = _structs.emplace_back();
+			auto  s_id = id::get_new(DataType_Struct);
+			auto* p_s  = &_structs.emplace_back();
 			_fields.emplace_back();
-			_struct_idx_map.insert({ id, _structs.size() - 1 });
-			s.id = id;
+			_struct_idx_map.insert({ s_id, _structs.size() - 1 });
+			p_s->id		 = s_id;
+			p_s->name	 = name;
+			p_s->hash_id = hash_id;
+			p_s->ecs_idx = ecs_idx;
 
-			return id;
+			return s_id;
 		}
 
 		void remove_struct(editor_id struct_id)
@@ -1622,16 +1412,25 @@ namespace editor::models
 			id::delete_id(struct_id);
 		}
 
-		editor_id add_field(editor_id struct_id)
+		editor_id add_field(editor_id struct_id, e_primitive_type f_type, std::string name, uint32 offset, game::ecs::field_idx ecs_idx)
 		{
-			auto  id		 = id::get_new(DataType_Field);
+			auto  f_id		 = id::get_new(DataType_Field);
 			auto  struct_idx = _struct_idx_map[struct_id];
-			auto& f			 = _fields[struct_idx].emplace_back();
-			f.id			 = id;
-			f.struct_id		 = struct_id;
-			_field_idx_map.insert({ id, { struct_idx, _fields[struct_idx].size() - 1 } });
+			auto* p_f		 = &_fields[struct_idx].emplace_back();
+			{
+				p_f->id		   = f_id;
+				p_f->struct_id = struct_id;
+				p_f->name	   = name;
+				p_f->ecs_idx   = ecs_idx;
+				p_f->offset	   = offset;
+				p_f->type	   = f_type;
+			}
 
-			return id;
+			auto* p_s = reflection::find_struct(struct_id);
+			++p_s->field_count;
+
+			_field_idx_map.insert({ f_id, { struct_idx, _fields[struct_idx].size() - 1 } });
+			return f_id;
 		}
 
 		void remove_field(editor_id field_id)
@@ -1692,8 +1491,8 @@ namespace editor::models
 		void on_project_loaded()
 		{
 			auto res = true;
-			// res		 &= add_context_item("Scene\\Add New World", &editor::models::world::cmd_create);
-			// res		 &= add_context_item("World\\Remove World", &editor::models::world::cmd_remove);
+			// res		 &= ctx_item::add_context_item("Scene\\Add New World", &editor::models::world::cmd_create);
+			// res		 &= ctx_item::add_context_item("World\\Remove World", &editor::models::world::cmd_remove);
 			assert(res);
 		}
 	}	 // namespace reflection
@@ -1869,146 +1668,146 @@ namespace editor::models
 		}
 
 		/// <param name="p_mem">allocated memory pointer</param>
-		void serialize(e_primitive_type type, const char* s_str, void* p_mem)
+		void serialize(e_primitive_type type, const char* s_str, void* p_dest)
 		{
-			serialize(type, std::string(s_str), p_mem);
+			serialize(type, std::string(s_str), p_dest);
 		}
 
-		void serialize(e_primitive_type type, std::string s_str, void* p_mem)
+		void serialize(e_primitive_type type, std::string s_str, void* p_dest)
 		{
 			auto tokens = editor::utilities::split_string(s_str, std::string(',', ' '));
 			switch (type)
 			{
 			case primitive_type_int2:
 			{
-				new (p_mem) int2(stoi(tokens[0]), stoi(tokens[1]));
+				new (p_dest) int2(stoi(tokens[0]), stoi(tokens[1]));
 				return;
 			}
 			case primitive_type_int3:
 			{
-				new (p_mem) int3(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]));
+				new (p_dest) int3(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]));
 				return;
 			}
 			case primitive_type_int4:
 			{
-				new (p_mem) int4(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));
+				new (p_dest) int4(stoi(tokens[0]), stoi(tokens[1]), stoi(tokens[2]), stoi(tokens[3]));
 				return;
 			}
 			case primitive_type_uint2:
 			{
-				new (p_mem) uint2(stoul(tokens[0]), stoul(tokens[1]));
+				new (p_dest) uint2(stoul(tokens[0]), stoul(tokens[1]));
 				return;
 			}
 
 			case primitive_type_uint3:
 			{
-				new (p_mem) uint3(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]));
+				new (p_dest) uint3(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]));
 				return;
 			}
 
 			case primitive_type_uint4:
 			{
-				new (p_mem) uint4(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]), stoul(tokens[3]));
+				new (p_dest) uint4(stoul(tokens[0]), stoul(tokens[1]), stoul(tokens[2]), stoul(tokens[3]));
 				return;
 			}
 
 			case primitive_type_float2:
 			{
-				new (p_mem) float2(stof(tokens[0]), stof(tokens[1]));
+				new (p_dest) float2(stof(tokens[0]), stof(tokens[1]));
 				return;
 			}
 			case primitive_type_float2a:
 			{
-				new (p_mem) float2a(stof(tokens[0]), stof(tokens[1]));
+				new (p_dest) float2a(stof(tokens[0]), stof(tokens[1]));
 
 				return;
 			}
 			case primitive_type_float3:
 			{
-				new (p_mem) float3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
+				new (p_dest) float3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
 				return;
 			}
 			case primitive_type_float3a:
 			{
-				new (p_mem) float3a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
+				new (p_dest) float3a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]));
 				return;
 			}
 			case primitive_type_float4:
 			{
-				new (p_mem) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
+				new (p_dest) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 				return;
 			}
 			case primitive_type_float4a:
 			{
-				new (p_mem) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
+				new (p_dest) float4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 				return;
 			}
 
 			case primitive_type_float3x3:
 			{
-				new (p_mem) float3x3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]),
-									 stof(tokens[3]), stof(tokens[4]), stof(tokens[5]),
-									 stof(tokens[6]), stof(tokens[7]), stof(tokens[8]));
+				new (p_dest) float3x3(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]),
+									  stof(tokens[3]), stof(tokens[4]), stof(tokens[5]),
+									  stof(tokens[6]), stof(tokens[7]), stof(tokens[8]));
 				return;
 			}
 			case primitive_type_float4x4:
 			case primitive_type_float4x4a:
 			{
-				new (p_mem) float4x4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]),
-									  stof(tokens[4]), stof(tokens[5]), stof(tokens[6]), stof(tokens[7]),
-									  stof(tokens[8]), stof(tokens[9]), stof(tokens[10]), stof(tokens[11]),
-									  stof(tokens[12]), stof(tokens[13]), stof(tokens[14]), stof(tokens[15]));
+				new (p_dest) float4x4a(stof(tokens[0]), stof(tokens[1]), stof(tokens[2]), stof(tokens[3]),
+									   stof(tokens[4]), stof(tokens[5]), stof(tokens[6]), stof(tokens[7]),
+									   stof(tokens[8]), stof(tokens[9]), stof(tokens[10]), stof(tokens[11]),
+									   stof(tokens[12]), stof(tokens[13]), stof(tokens[14]), stof(tokens[15]));
 				return;
 			}
 			case primitive_type_uint64:
 			{
-				*(uint64*)p_mem = stoull(tokens[0]);
+				*(uint64*)p_dest = stoull(tokens[0]);
 				return;
 			}
 			case primitive_type_uint32:
 			{
-				*(uint32*)p_mem = stoul(tokens[0]);
+				*(uint32*)p_dest = stoul(tokens[0]);
 				return;
 			}
 			case primitive_type_uint16:
 			{
-				*(uint16*)p_mem = (uint16)stoul(tokens[0]);
+				*(uint16*)p_dest = (uint16)stoul(tokens[0]);
 				return;
 			}
 			case primitive_type_uint8:
 			{
-				*(uint8*)p_mem = (uint8)stoul(tokens[0]);
+				*(uint8*)p_dest = (uint8)stoul(tokens[0]);
 				return;
 			}
 
 			case primitive_type_int64:
 			{
-				*(int64*)p_mem = stoul(tokens[0]);
+				*(int64*)p_dest = stoul(tokens[0]);
 				return;
 			}
 			case primitive_type_int32:
 			{
-				*(int32*)p_mem = stoi(tokens[0]);
+				*(int32*)p_dest = stoi(tokens[0]);
 				return;
 			}
 			case primitive_type_int16:
 			{
-				*(int16*)p_mem = (int16)stoi(tokens[0]);
+				*(int16*)p_dest = (int16)stoi(tokens[0]);
 				return;
 			}
 			case primitive_type_int8:
 			{
-				*(int8*)p_mem = (int8)stoi(tokens[0]);
+				*(int8*)p_dest = (int8)stoi(tokens[0]);
 				return;
 			}
 			case primitive_type_float32:
 			{
-				*(float32*)p_mem = (float32)stof(tokens[0]);
+				*(float32*)p_dest = (float32)stof(tokens[0]);
 				return;
 			}
 			case primitive_type_double64:
 			{
-				*(double64*)p_mem = (double64)stod(tokens[0]);
+				*(double64*)p_dest = (double64)stod(tokens[0]);
 				return;
 			}
 			default:
@@ -2225,8 +2024,8 @@ namespace editor::models
 		void on_project_loaded()
 		{
 			auto res  = true;
-			res		 &= add_context_item("Scene\\Add New Scene", &scene::cmd_create);
-			res		 &= add_context_item("Scene\\Remove Scene", &scene::cmd_remove);
+			res		 &= ctx_item::add_context_item("Scene\\Add New Scene", &scene::cmd_create);
+			res		 &= ctx_item::add_context_item("Scene\\Remove Scene", &scene::cmd_remove);
 			assert(res);
 		}
 	}	 // namespace scene
@@ -2260,12 +2059,7 @@ namespace editor::models
 			}
 		}
 
-		editor_id create(editor_id scene_id, const char* name, std::vector<em_struct*>&& p_struct_vector)
-		{
-			return editor::models::world::create(scene_id, std::string(name), std::move(p_struct_vector));
-		}
-
-		editor_id create(editor_id scene_id, std::string name, std::vector<em_struct*>&& p_struct_vector)
+		editor_id create(editor_id scene_id, std::string name, game::ecs::world_idx ecs_world_idx)
 		{
 			assert(scene::find(scene_id) != nullptr);
 
@@ -2276,11 +2070,8 @@ namespace editor::models
 				w.id	   = w_id;
 				w.name	   = name;
 				w.scene_id = scene_id;
-				std::ranges::sort(p_struct_vector, [](auto* p_lhs, auto* p_rhs) { return p_lhs->hash_id < p_rhs->hash_id; });
 
-				w.structs.assign_range(p_struct_vector | std::views::transform([](auto* p_s) { return p_s->id; }));
-
-				w.ecs_idx = game::ecs::new_world(p_world->ecs_idx, p_struct_vector | std::views::transform([](auto* p_s) { return p_s->ecs_idx; }) | std::ranges::to<std::vector>());
+				w.ecs_idx = ecs_world_idx;
 			}
 
 
@@ -2373,8 +2164,11 @@ namespace editor::models
 				auto s_id = editor::get_current_selection();
 
 				undoredo::add_and_redo({ "new world",
-										 [=](utilities::memory_handle*) { world::create(s_id, "new world", {}); },
-										 [=](utilities::memory_handle*) { world::remove(_worlds[s_id].rbegin()->first); } });
+										 [=](utilities::memory_handle*) { world::create(s_id, "new world", game::ecs::new_world(s_id)); },
+										 [=](utilities::memory_handle*) { 
+						auto		  w_id = _worlds[s_id].rbegin()->first;
+						game::ecs::delete_world(s_id, w_id);
+						world::remove(w_id); } });
 			});
 
 		editor_command cmd_remove(
@@ -2493,12 +2287,12 @@ namespace editor::models
 		void on_project_loaded()
 		{
 			auto res  = true;
-			res		 &= add_context_item("Scene\\Add New World", &world::cmd_create);
-			res		 &= add_context_item("World\\Remove World", &world::cmd_remove);
+			res		 &= ctx_item::add_context_item("Scene\\Add New World", &world::cmd_create);
+			res		 &= ctx_item::add_context_item("World\\Remove World", &world::cmd_remove);
 
 			std::ranges::for_each(reflection::all_structs(), [&](const em_struct* p_s) {
-				res &= add_context_item(std::format("World\\Add Struct\\{}", p_s->name), &cmd_add_struct, p_s->id);
-				res &= add_context_item(std::format("World\\Remove Struct\\{}", p_s->name), &cmd_remove_struct, p_s->id);
+				res &= ctx_item::add_context_item(std::format("World\\Add Struct\\{}", p_s->name), &cmd_add_struct, p_s->id);
+				res &= ctx_item::add_context_item(std::format("World\\Remove Struct\\{}", p_s->name), &cmd_remove_struct, p_s->id);
 			});
 			assert(res);
 		}
@@ -2527,17 +2321,12 @@ namespace editor::models
 			}
 		}
 
-		editor_id create(editor_id world_id, archetype_t archetype)
+		editor_id create(editor_id world_id, archetype_t archetype, game::ecs::entity_idx ecs_idx)
 		{
-			return create(world_id, std::format("new_entity_{}", _entities[world_id].size()), archetype);
+			return create(world_id, std::format("new_entity_{}", _entities[world_id].size()), archetype, ecs_idx);
 		}
 
-		editor_id create(editor_id world_id, const char* name, archetype_t archetype)
-		{
-			return create(world_id, std::string(name), archetype);
-		}
-
-		editor_id create(editor_id world_id, std::string name, archetype_t archetype)
+		editor_id create(editor_id world_id, std::string name, archetype_t archetype, game::ecs::entity_idx ecs_idx)
 		{
 			assert(world::find(world_id));
 
@@ -2551,7 +2340,7 @@ namespace editor::models
 				e.world_id	= world_id;
 				e.archetype = archetype;
 				e.name		= name;
-				e.ecs_idx	= editor::game::ecs::new_entity(p_scene->ecs_idx, p_world->ecs_idx, archetype);
+				e.ecs_idx	= ecs_idx;
 			}
 
 			_world_id_lut[entity_id] = world_id;
@@ -2642,13 +2431,16 @@ namespace editor::models
 
 				undoredo::add_and_redo({ "create empty entity",
 										 [=](utilities::memory_handle*) {
-											 std::ranges::for_each(selections, [](auto w_id) { entity::create(w_id); });
+											 std::ranges::for_each(selections, [](auto w_id) { entity::create(w_id, 0, game::ecs::new_entity(w_id)); });
 										 },
 										 [=](utilities::memory_handle*) {
 											 std::ranges::for_each(selections
 																	   | std::views::transform([](auto world_id) { return _entities[world_id].rbegin()->first; })
 																	   | std::views::reverse,
-																   remove);
+																   [](auto e_id) {
+																	   game::ecs::delete_entity(e_id);
+																	   entity::remove(e_id);
+																   });
 										 } });
 			});
 
@@ -2746,13 +2538,14 @@ namespace editor::models
 		void on_project_loaded()
 		{
 			auto res = true;
-			// res		 &= add_context_item("Entity\\Add New Entity", &entity::cmd_create);
-			// res		 &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
-			res &= add_context_item("World\\Entity\\Create Empty", &entity::cmd_create_empty);
-			res &= add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
+			// res		 &= ctx_item::add_context_item("Entity\\Add New Entity", &entity::cmd_create);
+			// res		 &= ctx_item::add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
+			res &= ctx_item::add_context_item("World\\Entity\\Create Empty", &entity::cmd_create_empty);
+			res &= ctx_item::add_context_item("Entity\\Remove Entity", &entity::cmd_remove);
 
 			std::ranges::for_each(reflection::_structs, [&res](auto&& s) {
-				res &= add_context_item(std::format("Entity\\Add Component\\{}", s.name), &cmd_add_component, s.id);
+				res &= ctx_item::add_context_item(std::format("Entity\\Add Component\\{}", s.name), &cmd_add_component, s.id);
+				// res &= ctx_item::add_context_item(std::format("Entity\\Remove Component\\{}", s.name), &cmd_remove_component, s.id);
 			});
 
 
@@ -2898,7 +2691,7 @@ namespace editor::models
 		void on_project_loaded()
 		{
 			auto res  = true;
-			res		 &= add_context_item("Component\\Remove Component", &cmd_remove_component);
+			res		 &= ctx_item::add_context_item("Component\\Remove Component", &cmd_remove_component);
 
 			assert(res);
 		}
@@ -3098,7 +2891,7 @@ namespace editor
 				std::iter_swap(it, _selected_vec.rbegin());
 			}
 
-			_show_ctx_menu = true;
+			editor::view::ctx_popup::open();
 		}
 	}
 
@@ -3125,6 +2918,8 @@ namespace editor
 				cmd_select_new(id);
 				// select_new(id);
 			}
+
+			widgets::open_popup("ctx menu");
 		}
 	}
 

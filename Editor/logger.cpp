@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "editor.h"
+#include "editor_ctx_item.h"
 
 namespace
 {
@@ -76,13 +77,9 @@ namespace editor::view::logger
 		};
 	}	 // namespace
 
-	void init()
-	{
-	}
-
 	void on_project_loaded()
 	{
-		editor::add_context_item("Main Menu\\Window\\Console", &_cmd_toggle);
+		editor::ctx_item::add_context_item("Main Menu\\Window\\Console", &_cmd_toggle);
 	}
 
 	void show()
