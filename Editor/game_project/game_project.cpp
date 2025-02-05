@@ -1,9 +1,13 @@
 #include "pch.h"
 
 #include "../editor.h"
+#include "../editor_widgets.h"
+#include "../editor_style.h"
+#include "../editor_models.h"
 #include "../editor_ctx_item.h"
 #include "../utilities/timing.h"
 #include "game.h"
+#include "../platform.h"
 
 namespace editor::game
 {
@@ -1232,7 +1236,7 @@ namespace editor::view::project_browser
 					auto   scrollbar_held = false;
 					auto   scrollbar_id	  = widgets::get_id("scrollbar");
 					auto   grab_id		  = widgets::get_id("scrollbar_grab");
-					auto   grab_size	  = 60.f * platform::dpi_scale();
+					auto   grab_size	  = 60.f * GEctx->dpi_scale;
 					ImRect scrollbar_bb {
 						ImVec2(_next_draw_pos.x + _draw_pos_path.x + _width_path + style::frame_padding().x * 2, platform::get_window_pos().y),
 						ImVec2(_next_draw_pos.x + _header_size.x, _next_draw_pos.y)

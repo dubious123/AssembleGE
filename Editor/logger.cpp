@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "editor.h"
+#include "editor_common.h"
 #include "editor_ctx_item.h"
 
 namespace

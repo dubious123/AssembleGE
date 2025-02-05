@@ -1,6 +1,10 @@
 #include <pch.h>
 #include <editor.h>
+// #include "editor_common.h"
+#include "editor_style.h"
+#include "editor_widgets.h"
 #include <editor_ctx_item.h>
+#include "platform.h"
 
 // helper
 namespace
@@ -320,7 +324,7 @@ namespace editor::view::ctx_popup
 			_open = false;
 		}
 
-		editor::style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
+		editor::style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * GEctx->dpi_scale);
 		editor::style::push_color(ImGuiCol_Header, style::get_color_v4(ImGuiCol_HeaderHovered));
 		if (editor::widgets::begin_popup("ctx menu"))
 		{
@@ -342,22 +346,22 @@ namespace editor::view::main_menu_bar
 		static auto window_size	 = ImVec2();
 		auto		window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
 
-		widgets::set_cursor_pos({ CAPTION_ICON_CPOS.x * platform::dpi_scale(), CAPTION_ICON_CPOS.y * platform::dpi_scale() });
-		widgets::image(GEctx->icon_texture_id, ImVec2(CAPTION_ICON_SIZE.x * platform::dpi_scale(), CAPTION_ICON_SIZE.y * platform::dpi_scale()));
+		widgets::set_cursor_pos({ CAPTION_ICON_CPOS.x * GEctx->dpi_scale, CAPTION_ICON_CPOS.y * GEctx->dpi_scale });
+		widgets::image(GEctx->icon_texture_id, ImVec2(CAPTION_ICON_SIZE.x * GEctx->dpi_scale, CAPTION_ICON_SIZE.y * GEctx->dpi_scale));
 		widgets::sameline();
 
-		style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * platform::dpi_scale());
+		style::push_var(ImGuiStyleVar_FramePadding, ImVec2(8.4f, 3.f) * GEctx->dpi_scale);
 		style::push_var(ImGuiStyleVar_ItemSpacing, ImVec2());
 		style::push_color(ImGuiCol_HeaderHovered, COL_BG_SELECTED);
 		style::push_color(ImGuiCol_HeaderActive, style::get_color_v4(ImGuiCol_PopupBg));
-		platform::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * platform::dpi_scale() + CAPTION_ICON_SIZE.y * platform::dpi_scale() - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
+		platform::set_next_window_pos(platform::get_window_pos() /*GImGui->CurrentWindow->Pos*/ + ImVec2(widgets::get_cursor_pos_x(), (CAPTION_ICON_CPOS.y * 2 * GEctx->dpi_scale + CAPTION_ICON_SIZE.y * GEctx->dpi_scale - (style::font_size() + style::frame_padding().y * 2)) * 0.5f));
 		if (widgets::begin_child("Main Menu Bar", window_size, false, window_flags))
 		{
 			platform::get_window_info().layout()			= ImGuiLayoutType_Horizontal;
 			platform::get_window_info().menubar_appending() = true;
 			platform::get_window_info().nav_layer()			= ImGuiNavLayer_Menu;
 			window_size										= ImVec2();
-			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2(8.f, 8.f) * platform::dpi_scale());
+			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2(8.f, 8.f) * GEctx->dpi_scale);
 
 			auto& main_menu_ctx_node = _ctx_node_map["Main Menu"];
 			for (auto* p_node : std::views::iota(main_menu_ctx_node.p_children) | std::views::take(main_menu_ctx_node.child_count))

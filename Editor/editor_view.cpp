@@ -1,6 +1,10 @@
 #include "pch.h"
 #include "Editor.h"
+#include "editor_style.h"
+#include "editor_widgets.h"
+#include "platform.h"
 #include "editor_view.h"
+#include "editor_models.h"
 #include "editor_ctx_item.h"
 #include "game_project/game.h"
 
@@ -35,7 +39,7 @@ namespace editor::view::hierarchy
 			// auto* p_project = editor::game::get_current_p_project();
 
 			widgets::set_cursor_pos_x((platform::get_window_size().x - platform::get_window_info().default_item_width()) * 0.5f);
-			auto p_s_current = editor::models::scene::get_current();
+			auto p_s_current = models::scene::get_current();
 
 			if (p_s_current == nullptr)
 			{
@@ -493,6 +497,82 @@ namespace editor::view
 			widgets::end();
 			style::pop_var(3);
 		}
+
+		void _caption_bar()
+		{
+			auto viewport	  = platform::get_main_viewport();
+			auto window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+			auto menuSize	  = ImVec2(viewport.size().x, CAPTION_HIGHT * GEctx->dpi_scale);
+
+			style::push_color(ImGuiCol_WindowBg, style::get_color_v4(ImGuiCol_TitleBg));
+			style::push_color(ImGuiCol_ChildBg, style::get_color_v4(ImGuiCol_TitleBg));
+			style::push_var(ImGuiStyleVar_WindowBorderSize, 0.0f);
+			style::push_var(ImGuiStyleVar_WindowPadding, ImVec2());
+
+			platform::set_next_window_viewport(viewport.id());
+			platform::set_next_window_pos(viewport.pos());
+			platform::set_next_window_size(menuSize);
+			if (widgets::begin("Caption", nullptr, window_flags))
+			{
+				editor::view::main_menu_bar::show();
+#pragma region caption buttons
+				auto  dpi_scale					  = GEctx->dpi_scale;
+				auto& style						  = GImGui->Style;
+				auto  caption_button_icon_width	  = 5.f * dpi_scale;
+				auto  caption_restore_icon_offset = 2.f * dpi_scale;
+				auto  caption_button_size		  = ImVec2(CAPTION_BUTTON_SIZE.x * dpi_scale, CAPTION_BUTTON_SIZE.y * dpi_scale);
+				auto  draw_pos					  = ImVec2(platform::get_window_pos().x + platform::get_window_size().x - caption_button_size.x * 3, platform::get_window_pos().y);
+				auto  caption_button_icon_center  = ImVec2(draw_pos.x + caption_button_size.x / 2, draw_pos.y + caption_button_size.y / 2);
+
+				if (GEctx->caption_hovered_btn != Caption_Button_None)
+				{
+					auto p_min = ImVec2(draw_pos.x + CAPTION_BUTTON_SIZE.x * (int)GEctx->caption_hovered_btn * GEctx->dpi_scale, draw_pos.y);
+					auto p_max = ImVec2(p_min.x + CAPTION_BUTTON_SIZE.x * GEctx->dpi_scale, draw_pos.y + CAPTION_BUTTON_SIZE.y * GEctx->dpi_scale);
+					widgets::draw_rect_filled({ p_min, p_max }, style::get_color_u32(GEctx->caption_held_btn == GEctx->caption_hovered_btn ? ImGuiCol_ButtonActive : ImGuiCol_ButtonHovered));
+				}
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y), ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+				draw_pos.x					 += caption_button_size.x;
+				caption_button_icon_center.x += caption_button_size.x;
+
+				if (platform::is_window_maximized(GEctx->hwnd))
+				{
+					widgets::draw_rect(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
+									   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), 0.f, ImDrawFlags_None, dpi_scale);
+
+					widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width + caption_restore_icon_offset),
+									   ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+					widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width + caption_restore_icon_offset, caption_button_icon_center.y - caption_button_icon_width),
+									   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+					widgets::draw_line(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
+									   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+
+					widgets::draw_line(ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset),
+									   ImVec2(caption_button_icon_center.x + caption_button_icon_width - caption_restore_icon_offset, caption_button_icon_center.y + caption_button_icon_width - caption_restore_icon_offset), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+				}
+				else
+				{
+					widgets::draw_rect(ImVec2(draw_pos.x + caption_button_size.x / 2 - caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 - caption_button_icon_width), ImVec2(draw_pos.x + caption_button_size.x / 2 + caption_button_icon_width, draw_pos.y + caption_button_size.y / 2 + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), 0.f, ImDrawFlags_None, dpi_scale);
+				}
+
+				draw_pos.x					 += caption_button_size.x;
+				caption_button_icon_center.x += caption_button_size.x;
+
+				widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+				widgets::draw_line(ImVec2(caption_button_icon_center.x - caption_button_icon_width, caption_button_icon_center.y + caption_button_icon_width),
+								   ImVec2(caption_button_icon_center.x + caption_button_icon_width, caption_button_icon_center.y - caption_button_icon_width), style::get_color_u32(ImGuiCol_Text), dpi_scale);
+#pragma endregion
+			}
+
+			style::pop_var(2);
+			style::pop_color(2);
+
+			widgets::end();
+		}
 	}	 // namespace
 
 	void on_project_loaded()
@@ -517,6 +597,7 @@ namespace editor::view
 
 	void show()
 	{
+		_caption_bar();
 		_main_dock_space();
 
 		if (editor::game::project_opened() is_false)

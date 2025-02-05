@@ -24,6 +24,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="editor_ctx_item.cpp" />
+    <ClCompile Include="editor_models.cpp" />
+    <ClCompile Include="editor_models_reflection.cpp" />
     <ClCompile Include="editor_view.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
@@ -70,34 +72,38 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="main.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="platform.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="style.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    <ClCompile Include="editor_style.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="utilities\timing.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="widgets.cpp">
+    <ClCompile Include="editor_widgets.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="editor.h" />
+    <ClInclude Include="editor_common.h" />
     <ClInclude Include="editor_ctx_item.h" />
+    <ClInclude Include="editor_models.h" />
+    <ClInclude Include="editor_style.h" />
     <ClInclude Include="editor_view.h" />
+    <ClInclude Include="editor_widgets.h" />
     <ClInclude Include="external\include\imgui\imconfig.h" />
     <ClInclude Include="external\include\imgui\imgui.h" />
     <ClInclude Include="external\include\imgui\imgui_impl_dx12.h" />
@@ -110,6 +116,7 @@
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp" />
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
     <ClInclude Include="game_project\game.h" />
+    <ClInclude Include="platform.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="utilities\timing.h" />

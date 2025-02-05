@@ -1,7 +1,12 @@
 #include "pch.h"
 #include "editor.h"
+#include "editor_common.h"
+#include "editor_widgets.h"
+#include "editor_style.h"
+#include "editor_models.h"
 
 using namespace ImGui;
+#define STR_MENU_SHORTCUT_SPACE_COUNT 8
 
 namespace
 {

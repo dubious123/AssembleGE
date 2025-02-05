@@ -1,5 +1,6 @@
 #include "pch.h"
-#include "editor.h"
+#include "editor_common.h"
+#include "editor_models.h"
 #include "game.h"
 
 #include "../Engine/__reflection.h"
@@ -371,6 +372,21 @@ namespace editor::game::ecs
 {
 	using namespace editor::models;
 	using namespace std::views;
+
+#define LOAD_FUNC(func_type, func_name, library)                       \
+	[=]() {                                                            \
+		using lib_func = func_type;                                    \
+		auto func	   = (lib_func)GetProcAddress(library, func_name); \
+		assert(func);                                                  \
+		return func;                                                   \
+	}()
+
+#define LOAD_RUN_FUNC(func_type, func_name, library)                   \
+	[=]() {                                                            \
+		using lib_func = func_type;                                    \
+		auto func	   = (lib_func)GetProcAddress(library, func_name); \
+		return func();                                                 \
+	}()
 
 	size_t (*_get_registered_struct_count)();
 	size_t (*_get_registered_scene_count)();
