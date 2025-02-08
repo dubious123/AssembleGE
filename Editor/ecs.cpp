@@ -605,6 +605,7 @@ namespace editor::game::ecs
 		struct_info_vec.clear();
 		scene_hole_begin_idx = -1;
 		scene_hole_count	 = 0;
+		scenes				 = nullptr;
 	}
 
 	bool update_models()

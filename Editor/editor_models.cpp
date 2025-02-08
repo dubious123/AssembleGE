@@ -1,8 +1,29 @@
 #include "pch.h"
 #include "editor.h"
 #include "editor_ctx_item.h"
-#include "game_project/game.h"
+#include "game.h"
 #include "editor_models.h"
+
+namespace
+{
+	// helper functions
+	template <typename t>
+	std::string _new_name(std::string base_name, std::vector<t*>&& p_models)
+	{
+		return [&]() {
+			for (auto arg : std::views::iota(0))
+			{
+				auto new_name = std::format("{}_{}", base_name, arg);
+				if (std::ranges::all_of(p_models, [new_name](auto* p_s) { return p_s->name != new_name; }))
+				{
+					return new_name;
+				}
+			}
+
+			return std::string();
+		}();
+	}
+}	 // namespace
 
 namespace editor::models::reflection
 {
@@ -30,6 +51,11 @@ namespace editor::models::reflection
 		auto res = std::ranges::find_if(
 			_structs, [=](em_struct s) { return s.name == name; });
 		return &_structs[std::distance(_structs.begin(), res)];
+	}
+
+	editor_id create_struct(uint64 hash_id, game::ecs::struct_idx ecs_idx)
+	{
+		return create_struct(_new_name("new_struct", reflection::all_structs()), hash_id, ecs_idx);
 	}
 
 	editor_id create_struct(std::string name, uint64 hash_id, game::ecs::struct_idx ecs_idx)
@@ -69,6 +95,11 @@ namespace editor::models::reflection
 		id::delete_id(struct_id);
 	}
 
+	editor_id add_field(editor_id struct_id, e_primitive_type f_type, uint32 offset, game::ecs::field_idx ecs_idx)
+	{
+		return add_field(struct_id, f_type, _new_name("new_field", reflection::all_fields(struct_id)), offset, ecs_idx);
+	}
+
 	editor_id add_field(editor_id struct_id, e_primitive_type f_type, std::string name, uint32 offset, game::ecs::field_idx ecs_idx)
 	{
 		auto  f_id		 = id::get_new(DataType_Field);
@@ -85,6 +116,7 @@ namespace editor::models::reflection
 
 		auto* p_s = reflection::find_struct(struct_id);
 		++p_s->field_count;
+		p_s->size += reflection::utils::type_size(f_type);
 
 		_field_idx_map.insert({ f_id, { struct_idx, _fields[struct_idx].size() - 1 } });
 		return f_id;
@@ -208,6 +240,11 @@ namespace editor::models
 			}
 		}
 
+		editor_id create(game::ecs::scene_idx ecs_idx)
+		{
+			return scene::create(_new_name("new_scene", scene::all()), ecs_idx);
+		}
+
 		editor_id create(std::string name, game::ecs::scene_idx ecs_idx)
 		{
 			auto s_id = id::get_new(DataType_Scene);
@@ -218,12 +255,28 @@ namespace editor::models
 			s.ecs_idx = ecs_idx;
 			_current  = s_id;
 
+			game::update_proj_data(game::get_pproject()->id, [name](pugi::xml_node proj) {
+				if (proj.child("scenes").find_child_by_attribute("name", name.c_str()))
+				{
+					return;
+				}
+
+				auto s_node = proj.child("scenes").append_child("scene");
+				s_node.append_attribute("name").set_value(name.c_str());
+				s_node.append_attribute("world_count").set_value(0ul);
+				s_node.append_child("worlds");
+			});
+
 			return s.id;
 		}
 
 		void remove(editor_id c_id)
 		{
 			std::ranges::for_each(world::all(c_id) | std::views::transform([](auto* p_w) { return p_w->id; }), world::remove);
+
+			game::update_proj_data(c_id, [](pugi::xml_node s_node) {
+				s_node.parent().remove_child(s_node);
+			});
 
 			_scenes.erase(c_id);
 			if (c_id == scene::_current)
@@ -238,6 +291,14 @@ namespace editor::models
 		{
 			_scenes[em_s.id] = em_s;
 			id::restore(em_s.id);
+
+			game::update_proj_data(game::get_pproject()->id, [name = em_s.name](pugi::xml_node proj) {
+				auto s_node = proj.child("scenes").append_child("scene");
+				s_node.append_attribute("name").set_value(name.c_str());
+				s_node.append_attribute("world_count").set_value(0ul);
+				s_node.append_child("worlds");
+			});
+
 			return em_s.id;
 		}
 
@@ -253,10 +314,15 @@ namespace editor::models
 
 		void set_current(editor_id id)
 		{
-			if (find(id))
+			auto* p_s = scene::find(id);
+			if (p_s)
 			{
 				_current = id;
 				editor::select_new(_current);
+
+				game::update_proj_data(game::get_pproject()->id, [name = p_s->name](pugi::xml_node proj_node) {
+					proj_node.child("active_scene").attribute("name").set_value(name.c_str());
+				});
 			}
 			else
 			{
@@ -285,7 +351,9 @@ namespace editor::models
 				auto backup_current = scene::_current;
 				undoredo::add_and_redo(
 					{ "new scene",
-					  [](utilities::memory_handle*) { scene::set_current(scene::create("new scene", game::ecs::new_scene())); },
+					  [](utilities::memory_handle*) {
+						  scene::set_current(scene::create(game::ecs::new_scene()));
+					  },
 					  [=](utilities::memory_handle*) {
 						  game::ecs::delete_scene(_scenes.rbegin()->second.ecs_idx, nullptr);
 						  scene::remove(_scenes.rbegin()->first);
@@ -308,49 +376,50 @@ namespace editor::models
 											| std::views::reverse
 											| _rview_scene_worlds_vec;
 
-				undoredo::add_and_redo({ "delete scene",
-										 [=](utilities::memory_handle* p_mem_handle) {
-											 p_mem_handle->p_data		 = malloc(sizeof(utilities::memory_handle) * selections.size());
-											 p_mem_handle->clean_up_func = [count = selections.size()](auto* p_data) {
-												 std::ranges::for_each(std::views::iota((utilities::memory_handle*)p_data) | std::views::take(count),
-																	   [](auto* p_ecs_s_backup) {
-																		   ((utilities::memory_handle*)p_ecs_s_backup)->release();
-																	   });
-												 free(p_data);
-											 };
+				undoredo::add_and_redo(
+					{ "delete scene",
+					  [=](utilities::memory_handle* p_mem_handle) {
+						  p_mem_handle->p_data		  = malloc(sizeof(utilities::memory_handle) * selections.size());
+						  p_mem_handle->clean_up_func = [count = selections.size()](auto* p_data) {
+							  std::ranges::for_each(std::views::iota((utilities::memory_handle*)p_data) | std::views::take(count),
+													[](auto* p_ecs_s_backup) {
+														((utilities::memory_handle*)p_ecs_s_backup)->release();
+													});
+							  free(p_data);
+						  };
 
-											 std::ranges::for_each(selections, [p_ecs_s_backup = (utilities::memory_handle*)p_mem_handle->p_data](auto s_id) mutable {
-												 new (p_ecs_s_backup) utilities::memory_handle();
-												 game::ecs::delete_scene(scene::find(s_id)->ecs_idx, p_ecs_s_backup);
-												 ++p_ecs_s_backup;
-											 });
+						  std::ranges::for_each(selections, [p_ecs_s_backup = (utilities::memory_handle*)p_mem_handle->p_data](auto s_id) mutable {
+							  new (p_ecs_s_backup) utilities::memory_handle();
+							  game::ecs::delete_scene(scene::find(s_id)->ecs_idx, p_ecs_s_backup);
+							  scene::remove(s_id);
+							  ++p_ecs_s_backup;
+						  });
+					  },
+					  [=](utilities::memory_handle* p_mem_handle) {
+						  std::ranges::for_each(
+							  em_scenes_backup,
+							  [p_ecs_s_backup = (utilities::memory_handle*)p_mem_handle->p_data + em_scenes_backup.size() - 1](auto& tpl) mutable {
+								  const auto& [em_s, em_worlds] = tpl;
+								  scene::restore(em_s);
+								  game::ecs::restore_scene(em_s.ecs_idx, p_ecs_s_backup);
 
-											 std::ranges::for_each(selections, scene::remove);
-										 },
-										 [=](utilities::memory_handle* p_mem_handle) {
-											 std::ranges::for_each(em_scenes_backup,
-																   [p_ecs_s_backup = (utilities::memory_handle*)p_mem_handle->p_data + em_scenes_backup.size() - 1](auto& tpl) mutable {
-																	   const auto& [em_s, em_worlds] = tpl;
-																	   scene::restore(em_s);
-																	   game::ecs::restore_scene(em_s.ecs_idx, p_ecs_s_backup);
+								  for (const auto& [em_w, em_entities] : em_worlds)
+								  {
+									  world::restore(em_w);
 
-																	   for (const auto& [em_w, em_entities] : em_worlds)
-																	   {
-																		   world::restore(em_w);
+									  for (const auto& [em_e, em_components] : em_entities)
+									  {
+										  entity::restore(em_e);
+										  std::ranges::for_each(em_components, component::restore);
+									  }
+								  }
 
-																		   for (const auto& [em_e, em_components] : em_entities)
-																		   {
-																			   entity::restore(em_e);
-																			   std::ranges::for_each(em_components, component::restore);
-																		   }
-																	   }
+								  --p_ecs_s_backup;
+							  });
 
-																	   --p_ecs_s_backup;
-																   });
-
-											 p_mem_handle->release();
-											 _current = backup_current;
-										 } });
+						  p_mem_handle->release();
+						  _current = backup_current;
+					  } });
 			});
 
 		editor_command cmd_set_current(
@@ -361,8 +430,8 @@ namespace editor::models
 				auto backup_current = _current;
 
 				undoredo::add_and_redo({ std::format("set current scene from {} to {}", backup_current.str(), id.str()),
-										 [=](utilities::memory_handle*) { _current = backup_current; },
-										 [=](utilities::memory_handle*) { _current = id; } });
+										 [=](utilities::memory_handle*) { _current = id; },
+										 [=](utilities::memory_handle*) { _current = backup_current; } });
 			});
 
 		void on_project_unloaded()
@@ -388,24 +457,16 @@ namespace editor::models
 																												 // _worlds => [scene_idx][world_idx]
 																												 // _idx_map => [world_id] [pair<scene_idx, world_idx>]
 
-			em_world* _find(editor_id s_id, editor_id w_id)
-			{
-				assert(_worlds[s_id].contains(w_id));
-				return &_worlds[s_id][w_id];
-			}
-
 		}	 // namespace
 
 		em_world* find(editor_id w_id)
 		{
-			if (_scene_id_lut.contains(w_id))
-			{
-				return _find(_scene_id_lut[w_id], w_id);
-			}
-			else
-			{
-				return nullptr;
-			}
+			return &_worlds[_scene_id_lut[w_id]][w_id];
+		}
+
+		editor_id create(editor_id scene_id, game::ecs::world_idx ecs_world_idx)
+		{
+			return world::create(scene_id, _new_name("new_world", world::all(scene_id)), ecs_world_idx);
 		}
 
 		editor_id create(editor_id scene_id, std::string name, game::ecs::world_idx ecs_world_idx)
@@ -423,27 +484,58 @@ namespace editor::models
 				w.ecs_idx = ecs_world_idx;
 			}
 
-
 			_scene_id_lut[w.id] = scene_id;
+
+			game::update_proj_data(scene_id, [name, world_count = _worlds[scene_id].size()](pugi::xml_node s_node) {
+				if (s_node.child("worlds").find_child_by_attribute("name", name.c_str()))
+				{
+					return;
+				}
+
+				auto w_node = s_node.child("worlds").append_child("world");
+				w_node.append_attribute("name").set_value(name.c_str());
+				w_node.append_child("structs");
+				w_node.append_child("entities");
+
+				s_node.attribute("world_count").set_value(world_count);
+			});
+
 			return w.id;
 		}
 
 		void add_struct(editor_id world_id, editor_id struct_id)
 		{
-			auto* p_w = find(world_id);
-			if (p_w is_nullptr or p_w->structs.size() == 64 /*or std::ranges::find(p_w->structs, struct_id) != p_w->structs.end()*/)
+			auto* p_w = world::find(world_id);
+			auto* p_s = reflection::find_struct(struct_id);
+			if (p_w is_nullptr or p_w->structs.size() == 64 or p_s is_nullptr)
 			{
 				return;
 			}
 
 			p_w->structs.push_back(struct_id);
+
+			game::update_proj_data(world_id, [struct_name = p_s->name](pugi::xml_node w_node) {
+				if (w_node.child("structs").find_child_by_attribute("name", struct_name.c_str()))
+				{
+					return;
+				}
+
+				auto s_node = w_node.child("structs").append_child("struct");
+				s_node.append_attribute("name").set_value(struct_name.c_str());
+			});
 		}
 
 		void remove_struct(editor_id world_id, editor_id struct_id)
 		{
 			auto* p_w = find(world_id);
+			auto* p_s = reflection::find_struct(struct_id);
 			auto  it  = std::ranges::find(p_w->structs, struct_id);
 			auto  nth = std::distance(p_w->structs.begin(), it);
+
+			game::update_proj_data(world_id, [struct_name = p_s->name](pugi::xml_node w_node) {
+				auto s_node = w_node.child("structs").remove_child(struct_name.c_str());
+			});
+
 			p_w->structs.erase(it);
 
 			for (auto* p_e : entity::all(p_w->id))
@@ -483,6 +575,10 @@ namespace editor::models
 
 			std::ranges::for_each(entity::all(world_id) | std::views::transform([](auto* p_e) { return p_e->id; }), entity::remove);
 
+			game::update_proj_data(world_id, [](pugi::xml_node w_node) {
+				w_node.parent().remove_child(w_node);
+			});
+
 			_worlds[scene_id].erase(world_id);
 			_scene_id_lut.erase(world_id);
 			id::delete_id(world_id);
@@ -493,6 +589,25 @@ namespace editor::models
 			editor::id::restore(em_w.id);
 			_scene_id_lut[em_w.id]			= em_w.scene_id;
 			_worlds[em_w.scene_id][em_w.id] = em_w;
+
+			game::update_proj_data(em_w.scene_id,
+								   [name		= em_w.name,
+									world_count = _worlds[em_w.scene_id].size(),
+									struct_vec	= em_w.structs
+											   | std::views::transform([](auto s_id) { return reflection::find_struct(s_id)->name; })
+											   | std::ranges::to<std::vector>()](pugi::xml_node s_node) {
+									   auto w_node = s_node.child("worlds").append_child("world");
+									   s_node.attribute("world_count").set_value(world_count);
+									   w_node.append_attribute("name").set_value(name.c_str());
+									   w_node.append_child("structs");
+									   w_node.append_child("entities");
+
+									   for (auto structs_node = w_node.child("structs"); auto&& struct_name : struct_vec)
+									   {
+										   structs_node.append_child("struct").append_attribute("name").set_value(struct_name.c_str());
+									   }
+								   });
+
 			return em_w.id;
 		}
 
@@ -513,7 +628,7 @@ namespace editor::models
 				auto s_id = editor::get_current_selection();
 
 				undoredo::add_and_redo({ "new world",
-										 [=](utilities::memory_handle*) { world::create(s_id, "new world", game::ecs::new_world(s_id)); },
+										 [=](utilities::memory_handle*) { world::create(s_id, std::format("new world"), game::ecs::new_world(s_id)); },
 										 [=](utilities::memory_handle*) { 
 						auto		  w_id = _worlds[s_id].rbegin()->first;
 						game::ecs::delete_world(s_id, w_id);
@@ -672,7 +787,7 @@ namespace editor::models
 
 		editor_id create(editor_id world_id, archetype_t archetype, game::ecs::entity_idx ecs_idx)
 		{
-			return create(world_id, std::format("new_entity_{}", _entities[world_id].size()), archetype, ecs_idx);
+			return create(world_id, _new_name("new_entity", entity::all(world_id)), archetype, ecs_idx);
 		}
 
 		editor_id create(editor_id world_id, std::string name, archetype_t archetype, game::ecs::entity_idx ecs_idx)
@@ -685,7 +800,6 @@ namespace editor::models
 			auto& e			= _entities[world_id][entity_id];
 			{
 				e.id		= entity_id;
-				e.name		= std::format("new_entity_{}", _entities[world_id].size());
 				e.world_id	= world_id;
 				e.archetype = archetype;
 				e.name		= name;
@@ -693,6 +807,20 @@ namespace editor::models
 			}
 
 			_world_id_lut[entity_id] = world_id;
+
+			game::update_proj_data(world_id, [name, archetype](pugi::xml_node w_node) {
+				if (w_node.child("entities").find_child_by_attribute("name", name.c_str()))
+				{
+					return;
+				}
+
+				auto e_node = w_node.child("entities").append_child("entity");
+
+				e_node.append_attribute("name").set_value(name.c_str());
+				e_node.append_attribute("archetype").set_value(archetype);
+				e_node.append_child("components");
+			});
+
 			std::ranges::for_each(
 				std::views::iota(0, std::bit_width(archetype))
 					| std::views::filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; })
@@ -710,6 +838,14 @@ namespace editor::models
 
 			_world_id_lut[e.id]			= e.world_id;
 			_entities[e.world_id][e.id] = e;
+
+			game::update_proj_data(e.world_id, [name = e.name, archetype = e.archetype](pugi::xml_node w_node) {
+				auto e_node = w_node.child("entities").append_child("entity");
+
+				e_node.append_attribute("name").set_value(name.c_str());
+				e_node.append_attribute("archetype").set_value(archetype);
+				e_node.append_child("components");
+			});
 			return e.id;
 		}
 
@@ -723,6 +859,10 @@ namespace editor::models
 
 			std::ranges::for_each(component::all(entity_id) | std::views::transform([](auto* p_c) { return p_c->id; }),
 								  component::remove);
+
+			game::update_proj_data(entity_id, [](pugi::xml_node e_node) {
+				e_node.parent().remove_child(e_node);
+			});
 
 			_world_id_lut.erase(entity_id);
 			_entities[world_id].erase(entity_id);
@@ -740,6 +880,10 @@ namespace editor::models
 
 			p_entity->archetype = game::ecs::get_archetype(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx);
 
+			game::update_proj_data(entity_id, [archetype = p_entity->archetype](pugi::xml_node e_node) {
+				e_node.attribute("archetype").set_value(archetype);
+			});
+
 			return component::create(entity_id, struct_id);
 		}
 
@@ -753,6 +897,10 @@ namespace editor::models
 			game::ecs::remove_component(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx, p_struct->ecs_idx);
 
 			p_entity->archetype = game::ecs::get_archetype(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx);
+
+			game::update_proj_data(entity_id, [archetype = p_entity->archetype](pugi::xml_node e_node) {
+				e_node.attribute("archetype").set_value(archetype);
+			});
 
 			component::remove(component::find(entity_id, struct_id)->id);
 		}
@@ -874,7 +1022,66 @@ namespace editor::models
 											 std::ranges::for_each(selections, [=](auto e_id) { entity::add_component(e_id, struct_id); });
 										 },
 										 [=](utilities::memory_handle*) {
-											 std::ranges::for_each(selections, [=](auto e_id) { entity::remove_component(e_id, struct_id); });
+											 std::ranges::for_each(selections | std::views::reverse, [=](auto e_id) { entity::remove_component(e_id, struct_id); });
+										 } });
+			});
+
+		editor_command cmd_remove_component(
+			"Remove Component",
+			ImGuiKey_None,
+			[](editor_id struct_id) { return std::ranges::all_of(
+										  editor::get_all_selections() | std::views::transform(entity::find),
+										  [=](auto* p_e) { return world::archetype(p_e->world_id, struct_id) != 0 and component::find(p_e->id, struct_id) is_not_nullptr; }); },
+			[](editor_id struct_id) {
+				auto& selections = editor::get_all_selections();
+				auto  backup_vec = std::ranges::to<std::vector>(selections
+																| std::views::transform([=](auto e_id) { return *component::find(e_id, struct_id); }));
+
+				undoredo::add_and_redo({ "remove component",
+										 [=](utilities::memory_handle* p_backup) {
+											 std::ranges::for_each(
+												 selections,
+												 [=](auto e_id) {
+													 auto* p_struct			 = reflection::find_struct(struct_id);
+													 p_backup->p_data		 = malloc(p_struct->size * selections.size());
+													 p_backup->clean_up_func = [](auto* p_data) { free(p_data); };
+
+													 for (auto* p_dest = (uint8*)p_backup->p_data; auto _ : std::views::iota(0) | std::views::take(selections.size()))
+													 {
+														 auto* p_src = component::get_memory(component::find(e_id, p_struct->id)->id);
+														 (uint8*)memcpy(p_dest, p_src, p_struct->size);
+														 p_dest += p_struct->size;
+													 }
+
+													 entity::remove_component(e_id, struct_id);
+												 });
+										 },
+										 [=](utilities::memory_handle* p_backup) {
+											 auto* p_struct = reflection::find_struct(struct_id);
+
+											 std::ranges::for_each(
+												 backup_vec | std::views::reverse,
+												 [p_src = (uint8*)p_backup->p_data + (p_struct->size * (backup_vec.size() - 1)), p_struct](auto& em_c) mutable {
+													 auto* p_e	   = entity::find(em_c.entity_id);
+													 auto* p_w	   = world::find(p_e->world_id);
+													 auto* p_scene = scene::find(p_w->scene_id);
+
+													 game::ecs::add_component(p_scene->ecs_idx, p_w->ecs_idx, p_e->ecs_idx, p_struct->ecs_idx);
+
+													 p_e->archetype = game::ecs::get_archetype(p_scene->ecs_idx, p_w->ecs_idx, p_e->ecs_idx);
+
+													 game::update_proj_data(p_e->id, [archetype = p_e->archetype](pugi::xml_node e_node) {
+														 e_node.attribute("archetype").set_value(archetype);
+													 });
+
+													 memcpy(game::ecs::get_component_memory(p_scene->ecs_idx, p_w->ecs_idx, p_e->ecs_idx, p_struct->ecs_idx), p_src, p_struct->size);
+
+													 component::restore(em_c);
+
+													 p_src -= p_struct->size;
+												 });
+
+											 p_backup->release();
 										 } });
 			});
 
@@ -894,7 +1101,7 @@ namespace editor::models
 
 			std::ranges::for_each(reflection::_structs, [&res](auto&& s) {
 				res &= ctx_item::add_context_item(std::format("Entity\\Add Component\\{}", s.name), &cmd_add_component, s.id);
-				// res &= ctx_item::add_context_item(std::format("Entity\\Remove Component\\{}", s.name), &cmd_remove_component, s.id);
+				res &= ctx_item::add_context_item(std::format("Entity\\Remove Component\\{}", s.name), &cmd_remove_component, s.id);
 			});
 
 
@@ -954,27 +1161,86 @@ namespace editor::models
 
 			_entity_id_lut[em_c.id] = entity_id;
 
-			auto it = _components[entity_id].insert(std::ranges::upper_bound(_components[entity_id], struct_id, std::ranges::less {}, &em_component::struct_id), std::move(em_c));
+			_components[entity_id].push_back(std::move(em_c));
+
+			//_components[entity_id].insert(std::ranges::upper_bound(_components[entity_id], struct_id, std::ranges::less {}, &em_component::struct_id), std::move(em_c));
+			game::update_proj_data(entity_id, [s_name = p_struct->name, f_vec = reflection::utils::deserialize(struct_id, component::get_memory(em_c.id))](pugi::xml_node e_node) {
+				if (e_node.child("components").find_child_by_attribute("name", s_name.c_str()))
+				{
+					return;
+				}
+
+				auto c_node = e_node.child("components").append_child("component");
+				c_node.append_attribute("name").set_value(s_name.c_str());
+				c_node.append_child("fields");
+
+				for (auto fields_node = c_node.child("fields"); auto&& f_value : f_vec)
+				{
+					fields_node.append_child("field").set_value(f_value.c_str());
+				}
+			});
+
 			return em_c.id;
 		}
 
 		void remove(editor_id component_id)
 		{
-			if (_entity_id_lut.contains(component_id))
-			{
-				auto e_id = _entity_id_lut[component_id];
-				_components[e_id].erase(std::ranges::find_if(_components[e_id], [=](auto&& c) { return c.id == component_id; }));
-				_entity_id_lut.erase(component_id);
+			auto e_id = _entity_id_lut[component_id];
 
-				id::delete_id(component_id);
-			}
+			game::update_proj_data(component_id, [](pugi::xml_node c_node) {
+				c_node.parent().remove_child(c_node);
+			});
+
+			_components[e_id].erase(std::ranges::find_if(_components[e_id], [=](auto&& c) { return c.id == component_id; }));
+			_entity_id_lut.erase(component_id);
+
+			id::delete_id(component_id);
 		}
 
 		void restore(const em_component& em_c)
 		{
 			id::restore(em_c.id);
 			_entity_id_lut[em_c.id] = em_c.entity_id;
-			_components[em_c.entity_id].insert(std::ranges::upper_bound(_components[em_c.entity_id], em_c.struct_id, std::ranges::less {}, &em_component::struct_id), em_c);
+			//_components[em_c.entity_id].insert(std::ranges::upper_bound(_components[em_c.entity_id], em_c.struct_id, std::ranges::less {}, &em_component::struct_id), em_c);
+			_components[em_c.entity_id].push_back(std::move(em_c));
+			game::update_proj_data(em_c.entity_id, [s_name = reflection::find_struct(em_c.struct_id)->name, f_vec = reflection::utils::deserialize(em_c.struct_id, component::get_memory(em_c.id))](pugi::xml_node e_node) {
+				auto c_node = e_node.child("components").append_child("component");
+				c_node.append_attribute("name").set_value(s_name.c_str());
+				c_node.append_child("fields");
+
+				for (auto fields_node = c_node.child("fields"); auto&& f_value : f_vec)
+				{
+					fields_node.append_child("field").append_attribute("value").set_value(f_value.c_str());
+				}
+			});
+		}
+
+		void update(editor_id c_id)
+		{
+			auto* p_c = find(c_id);
+			game::update_proj_data(c_id, [f_vec = reflection::utils::deserialize(p_c->struct_id, component::get_memory(p_c->id))](pugi::xml_node c_node) {
+				for (auto field_node = c_node.child("fields").first_child(); auto&& f_value : f_vec)
+				{
+					field_node.append_attribute("value").set_value(f_value.c_str());
+					field_node = field_node.next_sibling();
+				}
+			});
+		}
+
+		void update_field(editor_id c_id, editor_id f_id)
+		{
+			auto* p_c = find(c_id);
+
+			auto view = reflection::all_fields(p_c->struct_id) | std::views::enumerate;
+
+			auto [f_idx, p_f] = *std::ranges::find_if(view, [f_id](std::tuple<uint64, em_field*> tpl) { return std::get<1>(tpl)->id == f_id; });
+			game::update_proj_data(c_id, [f_idx, f_value = reflection::utils::deserialize(p_f->type, (uint8*)component::get_memory(p_c->id) + p_f->offset)](pugi::xml_node c_node) {
+				auto field_node = c_node.child("fields").first_child();
+
+				std::ranges::for_each(std::views::iota(0, f_idx), [&field_node](auto _) { field_node = field_node.next_sibling(); });
+
+				field_node.attribute("value").set_value(f_value.c_str());
+			});
 		}
 
 		std::vector<em_component*> all(editor_id entity_id)
@@ -1002,35 +1268,6 @@ namespace editor::models
 			return game::ecs::get_component_memory(p_scene->ecs_idx, p_world->ecs_idx, p_entity->ecs_idx, p_struct->ecs_idx);
 		}
 
-		editor_command cmd_remove_component(
-			"Add Component",
-			ImGuiKey_None,
-			[](editor_id _) { return std::ranges::all_of(editor::get_all_selections(), [](auto c_id) { return find(c_id) is_not_nullptr; }); },
-			[](editor_id _) {
-				auto& selections = editor::get_all_selections();
-
-				auto backup_vec = std::ranges::to<std::vector>(
-					editor::get_all_selections()
-					| std::views::transform([](auto id) { return *find(id); }));
-
-				undoredo::add_and_redo({ "remove component",
-										 [=](utilities::memory_handle*) {
-											 std::ranges::for_each(selections, remove);
-										 },
-										 [=](utilities::memory_handle*) {
-											 std::ranges::for_each(backup_vec, [=](auto&& c) {
-												 id::restore(c.id);
-
-												 component::_entity_id_lut[c.id] = c.entity_id;
-
-												 component::_components[c.entity_id].insert(
-													 std::ranges::upper_bound(_components[c.entity_id], c.struct_id, std::ranges::less {}, &em_component::struct_id), c);
-											 });
-										 }
-
-				});
-			});
-
 		void on_project_unloaded()
 		{
 			_components.clear();
@@ -1039,8 +1276,8 @@ namespace editor::models
 
 		void on_project_loaded()
 		{
-			auto res  = true;
-			res		 &= ctx_item::add_context_item("Component\\Remove Component", &cmd_remove_component);
+			auto res = true;
+			// res		 &= ctx_item::add_context_item("Component\\Remove Component", &cmd_remove_component);
 
 			assert(res);
 		}
@@ -1103,6 +1340,7 @@ namespace editor::models
 		world::on_project_unloaded();
 		entity::on_project_unloaded();
 		component::on_project_unloaded();
+
 		// component::on_project_unloaded();
 	}
 

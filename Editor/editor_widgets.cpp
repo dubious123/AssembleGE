@@ -1270,10 +1270,10 @@ namespace
 
 	std::unordered_map<ImGuiID, uint64> _backup_map;
 
-	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
-	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+	bool _drag_scalar(ImGuiDataType data_type, void* p_data, std::function<void()> callback = nullptr, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
+	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, std::function<void()> callback = nullptr, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0);
 
-	bool _drag_scalar(ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
+	bool _drag_scalar(ImGuiDataType data_type, void* p_data, std::function<void()> callback, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
 	{
 		auto res	 = ImGui::DragScalar("", data_type, p_data, v_speed, p_min, p_max, format, flags);
 		auto item_id = GImGui->LastItemData.ID;
@@ -1290,18 +1290,26 @@ namespace
 					  // assert(_backup_map.contains(GImGui->LastItemData.ID));
 					  // p_mem_handle->p_data : scalar, not pointer
 					  std::swap(*(uint64*)p_data, *(uint64*)&p_mem_handle->p_data);
+					  if (callback)
+					  {
+						  callback();
+					  }
 				  },
 				  [=](editor::utilities::memory_handle* p_mem_handle) {
 					  std::swap(*(uint64*)p_data, *(uint64*)&p_mem_handle->p_data);
+					  if (callback)
+					  {
+						  callback();
+					  }
 				  },
-				  (void*)_backup_map[item_id] });
+				  (void*)(uint64*)_backup_map[item_id] });
 			_backup_map.erase(item_id);
 		}
 
 		return res;
 	}
 
-	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
+	bool _drag_scalar_n(editor_id id, ImGuiDataType data_type, void* p_data, int components, std::function<void()> callback, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
 	{
 		auto* window = GetCurrentWindow();
 		if (window->SkipItems)
@@ -1321,7 +1329,7 @@ namespace
 				SameLine(0, editor::style::item_inner_spacing().x);
 			}
 
-			value_changed |= _drag_scalar(data_type, p_data, v_speed, p_min, p_max, format, flags);
+			value_changed |= _drag_scalar(data_type, p_data, callback, v_speed, p_min, p_max, format, flags);
 			PopID();
 			PopItemWidth();
 			p_data = (void*)((char*)p_data + type_size);
@@ -1345,61 +1353,61 @@ namespace
 	}
 }	 // namespace
 
-bool primitive_drag(editor_id id, e_primitive_type type, void* ptr)
+bool primitive_drag(editor_id id, e_primitive_type type, void* ptr, std::function<void()> callback)
 {
 	constexpr const float f_max = FLT_MAX;
 	constexpr const float f_min = -FLT_MAX;
 	switch (type)
 	{
 	case primitive_type_int2:
-		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 2);
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 2, callback);
 	case primitive_type_int3:
-		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 3);
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 3, callback);
 	case primitive_type_int4:
-		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 4);
+		return _drag_scalar_n(id, ImGuiDataType_S32, ptr, 4, callback);
 
 	case primitive_type_uint2:
-		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 2);
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 2, callback);
 	case primitive_type_uint3:
-		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 3);
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 3, callback);
 	case primitive_type_uint4:
-		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 4);
+		return _drag_scalar_n(id, ImGuiDataType_U32, ptr, 4, callback);
 
 	case primitive_type_float2:
 	case primitive_type_float2a:
-		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 2);
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 2, callback);
 	case primitive_type_float3:
 	case primitive_type_float3a:
-		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3);
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3, callback);
 	case primitive_type_float4:
 	case primitive_type_float4a:
-		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4);
+		return _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4, callback);
 	case primitive_type_uint64:
-		return _drag_scalar(ImGuiDataType_U64, ptr);
+		return _drag_scalar(ImGuiDataType_U64, ptr, callback);
 	case primitive_type_uint32:
-		return _drag_scalar(ImGuiDataType_U32, ptr);
+		return _drag_scalar(ImGuiDataType_U32, ptr, callback);
 	case primitive_type_uint16:
-		return _drag_scalar(ImGuiDataType_U16, ptr);
+		return _drag_scalar(ImGuiDataType_U16, ptr, callback);
 	case primitive_type_uint8:
-		return _drag_scalar(ImGuiDataType_U8, ptr);
+		return _drag_scalar(ImGuiDataType_U8, ptr, callback);
 	case primitive_type_int64:
-		return _drag_scalar(ImGuiDataType_U64, ptr);
+		return _drag_scalar(ImGuiDataType_U64, ptr, callback);
 	case primitive_type_int32:
-		return _drag_scalar(ImGuiDataType_U32, ptr);
+		return _drag_scalar(ImGuiDataType_U32, ptr, callback);
 	case primitive_type_int16:
-		return _drag_scalar(ImGuiDataType_U16, ptr);
+		return _drag_scalar(ImGuiDataType_U16, ptr, callback);
 	case primitive_type_int8:
-		return _drag_scalar(ImGuiDataType_U8, ptr);
+		return _drag_scalar(ImGuiDataType_U8, ptr, callback);
 	case primitive_type_float32:
-		return _drag_scalar(ImGuiDataType_Float, ptr);
+		return _drag_scalar(ImGuiDataType_Float, ptr, callback);
 	case primitive_type_double64:
-		return _drag_scalar(ImGuiDataType_Double, ptr);
+		return _drag_scalar(ImGuiDataType_Double, ptr, callback);
 	case primitive_type_float3x3:
 	{
 		auto res = false;
 		std::ranges::for_each(std::views::iota(0, 3), [&](auto row) {
 			PushID(row);
-			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3);
+			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 3, callback);
 			ptr	 = (void*)((char*)ptr + sizeof(float) * 3);
 			PopID();
 		});
@@ -1411,7 +1419,7 @@ bool primitive_drag(editor_id id, e_primitive_type type, void* ptr)
 		auto res = false;
 		std::ranges::for_each(std::views::iota(0, 4), [&](auto row) {
 			PushID(row);
-			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4);
+			res |= _drag_scalar_n(id, ImGuiDataType_Float, ptr, 4, callback);
 			ptr	 = (void*)((char*)ptr + sizeof(float) * 4);
 			PopID();
 		});
@@ -1441,14 +1449,14 @@ bool editor::widgets::component_drag(editor_id c_id)
 	{
 		if (ImGui::BeginTable("", 2, ImGuiTableFlags_SizingStretchProp))
 		{
-			std::ranges::for_each(reflection::all_fields(p_struct->id), [=](auto* p_f) {
+			std::ranges::for_each(reflection::all_fields(p_struct->id), [p_component](auto* p_f) {
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
 				widgets::text(p_f->name);
 
 				ImGui::TableSetColumnIndex(1);
 				ImGui::BeginGroup();
-				primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, component::get_memory(p_component->id)));
+				primitive_drag(p_f->id, p_f->type, _offset_to_ptr(p_f->offset, component::get_memory(p_component->id)), [c_id = p_component->id, f_id = p_f->id]() { editor::models::component::update_field(c_id, f_id); });
 				ImGui::EndGroup();
 			});
 

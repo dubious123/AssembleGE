@@ -1,201 +1,187 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="logger.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_widgets.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_demo.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_draw.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_impl_dx12.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_impl_win32.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_tables.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="editor.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="pch.cpp" />
-    <ClCompile Include="external\include\imgui\imgui.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_demo.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_draw.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_impl_dx12.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_impl_win32.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_tables.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\imgui\imgui_widgets.cpp">
-      <Filter>external\include\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_models_reflection.cpp">
-      <Filter>editor\models</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_models.cpp">
-      <Filter>editor\models</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_style.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_widgets.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="game_project\ecs.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_ctx_item.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="editor_view.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="game_project\game_project.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="utilities\timing.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="platform.cpp">
-      <Filter>editor</Filter>
-    </ClCompile>
-    <ClCompile Include="external\include\pugixml\pugixml.cpp">
-      <Filter>external\include\pugi_xml</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="external\include\imgui\imconfig.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_impl_dx12.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_impl_win32.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_internal.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_rectpack.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_textedit.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_truetype.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
     <ClInclude Include="stb_image.h">
-      <Filter>external\include\imgui</Filter>
+      <Filter>A.external\include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="editor.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="external\include\imgui\imgui.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_impl_dx12.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_impl_win32.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imgui_internal.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_rectpack.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_textedit.h">
-      <Filter>external\include\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="external\include\imgui\imstb_truetype.h">
-      <Filter>external\include\imgui</Filter>
+      <Filter>A.external\include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="editor_models.h">
-      <Filter>editor\models</Filter>
+      <Filter>B.editor\models</Filter>
     </ClInclude>
     <ClInclude Include="editor_style.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="editor_widgets.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="editor_common.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="editor_ctx_item.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="editor_view.h">
-      <Filter>editor</Filter>
-    </ClInclude>
-    <ClInclude Include="game_project\game.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="external\include\nativefiledialog\nfd.h">
-      <Filter>external\include\nfd</Filter>
+      <Filter>A.external\include\nfd</Filter>
     </ClInclude>
     <ClInclude Include="utilities\Xml.h">
-      <Filter>external\include\pugi_xml</Filter>
+      <Filter>A.external\include\pugi_xml</Filter>
     </ClInclude>
     <ClInclude Include="utilities\timing.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="platform.h">
-      <Filter>editor</Filter>
+      <Filter>B.editor</Filter>
     </ClInclude>
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp">
-      <Filter>external\include\pugi_xml</Filter>
+      <Filter>A.external\include\pugi_xml</Filter>
     </ClInclude>
     <ClInclude Include="external\include\pugixml\pugixml.hpp">
-      <Filter>external\include\pugi_xml</Filter>
+      <Filter>A.external\include\pugi_xml</Filter>
+    </ClInclude>
+    <ClInclude Include="editor_background.h">
+      <Filter>B.editor</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imconfig.h" />
+    <ClInclude Include="external\include\imgui\imgui_impl_dx12.h" />
+    <ClInclude Include="external\include\imgui\imgui_impl_win32.h" />
+    <ClInclude Include="external\include\imgui\imgui_internal.h" />
+    <ClInclude Include="external\include\imgui\imstb_rectpack.h" />
+    <ClInclude Include="external\include\imgui\imstb_textedit.h" />
+    <ClInclude Include="external\include\imgui\imstb_truetype.h" />
+    <ClInclude Include="game.h">
+      <Filter>B.editor\game</Filter>
     </ClInclude>
     <ClInclude Include="external\include\imgui\imconfig.h">
-      <Filter>external\include\imgui</Filter>
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imgui_impl_dx12.h">
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imgui_impl_win32.h">
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imgui_internal.h">
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imstb_rectpack.h">
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imstb_textedit.h">
+      <Filter>A.external\include\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="external\include\imgui\imstb_truetype.h">
+      <Filter>A.external\include\imgui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="external">
+    <Filter Include="A.external">
       <UniqueIdentifier>{d08fec05-ee6b-4b62-90e1-c89c6804f17c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="external\include">
+    <Filter Include="A.external\include">
       <UniqueIdentifier>{64f3745f-bb35-4919-af95-d0356f1b88a7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="external\include\imgui">
+    <Filter Include="A.external\include\imgui">
       <UniqueIdentifier>{7e1b9cc7-916c-4684-bd29-c61ac4acdb2b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="external\include\nfd">
+    <Filter Include="A.external\include\nfd">
       <UniqueIdentifier>{fc9a1507-fe8f-4dbc-be25-6daa676f22dc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="external\include\pugi_xml">
+    <Filter Include="A.external\include\pugi_xml">
       <UniqueIdentifier>{61ec4a5e-d75c-418d-a4e1-a61c9671a545}</UniqueIdentifier>
     </Filter>
-    <Filter Include="editor">
+    <Filter Include="B.editor">
       <UniqueIdentifier>{fc6e6a16-f01b-43de-8d7d-9011b9b6a2b8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="editor\models">
+    <Filter Include="B.editor\models">
       <UniqueIdentifier>{10182a90-7e44-447c-a0d0-67b16ef399e1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="B.editor\game">
+      <UniqueIdentifier>{46835edb-6f24-420d-9284-58791c1201f5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="logger.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="editor.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="external\include\imgui\imgui.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_models_reflection.cpp">
+      <Filter>B.editor\models</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_models.cpp">
+      <Filter>B.editor\models</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_style.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_widgets.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_ctx_item.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_view.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="utilities\timing.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="platform.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\pugixml\pugixml.cpp">
+      <Filter>A.external\include\pugi_xml</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_background.cpp">
+      <Filter>B.editor</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_demo.cpp" />
+    <ClCompile Include="external\include\imgui\imgui_draw.cpp" />
+    <ClCompile Include="external\include\imgui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="external\include\imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="external\include\imgui\imgui_tables.cpp" />
+    <ClCompile Include="external\include\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="game_code.cpp">
+      <Filter>B.editor\game</Filter>
+    </ClCompile>
+    <ClCompile Include="game_project.cpp">
+      <Filter>B.editor\game</Filter>
+    </ClCompile>
+    <ClCompile Include="ecs.cpp">
+      <Filter>B.editor\game</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_demo.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_draw.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_impl_dx12.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_impl_win32.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_tables.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="external\include\imgui\imgui_widgets.cpp">
+      <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

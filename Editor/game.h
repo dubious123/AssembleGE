@@ -14,20 +14,26 @@ namespace editor::game
 		bool		starred = false;
 
 		project_open_data() = default;
-		project_open_data(const char* name, const char* desc, const char* date, const char* path, bool starred);
+
+		project_open_data(const char* name, const char* desc, const char* date, const char* path, bool starred) : name(name), desc(desc), last_opened_date(date), path(path), starred(starred) { }
 	};
 
 	struct game_project
 	{
+		editor_id	id;
 		std::string directory_path;
 		std::string project_file_path;
 		std::string name;
 		std::string description;
 		std::string last_opened_date;
 		bool		is_ready = false;
+
+		pugi::xml_document project_data_xml;
 	};
 
 	void init();
+
+	void deinit();
 
 	bool project_opened();
 
@@ -39,15 +45,14 @@ namespace editor::game
 
 	bool save();
 
-	game_project* get_current_p_project();
+	void update_proj_data(editor_id model_id, std::function<void(pugi::xml_node)>);
+
+	game_project* get_pproject();
 }	 // namespace editor::game
 
 // reflection
 namespace editor::game::ecs
 {
-	using struct_idx = uint64;
-	using field_idx	 = uint32;
-
 	struct_idx new_struct();
 	field_idx  add_field(struct_idx, e_primitive_type f_type, std::string field_value);
 	void*	   get_field_pvalue(struct_idx, field_idx);
@@ -55,11 +60,6 @@ namespace editor::game::ecs
 
 namespace editor::game::ecs
 {
-	using scene_idx	  = uint16;
-	using world_idx	  = uint16;
-	using entity_idx  = uint64;
-	using archetype_t = uint64;
-
 	bool init_from_dll(HMODULE proj_dll);
 	bool init_from_project_data(std::string& project_file_path);
 
@@ -114,6 +114,16 @@ namespace editor::game::ecs
 	void world_add_struct(editor_id w_id, editor_id s_id);
 	void world_remove_struct(editor_id w_id, editor_id s_id);
 }	 // namespace editor::game::ecs
+
+namespace editor::game::code
+{
+	void init();
+	bool open_visual_studio();
+	void close_visual_studio();
+	bool visual_studio_open_file(const char* filename, unsigned int line);
+	void deinit();
+	void on_project_loaded();
+}	 // namespace editor::game::code
 
 namespace editor::view::project_browser
 {

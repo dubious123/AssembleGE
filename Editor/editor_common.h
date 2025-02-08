@@ -42,6 +42,16 @@ constexpr ImVec4 COL_BD_ACTIVE	 = ImVec4(0.26f, 0.26f, 0.26f, 1.f);
 
 constexpr uint32 LOG_BUFFER_SIZE = 1024 * 1024 * 256;	 // 256 Mb
 
+namespace editor::game::ecs
+{
+	using struct_idx  = uint64;
+	using field_idx	  = uint32;
+	using scene_idx	  = uint16;
+	using world_idx	  = uint16;
+	using entity_idx  = uint64;
+	using archetype_t = uint64;
+}	 // namespace editor::game::ecs
+
 enum editor_data_type : unsigned long long
 {
 	DataType_Entity,
@@ -67,6 +77,13 @@ enum caption_button
 	Caption_Button_Max,
 	Caption_Button_Close,
 	Caption_Button_None,
+};
+
+enum editor_background
+{
+	Background_Save,
+	Background_Visual_Studio,
+	Background_Count
 };
 
 struct editor_id

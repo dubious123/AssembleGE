@@ -5,8 +5,9 @@
 #include "platform.h"
 #include "editor_view.h"
 #include "editor_ctx_item.h"
-#include "game_project\game.h"
+#include "game.h"
 #include "editor_models.h"
+#include "editor_background.h"
 
 editor_context* GEctx = nullptr;
 
@@ -27,13 +28,14 @@ void editor::init()
 	editor::logger::init();
 	editor::view::init();
 	editor::game::init();
+	editor::background::init();
+
 	// Editor::UndoRedo::Init();
 }
 
 void editor::run()
 {
 	// DragAcceptFiles(hwnd, TRUE);
-
 	platform::window_loop([]() {
 		if (GEctx->dpi_changed)
 		{
@@ -43,15 +45,14 @@ void editor::run()
 
 		editor::view::show();
 
-		ImGui::ShowDemoWindow();
-
 		{
 			ctx_item::on_frame_end();
 			widgets::on_frame_end();
 		}
 	});
 
-
+	editor::background::deinit();
+	editor::game::deinit();
 	delete GEctx;
 }
 

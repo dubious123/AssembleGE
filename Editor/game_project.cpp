@@ -1,13 +1,14 @@
 #include "pch.h"
 
-#include "../editor.h"
-#include "../editor_widgets.h"
-#include "../editor_style.h"
-#include "../editor_models.h"
-#include "../editor_ctx_item.h"
-#include "../utilities/timing.h"
+#include "editor.h"
+#include "editor_widgets.h"
+#include "editor_style.h"
+#include "editor_models.h"
+#include "editor_ctx_item.h"
+#include "utilities/timing.h"
 #include "game.h"
-#include "../platform.h"
+#include "platform.h"
+#include "editor_background.h"
 
 namespace editor::game
 {
@@ -38,7 +39,7 @@ namespace editor::game
 				return true;
 			},
 			[](editor_id _) {
-				save();
+				editor::background::add(Background_Save, save);
 			}
 		};
 
@@ -49,14 +50,13 @@ namespace editor::game
 				return true;
 			},
 			[](editor_id) {
-				editor::widgets::progress_modal("Building project",
-												[] {
+				editor::widgets::progress_modal("Building project", [] {
 													auto res  = true;
 													res		 &= save();
 													if (editor::models::change_exists())
 													{
 														editor::widgets::progress_modal_msg("generating code");
-														res &= _generate_code();
+														// res &= _generate_code();
 													}
 
 													if (_project_dll)
@@ -66,12 +66,8 @@ namespace editor::game
 													}
 
 													editor::widgets::progress_modal_msg("building dll");
+													
 													res &= _build_load_dll();
-													if (res)
-													{
-														// todo - background build, load
-														res &= ecs::init_from_project_data(_current_project.project_file_path);
-													}
 													if (res)
 													{
 														logger::info("Build Success");
@@ -80,8 +76,11 @@ namespace editor::game
 													{
 														logger::error("Build Failed");
 													}
-													return res;
-												});
+													return res; }, [](auto res) { 
+														if(res){
+															editor::on_project_unloaded();
+															ecs::init_from_project_data(_current_project.project_file_path);
+														} });
 			}
 		};
 
@@ -235,7 +234,6 @@ namespace editor::game
 			assert(_project_dll is_not_nullptr);
 			::FreeLibrary(_project_dll);
 			_current_project.is_ready = false;
-			editor::on_project_unloaded();
 		}
 
 		bool _generate_code()
@@ -383,17 +381,91 @@ namespace editor::game
 			_current_project.is_ready = true;
 			return true;
 		}
-	}	 // namespace
 
-	project_open_data::project_open_data(const char* name, const char* desc, const char* date, const char* path, bool starred)
-	{
-		// this->id			   = editor::id::get(DataType_Project);
-		this->name			   = name;
-		this->desc			   = desc;
-		this->last_opened_date = date;
-		this->path			   = path;
-		this->starred		   = starred;
-	}
+		pugi::xml_node _get_project()
+		{
+			return _current_project.project_data_xml.first_child();
+		}
+
+		pugi::xml_node _find_struct(std::string s_name)
+		{
+			return _get_project().first_child().find_child_by_attribute("name", s_name.c_str());
+		}
+
+		pugi::xml_node _find_field(std::string s_name, std::string f_name)
+		{
+			return _find_struct(s_name).first_child().find_child_by_attribute("name", f_name.c_str());
+		}
+
+		pugi::xml_node _find_scene(std::string s_name)
+		{
+			return _get_project().first_child().next_sibling().find_child_by_attribute("name", s_name.c_str());
+		}
+
+		pugi::xml_node _find_world(std::string s_name, std::string w_name)
+		{
+			return _find_scene(s_name).first_child().find_child_by_attribute("name", w_name.c_str());
+		}
+
+		pugi::xml_node _find_entity(std::string s_name, std::string w_name, std::string e_name)
+		{
+			return _find_world(s_name, w_name).first_child().next_sibling().find_child_by_attribute("name", e_name.c_str());
+		}
+
+		pugi::xml_node _find_component(std::string scene_name, std::string w_name, std::string e_name, std::string struct_name)
+		{
+			return _find_entity(scene_name, w_name, e_name).first_child().find_child_by_attribute("name", struct_name.c_str());
+		}
+
+		std::function<pugi::xml_node(void)> _get_project_deffered()
+		{
+			return [] { return _get_project(); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_struct_deffered(editor_id s_id)
+		{
+			auto* p_s = reflection::find_struct(s_id);
+			return [name = p_s->name] { return _find_struct(name); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_field_deffered(editor_id f_id)
+		{
+			auto* p_f = reflection::find_field(f_id);
+			auto* p_s = reflection::find_struct(p_f->struct_id);
+			return [s_name = p_s->name, f_name = p_f->name]() { return _find_field(s_name, f_name); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_scene_deffered(editor_id s_id)
+		{
+			auto* p_s = scene::find(s_id);
+			return [s_name = p_s->name]() { return _find_scene(s_name); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_world_deffered(editor_id w_id)
+		{
+			auto* p_w = world::find(w_id);
+			auto* p_s = scene::find(p_w->scene_id);
+			return [s_name = p_s->name, w_name = p_w->name]() { return _find_world(s_name, w_name); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_entity_deffered(editor_id e_id)
+		{
+			auto* p_e = entity::find(e_id);
+			auto* p_w = world::find(p_e->world_id);
+			auto* p_s = scene::find(p_w->scene_id);
+			return [s_name = p_s->name, w_name = p_w->name, e_name = p_e->name]() { return _find_entity(s_name, w_name, e_name); };
+		}
+
+		std::function<pugi::xml_node(void)> _find_component_deffered(editor_id c_id)
+		{
+			auto* p_c	   = component::find(c_id);
+			auto* p_e	   = entity::find(p_c->entity_id);
+			auto* p_w	   = world::find(p_e->world_id);
+			auto* p_scene  = scene::find(p_w->scene_id);
+			auto* p_struct = reflection::find_struct(p_c->struct_id);
+			return [scene_name = p_scene->name, w_name = p_w->name, e_name = p_e->name, struct_name = p_struct->name]() { return _find_component(scene_name, w_name, e_name, struct_name); };
+		}
+	}	 // namespace
 
 	void init()
 	{
@@ -416,6 +488,13 @@ namespace editor::game
 		_project_list_node = _project_open_data_xml.child("project_list");
 		_load_project_open_datas();
 		::CoTaskMemFree((void*)p_folder_path);
+
+		game::code::init();
+	}
+
+	void deinit()
+	{
+		game::code::deinit();
 	}
 
 	void save_project_open_datas()
@@ -439,142 +518,75 @@ namespace editor::game
 
 	bool save()
 	{
-		auto doc		  = pugi::xml_document();
-		auto success	  = doc.load_file(_current_project.project_file_path.c_str());
-		auto xml_stream	  = std::wofstream(_current_project.project_file_path);
-		auto project_node = doc.child("project");
-		project_node.remove_children();
+		_current_project.project_data_xml.save_file(_current_project.project_file_path.c_str());
 
-		auto structs_node = project_node.append_child("structs");
-		for (auto* p_struct : reflection::all_structs())
-		{
-			auto struct_node = structs_node.append_child("struct");
-			auto fields_node = struct_node.append_child("fields");
-			struct_node.append_attribute("name").set_value(p_struct->name.c_str());
-			struct_node.append_attribute("id").set_value(p_struct->id.str().c_str());
-			struct_node.append_attribute("hash_id").set_value(p_struct->hash_id);
-			struct_node.append_attribute("field_count").set_value(p_struct->field_count);
-
-			for (auto* p_field : reflection::all_fields(p_struct->id))
-			{
-				auto field_node = fields_node.append_child("field");
-
-				field_node.append_attribute("name").set_value(p_field->name.c_str());
-				field_node.append_attribute("id").set_value(p_field->id.str().c_str());
-				field_node.append_attribute("type").set_value(reflection::utils::type_to_string(p_field->type));
-				field_node.append_attribute("offset").set_value(p_field->offset);
-				field_node.append_attribute("value").set_value(reflection::utils::deserialize(p_field->type, game::ecs::get_field_pvalue(p_struct->ecs_idx, p_field->ecs_idx)).c_str());
-			}
-		}
-
-		auto scenes_node = project_node.append_child("scenes");
-		for (auto* p_scene : models::scene::all())
-		{
-			auto scene_node	 = scenes_node.append_child("scene");
-			auto worlds_node = scene_node.append_child("worlds");
-			scene_node.append_attribute("name").set_value(p_scene->name.c_str());
-			scene_node.append_attribute("world_count").set_value(models::world::all(p_scene->id).size());
-
-			for (auto* p_world : models::world::all(p_scene->id))
-			{
-				auto world_node	   = worlds_node.append_child("world");
-				auto structs_node  = world_node.append_child("structs");
-				auto entities_node = world_node.append_child("entities");
-				// auto systems_node  = world_node.append_child("systems");
-
-				world_node.append_attribute("id").set_value(p_world->id.str().c_str());
-				world_node.append_attribute("name").set_value(p_world->name.c_str());
-
-				for (auto* p_struct : p_world->structs | std::views::transform([](auto id) { return models::reflection::find_struct(id); }))
-				{
-					auto struct_node = structs_node.append_child("struct");
-					struct_node.append_attribute("id").set_value(p_struct->id.str().c_str());
-					struct_node.append_attribute("name").set_value(p_struct->name.c_str());
-				}
-
-				for (auto* p_entity : models::entity::all(p_world->id))
-				{
-					auto entity_node	 = entities_node.append_child("entity");
-					auto components_node = entity_node.append_child("components");
-					entity_node.append_attribute("id").set_value(p_entity->id.str().c_str());
-					entity_node.append_attribute("name").set_value(p_entity->name.c_str());
-					entity_node.append_attribute("archetype").set_value(p_entity->archetype);
-
-					for (auto* p_component : models::component::all(p_entity->id))
-					{
-						auto* p_struct		 = reflection::find_struct(p_component->struct_id);
-						auto  component_node = components_node.append_child("component");
-						auto  fields_node	 = component_node.append_child("fields");
-						component_node.append_attribute("id").set_value(p_component->id.str().c_str());
-						component_node.append_attribute("struct_id").set_value(p_struct->id.str().c_str());
-						component_node.append_attribute("name").set_value(p_struct->name.c_str());
-
-						auto values = reflection::utils::deserialize(p_struct->id, component::get_memory(p_component->id));
-						for (auto field_idx : std::views::iota(0ul, p_struct->field_count))
-						{
-							fields_node.append_child("field")
-								.append_attribute("value")
-								.set_value(values[field_idx].c_str());
-						}
-					}
-				}
-			}
-
-			_generate_code();
-
-			// for (auto& world_id : scene.worlds)
-			//{
-			//	auto p_world		 = world::get(world_id);
-			//	auto world_node		 = worlds_node.append_child("world");
-			//	auto entities_node	 = world_node.append_child("entities");
-			//	auto systems_node	 = world_node.append_child("systems");
-			//	auto sub_worlds_node = world_node.append_child("sub_worlds");
-
-			//	world_node.append_attribute("id").set_value(world_id.ToString().c_str());
-			//	world_node.append_attribute("name").set_value(p_world->name.c_str());
-
-			//	for (auto& entity_id : p_world->entities)
-			//	{
-			//		auto p_entity		 = entity::find(entity_id);
-			//		auto entity_node	 = entities_node.append_child("entity");
-			//		auto components_node = entity_node.append_child("components");
-			//		entity_node.append_attribute("id").set_value(entity_id.ToString().c_str());
-			//		entity_node.append_attribute("name").set_value(p_entity->name.c_str());
-
-			//		for (auto& component_id : p_entity->components)
-			//		{
-			//			auto p_component	= component::find(component_id);
-			//			auto component_node = components_node.append_child("component");
-			//			component_node.append_attribute("id").set_value(component_id.ToString().c_str());
-			//			component_node.append_attribute("name").set_value(p_component->name.c_str());
-			//		}
-			//	}
-
-			//	for (auto& system_id : p_world->systems)
-			//	{
-			//		auto system_node = systems_node.append_child("system");
-			//		auto p_system	 = system::find(system_id);
-			//		system_node.append_attribute("id").set_value(system_id.ToString().c_str());
-			//		system_node.append_attribute("name").set_value(p_system->name.c_str());
-			//	}
-
-			//	// for (auto& sub_world : world.SubWorlds)
-			//	//{
-			//	//	auto sub_world_node = sub_worlds_node.append_child("sub_world");
-			//	//	sub_world_node.append_attribute("id").set_value(sub_world.Id.ToString().c_str());
-			//	//	sub_world_node.append_attribute("name").set_value(sub_world.Name.c_str());
-			//	// }
-			//}
-		}
-
-		auto active_scene_node = project_node.append_child("active_scene");
-		active_scene_node.append_attribute("name").set_value(models::scene::get_current()->name.c_str());
-
-		doc.save(xml_stream);
-		xml_stream.close();
+		_generate_code();
 
 		editor::logger::info("Project save completed");
-		return success;
+		return true;
+	}
+
+	void update_proj_data(editor_id model_id, std::function<void(pugi::xml_node)> update_func)
+	{
+		std::function<pugi::xml_node(void)> _find_node_deffered;
+
+		switch (model_id.type())
+		{
+		case DataType_Entity:
+		{
+			_find_node_deffered = _find_entity_deffered(model_id);
+			break;
+		}
+		case DataType_Project:
+		{
+			_find_node_deffered = _get_project_deffered();
+			break;
+		}
+		case DataType_Scene:
+		{
+			_find_node_deffered = _find_scene_deffered(model_id);
+			break;
+		}
+		case DataType_World:
+		{
+			_find_node_deffered = _find_world_deffered(model_id);
+			break;
+		}
+		case DataType_SubWorld:
+			break;
+		case DataType_Component:
+		{
+			_find_node_deffered = _find_component_deffered(model_id);
+			break;
+		}
+		case DataType_System:
+			break;
+		case DataType_Struct:
+		{
+			_find_node_deffered = _find_struct_deffered(model_id);
+			break;
+		}
+		case DataType_Field:
+		{
+			_find_node_deffered = _find_field_deffered(model_id);
+			break;
+		}
+		case DataType_Editor_Text:
+			break;
+		case DataType_Editor_Command:
+			break;
+		case DataType_Editor_UndoRedo:
+			break;
+		case DataType_Count:
+		case DataType_InValid:
+		default:
+		{
+			assert(false and "invalid id");
+			break;
+		}
+		}
+
+		editor::background::add(Background_Save, [=]() { update_func(_find_node_deffered()); });
 	}
 
 	bool open_async(std::filesystem::path project_directory_path)
@@ -594,11 +606,14 @@ namespace editor::game
 
 		if (!success) return false;
 
-		_current_project.directory_path	   = project_directory_path.string();
-		_current_project.project_file_path = project_data_path.string();
-		_current_project.name			   = project_node.attribute("name").value();
-		_current_project.description	   = project_node.attribute("desc").value();
-		_current_project.last_opened_date  = editor::utilities::timing::now_str();
+		_current_project.directory_path		= project_directory_path.string();
+		_current_project.project_file_path	= project_data_path.string();
+		_current_project.name				= project_node.attribute("name").value();
+		_current_project.description		= project_node.attribute("desc").value();
+		_current_project.last_opened_date	= editor::utilities::timing::now_str();
+		_current_project.project_data_xml	= pugi::xml_document();
+		_current_project.id					= id::get_new(DataType_Project);
+		success							   &= _current_project.project_data_xml.load_file(_current_project.project_file_path.c_str());
 
 		widgets::progress_modal_msg("Build and load dll");
 
@@ -642,11 +657,14 @@ namespace editor::game
 	{
 		editor::ctx_item::add_context_item("Main Menu\\File\\Save", &_cmd_save);
 		editor::ctx_item::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
+
+		game::code::on_project_loaded();
 	}
 
 	void on_project_unloaded()
 	{
 		editor::game::ecs::clear_models();
+		id::delete_id(_current_project.id);
 	}
 
 	bool project_opened()
@@ -654,7 +672,7 @@ namespace editor::game
 		return _current_project.is_ready;
 	}
 
-	game_project* get_current_p_project()
+	game_project* get_pproject()
 	{
 		return &_current_project;
 	}
@@ -1068,6 +1086,8 @@ namespace editor::view::project_browser
 
 						_open_dialog_new_project = false;
 						show_error_msg			 = false;
+
+						::SetForegroundWindow((HWND)GEctx->hwnd);
 					}
 					else
 					{

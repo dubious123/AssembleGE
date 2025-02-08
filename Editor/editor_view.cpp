@@ -6,7 +6,7 @@
 #include "editor_view.h"
 #include "editor_models.h"
 #include "editor_ctx_item.h"
-#include "game_project/game.h"
+#include "game.h"
 
 namespace editor::view::hierarchy
 {
@@ -28,7 +28,7 @@ namespace editor::view::hierarchy
 		using namespace std::ranges;
 
 		if (_open is_false) return;
-		if (editor::game::get_current_p_project()->is_ready is_false) return;
+		if (editor::game::get_pproject()->is_ready is_false) return;
 
 		if (widgets::begin("Hierarchy", &_open))
 		{
@@ -613,6 +613,8 @@ namespace editor::view
 			world_editor::show();
 			ctx_popup::show();
 		}
+
+		ImGui::ShowDemoWindow();
 	}
 
 	void on_project_unloaded()

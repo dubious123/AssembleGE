@@ -90,12 +90,14 @@ namespace editor::models
 	{
 		em_struct* find_struct(editor_id id);
 		em_struct* find_struct(const char* name);
-		editor_id  create_struct(std::string name, uint64 hash_id, uint64 ecs_idx);
+		editor_id  create_struct(uint64 hash_id, game::ecs::struct_idx);
+		editor_id  create_struct(std::string name, uint64 hash_id, game::ecs::struct_idx);
 		void	   remove_struct(editor_id struct_id);
 
 		em_field*			   find_field(editor_id id);
 		std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec);
-		editor_id			   add_field(editor_id struct_id, e_primitive_type, std::string name, uint32 offset, uint32 ecs_idx);
+		editor_id			   add_field(editor_id struct_id, e_primitive_type, uint32 offset, game::ecs::field_idx);
+		editor_id			   add_field(editor_id struct_id, e_primitive_type, std::string name, uint32 offset, game::ecs::field_idx);
 		void				   remove_field(editor_id field_id);
 
 		std::vector<em_struct*> all_structs();
@@ -124,7 +126,8 @@ namespace editor::models
 		//
 		// remove => increase generation => different id
 		em_scene*			   find(editor_id id);
-		editor_id			   create(std::string name, uint16 s_ecs_idx);
+		editor_id			   create(game::ecs::scene_idx);
+		editor_id			   create(std::string name, game::ecs::scene_idx);
 		void				   remove(editor_id id);
 		editor_id			   restore(const em_scene& em_s);
 		size_t				   count();
@@ -142,7 +145,8 @@ namespace editor::models
 		extern editor_command cmd_remove_struct;
 
 		em_world*			   find(editor_id id);
-		editor_id			   create(editor_id scene_id, std::string name, uint16 ecs_world_idx);
+		editor_id			   create(editor_id scene_id, game::ecs::world_idx);
+		editor_id			   create(editor_id scene_id, std::string name, game::ecs::world_idx);
 		void				   add_struct(editor_id world_id, editor_id struct_id);
 		void				   remove_struct(editor_id world_id, editor_id struct_id);
 		uint64				   archetype(editor_id world_id, editor_id struct_id);
@@ -158,8 +162,8 @@ namespace editor::models
 		extern editor_command cmd_create_empty;
 
 		em_entity*				find(editor_id id);
-		editor_id				create(editor_id world_id, archetype_t archetype, uint64 ecs_e_idx);
-		editor_id				create(editor_id world_id, std::string name, archetype_t archetype, uint64 ecs_e_idx);
+		editor_id				create(editor_id world_id, archetype_t archetype, game::ecs::entity_idx);
+		editor_id				create(editor_id world_id, std::string name, archetype_t archetype, game::ecs::entity_idx);
 		void					remove(editor_id entity_id);
 		editor_id				restore(const em_entity& em_c);
 		editor_id				add_component(editor_id entity_id, editor_id struct_id);
@@ -175,6 +179,8 @@ namespace editor::models
 		editor_id				   create(editor_id entity_id, editor_id struct_id);
 		void					   remove(editor_id component_id);
 		void					   restore(const em_component& em_c);
+		void					   update(editor_id c_id);
+		void					   update_field(editor_id c_id, editor_id f_id);
 		std::vector<em_component*> all(editor_id entity_id);
 		size_t					   count(editor_id entity_id);
 

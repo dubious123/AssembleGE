@@ -23,6 +23,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="editor_background.cpp" />
     <ClCompile Include="editor_ctx_item.cpp" />
     <ClCompile Include="editor_models.cpp" />
     <ClCompile Include="editor_models_reflection.cpp" />
@@ -62,8 +63,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="game_project\ecs.cpp" />
-    <ClCompile Include="game_project\game_project.cpp">
+    <ClCompile Include="game_code.cpp" />
+    <ClCompile Include="ecs.cpp" />
+    <ClCompile Include="game_project.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -98,6 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="editor.h" />
+    <ClInclude Include="editor_background.h" />
     <ClInclude Include="editor_common.h" />
     <ClInclude Include="editor_ctx_item.h" />
     <ClInclude Include="editor_models.h" />
@@ -115,7 +118,7 @@
     <ClInclude Include="external\include\nativefiledialog\nfd.h" />
     <ClInclude Include="external\include\pugixml\pugiconfig.hpp" />
     <ClInclude Include="external\include\pugixml\pugixml.hpp" />
-    <ClInclude Include="game_project\game.h" />
+    <ClInclude Include="game.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="pch.h" />
