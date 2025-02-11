@@ -81,6 +81,9 @@
     <ClInclude Include="external\include\imgui\imstb_truetype.h">
       <Filter>A.external\include\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="editor_utilities.h">
+      <Filter>B.editor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="A.external">
@@ -182,6 +185,9 @@
     </ClCompile>
     <ClCompile Include="external\include\imgui\imgui_widgets.cpp">
       <Filter>A.external\include\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="editor_utilities.cpp">
+      <Filter>B.editor</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

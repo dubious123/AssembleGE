@@ -1,6 +1,7 @@
 #include <pch.h>
 #include <editor.h>
 // #include "editor_common.h"
+#include "editor_utilities.h"
 #include "editor_style.h"
 #include "editor_widgets.h"
 #include <editor_ctx_item.h>

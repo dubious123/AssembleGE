@@ -63,9 +63,15 @@
 // #import "C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\PublicAssemblies\envdte100.dll"
 // #import "libid:33ABD590-0400-4FEF-AF98-5F5A8A99CFC3" version("9.0") lcid("0") raw_interfaces_only, raw_native_types, named_guids
 #include <atlbase.h>
+#include <atlcom.h>
 #import "libid:80cc9f66-e7d8-4ddd-85b6-d9e6cd0e93e2" version("8.0") lcid("0") raw_interfaces_only, raw_native_types, named_guids	// todo versions?
-// #import "progid:VisualStudio.DTE.17.0" raw_interfaces_only, raw_native_types, named_guids
-//  #import "libid:1A31287A-4D7D-413E-8E32-3B374931BD89" version("8.0") lcid("0") raw_interfaces_only, raw_native_types, named_guids
+// #import "C:\\Program Files (x86)\\Common Files\\Microsoft Shared\\MSEnv\\dte80a.olb"	//raw_interfaces_only, raw_native_types, named_guids	   // todo versions?
+// #import "C:\\Program Files (x86)\\Common Files\\Microsoft Shared\\MSEnv\\dte90.olb" raw_interfaces_only, raw_native_types, named_guids	  // todo versions?
+// #import "C:\Program Files (x86)\Common Files\Microsoft Shared\MSEnv\dte90.olb"
+// #import "C:\Program Files (x86)\Common Files\Microsoft Shared\MSEnv\dte80a.olb"
+//  #import "C:\Program Files (x86)\Common Files\Microsoft Shared\MSEnv\dte90a.olb"
+// #import "C:\\Program Files (x86)\\Common Files\\Microsoft Shared\\MSEnv\\dte100.olb" raw_interfaces_only, raw_native_types, named_guids	   // todo versions?
+//    #import "libid:1A31287A-4D7D-413E-8E32-3B374931BD89" version("8.0") lcid("0") raw_interfaces_only, raw_native_types, named_guids
 
 constexpr UINT LOG_MAX_COUNT_PER_FRAME = 1024;
 

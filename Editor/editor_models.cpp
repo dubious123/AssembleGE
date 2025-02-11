@@ -3,6 +3,7 @@
 #include "editor_ctx_item.h"
 #include "game.h"
 #include "editor_models.h"
+#include "editor_utilities.h"
 
 namespace
 {

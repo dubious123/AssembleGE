@@ -9,6 +9,7 @@
 #include "game.h"
 #include "platform.h"
 #include "editor_background.h"
+#include "editor_utilities.h"
 
 namespace editor::game
 {
@@ -592,17 +593,20 @@ namespace editor::game
 	bool open_async(std::filesystem::path project_directory_path)
 	{
 		widgets::progress_modal_msg("Reading project data");
+
 		auto project_data_path = std::filesystem::path(project_directory_path)
 									 .append(PROJECT_EXTENSION)
 									 .append(PROJECT_DATA_FILE_NAME);
-		auto doc		  = pugi::xml_document();
-		bool success	  = doc.load_file(project_data_path.c_str());
-		auto project_node = doc.child("project");
+		auto doc			  = pugi::xml_document();
+		bool success		  = doc.load_file(project_data_path.c_str());
+		auto project_node	  = doc.child("project");
+		auto project_sln_path = std::filesystem::path(project_directory_path).append(project_node.attribute("name").as_string() + std::string(".sln"));
 
 		success &= project_node.attribute("path").empty() is_false;
 		success &= project_node.attribute("name").empty() is_false;
 		success &= project_node.attribute("desc").empty() is_false;
 		success &= project_node.attribute("last_opened_date").empty() is_false;
+		success &= std::filesystem::exists(project_sln_path);
 
 		if (!success) return false;
 
@@ -613,6 +617,7 @@ namespace editor::game
 		_current_project.last_opened_date	= editor::utilities::timing::now_str();
 		_current_project.project_data_xml	= pugi::xml_document();
 		_current_project.id					= id::get_new(DataType_Project);
+		_current_project.sln_path			= project_sln_path.string();
 		success							   &= _current_project.project_data_xml.load_file(_current_project.project_file_path.c_str());
 
 		widgets::progress_modal_msg("Build and load dll");

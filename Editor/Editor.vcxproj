@@ -23,10 +23,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="editor_background.cpp" />
+    <ClCompile Include="editor_background.cpp">
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</MultiProcessorCompilation>
+    </ClCompile>
     <ClCompile Include="editor_ctx_item.cpp" />
     <ClCompile Include="editor_models.cpp" />
     <ClCompile Include="editor_models_reflection.cpp" />
+    <ClCompile Include="editor_utilities.cpp" />
     <ClCompile Include="editor_view.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
@@ -63,7 +66,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="game_code.cpp" />
+    <ClCompile Include="game_code.cpp">
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</MultiProcessorCompilation>
+    </ClCompile>
     <ClCompile Include="ecs.cpp" />
     <ClCompile Include="game_project.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
@@ -105,6 +110,7 @@
     <ClInclude Include="editor_ctx_item.h" />
     <ClInclude Include="editor_models.h" />
     <ClInclude Include="editor_style.h" />
+    <ClInclude Include="editor_utilities.h" />
     <ClInclude Include="editor_view.h" />
     <ClInclude Include="editor_widgets.h" />
     <ClInclude Include="external\include\imgui\imconfig.h" />

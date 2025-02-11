@@ -23,6 +23,7 @@ namespace editor::game
 		editor_id	id;
 		std::string directory_path;
 		std::string project_file_path;
+		std::string sln_path;
 		std::string name;
 		std::string description;
 		std::string last_opened_date;

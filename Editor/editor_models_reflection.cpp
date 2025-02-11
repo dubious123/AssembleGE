@@ -1,6 +1,7 @@
 #include "pch.h"
-#include "editor.h"
+#include "editor_common.h"
 #include "editor_models.h"
+#include "editor_utilities.h"
 
 namespace editor::models::reflection::utils
 {
