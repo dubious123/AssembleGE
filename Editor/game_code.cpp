@@ -4,7 +4,7 @@
 #include "editor_background.h"
 #include "editor_ctx_item.h"
 #include "editor_utilities.h"
-#import "C:\\Users\\Jonghun\\Desktop\\programming\\AssembleGE\\VSEnvDTELib\\bin\\Debug\\VSEnvDTELib.tlb" raw_interfaces_only, raw_native_types, named_guids
+#import "libid:1a234bc3-6b3a-403c-8161-a4b2f944d75b" raw_interfaces_only, raw_native_types, named_guids
 
 // RETURN_ON_FAIL(::CLSIDFromProgID(L"Microsoft.VisualStudio.VCProjectEngine", &clsid));
 
@@ -281,7 +281,7 @@ namespace
 		"Open Visual Studio",
 		ImGuiKey_None,
 		[](editor_id _) {
-			return _vs_opened is_false;	   // and _vs_open_trying is_false;
+			return _vs_opened is_false and _vs_open_trying is_false;
 		},
 		[](editor_id _) {
 			_vs_open_trying = true;

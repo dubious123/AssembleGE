@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.VisualStudio.VCProjectEngine;
+
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -26,6 +28,8 @@ public class VSEnvDTE : IVSEnvDTE
 	private EnvDTE80.DTE2 _dte2 = null;
 	private static readonly string _prog_id = "VisualStudio.DTE";//   .16.0";
 	private IntPtr _p_vs_opened = IntPtr.Zero;
+
+	private string _log_path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "c_sharp_log.txt";
 
 	//public int Init()
 	//{
@@ -102,10 +106,11 @@ public class VSEnvDTE : IVSEnvDTE
 			{
 				throw new COMException();
 			}
-			File.WriteAllText("C:\\Users\\Jonghun\\Desktop\\c_sharp_log.txt", "========================\n");
+
+			File.WriteAllText(_log_path, "========================\n");
 			if (_dte2.Solution.IsOpen is false)
 			{
-				File.AppendAllText("C:\\Users\\Jonghun\\Desktop\\c_sharp_log.txt", String.Format("sln path : ", sln_path, "\n"));
+				File.AppendAllText(_log_path, String.Format("sln path : ", sln_path, "\n"));
 				_dte2.Solution.Open(sln_path);
 			}
 
@@ -117,20 +122,16 @@ public class VSEnvDTE : IVSEnvDTE
 
 			_dte2.Events.SolutionEvents.AfterClosing += on_vs_closing;
 
+			var proj = _dte2.Solution.Projects.Item(1).Object as VCProject;
+			var configs = proj.Configurations as IVCCollection;
+			var cfg = configs.Item(1) as VCConfiguration;
+			var test = cfg.UpToDate;
 
-			//var windowEvents = evnets.WindowEvents;
-			//windowEvents.WindowActivated += OnWindowActivated;
-			//windowEvents.WindowClosing += on_vs_closing;
-
-			//Throw_on_fail(CoDisconnectObject(_dte2, 0), "CoDisconnectObject failed"); // this throws exception. i don't know why
-
-			File.AppendAllText("C:\\Users\\Jonghun\\Desktop\\c_sharp_log.txt", "successed");
+			File.AppendAllText(_log_path, "successed");
 		}
 		catch (Exception ex)
 		{
-			string log_path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-			File.AppendAllText("C:\\Users\\Jonghun\\Desktop\\c_sharp_log.txt", ex.ToString());
-
+			File.AppendAllText(_log_path, ex.ToString());
 		}
 		finally
 		{

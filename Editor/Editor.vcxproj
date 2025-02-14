@@ -68,6 +68,7 @@
     </ClCompile>
     <ClCompile Include="game_code.cpp">
       <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</MultiProcessorCompilation>
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</MultiProcessorCompilation>
     </ClCompile>
     <ClCompile Include="ecs.cpp" />
     <ClCompile Include="game_project.cpp">
