@@ -28,7 +28,7 @@ namespace editor::view::hierarchy
 		using namespace std::ranges;
 
 		if (_open is_false) return;
-		if (editor::game::get_pproject()->is_ready is_false) return;
+		if (editor::game::get_pproject()->is_opened is_false) return;
 
 		if (widgets::begin("Hierarchy", &_open))
 		{
@@ -599,14 +599,14 @@ namespace editor::view
 	{
 		_caption_bar();
 		_main_dock_space();
+		logger::show();
 
-		if (editor::game::project_opened() is_false)
+		if (editor::game::get_pproject()->is_opened is_false)
 		{
 			project_browser::show();
 		}
-		else
+		else if (editor::game::get_pproject()->is_loaded)
 		{
-			logger::show();
 			hierarchy::show();
 			inspector::show();
 			reflection::show();

@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualStudio.VCProjectEngine;
+﻿using EnvDTE;
 
 using System;
 using System.IO;
@@ -16,6 +16,8 @@ public interface IVSEnvDTE
 	//int Init();
 	void open_vs([MarshalAs(UnmanagedType.BStr)] string sln_path);
 	void monitor_vs_opened(IntPtr p_val);
+	void build_if_needed();
+	void up_to_date(IntPtr p_val);
 }
 
 // COM-visible class implementing the interface.
@@ -26,6 +28,8 @@ public interface IVSEnvDTE
 public class VSEnvDTE : IVSEnvDTE
 {
 	private EnvDTE80.DTE2 _dte2 = null;
+	private ProjectItem _pitem_components_h = null;
+	private dynamic _vc_config = null;
 	private static readonly string _prog_id = "VisualStudio.DTE";//   .16.0";
 	private IntPtr _p_vs_opened = IntPtr.Zero;
 
@@ -118,14 +122,35 @@ public class VSEnvDTE : IVSEnvDTE
 			_dte2.MainWindow.Activate();
 			_dte2.MainWindow.SetFocus();
 
-			var evnets = _dte2.Events;
+			var hwnd = _dte2.MainWindow.HWnd;
 
 			_dte2.Events.SolutionEvents.AfterClosing += on_vs_closing;
 
-			var proj = _dte2.Solution.Projects.Item(1).Object as VCProject;
-			var configs = proj.Configurations as IVCCollection;
-			var cfg = configs.Item(1) as VCConfiguration;
-			var test = cfg.UpToDate;
+			foreach (ProjectItem p_item in _dte2.Solution.Projects.Item(1).ProjectItems)
+			{
+				if (p_item.Name == "components.h")
+				{
+					_pitem_components_h = p_item;
+					break;
+				}
+			}
+
+			if (_pitem_components_h is null)
+			{
+				throw new Exception("cannot find components.h");
+			}
+
+			_dte2.Events.DocumentEvents[null].DocumentSaved += (d) => { };
+
+			var proj = _dte2.Solution.Projects.Item(1);
+			var vcproj = proj.Object;// as VCProject;
+			var configs = vcproj.Configurations;// as IVCCollection;
+			_vc_config = configs.Item(1);// as VCConfiguration;
+
+			if (_vc_config is null)
+			{
+				throw new Exception("cannot find _vc_config");
+			}
 
 			File.AppendAllText(_log_path, "successed");
 		}
@@ -146,16 +171,46 @@ public class VSEnvDTE : IVSEnvDTE
 		_p_vs_opened = p_val;
 	}
 
-	private void on_vs_closing(/*Window window*/)
+	public void build_if_needed()
+	{
+		if (_dte2 is null || _vc_config is null)
+		{
+			return;
+		}
+
+		if (_vc_config.UpToDate is false)
+		{
+			//_dte2.ExecuteCommand("Build.BuildSolution");
+
+			var sb = _dte2.Solution.SolutionBuild;
+			sb.SolutionConfigurations.Item("DebugEditor").Activate();
+			sb.Build(true);
+		}
+	}
+
+	public void up_to_date(IntPtr p_val)
+	{
+		if (_vc_config is not null)
+		{
+			Marshal.WriteByte(p_val, _vc_config.UpToDate ? (byte)1 : (byte)0);
+		}
+	}
+
+	private void on_vs_closing()
 	{
 		if (_p_vs_opened != IntPtr.Zero)
 		{
 			Marshal.WriteByte(_p_vs_opened, 0);
 		}
+
+		deinit();
 	}
 
-	private void OnWindowActivated(EnvDTE.Window gotFocus, EnvDTE.Window lostFocus)
+	private void deinit()
 	{
 
+		_dte2.Events.SolutionEvents.AfterClosing -= on_vs_closing;
+		_dte2 = null;
+		_pitem_components_h = null;
 	}
 }

@@ -234,7 +234,7 @@ namespace editor::game
 		{
 			assert(_project_dll is_not_nullptr);
 			::FreeLibrary(_project_dll);
-			_current_project.is_ready = false;
+			_current_project.is_loaded = false;
 		}
 
 		bool _generate_code()
@@ -379,7 +379,7 @@ namespace editor::game
 				return false;
 			}
 
-			_current_project.is_ready = true;
+			_current_project.is_loaded = true;
 			return true;
 		}
 
@@ -491,6 +491,55 @@ namespace editor::game
 		::CoTaskMemFree((void*)p_folder_path);
 
 		game::code::init();
+	}
+
+	bool load_dll()
+	{
+		auto& proj_name				 = _current_project.name;
+		auto& project_directory_path = _current_project.directory_path;
+
+#ifdef _DEBUG_EDITOR
+		auto dll_path = std::format("{}\\x64\\DebugEditor\\{}.dll", project_directory_path, proj_name);
+#else ifdef _RELEASE_EDITOR
+		auto dll_path = std::format("{}\\x64\\ReleaseEditor\\{}.dll", project_directory_path, proj_name);
+#endif	  // _DEBUG_EDITOR
+
+		_project_dll = LoadLibraryA(dll_path.c_str());
+
+		if (_project_dll is_nullptr)
+		{
+			logger::error("load project dll failed. dll path : {}", dll_path);
+			return false;
+		}
+
+		if (game::ecs::init_from_dll(_project_dll) is_false)
+		{
+			logger::error("init from dll failed");
+			return false;
+		}
+
+		_current_project.is_loaded = true;
+		editor::on_project_loaded();
+		return true;
+	}
+
+	bool unload_dll()
+	{
+		editor::on_project_unloaded();
+		_current_project.is_loaded = false;
+
+		if (_project_dll is_nullptr)
+		{
+			logger::error("project dll is not loaded");
+			return false;
+		}
+
+		if (::FreeLibrary(_project_dll) == 0)
+		{
+			logger::error("free library failed, error code : {}", ::GetLastError());
+			return false;
+		}
+		return true;
 	}
 
 	void deinit()
@@ -634,25 +683,32 @@ namespace editor::game
 		widgets::progress_modal_msg("Loading project");
 		logger::info("Open Completed");
 
-
+		auto found = false;
 		for (auto& data : _project_open_datas)
 		{
 			if (_current_project.name == data.name)
 			{
 				data.last_opened_date = _current_project.last_opened_date;
-				return true;
+				found				  = true;
+				break;
 			}
 		}
 
-		project_open_data od;
-		od.name				= _current_project.name;
-		od.desc				= _current_project.description;
-		od.last_opened_date = _current_project.last_opened_date;
-		od.path				= project_directory_path.string();
-		// od.Path.assign(project_directory_path.native().begin(), project_directory_path.native().end());
-		od.starred = false;
+		if (found is_false)
+		{
+			project_open_data od;
+			od.name				= _current_project.name;
+			od.desc				= _current_project.description;
+			od.last_opened_date = _current_project.last_opened_date;
+			od.path				= project_directory_path.string();
+			// od.Path.assign(project_directory_path.native().begin(), project_directory_path.native().end());
+			od.starred = false;
 
-		_project_open_datas.emplace_back(od);
+			_project_open_datas.emplace_back(od);
+		}
+
+		_current_project.is_opened = true;
+		_current_project.is_loaded = true;
 
 		widgets::progress_modal_msg("Open Project Done");
 		return success;
@@ -670,11 +726,6 @@ namespace editor::game
 	{
 		editor::game::ecs::clear_models();
 		id::delete_id(_current_project.id);
-	}
-
-	bool project_opened()
-	{
-		return _current_project.is_ready;
 	}
 
 	game_project* get_pproject()
@@ -958,7 +1009,6 @@ namespace editor::view::project_browser
 						{
 							_sort_project_open_data();
 							editor::on_project_loaded();
-							editor::game::_current_project.is_ready = true;
 						}
 						else
 						{
@@ -1087,7 +1137,6 @@ namespace editor::view::project_browser
 
 						_sort_project_open_data();
 						editor::on_project_loaded();
-						editor::game::_current_project.is_ready = true;
 
 						_open_dialog_new_project = false;
 						show_error_msg			 = false;
@@ -1139,7 +1188,6 @@ namespace editor::view::project_browser
 					{
 						_sort_project_open_data();
 						editor::on_project_loaded();
-						editor::game::_current_project.is_ready = true;
 					}
 					else
 					{

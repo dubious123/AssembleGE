@@ -420,97 +420,90 @@ namespace editor::game::ecs
 			   && _get_component_info
 			   && _get_entity_info);
 
-		// for (const auto struct_idx : iota(0ul, _get_registered_struct_count()))
-		//{
-		//	auto* p_struct_info = _get_struct_info(struct_idx);
-		//	auto  s_id			= reflection::create_struct();
-		//	auto* p_s			= reflection::find_struct(s_id);
-		//	{
-		//		p_s->name = p_struct_info->name;
-		//		// p_s->p_default_value = p_struct_info->p_default_value;
-		//		p_s->hash_id	 = p_struct_info->hash_id;
-		//		p_s->field_count = p_struct_info->field_count;
-		//	}
+		auto doc = pugi::xml_document();
 
-		//	for (const auto field_idx : iota(0ul, p_struct_info->field_count))
-		//	{
-		//		auto* p_field_info = &p_struct_info->fields[field_idx];
-		//		auto  f_id		   = reflection::add_field(s_id);
-		//		auto* p_f		   = reflection::find_field(f_id);
-		//		{
-		//			p_f->struct_id = s_id;
-		//			p_f->name	   = p_field_info->name;
-		//			// p_f->p_value   = (void*)((char*)(p_s->p_default_value) + p_field_info->offset);
-		//			p_f->type	= p_field_info->type;
-		//			p_f->offset = p_field_info->offset;
-		//		}
-		//		{
-		//			p_s->size += reflection::utils::type_size(p_field_info->type);
-		//		}
-		//	}
-		//}
+		auto proj_node = doc.append_child("project");
+		proj_node.append_attribute("name").set_value(game::get_pproject()->name.c_str());
+		proj_node.append_attribute("desc").set_value(game::get_pproject()->description.c_str());
+		proj_node.append_attribute("last_opened_date").set_value(game::get_pproject()->last_opened_date.c_str());
+		proj_node.append_attribute("path").set_value(game::get_pproject()->directory_path.c_str());
+		// proj_node.append_attribute("starred").set_value("false");
 
-		// for (const auto scene_idx : iota(0ul, _get_registered_scene_count()))
-		//{
-		//	auto* p_scene_info = _get_scene_info(scene_idx);
-		//	auto  s_id		   = scene::create();
-		//	auto  p_scene	   = scene::find(s_id);
-		//	{
-		//		p_scene->name = p_scene_info->name;
-		//	}
+		auto structs_node = proj_node.append_child("structs");
+		for (const auto* p_s_info : iota(0ul, _get_registered_struct_count()) | std::views::transform([](auto idx) { return _get_struct_info(idx); }))
+		{
+			auto s_node = structs_node.append_child("struct");
 
-		//	for (const auto world_idx : iota(p_scene_info->world_idx) | take(p_scene_info->world_count))
-		//	{
-		//		auto* p_w_info = _get_world_info(world_idx);
-		//		auto  w_id	   = world::create(p_scene->id, p_w_info->name, {});
-		//		auto  p_world  = world::find(w_id);
-		//		{
-		//			p_world->id		  = w_id;
-		//			p_world->scene_id = s_id;
-		//			p_world->ecs_idx  = world_idx;
-		//			p_world->name	  = p_w_info->name;
-		//		}
+			s_node.append_attribute("name").set_value(p_s_info->name);
+			s_node.append_attribute("hash_id").set_value(p_s_info->hash_id);
 
-		//		for (const auto struct_idx : p_w_info->struct_idx_vec | take(p_w_info->struct_count))
-		//		{
-		//			auto* p_s = reflection::find_struct(_get_struct_info(struct_idx)->name);
-		//			world::add_struct(w_id, p_s->id);
-		//		}
+			auto fields_node = s_node.append_child("fields");
 
-		//		for (const auto entity_idx : iota(0ul, _get_registered_entity_count(world_idx)))
-		//		{
-		//			auto* p_e_info = _get_entity_info(world_idx, entity_idx);
-		//			auto  e_id	   = entity::create(w_id);
-		//			auto  p_entity = entity::find(e_id);
-		//			{
-		//				p_entity->id		= e_id;
-		//				p_entity->world_id	= w_id;
-		//				p_entity->name		= p_e_info->name;
-		//				p_entity->archetype = p_e_info->archetype;
-		//				p_entity->ecs_idx	= p_e_info->idx;
-		//			}
+			for (const auto* p_f_info : iota(p_s_info->fields) | take(p_s_info->field_count))
+			{
+				auto f_node = fields_node.append_child("field");
 
-		//			for (const auto world_s_idx : iota(0ul, p_world->structs.size()) | filter([p_entity](const auto idx) { return ((p_entity->archetype >> idx) & 1ul) != 0; }))
-		//			{
-		//				// todo c_info.p_value is invalid
-		//				auto component_idx = __popcnt(p_entity->archetype & ((1ul << world_s_idx) - 1));
-		//				auto c_info		   = _get_component_info(world_idx, entity_idx, component_idx);
-		//				// auto c_id		   = component::add(e_id, p_world->structs[world_s_idx], c_info.p_value);
-		//			}
-		//		}
-		//	}
-		//}
+				f_node.append_attribute("name").set_value(p_f_info->name);
+				f_node.append_attribute("type").set_value(editor::models::reflection::utils::type_to_string(p_f_info->type));
+				f_node.append_attribute("offset").set_value(p_f_info->offset);
+				f_node.append_attribute("value").set_value(editor::models::reflection::utils::deserialize(p_f_info->type, (uint8*)p_s_info->p_default_value + p_f_info->offset).c_str());
+			}
+		}
 
-		// apply .assemble to ecs models
+		auto scenes_node = proj_node.append_child("scenes");
+		for (const auto* p_s_info : iota(0ul, _get_registered_scene_count()) | std::views::transform([](auto idx) { return _get_scene_info(idx); }))
+		{
+			auto s_node = scenes_node.append_child("scene");
 
-		return true;
+			s_node.append_attribute("name").set_value(p_s_info->name);
+			s_node.append_attribute("world_cound").set_value(p_s_info->world_count);
+
+			auto worlds_node = s_node.append_child("worlds");
+			for (auto [w_idx, p_w_info] : iota(p_s_info->world_idx) | take(p_s_info->world_count) | std::views::transform([](auto idx) { return std::make_tuple(idx, _get_world_info(idx)); }))
+			{
+				auto w_node = worlds_node.append_child("world");
+				w_node.append_attribute("name").set_value(p_w_info->name);
+
+				auto w_structs_node = w_node.append_child("structs");
+				for (const auto* p_struct_info : iota(p_w_info->struct_idx_vec) | take(p_w_info->struct_count) | std::views::transform([](auto* p_idx) { return _get_struct_info(*p_idx); }))
+				{
+					w_structs_node.append_child("struct").append_attribute("name").set_value(p_struct_info->name);
+				}
+
+				auto entities_node = w_node.append_child("entities");
+				for (auto [e_idx, p_e_info] : iota(0) | take(_get_registered_entity_count(w_idx)) | std::views::transform([w_idx](auto idx) { return std::make_tuple(idx, _get_entity_info(w_idx, idx)); }))
+				{
+					auto e_node = entities_node.append_child("entity");
+					e_node.append_attribute("name").set_value(p_e_info->name);
+					e_node.append_attribute("archetype").set_value(p_e_info->archetype);
+
+					auto components_node = e_node.append_child("components");
+
+					for (auto [c_idx, p_s_info, c_info] : iota(0ul, p_w_info->struct_count)
+															  | filter([p_e_info](const auto idx) { return ((p_e_info->archetype >> idx) & 1ul) != 0; })
+															  | transform([w_idx, e_idx, p_w_info](auto idx) { return std::make_tuple(idx, _get_struct_info(p_w_info->struct_idx_vec[idx]), _get_component_info(w_idx, e_idx, idx)); }))
+					{
+						// todo c_info.p_value is invalid
+						auto c_node = components_node.append_child("component");
+						c_node.append_attribute("name").set_value(p_s_info->name);
+
+						auto fields_node = c_node.append_child("fields");
+
+						for (const auto* p_f_info : iota(p_s_info->fields) | take(p_s_info->field_count))
+						{
+							auto f_node = fields_node.append_child("field");
+							f_node.append_attribute("value").set_value(editor::models::reflection::utils::deserialize(p_f_info->type, (uint8*)c_info.p_value + p_f_info->offset).c_str());
+						}
+						// auto c_id		   = component::add(e_id, p_world->structs[world_s_idx], c_info.p_value);
+					}
+				}
+			}
+		}
+
+		doc.save_file(game::get_pproject()->project_file_path.c_str());
+
+		return init_from_project_data(game::get_pproject()->project_file_path);
 	}
-}	 // namespace editor::game::ecs
-
-namespace editor::game::ecs
-{
-	using namespace editor::models;
-	using namespace std::views;
 
 	bool init_from_project_data(std::string& project_file_path)
 	{
@@ -584,6 +577,12 @@ namespace editor::game::ecs
 		}
 		return true;
 	}
+}	 // namespace editor::game::ecs
+
+namespace editor::game::ecs
+{
+	using namespace editor::models;
+	using namespace std::views;
 
 	void clear_models()
 	{
@@ -605,6 +604,7 @@ namespace editor::game::ecs
 		struct_info_vec.clear();
 		scene_hole_begin_idx = -1;
 		scene_hole_count	 = 0;
+		scene_count			 = 0;
 		scenes				 = nullptr;
 	}
 

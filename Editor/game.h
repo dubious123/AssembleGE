@@ -27,16 +27,20 @@ namespace editor::game
 		std::string name;
 		std::string description;
 		std::string last_opened_date;
-		bool		is_ready = false;
+		bool		is_opened = false;
+		bool		is_loaded = false;
 
 		pugi::xml_document project_data_xml;
 	};
 
 	void init();
 
+	bool load_dll();
+
+	bool unload_dll();
+
 	void deinit();
 
-	bool project_opened();
 
 	void on_project_loaded();
 

@@ -1,2 +1,5 @@
-[2025-02-12 12:40:26.720] [Editor Logger] [info] Hi
-[2025-02-12 12:40:27.823] [Editor Logger] [info] Open Completed
+[2025-02-16 15:22:01.448] [Editor Logger] [info] Hi
+[2025-02-16 15:22:02.189] [Editor Logger] [info] Open Completed
+[2025-02-16 15:22:07.639] [Editor Logger] [error] project dll is not loaded
+[2025-02-16 15:22:34.553] [Editor Logger] [info] Select 0x00000000000002
+[2025-02-16 15:22:36.211] [Editor Logger] [info] Select 0x500000000000002

@@ -704,6 +704,16 @@ void editor::platform::close()
 	::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 }
 
+namespace
+{
+	std::vector<std::function<void()>> _on_wm_activated_vec;
+}
+
+void editor::platform::add_on_wm_activate(std::function<void()> func)
+{
+	_on_wm_activated_vec.emplace_back(func);
+}
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #ifndef GET_X_PARAM
@@ -750,9 +760,19 @@ LRESULT WINAPI editor::platform::wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LP
 	{
 	case WM_SIZE:
 	{
-
 		editor::platform::wm_size(lParam, wParam);
 		return 0;
+	}
+	case WM_ACTIVATE:
+	{
+		if (LOWORD(wParam) == WA_INACTIVE)
+		{
+			break;
+		}
+
+		std::ranges::for_each(_on_wm_activated_vec, [](auto func) { func(); });
+
+		break;
 	}
 	case WM_SYSCOMMAND:
 	{

@@ -55,6 +55,8 @@ namespace editor::platform
 {
 	HWND init(LRESULT(WndProc)(HWND, UINT, WPARAM, LPARAM));
 
+	void add_on_wm_activate(std::function<void()>);
+
 	void			   close();
 	bool			   CreateDeviceD3D(HWND hwnd);
 	void			   CleanupDeviceD3D();
