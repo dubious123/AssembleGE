@@ -14,10 +14,11 @@
 
 struct __declspec(uuid("CE374261-7F7E-4FB8-AF6B-7C33B8F06D9C")) IVSEnvDTE : public IUnknown
 {
-	virtual HRESULT __stdcall open_vs(BSTR sln_path)		  = 0;
-	virtual HRESULT __stdcall monitor_vs_opened(void* p_bool) = 0;
-	virtual HRESULT __stdcall build_if_needed()				  = 0;
-	virtual HRESULT __stdcall up_to_date(void* p_bool)		  = 0;
+	virtual HRESULT __stdcall open_vs(BSTR sln_path)							 = 0;
+	virtual HRESULT __stdcall monitor_vs_opened(void* p_bool)					 = 0;
+	virtual HRESULT __stdcall build_if_needed()									 = 0;
+	virtual HRESULT __stdcall up_to_date(void* p_bool)							 = 0;
+	virtual HRESULT __stdcall edit(BSTR begin_path, BSTR end_path, BSTR replace) = 0;
 };
 
 // constants
@@ -82,13 +83,16 @@ namespace
 					editor::logger::info("open visual studio failed with hresult : {}", _hresult);
 				}
 			});
+
+			editor::background::add(Background_Visual_Studio, []() {
+				_dte_wrapper->edit(CComBSTR("SCENE_BEGIN(untitled)@__WORLD_BEGIN(new_world@____ENTITY_BEGIN(new_entity_0"), CComBSTR("____ENTITY_END()"), CComBSTR(""));
+			});
 		}
 	};
 }	 // namespace
 
 namespace editor::game::code
 {
-
 	void init()
 	{
 		background::add_init(Background_Visual_Studio, []() {
@@ -127,6 +131,8 @@ namespace editor::game::code
 		auto res = editor::ctx_item::add_context_item("Main Menu\\Visual Studio\\Open", &_cmd_open_vs);
 		assert(res);
 	}
+
+	void edit_code();
 }	 // namespace editor::game::code
 
 bool visual_studio_open_file(const char* filename, unsigned int line)

@@ -18,6 +18,7 @@ public interface IVSEnvDTE
 	void monitor_vs_opened(IntPtr p_val);
 	void build_if_needed();
 	void up_to_date(IntPtr p_val);
+	void edit([MarshalAs(UnmanagedType.BStr)] string begin_path, [MarshalAs(UnmanagedType.BStr)] string end_path, [MarshalAs(UnmanagedType.BStr)] string replace);
 }
 
 // COM-visible class implementing the interface.
@@ -122,8 +123,6 @@ public class VSEnvDTE : IVSEnvDTE
 			_dte2.MainWindow.Activate();
 			_dte2.MainWindow.SetFocus();
 
-			var hwnd = _dte2.MainWindow.HWnd;
-
 			_dte2.Events.SolutionEvents.AfterClosing += on_vs_closing;
 
 			foreach (ProjectItem p_item in _dte2.Solution.Projects.Item(1).ProjectItems)
@@ -140,7 +139,7 @@ public class VSEnvDTE : IVSEnvDTE
 				throw new Exception("cannot find components.h");
 			}
 
-			_dte2.Events.DocumentEvents[null].DocumentSaved += (d) => { };
+			_pitem_components_h.Save();
 
 			var proj = _dte2.Solution.Projects.Item(1);
 			var vcproj = proj.Object;// as VCProject;
@@ -194,6 +193,52 @@ public class VSEnvDTE : IVSEnvDTE
 		{
 			Marshal.WriteByte(p_val, _vc_config.UpToDate ? (byte)1 : (byte)0);
 		}
+	}
+
+	public void edit([MarshalAs(UnmanagedType.BStr)] string begin_path, [MarshalAs(UnmanagedType.BStr)] string end_path, [MarshalAs(UnmanagedType.BStr)] string replace)
+	{
+		var text_doc = _pitem_components_h.Document.Object("TextDocument") as TextDocument;
+		var temp = text_doc.StartPoint.CreateEditPoint().GetText(text_doc.EndPoint);
+		var full_text = temp.AsSpan();
+		var text_selection = text_doc.Selection;
+		var path_splitted = begin_path.Split('@');
+
+		var begin_idx = 0;
+		var end_idx = 0;
+		foreach (var sub_path in path_splitted)
+		{
+			var sub = full_text.Slice(begin_idx);
+
+			var sub_offset = sub.IndexOf(sub_path);
+
+			begin_idx += sub.IndexOf(sub_path);
+		}
+
+		end_idx = full_text.Slice(begin_idx).IndexOf(end_path) + begin_idx;
+
+		foreach (var c in full_text.Slice(0, begin_idx))
+		{
+			if (c == '\r')
+			{
+				begin_idx--;
+				end_idx--;
+			}
+		}
+
+		foreach (var c in full_text.Slice(begin_idx, end_idx - begin_idx))
+		{
+			if (c == '\r')
+			{
+				end_idx--;
+			}
+		}
+
+		text_selection.MoveToAbsoluteOffset(begin_idx + 1, false);
+		text_selection.StartOfLine(vsStartOfLineOptions.vsStartOfLineOptionsFirstColumn);
+		text_selection.MoveToAbsoluteOffset(end_idx + 1 + end_path.Length, true);
+		//text_selection.EndOfLine(true);
+		text_selection.Text = replace;
+		//_pitem_components_h.Save();
 	}
 
 	private void on_vs_closing()
