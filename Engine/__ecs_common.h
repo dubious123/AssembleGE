@@ -128,6 +128,11 @@ namespace ecs
 		// MEMORY_BLOCK_SIZE - header_size - (sizeof(entity_id) + size_per_archetype) * capacity
 		//
 
+		// c_idx => not world component idx.
+		// world : component A B C
+		// entity : component A C
+		// c_idx of C = 1, c_idx of A = 0, component_count = 2
+
 		uint16 get_count() const
 		{
 			return *(uint16*)_memory;

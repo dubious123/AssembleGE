@@ -128,6 +128,8 @@ namespace editor::game::code
 	bool visual_studio_open_file(const char* filename, unsigned int line);
 	void deinit();
 	void on_project_loaded();
+	void on_project_unloaded();
+	void edit(const std::string begin_path, const std::string end_path, const std::string replace, bool repeat = false, const std::string search_end = "/*FILE END*/");
 }	 // namespace editor::game::code
 
 namespace editor::view::project_browser

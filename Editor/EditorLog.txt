@@ -1,2 +1,8 @@
-[2025-02-20 01:48:44.752] [Editor Logger] [info] Hi
-[2025-02-20 01:48:45.401] [Editor Logger] [info] Open Completed
+[2025-02-26 17:12:20.321] [Editor Logger] [info] Hi
+[2025-02-26 17:12:21.035] [Editor Logger] [info] Open Completed
+[2025-02-26 17:12:21.920] [Editor Logger] [info] dte init true
+[2025-02-26 17:12:24.952] [Editor Logger] [info] Project save completed
+[2025-02-26 17:12:32.804] [Editor Logger] [info] Select 0x00000000000002
+[2025-02-26 17:12:33.884] [Editor Logger] [info] Select 0x500000000000003
+[2025-02-26 17:12:34.799] [Editor Logger] [info] edit scalar
+[2025-02-26 17:12:35.254] [Editor Logger] [info] Project save completed

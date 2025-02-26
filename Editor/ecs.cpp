@@ -240,7 +240,8 @@ namespace
 				for (const auto nth_bit : std::views::iota(0, std::bit_width(archetype)) | std::views::filter([archetype](auto nth_bit) { return (archetype >> nth_bit) & 1; }))
 				{
 					auto* p_s_info = &struct_info_vec[ecs_struct_idx_vec[nth_bit]];
-					memcpy(p_block->get_component_ptr(m_idx, nth_bit), p_s_info->p_default_value, p_s_info->size);
+					auto  c_idx	   = std::popcount(((1 << nth_bit) - 1) & archetype);
+					memcpy(p_block->get_component_ptr(m_idx, c_idx), p_s_info->p_default_value, p_s_info->size);
 				}
 
 				p_block->write_count(m_idx + 1);
@@ -479,9 +480,13 @@ namespace editor::game::ecs
 
 					auto components_node = e_node.append_child("components");
 
-					for (auto [c_idx, p_s_info, c_info] : iota(0ul, p_w_info->struct_count)
+					for (auto [c_idx, p_s_info, c_info] : iota(0ul)
+															  | take(p_w_info->struct_count)
 															  | filter([p_e_info](const auto idx) { return ((p_e_info->archetype >> idx) & 1ul) != 0; })
-															  | transform([w_idx, e_idx, p_w_info](auto idx) { return std::make_tuple(idx, _get_struct_info(p_w_info->struct_idx_vec[idx]), _get_component_info(w_idx, e_idx, idx)); }))
+															  | transform([w_idx, e_idx, p_w_info, p_e_info](auto idx) { return std::make_tuple(
+																															 idx,
+																															 _get_struct_info(p_w_info->struct_idx_vec[idx]),
+																															 _get_component_info(w_idx, e_idx, std::popcount(((1 << idx) - 1) & p_e_info->archetype))); }))
 					{
 						// todo c_info.p_value is invalid
 						auto c_node = components_node.append_child("component");
@@ -500,7 +505,8 @@ namespace editor::game::ecs
 			}
 		}
 
-		doc.save_file(game::get_pproject()->project_file_path.c_str());
+		game::get_pproject()->project_data_xml = std::move(doc);
+		game::get_pproject()->project_data_xml.save_file(game::get_pproject()->project_file_path.c_str());
 
 		return init_from_project_data(game::get_pproject()->project_file_path);
 	}

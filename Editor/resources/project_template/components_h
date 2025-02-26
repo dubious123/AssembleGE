@@ -1,11 +1,17 @@
 #pragma once
 #include "__components.h"
 
+// generated from editor, DO NOT EDIT
+
+/*COMPONENTS*/
+
 COMPONENT_BEGIN(transform)
 __SERIALIZE_FIELD(float3, position, 0, 0, 0)
 __SERIALIZE_FIELD(float3, scale, 1, 1, 1)
 __SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
 COMPNENT_END()
+
+/*SCENES*/
 
 SCENE_BEGIN(scene_0)
 __WORLD_BEGIN(world_0, transform)
@@ -14,3 +20,5 @@ ______SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ____ENTITY_END()
 __WORLD_END()
 SCENE_END()
+
+/*FILE END*/

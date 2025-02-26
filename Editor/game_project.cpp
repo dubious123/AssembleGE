@@ -719,6 +719,9 @@ namespace editor::game
 		editor::ctx_item::add_context_item("Main Menu\\File\\Save", &_cmd_save);
 		editor::ctx_item::add_context_item("Main Menu\\File\\Build", &_cmd_build_load);
 
+		_current_project.is_opened = true;
+		_current_project.is_loaded = true;
+
 		game::code::on_project_loaded();
 	}
 
@@ -726,6 +729,9 @@ namespace editor::game
 	{
 		editor::game::ecs::clear_models();
 		id::delete_id(_current_project.id);
+		game::code::on_project_unloaded();
+		_current_project.is_opened = false;
+		_current_project.is_loaded = false;
 	}
 
 	game_project* get_pproject()

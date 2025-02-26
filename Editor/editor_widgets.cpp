@@ -1303,6 +1303,11 @@ namespace
 					  }
 				  },
 				  (void*)(uint64*)_backup_map[item_id] });
+
+			if (callback)
+			{
+				callback();
+			}
 			_backup_map.erase(item_id);
 		}
 

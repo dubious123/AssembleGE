@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 
@@ -14,11 +15,18 @@ namespace VSEnvDTELib;
 public interface IVSEnvDTE
 {
 	//int Init();
-	void open_vs([MarshalAs(UnmanagedType.BStr)] string sln_path);
+	void init([MarshalAs(UnmanagedType.BStr)] string sln_path);
+	void open_vs();
 	void monitor_vs_opened(IntPtr p_val);
 	void build_if_needed();
 	void up_to_date(IntPtr p_val);
-	void edit([MarshalAs(UnmanagedType.BStr)] string begin_path, [MarshalAs(UnmanagedType.BStr)] string end_path, [MarshalAs(UnmanagedType.BStr)] string replace);
+	void edit(
+		[MarshalAs(UnmanagedType.BStr)] string begin_path,
+		[MarshalAs(UnmanagedType.BStr)] string end_path,
+		[MarshalAs(UnmanagedType.BStr)] string replace,
+		[MarshalAs(UnmanagedType.BStr)] string search_end,
+		[MarshalAs(UnmanagedType.I1)] bool repeat);
+	void deinit();
 }
 
 // COM-visible class implementing the interface.
@@ -28,13 +36,15 @@ public interface IVSEnvDTE
 [ProgId("VSEnvDTELib.VSEnvDTE")]
 public class VSEnvDTE : IVSEnvDTE
 {
+	private static readonly string _prog_id = "VisualStudio.DTE";//   .16.0";
+	private static readonly string _log_path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "c_sharp_log.txt";
+
 	private EnvDTE80.DTE2 _dte2 = null;
+	private string _sln_path = null;
 	private ProjectItem _pitem_components_h = null;
 	private dynamic _vc_config = null;
-	private static readonly string _prog_id = "VisualStudio.DTE";//   .16.0";
 	private IntPtr _p_vs_opened = IntPtr.Zero;
 
-	private string _log_path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "c_sharp_log.txt";
 
 	//public int Init()
 	//{
@@ -54,7 +64,7 @@ public class VSEnvDTE : IVSEnvDTE
 		//new COMException(String.Format(err_msg, hresult));
 	}
 
-	public void open_vs([MarshalAs(UnmanagedType.BStr)] string sln_path)
+	public void init([MarshalAs(UnmanagedType.BStr)] string sln_path)
 	{
 		IRunningObjectTable rot = null;
 		IEnumMoniker enum_moniker = null;
@@ -62,6 +72,7 @@ public class VSEnvDTE : IVSEnvDTE
 
 		try
 		{
+			_sln_path = sln_path;
 			var dte2_t = Type.GetTypeFromProgID(_prog_id, true);
 			if (dte2_t is null)
 			{
@@ -112,16 +123,10 @@ public class VSEnvDTE : IVSEnvDTE
 				throw new COMException();
 			}
 
-			File.WriteAllText(_log_path, "========================\n");
-			if (_dte2.Solution.IsOpen is false)
-			{
-				File.AppendAllText(_log_path, String.Format("sln path : ", sln_path, "\n"));
-				_dte2.Solution.Open(sln_path);
-			}
-
-			_dte2.UserControl = true;
-			_dte2.MainWindow.Activate();
-			_dte2.MainWindow.SetFocus();
+			//if (_dte2.Solution.IsOpen is false)
+			//{
+			//	_dte2.Solution.Open(sln_path);
+			//}
 
 			_dte2.Events.SolutionEvents.AfterClosing += on_vs_closing;
 
@@ -139,7 +144,6 @@ public class VSEnvDTE : IVSEnvDTE
 				throw new Exception("cannot find components.h");
 			}
 
-			_pitem_components_h.Save();
 
 			var proj = _dte2.Solution.Projects.Item(1);
 			var vcproj = proj.Object;// as VCProject;
@@ -150,8 +154,6 @@ public class VSEnvDTE : IVSEnvDTE
 			{
 				throw new Exception("cannot find _vc_config");
 			}
-
-			File.AppendAllText(_log_path, "successed");
 		}
 		catch (Exception ex)
 		{
@@ -163,6 +165,18 @@ public class VSEnvDTE : IVSEnvDTE
 			if (enum_moniker is not null) Marshal.ReleaseComObject(enum_moniker);
 			if (dte2_mk is not null) Marshal.ReleaseComObject(dte2_mk);
 		}
+	}
+
+	public void open_vs()
+	{
+		_dte2.UserControl = true;
+
+		if (_dte2.Solution.IsOpen is false)
+		{
+			_dte2.Solution.Open(_sln_path);
+		}
+		_dte2.MainWindow.Activate();
+		_dte2.MainWindow.SetFocus();
 	}
 
 	public void monitor_vs_opened(IntPtr p_val)
@@ -195,7 +209,12 @@ public class VSEnvDTE : IVSEnvDTE
 		}
 	}
 
-	public void edit([MarshalAs(UnmanagedType.BStr)] string begin_path, [MarshalAs(UnmanagedType.BStr)] string end_path, [MarshalAs(UnmanagedType.BStr)] string replace)
+	public void edit(
+		[MarshalAs(UnmanagedType.BStr)] string begin_path,
+		[MarshalAs(UnmanagedType.BStr)] string end_path,
+		[MarshalAs(UnmanagedType.BStr)] string replace,
+		[MarshalAs(UnmanagedType.BStr)] string search_end,
+		[MarshalAs(UnmanagedType.I1)] bool repeat)
 	{
 		var text_doc = _pitem_components_h.Document.Object("TextDocument") as TextDocument;
 		var temp = text_doc.StartPoint.CreateEditPoint().GetText(text_doc.EndPoint);
@@ -205,40 +224,103 @@ public class VSEnvDTE : IVSEnvDTE
 
 		var begin_idx = 0;
 		var end_idx = 0;
-		foreach (var sub_path in path_splitted)
+
+		foreach (var sub_path in path_splitted.Take(path_splitted.Length - 1))
 		{
 			var sub = full_text.Slice(begin_idx);
+			var idx = sub.IndexOf(sub_path);
 
-			var sub_offset = sub.IndexOf(sub_path);
-
-			begin_idx += sub.IndexOf(sub_path);
-		}
-
-		end_idx = full_text.Slice(begin_idx).IndexOf(end_path) + begin_idx;
-
-		foreach (var c in full_text.Slice(0, begin_idx))
-		{
-			if (c == '\r')
+			if (idx == -1)
 			{
-				begin_idx--;
-				end_idx--;
+				return;
 			}
-		}
 
-		foreach (var c in full_text.Slice(begin_idx, end_idx - begin_idx))
+			begin_idx += idx;
+		}
+		var search_end_idx = begin_idx + full_text.Slice(begin_idx).IndexOf(search_end);
+
+		if (search_end_idx == begin_idx - 1)
 		{
-			if (c == '\r')
-			{
-				end_idx--;
-			}
+			return;
 		}
 
-		text_selection.MoveToAbsoluteOffset(begin_idx + 1, false);
-		text_selection.StartOfLine(vsStartOfLineOptions.vsStartOfLineOptionsFirstColumn);
-		text_selection.MoveToAbsoluteOffset(end_idx + 1 + end_path.Length, true);
-		//text_selection.EndOfLine(true);
-		text_selection.Text = replace;
+		full_text = full_text.Slice(0, search_end_idx);
+
+		var abs_offset = 1;
+		var replace_length = replace.Length - replace.Count(c => c == '\r');
+		do
+		{
+			var begin_offset = 0;
+			var end_offset = 0;
+
+			{
+				var sub = full_text.Slice(begin_idx);
+				var idx = sub.IndexOf(path_splitted.LastOrDefault());
+
+				if (idx == -1)
+				{
+					return;
+				}
+
+				begin_idx += idx;
+			}
+
+			{
+				var idx = full_text.Slice(begin_idx).IndexOf(end_path);
+
+				if (idx == -1)
+				{
+					break;
+				}
+
+				end_idx = begin_idx + idx + end_path.Length;
+			}
+
+			foreach (var c in full_text.Slice(0, begin_idx))
+			{
+				if (c == '\r')
+				{
+					++begin_offset;
+				}
+			}
+
+			foreach (var c in full_text.Slice(begin_idx, end_idx - begin_idx))
+			{
+				if (c == '\r')
+				{
+					++end_offset;
+				}
+			}
+
+			end_offset += begin_offset;
+
+			text_selection.MoveToAbsoluteOffset(begin_idx - begin_offset + abs_offset, false);
+			//text_selection.StartOfLine(vsStartOfLineOptions.vsStartOfLineOptionsFirstColumn);
+			text_selection.MoveToAbsoluteOffset(end_idx - end_offset + abs_offset, true);
+			//text_selection.EndOfLine(true);
+			text_selection.Text = replace;
+
+			var abs_begin = begin_idx - begin_offset + abs_offset;
+			var abs_end = end_idx - end_offset + abs_offset;
+			var remove_length = abs_end - abs_begin + 1;
+
+			abs_offset += -remove_length + replace_length;
+			begin_idx = end_idx;
+		} while (repeat);
+
 		//_pitem_components_h.Save();
+		//_dte2.ExecuteCommand("File.SaveAll");
+	}
+
+	public void deinit()
+	{
+		_dte2.Events.SolutionEvents.AfterClosing -= on_vs_closing;
+
+		_dte2 = null;
+		_sln_path = null;
+		_pitem_components_h = null;
+		_vc_config = null;
+		_p_vs_opened = IntPtr.Zero;
 	}
 
 	private void on_vs_closing()
@@ -247,15 +329,5 @@ public class VSEnvDTE : IVSEnvDTE
 		{
 			Marshal.WriteByte(_p_vs_opened, 0);
 		}
-
-		deinit();
-	}
-
-	private void deinit()
-	{
-
-		_dte2.Events.SolutionEvents.AfterClosing -= on_vs_closing;
-		_dte2 = null;
-		_pitem_components_h = null;
 	}
 }

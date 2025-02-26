@@ -184,7 +184,8 @@ namespace ecs
 	class world : public world_base
 	{
 	  private:
-		using component_tpl = tuple_sort<component_comparator, std::tuple<c...>>::type;
+		// using component_tpl = tuple_sort<component_comparator, std::tuple<c...>>::type;
+		using component_tpl = std::tuple<c...>;
 		using world_t		= world<c...>;
 
 		template <typename... t>
