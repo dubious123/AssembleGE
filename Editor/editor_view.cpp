@@ -408,22 +408,22 @@ namespace editor::view::reflection
 
 		if (widgets::begin("Reflection", &_open))
 		{
-			std::ranges::for_each(models::reflection::all_structs(), [](em_struct* p_s) {
+			for (auto* p_s : models::reflection::all_structs())
+			{
 				if (widgets::tree_node(p_s->name.c_str()))
 				{
-					std::ranges::for_each(models::reflection::all_fields(p_s->id), [=](em_field* p_f) {
+					for (auto* p_f : models::reflection::all_fields(p_s->id))
+					{
 						auto selected = false;
 						widgets::tree_node(std::format("{} ({}) : ( {} )",
 													   p_f->name,
 													   models::reflection::utils::type_to_string(p_f->type),
 													   models::reflection::utils::deserialize(p_f->type, game::ecs::get_field_pvalue(p_s->ecs_idx, p_f->ecs_idx))),
 										   ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
-					});
-
-
+					}
 					widgets::tree_pop();
 				}
-			});
+			}
 		}
 
 		widgets::end();
@@ -472,6 +472,66 @@ namespace editor::view::world_editor
 		widgets::end();
 	}
 }	 // namespace editor::view::world_editor
+
+namespace editor::view::systems
+{
+	using namespace editor::models;
+
+	auto _open = true;
+
+	const auto cmd_open = editor_command {
+		"Open systems Window",
+		ImGuiKey_None,
+		[](editor_id _) {
+			return true;
+		},
+		[](editor_id _) {
+			_open ^= true;
+		}
+	};
+
+	void show()
+	{
+		if (_open is_false) return;
+
+		if (widgets::begin("Systems", &_open) is_false)
+		{
+			widgets::end();
+			return;
+		}
+
+		for (auto* p_sys : system::all())
+		{
+			if (widgets::tree_node(p_sys->name) is_false)
+			{
+				continue;
+			}
+
+			for (auto& [func_name, arg_type] : p_sys->interfaces)
+			{
+				auto arg_str = arg_type;
+				if (func_name == "update")
+				{
+					arg_str = std::accumulate(
+						p_sys->update_params.begin(),
+						p_sys->update_params.end(),
+						arg_type,
+						[](std::string arg_str, editor_id struct_id) {
+							return std::format("{}, {}", arg_str, editor::models::reflection::find_struct(struct_id)->name);
+						});
+				}
+
+				widgets::tree_node(
+					std::format("{}({})", func_name, arg_str),
+					ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+			}
+
+			widgets::tree_pop();
+		}
+
+		widgets::end();
+	}
+}	 // namespace editor::view::systems
 
 namespace editor::view
 {
@@ -582,6 +642,7 @@ namespace editor::view
 		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Inspector", &inspector::cmd_open);
 		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Reflection", &reflection::cmd_open);
 		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\World_Editor", &editor::view::world_editor::cmd_open);
+		res		 &= editor::ctx_item::add_context_item("Main Menu\\Window\\Systems", &editor::view::systems::cmd_open);
 		assert(res);
 		logger::on_project_loaded();
 	}
@@ -611,6 +672,7 @@ namespace editor::view
 			inspector::show();
 			reflection::show();
 			world_editor::show();
+			systems::show();
 			ctx_popup::show();
 		}
 

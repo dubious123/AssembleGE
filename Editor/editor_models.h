@@ -82,8 +82,9 @@ namespace editor::models
 
 	struct em_system
 	{
-		editor_id	world_id;
-		std::string name;
+		std::string										  name;
+		std::vector<std::tuple<std::string, std::string>> interfaces;
+		std::vector<editor_id>							  update_params;
 	};
 
 	namespace reflection
@@ -186,6 +187,19 @@ namespace editor::models
 
 		void* get_memory(editor_id id);
 	}	 // namespace component
+
+	namespace system
+	{
+		em_system*				find(editor_id id);
+		editor_id				create();
+		editor_id				create(std::string name);
+		void					remove(editor_id component_id);
+		void					restore(const em_component& em_c);
+		void					add_interface(editor_id sys_id, std::string func_name, std::string arg_type);
+		void					add_update_param(editor_id sys_id, editor_id struct_id);
+		std::vector<em_system*> all();
+		size_t					count();
+	}	 // namespace system
 
 	namespace text
 	{

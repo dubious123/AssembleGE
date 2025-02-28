@@ -1535,6 +1535,63 @@ namespace editor::models
 		// namespace
 	}	 // namespace component
 
+	namespace system
+	{
+		namespace
+		{
+			std::unordered_map<editor_id, em_system, editor_id::hash_func> _systems;
+		}
+
+		em_system* find(editor_id s_id)
+		{
+			if (_systems.contains(s_id))
+			{
+				return &_systems[s_id];
+			}
+
+			return nullptr;
+		}
+
+		editor_id create()
+		{
+			return create(_new_name("new_system", system::all()));
+		}
+
+		editor_id create(std::string name)
+		{
+			auto s_id			= editor::id::get_new(DataType_System);
+			_systems[s_id].name = name;
+			return s_id;
+		}
+
+		void add_interface(editor_id sys_id, std::string func_name, std::string arg_type)
+		{
+			auto* p_sys = system::find(sys_id);
+			p_sys->interfaces.emplace_back(func_name, arg_type);
+		}
+
+		void add_update_param(editor_id sys_id, editor_id struct_id)
+		{
+			auto* p_sys = system::find(sys_id);
+			p_sys->update_params.emplace_back(struct_id);
+		}
+
+		std::vector<em_system*> all()
+		{
+			return _systems
+				 | std::views::values
+				 | std::views::transform([](auto& val) { return &val; })
+				 | std::ranges::to<std::vector>();
+		}
+
+		size_t count()
+		{
+			return _systems.size();
+		}
+
+
+	}	 // namespace system
+
 	namespace text
 	{
 		namespace

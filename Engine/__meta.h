@@ -159,8 +159,15 @@ namespace meta
 		using type = head;
 	};
 
-	template <unsigned int idx, typename... tails>
-	using variadic_at_t = variadic_at<idx, tails...>::type;
+	// c++26 msvc! do your job!
+	// template <unsigned int idx, typename... args>
+	// struct variadic_at
+	//{
+	//	using type = args...[idx];
+	// };
+
+	template <unsigned int idx, typename... args>
+	using variadic_at_t = variadic_at<idx, args...>::type;
 
 	template <unsigned int idx, auto head, auto... tails>
 	struct variadic_auto_at
@@ -180,11 +187,88 @@ namespace meta
 	template <std::size_t idx, auto func>
 	struct param_at;
 
+	template <std::size_t i, typename ret, typename... args, ret(func)(args...)>
+	struct param_at<i, func>
+	{
+		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	};
+
 	template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
 	struct param_at<i, func>
 	{
 		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
 	};
+
+	template <std::size_t i, typename ret, typename c, typename... args, ret (c::*func)(args...)>
+	struct param_at<i, func>
+	{
+		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	};
+
+	template <std::size_t i, typename ret, typename c, typename... args, ret (c::*func)(args...) const>
+	struct param_at<i, func>
+	{
+		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	};
+
+	template <auto func>
+	struct function_traits;
+
+	// Specialization for global or static function.
+	template <typename ret, typename... args, ret(func)(args...)>
+	struct function_traits<func>
+	{
+		using return_type				   = ret;
+		using argument_types			   = std::tuple<args...>;
+		static constexpr std::size_t arity = sizeof...(args);
+
+		template <std::size_t i>
+		using param_at = variadic_at_t<i, args...>;
+	};
+
+	// Specialization for function pointers.
+	template <typename ret, typename... args, ret (*func)(args...)>
+	struct function_traits<func>
+	{
+		using return_type				   = ret;
+		using argument_types			   = std::tuple<args...>;
+		static constexpr std::size_t arity = sizeof...(args);
+
+		template <std::size_t i>
+		using param_at = variadic_at_t<i, args...>;
+	};
+
+	// Specialization for non-const member function pointers.
+	template <typename ret, typename c, typename... args, ret (c::*func)(args...)>
+	struct function_traits<func>
+	{
+		using return_type				   = ret;
+		using class_type				   = c;
+		using argument_types			   = std::tuple<args...>;
+		static constexpr std::size_t arity = sizeof...(args);
+
+		template <std::size_t i>
+		using param_at = variadic_at_t<i, args...>;
+	};
+
+	// Specialization for const member function pointers.
+	template <typename ret, typename c, typename... args, ret (c::*Func)(args...) const>
+	struct function_traits<Func>
+	{
+		using return_type				   = ret;
+		using class_type				   = c;
+		using argument_types			   = std::tuple<args...>;
+		static constexpr std::size_t arity = sizeof...(args);
+
+		template <std::size_t i>
+		using param_at = variadic_at_t<i, args...>;
+	};
+
+	// template <std::size_t i, typename ret, typename c, typename... args>
+	// struct param_at<i, ret(c::*)(args...)>
+	//{
+	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	// };
 
 	// template <std::size_t i, typename ret, typename... args, ret (*func)(args..., ...)>
 	// struct param_at<i, func>

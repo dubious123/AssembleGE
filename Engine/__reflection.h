@@ -77,6 +77,27 @@ __VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 	}               \
 	();
 
+#define SYS_BEGIN(system_name)                                     \
+	struct system_name                                             \
+	{                                                              \
+	  private:                                                     \
+		typedef system_name		  __detail_self;                   \
+		static inline const char* __detail__sys_name = []() { reflection::register_system_begin(#system_name); return #system_name; }(); \
+                                                                   \
+	  public:                                                      \
+		system_name(const system_name& other)			 = delete; \
+		system_name& operator=(const system_name& other) = delete; \
+		system_name(system_name&& other)				 = delete; \
+		system_name& operator=(system_name&& other)		 = delete;
+
+#define SYS_END()                                          \
+  private:                                                 \
+	static inline bool __detail_register_sys = []() { \
+reflection::register_system<__detail_self>(); \
+return true; }(); \
+	}                                                      \
+	;
+
 template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::* Field>
 static size_t field_offset()
 {
@@ -147,6 +168,14 @@ namespace reflection
 		ecs::archetype_t archetype;
 	};
 
+	struct system_info
+	{
+		const char* name;
+		int32		interfaces[8]		  = { 0 };
+		uint32		update_argument_count = 0;
+		uint64*		p_arguments			  = nullptr;
+	};
+
 	void register_struct(const char* name, uint64 hash_id, void* p_value);
 
 	void register_field(const char* struct_name, e_primitive_type type, const char* name, size_t offset);
@@ -159,16 +188,151 @@ namespace reflection
 
 	void register_entity(const char* name, ecs::entity_idx idx, const ecs::world_base& w);
 
+	void register_system_begin(const char* name);
+
+	void register_system_function(int type, int param_type);
+
+	void register_system_update(uint32 count, uint64* (*alloc_func)());
+
+	template <typename... args>
+	void register_system_update()
+	{
+		register_system_update(
+			sizeof...(args),
+			[]() {
+				// no need to free
+				auto* p_res = (uint64*)malloc(sizeof(uint64) * (sizeof...(args)));
+				auto  idx	= 0;
+				([&idx, p_res]() {
+					p_res[idx] = std::remove_cvref_t<args>::id;
+					++idx;
+				}(),
+				 ...);
+
+
+				return p_res;
+			});
+	}
+
+	template <typename c, typename... args>
+	void register_update_function(void (c::*func)(args...))
+	{
+		register_system_function(2, 0);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename world_t, typename... args>
+	void register_update_function(void (c::*func)(world_t, args...))
+	{
+		register_system_function(2, 1);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename... args>
+	void register_update_function(void (c::*func)(ecs::entity_idx, args...))
+	{
+		register_system_function(2, 2);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename world_t, typename... args>
+	void register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...))
+	{
+		register_system_function(2, 3);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename... args>
+	void register_update_function(void (c::*func)(args...) const)
+	{
+		register_system_function(2, 0);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename world_t, typename... args>
+	void register_update_function(void (c::*func)(world_t, args...) const)
+	{
+		register_system_function(2, 1);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename... args>
+	void register_update_function(void (c::*func)(ecs::entity_idx, args...) const)
+	{
+		register_system_function(2, 2);
+		register_system_update<args...>();
+	}
+
+	template <typename c, typename world_t, typename... args>
+	void register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...) const)
+	{
+		register_system_function(2, 3);
+		register_system_update<args...>();
+	}
+
+	template <typename system_t>
+	void register_system()
+	{
+		using namespace ecs;
+		using world_t = world_base;
+		if constexpr (has_on_system_begin<system_t>)
+		{
+			register_system_function(0, 0);
+		}
+		else if constexpr (has_on_system_begin_w<system_t, world_t>)
+		{
+			register_system_function(0, 1);
+		}
+
+		if constexpr (has_on_thread_begin<system_t>)
+		{
+			register_system_function(1, 0);
+		}
+		else if constexpr (has_on_thread_begin_w<system_t, world_t>)
+		{
+			register_system_function(1, 1);
+		}
+
+		if constexpr (has_update<system_t>)
+		{
+			register_update_function(&system_t::update);
+		}
+		else if constexpr (has_update_w<system_t, world_t>)
+		{
+			register_update_function(&system_t::template update<world_t>);
+		}
+
+		if constexpr (has_on_thread_end<system_t>)
+		{
+			register_system_function(3, 0);
+		}
+		else if constexpr (has_on_thread_end_w<system_t, world_t>)
+		{
+			register_system_function(3, 1);
+		}
+
+		if constexpr (has_on_system_end<system_t>)
+		{
+			register_system_function(4, 0);
+		}
+		else if constexpr (has_on_system_end_w<system_t, world_t>)
+		{
+			register_system_function(4, 1);
+		}
+	};
+
 	EDITOR_API size_t get_registered_struct_count();
 	EDITOR_API size_t get_registered_scene_count();
 	EDITOR_API size_t get_registered_world_count();
 	EDITOR_API size_t get_registered_entity_count(size_t world_idx);
+	EDITOR_API size_t get_registered_system_count();
 
 	EDITOR_API struct_info*	  get_struct_info(uint64 component_id);
 	EDITOR_API scene_info*	  get_scene_info(size_t index);
 	EDITOR_API world_info*	  get_world_info(size_t index);
 	EDITOR_API component_info get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx);
 	EDITOR_API entity_info*	  get_entity_info(size_t world_idx, size_t entity_idx);
+	EDITOR_API system_info*	  get_system_info(size_t system_idx);
 }	 // namespace reflection
 
 namespace reflection

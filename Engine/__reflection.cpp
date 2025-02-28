@@ -40,6 +40,12 @@ namespace reflection
 			static data_structure::vector<data_structure::vector<entity_info>> _vec;
 			return _vec;
 		}
+
+		data_structure::vector<system_info>& _system_info_vec()
+		{
+			static data_structure::vector<system_info> _vec;
+			return _vec;
+		}
 	}	 // namespace
 
 	struct_info::struct_info(uint64 idx, uint64 hash_id, const char* name, void* p_value)
@@ -140,6 +146,24 @@ namespace reflection
 		// _world_base_vec().emplace_back(&(ecs::world_base&)w);
 	}
 
+	void register_system_begin(const char* system_name)
+	{
+		_system_info_vec().push_back({ system_name, {} });
+	}
+
+	void register_system_function(int type, int param_type)
+	{
+		// register_system("hello");
+		_system_info_vec().back().interfaces[type * 2]	   = 1;
+		_system_info_vec().back().interfaces[type * 2 + 1] = param_type;
+	}
+
+	void register_system_update(uint32 count, uint64* (*alloc_func)())
+	{
+		_system_info_vec().back().update_argument_count = count;
+		_system_info_vec().back().p_arguments			= alloc_func();
+	}
+
 	size_t get_registered_struct_count()
 	{
 		return _struct_info_vec().size();
@@ -158,6 +182,11 @@ namespace reflection
 	size_t get_registered_entity_count(size_t world_idx)
 	{
 		return _entity_info_vec()[world_idx].size();
+	}
+
+	size_t get_registered_system_count()
+	{
+		return _system_info_vec().size();
 	}
 
 	struct_info* get_struct_info(uint64 struct_idx)
@@ -191,5 +220,10 @@ namespace reflection
 	entity_info* get_entity_info(size_t world_idx, size_t entity_idx)
 	{
 		return &_entity_info_vec()[world_idx][entity_idx];
+	}
+
+	system_info* get_system_info(size_t system_idx)
+	{
+		return &_system_info_vec()[system_idx];
 	}
 }	 // namespace reflection

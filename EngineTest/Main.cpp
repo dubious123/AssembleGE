@@ -215,7 +215,45 @@ auto& world_3 = s_2.get_world<0>();
 template <typename world>
 concept ecs_world = std::derived_from<world, ecs::world_base>;
 
+
+SYS_BEGIN(sys_2)
+
+void on_system_begin(auto& world)
+{
+}
+
+void on_thread_begin(auto& world) { }
+
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+
+// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+
+void on_thread_end() { }
+
+void on_system_end(auto& world) { }
+
+SYS_END()
+
+// struct sys_2
+//{
+//   private:
+//	typedef sys_2 __detail_self;
+//
+//   public:
+//	sys_2(const sys_2& other)			 = delete;
+//	sys_2& operator=(const sys_2& other) = delete;
+//	sys_2(sys_2&& other)				 = delete;
+//	sys_2& operator=(sys_2&& other)		 = delete;
+//
+//   private:
+//	static inline const char* __detail__struct_name = []() {
+//		reflection::register_struct("transform2", 2, reflection::malloc_struct<transform>());
+//		return "transform2";
+//	}();
+// };
+
 struct system_1
+
 {
 	int* p_int;
 
@@ -223,13 +261,14 @@ struct system_1
 	{
 	}
 
-	void on_thread_init(auto& world) { }
+	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
-	void on_thread_dispose() { }
+	void on_thread_end() { }
 
 	void on_system_end(auto& world) { }
 
@@ -243,12 +282,19 @@ struct system_1
 	{
 		delete p_int;
 	}
+
+	system_1(const system_1& other)			   = delete;
+	system_1& operator=(const system_1& other) = delete;
+	system_1(system_1&& other)				   = delete;
+	system_1& operator=(system_1&& other)	   = delete;
+
+	void f(int, int) { }
 };
 
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -272,74 +318,69 @@ using namespace ecs;
 // world_end
 // scene_end
 
-static inline auto& new_scene = []() -> auto& {
-	return reflection::scene_wrapper<"new_scene">::init(
-		0
 
-		,
-		[]() {
-			using new_world__wrapper_type	   = reflection::world_wrapper<"new_world">;
-			new_world__wrapper_type::init_func = [](ecs::world_base& world) -> void {
-				using world_t = ecs::world<>;
-				reflection::register_world("new_world", world);
+// SCENE_BEGIN(new_scene_3)
+//__WORLD_BEGIN(new_world_2, transform)
+//____ENTITY_BEGIN(new_entity)
+//____ENTITY_END()
+//____ENTITY_BEGIN(new_entity2, transform)
+//______SET_COMPONENT(transform, .position.x, 100.f)
+//____ENTITY_END()
+//__WORLD_END()
+// SCENE_END()
 
-				{
-					// entity begin
-					auto entity = ((world_t&)world).new_entity<>();
-					reflection::register_entity("new_entity", entity, world);
-					// entity end
-				}
-			};
+// SCENE_BEGIN(new_scene_3)
+static inline auto& new_scene_3 = []() -> auto& { return reflection::scene_wrapper<"new_scene_3">::init(0
+																										//__WORLD_BEGIN(new_world_2, transform)
+																										,
+																										[]() { using w_wrapper = reflection::world_wrapper<"new_world_2", transform>; w_wrapper::init_func = [](ecs::world_base& world) -> void { using world_t = ecs::world<transform>; reflection::register_world("new_world_2", world);  reflection::register_component_to_world(transform::id);;
+//____ENTITY_BEGIN(new_entity)
+			{
+				auto entity = ((world_t&)world).new_entity<>();
+				reflection::register_entity("new_entity", entity, world);
+//____ENTITY_END()
+			}
+//____ENTITY_BEGIN(new_entity2, transform)
+			{
+				auto entity = ((world_t&)world).new_entity<transform>();
+				reflection::register_entity("new_entity2", entity, world);
+//______SET_COMPONENT(transform, .position.x, 100.f)
+				((world_t&)world).get_component<transform>(entity).position.x = 100.f;
+//____ENTITY_END()
+			}
+//__WORLD_END()
+}; return w_wrapper(); }()
+																										// SCENE_END()
+												  ); }();
 
-			return new_world__wrapper_type();
-		}()
+// template <typename T>
+// struct function_traits;
 
-	);
-}();
-
-SCENE_BEGIN(new_scene_3)
-__WORLD_BEGIN(new_world_2, transform)
-____ENTITY_BEGIN(new_entity)
-____ENTITY_END()
-____ENTITY_BEGIN(new_entity2, transform)
-______SET_COMPONENT(transform, .position.x, 100.f)
-____ENTITY_END()
-__WORLD_END()
-SCENE_END()
 
 int main()
 {
+	// using traits  = function_traits<decltype(&system_1::update2)>;
+	// using traits2 = function_traits<decltype(&system_1::update<int>)>;
+
+	// meta::param_at<1, decltype(test_func2)> eeeee;
+	using trats = meta::function_traits<&system_1::f>;
+	// meta::function_traits<decltype(system_1::update2)> eee;
+
+
+	// param_at<1, decltype(&system_1::update2)>::type;
+
 	static_assert(ecs::has_update<system_1> == false);
-	// static_assert(ecs::has_update_w<system_1, decltype(world_2)> == true, "!!!");
-
-	// auto empty_entity = world_2.new_entity<>();
-	// world_2.add_component<transform>(empty_entity); // will crash
-
-	// auto entity_1 = world_2.new_entity<transform>();
-	// world_2.remove_component<transform>(entity_1);
-
-	//  static_assert(false);
-	// std::cout << std::format("{:04x} - {:016x}\n", 1, -1);
-	// uint2 uint22 { (uint32)(0 - 1), 2 };
-	// std::cout << std::format("{},{}\n", uint22.x, uint22.y);
-
-	// float2 float22 { -1.f, 2.f };
-	// std::cout << std::format("{:.3f},{:.4f}\n", float22.x, float22.y);
-
-	// double64 ddddd = -10.252525;
-	// std::cout << std::format("{}\n", ddddd);
-
-	// uint64 iiii = (0ull - 1ull);
-	// std::cout << std::format("{}\n", iiii);
+	static_assert(std::is_same_v<ecs::entity_idx, ecs::entity_idx>);
+	// meta::param_at<1, system_1::template update<int>>::type;
+	// meta::param_at<0, &system_1::update2>::type;
 
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
-
+	auto d = rigid_body::id;
 	ecs::scene<>();
 	ecs::world<>();
 
 	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
-	meta::param_at<1, test_func2> eeeee;
 
 	using group_t = system_group<system_1, system_2>;
 	auto group	  = system_group<system_1, par<system_1, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();

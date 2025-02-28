@@ -13,6 +13,7 @@ namespace
 	using world_info	 = reflection::world_info;
 	using component_info = reflection::component_info;
 	using entity_info	 = reflection::entity_info;
+	using system_info	 = reflection::system_info;
 
 	struct ecs_scene;
 }	 // namespace
@@ -393,11 +394,13 @@ namespace editor::game::ecs
 	size_t (*_get_registered_scene_count)();
 	size_t (*_get_registered_world_count)();
 	size_t (*_get_registered_entity_count)(size_t world_index);
+	size_t (*_get_registered_system_count)();
 	struct_info* (*_get_struct_info)(size_t index);
 	scene_info* (*_get_scene_info)(size_t index);
 	world_info* (*_get_world_info)(size_t index);
 	component_info (*_get_component_info)(size_t world_idx, size_t entity_idx, size_t component_idx);
 	entity_info* (*_get_entity_info)(size_t world_index, size_t entity_index);
+	system_info* (*_get_system_info)(size_t system_index);
 
 	bool init_from_dll(HMODULE proj_dll)
 	{
@@ -405,12 +408,14 @@ namespace editor::game::ecs
 		_get_registered_scene_count	 = LOAD_FUNC(size_t (*)(), "get_registered_scene_count", proj_dll);
 		_get_registered_world_count	 = LOAD_FUNC(size_t (*)(), "get_registered_world_count", proj_dll);
 		_get_registered_entity_count = LOAD_FUNC(size_t (*)(size_t), "get_registered_entity_count", proj_dll);
+		_get_registered_system_count = LOAD_FUNC(size_t (*)(), "get_registered_system_count", proj_dll);
 
 		_get_struct_info	= LOAD_FUNC(struct_info * (*)(size_t), "get_struct_info", proj_dll);
 		_get_scene_info		= LOAD_FUNC(scene_info * (*)(size_t), "get_scene_info", proj_dll);
 		_get_world_info		= LOAD_FUNC(world_info * (*)(size_t), "get_world_info", proj_dll);
 		_get_component_info = LOAD_FUNC(component_info(*)(size_t, size_t, size_t), "get_component_info", proj_dll);
 		_get_entity_info	= LOAD_FUNC(entity_info * (*)(size_t, size_t), "get_entity_info", proj_dll);
+		_get_system_info	= LOAD_FUNC(system_info * (*)(size_t), "get_system_info", proj_dll);
 
 		assert(_get_registered_struct_count
 			   && _get_registered_world_count
@@ -448,6 +453,92 @@ namespace editor::game::ecs
 				f_node.append_attribute("type").set_value(editor::models::reflection::utils::type_to_string(p_f_info->type));
 				f_node.append_attribute("offset").set_value(p_f_info->offset);
 				f_node.append_attribute("value").set_value(editor::models::reflection::utils::deserialize(p_f_info->type, (uint8*)p_s_info->p_default_value + p_f_info->offset).c_str());
+			}
+		}
+
+		auto systems_node = proj_node.append_child("systems");
+		for (const auto* p_sys_info : iota(0ul, _get_registered_system_count()) | std::views::transform([](auto idx) { return _get_system_info(idx); }))
+		{
+			auto sys_node		 = systems_node.append_child("system");
+			auto interfaces_node = sys_node.append_child("interfaces");
+			sys_node.append_attribute("name").set_value(p_sys_info->name);
+			for (auto [exists, idx, arg_type] : iota(0)
+													| take(4)
+													| transform([p_sys_info](auto idx) { return std::make_tuple(p_sys_info->interfaces[idx * 2] == 1, idx, p_sys_info->interfaces[idx * 2 + 1]); }))
+			{
+				if (exists is_false)
+				{
+					continue;
+				}
+				auto func_node	  = interfaces_node.append_child("function");
+				auto arg_type_str = std::string();
+				switch (arg_type)
+				{
+				case 0:
+				{
+					arg_type_str = "";
+					break;
+				}
+				case 1:
+				{
+					arg_type_str = "auto& world";
+					break;
+				}
+				case 2:
+				{
+					arg_type_str = "entity_idx idx";
+					break;
+				}
+				case 3:
+				{
+					arg_type_str = "auto& world, entity_idx idx";
+					break;
+				}
+				default:
+					break;
+				}
+
+				switch (idx)
+				{
+				case 0:
+				{
+					func_node.append_attribute("name").set_value("on_system_begin");
+					break;
+				}
+				case 1:
+				{
+					func_node.append_attribute("name").set_value("on_thread_begin");
+					break;
+				}
+				case 2:
+				{
+					func_node.append_attribute("name").set_value("update");
+					auto params_node = func_node.append_child("parameters");
+
+					for (auto struct_name : iota(p_sys_info->p_arguments)
+												| take(p_sys_info->update_argument_count)
+												| std::views::transform([structs_node](auto* p_hash_id) { return structs_node.find_child([p_hash_id](auto node) { return node.attribute("hash_id").as_ullong() == *p_hash_id; }).attribute("name").as_string(); }))
+					{
+						params_node.append_child("struct").append_attribute("name").set_value(struct_name);
+					}
+
+					break;
+				}
+				case 3:
+				{
+					func_node.append_attribute("name").set_value("on_thread_end");
+					break;
+				}
+				case 4:
+				{
+					func_node.append_attribute("name").set_value("on_system_end");
+					break;
+				}
+				default:
+					break;
+				}
+
+				func_node.append_attribute("arg_type").set_value(arg_type_str.c_str());
 			}
 		}
 
@@ -541,6 +632,25 @@ namespace editor::game::ecs
 					field_node.attribute("name").as_string(),
 					field_node.attribute("offset").as_ullong(),
 					game::ecs::add_field(ecs_struct_idx, field_type, field_node.attribute("value").as_string()));
+			}
+		}
+
+		for (auto system_node : root_node.child("systems").children())
+		{
+			// auto ecs_system_idx = game::ecs::new_system();
+			auto sys_id = editor::models::system::create(system_node.attribute("name").as_string());
+
+			for (auto func_node : system_node.child("interfaces").children())
+			{
+				auto func_name = std::string { func_node.attribute("name").as_string() };
+				editor::models::system::add_interface(sys_id, func_name, func_node.attribute("arg_type").as_string());
+				if (func_name == "update")
+				{
+					for (auto param_node : func_node.child("parameters").children())
+					{
+						editor::models::system::add_update_param(sys_id, editor::models::reflection::find_struct(param_node.attribute("name").as_string())->id);
+					}
+				}
 			}
 		}
 

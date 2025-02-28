@@ -46,10 +46,10 @@ namespace ecs
 	concept has_on_system_begin_w = requires() { &system::template on_system_begin<world>; };
 
 	template <typename system>
-	concept has_on_thread_init = requires() { &system::on_thread_init; };
+	concept has_on_thread_begin = requires() { &system::on_thread_begin; };
 
 	template <typename system, typename world>
-	concept has_on_thread_init_w = requires() { &system::template on_thread_init<world>; };
+	concept has_on_thread_begin_w = requires() { &system::template on_thread_begin<world>; };
 
 	template <typename system>
 	concept has_update = requires() { &system::update; };
@@ -58,10 +58,10 @@ namespace ecs
 	concept has_update_w = requires() { &system::template update<world>; };
 
 	template <typename system>
-	concept has_on_thread_dispose = requires() { &system::on_thread_dispose; };
+	concept has_on_thread_end = requires() { &system::on_thread_end; };
 
 	template <typename system, typename world>
-	concept has_on_thread_dispose_w = requires() { &system::template on_thread_dispose<world>; };
+	concept has_on_thread_end_w = requires() { &system::template on_thread_end<world>; };
 
 	template <typename system>
 	concept has_on_system_end = requires() { system::on_system_end; };
@@ -538,19 +538,18 @@ namespace ecs
 								 | filter([](auto& pair) { return (pair.first & archetype) == archetype; })
 								 | transform([](auto& pair) -> auto& { return pair.second; })
 								 | join;
-
 			std::for_each(
 				std::execution::par,
 				mem_blocks_view.begin(),
 				mem_blocks_view.end(),
 				[&, this](memory_block& mem_block) {
-					if constexpr (has_on_thread_init<system_t>)
+					if constexpr (has_on_thread_begin<system_t>)
 					{
-						sys.on_thread_init();
+						sys.on_thread_begin();
 					}
-					else if constexpr (has_on_thread_init_w<system_t, world_t>)
+					else if constexpr (has_on_thread_begin_w<system_t, world_t>)
 					{
-						sys.on_thread_init(*this);
+						sys.on_thread_begin(*this);
 					}
 
 					auto count = mem_block.get_count();
@@ -566,13 +565,13 @@ namespace ecs
 						}
 					}
 
-					if constexpr (has_on_thread_dispose<system_t>)
+					if constexpr (has_on_thread_end<system_t>)
 					{
-						sys.on_thread_dispose();
+						sys.on_thread_end();
 					}
-					else if constexpr (has_on_thread_dispose_w<system_t, world_t>)
+					else if constexpr (has_on_thread_end_w<system_t, world_t>)
 					{
-						sys.on_thread_dispose(*this);
+						sys.on_thread_end(*this);
 					}
 				});
 
