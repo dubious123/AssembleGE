@@ -5,8 +5,8 @@
 
 namespace ecs
 {
-	using scene_id	   = uint16;
-	using world_idx	   = uint16;
+	using scene_id	   = uint32;
+	using world_idx	   = uint32;
 	using entity_idx   = uint64;
 	using component_id = uint64;
 	using archetype_t  = uint64;

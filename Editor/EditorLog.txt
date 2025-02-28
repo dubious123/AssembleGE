@@ -1,2 +1,0 @@
-[2025-02-28 09:41:28.015] [Editor Logger] [info] Hi
-[2025-02-28 09:41:28.728] [Editor Logger] [info] Open Completed

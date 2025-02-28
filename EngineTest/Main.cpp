@@ -71,6 +71,10 @@ constexpr auto arr = []() {
 #include <cstdlib>
 #include <crtdbg.h>
 #include <Sysinfoapi.h>
+#include <source_location>
+#include <print>
+#include <string>
+#include <variant>
 #include "../Engine/__reflection.h"
 #include "../Engine/__engine.h"
 #include "../Engine/__data_structures.h"
@@ -303,37 +307,13 @@ void test_add3(int a, int b) { }
 
 using namespace ecs;
 
-
-// 1. reflection scene
-// 2. reflection world
-// 3. reflection entity
-// 4. reflection components
-// 5. return ecs scene
-
-// scene_begin
-// world_begin
-// entity_begin
-// set_component
-// entity_end
-// world_end
-// scene_end
-
-
 // SCENE_BEGIN(new_scene_3)
-//__WORLD_BEGIN(new_world_2, transform)
-//____ENTITY_BEGIN(new_entity)
-//____ENTITY_END()
-//____ENTITY_BEGIN(new_entity2, transform)
-//______SET_COMPONENT(transform, .position.x, 100.f)
-//____ENTITY_END()
-//__WORLD_END()
-// SCENE_END()
-
-// SCENE_BEGIN(new_scene_3)
-static inline auto& new_scene_3 = []() -> auto& { return reflection::scene_wrapper<"new_scene_3">::init(0
-																										//__WORLD_BEGIN(new_world_2, transform)
-																										,
-																										[]() { using w_wrapper = reflection::world_wrapper<"new_world_2", transform>; w_wrapper::init_func = [](ecs::world_base& world) -> void { using world_t = ecs::world<transform>; reflection::register_world("new_world_2", world);  reflection::register_component_to_world(transform::id);;
+static inline auto& new_scene_3 =
+	[]() -> auto& { return reflection::scene_wrapper<"new_scene_3">::init(
+						0
+						//__WORLD_BEGIN(new_world_2, transform)
+						,
+						[]() { using w_wrapper = reflection::world_wrapper<"new_world_2", transform>; w_wrapper::init_func = [](ecs::world_base& world) -> void { using world_t = ecs::world<transform>; reflection::register_world("new_world_2", world);  reflection::register_component_to_world(transform::id);;
 //____ENTITY_BEGIN(new_entity)
 			{
 				auto entity = ((world_t&)world).new_entity<>();
@@ -350,12 +330,240 @@ static inline auto& new_scene_3 = []() -> auto& { return reflection::scene_wrapp
 			}
 //__WORLD_END()
 }; return w_wrapper(); }()
-																										// SCENE_END()
-												  ); }();
+						// SCENE_END()
+					); }();
 
-// template <typename T>
-// struct function_traits;
+// SYS_GROUP_BEGIN(sys_group_name)
+// __SEQ(system_1)
+// __PAR(system_1, other_sys_group)
+// __COND(cond_system_1, system_1, system_2)
+// SYS_GROUP_END()
 
+// option 1 : system in world
+//__WORLD_BEGIN(world_0)
+//____SYSTEM_BEGIN()
+//______SEQ(system_1)
+//______PAR(system_group1, system_2)
+//____SYSTEM_END()
+//__WORLD_END()
+
+// => scene.perform()
+
+// option 2 : system out of world
+// SYS_GROUP_BEGIN(sys_group_name)
+//  => lambda returning an instance of sys_group
+//  => templated functions, cannot be called.
+//  => all interfaces are called inside system_group::perform(auto&& world) functions
+//  => editor_functions are called inside system_group::perform functions
+//  => editor_functions are injected. how?
+//  => expose function pointer and pass a function pointer after.
+// sys_scene_perform_begin(scene_name)
+// world_perform(world_name, sys_group)
+//
+
+// => function_enter, function exist : can be injected
+// => function name??
+// => std::source_location::current()
+// => function_enter only count enter tick
+// => perform => returns function name and lambda (or function pointer)
+// => function_exist count exist tict and print
+
+// => or when editor, each system has a name
+// => each function call, we know the function name
+// => hard-code
+
+// => tick count should be done on each system instance
+// => each system has an id (0 ~ instances)
+// => static initialization is single threaded so each id is unique
+// => use array
+
+// => on_thread_begin/end, _update_entity : par thread
+// => how?
+// => lock + counter?
+
+// => how to run code from editor?
+// => get current scene
+// => all scenes should be in one place (in a array)
+// => all pass the function pointer to editor; (better)
+// => editor::run(current_scene_ecs_idx)
+
+// => how to move from one scene to another scene?
+// => need upper layer?
+// => call move_scene(scene_idx) : impossible
+// => call game::move_scene<some_scene_type>() : how?
+//
+// => vector<variant<all scene types...>> + concept
+//
+//
+// => each world has a pointer to scene_base
+
+// Game Loop
+// game_init
+// while(game_running)
+//	scene_init
+//	while(scene_running)
+//		scene_perform
+//	scene_deinit
+// game_deinit
+
+// game::set_current_scene
+// game::move_scene
+
+
+struct system4
+{
+	void update(auto&& world)
+	{
+		std::println("func name : {}", std::source_location::current().function_name());
+		std::println("line : {}", std::source_location::current().line());
+		std::println("column : {}", std::source_location::current().column());
+	}
+};
+
+template <typename... scene_ts>
+struct scene_types_container
+{
+	using tpl_t = std::tuple<scene_ts...>;
+	using v_t	= std::variant<scene_ts...>;
+	std::array<std::variant<scene_ts...>, sizeof...(scene_ts)> arr { v_t { scene_ts() }... };
+};
+
+using world_t1 = ecs::world<transform, rigid_body>;
+using world_t2 = ecs::world<transform>;
+using world_t3 = ecs::world<transform, rigid_body, bullet>;
+
+using scene_t1 = ecs::scene<world_t1, world_t2>;
+using scene_t2 = ecs::scene<world_t1, world_t2, world_t3>;
+using scene_t3 = ecs::scene<world_t2, world_t3>;
+using scene_t4 = ecs::scene<world_t1>;
+
+//
+// game(scene_t1, scene_t2, scene_t3)
+
+#define SCENE_TYPE_ENUM(scene_type) e_##scene_type
+
+#define SCENE_TYPE_ENUMS(...)                      \
+	enum e_scene_type_                             \
+	{                                              \
+		FOR_EACH_ARG(SCENE_TYPE_ENUM, __VA_ARGS__) \
+	};
+
+#define SCENE_INSTANCE(scene_type) \
+	scene_type _##scene_type;
+
+
+#define SCENE_INSTANCES(...) \
+	FOR_EACH(SCENE_INSTANCE, __VA_ARGS__)
+
+#define SCENE_CASE(scene_type) \
+	case e_##scene_type:       \
+	{                          \
+		_##scene_type.foo();   \
+		break;                 \
+	}
+
+#define SCENE_CASES(...) \
+	FOR_EACH(SCENE_CASE, __VA_ARGS__)
+
+
+#define GAME(...)                            \
+	struct game                              \
+	{                                        \
+		SCENE_TYPE_ENUMS(__VA_ARGS__)        \
+		SCENE_INSTANCES(__VA_ARGS__)         \
+		int	 _current_scene_idx;             \
+		bool _game_running;                  \
+                                             \
+		void run()                           \
+		{                                    \
+			while (_game_running)            \
+			{                                \
+				switch (_current_scene_idx)  \
+				{                            \
+					SCENE_CASES(__VA_ARGS__) \
+				}                            \
+			}                                \
+		}                                    \
+	};
+
+GAME(scene_t1, scene_t2, scene_t3)
+
+struct game2
+{
+	enum e_scene_type
+	{
+		e_scene_t1,
+		e_scene_t2,
+		e_scene_t3,
+	};
+
+	// too large space
+	scene_t1 scene_scene_t1;
+	scene_t2 scene_scene_t2;
+	scene_t3 scene_scene_t3;
+
+	scene_base* _p_scenes[3] { nullptr };
+	bool		_scene_loaded[3] { false };
+	uint32		_current_scene_idx = -1;
+	uint32		_next_scene_idx;
+	bool		_game_running;
+
+	game2(uint32 start_scene_idx) : _next_scene_idx(start_scene_idx), _game_running(true)
+	{
+		// new (_scenes + e_scene_t1) scene_t1();
+		// new (_scenes + e_scene_t1) scene_t1();
+		// new (_scenes + e_scene_t1) scene_t1();
+	}
+
+  public:
+	void end()
+	{
+		_game_running = false;
+	}
+
+	void load_scene(uint32 load_scene_idx)
+	{
+	}
+
+	bool scene_loaded(uint32 scene_idx)
+	{
+	}
+
+
+  private:
+	void init();
+
+	void run()
+	{
+		while (_game_running)
+		{
+			if (_current_scene_idx != _next_scene_idx)
+			{
+			}
+
+			switch (_current_scene_idx)
+			{
+			case e_scene_t1:
+			{
+				scene_scene_t1.foo();
+				break;
+			}
+			case e_scene_t2:
+			{
+				scene_scene_t2.run(this);
+				break;
+			}
+			case e_scene_t3:
+			{
+				scene_scene_t3.foo();
+				break;
+			}
+			}
+		}
+	}
+
+	void deinit();
+};
 
 int main()
 {
@@ -367,7 +575,26 @@ int main()
 	// meta::function_traits<decltype(system_1::update2)> eee;
 
 
+	using type_all_scenes = std::variant<scene_t1, scene_t2, scene_t3, scene_t4>;
+
+	// auto sss = std::vector<type_all_scenes> { scene_t1() /*, scene_t3(), scene_t2(), scene_t1()*/ };
+
+
+	auto container = scene_types_container<scene_t1, scene_t2, scene_t3, scene_t4>();
+
+	std::visit([](auto&& scene) { scene.foo(); }, container.arr[0]);
+	// container.arr[0].foo();
+
+	for (auto&& s : container.arr)
+	{
+		std::visit([](auto&& scene) { scene.foo(); }, s);
+	}
+
+
 	// param_at<1, decltype(&system_1::update2)>::type;
+	int a;
+	system4().update(a);
+
 
 	static_assert(ecs::has_update<system_1> == false);
 	static_assert(std::is_same_v<ecs::entity_idx, ecs::entity_idx>);
@@ -377,7 +604,11 @@ int main()
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	auto d = rigid_body::id;
-	ecs::scene<>();
+
+
+	auto s1 = ecs::scene<world_t1>();
+
+	auto& w1 = s1.get_world<world_t1>();
 	ecs::world<>();
 
 	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);

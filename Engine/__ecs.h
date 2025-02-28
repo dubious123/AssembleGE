@@ -3,6 +3,7 @@
 #include <execution>
 #include <bit>
 #include <intrin.h>
+#include <concepts>
 #include "__common.h"
 #include "__meta.h"
 #include "__ecs_common.h"
@@ -527,6 +528,11 @@ namespace ecs
 			auto						s		  = archetype;
 			if constexpr (has_on_system_begin<system_t>)
 			{
+				// #ifdef EDITOR
+				//				sys.on_system_begin();
+				// #else
+				//				sys.on_system_begin();
+				// #endif
 				sys.on_system_begin();
 			}
 			else if constexpr (has_on_system_begin_w<system_t, world_t>)
@@ -588,6 +594,13 @@ namespace ecs
 		}
 	};
 
+	template <typename t_game>
+	concept c_game = requires(t_game game) {
+		{ game.init() } -> std::same_as<void>;
+		{ game.move_scene(0) } -> std::same_as<void>;
+		{ game.deinit() } -> std::same_as<void>;
+	};
+
 	struct scene_base
 	{
 		world_base* worlds;
@@ -612,8 +625,29 @@ namespace ecs
 			 ...);
 		}
 
+		scene(scene&& other) : scene_base(other.worlds)
+		{
+			other.worlds = nullptr;
+		}
+
+		scene& operator=(scene&& other)
+		{
+			if (this != &other)
+			{
+				worlds		 = other.worlds;
+				other.worlds = nullptr;
+			}
+
+			return *this;
+		}
+
 		~scene()
 		{
+			if (worlds == nullptr)
+			{
+				return;
+			}
+
 			for (auto i = 0; i < sizeof...(W); ++i)
 			{
 				(worlds + i)->~world_base();
@@ -622,15 +656,28 @@ namespace ecs
 			free(worlds);
 		}
 
-		scene(const scene&&)	  = delete;
-		scene(const scene&)		  = delete;
-		scene& operator=(scene&&) = delete;
-		scene& operator=(scene&)  = delete;
+		scene(const scene&)			   = delete;
+		scene& operator=(const scene&) = delete;
 
 		template <unsigned int N>
 		world_at<N>& get_world()
 		{
 			return *(world_at<N>*)(void*)(worlds + N);
+		}
+
+		template <typename world_t>
+		world_t& get_world()
+		{
+			return *(world_t*)(void*)(worlds + get_variadic_index<world_t, W...>());
+		}
+
+		void foo()
+		{
+		}
+
+		template <typename t_game>
+		void run(t_game* p_game)
+		{
 		}
 	};
 

@@ -38,6 +38,10 @@ namespace
 				}
 			}
 
+			// todo
+			// check if job queue is empty
+			//  if empty, awake thread
+			//  else push new job
 			Sleep(100);
 		}
 
