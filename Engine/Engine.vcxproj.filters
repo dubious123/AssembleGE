@@ -14,5 +14,6 @@
     <ClInclude Include="__meta.h" />
     <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__ecs_common.h" />
+    <ClInclude Include="__ecs_interfaces.h" />
   </ItemGroup>
 </Project>

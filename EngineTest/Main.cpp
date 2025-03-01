@@ -515,6 +515,11 @@ struct game2
 		// new (_scenes + e_scene_t1) scene_t1();
 	}
 
+	game2(const game2& other)			 = delete;
+	game2(game2&& other)				 = delete;
+	game2& operator=(const game2& other) = delete;
+	game2& operator=(game2&& other)		 = delete;
+
   public:
 	void end()
 	{
@@ -529,8 +534,6 @@ struct game2
 	{
 	}
 
-
-  private:
 	void init();
 
 	void run()
@@ -550,7 +553,7 @@ struct game2
 			}
 			case e_scene_t2:
 			{
-				scene_scene_t2.run<decltype(*this)>(this);
+				scene_scene_t2.run<decltype(*this)>(*this);
 				break;
 			}
 			case e_scene_t3:
@@ -565,30 +568,55 @@ struct game2
 	void deinit();
 };
 
+// game::init();
+// game::run();
+// game::deinit();
+
+// system_binding sys_game = system_bind(game, system_group)
+// auto sys_scene_0 = system_bind(scene_0, system_group)
+// auto sys_world_0 = system_bind(world_0, system_group)
+//
+// SYSTEM(game, sys_group_game)
+// system_bind(scene, sys_group_scene_0)
+// system_bind(world, sys_group_world_0)
+
+// in this way, i can put member function pointer as a template parameter
+
+// game_system.run();
+
+// sys_group_game
+// seq<&game::init>
+// loop<sys_game_running, &game::run>
+// seq<&game::deinit>
+
+// switch<sys_game_current_scene, sys_scene_
+
+template <auto func>
+struct loop;
+
+template <typename ret, typename temp, template <typename> typename t_interface, typename... args, ret (t_interface<temp>::*func)(args...)>
+struct loop<func>
+{
+	template <typename t_ref_game>
+	auto invoke(t_ref_game ref_game)
+	{
+		t_interface<*t_ref_game>::* func();
+	}
+};
+
 int main()
 {
+	// loop<&system_1::f>();
+
+	// loop<&game2::run>();
+	auto ggg = game2(2);
+	loop<&interface_game<void>::init>().invoke(&ggg);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
 	// using traits2 = function_traits<decltype(&system_1::update<int>)>;
 
 	// meta::param_at<1, decltype(test_func2)> eeeee;
 	using trats = meta::function_traits<&system_1::f>;
 	// meta::function_traits<decltype(system_1::update2)> eee;
-
-
-	using type_all_scenes = std::variant<scene_t1, scene_t2, scene_t3, scene_t4>;
-
-	// auto sss = std::vector<type_all_scenes> { scene_t1() /*, scene_t3(), scene_t2(), scene_t1()*/ };
-
-
-	auto container = scene_types_container<scene_t1, scene_t2, scene_t3, scene_t4>();
-
-	std::visit([](auto&& scene) { scene.foo(); }, container.arr[0]);
-	// container.arr[0].foo();
-
-	for (auto&& s : container.arr)
-	{
-		std::visit([](auto&& scene) { scene.foo(); }, s);
-	}
 
 
 	// param_at<1, decltype(&system_1::update2)>::type;

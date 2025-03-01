@@ -7,6 +7,7 @@
 #include "__common.h"
 #include "__meta.h"
 #include "__ecs_common.h"
+#include "__ecs_interfaces.h"
 
 #ifdef _DEBUG
 	#include <sstream>
@@ -600,19 +601,6 @@ namespace ecs
 	//	{ game.move_scene(0) } -> std::same_as<void>;
 	//	{ game.deinit() } -> std::same_as<void>;
 	// };
-
-	template <typename t_game>
-	struct interface_game
-	{
-		t_game* p_game;
-
-		interface_game(t_game* ptr) : p_game(ptr) { }
-
-		void init()
-		{
-			p_game->init();
-		}
-	};
 
 	struct scene_base
 	{

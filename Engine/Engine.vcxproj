@@ -26,6 +26,7 @@
     <ClInclude Include="__common.h" />
     <ClInclude Include="__data_structures.h" />
     <ClInclude Include="__ecs.h" />
+    <ClInclude Include="__ecs_interfaces.h" />
     <ClInclude Include="__engine.h" />
     <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__ecs_common.h" />
