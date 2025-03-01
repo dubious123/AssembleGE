@@ -550,7 +550,7 @@ struct game2
 			}
 			case e_scene_t2:
 			{
-				scene_scene_t2.run(this);
+				scene_scene_t2.run<decltype(*this)>(this);
 				break;
 			}
 			case e_scene_t3:

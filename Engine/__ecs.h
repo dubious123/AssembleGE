@@ -594,11 +594,24 @@ namespace ecs
 		}
 	};
 
+	// template <typename t_game>
+	// concept c_game = requires(t_game game) {
+	//	{ game.init() } -> std::same_as<void>;
+	//	{ game.move_scene(0) } -> std::same_as<void>;
+	//	{ game.deinit() } -> std::same_as<void>;
+	// };
+
 	template <typename t_game>
-	concept c_game = requires(t_game game) {
-		{ game.init() } -> std::same_as<void>;
-		{ game.move_scene(0) } -> std::same_as<void>;
-		{ game.deinit() } -> std::same_as<void>;
+	struct interface_game
+	{
+		t_game* p_game;
+
+		interface_game(t_game* ptr) : p_game(ptr) { }
+
+		void init()
+		{
+			p_game->init();
+		}
 	};
 
 	struct scene_base
@@ -676,8 +689,9 @@ namespace ecs
 		}
 
 		template <typename t_game>
-		void run(t_game* p_game)
+		void run(interface_game<t_game> game)
 		{
+			game.init();
 		}
 	};
 
