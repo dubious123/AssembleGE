@@ -488,6 +488,15 @@ using scene_t4 = ecs::scene<world_t1>;
 
 GAME(scene_t1, scene_t2, scene_t3)
 
+struct a
+{
+  private:
+	static const a detail_a;
+
+  public:
+	float3 ab;
+};
+
 struct game2
 {
 	enum e_scene_type
@@ -580,29 +589,39 @@ struct game2
 // system_bind(scene, sys_group_scene_0)
 // system_bind(world, sys_group_world_0)
 
-// in this way, i can put member function pointer as a template parameter
-
 // game_system.run();
 
 // sys_group_game
-// seq<&game::init>
-// loop<sys_game_running, &game::run>
-// seq<&game::deinit>
+// seq<sys_game_init>
+// loop<sys_game_running, sys_game_run>
+// seq<sys_game_deinit>
 
-// switch<sys_game_current_scene, sys_scene_
+// sys_game_run
+// template<typename g>
+// void run(igame<g> game){
+// switch (game.current_scene())
+// case 0:
+//	scene0.run();
 
-template <auto func>
-struct loop;
+// sys_game_run
+// cond<sys_current_scene_loaded, sys_return>
+// switch<sys_current_scene, sys_scene_0, sys_scene_1, sys_scene_2>
 
-template <typename ret, typename temp, template <typename> typename t_interface, typename... args, ret (t_interface<temp>::*func)(args...)>
-struct loop<func>
-{
-	template <typename t_ref_game>
-	auto invoke(t_ref_game ref_game)
+// sys_scene0
+//
+
+#define STRUCTBEGIN(name) \
+	struct name           \
 	{
-		t_interface<*t_ref_game>::* func();
-	}
-};
+
+#define STRUCTEND() \
+	}               \
+	;
+
+STRUCTBEGIN(hi)
+int a = 1;
+int b = 2;
+STRUCTEND()
 
 int main()
 {
@@ -610,7 +629,6 @@ int main()
 
 	// loop<&game2::run>();
 	auto ggg = game2(2);
-	loop<&interface_game<void>::init>().invoke(&ggg);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
 	// using traits2 = function_traits<decltype(&system_1::update<int>)>;
 

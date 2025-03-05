@@ -88,7 +88,7 @@ namespace reflection
 		_field_info_vec().emplace_back();
 	}
 
-	void register_field(const char* struct_name, e_primitive_type type, const char* name, size_t offset)
+	void register_field(e_primitive_type type, const char* name, size_t offset)
 	{
 		auto info	 = field_info();
 		info.name	 = name;

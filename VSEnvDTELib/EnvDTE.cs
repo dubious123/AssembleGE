@@ -205,7 +205,14 @@ public class VSEnvDTE : IVSEnvDTE
 	{
 		if (_vc_config is not null)
 		{
-			Marshal.WriteByte(p_val, _vc_config.UpToDate ? (byte)1 : (byte)0);
+			if (_vc_config.UpToDate is true)
+			{
+				Marshal.WriteByte(p_val, (byte)1);
+			}
+			else
+			{
+				Marshal.WriteByte(p_val, (byte)0);
+			}
 		}
 	}
 

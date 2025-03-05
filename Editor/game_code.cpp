@@ -105,7 +105,7 @@ namespace editor::game::code
 		background::add_deinit(Background_Visual_Studio, []() { ::CoUninitialize(); return true; });
 
 		platform::add_on_wm_activate([]() {
-			if (_vs_opened and _is_up2date() is_false)
+			if (_vs_opened and (_is_up2date() is_false))
 			{
 				game::unload_dll();
 				background::add(Background_Visual_Studio, []() { _dte_wrapper->build_if_needed(); }, game::load_dll);
