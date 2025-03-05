@@ -409,6 +409,69 @@ static inline auto& new_scene_3 =
 // game::set_current_scene
 // game::move_scene
 
+// 1. system : func/lambda vs struct vs both
+// if func/lambda (easier to use) how expose them to editor?
+// using macro
+// FUNC(name_to_editor, function pointer, argumentss...)
+// FUNC(function pointer, arguements...) => name == function pointer
+// if function or lambda... is allowed, any system call inside function or lambda is lost.
+
+// 2. game in scene as a member variable?
+// O : no more templates functions, no more scene_base
+// X : ?
+
+// 3. scene macro vs template
+// macro : more flexable, same world different type
+// template : same world same type ... nah...
+
+// 4. system in the scene, out of scene
+// in :
+//	different scene size
+//	no more node
+//	X
+// out :
+//	O
+//
+//
+//
+
+// GAME(my_game, ...) => struct my_game_t {...} , static inline auto my_game = my_game_t();
+
+// member function pointer, function pointer, system struct, lambda
+// each first arguement can be empty or igame or iscene or iworld or entity
+// SYSTEM_GROUP_BEGIN(game_system, interface) -> using game_system = []template<typename t>(interface<t> instance){ return bind<t,  >::type();  };
+// SEQ(&game::init) -> reflection::seq_begin("game::init"); return [](){ return seq<&game::init>(); }; reflection::seq_end("game::init")
+// VALUE(current_scene, &game::get_current_scene)
+// LOOP_BEGIN(&game::running)
+// SWITCH_BEGIN(current_scene)
+// CASE(0, SEQ(sys_scene_0, scene_0))
+// CASE(1, SEQ(sys_scene_1, scene_1))
+// CASE(2, SEQ(sys_scene_2, scene_2))
+// SWITCH_END()
+// LOOP_END()
+//
+// SEQ(&game::deinit)
+// SYSTEM_END()
+
+// using game_system = system_group<game, seq<&game::init>, switch<...
+//
+// my_game_system.run(my_game);
+//
+
+struct my_game_system
+{
+	template <typename t>
+	void run(interface_game<t> igame)
+	{
+	}
+};
+
+template <template <typename> typename t>
+struct test_temp
+{
+	template <typename k>
+	using real_type = t<k>;
+};
 
 struct system4
 {
