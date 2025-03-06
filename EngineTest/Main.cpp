@@ -75,10 +75,8 @@ constexpr auto arr = []() {
 #include <print>
 #include <string>
 #include <variant>
-#include "../Engine/__reflection.h"
-#include "../Engine/__engine.h"
-#include "../Engine/__data_structures.h"
-#include "../Engine/__meta.h"
+
+#include "test.h"
 
 // #include <type_traits>
 // #include <sstream>
@@ -228,7 +226,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -267,8 +265,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -298,7 +296,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -435,36 +433,11 @@ static inline auto& new_scene_3 =
 //
 //
 
-// GAME(my_game, ...) => struct my_game_t {...} , static inline auto my_game = my_game_t();
 
-// member function pointer, function pointer, system struct, lambda
-// each first arguement can be empty or igame or iscene or iworld or entity
-// SYSTEM_GROUP_BEGIN(game_system, interface) -> using game_system = []template<typename t>(interface<t> instance){ return bind<t,  >::type();  };
-// SEQ(&game::init) -> reflection::seq_begin("game::init"); return [](){ return seq<&game::init>(); }; reflection::seq_end("game::init")
-// VALUE(current_scene, &game::get_current_scene)
-// LOOP_BEGIN(&game::running)
-// SWITCH_BEGIN(current_scene)
-// CASE(0, SEQ(sys_scene_0, scene_0))
-// CASE(1, SEQ(sys_scene_1, scene_1))
-// CASE(2, SEQ(sys_scene_2, scene_2))
-// SWITCH_END()
-// LOOP_END()
-//
-// SEQ(&game::deinit)
-// SYSTEM_END()
-
-// using game_system = system_group<game, seq<&game::init>, switch<...
-//
-// my_game_system.run(my_game);
 //
 
-struct my_game_system
-{
-	template <typename t>
-	void run(interface_game<t> igame)
-	{
-	}
-};
+// expose to editor
+// ???
 
 template <template <typename> typename t>
 struct test_temp
@@ -640,56 +613,10 @@ struct game2
 	void deinit();
 };
 
-// game::init();
-// game::run();
-// game::deinit();
-
-// system_binding sys_game = system_bind(game, system_group)
-// auto sys_scene_0 = system_bind(scene_0, system_group)
-// auto sys_world_0 = system_bind(world_0, system_group)
-//
-// SYSTEM(game, sys_group_game)
-// system_bind(scene, sys_group_scene_0)
-// system_bind(world, sys_group_world_0)
-
-// game_system.run();
-
-// sys_group_game
-// seq<sys_game_init>
-// loop<sys_game_running, sys_game_run>
-// seq<sys_game_deinit>
-
-// sys_game_run
-// template<typename g>
-// void run(igame<g> game){
-// switch (game.current_scene())
-// case 0:
-//	scene0.run();
-
-// sys_game_run
-// cond<sys_current_scene_loaded, sys_return>
-// switch<sys_current_scene, sys_scene_0, sys_scene_1, sys_scene_2>
-
-// sys_scene0
-//
-
-#define STRUCTBEGIN(name) \
-	struct name           \
-	{
-
-#define STRUCTEND() \
-	}               \
-	;
-
-STRUCTBEGIN(hi)
-int a = 1;
-int b = 2;
-STRUCTEND()
-
 int main()
 {
 	// loop<&system_1::f>();
-
+	_seq<my_scene_system_0>();
 	// loop<&game2::run>();
 	auto ggg = game2(2);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
