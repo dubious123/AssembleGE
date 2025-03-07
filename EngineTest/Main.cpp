@@ -87,46 +87,6 @@ constexpr auto arr = []() {
 import std;
 
 using namespace data_structure;
-COMPONENT_BEGIN(transform)
-__SERIALIZE_FIELD(float3, position, 0, 0, 0)
-__SERIALIZE_FIELD(float3, scale, 1, 1, 1)
-__SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
-COMPNENT_END()
-
-COMPONENT_BEGIN(bullet)
-__SERIALIZE_FIELD(float3, vel, 1, 0, 1)
-__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
-COMPNENT_END()
-
-COMPONENT_BEGIN(rigid_body)
-__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
-COMPNENT_END()
-
-SCENE_BEGIN(my_second_scene)
-__WORLD_BEGIN(world_000, transform, bullet)
-____ENTITY_BEGIN(entity_000, transform, bullet)
-______SET_COMPONENT(transform, .position.x, 1)
-____ENTITY_END()
-__WORLD_END()
-
-__WORLD_BEGIN(world_001, transform, rigid_body)
-____ENTITY_BEGIN(entity_000, transform, rigid_body)
-______SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
-____ENTITY_END()
-__WORLD_END()
-
-__WORLD_BEGIN(world_002, transform, bullet, rigid_body)
-____ENTITY_BEGIN(entity_000, transform, rigid_body)
-______SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
-____ENTITY_END()
-__WORLD_END()
-
-__WORLD_BEGIN(world_003, transform)
-____ENTITY_BEGIN(entity_000, transform)
-______SET_COMPONENT(transform, .position, { 0, 0, 1 })
-____ENTITY_END()
-__WORLD_END()
-SCENE_END()
 
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
@@ -226,7 +186,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -265,8 +225,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -296,7 +256,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -463,15 +423,6 @@ struct scene_types_container
 	using v_t	= std::variant<scene_ts...>;
 	std::array<std::variant<scene_ts...>, sizeof...(scene_ts)> arr { v_t { scene_ts() }... };
 };
-
-using world_t1 = ecs::world<transform, rigid_body>;
-using world_t2 = ecs::world<transform>;
-using world_t3 = ecs::world<transform, rigid_body, bullet>;
-
-using scene_t1 = ecs::scene<world_t1, world_t2>;
-using scene_t2 = ecs::scene<world_t1, world_t2, world_t3>;
-using scene_t3 = ecs::scene<world_t2, world_t3>;
-using scene_t4 = ecs::scene<world_t1>;
 
 //
 // game(scene_t1, scene_t2, scene_t3)
