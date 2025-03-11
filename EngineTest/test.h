@@ -132,6 +132,17 @@ struct my_scene_system_0
 	template <typename s>
 	void run(interface_scene<s> iscene)
 	{
+		DEBUG_LOG("---my_scene_system_0 run---");
+		int a;
+	}
+};
+
+struct my_scene_system_1
+{
+	void run()
+	{
+		DEBUG_LOG("---my_scene_system_1 run---");
+		int a;
 	}
 };
 
@@ -151,7 +162,7 @@ struct my_entity_system_0
 	}
 
 	template <typename w>
-	void entity_update(interface_world<w> iworld, entity_idx idx)
+	void entity_update(interface_world<w> iworld, ecs::entity_idx idx)
 	{
 	}
 
@@ -176,11 +187,67 @@ struct interface_or_void<_interface, t, std::void_t<_interface<t>>>
 template <template <typename> typename _interface, typename t>
 using interface_or_void_t = interface_or_void<_interface, t>::type;
 
-template <typename sys>
+template <typename sys, template <typename> typename _interface, typename _data, typename = void>
+struct sys_trait
+{
+	using func_trait = meta::function_traits<&sys::run>;
+};
+
+template <typename sys, template <typename> typename _interface, typename _data>
+struct sys_trait<sys, _interface, _data, std::void_t<meta::function_traits<&sys::template run<_interface<_data>>>>>
+{
+	using func_trait = meta::function_traits<&sys::template run<_interface<_data>>>;
+};
+
+template <typename t_sys, typename t_data>
+concept has_run_templated = requires(t_sys sys, t_data* p_data) {
+	{
+		sys.template run<t_data>(p_data)
+	} -> std::same_as<void>;
+};
+
+template <typename t_sys>
+concept has_run_non_templated = requires(t_sys sys) {
+	{
+		sys.run()
+	} -> std::same_as<void>;
+};
+
+template <typename t_sys, typename t_data>
+void run_system(t_sys& sys, t_data* p_data)
+{
+	if constexpr (has_run_templated<t_sys, t_data>)
+	{
+		// If the templated run exists, call it with Data.
+		sys.template run<t_data>(p_data);
+	}
+	else if constexpr (has_run_non_templated<t_sys>)
+	{
+		// Otherwise, if a non-templated run exists, call that.
+		sys.run();
+	}
+	else
+	{
+		static_assert(false and "System does not provide a run method that can be called.");
+	}
+}
+
+template <typename... t_sys>
 struct _seq
 {
-	template <typename t>
-	using func_type_trait = meta::function_traits<&sys::template run<t>>;
+	std::tuple<t_sys...> systems;
+
+	template <typename t_data>
+	void run(t_data* p_data)
+	{
+		DEBUG_LOG("---new seq start (func)---");
+		std::apply(
+			[p_data](auto&... sys) {
+				((run_system(sys, p_data)), ...);
+			},
+			systems);
+		DEBUG_LOG("---new seq end (func)---");
+	}
 };
 
 template <template <typename> typename _interface, typename... nodes>
