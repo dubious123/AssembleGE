@@ -250,9 +250,35 @@ struct _seq
 	}
 };
 
+template <typename... t_sys>
+struct _par
+{
+	std::tuple<t_sys...> systems;
+
+	template <typename tpl_sys, typename t_data, std::size_t... i>
+	void parallel_apply(tpl_sys& systems, t_data* p_data, std::index_sequence<i...>)
+	{
+		auto futures = std::array<std::future<void>, sizeof...(i)> {
+			(std::async([p_data, &systems]() { run_system(std::get<i>(systems), p_data); }))...
+		};
+
+		std::apply([](auto&... fut) { ((void)fut.get(), ...); }, futures);
+	}
+
+	template <typename t_data>
+	void run(t_data* p_data)
+	{
+		DEBUG_LOG("---new par start (func)---");
+		parallel_apply(systems, p_data, std::make_index_sequence<sizeof...(t_sys)>());
+		DEBUG_LOG("---new par end (func)---");
+	}
+};
+
 template <template <typename> typename _interface, typename... nodes>
 struct _system_group
 {
+	std::tuple<nodes...> nodes;
+
 	template <typename t>
 	void run(_interface<t> i_t)
 	{

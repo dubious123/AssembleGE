@@ -162,10 +162,13 @@ namespace editor::models::reflection
 
 	std::vector<em_field*> find_fields(std::vector<editor_id> struct_id_vec)
 	{
-		auto view = struct_id_vec | std::views::filter([](auto id) { return _field_idx_map.contains(id); }) | std::views::transform([](auto id) {
-						auto& pair = _field_idx_map[id];
-						return &_fields[pair.first][pair.second];
-					});
+		auto view =
+			struct_id_vec
+			| std::views::filter([](auto id) { return _field_idx_map.contains(id); })
+			| std::views::transform([](auto id) {
+				  auto& pair = _field_idx_map[id];
+				  return &_fields[pair.first][pair.second];
+			  });
 
 		return std::vector<em_field*>(view.begin(), view.end());	// c++ 23 => std::views::to
 	}
@@ -227,7 +230,7 @@ namespace editor::models
 
 			std::map<editor_id, em_scene> _scenes;	  // does not support reordering -> change id?
 			editor_id					  _current;
-		}	 // namespace
+		}											  // namespace
 
 		editor_command cmd_create(
 			"New Scene",
@@ -474,7 +477,7 @@ namespace editor::models
 																												 // _worlds => [scene_idx][world_idx]
 																												 // _idx_map => [world_id] [pair<scene_idx, world_idx>]
 
-		}	 // namespace
+		}																										 // namespace
 
 		editor_command cmd_create(
 			"New World",
@@ -557,7 +560,7 @@ namespace editor::models
 			[](editor_id struct_id) { return reflection::find_struct(struct_id) != nullptr
 										 and std::ranges::all_of(get_all_selections(), [=](const auto& id) {
 												 const auto* p_w = world::find(id);
-												 return p_w is_not_nullptr and std::ranges::contains(p_w->structs, struct_id) is_false and p_w->structs.size() < 64;
+												 return p_w	 is_not_nullptr and std::ranges::contains(p_w->structs, struct_id) is_false and p_w->structs.size() < 64;
 											 }); },
 			[](editor_id struct_id) {
 				auto& w_id_vec = get_all_selections();
@@ -580,7 +583,7 @@ namespace editor::models
 			// todo check that no entities uses that struct
 			[](editor_id struct_id) { return reflection::find_struct(struct_id) is_not_nullptr
 										 and std::ranges::all_of(get_all_selections(), [=](const auto& w_id) {
-												 auto* p_w = world::find(w_id);
+												 auto*		p_w = world::find(w_id);
 												 return p_w is_not_nullptr
 													and std::ranges::contains(p_w->structs, struct_id)
 													and std::ranges::all_of(entity::all(w_id), [=](em_entity* p_e) {
@@ -854,7 +857,7 @@ namespace editor::models
 		{
 			std::unordered_map<editor_id, std::map<editor_id, em_entity>, editor_id::hash_func> _entities;		  // key : world_id, value : map [  entity_id, em_entity ]
 			std::unordered_map<editor_id, editor_id, editor_id::hash_func>						_world_id_lut;	  // key : entity id, value : world_id
-		}	 // namespace
+		}																										  // namespace
 
 		editor_command cmd_create_empty(
 			"Create Emtpy Entity",
@@ -1281,7 +1284,7 @@ namespace editor::models
 		{
 			std::unordered_map<editor_id, std::vector<em_component>, editor_id::hash_func> _components;		  // key : endity_id, value : [key : component_id, value : em_component]
 			std::unordered_map<editor_id, editor_id, editor_id::hash_func>				   _entity_id_lut;	  // key: component_id, value: entity_id
-		}	 // namespace
+		}																									  // namespace
 
 		em_component* find(editor_id component_id)
 		{

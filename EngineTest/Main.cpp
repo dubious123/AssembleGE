@@ -76,6 +76,8 @@ constexpr auto arr = []() {
 #include <string>
 #include <variant>
 
+#include <future>
+
 #include "test.h"
 
 // #include <type_traits>
@@ -569,7 +571,9 @@ int main()
 	// loop<&system_1::f>();
 	auto _scene0 = scene_t1();
 	auto ss		 = _seq<my_scene_system_0, my_scene_system_1>();
+	auto par_ss	 = _par<my_scene_system_0, my_scene_system_1>();
 	ss.run(&_scene0);
+	par_ss.run(&_scene0);
 	// loop<&game2::run>();
 	auto ggg = game2(2);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
