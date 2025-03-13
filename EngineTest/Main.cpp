@@ -570,10 +570,17 @@ int main()
 {
 	// loop<&system_1::f>();
 	auto _scene0 = scene_t1();
-	auto ss		 = _seq<my_scene_system_0, my_scene_system_1>();
-	auto par_ss	 = _par<my_scene_system_0, my_scene_system_1>();
+	auto ss =
+		_seq<
+			my_scene_system_0,
+			my_scene_system_1,
+			_par<my_scene_system_0,
+				 _seq<
+					 my_scene_system_1,
+					 my_scene_system_0,
+					 _cond<my_cond_system_true, my_scene_system_0, my_scene_system_1>,
+					 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
 	ss.run(&_scene0);
-	par_ss.run(&_scene0);
 	// loop<&game2::run>();
 	auto ggg = game2(2);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
@@ -607,7 +614,7 @@ int main()
 	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
 
 	using group_t = system_group<system_1, system_2>;
-	auto group	  = system_group<system_1, par<system_1, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
+	auto group	  = system_group<system_1, par<system_1, system_2, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
 	// auto group = system_group<system_2>();
 
 	auto tpl2 = meta::func_args<decltype(system_2::test_fu)>::type();

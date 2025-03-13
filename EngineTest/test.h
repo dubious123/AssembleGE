@@ -119,6 +119,38 @@ struct my_game : scenes, my_game_state
 {
 };
 
+// GAME_BEGIN(my_game, ...)
+//__STATE(my_game_state, game_state)
+//...
+// GAME_END()
+
+// SCENE_BEGIN(my_scene_0, ...)
+//__STATES(scene_state, direct12_state, ...)
+// SCENE_END()
+
+// ENTITY_COLLECTION(my_collection)
+
+// WORLD_BEGIN(my_world_0, ...)
+//__STATES(world_state, physics_state, ...)
+//__ENTITY_COLLECTION(my_collection)
+//__ENTITY_BEGIN(entity_name, ...)
+//____SET_COMPONENT(transform, position, {1,1,1})
+//__ENTITY_END()
+// WORLD_END()
+
+// interface_begin(my_interface)
+//__METHOD(init)
+//__PROPERTY(current_scene)
+// interface_end()
+
+// system_begin(my_game_system, interface_game)
+//__expose_to_editor(some_data)
+// system_end()
+
+// system_group_begin(game_sys_group, interface_game)
+// seq(my_scene_system_0, my_scene_system_1)
+//
+
 struct my_game_system
 {
 	template <typename t>
@@ -143,6 +175,25 @@ struct my_scene_system_1
 	{
 		DEBUG_LOG("---my_scene_system_1 run---");
 		int a;
+	}
+};
+
+struct my_cond_system_false
+{
+	bool run()
+	{
+		DEBUG_LOG("---my_cond_system_false run---");
+		return false;
+	}
+};
+
+struct my_cond_system_true
+{
+	template <typename s>
+	bool run(interface_scene<s> iscene)
+	{
+		DEBUG_LOG("---my_cond_system_true run---");
+		return true;
 	}
 };
 
@@ -203,28 +254,31 @@ template <typename t_sys, typename t_data>
 concept has_run_templated = requires(t_sys sys, t_data* p_data) {
 	{
 		sys.template run<t_data>(p_data)
-	} -> std::same_as<void>;
+	};
 };
 
 template <typename t_sys>
 concept has_run_non_templated = requires(t_sys sys) {
 	{
 		sys.run()
-	} -> std::same_as<void>;
+	};
 };
 
+// template <typename t>
+// concept _is_node = is_specialization_of_v<t, _seq> || is_specialization_of_v<t, _par>;
+
 template <typename t_sys, typename t_data>
-void run_system(t_sys& sys, t_data* p_data)
+auto run_system(t_sys& sys, t_data* p_data)
 {
 	if constexpr (has_run_templated<t_sys, t_data>)
 	{
 		// If the templated run exists, call it with Data.
-		sys.template run<t_data>(p_data);
+		return sys.template run<t_data>(p_data);
 	}
 	else if constexpr (has_run_non_templated<t_sys>)
 	{
 		// Otherwise, if a non-templated run exists, call that.
-		sys.run();
+		return sys.run();
 	}
 	else
 	{
@@ -259,10 +313,10 @@ struct _par
 	void parallel_apply(tpl_sys& systems, t_data* p_data, std::index_sequence<i...>)
 	{
 		auto futures = std::array<std::future<void>, sizeof...(i)> {
-			(std::async([p_data, &systems]() { run_system(std::get<i>(systems), p_data); }))...
+			(std::async(std::launch::async, [p_data, &systems]() { run_system(std::get<i>(systems), p_data); }))...
 		};
 
-		std::apply([](auto&... fut) { ((void)fut.get(), ...); }, futures);
+		std::ranges::for_each(futures, [](auto&& fut) { fut.get(); });
 	}
 
 	template <typename t_data>
@@ -271,6 +325,29 @@ struct _par
 		DEBUG_LOG("---new par start (func)---");
 		parallel_apply(systems, p_data, std::make_index_sequence<sizeof...(t_sys)>());
 		DEBUG_LOG("---new par end (func)---");
+	}
+};
+
+template <typename t_sys_cond, typename t_sys_true, typename t_sys_false>
+struct _cond
+{
+	t_sys_cond	sys_cond;
+	t_sys_true	sys_true;
+	t_sys_false sys_false;
+
+	template <typename t_data>
+	void run(t_data* p_data)
+	{
+		DEBUG_LOG("---new cond start (func)---");
+		if (run_system(sys_cond, p_data))
+		{
+			run_system(sys_true, p_data);
+		}
+		else
+		{
+			run_system(sys_false, p_data);
+		}
+		DEBUG_LOG("---new cond end (func)---");
 	}
 };
 

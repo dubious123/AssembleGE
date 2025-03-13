@@ -542,18 +542,31 @@ namespace meta
 	template <typename t>
 	using func_ret_t = func_ret<t>::type;
 
-	template <template <typename...> class, template <typename...> class>
+	template <template <typename...> typename, template <typename...> typename>
 	struct is_same_template : std::false_type
 	{
 	};
 
-	template <template <typename...> class t>
+	template <template <typename...> typename t>
 	struct is_same_template<t, t> : std::true_type
 	{
 	};
 
-	template <template <typename...> class tl, template <typename...> class tr>
+	template <template <typename...> typename tl, template <typename...> typename tr>
 	static inline constinit const auto is_same_template_v = is_same_template<tr, tr>::value;
+
+	template <typename t1, template <typename...> typename t2>
+	struct is_specialization_of : std::false_type
+	{
+	};
+
+	template <template <typename...> class t, typename... args>
+	struct is_specialization_of<t<args...>, t> : std::true_type
+	{
+	};
+
+	template <typename t1, template <typename...> typename t2>
+	static inline constinit const auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 }	 // namespace meta
