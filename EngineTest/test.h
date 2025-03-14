@@ -119,38 +119,6 @@ struct my_game : scenes, my_game_state
 {
 };
 
-// GAME_BEGIN(my_game, ...)
-//__STATE(my_game_state, game_state)
-//...
-// GAME_END()
-
-// SCENE_BEGIN(my_scene_0, ...)
-//__STATES(scene_state, direct12_state, ...)
-// SCENE_END()
-
-// ENTITY_COLLECTION(my_collection)
-
-// WORLD_BEGIN(my_world_0, ...)
-//__STATES(world_state, physics_state, ...)
-//__ENTITY_COLLECTION(my_collection)
-//__ENTITY_BEGIN(entity_name, ...)
-//____SET_COMPONENT(transform, position, {1,1,1})
-//__ENTITY_END()
-// WORLD_END()
-
-// interface_begin(my_interface)
-//__METHOD(init)
-//__PROPERTY(current_scene)
-// interface_end()
-
-// system_begin(my_game_system, interface_game)
-//__expose_to_editor(some_data)
-// system_end()
-
-// system_group_begin(game_sys_group, interface_game)
-// seq(my_scene_system_0, my_scene_system_1)
-//
-
 struct my_game_system
 {
 	template <typename t>
@@ -357,7 +325,7 @@ struct _system_group
 	std::tuple<nodes...> nodes;
 
 	template <typename t>
-	void run(_interface<t> i_t)
+	void run(_interface<t>)
 	{
 		// if constexpr ()
 		//{
@@ -365,5 +333,63 @@ struct _system_group
 		// else if constexpr ()
 		//{
 		// }
+	}
+};
+
+// GAME_BEGIN(my_game, ...)
+//__STATE(my_game_state, game_state)
+//...
+// GAME_END()
+
+// SCENE_BEGIN(my_scene_0, ...)
+//__STATES(scene_state, direct12_state, ...)
+// SCENE_END()
+
+// ENTITY_COLLECTION(my_collection)
+
+// WORLD_BEGIN(my_world_0, ...)
+//__STATES(world_state, physics_state, ...)
+//__ENTITY_COLLECTION(my_collection)
+//__ENTITY_BEGIN(entity_name, ...)
+//____SET_COMPONENT(transform, position, {1,1,1})
+//__ENTITY_END()
+// WORLD_END()
+
+// interface_begin(my_interface)
+//__METHOD(init)
+//__PROPERTY(current_scene)
+// interface_end()
+
+// system_begin(my_game_system, interface_game)
+//__expose_to_editor(some_data)
+// system_end()
+
+// system_group_begin(game_sys_group, interface_game)
+// seq(sys_game_init)
+// switch_begin(sys_game_current_scene)
+// case(0, bind(sys_scene_0, [](auto& igame){return igame.scene_0; })
+
+// auto sys_group_game = []<typename g>(interface_game<g> igame) {
+//	my_scene_system_0().run(igame.get_scene<???>());
+// };
+template <typename... t_sys>
+struct _bind;
+
+template <typename t_func, typename... t_sys>
+struct _bind<t_func, t_sys...>
+{
+	template <typename t_data>
+	void run(t_data* p_data)
+	{
+		DEBUG_LOG("---new cond start (func)---");
+		if (run_system(sys_cond, p_data))
+		{
+			run_system(sys_true, p_data);
+		}
+		else
+		{
+			run_system(sys_false, p_data);
+		}
+		DEBUG_LOG("---new cond end (func)---");
 	}
 };
