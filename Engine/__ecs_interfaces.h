@@ -1,15 +1,34 @@
 #pragma once
 
-template <typename t_ref_game>
+template <typename t_game>
 struct interface_game
 {
-	t_ref_game ref_game;
+	t_game* p_game;
 
-	interface_game(t_ref_game ref_game) : ref_game(ref_game) { }
+	interface_game(t_game* p_game) : p_game(p_game) { }
 
-	void inline init()
+	inline void init()
 	{
-		ref_game.init();
+		p_game->init();
+	}
+
+	template <typename scene_t>
+	inline scene_t* get_scene()
+	{
+		return p_game->get_scene<scene_t>();
+	}
+};
+
+template <typename t>
+struct interface_init
+{
+	t* p;
+
+	interface_init(t* p) : p(p) { }
+
+	inline void init()
+	{
+		p->init();
 	}
 };
 

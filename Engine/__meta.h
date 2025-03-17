@@ -264,6 +264,25 @@ namespace meta
 		using param_at = variadic_at_t<i, args...>;
 	};
 
+	template <typename t>
+	struct callable_traits;
+
+	template <typename t_ret, typename t_callable, typename... t_arg>
+	struct callable_traits<t_ret (t_callable::*)(t_arg...)>
+	{
+		using return_type	 = t_ret;
+		using callable_type	 = t_callable;
+		using argument_types = std::tuple<t_arg...>;
+	};
+
+	template <typename t_ret, typename t_callable, typename... t_arg>
+	struct callable_traits<t_ret (t_callable::*)(t_arg...) const>
+	{
+		using return_type	 = t_ret;
+		using callable_type	 = t_callable;
+		using argument_types = std::tuple<t_arg...>;
+	};
+
 	// template <std::size_t i, typename ret, typename c, typename... args>
 	// struct param_at<i, ret(c::*)(args...)>
 	//{

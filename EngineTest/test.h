@@ -117,6 +117,10 @@ struct my_game_state
 
 struct my_game : scenes, my_game_state
 {
+	void init()
+	{
+		DEBUG_LOG("my game init");
+	};
 };
 
 struct my_game_system
@@ -188,6 +192,15 @@ struct my_entity_system_0
 	template <typename w>
 	void entity_block_end(interface_world<w> iworld)
 	{
+	}
+};
+
+struct sys_game_init
+{
+	template <typename g>
+	void run(interface_game<g> igame)
+	{
+		igame.init();
 	}
 };
 
@@ -367,29 +380,54 @@ struct _system_group
 // system_group_begin(game_sys_group, interface_game)
 // seq(sys_game_init)
 // switch_begin(sys_game_current_scene)
-// case(0, bind(sys_scene_0, [](auto& igame){return igame.scene_0; })
+// case(0, bind(sys_scene_0, []<typename g>(interface_game<g> igame){return igame.scene_0; })
 
 // auto sys_group_game = []<typename g>(interface_game<g> igame) {
 //	my_scene_system_0().run(igame.get_scene<???>());
 // };
-template <typename... t_sys>
-struct _bind;
 
-template <typename t_func, typename... t_sys>
-struct _bind<t_func, t_sys...>
+template <typename t>
+struct extract_interface_template;
+
+template <template <typename> typename... t_interface, typename t>
+struct extract_interface_template<std::tuple<t_interface<t>...>>
 {
+	template <typename t_data>
+	using tpl_interfaces = std::tuple<t_interface<t_data>...>;
+
+	template <typename t_data, std::size_t... i>
+	constexpr static tpl_interfaces<t_data> get_interfaces_imp(t_data* p_data, std::index_sequence<i...>)
+	{
+		return std::make_tuple((std::tuple_element_t<i, tpl_interfaces<t_data>>(p_data))...);
+	}
+
+	template <typename t_data>
+	constexpr static tpl_interfaces<t_data> get_interfaces(t_data* p_data)
+	{
+		constexpr auto size = std::tuple_size_v<tpl_interfaces<t_data>>;
+		return get_interfaces_imp(p_data, std::make_index_sequence<size> {});
+	}
+};
+
+template <typename t_callable, typename t_data>
+// using lambda_interface_template = extract_interface_template<typename callable_trait<t_callable, t_args...>::t_arguments>;
+
+using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
+
+template <typename t_sys, auto callable>
+struct _bind
+{
+	t_sys sys;
+
+	// t_func func;
+
 	template <typename t_data>
 	void run(t_data* p_data)
 	{
-		DEBUG_LOG("---new cond start (func)---");
-		if (run_system(sys_cond, p_data))
-		{
-			run_system(sys_true, p_data);
-		}
-		else
-		{
-			run_system(sys_false, p_data);
-		}
-		DEBUG_LOG("---new cond end (func)---");
+		auto tpl = lambda_interface_templates<decltype(callable), t_data>::template get_interfaces(p_data);
+		// auto* res = func(std::get<0>(tpl));
+		auto* res = std::apply(callable, tpl);
+		run_system(sys, res);
+		//   sys.run(func(p_data));
 	}
 };

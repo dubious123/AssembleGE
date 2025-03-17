@@ -551,7 +551,7 @@ struct game2
 			}
 			case e_scene_t2:
 			{
-				scene_scene_t2.run<decltype(*this)>(*this);
+				scene_scene_t2.run<game2>(this);
 				break;
 			}
 			case e_scene_t3:
@@ -581,7 +581,21 @@ int main()
 					 _cond<my_cond_system_true, my_scene_system_0, my_scene_system_1>,
 					 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
 	ss.run(&_scene0);
-	// loop<&game2::run>();
+
+	auto _game = my_game();
+
+	auto _sys_group_game = _seq<
+		sys_game_init,
+		_bind<my_scene_system_0, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }>>();
+
+	decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) _func;
+	_func(interface_game<my_game> { &_game });
+	_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
+
+	//_sys_group_game.run(&_game);
+	//  decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) lambda;
+	//_bind<my_scene_system_1, decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); })>();
+	//   loop<&game2::run>();
 	auto ggg = game2(2);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
 	// using traits2 = function_traits<decltype(&system_1::update<int>)>;
