@@ -570,27 +570,28 @@ int main()
 {
 	// loop<&system_1::f>();
 	auto _scene0 = scene_t1();
-	auto ss =
-		_seq<
-			my_scene_system_0,
-			my_scene_system_1,
-			_par<my_scene_system_0,
-				 _seq<
-					 my_scene_system_1,
-					 my_scene_system_0,
-					 _cond<my_cond_system_true, my_scene_system_0, my_scene_system_1>,
-					 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
-	ss.run(&_scene0);
+	// auto ss =
+	//	_seq<
+	//		my_scene_system_0,
+	//		my_scene_system_1,
+	//		_par<my_scene_system_0,
+	//			 _seq<
+	//				 my_scene_system_1,
+	//				 my_scene_system_0,
+	//				 _cond<my_cond_system_true, my_scene_system_0, my_scene_system_1>,
+	//				 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
+	// ss.run(&_scene0);
 
 	auto _game = my_game();
 
 	auto _sys_group_game = _seq<
-		sys_game_init,
-		_bind<my_scene_system_0, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }>>();
+		sys_game_init {},
+		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {}>();
 
-	decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) _func;
-	_func(interface_game<my_game> { &_game });
-	_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
+	auto _test_seq = _seq<[]<typename g>(interface_game<g> igame) { return igame.init(); }>();
+
+	_sys_group_game.run(&_game);
+	//_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
 	//_sys_group_game.run(&_game);
 	//  decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) lambda;

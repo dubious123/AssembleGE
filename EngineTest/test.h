@@ -251,12 +251,12 @@ concept has_run_non_templated = requires(t_sys sys) {
 template <typename t_sys, typename t_data>
 auto run_system(t_sys& sys, t_data* p_data)
 {
-	if constexpr (has_run_templated<t_sys, t_data>)
+	if constexpr (has_run_templated<std::remove_const_t<t_sys>, t_data>)
 	{
 		// If the templated run exists, call it with Data.
 		return sys.template run<t_data>(p_data);
 	}
-	else if constexpr (has_run_non_templated<t_sys>)
+	else if constexpr (has_run_non_templated<std::remove_const_t<t_sys>>)
 	{
 		// Otherwise, if a non-templated run exists, call that.
 		return sys.run();
@@ -267,18 +267,25 @@ auto run_system(t_sys& sys, t_data* p_data)
 	}
 }
 
-template <typename... t_sys>
+template <auto... sys>
 struct _seq
 {
-	std::tuple<t_sys...> systems;
+	std::tuple<decltype(sys)...> systems;
+
+	constexpr _seq() : systems(sys...) { }
 
 	template <typename t_data>
 	void run(t_data* p_data)
 	{
 		DEBUG_LOG("---new seq start (func)---");
+
+		//([p_data]() {
+		//	run_system(sys, p_data);
+		//}(),
+		// ...);
 		std::apply(
-			[p_data](auto&... sys) {
-				((run_system(sys, p_data)), ...);
+			[p_data](auto&... _sys) {
+				((run_system(_sys, p_data)), ...);
 			},
 			systems);
 		DEBUG_LOG("---new seq end (func)---");
@@ -410,16 +417,14 @@ struct extract_interface_template<std::tuple<t_interface<t>...>>
 };
 
 template <typename t_callable, typename t_data>
-// using lambda_interface_template = extract_interface_template<typename callable_trait<t_callable, t_args...>::t_arguments>;
-
 using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
 
-template <typename t_sys, auto callable>
+template <auto sys, auto callable>
 struct _bind
 {
-	t_sys sys;
+	decltype(sys) _sys;
 
-	// t_func func;
+	constexpr _bind() : _sys(sys) { }
 
 	template <typename t_data>
 	void run(t_data* p_data)
@@ -427,7 +432,8 @@ struct _bind
 		auto tpl = lambda_interface_templates<decltype(callable), t_data>::template get_interfaces(p_data);
 		// auto* res = func(std::get<0>(tpl));
 		auto* res = std::apply(callable, tpl);
-		run_system(sys, res);
-		//   sys.run(func(p_data));
+		run_system(_sys, res);
 	}
 };
+
+// todo generic lambda + system

@@ -363,7 +363,7 @@ namespace ecs
 
 			auto& block_list	= memory_block_vec_map[archetype];
 			auto* p_block		= (memory_block*)nullptr;
-			auto  mem_block_idx = 0;
+			auto  mem_block_idx = 0ull;
 			auto* p_entity		= (entity*)nullptr;
 
 			auto res = std::ranges::find_if(block_list, [&](auto& block) { return block.is_full() is_false; });
