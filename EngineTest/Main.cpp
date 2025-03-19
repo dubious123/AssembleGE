@@ -586,9 +586,11 @@ int main()
 
 	auto _sys_group_game = _seq<
 		sys_game_init {},
-		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {}>();
-
-	auto _test_seq = _seq<[]<typename g>(interface_game<g> igame) { return igame.init(); }>();
+		[]() { return 1; },
+		[]<typename g>(interface_init<g> iinit) { iinit.init(); },
+		_bind<my_scene_system_0 {}, []() { return (scene_t1*)nullptr; }> {},
+		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {},
+		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}>();
 
 	_sys_group_game.run(&_game);
 	//_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);

@@ -204,6 +204,15 @@ struct sys_game_init
 	}
 };
 
+struct sys_get_scene0
+{
+	template <typename g>
+	auto run(interface_game<g> igame)
+	{
+		return igame.get_scene<scene_t1>();
+	}
+};
+
 template <template <typename> typename _interface, typename t, typename = void>
 struct interface_or_void
 {
@@ -245,6 +254,50 @@ concept has_run_non_templated = requires(t_sys sys) {
 	};
 };
 
+template <typename t>
+struct extract_interface_template;
+
+template <template <typename> typename... t_interface, typename t>
+struct extract_interface_template<std::tuple<t_interface<t>...>>
+{
+	template <typename t_data>
+	using tpl_interfaces = std::tuple<t_interface<t_data>...>;
+
+	template <typename t_data, std::size_t... i>
+	constexpr static tpl_interfaces<t_data> get_interfaces_imp(t_data* p_data, std::index_sequence<i...>)
+	{
+		return std::make_tuple((std::tuple_element_t<i, tpl_interfaces<t_data>>(p_data))...);
+	}
+
+	template <typename t_data>
+	constexpr static tpl_interfaces<t_data> get_interfaces(t_data* p_data)
+	{
+		constexpr auto size = std::tuple_size_v<tpl_interfaces<t_data>>;
+		return get_interfaces_imp(p_data, std::make_index_sequence<size> {});
+	}
+};
+
+template <typename t_callable, typename t_data>
+using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
+
+template <typename t_callable, typename t_data>
+concept is_callable_templated = requires(t_callable callable, t_data* p_data) {
+	std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(p_data));
+};
+
+template <typename t_callable>
+concept is_callable_non_templated = requires(t_callable callable) {
+	// std::apply(callable, typename meta::callable_traits<[]() { return (scene_t1*)nullptr; }>::argument_types());
+	std::apply(callable, typename meta::callable_traits<callable>::argument_types());
+	// std::apply(callable, std::tuple<>());
+};
+
+// template <typename t_callable>
+// concept is_callable_non_templated = requires(t_callable callable) {
+//	// callable();
+//	std::apply(callable, std::tuple<>());
+// };
+
 // template <typename t>
 // concept _is_node = is_specialization_of_v<t, _seq> || is_specialization_of_v<t, _par>;
 
@@ -253,13 +306,22 @@ auto run_system(t_sys& sys, t_data* p_data)
 {
 	if constexpr (has_run_templated<std::remove_const_t<t_sys>, t_data>)
 	{
-		// If the templated run exists, call it with Data.
-		return sys.template run<t_data>(p_data);
+		// return sys.template run<t_data>(p_data);
+		return sys.run<t_data>(p_data);
 	}
 	else if constexpr (has_run_non_templated<std::remove_const_t<t_sys>>)
 	{
-		// Otherwise, if a non-templated run exists, call that.
 		return sys.run();
+	}
+	else if constexpr (is_callable_templated<t_sys, t_data>)
+	{
+		auto interfaces = lambda_interface_templates<t_sys, t_data>::get_interfaces(p_data);
+		// auto* res = func(std::get<0>(tpl));
+		return std::apply(sys, interfaces);
+	}
+	else if constexpr (is_callable_non_templated<t_sys>)
+	{
+		return sys();
 	}
 	else
 	{
@@ -292,10 +354,14 @@ struct _seq
 	}
 };
 
-template <typename... t_sys>
+template <auto... sys>
 struct _par
 {
-	std::tuple<t_sys...> systems;
+	std::tuple<decltype(sys)...> systems;
+
+	constexpr _par() : systems(sys...) { }
+
+	// constexpr _par() :
 
 	template <typename tpl_sys, typename t_data, std::size_t... i>
 	void parallel_apply(tpl_sys& systems, t_data* p_data, std::index_sequence<i...>)
@@ -311,31 +377,53 @@ struct _par
 	void run(t_data* p_data)
 	{
 		DEBUG_LOG("---new par start (func)---");
-		parallel_apply(systems, p_data, std::make_index_sequence<sizeof...(t_sys)>());
+		parallel_apply(systems, p_data, std::make_index_sequence<sizeof...(sys)>());
 		DEBUG_LOG("---new par end (func)---");
 	}
 };
 
-template <typename t_sys_cond, typename t_sys_true, typename t_sys_false>
+template <auto sys_cond, auto sys_true, auto sys_false>
 struct _cond
 {
-	t_sys_cond	sys_cond;
-	t_sys_true	sys_true;
-	t_sys_false sys_false;
+	decltype(sys_cond)	_sys_cond;
+	decltype(sys_true)	_sys_true;
+	decltype(sys_false) _sys_false;
+
+	constexpr _cond() : _sys_cond(sys_cond), _sys_true(sys_true), _sys_false(sys_false) { }
 
 	template <typename t_data>
 	void run(t_data* p_data)
 	{
 		DEBUG_LOG("---new cond start (func)---");
-		if (run_system(sys_cond, p_data))
+		if (run_system(_sys_cond, p_data))
 		{
-			run_system(sys_true, p_data);
+			run_system(_sys_true, p_data);
 		}
 		else
 		{
-			run_system(sys_false, p_data);
+			run_system(_sys_false, p_data);
 		}
 		DEBUG_LOG("---new cond end (func)---");
+	}
+};
+
+template <auto sys_cond, auto sys_loop>
+struct _loop
+{
+	decltype(sys_cond) _sys_cond;
+	decltype(sys_loop) _sys_loop;
+
+	constexpr _loop() : _sys_cond(sys_cond), _sys_loop(sys_loop) { }
+
+	template <typename t_data>
+	void run(t_data* p_data)
+	{
+		DEBUG_LOG("---loop start (func)---");
+		while (run_system(sys_cond, p_data))
+		{
+			run_system(sys_loop);
+		}
+		DEBUG_LOG("---loop end (func)---");
 	}
 };
 
@@ -393,46 +481,18 @@ struct _system_group
 //	my_scene_system_0().run(igame.get_scene<???>());
 // };
 
-template <typename t>
-struct extract_interface_template;
-
-template <template <typename> typename... t_interface, typename t>
-struct extract_interface_template<std::tuple<t_interface<t>...>>
-{
-	template <typename t_data>
-	using tpl_interfaces = std::tuple<t_interface<t_data>...>;
-
-	template <typename t_data, std::size_t... i>
-	constexpr static tpl_interfaces<t_data> get_interfaces_imp(t_data* p_data, std::index_sequence<i...>)
-	{
-		return std::make_tuple((std::tuple_element_t<i, tpl_interfaces<t_data>>(p_data))...);
-	}
-
-	template <typename t_data>
-	constexpr static tpl_interfaces<t_data> get_interfaces(t_data* p_data)
-	{
-		constexpr auto size = std::tuple_size_v<tpl_interfaces<t_data>>;
-		return get_interfaces_imp(p_data, std::make_index_sequence<size> {});
-	}
-};
-
-template <typename t_callable, typename t_data>
-using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
-
-template <auto sys, auto callable>
+template <auto sys, auto sys_producer>
 struct _bind
 {
-	decltype(sys) _sys;
+	decltype(sys)		   _sys;
+	decltype(sys_producer) _sys_producer;
 
-	constexpr _bind() : _sys(sys) { }
+	constexpr _bind() : _sys(sys), _sys_producer(sys_producer) { }
 
 	template <typename t_data>
 	void run(t_data* p_data)
 	{
-		auto tpl = lambda_interface_templates<decltype(callable), t_data>::template get_interfaces(p_data);
-		// auto* res = func(std::get<0>(tpl));
-		auto* res = std::apply(callable, tpl);
-		run_system(_sys, res);
+		run_system(_sys, run_system(_sys_producer, p_data));
 	}
 };
 
