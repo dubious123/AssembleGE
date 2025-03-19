@@ -551,7 +551,8 @@ struct game2
 			}
 			case e_scene_t2:
 			{
-				scene_scene_t2.run<game2>(this);
+				static_assert(std::is_same_v<game2&, decltype(*this)>);
+				scene_scene_t2.run<game2>(*this);
 				break;
 			}
 			case e_scene_t3:
@@ -584,15 +585,23 @@ int main()
 
 	auto _game = my_game();
 
+	// auto _sys_group_game = _seq<
+	//	sys_game_init {},
+	//	[]() { return 1; },
+	//	[]<typename g>(interface_init<g> iinit) { iinit.init(); },
+	//	_bind<my_scene_system_0 {}, []() { return (scene_t1*)nullptr; }> {},
+	//	_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {},
+	//	_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}>();
+
 	auto _sys_group_game = _seq<
 		sys_game_init {},
 		[]() { return 1; },
 		[]<typename g>(interface_init<g> iinit) { iinit.init(); },
-		_bind<my_scene_system_0 {}, []() { return (scene_t1*)nullptr; }> {},
-		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {},
-		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}>();
+		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}> {};
 
-	_sys_group_game.run(&_game);
+	// auto _sys_group_game = _seq<sys_game_init {}>();
+
+	_sys_group_game.run(_game);
 	//_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
 	//_sys_group_game.run(&_game);

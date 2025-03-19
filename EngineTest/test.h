@@ -90,23 +90,23 @@ struct scenes
 	scene_t4 scene_4;
 
 	template <typename scene_t>
-	scene_t* get_scene()
+	scene_t& get_scene()
 	{
 		if constexpr (std::is_same_v<scene_t, scene_t1>)
 		{
-			return &scene_1;
+			return scene_1;
 		}
 		else if constexpr (std::is_same_v<scene_t, scene_t1>)
 		{
-			return &scene_2;
+			return scene_2;
 		}
 		else if constexpr (std::is_same_v<scene_t, scene_t1>)
 		{
-			return &scene_3;
+			return scene_3;
 		}
 		else if constexpr (std::is_same_v<scene_t, scene_t1>)
 		{
-			return &scene_4;
+			return scene_4;
 		}
 	}
 };
@@ -121,6 +121,10 @@ struct my_game : scenes, my_game_state
 	{
 		DEBUG_LOG("my game init");
 	};
+
+	my_game()						   = default;
+	my_game(const my_game&)			   = delete;
+	my_game& operator=(const my_game&) = delete;
 };
 
 struct my_game_system
@@ -207,7 +211,7 @@ struct sys_game_init
 struct sys_get_scene0
 {
 	template <typename g>
-	auto run(interface_game<g> igame)
+	scene_t1& run(interface_game<g> igame)
 	{
 		return igame.get_scene<scene_t1>();
 	}
@@ -241,9 +245,9 @@ struct sys_trait<sys, _interface, _data, std::void_t<meta::function_traits<&sys:
 };
 
 template <typename t_sys, typename t_data>
-concept has_run_templated = requires(t_sys sys, t_data* p_data) {
+concept has_run_templated = requires(t_sys sys, t_data&& data) {
 	{
-		sys.template run<t_data>(p_data)
+		sys.template run<t_data>(std::forward<t_data>(data))
 	};
 };
 
@@ -264,16 +268,16 @@ struct extract_interface_template<std::tuple<t_interface<t>...>>
 	using tpl_interfaces = std::tuple<t_interface<t_data>...>;
 
 	template <typename t_data, std::size_t... i>
-	constexpr static tpl_interfaces<t_data> get_interfaces_imp(t_data* p_data, std::index_sequence<i...>)
+	constexpr static tpl_interfaces<t_data> get_interfaces_imp(t_data&& data, std::index_sequence<i...>)
 	{
-		return std::make_tuple((std::tuple_element_t<i, tpl_interfaces<t_data>>(p_data))...);
+		return std::make_tuple((std::tuple_element_t<i, tpl_interfaces<t_data>>(std::forward<decltype(data)>(data)))...);
 	}
 
 	template <typename t_data>
-	constexpr static tpl_interfaces<t_data> get_interfaces(t_data* p_data)
+	constexpr static tpl_interfaces<t_data> get_interfaces(t_data&& data)
 	{
 		constexpr auto size = std::tuple_size_v<tpl_interfaces<t_data>>;
-		return get_interfaces_imp(p_data, std::make_index_sequence<size> {});
+		return get_interfaces_imp(std::forward<decltype(data)>(data), std::make_index_sequence<size> {});
 	}
 };
 
@@ -281,8 +285,8 @@ template <typename t_callable, typename t_data>
 using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
 
 template <typename t_callable, typename t_data>
-concept is_callable_templated = requires(t_callable callable, t_data* p_data) {
-	std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(p_data));
+concept is_callable_templated = requires(t_callable callable, t_data&& data) {
+	std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(std::forward<t_data>(data)));
 };
 
 template <typename t_callable>
@@ -302,12 +306,12 @@ concept is_callable_non_templated = requires(t_callable callable) {
 // concept _is_node = is_specialization_of_v<t, _seq> || is_specialization_of_v<t, _par>;
 
 template <typename t_sys, typename t_data>
-auto run_system(t_sys& sys, t_data* p_data)
+decltype(auto) run_system(t_sys& sys, t_data&& data)
 {
 	if constexpr (has_run_templated<std::remove_const_t<t_sys>, t_data>)
 	{
 		// return sys.template run<t_data>(p_data);
-		return sys.run<t_data>(p_data);
+		return sys.run<t_data>(std::forward<decltype(data)>(data));
 	}
 	else if constexpr (has_run_non_templated<std::remove_const_t<t_sys>>)
 	{
@@ -315,7 +319,7 @@ auto run_system(t_sys& sys, t_data* p_data)
 	}
 	else if constexpr (is_callable_templated<t_sys, t_data>)
 	{
-		auto interfaces = lambda_interface_templates<t_sys, t_data>::get_interfaces(p_data);
+		auto interfaces = lambda_interface_templates<t_sys, t_data>::get_interfaces(std::forward<decltype(data)>(data));
 		// auto* res = func(std::get<0>(tpl));
 		return std::apply(sys, interfaces);
 	}
@@ -337,7 +341,7 @@ struct _seq
 	constexpr _seq() : systems(sys...) { }
 
 	template <typename t_data>
-	void run(t_data* p_data)
+	void run(t_data&& data)
 	{
 		DEBUG_LOG("---new seq start (func)---");
 
@@ -346,8 +350,8 @@ struct _seq
 		//}(),
 		// ...);
 		std::apply(
-			[p_data](auto&... _sys) {
-				((run_system(_sys, p_data)), ...);
+			[&data](auto&... _sys) {
+				((run_system(_sys, std::forward<std::remove_const_t<t_data>>(data))), ...);
 			},
 			systems);
 		DEBUG_LOG("---new seq end (func)---");
@@ -490,9 +494,10 @@ struct _bind
 	constexpr _bind() : _sys(sys), _sys_producer(sys_producer) { }
 
 	template <typename t_data>
-	void run(t_data* p_data)
+	void run(t_data&& data)
 	{
-		run_system(_sys, run_system(_sys_producer, p_data));
+		run_system(_sys_producer, std::forward<t_data>(data));
+		// run_system(_sys, run_system(_sys_producer, std::forward<t_data>(data)));
 	}
 };
 
