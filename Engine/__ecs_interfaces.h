@@ -13,7 +13,7 @@ struct interface_game
 	}
 
 	template <typename scene_t>
-	inline scene_t& get_scene()
+	inline decltype(auto) get_scene()
 	{
 		return game.get_scene<scene_t>();
 	}
@@ -37,7 +37,7 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene) { }
+	interface_scene(t_scene& scene) : scene(scene) {};
 
 	void inline init()
 	{

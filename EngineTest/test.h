@@ -96,15 +96,15 @@ struct scenes
 		{
 			return scene_1;
 		}
-		else if constexpr (std::is_same_v<scene_t, scene_t1>)
+		else if constexpr (std::is_same_v<scene_t, scene_t2>)
 		{
 			return scene_2;
 		}
-		else if constexpr (std::is_same_v<scene_t, scene_t1>)
+		else if constexpr (std::is_same_v<scene_t, scene_t3>)
 		{
 			return scene_3;
 		}
-		else if constexpr (std::is_same_v<scene_t, scene_t1>)
+		else if constexpr (std::is_same_v<scene_t, scene_t4>)
 		{
 			return scene_4;
 		}
@@ -211,7 +211,7 @@ struct sys_game_init
 struct sys_get_scene0
 {
 	template <typename g>
-	scene_t1& run(interface_game<g> igame)
+	decltype(auto) run(interface_game<g> igame)
 	{
 		return igame.get_scene<scene_t1>();
 	}
@@ -245,16 +245,16 @@ struct sys_trait<sys, _interface, _data, std::void_t<meta::function_traits<&sys:
 };
 
 template <typename t_sys, typename t_data>
-concept has_run_templated = requires(t_sys sys, t_data&& data) {
+concept is_system_templated = requires(t_sys sys, t_data&& data) {
 	{
 		sys.template run<t_data>(std::forward<t_data>(data))
 	};
 };
 
 template <typename t_sys>
-concept has_run_non_templated = requires(t_sys sys) {
+concept is_system = requires(t_sys sys) {
 	{
-		sys.run()
+		&t_sys::run
 	};
 };
 
@@ -290,10 +290,11 @@ concept is_callable_templated = requires(t_callable callable, t_data&& data) {
 };
 
 template <typename t_callable>
-concept is_callable_non_templated = requires(t_callable callable) {
+concept is_callable = requires(t_callable callable) {
 	// std::apply(callable, typename meta::callable_traits<[]() { return (scene_t1*)nullptr; }>::argument_types());
-	std::apply(callable, typename meta::callable_traits<callable>::argument_types());
-	// std::apply(callable, std::tuple<>());
+	&t_callable::operator();
+	// std::apply(callable, typename meta::callable_traits<callable>::argument_types { std::forward<t_data>(data) });
+	//  std::apply(callable, std::tuple<>());
 };
 
 // template <typename t_callable>
@@ -308,24 +309,39 @@ concept is_callable_non_templated = requires(t_callable callable) {
 template <typename t_sys, typename t_data>
 decltype(auto) run_system(t_sys& sys, t_data&& data)
 {
-	if constexpr (has_run_templated<std::remove_const_t<t_sys>, t_data>)
+	if constexpr (is_system_templated<t_sys, t_data>)
 	{
 		// return sys.template run<t_data>(p_data);
 		return sys.run<t_data>(std::forward<decltype(data)>(data));
 	}
-	else if constexpr (has_run_non_templated<std::remove_const_t<t_sys>>)
+	else if constexpr (is_system<t_sys>)
 	{
-		return sys.run();
+		if constexpr (typename meta::function_traits<&t_sys::run>::arity == 0ull)
+		{
+			return sys.run();
+		}
+		else
+		{
+			return sys.run(std::forward<decltype(data)>(data));
+		}
 	}
 	else if constexpr (is_callable_templated<t_sys, t_data>)
 	{
-		auto interfaces = lambda_interface_templates<t_sys, t_data>::get_interfaces(std::forward<decltype(data)>(data));
-		// auto* res = func(std::get<0>(tpl));
-		return std::apply(sys, interfaces);
+		return sys.template operator()<t_data>(std::forward<t_data>(data));
+		// auto interfaces = lambda_interface_templates<t_sys, t_data>::get_interfaces(std::forward<decltype(data)>(data));
+		//// auto* res = func(std::get<0>(tpl));
+		// return std::apply(sys, interfaces);
 	}
-	else if constexpr (is_callable_non_templated<t_sys>)
+	else if constexpr (is_callable<t_sys>)
 	{
-		return sys();
+		if constexpr (meta::function_traits<&t_sys::operator()>::arity == 0ull)
+		{
+			return sys();
+		}
+		else
+		{
+			return sys(std::forward<decltype(data)>(data));
+		}
 	}
 	else
 	{
@@ -351,7 +367,7 @@ struct _seq
 		// ...);
 		std::apply(
 			[&data](auto&... _sys) {
-				((run_system(_sys, std::forward<std::remove_const_t<t_data>>(data))), ...);
+				((run_system(std::forward<decltype(_sys)>(_sys), std::forward<std::remove_const_t<t_data>>(data))), ...);
 			},
 			systems);
 		DEBUG_LOG("---new seq end (func)---");
@@ -396,16 +412,16 @@ struct _cond
 	constexpr _cond() : _sys_cond(sys_cond), _sys_true(sys_true), _sys_false(sys_false) { }
 
 	template <typename t_data>
-	void run(t_data* p_data)
+	void run(t_data&& data)
 	{
 		DEBUG_LOG("---new cond start (func)---");
-		if (run_system(_sys_cond, p_data))
+		if (run_system(_sys_cond, data))
 		{
-			run_system(_sys_true, p_data);
+			run_system(_sys_true, data);
 		}
 		else
 		{
-			run_system(_sys_false, p_data);
+			run_system(_sys_false, data);
 		}
 		DEBUG_LOG("---new cond end (func)---");
 	}
@@ -420,10 +436,10 @@ struct _loop
 	constexpr _loop() : _sys_cond(sys_cond), _sys_loop(sys_loop) { }
 
 	template <typename t_data>
-	void run(t_data* p_data)
+	void run(t_data&& data)
 	{
 		DEBUG_LOG("---loop start (func)---");
-		while (run_system(sys_cond, p_data))
+		while (run_system(sys_cond, data))
 		{
 			run_system(sys_loop);
 		}
@@ -494,10 +510,10 @@ struct _bind
 	constexpr _bind() : _sys(sys), _sys_producer(sys_producer) { }
 
 	template <typename t_data>
-	void run(t_data&& data)
+	decltype(auto) run(t_data&& data)
 	{
-		run_system(_sys_producer, std::forward<t_data>(data));
-		// run_system(_sys, run_system(_sys_producer, std::forward<t_data>(data)));
+		static_assert(std::is_same_v<decltype(run_system(_sys_producer, std::forward<t_data>(data))), void> == false, "system or lmabda must return something to bind");
+		return run_system(_sys, run_system(_sys_producer, std::forward<t_data>(data)));
 	}
 };
 

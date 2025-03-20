@@ -567,6 +567,14 @@ struct game2
 	void deinit();
 };
 
+struct some_big_struct
+{
+	uint64 a;
+	uint64 b;
+	uint64 c;
+	uint64 d;
+};
+
 int main()
 {
 	// loop<&system_1::f>();
@@ -583,23 +591,15 @@ int main()
 	//				 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
 	// ss.run(&_scene0);
 
-	auto _game = my_game();
-
-	// auto _sys_group_game = _seq<
-	//	sys_game_init {},
-	//	[]() { return 1; },
-	//	[]<typename g>(interface_init<g> iinit) { iinit.init(); },
-	//	_bind<my_scene_system_0 {}, []() { return (scene_t1*)nullptr; }> {},
-	//	_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {},
-	//	_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}>();
-
+	auto _game			 = my_game();
 	auto _sys_group_game = _seq<
 		sys_game_init {},
 		[]() { return 1; },
 		[]<typename g>(interface_init<g> iinit) { iinit.init(); },
-		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {}> {};
-
-	// auto _sys_group_game = _seq<sys_game_init {}>();
+		_bind<[](some_big_struct&& some) { std::println("{},{},{},{}", some.a, some.b, some.c, some.d); }, []() -> decltype(auto) { return some_big_struct { .a = 1, .b = 2, .c = 3, .d = 4 }; }> {},
+		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }> {},
+		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {},
+		_loop<[]() { static int i = 5; return --i == 0; }, []() { std::println("hi"); }> {}>();
 
 	_sys_group_game.run(_game);
 	//_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
