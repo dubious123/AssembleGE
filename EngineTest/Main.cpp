@@ -591,18 +591,20 @@ int main()
 	//				 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
 	// ss.run(&_scene0);
 
-	auto _game			 = my_game();
-	auto _sys_group_game = _seq<
-		sys_game_init {},
-		[]() { return 1; },
-		[]<typename g>(interface_init<g> iinit) { iinit.init(); },
-		_bind<[](some_big_struct&& some) { std::println("{},{},{},{}", some.a, some.b, some.c, some.d); }, []() -> decltype(auto) { return some_big_struct { .a = 1, .b = 2, .c = 3, .d = 4 }; }> {},
-		_bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }> {},
-		_bind<my_scene_system_0 {}, sys_get_scene0 {}> {},
-		_loop<[]() { static int i = 5; return --i == 0; }, []() { std::println("hi"); }> {}>();
+	auto _game = my_game();
+	static_assert(std::is_integral_v<decltype([]() { return true; })> is_false);
+	auto _sys_group_game = seq<sys_game_init {},
+							   []() { return 1; },
+							   []<typename g>(interface_init<g> iinit) { iinit.init(); },
+							   ecs::bind<[](some_big_struct&& some) { std::println("{},{},{},{}", some.a, some.b, some.c, some.d); }, []() -> decltype(auto) { return some_big_struct { .a = 1, .b = 2, .c = 3, .d = 4 }; }> {},
+							   ecs::bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }> {},
+							   ecs::bind<my_scene_system_0 {}, sys_get_scene0 {}> {},
+							   loop<[]() { static auto i = 0; return i++ < 4; }, []() { std::println("hi4"); }> {},
+							   loop<3, []() { std::println("hi3"); }> {},
+							   loop<[]<typename g>(interface_game<g> igame) { return 2; }, []() { std::println("hi2"); }> {}>();
 
-	_sys_group_game.run(_game);
-	//_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
+	//_sys_group_game.run(_game);
+	////_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
 	//_sys_group_game.run(&_game);
 	//  decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) lambda;
@@ -622,7 +624,6 @@ int main()
 	system4().update(a);
 
 
-	static_assert(ecs::has_update<system_1> == false);
 	static_assert(std::is_same_v<ecs::entity_idx, ecs::entity_idx>);
 	// meta::param_at<1, system_1::template update<int>>::type;
 	// meta::param_at<0, &system_1::update2>::type;
@@ -639,9 +640,9 @@ int main()
 
 	static_assert(meta::param_constains_v<ecs::entity_idx, test_func2> == true);
 
-	using group_t = system_group<system_1, system_2>;
-	auto group	  = system_group<system_1, par<system_1, system_2, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
-	// auto group = system_group<system_2>();
+	// using group_t = system_group<system_1, system_2>;
+	// auto group	  = system_group<system_1, par<system_1, system_2, seq<system_1, system_2>, cond<cond_func1, system_2, group_t>>, group_t>();
+	//  auto group = system_group<system_2>();
 
 	auto tpl2 = meta::func_args<decltype(system_2::test_fu)>::type();
 	auto tpl3 = meta::func_args_t<decltype(test_add3)>();
@@ -722,7 +723,7 @@ int main()
 
 	auto& rb = world_2.get_component<rigid_body>(e2);
 	world_2.add_component<bullet>(e2);
-	group.update(world_2);
+	// group.update(world_2);
 
 	static_assert(std::is_same_v<typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type, typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type>);
 

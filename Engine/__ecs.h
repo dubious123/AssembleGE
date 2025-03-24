@@ -29,144 +29,6 @@ namespace ecs
 {
 	using namespace meta;
 
-	template <typename t>
-	concept is_seq = requires { t::_seq; };
-
-	template <typename t>
-	concept is_par = requires { t::_par; };
-
-	template <typename t>
-	concept is_cond = requires { t::_cond; };
-
-	template <typename t>
-	concept is_node = ecs::is_par<t> || ecs::is_seq<t> || is_cond<t>;
-
-	template <typename system>
-	concept has_on_system_begin = requires() { &system::on_system_begin; };
-
-	template <typename system, typename world>
-	concept has_on_system_begin_w = requires() { &system::template on_system_begin<world>; };
-
-	template <typename system>
-	concept has_on_thread_begin = requires() { &system::on_thread_begin; };
-
-	template <typename system, typename world>
-	concept has_on_thread_begin_w = requires() { &system::template on_thread_begin<world>; };
-
-	template <typename system>
-	concept has_update = requires() { &system::update; };
-
-	template <typename system, typename world>
-	concept has_update_w = requires() { &system::template update<world>; };
-
-	template <typename system>
-	concept has_on_thread_end = requires() { &system::on_thread_end; };
-
-	template <typename system, typename world>
-	concept has_on_thread_end_w = requires() { &system::template on_thread_end<world>; };
-
-	template <typename system>
-	concept has_on_system_end = requires() { system::on_system_end; };
-
-	template <typename system, typename world>
-	concept has_on_system_end_w = requires() { system::template on_system_end<world>; };
-
-	template <typename... s>
-	struct par
-	{
-		constinit static inline const auto _par = true;
-
-		std::array<std::tuple<s...>, 1> tpl_arr { std::tuple<s...>() };
-
-		void update(auto&& world)
-		{
-			DEBUG_LOG("---par start (func)---");
-
-			auto v = tpl_arr | std::views::elements<0>;
-			std::for_each(std::execution::par_unseq, v.begin(), v.end(),
-						  [&](auto& node) {
-							  if constexpr (is_node<decltype(node)>)
-							  {
-								  node.update(std::forward<decltype(world)>(world));
-							  }
-							  else
-							  {
-								  world.perform(node);
-							  }
-						  });
-
-			DEBUG_LOG("---par end (func)---");
-		}
-	};
-
-	template <typename... s>
-	struct seq
-	{
-		constinit static inline const auto _seq = true;
-
-		std::tuple<s...> tpl;
-
-		void update(auto&& world)
-		{
-			DEBUG_LOG("---seq start (func)---");
-			([&]() {
-				auto& node = meta::get_tuple_value<s>(tpl);
-				if constexpr (is_node<s>)
-				{
-					node.update(std::forward<decltype(world)>(world));
-				}
-				else
-				{
-					world.perform(node);
-				}
-			}(),
-			 ...);
-			DEBUG_LOG("---seq end (func)---");
-		}
-	};
-
-	template <auto cond_func, typename s_l, typename s_r>
-	struct cond
-	{
-		constinit static inline const auto _cond = true;
-
-		s_l left;
-		s_r right;
-
-		void update(auto&& world)
-		{
-			DEBUG_LOG("---cond start (func)---");
-			if (cond_func())
-			{
-				if constexpr (is_node<s_l>)
-				{
-					left.update(std::forward<decltype(world)>(world));
-				}
-				else
-				{
-					world.perform(left);
-				}
-			}
-			else
-			{
-				if constexpr (is_node<s_r>)
-				{
-					right.update(std::forward<decltype(world)>(world));
-				}
-				else
-				{
-					world.perform(right);
-				}
-			}
-			DEBUG_LOG("---cond end (func)---");
-		}
-	};
-
-	template <typename... s>
-	struct system_group : seq<s...>
-	{
-	};
-
 	struct world_base
 	{
 		data_structure::vector<entity>										   entities;
@@ -256,18 +118,19 @@ namespace ecs
 		template <typename sys>
 		static consteval archetype_t _calc_sys_archetype()
 		{
-			if constexpr (has_update<sys>)
-			{
-				return _calc_func_archetype(&sys::update);
-			}
-			else if constexpr (has_update_w<sys, world<c...>>)
-			{
-				return _calc_func_archetype(&sys::template update<ecs::world<c...>>);
-			}
-			else
-			{
-				return 0;
-			}
+			// if constexpr (has_update<sys>)
+			//{
+			//	return _calc_func_archetype(&sys::update);
+			// }
+			// else if constexpr (has_update_w<sys, world<c...>>)
+			//{
+			//	return _calc_func_archetype(&sys::template update<ecs::world<c...>>);
+			// }
+			// else
+			//{
+			//	return 0;
+			// }
+			return 0;
 		}
 
 		template <typename t>
@@ -527,69 +390,69 @@ namespace ecs
 			DEBUG_LOG("sys perform begin");
 			static constinit const auto archetype = _calc_sys_archetype<system_t>();
 			auto						s		  = archetype;
-			if constexpr (has_on_system_begin<system_t>)
-			{
-				// #ifdef EDITOR
-				//				sys.on_system_begin();
-				// #else
-				//				sys.on_system_begin();
-				// #endif
-				sys.on_system_begin();
-			}
-			else if constexpr (has_on_system_begin_w<system_t, world_t>)
-			{
-				sys.on_system_begin(*this);
-			}
+			// if constexpr (has_on_system_begin<system_t>)
+			//{
+			//	// #ifdef EDITOR
+			//	//				sys.on_system_begin();
+			//	// #else
+			//	//				sys.on_system_begin();
+			//	// #endif
+			//	sys.on_system_begin();
+			// }
+			// else if constexpr (has_on_system_begin_w<system_t, world_t>)
+			//{
+			//	sys.on_system_begin(*this);
+			// }
 
-			auto mem_blocks_view = memory_block_vec_map
-								 | filter([](auto& pair) { return (pair.first & archetype) == archetype; })
-								 | transform([](auto& pair) -> auto& { return pair.second; })
-								 | join;
-			std::for_each(
-				std::execution::par,
-				mem_blocks_view.begin(),
-				mem_blocks_view.end(),
-				[&, this](memory_block& mem_block) {
-					if constexpr (has_on_thread_begin<system_t>)
-					{
-						sys.on_thread_begin();
-					}
-					else if constexpr (has_on_thread_begin_w<system_t, world_t>)
-					{
-						sys.on_thread_begin(*this);
-					}
+			// auto mem_blocks_view = memory_block_vec_map
+			//					 | filter([](auto& pair) { return (pair.first & archetype) == archetype; })
+			//					 | transform([](auto& pair) -> auto& { return pair.second; })
+			//					 | join;
+			// std::for_each(
+			//	std::execution::par,
+			//	mem_blocks_view.begin(),
+			//	mem_blocks_view.end(),
+			//	[&, this](memory_block& mem_block) {
+			//		if constexpr (has_on_thread_begin<system_t>)
+			//		{
+			//			sys.on_thread_begin();
+			//		}
+			//		else if constexpr (has_on_thread_begin_w<system_t, world_t>)
+			//		{
+			//			sys.on_thread_begin(*this);
+			//		}
 
-					auto count = mem_block.get_count();
-					for (auto m_idx = 0; m_idx < count; ++m_idx)
-					{
-						if constexpr (has_update<system_t>)
-						{
-							_update_entity(sys, &system_t::update, mem_block, m_idx);
-						}
-						else if constexpr (has_update_w<system_t, world_t>)
-						{
-							_update_entity((*this), sys, &system_t::template update<world_t>, mem_block, m_idx);
-						}
-					}
+			//		auto count = mem_block.get_count();
+			//		for (auto m_idx = 0; m_idx < count; ++m_idx)
+			//		{
+			//			if constexpr (has_update<system_t>)
+			//			{
+			//				_update_entity(sys, &system_t::update, mem_block, m_idx);
+			//			}
+			//			else if constexpr (has_update_w<system_t, world_t>)
+			//			{
+			//				_update_entity((*this), sys, &system_t::template update<world_t>, mem_block, m_idx);
+			//			}
+			//		}
 
-					if constexpr (has_on_thread_end<system_t>)
-					{
-						sys.on_thread_end();
-					}
-					else if constexpr (has_on_thread_end_w<system_t, world_t>)
-					{
-						sys.on_thread_end(*this);
-					}
-				});
+			//		if constexpr (has_on_thread_end<system_t>)
+			//		{
+			//			sys.on_thread_end();
+			//		}
+			//		else if constexpr (has_on_thread_end_w<system_t, world_t>)
+			//		{
+			//			sys.on_thread_end(*this);
+			//		}
+			//	});
 
-			if constexpr (has_on_system_end<system_t>)
-			{
-				sys.on_system_end();
-			}
-			else if constexpr (has_on_system_end_w<system_t, world_t>)
-			{
-				sys.on_system_end(*this);
-			}
+			// if constexpr (has_on_system_end<system_t>)
+			//{
+			//	sys.on_system_end();
+			// }
+			// else if constexpr (has_on_system_end_w<system_t, world_t>)
+			//{
+			//	sys.on_system_end(*this);
+			// }
 
 			DEBUG_LOG("sys perform end");
 		}

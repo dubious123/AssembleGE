@@ -4,7 +4,7 @@
 #include "__ecs.h"
 
 // todo more generic reflection
-#define OFFSET(struct_name, field_name) ((size_t)&(((__detail__struct_name*)(nullptr))->field_name))
+#define OFFSET(struct_name, field_name) ((size_t) & (((__detail__struct_name*)(nullptr))->field_name))
 
 #define COMPONENT_BEGIN(struct_name)                                                                 \
 	struct struct_name                                                                               \
@@ -93,10 +93,10 @@ return true; }(); \
 	}                                                      \
 	;
 
-template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::* Field>
+template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
 static size_t field_offset()
 {
-	return (size_t)&((_Tstruct*)(0)->*Field);
+	return (size_t) & ((_Tstruct*)(0)->*Field);
 }
 
 namespace reflection
@@ -153,7 +153,7 @@ namespace reflection
 		size_t size;
 		void*  p_value;
 
-		component_info(size_t size, void* p_value) : size(size), p_value(p_value) { };
+		component_info(size_t size, void* p_value) : size(size), p_value(p_value) {};
 	};
 
 	struct entity_info
@@ -270,50 +270,50 @@ namespace reflection
 	{
 		using namespace ecs;
 		using world_t = world_base;
-		if constexpr (has_on_system_begin<system_t>)
-		{
-			register_system_function(0, 0);
-		}
-		else if constexpr (has_on_system_begin_w<system_t, world_t>)
-		{
-			register_system_function(0, 1);
-		}
+		// if constexpr (has_on_system_begin<system_t>)
+		//{
+		//	register_system_function(0, 0);
+		// }
+		// else if constexpr (has_on_system_begin_w<system_t, world_t>)
+		//{
+		//	register_system_function(0, 1);
+		// }
 
-		if constexpr (has_on_thread_begin<system_t>)
-		{
-			register_system_function(1, 0);
-		}
-		else if constexpr (has_on_thread_begin_w<system_t, world_t>)
-		{
-			register_system_function(1, 1);
-		}
+		// if constexpr (has_on_thread_begin<system_t>)
+		//{
+		//	register_system_function(1, 0);
+		// }
+		// else if constexpr (has_on_thread_begin_w<system_t, world_t>)
+		//{
+		//	register_system_function(1, 1);
+		// }
 
-		if constexpr (has_update<system_t>)
-		{
-			register_update_function(&system_t::update);
-		}
-		else if constexpr (has_update_w<system_t, world_t>)
-		{
-			register_update_function(&system_t::template update<world_t>);
-		}
+		// if constexpr (has_update<system_t>)
+		//{
+		//	register_update_function(&system_t::update);
+		// }
+		// else if constexpr (has_update_w<system_t, world_t>)
+		//{
+		//	register_update_function(&system_t::template update<world_t>);
+		// }
 
-		if constexpr (has_on_thread_end<system_t>)
-		{
-			register_system_function(3, 0);
-		}
-		else if constexpr (has_on_thread_end_w<system_t, world_t>)
-		{
-			register_system_function(3, 1);
-		}
+		// if constexpr (has_on_thread_end<system_t>)
+		//{
+		//	register_system_function(3, 0);
+		// }
+		// else if constexpr (has_on_thread_end_w<system_t, world_t>)
+		//{
+		//	register_system_function(3, 1);
+		// }
 
-		if constexpr (has_on_system_end<system_t>)
-		{
-			register_system_function(4, 0);
-		}
-		else if constexpr (has_on_system_end_w<system_t, world_t>)
-		{
-			register_system_function(4, 1);
-		}
+		// if constexpr (has_on_system_end<system_t>)
+		//{
+		//	register_system_function(4, 0);
+		// }
+		// else if constexpr (has_on_system_end_w<system_t, world_t>)
+		//{
+		//	register_system_function(4, 1);
+		// }
 	};
 
 	EDITOR_API size_t get_registered_struct_count();

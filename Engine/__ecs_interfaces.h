@@ -55,3 +55,11 @@ struct interface_world
 	{
 	}
 };
+
+template <typename t_entity_group>
+struct interface_entity_group
+{
+	t_entity_group& entity_group;
+
+	interface_entity_group(t_entity_group& entity_group) : entity_group(entity_group) { }
+};

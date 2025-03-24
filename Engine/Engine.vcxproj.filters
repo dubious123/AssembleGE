@@ -15,5 +15,6 @@
     <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__ecs_common.h" />
     <ClInclude Include="__ecs_interfaces.h" />
+    <ClInclude Include="__ecs_system.h" />
   </ItemGroup>
 </Project>

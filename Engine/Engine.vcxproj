@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="__components.h" />
+    <ClInclude Include="__ecs_system.h" />
     <ClCompile Include="__reflection.cpp" />
   </ItemGroup>
   <ItemGroup>
