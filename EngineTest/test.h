@@ -76,12 +76,71 @@ using world_t1 = ecs::world<transform, rigid_body>;
 using world_t2 = ecs::world<transform>;
 using world_t3 = ecs::world<transform, rigid_body, bullet>;
 
-using scene_t1 = ecs::scene<world_t1, world_t2>;
-using scene_t2 = ecs::scene<world_t1, world_t2, world_t3>;
-using scene_t3 = ecs::scene<world_t2, world_t3>;
-using scene_t4 = ecs::scene<world_t1>;
-
 // Game(my_game, scene_t1, scene_t2, scene_t3, scene_t4)
+
+struct worlds
+{
+	world_t1 world_1;
+	world_t2 world_2;
+	world_t3 world_3;
+
+	template <typename world_t>
+	world_t& get_world()
+	{
+		if constexpr (std::is_same_v<world_t, world_t1>)
+		{
+			return world_1;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t2>)
+		{
+			return world_2;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t3>)
+		{
+			return world_3;
+		}
+		else
+		{
+			static_assert(false, "invalid world type");
+		}
+	}
+};
+
+struct my_scene_state
+{
+};
+
+struct scene_t1 : worlds, my_scene_state
+{
+	void init()
+	{
+		DEBUG_LOG("_scene_t1 init");
+	};
+};
+
+struct scene_t2 : worlds, my_scene_state
+{
+	void init()
+	{
+		DEBUG_LOG("_scene_t2 init");
+	};
+};
+
+struct scene_t3 : worlds, my_scene_state
+{
+	void init()
+	{
+		DEBUG_LOG("_scene_t3 init");
+	};
+};
+
+struct scene_t4 : worlds, my_scene_state
+{
+	void init()
+	{
+		DEBUG_LOG("_scene_t4 init");
+	};
+};
 
 struct scenes
 {
@@ -109,11 +168,16 @@ struct scenes
 		{
 			return scene_4;
 		}
+		else
+		{
+			static_assert(false, "invalid scene type");
+		}
 	}
 };
 
 struct my_game_state
 {
+	uint16 current_scene = 0;
 };
 
 struct my_game : scenes, my_game_state
@@ -121,6 +185,11 @@ struct my_game : scenes, my_game_state
 	void init()
 	{
 		DEBUG_LOG("my game init");
+	};
+
+	void deinit()
+	{
+		DEBUG_LOG("my game deinit");
 	};
 
 	my_game()						   = default;
@@ -200,12 +269,30 @@ struct my_entity_system_0
 	}
 };
 
+struct sys_scene_init
+{
+	template <typename s>
+	void run(interface_scene<s> iscene)
+	{
+		iscene.init();
+	}
+};
+
 struct sys_game_init
 {
 	template <typename g>
 	void run(interface_game<g> igame)
 	{
 		igame.init();
+	}
+};
+
+struct sys_game_deinit
+{
+	template <typename g>
+	void run(interface_game<g> igame)
+	{
+		igame.deinit();
 	}
 };
 

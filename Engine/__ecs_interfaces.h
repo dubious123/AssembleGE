@@ -12,6 +12,11 @@ struct interface_game
 		game.init();
 	}
 
+	inline void deinit()
+	{
+		game.deinit();
+	}
+
 	template <typename scene_t>
 	inline decltype(auto) get_scene()
 	{

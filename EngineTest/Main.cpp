@@ -475,97 +475,97 @@ struct scene_types_container
 		}                                    \
 	};
 
-GAME(scene_t1, scene_t2, scene_t3)
-
-struct a
-{
-  private:
-	static const a detail_a;
-
-  public:
-	float3 ab;
-};
-
-struct game2
-{
-	enum e_scene_type
-	{
-		e_scene_t1,
-		e_scene_t2,
-		e_scene_t3,
-	};
-
-	// too large space
-	scene_t1 scene_scene_t1;
-	scene_t2 scene_scene_t2;
-	scene_t3 scene_scene_t3;
-
-	scene_base* _p_scenes[3] { nullptr };
-	bool		_scene_loaded[3] { false };
-	uint32		_current_scene_idx = -1;
-	uint32		_next_scene_idx;
-	bool		_game_running;
-
-	game2(uint32 start_scene_idx) : _next_scene_idx(start_scene_idx), _game_running(true)
-	{
-		// new (_scenes + e_scene_t1) scene_t1();
-		// new (_scenes + e_scene_t1) scene_t1();
-		// new (_scenes + e_scene_t1) scene_t1();
-	}
-
-	game2(const game2& other)			 = delete;
-	game2(game2&& other)				 = delete;
-	game2& operator=(const game2& other) = delete;
-	game2& operator=(game2&& other)		 = delete;
-
-  public:
-	void end()
-	{
-		_game_running = false;
-	}
-
-	void load_scene(uint32 load_scene_idx)
-	{
-	}
-
-	bool scene_loaded(uint32 scene_idx)
-	{
-	}
-
-	void init();
-
-	void run()
-	{
-		while (_game_running)
-		{
-			if (_current_scene_idx != _next_scene_idx)
-			{
-			}
-
-			switch (_current_scene_idx)
-			{
-			case e_scene_t1:
-			{
-				scene_scene_t1.foo();
-				break;
-			}
-			case e_scene_t2:
-			{
-				static_assert(std::is_same_v<game2&, decltype(*this)>);
-				scene_scene_t2.run<game2>(*this);
-				break;
-			}
-			case e_scene_t3:
-			{
-				scene_scene_t3.foo();
-				break;
-			}
-			}
-		}
-	}
-
-	void deinit();
-};
+// GAME(scene_t1, scene_t2, scene_t3)
+//
+// struct a
+//{
+//   private:
+//	static const a detail_a;
+//
+//   public:
+//	float3 ab;
+// };
+//
+// struct game2
+//{
+//	enum e_scene_type
+//	{
+//		e_scene_t1,
+//		e_scene_t2,
+//		e_scene_t3,
+//	};
+//
+//	// too large space
+//	scene_t1 scene_scene_t1;
+//	scene_t2 scene_scene_t2;
+//	scene_t3 scene_scene_t3;
+//
+//	scene_base* _p_scenes[3] { nullptr };
+//	bool		_scene_loaded[3] { false };
+//	uint32		_current_scene_idx = -1;
+//	uint32		_next_scene_idx;
+//	bool		_game_running;
+//
+//	game2(uint32 start_scene_idx) : _next_scene_idx(start_scene_idx), _game_running(true)
+//	{
+//		// new (_scenes + e_scene_t1) scene_t1();
+//		// new (_scenes + e_scene_t1) scene_t1();
+//		// new (_scenes + e_scene_t1) scene_t1();
+//	}
+//
+//	game2(const game2& other)			 = delete;
+//	game2(game2&& other)				 = delete;
+//	game2& operator=(const game2& other) = delete;
+//	game2& operator=(game2&& other)		 = delete;
+//
+//   public:
+//	void end()
+//	{
+//		_game_running = false;
+//	}
+//
+//	void load_scene(uint32 load_scene_idx)
+//	{
+//	}
+//
+//	bool scene_loaded(uint32 scene_idx)
+//	{
+//	}
+//
+//	void init();
+//
+//	void run()
+//	{
+//		while (_game_running)
+//		{
+//			if (_current_scene_idx != _next_scene_idx)
+//			{
+//			}
+//
+//			switch (_current_scene_idx)
+//			{
+//			case e_scene_t1:
+//			{
+//				scene_scene_t1.foo();
+//				break;
+//			}
+//			case e_scene_t2:
+//			{
+//				static_assert(std::is_same_v<game2&, decltype(*this)>);
+//				scene_scene_t2.run<game2>(*this);
+//				break;
+//			}
+//			case e_scene_t3:
+//			{
+//				scene_scene_t3.foo();
+//				break;
+//			}
+//			}
+//		}
+//	}
+//
+//	void deinit();
+// };
 
 struct some_big_struct
 {
@@ -577,6 +577,7 @@ struct some_big_struct
 
 int main()
 {
+
 	// loop<&system_1::f>();
 	auto _scene0 = scene_t1();
 	// auto ss =
@@ -593,24 +594,26 @@ int main()
 
 	auto _game = my_game();
 	static_assert(std::is_integral_v<decltype([]() { return true; })> is_false);
-	auto _sys_group_game = seq<sys_game_init {},
-							   []() { return 1; },
-							   []<typename g>(interface_init<g> iinit) { iinit.init(); },
-							   ecs::bind<[](some_big_struct&& some) { std::println("{},{},{},{}", some.a, some.b, some.c, some.d); }, []() -> decltype(auto) { return some_big_struct { .a = 1, .b = 2, .c = 3, .d = 4 }; }> {},
-							   ecs::bind<my_scene_system_0 {}, []<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }> {},
-							   ecs::bind<my_scene_system_0 {}, sys_get_scene0 {}> {},
-							   loop<[]() { static auto i = 0; return i++ < 4; }, []() { std::println("hi4"); }> {},
-							   loop<3, []() { std::println("hi3"); }> {},
-							   loop<[]<typename g>(interface_game<g> igame) { return 2; }, []() { std::println("hi2"); }> {}>();
+	// SWITCH([]() { return 0; }, (ecs::_case<0, ecs::bind<sys_game_init {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {}> {}));
+	auto _sys_group_game = seq<
 
-	//_sys_group_game.run(_game);
+		cond<[]() { return true; }, []() { DEBUG_LOG("hi_true"); }, []() { DEBUG_LOG("hi_"); }> {},
+		[]() { static my_game _game; },
+		seq<[]() { static my_game _game; }> {},
+		ecs::_switch<[]<typename g>(interface_game<g> igame) {igame.init(); return 1; }, []() { DEBUG_LOG("switch 0"); }, []() { DEBUG_LOG("switch 1"); }> {},
+		par<loop<3, []() { DEBUG_LOG("par1_hi5"); Sleep(1); }> {}, loop<5, []() { DEBUG_LOG("par2_hi5");Sleep(1); }> {}> {},
+		sys_game_deinit {}>();
+
+	// switch<sys_game_current_scene_idx, case<0, sys_scene_0>, case<1, sys_scene_1>>
+
+
+	_sys_group_game.run(_game);
 	////_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
 	//_sys_group_game.run(&_game);
 	//  decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }) lambda;
 	//_bind<my_scene_system_1, decltype([]<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); })>();
 	//   loop<&game2::run>();
-	auto ggg = game2(2);
 	// using traits  = function_traits<decltype(&system_1::update2)>;
 	// using traits2 = function_traits<decltype(&system_1::update<int>)>;
 

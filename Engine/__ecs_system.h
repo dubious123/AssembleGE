@@ -31,70 +31,6 @@ namespace ecs
 		template <typename t_callable, typename t_data>
 		using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
 
-		template <unsigned int n, typename t_sys_loop>
-		struct loop_impl_1
-		{
-			t_sys_loop sys_loop;
-
-			template <typename t_data>
-			void run(t_data&& data)
-			{
-				DEBUG_LOG("---loop start (func)---");
-				for (auto _ : std::views::iota(0) | std::views::take(n))
-				{
-					run_system(sys_loop, std::forward<decltype(data)>(data));
-				}
-				DEBUG_LOG("---loop end (func)---");
-			}
-		};
-
-		template <typename t_sys_cond, typename t_sys_loop>
-		struct loop_impl_2
-		{
-			t_sys_cond sys_cond;
-			t_sys_loop sys_loop;
-
-			template <typename t_data>
-			decltype(auto) run(t_data&& data)
-			{
-				using sys_cond_ret_type = decltype(run_system(sys_cond, std::forward<decltype(data)>(data)));
-
-				DEBUG_LOG("---loop start (func)---");
-				if constexpr (std::is_same_v<sys_cond_ret_type, bool>)
-				{
-					while (run_system(sys_cond, std::forward<decltype(data)>(data)))
-					{
-						run_system(sys_loop, std::forward<decltype(data)>(data));
-					}
-				}
-				else if constexpr (std::is_integral_v<sys_cond_ret_type>)
-				{
-					for (auto _ : std::views::iota(0) | std::views::take(run_system(sys_cond, std::forward<decltype(data)>(data))))
-					{
-						run_system(sys_loop, std::forward<decltype(data)>(data));
-					}
-				}
-				else
-				{
-					static_assert(false, "invalid condition system");
-				}
-				DEBUG_LOG("---loop end (func)---");
-			}
-		};
-
-		template <auto sys_cond, auto sys_loop>
-		constexpr decltype(auto) get_loop_impl()
-		{
-			if constexpr (std::is_integral_v<decltype(sys_cond)>)
-			{
-				return loop_impl_1<sys_cond, decltype(sys_loop)>();
-			}
-			else
-			{
-				return loop_impl_2<decltype(sys_cond), decltype(sys_loop)>();
-			}
-		}
-
 		template <typename t_sys, typename t_data>
 		concept is_system_templated = requires(t_sys sys, t_data&& data) {
 			{
@@ -161,14 +97,159 @@ namespace ecs
 				static_assert(false and "System does not provide a run method that can be called.");
 			}
 		}
+
+		template <typename t_sys>
+		decltype(auto) run_system(t_sys& sys)
+		{
+			if constexpr (is_system<t_sys>)
+			{
+				return sys.run();
+			}
+			else if constexpr (is_callable<t_sys>)
+			{
+				return sys();
+			}
+			else
+			{
+				static_assert(false and "System does not provide a run method that can be called.");
+			}
+		}
+
+		template <unsigned int n, typename t_sys_loop>
+		struct loop_impl_1
+		{
+			t_sys_loop sys_loop;
+
+			template <typename t_data>
+			void run(t_data&& data)
+			{
+				DEBUG_LOG("---loop start (func)---");
+				for (auto _ : std::views::iota(0) | std::views::take(n))
+				{
+					run_system(sys_loop, std::forward<decltype(data)>(data));
+				}
+				DEBUG_LOG("---loop end (func)---");
+			}
+		};
+
+		template <typename t_sys_cond, typename t_sys_loop>
+		struct loop_impl_2
+		{
+			t_sys_cond sys_cond;
+			t_sys_loop sys_loop;
+
+			template <typename t_data>
+			decltype(auto) run(t_data&& data)
+			{
+				using sys_cond_ret_type = decltype(run_system(sys_cond, std::forward<decltype(data)>(data)));
+
+				DEBUG_LOG("---loop start (func)---");
+				if constexpr (std::is_same_v<sys_cond_ret_type, bool>)
+				{
+					while (run_system(sys_cond, std::forward<decltype(data)>(data)))
+					{
+						run_system(sys_loop, std::forward<decltype(data)>(data));
+					}
+				}
+				else if constexpr (std::is_integral_v<sys_cond_ret_type>)
+				{
+					for (auto _ : std::views::iota(0) | std::views::take(run_system(sys_cond, std::forward<decltype(data)>(data))))
+					{
+						run_system(sys_loop, std::forward<decltype(data)>(data));
+					}
+				}
+				else
+				{
+					static_assert(false, "invalid condition system");
+				}
+				DEBUG_LOG("---loop end (func)---");
+			}
+		};
+
+		template <auto sys_cond, auto sys_loop>
+		constexpr decltype(auto) get_loop_impl()
+		{
+			if constexpr (std::is_integral_v<decltype(sys_cond)>)
+			{
+				return loop_impl_1<sys_cond, decltype(sys_loop)>();
+			}
+			else
+			{
+				return loop_impl_2<decltype(sys_cond), decltype(sys_loop)>();
+			}
+		}
+
+		// i'm using custom tuple because std::tuple is not a structural type and cannot be used as a NTTP
+		template <std::size_t i, typename t>
+		struct _tpl_leaf
+		{
+			t val;
+		};
+
+		template <typename seq, typename... t>
+		struct _tpl_helper;
+
+		template <std::size_t... i, typename... t>
+		struct _tpl_helper<std::index_sequence<i...>, t...> : public _tpl_leaf<i, t>...
+		{
+		};
+
+		template <typename... t>
+		struct _tpl : public _tpl_helper<std::index_sequence_for<t...>, t...>
+		{
+		};
+
+		template <std::size_t i, typename... t>
+		constexpr auto& _get(_tpl<t...>& tpl)
+		{
+			return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
+		}
+
+		template <std::size_t i, typename... t>
+		constexpr const auto& _get(const _tpl<t...>& tpl)
+		{
+			return static_cast<const _tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
+		}
+
+		template <std::size_t i, typename... t>
+		constexpr auto&& _get(_tpl<t...>&& tpl)
+		{
+			return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&&>(tpl).val;
+		}
+
+		template <typename t>
+		struct _tpl_size;
+
+		template <typename... t>
+		struct _tpl_size<_tpl<t...>> : std::integral_constant<std::size_t, sizeof...(t)>
+		{
+		};
+
+		template <typename t>
+		const inline constinit std::size_t _tpl_size_v = _tpl_size<t>::value;
+
+		template <typename f, typename tpl_t, std::size_t... i>
+		constexpr decltype(auto) _apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)
+		{
+			return std::forward<f>(func)(_get<i>(std::forward<tpl_t>(tpl))...);
+		}
+
+		template <typename f, typename tpl_t>
+		constexpr decltype(auto) _apply(f&& func, tpl_t&& tpl)
+		{
+			return _apply_impl(
+				std::forward<f>(func),
+				std::forward<tpl_t>(tpl),
+				std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>> {});
+		}
 	}	 // namespace detail
 
 	template <auto... sys>
 	struct seq
 	{
-		std::tuple<decltype(sys)...> systems;
+		detail::_tpl<decltype(sys)...> systems;
 
-		constexpr seq() : systems(sys...) { }
+		constexpr seq() /*: systems(sys...)*/ { }
 
 		template <typename t_data>
 		void run(t_data&& data)
@@ -179,9 +260,9 @@ namespace ecs
 			//	run_system(sys, p_data);
 			//}(),
 			// ...);
-			std::apply(
+			detail::_apply(
 				[&data](auto&... _sys) {
-					((run_system(std::forward<decltype(_sys)>(_sys), std::forward<std::remove_const_t<t_data>>(data))), ...);
+					((detail::run_system(std::forward<decltype(_sys)>(_sys), std::forward<decltype(data)>(data))), ...);
 				},
 				systems);
 			DEBUG_LOG("---new seq end (func)---");
@@ -191,9 +272,9 @@ namespace ecs
 	template <auto... sys>
 	struct par
 	{
-		std::tuple<decltype(sys)...> systems;
+		detail::_tpl<decltype(sys)...> systems;
 
-		constexpr par() : systems(sys...) { }
+		constexpr par() { }
 
 		// constexpr _par() :
 
@@ -201,7 +282,7 @@ namespace ecs
 		void parallel_apply(tpl_sys& systems, t_data&& data, std::index_sequence<i...>)
 		{
 			auto futures = std::array<std::future<void>, sizeof...(i)> {
-				(std::async(std::launch::async, [data, &systems]() { run_system(std::get<i>(systems), data); }))...
+				(std::async(std::launch::async, [&data, &systems]() { detail::run_system(detail::_get<i>(systems), data); }))...
 			};
 
 			std::ranges::for_each(futures, [](auto&& fut) { fut.get(); });
@@ -229,13 +310,13 @@ namespace ecs
 		decltype(auto) run(t_data&& data)
 		{
 			DEBUG_LOG("---new cond start (func)---");
-			if (run_system(_sys_cond, std::forward<decltype(data)>(data)))
+			if (detail::run_system(_sys_cond, std::forward<decltype(data)>(data)))
 			{
-				return run_system(_sys_true, std::forward<decltype(data)>(data));
+				return detail::run_system(_sys_true, std::forward<decltype(data)>(data));
 			}
 			else
 			{
-				return run_system(_sys_false, std::forward<decltype(data)>(data));
+				return detail::run_system(_sys_false, std::forward<decltype(data)>(data));
 			}
 			DEBUG_LOG("---new cond end (func)---");
 		}
@@ -252,23 +333,83 @@ namespace ecs
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
 		{
-			return run_system(impl, std::forward<decltype(data)>(data));
+			return detail::run_system(impl, std::forward<decltype(data)>(data));
+		}
+	};
+
+#define TUPLE_CASE(i)                                                                            \
+	case i:                                                                                      \
+	{                                                                                            \
+		if constexpr (i < n)                                                                     \
+		{                                                                                        \
+			detail::run_system(detail::_get<i>(_sys_cases), std::forward<decltype(data)>(data)); \
+		}                                                                                        \
+		break;                                                                                   \
+	}
+
+
+#define MAX_TUPLE_SIZE 10
+
+#define TUPLE_CASES \
+	TUPLE_CASE(0)   \
+	TUPLE_CASE(1)   \
+	TUPLE_CASE(2)   \
+	TUPLE_CASE(3)   \
+	TUPLE_CASE(4)   \
+	TUPLE_CASE(5)   \
+	TUPLE_CASE(6)   \
+	TUPLE_CASE(7)   \
+	TUPLE_CASE(8)   \
+	TUPLE_CASE(9)
+
+	template <auto i, auto sys>
+	struct _case
+	{
+		static const constinit decltype(i) _idx = i;
+		decltype(sys)					   _sys = sys;
+	};
+
+	template <auto sys_select, auto... sys_cases>
+	struct _switch
+	{
+		static_assert(sizeof...(sys_cases) <= MAX_TUPLE_SIZE, "Tuple size exceeds maximum supported size");
+
+		decltype(sys_select)				 _sys_select;
+		detail::_tpl<decltype(sys_cases)...> _sys_cases;
+
+		constexpr _switch() {};
+
+		template <typename t_data>
+		decltype(auto) run(t_data&& data)
+		{
+			constexpr auto n = sizeof...(sys_cases);
+
+			auto idx = detail::run_system(_sys_select, std::forward<decltype(data)>(data));
+			switch (idx)
+			{
+				TUPLE_CASES
+			default:
+				break;
+			}
 		}
 	};
 
 	template <auto sys, auto sys_producer>
 	struct bind
+
 	{
 		decltype(sys)		   _sys;
 		decltype(sys_producer) _sys_producer;
 
-		constexpr bind() : _sys(sys), _sys_producer(sys_producer) { }
+		constexpr bind() : _sys(sys), _sys_producer(sys_producer)
+		{
+		}
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
 		{
-			static_assert(std::is_same_v<decltype(run_system(_sys_producer, std::forward<t_data>(data))), void> == false, "system or lmabda must return something to bind");
-			return run_system(_sys, run_system(_sys_producer, std::forward<t_data>(data)));
+			static_assert(std::is_same_v<decltype(detail::run_system(_sys_producer, std::forward<t_data>(data))), void> == false, "system or lmabda must return something to bind");
+			return detail::run_system(_sys, detail::run_system(_sys_producer, std::forward<t_data>(data)));
 		}
 	};
 }	 // namespace ecs
