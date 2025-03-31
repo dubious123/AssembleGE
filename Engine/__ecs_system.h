@@ -38,24 +38,44 @@ namespace ecs
 			};
 		};
 
-		template <typename t_sys>
-		concept is_system = requires(t_sys sys) {
-			{
-				&t_sys::run
-			};
+		// template <typename t_sys>
+		// concept is_system = requires(t_sys sys) {
+		//	{
+		//		&t_sys::run
+		//	};
+		// };
+
+		template <typename t_sys, typename... t_data>
+		concept is_system = requires {
+			typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::run>::argument_types, std::tuple<t_data...>>>;
 		};
+
+		// template <typename t_data, typename t_sys>
+		// concept is_system = requires {
+		//	typename std::enable_if_t<std::is_same_v<t_data, std::tuple_element_t<0, typename meta::function_traits<&t_sys::run>::argument_types>>>;
+		// };
 
 		template <typename t_callable, typename t_data>
 		concept is_callable_templated = requires(t_callable callable, t_data&& data) {
 			std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(std::forward<t_data>(data)));
 		};
 
-		template <typename t_callable>
-		concept is_callable = requires(t_callable callable) {
-			// std::apply(callable, typename meta::callable_traits<[]() { return (scene_t1*)nullptr; }>::argument_types());
-			&t_callable::operator();
-			// std::apply(callable, typename meta::callable_traits<callable>::argument_types { std::forward<t_data>(data) });
-			//  std::apply(callable, std::tuple<>());
+		// template <typename t_callable>
+		// concept is_callable = requires(t_callable callable) {
+		//	// std::apply(callable, typename meta::callable_traits<[]() { return (scene_t1*)nullptr; }>::argument_types());
+		//	&t_callable::operator();
+		//	// std::apply(callable, typename meta::callable_traits<callable>::argument_types { std::forward<t_data>(data) });
+		//	//  std::apply(callable, std::tuple<>());
+		// };
+
+		// template <typename t_data, typename t_sys>
+		// concept is_callable = requires {
+		//	typename std::enable_if_t<std::is_same_v<t_data, std::tuple_element_t<0, typename meta::function_traits<&t_sys::operator()>::argument_types>>>;
+		// };
+
+		template <typename t_sys, typename... t_data>
+		concept is_callable = requires {
+			typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::operator()>::argument_types, std::tuple<t_data...>>>;
 		};
 
 		template <typename t_sys, typename t_data>

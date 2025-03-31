@@ -12,6 +12,16 @@ struct interface_game
 		game.init();
 	}
 
+	inline auto get_current_scene_idx()
+	{
+		return game.current_scene_idx;
+	}
+
+	inline auto get_running()
+	{
+		return game.running;
+	}
+
 	inline void deinit()
 	{
 		game.deinit();
@@ -46,6 +56,7 @@ struct interface_scene
 
 	void inline init()
 	{
+		scene.init();
 	}
 };
 

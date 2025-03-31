@@ -177,7 +177,8 @@ struct scenes
 
 struct my_game_state
 {
-	uint16 current_scene = 0;
+	uint16 current_scene_idx = 0;
+	bool   running			 = true;
 };
 
 struct my_game : scenes, my_game_state
@@ -322,42 +323,150 @@ struct _system_group
 	}
 };
 
-// GAME_BEGIN(my_game, ...)
-//__STATE(my_game_state, game_state)
-//...
-// GAME_END()
+inline static auto _sys_group_game = ecs::seq<
+	sys_game_init {},
+	ecs::loop<[]<typename g>(interface_game<g> igame) { return igame.get_running(); },
+			  ecs::_switch<[]<typename g>(interface_game<g> igame) { return igame.get_current_scene_idx(); },
+						   ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t1>(); }> {},
+						   ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
+	sys_game_deinit {}>();
 
-// SCENE_BEGIN(my_scene_0, ...)
-//__STATES(scene_state, direct12_state, ...)
-// SCENE_END()
+// std::ranges::for_each(vec, [](auto& e){})
+// vec
+//	| std::views::filter()
+//	| std::views::transform()
+//  | std::ranges::to<std::list>();
 
-// ENTITY_COLLECTION(my_collection)
+template <typename t_sys_l, typename t_sys_r>
+struct system_pipeline
+{
+	t_sys_l sys_left;
+	t_sys_r sys_right;
 
-// WORLD_BEGIN(my_world_0, ...)
-//__STATES(world_state, physics_state, ...)
-//__ENTITY_COLLECTION(my_collection)
-//__ENTITY_BEGIN(entity_name, ...)
-//____SET_COMPONENT(transform, position, {1,1,1})
-//__ENTITY_END()
-// WORLD_END()
+	system_pipeline(t_sys_l&& sys_l, t_sys_r&& sys_r)
+		: sys_left(std::forward<t_sys_l>(sys_l)),
+		  sys_right(std::forward<t_sys_r>(sys_r))
+	{
+	}
 
-// interface_begin(my_interface)
-//__METHOD(init)
-//__PROPERTY(current_scene)
-// interface_end()
+	template <typename t_data>
+	decltype(auto) run(t_data&& data)
+	{
+		using left_ret_type	 = decltype(ecs::detail::run_system(sys_left, std::forward<t_data>(data)));
+		using right_ret_type = decltype(ecs::detail::run_system(sys_right, std::forward<t_data>(data)));
 
-// system_begin(my_game_system, interface_game)
-//__expose_to_editor(some_data)
-// system_end()
+		if constexpr (std::is_same_v<left_ret_type, void>)
+		{
+			ecs::detail::run_system(data, std::forward<t_data>(data));
+			if constexpr (std::is_same_v<right_ret_type, void>)
+			{
+				return std::forward<t_data>(data);
+			}
+			else
+			{
+				return ecs::detail::run_system(sys_right);
+			}
+		}
+		else
+		{
+			decltype(auto) res_left = ecs::detail::run_system(data, std::forward<t_data>(data));
+			if constexpr (std::is_same_v<right_ret_type, void>)
+			{
+				return std::forward<t_data>(data);
+			}
+			else
+			{
+				return ecs::detail::run_system(sys_right, std::forward<decltype(res_left)>(res_left));
+			}
+		}
+	}
 
-// system_group_begin(game_sys_group, interface_game)
+	// If none of the systems require input, we allow calling without data.
+	decltype(auto) run()
+	{
+		using left_ret_type = decltype(ecs::detail::run_system(sys_left));
+		if constexpr (std::is_same_v<left_ret_type, void>)
+		{
+			ecs::detail::run_system(sys_left);
+			return ecs::detail::run_system(sys_right);
+		}
+		else
+		{
+			decltype(auto) res_left = ecs::detail::run_system(sys_left);
+			return ecs::detail::run_system(sys_right, std::forward<decltype(res_left)>(res_left));
+		}
+	}
+};
+
+template <typename t_data, typename t_sys_r>
+struct system_pipeline_data
+{
+	t_data	data;
+	t_sys_r sys_right;
+
+	system_pipeline_data(t_data&& sys_l, t_sys_r&& sys_r)
+		: data(std::forward<t_data>(sys_l)),
+		  sys_right(std::forward<t_sys_r>(sys_r))
+	{
+	}
+
+	// If none of the systems require input, we allow calling without data.
+	decltype(auto) run()
+	{
+		return ecs::detail::run_system(sys_right, std::forward<t_data>(data));
+	}
+};
+
+template <typename t_callable>
+struct wrapper : t_callable
+{
+};
+
+template <typename t_left, typename t_right>
+decltype(auto) operator|(t_left&& left, t_right&& sys)
+
+{
+	if constexpr (
+		ecs::detail::is_system_templated<t_right, t_left>
+		|| ecs::detail::is_callable_templated<t_right, t_left>
+		|| ecs::detail::is_system<t_right, t_left>
+		|| ecs::detail::is_callable<t_right, t_left>)
+	{
+		// left is data
+		return [&]() -> decltype(auto) {
+			using sys_ret_type = decltype(ecs::detail::run_system(sys, std::forward<t_left>(left)));
+			if constexpr (std::is_same_v<sys_ret_type, void>)
+			{
+				ecs::detail::run_system(sys, std::forward<t_left>(left));
+				return std::forward<t_left>(left);
+			}
+			else
+			{
+				return ecs::detail::run_system(sys, std::forward<t_left>(left));
+			}
+		};
+		// return ecs::bind<std::forward<t_right>(sys), [=]() -> decltype(auto) { return left; }>();
+	}
+	else
+	{
+		// left is a system or callable
+		return system_pipeline(std::forward<t_left>(left), std::forward<t_right>(sys));
+	}
+}
+
+// {
+// using detail::operator|;
+// auto logic =
+//	 my_game
+//	 | sys_game_init()
+//	 | loop([]<typename g>(interface_game<g> igame){ return igame.running(); },
+//			switch([]<typename g>(interface_game<g> igame){ return igame.get_current_scene_idx(); },
+//				case(0, []<typename g>(interface_game<g> igame){ return igame.get_scene<scene_t1>(); } | sys_group_scene_1() ),
+//				case([]<typename g>(interface_game<g> igame){ return igame.get_current_scene_idx() == 2; },
+//					[]<typename g>(interface_game<g> igame){ return igame.get_scene<scene_t1>(); } | sys_group_scene_1() )
+//	 | sys_game_deinit();
+// }
+
 // seq(sys_game_init)
-// switch_begin(sys_game_current_scene)
-// case(0, bind(sys_scene_0, []<typename g>(interface_game<g> igame){return igame.scene_0; })
-
-// auto sys_group_game = []<typename g>(interface_game<g> igame) {
-//	my_scene_system_0().run(igame.get_scene<???>());
-// };
-
-
-// todo generic lambda + system
+// | seq(sys_game_init())
+//

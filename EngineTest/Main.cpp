@@ -596,16 +596,19 @@ int main()
 	static_assert(std::is_integral_v<decltype([]() { return true; })> is_false);
 	// SWITCH([]() { return 0; }, (ecs::_case<0, ecs::bind<sys_game_init {}, []<typename g>(interface_game<g> igame) { return igame.get_scene<scene_t1>(); }> {}> {}));
 	auto _sys_group_game = seq<
-
-		cond<[]() { return true; }, []() { DEBUG_LOG("hi_true"); }, []() { DEBUG_LOG("hi_"); }> {},
-		[]() { static my_game _game; },
-		seq<[]() { static my_game _game; }> {},
-		ecs::_switch<[]<typename g>(interface_game<g> igame) {igame.init(); return 1; }, []() { DEBUG_LOG("switch 0"); }, []() { DEBUG_LOG("switch 1"); }> {},
-		par<loop<3, []() { DEBUG_LOG("par1_hi5"); Sleep(1); }> {}, loop<5, []() { DEBUG_LOG("par2_hi5");Sleep(1); }> {}> {},
+		sys_game_init {},
+		loop<[]<typename g>(interface_game<g> igame) { return igame.get_running(); },
+			 ecs::_switch<[]<typename g>(interface_game<g> igame) { return igame.get_current_scene_idx(); },
+						  ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t1>(); }> {},
+						  ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
 		sys_game_deinit {}>();
 
-	// switch<sys_game_current_scene_idx, case<0, sys_scene_0>, case<1, sys_scene_1>>
+	auto _sys_group_game2 =
+		_game
+		| sys_game_init {}
+		| sys_game_deinit {};
 
+	_sys_group_game2.run();
 
 	_sys_group_game.run(_game);
 	////_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
