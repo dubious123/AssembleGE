@@ -5,6 +5,10 @@ namespace ecs
 {
 	namespace detail
 	{
+		struct unsupported
+		{
+		};
+
 		template <typename t>
 		struct extract_interface_template;
 
@@ -31,11 +35,19 @@ namespace ecs
 		template <typename t_callable, typename t_data>
 		using lambda_interface_templates = extract_interface_template<typename meta::function_traits<&t_callable::template operator()<t_data>>::argument_types>;
 
-		template <typename t_sys, typename t_data>
-		concept is_system_templated = requires(t_sys sys, t_data&& data) {
-			{
-				sys.template run<t_data>(std::forward<t_data>(data))
-			};
+		template <typename t_sys, typename... t_data>
+		concept is_system_templated = requires(t_sys sys, t_data&&... data) {
+			//&t_sys::template run<t_data>;
+			typename std::enable_if_t<not std::same_as<decltype(sys.template run<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
+			// sys.template run<t_data...>(std::forward<t_data>(data)...);
+			//{
+			//	sys.template run<t_data...>(std::forward<t_data>(data)...)
+			//}
+			// &t_sys::template run<t_data...>;
+			//{
+			//	t_sys::template run<t_data>(std::forward<t_data>(data))
+			//	// sys.template run<t_data>(std::forward<t_data>(data))
+			//};
 		};
 
 		// template <typename t_sys>
@@ -46,8 +58,12 @@ namespace ecs
 		// };
 
 		template <typename t_sys, typename... t_data>
-		concept is_system = requires {
-			typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::run>::argument_types, std::tuple<t_data...>>>;
+		concept is_system = requires(t_sys sys, t_data... data) {
+			typename std::enable_if_t<not std::same_as<decltype(sys.run(std::forward<t_data>(data)...)), unsupported>>;
+			//{
+			//	sys.run(std::forward<t_data>(data)...)
+			//};
+			// typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::run>::argument_types, std::tuple<t_data...>>>;
 		};
 
 		// template <typename t_data, typename t_sys>
@@ -55,9 +71,11 @@ namespace ecs
 		//	typename std::enable_if_t<std::is_same_v<t_data, std::tuple_element_t<0, typename meta::function_traits<&t_sys::run>::argument_types>>>;
 		// };
 
-		template <typename t_callable, typename t_data>
-		concept is_callable_templated = requires(t_callable callable, t_data&& data) {
-			std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(std::forward<t_data>(data)));
+		template <typename t_callable, typename... t_data>
+		concept is_callable_templated = requires(t_callable sys, t_data... data) {
+			typename std::enable_if_t<not std::same_as<decltype(sys.template operator()<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
+			// callable.template operator()<t_data...>(std::forward<t_data>(data)...);
+			//  std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(std::forward<t_data>(data)));
 		};
 
 		// template <typename t_callable>
@@ -74,8 +92,10 @@ namespace ecs
 		// };
 
 		template <typename t_sys, typename... t_data>
-		concept is_callable = requires {
-			typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::operator()>::argument_types, std::tuple<t_data...>>>;
+		concept is_callable = requires(t_sys sys, t_data... data) {
+			typename std::enable_if_t<not std::same_as<decltype(sys(std::forward<t_data>(data)...)), unsupported>>;
+			// sys(std::forward<t_data>(data)...);
+			//  typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::operator()>::argument_types, std::tuple<t_data...>>>;
 		};
 
 		template <typename t_sys, typename t_data>
@@ -114,7 +134,8 @@ namespace ecs
 			}
 			else
 			{
-				static_assert(false and "System does not provide a run method that can be called.");
+				return unsupported {};
+				// static_assert(false and "System does not provide a run method that can be called.");
 			}
 		}
 
@@ -131,7 +152,8 @@ namespace ecs
 			}
 			else
 			{
-				static_assert(false and "System does not provide a run method that can be called.");
+				return unsupported {};
+				// static_assert(false and "System does not provide a run method that can be called.");
 			}
 		}
 

@@ -196,6 +196,9 @@ struct my_game : scenes, my_game_state
 	my_game()						   = default;
 	my_game(const my_game&)			   = delete;
 	my_game& operator=(const my_game&) = delete;
+
+	my_game(my_game&&)			  = default;
+	my_game& operator=(my_game&&) = default;
 };
 
 struct my_game_system
@@ -281,6 +284,8 @@ struct sys_scene_init
 
 struct sys_game_init
 {
+	constexpr sys_game_init() {};
+
 	template <typename g>
 	void run(interface_game<g> igame)
 	{
@@ -290,6 +295,8 @@ struct sys_game_init
 
 struct sys_game_deinit
 {
+	constexpr sys_game_deinit() {};
+
 	template <typename g>
 	void run(interface_game<g> igame)
 	{
@@ -398,28 +405,62 @@ struct system_pipeline
 	}
 };
 
-template <typename t_data, typename t_sys_r>
-struct system_pipeline_data
+template <typename t_sys_l, typename t_sys_r>
+struct system_seq
 {
-	t_data	data;
+	t_sys_l sys_left;
 	t_sys_r sys_right;
 
-	system_pipeline_data(t_data&& sys_l, t_sys_r&& sys_r)
-		: data(std::forward<t_data>(sys_l)),
-		  sys_right(std::forward<t_sys_r>(sys_r))
+	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
+		: sys_left(sys_l),
+		  sys_right(sys_r)
 	{
+	}
+
+	template <typename t_data>
+	decltype(auto) run(t_data&& data)
+	{
+		using left_ret_type = decltype(ecs::detail::run_system(sys_left, std::forward<t_data>(data)));
+
+		if constexpr (std::is_same_v<left_ret_type, void>)
+		{
+			ecs::detail::run_system(sys_left, std::forward<t_data>(data));
+			ecs::detail::run_system(sys_right, std::forward<t_data>(data));
+		}
+		else
+		{
+			decltype(auto) sys_l_ret = ecs::detail::run_system(sys_left);
+			ecs::detail::run_system(sys_right, std::forward<decltype(sys_l_ret)>(sys_l_ret));
+		}
 	}
 
 	// If none of the systems require input, we allow calling without data.
 	decltype(auto) run()
 	{
-		return ecs::detail::run_system(sys_right, std::forward<t_data>(data));
-	}
-};
+		if constexpr (
+			ecs::detail::is_system_templated<t_sys_r, t_sys_l>
+			|| ecs::detail::is_callable_templated<t_sys_r, t_sys_l>
+			|| ecs::detail::is_system<t_sys_r, t_sys_l>
+			|| ecs::detail::is_callable<t_sys_r, t_sys_l>)
+		{
+			ecs::detail::run_system(sys_right, std::forward<decltype(sys_left)>(sys_left));
+		}
+		else
+		{
+			using left_ret_type = decltype(ecs::detail::run_system(sys_left));
 
-template <typename t_callable>
-struct wrapper : t_callable
-{
+			if constexpr (std::is_same_v<left_ret_type, void>)
+			{
+				ecs::detail::run_system(sys_left);
+				ecs::detail::run_system(sys_right);
+			}
+			else
+			{
+				decltype(auto) sys_l_ret = ecs::detail::run_system(sys_left);
+				ecs::detail::run_system(sys_right, std::forward<decltype(sys_l_ret)>(sys_l_ret));
+			}
+		}
+	}
 };
 
 template <typename t_left, typename t_right>
@@ -451,6 +492,29 @@ decltype(auto) operator|(t_left&& left, t_right&& sys)
 	{
 		// left is a system or callable
 		return system_pipeline(std::forward<t_left>(left), std::forward<t_right>(sys));
+	}
+}
+
+template <typename t_left, typename t_right>
+decltype(auto) operator+=(t_left&& left, t_right&& sys)
+{
+	// using t_l = std::decay_t<t_left>;
+	// using t_r = std::decay_t<t_right>;
+	// return system_seq<t_l, t_r>(std::forward<t_l>(left), std::forward<t_r>(sys));
+
+
+	if constexpr (ecs::detail::is_system_templated<t_right, t_left>
+				  || ecs::detail::is_callable_templated<t_right, t_left>
+				  || ecs::detail::is_system<t_right, t_left>
+				  || ecs::detail::is_callable<t_right, t_left>)
+	{
+		// left is data
+
+		return system_seq([&]() -> auto& { return std::forward<t_left>(left); }, std::forward<t_right>(sys));	 // ??
+	}
+	else
+	{
+		return system_seq(std::forward<t_left>(left), std::forward<t_right>(sys));
 	}
 }
 

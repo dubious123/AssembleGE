@@ -603,13 +603,62 @@ int main()
 						  ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
 		sys_game_deinit {}>();
 
-	auto _sys_group_game2 =
+	// auto _sys_group_game2 =
+	//	(my_game {} += sys_game_init {}) /*+= sys_game_deinit {}*/;
+	// (my_game {} += sys_game_init {}).run();
+	//
+	using t_right = sys_game_init;
+	using t_left  = sys_game_deinit;
+	static_assert(ecs::detail::is_system_templated<t_right, t_left>
+					  || ecs::detail::is_callable_templated<t_right, t_left>
+					  || ecs::detail::is_system<t_right, t_left>
+					  || ecs::detail::is_callable<t_right, t_left> == false,
+				  "");
+	// clang-format off
+	auto _sys_group =
 		_game
-		| sys_game_init {}
-		| sys_game_deinit {};
+			+= sys_game_init {}
+			+= sys_game_deinit {};
 
-	_sys_group_game2.run();
+	// clang-format on
+	auto sys = sys_game_init {};
+	static_assert(ecs::detail::is_system_templated<decltype(sys), my_game&>, "");
+	static_assert(std::is_same_v<decltype([&]() -> decltype(auto) { return std::forward<my_game>(_game); }()), my_game&&>, "");
+	ecs::detail::run_system(sys, _game);
+	_sys_group.run();
+	//
+	//       auto _sys_group_game2 =
+	//	_game
+	//	+= sys_game_init {} // seq ([](){return _game});
+	//		| sys_1			// pipe ( sys_game_init, sys_1) : 1
+	//		| sys_2			// pipe ( sys_game_init, sys_1, sys_2) : 2
+	//		| [](){}		// pipe ( sys_game_init, sys_1, sys_2, [](){} ) : 3
+	//	+= sys_1
+	//		| sys_2
+	//		| sys_3
+	//	+= loop(sys_game_running {},
+	//		switch(sys_current_scene {},
+	//			case(0, sys_get_scene<scene_t1> {}
+	//						+= sys_scene_init{}
+	//						^= sys_get_world<world_t1> {}
+	//							| sys_group_world_t1 {},
+	//						^= sys_get_world<world_t2> {}
+	//							| sys_group_world_t1 {}
+	//						+= sys_scene_deinit{} )
+	//			case(1, sys_get_scene<scene_t2> {}
+	//						^= sys_get_world<world_t1> {}
+	//							| sys_group_world_t1 {},
+	//						^= sys_get_world<world_t2> {}
+	//							| sys_group_world_t1 {})
+	//	+= sys_game_deinit {}
+	//		| sys_2
+	//		| sys_3;
 
+
+	// static_assert(ecs::detail::is_system<decltype(_sys_group_game2)> == true, "");
+	// ecs::detail::run_system(_sys_group_game2);
+	//_sys_group_game2.run();
+	// static_assert(ecs::detail::is_system_templated<sys_game_init, my_game>, "");
 	_sys_group_game.run(_game);
 	////_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
