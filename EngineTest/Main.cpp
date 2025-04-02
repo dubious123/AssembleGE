@@ -188,7 +188,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -227,8 +227,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -258,7 +258,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -607,8 +607,8 @@ int main()
 	//	(my_game {} += sys_game_init {}) /*+= sys_game_deinit {}*/;
 	// (my_game {} += sys_game_init {}).run();
 	//
-	using t_right = sys_game_init;
-	using t_left  = sys_game_deinit;
+	using t_right = decltype([&_game]() -> decltype(auto) { return (_game); });
+	using t_left  = decltype(sys_game_deinit {} += sys_game_deinit {});
 	static_assert(ecs::detail::is_system_templated<t_right, t_left>
 					  || ecs::detail::is_callable_templated<t_right, t_left>
 					  || ecs::detail::is_system<t_right, t_left>
@@ -624,7 +624,10 @@ int main()
 	auto sys = sys_game_init {};
 	static_assert(ecs::detail::is_system_templated<decltype(sys), my_game&>, "");
 	static_assert(std::is_same_v<decltype([&]() -> decltype(auto) { return std::forward<my_game>(_game); }()), my_game&&>, "");
+	static_assert(std::is_same_v<decltype([&]() -> decltype(auto) { return std::forward<decltype(_game)>(_game); }()), my_game&&>, "");
 	ecs::detail::run_system(sys, _game);
+
+	decltype(auto) temp = [&_game]() -> decltype(auto) { return (_game); };
 	_sys_group.run();
 	//
 	//       auto _sys_group_game2 =

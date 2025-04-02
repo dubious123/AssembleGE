@@ -1,5 +1,0 @@
-[2025-03-05 21:10:03.587] [Editor Logger] [info] Hi
-[2025-03-05 21:10:04.418] [Editor Logger] [info] Open Completed
-[2025-03-05 21:10:05.226] [Editor Logger] [info] dte init true
-[2025-03-05 21:10:07.195] [Editor Logger] [error] project dll is not loaded
-[2025-03-05 21:10:07.271] [Editor Logger] [info] dte deinit true

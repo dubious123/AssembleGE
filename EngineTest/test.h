@@ -284,7 +284,7 @@ struct sys_scene_init
 
 struct sys_game_init
 {
-	constexpr sys_game_init() {};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -295,7 +295,7 @@ struct sys_game_init
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() {};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -509,8 +509,14 @@ decltype(auto) operator+=(t_left&& left, t_right&& sys)
 				  || ecs::detail::is_callable<t_right, t_left>)
 	{
 		// left is data
-
-		return system_seq([&]() -> auto& { return std::forward<t_left>(left); }, std::forward<t_right>(sys));	 // ??
+		if constexpr (std::is_lvalue_reference_v<t_left>)
+		{
+			return system_seq([&]() -> decltype(auto) { return (left); }, std::forward<decltype(sys)>(sys));								// ??
+		}
+		else
+		{
+			return system_seq([&]() -> decltype(auto) { return std::forward<decltype(left)>(left); }, std::forward<decltype(sys)>(sys));	// ??
+		}
 	}
 	else
 	{

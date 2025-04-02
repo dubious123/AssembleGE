@@ -38,7 +38,7 @@ namespace ecs
 		template <typename t_sys, typename... t_data>
 		concept is_system_templated = requires(t_sys sys, t_data&&... data) {
 			//&t_sys::template run<t_data>;
-			typename std::enable_if_t<not std::same_as<decltype(sys.template run<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
+			typename std::enable_if_t<not std::is_same_v<decltype(sys.template run<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
 			// sys.template run<t_data...>(std::forward<t_data>(data)...);
 			//{
 			//	sys.template run<t_data...>(std::forward<t_data>(data)...)
@@ -59,7 +59,7 @@ namespace ecs
 
 		template <typename t_sys, typename... t_data>
 		concept is_system = requires(t_sys sys, t_data... data) {
-			typename std::enable_if_t<not std::same_as<decltype(sys.run(std::forward<t_data>(data)...)), unsupported>>;
+			typename std::enable_if_t<not std::is_same_v<decltype(sys.run(std::forward<t_data>(data)...)), unsupported>>;
 			//{
 			//	sys.run(std::forward<t_data>(data)...)
 			//};
@@ -73,7 +73,7 @@ namespace ecs
 
 		template <typename t_callable, typename... t_data>
 		concept is_callable_templated = requires(t_callable sys, t_data... data) {
-			typename std::enable_if_t<not std::same_as<decltype(sys.template operator()<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
+			typename std::enable_if_t<not std::is_same_v<decltype(sys.template operator()<t_data...>(std::forward<t_data>(data)...)), unsupported>>;
 			// callable.template operator()<t_data...>(std::forward<t_data>(data)...);
 			//  std::apply(callable, lambda_interface_templates<t_callable, t_data>::get_interfaces(std::forward<t_data>(data)));
 		};
@@ -93,7 +93,7 @@ namespace ecs
 
 		template <typename t_sys, typename... t_data>
 		concept is_callable = requires(t_sys sys, t_data... data) {
-			typename std::enable_if_t<not std::same_as<decltype(sys(std::forward<t_data>(data)...)), unsupported>>;
+			typename std::enable_if_t<not std::is_same_v<decltype(sys(std::forward<t_data>(data)...)), unsupported>>;
 			// sys(std::forward<t_data>(data)...);
 			//  typename std::enable_if_t<std::is_same_v<typename meta::function_traits<&t_sys::operator()>::argument_types, std::tuple<t_data...>>>;
 		};
@@ -370,7 +370,7 @@ namespace ecs
 	{
 		decltype(detail::get_loop_impl<sys_cond, sys_loop>()) impl;
 
-		constexpr loop() {};
+		constexpr loop() { };
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
@@ -419,7 +419,7 @@ namespace ecs
 		decltype(sys_select)				 _sys_select;
 		detail::_tpl<decltype(sys_cases)...> _sys_cases;
 
-		constexpr _switch() {};
+		constexpr _switch() { };
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
