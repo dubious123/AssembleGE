@@ -284,7 +284,7 @@ struct sys_scene_init
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -293,9 +293,18 @@ struct sys_game_init
 	}
 };
 
+struct sys_game_running
+{
+	template <typename g>
+	bool run(interface_game<g> igame)
+	{
+		return igame.get_running();
+	}
+};
+
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -429,37 +438,49 @@ struct system_seq
 		}
 		else
 		{
-			decltype(auto) sys_l_ret = ecs::detail::run_system(sys_left);
-			ecs::detail::run_system(sys_right, std::forward<decltype(sys_l_ret)>(sys_l_ret));
+			ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
 		}
 	}
 
-	// If none of the systems require input, we allow calling without data.
 	decltype(auto) run()
 	{
-		if constexpr (
-			ecs::detail::is_system_templated<t_sys_r, t_sys_l>
-			|| ecs::detail::is_callable_templated<t_sys_r, t_sys_l>
-			|| ecs::detail::is_system<t_sys_r, t_sys_l>
-			|| ecs::detail::is_callable<t_sys_r, t_sys_l>)
+		using left_ret_type = decltype(ecs::detail::run_system(sys_left));
+
+		if constexpr (std::is_same_v<left_ret_type, void>)
 		{
-			ecs::detail::run_system(sys_right, std::forward<decltype(sys_left)>(sys_left));
+			ecs::detail::run_system(sys_left);
+			ecs::detail::run_system(sys_right);
 		}
 		else
 		{
-			using left_ret_type = decltype(ecs::detail::run_system(sys_left));
-
-			if constexpr (std::is_same_v<left_ret_type, void>)
-			{
-				ecs::detail::run_system(sys_left);
-				ecs::detail::run_system(sys_right);
-			}
-			else
-			{
-				decltype(auto) sys_l_ret = ecs::detail::run_system(sys_left);
-				ecs::detail::run_system(sys_right, std::forward<decltype(sys_l_ret)>(sys_l_ret));
-			}
+			ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
 		}
+	}
+};
+
+template <typename t>
+struct system_lref
+{
+	t* ptr;
+
+	system_lref(t& ref) : ptr(&ref) { }
+
+	t& run() const
+	{
+		return *ptr;
+	}
+};
+
+template <typename t>
+struct system_rval
+{
+	t val;
+
+	constexpr system_rval(t&& val) : val(std::move(val)) { }
+
+	t& run() const
+	{
+		return val;
 	}
 };
 
@@ -511,11 +532,11 @@ decltype(auto) operator+=(t_left&& left, t_right&& sys)
 		// left is data
 		if constexpr (std::is_lvalue_reference_v<t_left>)
 		{
-			return system_seq([&]() -> decltype(auto) { return (left); }, std::forward<decltype(sys)>(sys));								// ??
+			return system_seq(system_lref(left), std::forward<decltype(sys)>(sys));
 		}
 		else
 		{
-			return system_seq([&]() -> decltype(auto) { return std::forward<decltype(left)>(left); }, std::forward<decltype(sys)>(sys));	// ??
+			return system_seq(system_rval(std::move(left)), std::forward<decltype(sys)>(sys));
 		}
 	}
 	else
