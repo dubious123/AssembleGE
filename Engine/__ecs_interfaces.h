@@ -7,6 +7,12 @@ struct interface_game
 
 	interface_game(t_game& game) : game(game) { }
 
+	// t_game game;
+
+	// interface_game(t_game& game) : game(game) { }
+
+	// interface_game(t_game&& game) : game(std::move(game)) { }
+
 	inline void init()
 	{
 		game.init();

@@ -575,6 +575,27 @@ struct some_big_struct
 	uint64 d;
 };
 
+void __test(auto&& igame, auto&& sys)
+{
+	using t_right = std::decay_t<decltype(sys)>;
+	using t_left  = std::decay_t<decltype(igame)>;
+	static_assert(std::is_lvalue_reference_v<decltype(igame)>);
+	static_assert(ecs::detail::is_system_templated<t_right, t_left>
+				  || ecs::detail::is_callable_templated<t_right, t_left>
+				  || ecs::detail::is_system<t_right, t_left>
+				  || ecs::detail::is_callable<t_right, t_left>);
+}
+
+constexpr bool __test2(auto&& left, auto&& right)
+{
+	using t_right = std::decay_t<decltype(left)>;
+	using t_left  = std::decay_t<decltype(right)>;
+	return ecs::detail::is_system_templated<t_right, t_left>
+		|| ecs::detail::is_callable_templated<t_right, t_left>
+		|| ecs::detail::is_system<t_right, t_left>
+		|| ecs::detail::is_callable<t_right, t_left>;
+}
+
 int main()
 {
 
@@ -615,29 +636,126 @@ int main()
 	//				  || ecs::detail::is_callable<t_right, t_left> == false,
 	//			  "");
 
-	static_assert(std::constructible_from<interface_game<my_game>, my_game&>);
-	static_assert(std::convertible_to<my_game&, interface_game<my_game>>);
-	static_assert(ecs::detail::is_callable<decltype([]() {})>);
-	static_assert(ecs::detail::tpl_convertible_from<typename meta::function_traits<&decltype([]() {})::operator()>::argument_types, std::tuple<>>);
-	static_assert(ecs::detail::tpl_convertible_from<std::tuple<int>, std::tuple<int>>);
-	static_assert(std::is_convertible_v<int, int>);
-	static_assert(ecs::detail::is_callable<decltype([]() { return my_game {}; })>);
-	static_assert(ecs::detail::is_system<my_cond_system_false>);
-	static_assert(ecs::detail::is_callable_templated<decltype([]<typename g>(interface_game<g> igame) {}), my_game&>);
-	static_assert(ecs::detail::is_system_templated<sys_game_init, my_game&>);
+	//__test(_game, sys_game_init {});
+	static_assert(ecs::detail::is_callable_templated<sys_game_init, sys_game_deinit> == false);
+	static_assert(ecs::detail::is_callable<sys_game_init, sys_game_deinit> == false);
+	// static_assert(ecs::detail::is_system_templated<sys_game_init, sys_game_deinit> == false);
+	static_assert(ecs::detail::sys_can_compile<sys_game_init, sys_game_deinit> == false);
 
+	// sys_game_init::template run<sys_game_deinit>;
+	//  static_assert(decltype(&sys_game_init::template run<sys_game_deinit>, std::true_type {})::value == false);
+	//  sys_game_init {}.run<sys_game_deinit>(sys_game_deinit {});
+	//   static_assert(ecs::detail::is_system<sys_game_init, sys_game_deinit> == false);
+	//   static_assert(__test2(sys_game_init {}, sys_game_deinit {}) == false);
+	//  assert(__test2(_game, sys_game_init {} +=[](){std::println("empty");}
+	//		+= sys_game_deinit {}));
+
+
+	using tt = std::decay_t<decltype([]() { std::println("empty"); } += sys_game_deinit {})>;
+	using t	 = decltype(([]() { std::println("empty"); } += sys_game_deinit {}).run(sys_game_init()));
+	auto r = []() { std::println("empty"); } += sys_game_deinit {};
+	// using t									  = decltype(ecs::detail::run_system(r, sys_game_init()));
+
+	constexpr auto bbb = ecs::detail::is_system<decltype(r)>;
+	using t_ret		   = decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>()));
+	constexpr auto y5  = ecs::detail::sys_test_run<tt, sys_game_init>();
+	// using t3 =
+	//	decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>()),
+	//			 std::enable_if_t<!std::is_same_v<decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>())), ecs::detail::unsupported>>(),
+	//			 std::true_type {});
+	static_assert(ecs::detail::sys_can_compile<tt, sys_game_init> == false);
+	static_assert(ecs::detail::is_system_templated<tt, sys_game_init> == false);
+
+
+	using t_group = decltype(sys_game_init {} +=
+							 []() { std::println("empty"); } += sys_game_deinit {});
+	// using bb = decltype(std::declval<t_group>().template run<my_game>(std::declval<my_game&>()), true);
+	constexpr auto boo = ecs::detail::sys_test_run<t_group, my_game&>();
+
+	using adfsdf  = decltype(t_group::template run<my_game>);
+	using referef = decltype(std::declval<std::remove_cvref_t<t_group>>().template run<std::remove_cvref_t<my_game&>>(std::declval<my_game&&>()));
+
+	// using t_ret2 = decltype(std::declval<t_group>().template run<my_game>(std::declval<my_game&>()));
+	{
+		// t_group::template run<my_game>;
+		auto syssys		 = sys_game_init {};
+		auto _game		 = my_game {};
+		using temp_type	 = decltype(std::declval<std::remove_cvref_t<sys_game_init>>().template run<std::remove_cvref_t<my_game&>>(std::declval<my_game&>()));
+		constexpr auto a = ecs::detail::sys_test_run<sys_game_init, my_game&>();
+		std::printf("{}", a);
+		// static_assert(ecs::detail::sys_test_run<sys_game_init, my_game&>());
+		static_assert(ecs::detail::is_system_templated<sys_game_init, my_game&>);
+
+		using f1	= decltype(std::forward<my_game&>(_game));
+		using f2	= decltype(std::forward<my_game>(_game));
+		using f3	= decltype(std::forward<my_game&&>(_game));
+		using f4	= decltype(std::forward<decltype(_game)>(_game));
+		using aptpa = decltype(syssys.run<my_game>(_game));
+		using aptpa = decltype(syssys.run<my_game>(std::declval<my_game&>()));
+		using dd	= decltype(ecs::detail::run_system(syssys, std::declval<my_game&>()));
+		using dd2	= decltype(ecs::detail::run_system(syssys, _game));
+	}
+
+	// auto dada = ecs::detail::sys_test_run<t_group, my_game&&>();
+	//  auto asdfasd = decltype(std::declval<std::remove_cvref_t<t_group>>().template run<std::remove_cvref_t<my_game>>(std::declval<my_game&&>()));
+	//   static_assert(ecs::detail::is_system_templated<t_group, my_game&&> == true);
+	std::println("{}", boo);
+	// std::println("{}", dada);
+
+	{
+		// auto group = ;
+		{
+
+			//(sys_game_init {} += sys_game_deinit {}).run(_game);
+			using g_t = decltype(sys_game_init {} += sys_game_deinit {});
+			auto g = sys_game_init {} += sys_game_deinit {};
+			using gggg				   = decltype(g.run(std::declval<my_game>()));
+
+			using fcd = decltype(g_t::template run<my_game>);
+		}
+		{
+			using g_t  = decltype(sys_game_init {});
+			auto g	   = sys_game_init {};
+			using gggg = decltype(g.run<my_game>(std::declval<my_game&>()));
+		}
+		// using gtt = decltype(std::declval<g_t>().template run<my_game>(std::declval<my_game&>()));
+		//  ecs::detail::sys_test_run<g_t, my_game&>();
+		//  auto g = (sys_game_init {} += sys_game_deinit {});
+		//  g.run(_game);
+		//  constexpr auto bbb	= ecs::detail::is_system_templated<decltype(g), my_game>;
+		//  using agg			= decltype(std::declval<std::remove_cvref_t<decltype(g)>>().template run<std::remove_cvref_t<my_game>>(std::declval<my_game&&>()));
+		//  using left_ret_type = decltype(ecs::detail::run_system(g, std::forward<decltype(_game)>(_game)));
+		// std::println("{}", ecs::detail::sys_test_run<g_t, my_game&>());
+	}
+	// static_assert(ecs::detail::is_system_templated<t_group, my_game>);
+
+	// auto igame = interface_game<my_game>(my_game {});
 	// clang-format off
-
+	
 	auto _sys_group =
 		_game
-			+= sys_game_init {}
+			+= sys_game_init {}/*
+			+= sys_game_deinit{} */;
 			//+= ecs::loop<sys_game_running{}, 
-			//	[](){}>{}
-			+= sys_game_deinit {};
-
-	//// clang-format on
+			//+= [](){std::println("empty");}
+			//+= sys_game_deinit {};
+	//_sys_group.run(_game);
 	_sys_group.run();
-	//
+
+
+	//auto _sys_group2 =
+	//	my_game{}
+	//		+= sys_game_init {}
+	//		//+= ecs::loop<sys_game_running{}, 
+	//		+= [](){std::println("empty");}
+	//		+= sys_game_deinit {};
+	////_sys_group.run(_game);
+	//_sys_group2.run();
+
+	////// clang-format on
+	
+
+
 	//       auto _sys_group_game2 =
 	//	_game
 	//	+= sys_game_init {} // seq ([](){return _game});

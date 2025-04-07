@@ -291,6 +291,10 @@ struct sys_game_init
 	{
 		igame.init();
 	}
+
+	// void run(int _)
+	//{
+	// }
 };
 
 struct sys_game_running
@@ -429,31 +433,38 @@ struct system_seq
 	template <typename t_data>
 	decltype(auto) run(t_data&& data)
 	{
-		using left_ret_type = decltype(ecs::detail::run_system(sys_left, std::forward<t_data>(data)));
+		using left_ret_type = decltype(ecs::detail::run_system(sys_left, std::forward<decltype(data)>(data)));
 
-		if constexpr (std::is_same_v<left_ret_type, void>)
+		if constexpr (std::is_same_v<left_ret_type, ecs::detail::unsupported>)
 		{
-			ecs::detail::run_system(sys_left, std::forward<t_data>(data));
-			ecs::detail::run_system(sys_right, std::forward<t_data>(data));
+			return ecs::detail::unsupported {};
+		}
+		else if constexpr (std::is_same_v<left_ret_type, void>)
+		{
+			ecs::detail::run_system(sys_left, std::forward<decltype(data)>(data));
+			return ecs::detail::run_system(sys_right, std::forward<decltype(data)>(data));
 		}
 		else
 		{
-			ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
+			return ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
 		}
 	}
 
 	decltype(auto) run()
 	{
 		using left_ret_type = decltype(ecs::detail::run_system(sys_left));
-
-		if constexpr (std::is_same_v<left_ret_type, void>)
+		if constexpr (std::is_same_v<left_ret_type, ecs::detail::unsupported>)
+		{
+			return ecs::detail::unsupported {};
+		}
+		else if constexpr (std::is_same_v<left_ret_type, void>)
 		{
 			ecs::detail::run_system(sys_left);
-			ecs::detail::run_system(sys_right);
+			return ecs::detail::run_system(sys_right);
 		}
 		else
 		{
-			ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
+			return ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
 		}
 	}
 };
@@ -519,18 +530,16 @@ decltype(auto) operator|(t_left&& left, t_right&& sys)
 template <typename t_left, typename t_right>
 decltype(auto) operator+=(t_left&& left, t_right&& sys)
 {
-	// using t_l = std::decay_t<t_left>;
-	// using t_r = std::decay_t<t_right>;
-	// return system_seq<t_l, t_r>(std::forward<t_l>(left), std::forward<t_r>(sys));
+	using t_l	= std::decay_t<decltype(left)>;
+	using t_sys = std::decay_t<decltype(sys)>;
 
-
-	if constexpr (ecs::detail::is_system_templated<t_right, t_left>
-				  || ecs::detail::is_callable_templated<t_right, t_left>
-				  || ecs::detail::is_system<t_right, t_left>
-				  || ecs::detail::is_callable<t_right, t_left>)
+	if constexpr (ecs::detail::is_system_templated<t_sys, decltype(left)>
+				  || ecs::detail::is_callable_templated<t_sys, decltype(left)>
+				  || ecs::detail::is_system<t_sys, decltype(left)>
+				  || ecs::detail::is_callable<t_sys, decltype(left)>)
 	{
 		// left is data
-		if constexpr (std::is_lvalue_reference_v<t_left>)
+		if constexpr (std::is_lvalue_reference_v<decltype(left)>)
 		{
 			return system_seq(system_lref(left), std::forward<decltype(sys)>(sys));
 		}
@@ -541,7 +550,7 @@ decltype(auto) operator+=(t_left&& left, t_right&& sys)
 	}
 	else
 	{
-		return system_seq(std::forward<t_left>(left), std::forward<t_right>(sys));
+		return system_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
 	}
 }
 
