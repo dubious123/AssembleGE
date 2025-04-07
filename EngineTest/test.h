@@ -104,6 +104,13 @@ struct worlds
 			static_assert(false, "invalid world type");
 		}
 	}
+
+	// worlds()						 = default;
+	// worlds(const worlds&)			 = delete;
+	// worlds& operator=(const worlds&) = delete;
+
+	// worlds(worlds&&) noexcept			 = default;
+	// worlds& operator=(worlds&&) noexcept = default;
 };
 
 struct my_scene_state
@@ -173,6 +180,13 @@ struct scenes
 			static_assert(false, "invalid scene type");
 		}
 	}
+
+	// scenes()						 = default;
+	// scenes(const scenes&)			 = delete;
+	// scenes& operator=(const scenes&) = delete;
+
+	// scenes(scenes&&) noexcept			 = default;
+	// scenes& operator=(scenes&&) noexcept = default;
 };
 
 struct my_game_state
@@ -197,8 +211,8 @@ struct my_game : scenes, my_game_state
 	my_game(const my_game&)			   = delete;
 	my_game& operator=(const my_game&) = delete;
 
-	my_game(my_game&&)			  = default;
-	my_game& operator=(my_game&&) = default;
+	my_game(my_game&&) noexcept			   = default;
+	my_game& operator=(my_game&&) noexcept = default;
 };
 
 struct my_game_system
@@ -284,7 +298,7 @@ struct sys_scene_init
 
 struct sys_game_init
 {
-	constexpr sys_game_init() {};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -308,7 +322,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() {};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -356,6 +370,15 @@ inline static auto _sys_group_game = ecs::seq<
 //	| std::views::filter()
 //	| std::views::transform()
 //  | std::ranges::to<std::list>();
+
+constexpr decltype(auto) get_univ_ref(auto&& v)
+{
+	if constexpr (std::is_lvalue_reference_v<decltype(v)>)
+		// return std::addressof(val);
+		return std::ref(v);
+	else
+		return std::move(v);
+}
 
 template <typename t_sys_l, typename t_sys_r>
 struct system_pipeline
@@ -421,14 +444,36 @@ struct system_pipeline
 template <typename t_sys_l, typename t_sys_r>
 struct system_seq
 {
-	t_sys_l sys_left;
-	t_sys_r sys_right;
+	template <typename t>
+	using t_sys = std::conditional_t<std::is_lvalue_reference_v<t>, std::remove_reference_t<t>&, std::remove_reference_t<t>>;
 
+	t_sys<t_sys_l> sys_left;
+	t_sys<t_sys_r> sys_right;
+
+	// Use a lambda in the member initializer list to initialize members.
 	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
-		: sys_left(sys_l),
-		  sys_right(sys_r)
+		: sys_left(
+			  [](auto&& val) mutable -> t_sys<t_sys_l> {
+				  if constexpr (std::is_lvalue_reference_v<t_sys_l>)
+					  return std::ref(val);
+				  else
+					  return std::move(val);
+			  }(std::forward<t_sys_l>(sys_l))),
+		  sys_right(
+			  [](auto&& val) mutable -> t_sys<t_sys_r> {
+				  if constexpr (std::is_lvalue_reference_v<t_sys_r>)
+					  return std::ref(val);
+				  else
+					  return std::move(val);
+			  }(std::forward<t_sys_r>(sys_r)))
 	{
 	}
+
+	// constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
+	//	: sys_left(get_univ_ref(sys_l)),
+	//	  sys_right(get_univ_ref(sys_r))
+	//{
+	// }
 
 	template <typename t_data>
 	decltype(auto) run(t_data&& data)
@@ -455,7 +500,8 @@ struct system_seq
 		using left_ret_type = decltype(ecs::detail::run_system(sys_left));
 		if constexpr (std::is_same_v<left_ret_type, ecs::detail::unsupported>)
 		{
-			return ecs::detail::unsupported {};
+			// left might be plain data
+			return ecs::detail::run_system(sys_right, sys_left);
 		}
 		else if constexpr (std::is_same_v<left_ret_type, void>)
 		{
@@ -469,31 +515,11 @@ struct system_seq
 	}
 };
 
-template <typename t>
-struct system_lref
+template <typename t_l, typename t_r>
+decltype(auto) make_sys_seq(t_l&& l, t_r&& r)
 {
-	t* ptr;
-
-	system_lref(t& ref) : ptr(&ref) { }
-
-	t& run() const
-	{
-		return *ptr;
-	}
-};
-
-template <typename t>
-struct system_rval
-{
-	t val;
-
-	constexpr system_rval(t&& val) : val(std::move(val)) { }
-
-	t& run() const
-	{
-		return val;
-	}
-};
+	return system_seq<t_l, t_r>(std::forward<t_l>(l), std::forward<t_r>(r));
+}
 
 template <typename t_left, typename t_right>
 decltype(auto) operator|(t_left&& left, t_right&& sys)
@@ -530,28 +556,8 @@ decltype(auto) operator|(t_left&& left, t_right&& sys)
 template <typename t_left, typename t_right>
 decltype(auto) operator+=(t_left&& left, t_right&& sys)
 {
-	using t_l	= std::decay_t<decltype(left)>;
-	using t_sys = std::decay_t<decltype(sys)>;
-
-	if constexpr (ecs::detail::is_system_templated<t_sys, decltype(left)>
-				  || ecs::detail::is_callable_templated<t_sys, decltype(left)>
-				  || ecs::detail::is_system<t_sys, decltype(left)>
-				  || ecs::detail::is_callable<t_sys, decltype(left)>)
-	{
-		// left is data
-		if constexpr (std::is_lvalue_reference_v<decltype(left)>)
-		{
-			return system_seq(system_lref(left), std::forward<decltype(sys)>(sys));
-		}
-		else
-		{
-			return system_seq(system_rval(std::move(left)), std::forward<decltype(sys)>(sys));
-		}
-	}
-	else
-	{
-		return system_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
-	}
+	// return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
+	return make_sys_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
 }
 
 // {

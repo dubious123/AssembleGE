@@ -58,7 +58,7 @@ namespace ecs
 		template <typename t_sys>
 		constexpr auto sys_test_run() -> decltype(std::declval<std::remove_cvref_t<t_sys>>().run(), true)
 		{
-			using t_ret = decltype(std::declval<t_sys>().run(), true);
+			using t_ret = decltype(std::declval<t_sys>().run());
 			if constexpr (std::is_same_v<t_ret, unsupported>)
 			{
 				return false;
@@ -134,13 +134,14 @@ namespace ecs
 		constexpr bool callable_can_compile = callable_test_run<t_callable, t_data...>();
 
 		template <typename t_tpl_from, typename t_tpl_to>
-		concept tpl_convertible_from =
-			requires {
-				requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-				requires []<std::size_t... i>(std::index_sequence<i...>) {
-					return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-				}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
-			};
+		concept tpl_convertible_from = requires {
+			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
+				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
+		};
 
 
 		// template <typename t_sys, typename... t_data>
@@ -222,15 +223,37 @@ namespace ecs
 			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::operator()>::argument_types>;
 		};
 
+		template <typename t_sys, typename... t_data>
+		concept has_run_templated = requires {
+			typename decltype(&std::remove_cvref_t<t_sys>::template run<t_data...>);
+		};
+
+		template <typename t_sys, typename... t_data>
+		concept has_run = requires {
+			typename decltype(&std::remove_cvref_t<t_sys>::run);
+		};
+
+		template <typename t_callable, typename... t_data>
+		concept has_operator_templated = requires {
+			typename decltype(&std::remove_cvref_t<t_callable>::template operator()<t_data...>);
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
+		};
+
+		template <typename t_callable, typename... t_data>
+		concept has_operator = requires {
+			typename decltype(&std::remove_cvref_t<t_callable>::operator());
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
+		};
+
 		template <typename t_sys, typename t_data>
 		decltype(auto) run_system(t_sys& sys, t_data&& data)
 		{
-			if constexpr (is_system_templated<decltype(sys), decltype(data)>)
+			if constexpr (has_run_templated<decltype(sys), decltype(data)>)
 			{
 				// return sys.template run<t_data>(p_data);
 				return sys.run<t_data>(std::forward<decltype(data)>(data));
 			}
-			else if constexpr (is_system<decltype(sys)>)
+			else if constexpr (has_run<decltype(sys)>)
 			{
 				if constexpr (meta::function_traits<&t_sys::run>::arity == 0ull)
 				{
@@ -241,11 +264,11 @@ namespace ecs
 					return sys.run(std::forward<decltype(data)>(data));
 				}
 			}
-			else if constexpr (is_callable_templated<decltype(sys), decltype(data)>)
+			else if constexpr (has_operator_templated<decltype(sys), decltype(data)>)
 			{
 				return sys.template operator()<t_data>(std::forward<decltype(data)>(data));
 			}
-			else if constexpr (is_callable<decltype(sys)>)
+			else if constexpr (has_operator<decltype(sys)>)
 			{
 				if constexpr (meta::function_traits<&t_sys::operator()>::arity == 0ull)
 				{
@@ -261,6 +284,43 @@ namespace ecs
 				return unsupported {};
 				// static_assert(false and "System does not provide a run method that can be called.");
 			}
+
+			// if constexpr (is_system_templated<decltype(sys), decltype(data)>)
+			//{
+			//	// return sys.template run<t_data>(p_data);
+			//	return sys.run<t_data>(std::forward<decltype(data)>(data));
+			// }
+			// else if constexpr (is_system<decltype(sys)>)
+			//{
+			//	if constexpr (meta::function_traits<&t_sys::run>::arity == 0ull)
+			//	{
+			//		return sys.run();
+			//	}
+			//	else
+			//	{
+			//		return sys.run(std::forward<decltype(data)>(data));
+			//	}
+			// }
+			// else if constexpr (is_callable_templated<decltype(sys), decltype(data)>)
+			//{
+			//	return sys.template operator()<t_data>(std::forward<decltype(data)>(data));
+			// }
+			// else if constexpr (is_callable<decltype(sys)>)
+			//{
+			//	if constexpr (meta::function_traits<&t_sys::operator()>::arity == 0ull)
+			//	{
+			//		return sys();
+			//	}
+			//	else
+			//	{
+			//		return sys(std::forward<decltype(data)>(data));
+			//	}
+			// }
+			// else
+			//{
+			//	return unsupported {};
+			//	// static_assert(false and "System does not provide a run method that can be called.");
+			// }
 		}
 
 		template <typename t_sys>
@@ -494,7 +554,7 @@ namespace ecs
 	{
 		decltype(detail::get_loop_impl<sys_cond, sys_loop>()) impl;
 
-		constexpr loop() {};
+		constexpr loop() { };
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
@@ -543,7 +603,7 @@ namespace ecs
 		decltype(sys_select)				 _sys_select;
 		detail::_tpl<decltype(sys_cases)...> _sys_cases;
 
-		constexpr _switch() {};
+		constexpr _switch() { };
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)

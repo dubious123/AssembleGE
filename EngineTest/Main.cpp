@@ -188,7 +188,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -227,8 +227,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -258,7 +258,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -596,6 +596,76 @@ constexpr bool __test2(auto&& left, auto&& right)
 		|| ecs::detail::is_callable<t_right, t_left>;
 }
 
+template <typename t>
+auto _ref_test(t&& val)
+{
+	using val_t = decltype(val);
+	if constexpr (std::is_lvalue_reference_v<val_t>)
+	{
+		std::println("val is lvalue ref");
+	}
+	else if constexpr (std::is_rvalue_reference_v<val_t>)
+	{
+		std::println("val is rvalue ref");
+	}
+	else
+	{
+		static_assert(false);
+	}
+
+	if constexpr (std::is_lvalue_reference_v<t>)
+	{
+		std::println("t is lvalue ref");
+	}
+	else if constexpr (std::is_rvalue_reference_v<t>)
+	{
+		std::println("t is rvalue ref");
+	}
+	else
+	{
+		std::println("t is value");
+	}
+
+	using forward_t = decltype(std::forward<decltype(val)>(val));
+
+	if constexpr (std::is_lvalue_reference_v<forward_t>)
+	{
+		std::println("forward_t is lvalue ref");
+	}
+	else if constexpr (std::is_rvalue_reference_v<forward_t>)
+	{
+		std::println("forward_t is rvalue ref");
+	}
+	else
+	{
+		std::println("forward_t is value");
+	}
+
+	using forward_t2 = decltype(std::forward<t>(val));
+
+	if constexpr (std::is_lvalue_reference_v<forward_t>)
+	{
+		std::println("forward<t> is lvalue ref");
+	}
+	else if constexpr (std::is_rvalue_reference_v<forward_t>)
+	{
+		std::println("forward<t> is rvalue ref");
+	}
+	else
+	{
+		std::println("forward<t> is value");
+	}
+}
+
+struct move_only
+{
+	move_only()							   = default;
+	move_only(const move_only&)			   = delete;
+	move_only& operator=(const move_only&) = delete;
+	move_only(move_only&&)				   = default;
+	move_only& operator=(move_only&&)	   = default;
+};
+
 int main()
 {
 
@@ -624,133 +694,94 @@ int main()
 						  ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
 		sys_game_deinit {}>();
 
-	// auto _sys_group_game2 =
-	//	(my_game {} += sys_game_init {}) /*+= sys_game_deinit {}*/;
-	// (my_game {} += sys_game_init {}).run();
-	//
-	// using t_right = decltype([&_game]() -> decltype(auto) { return (_game); });
-	// using t_left  = decltype(sys_game_deinit {} += sys_game_deinit {});
-	// static_assert(ecs::detail::is_system_templated<t_right, t_left>
-	//				  || ecs::detail::is_callable_templated<t_right, t_left>
-	//				  || ecs::detail::is_system<t_right, t_left>
-	//				  || ecs::detail::is_callable<t_right, t_left> == false,
-	//			  "");
-
-	//__test(_game, sys_game_init {});
-	static_assert(ecs::detail::is_callable_templated<sys_game_init, sys_game_deinit> == false);
-	static_assert(ecs::detail::is_callable<sys_game_init, sys_game_deinit> == false);
-	// static_assert(ecs::detail::is_system_templated<sys_game_init, sys_game_deinit> == false);
-	static_assert(ecs::detail::sys_can_compile<sys_game_init, sys_game_deinit> == false);
-
-	// sys_game_init::template run<sys_game_deinit>;
-	//  static_assert(decltype(&sys_game_init::template run<sys_game_deinit>, std::true_type {})::value == false);
-	//  sys_game_init {}.run<sys_game_deinit>(sys_game_deinit {});
-	//   static_assert(ecs::detail::is_system<sys_game_init, sys_game_deinit> == false);
-	//   static_assert(__test2(sys_game_init {}, sys_game_deinit {}) == false);
-	//  assert(__test2(_game, sys_game_init {} +=[](){std::println("empty");}
-	//		+= sys_game_deinit {}));
-
-
-	using tt = std::decay_t<decltype([]() { std::println("empty"); } += sys_game_deinit {})>;
-	using t	 = decltype(([]() { std::println("empty"); } += sys_game_deinit {}).run(sys_game_init()));
-	auto r = []() { std::println("empty"); } += sys_game_deinit {};
-	// using t									  = decltype(ecs::detail::run_system(r, sys_game_init()));
-
-	constexpr auto bbb = ecs::detail::is_system<decltype(r)>;
-	using t_ret		   = decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>()));
-	constexpr auto y5  = ecs::detail::sys_test_run<tt, sys_game_init>();
-	// using t3 =
-	//	decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>()),
-	//			 std::enable_if_t<!std::is_same_v<decltype(std::declval<tt>().template run<sys_game_init>(std::declval<sys_game_init>())), ecs::detail::unsupported>>(),
-	//			 std::true_type {});
-	static_assert(ecs::detail::sys_can_compile<tt, sys_game_init> == false);
-	static_assert(ecs::detail::is_system_templated<tt, sys_game_init> == false);
-
-
-	using t_group = decltype(sys_game_init {} +=
-							 []() { std::println("empty"); } += sys_game_deinit {});
-	// using bb = decltype(std::declval<t_group>().template run<my_game>(std::declval<my_game&>()), true);
-	constexpr auto boo = ecs::detail::sys_test_run<t_group, my_game&>();
-
-	using adfsdf  = decltype(t_group::template run<my_game>);
-	using referef = decltype(std::declval<std::remove_cvref_t<t_group>>().template run<std::remove_cvref_t<my_game&>>(std::declval<my_game&&>()));
-
-	// using t_ret2 = decltype(std::declval<t_group>().template run<my_game>(std::declval<my_game&>()));
-	{
-		// t_group::template run<my_game>;
-		auto syssys		 = sys_game_init {};
-		auto _game		 = my_game {};
-		using temp_type	 = decltype(std::declval<std::remove_cvref_t<sys_game_init>>().template run<std::remove_cvref_t<my_game&>>(std::declval<my_game&>()));
-		constexpr auto a = ecs::detail::sys_test_run<sys_game_init, my_game&>();
-		std::printf("{}", a);
-		// static_assert(ecs::detail::sys_test_run<sys_game_init, my_game&>());
-		static_assert(ecs::detail::is_system_templated<sys_game_init, my_game&>);
-
-		using f1	= decltype(std::forward<my_game&>(_game));
-		using f2	= decltype(std::forward<my_game>(_game));
-		using f3	= decltype(std::forward<my_game&&>(_game));
-		using f4	= decltype(std::forward<decltype(_game)>(_game));
-		using aptpa = decltype(syssys.run<my_game>(_game));
-		using aptpa = decltype(syssys.run<my_game>(std::declval<my_game&>()));
-		using dd	= decltype(ecs::detail::run_system(syssys, std::declval<my_game&>()));
-		using dd2	= decltype(ecs::detail::run_system(syssys, _game));
-	}
-
-	// auto dada = ecs::detail::sys_test_run<t_group, my_game&&>();
-	//  auto asdfasd = decltype(std::declval<std::remove_cvref_t<t_group>>().template run<std::remove_cvref_t<my_game>>(std::declval<my_game&&>()));
-	//   static_assert(ecs::detail::is_system_templated<t_group, my_game&&> == true);
-	std::println("{}", boo);
-	// std::println("{}", dada);
-
-	{
-		// auto group = ;
-		{
-
-			//(sys_game_init {} += sys_game_deinit {}).run(_game);
-			using g_t = decltype(sys_game_init {} += sys_game_deinit {});
-			auto g = sys_game_init {} += sys_game_deinit {};
-			using gggg				   = decltype(g.run(std::declval<my_game>()));
-
-			using fcd = decltype(g_t::template run<my_game>);
-		}
-		{
-			using g_t  = decltype(sys_game_init {});
-			auto g	   = sys_game_init {};
-			using gggg = decltype(g.run<my_game>(std::declval<my_game&>()));
-		}
-		// using gtt = decltype(std::declval<g_t>().template run<my_game>(std::declval<my_game&>()));
-		//  ecs::detail::sys_test_run<g_t, my_game&>();
-		//  auto g = (sys_game_init {} += sys_game_deinit {});
-		//  g.run(_game);
-		//  constexpr auto bbb	= ecs::detail::is_system_templated<decltype(g), my_game>;
-		//  using agg			= decltype(std::declval<std::remove_cvref_t<decltype(g)>>().template run<std::remove_cvref_t<my_game>>(std::declval<my_game&&>()));
-		//  using left_ret_type = decltype(ecs::detail::run_system(g, std::forward<decltype(_game)>(_game)));
-		// std::println("{}", ecs::detail::sys_test_run<g_t, my_game&>());
-	}
-	// static_assert(ecs::detail::is_system_templated<t_group, my_game>);
-
+	_ref_test(_game);
+	//_ref_test<my_game>(_game);
+	_ref_test<my_game&>(_game);
+	//_ref_test<my_game&&>(_game);
+	_ref_test(my_game {});
+	_ref_test<my_game>(my_game {});
+	//_ref_test<my_game&>(my_game {});
+	_ref_test<my_game&&>(my_game {});
 	// auto igame = interface_game<my_game>(my_game {});
+
+	{
+		using t = decltype(&sys_game_init::template run<my_game>);
+		static_assert(ecs::detail::has_run_templated<sys_game_init, my_game> == true);
+		static_assert(ecs::detail::has_run_templated<sys_game_init, my_game&> == true);
+		static_assert(ecs::detail::has_run_templated<sys_game_init, my_game&&> == true);
+		auto sys_left = sys_game_init {};
+
+
+		static_assert(std::is_same_v<my_game&, decltype(std::forward<my_game&>(_game))>);
+		static_assert(ecs::detail::has_run_templated<sys_game_init, decltype(std::forward<my_game&>(_game))>);
+
+		// using left_ret_type2 = decltype(sys_left.run<my_game>(std::forward<decltype(_game)>(_game)));
+		using left_ret_type2 = decltype(sys_left.run<my_game&>(std::forward<my_game&>(_game)));
+
+		// system_seq(my_game {}, sys_game_init {});
+		system_seq<my_game&, sys_game_init>(_game, sys_game_init {});
+		// make_sys_seq(_game, sys_game_init {});
+		// auto r = make_sys_seq([]() { std::println("empty"); }, sys_game_deinit {});
+		//  system_seq(sys_game_init {}, system_seq(sys_game_deinit {}, sys_game_deinit {}));
+		// make_sys_seq(sys_game_init {}, make_sys_seq([]() { std::println("empty"); }, sys_game_deinit {}));
+		// make_sys_seq(sys_game_init {}, r);
+
+		// using test_type = decltype(make_sys_seq([]() { std::println("empty"); }, sys_game_deinit {}));
+	}
+
 	// clang-format off
-	
-	auto _sys_group =
-		_game
-			+= sys_game_init {}/*
-			+= sys_game_deinit{} */;
-			//+= ecs::loop<sys_game_running{}, 
-			//+= [](){std::println("empty");}
-			//+= sys_game_deinit {};
-	//_sys_group.run(_game);
-	_sys_group.run();
+	{
+		auto sys_group = 
+			sys_game_init{} 
+			+= [](){std::println("empty");}
+			+= sys_game_deinit{};
+
+			
+		sys_group.run(_game);
+		//sys_group.run(my_game{});
+	}
+
+	{
+		auto sys_group = 
+			_game 
+			+= sys_game_init{} 
+			+= [](){std::println("empty");}
+			+= sys_game_deinit{};
+
+			
+		sys_group.run();
+		//sys_group.run(my_game{});
+	}
+
+	{
+
+		//system_seq<my_game, decltype([](auto&& _ ){std::println("empty1");})>(my_game{}, [](auto&& _ ){std::println("empty1");});
+		move_only gg = std::move(move_only{});
+		my_game ggf = std::move(my_game{});
+		my_game&& g ([](auto&& val) mutable -> decltype(auto) {
+				 static_assert(std::is_same_v< decltype(val), my_game&&> );
+				 static_assert(std::is_same_v< decltype(std::move(val)), my_game&&> );
+				  if constexpr (std::is_lvalue_reference_v<my_game>)
+					  return std::ref(val);
+				  else
+					  return std::move(val);
+			  }(std::forward<my_game>(my_game{})));
+		make_sys_seq(my_game{},[](auto&& _ ){std::println("empty1");} );
+		auto sys_group = 
+			my_game{}
+			+= [](auto&& _ ){std::println("empty1");}
+			+= [](auto&& _ ){std::println("empty2");};
+
+		//		//| sys_game_init{} 
+		//		//| [](){std::println("empty");}
+		//		//| sys_game_deinit{};
+
+		//	
+		sys_group.run();
+		//sys_group.run(my_game{});
+	}
 
 
-	//auto _sys_group2 =
-	//	my_game{}
-	//		+= sys_game_init {}
-	//		//+= ecs::loop<sys_game_running{}, 
-	//		+= [](){std::println("empty");}
-	//		+= sys_game_deinit {};
-	////_sys_group.run(_game);
-	//_sys_group2.run();
 
 	////// clang-format on
 	
@@ -788,7 +819,7 @@ int main()
 	// ecs::detail::run_system(_sys_group_game2);
 	//_sys_group_game2.run();
 	// static_assert(ecs::detail::is_system_templated<sys_game_init, my_game>, "");
-	_sys_group_game.run(_game);
+	//_sys_group_game.run(_game);
 	////_bind<my_scene_system_0, []<typename g>(interface_game<g> igame, interface_init<g> i_init) { i_init.init(); return igame.get_scene<scene_t1>(); }>().run(&_game);
 
 	//_sys_group_game.run(&_game);

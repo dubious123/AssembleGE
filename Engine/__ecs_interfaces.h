@@ -3,9 +3,9 @@
 template <typename t_game>
 struct interface_game
 {
-	t_game& game;
+	t_game game;
 
-	interface_game(t_game& game) : game(game) { }
+	interface_game(t_game&& game) : game(game) { }
 
 	// t_game game;
 
@@ -58,7 +58,7 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene) {};
+	interface_scene(t_scene& scene) : scene(scene) { };
 
 	void inline init()
 	{
