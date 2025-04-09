@@ -136,11 +136,9 @@ namespace ecs
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
 		};
 
 
@@ -225,24 +223,33 @@ namespace ecs
 
 		template <typename t_sys, typename... t_data>
 		concept has_run_templated = requires {
-			typename decltype(&std::remove_cvref_t<t_sys>::template run<t_data...>);
+			// &std::remove_cvref_t<t_sys>::template run<t_data...>;
+			typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types;
+			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types>;
 		};
 
 		template <typename t_sys, typename... t_data>
 		concept has_run = requires {
-			typename decltype(&std::remove_cvref_t<t_sys>::run);
+			// typename decltype(&std::remove_cvref_t<t_sys>::run);
+			&std::remove_cvref_t<t_sys>::template run<>;
+			typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<>>::argument_types;
+			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<>>::argument_types>;
 		};
 
 		template <typename t_callable, typename... t_data>
 		concept has_operator_templated = requires {
-			typename decltype(&std::remove_cvref_t<t_callable>::template operator()<t_data...>);
+			&std::remove_cvref_t<t_callable>::template operator()<t_data...>;
 			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
 		};
 
 		template <typename t_callable, typename... t_data>
 		concept has_operator = requires {
-			typename decltype(&std::remove_cvref_t<t_callable>::operator());
-			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
+			// typename decltype(&std::remove_cvref_t<t_callable>::operator());
+			&std::remove_cvref_t<t_callable>::operator();
+			// meta::function_traits<&t_callable::operator()>::argument_types;
+			typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types;
+			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types>;
+			//      requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
 		};
 
 		template <typename t_sys, typename t_data>
@@ -281,6 +288,7 @@ namespace ecs
 			}
 			else
 			{
+				//_invalid_pipeline_chain();
 				return unsupported {};
 				// static_assert(false and "System does not provide a run method that can be called.");
 			}
@@ -554,7 +562,7 @@ namespace ecs
 	{
 		decltype(detail::get_loop_impl<sys_cond, sys_loop>()) impl;
 
-		constexpr loop() { };
+		constexpr loop() {};
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
@@ -603,7 +611,7 @@ namespace ecs
 		decltype(sys_select)				 _sys_select;
 		detail::_tpl<decltype(sys_cases)...> _sys_cases;
 
-		constexpr _switch() { };
+		constexpr _switch() {};
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)

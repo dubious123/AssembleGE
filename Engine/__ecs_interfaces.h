@@ -58,7 +58,7 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene) { };
+	interface_scene(t_scene& scene) : scene(scene) {};
 
 	void inline init()
 	{
@@ -75,6 +75,19 @@ struct interface_world
 
 	void inline init()
 	{
+	}
+};
+
+template <typename t>
+struct interface_invalid
+{
+	t& val;
+
+	interface_invalid(t& val) : val(val) { }
+
+	decltype(auto) inline invalid()
+	{
+		return val.invalid();
 	}
 };
 

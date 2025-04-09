@@ -298,7 +298,7 @@ struct sys_scene_init
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -322,7 +322,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -370,15 +370,6 @@ inline static auto _sys_group_game = ecs::seq<
 //	| std::views::filter()
 //	| std::views::transform()
 //  | std::ranges::to<std::list>();
-
-constexpr decltype(auto) get_univ_ref(auto&& v)
-{
-	if constexpr (std::is_lvalue_reference_v<decltype(v)>)
-		// return std::addressof(val);
-		return std::ref(v);
-	else
-		return std::move(v);
-}
 
 template <typename t_sys_l, typename t_sys_r>
 struct system_pipeline
@@ -441,123 +432,112 @@ struct system_pipeline
 	}
 };
 
-template <typename t_sys_l, typename t_sys_r>
-struct system_seq
+std::string get_type(auto&& val)
 {
-	template <typename t>
-	using t_sys = std::conditional_t<std::is_lvalue_reference_v<t>, std::remove_reference_t<t>&, std::remove_reference_t<t>>;
-
-	t_sys<t_sys_l> sys_left;
-	t_sys<t_sys_r> sys_right;
-
-	// Use a lambda in the member initializer list to initialize members.
-	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
-		: sys_left(
-			  [](auto&& val) mutable -> t_sys<t_sys_l> {
-				  if constexpr (std::is_lvalue_reference_v<t_sys_l>)
-					  return std::ref(val);
-				  else
-					  return std::move(val);
-			  }(std::forward<t_sys_l>(sys_l))),
-		  sys_right(
-			  [](auto&& val) mutable -> t_sys<t_sys_r> {
-				  if constexpr (std::is_lvalue_reference_v<t_sys_r>)
-					  return std::ref(val);
-				  else
-					  return std::move(val);
-			  }(std::forward<t_sys_r>(sys_r)))
+	if constexpr (std::is_lvalue_reference_v(val))
 	{
+		return "lvalue_ref";
 	}
-
-	// constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
-	//	: sys_left(get_univ_ref(sys_l)),
-	//	  sys_right(get_univ_ref(sys_r))
-	//{
-	// }
-
-	template <typename t_data>
-	decltype(auto) run(t_data&& data)
+	else if constexpr (std::is_rvalue_reference_v(val))
 	{
-		using left_ret_type = decltype(ecs::detail::run_system(sys_left, std::forward<decltype(data)>(data)));
-
-		if constexpr (std::is_same_v<left_ret_type, ecs::detail::unsupported>)
-		{
-			return ecs::detail::unsupported {};
-		}
-		else if constexpr (std::is_same_v<left_ret_type, void>)
-		{
-			ecs::detail::run_system(sys_left, std::forward<decltype(data)>(data));
-			return ecs::detail::run_system(sys_right, std::forward<decltype(data)>(data));
-		}
-		else
-		{
-			return ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
-		}
+		return "rvalue_ref";
 	}
-
-	decltype(auto) run()
-	{
-		using left_ret_type = decltype(ecs::detail::run_system(sys_left));
-		if constexpr (std::is_same_v<left_ret_type, ecs::detail::unsupported>)
-		{
-			// left might be plain data
-			return ecs::detail::run_system(sys_right, sys_left);
-		}
-		else if constexpr (std::is_same_v<left_ret_type, void>)
-		{
-			ecs::detail::run_system(sys_left);
-			return ecs::detail::run_system(sys_right);
-		}
-		else
-		{
-			return ecs::detail::run_system(sys_right, ecs::detail::run_system(sys_left));
-		}
-	}
-};
-
-template <typename t_l, typename t_r>
-decltype(auto) make_sys_seq(t_l&& l, t_r&& r)
-{
-	return system_seq<t_l, t_r>(std::forward<t_l>(l), std::forward<t_r>(r));
 }
 
-template <typename t_left, typename t_right>
-decltype(auto) operator|(t_left&& left, t_right&& sys)
-
+template <typename t_sys, typename... t_data>
+decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
 {
-	if constexpr (
-		ecs::detail::is_system_templated<t_right, t_left>
-		|| ecs::detail::is_callable_templated<t_right, t_left>
-		|| ecs::detail::is_system<t_right, t_left>
-		|| ecs::detail::is_callable<t_right, t_left>)
+	if constexpr (ecs::detail::has_run<t_sys, decltype(args)...>)
 	{
-		// left is data
-		return [&]() -> decltype(auto) {
-			using sys_ret_type = decltype(ecs::detail::run_system(sys, std::forward<t_left>(left)));
-			if constexpr (std::is_same_v<sys_ret_type, void>)
-			{
-				ecs::detail::run_system(sys, std::forward<t_left>(left));
-				return std::forward<t_left>(left);
-			}
-			else
-			{
-				return ecs::detail::run_system(sys, std::forward<t_left>(left));
-			}
-		};
-		// return ecs::bind<std::forward<t_right>(sys), [=]() -> decltype(auto) { return left; }>();
+		return sys.run(std::forward<decltype(args)>(args)...);
+	}
+	else if constexpr (ecs::detail::has_run<t_sys>)
+	{
+		return sys.run();
+	}
+	else if constexpr (ecs::detail::has_run_templated<t_sys, decltype(args)...>)
+	{
+		return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
+	}
+	else if constexpr (ecs::detail::has_operator<t_sys, decltype(args)...>)
+	{
+		return sys.operator()(std::forward<decltype(args)>(args)...);
+	}
+	else if constexpr (ecs::detail::has_operator<t_sys>)
+	{
+		return sys.operator()();
+	}
+	else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(args)...>)
+	{
+		return sys.template operator()<t_data...>(std::forward<decltype(args)>(args)...);
+	}
+	else if constexpr (sizeof...(args) == 0ul)
+	{
+		// return sys;
+		return std::forward<t_sys>(sys);
 	}
 	else
 	{
-		// left is a system or callable
-		return system_pipeline(std::forward<t_left>(left), std::forward<t_right>(sys));
+		static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
+		// return;
 	}
 }
+
+template <typename t_sys_l, typename t_sys_r>
+struct system_seq
+{
+	t_sys_l sys_left;
+	t_sys_r sys_right;
+
+	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
+		: sys_left(std::forward<t_sys_l>(sys_l)),
+		  sys_right(std::forward<t_sys_r>(sys_r))
+	{
+	}
+
+	template <typename... t_data>
+	decltype(auto) run(t_data&&... data)
+	{
+		if constexpr (sizeof...(data) == 0)
+		{
+			// if constexpr (std::is_void_v<decltype(_run_sys(sys_left))>)
+			//{
+			//	_run_sys(sys_left);
+			//	return _run_sys(sys_right);
+			// }
+			// else
+			//{
+			//	return _run_sys(sys_right, _run_sys(sys_left));
+			// }
+
+			return;
+		}
+		else
+		{
+			_run_sys(sys_left, std::forward<decltype(data)>(data)...);
+			_run_sys(sys_right, std::forward<decltype(data)>(data)...);
+		}
+	}
+
+	// decltype(auto) run()
+	//{
+	//	if constexpr (std::is_void_v<decltype(_run_sys(sys_left))>)
+	//	{
+	//		_run_sys(sys_left);
+	//		return _run_sys(sys_right);
+	//	}
+	//	else
+	//	{
+	//		return _run_sys(sys_right, _run_sys(sys_left));
+	//	}
+	// }
+};
 
 template <typename t_left, typename t_right>
 decltype(auto) operator+=(t_left&& left, t_right&& sys)
 {
-	// return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
-	return make_sys_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
+	return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
+	// return make_sys_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
 }
 
 // {
