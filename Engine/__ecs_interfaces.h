@@ -5,7 +5,7 @@ struct interface_game
 {
 	t_game game;
 
-	interface_game(t_game&& game) : game(game) { }
+	interface_game(t_game&& game) : game(std::forward<t_game>(game)) { }
 
 	// t_game game;
 

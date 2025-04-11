@@ -37,11 +37,11 @@ namespace ecs
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
 
-		world_base(world_base&&)			= default;
-		world_base(const world_base&)		= delete;
-		world_base& operator=(world_base&&) = default;
-		world_base& operator=(world_base&)	= delete;
-		world_base()						= default;
+		world_base(world_base&&)				 = default;
+		world_base(const world_base&)			 = delete;
+		world_base& operator=(world_base&&)		 = default;
+		world_base& operator=(const world_base&) = delete;
+		world_base()							 = default;
 	};
 
 	template <typename... c>

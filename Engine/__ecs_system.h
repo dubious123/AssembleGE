@@ -222,56 +222,51 @@ namespace ecs
 		};
 
 		template <typename t_sys, typename... t_data>
-		concept has_run_templated = requires {
-			// &std::remove_cvref_t<t_sys>::template run<t_data...>;
-			typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types;
-			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types>;
+		concept has_run = requires {
+			&std::remove_cvref_t<t_sys>::template run<t_data...>;
+			// typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types;
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types>;
 		};
 
-		template <typename t_sys, typename... t_data>
-		concept has_run = requires {
-			// typename decltype(&std::remove_cvref_t<t_sys>::run);
-			&std::remove_cvref_t<t_sys>::template run<>;
-			typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<>>::argument_types;
-			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<>>::argument_types>;
+		template <auto f, typename... t_data>
+		concept invocable = requires {
+			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<f>::argument_types>;
 		};
 
 		template <typename t_callable, typename... t_data>
 		concept has_operator_templated = requires {
 			&std::remove_cvref_t<t_callable>::template operator()<t_data...>;
-			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
+			// typename meta::function_traits<&std::remove_cvref_t<t_callable>::template operator()<t_data...>>::argument_types;
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_callable>::template operator()<t_data...>>::argument_types>;
 		};
 
 		template <typename t_callable, typename... t_data>
 		concept has_operator = requires {
-			// typename decltype(&std::remove_cvref_t<t_callable>::operator());
 			&std::remove_cvref_t<t_callable>::operator();
-			// meta::function_traits<&t_callable::operator()>::argument_types;
-			typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types;
-			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types>;
-			//      requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&t_callable::template operator()<t_data...>>::argument_types>;
+			// typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types;
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_callable>::operator()>::argument_types>;
 		};
 
 		template <typename t_sys, typename t_data>
 		decltype(auto) run_system(t_sys& sys, t_data&& data)
 		{
-			if constexpr (has_run_templated<decltype(sys), decltype(data)>)
-			{
-				// return sys.template run<t_data>(p_data);
-				return sys.run<t_data>(std::forward<decltype(data)>(data));
-			}
-			else if constexpr (has_run<decltype(sys)>)
-			{
-				if constexpr (meta::function_traits<&t_sys::run>::arity == 0ull)
-				{
-					return sys.run();
-				}
-				else
-				{
-					return sys.run(std::forward<decltype(data)>(data));
-				}
-			}
-			else if constexpr (has_operator_templated<decltype(sys), decltype(data)>)
+			// if constexpr (has_run_templated<decltype(sys), decltype(data)>)
+			//{
+			//	// return sys.template run<t_data>(p_data);
+			//	return sys.run<t_data>(std::forward<decltype(data)>(data));
+			// }
+			//  else if constexpr (has_run<decltype(sys)>)
+			//{
+			//	if constexpr (meta::function_traits<&t_sys::run>::arity == 0ull)
+			//	{
+			//		return sys.run();
+			//	}
+			//	else
+			//	{
+			//		return sys.run(std::forward<decltype(data)>(data));
+			//	}
+			//  }
+			if constexpr (has_operator_templated<decltype(sys), decltype(data)>)
 			{
 				return sys.template operator()<t_data>(std::forward<decltype(data)>(data));
 			}

@@ -371,13 +371,116 @@ inline static auto _sys_group_game = ecs::seq<
 //	| std::views::transform()
 //  | std::ranges::to<std::list>();
 
+std::string get_type(auto&& val)
+{
+	if constexpr (std::is_lvalue_reference_v(val))
+	{
+		return "lvalue_ref";
+	}
+	else if constexpr (std::is_rvalue_reference_v(val))
+	{
+		return "rvalue_ref";
+	}
+}
+
+template <typename t_sys, typename... t_data>
+decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
+{
+	if constexpr (ecs::detail::has_run<t_sys, decltype(args)...>)
+	{
+		// return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
+		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<t_data...>, decltype(args)...>)
+		{
+			return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
+		}
+		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<decltype(args)...>>)
+		{
+			return sys.run<>();
+		}
+		else
+		{
+			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
+		}
+	}
+	else if constexpr (ecs::detail::has_operator<t_sys>)
+	{
+		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator(), decltype(args)...>)
+		{
+			return sys(std::forward<decltype(args)>(args)...);
+		}
+		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator()>)
+		{
+			return sys();
+		}
+		else
+		{
+			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
+		}
+	}
+	else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(args)...>)
+	{
+		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>, decltype(args)...>)
+		{
+			return sys.template operator()<t_data...>(std::forward<decltype(args)>(args)...);
+		}
+		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>>)
+		{
+			return sys.template operator()<t_data...>();
+		}
+		else
+		{
+			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
+		}
+	}
+	else
+	{
+		static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
+		// return;
+	}
+}
+
+template <typename t_sys_l, typename t_sys_r>
+struct system_seq
+{
+	t_sys_l sys_left;
+	t_sys_r sys_right;
+
+	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
+		: sys_left(std::forward<t_sys_l>(sys_l)),
+		  sys_right(std::forward<t_sys_r>(sys_r))
+	{
+	}
+
+	template <typename... t_data>
+	decltype(auto) run(t_data&&... data)
+	{
+		if constexpr (sizeof...(data) == 0)
+		{
+			if constexpr (std::is_void_v<decltype(_run_sys(sys_left))>)
+			{
+				_run_sys(sys_left);
+				return _run_sys(sys_right);
+			}
+			else
+			{
+				return _run_sys(sys_right, _run_sys(sys_left));
+			}
+		}
+		else
+		{
+			_run_sys(sys_left, std::forward<decltype(data)>(data)...);
+			_run_sys(sys_right, std::forward<decltype(data)>(data)...);
+		}
+	}
+};
+
 template <typename t_sys_l, typename t_sys_r>
 struct system_pipeline
 {
 	t_sys_l sys_left;
 	t_sys_r sys_right;
 
-	system_pipeline(t_sys_l&& sys_l, t_sys_r&& sys_r)
+	constexpr system_pipeline(t_sys_l&& sys_l, t_sys_r&& sys_r)
 		: sys_left(std::forward<t_sys_l>(sys_l)),
 		  sys_right(std::forward<t_sys_r>(sys_r))
 	{
@@ -432,112 +535,16 @@ struct system_pipeline
 	}
 };
 
-std::string get_type(auto&& val)
-{
-	if constexpr (std::is_lvalue_reference_v(val))
-	{
-		return "lvalue_ref";
-	}
-	else if constexpr (std::is_rvalue_reference_v(val))
-	{
-		return "rvalue_ref";
-	}
-}
-
-template <typename t_sys, typename... t_data>
-decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
-{
-	if constexpr (ecs::detail::has_run<t_sys, decltype(args)...>)
-	{
-		return sys.run(std::forward<decltype(args)>(args)...);
-	}
-	else if constexpr (ecs::detail::has_run<t_sys>)
-	{
-		return sys.run();
-	}
-	else if constexpr (ecs::detail::has_run_templated<t_sys, decltype(args)...>)
-	{
-		return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
-	}
-	else if constexpr (ecs::detail::has_operator<t_sys, decltype(args)...>)
-	{
-		return sys.operator()(std::forward<decltype(args)>(args)...);
-	}
-	else if constexpr (ecs::detail::has_operator<t_sys>)
-	{
-		return sys.operator()();
-	}
-	else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(args)...>)
-	{
-		return sys.template operator()<t_data...>(std::forward<decltype(args)>(args)...);
-	}
-	else if constexpr (sizeof...(args) == 0ul)
-	{
-		// return sys;
-		return std::forward<t_sys>(sys);
-	}
-	else
-	{
-		static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		// return;
-	}
-}
-
-template <typename t_sys_l, typename t_sys_r>
-struct system_seq
-{
-	t_sys_l sys_left;
-	t_sys_r sys_right;
-
-	constexpr system_seq(t_sys_l&& sys_l, t_sys_r&& sys_r)
-		: sys_left(std::forward<t_sys_l>(sys_l)),
-		  sys_right(std::forward<t_sys_r>(sys_r))
-	{
-	}
-
-	template <typename... t_data>
-	decltype(auto) run(t_data&&... data)
-	{
-		if constexpr (sizeof...(data) == 0)
-		{
-			// if constexpr (std::is_void_v<decltype(_run_sys(sys_left))>)
-			//{
-			//	_run_sys(sys_left);
-			//	return _run_sys(sys_right);
-			// }
-			// else
-			//{
-			//	return _run_sys(sys_right, _run_sys(sys_left));
-			// }
-
-			return;
-		}
-		else
-		{
-			_run_sys(sys_left, std::forward<decltype(data)>(data)...);
-			_run_sys(sys_right, std::forward<decltype(data)>(data)...);
-		}
-	}
-
-	// decltype(auto) run()
-	//{
-	//	if constexpr (std::is_void_v<decltype(_run_sys(sys_left))>)
-	//	{
-	//		_run_sys(sys_left);
-	//		return _run_sys(sys_right);
-	//	}
-	//	else
-	//	{
-	//		return _run_sys(sys_right, _run_sys(sys_left));
-	//	}
-	// }
-};
-
 template <typename t_left, typename t_right>
 decltype(auto) operator+=(t_left&& left, t_right&& sys)
 {
 	return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
-	// return make_sys_seq(std::forward<decltype(left)>(left), std::forward<decltype(sys)>(sys));
+}
+
+template <typename t_left, typename t_right>
+decltype(auto) operator|=(t_left&& left, t_right&& sys)
+{
+	return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
 }
 
 // {

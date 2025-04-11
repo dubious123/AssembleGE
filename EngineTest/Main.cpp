@@ -581,6 +581,14 @@ struct some_big_struct
 	}
 };
 
+template <typename t_game>
+struct interface_game2
+{
+	t_game game;
+
+	interface_game2(t_game&& game) : game(std::forward<t_game>(game)) { }
+};
+
 int main()
 {
 	// loop<&system_1::f>();
@@ -610,8 +618,27 @@ int main()
 	{
 		auto sys_group =
 			sys_game_init {} += []() { return my_game {}; } += []() { std::println("empty"); } += sys_game_deinit {};
+		static_assert(ecs::detail::has_run<decltype(sys_group.sys_left), decltype(std::ref(_game))>);
+		static_assert(ecs::detail::invocable<&std::decay_t<decltype(sys_group.sys_left)>::template run<my_game&>, my_game&>);
 		sys_group.run(_game);
 	}
+
+	static_assert(std::is_convertible_v<my_game, interface_game<my_game>>);
+	//
+
+	interface_game(my_game {});
+	interface_game<my_game>(std::forward<my_game>(_game));
+	interface_game<my_game&>(std::ref(_game));
+	// interface_game2<int&>(i);
+	interface_game<my_game&> interfa(_game);
+	(void)interface_game<my_game&>(_game);
+	static_assert(std::is_convertible_v<my_game&, interface_game<my_game&>>);
+	static_assert(std::is_constructible_v<interface_game<my_game&>, my_game&>);
+
+	using sys_type_ref = sys_game_init&;
+	static_assert(ecs::detail::invocable<&std::remove_reference_t<sys_type_ref>::template run<my_game&>, interface_game<my_game&>>);
+
+	static_assert(ecs::detail::invocable<&std::decay_t<decltype([]() { std::println("empty"); })>::operator(), my_game&> == false);
 	// clang-format off
 	{
 		auto sys_group = 
@@ -619,9 +646,12 @@ int main()
 			+= sys_game_init{} 
 			+= [](){std::println("empty");}
 			+= sys_game_deinit{};
+	static_assert(ecs::detail::has_operator_templated<decltype(sys_group.sys_right.sys_right.sys_left), my_game&> == false);
+	static_assert(ecs::detail::has_operator<decltype(sys_group.sys_right.sys_right.sys_left)>);
+	static_assert(ecs::detail::invocable<&decltype(sys_group.sys_right.sys_right.sys_left)::operator()>);
+	static_assert(ecs::detail::invocable<&decltype(sys_group.sys_right.sys_right.sys_left)::operator(), my_game&> == false);
 
 		sys_group.run(_game);
-		//sys_group.run(my_game{});
 	}
 
 	{
@@ -629,10 +659,10 @@ int main()
 			_game 
 			+= sys_game_init{} 
 			+= [](){std::println("empty");}
+			+= [](){return my_game{};}
 			+= sys_game_deinit{};
 
 		 sys_group.run();
-		//sys_group.run(my_game{});
 	}
 
 	{
@@ -641,14 +671,13 @@ int main()
 			+= [](auto&& _ ){std::println("empty1");}
 			+= [](auto&& _ ){std::println("empty2");}
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
-			/*+= sys_game_init{}*/;
+			+= sys_game_init{};
 				//| sys_game_init{} 
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
 
 			
-		sys_group.run();
-		//sys_group.run(my_game{});
+		//sys_group.run();
 	}
 	{
 		auto sys_group = 
@@ -662,22 +691,7 @@ int main()
 				//| sys_game_init{} 
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
-		auto& right = sys_group.sys_right;
-		& std::remove_cvref_t<decltype(right)>::run<>;
-		using t = meta::function_traits<& std::remove_cvref_t<decltype(right)>::run<>>::argument_types;
-		static_assert(ecs::detail::tpl_convertible_from<std::tuple<>, typename meta::function_traits<& std::remove_cvref_t<decltype(right)>::run<>>::argument_types>);
-		static_assert(std::is_same_v<t, std::tuple<>>);
-		static_assert(ecs::detail::has_run<decltype(right)>);
-		static_assert(ecs::detail::has_run_templated<decltype(right)>);
-		auto temp = t();
-		//meta::function_traits<&some_big_struct().run<>>;
-		right.run();
-		//&std::remove_cvref_t<decltype(right)>::run
-		// static_assert(ecs::detail::has_run<decltype(right), my_game&&>);
-		_run_sys(right);
-		//static_assert(ecs::detail::has_run<decltype(sys_group.sys_right)>);
-			
-		sys_group.run();
+		//sys_group.run();
 		//sys_group.run(my_game{});
 	}
 
