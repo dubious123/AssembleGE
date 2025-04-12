@@ -222,8 +222,15 @@ namespace ecs
 		};
 
 		template <typename t_sys, typename... t_data>
-		concept has_run = requires {
+		concept has_run_templated = requires {
 			&std::remove_cvref_t<t_sys>::template run<t_data...>;
+			// typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types;
+			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types>;
+		};
+
+		template <typename t_sys, typename... t_data>
+		concept has_run = requires {
+			&std::remove_cvref_t<t_sys>::run;
 			// typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types;
 			// requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<&std::remove_cvref_t<t_sys>::template run<t_data...>>::argument_types>;
 		};

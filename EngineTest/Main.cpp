@@ -616,42 +616,25 @@ int main()
 						  ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
 		sys_game_deinit {}>();
 	{
-		auto sys_group =
-			sys_game_init {} += []() { return my_game {}; } += []() { std::println("empty"); } += sys_game_deinit {};
-		static_assert(ecs::detail::has_run<decltype(sys_group.sys_left), decltype(std::ref(_game))>);
-		static_assert(ecs::detail::invocable<&std::decay_t<decltype(sys_group.sys_left)>::template run<my_game&>, my_game&>);
-		sys_group.run(_game);
+		sys_node<my_game&> node(_game);
+		static_assert(std::is_lvalue_reference_v<decltype(node())>);
+	}
+	{
+		sys_node<my_game> node(my_game {});
+		static_assert(std::is_lvalue_reference_v<decltype(node())>);
 	}
 
-	static_assert(std::is_convertible_v<my_game, interface_game<my_game>>);
-	//
-
-	interface_game(my_game {});
-	interface_game<my_game>(std::forward<my_game>(_game));
-	interface_game<my_game&>(std::ref(_game));
-	// interface_game2<int&>(i);
-	interface_game<my_game&> interfa(_game);
-	(void)interface_game<my_game&>(_game);
-	static_assert(std::is_convertible_v<my_game&, interface_game<my_game&>>);
-	static_assert(std::is_constructible_v<interface_game<my_game&>, my_game&>);
-
-	using sys_type_ref = sys_game_init&;
-	static_assert(ecs::detail::invocable<&std::remove_reference_t<sys_type_ref>::template run<my_game&>, interface_game<my_game&>>);
-
-	static_assert(ecs::detail::invocable<&std::decay_t<decltype([]() { std::println("empty"); })>::operator(), my_game&> == false);
 	// clang-format off
 	{
 		auto sys_group = 
 			sys_game_init{} 
 			+= sys_game_init{} 
+			+= sys_non_templated{}
 			+= [](){std::println("empty");}
 			+= sys_game_deinit{};
-	static_assert(ecs::detail::has_operator_templated<decltype(sys_group.sys_right.sys_right.sys_left), my_game&> == false);
-	static_assert(ecs::detail::has_operator<decltype(sys_group.sys_right.sys_right.sys_left)>);
-	static_assert(ecs::detail::invocable<&decltype(sys_group.sys_right.sys_right.sys_left)::operator()>);
-	static_assert(ecs::detail::invocable<&decltype(sys_group.sys_right.sys_right.sys_left)::operator(), my_game&> == false);
 
 		sys_group.run(_game);
+		std::println("====================================");
 	}
 
 	{
@@ -660,9 +643,10 @@ int main()
 			+= sys_game_init{} 
 			+= [](){std::println("empty");}
 			+= [](){return my_game{};}
+			+= sys_non_templated{}
 			+= sys_game_deinit{};
-
 		 sys_group.run();
+		 std::println("====================================");
 	}
 
 	{
@@ -670,14 +654,19 @@ int main()
 			my_game{}
 			+= [](auto&& _ ){std::println("empty1");}
 			+= [](auto&& _ ){std::println("empty2");}
+			+= ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+			    				+= sys_scene_init{}
+			    			    += sys_scene_init{})
+			    
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
+			+= sys_non_templated{}
 			+= sys_game_init{};
-				//| sys_game_init{} 
+
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
-
-			
-		//sys_group.run();
+	
+		sys_group.run();
+		std::println("====================================");
 	}
 	{
 		auto sys_group = 
@@ -686,12 +675,15 @@ int main()
 			+= [](auto&& _ ){std::println("empty1");}
 			+= [](){return 5; }
 			+= [](auto&& _ ){std::println("empty2");}
+			+= []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+			+= sys_non_templated{}
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
 			/*+= sys_game_init{}*/;
 				//| sys_game_init{} 
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
-		//sys_group.run();
+		sys_group.run();
+		std::println("====================================");
 		//sys_group.run(my_game{});
 	}
 
