@@ -624,14 +624,30 @@ int main()
 		static_assert(std::is_lvalue_reference_v<decltype(node())>);
 	}
 
-	// clang-format off
 	{
+
+		using namespace _temp;
+		// clang-format off
+	{
+		auto l2 = []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); };
+		auto group = sys_scene_init{} + sys_scene_init{};
+		//auto pipe = l2
+		//		| (sys_scene_init{} 
+		//		+  sys_scene_init{});
+		auto pipe = l2|sys_scene_init{};
+		static_assert(std::tuple_size_v< decltype(pipe.systems)> == 2);
+		_run_sys(std::get<0>(pipe.systems), _game);
+		//pipe.run(_game);
+
 		auto sys_group = 
 			sys_game_init{} 
-			+= sys_game_init{} 
-			+= sys_non_templated{}
-			+= [](){std::println("empty");}
-			+= sys_game_deinit{};
+			+ sys_game_init{} 
+			+ sys_non_templated{}
+			//+ (l2
+			//	| (sys_scene_init{} 
+			//	+  sys_scene_init{}))
+			+ [](){std::println("empty");}
+			+ sys_game_deinit{};
 
 		sys_group.run(_game);
 		std::println("====================================");
@@ -640,43 +656,47 @@ int main()
 	{
 		auto sys_group = 
 			_game 
-			+= sys_game_init{} 
-			+= [](){std::println("empty");}
-			+= [](){return my_game{};}
-			+= sys_non_templated{}
-			+= sys_game_deinit{};
+			+ sys_game_init{} 
+			+ [](){std::println("empty");}
+			+ [](){return my_game{};}
+			+ sys_non_templated{}
+			+ sys_game_deinit{};
 		 sys_group.run();
 		 std::println("====================================");
 	}
 
 	{
+		auto l_1 = [](auto&& _ ){std::println("empty1");};
+		auto l_2 = [](auto&& _ ){std::println("empty2");};
 		auto sys_group = 
 			my_game{}
-			+= [](auto&& _ ){std::println("empty1");}
-			+= [](auto&& _ ){std::println("empty2");}
-			+= ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
-			    				+= sys_scene_init{}
-			    			    += sys_scene_init{})
+			+ l_1
+			+ l_2
+			+ [](auto&& _ ){std::println("empty1");}
+			+ [](auto&& _ ){std::println("empty2");}
+			//+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+			//    				+ sys_scene_init{}
+			//    			    + sys_scene_init{})
 			    
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
-			+= sys_non_templated{}
-			+= sys_game_init{};
+			+ sys_non_templated{}
+			+ sys_game_init{}
+				;
 
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
-	
 		sys_group.run();
 		std::println("====================================");
 	}
 	{
 		auto sys_group = 
-			[](){std::println("first"); }
-			+= my_game{}
-			+= [](auto&& _ ){std::println("empty1");}
-			+= [](){return 5; }
-			+= [](auto&& _ ){std::println("empty2");}
-			+= []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
-			+= sys_non_templated{}
+			/*[](){std::println("first"); }*/
+			my_game{}
+			+ [](auto&& _ ){std::println("empty1");}
+			+ [](){return 5; }
+			+ [](auto&& _ ){std::println("empty2");}
+			+ []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+			+ sys_non_templated{}
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
 			/*+= sys_game_init{}*/;
 				//| sys_game_init{} 
@@ -689,7 +709,7 @@ int main()
 
 
 	////// clang-format on
-	
+	}
 
 
 	//       auto _sys_group_game2 =

@@ -596,4 +596,13 @@ namespace meta
 	static inline constinit const auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
+
+	template <std::size_t offset, std::size_t... i>
+	constexpr decltype(auto) make_offset_sequence(std::index_sequence<i...>)
+	{
+		return std::index_sequence<offset + i...> {};
+	}
+
+	template <std::size_t offset, std::size_t n>
+	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n> {}));
 }	 // namespace meta
