@@ -626,7 +626,10 @@ int main()
 
 	{
 
-		using namespace _temp;
+		using namespace ecs::system::op;
+		// static_assert(par_exec_found_v<my_game> == false);
+
+		std::println("{}", std::thread::hardware_concurrency());
 		// clang-format off
 	{
 		auto sys_group = 
@@ -634,6 +637,18 @@ int main()
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
 				| sys_scene_init{}
 				+ sys_scene_init{})
+			+ (sys_game_init{}
+			    ^ sys_game_init{})
+			+ (	  [](){ 
+					std::println("0 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("1 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("2 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("3 running on {}", std::this_thread::get_id());}
+				^ [](){ 
+					std::println("4 running on {}", std::this_thread::get_id()); })
 			+ sys_game_init{} ;
 
 			
@@ -650,6 +665,16 @@ int main()
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
 				| (sys_scene_init{} 
 				+ sys_scene_init{}))
+			+ (	  [](){ 
+					std::println("0 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("1 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("2 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("3 running on {}", std::this_thread::get_id());}
+				^ [](){ 
+					std::println("4 running on {}", std::this_thread::get_id()); })
 			+ [](){std::println("empty");}
 			+ sys_game_deinit{};
 
@@ -666,6 +691,16 @@ int main()
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
 				| (sys_scene_init{} 
 				+ sys_scene_init{}))
+			+ (	  [](){ 
+					std::println("0 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("1 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("2 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("3 running on {}", std::this_thread::get_id());}
+				^ [](){ 
+					std::println("4 running on {}", std::this_thread::get_id()); })
 			+ sys_non_templated{}
 			+ sys_game_deinit{};
 		 sys_group.run();
@@ -682,6 +717,16 @@ int main()
 			+ [](auto&& _ ){std::println("empty1");}
 			+ [](auto&& _ ){std::println("empty2");}
 			+ ([](){return my_game{};} | []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); } | sys_scene_init{})
+			+ (	  [](){ 
+					std::println("0 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("1 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("2 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("3 running on {}", std::this_thread::get_id());}
+				^ [](){ 
+					std::println("4 running on {}", std::this_thread::get_id()); })
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
 				| (sys_scene_init{} 
 				+ sys_scene_init{}))
@@ -705,8 +750,22 @@ int main()
 			my_game{}
 			+ [](auto&& _ ){std::println("empty1");}
 			+ [](){return 5; }
+			+ ([](){return my_game{};} | []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); } | sys_scene_init{})
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
+				| (sys_scene_init{} 
+				+ sys_scene_init{}))
 			+ [](auto&& _ ){std::println("empty2");}
 			+ []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+			+ (	  [](){ 
+					std::println("0 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("1 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("2 running on {}", std::this_thread::get_id()); }
+				^ [](){ 
+					std::println("3 running on {}", std::this_thread::get_id());}
+				^ [](){ 
+					std::println("4 running on {}", std::this_thread::get_id()); })
 			+ sys_non_templated{}
 			/*+= []<typename g>(interface_invalid<g> should_not_build){ should_not_build.invalid(); }*/
 			/*+= sys_game_init{}*/;

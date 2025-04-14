@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "../Engine/__reflection.h"
 #include "../Engine/__engine.h"
 #include "../Engine/__data_structures.h"
@@ -195,8 +195,35 @@ struct my_game_state
 	bool   running			 = true;
 };
 
+struct par_exec_test : ecs::__parallel_executor_base
+{
+	template <typename... t_sys, typename... t_data>
+	void run_par(std::tuple<t_sys...>& systems, t_data&&... data)
+	{
+		return run_par_impl(systems, std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+	}
+
+	void wait() const
+	{
+		// no-op
+	}
+
+  private:
+	template <typename... t_sys, std::size_t... i, typename... t_data>
+	decltype(auto) run_par_impl(std::tuple<t_sys...>& systems, std::index_sequence<i...>, t_data&&... data)
+	{
+		auto futures = std::make_tuple(
+			std::async(std::launch::async, [&] {
+				ecs::_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
+			})...);
+		(..., (std::get<i>(futures).wait()));
+	}
+};
+
 struct my_game : scenes, my_game_state
 {
+	par_exec_test __parallel_executor;
+
 	void init()
 	{
 		DEBUG_LOG("my game init");
@@ -348,47 +375,6 @@ struct sys_get_scene0
 	}
 };
 
-template <template <typename> typename _interface, typename... nodes>
-struct _system_group
-{
-	std::tuple<nodes...> nodes;
-
-	template <typename t>
-	void run(_interface<t>)
-	{
-		// if constexpr ()
-		//{
-		// }
-		// else if constexpr ()
-		//{
-		// }
-	}
-};
-
-inline static auto _sys_group_game = ecs::seq<
-	sys_game_init {},
-	ecs::loop<[]<typename g>(interface_game<g> igame) { return igame.get_running(); },
-			  ecs::_switch<[]<typename g>(interface_game<g> igame) { return igame.get_current_scene_idx(); },
-						   ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t1>(); }> {},
-						   ecs::bind<sys_scene_init {}, []<typename g>(interface_game<g> igame) -> auto& { return igame.get_scene<scene_t2>(); }> {}> {}> {},
-	sys_game_deinit {}>();
-
-// std::ranges::for_each(vec, [](auto& e){})
-// vec
-//	| std::views::filter()
-//	| std::views::transform()
-//  | std::ranges::to<std::list>();
-
-struct sys_group_base
-{
-};
-
-template <typename t>
-concept is_system_group = std::derived_from<std::decay_t<t>, sys_group_base>;
-
-template <typename t>
-concept is_raw_system = not is_system_group<t>;
-
 std::string get_type(auto&& val)
 {
 	if constexpr (std::is_lvalue_reference_v(val))
@@ -400,164 +386,6 @@ std::string get_type(auto&& val)
 		return "rvalue_ref";
 	}
 }
-
-template <typename t_sys, typename... t_data>
-decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
-{
-	if constexpr (ecs::detail::has_run<t_sys, decltype(args)...>)
-	{
-		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::run, decltype(args)...>)
-		{
-			return sys.run(std::forward<decltype(args)>(args)...);
-		}
-		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::run>)
-		{
-			return sys.run();
-		}
-		else
-		{
-			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		}
-	}
-	else if constexpr (ecs::detail::has_run_templated<t_sys, decltype(args)...>)
-	{
-		// return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
-		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<t_data...>, decltype(args)...>)
-		{
-			return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
-		}
-		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<decltype(args)...>>)
-		{
-			return sys.run<>();
-		}
-		else
-		{
-			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		}
-	}
-	else if constexpr (ecs::detail::has_operator<t_sys>)
-	{
-		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator(), decltype(args)...>)
-		{
-			return sys(std::forward<decltype(args)>(args)...);
-		}
-		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator()>)
-		{
-			return sys();
-		}
-		else
-		{
-			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		}
-	}
-	else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(args)...>)
-	{
-		if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>, decltype(args)...>)
-		{
-			return sys.template operator()<t_data...>(std::forward<decltype(args)>(args)...);
-		}
-		else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>>)
-		{
-			return sys.template operator()<t_data...>();
-		}
-		else
-		{
-			static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		}
-	}
-	else if constexpr (sizeof...(args) == 0)
-	{
-		return std::forward<t_sys>(sys);
-	}
-	else
-	{
-		static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
-		// return;
-	}
-}
-
-template <typename... t_sys>
-struct system_seq2 : sys_group_base
-{
-	std::tuple<t_sys...> systems;
-
-	constexpr system_seq2(t_sys&&... sys)
-		: systems(std::forward<t_sys>(sys)...)
-	{
-	}
-
-	constexpr explicit system_seq2(std::tuple<t_sys...>&& tpl)
-		: systems(std::forward<std::tuple<t_sys...>>(tpl)) { }
-
-	template <typename... t_data>
-	decltype(auto) run(t_data&&... data)
-	{
-		if constexpr (sizeof...(t_data) == 0)
-		{
-			return run_impl(meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1> {}, _run_sys(std::get<0>(systems)));
-		}
-		else
-		{
-			return run_impl(std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
-		}
-	}
-
-  private:
-	template <std::size_t... i, typename... t_data>
-	decltype(auto) run_impl(std::index_sequence<i...>, t_data&&... data)
-	{
-		(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...), ...);
-		// return std::make_tuple(std::get<i>(systems).run(std::forward<t_data>(data)...), ...);
-		//  return std::tuple<std::decay_t<Args>&...>(args...);	   // return refs to original data
-	}
-};
-
-template <typename... t_sys>
-struct system_pipeline
-{
-	std::tuple<t_sys...> systems;
-
-	constexpr system_pipeline(t_sys&&... sys)
-		: systems(std::forward<t_sys>(sys)...)
-	{
-	}
-
-	constexpr explicit system_pipeline(std::tuple<t_sys...>&& tpl)
-		: systems(std::forward<std::tuple<t_sys...>>(tpl)) { }
-
-	template <typename... t_data>
-	decltype(auto) run(t_data&&... data)
-	{
-		return run_impl<0>(std::forward<t_data>(data)...);
-		//_run_sys(sys_right, _run_sys(sys_left, std::forward<decltype(data)>(data)...));
-	}
-
-  private:
-	template <std::size_t i, typename... t_data>
-	decltype(auto) run_impl(t_data&&... data)
-	{
-		if constexpr (i == std::tuple_size_v<decltype(systems)>)
-		{
-			if constexpr (sizeof...(data) == 1)
-			{
-				return _run_sys(std::forward<t_data>(data)...);
-			}
-			else
-			{
-				// todo
-			}
-		}
-		else if constexpr (not std::is_same_v<decltype(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...)), void>)
-		{
-			return run_impl<i + 1>(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...));
-		}
-		else
-		{
-			_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
-			return run_impl<i + 1>();
-		}
-	}
-};
 
 template <typename t>
 struct sys_node
@@ -571,49 +399,6 @@ struct sys_node
 		return sys;
 	}
 };
-
-namespace _temp
-{
-	template <typename t_left, typename t_right>
-	decltype(auto) operator+(t_left&& left, t_right&& right)
-	{
-		return system_seq2<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
-	}
-
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
-	requires std::same_as<system_seq2<t_sys...>, t_sys_group<t_sys...>>
-	decltype(auto) operator+(t_sys_group<t_sys...>&& left, t_right&& right)
-	{
-		return system_seq2<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
-	}
-
-	template <typename t_left, typename t_right>
-	decltype(auto) operator|(t_left&& left, t_right&& sys)
-	{
-		return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
-	}
-
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
-	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
-	decltype(auto) operator|(t_sys_group<t_sys...>&& left, t_right&& right)
-	{
-		return system_pipeline<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
-	}
-
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_left>
-	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
-	decltype(auto) operator|(t_left&& left, t_sys_group<t_sys...>&& right)
-	{
-		return system_pipeline<t_left, t_sys...>(std::tuple_cat(std::forward_as_tuple(std::forward<t_left>(left)), std::forward<decltype(right.systems)>(right.systems)));
-	}
-
-	template <typename... t_sys_l, template <typename...> typename t_sys_group_l, typename... t_sys_r, template <typename...> typename t_sys_group_r>
-	requires std::same_as<system_pipeline<t_sys_l...>, t_sys_group_l<t_sys_l...>> && std::same_as<system_pipeline<t_sys_r...>, t_sys_group_r<t_sys_r...>>
-	decltype(auto) operator|(t_sys_group_l<t_sys_l...>&& left, t_sys_group_r<t_sys_r...>&& right)
-	{
-		return system_pipeline<t_sys_l..., t_sys_r...>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward<decltype(right.systems)>(right.systems)));
-	}
-}	 // namespace _temp
 
 // {
 // using detail::operator|;
