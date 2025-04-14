@@ -547,9 +547,14 @@ struct system_pipeline
 				// todo
 			}
 		}
-		else
+		else if constexpr (not std::is_same_v<decltype(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...)), void>)
 		{
 			return run_impl<i + 1>(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...));
+		}
+		else
+		{
+			_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
+			return run_impl<i + 1>();
 		}
 	}
 };
@@ -576,6 +581,7 @@ namespace _temp
 	}
 
 	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
+	requires std::same_as<system_seq2<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator+(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
 		return system_seq2<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));

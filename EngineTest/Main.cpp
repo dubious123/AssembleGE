@@ -629,23 +629,27 @@ int main()
 		using namespace _temp;
 		// clang-format off
 	{
-		auto l2 = []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); };
-		auto group = sys_scene_init{} + sys_scene_init{};
-		//auto pipe = l2
-		//		| (sys_scene_init{} 
-		//		+  sys_scene_init{});
-		auto pipe = l2|sys_scene_init{};
-		static_assert(std::tuple_size_v< decltype(pipe.systems)> == 2);
-		_run_sys(std::get<0>(pipe.systems), _game);
-		//pipe.run(_game);
+		auto sys_group = 
+			sys_game_init{}
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
+				| sys_scene_init{}
+				+ sys_scene_init{})
+			+ sys_game_init{} ;
 
+			
+
+		sys_group.run(_game);
+		std::println("====================================");
+	}
+	{
 		auto sys_group = 
 			sys_game_init{} 
 			+ sys_game_init{} 
 			+ sys_non_templated{}
-			//+ (l2
-			//	| (sys_scene_init{} 
-			//	+  sys_scene_init{}))
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); } | sys_scene_init{}) 
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
+				| (sys_scene_init{} 
+				+ sys_scene_init{}))
 			+ [](){std::println("empty");}
 			+ sys_game_deinit{};
 
@@ -658,7 +662,10 @@ int main()
 			_game 
 			+ sys_game_init{} 
 			+ [](){std::println("empty");}
-			+ [](){return my_game{};}
+			+ ([](){return my_game{};} | []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); } | sys_scene_init{})
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
+				| (sys_scene_init{} 
+				+ sys_scene_init{}))
 			+ sys_non_templated{}
 			+ sys_game_deinit{};
 		 sys_group.run();
@@ -674,6 +681,10 @@ int main()
 			+ l_2
 			+ [](auto&& _ ){std::println("empty1");}
 			+ [](auto&& _ ){std::println("empty2");}
+			+ ([](){return my_game{};} | []<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); } | sys_scene_init{})
+			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t2>(); } 
+				| (sys_scene_init{} 
+				+ sys_scene_init{}))
 			//+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
 			//    				+ sys_scene_init{}
 			//    			    + sys_scene_init{})
