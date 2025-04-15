@@ -533,46 +533,6 @@ namespace ecs
 		}
 	};
 
-	template <auto sys_cond, auto sys_true, auto sys_false>
-	struct cond
-	{
-		decltype(sys_cond)	_sys_cond;
-		decltype(sys_true)	_sys_true;
-		decltype(sys_false) _sys_false;
-
-		constexpr cond() : _sys_cond(sys_cond), _sys_true(sys_true), _sys_false(sys_false) { }
-
-		template <typename t_data>
-		decltype(auto) run(t_data&& data)
-		{
-			DEBUG_LOG("---new cond start (func)---");
-			if (detail::run_system(_sys_cond, std::forward<decltype(data)>(data)))
-			{
-				return detail::run_system(_sys_true, std::forward<decltype(data)>(data));
-			}
-			else
-			{
-				return detail::run_system(_sys_false, std::forward<decltype(data)>(data));
-			}
-			DEBUG_LOG("---new cond end (func)---");
-		}
-	};
-
-	// because of msvc bug, cannot use NTTP partial initialization
-	template <auto sys_cond, auto sys_loop>
-	struct loop
-	{
-		decltype(detail::get_loop_impl<sys_cond, sys_loop>()) impl;
-
-		constexpr loop() {};
-
-		template <typename t_data>
-		decltype(auto) run(t_data&& data)
-		{
-			return detail::run_system(impl, std::forward<decltype(data)>(data));
-		}
-	};
-
 #define TUPLE_CASE(i)                                                                            \
 	case i:                                                                                      \
 	{                                                                                            \
@@ -648,16 +608,6 @@ namespace ecs
 			return detail::run_system(_sys, detail::run_system(_sys_producer, std::forward<t_data>(data)));
 		}
 	};
-
-	struct sys_group_base
-	{
-	};
-
-	template <typename t>
-	concept is_system_group = std::derived_from<std::decay_t<t>, sys_group_base>;
-
-	template <typename t>
-	concept is_raw_system = not is_system_group<t>;
 
 	template <typename t_sys, typename... t_data>
 	decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
@@ -735,7 +685,7 @@ namespace ecs
 	}
 
 	template <typename... t_sys>
-	struct system_seq : sys_group_base
+	struct system_seq
 	{
 		std::tuple<t_sys...> systems;
 
@@ -932,6 +882,95 @@ namespace ecs
 		}
 	};
 
+	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else = void>
+	struct system_cond;
+
+	template <typename t_sys_cond, typename t_sys_then>
+	struct system_cond<t_sys_cond, t_sys_then, void>
+	{
+		t_sys_cond sys_cond;
+		t_sys_then sys_then;
+
+		constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)), sys_then(std::forward<t_sys_then>(sys_then)) { }
+
+		template <typename... t_data>
+		void run(t_data&&... data)
+		{
+			if (_run_sys(sys_cond, std::forward<t_data>(data)...))
+			{
+				_run_sys(sys_then, std::forward<t_data>(data)...);
+			}
+		}
+	};
+
+	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
+	struct system_cond
+	{
+		t_sys_cond sys_cond;
+		t_sys_then sys_then;
+		t_sys_else sys_else;
+
+		constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
+			  sys_then(std::forward<t_sys_then>(sys_then)),
+			  sys_else(std::forward<t_sys_else>(sys_else)) { }
+
+		template <typename... t_data>
+		void run(t_data&&... data)
+		{
+			if (_run_sys(sys_cond, std::forward<t_data>(data)...))
+			{
+				_run_sys(sys_then, std::forward<t_data>(data)...);
+			}
+			else
+			{
+				_run_sys(sys_else, std::forward<t_data>(data)...);
+			}
+		}
+	};
+
+	template <typename t_sys_cond, typename t_sys_then>
+	decltype(auto) cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+	{
+		return system_cond<t_sys_cond, t_sys_then>(
+			std::forward<t_sys_cond>(sys_cond),
+			std::forward<t_sys_then>(sys_then));
+	}
+
+	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
+	decltype(auto) cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+	{
+		return system_cond<t_sys_cond, t_sys_then, t_sys_else>(
+			std::forward<t_sys_cond>(sys_cond),
+			std::forward<t_sys_then>(sys_then),
+			std::forward<t_sys_else>(sys_else));
+	}
+
+	template <typename t_sys_selector, typename... t_sys_cases>
+	struct system_match
+	{
+		t_sys_selector			   sys_selector;
+		std::tuple<t_sys_cases...> sys_cases;
+
+		constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_cases...>&& sys_cases)
+			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
+			  sys_cases(std::forward<std::tuple<t_sys_cases...>>(sys_cases)) { }
+
+		constexpr system_match(t_sys_selector&& sys_selector, t_sys_cases&&... sys)
+			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
+			  sys_cases(std::forward<t_sys_cases>(sys)...) { }
+
+		template <typename... t_data>
+		void run()(t_data&&... data)
+		{
+			auto key = sys_selector(data...);
+			std::apply([&](auto&&... sys_case) {
+				if_else_chain(key, sys_case..., std::forward<t_data>(data)...);
+			},
+					   sys_cases);
+		}
+	};
 }	 // namespace ecs
 
 namespace ecs::system::op
@@ -942,7 +981,7 @@ namespace ecs::system::op
 		return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
 	}
 
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
+	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
 	requires std::same_as<system_seq<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator+(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
@@ -955,7 +994,7 @@ namespace ecs::system::op
 		return system_par<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
 	}
 
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
+	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
 	requires std::same_as<system_par<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator^(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
@@ -968,14 +1007,14 @@ namespace ecs::system::op
 		return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
 	}
 
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_right>
+	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
 	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator|(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
 		return system_pipeline<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
 	}
 
-	template <typename... t_sys, template <typename...> typename t_sys_group, is_raw_system t_left>
+	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_left>
 	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator|(t_left&& left, t_sys_group<t_sys...>&& right)
 	{
