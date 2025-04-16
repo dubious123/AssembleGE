@@ -598,6 +598,36 @@ int main()
 	// ss.run(&_scene0);
 
 	auto _game = my_game();
+
+	{
+		auto m = ecs::match(
+			[]() { return 1; },
+			on(0, []() { std::println("0"); }),
+			on(1, []() { std::println("1"); }),
+			on(2, []() { std::println("2"); }),
+			default_to([]() { std::println("default"); }));
+		m.run();
+	}
+
+	{
+		auto m = ecs::match(
+			[](auto&& _) { return 1; },
+			on(0, [](auto&& _) { std::println("0"); }),
+			on(1, [](auto&& _) { std::println("1"); }),
+			on(2, [](auto&& _) { std::println("2"); }),
+			default_to([](auto&& _) { std::println("default"); }));
+		_run_sys(m, _game);
+
+		auto m2 = ecs::match(
+			[](auto&& _) { return 5; },
+			on(0, [](auto&& _) { std::println("0"); }),
+			on(1, [](auto&& _) { std::println("1"); }),
+			on(2, [](auto&& _) { std::println("2"); }),
+			default_to([](auto&& _) { std::println("default"); }));
+		_run_sys(m2, _game);
+	}
+
+
 	static_assert(std::is_integral_v<decltype([]() { return true; })> is_false);
 	{
 		sys_node<my_game&> node(_game);

@@ -610,13 +610,13 @@ namespace ecs
 	};
 
 	template <typename t_sys, typename... t_data>
-	decltype(auto) _run_sys(t_sys&& sys, t_data&&... args)
+	decltype(auto) _run_sys(t_sys&& sys, t_data&&... data)
 	{
-		if constexpr (ecs::detail::has_run<t_sys, decltype(args)...>)
+		if constexpr (ecs::detail::has_run<t_sys, decltype(data)...>)
 		{
-			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::run, decltype(args)...>)
+			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::run, decltype(data)...>)
 			{
-				return sys.run(std::forward<decltype(args)>(args)...);
+				return sys.run(std::forward<decltype(data)>(data)...);
 			}
 			else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::run>)
 			{
@@ -627,14 +627,14 @@ namespace ecs
 				static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
 			}
 		}
-		else if constexpr (ecs::detail::has_run_templated<t_sys, decltype(args)...>)
+		else if constexpr (ecs::detail::has_run_templated<t_sys, decltype(data)...>)
 		{
-			// return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
-			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<t_data...>, decltype(args)...>)
+			// return sys.run<t_data...>(std::forward<decltype(data)>(data)...);
+			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<t_data...>, decltype(data)...>)
 			{
-				return sys.run<t_data...>(std::forward<decltype(args)>(args)...);
+				return sys.run<t_data...>(std::forward<decltype(data)>(data)...);
 			}
-			else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<decltype(args)...>>)
+			else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template run<decltype(data)...>>)
 			{
 				return sys.run<>();
 			}
@@ -645,9 +645,9 @@ namespace ecs
 		}
 		else if constexpr (ecs::detail::has_operator<t_sys>)
 		{
-			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator(), decltype(args)...>)
+			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator(), decltype(data)...>)
 			{
-				return sys(std::forward<decltype(args)>(args)...);
+				return sys(std::forward<decltype(data)>(data)...);
 			}
 			else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::operator()>)
 			{
@@ -658,11 +658,11 @@ namespace ecs
 				static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
 			}
 		}
-		else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(args)...>)
+		else if constexpr (ecs::detail::has_operator_templated<t_sys, decltype(data)...>)
 		{
-			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>, decltype(args)...>)
+			if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>, decltype(data)...>)
 			{
-				return sys.template operator()<t_data...>(std::forward<decltype(args)>(args)...);
+				return sys.template operator()<t_data...>(std::forward<decltype(data)>(data)...);
 			}
 			else if constexpr (ecs::detail::invocable<&std::decay_t<t_sys>::template operator()<t_data...>>)
 			{
@@ -673,7 +673,7 @@ namespace ecs
 				static_assert(false, "sys is data type but tries to run with arguments or sys cannot be invoked with given arguments");
 			}
 		}
-		else if constexpr (sizeof...(args) == 0)
+		else if constexpr (sizeof...(data) == 0)
 		{
 			return std::forward<t_sys>(sys);
 		}
@@ -947,30 +947,158 @@ namespace ecs
 			std::forward<t_sys_else>(sys_else));
 	}
 
-	template <typename t_sys_selector, typename... t_sys_cases>
-	struct system_match
+	template <typename t_sys_cond, typename t_sys_then>
+	struct system_case
 	{
-		t_sys_selector			   sys_selector;
-		std::tuple<t_sys_cases...> sys_cases;
+		t_sys_cond sys_cond;
+		t_sys_then sys_then;
 
-		constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_cases...>&& sys_cases)
-			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-			  sys_cases(std::forward<std::tuple<t_sys_cases...>>(sys_cases)) { }
+		constexpr system_case(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
+			  sys_then(std::forward<t_sys_then>(sys_then)) { }
 
-		constexpr system_match(t_sys_selector&& sys_selector, t_sys_cases&&... sys)
-			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-			  sys_cases(std::forward<t_sys_cases>(sys)...) { }
-
-		template <typename... t_data>
-		void run()(t_data&&... data)
+		template <typename... t_key>
+		bool matches(t_key&&... key)
 		{
-			auto key = sys_selector(data...);
-			std::apply([&](auto&&... sys_case) {
-				if_else_chain(key, sys_case..., std::forward<t_data>(data)...);
-			},
-					   sys_cases);
+			if constexpr (
+				std::is_same_v<std::decay_t<decltype(_run_sys(sys_cond))>, std::decay_t<t_sys_cond>>
+				&& (sizeof...(key) == 1))
+			{
+				return std::get<0>(std::forward_as_tuple(std::forward<t_key>(key)...)) == sys_cond;
+			}
+			else
+			{
+				return _run_sys(sys_cond, std::forward<t_key>(key)...);
+			}
 		}
 	};
+
+	template <typename t_sys>
+	struct system_case_default
+	{
+		t_sys sys;
+
+		constexpr system_case_default(t_sys&& sys)
+			: sys(std::forward<t_sys>(sys)) { }
+
+		template <typename... t_data>
+		void run(t_data&&... data)
+		{
+			_run_sys(sys, std::forward<t_data>(data)...);
+		}
+	};
+
+	template <typename t>
+	struct is_system_case : std::false_type
+	{
+	};
+
+	template <typename t_cond, typename t_then>
+	struct is_system_case<system_case<t_cond, t_then>> : std::true_type
+	{
+	};
+
+	template <typename t>
+	inline constexpr bool is_system_case_v = is_system_case<t>::value;
+
+	template <typename t>
+	struct is_system_case_default : std::false_type
+	{
+	};
+
+	template <typename t_sys>
+	struct is_system_case_default<system_case_default<t_sys>> : std::true_type
+	{
+	};
+
+	template <typename t>
+	inline constexpr bool is_system_case_default_v = is_system_case_default<t>::value;
+
+	template <typename... t>
+	constexpr bool all_cases_valid = (... && (is_system_case_v<t> || is_system_case_default_v<t>));
+
+	template <typename... t>
+	constexpr bool default_is_last = [] {
+		if constexpr ((sizeof...(t) == 0) || (sizeof...(t) == 1))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+			// return !std::ranges::any_of(std::array { is_system_case_default_v<t>... } | std::views::take(sizeof...(t) - 1), std::identity {});
+		}
+	}();
+
+	template <typename t_sys_selector, typename... t_sys_case>
+	// requires all_cases_valid<t_sys_case...> && default_is_last<t_sys_case...>
+	struct system_match
+	{
+		t_sys_selector			  sys_selector;
+		std::tuple<t_sys_case...> sys_cases;
+
+		constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_case...>&& sys_cases)
+			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
+			  sys_cases(std::forward<std::tuple<t_sys_case...>>(sys_cases)) { }
+
+		constexpr system_match(t_sys_selector&& sys_selector, t_sys_case&&... sys)
+			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
+			  sys_cases(std::forward<t_sys_case>(sys)...) { }
+
+		template <typename... t_data>
+		void run(t_data&&... data)
+		{
+			run_impl(_run_sys(sys_selector, std::forward<t_data>(data)...), std::forward<t_data>(data)...);
+		}
+
+	  private:
+		template <std::size_t i = 0, typename t_key, typename... t_data>
+		void run_impl(t_key&& key, t_data&&... data)
+		{
+			if constexpr (i < std::tuple_size_v<decltype(sys_cases)>)
+			{
+				auto& current = std::get<i>(sys_cases);
+
+				if constexpr (is_system_case_v<std::decay_t<decltype(current)>>)
+				{
+					if (current.matches(std::forward<t_key>(key)))
+					{
+						_run_sys(current.sys_then, std::forward<t_data>(data)...);
+					}
+					else
+					{
+						run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
+					}
+				}
+				else
+				{
+					_run_sys(current.sys, std::forward<t_data>(data)...);
+				}
+			}
+		}
+	};
+
+	template <typename t_sys_selector, typename... t_sys_case>
+	constexpr decltype(auto) match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
+	{
+		return system_match<t_sys_selector, t_sys_case...>(
+			std::forward<t_sys_selector>(sys_selector),
+			std::forward<t_sys_case>(sys_case)...);
+	}
+
+	template <typename t_sys_cond, typename t_sys_then>
+	constexpr decltype(auto) on(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+	{
+		return system_case<t_sys_cond, t_sys_then>(
+			std::forward<t_sys_cond>(sys_cond),
+			std::forward<t_sys_then>(sys_then));
+	}
+
+	template <typename t_sys>
+	constexpr decltype(auto) default_to(t_sys&& sys)
+	{
+		return system_case_default<t_sys>(std::forward<t_sys>(sys));
+	}
 }	 // namespace ecs
 
 namespace ecs::system::op
