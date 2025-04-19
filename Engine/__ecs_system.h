@@ -700,7 +700,7 @@ namespace ecs
 		template <typename... t_data>
 		decltype(auto) run(t_data&&... data)
 		{
-			if constexpr (sizeof...(t_data) == 0)
+			if constexpr (sizeof...(t_data) == 0 && not std::is_same_v<decltype(_run_sys(std::get<0>(systems))), void>)
 			{
 				return run_impl(meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1> {}, _run_sys(std::get<0>(systems)));
 			}
@@ -1098,6 +1098,155 @@ namespace ecs
 	constexpr decltype(auto) default_to(t_sys&& sys)
 	{
 		return system_case_default<t_sys>(std::forward<t_sys>(sys));
+	}
+
+	template <typename t_sys_cond>
+	struct system_break_if
+	{
+		t_sys_cond sys_cond;
+
+		constexpr system_break_if(t_sys_cond&& sys_cond) : sys_cond(std::forward<t_sys_cond>(sys_cond)) { }
+
+		template <typename... t_data>
+		constexpr bool operator()(t_data&&... data)
+		{
+			return _run_sys(sys_cond, std::forward<t_data>(data)...);
+		}
+	};
+
+	template <typename t_sys_cond>
+	struct system_continue_if
+	{
+		t_sys_cond sys_cond;
+
+		constexpr system_continue_if(t_sys_cond&& sys_cond) : sys_cond(std::forward<t_sys_cond>(sys_cond)) { }
+
+		template <typename... t_data>
+		constexpr bool operator()(t_data&&... data)
+		{
+			return _run_sys(sys_cond, std::forward<t_data>(data)...);
+		}
+	};
+
+	template <typename t>
+	inline constexpr bool is_break_if = false;
+
+	template <typename t_sys_cond>
+	inline constexpr bool is_break_if<system_break_if<t_sys_cond>> = true;
+
+	template <typename t>
+	inline constexpr bool is_continue_if = false;
+
+	template <typename t_sys_cond>
+	inline constexpr bool is_continue_if<system_continue_if<t_sys_cond>> = true;
+
+#define __SYS_LOOP_IMPL(N)                                                               \
+	if constexpr (N < std::tuple_size_v<decltype(systems)>)                              \
+	{                                                                                    \
+		if constexpr (is_break_if<std::decay_t<decltype(std::get<N>(systems))>>)         \
+		{                                                                                \
+			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
+				goto __break;                                                            \
+		}                                                                                \
+		else if constexpr (is_continue_if<std::decay_t<decltype(std::get<N>(systems))>>) \
+		{                                                                                \
+			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
+				goto __continue;                                                         \
+		}                                                                                \
+		else                                                                             \
+		{                                                                                \
+			_run_sys(std::get<N>(systems), std::forward<t_data>(data)...);               \
+		}                                                                                \
+	}
+
+	template <typename t_sys_cond, typename... t_sys>
+	struct system_loop
+	{
+		t_sys_cond			 sys_cond;
+		std::tuple<t_sys...> systems;
+
+		constexpr system_loop(t_sys_cond&& sys_cond, std::tuple<t_sys...>&& systems)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
+			  systems(std::forward<std::tuple<t_sys...>>(systems)) { }
+
+		constexpr system_loop(t_sys_cond&& sys_cond, t_sys&&... sys)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
+			  systems(std::forward<t_sys>(sys)...) { }
+
+		template <typename... t_data>
+		void run(t_data&&... data)
+		{
+			run_impl(std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+		}
+
+	  private:
+		template <std::size_t... i, typename... t_data>
+		inline void run_impl(std::index_sequence<i...>, t_data&&... data)
+		{
+			while (_run_sys(sys_cond, std::forward<t_data>(data)...))
+			{
+				//(..., run_single_system(std::get<i>(systems), std::forward<t_data>(data)...));
+				// if constexpr (is_break_if<std::decay_t<sys_t>>)
+				//{
+				//	if (_run_sys(sys, std::forward<t_data>(data)...))
+				//		goto __break;
+				//}
+				// else if constexpr (is_continue_if<std::decay_t<sys_t>>)
+				//{
+				//	if (_run_sys(sys, std::forward<t_data>(data)...))
+				//		goto __continue;
+				//}
+				// else
+				//{
+				//	_run_sys(sys, std::forward<t_data>(data)...);
+				//}
+				__SYS_LOOP_IMPL(0);
+				__SYS_LOOP_IMPL(1);
+				__SYS_LOOP_IMPL(2);
+				__SYS_LOOP_IMPL(3);
+			__continue:
+				continue;
+			__break:
+				return;
+			}
+		}
+
+		template <typename sys_t, typename... t_data>
+		inline decltype(auto) run_single_system(sys_t& sys, t_data&&... data)
+		{
+			if constexpr (is_break_if<std::decay_t<sys_t>>)
+			{
+				if (_run_sys(sys, std::forward<t_data>(data)...)) goto __break;
+			}
+			else if constexpr (is_continue_if<std::decay_t<sys_t>>)
+			{
+				if (_run_sys(sys, std::forward<t_data>(data)...)) goto __continue;
+			}
+			else
+			{
+				return _run_sys(sys, std::forward<t_data>(data)...);
+			}
+		}
+	};
+
+	template <typename t_sys_cond>
+	constexpr decltype(auto) break_if(t_sys_cond&& sys_cond)
+	{
+		return system_break_if<t_sys_cond>(std::forward<t_sys_cond>(sys_cond));
+	}
+
+	template <typename t_sys_cond>
+	constexpr decltype(auto) continue_if(t_sys_cond&& sys_cond)
+	{
+		return system_continue_if<t_sys_cond>(std::forward<t_sys_cond>(sys_cond));
+	}
+
+	template <typename t_sys_cond, typename... t_sys>
+	constexpr decltype(auto) loop(t_sys_cond&& sys_cond, t_sys&&... sys)
+	{
+		return system_loop<t_sys_cond, t_sys...>(
+			std::forward<t_sys_cond>(sys_cond),
+			std::forward<t_sys>(sys)...);
 	}
 }	 // namespace ecs
 

@@ -600,6 +600,17 @@ int main()
 	auto _game = my_game();
 
 	{
+		using namespace ecs::system::op;
+
+		auto idx = 5;
+		auto l	 = ecs::loop([]() { return true; },
+							 []() { std::println("0"); }, []() { std::println("1"); }, ecs::break_if([&idx]() {
+								 return idx-- == 0;
+							 }));
+		_run_sys(l);
+	}
+
+	{
 		auto m = ecs::match(
 			[]() { return 1; },
 			on(0, []() { std::println("0"); }),
