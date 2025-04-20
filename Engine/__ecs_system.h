@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "__common.h"
 
 namespace ecs
@@ -684,9 +684,20 @@ namespace ecs
 		}
 	}
 
+	template <std::size_t i, typename... t_sys>
+	consteval std::size_t sys_non_empty_idx()
+	{
+		std::size_t count = 0;
+		std::size_t idx	  = 0;
+		((idx++ < i && meta::is_not_empty<t_sys> ? ++count : count), ...);
+		return count;
+	}
+
 	template <typename... t_sys>
 	struct system_seq
 	{
+		using t_all_sys_tpl		  = std::tuple<t_sys...>;
+		using t_not_empty_sys_tpl = meta::filter_to_tuple_t<meta::is_not_empty, t_sys...>;
 		std::tuple<t_sys...> systems;
 
 		constexpr system_seq(t_sys&&... sys)
@@ -717,6 +728,19 @@ namespace ecs
 			(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...), ...);
 			// return std::make_tuple(std::get<i>(systems).run(std::forward<t_data>(data)...), ...);
 			//  return std::tuple<std::decay_t<Args>&...>(args...);	   // return refs to original data
+		}
+
+		template <std::size_t i, typename... t_data>
+		decltype(auto) run_one_impl(t_data&&... data)
+		{
+			using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
+			if constexpr (std::is_empty_v<t_sys_now>)
+			{
+				return _run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+			}
+			else
+			{
+			}
 		}
 	};
 
@@ -805,17 +829,17 @@ namespace ecs
 		return std::forward<t_res>(std::get<t_holder>(std::forward_as_tuple(data...)).__parallel_executor);
 	}
 
-	struct sys_wait
-	{
-		template <typename... t_data>
-		void operator()(t_data&&... data) const
-		{
-			if constexpr (par_exec_found_v<t_data...>)
-			{
-				extract_par_exec(std::forward<t_data>(data)...).wait();
-			}
-		}
-	};
+	// struct sys_wait
+	//{
+	//	template <typename... t_data>
+	//	void operator()(t_data&&... data) const
+	//	{
+	//		if constexpr (par_exec_found_v<t_data...>)
+	//		{
+	//			extract_par_exec(std::forward<t_data>(data)...).wait();
+	//		}
+	//	}
+	// };
 
 	template <typename... t_sys>
 	struct system_par
@@ -1140,18 +1164,22 @@ namespace ecs
 	template <typename t_sys_cond>
 	inline constexpr bool is_continue_if<system_continue_if<t_sys_cond>> = true;
 
+	template <typename t>
+	constexpr bool is_break_or_continue =
+		is_break_if<std::decay_t<t>> || is_continue_if<std::decay_t<t>>;
+
 #define __SYS_LOOP_IMPL(N)                                                               \
 	if constexpr (N < std::tuple_size_v<decltype(systems)>)                              \
 	{                                                                                    \
 		if constexpr (is_break_if<std::decay_t<decltype(std::get<N>(systems))>>)         \
 		{                                                                                \
 			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
-				goto __break;                                                            \
+				break;                                                                   \
 		}                                                                                \
 		else if constexpr (is_continue_if<std::decay_t<decltype(std::get<N>(systems))>>) \
 		{                                                                                \
 			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
-				goto __continue;                                                         \
+				continue;                                                                \
 		}                                                                                \
 		else                                                                             \
 		{                                                                                \
@@ -1185,46 +1213,9 @@ namespace ecs
 		{
 			while (_run_sys(sys_cond, std::forward<t_data>(data)...))
 			{
-				//(..., run_single_system(std::get<i>(systems), std::forward<t_data>(data)...));
-				// if constexpr (is_break_if<std::decay_t<sys_t>>)
-				//{
-				//	if (_run_sys(sys, std::forward<t_data>(data)...))
-				//		goto __break;
-				//}
-				// else if constexpr (is_continue_if<std::decay_t<sys_t>>)
-				//{
-				//	if (_run_sys(sys, std::forward<t_data>(data)...))
-				//		goto __continue;
-				//}
-				// else
-				//{
-				//	_run_sys(sys, std::forward<t_data>(data)...);
-				//}
-				__SYS_LOOP_IMPL(0);
-				__SYS_LOOP_IMPL(1);
-				__SYS_LOOP_IMPL(2);
-				__SYS_LOOP_IMPL(3);
-			__continue:
-				continue;
-			__break:
-				return;
-			}
-		}
-
-		template <typename sys_t, typename... t_data>
-		inline decltype(auto) run_single_system(sys_t& sys, t_data&&... data)
-		{
-			if constexpr (is_break_if<std::decay_t<sys_t>>)
-			{
-				if (_run_sys(sys, std::forward<t_data>(data)...)) goto __break;
-			}
-			else if constexpr (is_continue_if<std::decay_t<sys_t>>)
-			{
-				if (_run_sys(sys, std::forward<t_data>(data)...)) goto __continue;
-			}
-			else
-			{
-				return _run_sys(sys, std::forward<t_data>(data)...);
+#define X(N) __SYS_LOOP_IMPL(N)
+				__X_REPEAT_LIST_512
+#undef X
 			}
 		}
 	};
@@ -1255,6 +1246,8 @@ namespace ecs::system::op
 	template <typename t_left, typename t_right>
 	decltype(auto) operator+(t_left&& left, t_right&& right)
 	{
+		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator+");
 		return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
 	}
 
@@ -1262,12 +1255,16 @@ namespace ecs::system::op
 	requires std::same_as<system_seq<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator+(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
+		static_assert(not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator+");
 		return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
 	}
 
 	template <typename t_left, typename t_right>
 	decltype(auto) operator^(t_left&& left, t_right&& right)
 	{
+		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator^");
 		return system_par<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
 	}
 
@@ -1275,12 +1272,16 @@ namespace ecs::system::op
 	requires std::same_as<system_par<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator^(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
+		static_assert(not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator^");
 		return system_par<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
 	}
 
 	template <typename t_left, typename t_right>
 	decltype(auto) operator|(t_left&& left, t_right&& sys)
 	{
+		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator|");
 		return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
 	}
 
@@ -1288,6 +1289,8 @@ namespace ecs::system::op
 	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator|(t_sys_group<t_sys...>&& left, t_right&& right)
 	{
+		static_assert(not is_break_or_continue<t_right>,
+					  "❌ break_if / continue_if cannot be used with operator|");
 		return system_pipeline<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
 	}
 
@@ -1295,6 +1298,8 @@ namespace ecs::system::op
 	requires std::same_as<system_pipeline<t_sys...>, t_sys_group<t_sys...>>
 	decltype(auto) operator|(t_left&& left, t_sys_group<t_sys...>&& right)
 	{
+		static_assert(not is_break_or_continue<t_left>,
+					  "❌ break_if / continue_if cannot be used with operator|");
 		return system_pipeline<t_left, t_sys...>(std::tuple_cat(std::forward_as_tuple(std::forward<t_left>(left)), std::forward<decltype(right.systems)>(right.systems)));
 	}
 

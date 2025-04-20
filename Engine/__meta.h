@@ -437,6 +437,45 @@ namespace meta
 		using type = std::tuple<h>;
 	};
 
+	template <typename... t>
+	struct type_list
+	{
+		template <typename t_head>
+		using prepend = type_list<t_head, t...>;
+	};
+
+	template <template <typename> typename pred, typename... t>
+	struct filter_list;
+
+	template <template <typename> typename pres>
+	struct filter_list<pres>
+	{
+		using type = type_list<>;
+	};
+
+	template <template <typename> typename pred, typename t_head, typename... t_tail>
+	struct filter_list<pred, t_head, t_tail...>
+	{
+		using tail_filtered = typename filter_list<pred, t_tail...>::type;
+
+		using type = std::conditional_t<
+			pred<t_head>::value,
+			typename tail_filtered::template prepend<t_head>,
+			tail_filtered>;
+	};
+
+	template <typename t>
+	struct type_list_to_tuple;
+
+	template <typename... t>
+	struct type_list_to_tuple<type_list<t...>>
+	{
+		using type = std::tuple<t...>;
+	};
+
+	template <template <typename> typename pred, typename... t>
+	using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
+
 	template <typename t, typename... ts>
 	consteval size_t variadic_count()
 	{
@@ -589,6 +628,11 @@ namespace meta
 
 	template <template <typename...> class t, typename... args>
 	struct is_specialization_of<t<args...>, t> : std::true_type
+	{
+	};
+
+	template <typename T>
+	struct is_not_empty : std::bool_constant<!std::is_empty_v<T>>
 	{
 	};
 

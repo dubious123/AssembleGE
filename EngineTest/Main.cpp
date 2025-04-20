@@ -581,6 +581,10 @@ struct interface_game2
 	interface_game2(t_game&& game) : game(std::forward<t_game>(game)) { }
 };
 
+struct empty_struct : std::monostate
+{
+};
+
 int main()
 {
 	// loop<&system_1::f>();
@@ -600,14 +604,14 @@ int main()
 	auto _game = my_game();
 
 	{
-		using namespace ecs::system::op;
+		using filtered_tpl = meta::filter_to_tuple_t<std::is_empty, std::monostate, int, double, decltype([]() { std::println("hi"); })>;
+		auto tpl		   = filtered_tpl {};
 
-		auto idx = 5;
-		auto l	 = ecs::loop([]() { return true; },
-							 []() { std::println("0"); }, []() { std::println("1"); }, ecs::break_if([&idx]() {
-								 return idx-- == 0;
-							 }));
-		_run_sys(l);
+		using namespace ecs::system::op;
+		auto empty_chain = []() { std::println("hi"); } + []() { std::println("hi2"); } + []() { std::println("hi2"); };
+		std::println("empty_chain size : {}", sizeof(empty_chain));
+		std::println("empty tuple size : {}", sizeof(std::tuple<std::monostate, std::monostate, std::monostate> {}));
+		std::println("empty struct ebo size : {}", sizeof(empty_struct {}));
 	}
 
 	{
@@ -656,6 +660,7 @@ int main()
 		// static_assert(par_exec_found_v<my_game> == false);
 		// clang-format off
 	{
+		auto idx = 15;
 		auto sys_group = 
 			sys_game_init{}
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
@@ -672,7 +677,14 @@ int main()
 				^ [](){ 
 					std::println("3 running on {}", std::this_thread::get_id());}
 				^ [](){ 
-					std::println("4 running on {}", std::this_thread::get_id()); })
+					std::println("4 running on {}", std::this_thread::get_id()); }
+				^ecs::loop([]() { return true; },
+							 []() { std::println("0"); } 
+								+ []() { std::println("1"); } 
+								+ ([]() { std::println("2"); } | [&](){idx--;}),
+							 ecs::continue_if([&](){std::println("idx == {}", idx);} | [&](){return idx % 2 == 0; }),
+							 ecs::break_if([&idx]() { return idx == 1; }))
+				)
 			+ sys_game_init{} ;
 
 			

@@ -265,7 +265,6 @@ struct my_scene_system_1
 	void run()
 	{
 		DEBUG_LOG("---my_scene_system_1 run---");
-		int a;
 	}
 };
 
