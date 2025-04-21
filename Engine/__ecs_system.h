@@ -136,9 +136,11 @@ namespace ecs
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires []<std::size_t... i>(std::index_sequence<i...>) {
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
 				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
 		};
 
 
@@ -573,7 +575,7 @@ namespace ecs
 		decltype(sys_select)				 _sys_select;
 		detail::_tpl<decltype(sys_cases)...> _sys_cases;
 
-		constexpr _switch() {};
+		constexpr _switch() { };
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
@@ -685,35 +687,87 @@ namespace ecs
 	}
 
 	template <std::size_t i, typename... t_sys>
-	consteval std::size_t sys_non_empty_idx()
+	consteval std::size_t sys_not_empty_idx()
 	{
-		std::size_t count = 0;
-		std::size_t idx	  = 0;
-		((idx++ < i && meta::is_not_empty<t_sys> ? ++count : count), ...);
-		return count;
+		constexpr const bool is_not_empty_arr[] = { meta::is_not_empty<t_sys>::value... };
+		std::size_t			 not_empty_idx		= 0;
+
+		for (std::size_t j = 0; j <= i; ++j)
+		{
+			if (is_not_empty_arr[j])
+			{
+				++not_empty_idx;
+			}
+		}
+
+		return not_empty_idx;
+	}
+
+	template <typename... t_sys>
+	constexpr decltype(auto) make_non_empty_sys_tpl(t_sys&&... sys)
+	{
+		return meta::make_filtered_tuple<meta::is_not_empty>(std::forward<t_sys>(sys)...);
+	}
+
+	template <typename... t_sys>
+	constexpr decltype(auto) make_non_empty_sys_tpl_from_tpl(std::tuple<t_sys...>&& tpl)
+	{
+		return meta::make_filtered_tuple_from_tuple<meta::is_not_empty>(std::forward<std::tuple<t_sys...>>(tpl));
+	}
+
+	template <typename... t>
+	consteval std::array<std::size_t, sizeof...(t)> make_not_empty_sys_idx_arr()
+	{
+		constexpr const bool flags[] = { meta::is_not_empty<t>::value... };
+		auto				 arr	 = std::array<std::size_t, sizeof...(t)> {};
+		for (auto i = 0, idx = 0; i < sizeof...(t); ++i)
+		{
+			if (flags[i])
+			{
+				arr[i] = idx++;
+			}
+		}
+
+		return arr;
 	}
 
 	template <typename... t_sys>
 	struct system_seq
 	{
+		// 0 1 0 1 0 0 1
+		// 1 3 6
+		// 1 -> 0, 3 -> 1, 6 -> 2
 		using t_all_sys_tpl		  = std::tuple<t_sys...>;
-		using t_not_empty_sys_tpl = meta::filter_to_tuple_t<meta::is_not_empty, t_sys...>;
-		std::tuple<t_sys...> systems;
+		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+		t_sys_not_empty_tpl systems;
 
-		constexpr system_seq(t_sys&&... sys)
-			: systems(std::forward<t_sys>(sys)...)
+		static constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
+
+		template <typename... t_sys_not_empty>
+		constexpr system_seq(t_sys_not_empty&&... sys)
+			: systems(std::forward<t_sys_not_empty>(sys)...)
 		{
 		}
 
-		constexpr explicit system_seq(std::tuple<t_sys...>&& tpl)
-			: systems(std::forward<std::tuple<t_sys...>>(tpl)) { }
+		template <typename... t_sys_not_empty>
+		constexpr system_seq(std::tuple<t_sys_not_empty...>&& tpl)
+			: systems(std::forward<std::tuple<t_sys_not_empty...>>(tpl))
+		{
+		}
+
+		// template <typename... t_sys_not_empty, typename t_sys_r>
+		// constexpr system_seq(std::tuple<t_sys_not_empty...>&& tpl, t_sys_r&& sys)
+		//	: systems(std::tuple_cat(std::forward<std::tuple<t_sys_not_empty...>>(tpl), std::make_tuple(std::forward<t_sys_r>(sys))))
+		//{
+		// }
 
 		template <typename... t_data>
 		decltype(auto) run(t_data&&... data)
 		{
-			if constexpr (sizeof...(t_data) == 0 && not std::is_same_v<decltype(_run_sys(std::get<0>(systems))), void>)
+
+			if constexpr (sizeof...(t_data) == 0 and not std::is_same_v<decltype(run_one_impl<0>()), void>)
 			{
-				return run_impl(meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1> {}, _run_sys(std::get<0>(systems)));
+				return run_impl(meta::offset_sequence<1, std::tuple_size_v<t_all_sys_tpl> - 1> {}, run_one_impl<0>());
 			}
 			else
 			{
@@ -725,9 +779,8 @@ namespace ecs
 		template <std::size_t... i, typename... t_data>
 		decltype(auto) run_impl(std::index_sequence<i...>, t_data&&... data)
 		{
-			(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...), ...);
-			// return std::make_tuple(std::get<i>(systems).run(std::forward<t_data>(data)...), ...);
-			//  return std::tuple<std::decay_t<Args>&...>(args...);	   // return refs to original data
+			//(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...), ...);
+			(run_one_impl<i>(std::forward<t_data>(data)...), ...);
 		}
 
 		template <std::size_t i, typename... t_data>
@@ -740,6 +793,7 @@ namespace ecs
 			}
 			else
 			{
+				return _run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...);
 			}
 		}
 	};
@@ -828,18 +882,6 @@ namespace ecs
 		using t_res	   = decltype(std::get<t_holder>(std::forward_as_tuple(data...)).__parallel_executor);
 		return std::forward<t_res>(std::get<t_holder>(std::forward_as_tuple(data...)).__parallel_executor);
 	}
-
-	// struct sys_wait
-	//{
-	//	template <typename... t_data>
-	//	void operator()(t_data&&... data) const
-	//	{
-	//		if constexpr (par_exec_found_v<t_data...>)
-	//		{
-	//			extract_par_exec(std::forward<t_data>(data)...).wait();
-	//		}
-	//	}
-	// };
 
 	template <typename... t_sys>
 	struct system_par
@@ -1165,8 +1207,7 @@ namespace ecs
 	inline constexpr bool is_continue_if<system_continue_if<t_sys_cond>> = true;
 
 	template <typename t>
-	constexpr bool is_break_or_continue =
-		is_break_if<std::decay_t<t>> || is_continue_if<std::decay_t<t>>;
+	constexpr bool is_break_or_continue = is_break_if<std::decay_t<t>> || is_continue_if<std::decay_t<t>>;
 
 #define __SYS_LOOP_IMPL(N)                                                               \
 	if constexpr (N < std::tuple_size_v<decltype(systems)>)                              \
@@ -1248,7 +1289,29 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator+");
-		return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
+
+		if constexpr (std::is_empty_v<t_left>)
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_seq<t_left, t_right>();
+			}
+			else
+			{
+				return system_seq<t_left, t_right>(std::forward<t_right>(right));
+			}
+		}
+		else
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_seq<t_left, t_right>(std::forward<t_left>(left));
+			}
+			else
+			{
+				return system_seq<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
+			}
+		}
 	}
 
 	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
@@ -1257,7 +1320,18 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator+");
-		return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		if constexpr (std::is_empty_v<t_right>)
+		{
+			return system_seq<t_sys..., t_right>(std::forward<decltype(left.systems)>(left.systems));
+		}
+		else if constexpr (std::is_lvalue_reference_v<t_right>)
+		{
+			return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		}
+		else
+		{
+			return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::make_tuple(std::forward<t_right>(right))));
+		}
 	}
 
 	template <typename t_left, typename t_right>

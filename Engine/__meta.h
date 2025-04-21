@@ -437,44 +437,134 @@ namespace meta
 		using type = std::tuple<h>;
 	};
 
-	template <typename... t>
-	struct type_list
-	{
-		template <typename t_head>
-		using prepend = type_list<t_head, t...>;
-	};
+	// template <typename... t>
+	// struct type_list
+	//{
+	//	template <typename t_head>
+	//	using prepend = type_list<t_head, t...>;
+	// };
 
-	template <template <typename> typename pred, typename... t>
-	struct filter_list;
+	// template <template <typename> typename pred, typename... t>
+	// struct filter_list;
 
-	template <template <typename> typename pres>
-	struct filter_list<pres>
-	{
-		using type = type_list<>;
-	};
+	// template <template <typename> typename pres>
+	// struct filter_list<pres>
+	//{
+	//	using type = type_list<>;
+	// };
 
-	template <template <typename> typename pred, typename t_head, typename... t_tail>
-	struct filter_list<pred, t_head, t_tail...>
-	{
-		using tail_filtered = typename filter_list<pred, t_tail...>::type;
+	// template <template <typename> typename pred, typename t_head, typename... t_tail>
+	// struct filter_list<pred, t_head, t_tail...>
+	//{
+	//	using tail_filtered = typename filter_list<pred, t_tail...>::type;
 
-		using type = std::conditional_t<
-			pred<t_head>::value,
-			typename tail_filtered::template prepend<t_head>,
-			tail_filtered>;
-	};
+	//	using type = std::conditional_t<
+	//		pred<t_head>::value,
+	//		typename tail_filtered::template prepend<t_head>,
+	//		tail_filtered>;
+	//};
+
+	// template <typename t>
+	// struct type_list_to_tuple;
+
+	// template <typename... t>
+	// struct type_list_to_tuple<type_list<t...>>
+	//{
+	//	using type = std::tuple<t...>;
+	// };
+
+	// template <template <typename> typename pred, typename... t>
+	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
 
 	template <typename t>
-	struct type_list_to_tuple;
+	using value_or_ref_t = std::conditional_t<
+		std::is_lvalue_reference_v<t>,
+		t,
+		std::remove_reference_t<t>>;
 
-	template <typename... t>
-	struct type_list_to_tuple<type_list<t...>>
+	template <typename T>
+	constexpr decltype(auto) as_value_or_ref(T&& value)
 	{
-		using type = std::tuple<t...>;
+		if constexpr (std::is_lvalue_reference_v<T>)
+			return value;
+		else
+			return std::move(value);
+	}
+
+	template <template <typename> typename pred, typename... t>
+	consteval auto filter_count()
+	{
+		const std::array<bool, sizeof...(t)> flags = { pred<t>::value... };
+		std::size_t							 count = 0;
+		for (auto i = 0; i < sizeof...(t); ++i)
+		{
+			if (flags[i])
+			{
+				++count;
+			}
+		}
+
+		return count;
+	}
+
+	template <template <typename> typename pred, typename... t>
+	consteval auto filter_indices()
+	{
+		const std::array<bool, sizeof...(t)> flags	 = { pred<t>::value... };
+		auto								 indices = std::array<std::size_t, filter_count<pred, t...>()>();
+
+		std::size_t idx = 0;
+		for (auto i = 0; i < sizeof...(t); ++i)
+		{
+			if (flags[i])
+			{
+				indices[idx++] = i;
+			}
+		}
+
+		return indices;
+	}
+
+	template <template <typename> typename pred, typename... t>
+	consteval auto make_filtered_index_sequence()
+	{
+		constexpr auto arr = filter_indices<pred, t...>();
+
+		return [&]<std::size_t... i>(std::index_sequence<i...>) {
+			return std::index_sequence<arr[i]...> {};
+		}(std::make_index_sequence<arr.size()> {});
+	}
+
+	template <template <typename> typename pred, typename... t>
+	struct filtered_tuple
+	{
+	  private:
+		template <std::size_t... i>
+		static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
+
+	  public:
+		using type = decltype(helper(make_filtered_index_sequence<pred, t...>()));
 	};
 
 	template <template <typename> typename pred, typename... t>
-	using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
+	using filtered_tuple_t = filtered_tuple<pred, t...>::type;
+
+	template <template <typename> typename pred, typename... t>
+	constexpr decltype(auto) make_filtered_tuple_from_tuple(std::tuple<t...>&& tpl)
+	{
+		return [&]<std::size_t... i>(std::index_sequence<i...>) {
+			return filtered_tuple_t<pred, t...>(std::get<i>(tpl)...);
+		}(make_filtered_index_sequence<pred, t...>());
+	}
+
+	template <template <typename> typename pred, typename... t>
+	constexpr decltype(auto) make_filtered_tuple(t&&... args)
+	{
+		auto&& args_tpl = std::forward_as_tuple(std::forward<t>(args)...);
+		return [&]<std::size_t... i>(std::index_sequence<i...>) {
+			return filtered_tuple_t<pred, t...>(std::get<i>(args_tpl)...);
+		}(make_filtered_index_sequence<pred, t...>());
+	}
 
 	template <typename t, typename... ts>
 	consteval size_t variadic_count()

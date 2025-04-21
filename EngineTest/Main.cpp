@@ -180,7 +180,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -219,8 +219,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -250,7 +250,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -585,6 +585,12 @@ struct empty_struct : std::monostate
 {
 };
 
+template <typename T>
+constexpr void print_type()
+{
+	static_assert([] { return false; }(), "Type info");
+}
+
 int main()
 {
 	// loop<&system_1::f>();
@@ -603,10 +609,35 @@ int main()
 
 	auto _game = my_game();
 
-	{
-		using filtered_tpl = meta::filter_to_tuple_t<std::is_empty, std::monostate, int, double, decltype([]() { std::println("hi"); })>;
-		auto tpl		   = filtered_tpl {};
+	static_assert(meta::filter_count<std::is_empty, int, double, std::monostate, std::monostate>() == 2);
+	static_assert(std::is_empty_v<sys_game_init>);
 
+
+	auto tt = meta::make_filtered_tuple_from_tuple<std::is_empty>(std::tuple<int, double, std::monostate, std::monostate> {});
+	{
+		using namespace ecs::system::op;
+		// print_type<decltype(make_filtered_index_sequence<meta::is_not_empty, sys_game_init,
+		//												 decltype([]<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); } | sys_scene_init {}),
+		//												 decltype([&]() -> decltype(auto) { return _game; })&&>())>();
+		// auto tpl1 = std::tuple<std::monostate, int, int&&> { std::monostate {}, 5, 5 };
+		// auto tpl2 = std::tuple<int, int&&>(std::get<1>(tpl1), std::get<2>(tpl1));
+		// static_assert(std::is_empty_v<std::monostate&&>);
+		// return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		// meta::make_filtered_tuple_from_tuple<meta::is_not_empty>(std::tuple<std::monostate, int, int&&> { std::monostate {}, 5, 5 });
+
+
+		auto left = sys_game_init {}
+				  + ([]<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }
+																	| sys_scene_init {});
+		auto&& right = [&]() -> decltype(auto) { return _game; };
+
+		// print_type<decltype(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::make_tuple(std::forward<decltype(right)>(right))))>();
+
+		//+ cond([](auto&& game) { return game.running; }, []() { std::println("running"); });
+	}
+
+
+	{
 		using namespace ecs::system::op;
 		auto empty_chain = []() { std::println("hi"); } + []() { std::println("hi2"); } + []() { std::println("hi2"); };
 		std::println("empty_chain size : {}", sizeof(empty_chain));
@@ -750,6 +781,14 @@ int main()
 	{
 		auto l_1 = [](auto&& _ ){std::println("empty1");};
 		auto l_2 = [](auto&& _ ){std::println("empty2");};
+		static_assert(std::is_same_v< meta::filtered_tuple_t<meta::is_not_empty, my_game, decltype(l_1)&, decltype(l_2)&>, 
+			std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>>);
+		
+		//print_type<decltype(make_non_empty_sys_tpl_from_tpl(std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2)))>();
+		std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2);
+		//static_assert(std::is_same_v<decltype(make_non_empty_sys_tpl_from_tpl(std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2))), 
+		//	std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>>);
+		
 		auto sys_group = 
 			my_game{}
 			+ l_1
