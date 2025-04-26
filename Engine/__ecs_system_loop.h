@@ -83,7 +83,6 @@ namespace ecs::system
 		}                                                                                                 \
 		else                                                                                              \
 		{                                                                                                 \
-			_run_sys(std::get<N>(systems), std::forward<t_data>(data)...);                                \
 			if constexpr (not std::is_empty_v<t_sys_now>)                                                 \
 			{                                                                                             \
 				_run_sys(std::get<not_empty_sys_idx_arr[N]>(systems), std::forward<t_data>(data)...);     \

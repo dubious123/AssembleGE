@@ -115,6 +115,7 @@ struct worlds
 
 struct my_scene_state
 {
+	bool loaded = false;
 };
 
 struct scene_t1 : worlds, my_scene_state
@@ -197,12 +198,6 @@ struct my_game_state
 
 struct par_exec_test : ecs::system::detail::__parallel_executor_base
 {
-	// template <typename... t_sys, typename... t_data>
-	// void run_par(std::tuple<t_sys...>& systems, t_data&&... data)
-	//{
-	//	return run_par_impl(systems, std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
-	// }
-
 	template <typename... t_func>
 	decltype(auto) run_par(t_func&&... func)
 	{
@@ -221,16 +216,6 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 		auto futures = std::make_tuple(std::async(std::launch::async, func)...);
 		(..., (std::get<i>(futures).wait()));
 	}
-
-	// template <typename... t_sys, std::size_t... i, typename... t_data>
-	// decltype(auto) run_par_impl(std::tuple<t_sys...>& systems, std::index_sequence<i...>, t_data&&... data)
-	//{
-	//	auto futures = std::make_tuple(
-	//		std::async(std::launch::async, [&] {
-	//			ecs::_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
-	//		})...);
-	//	(..., (std::get<i>(futures).wait()));
-	// }
 };
 
 struct my_game : scenes, my_game_state
@@ -345,7 +330,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init() {};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -369,7 +354,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() {};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -387,6 +372,49 @@ struct sys_get_scene0
 	}
 };
 
+struct sys_init
+{
+	decltype(auto) run(auto&& obj)
+	{
+		return obj.init();
+	}
+};
+
+struct sys_deinit
+{
+	decltype(auto) run(auto&& obj)
+	{
+		return obj.deinit();
+	}
+};
+
+template <typename t_scene>
+struct sys_get_scene
+{
+	template <typename g>
+	decltype(auto) run(interface_game<g> igame)
+	{
+		return igame.get_scene<t_scene>();
+	}
+};
+
+template <typename t_world>
+struct sys_get_world
+{
+	template <typename s>
+	decltype(auto) run(interface_scene<s> iscene)
+	{
+		return iscene.get_world<t_world>();
+	}
+};
+
+using namespace ecs::system::op;
+inline constexpr auto sys_scene_0_init_builder
+	= [] { return sys_init {}
+				+ ((sys_get_world<world_t1> {} | [](auto&& _) { std::println("world_t1 init"); })
+				   ^ (sys_get_world<world_t2>() | [](auto&& _) { std::println("world_t2 init"); })
+				   ^ (sys_get_world<world_t3>() | [](auto&& _) { std::println("world_t3 init"); })); };
+
 std::string get_type(auto&& val)
 {
 	if constexpr (std::is_lvalue_reference_v(val))
@@ -398,33 +426,3 @@ std::string get_type(auto&& val)
 		return "rvalue_ref";
 	}
 }
-
-template <typename t>
-struct sys_node
-{
-	t sys;
-
-	constexpr sys_node(t&& sys) : sys(std::forward<t>(sys)) { }
-
-	std::remove_reference_t<t>& operator()()
-	{
-		return sys;
-	}
-};
-
-// {
-// using detail::operator|;
-// auto logic =
-//	 my_game
-//	 | sys_game_init()
-//	 | loop([]<typename g>(interface_game<g> igame){ return igame.running(); },
-//			switch([]<typename g>(interface_game<g> igame){ return igame.get_current_scene_idx(); },
-//				case(0, []<typename g>(interface_game<g> igame){ return igame.get_scene<scene_t1>(); } | sys_group_scene_1() ),
-//				case([]<typename g>(interface_game<g> igame){ return igame.get_current_scene_idx() == 2; },
-//					[]<typename g>(interface_game<g> igame){ return igame.get_scene<scene_t1>(); } | sys_group_scene_1() )
-//	 | sys_game_deinit();
-// }
-
-// seq(sys_game_init)
-// | seq(sys_game_init())
-//

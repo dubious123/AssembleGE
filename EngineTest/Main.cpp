@@ -180,7 +180,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -219,8 +219,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -250,7 +250,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -589,57 +589,35 @@ constexpr void print_type()
 
 int main()
 {
-	// loop<&system_1::f>();
-	auto _scene0 = scene_t1();
-	// auto ss =
-	//	_seq<
-	//		my_scene_system_0,
-	//		my_scene_system_1,
-	//		_par<my_scene_system_0,
-	//			 _seq<
-	//				 my_scene_system_1,
-	//				 my_scene_system_0,
-	//				 _cond<my_cond_system_true, my_scene_system_0, my_scene_system_1>,
-	//				 _cond<my_cond_system_false, my_scene_system_0, my_scene_system_1>>>>();
-	// ss.run(&_scene0);
-
 	auto _game = my_game();
 
-	static_assert(meta::filter_count<std::is_empty, int, double, std::monostate, std::monostate>() == 2);
-	static_assert(std::is_empty_v<sys_game_init>);
-
 	using namespace ecs::system;
-	auto tt = meta::make_filtered_tuple_from_tuple<std::is_empty>(std::tuple<int, double, std::monostate, std::monostate> {});
 	{
 		using namespace ecs::system::op;
-		// print_type<decltype(make_filtered_index_sequence<meta::is_not_empty, sys_game_init,
-		//												 decltype([]<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); } | sys_scene_init {}),
-		//												 decltype([&]() -> decltype(auto) { return _game; })&&>())>();
-		// auto tpl1 = std::tuple<std::monostate, int, int&&> { std::monostate {}, 5, 5 };
-		// auto tpl2 = std::tuple<int, int&&>(std::get<1>(tpl1), std::get<2>(tpl1));
-		// static_assert(std::is_empty_v<std::monostate&&>);
-		// return system_seq<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
-		// meta::make_filtered_tuple_from_tuple<meta::is_not_empty>(std::tuple<std::monostate, int, int&&> { std::monostate {}, 5, 5 });
+
+		auto sys_world_0_builder =
+			[]() {
 
 
-		auto left = sys_game_init {}
-				  + ([]<typename g>(interface_game<g> igame) -> decltype(auto) { return igame.get_scene<scene_t1>(); }
-																	| sys_scene_init {});
-		auto&& right = [&]() -> decltype(auto) { return _game; };
-
-		auto _cond = cond([]() { return true; }, [] { return 1; }, [] { return 2; });
-		std::println("size of cond : {}", sizeof(_cond));
-
-		// print_type<decltype(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::make_tuple(std::forward<decltype(right)>(right))))>();
-
-		//+ cond([](auto&& game) { return game.running; }, []() { std::println("running"); });
-	}
+			};
 
 
-	{
-		using namespace ecs::system::op;
-		auto empty_chain = []() { std::println("hi"); } + []() { std::println("hi2"); } + []() { std::println("hi2"); };
-		std::println("empty_chain size : {}", sizeof(empty_chain));
+		auto sys_scene_0_builder =
+			[] {
+				return ([](auto&& scene) -> decltype(auto) { return scene.get_world<world_t1>(); });
+			};
+
+		auto sys_game
+			= my_game {}
+			+ sys_game_init {}
+			+ (sys_get_scene<scene_t1> {} | sys_scene_0_init_builder())
+			+ loop(sys_game_running {},
+				   match([](auto&& game) { return game.current_scene_idx; },
+						 on<0>(sys_get_scene<scene_t1> {} | sys_scene_0_builder()),
+						 default_to([]() { std::println("not valid scene_idx"); })))
+			+ sys_game_deinit {};
+
+		sys_game.run();
 	}
 
 	{
@@ -686,7 +664,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },
@@ -695,17 +673,6 @@ int main()
 					  ([]() { std::println("2"); } | [&]() { idx--; }),
 					  continue_if([&]() { std::println("idx == {}", idx); } | [&]() { return idx % 2 == 0; }),
 					  break_if([&idx]() { return idx == 1; }));
-	}
-
-
-	static_assert(std::is_integral_v<decltype([]() { return true; })> is_false);
-	{
-		sys_node<my_game&> node(_game);
-		static_assert(std::is_lvalue_reference_v<decltype(node())>);
-	}
-	{
-		sys_node<my_game> node(my_game {});
-		static_assert(std::is_lvalue_reference_v<decltype(node())>);
 	}
 
 	{

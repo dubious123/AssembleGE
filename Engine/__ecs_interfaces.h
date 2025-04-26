@@ -58,11 +58,17 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene) {};
+	interface_scene(t_scene& scene) : scene(scene) { };
 
 	void inline init()
 	{
 		scene.init();
+	}
+
+	template <typename t_world>
+	decltype(auto) get_world()
+	{
+		return scene.get_world<t_world>();
 	}
 };
 
