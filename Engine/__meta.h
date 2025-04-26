@@ -739,4 +739,67 @@ namespace meta
 
 	template <std::size_t offset, std::size_t n>
 	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n> {}));
+
+	template <std::size_t i, typename t>
+	struct _tpl_leaf
+	{
+		t val;
+	};
+
+	template <typename seq, typename... t>
+	struct _tpl_helper;
+
+	template <std::size_t... i, typename... t>
+	struct _tpl_helper<std::index_sequence<i...>, t...> : public _tpl_leaf<i, t>...
+	{
+	};
+
+	template <typename... t>
+	struct _tpl : public _tpl_helper<std::index_sequence_for<t...>, t...>
+	{
+	};
+
+	template <std::size_t i, typename... t>
+	constexpr auto& _get(_tpl<t...>& tpl)
+	{
+		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
+	}
+
+	template <std::size_t i, typename... t>
+	constexpr const auto& _get(const _tpl<t...>& tpl)
+	{
+		return static_cast<const _tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
+	}
+
+	template <std::size_t i, typename... t>
+	constexpr auto&& _get(_tpl<t...>&& tpl)
+	{
+		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&&>(tpl).val;
+	}
+
+	template <typename t>
+	struct _tpl_size;
+
+	template <typename... t>
+	struct _tpl_size<_tpl<t...>> : std::integral_constant<std::size_t, sizeof...(t)>
+	{
+	};
+
+	template <typename t>
+	const inline constinit std::size_t _tpl_size_v = _tpl_size<t>::value;
+
+	template <typename f, typename tpl_t, std::size_t... i>
+	constexpr decltype(auto) _apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)
+	{
+		return std::forward<f>(func)(_get<i>(std::forward<tpl_t>(tpl))...);
+	}
+
+	template <typename f, typename tpl_t>
+	constexpr decltype(auto) _apply(f&& func, tpl_t&& tpl)
+	{
+		return _apply_impl(
+			std::forward<f>(func),
+			std::forward<tpl_t>(tpl),
+			std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>> {});
+	}
 }	 // namespace meta

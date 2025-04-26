@@ -608,7 +608,7 @@ int main()
 	static_assert(meta::filter_count<std::is_empty, int, double, std::monostate, std::monostate>() == 2);
 	static_assert(std::is_empty_v<sys_game_init>);
 
-
+	using namespace ecs::system;
 	auto tt = meta::make_filtered_tuple_from_tuple<std::is_empty>(std::tuple<int, double, std::monostate, std::monostate> {});
 	{
 		using namespace ecs::system::op;
@@ -643,7 +643,7 @@ int main()
 	}
 
 	{
-		auto m = ecs::match(
+		auto m = match(
 			[]() { return 1; },
 			on<0>([]() { std::println("0"); }),
 			on<1>([]() { std::println("1"); }),
@@ -657,7 +657,7 @@ int main()
 	}
 
 	{
-		auto m = ecs::match(
+		auto m = match(
 			[](auto&& _) { return 1; },
 			on<0>([](auto&& _) { std::println("0"); }),
 			on<1>([](auto&& _) { std::println("1"); }),
@@ -666,7 +666,7 @@ int main()
 		_run_sys(m, _game);
 
 		int	 idx = 0;
-		auto m2	 = ecs::match(
+		auto m2	 = match(
 			 [](auto&& _) { return 5; },
 			 on<0>([](auto&& _) { std::println("0"); }),
 			 on<1>([](auto&& _) { std::println("1"); }),
@@ -689,12 +689,12 @@ int main()
 		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
 		// print_type<decltype(tpl2)>();
 
-		auto l = ecs::loop([]() { return true; },
-						   []() { std::println("0"); }
-							   + []() { std::println("1"); },
-						   ([]() { std::println("2"); } | [&]() { idx--; }),
-						   ecs::continue_if([&]() { std::println("idx == {}", idx); } | [&]() { return idx % 2 == 0; }),
-						   ecs::break_if([&idx]() { return idx == 1; }));
+		auto l = loop([]() { return true; },
+					  []() { std::println("0"); }
+						  + []() { std::println("1"); },
+					  ([]() { std::println("2"); } | [&]() { idx--; }),
+					  continue_if([&]() { std::println("idx == {}", idx); } | [&]() { return idx % 2 == 0; }),
+					  break_if([&idx]() { return idx == 1; }));
 	}
 
 

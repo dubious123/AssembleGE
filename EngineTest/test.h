@@ -195,7 +195,7 @@ struct my_game_state
 	bool   running			 = true;
 };
 
-struct par_exec_test : ecs::__parallel_executor_base
+struct par_exec_test : ecs::system::detail::__parallel_executor_base
 {
 	// template <typename... t_sys, typename... t_data>
 	// void run_par(std::tuple<t_sys...>& systems, t_data&&... data)

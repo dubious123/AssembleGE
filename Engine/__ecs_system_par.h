@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-namespace ecs
+namespace ecs::system::detail
 {
 	struct __parallel_executor_base
 	{
@@ -138,10 +138,12 @@ namespace ecs
 			//(..., par_exec.run_par(std::get<i>(systems), std::forward<t_data>(data)...));
 		}
 	};
-}	 // namespace ecs
+}	 // namespace ecs::system::detail
 
 namespace ecs::system::op
 {
+	using namespace ecs::system::detail;
+
 	template <typename t_left, typename t_right>
 	decltype(auto) operator^(t_left&& left, t_right&& right)
 	{

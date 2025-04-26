@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-namespace ecs
+namespace ecs::system::detail
 {
 	template <typename... t_sys>
 	struct system_pipeline
@@ -81,10 +81,12 @@ namespace ecs
 			}
 		}
 	};
-}	 // namespace ecs
+}	 // namespace ecs::system::detail
 
 namespace ecs::system::op
 {
+	using namespace ecs::system::detail;
+
 	template <typename t_left, typename t_right>
 	decltype(auto) operator|(t_left&& left, t_right&& sys)
 	{
