@@ -562,7 +562,7 @@ namespace meta
 	{
 		auto&& args_tpl = std::forward_as_tuple(std::forward<t>(args)...);
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
-			return filtered_tuple_t<pred, t...>(std::get<i>(args_tpl)...);
+			return filtered_tuple_t<pred, t...>(std::forward<std::tuple_element_t<i, std::tuple<t&&...>>>(std::get<i>(args_tpl))...);
 		}(make_filtered_index_sequence<pred, t...>());
 	}
 

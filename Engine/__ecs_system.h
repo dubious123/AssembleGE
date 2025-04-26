@@ -136,11 +136,9 @@ namespace ecs
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
 		};
 
 
@@ -575,7 +573,7 @@ namespace ecs
 		decltype(sys_select)				 _sys_select;
 		detail::_tpl<decltype(sys_cases)...> _sys_cases;
 
-		constexpr _switch() { };
+		constexpr _switch() {};
 
 		template <typename t_data>
 		decltype(auto) run(t_data&& data)
@@ -734,14 +732,12 @@ namespace ecs
 	template <typename... t_sys>
 	struct system_seq
 	{
-		// 0 1 0 1 0 0 1
-		// 1 3 6
-		// 1 -> 0, 3 -> 1, 6 -> 2
+		static const constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
+
 		using t_all_sys_tpl		  = std::tuple<t_sys...>;
 		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
-		t_sys_not_empty_tpl systems;
 
-		static constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
+		no_unique_addr t_sys_not_empty_tpl systems;
 
 		template <typename... t_sys_not_empty>
 		constexpr system_seq(t_sys_not_empty&&... sys)
@@ -755,6 +751,9 @@ namespace ecs
 		{
 		}
 
+		constexpr system_seq() requires(std::is_empty_v<t_sys> && ...)
+		= default;
+
 		// template <typename... t_sys_not_empty, typename t_sys_r>
 		// constexpr system_seq(std::tuple<t_sys_not_empty...>&& tpl, t_sys_r&& sys)
 		//	: systems(std::tuple_cat(std::forward<std::tuple<t_sys_not_empty...>>(tpl), std::make_tuple(std::forward<t_sys_r>(sys))))
@@ -764,7 +763,6 @@ namespace ecs
 		template <typename... t_data>
 		decltype(auto) run(t_data&&... data)
 		{
-
 			if constexpr (sizeof...(t_data) == 0 and not std::is_same_v<decltype(run_one_impl<0>()), void>)
 			{
 				return run_impl(meta::offset_sequence<1, std::tuple_size_v<t_all_sys_tpl> - 1> {}, run_one_impl<0>());
@@ -779,7 +777,6 @@ namespace ecs
 		template <std::size_t... i, typename... t_data>
 		decltype(auto) run_impl(std::index_sequence<i...>, t_data&&... data)
 		{
-			//(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...), ...);
 			(run_one_impl<i>(std::forward<t_data>(data)...), ...);
 		}
 
@@ -801,15 +798,27 @@ namespace ecs
 	template <typename... t_sys>
 	struct system_pipeline
 	{
-		std::tuple<t_sys...> systems;
+		static const constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
 
-		constexpr system_pipeline(t_sys&&... sys)
-			: systems(std::forward<t_sys>(sys)...)
+		using t_all_sys_tpl		  = std::tuple<t_sys...>;
+		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+
+		no_unique_addr t_sys_not_empty_tpl systems;
+
+		template <typename... t_sys_not_empty>
+		constexpr system_pipeline(t_sys_not_empty&&... sys)
+			: systems(std::forward<t_sys_not_empty>(sys)...)
 		{
 		}
 
-		constexpr explicit system_pipeline(std::tuple<t_sys...>&& tpl)
-			: systems(std::forward<std::tuple<t_sys...>>(tpl)) { }
+		template <typename... t_sys_not_empty>
+		constexpr system_pipeline(std::tuple<t_sys_not_empty...>&& tpl)
+			: systems(std::forward<std::tuple<t_sys_not_empty...>>(tpl))
+		{
+		}
+
+		constexpr system_pipeline() requires(std::is_empty_v<t_sys> && ...)
+		= default;
 
 		template <typename... t_data>
 		decltype(auto) run(t_data&&... data)
@@ -822,7 +831,7 @@ namespace ecs
 		template <std::size_t i, typename... t_data>
 		decltype(auto) run_impl(t_data&&... data)
 		{
-			if constexpr (i == std::tuple_size_v<decltype(systems)>)
+			if constexpr (i == std::tuple_size_v<t_all_sys_tpl>)
 			{
 				if constexpr (sizeof...(data) == 1)
 				{
@@ -831,16 +840,37 @@ namespace ecs
 				else
 				{
 					// todo
+					return;
 				}
-			}
-			else if constexpr (not std::is_same_v<decltype(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...)), void>)
-			{
-				return run_impl<i + 1>(_run_sys(std::get<i>(systems), std::forward<t_data>(data)...));
 			}
 			else
 			{
-				_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
-				return run_impl<i + 1>();
+				using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
+
+				if constexpr (not std::is_empty_v<t_sys_now>)
+				{
+					if constexpr (not std::is_same_v<decltype(_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...)), void>)
+					{
+						return run_impl<i + 1>(_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...));
+					}
+					else
+					{
+						_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...);
+						return run_impl<i + 1>();
+					}
+				}
+				else
+				{
+					if constexpr (not std::is_same_v<decltype(_run_sys(t_sys_now {}, std::forward<t_data>(data)...)), void>)
+					{
+						return run_impl<i + 1>(_run_sys(t_sys_now {}, std::forward<t_data>(data)...));
+					}
+					else
+					{
+						_run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+						return run_impl<i + 1>();
+					}
+				}
 			}
 		}
 	};
@@ -886,15 +916,29 @@ namespace ecs
 	template <typename... t_sys>
 	struct system_par
 	{
-		std::tuple<t_sys...> systems;
+		static const constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
 
-		constexpr system_par(t_sys&&... sys)
-			: systems(std::forward<t_sys>(sys)...)
+		using t_all_sys_tpl		  = std::tuple<t_sys...>;
+		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+
+		no_unique_addr t_sys_not_empty_tpl systems;
+
+		// std::tuple<t_sys...> systems;
+
+		template <typename... t_sys_not_empty>
+		constexpr system_par(t_sys_not_empty&&... sys)
+			: systems(std::forward<t_sys_not_empty>(sys)...)
 		{
 		}
 
-		constexpr explicit system_par(std::tuple<t_sys...>&& tpl)
-			: systems(std::forward<std::tuple<t_sys...>>(tpl)) { }
+		template <typename... t_sys_not_empty>
+		constexpr system_par(std::tuple<t_sys_not_empty...>&& tpl)
+			: systems(std::forward<std::tuple<t_sys_not_empty...>>(tpl))
+		{
+		}
+
+		constexpr system_par() requires(std::is_empty_v<t_sys> && ...)
+		= default;
 
 		template <typename... t_data>
 		decltype(auto) run(t_data&&... data)
@@ -935,7 +979,15 @@ namespace ecs
 		{
 			auto futures = std::make_tuple(
 				std::async(std::launch::async, [&] {
-					_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
+					using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
+					if constexpr (not std::is_empty_v<t_sys_now>)
+					{
+						_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...);
+					}
+					else
+					{
+						_run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+					}
 				})...);
 			(..., (std::get<i>(futures).wait()));
 		}
@@ -943,7 +995,19 @@ namespace ecs
 		template <typename t_par_exec, std::size_t... i, typename... t_data>
 		decltype(auto) run_with_par_exec(t_par_exec&& par_exec, std::index_sequence<i...>, t_data&&... data)
 		{
-			par_exec.run_par(systems, std::forward<t_data>(data)...);
+			return par_exec.run_par(
+				([&] {
+					using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
+					if constexpr (not std::is_empty_v<t_sys_now>)
+					{
+						_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_data>(data)...);
+					}
+					else
+					{
+						_run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+					}
+				})...);
+			// par_exec.run_par(systems, std::forward<t_data>(data)...);
 			//(..., par_exec.run_par(std::get<i>(systems), std::forward<t_data>(data)...));
 		}
 	};
@@ -954,11 +1018,14 @@ namespace ecs
 	template <typename t_sys_cond, typename t_sys_then>
 	struct system_cond<t_sys_cond, t_sys_then, void>
 	{
-		t_sys_cond sys_cond;
-		t_sys_then sys_then;
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
 
 		constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
 			: sys_cond(std::forward<t_sys_cond>(sys_cond)), sys_then(std::forward<t_sys_then>(sys_then)) { }
+
+		constexpr system_cond() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then>)
+		= default;
 
 		template <typename... t_data>
 		void run(t_data&&... data)
@@ -973,14 +1040,17 @@ namespace ecs
 	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
 	struct system_cond
 	{
-		t_sys_cond sys_cond;
-		t_sys_then sys_then;
-		t_sys_else sys_else;
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
+		no_unique_addr t_sys_else sys_else;
 
 		constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
 			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
 			  sys_then(std::forward<t_sys_then>(sys_then)),
 			  sys_else(std::forward<t_sys_else>(sys_else)) { }
+
+		constexpr system_cond() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then> && std::is_empty_v<t_sys_else>)
+		= default;
 
 		template <typename... t_data>
 		void run(t_data&&... data)
@@ -1016,36 +1086,33 @@ namespace ecs
 	template <typename t_sys_cond, typename t_sys_then>
 	struct system_case
 	{
-		t_sys_cond sys_cond;
-		t_sys_then sys_then;
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
 
 		constexpr system_case(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
 			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
 			  sys_then(std::forward<t_sys_then>(sys_then)) { }
 
+		constexpr system_case() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then>)
+		= default;
+
 		template <typename... t_key>
 		bool matches(t_key&&... key)
 		{
-			if constexpr (
-				std::is_same_v<std::decay_t<decltype(_run_sys(sys_cond))>, std::decay_t<t_sys_cond>>
-				&& (sizeof...(key) == 1))
-			{
-				return std::get<0>(std::forward_as_tuple(std::forward<t_key>(key)...)) == sys_cond;
-			}
-			else
-			{
-				return _run_sys(sys_cond, std::forward<t_key>(key)...);
-			}
+			return _run_sys(sys_cond, std::forward<t_key>(key)...);
 		}
 	};
 
 	template <typename t_sys>
 	struct system_case_default
 	{
-		t_sys sys;
+		no_unique_addr t_sys sys;
 
 		constexpr system_case_default(t_sys&& sys)
 			: sys(std::forward<t_sys>(sys)) { }
+
+		constexpr system_case_default() requires(std::is_empty_v<t_sys>)
+		= default;
 
 		template <typename... t_data>
 		void run(t_data&&... data)
@@ -1100,16 +1167,30 @@ namespace ecs
 	// requires all_cases_valid<t_sys_case...> && default_is_last<t_sys_case...>
 	struct system_match
 	{
-		t_sys_selector			  sys_selector;
-		std::tuple<t_sys_case...> sys_cases;
+		static const constexpr std::array<std::size_t, sizeof...(t_sys_case)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys_case...>();
 
-		constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_case...>&& sys_cases)
-			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-			  sys_cases(std::forward<std::tuple<t_sys_case...>>(sys_cases)) { }
+		using t_all_sys_tpl		  = std::tuple<t_sys_case...>;
+		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
 
-		constexpr system_match(t_sys_selector&& sys_selector, t_sys_case&&... sys)
+		no_unique_addr t_sys_selector	   sys_selector;
+		no_unique_addr t_sys_not_empty_tpl sys_cases;
+
+		template <typename... t_sys_case_not_empty>
+		constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_case_not_empty...>&& sys_cases)
 			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-			  sys_cases(std::forward<t_sys_case>(sys)...) { }
+			  sys_cases(std::forward<std::tuple<t_sys_case_not_empty...>>(sys_cases))
+		{
+		}
+
+		template <typename... t_sys_case_not_empty>
+		constexpr system_match(t_sys_selector&& sys_selector, t_sys_case_not_empty&&... sys_case)
+			: sys_selector(std::forward<t_sys_selector>(sys_selector)),
+			  sys_cases(std::forward<t_sys_case_not_empty>(sys_case)...)
+		{
+		}
+
+		constexpr system_match() requires(std::is_empty_v<t_sys_case> && ...)
+		= default;
 
 		template <typename... t_data>
 		void run(t_data&&... data)
@@ -1121,24 +1202,46 @@ namespace ecs
 		template <std::size_t i = 0, typename t_key, typename... t_data>
 		void run_impl(t_key&& key, t_data&&... data)
 		{
-			if constexpr (i < std::tuple_size_v<decltype(sys_cases)>)
+			if constexpr (i < std::tuple_size_v<t_all_sys_tpl>)
 			{
-				auto& current = std::get<i>(sys_cases);
+				using t_sys_case_now = std::tuple_element_t<i, t_all_sys_tpl>;
 
-				if constexpr (is_system_case_v<std::decay_t<decltype(current)>>)
+				if constexpr (not std::is_empty_v<t_sys_case_now>)
 				{
-					if (current.matches(std::forward<t_key>(key)))
+					auto& current = std::get<not_empty_sys_idx_arr[i]>(sys_cases);
+					if constexpr (is_system_case_v<std::decay_t<t_sys_case_now>>)
 					{
-						_run_sys(current.sys_then, std::forward<t_data>(data)...);
+						if (current.matches(std::forward<t_key>(key)))
+						{
+							_run_sys(current.sys_then, std::forward<t_data>(data)...);
+						}
+						else
+						{
+							run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
+						}
 					}
 					else
 					{
-						run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
+						_run_sys(current.sys, std::forward<t_data>(data)...);
 					}
 				}
 				else
 				{
-					_run_sys(current.sys, std::forward<t_data>(data)...);
+					if constexpr (is_system_case_v<std::decay_t<t_sys_case_now>>)
+					{
+						if (t_sys_case_now {}.matches(std::forward<t_key>(key)))
+						{
+							_run_sys(decltype(t_sys_case_now {}.sys_then) {}, std::forward<t_data>(data)...);
+						}
+						else
+						{
+							run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
+						}
+					}
+					else
+					{
+						_run_sys(decltype(t_sys_case_now {}.sys) {}, std::forward<t_data>(data)...);
+					}
 				}
 			}
 		}
@@ -1149,7 +1252,7 @@ namespace ecs
 	{
 		return system_match<t_sys_selector, t_sys_case...>(
 			std::forward<t_sys_selector>(sys_selector),
-			std::forward<t_sys_case>(sys_case)...);
+			meta::make_filtered_tuple<meta::is_not_empty>(std::forward<t_sys_case>(sys_case)...));
 	}
 
 	template <typename t_sys_cond, typename t_sys_then>
@@ -1157,6 +1260,15 @@ namespace ecs
 	{
 		return system_case<t_sys_cond, t_sys_then>(
 			std::forward<t_sys_cond>(sys_cond),
+			std::forward<t_sys_then>(sys_then));
+	}
+
+	template <auto integral, typename t_sys_then>
+	constexpr decltype(auto) on(t_sys_then&& sys_then)
+	{
+		using t_sys_cond = decltype([](auto _) { return integral == _; });
+		return system_case<t_sys_cond, t_sys_then>(
+			t_sys_cond {},
 			std::forward<t_sys_then>(sys_then));
 	}
 
@@ -1169,9 +1281,11 @@ namespace ecs
 	template <typename t_sys_cond>
 	struct system_break_if
 	{
-		t_sys_cond sys_cond;
+		no_unique_addr t_sys_cond sys_cond;
 
 		constexpr system_break_if(t_sys_cond&& sys_cond) : sys_cond(std::forward<t_sys_cond>(sys_cond)) { }
+
+		constexpr system_break_if() = default;
 
 		template <typename... t_data>
 		constexpr bool operator()(t_data&&... data)
@@ -1183,9 +1297,11 @@ namespace ecs
 	template <typename t_sys_cond>
 	struct system_continue_if
 	{
-		t_sys_cond sys_cond;
+		no_unique_addr t_sys_cond sys_cond;
 
 		constexpr system_continue_if(t_sys_cond&& sys_cond) : sys_cond(std::forward<t_sys_cond>(sys_cond)) { }
+
+		constexpr system_continue_if() = default;
 
 		template <typename... t_data>
 		constexpr bool operator()(t_data&&... data)
@@ -1209,38 +1325,77 @@ namespace ecs
 	template <typename t>
 	constexpr bool is_break_or_continue = is_break_if<std::decay_t<t>> || is_continue_if<std::decay_t<t>>;
 
-#define __SYS_LOOP_IMPL(N)                                                               \
-	if constexpr (N < std::tuple_size_v<decltype(systems)>)                              \
-	{                                                                                    \
-		if constexpr (is_break_if<std::decay_t<decltype(std::get<N>(systems))>>)         \
-		{                                                                                \
-			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
-				break;                                                                   \
-		}                                                                                \
-		else if constexpr (is_continue_if<std::decay_t<decltype(std::get<N>(systems))>>) \
-		{                                                                                \
-			if (_run_sys(std::get<N>(systems), std::forward<t_data>(data)...))           \
-				continue;                                                                \
-		}                                                                                \
-		else                                                                             \
-		{                                                                                \
-			_run_sys(std::get<N>(systems), std::forward<t_data>(data)...);               \
-		}                                                                                \
+#define __SYS_LOOP_IMPL(N)                                                                                \
+	if constexpr (N < std::tuple_size_v<t_all_sys_tpl>)                                                   \
+	{                                                                                                     \
+		using t_sys_now = std::tuple_element_t<N, t_all_sys_tpl>;                                         \
+		if constexpr (is_break_if<std::decay_t<t_sys_now>>)                                               \
+		{                                                                                                 \
+			if constexpr (not std::is_empty_v<t_sys_now>)                                                 \
+			{                                                                                             \
+				if (_run_sys(std::get<not_empty_sys_idx_arr[N]>(systems), std::forward<t_data>(data)...)) \
+					break;                                                                                \
+			}                                                                                             \
+			else                                                                                          \
+			{                                                                                             \
+				if (_run_sys(t_sys_now {}, std::forward<t_data>(data)...))                                \
+					break;                                                                                \
+			}                                                                                             \
+		}                                                                                                 \
+		else if constexpr (is_continue_if<std::decay_t<t_sys_now>>)                                       \
+		{                                                                                                 \
+			if constexpr (not std::is_empty_v<t_sys_now>)                                                 \
+			{                                                                                             \
+				if (_run_sys(std::get<not_empty_sys_idx_arr[N]>(systems), std::forward<t_data>(data)...)) \
+					continue;                                                                             \
+			}                                                                                             \
+			else                                                                                          \
+			{                                                                                             \
+				if (_run_sys(t_sys_now {}, std::forward<t_data>(data)...))                                \
+					continue;                                                                             \
+			}                                                                                             \
+		}                                                                                                 \
+		else                                                                                              \
+		{                                                                                                 \
+			_run_sys(std::get<N>(systems), std::forward<t_data>(data)...);                                \
+			if constexpr (not std::is_empty_v<t_sys_now>)                                                 \
+			{                                                                                             \
+				_run_sys(std::get<not_empty_sys_idx_arr[N]>(systems), std::forward<t_data>(data)...);     \
+			}                                                                                             \
+			else                                                                                          \
+			{                                                                                             \
+				_run_sys(t_sys_now {}, std::forward<t_data>(data)...);                                    \
+			}                                                                                             \
+		}                                                                                                 \
 	}
 
 	template <typename t_sys_cond, typename... t_sys>
 	struct system_loop
 	{
-		t_sys_cond			 sys_cond;
-		std::tuple<t_sys...> systems;
+		static const constexpr std::array<std::size_t, sizeof...(t_sys)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys...>();
 
-		constexpr system_loop(t_sys_cond&& sys_cond, std::tuple<t_sys...>&& systems)
-			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
-			  systems(std::forward<std::tuple<t_sys...>>(systems)) { }
+		using t_all_sys_tpl		  = std::tuple<t_sys...>;
+		using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
 
-		constexpr system_loop(t_sys_cond&& sys_cond, t_sys&&... sys)
+		no_unique_addr t_sys_cond sys_cond;
+
+		no_unique_addr t_sys_not_empty_tpl systems;
+
+		template <typename... t_sys_not_empty>
+		constexpr system_loop(t_sys_cond&& sys_cond, std::tuple<t_sys_not_empty...>&& systems)
 			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
-			  systems(std::forward<t_sys>(sys)...) { }
+			  systems(std::forward<std::tuple<t_sys_not_empty...>>(systems))
+		{
+		}
+
+		template <typename... t_sys_not_empty>
+		constexpr system_loop(t_sys_cond&& sys_cond, t_sys_not_empty&&... sys)
+			: sys_cond(std::forward<t_sys_cond>(sys_cond)),
+			  systems(std::forward<t_sys>(sys)...)
+		{
+		}
+
+		constexpr system_loop() = default;
 
 		template <typename... t_data>
 		void run(t_data&&... data)
@@ -1278,7 +1433,7 @@ namespace ecs
 	{
 		return system_loop<t_sys_cond, t_sys...>(
 			std::forward<t_sys_cond>(sys_cond),
-			std::forward<t_sys>(sys)...);
+			meta::make_filtered_tuple<meta::is_not_empty>(std::forward<t_sys>(sys)...));
 	}
 }	 // namespace ecs
 
@@ -1339,7 +1494,29 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator^");
-		return system_par<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
+
+		if constexpr (std::is_empty_v<t_left>)
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_par<t_left, t_right>();
+			}
+			else
+			{
+				return system_par<t_left, t_right>(std::forward<t_right>(right));
+			}
+		}
+		else
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_par<t_left, t_right>(std::forward<t_left>(left));
+			}
+			else
+			{
+				return system_par<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(right));
+			}
+		}
 	}
 
 	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
@@ -1348,7 +1525,14 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator^");
-		return system_par<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		if constexpr (std::is_empty_v<t_right>)
+		{
+			return system_par<t_sys..., t_right>(std::forward<decltype(left.systems)>(left.systems));
+		}
+		else
+		{
+			return system_par<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		}
 	}
 
 	template <typename t_left, typename t_right>
@@ -1356,7 +1540,29 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_left> and not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator|");
-		return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
+
+		if constexpr (std::is_empty_v<t_left>)
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_pipeline<t_left, t_right>();
+			}
+			else
+			{
+				return system_pipeline<t_left, t_right>(std::forward<t_right>(sys));
+			}
+		}
+		else
+		{
+			if constexpr (std::is_empty_v<t_right>)
+			{
+				return system_pipeline<t_left, t_right>(std::forward<t_left>(left));
+			}
+			else
+			{
+				return system_pipeline<t_left, t_right>(std::forward<t_left>(left), std::forward<t_right>(sys));
+			}
+		}
 	}
 
 	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_right>
@@ -1365,7 +1571,15 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_right>,
 					  "❌ break_if / continue_if cannot be used with operator|");
-		return system_pipeline<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+
+		if constexpr (std::is_empty_v<t_right>)
+		{
+			return system_pipeline<t_sys..., t_right>(std::forward<decltype(left.systems)>(left.systems));
+		}
+		else
+		{
+			return system_pipeline<t_sys..., t_right>(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::forward_as_tuple(std::forward<t_right>(right))));
+		}
 	}
 
 	template <typename... t_sys, template <typename...> typename t_sys_group, typename t_left>
@@ -1374,7 +1588,15 @@ namespace ecs::system::op
 	{
 		static_assert(not is_break_or_continue<t_left>,
 					  "❌ break_if / continue_if cannot be used with operator|");
-		return system_pipeline<t_left, t_sys...>(std::tuple_cat(std::forward_as_tuple(std::forward<t_left>(left)), std::forward<decltype(right.systems)>(right.systems)));
+
+		if constexpr (std::is_empty_v<t_left>)
+		{
+			return system_pipeline<t_left, t_sys...>(std::forward<decltype(right.systems)>(right.systems));
+		}
+		else
+		{
+			return system_pipeline<t_left, t_sys...>(std::tuple_cat(std::forward_as_tuple(std::forward<t_left>(left)), std::forward<decltype(right.systems)>(right.systems)));
+		}
 	}
 
 	template <typename... t_sys_l, template <typename...> typename t_sys_group_l, typename... t_sys_r, template <typename...> typename t_sys_group_r>

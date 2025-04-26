@@ -197,10 +197,16 @@ struct my_game_state
 
 struct par_exec_test : ecs::__parallel_executor_base
 {
-	template <typename... t_sys, typename... t_data>
-	void run_par(std::tuple<t_sys...>& systems, t_data&&... data)
+	// template <typename... t_sys, typename... t_data>
+	// void run_par(std::tuple<t_sys...>& systems, t_data&&... data)
+	//{
+	//	return run_par_impl(systems, std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+	// }
+
+	template <typename... t_func>
+	decltype(auto) run_par(t_func&&... func)
 	{
-		return run_par_impl(systems, std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+		return run_par_impl(std::index_sequence_for<t_func...> {}, std::forward<t_func>(func)...);
 	}
 
 	void wait() const
@@ -209,15 +215,22 @@ struct par_exec_test : ecs::__parallel_executor_base
 	}
 
   private:
-	template <typename... t_sys, std::size_t... i, typename... t_data>
-	decltype(auto) run_par_impl(std::tuple<t_sys...>& systems, std::index_sequence<i...>, t_data&&... data)
+	template <typename std::size_t... i, typename... t_func>
+	decltype(auto) run_par_impl(std::index_sequence<i...>, t_func&&... func)
 	{
-		auto futures = std::make_tuple(
-			std::async(std::launch::async, [&] {
-				ecs::_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
-			})...);
+		auto futures = std::make_tuple(std::async(std::launch::async, func)...);
 		(..., (std::get<i>(futures).wait()));
 	}
+
+	// template <typename... t_sys, std::size_t... i, typename... t_data>
+	// decltype(auto) run_par_impl(std::tuple<t_sys...>& systems, std::index_sequence<i...>, t_data&&... data)
+	//{
+	//	auto futures = std::make_tuple(
+	//		std::async(std::launch::async, [&] {
+	//			ecs::_run_sys(std::get<i>(systems), std::forward<t_data>(data)...);
+	//		})...);
+	//	(..., (std::get<i>(futures).wait()));
+	// }
 };
 
 struct my_game : scenes, my_game_state

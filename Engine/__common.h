@@ -10,3 +10,9 @@
 #define is_nullptr == nullptr
 
 #define is_not_nullptr != nullptr
+
+#ifdef _MSC_VER
+	#define no_unique_addr [[msvc::no_unique_address]]
+#else
+	#define no_unique_addr [[no_unique_address]]
+#endif

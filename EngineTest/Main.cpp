@@ -180,7 +180,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -219,8 +219,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -250,7 +250,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -581,10 +581,6 @@ struct interface_game2
 	interface_game2(t_game&& game) : game(std::forward<t_game>(game)) { }
 };
 
-struct empty_struct : std::monostate
-{
-};
-
 template <typename T>
 constexpr void print_type()
 {
@@ -631,6 +627,9 @@ int main()
 																	| sys_scene_init {});
 		auto&& right = [&]() -> decltype(auto) { return _game; };
 
+		auto _cond = cond([]() { return true; }, [] { return 1; }, [] { return 2; });
+		std::println("size of cond : {}", sizeof(_cond));
+
 		// print_type<decltype(std::tuple_cat(std::forward<decltype(left.systems)>(left.systems), std::make_tuple(std::forward<decltype(right)>(right))))>();
 
 		//+ cond([](auto&& game) { return game.running; }, []() { std::println("running"); });
@@ -641,36 +640,61 @@ int main()
 		using namespace ecs::system::op;
 		auto empty_chain = []() { std::println("hi"); } + []() { std::println("hi2"); } + []() { std::println("hi2"); };
 		std::println("empty_chain size : {}", sizeof(empty_chain));
-		std::println("empty tuple size : {}", sizeof(std::tuple<std::monostate, std::monostate, std::monostate> {}));
-		std::println("empty struct ebo size : {}", sizeof(empty_struct {}));
 	}
 
 	{
 		auto m = ecs::match(
 			[]() { return 1; },
-			on(0, []() { std::println("0"); }),
-			on(1, []() { std::println("1"); }),
-			on(2, []() { std::println("2"); }),
+			on<0>([]() { std::println("0"); }),
+			on<1>([]() { std::println("1"); }),
+			on<2>([]() { std::println("2"); }),
 			default_to([]() { std::println("default"); }));
 		m.run();
+
+		std::println("on_size : {}", sizeof(on([](auto i) { return 4 == i; }, []() { std::println("0"); })));
+		std::println("default_size : {}", sizeof(default_to([]() { std::println("default"); })));
+		std::println("match_size : {}", sizeof(m));
 	}
 
 	{
 		auto m = ecs::match(
 			[](auto&& _) { return 1; },
-			on(0, [](auto&& _) { std::println("0"); }),
-			on(1, [](auto&& _) { std::println("1"); }),
-			on(2, [](auto&& _) { std::println("2"); }),
+			on<0>([](auto&& _) { std::println("0"); }),
+			on<1>([](auto&& _) { std::println("1"); }),
+			on<2>([](auto&& _) { std::println("2"); }),
 			default_to([](auto&& _) { std::println("default"); }));
 		_run_sys(m, _game);
 
-		auto m2 = ecs::match(
-			[](auto&& _) { return 5; },
-			on(0, [](auto&& _) { std::println("0"); }),
-			on(1, [](auto&& _) { std::println("1"); }),
-			on(2, [](auto&& _) { std::println("2"); }),
-			default_to([](auto&& _) { std::println("default"); }));
+		int	 idx = 0;
+		auto m2	 = ecs::match(
+			 [](auto&& _) { return 5; },
+			 on<0>([](auto&& _) { std::println("0"); }),
+			 on<1>([](auto&& _) { std::println("1"); }),
+			 on<2>([](auto&& _) { std::println("2"); }),
+			 on<3>([&idx](auto&& _) { ++idx; }),
+			 default_to([](auto&& _) { std::println("default"); }));
 		_run_sys(m2, _game);
+		std::println("match_size : {}", sizeof(m2));
+	}
+
+	{
+		using namespace ecs::system::op;
+		auto idx   = 15;
+		auto ll	   = []() { std::println("2"); } | [&]() { idx--; };
+		auto tpl_0 = meta::make_filtered_tuple<meta::is_not_empty>(on<0>([](auto&& _) { std::println("0"); }),
+																   on<1>([](auto&& _) { std::println("1"); }),
+																   on<2>([](auto&& _) { std::println("2"); }));
+		// print_type<decltype(tpl_0)>();
+		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
+		// print_type<decltype(tpl2)>();
+
+		auto l = ecs::loop([]() { return true; },
+						   []() { std::println("0"); }
+							   + []() { std::println("1"); },
+						   ([]() { std::println("2"); } | [&]() { idx--; }),
+						   ecs::continue_if([&]() { std::println("idx == {}", idx); } | [&]() { return idx % 2 == 0; }),
+						   ecs::break_if([&idx]() { return idx == 1; }));
 	}
 
 
@@ -709,18 +733,19 @@ int main()
 					std::println("3 running on {}", std::this_thread::get_id());}
 				^ [](){ 
 					std::println("4 running on {}", std::this_thread::get_id()); }
-				^ecs::loop([]() { return true; },
-							 []() { std::println("0"); } 
-								+ []() { std::println("1"); } 
-								+ ([]() { std::println("2"); } | [&](){idx--;}),
-							 ecs::continue_if([&](){std::println("idx == {}", idx);} | [&](){return idx % 2 == 0; }),
-							 ecs::break_if([&idx]() { return idx == 1; }))
+				//^ecs::loop([]() { return true; },
+				//			 []() { std::println("0"); } 
+				//				+ []() { std::println("1"); } 
+				//				+ ([]() { std::println("2"); } | [&](){idx--;}),
+				//			 ecs::continue_if([&](){std::println("idx == {}", idx);} | [&](){return idx % 2 == 0; }),
+				//			 ecs::break_if([&idx]() { return idx == 1; }))
 				)
 			+ sys_game_init{} ;
 
 			
 
 		sys_group.run(_game);
+		std::println("size : {}", sizeof(sys_group));
 		std::println("====================================");
 	}
 	{
@@ -747,6 +772,7 @@ int main()
 			+ sys_game_deinit{};
 
 		sys_group.run(_game);
+		std::println("size : {}", sizeof(sys_group));
 		std::println("====================================");
 	}
 
@@ -775,6 +801,7 @@ int main()
 			
 			;
 		 sys_group.run();
+		 std::println("size : {}", sizeof(sys_group));
 		 std::println("====================================");
 	}
 
@@ -821,6 +848,8 @@ int main()
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
 		sys_group.run();
+		std::println("size : {}", sizeof(sys_group));
+		std::println("real size : {}", sizeof(sys_group) - sizeof(my_game));
 		std::println("====================================");
 	}
 	{
@@ -852,6 +881,8 @@ int main()
 				//| [](){std::println("empty");}
 				//| sys_game_deinit{};
 		sys_group.run();
+		std::println("size : {}", sizeof(sys_group));
+		std::println("real size : {}", sizeof(sys_group) - sizeof(my_game));
 		std::println("====================================");
 		//sys_group.run(my_game{});
 	}
