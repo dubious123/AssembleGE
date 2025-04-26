@@ -28,6 +28,12 @@
     <ClInclude Include="__data_structures.h" />
     <ClInclude Include="__ecs.h" />
     <ClInclude Include="__ecs_interfaces.h" />
+    <ClInclude Include="__ecs_system_cond.h" />
+    <ClInclude Include="__ecs_system_loop.h" />
+    <ClInclude Include="__ecs_system_match.h" />
+    <ClInclude Include="__ecs_system_par.h" />
+    <ClInclude Include="__ecs_system_pipeline.h" />
+    <ClInclude Include="__ecs_system_seq.h" />
     <ClInclude Include="__engine.h" />
     <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__ecs_common.h" />
