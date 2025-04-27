@@ -58,7 +58,7 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene) { };
+	interface_scene(t_scene& scene) : scene(scene) {};
 
 	void inline init()
 	{

@@ -382,3 +382,23 @@ namespace data_structure
 	};
 }	 // namespace data_structure
 #endif
+
+namespace data_structure
+{
+	template <typename t_data>
+	struct sparse_vector
+	{
+		struct bucket
+		{
+			union
+			{
+				t_data		data;
+				std::size_t next_hole;
+			};
+		};
+
+		std::size_t hole_idx = -1;
+
+		data_structure::vector<bucket> vec;
+	};
+}	 // namespace data_structure

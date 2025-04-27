@@ -180,7 +180,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -219,8 +219,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -250,7 +250,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -607,15 +607,14 @@ int main()
 				return ([](auto&& scene) -> decltype(auto) { return scene.get_world<world_t1>(); });
 			};
 
-		auto sys_game
-			= my_game {}
-			+ sys_game_init {}
-			+ (sys_get_scene<scene_t1> {} | sys_scene_0_init_builder())
-			+ loop(sys_game_running {},
-				   match([](auto&& game) { return game.current_scene_idx; },
-						 on<0>(sys_get_scene<scene_t1> {} | sys_scene_0_builder()),
-						 default_to([]() { std::println("not valid scene_idx"); })))
-			+ sys_game_deinit {};
+		auto sys_game = my_game {}
+					  + sys_game_init {}
+					  + (sys_get_scene<scene_t1> {} | sys_scene_0_init_builder())
+					  + loop(sys_game_running {},
+							 match([](auto&& game) { return game.current_scene_idx; },
+								   on<0>(sys_get_scene<scene_t1> {} | sys_scene_0_builder()),
+								   default_to([]() { std::println("not valid scene_idx"); })))
+					  + sys_game_deinit {};
 
 		sys_game.run();
 	}
@@ -664,7 +663,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },

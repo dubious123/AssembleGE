@@ -4,6 +4,7 @@
 #include "../Engine/__data_structures.h"
 #include "../Engine/__meta.h"
 #include "../Engine/__ecs_system.h"
+#include "../Engine/__ecs_default_entity_storage.h"
 COMPONENT_BEGIN(transform)
 __SERIALIZE_FIELD(float3, position, 0, 0, 0)
 __SERIALIZE_FIELD(float3, scale, 1, 1, 1)
@@ -330,7 +331,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -354,7 +355,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit() {};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -409,11 +410,10 @@ struct sys_get_world
 };
 
 using namespace ecs::system::op;
-inline constexpr auto sys_scene_0_init_builder
-	= [] { return sys_init {}
-				+ ((sys_get_world<world_t1> {} | [](auto&& _) { std::println("world_t1 init"); })
-				   ^ (sys_get_world<world_t2>() | [](auto&& _) { std::println("world_t2 init"); })
-				   ^ (sys_get_world<world_t3>() | [](auto&& _) { std::println("world_t3 init"); })); };
+inline constexpr auto sys_scene_0_init_builder = [] { return sys_init {}
+														   + ((sys_get_world<world_t1> {} | [](auto&& _) { std::println("world_t1 init"); })
+															  ^ (sys_get_world<world_t2>() | [](auto&& _) { std::println("world_t2 init"); })
+															  ^ (sys_get_world<world_t3>() | [](auto&& _) { std::println("world_t3 init"); })); };
 
 std::string get_type(auto&& val)
 {
