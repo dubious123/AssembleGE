@@ -398,7 +398,45 @@ namespace data_structure
 		};
 
 		std::size_t hole_idx = -1;
+		std::size_t hole_count;
 
 		data_structure::vector<bucket> vec;
+
+		std::size_t size() const noexcept
+		{
+			return vec.size() - hole_count;
+		}
+
+		template <typename... t>
+		void emplace_back(t&&... arg)
+		{
+			static_assert(std::is_trivial_v<bucket>);
+			if (hole_count == 0)
+			{
+				vec.emplace_back(bucket { t_data { std::forward<t>(arg)... } });
+			}
+			else
+			{
+				hole_idx		= vec[hole_idx].next_hole;
+				vec[hole_idx--] = bucket { t_data { std::forward<t>(arg)... } };
+			}
+		}
+
+		void remove(std::size_t idx)
+		{
+			vec[idx].next_hole = hole_idx;
+			hole_idx		   = idx;
+			++hole_count;
+		}
+
+		t_data& operator[](std::size_t idx) noexcept
+		{
+			return vec[idx].data;
+		}
+
+		const t_data& operator[](std::size_t idx) const noexcept
+		{
+			return vec[idx].data;
+		}
 	};
 }	 // namespace data_structure

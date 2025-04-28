@@ -22,8 +22,8 @@
     <ClInclude Include="__ecs_system_cond.h" />
     <ClInclude Include="__ecs_system_match.h" />
     <ClInclude Include="__ecs_system_loop.h" />
-    <ClInclude Include="__ecs_crtp_entity_storage.h" />
-    <ClInclude Include="__ecs_default_entity_storage.h" />
-    <ClInclude Include="__ecs_crtp_entity_group.h" />
+    <ClInclude Include="__ecs_entity_storage_basic.h" />
+    <ClInclude Include="__ecs_entity_group_basic.h" />
+    <ClInclude Include="__ecs_utility.h" />
   </ItemGroup>
 </Project>

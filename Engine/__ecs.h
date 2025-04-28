@@ -39,7 +39,7 @@ namespace ecs
 
 		world_base(world_base&&)				 = default;
 		world_base(const world_base&)			 = delete;
-		world_base& operator=(world_base&&)		 = default;
+		world_base& operator=(world_base&&)		 = delete;
 		world_base& operator=(const world_base&) = delete;
 		world_base()							 = default;
 	};

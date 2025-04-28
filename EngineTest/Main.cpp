@@ -180,7 +180,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -219,8 +219,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -250,7 +250,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -591,6 +591,10 @@ int main()
 {
 	auto _game = my_game();
 
+	auto b = ecs::entity_storage::basic<uint32, transform, bullet>();
+	b.remove_entity(b.new_entity<transform, bullet>());
+
+
 	using namespace ecs::system;
 	{
 		using namespace ecs::system::op;
@@ -663,7 +667,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },
@@ -778,7 +782,6 @@ int main()
 			std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>>);
 		
 		//print_type<decltype(make_non_empty_sys_tpl_from_tpl(std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2)))>();
-		std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2);
 		//static_assert(std::is_same_v<decltype(make_non_empty_sys_tpl_from_tpl(std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>(my_game{}, l_1, l_2))), 
 		//	std::tuple<my_game, decltype(l_1)&, decltype(l_2)&>>);
 		
