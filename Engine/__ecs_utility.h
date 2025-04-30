@@ -25,6 +25,12 @@ namespace ecs::utility
 #endif
 	}
 
+	template <typename... t>
+	consteval std::size_t max_alignof()
+	{
+		return std::ranges::max({ alignof(t)... });
+	}
+
 	template <typename... t_cmp>
 	struct archetype_traits
 	{

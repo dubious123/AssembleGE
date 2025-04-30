@@ -8,8 +8,6 @@
 #include <numeric>
 
 
-#define min(a, b) (a) < (b) ? (a) : (b)
-#define max(a, b) (a) > (b) ? (a) : (b)
 #define USE_STL_VECTOR
 #define USE_STL_SET
 #define USE_STL_LIST
@@ -388,42 +386,38 @@ namespace data_structure
 	template <typename t_data>
 	struct sparse_vector
 	{
-		template <typename t_data>
 		struct bucket
 		{
-		  private:
 			using storage_t = std::conditional_t<(sizeof(t_data) >= sizeof(std::size_t)), t_data, std::size_t>;
 
-			alignas(std::max(alignof(t_data), alignof(std::size_t)))
+			alignas(alignof(storage_t))
 				std::byte storage[sizeof(storage_t)];
 
-		  public:
 			template <typename... t>
 			bucket(t&&... arg)
 			{
-				new (storage) t_data { std::forward<t>(arg)... };
-				// std::construct_at(reinterpret_cast<t_data*>(storage), std::forward<t>(arg)...);
+				std::construct_at(reinterpret_cast<t_data*>(&storage), std::forward<t>(arg)...);
 			}
 
 			// data ¿˙¿Â
 			bucket(const t_data& data)
 			{
-				new (storage) t_data { data };
-				// std::construct_at(reinterpret_cast<t_data*>(storage), data);
+				std::construct_at(reinterpret_cast<t_data*>(&storage), data);
 			}
 
 			t_data& data()
 			{
-				return *std::launder(reinterpret_cast<t_data*>(storage));
+				return *std::launder(reinterpret_cast<t_data*>(&storage));
 			}
 
-			std::size_t& hole_idx()
+			const t_data& data() const
 			{
-				return *std::launder(reinterpret_cast<std::size_t*>(storage));
+				return *std::launder(reinterpret_cast<const t_data*>(&storage));
 			}
 
-			void hole_idx(std::size_t idx)
+			std::size_t& next_hole_idx()
 			{
+				return *std::launder(reinterpret_cast<std::size_t*>(&storage));
 			}
 		};
 
@@ -446,13 +440,19 @@ namespace data_structure
 			}
 			else
 			{
-				hole_idx		= vec[hole_idx].next_hole_idx();
-				vec[hole_idx--] = bucket { std::forward<t>(arg)... };
+				hole_idx = vec[hole_idx].next_hole_idx();
+
+				std::construct_at(reinterpret_cast<t_data*>(&vec[hole_idx--].storage), std::forward<t>(arg)...);
 			}
 		}
 
 		void remove(std::size_t idx)
 		{
+			if constexpr (not std::is_trivially_destructible_v<t_data>)
+			{
+				std::destroy_at(&vec[idx].data());
+			}
+
 			vec[idx].next_hole_idx() = hole_idx;
 			hole_idx				 = idx;
 			++hole_count;
@@ -460,12 +460,12 @@ namespace data_structure
 
 		t_data& operator[](std::size_t idx) noexcept
 		{
-			return vec[idx];
+			return vec[idx].data();
 		}
 
 		const t_data& operator[](std::size_t idx) const noexcept
 		{
-			return vec[idx];
+			return vec[idx].data();
 		}
 	};
 }	 // namespace data_structure

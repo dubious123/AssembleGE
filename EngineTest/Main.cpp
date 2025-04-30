@@ -26,6 +26,7 @@
 	#define DBG_NEW new
 #endif
 
+#define NOMINMAX
 #include <windows.h>
 // #include <algorithm>	// for max
 // #include <cstdio>		// for printf
@@ -591,9 +592,12 @@ int main()
 {
 	auto _game = my_game();
 
-	auto b = ecs::entity_storage::basic<uint32, transform, bullet>();
-	b.remove_entity(b.new_entity<transform, bullet>());
-
+	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+	b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
+	b.add_component<bullet>(b.new_entity<transform, rigid_body>());
+	b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
+	b.has_component<rigid_body>(b.new_entity<transform, bullet>());
+	b.get_component<rigid_body>(b.new_entity<rigid_body>());
 
 	using namespace ecs::system;
 	{

@@ -19,6 +19,7 @@
 #define is_not_nullptr != nullptr
 #define is_nullptr	   == nullptr
 
+#define NOMINMAX
 #include <Windows.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>

@@ -5,6 +5,13 @@
 
 namespace ecs
 {
+	template <typename T>
+	concept component_type = requires {
+		requires std::is_trivially_copyable_v<T>;
+		requires std::is_trivially_destructible_v<T>;
+		requires std::is_standard_layout_v<T>;
+	};
+
 	using scene_id	   = uint32;
 	using world_idx	   = uint32;
 	using entity_idx   = uint64;

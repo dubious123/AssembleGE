@@ -16,3 +16,8 @@
 #else
 	#define no_unique_addr [[no_unique_address]]
 #endif
+
+constexpr std::size_t operator"" _KiB(std::size_t k)
+{
+	return k * 1024;
+}
