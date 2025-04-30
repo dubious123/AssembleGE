@@ -388,13 +388,43 @@ namespace data_structure
 	template <typename t_data>
 	struct sparse_vector
 	{
+		template <typename t_data>
 		struct bucket
 		{
-			union
+		  private:
+			using storage_t = std::conditional_t<(sizeof(t_data) >= sizeof(std::size_t)), t_data, std::size_t>;
+
+			alignas(std::max(alignof(t_data), alignof(std::size_t)))
+				std::byte storage[sizeof(storage_t)];
+
+		  public:
+			template <typename... t>
+			bucket(t&&... arg)
 			{
-				t_data		data;
-				std::size_t next_hole;
-			};
+				new (storage) t_data { std::forward<t>(arg)... };
+				// std::construct_at(reinterpret_cast<t_data*>(storage), std::forward<t>(arg)...);
+			}
+
+			// data ¿˙¿Â
+			bucket(const t_data& data)
+			{
+				new (storage) t_data { data };
+				// std::construct_at(reinterpret_cast<t_data*>(storage), data);
+			}
+
+			t_data& data()
+			{
+				return *std::launder(reinterpret_cast<t_data*>(storage));
+			}
+
+			std::size_t& hole_idx()
+			{
+				return *std::launder(reinterpret_cast<std::size_t*>(storage));
+			}
+
+			void hole_idx(std::size_t idx)
+			{
+			}
 		};
 
 		std::size_t hole_idx = -1;
@@ -410,33 +440,32 @@ namespace data_structure
 		template <typename... t>
 		void emplace_back(t&&... arg)
 		{
-			static_assert(std::is_trivial_v<bucket>);
 			if (hole_count == 0)
 			{
-				vec.emplace_back(bucket { t_data { std::forward<t>(arg)... } });
+				vec.emplace_back(std::forward<t>(arg)...);
 			}
 			else
 			{
-				hole_idx		= vec[hole_idx].next_hole;
-				vec[hole_idx--] = bucket { t_data { std::forward<t>(arg)... } };
+				hole_idx		= vec[hole_idx].next_hole_idx();
+				vec[hole_idx--] = bucket { std::forward<t>(arg)... };
 			}
 		}
 
 		void remove(std::size_t idx)
 		{
-			vec[idx].next_hole = hole_idx;
-			hole_idx		   = idx;
+			vec[idx].next_hole_idx() = hole_idx;
+			hole_idx				 = idx;
 			++hole_count;
 		}
 
 		t_data& operator[](std::size_t idx) noexcept
 		{
-			return vec[idx].data;
+			return vec[idx];
 		}
 
 		const t_data& operator[](std::size_t idx) const noexcept
 		{
-			return vec[idx].data;
+			return vec[idx];
 		}
 	};
 }	 // namespace data_structure
