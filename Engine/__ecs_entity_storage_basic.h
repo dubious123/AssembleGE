@@ -200,14 +200,21 @@ namespace ecs::entity_storage
 
 		void load_from_memory(const void* data, std::size_t size) { }
 
-		template <typename... t_cmp, typename t_lambda>
+		template <typename... t, typename t_lambda>
 		void each_entity(t_lambda&& fn)
 		{
+			// std::ranges::for_each(entity_groups_map[t_archetype_traits::template calc_archetype<t...>()],
+			//					  fn)
 		}
 
 		template <typename... t_cmp, typename t_lambda>
 		void each_group(t_lambda&& fn)
 		{
+		}
+
+		void deinit()
+		{
+			std::ranges::for_each(entity_groups_map | std::views::values | std::views::join, [](auto* p_group) { free(p_group); });
 		}
 	};
 }	 // namespace ecs::entity_storage

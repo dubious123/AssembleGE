@@ -802,4 +802,13 @@ namespace meta
 			std::forward<tpl_t>(tpl),
 			std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>> {});
 	}
+
+	template <std::size_t n>
+	using smallest_unsigned_t = std::conditional_t<
+		n <= std::numeric_limits<uint8>::max(), uint8,
+		std::conditional_t<
+			n <= std::numeric_limits<uint16>::max(), uint16,
+			std::conditional_t<
+				n <= std::numeric_limits<uint32>::max(), uint32,
+				uint64>>>;
 }	 // namespace meta
