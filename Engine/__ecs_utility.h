@@ -31,6 +31,61 @@ namespace ecs::utility
 		return std::ranges::max({ alignof(t)... });
 	}
 
+	// assume align is power of 2
+	consteval std::size_t align_up(std::size_t offset, std::size_t align)
+	{
+		// (offset + align - 1) / align * align
+		return (offset + align - 1) & ~(align - 1);
+	}
+
+	template <typename... t>
+	struct aligned_layout_info
+	{
+	  private:
+		template <typename t1, typename t2>
+		struct align_comparator : std::integral_constant<bool, (alignof(t1) < alignof(t2))>
+		{
+		};
+
+		using tpl_sorted = meta::tuple_sort_t<align_comparator, t...>;
+
+		template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
+		struct offset_sequence_builder;
+
+		template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
+		struct offset_sequence_builder
+		{
+			static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
+
+			using type = typename offset_sequence_builder<
+				i + 1,
+				curr_offset,
+				offset...,
+				curr_offset>::type;
+		};
+
+		template <std::size_t prev_offset, std::size_t... offset>
+		struct offset_sequence_builder<sizeof...(t), prev_offset, offset...>
+		{
+			using type = std::index_sequence<offset...>;
+		};
+
+		// index=1, prev_offset=0, offset=0
+		using offset_sequence = typename offset_sequence_builder<1, 0, 0>::type;
+
+	  public:
+		template <typename k>
+		static consteval std::size_t offset_of()
+		{
+			return meta::index_sequence_at_v<meta::tuple_index_v<k, tpl_sorted>, offset_sequence>;
+		}
+
+		static consteval auto max_alignof()
+		{
+			return ecs::utility::max_alignof<t...>();
+		}
+	};
+
 	template <typename... t_cmp>
 	struct archetype_traits
 	{

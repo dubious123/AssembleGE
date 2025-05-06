@@ -421,8 +421,8 @@ namespace data_structure
 			}
 		};
 
-		std::size_t hole_idx = -1;
-		std::size_t hole_count;
+		std::size_t hole_idx   = -1;
+		std::size_t hole_count = 0;
 
 		data_structure::vector<bucket> vec;
 
@@ -440,9 +440,10 @@ namespace data_structure
 			}
 			else
 			{
-				hole_idx = vec[hole_idx].next_hole_idx();
-
-				std::construct_at(reinterpret_cast<t_data*>(&vec[hole_idx--].storage), std::forward<t>(arg)...);
+				auto hole_idx_temp = vec[hole_idx].next_hole_idx();
+				std::construct_at(reinterpret_cast<t_data*>(&vec[hole_idx].storage), std::forward<t>(arg)...);
+				hole_idx = hole_idx_temp;
+				--hole_count;
 			}
 		}
 

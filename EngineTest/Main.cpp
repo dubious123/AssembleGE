@@ -590,6 +590,18 @@ constexpr void print_type()
 
 int main()
 {
+	{
+		using layout_info = ecs::utility::aligned_layout_info<uint8, uint16, uint64, uint32>;
+
+		static_assert(layout_info::offset_of<uint64>() == 0);
+		static_assert(layout_info::offset_of<uint32>() == 8);
+		static_assert(layout_info::offset_of<uint16>() == 12);
+		static_assert(layout_info::offset_of<uint8>() == 14);
+
+		// layout_info::offset_of<uint32>();
+		//  static_assert(std::is_same_v<decltype(tpl), std::tuple<uint8, uint16, uint32, uint64>>);
+	}
+
 	auto _game = my_game();
 
 	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();

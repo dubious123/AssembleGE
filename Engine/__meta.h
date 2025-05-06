@@ -74,7 +74,7 @@ namespace meta
 	template <auto v>
 	struct auto_wrapper
 	{
-		constinit static inline const auto value = v;
+		constexpr static inline const auto value = v;
 	};
 
 	template <typename t>
@@ -133,10 +133,10 @@ namespace meta
 	};
 
 	template <typename t, typename h, typename... ts>
-	constinit static inline const auto variadic_constains_v = variadic_contains<t, h, ts...>();
+	constexpr inline auto variadic_constains_v = variadic_contains<t, h, ts...>();
 
 	template <auto t, auto h, auto... ts>
-	constinit static inline const auto variadic_auto_constains_v = variadic_contains<t, h, ts...>();
+	constexpr inline auto variadic_auto_constains_v = variadic_contains<t, h, ts...>();
 
 	template <typename t, typename ret, typename... args>
 	consteval bool param_constains(ret (*func)(args...))
@@ -145,7 +145,7 @@ namespace meta
 	};
 
 	template <typename t, auto f>
-	constinit static inline const auto param_constains_v = param_constains<t>(f);
+	constexpr inline auto param_constains_v = param_constains<t>(f);
 
 	template <unsigned int idx, typename head, typename... tails>
 	struct variadic_at
@@ -182,7 +182,19 @@ namespace meta
 	};
 
 	template <unsigned int idx, auto... tails>
-	inline constexpr const auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
+	inline constexpr auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
+
+	template <std::size_t i, typename seq>
+	struct index_sequence_at;
+
+	template <std::size_t i, std::size_t... idx>
+	struct index_sequence_at<i, std::index_sequence<idx...>>
+	{
+		static constexpr std::size_t value = variadic_auto_at_v<i, idx...>;
+	};
+
+	template <std::size_t i, typename seq>
+	inline constexpr auto index_sequence_at_v = index_sequence_at<i, seq>::value;
 
 	template <std::size_t idx, auto func>
 	struct param_at;
@@ -330,7 +342,7 @@ namespace meta
 	}
 
 	template <typename t, typename h, typename... ts>
-	static inline constinit const auto variadic_index_v = get_variadic_index<t, h, ts...>();
+	static inline constexpr const auto variadic_index_v = get_variadic_index<t, h, ts...>();
 
 	template <auto t, auto head, auto... tails>
 	consteval size_t get_variadic_auto_index()
@@ -340,7 +352,7 @@ namespace meta
 	}
 
 	template <auto t, auto h, auto... ts>
-	inline constinit unsigned int variadic_auto_index_v = get_variadic_auto_index<t, h, ts...>();
+	inline constexpr unsigned int variadic_auto_index_v = get_variadic_auto_index<t, h, ts...>();
 
 	template <typename t, typename tuple>
 	struct tuple_index;
@@ -348,11 +360,11 @@ namespace meta
 	template <typename t, typename... ts>
 	struct tuple_index<t, std::tuple<ts...>>
 	{
-		static inline constinit const size_t value = get_variadic_index<t, ts...>();
+		static constexpr std::size_t value = get_variadic_index<t, ts...>();
 	};
 
 	template <typename t, typename tuple>
-	inline constinit size_t tuple_index_v = tuple_index<t, tuple>::value;
+	inline constexpr std::size_t tuple_index_v = tuple_index<t, tuple>::value;
 
 	template <typename t, typename... ts>
 	auto& get_tuple_value(std::tuple<ts...>&& tpl)
@@ -389,7 +401,7 @@ namespace meta
 	struct tuple_sort<comparator, h, t...>
 	{
 		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 
@@ -397,7 +409,7 @@ namespace meta
 	struct tuple_sort<comparator, tuple<h, t...>>
 	{
 		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 
@@ -437,6 +449,9 @@ namespace meta
 		using type = std::tuple<h>;
 	};
 
+	template <template <typename, typename> typename comparator, typename... t>
+	using tuple_sort_t = tuple_sort<comparator, t...>::type;
+
 	// template <typename... t>
 	// struct type_list
 	//{
@@ -475,6 +490,18 @@ namespace meta
 
 	// template <template <typename> typename pred, typename... t>
 	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
+
+	template <typename t_seq_l, typename t_seq_r>
+	struct index_sequence_cat;
+
+	template <std::size_t... i1, std::size_t... i2>
+	struct index_sequence_cat<std::index_sequence<i1...>, std::index_sequence<i2...>>
+	{
+		using type = std::index_sequence<i1..., i2...>;
+	};
+
+	template <typename t_seq_l, typename t_seq_r>
+	using index_sequence_cat_t = typename index_sequence_cat<t_seq_l, t_seq_r>::type;
 
 	template <typename t>
 	using value_or_ref_t = std::conditional_t<
@@ -709,7 +736,7 @@ namespace meta
 	};
 
 	template <template <typename...> typename tl, template <typename...> typename tr>
-	static inline constinit const auto is_same_template_v = is_same_template<tr, tr>::value;
+	inline constexpr auto is_same_template_v = is_same_template<tr, tr>::value;
 
 	template <typename t1, template <typename...> typename t2>
 	struct is_specialization_of : std::false_type
@@ -727,7 +754,7 @@ namespace meta
 	};
 
 	template <typename t1, template <typename...> typename t2>
-	static inline constinit const auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
+	inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 
@@ -786,7 +813,7 @@ namespace meta
 	};
 
 	template <typename t>
-	const inline constinit std::size_t _tpl_size_v = _tpl_size<t>::value;
+	inline constexpr std::size_t _tpl_size_v = _tpl_size<t>::value;
 
 	template <typename f, typename tpl_t, std::size_t... i>
 	constexpr decltype(auto) _apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)

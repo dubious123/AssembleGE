@@ -6,31 +6,52 @@ namespace ecs::entity_group
 	struct basic
 	{
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
+
 		using t_archetype		 = t_archetype_traits::t_archetype;
 		using t_entity_count	 = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
-		using t_component_count	 = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
 		using t_capacity		 = t_entity_count;
 		using t_local_cmp_idx	 = t_archetype_traits::t_local_cmp_idx;
+		using t_component_count	 = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
 		using t_component_size	 = meta::smallest_unsigned_t<std::ranges::max({ sizeof(t_cmp)... })>;
 		using t_component_offset = decltype(mem_size);
 
+		using align_info = ecs::utility::aligned_layout_info<t_archetype, t_entity_count, t_capacity, t_local_cmp_idx, t_component_count, t_component_size, t_component_offset>;
+
 	  private:
+		// alignas(std::max(align_info::max_alignof(), ecs::utility::max_alignof<t_cmp...>()))
 		alignas(ecs::utility::max_alignof<t_cmp...>())
 			std::byte storage[mem_size];
 
-		template <typename t, std::size_t offset>
-		consteval t& access_as()
-		{
-			constexpr auto* p_mem = &storage[offset];
+		// template <typename t>
+		// consteval t& access_as()
+		//{
+		//	constexpr auto	offset = align_info::template offset_of<t>();
+		//	constexpr auto* p_mem  = &storage[offset];
 
-			static_assert((alignof(storage) + offset) % alignof(t) == 0);
+		//	static_assert((alignof(decltype(storage)) + offset) % alignof(t) == 0);
+
+		//	return *reinterpret_cast<t*>(p_mem);
+		//}
+
+		template <typename t>
+		inline t& access_as()
+		{
+			constexpr auto	offset = align_info::template offset_of<t>();
+			constexpr auto* p_mem  = &storage[offset];
+
+			assert((alignof(decltype(storage)) + offset) % alignof(t) == 0);
 
 			return *reinterpret_cast<t*>(p_mem);
 		}
 
-		inline t_entity_count& entity_count()
+		inline t_entity_count& entity_count() const
 		{
-			return access_as<t_entity_count, 0>();
+			return access_as<t_entity_count>();
+		}
+
+		inline t_capacity& capacity() const
+		{
+			return access_as<t_capacity, sizeof(t_entity_count)>();
 		}
 
 	  public:
@@ -82,6 +103,7 @@ namespace ecs::entity_group
 
 		void* get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
+			access_as<t_capacity>() = 0;
 			return nullptr;
 		}
 
@@ -98,9 +120,9 @@ namespace ecs::entity_group
 					(sizeof...(t) == 1),
 					meta::variadic_at_t<0, t&...>,
 					std::tuple<t&...>>>;
-			static ret_t _;
+			// static ret_t _;
 
-			return _;
+			return std::tuple<t...> {};
 		}
 
 		bool is_full() const
