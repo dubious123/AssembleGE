@@ -81,6 +81,7 @@ namespace ecs::entity_group
 
 			assert((alignof(decltype(storage)) + offset) % alignof(typename t_tag::type) == 0);
 
+			// not UB since c++20
 			return *reinterpret_cast<t_tag::type*>(p_mem);
 		}
 
