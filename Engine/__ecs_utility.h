@@ -41,21 +41,32 @@ namespace ecs::utility
 	template <typename... t>
 	struct aligned_layout_info
 	{
-	  private:
+		// private:
 		template <typename t1, typename t2>
-		struct align_comparator : std::integral_constant<bool, (alignof(t1) < alignof(t2))>
+		struct align_comparator : std::integral_constant<bool, (alignof(typename t1::type) < alignof(typename t2::type))>
 		{
 		};
 
 		using tpl_sorted = meta::tuple_sort_t<align_comparator, t...>;
 
 		template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
-		struct offset_sequence_builder;
-
-		template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
 		struct offset_sequence_builder
 		{
-			static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
+			static constexpr std::size_t curr_offset =
+				[]() {
+					if constexpr (i < std::tuple_size_v<tpl_sorted>)
+					{
+						return align_up(prev_offset + sizeof(typename std::tuple_element_t<i - 1, tpl_sorted>::type), alignof(typename std::tuple_element_t<i, tpl_sorted>::type));
+					}
+					else
+					{
+						// dummy
+						return 0;
+					}
+				}();
+
+			// not working in msvc
+			// static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
 
 			using type = typename offset_sequence_builder<
 				i + 1,
@@ -73,6 +84,11 @@ namespace ecs::utility
 		// index=1, prev_offset=0, offset=0
 		using offset_sequence = typename offset_sequence_builder<1, 0, 0>::type;
 
+		struct runtime_offset
+		{
+			std::size_t offset;
+		};
+
 	  public:
 		template <typename k>
 		static consteval std::size_t offset_of()
@@ -82,7 +98,12 @@ namespace ecs::utility
 
 		static consteval auto max_alignof()
 		{
-			return ecs::utility::max_alignof<t...>();
+			return ecs::utility::max_alignof<typename t::type...>();
+		}
+
+		static consteval auto total_size()
+		{
+			return meta::index_sequence_at_v<sizeof...(t) - 1, offset_sequence> + sizeof(std::tuple_element_t<sizeof...(t) - 1, tpl_sorted>);
 		}
 	};
 

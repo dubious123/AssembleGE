@@ -401,7 +401,7 @@ namespace meta
 	struct tuple_sort<comparator, h, t...>
 	{
 		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 
@@ -409,7 +409,7 @@ namespace meta
 	struct tuple_sort<comparator, tuple<h, t...>>
 	{
 		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 

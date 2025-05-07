@@ -7,15 +7,55 @@ namespace ecs::entity_group
 	{
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 
-		using t_archetype		 = t_archetype_traits::t_archetype;
-		using t_entity_count	 = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
-		using t_capacity		 = t_entity_count;
-		using t_local_cmp_idx	 = t_archetype_traits::t_local_cmp_idx;
-		using t_component_count	 = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
-		using t_component_size	 = meta::smallest_unsigned_t<std::ranges::max({ sizeof(t_cmp)... })>;
-		using t_component_offset = decltype(mem_size);
+		struct archetype_tag
+		{
+			using type = t_archetype_traits::t_archetype;
+		};
 
-		using align_info = ecs::utility::aligned_layout_info<t_archetype, t_entity_count, t_capacity, t_local_cmp_idx, t_component_count, t_component_size, t_component_offset>;
+		struct entity_id_tag
+		{
+			using type = t_entity_id;
+		};
+
+		struct entity_count_tag
+		{
+			using type = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
+		};
+
+		struct capacity_tag
+		{
+			using type = entity_count_tag::type;
+		};
+
+		struct local_cmp_idx_tag
+		{
+			using type = t_archetype_traits::t_local_cmp_idx;
+		};
+
+		struct component_count_tag
+		{
+			using type = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
+		};
+
+		struct component_size_tag
+		{
+			using type = meta::smallest_unsigned_t<std::ranges::max({ sizeof(t_cmp)... })>;
+		};
+
+		struct component_offset_tag
+		{
+			using type = decltype(mem_size);
+		};
+
+		using t_archetype		 = archetype_tag::type;
+		using t_entity_count	 = entity_count_tag::type;
+		using t_capacity		 = capacity_tag::type;
+		using t_local_cmp_idx	 = local_cmp_idx_tag::type;
+		using t_component_count	 = component_count_tag::type;
+		using t_component_size	 = component_size_tag::type;
+		using t_component_offset = component_offset_tag::type;
+
+		using align_info = ecs::utility::aligned_layout_info<archetype_tag, entity_count_tag, capacity_tag, component_count_tag>;
 
 	  private:
 		// alignas(std::max(align_info::max_alignof(), ecs::utility::max_alignof<t_cmp...>()))
@@ -33,47 +73,66 @@ namespace ecs::entity_group
 		//	return *reinterpret_cast<t*>(p_mem);
 		//}
 
-		template <typename t>
-		inline t& access_as()
+		template <typename t_tag>
+		inline t_tag::type& access_as()
 		{
-			constexpr auto	offset = align_info::template offset_of<t>();
-			constexpr auto* p_mem  = &storage[offset];
+			constexpr auto offset = align_info::template offset_of<t_tag>();
+			auto*		   p_mem  = &storage[offset];
 
-			assert((alignof(decltype(storage)) + offset) % alignof(t) == 0);
+			assert((alignof(decltype(storage)) + offset) % alignof(typename t_tag::type) == 0);
 
-			return *reinterpret_cast<t*>(p_mem);
+			return *reinterpret_cast<t_tag::type*>(p_mem);
 		}
 
-		inline t_entity_count& entity_count() const
-		{
-			return access_as<t_entity_count>();
-		}
-
-		inline t_capacity& capacity() const
-		{
-			return access_as<t_capacity, sizeof(t_entity_count)>();
-		}
 
 	  public:
+		inline t_entity_count& entity_count()
+		{
+			return access_as<entity_count_tag>();
+		}
+
+		inline t_capacity& capacity()
+		{
+			return access_as<capacity_tag>();
+		}
+
+		inline t_component_count& component_count()
+		{
+			return access_as<component_count_tag>();
+		}
+
+		inline t_archetype& local_archetype()
+		{
+			return access_as<archetype_tag>();
+		}
+
+		inline t_entity_id& entity_id(t_local_entity_idx local_ent_idx)
+		{
+			static auto _ = t_entity_id {};
+			return _;
+		}
+
 		template <typename... t>
 		void init()
 		{
+			std::println(
+				"offset of entity_count {}\n"
+				"offset of capacity {}\n"
+				"offset of component_count {}\n"
+				"offset of component_size {}\n"
+				"offset of component_offset {}\n",
+				align_info::template offset_of<entity_count_tag>(),
+				align_info::template offset_of<capacity_tag>(),
+				align_info::template offset_of<component_count_tag>(),
+				align_info::template offset_of<component_size_tag>(),
+				align_info::template offset_of<component_offset_tag>());
+
+			capacity() = mem_size - align_info::total_size() -
 		}
 
 		void init(t_archetype archetype)
 		{
-		}
-
-		t_local_entity_idx& entity_count()
-		{
-			static auto _ = t_local_entity_idx {};
-			return _;
-		}
-
-		t_entity_id& entity_id(t_local_entity_idx local_ent_idx)
-		{
-			static auto _ = t_entity_id {};
-			return _;
+			entity_count() = 0;
 		}
 
 		template <typename... t>
@@ -103,26 +162,26 @@ namespace ecs::entity_group
 
 		void* get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
-			access_as<t_capacity>() = 0;
+			capacity() = 0;
 			return nullptr;
 		}
 
 		template <typename... t>
 		decltype(auto) get_component(const t_local_entity_idx local_ent_idx)
 		{
-			using ret_t = std::conditional_t<
-				std::is_const_v<decltype(*this)>,
-				std::conditional_t<
-					(sizeof...(t) == 1),
-					const meta::variadic_at_t<0, t&...>,
-					const std::tuple<t&...>>,
-				std::conditional_t<
-					(sizeof...(t) == 1),
-					meta::variadic_at_t<0, t&...>,
-					std::tuple<t&...>>>;
-			// static ret_t _;
+			// using ret_t = std::conditional_t<
+			//	std::is_const_v<decltype(*this)>,
+			//	std::conditional_t<
+			//		(sizeof...(t) == 1),
+			//		const meta::variadic_at_t<0, t&...>,
+			//		const std::tuple<t&...>>,
+			//	std::conditional_t<
+			//		(sizeof...(t) == 1),
+			//		meta::variadic_at_t<0, t&...>,
+			//		std::tuple<t&...>>>;
+			//  static ret_t _;
 
-			return std::tuple<t...> {};
+			return 1;
 		}
 
 		bool is_full() const

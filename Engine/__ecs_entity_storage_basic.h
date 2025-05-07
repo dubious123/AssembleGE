@@ -184,7 +184,7 @@ namespace ecs::entity_storage
 		inline decltype(auto) get_component(t_entity_id id)
 		{
 			auto& ent_info = entity_info_vec[id];
-			return ent_info.group.get_component<t...>(ent_info.local_idx);
+			return ent_info.group.template get_component<t...>(ent_info.local_idx);
 		}
 
 		template <typename... t>
