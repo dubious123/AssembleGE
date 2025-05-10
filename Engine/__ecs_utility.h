@@ -40,189 +40,176 @@ namespace ecs::utility
 
 	namespace detail
 	{
-	}
-
-	template <typename new_tag, std::size_t n = 1>
-	struct element
-	{
-		using tag_type							= new_tag;
-		using type								= new_tag::type;
-		static constexpr std::size_t _alignment = alignof(type);
-		static constexpr std::size_t _size		= sizeof(type) * n;
-	};
-
-	template <typename inner_tag, std::size_t inner_n, std::size_t n>
-	struct element<element<inner_tag, inner_n>, n>
-	{
-		using tag_type							= inner_tag;
-		using type								= typename element<inner_tag, inner_n>::type;
-		static constexpr std::size_t _alignment = element<inner_tag, inner_n>::_alignment;
-		static constexpr std::size_t _size		= element<inner_tag, inner_n>::_size * n;
-	};
-
-	template <typename... t_element>
-	struct __layout_info
-	{
-		template <typename t1, typename t2>
-		struct align_comparator : std::integral_constant<bool, (t1::_alignment < t2::_alignment)>
+		template <typename new_tag, std::size_t n = 1>
+		struct layout_element
 		{
+			using tag_type						   = new_tag;
+			using type							   = new_tag::type;
+			static constexpr std::size_t alignment = alignof(type);
+			static constexpr std::size_t size	   = sizeof(type) * n;
 		};
 
-		using tpl_sorted = meta::tuple_sort_t<align_comparator, t_element...>;
-
-		template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
-		struct offset_sequence_builder
+		template <typename inner_tag, std::size_t inner_n, std::size_t n>
+		struct layout_element<layout_element<inner_tag, inner_n>, n>
 		{
-			static constexpr std::size_t curr_offset =
-				[]() {
-					if constexpr (i < std::tuple_size_v<tpl_sorted>)
-					{
-						return align_up(prev_offset + std::tuple_element_t<i - 1, tpl_sorted>::_size, std::tuple_element_t<i, tpl_sorted>::_alignment);
-					}
-					else
-					{
-						// dummy
-						return 0;
-					}
-				}();
-
-			// not working in msvc
-			// static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
-
-			using type = typename offset_sequence_builder<
-				i + 1,
-				curr_offset,
-				offset...,
-				curr_offset>::type;
+			using tag_type						   = inner_tag;
+			using type							   = typename layout_element<inner_tag, inner_n>::type;
+			static constexpr std::size_t alignment = layout_element<inner_tag, inner_n>::alignment;
+			static constexpr std::size_t size	   = layout_element<inner_tag, inner_n>::size * n;
 		};
 
-		template <std::size_t prev_offset, std::size_t... offset>
-		struct offset_sequence_builder<sizeof...(t_element), prev_offset, offset...>
+		template <std::size_t max_size, typename... t_element>
+		struct layout_info_impl
 		{
-			using type = std::index_sequence<offset...>;
-		};
-
-		using offset_sequence = typename offset_sequence_builder<1, 0, 0>::type;
-
-		template <typename t_tag>
-		struct match_type
-		{
-			template <typename t_elem>
-			struct pred
+			template <typename t1, typename t2>
+			struct align_comparator : std::integral_constant<bool, (t1::alignment < t2::alignment)>
 			{
-				static constexpr bool value = std::is_same_v<t_tag, typename t_elem::tag_type>;
 			};
+
+			using sorted_element_tpl = meta::tuple_sort_t<align_comparator, t_element...>;
+
+			template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
+			struct offset_sequence_builder
+			{
+				static constexpr std::size_t curr_offset =
+					[]() {
+						if constexpr (i < std::tuple_size_v<sorted_element_tpl>)
+						{
+							return align_up(prev_offset + std::tuple_element_t<i - 1, sorted_element_tpl>::size, std::tuple_element_t<i, sorted_element_tpl>::alignment);
+						}
+						else
+						{
+							// dummy
+							return 0;
+						}
+					}();
+
+				// not working in msvc
+				// static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
+
+				using type = typename offset_sequence_builder<
+					i + 1,
+					curr_offset,
+					offset...,
+					curr_offset>::type;
+			};
+
+			template <std::size_t prev_offset, std::size_t... offset>
+			struct offset_sequence_builder<sizeof...(t_element), prev_offset, offset...>
+			{
+				using type = std::index_sequence<offset...>;
+			};
+
+			using offset_sequence = typename offset_sequence_builder<1, 0, 0>::type;
+
+			template <typename t_tag>
+			struct match_type
+			{
+				template <typename t_elem>
+				struct pred
+				{
+					static constexpr bool value = std::is_same_v<t_tag, typename t_elem::tag_type>;
+				};
+			};
+
+			template <typename t_tag>
+			static consteval std::size_t offset_of()
+			{
+				return meta::index_sequence_at_v<meta::find_index_tuple_v<match_type<t_tag>::template pred, sorted_element_tpl>, offset_sequence>;
+			}
+
+			static consteval auto max_alignof()
+			{
+				return ecs::utility::max_alignof<typename t_element::type...>();
+			}
+
+			static consteval auto total_size()
+			{
+				return meta::index_sequence_at_v<sizeof...(t_element) - 1, offset_sequence> + std::tuple_element_t<sizeof...(t_element) - 1, sorted_element_tpl>::size;
+			}
+
+			static auto print()
+			{
+				[]<std::size_t... i>(std::index_sequence<i...> _) {
+					((
+						 []() {
+							 using t_elem = std::tuple_element_t<i, sorted_element_tpl>;
+							 std::println("{}_nth, size : {}, align : {} offset : {}", i, t_elem::size, t_elem::alignment, offset_of<t_elem::tag_type>());
+						 }()
+
+							 ),
+					 ...);
+				}(std::index_sequence_for<t_element...> {});
+			}
+
+			template <typename t_tag, std::size_t n>
+			using with = layout_info_impl<max_size, layout_element<t_tag, n>, t_element...>;
+
+			template <std::size_t low, std::size_t high, typename... t_tag>
+			struct soa_finder
+			{
+				static constexpr std::size_t mid = (low + high + 1) / 2;
+
+				using test_layout = layout_info_impl<max_size, layout_element<t_tag, mid>..., t_element...>;
+
+				static constexpr bool fits = test_layout::total_size() <= max_size;
+
+				using type = std::conditional_t<
+					(low >= high),
+					test_layout,
+					std::conditional_t<
+						fits,
+						typename soa_finder<mid, high, t_tag...>::type,
+						typename soa_finder<low, mid - 1, t_tag...>::type>>;
+
+				// using type = std::conditional_t<
+				//	(low >= high),
+				//	test_layout,
+				//	soa_finder<mid, high, t_tag...>::type>;
+			};
+
+			template <typename... t_tag>
+			using with_soa = typename soa_finder<1, max_size, t_tag...>::type;
 		};
 
-		template <typename t_tag>
-		static consteval std::size_t offset_of()
-		{
-			// return meta::find_index_tuple_v<match_type<t_tag>::template pred, tpl_sorted>;
-			return meta::index_sequence_at_v<meta::find_index_tuple_v<match_type<t_tag>::template pred, tpl_sorted>, offset_sequence>;
-		}
+		template <std::size_t max_size, typename... t_tag>
+		using impl = layout_info_impl<max_size, layout_element<t_tag, 1>...>;
+	}	 // namespace detail
 
-		static consteval auto max_alignof()
-		{
-			return ecs::utility::max_alignof<typename t_element::type...>();
-		}
-
-		static consteval auto total_size()
-		{
-			return meta::index_sequence_at_v<sizeof...(t_element) - 1, offset_sequence> + std::tuple_element_t<sizeof...(t_element) - 1, tpl_sorted>::size;
-		}
-	};
-
-	template <typename... t>
+	template <std::size_t max_size, typename... t>
 	struct aligned_layout_info
 	{
-		// private:
-		// template <typename new_tag, std::size_t n>
-		// struct element;
-
-
-		// template <typename t1, typename t2>
-		// struct align_comparator : std::integral_constant<bool, (alignof(typename t1::type) < alignof(typename t2::type))>
-		//{
-		// };
-
-
-		// using tpl_sorted = meta::tuple_sort_t<align_comparator, t...>;
-
-		// template <std::size_t i, std::size_t prev_offset, std::size_t... offset>
-		// struct offset_sequence_builder
-		//{
-		//	static constexpr std::size_t curr_offset =
-		//		[]() {
-		//			if constexpr (i < std::tuple_size_v<tpl_sorted>)
-		//			{
-		//				return align_up(prev_offset + sizeof(typename std::tuple_element_t<i - 1, tpl_sorted>::type), alignof(typename std::tuple_element_t<i, tpl_sorted>::type));
-		//			}
-		//			else
-		//			{
-		//				// dummy
-		//				return 0;
-		//			}
-		//		}();
-
-		//	// not working in msvc
-		//	// static constexpr std::size_t curr_offset = align_up(prev_offset + sizeof(std::tuple_element_t<i - 1, tpl_sorted>), alignof(std::tuple_element_t<i, tpl_sorted>));
-
-		//	using type = typename offset_sequence_builder<
-		//		i + 1,
-		//		curr_offset,
-		//		offset...,
-		//		curr_offset>::type;
-		//};
-
-		// template <std::size_t prev_offset, std::size_t... offset>
-		// struct offset_sequence_builder<sizeof...(t), prev_offset, offset...>
-		//{
-		//	using type = std::index_sequence<offset...>;
-		// };
-
-		// using offset_sequence = typename __layout_info<element<t>...>::offset_sequence;
-
-		// struct runtime_offset
-		//{
-		//	std::size_t offset;
-		// };
-
-
 	  public:
-		using __detail = __layout_info<element<t, 1>...>;
+		using detail_impl = detail::impl<max_size, t...>;
 
 		template <typename new_tag, std::size_t n>
-		using with = aligned_layout_info<element<new_tag, n>, t...>;
+		using with = detail_impl::template with<new_tag, n>;
+
+		template <typename... new_tag>
+		using with_soa = detail_impl::template with_soa<new_tag...>;
+
+		static_assert(max_size >= detail_impl::total_size(), "not enough memory");
 
 		template <typename t_tag>
 		static consteval std::size_t offset_of()
 		{
-			return __detail::template offset_of<t_tag>();
+			return detail_impl::template offset_of<t_tag>();
 			// return 0;
 		}
 
 		static consteval auto max_alignof()
 		{
-			__detail::max_alignof();
+			return detail_impl::max_alignof();
 		}
 
 		static consteval auto total_size()
 		{
-			__detail::total_size();
+			return detail_impl::total_size();
 		}
 
 		static void print()
 		{
-			[]<std::size_t... i>(std::index_sequence<i...> _) {
-				((
-					 []() {
-						 using t_elem = std::tuple_element_t<i, __detail::tpl_sorted>;
-						 std::println("{}_nth, size : {}, align : {} offset : {}", i, t_elem::_size, t_elem::_alignment, offset_of<t_elem::tag_type>());
-					 }()
-
-						 ),
-				 ...);
-			}(std::index_sequence_for<t...> {});
+			detail_impl::print();
 		}
 	};
 

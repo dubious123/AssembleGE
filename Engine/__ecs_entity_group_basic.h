@@ -68,19 +68,19 @@ namespace ecs::entity_group
 			using type = t;
 		};
 
-		using t_archetype		 = archetype_tag::type;
-		using t_entity_count	 = entity_count_tag::type;
-		using t_capacity		 = capacity_tag::type;
-		using t_local_cmp_idx	 = local_cmp_idx_tag::type;
-		using t_component_count	 = component_count_tag::type;
-		using t_component_size	 = component_size_tag::type;
-		using t_component_offset = component_offset_tag::type;
-
+		using t_archetype			= archetype_tag::type;
+		using t_entity_count		= entity_count_tag::type;
+		using t_capacity			= capacity_tag::type;
+		using t_local_cmp_idx		= local_cmp_idx_tag::type;
+		using t_component_count		= component_count_tag::type;
+		using t_component_size		= component_size_tag::type;
+		using t_component_offset	= component_offset_tag::type;
 		using t_cmp_offset_arr_base = cmp_offset_arr_base_tag::type;
 		using t_cmp_size_arr_base	= cmp_size_arr_base_tag::type;
 		using t_entity_id_arr_base	= entity_id_arr_base_tag::type;
 
 		using align_info = ecs::utility::aligned_layout_info<
+			mem_size,
 			archetype_tag,
 			entity_count_tag,
 			capacity_tag,
@@ -150,6 +150,11 @@ namespace ecs::entity_group
 			return access_as<entity_id_arr_base_tag>();
 		}
 
+		inline t_entity_id& entity_id(t_local_entity_idx ent_idx)
+		{
+			return *(reinterpret_cast<t_entity_id*>(storage[entity_id_arr_base()]) + ent_idx);
+		}
+
 		template <cmp_size_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
 		inline const t_component_size& cmp_size()
 		{
@@ -172,15 +177,10 @@ namespace ecs::entity_group
 			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
 		}
 
-		inline t_entity_id& entity_id(t_local_entity_idx local_ent_idx)
-		{
-			return *(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + local_ent_idx);
-		}
-
 		template <typename... t>
 		void init()
 		{
-			using header_align_info = align_info::template with<component_offset_tag, sizeof...(t)>::template with<component_size_tag, sizeof...(t)>;
+			using header_align_info = align_info::template with<component_offset_tag, sizeof...(t)>::template with<component_size_tag, sizeof...(t)>::template with_soa<entity_id_tag, component_tag<t>...>;
 			header_align_info::print();
 			std::println(
 				"component_offset_tag size : {} align : {}\n"
@@ -206,7 +206,6 @@ namespace ecs::entity_group
 			int a = 1;
 			// sizeof t_component_offset > sizeof t_component_size
 
-			// using total_align_info	= header_align_info::typename with_soa<entity_id_tag, component_tag<t>...>;
 
 			// constexpr auto cmp_size_arr_base   = total_align_info::template offset_of<cmp_size_arr_base_tag>();
 			// constexpr auto cmp_offset_arr_base = total_align_info::template offset_of<cmp_offset_arr_base_tag>();
