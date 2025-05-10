@@ -598,10 +598,30 @@ struct boo : foo
 	int b;
 };
 
+template <typename t1>
+struct match_type
+{
+	template <typename t_elem>
+	struct pred
+	{
+		static constexpr bool value = std::is_same_v<t1, t_elem>;
+	};
+};
+
 int main()
 {
 	{
 		using t_random = uint8;
+		static_assert(meta::find_index_impl<match_type<uint8>::pred, uint8, uint16, uint32>::value == 0);
+		static_assert(match_type<uint8>::pred<uint8>::value);
+		static_assert(meta::find_index_tuple_v<match_type<uint8>::template pred, std::tuple<uint8, uint16, uint32>> == 0);
+		using t_temp = ecs::utility::aligned_layout_info<uint8, uint16, uint32>;
+		// print_type<std::tuple_element_t<0, t_temp::__detail::tpl_sorted>>();
+		//     t_temp::offset_of<uint8>();
+
+		// using t_tmp2 = t_temp::with<uint32, 10>;
+
+		// t_tmp2::offset_of<uint8>();
 
 		static_assert(std::is_trivial_v<foo>);
 		static_assert(std::is_trivial_v<boo>);

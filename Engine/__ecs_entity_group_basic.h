@@ -44,7 +44,28 @@ namespace ecs::entity_group
 
 		struct component_offset_tag
 		{
-			using type = decltype(mem_size);
+			using type = meta::smallest_unsigned_t<mem_size>;
+		};
+
+		struct cmp_offset_arr_base_tag
+		{
+			using type = meta::smallest_unsigned_t<mem_size>;
+		};
+
+		struct cmp_size_arr_base_tag
+		{
+			using type = meta::smallest_unsigned_t<mem_size>;
+		};
+
+		struct entity_id_arr_base_tag
+		{
+			using type = meta::smallest_unsigned_t<mem_size>;
+		};
+
+		template <typename t>
+		struct component_tag
+		{
+			using type = t;
 		};
 
 		using t_archetype		 = archetype_tag::type;
@@ -55,23 +76,29 @@ namespace ecs::entity_group
 		using t_component_size	 = component_size_tag::type;
 		using t_component_offset = component_offset_tag::type;
 
-		using align_info = ecs::utility::aligned_layout_info<archetype_tag, entity_count_tag, capacity_tag, component_count_tag>;
+		using t_cmp_offset_arr_base = cmp_offset_arr_base_tag::type;
+		using t_cmp_size_arr_base	= cmp_size_arr_base_tag::type;
+		using t_entity_id_arr_base	= entity_id_arr_base_tag::type;
 
+		using align_info = ecs::utility::aligned_layout_info<
+			archetype_tag,
+			entity_count_tag,
+			capacity_tag,
+			component_count_tag,
+			cmp_offset_arr_base_tag,
+			cmp_size_arr_base_tag,
+			entity_id_arr_base_tag>;
+		// if alignment of A is 4
+		// writing offset 20 => 20/4 = 5 instead of 20
+		// reading offset of A => 5 * 4 = 20 instead of 5
+
+		// alignment : 1, 4, 8, 16, 32, 64
+		// shift : 1, 2, 3, 4, 5, 6
+		// offset : uint8, uint16, uint32, uint64
 	  private:
 		// alignas(std::max(align_info::max_alignof(), ecs::utility::max_alignof<t_cmp...>()))
 		alignas(ecs::utility::max_alignof<t_cmp...>())
 			std::byte storage[mem_size];
-
-		// template <typename t>
-		// consteval t& access_as()
-		//{
-		//	constexpr auto	offset = align_info::template offset_of<t>();
-		//	constexpr auto* p_mem  = &storage[offset];
-
-		//	static_assert((alignof(decltype(storage)) + offset) % alignof(t) == 0);
-
-		//	return *reinterpret_cast<t*>(p_mem);
-		//}
 
 		template <typename t_tag>
 		inline t_tag::type& access_as()
@@ -85,11 +112,12 @@ namespace ecs::entity_group
 			return *reinterpret_cast<t_tag::type*>(p_mem);
 		}
 
-
 	  public:
 		inline t_entity_count& entity_count()
 		{
-			return access_as<entity_count_tag>();
+			static t_entity_count _;
+			return _;
+			// return access_as<entity_count_tag>();
 		}
 
 		inline t_capacity& capacity()
@@ -107,28 +135,95 @@ namespace ecs::entity_group
 			return access_as<archetype_tag>();
 		}
 
+		inline cmp_size_arr_base_tag::type& component_size_arr_base()
+		{
+			return access_as<cmp_size_arr_base_tag>();
+		}
+
+		inline cmp_offset_arr_base_tag::type& component_offset_arr_base()
+		{
+			return access_as<cmp_size_arr_base_tag>();
+		}
+
+		inline entity_id_arr_base_tag::type& entity_id_arr_base()
+		{
+			return access_as<entity_id_arr_base_tag>();
+		}
+
+		template <cmp_size_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
+		inline const t_component_size& cmp_size()
+		{
+			return *reinterpret_cast<t_component_size*>(&storage[offset + cmp_idx]);
+		}
+
+		inline const t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
+		{
+			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
+		}
+
+		template <cmp_offset_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
+		inline const t_component_offset& cmp_offset()
+		{
+			return *(reinterpret_cast<t_component_offset*>(&storage[offset]) + cmp_idx);
+		}
+
+		inline const t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
+		{
+			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
+		}
+
 		inline t_entity_id& entity_id(t_local_entity_idx local_ent_idx)
 		{
-			static auto _ = t_entity_id {};
-			return _;
+			return *(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + local_ent_idx);
 		}
 
 		template <typename... t>
 		void init()
 		{
+			using header_align_info = align_info::template with<component_offset_tag, sizeof...(t)>::template with<component_size_tag, sizeof...(t)>;
+			header_align_info::print();
 			std::println(
-				"offset of entity_count {}\n"
-				"offset of capacity {}\n"
-				"offset of component_count {}\n"
-				"offset of component_size {}\n"
-				"offset of component_offset {}\n",
-				align_info::template offset_of<entity_count_tag>(),
-				align_info::template offset_of<capacity_tag>(),
-				align_info::template offset_of<component_count_tag>(),
-				align_info::template offset_of<component_size_tag>(),
-				align_info::template offset_of<component_offset_tag>());
+				"component_offset_tag size : {} align : {}\n"
+				"component_size_tag size : {} align : {}\n"
+				"archetype_tag size : {} align : {}\n"
+				"entity_count_tag size : {} align : {}\n"
+				"capacity_tag size : {} align : {}\n"
+				"component_count_tag size : {} align : {}\n"
+				"cmp_offset_arr_base_tag size : {} align : {}\n"
+				"cmp_size_arr_base_tag size : {} align : {}\n"
+				"entity_id_arr_base_tag size : {} align : {}\n",
 
-			capacity() = mem_size - align_info::total_size() -
+				sizeof(typename component_offset_tag::type), alignof(typename component_offset_tag::type),
+				sizeof(typename component_size_tag::type), alignof(typename component_size_tag::type),
+				sizeof(typename archetype_tag::type), alignof(typename archetype_tag::type),
+				sizeof(typename entity_count_tag::type), alignof(typename entity_count_tag::type),
+				sizeof(typename capacity_tag::type), alignof(typename capacity_tag::type),
+				sizeof(typename component_count_tag::type), alignof(typename component_count_tag::type),
+				sizeof(typename cmp_offset_arr_base_tag::type), alignof(typename cmp_offset_arr_base_tag::type),
+				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type),
+				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type));
+
+			int a = 1;
+			// sizeof t_component_offset > sizeof t_component_size
+
+			// using total_align_info	= header_align_info::typename with_soa<entity_id_tag, component_tag<t>...>;
+
+			// constexpr auto cmp_size_arr_base   = total_align_info::template offset_of<cmp_size_arr_base_tag>();
+			// constexpr auto cmp_offset_arr_base = total_align_info::template offset_of<cmp_offset_arr_base_tag>();
+			// constexpr auto ent_id_arr_base	   = total_align_info::template offset_of<entity_id_tag>();
+
+			// capacity()					= total_align_info::count_of<entity_id_tag>();
+			// component_count()			= sizeof...(t);
+			// local_archetype()			= archetype_traits::calc_archetype<t...>();
+			// entity_id_arr_base()		= ent_id_arr_base;
+			// component_size_arr_base()	= cmp_size_arr_base;
+			// component_offset_arr_base() = cmp_offset_arr_base;
+
+			//[]<std::size_t... i>(std::index_sequence<i...> _) {
+			//	using cmp_curr						 = meta::variadic_at_t<i, t...>;
+			//	cmp_size<cmp_size_arr_base, i>()	 = sizeof(cmp_curr);
+			//	cmp_offset<cmp_offset_arr_base, i>() = total_align_info::offset_of<component_tag<cmp_curr>>();
+			//}(std::index_sequence_for<t...> {});
 		}
 
 		void init(t_archetype archetype)

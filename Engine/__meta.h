@@ -452,6 +452,47 @@ namespace meta
 	template <template <typename, typename> typename comparator, typename... t>
 	using tuple_sort_t = tuple_sort<comparator, t...>::type;
 
+	template <template <typename> typename pred, typename... ts>
+	struct find_index_impl;
+
+	template <template <typename> typename pred, typename first, typename... rest>
+	struct find_index_impl<pred, first, rest...>
+	{
+		static constexpr std::size_t value = []() {
+			if constexpr (pred<first>::value)
+			{
+				return 0;
+			}
+			else
+			{
+				return 1 + find_index_impl<pred, rest...>::value;
+			}
+		}();
+		//? 0
+		//: 1 + find_index_impl<pred, rest...>::value;
+	};
+
+	template <template <typename> typename pred>
+	struct find_index_impl<pred>
+	{
+		static_assert(false, "No matching type found in type list");
+	};
+
+	template <template <typename> typename pred, typename tuple>
+	struct find_index_from_tuple;
+
+	template <template <typename> typename pred, template <typename...> typename tuple_t, typename... ts>
+	struct find_index_from_tuple<pred, tuple_t<ts...>>
+	{
+		static constexpr std::size_t value = find_index_impl<pred, ts...>::value;
+	};
+
+	template <template <typename> typename pred, typename tuple>
+	inline constexpr std::size_t find_index_tuple_v = find_index_from_tuple<pred, tuple>::value;
+
+	template <template <typename> typename pred, typename... t>
+	inline constexpr std::size_t find_index_v = find_index_impl<pred, t...>::value;
+
 	// template <typename... t>
 	// struct type_list
 	//{
