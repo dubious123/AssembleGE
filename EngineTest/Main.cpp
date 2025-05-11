@@ -83,6 +83,12 @@ import std;
 
 using namespace data_structure;
 
+template <typename T>
+constexpr void print_type()
+{
+	static_assert([] { return false; }(), "Type info");
+}
+
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
@@ -181,7 +187,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -220,8 +226,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -251,7 +257,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -582,12 +588,6 @@ struct interface_game2
 	interface_game2(t_game&& game) : game(std::forward<t_game>(game)) { }
 };
 
-template <typename T>
-constexpr void print_type()
-{
-	static_assert([] { return false; }(), "Type info");
-}
-
 struct foo
 {
 	int a;
@@ -621,11 +621,11 @@ int main()
 		static_assert(meta::find_index_impl<match_type<uint8>::pred, uint8, uint16, uint32>::value == 0);
 		static_assert(match_type<uint8>::pred<uint8>::value);
 		static_assert(meta::find_index_tuple_v<match_type<uint8>::template pred, std::tuple<uint8, uint16, uint32>> == 0);
-		using t_temp = ecs::utility::aligned_layout_info<7, tag<uint8>, tag<uint16>, tag<uint32>>;
-		auto i		 = t_temp::total_size();
-		i			 = 2;
-		// print_type<std::tuple_element_t<0, t_temp::__detail::tpl_sorted>>();
-		//     t_temp::offset_of<uint8>();
+		// using t_temp = ecs::utility::aligned_layout_info<7, tag<uint8>, tag<uint16>, tag<uint32>>;
+		// auto i		 = t_temp::total_size();
+		// i			 = 2;
+		//  print_type<std::tuple_element_t<0, t_temp::__detail::tpl_sorted>>();
+		//      t_temp::offset_of<uint8>();
 
 		// using t_tmp2 = t_temp::with<uint32, 10>;
 
@@ -633,7 +633,15 @@ int main()
 
 		static_assert(std::is_trivial_v<foo>);
 		static_assert(std::is_trivial_v<boo>);
-		// using layout_info = ecs::utility::aligned_layout_info<uint8, uint16, t_random, uint64, uint32>;
+
+		using temp = ecs::utility::aligned_layout_info_builder<tag<int>, tag<float>>::template with_n<tag<double>, 3> /*::build<0, 4096>*/;
+
+		// print_type<ecs::utility::aligned_layout_info_builder<tag<int>, tag<float>, tag<double>>::build<4096>>();
+
+		// constexpr auto off = temp::offset_of<tag<int>>();
+		//   static_assert(std::is_same_v<typename meta::pop_back<std::tuple<int, float, double>>::type, std::tuple<int, float>>);
+		//     static_assert(std::is_same_v<meta::pop_back_t<int, float, double>, std::tuple<int, float>>);
+		//      using layout_info = ecs::utility::aligned_layout_info<uint8, uint16, t_random, uint64, uint32>;
 
 		// auto s = std::tuple_size_v<layout_info::tpl_sorted>;
 		// static_assert(std::tuple_size_v<layout_info::tpl_sorted> == 5);
@@ -729,7 +737,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },

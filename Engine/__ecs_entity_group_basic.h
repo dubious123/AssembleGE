@@ -5,6 +5,9 @@ namespace ecs::entity_group
 	template <std::size_t mem_size, typename t_entity_id, typename t_local_entity_idx, ecs::component_type... t_cmp>
 	struct basic
 	{
+		alignas(ecs::utility::max_alignof<t_cmp...>())
+			std::byte storage[mem_size];
+
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 
 		struct archetype_tag
@@ -79,8 +82,7 @@ namespace ecs::entity_group
 		using t_cmp_size_arr_base	= cmp_size_arr_base_tag::type;
 		using t_entity_id_arr_base	= entity_id_arr_base_tag::type;
 
-		using align_info = ecs::utility::aligned_layout_info<
-			mem_size,
+		using align_info_builder = ecs::utility::aligned_layout_info_builder<
 			archetype_tag,
 			entity_count_tag,
 			capacity_tag,
@@ -88,6 +90,8 @@ namespace ecs::entity_group
 			cmp_offset_arr_base_tag,
 			cmp_size_arr_base_tag,
 			entity_id_arr_base_tag>;
+
+		using align_info = align_info_builder::template build<0, mem_size>;
 		// if alignment of A is 4
 		// writing offset 20 => 20/4 = 5 instead of 20
 		// reading offset of A => 5 * 4 = 20 instead of 5
@@ -96,10 +100,6 @@ namespace ecs::entity_group
 		// shift : 1, 2, 3, 4, 5, 6
 		// offset : uint8, uint16, uint32, uint64
 	  private:
-		// alignas(std::max(align_info::max_alignof(), ecs::utility::max_alignof<t_cmp...>()))
-		alignas(ecs::utility::max_alignof<t_cmp...>())
-			std::byte storage[mem_size];
-
 		template <typename t_tag>
 		inline t_tag::type& access_as()
 		{
@@ -180,7 +180,11 @@ namespace ecs::entity_group
 		template <typename... t>
 		void init()
 		{
-			using header_align_info = align_info::template with<component_offset_tag, sizeof...(t)>::template with<component_size_tag, sizeof...(t)>::template with_soa<entity_id_tag, component_tag<t>...>;
+			// using header_align_info = align_info;
+			// align_info::print();
+			using header_align_info = align_info_builder::template after_with_n<component_offset_tag, sizeof...(t)>::template with_n<component_size_tag, sizeof...(t)>::template with_soa<entity_id_tag, component_tag<t>...>::template build<0, mem_size>;
+			// using header_align_info = align_info_builder::template after_with_n<component_offset_tag, sizeof...(t)>::template with_n<component_size_tag, sizeof...(t)> /*::template with_soa<entity_id_tag, component_tag<t>...>*/ ::template build<0, mem_size>;
+			// using header_align_info = align_info_builder::template with_n<component_size_tag, sizeof...(t)> /*::template with_soa<entity_id_tag, component_tag<t>...>*/ ::template build<0, mem_size>;
 			header_align_info::print();
 			std::println(
 				"component_offset_tag size : {} align : {}\n"

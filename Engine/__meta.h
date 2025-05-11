@@ -184,6 +184,18 @@ namespace meta
 	template <unsigned int idx, auto... tails>
 	inline constexpr auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
 
+	template <typename t>
+	struct index_sequence_size;
+
+	template <std::size_t... i>
+	struct index_sequence_size<std::index_sequence<i...>>
+	{
+		static constexpr std::size_t value = sizeof...(i);
+	};
+
+	template <typename seq>
+	inline constexpr auto index_sequence_size_v = index_sequence_size<seq>::value;
+
 	template <std::size_t i, typename seq>
 	struct index_sequence_at;
 
@@ -195,6 +207,12 @@ namespace meta
 
 	template <std::size_t i, typename seq>
 	inline constexpr auto index_sequence_at_v = index_sequence_at<i, seq>::value;
+
+	template <typename seq>
+	inline constexpr auto index_sequence_back_v = index_sequence_at_v<index_sequence_size_v<seq> - 1, seq>;
+
+	template <typename seq>
+	inline constexpr auto index_sequence_front_v = index_sequence_at_v<0, seq>;
 
 	template <std::size_t idx, auto func>
 	struct param_at;
@@ -487,11 +505,40 @@ namespace meta
 		static constexpr std::size_t value = find_index_impl<pred, ts...>::value;
 	};
 
+	template <template <typename> typename pred, typename t_tpl>
+	struct any_of_tuple;
+
+	template <template <typename> typename pred, template <typename...> typename t_tpl, typename... t>
+	struct any_of_tuple<pred, t_tpl<t...>>
+	{
+		static constexpr bool value = (pred<t>::value || ...);
+	};
+
+	template <template <typename> typename pred, typename t_tpl>
+	inline constexpr bool any_of_tuple_v = any_of_tuple<pred, t_tpl>::value;
+
 	template <template <typename> typename pred, typename tuple>
 	inline constexpr std::size_t find_index_tuple_v = find_index_from_tuple<pred, tuple>::value;
 
 	template <template <typename> typename pred, typename... t>
 	inline constexpr std::size_t find_index_v = find_index_impl<pred, t...>::value;
+
+	template <typename tpl>
+	struct pop_back;
+
+	template <typename... t>
+	struct pop_back<std::tuple<t...>>
+	{
+	  private:
+		template <std::size_t... i>
+		static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
+
+	  public:
+		using type = decltype(helper(std::make_index_sequence<sizeof...(t) - 1> {}));
+	};
+
+	template <typename... t>
+	using pop_back_t = typename pop_back<std::tuple<t...>>::type;
 
 	// template <typename... t>
 	// struct type_list
@@ -531,6 +578,17 @@ namespace meta
 
 	// template <template <typename> typename pred, typename... t>
 	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
+
+	template <auto arr>
+	constexpr auto arr_to_seq()
+	{
+		return []<std::size_t... i>(std::index_sequence<i...>) {
+			return std::index_sequence<arr[i]...> {};
+		}(std::make_index_sequence<std::size(arr)> {});
+	}
+
+	template <auto arr>
+	using arr_to_seq_t = decltype(arr_to_seq<arr>());
 
 	template <typename t_seq_l, typename t_seq_r>
 	struct index_sequence_cat;
