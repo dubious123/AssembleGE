@@ -51,7 +51,7 @@ namespace ecs::entity_storage
 			}
 			else
 			{
-				p_entity_group = (t_entity_group*)malloc(sizeof(t_entity_group));
+				p_entity_group = new t_entity_group();
 				p_entity_group->init<t...>();
 				entity_group_vec.emplace_back(p_entity_group);
 			}
@@ -71,7 +71,7 @@ namespace ecs::entity_storage
 			}
 			else
 			{
-				p_entity_group = (t_entity_group*)malloc(sizeof(t_entity_group));
+				p_entity_group = new t_entity_group();
 				p_entity_group->init(archetype);
 				entity_group_vec.emplace_back(p_entity_group);
 			}
@@ -214,7 +214,7 @@ namespace ecs::entity_storage
 
 		void deinit()
 		{
-			std::ranges::for_each(entity_groups_map | std::views::values | std::views::join, [](auto* p_group) { free(p_group); });
+			std::ranges::for_each(entity_groups_map | std::views::values | std::views::join, [](auto* p_group) { delete p_group; });
 		}
 	};
 }	 // namespace ecs::entity_storage

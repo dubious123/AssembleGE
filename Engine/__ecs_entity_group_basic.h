@@ -65,12 +65,6 @@ namespace ecs::entity_group
 			using type = meta::smallest_unsigned_t<mem_size>;
 		};
 
-		template <typename t>
-		struct component_tag
-		{
-			using type = t;
-		};
-
 		using t_archetype			= archetype_tag::type;
 		using t_entity_count		= entity_count_tag::type;
 		using t_capacity			= capacity_tag::type;
@@ -82,7 +76,7 @@ namespace ecs::entity_group
 		using t_cmp_size_arr_base	= cmp_size_arr_base_tag::type;
 		using t_entity_id_arr_base	= entity_id_arr_base_tag::type;
 
-		using align_info_builder = ecs::utility::aligned_layout_info_builder<
+		using align_info_builder = ecs::utility::layout_builder<
 			archetype_tag,
 			entity_count_tag,
 			capacity_tag,
@@ -106,7 +100,7 @@ namespace ecs::entity_group
 			constexpr auto offset = align_info::template offset_of<t_tag>();
 			auto*		   p_mem  = &storage[offset];
 
-			assert((alignof(decltype(storage)) + offset) % alignof(typename t_tag::type) == 0);
+			assert(reinterpret_cast<std::uintptr_t>(p_mem) % alignof(typename t_tag::type) == 0);
 
 			// not UB since c++20
 			return *reinterpret_cast<t_tag::type*>(p_mem);
@@ -156,23 +150,23 @@ namespace ecs::entity_group
 		}
 
 		template <cmp_size_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
-		inline const t_component_size& cmp_size()
+		inline t_component_size& cmp_size()
 		{
 			return *reinterpret_cast<t_component_size*>(&storage[offset + cmp_idx]);
 		}
 
-		inline const t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
+		inline t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
 		{
 			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
 		}
 
 		template <cmp_offset_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
-		inline const t_component_offset& cmp_offset()
+		inline t_component_offset& cmp_offset()
 		{
 			return *(reinterpret_cast<t_component_offset*>(&storage[offset]) + cmp_idx);
 		}
 
-		inline const t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
+		inline t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
 		{
 			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
 		}
@@ -180,12 +174,15 @@ namespace ecs::entity_group
 		template <typename... t>
 		void init()
 		{
-			// using header_align_info = align_info;
-			// align_info::print();
-			using header_align_info = align_info_builder::template after_with_n<component_offset_tag, sizeof...(t)>::template with_n<component_size_tag, sizeof...(t)>::template with_soa<entity_id_tag, component_tag<t>...>::template build<0, mem_size>;
-			// using header_align_info = align_info_builder::template after_with_n<component_offset_tag, sizeof...(t)>::template with_n<component_size_tag, sizeof...(t)> /*::template with_soa<entity_id_tag, component_tag<t>...>*/ ::template build<0, mem_size>;
-			// using header_align_info = align_info_builder::template with_n<component_size_tag, sizeof...(t)> /*::template with_soa<entity_id_tag, component_tag<t>...>*/ ::template build<0, mem_size>;
-			header_align_info::print();
+			// clang-format off
+			using total_align_info = align_info_builder
+				::template after_with_n<component_offset_tag, sizeof...(t)>
+				::template with_n<component_size_tag, sizeof...(t)>
+				::template with_flex<entity_id_tag, std::type_identity<t>...>
+				::template build<0, mem_size>;
+			// clang-format on
+
+			total_align_info::print();
 			std::println(
 				"component_offset_tag size : {} align : {}\n"
 				"component_size_tag size : {} align : {}\n"
@@ -207,30 +204,49 @@ namespace ecs::entity_group
 				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type),
 				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type));
 
-			int a = 1;
-			// sizeof t_component_offset > sizeof t_component_size
+			constexpr auto cmp_size_arr_base   = total_align_info::template offset_of<cmp_size_arr_base_tag>();
+			constexpr auto cmp_offset_arr_base = total_align_info::template offset_of<cmp_offset_arr_base_tag>();
+			constexpr auto ent_id_arr_base	   = total_align_info::template offset_of<entity_id_tag>();
 
+			capacity()					= total_align_info::template count_of<entity_id_tag>();
+			component_count()			= sizeof...(t);
+			local_archetype()			= t_archetype_traits::template calc_archetype<t...>();
+			entity_id_arr_base()		= ent_id_arr_base;
+			component_size_arr_base()	= cmp_size_arr_base;
+			component_offset_arr_base() = cmp_offset_arr_base;
 
-			// constexpr auto cmp_size_arr_base   = total_align_info::template offset_of<cmp_size_arr_base_tag>();
-			// constexpr auto cmp_offset_arr_base = total_align_info::template offset_of<cmp_offset_arr_base_tag>();
-			// constexpr auto ent_id_arr_base	   = total_align_info::template offset_of<entity_id_tag>();
-
-			// capacity()					= total_align_info::count_of<entity_id_tag>();
-			// component_count()			= sizeof...(t);
-			// local_archetype()			= archetype_traits::calc_archetype<t...>();
-			// entity_id_arr_base()		= ent_id_arr_base;
-			// component_size_arr_base()	= cmp_size_arr_base;
-			// component_offset_arr_base() = cmp_offset_arr_base;
-
-			//[]<std::size_t... i>(std::index_sequence<i...> _) {
-			//	using cmp_curr						 = meta::variadic_at_t<i, t...>;
-			//	cmp_size<cmp_size_arr_base, i>()	 = sizeof(cmp_curr);
-			//	cmp_offset<cmp_offset_arr_base, i>() = total_align_info::offset_of<component_tag<cmp_curr>>();
-			//}(std::index_sequence_for<t...> {});
+			[this]<std::size_t... i>(std::index_sequence<i...> _) {
+				(([this] {
+					 using cmp_curr						  = meta::variadic_at_t<i, t...>;
+					 cmp_size<cmp_size_arr_base, i>()	  = sizeof(cmp_curr);
+					 cmp_offset<cmp_offset_arr_base, i>() = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
+				 }()),
+				 ...);
+			}(std::index_sequence_for<t...> {});
 		}
 
 		void init(t_archetype archetype)
 		{
+			auto cmp_count = t_archetype_traits::cmp_count(archetype);
+			// clang-format off
+			//using total_align_info = align_info_builder::runtime()
+			//	::template after_with_n<component_offset_tag, sizeof...(t)>
+			//	::template with_n<component_size_tag, sizeof...(t)>
+			//	::template with_flex<entity_id_tag, std::type_identity<t>...>
+			//	::template build<0, mem_size>;
+			// clang-format on
+
+			using namespace std::ranges::views;
+			for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
+															 | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
+															 | enumerate)
+			{
+				cmp_size(local_cmp_idx) = t_archetype_traits::cmp_size(storage_cmp_idx);
+				// cmp_offset(local_cmp_idx) = ;
+				//++local_cmp_idx;
+				int a = 1;
+			}
+
 			entity_count() = 0;
 		}
 

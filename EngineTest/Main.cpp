@@ -187,7 +187,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -226,8 +226,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -257,7 +257,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -634,7 +634,7 @@ int main()
 		static_assert(std::is_trivial_v<foo>);
 		static_assert(std::is_trivial_v<boo>);
 
-		using temp = ecs::utility::aligned_layout_info_builder<tag<int>, tag<float>>::template with_n<tag<double>, 3> /*::build<0, 4096>*/;
+		using temp = ecs::utility::layout_builder<tag<int>, tag<float>>::template with_n<tag<double>, 3> /*::build<0, 4096>*/;
 
 		// print_type<ecs::utility::aligned_layout_info_builder<tag<int>, tag<float>, tag<double>>::build<4096>>();
 
@@ -660,7 +660,7 @@ int main()
 
 	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 	b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
-	b.add_component<bullet>(b.new_entity<transform, rigid_body>());
+	b.add_component<bullet>(b.new_entity<transform>());
 	b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
 	b.has_component<rigid_body>(b.new_entity<transform, bullet>());
 	b.get_component<rigid_body>(b.new_entity<rigid_body>());
@@ -737,7 +737,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },
