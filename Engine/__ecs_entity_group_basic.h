@@ -5,9 +5,6 @@ namespace ecs::entity_group
 	template <std::size_t mem_size, typename t_entity_id, typename t_local_entity_idx, ecs::component_type... t_cmp>
 	struct basic
 	{
-		alignas(ecs::utility::max_alignof<t_cmp...>())
-			std::byte storage[mem_size];
-
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 
 		struct archetype_tag
@@ -86,32 +83,28 @@ namespace ecs::entity_group
 			entity_id_arr_base_tag>;
 
 		using align_info = align_info_builder::template build<0, mem_size>;
-		// if alignment of A is 4
-		// writing offset 20 => 20/4 = 5 instead of 20
-		// reading offset of A => 5 * 4 = 20 instead of 5
 
-		// alignment : 1, 4, 8, 16, 32, 64
-		// shift : 1, 2, 3, 4, 5, 6
-		// offset : uint8, uint16, uint32, uint64
+		static constexpr std::size_t alignment = std::max(ecs::utility::max_alignof<t_component_offset, t_component_size, t_entity_id, t_cmp...>(), align_info::max_alignof());
+
+		alignas(alignment)
+			std::byte storage[mem_size];
+
 	  private:
 		template <typename t_tag>
 		inline t_tag::type& access_as()
 		{
 			constexpr auto offset = align_info::template offset_of<t_tag>();
-			auto*		   p_mem  = &storage[offset];
 
-			assert(reinterpret_cast<std::uintptr_t>(p_mem) % alignof(typename t_tag::type) == 0);
+			static_assert((alignment + offset) % alignof(typename t_tag::type) == 0);
 
 			// not UB since c++20
-			return *reinterpret_cast<t_tag::type*>(p_mem);
+			return *reinterpret_cast<t_tag::type*>(&storage[offset]);
 		}
 
 	  public:
 		inline t_entity_count& entity_count()
 		{
-			static t_entity_count _;
-			return _;
-			// return access_as<entity_count_tag>();
+			return access_as<entity_count_tag>();
 		}
 
 		inline t_capacity& capacity()
@@ -149,10 +142,10 @@ namespace ecs::entity_group
 			return *(reinterpret_cast<t_entity_id*>(storage[entity_id_arr_base()]) + ent_idx);
 		}
 
-		template <cmp_size_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
+		template <t_local_cmp_idx cmp_idx>
 		inline t_component_size& cmp_size()
 		{
-			return *reinterpret_cast<t_component_size*>(&storage[offset + cmp_idx]);
+			return *(reinterpret_cast<t_component_size*>(&storage[align_info::template offset_of<cmp_size_arr_base_tag>()]) + cmp_idx);
 		}
 
 		inline t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
@@ -160,10 +153,10 @@ namespace ecs::entity_group
 			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
 		}
 
-		template <cmp_offset_arr_base_tag::type offset, t_local_cmp_idx cmp_idx>
+		template <t_local_cmp_idx cmp_idx>
 		inline t_component_offset& cmp_offset()
 		{
-			return *(reinterpret_cast<t_component_offset*>(&storage[offset]) + cmp_idx);
+			return *(reinterpret_cast<t_component_offset*>(&storage[align_info::template offset_of<cmp_offset_arr_base_tag>()]) + cmp_idx);
 		}
 
 		inline t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
@@ -204,22 +197,18 @@ namespace ecs::entity_group
 				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type),
 				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type));
 
-			constexpr auto cmp_size_arr_base   = total_align_info::template offset_of<cmp_size_arr_base_tag>();
-			constexpr auto cmp_offset_arr_base = total_align_info::template offset_of<cmp_offset_arr_base_tag>();
-			constexpr auto ent_id_arr_base	   = total_align_info::template offset_of<entity_id_tag>();
-
 			capacity()					= total_align_info::template count_of<entity_id_tag>();
 			component_count()			= sizeof...(t);
 			local_archetype()			= t_archetype_traits::template calc_archetype<t...>();
-			entity_id_arr_base()		= ent_id_arr_base;
-			component_size_arr_base()	= cmp_size_arr_base;
-			component_offset_arr_base() = cmp_offset_arr_base;
+			entity_id_arr_base()		= total_align_info::template offset_of<entity_id_tag>();
+			component_size_arr_base()	= total_align_info::template offset_of<component_size_tag>();
+			component_offset_arr_base() = total_align_info::template offset_of<component_offset_tag>();
 
 			[this]<std::size_t... i>(std::index_sequence<i...> _) {
 				(([this] {
-					 using cmp_curr						  = meta::variadic_at_t<i, t...>;
-					 cmp_size<cmp_size_arr_base, i>()	  = sizeof(cmp_curr);
-					 cmp_offset<cmp_offset_arr_base, i>() = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
+					 using cmp_curr	 = meta::variadic_at_t<i, t...>;
+					 cmp_size<i>()	 = sizeof(cmp_curr);
+					 cmp_offset<i>() = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
 				 }()),
 				 ...);
 			}(std::index_sequence_for<t...> {});
@@ -227,16 +216,87 @@ namespace ecs::entity_group
 
 		void init(t_archetype archetype)
 		{
+			using namespace std::ranges::views;
 			auto cmp_count = t_archetype_traits::cmp_count(archetype);
+
+			// auto* cmp_info_arr	= ::new ecs::utility::type_layout_info[cmp_count];
+			// auto  cmp_info_view = std::span<const ecs::utility::type_layout_info>(cmp_info_arr, cmp_count);
+
+			auto&& layout_info_view = iota(0, std::bit_width(archetype))
+									| filter([archetype](auto idx) { return (archetype >> idx) & 1; })
+									| transform([](auto idx) {
+										  return ecs::utility::type_layout_info {
+											  t_archetype_traits::cmp_size(idx),
+											  t_archetype_traits::cmp_alignment(idx)
+										  };
+									  });
+			// auto layout_info_view = iota(0, std::bit_width(archetype))
+			//					  | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
+			//					  | transform([](auto idx) {
+			//							return ecs::utility::type_layout_info {
+			//								t_archetype_traits::cmp_size(idx),
+			//								t_archetype_traits::cmp_alignment(idx)
+			//							};
+			//						});
+
+			// for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
+			//												 | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
+			//												 | enumerate)
+			//{
+			//	cmp_info_view[local_cmp_idx].first	= t_archetype_traits::cmp_alignment(storage_cmp_idx);
+			//	cmp_info_view[local_cmp_idx].second = t_archetype_traits::cmp_size(storage_cmp_idx);
+			// }
+
+			std::println("{}", sizeof(std::decay_t<decltype(layout_info_view)>));
+
+			auto layout_info_total = ecs::utility::layout_builder_runtime(
+										 ecs::utility::with_n<component_offset_tag>(cmp_count),
+										 ecs::utility::with_n<component_size_tag>(cmp_count),
+										 ecs::utility::with_flex<entity_id_tag>(),
+										 ecs::utility::with_flex(std::forward<decltype(layout_info_view)>(layout_info_view)))
+										 // ecs::utility::with_flex(layout_info_view))
+										 .build(align_info::total_size(), mem_size);
+			//::delete[] cmp_info_arr;
+			// auto layout_info_runtime =
+			//	ecs::utility::layout_info_runtime<
+			//		component_offset_tag,
+			//		component_size_tag,
+			//		entity_id_tag>(/*extra_runtime_reserve*/ cmp_count)
+			//		.with_n()
+			//		.with_n()
+			//		.with_flex()
+			//		.with_flex()
+			//		.build();
+
+
+			// type -> variadic_idx -> nth_type -> compile_time_idx_arr -> idx -> offset
+			// id -> runtime_idx_arr -> idx -> offset
+			// two idx arr
+			//
+			//
+
+			// 1. sort by layout
+			// 2. calc_size
+			// 3. calc_flex
+
+
 			// clang-format off
-			//using total_align_info = align_info_builder::runtime()
-			//	::template after_with_n<component_offset_tag, sizeof...(t)>
-			//	::template with_n<component_size_tag, sizeof...(t)>
-			//	::template with_flex<entity_id_tag, std::type_identity<t>...>
-			//	::template build<0, mem_size>;
+	// builer -> builder_runtime ( array of {array of std::tuple(id, sizeof, alignof) , array of flex std::tuple(id, size, alignof)} )
+				//::template with_n<component_offset_tag>(cmp_count)
+				//::template with_n<component_size_tag>(cmp_count)
+				//::template with_flex<entity_id_tag>
+				//::template with_flex(some_type<0>(sizeof(), alignof()), some_type<1>(sizeof(), alignof())...)
+				//::template build<layout_info::total_size(), mem_size>;
 			// clang-format on
 
-			using namespace std::ranges::views;
+			// capacity()					= total_align_info::template count_of<entity_id_tag>();
+			// component_count()			= cmp_count;
+			// local_archetype()			= archetype;
+			// entity_id_arr_base()		= total_align_info::template offset_of<entity_id_tag>();
+			// component_size_arr_base()	= total_align_info::template offset_of<component_size_tag>();
+			// component_offset_arr_base() = total_align_info::template offset_of<component_offset_tag>();
+
+
 			for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
 															 | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
 															 | enumerate)
@@ -247,7 +307,7 @@ namespace ecs::entity_group
 				int a = 1;
 			}
 
-			entity_count() = 0;
+			// entity_count() = 0;
 		}
 
 		template <typename... t>

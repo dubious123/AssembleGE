@@ -37,6 +37,7 @@
     <ClInclude Include="__ecs_system_par.h" />
     <ClInclude Include="__ecs_system_pipeline.h" />
     <ClInclude Include="__ecs_system_seq.h" />
+    <ClInclude Include="__ecs_utility_layout.h" />
     <ClInclude Include="__engine.h" />
     <ClInclude Include="__macro_foreach.h" />
     <ClInclude Include="__ecs_common.h" />

@@ -25,5 +25,6 @@
     <ClInclude Include="__ecs_entity_storage_basic.h" />
     <ClInclude Include="__ecs_entity_group_basic.h" />
     <ClInclude Include="__ecs_utility.h" />
+    <ClInclude Include="__ecs_utility_layout.h" />
   </ItemGroup>
 </Project>
