@@ -9,7 +9,7 @@ namespace ecs::utility
 	concept has_type_ = requires {
 		typename t::type;
 	};
-}
+}	 // namespace ecs::utility
 
 // compile time
 namespace ecs::utility
@@ -409,7 +409,7 @@ namespace ecs::utility
 		{
 			const std::size_t			 size;
 			const std::size_t			 alignment;
-			static constexpr std::size_t count;
+			static constexpr std::size_t count = count;
 		};
 
 		template <typename t_tag, std::size_t count>
@@ -425,6 +425,8 @@ namespace ecs::utility
 
 		struct with_flex_runtime
 		{
+			static constexpr bool __is_flex = true;
+
 			const std::size_t size;
 			const std::size_t alignment;
 		};
@@ -433,12 +435,16 @@ namespace ecs::utility
 		requires std::same_as<std::ranges::range_value_t<r>, type_layout_info>
 		struct with_flex_runtime_view
 		{
+			static constexpr bool __is_flex = true;
+
 			r range;
 		};
 
 		template <typename t_tag>
 		struct with_flex_compile
 		{
+			static constexpr bool __is_flex = true;
+
 			using tag_type = t_tag;
 			using type	   = t_tag::type;
 
@@ -446,6 +452,47 @@ namespace ecs::utility
 			static constexpr std::size_t alignment = alignof(type);
 		};
 	}	 // namespace detail
+
+	namespace detail
+	{
+		template <typename t>
+		struct is_with_n_compile : std::false_type
+		{
+		};
+
+		template <typename t_tag, std::size_t count>
+		struct is_with_n_compile<with_n_compile<t_tag, count>> : std::true_type
+		{
+		};
+
+		template <typename t>
+		concept has_count = requires {
+			{
+				[]<auto v = t::count>() { }
+			};
+		};
+
+		template <typename t>
+		concept has_count_runtime = requires(t elem) {
+			{ elem.count };
+		};
+
+		template <typename t>
+		concept is_flex = requires {
+			{ t::__is_flex };
+		};
+	}	 // namespace detail
+
+	template <has_type_ t_tag>
+	decltype(auto) with()
+	{
+		return detail::with_n_compile<t_tag, 1> {};
+	}
+
+	decltype(auto) with(const type_layout_info& info)
+	{
+		return detail::with_n_hybrid<void, 1> { info.size, info.alignment };
+	}
 
 	decltype(auto) with_n(const type_layout_info& info, const std::size_t count)
 	{
@@ -491,11 +538,28 @@ namespace ecs::utility
 	template <typename... t_element>
 	struct layout_builder_runtime
 	{
-		static constexpr std::size_t known_type_count = (0 + ... + (has_type_<t_element> ? 1 : 0));
+		template <typename t>
+		struct known_type : std::integral_constant<bool, has_type_<t>>
+		{
+		};
+
+		template <typename t_tag>
+		struct match
+		{
+			template <typename t>
+			struct pred : std::integral_constant<bool, std::is_same_v<t_tag, typename t::tag_type>>
+			{
+			};
+		};
+
+		using known_type_tpl = meta::filtered_tuple_t<known_type, t_element...>;
+
+		template <typename t_tag>
+		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t<typename match<t_tag>::template pred, known_type_tpl>>;
 
 		layout_builder_runtime(t_element&&... elem)
 		{
-			std::println("{}", known_type_count);
+			std::println("{}", std::tuple_size_v<known_type_tpl>);
 			// auto compile_time_tag_count = 0;
 			// auto runtime_tag_count		= 0;
 
@@ -508,6 +572,35 @@ namespace ecs::utility
 			//	}
 			//}(),
 			// ...);
+		}
+
+		template <typename t_tag>
+		std::size_t count_of()
+		{
+			using t_elem = t_known_element<t_tag>;
+
+			if constexpr (detail::has_count<t_elem>)
+			{
+				// with_n_compile
+				return t_elem::count;
+			}
+			else if constexpr (detail::has_count_runtime<t_elem>)
+			{
+				return 1;
+			}
+			else if constexpr (detail::is_flex<t_elem>)
+			{
+				return 2;
+			}
+
+			return 0;
+		}
+
+		template <typename t_tag>
+		std::size_t offset_of()
+		{
+			using t_elem = t_known_element<t_tag>;
+			return 0;
 		}
 
 		decltype(auto) build(std::size_t offset, std::size_t mem_size) { return *this; };

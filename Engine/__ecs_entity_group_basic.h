@@ -247,54 +247,28 @@ namespace ecs::entity_group
 			//	cmp_info_view[local_cmp_idx].second = t_archetype_traits::cmp_size(storage_cmp_idx);
 			// }
 
+			using tagg = decltype(ecs::utility::with_flex<entity_id_tag>())::tag_type;
+			static_assert(std::is_same_v<tagg, entity_id_tag>);
 			std::println("{}", sizeof(std::decay_t<decltype(layout_info_view)>));
 
-			auto layout_info_total = ecs::utility::layout_builder_runtime(
-										 ecs::utility::with_n<component_offset_tag>(cmp_count),
-										 ecs::utility::with_n<component_size_tag>(cmp_count),
-										 ecs::utility::with_flex<entity_id_tag>(),
-										 ecs::utility::with_flex(std::forward<decltype(layout_info_view)>(layout_info_view)))
-										 // ecs::utility::with_flex(layout_info_view))
-										 .build(align_info::total_size(), mem_size);
-			//::delete[] cmp_info_arr;
-			// auto layout_info_runtime =
-			//	ecs::utility::layout_info_runtime<
-			//		component_offset_tag,
-			//		component_size_tag,
-			//		entity_id_tag>(/*extra_runtime_reserve*/ cmp_count)
-			//		.with_n()
-			//		.with_n()
-			//		.with_flex()
-			//		.with_flex()
-			//		.build();
+			auto total_align_info = ecs::utility::layout_builder_runtime(
+										ecs::utility::with_n<component_offset_tag>(cmp_count),
+										ecs::utility::with_n<component_size_tag>(cmp_count),
+										ecs::utility::with_flex<entity_id_tag>(),
+										ecs::utility::with_flex(std::forward<decltype(layout_info_view)>(layout_info_view)))
+										// ecs::utility::with_flex(layout_info_view))
+										.build(align_info::total_size(), mem_size);
+
+			std::println("{}", total_align_info.count_of<component_offset_tag>());
+			std::println("{}", std::ranges::distance(layout_info_view));
 
 
-			// type -> variadic_idx -> nth_type -> compile_time_idx_arr -> idx -> offset
-			// id -> runtime_idx_arr -> idx -> offset
-			// two idx arr
-			//
-			//
-
-			// 1. sort by layout
-			// 2. calc_size
-			// 3. calc_flex
-
-
-			// clang-format off
-	// builer -> builder_runtime ( array of {array of std::tuple(id, sizeof, alignof) , array of flex std::tuple(id, size, alignof)} )
-				//::template with_n<component_offset_tag>(cmp_count)
-				//::template with_n<component_size_tag>(cmp_count)
-				//::template with_flex<entity_id_tag>
-				//::template with_flex(some_type<0>(sizeof(), alignof()), some_type<1>(sizeof(), alignof())...)
-				//::template build<layout_info::total_size(), mem_size>;
-			// clang-format on
-
-			// capacity()					= total_align_info::template count_of<entity_id_tag>();
-			// component_count()			= cmp_count;
-			// local_archetype()			= archetype;
-			// entity_id_arr_base()		= total_align_info::template offset_of<entity_id_tag>();
-			// component_size_arr_base()	= total_align_info::template offset_of<component_size_tag>();
-			// component_offset_arr_base() = total_align_info::template offset_of<component_offset_tag>();
+			capacity()					= total_align_info.count_of<entity_id_tag>();
+			component_count()			= cmp_count;
+			local_archetype()			= archetype;
+			entity_id_arr_base()		= total_align_info.offset_of<entity_id_tag>();
+			component_size_arr_base()	= total_align_info.offset_of<component_size_tag>();
+			component_offset_arr_base() = total_align_info.offset_of<component_offset_tag>();
 
 
 			for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))

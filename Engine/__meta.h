@@ -673,6 +673,12 @@ namespace meta
 	};
 
 	template <template <typename> typename pred, typename... t>
+	struct filtered_tuple<pred, std::tuple<t...>>
+	{
+		using type = typename filtered_tuple<pred, t...>::type;
+	};
+
+	template <template <typename> typename pred, typename... t>
 	using filtered_tuple_t = filtered_tuple<pred, t...>::type;
 
 	template <template <typename> typename pred, typename... t>
