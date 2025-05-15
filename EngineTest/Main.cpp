@@ -613,10 +613,59 @@ struct tag
 	using type = t;
 };
 
+template <typename t1, typename t2>
+struct align_comparator : std::integral_constant<bool, (t1::alignment < t2::alignment)>
+{
+};
+
+template <std::size_t i1, std::size_t i2>
+struct item
+{
+	static constexpr std::size_t l = i1;
+	static constexpr std::size_t r = i2;
+};
+
+using unsorted = std::tuple<item<3, 1>, item<3, 0>, item<1, 2>, item<2, 3>, item<1, 4>>;
+// item<3, 1> , item<1, 2>, item<2, 3>, item<1, 4>
+// item<3, 1> , item<2, 3>, item<1, 4>  item<1, 2>, item<1, 4>
+using sorted_stable	  = std::tuple<item<3, 1>, item<3, 0>, item<2, 3>, item<1, 2>, item<1, 4>>;
+using sorted_unstable = std::tuple<item<3, 0>, item<3, 1>, item<2, 3>, item<1, 4>, item<1, 2>>;
+
+// cond<a,b>
+
+template <typename A, typename B>
+struct item_comparator_descend_unstable
+{
+	static constexpr bool value = (A::l <= B::l);
+};
+
+template <typename A, typename B>
+struct item_comparator_descend
+{
+	static constexpr int value = []() {
+		if constexpr (A::l < B::l)
+		{
+			return -1;
+		}
+		else if constexpr (A::l == B::l)
+		{
+			return 0;
+		}
+		else
+		{
+			return 1;
+		}
+	}();
+};
+
 int main()
 {
 	{
-		// meta::tuple_sort_t<comparator, uint8, uint16, uint32, uint64, int8, int16, int32, int64>;
+		// meta::print_type<tuple_sort_stable_t<item_comparator_descend, unsorted>>();
+		meta::print_type<tuple_sort_t<item_comparator_descend_unstable, unsorted>>();
+		static_assert(std::is_same_v<tuple_sort_stable_t<item_comparator_descend, unsorted>, sorted_stable>);
+		// static_assert(std::is_same_v<tuple_sort_t<item_comparator_descend, unsorted>, sorted_unstable>);
+		//   meta::tuple_sort_t<comparator, uint8, uint16, uint32, uint64, int8, int16, int32, int64>;
 
 
 		// print_type<meta::tuple_sort_t<comparator, uint8>>();
@@ -663,7 +712,7 @@ int main()
 	auto _game = my_game();
 
 	// print_type<meta::tuple_cat_t<>>();
-
+	using t_entity_id = uint32;
 
 	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 	b.remove_entity(b.new_entity<transform, bullet, rigid_body>());

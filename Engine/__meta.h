@@ -434,24 +434,32 @@ namespace meta
 		using type = std::tuple<>;
 	};
 
-	// template <template <typename, typename> typename comparator, template <typename...> typename tuple>
-	// struct tuple_sort<comparator, tuple<>, tuple<>>
-	//{
-	//	using type = std::tuple<>;
-	// };
-
 	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
 	struct tuple_sort<comparator, tuple<>>
 	{
 		using type = std::tuple<>;
 	};
 
-	// template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
-	// struct tuple_sort<comparator, tuple<h>>
-	//{
-	//	using type = std::tuple<h>;
-	// };
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
+	struct tuple_sort<comparator, tuple<h>>
+	{
+		using type = std::tuple<h>;
+	};
 
+	// If 'comparator' models strict weak ordering, the result is always stable.
+	// Otherwise, the result is not stable.
+	//
+	// pivot is always the head (first element).
+	// partition_l : comparator<head, t> is true  // t < head (left partition)
+	// partition_r : comparator<head, t> is false // t >= head (right partition)
+	//             : == comp<t, head> (t > head) + (t equivalent to head)
+	//
+	// Note: comparator must be strict weak ordering.
+	//       (i.e., comparator(a, b) == false && comparator(b, a) == false means a, b are equivalent.)
+	//       Violating this may result in undefined behavior.
+	//
+	// Usage:
+	//     using result = tuple_sort<my_comp, t1, t2, t3, ...>;
 	template <template <typename, typename> typename comparator, typename... t>
 	using tuple_sort_t = tuple_sort<comparator, t...>::type;
 
@@ -462,16 +470,16 @@ namespace meta
 	struct tuple_sort_stable<comparator, h, t...>
 	{
 		template <typename t_l, typename t_r>
-		static constexpr bool is_equal = not comparator<t_l, t_r>::value and not comparator<t_r, t_l>::value;
+		static constexpr int comparator_v = comparator<t_l, t_r>::value;
 
-		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_m = tuple_cat_t<std::conditional_t<is_equal<h, t>, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
+		using subset_l = tuple_cat_t<std::conditional_t<(comparator_v<h, t> < 0), std::tuple<t>, std::tuple<>>...>;
+		using subset_m = tuple_cat_t<std::conditional_t<(comparator_v<h, t> == 0), std::tuple<t>, std::tuple<>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<(comparator_v<h, t> > 0), std::tuple<t>, std::tuple<>>...>;
 		using type	   = tuple_cat_t<typename tuple_sort_stable<comparator, subset_l>::type, tuple_cat_t<std::tuple<h>, subset_m>, typename tuple_sort_stable<comparator, subset_r>::type>;
 	};
 
-	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h, typename... t>
-	struct tuple_sort_stable<comparator, tuple<h, t...>> : tuple_sort_stable<comparator, h, t...>
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename... t>
+	struct tuple_sort_stable<comparator, tuple<t...>> : tuple_sort_stable<comparator, t...>
 	{
 	};
 
@@ -479,6 +487,18 @@ namespace meta
 	struct tuple_sort_stable<comparator>
 	{
 		using type = std::tuple<>;
+	};
+
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
+	struct tuple_sort_stable<comparator, tuple<>>
+	{
+		using type = std::tuple<>;
+	};
+
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
+	struct tuple_sort_stable<comparator, tuple<h>>
+	{
+		using type = std::tuple<h>;
 	};
 
 	template <template <typename, typename> typename comparator, typename... t>
@@ -500,8 +520,6 @@ namespace meta
 				return 1 + find_index_impl<pred, rest...>::value;
 			}
 		}();
-		//? 0
-		//: 1 + find_index_impl<pred, rest...>::value;
 	};
 
 	template <template <typename> typename pred>

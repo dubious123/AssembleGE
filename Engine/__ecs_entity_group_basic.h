@@ -177,25 +177,25 @@ namespace ecs::entity_group
 
 			total_align_info::print();
 			std::println(
-				"component_offset_tag size : {} align : {}\n"
-				"component_size_tag size : {} align : {}\n"
-				"archetype_tag size : {} align : {}\n"
-				"entity_count_tag size : {} align : {}\n"
-				"capacity_tag size : {} align : {}\n"
-				"component_count_tag size : {} align : {}\n"
-				"cmp_offset_arr_base_tag size : {} align : {}\n"
-				"cmp_size_arr_base_tag size : {} align : {}\n"
-				"entity_id_arr_base_tag size : {} align : {}\n",
+				"component_offset_tag size : {} align : {} , offset : {}\n"
+				"component_size_tag size : {} align : {} , offset : {}\n"
+				"archetype_tag size : {} align : {} , offset : {}\n"
+				"entity_count_tag size : {} align : {} , offset : {}\n"
+				"capacity_tag size : {} align : {} , offset : {}\n"
+				"component_count_tag size : {} align : {} , offset : {}\n"
+				"cmp_offset_arr_base_tag size : {} align : {} , offset : {}\n"
+				"cmp_size_arr_base_tag size : {} align : {} , offset : {}\n"
+				"entity_id_arr_base_tag size : {} align : {} , offset : {}\n",
 
-				sizeof(typename component_offset_tag::type), alignof(typename component_offset_tag::type),
-				sizeof(typename component_size_tag::type), alignof(typename component_size_tag::type),
-				sizeof(typename archetype_tag::type), alignof(typename archetype_tag::type),
-				sizeof(typename entity_count_tag::type), alignof(typename entity_count_tag::type),
-				sizeof(typename capacity_tag::type), alignof(typename capacity_tag::type),
-				sizeof(typename component_count_tag::type), alignof(typename component_count_tag::type),
-				sizeof(typename cmp_offset_arr_base_tag::type), alignof(typename cmp_offset_arr_base_tag::type),
-				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type),
-				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type));
+				sizeof(typename component_offset_tag::type), alignof(typename component_offset_tag::type), total_align_info::template offset_of<component_offset_tag>(),
+				sizeof(typename component_size_tag::type), alignof(typename component_size_tag::type), total_align_info::template offset_of<component_size_tag>(),
+				sizeof(typename archetype_tag::type), alignof(typename archetype_tag::type), total_align_info::template offset_of<archetype_tag>(),
+				sizeof(typename entity_count_tag::type), alignof(typename entity_count_tag::type), total_align_info::template offset_of<entity_count_tag>(),
+				sizeof(typename capacity_tag::type), alignof(typename capacity_tag::type), total_align_info::template offset_of<capacity_tag>(),
+				sizeof(typename component_count_tag::type), alignof(typename component_count_tag::type), total_align_info::template offset_of<component_count_tag>(),
+				sizeof(typename cmp_offset_arr_base_tag::type), alignof(typename cmp_offset_arr_base_tag::type), total_align_info::template offset_of<cmp_offset_arr_base_tag>(),
+				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type), total_align_info::template offset_of<cmp_size_arr_base_tag>(),
+				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type), total_align_info::template offset_of<entity_id_arr_base_tag>());
 
 			capacity()					= total_align_info::template count_of<entity_id_tag>();
 			component_count()			= sizeof...(t);

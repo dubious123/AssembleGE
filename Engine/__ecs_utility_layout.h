@@ -229,11 +229,11 @@ namespace ecs::utility
 			template <std::size_t offset, typename t_builder_elem_head, typename... t_layout_group_tail>
 			struct make_layout_group_info<offset, t_builder_elem_head, t_layout_group_tail...>
 			{
-				using head_info_complete				 = layout_group_info<offset, mem_size, t_builder_elem_head>;
-				static constexpr std::size_t next_offset = offset + head_info_complete::size;
+				using t_layout_group_head				 = layout_group_info<offset, mem_size, t_builder_elem_head>;
+				static constexpr std::size_t next_offset = offset + t_layout_group_head::size;
 
 				using tail_tpl = typename make_layout_group_info<next_offset, t_layout_group_tail...>::type;
-				using type	   = decltype(std::tuple_cat(std::tuple<head_info_complete> {}, tail_tpl {}));
+				using type	   = decltype(std::tuple_cat(std::tuple<t_layout_group_head> {}, tail_tpl {}));
 			};
 
 			using layout_group_info_tpl = make_layout_group_info<mem_offset, t_layout_group...>::type;
@@ -290,7 +290,6 @@ namespace ecs::utility
 			template <std::size_t begin_offset, std::size_t mem_size>
 			static constexpr decltype(auto) __build()
 			{
-				meta::print_type<std::tuple<t_layout_group...>>();
 				return layout_info<begin_offset, mem_size, t_layout_group...> {};
 			}
 
