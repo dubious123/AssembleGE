@@ -423,24 +423,9 @@ namespace meta
 		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
 	};
 
-	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h, typename... t>
-	struct tuple_sort<comparator, tuple<h, t...>>
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename... t>
+	struct tuple_sort<comparator, tuple<t...>> : tuple_sort<comparator, t...>
 	{
-		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
-		using subset_r = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<>, std::tuple<t>>...>;
-		using type	   = tuple_cat_t<typename tuple_sort<comparator, subset_l>::type, std::tuple<h>, typename tuple_sort<comparator, subset_r>::type>;
-	};
-
-	// template <template <typename, typename> typename comparator, typename h, typename t>
-	// struct tuple_sort<comparator, h, t>
-	//{
-	//	using type = std::tuple<std::conditional_t<comparator<h, t>::value, t, h>>;
-	// };
-
-	template <template <typename, typename> typename comparator, typename h>
-	struct tuple_sort<comparator, h>
-	{
-		using type = std::tuple<h>;
 	};
 
 	template <template <typename, typename> typename comparator>
@@ -449,11 +434,11 @@ namespace meta
 		using type = std::tuple<>;
 	};
 
-	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
-	struct tuple_sort<comparator, tuple<>, tuple<>>
-	{
-		using type = std::tuple<>;
-	};
+	// template <template <typename, typename> typename comparator, template <typename...> typename tuple>
+	// struct tuple_sort<comparator, tuple<>, tuple<>>
+	//{
+	//	using type = std::tuple<>;
+	// };
 
 	template <template <typename, typename> typename comparator, template <typename...> typename tuple>
 	struct tuple_sort<comparator, tuple<>>
@@ -461,14 +446,43 @@ namespace meta
 		using type = std::tuple<>;
 	};
 
-	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
-	struct tuple_sort<comparator, tuple<h>>
-	{
-		using type = std::tuple<h>;
-	};
+	// template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h>
+	// struct tuple_sort<comparator, tuple<h>>
+	//{
+	//	using type = std::tuple<h>;
+	// };
 
 	template <template <typename, typename> typename comparator, typename... t>
 	using tuple_sort_t = tuple_sort<comparator, t...>::type;
+
+	template <template <typename, typename> typename comparator, typename... t>
+	struct tuple_sort_stable;
+
+	template <template <typename, typename> typename comparator, typename h, typename... t>
+	struct tuple_sort_stable<comparator, h, t...>
+	{
+		template <typename t_l, typename t_r>
+		static constexpr bool is_equal = not comparator<t_l, t_r>::value and not comparator<t_r, t_l>::value;
+
+		using subset_l = tuple_cat_t<std::conditional_t<comparator<h, t>::value, std::tuple<t>, std::tuple<>>...>;
+		using subset_m = tuple_cat_t<std::conditional_t<is_equal<h, t>, std::tuple<t>, std::tuple<>>...>;
+		using subset_r = tuple_cat_t<std::conditional_t<comparator<t, h>::value, std::tuple<t>, std::tuple<>>...>;
+		using type	   = tuple_cat_t<typename tuple_sort_stable<comparator, subset_l>::type, tuple_cat_t<std::tuple<h>, subset_m>, typename tuple_sort_stable<comparator, subset_r>::type>;
+	};
+
+	template <template <typename, typename> typename comparator, template <typename...> typename tuple, typename h, typename... t>
+	struct tuple_sort_stable<comparator, tuple<h, t...>> : tuple_sort_stable<comparator, h, t...>
+	{
+	};
+
+	template <template <typename, typename> typename comparator>
+	struct tuple_sort_stable<comparator>
+	{
+		using type = std::tuple<>;
+	};
+
+	template <template <typename, typename> typename comparator, typename... t>
+	using tuple_sort_stable_t = tuple_sort_stable<comparator, t...>::type;
 
 	template <template <typename> typename pred, typename... ts>
 	struct find_index_impl;
@@ -943,4 +957,10 @@ namespace meta
 			std::conditional_t<
 				n <= std::numeric_limits<uint32>::max(), uint32,
 				uint64>>>;
+
+	template <typename T>
+	constexpr void print_type()
+	{
+		static_assert([] { return false; }(), "Type info");
+	}
 }	 // namespace meta

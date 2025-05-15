@@ -214,6 +214,12 @@ namespace ecs::entity_group
 			}(std::index_sequence_for<t...> {});
 		}
 
+		// template <typename t>
+		// void quick_sort(t* p_data, std::size_t low, std::size_t high, auto comp)
+		//{
+		//	auto pivot_idx = low;
+		// }
+
 		void init(t_archetype archetype)
 		{
 			using namespace std::ranges::views;
@@ -270,16 +276,48 @@ namespace ecs::entity_group
 			component_size_arr_base()	= total_align_info.offset_of<component_size_tag>();
 			component_offset_arr_base() = total_align_info.offset_of<component_offset_tag>();
 
+			// size, alignment, count
+
+			// compile_time buffer
+			auto compile_typeinfo_buffer = std::array<std::tuple<std::size_t, std::size_t, std::size_t>, 3> {
+				std::tuple { sizeof(t_component_offset), alignof(t_component_offset), cmp_count },
+				std::tuple { sizeof(t_component_size), alignof(t_component_size), cmp_count },
+				std::tuple { sizeof(t_entity_id), alignof(t_entity_id), -1 }
+			};
+
+			// 1. with_n, flex
+			// 2. sort by alignment (quick_sort)
+			// 3. offset_of<_type> ??
+
+
+			// type -> index -> offset
+			auto compile_type_index = std::array<std::size_t, 3> { 0, 1, 2 };
+			// local_cmp_idx -> index -> offset
+			auto runtime_type_index = std::array<std::size_t, sizeof...(t_cmp)> { 0 };
+			auto offset_index		= std::array<std::size_t, sizeof...(t_cmp) + 3> {};
+
+			// runtime buffer
+			auto runtime_typeinfo_buffer = std::array<std::tuple<std::size_t, std::size_t, std::size_t>, sizeof...(t_cmp)> {};
+
 
 			for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
 															 | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
 															 | enumerate)
 			{
-				cmp_size(local_cmp_idx) = t_archetype_traits::cmp_size(storage_cmp_idx);
-				// cmp_offset(local_cmp_idx) = ;
-				//++local_cmp_idx;
-				int a = 1;
+				runtime_typeinfo_buffer[local_cmp_idx] = std::make_tuple<std::size_t, std::size_t, std::size_t>(
+					t_archetype_traits::cmp_size(storage_cmp_idx),
+					t_archetype_traits::cmp_alignment(storage_cmp_idx),
+					-1);
 			}
+
+			// sort by alignment
+
+			// compile_time_sort
+			// std::ranges::sort(compile_typeinfo_buffer, std::greater_equal {}, [](const auto& tpl) { return std::get<1>(tpl); });
+
+			// runtime_sort
+			std::ranges::sort(runtime_typeinfo_buffer | take(cmp_count), std::greater_equal {}, [](const auto& tpl) { return std::get<1>(tpl); });
+
 
 			// entity_count() = 0;
 		}
@@ -319,7 +357,6 @@ namespace ecs::entity_group
 		decltype(auto) get_component(const t_local_entity_idx local_ent_idx)
 		{
 			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
-			const auto arch = local_archetype();
 
 			if constexpr (sizeof...(t) == 1)
 			{
@@ -328,22 +365,10 @@ namespace ecs::entity_group
 			}
 			else
 			{
+				const auto arch = local_archetype();
+
 				return std::tuple<t&...> { (*reinterpret_cast<t*>(&storage[component_offset_arr_base(t_archetype_traits::template calc_local_cmp_idx<t>(arch))] + local_ent_idx))... };
 			}
-
-			// using ret_t = std::conditional_t<
-			//	std::is_const_v<decltype(*this)>,
-			//	std::conditional_t<
-			//		(sizeof...(t) == 1),
-			//		const meta::variadic_at_t<0, t&...>,
-			//		const std::tuple<t&...>>,
-			//	std::conditional_t<
-			//		(sizeof...(t) == 1),
-			//		meta::variadic_at_t<0, t&...>,
-			//		std::tuple<t&...>>>;
-			//  static ret_t _;
-
-			// return 1;
 		}
 
 		bool is_full() const

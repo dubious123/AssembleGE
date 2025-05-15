@@ -83,12 +83,6 @@ import std;
 
 using namespace data_structure;
 
-template <typename T>
-constexpr void print_type()
-{
-	static_assert([] { return false; }(), "Type info");
-}
-
 void test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
@@ -187,7 +181,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -226,8 +220,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -257,7 +251,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void update(transform& t, bullet& v) {};
 
 	static void test_fu(int a, int b) { }
 };
@@ -608,6 +602,11 @@ struct match_type
 	};
 };
 
+template <typename t1, typename t2>
+struct comparator : std::integral_constant<bool, (alignof(t1) > alignof(t2))>
+{
+};
+
 template <typename t>
 struct tag
 {
@@ -617,6 +616,11 @@ struct tag
 int main()
 {
 	{
+		// meta::tuple_sort_t<comparator, uint8, uint16, uint32, uint64, int8, int16, int32, int64>;
+
+
+		// print_type<meta::tuple_sort_t<comparator, uint8>>();
+
 		using t_random = uint8;
 		static_assert(meta::find_index_impl<match_type<uint8>::pred, uint8, uint16, uint32>::value == 0);
 		static_assert(match_type<uint8>::pred<uint8>::value);
@@ -657,6 +661,9 @@ int main()
 	}
 
 	auto _game = my_game();
+
+	// print_type<meta::tuple_cat_t<>>();
+
 
 	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 	b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
@@ -737,7 +744,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },

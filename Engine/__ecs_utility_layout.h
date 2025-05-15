@@ -85,16 +85,17 @@ namespace ecs::utility
 				return [soa_count]<std::size_t... i>(std::index_sequence<i...> _) {
 					std::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets { mem_offset };
 					([&offsets, soa_count] {
-						using t_elem = std::tuple_element_t<i, sorted_element_tpl>;
+						using t_unit = std::tuple_element_t<i, sorted_element_tpl>;
 
-						offsets[i] = align_up(offsets[i], t_elem::alignment);
-						if constexpr (t_elem::flex_fill)
+						offsets[i] = align_up(offsets[i], t_unit::alignment);
+
+						if constexpr (t_unit::flex_fill)
 						{
-							offsets[i + 1] = offsets[i] + t_elem::size * soa_count;
+							offsets[i + 1] = offsets[i] + t_unit::size * soa_count;
 						}
 						else
 						{
-							offsets[i + 1] = offsets[i] + t_elem::size;
+							offsets[i + 1] = offsets[i] + t_unit::size;
 						}
 					}(),
 					 ...);
@@ -289,6 +290,7 @@ namespace ecs::utility
 			template <std::size_t begin_offset, std::size_t mem_size>
 			static constexpr decltype(auto) __build()
 			{
+				meta::print_type<std::tuple<t_layout_group...>>();
 				return layout_info<begin_offset, mem_size, t_layout_group...> {};
 			}
 
@@ -304,9 +306,7 @@ namespace ecs::utility
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
 						using tpl	 = meta::pop_back_t<t_layout_group...>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
-						// print_type<t_last>();
 						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with<t_unit...>> {};
-						// return layout_info_impl_builder<std::tuple_element_t<i, tpl>..., t_last> {};
 					}(std::make_index_sequence<sizeof...(t_layout_group) - 1> {});
 				}
 			}
@@ -468,18 +468,22 @@ namespace ecs::utility
 		template <typename t>
 		concept has_count = requires {
 			{
-				[]<auto v = t::count>() { }
+				[]<auto v = t::count>() {}
 			};
 		};
 
 		template <typename t>
 		concept has_count_runtime = requires(t elem) {
-			{ elem.count };
+			{
+				elem.count
+			};
 		};
 
 		template <typename t>
 		concept is_flex = requires {
-			{ t::__is_flex };
+			{
+				t::__is_flex
+			};
 		};
 	}	 // namespace detail
 
