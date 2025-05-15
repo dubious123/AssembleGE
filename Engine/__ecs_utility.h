@@ -146,7 +146,7 @@ namespace ecs::utility
 		template <typename t>
 		static consteval t_storage_cmp_idx calc_storage_cmp_idx()
 		{
-			return meta::variadic_index_v<t, t_cmp...>;
+			return meta::variadic_index_v<std::decay_t<t>, std::decay_t<t_cmp>...>;
 		}
 
 		template <typename t>

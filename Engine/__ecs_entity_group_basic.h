@@ -142,10 +142,10 @@ namespace ecs::entity_group
 			return *(reinterpret_cast<t_entity_id*>(storage[entity_id_arr_base()]) + ent_idx);
 		}
 
-		template <t_local_cmp_idx cmp_idx>
-		inline t_component_size& cmp_size()
+		template <typename t>
+		inline t_local_cmp_idx calc_cmp_idx()
 		{
-			return *(reinterpret_cast<t_component_size*>(&storage[align_info::template offset_of<cmp_size_arr_base_tag>()]) + cmp_idx);
+			return t_archetype_traits::template calc_local_cmp_idx<t>(local_archetype());
 		}
 
 		inline t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
@@ -153,15 +153,15 @@ namespace ecs::entity_group
 			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
 		}
 
-		template <t_local_cmp_idx cmp_idx>
-		inline t_component_offset& cmp_offset()
-		{
-			return *(reinterpret_cast<t_component_offset*>(&storage[align_info::template offset_of<cmp_offset_arr_base_tag>()]) + cmp_idx);
-		}
-
 		inline t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
 		{
 			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
+		}
+
+		template <typename t>
+		inline t_component_offset& cmp_offset()
+		{
+			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + calc_cmp_idx<t>());
 		}
 
 		template <typename... t>
@@ -204,12 +204,12 @@ namespace ecs::entity_group
 			component_size_arr_base()	= total_align_info::template offset_of<component_size_tag>();
 			component_offset_arr_base() = total_align_info::template offset_of<component_offset_tag>();
 
-			[this]<std::size_t... i>(std::index_sequence<i...> _) {
-				(([this] {
-					 using cmp_curr	 = meta::variadic_at_t<i, t...>;
-					 cmp_size<i>()	 = sizeof(cmp_curr);
-					 cmp_offset<i>() = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
-				 }()),
+			[this]<std::size_t... local_cmp_idx>(std::index_sequence<local_cmp_idx...> _) {
+				([this] {
+					using cmp_curr																													 = meta::variadic_at_t<local_cmp_idx, t...>;
+					*(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx)	 = sizeof(cmp_curr);
+					*(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx) = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
+				}(),
 				 ...);
 			}(std::index_sequence_for<t...> {});
 		}
@@ -315,9 +315,22 @@ namespace ecs::entity_group
 			return nullptr;
 		}
 
-		template <typename... t>
+		template <ecs::component_type... t>
 		decltype(auto) get_component(const t_local_entity_idx local_ent_idx)
 		{
+			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
+			const auto arch = local_archetype();
+
+			if constexpr (sizeof...(t) == 1)
+			{
+				using t_ret = meta::variadic_at_t<0, t...>;
+				return *reinterpret_cast<t_ret*>(&storage[cmp_offset<t_ret>()] + local_ent_idx);
+			}
+			else
+			{
+				return std::tuple<t&...> { (*reinterpret_cast<t*>(&storage[component_offset_arr_base(t_archetype_traits::template calc_local_cmp_idx<t>(arch))] + local_ent_idx))... };
+			}
+
 			// using ret_t = std::conditional_t<
 			//	std::is_const_v<decltype(*this)>,
 			//	std::conditional_t<
@@ -330,7 +343,7 @@ namespace ecs::entity_group
 			//		std::tuple<t&...>>>;
 			//  static ret_t _;
 
-			return 1;
+			// return 1;
 		}
 
 		bool is_full() const
