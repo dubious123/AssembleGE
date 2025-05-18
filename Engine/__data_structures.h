@@ -432,19 +432,24 @@ namespace data_structure
 		}
 
 		template <typename... t>
-		void emplace_back(t&&... arg)
+		std::size_t emplace_back(t&&... arg)
 		{
+			auto res = 0uz;
 			if (hole_count == 0)
 			{
+				res = vec.size();
 				vec.emplace_back(std::forward<t>(arg)...);
 			}
 			else
 			{
+				res				   = hole_idx;
 				auto hole_idx_temp = vec[hole_idx].next_hole_idx();
 				std::construct_at(reinterpret_cast<t_data*>(&vec[hole_idx].storage), std::forward<t>(arg)...);
 				hole_idx = hole_idx_temp;
 				--hole_count;
 			}
+
+			return res;
 		}
 
 		void remove(std::size_t idx)

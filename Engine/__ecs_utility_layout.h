@@ -466,7 +466,7 @@ namespace ecs::utility
 		template <typename t>
 		concept has_count_compile = requires {
 			{
-				[]<auto v = t::count>() {}
+				[]<auto v = t::count>() { }
 			};
 		};
 
@@ -786,7 +786,8 @@ namespace ecs::utility
 					for (auto& slot_idx : idx_arr | take(with_n_idx + with_flex_idx))
 					{
 						auto& slot	= slot_buffer[slot_idx];
-						slot.offset = align_up(offset, slot.alignment);
+						offset		= align_up(offset, slot.alignment);
+						slot.offset = offset;
 
 						if (slot_idx < with_n_idx)
 						{

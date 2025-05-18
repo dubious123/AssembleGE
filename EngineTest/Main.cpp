@@ -181,7 +181,7 @@ void on_system_begin(auto& world)
 
 void on_thread_begin(auto& world) { }
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -220,8 +220,8 @@ struct system_1
 
 	void on_thread_begin(auto& world) { }
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
+	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -251,7 +251,7 @@ struct system_1
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) {};
+	void update(transform& t, bullet& v) { };
 
 	static void test_fu(int a, int b) { }
 };
@@ -718,17 +718,134 @@ int main()
 	using t_entity_id = uint32;
 
 	{
-		auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
-		// b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
+		std::mt19937					gen(19990827);
+		std::uniform_int_distribution<> dist(0, 7);
+
+		auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		uint32 ent		 = b.new_entity<>();
+		auto   ent_count = 1;
+		auto   time_now	 = std::chrono::high_resolution_clock::now();
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, 1000'0000))
+		{
+			auto rand_curr = dist(gen);
+			switch (rand_curr / 3)
+			{
+			case 0:
+			{
+				// remove
+				b.remove_entity(ent);
+				[[fallthrough]];
+				--ent_count;
+			}
+			case 1:
+			{
+				// new
+				switch (rand_prev)
+				{
+				case 0:
+				{
+					ent = b.new_entity<>();
+					break;
+				}
+				case 1:
+				{
+					ent = b.new_entity<transform>();
+					break;
+				}
+				case 2:
+				{
+					ent = b.new_entity<bullet>();
+					break;
+				}
+				case 3:
+				{
+					ent = b.new_entity<rigid_body>();
+					break;
+				}
+				case 4:
+				{
+					ent = b.new_entity<transform, bullet>();
+					break;
+				}
+				case 5:
+				{
+					ent = b.new_entity<bullet, rigid_body>();
+					break;
+				}
+				case 6:
+				{
+					ent = b.new_entity<rigid_body, transform>();
+					break;
+				}
+				case 7:
+				{
+					ent = b.new_entity<rigid_body, bullet, transform>();
+					break;
+				}
+				default:
+					break;
+				}
+				++ent_count;
+			}
+			case 2:
+			{
+				// revert
+				if (b.has_component<transform>(ent))
+				{
+					b.remove_component<transform>(ent);
+				}
+				else
+				{
+					b.add_component<transform>(ent);
+				}
+				if (b.has_component<rigid_body>(ent))
+				{
+					b.remove_component<rigid_body>(ent);
+				}
+				else
+				{
+					b.add_component<rigid_body>(ent);
+				}
+				if (b.has_component<bullet>(ent))
+				{
+					b.remove_component<bullet>(ent);
+				}
+				else
+				{
+					b.add_component<bullet>(ent);
+				}
+			}
+			default:
+				break;
+			}
+
+			rand_prev = rand_curr;
+		}
+
+		auto du = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - time_now);
+		std::println("duration : {}", du);
+		if (ent_count != b.entity_count())
+		{
+			throw std::exception();
+		}
+		assert(ent_count == b.entity_count());
+		b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
 		b.add_component<transform, bullet>(b.new_entity<>());
-		// b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
-		// b.has_component<rigid_body>(b.new_entity<transform, bullet>());
-		// b.get_component<rigid_body>(b.new_entity<rigid_body>());
+		b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
+		b.has_component<rigid_body>(b.new_entity<transform, bullet>());
+		b.get_component<rigid_body>(b.new_entity<rigid_body>());
 	}
 
 	{
 		auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 		b.new_entity<transform, bullet>();
+
+		// some_group_system = [](ecs::ent_group_view<transform, bullet> group_view) { ..., return group_view; };
+		// some_each_system  = [](ecs::ent_view<transform, bullet> ent_view) { };
+		//
+		////ecs::each_group : from storage -> get ent_group_view, and iterate them
+		////ecs::each_entity : from ent_group_view -> get ent_view, and iterate them
+		// b | ecs::each_group<transform, bullet>(some_system) | ecs::each_entity<>();
 	}
 
 
@@ -804,7 +921,7 @@ int main()
 																   on<2>([](auto&& _) { std::println("2"); }));
 		// print_type<decltype(tpl_0)>();
 		auto tpl  = ecs::make_filtered_tuple<meta::is_not_empty>([]() { std::println("2"); } | [] {} | [&]() { idx--; });
-		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() {});
+		auto tpl2 = ecs::make_filtered_tuple<std::is_empty>([]() { });
 		// print_type<decltype(tpl2)>();
 
 		auto l = loop([]() { return true; },
@@ -828,7 +945,8 @@ int main()
 			+ ([]<typename g>(interface_game<g> igame ) -> decltype(auto){return igame.get_scene<scene_t1>(); }
 				| sys_scene_init{}
 				+ sys_scene_init{})
-			+ cond([](auto&& game){return game.running;}, [](){std::println("running");} , (sys_game_init{}
+			+ cond([](auto&& game){return game.running;}, [](){std::println("running");} , 
+				(sys_game_init{}
 			    ^ sys_game_init{}))
 			+ (	  [](){ 
 					std::println("0 running on {}", std::this_thread::get_id()); }
