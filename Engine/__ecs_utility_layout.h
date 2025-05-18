@@ -381,6 +381,8 @@ namespace ecs::utility
 	{
 		struct with_n_runtime
 		{
+			static constexpr bool __is_with_n = true;
+
 			const std::size_t size;
 			const std::size_t alignment;
 			const std::size_t count;
@@ -394,6 +396,8 @@ namespace ecs::utility
 		template <typename t_tag>
 		struct with_n_hybrid<t_tag, dynamic>
 		{
+			static constexpr bool __is_with_n = true;
+
 			using tag_type = t_tag;
 			using type	   = t_tag::type;
 
@@ -406,6 +410,8 @@ namespace ecs::utility
 		requires(count != dynamic)
 		struct with_n_hybrid<void, count>
 		{
+			static constexpr bool __is_with_n = true;
+
 			const std::size_t			 size;
 			const std::size_t			 alignment;
 			static constexpr std::size_t count = count;
@@ -416,6 +422,8 @@ namespace ecs::utility
 		{
 			using tag_type = t_tag;
 			using type	   = t_tag::type;
+
+			static constexpr bool __is_with_n = true;
 
 			static constexpr std::size_t size	   = sizeof(type);
 			static constexpr std::size_t alignment = alignof(type);
@@ -428,15 +436,6 @@ namespace ecs::utility
 
 			const std::size_t size;
 			const std::size_t alignment;
-		};
-
-		template <std::ranges::input_range r>
-		requires std::same_as<std::ranges::range_value_t<r>, type_layout_info>
-		struct with_flex_runtime_view
-		{
-			static constexpr bool __is_flex = true;
-
-			r range;
 		};
 
 		template <typename t_tag>
@@ -465,7 +464,7 @@ namespace ecs::utility
 		};
 
 		template <typename t>
-		concept has_count = requires {
+		concept has_count_compile = requires {
 			{
 				[]<auto v = t::count>() {}
 			};
@@ -479,9 +478,23 @@ namespace ecs::utility
 		};
 
 		template <typename t>
+		concept is_with_n = requires {
+			{
+				t::__is_with_n
+			};
+		};
+
+		template <typename t>
 		concept is_flex = requires {
 			{
 				t::__is_flex
+			};
+		};
+
+		template <typename t>
+		concept has_range = requires(t elem) {
+			{
+				elem.range
 			};
 		};
 	}	 // namespace detail
@@ -531,18 +544,31 @@ namespace ecs::utility
 		return detail::with_flex_runtime { info.size, info.alignment };
 	}
 
-	template <std::ranges::input_range r>
-	requires std::same_as<std::ranges::range_value_t<r>, type_layout_info>
-	decltype(auto) with_flex(r&& range)
-	{
-		return detail::with_flex_runtime_view<std::decay_t<r>> { std::forward<r>(range) };
-	}
-
+	// [runtime_layout_builder: Key Steps and Constraints]
+	//
+	// - with_n_buffer and with_flex_buffer are separated to match the compile-time builder logic.
+	// - The number of inserted elements must never exceed buffer capacity (undefined behavior if exceeded).
+	// - No sorting occurs before build(); build() must be called only once.
+	//   Calling offset_of/count_of before build(), or multiple build() calls, is undefined behavior.
+	//
+	// - Each slot is associated with a key, which is computed based on its type or runtime index.
+	//   This key is mapped via idx_lut, and is used to access result_arr[key], where the final offset and count for each slot are stored.
+	//
+	// Execution flow:
+	//   1) Store elements in with_n_buffer / with_flex_buffer with their computed keys.
+	//   2) On build(), concatenate buffers and indirectly sort by alignment (idx_arr).
+	//   3) Find flex_count using binary search on sorted indices.
+	//   4) For each slot in sorted order, compute and store offset/count in result_arr using its key.
 	template <typename... t_element>
 	struct layout_builder_runtime
 	{
 		template <typename t>
 		struct known_type : std::integral_constant<bool, has_type_<t>>
+		{
+		};
+
+		template <typename t>
+		struct pred_is_with_n : std::integral_constant<bool, detail::is_with_n<t>>
 		{
 		};
 
@@ -560,52 +586,249 @@ namespace ecs::utility
 		template <typename t_tag>
 		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t<typename match<t_tag>::template pred, known_type_tpl>>;
 
+		template <typename t_tag>
+		static constexpr std::size_t known_type_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<typename match<t_tag>::template pred, t_element...>>;
+
+		static constexpr std::size_t known_type_count = std::tuple_size_v<known_type_tpl>;
+
+		static constexpr std::size_t with_n_count	 = meta::filter_count<pred_is_with_n, t_element...>();
+		static constexpr std::size_t with_flex_count = sizeof...(t_element) - with_n_count;
+
+		struct slot_info
+		{
+			uint32		key;
+			uint32		count;
+			std::size_t alignment;
+			std::size_t size;
+			std::size_t offset;
+		};
+
+		std::array<slot_info, 10> with_n_buffer;
+		std::array<slot_info, 10> with_flex_buffer;
+
+
+		std::array<std::size_t, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>						  key_lut;
+		std::array<std::pair<std::size_t, std::size_t>, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>> result_arr;
+
+		std::size_t runtime_key	  = known_type_count;
+		std::size_t with_n_idx	  = 0;
+		std::size_t with_flex_idx = 0;
+
 		layout_builder_runtime(t_element&&... elem)
 		{
-			std::println("{}", std::tuple_size_v<known_type_tpl>);
-			// auto compile_time_tag_count = 0;
-			// auto runtime_tag_count		= 0;
+			// fill with_n_buffer and flex_n_buffer
+			[this, tpl = std::forward_as_tuple(std::forward<t_element>(elem)...)]<std::size_t... i>(std::index_sequence<i...>) {
+				auto runtime_key = known_type_count;
+				([this, &tpl, &runtime_key] {
+					using t_elem = meta::variadic_at_t<i, t_element...>;
+					if constexpr (detail::is_with_n<t_elem>)
+					{
+						if constexpr (known_type<t_elem>::value)
+						{
+							with_n_buffer[with_n_idx].alignment = t_elem::alignment;
+							with_n_buffer[with_n_idx].size		= t_elem::size;
+							with_n_buffer[with_n_idx].key		= meta::tuple_index_v<t_elem, known_type_tpl>;
+						}
+						else
+						{
+							auto& elem_get						= std::get<i>(tpl);
+							with_n_buffer[with_n_idx].alignment = elem_get.alignment;
+							with_n_buffer[with_n_idx].size		= elem_get.size;
+							with_n_buffer[with_n_idx].key		= runtime_key++;
+						}
 
-			//([]() {
-			//	if constexpr ()
-			//	{
-			//	}
-			//	else if constexpr ()
-			//	{
-			//	}
-			//}(),
-			// ...);
+						if constexpr (detail::has_count_runtime<t_elem>)
+						{
+							with_n_buffer[with_n_idx].count	 = std::get<i>(tpl).count;
+							with_n_buffer[with_n_idx].size	*= std::get<i>(tpl).count;
+						}
+						else
+						{
+							with_n_buffer[with_n_idx].count	 = t_elem::count;
+							with_n_buffer[with_n_idx].size	*= t_elem::count;
+						}
+
+
+						++with_n_idx;
+					}
+					else if constexpr (detail::is_flex<t_elem>)
+					{
+						if constexpr (known_type<t_elem>::value)
+						{
+							with_flex_buffer[with_flex_idx].alignment = t_elem::alignment;
+							with_flex_buffer[with_flex_idx].size	  = t_elem::size;
+							with_flex_buffer[with_flex_idx].key		  = meta::tuple_index_v<t_elem, known_type_tpl>;
+						}
+						else
+						{
+							auto& elem_get							  = std::get<i>(tpl);
+							with_flex_buffer[with_flex_idx].alignment = elem_get.alignment;
+							with_flex_buffer[with_flex_idx].size	  = elem_get.size;
+							with_flex_buffer[with_flex_idx].key		  = runtime_key++;
+						}
+
+						++with_flex_idx;
+					}
+					else
+					{
+						static_assert(false, "invalid_type");
+					}
+				}(),
+				 ...);
+			}(std::make_index_sequence<sizeof...(t_element)> {});
 		}
 
 		template <typename t_tag>
-		std::size_t count_of()
+		static consteval std::size_t index_of()
 		{
-			using t_elem = t_known_element<t_tag>;
+			return known_type_idx<t_tag>;
+		}
 
-			if constexpr (detail::has_count<t_elem>)
-			{
-				// with_n_compile
-				return t_elem::count;
-			}
-			else if constexpr (detail::has_count_runtime<t_elem>)
-			{
-				return 1;
-			}
-			else if constexpr (detail::is_flex<t_elem>)
-			{
-				return 2;
-			}
+		static constexpr std::size_t index_of(std::size_t i)
+		{
+			return i + known_type_count;
+		}
 
-			return 0;
+		void add_with_n(const type_layout_info& info, const std::size_t count)
+		{
+			with_n_buffer[with_n_idx].alignment = info.alignment;
+			with_n_buffer[with_n_idx].count		= count;
+			with_n_buffer[with_n_idx].size		= info.size * count;
+			with_n_buffer[with_n_idx].key		= runtime_key++;
+			++with_n_idx;
+		}
+
+		void add_flex(const type_layout_info& info)
+		{
+			with_flex_buffer[with_flex_idx].alignment = info.alignment;
+			with_flex_buffer[with_flex_idx].size	  = info.size;
+			with_flex_buffer[with_flex_idx].key		  = runtime_key++;
+			++with_flex_idx;
 		}
 
 		template <typename t_tag>
 		std::size_t offset_of()
 		{
-			using t_elem = t_known_element<t_tag>;
-			return 0;
+			return result_arr[key_lut[index_of<t_tag>()]].first;
 		}
 
-		decltype(auto) build(std::size_t offset, std::size_t mem_size) { return *this; };
+		std::size_t offset_of(std::size_t runtime_idx)
+		{
+			return result_arr[key_lut[index_of(runtime_idx)]].first;
+		}
+
+		template <typename t_tag>
+		std::size_t count_of()
+		{
+			return result_arr[key_lut[index_of<t_tag>()]].second;
+		}
+
+		std::size_t count_of(std::size_t runtime_idx)
+		{
+			return result_arr[key_lut[index_of(runtime_idx)]].second;
+		}
+
+		void print()
+		{
+			[this]<auto... i>(std::index_sequence<i...>) {
+				([this] {
+					using t_tag = std::tuple_element_t<i, known_type_tpl>::tag_type;
+					auto idx	= index_of<t_tag>();
+					auto key	= key_lut[idx];
+					std::println("known type | idx : {}, key : {}, offset : {}, size : {},  count : {}", idx, key, result_arr[key].first, sizeof(t_tag::type), result_arr[key].second);
+				}(),
+				 ...);
+			}(std::make_index_sequence<known_type_count> {});
+
+			for (auto i : std::views::iota(0uz, with_n_idx + with_flex_idx - known_type_count))
+			{
+				auto idx = index_of(i);
+				auto key = key_lut[idx];
+				std::println("runtime type | idx : {}, key : {}, offset : {}, count : {}", idx, key, result_arr[key].first, result_arr[key].second);
+			}
+		}
+
+		void build(std::size_t mem_offset, std::size_t mem_size)
+		{
+			using namespace std::ranges::views;
+			constexpr int buffer_size = meta::arr_size_v<decltype(result_arr)>;
+			assert(meta::arr_size_v<decltype(result_arr)> >= with_n_idx + with_flex_idx);
+
+			auto slot_buffer = std::array<slot_info, buffer_size> {};
+			//
+			auto idx_arr = meta::make_iota_array<0, buffer_size>();
+
+			std::ranges::copy(with_n_buffer | take(with_n_idx), slot_buffer.begin());
+			std::ranges::copy(with_flex_buffer | take(with_flex_idx), (slot_buffer | drop(with_n_idx)).begin());
+
+			std::ranges::stable_sort(idx_arr | take(with_n_idx + with_flex_idx), [&slot_buffer](auto l, auto r) { return slot_buffer[l].alignment > slot_buffer[r].alignment; });
+
+			// find flex_count
+			auto flex_count = [this, &slot_buffer, &idx_arr, mem_offset, mem_size]() {
+				slot_buffer[idx_arr[0]].offset = mem_size;
+
+				auto static_overhead = (std::ranges::fold_left(with_n_buffer | take(with_n_idx), mem_offset, [](auto left, const auto& slot) { return left + slot.size; }));
+				auto soa_unit_size	 = (std::ranges::fold_left(with_flex_buffer | take(with_flex_idx), 0, [](auto left, const auto& slot) { return left + slot.size; }));
+				auto upper_bound	 = (static_overhead > mem_size || soa_unit_size == 0)
+										 ? 0
+										 : (mem_size - static_overhead) / soa_unit_size;
+
+				for (uint64 low = 0, high = upper_bound;;)
+				{
+					if (low >= high)
+					{
+						return low;
+					}
+
+					auto mid = (low + high + 1) / 2;
+
+					auto offset = mem_offset;
+					for (auto& slot_idx : idx_arr | take(with_n_idx + with_flex_idx))
+					{
+						auto& slot	= slot_buffer[slot_idx];
+						slot.offset = align_up(offset, slot.alignment);
+
+						if (slot_idx < with_n_idx)
+						{
+							// slot is with_n
+							offset += slot.size;
+						}
+						else
+						{
+							// slot is with_flex
+							offset += slot.size * mid;
+						}
+					}
+
+					auto fit = offset <= mem_size;
+					if (fit)
+					{
+						low = mid;
+					}
+					else
+					{
+						high = mid - 1;
+					}
+				}
+			}();
+
+			for (auto [res_arr_key, slot_idx] : idx_arr | take(with_n_idx + with_flex_idx) | enumerate)
+			{
+				auto& slot		  = slot_buffer[slot_idx];
+				key_lut[slot.key] = res_arr_key;
+
+				result_arr[res_arr_key].first = slot.offset;
+				if (slot_idx < with_n_idx)
+				{
+					// with_n
+					result_arr[res_arr_key].second = slot.count;
+				}
+				else
+				{
+					// with_flex
+					result_arr[res_arr_key].second = flex_count;
+				}
+			}
+		}
 	};
 }	 // namespace ecs::utility

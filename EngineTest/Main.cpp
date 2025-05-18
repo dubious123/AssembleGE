@@ -662,7 +662,10 @@ int main()
 {
 	{
 		// meta::print_type<tuple_sort_stable_t<item_comparator_descend, unsorted>>();
-		meta::print_type<tuple_sort_t<item_comparator_descend_unstable, unsorted>>();
+		// meta::print_type<tuple_sort_t<item_comparator_descend_unstable, unsorted>>();
+		static_assert(meta::index_sequence_front_v<std::index_sequence<4, 2, 3>> == 4);
+		static_assert(std::tuple_size<std::array<int, 10>>::value == 10);
+
 		static_assert(std::is_same_v<tuple_sort_stable_t<item_comparator_descend, unsorted>, sorted_stable>);
 		// static_assert(std::is_same_v<tuple_sort_t<item_comparator_descend, unsorted>, sorted_unstable>);
 		//   meta::tuple_sort_t<comparator, uint8, uint16, uint32, uint64, int8, int16, int32, int64>;
@@ -714,12 +717,20 @@ int main()
 	// print_type<meta::tuple_cat_t<>>();
 	using t_entity_id = uint32;
 
-	auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
-	b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
-	b.add_component<bullet>(b.new_entity<transform>());
-	b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
-	b.has_component<rigid_body>(b.new_entity<transform, bullet>());
-	b.get_component<rigid_body>(b.new_entity<rigid_body>());
+	{
+		auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		// b.remove_entity(b.new_entity<transform, bullet, rigid_body>());
+		b.add_component<transform, bullet>(b.new_entity<>());
+		// b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
+		// b.has_component<rigid_body>(b.new_entity<transform, bullet>());
+		// b.get_component<rigid_body>(b.new_entity<rigid_body>());
+	}
+
+	{
+		auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		b.new_entity<transform, bullet>();
+	}
+
 
 	using namespace ecs::system;
 	{

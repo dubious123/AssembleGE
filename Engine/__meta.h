@@ -572,6 +572,18 @@ namespace meta
 	template <typename... t>
 	using pop_back_t = typename pop_back<std::tuple<t...>>::type;
 
+	template <typename t>
+	struct arr_size;
+
+	template <typename t, std::size_t n>
+	struct arr_size<std::array<t, n>>
+	{
+		static constexpr std::size_t value = n;
+	};
+
+	template <typename t>
+	constexpr inline std::size_t arr_size_v = arr_size<t>::value;
+
 	// template <typename... t>
 	// struct type_list
 	//{
@@ -610,6 +622,18 @@ namespace meta
 
 	// template <template <typename> typename pred, typename... t>
 	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
+
+	template <auto... i>
+	constexpr auto seq_to_arr(std::index_sequence<i...>)
+	{
+		return std::array<std::size_t, sizeof...(i)> { i... };
+	}
+
+	template <std::size_t i, std::size_t count>
+	constexpr auto make_iota_array()
+	{
+		return seq_to_arr(offset_sequence<i, count>());
+	}
 
 	template <auto arr>
 	constexpr auto arr_to_seq()
@@ -692,6 +716,9 @@ namespace meta
 			return std::index_sequence<arr[i]...> {};
 		}(std::make_index_sequence<arr.size()> {});
 	}
+
+	template <template <typename> typename pred, typename... t>
+	using filtered_index_sequence_t = decltype(make_filtered_index_sequence<pred, t...>());
 
 	template <template <typename> typename pred, typename... t>
 	struct filtered_tuple

@@ -43,18 +43,24 @@ namespace ecs::entity_storage
 		{
 			auto* p_entity_group   = (t_entity_group*)nullptr;
 			auto& entity_group_vec = entity_groups_map[t_archetype_traits::template calc_archetype<t...>()];
-
-			auto res = std::ranges::find_if_not(entity_group_vec, [](auto* p_group) { return p_group->is_full(); });
+			auto  res			   = std::ranges::find_if_not(entity_group_vec, [](auto* p_group) { return p_group->is_full(); });
 			if (res != entity_group_vec.end())
 			{
 				p_entity_group = *res;
 			}
-			else
+			else if (entity_group_vec.empty())
 			{
 				p_entity_group = new t_entity_group();
 				p_entity_group->init<t...>();
 				entity_group_vec.emplace_back(p_entity_group);
 			}
+			else
+			{
+				p_entity_group = new t_entity_group();
+				p_entity_group->init(*entity_group_vec.back());
+				entity_group_vec.emplace_back(p_entity_group);
+			}
+
 
 			return *p_entity_group;
 		}
@@ -69,10 +75,16 @@ namespace ecs::entity_storage
 			{
 				p_entity_group = *res;
 			}
-			else
+			else if (entity_group_vec.empty())
 			{
 				p_entity_group = new t_entity_group();
 				p_entity_group->init(archetype);
+				entity_group_vec.emplace_back(p_entity_group);
+			}
+			else
+			{
+				p_entity_group = new t_entity_group();
+				p_entity_group->init(*entity_group_vec.back());
 				entity_group_vec.emplace_back(p_entity_group);
 			}
 
@@ -132,6 +144,8 @@ namespace ecs::entity_storage
 			auto  new_archetype = static_cast<t_archetype>(ent_info.archetype | t_archetype_traits::template calc_archetype<t...>());
 			auto& src_group		= ent_info.group;
 			auto& dst_group		= _get_or_init_entity_group(new_archetype);
+
+			return;
 
 			for (auto			   prev_local_cmp_idx = (t_local_cmp_idx)0;
 				 t_storage_cmp_idx storage_cmp_idx : iota(0, std::bit_width(ent_info.archetype))
