@@ -721,11 +721,116 @@ int main()
 		std::mt19937					gen(19990827);
 		std::uniform_int_distribution<> dist(0, 7);
 
+		auto ent_count = 1;
+		auto time_now  = std::chrono::high_resolution_clock::now();
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, 5000'0000))
+		{
+			auto rand_curr = dist(gen);
+			switch (rand_curr / 3)
+			{
+			case 0:
+			{
+				[[fallthrough]];
+				--ent_count;
+			}
+			case 1:
+			{
+				// new
+				switch (rand_prev)
+				{
+				case 0:
+				{
+					ent_count += 1;
+					break;
+				}
+				case 1:
+				{
+					ent_count += 3;
+					break;
+				}
+				case 2:
+				{
+					ent_count += 109;
+					break;
+				}
+				case 3:
+				{
+					ent_count -= 200;
+					break;
+				}
+				case 4:
+				{
+					ent_count += 20;
+					break;
+				}
+				case 5:
+				{
+					ent_count += 80;
+					break;
+				}
+				case 6:
+				{
+					ent_count -= 1002;
+					break;
+				}
+				case 7:
+				{
+					ent_count += 302;
+					break;
+				}
+				default:
+					break;
+				}
+				++ent_count;
+			}
+			case 2:
+			{
+				if (ent_count >> 2 & 1)
+				{
+					ent_count ^= ent_count << 13;
+				}
+				else
+				{
+					ent_count ^= ent_count >> 13;
+				}
+				if (ent_count & 0x1000)
+				{
+					ent_count ^= ent_count >> 17;
+				}
+				else
+				{
+					ent_count ^= ent_count << 17;
+				}
+				if (ent_count & 0x1000'0000)
+				{
+					ent_count ^= ent_count >> 19;
+				}
+				else
+				{
+					ent_count ^= ent_count << 19;
+				}
+			}
+			default:
+				break;
+			}
+
+			rand_prev = rand_curr;
+		}
+
+		auto du = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - time_now);
+		std::println("duration : {}", du);
+		std::println("{}", ent_count);
+	}
+
+	{
+		std::mt19937					gen(19990827);
+		std::uniform_int_distribution<> dist(0, 7);
+
 		auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 		uint32 ent		 = b.new_entity<>();
 		auto   ent_count = 1;
 		auto   time_now	 = std::chrono::high_resolution_clock::now();
-		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, 1000'0000))
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, 5000'0000))
 		{
 			auto rand_curr = dist(gen);
 			switch (rand_curr / 3)

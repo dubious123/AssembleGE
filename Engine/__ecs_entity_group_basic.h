@@ -5,9 +5,17 @@ namespace ecs::entity_group
 	template <std::size_t mem_size, typename t_entity_id, typename t_local_entity_idx, ecs::component_type... t_cmp>
 	struct basic
 	{
+		using t_self			 = basic<mem_size, t_entity_id, t_local_entity_idx, t_cmp...>;
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
-		using t_self			 = basic<mem_size, t_entity_id, t_local_entity_idx, t_cmp...>;
+
+		// group can't be more than entity counts ?
+		using t_entity_group_idx = t_entity_id;
+
+		struct entity_group_idx_tag
+		{
+			using type = t_entity_group_idx;
+		};
 
 		struct archetype_tag
 		{
@@ -76,6 +84,7 @@ namespace ecs::entity_group
 		using t_entity_id_arr_base	= entity_id_arr_base_tag::type;
 
 		using align_info_builder = ecs::utility::layout_builder<
+			entity_group_idx_tag,
 			archetype_tag,
 			entity_count_tag,
 			capacity_tag,
@@ -100,6 +109,11 @@ namespace ecs::entity_group
 
 			// not UB since c++20
 			return *reinterpret_cast<t_tag::type*>(&storage[offset]);
+		}
+
+		inline t_entity_group_idx& entity_group_idx()
+		{
+			return access_as<entity_group_idx_tag>();
 		}
 
 		inline t_entity_count& entity_count()
@@ -182,7 +196,7 @@ namespace ecs::entity_group
 		}
 
 		template <typename... t>
-		void init()
+		void init(t_entity_group_idx group_idx)
 		{
 			// clang-format off
 			using total_align_info = align_info_builder
@@ -214,6 +228,7 @@ namespace ecs::entity_group
 				sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type), total_align_info::template offset_of<cmp_size_arr_base_tag>(),
 				sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type), total_align_info::template offset_of<entity_id_arr_base_tag>());
 
+			entity_group_idx()			= group_idx;
 			capacity()					= total_align_info::template count_of<entity_id_tag>();
 			entity_count()				= 0;
 			component_count()			= sizeof...(t);
@@ -232,7 +247,7 @@ namespace ecs::entity_group
 			}(std::index_sequence_for<t...> {});
 		}
 
-		void init(t_archetype archetype)
+		void init(t_archetype archetype, t_entity_group_idx group_idx)
 		{
 			using namespace std::ranges::views;
 
@@ -251,6 +266,7 @@ namespace ecs::entity_group
 
 			total_align_info.print();
 
+			entity_group_idx()			= group_idx;
 			capacity()					= total_align_info.count_of<entity_id_tag>();
 			entity_count()				= 0;
 			component_count()			= cmp_count;
@@ -269,7 +285,7 @@ namespace ecs::entity_group
 			}
 		}
 
-		void init(t_self& other)
+		void init(t_self& other, t_entity_group_idx group_idx)
 		{
 			std::memcpy(storage, other.storage, align_info::total_size());
 
@@ -280,13 +296,14 @@ namespace ecs::entity_group
 			std::memcpy(&storage[offset_base], &other.storage[offset_base], sizeof(t_component_offset) * cmp_count);
 			std::memcpy(&storage[size_base], &other.storage[size_base], sizeof(t_component_size) * cmp_count);
 
-			entity_count() = 0;
+			entity_group_idx() = group_idx;
+			entity_count()	   = 0;
 		}
 
 		template <typename... t>
 		t_local_entity_idx new_entity(t_entity_id entity_id)
 		{
-			assert(not is_full());
+			assert(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
@@ -298,7 +315,7 @@ namespace ecs::entity_group
 		template <typename... t>
 		t_local_entity_idx new_entity(t_entity_id entity_id, t&&... arg)
 		{
-			assert(not is_full());
+			assert(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
@@ -307,25 +324,27 @@ namespace ecs::entity_group
 			return local_ent_idx;
 		}
 
-		t_local_entity_idx remove_entity(t_local_entity_idx local_ent_idx)
+		// Removes the entity at the given index. Returns the id of the entity that was moved to fill the hole, if any, for handle updates.
+		t_entity_id& remove_entity(t_local_entity_idx local_ent_idx)
 		{
-			assert(not is_empty());
+			assert(is_empty() is_false);
 
-			auto local_ent_idx_back = static_cast<t_local_entity_idx>(entity_count());
+			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
 
 			for (t_local_cmp_idx local_cmp_idx : std::views::iota(0, (int)component_count()))
 			{
 				std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
 			}
 
-			--entity_count();
+			ent_id(local_ent_idx) = ent_id(local_ent_idx_back);
 
-			return local_ent_idx;
+			return ent_id(local_ent_idx);
 		}
 
 		void evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
 		{
-			auto		local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count());
+			assert(is_empty() is_false);
+			auto		local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
 			const auto& component_size	   = cmp_size(local_cmp_idx);
 			std::memcpy(p_dest, cmp_ptr(local_cmp_idx, local_ent_idx), component_size);
 
@@ -334,12 +353,14 @@ namespace ecs::entity_group
 
 		void evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx)
 		{
-			auto local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count());
+			assert(is_empty() is_false);
+			auto local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
 		}
 
 		void* get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
+			assert(is_full() is_false);
 			return reinterpret_cast<void*>(cmp_ptr(local_cmp_idx, entity_count()));
 		}
 
