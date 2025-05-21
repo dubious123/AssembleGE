@@ -1,0 +1,71 @@
+---
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments:
+  Enabled: true
+  AlignCompound: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+  PadOperators: true
+AlignConsecutiveBitFields:
+  PadOperators: true
+  Enabled: true
+AlignConsecutiveMacros:
+  Enabled: true
+  PadOperators: true
+AlignEscapedNewlines: Right
+AlignOperands: AlignAfterOperator
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 4
+AlwaysBreakTemplateDeclarations: Yes
+AllowShortBlocksOnASingleLine : Empty
+AllowShortIfStatementsOnASingleLine : WithoutElse
+AllowShortLambdasOnASingleLine : All
+IndentWidth: 4 
+IndentExternBlock : NoIndent
+IndentPPDirectives: BeforeHash
+IndentCaseLabels: false
+IndentCaseBlocks: false
+IncludeBlocks: Preserve
+EmptyLineBeforeAccessModifier: LogicalBlock
+EmptyLineAfterAccessModifier: Never
+BreakBeforeTernaryOperators: true
+BreakBeforeBraces: Custom 
+BraceWrapping:
+  IndentBraces: false
+  BeforeWhile: true
+  BeforeLambdaBody: false #for one line lambda
+  BeforeElse: true
+  BeforeCatch: true
+  AfterExternBlock: true
+  AfterUnion: true
+  AfterNamespace: true
+  AfterFunction: true
+  AfterEnum: true
+  AfterControlStatement: Always
+  AfterClass: true
+  AfterStruct: true
+  AfterCaseLabel: true
+PointerAlignment: Left
+QualifierAlignment: Left
+ReferenceAlignment: Left
+RequiresClausePosition: WithPreceding
+SeparateDefinitionBlocks: Always
+SortIncludes: Never
+SortUsingDeclarations: LexicographicNumeric
+SpaceAroundPointerQualifiers: Before
+SpaceInEmptyBlock: true
+SpacesBeforeTrailingComments: 4
+SpacesInAngles: Never
+SpacesInContainerLiterals: true
+NamespaceIndentation : All
+Cpp11BracedListStyle : false
+SpaceBeforeCpp11BracedList : true
+MaxEmptyLinesToKeep : 2
+ColumnLimit: 0
+TabWidth: 4
+UseTab: Always
+#BreakBeforeBinaryOperators: All 
+BreakBeforeBinaryOperators: NonAssignment 
+SpaceBeforeCpp11BracedList: false
+#AlignArrayOfStructures: Left

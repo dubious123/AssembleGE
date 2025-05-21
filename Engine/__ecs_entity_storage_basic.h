@@ -6,6 +6,8 @@
 
 // todo : free group tacking (instead of linear search)
 // todo : custom map
+// todo : custom malloc
+// todo : custom vector
 namespace ecs::entity_storage
 {
 	template <typename t_entity_id, ecs::component_type... t_cmp>

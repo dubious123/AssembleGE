@@ -45,33 +45,6 @@ ______SET_COMPONENT(transform, .position, { 0, 0, 1 })
 ____ENTITY_END()
 __WORLD_END()
 SCENE_END()
-// GAME(my_game, ...) => struct my_game_t {...} , static inline auto my_game = my_game_t();
-
-// member function pointer, function pointer, system struct, lambda
-// each first arguement can be empty or igame or iscene or iworld or entity
-// SYSTEM_GROUP_BEGIN(game_system, interface)
-// SEQ(&game::init)
-// VALUE(current_scene, &game::get_current_scene)
-// LOOP_BEGIN(&game::running)
-// SWITCH_BEGIN(current_scene)
-// CASE(0, SEQ(sys_scene_0, &interface.get_scene<scene_0>))
-// CASE(1, SEQ(sys_scene_1, scene_1))
-// CASE(2, SEQ(sys_scene_2, scene_2))
-// SWITCH_END()
-// LOOP_END()
-//
-// SEQ(&game::deinit)
-// SYSTEM_END()
-
-// using game_system = system_group<game, seq<&game::init>, switch<...
-//
-// my_game_system.run(my_game);
-//
-
-// game, scene... => data only, no member functions
-// all member functions => interfaces
-// some interface : unique e.g.) interface_scene, interface_world
-// some custom interfaces : interface_scene_0
 
 using world_t1 = ecs::world<transform, rigid_body>;
 using world_t2 = ecs::world<transform>;
@@ -202,7 +175,7 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 	template <typename... t_func>
 	decltype(auto) run_par(t_func&&... func)
 	{
-		return run_par_impl(std::index_sequence_for<t_func...> {}, std::forward<t_func>(func)...);
+		return run_par_impl(std::index_sequence_for<t_func...>{}, std::forward<t_func>(func)...);
 	}
 
 	void wait() const
@@ -331,7 +304,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init(){};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -355,7 +328,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit(){};
 
 	template <typename g>
 	void run(interface_game<g> igame)
@@ -410,8 +383,8 @@ struct sys_get_world
 };
 
 using namespace ecs::system::op;
-inline constexpr auto sys_scene_0_init_builder = [] { return sys_init {}
-														   + ((sys_get_world<world_t1> {} | [](auto&& _) { std::println("world_t1 init"); })
+inline constexpr auto sys_scene_0_init_builder = [] { return sys_init{}
+														   + ((sys_get_world<world_t1>{} | [](auto&& _) { std::println("world_t1 init"); })
 															  ^ (sys_get_world<world_t2>() | [](auto&& _) { std::println("world_t2 init"); })
 															  ^ (sys_get_world<world_t3>() | [](auto&& _) { std::println("world_t3 init"); })); };
 

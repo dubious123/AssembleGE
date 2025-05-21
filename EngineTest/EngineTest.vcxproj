@@ -22,6 +22,7 @@
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="system_test.h" />
     <ClInclude Include="test.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
