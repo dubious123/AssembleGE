@@ -568,7 +568,7 @@ struct some_big_struct
 	uint64 d;
 
 	template <typename... t_data>
-	decltype(auto) run(t_data&&... data)
+	decltype(auto) run(t_data&&... arg)
 	{
 		return false;
 	}
@@ -962,10 +962,13 @@ int main()
 		static_assert(std::is_empty_v<sys_game_init>);
 		auto sys = seq{
 			sys_game_init{},
+			sys_game_deinit{},
+			sys_game_init{},
 			sys_game_deinit{}
 		};
-		sys(_game);
-		//   auto sys_game =
+		// meta::print_type<decltype(sys)>();
+		auto tpl1 = sys(_game);
+		//    auto sys_game =
 		//	my_game
 		//	| seq{
 		//		  system_1{},

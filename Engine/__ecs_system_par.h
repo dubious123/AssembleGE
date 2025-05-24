@@ -50,8 +50,6 @@ namespace ecs::system::detail
 
 		no_unique_addr t_sys_not_empty_tpl systems;
 
-		// std::tuple<t_sys...> systems;
-
 		template <typename... t_sys_not_empty>
 		constexpr system_par(t_sys_not_empty&&... sys)
 			: systems(std::forward<t_sys_not_empty>(sys)...)
@@ -76,12 +74,12 @@ namespace ecs::system::detail
 				{
 					return run_with_par_exec(
 						extract_par_exec(std::get<0>(systems)),
-						meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1> {},
+						meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1>{},
 						_run_sys(std::get<0>(systems)));
 				}
 				else
 				{
-					return run_with_default(meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1> {}, _run_sys(std::get<0>(systems)));
+					return run_with_default(meta::offset_sequence<1, std::tuple_size_v<decltype(systems)> - 1>{}, _run_sys(std::get<0>(systems)));
 				}
 			}
 			else
@@ -90,12 +88,12 @@ namespace ecs::system::detail
 				{
 					return run_with_par_exec(
 						extract_par_exec(std::forward<t_data>(data)...),
-						std::index_sequence_for<t_sys...> {},
+						std::index_sequence_for<t_sys...>{},
 						std::forward<t_data>(data)...);
 				}
 				else
 				{
-					return run_with_default(std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+					return run_with_default(std::index_sequence_for<t_sys...>{}, std::forward<t_data>(data)...);
 				}
 			}
 		}
@@ -113,7 +111,7 @@ namespace ecs::system::detail
 					}
 					else
 					{
-						_run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+						_run_sys(t_sys_now{}, std::forward<t_data>(data)...);
 					}
 				})...);
 			(..., (std::get<i>(futures).wait()));
@@ -131,11 +129,9 @@ namespace ecs::system::detail
 					}
 					else
 					{
-						_run_sys(t_sys_now {}, std::forward<t_data>(data)...);
+						_run_sys(t_sys_now{}, std::forward<t_data>(data)...);
 					}
 				})...);
-			// par_exec.run_par(systems, std::forward<t_data>(data)...);
-			//(..., par_exec.run_par(std::get<i>(systems), std::forward<t_data>(data)...));
 		}
 	};
 }	 // namespace ecs::system::detail

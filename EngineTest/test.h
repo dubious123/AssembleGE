@@ -288,7 +288,7 @@ struct my_entity_system_0
 struct sys_scene_init
 {
 	template <typename s>
-	void run(interface_scene<s> iscene)
+	void operator()(interface_scene<s> iscene)
 	{
 		iscene.init();
 	}
@@ -296,7 +296,7 @@ struct sys_scene_init
 
 struct sys_non_templated
 {
-	void run()
+	void operator()()
 	{
 		std::println("non_templated");
 	}
@@ -307,9 +307,10 @@ struct sys_game_init
 	constexpr sys_game_init(){};
 
 	template <typename g>
-	void run(interface_game<g> igame)
+	decltype(auto) operator()(interface_game<g> igame)
 	{
 		igame.init();
+		return 1.f;
 	}
 
 	// void run(int _)
@@ -331,9 +332,10 @@ struct sys_game_deinit
 	constexpr sys_game_deinit(){};
 
 	template <typename g>
-	void run(interface_game<g> igame)
+	decltype(auto) operator()(interface_game<g> igame)
 	{
 		igame.deinit();
+		return 1;
 	}
 };
 
