@@ -172,10 +172,46 @@ struct my_game_state
 
 struct par_exec_test : ecs::system::detail::__parallel_executor_base
 {
-	template <typename... t_func>
-	decltype(auto) run_par(t_func&&... func)
+#define FWD(x) std::forward<decltype(x)>(x)
+
+	template <typename... t>
+	static decltype(auto)
+	tuple_cat_all(std::tuple<t...>&& tpl)
 	{
-		return run_par_impl(std::index_sequence_for<t_func...>{}, std::forward<t_func>(func)...);
+		return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
+	}
+
+	template <typename... t_arg>
+	decltype(auto)
+	make_arg_tpl(t_arg&&... arg)
+	{
+		using t_arg_tpl = std::tuple<
+			std::conditional_t<
+				std::is_lvalue_reference_v<t_arg&&>,
+				t_arg&&,
+				std::remove_reference_t<t_arg>>...>;
+
+		return t_arg_tpl{ std::forward<t_arg>(arg)... };
+	}
+
+	// template <typename... t_func, typename... t_arg>
+	// decltype(auto)
+	// run_par(t_func&&... func, t_arg&&... arg)
+	//{
+	//	return [&func..., &arg...]<auto... i>(std::index_sequence<i...>) {
+	//		return [](auto&&... async_op) {
+	//			return tuple_cat_all(std::tuple{ async_op.wait()... });
+	//		}(std::async(std::launch::async, func, FWD(arg)...)...);
+	//	}(std::index_sequence_for<t_func...>{});
+	// }
+
+	template <typename... t_func>
+	decltype(auto)
+	run_par(t_func&&... func)
+	{
+		return [](auto&&... async_op) {
+			return tuple_cat_all(std::tuple{ async_op.get()... });
+		}(std::async(std::launch::async, FWD(func))...);
 	}
 
 	void wait() const
@@ -183,13 +219,7 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 		// no-op
 	}
 
-  private:
-	template <typename std::size_t... i, typename... t_func>
-	decltype(auto) run_par_impl(std::index_sequence<i...>, t_func&&... func)
-	{
-		auto futures = std::make_tuple(std::async(std::launch::async, func)...);
-		(..., (std::get<i>(futures).wait()));
-	}
+#undef FWD
 };
 
 struct my_game : scenes, my_game_state
@@ -304,7 +334,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init(){};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	decltype(auto) operator()(interface_game<g> igame)
@@ -329,7 +359,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit(){};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	decltype(auto) operator()(interface_game<g> igame)

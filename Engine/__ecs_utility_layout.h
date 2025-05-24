@@ -83,7 +83,7 @@ namespace ecs::utility
 			static constexpr auto calc_offset_arr(std::size_t soa_count)
 			{
 				return [soa_count]<std::size_t... i>(std::index_sequence<i...> _) {
-					std::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets { mem_offset };
+					std::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets{ mem_offset };
 					([&offsets, soa_count] {
 						using t_unit = std::tuple_element_t<i, sorted_element_tpl>;
 
@@ -101,7 +101,7 @@ namespace ecs::utility
 					 ...);
 
 					return offsets;
-				}(std::index_sequence_for<t_unit_with..., t_unit_flex...> {});
+				}(std::index_sequence_for<t_unit_with..., t_unit_flex...>{});
 			}
 
 			static constexpr auto calc_soa_count()
@@ -140,7 +140,7 @@ namespace ecs::utility
 
 			static constexpr std::size_t alignment = std::tuple_element_t<0, sorted_element_tpl>::alignment;
 
-			static constexpr int soa_count = calc_soa_count();
+			static constexpr std::size_t soa_count = calc_soa_count();
 
 			using offset_sequence = meta::arr_to_seq_t<calc_offset_arr(soa_count)>;
 
@@ -201,7 +201,7 @@ namespace ecs::utility
 					 }()),
 					 ...);
 					std::println("total_size : {}, offset : {} end_offset : {}", size, offset, end_offset);
-				}(std::index_sequence_for<t_unit_with..., t_unit_flex...> {});
+				}(std::index_sequence_for<t_unit_with..., t_unit_flex...>{});
 			}
 		};
 
@@ -233,7 +233,7 @@ namespace ecs::utility
 				static constexpr std::size_t next_offset = offset + t_layout_group_head::size;
 
 				using tail_tpl = typename make_layout_group_info<next_offset, t_layout_group_tail...>::type;
-				using type	   = decltype(std::tuple_cat(std::tuple<t_layout_group_head> {}, tail_tpl {}));
+				using type	   = decltype(std::tuple_cat(std::tuple<t_layout_group_head>{}, tail_tpl{}));
 			};
 
 			using layout_group_info_tpl = make_layout_group_info<mem_offset, t_layout_group...>::type;
@@ -241,11 +241,11 @@ namespace ecs::utility
 			static constexpr auto calc_offset_arr()
 			{
 				return []<std::size_t... i>(std::index_sequence<i...>) {
-					return std::array<std::size_t, sizeof...(t_layout_group) + 1> {
+					return std::array<std::size_t, sizeof...(t_layout_group) + 1>{
 						(std::tuple_element_t<i, layout_group_info_tpl>::offset)...,
 						std::tuple_element_t<sizeof...(t_layout_group) - 1, layout_group_info_tpl>::end_offset
 					};
-				}(std::make_index_sequence<sizeof...(t_layout_group)> {});
+				}(std::make_index_sequence<sizeof...(t_layout_group)>{});
 			}
 
 			using offset_sequence = meta::arr_to_seq_t<calc_offset_arr()>;
@@ -280,7 +280,7 @@ namespace ecs::utility
 			{
 				[]<std::size_t... i>(std::index_sequence<i...>) {
 					((std::tuple_element_t<i, layout_group_info_tpl>::print()), ...);
-				}(std::make_index_sequence<std::tuple_size_v<layout_group_info_tpl>> {});
+				}(std::make_index_sequence<std::tuple_size_v<layout_group_info_tpl>>{});
 			}
 		};
 
@@ -290,7 +290,7 @@ namespace ecs::utility
 			template <std::size_t begin_offset, std::size_t mem_size>
 			static constexpr decltype(auto) __build()
 			{
-				return layout_info<begin_offset, mem_size, t_layout_group...> {};
+				return layout_info<begin_offset, mem_size, t_layout_group...>{};
 			}
 
 			template <typename... t_unit>
@@ -298,15 +298,15 @@ namespace ecs::utility
 			{
 				if constexpr (sizeof...(t_layout_group) == 0)
 				{
-					return layout_builder_impl<layout_group<std::tuple<t_unit...>, std::tuple<>>> {};
+					return layout_builder_impl<layout_group<std::tuple<t_unit...>, std::tuple<>>>{};
 				}
 				else
 				{
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
 						using tpl	 = meta::pop_back_t<t_layout_group...>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
-						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with<t_unit...>> {};
-					}(std::make_index_sequence<sizeof...(t_layout_group) - 1> {});
+						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with<t_unit...>>{};
+					}(std::make_index_sequence<sizeof...(t_layout_group) - 1>{});
 				}
 			}
 
@@ -315,7 +315,7 @@ namespace ecs::utility
 			{
 				if constexpr (sizeof...(t_layout_group) == 0)
 				{
-					return layout_builder_impl<layout_group<std::tuple<t_unit_flex...>, std::tuple<>>> {};
+					return layout_builder_impl<layout_group<std::tuple<t_unit_flex...>, std::tuple<>>>{};
 				}
 				else
 				{
@@ -324,21 +324,21 @@ namespace ecs::utility
 						using tpl	 = meta::pop_back_t<t_layout_group...>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
 
-						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with_flex<t_unit_flex...>> {};
-					}(std::make_index_sequence<sizeof...(t_layout_group) - 1> {});
+						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with_flex<t_unit_flex...>>{};
+					}(std::make_index_sequence<sizeof...(t_layout_group) - 1>{});
 				}
 			}
 
 			template <typename... t_unit>
 			static constexpr decltype(auto) __after_with()
 			{
-				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<t_unit...>, std::tuple<>>> {};
+				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<t_unit...>, std::tuple<>>>{};
 			}
 
 			template <typename... t_unit_flex>
 			static constexpr decltype(auto) __after_with_flex()
 			{
-				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<>, std::tuple<t_unit_flex...>>> {};
+				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<>, std::tuple<t_unit_flex...>>>{};
 			}
 
 			template <typename... t_tag>
@@ -502,46 +502,46 @@ namespace ecs::utility
 	template <has_type_ t_tag>
 	decltype(auto) with()
 	{
-		return detail::with_n_compile<t_tag, 1> {};
+		return detail::with_n_compile<t_tag, 1>{};
 	}
 
 	decltype(auto) with(const type_layout_info& info)
 	{
-		return detail::with_n_hybrid<void, 1> { info.size, info.alignment };
+		return detail::with_n_hybrid<void, 1>{ info.size, info.alignment };
 	}
 
 	decltype(auto) with_n(const type_layout_info& info, const std::size_t count)
 	{
-		return detail::with_n_runtime { info.size, info.alignment, count };
+		return detail::with_n_runtime{ info.size, info.alignment, count };
 	}
 
 	template <has_type_ t_tag>
 	decltype(auto) with_n(std::size_t count)
 	{
-		return detail::with_n_hybrid<t_tag> { count };
+		return detail::with_n_hybrid<t_tag>{ count };
 	}
 
 	template <std::size_t count>
 	decltype(auto) with_n(const type_layout_info& info)
 	{
-		return detail::with_n_hybrid<count> { info.size, info.alignment };
+		return detail::with_n_hybrid<count>{ info.size, info.alignment };
 	}
 
 	template <has_type_ t_tag, std::size_t n>
 	decltype(auto) with_n()
 	{
-		return detail::with_n_compile<t_tag, n> {};
+		return detail::with_n_compile<t_tag, n>{};
 	}
 
 	template <has_type_ t_tag>
 	decltype(auto) with_flex()
 	{
-		return detail::with_flex_compile<t_tag> {};
+		return detail::with_flex_compile<t_tag>{};
 	}
 
 	decltype(auto) with_flex(const type_layout_info& info)
 	{
-		return detail::with_flex_runtime { info.size, info.alignment };
+		return detail::with_flex_runtime{ info.size, info.alignment };
 	}
 
 	// [runtime_layout_builder: Key Steps and Constraints]
@@ -675,7 +675,7 @@ namespace ecs::utility
 					}
 				}(),
 				 ...);
-			}(std::make_index_sequence<sizeof...(t_element)> {});
+			}(std::make_index_sequence<sizeof...(t_element)>{});
 		}
 
 		template <typename t_tag>
@@ -738,7 +738,7 @@ namespace ecs::utility
 					std::println("known type | idx : {}, key : {}, offset : {}, size : {},  count : {}", idx, key, result_arr[key].first, sizeof(t_tag::type), result_arr[key].second);
 				}(),
 				 ...);
-			}(std::make_index_sequence<known_type_count> {});
+			}(std::make_index_sequence<known_type_count>{});
 
 			for (auto i : std::views::iota(0uz, with_n_idx + with_flex_idx - known_type_count))
 			{
@@ -754,7 +754,7 @@ namespace ecs::utility
 			constexpr int buffer_size = meta::arr_size_v<decltype(result_arr)>;
 			assert(meta::arr_size_v<decltype(result_arr)> >= with_n_idx + with_flex_idx);
 
-			auto slot_buffer = std::array<slot_info, buffer_size> {};
+			auto slot_buffer = std::array<slot_info, buffer_size>{};
 			//
 			auto idx_arr = meta::make_iota_array<0, buffer_size>();
 

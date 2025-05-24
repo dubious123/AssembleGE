@@ -85,6 +85,21 @@ namespace ecs::system::test
 		return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
 	}
 
+	// For multiple systems, rvalue arguments are moved into storage once
+	// and then passed to each system as lvalue references.
+	template <typename... t_arg>
+	FORCE_INLINE decltype(auto)
+	make_arg_tpl(t_arg&&... arg)
+	{
+		using t_arg_tpl = std::tuple<
+			std::conditional_t<
+				std::is_lvalue_reference_v<t_arg&&>,
+				t_arg&&,
+				std::remove_reference_t<t_arg>>...>;
+
+		return t_arg_tpl{ std::forward<t_arg>(arg)... };
+	}
+
 	template <typename... t_sys>
 	struct seq
 	{
@@ -94,7 +109,10 @@ namespace ecs::system::test
 
 		no_unique_addr t_sys_not_empty systems;
 
-		seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+
+		seq() requires(std::is_empty_v<t_sys> && ...)
+		= default;
 
 		template <std::size_t i, typename... t_arg>
 		FORCE_INLINE decltype(auto)
@@ -137,8 +155,12 @@ namespace ecs::system::test
 			}
 			else
 			{
-				return [this, &arg...]<auto... i>(std::index_sequence<i...>) {
-					return tuple_cat_all(std::tuple{ run_impl<i>(FWD(arg)...)... });
+				return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+					return std::apply(
+						[this](auto&&... l_ref_arg) {
+							return tuple_cat_all(std::tuple{ run_impl<i>(FWD(l_ref_arg)...)... });
+						},
+						args);
 				}(std::index_sequence_for<t_sys...>{});
 			}
 		}
@@ -147,31 +169,26 @@ namespace ecs::system::test
 	template <typename... t_sys>
 	struct par
 	{
+		using t_this			  = par<t_sys...>;
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-
-		using t_sys_not_empty = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_not_empty systems;
 
-		par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
-		template <typename t>
-		concept has_par_exec_member = requires(t v) {
-			requires std::is_base_of_v<__parallel_executor_base, std::decay_t<decltype(v.__parallel_executor)>>;
+		par() requires(std::is_empty_v<t_sys> && ...)
+		= default;
+
+		template <typename t_arg>
+		static constexpr bool has_par_exec_member = requires(t_arg arg) {
+			requires std::is_base_of_v<__parallel_executor_base, std::decay_t<decltype(arg.__parallel_executor)>>;
 		};
 
-		template <typename t>
-		struct has_par_exec : std::bool_constant<bool, has_par_exec_member<t>>
+		template <typename t_arg>
+		struct has_par_exec : std::bool_constant<has_par_exec_member<t_arg>>
 		{
 		};
-
-		template <typename... t_arg>
-		constexpr decltype(auto) extract_par_exec(t_arg&&... arg)
-		{
-			return [tpl = std::make_tuple(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
-				return std::get<meta::variadic_auto_at_v<0, i...>>(FWD(tpl));
-			}(meta::make_filtered_index_sequence<template has_par_exec, t_arg...>());
-		}
 
 		template <std::size_t i, typename... t_arg>
 		FORCE_INLINE decltype(auto)
@@ -204,55 +221,49 @@ namespace ecs::system::test
 			}
 		}
 
+		template <std::size_t i, typename t_tpl>
+		FORCE_INLINE decltype(auto)
+		run_impl_tpl(t_tpl& tpl)
+		{
+			return std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
+		}
+
 		template <typename... t_arg>
 		inline decltype(auto)
 		operator()(t_arg&&... arg)
 		{
-			if constexpr (sizeof...(t_sys) == 1)
+			if constexpr (sizeof...(t_sys) == 0)
+			{
+				return;
+			}
+			else if constexpr (sizeof...(t_sys) == 1)
 			{
 				return run_impl<0>(FWD(arg)...);
 			}
-			else
+			else if constexpr (meta::index_sequence_size_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>> == 0)
 			{
-				return [this, &arg...]<auto... i>(std::index_sequence<i...>) {
-					return tuple_cat_all(std::tuple{ run_impl<i>(FWD(arg)...)... });
+				// default par_exec
+				auto args = make_arg_tpl(FWD(arg)...);
+				return [this, &args]<auto... i>(std::index_sequence<i...>) {
+					return [](auto&&... async_op) {
+						return tuple_cat_all(std::tuple{ async_op.get()... });
+					}(std::async(std::launch::async, [this, &args]() { return run_impl_tpl<i>(args); } /*& t_this::run_impl_tpl<i, decltype(args)>, self, args*/)...);
 				}(std::index_sequence_for<t_sys...>{});
 			}
-		}
+			else
+			{
+				// Use 'self' instead of 'this' in the inner lambda to work around
+				// an MSVC bug with templated lambdas capturing 'this' directly.
+				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
+				auto		   args			= make_arg_tpl(FWD(arg)...);
 
-		template <std::size_t... i, typename... t_arg>
-		decltype(auto) run_with_default(std::index_sequence<i...>, t_arg&&... arg)
-		{
-			auto futures = std::make_tuple(
-				std::async(std::launch::async, [&] {
-					using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
-					if constexpr (not std::is_empty_v<t_sys_now>)
-					{
-						_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_arg>(arg)...);
-					}
-					else
-					{
-						_run_sys(t_sys_now{}, std::forward<t_arg>(arg)...);
-					}
-				})...);
-			(..., (std::get<i>(futures).wait()));
-		}
-
-		template <typename t_par_exec, std::size_t... i, typename... t_arg>
-		decltype(auto) run_with_par_exec(t_par_exec&& par_exec, std::index_sequence<i...>, t_arg&&... arg)
-		{
-			return par_exec.run_par(
-				([&] {
-					using t_sys_now = std::tuple_element_t<i, t_all_sys_tpl>;
-					if constexpr (not std::is_empty_v<t_sys_now>)
-					{
-						_run_sys(std::get<not_empty_sys_idx_arr[i]>(systems), std::forward<t_arg>(arg)...);
-					}
-					else
-					{
-						_run_sys(t_sys_now{}, std::forward<t_arg>(arg)...);
-					}
-				})...);
+				return [this, &args]<auto... i>(std::index_sequence<i...>) {
+					auto& par_exe = std::get<par_exec_idx>(args).__parallel_executor;
+					return [&par_exe](auto&&... func) {
+						return par_exe.run_par(FWD(func)...);
+					}(([this, &args] { return run_impl_tpl<i>(args); })...);
+				}(std::index_sequence_for<t_sys...>{});
+			}
 		}
 	};
 

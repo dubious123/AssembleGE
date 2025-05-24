@@ -60,7 +60,6 @@ SpacesInAngles: Never
 SpacesInContainerLiterals: true
 NamespaceIndentation : All
 Cpp11BracedListStyle : false
-SpaceBeforeCpp11BracedList : true
 MaxEmptyLinesToKeep : 2
 ColumnLimit: 0
 TabWidth: 4
