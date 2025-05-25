@@ -958,14 +958,19 @@ int main()
 		// b | ecs::each_group<transform, bullet>(some_system) | ecs::each_entity<>();
 
 		using namespace ecs::system::test;
-		std::println("{}", sizeof(sys_game_init));
-		static_assert(std::is_empty_v<sys_game_init>);
+
+		using ecs::system::test::operator|;
+
+
 		auto sys = seq{
 			sys_game_init{},
 			par{
 				sys_game_deinit{},
 				sys_game_init{},
-				sys_game_deinit{} },
+				[](auto&& _) { std::println("hello"); },
+				pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
+				cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); }, [](auto&& _) { std::println("false"); } } },
+			[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
 			sys_game_deinit{},
 			sys_game_init{},
 			sys_game_deinit{}

@@ -111,7 +111,7 @@ namespace ecs::system::test
 
 		seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
-		seq() requires(std::is_empty_v<t_sys> && ...)
+		seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
 
 		template <std::size_t i, typename... t_arg>
@@ -146,7 +146,7 @@ namespace ecs::system::test
 		}
 
 		template <typename... t_arg>
-		inline decltype(auto)
+		FORCE_INLINE decltype(auto)
 		operator()(t_arg&&... arg)
 		{
 			if constexpr (sizeof...(t_sys) == 1)
@@ -177,7 +177,7 @@ namespace ecs::system::test
 
 		par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
-		par() requires(std::is_empty_v<t_sys> && ...)
+		par() requires(std::is_empty_v<t_sys> and ...)
 		= default;
 
 		template <typename t_arg>
@@ -229,7 +229,7 @@ namespace ecs::system::test
 		}
 
 		template <typename... t_arg>
-		inline decltype(auto)
+		FORCE_INLINE decltype(auto)
 		operator()(t_arg&&... arg)
 		{
 			if constexpr (sizeof...(t_sys) == 0)
@@ -242,18 +242,16 @@ namespace ecs::system::test
 			}
 			else if constexpr (meta::index_sequence_size_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>> == 0)
 			{
-				// default par_exec
+				// default
 				auto args = make_arg_tpl(FWD(arg)...);
 				return [this, &args]<auto... i>(std::index_sequence<i...>) {
 					return [](auto&&... async_op) {
 						return tuple_cat_all(std::tuple{ async_op.get()... });
-					}(std::async(std::launch::async, [this, &args]() { return run_impl_tpl<i>(args); } /*& t_this::run_impl_tpl<i, decltype(args)>, self, args*/)...);
+					}(std::async(std::launch::async, [this, &args]() { return run_impl_tpl<i>(args); })...);
 				}(std::index_sequence_for<t_sys...>{});
 			}
 			else
 			{
-				// Use 'self' instead of 'this' in the inner lambda to work around
-				// an MSVC bug with templated lambdas capturing 'this' directly.
 				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
 				auto		   args			= make_arg_tpl(FWD(arg)...);
 
@@ -263,6 +261,93 @@ namespace ecs::system::test
 						return par_exe.run_par(FWD(func)...);
 					}(([this, &args] { return run_impl_tpl<i>(args); })...);
 				}(std::index_sequence_for<t_sys...>{});
+			}
+		}
+	};
+
+	template <typename t_sys_l, typename t_sys_r>
+	struct pipe
+	{
+		no_unique_addr t_sys_l sys_l;
+		no_unique_addr t_sys_r sys_r;
+
+		pipe(t_sys_l&& sys_l, t_sys_r&& sys_r) : sys_l(FWD(sys_l)), sys_r(FWD(sys_r)) { }
+
+		pipe() requires(std::is_empty_v<t_sys_l> and std::is_empty_v<t_sys_r>)
+		= default;
+
+		template <typename... t_arg>
+		FORCE_INLINE decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			if constexpr (std::is_void_v<decltype(run_sys(sys_l, FWD(arg)...))>)
+			{
+				run_sys(sys_l, FWD(arg)...);
+				return run_sys(sys_r);
+			}
+			else
+			{
+				return run_sys(sys_r, run_sys(sys_l, FWD(arg)...));
+			}
+		}
+	};
+
+	template <typename t_sys_l, typename t_sys_r>
+	FORCE_INLINE decltype(auto)
+	operator|(t_sys_l&& sys_l, t_sys_r&& sys_r)
+	{
+		return pipe{ FWD(sys_l), FWD(sys_r) };
+	}
+
+	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
+	struct cond
+	{
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
+		no_unique_addr t_sys_else sys_else;
+
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+			: sys_cond(FWD(sys_cond)),
+			  sys_then(FWD(sys_then)),
+			  sys_else(FWD(sys_else)) { }
+
+		constexpr cond() requires(std::is_empty_v<t_sys_cond> and std::is_empty_v<t_sys_then> and std::is_empty_v<t_sys_else>)
+		= default;
+
+		template <typename... t_arg>
+		void run(t_arg&&... arg)
+		{
+			// todo double FWD
+			if (_run_sys(sys_cond, FWD(arg)...))
+			{
+				_run_sys(sys_then, FWD(arg)...);
+			}
+			else
+			{
+				_run_sys(sys_else, FWD(arg)...);
+			}
+		}
+	};
+
+	template <typename t_sys_cond, typename t_sys_then>
+	struct cond<t_sys_cond, t_sys_then, void>
+	{
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
+
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+			: sys_cond(FWD(sys_cond)),
+			  sys_then(FWD(sys_then)) { }
+
+		constexpr cond() requires(std::is_empty_v<t_sys_cond> and std::is_empty_v<t_sys_then>)
+		= default;
+
+		template <typename... t_arg>
+		void run(t_arg&&... arg)
+		{
+			if (_run_sys(sys_cond, FWD(arg)...))
+			{
+				_run_sys(sys_then, FWD(arg)...);
 			}
 		}
 	};
