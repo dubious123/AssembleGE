@@ -961,23 +961,36 @@ int main()
 
 		using ecs::system::test::operator|;
 
-
 		auto sys = seq{
 			sys_game_init{},
 			par{
-				sys_game_deinit{},
+				// sys_game_deinit{},
 				sys_game_init{},
 				[](auto&& _) { std::println("hello"); },
 				pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
-				cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); }, [](auto&& _) { std::println("false"); } } },
+			},
 			[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
+			cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); return 1; }, [](auto&& _) { std::println("false"); return 2; } }
+				| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
+				| cond{ []() { return false; }, []() { std::println("false"); } },
+			[](auto) {},
+
+			[]() { return 10; }
+				| loop{ [](auto&& i) { return i-- > 0; },
+						[](auto&& i) { std::println("i : {}", i); },
+						continue_if{ [](auto i) { return i % 2; } },
+						par{
+							[](auto&&) { Sleep(100); std::println("hi-1"); },
+							[]() { Sleep(200); std::println("hi-2"); } },
+						break_if{ [](auto i) { return i == 5; } } },
+
 			sys_game_deinit{},
 			sys_game_init{},
 			sys_game_deinit{}
 		};
 
-
 		auto tpl1 = sys(_game);
+		int	 a	  = 1;
 		// print_type<decltype(tpl1)>();
 
 		// print_type<decltype(t_test{}.systems)>();
@@ -1014,7 +1027,6 @@ int main()
 		//	  };
 		// sys_game();
 	}
-
 
 	using namespace ecs::system;
 	{
