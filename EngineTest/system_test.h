@@ -559,8 +559,67 @@ namespace ecs::system::test
 #undef __SYS_LOOP_IMPL
 	};
 
+	template <auto n, typename t_sys>
+	struct sys_case
+	{
+		no_unique_addr t_sys sys;
+
+		static constexpr decltype(n) case_value = n;
+
+		constexpr sys_case(t_sys&& sys) : sys(FWD(sys)) { }
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			return run_sys(sys, FWD(arg)...);
+		}
+	};
+
+	template <auto n>
+	struct sys_case<n, void>
+	{
+		template <typename t_sys>
+		constexpr decltype(auto)
+		operator=(t_sys&& sys) const
+		{
+			return sys_case<n, t_sys>{ FWD(sys) };
+		}
+	};
+
+	template <auto n>
+	inline constexpr sys_case<n, void> on = sys_case<n, void>{};
+
+	template <typename t_sys>
+	struct sys_default
+	{
+		no_unique_addr t_sys sys;
+
+		constexpr sys_default(t_sys&& sys) : sys(FWD(sys)) { }
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			return run_sys(sys, FWD(arg)...);
+		}
+	};
+
+	template <>
+	struct sys_default<void>
+	{
+		template <typename t_sys>
+		constexpr decltype(auto)
+		operator=(t_sys&& sys) const
+		{
+			return sys_default<t_sys>{ FWD(sys) };
+		}
+	};
+
+	inline constexpr sys_default<void> default_to = sys_default<void>{};
+
 	template <typename t_sys_selector, typename... t_sys_case>
-	struct system_match
+	struct match
 	{
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys_case...>()>;
 		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
@@ -568,11 +627,11 @@ namespace ecs::system::test
 		no_unique_addr t_sys_selector  sys_selector;
 		no_unique_addr t_sys_not_empty sys_cases;
 
-		constexpr system_match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
+		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
 			: sys_selector(FWD(sys_selector)),
 			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)) { };
 
-		constexpr system_match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
+		constexpr match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
 		= default;
 
 		template <std::size_t i, typename... t_arg>
@@ -599,6 +658,13 @@ namespace ecs::system::test
 			return std::apply(
 				[this](auto&&... arg) {
 					auto key = run_sys(sys_selector, FWD(arg)...);
+
+					// 1. t_sys_case
+
+					// if constexpr ()
+					//{
+					//	break;
+					// }
 
 					// switch (key)
 					//{

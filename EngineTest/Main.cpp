@@ -986,9 +986,17 @@ int main()
 
 			sys_game_deinit{},
 			sys_game_init{},
-			sys_game_deinit{}
-		};
+			sys_game_deinit{},
 
+			match{
+				[] { return 0; },
+				on<0> = sys_game_deinit{} | sys_game_init{},
+				on<1> = sys_game_deinit{},
+				on<2> = sys_game_deinit{},
+				on<3> = sys_game_deinit{},
+				default_to = [] { std::println("default"); } },
+
+		};
 		auto tpl1 = sys(_game);
 		int	 a	  = 1;
 		// print_type<decltype(tpl1)>();
