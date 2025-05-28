@@ -119,7 +119,7 @@ namespace ecs::system::test
 				t_arg&&,
 				std::remove_reference_t<t_arg>>...>;
 
-		return t_arg_tpl{ std::forward<t_arg>(arg)... };
+		return t_arg_tpl{ FWD(arg)... };
 	}
 
 	template <typename... t_sys>
@@ -288,7 +288,9 @@ namespace ecs::system::test
 		no_unique_addr t_sys_l sys_l;
 		no_unique_addr t_sys_r sys_r;
 
-		constexpr pipe(t_sys_l&& sys_l, t_sys_r&& sys_r) : sys_l(FWD(sys_l)), sys_r(FWD(sys_r)) { }
+		constexpr pipe(t_sys_l&& sys_l, t_sys_r&& sys_r)
+			: sys_l(FWD(sys_l)),
+			  sys_r(FWD(sys_r)) { }
 
 		constexpr pipe() requires(std::is_empty_v<t_sys_l> and std::is_empty_v<t_sys_r>)
 		= default;
@@ -393,7 +395,7 @@ namespace ecs::system::test
 		{
 			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
 			using t_res_then = decltype(run_sys(sys_then, FWD(arg)...));
-			static_assert(std::is_same_v<t_res_cond, bool>, "cond: system sys_cond is invalid — check if the system is callable with the given arguments or if the system returns bool");
+			static_assert(std::is_same_v<t_res_cond, bool>, "cond: system sys_cond is invalid - check if the system is callable with the given arguments or if the system returns bool");
 			static_assert(not std::is_same_v<t_res_then, invalid_sys_call>, "cond: system sys_then is invalid - check if the system is callable with the given arguments");
 			static_assert(std::is_same_v<t_res_then, void>, "cond: 'then' system must return void");
 
@@ -474,6 +476,37 @@ namespace ecs::system::test
 	template <typename t>
 	constexpr bool is_break_or_continue = is_break_if<std::decay_t<t>> || is_continue_if<std::decay_t<t>>;
 
+	template <typename t_sys_cond, typename... t_sys>
+	struct loop
+	{
+		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
+		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+
+		no_unique_addr t_sys_cond	   sys_cond;
+		no_unique_addr t_sys_not_empty systems;
+
+		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys)
+			: sys_cond(FWD(sys_cond)),
+			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+
+		constexpr loop() requires(std::is_empty_v<t_sys_cond> and ... and std::is_empty_v<t_sys>)
+		= default;
+
+		template <std::size_t i, typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		run_impl(t_arg&&... arg)
+		{
+			using t_sys_now = meta::variadic_at_t<i, t_sys...>;
+			if constexpr (std::is_empty_v<t_sys_now>)
+			{
+				return run_sys(t_sys_now{}, FWD(arg)...);
+			}
+			else
+			{
+				return run_sys(std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(systems), FWD(arg)...);
+			}
+		}
+
 #define __SYS_LOOP_IMPL(N)                                          \
 	if constexpr (N < sizeof...(t_sys))                             \
 	{                                                               \
@@ -493,35 +526,6 @@ namespace ecs::system::test
 			run_impl<N>(FWD(arg)...);                               \
 		}                                                           \
 	}
-
-	template <typename t_sys_cond, typename... t_sys>
-	struct loop
-	{
-		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
-
-		no_unique_addr t_sys_cond	   sys_cond;
-		no_unique_addr t_sys_not_empty systems;
-
-		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys) : sys_cond(FWD(sys_cond)), systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
-
-		constexpr loop() requires(std::is_empty_v<t_sys_cond> and (std::is_empty_v<t_sys> and ...))
-		= default;
-
-		template <std::size_t i, typename... t_arg>
-		FORCE_INLINE constexpr decltype(auto)
-		run_impl(t_arg&&... arg)
-		{
-			using t_sys_now = meta::variadic_at_t<i, t_sys...>;
-			if constexpr (std::is_empty_v<t_sys_now>)
-			{
-				return run_sys(t_sys_now{}, FWD(arg)...);
-			}
-			else
-			{
-				return run_sys(std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(systems), FWD(arg)...);
-			}
-		}
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
@@ -551,9 +555,69 @@ namespace ecs::system::test
 				},
 				args);
 		}
-	};
 
 #undef __SYS_LOOP_IMPL
+	};
+
+	template <typename t_sys_selector, typename... t_sys_case>
+	struct system_match
+	{
+		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys_case...>()>;
+		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
+
+		no_unique_addr t_sys_selector  sys_selector;
+		no_unique_addr t_sys_not_empty sys_cases;
+
+		constexpr system_match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
+			: sys_selector(FWD(sys_selector)),
+			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)) { };
+
+		constexpr system_match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
+		= default;
+
+		template <std::size_t i, typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		run_impl(t_arg&&... arg)
+		{
+			using t_sys_case_now = meta::variadic_at_t<i, t_sys_case...>;
+			if constexpr (std::is_empty_v<t_sys_case_now>)
+			{
+				return run_sys(t_sys_case_now{}, FWD(arg)...);
+			}
+			else
+			{
+				return run_sys(std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(sys_cases), FWD(arg)...);
+			}
+		}
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			auto args = make_arg_tpl(FWD(arg)...);
+
+			return std::apply(
+				[this](auto&&... arg) {
+					auto key = run_sys(sys_selector, FWD(arg)...);
+
+					// switch (key)
+					//{
+					// case meta::variadic_at_t<0, t_sys_case...>::value:
+					//{
+					//	return run_impl<0>(FWD(arg)...);
+					// }
+					//// ...
+
+
+					// default:
+					//{
+					//	return run_impl<sizeof...(t_sys_case)>(FWD(arg)...);
+					// }
+					// }
+				},
+				args);
+		}
+	};
 
 #undef FWD
 }	 // namespace ecs::system::test

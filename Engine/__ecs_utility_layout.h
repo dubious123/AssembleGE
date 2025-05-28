@@ -80,7 +80,8 @@ namespace ecs::utility
 
 			using sorted_element_tpl = meta::tuple_sort_t<align_comparator, t_unit_with..., t_unit_flex...>;
 
-			static constexpr auto calc_offset_arr(std::size_t soa_count)
+			static constexpr auto
+			calc_offset_arr(std::size_t soa_count)
 			{
 				return [soa_count]<std::size_t... i>(std::index_sequence<i...> _) {
 					std::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets{ mem_offset };
@@ -104,7 +105,8 @@ namespace ecs::utility
 				}(std::index_sequence_for<t_unit_with..., t_unit_flex...>{});
 			}
 
-			static constexpr auto calc_soa_count()
+			static constexpr auto
+			calc_soa_count()
 			{
 				// Assumes:
 				// - No padding between elements
@@ -156,20 +158,23 @@ namespace ecs::utility
 			static constexpr std::size_t available_size = mem_size - meta::index_sequence_back_v<offset_sequence>;
 
 			template <typename t_tag>
-			static consteval auto contains()
+			static consteval auto
+			contains()
 			{
 				return meta::any_of_tuple_v<match_type<t_tag>::template pred, sorted_element_tpl>;
 			}
 
 			template <typename t_tag>
-			static consteval std::size_t offset_of()
+			static consteval std::size_t
+			offset_of()
 			{
 				static_assert(contains<t_tag>(), "tag not included");
 				return meta::index_sequence_at_v<meta::find_index_tuple_v<match_type<t_tag>::template pred, sorted_element_tpl>, offset_sequence>;
 			}
 
 			template <typename t_tag>
-			static consteval std::size_t count_of()
+			static consteval std::size_t
+			count_of()
 			{
 				static_assert(contains<t_tag>(), "tag not included");
 				if constexpr (meta::variadic_constains_v<t_tag, typename t_unit_flex::tag_type...>)
@@ -182,17 +187,20 @@ namespace ecs::utility
 				}
 			}
 
-			static consteval auto max_alignof()
+			static consteval auto
+			max_alignof()
 			{
 				return alignment;
 			}
 
-			static consteval auto total_size()
+			static consteval auto
+			total_size()
 			{
 				return size;
 			}
 
-			static auto print()
+			static auto
+			print()
 			{
 				[]<std::size_t... i>(std::index_sequence<i...> _) {
 					(([]() {
@@ -238,7 +246,8 @@ namespace ecs::utility
 
 			using layout_group_info_tpl = make_layout_group_info<mem_offset, t_layout_group...>::type;
 
-			static constexpr auto calc_offset_arr()
+			static constexpr auto
+			calc_offset_arr()
 			{
 				return []<std::size_t... i>(std::index_sequence<i...>) {
 					return std::array<std::size_t, sizeof...(t_layout_group) + 1>{
@@ -255,28 +264,33 @@ namespace ecs::utility
 			static constexpr std::size_t size = meta::index_sequence_back_v<offset_sequence>;
 
 			template <typename t_tag>
-			static consteval std::size_t offset_of()
+			static consteval std::size_t
+			offset_of()
 			{
 				return std::tuple_element_t<meta::find_index_tuple_v<match_type<t_tag>::template pred, layout_group_info_tpl>, layout_group_info_tpl>::template offset_of<t_tag>();
 			}
 
 			template <typename t_tag>
-			static consteval auto count_of()
+			static consteval auto
+			count_of()
 			{
 				return std::tuple_element_t<meta::find_index_tuple_v<match_type<t_tag>::template pred, layout_group_info_tpl>, layout_group_info_tpl>::template count_of<t_tag>();
 			}
 
-			static consteval auto max_alignof()
+			static consteval auto
+			max_alignof()
 			{
 				return alignment;
 			}
 
-			static consteval auto total_size()
+			static consteval auto
+			total_size()
 			{
 				return size;
 			}
 
-			static auto print()
+			static auto
+			print()
 			{
 				[]<std::size_t... i>(std::index_sequence<i...>) {
 					((std::tuple_element_t<i, layout_group_info_tpl>::print()), ...);
@@ -288,13 +302,15 @@ namespace ecs::utility
 		struct layout_builder_impl
 		{
 			template <std::size_t begin_offset, std::size_t mem_size>
-			static constexpr decltype(auto) __build()
+			static constexpr decltype(auto)
+			__build()
 			{
 				return layout_info<begin_offset, mem_size, t_layout_group...>{};
 			}
 
 			template <typename... t_unit>
-			static constexpr decltype(auto) __with()
+			static constexpr decltype(auto)
+			__with()
 			{
 				if constexpr (sizeof...(t_layout_group) == 0)
 				{
@@ -311,7 +327,8 @@ namespace ecs::utility
 			}
 
 			template <typename... t_unit_flex>
-			static constexpr decltype(auto) __with_flex()
+			static constexpr decltype(auto)
+			__with_flex()
 			{
 				if constexpr (sizeof...(t_layout_group) == 0)
 				{
@@ -330,7 +347,8 @@ namespace ecs::utility
 			}
 
 			template <typename... t_unit>
-			static constexpr decltype(auto) __after_with()
+			static constexpr decltype(auto)
+			__after_with()
 			{
 				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<t_unit...>, std::tuple<>>>{};
 			}
@@ -385,12 +403,12 @@ namespace ecs::utility
 
 			const std::size_t size;
 			const std::size_t alignment;
-			const std::size_t count;
+			const uint32	  count;
 		};
 
-		inline constexpr std::size_t dynamic = static_cast<std::size_t>(-1);
+		inline constexpr uint32 dynamic = static_cast<uint32>(-1);
 
-		template <typename t_tag = void, std::size_t count = dynamic>
+		template <typename t_tag = void, uint32 count = dynamic>
 		struct with_n_hybrid;
 
 		template <typename t_tag>
@@ -403,21 +421,21 @@ namespace ecs::utility
 
 			static constexpr std::size_t size	   = sizeof(type);
 			static constexpr std::size_t alignment = alignof(type);
-			const std::size_t			 count;
+			const uint32				 count;
 		};
 
-		template <std::size_t count>
+		template <uint32 count>
 		requires(count != dynamic)
 		struct with_n_hybrid<void, count>
 		{
 			static constexpr bool __is_with_n = true;
 
-			const std::size_t			 size;
-			const std::size_t			 alignment;
-			static constexpr std::size_t count = count;
+			const std::size_t		size;
+			const std::size_t		alignment;
+			static constexpr uint32 count = count;
 		};
 
-		template <typename t_tag, std::size_t count>
+		template <typename t_tag, uint32 count>
 		struct with_n_compile
 		{
 			using tag_type = t_tag;
@@ -427,7 +445,7 @@ namespace ecs::utility
 
 			static constexpr std::size_t size	   = sizeof(type);
 			static constexpr std::size_t alignment = alignof(type);
-			static constexpr std::size_t count	   = count;
+			static constexpr uint32		 count	   = count;
 		};
 
 		struct with_flex_runtime
@@ -458,7 +476,7 @@ namespace ecs::utility
 		{
 		};
 
-		template <typename t_tag, std::size_t count>
+		template <typename t_tag, uint32 count>
 		struct is_with_n_compile<with_n_compile<t_tag, count>> : std::true_type
 		{
 		};
@@ -500,46 +518,54 @@ namespace ecs::utility
 	}	 // namespace detail
 
 	template <has_type_ t_tag>
-	decltype(auto) with()
+	FORCE_INLINE decltype(auto)
+	with()
 	{
 		return detail::with_n_compile<t_tag, 1>{};
 	}
 
-	decltype(auto) with(const type_layout_info& info)
+	FORCE_INLINE decltype(auto)
+	with(const type_layout_info& info)
 	{
 		return detail::with_n_hybrid<void, 1>{ info.size, info.alignment };
 	}
 
-	decltype(auto) with_n(const type_layout_info& info, const std::size_t count)
+	FORCE_INLINE decltype(auto)
+	with_n(const type_layout_info& info, const uint32 count)
 	{
 		return detail::with_n_runtime{ info.size, info.alignment, count };
 	}
 
 	template <has_type_ t_tag>
-	decltype(auto) with_n(std::size_t count)
+	FORCE_INLINE decltype(auto)
+	with_n(uint32 count)
 	{
 		return detail::with_n_hybrid<t_tag>{ count };
 	}
 
-	template <std::size_t count>
-	decltype(auto) with_n(const type_layout_info& info)
+	template <uint32 count>
+	FORCE_INLINE decltype(auto)
+	with_n(const type_layout_info& info)
 	{
 		return detail::with_n_hybrid<count>{ info.size, info.alignment };
 	}
 
 	template <has_type_ t_tag, std::size_t n>
-	decltype(auto) with_n()
+	FORCE_INLINE decltype(auto)
+	with_n()
 	{
 		return detail::with_n_compile<t_tag, n>{};
 	}
 
 	template <has_type_ t_tag>
-	decltype(auto) with_flex()
+	FORCE_INLINE decltype(auto)
+	with_flex()
 	{
 		return detail::with_flex_compile<t_tag>{};
 	}
 
-	decltype(auto) with_flex(const type_layout_info& info)
+	FORCE_INLINE decltype(auto)
+	with_flex(const type_layout_info& info)
 	{
 		return detail::with_flex_runtime{ info.size, info.alignment };
 	}
@@ -586,13 +612,15 @@ namespace ecs::utility
 		template <typename t_tag>
 		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t<typename match<t_tag>::template pred, known_type_tpl>>;
 
+		using t_known_type_idx = meta::smallest_unsigned_t<std::tuple_size_v<known_type_tpl>>;
+
 		template <typename t_tag>
-		static constexpr std::size_t known_type_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<typename match<t_tag>::template pred, t_element...>>;
+		static constexpr t_known_type_idx known_type_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<typename match<t_tag>::template pred, t_element...>>;
 
-		static constexpr std::size_t known_type_count = std::tuple_size_v<known_type_tpl>;
+		static constexpr t_known_type_idx known_type_count = std::tuple_size_v<known_type_tpl>;
 
-		static constexpr std::size_t with_n_count	 = meta::filter_count<pred_is_with_n, t_element...>();
-		static constexpr std::size_t with_flex_count = sizeof...(t_element) - with_n_count;
+		static constexpr uint32 with_n_count	= meta::filter_count<pred_is_with_n, t_element...>();
+		static constexpr uint32 with_flex_count = sizeof...(t_element) - with_n_count;
 
 		struct slot_info
 		{
@@ -607,12 +635,12 @@ namespace ecs::utility
 		std::array<slot_info, 10> with_flex_buffer;
 
 
-		std::array<std::size_t, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>						  key_lut;
-		std::array<std::pair<std::size_t, std::size_t>, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>> result_arr;
+		std::array<uint32, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>						 key_lut;
+		std::array<std::pair<std::size_t, uint32>, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>> result_arr;
 
-		std::size_t runtime_key	  = known_type_count;
-		std::size_t with_n_idx	  = 0;
-		std::size_t with_flex_idx = 0;
+		uint32 runtime_key	 = known_type_count;
+		uint32 with_n_idx	 = 0;
+		uint32 with_flex_idx = 0;
 
 		layout_builder_runtime(t_element&&... elem)
 		{
@@ -679,17 +707,20 @@ namespace ecs::utility
 		}
 
 		template <typename t_tag>
-		static consteval std::size_t index_of()
+		static consteval uint32
+		index_of()
 		{
 			return known_type_idx<t_tag>;
 		}
 
-		static constexpr std::size_t index_of(std::size_t i)
+		FORCE_INLINE static constexpr uint32
+		index_of(uint32 i)
 		{
 			return i + known_type_count;
 		}
 
-		void add_with_n(const type_layout_info& info, const std::size_t count)
+		void
+		add_with_n(const type_layout_info& info, const uint32 count)
 		{
 			with_n_buffer[with_n_idx].alignment = info.alignment;
 			with_n_buffer[with_n_idx].count		= count;
@@ -698,7 +729,8 @@ namespace ecs::utility
 			++with_n_idx;
 		}
 
-		void add_flex(const type_layout_info& info)
+		void
+		add_flex(const type_layout_info& info)
 		{
 			with_flex_buffer[with_flex_idx].alignment = info.alignment;
 			with_flex_buffer[with_flex_idx].size	  = info.size;
@@ -707,28 +739,33 @@ namespace ecs::utility
 		}
 
 		template <typename t_tag>
-		std::size_t offset_of()
+		FORCE_INLINE std::size_t
+					 offset_of()
 		{
 			return result_arr[key_lut[index_of<t_tag>()]].first;
 		}
 
-		std::size_t offset_of(std::size_t runtime_idx)
+		FORCE_INLINE std::size_t
+					 offset_of(uint32 runtime_idx)
 		{
 			return result_arr[key_lut[index_of(runtime_idx)]].first;
 		}
 
 		template <typename t_tag>
-		std::size_t count_of()
+		FORCE_INLINE uint32
+		count_of()
 		{
 			return result_arr[key_lut[index_of<t_tag>()]].second;
 		}
 
-		std::size_t count_of(std::size_t runtime_idx)
+		FORCE_INLINE uint32
+		count_of(uint32 runtime_idx)
 		{
 			return result_arr[key_lut[index_of(runtime_idx)]].second;
 		}
 
-		void print()
+		void
+		print()
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
 				([this] {
@@ -748,7 +785,8 @@ namespace ecs::utility
 			}
 		}
 
-		void build(std::size_t mem_offset, std::size_t mem_size)
+		void
+		build(std::size_t mem_offset, std::size_t mem_size)
 		{
 			using namespace std::ranges::views;
 			constexpr int buffer_size = meta::arr_size_v<decltype(result_arr)>;
@@ -767,13 +805,19 @@ namespace ecs::utility
 			auto flex_count = [this, &slot_buffer, &idx_arr, mem_offset, mem_size]() {
 				slot_buffer[idx_arr[0]].offset = mem_size;
 
-				auto static_overhead = (std::ranges::fold_left(with_n_buffer | take(with_n_idx), mem_offset, [](auto left, const auto& slot) { return left + slot.size; }));
-				auto soa_unit_size	 = (std::ranges::fold_left(with_flex_buffer | take(with_flex_idx), 0, [](auto left, const auto& slot) { return left + slot.size; }));
-				auto upper_bound	 = (static_overhead > mem_size || soa_unit_size == 0)
-										 ? 0
-										 : (mem_size - static_overhead) / soa_unit_size;
+				auto upper_bound = [this, mem_offset, mem_size] {
+					auto static_overhead = (std::ranges::fold_left(with_n_buffer | take(with_n_idx), mem_offset, [](auto left, const auto& slot) { return left + slot.size; }));
+					auto soa_unit_size	 = (std::ranges::fold_left(with_flex_buffer | take(with_flex_idx), 0, [](auto left, const auto& slot) { return left + slot.size; }));
+					auto res			 = (static_overhead > mem_size || soa_unit_size == 0)
+											 ? 0
+											 : (mem_size - static_overhead) / soa_unit_size;
 
-				for (uint64 low = 0, high = upper_bound;;)
+					assert(std::numeric_limits<uint32>::max() > res and "memsize too big");
+					return static_cast<uint32>(res);
+				}();
+
+
+				for (uint32 low = 0ul, high = upper_bound;;)
 				{
 					if (low >= high)
 					{
@@ -816,7 +860,7 @@ namespace ecs::utility
 			for (auto [res_arr_key, slot_idx] : idx_arr | take(with_n_idx + with_flex_idx) | enumerate)
 			{
 				auto& slot		  = slot_buffer[slot_idx];
-				key_lut[slot.key] = res_arr_key;
+				key_lut[slot.key] = static_cast<uint32>(res_arr_key);
 
 				result_arr[res_arr_key].first = slot.offset;
 				if (slot_idx < with_n_idx)

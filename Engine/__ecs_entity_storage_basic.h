@@ -17,8 +17,9 @@ namespace ecs::entity_storage
 		using t_archetype		 = t_archetype_traits::t_archetype;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
 		using t_local_cmp_idx	 = t_archetype_traits::t_local_cmp_idx;
-		using t_local_entity_idx = uint16;
-		using t_entity_group	 = ecs::entity_group::basic<4_KiB, t_entity_id, t_local_entity_idx, t_cmp...>;
+		using t_entity_group_idx = t_entity_id;
+		using t_entity_group	 = ecs::entity_group::basic<4_KiB, t_entity_id, t_entity_group_idx, t_cmp...>;
+		using t_local_entity_idx = t_entity_group::t_local_entity_idx;
 
 		struct entity_info
 		{
@@ -59,14 +60,14 @@ namespace ecs::entity_storage
 				if (ent_group_vec.empty())
 				{
 					auto p_entity_group = new t_entity_group();
-					p_entity_group->init(archetype, ent_group_vec.size());
+					p_entity_group->init(archetype, static_cast<t_entity_group_idx>(ent_group_vec.size()));
 					ent_group_vec.emplace_back(p_entity_group);
 					return *p_entity_group;
 				}
 				else
 				{
 					auto p_entity_group = new t_entity_group();
-					p_entity_group->init(*ent_group_vec.back(), ent_group_vec.size());
+					p_entity_group->init(*ent_group_vec.back(), static_cast<t_entity_group_idx>(ent_group_vec.size()));
 					ent_group_vec.emplace_back(p_entity_group);
 					return *p_entity_group;
 				}
@@ -129,7 +130,7 @@ namespace ecs::entity_storage
 
 			auto& ent_group_collection = entity_groups_map[archetype];
 			auto& entity_group		   = ent_group_collection.free_group(archetype);
-			auto  entity_id			   = static_cast<t_entity_id>(entity_info_vec.emplace_back(entity_info { archetype, 0, &entity_group }));
+			auto  entity_id			   = static_cast<t_entity_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_group }));
 
 			entity_info_vec[entity_id].local_idx = entity_group.new_entity<t...>(entity_id, std::forward<t_arg>(arg)...);
 
@@ -174,10 +175,11 @@ namespace ecs::entity_storage
 			auto& dst_group					= dest_ent_group_collection.free_group(new_archetype);
 			auto  need_src_update			= src_group.is_full();
 
-			for (auto [src_local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(ent_info.archetype))
-																 | filter([archetype = ent_info.archetype](auto idx) { return (archetype >> idx) & 1; })
-																 | enumerate)
+			for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(ent_info.archetype))
+												   | filter([archetype = ent_info.archetype](auto idx) { return (archetype >> idx) & 1; })
+												   | enumerate)
 			{
+				auto src_local_cmp_idx	= static_cast<t_local_cmp_idx>(idx);
 				auto dest_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(new_archetype, storage_cmp_idx);
 				src_group.evict_component(ent_info.local_idx, src_local_cmp_idx, dst_group.get_component_write_ptr(dest_local_cmp_idx));
 			}
@@ -225,11 +227,12 @@ namespace ecs::entity_storage
 			auto& dst_group					= dest_ent_group_collection.free_group(new_archetype);
 			auto  need_src_update			= src_group.is_full();
 
-			for (auto [dest_local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(new_archetype))
-																  | filter([archetype = new_archetype](auto idx) { return (archetype >> idx) & 1; })
-																  | enumerate)
+			for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(new_archetype))
+												   | filter([archetype = new_archetype](auto idx) { return (archetype >> idx) & 1; })
+												   | enumerate)
 			{
-				auto src_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, storage_cmp_idx);
+				auto dest_local_cmp_idx = static_cast<t_local_cmp_idx>(idx);
+				auto src_local_cmp_idx	= t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, storage_cmp_idx);
 				src_group.evict_component(ent_info.local_idx, src_local_cmp_idx, dst_group.get_component_write_ptr(dest_local_cmp_idx));
 			}
 

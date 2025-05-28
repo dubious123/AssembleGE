@@ -2,16 +2,15 @@
 
 namespace ecs::entity_group
 {
-	template <std::size_t mem_size, typename t_entity_id, typename t_local_entity_idx, ecs::component_type... t_cmp>
+	template <std::size_t mem_size, typename t_entity_id, typename t_entity_group_idx, ecs::component_type... t_cmp>
 	struct basic
 	{
-		using t_self			 = basic<mem_size, t_entity_id, t_local_entity_idx, t_cmp...>;
+		using t_self			 = basic<mem_size, t_entity_id, t_entity_group_idx, t_cmp...>;
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
+		using t_local_entity_idx = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
 
 		// group can't be more than entity counts ?
-		using t_entity_group_idx = t_entity_id;
-
 		struct entity_group_idx_tag
 		{
 			using type = t_entity_group_idx;
@@ -29,7 +28,7 @@ namespace ecs::entity_group
 
 		struct entity_count_tag
 		{
-			using type = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
+			using type = t_local_entity_idx;
 		};
 
 		struct capacity_tag
@@ -44,12 +43,12 @@ namespace ecs::entity_group
 
 		struct component_count_tag
 		{
-			using type = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
+			using type = t_archetype_traits::t_component_count;
 		};
 
 		struct component_size_tag
 		{
-			using type = meta::smallest_unsigned_t<std::ranges::max({ sizeof(t_cmp)... })>;
+			using type = t_archetype_traits::t_component_size;
 		};
 
 		struct component_offset_tag
@@ -244,7 +243,7 @@ namespace ecs::entity_group
 					*(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx) = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
 				}(),
 				 ...);
-			}(std::index_sequence_for<t...> {});
+			}(std::index_sequence_for<t...>{});
 		}
 
 		void init(t_archetype archetype, t_entity_group_idx group_idx)
@@ -259,7 +258,7 @@ namespace ecs::entity_group
 
 			for (auto storage_cmp_idx : std::ranges::views::iota(0, std::bit_width(archetype)) | std::ranges::views::filter([archetype](auto idx) { return (archetype >> idx) & 1; }))
 			{
-				total_align_info.add_flex(ecs::utility::type_layout_info { t_archetype_traits::cmp_size(storage_cmp_idx), t_archetype_traits::cmp_alignment(storage_cmp_idx) });
+				total_align_info.add_flex(ecs::utility::type_layout_info{ t_archetype_traits::cmp_size(storage_cmp_idx), t_archetype_traits::cmp_alignment(storage_cmp_idx) });
 			}
 
 			total_align_info.build(align_info::total_size(), mem_size);
@@ -267,21 +266,22 @@ namespace ecs::entity_group
 			// total_align_info.print();
 
 			entity_group_idx()			= group_idx;
-			capacity()					= total_align_info.count_of<entity_id_tag>();
+			capacity()					= static_cast<t_capacity>(total_align_info.count_of<entity_id_tag>());
 			entity_count()				= 0;
 			component_count()			= cmp_count;
 			local_archetype()			= archetype;
-			entity_id_arr_base()		= total_align_info.offset_of<entity_id_tag>();
-			component_size_arr_base()	= total_align_info.offset_of<component_size_tag>();
-			component_offset_arr_base() = total_align_info.offset_of<component_offset_tag>();
+			entity_id_arr_base()		= static_cast<t_entity_id_arr_base>(total_align_info.offset_of<entity_id_tag>());
+			component_size_arr_base()	= static_cast<t_cmp_size_arr_base>(total_align_info.offset_of<component_size_tag>());
+			component_offset_arr_base() = static_cast<t_cmp_offset_arr_base>(total_align_info.offset_of<component_offset_tag>());
 
 
-			for (auto [local_cmp_idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
-															 | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
-															 | enumerate)
+			for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(archetype))
+												   | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
+												   | enumerate)
 			{
+				auto local_cmp_idx		  = static_cast<t_local_cmp_idx>(idx);
 				cmp_offset(local_cmp_idx) = static_cast<t_component_offset>(total_align_info.offset_of(local_cmp_idx));
-				cmp_size(local_cmp_idx)	  = static_cast<t_component_size>(t_archetype_traits::cmp_size(storage_cmp_idx));
+				cmp_size(local_cmp_idx)	  = t_archetype_traits::cmp_size(storage_cmp_idx);
 			}
 		}
 
@@ -376,7 +376,7 @@ namespace ecs::entity_group
 			}
 			else
 			{
-				return std::tuple<t&...> { (*cmp_ptr<t>(local_ent_idx))... };
+				return std::tuple<t&...>{ (*cmp_ptr<t>(local_ent_idx))... };
 			}
 		}
 

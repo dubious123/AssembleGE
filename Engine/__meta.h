@@ -169,6 +169,12 @@ namespace meta
 	template <unsigned int idx, typename... args>
 	using variadic_at_t = variadic_at<idx, args...>::type;
 
+	template <typename... t>
+	using variadic_front_t = variadic_at_t<0, t...>;
+
+	template <typename... t>
+	using variadic_back_t = variadic_at_t<sizeof...(t) - 1, t...>;
+
 	template <unsigned int idx, auto head, auto... tails>
 	struct variadic_auto_at
 	{
@@ -566,7 +572,7 @@ namespace meta
 		static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
 
 	  public:
-		using type = decltype(helper(std::make_index_sequence<sizeof...(t) - 1> {}));
+		using type = decltype(helper(std::make_index_sequence<sizeof...(t) - 1>{}));
 	};
 
 	template <typename... t>
@@ -626,7 +632,7 @@ namespace meta
 	template <auto... i>
 	constexpr auto seq_to_arr(std::index_sequence<i...>)
 	{
-		return std::array<std::size_t, sizeof...(i)> { i... };
+		return std::array<std::size_t, sizeof...(i)>{ i... };
 	}
 
 	template <std::size_t i, std::size_t count>
@@ -639,8 +645,8 @@ namespace meta
 	constexpr auto arr_to_seq()
 	{
 		return []<std::size_t... i>(std::index_sequence<i...>) {
-			return std::index_sequence<arr[i]...> {};
-		}(std::make_index_sequence<std::size(arr)> {});
+			return std::index_sequence<arr[i]...>{};
+		}(std::make_index_sequence<std::size(arr)>{});
 	}
 
 	template <auto arr>
@@ -713,8 +719,8 @@ namespace meta
 		constexpr auto arr = filter_indices<pred, t...>();
 
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
-			return std::index_sequence<arr[i]...> {};
-		}(std::make_index_sequence<arr.size()> {});
+			return std::index_sequence<arr[i]...>{};
+		}(std::make_index_sequence<arr.size()>{});
 	}
 
 	template <template <typename> typename pred, typename... t>
@@ -925,11 +931,11 @@ namespace meta
 	template <std::size_t offset, std::size_t... i>
 	constexpr decltype(auto) make_offset_sequence(std::index_sequence<i...>)
 	{
-		return std::index_sequence<offset + i...> {};
+		return std::index_sequence<offset + i...>{};
 	}
 
 	template <std::size_t offset, std::size_t n>
-	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n> {}));
+	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n>{}));
 
 	template <std::size_t i, typename t>
 	struct _tpl_leaf
@@ -991,7 +997,7 @@ namespace meta
 		return _apply_impl(
 			std::forward<f>(func),
 			std::forward<tpl_t>(tpl),
-			std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>> {});
+			std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>>{});
 	}
 
 	template <std::size_t n>

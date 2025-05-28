@@ -975,7 +975,7 @@ int main()
 				| cond{ []() { return false; }, []() { std::println("false"); } },
 			[](auto) {},
 
-			[]() { return 10; }
+			[] { return 10; }
 				| loop{ [](auto&& i) { return i-- > 0; },
 						[](auto&& i) { std::println("i : {}", i); },
 						continue_if{ [](auto i) { return i % 2; } },

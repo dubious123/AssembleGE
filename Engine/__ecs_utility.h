@@ -2,8 +2,17 @@
 
 namespace ecs::utility
 {
+#if defined(_MSC_VER)
+	#define FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+	#define FORCE_INLINE inline __attribute__((always_inline))
+#else
+	#define FORCE_INLINE inline
+#endif
+
 	template <typename t>
-	constexpr inline auto popcount(t x)
+	FORCE_INLINE constexpr auto
+	popcount(t x)
 	{
 #ifdef _MSC_VER
 		if constexpr (sizeof(t) == 16)
@@ -26,13 +35,15 @@ namespace ecs::utility
 	}
 
 	template <typename... t>
-	consteval std::size_t max_alignof()
+	FORCE_INLINE consteval std::size_t
+	max_alignof()
 	{
 		return std::ranges::max({ alignof(t)... });
 	}
 
 	// assume align is power of 2
-	constexpr std::size_t align_up(std::size_t offset, std::size_t align)
+	FORCE_INLINE constexpr std::size_t
+	align_up(std::size_t offset, std::size_t align)
 	{
 		// (offset + align - 1) / align * align
 		return (offset + align - 1) & ~(align - 1);
@@ -50,14 +61,20 @@ namespace ecs::utility
 				std::conditional_t<
 					(sizeof...(t_cmp) <= 32), uint32, uint64>>>;
 
-		using t_storage_cmp_idx = meta::smallest_unsigned_t<std::bit_width(std::numeric_limits<t_archetype>::max())>;
+		using t_component_size = meta::smallest_unsigned_t<std::ranges::max({ sizeof(t_cmp)... })>;
+
+		using t_component_count = meta::smallest_unsigned_t<sizeof...(t_cmp)>;
+
+		// using t_storage_cmp_idx = meta::smallest_unsigned_t<std::bit_width(std::numeric_limits<t_archetype>::max())>;
+		using t_storage_cmp_idx = meta::smallest_unsigned_t<sizeof...(t_cmp) - 1>;
 
 		using t_local_cmp_idx = t_storage_cmp_idx;
 
 		static_assert(std::is_same_v<t_storage_cmp_idx, uint8>);
 
 		template <typename... t>
-		static inline consteval t_archetype calc_archetype()
+		static consteval t_archetype
+		calc_archetype()
 		{
 			t_archetype archetype = 0;
 			([&archetype] {
@@ -67,18 +84,21 @@ namespace ecs::utility
 			return archetype;
 		};
 
-		static inline consteval auto cmp_count()
+		static consteval t_component_count
+		cmp_count()
 		{
 			return sizeof...(t_cmp);
 		}
 
-		static inline constexpr auto cmp_count(t_archetype archetype)
+		FORCE_INLINE static constexpr t_component_count
+		cmp_count(t_archetype archetype)
 		{
-			return popcount(archetype);
+			return static_cast<t_component_count>(popcount(archetype));
 		}
 
-		template <t_storage_cmp_idx storage_cmp_idx>
-		static inline consteval std::size_t cmp_size()
+		template <std::size_t storage_cmp_idx>
+		static consteval t_component_size
+		cmp_size()
 		{
 			if constexpr (storage_cmp_idx < sizeof...(t_cmp))
 			{
@@ -86,12 +106,13 @@ namespace ecs::utility
 			}
 			else
 			{
-				return std::size_t { 0 };
+				return t_component_size{ 0 };
 			}
 		}
 
-		template <t_storage_cmp_idx storage_cmp_idx>
-		static inline consteval std::size_t cmp_alignment()
+		template <std::size_t storage_cmp_idx>
+		static consteval std::size_t
+		cmp_alignment()
 		{
 			if constexpr (storage_cmp_idx < sizeof...(t_cmp))
 			{
@@ -99,11 +120,12 @@ namespace ecs::utility
 			}
 			else
 			{
-				return std::size_t { 0 };
+				return std::size_t{ 0 };
 			}
 		}
 
-		static inline constexpr std::size_t cmp_size(t_storage_cmp_idx storage_cmp_idx)
+		FORCE_INLINE static constexpr t_component_size
+		cmp_size(t_storage_cmp_idx storage_cmp_idx)
 		{
 			switch (storage_cmp_idx)
 			{
@@ -118,12 +140,13 @@ namespace ecs::utility
 #undef __CMP_SIZE_IMPL
 			default:
 			{
-				return std::size_t { 0 };
+				return std::size_t{ 0 };
 			}
 			}
 		}
 
-		static inline constexpr std::size_t cmp_alignment(t_storage_cmp_idx storage_cmp_idx)
+		FORCE_INLINE static constexpr std::size_t
+		cmp_alignment(t_storage_cmp_idx storage_cmp_idx)
 		{
 			switch (storage_cmp_idx)
 			{
@@ -138,26 +161,29 @@ namespace ecs::utility
 #undef __CMP_ALIGNMENT_IMPL
 			default:
 			{
-				return std::size_t { 0 };
+				return std::size_t{ 0 };
 			}
 			}
 		}
 
 		template <typename t>
-		static consteval t_storage_cmp_idx calc_storage_cmp_idx()
+		static consteval t_storage_cmp_idx
+		calc_storage_cmp_idx()
 		{
 			return meta::variadic_index_v<std::decay_t<t>, std::decay_t<t_cmp>...>;
 		}
 
 		template <typename t>
-		static inline constexpr t_local_cmp_idx calc_local_cmp_idx(t_archetype local_archetype)
+		FORCE_INLINE static constexpr t_local_cmp_idx
+		calc_local_cmp_idx(t_archetype local_archetype)
 		{
-			return ecs::utility::popcount(((1 << calc_storage_cmp_idx<t>()) - 1) & local_archetype);
+			return static_cast<t_local_cmp_idx>(ecs::utility::popcount(((1 << calc_storage_cmp_idx<t>()) - 1) & local_archetype));
 		}
 
-		static inline t_local_cmp_idx calc_local_cmp_idx(t_archetype local_archetype, t_storage_cmp_idx storage_cmp_idx)
+		FORCE_INLINE static t_local_cmp_idx
+		calc_local_cmp_idx(t_archetype local_archetype, t_storage_cmp_idx storage_cmp_idx)
 		{
-			return ecs::utility::popcount(((1 << storage_cmp_idx) - 1) & local_archetype);
+			return static_cast<t_local_cmp_idx>(ecs::utility::popcount(((1 << storage_cmp_idx) - 1) & local_archetype));
 		}
 	};
 }	 // namespace ecs::utility
@@ -165,3 +191,5 @@ namespace ecs::utility
 #define __ECS_UTILITY_H_INCLUDED
 #include "__ecs_utility_layout.h"
 #undef __ECS_UTILITY_H_INCLUDED
+
+#undef FORCE_INLINE
