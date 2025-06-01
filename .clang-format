@@ -68,4 +68,5 @@ UseTab: Always
 #BreakBeforeBinaryOperators: All 
 BreakBeforeBinaryOperators: NonAssignment 
 SpaceBeforeCpp11BracedList: false
+AlwaysBreakAfterReturnType: All
 #AlignArrayOfStructures: Left
