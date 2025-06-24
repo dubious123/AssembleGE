@@ -64,7 +64,7 @@ namespace ecs::system
 			}                                                                                             \
 			else                                                                                          \
 			{                                                                                             \
-				if (_run_sys(t_sys_now {}, std::forward<t_data>(data)...))                                \
+				if (_run_sys(t_sys_now{}, std::forward<t_data>(data)...))                                 \
 					break;                                                                                \
 			}                                                                                             \
 		}                                                                                                 \
@@ -77,7 +77,7 @@ namespace ecs::system
 			}                                                                                             \
 			else                                                                                          \
 			{                                                                                             \
-				if (_run_sys(t_sys_now {}, std::forward<t_data>(data)...))                                \
+				if (_run_sys(t_sys_now{}, std::forward<t_data>(data)...))                                 \
 					continue;                                                                             \
 			}                                                                                             \
 		}                                                                                                 \
@@ -89,7 +89,7 @@ namespace ecs::system
 			}                                                                                             \
 			else                                                                                          \
 			{                                                                                             \
-				_run_sys(t_sys_now {}, std::forward<t_data>(data)...);                                    \
+				_run_sys(t_sys_now{}, std::forward<t_data>(data)...);                                     \
 			}                                                                                             \
 		}                                                                                                 \
 	}
@@ -125,7 +125,7 @@ namespace ecs::system
 			template <typename... t_data>
 			void run(t_data&&... data)
 			{
-				run_impl(std::index_sequence_for<t_sys...> {}, std::forward<t_data>(data)...);
+				run_impl(std::index_sequence_for<t_sys...>{}, std::forward<t_data>(data)...);
 			}
 
 		  private:
@@ -140,6 +140,8 @@ namespace ecs::system
 				}
 			}
 		};
+
+#undef __SYS_LOOP_IMPL
 	}	 // namespace detail
 
 	using namespace ecs::system::detail;

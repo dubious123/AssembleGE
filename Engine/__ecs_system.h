@@ -8,9 +8,11 @@ namespace ecs
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires []<std::size_t... i>(std::index_sequence<i...>) {
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
 				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>> {});
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -117,7 +119,7 @@ namespace ecs
 	consteval std::array<std::size_t, sizeof...(t)> make_not_empty_sys_idx_arr()
 	{
 		constexpr const bool flags[] = { meta::is_not_empty<t>::value... };
-		auto				 arr	 = std::array<std::size_t, sizeof...(t)> {};
+		auto				 arr	 = std::array<std::size_t, sizeof...(t)>{};
 		for (auto i = 0, idx = 0; i < sizeof...(t); ++i)
 		{
 			if (flags[i])
