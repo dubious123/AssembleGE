@@ -83,76 +83,88 @@ import std;
 
 using namespace data_structure;
 
-void test_func(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func1 : " << a++);
 	t.position.x += 1;
 }
 
-void test_func2(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func2(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func2 : " << a++);
 	t.position.y += 1;
 }
 
-void test_func3(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func3(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func3 : " << a++);
 	t.position.z += 1;
 }
 
-void test_func4(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func4(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func4 : " << a++);
 	t.position.x += 1;
 }
 
-void test_func5(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func5(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func5 : " << a++);
 	t.position.y += 1;
 }
 
-void test_func6(ecs::entity_idx idx, transform& t, bullet& b)
+void
+test_func6(ecs::entity_idx idx, transform& t, bullet& b)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func6 : " << a++);
 	t.position.z += 1;
 }
 
-void test_func7(ecs::entity_idx idx, transform& t, rigid_body& rb)
+void
+test_func7(ecs::entity_idx idx, transform& t, rigid_body& rb)
 {
 	static int a = 0;
 	// DEBUG_LOG("test_func7 : " << a++);
 	t.position.z += 1;
 }
 
-bool cond_func1()
+bool
+cond_func1()
 {
 	return true;
 }
 
-bool cond_func2()
+bool
+cond_func2()
 {
 	return false;
 }
 
-void test_add(int a, int b)
+void
+test_add(int a, int b)
 {
 	a + b;
 }
 
-void test_add2(uint64 a, uint64 b, uint64 c, uint64 d, uint64 e, uint64 f)
+void
+test_add2(uint64 a, uint64 b, uint64 c, uint64 d, uint64 e, uint64 f)
 {
 	a + b;
 }
 
-void test_update(auto& w, auto p)
+void
+test_update(auto& w, auto p)
 {
 	p().update(w);
 }
@@ -175,19 +187,30 @@ concept ecs_world = std::derived_from<world, ecs::world_base>;
 
 SYS_BEGIN(sys_2)
 
-void on_system_begin(auto& world)
+void
+on_system_begin(auto& world)
 {
 }
 
-void on_thread_begin(auto& world) { }
+void
+on_thread_begin(auto& world)
+{
+}
 
-void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+void
+update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
-void on_thread_end() { }
+void
+on_thread_end()
+{
+}
 
-void on_system_end(auto& world) { }
+void
+on_system_end(auto& world)
+{
+}
 
 SYS_END()
 
@@ -214,20 +237,32 @@ struct system_1
 {
 	int* p_int;
 
-	void on_system_begin(auto& world)
+	void
+	on_system_begin(auto& world)
 	{
 	}
 
-	void on_thread_begin(auto& world) { }
+	void
+	on_thread_begin(auto& world)
+	{
+	}
 
-	void update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
-	void update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	void
+	update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
+	void
+	update2(ecs::entity_idx e_idx, transform& t, rigid_body& v){};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
-	void on_thread_end() { }
+	void
+	on_thread_end()
+	{
+	}
 
-	void on_system_end(auto& world) { }
+	void
+	on_system_end(auto& world)
+	{
+	}
 
 	system_1()
 	{
@@ -240,23 +275,35 @@ struct system_1
 		delete p_int;
 	}
 
-	system_1(const system_1& other)			   = delete;
-	system_1& operator=(const system_1& other) = delete;
-	system_1(system_1&& other)				   = delete;
-	system_1& operator=(system_1&& other)	   = delete;
+	system_1(const system_1& other) = delete;
+	system_1&
+	operator=(const system_1& other) = delete;
+	system_1(system_1&& other)		 = delete;
+	system_1&
+	operator=(system_1&& other) = delete;
 
-	void f(int, int) { }
+	void
+	f(int, int)
+	{
+	}
 };
 
 struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
-	void update(transform& t, bullet& v) { };
+	void
+	update(transform& t, bullet& v){};
 
-	static void test_fu(int a, int b) { }
+	static void
+	test_fu(int a, int b)
+	{
+	}
 };
 
-void test_add3(int a, int b) { }
+void
+test_add3(int a, int b)
+{
+}
 
 using namespace ecs;
 
@@ -403,7 +450,8 @@ struct test_temp
 
 struct system4
 {
-	void update(auto&& world)
+	void
+	update(auto&& world)
 	{
 		std::println("func name : {}", std::source_location::current().function_name());
 		std::println("line : {}", std::source_location::current().line());
@@ -456,7 +504,8 @@ struct scene_types_container
 		int	 _current_scene_idx;             \
 		bool _game_running;                  \
                                              \
-		void run()                           \
+		void                                 \
+		run()                                \
 		{                                    \
 			while (_game_running)            \
 			{                                \
@@ -568,7 +617,8 @@ struct some_big_struct
 	uint64 d;
 
 	template <typename... t_data>
-	decltype(auto) run(t_data&&... arg)
+	decltype(auto)
+	run(t_data&&... arg)
 	{
 		return false;
 	}
@@ -658,7 +708,8 @@ struct item_comparator_descend
 	}();
 };
 
-int main()
+int
+main()
 {
 	{
 		// meta::print_type<tuple_sort_stable_t<item_comparator_descend, unsorted>>();
@@ -970,7 +1021,9 @@ int main()
 				pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
 			},
 			[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
-			cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); return 1; }, [](auto&& _) { std::println("false"); return 2; } }
+			cond{ [](auto&& _) { return true; },
+				  [](auto&& _) { std::println("true"); return 1; },
+				  [](auto&& _) { std::println("false"); return 2; } }
 				| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
 				| cond{ []() { return false; }, []() { std::println("false"); } },
 			[](auto) {},
@@ -990,15 +1043,30 @@ int main()
 
 			match{
 				[] { return 0; },
-				on<0> = sys_game_deinit{} | sys_game_init{},
+				on<0> = [](auto&& _) { return 2; } | [](auto&& _) { std::println("0"); return 1; },
 				on<1> = sys_game_deinit{},
 				on<2> = sys_game_deinit{},
 				on<3> = sys_game_deinit{},
-				default_to = [] { std::println("default"); } },
+				default_to = [] { std::println("default"); return 1; },
+			},
 
 		};
+
 		auto tpl1 = sys(_game);
-		int	 a	  = 1;
+		// sys(_game);
+		int a = 1;
+
+		auto m = match{
+			[&a] { return a; },
+			on<9> = [] { std::println("9"); },
+			on<12> = [] { std::println("12"); },
+			on<-1> = [] { std::println("-1"); },
+			on<30> = [] { std::println("30"); },
+			default_to = [] { std::println("default"); },
+		};
+
+		m();
+
 		// print_type<decltype(tpl1)>();
 
 		// print_type<decltype(t_test{}.systems)>();

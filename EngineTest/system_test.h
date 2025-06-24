@@ -131,7 +131,7 @@ namespace ecs::system::test
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -172,7 +172,7 @@ namespace ecs::system::test
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
@@ -197,7 +197,7 @@ namespace ecs::system::test
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr par() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -255,7 +255,7 @@ namespace ecs::system::test
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
 							  "[par] invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
@@ -487,7 +487,7 @@ namespace ecs::system::test
 
 		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys)
 			: sys_cond(FWD(sys_cond)),
-			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr loop() requires(std::is_empty_v<t_sys_cond> and ... and std::is_empty_v<t_sys>)
 		= default;
@@ -536,7 +536,7 @@ namespace ecs::system::test
 						  "[loop] sys_cond must return a type convertible to bool - check that it's callable and produces a condition-like value");
 
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
 							  "[loop] invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
@@ -568,6 +568,8 @@ namespace ecs::system::test
 
 		constexpr sys_case(t_sys&& sys) : sys(FWD(sys)) { }
 
+		constexpr sys_case() { }
+
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg)
@@ -579,6 +581,8 @@ namespace ecs::system::test
 	template <auto n>
 	struct sys_case<n, void>
 	{
+		static constexpr decltype(n) case_value = n;
+
 		template <typename t_sys>
 		constexpr decltype(auto)
 		operator=(t_sys&& sys) const
@@ -596,6 +600,8 @@ namespace ecs::system::test
 		no_unique_addr t_sys sys;
 
 		constexpr sys_default(t_sys&& sys) : sys(FWD(sys)) { }
+
+		constexpr sys_default() { }
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
@@ -618,9 +624,45 @@ namespace ecs::system::test
 
 	inline constexpr sys_default<void> default_to = sys_default<void>{};
 
+	template <typename t>
+	constexpr bool is_sys_default_v = false;
+
+	template <typename t_sys>
+	constexpr bool is_sys_default_v<sys_default<t_sys>> = true;
+
+	template <typename... t_sys_case>
+	FORCE_INLINE constexpr bool
+	has_sys_default()
+	{
+		return (is_sys_default_v<t_sys_case> || ...);
+	}
+
+#define MAX_CASE_COUNT 512
+
+	template <typename... t_sys_case>
+	FORCE_INLINE constexpr bool
+	validate_match()
+	{
+		constexpr auto default_to_count = ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
+
+		static_assert(default_to_count <= 1, "match: only one default_to is allowed");
+
+		if constexpr (default_to_count == 1)
+		{
+			static_assert(is_sys_default_v<meta::variadic_back_t<t_sys_case...>>, "match: default_to must be the last entry");
+		}
+
+		static_assert(sizeof...(t_sys_case) - default_to_count <= MAX_CASE_COUNT,
+					  "match: too many cases for switch generation. Increase MAX_CASE_COUNT and expand __X_REPEAT_LIST_512 macro accordingly.");
+
+		return true;
+	}
+
 	template <typename t_sys_selector, typename... t_sys_case>
 	struct match
 	{
+		static_assert(validate_match<t_sys_case...>(), "match: invalid template arguements");
+
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys_case...>()>;
 		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
 
@@ -629,10 +671,45 @@ namespace ecs::system::test
 
 		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
 			: sys_selector(FWD(sys_selector)),
-			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)) { };
+			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)){};
 
 		constexpr match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
 		= default;
+
+		FORCE_INLINE static constexpr decltype(auto)
+		case_id_arr()
+		{
+			// using t_case_tpl			  = std::tuple<t_sys_case...>;
+			constexpr auto sys_case_count = sizeof...(t_sys_case) - ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
+			auto		   arr			  = meta::seq_to_arr(std::make_index_sequence<MAX_CASE_COUNT>());
+
+			[&arr]<auto... idx>(std::index_sequence<idx...>) {
+				(
+					([&arr] {
+						constexpr auto case_id = meta::variadic_at_t<idx, t_sys_case...>::case_value;
+						// constexpr auto case_id = std::tuple_element_t<idx, t_case_tpl>::case_value;
+						arr[idx] = case_id;
+						if constexpr (case_id >= 0 and case_id < MAX_CASE_COUNT)
+						{
+							arr[case_id] = idx;
+						}
+					}()),
+					...);
+			}(std::make_index_sequence<sys_case_count>());
+
+			return arr;
+		}
+
+		using t_case_id_seq = meta::arr_to_seq_t<case_id_arr()>;
+
+		template <std::size_t i>
+		FORCE_INLINE static constexpr decltype(auto)
+		case_id()
+		{
+			constexpr auto arr = case_id_arr();
+			return arr[i];
+			// return meta::index_sequence_at_v<i, t_case_id_seq>;
+		}
 
 		template <std::size_t i, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
@@ -649,41 +726,66 @@ namespace ecs::system::test
 			}
 		}
 
+#define __SYS_CASE_IMPL(N)                   \
+	case case_id<N>():                       \
+	{                                        \
+		if constexpr (N < sys_case_count)    \
+		{                                    \
+			return run_impl<N>(FWD(arg)...); \
+		}                                    \
+	}
+
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg)
 		{
+			constexpr auto default_to_exists = (is_sys_default_v<t_sys_case> | ...);
+			constexpr auto sys_case_count	 = sizeof...(t_sys_case) - (default_to_exists ? 0 : 1);
+
+			if constexpr (default_to_exists)
+			{
+				[this]<auto... idx>(std::index_sequence<idx...>) {
+					using t_ret_default = decltype(run_impl<sizeof...(t_sys_case) - 1>(FWD(arg)...));
+					static_assert((std::is_same_v<t_ret_default, decltype(run_impl<idx>(FWD(arg)...))> and ...),
+								  "match: when a default_to is provided, all cases and the default_to must return the same type");
+				}(std::make_index_sequence<sys_case_count>());
+			}
+			else
+			{
+				[this]<auto... idx>(std::index_sequence<idx...>) {
+					static_assert((std::is_same_v<void, decltype(run_impl<idx>(FWD(arg)...))> and ...),
+								  "match: when no default_to is provided, all cases must return void");
+				}(std::make_index_sequence<sys_case_count>());
+			}
+
+
 			auto args = make_arg_tpl(FWD(arg)...);
 
 			return std::apply(
 				[this](auto&&... arg) {
 					auto key = run_sys(sys_selector, FWD(arg)...);
 
-					// 1. t_sys_case
-
-					// if constexpr ()
-					//{
-					//	break;
-					// }
-
-					// switch (key)
-					//{
-					// case meta::variadic_at_t<0, t_sys_case...>::value:
-					//{
-					//	return run_impl<0>(FWD(arg)...);
-					// }
-					//// ...
-
-
-					// default:
-					//{
-					//	return run_impl<sizeof...(t_sys_case)>(FWD(arg)...);
-					// }
-					// }
+					switch (key)
+					{
+#define X(N) __SYS_CASE_IMPL(N)
+						__X_REPEAT_LIST_512
+#undef X
+					default:
+					{
+						if constexpr (default_to_exists)
+						{
+							return run_impl<sizeof...(t_sys_case) - 1>(FWD(arg)...);
+						}
+						break;
+					}
+					}
 				},
 				args);
 		}
-	};
 
+#undef __SYS_CASE_IMPL
+	};	  // namespace ecs::system::test
+
+#undef MAX_CASE_COUNT
 #undef FWD
 }	 // namespace ecs::system::test
