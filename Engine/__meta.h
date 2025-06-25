@@ -56,7 +56,8 @@ namespace meta
 	template <int size, int idx = 0>	//, class dummy = void>
 	struct MM
 	{
-		static constexpr unsigned int crc32(const char* str, unsigned int prev_crc = 0xFFFFFFFF)
+		static constexpr unsigned int
+		crc32(const char* str, unsigned int prev_crc = 0xFFFFFFFF)
 		{
 			return MM<size, idx + 1>::crc32(str, (prev_crc >> 8) ^ crc_table[(prev_crc ^ str[idx]) & 0xFF]);
 		}
@@ -65,7 +66,8 @@ namespace meta
 	template <int size>		 //, class dummy>
 	struct MM<size, size>	 //, dummy>
 	{
-		static constexpr unsigned int crc32(const char* str, unsigned int prev_crc = 0xFFFFFFFF)
+		static constexpr unsigned int
+		crc32(const char* str, unsigned int prev_crc = 0xFFFFFFFF)
 		{
 			return prev_crc ^ 0xFFFFFFFF;
 		}
@@ -91,7 +93,8 @@ namespace meta
 	};
 
 	template <typename t, typename h, typename... ts>
-	consteval bool variadic_contains()
+	consteval bool
+	variadic_contains()
 	{
 
 		if constexpr (std::is_same_v<t, h>)
@@ -109,7 +112,8 @@ namespace meta
 	};
 
 	template <auto v, auto h, auto... ts>
-	consteval bool variadic_contains()
+	consteval bool
+	variadic_contains()
 	{
 
 		if constexpr (std::is_same_v<auto_wrapper<v>, auto_wrapper<h>>)
@@ -127,7 +131,8 @@ namespace meta
 	};
 
 	template <auto v>
-	consteval bool variadic_contains()
+	consteval bool
+	variadic_contains()
 	{
 		return false;
 	};
@@ -139,7 +144,8 @@ namespace meta
 	constexpr inline auto variadic_auto_constains_v = variadic_contains<t, h, ts...>();
 
 	template <typename t, typename ret, typename... args>
-	consteval bool param_constains(ret (*func)(args...))
+	consteval bool
+	param_constains(ret (*func)(args...))
 	{
 		return meta::variadic_constains_v<t, args...>;
 	};
@@ -352,7 +358,8 @@ namespace meta
 	// inline constexpr const auto param_count = param_at<idx, func>::value;
 
 	template <typename t, typename head, typename... tails>
-	consteval size_t get_variadic_index()
+	consteval size_t
+	get_variadic_index()
 	{
 		if constexpr (std::is_same_v<t, head>)
 		{
@@ -369,7 +376,8 @@ namespace meta
 	static inline constexpr const auto variadic_index_v = get_variadic_index<t, h, ts...>();
 
 	template <auto t, auto head, auto... tails>
-	consteval size_t get_variadic_auto_index()
+	consteval size_t
+	get_variadic_auto_index()
 	{
 		return get_variadic_index<auto_wrapper<t>, auto_wrapper<head>, auto_wrapper<tails>...>();
 		// return variadic_index<auto_wrapper<t>, auto_wrapper<head>, auto_wrapper<tails>...>; ... compile error... why?
@@ -391,13 +399,15 @@ namespace meta
 	inline constexpr std::size_t tuple_index_v = tuple_index<t, tuple>::value;
 
 	template <typename t, typename... ts>
-	auto& get_tuple_value(std::tuple<ts...>&& tpl)
+	auto&
+	get_tuple_value(std::tuple<ts...>&& tpl)
 	{
 		return std::get<variadic_index_v<t, ts...>>(tpl);
 	}
 
 	template <typename t, typename... ts>
-	auto& get_tuple_value(std::tuple<ts...>& tpl)
+	auto&
+	get_tuple_value(std::tuple<ts...>& tpl)
 	{
 		return std::get<variadic_index_v<t, ts...>>(tpl);
 	}
@@ -630,19 +640,22 @@ namespace meta
 	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
 
 	template <auto... i>
-	constexpr auto seq_to_arr(std::index_sequence<i...>)
+	constexpr auto
+	seq_to_arr(std::index_sequence<i...>)
 	{
 		return std::array<std::size_t, sizeof...(i)>{ i... };
 	}
 
 	template <std::size_t i, std::size_t count>
-	constexpr auto make_iota_array()
+	constexpr auto
+	make_iota_array()
 	{
 		return seq_to_arr(offset_sequence<i, count>());
 	}
 
 	template <auto arr>
-	constexpr auto arr_to_seq()
+	constexpr auto
+	arr_to_seq()
 	{
 		return []<std::size_t... i>(std::index_sequence<i...>) {
 			return std::index_sequence<arr[i]...>{};
@@ -671,7 +684,8 @@ namespace meta
 		std::remove_reference_t<t>>;
 
 	template <typename T>
-	constexpr decltype(auto) as_value_or_ref(T&& value)
+	constexpr decltype(auto)
+	as_value_or_ref(T&& value)
 	{
 		if constexpr (std::is_lvalue_reference_v<T>)
 			return value;
@@ -680,7 +694,8 @@ namespace meta
 	}
 
 	template <template <typename> typename pred, typename... t>
-	consteval auto filter_count()
+	consteval auto
+	filter_count()
 	{
 		const std::array<bool, sizeof...(t)> flags = { pred<t>::value... };
 		std::size_t							 count = 0;
@@ -696,7 +711,8 @@ namespace meta
 	}
 
 	template <template <typename> typename pred, typename... t>
-	consteval auto filter_indices()
+	consteval auto
+	filter_indices()
 	{
 		const std::array<bool, sizeof...(t)> flags	 = { pred<t>::value... };
 		auto								 indices = std::array<std::size_t, filter_count<pred, t...>()>();
@@ -714,7 +730,8 @@ namespace meta
 	}
 
 	template <template <typename> typename pred, typename... t>
-	consteval auto make_filtered_index_sequence()
+	consteval auto
+	make_filtered_index_sequence()
 	{
 		constexpr auto arr = filter_indices<pred, t...>();
 
@@ -747,7 +764,8 @@ namespace meta
 	using filtered_tuple_t = filtered_tuple<pred, t...>::type;
 
 	template <template <typename> typename pred, typename... t>
-	constexpr decltype(auto) make_filtered_tuple_from_tuple(std::tuple<t...>&& tpl)
+	constexpr decltype(auto)
+	make_filtered_tuple_from_tuple(std::tuple<t...>&& tpl)
 	{
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
 			return filtered_tuple_t<pred, t...>(std::get<i>(tpl)...);
@@ -755,7 +773,8 @@ namespace meta
 	}
 
 	template <template <typename> typename pred, typename... t>
-	constexpr decltype(auto) make_filtered_tuple(t&&... args)
+	constexpr decltype(auto)
+	make_filtered_tuple(t&&... args)
 	{
 		auto&& args_tpl = std::forward_as_tuple(std::forward<t>(args)...);
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
@@ -764,7 +783,8 @@ namespace meta
 	}
 
 	template <typename t, typename... ts>
-	consteval size_t variadic_count()
+	consteval size_t
+	variadic_count()
 	{
 		size_t res = 0;
 		([&res]() {
@@ -779,7 +799,8 @@ namespace meta
 	}
 
 	template <auto v, auto... vs>
-	consteval size_t variadic_count()
+	consteval size_t
+	variadic_count()
 	{
 		return variadic_count<auto_wrapper<v>, auto_wrapper<vs>...>();
 	}
@@ -835,19 +856,22 @@ namespace meta
 	};
 
 	template <typename fn, typename t, int... s>
-	void __call(fn&& f, t&& tpl, __seq<s...>)
+	void
+	__call(fn&& f, t&& tpl, __seq<s...>)
 	{
 		f(std::get<s>(std::forward<t>(tpl))...);
 	}
 
 	template <typename fn, typename... ts>
-	void call_w_tpl_args(fn&& f, std::tuple<ts...>& tpl)
+	void
+	call_w_tpl_args(fn&& f, std::tuple<ts...>& tpl)
 	{
 		__call(std::forward<fn>(f), tpl, int_seq<sizeof...(ts)>::type());
 	}
 
 	template <typename fn, typename... ts>
-	void call_w_tpl_args(fn&& f, std::tuple<ts...>&& tpl)
+	void
+	call_w_tpl_args(fn&& f, std::tuple<ts...>&& tpl)
 	{
 		__call(std::forward<fn>(f), tpl, int_seq<sizeof...(ts)>::type());
 	}
@@ -929,7 +953,8 @@ namespace meta
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 
 	template <std::size_t offset, std::size_t... i>
-	constexpr decltype(auto) make_offset_sequence(std::index_sequence<i...>)
+	constexpr decltype(auto)
+	make_offset_sequence(std::index_sequence<i...>)
 	{
 		return std::index_sequence<offset + i...>{};
 	}
@@ -957,19 +982,22 @@ namespace meta
 	};
 
 	template <std::size_t i, typename... t>
-	constexpr auto& _get(_tpl<t...>& tpl)
+	constexpr auto&
+	_get(_tpl<t...>& tpl)
 	{
 		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
 	}
 
 	template <std::size_t i, typename... t>
-	constexpr const auto& _get(const _tpl<t...>& tpl)
+	constexpr const auto&
+	_get(const _tpl<t...>& tpl)
 	{
 		return static_cast<const _tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
 	}
 
 	template <std::size_t i, typename... t>
-	constexpr auto&& _get(_tpl<t...>&& tpl)
+	constexpr auto&&
+	_get(_tpl<t...>&& tpl)
 	{
 		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&&>(tpl).val;
 	}
@@ -986,13 +1014,15 @@ namespace meta
 	inline constexpr std::size_t _tpl_size_v = _tpl_size<t>::value;
 
 	template <typename f, typename tpl_t, std::size_t... i>
-	constexpr decltype(auto) _apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)
+	constexpr decltype(auto)
+	_apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)
 	{
 		return std::forward<f>(func)(_get<i>(std::forward<tpl_t>(tpl))...);
 	}
 
 	template <typename f, typename tpl_t>
-	constexpr decltype(auto) _apply(f&& func, tpl_t&& tpl)
+	constexpr decltype(auto)
+	_apply(f&& func, tpl_t&& tpl)
 	{
 		return _apply_impl(
 			std::forward<f>(func),
@@ -1010,7 +1040,8 @@ namespace meta
 				uint64>>>;
 
 	template <typename T>
-	constexpr void print_type()
+	constexpr void
+	print_type()
 	{
 		static_assert([] { return false; }(), "Type info");
 	}

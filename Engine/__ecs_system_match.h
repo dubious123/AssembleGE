@@ -1,206 +1,251 @@
 #pragma once
 
+#ifndef INCLUDED_FROM_ECS_SYSTEM_HEADER
+	#error "Do not include this file directly. Include <__ecs_system.h> instead."
+#endif
+
+#define MAX_CASE_COUNT 512
+
+namespace ecs::system::detail
+{
+	template <auto n, typename t_sys>
+	struct sys_case
+	{
+		no_unique_addr t_sys sys;
+
+		static constexpr decltype(n) case_value = n;
+
+		constexpr sys_case(t_sys&& sys) : sys(FWD(sys)) { }
+
+		constexpr sys_case() { }
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			return run_sys(sys, FWD(arg)...);
+		}
+	};
+
+	template <auto n>
+	struct sys_case<n, void>
+	{
+		static constexpr decltype(n) case_value = n;
+
+		template <typename t_sys>
+		constexpr decltype(auto)
+		operator=(t_sys&& sys) const
+		{
+			return sys_case<n, t_sys>{ FWD(sys) };
+		}
+	};
+
+	template <typename t_sys>
+	struct sys_default
+	{
+		no_unique_addr t_sys sys;
+
+		constexpr sys_default(t_sys&& sys) : sys(FWD(sys)) { }
+
+		constexpr sys_default() { }
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			return run_sys(sys, FWD(arg)...);
+		}
+	};
+
+	template <>
+	struct sys_default<void>
+	{
+		template <typename t_sys>
+		constexpr decltype(auto)
+		operator=(t_sys&& sys) const
+		{
+			return sys_default<t_sys>{ FWD(sys) };
+		}
+	};
+
+	template <typename t>
+	constexpr inline bool is_sys_default_v = false;
+
+	template <typename t_sys>
+	constexpr bool is_sys_default_v<sys_default<t_sys>> = true;
+
+	template <typename t>
+	constexpr inline bool is_sys_case_v = false;
+
+	template <auto n, typename t_sys>
+	constexpr inline bool is_sys_case_v<sys_case<n, t_sys>> = not std::is_void_v<t_sys>;
+
+	template <typename... t_sys_case>
+	FORCE_INLINE constexpr bool
+	has_sys_default()
+	{
+		return (is_sys_default_v<t_sys_case> || ...);
+	}
+}	 // namespace ecs::system::detail
+
 namespace ecs::system
 {
-	namespace detail
+	using namespace detail;
+
+	template <auto n>
+	inline constexpr sys_case<n, void> on = sys_case<n, void>{};
+
+	inline constexpr sys_default<void> default_to = sys_default<void>{};
+
+	template <typename... t_sys_case>
+	FORCE_INLINE constexpr bool
+	validate_match()
 	{
+		constexpr auto default_to_count = ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
+		constexpr auto case_count		= sizeof...(t_sys_case) - default_to_count;
 
-		template <typename t_sys_cond, typename t_sys_then>
-		struct system_case
+		static_assert(((is_sys_default_v<t_sys_case> or is_sys_case_v<t_sys_case>)and...),
+					  "match: all arguments must be either on<n> = system or default_to = system");
+
+		static_assert(default_to_count <= 1, "match: only one default_to is allowed");
+
+		if constexpr (default_to_count == 1)
 		{
-			no_unique_addr t_sys_cond sys_cond;
-			no_unique_addr t_sys_then sys_then;
+			static_assert(is_sys_default_v<meta::variadic_back_t<t_sys_case...>>, "match: default_to must be the last entry");
+		}
 
-			constexpr system_case(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
-				: sys_cond(std::forward<t_sys_cond>(sys_cond)),
-				  sys_then(std::forward<t_sys_then>(sys_then)) { }
+		static_assert(case_count <= MAX_CASE_COUNT,
+					  "match: too many cases for switch generation. Increase MAX_CASE_COUNT and expand __X_REPEAT_LIST_512 macro accordingly.");
 
-			constexpr system_case() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then>)
-			= default;
+		constexpr auto all_cases_unique = []<auto... idx>(std::index_sequence<idx...>) {
+			return meta::variadic_auto_unique<meta::variadic_at_t<idx, t_sys_case...>::case_value...>;
+		}(std::make_index_sequence<case_count>());
 
-			template <typename... t_key>
-			bool matches(t_key&&... key)
+		static_assert(all_cases_unique, "match: duplicate on<n> detected. Each on<n> must have a unique value.");
+
+		return true;
+	}
+
+	template <typename t_sys_selector, typename... t_sys_case>
+	struct match
+	{
+		static_assert(validate_match<t_sys_case...>(), "match: invalid template arguements");
+
+		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys_case...>()>;
+		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
+
+		no_unique_addr t_sys_selector  sys_selector;
+		no_unique_addr t_sys_not_empty sys_cases;
+
+		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
+			: sys_selector(FWD(sys_selector)),
+			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)){};
+
+		constexpr match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
+		= default;
+
+		FORCE_INLINE static constexpr decltype(auto)
+		case_id_arr()
+		{
+			constexpr auto sys_case_count = sizeof...(t_sys_case) - ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
+			auto		   arr			  = meta::seq_to_arr(std::make_index_sequence<MAX_CASE_COUNT>());
+
+			[&arr]<auto... idx>(std::index_sequence<idx...>) {
+				(
+					([&arr] {
+						constexpr auto case_id = meta::variadic_at_t<idx, t_sys_case...>::case_value;
+						arr[idx]			   = case_id;
+						if constexpr (case_id >= 0 and case_id < MAX_CASE_COUNT)
+						{
+							arr[case_id] = idx;
+						}
+					}()),
+					...);
+			}(std::make_index_sequence<sys_case_count>());
+
+			return arr;
+		}
+
+		template <std::size_t i>
+		FORCE_INLINE static constexpr decltype(auto)
+		case_id()
+		{
+			constexpr auto arr = case_id_arr();
+			return arr[i];
+		}
+
+		template <std::size_t i, typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		run_impl(t_arg&&... arg)
+		{
+			using t_sys_case_now = meta::variadic_at_t<i, t_sys_case...>;
+			if constexpr (std::is_empty_v<t_sys_case_now>)
 			{
-				return _run_sys(sys_cond, std::forward<t_key>(key)...);
-			}
-		};
-
-		template <typename t_sys>
-		struct system_case_default
-		{
-			no_unique_addr t_sys sys;
-
-			constexpr system_case_default(t_sys&& sys)
-				: sys(std::forward<t_sys>(sys)) { }
-
-			constexpr system_case_default() requires(std::is_empty_v<t_sys>)
-			= default;
-
-			template <typename... t_data>
-			void run(t_data&&... data)
-			{
-				_run_sys(sys, std::forward<t_data>(data)...);
-			}
-		};
-
-		template <typename t>
-		struct is_system_case : std::false_type
-		{
-		};
-
-		template <typename t_cond, typename t_then>
-		struct is_system_case<system_case<t_cond, t_then>> : std::true_type
-		{
-		};
-
-		template <typename t>
-		inline constexpr bool is_system_case_v = is_system_case<t>::value;
-
-		template <typename t>
-		struct is_system_case_default : std::false_type
-		{
-		};
-
-		template <typename t_sys>
-		struct is_system_case_default<system_case_default<t_sys>> : std::true_type
-		{
-		};
-
-		template <typename t>
-		inline constexpr bool is_system_case_default_v = is_system_case_default<t>::value;
-
-		template <typename... t>
-		constexpr bool all_cases_valid = (... && (is_system_case_v<t> || is_system_case_default_v<t>));
-
-		template <typename... t>
-		constexpr bool default_is_last = [] {
-			if constexpr ((sizeof...(t) == 0) || (sizeof...(t) == 1))
-			{
-				return true;
+				return run_sys(t_sys_case_now{}, FWD(arg)...);
 			}
 			else
 			{
-				return false;
-				// return !std::ranges::any_of(std::array { is_system_case_default_v<t>... } | std::views::take(sizeof...(t) - 1), std::identity {});
+				return run_sys(std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(sys_cases), FWD(arg)...);
 			}
-		}();
+		}
 
-		template <typename t_sys_selector, typename... t_sys_case>
-		// requires all_cases_valid<t_sys_case...> && default_is_last<t_sys_case...>
-		struct system_match
+#define __SYS_CASE_IMPL(N)                   \
+	case case_id<N>():                       \
+	{                                        \
+		if constexpr (N < sys_case_count)    \
+		{                                    \
+			return run_impl<N>(FWD(arg)...); \
+		}                                    \
+	}
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
 		{
-			static const constexpr std::array<std::size_t, sizeof...(t_sys_case)> not_empty_sys_idx_arr = make_not_empty_sys_idx_arr<t_sys_case...>();
+			constexpr auto default_to_exists = (is_sys_default_v<t_sys_case> | ...);
+			constexpr auto sys_case_count	 = sizeof...(t_sys_case) - (default_to_exists ? 0 : 1);
 
-			using t_all_sys_tpl		  = std::tuple<t_sys_case...>;
-			using t_sys_not_empty_tpl = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
-
-			no_unique_addr t_sys_selector	   sys_selector;
-			no_unique_addr t_sys_not_empty_tpl sys_cases;
-
-			template <typename... t_sys_case_not_empty>
-			constexpr system_match(t_sys_selector&& sys_selector, std::tuple<t_sys_case_not_empty...>&& sys_cases)
-				: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-				  sys_cases(std::forward<std::tuple<t_sys_case_not_empty...>>(sys_cases))
+			if constexpr (default_to_exists)
 			{
+				[this]<auto... idx>(std::index_sequence<idx...>) {
+					using t_ret_default = decltype(run_impl<sizeof...(t_sys_case) - 1>(FWD(arg)...));
+					static_assert((std::is_same_v<t_ret_default, decltype(run_impl<idx>(FWD(arg)...))> and ...),
+								  "match: when a default_to is provided, all cases and the default_to must return the same type");
+				}(std::make_index_sequence<sys_case_count>());
+			}
+			else
+			{
+				[this]<auto... idx>(std::index_sequence<idx...>) {
+					static_assert((std::is_same_v<void, decltype(run_impl<idx>(FWD(arg)...))> and ...),
+								  "match: when no default_to is provided, all cases must return void");
+				}(std::make_index_sequence<sys_case_count>());
 			}
 
-			template <typename... t_sys_case_not_empty>
-			constexpr system_match(t_sys_selector&& sys_selector, t_sys_case_not_empty&&... sys_case)
-				: sys_selector(std::forward<t_sys_selector>(sys_selector)),
-				  sys_cases(std::forward<t_sys_case_not_empty>(sys_case)...)
-			{
-			}
+			auto args = make_arg_tpl(FWD(arg)...);
 
-			constexpr system_match() requires(std::is_empty_v<t_sys_case> && ...)
-			= default;
+			return std::apply(
+				[this](auto&&... arg) {
+					auto key = run_sys(sys_selector, FWD(arg)...);
 
-			template <typename... t_data>
-			void run(t_data&&... data)
-			{
-				run_impl(_run_sys(sys_selector, std::forward<t_data>(data)...), std::forward<t_data>(data)...);
-			}
-
-		  private:
-			template <std::size_t i = 0, typename t_key, typename... t_data>
-			void run_impl(t_key&& key, t_data&&... data)
-			{
-				if constexpr (i < std::tuple_size_v<t_all_sys_tpl>)
-				{
-					using t_sys_case_now = std::tuple_element_t<i, t_all_sys_tpl>;
-
-					if constexpr (not std::is_empty_v<t_sys_case_now>)
+					switch (key)
 					{
-						auto& current = std::get<not_empty_sys_idx_arr[i]>(sys_cases);
-						if constexpr (is_system_case_v<std::decay_t<t_sys_case_now>>)
-						{
-							if (current.matches(std::forward<t_key>(key)))
-							{
-								_run_sys(current.sys_then, std::forward<t_data>(data)...);
-							}
-							else
-							{
-								run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
-							}
-						}
-						else
-						{
-							_run_sys(current.sys, std::forward<t_data>(data)...);
-						}
-					}
-					else
+#define X(N) __SYS_CASE_IMPL(N)
+						__X_REPEAT_LIST_512
+#undef X
+					default:
 					{
-						if constexpr (is_system_case_v<std::decay_t<t_sys_case_now>>)
+						if constexpr (default_to_exists)
 						{
-							if (t_sys_case_now {}.matches(std::forward<t_key>(key)))
-							{
-								_run_sys(decltype(t_sys_case_now {}.sys_then) {}, std::forward<t_data>(data)...);
-							}
-							else
-							{
-								run_impl<i + 1>(std::forward<t_key>(key), std::forward<t_data>(data)...);
-							}
+							return run_impl<sizeof...(t_sys_case) - 1>(FWD(arg)...);
 						}
-						else
-						{
-							_run_sys(decltype(t_sys_case_now {}.sys) {}, std::forward<t_data>(data)...);
-						}
+						break;
 					}
-				}
-			}
-		};
+					}
+				},
+				args);
+		}
 
-	}	 // namespace detail
-
-	using namespace ecs::system::detail;
-
-	template <typename t_sys_selector, typename... t_sys_case>
-	constexpr decltype(auto) match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
-	{
-		return system_match<t_sys_selector, t_sys_case...>(
-			std::forward<t_sys_selector>(sys_selector),
-			meta::make_filtered_tuple<meta::is_not_empty>(std::forward<t_sys_case>(sys_case)...));
-	}
-
-	template <typename t_sys_cond, typename t_sys_then>
-	constexpr decltype(auto) on(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
-	{
-		return system_case<t_sys_cond, t_sys_then>(
-			std::forward<t_sys_cond>(sys_cond),
-			std::forward<t_sys_then>(sys_then));
-	}
-
-	template <auto integral, typename t_sys_then>
-	constexpr decltype(auto) on(t_sys_then&& sys_then)
-	{
-		using t_sys_cond = decltype([](auto _) { return integral == _; });
-		return system_case<t_sys_cond, t_sys_then>(
-			t_sys_cond {},
-			std::forward<t_sys_then>(sys_then));
-	}
-
-	template <typename t_sys>
-	constexpr decltype(auto) default_to(t_sys&& sys)
-	{
-		return system_case_default<t_sys>(std::forward<t_sys>(sys));
-	}
+#undef __SYS_CASE_IMPL
+#undef MAX_CASE_COUNT
+	};
 }	 // namespace ecs::system

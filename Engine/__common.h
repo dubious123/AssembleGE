@@ -17,6 +17,16 @@
 	#define no_unique_addr [[no_unique_address]]
 #endif
 
+#if defined(_MSC_VER)
+	#define FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+	#define FORCE_INLINE inline __attribute__((always_inline))
+#else
+	#define FORCE_INLINE inline
+#endif
+
+#define FWD(x) std::forward<decltype(x)>(x)
+
 constexpr std::size_t operator"" _KiB(std::size_t k)
 {
 	return k * 1024;

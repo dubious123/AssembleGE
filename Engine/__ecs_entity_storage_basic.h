@@ -39,17 +39,20 @@ namespace ecs::entity_storage
 			data_structure::vector<t_entity_group*> ent_group_vec;
 			std::size_t								free_group_count = 0;
 
-			inline void deinit()
+			inline void
+			deinit()
 			{
 				std::ranges::for_each(ent_group_vec, [](auto* p_group) { delete p_group; });
 			}
 
-			inline std::size_t free_group_idx()
+			inline std::size_t
+			free_group_idx()
 			{
 				return static_cast<std::size_t>(ent_group_vec.size() - free_group_count);
 			}
 
-			inline t_entity_group& free_group(t_archetype archetype)
+			inline t_entity_group&
+			free_group(t_archetype archetype)
 			{
 				if (free_group_count > 0)
 				{
@@ -73,7 +76,8 @@ namespace ecs::entity_storage
 				}
 			}
 
-			void update_free(std::size_t group_idx)
+			void
+			update_free(std::size_t group_idx)
 			{
 				assert(ent_group_vec[group_idx]->is_full() is_false);
 				assert(group_idx < free_group_idx());
@@ -85,7 +89,8 @@ namespace ecs::entity_storage
 				std::swap(ent_group_vec[group_idx]->entity_group_idx(), ent_group_vec[swap_idx]->entity_group_idx());
 			}
 
-			void update_full(std::size_t group_idx)
+			void
+			update_full(std::size_t group_idx)
 			{
 				assert(ent_group_vec[group_idx]->is_full());
 				assert(group_idx >= free_group_idx());
@@ -102,7 +107,8 @@ namespace ecs::entity_storage
 		data_structure::sparse_vector<entity_info>				  entity_info_vec;
 		data_structure::map<t_archetype, entity_group_collection> entity_groups_map;
 
-		std::size_t entity_count() const noexcept
+		std::size_t
+		entity_count() const noexcept
 		{
 			return entity_info_vec.size();
 		}
@@ -110,19 +116,22 @@ namespace ecs::entity_storage
 	  private:
 		// find or create and init entity_group
 		template <typename... t>
-		inline t_entity_group& _get_or_init_entity_group()
+		inline t_entity_group&
+		_get_or_init_entity_group()
 		{
 			return entity_groups_map[t_archetype_traits::template calc_archetype<t...>()].free_group();
 		}
 
-		inline t_entity_group& _get_or_init_entity_group(t_archetype archetype)
+		inline t_entity_group&
+		_get_or_init_entity_group(t_archetype archetype)
 		{
 			return entity_groups_map[archetype].free_group();
 		}
 
 	  public:
 		template <typename... t, typename... t_arg>
-		t_entity_id new_entity(t_arg&&... arg)
+		t_entity_id
+		new_entity(t_arg&&... arg)
 		{
 			static_assert((sizeof...(t) == sizeof...(t_arg)) or (sizeof...(t_arg) == 0), "invalid template parameter");
 
@@ -142,7 +151,8 @@ namespace ecs::entity_storage
 			return entity_id;
 		}
 
-		void remove_entity(const t_entity_id id)
+		void
+		remove_entity(const t_entity_id id)
 		{
 			auto& ent_info = entity_info_vec[id];
 
@@ -159,11 +169,16 @@ namespace ecs::entity_storage
 			entity_info_vec.remove(id);
 		}
 
-		bool is_valid(t_entity_id id) const { return false; }
+		bool
+		is_valid(t_entity_id id) const
+		{
+			return false;
+		}
 
 		// if dup cmp => UB
 		template <typename... t, typename... t_arg>
-		void add_component(const t_entity_id id, t_arg&&... arg)
+		void
+		add_component(const t_entity_id id, t_arg&&... arg)
 		{
 			using namespace std::ranges::views;
 
@@ -215,7 +230,8 @@ namespace ecs::entity_storage
 		}
 
 		template <typename... t>
-		void remove_component(t_entity_id id)
+		void
+		remove_component(t_entity_id id)
 		{
 			using namespace std::ranges::views;
 
@@ -256,38 +272,52 @@ namespace ecs::entity_storage
 		}
 
 		template <typename... t>
-		inline decltype(auto) get_component(t_entity_id id)
+		inline decltype(auto)
+		get_component(t_entity_id id)
 		{
 			auto& ent_info = entity_info_vec[id];
 			return ent_info.p_group->template get_component<t...>(ent_info.local_idx);
 		}
 
 		template <typename... t>
-		bool has_component(t_entity_id id)
+		bool
+		has_component(t_entity_id id)
 		{
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 			return (entity_info_vec[id].archetype & archetype) == archetype;
 		}
 
-		void load_from_file(const char* path) { }
+		void
+		load_from_file(const char* path)
+		{
+		}
 
-		void save_to_file(const char* path) const { }
+		void
+		save_to_file(const char* path) const
+		{
+		}
 
-		void load_from_memory(const void* data, std::size_t size) { }
+		void
+		load_from_memory(const void* data, std::size_t size)
+		{
+		}
 
 		template <typename... t, typename t_lambda>
-		void each_entity(t_lambda&& fn)
+		void
+		each_entity(t_lambda&& fn)
 		{
 			// std::ranges::for_each(entity_groups_map[t_archetype_traits::template calc_archetype<t...>()],
 			//					  fn)
 		}
 
 		template <typename... t, typename t_lambda>
-		void each_group(t_lambda&& fn)
+		void
+		each_group(t_lambda&& fn)
 		{
 		}
 
-		void deinit()
+		void
+		deinit()
 		{
 			std::ranges::for_each(entity_groups_map | std::views::values | std::views::join, [](auto& ent_groups) { ent_groups.deinit(); });
 		}

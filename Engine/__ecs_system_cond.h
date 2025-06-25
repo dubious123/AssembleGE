@@ -1,80 +1,100 @@
 #pragma once
+#ifndef INCLUDED_FROM_ECS_SYSTEM_HEADER
+	#error "Do not include this file directly. Include <__ecs_system.h> instead."
+#endif
 
 namespace ecs::system
 {
-	namespace detail
-	{
-		template <typename t_sys_cond, typename t_sys_then, typename t_sys_else = void>
-		struct system_cond;
-
-		template <typename t_sys_cond, typename t_sys_then>
-		struct system_cond<t_sys_cond, t_sys_then, void>
-		{
-			no_unique_addr t_sys_cond sys_cond;
-			no_unique_addr t_sys_then sys_then;
-
-			constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
-				: sys_cond(std::forward<t_sys_cond>(sys_cond)), sys_then(std::forward<t_sys_then>(sys_then)) { }
-
-			constexpr system_cond() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then>)
-			= default;
-
-			template <typename... t_data>
-			void run(t_data&&... data)
-			{
-				if (_run_sys(sys_cond, std::forward<t_data>(data)...))
-				{
-					_run_sys(sys_then, std::forward<t_data>(data)...);
-				}
-			}
-		};
-
-		template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
-		struct system_cond
-		{
-			no_unique_addr t_sys_cond sys_cond;
-			no_unique_addr t_sys_then sys_then;
-			no_unique_addr t_sys_else sys_else;
-
-			constexpr system_cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
-				: sys_cond(std::forward<t_sys_cond>(sys_cond)),
-				  sys_then(std::forward<t_sys_then>(sys_then)),
-				  sys_else(std::forward<t_sys_else>(sys_else)) { }
-
-			constexpr system_cond() requires(std::is_empty_v<t_sys_cond> && std::is_empty_v<t_sys_then> && std::is_empty_v<t_sys_else>)
-			= default;
-
-			template <typename... t_data>
-			void run(t_data&&... data)
-			{
-				if (_run_sys(sys_cond, std::forward<t_data>(data)...))
-				{
-					_run_sys(sys_then, std::forward<t_data>(data)...);
-				}
-				else
-				{
-					_run_sys(sys_else, std::forward<t_data>(data)...);
-				}
-			}
-		};
-	}	 // namespace detail
-
-	using namespace ecs::system::detail;
-
-	template <typename t_sys_cond, typename t_sys_then>
-	decltype(auto) cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
-	{
-		return system_cond<t_sys_cond, t_sys_then>(
-			std::forward<t_sys_cond>(sys_cond),
-			std::forward<t_sys_then>(sys_then));
-	}
+	using namespace detail;
 
 	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
-	decltype(auto) cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+	struct cond
 	{
-		return system_cond<t_sys_cond, t_sys_then, t_sys_else>(
-			std::forward<t_sys_cond>(sys_cond),
-			std::forward<t_sys_then>(sys_then),
-			std::forward<t_sys_else>(sys_else));
-	}
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
+		no_unique_addr t_sys_else sys_else;
+
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+			: sys_cond(FWD(sys_cond)),
+			  sys_then(FWD(sys_then)),
+			  sys_else(FWD(sys_else))
+		{
+		}
+
+		constexpr cond()
+			requires(std::is_empty_v<t_sys_cond> and std::is_empty_v<t_sys_then> and std::is_empty_v<t_sys_else>)
+			= default;
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			using t_res_then = decltype(run_sys(sys_then, FWD(arg)...));
+			using t_res_else = decltype(run_sys(sys_else, FWD(arg)...));
+			static_assert(std::is_same_v<t_res_then, t_res_else>, "cond: 'then' and 'else' systems must return the same type");
+
+			auto args = make_arg_tpl(FWD(arg)...);
+
+			return std::apply(
+				[this](auto&&... arg) {
+					if (run_sys(sys_cond, FWD(arg)...))
+					{
+						return run_sys(sys_then, FWD(arg)...);
+					}
+					else
+					{
+						return run_sys(sys_else, FWD(arg)...);
+					}
+				},
+				args);
+		}
+	};
+
+	// constexpr inline auto when = sys_when<>();
+
+	template <typename t_sys_cond, typename t_sys_then>
+	struct cond<t_sys_cond, t_sys_then, void>
+	{
+		no_unique_addr t_sys_cond sys_cond;
+		no_unique_addr t_sys_then sys_then;
+
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+			: sys_cond(FWD(sys_cond)),
+			  sys_then(FWD(sys_then))
+		{
+		}
+
+		constexpr cond()
+			requires(std::is_empty_v<t_sys_cond> and std::is_empty_v<t_sys_then>)
+			= default;
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg)
+		{
+			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
+			using t_res_then = decltype(run_sys(sys_then, FWD(arg)...));
+			static_assert(std::is_same_v<t_res_cond, bool>, "cond: system sys_cond is invalid - check if the system is callable with the given arguments or if the system returns bool");
+			static_assert(not std::is_same_v<t_res_then, invalid_sys_call>, "cond: system sys_then is invalid - check if the system is callable with the given arguments");
+			static_assert(std::is_same_v<t_res_then, void>, "cond: 'then' system must return void");
+
+			auto args = make_arg_tpl(FWD(arg)...);
+
+			return std::apply(
+				[this](auto&&... arg) {
+					if (run_sys(sys_cond, FWD(arg)...))
+					{
+						return run_sys(sys_then, FWD(arg)...);
+					}
+				},
+				args);
+		}
+	};
+
+	// Explicit deduction guides for cond because CTAD does not consider partial specializations
+	template <typename t_sys_cond, typename t_sys_then>
+	cond(t_sys_cond&&, t_sys_then&&) -> cond<t_sys_cond, t_sys_then, void>;
+
+	template <typename t_sys_cond, typename t_sys_then, typename t_sys_else>
+	cond(t_sys_cond&&, t_sys_then&&, t_sys_else&&) -> cond<t_sys_cond, t_sys_then, t_sys_else>;
 }	 // namespace ecs::system
