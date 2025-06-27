@@ -22,6 +22,7 @@
     <ClCompile Include="__components.h" />
     <ClInclude Include="__ecs_system.h" />
     <ClInclude Include="__ecs_system_cond.h" />
+    <ClInclude Include="__ecs_system_each.h" />
     <ClInclude Include="__ecs_system_loop.h" />
     <ClInclude Include="__ecs_system_match.h" />
     <ClInclude Include="__ecs_system_par.h" />

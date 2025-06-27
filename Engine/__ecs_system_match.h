@@ -17,7 +17,7 @@ namespace ecs::system::detail
 
 		constexpr sys_case(t_sys&& sys) : sys(FWD(sys)) { }
 
-		constexpr sys_case() { }
+		constexpr sys_case() = default;
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
@@ -104,7 +104,7 @@ namespace ecs::system
 		constexpr auto default_to_count = ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
 		constexpr auto case_count		= sizeof...(t_sys_case) - default_to_count;
 
-		static_assert(((is_sys_default_v<t_sys_case> or is_sys_case_v<t_sys_case>)and...),
+		static_assert(((is_sys_default_v<t_sys_case> or is_sys_case_v<t_sys_case>) and ...),
 					  "match: all arguments must be either on<n> = system or default_to = system");
 
 		static_assert(default_to_count <= 1, "match: only one default_to is allowed");
@@ -139,7 +139,7 @@ namespace ecs::system
 
 		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
 			: sys_selector(FWD(sys_selector)),
-			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)){};
+			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)) { };
 
 		constexpr match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
 		= default;

@@ -72,7 +72,6 @@ typedef int (*import_func)();
 #include <future>
 
 #include "test.h"
-#include "system_test.h"
 // #include <type_traits>
 // #include <sstream>
 // #include <format>
@@ -198,7 +197,7 @@ on_thread_begin(auto& world)
 }
 
 void
-update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
+update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -248,9 +247,9 @@ struct system_1
 	}
 
 	void
-	update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
+	update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 	void
-	update2(ecs::entity_idx e_idx, transform& t, rigid_body& v){};
+	update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -292,7 +291,7 @@ struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
 	void
-	update(transform& t, bullet& v){};
+	update(transform& t, bullet& v) { };
 
 	static void
 	test_fu(int a, int b)
@@ -1056,10 +1055,16 @@ main()
 
 			[]<typename g>(interface_game<g> igame)
 				-> decltype(auto) { return igame.get_scene<scene_t1>(); } | []<typename s>(interface_scene<s> iscene)
-					-> decltype(auto) { return (iscene.get_world<world_t1>()); } | []<typename w>(interface_world<w> iworld) {}
+					-> decltype(auto) { return (iscene.get_world<world_t1>()); } | each_group{ query{ with<transform, bullet>, without<rigid_body> }, []<typename g>(interface_entity_group<g> g) {} }
 		};
 
+		auto w	= with<transform, bullet>;
+		auto wi = without<rigid_body>;
+		auto q	= query{ with<transform, bullet>, without<rigid_body> };
+
 		// w | each_group<query>{ some_system{}, some_system{} }
+
+		// w | each_group{ qeury{ with<transform, bullet>, without<some_tag> } , []<typename g>(interface_entity_group<g> igroup){ ... } };
 
 		auto tpl1 = sys(_game);
 		int	 a	  = 1;

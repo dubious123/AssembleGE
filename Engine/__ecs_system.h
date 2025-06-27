@@ -14,9 +14,11 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires []<std::size_t... i>(std::index_sequence<i...>) {
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
 				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -160,4 +162,6 @@ namespace ecs::system
 #include "__ecs_system_cond.h"
 #include "__ecs_system_loop.h"
 #include "__ecs_system_match.h"
+
+#include "__ecs_system_each.h"
 #undef INCLUDED_FROM_ECS_SYSTEM_HEADER
