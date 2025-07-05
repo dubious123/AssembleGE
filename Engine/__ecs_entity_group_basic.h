@@ -100,7 +100,8 @@ namespace ecs::entity_group
 			std::byte storage[mem_size];
 
 		template <typename t_tag>
-		inline t_tag::type& access_as()
+		FORCE_INLINE t_tag::type&
+					 access_as()
 		{
 			constexpr auto offset = align_info::template offset_of<t_tag>();
 
@@ -110,92 +111,110 @@ namespace ecs::entity_group
 			return *reinterpret_cast<t_tag::type*>(&storage[offset]);
 		}
 
-		inline t_entity_group_idx& entity_group_idx()
+		FORCE_INLINE t_entity_group_idx&
+		entity_group_idx()
 		{
 			return access_as<entity_group_idx_tag>();
 		}
 
-		inline t_entity_count& entity_count()
+		FORCE_INLINE t_entity_count&
+		entity_count()
 		{
 			return access_as<entity_count_tag>();
 		}
 
-		inline t_capacity& capacity()
+		FORCE_INLINE t_capacity&
+		capacity()
 		{
 			return access_as<capacity_tag>();
 		}
 
-		inline t_component_count& component_count()
+		FORCE_INLINE t_component_count&
+		component_count()
 		{
 			return access_as<component_count_tag>();
 		}
 
-		inline t_archetype& local_archetype()
+		FORCE_INLINE t_archetype&
+		local_archetype()
 		{
 			return access_as<archetype_tag>();
 		}
 
-		inline cmp_size_arr_base_tag::type& component_size_arr_base()
+		FORCE_INLINE t_cmp_size_arr_base&
+		component_size_arr_base()
 		{
 			return access_as<cmp_size_arr_base_tag>();
 		}
 
-		inline cmp_offset_arr_base_tag::type& component_offset_arr_base()
+		FORCE_INLINE t_cmp_offset_arr_base&
+		component_offset_arr_base()
 		{
 			return access_as<cmp_offset_arr_base_tag>();
 		}
 
-		inline entity_id_arr_base_tag::type& entity_id_arr_base()
+		FORCE_INLINE t_entity_id_arr_base&
+		entity_id_arr_base()
 		{
 			return access_as<entity_id_arr_base_tag>();
 		}
 
-		inline t_entity_id& ent_id(t_local_entity_idx ent_idx)
+		FORCE_INLINE t_entity_id&
+		ent_id(t_local_entity_idx ent_idx)
 		{
 			return *(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + ent_idx);
 		}
 
 		template <typename t>
-		inline t_local_cmp_idx calc_cmp_idx()
+		FORCE_INLINE t_local_cmp_idx
+		calc_cmp_idx()
 		{
 			return t_archetype_traits::template calc_local_cmp_idx<t>(local_archetype());
 		}
 
 		template <typename t>
-		inline t_component_size& cmp_size()
+		FORCE_INLINE t_component_size&
+		cmp_size()
 		{
 			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + calc_cmp_idx<t>());
 		}
 
-		inline t_component_size& cmp_size(t_local_cmp_idx cmp_idx)
+		FORCE_INLINE t_component_size&
+		cmp_size(t_local_cmp_idx cmp_idx)
 		{
 			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
 		}
 
-		inline t_component_offset& cmp_offset(t_local_cmp_idx cmp_idx)
+		FORCE_INLINE t_component_offset&
+		cmp_offset(t_local_cmp_idx cmp_idx)
 		{
 			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
 		}
 
 		template <typename t>
-		inline t_component_offset& cmp_offset()
+		FORCE_INLINE t_component_offset&
+		cmp_offset()
 		{
 			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + calc_cmp_idx<t>());
 		}
 
 		template <typename t>
-		inline t* cmp_ptr(t_local_entity_idx local_ent_idx)
+		FORCE_INLINE t*
+		cmp_ptr(t_local_entity_idx local_ent_idx)
 		{
 			return reinterpret_cast<t*>(&storage[cmp_offset<t>()] + local_ent_idx);
 		}
 
-		inline std::byte* cmp_ptr(t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx)
+		FORCE_INLINE
+		std::byte*
+		cmp_ptr(t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx)
 		{
 			return &storage[cmp_offset(local_cmp_idx)] + local_ent_idx;
 		}
 
 		template <typename... t>
-		void init(t_entity_group_idx group_idx)
+		void
+		init(t_entity_group_idx group_idx)
 		{
 			// clang-format off
 			using total_align_info = align_info_builder
@@ -246,7 +265,8 @@ namespace ecs::entity_group
 			}(std::index_sequence_for<t...>{});
 		}
 
-		void init(t_archetype archetype, t_entity_group_idx group_idx)
+		void
+		init(t_archetype archetype, t_entity_group_idx group_idx)
 		{
 			using namespace std::ranges::views;
 
@@ -285,7 +305,8 @@ namespace ecs::entity_group
 			}
 		}
 
-		void init(t_self& other, t_entity_group_idx group_idx)
+		void
+		init(t_self& other, t_entity_group_idx group_idx)
 		{
 			std::memcpy(storage, other.storage, align_info::total_size());
 
@@ -301,7 +322,8 @@ namespace ecs::entity_group
 		}
 
 		template <typename... t>
-		t_local_entity_idx new_entity(t_entity_id entity_id)
+		t_local_entity_idx
+		new_entity(t_entity_id entity_id)
 		{
 			assert(is_full() is_false);
 
@@ -313,7 +335,8 @@ namespace ecs::entity_group
 		}
 
 		template <typename... t>
-		t_local_entity_idx new_entity(t_entity_id entity_id, t&&... arg)
+		t_local_entity_idx
+		new_entity(t_entity_id entity_id, t&&... arg)
 		{
 			assert(is_full() is_false);
 
@@ -325,7 +348,8 @@ namespace ecs::entity_group
 		}
 
 		// Removes the entity at the given index. Returns the id of the entity that was moved to fill the hole, if any, for handle updates.
-		t_entity_id& remove_entity(t_local_entity_idx local_ent_idx)
+		t_entity_id&
+		remove_entity(t_local_entity_idx local_ent_idx)
 		{
 			assert(is_empty() is_false);
 
@@ -341,7 +365,8 @@ namespace ecs::entity_group
 			return ent_id(local_ent_idx);
 		}
 
-		void evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
+		void
+		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
 		{
 			assert(is_empty() is_false);
 			auto		local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
@@ -351,21 +376,24 @@ namespace ecs::entity_group
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), component_size);
 		}
 
-		void evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx)
+		void
+		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx)
 		{
 			assert(is_empty() is_false);
 			auto local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
 		}
 
-		void* get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
+		void*
+		get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
 			assert(is_full() is_false);
 			return reinterpret_cast<void*>(cmp_ptr(local_cmp_idx, entity_count()));
 		}
 
 		template <ecs::component_type... t>
-		decltype(auto) get_component(const t_local_entity_idx local_ent_idx)
+		decltype(auto)
+		get_component(const t_local_entity_idx local_ent_idx)
 		{
 			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
 
@@ -380,12 +408,14 @@ namespace ecs::entity_group
 			}
 		}
 
-		bool is_full()
+		bool
+		is_full()
 		{
 			return capacity() == entity_count();
 		}
 
-		bool is_empty()
+		bool
+		is_empty()
 		{
 			return entity_count() == 0;
 		}

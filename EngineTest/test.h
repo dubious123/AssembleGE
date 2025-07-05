@@ -309,7 +309,7 @@ struct my_world_system_0
 {
 	template <typename w>
 	void
-	run(interface_world<w> iworld)
+	run(i_world<w> iworld)
 	{
 	}
 };
@@ -318,19 +318,19 @@ struct my_entity_system_0
 {
 	template <typename w>
 	void
-	entity_block_begin(interface_world<w> iworld)
+	entity_block_begin(i_world<w> iworld)
 	{
 	}
 
 	template <typename w>
 	void
-	entity_update(interface_world<w> iworld, ecs::entity_idx idx)
+	entity_update(i_world<w> iworld, ecs::entity_idx idx)
 	{
 	}
 
 	template <typename w>
 	void
-	entity_block_end(interface_world<w> iworld)
+	entity_block_end(i_world<w> iworld)
 	{
 	}
 };
@@ -356,7 +356,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init(){};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	decltype(auto)
@@ -383,7 +383,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit(){};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	decltype(auto)

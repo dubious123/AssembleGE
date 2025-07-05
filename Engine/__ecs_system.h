@@ -11,12 +11,19 @@ namespace ecs::system
 			invalid_sys_call() = delete;
 		};
 
+		template <typename t_from, typename t_to>
+		concept convertible_from = requires {
+			requires std::is_convertible_v<t_from, t_to>
+						 || (requires(t_from&& arg) { t_to{ FWD(arg) }; });
+		};
+
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
 			requires[]<std::size_t... i>(std::index_sequence<i...>)
 			{
-				return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
+				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
+				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
 			}
 			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
@@ -46,6 +53,26 @@ namespace ecs::system
 			&std::remove_cvref_t<t_callable>::operator();
 		};
 
+		template <typename t_to, typename t_from>
+		FORCE_INLINE constexpr decltype(auto)
+		make_param(t_from&& arg)
+		{
+			if constexpr (std::is_convertible_v<t_from, t_to>)
+			{
+				return FWD(arg);
+			}
+			else
+			{
+				return t_to{ FWD(arg) };
+			}
+		}
+
+		template <typename t_from, typename t_to>
+		FORCE_INLINE constexpr decltype(auto)
+		run_sys_helper(t_from&& arg)
+		{
+		}
+
 		template <typename t_sys, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		run_sys(t_sys&& sys, t_arg&&... arg)
@@ -69,7 +96,13 @@ namespace ecs::system
 			{
 				if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>, decltype(arg)...>)
 				{
-					return sys.template operator()<t_arg...>(FWD(arg)...);
+					using from_tpl = std::tuple<decltype(FWD(arg))...>;
+					using to_tpl   = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
+					return [&]<auto... i>(std::index_sequence<i...>) -> decltype(auto) {
+						return sys.template operator()<t_arg...>(
+							(make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
+					}(std::make_index_sequence<sizeof...(arg)>{});
+					// return sys.template operator()<t_arg...>(FWD(arg)...);
 				}
 				else if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>>)
 				{
@@ -111,9 +144,9 @@ namespace ecs::system
 		// tuple_cat is used because some systems may return void (as empty tuples).
 		// We wrap system calls in a tuple (brace-initializer-list style) to guarantee left-to-right execution order,
 		// as required by the C++ standard, avoiding evaluation order issues with pack expansion.
-		template <typename... t>
+		template <typename t_tpl>
 		FORCE_INLINE constexpr decltype(auto)
-		tuple_cat_all(std::tuple<t...>&& tpl)
+		tuple_cat_all(t_tpl&& tpl)
 		{
 			return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
 		}

@@ -16,7 +16,7 @@ namespace ecs::system
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -57,9 +57,19 @@ namespace ecs::system
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
+
+			if constexpr (sizeof...(t_sys) == 1)
+			{
+				return unwrap_tpl(
+					std::apply(
+						[this](auto&&... l_ref_arg) {
+							return tuple_cat_all(std::make_tuple(run_as_tpl<0>(FWD(l_ref_arg)...)));
+						},
+						make_arg_tpl(FWD(arg)...)));
+			}
 
 			return unwrap_tpl([this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
 				return std::apply(
