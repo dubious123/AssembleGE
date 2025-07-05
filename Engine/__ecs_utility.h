@@ -1,15 +1,8 @@
 #pragma once
+#include "__common.h"
 
 namespace ecs::utility
 {
-#if defined(_MSC_VER)
-	#define FORCE_INLINE __forceinline
-#elif defined(__GNUC__) || defined(__clang__)
-	#define FORCE_INLINE inline __attribute__((always_inline))
-#else
-	#define FORCE_INLINE inline
-#endif
-
 	template <typename t>
 	FORCE_INLINE constexpr auto
 	popcount(t x)
@@ -185,11 +178,30 @@ namespace ecs::utility
 		{
 			return static_cast<t_local_cmp_idx>(ecs::utility::popcount(((1 << storage_cmp_idx) - 1) & local_archetype));
 		}
+
+	  private:
+		template <template <typename...> typename t_clause, typename... t>
+		static consteval t_archetype
+		calc_mask_impl(t_clause<t...> clause)
+		{
+			return calc_archetype<t...>();
+		}
+
+	  public:
+		template <typename t_clause>
+		static consteval t_archetype
+		calc_mask()
+		{
+			return calc_mask_impl(t_clause());
+		}
+
+		// FORCE_INLINE static bool
+		// matches()
+		//{
+		// }
 	};
 }	 // namespace ecs::utility
 
 #define __ECS_UTILITY_H_INCLUDED
 #include "__ecs_utility_layout.h"
 #undef __ECS_UTILITY_H_INCLUDED
-
-#undef FORCE_INLINE

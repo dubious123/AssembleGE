@@ -64,7 +64,7 @@ struct interface_scene
 {
 	t_scene& scene;
 
-	interface_scene(t_scene& scene) : scene(scene){};
+	interface_scene(t_scene& scene) : scene(scene) { };
 
 	inline void
 	init()
@@ -88,19 +88,6 @@ struct interface_world
 	interface_world(t_world& world) : world(world) { }
 
 	void inline init()
-	{
-	}
-};
-
-template <typename t_world>
-struct interface_foreach_group
-{
-	t_world& world;
-
-	interface_foreach_group(t_world& world) : world(world) { }
-
-	inline void
-	each_group()
 	{
 	}
 };

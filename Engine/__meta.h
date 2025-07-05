@@ -196,6 +196,24 @@ namespace meta
 	template <unsigned int idx, auto... tails>
 	inline constexpr auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
 
+	template <template <typename...> typename pred, typename t_default, typename... t>
+	struct variadic_find
+	{
+		using type = t_default;
+	};
+
+	template <template <typename...> typename pred, typename t_default, typename t_head, typename... t_tail>
+	struct variadic_find<pred, t_default, t_head, t_tail...>
+	{
+		using type = std::conditional_t<
+			pred<t_head>::value,
+			t_head,
+			typename variadic_find<pred, t_default, t_tail...>::type>;
+	};
+
+	template <template <typename...> typename pred, typename t_default, typename... t>
+	using variadic_find_t = variadic_find<pred, t_default, t...>::type;
+
 	template <typename t>
 	struct index_sequence_size;
 

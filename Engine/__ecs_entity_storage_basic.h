@@ -2,6 +2,7 @@
 #include "__common.h"
 #include "__ecs_common.h"
 #include "__ecs_utility.h"
+#include "__ecs_system.h"
 #include "__ecs_entity_group_basic.h"
 
 // todo : free group tacking (instead of linear search)
@@ -302,18 +303,45 @@ namespace ecs::entity_storage
 		{
 		}
 
+		// template <typename t_query>
+		// bool
+		// matches(t_archetype arch);
+
+		template <typename t_query>
+		FORCE_INLINE bool
+		matches(t_query query, t_archetype arch)
+		{
+			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with1>();
+			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without1>();
+			return ((arch & with_mask) | (arch & without_mask)) == with_mask;
+		}
+
+		template <typename t_query, typename t_sys>
+		FORCE_INLINE void
+		each_group(t_query&& query, t_sys&& sys)
+		{
+			for (auto& [arch, groups] : entity_groups_map)
+			{
+				if (matches(query, arch) is_false)
+				{
+					continue;
+				}
+
+				for (auto& group : groups.ent_group_vec
+									   | meta::deref_view
+									   | std::views::filter([](auto& group) { return group.is_empty() is_false; }))
+				{
+					ecs::system::detail::run_sys(sys, group);
+				}
+			}
+		}
+
 		template <typename... t, typename t_lambda>
 		void
 		each_entity(t_lambda&& fn)
 		{
 			// std::ranges::for_each(entity_groups_map[t_archetype_traits::template calc_archetype<t...>()],
 			//					  fn)
-		}
-
-		template <typename... t, typename t_lambda>
-		void
-		each_group(t_lambda&& fn)
-		{
 		}
 
 		void

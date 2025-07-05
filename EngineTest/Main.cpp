@@ -769,7 +769,7 @@ main()
 	// print_type<meta::tuple_cat_t<>>();
 	using t_entity_id = uint32;
 	// auto it_num			  = 1000'0000;
-	auto it_num			  = 0;
+	auto it_num			  = 100000;
 	auto benchmakr_offset = 0;
 	{
 		std::mt19937					gen(19990827);
@@ -882,7 +882,8 @@ main()
 		std::mt19937					gen(19990827);
 		std::uniform_int_distribution<> dist(0, 7);
 
-		auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		auto& b = _game.get_scene<scene_t1>().get_world<world_t3>();
+		// auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
 		uint32 ent		 = b.new_entity<>();
 		auto   ent_count = 1;
 		auto   time_now	 = std::chrono::high_resolution_clock::now();
@@ -995,12 +996,7 @@ main()
 		b.remove_component<transform>(b.new_entity<transform, bullet, rigid_body>());
 		b.has_component<rigid_body>(b.new_entity<transform, bullet>());
 		b.get_component<rigid_body>(b.new_entity<rigid_body>());
-	}
 
-	auto ecs_temp = 2;
-	{
-		auto b = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
-		b.new_entity<transform, bullet>();
 
 		// some_group_system = [](ecs::ent_group_view<transform, bullet> group_view) { ..., return group_view; };
 		// some_each_system  = [](ecs::ent_view<transform, bullet> ent_view) { };
@@ -1055,14 +1051,23 @@ main()
 
 			[]<typename g>(interface_game<g> igame)
 				-> decltype(auto) { return igame.get_scene<scene_t1>(); } | []<typename s>(interface_scene<s> iscene)
-					-> decltype(auto) { return (iscene.get_world<world_t1>()); } | each_group{ query{ with<transform, bullet>, without<rigid_body> }, []<typename g>(interface_entity_group<g> g) {} }
+
+					-> decltype(auto) { return (iscene.get_world<world_t3>()); } | each_group{ query{ with<transform, bullet>, without<rigid_body> }, [id = 0]<typename g>(interface_entity_group<g> gruop) mutable { std::println("group [{}]", id++); } }
 		};
 
 		auto w	= with<transform, bullet>;
 		auto wi = without<rigid_body>;
 		auto q	= query{ with<transform, bullet>, without<rigid_body> };
 
-		// w | each_group<query>{ some_system{}, some_system{} }
+		using ttt = decltype(q)::with1;
+
+		constexpr auto kkkk = ecs::utility::archetype_traits<transform, bullet, rigid_body>::calc_mask<decltype(q)::with1>();
+
+		// static_assert(ecs::system::detail::is_with_clause<decltype(with<transform>)>::value);
+
+		// meta::print_type<decltype(with<transform>)>();
+		std::println("kkk = {}", kkkk);
+		//  w | each_group<query>{ some_system{}, some_system{} }
 
 		// w | each_group{ qeury{ with<transform, bullet>, without<some_tag> } , []<typename g>(interface_entity_group<g> igroup){ ... } };
 
