@@ -768,8 +768,8 @@ main()
 
 	// print_type<meta::tuple_cat_t<>>();
 	using t_entity_id = uint32;
-	auto it_num		  = 1000'0000;
-	// auto it_num			  = 100000;
+	// auto it_num		  = 1000'0000;
+	auto it_num			  = 100000;
 	auto benchmakr_offset = 0;
 	{
 		std::mt19937					gen(19990827);
@@ -1012,7 +1012,7 @@ main()
 		static_assert(not is_sys_case_v<decltype(on<1>)>);
 
 		auto sys = seq{
-			sys_game_init{},
+			sys_game_init{},	// f
 			pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
 			par{
 				// sys_game_deinit{},
@@ -1051,7 +1051,8 @@ main()
 			},
 
 			[]<typename g>(interface_game<g> igame)
-				-> decltype(auto) { return igame.get_scene<scene_t1>(); } | []<typename s>(interface_scene<s> iscene)
+				-> decltype(auto) { return igame.get_scene<scene_t1>(); }
+					   | []<typename s>(interface_scene<s> iscene)
 					-> decltype(auto) { return (iscene.get_world<world_t3>()); }
 						   | each_group{ query{
 											 with<transform, bullet>,
@@ -1064,7 +1065,8 @@ main()
 		// w | each_group{ qeury{ with<transform, bullet>, without<some_tag> } , []<typename g>(interface_entity_group<g> igroup){ ... } };
 
 		auto tpl1 = sys(_game);
-		int	 a	  = 1;
+
+		int a = 1;
 
 		// print_type<decltype(tpl1)>();
 

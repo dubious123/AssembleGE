@@ -6,6 +6,8 @@ namespace ecs::entity_group
 	struct basic
 	{
 		using t_self			 = basic<mem_size, t_entity_id, t_entity_group_idx, t_cmp...>;
+		using t_ent_id			 = t_entity_id;
+		using t_ent_group_idx	 = t_entity_group_idx;
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
 		using t_local_entity_idx = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;

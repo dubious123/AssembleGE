@@ -96,8 +96,7 @@ namespace ecs::system
 			{
 				if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>, decltype(arg)...>)
 				{
-					using from_tpl = std::tuple<decltype(FWD(arg))...>;
-					using to_tpl   = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
+					using to_tpl = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
 					return [&]<auto... i>(std::index_sequence<i...>) -> decltype(auto) {
 						return sys.template operator()<t_arg...>(
 							(make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
