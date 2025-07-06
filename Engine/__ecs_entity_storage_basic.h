@@ -311,8 +311,8 @@ namespace ecs::entity_storage
 		FORCE_INLINE bool
 		matches(t_query query, t_archetype arch)
 		{
-			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with1>();
-			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without1>();
+			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
+			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
 			return ((arch & with_mask) | (arch & without_mask)) == with_mask;
 		}
 

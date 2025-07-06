@@ -214,6 +214,13 @@ namespace meta
 	template <template <typename...> typename pred, typename t_default, typename... t>
 	using variadic_find_t = variadic_find<pred, t_default, t...>::type;
 
+	template <typename t_target>
+	struct pred
+	{
+		template <typename t_other>
+		using is_same = std::is_same<t_target, t_other>;
+	};
+
 	template <typename t>
 	struct index_sequence_size;
 
@@ -771,6 +778,24 @@ namespace meta
 	  public:
 		using type = decltype(helper(make_filtered_index_sequence<pred, t...>()));
 	};
+
+	template <typename t>
+	struct tuple_empty;
+
+	template <>
+	struct tuple_empty<std::tuple<>>
+	{
+		static constexpr auto value = true;
+	};
+
+	template <typename... t>
+	struct tuple_empty<std::tuple<t...>>
+	{
+		static constexpr auto value = false;
+	};
+
+	template <typename... t>
+	inline static constexpr auto tuple_empty_v = tuple_empty<t...>::value;
 
 	template <template <typename> typename pred, typename... t>
 	struct filtered_tuple<pred, std::tuple<t...>>

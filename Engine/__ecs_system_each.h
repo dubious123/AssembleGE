@@ -9,12 +9,16 @@ namespace ecs::system
 	template <component_type... t>
 	struct with_clause
 	{
+		using types = std::tuple<t...>;
+
 		constexpr with_clause() = default;
 	};
 
 	template <component_type... t>
 	struct without_clause
 	{
+		using types = std::tuple<t...>;
+
 		constexpr without_clause() = default;
 	};
 
@@ -45,13 +49,32 @@ namespace ecs::system
 		struct is_without_clause<without_clause<t...>> : std::true_type
 		{
 		};
+
+		template <typename with, typename without>
+		consteval bool
+		validate_query()
+		{
+			constexpr auto duplicated =
+				[]<auto... i>(std::index_sequence<i...>) {
+					return ((meta::tuple_empty_v<
+								meta::filtered_tuple_t<
+									meta::pred<std::tuple_element_t<i, typename with::types>>::template is_same,
+									without::types>>)
+							and ...);
+				}(std::make_index_sequence<std::tuple_size_v<typename with::types>>{});
+
+			static_assert(duplicated, "query: same component(s) in with<> and without<>");
+			return true;
+		}
 	}	 // namespace detail
 
 	template <typename... t_clause>
 	struct query
 	{
-		using with1	   = meta::variadic_find_t<detail::is_with_clause, with_clause<>, std::decay_t<t_clause>...>;
-		using without1 = meta::variadic_find_t<detail::is_without_clause, without_clause<>, std::decay_t<t_clause>...>;
+		using with	  = meta::variadic_find_t<detail::is_with_clause, with_clause<>, std::decay_t<t_clause>...>;
+		using without = meta::variadic_find_t<detail::is_without_clause, without_clause<>, std::decay_t<t_clause>...>;
+
+		static_assert(detail::validate_query<with, without>(), "query: invalid query");
 
 		query(t_clause&... clause) { };
 

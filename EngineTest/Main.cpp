@@ -1060,7 +1060,8 @@ main()
 										 [id = 0]<typename g>(i_entity_group<g> ent_group) mutable { std::println("group [{}]", id++); } }
 
 		};
-		//  w | each_group<query>{ some_system{}, some_system{} }
+
+		//   w | each_group<query>{ some_system{}, some_system{} }
 
 		// w | each_group{ qeury{ with<transform, bullet>, without<some_tag> } , []<typename g>(interface_entity_group<g> igroup){ ... } };
 
