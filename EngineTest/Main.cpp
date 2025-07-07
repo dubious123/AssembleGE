@@ -1012,60 +1012,99 @@ main()
 		static_assert(not is_sys_case_v<decltype(on<1>)>);
 
 		auto sys = seq{
-			sys_game_init{},	// f
-			pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
-			par{
-				// sys_game_deinit{},
-				sys_game_init{},
-				[](auto&& _) { std::println("hello"); },
-				pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
-			},
-			[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
-			cond{ [](auto&& _) { return true; },
-				  [](auto&& _) { std::println("true"); return 1; },
-				  [](auto&& _) { std::println("false"); return 2; } }
-				| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
-				| cond{ []() { return false; }, []() { std::println("false"); } },
-			[](auto) {},
+			// sys_game_init{},
+			// pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
+			// par{
+			//	// sys_game_deinit{},
+			//	sys_game_init{},
+			//	[](auto&& _) { std::println("hello"); },
+			//	pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
+			//},
+			//[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
+			// cond{ [](auto&& _) { return true; },
+			//	  [](auto&& _) { std::println("true"); return 1; },
+			//	  [](auto&& _) { std::println("false"); return 2; } }
+			//	| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
+			//	| cond{ []() { return false; }, []() { std::println("false"); } },
+			//[](auto) {},
 
-			[] { return 10; }
-				| loop{ [](auto&& i) { return i-- > 0; },
-						[](auto&& i) { std::println("i : {}", i); },
-						continue_if{ [](auto i) { return i % 2; } },
-						par{
-							[](auto&&) { Sleep(100); std::println("hi-1"); },
-							[]() { Sleep(200); std::println("hi-2"); } },
-						break_if{ [](auto i) { return i == 5; } } },
+			//[] { return 10; }
+			//	| loop{ [](auto&& i) { return i-- > 0; },
+			//			[](auto&& i) { std::println("i : {}", i); },
+			//			continue_if{ [](auto i) { return i % 2; } },
+			//			par{
+			//				[](auto&&) { Sleep(100); std::println("hi-1"); },
+			//				[]() { Sleep(200); std::println("hi-2"); } },
+			//			break_if{ [](auto i) { return i == 5; } } },
 
-			sys_game_deinit{},
-			sys_game_init{},
-			sys_game_deinit{},
+			// sys_game_deinit{},
+			// sys_game_init{},
+			// sys_game_deinit{},
 
-			match{
-				[] { return 0; },
-				on<3> = [](auto&& _) { return 2; } | [](auto&& _) { std::println("0"); return 1; },
-				on<2> = sys_game_deinit{},
-				on<1> = sys_game_deinit{},
-				on<0> = sys_game_deinit{},
-				default_to = [] { std::println("default"); return 1; },
-			},
-
+			// match{
+			//	[] { return 0; },
+			//	on<3> = [](auto&& _) { return 2; } | [](auto&& _) { std::println("0"); return 1; },
+			//	on<2> = sys_game_deinit{},
+			//	on<1> = sys_game_deinit{},
+			//	on<0> = sys_game_deinit{},
+			//	default_to = [] { std::println("default"); return 1; },
+			//},
 			[]<typename g>(interface_game<g> igame)
-				-> decltype(auto) { return igame.get_scene<scene_t1>(); }
+				-> decltype(auto) { return (igame.get_scene<scene_t1>()); }
 					   | []<typename s>(interface_scene<s> iscene)
-					-> decltype(auto) { return (iscene.get_world<world_t3>()); }
-						   | each_group{ query{
-											 with<transform, bullet>,
-											 without<rigid_body> },
-										 [id = 0]<typename g>(i_entity_group<g> ent_group) mutable { std::println("group [{}]", id++); } }
-
+					-> world_t3& { return iscene.get_world<world_t3>(); }
+			//| seq{
+			// each_entity{ query{ with<transform, bullet> }, [x = 0.f, y = 1.f, z = 2.f](transform& t) mutable { t.position.x = ++x; t.position.y = ++y; t.position.z = ++z; } },
+			// each_group{ query{ with<transform, bullet>, without<rigid_body> }, [id = 0]<typename g>(i_entity_group<g> i_ent_group) mutable {
+			//		  std::println("group [{}], size : {}, last_entity_id : {}, first_entity_position = [x : {}, y : {}, z : {}]",
+			//					   id++,
+			//					   i_ent_group.entity_count(),
+			//					   i_ent_group.ent_id(i_ent_group.entity_count() - 1),
+			//					   i_ent_group.get_component<transform>(0).position.x,
+			//					   i_ent_group.get_component<transform>(0).position.y,
+			//					   i_ent_group.get_component<transform>(0).position.z);
+			//	  } },
+			//}
 		};
 
 		//   w | each_group<query>{ some_system{}, some_system{} }
 
 		// w | each_group{ qeury{ with<transform, bullet>, without<some_tag> } , []<typename g>(interface_entity_group<g> igroup){ ... } };
 
-		auto tpl1 = sys(_game);
+		// auto tpl1 = sys(_game);
+
+		auto v = []<typename s>(i_entity_storage<s> i_storage) { };
+
+		auto l2 = []<typename g>(interface_game<g> igame)
+			-> scene_t1& { return (igame.get_scene<scene_t1>()); };
+
+		auto l3 = []<typename g>(interface_game<g> igame)
+			-> decltype(auto) { return (igame.get_scene<scene_t1>()); }
+				   | []<typename s>(interface_scene<s> iscene)
+				-> world_t3& { return iscene.get_world<world_t3>(); };
+
+
+		// l(_game.get_scene<scene_t1>().get_world<world_t3>());
+
+		l2(interface_game{ _game });
+		{
+			// auto sys	= seq{ each_entity{ query{}, []<typename s>(i_entity_storage<s> i_storage) { } } };
+			auto sys	= each_entity{ query{}, []<typename s>(i_entity_storage<s> i_storage) { } };
+			using t_sys = decltype(sys);
+			auto& arg	= _game.get_scene<scene_t1>().get_world<world_t3>();
+
+			auto test_storage = i_entity_storage<decltype(arg)>{ arg };
+
+			// meta::print_type<t_sys>();
+			// meta::print_type<decltype(arg)>();
+			static_assert(has_operator_templated<t_sys&, decltype(arg)>);
+			static_assert(invocable<&std::decay_t<t_sys&>::template operator()<decltype(arg)>, decltype(arg)>);
+			ecs::system::detail::run_sys(sys, arg);
+		}
+
+		auto&& res = sys(_game);
+
+		// print_type<decltype(res)>();
 
 		int a = 1;
 
@@ -1105,7 +1144,6 @@ main()
 		//	  };
 		// sys_game();
 	}
-
 
 	static_assert(std::is_same_v<typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type, typename tuple_sort<component_comparator, transform, bullet, rigid_body>::type>);
 

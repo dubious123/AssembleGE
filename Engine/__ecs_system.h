@@ -150,23 +150,24 @@ namespace ecs::system
 			return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
 		}
 
-		template <typename... t>
-		FORCE_INLINE constexpr decltype(auto)
-		unwrap_tpl(std::tuple<t...>&& tpl)
-		{
-			if constexpr (sizeof...(t) == 0)
-			{
-				return;
-			}
-			else if constexpr (sizeof...(t) == 1)
-			{
-				return std::get<0>(FWD(tpl));
-			}
-			else
-			{
-				return FWD(tpl);
-			}
-		}
+		// template <typename t_tpl>
+		// FORCE_INLINE constexpr decltype(auto)
+		// unwrap_tpl(t_tpl&& tpl)
+		//{
+		//	if constexpr (std::tuple_size_v<t_tpl> == 0)
+		//	{
+		//		return;
+		//	}
+		//	else if constexpr (std::tuple_size_v<t_tpl> == 1)
+		//	{
+		//		meta::print_type<t_tpl&&>();
+		//		return std::get<0>(FWD(tpl));
+		//	}
+		//	else
+		//	{
+		//		return FWD(tpl);
+		//	}
+		// }
 
 		// For multiple systems, rvalue arguments are moved into storage once
 		// and then passed to each system as lvalue references.

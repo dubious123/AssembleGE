@@ -84,6 +84,17 @@ struct i_world
 	}
 };
 
+template <typename t_entity_storage>
+struct i_entity_storage
+{
+	t_entity_storage& entity_storage;
+
+	// FORCE_INLINE void
+	// init()
+	//{
+	// }
+};
+
 template <typename t_entity_group>
 struct i_entity_group
 {
@@ -157,5 +168,24 @@ struct i_entity_group
 	ent_id(t_local_entity_idx ent_idx)
 	{
 		return entity_group.ent_id(ent_idx);
+	}
+
+	template <ecs::component_type... t_cmp>
+	FORCE_INLINE decltype(auto)
+	get_component(const t_local_entity_idx local_ent_idx)
+	{
+		return entity_group.get_component<t_cmp...>(local_ent_idx);
+	}
+
+	FORCE_INLINE bool
+	is_full()
+	{
+		return entity_group.is_full();
+	}
+
+	FORCE_INLINE bool
+	is_empty()
+	{
+		return entity_group.is_empty();
 	}
 };

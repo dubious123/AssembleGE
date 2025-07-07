@@ -7,6 +7,19 @@ namespace ecs::system
 {
 	using namespace detail;
 
+	namespace detail
+	{
+		template <typename... t_sys>
+		consteval bool
+		validate_seq()
+		{
+			constexpr auto valid = sizeof...(t_sys) > 0;
+			static_assert(valid, "seq: requires at least one system type");
+
+			return valid;
+		}
+	}	 // namespace detail
+
 	template <typename... t_sys>
 	struct seq
 	{
@@ -15,6 +28,8 @@ namespace ecs::system
 		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_not_empty systems;
+
+		static_assert(validate_seq<t_sys...>(), "seq: invalid seq");
 
 		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
@@ -48,7 +63,7 @@ namespace ecs::system
 			}
 			else
 			{
-				return std::make_tuple(run_impl<i>(FWD(arg)...));
+				return std::forward_as_tuple(run_impl<i>(FWD(arg)...));
 			}
 		}
 
@@ -61,23 +76,13 @@ namespace ecs::system
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
-			if constexpr (sizeof...(t_sys) == 1)
-			{
-				return unwrap_tpl(
-					std::apply(
-						[this](auto&&... l_ref_arg) {
-							return tuple_cat_all(std::make_tuple(run_as_tpl<0>(FWD(l_ref_arg)...)));
-						},
-						make_arg_tpl(FWD(arg)...)));
-			}
-
-			return unwrap_tpl([this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+			return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
 				return std::apply(
 					[this](auto&&... l_ref_arg) {
-						return tuple_cat_all(std::tuple{ run_as_tpl<i>(FWD(l_ref_arg)...)... });
+						return tuple_cat_all(std::tuple<decltype(run_as_tpl<i>(FWD(l_ref_arg)...))...>{ run_as_tpl<i>(FWD(l_ref_arg)...)... });
 					},
 					args);
-			}(std::index_sequence_for<t_sys...>{}));
+			}(std::index_sequence_for<t_sys...>{});
 		}
 	};
 }	 // namespace ecs::system

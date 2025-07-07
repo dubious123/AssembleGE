@@ -24,7 +24,7 @@ namespace ecs::system
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr par() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -73,7 +73,7 @@ namespace ecs::system
 			}
 			else
 			{
-				return std::make_tuple(std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl));
+				return std::forward_as_tuple(std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl));
 			}
 		}
 
@@ -82,7 +82,7 @@ namespace ecs::system
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
 							  "[par] invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
@@ -90,21 +90,19 @@ namespace ecs::system
 			if constexpr (meta::index_sequence_size_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>> == 0)
 			{
 				// default
-				return unwrap_tpl(
-					[this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
-						return [](auto&&... async_op) {
-							return tuple_cat_all(std::tuple{ async_op.get()... });
-						}(std::async(std::launch::async, [this, &args]() { return run_as_tpl<i>(args); })...);
-					}(std::index_sequence_for<t_sys...>{}));
+				return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+					return [](auto&&... async_op) {
+						return tuple_cat_all(std::tuple{ async_op.get()... });
+					}(std::async(std::launch::async, [this, &args]() { return run_as_tpl<i>(args); })...);
+				}(std::index_sequence_for<t_sys...>{});
 			}
 			else
 			{
 				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
-				return unwrap_tpl(
-					[this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
-						auto& par_exe = std::get<par_exec_idx>(args).__parallel_executor;
-						return par_exe.run_par(([this, &args] { return run_as_tpl<i>(args); })...);
-					}(std::index_sequence_for<t_sys...>{}));
+				return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+					auto& par_exe = std::get<par_exec_idx>(args).__parallel_executor;
+					return par_exe.run_par(([this, &args] { return run_as_tpl<i>(args); })...);
+				}(std::index_sequence_for<t_sys...>{});
 			}
 		}
 	};

@@ -367,7 +367,7 @@ namespace ecs::entity_group
 			return ent_id(local_ent_idx);
 		}
 
-		void
+		FORCE_INLINE void
 		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
 		{
 			assert(is_empty() is_false);
@@ -378,7 +378,7 @@ namespace ecs::entity_group
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), component_size);
 		}
 
-		void
+		FORCE_INLINE void
 		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx)
 		{
 			assert(is_empty() is_false);
@@ -386,7 +386,7 @@ namespace ecs::entity_group
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
 		}
 
-		void*
+		FORCE_INLINE void*
 		get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
 			assert(is_full() is_false);
@@ -394,7 +394,7 @@ namespace ecs::entity_group
 		}
 
 		template <ecs::component_type... t>
-		decltype(auto)
+		FORCE_INLINE decltype(auto)
 		get_component(const t_local_entity_idx local_ent_idx)
 		{
 			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
@@ -410,13 +410,13 @@ namespace ecs::entity_group
 			}
 		}
 
-		bool
+		FORCE_INLINE bool
 		is_full()
 		{
 			return capacity() == entity_count();
 		}
 
-		bool
+		FORCE_INLINE bool
 		is_empty()
 		{
 			return entity_count() == 0;

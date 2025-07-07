@@ -64,7 +64,7 @@ namespace ecs::system
 				}(std::make_index_sequence<std::tuple_size_v<typename with::types>>{});
 
 			static_assert(duplicated, "query: same component(s) in with<> and without<>");
-			return true;
+			return duplicated;
 		}
 	}	 // namespace detail
 
@@ -76,7 +76,8 @@ namespace ecs::system
 
 		static_assert(detail::validate_query<with, without>(), "query: invalid query");
 
-		query(t_clause&... clause) { };
+		query(t_clause&... clause) requires(sizeof...(t_clause) > 0)
+		{ };
 
 		constexpr query() = default;
 	};
@@ -93,7 +94,52 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(auto&& groups)
 		{
+			using t_ent_storage = std::decay_t<decltype(groups)>;
+			using t_ent_group	= t_ent_storage::t_entity_group;
+
+			using sys_trait = meta::function_traits<&std::decay_t<t_sys>::template operator()<t_ent_group&>>;
+			static_assert(
+				std::tuple_size_v<typename sys_trait::argument_types> == 1
+					and meta::is_specialization_of_v<
+						std::tuple_element_t<0, typename sys_trait::argument_types>,
+						i_entity_group>,
+				"each_group : The system must be callable with exactly one parameter of type i_entity_group<T>.");
+
 			groups.each_group(t_query{}, sys);
+		}
+	};
+
+	template <typename t_query, typename t_sys>
+	struct each_entity
+	{
+		no_unique_addr t_sys sys;
+
+		each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
+
+		constexpr each_entity() = default;
+
+		template <typename g>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(i_entity_group<g> i_group)
+		{
+			// using t_ent_storage = std::decay_t<decltype(groups)>;
+			// using t_ent_group	= t_ent_storage::t_entity_group;
+
+			// using sys_trait = meta::function_traits<&std::decay_t<t_sys>::template operator()<t_ent_group&>>;
+			// static_assert(
+			//	std::tuple_size_v<typename sys_trait::argument_types> == 1
+			//		and meta::is_specialization_of_v<
+			//			std::tuple_element_t<0, typename sys_trait::argument_types>,
+			//			i_entity_group>,
+			//	"each_entity : The system must be callable with exactly one parameter of type i_entity_group<T>.");
+
+			// groups.each_group(t_query{}, sys);
+		}
+
+		template <typename s>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(i_entity_storage<s> i_storage)
+		{
 		}
 	};
 }	 // namespace ecs::system
