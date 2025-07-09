@@ -197,7 +197,7 @@ on_thread_begin(auto& world)
 }
 
 void
-update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
 
 // void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -247,9 +247,9 @@ struct system_1
 	}
 
 	void
-	update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	update(auto& world, ecs::entity_idx e_idx, transform& t, rigid_body& v){};
 	void
-	update2(ecs::entity_idx e_idx, transform& t, rigid_body& v) { };
+	update2(ecs::entity_idx e_idx, transform& t, rigid_body& v){};
 
 	// void update(ecs::entity_idx e_idx, transform& t, rigid_body& v) {};
 
@@ -291,7 +291,7 @@ struct system_2
 {
 	// void update_w(auto& world, transform& t, bullet& v) {};
 	void
-	update(transform& t, bullet& v) { };
+	update(transform& t, bullet& v){};
 
 	static void
 	test_fu(int a, int b)
@@ -1073,7 +1073,7 @@ main()
 
 		// auto tpl1 = sys(_game);
 
-		auto v = []<typename s>(i_entity_storage<s> i_storage) { };
+		auto v = []<typename s>(i_entity_storage<s> i_storage) {};
 
 		auto l2 = []<typename g>(interface_game<g> igame)
 			-> scene_t1& { return (igame.get_scene<scene_t1>()); };
@@ -1089,17 +1089,28 @@ main()
 		l2(interface_game{ _game });
 		{
 			// auto sys	= seq{ each_entity{ query{}, []<typename s>(i_entity_storage<s> i_storage) { } } };
-			auto sys	= each_entity{ query{}, []<typename s>(i_entity_storage<s> i_storage) { } };
+			auto sys	= each_entity{ query{}, []<typename s>(i_entity_storage<s> i_storage) {} };
 			using t_sys = decltype(sys);
 			auto& arg	= _game.get_scene<scene_t1>().get_world<world_t3>();
 
-			auto test_storage = i_entity_storage<decltype(arg)>{ arg };
+			auto i_ent_storage = i_entity_storage<decltype(arg)>{ arg };
+			// auto i_ent_group   = i_entity_group<decltype(arg)>{ arg };
 
-			// meta::print_type<t_sys>();
-			// meta::print_type<decltype(arg)>();
-			static_assert(has_operator_templated<t_sys&, decltype(arg)>);
-			static_assert(invocable<&std::decay_t<t_sys&>::template operator()<decltype(arg)>, decltype(arg)>);
-			ecs::system::detail::run_sys(sys, arg);
+			// using ttt	= i_entity_group<t_sys>;
+			// using ttttt = decltype(i_entity_group<t_sys>{ t_sys{} });
+			//  sys(i_ent_storage);
+			sys(arg);
+
+			//  static_assert(requires(t_sys s) { s(i_entity_storage<decltype(arg)>{ arg }); });
+			//   static_assert(requires { requires& std::remove_cvref_t<t_sys>::template operator()<decltype(arg)>; });
+			//   static_assert(has_operator_templated<t_sys&, decltype(arg)>);
+			//   static_assert(invocable<&std::decay_t<t_sys&>::template operator()<decltype(i_ent_storage)>, decltype(i_ent_storage)>);
+			//    run_sys(sys, i_ent_storage);
+			//    meta::print_type<t_sys>();
+			//    meta::print_type<decltype(arg)>();
+			//    static_assert(has_operator_templated<t_sys&, decltype(arg)>);
+			//    static_assert(invocable<&std::decay_t<t_sys&>::template operator()<decltype(arg)>, decltype(arg)>);
+			//   ecs::system::detail::run_sys(sys, arg);
 		}
 
 		auto&& res = sys(_game);

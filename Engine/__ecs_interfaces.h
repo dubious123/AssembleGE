@@ -89,10 +89,16 @@ struct i_entity_storage
 {
 	t_entity_storage& entity_storage;
 
-	// FORCE_INLINE void
-	// init()
-	//{
-	// }
+	FORCE_INLINE void
+	deinit()
+	{
+		entity_storage.deinit();
+	}
+
+	FORCE_INLINE void
+	init()
+	{
+	}
 };
 
 template <typename t_entity_group>
@@ -116,76 +122,76 @@ struct i_entity_group
 
 	t_entity_group& entity_group;
 
-	FORCE_INLINE t_entity_group_idx&
-	entity_group_idx()
-	{
-		return entity_group.entity_group_idx();
-	}
+	// FORCE_INLINE t_entity_group_idx&
+	// entity_group_idx()
+	//{
+	//	return entity_group.entity_group_idx();
+	// }
 
-	FORCE_INLINE t_entity_count&
-	entity_count()
-	{
-		return entity_group.entity_count();
-	}
+	// FORCE_INLINE t_entity_count&
+	// entity_count()
+	//{
+	//	return entity_group.entity_count();
+	// }
 
-	FORCE_INLINE t_capacity&
-	capacity()
-	{
-		return entity_group.capacity();
-	}
+	// FORCE_INLINE t_capacity&
+	// capacity()
+	//{
+	//	return entity_group.capacity();
+	// }
 
-	FORCE_INLINE t_component_count&
-	component_count()
-	{
-		return entity_group.component_count();
-	}
+	// FORCE_INLINE t_component_count&
+	// component_count()
+	//{
+	//	return entity_group.component_count();
+	// }
 
-	FORCE_INLINE t_archetype&
-	local_archetype()
-	{
-		return entity_group.local_archetype();
-	}
+	// FORCE_INLINE t_archetype&
+	// local_archetype()
+	//{
+	//	return entity_group.local_archetype();
+	// }
 
-	FORCE_INLINE t_cmp_size_arr_base&
-	component_size_arr_base()
-	{
-		return entity_group.component_size_arr_base();
-	}
+	// FORCE_INLINE t_cmp_size_arr_base&
+	// component_size_arr_base()
+	//{
+	//	return entity_group.component_size_arr_base();
+	// }
 
-	FORCE_INLINE t_cmp_offset_arr_base&
-	component_offset_arr_base()
-	{
-		return entity_group.component_offset_arr_base();
-	}
+	// FORCE_INLINE t_cmp_offset_arr_base&
+	// component_offset_arr_base()
+	//{
+	//	return entity_group.component_offset_arr_base();
+	// }
 
-	FORCE_INLINE t_entity_id_arr_base&
-	entity_id_arr_base()
-	{
-		return entity_group.entity_id_arr_base();
-	}
+	// FORCE_INLINE t_entity_id_arr_base&
+	// entity_id_arr_base()
+	//{
+	//	return entity_group.entity_id_arr_base();
+	// }
 
-	FORCE_INLINE t_entity_id&
-	ent_id(t_local_entity_idx ent_idx)
-	{
-		return entity_group.ent_id(ent_idx);
-	}
+	// FORCE_INLINE t_entity_id&
+	// ent_id(t_local_entity_idx ent_idx)
+	//{
+	//	return entity_group.ent_id(ent_idx);
+	// }
 
-	template <ecs::component_type... t_cmp>
-	FORCE_INLINE decltype(auto)
-	get_component(const t_local_entity_idx local_ent_idx)
-	{
-		return entity_group.get_component<t_cmp...>(local_ent_idx);
-	}
+	// template <ecs::component_type... t_cmp>
+	// FORCE_INLINE decltype(auto)
+	// get_component(const t_local_entity_idx local_ent_idx)
+	//{
+	//	return entity_group.get_component<t_cmp...>(local_ent_idx);
+	// }
 
-	FORCE_INLINE bool
-	is_full()
-	{
-		return entity_group.is_full();
-	}
+	// FORCE_INLINE bool
+	// is_full()
+	//{
+	//	return entity_group.is_full();
+	// }
 
-	FORCE_INLINE bool
-	is_empty()
-	{
-		return entity_group.is_empty();
-	}
+	// FORCE_INLINE bool
+	// is_empty()
+	//{
+	//	return entity_group.is_empty();
+	// }
 };

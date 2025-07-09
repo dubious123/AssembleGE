@@ -20,27 +20,15 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
 		concept invocable = requires {
 			requires tpl_convertible_from<std::tuple<t_data...>, typename meta::function_traits<f>::argument_types>;
-		};
-
-		template <typename t_sys, typename... t_data>
-		concept has_run_templated = requires {
-			&std::remove_cvref_t<t_sys>::template run<t_data...>;
-		};
-
-		template <typename t_sys, typename... t_data>
-		concept has_run = requires {
-			&std::remove_cvref_t<t_sys>::run;
 		};
 
 		template <typename t_callable, typename... t_data>
