@@ -57,9 +57,10 @@ namespace ecs::system
 			constexpr auto duplicated =
 				[]<auto... i>(std::index_sequence<i...>) {
 					return ((meta::tuple_empty_v<
-							 meta::filtered_tuple_t<
-								 meta::pred<std::tuple_element_t<i, typename with::types>>::template is_same,
-								 without::types>>)and...);
+								meta::filtered_tuple_t<
+									meta::pred<std::tuple_element_t<i, typename with::types>>::template is_same,
+									without::types>>)
+							and ...);
 				}(std::make_index_sequence<std::tuple_size_v<typename with::types>>{});
 
 			static_assert(duplicated, "query: same component(s) in with<> and without<>");
@@ -76,7 +77,7 @@ namespace ecs::system
 		static_assert(detail::validate_query<with, without>(), "query: invalid query");
 
 		query(t_clause&... clause) requires(sizeof...(t_clause) > 0)
-		{};
+		{ };
 
 		constexpr query() = default;
 	};
@@ -86,7 +87,7 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys sys;
 
-		each_group(t_query&& query, t_sys&& sys) : sys(FWD(sys)){};
+		each_group(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
 
 		constexpr each_group() = default;
 
@@ -109,36 +110,53 @@ namespace ecs::system
 	};
 
 	template <typename t>
-	concept is_interface_entity_group = requires(t&& _) {
+	concept i_entity_group_like = requires(t&& obj) {
 		typename i_entity_group<t>;
-		// typename t::t_ent_id;
-		// typename t::t_ent_group_idx;
-		// typename t::t_local_entity_idx;
-		// typename t::t_storage_cmp_idx;
-		// typename t::t_archetype;
-		// typename t::t_entity_count;
-		// typename t::t_capacity;
-		// typename t::t_local_cmp_idx;
-		// typename t::t_component_count;
-		// typename t::t_component_size;
-		// typename t::t_component_offset;
-		// typename t::t_cmp_offset_arr_base;
-		// typename t::t_cmp_size_arr_base;
-		// typename t::t_entity_id_arr_base;
+		typename t::t_ent_id;
+		typename t::t_ent_group_idx;
+		typename t::t_local_entity_idx;
+		typename t::t_storage_cmp_idx;
+		typename t::t_archetype;
+		typename t::t_entity_count;
+		typename t::t_capacity;
+		typename t::t_local_cmp_idx;
+		typename t::t_component_count;
+		typename t::t_component_size;
+		typename t::t_component_offset;
+		typename t::t_cmp_offset_arr_base;
+		typename t::t_cmp_size_arr_base;
+		typename t::t_entity_id_arr_base;
+
+		{ obj.entity_group_idx() } -> std::same_as<typename t::t_entity_group_idx&>;
+		{ obj.entity_count() } -> std::same_as<typename t::t_entity_count&>;
+		{ obj.capacity() } -> std::same_as<typename t::t_capacity&>;
+		{ obj.component_count() } -> std::same_as<typename t::t_component_count&>;
+		{ obj.local_archetype() } -> std::same_as<typename t::t_archetype&>;
+		{ obj.component_size_arr_base() } -> std::same_as<typename t::t_cmp_size_arr_base&>;
+		{ obj.component_offset_arr_base() } -> std::same_as<typename t::t_cmp_offset_arr_base&>;
+		{ obj.entity_id_arr_base() } -> std::same_as<typename t::t_entity_id_arr_base&>;
+		{ obj.ent_id(std::declval<typename t::t_local_entity_idx>()) } -> std::same_as<typename t::t_entity_id&>;
+		{ obj.is_full() } -> std::same_as<bool>;
+		{ obj.is_empty() } -> std::same_as<bool>;
+
+		// templates?
 		{
-			i_entity_group<t>{ FWD(_) }
+			i_entity_group<t>{ FWD(obj) }
 		};
 	};
 
 	template <typename t>
-	concept is_interface_entity_storage = requires(t&& _) { i_entity_storage<t>{ FWD(_) }; };
+	concept i_entity_storage_like = requires(t&& _) {
+		typename i_entity_storage<t>;
+		i_entity_storage<t>{ FWD(_) };
+	};
 
 	template <typename t_query, typename t_sys>
 	struct each_entity
 	{
 		no_unique_addr t_sys sys;
 
-		each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)){};
+		each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
 
 		constexpr each_entity() = default;
 
@@ -160,11 +178,13 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&& arg)
 		{
-			if constexpr (is_interface_entity_group<t_arg>)
+			if constexpr (i_entity_group_like<t_arg>)
 			{
+				std::println("entity_group");
 			}
-			else if constexpr (is_interface_entity_storage<t_arg>)
+			else if constexpr (i_entity_storage_like<t_arg>)
 			{
+				std::println("entity_storage");
 			}
 			else
 			{
