@@ -52,7 +52,7 @@ using world_t3 = ecs::entity_storage::basic<uint32, transform, rigid_body, bulle
 
 // Game(my_game, scene_t1, scene_t2, scene_t3, scene_t4)
 
-struct worlds
+struct scene_t1
 {
 	world_t1 world_1;
 	world_t2 world_2;
@@ -80,100 +80,155 @@ struct worlds
 		}
 	}
 
-	// worlds()						 = default;
-	// worlds(const worlds&)			 = delete;
-	// worlds& operator=(const worlds&) = delete;
-
-	// worlds(worlds&&) noexcept			 = default;
-	// worlds& operator=(worlds&&) noexcept = default;
-};
-
-struct my_scene_state
-{
-	bool loaded = false;
-};
-
-struct scene_t1 : worlds, my_scene_state
-{
 	void
 	init()
 	{
 		DEBUG_LOG("_scene_t1 init");
 	};
+
+	void
+	deinit()
+	{
+		DEBUG_LOG("_scene_t1 deinit");
+		world_1.deinit();
+		world_2.deinit();
+		world_3.deinit();
+	}
 };
 
-struct scene_t2 : worlds, my_scene_state
+struct scene_t2
 {
+	world_t1 world_1;
+	world_t2 world_2;
+	world_t3 world_3;
+
+	template <typename world_t>
+	world_t&
+	get_world()
+	{
+		if constexpr (std::is_same_v<world_t, world_t1>)
+		{
+			return world_1;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t2>)
+		{
+			return world_2;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t3>)
+		{
+			return world_3;
+		}
+		else
+		{
+			static_assert(false, "invalid world type");
+		}
+	}
+
 	void
 	init()
 	{
 		DEBUG_LOG("_scene_t2 init");
 	};
+
+	void
+	deinit()
+	{
+		DEBUG_LOG("_scene_t2 deinit");
+		world_1.deinit();
+		world_2.deinit();
+		world_3.deinit();
+	}
 };
 
-struct scene_t3 : worlds, my_scene_state
+struct scene_t3
 {
+	world_t1 world_1;
+	world_t2 world_2;
+	world_t3 world_3;
+
+	template <typename world_t>
+	world_t&
+	get_world()
+	{
+		if constexpr (std::is_same_v<world_t, world_t1>)
+		{
+			return world_1;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t2>)
+		{
+			return world_2;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t3>)
+		{
+			return world_3;
+		}
+		else
+		{
+			static_assert(false, "invalid world type");
+		}
+	}
+
 	void
 	init()
 	{
 		DEBUG_LOG("_scene_t3 init");
 	};
+
+	void
+	deinit()
+	{
+		DEBUG_LOG("_scene_t3 deinit");
+		world_1.deinit();
+		world_2.deinit();
+		world_3.deinit();
+	}
 };
 
-struct scene_t4 : worlds, my_scene_state
+struct scene_t4
 {
+	world_t1 world_1;
+	world_t2 world_2;
+	world_t3 world_3;
+
+	template <typename world_t>
+	world_t&
+	get_world()
+	{
+		if constexpr (std::is_same_v<world_t, world_t1>)
+		{
+			return world_1;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t2>)
+		{
+			return world_2;
+		}
+		else if constexpr (std::is_same_v<world_t, world_t3>)
+		{
+			return world_3;
+		}
+		else
+		{
+			static_assert(false, "invalid world type");
+		}
+	}
+
 	void
 	init()
 	{
 		DEBUG_LOG("_scene_t4 init");
+		world_1.init();
+		world_2.init();
+		world_3.init();
 	};
-};
 
-struct scenes
-{
-	scene_t1 scene_1;
-	scene_t2 scene_2;
-	scene_t3 scene_3;
-	scene_t4 scene_4;
-
-	template <typename scene_t>
-	scene_t&
-	get_scene()
+	void
+	deinit()
 	{
-		if constexpr (std::is_same_v<scene_t, scene_t1>)
-		{
-			return scene_1;
-		}
-		else if constexpr (std::is_same_v<scene_t, scene_t2>)
-		{
-			return scene_2;
-		}
-		else if constexpr (std::is_same_v<scene_t, scene_t3>)
-		{
-			return scene_3;
-		}
-		else if constexpr (std::is_same_v<scene_t, scene_t4>)
-		{
-			return scene_4;
-		}
-		else
-		{
-			static_assert(false, "invalid scene type");
-		}
+		DEBUG_LOG("_scene_t4 deinit");
+		world_1.deinit();
+		world_2.deinit();
+		world_3.deinit();
 	}
-
-	// scenes()						 = default;
-	// scenes(const scenes&)			 = delete;
-	// scenes& operator=(const scenes&) = delete;
-
-	// scenes(scenes&&) noexcept			 = default;
-	// scenes& operator=(scenes&&) noexcept = default;
-};
-
-struct my_game_state
-{
-	uint16 current_scene_idx = 0;
-	bool   running			 = true;
 };
 
 struct par_exec_test : ecs::system::detail::__parallel_executor_base
@@ -229,21 +284,63 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 #undef FWD
 };
 
-struct my_game : scenes, my_game_state
+struct my_game
 {
 	par_exec_test __parallel_executor;
+
+	scene_t1 scene_1;
+	scene_t2 scene_2;
+	scene_t3 scene_3;
+	scene_t4 scene_4;
+
+	uint16 current_scene_idx = 0;
+	bool   running			 = true;
 
 	void
 	init()
 	{
-		DEBUG_LOG("my game init");
+		DEBUG_LOG("my_game init");
+		scene_1.init();
+		scene_2.init();
+		scene_3.init();
+		scene_4.init();
 	};
 
 	void
 	deinit()
 	{
-		DEBUG_LOG("my game deinit");
+		DEBUG_LOG("my_game deinit");
+		scene_1.deinit();
+		scene_2.deinit();
+		scene_3.deinit();
+		scene_4.deinit();
 	};
+
+	template <typename scene_t>
+	scene_t&
+	get_scene()
+	{
+		if constexpr (std::is_same_v<scene_t, scene_t1>)
+		{
+			return scene_1;
+		}
+		else if constexpr (std::is_same_v<scene_t, scene_t2>)
+		{
+			return scene_2;
+		}
+		else if constexpr (std::is_same_v<scene_t, scene_t3>)
+		{
+			return scene_3;
+		}
+		else if constexpr (std::is_same_v<scene_t, scene_t4>)
+		{
+			return scene_4;
+		}
+		else
+		{
+			static_assert(false, "invalid scene type");
+		}
+	}
 
 	my_game()				= default;
 	my_game(const my_game&) = delete;

@@ -1,12 +1,12 @@
 #pragma once
 #include <assert.h>
 #include <memory>
-#include <utility>
 #include <type_traits>
 #include <algorithm>
 #include <ranges>
 #include <numeric>
 
+#include "__common.h"
 
 #define USE_STL_VECTOR
 #define USE_STL_SET
@@ -32,7 +32,8 @@ namespace data_structure
 		size_t _capacity;
 
 	  private:
-		void _resize()
+		void
+		_resize()
 		{
 			if (_capacity == 0)
 			{
@@ -74,7 +75,8 @@ namespace data_structure
 			}
 		}
 
-		constexpr void push_back(T&& item)
+		constexpr void
+		push_back(T&& item)
 		{
 			if (_size == _capacity)
 			{
@@ -84,7 +86,8 @@ namespace data_structure
 			_head[_size++] = item;
 		};
 
-		constexpr void push_back(T item)
+		constexpr void
+		push_back(T item)
 		{
 			if (_size == _capacity)
 			{
@@ -95,45 +98,52 @@ namespace data_structure
 		};
 
 		template <typename... V>
-		T& emplace_back(V&&... args)
+		T&
+		emplace_back(V&&... args)
 		{
 			if (_size == _capacity)
 			{
 				_resize();
 			}
 
-			return *(new (_head + _size++) T { std::forward<V>(args)... });
+			return *(new (_head + _size++) T{ std::forward<V>(args)... });
 		}
 
-		constexpr T& back() const
+		constexpr T&
+		back() const
 		{
 			assert(empty() == false);
 			return _head[_size - 1];
 		};
 
-		constexpr void resize(size_t new_capacity)
+		constexpr void
+		resize(size_t new_capacity)
 		{
 			_capacity = new_capacity;
 			_head	  = (T*)realloc(_head, sizeof(T) * _capacity);
 			_size	  = min(_size, new_capacity);
 		}
 
-		constexpr bool empty() const
+		constexpr bool
+		empty() const
 		{
 			return _size == 0;
 		};
 
-		constexpr size_t size() const
+		constexpr size_t
+		size() const
 		{
 			return _size;
 		};
 
-		constexpr size_t capacity() const
+		constexpr size_t
+		capacity() const
 		{
 			return _capacity;
 		};
 
-		constexpr T& operator[](size_t index) const
+		constexpr T&
+		operator[](size_t index) const
 		{
 			assert(index < _size);
 			return _head[index];
@@ -236,43 +246,48 @@ namespace data_structure
 			}
 		}
 
-		constexpr bool empty()
+		constexpr bool
+		empty()
 		{
 			return _size == 0;
 		}
 
-		constexpr node* front()
+		constexpr node*
+		front()
 		{
 			// assert(empty() == false);
 			return _head;
 		}
 
-		constexpr node* back()
+		constexpr node*
+		back()
 		{
 			// assert(empty() == false);
 			return _tail;
 		}
 
-		constexpr size_t size()
+		constexpr size_t
+		size()
 		{
 			return _size;
 		}
 
 		template <typename... V>
-		T& emplace_back(V&&... args)
+		T&
+		emplace_back(V&&... args)
 		{
 			if (empty()) [[unlikely]]
 			{
 				_head = _tail = (node*)malloc(sizeof(node));
 				_head->next	  = nullptr;
 				_head->prev	  = nullptr;
-				new (&_head->value) T { std::forward<V>(args)... };
+				new (&_head->value) T{ std::forward<V>(args)... };
 			}
 			else
 			{
 				_tail->next		  = (node*)malloc(sizeof(node));
 				_tail->next->next = nullptr;
-				new (&_tail->next->value) T { std::forward<V>(args)... };
+				new (&_tail->next->value) T{ std::forward<V>(args)... };
 				_tail->next->prev = _tail;
 				_tail			  = _tail->next;
 			}
@@ -282,20 +297,21 @@ namespace data_structure
 		}
 
 		template <typename... V>
-		T& emplace_front(V&&... args)
+		T&
+		emplace_front(V&&... args)
 		{
 			if (empty()) [[unlikely]]
 			{
 				_head = _tail = (node*)malloc(sizeof(node));
 				_head->next	  = nullptr;
 				_head->prev	  = nullptr;
-				new (&_head->value) T { std::forward<V>(args)... };
+				new (&_head->value) T{ std::forward<V>(args)... };
 			}
 			else
 			{
 				_head->prev		  = (node*)malloc(sizeof(node));
 				_head->prev->prev = nullptr;
-				new (&_head->prev->value) T { std::forward<V>(args)... };
+				new (&_head->prev->value) T{ std::forward<V>(args)... };
 				_head->prev->next = _head;
 				_head			  = _head->prev;
 			}
@@ -304,7 +320,8 @@ namespace data_structure
 			return _head->value;
 		}
 
-		void pop_front()
+		void
+		pop_front()
 		{
 			assert(empty() == false);
 			auto* temp = _head->next;
@@ -320,7 +337,8 @@ namespace data_structure
 			//_head->prev = nullptr;
 		}
 
-		void pop_back()
+		void
+		pop_back()
 		{
 			assert(empty() == false);
 			auto* temp = _tail->prev;
@@ -335,11 +353,12 @@ namespace data_structure
 		}
 
 		template <typename... V>
-		node* insert(node* at, V&&... args)
+		node*
+		insert(node* at, V&&... args)
 		{
 			auto* prev = at->prev;
 			at->prev   = (node*)malloc(sizeof(node));
-			new (&at->prev->value) T { std::forward<V>(args)... };
+			new (&at->prev->value) T{ std::forward<V>(args)... };
 
 
 			(at->prev)->prev = prev;
@@ -351,7 +370,8 @@ namespace data_structure
 			return at->prev;
 		}
 
-		void erase(node* target)
+		void
+		erase(node* target)
 		{
 			assert(empty() == false and target != nullptr);
 
@@ -405,17 +425,20 @@ namespace data_structure
 				std::construct_at(reinterpret_cast<t_data*>(&storage), data);
 			}
 
-			t_data& data()
+			t_data&
+			data()
 			{
 				return *std::launder(reinterpret_cast<t_data*>(&storage));
 			}
 
-			const t_data& data() const
+			const t_data&
+			data() const
 			{
 				return *std::launder(reinterpret_cast<const t_data*>(&storage));
 			}
 
-			std::size_t& next_hole_idx()
+			std::size_t&
+			next_hole_idx()
 			{
 				return *std::launder(reinterpret_cast<std::size_t*>(&storage));
 			}
@@ -426,13 +449,23 @@ namespace data_structure
 
 		data_structure::vector<bucket> vec;
 
-		std::size_t size() const noexcept
+		FORCE_INLINE
+		std::size_t
+		capacity() const noexcept
+		{
+			return vec.size();
+		}
+
+		// FORCE_INLINE
+		std::size_t
+		size() const noexcept
 		{
 			return vec.size() - hole_count;
 		}
 
 		template <typename... t>
-		std::size_t emplace_back(t&&... arg)
+		std::size_t
+		emplace_back(t&&... arg)
 		{
 			auto res = 0uz;
 			if (hole_count == 0)
@@ -452,7 +485,8 @@ namespace data_structure
 			return res;
 		}
 
-		void remove(std::size_t idx)
+		void
+		remove(std::size_t idx)
 		{
 			if constexpr (not std::is_trivially_destructible_v<t_data>)
 			{
@@ -464,12 +498,16 @@ namespace data_structure
 			++hole_count;
 		}
 
-		t_data& operator[](std::size_t idx) noexcept
+		// FORCE_INLINE
+		t_data&
+		operator[](std::size_t idx) noexcept
 		{
 			return vec[idx].data();
 		}
 
-		const t_data& operator[](std::size_t idx) const noexcept
+		// FORCE_INLINE
+		const t_data&
+		operator[](std::size_t idx) const noexcept
 		{
 			return vec[idx].data();
 		}

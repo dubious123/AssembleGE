@@ -5,11 +5,11 @@
 
 namespace ecs
 {
-	template <typename T>
+	template <typename t_cmp>
 	concept component_type = requires {
-		requires std::is_trivially_copyable_v<T>;
-		requires std::is_trivially_destructible_v<T>;
-		requires std::is_standard_layout_v<T>;
+		requires std::is_trivially_copyable_v<std::decay_t<t_cmp>>;
+		requires std::is_trivially_destructible_v<std::decay_t<t_cmp>>;
+		requires std::is_standard_layout_v<std::decay_t<t_cmp>>;
 	};
 
 	using scene_id	   = uint32;
@@ -40,7 +40,8 @@ namespace ecs
 		}();
 
 		template <typename... t>
-		static inline consteval archetype_t calc_archetype()
+		static inline consteval archetype_t
+		calc_archetype()
 		{
 			archetype_t archetype = 0;
 			([&archetype] {
@@ -50,7 +51,8 @@ namespace ecs
 			return archetype;
 		};
 
-		static inline size_t calc_total_size(archetype_t archetype)
+		static inline size_t
+		calc_total_size(archetype_t archetype)
 		{
 			auto v = std::views::iota(0, std::bit_width(archetype))
 				   | std::views::filter([=](auto nth_c) { return (archetype >> nth_c) & 1; })
@@ -87,7 +89,8 @@ namespace ecs
 			other._memory = nullptr;
 		}
 
-		memory_block& operator=(memory_block&& other) noexcept
+		memory_block&
+		operator=(memory_block&& other) noexcept
 		{
 			_memory		  = other._memory;
 			other._memory = nullptr;
@@ -100,7 +103,8 @@ namespace ecs
 
 		memory_block(const memory_block& other) = delete;
 
-		memory_block& operator=(memory_block& other) = delete;
+		memory_block&
+		operator=(memory_block& other) = delete;
 
 		// 16kb => n component, (0 < n <= 64)
 		//  2 byte => size,
@@ -140,52 +144,61 @@ namespace ecs
 		// entity : component A C
 		// c_idx of C = 1, c_idx of A = 0, component_count = 2
 
-		uint16 get_count() const
+		uint16
+		get_count() const
 		{
 			return *(uint16*)_memory;
 		}
 
-		uint16 get_capacity() const
+		uint16
+		get_capacity() const
 		{
 			return *(uint16*)(_memory + 2);
 		}
 
-		uint16 get_component_count() const
+		uint16
+		get_component_count() const
 		{
 			return *(uint16*)(_memory + 4);
 		}
 
-		uint16 get_component_size(uint8 c_idx) const
+		uint16
+		get_component_size(uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
 			return (uint16)((*(uint32*)(_memory + 6 + c_idx * 4)) >> 16);
 		}
 
-		uint16 get_component_offset(uint8 c_idx) const
+		uint16
+		get_component_offset(uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
 			return (uint16)((*(uint32*)(_memory + 6 + c_idx * 4)));
 		}
 
-		uint16 get_header_size() const
+		uint16
+		get_header_size() const
 		{
 			return 6 + get_component_count() * sizeof(uint32);
 		}
 
-		entity_idx get_entity_idx(uint16 m_idx) const
+		entity_idx
+		get_entity_idx(uint16 m_idx) const
 		{
 			assert(m_idx < get_count());
 			return *(entity_idx*)(_memory + get_header_size() + m_idx * sizeof(entity_idx));
 		}
 
-		void* get_component_ptr(uint16 m_idx, uint8 c_idx) const
+		void*
+		get_component_ptr(uint16 m_idx, uint8 c_idx) const
 		{
 			assert(c_idx < get_component_count());
 			return (void*)(_memory + get_component_offset(c_idx) + m_idx * get_component_size(c_idx));
 		}
 
 		// sizeof entity_idx + sizeof all component size
-		uint16 calc_size_per_archetype() const
+		uint16
+		calc_size_per_archetype() const
 		{
 			auto   c_count = get_component_count();
 			uint16 size	   = sizeof(entity_idx);
@@ -198,45 +211,53 @@ namespace ecs
 			return size;
 		}
 
-		uint16 calc_unused_mem_size() const
+		uint16
+		calc_unused_mem_size() const
 		{
 			assert(MEMORY_BLOCK_SIZE > get_header_size() + calc_size_per_archetype() * get_capacity());
 			return MEMORY_BLOCK_SIZE - get_header_size() - calc_size_per_archetype() * get_capacity();
 		}
 
-		void write_count(uint16 new_count)
+		void
+		write_count(uint16 new_count)
 		{
 			*(uint16*)_memory = new_count;
 		}
 
-		void write_capacity(uint16 capacity)
+		void
+		write_capacity(uint16 capacity)
 		{
 			*(uint16*)(_memory + 2) = capacity;
 		}
 
-		void write_component_count(uint16 count)
+		void
+		write_component_count(uint16 count)
 		{
 			*(uint16*)(_memory + 4) = count;
 		}
 
-		void write_component_data(uint8 c_idx, uint16 offset, uint16 size)
+		void
+		write_component_data(uint8 c_idx, uint16 offset, uint16 size)
 		{
 			auto component_info_ptr			   = _memory + 6 + sizeof(uint32) * c_idx;
 			*(uint16*)component_info_ptr	   = offset;
 			*(uint16*)(component_info_ptr + 2) = size;
 		}
 
-		void write_component_data(uint8 c_idx, uint32 c_data)
+		void
+		write_component_data(uint8 c_idx, uint32 c_data)
 		{
 			*(uint32*)(_memory + 6 + sizeof(uint32) * c_idx) = c_data;
 		}
 
-		void write_entity_idx(uint8 m_idx, entity_idx idx)
+		void
+		write_entity_idx(uint8 m_idx, entity_idx idx)
 		{
 			*(entity_idx*)(_memory + get_header_size() + m_idx * sizeof(entity_idx)) = idx;
 		}
 
-		entity_idx remove_entity(uint16 m_idx)
+		entity_idx
+		remove_entity(uint16 m_idx)
 		{
 			auto count			   = get_count();
 			auto last_m_idx		   = count - 1;
@@ -257,13 +278,15 @@ namespace ecs
 			return last_entity_index;
 		}
 
-		bool is_full() const
+		bool
+		is_full() const
 		{
 			return get_count() == get_capacity();
 		}
 
 		template <typename... t>
-		void new_entity(entity& e)
+		void
+		new_entity(entity& e)
 		{
 			using sorted_component_tpl = component_wrapper<t...>::component_tpl;
 			assert(__popcnt(e.archetype) == get_component_count());
@@ -282,7 +305,8 @@ namespace ecs
 		}
 
 		template <>
-		void new_entity(entity& e)
+		void
+		new_entity(entity& e)
 		{
 			assert(0 == get_component_count());
 

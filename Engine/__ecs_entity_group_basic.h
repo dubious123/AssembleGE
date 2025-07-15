@@ -10,7 +10,7 @@ namespace ecs::entity_group
 		using t_ent_group_idx	 = t_entity_group_idx;
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
-		using t_local_entity_idx = meta::smallest_unsigned_t<mem_size / sizeof(t_entity_id)>;
+		using t_local_entity_idx = meta::smallest_unsigned_t<mem_size / sizeof(t_ent_id)>;
 
 		// group can't be more than entity counts ?
 		struct entity_group_idx_tag
@@ -25,7 +25,7 @@ namespace ecs::entity_group
 
 		struct entity_id_tag
 		{
-			using type = t_entity_id;
+			using type = t_ent_id;
 		};
 
 		struct entity_count_tag
@@ -96,7 +96,7 @@ namespace ecs::entity_group
 
 		using align_info = align_info_builder::template build<0, mem_size>;
 
-		static constexpr std::size_t alignment = std::max(ecs::utility::max_alignof<t_component_offset, t_component_size, t_entity_id, t_cmp...>(), align_info::max_alignof());
+		static constexpr std::size_t alignment = std::max(ecs::utility::max_alignof<t_component_offset, t_component_size, t_ent_id, t_cmp...>(), align_info::max_alignof());
 
 		alignas(alignment)
 			std::byte storage[mem_size];
@@ -161,7 +161,7 @@ namespace ecs::entity_group
 			return access_as<entity_id_arr_base_tag>();
 		}
 
-		FORCE_INLINE t_entity_id&
+		FORCE_INLINE t_ent_id&
 		ent_id(t_local_entity_idx ent_idx)
 		{
 			return *(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + ent_idx);
@@ -204,7 +204,7 @@ namespace ecs::entity_group
 		FORCE_INLINE t*
 		cmp_ptr(t_local_entity_idx local_ent_idx)
 		{
-			return reinterpret_cast<t*>(&storage[cmp_offset<t>()] + local_ent_idx);
+			return reinterpret_cast<t*>(&storage[cmp_offset<t>()]) + local_ent_idx;
 		}
 
 		FORCE_INLINE
@@ -325,7 +325,7 @@ namespace ecs::entity_group
 
 		template <typename... t>
 		t_local_entity_idx
-		new_entity(t_entity_id entity_id)
+		new_entity(t_ent_id entity_id)
 		{
 			assert(is_full() is_false);
 
@@ -338,7 +338,7 @@ namespace ecs::entity_group
 
 		template <typename... t>
 		t_local_entity_idx
-		new_entity(t_entity_id entity_id, t&&... arg)
+		new_entity(t_ent_id entity_id, t&&... arg)
 		{
 			assert(is_full() is_false);
 
@@ -350,7 +350,7 @@ namespace ecs::entity_group
 		}
 
 		// Removes the entity at the given index. Returns the id of the entity that was moved to fill the hole, if any, for handle updates.
-		t_entity_id&
+		t_ent_id&
 		remove_entity(t_local_entity_idx local_ent_idx)
 		{
 			assert(is_empty() is_false);
@@ -399,15 +399,30 @@ namespace ecs::entity_group
 		{
 			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
 
-			if constexpr (sizeof...(t) == 1)
+			return std::tuple<t&...>{ (*cmp_ptr<t>(local_ent_idx))... };
+		}
+
+		template <typename t_sys>
+		FORCE_INLINE decltype(auto)
+		foreach_entity(t_sys&& sys)
+		{
+			using t_arg_tpl		 = meta::function_traits<&std::decay_t<t_sys>::operator()>::argument_types;
+			constexpr auto arity = meta::function_traits<&std::decay_t<t_sys>::operator()>::arity;
+			for (t_local_entity_idx local_ent_idx : std::views::iota(0) | std::views::take(entity_count()))
 			{
-				using t_ret = meta::variadic_at_t<0, t...>;
-				return *cmp_ptr<t_ret>(local_ent_idx);
+				[this, &sys, local_ent_idx]<auto... n>(std::index_sequence<n...>) {
+					std::apply(
+						[this, &sys](auto&&... arg) {
+							ecs::system::detail::run_sys(sys, FWD(arg)...);
+						},
+						get_component<std::remove_reference_t<std::tuple_element_t<n, t_arg_tpl>>...>(local_ent_idx));
+				}(std::make_index_sequence<arity>{});
 			}
-			else
-			{
-				return std::tuple<t&...>{ (*cmp_ptr<t>(local_ent_idx))... };
-			}
+			// get_type_count
+			// count = entity_count();
+			// for(t_local_entity_idx local_ent_idx = 0; local_ent_idx < entity_count(); ++local_ent_idx){
+			// sys(  );
+			// sys(get_component
 		}
 
 		FORCE_INLINE bool

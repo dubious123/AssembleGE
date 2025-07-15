@@ -5,7 +5,6 @@
 #include "__ecs_system.h"
 #include "__ecs_entity_group_basic.h"
 
-// todo : free group tacking (instead of linear search)
 // todo : custom map
 // todo : custom malloc
 // todo : custom vector
@@ -14,12 +13,13 @@ namespace ecs::entity_storage
 	template <typename t_entity_id, ecs::component_type... t_cmp>
 	struct basic
 	{
+		using t_ent_id			 = t_entity_id;
 		using t_archetype_traits = ecs::utility::archetype_traits<t_cmp...>;
 		using t_archetype		 = t_archetype_traits::t_archetype;
 		using t_storage_cmp_idx	 = t_archetype_traits::t_storage_cmp_idx;
 		using t_local_cmp_idx	 = t_archetype_traits::t_local_cmp_idx;
-		using t_entity_group_idx = t_entity_id;
-		using t_entity_group	 = ecs::entity_group::basic<4_KiB, t_entity_id, t_entity_group_idx, t_cmp...>;
+		using t_entity_group_idx = t_ent_id;
+		using t_entity_group	 = ecs::entity_group::basic<4_KiB, t_ent_id, t_entity_group_idx, t_cmp...>;
 		using t_local_entity_idx = t_entity_group::t_local_entity_idx;
 
 		struct entity_info
@@ -31,6 +31,7 @@ namespace ecs::entity_storage
 			// Must be updated when entities move between groups.
 			t_local_entity_idx local_idx;
 
+			// nullptr if the entity is invalid (not part of any group)
 			t_entity_group* p_group;
 		};
 
@@ -108,30 +109,37 @@ namespace ecs::entity_storage
 		data_structure::sparse_vector<entity_info>				  entity_info_vec;
 		data_structure::map<t_archetype, entity_group_collection> entity_groups_map;
 
-		std::size_t
-		entity_count() const noexcept
-		{
-			return entity_info_vec.size();
-		}
-
 	  private:
 		// find or create and init entity_group
 		template <typename... t>
-		inline t_entity_group&
+		FORCE_INLINE t_entity_group&
 		_get_or_init_entity_group()
 		{
 			return entity_groups_map[t_archetype_traits::template calc_archetype<t...>()].free_group();
 		}
 
-		inline t_entity_group&
+		FORCE_INLINE t_entity_group&
 		_get_or_init_entity_group(t_archetype archetype)
 		{
 			return entity_groups_map[archetype].free_group();
 		}
 
 	  public:
+		FORCE_INLINE
+		std::size_t
+		entity_count() const noexcept
+		{
+			return entity_info_vec.size();
+		}
+
+		FORCE_INLINE bool
+		is_valid(t_ent_id id) const
+		{
+			return entity_info_vec.capacity() > id and entity_info_vec[id].p_group == nullptr;
+		}
+
 		template <typename... t, typename... t_arg>
-		t_entity_id
+		t_ent_id
 		new_entity(t_arg&&... arg)
 		{
 			static_assert((sizeof...(t) == sizeof...(t_arg)) or (sizeof...(t_arg) == 0), "invalid template parameter");
@@ -140,7 +148,7 @@ namespace ecs::entity_storage
 
 			auto& ent_group_collection = entity_groups_map[archetype];
 			auto& entity_group		   = ent_group_collection.free_group(archetype);
-			auto  entity_id			   = static_cast<t_entity_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_group }));
+			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_group }));
 
 			entity_info_vec[entity_id].local_idx = entity_group.new_entity<t...>(entity_id, std::forward<t_arg>(arg)...);
 
@@ -153,7 +161,7 @@ namespace ecs::entity_storage
 		}
 
 		void
-		remove_entity(const t_entity_id id)
+		remove_entity(const t_ent_id id)
 		{
 			auto& ent_info = entity_info_vec[id];
 
@@ -167,19 +175,14 @@ namespace ecs::entity_storage
 				entity_groups_map[ent_info.archetype].update_free(ent_info.p_group->entity_group_idx());
 			}
 
+			entity_info_vec[id].p_group = nullptr;
 			entity_info_vec.remove(id);
-		}
-
-		bool
-		is_valid(t_entity_id id) const
-		{
-			return false;
 		}
 
 		// if dup cmp => UB
 		template <typename... t, typename... t_arg>
 		void
-		add_component(const t_entity_id id, t_arg&&... arg)
+		add_component(const t_ent_id id, t_arg&&... arg)
 		{
 			using namespace std::ranges::views;
 
@@ -232,7 +235,7 @@ namespace ecs::entity_storage
 
 		template <typename... t>
 		void
-		remove_component(t_entity_id id)
+		remove_component(const t_ent_id id)
 		{
 			using namespace std::ranges::views;
 
@@ -273,16 +276,16 @@ namespace ecs::entity_storage
 		}
 
 		template <typename... t>
-		inline decltype(auto)
-		get_component(t_entity_id id)
+		FORCE_INLINE decltype(auto)
+		get_component(const t_ent_id id)
 		{
 			auto& ent_info = entity_info_vec[id];
 			return ent_info.p_group->template get_component<t...>(ent_info.local_idx);
 		}
 
 		template <typename... t>
-		bool
-		has_component(t_entity_id id)
+		FORCE_INLINE bool
+		has_component(const t_ent_id id)
 		{
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 			return (entity_info_vec[id].archetype & archetype) == archetype;
@@ -309,7 +312,7 @@ namespace ecs::entity_storage
 
 		template <typename t_query>
 		FORCE_INLINE bool
-		matches(t_query query, t_archetype arch)
+		matches(t_query, t_archetype arch)
 		{
 			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
 			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
@@ -318,11 +321,11 @@ namespace ecs::entity_storage
 
 		template <typename t_query, typename t_sys>
 		FORCE_INLINE void
-		each_group(t_query&& query, t_sys&& sys)
+		foreach_group(t_query&& group_query, t_sys&& sys)
 		{
 			for (auto& [arch, groups] : entity_groups_map)
 			{
-				if (matches(query, arch) is_false)
+				if (matches(group_query, arch) is_false)
 				{
 					continue;
 				}
@@ -331,23 +334,40 @@ namespace ecs::entity_storage
 									   | meta::deref_view
 									   | std::views::filter([](auto& group) { return group.is_empty() is_false; }))
 				{
-					ecs::system::detail::run_sys(sys, group);
+					ecs::system::detail::run_sys(FWD(sys), group);
 				}
 			}
 		}
 
-		template <typename... t, typename t_lambda>
-		void
-		each_entity(t_lambda&& fn)
+		template <typename t_query, typename t_sys>
+		FORCE_INLINE void
+		foreach_entity(t_query&& group_query, t_sys&& sys)
 		{
-			// std::ranges::for_each(entity_groups_map[t_archetype_traits::template calc_archetype<t...>()],
-			//					  fn)
+			for (auto& [arch, groups] : entity_groups_map)
+			{
+				if (matches(group_query, arch) is_false)
+				{
+					continue;
+				}
+
+				for (auto& group : groups.ent_group_vec
+									   | meta::deref_view
+									   | std::views::filter([](auto& group) { return group.is_empty() is_false; }))
+				{
+					group.foreach_entity(FWD(sys));
+				}
+			}
+		}
+
+		void
+		init()
+		{
 		}
 
 		void
 		deinit()
 		{
-			std::ranges::for_each(entity_groups_map | std::views::values | std::views::join, [](auto& ent_groups) { ent_groups.deinit(); });
+			std::ranges::for_each(entity_groups_map | std::views::values /*| std::views::join*/, [](auto& ent_groups) { ent_groups.deinit(); });
 		}
 	};
 }	 // namespace ecs::entity_storage

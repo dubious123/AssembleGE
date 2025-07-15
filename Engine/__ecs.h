@@ -8,6 +8,7 @@
 #include "__meta.h"
 #include "__ecs_common.h"
 #include "__ecs_interfaces.h"
+#include "__data_structures.h"
 
 #ifdef _DEBUG
 	#include <sstream>
@@ -37,11 +38,13 @@ namespace ecs
 		size_t entity_hole_begin_idx = -1;
 		size_t entity_hole_count	 = 0;
 
-		world_base(world_base&&)				 = default;
-		world_base(const world_base&)			 = delete;
-		world_base& operator=(world_base&&)		 = delete;
-		world_base& operator=(const world_base&) = delete;
-		world_base()							 = default;
+		world_base(world_base&&)	  = default;
+		world_base(const world_base&) = delete;
+		world_base&
+		operator=(world_base&&) = delete;
+		world_base&
+		operator=(const world_base&) = delete;
+		world_base()				 = default;
 	};
 
 	template <typename... c>
@@ -53,7 +56,8 @@ namespace ecs
 		using world_t		= world<c...>;
 
 		template <typename... t>
-		static consteval archetype_t _calc_archetype()
+		static consteval archetype_t
+		_calc_archetype()
 		{
 			archetype_t archetype = 0;
 			([&archetype] {
@@ -64,59 +68,68 @@ namespace ecs
 		};
 
 		template <typename sys, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(t...))
+		static consteval archetype_t
+		_calc_func_archetype(void (sys::*)(t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(entity_idx, t...))
+		static consteval archetype_t
+		_calc_func_archetype(void (sys::*)(entity_idx, t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(world_t&, t...))
+		static consteval archetype_t
+		_calc_func_archetype(void (sys::*)(world_t&, t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename sys, typename... t>
-		static consteval archetype_t _calc_func_archetype(void (sys::*)(world_t&, entity_idx, t...))
+		static consteval archetype_t
+		_calc_func_archetype(void (sys::*)(world_t&, entity_idx, t...))
 		{
 			return _calc_archetype<std::remove_cvref_t<t>...>();
 		}
 
 		template <typename system_t, typename... t>
-		static void _update_entity(system_t& sys, void (system_t::*func)(t...), memory_block& mem_block, uint16 m_idx)
+		static void
+		_update_entity(system_t& sys, void (system_t::*func)(t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(*(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename system_t, typename... t>
-		static void _update_entity(system_t& sys, void (system_t::*func)(entity_idx, t...), memory_block& mem_block, uint16 m_idx)
+		static void
+		_update_entity(system_t& sys, void (system_t::*func)(entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
-		static void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, entity_idx, t...), memory_block& mem_block, uint16 m_idx)
+		static void
+		_update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, entity_idx, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(world, mem_block.get_entity_idx(m_idx), *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename world_t, typename system_t, typename... t>
-		static void _update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, t...), memory_block& mem_block, uint16 m_idx)
+		static void
+		_update_entity(world_t& world, system_t& sys, void (system_t::*func)(world_t&, t...), memory_block& mem_block, uint16 m_idx)
 		{
 			static constinit const auto archetype = _calc_archetype<std::remove_cvref_t<t>...>();
 			(sys.*func)(world, *(std::remove_cvref_t<t>*)(mem_block.get_component_ptr(m_idx, _calc_component_idx<std::remove_cvref_t<t>>(archetype)))...);
 		}
 
 		template <typename sys>
-		static consteval archetype_t _calc_sys_archetype()
+		static consteval archetype_t
+		_calc_sys_archetype()
 		{
 			// if constexpr (has_update<sys>)
 			//{
@@ -134,19 +147,22 @@ namespace ecs
 		}
 
 		template <typename t>
-		static inline uint8 _calc_component_idx(archetype_t a)
+		static inline uint8
+		_calc_component_idx(archetype_t a)
 		{
 			return __popcnt(((1 << tuple_index_v<t, component_tpl>)-1) & a);
 		}
 
-		static inline uint8 _calc_component_idx(archetype_t a, uint32 nth_component)
+		static inline uint8
+		_calc_component_idx(archetype_t a, uint32 nth_component)
 		{
 			assert(nth_component < 64);
 			assert(nth_component >= 0);
 			return __popcnt64(((1 << nth_component) - 1) & a);
 		}
 
-		static void _init_mem_block(archetype_t archetype, size_t size_per_archetype, memory_block* p_block)
+		static void
+		_init_mem_block(archetype_t archetype, size_t size_per_archetype, memory_block* p_block)
 		{
 			using namespace std::views;
 
@@ -181,7 +197,8 @@ namespace ecs
 		//	_init_mem_block(archetype, component_wrapper<c...>::calc_total_size(archetype) + sizeof(entity_idx), p_block);
 		// }
 
-		static void _copy_components(archetype_t a_old, archetype_t a_new, memory_block* p_mem_old, memory_block* p_mem_new, uint16 old_m_idx, uint16 new_m_idx)
+		static void
+		_copy_components(archetype_t a_old, archetype_t a_new, memory_block* p_mem_old, memory_block* p_mem_new, uint16 old_m_idx, uint16 new_m_idx)
 		{
 			using namespace std::views;
 			assert(a_old != a_new);
@@ -208,19 +225,22 @@ namespace ecs
 		}
 
 	  public:
-		size_t entity_count() const
+		size_t
+		entity_count() const
 		{
 			return entities.size() - entity_hole_count;
 		}
 
-		memory_block* get_p_mem_block(entity& e)
+		memory_block*
+		get_p_mem_block(entity& e)
 		{
 			assert(memory_block_vec_map.contains(e.archetype));
 			return &memory_block_vec_map[e.archetype][e.mem_block_idx];
 		}
 
 		template <typename... t>
-		entity_idx new_entity()
+		entity_idx
+		new_entity()
 		{
 			static constinit const auto archetype = _calc_archetype<t...>();
 
@@ -266,7 +286,8 @@ namespace ecs
 			return p_entity->idx;
 		}
 
-		void delete_entity(entity_idx idx)
+		void
+		delete_entity(entity_idx idx)
 		{
 			auto& e										= entities[idx];
 			auto  entity_idx_need_update				= get_p_mem_block(e)->remove_entity(e.memory_idx);
@@ -277,14 +298,16 @@ namespace ecs
 		}
 
 		template <typename... t>
-		bool has_component(entity_idx idx)
+		bool
+		has_component(entity_idx idx)
 		{
 			auto archetype = _calc_archetype<t...>();
 			return (entities[idx].archetype & archetype) == archetype;
 		}
 
 		template <typename t>
-		t& get_component(entity_idx idx)
+		t&
+		get_component(entity_idx idx)
 		{
 			assert(has_component<t>(idx));
 			auto& e = entities[idx];
@@ -292,7 +315,8 @@ namespace ecs
 		}
 
 		template <typename... t>
-		void add_component(entity_idx idx)
+		void
+		add_component(entity_idx idx)
 		{
 			assert(has_component<t...>(idx) == false);
 			auto& e					= entities[idx];
@@ -338,7 +362,8 @@ namespace ecs
 		}
 
 		template <typename... t>
-		void remove_component(entity_idx idx)
+		void
+		remove_component(entity_idx idx)
 		{
 			assert(has_component<t...>(idx));
 			auto& e					= entities[idx];
@@ -377,13 +402,15 @@ namespace ecs
 			e.mem_block_idx = new_mem_block_idx;
 		}
 
-		archetype_t get_archetype(entity_idx idx) const
+		archetype_t
+		get_archetype(entity_idx idx) const
 		{
 			return entities[idx].archetype;
 		}
 
 		template <typename system_t>
-		void perform(system_t& sys)
+		void
+		perform(system_t& sys)
 		{
 			using namespace std::views;
 
@@ -494,7 +521,8 @@ namespace ecs
 			other.worlds = nullptr;
 		}
 
-		scene& operator=(scene&& other)
+		scene&
+		operator=(scene&& other)
 		{
 			if (this != &other)
 			{
@@ -520,27 +548,32 @@ namespace ecs
 			free(worlds);
 		}
 
-		scene(const scene&)			   = delete;
-		scene& operator=(const scene&) = delete;
+		scene(const scene&) = delete;
+		scene&
+		operator=(const scene&) = delete;
 
 		template <unsigned int N>
-		world_at<N>& get_world()
+		world_at<N>&
+		get_world()
 		{
 			return *(world_at<N>*)(void*)(worlds + N);
 		}
 
 		template <typename world_t>
-		world_t& get_world()
+		world_t&
+		get_world()
 		{
 			return *(world_t*)(void*)(worlds + get_variadic_index<world_t, W...>());
 		}
 
-		void foo()
+		void
+		foo()
 		{
 		}
 
 		template <typename t_game>
-		void run(interface_game<t_game> game)
+		void
+		run(interface_game<t_game> game)
 		{
 			game.init();
 		}

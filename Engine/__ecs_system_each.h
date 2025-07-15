@@ -82,73 +82,83 @@ namespace ecs::system
 		constexpr query() = default;
 	};
 
+	template <typename t>
+	concept i_entity_group_like = requires(t&& obj) {
+		typename i_entity_group<t>;
+		typename std::remove_reference_t<t>::t_ent_id;
+		typename std::remove_reference_t<t>::t_ent_group_idx;
+		typename std::remove_reference_t<t>::t_local_entity_idx;
+		typename std::remove_reference_t<t>::t_storage_cmp_idx;
+		typename std::remove_reference_t<t>::t_archetype;
+		typename std::remove_reference_t<t>::t_entity_count;
+		typename std::remove_reference_t<t>::t_capacity;
+		typename std::remove_reference_t<t>::t_local_cmp_idx;
+		typename std::remove_reference_t<t>::t_component_count;
+		typename std::remove_reference_t<t>::t_component_size;
+		typename std::remove_reference_t<t>::t_component_offset;
+		typename std::remove_reference_t<t>::t_cmp_offset_arr_base;
+		typename std::remove_reference_t<t>::t_cmp_size_arr_base;
+		typename std::remove_reference_t<t>::t_entity_id_arr_base;
+
+		{ obj.entity_group_idx() } -> std::same_as<typename std::remove_reference_t<t>::t_ent_group_idx&>;
+		{ obj.entity_count() } -> std::same_as<typename std::remove_reference_t<t>::t_entity_count&>;
+		{ obj.capacity() } -> std::same_as<typename std::remove_reference_t<t>::t_capacity&>;
+		{ obj.component_count() } -> std::same_as<typename std::remove_reference_t<t>::t_component_count&>;
+		{ obj.local_archetype() } -> std::same_as<typename std::remove_reference_t<t>::t_archetype&>;
+		{ obj.component_size_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_cmp_size_arr_base&>;
+		{ obj.component_offset_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_cmp_offset_arr_base&>;
+		{ obj.entity_id_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_entity_id_arr_base&>;
+		{ obj.ent_id(std::declval<typename std::remove_reference_t<t>::t_local_entity_idx>()) } -> std::same_as<typename std::remove_reference_t<t>::t_ent_id&>;
+		{ obj.is_full() } -> std::same_as<bool>;
+		{ obj.is_empty() } -> std::same_as<bool>;
+
+		// templates?
+		//{
+		//	i_entity_group<t>{ FWD(obj) }
+		//};
+	};
+
+	template <typename t>
+	concept i_entity_storage_like = requires(t&& obj) {
+		typename i_entity_storage<t>;
+		typename std::remove_reference_t<t>::t_ent_id;
+		typename std::remove_reference_t<t>::t_archetype_traits;
+		typename std::remove_reference_t<t>::t_archetype;
+		typename std::remove_reference_t<t>::t_storage_cmp_idx;
+		typename std::remove_reference_t<t>::t_local_cmp_idx;
+		typename std::remove_reference_t<t>::t_entity_group_idx;
+		typename std::remove_reference_t<t>::t_entity_group;
+		typename std::remove_reference_t<t>::t_local_entity_idx;
+
+		{ obj.entity_count() } -> std::same_as<std::size_t>;
+		{ obj.is_valid(std::declval<const typename std::remove_reference_t<t>::t_ent_id>()) } -> std::same_as<bool>;
+		{ obj.remove_entity(std::declval<const typename std::remove_reference_t<t>::t_ent_id>()) } -> std::same_as<void>;
+		{ obj.init() } -> std::same_as<void>;
+		{ obj.deinit() } -> std::same_as<void>;
+	};
+
 	template <typename t_query, typename t_sys>
 	struct each_group
 	{
 		no_unique_addr t_sys sys;
 
-		each_group(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
+		constexpr each_group(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
 
 		constexpr each_group() = default;
 
+		template <i_entity_storage_like t_ent_storage>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(auto&& groups)
+		operator()(t_ent_storage&& ent_group)
 		{
-			using t_ent_storage = std::decay_t<decltype(groups)>;
-			using t_ent_group	= t_ent_storage::t_entity_group;
+			// static_assert(
+			//	std::tuple_size_v<typename sys_trait::argument_types> == 1
+			//		and meta::is_specialization_of_v<
+			//			std::tuple_element_t<0, typename sys_trait::argument_types>,
+			//			i_entity_group>,
+			//	"each_group : The system must be callable with exactly one parameter of type i_entity_group<T>.");
 
-			using sys_trait = meta::function_traits<&std::decay_t<t_sys>::template operator()<t_ent_group&>>;
-			static_assert(
-				std::tuple_size_v<typename sys_trait::argument_types> == 1
-					and meta::is_specialization_of_v<
-						std::tuple_element_t<0, typename sys_trait::argument_types>,
-						i_entity_group>,
-				"each_group : The system must be callable with exactly one parameter of type i_entity_group<T>.");
-
-			groups.each_group(t_query{}, sys);
+			ent_group.foreach_group(t_query{}, sys);
 		}
-	};
-
-	template <typename t>
-	concept i_entity_group_like = requires(t&& obj) {
-		typename i_entity_group<t>;
-		typename t::t_ent_id;
-		typename t::t_ent_group_idx;
-		typename t::t_local_entity_idx;
-		typename t::t_storage_cmp_idx;
-		typename t::t_archetype;
-		typename t::t_entity_count;
-		typename t::t_capacity;
-		typename t::t_local_cmp_idx;
-		typename t::t_component_count;
-		typename t::t_component_size;
-		typename t::t_component_offset;
-		typename t::t_cmp_offset_arr_base;
-		typename t::t_cmp_size_arr_base;
-		typename t::t_entity_id_arr_base;
-
-		{ obj.entity_group_idx() } -> std::same_as<typename t::t_entity_group_idx&>;
-		{ obj.entity_count() } -> std::same_as<typename t::t_entity_count&>;
-		{ obj.capacity() } -> std::same_as<typename t::t_capacity&>;
-		{ obj.component_count() } -> std::same_as<typename t::t_component_count&>;
-		{ obj.local_archetype() } -> std::same_as<typename t::t_archetype&>;
-		{ obj.component_size_arr_base() } -> std::same_as<typename t::t_cmp_size_arr_base&>;
-		{ obj.component_offset_arr_base() } -> std::same_as<typename t::t_cmp_offset_arr_base&>;
-		{ obj.entity_id_arr_base() } -> std::same_as<typename t::t_entity_id_arr_base&>;
-		{ obj.ent_id(std::declval<typename t::t_local_entity_idx>()) } -> std::same_as<typename t::t_entity_id&>;
-		{ obj.is_full() } -> std::same_as<bool>;
-		{ obj.is_empty() } -> std::same_as<bool>;
-
-		// templates?
-		{
-			i_entity_group<t>{ FWD(obj) }
-		};
-	};
-
-	template <typename t>
-	concept i_entity_storage_like = requires(t&& _) {
-		typename i_entity_storage<t>;
-		i_entity_storage<t>{ FWD(_) };
 	};
 
 	template <typename t_query, typename t_sys>
@@ -156,21 +166,19 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys sys;
 
-		each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
+		constexpr each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
 
 		constexpr each_entity() = default;
 
-		// template <typename g>
-		// requires requires(g obj) { i_entity_group<g>{ obj }; }
+		// template <i_entity_group_like g>
 		// FORCE_INLINE constexpr decltype(auto)
-		// operator()(i_entity_group<g> i_group)
+		// run(i_entity_group<g> i_group)
 		//{
 		// }
 
-		// template <typename s>
-		// requires requires(s obj) { i_entity_storage<s>{ obj }; }
+		// template <i_entity_storage_like s>
 		// FORCE_INLINE constexpr decltype(auto)
-		// operator()(i_entity_storage<s> i_storage)
+		// run(i_entity_storage<s> i_storage)
 		//{
 		// }
 
@@ -180,15 +188,24 @@ namespace ecs::system
 		{
 			if constexpr (i_entity_group_like<t_arg>)
 			{
-				std::println("entity_group");
+				std::println("entity_group_foreach");
+
+				auto i_group = i_entity_group{ FWD(arg) };
+				return i_group.foreach_entity(sys);
 			}
 			else if constexpr (i_entity_storage_like<t_arg>)
 			{
 				std::println("entity_storage");
+
+				auto storage = i_entity_storage{ FWD(arg) };
+
+				// todo validate sys and query
+				return storage.foreach_entity(t_query{}, sys);
 			}
 			else
 			{
-				static_assert(false, "each_entity : invalid arguement");
+				meta::print_type<t_arg>();
+				// static_assert(false, "each_entity : invalid arguement");
 			}
 		}
 	};

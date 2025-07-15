@@ -1,6 +1,7 @@
 #pragma once
+#include <utility>
 #include "__math.h"
-#include "__data_structures.h"
+
 #define EDITOR_API extern "C" __declspec(dllexport)
 
 #define is_false == false
@@ -27,7 +28,8 @@
 
 #define FWD(x) std::forward<decltype(x)>(x)
 
-constexpr std::size_t operator"" _KiB(std::size_t k)
+constexpr std::size_t
+operator"" _KiB(std::size_t k)
 {
 	return k * 1024;
 }
