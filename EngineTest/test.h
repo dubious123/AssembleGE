@@ -5,6 +5,8 @@
 #include "../Engine/__meta.h"
 #include "../Engine/__ecs_system.h"
 #include "../Engine/__ecs_entity_storage_basic.h"
+
+#include <chrono>
 COMPONENT_BEGIN(transform)
 __SERIALIZE_FIELD(float3, position, 0, 0, 0)
 __SERIALIZE_FIELD(float3, scale, 1, 1, 1)
@@ -280,8 +282,6 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 	{
 		// no-op
 	}
-
-#undef FWD
 };
 
 struct my_game
@@ -453,7 +453,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init(){};
 
 	template <typename g>
 	decltype(auto)
@@ -480,7 +480,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit(){};
 
 	template <typename g>
 	decltype(auto)
@@ -541,12 +541,6 @@ struct sys_get_world
 	}
 };
 
-// using namespace ecs::system::op;
-// inline constexpr auto sys_scene_0_init_builder = [] { return sys_init{}
-//														   + ((sys_get_world<world_t1>{} | [](auto&& _) { std::println("world_t1 init"); })
-//															  ^ (sys_get_world<world_t2>() | [](auto&& _) { std::println("world_t2 init"); })
-//															  ^ (sys_get_world<world_t3>() | [](auto&& _) { std::println("world_t3 init"); })); };
-
 std::string
 get_type(auto&& val)
 {
@@ -557,5 +551,228 @@ get_type(auto&& val)
 	else if constexpr (std::is_rvalue_reference_v(val))
 	{
 		return "rvalue_ref";
+	}
+}
+
+void
+run_benchmark(auto&& game, auto it_num)
+{
+	{
+		std::mt19937					gen(19990827);
+		std::uniform_int_distribution<> dist(0, 7);
+
+		auto ent_count = 1;
+		auto time_now  = std::chrono::high_resolution_clock::now();
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, it_num))
+		{
+			auto rand_curr = dist(gen);
+			switch (rand_curr / 3)
+			{
+			case 0:
+			{
+				--ent_count;
+				[[fallthrough]];
+			}
+			case 1:
+			{
+				// new
+				switch (rand_prev)
+				{
+				case 0:
+				{
+					ent_count += 1;
+					break;
+				}
+				case 1:
+				{
+					ent_count += 3;
+					break;
+				}
+				case 2:
+				{
+					ent_count += 109;
+					break;
+				}
+				case 3:
+				{
+					ent_count -= 200;
+					break;
+				}
+				case 4:
+				{
+					ent_count += 20;
+					break;
+				}
+				case 5:
+				{
+					ent_count += 80;
+					break;
+				}
+				case 6:
+				{
+					ent_count -= 1002;
+					break;
+				}
+				case 7:
+				{
+					ent_count += 302;
+					break;
+				}
+				default:
+					break;
+				}
+				++ent_count;
+			}
+			case 2:
+			{
+				if (ent_count >> 2 & 1)
+				{
+					ent_count ^= ent_count << 13;
+				}
+				else
+				{
+					ent_count ^= ent_count >> 13;
+				}
+				if (ent_count & 0x1000)
+				{
+					ent_count ^= ent_count >> 17;
+				}
+				else
+				{
+					ent_count ^= ent_count << 17;
+				}
+				if (ent_count & 0x1000'0000)
+				{
+					ent_count ^= ent_count >> 19;
+				}
+				else
+				{
+					ent_count ^= ent_count << 19;
+				}
+			}
+			default:
+				break;
+			}
+
+			rand_prev = rand_curr;
+		}
+
+		auto du = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - time_now);
+		std::println("duration : {}", du);
+		std::println("{}", ent_count);
+	}
+	{
+		std::mt19937					gen(19990827);
+		std::uniform_int_distribution<> dist(0, 7);
+
+		auto& b = game.get_scene<scene_t1>().get_world<world_t3>();
+		// auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		uint32 ent		 = b.new_entity<>();
+		auto   ent_count = 1;
+		auto   time_now	 = std::chrono::high_resolution_clock::now();
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, it_num))
+		{
+			auto rand_curr = dist(gen);
+			switch (rand_curr / 3)
+			{
+			case 0:
+			{
+				// remove
+				b.remove_entity(ent);
+				--ent_count;
+				[[fallthrough]];
+			}
+			case 1:
+			{
+				// new
+				switch (rand_prev)
+				{
+				case 0:
+				{
+					ent = b.new_entity<>();
+					break;
+				}
+				case 1:
+				{
+					ent = b.new_entity<transform>();
+					break;
+				}
+				case 2:
+				{
+					ent = b.new_entity<bullet>();
+					break;
+				}
+				case 3:
+				{
+					ent = b.new_entity<rigid_body>();
+					break;
+				}
+				case 4:
+				{
+					ent = b.new_entity<transform, bullet>();
+					break;
+				}
+				case 5:
+				{
+					ent = b.new_entity<bullet, rigid_body>();
+					break;
+				}
+				case 6:
+				{
+					ent = b.new_entity<rigid_body, transform>();
+					break;
+				}
+				case 7:
+				{
+					ent = b.new_entity<rigid_body, bullet, transform>();
+					break;
+				}
+				default:
+					break;
+				}
+				++ent_count;
+			}
+			case 2:
+			{
+				// revert
+				if (b.has_component<transform>(ent))
+				{
+					b.remove_component<transform>(ent);
+				}
+				else
+				{
+					b.add_component<transform>(ent);
+				}
+				if (b.has_component<rigid_body>(ent))
+				{
+					b.remove_component<rigid_body>(ent);
+				}
+				else
+				{
+					b.add_component<rigid_body>(ent);
+				}
+				if (b.has_component<bullet>(ent))
+				{
+					b.remove_component<bullet>(ent);
+				}
+				else
+				{
+					b.add_component<bullet>(ent);
+				}
+			}
+			default:
+				break;
+			}
+
+			rand_prev = rand_curr;
+		}
+
+		auto du = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - time_now);
+		std::println("duration : {}", du);
+		if (ent_count != b.entity_count())
+		{
+			throw std::exception();
+		}
+		assert(ent_count == b.entity_count());
 	}
 }
