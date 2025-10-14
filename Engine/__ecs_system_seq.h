@@ -31,7 +31,7 @@ namespace ecs::system
 
 		static_assert(validate_seq<t_sys...>(), "seq: invalid seq");
 
-		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -56,7 +56,7 @@ namespace ecs::system
 		run_as_tpl(t_arg&&... arg)
 		{
 			using t_ret = decltype(run_impl<i>(FWD(arg)...));
-			if constexpr (std::is_void_v<t_ret>)
+			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, std::tuple<>>)
 			{
 				run_impl<i>(FWD(arg)...);
 				return std::tuple<>{};
@@ -72,7 +72,7 @@ namespace ecs::system
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 

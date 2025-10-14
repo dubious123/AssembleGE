@@ -100,6 +100,7 @@ main()
 
 		auto sys = seq{
 			sys_game_init{},
+			[]() { return "hi"; },
 			pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
 			par{
 				[](auto&& _) { std::println("hello"); },
@@ -154,8 +155,33 @@ main()
 		};
 
 
-		auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
-		p(_game);
-		sys(_game);
+		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | [](auto&& tpl) -> decltype(auto) { return std::get<0>(std::forward<decltype(tpl)>(tpl)); } | each_group{ query{}, [](auto&& i_group) {} };
+		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
+		// p(_game);
+
+		auto test_pipe = seq{ []() -> auto&& { return std::make_tuple(1, 2, 3); } } | [](int a, int b, int c) { std::println("second"); };
+
+		// test_pipe();
+
+
+		// auto test_par = par{
+		//	[](auto&& _) { std::println("hello"); },
+		//	pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
+		// };
+
+		// meta::print_type<decltype(test_par(_game))>();
+
+		auto test_seq = seq{
+			[]() { return 1; },
+			[]() { return std::tuple<>(); },
+			[]() { return 2; }
+		};
+
+		// meta::print_type<decltype(test_seq())>();
+
+
+		auto res = sys(_game);
+
+		// meta::print_type<decltype(res)>();
 	}
 }
