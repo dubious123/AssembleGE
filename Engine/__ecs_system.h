@@ -6,10 +6,48 @@ namespace ecs::system
 {
 	namespace detail
 	{
+		template <typename... t_val>
+		struct result_tpl
+		{
+			no_unique_addr std::tuple<t_val...> data;
+
+			constexpr result_tpl() = default;
+
+			constexpr result_tpl(std::tuple<t_val...>&& tpl) : data(FWD(tpl)){};
+
+			constexpr result_tpl(const std::tuple<t_val...>& tpl) : data(FWD(tpl)){};
+
+			constexpr result_tpl(result_tpl&&) noexcept = default;
+
+			constexpr result_tpl&
+			operator=(result_tpl&&) noexcept = default;
+
+			constexpr result_tpl(const result_tpl&) = delete;
+
+			constexpr result_tpl&
+			operator=(const result_tpl&) = delete;
+		};
+
+		// template <typename... t_u>
+		// result_tpl(std::tuple<t_u...>) -> result_tpl<t_u...>;
+
 		struct invalid_sys_call
 		{
 			invalid_sys_call() = delete;
 		};
+
+		template <typename t>
+		struct is_result_tpl_impl : std::false_type
+		{
+		};
+
+		template <typename... t_val>
+		struct is_result_tpl_impl<result_tpl<t_val...>> : std::true_type
+		{
+		};
+
+		template <typename t>
+		concept is_result_tpl = is_result_tpl_impl<t>::value;
 
 		template <typename t_from, typename t_to>
 		concept convertible_from = requires {
@@ -133,9 +171,10 @@ namespace ecs::system
 		// as required by the C++ standard, avoiding evaluation order issues with pack expansion.
 		template <typename t_tpl>
 		FORCE_INLINE constexpr decltype(auto)
-		tuple_cat_all(t_tpl&& tpl)
+		tuple_cat_all(t_tpl&& std_tpl)
 		{
-			return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
+			// return std::apply([](auto&&... res_tpl_arg) { return result_tpl{ std::tuple_cat((FWD(res_tpl_arg).data)...) }; }, FWD(std_tpl));
+			return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(std_tpl));
 		}
 
 		// template <typename t_tpl>

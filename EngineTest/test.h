@@ -241,7 +241,7 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 	static decltype(auto)
 	tuple_cat_all(std::tuple<t...>&& tpl)
 	{
-		return std::apply([](auto&&... arg) { return std::tuple_cat(FWD(arg)...); }, FWD(tpl));
+		return std::apply([](auto&&... arg) { return std::tuple_cat((FWD(arg))...); }, FWD(tpl));
 	}
 
 	template <typename... t_arg>

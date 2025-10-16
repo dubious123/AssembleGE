@@ -56,14 +56,19 @@ namespace ecs::system
 		run_as_tpl(t_arg&&... arg)
 		{
 			using t_ret = decltype(run_impl<i>(FWD(arg)...));
-			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, std::tuple<>>)
+			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::result_tpl<>>)
 			{
 				run_impl<i>(FWD(arg)...);
 				return std::tuple<>{};
 			}
 			else
 			{
-				return std::forward_as_tuple(run_impl<i>(FWD(arg)...));
+				return std::tuple(run_impl<i>(FWD(arg)...));
+
+				// meta::print_type<decltype(std::forward_as_tuple(run_impl<i>(FWD(arg)...)))>();
+				// meta::print_type<decltype(detail::result_tpl{ std::tuple(run_impl<i>(FWD(arg)...)) })>();
+				// return detail::result_tpl{ std::forward_as_tuple(run_impl<i>(FWD(arg)...)) };
+				//  return std::forward_as_tuple(run_impl<i>(FWD(arg)...));
 			}
 		}
 
@@ -79,7 +84,7 @@ namespace ecs::system
 			return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
 				return std::apply(
 					[this](auto&&... l_ref_arg) {
-						return tuple_cat_all(std::tuple<decltype(run_as_tpl<i>(FWD(l_ref_arg)...))...>{ run_as_tpl<i>(FWD(l_ref_arg)...)... });
+						return result_tpl{ tuple_cat_all(std::tuple<decltype(run_as_tpl<i>(FWD(l_ref_arg)...))...>{ run_as_tpl<i>(FWD(l_ref_arg)...)... }) };
 					},
 					args);
 			}(std::index_sequence_for<t_sys...>{});

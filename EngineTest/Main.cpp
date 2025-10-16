@@ -159,10 +159,22 @@ main()
 		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
 		// p(_game);
 
-		auto test_pipe = seq{ []() -> auto&& { return std::make_tuple(1, 2, 3); } } | [](int a, int b, int c) { std::println("second"); };
+		auto test_pipe = seq{
+			[]() { return 1; },
+			[]() { return 2.1f; },
+			[]() { return 3; },
+		} | [](int a, int&& b, int c) {
+			std::println("a: {}, b: {}, c: {}", a, b, c);
+		};
 
-		// test_pipe();
+		auto res2 = seq{
+			[]() { return 1; },
+			[]() { return 2.1f; },
+			[]() { return 3; },
 
+		}();
+
+		test_pipe();
 
 		// auto test_par = par{
 		//	[](auto&& _) { std::println("hello"); },
@@ -173,14 +185,35 @@ main()
 
 		auto test_seq = seq{
 			[]() { return 1; },
-			[]() { return std::tuple<>(); },
+			[]() { return std::tuple(); },	  // <-fixme : user tuple is also removed
+			[]() { return ecs::system::detail::result_tpl<>{}; },
 			[]() { return 2; }
 		};
 
+		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
+
+		auto test_res_2 = test_seq();
+
+		auto test_tpl_cat  = std::tuple_cat(std::tuple(2), std::tuple(std::tuple(3, 3)), std::tuple(2));
+		auto test_tpl_cat2 = std::tuple_cat(std::tuple(std::tuple(1), std::tuple(2)), std::tuple(4));
+		auto test_tpl_cat3 = std::tuple_cat(std::tuple(1), std::tuple(std::tuple()), std::tuple(), std::tuple(2));
+
+
+		auto test_seq_void = seq{
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
+
+		};
 		// meta::print_type<decltype(test_seq())>();
+		// meta::print_type<decltype(test_seq_void())>();
 
-
+		// std::tuple<ecs::system::detail::result_tpl<>>{
+		//	ecs::system::detail::result_tpl{ std::tuple<>{} }
+		// };
 		auto res = sys(_game);
+
 
 		// meta::print_type<decltype(res)>();
 	}

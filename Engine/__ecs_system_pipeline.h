@@ -37,6 +37,10 @@ namespace ecs::system
 				run_sys(sys_l, FWD(arg)...);
 				return run_sys(sys_r);
 			}
+			else if constexpr (is_result_tpl<t_ret_l>)
+			{
+				return std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...).data);
+			}
 			else
 			{
 				using t_ret_r = decltype(run_sys(sys_r, run_sys(sys_l, FWD(arg)...)));
