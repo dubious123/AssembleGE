@@ -68,14 +68,14 @@ namespace ecs::system
 	struct loop
 	{
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_cond	   sys_cond;
 		no_unique_addr t_sys_not_empty systems;
 
 		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys)
 			: sys_cond(FWD(sys_cond)),
-			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr loop() requires(std::is_empty_v<t_sys_cond> and ... and std::is_empty_v<t_sys>)
 		= default;
@@ -124,7 +124,7 @@ namespace ecs::system
 						  "[loop] sys_cond must return a type convertible to bool - check that it's callable and produces a condition-like value");
 
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
 							  "[loop] invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 

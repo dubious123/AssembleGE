@@ -25,13 +25,13 @@ namespace ecs::system
 	{
 		using t_self			  = seq<t_sys...>;
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_not_empty systems;
 
 		static_assert(validate_seq<t_sys...>(), "seq: invalid seq");
 
-		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -51,24 +51,21 @@ namespace ecs::system
 			}
 		}
 
-		template <std::size_t i, typename... t_arg>
+		template <std::size_t i, typename t_tpl>
 		FORCE_INLINE constexpr decltype(auto)
-		run_as_tpl(t_arg&&... arg)
+		run_impl_tpl(t_tpl& tpl)
 		{
-			using t_ret = decltype(run_impl<i>(FWD(arg)...));
-			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::result_tpl<>>)
+			using t_ret = decltype(std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl));
+			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::sys_result<>>)
 			{
-				run_impl<i>(FWD(arg)...);
-				return std::tuple<>{};
+				std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
+				return detail::__result_void{};
+				// return std::tuple<>{};
 			}
 			else
 			{
-				return std::tuple(run_impl<i>(FWD(arg)...));
-
-				// meta::print_type<decltype(std::forward_as_tuple(run_impl<i>(FWD(arg)...)))>();
-				// meta::print_type<decltype(detail::result_tpl{ std::tuple(run_impl<i>(FWD(arg)...)) })>();
-				// return detail::result_tpl{ std::forward_as_tuple(run_impl<i>(FWD(arg)...)) };
-				//  return std::forward_as_tuple(run_impl<i>(FWD(arg)...));
+				return std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl);
+				// return std::tuple{ std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl) };
 			}
 		}
 
@@ -77,16 +74,17 @@ namespace ecs::system
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
 			return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
-				return std::apply(
-					[this](auto&&... l_ref_arg) {
-						return result_tpl{ tuple_cat_all(std::tuple<decltype(run_as_tpl<i>(FWD(l_ref_arg)...))...>{ run_as_tpl<i>(FWD(l_ref_arg)...)... }) };
-					},
-					args);
+				return sys_result{
+					meta::make_filtered_tuple_from_tuple<detail::is_not_result_void>(
+						std::tuple<decltype(run_impl_tpl<i>(args))...>{ run_impl_tpl<i>(args)... })
+				};
+
+				// return sys_result{ tuple_cat_all(std::tuple<decltype(run_as_tpl<i>(args))...>{ run_as_tpl<i>(args)... }) };
 			}(std::index_sequence_for<t_sys...>{});
 		}
 	};

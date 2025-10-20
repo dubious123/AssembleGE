@@ -132,7 +132,7 @@ namespace ecs::system
 		static_assert(validate_match<t_sys_case...>(), "match: invalid template arguements");
 
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys_case...>()>;
-		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys_case...>;
+		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys_case...>;
 
 		no_unique_addr t_sys_selector  sys_selector;
 		no_unique_addr t_sys_not_empty sys_cases;

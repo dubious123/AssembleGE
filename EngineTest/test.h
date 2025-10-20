@@ -237,25 +237,25 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 {
 #define FWD(x) std::forward<decltype(x)>(x)
 
-	template <typename... t>
-	static decltype(auto)
-	tuple_cat_all(std::tuple<t...>&& tpl)
-	{
-		return std::apply([](auto&&... arg) { return std::tuple_cat((FWD(arg))...); }, FWD(tpl));
-	}
+	// template <typename... t>
+	// static decltype(auto)
+	// tuple_cat_all(std::tuple<t...>&& tpl)
+	//{
+	//	return std::apply([](auto&&... arg) { return std::tuple_cat((FWD(arg))...); }, FWD(tpl));
+	// }
 
-	template <typename... t_arg>
-	decltype(auto)
-	make_arg_tpl(t_arg&&... arg)
-	{
-		using t_arg_tpl = std::tuple<
-			std::conditional_t<
-				std::is_lvalue_reference_v<t_arg&&>,
-				t_arg&&,
-				std::remove_reference_t<t_arg>>...>;
+	// template <typename... t_arg>
+	// decltype(auto)
+	// make_arg_tpl(t_arg&&... arg)
+	//{
+	//	using t_arg_tpl = std::tuple<
+	//		std::conditional_t<
+	//			std::is_lvalue_reference_v<t_arg&&>,
+	//			t_arg&&,
+	//			std::remove_reference_t<t_arg>>...>;
 
-		return t_arg_tpl{ std::forward<t_arg>(arg)... };
-	}
+	//	return t_arg_tpl{ std::forward<t_arg>(arg)... };
+	//}
 
 	// template <typename... t_func, typename... t_arg>
 	// decltype(auto)
@@ -273,7 +273,7 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 	run_par(t_func&&... func)
 	{
 		return [](auto&&... async_op) {
-			return tuple_cat_all(std::tuple{ async_op.get()... });
+			return std::tuple{ async_op.get()... };
 		}(std::async(std::launch::async, FWD(func))...);
 	}
 
@@ -453,7 +453,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init(){};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	decltype(auto)
@@ -480,7 +480,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit(){};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	decltype(auto)

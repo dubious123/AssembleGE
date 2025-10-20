@@ -354,7 +354,8 @@ namespace ecs::utility
 			}
 
 			template <typename... t_unit_flex>
-			static constexpr decltype(auto) __after_with_flex()
+			static constexpr decltype(auto)
+			__after_with_flex()
 			{
 				return layout_builder_impl<t_layout_group..., layout_group<std::tuple<>, std::tuple<t_unit_flex...>>>{};
 			}
@@ -607,7 +608,7 @@ namespace ecs::utility
 			};
 		};
 
-		using known_type_tpl = meta::filtered_tuple_t<known_type, t_element...>;
+		using known_type_tpl = meta::filtered_variadic_t<known_type, t_element...>;
 
 		template <typename t_tag>
 		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t<typename match<t_tag>::template pred, known_type_tpl>>;

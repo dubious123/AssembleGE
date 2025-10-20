@@ -6,26 +6,35 @@ namespace ecs::system
 {
 	namespace detail
 	{
+		struct __result_void
+		{
+		};
+
+		template <typename t>
+		struct is_not_result_void : std::bool_constant<not std::is_same_v<t, __result_void>>
+		{
+		};
+
 		template <typename... t_val>
-		struct result_tpl
+		struct sys_result
 		{
 			no_unique_addr std::tuple<t_val...> data;
 
-			constexpr result_tpl() = default;
+			constexpr sys_result() = default;
 
-			constexpr result_tpl(std::tuple<t_val...>&& tpl) : data(FWD(tpl)){};
+			constexpr sys_result(std::tuple<t_val...>&& tpl) : data(FWD(tpl)) { };
 
-			constexpr result_tpl(const std::tuple<t_val...>& tpl) : data(FWD(tpl)){};
+			constexpr sys_result(const std::tuple<t_val...>& tpl) : data(FWD(tpl)) { };
 
-			constexpr result_tpl(result_tpl&&) noexcept = default;
+			constexpr sys_result(sys_result&&) noexcept = default;
 
-			constexpr result_tpl&
-			operator=(result_tpl&&) noexcept = default;
+			constexpr sys_result&
+			operator=(sys_result&&) noexcept = default;
 
-			constexpr result_tpl(const result_tpl&) = delete;
+			constexpr sys_result(const sys_result&) = delete;
 
-			constexpr result_tpl&
-			operator=(const result_tpl&) = delete;
+			constexpr sys_result&
+			operator=(const sys_result&) = delete;
 		};
 
 		// template <typename... t_u>
@@ -37,17 +46,17 @@ namespace ecs::system
 		};
 
 		template <typename t>
-		struct is_result_tpl_impl : std::false_type
+		struct is_sys_result_impl : std::false_type
 		{
 		};
 
 		template <typename... t_val>
-		struct is_result_tpl_impl<result_tpl<t_val...>> : std::true_type
+		struct is_sys_result_impl<sys_result<t_val...>> : std::true_type
 		{
 		};
 
 		template <typename t>
-		concept is_result_tpl = is_result_tpl_impl<t>::value;
+		concept is_sys_result = is_sys_result_impl<t>::value;
 
 		template <typename t_from, typename t_to>
 		concept convertible_from = requires {
@@ -58,10 +67,12 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires []<std::size_t... i>(std::index_sequence<i...>) {
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -165,16 +176,51 @@ namespace ecs::system
 			return arr;
 		}
 
+		template <typename t_tpl>
+		FORCE_INLINE constexpr decltype(auto)
+		unwrap(t_tpl&& tpl)
+		{
+			if constexpr (std::tuple_size_v<t_tpl> == 0)
+			{
+				return FWD(tpl);
+			}
+			else
+			{
+				return std::get<0>(FWD(tpl));
+			}
+		}
+
 		// Flattens a tuple of tuples into a single flat tuple.
 		// tuple_cat is used because some systems may return void (as empty tuples).
 		// We wrap system calls in a tuple (brace-initializer-list style) to guarantee left-to-right execution order,
 		// as required by the C++ standard, avoiding evaluation order issues with pack expansion.
 		template <typename t_tpl>
 		FORCE_INLINE constexpr decltype(auto)
-		tuple_cat_all(t_tpl&& std_tpl)
+		tuple_cat_all(t_tpl&& tpl)
 		{
-			// return std::apply([](auto&&... res_tpl_arg) { return result_tpl{ std::tuple_cat((FWD(res_tpl_arg).data)...) }; }, FWD(std_tpl));
-			return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(std_tpl));
+			// meta::print_type<t_tpl>();
+
+
+			using t_filtered_tuple = meta::filtered_tuple_t<meta::is_tuple_not_empty, t_tpl>;
+			meta::print_type<meta::filtered_tuple_t<meta::is_tuple_not_empty, t_tpl>>();
+
+			if constexpr (is_tuple_not_empty<t_filtered_tuple>::value)
+			{
+				return std::apply([](auto&&... tpl_arg) {
+					return std::tuple<decltype(std::get<0>(FWD(tpl_arg)))...>{
+						(std::get<0>(FWD(tpl_arg)))...
+					};
+				},
+								  meta::make_filtered_tuple_from_tuple<meta::is_tuple_not_empty>(FWD(tpl)));
+			}
+			else
+			{
+				return std::tuple<>{};
+			}
+			//  return std::apply([](auto&&... res_tpl_arg) { return result_tpl{ std::tuple_cat((FWD(res_tpl_arg).data)...) }; }, FWD(std_tpl));
+			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(std_tpl));
+			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(tpl));
+			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple((unwrap(FWD(res_tpl_arg)))...); }, FWD(tpl));
 		}
 
 		// template <typename t_tpl>

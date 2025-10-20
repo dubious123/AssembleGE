@@ -94,6 +94,28 @@ namespace meta
 		using type = t<ts...>;
 	};
 
+	// not standard yet
+	template <typename t>
+	inline constexpr bool is_tuple_like_v = false;
+
+	template <typename... t>
+	inline constexpr bool is_tuple_like_v<std::tuple<t...>> = true;
+
+	template <typename t1, typename t2>
+	inline constexpr bool is_tuple_like_v<std::pair<t1, t2>> = true;
+
+	template <typename t, size_t n>
+	inline constexpr bool is_tuple_like_v<std::array<t, n>> = true;
+
+	template <typename t_it, typename t_sent, std::ranges::subrange_kind t_kind>
+	inline constexpr bool is_tuple_like_v<std::ranges::subrange<t_it, t_sent, t_kind>> = true;
+
+	template <typename t>
+	concept tuple_like = is_tuple_like_v<std::remove_cvref_t<t>>;
+
+	template <typename t>
+	concept pair_like = tuple_like<t> and std::tuple_size_v<std::remove_cvref_t<t>> == 2;
+
 	template <typename t, typename h, typename... ts>
 	consteval bool
 	variadic_contains()
@@ -771,7 +793,7 @@ namespace meta
 	using filtered_index_sequence_t = decltype(make_filtered_index_sequence<pred, t...>());
 
 	template <template <typename> typename pred, typename... t>
-	struct filtered_tuple
+	struct filtered_variadic
 	{
 	  private:
 		template <std::size_t... i>
@@ -781,39 +803,53 @@ namespace meta
 		using type = decltype(helper(make_filtered_index_sequence<pred, t...>()));
 	};
 
-	template <typename t>
-	struct tuple_empty;
+	template <template <typename> typename pred, typename... t>
+	using filtered_variadic_t = filtered_variadic<pred, t...>::type;
 
-	template <>
-	struct tuple_empty<std::tuple<>>
+	template <typename t_tpl>
+	struct is_tuple_empty : std::bool_constant<std::tuple_size_v<t_tpl> == 0>
 	{
-		static constexpr auto value = true;
+	};
+
+	template <typename t_tpl>
+	struct is_tuple_not_empty : std::bool_constant<std::tuple_size_v<t_tpl> != 0>
+	{
 	};
 
 	template <typename... t>
-	struct tuple_empty<std::tuple<t...>>
-	{
-		static constexpr auto value = false;
-	};
+	inline static constexpr auto tuple_empty_v = is_tuple_empty<t...>::value;
 
 	template <typename... t>
-	inline static constexpr auto tuple_empty_v = tuple_empty<t...>::value;
+	inline static constexpr auto tuple_not_empty_v = is_tuple_empty<t...>::value;
+
+	template <template <typename> typename pred, typename... t>
+	struct filtered_tuple;
+
+	//{
+	//  private:
+	//	template <std::size_t... i>
+	//	static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
+
+	//  public:
+	//	using type = decltype(helper(make_filtered_index_sequence<pred, t...>()));
+	//};
 
 	template <template <typename> typename pred, typename... t>
 	struct filtered_tuple<pred, std::tuple<t...>>
 	{
-		using type = typename filtered_tuple<pred, t...>::type;
+		using type = typename filtered_variadic_t<pred, t...>;
 	};
 
-	template <template <typename> typename pred, typename... t>
-	using filtered_tuple_t = filtered_tuple<pred, t...>::type;
+	template <template <typename> typename pred, typename t>
+	using filtered_tuple_t = filtered_tuple<pred, t>::type;
 
 	template <template <typename> typename pred, typename... t>
 	constexpr decltype(auto)
 	make_filtered_tuple_from_tuple(std::tuple<t...>&& tpl)
 	{
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
-			return filtered_tuple_t<pred, t...>(std::get<i>(tpl)...);
+			return std::tuple<decltype(std::get<i>(tpl))...>(std::get<i>(tpl)...);
+			// return filtered_variadic_t<pred, t...>(std::get<i>(tpl)...);
 		}(make_filtered_index_sequence<pred, t...>());
 	}
 
@@ -823,7 +859,7 @@ namespace meta
 	{
 		auto&& args_tpl = std::forward_as_tuple(std::forward<t>(args)...);
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
-			return filtered_tuple_t<pred, t...>(std::forward<std::tuple_element_t<i, std::tuple<t&&...>>>(std::get<i>(args_tpl))...);
+			return filtered_variadic_t<pred, t...>(std::forward<std::tuple_element_t<i, std::tuple<t&&...>>>(std::get<i>(args_tpl))...);
 		}(make_filtered_index_sequence<pred, t...>());
 	}
 
@@ -987,8 +1023,8 @@ namespace meta
 	{
 	};
 
-	template <typename T>
-	struct is_not_empty : std::bool_constant<!std::is_empty_v<T>>
+	template <typename t>
+	struct is_not_empty : std::bool_constant<!std::is_empty_v<t>>
 	{
 	};
 

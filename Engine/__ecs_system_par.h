@@ -20,11 +20,11 @@ namespace ecs::system
 
 		using t_this			  = par<t_sys...>;
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-		using t_sys_not_empty	  = meta::filtered_tuple_t<meta::is_not_empty, t_sys...>;
+		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr par(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr par() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -58,31 +58,44 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		run_impl_tpl(t_tpl& tpl)
 		{
-			return std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
-		}
-
-		template <std::size_t i, typename t_tpl>
-		FORCE_INLINE constexpr decltype(auto)
-		run_as_tpl(t_tpl& tpl)
-		{
 			using t_ret = decltype(std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl));
-			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::result_tpl<>>)
+			if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::sys_result<>>)
 			{
 				std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
-				return std::tuple<>{};
+				return detail::__result_void{};
+				// return std::tuple<>{};
 			}
 			else
 			{
-				return std::tuple{ std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl) };
+				return std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl);
+				// return std::tuple{ std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl) };
 			}
+
+			// return std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
 		}
+
+		// template <std::size_t i, typename t_tpl>
+		// FORCE_INLINE constexpr decltype(auto)
+		// run_as_tpl(t_tpl& tpl)
+		//{
+		//	using t_ret = decltype(std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl));
+		//	if constexpr (std::is_void_v<t_ret> or std::is_same_v<t_ret, detail::sys_result<>>)
+		//	{
+		//		std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
+		//		return std::tuple<>{};
+		//	}
+		//	else
+		//	{
+		//		return std::tuple{ std::apply([this](auto&&... arg) -> decltype(auto) { return run_impl<i>(FWD(arg)...); }, tpl) };
+		//	}
+		// }
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
 							  "[par] invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
@@ -92,17 +105,46 @@ namespace ecs::system
 				// default
 				return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
 					return [](auto&&... async_op) {
-						return result_tpl{ tuple_cat_all(std::tuple{ async_op.get()... }) };
-					}(std::async(std::launch::async, [this, &args]() { return run_as_tpl<i>(args); })...);
+						return sys_result{
+							meta::make_filtered_tuple_from_tuple<detail::is_not_result_void>(
+								std::tuple<decltype(async_op.get())...>{ async_op.get()... })
+						};
+
+						// return sys_result{ tuple_cat_all(std::tuple{ async_op.get()... }) };
+					}(std::async(std::launch::async, [this, &args]() { return run_impl_tpl<i>(args); })...);
 				}(std::index_sequence_for<t_sys...>{});
 			}
 			else
 			{
 				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
-				return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
-					auto& par_exe = std::get<par_exec_idx>(args).__parallel_executor;
-					return result_tpl{ par_exe.run_par(([this, &args] { return run_as_tpl<i>(args); })...) };
-				}(std::index_sequence_for<t_sys...>{});
+
+				return sys_result{
+					meta::make_filtered_tuple_from_tuple<detail::is_not_result_void>(
+						[this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+							return std::get<par_exec_idx>(args).__parallel_executor.run_par(
+								([this, &args]() { return run_impl_tpl<i>(args); })...);
+						}(std::index_sequence_for<t_sys...>{}))
+
+
+					// meta::make_filtered_tuple_from_tuple<detail::is_not_result_void>(
+					//	par_exe.run_par(
+
+
+					//		([this, &args]() {
+					//			return []<auto... i>(std::index_sequence<i...>) {
+					//				return run_impl_tpl<i>(args);
+					//			}(std::index_sequence_for<t_sys...>{});
+					//		})...)
+
+
+					//)
+				};
+
+				// return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+				//	auto& par_exe = std::get<par_exec_idx>(args).__parallel_executor;
+
+				//	return sys_result{ par_exe.run_par(([this, &args] { return run_impl_tpl<i>(args); })...) };
+				//}(std::index_sequence_for<t_sys...>{});
 			}
 		}
 	};
