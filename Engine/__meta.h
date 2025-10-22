@@ -4,6 +4,7 @@
 #include <tuple>
 #include <ranges>
 #include "__macro_foreach.h"
+#include "__common.h"
 #define STR_HASH(x) (meta::MM<sizeof(x) - 1>::crc32(x))
 
 namespace meta
@@ -844,23 +845,22 @@ namespace meta
 	using filtered_tuple_t = filtered_tuple<pred, t>::type;
 
 	template <template <typename> typename pred, typename... t>
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	make_filtered_tuple_from_tuple(std::tuple<t...>&& tpl)
 	{
 		return [&]<std::size_t... i>(std::index_sequence<i...>) {
-			return std::tuple<decltype(std::get<i>(tpl))...>(std::get<i>(tpl)...);
-			// return filtered_variadic_t<pred, t...>(std::get<i>(tpl)...);
+			// return std::tuple<decltype(std::move(std::get<i>(tpl)))...>(std::move(std::get<i>(tpl))...);
+			return filtered_variadic_t<pred, t...>(std::move(std::get<i>(tpl))...);
 		}(make_filtered_index_sequence<pred, t...>());
 	}
 
 	template <template <typename> typename pred, typename... t>
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	make_filtered_tuple(t&&... args)
 	{
-		auto&& args_tpl = std::forward_as_tuple(std::forward<t>(args)...);
-		return [&]<std::size_t... i>(std::index_sequence<i...>) {
+		return [&]<std::size_t... i>(std::index_sequence<i...>, auto&& args_tpl) {
 			return filtered_variadic_t<pred, t...>(std::forward<std::tuple_element_t<i, std::tuple<t&&...>>>(std::get<i>(args_tpl))...);
-		}(make_filtered_index_sequence<pred, t...>());
+		}(make_filtered_index_sequence<pred, t...>(), std::tuple(std::forward<t>(args)...));
 	}
 
 	template <typename t, typename... ts>

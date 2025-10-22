@@ -265,7 +265,14 @@ main()
 		// todo dangling 문제 해결, return type이 모두 ref임
 		auto res = sys(_game);
 
+		{
+			auto tpl_test = std::tuple{ [] { std::print("a"); return 1; }(), ([] { std::print("b"); }(), [] { std::print("c"); return 2; }()) };
+			// meta::print_type<decltype(tpl_test)>();
+		}
 
-		meta::print_type<decltype(res)>();
+		// 1. sys 보고 partition 하기 ( void .... void non_void, void .... void non_void, void .... void non_void void ...)
+		// -> std::index_sequence< 3, 5, 6, 9  >
+
+		// meta::print_type<decltype(res)>();
 	}
 }
