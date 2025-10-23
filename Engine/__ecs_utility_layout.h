@@ -319,7 +319,7 @@ namespace ecs::utility
 				else
 				{
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
-						using tpl	 = meta::pop_back_t<t_layout_group...>;
+						using tpl	 = meta::pop_back_tpl_t<std::tuple<t_layout_group...>>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
 						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with<t_unit...>>{};
 					}(std::make_index_sequence<sizeof...(t_layout_group) - 1>{});
@@ -338,7 +338,7 @@ namespace ecs::utility
 				{
 
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
-						using tpl	 = meta::pop_back_t<t_layout_group...>;
+						using tpl	 = meta::pop_back_tpl_t<std::tuple<t_layout_group...>>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
 
 						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with_flex<t_unit_flex...>>{};
@@ -485,7 +485,7 @@ namespace ecs::utility
 		template <typename t>
 		concept has_count_compile = requires {
 			{
-				[]<auto v = t::count>() { }
+				[]<auto v = t::count>(){}
 			};
 		};
 

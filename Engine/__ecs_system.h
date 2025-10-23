@@ -11,7 +11,7 @@ namespace ecs::system
 		};
 
 		template <typename t>
-		struct is_not_result_void : std::bool_constant<not std::is_same_v<t, __result_void>>
+		struct is_result_not_void : std::bool_constant<not std::is_same_v<t, __result_void>>
 		{
 		};
 
@@ -22,9 +22,9 @@ namespace ecs::system
 
 			constexpr sys_result() = default;
 
-			constexpr sys_result(std::tuple<t_val...>&& tpl) : data(FWD(tpl)) { };
+			constexpr sys_result(std::tuple<t_val...>&& tpl) : data(FWD(tpl)){};
 
-			constexpr sys_result(const std::tuple<t_val...>& tpl) : data(FWD(tpl)) { };
+			constexpr sys_result(const std::tuple<t_val...>& tpl) : data(FWD(tpl)){};
 
 			constexpr sys_result(sys_result&&) noexcept = default;
 
@@ -36,9 +36,6 @@ namespace ecs::system
 			constexpr sys_result&
 			operator=(const sys_result&) = delete;
 		};
-
-		// template <typename... t_u>
-		// result_tpl(std::tuple<t_u...>) -> result_tpl<t_u...>;
 
 		struct invalid_sys_call
 		{
@@ -67,12 +64,10 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -90,6 +85,52 @@ namespace ecs::system
 			&std::remove_cvref_t<t_callable>::operator();
 		};
 
+		// return (a, a+1, ..., b-1, b)
+		template <std::size_t a, std::size_t b>
+		using index_range_t = decltype([]<auto... i>(std::index_sequence<i...>) {
+			return std::index_sequence<(a + i)...>{};
+		}(std::make_index_sequence<b - a + 1>{}));
+
+		template <std::size_t arr_size, typename t_filtered_idx_seq>
+		struct index_ranges_seq;
+
+		template <std::size_t arr_size>
+		struct index_ranges_seq<arr_size, std::index_sequence<>>
+		{
+			using type = meta::type_pack<index_range_t<0, arr_size>>;
+		};
+
+		template <std::size_t arr_size, std::size_t idx_head>
+		struct index_ranges_seq<arr_size, std::index_sequence<idx_head>>
+		{
+			using type = meta::type_pack<>;
+		};
+
+		template <std::size_t arr_size, std::size_t idx_head, std::size_t idx_next, std::size_t... idx_tail>
+		struct index_ranges_seq<arr_size, std::index_sequence<idx_head, idx_next, idx_tail...>>
+		{
+			using type = meta::type_pack_cat_t<
+				meta::type_pack<index_range_t<idx_head, idx_next>>,
+				typename index_ranges_seq<arr_size, std::index_sequence<idx_next + 1, idx_tail...>>::type>;
+		};
+
+		template <std::size_t arr_size, typename t_filtered_idx_seq>
+		using index_ranges_seq_t = index_ranges_seq<
+			arr_size,
+			meta::index_sequence_cat_t<
+				std::index_sequence<0>,
+				decltype([] {
+					if constexpr (meta::index_sequence_size_v<t_filtered_idx_seq> == 0)
+					{
+						return std::index_sequence<>{};
+					}
+					else
+					{
+						return meta::pop_back_seq_t<t_filtered_idx_seq>{};
+					}
+				}()),
+				std::index_sequence<arr_size>>>::type;
+
 		template <typename t_to, typename t_from>
 		FORCE_INLINE constexpr decltype(auto)
 		make_param(t_from&& arg)
@@ -102,12 +143,6 @@ namespace ecs::system
 			{
 				return t_to{ FWD(arg) };
 			}
-		}
-
-		template <typename t_from, typename t_to>
-		FORCE_INLINE constexpr decltype(auto)
-		run_sys_helper(t_from&& arg)
-		{
 		}
 
 		template <typename t_sys, typename... t_arg>
@@ -174,20 +209,6 @@ namespace ecs::system
 			}
 
 			return arr;
-		}
-
-		template <typename t_tpl>
-		FORCE_INLINE constexpr decltype(auto)
-		unwrap(t_tpl&& tpl)
-		{
-			if constexpr (std::tuple_size_v<t_tpl> == 0)
-			{
-				return FWD(tpl);
-			}
-			else
-			{
-				return std::get<0>(FWD(tpl));
-			}
 		}
 
 		// Flattens a tuple of tuples into a single flat tuple.

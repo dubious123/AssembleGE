@@ -221,6 +221,9 @@ namespace meta
 	template <unsigned int idx, auto... tails>
 	inline constexpr auto variadic_auto_at_v = variadic_auto_at<idx, tails...>::value;
 
+	template <auto... i>
+	inline constexpr auto variadic_auto_back_v = variadic_auto_at<sizeof...(i) - 1, i...>::value;
+
 	template <template <typename...> typename pred, typename t_default, typename... t>
 	struct variadic_find
 	{
@@ -627,16 +630,32 @@ namespace meta
 	template <typename... t>
 	struct pop_back<std::tuple<t...>>
 	{
-	  private:
-		template <std::size_t... i>
-		static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
+		static_assert(sizeof...(t) > 0);
+		using type = decltype([]<auto... i>(std::index_sequence<i...>) {
+			return std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>{};
+		}(std::make_index_sequence<sizeof...(t) - 1>{}));
+		// private:
+		// template <std::size_t... i>
+		// static auto helper(std::index_sequence<i...>) -> std::tuple<std::tuple_element_t<i, std::tuple<t...>>...>;
 
-	  public:
-		using type = decltype(helper(std::make_index_sequence<sizeof...(t) - 1>{}));
+		// public:
+		// using type = decltype(helper(std::make_index_sequence<sizeof...(t) - 1>{}));
+	};
+
+	template <std::size_t... i>
+	struct pop_back<std::index_sequence<i...>>
+	{
+		static_assert(sizeof...(i) > 0);
+		using type = decltype([]<auto... n>(std::index_sequence<n...>) {
+			return std::index_sequence<(meta::variadic_auto_at_v<n, i...>)...>{};
+		}(std::make_index_sequence<sizeof...(i) - 1>{}));
 	};
 
 	template <typename... t>
-	using pop_back_t = typename pop_back<std::tuple<t...>>::type;
+	using pop_back_tpl_t = typename pop_back<std::tuple<t...>>::type;
+
+	template <typename t_seq>
+	using pop_back_seq_t = typename pop_back<t_seq>::type;
 
 	template <typename t>
 	struct arr_size;
@@ -715,17 +734,23 @@ namespace meta
 	template <auto arr>
 	using arr_to_seq_t = decltype(arr_to_seq<arr>());
 
-	template <typename t_seq_l, typename t_seq_r>
+	template <typename... t_seq>
 	struct index_sequence_cat;
 
-	template <std::size_t... i1, std::size_t... i2>
-	struct index_sequence_cat<std::index_sequence<i1...>, std::index_sequence<i2...>>
+	template <std::size_t... i1, std::size_t... i2, typename... t_seq_tail>
+	struct index_sequence_cat<std::index_sequence<i1...>, std::index_sequence<i2...>, t_seq_tail...>
 	{
-		using type = std::index_sequence<i1..., i2...>;
+		using type = typename index_sequence_cat<std::index_sequence<i1..., i2...>, t_seq_tail...>::type;
 	};
 
-	template <typename t_seq_l, typename t_seq_r>
-	using index_sequence_cat_t = typename index_sequence_cat<t_seq_l, t_seq_r>::type;
+	template <std::size_t... i>
+	struct index_sequence_cat<std::index_sequence<i...>>
+	{
+		using type = std::index_sequence<i...>;
+	};
+
+	template <typename... t_seq>
+	using index_sequence_cat_t = typename index_sequence_cat<t_seq...>::type;
 
 	template <typename t>
 	using value_or_ref_t = std::conditional_t<
@@ -904,6 +929,29 @@ namespace meta
 
 	template <auto v, auto... ts>
 	concept variadic_auto_unique = variadic_unique<auto_wrapper<v>, auto_wrapper<ts>...>;
+
+	template <typename... t>
+	struct type_pack
+	{
+	};
+
+	template <typename... t_pack>
+	struct type_pack_cat;
+
+	template <typename... t>
+	struct type_pack_cat<type_pack<t...>>
+	{
+		using type = type_pack<t...>;
+	};
+
+	template <typename... t1, typename... t2, typename... t_pack>
+	struct type_pack_cat<type_pack<t1...>, type_pack<t2...>, t_pack...>
+	{
+		using type = typename type_pack_cat<type_pack<t1..., t2...>, t_pack...>::type;
+	};
+
+	template <typename... t>
+	using type_pack_cat_t = type_pack_cat<t...>::type;
 
 	template <unsigned int n>
 	struct string_wrapper

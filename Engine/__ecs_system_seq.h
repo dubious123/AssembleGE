@@ -31,7 +31,7 @@ namespace ecs::system
 
 		static_assert(validate_seq<t_sys...>(), "seq: invalid seq");
 
-		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+		constexpr seq(t_sys&&... sys) : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr seq() requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -69,18 +69,92 @@ namespace ecs::system
 			}
 		}
 
+		// template <typename t_sys_idx_seq>
+		// struct run_helper;
+
+		// template <std::size_t... sys_idx>
+		// struct run_helper<std::index_sequence<sys_idx...>>
+		//{
+		//	static_assert(sizeof...(sys_idx) > 0);
+
+		//	template <typename t_tpl>
+		//	FORCE_INLINE constexpr decltype(auto)
+		//	operator()(t_tpl& arg_tpl)
+		//	{
+		//		using last_sys_res_t = decltype(run_impl_tpl<meta::variadic_auto_back_v<sys_idx...>>(arg_tpl));
+		//		if constexpr (detail::is_result_not_void<last_sys_res_t>::value)
+		//		{
+		//			return (run_impl_tpl<sys_idx>(arg_tpl), ...);
+		//		}
+		//		else
+		//		{
+		//			constexpr auto res_not_void_sys_idx =
+		//				meta::index_sequence_back_v<
+		//					meta::filtered_index_sequence_t<
+		//						detail::is_result_not_void, decltype(run_impl_tpl<sys_idx>(arg_tpl))...>>;
+
+		//			static_assert(res_not_void_sys_idx < (sizeof...(t_sys) - 1));
+
+		//			decltype(auto) res = run_helper<
+		//				detail::index_range_t<
+		//					meta::variadic_auto_at_v<0, sys_idx...>,
+		//					res_not_void_sys_idx>>{}(arg_tpl);
+
+		//			[this, &arg_tpl]<auto... i>(std::index_sequence<i...>) {
+		//				return (run_impl_tpl<i>(arg_tpl), ...);
+		//			}(detail::index_range_t<res_not_void_sys_idx + 1, meta::variadic_auto_back_v<sys_idx...>>());
+
+		//			// if constexpr (decltype(res))
+
+		//			return res;
+		//		}
+		//	}
+		//};
+
+		// template <typename... t_idx_seq>
+		// struct run_helper<std::tuple<t_idx_seq...>>
+		//{
+		//	template <typename t_arg_tpl>
+		//	FORCE_INLINE constexpr decltype(auto)
+		//	operator()(t_arg_tpl& arg_tpl)
+		//	{
+		//		return sys_result{ std::tuple{ run_helper<t_idx_seq>{}(arg_tpl)... } };
+		//	}
+		// };
+
+		template <typename t_arg_tpl, typename... t_sys_idx>
+		FORCE_INLINE constexpr decltype(auto)
+		run_subrange(t_arg_tpl& arg_tpl, std::index_sequence<t_sys_idx...>)
+		{
+			// todo from here
+		}
+
+		template <typename t_arg_tpl, typename... t_idx_seq>
+		FORCE_INLINE constexpr decltype(auto)
+		run_helper(t_arg_tpl& arg_tpl, meta::type_pack<t_idx_seq...>)
+		{
+			return sys_result{ run_helper(arg_tpl, t_idx_seq{})... };
+		}
+
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg)
 		{
 			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
+				static_assert(((not std::is_same_v<decltype(run_impl<i>(FWD(arg)...)), invalid_sys_call>)&&...),
 							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}(std::index_sequence_for<t_sys...>{});
 
 			return [this, args = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) {
+				//	return run_helper<
+				//		detail::index_ranges_seq_t<
+				//			sizeof...(t_sys),
+				//			meta::filtered_index_sequence_t<
+				//				detail::is_result_not_void, decltype(run_impl_tpl<i>(args))...>>>(args);
+
+
 				return sys_result{
-					meta::make_filtered_tuple_from_tuple<detail::is_not_result_void>(
+					meta::make_filtered_tuple_from_tuple<detail::is_result_not_void>(
 						std::tuple<decltype(run_impl_tpl<i>(args))...>{ run_impl_tpl<i>(args)... })
 				};
 
