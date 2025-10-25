@@ -224,6 +224,9 @@ namespace meta
 	template <auto... i>
 	inline constexpr auto variadic_auto_back_v = variadic_auto_at<sizeof...(i) - 1, i...>::value;
 
+	template <auto... i>
+	inline constexpr auto variadic_auto_front_v = variadic_auto_at<0, i...>::value;
+
 	template <template <typename...> typename pred, typename t_default, typename... t>
 	struct variadic_find
 	{
@@ -260,6 +263,9 @@ namespace meta
 
 	template <typename seq>
 	inline constexpr auto index_sequence_size_v = index_sequence_size<seq>::value;
+
+	template <typename t_seq>
+	inline constexpr bool index_sequence_empty_v = index_sequence_size_v<t_seq> == 0;
 
 	template <std::size_t i, typename seq>
 	struct index_sequence_at;
