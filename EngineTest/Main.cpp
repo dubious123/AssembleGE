@@ -178,15 +178,16 @@ main()
 		// meta::print_type<decltype(res2)>();
 
 
-		test_pipe();
+		// test_pipe();
 
 		auto test_seq = seq{
 			[]() { return 1; },
 			[]() { return std::tuple(2); },	   // <-fixme : user tuple is also removed
 			[]() {},
-			[]() { return ecs::system::detail::sys_result<>{}; },
+			[]() { return std::tuple<>(); },
 			[]() { return 2; }
 		};
+
 
 		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
 
@@ -204,14 +205,16 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
 
 		};
 		// meta::print_type<decltype(test_seq())>();
 		// meta::print_type<decltype(test_seq_void())>();
+
+		// result_type{}
 
 		// std::tuple<ecs::system::detail::result_tpl<>>{
 		//	ecs::system::detail::result_tpl{ std::tuple<>{} }
@@ -220,44 +223,16 @@ main()
 		// todo dangling 문제 해결, return type이 모두 ref임
 		auto res = sys(_game);
 
+		// meta::print_type<decltype(res)>();
 		{
 			auto tpl_test = std::tuple{ [] { std::print("a"); return 1; }(), ([] { std::print("b"); }(), [] { std::print("c"); return 2; }()) };
 			// meta::print_type<decltype(tpl_test)>();
-
-			static_assert(std::is_same_v<
-						  std::index_sequence<4, 5, 6, 7>,
-						  ecs::system::detail::index_range_t<4, 7>>);
-
-
 			// meta::print_type<ecs::system::detail::index_range_t<0, 0>>();
 
 			std::println("size : {}", sizeof(ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<0, 3, 4, 7, 10>>));
-
-			// meta::print_type<ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<0, 3, 4, 7, 10>>>();
-			//  meta::print_type<ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<>>>();
-			//   meta::print_type<ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<5, 7>>>();
-
-			// <>
-			// <2>
-			// <0, 13>
-			// 0 3 4 7 10
-			//
-			// 0 0 3 4 7 13
-			//
-			// 1 3 4 7 13
-			// 4 4 7 13
-			// 5 7 13
-			// 8 - 13
-			// 0-0, (0+1)-3,(3+1)-4, (4+1)-7, (7+1)-13
-
 			// meta::print_type<decltype(ecs::system::detail::make_index_range<4, 7>())>();
 		}
 
-		// 1. sys 보고 partition 하기 ( void .... void non_void, void .... void non_void, void .... void non_void void ...)
-		// -> std::index_sequence< 3, 5, 6, 9  >
-
 		// meta::print_type<decltype(res)>();
-
-		// < a, b > -> < a, a+1, ..., b-1, b>
 	}
 }

@@ -6,54 +6,45 @@ namespace ecs::system
 {
 	namespace detail
 	{
-		struct __result_void
-		{
-		};
+		// template <typename... t_val>
+		// struct sys_result
+		//{
+		//	no_unique_addr std::tuple<t_val...> data;
 
-		template <typename t>
-		struct is_result_not_void : std::bool_constant<not std::is_same_v<t, __result_void> or not std::is_void_v<t>>
-		{
-		};
+		//	constexpr sys_result() = default;
 
-		template <typename... t_val>
-		struct sys_result
-		{
-			no_unique_addr std::tuple<t_val...> data;
+		//	constexpr sys_result(std::tuple<t_val...>&& tpl) : data(FWD(tpl)){};
 
-			constexpr sys_result() = default;
+		//	constexpr sys_result(const std::tuple<t_val...>& tpl) : data(FWD(tpl)){};
 
-			constexpr sys_result(std::tuple<t_val...>&& tpl) : data(FWD(tpl)) { };
+		//	constexpr sys_result(sys_result&&) noexcept = default;
 
-			constexpr sys_result(const std::tuple<t_val...>& tpl) : data(FWD(tpl)) { };
+		//	constexpr sys_result&
+		//	operator=(sys_result&&) noexcept = default;
 
-			constexpr sys_result(sys_result&&) noexcept = default;
+		//	constexpr sys_result(const sys_result&) = delete;
 
-			constexpr sys_result&
-			operator=(sys_result&&) noexcept = default;
-
-			constexpr sys_result(const sys_result&) = delete;
-
-			constexpr sys_result&
-			operator=(const sys_result&) = delete;
-		};
+		//	constexpr sys_result&
+		//	operator=(const sys_result&) = delete;
+		//};
 
 		struct invalid_sys_call
 		{
 			invalid_sys_call() = delete;
 		};
 
-		template <typename t>
-		struct is_sys_result_impl : std::false_type
-		{
-		};
+		// template <typename t>
+		// struct is_sys_result_impl : std::false_type
+		//{
+		// };
 
-		template <typename... t_val>
-		struct is_sys_result_impl<sys_result<t_val...>> : std::true_type
-		{
-		};
+		// template <typename... t_val>
+		// struct is_sys_result_impl<sys_result<t_val...>> : std::true_type
+		//{
+		// };
 
-		template <typename t>
-		concept is_sys_result = is_sys_result_impl<t>::value;
+		// template <typename t>
+		// concept is_sys_result = is_sys_result_impl<t>::value;
 
 		template <typename t_from, typename t_to>
 		concept convertible_from = requires {
@@ -64,12 +55,10 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>

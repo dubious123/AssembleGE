@@ -37,9 +37,11 @@ namespace ecs::system
 				run_sys(sys_l, FWD(arg)...);
 				return run_sys(sys_r);
 			}
-			else if constexpr (is_sys_result<t_ret_l>)
+			else if constexpr (
+				constexpr auto can_apply_structured_binding =
+					meta::is_tuple_like_v<t_ret_l> and not std::is_same_v<invalid_sys_call, decltype(std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...)))>)
 			{
-				return std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...).data);
+				return std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...));
 			}
 			else
 			{

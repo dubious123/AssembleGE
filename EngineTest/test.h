@@ -272,9 +272,25 @@ struct par_exec_test : ecs::system::detail::__parallel_executor_base
 	decltype(auto)
 	run_par(t_func&&... func)
 	{
-		return [](auto&&... async_op) {
-			return std::tuple{ async_op.get()... };
-		}(std::async(std::launch::async, FWD(func))...);
+		using t_sys_res_not_void =
+			meta::filtered_index_sequence_t<
+				meta::is_not_void,
+				decltype(FWD(func)())...>;
+
+		using t_sys_res_void =
+			meta::filtered_index_sequence_t<
+				std::is_void,
+				decltype(FWD(func)())...>;
+
+		return [this](auto&& async_op_tpl) -> decltype(auto) {
+			[&]<auto... i>(std::index_sequence<i...>) {
+				((std::get<i>(async_op_tpl).get()), ...);
+			}(t_sys_res_void{});
+
+			return [&]<auto... i>(std::index_sequence<i...>) {
+				return std::tuple{ std::get<i>(async_op_tpl).get()... };
+			}(t_sys_res_not_void{});
+		}(std::tuple{ std::async(std::launch::async, FWD(func))... });
 	}
 
 	void
@@ -453,7 +469,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init() { };
+	constexpr sys_game_init(){};
 
 	template <typename g>
 	decltype(auto)
@@ -480,7 +496,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit() { };
+	constexpr sys_game_deinit(){};
 
 	template <typename g>
 	decltype(auto)

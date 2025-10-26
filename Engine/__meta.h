@@ -117,6 +117,14 @@ namespace meta
 	template <typename t>
 	concept pair_like = tuple_like<t> and std::tuple_size_v<std::remove_cvref_t<t>> == 2;
 
+	template <typename t>
+	struct is_not_void : std::is_void<t>
+	{
+	};
+
+	template <typename t>
+	inline constexpr bool is_not_void_v = meta::is_not_void<t>::value;
+
 	template <typename t, typename h, typename... ts>
 	consteval bool
 	variadic_contains()
@@ -765,7 +773,7 @@ namespace meta
 		std::remove_reference_t<t>>;
 
 	template <typename T>
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	as_value_or_ref(T&& value)
 	{
 		if constexpr (std::is_lvalue_reference_v<T>)
