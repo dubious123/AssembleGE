@@ -132,7 +132,7 @@ namespace ecs::system
 
 			auto args = make_arg_tpl(FWD(arg)...);
 
-			std::apply(
+			meta::tuple_unpack(
 				[this](auto&&... arg) noexcept {
 					while (run_sys(sys_cond, FWD(arg)...))
 					{

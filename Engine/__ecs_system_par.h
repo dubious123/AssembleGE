@@ -58,7 +58,7 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		run_impl_tpl(t_tpl&& tpl) noexcept
 		{
-			return std::apply([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, tpl);
+			return meta::tuple_unpack([this](auto&&... arg) { return run_impl<i>(FWD(arg)...); }, FWD(tpl));
 		}
 
 		template <typename t_tpl, std::size_t... i>
@@ -84,13 +84,13 @@ namespace ecs::system
 			else
 			{
 				return [](auto&& async_op_tpl) noexcept -> decltype(auto) {
-					[]<auto... sys_idx>(std::index_sequence<sys_idx...>) noexcept {
+					[]<auto... sys_idx>(std::index_sequence<sys_idx...>, auto&& async_op_tpl) noexcept {
 						((std::get<sys_idx>(async_op_tpl).get()), ...);
-					}(t_sys_res_void{});
+					}(t_sys_res_void{}, FWD(async_op_tpl));
 
-					return [&]<auto... sys_idx>(std::index_sequence<sys_idx...>) noexcept {
+					return []<auto... sys_idx>(std::index_sequence<sys_idx...>, auto&& async_op_tpl) noexcept INLINE_LAMBDA {
 						return std::tuple{ std::get<sys_idx>(async_op_tpl).get()... };
-					}(t_sys_res_not_void{});
+					}(t_sys_res_not_void{}, FWD(async_op_tpl));
 				}(std::tuple{ std::async(std::launch::async, [this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })... });
 			}
 		}
@@ -112,7 +112,7 @@ namespace ecs::system
 			{
 				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
 
-				return [this, arg_tpl = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) mutable noexcept {
+				return [this, arg_tpl = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) mutable noexcept INLINE_LAMBDA {
 					return std::get<par_exec_idx>(arg_tpl).__parallel_executor.run_par(([this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })...);
 				}(std::index_sequence_for<t_sys...>{});
 			}

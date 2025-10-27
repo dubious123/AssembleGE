@@ -24,11 +24,6 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg) noexcept
 		{
-			if constexpr (requires { sys_l.__run_pipe(sys_r, FWD(arg)...); })
-			{
-				return sys_l.__run_pipe(sys_r, FWD(arg)...);
-			}
-
 			using t_ret_l = decltype(run_sys(sys_l, FWD(arg)...));
 			static_assert(meta::is_not_same_v<t_ret_l, invalid_sys_call>,
 						  "[pipe] invalid_sys_call - check that system left is callable with given arguments.");
@@ -44,10 +39,10 @@ namespace ecs::system
 			}
 			else if constexpr (meta::is_tuple_like_v<t_ret_l>)
 			{
-				using t_ret_r = decltype(std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...)));
+				using t_ret_r = decltype(meta::tuple_unpack([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...)));
 				if constexpr (meta::is_not_same_v<t_ret_r, invalid_sys_call>)
 				{
-					return std::apply([this](auto&&... l_ref_arg) noexcept { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...));
+					return meta::tuple_unpack([this](auto&&... l_ref_arg) noexcept { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...));
 				}
 				else
 				{

@@ -223,7 +223,7 @@ namespace ecs::system
 
 			auto args = make_arg_tpl(FWD(arg)...);
 
-			return std::apply(
+			return meta::tuple_unpack(
 				[this](auto&&... arg) noexcept {
 					auto key = run_sys(sys_selector, FWD(arg)...);
 

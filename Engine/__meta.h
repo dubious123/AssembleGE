@@ -1188,6 +1188,16 @@ namespace meta
 				n <= std::numeric_limits<uint32>::max(), uint32,
 				uint64>>>;
 
+	template <typename t_func, typename t_tpl>
+	requires meta::tuple_like<t_tpl>
+	FORCE_INLINE constexpr decltype(auto)
+	tuple_unpack(t_func&& func, t_tpl&& tpl) noexcept
+	{
+		return []<auto... i>(std::index_sequence<i...>, auto&& func, auto&& tpl) {
+			return func(std::get<i>(tpl)...);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl));
+	}
+
 	template <typename... t>
 	constexpr void
 	print_type()

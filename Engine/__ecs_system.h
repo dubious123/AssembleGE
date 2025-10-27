@@ -188,7 +188,8 @@ namespace ecs::system
 				if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>, decltype(arg)...>)
 				{
 					using to_tpl = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
-					return []<auto... i>(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) {
+
+					return []<auto... i>(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA {
 						return sys.template operator()<t_arg...>(
 							(make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
 					}(std::make_index_sequence<sizeof...(arg)>{}, FWD(sys), FWD(arg)...);
@@ -229,58 +230,6 @@ namespace ecs::system
 
 			return arr;
 		}
-
-		// Flattens a tuple of tuples into a single flat tuple.
-		// tuple_cat is used because some systems may return void (as empty tuples).
-		// We wrap system calls in a tuple (brace-initializer-list style) to guarantee left-to-right execution order,
-		// as required by the C++ standard, avoiding evaluation order issues with pack expansion.
-		template <typename t_tpl>
-		FORCE_INLINE constexpr decltype(auto)
-		tuple_cat_all(t_tpl&& tpl) noexcept
-		{
-			// meta::print_type<t_tpl>();
-
-
-			using t_filtered_tuple = meta::filtered_tuple_t<meta::is_tuple_not_empty, t_tpl>;
-			meta::print_type<meta::filtered_tuple_t<meta::is_tuple_not_empty, t_tpl>>();
-
-			if constexpr (is_tuple_not_empty<t_filtered_tuple>::value)
-			{
-				return std::apply([](auto&&... tpl_arg) {
-					return std::tuple<decltype(std::get<0>(FWD(tpl_arg)))...>{
-						(std::get<0>(FWD(tpl_arg)))...
-					};
-				},
-								  meta::make_filtered_tuple_from_tuple<meta::is_tuple_not_empty>(FWD(tpl)));
-			}
-			else
-			{
-				return std::tuple<>{};
-			}
-			//  return std::apply([](auto&&... res_tpl_arg) { return result_tpl{ std::tuple_cat((FWD(res_tpl_arg).data)...) }; }, FWD(std_tpl));
-			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(std_tpl));
-			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple_cat((FWD(res_tpl_arg))...); }, FWD(tpl));
-			//  return std::apply([](auto&&... res_tpl_arg) { return std::tuple((unwrap(FWD(res_tpl_arg)))...); }, FWD(tpl));
-		}
-
-		// template <typename t_tpl>
-		// FORCE_INLINE constexpr decltype(auto)
-		// unwrap_tpl(t_tpl&& tpl)
-		//{
-		//	if constexpr (std::tuple_size_v<t_tpl> == 0)
-		//	{
-		//		return;
-		//	}
-		//	else if constexpr (std::tuple_size_v<t_tpl> == 1)
-		//	{
-		//		meta::print_type<t_tpl&&>();
-		//		return std::get<0>(FWD(tpl));
-		//	}
-		//	else
-		//	{
-		//		return FWD(tpl);
-		//	}
-		// }
 
 		// For multiple systems, rvalue arguments are moved into storage once
 		// and then passed to each system as lvalue references.

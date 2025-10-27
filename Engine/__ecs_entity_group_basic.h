@@ -411,7 +411,7 @@ namespace ecs::entity_group
 			for (t_local_entity_idx local_ent_idx : std::views::iota(0) | std::views::take(entity_count()))
 			{
 				[this, &sys, local_ent_idx]<auto... n>(std::index_sequence<n...>) {
-					std::apply(
+					meta::tuple_unpack(
 						[this, &sys](auto&&... arg) noexcept {
 							ecs::system::detail::run_sys(sys, FWD(arg)...);
 						},

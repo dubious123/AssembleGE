@@ -35,7 +35,7 @@ namespace ecs::system
 
 			auto args = make_arg_tpl(FWD(arg)...);
 
-			return std::apply(
+			return meta::tuple_unpack(
 				[this](auto&&... arg) noexcept {
 					if (run_sys(sys_cond, FWD(arg)...))
 					{
@@ -80,7 +80,7 @@ namespace ecs::system
 
 			auto args = make_arg_tpl(FWD(arg)...);
 
-			return std::apply(
+			return meta::tuple_unpack(
 				[this](auto&&... arg) noexcept {
 					if (run_sys(sys_cond, FWD(arg)...))
 					{

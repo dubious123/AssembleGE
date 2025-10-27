@@ -26,6 +26,14 @@
 	#define FORCE_INLINE inline
 #endif
 
+#if defined(_MSC_VER)
+	#define INLINE_LAMBDA [[msvc::forceinline]]
+#elif defined(__GNUC__) || defined(__clang__)
+	#define INLINE_LAMBDA __attribute__((always_inline))
+#else
+	#define INLINE_LAMBDA
+#endif
+
 #define FWD(x) std::forward<decltype(x)>(x)
 
 constexpr std::size_t

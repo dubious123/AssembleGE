@@ -119,8 +119,8 @@ main()
 						[](auto&& i) { std::println("i : {}", i); },
 						continue_if{ [](auto i) { return i % 2; } },
 						par{
-							[](auto&&) { Sleep(100); std::println("hi-1"); },
-							[]() { Sleep(200); std::println("hi-2"); } },
+							[](auto&&) { Sleep(200); std::println("hi-1"); },
+							[]() { Sleep(100); std::println("hi-2"); } },
 						break_if{ [](auto i) { return i == 5; } } },
 			match{
 				[] { return 0; },
@@ -178,7 +178,7 @@ main()
 			[]() { return 2; }
 		};
 
-		auto test_pipe = seq{
+		auto test_pipe = par{
 			[]() { std::println("1"); },
 			[]() { return 1; },
 			[]() { std::println("3"); },

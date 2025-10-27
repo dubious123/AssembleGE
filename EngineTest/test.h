@@ -469,7 +469,7 @@ struct sys_non_templated
 
 struct sys_game_init
 {
-	constexpr sys_game_init(){};
+	constexpr sys_game_init() { };
 
 	template <typename g>
 	decltype(auto)
@@ -496,7 +496,7 @@ struct sys_game_running
 
 struct sys_game_deinit
 {
-	constexpr sys_game_deinit(){};
+	constexpr sys_game_deinit() { };
 
 	template <typename g>
 	decltype(auto)
