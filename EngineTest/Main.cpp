@@ -159,26 +159,16 @@ main()
 		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
 		// p(_game);
 
-		auto test_pipe = seq{
-			[]() { return 1; },
-			[]() { return 2.1f; },
-			[]() { return 3; },
-		} | [](int a, int&& b, int c) {
-			std::println("a: {}, b: {}, c: {}", a, b, c);
-		};
-
-		auto res2 = seq{
-			[]() { return 1; },
-			[]() { return 2.1f; },
-			[]() { return 3; },
-
-		}();
-		// meta::print_type<decltype(seq{ detail::run_sys([]() { return 1; }) })>();
-		// meta::print_type<decltype([]() -> decltype(auto) { return 1; }())>();
-		// meta::print_type<decltype(res2)>();
-
-
-		// test_pipe();
+		[](int a, int&& b, int c) {
+			std::println("e: {}, f: {}, g: {}", a, b, c);
+		}(
+			[] { return (std::println("2"), []() { return 4; }()); }(),
+			[] { return (std::println("4"), []() { return 6.1f; }()); }(),
+			[] {
+				auto res = (std::println("6"), []() { return 5; }());
+				std::println("8");
+				return res;
+			}());
 
 		auto test_seq = seq{
 			[]() { return 1; },
@@ -188,12 +178,27 @@ main()
 			[]() { return 2; }
 		};
 
+		auto test_pipe = seq{
+			[]() { std::println("1"); },
+			[]() { return 1; },
+			[]() { std::println("3"); },
+			[]() { return 2.1f; },
+			[]() { std::println("5"); },
+			[]() { return 3; },
+			[]() { std::println("7"); },
+		} | [](int a, int&& b, int c) {
+			std::println("a: {}, b: {}, c: {}", a, b, c);
+		};
+		using t_res_seq = decltype(seq{
+			[]() { return 1; },
+			[]() { return 2.1f; },
+			[]() { return 3; },
+		}());
+
+		test_pipe();
+
 
 		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
-
-
-		static_assert(std::tuple_size_v<std::tuple<std::tuple<>>> == 1);
-		static_assert(std::tuple_size_v<std::tuple<>> == 0);
 
 		auto test_res_2 = test_seq();
 
@@ -205,23 +210,18 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() {},
-			[]() {},
-			[]() {},
-			[]() {},
+			[]() { },
+			[]() { },
+			[]() { },
+			[]() { },
 
 		};
 		// meta::print_type<decltype(test_seq())>();
 		// meta::print_type<decltype(test_seq_void())>();
 
-		// result_type{}
-
-		// std::tuple<ecs::system::detail::result_tpl<>>{
-		//	ecs::system::detail::result_tpl{ std::tuple<>{} }
-		// };
-
-		// todo dangling 문제 해결, return type이 모두 ref임
 		auto res = sys(_game);
+
+		auto _ = ecs::system::detail::scope_guard{ []() noexcept { std::println("scope_guard"); } };
 
 		// meta::print_type<decltype(res)>();
 		{

@@ -6,6 +6,31 @@ namespace ecs::system
 {
 	namespace detail
 	{
+		template <typename t_func>
+		struct scope_guard
+		{
+			static_assert(std::is_nothrow_destructible_v<t_func> and noexcept(std::declval<t_func&>()()),
+						  "scope_guard: fn() should be noexcept and you must ensure no-throw in dtor.");
+
+			no_unique_addr t_func func;
+
+			explicit constexpr scope_guard(t_func f) noexcept(std::is_nothrow_move_constructible_v<t_func>)
+				: func(FWD(f)) { }
+
+			scope_guard(const scope_guard&) = delete;
+			scope_guard&
+			operator=(const scope_guard&) = delete;
+
+			// constexpr scope_guard(scope_guard&&) = delete;
+			// scope_guard&
+			// operator=(scope_guard&&) = delete;
+
+			constexpr ~scope_guard() noexcept
+			{
+				func();
+			}
+		};
+
 		// template <typename... t_val>
 		// struct sys_result
 		//{
@@ -30,7 +55,8 @@ namespace ecs::system
 
 		struct invalid_sys_call
 		{
-			invalid_sys_call() = delete;
+			invalid_sys_call()	= delete;
+			~invalid_sys_call() = delete;
 		};
 
 		// template <typename t>
@@ -55,10 +81,12 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires []<std::size_t... i>(std::index_sequence<i...>) {
+			requires[]<std::size_t... i>(std::index_sequence<i...>)
+			{
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}
+			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -124,7 +152,7 @@ namespace ecs::system
 
 		template <typename t_to, typename t_from>
 		FORCE_INLINE constexpr decltype(auto)
-		make_param(t_from&& arg)
+		make_param(t_from&& arg) noexcept
 		{
 			if constexpr (std::is_convertible_v<t_from, t_to>)
 			{
@@ -138,7 +166,7 @@ namespace ecs::system
 
 		template <typename t_sys, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		run_sys(t_sys&& sys, t_arg&&... arg)
+		run_sys(t_sys&& sys, t_arg&&... arg) noexcept
 		{
 			if constexpr (has_operator<t_sys>)
 			{
@@ -160,10 +188,10 @@ namespace ecs::system
 				if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>, decltype(arg)...>)
 				{
 					using to_tpl = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
-					return [&]<auto... i>(std::index_sequence<i...>) -> decltype(auto) {
+					return []<auto... i>(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) {
 						return sys.template operator()<t_arg...>(
 							(make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
-					}(std::make_index_sequence<sizeof...(arg)>{});
+					}(std::make_index_sequence<sizeof...(arg)>{}, FWD(sys), FWD(arg)...);
 					// return sys.template operator()<t_arg...>(FWD(arg)...);
 				}
 				else if constexpr (invocable<&std::decay_t<t_sys>::template operator()<t_arg...>>)
@@ -208,7 +236,7 @@ namespace ecs::system
 		// as required by the C++ standard, avoiding evaluation order issues with pack expansion.
 		template <typename t_tpl>
 		FORCE_INLINE constexpr decltype(auto)
-		tuple_cat_all(t_tpl&& tpl)
+		tuple_cat_all(t_tpl&& tpl) noexcept
 		{
 			// meta::print_type<t_tpl>();
 
@@ -258,7 +286,7 @@ namespace ecs::system
 		// and then passed to each system as lvalue references.
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		make_arg_tpl(t_arg&&... arg)
+		make_arg_tpl(t_arg&&... arg) noexcept
 		{
 			using t_arg_tpl = std::tuple<
 				std::conditional_t<

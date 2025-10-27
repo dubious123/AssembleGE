@@ -15,13 +15,13 @@ namespace ecs::system::detail
 
 		static constexpr decltype(n) case_value = n;
 
-		constexpr sys_case(t_sys&& sys) : sys(FWD(sys)) { }
+		constexpr sys_case(t_sys&& sys) noexcept : sys(FWD(sys)) { }
 
 		constexpr sys_case() = default;
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			return run_sys(sys, FWD(arg)...);
 		}
@@ -34,7 +34,7 @@ namespace ecs::system::detail
 
 		template <typename t_sys>
 		constexpr decltype(auto)
-		operator=(t_sys&& sys) const
+		operator=(t_sys&& sys) const noexcept
 		{
 			return sys_case<n, t_sys>{ FWD(sys) };
 		}
@@ -45,13 +45,13 @@ namespace ecs::system::detail
 	{
 		no_unique_addr t_sys sys;
 
-		constexpr sys_default(t_sys&& sys) : sys(FWD(sys)) { }
+		constexpr sys_default(t_sys&& sys) noexcept : sys(FWD(sys)) { }
 
 		constexpr sys_default() { }
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			return run_sys(sys, FWD(arg)...);
 		}
@@ -62,7 +62,7 @@ namespace ecs::system::detail
 	{
 		template <typename t_sys>
 		constexpr decltype(auto)
-		operator=(t_sys&& sys) const
+		operator=(t_sys&& sys) const noexcept
 		{
 			return sys_default<t_sys>{ FWD(sys) };
 		}
@@ -137,7 +137,7 @@ namespace ecs::system
 		no_unique_addr t_sys_selector  sys_selector;
 		no_unique_addr t_sys_not_empty sys_cases;
 
-		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case)
+		constexpr match(t_sys_selector&& sys_selector, t_sys_case&&... sys_case) noexcept
 			: sys_selector(FWD(sys_selector)),
 			  sys_cases(meta::make_filtered_tuple<meta::is_not_empty, t_sys_case...>(FWD(sys_case)...)) { };
 
@@ -176,7 +176,7 @@ namespace ecs::system
 
 		template <std::size_t i, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		run_impl(t_arg&&... arg)
+		run_impl(t_arg&&... arg) noexcept
 		{
 			using t_sys_case_now = meta::variadic_at_t<i, t_sys_case...>;
 			if constexpr (std::is_empty_v<t_sys_case_now>)
@@ -224,7 +224,7 @@ namespace ecs::system
 			auto args = make_arg_tpl(FWD(arg)...);
 
 			return std::apply(
-				[this](auto&&... arg) {
+				[this](auto&&... arg) noexcept {
 					auto key = run_sys(sys_selector, FWD(arg)...);
 
 					switch (key)

@@ -13,42 +13,53 @@ namespace ecs::system
 		no_unique_addr t_sys_l sys_l;
 		no_unique_addr t_sys_r sys_r;
 
-		constexpr pipe(t_sys_l&& sys_l, t_sys_r&& sys_r)
+		constexpr pipe(t_sys_l&& sys_l, t_sys_r&& sys_r) noexcept
 			: sys_l(FWD(sys_l)),
 			  sys_r(FWD(sys_r)) { }
 
-		constexpr pipe() requires(std::is_empty_v<t_sys_l> and std::is_empty_v<t_sys_r>)
+		constexpr pipe() noexcept requires(std::is_empty_v<t_sys_l> and std::is_empty_v<t_sys_r>)
 		= default;
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
+			if constexpr (requires { sys_l.__run_pipe(sys_r, FWD(arg)...); })
+			{
+				return sys_l.__run_pipe(sys_r, FWD(arg)...);
+			}
+
 			using t_ret_l = decltype(run_sys(sys_l, FWD(arg)...));
-			static_assert(not std::is_same_v<t_ret_l, invalid_sys_call>,
+			static_assert(meta::is_not_same_v<t_ret_l, invalid_sys_call>,
 						  "[pipe] invalid_sys_call - check that system left is callable with given arguments.");
 
 			if constexpr (std::is_void_v<t_ret_l>)
 			{
 				using t_ret_r = decltype(run_sys(sys_r));
-				static_assert(not std::is_same_v<t_ret_r, invalid_sys_call>,
+				static_assert(meta::is_not_same_v<t_ret_r, invalid_sys_call>,
 							  "[pipe] invalid_sys_call - check that system right is chain-able");
 
 				run_sys(sys_l, FWD(arg)...);
 				return run_sys(sys_r);
 			}
-			else if constexpr (
-				constexpr auto can_apply_structured_binding =
-					meta::is_tuple_like_v<t_ret_l> and not std::is_same_v<invalid_sys_call, decltype(std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...)))>)
+			else if constexpr (meta::is_tuple_like_v<t_ret_l>)
 			{
-				return std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...));
+				using t_ret_r = decltype(std::apply([this](auto&&... l_ref_arg) { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...)));
+				if constexpr (meta::is_not_same_v<t_ret_r, invalid_sys_call>)
+				{
+					return std::apply([this](auto&&... l_ref_arg) noexcept { return run_sys(sys_r, FWD(l_ref_arg)...); }, run_sys(sys_l, FWD(arg)...));
+				}
+				else
+				{
+					static_assert(meta::is_not_same_v<decltype(run_sys(sys_r, run_sys(sys_l, FWD(arg)...))), invalid_sys_call>,
+								  "[pipe] invalid_sys_call - check that system right is chain-able");
+					return run_sys(sys_r, run_sys(sys_l, FWD(arg)...));
+				}
 			}
 			else
 			{
-				using t_ret_r = decltype(run_sys(sys_r, run_sys(sys_l, FWD(arg)...)));
-				static_assert(not std::is_same_v<t_ret_r, invalid_sys_call>,
+				static_assert(meta::is_not_same_v<decltype(run_sys(sys_r, run_sys(sys_l, FWD(arg)...))), invalid_sys_call>,
 							  "[pipe] invalid_sys_call - check that system right is chain-able");
-
 				return run_sys(sys_r, run_sys(sys_l, FWD(arg)...));
 			}
 		}
@@ -56,7 +67,7 @@ namespace ecs::system
 
 	template <typename t_sys_l, typename t_sys_r>
 	FORCE_INLINE constexpr decltype(auto)
-	operator|(t_sys_l&& sys_l, t_sys_r&& sys_r)
+	operator|(t_sys_l&& sys_l, t_sys_r&& sys_r) noexcept
 	{
 		return pipe{ FWD(sys_l), FWD(sys_r) };
 	}

@@ -95,6 +95,9 @@ namespace meta
 		using type = t<ts...>;
 	};
 
+	template <typename t, typename u>
+	concept not_same_as = (not std::same_as<std::remove_cvref_t<t>, std::remove_cvref_t<u>>);
+
 	// not standard yet
 	template <typename t>
 	inline constexpr bool is_tuple_like_v = false;
@@ -118,12 +121,15 @@ namespace meta
 	concept pair_like = tuple_like<t> and std::tuple_size_v<std::remove_cvref_t<t>> == 2;
 
 	template <typename t>
-	struct is_not_void : std::is_void<t>
+	struct is_not_void : std::bool_constant<not std::is_void_v<t>>
 	{
 	};
 
 	template <typename t>
 	inline constexpr bool is_not_void_v = meta::is_not_void<t>::value;
+
+	template <typename t, typename u>
+	inline constexpr bool is_not_same_v = not std::is_same_v<t, u>;
 
 	template <typename t, typename h, typename... ts>
 	consteval bool
@@ -1182,7 +1188,7 @@ namespace meta
 				n <= std::numeric_limits<uint32>::max(), uint32,
 				uint64>>>;
 
-	template <typename T>
+	template <typename... t>
 	constexpr void
 	print_type()
 	{

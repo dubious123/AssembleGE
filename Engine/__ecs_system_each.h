@@ -142,13 +142,13 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys sys;
 
-		constexpr each_group(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
+		constexpr each_group(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)) { };
 
 		constexpr each_group() = default;
 
 		template <i_entity_storage_like t_ent_storage>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_ent_storage&& ent_group)
+		operator()(t_ent_storage&& ent_group) noexcept
 		{
 			// static_assert(
 			//	std::tuple_size_v<typename sys_trait::argument_types> == 1
@@ -184,7 +184,7 @@ namespace ecs::system
 
 		template <typename t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&& arg)
+		operator()(t_arg&& arg) noexcept
 		{
 			if constexpr (i_entity_group_like<t_arg>)
 			{
@@ -204,8 +204,8 @@ namespace ecs::system
 			}
 			else
 			{
-				meta::print_type<t_arg>();
-				// static_assert(false, "each_entity : invalid arguement");
+				// meta::print_type<t_arg>();
+				static_assert(false, "each_entity : invalid arguement");
 			}
 		}
 	};

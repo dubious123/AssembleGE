@@ -12,13 +12,13 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys_cond sys_cond;
 
-		constexpr break_if(t_sys_cond&& sys_cond) : sys_cond(FWD(sys_cond)) { }
+		constexpr break_if(t_sys_cond&& sys_cond) noexcept : sys_cond(FWD(sys_cond)) { }
 
 		constexpr break_if() = default;
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
 			static_assert(std::is_convertible_v<t_res_cond, bool>,
@@ -33,13 +33,13 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys_cond sys_cond;
 
-		constexpr continue_if(t_sys_cond&& sys_cond) : sys_cond(FWD(sys_cond)) { }
+		constexpr continue_if(t_sys_cond&& sys_cond) noexcept : sys_cond(FWD(sys_cond)) { }
 
 		constexpr continue_if() = default;
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
 			static_assert(std::is_convertible_v<t_res_cond, bool>,
@@ -73,7 +73,7 @@ namespace ecs::system
 		no_unique_addr t_sys_cond	   sys_cond;
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys)
+		constexpr loop(t_sys_cond&& sys_cond, t_sys&&... sys) noexcept
 			: sys_cond(FWD(sys_cond)),
 			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
@@ -82,7 +82,7 @@ namespace ecs::system
 
 		template <std::size_t i, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		run_impl(t_arg&&... arg)
+		run_impl(t_arg&&... arg) noexcept
 		{
 			using t_sys_now = meta::variadic_at_t<i, t_sys...>;
 			if constexpr (std::is_empty_v<t_sys_now>)
@@ -117,7 +117,7 @@ namespace ecs::system
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
 			static_assert(std::is_convertible_v<t_res_cond, bool>,
@@ -133,7 +133,7 @@ namespace ecs::system
 			auto args = make_arg_tpl(FWD(arg)...);
 
 			std::apply(
-				[this](auto&&... arg) {
+				[this](auto&&... arg) noexcept {
 					while (run_sys(sys_cond, FWD(arg)...))
 					{
 #define X(N) __SYS_LOOP_IMPL(N)

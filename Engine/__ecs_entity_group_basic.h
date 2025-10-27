@@ -412,7 +412,7 @@ namespace ecs::entity_group
 			{
 				[this, &sys, local_ent_idx]<auto... n>(std::index_sequence<n...>) {
 					std::apply(
-						[this, &sys](auto&&... arg) {
+						[this, &sys](auto&&... arg) noexcept {
 							ecs::system::detail::run_sys(sys, FWD(arg)...);
 						},
 						get_component<std::remove_reference_t<std::tuple_element_t<n, t_arg_tpl>>...>(local_ent_idx));

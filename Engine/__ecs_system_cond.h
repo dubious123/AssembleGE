@@ -14,7 +14,7 @@ namespace ecs::system
 		no_unique_addr t_sys_then sys_then;
 		no_unique_addr t_sys_else sys_else;
 
-		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else)
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then, t_sys_else&& sys_else) noexcept
 			: sys_cond(FWD(sys_cond)),
 			  sys_then(FWD(sys_then)),
 			  sys_else(FWD(sys_else))
@@ -27,7 +27,7 @@ namespace ecs::system
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			using t_res_then = decltype(run_sys(sys_then, FWD(arg)...));
 			using t_res_else = decltype(run_sys(sys_else, FWD(arg)...));
@@ -36,7 +36,7 @@ namespace ecs::system
 			auto args = make_arg_tpl(FWD(arg)...);
 
 			return std::apply(
-				[this](auto&&... arg) {
+				[this](auto&&... arg) noexcept {
 					if (run_sys(sys_cond, FWD(arg)...))
 					{
 						return run_sys(sys_then, FWD(arg)...);
@@ -58,7 +58,7 @@ namespace ecs::system
 		no_unique_addr t_sys_cond sys_cond;
 		no_unique_addr t_sys_then sys_then;
 
-		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then)
+		constexpr cond(t_sys_cond&& sys_cond, t_sys_then&& sys_then) noexcept
 			: sys_cond(FWD(sys_cond)),
 			  sys_then(FWD(sys_then))
 		{
@@ -70,7 +70,7 @@ namespace ecs::system
 
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg)
+		operator()(t_arg&&... arg) noexcept
 		{
 			using t_res_cond = decltype(run_sys(sys_cond, FWD(arg)...));
 			using t_res_then = decltype(run_sys(sys_then, FWD(arg)...));
@@ -81,7 +81,7 @@ namespace ecs::system
 			auto args = make_arg_tpl(FWD(arg)...);
 
 			return std::apply(
-				[this](auto&&... arg) {
+				[this](auto&&... arg) noexcept {
 					if (run_sys(sys_cond, FWD(arg)...))
 					{
 						return run_sys(sys_then, FWD(arg)...);
