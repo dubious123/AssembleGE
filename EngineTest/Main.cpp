@@ -141,7 +141,7 @@ main()
 								  each_group{
 									  query{ with<transform, bullet>, without<rigid_body> },
 									  seq{ [id = 0]<typename g>(i_entity_group<g> i_ent_group) mutable {
-											  auto&& [t] = i_ent_group.get_component<transform>(50);
+											  auto&& [t] = i_ent_group.get_component<transform&>(19);
 											  std::println("group [{}], size : {}, last_entity_id : {}, first_entity_position = [x : {}, y : {}, z : {}]",
 														   id++,
 														   i_ent_group.entity_count(),
@@ -150,7 +150,9 @@ main()
 														   t.position.y,
 														   t.position.z);
 										  },
-										   each_entity{ query{}, [](transform& t, const rigid_body& rb) {} } } },
+										   each_entity{ query{ without<transform> }, [](transform& t, const rigid_body& rb) {
+														   std::println("done");
+													   } } } },
 								  sys_game_deinit{} }
 		};
 
@@ -195,8 +197,17 @@ main()
 			[]() { return 3; },
 		}());
 
-		test_pipe();
+		auto s = seq{
+			[]() { std::println("1"); },
+			[]() { return 1; },
+			[]() { std::println("3"); },
+			[]() { return 2.1f; },
+			[]() { std::println("5"); },
+			[]() { return 3; },
+			[]() { std::println("7"); },
+		}();
 
+		test_pipe();
 
 		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
 

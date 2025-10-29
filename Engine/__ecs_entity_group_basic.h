@@ -397,32 +397,29 @@ namespace ecs::entity_group
 		FORCE_INLINE decltype(auto)
 		get_component(const t_local_entity_idx local_ent_idx)
 		{
-			static_assert((true && ... && !std::is_reference_v<t>), "no reference type component");
+			static_assert((true && ... && !std::is_rvalue_reference_v<t>), "no rvalue reference type component");
 
-			return std::tuple<t&...>{ (*cmp_ptr<t>(local_ent_idx))... };
+			return std::tuple<t...>{ (*cmp_ptr<std::remove_reference_t<t>>(local_ent_idx))... };
+		}
+
+		template <typename t_sys, template <typename...> typename t_cmp_pack, ecs::component_type... t>
+		FORCE_INLINE void
+		run_sys(t_sys&& sys, t_local_entity_idx local_ent_idx, t_cmp_pack<t...>)
+		{
+			ecs::system::detail::run_sys(FWD(sys), std::get<0>(get_component<t>(local_ent_idx))...);
 		}
 
 		template <typename t_sys>
-		FORCE_INLINE decltype(auto)
+		FORCE_INLINE void
 		foreach_entity(t_sys&& sys)
 		{
 			using t_arg_tpl		 = meta::function_traits<&std::decay_t<t_sys>::operator()>::argument_types;
 			constexpr auto arity = meta::function_traits<&std::decay_t<t_sys>::operator()>::arity;
+
 			for (t_local_entity_idx local_ent_idx : std::views::iota(0) | std::views::take(entity_count()))
 			{
-				[this, &sys, local_ent_idx]<auto... n>(std::index_sequence<n...>) {
-					meta::tuple_unpack(
-						[this, &sys](auto&&... arg) noexcept {
-							ecs::system::detail::run_sys(sys, FWD(arg)...);
-						},
-						get_component<std::remove_reference_t<std::tuple_element_t<n, t_arg_tpl>>...>(local_ent_idx));
-				}(std::make_index_sequence<arity>{});
+				this->run_sys(sys, local_ent_idx, meta::tpl_to_type_pack<t_arg_tpl>{});
 			}
-			// get_type_count
-			// count = entity_count();
-			// for(t_local_entity_idx local_ent_idx = 0; local_ent_idx < entity_count(); ++local_ent_idx){
-			// sys(  );
-			// sys(get_component
 		}
 
 		FORCE_INLINE bool

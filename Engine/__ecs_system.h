@@ -55,8 +55,14 @@ namespace ecs::system
 
 		struct invalid_sys_call
 		{
-			invalid_sys_call()	= delete;
-			~invalid_sys_call() = delete;
+#ifdef _DEBUG
+			invalid_sys_call()
+			{
+				assert(false);
+			}
+#else
+			invalid_sys_call() = delete;
+#endif
 		};
 
 		// template <typename t>
@@ -180,6 +186,7 @@ namespace ecs::system
 				}
 				else
 				{
+					// static_assert(false, "invalid_sys_call");
 					return invalid_sys_call();
 				}
 			}
@@ -201,15 +208,18 @@ namespace ecs::system
 				}
 				else
 				{
+					// static_assert(false, "invalid_sys_call");
 					return invalid_sys_call();
 				}
 			}
 			else if constexpr (sizeof...(arg) == 0)
 			{
-				return FWD(sys);
+				return invalid_sys_call();
+				// return FWD(sys);
 			}
 			else
 			{
+				// static_assert(false, "invalid_sys_call");
 				return invalid_sys_call();
 			}
 		}

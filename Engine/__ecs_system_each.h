@@ -50,37 +50,57 @@ namespace ecs::system
 		{
 		};
 
-		template <typename with, typename without>
+		template <typename t_query>
 		consteval bool
 		validate_query()
 		{
-			constexpr auto duplicated =
-				[]<auto... i>(std::index_sequence<i...>) {
-					return ((meta::tuple_empty_v<
-								meta::filtered_tuple_t<
-									meta::pred<std::tuple_element_t<i, typename with::types>>::template is_same,
-									without::types>>)
-							and ...);
-				}(std::make_index_sequence<std::tuple_size_v<typename with::types>>{});
+			using t_with	= t_query::with;
+			using t_without = t_query::without;
+			{
+				constexpr auto duplicated =
+					[]<auto... i>(std::index_sequence<i...>) {
+						return ((meta::tuple_empty_v<
+									meta::filtered_tuple_t<
+										meta::pred<std::tuple_element_t<i, typename t_with::types>>::template is_same,
+										t_without::types>>)
+								and ...);
+					}(std::make_index_sequence<std::tuple_size_v<typename t_with::types>>{});
 
-			static_assert(duplicated, "query: same component(s) in with<> and without<>");
-			return duplicated;
+				static_assert(duplicated, "query: same component(s) in with<> and without<>");
+			}
+
+			return true;
 		}
 	}	 // namespace detail
 
 	template <typename... t_clause>
 	struct query
 	{
+		using t_self  = query<t_clause...>;
 		using with	  = meta::variadic_find_t<detail::is_with_clause, with_clause<>, std::decay_t<t_clause>...>;
 		using without = meta::variadic_find_t<detail::is_without_clause, without_clause<>, std::decay_t<t_clause>...>;
 
-		static_assert(detail::validate_query<with, without>(), "query: invalid query");
+		static_assert(detail::validate_query<t_self>(), "query: invalid query");
 
-		query(t_clause&... clause) requires(sizeof...(t_clause) > 0)
+		constexpr query(t_clause&... clause) requires(sizeof...(t_clause) > 0)
 		{ };
 
 		constexpr query() = default;
 	};
+
+	namespace detail
+	{
+		template <typename t>
+		struct is_query : std::false_type
+		{
+		};
+
+		template <typename... t_clause>
+		struct is_query<query<t_clause...>> : std::true_type
+		{
+		};
+
+	}	 // namespace detail
 
 	template <typename t>
 	concept i_entity_group_like = requires(t&& obj) {
@@ -161,12 +181,25 @@ namespace ecs::system
 		}
 	};
 
+	namespace detail
+	{
+		// todo
+		template <typename t_query, typename t_sys, typename t_arg>
+		consteval bool
+		validate_each_entity()
+		{
+			return true;
+		}
+	}	 // namespace detail
+
 	template <typename t_query, typename t_sys>
 	struct each_entity
 	{
+		using t_self = each_entity<t_query, t_sys>;
+
 		no_unique_addr t_sys sys;
 
-		constexpr each_entity(t_query&& query, t_sys&& sys) : sys(FWD(sys)) { };
+		constexpr each_entity(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)) { };
 
 		constexpr each_entity() = default;
 
@@ -186,17 +219,15 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&& arg) noexcept
 		{
+			static_assert(detail::validate_each_entity<t_query, t_sys, t_arg>());
+
 			if constexpr (i_entity_group_like<t_arg>)
 			{
-				std::println("entity_group_foreach");
-
 				auto i_group = i_entity_group{ FWD(arg) };
 				return i_group.foreach_entity(sys);
 			}
 			else if constexpr (i_entity_storage_like<t_arg>)
 			{
-				std::println("entity_storage");
-
 				auto storage = i_entity_storage{ FWD(arg) };
 
 				// todo validate sys and query

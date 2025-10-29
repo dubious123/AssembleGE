@@ -316,6 +316,20 @@ namespace ecs::entity_storage
 		{
 			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
 			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
+
+			static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
+
+
+			//  without_mask , arch  (1, 1) -> false, (1, 0) -> true
+			//
+			// without_mask & arch == 0
+			//
+			//
+			//  with_mask , arch          (1, 1) -> true, (1, 0) -> false  // (0, ?)
+			//
+			// with_mask & arch == with_mask
+			//
+			//
 			return ((arch & with_mask) | (arch & without_mask)) == with_mask;
 		}
 

@@ -9,14 +9,23 @@ namespace ecs::system
 
 	namespace detail
 	{
-		template <typename... t_sys>
+		template <typename... t_sys, typename... t_arg, typename t_self>
 		consteval bool
-		validate_seq()
+		validate_seq(meta::type_pack<t_arg...>, meta::type_wrapper<t_self>)
 		{
-			constexpr auto valid = sizeof...(t_sys) > 0;
-			static_assert(valid, "seq: requires at least one system type");
+			{
+				constexpr auto valid = sizeof...(t_sys) > 0;
+				static_assert(valid, "seq: requires at least one system type");
+			}
+			{
+				constexpr auto valid = []<auto... i>(std::index_sequence<i...>) {
+					return ((meta::is_not_same_v<decltype(std::declval<t_self>().__run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>) && ...);
+				}(std::index_sequence_for<t_sys...>{});
 
-			return valid;
+				static_assert(valid, "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
+			}
+
+			return true;
 		}
 	}	 // namespace detail
 
@@ -28,8 +37,6 @@ namespace ecs::system
 		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
 
 		no_unique_addr t_sys_not_empty systems;
-
-		static_assert(validate_seq<t_sys...>(), "seq: invalid seq");
 
 		constexpr seq(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
@@ -127,10 +134,7 @@ namespace ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg) noexcept
 		{
-			[this]<auto... i>(std::index_sequence<i...>) {
-				static_assert(((not std::is_same_v<decltype(__run_impl<i>(FWD(arg)...)), invalid_sys_call>) && ...),
-							  "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
-			}(std::index_sequence_for<t_sys...>{});
+			static_assert(detail::validate_seq<t_sys...>(meta::type_pack<t_arg&&...>{}, meta::type_wrapper<t_self>{}), "seq: invalid seq");
 
 			return __run_helper_1(make_arg_tpl(FWD(arg)...), std::index_sequence_for<t_sys...>{});
 		}

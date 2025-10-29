@@ -973,6 +973,12 @@ namespace meta
 	template <typename... t>
 	using type_pack_cat_t = type_pack_cat<t...>::type;
 
+	template <template <typename...> typename t_tpl, typename... t>
+	auto tpl_to_type_pack_helper(t_tpl<t...>) -> type_pack<t...>;
+
+	template <meta::tuple_like t_tpl_like>
+	using tpl_to_type_pack = decltype(tpl_to_type_pack_helper(std::declval<t_tpl_like>()));
+
 	template <unsigned int n>
 	struct string_wrapper
 	{
