@@ -7,28 +7,6 @@ namespace ecs::system
 {
 	using namespace detail;
 
-	namespace detail
-	{
-		template <typename... t_sys, typename... t_arg, typename t_self>
-		consteval bool
-		validate_seq(meta::type_pack<t_arg...>, meta::type_wrapper<t_self>)
-		{
-			{
-				constexpr auto valid = sizeof...(t_sys) > 0;
-				static_assert(valid, "seq: requires at least one system type");
-			}
-			{
-				constexpr auto valid = []<auto... i>(std::index_sequence<i...>) {
-					return ((meta::is_not_same_v<decltype(std::declval<t_self>().__run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>) && ...);
-				}(std::index_sequence_for<t_sys...>{});
-
-				static_assert(valid, "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
-			}
-
-			return true;
-		}
-	}	 // namespace detail
-
 	template <typename... t_sys>
 	struct seq
 	{
@@ -38,7 +16,7 @@ namespace ecs::system
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr seq(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
+		constexpr seq(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
 
 		constexpr seq() noexcept requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -130,11 +108,30 @@ namespace ecs::system
 			}
 		}
 
+		template <typename... t_sys, typename... t_arg>
+		static consteval bool
+		validate(meta::type_pack<t_arg...>)
+		{
+			{
+				constexpr auto valid = sizeof...(t_sys) > 0;
+				static_assert(valid, "[seq]: requires at least one system type");
+			}
+			{
+				constexpr auto valid = []<auto... i>(std::index_sequence<i...>) {
+					return ((meta::is_not_same_v<decltype(std::declval<t_self>().__run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>)&&...);
+				}(std::index_sequence_for<t_sys...>{});
+
+				static_assert(valid, "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
+			}
+
+			return true;
+		}
+
 		template <typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg) noexcept
 		{
-			static_assert(detail::validate_seq<t_sys...>(meta::type_pack<t_arg&&...>{}, meta::type_wrapper<t_self>{}), "seq: invalid seq");
+			static_assert(validate<t_sys...>(meta::type_pack<t_arg&&...>{}), "[seq]: invalid seq");
 
 			return __run_helper_1(make_arg_tpl(FWD(arg)...), std::index_sequence_for<t_sys...>{});
 		}

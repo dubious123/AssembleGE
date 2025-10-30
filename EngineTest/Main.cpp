@@ -155,8 +155,24 @@ main()
 													   } } } },
 								  sys_game_deinit{} }
 		};
-
-
+		// _game | get_world<>{} | query<>{} | each_seq{ sys... }
+		// _game | get_world<>{} | each_group_seq{query{}, sys... }
+		// _game | get_world<>{} | filter( query{} ) | each( as_par{},  sys )
+		// _game | get_world<>{} | filter( {} ).cache().refresh_if( {} )
+		//
+		// _game | get_world<>{} | std::views::filter() | ...
+		// _game | get_world<>{} | each( cond() | seq() )
+		// _game | get_world<>{} | each() | cond{ group_query{} } | each() |
+		//
+		// _game | seq { ... , each_seq{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
+		// _game | seq { ... , each_par{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
+		// _game | seq { ... , filter{} | for_each_seq{ seq{ group_sys{}, each() | entity_sys{} } } }
+		//
+		// _game | seq { ... , each_par{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
+		//
+		// for(auto& group : world){
+		// }
+		//
 		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | [](auto&& tpl) -> decltype(auto) { return std::get<0>(std::forward<decltype(tpl)>(tpl)); } | each_group{ query{}, [](auto&& i_group) {} };
 		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
 		// p(_game);
@@ -221,10 +237,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
 
 		};
 		// meta::print_type<decltype(test_seq())>();

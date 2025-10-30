@@ -60,10 +60,9 @@ namespace ecs::system
 				constexpr auto duplicated =
 					[]<auto... i>(std::index_sequence<i...>) {
 						return ((meta::tuple_empty_v<
-									meta::filtered_tuple_t<
-										meta::pred<std::tuple_element_t<i, typename t_with::types>>::template is_same,
-										t_without::types>>)
-								and ...);
+								 meta::filtered_tuple_t<
+									 meta::pred<std::tuple_element_t<i, typename t_with::types>>::template is_same,
+									 t_without::types>>)and...);
 					}(std::make_index_sequence<std::tuple_size_v<typename t_with::types>>{});
 
 				static_assert(duplicated, "query: same component(s) in with<> and without<>");
@@ -83,7 +82,7 @@ namespace ecs::system
 		static_assert(detail::validate_query<t_self>(), "query: invalid query");
 
 		constexpr query(t_clause&... clause) requires(sizeof...(t_clause) > 0)
-		{ };
+		{};
 
 		constexpr query() = default;
 	};
@@ -99,6 +98,9 @@ namespace ecs::system
 		struct is_query<query<t_clause...>> : std::true_type
 		{
 		};
+
+		template <typename t>
+		constexpr inline auto is_query_v = is_query<t>::value;
 
 	}	 // namespace detail
 
@@ -120,17 +122,39 @@ namespace ecs::system
 		typename std::remove_reference_t<t>::t_cmp_size_arr_base;
 		typename std::remove_reference_t<t>::t_entity_id_arr_base;
 
-		{ obj.entity_group_idx() } -> std::same_as<typename std::remove_reference_t<t>::t_ent_group_idx&>;
-		{ obj.entity_count() } -> std::same_as<typename std::remove_reference_t<t>::t_entity_count&>;
-		{ obj.capacity() } -> std::same_as<typename std::remove_reference_t<t>::t_capacity&>;
-		{ obj.component_count() } -> std::same_as<typename std::remove_reference_t<t>::t_component_count&>;
-		{ obj.local_archetype() } -> std::same_as<typename std::remove_reference_t<t>::t_archetype&>;
-		{ obj.component_size_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_cmp_size_arr_base&>;
-		{ obj.component_offset_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_cmp_offset_arr_base&>;
-		{ obj.entity_id_arr_base() } -> std::same_as<typename std::remove_reference_t<t>::t_entity_id_arr_base&>;
-		{ obj.ent_id(std::declval<typename std::remove_reference_t<t>::t_local_entity_idx>()) } -> std::same_as<typename std::remove_reference_t<t>::t_ent_id&>;
-		{ obj.is_full() } -> std::same_as<bool>;
-		{ obj.is_empty() } -> std::same_as<bool>;
+		{
+			obj.entity_group_idx()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_ent_group_idx&>;
+		{
+			obj.entity_count()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_entity_count&>;
+		{
+			obj.capacity()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_capacity&>;
+		{
+			obj.component_count()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_component_count&>;
+		{
+			obj.local_archetype()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_archetype&>;
+		{
+			obj.component_size_arr_base()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_cmp_size_arr_base&>;
+		{
+			obj.component_offset_arr_base()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_cmp_offset_arr_base&>;
+		{
+			obj.entity_id_arr_base()
+		} -> std::same_as<typename std::remove_reference_t<t>::t_entity_id_arr_base&>;
+		{
+			obj.ent_id(std::declval<typename std::remove_reference_t<t>::t_local_entity_idx>())
+		} -> std::same_as<typename std::remove_reference_t<t>::t_ent_id&>;
+		{
+			obj.is_full()
+		} -> std::same_as<bool>;
+		{
+			obj.is_empty()
+		} -> std::same_as<bool>;
 
 		// templates?
 		//{
@@ -150,11 +174,21 @@ namespace ecs::system
 		typename std::remove_reference_t<t>::t_entity_group;
 		typename std::remove_reference_t<t>::t_local_entity_idx;
 
-		{ obj.entity_count() } -> std::same_as<std::size_t>;
-		{ obj.is_valid(std::declval<const typename std::remove_reference_t<t>::t_ent_id>()) } -> std::same_as<bool>;
-		{ obj.remove_entity(std::declval<const typename std::remove_reference_t<t>::t_ent_id>()) } -> std::same_as<void>;
-		{ obj.init() } -> std::same_as<void>;
-		{ obj.deinit() } -> std::same_as<void>;
+		{
+			obj.entity_count()
+		} -> std::same_as<std::size_t>;
+		{
+			obj.is_valid(std::declval<const typename std::remove_reference_t<t>::t_ent_id>())
+		} -> std::same_as<bool>;
+		{
+			obj.remove_entity(std::declval<const typename std::remove_reference_t<t>::t_ent_id>())
+		} -> std::same_as<void>;
+		{
+			obj.init()
+		} -> std::same_as<void>;
+		{
+			obj.deinit()
+		} -> std::same_as<void>;
 	};
 
 	template <typename t_query, typename t_sys>
@@ -162,7 +196,7 @@ namespace ecs::system
 	{
 		no_unique_addr t_sys sys;
 
-		constexpr each_group(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)) { };
+		constexpr each_group(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)){};
 
 		constexpr each_group() = default;
 
@@ -181,17 +215,6 @@ namespace ecs::system
 		}
 	};
 
-	namespace detail
-	{
-		// todo
-		template <typename t_query, typename t_sys, typename t_arg>
-		consteval bool
-		validate_each_entity()
-		{
-			return true;
-		}
-	}	 // namespace detail
-
 	template <typename t_query, typename t_sys>
 	struct each_entity
 	{
@@ -199,7 +222,7 @@ namespace ecs::system
 
 		no_unique_addr t_sys sys;
 
-		constexpr each_entity(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)) { };
+		constexpr each_entity(t_query&& query, t_sys&& sys) noexcept : sys(FWD(sys)){};
 
 		constexpr each_entity() = default;
 
@@ -216,10 +239,33 @@ namespace ecs::system
 		// }
 
 		template <typename t_arg>
+		static consteval bool
+		validate()
+		{
+			{
+				constexpr auto valid = detail::is_query_v<t_query>;
+				static_assert(valid, "[each_entity]: invalid query type");
+			}
+
+			if constexpr (i_entity_group_like<t_arg>)
+			{
+			}
+			else if constexpr (i_entity_storage_like<t_arg>)
+			{
+			}
+			else
+			{
+				static_assert(false, "[each_entity] : invalid arguement");
+			}
+
+			return true;
+		}
+
+		template <typename t_arg>
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&& arg) noexcept
 		{
-			static_assert(detail::validate_each_entity<t_query, t_sys, t_arg>());
+			static_assert(validate<t_arg>());
 
 			if constexpr (i_entity_group_like<t_arg>)
 			{
@@ -230,7 +276,6 @@ namespace ecs::system
 			{
 				auto storage = i_entity_storage{ FWD(arg) };
 
-				// todo validate sys and query
 				return storage.foreach_entity(t_query{}, sys);
 			}
 			else
