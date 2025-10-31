@@ -27,5 +27,7 @@
     <ClInclude Include="__ecs_system_seq.h" />
     <ClInclude Include="__ecs_system.h" />
     <ClInclude Include="__ecs_system_each.h" />
+    <ClInclude Include="__ecs_system_identity.h" />
+    <ClInclude Include="__ecs_system_adaptors.h" />
   </ItemGroup>
 </Project>

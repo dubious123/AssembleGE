@@ -170,12 +170,73 @@ main()
 		//
 		// _game | seq { ... , each_par{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
 		//
+		// _game | get_world<>{} | get_view{ std::views::filter | std::views::order_by | ... } | for_each_par{ seq{ ... } }
+		//
+		// _game | get_world<>{} | for_each{ filter{ [](auto& igroup){ return igroup.empty(); } } | group_query{} | sys };
+		// _game | get_world<>{} | for_each_par{ group_query{} | sys };
+		//
+		// it_begin = world.begin();
+		// it_end = world.end();
+		//
+		// if r_sys is adaptor
+		// for(;it_begin != it_end; ++it_begin)
+		//	if(filter(it)) continue;
+		//
+		//
 		// for(auto& group : world){
 		// }
 		//
-		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | [](auto&& tpl) -> decltype(auto) { return std::get<0>(std::forward<decltype(tpl)>(tpl)); } | each_group{ query{}, [](auto&& i_group) {} };
-		// auto p = seq{ [](auto&& game) -> decltype(auto) { return game.get_scene<scene_t1>().get_world<world_t3>(); } } | each_group{ query{}, [](auto&& i_group) {} };
-		// p(_game);
+		// _game | get_world<>{} | for_each{ filter{pred} | take{3} | sys | ...  }
+		//
+		// obj | for_each_while( [take_num](){ if(pred) ++take_num; take_num < 3; }   , sys)
+		//
+		// _game | get_world<>{} | for_each{ filter{pred} | take{3} | sys | ...  }
+		// filter{} | for_each_seq{}  => 1. filter(game) | for_each_seq vs 2. filter( range(game) ) | for_each_seq
+		//
+		//
+		// _game | get_world<>{} | rv::filter | rv::take | ... | for_each( par{}, rv::filter | rv::take | for_each( sys... ) )
+		//
+		//
+		// _game | rv::filter( captured_lambda )
+		//
+
+		// filter{ [](){} }
+
+		// rv::filter 의 lambda가
+		//  1. 실행마다 동일해야 하고,
+		//  2. rv::filter는 실행마다 새롭게 만들어져야한다.
+		static_assert(std::is_empty_v<decltype(filter{ [](int i) { return i % 2 == 0; } })>);
+
+		for (const auto& x : (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))())
+		{
+			std::println("x : {}", x);
+		}
+
+		constexpr auto r2es = std::ranges::fold_left((identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))(), 0, std::plus{});
+		constexpr auto r3es = (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4) | sum())();
+
+		static_assert(r2es == 12);
+		static_assert(r3es == 12);
+
+		{
+			auto test_sys =
+				identity{ std::views::iota(0) }
+				| filter{ [](int i) { return i % 2 == 0; } }
+				| ecs::system::map([](auto arg) { return arg + 1; })
+				| take(4)
+				| for_each([](auto i) { std::println("x : {}", i); });
+
+			test_sys();
+		}
+		// make( expr ) -> [](){ return expr; }
+		//
+		// _game | get_world<>{} | make( rv::filter | rv::take | ...  ) |
+		//
+		// identity( rv::filter() | () | ... |   )
+
+
+		// if(run_sys_left) return run_sys_right
+
 
 		[](int a, int&& b, int c) {
 			std::println("e: {}, f: {}, g: {}", a, b, c);
@@ -223,6 +284,8 @@ main()
 			[]() { std::println("7"); },
 		}();
 
+		static_assert(([]() { return 1; } | [](auto i) { return i == 1; })());
+
 		test_pipe();
 
 		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
@@ -237,16 +300,15 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() {},
-			[]() {},
-			[]() {},
-			[]() {},
+			[]() { },
+			[]() { },
+			[]() { },
+			[]() { },
 
 		};
-		// meta::print_type<decltype(test_seq())>();
-		// meta::print_type<decltype(test_seq_void())>();
 
-		auto res = sys(_game);
+
+		auto res = (identity{ _game } | FWD(sys))();
 
 		auto _ = ecs::system::detail::scope_guard{ []() noexcept { std::println("scope_guard"); } };
 

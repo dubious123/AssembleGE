@@ -77,20 +77,17 @@ namespace ecs::system
 
 			if constexpr (meta::index_sequence_empty_v<t_sys_res_not_void>)
 			{
-				[](auto&&... async_op) noexcept -> decltype(auto) {
+				[](auto&&... async_op) noexcept -> decltype(auto) INLINE_LAMBDA {
 					(async_op.get(), ...);
 				}(std::async(std::launch::async, [this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })...);
 			}
 			else
 			{
 				return [](auto&& async_op_tpl) noexcept -> decltype(auto) {
-					[]<auto... sys_idx>(std::index_sequence<sys_idx...>, auto&& async_op_tpl) noexcept {
-						((std::get<sys_idx>(async_op_tpl).get()), ...);
-					}(t_sys_res_void{}, FWD(async_op_tpl));
-
-					return []<auto... sys_idx>(std::index_sequence<sys_idx...>, auto&& async_op_tpl) noexcept INLINE_LAMBDA {
-						return std::tuple{ std::get<sys_idx>(async_op_tpl).get()... };
-					}(t_sys_res_not_void{}, FWD(async_op_tpl));
+					return []<auto... sys_idx_void, auto... sys_idx_non_void>(std::index_sequence<sys_idx_void...>, std::index_sequence<sys_idx_non_void...>, auto&& async_op_tpl) noexcept -> decltype(auto) INLINE_LAMBDA {
+						((std::get<sys_idx_void>(async_op_tpl).get()), ...);
+						return std::tuple{ std::get<sys_idx_non_void>(async_op_tpl).get()... };
+					}(t_sys_res_void{}, t_sys_res_not_void{}, FWD(async_op_tpl));
 				}(std::tuple{ std::async(std::launch::async, [this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })... });
 			}
 		}

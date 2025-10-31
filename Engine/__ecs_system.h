@@ -261,6 +261,8 @@ namespace ecs::system
 }	 // namespace ecs::system
 
 #define INCLUDED_FROM_ECS_SYSTEM_HEADER
+#include "__ecs_system_identity.h"
+#include "__ecs_system_adaptors.h"
 #include "__ecs_system_seq.h"
 #include "__ecs_system_par.h"
 #include "__ecs_system_pipeline.h"
