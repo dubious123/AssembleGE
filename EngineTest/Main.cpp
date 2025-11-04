@@ -155,56 +155,88 @@ main()
 													   } } } },
 								  sys_game_deinit{} }
 		};
-		// _game | get_world<>{} | query<>{} | each_seq{ sys... }
-		// _game | get_world<>{} | each_group_seq{query{}, sys... }
-		// _game | get_world<>{} | filter( query{} ) | each( as_par{},  sys )
-		// _game | get_world<>{} | filter( {} ).cache().refresh_if( {} )
+		// seq =>
+		// sys<exec_seq>{
+		//	exec_seq executer;
+		//	systems
 		//
-		// _game | get_world<>{} | std::views::filter() | ...
-		// _game | get_world<>{} | each( cond() | seq() )
-		// _game | get_world<>{} | each() | cond{ group_query{} } | each() |
-		//
-		// _game | seq { ... , each_seq{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
-		// _game | seq { ... , each_par{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
-		// _game | seq { ... , filter{} | for_each_seq{ seq{ group_sys{}, each() | entity_sys{} } } }
-		//
-		// _game | seq { ... , each_par{} | filter{} | seq{ group_sys{}, each() | entity_sys{} } }
-		//
-		// _game | get_world<>{} | get_view{ std::views::filter | std::views::order_by | ... } | for_each_par{ seq{ ... } }
-		//
-		// _game | get_world<>{} | for_each{ filter{ [](auto& igroup){ return igroup.empty(); } } | group_query{} | sys };
-		// _game | get_world<>{} | for_each_par{ group_query{} | sys };
-		//
-		// it_begin = world.begin();
-		// it_end = world.end();
-		//
-		// if r_sys is adaptor
-		// for(;it_begin != it_end; ++it_begin)
-		//	if(filter(it)) continue;
-		//
-		//
-		// for(auto& group : world){
+		//	decltype run(auto&&... arg)
+		//		return executer.run( sys...,  FWD(arg)...)
 		// }
 		//
-		// _game | get_world<>{} | for_each{ filter{pred} | take{3} | sys | ...  }
-		//
-		// obj | for_each_while( [take_num](){ if(pred) ++take_num; take_num < 3; }   , sys)
-		//
-		// _game | get_world<>{} | for_each{ filter{pred} | take{3} | sys | ...  }
-		// filter{} | for_each_seq{}  => 1. filter(game) | for_each_seq vs 2. filter( range(game) ) | for_each_seq
+		// get_exec{}
+		// | just{ _game }
+		// |
 		//
 		//
-		// _game | get_world<>{} | rv::filter | rv::take | ... | for_each( par{}, rv::filter | rv::take | for_each( sys... ) )
+		// identity{ _game, ...,  }
+		// | sys<seq>( sys, then( ... ), sys... )
+		// | sys<par>()
+		// | sys<custom_par>()
+		// | with_custom_exec{} | then() | then() |
+		// |
+		// ...
 		//
 		//
-		// _game | rv::filter( captured_lambda )
+		//
+		// _game
+		// | on_parallel_ctx{}
+		// | do { systems.... }
+		// | on_seq_ctx{}
+		// | do { [](auto& g){ return exec_ctx{g}; } }
+		//
+		//
+		// _game
+		// | seq{
+		// par { sys... },
+		// par { some_custom_executor, sys... }
+		// par<some_custom_executor> { sys... }
+		// par { get_some_parallel_executer , sys... }
+		// }
+		//
+		// _game
+		// | on_ctx{ ctx::cpu::seq{} } <- returns what? ( == [](auto&& g){ return ecs::system::ctx::cpu::seq{ FWD(_game) }; }
+		// | run(..., on_ctx{ ctx::cpu::par{} } | sys | ...,   )
+		// | run( [](auto&&... res){ ... } )
+		//
+		// new_ctx { ctx::cpu::seq{}, _game, other_data, 10, [](){ return some_strange_data{}; } }
+		// | run( ..., new_ctx{ ctx::cpu::par{} } | [](){}... )
+		//
+		//
+		// new_ctx { ctx::cpu::seq{}, ctx::no_execption{}, set_args{ _game, 10, some_data, [](){ return 10; }, new_ctx { ... } } }
+		// | run( sys1, sys2, ...,
+		//		new_ctx{ ctx::cpu::par{}, ctx::with_execption{}, input::identity{} <- projection }
+		//			| run( [](auto& game, int ten, auto& some_data, auto& some_lambda, auto& some_ctx){}, ... ),
+		//		sys_3, sys_4, ...)
+		// | run( [](auto&& some_tpl){}, [](auto&&... res){}, ... )
+		// | [](auto& game, int ten, auto& some_data, auto& some_lambda, auto& some_ctx){ return game; } <- run can be omitted when single sys
+		// | sys_get_world<>{}
+		// | run( for_each{ ... } )
+		// | run( new_ctx{ some_custom_ctx{},  | rv::order_by{} } | for_each{ run{ [](auto& igroup){ ... }, some_sys, ...,  } } )
+		// | cond{ [](){return true; }, sys1, sys2 }
+		//
+		// ->
+		// new_ctx{}() -> a -> ctx.run(sys1), ctx.run(sys2), ..., ctx.run( new_ctx | sys3 ) ...
+		//
+		//
+		//
+		// new_ctx{ ctx::cpu::seq{}, ctx::no_exception{}, input{ _game } }
+		// | test::loop{ [](auto& game){return game.running; },
+		//	get_world<>{} | query{} | new_ctx{ ctx::cpu::par{}, identity{} } | for_each{ },
+		//	get_world<>{} | for_each{ entity_group_query{} | new_ctx{ par{} } | for_each{ entity_query<>{} | [](transform, ...){} }  },
+		//	get_ctx{} | ...
+		// }
+		//
+		// 0. ctx -> run, set_args()
+		// 1. system::test::ctx::seq{} -> run(...)
+		// 2. system::test::operator | ( l, r) -> system::test::detail::sys{ ctx, sys }
+		// 3. system::test::operator | ( l, r) -> system::test::detail::sys{ ctx, sys | sys }
+		// 4. sys | sys
+		// 5. system::test::detail::sys_run_impl -> run(ctx) { return ctx.run( ... ); }\
+		// 6. system::test::detail::sys_loop_impl -> run(ctx) { return while( ctx.run( sys_cond ) ) {
 		//
 
-		// filter{ [](){} }
 
-		// rv::filter 의 lambda가
-		//  1. 실행마다 동일해야 하고,
-		//  2. rv::filter는 실행마다 새롭게 만들어져야한다.
 		static_assert(std::is_empty_v<decltype(filter{ [](int i) { return i % 2 == 0; } })>);
 
 		for (const auto& x : (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))())
@@ -217,6 +249,7 @@ main()
 
 		static_assert(r2es == 12);
 		static_assert(r3es == 12);
+
 
 		{
 			auto test_sys =
