@@ -9,7 +9,7 @@ namespace ecs::system
 		template <typename t_func>
 		struct scope_guard
 		{
-			static_assert(std::is_nothrow_destructible_v<t_func> and noexcept(std::declval<t_func&>()()),
+			static_assert(std::is_nothrow_destructible_v<t_func>and noexcept(std::declval<t_func&>()()),
 						  "scope_guard: fn() should be noexcept and you must ensure no-throw in dtor.");
 
 			no_unique_addr t_func func;
@@ -87,12 +87,10 @@ namespace ecs::system
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept tpl_convertible_from = requires {
 			requires std::tuple_size_v<t_tpl_from> == std::tuple_size_v<t_tpl_to>;
-			requires[]<std::size_t... i>(std::index_sequence<i...>)
-			{
+			requires []<std::size_t... i>(std::index_sequence<i...>) {
 				return (convertible_from<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>> and ...);
 				// return true && (... && std::is_convertible_v<std::tuple_element_t<i, t_tpl_from>, std::tuple_element_t<i, t_tpl_to>>);
-			}
-			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
+			}(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
 		template <auto f, typename... t_data>
@@ -271,4 +269,6 @@ namespace ecs::system
 #include "__ecs_system_match.h"
 
 #include "__ecs_system_each.h"
+
+#include "__ecs_system_ctx.h"
 #undef INCLUDED_FROM_ECS_SYSTEM_HEADER

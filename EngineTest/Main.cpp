@@ -203,7 +203,7 @@ main()
 		// | run( ..., new_ctx{ ctx::cpu::par{} } | [](){}... )
 		//
 		//
-		// new_ctx { ctx::cpu::seq{}, ctx::no_execption{}, set_args{ _game, 10, some_data, [](){ return 10; }, new_ctx { ... } } }
+		// new_ctx { ctx::cpu::seq{}, ctx::no_execption{}, identity{} }
 		// | run( sys1, sys2, ...,
 		//		new_ctx{ ctx::cpu::par{}, ctx::with_execption{}, input::identity{} <- projection }
 		//			| run( [](auto& game, int ten, auto& some_data, auto& some_lambda, auto& some_ctx){}, ... ),
@@ -215,10 +215,43 @@ main()
 		// | run( new_ctx{ some_custom_ctx{},  | rv::order_by{} } | for_each{ run{ [](auto& igroup){ ... }, some_sys, ...,  } } )
 		// | cond{ [](){return true; }, sys1, sys2 }
 		//
-		// ->
-		// new_ctx{}() -> a -> ctx.run(sys1), ctx.run(sys2), ..., ctx.run( new_ctx | sys3 ) ...
+		// ctx | run() = ctx{ , identity{} | run( ... ) }
 		//
 		//
+		// run_sys( wait_all(sys...),  run_sys( new_ctx, arg...  ) )
+		//
+		// run_sys( new_ctx, arg...  ) -> ctx{ ... }
+		//
+		//
+		// auto sys =
+		// get_ctx{}
+		// | run( [](){return 1;} )
+		// | run( [](auto i){return i + 1;} )
+		//
+		// ctx_cpu_seq{} | run( [](){}, ctx_cpu_par{} | [](){} ) = ctx_seq{ ... , [](){}, ctx{..., [](){}} )
+		//
+		// ctx{ run( ), run( ), ... }( arg... )
+		//
+		//
+		//
+		//
+		// run_sys(get_ctx{}, arg...) -> ctx{ arg... }
+		// run_sys(run{ [](){} }, ctx{arg...} )
+		//
+		//
+		//
+		//
+		// wait_all(sys ... )
+		// -> operator( t_ctx&& ctx)
+		// ctx.run(sys)
+		//
+		//
+		//
+		// pipe( left, right )
+		//
+		// before : run_sys( sys_r, sys_l(arg...) )
+		// now : run_sys(
+		// run_sys(left, arg...)
 		//
 		// new_ctx{ ctx::cpu::seq{}, ctx::no_exception{}, input{ _game } }
 		// | test::loop{ [](auto& game){return game.running; },
@@ -333,10 +366,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
 
 		};
 
