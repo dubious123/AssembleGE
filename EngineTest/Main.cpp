@@ -97,9 +97,10 @@ main()
 	{
 		using namespace ecs::system;
 		using ecs::system::operator|;
-
+		auto _l	 = [] { };
 		auto sys = seq{
 			sys_game_init{},
+			std::move(_l),
 			[]() { return "hi"; },
 			pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
 			par{
@@ -232,13 +233,115 @@ main()
 		//
 		// ctx{ run( ), run( ), ... }( arg... )
 		//
+		// ctx
+		// | seq
+		// | sys
+		// | sys
 		//
+		// ctx
+		// | seq
+		// | seq { ... }
+		// | cond { ... }
+		//
+		// 1 | [](int){}
+		//
+		// 1 | ctx{} | [](int){}
+		// ctx{} | [int](){}
+		//
+		//
+		//
+		// == make_ctx ( ctx{}, sys{}, sys{}, sys{} )
+		//
+		// ctx() == ...
 		//
 		//
 		// run_sys(get_ctx{}, arg...) -> ctx{ arg... }
 		// run_sys(run{ [](){} }, ctx{arg...} )
 		//
+		// 원래는
 		//
+		// run_sys(sys, arg...)
+		// 였는데 이걸
+		//
+		// run_sys(ctx, sys, arg...) 로 바꾸자?
+		//
+		// -> ctx.run(sys, arg...) ?
+		//
+		// sys() -> sys(_some_secret_ctx)?
+		//
+		// ctx | sys => ctx { sys }
+		//
+		// ctx | sys | sys => ctx { sys | sys }
+		//
+		// ctx | ctx { sys , sys } => ctx { ctx { sys, sys } }
+		//
+		// on_ctx{
+		//
+		//	sys
+		//	| sys
+		//  | sys
+		//  | seq{ ... },
+		//
+		// => pipe.(arg...) 대신 pipe(exec, arg...)
+		//
+		//	get_world{}
+		//	| on_ctx{ executor::?, get_veiw<group>{} | for_each{ [](auto& group){...} } },
+		//
+		//  sys | sys | read_ctx{} | [](auto& env){ },
+		//
+		//	sys | sys | cond(pred, on_ctx{ ... } ),
+		//
+		//	read_ctx{} | sys_make_ctx{} | on_ctx{ sys | sys | ... | }
+		//	read_ctx{} | sys_make_ctx{ factory_fnc ,sys | sys | ...  }
+		//	sys | sys | add_current_ctx{} | [](ctx, auto...){ctx.set_stop(); <- call request_stop(); }
+		//	sys,
+		//	sys,
+		//	on_ctx{ ... }
+		//	_catch{ ... },
+		//	_when_stopped{ ... },
+		//	executer{ ... },
+		//	allocator{ ... } <- how?
+		// }
+		//
+
+		{
+			auto l		  = []() { std::println("moved"); };
+			auto test_ctx = ctx::on_ctx{
+				ctx::executor_basic{}, []() { std::println("not_moved"); }, std::move(l)
+			};
+			test_ctx();
+
+			std::println("asdfe");
+			std::println("aft_moded");
+		}
+
+
+		//
+		// on_ctx{
+		//	sys,
+		//	throw_error{}
+		//	...
+		//
+		//	,
+		//	_catch{ ... }
+		// }
+		//
+		//
+		// 예외적으로
+		//
+		// make_ctx{}
+		// | [](){} 허용 -> for runtime ctx
+		//
+		// run_sys(sys, ...)
+		//
+		// if sys is ctx
+		// -> ctx.run(...)
+		//
+		//
+		// on_ctx{}
+		// | [](){return 1;}
+		// | seq{ ... }
+		// | [](int){return 2;}
 		//
 		//
 		// wait_all(sys ... )
@@ -294,6 +397,7 @@ main()
 
 			test_sys();
 		}
+
 		// make( expr ) -> [](){ return expr; }
 		//
 		// _game | get_world<>{} | make( rv::filter | rv::take | ...  ) |
@@ -350,6 +454,8 @@ main()
 			[]() { std::println("7"); },
 		}();
 
+		std::invoke([](auto e) { std::println("{}", e); }, std::tuple{ 1 });
+
 		static_assert(([]() { return 1; } | [](auto i) { return i == 1; })());
 
 		test_pipe();
@@ -366,15 +472,16 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() {},
-			[]() {},
-			[]() {},
-			[]() {},
+			[]() { },
+			[]() { },
+			[]() { },
+			[]() { },
 
 		};
 
 
-		auto res = (identity{ _game } | FWD(sys))();
+		// auto res = (identity{ _game } | FWD(sys))();
+		auto res = sys(_game);
 
 		auto _ = ecs::system::detail::scope_guard{ []() noexcept { std::println("scope_guard"); } };
 
@@ -387,6 +494,7 @@ main()
 			std::println("size : {}", sizeof(ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<0, 3, 4, 7, 10>>));
 			// meta::print_type<decltype(ecs::system::detail::make_index_range<4, 7>())>();
 		}
+		// sys(_game);
 
 		// meta::print_type<decltype(res)>();
 	}

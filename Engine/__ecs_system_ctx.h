@@ -7,44 +7,89 @@ namespace ecs::system::ctx
 {
 	using namespace ecs::system::detail;
 
-	template <typename... t_sys>
-	struct get_ctx
+	template <typename t>
+	struct is_pipe : std::false_type
 	{
-		using t_self			  = get_ctx<t_sys...>;
-		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
-		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
+	};
 
-		no_unique_addr t_sys_not_empty systems;
+	template <typename t1, typename t2>
+	struct is_pipe<ecs::system::pipe<t1, t2>> : std::true_type
+	{
+	};
 
-		constexpr get_ctx(auto&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, decltype(sys)...>(FWD(sys)...)){};
+	template <typename t>
+	constexpr bool
+	is_constexpr_default_constructible()
+	{
+		return []() consteval {
+			t{};
+			return true;
+		}();
+	}
 
-		constexpr get_ctx() noexcept requires(std::is_empty_v<t_sys> and ...)
+	template <typename t_exec, typename t_sys, typename... t_arg>
+	FORCE_INLINE constexpr decltype(auto)
+	__run_sys(t_exec&& exec, t_sys&& sys, t_arg&&... arg) noexcept
+	{
+		return FWD(sys)(FWD(exec), FWD(arg)...);
+	}
+
+	template <typename t>
+	inline constexpr auto is_compile_time_constructible_v = is_constexpr_default_constructible<t>();
+
+	struct executor_basic
+	{
+		template <typename t_sys, typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_sys&& sys, t_arg&&... arg) noexcept
+		{
+			return detail::run_sys(FWD(sys), FWD(arg)...);
+		}
+	};
+
+	template <typename t_sys>
+	struct __sys_wrapper
+	{
+		no_unique_addr t_sys sys;
+
+		constexpr FORCE_INLINE
+		__sys_wrapper(auto&& sys) noexcept : sys(FWD(sys)) { };
+
+		constexpr __sys_wrapper() noexcept requires(is_compile_time_constructible_v<t_sys> or std::is_empty_v<t_sys>)
 		= default;
 
+		template <typename t_exec, typename... t_arg>
 		FORCE_INLINE constexpr decltype(auto)
-		operator()(auto&&... arg) noexcept
+		operator()(t_exec&& exec, t_arg&&... arg) noexcept
 		{
-			// static_assert(validate<t_sys...>(meta::type_pack<t_arg&&...>{}), "[seq]: invalid seq");
-
-			return std::tuple{ FWD(arg)... };
+			if constexpr (is_compile_time_constructible_v<t_sys> and std::is_empty_v<t_sys>)
+			{
+				return exec(t_sys{}, FWD(arg)...);
+			}
+			else
+			{
+				return exec(FWD(sys), FWD(arg)...);
+			}
 		}
 	};
 
 	template <typename... t_sys>
-	get_ctx(t_sys&&...) -> get_ctx<meta::value_or_ref_t<t_sys&&>...>;
+	__sys_wrapper(t_sys&&...) -> __sys_wrapper<meta::value_or_ref_t<t_sys&&>...>;
 
-	template <typename... t_sys>
-	struct _run
+	template <typename t_executor, typename... t_sys>
+	struct __systems
 	{
-		using t_self			  = _run<t_sys...>;
 		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
 		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
 
+		no_unique_addr t_executor	   exec;
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr _run(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr __systems(t_executor&& exec, t_sys&&... sys) noexcept
+			: exec(FWD(exec)),
+			  systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
-		constexpr _run() noexcept requires(std::is_empty_v<t_sys> and ...)
+		constexpr __systems() noexcept requires(std::is_empty_v<t_executor> and (std::is_empty_v<t_sys> and ...))
 		= default;
 
 		template <std::size_t i, typename... t_arg>
@@ -54,11 +99,11 @@ namespace ecs::system::ctx
 			using t_sys_now = meta::variadic_at_t<i, t_sys...>;
 			if constexpr (std::is_empty_v<t_sys_now>)
 			{
-				return run_sys(t_sys_now{}, FWD(arg)...);
+				return __run_sys(exec, t_sys_now{}, FWD(arg)...);
 			}
 			else
 			{
-				return run_sys(std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(systems), FWD(arg)...);
+				return __run_sys(exec, std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(systems), FWD(arg)...);
 			}
 		}
 
@@ -134,20 +179,58 @@ namespace ecs::system::ctx
 			}
 		}
 
+		template <std::size_t i>
+		FORCE_INLINE constexpr decltype(auto)
+		get() noexcept
+		{
+			using t_sys_now = meta::variadic_at_t<i, t_sys...>;
+			if constexpr (std::is_empty_v<t_sys_now>)
+			{
+				return t_sys_now{};
+			}
+			else
+			{
+				return std::get<meta::index_sequence_at_v<i, t_not_empty_idx_seq>>(systems);
+			}
+		}
+
+		template <typename... t_arg>
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(t_arg&&... arg) noexcept
+		{
+			return __run_helper_1(make_arg_tpl(FWD(arg)...), std::index_sequence_for<t_sys...>{});
+		}
+	};
+
+	template <typename... t_sys>
+	__systems(t_sys&&...) -> __systems<meta::value_or_ref_t<t_sys&&>...>;
+
+	template <typename t_executor, typename... t_sys>
+	struct on_ctx
+	{
+		using t_self			  = on_ctx<t_sys...>;
+		using t_not_empty_idx_seq = meta::arr_to_seq_t<not_empty_sys_idx_arr<t_sys...>()>;
+		using t_sys_not_empty	  = meta::filtered_variadic_t<meta::is_not_empty, t_sys...>;
+
+		no_unique_addr __systems<t_executor&&, __sys_wrapper<t_sys>...> systems;
+
+		constexpr on_ctx(auto&& exec, auto&&... sys) noexcept : systems{ FWD(exec), __sys_wrapper{ FWD(sys) }... } { };
+
+		constexpr on_ctx() noexcept requires(std::is_empty_v<t_sys> and ...)
+		= default;
+
 		template <typename... t_sys, typename... t_arg>
 		static consteval bool
 		validate(meta::type_pack<t_arg...>)
 		{
 			{
 				constexpr auto valid = sizeof...(t_sys) > 0;
-				static_assert(valid, "[seq]: requires at least one system type");
+				static_assert(valid, "[on_ctx]: requires at least one system type");
 			}
 			{
-				constexpr auto valid = []<auto... i>(std::index_sequence<i...>) {
-					return ((meta::is_not_same_v<decltype(std::declval<t_self>().__run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>)&&...);
-				}(std::index_sequence_for<t_sys...>{});
+				constexpr auto valid = meta::is_not_same_v<decltype(systems(std::declval<t_arg&&>()...)), invalid_sys_call>;
 
-				static_assert(valid, "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");
+				static_assert(valid, "[on_ctx] systems(...) returned invalid_sys_call - check that system i is callable with given arguments.");
 			}
 
 			return true;
@@ -157,9 +240,12 @@ namespace ecs::system::ctx
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(t_arg&&... arg) noexcept
 		{
-			static_assert(validate<t_sys...>(meta::type_pack<t_arg&&...>{}), "[seq]: invalid seq");
+			static_assert(validate<t_sys...>(meta::type_pack<t_arg&&...>{}), "[on_ctx]: invalid on_ctx");
 
-			return __run_helper_1(make_arg_tpl(FWD(arg)...), std::index_sequence_for<t_sys...>{});
+			return systems(FWD(arg)...);
 		}
 	};
+
+	template <typename... t_sys>
+	on_ctx(t_sys&&...) -> on_ctx<meta::value_or_ref_t<t_sys&&>...>;
 }	 // namespace ecs::system::ctx
