@@ -248,6 +248,8 @@ namespace ecs::entity_group
 			//	sizeof(typename cmp_size_arr_base_tag::type), alignof(typename cmp_size_arr_base_tag::type), total_align_info::template offset_of<cmp_size_arr_base_tag>(),
 			//	sizeof(typename entity_id_arr_base_tag::type), alignof(typename entity_id_arr_base_tag::type), total_align_info::template offset_of<entity_id_arr_base_tag>());
 
+			// static_assert(total_align_info::template count_of<component_size_tag>() == sizeof...(t));
+
 			entity_group_idx()			= group_idx;
 			capacity()					= total_align_info::template count_of<entity_id_tag>();
 			entity_count()				= 0;
@@ -257,7 +259,7 @@ namespace ecs::entity_group
 			component_size_arr_base()	= total_align_info::template offset_of<component_size_tag>();
 			component_offset_arr_base() = total_align_info::template offset_of<component_offset_tag>();
 
-			[this]<std::size_t... local_cmp_idx>(std::index_sequence<local_cmp_idx...> _) {
+			[this]<std::size_t... local_cmp_idx>(std::index_sequence<local_cmp_idx...>) {
 				([this] {
 					using cmp_curr																													 = meta::variadic_at_t<local_cmp_idx, t...>;
 					*(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx)	 = sizeof(cmp_curr);
@@ -285,7 +287,7 @@ namespace ecs::entity_group
 
 			total_align_info.build(align_info::total_size(), mem_size);
 
-			// total_align_info.print();
+			total_align_info.print();
 
 			entity_group_idx()			= group_idx;
 			capacity()					= static_cast<t_capacity>(total_align_info.count_of<entity_id_tag>());

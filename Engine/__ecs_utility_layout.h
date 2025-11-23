@@ -183,7 +183,7 @@ namespace ecs::utility
 				}
 				else
 				{
-					return meta::find_index_tuple_v<match_type<t_tag>::template pred, sorted_element_tpl>::count;
+					return std::tuple_element_t<meta::find_index_tuple_v<match_type<t_tag>::template pred, sorted_element_tpl>, sorted_element_tpl>::count;
 				}
 			}
 
@@ -318,8 +318,8 @@ namespace ecs::utility
 				}
 				else
 				{
-					return []<std::size_t... i>(std::index_sequence<i...> _) {
-						using tpl	 = meta::pop_back_tpl_t<std::tuple<t_layout_group...>>;
+					return []<std::size_t... i>(std::index_sequence<i...>) {
+						using tpl	 = meta::pop_back_tpl_t<t_layout_group...>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
 						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with<t_unit...>>{};
 					}(std::make_index_sequence<sizeof...(t_layout_group) - 1>{});
@@ -338,7 +338,7 @@ namespace ecs::utility
 				{
 
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
-						using tpl	 = meta::pop_back_tpl_t<std::tuple<t_layout_group...>>;
+						using tpl	 = meta::pop_back_tpl_t<t_layout_group...>;
 						using t_last = meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
 
 						return layout_builder_impl<std::tuple_element_t<i, tpl>..., typename t_last::template _with_flex<t_unit_flex...>>{};
@@ -485,7 +485,7 @@ namespace ecs::utility
 		template <typename t>
 		concept has_count_compile = requires {
 			{
-				[]<auto v = t::count>(){}
+				[]<auto v = t::count>() { }
 			};
 		};
 
@@ -541,14 +541,14 @@ namespace ecs::utility
 	FORCE_INLINE decltype(auto)
 	with_n(uint32 count)
 	{
-		return detail::with_n_hybrid<t_tag>{ count };
+		return detail::with_n_hybrid<t_tag, detail::dynamic>{ count };
 	}
 
 	template <uint32 count>
 	FORCE_INLINE decltype(auto)
 	with_n(const type_layout_info& info)
 	{
-		return detail::with_n_hybrid<count>{ info.size, info.alignment };
+		return detail::with_n_hybrid<void, count>{ info.size, info.alignment };
 	}
 
 	template <has_type_ t_tag, std::size_t n>
@@ -611,12 +611,12 @@ namespace ecs::utility
 		using known_type_tpl = meta::filtered_variadic_t<known_type, t_element...>;
 
 		template <typename t_tag>
-		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t<typename match<t_tag>::template pred, known_type_tpl>>;
+		using t_known_element = std::tuple_element_t<0, meta::filtered_tuple_t</*typename*/ match<t_tag>::template pred, known_type_tpl>>;
 
 		using t_known_type_idx = meta::smallest_unsigned_t<std::tuple_size_v<known_type_tpl>>;
 
 		template <typename t_tag>
-		static constexpr t_known_type_idx known_type_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<typename match<t_tag>::template pred, t_element...>>;
+		static constexpr t_known_type_idx known_type_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t</*typename*/ match<t_tag>::template pred, t_element...>>;
 
 		static constexpr t_known_type_idx known_type_count = std::tuple_size_v<known_type_tpl>;
 
@@ -636,8 +636,11 @@ namespace ecs::utility
 		std::array<slot_info, 10> with_flex_buffer;
 
 
-		std::array<uint32, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>						 key_lut;
-		std::array<std::pair<std::size_t, uint32>, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>> result_arr;
+		std::array<uint32, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>
+			key_lut;
+
+		std::array<std::pair<std::size_t, uint32>, meta::arr_size_v<decltype(with_n_buffer)> + meta::arr_size_v<decltype(with_flex_buffer)>>
+			result_arr;
 
 		uint32 runtime_key	 = known_type_count;
 		uint32 with_n_idx	 = 0;

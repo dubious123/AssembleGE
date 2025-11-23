@@ -16,7 +16,7 @@ namespace ecs::system
 
 		no_unique_addr t_sys_not_empty systems;
 
-		constexpr seq(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)){};
+		constexpr seq(t_sys&&... sys) noexcept : systems(meta::make_filtered_tuple<meta::is_not_empty, t_sys...>(FWD(sys)...)) { };
 
 		constexpr seq() noexcept requires(std::is_empty_v<t_sys> and ...)
 		= default;
@@ -118,7 +118,7 @@ namespace ecs::system
 			}
 			{
 				constexpr auto valid = []<auto... i>(std::index_sequence<i...>) {
-					return ((meta::is_not_same_v<decltype(std::declval<t_self>().__run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>)&&...);
+					return ((meta::is_not_same_v<decltype(std::declval<t_self>().template __run_impl_tpl<i>(std::declval<std::tuple<meta::value_or_ref_t<t_arg>...>>())), invalid_sys_call>) && ...);
 				}(std::index_sequence_for<t_sys...>{});
 
 				static_assert(valid, "[seq] run_impl<i>(...) returned invalid_sys_call - check that system i is callable with given arguments.");

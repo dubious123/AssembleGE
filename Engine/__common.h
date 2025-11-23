@@ -27,9 +27,11 @@
 #endif
 
 #if defined(_MSC_VER)
-	#define INLINE_LAMBDA [[msvc::forceinline]]
+	#define INLINE_LAMBDA_FRONT 
+	#define INLINE_LAMBDA_BACK [[msvc::forceinline]]
 #elif defined(__GNUC__) || defined(__clang__)
-	#define INLINE_LAMBDA __attribute__((always_inline))
+	#define INLINE_LAMBDA_FRONT __attribute__((always_inline))
+	#define INLINE_LAMBDA_BACK	
 #else
 	#define INLINE_LAMBDA
 #endif

@@ -76,6 +76,23 @@ namespace meta
 		}
 	};
 
+	template <typename t, typename u>
+	struct copy_cv_ref
+	{
+	  private:
+		using r	 = std::remove_reference_t<t>;
+		using u1 = std::conditional_t<std::is_const_v<r>, std::add_const_t<u>, u>;
+		using u2 = std::conditional_t<std::is_volatile_v<r>, std::add_volatile_t<u1>, u1>;
+		using u3 = std::conditional_t<std::is_lvalue_reference_v<t>, std::add_lvalue_reference_t<u2>, u2>;
+		using u4 = std::conditional_t<std::is_rvalue_reference_v<t>, std::add_rvalue_reference_t<u3>, u3>;
+
+	  public:
+		using type = u4;
+	};
+
+	template <typename t_from, typename t_to>
+	using copy_cv_ref_t = copy_cv_ref<t_from, t_to>::type;
+
 	template <auto v>
 	struct auto_wrapper
 	{
@@ -131,11 +148,26 @@ namespace meta
 	template <typename t, typename u>
 	inline constexpr bool is_not_same_v = not std::is_same_v<t, u>;
 
+	template <std::size_t i>
+	FORCE_INLINE constexpr decltype(auto)
+	variadic_get(auto&& h, auto&&... t) noexcept
+	{
+		static_assert(i < 1 + sizeof...(t), "index out of range");
+
+		if constexpr (i == 0)
+		{
+			return FWD(h);
+		}
+		else
+		{
+			return variadic_get<i - 1>(FWD(t)...);
+		}
+	}
+
 	template <typename t, typename h, typename... ts>
 	consteval bool
 	variadic_contains()
 	{
-
 		if constexpr (std::is_same_v<t, h>)
 		{
 			return true;
@@ -192,8 +224,11 @@ namespace meta
 	template <typename t, auto f>
 	constexpr inline auto param_constains_v = param_constains<t>(f);
 
+	template <unsigned int idx, typename... tails>
+	struct variadic_at;
+
 	template <unsigned int idx, typename head, typename... tails>
-	struct variadic_at
+	struct variadic_at<idx, head, tails...>
 	{
 		using type = variadic_at<idx - 1, tails...>::type;
 	};
@@ -209,7 +244,7 @@ namespace meta
 	// struct variadic_at
 	//{
 	//	using type = args...[idx];
-	// };
+	//};
 
 	template <unsigned int idx, typename... args>
 	using variadic_at_t = variadic_at<idx, args...>::type;
@@ -302,11 +337,11 @@ namespace meta
 	template <std::size_t idx, auto func>
 	struct param_at;
 
-	template <std::size_t i, typename ret, typename... args, ret(func)(args...)>
-	struct param_at<i, func>
-	{
-		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
-	};
+	// template <std::size_t i, typename ret, typename... args, ret(func)(args...)>
+	// struct param_at<i, func>
+	//{
+	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
+	// };
 
 	template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
 	struct param_at<i, func>
@@ -330,16 +365,16 @@ namespace meta
 	struct function_traits;
 
 	// Specialization for global or static function.
-	template <typename ret, typename... args, ret(func)(args...)>
-	struct function_traits<func>
-	{
-		using return_type				   = ret;
-		using argument_types			   = std::tuple<args...>;
-		static constexpr std::size_t arity = sizeof...(args);
+	// template <typename ret, typename... args, ret(func)(args...)>
+	// struct function_traits<func>
+	//{
+	//	using return_type				   = ret;
+	//	using argument_types			   = std::tuple<args...>;
+	//	static constexpr std::size_t arity = sizeof...(args);
 
-		// template <std::size_t i>
-		// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
-	};
+	//	// template <std::size_t i>
+	//	// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
+	//};
 
 	// Specialization for function pointers.
 	template <typename ret, typename... args, ret (*func)(args...)>
@@ -728,6 +763,16 @@ namespace meta
 	// template <template <typename> typename pred, typename... t>
 	// using filter_to_tuple_t = typename type_list_to_tuple<typename filter_list<pred, t...>::type>::type;
 
+	template <std::size_t offset, std::size_t... i>
+	constexpr decltype(auto)
+	make_offset_sequence(std::index_sequence<i...>)
+	{
+		return std::index_sequence<offset + i...>{};
+	}
+
+	template <std::size_t offset, std::size_t n>
+	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n>{}));
+
 	template <auto... i>
 	constexpr auto
 	seq_to_arr(std::index_sequence<i...>)
@@ -932,7 +977,7 @@ namespace meta
 	}
 
 	template <typename t, typename... ts>
-	concept variadic_unique = [] {
+	inline static constexpr bool variadic_unique_v = [] {
 		if constexpr (sizeof...(ts) == 0)
 		{
 			return true;
@@ -947,8 +992,8 @@ namespace meta
 		}
 	}();
 
-	template <auto v, auto... ts>
-	concept variadic_auto_unique = variadic_unique<auto_wrapper<v>, auto_wrapper<ts>...>;
+	template <auto... v>
+	concept variadic_auto_unique = variadic_unique_v<auto_wrapper<v>...>;
 
 	template <typename... t>
 	struct type_pack
@@ -1102,20 +1147,20 @@ namespace meta
 	{
 	};
 
+	template <template <typename> typename t_concept>
+	struct make_pred
+	{
+		template <typename t>
+		using type = std::bool_constant<t_concept<t>::value>;
+	};
+
+	template <template <typename> typename t_concept>
+	using make_pred_t = make_pred<t_concept>::type;
+
 	template <typename t1, template <typename...> typename t2>
 	inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
-
-	template <std::size_t offset, std::size_t... i>
-	constexpr decltype(auto)
-	make_offset_sequence(std::index_sequence<i...>)
-	{
-		return std::index_sequence<offset + i...>{};
-	}
-
-	template <std::size_t offset, std::size_t n>
-	using offset_sequence = decltype(make_offset_sequence<offset>(std::make_index_sequence<n>{}));
 
 	template <std::size_t i, typename t>
 	struct _tpl_leaf
@@ -1197,9 +1242,9 @@ namespace meta
 	template <typename t_func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack(t_func&& func, t_tpl&& tpl) noexcept
+	tuple_unpack(t_func&& func, t_tpl&& tpl) noexcept(noexcept(std::apply(FWD(func), FWD(tpl))))
 	{
-		return []<auto... i>(std::index_sequence<i...>, auto&& func, auto&& tpl) {
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl) noexcept(noexcept(func(std::get<i>(tpl)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 			return func(std::get<i>(tpl)...);
 		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl));
 	}

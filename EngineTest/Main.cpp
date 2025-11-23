@@ -82,6 +82,119 @@ typedef int (*import_func)();
 
 using namespace data_structure;
 
+struct A : decltype([]() {}), decltype([]() { std::println(""); })
+{
+};
+
+template <typename... t>
+void
+func(t... f, auto&&... arg)
+{
+}
+
+void
+ctx_test(auto& _game)
+{
+	using namespace ecs::system::ctx;
+	auto l = [](/*this auto&& ctx,*/ int) { std::println("moved"); };
+	// on_ctx{ sys1, sys2, sys3... }
+	// | on_ctx{ loop{ sys_cond, sys3, set_error_if{}, break_if{} }, on_error = {}, on_stopped = {} }
+
+	// ctx{ ... }
+	// | sys{}
+	// | sys{}...
+	// | sys{}
+
+	func<int, float>(1, 2, 3);
+
+	// sys -> noexception, always return
+	auto test_ctx = on_ctx{
+
+		exec_inline{},
+		[x = 1](auto) {
+			// ctx.get_exec();
+			std::println("not_moved, {}", 1);
+		},
+		with_ctx{ [](auto&& ctx, auto) { std::println("inside_with_ctx"); } },
+		std::move(l)
+	};
+
+	// 1. 모든 sys는 __sys로 감싸짐
+	// 2. 모든 sys는 ctx의 base -> ctx.get<t_sys> 로 추출 가능
+	// 3. sys1 | sys2 => pipe<sys1, sys2> =>  return run_impl<i+1>(ctx, run_impl<i>(ctx, sys));
+
+	// ctx
+	// |_ exec
+	// |_ __sys<i, t_sys>
+	//    |_ t_sys
+
+	// 1. pipe is single func
+	// 2. for_each -> ??? exec.run( ... ) n times, latch.wait() ;
+	// 3. ctx0 { ... ctx1{ ... ctx2{ ... } | ... | ctx2 ?
+
+	// sys
+	// | sys { ... }
+	// | sys
+	// | get_groups{} | on_ctx{ for_each( ... ) }
+
+	// ctx_sys_node => (ctx, arg... ) => do something.
+	// ex. ctx.dispatch<t_sys>(arg...)
+	// ex. for(const auto& e : range) ctx.dispatch<t_sys>( ... )  , latch.wait();, return count?...
+
+	// ctx{} | [](auto&&ctx) { ctx.dispatch( sys)  }  instead => ctx{} | on_ctx{ sys | sys | ..., sys, sys }
+	//
+
+	// ctx{}
+	// | [](auto&& ctx){ run_sys(ctx, sys) }
+	// | sys | sys | sys
+
+	// func ->  ctx_bound vs ctx_unbound
+	// [](){} : exec.run( [](){} )
+	//  [](auto ctx){ ctx.dispatch( inner_sys );  }
+
+	// get_range{} | for_each{} -> just{ get_range } | for_each{}   ... ?
+	// on_ctx{}
+	// | [](){} | [](){} |
+	//
+
+	// run(sys) => ctx->dispatch<t_sys>(FWD(arg)...) => sys(ctx, arg...) or sys(arg...)
+
+	// sys1 | sys2 | sys3 ...
+	// pipe<sys1, sys2, ...>
+	// pipe(ctx, arg...)
+	// => run_impl<0>(ctx, arg...)
+	// => return( run_impl<1>(ctx, ctx->despatch<sys1>(arg...)) )
+	//
+
+
+	// sys1 | sys2
+	// => pipe<sys1, sys2>
+	// => run(pipe) => ctx->dispatch<pipe>(arg...) => pipe<sys1, sys2>( ctx ) (pipe : ctx_bound)
+	//
+	// pipe(ctx)
+	// => ctx->dispatch<sys2> ctx->dispatch<sys1>(arg...)
+	//
+	//
+	// => exec.dispatch(sys2, exec.dispatch(sys1))
+	//
+	// 일반 sys : ctx 필요 없음
+
+
+	static_assert(sizeof(A) == 1);
+	static_assert(std::is_empty_v<A>);
+	static_assert(std::is_trivial_v<A>);
+
+	// is_constexpr_default_constructible<decltype([x = 1]() { })>();
+	[](this auto&& _) {
+		std::println("test");
+	}();
+
+	test_ctx(1);
+
+	std::println("asdfe");
+	std::println("aft_moded");
+}
+
 int
 main()
 {
@@ -89,7 +202,6 @@ main()
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	auto _game = my_game();
 
-	// print_type<meta::tuple_cat_t<>>();
 	using t_entity_id = uint32;
 
 	run_benchmark(_game, 1'000);
@@ -304,17 +416,6 @@ main()
 		// }
 		//
 
-		{
-			auto l		  = []() { std::println("moved"); };
-			auto test_ctx = ctx::on_ctx{
-				ctx::executor_basic{}, []() { std::println("not_moved"); }, std::move(l)
-			};
-			test_ctx();
-
-			std::println("asdfe");
-			std::println("aft_moded");
-		}
-
 
 		//
 		// on_ctx{
@@ -497,5 +598,9 @@ main()
 		// sys(_game);
 
 		// meta::print_type<decltype(res)>();
+	}
+
+	{
+		ctx_test(_game);
 	}
 }

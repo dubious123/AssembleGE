@@ -77,14 +77,14 @@ namespace ecs::system
 
 			if constexpr (meta::index_sequence_empty_v<t_sys_res_not_void>)
 			{
-				[](auto&&... async_op) noexcept -> decltype(auto) INLINE_LAMBDA {
+				[](auto&&... async_op) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
 					(async_op.get(), ...);
 				}(std::async(std::launch::async, [this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })...);
 			}
 			else
 			{
 				return [](auto&& async_op_tpl) noexcept -> decltype(auto) {
-					return []<auto... sys_idx_void, auto... sys_idx_non_void>(std::index_sequence<sys_idx_void...>, std::index_sequence<sys_idx_non_void...>, auto&& async_op_tpl) noexcept -> decltype(auto) INLINE_LAMBDA {
+					return []<auto... sys_idx_void, auto... sys_idx_non_void>(std::index_sequence<sys_idx_void...>, std::index_sequence<sys_idx_non_void...>, auto&& async_op_tpl) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
 						((std::get<sys_idx_void>(async_op_tpl).get()), ...);
 						return std::tuple{ std::get<sys_idx_non_void>(async_op_tpl).get()... };
 					}(t_sys_res_void{}, t_sys_res_not_void{}, FWD(async_op_tpl));
@@ -109,7 +109,7 @@ namespace ecs::system
 			{
 				constexpr auto par_exec_idx = meta::index_sequence_front_v<meta::filtered_index_sequence_t<has_par_exec, t_arg...>>;
 
-				return [this, arg_tpl = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) mutable noexcept INLINE_LAMBDA {
+				return [this, arg_tpl = make_arg_tpl(FWD(arg)...)]<auto... i>(std::index_sequence<i...>) mutable noexcept INLINE_LAMBDA_BACK {
 					return std::get<par_exec_idx>(arg_tpl).__parallel_executor.run_par(([this, &arg_tpl]() { return run_impl_tpl<i>(arg_tpl); })...);
 				}(std::index_sequence_for<t_sys...>{});
 			}

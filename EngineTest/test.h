@@ -560,11 +560,11 @@ struct sys_get_world
 std::string
 get_type(auto&& val)
 {
-	if constexpr (std::is_lvalue_reference_v(val))
+	if constexpr (std::is_lvalue_reference_v<decltype(val)>)
 	{
 		return "lvalue_ref";
 	}
-	else if constexpr (std::is_rvalue_reference_v(val))
+	else if constexpr (std::is_rvalue_reference_v<decltype(val)>)
 	{
 		return "rvalue_ref";
 	}
@@ -683,7 +683,7 @@ run_benchmark(auto&& game, auto it_num)
 
 		auto& b = game.get_scene<scene_t1>().get_world<world_t3>();
 		// auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
-		uint32 ent		 = b.new_entity<>();
+		uint32 ent		 = b.new_entity();
 		auto   ent_count = 1;
 		auto   time_now	 = std::chrono::high_resolution_clock::now();
 		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, it_num))
@@ -705,7 +705,7 @@ run_benchmark(auto&& game, auto it_num)
 				{
 				case 0:
 				{
-					ent = b.new_entity<>();
+					ent = b.template new_entity<>();
 					break;
 				}
 				case 1:
@@ -775,6 +775,7 @@ run_benchmark(auto&& game, auto it_num)
 				{
 					b.add_component<bullet>(ent);
 				}
+				break;
 			}
 			default:
 				break;

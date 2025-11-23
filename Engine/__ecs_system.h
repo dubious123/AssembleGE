@@ -186,8 +186,8 @@ namespace ecs::system
 				}
 				else
 				{
-					// static_assert(false, "invalid_sys_call");
-					return invalid_sys_call();
+					static_assert(false, "invalid_sys_call");
+					// return invalid_sys_call();
 				}
 			}
 			else if constexpr (has_operator_templated<t_sys, decltype(arg)...>)
@@ -196,7 +196,7 @@ namespace ecs::system
 				{
 					using to_tpl = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg...>>::argument_types;
 
-					return []<auto... i>(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA {
+					return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
 						return sys.template operator()<t_arg...>(
 							(make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
 					}(std::make_index_sequence<sizeof...(arg)>{}, FWD(sys), FWD(arg)...);
@@ -208,19 +208,20 @@ namespace ecs::system
 				}
 				else
 				{
-					// static_assert(false, "invalid_sys_call");
-					return invalid_sys_call();
+					static_assert(false, "invalid_sys_call");
+					// return invalid_sys_call();
 				}
 			}
 			else if constexpr (sizeof...(arg) == 0)
 			{
-				return invalid_sys_call();
+				// return invalid_sys_call();
+				static_assert(false, "invalid_sys_call");
 				// return FWD(sys);
 			}
 			else
 			{
-				// static_assert(false, "invalid_sys_call");
-				return invalid_sys_call();
+				static_assert(false, "invalid_sys_call");
+				// return invalid_sys_call();
 			}
 		}
 

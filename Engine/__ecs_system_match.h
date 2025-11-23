@@ -144,7 +144,7 @@ namespace ecs::system
 		constexpr match() requires(std::is_empty_v<t_sys_selector> and ... and std::is_empty_v<t_sys_case>)
 		= default;
 
-		FORCE_INLINE static constexpr decltype(auto)
+		FORCE_INLINE static consteval decltype(auto)
 		case_id_arr()
 		{
 			constexpr auto sys_case_count = sizeof...(t_sys_case) - ((is_sys_default_v<t_sys_case> ? 1 : 0) + ...);
@@ -167,11 +167,11 @@ namespace ecs::system
 		}
 
 		template <std::size_t i>
-		FORCE_INLINE static constexpr decltype(auto)
+		FORCE_INLINE static consteval auto
 		case_id()
 		{
-			constexpr auto arr = case_id_arr();
-			return arr[i];
+			// constexpr auto arr = case_id_arr();
+			return case_id_arr()[i];
 		}
 
 		template <std::size_t i, typename... t_arg>

@@ -78,6 +78,23 @@ namespace ecs::entity_storage
 				}
 			}
 
+			template <typename... t>
+			inline t_entity_group&
+			free_group()
+			{
+				if (free_group_count > 0)
+				{
+					return *ent_group_vec[free_group_idx()];
+				}
+
+				++free_group_count;
+
+				auto p_entity_group = new t_entity_group();
+				p_entity_group->template init<t...>(static_cast<t_entity_group_idx>(ent_group_vec.size()));
+				ent_group_vec.emplace_back(p_entity_group);
+				return *p_entity_group;
+			}
+
 			void
 			update_free(std::size_t group_idx)
 			{
@@ -147,7 +164,7 @@ namespace ecs::entity_storage
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 
 			auto& ent_group_collection = entity_groups_map[archetype];
-			auto& entity_group		   = ent_group_collection.free_group(archetype);
+			auto& entity_group		   = ent_group_collection.free_group<t...>();
 			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_group }));
 
 			entity_info_vec[entity_id].local_idx = entity_group.new_entity<t...>(entity_id, std::forward<t_arg>(arg)...);

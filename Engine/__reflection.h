@@ -4,7 +4,7 @@
 #include "__ecs.h"
 
 // todo more generic reflection
-#define OFFSET(struct_name, field_name) ((size_t) & (((__detail__struct_name*)(nullptr))->field_name))
+#define OFFSET(struct_name, field_name) ((size_t)&(((__detail__struct_name*)(nullptr))->field_name))
 
 #define COMPONENT_BEGIN(struct_name)                                                                 \
 	struct struct_name                                                                               \
@@ -13,17 +13,17 @@
 		static constinit const uint64 id = STR_HASH(#struct_name);                                   \
                                                                                                      \
 	  private:                                                                                       \
-		typedef struct_name		  __detail_self;                                                     \
-		static inline const char* __detail__p_struct_name = []() {                                   \
+		typedef struct_name		 __detail_self;                                                      \
+		static inline const char __detail__p_struct_name = []() {                                    \
 			reflection::register_struct(#struct_name, id, reflection::malloc_struct<struct_name>()); \
-			return #struct_name;                                                                     \
+			return 0; /*return #struct_name; */                                                      \
 		}();                                                                                         \
                                                                                                      \
 	  public:
 
 
 #define __SERIALIZE_FIELD(type, field_name, ...)                                                                                         \
-	type field_name { __VA_ARGS__ };                                                                                                     \
+	type field_name{ __VA_ARGS__ };                                                                                                      \
                                                                                                                                          \
   private:                                                                                                                               \
 	static inline const char __detail__##field_name = []() {                                                                             \
@@ -80,10 +80,12 @@ __VA_OPT__( FOR_EACH(REGISTER_COMPONENT_TO_WORLD, __VA_ARGS__))
 		static inline const char* __detail__sys_name = []() { reflection::register_system_begin(#system_name); return #system_name; }(); \
                                                                    \
 	  public:                                                      \
-		system_name(const system_name& other)			 = delete; \
-		system_name& operator=(const system_name& other) = delete; \
-		system_name(system_name&& other)				 = delete; \
-		system_name& operator=(system_name&& other)		 = delete;
+		system_name(const system_name& other) = delete;            \
+		system_name&                                               \
+		operator=(const system_name& other) = delete;              \
+		system_name(system_name&& other)	= delete;              \
+		system_name&                                               \
+		operator=(system_name&& other) = delete;
 
 #define SYS_END()                                          \
   private:                                                 \
@@ -93,10 +95,11 @@ return true; }(); \
 	}                                                      \
 	;
 
-template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::*Field>
-static size_t field_offset()
+template <typename _Tstruct, typename _Tfield, typename _Tfield _Tstruct::* Field>
+static size_t
+field_offset()
 {
-	return (size_t) & ((_Tstruct*)(0)->*Field);
+	return (size_t)&((_Tstruct*)(0)->*Field);
 }
 
 namespace reflection
@@ -116,10 +119,12 @@ namespace reflection
 		// struct_info();
 		// struct_info(uint64 idx, const char* name);
 		struct_info(uint64 idx, uint64 hash_id, const char* name, void* p_value);
-		struct_info(const struct_info& other)			 = delete;
-		struct_info& operator=(const struct_info& other) = delete;
+		struct_info(const struct_info& other) = delete;
+		struct_info&
+		operator=(const struct_info& other) = delete;
 		struct_info(struct_info&& other) noexcept;
-		struct_info& operator=(struct_info&& other) noexcept;
+		struct_info&
+		operator=(struct_info&& other) noexcept;
 		~struct_info();
 
 		uint64		idx;
@@ -153,7 +158,7 @@ namespace reflection
 		size_t size;
 		void*  p_value;
 
-		component_info(size_t size, void* p_value) : size(size), p_value(p_value) {};
+		component_info(size_t size, void* p_value) : size(size), p_value(p_value) { };
 	};
 
 	struct entity_info
@@ -171,26 +176,36 @@ namespace reflection
 		uint64*		p_arguments			  = nullptr;
 	};
 
-	void register_struct(const char* name, uint64 hash_id, void* p_value);
+	void
+	register_struct(const char* name, uint64 hash_id, void* p_value);
 
-	void register_field(e_primitive_type type, const char* name, size_t offset);
+	void
+	register_field(e_primitive_type type, const char* name, size_t offset);
 
-	void register_scene(const char* name);
+	void
+	register_scene(const char* name);
 
-	void register_world(const char* name, const ecs::world_base& w);
+	void
+	register_world(const char* name, const ecs::world_base& w);
 
-	void register_component_to_world(uint64 struct_hash_id);
+	void
+	register_component_to_world(uint64 struct_hash_id);
 
-	void register_entity(const char* name, ecs::entity_idx idx, const ecs::world_base& w);
+	void
+	register_entity(const char* name, ecs::entity_idx idx, const ecs::world_base& w);
 
-	void register_system_begin(const char* name);
+	void
+	register_system_begin(const char* name);
 
-	void register_system_function(int type, int param_type);
+	void
+	register_system_function(int type, int param_type);
 
-	void register_system_update(uint32 count, uint64* (*alloc_func)());
+	void
+	register_system_update(uint32 count, uint64* (*alloc_func)());
 
 	template <typename... args>
-	void register_system_update()
+	void
+	register_system_update()
 	{
 		register_system_update(
 			sizeof...(args),
@@ -210,63 +225,72 @@ namespace reflection
 	}
 
 	template <typename c, typename... args>
-	void register_update_function(void (c::*func)(args...))
+	void
+	register_update_function(void (c::*func)(args...))
 	{
 		register_system_function(2, 0);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename world_t, typename... args>
-	void register_update_function(void (c::*func)(world_t, args...))
+	void
+	register_update_function(void (c::*func)(world_t, args...))
 	{
 		register_system_function(2, 1);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename... args>
-	void register_update_function(void (c::*func)(ecs::entity_idx, args...))
+	void
+	register_update_function(void (c::*func)(ecs::entity_idx, args...))
 	{
 		register_system_function(2, 2);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename world_t, typename... args>
-	void register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...))
+	void
+	register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...))
 	{
 		register_system_function(2, 3);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename... args>
-	void register_update_function(void (c::*func)(args...) const)
+	void
+	register_update_function(void (c::*func)(args...) const)
 	{
 		register_system_function(2, 0);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename world_t, typename... args>
-	void register_update_function(void (c::*func)(world_t, args...) const)
+	void
+	register_update_function(void (c::*func)(world_t, args...) const)
 	{
 		register_system_function(2, 1);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename... args>
-	void register_update_function(void (c::*func)(ecs::entity_idx, args...) const)
+	void
+	register_update_function(void (c::*func)(ecs::entity_idx, args...) const)
 	{
 		register_system_function(2, 2);
 		register_system_update<args...>();
 	}
 
 	template <typename c, typename world_t, typename... args>
-	void register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...) const)
+	void
+	register_update_function(void (c::*func)(world_t, ecs::entity_idx, args...) const)
 	{
 		register_system_function(2, 3);
 		register_system_update<args...>();
 	}
 
 	template <typename system_t>
-	void register_system()
+	void
+	register_system()
 	{
 		using namespace ecs;
 		using world_t = world_base;
@@ -316,24 +340,36 @@ namespace reflection
 		// }
 	};
 
-	EDITOR_API size_t get_registered_struct_count();
-	EDITOR_API size_t get_registered_scene_count();
-	EDITOR_API size_t get_registered_world_count();
-	EDITOR_API size_t get_registered_entity_count(size_t world_idx);
-	EDITOR_API size_t get_registered_system_count();
+	EDITOR_API size_t
+	get_registered_struct_count();
+	EDITOR_API size_t
+	get_registered_scene_count();
+	EDITOR_API size_t
+	get_registered_world_count();
+	EDITOR_API size_t
+	get_registered_entity_count(size_t world_idx);
+	EDITOR_API size_t
+	get_registered_system_count();
 
-	EDITOR_API struct_info*	  get_struct_info(uint64 component_id);
-	EDITOR_API scene_info*	  get_scene_info(size_t index);
-	EDITOR_API world_info*	  get_world_info(size_t index);
-	EDITOR_API component_info get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx);
-	EDITOR_API entity_info*	  get_entity_info(size_t world_idx, size_t entity_idx);
-	EDITOR_API system_info*	  get_system_info(size_t system_idx);
+	EDITOR_API struct_info*
+	get_struct_info(uint64 component_id);
+	EDITOR_API scene_info*
+	get_scene_info(size_t index);
+	EDITOR_API world_info*
+	get_world_info(size_t index);
+	EDITOR_API component_info
+	get_component_info(size_t world_idx, size_t entity_idx, size_t component_idx);
+	EDITOR_API entity_info*
+	get_entity_info(size_t world_idx, size_t entity_idx);
+	EDITOR_API system_info*
+	get_system_info(size_t system_idx);
 }	 // namespace reflection
 
 namespace reflection
 {
 	template <typename t>
-	void* malloc_struct()
+	void*
+	malloc_struct()
 	{
 		void* ptr = malloc(sizeof(t));
 		new (ptr) t();
@@ -351,7 +387,8 @@ namespace reflection
 	struct scene_wrapper
 	{
 		template <typename... w_wrapper>
-		static auto& init(int place_holder, w_wrapper&&...)
+		static auto&
+		init(int place_holder, w_wrapper&&...)
 		{
 			static auto s = ecs::scene<typename w_wrapper::world_type...>();
 			reflection::register_scene(str_wrapper.value);
