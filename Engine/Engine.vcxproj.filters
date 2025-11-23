@@ -30,5 +30,6 @@
     <ClInclude Include="__ecs_system_identity.h" />
     <ClInclude Include="__ecs_system_adaptors.h" />
     <ClInclude Include="__ecs_system_ctx.h" />
+    <ClInclude Include="__ecs_system_ctx_pipe.h" />
   </ItemGroup>
 </Project>

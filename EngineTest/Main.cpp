@@ -96,7 +96,7 @@ void
 ctx_test(auto& _game)
 {
 	using namespace ecs::system::ctx;
-	auto l = [](/*this auto&& ctx,*/ int) { std::println("moved"); };
+	auto l = [](/*this auto&& ctx,*/ int) { std::println("moved"); return 3; };
 	// on_ctx{ sys1, sys2, sys3... }
 	// | on_ctx{ loop{ sys_cond, sys3, set_error_if{}, break_if{} }, on_error = {}, on_stopped = {} }
 
@@ -108,77 +108,46 @@ ctx_test(auto& _game)
 	func<int, float>(1, 2, 3);
 
 	// sys -> noexception, always return
-	auto test_ctx = on_ctx{
 
+	// 문제 : sys1 | sys2 | sys3 -> exec pipe, exec pipe sys1, sys2 sys3 ? 가 된다.
+	// 문제 : on_ctx | on_ctx 가 안된다.
+
+	// 어떤 adpator는 ctx를 받아서 무엇을 한다. ( ex. with_ctx, for_each_par ... )
+	// 어떤것은 아무것도 안한다.
+
+	// executor는 여러개의 dag (pipe)를 소비한다.
+	// executor는 여러개의 dag를 어떻게 실행할 것인지 정해야함 ( dag의 순서, 실제 return type 의 배치, error, cancel 등등 )
+	// 각 노드들은 실제 코드와 executor를 가지고 어떻게 실행할 것인지를 정한다.
+	// 각 노드들은 executor의 입장에서 "실제로" 실행되는 코드는 아니다.
+	// 실제로 실행되는 코드는 (user의 코드) execute(sys, ctx, arg...)를 통해 실행됨
+	//
+	// dag는 dag.run(ctx, arg...) => 여러개의 dag run... 을 어떻게 배치할 것인지는 executor의 역할
+	// dag의 각 노드 안에서 execute(sys, ctx, arg...) 를 어떻게 배치할 것인지는 각 node의 역할
+	// dag( pipe )는 가장 간단한 노드?
+	//
+	// executor :
+	//
+	// run_pipes( ctx, pipes..., arg... ) <- on_ctx에서 한번 실행됨
+	//
+	// run_pipe( ctx, pipe..., arg... ) <- executor에서 각각의 pipe를 실행하기 위해 call됨
+	//
+	// execute( ctx, sys, arg... ) <- 각 노드에서 call됨.
+	//
+	//
+	auto test_ctx = on_ctx{
 		exec_inline{},
 		[x = 1](auto) {
-			// ctx.get_exec();
+			std::println("not_moved, {}", 1);
+			return 1;
+		}
+			| [](auto i) { std::println("{}", ++i); return i; }
+			| with_ctx{ [](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); } },
+		[](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); },
+		std::move(l),
+		[x = 1](auto) {
 			std::println("not_moved, {}", 1);
 		},
-		with_ctx{ [](auto&& ctx, auto) { std::println("inside_with_ctx"); } },
-		std::move(l)
-	};
-
-	// 1. 모든 sys는 __sys로 감싸짐
-	// 2. 모든 sys는 ctx의 base -> ctx.get<t_sys> 로 추출 가능
-	// 3. sys1 | sys2 => pipe<sys1, sys2> =>  return run_impl<i+1>(ctx, run_impl<i>(ctx, sys));
-
-	// ctx
-	// |_ exec
-	// |_ __sys<i, t_sys>
-	//    |_ t_sys
-
-	// 1. pipe is single func
-	// 2. for_each -> ??? exec.run( ... ) n times, latch.wait() ;
-	// 3. ctx0 { ... ctx1{ ... ctx2{ ... } | ... | ctx2 ?
-
-	// sys
-	// | sys { ... }
-	// | sys
-	// | get_groups{} | on_ctx{ for_each( ... ) }
-
-	// ctx_sys_node => (ctx, arg... ) => do something.
-	// ex. ctx.dispatch<t_sys>(arg...)
-	// ex. for(const auto& e : range) ctx.dispatch<t_sys>( ... )  , latch.wait();, return count?...
-
-	// ctx{} | [](auto&&ctx) { ctx.dispatch( sys)  }  instead => ctx{} | on_ctx{ sys | sys | ..., sys, sys }
-	//
-
-	// ctx{}
-	// | [](auto&& ctx){ run_sys(ctx, sys) }
-	// | sys | sys | sys
-
-	// func ->  ctx_bound vs ctx_unbound
-	// [](){} : exec.run( [](){} )
-	//  [](auto ctx){ ctx.dispatch( inner_sys );  }
-
-	// get_range{} | for_each{} -> just{ get_range } | for_each{}   ... ?
-	// on_ctx{}
-	// | [](){} | [](){} |
-	//
-
-	// run(sys) => ctx->dispatch<t_sys>(FWD(arg)...) => sys(ctx, arg...) or sys(arg...)
-
-	// sys1 | sys2 | sys3 ...
-	// pipe<sys1, sys2, ...>
-	// pipe(ctx, arg...)
-	// => run_impl<0>(ctx, arg...)
-	// => return( run_impl<1>(ctx, ctx->despatch<sys1>(arg...)) )
-	//
-
-
-	// sys1 | sys2
-	// => pipe<sys1, sys2>
-	// => run(pipe) => ctx->dispatch<pipe>(arg...) => pipe<sys1, sys2>( ctx ) (pipe : ctx_bound)
-	//
-	// pipe(ctx)
-	// => ctx->dispatch<sys2> ctx->dispatch<sys1>(arg...)
-	//
-	//
-	// => exec.dispatch(sys2, exec.dispatch(sys1))
-	//
-	// 일반 sys : ctx 필요 없음
-
+	} /*| on_ctx{ exec_inline{}, [](auto&&... arg) { ((std::cout << arg), ...); } }*/;
 
 	static_assert(sizeof(A) == 1);
 	static_assert(std::is_empty_v<A>);
@@ -190,6 +159,18 @@ ctx_test(auto& _game)
 	}();
 
 	test_ctx(1);
+
+	/*static constinit const */ auto c_i = on_ctx{
+		exec_inline{},
+
+		[]() { return 1; }
+			| [](auto i) { return ++i; }
+			| [](auto i) { return i * 2; },
+
+		with_ctx{ [](auto ctx) { return 1.3; } },
+	}();
+
+	// auto res_tpl = test_ctx(1);
 
 	std::println("asdfe");
 	std::println("aft_moded");
@@ -209,7 +190,7 @@ main()
 	{
 		using namespace ecs::system;
 		using ecs::system::operator|;
-		auto _l	 = [] { };
+		auto _l	 = [] {};
 		auto sys = seq{
 			sys_game_init{},
 			std::move(_l),
@@ -268,211 +249,6 @@ main()
 													   } } } },
 								  sys_game_deinit{} }
 		};
-		// seq =>
-		// sys<exec_seq>{
-		//	exec_seq executer;
-		//	systems
-		//
-		//	decltype run(auto&&... arg)
-		//		return executer.run( sys...,  FWD(arg)...)
-		// }
-		//
-		// get_exec{}
-		// | just{ _game }
-		// |
-		//
-		//
-		// identity{ _game, ...,  }
-		// | sys<seq>( sys, then( ... ), sys... )
-		// | sys<par>()
-		// | sys<custom_par>()
-		// | with_custom_exec{} | then() | then() |
-		// |
-		// ...
-		//
-		//
-		//
-		// _game
-		// | on_parallel_ctx{}
-		// | do { systems.... }
-		// | on_seq_ctx{}
-		// | do { [](auto& g){ return exec_ctx{g}; } }
-		//
-		//
-		// _game
-		// | seq{
-		// par { sys... },
-		// par { some_custom_executor, sys... }
-		// par<some_custom_executor> { sys... }
-		// par { get_some_parallel_executer , sys... }
-		// }
-		//
-		// _game
-		// | on_ctx{ ctx::cpu::seq{} } <- returns what? ( == [](auto&& g){ return ecs::system::ctx::cpu::seq{ FWD(_game) }; }
-		// | run(..., on_ctx{ ctx::cpu::par{} } | sys | ...,   )
-		// | run( [](auto&&... res){ ... } )
-		//
-		// new_ctx { ctx::cpu::seq{}, _game, other_data, 10, [](){ return some_strange_data{}; } }
-		// | run( ..., new_ctx{ ctx::cpu::par{} } | [](){}... )
-		//
-		//
-		// new_ctx { ctx::cpu::seq{}, ctx::no_execption{}, identity{} }
-		// | run( sys1, sys2, ...,
-		//		new_ctx{ ctx::cpu::par{}, ctx::with_execption{}, input::identity{} <- projection }
-		//			| run( [](auto& game, int ten, auto& some_data, auto& some_lambda, auto& some_ctx){}, ... ),
-		//		sys_3, sys_4, ...)
-		// | run( [](auto&& some_tpl){}, [](auto&&... res){}, ... )
-		// | [](auto& game, int ten, auto& some_data, auto& some_lambda, auto& some_ctx){ return game; } <- run can be omitted when single sys
-		// | sys_get_world<>{}
-		// | run( for_each{ ... } )
-		// | run( new_ctx{ some_custom_ctx{},  | rv::order_by{} } | for_each{ run{ [](auto& igroup){ ... }, some_sys, ...,  } } )
-		// | cond{ [](){return true; }, sys1, sys2 }
-		//
-		// ctx | run() = ctx{ , identity{} | run( ... ) }
-		//
-		//
-		// run_sys( wait_all(sys...),  run_sys( new_ctx, arg...  ) )
-		//
-		// run_sys( new_ctx, arg...  ) -> ctx{ ... }
-		//
-		//
-		// auto sys =
-		// get_ctx{}
-		// | run( [](){return 1;} )
-		// | run( [](auto i){return i + 1;} )
-		//
-		// ctx_cpu_seq{} | run( [](){}, ctx_cpu_par{} | [](){} ) = ctx_seq{ ... , [](){}, ctx{..., [](){}} )
-		//
-		// ctx{ run( ), run( ), ... }( arg... )
-		//
-		// ctx
-		// | seq
-		// | sys
-		// | sys
-		//
-		// ctx
-		// | seq
-		// | seq { ... }
-		// | cond { ... }
-		//
-		// 1 | [](int){}
-		//
-		// 1 | ctx{} | [](int){}
-		// ctx{} | [int](){}
-		//
-		//
-		//
-		// == make_ctx ( ctx{}, sys{}, sys{}, sys{} )
-		//
-		// ctx() == ...
-		//
-		//
-		// run_sys(get_ctx{}, arg...) -> ctx{ arg... }
-		// run_sys(run{ [](){} }, ctx{arg...} )
-		//
-		// 원래는
-		//
-		// run_sys(sys, arg...)
-		// 였는데 이걸
-		//
-		// run_sys(ctx, sys, arg...) 로 바꾸자?
-		//
-		// -> ctx.run(sys, arg...) ?
-		//
-		// sys() -> sys(_some_secret_ctx)?
-		//
-		// ctx | sys => ctx { sys }
-		//
-		// ctx | sys | sys => ctx { sys | sys }
-		//
-		// ctx | ctx { sys , sys } => ctx { ctx { sys, sys } }
-		//
-		// on_ctx{
-		//
-		//	sys
-		//	| sys
-		//  | sys
-		//  | seq{ ... },
-		//
-		// => pipe.(arg...) 대신 pipe(exec, arg...)
-		//
-		//	get_world{}
-		//	| on_ctx{ executor::?, get_veiw<group>{} | for_each{ [](auto& group){...} } },
-		//
-		//  sys | sys | read_ctx{} | [](auto& env){ },
-		//
-		//	sys | sys | cond(pred, on_ctx{ ... } ),
-		//
-		//	read_ctx{} | sys_make_ctx{} | on_ctx{ sys | sys | ... | }
-		//	read_ctx{} | sys_make_ctx{ factory_fnc ,sys | sys | ...  }
-		//	sys | sys | add_current_ctx{} | [](ctx, auto...){ctx.set_stop(); <- call request_stop(); }
-		//	sys,
-		//	sys,
-		//	on_ctx{ ... }
-		//	_catch{ ... },
-		//	_when_stopped{ ... },
-		//	executer{ ... },
-		//	allocator{ ... } <- how?
-		// }
-		//
-
-
-		//
-		// on_ctx{
-		//	sys,
-		//	throw_error{}
-		//	...
-		//
-		//	,
-		//	_catch{ ... }
-		// }
-		//
-		//
-		// 예외적으로
-		//
-		// make_ctx{}
-		// | [](){} 허용 -> for runtime ctx
-		//
-		// run_sys(sys, ...)
-		//
-		// if sys is ctx
-		// -> ctx.run(...)
-		//
-		//
-		// on_ctx{}
-		// | [](){return 1;}
-		// | seq{ ... }
-		// | [](int){return 2;}
-		//
-		//
-		// wait_all(sys ... )
-		// -> operator( t_ctx&& ctx)
-		// ctx.run(sys)
-		//
-		//
-		//
-		// pipe( left, right )
-		//
-		// before : run_sys( sys_r, sys_l(arg...) )
-		// now : run_sys(
-		// run_sys(left, arg...)
-		//
-		// new_ctx{ ctx::cpu::seq{}, ctx::no_exception{}, input{ _game } }
-		// | test::loop{ [](auto& game){return game.running; },
-		//	get_world<>{} | query{} | new_ctx{ ctx::cpu::par{}, identity{} } | for_each{ },
-		//	get_world<>{} | for_each{ entity_group_query{} | new_ctx{ par{} } | for_each{ entity_query<>{} | [](transform, ...){} }  },
-		//	get_ctx{} | ...
-		// }
-		//
-		// 0. ctx -> run, set_args()
-		// 1. system::test::ctx::seq{} -> run(...)
-		// 2. system::test::operator | ( l, r) -> system::test::detail::sys{ ctx, sys }
-		// 3. system::test::operator | ( l, r) -> system::test::detail::sys{ ctx, sys | sys }
-		// 4. sys | sys
-		// 5. system::test::detail::sys_run_impl -> run(ctx) { return ctx.run( ... ); }\
-		// 6. system::test::detail::sys_loop_impl -> run(ctx) { return while( ctx.run( sys_cond ) ) {
-		//
-
 
 		static_assert(std::is_empty_v<decltype(filter{ [](int i) { return i % 2 == 0; } })>);
 
@@ -573,10 +349,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
 
 		};
 

@@ -485,7 +485,7 @@ namespace ecs::utility
 		template <typename t>
 		concept has_count_compile = requires {
 			{
-				[]<auto v = t::count>() { }
+				[]<auto v = t::count>(){}
 			};
 		};
 
@@ -781,7 +781,7 @@ namespace ecs::utility
 				 ...);
 			}(std::make_index_sequence<known_type_count>{});
 
-			for (auto i : std::views::iota(0uz, with_n_idx + with_flex_idx - known_type_count))
+			for (uint32 i : std::views::iota(0uz, with_n_idx + with_flex_idx - known_type_count))
 			{
 				auto idx = index_of(i);
 				auto key = key_lut[idx];
