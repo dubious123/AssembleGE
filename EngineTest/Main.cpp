@@ -86,6 +86,21 @@ struct A : decltype([]() {}), decltype([]() { std::println(""); })
 {
 };
 
+struct A2 : decltype([]() {}), decltype([]() { std::println(""); })
+{
+};
+
+template <typename... t_sys>
+struct B : ecs::system::ctx::make_unique_bases<t_sys...>
+{
+	using t_unique_bases = ecs::system::ctx::make_unique_bases<t_sys...>;
+	using t_unique_bases::t_unique_bases;
+};
+
+template <typename... t_arg>
+B(t_arg&&...)
+	-> B<meta::value_or_ref_t<t_arg&&>...>;
+
 template <typename... t>
 void
 func(t... f, auto&&... arg)
@@ -106,71 +121,130 @@ ctx_test(auto& _game)
 	// | sys{}
 
 	func<int, float>(1, 2, 3);
-
-	// sys -> noexception, always return
-
-	// 문제 : sys1 | sys2 | sys3 -> exec pipe, exec pipe sys1, sys2 sys3 ? 가 된다.
-	// 문제 : on_ctx | on_ctx 가 안된다.
-
-	// 어떤 adpator는 ctx를 받아서 무엇을 한다. ( ex. with_ctx, for_each_par ... )
-	// 어떤것은 아무것도 안한다.
-
-	// executor는 여러개의 dag (pipe)를 소비한다.
-	// executor는 여러개의 dag를 어떻게 실행할 것인지 정해야함 ( dag의 순서, 실제 return type 의 배치, error, cancel 등등 )
-	// 각 노드들은 실제 코드와 executor를 가지고 어떻게 실행할 것인지를 정한다.
-	// 각 노드들은 executor의 입장에서 "실제로" 실행되는 코드는 아니다.
-	// 실제로 실행되는 코드는 (user의 코드) execute(sys, ctx, arg...)를 통해 실행됨
+	// 1. run_sys => invoke의 확장판, ctx_bound 처리, user_code라면 ctx.get_exec() 한후 exec.execute(sys, ctx, arg...)
+	// adaptor라면 그냥 invoke
 	//
-	// dag는 dag.run(ctx, arg...) => 여러개의 dag run... 을 어떻게 배치할 것인지는 executor의 역할
-	// dag의 각 노드 안에서 execute(sys, ctx, arg...) 를 어떻게 배치할 것인지는 각 node의 역할
-	// dag( pipe )는 가장 간단한 노드?
+	// 2. exec.execute(sys, arg...) => invoke(sys, arg...)를 어떠한 방식으로든 실행하고(보장 X) return한다.
+	// sys의 실행값을, thread를, async를, handle을 무엇을 반환할지는 사용자 맘
+	// ctx가 arg에 포함되어 있는데 이는 run_sys에서 알아서 처리 되었기 때문?
 	//
-	// executor :
+	// 같은 pipe라도 어떤 exec인지에 따라 실행이 될수도, 안될수도 (compile 실패) 있다.
 	//
-	// run_pipes( ctx, pipes..., arg... ) <- on_ctx에서 한번 실행됨
+	// 3. exec.run_all(sys..., ctx, arg...) => 각 sys들을 run_sys 해서 적절하게 return한다.
+	// execute가 아니라 run_sys인 이유는, 각 sys는 결국에는 user_code가 있을 것이고, 적어도 1번은 알아서 execute될 것이기 때문에
+	// 중복 execute를 피하기 위해서.
 	//
-	// run_pipe( ctx, pipe..., arg... ) <- executor에서 각각의 pipe를 실행하기 위해 call됨
+	// 결국 run_sys가 execute의 상위개념
 	//
-	// execute( ctx, sys, arg... ) <- 각 노드에서 call됨.
+	// ctx(this auto&& self, arg...)
+	// => self.execute<t_sys...>(arg...)
 	//
 	//
-	auto test_ctx = on_ctx{
-		exec_inline{},
-		[x = 1](auto) {
-			std::println("not_moved, {}", 1);
-			return 1;
-		}
-			| [](auto i) { std::println("{}", ++i); return i; }
-			| with_ctx{ [](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); } },
-		[](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); },
-		std::move(l),
-		[x = 1](auto) {
-			std::println("not_moved, {}", 1);
-		},
-	} /*| on_ctx{ exec_inline{}, [](auto&&... arg) { ((std::cout << arg), ...); } }*/;
+	// adaptor => run_sys만 call한다.
+	//
+	// ex. pipe => run_sys(sys_r, ctx, run_sys(sys_l, ctx, arg...) )
+	//
+	//
+	//
+	//
+	// A : a1, a2, a3
+	//
+	// a1 : a11, a12, a13
+	//
+	// A : base_count = 9
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	// auto test_ctx = on_ctx{
+	//	exec_inline{},
+	//	[x = 1](auto) {
+	//		std::println("not_moved, {}", 1);
+	//		return 1;
+	//	}
+	//		| [](auto i) { std::println("{}", ++i); return i; }
+	//		| with_ctx{ [](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); } },
+	//	[](auto&& ctx, auto i) { std::println("inside_with_ctx"); std::println("{}", i); },
+	//	std::move(l),
+	//	[x = 1](auto) {
+	//		std::println("not_moved, {}", 1);
+	//	},
+	//} /*| on_ctx{ exec_inline{}, [](auto&&... arg) { ((std::cout << arg), ...); } }*/;
 
-	static_assert(sizeof(A) == 1);
-	static_assert(std::is_empty_v<A>);
-	static_assert(std::is_trivial_v<A>);
+	// static_assert(sizeof(A) == 1);
+	// static_assert(std::is_empty_v<A>);
+	// static_assert(std::is_trivial_v<A>);
 
-	// is_constexpr_default_constructible<decltype([x = 1]() { })>();
-	[](this auto&& _) {
-		std::println("test");
-	}();
+	//// is_constexpr_default_constructible<decltype([x = 1]() { })>();
+	//[](this auto&& _) {
+	//	std::println("test");
+	//}();
 
-	test_ctx(1);
+	// test_ctx(1);
 
-	/*static constinit const */ auto c_i = on_ctx{
-		exec_inline{},
+	///*static constinit const */ auto c_i = on_ctx{
+	//	exec_inline{},
 
-		[]() { return 1; }
-			| [](auto i) { return ++i; }
-			| [](auto i) { return i * 2; },
+	//	[]() { return 1; }
+	//		| [](auto i) { return ++i; }
+	//		| [](auto i) { return i * 2; },
 
-		with_ctx{ [](auto ctx) { return 1.3; } },
-	}();
+	//	with_ctx{ [](auto ctx) { return 1.3; } },
+	//}();
 
 	// auto res_tpl = test_ctx(1);
+
+	// A, A, B{ A, A, C{ B{ A, A } }, A } , A , A
+	// using t_rebound = rebind_unique_base<0, t_tree>::type;
+
+	// meta::print_type<rebind_unique_base<0, t_tree>::type>();
+
+
+	// ex. cond{ sys1, sys2, sys3 } => cond : tree<cond<sys1,sys2, sys3>,  sys1, sys2, sys3>
+
+	// auto _ = make_unique_base_tree{ A{}, A{}, /*B{ A{}, A{}, A{} },*/ A{} };
+
+	// leaf<A>, tree<B, A, A>
+
+
+	// meta::print_type<decltype(_)>();
+	// meta::print_type<decltype(_.get<0>())>();
+
+	// meta::print_type<decltype(ecs::system::ctx::some_type{ 1, 1.f, 0 })>();
+
+	// unique_bases { A{}, B{}, C{} ... } => unique_bases : unique_base<0, A>, unique_base<1, B> ,...
+	// unique_bases { A{}, unique_bases{ B{}, C{} }, D{} ... } => unique_bases : unique_base<0, A>, unique_base<1, ??? >, unique_base<4, D>, ...
+
+	// template<t...>
+	// some_adaptor : make_unique_bases<t...>
+	// ...
+	// CTAD :
+	// some_adaptor(t_sys&&... ) -> some_adaptor< ??? >
+
+	// unique_bases<std::index_sequence<2, 3, 4>, A, A, A> _ = unique_bases /*<std::index_sequence<0, 1, 2>, A, A, A>*/ { A{}, A{}, A{} };
+	{
+	}
+	{
+		auto _ = unique_bases{ B{ A2{}, A{} }, unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
+
+		// meta::print_type<make_unique_base_t<3, decltype(unique_bases{ A{}, A2{}, A{} /*, unique_bases{ A{}, A2{}, A{} } */ })>>();
+
+		// unique_base<0, A>{
+		//	A{}
+		// }.get<4>();
+
+		// meta::print_type<decltype(_)>();
+		//   meta::print_type<_.unique_base_count()>();
+
+		// meta::print_type<make_unique_base_t<0, decltype(B{ A2{}, A{} })>>();
+		// meta::print_type<std::remove_cvref_t<decltype(_.get<0>())>::unique_base_count()>();
+		// meta::print_type<decltype(_.get<2>())>();
+	}
+
 
 	std::println("asdfe");
 	std::println("aft_moded");
@@ -190,7 +264,7 @@ main()
 	{
 		using namespace ecs::system;
 		using ecs::system::operator|;
-		auto _l	 = [] {};
+		auto _l	 = [] { };
 		auto sys = seq{
 			sys_game_init{},
 			std::move(_l),
@@ -349,10 +423,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() {},
-			[]() {},
-			[]() {},
-			[]() {},
+			[]() { },
+			[]() { },
+			[]() { },
+			[]() { },
 
 		};
 

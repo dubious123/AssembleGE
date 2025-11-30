@@ -22,15 +22,44 @@ namespace ecs::system::ctx
 	template <typename t>
 	concept is_ctx_bound = std::is_base_of_v<sys_ctx_bound, std::remove_reference_t<t>>;
 
+	struct adaptor_base
+	{
+	};
+
+	template <typename t>
+	concept cx_adaptor = std::is_base_of_v<adaptor_base, std::remove_reference_t<t>>;
+
+	struct executor_base
+	{
+	};
+
+	template <typename t>
+	concept cx_executor = std::is_base_of_v<executor_base, std::remove_reference_t<t>>;
+
 	namespace detail
 	{
 		template <typename t_sys, cx_ctx t_ctx>
 		FORCE_INLINE constexpr decltype(auto)
 		run_sys(t_sys&& sys, t_ctx&& ctx, auto&&... arg) noexcept
 		{
-			if constexpr (is_ctx_bound<t_sys>)
+			if constexpr (cx_adaptor<t_sys>)
 			{
-				if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
+				if constexpr (is_ctx_bound<t_sys>)
+				{
+					if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
+					{
+						return sys(FWD(ctx), FWD(arg)...);
+					}
+					else
+					{
+						return ecs::system::detail::invalid_sys_call();
+					}
+				}
+				else if constexpr (requires { sys(FWD(arg)...); })
+				{
+					return sys(FWD(arg)...);
+				}
+				else if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
 				{
 					return sys(FWD(ctx), FWD(arg)...);
 				}
@@ -39,45 +68,9 @@ namespace ecs::system::ctx
 					return ecs::system::detail::invalid_sys_call();
 				}
 			}
-			else if constexpr (requires { sys(FWD(arg)...); })
-			{
-				return sys(FWD(arg)...);
-			}
-			else if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
-			{
-				return sys(FWD(ctx), FWD(arg)...);
-			}
 			else
 			{
-				return ecs::system::detail::invalid_sys_call();
-			}
-		}
-
-		template <typename t_sys, cx_ctx t_ctx>
-		FORCE_INLINE constexpr decltype(auto)
-		execute(t_sys&& sys, t_ctx&& ctx, auto&&... arg) noexcept
-		{
-			if constexpr (requires { ctx.execute(FWD(sys), FWD(arg)...); })
-			{
-				return ctx.execute(FWD(sys), FWD(arg)...);
-			}
-			else
-			{
-				return system::detail::invalid_sys_call();
-			}
-		}
-
-		template <typename t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		execute(t_sys&& sys, auto&&... arg) noexcept
-		{
-			if constexpr (is_ctx_bound<t_sys> is_false and requires { sys(FWD(ctx), FWD(arg)...); })
-			{
-				return sys(FWD(arg)...);
-			}
-			else
-			{
-				return system::detail::invalid_sys_call();
+				return execute(FWD(sys), FWD(ctx), FWD(arg)...);
 			}
 		}
 	}	 // namespace detail
@@ -114,7 +107,7 @@ namespace ecs::system::ctx
 		no_unique_addr t_sys sys;
 
 		constexpr FORCE_INLINE
-		with_ctx(auto&& sys) noexcept : sys(FWD(sys)){};
+		with_ctx(auto&& sys) noexcept : sys(FWD(sys)) { };
 
 		constexpr with_ctx() noexcept requires(is_compile_time_constructible_v<t_sys> or std::is_empty_v<t_sys>)
 		= default;
@@ -255,7 +248,7 @@ namespace ecs::system::ctx
 		no_unique_addr t_executor exec;
 
 		constexpr __ctx(t_executor&& exec, t_sys&&... sys) noexcept
-			: exec(FWD(exec)), t_sys(FWD(sys))... {};
+			: exec(FWD(exec)), t_sys(FWD(sys))... { };
 
 		constexpr __ctx() noexcept requires(is_compile_time_constructible_v<t_executor> and (is_compile_time_constructible_v<t_sys> and ...))
 		= default;
@@ -298,46 +291,484 @@ namespace ecs::system::ctx
 	{
 		return __ctx{ FWD(exec), __sys<i, meta::value_or_ref_t<t_sys&&>>(FWD(sys))... };
 	}
+}	 // namespace ecs::system::ctx
 
-	template <typename t_executor, typename... t_sys>
-	struct on_ctx
+// 모든 시스템은 상속된다.
+// deducing this 때문에 상속된 sys에 접근 불가능
+// 모든 sys에 unique id부여
+// ctx.get<id>() 를 통해 sys를 찾을 수 있음
+namespace ecs::system::ctx
+{
+	// template <typename t>
+	// struct leaf
+	//{
+	// };
+
+	// template <typename t_root, typename... t_child>
+	// struct tree
+	//{
+	//	struct type
+	//	{
+	//	};
+	// };
+
+	// template <std::size_t id, typename t>
+	// struct unique_leaf
+	//{
+	//	static constexpr std::size_t id = id;
+	// };
+
+	// template <std::size_t id, typename t_root, typename... t_child>
+	// struct unique_tree
+	//{
+	//	static constexpr std::size_t id = id;
+
+	//	template <std::size_t id>
+	//	FORCE_INLINE constexpr decltype(auto)
+	//	get(this auto&& self) noexcept
+	//	{
+	//		// return static_cast<meta::copy_cv_ref_t<decltype(self), t_base_at<id>>>(FWD(self));
+	//	}
+	//};
+
+	// template <std::size_t offset, typename t>
+	// struct flatten_one
+	//{
+	//	using t_base_list						 = meta::type_pack<unique_leaf<offset, t>>;
+	//	static constexpr std::size_t next_offset = offset + 1;
+	// };
+
+	// template <std::size_t offset, typename... t>
+	// struct flatten_one<offset, tree<t...>>
+	//{
+	//   private:
+	//	template <std::size_t offset, typename... t>
+	//	struct helper;
+
+	//	template <std::size_t offset>
+	//	struct helper<offset>
+	//	{
+	//		using t_base_list						 = meta::type_pack<>;
+	//		static constexpr std::size_t next_offset = offset;
+	//	};
+
+	//	template <std::size_t offset, typename t_head, typename... t_tail>
+	//	struct helper<offset, t_head, t_tail...>
+	//	{
+	//		using t_flat_head = flatten_one<offset, t_head>;
+	//		using t_flat_tail = helper<t_flat_head::next_offset, t_tail...>;
+
+	//		using t_base_list = meta::type_pack_cat_t<typename t_flat_head::t_base_list, typename t_flat_tail::t_base_list>;
+
+	//		static constexpr std::size_t next_offset = t_flat_tail::next_offset;
+	//	};
+
+	//	using t_result = helper<offset, t...>;
+
+	//  public:
+	//	using t_base_list						 = typename t_result::t_base_list;
+	//	static constexpr std::size_t next_offset = t_result::next_offset;
+	//};
+
+	// template <typename t_base_tree>
+	// struct flatten_tree
+	//{
+	//	using type								= flatten_one<0, t_base_tree>;
+	//	using t_base_list						= typename type::t_base_list;
+	//	static constexpr std::size_t base_count = type::next_offset;
+	// };
+
+	// template <typename t_base_pack>
+	// struct unique_base_tree;
+
+	// template <typename... t_unique_base>
+	// struct unique_base_tree<meta::type_pack<t_unique_base...>>
+	//{
+	//	template <std::size_t id>
+	//	struct pred
+	//	{
+	//		template <typename t>
+	//		struct type : std::bool_constant<(t::id == id)>
+	//		{
+	//		};
+	//	};
+
+	//	struct type : t_unique_base...
+	//	{
+	//		using t_self = type;
+
+	//		template <std::size_t id>
+	//		using t_base_at = meta::variadic_find_t<pred<id>::template type, void, t_unique_base...>;
+
+	//		template <std::size_t id>
+	//		FORCE_INLINE constexpr decltype(auto)
+	//		get(this auto&& self) noexcept
+	//		{
+	//			return static_cast<meta::copy_cv_ref_t<decltype(self), t_base_at<id>>>(FWD(self));
+	//		}
+	//	};
+	//};
+
+	// template <typename t_base_tree>
+	// using unique_base_tree_t = typename unique_base_tree<typename flatten_tree<t_base_tree>::t_base_list>::type;
+
+	// template <typename... t_base>
+	// struct make_unique_base_tree : unique_base_tree_t<tree<t_base...>>
+	//{
+	//	using unique_base_tree_t<tree<t_base...>>::get;
+	// };
+
+	// template <typename... t_arg>
+	// make_unique_base_tree(t_arg&&...)
+	//	-> make_unique_base_tree<meta::value_or_ref_t<t_arg&&>...>;
+
+}	 // namespace ecs::system::ctx
+
+namespace ecs::system::ctx
+{
+	// template <typename... t>
+	// struct unique_base
+	//{
+	// };
+
+	// template <typename t>
+	// struct is_unique_base : std::false_type
+	//{
+	// };
+
+	// template <template <typename...> class t_derived, typename... t_arg>
+	// struct is_unique_base<t_derived<t_arg...>>
+	//	: std::bool_constant<std::is_base_of_v<unique_base<t_arg...>, t_derived<t_arg...>>>
+	//{
+	// };
+
+	// template <typename t>
+	// inline constexpr bool unique_base_like_v = is_unique_base<t>::value;
+
+	// template <typename... t_child>
+	// struct base_tree : t_child...
+	//{
+	// };
+
+	// template <std::size_t id, typename t>
+	// struct base_node
+	//{
+	//	static constexpr std::size_t node_id = id;
+	// };
+
+	// template <typename t>
+	// struct is_base_node : std::false_type
+	//{
+	// };
+
+	// template <std::size_t id, typename t>
+	// struct is_base_node<base_node<id, t>> : std::true_type
+	//{
+	// };
+
+	// template <typename t>
+	// inline constexpr bool is_base_node_v = is_base_node<t>::value;
+
+	// template <std::size_t id, typename t_spec>
+	// struct rebind_leaf
+	//{
+	//	using type = std::conditional_t<
+	//		is_base_node_v<t_spec>,
+	//		t_spec,
+	//		base_node<id, t_spec>>;
+
+	//	static constexpr std::size_t next_id = id + 1;
+	//};
+
+	// template <std::size_t id, typename t_spec>
+	// struct rebind_unique_base
+	//{
+	//	using type							 = typename rebind_leaf<id, t_spec>::type;
+	//	static constexpr std::size_t next_id = rebind_leaf<id, t_spec>::next_id;
+	// };
+
+	// template <std::size_t id, typename... t_base>
+	// struct rebind_unique_base<id, unique_base<t_base...>>
+	//{
+	//   private:
+	//	template <std::size_t... n>
+	//	FORCE_INLINE static constexpr auto
+	//	make(std::index_sequence<n...>) noexcept -> unique_base<base_node<id + n, t_base>...>
+	//	{
+	//		return {};
+	//	}
+
+	//  public:
+	//	using type							 = decltype(make(std::make_index_sequence<sizeof...(t_base)>{}));
+	//	static constexpr std::size_t next_id = id + sizeof...(t_base);
+	//};
+
+	// template <std::size_t id, typename... t_child>
+	// struct rebind_unique_base<id, base_tree<t_child...>>
+	//{
+	//   private:
+	//	template <std::size_t cur_id, typename t_done_pack, typename... t_rest>
+	//	struct impl;
+
+	//	template <std::size_t cur_id, typename... t_done>
+	//	struct impl<cur_id, meta::type_pack<t_done...>>
+	//	{
+	//		using type							 = base_tree<t_done...>;
+	//		static constexpr std::size_t next_id = cur_id;
+	//	};
+
+	//	template <std::size_t cur_id, typename... t_done, typename t_head, typename... t_tail>
+	//	struct impl<cur_id, meta::type_pack<t_done...>, t_head, t_tail...>
+	//	{
+	//		using t_head_rebind = rebind_unique_base<cur_id, t_head>;
+	//		using t_next		= impl<t_head_rebind::next_id, meta::type_pack<t_done..., typename t_head_rebind::type>, t_tail...>;
+
+	//		using type							 = typename t_next::type;
+	//		static constexpr std::size_t next_id = t_next::next_id;
+	//	};
+
+	//	using t_impl = impl<id, meta::type_pack<>, t_child...>;
+
+	//  public:
+	//	using type							 = typename t_impl::type;
+	//	static constexpr std::size_t next_id = t_impl::next_id;
+	//};
+
+	// template <std::size_t id, template <typename...> class t_derived, typename... t_arg>
+	// requires(unique_base_like_v<t_derived<t_arg...>>)
+	// struct rebind_unique_base<id, t_derived<t_arg...>>
+	//{
+	//   private:
+	//	template <std::size_t cur_id, typename t_done_pack, typename... t_rest>
+	//	struct impl;
+
+	//	template <std::size_t cur_id, typename... t_done>
+	//	struct impl<cur_id, meta::type_pack<t_done...>>
+	//	{
+	//		using type							 = t_derived<t_done...>;
+	//		static constexpr std::size_t next_id = cur_id;
+	//	};
+
+	//	template <std::size_t cur_id, typename... t_done, typename t_head, typename... t_tail>
+	//	struct impl<cur_id, meta::type_pack<t_done...>, t_head, t_tail...>
+	//	{
+	//		using t_head_rebind = rebind_unique_base<cur_id, t_head>;
+	//		using t_next		= impl<t_head_rebind::next_id, meta::type_pack<t_done..., typename t_head_rebind::type>, t_tail...>;
+
+	//		using type							 = typename t_next::type;
+	//		static constexpr std::size_t next_id = t_next::next_id;
+	//	};
+
+	//	using t_impl = impl<id + 1, meta::type_pack<>, t_arg...>;
+
+	//  public:
+	//	using type							 = base_node<id, typename t_impl::type>;
+	//	static constexpr std::size_t next_id = t_impl::next_id;
+	//};
+
+	template <typename t>
+	static consteval std::size_t
+	get_unique_base_count()
 	{
-		using t_ctx = decltype(__make_ctx(std::index_sequence_for<t_sys...>{}, std::declval<t_executor>(), std::declval<t_sys>()...));
-
-		no_unique_addr t_ctx _ctx;
-
-		constexpr on_ctx(auto&& exec, auto&&... sys) noexcept : _ctx{ __make_ctx(std::index_sequence_for<t_sys...>{}, FWD(exec), FWD(sys)...) } {};
-
-		constexpr on_ctx() noexcept requires(std::is_empty_v<t_sys> and ...)
-		= default;
-
-		template <typename... t_sys, typename... t_arg>
-		static consteval bool
-		validate(meta::type_pack<t_arg...>)
+		if constexpr (requires { t::unique_base_count(); })
 		{
-			{
-				constexpr auto valid = sizeof...(t_sys) > 0;
-				static_assert(valid, "[on_ctx]: requires at least one system");
-			}
-			{
-				constexpr auto valid = meta::is_not_same_v<decltype(_ctx(std::declval<t_arg&&>()...)), invalid_sys_call>;
+			return t::unique_base_count();
+		}
+		else
+		{
+			return 1;
+		}
+	}
 
-				static_assert(valid, "[on_ctx] systems(...) returned invalid_sys_call - check that system i is callable with given arguments.");
-			}
+	template <std::size_t id, typename t_base>
+	struct unique_base : t_base
+	{
+		using t_base::t_base;
+		using t_self = unique_base<id, t_base>;
 
-			return true;
+		template <typename t>
+		struct is_compatible_unique_base : std::is_convertible<t, t_base>
+		{
+		};
+
+		template <std::size_t other_id>
+		struct is_compatible_unique_base<unique_base<other_id, t_base>> : std::true_type
+		{
+		};
+
+		template <typename t>
+		static constexpr auto is_compatible_unique_base_v = is_compatible_unique_base<t>::value;
+
+		template <typename t_other>
+		constexpr unique_base(t_other&& other) noexcept(
+			noexcept(t_base(static_cast<meta::copy_cv_ref_t<t_other&&, t_base>>(FWD(other)))))
+			requires is_compatible_unique_base_v<t_other>
+			: t_base(static_cast<meta::copy_cv_ref_t<t_other&&, t_base>>(FWD(other)))
+		{
 		}
 
-		template <typename... t_arg>
-		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg) noexcept
+		static consteval auto
+		get_id()
 		{
-			static_assert(validate<t_sys...>(meta::type_pack<t_arg&&...>{}), "[on_ctx]: invalid on_ctx");
+			return id;
+		}
 
-			return _ctx(FWD(arg)...);
+		static consteval auto
+		unique_base_count()
+		{
+			return get_unique_base_count<t_base>();
+		}
+
+		FORCE_INLINE constexpr decltype(auto)
+		get_base(this auto&& self) noexcept
+		{
+			return static_cast<meta::copy_cv_ref_t<decltype(self), t_base>>(FWD(self));
+		}
+
+		template <std::size_t id_other>
+		FORCE_INLINE constexpr decltype(auto)
+		get(this auto&& self) noexcept
+		{
+			if constexpr (id == id_other)
+			{
+				return FWD(self).get_base();
+			}
+			else if constexpr (id < id_other)
+			{
+				// what?
+				static constexpr auto _ = requires { FWD(self).get_base().get<id_other>(); };
+				if constexpr (_)
+				{
+					return FWD(self).get_base().get<id_other>();
+				}
+			}
+			else
+			{
+				return;
+			}
+			// return static_cast<meta::copy_cv_ref_t<decltype(self), t_unique_base<id>>>(self);
 		}
 	};
 
+	template <typename... t_base>
+	struct unique_bases;
+
+	template <typename t>
+	concept has_unique_bases =
+		requires {
+			typename std::remove_cvref_t<t>::t_unique_bases;
+		};
+
+	template <std::size_t offset, typename t_base>
+	struct make_unique_base
+	{
+		using type = unique_base<offset, t_base>;
+	};
+
+	template <std::size_t offset, has_unique_bases t_base>
+	struct make_unique_base<offset, t_base>
+	{
+		using type = typename make_unique_base<offset, typename std::remove_cvref_t<t_base>::t_unique_bases>::type;
+	};
+
+	template <std::size_t offset, std::size_t... n, typename... t_base>
+	struct make_unique_base<offset, unique_bases<std::index_sequence<n...>, t_base...>>
+	{
+		using type = unique_base<offset, unique_bases<std::index_sequence<(offset + 1 + n)...>, t_base...>>;
+	};
+
+	template <std::size_t offset, typename t_base>
+	using make_unique_base_t = typename make_unique_base<offset, t_base>::type;
+
+	template <std::size_t offset, typename... t_base>
+	static consteval decltype(auto)
+	make_id_seq()
+	{
+		return make_offset_sequence<offset>(
+			meta::index_sequence_exclusive_scan_t<std::index_sequence<get_unique_base_count<t_base>()...>>{});
+	}
+
+	// template <typename... t_base>
+	// struct unique_bases_impl
+	//{
+	//	static consteval decltype(auto)
+	//	base_count_seq()
+	//	{
+	//		return std::index_sequence<get_unique_base_count<t_base>()...>{};
+	//	}
+	// };
+
+	template <typename... t_base>
+	struct unique_bases;
+
+	template <std::size_t... n, typename... t_base>
+	struct unique_bases<std::index_sequence<n...>, t_base...> : make_unique_base_t<n, t_base>...
+	{
+		template <std::size_t id>
+		struct pred
+		{
+			template <typename t>
+			struct type : meta::is_not_void<decltype(std::declval<t>().get<id>())> /*std::bool_constant<(t::get_id() == id)>*/
+			{
+			};
+		};
+
+		template <std::size_t id>
+		using t_unique_base = meta::variadic_find_t<pred<id>::template type, void, make_unique_base_t<n, t_base>...>;
+
+		template <std::size_t... n_other, typename... t_base_other>
+		constexpr unique_bases(unique_bases<std::index_sequence<n_other...>, t_base_other...>&& other)
+			: make_unique_base_t<n, t_base>(other.get<n_other + 1>())...
+		{
+		}
+
+		constexpr unique_bases(auto&&... base)
+			requires(std::is_convertible_v<decltype(base), t_base> && ...)
+			: make_unique_base_t<n, t_base>(FWD(base))...
+		{
+		}
+
+		static consteval auto
+		unique_base_count()
+		{
+			return (get_unique_base_count<t_base>() + ... + 1);
+		}
+
+		template <std::size_t nth>
+		FORCE_INLINE constexpr decltype(auto)
+		get_base(this auto&& self) noexcept
+		{
+			return static_cast<meta::copy_cv_ref_t<decltype(self), meta::variadic_at_t<nth, make_unique_base_t<n, t_base>...>>>(FWD(self));
+		}
+
+		template <std::size_t id>
+		FORCE_INLINE constexpr decltype(auto)
+		get(this auto&& self) noexcept
+		{
+			if constexpr (meta::is_not_void_v<t_unique_base<id>>)
+			{
+				return static_cast<meta::copy_cv_ref_t<decltype(self), t_unique_base<id>>>(FWD(self)).get<id>();
+			}
+			else
+			{
+				return;
+			}
+		}
+	};
+
+	// template <typename... t_base>
+	// unique_bases(t_base&&...) -> unique_bases<std::index_sequence_for<t_base...>, t_base...>;
+
+	template <typename... t_base>
+	unique_bases(t_base&&...) -> unique_bases<decltype(make_id_seq<0, t_base...>()), t_base...>;
+
+	template <typename... t_base>
+	using make_unique_bases = unique_bases<decltype(make_id_seq<0, t_base...>()), t_base...>;
+
+	// using make_unique_bases = decltype(unique_bases(std::declval<t_base>()...));
+
 	template <typename... t_sys>
-	on_ctx(t_sys&&...) -> on_ctx<meta::value_or_ref_t<t_sys&&>...>;
+	struct test_adaptor : make_unique_bases<t_sys...>
+	{
+	};
 }	 // namespace ecs::system::ctx

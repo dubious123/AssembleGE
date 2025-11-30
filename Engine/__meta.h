@@ -481,7 +481,7 @@ namespace meta
 	}
 
 	template <typename t, typename h, typename... ts>
-	static inline constexpr const auto variadic_index_v = get_variadic_index<t, h, ts...>();
+	inline constexpr const auto variadic_index_v = get_variadic_index<t, h, ts...>();
 
 	template <auto t, auto head, auto... tails>
 	consteval size_t
@@ -897,6 +897,60 @@ namespace meta
 	template <template <typename> typename pred, typename... t>
 	using filtered_variadic_t = filtered_variadic<pred, t...>::type;
 
+	template <typename t>
+	struct index_sequence_inclusive_scan;
+
+	template <std::size_t... i>
+	struct index_sequence_inclusive_scan<std::index_sequence<i...>>
+	{
+		static consteval auto
+		get_arr()
+		{
+			auto arr	= seq_to_arr(std::index_sequence<i...>{});
+			auto offset = 0;
+			for (auto& elem : arr)
+			{
+				auto temp  = elem;
+				elem	  += offset;
+				offset	  += temp;
+			}
+
+			return arr;
+		}
+
+		using type = arr_to_seq_t<get_arr()>;
+	};
+
+	template <typename t_idx_seq>
+	using index_sequence_inclusive_scan_t = typename index_sequence_inclusive_scan<t_idx_seq>::type;
+
+	template <typename t>
+	struct index_sequence_exclusive_scan;
+
+	template <std::size_t... i>
+	struct index_sequence_exclusive_scan<std::index_sequence<i...>>
+	{
+		static consteval auto
+		get_arr()
+		{
+			auto arr = seq_to_arr(std::index_sequence<i...>{});
+			auto sum = 0;
+			for (auto& elem : arr)
+			{
+				auto temp  = elem;
+				elem	   = sum;
+				sum		  += temp;
+			}
+
+			return arr;
+		}
+
+		using type = arr_to_seq_t<get_arr()>;
+	};
+
+	template <typename t_idx_seq>
+	using index_sequence_exclusive_scan_t = typename index_sequence_exclusive_scan<t_idx_seq>::type;
+
 	template <typename t_tpl>
 	struct is_tuple_empty : std::bool_constant<std::tuple_size_v<t_tpl> == 0>
 	{
@@ -1250,6 +1304,13 @@ namespace meta
 	}
 
 	template <typename... t>
+	constexpr void
+	print_type()
+	{
+		static_assert([] { return false; }(), "Type info");
+	}
+
+	template <auto... n>
 	constexpr void
 	print_type()
 	{
