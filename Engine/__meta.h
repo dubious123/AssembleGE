@@ -466,7 +466,7 @@ namespace meta
 	// inline constexpr const auto param_count = param_at<idx, func>::value;
 
 	template <typename t, typename head, typename... tails>
-	consteval size_t
+	consteval std::size_t
 	get_variadic_index()
 	{
 		if constexpr (std::is_same_v<t, head>)
@@ -480,11 +480,29 @@ namespace meta
 		}
 	}
 
-	template <typename t, typename h, typename... ts>
-	inline constexpr const auto variadic_index_v = get_variadic_index<t, h, ts...>();
+	template <template <typename> typename t_pred, typename head, typename... tails>
+	consteval std::size_t
+	get_variadic_index()
+	{
+		if constexpr (t_pred<head>::value)
+		{
+			return 0;
+		}
+		else
+		{
+			static_assert(sizeof...(tails) > 0 and "target is not found in <head, tails...>");
+			return 1 + get_variadic_index<t_pred, tails...>();
+		}
+	}
+
+	// template <typename t, typename h, typename... ts>
+	// inline constexpr const auto variadic_index_v = get_variadic_index<pred<t>::template is_same, h, ts...>();
+
+	template <template <typename> typename t_pred, typename h, typename... ts>
+	inline constexpr const auto variadic_index_v = get_variadic_index<t_pred, h, ts...>();
 
 	template <auto t, auto head, auto... tails>
-	consteval size_t
+	consteval std::size_t
 	get_variadic_auto_index()
 	{
 		return get_variadic_index<auto_wrapper<t>, auto_wrapper<head>, auto_wrapper<tails>...>();
@@ -505,20 +523,6 @@ namespace meta
 
 	template <typename t, typename tuple>
 	inline constexpr std::size_t tuple_index_v = tuple_index<t, tuple>::value;
-
-	template <typename t, typename... ts>
-	auto&
-	get_tuple_value(std::tuple<ts...>&& tpl)
-	{
-		return std::get<variadic_index_v<t, ts...>>(tpl);
-	}
-
-	template <typename t, typename... ts>
-	auto&
-	get_tuple_value(std::tuple<ts...>& tpl)
-	{
-		return std::get<variadic_index_v<t, ts...>>(tpl);
-	}
 
 	template <typename... ts>
 	using tuple_cat_t = decltype(std::tuple_cat(std::declval<ts>()...));
@@ -832,6 +836,19 @@ namespace meta
 		else
 			return std::move(value);
 	}
+
+	template <typename t>
+	struct universal_wrapper
+	{
+		using t_storage = value_or_ref_t<t>;
+
+		t_storage value;
+
+		// constexpr universal_wrapper(auto&& arg) : value(FWD(arg)) { }
+	};
+
+	template <typename t>
+	universal_wrapper(t&&) -> universal_wrapper<t&&>;
 
 	template <template <typename> typename pred, typename... t>
 	consteval auto

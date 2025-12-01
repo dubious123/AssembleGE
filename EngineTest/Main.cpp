@@ -84,6 +84,9 @@ using namespace data_structure;
 
 struct A : decltype([]() {}), decltype([]() { std::println(""); })
 {
+	auto
+	some_member(this auto&& self) {
+	};
 };
 
 struct A2 : decltype([]() {}), decltype([]() { std::println(""); })
@@ -112,13 +115,6 @@ ctx_test(auto& _game)
 {
 	using namespace ecs::system::ctx;
 	auto l = [](/*this auto&& ctx,*/ int) { std::println("moved"); return 3; };
-	// on_ctx{ sys1, sys2, sys3... }
-	// | on_ctx{ loop{ sys_cond, sys3, set_error_if{}, break_if{} }, on_error = {}, on_stopped = {} }
-
-	// ctx{ ... }
-	// | sys{}
-	// | sys{}...
-	// | sys{}
 
 	func<int, float>(1, 2, 3);
 	// 1. run_sys => invoke의 확장판, ctx_bound 처리, user_code라면 ctx.get_exec() 한후 exec.execute(sys, ctx, arg...)
@@ -185,67 +181,25 @@ ctx_test(auto& _game)
 	//}();
 
 	// test_ctx(1);
-
-	///*static constinit const */ auto c_i = on_ctx{
-	//	exec_inline{},
-
-	//	[]() { return 1; }
-	//		| [](auto i) { return ++i; }
-	//		| [](auto i) { return i * 2; },
-
-	//	with_ctx{ [](auto ctx) { return 1.3; } },
-	//}();
-
-	// auto res_tpl = test_ctx(1);
-
-	// A, A, B{ A, A, C{ B{ A, A } }, A } , A , A
-	// using t_rebound = rebind_unique_base<0, t_tree>::type;
-
-	// meta::print_type<rebind_unique_base<0, t_tree>::type>();
-
-
-	// ex. cond{ sys1, sys2, sys3 } => cond : tree<cond<sys1,sys2, sys3>,  sys1, sys2, sys3>
-
-	// auto _ = make_unique_base_tree{ A{}, A{}, /*B{ A{}, A{}, A{} },*/ A{} };
-
-	// leaf<A>, tree<B, A, A>
-
-
-	// meta::print_type<decltype(_)>();
-	// meta::print_type<decltype(_.get<0>())>();
-
-	// meta::print_type<decltype(ecs::system::ctx::some_type{ 1, 1.f, 0 })>();
-
-	// unique_bases { A{}, B{}, C{} ... } => unique_bases : unique_base<0, A>, unique_base<1, B> ,...
-	// unique_bases { A{}, unique_bases{ B{}, C{} }, D{} ... } => unique_bases : unique_base<0, A>, unique_base<1, ??? >, unique_base<4, D>, ...
-
-	// template<t...>
-	// some_adaptor : make_unique_bases<t...>
-	// ...
-	// CTAD :
-	// some_adaptor(t_sys&&... ) -> some_adaptor< ??? >
-
-	// unique_bases<std::index_sequence<2, 3, 4>, A, A, A> _ = unique_bases /*<std::index_sequence<0, 1, 2>, A, A, A>*/ { A{}, A{}, A{} };
 	{
-		// auto _	= unique_bases{ B{ A2{}, A{} } };
 		auto __ = B{
 			A2{}, A{}
 		};
 
-		auto ___ = static_cast<unique_bases<std::index_sequence<4>, A>>(unique_bases<std::index_sequence<2>, A>{
-			A{} });
+		auto a = A{};
 
 		auto _ = unique_bases{
-			A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
+			meta::universal_wrapper{ a }, A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
 		};
 
 		// meta::print_type<decltype(_)>();
-		// meta::print_type<decltype(_.get<2>())>();
-		// meta::print_type<decltype(_.get<1>())>();
-		// meta::print_type<decltype(_.get<0>())>();
+		//  meta::print_type<decltype(_.get<2>())>();
+		//  meta::print_type<decltype(_.get<1>())>();
+		//  meta::print_type<decltype(_.get<0>())>();
 	}
+
 	{
-		auto _ = unique_bases{ /*B{ A2{}, A{} },*/ unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
+		auto _ = unique_bases{ B{ A2{}, A{} }, unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
 
 		// meta::print_type<make_unique_base_t<3, decltype(unique_bases{ A{}, A2{}, A{} /*, unique_bases{ A{}, A2{}, A{} } */ })>>();
 
@@ -261,6 +215,35 @@ ctx_test(auto& _game)
 		// meta::print_type<decltype(_.get<2>())>();
 	}
 
+	{
+		auto lvalue_ref_lambda = [] { std::println("lvalue_ref_lambda"); };
+
+		auto ctx = on_ctx{
+			[](/*auto ctx*/) { std::println("first"); },
+			[](/*auto ctx*/) { std::println("second"); },
+			lvalue_ref_lambda,
+			ecs::system::ctx::exec_inline{}
+		};
+
+
+		// exec_inline::run_all(ctx);
+
+		// meta::print_type<decltype(ctx.get_executor().value)>();
+		ctx.get_executor().value.run_all();
+		// exec_inline::run_all(ctx.get_executor().value);
+
+		on_ctx{
+			[](/*auto ctx*/) { std::println("first"); },
+			[](/*auto ctx*/) { std::println("second"); },
+			lvalue_ref_lambda,
+			ecs::system::ctx::exec_inline{}
+		}();
+
+		// ctx();
+		//  auto executor = ctx.get<3>().value;
+
+		auto _ = 1;
+	}
 
 	std::println("asdfe");
 	std::println("aft_moded");
@@ -280,7 +263,7 @@ main()
 	{
 		using namespace ecs::system;
 		using ecs::system::operator|;
-		auto _l	 = [] {};
+		auto _l	 = [] { };
 		auto sys = seq{
 			sys_game_init{},
 			std::move(_l),
@@ -439,10 +422,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() {},
-			[]() {},
-			[]() {},
-			[]() {},
+			[]() { },
+			[]() { },
+			[]() { },
+			[]() { },
 
 		};
 

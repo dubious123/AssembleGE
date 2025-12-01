@@ -71,7 +71,7 @@ namespace ecs::utility
 		{
 			t_archetype archetype = 0;
 			([&archetype] {
-				archetype |= 1 << meta::variadic_index_v<t, t_cmp...>;
+				archetype |= 1 << meta::get_variadic_index<t, t_cmp...>();
 			}(),
 			 ...);
 			return archetype;
@@ -163,7 +163,7 @@ namespace ecs::utility
 		static consteval t_storage_cmp_idx
 		calc_storage_cmp_idx()
 		{
-			return meta::variadic_index_v<std::decay_t<t>, std::decay_t<t_cmp>...>;
+			return meta::get_variadic_index<std::decay_t<t>, std::decay_t<t_cmp>...>();
 		}
 
 		template <typename t>
