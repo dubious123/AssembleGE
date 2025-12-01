@@ -227,9 +227,25 @@ ctx_test(auto& _game)
 
 	// unique_bases<std::index_sequence<2, 3, 4>, A, A, A> _ = unique_bases /*<std::index_sequence<0, 1, 2>, A, A, A>*/ { A{}, A{}, A{} };
 	{
+		// auto _	= unique_bases{ B{ A2{}, A{} } };
+		auto __ = B{
+			A2{}, A{}
+		};
+
+		auto ___ = static_cast<unique_bases<std::index_sequence<4>, A>>(unique_bases<std::index_sequence<2>, A>{
+			A{} });
+
+		auto _ = unique_bases{
+			A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
+		};
+
+		// meta::print_type<decltype(_)>();
+		// meta::print_type<decltype(_.get<2>())>();
+		// meta::print_type<decltype(_.get<1>())>();
+		// meta::print_type<decltype(_.get<0>())>();
 	}
 	{
-		auto _ = unique_bases{ B{ A2{}, A{} }, unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
+		auto _ = unique_bases{ /*B{ A2{}, A{} },*/ unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
 
 		// meta::print_type<make_unique_base_t<3, decltype(unique_bases{ A{}, A2{}, A{} /*, unique_bases{ A{}, A2{}, A{} } */ })>>();
 
@@ -264,7 +280,7 @@ main()
 	{
 		using namespace ecs::system;
 		using ecs::system::operator|;
-		auto _l	 = [] { };
+		auto _l	 = [] {};
 		auto sys = seq{
 			sys_game_init{},
 			std::move(_l),
@@ -423,10 +439,10 @@ main()
 
 
 		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+			[]() {},
+			[]() {},
+			[]() {},
+			[]() {},
 
 		};
 

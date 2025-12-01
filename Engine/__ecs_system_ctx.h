@@ -107,7 +107,7 @@ namespace ecs::system::ctx
 		no_unique_addr t_sys sys;
 
 		constexpr FORCE_INLINE
-		with_ctx(auto&& sys) noexcept : sys(FWD(sys)) { };
+		with_ctx(auto&& sys) noexcept : sys(FWD(sys)){};
 
 		constexpr with_ctx() noexcept requires(is_compile_time_constructible_v<t_sys> or std::is_empty_v<t_sys>)
 		= default;
@@ -248,7 +248,7 @@ namespace ecs::system::ctx
 		no_unique_addr t_executor exec;
 
 		constexpr __ctx(t_executor&& exec, t_sys&&... sys) noexcept
-			: exec(FWD(exec)), t_sys(FWD(sys))... { };
+			: exec(FWD(exec)), t_sys(FWD(sys))... {};
 
 		constexpr __ctx() noexcept requires(is_compile_time_constructible_v<t_executor> and (is_compile_time_constructible_v<t_sys> and ...))
 		= default;
@@ -718,7 +718,7 @@ namespace ecs::system::ctx
 
 		template <std::size_t... n_other, typename... t_base_other>
 		constexpr unique_bases(unique_bases<std::index_sequence<n_other...>, t_base_other...>&& other)
-			: make_unique_base_t<n, t_base>(other.get<n_other + 1>())...
+			: make_unique_base_t<n, t_base>(FWD(other).get<n_other>())...
 		{
 		}
 
