@@ -842,7 +842,7 @@ namespace meta
 	{
 		using t_storage = value_or_ref_t<t>;
 
-		t_storage value;
+		no_unique_addr t_storage value;
 
 		// constexpr universal_wrapper(auto&& arg) : value(FWD(arg)) { }
 	};
@@ -1313,11 +1313,11 @@ namespace meta
 	template <typename t_func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack(t_func&& func, t_tpl&& tpl) noexcept(noexcept(std::apply(FWD(func), FWD(tpl))))
+	tuple_unpack(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(FWD(tpl), std::tuple{ FWD(arg)... }))))
 	{
-		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl) noexcept(noexcept(func(std::get<i>(tpl)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
-			return func(std::get<i>(tpl)...);
-		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl));
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(tpl)..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+			return func(std::get<i>(tpl)..., FWD(arg)...);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl), FWD(arg)...);
 	}
 
 	template <typename... t>

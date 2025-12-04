@@ -5,9 +5,6 @@
 
 namespace ecs::system::ctx
 {
-	template <typename t>
-	inline constexpr auto is_compile_time_constructible_v = is_constexpr_default_constructible<std::remove_reference_t<t>>();
-
 	struct ctx_base
 	{
 	};
@@ -48,85 +45,19 @@ namespace ecs::system::ctx
 	template <typename t>
 	using cx_executor_pred = std::bool_constant<cx_executor<t>>;
 
-	namespace detail
-	{
-		template <typename t_sys, cx_ctx t_ctx>
-		FORCE_INLINE constexpr decltype(auto)
-		run_sys(t_sys&& sys, t_ctx&& ctx, auto&&... arg) noexcept
-		{
-			if constexpr (cx_adaptor<t_sys>)
-			{
-				if constexpr (cx_ctx_bound<t_sys>)
-				{
-					if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
-					{
-						return sys(FWD(ctx), FWD(arg)...);
-					}
-					else
-					{
-						return ecs::system::detail::invalid_sys_call();
-					}
-				}
-				else if constexpr (requires { sys(FWD(arg)...); })
-				{
-					return sys(FWD(arg)...);
-				}
-				else if constexpr (requires { sys(FWD(ctx), FWD(arg)...); })
-				{
-					return sys(FWD(ctx), FWD(arg)...);
-				}
-				else
-				{
-					return ecs::system::detail::invalid_sys_call();
-				}
-			}
-			else
-			{
-				return execute(FWD(sys), FWD(ctx), FWD(arg)...);
-			}
-		}
-	}	 // namespace detail
-
-	template <typename t>
-	constexpr bool
-	is_constexpr_default_constructible()
-	{
-		if constexpr (std::is_default_constructible_v<t> and requires { t{}; })
-		{
-			return requires { []() consteval { t x{}; (void)x; return true; }(); };
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	template <auto ith, typename t_sys>
-	struct __sys : t_sys
-	{
-		using t_sys::operator();
-
-		constexpr __sys(t_sys&& s) noexcept
-			: t_sys(FWD(s)) { }
-
-		constexpr __sys() noexcept requires(is_compile_time_constructible_v<t_sys>)
-		= default;
-	};
-
 	template <typename t_sys>
-	struct with_ctx : sys_ctx_bound
+	struct with_ctx : sys_ctx_bound, adaptor_base
 	{
 		no_unique_addr t_sys sys;
 
 		constexpr FORCE_INLINE
 		with_ctx(auto&& sys) noexcept : sys(FWD(sys)) { };
 
-		constexpr with_ctx() noexcept requires(is_compile_time_constructible_v<t_sys> or std::is_empty_v<t_sys>)
-		= default;
+		constexpr with_ctx() noexcept = default;
 
 		template <typename t_sys, typename... t_arg>
 		static consteval bool
-		validate(meta::type_pack<t_arg...>)
+		validate(meta::type_pack<t_sys, t_arg...>)
 		{
 			{
 				constexpr auto valid = std::invocable<t_sys, t_arg...>;
@@ -140,9 +71,9 @@ namespace ecs::system::ctx
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(cx_ctx auto&& ctx, auto&&... arg) noexcept
 		{
-			static_assert(validate<t_sys>(meta::type_pack<decltype(ctx), decltype(arg)...>{}), "[with_ctx]: invalid with_ctx");
+			static_assert(validate(meta::type_pack<t_sys, decltype(ctx), decltype(arg)...>{}), "[with_ctx]: invalid with_ctx");
 
-			return detail::run_sys(sys, FWD(ctx), FWD(arg)...);
+			return FWD(ctx).execute(sys, FWD(arg)...);
 		}
 	};
 
@@ -152,168 +83,128 @@ namespace ecs::system::ctx
 
 namespace ecs::system::ctx
 {
+	namespace detail
+	{
+		template <std::size_t sys_id>
+		FORCE_INLINE constexpr decltype(auto)
+		run_sys(cx_ctx auto&& ctx, auto&&... arg) noexcept
+		{
+			using t_sys = decltype(FWD(ctx).get<sys_id>().value);
+
+			if constexpr (cx_adaptor<t_sys>)
+			{
+				return FWD(ctx).template invoke<sys_id>(FWD(arg)...);
+			}
+			else
+			{
+				return FWD(ctx).template execute<sys_id>(FWD(arg)...);
+			}
+		}
+	}	 // namespace detail
+
 	struct exec_inline : executor_base
 	{
-		template <typename t_ctx, typename t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		__run_single(t_ctx&& ctx, t_sys&& sys, auto&&... arg) noexcept(noexcept(detail::run_sys(FWD(sys), FWD(ctx), FWD(arg)...)))
+	  private:
+		template <std::size_t sys_id, typename t_arg_tpl>
+		FORCE_INLINE static constexpr decltype(auto)
+		__run_sys_impl_tpl(auto&& ctx, t_arg_tpl&& arg_tpl) noexcept
 		{
-			return detail::run_sys(FWD(sys), FWD(ctx), FWD(arg)...);
+			return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& ctx, auto&& arg_tpl) noexcept(noexcept(run_sys<sys_id>(FWD(ctx), std::get<i>(arg_tpl)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+				return ecs::system::ctx::detail::run_sys<sys_id>(FWD(ctx), std::get<i>(arg_tpl)...);
+			}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_arg_tpl>>>{}, FWD(ctx), FWD(arg_tpl));
 		}
 
-		template <typename t_ctx, typename t_arg_tpl>
-		FORCE_INLINE constexpr decltype(auto)
-		__run_impl_tpl(t_ctx&& ctx, auto&& sys, t_arg_tpl&& arg_tpl) noexcept
+		template <std::size_t... sys_id>
+		FORCE_INLINE static constexpr decltype(auto)
+		__run_sys_impl_seq(auto&& ctx, std::index_sequence<sys_id...>, auto&& arg_tpl) noexcept
 		{
-			return meta::tuple_unpack([this, sys = FWD(sys), &ctx](auto&&... arg) mutable noexcept -> decltype(auto) { return __run_single(FWD(ctx), sys, FWD(arg)...); }, FWD(arg_tpl));
+			return (__run_sys_impl_tpl<sys_id>(FWD(ctx), arg_tpl), ...);
 		}
 
-		template <typename t_ctx, typename t_arg_tpl, std::size_t... sys_idx>
-		FORCE_INLINE constexpr decltype(auto)
-		__run_impl_seq(t_ctx&& ctx, t_arg_tpl&& arg_tpl, std::index_sequence<sys_idx...>, auto&&... sys) noexcept
-		{
-			return (__run_impl_tpl(ctx, meta::variadic_get<sys_idx>(sys...), arg_tpl), ...);
-		}
-
-		template <typename t_ctx, typename t_arg_tpl, std::size_t... sys_idx, typename... t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		__run_helper_2(t_ctx&& ctx, t_arg_tpl&& arg_tpl, std::index_sequence<sys_idx...>, t_sys&&... sys) noexcept
+		template <std::size_t... sys_id>
+		FORCE_INLINE static constexpr decltype(auto)
+		__run_all_impl_2(auto&& ctx, std::index_sequence<sys_id...>, auto&& arg_tpl) noexcept
 		{
 			using t_sys_res_not_void =
 				meta::filtered_index_sequence_t<
 					meta::is_not_void,
-					decltype(__run_impl_tpl(ctx, meta::variadic_get<sys_idx>(sys...), arg_tpl))...>;
+					decltype(__run_sys_impl_tpl<sys_id>(FWD(ctx), FWD(arg_tpl)))...>;
 
 			static_assert(meta::index_sequence_empty_v<t_sys_res_not_void> is_false);
 
 			if constexpr (constexpr auto has_trailing_voids =
 							  (meta::is_not_void_v<
-								  decltype(__run_impl_tpl(ctx, meta::variadic_get<variadic_auto_back_v<sys_idx...>>(sys...), arg_tpl))>
+								  decltype(__run_sys_impl_tpl<meta::variadic_auto_back_v<sys_id...>>(ctx, FWD(arg_tpl)))>
 								   is_false))
 			{
-				constexpr auto idx_head			= meta::variadic_auto_front_v<sys_idx...>;
-				constexpr auto idx_res_not_void = meta::variadic_auto_at_v<meta::index_sequence_front_v<t_sys_res_not_void>, sys_idx...>;
-				constexpr auto idx_tail			= meta::variadic_auto_back_v<sys_idx...>;
+				constexpr auto idx_head			= meta::variadic_auto_front_v<sys_id...>;
+				constexpr auto idx_res_not_void = meta::variadic_auto_at_v<meta::index_sequence_front_v<t_sys_res_not_void>, sys_id...>;
+				constexpr auto idx_tail			= meta::variadic_auto_back_v<sys_id...>;
 
-				// auto after_return = detail::scope_guard{ [this, &ctx, &arg_tpl, &sys...]() mutable noexcept { __run_impl_seq(ctx, arg_tpl, meta::offset_sequence<idx_res_not_void + 1, idx_tail - idx_res_not_void>{}, sys...); } };
-				return __run_impl_seq(ctx, arg_tpl, meta::offset_sequence<idx_head, idx_res_not_void - idx_head + 1>{}, sys...);
+				auto after_return = ecs::system::detail::scope_guard{ [&ctx, &arg_tpl] INLINE_LAMBDA_FRONT mutable noexcept INLINE_LAMBDA_BACK {
+					__run_sys_impl_seq(ctx, meta::offset_sequence<idx_res_not_void + 1, idx_tail - idx_res_not_void>{}, arg_tpl);
+				} };
+
+				return __run_sys_impl_seq(ctx, meta::offset_sequence<idx_head, idx_res_not_void - idx_head + 1>{}, arg_tpl);
 			}
 			else
 			{
-				return __run_impl_seq(ctx, arg_tpl, std::index_sequence<sys_idx...>{}, sys...);
+				return __run_sys_impl_seq(ctx, std::index_sequence<sys_id...>{}, arg_tpl);
 			}
 		}
 
-		template <typename t_ctx, typename t_arg_tpl, typename... t_idx_seq, typename... t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		__run_helper_1(t_ctx&& ctx, t_arg_tpl&& arg_tpl, meta::type_pack<t_idx_seq...>, t_sys&&... sys) noexcept
+		template <typename... t_id_seq>
+		FORCE_INLINE static constexpr decltype(auto)
+		__run_all_impl_1(auto&& ctx, meta::type_pack<t_id_seq...>, auto&& arg_tpl) noexcept
 		{
-			return std::tuple{ __run_helper_2(FWD(ctx), arg_tpl, t_idx_seq{}, sys...)... };
+			return std::tuple{ __run_all_impl_2(FWD(ctx), t_id_seq{}, arg_tpl)... };
 		}
 
-		template <typename t_ctx, typename... t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		run(t_ctx&& ctx, t_sys&&... sys, auto&&... arg) noexcept
+	  public:
+		template <std::size_t sys_id>
+		FORCE_INLINE static constexpr decltype(auto)
+		execute(cx_ctx auto&& ctx, auto&&... arg) noexcept
 		{
-			static_assert(sizeof...(t_sys) > 0);
+			std::println("hi");
+			return FWD(ctx).template invoke<sys_id>(FWD(arg)...);
+		}
+
+		FORCE_INLINE static constexpr decltype(auto)
+		execute(cx_ctx auto&& ctx, auto&& sys, auto&&... arg) noexcept
+		{
+			std::println("hi");
+			return FWD(ctx).invoke(FWD(sys), FWD(arg)...);
+		}
+
+		template <std::size_t... sys_id>
+		FORCE_INLINE static constexpr decltype(auto)
+		run_all(cx_ctx auto&& ctx, std::index_sequence<sys_id...>, auto&&... arg) noexcept
+		{
 			using t_sys_res_not_void =
 				meta::filtered_index_sequence_t<
 					meta::is_not_void,
-					decltype(__run_single(FWD(ctx), FWD(sys), FWD(arg)...))...>;
+					decltype(ecs::system::ctx::detail::run_sys<sys_id>(FWD(ctx), FWD(arg)...))...>;
 
-			if constexpr (sizeof...(t_sys) <= 1 or meta::index_sequence_empty_v<t_sys_res_not_void>)
+			if constexpr (sizeof...(sys_id) <= 1)
 			{
-				return (__run_single(FWD(ctx), FWD(sys), FWD(arg)...), ...);
+				return (ecs::system::ctx::detail::run_sys<sys_id>(FWD(ctx), FWD(arg)...), ...);
+			}
+			else if constexpr (meta::index_sequence_empty_v<t_sys_res_not_void>)
+			{
+				(ecs::system::ctx::detail::run_sys<sys_id>(FWD(ctx), arg...), ...);
 			}
 			else
 			{
-				return __run_helper_1(FWD(ctx), make_arg_tpl(FWD(arg)...), ecs::system::detail::template index_ranges_seq_t<sizeof...(t_sys) - 1, t_sys_res_not_void>{}, FWD(sys)...);
+				return __run_all_impl_1(FWD(ctx), ecs::system::detail::template index_ranges_seq_t<sizeof...(sys_id) - 1, t_sys_res_not_void>{}, make_arg_tpl(FWD(arg)...));
 			}
-		}
-
-		FORCE_INLINE constexpr decltype(auto)
-		run_all(this auto&& ctx /*, auto&&... arg*/) noexcept
-		{
 		}
 	};
 
 	struct exec_async : executor_base
 	{
-		template <typename t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		dispatch(this auto&& self_ctx, auto&&... arg) noexcept
-		{
-			if constexpr (cx_ctx_bound<t_sys>)
-			{
-				return static_cast<meta::copy_cv_ref_t<decltype(self_ctx), t_sys>>(self_ctx)(self_ctx, FWD(arg)...);
-			}
-			else
-			{
-				return static_cast<meta::copy_cv_ref_t<decltype(self_ctx), t_sys>>(self_ctx)(FWD(arg)...);
-			}
-		}
 	};
 }	 // namespace ecs::system::ctx
 
-namespace ecs::system::ctx
-{
-	using namespace detail;
-
-	template <typename t_executor, typename... t_sys>
-	struct __ctx : ctx_base, t_sys...
-	{
-		no_unique_addr t_executor exec;
-
-		constexpr __ctx(t_executor&& exec, t_sys&&... sys) noexcept
-			: exec(FWD(exec)), t_sys(FWD(sys))... { };
-
-		constexpr __ctx() noexcept requires(is_compile_time_constructible_v<t_executor> and (is_compile_time_constructible_v<t_sys> and ...))
-		= default;
-
-		template <typename t>
-		FORCE_INLINE constexpr decltype(auto)
-		get(this auto&& self) noexcept
-		{
-			return static_cast<meta::copy_cv_ref_t<decltype(self), t>>(self);
-		}
-
-		template <typename t_sys>
-		FORCE_INLINE constexpr decltype(auto)
-		execute(t_sys&& sys, auto&&... arg) noexcept
-		{
-			return exec.run<decltype(*this), t_sys&&>(*this, FWD(sys), FWD(arg)...);
-		}
-
-		template <typename... t_arg>
-		FORCE_INLINE constexpr decltype(auto)
-		operator()(t_arg&&... arg) noexcept
-		{
-			return exec.run<decltype(*this), decltype(get<t_sys>())...>(*this, get<t_sys>()..., FWD(arg)...);
-		}
-
-		template <typename... t_arg>
-		FORCE_INLINE constexpr decltype(auto)
-		operator()(cx_ctx auto&& ctx, t_arg&&... arg) noexcept
-		{
-			return exec.run<decltype(*this), decltype(get<t_sys>())...>(*this, get<t_sys>()..., FWD(arg)...);
-		}
-	};
-
-	template <typename... t_sys>
-	__ctx(t_sys&&...) -> __ctx<meta::value_or_ref_t<t_sys&&>...>;
-
-	template <typename t_exec, typename... t_sys, auto... i>
-	FORCE_INLINE constexpr decltype(auto)
-	__make_ctx(std::index_sequence<i...>, t_exec&& exec, t_sys&&... sys) noexcept
-	{
-		return __ctx{ FWD(exec), __sys<i, meta::value_or_ref_t<t_sys&&>>(FWD(sys))... };
-	}
-}	 // namespace ecs::system::ctx
-
-// 모든 시스템은 상속된다.
-// deducing this 때문에 상속된 sys에 접근 불가능
-// 모든 sys에 unique id부여
-// ctx.get<id>() 를 통해 sys를 찾을 수 있음
 namespace ecs::system::ctx
 {
 	template <typename t>
@@ -482,7 +373,7 @@ namespace ecs::system::ctx
 
 		template <std::size_t nth>
 		FORCE_INLINE constexpr decltype(auto)
-		get_base(this auto&& self) noexcept
+		get_nth_base(this auto&& self) noexcept
 		{
 			return static_cast<meta::copy_cv_ref_t<decltype(self), meta::variadic_at_t<nth, make_unique_base_t<n, t_base>...>>>(FWD(self));
 		}
@@ -505,21 +396,11 @@ namespace ecs::system::ctx
 		using t_nth_base = meta::variadic_at_t<nth, make_unique_base_t<n, t_base>...>;
 	};
 
-	// template <typename... t_base>
-	// unique_bases(t_base&&...) -> unique_bases<std::index_sequence_for<t_base...>, t_base...>;
-
 	template <typename... t_base>
 	unique_bases(t_base&&...) -> unique_bases<decltype(make_id_seq<0, t_base...>()), t_base...>;
 
 	template <typename... t_base>
 	using make_unique_bases = unique_bases<decltype(make_id_seq<0, t_base...>()), meta::universal_wrapper<t_base>...>;
-
-	// using make_unique_bases = decltype(unique_bases(std::declval<t_base>()...));
-
-	template <typename... t_sys>
-	struct test_adaptor : make_unique_bases<t_sys...>
-	{
-	};
 }	 // namespace ecs::system::ctx
 
 namespace ecs::system::ctx
@@ -533,13 +414,6 @@ namespace ecs::system::ctx
 	template <typename... t>
 	struct ctx_info<on_ctx<t...>>
 	{
-		// 1. get_id
-		// 2. make_system_id_sequence or system_type_pack
-
-		// validate :
-		//  1. one unique executor
-		//  2. at least one system
-
 		template <typename t_other>
 		using sys_pred = std::bool_constant<not cx_executor<t_other>>;
 
@@ -567,11 +441,11 @@ namespace ecs::system::ctx
 			meta::index_sequence_size_v<decltype(sys_idx_seq())>;
 		}
 
-		using t_executor = meta::variadic_at_t<get_executor_idx(), t...>;
+		using t_executor = std::remove_reference_t<meta::variadic_at_t<get_executor_idx(), t...>>;
 	};
 
 	template <typename... t>
-	struct on_ctx : make_unique_bases<t...>
+	struct on_ctx : make_unique_bases<t...>, ctx_base
 	{
 		using t_unique_bases = make_unique_bases<t...>;
 		using t_unique_bases::t_unique_bases;
@@ -603,14 +477,61 @@ namespace ecs::system::ctx
 			return FWD(self).get<unique_id>();
 		}
 
+		template <typename t_sys>
+		FORCE_INLINE constexpr decltype(auto)
+		invoke(this auto&& self, t_sys&& sys, auto&&... arg) noexcept
+		{
+			if constexpr (cx_ctx_bound<t_sys>)
+			{
+				return FWD(sys)(FWD(self), FWD(arg)...);
+			}
+			else if constexpr (requires { FWD(sys)(FWD(self), FWD(arg)...); })
+			{
+				return FWD(sys)(FWD(self), FWD(arg)...);
+			}
+			else
+			{
+				return FWD(sys)(FWD(arg)...);
+			}
+		}
+
+		template <std::size_t sys_id>
+		FORCE_INLINE constexpr decltype(auto)
+		invoke(this auto&& self, auto&&... arg) noexcept
+		{
+			using t_sys = decltype(FWD(self).get<sys_id>().value);
+
+			if constexpr (cx_ctx_bound<t_sys>)
+			{
+				return FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...);
+			}
+			else if constexpr (requires { FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...); })
+			{
+				return FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...);
+			}
+			else
+			{
+				return FWD(self).get<sys_id>().value(FWD(arg)...);
+			}
+		}
+
+		FORCE_INLINE constexpr decltype(auto)
+		execute(this auto&& self, auto&& sys, auto&&... arg) noexcept(noexcept(t_executor::execute(FWD(self), FWD(sys), FWD(arg)...)))
+		{
+			return t_executor::execute(FWD(self), FWD(sys), FWD(arg)...);
+		}
+
+		template <std::size_t sys_id>
+		FORCE_INLINE constexpr decltype(auto)
+		execute(this auto&& self, auto&&... arg) noexcept(noexcept(t_executor::template execute<sys_id>(FWD(self), FWD(arg)...)))
+		{
+			return t_executor::template execute<sys_id>(FWD(self), FWD(arg)...);
+		}
+
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, auto&&... arg) noexcept
 		{
-			// meta::print_type<decltype(FWD(self).get_executor())>();
-			//  return t_ctx_info::get_executor_idx();
-			//			return t_executor::run_all();
-
-			// return t_executor::run_all(FWD(self), FWD(arg)...);
+			return t_executor::run_all(FWD(self), get_sys_id_seq(), FWD(arg)...);
 		}
 	};
 

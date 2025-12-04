@@ -93,6 +93,10 @@ struct A2 : decltype([]() {}), decltype([]() { std::println(""); })
 {
 };
 
+struct C : A
+{
+};
+
 template <typename... t_sys>
 struct B : ecs::system::ctx::make_unique_bases<t_sys...>
 {
@@ -113,16 +117,19 @@ func(t... f, auto&&... arg)
 void
 ctx_test(auto& _game)
 {
+	static_assert(std::is_base_of_v<A, const C>);
 	using namespace ecs::system::ctx;
 	auto l = [](/*this auto&& ctx,*/ int) { std::println("moved"); return 3; };
 
 	func<int, float>(1, 2, 3);
-	// 1. run_sys => invoke의 확장판, ctx_bound 처리, user_code라면 ctx.get_exec() 한후 exec.execute(sys, ctx, arg...)
-	// adaptor라면 그냥 invoke
+	// 0. ctx.invoke -> ctx_bound 처리, inline
+	// 1. run_sys => invoke의 확장판, adaptor라면 execute 대신 adaptor를 그대로 실행 (ctx.invoke), adaptor가 ctx_bound인지, 아닌지에 따라
+	// 알아서 처리, adaptor 안에서 나중에 execute 실행 (또는 안할수도)
 	//
 	// 2. exec.execute(sys, arg...) => invoke(sys, arg...)를 어떠한 방식으로든 실행하고(보장 X) return한다.
 	// sys의 실행값을, thread를, async를, handle을 무엇을 반환할지는 사용자 맘
 	// ctx가 arg에 포함되어 있는데 이는 run_sys에서 알아서 처리 되었기 때문?
+	// ctx_bound도 처리해야 하는데... 매번?
 	//
 	// 같은 pipe라도 어떤 exec인지에 따라 실행이 될수도, 안될수도 (compile 실패) 있다.
 	//
@@ -218,29 +225,30 @@ ctx_test(auto& _game)
 	{
 		auto lvalue_ref_lambda = [] { std::println("lvalue_ref_lambda"); };
 
+
 		auto ctx = on_ctx{
-			[](/*auto ctx*/) { std::println("first"); },
-			[](/*auto ctx*/) { std::println("second"); },
+			pipe{ [](/*auto ctx*/) { std::println("first"); return 1; }, [](auto) {} },
+			//[](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {},
 			lvalue_ref_lambda,
+			[](/*auto ctx*/) { std::println("second"); return 2.f; },
+			with_ctx{ [](auto&&) { return -1; } },
 			ecs::system::ctx::exec_inline{}
 		};
 
-
+		static_assert(cx_adaptor<decltype([](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {})>);
 		// exec_inline::run_all(ctx);
 
 		// meta::print_type<decltype(ctx.get_executor().value)>();
-		ctx.get_executor().value.run_all();
 		// exec_inline::run_all(ctx.get_executor().value);
 
-		on_ctx{
-			[](/*auto ctx*/) { std::println("first"); },
-			[](/*auto ctx*/) { std::println("second"); },
-			lvalue_ref_lambda,
-			ecs::system::ctx::exec_inline{}
-		}();
+		// on_ctx{
+		//	[]() { std::println("first"); },
+		//	[](auto&&) { std::println("second"); },
+		//	lvalue_ref_lambda,
+		//	ecs::system::ctx::exec_inline{}
+		// }();
 
-		// ctx();
-		//  auto executor = ctx.get<3>().value;
+		auto res_tpl = ctx();
 
 		auto _ = 1;
 	}
@@ -260,194 +268,192 @@ main()
 
 	run_benchmark(_game, 1'000);
 
-	{
-		using namespace ecs::system;
-		using ecs::system::operator|;
-		auto _l	 = [] { };
-		auto sys = seq{
-			sys_game_init{},
-			std::move(_l),
-			[]() { return "hi"; },
-			pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
-			par{
-				[](auto&& _) { std::println("hello"); },
-				pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
-			},
-			[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
-			cond{ [](auto&& _) { return true; },
-				  [](auto&& _) { std::println("true"); return 1; },
-				  [](auto&& _) { std::println("false"); return 2; } }
-				| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
-				| cond{ []() { return false; }, []() { std::println("false"); } },
-			[](auto) {},
+	//{
+	//	using namespace ecs::system;
+	//	using ecs::system::operator|;
+	//	auto _l	 = [] { };
+	//	auto sys = seq{
+	//		sys_game_init{},
+	//		std::move(_l),
+	//		[]() { return "hi"; },
+	//		pipe{ [](auto&& _) -> decltype(auto) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); return 1 ; } },
+	//		par{
+	//			[](auto&& _) { std::println("hello"); },
+	//			pipe{ [](auto&& _) { std::println("hello"); return 1; }, [](auto&& _) { std::println("{}", _ + 1); } },
+	//		},
+	//		[](auto&& _) { std::println("hello"); return 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; } | [](auto&& _) { std::println("{}", _ + 1); return _ + 1; },
+	//		cond{ [](auto&& _) { return true; },
+	//			  [](auto&& _) { std::println("true"); return 1; },
+	//			  [](auto&& _) { std::println("false"); return 2; } }
+	//			| cond{ [](auto&& _) { return true; }, [](auto&& _) { std::println("true"); } }
+	//			| cond{ []() { return false; }, []() { std::println("false"); } },
+	//		[](auto) {},
 
-			[] { return 10; }
-				| loop{ [](auto&& i) { return i-- > 0; },
-						[](auto&& i) { std::println("i : {}", i); },
-						continue_if{ [](auto i) { return i % 2; } },
-						par{
-							[](auto&&) { Sleep(200); std::println("hi-1"); },
-							[]() { Sleep(100); std::println("hi-2"); } },
-						break_if{ [](auto i) { return i == 5; } } },
-			match{
-				[] { return 0; },
-				on<3> = [](auto&& _) { return 2; } | [](auto&& _) { std::println("0"); return 1; },
-				default_to = [] { std::println("default"); return 1; },
-			},
-			[]<typename g>(interface_game<g> igame)
-				-> decltype(auto) { return (igame.get_scene<scene_t1>()); }
-					   | []<typename s>(interface_scene<s> iscene)
-					-> world_t3& { return iscene.get_world<world_t3>(); }
-						   | seq{ each_entity{
-									  query{ with<transform, bullet> },
-									  [x = 0.f, y = 1.f, z = 2.f](transform& t) mutable {
-										  t.position.x = ++x;
-										  t.position.y = ++y;
-										  t.position.z = ++z;
-									  } },
-								  each_group{
-									  query{ with<transform, bullet>, without<rigid_body> },
-									  seq{ [id = 0]<typename g>(i_entity_group<g> i_ent_group) mutable {
-											  auto&& [t] = i_ent_group.get_component<transform&>(19);
-											  std::println("group [{}], size : {}, last_entity_id : {}, first_entity_position = [x : {}, y : {}, z : {}]",
-														   id++,
-														   i_ent_group.entity_count(),
-														   i_ent_group.ent_id(i_ent_group.entity_count() - 1),
-														   t.position.x,
-														   t.position.y,
-														   t.position.z);
-										  },
-										   each_entity{ query{ without<transform> }, [](transform& t, const rigid_body& rb) {
-														   std::println("done");
-													   } } } },
-								  sys_game_deinit{} }
-		};
+	//		[] { return 10; }
+	//			| loop{ [](auto&& i) { return i-- > 0; },
+	//					[](auto&& i) { std::println("i : {}", i); },
+	//					continue_if{ [](auto i) { return i % 2; } },
+	//					par{
+	//						[](auto&&) { Sleep(200); std::println("hi-1"); },
+	//						[]() { Sleep(100); std::println("hi-2"); } },
+	//					break_if{ [](auto i) { return i == 5; } } },
+	//		match{
+	//			[] { return 0; },
+	//			on<3> = [](auto&& _) { return 2; } | [](auto&& _) { std::println("0"); return 1; },
+	//			default_to = [] { std::println("default"); return 1; },
+	//		},
+	//		[]<typename g>(interface_game<g> igame)
+	//			-> decltype(auto) { return (igame.get_scene<scene_t1>()); }
+	//				   | []<typename s>(interface_scene<s> iscene)
+	//				-> world_t3& { return iscene.get_world<world_t3>(); }
+	//					   | seq{ each_entity{
+	//								  query{ with<transform, bullet> },
+	//								  [x = 0.f, y = 1.f, z = 2.f](transform& t) mutable {
+	//									  t.position.x = ++x;
+	//									  t.position.y = ++y;
+	//									  t.position.z = ++z;
+	//								  } },
+	//							  each_group{
+	//								  query{ with<transform, bullet>, without<rigid_body> },
+	//								  seq{ [id = 0]<typename g>(i_entity_group<g> i_ent_group) mutable {
+	//										  auto&& [t] = i_ent_group.get_component<transform&>(19);
+	//										  std::println("group [{}], size : {}, last_entity_id : {}, first_entity_position = [x : {}, y : {}, z : {}]",
+	//													   id++,
+	//													   i_ent_group.entity_count(),
+	//													   i_ent_group.ent_id(i_ent_group.entity_count() - 1),
+	//													   t.position.x,
+	//													   t.position.y,
+	//													   t.position.z);
+	//									  },
+	//									   each_entity{ query{ without<transform> }, [](transform& t, const rigid_body& rb) {
+	//													   std::println("done");
+	//												   } } } },
+	//							  sys_game_deinit{} }
+	//	};
 
-		static_assert(std::is_empty_v<decltype(filter{ [](int i) { return i % 2 == 0; } })>);
+	//	static_assert(std::is_empty_v<decltype(filter{ [](int i) { return i % 2 == 0; } })>);
 
-		for (const auto& x : (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))())
-		{
-			std::println("x : {}", x);
-		}
+	//	for (const auto& x : (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))())
+	//	{
+	//		std::println("x : {}", x);
+	//	}
 
-		constexpr auto r2es = std::ranges::fold_left((identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))(), 0, std::plus{});
-		constexpr auto r3es = (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4) | sum())();
+	//	constexpr auto r2es = std::ranges::fold_left((identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4))(), 0, std::plus{});
+	//	constexpr auto r3es = (identity{ std::views::iota(0) } | filter{ [](int i) { return i % 2 == 0; } } | take(4) | sum())();
 
-		static_assert(r2es == 12);
-		static_assert(r3es == 12);
-
-
-		{
-			auto test_sys =
-				identity{ std::views::iota(0) }
-				| filter{ [](int i) { return i % 2 == 0; } }
-				| ecs::system::map([](auto arg) { return arg + 1; })
-				| take(4)
-				| for_each([](auto i) { std::println("x : {}", i); });
-
-			test_sys();
-		}
-
-		// make( expr ) -> [](){ return expr; }
-		//
-		// _game | get_world<>{} | make( rv::filter | rv::take | ...  ) |
-		//
-		// identity( rv::filter() | () | ... |   )
+	//	static_assert(r2es == 12);
+	//	static_assert(r3es == 12);
 
 
-		// if(run_sys_left) return run_sys_right
+	//	{
+	//		auto test_sys =
+	//			identity{ std::views::iota(0) }
+	//			| filter{ [](int i) { return i % 2 == 0; } }
+	//			| ecs::system::map([](auto arg) { return arg + 1; })
+	//			| take(4)
+	//			| for_each([](auto i) { std::println("x : {}", i); });
+
+	//		test_sys();
+	//	}
+
+	//	// make( expr ) -> [](){ return expr; }
+	//	//
+	//	// _game | get_world<>{} | make( rv::filter | rv::take | ...  ) |
+	//	//
+	//	// identity( rv::filter() | () | ... |   )
 
 
-		[](int a, int&& b, int c) {
-			std::println("e: {}, f: {}, g: {}", a, b, c);
-		}(
-			[] { return (std::println("2"), []() { return 4; }()); }(),
-			[] { return (std::println("4"), []() { return 6.1f; }()); }(),
-			[] {
-				auto res = (std::println("6"), []() { return 5; }());
-				std::println("8");
-				return res;
-			}());
-
-		auto test_seq = seq{
-			[]() { return 1; },
-			[]() { return std::tuple(2); },	   // <-fixme : user tuple is also removed
-			[]() {},
-			[]() { return std::tuple<>(); },
-			[]() { return 2; }
-		};
-
-		auto test_pipe = par{
-			[]() { std::println("1"); },
-			[]() { return 1; },
-			[]() { std::println("3"); },
-			[]() { return 2.1f; },
-			[]() { std::println("5"); },
-			[]() { return 3; },
-			[]() { std::println("7"); },
-		} | [](int a, int&& b, int c) {
-			std::println("a: {}, b: {}, c: {}", a, b, c);
-		};
-		using t_res_seq = decltype(seq{
-			[]() { return 1; },
-			[]() { return 2.1f; },
-			[]() { return 3; },
-		}());
-
-		auto s = seq{
-			[]() { std::println("1"); },
-			[]() { return 1; },
-			[]() { std::println("3"); },
-			[]() { return 2.1f; },
-			[]() { std::println("5"); },
-			[]() { return 3; },
-			[]() { std::println("7"); },
-		}();
-
-		std::invoke([](auto e) { std::println("{}", e); }, std::tuple{ 1 });
-
-		static_assert(([]() { return 1; } | [](auto i) { return i == 1; })());
-
-		test_pipe();
-
-		// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
-
-		auto test_res_2 = test_seq();
-
-		// meta::print_type<decltype(test_res_2)>();
-
-		auto test_tpl_cat  = std::tuple_cat(std::tuple(2), std::tuple(std::tuple(3, 3)), std::tuple(2));
-		auto test_tpl_cat2 = std::tuple_cat(std::tuple(std::tuple(1), std::tuple(2)), std::tuple(4));
-		auto test_tpl_cat3 = std::tuple_cat(std::tuple(1), std::tuple(std::tuple()), std::tuple(), std::tuple(2));
+	//	// if(run_sys_left) return run_sys_right
 
 
-		auto test_seq_void = seq{
-			[]() { },
-			[]() { },
-			[]() { },
-			[]() { },
+	//	[](int a, int&& b, int c) {
+	//		std::println("e: {}, f: {}, g: {}", a, b, c);
+	//	}(
+	//		[] { return (std::println("2"), []() { return 4; }()); }(),
+	//		[] { return (std::println("4"), []() { return 6.1f; }()); }(),
+	//		[] {
+	//			auto res = (std::println("6"), []() { return 5; }());
+	//			std::println("8");
+	//			return res;
+	//		}());
 
-		};
+	//	auto test_seq = seq{
+	//		[]() { return 1; },
+	//		[]() { return std::tuple(2); },	   // <-fixme : user tuple is also removed
+	//		[]() {},
+	//		[]() { return std::tuple<>(); },
+	//		[]() { return 2; }
+	//	};
+
+	//	auto test_pipe = par{
+	//		[]() { std::println("1"); },
+	//		[]() { return 1; },
+	//		[]() { std::println("3"); },
+	//		[]() { return 2.1f; },
+	//		[]() { std::println("5"); },
+	//		[]() { return 3; },
+	//		[]() { std::println("7"); },
+	//	} | [](int a, int&& b, int c) {
+	//		std::println("a: {}, b: {}, c: {}", a, b, c);
+	//	};
+	//	using t_res_seq = decltype(seq{
+	//		[]() { return 1; },
+	//		[]() { return 2.1f; },
+	//		[]() { return 3; },
+	//	}());
+
+	//	auto s = seq{
+	//		[]() { std::println("1"); },
+	//		[]() { return 1; },
+	//		[]() { std::println("3"); },
+	//		[]() { return 2.1f; },
+	//		[]() { std::println("5"); },
+	//		[]() { return 3; },
+	//		[]() { std::println("7"); },
+	//	}();
+
+	//	std::invoke([](auto e) { std::println("{}", e); }, std::tuple{ 1 });
+
+	//	static_assert(([]() { return 1; } | [](auto i) { return i == 1; })());
+
+	//	test_pipe();
+
+	//	// tuple{ tuple(1), tuple(tuple()), tuple(), tuple(2) }
+
+	//	auto test_res_2 = test_seq();
+
+	//	// meta::print_type<decltype(test_res_2)>();
+
+	//	auto test_tpl_cat  = std::tuple_cat(std::tuple(2), std::tuple(std::tuple(3, 3)), std::tuple(2));
+	//	auto test_tpl_cat2 = std::tuple_cat(std::tuple(std::tuple(1), std::tuple(2)), std::tuple(4));
+	//	auto test_tpl_cat3 = std::tuple_cat(std::tuple(1), std::tuple(std::tuple()), std::tuple(), std::tuple(2));
 
 
-		// auto res = (identity{ _game } | FWD(sys))();
-		auto res = sys(_game);
+	//	auto test_seq_void = seq{
+	//		[]() { },
+	//		[]() { },
+	//		[]() { },
+	//		[]() { },
 
-		auto _ = ecs::system::detail::scope_guard{ []() noexcept { std::println("scope_guard"); } };
+	//	};
 
-		// meta::print_type<decltype(res)>();
-		{
-			auto tpl_test = std::tuple{ [] { std::print("a"); return 1; }(), ([] { std::print("b"); }(), [] { std::print("c"); return 2; }()) };
-			// meta::print_type<decltype(tpl_test)>();
-			// meta::print_type<ecs::system::detail::index_range_t<0, 0>>();
 
-			std::println("size : {}", sizeof(ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<0, 3, 4, 7, 10>>));
-			// meta::print_type<decltype(ecs::system::detail::make_index_range<4, 7>())>();
-		}
-		// sys(_game);
+	//	// auto res = (identity{ _game } | FWD(sys))();
+	//	auto res = sys(_game);
 
-		// meta::print_type<decltype(res)>();
-	}
+	//	// meta::print_type<decltype(res)>();
+	//	{
+	//		auto tpl_test = std::tuple{ [] { std::print("a"); return 1; }(), ([] { std::print("b"); }(), [] { std::print("c"); return 2; }()) };
+	//		// meta::print_type<decltype(tpl_test)>();
+	//		// meta::print_type<ecs::system::detail::index_range_t<0, 0>>();
+
+	//		std::println("size : {}", sizeof(ecs::system::detail::index_ranges_seq_t<13, std::index_sequence<0, 3, 4, 7, 10>>));
+	//		// meta::print_type<decltype(ecs::system::detail::make_index_range<4, 7>())>();
+	//	}
+	//	// sys(_game);
+
+	//	// meta::print_type<decltype(res)>();
+	//}
 
 	{
 		ctx_test(_game);
