@@ -196,7 +196,7 @@ ctx_test(auto& _game)
 		auto a = A{};
 
 		auto _ = unique_bases{
-			meta::universal_wrapper{ a }, A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
+			/*meta::universal_wrapper{ a },*/ A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
 		};
 
 		// meta::print_type<decltype(_)>();
@@ -227,13 +227,22 @@ ctx_test(auto& _game)
 
 
 		auto ctx = on_ctx{
-			pipe{ [](/*auto ctx*/) { std::println("first"); return 1; }, [](auto) {} },
+			[](/*auto ctx*/) { std::println("first"); return 1; },
+			// pipe{ [](/*auto ctx*/) { std::println("first"); return 1; }, [](auto) {} },
 			//[](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {},
-			lvalue_ref_lambda,
+			// lvalue_ref_lambda,
 			[](/*auto ctx*/) { std::println("second"); return 2.f; },
+
+			with_ctx{ [](auto&&) { return -1; } },
 			with_ctx{ [](auto&&) { return -1; } },
 			ecs::system::ctx::exec_inline{}
 		};
+
+
+		meta::print_type<sizeof(decltype(ctx))>();
+		// meta::print_type<decltype(ctx.get<1>())>();
+		//  meta::print_type<typename std::remove_cvref_t<decltype(ctx.get<2>())>::t_unique_bases>();
+		// meta::print_type<decltype(ctx.get<2>().get<3>())>();
 
 		static_assert(cx_adaptor<decltype([](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {})>);
 		// exec_inline::run_all(ctx);

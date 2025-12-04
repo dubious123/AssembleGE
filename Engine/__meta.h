@@ -837,19 +837,6 @@ namespace meta
 			return std::move(value);
 	}
 
-	template <typename t>
-	struct universal_wrapper
-	{
-		using t_storage = value_or_ref_t<t>;
-
-		no_unique_addr t_storage value;
-
-		// constexpr universal_wrapper(auto&& arg) : value(FWD(arg)) { }
-	};
-
-	template <typename t>
-	universal_wrapper(t&&) -> universal_wrapper<t&&>;
-
 	template <template <typename> typename pred, typename... t>
 	consteval auto
 	filter_count()

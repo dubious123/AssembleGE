@@ -44,41 +44,6 @@ namespace ecs::system::ctx
 
 	template <typename t>
 	using cx_executor_pred = std::bool_constant<cx_executor<t>>;
-
-	template <typename t_sys>
-	struct with_ctx : sys_ctx_bound, adaptor_base
-	{
-		no_unique_addr t_sys sys;
-
-		constexpr FORCE_INLINE
-		with_ctx(auto&& sys) noexcept : sys(FWD(sys)) { };
-
-		constexpr with_ctx() noexcept = default;
-
-		template <typename t_sys, typename... t_arg>
-		static consteval bool
-		validate(meta::type_pack<t_sys, t_arg...>)
-		{
-			{
-				constexpr auto valid = std::invocable<t_sys, t_arg...>;
-
-				static_assert(valid, "[with_ctx] systems(...) returned invalid_sys_call - check that system is callable with given arguments.");
-			}
-
-			return true;
-		}
-
-		FORCE_INLINE constexpr decltype(auto)
-		operator()(cx_ctx auto&& ctx, auto&&... arg) noexcept
-		{
-			static_assert(validate(meta::type_pack<t_sys, decltype(ctx), decltype(arg)...>{}), "[with_ctx]: invalid with_ctx");
-
-			return FWD(ctx).execute(sys, FWD(arg)...);
-		}
-	};
-
-	template <typename t_sys>
-	with_ctx(t_sys&&) -> with_ctx<meta::value_or_ref_t<t_sys&&>>;
 }	 // namespace ecs::system::ctx
 
 namespace ecs::system::ctx
@@ -89,7 +54,7 @@ namespace ecs::system::ctx
 		FORCE_INLINE constexpr decltype(auto)
 		run_sys(cx_ctx auto&& ctx, auto&&... arg) noexcept
 		{
-			using t_sys = decltype(FWD(ctx).get<sys_id>().value);
+			using t_sys = decltype(FWD(ctx).get<sys_id>());
 
 			if constexpr (cx_adaptor<t_sys>)
 			{
@@ -208,6 +173,17 @@ namespace ecs::system::ctx
 namespace ecs::system::ctx
 {
 	template <typename t>
+	struct ref_base
+	{
+		using type = t;
+
+		type& ref_value;
+	};
+
+	template <typename t>
+	ref_base(t&) -> ref_base<std::remove_reference_t<t>>;
+
+	template <typename t>
 	static consteval std::size_t
 	get_unique_base_count()
 	{
@@ -317,6 +293,13 @@ namespace ecs::system::ctx
 		using type = typename make_unique_base<offset, typename std::remove_cvref_t<t_base>::t_unique_bases>::type;
 	};
 
+	// template <std::size_t offset, typename t>
+	// struct make_unique_base<offset, meta::universal_wrapper<t>>
+	//{
+	//	using type = unique_base<offset, meta::universal_wrapper<
+	//										 make_unique_base_t<offset + 1, t>>>;
+	// };
+
 	template <std::size_t offset, std::size_t... n, typename... t_base>
 	struct make_unique_base<offset, unique_bases<std::index_sequence<n...>, t_base...>>
 	{
@@ -352,6 +335,9 @@ namespace ecs::system::ctx
 		template <std::size_t id>
 		using t_unique_base = meta::variadic_find_t<pred<id>::template type, void, make_unique_base_t<n, t_base>...>;
 
+		template <std::size_t nth>
+		using t_nth_base = meta::variadic_at_t<nth, make_unique_base_t<n, t_base>...>;
+
 		template <std::size_t... n_other, typename... t_base_other>
 		constexpr unique_bases(unique_bases<std::index_sequence<n_other...>, t_base_other...>&& other)
 			: make_unique_base_t<n, t_base>(FWD(other).get<n_other>())...
@@ -372,10 +358,17 @@ namespace ecs::system::ctx
 		}
 
 		template <std::size_t nth>
+		consteval std::size_t
+		get_nth_base_id()
+		{
+			return t_nth_base<nth>::get_id();
+		}
+
+		template <std::size_t nth>
 		FORCE_INLINE constexpr decltype(auto)
 		get_nth_base(this auto&& self) noexcept
 		{
-			return static_cast<meta::copy_cv_ref_t<decltype(self), meta::variadic_at_t<nth, make_unique_base_t<n, t_base>...>>>(FWD(self));
+			return static_cast<meta::copy_cv_ref_t<decltype(self), t_nth_base<nth>>>(FWD(self));
 		}
 
 		template <std::size_t id>
@@ -400,7 +393,7 @@ namespace ecs::system::ctx
 	unique_bases(t_base&&...) -> unique_bases<decltype(make_id_seq<0, t_base...>()), t_base...>;
 
 	template <typename... t_base>
-	using make_unique_bases = unique_bases<decltype(make_id_seq<0, t_base...>()), meta::universal_wrapper<t_base>...>;
+	using make_unique_bases = unique_bases<decltype(make_id_seq<0, t_base...>()), t_base...>;
 }	 // namespace ecs::system::ctx
 
 namespace ecs::system::ctx
@@ -499,19 +492,19 @@ namespace ecs::system::ctx
 		FORCE_INLINE constexpr decltype(auto)
 		invoke(this auto&& self, auto&&... arg) noexcept
 		{
-			using t_sys = decltype(FWD(self).get<sys_id>().value);
+			using t_sys = decltype(FWD(self).get<sys_id>());
 
 			if constexpr (cx_ctx_bound<t_sys>)
 			{
-				return FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...);
+				return FWD(self).get<sys_id>()(FWD(self), FWD(arg)...);
 			}
-			else if constexpr (requires { FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...); })
+			else if constexpr (requires { FWD(self).get<sys_id>()(FWD(self), FWD(arg)...); })
 			{
-				return FWD(self).get<sys_id>().value(FWD(self), FWD(arg)...);
+				return FWD(self).get<sys_id>()(FWD(self), FWD(arg)...);
 			}
 			else
 			{
-				return FWD(self).get<sys_id>().value(FWD(arg)...);
+				return FWD(self).get<sys_id>()(FWD(arg)...);
 			}
 		}
 
@@ -537,4 +530,46 @@ namespace ecs::system::ctx
 
 	template <typename... t>
 	on_ctx(t&&...) -> on_ctx<t...>;
+}	 // namespace ecs::system::ctx
+
+namespace ecs::system::ctx
+{
+	template <typename t_sys>
+	struct with_ctx : sys_ctx_bound, adaptor_base, make_unique_bases<t_sys>
+	{
+		using t_unique_bases = ecs::system::ctx::make_unique_bases<t_sys>;
+		using t_unique_bases::t_unique_bases;
+
+		template <typename t_sys, typename... t_arg>
+		static consteval bool
+		validate(meta::type_pack<t_sys, t_arg...>)
+		{
+			{
+				constexpr auto valid = std::invocable<t_sys, t_arg...>;
+
+				static_assert(valid, "[with_ctx] systems(...) returned invalid_sys_call - check that system is callable with given arguments.");
+			}
+
+			return true;
+		}
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(cx_ctx auto&& ctx, auto&&... arg) noexcept
+		{
+			meta::print_type<t_unique_bases>();
+			std::println("with_ctx");
+			// static_assert(validate(meta::type_pack<t_sys, decltype(ctx), decltype(arg)...>{}), "[with_ctx]: invalid with_ctx");
+
+			// meta::print_type<decltype(ctx)>();
+			//  meta::print_type<t_unique_bases>();
+			//  meta::print_type<t_unique_bases::template t_nth_base<0>::get_id()>();
+
+
+			// constexpr auto sys_id = FWD(ctx).get_nth_base<0>().get_id();
+			//  return FWD(ctx).execute<sys_id>(FWD(arg)...);
+		}
+	};
+
+	template <typename t_sys>
+	with_ctx(t_sys&&) -> with_ctx<meta::value_or_ref_t<t_sys&&>>;
 }	 // namespace ecs::system::ctx
