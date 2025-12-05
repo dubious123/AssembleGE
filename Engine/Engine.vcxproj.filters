@@ -31,5 +31,8 @@
     <ClInclude Include="__ecs_system_adaptors.h" />
     <ClInclude Include="__ecs_system_ctx.h" />
     <ClInclude Include="__ecs_system_ctx_pipe.h" />
+    <ClInclude Include="__ecs_system_ctx_cond.h" />
+    <ClInclude Include="__ecs_system_ctx_match.h" />
+    <ClInclude Include="__ecs_system_ctx_loop.h" />
   </ItemGroup>
 </Project>

@@ -97,17 +97,6 @@ struct C : A
 {
 };
 
-template <typename... t_sys>
-struct B : ecs::system::ctx::make_unique_bases<t_sys...>
-{
-	using t_unique_bases = ecs::system::ctx::make_unique_bases<t_sys...>;
-	using t_unique_bases::t_unique_bases;
-};
-
-template <typename... t_arg>
-B(t_arg&&...)
-	-> B<meta::value_or_ref_t<t_arg&&>...>;
-
 template <typename... t>
 void
 func(t... f, auto&&... arg)
@@ -189,63 +178,83 @@ ctx_test(auto& _game)
 
 	// test_ctx(1);
 	{
-		auto __ = B{
-			A2{}, A{}
-		};
+		const auto lvalue_ref_lambda = [] { std::println("lvalue_ref_lambda"); };
 
-		auto a = A{};
+		const auto&& c = compressed_pack{ []() { }, []() { }, lvalue_ref_lambda, []() { }, []() { } };
 
-		auto _ = unique_bases{
-			/*meta::universal_wrapper{ a },*/ A2{}, /*unique_bases{ A2{} }, A{},*/ unique_bases{ A{}, unique_bases{ /*A2{},*/ A{} } }
-		};
+		// meta::print_type<decltype(c.get<2>())>();
+		// meta::print_type<sizeof(c)>();
+		{
+			// constexpr auto ctx = on_ctx{
+			//	[](/*auto ctx*/) { /*std::println("first"); */return true; },
+			//	// pipe{ [](/*auto ctx*/) { std::println("first"); return 1; }, [](auto) {} },
+			//	//[](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {},
+			//	// lvalue_ref_lambda,
+			//	[](/*auto ctx*/) { /*std::println("second");*/ return 2.f; },
 
-		// meta::print_type<decltype(_)>();
-		//  meta::print_type<decltype(_.get<2>())>();
-		//  meta::print_type<decltype(_.get<1>())>();
-		//  meta::print_type<decltype(_.get<0>())>();
-	}
+			//	with_ctx{ [](auto&&) { return -1; } },
+			//	with_ctx{ [](auto&&) { return -1; } },
+			//	ecs::system::ctx::exec_inline{}
+			//};
 
-	{
-		auto _ = unique_bases{ B{ A2{}, A{} }, unique_bases{ A2{}, A2{}, A{} }, A{}, A2{}, unique_bases{ A{}, A2{}, A{}, unique_bases{ A{}, A2{}, A{} } } };
+			// constexpr auto res_tpl = ctx();
+			// static_assert(std::get<0>(res_tpl));
+		}
 
-		// meta::print_type<make_unique_base_t<3, decltype(unique_bases{ A{}, A2{}, A{} /*, unique_bases{ A{}, A2{}, A{} } */ })>>();
+		{
+			auto ctx1 = on_ctx{
+				[]() { std::println("1"); return 1; } | [](auto&& i) {} | [](auto&& i) {} | [](auto&& i) {},
+				[]() { std::println("1"); return 1; } | [](auto&& i) {},
+				[](auto&& ctx) { std::println("2"); FWD(ctx).get_executor().execute(FWD(ctx), []{std::println("nested");} ); return 2; },
+				[]() { std::println("3"); return 3; },
+				[]() { std::println("4"); return 4; },
 
-		// unique_base<0, A>{
-		//	A{}
-		// }.get<4>();
+				with_ctx{ [](auto&&) { return -1; } },
+				with_ctx{ [](auto&&) { return -1; } },
+				with_ctx{ [](auto&&) { return -1; } },
 
-		// meta::print_type<decltype(_)>();
-		//   meta::print_type<_.unique_base_count()>();
+				[]() { return 1; } | cond{ [](auto i) { return i < 2; }, [](auto) { std::println("true"); }, [](auto&& ctx, auto) { std::println("false"); } },
+				[]() { return 2; } | cond{ [](auto i) { return i < 2; }, [](auto&&, auto) { std::println("true"); } },
 
-		// meta::print_type<make_unique_base_t<0, decltype(B{ A2{}, A{} })>>();
-		// meta::print_type<std::remove_cvref_t<decltype(_.get<0>())>::unique_base_count()>();
-		// meta::print_type<decltype(_.get<2>())>();
-	}
+				[idx = 0]() mutable -> int& { return idx; }
+										   | loop{
+											   [](auto& i) { return i < 20; },
+											   [](auto& i) { std::println("loop, i++ : {}", i++); },
+											   continue_if{ [](auto& i) { std::println("continue_if, i++ : {}", i++); return i % 3 == 0; } },
+											   break_if{ [](auto& i) { std::println("break_if, i++ : {}", i++); return i > 15; } },
+										   },
+				ecs::system::ctx::exec_inline{}
+			};
 
-	{
-		auto lvalue_ref_lambda = [] { std::println("lvalue_ref_lambda"); };
+			auto ctx2 = on_ctx{ [](auto&& tpl) { return 1; }, ecs::system::ctx::exec_inline{}, [](auto&&) {} };
+
+			auto pipe = ctx1 | ctx2;
+
+			auto res_tpl1 = ctx1();
+
+			// meta::print_type<decltype(ctx2)::sys_idx_seq>();
+			// meta::print_type<decltype(ctx2)::executor_idx>();
+
+			auto res_tpl2 = ctx2(res_tpl1);
+			// meta::print_type<decltype(ctx2)::sys_idx_seq>();
+
+			on_ctx{
+				[](auto& tpl) { ++std::get<1>(FWD(tpl)); },
+				[](auto&& ctx, auto tpl) { tpl = std::tuple{ 2, 3, 4, 5 }; },
+				[](auto a, auto b, auto& c, auto& d) { std::println("a : {}, b : {}, c : {}, d : {}", a++, b++, c++, d++); },
+				[](auto&& ctx, auto a, auto b, auto c, auto d) { std::println("a : {}, b : {}, c : {}, d : {}", a++, b++, c++, d++); },
+				ecs::system::ctx::exec_inline{}
+			}(std::tuple{ 1, 2, 3, 4 });
 
 
-		auto ctx = on_ctx{
-			[](/*auto ctx*/) { std::println("first"); return 1; },
-			// pipe{ [](/*auto ctx*/) { std::println("first"); return 1; }, [](auto) {} },
-			//[](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {},
-			// lvalue_ref_lambda,
-			[](/*auto ctx*/) { std::println("second"); return 2.f; },
-
-			with_ctx{ [](auto&&) { return -1; } },
-			with_ctx{ [](auto&&) { return -1; } },
-			ecs::system::ctx::exec_inline{}
-		};
+			auto _ = 1;
+		}
 
 
-		meta::print_type<sizeof(decltype(ctx))>();
 		// meta::print_type<decltype(ctx.get<1>())>();
 		//  meta::print_type<typename std::remove_cvref_t<decltype(ctx.get<2>())>::t_unique_bases>();
 		// meta::print_type<decltype(ctx.get<2>().get<3>())>();
 
-		static_assert(cx_adaptor<decltype([](/*auto ctx*/) { std::println("first"); return 1; } | [](auto) {})>);
-		// exec_inline::run_all(ctx);
 
 		// meta::print_type<decltype(ctx.get_executor().value)>();
 		// exec_inline::run_all(ctx.get_executor().value);
@@ -257,7 +266,6 @@ ctx_test(auto& _game)
 		//	ecs::system::ctx::exec_inline{}
 		// }();
 
-		auto res_tpl = ctx();
 
 		auto _ = 1;
 	}

@@ -91,7 +91,6 @@ namespace ecs::system
 		}
 	};
 
-	// Explicit deduction guides for cond because CTAD does not consider partial specializations
 	template <typename t_sys_cond, typename t_sys_then>
 	cond(t_sys_cond&&, t_sys_then&&) -> cond<t_sys_cond, t_sys_then, void>;
 

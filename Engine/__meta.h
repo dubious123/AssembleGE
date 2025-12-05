@@ -310,11 +310,11 @@ namespace meta
 		static constexpr std::size_t value = sizeof...(i);
 	};
 
-	template <typename seq>
-	inline constexpr auto index_sequence_size_v = index_sequence_size<seq>::value;
+	template <typename t_seq>
+	inline constexpr auto index_sequence_size_v = index_sequence_size<std::remove_cvref_t<t_seq>>::value;
 
 	template <typename t_seq>
-	inline constexpr bool index_sequence_empty_v = index_sequence_size_v<t_seq> == 0;
+	inline constexpr bool index_sequence_empty_v = index_sequence_size_v<std::remove_cvref_t<t_seq>> == 0;
 
 	template <std::size_t i, typename seq>
 	struct index_sequence_at;
@@ -325,14 +325,14 @@ namespace meta
 		static constexpr std::size_t value = variadic_auto_at_v<i, idx...>;
 	};
 
-	template <std::size_t i, typename seq>
-	inline constexpr auto index_sequence_at_v = index_sequence_at<i, seq>::value;
+	template <std::size_t i, typename t_seq>
+	inline constexpr auto index_sequence_at_v = index_sequence_at<i, std::remove_cvref_t<t_seq>>::value;
 
-	template <typename seq>
-	inline constexpr auto index_sequence_back_v = index_sequence_at_v<index_sequence_size_v<seq> - 1, seq>;
+	template <typename t_seq>
+	inline constexpr auto index_sequence_back_v = index_sequence_at_v<index_sequence_size_v<std::remove_cvref_t<t_seq>> - 1, std::remove_cvref_t<t_seq>>;
 
-	template <typename seq>
-	inline constexpr auto index_sequence_front_v = index_sequence_at_v<0, seq>;
+	template <typename t_seq>
+	inline constexpr auto index_sequence_front_v = index_sequence_at_v<0, std::remove_cvref_t<t_seq>>;
 
 	template <std::size_t idx, auto func>
 	struct param_at;
