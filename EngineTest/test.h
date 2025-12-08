@@ -1,56 +1,75 @@
 ﻿#pragma once
-#include "../Engine/__reflection.h"
-#include "../Engine/__engine.h"
-#include "../Engine/__data_structures.h"
-#include "../Engine/__meta.h"
-#include "../Engine/__ecs_system.h"
-#include "../Engine/__ecs_entity_storage_basic.h"
+// #include "../Engine/__reflection.h"
+// #include "../Engine/__engine.h"
+// #include "../Engine/__data_structures.h"
+// #include "../Engine/__meta.h"
+// #include "../Engine/__ecs_system.h"
+// #include "../Engine/__ecs_entity_storage_basic.h"
 
 #include <chrono>
-COMPONENT_BEGIN(transform)
-__SERIALIZE_FIELD(float3, position, 0, 0, 0)
-__SERIALIZE_FIELD(float3, scale, 1, 1, 1)
-__SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
-COMPNENT_END()
 
-COMPONENT_BEGIN(bullet)
-__SERIALIZE_FIELD(float3, vel, 1, 0, 1)
-__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
-COMPNENT_END()
+struct transform
+{
+	float3 position{ 0, 0, 0 };
+	float3 scale{ 1, 1, 1 };
+	float4 rotation{ 0, 0, 0, 1 };
+};
 
-COMPONENT_BEGIN(rigid_body)
-__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
-COMPNENT_END()
+struct bullet
+{
+	float3 vel{ 1, 0, 1 };
+	float3 ac{ 1, 1, 1 };
+};
 
-SCENE_BEGIN(my_second_scene)
-__WORLD_BEGIN(world_000, transform, bullet)
-____ENTITY_BEGIN(entity_000, transform, bullet)
-______SET_COMPONENT(transform, .position.x, 1)
-____ENTITY_END()
-__WORLD_END()
+struct rigid_body
+{
+	float3 ac{ 1, 1, 1 };
+};
 
-__WORLD_BEGIN(world_001, transform, rigid_body)
-____ENTITY_BEGIN(entity_000, transform, rigid_body)
-______SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
-____ENTITY_END()
-__WORLD_END()
+// COMPONENT_BEGIN(transform)
+//__SERIALIZE_FIELD(float3, position, 0, 0, 0)
+//__SERIALIZE_FIELD(float3, scale, 1, 1, 1)
+//__SERIALIZE_FIELD(float4, rotation, 0, 0, 0, 1)
+// COMPNENT_END()
+//
+// COMPONENT_BEGIN(bullet)
+//__SERIALIZE_FIELD(float3, vel, 1, 0, 1)
+//__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
+// COMPNENT_END()
+//
+// COMPONENT_BEGIN(rigid_body)
+//__SERIALIZE_FIELD(float3, ac, 1, 1, 1)
+// COMPNENT_END()
+//
+// SCENE_BEGIN(my_second_scene)
+//__WORLD_BEGIN(world_000, transform, bullet)
+//____ENTITY_BEGIN(entity_000, transform, bullet)
+//______SET_COMPONENT(transform, .position.x, 1)
+//____ENTITY_END()
+//__WORLD_END()
+//
+//__WORLD_BEGIN(world_001, transform, rigid_body)
+//____ENTITY_BEGIN(entity_000, transform, rigid_body)
+//______SET_COMPONENT(rigid_body, , { { 1, 2, 3 } })
+//____ENTITY_END()
+//__WORLD_END()
+//
+//__WORLD_BEGIN(world_002, transform, bullet, rigid_body)
+//____ENTITY_BEGIN(entity_000, transform, rigid_body)
+//______SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
+//____ENTITY_END()
+//__WORLD_END()
+//
+//__WORLD_BEGIN(world_003, transform)
+//____ENTITY_BEGIN(entity_000, transform)
+//______SET_COMPONENT(transform, .position, { 0, 0, 1 })
+//____ENTITY_END()
+//__WORLD_END()
+// SCENE_END()
 
-__WORLD_BEGIN(world_002, transform, bullet, rigid_body)
-____ENTITY_BEGIN(entity_000, transform, rigid_body)
-______SET_COMPONENT(rigid_body, , { { 3, 1, 2 } })
-____ENTITY_END()
-__WORLD_END()
-
-__WORLD_BEGIN(world_003, transform)
-____ENTITY_BEGIN(entity_000, transform)
-______SET_COMPONENT(transform, .position, { 0, 0, 1 })
-____ENTITY_END()
-__WORLD_END()
-SCENE_END()
-
-using world_t1 = ecs::entity_storage::basic<uint32, transform, rigid_body>;
-using world_t2 = ecs::entity_storage::basic<uint32, transform>;
-using world_t3 = ecs::entity_storage::basic<uint32, transform, rigid_body, bullet>;
+using world_t1 = age::ecs::entity_storage::basic<uint32, transform, rigid_body>;
+using world_t2 = age::ecs::entity_storage::basic<uint32, transform>;
+using world_t3 = age::ecs::entity_storage::basic<uint32, transform, rigid_body, bullet>;
 
 // Game(my_game, scene_t1, scene_t2, scene_t3, scene_t4)
 
@@ -233,77 +252,8 @@ struct scene_t4
 	}
 };
 
-struct par_exec_test : ecs::system::detail::__parallel_executor_base
-{
-#define FWD(x) std::forward<decltype(x)>(x)
-
-	// template <typename... t>
-	// static decltype(auto)
-	// tuple_cat_all(std::tuple<t...>&& tpl)
-	//{
-	//	return std::apply([](auto&&... arg) { return std::tuple_cat((FWD(arg))...); }, FWD(tpl));
-	// }
-
-	// template <typename... t_arg>
-	// decltype(auto)
-	// make_arg_tpl(t_arg&&... arg)
-	//{
-	//	using t_arg_tpl = std::tuple<
-	//		std::conditional_t<
-	//			std::is_lvalue_reference_v<t_arg&&>,
-	//			t_arg&&,
-	//			std::remove_reference_t<t_arg>>...>;
-
-	//	return t_arg_tpl{ std::forward<t_arg>(arg)... };
-	//}
-
-	// template <typename... t_func, typename... t_arg>
-	// decltype(auto)
-	// run_par(t_func&&... func, t_arg&&... arg)
-	//{
-	//	return [&func..., &arg...]<auto... i>(std::index_sequence<i...>) {
-	//		return [](auto&&... async_op) {
-	//			return tuple_cat_all(std::tuple{ async_op.wait()... });
-	//		}(std::async(std::launch::async, func, FWD(arg)...)...);
-	//	}(std::index_sequence_for<t_func...>{});
-	// }
-
-	template <typename... t_func>
-	decltype(auto)
-	run_par(t_func&&... func)
-	{
-		using t_sys_res_not_void =
-			meta::filtered_index_sequence_t<
-				meta::is_not_void,
-				decltype(FWD(func)())...>;
-
-		using t_sys_res_void =
-			meta::filtered_index_sequence_t<
-				std::is_void,
-				decltype(FWD(func)())...>;
-
-		return [this](auto&& async_op_tpl) -> decltype(auto) {
-			[&]<auto... i>(std::index_sequence<i...>) {
-				((std::get<i>(async_op_tpl).get()), ...);
-			}(t_sys_res_void{});
-
-			return [&]<auto... i>(std::index_sequence<i...>) {
-				return std::tuple{ std::get<i>(async_op_tpl).get()... };
-			}(t_sys_res_not_void{});
-		}(std::tuple{ std::async(std::launch::async, FWD(func))... });
-	}
-
-	void
-	wait() const
-	{
-		// no-op
-	}
-};
-
 struct my_game
 {
-	par_exec_test __parallel_executor;
-
 	scene_t1 scene_1;
 	scene_t2 scene_2;
 	scene_t3 scene_3;
@@ -372,7 +322,7 @@ struct my_game_system
 {
 	template <typename t>
 	void
-	run(interface_game<t> igame)
+	run(age::ecs::interface_game<t> igame)
 	{
 	}
 };
@@ -381,7 +331,7 @@ struct my_scene_system_0
 {
 	template <typename s>
 	void
-	run(interface_scene<s> iscene)
+	run(age::ecs::interface_scene<s> iscene)
 	{
 		DEBUG_LOG("---my_scene_system_0 run---");
 		int a;
@@ -411,7 +361,7 @@ struct my_cond_system_true
 {
 	template <typename s>
 	bool
-	run(interface_scene<s> iscene)
+	run(age::ecs::interface_scene<s> iscene)
 	{
 		DEBUG_LOG("---my_cond_system_true run---");
 		return true;
@@ -422,7 +372,7 @@ struct my_world_system_0
 {
 	template <typename w>
 	void
-	run(i_world<w> iworld)
+	run(age::ecs::i_world<w> iworld)
 	{
 	}
 };
@@ -431,19 +381,19 @@ struct my_entity_system_0
 {
 	template <typename w>
 	void
-	entity_block_begin(i_world<w> iworld)
+	entity_block_begin(age::ecs::i_world<w> iworld)
 	{
 	}
 
 	template <typename w>
 	void
-	entity_update(i_world<w> iworld, ecs::entity_idx idx)
+	entity_update(age::ecs::i_world<w> iworld, auto idx)
 	{
 	}
 
 	template <typename w>
 	void
-	entity_block_end(i_world<w> iworld)
+	entity_block_end(age::ecs::i_world<w> iworld)
 	{
 	}
 };
@@ -452,7 +402,7 @@ struct sys_scene_init
 {
 	template <typename s>
 	void
-	operator()(interface_scene<s> iscene)
+	operator()(age::ecs::interface_scene<s> iscene)
 	{
 		iscene.init();
 	}
@@ -473,7 +423,7 @@ struct sys_game_init
 
 	template <typename g>
 	decltype(auto)
-	operator()(interface_game<g> igame)
+	operator()(age::ecs::interface_game<g> igame)
 	{
 		igame.init();
 		return 1.f;
@@ -488,7 +438,7 @@ struct sys_game_running
 {
 	template <typename g>
 	bool
-	run(interface_game<g> igame)
+	run(age::ecs::interface_game<g> igame)
 	{
 		return igame.get_running();
 	}
@@ -500,7 +450,7 @@ struct sys_game_deinit
 
 	template <typename g>
 	decltype(auto)
-	operator()(interface_game<g> igame)
+	operator()(age::ecs::interface_game<g> igame)
 	{
 		igame.deinit();
 		return 1;
@@ -511,7 +461,7 @@ struct sys_get_scene0
 {
 	template <typename g>
 	decltype(auto)
-	run(interface_game<g> igame)
+	run(age::ecs::interface_game<g> igame)
 	{
 		return igame.get_scene<scene_t1>();
 	}
@@ -540,7 +490,7 @@ struct sys_get_scene
 {
 	template <typename g>
 	decltype(auto)
-	run(interface_game<g> igame)
+	run(age::ecs::interface_game<g> igame)
 	{
 		return igame.get_scene<t_scene>();
 	}
@@ -551,7 +501,7 @@ struct sys_get_world
 {
 	template <typename s>
 	decltype(auto)
-	run(interface_scene<s> iscene)
+	run(age::ecs::interface_scene<s> iscene)
 	{
 		return iscene.get_world<t_world>();
 	}
