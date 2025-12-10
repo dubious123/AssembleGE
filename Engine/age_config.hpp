@@ -1,6 +1,14 @@
 #pragma once
-#if defined _WIN32 || defined _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 	#define AGE_PLATFORM_WINDOW
+#endif
+
+#if defined _DEBUG
+	#define AGE_DEBUG
+#endif
+
+#if defined NDEBUG
+	#define AGE_RELEASE
 #endif
 
 #define AGE_GRAPHICS_BACKEND_DX12
@@ -67,3 +75,19 @@
 #define USE_STL_SET
 #define USE_STL_LIST
 #define USE_STL_MAP
+
+namespace age::config
+{
+	inline constexpr bool debug_mode =
+#if defined(AGE_DEBUG)
+		true;
+#else
+		false;
+#endif
+	inline constexpr bool release_mode =
+#if defined(AGE_RELEASE)
+		true;
+#else
+		false;
+#endif
+}	 // namespace age::config

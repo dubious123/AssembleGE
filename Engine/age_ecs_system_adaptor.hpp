@@ -54,7 +54,8 @@ namespace age::ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self) noexcept
 		{
-			return static_cast<age::meta::copy_cv_ref_t<decltype(FWD(self)), std::remove_cvref_t<t_data>>>(FWD(self).data);
+			return std::move(FWD(self).data);
+			// return static_cast<age::meta::copy_cv_ref_t<decltype(FWD(self)), std::remove_cvref_t<t_data>>>(FWD(self).data);
 		}
 	};
 
@@ -74,4 +75,26 @@ namespace age::ecs::system
 			return std::move(FWD(arg));
 		}
 	};
+}	 // namespace age::ecs::system
+
+namespace age::ecs::system
+{
+	template <typename t_data>
+	struct sys_move_data
+	{
+		using t_ctx_tag = age::ecs::system::ctx_tag<age::ecs::system::tag_adaptor>;
+
+		no_unique_addr t_data data;
+
+		constexpr sys_move_data(auto&& arg) noexcept : data{ FWD(arg) } { };
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(auto&& arg) noexcept
+		{
+			return std::move(FWD(arg));
+		}
+	};
+
+	template <typename t_arg>
+	sys_move_data(t_arg&&) -> sys_move_data<t_arg>;
 }	 // namespace age::ecs::system

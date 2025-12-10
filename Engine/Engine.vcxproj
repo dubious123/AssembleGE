@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age.hpp" />
-    <ClInclude Include="age_config.h" />
+    <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_data_structure.hpp" />
     <ClInclude Include="age_ecs.hpp" />
     <ClInclude Include="age_ecs_component.hpp" />

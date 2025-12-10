@@ -58,12 +58,13 @@ main()
 
 	on_ctx{
 		AGE_FUNC(age::platform::init),
+		AGE_FUNC(age::graphics::init),
 		AGE_FUNC(age::runtime::init),
 
-		identity{ age::platform::window_desc{ 1080, 920, "test_app" } } | sys_move{} | AGE_FUNC(age::platform::creat_window),
+		identity{ age::platform::window_desc{ 1080, 920, "test_app" } } | AGE_FUNC(age::platform::creat_window),
 
 		loop{
-			[] { return age::global::get<age::runtime::interface>().running(); },
+			AGE_FUNC(age::global::get<age::runtime::interface>().running),
 			AGE_FUNC(age::platform::update),	// pump platform msg
 			AGE_FUNC(age::runtime::update),
 			//[] { std::println("now : {:%T}, delta_time_ns : {:%T}", age::global::get<age::runtime::interface>().now(), age::global::get<age::runtime::interface>().delta_time_ns()); }
@@ -73,6 +74,9 @@ main()
 			}
 			//[] { std::this_thread::sleep_for(std::chrono::seconds(1)); }
 		},
+
+
+		AGE_FUNC(age::graphics::deinit),
 		AGE_FUNC(age::platform::deinit),
 		exec_inline{}
 	}();

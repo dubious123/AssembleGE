@@ -2,6 +2,10 @@
 
 namespace age
 {
+	namespace config
+	{
+	}
+
 	inline namespace math
 	{
 	}
@@ -59,7 +63,7 @@ namespace age
 	}
 }	 // namespace age
 
-#include "age_config.h"
+#include "age_config.hpp"
 #include "age_macro.h"
 #include "age_macro_foreach.h"
 

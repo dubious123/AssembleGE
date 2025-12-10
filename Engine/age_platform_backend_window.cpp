@@ -1,6 +1,6 @@
 #include "age.hpp"
 
-namespace
+namespace age::platform
 {
 	LRESULT CALLBACK
 	window_proc(HWND handle, UINT message, WPARAM w_param, LPARAM l_param)
@@ -12,10 +12,17 @@ namespace
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
+		case WM_SETCURSOR:
+		{
+			// Show an arrow instead of the busy cursor
+			::SetCursor(::LoadCursor(NULL, IDC_ARROW));
+			break;
 		}
+		}
+
 		return (DefWindowProc(handle, message, w_param, l_param));
 	}
-}	 // namespace
+}	 // namespace age::platform
 
 namespace age::platform
 {
