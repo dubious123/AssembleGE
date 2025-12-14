@@ -118,6 +118,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <AdditionalOptions>
       </AdditionalOptions>
+      <IncludeInUnityFile>false</IncludeInUnityFile>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -142,6 +143,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <AdditionalOptions>
       </AdditionalOptions>
+      <IncludeInUnityFile>false</IncludeInUnityFile>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -164,6 +166,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <AdditionalOptions>
       </AdditionalOptions>
+      <IncludeInUnityFile>false</IncludeInUnityFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
@@ -174,6 +177,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <AdditionalOptions>
       </AdditionalOptions>
+      <IncludeInUnityFile>false</IncludeInUnityFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

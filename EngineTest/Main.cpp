@@ -54,6 +54,9 @@ main()
 
 	run_benchmark(_game, 1'000);
 
+	test_idx_pool();
+
+
 	using namespace age::ecs::system;
 
 	on_ctx{
@@ -67,12 +70,19 @@ main()
 			AGE_FUNC(age::global::get<age::runtime::interface>().running),
 			AGE_FUNC(age::platform::update),	// pump platform msg
 			AGE_FUNC(age::runtime::update),
+
+			AGE_FUNC(age::graphics::begin_frame),
+
+
 			//[] { std::println("now : {:%T}, delta_time_ns : {:%T}", age::global::get<age::runtime::interface>().now(), age::global::get<age::runtime::interface>().delta_time_ns()); }
 			[] {
 				std::println("now : {:%F %T}", std::chrono::system_clock::now());
 				std::println("now : {}ns", age::global::get<age::runtime::interface>().delta_time_ns().count());
-			}
+			},
 			//[] { std::this_thread::sleep_for(std::chrono::seconds(1)); }
+
+			AGE_FUNC(age::graphics::end_frame)
+
 		},
 
 

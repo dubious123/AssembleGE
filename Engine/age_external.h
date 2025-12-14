@@ -5,6 +5,7 @@
 #include <tuple>
 #include <ranges>
 #include <algorithm>
+#include <numeric>
 #include <print>
 
 #include <chrono>
@@ -38,6 +39,10 @@
 	#define NOMINMAX
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
+
+	#ifdef free
+		#undef free
+	#endif
 #else
 	#error "need at least one platform backend"
 #endif

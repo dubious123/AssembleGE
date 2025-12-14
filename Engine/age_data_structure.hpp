@@ -382,7 +382,7 @@ namespace age::data_structure
 
 namespace age::data_structure
 {
-	template <typename t_data>
+	template <typename t_data, std::size_t static_count = std::dynamic_extent>
 	struct sparse_vector
 	{
 		struct bucket
@@ -392,54 +392,71 @@ namespace age::data_structure
 			alignas(alignof(storage_t))
 				std::byte storage[sizeof(storage_t)];
 
+			bucket() noexcept = default;
+
 			template <typename... t>
 			bucket(t&&... arg)
 			{
-				std::construct_at(reinterpret_cast<t_data*>(&storage), std::forward<t>(arg)...);
+				std::construct_at(reinterpret_cast<t_data*>(storage), std::forward<t>(arg)...);
 			}
 
-			// data ¿˙¿Â
 			bucket(const t_data& data)
 			{
-				std::construct_at(reinterpret_cast<t_data*>(&storage), data);
+				std::construct_at(reinterpret_cast<t_data*>(storage), data);
 			}
 
 			t_data&
 			data()
 			{
-				return *std::launder(reinterpret_cast<t_data*>(&storage));
+				return *std::launder(reinterpret_cast<t_data*>(storage));
 			}
 
 			const t_data&
 			data() const
 			{
-				return *std::launder(reinterpret_cast<const t_data*>(&storage));
+				return *std::launder(reinterpret_cast<const t_data*>(storage));
 			}
 
 			std::size_t&
 			next_hole_idx()
 			{
-				return *std::launder(reinterpret_cast<std::size_t*>(&storage));
+				return *std::launder(reinterpret_cast<std::size_t*>(storage));
 			}
 		};
 
-		std::size_t hole_idx   = -1;
+		static constexpr bool is_static = static_count != std::dynamic_extent;
+		using t_bucket_container		= std::conditional_t<is_static, std::array<bucket, static_count>, data_structure::vector<bucket>>;
+
+		std::size_t hole_idx = 0;
+
 		std::size_t hole_count = 0;
 
-		data_structure::vector<bucket> vec;
+		t_bucket_container container = {};
+
+		constexpr sparse_vector() noexcept requires(is_static)
+		{
+			hole_count = static_count;
+
+			for (auto&& [idx, elem] : container | std::views::enumerate)
+			{
+				elem.next_hole_idx() = idx + 1;
+			}
+		}
+
+		constexpr sparse_vector() noexcept requires(is_static is_false)
+		= default;
+
+		FORCE_INLINE constexpr std::size_t
+		capacity() const noexcept
+		{
+			return container.size();
+		}
 
 		FORCE_INLINE
 		std::size_t
-		capacity() const noexcept
-		{
-			return vec.size();
-		}
-
-		// FORCE_INLINE
-		std::size_t
 		size() const noexcept
 		{
-			return vec.size() - hole_count;
+			return container.size() - hole_count;
 		}
 
 		template <typename... t>
@@ -447,21 +464,37 @@ namespace age::data_structure
 		emplace_back(t&&... arg)
 		{
 			auto res = 0uz;
-			if (hole_count == 0)
+
+			if constexpr (is_static)
 			{
-				res = vec.size();
-				vec.emplace_back(std::forward<t>(arg)...);
+				AGE_ASSERT(hole_count > 0);
+
+				res				   = hole_idx;
+				auto hole_idx_temp = container[hole_idx].next_hole_idx();
+				std::construct_at(reinterpret_cast<t_data*>(&container[hole_idx].storage), std::forward<t>(arg)...);
+				hole_idx = hole_idx_temp;
+				--hole_count;
+
+				return res;
 			}
 			else
 			{
-				res				   = hole_idx;
-				auto hole_idx_temp = vec[hole_idx].next_hole_idx();
-				std::construct_at(reinterpret_cast<t_data*>(&vec[hole_idx].storage), std::forward<t>(arg)...);
-				hole_idx = hole_idx_temp;
-				--hole_count;
-			}
+				if (hole_count == 0)
+				{
+					res = container.size();
+					container.emplace_back(std::forward<t>(arg)...);
+				}
+				else
+				{
+					res				   = hole_idx;
+					auto hole_idx_temp = container[hole_idx].next_hole_idx();
+					std::construct_at(reinterpret_cast<t_data*>(&container[hole_idx].storage), std::forward<t>(arg)...);
+					hole_idx = hole_idx_temp;
+					--hole_count;
+				}
 
-			return res;
+				return res;
+			}
 		}
 
 		void
@@ -469,26 +502,52 @@ namespace age::data_structure
 		{
 			if constexpr (not std::is_trivially_destructible_v<t_data>)
 			{
-				std::destroy_at(&vec[idx].data());
+				std::destroy_at(&container[idx].data());
 			}
 
-			vec[idx].next_hole_idx() = hole_idx;
-			hole_idx				 = idx;
+			container[idx].next_hole_idx() = hole_idx;
+			hole_idx					   = idx;
 			++hole_count;
 		}
 
-		// FORCE_INLINE
+		FORCE_INLINE
 		t_data&
 		operator[](std::size_t idx) noexcept
 		{
-			return vec[idx].data();
+			return container[idx].data();
 		}
 
-		// FORCE_INLINE
+		FORCE_INLINE
 		const t_data&
 		operator[](std::size_t idx) const noexcept
 		{
-			return vec[idx].data();
+			return container[idx].data();
+		}
+
+		void
+		debug_validate()
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				AGE_ASSERT(hole_count <= container.size());
+				AGE_ASSERT(hole_count + size() == container.size());
+
+				{
+					auto visited = std::vector<uint8>(container.size(), 0);
+
+					for (auto curr = hole_idx;
+						 auto _ : std::views::iota(0ul, hole_count))
+					{
+						AGE_ASSERT(curr < container.size());
+
+						AGE_ASSERT(visited[curr] == 0);
+
+						visited[curr] = 1;
+
+						curr = container[curr].next_hole_idx();
+					}
+				}
+			}
 		}
 	};
 }	 // namespace age::data_structure

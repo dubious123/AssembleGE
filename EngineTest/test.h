@@ -743,3 +743,67 @@ run_benchmark(auto&& game, auto it_num)
 		assert(ent_count == b.entity_count());
 	}
 }
+
+void
+test_idx_pool()
+{
+	auto v = age::data_structure::sparse_vector<std::size_t, 1000>{};
+
+	for (auto i : std::views::iota(0ul, v.size()))
+	{
+		v.emplace_back(i * i);
+	}
+
+	v.debug_validate();
+
+	for (auto i : std::views::iota(0ul, v.size()) | std::views::reverse)
+	{
+		v.remove(i);
+	}
+
+	v.debug_validate();
+
+	{
+		constexpr auto							   N = 1000;
+		std::mt19937							   rng(12345);
+		std::uniform_int_distribution<int>		   op_dist(0, 4);
+		std::uniform_int_distribution<std::size_t> idx_dist(0, N - 1);
+
+		age::util::idx_pool<uint64, N> pool;
+
+		for (int it = 0; it < 200000; ++it)
+		{
+			const int  op  = op_dist(rng);
+			const auto idx = idx_dist(rng);
+
+			if (op == 0)
+			{
+				if (pool.free_count > 0)
+				{
+					(void)pool.pop();
+				}
+			}
+			else if (op == 1)
+			{
+				if (pool.is_free(idx))
+				{
+					pool.get(idx);
+				}
+			}
+			else
+			{
+				if (pool.is_free(idx) is_false)
+				{
+					pool.push(idx);
+				}
+			}
+
+			// cheap: validate every time for small N
+			// if too slow, validate every 100 or 1000 iters
+			// validate(pool);
+		}
+
+
+		pool.debug_validate();
+	}
+}

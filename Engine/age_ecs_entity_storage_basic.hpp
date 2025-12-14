@@ -393,6 +393,11 @@ namespace age::ecs::entity_storage
 		deinit()
 		{
 			std::ranges::for_each(entity_blocks_map | std::views::values /*| std::views::join*/, [](auto& ent_blocks) { ent_blocks.deinit(); });
+
+			if constexpr (age::config::debug_mode)
+			{
+				entity_info_vec.debug_validate();
+			}
 		}
 	};
 }	 // namespace age::ecs::entity_storage

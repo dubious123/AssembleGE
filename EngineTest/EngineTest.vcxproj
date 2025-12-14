@@ -98,7 +98,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
-      <BuildStlModules>true</BuildStlModules>
+      <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>true</IncludeInUnityFile>
     </ClCompile>
@@ -120,7 +120,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
-      <BuildStlModules>true</BuildStlModules>
+      <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>true</IncludeInUnityFile>
     </ClCompile>
@@ -148,7 +148,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
-      <BuildStlModules>true</BuildStlModules>
+      <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>true</IncludeInUnityFile>
     </ClCompile>
@@ -169,7 +169,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
-      <BuildStlModules>true</BuildStlModules>
+      <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>true</IncludeInUnityFile>
     </ClCompile>

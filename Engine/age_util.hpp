@@ -65,3 +65,120 @@ namespace age::util
 		}
 	};
 }	 // namespace age::util
+
+namespace age::util
+{
+	struct empty final
+	{
+		constexpr empty() noexcept = default;
+	};
+}	 // namespace age::util
+
+namespace age::util
+{
+	template <std::integral t_idx, std::size_t size>
+	struct idx_pool
+	{
+		// if free => free_dense[pos[idx]] == idx;
+		// if allocated => pos[idx] == inv;
+		// if free : f_0, f_1, ... => free_dense[0], free_dense[1], ... free_dense[free_count - 1] = { f_0, f_1, ... }
+		// for k < free_count: pos[free_dense[k]] == k
+		std::array<t_idx, size> free_dense;
+		std::array<t_idx, size> pos;
+		std::size_t				free_count;
+
+		static constexpr t_idx inv = -1;
+
+		constexpr idx_pool() noexcept : free_count{ size }
+		{
+			std::iota(free_dense.begin(), free_dense.end(), t_idx{ 0 });
+			std::iota(pos.begin(), pos.end(), t_idx{ 0 });
+		}
+
+		constexpr bool
+		is_free(t_idx idx)
+		{
+			AGE_ASSERT((idx >= 0) and (idx < size));
+			return pos[idx] != inv;
+		}
+
+		constexpr t_idx
+		pop() noexcept
+		{
+			AGE_ASSERT(free_count > 0);
+			AGE_ASSERT(free_dense[free_count - 1] < size);
+			AGE_ASSERT(pos[free_dense[free_count - 1]] != inv);
+
+			--free_count;
+
+			auto back_idx = free_dense[free_count];
+
+			pos[back_idx] = inv;
+
+			return back_idx;
+		}
+
+		constexpr void
+		get(t_idx idx) noexcept
+		{
+			AGE_ASSERT(free_count > 0);
+			AGE_ASSERT(idx < size);
+			AGE_ASSERT(pos[idx] != inv);
+			AGE_ASSERT(pos[free_dense[free_count - 1]] != inv);
+
+			--free_count;
+
+			auto back_idx = free_dense[free_count];
+
+			free_dense[pos[idx]] = back_idx;
+			pos[back_idx]		 = pos[idx];
+			pos[idx]			 = inv;
+		}
+
+		constexpr void
+		push(t_idx idx) noexcept
+		{
+			AGE_ASSERT(free_count < size);
+			AGE_ASSERT(idx < size);
+			AGE_ASSERT(pos[idx] == inv);
+
+			pos[idx]			 = free_count;
+			free_dense[pos[idx]] = idx;
+
+			++free_count;
+		}
+
+		constexpr void
+		cleanup() noexcept
+		{
+			// O(free_count log( free_count ) )
+
+			std::sort(free_dense.begin(), free_dense.begin() + free_count);
+
+			for (t_idx k : std::views::iota(0) | std::views::take(free_count))
+			{
+				pos[free_dense[k]] = k;
+			}
+		}
+
+		void
+		debug_validate()
+		{
+			AGE_ASSERT(free_count <= size);
+
+			// for k < free_count: pos[free_dense[k]] == k
+			for (t_idx idx : std::views::iota(std::size_t{ 0 }, free_count))
+			{
+				AGE_ASSERT((free_dense[idx] >= 0) and (free_dense[idx] < size));
+				AGE_ASSERT(pos[free_dense[idx]] == idx);
+			}
+
+			// if free => free_dense[pos[idx]] == idx;
+			for (t_idx idx : std::views::iota(std::size_t{ 0 }, size) | std::views::filter([this](auto idx) { return pos[idx] != inv; }))
+			{
+				AGE_ASSERT((pos[idx] > 0) and (pos[idx] < free_count));
+				AGE_ASSERT(free_dense[pos[idx]] == idx);
+			}
+		}
+	};
+}	 // namespace age::util
