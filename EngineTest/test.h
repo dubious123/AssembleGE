@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 // #include "../Engine/__reflection.h"
 // #include "../Engine/__engine.h"
 // #include "../Engine/__data_structures.h"
@@ -6,7 +7,6 @@
 // #include "../Engine/__ecs_system.h"
 // #include "../Engine/__ecs_entity_storage_basic.h"
 
-#include <chrono>
 
 struct transform
 {

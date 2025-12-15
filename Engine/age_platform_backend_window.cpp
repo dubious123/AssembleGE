@@ -1,4 +1,15 @@
+#include "age_pch.hpp"
 #include "age.hpp"
+
+// handle
+namespace age::platform
+{
+	HWND
+	window_handle::hwnd() const noexcept
+	{
+		return reinterpret_cast<HWND>(data);
+	}
+}	 // namespace age::platform
 
 namespace age::platform
 {
@@ -22,14 +33,6 @@ namespace age::platform
 
 		return (DefWindowProc(handle, message, w_param, l_param));
 	}
-}	 // namespace age::platform
-
-namespace age::platform
-{
-	struct window_handle
-	{
-		HWND hwnd;
-	};
 }	 // namespace age::platform
 
 namespace age::platform

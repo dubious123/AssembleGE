@@ -1,5 +1,6 @@
 #pragma once
 
+// interface
 namespace age::platform
 {
 	template <typename t>
@@ -11,26 +12,33 @@ namespace age::platform
 	  public:
 		constexpr interface(auto&& arg) noexcept : data(FWD(arg)) { }
 
-		FORCE_INLINE constexpr std::string&
-		name()
-		{
-			return data.name;
-		}
+		AGE_PROP(name)
 
-		FORCE_INLINE constexpr bool&
-		running()
-		{
-			return data.running;
-		}
+		AGE_PROP(running)
 	};
 
 	template <typename t>
 	interface(t&&) -> interface<t>;
 }	 // namespace age::platform
 
+// handle
 namespace age::platform
 {
-	struct window_handle;
+	struct window_handle
+	{
+	  private:
+		std::uintptr_t data;
+
+	  public:
+#if defined(AGE_PLATFORM_WINDOW)
+		FORCE_INLINE HWND
+		hwnd() const noexcept;
+#endif
+	};
+}	 // namespace age::platform
+
+namespace age::platform
+{
 
 	struct window_desc
 	{

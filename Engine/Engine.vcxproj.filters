@@ -31,10 +31,12 @@
     <ClInclude Include="age_global.hpp" />
     <ClInclude Include="age_runtime.hpp" />
     <ClInclude Include="age_graphics.hpp" />
+    <ClInclude Include="age_pch.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
     <ClCompile Include="age_runtime.cpp" />
     <ClCompile Include="age_graphics_backend_dx12.cpp" />
+    <ClCompile Include="age_pch.cpp" />
   </ItemGroup>
 </Project>

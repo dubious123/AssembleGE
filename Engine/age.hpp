@@ -63,11 +63,15 @@ namespace age
 	}
 }	 // namespace age
 
+//---[ age_pch.hpp ]------------------------------------------------------------
+// Precompiled Header (build-only)
 #include "age_config.hpp"
 #include "age_macro.h"
 #include "age_macro_foreach.h"
 
 #include "age_external.h"
+//------------------------------------------------------------------------------
+
 
 #include "age_math.hpp"
 

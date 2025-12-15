@@ -11,6 +11,9 @@ namespace age::global
 		std::chrono::nanoseconds delta_time_ns{ 0 };
 
 		bool running = true;
+
+		// graphics
+		graphics::color_space display_color_space = graphics::color_space::srgb;
 	};
 
 	inline state g_state;

@@ -1,3 +1,4 @@
+#include "age_pch.hpp"
 #include "age.hpp"
 
 namespace age::graphics
@@ -15,14 +16,15 @@ namespace age::graphics
 	auto next_fence_value = uint64{ frame_buffer_count };
 }	 // namespace age::graphics
 
+// cmd_system
 namespace age::graphics
 {
-	template <auto cmd_list_type, auto cmd_list_num>
+	template <auto cmd_list_type, auto cmd_list_count>
 	struct cmd_system
 	{
 		ID3D12CommandQueue*			p_cmd_queue = nullptr;
-		ID3D12GraphicsCommandList9* cmd_list_pool[frame_buffer_count][cmd_list_num]{ nullptr };
-		ID3D12CommandAllocator*		cmd_allocator_pool[frame_buffer_count][cmd_list_num]{ nullptr };
+		ID3D12GraphicsCommandList9* cmd_list_pool[frame_buffer_count][cmd_list_count]{ nullptr };
+		ID3D12CommandAllocator*		cmd_allocator_pool[frame_buffer_count][cmd_list_count]{ nullptr };
 		ID3D12Fence1*				p_fence		= nullptr;
 		HANDLE						fence_event = nullptr;
 
@@ -32,143 +34,23 @@ namespace age::graphics
 		AGE_DISABLE_COPY_MOVE(cmd_system)
 
 		FORCE_INLINE void
-		init(ID3D12Device11* p_main_device) noexcept
-		{
-			constexpr auto wstr_type = [] constexpr {
-				switch (cmd_list_type)
-				{
-				case D3D12_COMMAND_LIST_TYPE_DIRECT:
-					return L"Direct";
-				case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-					return L"Compute";
-				case D3D12_COMMAND_LIST_TYPE_COPY:
-					return L"Copy";
-				default:
-					return L"Unknown";
-				}
-			}();
-
-			D3D12_COMMAND_QUEUE_DESC desc{
-				.Type	  = cmd_list_type,
-				.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-				.Flags	  = D3D12_COMMAND_QUEUE_FLAG_NONE,
-				.NodeMask = 0
-			};
-
-
-			{
-				AGE_HR_CHECK(p_main_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&p_cmd_queue)));
-				auto queue_name = std::format(L"[{}] cmd queue", wstr_type);
-				p_cmd_queue->SetName(queue_name.c_str());
-			}
-
-			{
-				AGE_HR_CHECK(p_main_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&p_fence)));
-				auto fence_name = std::format(L"[{}] fence", wstr_type);
-				p_fence->SetName(fence_name.c_str());
-			}
-
-			{
-				fence_event = ::CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-				assert(fence_event);
-			}
-
-			for (auto i : std::views::iota(0, frame_buffer_count))
-			{
-				for (auto j : std::views::iota(0, cmd_list_num))
-				{
-					AGE_HR_CHECK(p_main_device->CreateCommandAllocator(cmd_list_type, IID_PPV_ARGS(&cmd_allocator_pool[i][j])));
-
-					AGE_HR_CHECK(p_main_device->CreateCommandList(
-						0,
-						cmd_list_type,
-						cmd_allocator_pool[i][j],
-						nullptr,
-						IID_PPV_ARGS(&cmd_list_pool[i][j])));
-
-					AGE_HR_CHECK(cmd_list_pool[i][j]->Close());
-
-					auto list_name	= std::format(L"[{}] cmd list[{}][{}]", wstr_type, i, j);
-					auto queue_name = std::format(L"[{}] cmd list allocator[{}][{}]", wstr_type, i, j);
-
-					cmd_list_pool[i][j]->SetName(list_name.c_str());
-					cmd_allocator_pool[i][j]->SetName(queue_name.c_str());
-				}
-			}
-		}
+		init() noexcept;
 
 		FORCE_INLINE void
-		deinit() noexcept
-		{
-			{
-				AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, next_fence_value));
-				AGE_HR_CHECK(p_fence->SetEventOnCompletion(next_fence_value, fence_event));
-				::WaitForSingleObject(fence_event, INFINITE);
-			}
-
-			p_cmd_queue->Release();
-			p_fence->Release();
-			::CloseHandle(fence_event);
-
-			for (auto* p_cmd_list : std::views::join(cmd_list_pool))
-			{
-				p_cmd_list->Release();
-			}
-
-			for (auto* p_cmd_allocator : std::views::join(cmd_allocator_pool))
-			{
-				p_cmd_allocator->Release();
-			}
-		}
+		deinit() noexcept;
 
 		FORCE_INLINE void
-		wait() noexcept
-		{
-			auto completed_value = p_fence->GetCompletedValue();
-			auto expected_value	 = next_fence_value - frame_buffer_count;
-			auto need_to_wait	 = completed_value < expected_value;
-
-			// std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, fence_value, completed_value, need_to_wait);
-
-			if (need_to_wait)
-			{
-				AGE_HR_CHECK(p_fence->SetEventOnCompletion(expected_value, fence_event));
-
-				::WaitForSingleObject(fence_event, INFINITE);
-			}
-		}
+		wait() noexcept;
 
 		FORCE_INLINE void
-		begin_frame() noexcept
-		{
-			wait();
-			for (auto i : std::views::iota(0, cmd_list_num))
-			{
-				AGE_HR_CHECK(cmd_allocator_pool[frame_buffer_idx][i]->Reset());
-				AGE_HR_CHECK(cmd_list_pool[frame_buffer_idx][i]->Reset(cmd_allocator_pool[frame_buffer_idx][i], nullptr));
-			}
-		}
+		begin_frame() noexcept;
 
 		FORCE_INLINE void
-		end_frame() noexcept
-		{
-			// todo hmm...
-			auto cmd_lists = std::array<ID3D12CommandList*, cmd_list_num>{};
-			for (auto i : std::views::iota(0, cmd_list_num))
-			{
-				AGE_HR_CHECK(cmd_list_pool[frame_buffer_idx][i]->Close());
-
-				cmd_lists[i] = cmd_list_pool[frame_buffer_idx][i];
-			}
-
-			p_cmd_queue->ExecuteCommandLists(cmd_list_num, cmd_lists.data());
-
-			// std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), fence_value);
-			AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, next_fence_value));
-		}
+		end_frame() noexcept;
 	};
 }	 // namespace age::graphics
 
+// descriptor_pool
 namespace age::graphics
 {
 	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type>
@@ -223,123 +105,112 @@ namespace age::graphics
 		}
 
 		FORCE_INLINE void
-		init(ID3D12Device11* p_main_device) noexcept
-		{
-			static_assert((capacity > 0) and (capacity <= D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2));
-			static_assert(not((heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) and (capacity > D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE)));
-
-			{
-				D3D12_DESCRIPTOR_HEAP_DESC desc{
-					.Type			= heap_type,
-					.NumDescriptors = capacity,
-					.Flags			= is_shader_visible() ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-					.NodeMask		= 0
-				};
-
-				constexpr auto wstr_type = [] constexpr {
-					switch (heap_type)
-					{
-					case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-						return L"[CBV_SRV_UAV] Descriptor Heap";
-					case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-						return L"[SAMPLER] Descriptor Heap";
-					case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-						return L"[RTV] Descriptor Heap";
-					case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
-						return L"[DSV] Descriptor Heap";
-					default:
-						return L"Unknown";
-					}
-				}();
-
-				AGE_HR_CHECK(p_main_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&p_descriptor_heap)));
-				p_descriptor_heap->SetName(wstr_type);
-			}
-
-			descriptor_size = p_main_device->GetDescriptorHandleIncrementSize(heap_type);
-
-			if constexpr (is_shader_visible())
-			{
-				start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
-				start_handle.h_gpu = p_descriptor_heap->GetGPUDescriptorHandleForHeapStart();
-			}
-			else
-			{
-				start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
-			}
-		}
+		init() noexcept;
 
 		FORCE_INLINE void
-		deinit() noexcept
-		{
-			p_descriptor_heap->Release();
-
-			if constexpr (age::config::debug_mode)
-			{
-				desc_idx_pool.debug_validate();
-			}
-		}
+		deinit() noexcept;
 
 		t_descriptor_handle
-		pop() noexcept
-		{
-			auto idx = desc_idx_pool.pop();
-
-			if constexpr (is_shader_visible())
-			{
-				return t_descriptor_handle{
-					.h_cpu.ptr = start_handle.h_cpu.ptr + descriptor_size * idx,
-					.h_gpu.ptr = start_handle.h_gpu.ptr + descriptor_size * idx,
-					AGE_DEBUG_OP(.idx = idx)
-				};
-			}
-			else
-			{
-				return t_descriptor_handle{
-					.h_cpu.ptr = start_handle.h_cpu.ptr + descriptor_size * idx,
-					AGE_DEBUG_OP(.idx = idx)
-				};
-			}
-		}
+		pop() noexcept;
 
 		t_descriptor_handle
-		get(uint32 idx) noexcept
-		{
-			desc_idx_pool.get(idx);
+		get(uint32 idx) noexcept;
 
-			if constexpr (is_shader_visible())
+		void
+		push(t_descriptor_handle h) noexcept;
+	};
+}	 // namespace age::graphics
+
+// swap chain
+namespace age::graphics
+{
+	struct swap_chain
+	{
+		IDXGISwapChain4*								  p_swap_chain = nullptr;
+		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV> rtv_desc_handle_arr[frame_buffer_count];
+
+		template <std::size_t cmd_list_count, std::size_t capacity>
+		void
+		init(
+			age::platform::window_handle								w_handle,
+			IDXGIFactory7&												dxgi_factory,
+			cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, cmd_list_count>& cmd_sys_direct,
+			descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, capacity>&	rtv_desc_pool) noexcept
+		{
 			{
-				return t_descriptor_handle{
-					.h_cpu.ptr = start_handle.h_cpu.ptr + descriptor_size * idx,
-					.h_gpu.ptr = start_handle.h_gpu.ptr + descriptor_size * idx,
-					AGE_DEBUG_OP(.idx = idx)
+				auto* p_swap_chain_1 = (IDXGISwapChain1*)nullptr;
+				auto  allow_tearing	 = BOOL{ FALSE };
+				auto  dxgi_format	 = DXGI_FORMAT{};
+
+				auto swap_chain_desc = DXGI_SWAP_CHAIN_DESC1{
+					/*UINT					*/ .Width		= 0,
+					/*UINT					*/ .Height		= 0,
+					/*DXGI_FORMAT			*/ .Format		= dxgi_format,
+					/*BOOL					*/ .Stereo		= false,
+					/*DXGI_SAMPLE_DESC		*/ .SampleDesc	= { .Count = 1, .Quality = 0 },
+					/*DXGI_USAGE			*/ .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+					/*UINT					*/ .BufferCount = frame_buffer_count,
+					/*DXGI_SCALING			*/ .Scaling		= DXGI_SCALING_STRETCH,
+					/*DXGI_SWAP_EFFECT		*/ .SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD,
+					/*DXGI_ALPHA_MODE		*/ .AlphaMode	= DXGI_ALPHA_MODE_UNSPECIFIED,
+					/*UINT					*/ .Flags		= allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 },
+
 				};
+
+				auto full_screen_desc = DXGI_SWAP_CHAIN_FULLSCREEN_DESC{
+					/*DXGI_RATIONAL				*/ .RefreshRate		 = DXGI_RATIONAL{ 0, 1 },
+					/*DXGI_MODE_SCANLINE_ORDER	*/ .ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+					/*DXGI_MODE_SCALING			*/ .Scaling			 = DXGI_MODE_SCALING_UNSPECIFIED,
+					/*BOOL						*/ .Windowed		 = BOOL{ true },
+				};
+
+				AGE_HR_CHECK(dxgi_factory.CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
+
+				switch (global::get<interface>().display_color_space())
+				{
+				case color_space::srgb:
+					dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					break;
+				case color_space::hdr:
+					dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+					break;
+				default:
+					std::unreachable();
+				}
+
+				AGE_HR_CHECK(dxgi_factory.CreateSwapChainForHwnd(
+					cmd_sys_direct.p_cmd_queue,
+					w_handle.hwnd(),
+					&swap_chain_desc,
+					&full_screen_desc,
+					nullptr,
+					&p_swap_chain_1));
+
+				AGE_HR_CHECK(dxgi_factory.MakeWindowAssociation(w_handle.hwnd(), DXGI_MWA_NO_ALT_ENTER));
+
+				AGE_HR_CHECK(p_swap_chain_1->QueryInterface(IID_PPV_ARGS(&p_swap_chain)));
+				p_swap_chain_1->Release();
 			}
-			else
+
+			for (auto idx : std::views::iota(0) | std::views::take(frame_buffer_count))
 			{
-				return t_descriptor_handle{
-					.h_cpu.ptr = start_handle.h_cpu.ptr + descriptor_size * idx,
-					AGE_DEBUG_OP(.idx = idx)
-				};
+				rtv_desc_handle_arr[idx] = rtv_desc_pool.pop();
 			}
 		}
 
 		void
-		push(t_descriptor_handle h) noexcept
+		deinit()
 		{
-			auto diff = h.h_cpu.ptr - start_handle.h_cpu.ptr;
-			auto idx  = diff / descriptor_size;
-
-			AGE_ASSERT((diff % descriptor_size) == 0);
-			AGE_ASSERT(idx == h.idx);
-
-			desc_idx_pool.push(idx);
+			for (auto idx : std::views::iota(0) | std::views::take(frame_buffer_count))
+			{
+				// todo global... how?
+				// rtv_desc_pool.push(rtv_desc_handle_arr[idx]);
+			}
 		}
 	};
 }	 // namespace age::graphics
 
 namespace age::graphics
-
 {
 	auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
 	auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
@@ -349,11 +220,286 @@ namespace age::graphics
 	auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, 2>{};
 	auto cmd_system_copy	= cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, 2>{};
 
+	auto* p_main_swap_chain = (IDXGISwapChain1*)nullptr;
+
 	// todo config capacity
 	auto rtv_desc_pool		   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048>{};
 	auto dsv_desc_pool		   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512>{};
 	auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512 * 1024>{};
 	auto sampler_desc_pool	   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512>{};
+}	 // namespace age::graphics
+
+// cmd_system member func
+namespace age::graphics
+{
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::init() noexcept
+	{
+		constexpr auto wstr_type = [] constexpr {
+			switch (cmd_list_type)
+			{
+			case D3D12_COMMAND_LIST_TYPE_DIRECT:
+				return L"Direct";
+			case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+				return L"Compute";
+			case D3D12_COMMAND_LIST_TYPE_COPY:
+				return L"Copy";
+			default:
+				return L"Unknown";
+			}
+		}();
+
+		D3D12_COMMAND_QUEUE_DESC desc{
+			.Type	  = cmd_list_type,
+			.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+			.Flags	  = D3D12_COMMAND_QUEUE_FLAG_NONE,
+			.NodeMask = 0
+		};
+
+
+		{
+			AGE_HR_CHECK(p_main_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&p_cmd_queue)));
+			auto queue_name = std::format(L"[{}] cmd queue", wstr_type);
+			p_cmd_queue->SetName(queue_name.c_str());
+		}
+
+		{
+			AGE_HR_CHECK(p_main_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&p_fence)));
+			auto fence_name = std::format(L"[{}] fence", wstr_type);
+			p_fence->SetName(fence_name.c_str());
+		}
+
+		{
+			fence_event = ::CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+			assert(fence_event);
+		}
+
+		for (auto i : std::views::iota(0, frame_buffer_count))
+		{
+			for (auto j : std::views::iota(0, cmd_list_count))
+			{
+				AGE_HR_CHECK(p_main_device->CreateCommandAllocator(cmd_list_type, IID_PPV_ARGS(&cmd_allocator_pool[i][j])));
+
+				AGE_HR_CHECK(p_main_device->CreateCommandList(
+					0,
+					cmd_list_type,
+					cmd_allocator_pool[i][j],
+					nullptr,
+					IID_PPV_ARGS(&cmd_list_pool[i][j])));
+
+				AGE_HR_CHECK(cmd_list_pool[i][j]->Close());
+
+				auto list_name	= std::format(L"[{}] cmd list[{}][{}]", wstr_type, i, j);
+				auto queue_name = std::format(L"[{}] cmd list allocator[{}][{}]", wstr_type, i, j);
+
+				cmd_list_pool[i][j]->SetName(list_name.c_str());
+				cmd_allocator_pool[i][j]->SetName(queue_name.c_str());
+			}
+		}
+	}
+
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::deinit() noexcept
+	{
+		{
+			AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, next_fence_value));
+			AGE_HR_CHECK(p_fence->SetEventOnCompletion(next_fence_value, fence_event));
+			::WaitForSingleObject(fence_event, INFINITE);
+		}
+
+		p_cmd_queue->Release();
+		p_fence->Release();
+		::CloseHandle(fence_event);
+
+		for (auto* p_cmd_list : std::views::join(cmd_list_pool))
+		{
+			p_cmd_list->Release();
+		}
+
+		for (auto* p_cmd_allocator : std::views::join(cmd_allocator_pool))
+		{
+			p_cmd_allocator->Release();
+		}
+	}
+
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::wait() noexcept
+	{
+		auto completed_value = p_fence->GetCompletedValue();
+		auto expected_value	 = next_fence_value - frame_buffer_count;
+		auto need_to_wait	 = completed_value < expected_value;
+
+		// std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, fence_value, completed_value, need_to_wait);
+
+		if (need_to_wait)
+		{
+			AGE_HR_CHECK(p_fence->SetEventOnCompletion(expected_value, fence_event));
+
+			::WaitForSingleObject(fence_event, INFINITE);
+		}
+	}
+
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::begin_frame() noexcept
+	{
+		wait();
+		for (auto i : std::views::iota(0, cmd_list_count))
+		{
+			AGE_HR_CHECK(cmd_allocator_pool[frame_buffer_idx][i]->Reset());
+			AGE_HR_CHECK(cmd_list_pool[frame_buffer_idx][i]->Reset(cmd_allocator_pool[frame_buffer_idx][i], nullptr));
+		}
+	}
+
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::end_frame() noexcept
+	{
+		// todo hmm...
+		auto cmd_lists = std::array<ID3D12CommandList*, cmd_list_count>{};
+		for (auto i : std::views::iota(0, cmd_list_count))
+		{
+			AGE_HR_CHECK(cmd_list_pool[frame_buffer_idx][i]->Close());
+
+			cmd_lists[i] = cmd_list_pool[frame_buffer_idx][i];
+		}
+
+		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
+
+		// std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), fence_value);
+		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, next_fence_value));
+	}
+}	 // namespace age::graphics
+
+// descriptor_pool member func
+namespace age::graphics
+{
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	FORCE_INLINE void
+	descriptor_pool<heap_type, capacity>::init() noexcept
+	{
+		static_assert((capacity > 0) and (capacity <= D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2));
+		static_assert(not((heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) and (capacity > D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE)));
+
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC desc{
+				.Type			= heap_type,
+				.NumDescriptors = capacity,
+				.Flags			= is_shader_visible() ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+				.NodeMask		= 0
+			};
+
+			constexpr auto wstr_type = [] constexpr {
+				switch (heap_type)
+				{
+				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+					return L"[CBV_SRV_UAV] Descriptor Heap";
+				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+					return L"[SAMPLER] Descriptor Heap";
+				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+					return L"[RTV] Descriptor Heap";
+				case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+					return L"[DSV] Descriptor Heap";
+				default:
+					return L"Unknown";
+				}
+			}();
+
+			AGE_HR_CHECK(p_main_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&p_descriptor_heap)));
+			p_descriptor_heap->SetName(wstr_type);
+		}
+
+		descriptor_size = p_main_device->GetDescriptorHandleIncrementSize(heap_type);
+
+		if constexpr (is_shader_visible())
+		{
+			start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+			start_handle.h_gpu = p_descriptor_heap->GetGPUDescriptorHandleForHeapStart();
+		}
+		else
+		{
+			start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+		}
+	}
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	FORCE_INLINE void
+	descriptor_pool<heap_type, capacity>::deinit() noexcept
+	{
+		p_descriptor_heap->Release();
+
+		if constexpr (age::config::debug_mode)
+		{
+			desc_idx_pool.debug_validate();
+		}
+	}
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	descriptor_pool<heap_type, capacity>::t_descriptor_handle
+	descriptor_pool<heap_type, capacity>::pop() noexcept
+	{
+		auto idx = desc_idx_pool.pop();
+
+		if constexpr (is_shader_visible())
+		{
+			return t_descriptor_handle{
+				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
+				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
+				AGE_DEBUG_OP(.idx = idx)
+			};
+		}
+		else
+		{
+			return t_descriptor_handle{
+				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
+				AGE_DEBUG_OP(.idx = idx)
+			};
+		}
+	}
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	descriptor_pool<heap_type, capacity>::t_descriptor_handle
+	descriptor_pool<heap_type, capacity>::get(uint32 idx) noexcept
+	{
+		desc_idx_pool.get(idx);
+
+		if constexpr (is_shader_visible())
+		{
+			return t_descriptor_handle{
+				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
+				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
+				AGE_DEBUG_OP(.idx = idx)
+			};
+		}
+		else
+		{
+			return t_descriptor_handle{
+				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
+				AGE_DEBUG_OP(.idx = idx)
+			};
+		}
+	}
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	void
+	descriptor_pool<heap_type, capacity>::push(t_descriptor_handle h) noexcept
+	{
+		auto diff = h.h_cpu.ptr - start_handle.h_cpu.ptr;
+		auto idx  = diff / descriptor_size;
+
+		AGE_ASSERT((diff % descriptor_size) == 0);
+		AGE_ASSERT(idx == h.idx);
+
+		desc_idx_pool.push(idx);
+	}
+}	 // namespace age::graphics
+
+namespace age::graphics
+{
+	// todo
 }	 // namespace age::graphics
 
 namespace age::graphics
@@ -411,17 +557,20 @@ namespace age::graphics
 		}
 
 		{
-			cmd_system_direct.init(p_main_device);
-			cmd_system_compute.init(p_main_device);
-			cmd_system_copy.init(p_main_device);
+			cmd_system_direct.init();
+			cmd_system_compute.init();
+			cmd_system_copy.init();
 		}
 
 		{
+			rtv_desc_pool.init();
+			dsv_desc_pool.init();
+			cbv_srv_uav_desc_pool.init();
+			sampler_desc_pool.init();
+		}
 
-			rtv_desc_pool.init(p_main_device);
-			dsv_desc_pool.init(p_main_device);
-			cbv_srv_uav_desc_pool.init(p_main_device);
-			sampler_desc_pool.init(p_main_device);
+		{
+			// init swap_chain
 		}
 	}
 
@@ -438,11 +587,16 @@ namespace age::graphics
 		}
 
 		{
+			// p_main_swap_chain->Release();
+		}
+
+		{
 			sampler_desc_pool.deinit();
 			cbv_srv_uav_desc_pool.deinit();
 			dsv_desc_pool.deinit();
 			rtv_desc_pool.deinit();
 		}
+
 
 		{
 			if constexpr (age::config::debug_mode)

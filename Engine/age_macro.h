@@ -59,7 +59,7 @@
 			}                                             \
 		}                                                 \
 		while (false)
-#elif
+#else
 	#define AGE_ASSERT(expression)
 #endif
 

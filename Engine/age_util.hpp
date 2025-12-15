@@ -167,14 +167,14 @@ namespace age::util
 			AGE_ASSERT(free_count <= size);
 
 			// for k < free_count: pos[free_dense[k]] == k
-			for (t_idx idx : std::views::iota(std::size_t{ 0 }, free_count))
+			for (t_idx idx : std::views::iota(t_idx{ 0 }) | std::views::take(free_count))
 			{
 				AGE_ASSERT((free_dense[idx] >= 0) and (free_dense[idx] < size));
 				AGE_ASSERT(pos[free_dense[idx]] == idx);
 			}
 
 			// if free => free_dense[pos[idx]] == idx;
-			for (t_idx idx : std::views::iota(std::size_t{ 0 }, size) | std::views::filter([this](auto idx) { return pos[idx] != inv; }))
+			for (t_idx idx : std::views::iota(t_idx{ 0 }) | std::views::take(size) | std::views::filter([this](auto idx) { return pos[idx] != inv; }))
 			{
 				AGE_ASSERT((pos[idx] > 0) and (pos[idx] < free_count));
 				AGE_ASSERT(free_dense[pos[idx]] == idx);
