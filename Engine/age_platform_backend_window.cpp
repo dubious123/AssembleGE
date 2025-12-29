@@ -146,7 +146,7 @@ namespace age::platform
 	}
 
 	window_handle
-	creat_window(window_desc&& desc) noexcept
+	create_window(window_desc&& desc) noexcept
 	{
 		auto	   i_platform	 = global::get<platform::interface>();
 		const auto wname		 = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
@@ -197,6 +197,19 @@ namespace age::platform
 	{
 		g::window_info_vec[w_handle.id].closing									 = true;
 		g::window_info_vec[w_handle.id].cleanup_pending[pending_flags::platform] = true;
+	}
+
+	void
+	move_window(window_handle w_handle, int32 x, int32 y) noexcept
+	{
+		AGE_WIN32_CHECK(::SetWindowPos(
+			get_hwnd(w_handle),
+			nullptr,
+			x,
+			y,
+			0,
+			0,
+			SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
 	}
 }	 // namespace age::platform
 

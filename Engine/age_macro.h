@@ -96,6 +96,25 @@
 	#else
 		#define AGE_HR_CHECK(expression) (expression)
 	#endif
+
+	#if defined(AGE_DEBUG)
+		#define AGE_WIN32_CHECK(expression)                               \
+			do                                                            \
+			{                                                             \
+				if ((expression) == 0) [[unlikely]]                       \
+				{                                                         \
+					const auto __last_err__ = ::GetLastError();           \
+					std::println("WIN32 API FAILED: {:x}", __last_err__); \
+					std::println("  expr : {}", #expression);             \
+					std::println("  file : {}", __FILE__);                \
+					std::println("  line : {}", __LINE__);                \
+					AGE_DEBUG_BREAK();                                    \
+				}                                                         \
+			}                                                             \
+			while (false)
+	#else
+		#define AGE_WIN32_CHECK(expression) (expression)
+	#endif
 #endif
 
 #define AGE_DISABLE_COPY(T)          \

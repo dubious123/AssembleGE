@@ -27,10 +27,10 @@ main()
 		AGE_FUNC(age::graphics::init),
 		AGE_FUNC(age::runtime::init),
 
-		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
-		identity{ age::platform::window_desc{ 1080 / 2, 920, "test_app2" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
-		identity{ age::platform::window_desc{ 1080, 920 / 2, "test_app3" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
-		identity{ age::platform::window_desc{ 1080 / 2, 920 / 2, "test_app4" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } } | AGE_FUNC(age::platform::create_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080 / 2, 920, "test_app2" } } | AGE_FUNC(age::platform::create_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080, 920 / 2, "test_app3" } } | AGE_FUNC(age::platform::create_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080 / 2, 920 / 2, "test_app4" } } | AGE_FUNC(age::platform::create_window) | AGE_FUNC(age::graphics::create_render_surface),
 
 		loop{
 			AGE_FUNC(age::global::get<age::runtime::interface>().running),
