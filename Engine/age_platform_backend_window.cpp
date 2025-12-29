@@ -4,6 +4,16 @@
 #if defined AGE_PLATFORM_WINDOW
 namespace age::platform
 {
+	enum pending_flags : uint32
+	{
+		platform,
+		graphics,
+		count,
+	};
+}
+
+namespace age::platform
+{
 	struct window_info
 	{
 		HWND  hwnd;
@@ -11,26 +21,43 @@ namespace age::platform
 		POINT top_left_pos;
 
 		window_mode mode;
+
+		bool							  closing;
+		std::bitset<pending_flags::count> cleanup_pending;
 	};
 }	 // namespace age::platform
 
 namespace age::platform::g
 {
-	data_structure::sparse_vector<window_info> window_info_vec;
+	data_structure::stable_dense_vector<window_info> window_info_vec{ 2 };
 }
 
 namespace age::platform
 {
 	LRESULT CALLBACK
-	window_proc(HWND handle, UINT message, WPARAM w_param, LPARAM l_param)
+	window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 	{
 		auto i_platform = age::global::get<age::platform::interface>();
 
 		switch (message)
 		{
-		case WM_DESTROY:
-			PostQuitMessage(0);
+		case WM_CLOSE:
+		{
+			close_window(get_handle(hwnd));
 			return 0;
+		}
+		case WM_DESTROY:
+		{
+			auto id = get_handle(hwnd).id;
+			g::window_info_vec.remove(id);
+
+			if (g::window_info_vec.is_empty())
+			{
+				PostQuitMessage(0);
+			}
+
+			return 0;
+		}
 		case WM_SETCURSOR:
 		{
 			// Show an arrow instead of the busy cursor
@@ -39,7 +66,7 @@ namespace age::platform
 		}
 		}
 
-		return (DefWindowProc(handle, message, w_param, l_param));
+		return (::DefWindowProc(hwnd, message, w_param, l_param));
 	}
 }	 // namespace age::platform
 
@@ -83,9 +110,24 @@ namespace age::platform
 		{
 			::TranslateMessage(&msg);
 			::DispatchMessage(&msg);
-			if (msg.message == WM_QUIT)
+
+
+			if (msg.message == WM_QUIT) [[unlikely]]
 			{
 				i_platform.running() = false;
+			}
+		}
+
+		for (auto& w_info : g::window_info_vec)
+		{
+			if (w_info.closing)
+			{
+				if (w_info.cleanup_pending == 0)
+				{
+					::DestroyWindow(w_info.hwnd);
+				}
+
+				w_info.cleanup_pending[pending_flags::platform] = false;
 			}
 		}
 	}
@@ -138,16 +180,28 @@ namespace age::platform
 			::GetClientRect(hwnd, &cr);
 
 			g::window_info_vec[id] = window_info{
-				.hwnd		  = hwnd,
-				.client_rect  = cr,
-				.top_left_pos = POINT{ .x = wr.left, .y = wr.top },
-				.mode		  = window_mode::windowed
+				.hwnd			 = hwnd,
+				.client_rect	 = cr,
+				.top_left_pos	 = POINT{ .x = wr.left, .y = wr.top },
+				.mode			 = window_mode::windowed,
+				.closing		 = false,
+				.cleanup_pending = 0
 			};
 		}
 
 		return window_handle{ .id = id };
 	}
 
+	void
+	close_window(window_handle w_handle) noexcept
+	{
+		g::window_info_vec[w_handle.id].closing									 = true;
+		g::window_info_vec[w_handle.id].cleanup_pending[pending_flags::platform] = true;
+	}
+}	 // namespace age::platform
+
+namespace age::platform
+{
 	FORCE_INLINE uint32
 	get_client_width(window_handle handle) noexcept
 	{
@@ -160,6 +214,18 @@ namespace age::platform
 	{
 		auto cr = g::window_info_vec[handle.id].client_rect;
 		return cr.bottom - cr.top;
+	}
+
+	FORCE_INLINE bool
+	is_closing(window_handle handle) noexcept
+	{
+		return g::window_info_vec[handle.id].closing;
+	}
+
+	FORCE_INLINE void
+	set_graphics_cleanup_pending(window_handle handle, bool flag) noexcept
+	{
+		g::window_info_vec[handle.id].cleanup_pending[pending_flags::graphics] = flag;
 	}
 }	 // namespace age::platform
 

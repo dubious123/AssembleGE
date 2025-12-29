@@ -601,6 +601,18 @@ namespace age::data_structure
 			::operator delete(p_storage, std::align_val_t{ alignment });
 		}
 
+		FORCE_INLINE decltype(auto)
+		is_empty() const noexcept
+		{
+			return size == 0;
+		}
+
+		FORCE_INLINE decltype(auto)
+		count() const noexcept
+		{
+			return size;
+		}
+
 		t_idx
 		emplace_back(auto&&... arg) noexcept
 		{
@@ -711,6 +723,22 @@ namespace age::data_structure
 			return self.data_arr()[self.idx_to_pos_arr()[idx]];
 		}
 
+		FORCE_INLINE decltype(auto)
+		nth_data(this auto& self, t_idx pos) noexcept
+		{
+			AGE_ASSERT(pos < self.size);
+
+			return self.data_arr()[pos];
+		}
+
+		FORCE_INLINE decltype(auto)
+		nth_id(this auto& self, t_idx pos) noexcept
+		{
+			AGE_ASSERT(pos < self.size);
+
+			return self.pos_to_idx_arr()[pos];
+		}
+
 		void
 		debug_validate()
 		{
@@ -733,7 +761,6 @@ namespace age::data_structure
 				AGE_ASSERT(*p_c == static_cast<uint8>(0xcc));
 			}
 		}
-
 
 	  private:
 		void

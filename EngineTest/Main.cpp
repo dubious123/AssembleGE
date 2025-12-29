@@ -13,8 +13,11 @@ main()
 
 	run_benchmark(_game, 1'000);
 
-	test_idx_pool();
-	test_stable_dense_vector();
+	if (false)
+	{
+		test_idx_pool();
+		test_stable_dense_vector();
+	}
 
 
 	using namespace age::ecs::system;
@@ -24,7 +27,10 @@ main()
 		AGE_FUNC(age::graphics::init),
 		AGE_FUNC(age::runtime::init),
 
-		identity{ age::platform::window_desc{ 1080, 920, "test_app" } } | AGE_FUNC(age::platform::creat_window),
+		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080 / 2, 920, "test_app2" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080, 920 / 2, "test_app3" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
+		identity{ age::platform::window_desc{ 1080 / 2, 920 / 2, "test_app4" } } | AGE_FUNC(age::platform::creat_window) | AGE_FUNC(age::graphics::create_render_surface),
 
 		loop{
 			AGE_FUNC(age::global::get<age::runtime::interface>().running),
@@ -39,7 +45,7 @@ main()
 				std::println("now : {:%F %T}", std::chrono::system_clock::now());
 				std::println("now : {}ns", age::global::get<age::runtime::interface>().delta_time_ns().count());
 			},
-			//[] { std::this_thread::sleep_for(std::chrono::seconds(1)); }
+			//[] { std::this_thread::sleep_for(std::chrono::seconds(1)); },
 
 			AGE_FUNC(age::graphics::end_frame)
 

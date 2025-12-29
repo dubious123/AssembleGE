@@ -7,7 +7,7 @@
 namespace age::graphics::g
 {
 	auto frame_buffer_idx = uint8{ 0 };
-	auto next_fence_value = uint64{ frame_buffer_count };
+	auto next_fence_value = uint64{ 0 };
 
 	auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
 	auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
@@ -23,8 +23,7 @@ namespace age::graphics::g
 	auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512 * 1024>{};
 	auto sampler_desc_pool	   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512>{};
 
-	auto render_surfaces	= data_structure::sparse_vector<render_surface>{};
-	auto render_surface_ids = data_structure::vector<std::size_t>{};
+	auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 8 };
 }	 // namespace age::graphics::g
 
 // cmd_system member func
@@ -127,14 +126,13 @@ namespace age::graphics
 	cmd_system<cmd_list_type, cmd_list_count>::wait() noexcept
 	{
 		auto completed_value = p_fence->GetCompletedValue();
-		auto expected_value	 = g::next_fence_value - g::frame_buffer_count;
-		auto need_to_wait	 = completed_value < expected_value;
+		auto need_to_wait	 = completed_value < g::next_fence_value;
 
-		// std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, fence_value, completed_value, need_to_wait);
+		std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, g::next_fence_value, completed_value, need_to_wait);
 
 		if (need_to_wait)
 		{
-			AGE_HR_CHECK(p_fence->SetEventOnCompletion(expected_value, fence_event));
+			AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::next_fence_value, fence_event));
 
 			::WaitForSingleObject(fence_event, INFINITE);
 		}
@@ -144,7 +142,6 @@ namespace age::graphics
 	FORCE_INLINE void
 	cmd_system<cmd_list_type, cmd_list_count>::begin_frame() noexcept
 	{
-		wait();
 		for (auto i : std::views::iota(0, cmd_list_count))
 		{
 			AGE_HR_CHECK(cmd_allocator_pool[g::frame_buffer_idx][i]->Reset());
@@ -336,8 +333,9 @@ namespace age::graphics
 				/*DXGI_SCALING			*/ .Scaling		= DXGI_SCALING_STRETCH,
 				/*DXGI_SWAP_EFFECT		*/ .SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD,
 				/*DXGI_ALPHA_MODE		*/ .AlphaMode	= DXGI_ALPHA_MODE_UNSPECIFIED,
-				/*UINT					*/ .Flags		= allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 },
-
+				/*UINT					*/ .Flags =
+					DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+					| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }),
 			};
 
 			auto full_screen_desc = DXGI_SWAP_CHAIN_FULLSCREEN_DESC{
@@ -364,12 +362,20 @@ namespace age::graphics
 			p_swap_chain_1->Release();
 		}
 
+		AGE_HR_CHECK(p_swap_chain->SetMaximumFrameLatency(3));
+
+		present_waitable_obj = p_swap_chain->GetFrameLatencyWaitableObject();
+
+		AGE_ASSERT(present_waitable_obj != NULL);
+
 		back_buffer_idx = p_swap_chain->GetCurrentBackBufferIndex();
 
 		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
 		{
 			rtv_desc_handle_arr[idx] = g::rtv_desc_pool.pop();
 		}
+
+		rebuild_from_swapchain();
 	}
 
 	void
@@ -377,7 +383,7 @@ namespace age::graphics
 	{
 		// todo
 
-		this->rebuild_from_swapchain();
+		rebuild_from_swapchain();
 	}
 
 	void
@@ -397,6 +403,8 @@ namespace age::graphics
 		}
 
 		p_swap_chain->Release();
+
+		::CloseHandle(present_waitable_obj);
 	}
 
 	void
@@ -521,10 +529,6 @@ namespace age::graphics
 			g::cbv_srv_uav_desc_pool.init();
 			g::sampler_desc_pool.init();
 		}
-
-		{
-			// init swap_chain
-		}
 	}
 
 	void
@@ -540,7 +544,21 @@ namespace age::graphics
 		}
 
 		{
-			// p_main_swap_chain->Release();
+			g::cmd_system_compute.wait();
+			g::cmd_system_copy.wait();
+			g::cmd_system_direct.wait();
+		}
+
+		{
+			for (auto& rs : g::render_surface_vec)
+			{
+				rs.deinit();
+			}
+
+			if constexpr (age::config::debug_mode)
+			{
+				g::render_surface_vec.debug_validate();
+			}
 		}
 
 		{
@@ -580,25 +598,23 @@ namespace age::graphics
 		g::p_main_device->Release();
 		g::p_main_adapter->Release();
 		g::p_dxgi_factory->Release();
-
-		if constexpr (age::config::debug_mode)
-		{
-			g::render_surfaces.debug_validate();
-		}
 	}
 
 	void
 	create_render_surface(platform::window_handle w_handle) noexcept
 	{
-		g::render_surface_ids.emplace_back(
-			g::render_surfaces.emplace_back(w_handle));
+		auto id = g::render_surface_vec.emplace_back(w_handle);
+		g::render_surface_vec[id].init(w_handle);
 	}
 
 	void
 	begin_frame() noexcept
 	{
+		g::cmd_system_direct.wait();
 		g::cmd_system_direct.begin_frame();
+		g::cmd_system_compute.wait();
 		g::cmd_system_compute.begin_frame();
+		g::cmd_system_copy.wait();
 		g::cmd_system_copy.begin_frame();
 	}
 
@@ -611,12 +627,38 @@ namespace age::graphics
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
 
-		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
-	}
+		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
+		{
+			auto& rs = g::render_surface_vec.nth_data(n);
+			auto  id = g::render_surface_vec.nth_id(n);
 
-	void
-	render() noexcept
-	{
+			if (platform::is_closing(rs.w_handle)) [[unlikely]]
+			{
+				bool is_pending = false;
+
+				auto res = ::WaitForSingleObject(rs.present_waitable_obj, 0);
+				AGE_ASSERT((res == WAIT_TIMEOUT) or (res == WAIT_OBJECT_0));
+
+				is_pending |= (res == WAIT_TIMEOUT);
+				is_pending |= g::cmd_system_direct.p_fence->GetCompletedValue() < rs.last_used_cmd_fence_value;
+
+				platform::set_graphics_cleanup_pending(rs.w_handle, is_pending);
+
+				if (is_pending is_false)
+				{
+					rs.deinit();
+					g::render_surface_vec.remove(id);
+				}
+			}
+			else
+			{
+				rs.present();
+			}
+		}
+
+		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
+
+		std::println("fence_value : {}", g::next_fence_value);
 	}
 }	 // namespace age::graphics
 

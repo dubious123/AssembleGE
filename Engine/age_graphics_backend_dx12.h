@@ -122,8 +122,6 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		AGE_DISABLE_COPY(render_surface)
-
 		explicit constexpr render_surface(platform::window_handle w_handle) : w_handle{ w_handle } { };
 
 		platform::window_handle w_handle;
@@ -136,6 +134,12 @@ namespace age::graphics
 
 		D3D12_VIEWPORT default_viewport;
 		D3D12_RECT	   default_scissor_rect;
+
+		// for closing pending (present)
+		HANDLE present_waitable_obj;
+
+		// for closing pending (direct cmd list)
+		uint64 last_used_cmd_fence_value = 0;
 
 		uint32 back_buffer_idx;
 

@@ -44,10 +44,6 @@ namespace age::graphics
 
 	void
 	end_frame() noexcept;
-
-
-	void
-	render() noexcept;
 }	 // namespace age::graphics
 
 #if defined AGE_GRAPHICS_BACKEND_DX12

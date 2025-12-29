@@ -1,14 +1,15 @@
 #pragma once
 
-#include <type_traits>
-#include <array>
-#include <tuple>
-#include <ranges>
 #include <algorithm>
+#include <array>
+#include <bitset>
+#include <chrono>
 #include <numeric>
 #include <print>
+#include <ranges>
+#include <type_traits>
+#include <tuple>
 
-#include <chrono>
 
 #ifdef _DEBUG
 	#include <iostream>
