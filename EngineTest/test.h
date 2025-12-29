@@ -807,3 +807,218 @@ test_idx_pool()
 		pool.debug_validate();
 	}
 }
+
+template <typename t_data>
+void
+test_stable_dense_vector_for_type()
+{
+	using t_idx = uint32;
+
+	// 0) small cap -> resize path
+	{
+		auto v = age::data_structure::stable_dense_vector<t_data>{ 8 };
+
+		for (t_idx i = 0; i < 2000; ++i)
+		{
+			(void)v.emplace_back(static_cast<t_data>(i));
+		}
+
+		v.debug_validate();
+
+		std::size_t count = 0;
+		for (auto* p = v.begin(); p != v.end(); ++p)
+		{
+			(void)*p;
+			++count;
+		}
+		AGE_ASSERT(count == 2000);
+	}
+
+	// 1) fill -> validate
+	{
+		constexpr t_idx n = 1000;
+		auto			v = age::data_structure::stable_dense_vector<t_data>{ n };
+
+		for (t_idx i = 0; i < n; ++i)
+		{
+			(void)v.emplace_back(static_cast<t_data>(i * i));
+		}
+
+		v.debug_validate();
+	}
+
+	// 2) fill -> remove reverse -> validate
+	{
+		constexpr t_idx n = 1000;
+		auto			v = age::data_structure::stable_dense_vector<t_data>{ n };
+
+		for (t_idx i = 0; i < n; ++i)
+		{
+			(void)v.emplace_back(static_cast<t_data>(i * i));
+		}
+
+		v.debug_validate();
+
+		for (t_idx i = n; i-- > 0;)
+		{
+			v.remove(i);
+		}
+
+		v.debug_validate();
+	}
+
+	// 3) force remove_pos == back_pos then immediate reuse (논쟁 케이스)
+	{
+		constexpr t_idx n = 1000;
+		auto			v = age::data_structure::stable_dense_vector<t_data>{ n };
+
+		for (t_idx i = 0; i < n; ++i)
+		{
+			(void)v.emplace_back(static_cast<t_data>(i));
+		}
+
+		v.debug_validate();
+
+		for (t_idx k = n; k-- > 0;)
+		{
+			v.remove(k);
+			v.debug_validate();
+
+			if (k > 0)
+			{
+				const t_idx idx = v.emplace_back(static_cast<t_data>(0xdeadbeef));
+				AGE_ASSERT(idx == k);	 // LIFO 기대(네 구현이 이걸 만족했었음)
+				v.debug_validate();
+				v.remove(idx);
+				v.debug_validate();
+			}
+		}
+	}
+
+	// 4) randomized ops + shadow
+	{
+		constexpr t_idx n	  = 1000;
+		constexpr int	iters = 200000;
+
+		std::mt19937						 rng(12345);
+		std::uniform_int_distribution<int>	 op_dist(0, 4);
+		std::uniform_int_distribution<t_idx> idx_dist(0, n - 1);
+
+		auto v = age::data_structure::stable_dense_vector<t_data>{ n };
+
+		std::vector<uint8>	alive(n, 0);
+		std::vector<t_data> value(n, t_data{});
+		std::size_t			alive_count = 0;
+
+		auto shadow_validate = [&] {
+			std::size_t dense_count = 0;
+			for (auto* p = v.begin(); p != v.end(); ++p)
+			{
+				++dense_count;
+			}
+			AGE_ASSERT(dense_count == alive_count);
+
+			for (t_idx i = 0; i < n; ++i)
+			{
+				if (alive[i])
+				{
+					AGE_ASSERT(v[i] == value[i]);
+				}
+			}
+		};
+
+		for (int it = 0; it < iters; ++it)
+		{
+			const int op = op_dist(rng);
+
+			if (op == 0)
+			{
+				const t_idx i = idx_dist(rng);
+				if (alive[i])
+				{
+					v.remove(i);
+					alive[i] = 0;
+					--alive_count;
+				}
+			}
+			else
+			{
+				if (alive_count < n)
+				{
+					const t_data new_val =
+						static_cast<t_data>((it * 1315423911u) ^ 0x9e3779u);
+					const t_idx new_idx = v.emplace_back(new_val);
+
+					AGE_ASSERT(new_idx < n);
+					AGE_ASSERT(alive[new_idx] == 0);
+
+					alive[new_idx] = 1;
+					value[new_idx] = new_val;
+					++alive_count;
+				}
+			}
+
+			if ((it % 1000) == 0)
+			{
+				v.debug_validate();
+				shadow_validate();
+			}
+		}
+
+		v.debug_validate();
+		shadow_validate();
+	}
+}
+
+void
+test_stable_dense_vector()
+{
+	// alignof(t_idx)=4 기준으로 분기와 오프셋을 다양하게 때리기 위한 타입들
+	test_stable_dense_vector_for_type<uint8>();
+	test_stable_dense_vector_for_type<uint16>();
+	test_stable_dense_vector_for_type<uint32>();
+	test_stable_dense_vector_for_type<uint64>();
+
+	// size/align 조합이 애매한 케이스(오프셋 정렬 문제를 더 잘 드러냄)
+	struct t12
+	{
+		uint32 a;
+		uint32 b;
+		uint32 c;
+		auto
+		operator<=>(const t12&) const = default;
+
+	};	  // size=12 align=4 (대부분)
+
+	static_assert(std::is_trivially_copyable_v<t12>);
+	static_assert(std::is_trivially_destructible_v<t12>);
+	test_stable_dense_vector_for_type<t12>();
+
+	struct t24
+	{
+		uint64 a;
+		uint64 b;
+		uint64 c;
+
+		auto
+		operator<=>(const t24&) const = default;
+	};	  // size=24 align=8 (대부분)
+
+	static_assert(std::is_trivially_copyable_v<t24>);
+	static_assert(std::is_trivially_destructible_v<t24>);
+	test_stable_dense_vector_for_type<t24>();
+
+	// “정렬만 큰” 타입 (alignof 비교 분기 자극)
+	struct alignas(16) t16a
+	{
+		uint64 a;
+		uint64 b;
+
+		auto
+		operator<=>(const t16a&) const = default;
+	};	  // size=16 align=16
+
+	static_assert(std::is_trivially_copyable_v<t16a>);
+	static_assert(std::is_trivially_destructible_v<t16a>);
+	test_stable_dense_vector_for_type<t16a>();
+}

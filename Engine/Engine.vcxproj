@@ -37,6 +37,7 @@
     <ClInclude Include="age_ecs_system_pipe.hpp" />
     <ClInclude Include="age_global.hpp" />
     <ClInclude Include="age_graphics.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12.h" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />
     <ClInclude Include="age_macro_foreach.h" />

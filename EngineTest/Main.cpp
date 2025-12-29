@@ -14,6 +14,7 @@ main()
 	run_benchmark(_game, 1'000);
 
 	test_idx_pool();
+	test_stable_dense_vector();
 
 
 	using namespace age::ecs::system;

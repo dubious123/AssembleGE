@@ -37,11 +37,19 @@ namespace age::graphics
 	deinit() noexcept;
 
 	void
+		create_render_surface(platform::window_handle) noexcept;
+
+	void
 	begin_frame() noexcept;
 
 	void
 	end_frame() noexcept;
 
+
 	void
 	render() noexcept;
 }	 // namespace age::graphics
+
+#if defined AGE_GRAPHICS_BACKEND_DX12
+	#include "age_graphics_backend_dx12.h"
+#endif

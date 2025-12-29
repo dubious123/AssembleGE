@@ -551,3 +551,391 @@ namespace age::data_structure
 		}
 	};
 }	 // namespace age::data_structure
+
+namespace age::data_structure
+{
+	template <typename t_data>
+	struct stable_dense_vector final
+	{
+		static_assert(std::popcount(alignof(t_data)) == 1, "alignment of t_data must be power of 2");
+		// todo, not supported yet
+		// static_assert(std::is_implicit_lifetime_v<t_data>)
+		static_assert(std::is_trivially_copyable_v<t_data>);
+		static_assert(std::is_trivially_destructible_v<t_data>);
+
+		AGE_DISABLE_COPY_MOVE(stable_dense_vector);
+
+	  private:
+		using t_idx = uint32;
+
+		static constexpr std::size_t alignment = age::util::max_alignof<t_idx, t_data>();
+
+		t_idx capacity;
+		t_idx size;
+		t_idx free_idx_count;
+
+		std::byte* p_storage;
+
+
+	  public:
+		explicit stable_dense_vector(t_idx cap)
+			: capacity{ cap },
+			  size{ 0 },
+			  free_idx_count{ 0 }
+		{
+			AGE_ASSERT(capacity % 2 == 0);
+			AGE_ASSERT(cap > 0);
+			const auto bytes = (sizeof(t_idx) * 2 + sizeof(t_data)) * capacity;
+
+			p_storage = static_cast<std::byte*>(::operator new(bytes, std::align_val_t{ alignment }));
+
+			for (t_idx idx : std::views::iota(0) | std::views::take(cap))
+			{
+				this->idx_to_pos_arr()[idx] = idx;
+				this->pos_to_idx_arr()[idx] = idx;
+			}
+		}
+
+		~stable_dense_vector() noexcept
+		{
+			::operator delete(p_storage, std::align_val_t{ alignment });
+		}
+
+		t_idx
+		emplace_back(auto&&... arg) noexcept
+		{
+			if (size == capacity) [[unlikely]]
+			{
+				resize(capacity << 1);
+			}
+
+			const auto pos = size;
+			auto	   idx = size;
+
+			if (free_idx_count > 0)
+			{
+				idx = this->pos_to_idx_arr()[pos];
+				--free_idx_count;
+			}
+
+			{
+				::new (static_cast<void*>(this->data_ptr(pos))) t_data(FWD(arg)...);
+				++size;
+			}
+
+			return idx;
+		}
+
+		void
+		remove(t_idx remove_idx) noexcept
+		{
+			AGE_ASSERT(size > 0);
+			AGE_ASSERT(remove_idx < capacity);
+			AGE_ASSERT(this->idx_to_pos_arr()[remove_idx] < size);
+
+			const auto back_pos	  = size - 1;
+			const auto back_idx	  = this->pos_to_idx_arr()[back_pos];
+			const auto remove_pos = this->idx_to_pos_arr()[remove_idx];
+
+			if (size - 1 != remove_pos) [[likely]]
+			{
+				std::memcpy(this->data_ptr(remove_pos), this->data_ptr(back_pos), sizeof(t_data));
+
+				std::swap(this->pos_to_idx_arr()[back_pos], this->pos_to_idx_arr()[remove_pos]);
+				std::swap(this->idx_to_pos_arr()[back_idx], this->idx_to_pos_arr()[remove_idx]);
+			}
+
+			if constexpr (age::config::debug_mode)
+			{
+				std::memset(this->data_ptr(back_pos), static_cast<uint8>(0xcc), sizeof(t_data));
+			}
+
+			--size;
+			++free_idx_count;
+		}
+
+		FORCE_INLINE decltype(auto)
+		begin(this auto& self) noexcept
+		{
+			return self.data_ptr(0);
+		}
+
+		FORCE_INLINE decltype(auto)
+		end(this auto& self) noexcept
+		{
+			return self.data_ptr(self.size);
+		}
+
+		FORCE_INLINE const t_data*
+		cbegin(this const auto& self) noexcept
+		{
+			return self.data_ptr(0);
+		}
+
+		FORCE_INLINE const t_data*
+		cend(this const auto& self) noexcept
+		{
+			return self.data_ptr(self.size);
+		}
+
+		FORCE_INLINE decltype(auto)
+		rbegin(this auto& self) noexcept
+		{
+			return std::reverse_iterator{ self.end() };
+		}
+
+		FORCE_INLINE decltype(auto)
+		rend(this auto& self) noexcept
+		{
+			return std::reverse_iterator{ self.begin() };
+		}
+
+		FORCE_INLINE decltype(auto)
+		crbegin(this const auto& self) noexcept
+		{
+			return std::reverse_iterator{ self.cend() };
+		}
+
+		FORCE_INLINE decltype(auto)
+		crend(this const auto& self) noexcept
+		{
+			return std::reverse_iterator{ self.cbegin() };
+		}
+
+		FORCE_INLINE decltype(auto)
+		operator[](this auto& self, t_idx idx) noexcept
+		{
+			AGE_ASSERT(idx < self.capacity);
+			AGE_ASSERT(self.idx_to_pos_arr()[idx] < self.size);
+
+			return self.data_arr()[self.idx_to_pos_arr()[idx]];
+		}
+
+		void
+		debug_validate()
+		{
+			AGE_ASSERT(size + free_idx_count <= capacity);
+
+			for (t_idx pos : std::views::iota(0) | std::views::take(size + free_idx_count))
+			{
+				AGE_ASSERT(this->pos_to_idx_arr()[pos] < capacity);
+				AGE_ASSERT(this->idx_to_pos_arr()[this->pos_to_idx_arr()[pos]] == pos);
+			}
+
+			if (free_idx_count == 0)
+			{
+				return;
+			}
+
+			for (uint8* p_c : std::views::iota(reinterpret_cast<uint8*>(this->data_ptr(size)))
+								  | std::views::take(free_idx_count * sizeof(t_data)))
+			{
+				AGE_ASSERT(*p_c == static_cast<uint8>(0xcc));
+			}
+		}
+
+
+	  private:
+		void
+		resize(t_idx new_cap) noexcept
+		{
+			AGE_ASSERT(free_idx_count == 0);
+			AGE_ASSERT(capacity < new_cap);
+
+			const auto old_bytes = (sizeof(t_idx) * 2 + sizeof(t_data)) * capacity;
+			const auto new_bytes = (sizeof(t_idx) * 2 + sizeof(t_data)) * new_cap;
+
+			auto* const p_new_storage = static_cast<std::byte*>(::operator new(new_bytes, std::align_val_t{ alignment }));
+
+			if constexpr (alignof(t_idx) > alignof(t_data))
+			{
+				// idx_to_pos_arr
+				std::memcpy(
+					p_new_storage,
+					p_storage,
+					sizeof(t_idx) * (size + free_idx_count));
+				// pos_to_idx_arr
+				std::memcpy(
+					p_new_storage + sizeof(t_idx) * new_cap,
+					p_storage + sizeof(t_idx) * capacity,
+					sizeof(t_idx) * (size + free_idx_count));
+				// data_arr
+				std::memcpy(
+					p_new_storage + sizeof(t_idx) * new_cap * 2,
+					p_storage + sizeof(t_idx) * capacity * 2,
+					sizeof(t_data) * (size + free_idx_count));
+			}
+			else
+			{
+				// data_arr
+				std::memcpy(
+					p_new_storage,
+					p_storage,
+					sizeof(t_data) * (size + free_idx_count));
+				// idx_to_pos_arr
+				std::memcpy(
+					p_new_storage + sizeof(t_data) * new_cap,
+					p_storage + sizeof(t_data) * capacity,
+					sizeof(t_idx) * (size + free_idx_count));
+				// pos_to_idx_arr
+				std::memcpy(
+					p_new_storage + (sizeof(t_data) + sizeof(t_idx)) * new_cap,
+					p_storage + (sizeof(t_data) + sizeof(t_idx)) * capacity,
+					sizeof(t_idx) * (size + free_idx_count));
+			}
+
+
+			::operator delete(p_storage, std::align_val_t{ alignment });
+
+			p_storage = p_new_storage;
+			capacity  = new_cap;
+
+			for (t_idx idx : std::views::iota(size, new_cap))
+			{
+				this->idx_to_pos_arr()[idx] = idx;
+				this->pos_to_idx_arr()[idx] = idx;
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		idx_to_pos_arr(this auto& self) noexcept
+		{
+			using t_self	= decltype(self);
+			using t_idx_ptr = std::conditional_t<
+				std::is_const_v<std::remove_reference_t<t_self>>,
+				const t_idx*,
+				t_idx*>;
+
+			// idx first
+			if constexpr (alignof(t_idx) > alignof(t_data))
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage), self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_idx_ptr>(self.p_storage);
+				}
+			}
+			else
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(t_data) * self.capacity), self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(t_data) * self.capacity);
+				}
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		pos_to_idx_arr(this auto& self) noexcept
+		{
+			using t_self	= decltype(self);
+			using t_idx_ptr = std::conditional_t<
+				std::is_const_v<std::remove_reference_t<t_self>>,
+				const t_idx*,
+				t_idx*>;
+
+			// idx first
+			if constexpr (alignof(t_idx) > alignof(t_data))
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage) + self.capacity, self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_idx_ptr>(self.p_storage) + self.capacity;
+				}
+			}
+			else
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(t_data) * self.capacity) + self.capacity, self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(t_data) * self.capacity) + self.capacity;
+				}
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		data_arr(this auto& self) noexcept
+		{
+			using t_self	 = decltype(self);
+			using t_data_ptr = std::conditional_t<
+				std::is_const_v<std::remove_reference_t<t_self>>,
+				const t_data*,
+				t_data*>;
+
+			// idx first
+			if constexpr (alignof(t_idx) > alignof(t_data))
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_data_ptr>(self.p_storage + 2 * self.capacity * sizeof(t_idx)), self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_data_ptr>(self.p_storage + 2 * self.capacity * sizeof(t_idx));
+				}
+			}
+			else
+			{
+				if constexpr (age::config::debug_mode)
+				{
+					return std::span{ reinterpret_cast<t_data_ptr>(self.p_storage), self.capacity };
+				}
+				else
+				{
+					return reinterpret_cast<t_data_ptr>(self.p_storage);
+				}
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		idx_to_pos_ptr(this auto& self, t_idx idx) noexcept
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				return self.idx_to_pos_arr().data() + idx;
+			}
+			else
+			{
+				return self.idx_to_pos_arr() + idx;
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		pos_to_idx_ptr(this auto& self, t_idx idx) noexcept
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				return self.pos_to_idx_arr().data() + idx;
+			}
+			else
+			{
+				return self.pos_to_idx_arr() + idx;
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		data_ptr(this auto& self, t_idx idx) noexcept
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				return self.data_arr().data() + idx;
+			}
+			else
+			{
+				return self.data_arr() + idx;
+			}
+		}
+	};
+}	 // namespace age::data_structure

@@ -60,3 +60,7 @@
 #else
 	#error "need at least one graphics backend"
 #endif
+
+#if defined(memcpy)
+	#undef memcpy
+#endif

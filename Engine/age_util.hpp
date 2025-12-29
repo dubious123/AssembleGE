@@ -85,7 +85,7 @@ namespace age::util
 		// for k < free_count: pos[free_dense[k]] == k
 		std::array<t_idx, size> free_dense;
 		std::array<t_idx, size> pos;
-		std::size_t				free_count;
+		t_idx					free_count;
 
 		static constexpr t_idx inv = -1;
 
