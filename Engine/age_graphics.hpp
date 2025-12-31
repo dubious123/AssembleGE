@@ -28,6 +28,17 @@ namespace age::graphics
 	interface(t&&) -> interface<t>;
 }	 // namespace age::graphics
 
+// handle
+namespace age::graphics
+{
+	using t_resource_id = uint32;
+
+	struct resource_handle
+	{
+		t_resource_id id;
+	};
+}	 // namespace age::graphics
+
 namespace age::graphics
 {
 	void

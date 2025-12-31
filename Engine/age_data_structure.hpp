@@ -740,6 +740,13 @@ namespace age::data_structure
 		}
 
 		void
+		clear()
+		{
+			this->size			 = 0;
+			this->free_idx_count = 0;
+		}
+
+		void
 		debug_validate()
 		{
 			AGE_ASSERT(size + free_idx_count <= capacity);

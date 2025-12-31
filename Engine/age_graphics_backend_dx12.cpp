@@ -3,29 +3,6 @@
 
 #if defined AGE_GRAPHICS_BACKEND_DX12
 
-// internal globals
-namespace age::graphics::g
-{
-	auto frame_buffer_idx = uint8{ 0 };
-	auto next_fence_value = uint64{ 0 };
-
-	auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
-	auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
-	auto* p_main_device	 = (ID3D12Device11*)nullptr;
-
-	auto cmd_system_direct	= cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, 8>{};
-	auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, 2>{};
-	auto cmd_system_copy	= cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, 2>{};
-
-	// todo config capacity
-	auto rtv_desc_pool		   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048>{};
-	auto dsv_desc_pool		   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512>{};
-	auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512 * 1024>{};
-	auto sampler_desc_pool	   = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512>{};
-
-	auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 8 };
-}	 // namespace age::graphics::g
-
 // cmd_system member func
 namespace age::graphics
 {
@@ -101,8 +78,8 @@ namespace age::graphics
 	cmd_system<cmd_list_type, cmd_list_count>::deinit() noexcept
 	{
 		{
-			AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::next_fence_value));
-			AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::next_fence_value, fence_event));
+			AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
+			AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value, fence_event));
 			::WaitForSingleObject(fence_event, INFINITE);
 		}
 
@@ -126,13 +103,13 @@ namespace age::graphics
 	cmd_system<cmd_list_type, cmd_list_count>::wait() noexcept
 	{
 		auto completed_value = p_fence->GetCompletedValue();
-		auto need_to_wait	 = completed_value < g::next_fence_value;
+		auto need_to_wait	 = completed_value + g::frame_buffer_count < g::current_fence_value;
 
-		std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, g::next_fence_value, completed_value, need_to_wait);
+		std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, g::current_fence_value, completed_value, need_to_wait);
 
 		if (need_to_wait)
 		{
-			AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::next_fence_value, fence_event));
+			AGE_HR_CHECK(p_fence->SetEventOnCompletion(completed_value + 1, fence_event));
 
 			::WaitForSingleObject(fence_event, INFINITE);
 		}
@@ -165,7 +142,16 @@ namespace age::graphics
 		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
 
 		// std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), fence_value);
-		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::next_fence_value));
+		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
+	}
+
+	template <auto cmd_list_type, auto cmd_list_count>
+	FORCE_INLINE void
+	cmd_system<cmd_list_type, cmd_list_count>::flush() noexcept
+	{
+		AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value - 1, fence_event));
+
+		::WaitForSingleObject(fence_event, INFINITE);
 	}
 }	 // namespace age::graphics
 
@@ -523,6 +509,8 @@ namespace age::graphics
 			g::cmd_system_copy.init();
 		}
 
+		age::graphics::resource::init();
+
 		{
 			g::rtv_desc_pool.init();
 			g::dsv_desc_pool.init();
@@ -544,9 +532,9 @@ namespace age::graphics
 		}
 
 		{
-			g::cmd_system_compute.wait();
-			g::cmd_system_copy.wait();
-			g::cmd_system_direct.wait();
+			g::cmd_system_compute.flush();
+			g::cmd_system_copy.flush();
+			g::cmd_system_direct.flush();
 		}
 
 		{
@@ -568,11 +556,12 @@ namespace age::graphics
 			g::rtv_desc_pool.deinit();
 		}
 
+		age::graphics::resource::deinit();
 
 		{
 			if constexpr (age::config::debug_mode)
 			{
-				g::next_fence_value = std::numeric_limits<decltype(g::next_fence_value)>::max();
+				g::current_fence_value = std::numeric_limits<decltype(g::current_fence_value)>::max();
 			}
 
 			g::cmd_system_copy.deinit();
@@ -621,11 +610,10 @@ namespace age::graphics
 	void
 	end_frame() noexcept
 	{
-		++g::next_fence_value;
-
 		g::cmd_system_direct.end_frame();
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
+
 
 		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
 		{
@@ -658,8 +646,9 @@ namespace age::graphics
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 
-		std::println("fence_value : {}", g::next_fence_value);
+		std::println("fence_value : {}", g::current_fence_value);
+
+		++g::current_fence_value;
 	}
 }	 // namespace age::graphics
-
 #endif

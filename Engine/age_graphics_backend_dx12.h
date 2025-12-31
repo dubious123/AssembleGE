@@ -39,6 +39,9 @@ namespace age::graphics
 		wait() noexcept;
 
 		FORCE_INLINE void
+		flush() noexcept;
+
+		FORCE_INLINE void
 		begin_frame() noexcept;
 
 		FORCE_INLINE void
@@ -172,3 +175,76 @@ namespace age::graphics
 		rebuild_from_swapchain() noexcept;
 	};
 }	 // namespace age::graphics
+
+// resource
+namespace age::graphics::resource
+{
+	enum class memory_kind : uint8
+	{
+		gpu_only   = D3D12_HEAP_TYPE_DEFAULT,	  // DEFAULT
+		cpu_to_gpu = D3D12_HEAP_TYPE_UPLOAD,	  // UPLOAD
+		gpu_to_cpu = D3D12_HEAP_TYPE_READBACK,	  // READBACK
+		count
+	};
+
+	struct d3d12_resource_desc
+	{
+		D3D12_RESOURCE_DESC	  d3d12_desc;
+		D3D12_CLEAR_VALUE	  clear_value;
+		D3D12_RESOURCE_STATES initial_state;
+		memory_kind			  heap_memory_kind;
+		bool				  has_clear_value;
+	};
+
+	struct d3d12_resource
+	{
+		ID3D12Resource* p_resource;
+
+		void
+		release()
+		{
+			p_resource->Release();
+			if constexpr (age::config::debug_mode)
+			{
+				p_resource = nullptr;
+			}
+		}
+	};
+
+	void
+	init() noexcept;
+
+	void
+	deinit() noexcept;
+
+	resource_handle
+	create_resource(d3d12_resource_desc desc) noexcept;
+
+	void
+		release_resource(resource_handle) noexcept;
+}	 // namespace age::graphics::resource
+
+// internal globals
+namespace age::graphics::g
+{
+	inline auto frame_buffer_idx	= uint8{ 0 };
+	inline auto current_fence_value = uint64{ 0 };
+
+	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
+	inline auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
+	inline auto* p_main_device	= (ID3D12Device11*)nullptr;
+
+	inline auto cmd_system_direct  = cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, 8>{};
+	inline auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, 2>{};
+	inline auto cmd_system_copy	   = cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, 2>{};
+
+	// todo config capacity
+	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048>{};
+	inline auto dsv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512>{};
+	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512 * 1024>{};
+	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512>{};
+
+	inline auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 2 };
+
+	inline auto resource_vec = data_structure::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
+}	 // namespace age::graphics::g
