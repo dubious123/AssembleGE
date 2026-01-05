@@ -448,6 +448,25 @@ namespace age::graphics
 	}
 }	 // namespace age::graphics
 
+namespace age::graphics
+{
+	pso_handle
+	create_pso(void* pss_stream, uint32 size_in_bytes) noexcept
+	{
+		AGE_ASSERT(pss_stream is_not_nullptr);
+		AGE_ASSERT(size_in_bytes > 0);
+		auto* p_pso = (ID3D12PipelineState*)nullptr;
+		auto  desc	= D3D12_PIPELINE_STATE_STREAM_DESC{
+			  .SizeInBytes					 = size_in_bytes,
+			  .pPipelineStateSubobjectStream = pss_stream,
+		};
+
+		AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
+
+		return pso_handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
+	}
+}	 // namespace age::graphics
+
 // main
 namespace age::graphics
 {
@@ -517,6 +536,45 @@ namespace age::graphics
 			g::cbv_srv_uav_desc_pool.init();
 			g::sampler_desc_pool.init();
 		}
+
+		age::graphics::root_signature::init();
+
+		// todo remove test code
+
+		{
+			using namespace root_signature;
+			auto rs_handle = create(
+				constants{
+					.reg	   = b{ .idx = 0, .space = 0 },
+					.num_32bit = 16 },
+				descriptor{ .reg = b{ .idx = 1, .space = 0 } });
+
+			auto input_layout = std::array{ D3D12_INPUT_ELEMENT_DESC{
+				/*LPCSTR					   */ .SemanticName		= "POSITION",
+				/*UINT					   */ .SemanticIndex		= 0,
+				/*DXGI_FORMAT				   */ .Format			= DXGI_FORMAT_R32G32B32A32_FLOAT,
+				/*UINT					   */ .InputSlot			= 0,
+				/*UINT					   */ .AlignedByteOffset	= 0,
+				/*D3D12_INPUT_CLASSIFICATION */ .InputSlotClass		= D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+				/*UINT					   */ .InstanceDataStepRate = 0,
+			} };
+
+			auto vs_byte_code = compile_shader(L"../../Engine\\shader\\test_vs.hlsl", L"main", L"vs_6_0");
+			auto ps_byte_code = compile_shader(L"../../Engine\\shader\\test_ps.hlsl", L"main", L"ps_6_0");
+
+			auto stream = pss_stream{
+				pss_root_signature{ .subobj = g::root_signature_ptr_vec[rs_handle.id] },
+				pss_input_layout{ .subobj = D3D12_INPUT_LAYOUT_DESC{
+									  .pInputElementDescs = input_layout.data(), .NumElements = 1 } },
+				pss_vs{ .subobj = vs_byte_code },
+				pss_ps{ .subobj = ps_byte_code },
+				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R8G8B8A8_UNORM }, .NumRenderTargets = 1 } },
+				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			};
+
+			create_pso(stream.storage, stream.size_in_bytes);
+		}
 	}
 
 	void
@@ -549,6 +607,22 @@ namespace age::graphics
 			}
 		}
 
+		age::graphics::root_signature::deinit();
+
+		{
+			for (auto* p_pso : g::pso_ptr_vec)
+			{
+				p_pso->Release();
+			}
+
+			if constexpr (age::config::debug_mode)
+			{
+				g::pso_ptr_vec.debug_validate();
+			}
+
+			g::pso_ptr_vec.clear();
+		}
+
 		{
 			g::sampler_desc_pool.deinit();
 			g::cbv_srv_uav_desc_pool.deinit();
@@ -569,7 +643,6 @@ namespace age::graphics
 			g::cmd_system_direct.deinit();
 		}
 
-
 		if constexpr (age::config::debug_mode)
 		{
 			// requires "graphics tools" optional feature
@@ -589,11 +662,12 @@ namespace age::graphics
 		g::p_dxgi_factory->Release();
 	}
 
-	void
+	render_surface_handle
 	create_render_surface(platform::window_handle w_handle) noexcept
 	{
-		auto id = g::render_surface_vec.emplace_back(w_handle);
+		auto id = g::render_surface_vec.emplace_back();
 		g::render_surface_vec[id].init(w_handle);
+		return render_surface_handle{ .id = id };
 	}
 
 	void

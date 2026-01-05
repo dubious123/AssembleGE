@@ -44,6 +44,7 @@ namespace age::runtime
 {
 	void
 	init() noexcept;
+
 	void
 	update() noexcept;
 }	 // namespace age::runtime

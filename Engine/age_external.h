@@ -51,6 +51,7 @@
 #if defined(AGE_GRAPHICS_BACKEND_DX12) && defined(AGE_PLATFORM_WINDOW)
 	#include <dxgi1_6.h>
 	#include <d3d12.h>
+	#include <dxcapi.h>
 
 	#if defined(interface)
 		#undef interface
@@ -58,6 +59,7 @@
 
 	#pragma comment(lib, "d3d12.lib")
 	#pragma comment(lib, "dxgi.lib")
+	#pragma comment(lib, "dxcompiler.lib")
 #else
 	#error "need at least one graphics backend"
 #endif

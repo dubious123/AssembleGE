@@ -32,7 +32,8 @@
     <ClInclude Include="age_runtime.hpp" />
     <ClInclude Include="age_graphics.hpp" />
     <ClInclude Include="age_pch.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12.h" />
+    <ClInclude Include="age_graphics_backend_dx12.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -40,5 +41,10 @@
     <ClCompile Include="age_graphics_backend_dx12.cpp" />
     <ClCompile Include="age_pch.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_resource.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shader\test_vs.hlsl" />
+    <FxCompile Include="shader\test_ps.hlsl" />
   </ItemGroup>
 </Project>

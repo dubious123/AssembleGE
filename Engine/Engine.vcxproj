@@ -37,7 +37,8 @@
     <ClInclude Include="age_ecs_system_pipe.hpp" />
     <ClInclude Include="age_global.hpp" />
     <ClInclude Include="age_graphics.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12.h" />
+    <ClInclude Include="age_graphics_backend_dx12.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />
     <ClInclude Include="age_macro_foreach.h" />
@@ -73,6 +74,21 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shader\test_ps.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="shader\test_vs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

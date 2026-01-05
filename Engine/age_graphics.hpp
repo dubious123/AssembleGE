@@ -37,6 +37,13 @@ namespace age::graphics
 	{
 		t_resource_id id;
 	};
+
+	using t_render_surface_id = uint32;
+
+	struct render_surface_handle
+	{
+		t_render_surface_id id;
+	};
 }	 // namespace age::graphics
 
 namespace age::graphics
@@ -47,7 +54,7 @@ namespace age::graphics
 	void
 	deinit() noexcept;
 
-	void
+	render_surface_handle
 		create_render_surface(platform::window_handle) noexcept;
 
 	void
@@ -58,5 +65,6 @@ namespace age::graphics
 }	 // namespace age::graphics
 
 #if defined AGE_GRAPHICS_BACKEND_DX12
-	#include "age_graphics_backend_dx12.h"
+	#include "age_graphics_backend_dx12.hpp"
+	#include "age_graphics_backend_dx12_root_signature.hpp"
 #endif

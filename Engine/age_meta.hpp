@@ -1131,15 +1131,27 @@ namespace age::meta
 	{
 	};
 
-	template <template <typename> typename t_concept>
-	struct make_pred
+	// template <template <typename> typename t_concept>
+	// struct make_pred
+	//{
+	//	template <typename t>
+	//	using type = std::bool_constant<t_concept<t>::value>;
+	// };
+
+	// template <template <typename> typename t_concept>
+	// using make_pred_t = make_pred<t_concept>::type;
+
+	template <typename t_target>
+	struct pred_is_same
 	{
 		template <typename t>
-		using type = std::bool_constant<t_concept<t>::value>;
+		struct type : std::bool_constant<std::is_same_v<t_target, t>>
+		{
+		};
 	};
 
-	template <template <typename> typename t_concept>
-	using make_pred_t = make_pred<t_concept>::type;
+	// template <typename t_target>
+	// using pred_is_same_t = template pred_is_same<t_target>::type;
 
 	template <typename t1, template <typename...> typename t2>
 	inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
