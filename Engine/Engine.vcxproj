@@ -82,17 +82,27 @@
     <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shader\test_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Pixel</ShaderType>
+    <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.5</ShaderModel>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="shader\test_vs.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Vertex</ShaderType>
+    <FxCompile Include="resources\engine_shaders\dx12\test_vs.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.5</ShaderModel>
+      <FileType>Document</FileType>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -168,7 +178,8 @@
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
+xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -203,7 +214,8 @@ xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
+xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -230,7 +242,8 @@ xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
+xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -252,7 +265,8 @@ xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
+xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"	  // intellisense
 
 // constants
 namespace age::graphics::g
@@ -10,6 +11,9 @@ namespace age::graphics::g
 #endif
 	constexpr auto minimum_feature_level = D3D_FEATURE_LEVEL_12_1;
 	constexpr auto frame_buffer_count	 = 3;
+
+	const auto engine_shaders_dir_path				 = std::filesystem::path{ "./resources/engine_shaders/dx12/" };
+	const auto engine_shaders_compiled_blob_dir_path = std::filesystem::path{ "./resources/engine_shaders/dx12/bin/" };
 }	 // namespace age::graphics::g
 
 // cmd_system fwd
@@ -294,6 +298,8 @@ namespace age::graphics
 				 offset += age::util::align_up(sizeof(t_pss), alignof(void*));
 			 }()),
 			 ...);
+
+			AGE_ASSERT(offset == size_in_bytes);
 		}
 	};
 
@@ -334,14 +340,70 @@ namespace age::graphics
 }	 // namespace age::graphics
 
 // shader
-namespace age::graphics
+namespace age::graphics::shader
 {
-	D3D12_SHADER_BYTECODE
+	using t_shader_id = uint32;
+
+	struct shader_handle
+	{
+		t_shader_id id;
+	};
+
+	enum class shader_type : uint32
+	{
+		vertex = 0,
+		hull,
+		domain,
+		geometry,
+		pixel,
+		compute,
+		amplification,
+		mesh,
+
+		count
+	};
+
+	enum class engine_shader : uint32
+	{
+		test_vs = 0,
+		test_ps,
+
+		count
+	};
+
+	constexpr auto engine_shaders = std::array<std::wstring_view, std::to_underlying(engine_shader::count)>{
+		L"test_vs",
+		L"test_ps"
+	};
+
+	struct shader_blob
+	{
+		const void* p_blob;
+		std::size_t size;
+	};
+
+	void
+	init() noexcept;
+
+	void
+	deinit() noexcept;
+
+	void
 	compile_shader(
-		std::wstring_view file_name,
-		std::wstring_view entry_point,
-		std::wstring_view target) noexcept;
-}	 // namespace age::graphics
+		std::wstring_view	  hlsl_path,
+		std::wstring_view	  entry_point,
+		std::wstring_view	  target,
+		std::filesystem::path save_path) noexcept;
+
+	shader_handle
+	load_shader(std::filesystem::path shader_path) noexcept;
+
+	D3D12_SHADER_BYTECODE
+	get_d3d12_bytecode(shader_handle) noexcept;
+
+	void
+		unload_shader(shader_handle) noexcept;
+}	 // namespace age::graphics::shader
 
 // internal globals
 namespace age::graphics::g
@@ -352,6 +414,12 @@ namespace age::graphics::g
 	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
 	inline auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
 	inline auto* p_main_device	= (ID3D12Device11*)nullptr;
+
+	//---[ shader ]------------------------------------------------------------
+	inline auto* p_dxc_compiler		   = (IDxcCompiler3*)nullptr;
+	inline auto* p_dxc_utils		   = (IDxcUtils*)nullptr;
+	inline auto* p_dxc_include_handler = (IDxcIncludeHandler*)nullptr;
+	//------------------------------------------------------------------------------
 
 	inline auto cmd_system_direct  = cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, 8>{};
 	inline auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, 2>{};
@@ -370,4 +438,6 @@ namespace age::graphics::g
 	inline auto root_signature_ptr_vec = data_structure::stable_dense_vector<ID3D12RootSignature*>{ 2 };
 
 	inline auto pso_ptr_vec = data_structure::stable_dense_vector<ID3D12PipelineState*>{ 2 };
+
+	inline auto shader_blob_vec = data_structure::stable_dense_vector<shader::shader_blob>{ 16 };
 }	 // namespace age::graphics::g

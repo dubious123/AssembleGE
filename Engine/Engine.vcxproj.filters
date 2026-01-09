@@ -44,7 +44,7 @@
     <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shader\test_vs.hlsl" />
-    <FxCompile Include="shader\test_ps.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\test_vs.hlsl" />
   </ItemGroup>
 </Project>

@@ -507,6 +507,9 @@ namespace age::graphics
 			}
 		}
 
+		AGE_ASSERT(g::p_main_adapter is_not_nullptr);
+		AGE_ASSERT(g::p_main_device is_not_nullptr);
+
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -539,6 +542,8 @@ namespace age::graphics
 
 		age::graphics::root_signature::init();
 
+		age::graphics::shader::init();
+
 		// todo remove test code
 
 		{
@@ -559,8 +564,10 @@ namespace age::graphics
 				/*UINT					   */ .InstanceDataStepRate = 0,
 			} };
 
-			auto vs_byte_code = compile_shader(L"../../Engine\\shader\\test_vs.hlsl", L"main", L"vs_6_0");
-			auto ps_byte_code = compile_shader(L"../../Engine\\shader\\test_ps.hlsl", L"main", L"ps_6_0");
+
+			auto vs_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::engine_shader::test_vs) });
+			auto ps_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::engine_shader::test_ps) });
+
 
 			auto stream = pss_stream{
 				pss_root_signature{ .subobj = g::root_signature_ptr_vec[rs_handle.id] },
@@ -606,6 +613,8 @@ namespace age::graphics
 				g::render_surface_vec.debug_validate();
 			}
 		}
+
+		age::graphics::shader::deinit();
 
 		age::graphics::root_signature::deinit();
 
