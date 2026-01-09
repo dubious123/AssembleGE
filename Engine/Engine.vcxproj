@@ -61,6 +61,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12_resource.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_resource_berrier.cpp" />
     <ClCompile Include="age_pch.cpp">
       <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</MultiProcessorCompilation>
       <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</MultiProcessorCompilation>

@@ -226,6 +226,39 @@ namespace age::graphics::resource
 		release_resource(resource_handle) noexcept;
 }	 // namespace age::graphics::resource
 
+// resource_barrier
+namespace age::graphics
+{
+	struct d3d12_resource_barrier
+	{
+		static constexpr uint32						  max_count		= 32;
+		uint32										  barrier_count = 0;
+		std::array<D3D12_RESOURCE_BARRIER, max_count> barrier_arr	= {};
+
+		constexpr void
+		add_transition(ID3D12Resource&,
+					   D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after,
+					   D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+					   uint32 subresource			= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) noexcept;
+
+		constexpr void
+		add_uav(ID3D12Resource&, D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
+
+		constexpr void
+		add_aliasing(ID3D12Resource& p_resource_before, ID3D12Resource& p_resource_after,
+					 D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
+
+		void
+		apply_and_reset(ID3D12GraphicsCommandList9&) noexcept;
+
+		void
+		apply(ID3D12GraphicsCommandList9&) noexcept;
+
+		void
+		reset() noexcept;
+	};
+}	 // namespace age::graphics
+
 // root signature
 namespace age::graphics::root_signature
 {

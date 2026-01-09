@@ -70,4 +70,10 @@ namespace age::graphics::resource
 	}
 }	 // namespace age::graphics::resource
 
+// resource_barrier
+namespace age::graphics::resource
+{
+
+}
+
 #endif

@@ -1,6 +1,8 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
+#if defined(AGE_GRAPHICS_BACKEND_DX12)
+
 namespace age::graphics::shader
 {
 	void
@@ -86,13 +88,13 @@ namespace age::graphics::shader
 				L"-Qstrip_reflect",
 				L"-Qstrip_debug",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
-#if defined(AGE_DEBUG)
+	#if defined(AGE_DEBUG)
 				DXC_ARG_DEBUG,
 				DXC_ARG_SKIP_OPTIMIZATIONS
-#elif defined(AGE_RELEASE)
+	#elif defined(AGE_RELEASE)
 				DXC_ARG_ALL_RESOURCES_BOUND,
 				DXC_ARG_OPTIMIZATION_LEVEL3,
-#endif
+	#endif
 			};
 
 			AGE_HR_CHECK(g::p_dxc_compiler->Compile(
@@ -106,9 +108,9 @@ namespace age::graphics::shader
 		{
 			auto* p_error = (IDxcBlobUtf8*)nullptr;
 
-#pragma warning(disable : 6387)
+	#pragma warning(disable : 6387)
 			p_result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&p_error), nullptr);
-#pragma warning(default : 6387)
+	#pragma warning(default : 6387)
 
 			if (p_error is_not_nullptr)
 			{
@@ -174,3 +176,4 @@ namespace age::graphics::shader
 		g::shader_blob_vec.remove(sh.id);
 	}
 }	 // namespace age::graphics::shader
+#endif

@@ -42,6 +42,7 @@
     <ClCompile Include="age_pch.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_resource.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_resource_berrier.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
