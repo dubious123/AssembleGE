@@ -28,7 +28,8 @@ namespace age::graphics::shader
 
 			bool need_recompile =
 				std::filesystem::exists(compiled_blob_path) is_false
-				or std::filesystem::last_write_time(hlsl_path) > std::filesystem::last_write_time(compiled_blob_path);
+				or std::filesystem::last_write_time(hlsl_path) > std::filesystem::last_write_time(compiled_blob_path)
+				or std::filesystem::file_size(compiled_blob_path) == 0;
 
 			if (need_recompile)
 			{
@@ -72,6 +73,8 @@ namespace age::graphics::shader
 		auto* p_result	 = (IDxcResult*)nullptr;
 		auto* p_res_blob = (IDxcBlob*)nullptr;
 
+		auto dir_path = std::filesystem::path{ hlsl_path }.root_directory();
+
 		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(hlsl_path.data(), nullptr, &p_file));
 
 		{
@@ -85,6 +88,7 @@ namespace age::graphics::shader
 				hlsl_path.data(),
 				L"-E", entry_point.data(),
 				L"-T", target.data(),
+				L"-I", dir_path.c_str(),
 				L"-Qstrip_reflect",
 				L"-Qstrip_debug",
 				DXC_ARG_WARNINGS_ARE_ERRORS,

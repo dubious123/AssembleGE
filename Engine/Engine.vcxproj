@@ -39,6 +39,7 @@
     <ClInclude Include="age_graphics.hpp" />
     <ClInclude Include="age_graphics_backend_dx12.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />
     <ClInclude Include="age_macro_foreach.h" />
@@ -60,6 +61,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="age_graphics_backend_dx12_pass.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_resource.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_resource_berrier.cpp" />
     <ClCompile Include="age_pch.cpp">
@@ -83,6 +85,48 @@
     <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="resources\engine_shaders\dx12\fill_color_ps.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.5</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">%(Filename)</EntryPointName>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</SuppressStartupBanner>
+    </FxCompile>
+    <FxCompile Include="resources\engine_shaders\dx12\fullscreen_triangle_vs.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.5</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.5</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">%(Filename)</EntryPointName>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</SuppressStartupBanner>
+    </FxCompile>
+    <FxCompile Include="resources\engine_shaders\dx12\fx_present_ps.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.5</ShaderModel>
@@ -93,6 +137,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">%(Filename)</EntryPointName>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</SuppressStartupBanner>
     </FxCompile>
     <FxCompile Include="resources\engine_shaders\dx12\test_vs.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
@@ -104,8 +156,19 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">%(Filename)</EntryPointName>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SuppressStartupBanner>
+      <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</SuppressStartupBanner>
     </FxCompile>
   </ItemGroup>
+  <PropertyGroup>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+  </PropertyGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -179,8 +242,7 @@
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -215,8 +277,7 @@ xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engin
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -243,8 +304,7 @@ xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engin
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -266,8 +326,7 @@ xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engin
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
-xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engine_shaders</Command>
+xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>$(ProjectDir)\external\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -276,4 +335,7 @@ xcopy /Y /D /I /E $(ProjectDir)resources\engine_shaders $(OutDir)resources\engin
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <Target Name="ForcePreBuild" BeforeTargets="Build">
+    <Exec Command="xcopy /Y /D /I /E &quot;$(ProjectDir)resources\engine_shaders\&quot; &quot;$(OutDir)resources\engine_shaders\&quot;" />
+  </Target>
 </Project>

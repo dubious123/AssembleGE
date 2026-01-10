@@ -46,7 +46,7 @@ main()
 				std::println("now : {}ns", age::global::get<age::runtime::interface>().delta_time_ns().count());
 			},
 			//[] { std::this_thread::sleep_for(std::chrono::seconds(1)); },
-
+			AGE_FUNC(age::graphics::render),
 			AGE_FUNC(age::graphics::end_frame)
 
 		},

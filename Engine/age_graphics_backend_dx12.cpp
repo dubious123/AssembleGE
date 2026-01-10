@@ -141,7 +141,7 @@ namespace age::graphics
 
 		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
 
-		// std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), fence_value);
+		std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), g::current_fence_value);
 		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
 	}
 
@@ -152,129 +152,6 @@ namespace age::graphics
 		AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value - 1, fence_event));
 
 		::WaitForSingleObject(fence_event, INFINITE);
-	}
-}	 // namespace age::graphics
-
-// descriptor_pool member func
-namespace age::graphics
-{
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
-	FORCE_INLINE void
-	descriptor_pool<heap_type, capacity>::init() noexcept
-	{
-		static_assert((capacity > 0) and (capacity <= D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2));
-		static_assert(not((heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) and (capacity > D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE)));
-
-		{
-			D3D12_DESCRIPTOR_HEAP_DESC desc{
-				.Type			= heap_type,
-				.NumDescriptors = capacity,
-				.Flags			= is_shader_visible() ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-				.NodeMask		= 0
-			};
-
-			constexpr auto wstr_type = [] constexpr {
-				switch (heap_type)
-				{
-				case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-					return L"[CBV_SRV_UAV] Descriptor Heap";
-				case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-					return L"[SAMPLER] Descriptor Heap";
-				case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
-					return L"[RTV] Descriptor Heap";
-				case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
-					return L"[DSV] Descriptor Heap";
-				default:
-					return L"Unknown";
-				}
-			}();
-
-			AGE_HR_CHECK(g::p_main_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&p_descriptor_heap)));
-			p_descriptor_heap->SetName(wstr_type);
-		}
-
-		descriptor_size = g::p_main_device->GetDescriptorHandleIncrementSize(heap_type);
-
-		if constexpr (is_shader_visible())
-		{
-			start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
-			start_handle.h_gpu = p_descriptor_heap->GetGPUDescriptorHandleForHeapStart();
-		}
-		else
-		{
-			start_handle.h_cpu = p_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
-		}
-	}
-
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
-	FORCE_INLINE void
-	descriptor_pool<heap_type, capacity>::deinit() noexcept
-	{
-		p_descriptor_heap->Release();
-
-		if constexpr (age::config::debug_mode)
-		{
-			desc_idx_pool.debug_validate();
-		}
-	}
-
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
-	descriptor_pool<heap_type, capacity>::t_descriptor_handle
-	descriptor_pool<heap_type, capacity>::pop() noexcept
-	{
-		auto idx = desc_idx_pool.pop();
-
-		if constexpr (is_shader_visible())
-		{
-			return t_descriptor_handle{
-				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
-			};
-		}
-		else
-		{
-			return t_descriptor_handle{
-				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
-			};
-		}
-	}
-
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
-	descriptor_pool<heap_type, capacity>::t_descriptor_handle
-	descriptor_pool<heap_type, capacity>::get(uint32 idx) noexcept
-	{
-		desc_idx_pool.get(idx);
-
-		if constexpr (is_shader_visible())
-		{
-			return t_descriptor_handle{
-				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
-			};
-		}
-		else
-		{
-			return t_descriptor_handle{
-				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
-			};
-		}
-	}
-
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
-	void
-	descriptor_pool<heap_type, capacity>::push(t_descriptor_handle h) noexcept
-	{
-		auto diff = h.h_cpu.ptr - start_handle.h_cpu.ptr;
-		auto idx  = static_cast<uint32>(diff / descriptor_size);
-
-		AGE_ASSERT((diff % descriptor_size) == 0);
-		AGE_ASSERT(idx == h.idx);
-
-		desc_idx_pool.push(idx);
 	}
 }	 // namespace age::graphics
 
@@ -293,15 +170,17 @@ namespace age::graphics
 				present_flags = allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : UINT{ 0 };
 			}
 
-			auto dxgi_format = DXGI_FORMAT{};
+			DXGI_FORMAT dxgi_format{};
 			{
 				switch (global::get<interface>().display_color_space())
 				{
 				case color_space::srgb:
 					dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
+					rtv_format	= DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 					break;
 				case color_space::hdr:
 					dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
+					rtv_format	= DXGI_FORMAT_R10G10B10A2_UNORM;
 					break;
 				default:
 					std::unreachable();
@@ -376,7 +255,10 @@ namespace age::graphics
 	render_surface::present() noexcept
 	{
 		AGE_HR_CHECK(p_swap_chain->Present(0, present_flags));
-		back_buffer_idx = p_swap_chain->GetCurrentBackBufferIndex();
+		back_buffer_idx			  = p_swap_chain->GetCurrentBackBufferIndex();
+		last_used_cmd_fence_value = g::current_fence_value;
+
+		std::println("present, fence_value :  {}", g::current_fence_value);
 	}
 
 	void
@@ -399,21 +281,6 @@ namespace age::graphics
 		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
 		{
 			AGE_HR_CHECK(p_swap_chain->GetBuffer(idx, IID_PPV_ARGS(&back_buffer_ptr_arr[idx])));
-
-			auto rtv_format = DXGI_FORMAT{};
-			{
-				switch (global::get<interface>().display_color_space())
-				{
-				case color_space::srgb:
-					rtv_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-					break;
-				case color_space::hdr:
-					rtv_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-					break;
-				default:
-					std::unreachable();
-				}
-			}
 
 			auto rtv_desc = D3D12_RENDER_TARGET_VIEW_DESC{
 				/*DXGI_FORMAT			*/ .Format		  = rtv_format,
@@ -464,6 +331,13 @@ namespace age::graphics
 		AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
 
 		return pso_handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
+	}
+
+	void
+	destroy_pso(pso_handle h_pso) noexcept
+	{
+		g::pso_ptr_vec[h_pso.id]->Release();
+		g::pso_ptr_vec.remove(h_pso.id);
 	}
 }	 // namespace age::graphics
 
@@ -544,7 +418,7 @@ namespace age::graphics
 
 		age::graphics::shader::init();
 
-		// todo remove test code
+		age::graphics::pass::init();
 
 		{
 			using namespace root_signature;
@@ -612,7 +486,30 @@ namespace age::graphics
 			{
 				g::render_surface_vec.debug_validate();
 			}
+
+			// test
+			for (auto& gpass_ctx : g::gpass_ctx_vec)
+			{
+				gpass_ctx.deinit();
+			}
+
+			if constexpr (age::config::debug_mode)
+			{
+				g::gpass_ctx_vec.debug_validate();
+			}
+
+			for (auto& fx_ctx : g::fx_present_pass_ctx_vec)
+			{
+				//			fx_ctx.deinit();
+			}
+
+			if constexpr (age::config::debug_mode)
+			{
+				g::fx_present_pass_ctx_vec.debug_validate();
+			}
 		}
+
+		age::graphics::pass::deinit();
 
 		age::graphics::shader::deinit();
 
@@ -676,6 +573,18 @@ namespace age::graphics
 	{
 		auto id = g::render_surface_vec.emplace_back();
 		g::render_surface_vec[id].init(w_handle);
+
+		auto& rs = g::render_surface_vec[id];
+
+		// test code
+		auto gpass_ctx = age::graphics::pass::gpass_context{};
+		gpass_ctx.init(rs.default_viewport.Width, rs.default_viewport.Height, g::h_gpass_default_root_sig, g::h_gpass_default_pso);
+		g::gpass_ctx_vec.emplace_back(gpass_ctx);
+
+		auto fx_ctx = age::graphics::pass::fx_present_pass_context{};
+		fx_ctx.init(g::h_fx_present_pass_default_root_sig, g::h_fx_present_pass_default_pso);
+		g::fx_present_pass_ctx_vec.emplace_back(fx_ctx);
+
 		return render_surface_handle{ .id = id };
 	}
 
@@ -691,12 +600,62 @@ namespace age::graphics
 	}
 
 	void
+	render() noexcept
+	{
+		auto  thread_num = 4;
+		auto  barrier	 = resource_barrier{};
+		auto& cmd_list	 = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][thread_num];
+		for (auto idx : std::views::iota(0) | std::views::take(g::render_surface_vec.count()))
+		{
+			auto& rs		   = g::render_surface_vec[idx];
+			auto& gpass		   = g::gpass_ctx_vec[idx];
+			auto& present_pass = g::fx_present_pass_ctx_vec[idx];
+
+			if (platform::is_closing(rs.w_handle)) [[unlikely]]
+			{
+				continue;
+			}
+
+
+			cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+			barrier.add_transition(rs.get_back_buffer(),
+								   D3D12_RESOURCE_STATE_PRESENT,
+								   D3D12_RESOURCE_STATE_RENDER_TARGET,
+								   D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+
+			gpass.begin(cmd_list, barrier, rs);
+
+			gpass.execute(cmd_list, rs);
+
+			gpass.end(barrier);
+
+			// post process
+			barrier.add_transition(rs.get_back_buffer(),
+								   D3D12_RESOURCE_STATE_PRESENT,
+								   D3D12_RESOURCE_STATE_RENDER_TARGET,
+								   D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
+
+			barrier.apply_and_reset(cmd_list);
+
+			present_pass.execute(cmd_list, gpass.h_srv_desc, rs.h_rtv_desc());
+
+			barrier.add_transition(
+				rs.get_back_buffer(),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PRESENT);
+
+			barrier.apply_and_reset(cmd_list);
+
+			// rs.present();
+		}
+	}
+
+	void
 	end_frame() noexcept
 	{
 		g::cmd_system_direct.end_frame();
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
-
 
 		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
 		{
@@ -712,6 +671,7 @@ namespace age::graphics
 
 				is_pending |= (res == WAIT_TIMEOUT);
 				is_pending |= g::cmd_system_direct.p_fence->GetCompletedValue() < rs.last_used_cmd_fence_value;
+				std::println("[{}] is_pending =  {} < {}", id, g::cmd_system_direct.p_fence->GetCompletedValue(), rs.last_used_cmd_fence_value);
 
 				platform::set_graphics_cleanup_pending(rs.w_handle, is_pending);
 

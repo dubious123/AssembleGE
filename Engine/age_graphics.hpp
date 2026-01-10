@@ -58,6 +58,9 @@ namespace age::graphics
 		create_render_surface(platform::window_handle) noexcept;
 
 	void
+	render() noexcept;
+
+	void
 	begin_frame() noexcept;
 
 	void
@@ -66,5 +69,6 @@ namespace age::graphics
 
 #if defined AGE_GRAPHICS_BACKEND_DX12
 	#include "age_graphics_backend_dx12.hpp"
+	#include "age_graphics_backend_dx12_descriptor_pool.hpp"
 	#include "age_graphics_backend_dx12_root_signature.hpp"
 #endif

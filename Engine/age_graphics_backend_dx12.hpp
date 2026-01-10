@@ -14,6 +14,80 @@ namespace age::graphics::g
 
 	const auto engine_shaders_dir_path				 = std::filesystem::path{ "./resources/engine_shaders/dx12/" };
 	const auto engine_shaders_compiled_blob_dir_path = std::filesystem::path{ "./resources/engine_shaders/dx12/bin/" };
+
+	constexpr struct
+	{
+		const D3D12_RASTERIZER_DESC no_cull{
+			D3D12_FILL_MODE_SOLID,						  // FillMode
+			D3D12_CULL_MODE_NONE,						  // CullMode
+			0,											  // FrontCounterClockwise
+			0,											  // DepthBias
+			0,											  // DepthBiasClamp
+			0,											  // SlopeScaledDepthBias
+			1,											  // DepthClipEnable
+			1,											  // MultisampleEnable
+			0,											  // AntialiasedLineEnable
+			0,											  // ForcedSampleCount
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
+		};
+
+		const D3D12_RASTERIZER_DESC backface_cull{
+			D3D12_FILL_MODE_SOLID,						  // FillMode
+			D3D12_CULL_MODE_BACK,						  // CullMode
+			0,											  // FrontCounterClockwise
+			0,											  // DepthBias
+			0,											  // DepthBiasClamp
+			0,											  // SlopeScaledDepthBias
+			1,											  // DepthClipEnable
+			1,											  // MultisampleEnable
+			0,											  // AntialiasedLineEnable
+			0,											  // ForcedSampleCount
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
+		};
+
+		const D3D12_RASTERIZER_DESC frontface_cull{
+			D3D12_FILL_MODE_SOLID,						  // FillMode
+			D3D12_CULL_MODE_FRONT,						  // CullMode
+			0,											  // FrontCounterClockwise
+			0,											  // DepthBias
+			0,											  // DepthBiasClamp
+			0,											  // SlopeScaledDepthBias
+			1,											  // DepthClipEnable
+			1,											  // MultisampleEnable
+			0,											  // AntialiasedLineEnable
+			0,											  // ForcedSampleCount
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
+		};
+
+		const D3D12_RASTERIZER_DESC wireframe{
+			D3D12_FILL_MODE_WIREFRAME,					  // FillMode
+			D3D12_CULL_MODE_NONE,						  // CullMode
+			0,											  // FrontCounterClockwise
+			0,											  // DepthBias
+			0,											  // DepthBiasClamp
+			0,											  // SlopeScaledDepthBias
+			1,											  // DepthClipEnable
+			1,											  // MultisampleEnable
+			0,											  // AntialiasedLineEnable
+			0,											  // ForcedSampleCount
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
+		};
+	} rasterizer_desc;
+
+	constexpr struct
+	{
+		const D3D12_DEPTH_STENCIL_DESC1 disabled{
+			0,									 // DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ZERO,		 // DepthWriteMask
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,	 // DepthFunc
+			0,									 // StencilEnable
+			0,									 // StencilReadMask
+			0,									 // StencilWriteMask
+			{},									 // FrontFace
+			{},									 // BackFace
+			0									 // DepthBoundsTestEnable
+		};
+	} depth_stencil_desc1;
 }	 // namespace age::graphics::g
 
 // cmd_system fwd
@@ -121,37 +195,52 @@ namespace age::graphics
 
 		void
 		push(t_descriptor_handle h) noexcept;
+
+		uint32
+			calc_idx(t_descriptor_handle) noexcept;
 	};
 }	 // namespace age::graphics
 
-// swap chain fwd
+// render_surface, swap chain fwd
 namespace age::graphics
 {
 	struct render_surface
 	{
 		platform::window_handle w_handle;
 
-		IDXGISwapChain4*								  p_swap_chain = nullptr;
-		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV> rtv_desc_handle_arr[g::frame_buffer_count];
-		ID3D12Resource*									  back_buffer_ptr_arr[g::frame_buffer_count];
+		IDXGISwapChain4* p_swap_chain = nullptr;
 
-		UINT present_flags;
+		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, g::frame_buffer_count>
+			rtv_desc_handle_arr{};
 
-		D3D12_VIEWPORT default_viewport;
-		D3D12_RECT	   default_scissor_rect;
+		std::array<ID3D12Resource*, g::frame_buffer_count>
+			back_buffer_ptr_arr{};
+
+		DXGI_FORMAT rtv_format{};
+
+		UINT present_flags = 0;
+
+		D3D12_VIEWPORT default_viewport{};
+		D3D12_RECT	   default_scissor_rect{};
 
 		// for closing pending (present)
-		HANDLE present_waitable_obj;
+		HANDLE present_waitable_obj = nullptr;
 
 		// for closing pending (direct cmd list)
 		uint64 last_used_cmd_fence_value = 0;
 
-		uint32 back_buffer_idx;
+		uint32 back_buffer_idx = 0;
 
 		FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE
 		get_rtv() noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx].h_cpu;
+		}
+
+		FORCE_INLINE descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
+					 h_rtv_desc() noexcept
+		{
+			return rtv_desc_handle_arr[back_buffer_idx];
 		}
 
 		FORCE_INLINE ID3D12Resource&
@@ -229,22 +318,22 @@ namespace age::graphics::resource
 // resource_barrier
 namespace age::graphics
 {
-	struct d3d12_resource_barrier
+	struct resource_barrier
 	{
 		static constexpr uint32						  max_count		= 32;
 		uint32										  barrier_count = 0;
 		std::array<D3D12_RESOURCE_BARRIER, max_count> barrier_arr	= {};
 
-		constexpr void
+		void
 		add_transition(ID3D12Resource&,
 					   D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after,
 					   D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE,
 					   uint32 subresource			= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) noexcept;
 
-		constexpr void
+		void
 		add_uav(ID3D12Resource&, D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
 
-		constexpr void
+		void
 		add_aliasing(ID3D12Resource& p_resource_before, ID3D12Resource& p_resource_after,
 					 D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
 
@@ -370,6 +459,9 @@ namespace age::graphics
 
 	pso_handle
 	create_pso(void* pss_stream, uint32 size_in_bytes) noexcept;
+
+	void
+		destroy_pso(pso_handle) noexcept;
 }	 // namespace age::graphics
 
 // shader
@@ -401,12 +493,20 @@ namespace age::graphics::shader
 		test_vs = 0,
 		test_ps,
 
+		fullscreen_triangle_vs,
+		fill_color_ps,
+
+		fx_present_ps,
+
 		count
 	};
 
 	constexpr auto engine_shaders = std::array<std::wstring_view, std::to_underlying(engine_shader::count)>{
 		L"test_vs",
-		L"test_ps"
+		L"test_ps",
+		L"fullscreen_triangle_vs",
+		L"fill_color_ps",
+		L"fx_present_ps"
 	};
 
 	struct shader_blob
@@ -437,6 +537,79 @@ namespace age::graphics::shader
 	void
 		unload_shader(shader_handle) noexcept;
 }	 // namespace age::graphics::shader
+
+// pass
+namespace age::graphics::pass
+{
+	void
+	init() noexcept;
+
+	void
+	deinit() noexcept;
+
+	struct gpass_context
+	{
+		static constexpr DXGI_FORMAT rtv_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		static constexpr DXGI_FORMAT dsv_format = DXGI_FORMAT_D32_FLOAT;
+
+		static constexpr float clear_color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+		static constexpr float clear_depth	  = 1.0f;
+
+		ID3D12RootSignature* p_root_sig = nullptr;
+		ID3D12PipelineState* p_pso		= nullptr;
+
+		resource_handle h_main_buffer{};
+		resource_handle h_depth_buffer{};
+
+		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
+			h_rtv_desc{};
+
+		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>
+			h_dsv_desc{};
+
+		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>
+			h_srv_desc{};
+
+		resource::d3d12_resource main_buffer{};
+		resource::d3d12_resource depth_buffer{};
+
+		void
+		init(uint32 width, uint32 height, root_signature::handle, pso_handle) noexcept;
+
+		void
+		resize(uint32 width, uint32 height) noexcept;
+
+		void
+		deinit() noexcept;
+
+		void
+		begin(ID3D12GraphicsCommandList9& cmd_list, resource_barrier& barrier, render_surface& rs) noexcept;
+
+		void
+		execute(ID3D12GraphicsCommandList9& cmd_list, render_surface& rs) noexcept;
+
+		void
+		end(resource_barrier&) noexcept;
+
+	  private:
+		void
+		create_buffers(uint32 width, uint32 height) noexcept;
+	};
+
+	struct fx_present_pass_context
+	{
+		ID3D12RootSignature* p_root_sig = nullptr;
+		ID3D12PipelineState* p_pso		= nullptr;
+
+		void
+			init(root_signature::handle, pso_handle) noexcept;
+
+		void
+		execute(ID3D12GraphicsCommandList9&								  cmd_list,
+				descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV> srv_desc,
+				descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>		  rtv_desc) noexcept;
+	};
+}	 // namespace age::graphics::pass
 
 // internal globals
 namespace age::graphics::g
@@ -473,4 +646,18 @@ namespace age::graphics::g
 	inline auto pso_ptr_vec = data_structure::stable_dense_vector<ID3D12PipelineState*>{ 2 };
 
 	inline auto shader_blob_vec = data_structure::stable_dense_vector<shader::shader_blob>{ 16 };
+
+
+	//---[ pass ]------------------------------------------------------------
+	inline auto h_gpass_default_pso		 = pso_handle{};
+	inline auto h_gpass_default_root_sig = root_signature::handle{};
+
+	inline auto h_fx_present_pass_default_pso	   = pso_handle{};
+	inline auto h_fx_present_pass_default_root_sig = root_signature::handle{};
+
+	// test
+	inline auto gpass_ctx_vec			= data_structure::stable_dense_vector<pass::gpass_context>{ 2 };
+	inline auto fx_present_pass_ctx_vec = data_structure::stable_dense_vector<pass::fx_present_pass_context>{ 2 };
+
+	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g
