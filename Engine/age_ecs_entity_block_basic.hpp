@@ -109,8 +109,7 @@ namespace age::ecs::entity_block
 
 			static_assert((alignment + offset) % alignof(typename t_tag::type) == 0);
 
-			// not UB since c++20
-			return *reinterpret_cast<t_tag::type*>(&storage[offset]);
+			return *age::util::start_lifetime_as<typename t_tag::type>(&storage[offset]);
 		}
 
 		FORCE_INLINE t_entity_block_idx&
@@ -164,7 +163,7 @@ namespace age::ecs::entity_block
 		FORCE_INLINE t_ent_id&
 		ent_id(t_local_entity_idx ent_idx)
 		{
-			return *(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + ent_idx);
+			return *age::util::start_lifetime_as<t_ent_id>(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + ent_idx);
 		}
 
 		template <typename t>
@@ -174,30 +173,32 @@ namespace age::ecs::entity_block
 			return t_archetype_traits::template calc_local_cmp_idx<t>(local_archetype());
 		}
 
-		template <typename t>
-		FORCE_INLINE t_component_size&
-		cmp_size()
-		{
-			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + calc_cmp_idx<t>());
-		}
-
 		FORCE_INLINE t_component_size&
 		cmp_size(t_local_cmp_idx cmp_idx)
 		{
-			return *(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
+			AGE_ASSERT(*age::util::start_lifetime_as<t_component_size>(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx) > 0);
+			return *age::util::start_lifetime_as<t_component_size>(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
+		}
+
+		template <typename t>
+		FORCE_INLINE t_component_size
+		cmp_size()
+		{
+			AGE_ASSERT(cmp_size(calc_cmp_idx<t>()) == sizeof(t));
+			return static_cast<t_component_size>(sizeof(t));
 		}
 
 		FORCE_INLINE t_component_offset&
 		cmp_offset(t_local_cmp_idx cmp_idx)
 		{
-			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
+			return *age::util::start_lifetime_as<t_component_offset>(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
 		}
 
 		template <typename t>
 		FORCE_INLINE t_component_offset&
 		cmp_offset()
 		{
-			return *(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + calc_cmp_idx<t>());
+			return *age::util::start_lifetime_as<t_component_offset>(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + calc_cmp_idx<t>());
 		}
 
 		template <typename t>
@@ -211,7 +212,7 @@ namespace age::ecs::entity_block
 		std::byte*
 		cmp_ptr(t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx)
 		{
-			return &storage[cmp_offset(local_cmp_idx)] + local_ent_idx;
+			return &storage[cmp_offset(local_cmp_idx)] + local_ent_idx * cmp_size(local_cmp_idx);
 		}
 
 		template <typename... t>
@@ -261,9 +262,12 @@ namespace age::ecs::entity_block
 
 			[this]<std::size_t... local_cmp_idx>(std::index_sequence<local_cmp_idx...>) {
 				([this] {
-					using cmp_curr																													 = age::meta::variadic_at_t<local_cmp_idx, t...>;
-					*(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx)	 = sizeof(cmp_curr);
-					*(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx) = total_align_info::template offset_of<std::type_identity<cmp_curr>>();
+					using cmp_curr = age::meta::variadic_at_t<local_cmp_idx, t...>;
+					age::util::write_bytes(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx,
+										   static_cast<t_component_size>(sizeof(cmp_curr)));
+
+					age::util::write_bytes(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx,
+										   static_cast<t_component_offset>(total_align_info::template offset_of<std::type_identity<cmp_curr>>()));
 				}(),
 				 ...);
 			}(std::index_sequence_for<t...>{});
@@ -329,7 +333,7 @@ namespace age::ecs::entity_block
 		t_local_entity_idx
 		new_entity(t_ent_id entity_id)
 		{
-			assert(is_full() is_false);
+			AGE_ASSERT(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
@@ -342,7 +346,7 @@ namespace age::ecs::entity_block
 		t_local_entity_idx
 		new_entity(t_ent_id entity_id, t&&... arg)
 		{
-			assert(is_full() is_false);
+			AGE_ASSERT(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
@@ -355,7 +359,7 @@ namespace age::ecs::entity_block
 		t_ent_id&
 		remove_entity(t_local_entity_idx local_ent_idx)
 		{
-			assert(is_empty() is_false);
+			AGE_ASSERT(is_empty() is_false);
 
 			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
 
@@ -372,18 +376,20 @@ namespace age::ecs::entity_block
 		FORCE_INLINE void
 		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
 		{
-			assert(is_empty() is_false);
+			AGE_ASSERT(is_empty() is_false);
 			auto		local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
 			const auto& component_size	   = cmp_size(local_cmp_idx);
-			std::memcpy(p_dest, cmp_ptr(local_cmp_idx, local_ent_idx), component_size);
 
+			AGE_ASSERT((cmp_ptr(local_cmp_idx, local_ent_idx_back) - cmp_ptr(local_cmp_idx, local_ent_idx)) / component_size == local_ent_idx_back - local_ent_idx);
+
+			std::memcpy(p_dest, cmp_ptr(local_cmp_idx, local_ent_idx), component_size);
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), component_size);
 		}
 
 		FORCE_INLINE void
 		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx)
 		{
-			assert(is_empty() is_false);
+			AGE_ASSERT(is_empty() is_false);
 			auto local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
 			std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
 		}
@@ -391,7 +397,7 @@ namespace age::ecs::entity_block
 		FORCE_INLINE void*
 		get_component_write_ptr(const t_local_cmp_idx local_cmp_idx)
 		{
-			assert(is_full() is_false);
+			AGE_ASSERT(is_full() is_false);
 			return reinterpret_cast<void*>(cmp_ptr(local_cmp_idx, entity_count()));
 		}
 

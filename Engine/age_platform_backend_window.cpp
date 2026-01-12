@@ -24,6 +24,9 @@ namespace age::platform
 
 		bool							  closing;
 		std::bitset<pending_flags::count> cleanup_pending;
+
+		bool							  need_resize;
+		std::bitset<pending_flags::count> resize_pending;
 	};
 }	 // namespace age::platform
 
@@ -43,7 +46,9 @@ namespace age::platform
 		{
 		case WM_CLOSE:
 		{
-			close_window(get_handle(hwnd));
+			// age::request::push_init( age::event::type::window_close, get_handle(hwnd), .listener = age::module::platform | age::module::graphics ) => ack_required == 2;
+			// if debug => request{ type, param, debug_origin = { file, line, function name ... } };
+			close_window(get_handle(hwnd));	   // no logic inside window_proc... this should not happen
 			return 0;
 		}
 		case WM_DESTROY:
@@ -53,7 +58,7 @@ namespace age::platform
 
 			if (g::window_info_vec.is_empty())
 			{
-				PostQuitMessage(0);
+				::PostQuitMessage(0);
 			}
 
 			return 0;
@@ -62,6 +67,21 @@ namespace age::platform
 		{
 			// Show an arrow instead of the busy cursor
 			::SetCursor(::LoadCursor(NULL, IDC_ARROW));
+			break;
+		}
+		case WM_SIZE:
+		{
+			// todo
+
+			// age::request::post( {.request_type = age::request::window_resize, .param = get_handle(hwnd), .sender = age::module::platform, .listener = age::module::platform | age::module::graphics} );
+			break;
+		}
+		case WM_ENTERSIZEMOVE:
+		{
+			break;
+		}
+		case WM_EXITSIZEMOVE:
+		{
 			break;
 		}
 		}
@@ -105,7 +125,7 @@ namespace age::platform
 	{
 		auto i_platform = global::get<platform::interface>();
 
-		MSG msg;
+		auto msg = MSG{};
 		while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
 		{
 			::TranslateMessage(&msg);
@@ -118,13 +138,32 @@ namespace age::platform
 			}
 		}
 
+		// all request handling is done below.
+
+		// window_close_begin -> window
+
+		// request state : init, pending, done
+
+		// if multiple stage request -> split request (e.g., some_request_1, if(some_request_1.is_done()) post_init(some_request_2) ...
+
+		// for( auto _ : std::views::iota(0, age::request::count<age::module::platform>()) )
+		// auto& request = age::request::pop<age::module::platform>();
+		//	  switch(request.type)
+		//	  case age::request::type::window_close :
+		//		   if( request.is_pending() is_false )
+		//				age::request::push_pending(request);
+		//		   else
+		//				age::platform::close_window(request.param.as<window_handle>());
+		//				age::request::push_done(request);
+		//		   break;
+
 		for (auto& w_info : g::window_info_vec)
 		{
 			if (w_info.closing)
 			{
 				if (w_info.cleanup_pending == 0)
 				{
-					::DestroyWindow(w_info.hwnd);
+					::DestroyWindow(w_info.hwnd);	 // goto WM_DESTROY... this should not happen
 				}
 
 				w_info.cleanup_pending[pending_flags::platform] = false;

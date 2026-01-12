@@ -246,7 +246,25 @@ namespace age::graphics
 	void
 	render_surface::resize() noexcept
 	{
-		// todo
+		for (auto* p_resource : back_buffer_ptr_arr)
+		{
+			p_resource->Release();
+		}
+
+		auto allow_tearing = BOOL{ FALSE };
+		{
+			AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
+			present_flags = allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : UINT{ 0 };
+		}
+
+		p_swap_chain->ResizeBuffers(
+			g::frame_buffer_count,
+			0,
+			0,
+			DXGI_FORMAT_UNKNOWN,
+			DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
+				| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }));
+
 
 		rebuild_from_swapchain();
 	}
@@ -353,6 +371,11 @@ namespace age::graphics
 			AGE_HR_CHECK(::D3D12GetDebugInterface(IID_PPV_ARGS(&p_debug)));
 
 			p_debug->EnableDebugLayer();
+
+			// #if 1
+			//		p_debug->SetEnableGPUBasedValidation(true);
+			// #endif
+
 			p_debug->Release();
 		}
 
@@ -578,7 +601,7 @@ namespace age::graphics
 
 		// test code
 		auto gpass_ctx = age::graphics::pass::gpass_context{};
-		gpass_ctx.init(rs.default_viewport.Width, rs.default_viewport.Height, g::h_gpass_default_root_sig, g::h_gpass_default_pso);
+		gpass_ctx.init(static_cast<uint32>(rs.default_viewport.Width), static_cast<uint32>(rs.default_viewport.Height), g::h_gpass_default_root_sig, g::h_gpass_default_pso);
 		g::gpass_ctx_vec.emplace_back(gpass_ctx);
 
 		auto fx_ctx = age::graphics::pass::fx_present_pass_context{};
@@ -591,6 +614,24 @@ namespace age::graphics
 	void
 	begin_frame() noexcept
 	{
+		// for( auto _ : std::views::iota(0, age::request::count<age::module::graphics>()) )
+		// auto& request = age::request::pop<age::module::graphics>();
+		//	switch(request.type)
+		//	  case age::request::type::window_close :
+		//		 auto h_window = request.param.as<age::platform::window_handle>();
+		//		 auto h_render_surface = ???
+		//		 auto& rs = g::render_surface_vec[h_render_surface.id];
+		//		 rs.rendering_enabled = false;
+		//       if( rs.is_somebody_using )
+		//			age::request::push_pending(request)
+		//       else
+		//			rs.deinit();
+		//          g::render_surface_vec.remove(h_render_surface.id);
+		//		    age::request::push_done(request)
+		//
+		//
+
+
 		g::cmd_system_direct.wait();
 		g::cmd_system_direct.begin_frame();
 		g::cmd_system_compute.wait();
@@ -673,7 +714,7 @@ namespace age::graphics
 				is_pending |= g::cmd_system_direct.p_fence->GetCompletedValue() < rs.last_used_cmd_fence_value;
 				std::println("[{}] is_pending =  {} < {}", id, g::cmd_system_direct.p_fence->GetCompletedValue(), rs.last_used_cmd_fence_value);
 
-				platform::set_graphics_cleanup_pending(rs.w_handle, is_pending);
+				platform::set_graphics_cleanup_pending(rs.w_handle, is_pending);	// this should not happen
 
 				if (is_pending is_false)
 				{

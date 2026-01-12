@@ -36,19 +36,19 @@ namespace age::ecs::entity_storage
 			std::size_t									 free_block_count = 0;
 
 			FORCE_INLINE void
-			deinit()
+			deinit() noexcept
 			{
 				std::ranges::for_each(ent_block_vec, [](auto* p_block) { delete p_block; });
 			}
 
 			FORCE_INLINE std::size_t
-						 free_block_idx()
+						 free_block_idx() noexcept
 			{
 				return static_cast<std::size_t>(ent_block_vec.size() - free_block_count);
 			}
 
 			FORCE_INLINE t_entity_block&
-			free_block(t_archetype archetype)
+			free_block(t_archetype archetype) noexcept
 			{
 				if (free_block_count > 0)
 				{
@@ -74,7 +74,7 @@ namespace age::ecs::entity_storage
 
 			template <typename... t>
 			FORCE_INLINE t_entity_block&
-			free_block()
+			free_block() noexcept
 			{
 				if (free_block_count > 0)
 				{
@@ -90,7 +90,7 @@ namespace age::ecs::entity_storage
 			}
 
 			void
-			update_free(std::size_t block_idx)
+			update_free(std::size_t block_idx) noexcept
 			{
 				assert(ent_block_vec[block_idx]->is_full() is_false);
 				assert(block_idx < free_block_idx());
@@ -103,7 +103,7 @@ namespace age::ecs::entity_storage
 			}
 
 			void
-			update_full(std::size_t block_idx)
+			update_full(std::size_t block_idx) noexcept
 			{
 				assert(ent_block_vec[block_idx]->is_full());
 				assert(block_idx >= free_block_idx());
@@ -121,40 +121,25 @@ namespace age::ecs::entity_storage
 		age::data_structure::map<t_archetype, entity_block_collection> entity_blocks_map;
 
 	  private:
-		// find or create and init entity_block
-		template <typename... t>
-		FORCE_INLINE t_entity_block&
-		_get_or_init_entity_block()
+		template <cx_component... t>
+		static consteval decltype(auto)
+		get_sorted_arg_index_sequence()
 		{
-			return entity_blocks_map[t_archetype_traits::template calc_archetype<t...>()].free_block();
+			constexpr auto arr = []<auto... i, auto... j>(std::index_sequence<i...>, std::index_sequence<j...>) constexpr {
+				auto arr = std::array<std::pair<std::size_t, std::size_t>, sizeof...(i)>{ std::pair{ i, j }... };
+
+				std::ranges::sort(arr, std::less<>{}, &std::pair<std::size_t, std::size_t>::first);
+
+				return std::array<std::size_t, sizeof...(j)>{ arr[j].second... };
+			}(std::index_sequence<age::meta::variadic_index_v<age::meta::pred_is_same<std::remove_cv_t<t>>::template type, t_cmp...>...>{}, std::index_sequence_for<t...>{});
+
+			return age::meta::arr_to_seq<arr>();
 		}
 
-		FORCE_INLINE t_entity_block&
-		_get_or_init_entity_block(t_archetype archetype)
-		{
-			return entity_blocks_map[archetype].free_block();
-		}
-
-	  public:
-		FORCE_INLINE
-		std::size_t
-		entity_count() const noexcept
-		{
-			return entity_info_vec.size();
-		}
-
-		FORCE_INLINE bool
-		is_valid(t_ent_id id) const
-		{
-			return entity_info_vec.capacity() > id and entity_info_vec[id].p_block == nullptr;
-		}
-
-		template <typename... t, typename... t_arg>
+		template <cx_component... t, typename... t_arg>
 		t_ent_id
-		new_entity(t_arg&&... arg)
+		new_entity_impl(t_arg&&... arg) noexcept
 		{
-			static_assert((sizeof...(t) == sizeof...(t_arg)) or (sizeof...(t_arg) == 0), "invalid template parameter");
-
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 
 			auto& ent_block_collection = entity_blocks_map[archetype];
@@ -171,29 +156,9 @@ namespace age::ecs::entity_storage
 			return entity_id;
 		}
 
-		void
-		remove_entity(const t_ent_id id)
-		{
-			auto& ent_info = entity_info_vec[id];
-
-			auto need_update = ent_info.p_block->is_full();
-
-			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx);
-			entity_info_vec[entity_id_last].local_idx = ent_info.local_idx;
-
-			if (need_update)
-			{
-				entity_blocks_map[ent_info.archetype].update_free(ent_info.p_block->entity_block_idx());
-			}
-
-			entity_info_vec[id].p_block = nullptr;
-			entity_info_vec.remove(id);
-		}
-
-		// if dup cmp => UB
 		template <typename... t, typename... t_arg>
 		void
-		add_component(const t_ent_id id, t_arg&&... arg)
+		add_component_impl(const t_ent_id id, t_arg&&... arg) noexcept
 		{
 			using namespace std::ranges::views;
 
@@ -246,7 +211,7 @@ namespace age::ecs::entity_storage
 
 		template <typename... t>
 		void
-		remove_component(const t_ent_id id)
+		remove_component_impl(const t_ent_id id) noexcept
 		{
 			using namespace std::ranges::views;
 
@@ -286,9 +251,99 @@ namespace age::ecs::entity_storage
 			}
 		}
 
+	  public:
+		FORCE_INLINE
+		std::size_t
+		entity_count() const noexcept
+		{
+			return entity_info_vec.size();
+		}
+
+		FORCE_INLINE bool
+		is_valid(t_ent_id id) const noexcept
+		{
+			return entity_info_vec.capacity() > id and entity_info_vec[id].p_block == nullptr;
+		}
+
+		template <cx_component... t, typename... t_arg>
+		t_ent_id
+		new_entity(t_arg&&... arg) noexcept
+		{
+			if constexpr (sizeof...(t_arg) == 0)
+			{
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>();
+				}(get_sorted_arg_index_sequence<t...>());
+			}
+			else
+			{
+				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
+				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
+				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(FWD(arg)...)...);
+				}(get_sorted_arg_index_sequence<t...>(), FWD(arg)...);
+			}
+		}
+
+		void
+		remove_entity(const t_ent_id id) noexcept
+		{
+			auto& ent_info = entity_info_vec[id];
+
+			auto need_update = ent_info.p_block->is_full();
+
+			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx);
+			entity_info_vec[entity_id_last].local_idx = ent_info.local_idx;
+
+			if (need_update)
+			{
+				entity_blocks_map[ent_info.archetype].update_free(ent_info.p_block->entity_block_idx());
+			}
+
+			entity_info_vec[id].p_block = nullptr;
+			entity_info_vec.remove(id);
+		}
+
+		// if dup cmp => UB
+		template <typename... t, typename... t_arg>
+		void
+		add_component(const t_ent_id id, t_arg&&... arg) noexcept
+		{
+			if constexpr (sizeof...(t_arg) == 0)
+			{
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id);
+				}(get_sorted_arg_index_sequence<t...>(), id);
+			}
+			else
+			{
+				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
+				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
+				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(id, FWD(arg)...)...);
+				}(get_sorted_arg_index_sequence<t...>(), id, FWD(arg)...);
+			}
+		}
+
+		template <typename... t>
+		void
+		remove_component(const t_ent_id id) noexcept
+		{
+
+			static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+
+			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+				return this->remove_component_impl<meta::variadic_at_t<i, t...>...>(id);
+			}(get_sorted_arg_index_sequence<t...>(), id);
+		}
+
 		template <typename... t>
 		FORCE_INLINE decltype(auto)
-		get_component(const t_ent_id id)
+		get_component(const t_ent_id id) noexcept
 		{
 			auto& ent_info = entity_info_vec[id];
 			return ent_info.p_block->template get_component<t...>(ent_info.local_idx);
@@ -296,24 +351,24 @@ namespace age::ecs::entity_storage
 
 		template <typename... t>
 		FORCE_INLINE bool
-		has_component(const t_ent_id id)
+		has_component(const t_ent_id id) noexcept
 		{
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 			return (entity_info_vec[id].archetype & archetype) == archetype;
 		}
 
 		void
-		load_from_file(const char* path)
+		load_from_file(const char* path) noexcept
 		{
 		}
 
 		void
-		save_to_file(const char* path) const
+		save_to_file(const char* path) const noexcept
 		{
 		}
 
 		void
-		load_from_memory(const void* data, std::size_t size)
+		load_from_memory(const void* data, std::size_t size) noexcept
 		{
 		}
 
@@ -323,7 +378,7 @@ namespace age::ecs::entity_storage
 
 		template <typename t_query>
 		FORCE_INLINE bool
-		matches(t_query, t_archetype arch)
+		matches(t_query, t_archetype arch) noexcept
 		{
 			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
 			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
@@ -346,7 +401,7 @@ namespace age::ecs::entity_storage
 
 		template <typename t_query, typename t_sys>
 		FORCE_INLINE void
-		foreach_block(t_query&& block_query, t_sys&& sys)
+		foreach_block(t_query&& block_query, t_sys&& sys) noexcept
 		{
 			for (auto& [arch, blocks] : entity_blocks_map)
 			{
@@ -366,7 +421,7 @@ namespace age::ecs::entity_storage
 
 		template <typename t_query, typename t_sys>
 		FORCE_INLINE void
-		foreach_entity(t_query&& block_query, t_sys&& sys)
+		foreach_entity(t_query&& block_query, t_sys&& sys) noexcept
 		{
 			for (auto& [arch, blocks] : entity_blocks_map)
 			{
@@ -385,12 +440,12 @@ namespace age::ecs::entity_storage
 		}
 
 		void
-		init()
+		init() noexcept
 		{
 		}
 
 		void
-		deinit()
+		deinit() noexcept
 		{
 			std::ranges::for_each(entity_blocks_map | std::views::values /*| std::views::join*/, [](auto& ent_blocks) { ent_blocks.deinit(); });
 

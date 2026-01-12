@@ -46,6 +46,10 @@ namespace age
 	{
 	}
 
+	namespace request
+	{
+	}
+
 	namespace platform
 	{
 	}
@@ -71,7 +75,6 @@ namespace age
 
 #include "age_external.h"
 //------------------------------------------------------------------------------
-
 
 #include "age_math.hpp"
 
@@ -105,6 +108,10 @@ namespace age
 
 #include "age_ecs_entity_block_basic.hpp"
 #include "age_ecs_entity_storage_basic.hpp"
+
+#include "age_subsystem.hpp"
+
+#include "age_request.hpp"
 
 #include "age_platform.hpp"
 

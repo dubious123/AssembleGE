@@ -76,6 +76,39 @@ namespace age::util
 
 namespace age::util
 {
+	template <typename t>
+	concept cx_implicit_lifetime =
+		std::is_trivially_copyable_v<std::remove_cvref_t<t>>
+		and std::is_trivially_destructible_v<std::remove_cvref_t<t>>;
+
+	template <cx_implicit_lifetime t>
+	FORCE_INLINE constexpr t*
+	start_lifetime_as(void* ptr) noexcept
+	{
+		return std::launder(static_cast<t*>(std::memmove(ptr, ptr, sizeof(t))));
+	}
+
+	template <typename t>
+	FORCE_INLINE void
+	write_bytes(t* dst, const t& v) noexcept
+		requires std::is_trivially_copyable_v<t>
+
+	{
+		std::memcpy(dst, &v, sizeof(v));
+	}
+
+	template <typename t>
+	FORCE_INLINE void
+	write_bytes(void* dst, const t& v) noexcept
+		requires std::is_trivially_copyable_v<t>
+
+	{
+		std::memcpy(dst, &v, sizeof(v));
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
 	template <std::integral t_idx, std::size_t size>
 	struct idx_pool
 	{

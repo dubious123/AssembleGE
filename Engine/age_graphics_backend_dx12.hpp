@@ -206,7 +206,7 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		platform::window_handle w_handle;
+		platform::window_handle w_handle{};
 
 		IDXGISwapChain4* p_swap_chain = nullptr;
 

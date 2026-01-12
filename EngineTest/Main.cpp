@@ -4,12 +4,16 @@
 #include "age.hpp"
 #include "test.h"
 
+#include <stacktrace>
+
 int
 main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	auto _game = my_game();
+
+	auto c = age::ecs::archetype_traits<transform, rigid_body, bullet>::calc_local_cmp_idx<rigid_body>(3);
 
 	run_benchmark(_game, 1'000);
 
@@ -21,6 +25,26 @@ main()
 
 
 	using namespace age::ecs::system;
+
+
+	// auto sys_window_close = seq_ctx{
+	//	platform::close_window_begin,
+	//	graphics::handle_close_window_begin,
+	//	loop{
+	//		graphics::handle_close_window_is_done,
+	//	} retry_barrier{ graphics::handle_close_window_is_done },	 // retry every frame
+	//	graphics::handle_cose_window_end,
+	//	platform::close_window_end,
+
+	//	exec_inline{}
+	//};																 // -> saved in window_info
+
+
+	///
+
+	// switch e
+	//
+
 
 	on_ctx{
 		AGE_FUNC(age::platform::init),
@@ -35,6 +59,7 @@ main()
 		loop{
 			AGE_FUNC(age::global::get<age::runtime::interface>().running),
 			AGE_FUNC(age::platform::update),	// pump platform msg
+
 			AGE_FUNC(age::runtime::update),
 
 			AGE_FUNC(age::graphics::begin_frame),

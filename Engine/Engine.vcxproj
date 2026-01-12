@@ -50,7 +50,9 @@
     <ClInclude Include="age_external.h" />
     <ClInclude Include="age_pch.hpp" />
     <ClInclude Include="age_platform.hpp" />
+    <ClInclude Include="age_request.hpp" />
     <ClInclude Include="age_runtime.hpp" />
+    <ClInclude Include="age_subsystem.hpp" />
     <ClInclude Include="age_util.hpp" />
     <ClInclude Include="age_util_layout.hpp" />
   </ItemGroup>

@@ -93,10 +93,10 @@ float4 fill_color_ps(in noperspective float4 position : SV_Position,
     for (int i = 0; i < SAMPLES; i++)
     {
         const float2 uv = (position.xy + offsets[i]) * inv_dim;
-        //color += DrawMandelbrot(uv);
+        //color += draw_mandelbrot(uv);
         color += draw_juliaset(uv, shader_constant_buffer.frame);
     }
 
-    return float4(float3(color.z, color.x, 1.f) * color.x / SAMPLES, 1.f);
-    //return float4(color / SAMPLES, 1.f);
+    //return float4(float3(color.z, color.x, 1.f) * color.x / SAMPLES, 1.f);
+    return float4(color / SAMPLES, 1.f);
 }

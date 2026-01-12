@@ -1,6 +1,6 @@
 Texture2D src : register(t0);
 
-static const float exposure = 0.2f;
+static const float exposure = 1.0f;
 
 float3 tonemap_reinhard(float3 c)
 {

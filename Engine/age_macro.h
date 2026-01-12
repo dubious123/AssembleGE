@@ -128,3 +128,55 @@
 #define AGE_DISABLE_COPY_MOVE(T) \
 	AGE_DISABLE_COPY(T)          \
 	AGE_DISABLE_MOVE(T)
+
+
+#define AGE_ENUM_FLAG_OPERATORS(T)                                                             \
+	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	operator|(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) | std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE T&                                                                            \
+	operator|=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = a | b;                                                                             \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	operator&(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) & std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE T&                                                                            \
+	operator&=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = a & b;                                                                             \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	operator~(T a) noexcept                                                                    \
+	{                                                                                          \
+		return static_cast<T>(~std::to_underlying(a));                                         \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	operator^(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) ^ std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE T&                                                                            \
+	operator^=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = a ^ b;                                                                             \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE constexpr bool                                                  \
+	has_any(T v, T mask) noexcept                                                              \
+	{                                                                                          \
+		return (std::to_underlying(v) & std::to_underlying(mask)) != 0;                        \
+	}                                                                                          \
+                                                                                               \
+	[[nodiscard]] FORCE_INLINE constexpr bool                                                  \
+	has_all(T v, T mask) noexcept                                                              \
+	{                                                                                          \
+		return (std::to_underlying(v) & std::to_underlying(mask)) == std::to_underlying(mask); \
+	}\

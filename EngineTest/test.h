@@ -632,10 +632,66 @@ run_benchmark(auto&& game, auto it_num)
 		std::uniform_int_distribution<> dist(0, 7);
 
 		auto& b = game.get_scene<scene_t1>().get_world<world_t3>();
-		// auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
-		uint32 ent		 = b.new_entity();
+
+		uint32 ent		 = b.new_entity<>();
 		auto   ent_count = 1;
-		auto   time_now	 = std::chrono::high_resolution_clock::now();
+		// auto   b		 = ecs::entity_storage::basic<uint32, transform, bullet, rigid_body>();
+		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, it_num))
+		{
+			auto rand_curr = dist(gen);
+			switch (rand_prev)
+			{
+			case 0:
+			{
+				ent = b.template new_entity<>();
+				break;
+			}
+			case 1:
+			{
+				ent = b.new_entity<transform>();
+				break;
+			}
+			case 2:
+			{
+				ent = b.new_entity<bullet>();
+				break;
+			}
+			case 3:
+			{
+				ent = b.new_entity<rigid_body>();
+				break;
+			}
+			case 4:
+			{
+				ent = b.new_entity<bullet, transform>();
+				break;
+			}
+			case 5:
+			{
+				ent = b.new_entity<bullet, rigid_body>();
+				break;
+			}
+			case 6:
+			{
+				ent = b.new_entity<transform, rigid_body>();
+				break;
+			}
+			case 7:
+			{
+				ent = b.new_entity<rigid_body, bullet, transform>();
+				break;
+			}
+			default:
+				break;
+			}
+
+			rand_prev = rand_curr;
+			++ent_count;
+		}
+
+		b.remove_component<rigid_body>(6);
+
+		auto time_now = std::chrono::high_resolution_clock::now();
 		for (auto rand_prev = dist(gen); auto i : std::views::iota(0, it_num))
 		{
 			auto rand_curr = dist(gen);
