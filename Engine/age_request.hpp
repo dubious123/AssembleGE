@@ -1,39 +1,59 @@
 #pragma once
 
-namespace age::request::detail
-{
-	struct entry
-	{
-	};
-}	 // namespace age::request::detail
-
 namespace age::request
 {
-	enum class type : uint32
+	enum class type : uint8
 	{
 		window_resize = 0,
 
 		count
 	};
 
-	template <typename t>
-	concept cx_request_payload =
-		sizeof(t) <= sizeof(uint32)
-		and alignof(t) <= alignof(uint32)
-		and std::is_trivially_copyable_v<std::remove_cvref_t<t>>;
+	enum class state : uint8
+	{
+		init = 0,
+		pending,
+		done,
 
-	struct request_param
+		count
+	};
+
+}	 // namespace age::request
+
+namespace age::request
+{
+	using t_phase = uint8;
+
+	using t_handle_id = uint32;
+
+	struct handle
+	{
+		t_handle_id id;
+	};
+}	 // namespace age::request
+
+namespace age::request
+{
+	namespace detail
+	{
+		template <typename t>
+		concept cx_request_payload =
+			sizeof(t) <= sizeof(uint32)
+			and alignof(t) <= alignof(uint32)
+			and std::is_trivially_copyable_v<std::remove_cvref_t<t>>;
+	}
+
+	struct param
 	{
 		alignas(uint32)
 			std::byte storage[sizeof(uint32)];
 
-		template <cx_request_payload t>
-		constexpr request_param(t&& arg) noexcept
+		constexpr param(detail::cx_request_payload auto&& arg) noexcept
 		{
 			age::util::write_bytes(storage, FWD(arg));
 		};
 
-		template <cx_request_payload t>
+		template <detail::cx_request_payload t>
 		constexpr t
 		as() const noexcept
 		{
@@ -47,11 +67,20 @@ namespace age::request
 namespace age::request
 {
 	void
-		push_init(type, request_param, age::subsystem::flags) noexcept;
+	push_init(request::type, param, subsystem::flags listeners) noexcept;
 
 	void
 	push_pending() noexcept;
 
 	void
 	push_done() noexcept;
+
+	void
+		pop(age::subsystem::type) noexcept;
 }	 // namespace age::request
+
+namespace age::request::g
+{
+	// g queue<info>
+	// g queue<t_handle_id> [ subsystem::count ]
+}

@@ -170,9 +170,7 @@ namespace age::ecs::entity_storage
 			auto& dst_block					= dest_ent_block_collection.free_block(new_archetype);
 			auto  need_src_update			= src_block.is_full();
 
-			for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(ent_info.archetype))
-												   | filter([archetype = ent_info.archetype](auto idx) { return (archetype >> idx) & 1; })
-												   | enumerate)
+			for (auto [idx, storage_cmp_idx] : age::util::each_set_bit_idx(ent_info.archetype) | enumerate)
 			{
 				auto src_local_cmp_idx	= static_cast<t_local_cmp_idx>(idx);
 				auto dest_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(new_archetype, storage_cmp_idx);
@@ -223,9 +221,7 @@ namespace age::ecs::entity_storage
 			auto& dst_block					= dest_ent_block_collection.free_block(new_archetype);
 			auto  need_src_update			= src_block.is_full();
 
-			for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(new_archetype))
-												   | filter([archetype = new_archetype](auto idx) { return (archetype >> idx) & 1; })
-												   | enumerate)
+			for (auto [idx, storage_cmp_idx] : age::util::each_set_bit_idx(new_archetype) | enumerate)
 			{
 				auto dest_local_cmp_idx = static_cast<t_local_cmp_idx>(idx);
 				auto src_local_cmp_idx	= t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, storage_cmp_idx);

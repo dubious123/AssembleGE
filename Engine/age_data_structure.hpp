@@ -723,6 +723,14 @@ namespace age::data_structure
 			return self.data_arr()[self.idx_to_pos_arr()[idx]];
 		}
 
+		template <typename t_handle>
+		requires requires(t_handle t) { t.id; }
+		FORCE_INLINE decltype(auto)
+		operator[](this auto& self, t_handle handle) noexcept
+		{
+			return self[handle.id];
+		}
+
 		FORCE_INLINE decltype(auto)
 		nth_data(this auto& self, t_idx pos) noexcept
 		{

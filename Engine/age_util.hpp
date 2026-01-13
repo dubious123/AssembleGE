@@ -7,11 +7,11 @@ namespace age::util
 	popcount(t x)
 	{
 #ifdef _MSC_VER
-		if constexpr (sizeof(t) == 16)
+		if constexpr (sizeof(t) == 1)
 		{
 			return __popcnt16(x);
 		}
-		else if constexpr (sizeof(t) == 32)
+		else if constexpr (sizeof(t) == 4)
 		{
 			return __popcnt(x);
 		}
@@ -19,7 +19,8 @@ namespace age::util
 		{
 			return __popcnt64(x);
 		}
-#elif defined(__GNUC__) || defined(__clang__)
+
+#elif AGE_COMPILER_GCC || AGE_COMPILER_CLANG
 		return __builtin_popcount(x);
 #else
 		return std::popcount(x);
@@ -214,4 +215,154 @@ namespace age::util
 			}
 		}
 	};
+}	 // namespace age::util
+
+// each_flags
+
+// for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(new_archetype))
+//						   | filter([archetype = new_archetype](auto idx) { return (archetype >> idx) & 1; })
+//						   | enumerate)
+
+// 01011 -> [0, 0], [1,1], [2,3],
+
+namespace age::util
+{
+	namespace detail
+	{
+		template <typename t>
+		concept cx_is_unsigned_enum =
+			std::is_enum_v<std::remove_cvref_t<t>>
+			and std::unsigned_integral<std::underlying_type_t<std::remove_cvref_t<t>>>;
+
+
+		template <typename t>
+		concept cx_is_bits_or_flag =
+			std::unsigned_integral<std::remove_cvref_t<t>>
+			or cx_is_unsigned_enum<std::remove_cvref_t<t>>;
+
+		template <typename t>
+		struct unsigned_bits_impl
+		{
+			using type = std::remove_cvref_t<t>;
+		};
+
+		template <cx_is_unsigned_enum t>
+		struct unsigned_bits_impl<t>
+		{
+			using type = std::underlying_type_t<std::remove_cvref_t<t>>;
+		};
+
+		template <typename t>
+		using t_unsigned_bits = typename unsigned_bits_impl<t>::type;
+
+		template <typename t_arg>
+		using t_fn_set_bit_it_deref = decltype([](auto bits) { return static_cast<t_arg>(bits & (~bits + 1)); });
+
+		template <typename t_arg>
+		using t_fn_set_bit_idx_it_deref = decltype([](auto bits) { return static_cast<t_arg>(std::countr_zero(bits)); });
+
+		template <typename t_arg>
+		using t_fn_set_bit_pair_it_deref = decltype([](auto bits) { 
+			auto lsb_one = bits & (~bits + 1); 
+			return std::pair{ static_cast<t_arg>(std::countr_zero(bits)), static_cast<t_arg>(lsb_one) }; });
+
+		template <typename t_arg, typename t_it_deref_fn>
+		struct set_bit_iterator_base
+		{
+			using t_bits = t_unsigned_bits<t_arg>;
+
+			using iterator_concept = std::forward_iterator_tag;
+			using difference_type  = std::ptrdiff_t;
+			using value_type	   = decltype(t_it_deref_fn{}(std::declval<t_bits>()));
+
+			t_bits bits = 0;
+
+			[[nodiscard]]
+			constexpr value_type
+			operator*() const noexcept
+			{
+				return t_it_deref_fn{}(bits);
+			}
+
+			constexpr set_bit_iterator_base&
+			operator++() noexcept
+			{
+				bits &= (bits - 1);
+				return *this;
+			}
+
+			constexpr set_bit_iterator_base
+			operator++(int) noexcept
+			{
+				auto tmp = *this;
+				++(*this);
+				return tmp;
+			}
+
+			[[nodiscard]]
+			friend constexpr bool
+			operator==(const set_bit_iterator_base& a, const set_bit_iterator_base& b) noexcept
+			{
+				return a.bits == b.bits;
+			}
+		};
+
+		template <typename t_arg>
+		using set_bit_iterator = set_bit_iterator_base<t_arg, t_fn_set_bit_it_deref<t_arg>>;
+
+		template <typename t_arg>
+		using set_bit_idx_iterator = set_bit_iterator_base<t_arg, t_fn_set_bit_idx_it_deref<t_arg>>;
+
+		template <typename t_arg>
+		using set_bit_pair_iterator = set_bit_iterator_base<t_arg, t_fn_set_bit_pair_it_deref<t_arg>>;
+
+		template <typename t_iterator>
+		struct set_bit_range : public std::ranges::view_interface<set_bit_range<t_iterator>>
+		{
+			using t_bits = t_unsigned_bits<typename t_iterator::t_bits>;
+
+			t_bits bits = 0;
+
+			constexpr set_bit_range(auto&& arg) noexcept
+				: bits{ static_cast<t_bits>(FWD(arg)) }
+			{
+			}
+
+			[[nodiscard]]
+			constexpr t_iterator
+			begin() const noexcept
+			{
+				return t_iterator{ bits };
+			}
+
+			[[nodiscard]]
+			constexpr t_iterator
+			end() const noexcept
+			{
+				return t_iterator{ t_bits{ 0 } };
+			}
+		};
+	}	 // namespace detail
+
+	FORCE_INLINE [[nodiscard]]
+	constexpr decltype(auto)
+	each_set_bit(detail::cx_is_bits_or_flag auto&& arg) noexcept
+	{
+		return detail::set_bit_range<detail::set_bit_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
+	}
+
+	FORCE_INLINE [[nodiscard]]
+	constexpr decltype(auto)
+	each_set_bit_idx(detail::cx_is_bits_or_flag auto&& arg) noexcept
+	{
+		return detail::set_bit_range<detail::set_bit_idx_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
+	}
+
+	FORCE_INLINE [[nodiscard]]
+	constexpr decltype(auto)
+	each_set_bit_pair(detail::cx_is_bits_or_flag auto&& arg) noexcept
+	{
+		// returns std::pair{ bit_idx, bit }
+		return detail::set_bit_range<detail::set_bit_pair_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
+	}
 }	 // namespace age::util
