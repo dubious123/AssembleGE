@@ -140,13 +140,13 @@ namespace age::ecs
 		FORCE_INLINE static constexpr t_local_cmp_idx
 		calc_local_cmp_idx(t_archetype local_archetype)
 		{
-			return static_cast<t_local_cmp_idx>(age::util::popcount(((1 << calc_storage_cmp_idx<t>()) - 1) & local_archetype));
+			return static_cast<t_local_cmp_idx>(age::util::popcount(((1ul << calc_storage_cmp_idx<t>()) - 1) & local_archetype));
 		}
 
 		FORCE_INLINE static t_local_cmp_idx
 		calc_local_cmp_idx(t_archetype local_archetype, t_storage_cmp_idx storage_cmp_idx)
 		{
-			return static_cast<t_local_cmp_idx>(age::util::popcount(((1 << storage_cmp_idx) - 1) & local_archetype));
+			return static_cast<t_local_cmp_idx>(age::util::popcount(((1ul << storage_cmp_idx) - 1) & local_archetype));
 		}
 
 	  private:

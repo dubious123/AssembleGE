@@ -4,16 +4,6 @@
 #if defined AGE_PLATFORM_WINDOW
 namespace age::platform
 {
-	enum pending_flags : uint32
-	{
-		platform,
-		graphics,
-		count,
-	};
-}
-
-namespace age::platform
-{
 	struct window_info
 	{
 		HWND  hwnd;
@@ -21,12 +11,6 @@ namespace age::platform
 		POINT top_left_pos;
 
 		window_mode mode;
-
-		bool							  closing;
-		std::bitset<pending_flags::count> cleanup_pending;
-
-		bool							  need_resize;
-		std::bitset<pending_flags::count> resize_pending;
 	};
 }	 // namespace age::platform
 
@@ -46,21 +30,7 @@ namespace age::platform
 		{
 		case WM_CLOSE:
 		{
-			// age::request::push_init( age::event::type::window_close, get_handle(hwnd), .listener = age::module::platform | age::module::graphics ) => ack_required == 2;
-			// if debug => request{ type, param, debug_origin = { file, line, function name ... } };
-			close_window(get_handle(hwnd));	   // no logic inside window_proc... this should not happen
-			return 0;
-		}
-		case WM_DESTROY:
-		{
-			auto id = get_handle(hwnd).id;
-			g::window_info_vec.remove(id);
-
-			if (g::window_info_vec.is_empty())
-			{
-				::PostQuitMessage(0);
-			}
-
+			close_window(get_handle(hwnd));
 			return 0;
 		}
 		case WM_SETCURSOR:
@@ -73,7 +43,6 @@ namespace age::platform
 		{
 			// todo
 
-			// age::request::post( {.request_type = age::request::window_resize, .param = get_handle(hwnd), .sender = age::module::platform, .listener = age::module::platform | age::module::graphics} );
 			break;
 		}
 		case WM_ENTERSIZEMOVE:
@@ -138,35 +107,37 @@ namespace age::platform
 			}
 		}
 
-		// all request handling is done below.
-
-		// window_close_begin -> window
-
-		// request state : init, pending, done
-
-		// if multiple stage request -> split request (e.g., some_request_1, if(some_request_1.is_done()) post_init(some_request_2) ...
-
-		// for( auto _ : std::views::iota(0, age::request::count<age::module::platform>()) )
-		// auto& request = age::request::pop<age::module::platform>();
-		//	  switch(request.type)
-		//	  case age::request::type::window_close :
-		//		   if( request.is_pending() is_false )
-		//				age::request::push_pending(request);
-		//		   else
-		//				age::platform::close_window(request.param.as<window_handle>());
-		//				age::request::push_done(request);
-		//		   break;
-
-		for (auto& w_info : g::window_info_vec)
+		for (auto& req : request::for_each<subsystem::type::platform>())
 		{
-			if (w_info.closing)
+			switch (req.type)
 			{
-				if (w_info.cleanup_pending == 0)
+			case request::type::window_close:
+			{
+				if (req.phase == 1)
 				{
-					::DestroyWindow(w_info.hwnd);	 // goto WM_DESTROY... this should not happen
-				}
+					auto handle = req.req_param.as<window_handle>();
+					::DestroyWindow(get_hwnd(handle));
+					g::window_info_vec.remove(handle);
 
-				w_info.cleanup_pending[pending_flags::platform] = false;
+					if (g::window_info_vec.is_empty())
+					{
+						::PostQuitMessage(0);
+					}
+
+					request::set_done<
+						subsystem::type::platform,
+						request::type::window_close, 1>(req);
+				}
+				else
+				{
+					AGE_UNREACHABLE("[{}] : invalid phase : {}", to_string(req.type), req.phase);
+				}
+				break;
+			}
+			default:
+			{
+				AGE_UNREACHABLE("invalid request type : {}", to_string(req.type));
+			}
 			}
 		}
 	}
@@ -219,12 +190,10 @@ namespace age::platform
 			::GetClientRect(hwnd, &cr);
 
 			g::window_info_vec[id] = window_info{
-				.hwnd			 = hwnd,
-				.client_rect	 = cr,
-				.top_left_pos	 = POINT{ .x = wr.left, .y = wr.top },
-				.mode			 = window_mode::windowed,
-				.closing		 = false,
-				.cleanup_pending = 0
+				.hwnd		  = hwnd,
+				.client_rect  = cr,
+				.top_left_pos = POINT{ .x = wr.left, .y = wr.top },
+				.mode		  = window_mode::windowed,
 			};
 		}
 
@@ -234,8 +203,7 @@ namespace age::platform
 	void
 	close_window(window_handle w_handle) noexcept
 	{
-		g::window_info_vec[w_handle.id].closing									 = true;
-		g::window_info_vec[w_handle.id].cleanup_pending[pending_flags::platform] = true;
+		request::create<request::type::window_close>(w_handle);
 	}
 
 	void
@@ -266,18 +234,6 @@ namespace age::platform
 	{
 		auto cr = g::window_info_vec[handle.id].client_rect;
 		return cr.bottom - cr.top;
-	}
-
-	FORCE_INLINE bool
-	is_closing(window_handle handle) noexcept
-	{
-		return g::window_info_vec[handle.id].closing;
-	}
-
-	FORCE_INLINE void
-	set_graphics_cleanup_pending(window_handle handle, bool flag) noexcept
-	{
-		g::window_info_vec[handle.id].cleanup_pending[pending_flags::graphics] = flag;
 	}
 }	 // namespace age::platform
 

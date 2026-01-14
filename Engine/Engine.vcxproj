@@ -207,6 +207,9 @@
       <SuppressStartupBanner Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</SuppressStartupBanner>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
   <PropertyGroup>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
   </PropertyGroup>

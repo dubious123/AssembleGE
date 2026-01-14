@@ -20,9 +20,6 @@ main()
 		test_stable_dense_vector();
 	}
 
-	age::request::push_init(age::request::type::window_resize, age::request::param{ 2ul }, age::subsystem::flags{ 3ul });
-
-
 	using namespace age::ecs::system;
 
 	on_ctx{

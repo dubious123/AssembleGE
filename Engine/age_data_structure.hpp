@@ -578,7 +578,7 @@ namespace age::data_structure
 
 
 	  public:
-		explicit stable_dense_vector(t_idx cap)
+		explicit stable_dense_vector(t_idx cap = 2)
 			: capacity{ cap },
 			  size{ 0 },
 			  free_idx_count{ 0 }
@@ -659,11 +659,22 @@ namespace age::data_structure
 
 			if constexpr (age::config::debug_mode)
 			{
+				auto ptr = this->data_ptr(back_pos);
 				std::memset(this->data_ptr(back_pos), static_cast<uint8>(0xcc), sizeof(t_data));
 			}
 
 			--size;
 			++free_idx_count;
+
+			debug_validate();
+		}
+
+		template <typename t_handle>
+		requires requires(t_handle t) { t.id; }
+		void
+		remove(t_handle handle) noexcept
+		{
+			return remove(handle.id);
 		}
 
 		FORCE_INLINE decltype(auto)

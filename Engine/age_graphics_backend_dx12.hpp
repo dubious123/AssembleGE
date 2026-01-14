@@ -206,19 +206,20 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		platform::window_handle w_handle{};
-
-		IDXGISwapChain4* p_swap_chain = nullptr;
-
 		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, g::frame_buffer_count>
 			rtv_desc_handle_arr{};
 
 		std::array<ID3D12Resource*, g::frame_buffer_count>
 			back_buffer_ptr_arr{};
 
+		IDXGISwapChain4* p_swap_chain = nullptr;
+
+		platform::window_handle h_window{};
+
 		DXGI_FORMAT rtv_format{};
 
 		UINT present_flags = 0;
+		bool should_render = true;
 
 		D3D12_VIEWPORT default_viewport{};
 		D3D12_RECT	   default_scissor_rect{};

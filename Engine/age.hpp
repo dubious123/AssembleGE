@@ -46,10 +46,6 @@ namespace age
 	{
 	}
 
-	namespace request
-	{
-	}
-
 	namespace platform
 	{
 	}
@@ -63,6 +59,10 @@ namespace age
 	}
 
 	namespace runtime
+	{
+	}
+
+	namespace request
 	{
 	}
 }	 // namespace age
@@ -111,8 +111,6 @@ namespace age
 
 #include "age_subsystem.hpp"
 
-#include "age_request.hpp"
-
 #include "age_platform.hpp"
 
 #include "age_graphics.hpp"
@@ -120,3 +118,5 @@ namespace age
 #include "age_global.hpp"
 
 #include "age_runtime.hpp"
+
+#include "age_request.hpp"

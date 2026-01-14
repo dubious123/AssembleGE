@@ -104,13 +104,13 @@ struct scene_t1
 	void
 	init()
 	{
-		DEBUG_LOG("_scene_t1 init");
+		AGE_DEBUG_LOG("_scene_t1 init");
 	};
 
 	void
 	deinit()
 	{
-		DEBUG_LOG("_scene_t1 deinit");
+		AGE_DEBUG_LOG("_scene_t1 deinit");
 		world_1.deinit();
 		world_2.deinit();
 		world_3.deinit();
@@ -148,13 +148,13 @@ struct scene_t2
 	void
 	init()
 	{
-		DEBUG_LOG("_scene_t2 init");
+		AGE_DEBUG_LOG("_scene_t2 init");
 	};
 
 	void
 	deinit()
 	{
-		DEBUG_LOG("_scene_t2 deinit");
+		AGE_DEBUG_LOG("_scene_t2 deinit");
 		world_1.deinit();
 		world_2.deinit();
 		world_3.deinit();
@@ -192,13 +192,13 @@ struct scene_t3
 	void
 	init()
 	{
-		DEBUG_LOG("_scene_t3 init");
+		AGE_DEBUG_LOG("_scene_t3 init");
 	};
 
 	void
 	deinit()
 	{
-		DEBUG_LOG("_scene_t3 deinit");
+		AGE_DEBUG_LOG("_scene_t3 deinit");
 		world_1.deinit();
 		world_2.deinit();
 		world_3.deinit();
@@ -236,7 +236,7 @@ struct scene_t4
 	void
 	init()
 	{
-		DEBUG_LOG("_scene_t4 init");
+		AGE_DEBUG_LOG("_scene_t4 init");
 		world_1.init();
 		world_2.init();
 		world_3.init();
@@ -245,7 +245,7 @@ struct scene_t4
 	void
 	deinit()
 	{
-		DEBUG_LOG("_scene_t4 deinit");
+		AGE_DEBUG_LOG("_scene_t4 deinit");
 		world_1.deinit();
 		world_2.deinit();
 		world_3.deinit();
@@ -265,7 +265,7 @@ struct my_game
 	void
 	init()
 	{
-		DEBUG_LOG("my_game init");
+		AGE_DEBUG_LOG("my_game init");
 		scene_1.init();
 		scene_2.init();
 		scene_3.init();
@@ -275,7 +275,7 @@ struct my_game
 	void
 	deinit()
 	{
-		DEBUG_LOG("my_game deinit");
+		AGE_DEBUG_LOG("my_game deinit");
 		scene_1.deinit();
 		scene_2.deinit();
 		scene_3.deinit();
@@ -333,7 +333,7 @@ struct my_scene_system_0
 	void
 	run(age::ecs::interface_scene<s> iscene)
 	{
-		DEBUG_LOG("---my_scene_system_0 run---");
+		AGE_DEBUG_LOG("---my_scene_system_0 run---");
 		int a;
 	}
 };
@@ -343,7 +343,7 @@ struct my_scene_system_1
 	void
 	run()
 	{
-		DEBUG_LOG("---my_scene_system_1 run---");
+		AGE_DEBUG_LOG("---my_scene_system_1 run---");
 	}
 };
 
@@ -352,7 +352,7 @@ struct my_cond_system_false
 	bool
 	run()
 	{
-		DEBUG_LOG("---my_cond_system_false run---");
+		AGE_DEBUG_LOG("---my_cond_system_false run---");
 		return false;
 	}
 };
@@ -363,7 +363,7 @@ struct my_cond_system_true
 	bool
 	run(age::ecs::interface_scene<s> iscene)
 	{
-		DEBUG_LOG("---my_cond_system_true run---");
+		AGE_DEBUG_LOG("---my_cond_system_true run---");
 		return true;
 	}
 };

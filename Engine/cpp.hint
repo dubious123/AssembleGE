@@ -1,0 +1,38 @@
+#pragma once
+
+#define AGE_DISABLE_COPY(T)          \
+	explicit T(const T&)   = delete; \
+	T& operator=(const T&) = delete;
+
+#define AGE_DISABLE_MOVE(T)     \
+	explicit T(T&&)	  = delete; \
+	T& operator=(T&&) = delete;
+
+#define AGE_DISABLE_COPY_MOVE(T) \
+	AGE_DISABLE_COPY(T)          \
+	AGE_DISABLE_MOVE(T)
+
+#define DEFINE_REQUEST(type_name, ...)      \
+	static constexpr auto req_##type_name = \
+		request_meta<age::request::type::type_name>{ __VA_ARGS__ };
+
+#define DEFINE_REQUEST_BEGIN               \
+	template <age::request::type req_type> \
+	constexpr auto get_req_meta()          \
+	{                                      \
+		if constexpr (false)               \
+		{                                  \
+		}
+
+#define DEFINE_REQUEST(req_type_name, param_type, ...)                                     \
+	else if constexpr (req_type == age::request::type::req_type_name)                      \
+	{                                                                                      \
+		return request_meta<age::request::type::req_type_name, param_type, __VA_ARGS__>{}; \
+	}
+
+#define DEFINE_REQUEST_END                            \
+	else                                              \
+	{                                                 \
+		static_assert(false, "invalid request type"); \
+	}                                                 \
+	}

@@ -57,4 +57,7 @@
     <FxCompile Include="resources\engine_shaders\dx12\fullscreen_triangle_vs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\fx_present_ps.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
 </Project>

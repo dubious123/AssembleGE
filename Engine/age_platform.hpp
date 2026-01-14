@@ -78,12 +78,6 @@ namespace age::platform
 
 	FORCE_INLINE uint32
 		get_client_height(window_handle) noexcept;
-
-	FORCE_INLINE bool
-		is_closing(window_handle) noexcept;
-
-	FORCE_INLINE void
-	set_graphics_cleanup_pending(window_handle, bool) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform

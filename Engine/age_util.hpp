@@ -2,29 +2,40 @@
 
 namespace age::util
 {
-	template <typename t>
+
+	template <std::unsigned_integral t>
 	FORCE_INLINE constexpr auto
 	popcount(t x)
 	{
-#ifdef _MSC_VER
-		if constexpr (sizeof(t) == 1)
+		AGE_MSVC_WARNING_PUSH
+		AGE_MSVC_WARNING_DISABLE(5063)
+		if constexpr (std::is_constant_evaluated())
 		{
-			return __popcnt16(x);
+			return std::popcount(x);
 		}
-		else if constexpr (sizeof(t) == 4)
-		{
-			return __popcnt(x);
-		}
+		AGE_MSVC_WARNING_POP
 		else
 		{
-			return __popcnt64(x);
-		}
+#ifdef AGE_COMPILER_MSVC
+			if constexpr (sizeof(t) == 1)
+			{
+				return __popcnt16(x);
+			}
+			else if constexpr (sizeof(t) == 4)
+			{
+				return __popcnt(x);
+			}
+			else
+			{
+				return __popcnt64(x);
+			}
 
 #elif AGE_COMPILER_GCC || AGE_COMPILER_CLANG
-		return __builtin_popcount(x);
+			return __builtin_popcount(x);
 #else
-		return std::popcount(x);
+			return std::popcount(x);
 #endif
+		}
 	}
 
 	template <typename... t>

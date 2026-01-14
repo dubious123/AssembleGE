@@ -74,14 +74,14 @@ namespace age::graphics
 			return t_descriptor_handle{
 				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
 				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
+				AGE_DEBUG_ONLY(.idx = idx)
 			};
 		}
 		else
 		{
 			return t_descriptor_handle{
 				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
+				AGE_DEBUG_ONLY(.idx = idx)
 			};
 		}
 	}
@@ -97,14 +97,14 @@ namespace age::graphics
 			return t_descriptor_handle{
 				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
 				.h_gpu = D3D12_GPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_gpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
+				AGE_DEBUG_ONLY(.idx = idx)
 			};
 		}
 		else
 		{
 			return t_descriptor_handle{
 				.h_cpu = D3D12_CPU_DESCRIPTOR_HANDLE{ .ptr = start_handle.h_cpu.ptr + descriptor_size * idx },
-				AGE_DEBUG_OP(.idx = idx)
+				AGE_DEBUG_ONLY(.idx = idx)
 			};
 		}
 	}

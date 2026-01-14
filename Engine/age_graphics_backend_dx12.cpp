@@ -161,7 +161,7 @@ namespace age::graphics
 	void
 	render_surface::init(age::platform::window_handle w_handle) noexcept
 	{
-		this->w_handle = w_handle;
+		this->h_window = w_handle;
 
 		{
 			auto allow_tearing = BOOL{ FALSE };
@@ -312,8 +312,8 @@ namespace age::graphics
 		auto desc = DXGI_SWAP_CHAIN_DESC{};
 
 		AGE_HR_CHECK(p_swap_chain->GetDesc(&desc));
-		AGE_ASSERT(desc.BufferDesc.Width == platform::get_client_width(w_handle));
-		AGE_ASSERT(desc.BufferDesc.Height == platform::get_client_height(w_handle));
+		AGE_ASSERT(desc.BufferDesc.Width == platform::get_client_width(h_window));
+		AGE_ASSERT(desc.BufferDesc.Height == platform::get_client_height(h_window));
 
 		default_viewport = D3D12_VIEWPORT{
 			.TopLeftX = 0.f,
@@ -614,23 +614,60 @@ namespace age::graphics
 	void
 	begin_frame() noexcept
 	{
-		// for( auto _ : std::views::iota(0, age::request::count<age::module::graphics>()) )
-		// auto& request = age::request::pop<age::module::graphics>();
-		//	switch(request.type)
-		//	  case age::request::type::window_close :
-		//		 auto h_window = request.param.as<age::platform::window_handle>();
-		//		 auto h_render_surface = ???
-		//		 auto& rs = g::render_surface_vec[h_render_surface.id];
-		//		 rs.rendering_enabled = false;
-		//       if( rs.is_somebody_using )
-		//			age::request::push_pending(request)
-		//       else
-		//			rs.deinit();
-		//          g::render_surface_vec.remove(h_render_surface.id);
-		//		    age::request::push_done(request)
-		//
-		//
+		for (auto& req : request::for_each<subsystem::type::graphics>())
+		{
+			switch (req.type)
+			{
+			case request::type::window_close:
+			{
+				auto h_window = req.req_param.as<platform::window_handle>();
 
+				if (req.phase == 0)
+				{
+					bool need_to_wait = false;
+
+					for (auto idx : std::views::iota(0)
+										| std::views::take(g::render_surface_vec.count())
+										| std::views::filter([h_window](auto idx) { return g::render_surface_vec[idx].h_window.id == h_window.id; }))
+					{
+						auto& rs		 = g::render_surface_vec[idx];
+						rs.should_render = false;
+
+						auto wait_event = ::WaitForSingleObject(rs.present_waitable_obj, 0);
+						AGE_ASSERT((wait_event == WAIT_TIMEOUT) and (wait_event == WAIT_OBJECT_0));
+
+						auto is_pending =
+							wait_event == WAIT_TIMEOUT
+							or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
+
+						if (is_pending is_false)
+						{
+							rs.deinit();
+							g::render_surface_vec.remove(idx);
+						}
+
+						need_to_wait |= is_pending;
+					}
+
+					if (need_to_wait is_false)
+					{
+						request::set_done<
+							subsystem::type::graphics,
+							request::type::window_close, 0>(req);
+					}
+				}
+				else
+				{
+					AGE_UNREACHABLE("[{}] : invalid phase : {}", to_string(req.type), req.phase);
+				}
+				break;
+			}
+			default:
+			{
+				AGE_UNREACHABLE("invalid request type : {}", to_string(req.type));
+			}
+			}
+		}
 
 		g::cmd_system_direct.wait();
 		g::cmd_system_direct.begin_frame();
@@ -652,11 +689,10 @@ namespace age::graphics
 			auto& gpass		   = g::gpass_ctx_vec[idx];
 			auto& present_pass = g::fx_present_pass_ctx_vec[idx];
 
-			if (platform::is_closing(rs.w_handle)) [[unlikely]]
+			if (rs.should_render is_false) [[unlikely]]
 			{
 				continue;
 			}
-
 
 			cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
 			barrier.add_transition(rs.get_back_buffer(),
@@ -686,8 +722,6 @@ namespace age::graphics
 				D3D12_RESOURCE_STATE_PRESENT);
 
 			barrier.apply_and_reset(cmd_list);
-
-			// rs.present();
 		}
 	}
 
@@ -698,35 +732,20 @@ namespace age::graphics
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
 
+
 		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
 		{
 			auto& rs = g::render_surface_vec.nth_data(n);
 			auto  id = g::render_surface_vec.nth_id(n);
 
-			if (platform::is_closing(rs.w_handle)) [[unlikely]]
+			if (rs.should_render is_false) [[unlikely]]
 			{
-				bool is_pending = false;
-
-				auto res = ::WaitForSingleObject(rs.present_waitable_obj, 0);
-				AGE_ASSERT((res == WAIT_TIMEOUT) or (res == WAIT_OBJECT_0));
-
-				is_pending |= (res == WAIT_TIMEOUT);
-				is_pending |= g::cmd_system_direct.p_fence->GetCompletedValue() < rs.last_used_cmd_fence_value;
-				std::println("[{}] is_pending =  {} < {}", id, g::cmd_system_direct.p_fence->GetCompletedValue(), rs.last_used_cmd_fence_value);
-
-				platform::set_graphics_cleanup_pending(rs.w_handle, is_pending);	// this should not happen
-
-				if (is_pending is_false)
-				{
-					rs.deinit();
-					g::render_surface_vec.remove(id);
-				}
+				continue;
 			}
-			else
-			{
-				rs.present();
-			}
+
+			rs.present();
 		}
+
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 

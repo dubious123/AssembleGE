@@ -11,21 +11,34 @@
 
 #define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
 
+#define AGE_DO_WHILE(...)       \
+	do                          \
+	{                           \
+		__VA_OPT__(__VA_ARGS__) \
+	}                           \
+	while (false)
+
+
 #ifdef AGE_DEBUG
-	#define DEBUG_LOG(fmt, ...)                                               \
-		do                                                                    \
-		{                                                                     \
-			std::cout << std::format(fmt __VA_OPT__(, ) __VA_ARGS__) << '\n'; \
-		}                                                                     \
-		while (false)
+	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE(std::cout << std::format(__VA_ARGS__) << '\n';)
 #else
-	#define DEBUG_LOG(message)
+	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE()
 #endif
 
 #if defined(AGE_DEBUG)
-	#define AGE_DEBUG_OP(op) op
+	#define AGE_DEBUG_ONLY(expression) expression
 #else
-	#define AGE_DEBUG_OP(op)
+	#define AGE_DEBUG_ONLY(expression)
+#endif
+
+#if defined(AGE_COMPILER_MSVC)
+	#define AGE_MSVC_WARNING_PUSH		__pragma(warning(push))
+	#define AGE_MSVC_WARNING_POP		__pragma(warning(pop))
+	#define AGE_MSVC_WARNING_DISABLE(n) __pragma(warning(disable : n))
+#else
+	#define AGE_MSVC_WARNING_PUSH
+	#define AGE_MSVC_WARNING_POP
+	#define AGE_MSVC_WARNING_DISABLE(n)
 #endif
 
 #define AGE_FUNC(overloaded_func_name) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK { \
@@ -63,7 +76,6 @@
 	#define AGE_ASSERT(expression)
 #endif
 
-
 #if defined(AGE_COMPILER_MSVC)
 	#define AGE_DEBUG_BREAK() __debugbreak()
 #elif defined(AGE_COMPILER_CLANG) || defined(AGE_COMPILER_GCC)
@@ -74,6 +86,12 @@
 	#endif
 #else
 	#error C++ compiler required
+#endif
+
+#if defined(AGE_DEBUG)
+	#define AGE_UNREACHABLE(...) AGE_DO_WHILE(AGE_DEBUG_LOG(__VA_ARGS__); AGE_DEBUG_BREAK(); std::unreachable();)
+#else
+	#define AGE_UNREACHABLE(...) AGE_DO_WHILE(std::unreachable();)
 #endif
 
 #if defined(AGE_PLATFORM_WINDOW)
@@ -94,7 +112,7 @@
 			}                                                                                        \
 			while (false)
 	#else
-		#define AGE_HR_CHECK(expression) (expression)
+		#define AGE_HR_CHECK(expression) AGE_DO_WHILE((expression);)
 	#endif
 
 	#if defined(AGE_DEBUG)
@@ -113,7 +131,7 @@
 			}                                                             \
 			while (false)
 	#else
-		#define AGE_WIN32_CHECK(expression) (expression)
+		#define AGE_WIN32_CHECK(expression) AGE_DO_WHILE((expression);)
 	#endif
 #endif
 
@@ -179,4 +197,28 @@
 	has_all(T v, T mask) noexcept                                                              \
 	{                                                                                          \
 		return (std::to_underlying(v) & std::to_underlying(mask)) == std::to_underlying(mask); \
-	}\
+	}
+
+#define AGE_ENUM_TO_STRING_CASE(enum_name) \
+	case __t_enum__::enum_name:            \
+	{                                      \
+		return #enum_name;                 \
+	}
+
+#define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                  \
+	enum class enum_class_name : underlying_type                                \
+	{                                                                           \
+		__VA_ARGS__                                                             \
+	};                                                                          \
+	constexpr inline std::string_view to_string(enum_class_name e)              \
+	{                                                                           \
+		using __t_enum__ = enum_class_name;                                     \
+		switch (e)                                                              \
+		{                                                                       \
+			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                      \
+		default:                                                                \
+		{                                                                       \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+		}                                                                       \
+		}                                                                       \
+	}
