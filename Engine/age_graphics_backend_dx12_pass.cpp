@@ -98,20 +98,23 @@ namespace age::graphics::pass
 		h_dsv_desc = g::dsv_desc_pool.pop();
 		h_srv_desc = g::cbv_srv_uav_desc_pool.pop();
 
-		this->create_buffers(width, height);
+		extent.width  = width;
+		extent.height = height;
+
+		this->create_buffers();
 
 		AGE_ASSERT(p_root_sig is_not_nullptr and p_pso is_not_nullptr);
 	}
 
 	void
-	gpass_context::create_buffers(uint32 width, uint32 height) noexcept
+	gpass_context::create_buffers() noexcept
 	{
 		h_main_buffer = resource::create_resource(
 			{ .d3d12_desc{
 				  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 				  .Alignment		= 0,
-				  .Width			= width,
-				  .Height			= height,
+				  .Width			= extent.width,
+				  .Height			= extent.height,
 				  .DepthOrArraySize = 1,
 				  .MipLevels		= 1,
 				  .Format			= rtv_format,
@@ -131,8 +134,8 @@ namespace age::graphics::pass
 			{ .d3d12_desc{
 				  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 				  .Alignment		= 0,
-				  .Width			= width,
-				  .Height			= height,
+				  .Width			= extent.width,
+				  .Height			= extent.height,
 				  .DepthOrArraySize = 1,
 				  .MipLevels		= 1,
 				  .Format			= dsv_format,
@@ -189,12 +192,14 @@ namespace age::graphics::pass
 	}
 
 	void
-	gpass_context::resize(uint32 width, uint32 height) noexcept
+	gpass_context::resize(age::extent_2d<uint16> new_extent) noexcept
 	{
+		extent = new_extent;
+
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
-		this->create_buffers(width, height);
+		this->create_buffers();
 	}
 
 	void
@@ -216,6 +221,16 @@ namespace age::graphics::pass
 	void
 	gpass_context::begin(ID3D12GraphicsCommandList9& cmd_list, resource_barrier& barrier, render_surface& rs) noexcept
 	{
+		auto client_extent = age::extent_2d<uint16>{
+			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
+			.height = static_cast<uint16>(age::platform::get_client_height(rs.h_window))
+		};
+
+		if (extent != client_extent)
+		{
+			this->resize(client_extent);
+		}
+
 		barrier.add_transition(*main_buffer.p_resource,
 							   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 							   D3D12_RESOURCE_STATE_RENDER_TARGET);

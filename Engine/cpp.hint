@@ -36,3 +36,21 @@
 		static_assert(false, "invalid request type"); \
 	}                                                 \
 	}
+
+#define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                  \
+	enum class enum_class_name : underlying_type                                \
+	{                                                                           \
+		__VA_ARGS__                                                             \
+	};                                                                          \
+	constexpr inline std::string_view to_string(enum_class_name e)              \
+	{                                                                           \
+		using __t_enum__ = enum_class_name;                                     \
+		switch (e)                                                              \
+		{                                                                       \
+			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                      \
+		default:                                                                \
+		{                                                                       \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+		}                                                                       \
+		}                                                                       \
+	}

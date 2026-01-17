@@ -75,7 +75,6 @@ namespace age
 
 #include "age_external.h"
 //------------------------------------------------------------------------------
-
 #include "age_math.hpp"
 
 #include "age_meta.hpp"

@@ -1,338 +1,7 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
-#if defined AGE_GRAPHICS_BACKEND_DX12
-
-// cmd_system member func
-namespace age::graphics
-{
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::init() noexcept
-	{
-		constexpr auto wstr_type = [] constexpr {
-			switch (cmd_list_type)
-			{
-			case D3D12_COMMAND_LIST_TYPE_DIRECT:
-				return L"Direct";
-			case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-				return L"Compute";
-			case D3D12_COMMAND_LIST_TYPE_COPY:
-				return L"Copy";
-			default:
-				return L"Unknown";
-			}
-		}();
-
-		D3D12_COMMAND_QUEUE_DESC desc{
-			.Type	  = cmd_list_type,
-			.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-			.Flags	  = D3D12_COMMAND_QUEUE_FLAG_NONE,
-			.NodeMask = 0
-		};
-
-
-		{
-			AGE_HR_CHECK(g::p_main_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&p_cmd_queue)));
-			auto queue_name = std::format(L"[{}] cmd queue", wstr_type);
-			p_cmd_queue->SetName(queue_name.c_str());
-		}
-
-		{
-			AGE_HR_CHECK(g::p_main_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&p_fence)));
-			auto fence_name = std::format(L"[{}] fence", wstr_type);
-			p_fence->SetName(fence_name.c_str());
-		}
-
-		{
-			fence_event = ::CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-			assert(fence_event);
-		}
-
-		for (auto i : std::views::iota(0, g::frame_buffer_count))
-		{
-			for (auto j : std::views::iota(0, cmd_list_count))
-			{
-				AGE_HR_CHECK(g::p_main_device->CreateCommandAllocator(cmd_list_type, IID_PPV_ARGS(&cmd_allocator_pool[i][j])));
-
-				AGE_HR_CHECK(g::p_main_device->CreateCommandList(
-					0,
-					cmd_list_type,
-					cmd_allocator_pool[i][j],
-					nullptr,
-					IID_PPV_ARGS(&cmd_list_pool[i][j])));
-
-				AGE_HR_CHECK(cmd_list_pool[i][j]->Close());
-
-				auto list_name	= std::format(L"[{}] cmd list[{}][{}]", wstr_type, i, j);
-				auto queue_name = std::format(L"[{}] cmd list allocator[{}][{}]", wstr_type, i, j);
-
-				cmd_list_pool[i][j]->SetName(list_name.c_str());
-				cmd_allocator_pool[i][j]->SetName(queue_name.c_str());
-			}
-		}
-	}
-
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::deinit() noexcept
-	{
-		{
-			AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
-			AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value, fence_event));
-			::WaitForSingleObject(fence_event, INFINITE);
-		}
-
-		p_cmd_queue->Release();
-		p_fence->Release();
-		::CloseHandle(fence_event);
-
-		for (auto* p_cmd_list : std::views::join(cmd_list_pool))
-		{
-			p_cmd_list->Release();
-		}
-
-		for (auto* p_cmd_allocator : std::views::join(cmd_allocator_pool))
-		{
-			p_cmd_allocator->Release();
-		}
-	}
-
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::wait() noexcept
-	{
-		auto completed_value = p_fence->GetCompletedValue();
-		auto need_to_wait	 = completed_value + g::frame_buffer_count < g::current_fence_value;
-
-		std::println("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, g::current_fence_value, completed_value, need_to_wait);
-
-		if (need_to_wait)
-		{
-			AGE_HR_CHECK(p_fence->SetEventOnCompletion(completed_value + 1, fence_event));
-
-			::WaitForSingleObject(fence_event, INFINITE);
-		}
-	}
-
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::begin_frame() noexcept
-	{
-		for (auto i : std::views::iota(0, cmd_list_count))
-		{
-			AGE_HR_CHECK(cmd_allocator_pool[g::frame_buffer_idx][i]->Reset());
-			AGE_HR_CHECK(cmd_list_pool[g::frame_buffer_idx][i]->Reset(cmd_allocator_pool[g::frame_buffer_idx][i], nullptr));
-		}
-	}
-
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::end_frame() noexcept
-	{
-		// todo hmm...
-		auto cmd_lists = std::array<ID3D12CommandList*, cmd_list_count>{};
-		for (auto i : std::views::iota(0, cmd_list_count))
-		{
-			AGE_HR_CHECK(cmd_list_pool[g::frame_buffer_idx][i]->Close());
-
-			cmd_lists[i] = cmd_list_pool[g::frame_buffer_idx][i];
-		}
-
-		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
-
-		std::println("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), g::current_fence_value);
-		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
-	}
-
-	template <auto cmd_list_type, auto cmd_list_count>
-	FORCE_INLINE void
-	cmd_system<cmd_list_type, cmd_list_count>::flush() noexcept
-	{
-		AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value - 1, fence_event));
-
-		::WaitForSingleObject(fence_event, INFINITE);
-	}
-}	 // namespace age::graphics
-
-// swap_chain member func
-namespace age::graphics
-{
-	void
-	render_surface::init(age::platform::window_handle w_handle) noexcept
-	{
-		this->h_window = w_handle;
-
-		{
-			auto allow_tearing = BOOL{ FALSE };
-			{
-				AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
-				present_flags = allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : UINT{ 0 };
-			}
-
-			DXGI_FORMAT dxgi_format{};
-			{
-				switch (global::get<interface>().display_color_space())
-				{
-				case color_space::srgb:
-					dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
-					rtv_format	= DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-					break;
-				case color_space::hdr:
-					dxgi_format = DXGI_FORMAT_R10G10B10A2_UNORM;
-					rtv_format	= DXGI_FORMAT_R10G10B10A2_UNORM;
-					break;
-				default:
-					std::unreachable();
-				}
-			}
-
-			auto swap_chain_desc = DXGI_SWAP_CHAIN_DESC1{
-				/*UINT					*/ .Width		= platform::get_client_width(w_handle),
-				/*UINT					*/ .Height		= platform::get_client_height(w_handle),
-				/*DXGI_FORMAT			*/ .Format		= dxgi_format,
-				/*BOOL					*/ .Stereo		= false,
-				/*DXGI_SAMPLE_DESC		*/ .SampleDesc	= { .Count = 1, .Quality = 0 },
-				/*DXGI_USAGE			*/ .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-				/*UINT					*/ .BufferCount = g::frame_buffer_count,
-				/*DXGI_SCALING			*/ .Scaling		= DXGI_SCALING_STRETCH,
-				/*DXGI_SWAP_EFFECT		*/ .SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD,
-				/*DXGI_ALPHA_MODE		*/ .AlphaMode	= DXGI_ALPHA_MODE_UNSPECIFIED,
-				/*UINT					*/ .Flags =
-					DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-					| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }),
-			};
-
-			auto full_screen_desc = DXGI_SWAP_CHAIN_FULLSCREEN_DESC{
-				/*DXGI_RATIONAL				*/ .RefreshRate		 = DXGI_RATIONAL{ 0, 1 },
-				/*DXGI_MODE_SCANLINE_ORDER	*/ .ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
-				/*DXGI_MODE_SCALING			*/ .Scaling			 = DXGI_MODE_SCALING_UNSPECIFIED,
-				/*BOOL						*/ .Windowed		 = BOOL{ true },
-			};
-
-			auto* p_swap_chain_1 = (IDXGISwapChain1*)nullptr;
-			{
-				AGE_HR_CHECK(g::p_dxgi_factory->CreateSwapChainForHwnd(
-					g::cmd_system_direct.p_cmd_queue,
-					platform::get_hwnd(w_handle),
-					&swap_chain_desc,
-					&full_screen_desc,
-					nullptr,
-					&p_swap_chain_1));
-			}
-
-			AGE_HR_CHECK(g::p_dxgi_factory->MakeWindowAssociation(platform::get_hwnd(w_handle), DXGI_MWA_NO_ALT_ENTER));
-
-			AGE_HR_CHECK(p_swap_chain_1->QueryInterface(IID_PPV_ARGS(&p_swap_chain)));
-			p_swap_chain_1->Release();
-		}
-
-		AGE_HR_CHECK(p_swap_chain->SetMaximumFrameLatency(3));
-
-		present_waitable_obj = p_swap_chain->GetFrameLatencyWaitableObject();
-
-		AGE_ASSERT(present_waitable_obj != NULL);
-
-		back_buffer_idx = p_swap_chain->GetCurrentBackBufferIndex();
-
-		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
-		{
-			rtv_desc_handle_arr[idx] = g::rtv_desc_pool.pop();
-		}
-
-		rebuild_from_swapchain();
-	}
-
-	void
-	render_surface::resize() noexcept
-	{
-		for (auto* p_resource : back_buffer_ptr_arr)
-		{
-			p_resource->Release();
-		}
-
-		auto allow_tearing = BOOL{ FALSE };
-		{
-			AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
-			present_flags = allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : UINT{ 0 };
-		}
-
-		p_swap_chain->ResizeBuffers(
-			g::frame_buffer_count,
-			0,
-			0,
-			DXGI_FORMAT_UNKNOWN,
-			DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-				| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }));
-
-
-		rebuild_from_swapchain();
-	}
-
-	void
-	render_surface::present() noexcept
-	{
-		AGE_HR_CHECK(p_swap_chain->Present(0, present_flags));
-		back_buffer_idx			  = p_swap_chain->GetCurrentBackBufferIndex();
-		last_used_cmd_fence_value = g::current_fence_value;
-
-		std::println("present, fence_value :  {}", g::current_fence_value);
-	}
-
-	void
-	render_surface::deinit() noexcept
-	{
-		for (auto idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
-		{
-			g::rtv_desc_pool.push(rtv_desc_handle_arr[idx]);
-			back_buffer_ptr_arr[idx]->Release();
-		}
-
-		p_swap_chain->Release();
-
-		::CloseHandle(present_waitable_obj);
-	}
-
-	void
-	render_surface::rebuild_from_swapchain() noexcept
-	{
-		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
-		{
-			AGE_HR_CHECK(p_swap_chain->GetBuffer(idx, IID_PPV_ARGS(&back_buffer_ptr_arr[idx])));
-
-			auto rtv_desc = D3D12_RENDER_TARGET_VIEW_DESC{
-				/*DXGI_FORMAT			*/ .Format		  = rtv_format,
-				/*D3D12_RTV_DIMENSION	*/ .ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-				/*D3D12_TEX2D_RTV		*/ .Texture2D	  = D3D12_TEX2D_RTV{ .MipSlice = 0, .PlaneSlice = 0 }
-			};
-
-			g::p_main_device->CreateRenderTargetView(back_buffer_ptr_arr[idx], &rtv_desc, rtv_desc_handle_arr[idx].h_cpu);
-		}
-
-		auto desc = DXGI_SWAP_CHAIN_DESC{};
-
-		AGE_HR_CHECK(p_swap_chain->GetDesc(&desc));
-		AGE_ASSERT(desc.BufferDesc.Width == platform::get_client_width(h_window));
-		AGE_ASSERT(desc.BufferDesc.Height == platform::get_client_height(h_window));
-
-		default_viewport = D3D12_VIEWPORT{
-			.TopLeftX = 0.f,
-			.TopLeftY = 0.f,
-			.Width	  = static_cast<float>(desc.BufferDesc.Width),
-			.Height	  = static_cast<float>(desc.BufferDesc.Height),
-			.MinDepth = 0.f,
-			.MaxDepth = 1.f,
-		};
-
-		default_scissor_rect = D3D12_RECT{
-			.left	= 0l,
-			.top	= 0l,
-			.right	= static_cast<int32>(desc.BufferDesc.Width),
-			.bottom = static_cast<int32>(desc.BufferDesc.Height),
-		};
-	}
-}	 // namespace age::graphics
-
+#if defined(AGE_GRAPHICS_BACKEND_DX12)
 namespace age::graphics
 {
 	pso_handle
@@ -579,7 +248,6 @@ namespace age::graphics
 			auto* p_debug_device = (ID3D12DebugDevice2*)nullptr;
 			AGE_HR_CHECK(g::p_main_device->QueryInterface(IID_PPV_ARGS(&p_debug_device)));
 
-
 			AGE_HR_CHECK(p_debug_device->ReportLiveDeviceObjects(
 				D3D12_RLDO_SUMMARY | D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL));
 
@@ -589,26 +257,14 @@ namespace age::graphics
 		g::p_main_device->Release();
 		g::p_main_adapter->Release();
 		g::p_dxgi_factory->Release();
-	}
 
-	render_surface_handle
-	create_render_surface(platform::window_handle w_handle) noexcept
-	{
-		auto id = g::render_surface_vec.emplace_back();
-		g::render_surface_vec[id].init(w_handle);
-
-		auto& rs = g::render_surface_vec[id];
-
-		// test code
-		auto gpass_ctx = age::graphics::pass::gpass_context{};
-		gpass_ctx.init(static_cast<uint32>(rs.default_viewport.Width), static_cast<uint32>(rs.default_viewport.Height), g::h_gpass_default_root_sig, g::h_gpass_default_pso);
-		g::gpass_ctx_vec.emplace_back(gpass_ctx);
-
-		auto fx_ctx = age::graphics::pass::fx_present_pass_context{};
-		fx_ctx.init(g::h_fx_present_pass_default_root_sig, g::h_fx_present_pass_default_pso);
-		g::fx_present_pass_ctx_vec.emplace_back(fx_ctx);
-
-		return render_surface_handle{ .id = id };
+		if constexpr (age::config::debug_mode)
+		{
+			auto* p_dxgi_debug = (IDXGIDebug1*)nullptr;
+			AGE_HR_CHECK(::DXGIGetDebugInterface1(0, IID_PPV_ARGS(&p_dxgi_debug)));
+			p_dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+			p_dxgi_debug->Release();
+		}
 	}
 
 	void
@@ -618,48 +274,111 @@ namespace age::graphics
 		{
 			switch (req.type)
 			{
-			case request::type::window_close:
+			case request::type::window_closed:
 			{
-				auto h_window = req.req_param.as<platform::window_handle>();
+				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
 
-				if (req.phase == 0)
+				auto  h_window = req.req_param.as<platform::window_handle>();
+				auto  h_rs	   = graphics::find_render_surface(h_window);
+				auto& rs	   = g::render_surface_vec[h_rs];
+
+				rs.should_render = false;
+
 				{
-					bool need_to_wait = false;
+					AGE_HR_CHECK(rs.p_swap_chain->SetFullscreenState(false, nullptr));
+				}
 
-					for (auto idx : std::views::iota(0)
-										| std::views::take(g::render_surface_vec.count())
-										| std::views::filter([h_window](auto idx) { return g::render_surface_vec[idx].h_window.id == h_window.id; }))
+				auto wait_event = ::WaitForSingleObject(rs.present_waitable_obj, 0);
+				AGE_ASSERT((wait_event == WAIT_TIMEOUT) or (wait_event == WAIT_OBJECT_0));
+
+				auto is_pending =
+					wait_event == WAIT_TIMEOUT
+					or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
+
+				if (is_pending is_false)
+				{
+					rs.deinit();
+					g::render_surface_vec.remove(h_rs);
+
+					request::set_done<
+						subsystem::type::graphics,
+						request::type::window_closed, 0>(req);
+				}
+				break;
+			}
+			case request::type::window_resized:
+			{
+				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
+
+				auto  h_window = req.req_param.as<platform::window_handle>();
+				auto  h_rs	   = graphics::find_render_surface(h_window);
+				auto& rs	   = g::render_surface_vec[h_rs];
+
+				rs.should_render = false;
+
+				auto wait_event = ::WaitForSingleObject(rs.present_waitable_obj, 0);
+				AGE_ASSERT((wait_event == WAIT_TIMEOUT) or (wait_event == WAIT_OBJECT_0));
+
+				auto is_pending =
+					wait_event == WAIT_TIMEOUT
+					or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
+
+				if (is_pending is_false)
+				{
+					if (platform::get_window_state(h_window) != platform::window_state::maximized
+						and is_tearing_allowed())
 					{
-						auto& rs		 = g::render_surface_vec[idx];
-						rs.should_render = false;
-
-						auto wait_event = ::WaitForSingleObject(rs.present_waitable_obj, 0);
-						AGE_ASSERT((wait_event == WAIT_TIMEOUT) and (wait_event == WAIT_OBJECT_0));
-
-						auto is_pending =
-							wait_event == WAIT_TIMEOUT
-							or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
-
-						if (is_pending is_false)
-						{
-							rs.deinit();
-							g::render_surface_vec.remove(idx);
-						}
-
-						need_to_wait |= is_pending;
+						rs.present_flags |= DXGI_PRESENT_ALLOW_TEARING;
 					}
 
-					if (need_to_wait is_false)
-					{
-						request::set_done<
-							subsystem::type::graphics,
-							request::type::window_close, 0>(req);
-					}
+					rs.resize();
+					rs.should_render = true;
+
+					request::set_done<
+						subsystem::type::graphics,
+						request::type::window_resized, 0>(req);
 				}
-				else
+
+				break;
+			}
+			case request::type::window_maximized:
+			{
+				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
+
+				auto  h_window = req.req_param.as<platform::window_handle>();
+				auto  h_rs	   = graphics::find_render_surface(h_window);
+				auto& rs	   = g::render_surface_vec[h_rs];
+
+				rs.present_flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+
 				{
-					AGE_UNREACHABLE("[{}] : invalid phase : {}", to_string(req.type), req.phase);
+					auto p_target = (IDXGIOutput*)nullptr;
+					AGE_HR_CHECK(rs.p_swap_chain->GetContainingOutput(&p_target));
+					rs.p_swap_chain->SetFullscreenState(true, p_target);
+					p_target->Release();
 				}
+
+				rs.should_render = false;
+				request::set_done<
+					subsystem::type::graphics,
+					request::type::window_maximized, 0>(req);
+
+				request::create<request::type::window_resized>(h_window);
+				break;
+			}
+			case request::type::window_minimized:
+			{
+				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
+
+				auto  h_window = req.req_param.as<platform::window_handle>();
+				auto  h_rs	   = graphics::find_render_surface(h_window);
+				auto& rs	   = g::render_surface_vec[h_rs];
+
+				rs.should_render = false;
+
+				request::set_done<
+					subsystem::type::graphics,
+					request::type::window_minimized, 0>(req);
 				break;
 			}
 			default:

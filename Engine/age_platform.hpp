@@ -5,11 +5,13 @@ namespace age::platform
 	enum class window_mode : uint8
 	{
 		windowed,
-		boderless_windowed,
+		borderless_windowed,
 		fullscreen,
 		count
 	};
-}
+
+	AGE_DEFINE_ENUM(window_state, uint8, normal, maximized, minimized, closing);
+}	 // namespace age::platform
 
 // interface
 namespace age::platform
@@ -40,6 +42,9 @@ namespace age::platform
 	struct window_handle
 	{
 		t_window_id id;
+
+		constexpr auto
+		operator<=>(const window_handle&) const noexcept = default;
 	};
 }	 // namespace age::platform
 
@@ -63,12 +68,17 @@ namespace age::platform
 
 	window_handle
 	create_window(window_desc&&) noexcept;
-
-	void
-		close_window(window_handle) noexcept;
-
 	void
 	move_window(window_handle, int32 x, int32 y) noexcept;
+}	 // namespace age::platform
+
+namespace age::platform
+{
+	FORCE_INLINE void on_window_closed(window_handle) noexcept;
+	FORCE_INLINE void on_window_resized(window_handle, age::extent_2d<uint32>) noexcept;
+	FORCE_INLINE void on_window_restored(window_handle) noexcept;
+	FORCE_INLINE void on_window_minimized(window_handle) noexcept;
+	FORCE_INLINE void on_window_maximized(window_handle) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform
@@ -78,6 +88,9 @@ namespace age::platform
 
 	FORCE_INLINE uint32
 		get_client_height(window_handle) noexcept;
+
+	FORCE_INLINE window_state
+		get_window_state(window_handle) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform

@@ -665,8 +665,6 @@ namespace age::data_structure
 
 			--size;
 			++free_idx_count;
-
-			debug_validate();
 		}
 
 		template <typename t_handle>
@@ -675,6 +673,18 @@ namespace age::data_structure
 		remove(t_handle handle) noexcept
 		{
 			return remove(handle.id);
+		}
+
+		void
+		remove(const t_data* p_data) noexcept
+		{
+			auto idx = p_data - data_ptr(0);
+
+			AGE_ASSERT(p_data != nullptr);
+			AGE_ASSERT(idx >= 0);
+			AGE_ASSERT(idx < size);
+
+			return remove(static_cast<t_idx>(idx));
 		}
 
 		FORCE_INLINE decltype(auto)

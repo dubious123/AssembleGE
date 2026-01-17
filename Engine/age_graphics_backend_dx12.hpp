@@ -562,23 +562,26 @@ namespace age::graphics::pass
 		resource_handle h_main_buffer{};
 		resource_handle h_depth_buffer{};
 
+		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>
+			h_srv_desc{};
+
 		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
 			h_rtv_desc{};
 
 		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>
 			h_dsv_desc{};
 
-		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>
-			h_srv_desc{};
 
 		resource::d3d12_resource main_buffer{};
 		resource::d3d12_resource depth_buffer{};
+
+		age::extent_2d<uint16> extent{};
 
 		void
 		init(uint32 width, uint32 height, root_signature::handle, pso_handle) noexcept;
 
 		void
-		resize(uint32 width, uint32 height) noexcept;
+			resize(age::extent_2d<uint16>) noexcept;
 
 		void
 		deinit() noexcept;
@@ -594,7 +597,7 @@ namespace age::graphics::pass
 
 	  private:
 		void
-		create_buffers(uint32 width, uint32 height) noexcept;
+		create_buffers() noexcept;
 	};
 
 	struct fx_present_pass_context
@@ -662,3 +665,14 @@ namespace age::graphics::g
 
 	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g
+
+// util
+namespace age::graphics
+{
+	bool inline is_tearing_allowed()
+	{
+		auto allow_tearing = BOOL{ FALSE };
+		AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
+		return allow_tearing;
+	}
+}	 // namespace age::graphics

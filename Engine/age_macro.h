@@ -20,7 +20,7 @@
 
 
 #ifdef AGE_DEBUG
-	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE(std::cout << std::format(__VA_ARGS__) << '\n';)
+	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE(__VA_OPT__(std::cout << std::format(__VA_ARGS__) << '\n');)
 #else
 	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE()
 #endif
@@ -60,20 +60,21 @@
 	}
 
 #if defined(AGE_DEBUG)
-	#define AGE_ASSERT(expression)                        \
-		do                                                \
-		{                                                 \
-			if (expression is_false)                      \
-			{                                             \
-				std::println("  expr : {}", #expression); \
-				std::println("  file : {}", __FILE__);    \
-				std::println("  line : {}", __LINE__);    \
-				AGE_DEBUG_BREAK();                        \
-			}                                             \
-		}                                                 \
+	#define AGE_ASSERT(expression, ...)                                            \
+		do                                                                         \
+		{                                                                          \
+			if ((expression)is_false)                                              \
+			{                                                                      \
+				std::println("  expr : {}", #expression);                          \
+				std::println("  file : {}", __FILE__);                             \
+				std::println("  line : {}", __LINE__);                             \
+				__VA_OPT__(std::println("   msg : {}", std::format(__VA_ARGS__));) \
+				AGE_DEBUG_BREAK();                                                 \
+			}                                                                      \
+		}                                                                          \
 		while (false)
 #else
-	#define AGE_ASSERT(expression)
+	#define AGE_ASSERT(expression, ...)
 #endif
 
 #if defined(AGE_COMPILER_MSVC)

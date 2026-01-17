@@ -57,6 +57,11 @@ namespace age::graphics
 	render_surface_handle
 		create_render_surface(platform::window_handle) noexcept;
 
+	render_surface_handle
+	find_render_surface(platform::window_handle h_window) noexcept;
+
+	void resize_render_surface(render_surface_handle) noexcept;
+
 	void
 	render() noexcept;
 

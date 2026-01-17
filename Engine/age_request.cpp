@@ -57,13 +57,14 @@ namespace age::request
 		constexpr auto next_listeners = req_meta.get_listeners(v_phase + 1);
 		constexpr auto has_next_phase = next_listeners != subsystem::flags{ 0 };
 
-		auto& vec = g::request_info_vec[std::to_underlying(sys_type)];
-		req		  = vec.back();
+		auto& vec		 = g::request_info_vec[std::to_underlying(sys_type)];
+		auto  backup_req = req;
+		req				 = vec.back();
 		vec.pop_back();
 
 		if constexpr (req_meta.sync_required(v_phase))
 		{
-			auto& sync_state = g::sync_state_vec[req.sync_state_idx];
+			auto& sync_state = g::sync_state_vec[backup_req.sync_state_idx];
 
 			AGE_ASSERT(sync_state.required_ack_count > 0);
 			AGE_ASSERT(sync_state.required_ack_count <= req_meta.required_ack_count(v_phase));
@@ -71,17 +72,17 @@ namespace age::request
 			--sync_state.required_ack_count;
 			if (bool is_done = sync_state.required_ack_count == 0)
 			{
-				g::sync_state_vec.remove(req.sync_state_idx);
+				g::sync_state_vec.remove(backup_req.sync_state_idx);
 
 				if constexpr (has_next_phase)
 				{
-					request::create<req_type, v_phase + 1>(req.req_param);
+					request::create<req_type, v_phase + 1>(backup_req.req_param);
 				}
 			}
 		}
 		else if constexpr (has_next_phase)
 		{
-			request::create<req_type, v_phase + 1>(req.req_param);
+			request::create<req_type, v_phase + 1>(backup_req.req_param);
 		}
 	}
 }	 // namespace age::request

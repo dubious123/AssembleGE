@@ -221,20 +221,12 @@ namespace age::util
 			// if free => free_dense[pos[idx]] == idx;
 			for (t_idx idx : std::views::iota(t_idx{ 0 }) | std::views::take(size) | std::views::filter([this](auto idx) { return pos[idx] != inv; }))
 			{
-				AGE_ASSERT((pos[idx] > 0) and (pos[idx] < free_count));
+				AGE_ASSERT((pos[idx] >= 0) and (pos[idx] < free_count));
 				AGE_ASSERT(free_dense[pos[idx]] == idx);
 			}
 		}
 	};
 }	 // namespace age::util
-
-// each_flags
-
-// for (auto [idx, storage_cmp_idx] : iota(0, std::bit_width(new_archetype))
-//						   | filter([archetype = new_archetype](auto idx) { return (archetype >> idx) & 1; })
-//						   | enumerate)
-
-// 01011 -> [0, 0], [1,1], [2,3],
 
 namespace age::util
 {

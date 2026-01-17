@@ -10,7 +10,12 @@ namespace age::request::detail
 
 namespace age::request
 {
-	AGE_DEFINE_ENUM(type, uint8, window_close, window_resize, count)
+	AGE_DEFINE_ENUM(type, uint8,
+					window_closed,
+					window_resized,
+					window_maximized,
+					window_minimized,
+					count)
 
 	using t_phase		   = uint8;
 	using t_sync_state_idx = uint16;
@@ -137,14 +142,19 @@ namespace age::request::detail
 {
 	DEFINE_REQUEST_BEGIN
 
-	DEFINE_REQUEST(window_close,
+	DEFINE_REQUEST(window_closed,
 				   platform::window_handle,
 				   PHASE(graphics),
 				   PHASE(platform))
-	DEFINE_REQUEST(window_resize,
+	DEFINE_REQUEST(window_resized,
 				   platform::window_handle,
-				   PHASE(platform, graphics))
-
+				   PHASE(graphics))
+	DEFINE_REQUEST(window_minimized,
+				   platform::window_handle,
+				   PHASE(graphics))
+	DEFINE_REQUEST(window_maximized,
+				   platform::window_handle,
+				   PHASE(graphics))
 	DEFINE_REQUEST_END
 
 #undef COMBINE_FLAGS

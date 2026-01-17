@@ -2,7 +2,16 @@
 
 namespace age::inline math
 {
+	template <std::integral t>
+	requires(not std::is_same_v<t, bool>)
+	struct extent_2d
+	{
+		t width;
+		t height;
 
+		constexpr auto
+		operator<=>(const extent_2d<t>&) const noexcept = default;
+	};
 }	 // namespace age::inline math
 
 #if defined(_WIN64)

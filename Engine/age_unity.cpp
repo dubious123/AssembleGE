@@ -11,8 +11,12 @@
 #line 1 "age_graphics_backend_dx12.cpp"
 #include "age_graphics_backend_dx12.cpp"
 
+#line 1 "age_graphics_backend_dx12_cmd_system.cpp"
+#include "age_graphics_backend_dx12_cmd_system.cpp"
 #line 1 "age_graphics_backend_dx12_shader.cpp"
 #include "age_graphics_backend_dx12_shader.cpp"
+#line 1 "age_graphics_backend_dx12_render_surface.cpp"
+#include "age_graphics_backend_dx12_render_surface.cpp"
 #line 1 "age_graphics_backend_dx12_resource_berrier.cpp"
 #include "age_graphics_backend_dx12_resource_berrier.cpp"
 #line 1 "age_graphics_backend_dx12_resource.cpp"
