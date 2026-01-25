@@ -110,44 +110,9 @@ namespace age::graphics
 
 		age::graphics::shader::init();
 
-		age::graphics::pass::init();
+		age::graphics::stage::init();
 
-		{
-			using namespace root_signature;
-			auto rs_handle = create(
-				constants{
-					.reg	   = b{ .idx = 0, .space = 0 },
-					.num_32bit = 16 },
-				descriptor{ .reg = b{ .idx = 1, .space = 0 } });
-
-			auto input_layout = std::array{ D3D12_INPUT_ELEMENT_DESC{
-				/*LPCSTR					   */ .SemanticName		= "POSITION",
-				/*UINT					   */ .SemanticIndex		= 0,
-				/*DXGI_FORMAT				   */ .Format			= DXGI_FORMAT_R32G32B32A32_FLOAT,
-				/*UINT					   */ .InputSlot			= 0,
-				/*UINT					   */ .AlignedByteOffset	= 0,
-				/*D3D12_INPUT_CLASSIFICATION */ .InputSlotClass		= D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-				/*UINT					   */ .InstanceDataStepRate = 0,
-			} };
-
-
-			auto vs_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::engine_shader::test_vs) });
-			auto ps_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::engine_shader::test_ps) });
-
-
-			auto stream = pss_stream{
-				pss_root_signature{ .subobj = g::root_signature_ptr_vec[rs_handle.id] },
-				pss_input_layout{ .subobj = D3D12_INPUT_LAYOUT_DESC{
-									  .pInputElementDescs = input_layout.data(), .NumElements = 1 } },
-				pss_vs{ .subobj = vs_byte_code },
-				pss_ps{ .subobj = ps_byte_code },
-				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
-				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R8G8B8A8_UNORM }, .NumRenderTargets = 1 } },
-				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
-			};
-
-			create_pso(stream.storage, stream.size_in_bytes);
-		}
+		g::test_pipeline.init();
 	}
 
 	void
@@ -180,28 +145,10 @@ namespace age::graphics
 			}
 
 			// test
-			for (auto& gpass_ctx : g::gpass_ctx_vec)
-			{
-				gpass_ctx.deinit();
-			}
-
-			if constexpr (age::config::debug_mode)
-			{
-				g::gpass_ctx_vec.debug_validate();
-			}
-
-			for (auto& fx_ctx : g::fx_present_pass_ctx_vec)
-			{
-				//			fx_ctx.deinit();
-			}
-
-			if constexpr (age::config::debug_mode)
-			{
-				g::fx_present_pass_ctx_vec.debug_validate();
-			}
+			g::test_pipeline.deinit();
 		}
 
-		age::graphics::pass::deinit();
+		age::graphics::stage::deinit();
 
 		age::graphics::shader::deinit();
 
@@ -399,48 +346,19 @@ namespace age::graphics
 	void
 	render() noexcept
 	{
-		auto  thread_num = 4;
-		auto  barrier	 = resource_barrier{};
-		auto& cmd_list	 = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][thread_num];
-		for (auto idx : std::views::iota(0) | std::views::take(g::render_surface_vec.count()))
-		{
-			auto& rs		   = g::render_surface_vec[idx];
-			auto& gpass		   = g::gpass_ctx_vec[idx];
-			auto& present_pass = g::fx_present_pass_ctx_vec[idx];
+		constexpr auto thread_idx = 4;
+		auto&		   cmd_list	  = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][thread_idx];
 
+		cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+
+		for (auto& rs : g::render_surface_vec)
+		{
 			if (rs.should_render is_false) [[unlikely]]
 			{
 				continue;
 			}
 
-			cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-			barrier.add_transition(rs.get_back_buffer(),
-								   D3D12_RESOURCE_STATE_PRESENT,
-								   D3D12_RESOURCE_STATE_RENDER_TARGET,
-								   D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
-
-			gpass.begin(cmd_list, barrier, rs);
-
-			gpass.execute(cmd_list, rs);
-
-			gpass.end(barrier);
-
-			// post process
-			barrier.add_transition(rs.get_back_buffer(),
-								   D3D12_RESOURCE_STATE_PRESENT,
-								   D3D12_RESOURCE_STATE_RENDER_TARGET,
-								   D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
-
-			barrier.apply_and_reset(cmd_list);
-
-			present_pass.execute(cmd_list, gpass.h_srv_desc, rs.h_rtv_desc());
-
-			barrier.add_transition(
-				rs.get_back_buffer(),
-				D3D12_RESOURCE_STATE_RENDER_TARGET,
-				D3D12_RESOURCE_STATE_PRESENT);
-
-			barrier.apply_and_reset(cmd_list);
+			g::test_pipeline.execute(cmd_list, rs);
 		}
 	}
 
@@ -455,7 +373,6 @@ namespace age::graphics
 		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
 		{
 			auto& rs = g::render_surface_vec.nth_data(n);
-			auto  id = g::render_surface_vec.nth_id(n);
 
 			if (rs.should_render is_false) [[unlikely]]
 			{
@@ -468,7 +385,7 @@ namespace age::graphics
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 
-		std::println("fence_value : {}", g::current_fence_value);
+		AGE_DEBUG_LOG("fence_value : {}", g::current_fence_value);
 
 		++g::current_fence_value;
 	}

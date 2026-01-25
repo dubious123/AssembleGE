@@ -982,6 +982,10 @@ namespace age::meta
 	template <typename... t>
 	struct type_pack
 	{
+		template <std::size_t i>
+		using t_nth = variadic_at_t<i, t...>;
+
+		static constexpr auto size = sizeof...(t);
 	};
 
 	template <typename... t_pack>

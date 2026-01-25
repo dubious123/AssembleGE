@@ -185,26 +185,16 @@ namespace age::graphics
 		auto id = g::render_surface_vec.emplace_back();
 		g::render_surface_vec[id].init(w_handle);
 
-		auto& rs = g::render_surface_vec[id];
-
-		// test code
-		auto gpass_ctx = age::graphics::pass::gpass_context{};
-		gpass_ctx.init(static_cast<uint32>(rs.default_viewport.Width), static_cast<uint32>(rs.default_viewport.Height), g::h_gpass_default_root_sig, g::h_gpass_default_pso);
-		g::gpass_ctx_vec.emplace_back(gpass_ctx);
-
-		auto fx_ctx = age::graphics::pass::fx_present_pass_context{};
-		fx_ctx.init(g::h_fx_present_pass_default_root_sig, g::h_fx_present_pass_default_pso);
-		g::fx_present_pass_ctx_vec.emplace_back(fx_ctx);
-
 		return render_surface_handle{ .id = id };
 	}
 
 	render_surface_handle
 	find_render_surface(platform::window_handle h_window) noexcept
 	{
-		for (auto idx : std::views::iota(0ul) | std::views::take(g::render_surface_vec.count()))
+		for (auto nth : std::views::iota(0ul) | std::views::take(g::render_surface_vec.count()))
 		{
-			auto& rs = g::render_surface_vec[idx];
+			auto  idx = g::render_surface_vec.nth_id(nth);
+			auto& rs  = g::render_surface_vec[idx];
 			if (rs.h_window == h_window)
 			{
 				return render_surface_handle{ .id = idx };

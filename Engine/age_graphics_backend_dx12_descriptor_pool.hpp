@@ -130,3 +130,65 @@ namespace age::graphics
 		return idx;
 	}
 }	 // namespace age::graphics
+
+// helpers
+namespace age::graphics
+{
+	void
+	pop_descriptor(auto& h_descriptor_out) noexcept
+	{
+		using t_descriptor_handle = std::remove_cvref_t<decltype(h_descriptor_out)>;
+
+		if constexpr (std::is_same_v<t_descriptor_handle, cbv_desc_handle>
+					  or std::is_same_v<t_descriptor_handle, srv_desc_handle>
+					  or std::is_same_v<t_descriptor_handle, uav_desc_handle>)
+		{
+			h_descriptor_out = g::cbv_srv_uav_desc_pool.pop();
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, rtv_desc_handle>)
+		{
+			h_descriptor_out = g::rtv_desc_pool.pop();
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, dsv_desc_handle>)
+		{
+			h_descriptor_out = g::dsv_desc_pool.pop();
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, sampler_desc_handle>)
+		{
+			h_descriptor_out = g::sampler_desc_pool.pop();
+		}
+		else
+		{
+			static_assert(false, "invalid descriptor handle type");
+		}
+	}
+
+	void
+	push_descriptor(const auto& h_descriptor) noexcept
+	{
+		using t_descriptor_handle = std::remove_cvref_t<decltype(h_descriptor)>;
+
+		if constexpr (std::is_same_v<t_descriptor_handle, cbv_desc_handle>
+					  or std::is_same_v<t_descriptor_handle, srv_desc_handle>
+					  or std::is_same_v<t_descriptor_handle, uav_desc_handle>)
+		{
+			g::cbv_srv_uav_desc_pool.push(h_descriptor);
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, rtv_desc_handle>)
+		{
+			g::rtv_desc_pool.push(h_descriptor);
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, dsv_desc_handle>)
+		{
+			g::dsv_desc_pool.push(h_descriptor);
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, sampler_desc_handle>)
+		{
+			g::sampler_desc_pool.push(h_descriptor);
+		}
+		else
+		{
+			static_assert(false, "invalid descriptor handle type");
+		}
+	}
+}	 // namespace age::graphics

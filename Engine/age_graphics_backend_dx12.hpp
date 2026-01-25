@@ -1,6 +1,12 @@
 #pragma once
 #include "age.hpp"	  // intellisense
 
+// using
+namespace age::graphics
+{
+	using t_igraphics_cmd_list = ID3D12GraphicsCommandList9;
+}
+
 // constants
 namespace age::graphics::g
 {
@@ -9,6 +15,8 @@ namespace age::graphics::g
 #else
 	constexpr auto dxgi_factory_flag = UINT{ 0 };
 #endif
+	constexpr auto thread_count = 8;
+
 	constexpr auto minimum_feature_level = D3D_FEATURE_LEVEL_12_1;
 	constexpr auto frame_buffer_count	 = 3;
 
@@ -90,17 +98,30 @@ namespace age::graphics::g
 	} depth_stencil_desc1;
 }	 // namespace age::graphics::g
 
+// util
+namespace age::graphics
+{
+	bool
+	is_tearing_allowed() noexcept;
+
+	constexpr std::string_view
+	to_string(D3D12_RESOURCE_DIMENSION dim) noexcept;
+
+	constexpr std::string_view
+		to_string(DXGI_FORMAT) noexcept;
+}	 // namespace age::graphics
+
 // cmd_system fwd
 namespace age::graphics
 {
 	template <auto cmd_list_type, auto cmd_list_count>
 	struct cmd_system
 	{
-		ID3D12CommandQueue*			p_cmd_queue = nullptr;
-		ID3D12GraphicsCommandList9* cmd_list_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
-		ID3D12CommandAllocator*		cmd_allocator_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
-		ID3D12Fence1*				p_fence		= nullptr;
-		HANDLE						fence_event = nullptr;
+		ID3D12CommandQueue*		p_cmd_queue = nullptr;
+		t_igraphics_cmd_list*	cmd_list_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
+		ID3D12CommandAllocator* cmd_allocator_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
+		ID3D12Fence1*			p_fence		= nullptr;
+		HANDLE					fence_event = nullptr;
 
 
 		constexpr cmd_system() = default;
@@ -160,6 +181,13 @@ namespace age::graphics
 #endif
 	};
 
+	using cbv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
+	using srv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
+	using uav_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
+	using rtv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>;
+	using dsv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>;
+	using sampler_desc_handle = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER>;
+
 	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
 	struct descriptor_pool
 	{
@@ -199,6 +227,12 @@ namespace age::graphics
 		uint32
 			calc_idx(t_descriptor_handle) noexcept;
 	};
+
+	void
+	pop_descriptor(auto& h_descriptor_out) noexcept;
+
+	void
+	push_descriptor(const auto&) noexcept;
 }	 // namespace age::graphics
 
 // render_surface, swap chain fwd
@@ -310,10 +344,13 @@ namespace age::graphics::resource
 	deinit() noexcept;
 
 	resource_handle
-	create_resource(d3d12_resource_desc desc) noexcept;
+	create_resource(const d3d12_resource_desc& desc) noexcept;
 
 	void
 		release_resource(resource_handle) noexcept;
+
+	FORCE_INLINE void
+	create_view(const ID3D12Resource&, const auto& h_desc, const auto& view_desc) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier
@@ -325,26 +362,29 @@ namespace age::graphics
 		uint32										  barrier_count = 0;
 		std::array<D3D12_RESOURCE_BARRIER, max_count> barrier_arr	= {};
 
-		void
+		FORCE_INLINE void
+		add(const D3D12_RESOURCE_BARRIER&) noexcept;
+
+		FORCE_INLINE void
 		add_transition(ID3D12Resource&,
 					   D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after,
 					   D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE,
 					   uint32 subresource			= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) noexcept;
 
-		void
+		FORCE_INLINE void
 		add_uav(ID3D12Resource&, D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
 
-		void
+		FORCE_INLINE void
 		add_aliasing(ID3D12Resource& p_resource_before, ID3D12Resource& p_resource_after,
 					 D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
 
-		void
-		apply_and_reset(ID3D12GraphicsCommandList9&) noexcept;
+		FORCE_INLINE void
+		apply_and_reset(t_igraphics_cmd_list&) noexcept;
 
-		void
-		apply(ID3D12GraphicsCommandList9&) noexcept;
+		FORCE_INLINE void
+		apply(t_igraphics_cmd_list&) noexcept;
 
-		void
+		FORCE_INLINE void
 		reset() noexcept;
 	};
 }	 // namespace age::graphics
@@ -539,8 +579,8 @@ namespace age::graphics::shader
 		unload_shader(shader_handle) noexcept;
 }	 // namespace age::graphics::shader
 
-// pass
-namespace age::graphics::pass
+// stage
+namespace age::graphics::stage
 {
 	void
 	init() noexcept;
@@ -548,72 +588,219 @@ namespace age::graphics::pass
 	void
 	deinit() noexcept;
 
-	struct gpass_context
+	struct my_stage
 	{
-		static constexpr DXGI_FORMAT rtv_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		static constexpr DXGI_FORMAT dsv_format = DXGI_FORMAT_D32_FLOAT;
+		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
+			main_buffer_view,
+			AGE_RESOURCE_VIEW_VALIDATE(
+				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
+			AGE_DESC_HANDLE_MEMBER_RTV(
+				h_rtv_desc,
+				D3D12_RENDER_TARGET_VIEW_DESC{
+					.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
+					.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+					.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 } }),
 
-		static constexpr float clear_color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
-		static constexpr float clear_depth	  = 1.0f;
+			AGE_DESC_HANDLE_MEMBER_SRV(
+				h_srv_desc,
+				D3D12_SHADER_RESOURCE_VIEW_DESC{
+					.Format					 = DXGI_FORMAT_R16G16B16A16_FLOAT,
+					.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2D,
+					.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+					.Texture2D				 = { .MostDetailedMip	  = 0,
+												 .MipLevels			  = 1,
+												 .PlaneSlice		  = 0,
+												 .ResourceMinLODClamp = 0.f } }))
+
+		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
+			depth_buffer_view,
+			AGE_RESOURCE_VIEW_VALIDATE(
+				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
+			AGE_DESC_HANDLE_MEMBER_DSV(
+				h_dsv_desc,
+				D3D12_DEPTH_STENCIL_VIEW_DESC{
+					.Format		   = DXGI_FORMAT_D32_FLOAT,
+					.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+					.Flags		   = D3D12_DSV_FLAG_NONE,
+					.Texture2D	   = { .MipSlice = 0 } }))
+
+		AGE_RESOURCE_FLOW_PHASE(
+			phase_geo,
+			AGE_RESOURCE_BARRIER_ARR(
+				{
+					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
+					.Transition = {
+						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
+						.Subresource = 0,
+						.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+						.StateAfter	 = D3D12_RESOURCE_STATE_RENDER_TARGET,
+					},
+				},
+				{
+					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
+					.Transition = {
+						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
+						.Subresource = 0,
+						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ,
+						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_WRITE,
+					},
+				}),
+			AGE_RENDER_PASS_RT_DESC_ARR({
+				.cpuDescriptor	 = main_buffer_view.h_rtv_desc.h_cpu,
+				.BeginningAccess = {
+					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
+					.Clear = {
+						.ClearValue = {
+							.Format = main_buffer_view.h_rtv_desc_view_desc().Format,
+							.Color	= { 0.5f, 0.5f, 0.5f, 1.0f },
+						},
+					},
+				},
+				.EndingAccess = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
+			}),
+			AGE_RENDER_PASS_DS_DESC({
+				.cpuDescriptor		  = depth_buffer_view.h_dsv_desc.h_cpu,
+				.DepthBeginningAccess = {
+					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
+					.Clear = {
+						.ClearValue = {
+							.Format		  = depth_buffer_view.h_dsv_desc_view_desc().Format,
+							.DepthStencil = { .Depth = 1.f },
+						},
+					},
+				},
+				.StencilBeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS },
+				.DepthEndingAccess		= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD },
+				.StencilEndingAccess{ .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS },
+			}))
+
+		AGE_RESOURCE_FLOW_PHASE(
+			phase_fx,
+			AGE_RESOURCE_BARRIER_ARR(
+				{
+					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
+					.Transition = {
+						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
+						.Subresource = 0,
+						.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
+						.StateAfter	 = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+					},
+				},
+				{
+					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
+					.Transition = {
+						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
+						.Subresource = 0,
+						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE,
+						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_READ,
+					},
+				}),
+			AGE_RENDER_PASS_RT_DESC_ARR(), AGE_RENDER_PASS_DS_DESC())
 
 		ID3D12RootSignature* p_root_sig = nullptr;
 		ID3D12PipelineState* p_pso		= nullptr;
+
+
+		void
+		init() noexcept;
+
+		void
+		bind(graphics::root_signature::handle,
+			 graphics::pso_handle,
+			 graphics::resource_handle h_main_buffer,
+			 graphics::resource_handle h_depth_buffer) noexcept;
+
+		void
+		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
+	struct my_pipeline
+	{
+		my_stage stage{};
+
+		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
 		resource_handle h_main_buffer{};
 		resource_handle h_depth_buffer{};
 
-		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>
-			h_srv_desc{};
-
-		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
-			h_rtv_desc{};
-
-		descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>
-			h_dsv_desc{};
-
-
-		resource::d3d12_resource main_buffer{};
-		resource::d3d12_resource depth_buffer{};
-
-		age::extent_2d<uint16> extent{};
+		void
+		init() noexcept
+		{
+			stage.init();
+			this->create_buffers();
+		}
 
 		void
-		init(uint32 width, uint32 height, root_signature::handle, pso_handle) noexcept;
+		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
 
 		void
-			resize(age::extent_2d<uint16>) noexcept;
-
-		void
-		deinit() noexcept;
-
-		void
-		begin(ID3D12GraphicsCommandList9& cmd_list, resource_barrier& barrier, render_surface& rs) noexcept;
-
-		void
-		execute(ID3D12GraphicsCommandList9& cmd_list, render_surface& rs) noexcept;
-
-		void
-		end(resource_barrier&) noexcept;
+		deinit() noexcept
+		{
+			stage.deinit();
+		}
 
 	  private:
 		void
-		create_buffers() noexcept;
-	};
+		create_buffers() noexcept
+		{
+			h_main_buffer = resource::create_resource(
+				{ .d3d12_desc{
+					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+					  .Alignment		= 0,
+					  .Width			= extent.width,
+					  .Height			= extent.height,
+					  .DepthOrArraySize = 1,
+					  .MipLevels		= 1,
+					  .Format			= DXGI_FORMAT_R16G16B16A16_FLOAT,
+					  .SampleDesc		= { 1, 0 },
+					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
+					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET },
+				  .clear_value{
+					  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
+					  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
+				  .initial_state	= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				  .heap_memory_kind = resource::memory_kind::gpu_only,
+				  .has_clear_value	= true });
 
-	struct fx_present_pass_context
-	{
-		ID3D12RootSignature* p_root_sig = nullptr;
-		ID3D12PipelineState* p_pso		= nullptr;
+			h_depth_buffer = resource::create_resource(
+				{ .d3d12_desc{
+					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+					  .Alignment		= 0,
+					  .Width			= extent.width,
+					  .Height			= extent.height,
+					  .DepthOrArraySize = 1,
+					  .MipLevels		= 1,
+					  .Format			= DXGI_FORMAT_D32_FLOAT,
+					  .SampleDesc		= { 1, 0 },
+					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
+					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
+				  .clear_value{
+					  .Format		= DXGI_FORMAT_D32_FLOAT,
+					  .DepthStencil = { .Depth = 1.f, .Stencil = 0 } },
+				  .initial_state	= D3D12_RESOURCE_STATE_DEPTH_READ,
+				  .heap_memory_kind = resource::memory_kind::gpu_only,
+				  .has_clear_value	= true });
+		}
 
 		void
-			init(root_signature::handle, pso_handle) noexcept;
+		resize(const age::extent_2d<uint16>& new_extent) noexcept
+		{
+			extent = new_extent;
 
-		void
-		execute(ID3D12GraphicsCommandList9&								  cmd_list,
-				descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV> srv_desc,
-				descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>		  rtv_desc) noexcept;
+			resource::release_resource(h_main_buffer);
+			resource::release_resource(h_depth_buffer);
+
+			this->create_buffers();
+		}
 	};
-}	 // namespace age::graphics::pass
+}	 // namespace age::graphics::stage
 
 // internal globals
 namespace age::graphics::g
@@ -631,9 +818,9 @@ namespace age::graphics::g
 	inline auto* p_dxc_include_handler = (IDxcIncludeHandler*)nullptr;
 	//------------------------------------------------------------------------------
 
-	inline auto cmd_system_direct  = cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, 8>{};
-	inline auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, 2>{};
-	inline auto cmd_system_copy	   = cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, 2>{};
+	inline auto cmd_system_direct  = cmd_system<D3D12_COMMAND_LIST_TYPE_DIRECT, graphics::g::thread_count>{};
+	inline auto cmd_system_compute = cmd_system<D3D12_COMMAND_LIST_TYPE_COMPUTE, graphics::g::thread_count>{};
+	inline auto cmd_system_copy	   = cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, graphics::g::thread_count>{};
 
 	// todo config capacity
 	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048>{};
@@ -643,7 +830,6 @@ namespace age::graphics::g
 
 	inline auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 2 };
 
-	inline auto resource_vec = data_structure::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
 
 	inline auto root_signature_ptr_vec = data_structure::stable_dense_vector<ID3D12RootSignature*>{ 2 };
 
@@ -651,28 +837,17 @@ namespace age::graphics::g
 
 	inline auto shader_blob_vec = data_structure::stable_dense_vector<shader::shader_blob>{ 16 };
 
+	//---[ resource ]--------------------------------------------------------------
+	inline auto resource_vec = data_structure::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
+	//------------------------------------------------------------------------------
 
-	//---[ pass ]------------------------------------------------------------
-	inline auto h_gpass_default_pso		 = pso_handle{};
-	inline auto h_gpass_default_root_sig = root_signature::handle{};
+	//---[ stage ]------------------------------------------------------------
+	inline auto h_geometry_stage_default_pso	  = pso_handle{};
+	inline auto h_geometry_stage_default_root_sig = root_signature::handle{};
 
-	inline auto h_fx_present_pass_default_pso	   = pso_handle{};
-	inline auto h_fx_present_pass_default_root_sig = root_signature::handle{};
+	inline auto h_fx_present_stage_default_pso		= pso_handle{};
+	inline auto h_fx_present_stage_default_root_sig = root_signature::handle{};
 
-	// test
-	inline auto gpass_ctx_vec			= data_structure::stable_dense_vector<pass::gpass_context>{ 2 };
-	inline auto fx_present_pass_ctx_vec = data_structure::stable_dense_vector<pass::fx_present_pass_context>{ 2 };
-
+	inline auto test_pipeline = stage::my_pipeline{};
 	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g
-
-// util
-namespace age::graphics
-{
-	bool inline is_tearing_allowed()
-	{
-		auto allow_tearing = BOOL{ FALSE };
-		AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
-		return allow_tearing;
-	}
-}	 // namespace age::graphics

@@ -1,13 +1,5 @@
 #pragma once
 
-namespace age::request::detail
-{
-	struct sync_state
-	{
-		uint8 required_ack_count;
-	};
-}	 // namespace age::request::detail
-
 namespace age::request
 {
 	AGE_DEFINE_ENUM(type, uint8,
@@ -110,58 +102,28 @@ namespace age::request::detail
 		}
 	};
 
-#define COMBINE_FLAGS(x) age::subsystem::flags::x |
 
-#define PHASE(...) \
-	phase_meta<FOR_EACH(COMBINE_FLAGS, __VA_ARGS__) age::subsystem::flags{ 0 }>
-	// phase_meta<flag_combine(FOR_EACH_ARG(ADD_NAMESPACE, __VA_ARGS__))>
-
-#define DEFINE_REQUEST_BEGIN               \
-	template <age::request::type req_type> \
-	constexpr auto get_req_meta()          \
-	{                                      \
-		if constexpr (false)               \
-		{                                  \
-		}
-
-#define DEFINE_REQUEST(req_type_name, param_type, ...)                                     \
-	else if constexpr (req_type == age::request::type::req_type_name)                      \
-	{                                                                                      \
-		return request_meta<age::request::type::req_type_name, param_type, __VA_ARGS__>{}; \
-	}
-
-#define DEFINE_REQUEST_END                            \
-	else                                              \
-	{                                                 \
-		static_assert(false, "invalid request type"); \
-	}                                                 \
-	}
 }	 // namespace age::request::detail
 
 namespace age::request::detail
 {
-	DEFINE_REQUEST_BEGIN
+	AGE_DEFINE_REQUEST_BEGIN
 
-	DEFINE_REQUEST(window_closed,
-				   platform::window_handle,
-				   PHASE(graphics),
-				   PHASE(platform))
-	DEFINE_REQUEST(window_resized,
-				   platform::window_handle,
-				   PHASE(graphics))
-	DEFINE_REQUEST(window_minimized,
-				   platform::window_handle,
-				   PHASE(graphics))
-	DEFINE_REQUEST(window_maximized,
-				   platform::window_handle,
-				   PHASE(graphics))
-	DEFINE_REQUEST_END
+	AGE_DEFINE_REQUEST(window_closed,
+					   platform::window_handle,
+					   AGE_REQUEST_PHASE(graphics),
+					   AGE_REQUEST_PHASE(platform))
+	AGE_DEFINE_REQUEST(window_resized,
+					   platform::window_handle,
+					   AGE_REQUEST_PHASE(graphics))
+	AGE_DEFINE_REQUEST(window_minimized,
+					   platform::window_handle,
+					   AGE_REQUEST_PHASE(graphics))
+	AGE_DEFINE_REQUEST(window_maximized,
+					   platform::window_handle,
+					   AGE_REQUEST_PHASE(graphics))
 
-#undef COMBINE_FLAGS
-#undef PHASE
-#undef DEFINE_REQUEST_BEGIN
-#undef DEFINE_REQUEST
-#undef DEFINE_REQUEST_END
+	AGE_DEFINE_REQUEST_END
 }	 // namespace age::request::detail
 
 namespace age::request
@@ -190,6 +152,14 @@ namespace age::request
 	FORCE_INLINE void
 	set_done(info& req) noexcept;
 }	 // namespace age::request
+
+namespace age::request::detail
+{
+	struct sync_state
+	{
+		uint8 required_ack_count;
+	};
+}	 // namespace age::request::detail
 
 namespace age::request::g
 {
