@@ -1,6 +1,9 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
+#line 1 "age_asset.cpp"
+#include "age_asset.cpp"
+
 #line 1 "age_request.cpp"
 #include "age_request.cpp"
 

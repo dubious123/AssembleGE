@@ -15,13 +15,13 @@ namespace age::inline math
 }	 // namespace age::inline math
 
 #if defined(_WIN64)
-using int2 = DirectX::XMINT2;
-using int3 = DirectX::XMINT3;
-using int4 = DirectX::XMINT4;
+using int32_2 = DirectX::XMINT2;
+using int32_3 = DirectX::XMINT3;
+using int32_4 = DirectX::XMINT4;
 
-using uint2 = DirectX::XMUINT2;
-using uint3 = DirectX::XMUINT3;
-using uint4 = DirectX::XMUINT4;
+using uint32_2 = DirectX::XMUINT2;
+using uint32_3 = DirectX::XMUINT3;
+using uint32_4 = DirectX::XMUINT4;
 
 using float2  = DirectX::XMFLOAT2;
 using float2a = DirectX::XMFLOAT2A;
@@ -33,6 +33,10 @@ using float4a = DirectX::XMFLOAT4A;
 using float3x3	= DirectX::XMFLOAT3X3;
 using float4x4	= DirectX::XMFLOAT4X4;
 using float4x4a = DirectX::XMFLOAT4X4A;
+
+using half	 = DirectX::PackedVector::HALF;
+using half_2 = DirectX::PackedVector::XMHALF2;
+using half_4 = DirectX::PackedVector::XMHALF4;
 #endif
 
 using uint64 = uint64_t;
@@ -56,6 +60,9 @@ inline constexpr uint64 invalid_idx_uint64 = 0xffff'ffff'ffff'ffffui64;
 inline constexpr uint32 invalid_idx_uint32 = 0xffff'ffffui32;
 inline constexpr uint16 invalid_idx_uint16 = 0xffffui16;
 inline constexpr uint16 invalid_idx_uint8  = 0xffui8;
+
+static_assert(sizeof(float32) == 4);
+static_assert(sizeof(double64) == 8);
 
 enum e_primitive_type
 {

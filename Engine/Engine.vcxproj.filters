@@ -37,6 +37,7 @@
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
     <ClInclude Include="age_subsystem.hpp" />
     <ClInclude Include="age_request.hpp" />
+    <ClInclude Include="age_asset.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -52,6 +53,7 @@
     <ClCompile Include="age_graphics_backend_dx12_render_surface.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_cmd_system.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_util.cpp" />
+    <ClCompile Include="age_asset.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />

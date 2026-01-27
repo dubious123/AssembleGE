@@ -55,6 +55,7 @@ main()
 
 		AGE_FUNC(age::graphics::deinit),
 		AGE_FUNC(age::platform::deinit),
+		AGE_FUNC(age::asset::deinit),
 		exec_inline{}
 	}();
 

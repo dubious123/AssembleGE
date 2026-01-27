@@ -26,6 +26,10 @@ namespace age
 	{
 	}
 
+	namespace asset
+	{
+	}
+
 	namespace ecs
 	{
 	}
@@ -87,6 +91,8 @@ namespace age
 #include "age_util_layout.hpp"
 
 #include "age_data_structure.hpp"
+
+#include "age_asset.hpp"
 
 #include "age_ecs.hpp"
 

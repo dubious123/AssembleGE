@@ -39,6 +39,7 @@
 
 #if defined(AGE_PLATFORM_WINDOW)
 	#include <DirectXMath.h>
+	#include <DirectXPackedVector.h>
 
 	#define NOMINMAX
 	#define WIN32_LEAN_AND_MEAN

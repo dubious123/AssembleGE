@@ -1,5 +1,4 @@
 #pragma once
-#include "age.hpp"	  // intellisense
 
 // using
 namespace age::graphics
