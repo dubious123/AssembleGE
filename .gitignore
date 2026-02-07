@@ -235,5 +235,14 @@ obj
 # Ignore .vs folder
 .vs/
 
+# Ignore .vscode folder
+.vscode/
+
 # Ignore log file
 Editor/EditorLog.txt
+
+# Ignore AGENTS.md file
+AGENTS.md
+
+# Ignore .dat
+*.dat

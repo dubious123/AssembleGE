@@ -1,4 +1,6 @@
 #pragma once
+#define c_auto const auto
+
 #define is_false == false
 
 #define is_true == true
@@ -10,6 +12,13 @@
 #define FWD(x) std::forward<decltype(x)>(x)
 
 #define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
+
+#if defined(__cpp_multidimensional_subscript)
+	#define AGE_MD_INDEX(...) __VA_ARGS__
+#else
+	#define AGE_MD_INDEX(...) \
+		std::array { __VA_ARGS__ }
+#endif
 
 #define AGE_DO_WHILE(...)       \
 	do                          \
@@ -41,15 +50,30 @@
 	#define AGE_MSVC_WARNING_DISABLE(n)
 #endif
 
-#define AGE_FUNC(overloaded_func_name) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK { \
-	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                           \
-	{                                                                                                                        \
-		return overloaded_func_name(FWD(arg)...);                                                                            \
-	}                                                                                                                        \
-	else                                                                                                                     \
-	{                                                                                                                        \
-		return age::ecs::system::detail::invalid_sys_call{};                                                                 \
-	}                                                                                                                        \
+//#define AGE_FUNC(overloaded_func_name) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+//	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                           \
+//	{                                                                                                                        \
+//		return overloaded_func_name(FWD(arg)...);                                                                            \
+//	}                                                                                                                        \
+//	else                                                                                                                     \
+//	{                                                                                                                        \
+//		return age::ecs::system::detail::invalid_sys_call{};                                                                 \
+//	}                                                                                                                        \
+//}
+
+#define AGE_FUNC(...) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	return __VA_ARGS__(FWD(arg)...);                                                                        \
+}
+
+#define AGE_FUNC_MEM(overloaded_func_name) [this] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                                   \
+	{                                                                                                                                \
+		return overloaded_func_name(FWD(arg)...);                                                                                    \
+	}                                                                                                                                \
+	else                                                                                                                             \
+	{                                                                                                                                \
+		static_assert(false);                                                                                                        \
+	}                                                                                                                                \
 }
 
 #define AGE_PROP(property_name)                           \
@@ -148,57 +172,59 @@
 	AGE_DISABLE_COPY(T)          \
 	AGE_DISABLE_MOVE(T)
 
-
-#define AGE_ENUM_FLAG_OPERATORS(T)                                                             \
-	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+#define __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, enable_static_member)                              \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
 	operator|(T a, T b) noexcept                                                               \
 	{                                                                                          \
 		return static_cast<T>(std::to_underlying(a) | std::to_underlying(b));                  \
 	}                                                                                          \
-	FORCE_INLINE T&                                                                            \
+	FORCE_INLINE enable_static_member T&                                                       \
 	operator|=(T& a, T b) noexcept                                                             \
 	{                                                                                          \
-		a = a | b;                                                                             \
+		a = operator|(a, b);                                                                   \
 		return a;                                                                              \
 	}                                                                                          \
-	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
 	operator&(T a, T b) noexcept                                                               \
 	{                                                                                          \
 		return static_cast<T>(std::to_underlying(a) & std::to_underlying(b));                  \
 	}                                                                                          \
-	FORCE_INLINE T&                                                                            \
+	FORCE_INLINE enable_static_member T&                                                       \
 	operator&=(T& a, T b) noexcept                                                             \
 	{                                                                                          \
-		a = a & b;                                                                             \
+		a = operator&(a, b);                                                                   \
 		return a;                                                                              \
 	}                                                                                          \
-	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
 	operator~(T a) noexcept                                                                    \
 	{                                                                                          \
 		return static_cast<T>(~std::to_underlying(a));                                         \
 	}                                                                                          \
-	[[nodiscard]] FORCE_INLINE constexpr T                                                     \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
 	operator^(T a, T b) noexcept                                                               \
 	{                                                                                          \
 		return static_cast<T>(std::to_underlying(a) ^ std::to_underlying(b));                  \
 	}                                                                                          \
-	FORCE_INLINE T&                                                                            \
+	FORCE_INLINE enable_static_member T&                                                       \
 	operator^=(T& a, T b) noexcept                                                             \
 	{                                                                                          \
-		a = a ^ b;                                                                             \
+		a = operator^(a, b);                                                                   \
 		return a;                                                                              \
 	}                                                                                          \
-	[[nodiscard]] FORCE_INLINE constexpr bool                                                  \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr bool                             \
 	has_any(T v, T mask) noexcept                                                              \
 	{                                                                                          \
 		return (std::to_underlying(v) & std::to_underlying(mask)) != 0;                        \
 	}                                                                                          \
                                                                                                \
-	[[nodiscard]] FORCE_INLINE constexpr bool                                                  \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr bool                             \
 	has_all(T v, T mask) noexcept                                                              \
 	{                                                                                          \
 		return (std::to_underlying(v) & std::to_underlying(mask)) == std::to_underlying(mask); \
 	}
+
+#define AGE_ENUM_FLAG_OPERATORS(T)		  __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, )
+#define AGE_ENUM_FLAG_OPERATORS_MEMBER(T) __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, static)
 
 #define AGE_ENUM_TO_STRING_CASE(enum_name) \
 	case __t_enum__::enum_name:            \
@@ -211,7 +237,25 @@
 	{                                                                           \
 		__VA_ARGS__                                                             \
 	};                                                                          \
-	constexpr inline std::string_view to_string(enum_class_name e)              \
+	constexpr inline std::string_view to_string(enum_class_name e) noexcept     \
+	{                                                                           \
+		using __t_enum__ = enum_class_name;                                     \
+		switch (e)                                                              \
+		{                                                                       \
+			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                      \
+		default:                                                                \
+		{                                                                       \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+		}                                                                       \
+		}                                                                       \
+	}
+
+#define AGE_DEFINE_ENUM_MEMBER(enum_class_name, underlying_type, ...)           \
+	enum class enum_class_name : underlying_type                                \
+	{                                                                           \
+		__VA_ARGS__                                                             \
+	};                                                                          \
+	static constexpr std::string_view to_string(enum_class_name e) noexcept     \
 	{                                                                           \
 		using __t_enum__ = enum_class_name;                                     \
 		switch (e)                                                              \
@@ -274,7 +318,7 @@
                                                                                                                    \
 	FORCE_INLINE                                                                                                   \
 	static constexpr decltype(auto)                                                                                \
-		h_desc_member_name##_view_desc() noexcept                                                                  \
+	h_desc_member_name##_view_desc() noexcept                                                                      \
 	{                                                                                                              \
 		return desc;                                                                                               \
 	}
@@ -331,14 +375,14 @@
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)                                                                                                     \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,                                                                                                                \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,                                                                                                               \
 								   "[resource validate] invalid flags, missing flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS (required by UAV)");                                                       \
 						AGE_ASSERT(desc.SampleDesc.Count == 1,                                                                                                                                            \
 								   "[resource validate] invalid sample count, MSAA resource is not allowed for UAV");                                                                                     \
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_RENDER_TARGET_VIEW_DESC>)                                                                                                        \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,                                                                                                                   \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,                                                                                                                  \
 								   "[resource validate] invalid flags, missing flag D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET (required by RTV)");                                                          \
 						AGE_ASSERT(desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER,                                                                                                                     \
 								   "[resource validate] invalid dimension, expected TEXTURE resource (required by RTV)");                                                                                 \
@@ -364,7 +408,7 @@
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_DEPTH_STENCIL_VIEW_DESC>)                                                                                                        \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,                                                                                                                   \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,                                                                                                                  \
 								   "[resource validate] invalid flags, missing flag ALLOW_DEPTH_STENCIL (required by DSV)");                                                                              \
                                                                                                                                                                                                           \
 						AGE_ASSERT(desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D,                                                                                                                  \

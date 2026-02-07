@@ -8,14 +8,14 @@
 #else
 	#define DBG_NEW new
 #endif
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <Windows.h>
-
-#include <libloaderapi.h>
+//
+// #define WIN32_LEAN_AND_MEAN
+// #define NOMINMAX
+// #include <Windows.h>
+//
+// #include <libloaderapi.h>
 #include <crtdbg.h>
-#include <Sysinfoapi.h>
+// #include <Sysinfoapi.h>
 
 #define Find(Type, Id) Model::Type::Find(Id)
 
@@ -37,13 +37,17 @@ typedef int (*import_func)();
 
 
 #include <chrono>
-#include <array>
-#include <cstdlib>
+#include "age.hpp"
 
-#include <source_location>
-#include <print>
-#include <string>
-#include <variant>
+// #include <array>
+// #include <cstdlib>
 
-#include <future>
+// #include <source_location>
+//  #include <print>
+//  #include <string>
+//  #include <variant>
+//
+//  #include <future>
 #include <random>
+
+#pragma comment(lib, "Engine.lib")

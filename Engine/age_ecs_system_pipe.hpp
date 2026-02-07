@@ -17,7 +17,7 @@ namespace age::ecs::system
 		__run_impl(cx_ctx auto&& ctx, auto&&... arg)
 		{
 			static_assert(
-				requires { run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...); },
+				requires { {run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...)} -> detail::cx_valid_sys_call; },
 				"[pipe] invalid_sys_call - check that system left is callable with given arguments.");
 
 			if constexpr (sys_idx + 1 == sizeof...(t_sys))
@@ -45,7 +45,7 @@ namespace age::ecs::system
 		__run_impl(auto&&... arg)
 		{
 			static_assert(
-				requires { run_sys(systems.get<sys_idx>(), FWD(arg)...); },
+				requires { {run_sys(systems.get<sys_idx>(), FWD(arg)...)}->detail::cx_valid_sys_call; },
 				"[pipe] invalid_sys_call - check that system left is callable with given arguments.");
 
 			if constexpr (sys_idx + 1 == sizeof...(t_sys))

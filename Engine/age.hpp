@@ -85,14 +85,18 @@ namespace age
 #include "age_meta_compressed_pack.hpp"
 #include "age_meta_hash.hpp"
 
+#include "age_math_simd.hpp"
+
 #include "age_literal.hpp"
 
 #include "age_util.hpp"
 #include "age_util_layout.hpp"
+#include "age_util_views.hpp"
 
 #include "age_data_structure.hpp"
 
 #include "age_asset.hpp"
+#include "age_asset_mesh_editable.hpp"
 
 #include "age_ecs.hpp"
 

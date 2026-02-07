@@ -1,4 +1,164 @@
 #pragma once
+#define c_auto const auto
+
+#define is_false == false
+
+#define is_true == true
+
+#define is_nullptr == nullptr
+
+#define is_not_nullptr != nullptr
+
+#define FWD(x) std::forward<decltype(x)>(x)
+
+#define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
+
+#if defined(__cpp_multidimensional_subscript)
+	#define AGE_MD_INDEX(...) __VA_ARGS__
+#else
+	#define AGE_MD_INDEX(...) \
+		std::array { __VA_ARGS__ }
+#endif
+
+#define AGE_DO_WHILE(...)       \
+	do                          \
+	{                           \
+		__VA_OPT__(__VA_ARGS__) \
+	}                           \
+	while (false)
+
+
+#ifdef AGE_DEBUG
+	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE(__VA_OPT__(std::cout << std::format(__VA_ARGS__) << '\n');)
+#else
+	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE()
+#endif
+
+#if defined(AGE_DEBUG)
+	#define AGE_DEBUG_ONLY(expression) expression
+#else
+	#define AGE_DEBUG_ONLY(expression)
+#endif
+
+#if defined(AGE_COMPILER_MSVC)
+	#define AGE_MSVC_WARNING_PUSH		__pragma(warning(push))
+	#define AGE_MSVC_WARNING_POP		__pragma(warning(pop))
+	#define AGE_MSVC_WARNING_DISABLE(n) __pragma(warning(disable : n))
+#else
+	#define AGE_MSVC_WARNING_PUSH
+	#define AGE_MSVC_WARNING_POP
+	#define AGE_MSVC_WARNING_DISABLE(n)
+#endif
+
+//#define AGE_FUNC(overloaded_func_name) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+//	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                           \
+//	{                                                                                                                        \
+//		return overloaded_func_name(FWD(arg)...);                                                                            \
+//	}                                                                                                                        \
+//	else                                                                                                                     \
+//	{                                                                                                                        \
+//		return age::ecs::system::detail::invalid_sys_call{};                                                                 \
+//	}                                                                                                                        \
+//}
+
+#define AGE_FUNC(...) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	return __VA_ARGS__(FWD(arg)...);                                                                        \
+}
+
+#define AGE_FUNC_MEM(overloaded_func_name) [this] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                                   \
+	{                                                                                                                                \
+		return overloaded_func_name(FWD(arg)...);                                                                                    \
+	}                                                                                                                                \
+	else                                                                                                                             \
+	{                                                                                                                                \
+		static_assert(false);                                                                                                        \
+	}                                                                                                                                \
+}
+
+#define AGE_PROP(property_name)                           \
+	FORCE_INLINE constexpr decltype((data.property_name)) \
+	property_name() noexcept                              \
+	{                                                     \
+		return data.property_name;                        \
+	}
+
+#if defined(AGE_DEBUG)
+	#define AGE_ASSERT(expression, ...)                                            \
+		do                                                                         \
+		{                                                                          \
+			if ((expression)is_false)                                              \
+			{                                                                      \
+				std::println("  expr : {}", #expression);                          \
+				std::println("  file : {}", __FILE__);                             \
+				std::println("  line : {}", __LINE__);                             \
+				__VA_OPT__(std::println("   msg : {}", std::format(__VA_ARGS__));) \
+				AGE_DEBUG_BREAK();                                                 \
+			}                                                                      \
+		}                                                                          \
+		while (false)
+#else
+	#define AGE_ASSERT(expression, ...)
+#endif
+
+#if defined(AGE_COMPILER_MSVC)
+	#define AGE_DEBUG_BREAK() __debugbreak()
+#elif defined(AGE_COMPILER_CLANG) || defined(AGE_COMPILER_GCC)
+	#if __has_builtin(__builtin_debugtrap)
+		#define AGE_DEBUG_BREAK() __builtin_debugtrap()
+	#else
+		#define AGE_DEBUG_BREAK() __builtin_trap()
+	#endif
+#else
+	#error C++ compiler required
+#endif
+
+#if defined(AGE_DEBUG)
+	#define AGE_UNREACHABLE(...) AGE_DO_WHILE(AGE_DEBUG_LOG(__VA_ARGS__); AGE_DEBUG_BREAK(); std::unreachable();)
+#else
+	#define AGE_UNREACHABLE(...) AGE_DO_WHILE(std::unreachable();)
+#endif
+
+#if defined(AGE_PLATFORM_WINDOW)
+	#if defined(AGE_DEBUG)
+		#define AGE_HR_CHECK(expression)                                                             \
+			do                                                                                       \
+			{                                                                                        \
+				static_assert(std::is_same_v<std::remove_cvref_t<decltype((expression))>, HRESULT>); \
+				HRESULT __hr__ = (expression);                                                       \
+				if (FAILED(__hr__))                                                                  \
+				{                                                                                    \
+					std::println("HRESULT failed: {:x}", (unsigned)__hr__);                          \
+					std::println("  expr : {}", #expression);                                        \
+					std::println("  file : {}", __FILE__);                                           \
+					std::println("  line : {}", __LINE__);                                           \
+					AGE_DEBUG_BREAK();                                                               \
+				}                                                                                    \
+			}                                                                                        \
+			while (false)
+	#else
+		#define AGE_HR_CHECK(expression) AGE_DO_WHILE((expression);)
+	#endif
+
+	#if defined(AGE_DEBUG)
+		#define AGE_WIN32_CHECK(expression)                               \
+			do                                                            \
+			{                                                             \
+				if ((expression) == 0) [[unlikely]]                       \
+				{                                                         \
+					const auto __last_err__ = ::GetLastError();           \
+					std::println("WIN32 API FAILED: {:x}", __last_err__); \
+					std::println("  expr : {}", #expression);             \
+					std::println("  file : {}", __FILE__);                \
+					std::println("  line : {}", __LINE__);                \
+					AGE_DEBUG_BREAK();                                    \
+				}                                                         \
+			}                                                             \
+			while (false)
+	#else
+		#define AGE_WIN32_CHECK(expression) AGE_DO_WHILE((expression);)
+	#endif
+#endif
 
 #define AGE_DISABLE_COPY(T)          \
 	explicit T(const T&)   = delete; \
@@ -12,12 +172,72 @@
 	AGE_DISABLE_COPY(T)          \
 	AGE_DISABLE_MOVE(T)
 
+#define __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, enable_static_member)                              \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
+	operator|(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) | std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE enable_static_member T&                                                       \
+	operator|=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = operator|(a, b);                                                                   \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
+	operator&(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) & std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE enable_static_member T&                                                       \
+	operator&=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = operator&(a, b);                                                                   \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
+	operator~(T a) noexcept                                                                    \
+	{                                                                                          \
+		return static_cast<T>(~std::to_underlying(a));                                         \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
+	operator^(T a, T b) noexcept                                                               \
+	{                                                                                          \
+		return static_cast<T>(std::to_underlying(a) ^ std::to_underlying(b));                  \
+	}                                                                                          \
+	FORCE_INLINE enable_static_member T&                                                       \
+	operator^=(T& a, T b) noexcept                                                             \
+	{                                                                                          \
+		a = operator^(a, b);                                                                   \
+		return a;                                                                              \
+	}                                                                                          \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr bool                             \
+	has_any(T v, T mask) noexcept                                                              \
+	{                                                                                          \
+		return (std::to_underlying(v) & std::to_underlying(mask)) != 0;                        \
+	}                                                                                          \
+                                                                                               \
+	[[nodiscard]] FORCE_INLINE enable_static_member constexpr bool                             \
+	has_all(T v, T mask) noexcept                                                              \
+	{                                                                                          \
+		return (std::to_underlying(v) & std::to_underlying(mask)) == std::to_underlying(mask); \
+	}
+
+#define AGE_ENUM_FLAG_OPERATORS(T)		  __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, )
+#define AGE_ENUM_FLAG_OPERATORS_MEMBER(T) __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, static)
+
+#define AGE_ENUM_TO_STRING_CASE(enum_name) \
+	case __t_enum__::enum_name:            \
+	{                                      \
+		return #enum_name;                 \
+	}
+
 #define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                  \
 	enum class enum_class_name : underlying_type                                \
 	{                                                                           \
 		__VA_ARGS__                                                             \
 	};                                                                          \
-	constexpr inline std::string_view to_string(enum_class_name e)              \
+	constexpr inline std::string_view to_string(enum_class_name e) noexcept     \
 	{                                                                           \
 		using __t_enum__ = enum_class_name;                                     \
 		switch (e)                                                              \
@@ -30,10 +250,29 @@
 		}                                                                       \
 	}
 
-#define AGE_REQUEST_COMBINE_FLAGS(x) age::subsystem::flags::x |
+#define AGE_DEFINE_ENUM_MEMBER(enum_class_name, underlying_type, ...)           \
+	enum class enum_class_name : underlying_type                                \
+	{                                                                           \
+		__VA_ARGS__                                                             \
+	};                                                                          \
+	static constexpr std::string_view to_string(enum_class_name e) noexcept     \
+	{                                                                           \
+		using __t_enum__ = enum_class_name;                                     \
+		switch (e)                                                              \
+		{                                                                       \
+			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                      \
+		default:                                                                \
+		{                                                                       \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+		}                                                                       \
+		}                                                                       \
+	}
+
+//---[ age_request.hpp ]------------------------------------------------------------
+#define __AGE_REQUEST_COMBINE_FLAGS__(x) age::subsystem::flags::x |
 
 #define AGE_REQUEST_PHASE(...) \
-	phase_meta<FOR_EACH(AGE_REQUEST_COMBINE_FLAGS, __VA_ARGS__) age::subsystem::flags{ 0 }>
+	phase_meta<FOR_EACH(__AGE_REQUEST_COMBINE_FLAGS__, __VA_ARGS__) age::subsystem::flags{ 0 }>
 
 #define AGE_DEFINE_REQUEST_BEGIN           \
 	template <age::request::type req_type> \
@@ -55,7 +294,9 @@
 		static_assert(false, "invalid request type"); \
 	}                                                 \
 	}
+//----------------------------------------------------------------------------------
 
+//---[ age_graphics_backend_dx12.hpp ]------------------------------------------------------------
 #define __AGE_VALIDATE_EXTRACT_VIEW_DESC_TYPE_IMPL__(_0, _1, view_desc) decltype(view_desc)
 #define __AGE_VALIDATE_EXTRACT_VIEW_DESC_TYPE__(expression)				__AGE_VALIDATE_EXTRACT_VIEW_DESC_TYPE_IMPL__ expression
 #define __AGE_VALIDATE_HELPER__(...) \
@@ -77,7 +318,7 @@
                                                                                                                    \
 	FORCE_INLINE                                                                                                   \
 	static constexpr decltype(auto)                                                                                \
-		h_desc_member_name##_view_desc() noexcept                                                                  \
+	h_desc_member_name##_view_desc() noexcept                                                                      \
 	{                                                                                                              \
 		return desc;                                                                                               \
 	}
@@ -134,14 +375,14 @@
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)                                                                                                     \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,                                                                                                                \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,                                                                                                               \
 								   "[resource validate] invalid flags, missing flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS (required by UAV)");                                                       \
 						AGE_ASSERT(desc.SampleDesc.Count == 1,                                                                                                                                            \
 								   "[resource validate] invalid sample count, MSAA resource is not allowed for UAV");                                                                                     \
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_RENDER_TARGET_VIEW_DESC>)                                                                                                        \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,                                                                                                                   \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,                                                                                                                  \
 								   "[resource validate] invalid flags, missing flag D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET (required by RTV)");                                                          \
 						AGE_ASSERT(desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER,                                                                                                                     \
 								   "[resource validate] invalid dimension, expected TEXTURE resource (required by RTV)");                                                                                 \
@@ -167,7 +408,7 @@
 					}                                                                                                                                                                                     \
 					else if constexpr (std::is_same_v<t_view_desc, D3D12_DEPTH_STENCIL_VIEW_DESC>)                                                                                                        \
 					{                                                                                                                                                                                     \
-						AGE_ASSERT(desc.Flags& D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,                                                                                                                   \
+						AGE_ASSERT(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,                                                                                                                  \
 								   "[resource validate] invalid flags, missing flag ALLOW_DEPTH_STENCIL (required by DSV)");                                                                              \
                                                                                                                                                                                                           \
 						AGE_ASSERT(desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D,                                                                                                                  \
@@ -206,9 +447,10 @@
 			FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_INIT__ __VA_OPT__(, ) __VA_ARGS__)                                                                                                                      \
 		}                                                                                                                                                                                                 \
 		void                                                                                                                                                                                              \
-		bind(const ID3D12Resource& __age_resource__) noexcept                                                                                                                                             \
+		bind(ID3D12Resource& __age_resource__) noexcept                                                                                                                                                   \
 		{                                                                                                                                                                                                 \
 			p_resource = &__age_resource__;                                                                                                                                                               \
+			validate(__age_resource__);                                                                                                                                                                   \
 			FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_BIND__ __VA_OPT__(, ) __VA_ARGS__)                                                                                                                      \
 		}                                                                                                                                                                                                 \
 		void                                                                                                                                                                                              \
@@ -225,34 +467,36 @@
 #define AGE_DEFINE_RESOURCE_VIEW(view_type_name, validation, ...)		 __AGE_DEFINE_RESOURCE_VIEW_IMPL__(view_type_name, , validation, __VA_ARGS__)
 #define AGE_DEFINE_LOCAL_RESOURCE_VIEW(view_local_name, validation, ...) __AGE_DEFINE_RESOURCE_VIEW_IMPL__(, view_local_name, validation, __VA_ARGS__)
 
+#define AGE_MACRO_IDENTITY(...) __VA_ARGS__
+#define TAKE_FIRST(x, ...)		x
 
 #define AGE_DEFINE_RESOURCE_FLOW(...) __VA_ARGS__
 #define AGE_RESOURCE_BARRIER_ARR(...) \
-	const D3D12_RESOURCE_BARRIER __resource_barrier_arr__[] { __VA_ARGS__ }
+	TAKE_FIRST(__VA_OPT__(AGE_MACRO_IDENTITY(const auto __resource_barrier_arr__ = std::to_array<D3D12_RESOURCE_BARRIER>({ __VA_ARGS__ })), ) AGE_MACRO_IDENTITY(const auto __resource_barrier_arr__ = std::array<D3D12_RESOURCE_BARRIER, 0>{}))
 #define AGE_RENDER_PASS_RT_DESC_ARR(...) \
-	const D3D12_RENDER_PASS_RENDER_TARGET_DESC __render_pass_rt_desc_arr__[] { __VA_ARGS__ }
+	TAKE_FIRST(__VA_OPT__(AGE_MACRO_IDENTITY(const auto __render_pass_rt_desc_arr__ = std::to_array<D3D12_RENDER_PASS_RENDER_TARGET_DESC>({ __VA_ARGS__ })), ) AGE_MACRO_IDENTITY(const auto __render_pass_rt_desc_arr__ = std::array<D3D12_RENDER_PASS_RENDER_TARGET_DESC, 0>{}))
 #define AGE_RENDER_PASS_DS_DESC(...) \
-	const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC __render_pass_ds_desc_arr__[] { __VA_ARGS__ }
+	TAKE_FIRST(__VA_OPT__(AGE_MACRO_IDENTITY(const auto __render_pass_ds_desc_arr__ = std::to_array<D3D12_RENDER_PASS_DEPTH_STENCIL_DESC>({ __VA_ARGS__ })), ) AGE_MACRO_IDENTITY(const auto __render_pass_ds_desc_arr__ = std::array<D3D12_RENDER_PASS_DEPTH_STENCIL_DESC, 0>{}))
 
-#define TAKE_FIRST(x, ...) x
-
-#define AGE_RESOURCE_FLOW_PHASE(phase_name, resource_barrier_arr, render_pass_rt_desc_arr, render_pass_ds_desc, ...)                                                                                                \
-	FORCE_INLINE decltype(auto)                                                                                                                                                                                     \
-	phase_name(t_igraphics_cmd_list& __age_cmd_list__) noexcept                                                                                                                                                     \
-	{                                                                                                                                                                                                               \
-		resource_barrier_arr;                                                                                                                                                                                       \
-		render_pass_rt_desc_arr;                                                                                                                                                                                    \
-		render_pass_ds_desc;                                                                                                                                                                                        \
-		static_assert(std::size(__render_pass_ds_desc_arr__) <= 1, "render pass can have at most one depth-stencil attachment");                                                                                    \
-                                                                                                                                                                                                                    \
-		if constexpr (std::size(__resource_barrier_arr__) > 0)                                                                                                                                                      \
-		{                                                                                                                                                                                                           \
-			__age_cmd_list__.ResourceBarrier(std::size(__resource_barrier_arr__), __resource_barrier_arr__);                                                                                                        \
-		}                                                                                                                                                                                                           \
-                                                                                                                                                                                                                    \
-		if constexpr (std::size(__render_pass_rt_desc_arr__) + std::size(__render_pass_ds_desc_arr__) > 0)                                                                                                          \
-		{                                                                                                                                                                                                           \
-			__age_cmd_list__.BeginRenderPass(std::size(__render_pass_rt_desc_arr__), __render_pass_rt_desc_arr__, __render_pass_ds_desc_arr__, TAKE_FIRST(__VA_ARGS__ __VA_OPT__(, ) D3D12_RENDER_PASS_FLAG_NONE)); \
-			return age::util::scope_guard{ [&__age_cmd_list__] INLINE_LAMBDA_FRONT() noexcept INLINE_LAMBDA_BACK { __age_cmd_list__.EndRenderPass(); } };                                                           \
-		}                                                                                                                                                                                                           \
+#define AGE_RESOURCE_FLOW_PHASE(phase_name, resource_barrier_arr, render_pass_rt_desc_arr, render_pass_ds_desc, ...)                                                                                                              \
+	FORCE_INLINE decltype(auto)                                                                                                                                                                                                   \
+	phase_name(t_igraphics_cmd_list& __age_cmd_list__) noexcept                                                                                                                                                                   \
+	{                                                                                                                                                                                                                             \
+		resource_barrier_arr;                                                                                                                                                                                                     \
+		render_pass_rt_desc_arr;                                                                                                                                                                                                  \
+		render_pass_ds_desc;                                                                                                                                                                                                      \
+		static_assert(std::size(__render_pass_ds_desc_arr__) <= 1, "render pass can have at most one depth-stencil attachment");                                                                                                  \
+                                                                                                                                                                                                                                  \
+		if constexpr (std::size(__resource_barrier_arr__) > 0)                                                                                                                                                                    \
+		{                                                                                                                                                                                                                         \
+			__age_cmd_list__.ResourceBarrier(std::size(__resource_barrier_arr__), __resource_barrier_arr__.data());                                                                                                               \
+		}                                                                                                                                                                                                                         \
+                                                                                                                                                                                                                                  \
+		if constexpr (std::size(__render_pass_rt_desc_arr__) + std::size(__render_pass_ds_desc_arr__) > 0)                                                                                                                        \
+		{                                                                                                                                                                                                                         \
+			__age_cmd_list__.BeginRenderPass(std::size(__render_pass_rt_desc_arr__), __render_pass_rt_desc_arr__.data(), __render_pass_ds_desc_arr__.data(), TAKE_FIRST(__VA_ARGS__ __VA_OPT__(, ) D3D12_RENDER_PASS_FLAG_NONE)); \
+			return age::util::scope_guard{ [&__age_cmd_list__] INLINE_LAMBDA_FRONT() noexcept INLINE_LAMBDA_BACK { __age_cmd_list__.EndRenderPass(); } };                                                                         \
+		}                                                                                                                                                                                                                         \
 	}
+
+//------------------------------------------------------------------------------------------------

@@ -29,7 +29,7 @@ namespace age::request
 				.required_ack_count = req_meta.required_ack_count(v_phase) });
 		}
 
-		for (auto subsystem_type_idx : age::util::each_set_bit_idx(req_meta.get_listeners(v_phase)))
+		for (auto subsystem_type_idx : age::views::each_set_bit_idx(req_meta.get_listeners(v_phase)))
 		{
 			g::request_info_vec[std::to_underlying(subsystem_type_idx)].emplace_back(request::info{
 				.req_param		= req_param,

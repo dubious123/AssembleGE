@@ -4,6 +4,11 @@
 #line 1 "age_asset.cpp"
 #include "age_asset.cpp"
 
+#line 1 "age_asset_mesh_editable.cpp"
+#include "age_asset_mesh_editable.cpp"
+#line 1 "age_asset_mesh_baked.cpp"
+#include "age_asset_mesh_baked.cpp"
+
 #line 1 "age_request.cpp"
 #include "age_request.cpp"
 

@@ -558,37 +558,13 @@ namespace age::meta
 	template <template <typename, typename> typename comparator, typename... t>
 	using tuple_sort_stable_t = tuple_sort_stable<comparator, t...>::type;
 
-	template <template <typename> typename pred, typename... ts>
-	struct find_index_impl;
-
-	template <template <typename> typename pred, typename first, typename... rest>
-	struct find_index_impl<pred, first, rest...>
-	{
-		static constexpr std::size_t value = []() {
-			if constexpr (pred<first>::value)
-			{
-				return 0;
-			}
-			else
-			{
-				return 1 + find_index_impl<pred, rest...>::value;
-			}
-		}();
-	};
-
-	template <template <typename> typename pred>
-	struct find_index_impl<pred>
-	{
-		static_assert(false, "No matching type found in type list");
-	};
-
 	template <template <typename> typename pred, typename tuple>
 	struct find_index_from_tuple;
 
 	template <template <typename> typename pred, template <typename...> typename tuple_t, typename... ts>
 	struct find_index_from_tuple<pred, tuple_t<ts...>>
 	{
-		static constexpr std::size_t value = find_index_impl<pred, ts...>::value;
+		static constexpr std::size_t value = variadic_index_v<pred, ts...>;
 	};
 
 	template <template <typename> typename pred, typename t_tpl>
@@ -605,9 +581,6 @@ namespace age::meta
 
 	template <template <typename> typename pred, typename tuple>
 	inline constexpr std::size_t find_index_tuple_v = find_index_from_tuple<pred, tuple>::value;
-
-	template <template <typename> typename pred, typename... t>
-	inline constexpr std::size_t find_index_v = find_index_impl<pred, t...>::value;
 
 	template <typename tpl>
 	struct pop_back;
@@ -1162,74 +1135,6 @@ namespace age::meta
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 
-	template <std::size_t i, typename t>
-	struct _tpl_leaf
-	{
-		t val;
-	};
-
-	template <typename seq, typename... t>
-	struct _tpl_helper;
-
-	template <std::size_t... i, typename... t>
-	struct _tpl_helper<std::index_sequence<i...>, t...> : public _tpl_leaf<i, t>...
-	{
-	};
-
-	template <typename... t>
-	struct _tpl : public _tpl_helper<std::index_sequence_for<t...>, t...>
-	{
-	};
-
-	template <std::size_t i, typename... t>
-	constexpr auto&
-	_get(_tpl<t...>& tpl)
-	{
-		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
-	}
-
-	template <std::size_t i, typename... t>
-	constexpr const auto&
-	_get(const _tpl<t...>& tpl)
-	{
-		return static_cast<const _tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&>(tpl).val;
-	}
-
-	template <std::size_t i, typename... t>
-	constexpr auto&&
-	_get(_tpl<t...>&& tpl)
-	{
-		return static_cast<_tpl_leaf<i, typename std::tuple_element<i, std::tuple<t...>>::type>&&>(tpl).val;
-	}
-
-	template <typename t>
-	struct _tpl_size;
-
-	template <typename... t>
-	struct _tpl_size<_tpl<t...>> : std::integral_constant<std::size_t, sizeof...(t)>
-	{
-	};
-
-	template <typename t>
-	inline constexpr std::size_t _tpl_size_v = _tpl_size<t>::value;
-
-	template <typename f, typename tpl_t, std::size_t... i>
-	constexpr decltype(auto)
-	_apply_impl(f&& func, tpl_t&& tpl, std::index_sequence<i...>)
-	{
-		return std::forward<f>(func)(_get<i>(std::forward<tpl_t>(tpl))...);
-	}
-
-	template <typename f, typename tpl_t>
-	constexpr decltype(auto)
-	_apply(f&& func, tpl_t&& tpl)
-	{
-		return _apply_impl(
-			std::forward<f>(func),
-			std::forward<tpl_t>(tpl),
-			std::make_index_sequence<_tpl_size_v<std::decay_t<tpl_t>>>{});
-	}
-
 	template <std::size_t n>
 	using smallest_unsigned_t = std::conditional_t<
 		n <= std::numeric_limits<uint8>::max(), uint8,
@@ -1244,14 +1149,20 @@ namespace age::meta
 	FORCE_INLINE constexpr decltype(auto)
 	tuple_unpack(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(FWD(tpl), std::tuple{ FWD(arg)... }))))
 	{
-		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(tpl)..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
-			return func(std::get<i>(tpl)..., FWD(arg)...);
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(FWD(tpl))..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+			return FWD(func)(std::get<i>(FWD(tpl))..., FWD(arg)...);
 		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl), FWD(arg)...);
 	}
 
 	template <typename... t>
 	constexpr void
 	print_type()
+	{
+		static_assert([] { return false; }(), "Type info");
+	}
+
+	constexpr void
+	print_type(auto&&...)
 	{
 		static_assert([] { return false; }(), "Type info");
 	}

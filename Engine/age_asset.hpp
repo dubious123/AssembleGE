@@ -1,9 +1,9 @@
 #pragma once
 
-namespace age::asset
+namespace age::asset::e
 {
 	AGE_DEFINE_ENUM(
-		type,
+		kind,
 		uint8,
 		mesh_editable,
 		lod_group_editable,
@@ -24,14 +24,32 @@ namespace age::asset
 
 	struct data
 	{
-		asset::type			 type{};
+		e::kind				 asset_kind{};
 		std::span<std::byte> blob{};
+		std::align_val_t	 alignment{};
 	};
 
-	handle
+	struct file_header
+	{
+		uint32	  magic;
+		uint32	  header_size;
+		uint64	  file_size;
+		uint8	  version_major;
+		uint8	  version_minor;
+		e::kind	  asset_kind;
+		std::byte reserve[5];
+	};
+
+	bool
+	validate(const file_header&, const std::ifstream&) noexcept;
+
+	asset::handle
 	load_from_file(const std::string_view& file_path) noexcept;
 
-	void unload(handle) noexcept;
+	void
+	write_to_file(const std::string_view& file_path, const file_header&, const auto& asset_data) noexcept;
+
+	void unload(asset::handle) noexcept;
 
 	void
 	deinit() noexcept;
@@ -44,58 +62,40 @@ namespace age::asset::g
 	inline constexpr auto mashlet_thread_count		  = 32ul;
 	inline constexpr auto mashlet_max_vertex_count	  = 64ul;
 	inline constexpr auto mashlet_max_primitive_count = 126ul;
+
+	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
 }	 // namespace age::asset::g
 
-namespace age::asset
-{
-	struct mesh_editable
-	{
-		struct vertex_attribute
-		{
-			float3							  normal{};
-			float4							  tangent{};
-			std::array<float2, g::uv_set_max> uv_set{};
-			uint8							  uv_count{};
-		};
-
-		struct vertex
-		{
-			uint32 pos_idx{};
-			uint32 attribute_idx{};
-		};
-
-		struct face
-		{
-			uint32 vertex_id_begin_idx{};
-			uint32 vertex_count{};
-		};
-
-		data_structure::vector<float3>			 position_vec{};
-		data_structure::vector<vertex_attribute> vertex_attr_vec{};
-		data_structure::vector<vertex>			 vertex_vec{};
-
-		data_structure::vector<uint32> vertex_id_vec{};
-
-		data_structure::vector<face> face_vec{};
-	};
-
-	struct lod_group_editable
-	{
-		std::string							  name{};
-		data_structure::vector<mesh_editable> mesh_vec{};
-	};
-
-	struct scene_editable
-	{
-		std::string								   name{};
-		data_structure::vector<lod_group_editable> lod_group_vec{};
-	};
-}	 // namespace age::asset
-
-namespace age::asset
+// mesh editable
+namespace age::asset::e
 {
 	AGE_DEFINE_ENUM(
-		vertex_type,
+		primitive_mesh_kind,
+		uint8,
+		plane,
+		cube,
+		capsule,
+		cylinder,
+		ico_sphere,
+		uv_phere,
+		count);
+
+	AGE_DEFINE_ENUM(
+		winding_kind,
+		uint8,
+		clockwise,
+		counter_clockwise,
+		count);
+
+	AGE_DEFINE_ENUM(
+		handedness_kind,
+		uint8,
+		right,
+		left,
+		count);
+
+	AGE_DEFINE_ENUM(
+		vertex_kind,
 		uint8,
 		p_uv0,
 		pn_uv0,
@@ -115,12 +115,87 @@ namespace age::asset
 
 		count);
 
+	enum class bake_flags : uint8
+	{
+		front_outer = 1 << 0,
+		front_hole	= 1 << 1,
+		back_outer	= 1 << 2,
+		back_hole	= 1 << 3
+	};
+
+	AGE_ENUM_FLAG_OPERATORS(bake_flags);
+}	 // namespace age::asset::e
+
+namespace age::asset
+{
+	struct mesh_editable;
+
+	struct lod_group_editable
+	{
+		std::string							  name{};
+		data_structure::vector<mesh_editable> mesh_vec{};
+	};
+
+	struct scene_editable
+	{
+		std::string								   name{};
+		data_structure::vector<lod_group_editable> lod_group_vec{};
+	};
+}	 // namespace age::asset
+
+namespace age::asset
+{
+	struct primitive_desc
+	{
+		float3				   size{ 1.f, 1.f, 1.f };
+		uint32				   seg_u{ 1 };
+		uint32				   seg_v{ 1 };
+		float3x3			   local_basis = float3x3::identity();
+		e::primitive_mesh_kind mesh_kind{};
+		uint8				   padding[3];
+	};
+
+	struct normal_calc_desc
+	{
+		AGE_DEFINE_ENUM_MEMBER(
+			mode,
+			uint8,
+			area,
+			angle,
+			area_angle);
+
+		mode   calc_mode;
+		bool   smoothing_include_hole;
+		float  smoothing_angle_rad;
+		float3 fallback{ 0.f, 1.f, 0.f };
+	};
+
+	struct tangent_calc_desc
+	{
+	};
+
+	mesh_editable
+	create_primitive(const primitive_desc& desc) noexcept;
+
+	void
+	calculate_normal(mesh_editable&, const normal_calc_desc&) noexcept;
+
+	void
+	calculate_tangent(mesh_editable&, const tangent_calc_desc&) noexcept;
+}	 // namespace age::asset
+
+// mesh baked
+namespace age::asset::e
+{
 	AGE_DEFINE_ENUM(
-		topology_type,
+		topology_kind,
 		uint8,
 		triangle,
 		count);
+}
 
+namespace age::asset
+{
 	namespace detail
 	{
 		template <std::size_t uv_set_count>
@@ -214,12 +289,12 @@ namespace age::asset
 
 	struct mesh_baked_header
 	{
-		uint32		  vertex_count{};
-		uint32		  global_vertex_count{};
-		uint32		  primitive_count{};
-		uint32		  meshlet_count{};
-		vertex_type	  vertex_type{};
-		topology_type topology_type{};
+		uint32			 vertex_count{};
+		uint32			 global_vertex_count{};
+		uint32			 primitive_count{};
+		uint32			 meshlet_count{};
+		e::vertex_kind	 vertex_kind{};
+		e::topology_kind topology_kind{};
 	};
 
 	// [mesh_baked_header]

@@ -38,6 +38,9 @@
     <ClInclude Include="age_subsystem.hpp" />
     <ClInclude Include="age_request.hpp" />
     <ClInclude Include="age_asset.hpp" />
+    <ClInclude Include="age_asset_mesh_editable.hpp" />
+    <ClInclude Include="age_util_views.hpp" />
+    <ClInclude Include="age_math_simd.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -54,6 +57,9 @@
     <ClCompile Include="age_graphics_backend_dx12_cmd_system.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_util.cpp" />
     <ClCompile Include="age_asset.cpp" />
+    <ClCompile Include="age_asset_mesh_editable.cpp" />
+    <ClCompile Include="age_asset_mesh_baked.cpp" />
+    <ClCompile Include="external\include\mikktspace\mikktspace.c" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
@@ -64,5 +70,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="todo.md" />
   </ItemGroup>
 </Project>

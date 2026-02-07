@@ -90,4 +90,7 @@ namespace age::config
 #else
 		false;
 #endif
+
+	inline constexpr unsigned short version_major = 0;
+	inline constexpr unsigned short version_minor = 0;
 }	 // namespace age::config

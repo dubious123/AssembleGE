@@ -102,13 +102,13 @@ namespace age::ecs::system
 			{
 				return FWD(sys)();
 			}
-			else if constexpr (requires { &std::decay_t<t_sys>::template operator()<t_arg&&...>; })
+			else if constexpr (requires { &std::decay_t<t_sys>::template operator()<t_arg && ...>; })
 			{
 				using to_tpl = typename meta::function_traits<&std::decay_t<t_sys>::template operator()<t_arg&&...>>::argument_types;
 
 				if constexpr (cx_tpl_convertible_to<std::tuple<t_arg&&...>, to_tpl>)
 				{
-					return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+					return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& sys, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 						return FWD(sys).template operator()<t_arg...>((make_param<std::tuple_element_t<i, to_tpl>>(FWD(arg)))...);
 					}(std::make_index_sequence<sizeof...(arg)>{}, FWD(sys), FWD(arg)...);
 				}
@@ -123,7 +123,7 @@ namespace age::ecs::system
 			}
 			else
 			{
-				return invalid_sys_call();
+				return invalid_sys_call{};
 			}
 		}
 
@@ -131,8 +131,11 @@ namespace age::ecs::system
 		sys_invoke(auto&& sys, auto&& ctx, auto&&... arg) noexcept
 		{
 			using t_sys = decltype(sys);
-
-			if constexpr (cx_ctx_bound<t_sys>)
+			if constexpr (cx_ctx<decltype(ctx)> is_false)
+			{
+				return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg)...);
+			}
+			else if constexpr (cx_ctx_bound<t_sys>)
 			{
 				return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg)...);
 			}
@@ -144,24 +147,20 @@ namespace age::ecs::system
 			{
 				return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg)...);
 			}
-
-
-			// else if constexpr (requires { {sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg)...)} -> detail::cx_valid_sys_call; })
-			//{
-			//	return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg)...);
-			// }
-			// else
-			//{
-			//	return sys_invoke_impl(FWD(sys), FWD(arg)...);
-			// }
 		}
 
 		FORCE_INLINE constexpr decltype(auto)
 		sys_invoke(auto&& sys, auto&& ctx, meta::tuple_like auto&& arg_tpl) noexcept
 		{
-			if constexpr (requires { {sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl))} -> detail::cx_valid_sys_call; } or requires { {sys_invoke_impl(FWD(sys), FWD(arg_tpl))} -> detail::cx_valid_sys_call; })
+			if constexpr (
+				requires { {sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl))} -> detail::cx_valid_sys_call; }
+				or requires { {sys_invoke_impl(FWD(sys), FWD(arg_tpl))} -> detail::cx_valid_sys_call; })
 			{
-				if constexpr (cx_ctx_bound<decltype(FWD(sys))>)
+				if constexpr (cx_ctx<decltype(ctx)> is_false)
+				{
+					return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl));
+				}
+				else if constexpr (cx_ctx_bound<decltype(FWD(sys))>)
 				{
 					return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl));
 				}
@@ -173,15 +172,6 @@ namespace age::ecs::system
 				{
 					return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl));
 				}
-
-				// else if constexpr (requires { {sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl))} -> detail::cx_valid_sys_call; })
-				//{
-				//	return sys_invoke_impl(FWD(sys), FWD(ctx), FWD(arg_tpl));
-				// }
-				// else
-				//{
-				//	return sys_invoke_impl(FWD(sys), FWD(arg_tpl));
-				// }
 			}
 			else
 			{
@@ -200,6 +190,9 @@ namespace age::ecs::system
 	FORCE_INLINE constexpr decltype(auto)
 	run_sys(cx_ctx auto&& ctx, auto&& sys, auto&&... arg) noexcept
 	{
+		static_assert(
+			requires {{detail::sys_invoke(FWD(sys), FWD(ctx), FWD(arg)...)} ->detail::cx_valid_sys_call; }
+			or requires { {FWD(ctx).get_executor().execute(FWD(ctx), FWD(sys), FWD(arg)...)} ->detail::cx_valid_sys_call; });
 		if constexpr (cx_adaptor<decltype(sys)>)
 		{
 			return detail::sys_invoke(FWD(sys), FWD(ctx), FWD(arg)...);
@@ -213,6 +206,7 @@ namespace age::ecs::system
 	FORCE_INLINE constexpr decltype(auto)
 	run_sys(auto&& sys, auto&&... arg) noexcept
 	{
+		static_assert(requires {{detail::sys_invoke_impl(FWD(sys), FWD(arg)...)} ->detail::cx_valid_sys_call; });
 		return detail::sys_invoke_impl(FWD(sys), FWD(arg)...);
 	}
 
@@ -225,6 +219,12 @@ namespace age::ecs::system
 		}
 		else
 		{
+			using t_ret = decltype([]<std::size_t... idx> INLINE_LAMBDA_FRONT(std::index_sequence<idx...>, auto&& sys, auto&& arg_tpl) noexcept(
+									   noexcept(detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+				return detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...);
+			}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(arg_tpl)>>>{}, FWD(sys), FWD(arg_tpl)));
+			static_assert(detail::cx_valid_sys_call<t_ret>);
+
 			return []<std::size_t... idx> INLINE_LAMBDA_FRONT(std::index_sequence<idx...>, auto&& sys, auto&& arg_tpl) noexcept(
 					   noexcept(detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 				return detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...);

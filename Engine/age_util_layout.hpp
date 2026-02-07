@@ -629,15 +629,15 @@ namespace age::util
 			std::size_t offset;
 		};
 
-		std::array<slot_info, 10> with_n_buffer;
-		std::array<slot_info, 10> with_flex_buffer;
+		std::array<slot_info, 10> with_n_buffer{};
+		std::array<slot_info, 10> with_flex_buffer{};
 
 
 		std::array<uint32, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
-			key_lut;
+			key_lut{};
 
 		std::array<std::pair<std::size_t, uint32>, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
-			result_arr;
+			result_arr{};
 
 		uint32 runtime_key	 = known_type_count;
 		uint32 with_n_idx	 = 0;

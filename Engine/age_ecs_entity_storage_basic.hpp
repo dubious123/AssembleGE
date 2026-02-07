@@ -170,7 +170,7 @@ namespace age::ecs::entity_storage
 			auto& dst_block					= dest_ent_block_collection.free_block(new_archetype);
 			auto  need_src_update			= src_block.is_full();
 
-			for (auto [idx, storage_cmp_idx] : age::util::each_set_bit_idx(ent_info.archetype) | enumerate)
+			for (auto [idx, storage_cmp_idx] : age::views::each_set_bit_idx(ent_info.archetype) | enumerate)
 			{
 				auto src_local_cmp_idx	= static_cast<t_local_cmp_idx>(idx);
 				auto dest_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(new_archetype, storage_cmp_idx);
@@ -221,7 +221,7 @@ namespace age::ecs::entity_storage
 			auto& dst_block					= dest_ent_block_collection.free_block(new_archetype);
 			auto  need_src_update			= src_block.is_full();
 
-			for (auto [idx, storage_cmp_idx] : age::util::each_set_bit_idx(new_archetype) | enumerate)
+			for (auto [idx, storage_cmp_idx] : age::views::each_set_bit_idx(new_archetype) | enumerate)
 			{
 				auto dest_local_cmp_idx = static_cast<t_local_cmp_idx>(idx);
 				auto src_local_cmp_idx	= t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, storage_cmp_idx);
@@ -267,7 +267,7 @@ namespace age::ecs::entity_storage
 		{
 			if constexpr (sizeof...(t_arg) == 0)
 			{
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>();
 				}(get_sorted_arg_index_sequence<t...>());
 			}
@@ -277,7 +277,7 @@ namespace age::ecs::entity_storage
 				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(FWD(arg)...)...);
 				}(get_sorted_arg_index_sequence<t...>(), FWD(arg)...);
 			}
@@ -309,7 +309,7 @@ namespace age::ecs::entity_storage
 		{
 			if constexpr (sizeof...(t_arg) == 0)
 			{
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id);
 				}(get_sorted_arg_index_sequence<t...>(), id);
 			}
@@ -319,7 +319,7 @@ namespace age::ecs::entity_storage
 				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(id, FWD(arg)...)...);
 				}(get_sorted_arg_index_sequence<t...>(), id, FWD(arg)...);
 			}
@@ -332,7 +332,7 @@ namespace age::ecs::entity_storage
 
 			static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept -> decltype(auto) INLINE_LAMBDA_BACK {
+			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 				return this->remove_component_impl<meta::variadic_at_t<i, t...>...>(id);
 			}(get_sorted_arg_index_sequence<t...>(), id);
 		}

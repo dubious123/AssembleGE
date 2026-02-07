@@ -588,6 +588,7 @@ run_benchmark(auto&& game, auto it_num)
 					break;
 				}
 				++ent_count;
+				[[fallthrough]];
 			}
 			case 2:
 			{
@@ -615,6 +616,7 @@ run_benchmark(auto&& game, auto it_num)
 				{
 					ent_count ^= ent_count << 19;
 				}
+				[[fallthrough]];
 			}
 			default:
 				break;
