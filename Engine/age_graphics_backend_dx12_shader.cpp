@@ -12,8 +12,8 @@ namespace age::graphics::shader
 		AGE_HR_CHECK(::DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&g::p_dxc_utils)));
 		AGE_HR_CHECK(g::p_dxc_utils->CreateDefaultIncludeHandler(&g::p_dxc_include_handler));
 
-		AGE_ASSERT(std::filesystem::exists(g::engine_shaders_dir_path));
-		AGE_ASSERT(std::filesystem::exists(g::engine_shaders_compiled_blob_dir_path));
+		util::ensure_dir_exists(g::engine_shaders_dir_path);
+		util::ensure_dir_exists(g::engine_shaders_compiled_blob_dir_path);
 
 		for (const auto& shader_name : engine_shaders)
 		{

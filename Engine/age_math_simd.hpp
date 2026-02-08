@@ -1,47 +1,55 @@
 #pragma once
+using xm_vec = DirectX::XMVECTOR;
+using xm_mat = DirectX::XMMATRIX;
+
+using fxm_vec = const xm_vec;
+using cxm_vec = const xm_vec&;
+
+using fxm_mat = const xm_mat;
+using cxm_mat = const xm_mat&;
 
 // store, load
 namespace age::math::simd
 {
 	FORCE_INLINE void XM_CALLCONV
-	store(float2& out, DirectX::FXMVECTOR v) noexcept
+	store(float2& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat2(reinterpret_cast<DirectX::XMFLOAT2*>(&out), v);
 	}
 
 	FORCE_INLINE void XM_CALLCONV
-	store(float3& out, DirectX::FXMVECTOR v) noexcept
+	store(float3& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat3(reinterpret_cast<DirectX::XMFLOAT3*>(&out), v);
 	}
 
 	FORCE_INLINE void XM_CALLCONV
-	store(float4& out, DirectX::FXMVECTOR v) noexcept
+	store(float4& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&out), v);
 	}
 
 	FORCE_INLINE void XM_CALLCONV
-	store(float2a& out, DirectX::FXMVECTOR v) noexcept
+	store(float2a& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat2A(reinterpret_cast<DirectX::XMFLOAT2A*>(&out), v);
 	}
 
 	FORCE_INLINE void XM_CALLCONV
-	store(float3a& out, DirectX::FXMVECTOR v) noexcept
+	store(float3a& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat3A(reinterpret_cast<DirectX::XMFLOAT3A*>(&out), v);
 	}
 
 	FORCE_INLINE void XM_CALLCONV
-	store(float4a& out, DirectX::FXMVECTOR v) noexcept
+	store(float4a& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat4A(reinterpret_cast<DirectX::XMFLOAT4A*>(&out), v);
 	}
 
 	template <typename t>
 	FORCE_INLINE t XM_CALLCONV
-	to(DirectX::FXMVECTOR v) noexcept
+	to(fxm_vec v) noexcept
 	{
 		t res{};
 		store(res, v);
@@ -52,70 +60,70 @@ namespace age::math::simd
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float2& vec) noexcept
 	{
-		return DirectX::XMLoadFloat2(reinterpret_cast<DirectX::XMFLOAT2*>((void*)vec.data()));
+		return DirectX::XMLoadFloat2(reinterpret_cast<const DirectX::XMFLOAT2*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float3& vec) noexcept
 	{
-		return DirectX::XMLoadFloat3(reinterpret_cast<DirectX::XMFLOAT3*>((void*)vec.data()));
+		return DirectX::XMLoadFloat3(reinterpret_cast<const DirectX::XMFLOAT3*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float4& vec) noexcept
 	{
-		return DirectX::XMLoadFloat4(reinterpret_cast<DirectX::XMFLOAT4*>((void*)vec.data()));
+		return DirectX::XMLoadFloat4(reinterpret_cast<const DirectX::XMFLOAT4*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float2a& vec) noexcept
 	{
-		return DirectX::XMLoadFloat2A(reinterpret_cast<DirectX::XMFLOAT2A*>((void*)vec.data()));
+		return DirectX::XMLoadFloat2A(reinterpret_cast<const DirectX::XMFLOAT2A*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float3a& vec) noexcept
 	{
-		return DirectX::XMLoadFloat3A(reinterpret_cast<DirectX::XMFLOAT3A*>((void*)vec.data()));
+		return DirectX::XMLoadFloat3A(reinterpret_cast<const DirectX::XMFLOAT3A*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
 	load(const float4a& vec) noexcept
 	{
-		return DirectX::XMLoadFloat4A(reinterpret_cast<DirectX::XMFLOAT4A*>((void*)vec.data()));
+		return DirectX::XMLoadFloat4A(reinterpret_cast<const DirectX::XMFLOAT4A*>((void*)vec.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMMATRIX XM_CALLCONV
 	load(const float3x3& mat) noexcept
 	{
-		return DirectX::XMLoadFloat3x3(reinterpret_cast<DirectX::XMFLOAT3X3*>((void*)mat.data()));
+		return DirectX::XMLoadFloat3x3(reinterpret_cast<const DirectX::XMFLOAT3X3*>((void*)mat.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMMATRIX XM_CALLCONV
 	load(const float3x3a& mat) noexcept
 	{
-		return DirectX::XMLoadFloat3x3(reinterpret_cast<DirectX::XMFLOAT3X3*>((void*)mat.data()));
+		return DirectX::XMLoadFloat3x3(reinterpret_cast<const DirectX::XMFLOAT3X3*>((void*)mat.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMMATRIX XM_CALLCONV
 	load(const float4x4& mat) noexcept
 	{
-		return DirectX::XMLoadFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>((void*)mat.data()));
+		return DirectX::XMLoadFloat4x4(reinterpret_cast<const DirectX::XMFLOAT4X4*>((void*)mat.data()));
 	}
 
 	FORCE_INLINE
 	DirectX::XMMATRIX XM_CALLCONV
 	load(const float4x4a& mat) noexcept
 	{
-		return DirectX::XMLoadFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4A*>((void*)mat.data()));
+		return DirectX::XMLoadFloat4x4(reinterpret_cast<const DirectX::XMFLOAT4X4A*>((void*)mat.data()));
 	}
 
 	FORCE_INLINE
@@ -178,35 +186,35 @@ namespace age::math::simd
 {
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	normalize3(DirectX::FXMVECTOR v) noexcept
+	normalize3(fxm_vec v) noexcept
 	{
 		return DirectX::XMVector3Normalize(v);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	reciprocal_length3(DirectX::FXMVECTOR v) noexcept
+	reciprocal_length3(fxm_vec v) noexcept
 	{
 		return DirectX::XMVector3ReciprocalLength(v);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	reciprocal_length_est3(DirectX::FXMVECTOR v) noexcept
+	reciprocal_length_est3(fxm_vec v) noexcept
 	{
 		return DirectX::XMVector3ReciprocalLengthEst(v);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	acos(DirectX::FXMVECTOR v) noexcept
+	acos(fxm_vec v) noexcept
 	{
 		return DirectX::XMVectorACos(v);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	acos_esc(DirectX::FXMVECTOR v) noexcept
+	acos_esc(fxm_vec v) noexcept
 	{
 		return DirectX::XMVectorACosEst(v);
 	}
@@ -216,28 +224,28 @@ namespace age::math::simd
 {
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	dot3(DirectX::FXMVECTOR v0, DirectX::FXMVECTOR v1) noexcept
+	dot3(fxm_vec v0, fxm_vec v1) noexcept
 	{
 		return DirectX::XMVector3Dot(v0, v1);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	cross3(DirectX::FXMVECTOR v0, DirectX::FXMVECTOR v1) noexcept
+	cross3(fxm_vec v0, fxm_vec v1) noexcept
 	{
 		return DirectX::XMVector3Cross(v0, v1);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	mul3(DirectX::FXMVECTOR v0, DirectX::FXMVECTOR v1) noexcept
+	mul3(fxm_vec v0, fxm_vec v1) noexcept
 	{
 		return DirectX::XMVectorMultiply(v0, v1);
 	}
 
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	sub(DirectX::FXMVECTOR v0, DirectX::FXMVECTOR v1) noexcept
+	sub(fxm_vec v0, fxm_vec v1) noexcept
 	{
 		return DirectX::XMVectorSubtract(v0, v1);
 	}
@@ -247,9 +255,9 @@ namespace age::math::simd
 {
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	mul_add(DirectX::FXMVECTOR v0,
-			DirectX::FXMVECTOR v1,
-			DirectX::FXMVECTOR v2) noexcept
+	mul_add(fxm_vec v0,
+			fxm_vec v1,
+			fxm_vec v2) noexcept
 	{
 		return DirectX::XMVectorMultiplyAdd(v0, v1, v2);
 	}
@@ -259,9 +267,9 @@ namespace age::math::simd
 {
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	clamp(DirectX::FXMVECTOR v,
-		  DirectX::FXMVECTOR v_min = DirectX::g_XMNegativeOne.v,
-		  DirectX::FXMVECTOR v_max = DirectX::g_XMOne.v) noexcept
+	clamp(fxm_vec v,
+		  fxm_vec v_min = DirectX::g_XMNegativeOne.v,
+		  fxm_vec v_max = DirectX::g_XMOne.v) noexcept
 	{
 		return DirectX::XMVectorClamp(v, v_min, v_max);
 	}
@@ -271,7 +279,7 @@ namespace age::math::simd
 {
 	FORCE_INLINE
 	DirectX::XMVECTOR XM_CALLCONV
-	angle_between_vec3(DirectX::FXMVECTOR v0, DirectX::FXMVECTOR v1) noexcept
+	angle_between_vec3(fxm_vec v0, fxm_vec v1) noexcept
 	{
 		//[0,pi]
 		return DirectX::XMVector3AngleBetweenVectors(v0, v1);

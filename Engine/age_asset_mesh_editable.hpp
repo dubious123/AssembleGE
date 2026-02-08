@@ -6,8 +6,6 @@ namespace age::asset::e
 					edge,
 					area,
 					edge_area);
-
-
 }
 
 namespace age::asset

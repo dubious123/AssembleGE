@@ -41,13 +41,24 @@
 #endif
 
 #if defined(AGE_COMPILER_MSVC)
-	#define AGE_MSVC_WARNING_PUSH		__pragma(warning(push))
-	#define AGE_MSVC_WARNING_POP		__pragma(warning(pop))
-	#define AGE_MSVC_WARNING_DISABLE(n) __pragma(warning(disable : n))
+	#define AGE_WARNING_PUSH			__pragma(warning(push))
+	#define AGE_WARNING_POP				__pragma(warning(pop))
+	#define AGE_WARNING_DISABLE_MSVC(n) __pragma(warning(disable : n))
+	#define AGE_WARNING_DISABLE_GCC(w)
+	#define AGE_WARNING_DISABLE_CLANG(w)
+#elif defined(AGE_COMPILER_CLANG)
+	#define AGE_WARNING_PUSH _Pragma("clang diagnostic push")
+	#define AGE_WARNING_POP	 _Pragma("clang diagnostic pop")
+	#define AGE_WARNING_DISABLE_MSVC(n)
+	#define AGE_WARNING_DISABLE_GCC(w)
+	#define AGE_WARNING_DISABLE_CLANG(w) _Pragma(w)
+#elif defined(AGE_COMPILER_GCC)
+	#define AGE_WARNING_PUSH _Pragma("GCC diagnostic push")
+	#define AGE_WARNING_POP	 _Pragma("GCC diagnostic pop")
+	#define AGE_WARNING_DISABLE_MSVC(n)
+	#define AGE_WARNING_DISABLE_GCC(w) _Pragma(w)
+	#define AGE_WARNING_DISABLE_CLANG(w)
 #else
-	#define AGE_MSVC_WARNING_PUSH
-	#define AGE_MSVC_WARNING_POP
-	#define AGE_MSVC_WARNING_DISABLE(n)
 #endif
 
 //#define AGE_FUNC(overloaded_func_name) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
@@ -66,14 +77,8 @@
 }
 
 #define AGE_FUNC_MEM(overloaded_func_name) [this] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
-	if constexpr (requires { overloaded_func_name(FWD(arg)...); })                                                                   \
-	{                                                                                                                                \
-		return overloaded_func_name(FWD(arg)...);                                                                                    \
-	}                                                                                                                                \
-	else                                                                                                                             \
-	{                                                                                                                                \
-		static_assert(false);                                                                                                        \
-	}                                                                                                                                \
+	requires requires { overloaded_func_name(FWD(arg)...); }                                                                         \
+	return overloaded_func_name(FWD(arg)...);                                                                                        \
 }
 
 #define AGE_PROP(property_name)                           \

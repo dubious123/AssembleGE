@@ -7,13 +7,13 @@ namespace age::util
 	FORCE_INLINE constexpr auto
 	popcount(t x)
 	{
-		AGE_MSVC_WARNING_PUSH
-		AGE_MSVC_WARNING_DISABLE(5063)
+		AGE_WARNING_PUSH
+		AGE_WARNING_DISABLE_MSVC(5063)
 		if constexpr (std::is_constant_evaluated())
 		{
 			return std::popcount(x);
 		}
-		AGE_MSVC_WARNING_POP
+		AGE_WARNING_POP
 		else
 		{
 #ifdef AGE_COMPILER_MSVC
@@ -72,6 +72,17 @@ namespace age::util
 		[]<std::size_t... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& v, auto&&... o) noexcept INLINE_LAMBDA_BACK {
 			((v[i] = { FWD(o) }), ...);
 		}(std::make_index_sequence<sizeof...(arg)>{}, FWD(indexable), FWD(arg)...);
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
+	inline void
+	ensure_dir_exists(const std::filesystem::path& dir_path) noexcept
+	{
+		auto ec = std::error_code{};
+		std::filesystem::create_directories(dir_path, ec);
+		AGE_ASSERT(not ec, "Error : {} \nValue : {} \nCategory:", ec.message(), ec.value(), ec.category().name());
 	}
 }	 // namespace age::util
 

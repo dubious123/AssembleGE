@@ -14,12 +14,13 @@ namespace age::math
 	};
 }	 // namespace age::math
 
-#if defined(_WIN64)
-using half	 = DirectX::PackedVector::HALF;
-using half_2 = DirectX::PackedVector::XMHALF2;
-using half_4 = DirectX::PackedVector::XMHALF4;
-#endif
+// #if defined(AGE_PLATFORM_WINDOW)
+// using half	 = DirectX::PackedVector::HALF;
+// using half_2 = DirectX::PackedVector::XMHALF2;
+// using half_4 = DirectX::PackedVector::XMHALF4;
+// #endif
 
+using half = uint16_t;
 
 using uint64 = uint64_t;
 using uint32 = uint32_t;
@@ -1137,6 +1138,9 @@ using double4x4 = mat44<double>;
 using double2x2a = mat22a<double>;
 using double3x3a = mat33a<double>;
 using double4x4a = mat44a<double>;
+
+using half_2 = vec2<half>;
+using half_4 = vec4<half>;
 
 static_assert(alignof(uint8_2a) == 16 and sizeof(uint8_2a) % 16 == 0);
 static_assert(alignof(uint8_3a) == 16 and sizeof(uint8_3a) % 16 == 0);

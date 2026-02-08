@@ -14,9 +14,6 @@
 #include <type_traits>
 #include <tuple>
 
-#include "external\include\mikktspace\mikktspace.h"
-
-
 #ifdef AGE_DEBUG
 	#include <iostream>
 	#include <format>

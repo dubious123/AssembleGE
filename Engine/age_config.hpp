@@ -28,8 +28,11 @@
 #endif
 
 #if defined(AGE_COMPILER_MSVC)
+	#pragma warning(error : 4714)
 	#define FORCE_INLINE __forceinline
-#elif defined(AGE_COMPILER_GCC) || defined(AGE_COMPILER_CLANG)
+#elif defined(AGE_COMPILER_GCC)
+	#define FORCE_INLINE [[gnu::always_inline]] [[gnu::gnu_inline]] extern inline
+#elif defined(AGE_COMPILER_CLANG)
 	#define FORCE_INLINE inline __attribute__((always_inline))
 #else
 	#define FORCE_INLINE inline
@@ -43,6 +46,12 @@
 	#define INLINE_LAMBDA_BACK
 #else
 	#define INLINE_LAMBDA
+#endif
+
+#ifdef AGE_COMPILER_MSVC
+	#define AGE_ALLOC_CALLCONV __cdecl
+#else
+	#define AGE_ALLOC_CALLCONV
 #endif
 
 #ifndef AGE_EXPORT

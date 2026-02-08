@@ -10,11 +10,19 @@ namespace age
 	{
 	}
 
+	namespace math::simd
+	{
+	}
+
 	namespace literals
 	{
 	}
 
 	namespace meta
+	{
+	}
+
+	namespace external
 	{
 	}
 
@@ -79,7 +87,10 @@ namespace age
 
 #include "age_external.h"
 //------------------------------------------------------------------------------
+#include "age_fwd.hpp"
 #include "age_math.hpp"
+
+#include "age_external_wrapper.hpp"
 
 #include "age_meta.hpp"
 #include "age_meta_compressed_pack.hpp"
@@ -97,6 +108,7 @@ namespace age
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"
+#include "age_asset_mesh_baked.hpp"
 
 #include "age_ecs.hpp"
 
