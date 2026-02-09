@@ -1,59 +1,107 @@
 #pragma once
 
+namespace age::asset::detail
+{
+	template <std::size_t uv_set_count>
+	struct alignas(4) vertex_p_uv
+	{
+		uint16_3						pos{};
+		uint16							extra{};
+		std::array<half2, uv_set_count> uv_set{};
+	};
+
+	template <std::size_t uv_set_count>
+	struct alignas(4) vertex_pn_uv
+	{
+		uint16_3						pos{};
+		oct<int8>						normal_oct{};
+		std::array<half2, uv_set_count> uv_set{};
+	};
+
+	template <std::size_t uv_set_count>
+	struct alignas(4) vertex_pnt_uv
+	{
+		uint16_3  pos{};
+		oct<int8> normal_oct{};
+
+		oct<int8> tangent_oct{};
+		uint8_2	  extra{};
+
+		std::array<half2, uv_set_count> uv_set{};
+	};
+
+	template <>
+	struct alignas(4) vertex_p_uv<0>
+	{
+		uint16_3 pos{};
+		uint16	 extra{};
+	};
+
+	template <>
+	struct alignas(4) vertex_pn_uv<0>
+	{
+		uint16_3  pos{};
+		oct<int8> normal_oct{};
+	};
+
+	template <>
+	struct alignas(4) vertex_pnt_uv<0>
+	{
+		uint16_3  pos{};
+		oct<int8> normal_oct{};
+
+		oct<int8> tangent_oct{};
+		uint16	  extra{};	  // first bit is tangent handedness;
+	};
+
+	template <std::size_t uv_set_count>
+	consteval bool
+	validate()
+	{
+		static_assert(sizeof(vertex_p_uv<uv_set_count>)
+						  == sizeof(vertex_p_uv<uv_set_count>{}.pos)
+								 + sizeof(vertex_p_uv<uv_set_count>{}.extra)
+								 + sizeof(half2) * uv_set_count,
+					  "vertex_p_uv<uv_set_count> failed");
+
+		static_assert(sizeof(vertex_pn_uv<uv_set_count>)
+						  == sizeof(vertex_pn_uv<uv_set_count>{}.pos)
+								 + sizeof(vertex_pn_uv<uv_set_count>{}.normal_oct)
+								 + sizeof(half2) * uv_set_count,
+					  "vertex_pn_uv<uv_set_count> failed");
+
+		static_assert(sizeof(vertex_pnt_uv<uv_set_count>)
+						  == sizeof(vertex_pnt_uv<uv_set_count>{}.pos)
+								 + sizeof(vertex_pnt_uv<uv_set_count>{}.normal_oct)
+								 + sizeof(vertex_pnt_uv<uv_set_count>{}.tangent_oct)
+								 + sizeof(vertex_pnt_uv<uv_set_count>{}.extra)
+								 + sizeof(half2) * uv_set_count,
+					  "vertex_pnt_uv<uv_set_count> failed");
+		return true;
+	}
+
+	static_assert(
+		validate<0>()
+		and validate<1>()
+		and validate<2>()
+		and validate<3>()
+		and validate<4>());
+
+	template <typename t>
+	struct uv_count;
+
+	template <template <auto> typename t, auto n>
+	struct uv_count<t<n>>
+	{
+		static constexpr auto value = n;
+	};
+
+	template <typename t>
+	inline constexpr auto uv_count_v = uv_count<t>::value;
+}	 // namespace age::asset::detail
+
 namespace age::asset
 {
-	namespace detail
-	{
-		template <std::size_t uv_set_count>
-		struct vertex_p_uv
-		{
-			float3							 position{};
-			std::array<half_2, uv_set_count> uv_set{};
-		};
-
-		template <std::size_t uv_set_count>
-		struct vertex_pn_uv
-		{
-			float3							 position{};
-			half_2							 normal{};
-			std::array<half_2, uv_set_count> uv_set{};
-		};
-
-		template <std::size_t uv_set_count>
-		struct vertex_pnt_uv
-		{
-			float3							 position{};
-			int8							 __internal_padding__[3];
-			int8							 tangent_handedness{};	  // -1 or 1
-			half_2							 normal_oct{};
-			half_2							 tangent_oct{};
-			std::array<half_2, uv_set_count> uv_set{};
-		};
-
-		template <>
-		struct vertex_p_uv<0>
-		{
-			float3 position{};
-		};
-
-		template <>
-		struct vertex_pn_uv<0>
-		{
-			float3 position{};
-			half_2 normal{};
-		};
-
-		template <>
-		struct vertex_pnt_uv<0>
-		{
-			float3 position{};
-			int8   __internal_padding__[3];
-			int8   tangent_handedness{};	// -1 or 1
-			half_2 normal_oct{};
-			half_2 tangent_oct{};
-		};
-	}	 // namespace detail
-
 	using vertex_p	   = detail::vertex_p_uv<0>;
 	using vertex_p_uv0 = detail::vertex_p_uv<1>;
 	using vertex_p_uv1 = detail::vertex_p_uv<2>;
@@ -71,7 +119,83 @@ namespace age::asset
 	using vertex_pnt_uv1 = detail::vertex_pnt_uv<2>;
 	using vertex_pnt_uv2 = detail::vertex_pnt_uv<3>;
 	using vertex_pnt_uv3 = detail::vertex_pnt_uv<4>;
+}	 // namespace age::asset
 
+namespace age::asset
+{
+	template <typename t_vertex>
+	struct mesh_triangulated
+	{
+		data_structure::vector<t_vertex> vertex_vec{};
+		data_structure::vector<uint32>	 v_idx_vec{};
+	};
+
+	template <typename t_vertex>
+	t_vertex
+	gather_vertex(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	{
+		constexpr auto uv_count = detail::uv_count_v<t_vertex>;
+
+		auto	res	 = t_vertex{};
+		c_auto& pos	 = mesh_edit.position_vec[v.pos_idx];
+		c_auto& attr = mesh_edit.vertex_attr_vec[v.attribute_idx];
+
+		res.pos = pos;
+		if constexpr (uv_count > 0)
+		{
+			age::math::cvt_to<uv_count>(
+				attr.uv_set[0].data(),
+				reinterpret_cast<half*>(res.uv_set.data() + uv_count));
+		}
+
+		if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_p_uv>)
+		{
+		}
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_pn_uv>)
+		{
+			res.normal_oct = cvt_to<oct<int8>>(attr.normal);
+		}
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_pnt_uv>)
+		{
+			res.normal_oct	= cvt_to<oct<int8>>(attr.normal);
+			res.tangent_oct = cvt_to<oct<int8>>(attr.tangent.xyz);
+		}
+		else
+		{
+			static_assert(false, "invalid vertex type");
+		}
+
+		return res;
+	}
+
+	template <typename t_vertex>
+	FORCE_INLINE t_vertex
+	gather_vertex(const mesh_editable& mesh_edit, uint32 v_idx) noexcept
+	{
+		return gather_vertex<t_vertex>(mesh_edit, mesh_edit.vertex_vec[v_idx]);
+	}
+
+	template <typename t_vertex>
+	mesh_triangulated<t_vertex>
+	triangulate(const mesh_editable& m) noexcept
+	{
+		auto idx_vec = external::earcut::perform(m);
+		auto res	 = mesh_triangulated<t_vertex>{};
+		{
+			res.vertex_vec.reserve(idx_vec.size());
+			res.v_idx_vec = std::move(idx_vec);
+
+			res.vertex_vec = m.vertex_vec
+						   | std::views::transform([&m](auto& v) { return gather_vertex<t_vertex>(m, v); })
+						   | std::ranges::to<data_structure::vector<t_vertex>>();
+		}
+
+		return res;
+	}
+}	 // namespace age::asset
+
+namespace age::asset
+{
 	struct meshlet_cull_data
 	{
 		float4 bounding_sphere{};	 // xyz = center, w = radius

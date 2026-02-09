@@ -287,11 +287,11 @@ namespace age::meta
 		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
 	};
 
-	template <auto func>
-	struct function_traits;
+	// template <auto func>
+	// struct function_traits;
 
-	// Specialization for global or static function.
-	// template <typename ret, typename... args, ret(func)(args...)>
+	//// Specialization for function pointers.
+	// template <typename ret, typename... args, ret (*func)(args...)>
 	// struct function_traits<func>
 	//{
 	//	using return_type				   = ret;
@@ -302,94 +302,36 @@ namespace age::meta
 	//	// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
 	//};
 
-	// Specialization for function pointers.
-	template <typename ret, typename... args, ret (*func)(args...)>
-	struct function_traits<func>
-	{
-		using return_type				   = ret;
-		using argument_types			   = std::tuple<args...>;
-		static constexpr std::size_t arity = sizeof...(args);
-
-		// template <std::size_t i>
-		// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
-	};
-
-	// Specialization for const member function pointers.
-	template <typename ret, typename c, typename... args, ret (c::*func)(args...) const>
-	struct function_traits<func>
-	{
-		using return_type				   = ret;
-		using class_type				   = c;
-		using argument_types			   = std::tuple<args...>;
-		static constexpr std::size_t arity = sizeof...(args);
-
-		// template <std::size_t i>
-		// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
-	};
-
-	// Specialization for non-const member function pointers.
-	template <typename ret, typename c, typename... args, ret (c::*func)(args...)>
-	struct function_traits<func>
-	{
-		using return_type				   = ret;
-		using class_type				   = c;
-		using argument_types			   = std::tuple<args...>;
-		static constexpr std::size_t arity = sizeof...(args);
-
-		// template <std::size_t i>
-		// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
-	};
-
-	template <auto callable>
-	struct callable_traits : function_traits<&decltype(callable)::operator()>
-	{
-	};
-
-	// template <typename t_ret, typename t_callable, typename... t_arg>
-	// struct callable_traits<t_ret (t_callable::*)(t_arg...)>
+	//// Specialization for const member function pointers.
+	// template <typename ret, typename c, typename... args, ret (c::*func)(args...) const>
+	// struct function_traits<func>
 	//{
-	//	using return_type	 = t_ret;
-	//	using callable_type	 = t_callable;
-	//	using argument_types = std::tuple<t_arg...>;
+	//	using return_type				   = ret;
+	//	using class_type				   = c;
+	//	using argument_types			   = std::tuple<args...>;
+	//	static constexpr std::size_t arity = sizeof...(args);
 
-	//	template <std::size_t i>
-	//	using arg_type = typename std::tuple_element<i, argument_types>::type;
+	//	// template <std::size_t i>
+	//	// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
 	//};
 
-	// template <typename t_ret, typename t_callable, typename... t_arg>
-	// struct callable_traits<t_ret (t_callable::*)(t_arg...) const>
+	//// Specialization for non-const member function pointers.
+	// template <typename ret, typename c, typename... args, ret (c::*func)(args...)>
+	// struct function_traits<func>
 	//{
-	//	using return_type	 = t_ret;
-	//	using callable_type	 = t_callable;
-	//	using argument_types = std::tuple<t_arg...>;
+	//	using return_type				   = ret;
+	//	using class_type				   = c;
+	//	using argument_types			   = std::tuple<args...>;
+	//	static constexpr std::size_t arity = sizeof...(args);
 
-	//	template <std::size_t i>
-	//	using arg_type = typename std::tuple_element<i, argument_types>::type;
+	//	// template <std::size_t i>
+	//	// using param_at = std::conditional_t<sizeof...(args) == 0, void, variadic_at_t<i, args...>>;
 	//};
 
-	// template <std::size_t i, typename ret, typename c, typename... args>
-	// struct param_at<i, ret(c::*)(args...)>
+	// template <auto callable>
+	// struct callable_traits : function_traits<&decltype(callable)::operator()>
 	//{
-	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
 	// };
-
-	// template <std::size_t i, typename ret, typename... args, ret (*func)(args..., ...)>
-	// struct param_at<i, func>
-	//{
-	//	using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
-	// };
-
-	// template <std::size_t idx, auto func>
-	// struct param_count;
-
-	// template <std::size_t i, typename ret, typename... args, ret (*func)(args...)>
-	// struct param_count<i, func>
-	//{
-	//	static const constinit auto value = sizeof...(args);
-	// };
-
-	// template <std::size_t idx, auto func>
-	// inline constexpr const auto param_count = param_at<idx, func>::value;
 
 	template <typename t, typename head, typename... tails>
 	consteval std::size_t
@@ -757,8 +699,8 @@ namespace age::meta
 	consteval auto
 	filter_indices()
 	{
-		const std::array<bool, sizeof...(t)> flags	 = { pred<t>::value... };
-		auto								 indices = std::array<std::size_t, filter_count<pred, t...>()>();
+		c_auto flags   = std::array{ pred<t>::value... };
+		auto   indices = std::array<std::size_t, filter_count<pred, t...>()>{};
 
 		std::size_t idx = 0;
 		for (auto i = 0; i < sizeof...(t); ++i)
@@ -1038,47 +980,241 @@ namespace age::meta
 	}
 
 	// use case : meta::func_args_t<decltype(func)>() ...
-	template <typename f>
-	struct func_args;
-
-	template <typename res, typename... args>
-	struct func_args<res(args...)>
+	namespace detail
 	{
-		using type = std::tuple<args...>;
-	};
+		template <typename t>
+		struct callable_signature;
 
-	template <typename class_t, typename res, typename... args>
-	struct func_args<res (class_t::*)(args...)>
-	{
-		using type = std::tuple<args...>;
-	};
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+#if defined(AGE_COMPILER_MSVC)
+	#if defined(AGE_ARCH_X32) || defined(AGE_ARCH_ARM32)
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__cdecl)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__cdecl)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__stdcall)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__stdcall)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__fastcall)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__fastcall)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+	#endif
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__vectorcall)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret(__vectorcall)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+#endif
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) volatile>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const volatile>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) &>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const&>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) &&>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const&&>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) & noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const & noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) && noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (class_t::*)(t_arg...) const && noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+#if defined(AGE_COMPILER_MSVC)
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (__vectorcall class_t::*)(t_arg...)>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (__vectorcall class_t::*)(t_arg...) noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (__vectorcall class_t::*)(t_arg...) const>
+		{
+			using type = t_ret(t_arg...);
+		};
+
+		template <typename class_t, typename t_ret, typename... t_arg>
+		struct callable_signature<t_ret (__vectorcall class_t::*)(t_arg...) const noexcept>
+		{
+			using type = t_ret(t_arg...);
+		};
+#endif
+
+		template <typename t>
+		using callable_signature_t = typename callable_signature<t>::type;
+
+		template <typename t>
+		struct callable_signature<t*>
+		{
+			using type = callable_signature_t<t>;
+		};
+
+		template <typename t>
+		struct callable_signature<t&>
+		{
+			using type = callable_signature_t<t>;
+		};
+
+		template <typename t>
+		struct callable_signature<t&&>
+		{
+			using type = callable_signature_t<t>;
+		};
+
+		template <typename t>
+		struct callable_signature_impl
+		{
+		  private:
+			using u	 = std::remove_cvref_t<t>;
+			using op = decltype(&u::operator());
+
+		  public:
+			using type = callable_signature_t<op>;
+		};
+
+		template <typename t_sig>
+		struct function_traits_impl;
+
+		template <typename t_ret, typename... t>
+		struct function_traits_impl<t_ret(t...)>
+		{
+			using signature					   = t_ret(t...);
+			using return_type				   = t_ret;
+			using args_tuple				   = std::tuple<t...>;
+			static constexpr std::size_t arity = sizeof...(t);
+
+			template <std::size_t i>
+			using t_arg = std::tuple_element_t<i, args_tuple>;
+		};
+	}	 // namespace detail
 
 	template <typename t>
-	using func_args_t = func_args<t>::type;
-
-	// template <typename res, typename... args>
-	// using func_args_t<res(args...)> = func_args<res(args...)>::type;
-
-	// template <typename class_t, typename res, typename... args>
-	// using func_args_t<res (class_t::*)(args...)> = func_args<res (class_t::*)(args...)>::type;
-
-	template <typename t>
-	struct func_ret;
-
-	template <typename res, typename... args>
-	struct func_ret<res(args...)>
+	struct function_traits : detail::function_traits_impl<detail::callable_signature_t<t>>
 	{
-		using type = res;
 	};
 
-	template <typename class_t, typename res, typename... args>
-	struct func_ret<res (class_t::*)(args...)>
+	template <auto f>
+	struct function_traits_of : detail::function_traits_impl<detail::callable_signature_t<decltype(f)>>
 	{
-		using type = res;
 	};
-
-	template <typename t>
-	using func_ret_t = func_ret<t>::type;
 
 	template <template <typename...> typename, template <typename...> typename>
 	struct is_same_template : std::false_type
@@ -1093,13 +1229,23 @@ namespace age::meta
 	template <template <typename...> typename tl, template <typename...> typename tr>
 	inline constexpr auto is_same_template_v = is_same_template<tr, tr>::value;
 
-	template <typename t1, template <typename...> typename t2>
+	template <typename, template <typename...> typename>
 	struct is_specialization_of : std::false_type
 	{
 	};
 
-	template <template <typename...> class t, typename... args>
-	struct is_specialization_of<t<args...>, t> : std::true_type
+	template <template <typename...> typename t, typename... t_arg>
+	struct is_specialization_of<t<t_arg...>, t> : std::true_type
+	{
+	};
+
+	template <typename, template <auto...> typename>
+	struct is_specialization_of_nttp : std::false_type
+	{
+	};
+
+	template <template <auto...> typename t, auto... i>
+	struct is_specialization_of_nttp<t<i...>, t> : std::true_type
 	{
 	};
 
@@ -1132,6 +1278,9 @@ namespace age::meta
 
 	template <typename t1, template <typename...> typename t2>
 	inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
+
+	template <typename t1, template <auto...> typename t2>
+	inline constexpr auto is_specialization_of_nttp_v = is_specialization_of_nttp<t1, t2>::value;
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 

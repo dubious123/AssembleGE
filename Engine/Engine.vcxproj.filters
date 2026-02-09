@@ -81,6 +81,7 @@
     <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
     <ClCompile Include="external\include\meshoptimizer\clusterizer.cpp" />
     <ClCompile Include="age_external_wrapper_unity.cpp" />
+    <ClCompile Include="age_external_wrapper_earcut.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />

@@ -6,11 +6,11 @@ namespace age::platform
 {
 	struct window_info
 	{
-		HWND		 hwnd;
-		RECT		 client_rect;
-		POINT		 top_left_pos;
-		window_mode	 mode;
-		window_state state = window_state::normal;
+		HWND		 hwnd		  = {};
+		RECT		 client_rect  = {};
+		POINT		 top_left_pos = {};
+		window_mode	 mode		  = {};
+		window_state state		  = window_state::normal;
 	};
 }	 // namespace age::platform
 
@@ -93,6 +93,7 @@ namespace age::platform::detail
 			}
 			case WM_WINDOWPOSCHANGED:
 			{
+				break;
 				// It is more efficient to perform any move or size change processing during the WM_WINDOWPOSCHANGED message without calling DefWindowProc.
 			}
 			}

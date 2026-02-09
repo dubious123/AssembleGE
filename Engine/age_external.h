@@ -38,12 +38,31 @@
 #include <cstdint>
 
 #if defined(AGE_PLATFORM_WINDOW)
+
 	#include <DirectXMath.h>
 	#include <DirectXPackedVector.h>
+
+	#define NOGDI
+// #define NOUSER
+// #define NOMSG
+// #define NOKERNEL
+// #define NONLS
+	#define NOMEMMGR
+	#define NOSERVICE
+	#define NOCOMM
 
 	#define NOMINMAX
 	#define WIN32_LEAN_AND_MEAN
 	#include <windows.h>
+
+	#undef NOGDI
+	// #undef NOUSER
+	// #undef NOMSG
+	// #undef NOKERNEL
+	// #undef NONLS
+	#undef NOMEMMGR
+	#undef NOSERVICE
+	#undef NOCOMM
 
 	#ifdef free
 		#undef free

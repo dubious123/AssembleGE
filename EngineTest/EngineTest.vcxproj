@@ -172,7 +172,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
@@ -185,6 +185,7 @@
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -201,7 +202,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
@@ -232,7 +233,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
@@ -256,6 +257,7 @@
       <SubSystem>Console</SubSystem>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
     <ClCompile>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -268,7 +270,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
@@ -296,7 +298,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
@@ -324,7 +326,7 @@
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <BuildStlModules>false</BuildStlModules>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <IncludeInUnityFile>false</IncludeInUnityFile>
+      <IncludeInUnityFile>true</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>

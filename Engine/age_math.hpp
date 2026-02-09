@@ -14,14 +14,6 @@ namespace age::math
 	};
 }	 // namespace age::math
 
-// #if defined(AGE_PLATFORM_WINDOW)
-// using half	 = DirectX::PackedVector::HALF;
-// using half_2 = DirectX::PackedVector::XMHALF2;
-// using half_4 = DirectX::PackedVector::XMHALF4;
-// #endif
-
-using half = uint16_t;
-
 using uint64 = uint64_t;
 using uint32 = uint32_t;
 using uint16 = uint16_t;
@@ -34,6 +26,7 @@ using int8	= int8_t;
 
 using float32  = float;
 using double64 = double;
+using half	   = uint16;
 
 inline constexpr uint64 invalid_id_uint64 = 0xffff'ffff'ffff'ffffui64;
 inline constexpr uint32 invalid_id_uint32 = 0xffff'ffffui32;
@@ -232,8 +225,16 @@ struct vec3
 {
 	using t_this = vec3<t>;
 
-	t x;
-	t y;
+	union
+	{
+		struct
+		{
+			t x, y;
+		};
+
+		vec2<t> xy;
+	};
+
 	t z;
 
 	constexpr vec3() noexcept = default;
@@ -423,36 +424,49 @@ struct vec4
 {
 	using t_this = vec4<t>;
 
-	t x;
-	t y;
-	t z;
+	union
+	{
+		struct
+		{
+			t x, y, z;
+		};
+
+		vec3<t> xyz;
+	};
+
 	t w;
 
 	constexpr vec4() noexcept = default;
 
-	constexpr vec4(auto&& other) noexcept
-		requires(requires { other.x; other.y; other.z; other.w; }
-				 and std::convertible_to<decltype(other.x), t>
-				 and std::convertible_to<decltype(other.y), t>
-				 and std::convertible_to<decltype(other.z), t>
-				 and std::convertible_to<decltype(other.w), t>)
-		: x{ static_cast<t>(FWD(other).x) }, y{ static_cast<t>(FWD(other).y) }, z{ static_cast<t>(FWD(other).z) }, w{ static_cast<t>(FWD(other).w) }
+	template <typename t_other>
+	constexpr vec4(t_other&& other) noexcept
+		requires(
+					requires { other.x; other.y; other.z; other.w; }
+					&& std::convertible_to<decltype(other.x), t>
+					&& std::convertible_to<decltype(other.y), t>
+					&& std::convertible_to<decltype(other.z), t>
+					&& std::convertible_to<decltype(other.w), t>)
+		: xyz{ FWD(other).x, FWD(other).y, FWD(other).z }, w{ static_cast<t>(FWD(other).w) }
 	{
 	}
 
-	constexpr vec4(auto&& other) noexcept
-		requires(std::convertible_to<decltype(other), t>
-				 and not requires { other.x; other.y; other.z; other.w; })
-		: x{ static_cast<t>(FWD(other)) }, y{ static_cast<t>(FWD(other)) }, z{ static_cast<t>(FWD(other)) }, w{ static_cast<t>(FWD(other)) }
+	template <typename t_other>
+	constexpr vec4(t_other&& other) noexcept
+		requires(
+					std::convertible_to<t_other, t>
+					&& !requires { other.x; other.y; other.z; other.w; })
+		: xyz{ FWD(other), FWD(other), FWD(other) }, w{ static_cast<t>(FWD(other)) }
 	{
 	}
 
-	constexpr vec4(auto&& x_other, auto&& y_other, auto&& z_other, auto&& w_other) noexcept
-		requires(std::convertible_to<decltype(x_other), t>
-				 and std::convertible_to<decltype(y_other), t>
-				 and std::convertible_to<decltype(z_other), t>
-				 and std::convertible_to<decltype(w_other), t>)
-		: x{ static_cast<t>(FWD(x_other)) }, y{ static_cast<t>(FWD(y_other)) }, z{ static_cast<t>(FWD(z_other)) }, w{ static_cast<t>(FWD(w_other)) }
+	template <typename t_x, typename t_y, typename t_z, typename t_w>
+	constexpr vec4(t_x&& x_other, t_y&& y_other, t_z&& z_other, t_w&& w_other) noexcept
+		requires(
+					std::convertible_to<t_x, t>
+					&& std::convertible_to<t_y, t>
+					&& std::convertible_to<t_z, t>
+					&& std::convertible_to<t_w, t>)
+		: xyz{ FWD(x_other), FWD(y_other), FWD(z_other) }, w{ static_cast<t>(FWD(w_other)) }
 	{
 	}
 
@@ -731,22 +745,19 @@ struct mat22
 					   t_row{ t{ 0 }, t{ v } } };
 	}
 
-	FORCE_INLINE
-	static constexpr std::size_t
+	FORCE_INLINE static constexpr std::size_t
 	dim() noexcept
 	{
 		return 2;
 	}
 
-	FORCE_INLINE
-	static constexpr std::size_t
+	FORCE_INLINE static constexpr std::size_t
 	rows() noexcept
 	{
 		return dim();
 	}
 
-	FORCE_INLINE
-	static constexpr std::size_t
+	FORCE_INLINE static constexpr std::size_t
 	cols() noexcept
 	{
 		return dim();
@@ -1139,8 +1150,8 @@ using double2x2a = mat22a<double>;
 using double3x3a = mat33a<double>;
 using double4x4a = mat44a<double>;
 
-using half_2 = vec2<half>;
-using half_4 = vec4<half>;
+using half2 = vec2<half>;
+using half4 = vec4<half>;
 
 static_assert(alignof(uint8_2a) == 16 and sizeof(uint8_2a) % 16 == 0);
 static_assert(alignof(uint8_3a) == 16 and sizeof(uint8_3a) % 16 == 0);
@@ -1194,7 +1205,24 @@ static_assert(offsetof(double2x2a, r1) == sizeof(double2x2a::t_row) * (double2x2
 static_assert(offsetof(double3x3a, r2) == sizeof(double3x3a::t_row) * (double3x3a::dim() - 1));
 static_assert(offsetof(double4x4a, r3) == sizeof(double4x4a::t_row) * (double4x4a::dim() - 1));
 
-namespace age::inline math
+template <typename t>
+struct oct;
+
+template <>
+struct oct<uint8>
+{
+	uint8 x;
+	uint8 y;
+};
+
+template <>
+struct oct<int8>
+{
+	int8 x;
+	int8 y;
+};
+
+namespace age::math
 {
 	namespace e
 	{
@@ -1289,7 +1317,7 @@ namespace age::inline math
 	{
 		return v_l.x * v_r.x + v_l.y * v_r.y + v_l.z * v_r.z + v_l.w * v_r.w;
 	}
-}	 // namespace age::inline math
+}	 // namespace age::math
 
 enum e_primitive_type
 {

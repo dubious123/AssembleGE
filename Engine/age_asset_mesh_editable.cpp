@@ -6,13 +6,14 @@ namespace age::asset::detail
 	FORCE_INLINE auto
 	face_normal(mesh_editable& mesh_edit, mesh_editable::face& f) noexcept
 	{
-		auto& b				= mesh_edit.boundary_vec[mesh_edit.face_to_boundary_idx_vec[f.to_outer_boundary_idx_offset()]];
-		auto  s				= mesh_edit.vertex_idx_span(b);
-		auto&& [v0, v1, v2] = std::tie(mesh_edit.vertex_vec[s[0]], mesh_edit.vertex_vec[s[1]], mesh_edit.vertex_vec[s[2]]);
-		auto&& [p0, p1, p2] = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
-
-		auto [x0, x1, x2] = simd::load(p0, p1, p2);
-		return simd::normalize3(simd::cross3(simd::sub(x2, x0), simd::sub(x1, x0)));
+		auto& b					  = mesh_edit.boundary_vec[mesh_edit.face_to_boundary_idx_vec[f.to_outer_boundary_idx_offset()]];
+		auto  s					  = mesh_edit.vertex_idx_span(b);
+		auto&& [v0, v1, v2]		  = std::tie(mesh_edit.vertex_vec[s[0]], mesh_edit.vertex_vec[s[1]], mesh_edit.vertex_vec[s[2]]);
+		auto&& [p0, p1, p2]		  = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
+		auto&& [xmv0, xmv1, xmv2] = simd::load(p0, p1, p2);
+		return (xmv2 - xmv0)
+			 | simd::cross3(xmv1 - xmv0)
+			 | simd::normalize3();
 	}
 
 	void
@@ -33,19 +34,21 @@ namespace age::asset::detail
 					auto&& [p0, p1, p2] = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
 
 					auto [x0, x1, x2, xm_v1_normal] = simd::load(p0, p1, p2, mesh_edit.vertex_attr_vec[v1.attribute_idx].normal);
-					simd::store(
-						mesh_edit.vertex_attr_vec[v1.attribute_idx].normal,
-						simd::mul_add(
-							xm_f_normal,
-							simd::angle_between_vec3(simd::sub(x0, x1), simd::sub(x2, x1)),
-							xm_v1_normal));
+
+					simd::mul_add(
+						xm_f_normal,
+						simd::angle_between_vec3(x0 - x1, x2 - x1),
+						xm_v1_normal)
+						| simd::store_to(mesh_edit.vertex_attr_vec[v1.attribute_idx].normal);
 				}
 			}
 		}
 
 		for (auto& adj : mesh_edit.vertex_attr_vec)
 		{
-			simd::store(adj.normal, simd::normalize3(simd::load(adj.normal)));
+			simd::load(adj.normal)
+				| simd::normalize3()
+				| simd::store_to(adj.normal);
 		}
 	}
 }	 // namespace age::asset::detail
@@ -77,45 +80,6 @@ namespace age::asset
 		{
 			AGE_ASSERT(f.to_hole_boundary_idx_count() == 0);
 		}
-
-		// auto mikkt_space_interface = SMikkTSpaceInterface{
-		//	.m_getNumFaces = [](const SMikkTSpaceContext* p_ctx) {
-		//		auto res = static_cast<mesh_editable*>(p_ctx->m_pUserData)->face_vec.size();
-		//		return static_cast<int>(res); },
-
-		//	.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* p_ctx, const int f_idx) {
-		//		auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
-		//		return static_cast<int>( mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]).to_vertex_idx_count); },
-
-		//	.m_getPosition	  = [](const SMikkTSpaceContext* p_ctx, float pos_out[], const int f_idx, const int outer_b2v_idx) {
-		//		auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
-		//		auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);
-		//		auto& p = mesh_edit.position_vec[ mesh_edit.vertex_vec[ mesh_edit.boundary_to_vertex_idx_vec[outer_b2v_idx]].pos_idx];
-		//		std::memcpy(pos_out, &p, sizeof(p)); },
-		//	.m_getNormal	  = [](const SMikkTSpaceContext* p_ctx, float normal_out[], const int f_idx, const int outer_b2v_idx) {
-		//		auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
-		//		auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);
-		//		auto& v_attr = mesh_edit.vertex_attr_vec[ mesh_edit.vertex_vec[ mesh_edit.boundary_to_vertex_idx_vec[outer_b2v_idx]].attribute_idx];
-		//		std::memcpy(normal_out, &v_attr.normal, sizeof(v_attr.normal)); },
-		//	.m_getTexCoord	  = [](const SMikkTSpaceContext* p_ctx, float uv_out[], const int f_idx, const int outer_b2v_idx) {
-		//		auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
-		//		auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);
-		//		auto& v_attr = mesh_edit.vertex_attr_vec[ mesh_edit.vertex_vec[ mesh_edit.boundary_to_vertex_idx_vec[outer_b2v_idx]].attribute_idx];
-		//		std::memcpy(uv_out, &v_attr.uv_set[0], sizeof(v_attr.uv_set[0])); },
-		//	.m_setTSpaceBasic = [](const SMikkTSpaceContext* p_ctx, const float tangent_in[], const float fsign, const int f_idx, const int outer_b2v_idx) {
-		//		auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
-		//		auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);
-		//		auto& v_attr = mesh_edit.vertex_attr_vec[ mesh_edit.vertex_vec[ mesh_edit.boundary_to_vertex_idx_vec[outer_b2v_idx]].attribute_idx];
-		//
-		//		v_attr.tangent = { tangent_in[0], tangent_in[1], tangent_in[2], fsign }; }
-		//};
-
-		// auto ctx = SMikkTSpaceContext{
-		//	.m_pInterface = &mikkt_space_interface,
-		//	.m_pUserData  = static_cast<void*>(&mesh_edit)
-		// };
-
-		// auto res = genTangSpaceDefault(&ctx);
 
 		auto res = external::mikk::gen_tangent(mesh_edit);
 

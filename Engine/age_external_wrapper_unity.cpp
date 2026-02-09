@@ -1,20 +1,26 @@
 #include "age_pch.hpp"
 #include "age.hpp"
-#include "external\include\mikktspace\mikktspace.h"
-#include "external\include\meshoptimizer\meshoptimizer.h"
 
-#line 1 "external\\include\\mikktspace\\mikktspace.c"
-#include "external\include\mikktspace\mikktspace.c"
+#include "external/include/mikktspace/mikktspace.h"
+#include "external/include/meshoptimizer/meshoptimizer.h"
+#include "external/include/earcut/earcut.hpp"
+
+extern "C"
+{
+#include "external/include/mikktspace/mikktspace.c"
+}
+
+#include "age_external_wrapper_earcut.cpp"
 
 namespace age::external::mikk
 {
-	FORCE_INLINE bool
+	bool
 	gen_tangent(age::asset::mesh_editable& m, const float angular_threshold) noexcept
 	{
 		using namespace age::asset;
 		auto mikkt_space_interface = SMikkTSpaceInterface{
-			.m_getNumFaces = [](const SMikkTSpaceContext* p_ctx) { 
-				auto res = static_cast<mesh_editable*>(p_ctx->m_pUserData)->face_vec.size(); 
+			.m_getNumFaces = [](const SMikkTSpaceContext* p_ctx) {
+				auto res = static_cast<mesh_editable*>(p_ctx->m_pUserData)->face_vec.size();
 				return static_cast<int>(res); },
 
 			.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* p_ctx, const int f_idx) {
@@ -40,7 +46,7 @@ namespace age::external::mikk
 				auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx->m_pUserData);
 				auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);
 				auto& v_attr = mesh_edit.vertex_attr_vec[ mesh_edit.vertex_vec[ mesh_edit.boundary_to_vertex_idx_vec[outer_b2v_idx]].attribute_idx];
-				
+		
 				v_attr.tangent = { tangent_in[0], tangent_in[1], tangent_in[2], fsign }; }
 		};
 
@@ -49,6 +55,6 @@ namespace age::external::mikk
 			.m_pUserData  = static_cast<void*>(&m)
 		};
 
-		auto res = genTangSpace(&ctx, angular_threshold);
+		return genTangSpace(&ctx, angular_threshold);
 	}
 }	 // namespace age::external::mikk

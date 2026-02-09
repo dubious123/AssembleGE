@@ -1,13 +1,5 @@
 ﻿#pragma once
 
-// #include "../Engine/__reflection.h"
-// #include "../Engine/__engine.h"
-// #include "../Engine/__data_structures.h"
-// #include "../Engine/__meta.h"
-// #include "../Engine/__ecs_system.h"
-// #include "../Engine/__ecs_entity_storage_basic.h"
-
-
 struct transform
 {
 	float3 position{ 0, 0, 0 };
@@ -755,6 +747,7 @@ run_benchmark(auto&& game, auto it_num)
 					break;
 				}
 				++ent_count;
+				[[fallthrough]];
 			}
 			case 2:
 			{

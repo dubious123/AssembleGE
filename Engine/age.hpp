@@ -22,15 +22,15 @@ namespace age
 	{
 	}
 
-	namespace external
-	{
-	}
-
 	namespace util
 	{
 	}
 
 	namespace data_structure
+	{
+	}
+
+	namespace external
 	{
 	}
 
@@ -90,8 +90,6 @@ namespace age
 #include "age_fwd.hpp"
 #include "age_math.hpp"
 
-#include "age_external_wrapper.hpp"
-
 #include "age_meta.hpp"
 #include "age_meta_compressed_pack.hpp"
 #include "age_meta_hash.hpp"
@@ -105,6 +103,8 @@ namespace age
 #include "age_util_views.hpp"
 
 #include "age_data_structure.hpp"
+
+#include "age_external_wrapper.hpp"
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"

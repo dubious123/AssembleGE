@@ -112,7 +112,8 @@ namespace age::util
 
 namespace age::util
 {
-	struct empty final
+	template <auto n>
+	struct alignas(n) empty final
 	{
 		constexpr empty() noexcept = default;
 	};

@@ -21,8 +21,34 @@
 	#define AGE_COMPILER_CLANG
 #endif
 
+#if defined(_MSC_VER)
+	#if defined(_M_X64)
+		#define AGE_ARCH_X64 1
+	#elif defined(_M_ARM64)
+		#define AGE_ARCH_ARM64 1
+	#elif defined(_M_IX86)
+		#define AGE_ARCH_X86 1
+	#elif defined(_M_ARM)
+		#define AGE_ARCH_ARM32 1
+	#else
+		#error "Unknown MSVC architecture"
+	#endif
+#else
+	#if defined(__x86_64__) || defined(__amd64__)
+		#define AGE_ARCH_X64 1
+	#elif defined(__aarch64__)
+		#define AGE_ARCH_ARM64 1
+	#elif defined(__i386__)
+		#define AGE_ARCH_X86 1
+	#elif defined(__arm__)
+		#define AGE_ARCH_ARM32 1
+	#else
+		#error "Unknown architecture"
+	#endif
+#endif
+
 #ifdef AGE_COMPILER_MSVC
-	#define no_unique_addr [[msvc::no_unique_address]]
+	#define no_unique_addr [[no_unique_address]] [[msvc::no_unique_address]]
 #else
 	#define no_unique_addr [[no_unique_address]]
 #endif

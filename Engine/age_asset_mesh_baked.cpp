@@ -1,3 +1,6 @@
+#include "age_pch.hpp"
+#include "age.hpp"
+
 namespace age::asset
 {
 	mesh_baked
@@ -13,28 +16,28 @@ namespace age::asset
 			external::meshopt::data_stream{ .data = m.vertex_attr_vec.data(), .size = sizeof(mesh_editable::vertex_attribute), .stride = sizeof(mesh_editable::vertex_attribute) },
 		};
 
-		auto new_vertex_count = external::meshopt::generateVertexRemap(
-			v_idx_vec.data(),
-			nullptr,
-			m.vertex_vec.size(),
-			m.vertex_vec.data(),
-			m.vertex_vec.size(),
-			sizeof(m.vertex_vec[0]));
+		// auto new_vertex_count = external::meshopt::generateVertexRemap(
+		//	v_idx_vec.data(),
+		//	nullptr,
+		//	m.vertex_vec.size(),
+		//	m.vertex_vec.data(),
+		//	m.vertex_vec.size(),
+		//	sizeof(m.vertex_vec[0]));
 
-		auto new_vertex_vec = data_structure::vector<float3>{};
-		{
-			new_vertex_vec.resize(new_vertex_count);
-		}
+		// auto new_vertex_vec = data_structure::vector<float3>{};
+		//{
+		//	new_vertex_vec.resize(new_vertex_count);
+		// }
 
-		auto new_vertex_idx_vec = data_structure::vector<uint32>();
-		{
-			new_vertex_idx_vec.resize(new_vertex_count);
-		}
+		// auto new_vertex_idx_vec = data_structure::vector<uint32>();
+		//{
+		//	new_vertex_idx_vec.resize(new_vertex_count);
+		// }
 
-		v_idx_vec.resize(new_vertex_count);
+		// v_idx_vec.resize(new_vertex_count);
 
-		external::meshopt::remapIndexBuffer();
-		external::meshopt::remapVertexBuffer();
+		// external::meshopt::remapIndexBuffer();
+		// external::meshopt::remapVertexBuffer();
 
 		return {};
 	}

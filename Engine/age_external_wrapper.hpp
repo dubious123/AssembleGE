@@ -1,77 +1,80 @@
 #pragma once
 
-namespace age::external
+namespace age::external::mikk
 {
-	namespace mikk
+	bool
+	gen_tangent(asset::mesh_editable&, const float angular_threshold = 180.0f) noexcept;
+}	 // namespace age::external::mikk
+
+namespace age::external::earcut
+{
+	data_structure::vector<uint32>
+	perform(const asset::mesh_editable&) noexcept;
+}
+
+namespace age::external::meshopt
+{
+	struct data_stream
 	{
-		FORCE_INLINE bool
-		gen_tangent(age::asset::mesh_editable&, const float angular_threshold = 180.0f) noexcept;
-	}
+		const void* data;
+		size_t		size;
+		size_t		stride;
+	};
 
-	namespace meshopt
+	struct meshlet
 	{
-		struct data_stream
-		{
-			const void* data;
-			size_t		size;
-			size_t		stride;
-		};
+		/* offsets within meshlet_vertices and meshlet_triangles arrays with meshlet data */
+		uint32 vertex_offset;
+		uint32 triangle_offset;
 
-		struct meshlet
-		{
-			/* offsets within meshlet_vertices and meshlet_triangles arrays with meshlet data */
-			uint32 vertex_offset;
-			uint32 triangle_offset;
+		/* number of vertices and triangles used in the meshlet; data is stored in consecutive range [offset..offset+count) for vertices and [offset..offset+count*3) for triangles */
+		uint32 vertex_count;
+		uint32 triangle_count;
+	};
 
-			/* number of vertices and triangles used in the meshlet; data is stored in consecutive range [offset..offset+count) for vertices and [offset..offset+count*3) for triangles */
-			uint32 vertex_count;
-			uint32 triangle_count;
-		};
+	struct vertex_cache_staticstics
+	{
+		uint32 vertices_transformed;
+		uint32 warps_executed;
+		float  acmr; /* transformed vertices / triangle count; best case 0.5, worst case 3.0, optimum depends on topology */
+		float  atvr; /* transformed vertices / vertex count; best case 1.0, worst case 6.0, optimum is 1.0 (each vertex is transformed once) */
+	};
 
-		struct vertex_cache_staticstics
-		{
-			uint32 vertices_transformed;
-			uint32 warps_executed;
-			float  acmr; /* transformed vertices / triangle count; best case 0.5, worst case 3.0, optimum depends on topology */
-			float  atvr; /* transformed vertices / vertex count; best case 1.0, worst case 6.0, optimum is 1.0 (each vertex is transformed once) */
-		};
+	struct vertex_fetch_statistics
+	{
+		uint32 bytes_fetched;
+		float  overfetch; /* fetched bytes / vertex buffer size; best case 1.0 (each byte is fetched once) */
+	};
 
-		struct vertex_fetch_statistics
-		{
-			uint32 bytes_fetched;
-			float  overfetch; /* fetched bytes / vertex buffer size; best case 1.0 (each byte is fetched once) */
-		};
+	struct overdraw_statistics
+	{
+		uint32 pixels_covered;
+		uint32 pixels_shaded;
+		float  overdraw; /* shaded pixels / covered pixels; best case 1.0 */
+	};
 
-		struct overdraw_statistics
-		{
-			uint32 pixels_covered;
-			uint32 pixels_shaded;
-			float  overdraw; /* shaded pixels / covered pixels; best case 1.0 */
-		};
+	struct coverage_statistics
+	{
+		float coverage[3];
+		float extent; /* viewport size in mesh coordinates */
+	};
 
-		struct coverage_statistics
-		{
-			float coverage[3];
-			float extent; /* viewport size in mesh coordinates */
-		};
+	struct bounds
+	{
+		/* bounding sphere, useful for frustum and occlusion culling */
+		float center[3];
+		float radius;
 
-		struct bounds
-		{
-			/* bounding sphere, useful for frustum and occlusion culling */
-			float center[3];
-			float radius;
+		/* normal cone, useful for backface culling */
+		float cone_apex[3];
+		float cone_axis[3];
+		float cone_cutoff; /* = cos(angle/2) */
 
-			/* normal cone, useful for backface culling */
-			float cone_apex[3];
-			float cone_axis[3];
-			float cone_cutoff; /* = cos(angle/2) */
-
-			/* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
-			signed char cone_axis_s8[3];
-			signed char cone_cutoff_s8;
-		};
-	}	 // namespace meshopt
-}	 // namespace age::external
+		/* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
+		signed char cone_axis_s8[3];
+		signed char cone_cutoff_s8;
+	};
+}	 // namespace age::external::meshopt
 
 namespace age::external::meshopt
 {
