@@ -3,9 +3,7 @@ AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments:
   Enabled: true
   AlignCompound: true
-AlignConsecutiveDeclarations:
-  Enabled: true
-  PadOperators: true
+
 AlignConsecutiveBitFields:
   PadOperators: true
   Enabled: true
@@ -13,7 +11,6 @@ AlignConsecutiveMacros:
   Enabled: true
   PadOperators: true
 AlignEscapedNewlines: Right
-AlignOperands: AlignAfterOperator
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 4
@@ -64,8 +61,19 @@ MaxEmptyLinesToKeep : 2
 ColumnLimit: 0
 TabWidth: 4
 UseTab: Always
-#BreakBeforeBinaryOperators: All 
-BreakBeforeBinaryOperators: NonAssignment 
 SpaceBeforeCpp11BracedList: false
-AlwaysBreakAfterReturnType: All
+BreakAfterReturnType : All
 #AlignArrayOfStructures: Left
+IndentWrappedFunctionNames: false
+PenaltyReturnTypeOnItsOwnLine: 1000
+AttributeMacros: ['FORCE_INLINE']
+BreakBeforeBinaryOperators: NonAssignment 
+
+AlignOperands: AlignAfterOperator
+
+AlignConsecutiveDeclarations:
+  Enabled: true
+  PadOperators: true
+  AlignFunctionPointers: true
+  AlignFunctionDeclarations: false
+  AlignCompound: true
