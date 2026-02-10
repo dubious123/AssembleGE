@@ -123,6 +123,14 @@ namespace age::asset
 
 namespace age::asset
 {
+	struct vertex_fat
+	{
+		float3				  pos	  = {};
+		float3				  normal  = {};
+		float4				  tangent = {};
+		std::array<float2, 4> uv_set  = {};
+	};
+
 	template <typename t_vertex>
 	struct mesh_triangulated
 	{
@@ -168,6 +176,18 @@ namespace age::asset
 		return res;
 	}
 
+	template <>
+	FORCE_INLINE vertex_fat
+	gather_vertex<vertex_fat>(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	{
+		return {
+			.pos	 = mesh_edit.position_vec[v.pos_idx],
+			.normal	 = mesh_edit.vertex_attr_vec[v.attribute_idx].normal,
+			.tangent = mesh_edit.vertex_attr_vec[v.attribute_idx].tangent,
+			.uv_set	 = mesh_edit.vertex_attr_vec[v.attribute_idx].uv_set
+		};
+	}
+
 	template <typename t_vertex>
 	FORCE_INLINE t_vertex
 	gather_vertex(const mesh_editable& mesh_edit, uint32 v_idx) noexcept
@@ -179,18 +199,12 @@ namespace age::asset
 	mesh_triangulated<t_vertex>
 	triangulate(const mesh_editable& m) noexcept
 	{
-		auto idx_vec = external::earcut::perform(m);
-		auto res	 = mesh_triangulated<t_vertex>{};
-		{
-			res.vertex_vec.reserve(idx_vec.size());
-			res.v_idx_vec = std::move(idx_vec);
-
-			res.vertex_vec = m.vertex_vec
-						   | std::views::transform([&m](auto& v) { return gather_vertex<t_vertex>(m, v); })
-						   | std::ranges::to<data_structure::vector<t_vertex>>();
-		}
-
-		return res;
+		return {
+			.vertex_vec = m.vertex_vec
+						| std::views::transform([&m](auto& v) { return gather_vertex<t_vertex>(m, v); })
+						| std::ranges::to<data_structure::vector<t_vertex>>(),
+			.v_idx_vec = external::earcut::perform(m)
+		};
 	}
 }	 // namespace age::asset
 
@@ -264,5 +278,5 @@ namespace age::asset
 namespace age::asset
 {
 	mesh_baked
-	bake_mesh(mesh_editable&) noexcept;
+	bake_mesh(const asset::mesh_editable&) noexcept;
 }

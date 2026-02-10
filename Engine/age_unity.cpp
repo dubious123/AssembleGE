@@ -1,6 +1,13 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
+#line 1 "age_external_wrapper_meshopt.cpp"
+#include "age_external_wrapper_meshopt.cpp"
+#line 1 "age_external_wrapper_mikktspace.cpp"
+#include "age_external_wrapper_mikktspace.cpp"
+#line 1 "age_external_wrapper_earcut.cpp"
+#include "age_external_wrapper_earcut.cpp"
+
 #line 1 "age_asset.cpp"
 #include "age_asset.cpp"
 

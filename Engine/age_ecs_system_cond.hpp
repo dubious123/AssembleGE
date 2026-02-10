@@ -11,7 +11,7 @@ namespace age::ecs::system
 		no_unique_addr t_sys_then sys_then;
 		no_unique_addr t_sys_else sys_else;
 
-		constexpr cond(auto&& sys_cond, auto&& sys_then, auto&& sys_else) noexcept
+		FORCE_INLINE constexpr cond(auto&& sys_cond, auto&& sys_then, auto&& sys_else) noexcept
 			: sys_cond{ FWD(sys_cond) },
 			  sys_then{ FWD(sys_then) },
 			  sys_else{ FWD(sys_else) }
@@ -55,7 +55,7 @@ namespace age::ecs::system
 		no_unique_addr t_sys_cond sys_cond;
 		no_unique_addr t_sys_then sys_then;
 
-		constexpr cond(auto&& sys_cond, auto&& sys_then) noexcept
+		FORCE_INLINE constexpr cond(auto&& sys_cond, auto&& sys_then) noexcept
 			: sys_cond{ FWD(sys_cond) },
 			  sys_then{ FWD(sys_then) }
 		{

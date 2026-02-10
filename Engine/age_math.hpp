@@ -49,9 +49,9 @@ struct vec2
 	t x;
 	t y;
 
-	constexpr vec2() noexcept = default;
+	FORCE_INLINE constexpr vec2() noexcept = default;
 
-	constexpr vec2(auto&& other) noexcept
+	FORCE_INLINE constexpr vec2(auto&& other) noexcept
 		requires(requires { other.x; other.y; }
 				 and std::convertible_to<decltype(other.x), t>
 				 and std::convertible_to<decltype(other.y), t>)
@@ -59,14 +59,14 @@ struct vec2
 	{
 	}
 
-	constexpr vec2(auto&& other) noexcept
+	FORCE_INLINE constexpr vec2(auto&& other) noexcept
 		requires(std::convertible_to<decltype(other), t>
 				 and not requires { other.x; other.y; })
 		: x{ static_cast<t>(FWD(other)) }, y{ static_cast<t>(FWD(other)) }
 	{
 	}
 
-	constexpr vec2(auto&& x_other, auto&& y_other) noexcept
+	FORCE_INLINE constexpr vec2(auto&& x_other, auto&& y_other) noexcept
 		requires(std::convertible_to<decltype(x_other), t>
 				 and std::convertible_to<decltype(y_other), t>)
 		: x{ static_cast<t>(FWD(x_other)) }, y{ static_cast<t>(FWD(y_other)) }
@@ -99,25 +99,24 @@ struct vec2
 		return (&x)[c];
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	operator==(const t_this&) const noexcept = default;
-
-	constexpr auto
+	FORCE_INLINE constexpr auto
 	operator<=>(const t_this&) const noexcept = default;
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept
 	{
 		return { x + other_r.x, y + other_r.y };
 	}
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator-(const t_this& other_r) const noexcept
 	{
 		return { x - other_r.x, y - other_r.y };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator+=(const t_this& other_r) noexcept
 	{
 		x += other_r.x;
@@ -125,7 +124,7 @@ struct vec2
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator-=(const t_this& other_r) noexcept
 	{
 		x -= other_r.x;
@@ -133,21 +132,21 @@ struct vec2
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator*(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
 		return t_this{ x * v, y * v };
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator*=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
@@ -156,7 +155,7 @@ struct vec2
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator/=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
@@ -165,7 +164,7 @@ struct vec2
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator-() const noexcept
 		requires(std::is_signed_v<t>)
 
@@ -173,19 +172,19 @@ struct vec2
 		return t_this{ -x, -y };
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	is_zero() const noexcept
 	{
 		return x == t{ 0 } && y == t{ 0 };
 	}
 
-	constexpr t
+	FORCE_INLINE constexpr t
 	area() const noexcept
 	{
 		return t{ x * y };
 	}
 
-	constexpr t
+	FORCE_INLINE constexpr t
 	manhattan() const noexcept
 		requires(std::is_integral_v<t> && std::is_signed_v<t>)
 	{
@@ -194,25 +193,25 @@ struct vec2
 		return t{ ax + ay };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	one() noexcept
 	{
 		return t_this{ 1, 1 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_x() noexcept
 	{
 		return t_this{ 1, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_y() noexcept
 	{
 		return t_this{ 0, 1 };
@@ -237,9 +236,9 @@ struct vec3
 
 	t z;
 
-	constexpr vec3() noexcept = default;
+	FORCE_INLINE constexpr vec3() noexcept = default;
 
-	constexpr vec3(auto&& other) noexcept
+	FORCE_INLINE constexpr vec3(auto&& other) noexcept
 		requires(requires { other.x; other.y; other.z; }
 				 and std::convertible_to<decltype(other.x), t>
 				 and std::convertible_to<decltype(other.y), t>
@@ -248,14 +247,14 @@ struct vec3
 	{
 	}
 
-	constexpr vec3(auto&& other) noexcept
+	FORCE_INLINE constexpr vec3(auto&& other) noexcept
 		requires(std::convertible_to<decltype(other), t>
 				 and not requires { other.x; other.y; other.z; })
 		: x{ static_cast<t>(FWD(other)) }, y{ static_cast<t>(FWD(other)) }, z{ static_cast<t>(FWD(other)) }
 	{
 	}
 
-	constexpr vec3(auto&& x_other, auto&& y_other, auto&& z_other) noexcept
+	FORCE_INLINE constexpr vec3(auto&& x_other, auto&& y_other, auto&& z_other) noexcept
 		requires(std::convertible_to<decltype(x_other), t>
 				 and std::convertible_to<decltype(y_other), t>
 				 and std::convertible_to<decltype(z_other), t>)
@@ -289,24 +288,24 @@ struct vec3
 		return (&x)[c];
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	operator==(const t_this&) const noexcept = default;
-	constexpr auto
+	FORCE_INLINE constexpr auto
 	operator<=>(const t_this&) const noexcept = default;
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept
 	{
 		return { x + other_r.x, y + other_r.y, z + other_r.z };
 	}
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator-(const t_this& other_r) const noexcept
 	{
 		return { x - other_r.x, y - other_r.y, z - other_r.z };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator+=(const t_this& other_r) noexcept
 	{
 		x += other_r.x;
@@ -315,7 +314,7 @@ struct vec3
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator-=(const t_this& other_r) noexcept
 	{
 		x -= other_r.x;
@@ -324,21 +323,21 @@ struct vec3
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator*(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
 		return t_this{ x * v, y * v, z * v };
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v, z / v };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator*=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
@@ -348,7 +347,7 @@ struct vec3
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator/=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
@@ -358,26 +357,26 @@ struct vec3
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator-() const noexcept
 		requires(std::is_signed_v<t>)
 	{
 		return t_this{ -x, -y, -z };
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	is_zero() const noexcept
 	{
 		return x == t{ 0 } && y == t{ 0 } && z == t{ 0 };
 	}
 
-	constexpr t
+	FORCE_INLINE constexpr t
 	volume() const noexcept
 	{
 		return t{ x * y * z };
 	}
 
-	constexpr t
+	FORCE_INLINE constexpr t
 	manhattan() const noexcept
 		requires(std::is_integral_v<t> && std::is_signed_v<t>)
 	{
@@ -387,31 +386,31 @@ struct vec3
 		return t{ ax + ay + az };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ 0, 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	one() noexcept
 	{
 		return t_this{ 1, 1, 1 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_x() noexcept
 	{
 		return t_this{ 1, 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_y() noexcept
 	{
 		return t_this{ 0, 1, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_z() noexcept
 	{
 		return t_this{ 0, 0, 1 };
@@ -436,10 +435,10 @@ struct vec4
 
 	t w;
 
-	constexpr vec4() noexcept = default;
+	FORCE_INLINE constexpr vec4() noexcept = default;
 
 	template <typename t_other>
-	constexpr vec4(t_other&& other) noexcept
+	FORCE_INLINE constexpr vec4(t_other&& other) noexcept
 		requires(
 					requires { other.x; other.y; other.z; other.w; }
 					&& std::convertible_to<decltype(other.x), t>
@@ -451,7 +450,7 @@ struct vec4
 	}
 
 	template <typename t_other>
-	constexpr vec4(t_other&& other) noexcept
+	FORCE_INLINE constexpr vec4(t_other&& other) noexcept
 		requires(
 					std::convertible_to<t_other, t>
 					&& !requires { other.x; other.y; other.z; other.w; })
@@ -460,7 +459,7 @@ struct vec4
 	}
 
 	template <typename t_x, typename t_y, typename t_z, typename t_w>
-	constexpr vec4(t_x&& x_other, t_y&& y_other, t_z&& z_other, t_w&& w_other) noexcept
+	FORCE_INLINE constexpr vec4(t_x&& x_other, t_y&& y_other, t_z&& z_other, t_w&& w_other) noexcept
 		requires(
 					std::convertible_to<t_x, t>
 					&& std::convertible_to<t_y, t>
@@ -496,24 +495,25 @@ struct vec4
 		return (&x)[c];
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	operator==(const t_this&) const noexcept = default;
-	constexpr auto
+
+	FORCE_INLINE constexpr auto
 	operator<=>(const t_this&) const noexcept = default;
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept
 	{
 		return { x + other_r.x, y + other_r.y, z + other_r.z, w + other_r.w };
 	}
 
-	constexpr t_this
+	FORCE_INLINE constexpr t_this
 	operator-(const t_this& other_r) const noexcept
 	{
 		return { x - other_r.x, y - other_r.y, z - other_r.z, w - other_r.w };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator+=(const t_this& other_r) noexcept
 	{
 		x += other_r.x;
@@ -523,7 +523,7 @@ struct vec4
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator-=(const t_this& other_r) noexcept
 	{
 		x -= other_r.x;
@@ -533,21 +533,21 @@ struct vec4
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator*(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
 		return t_this{ x * v, y * v, z * v, w * v };
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v, z / v, w / v };
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator*=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
 	{
@@ -558,7 +558,7 @@ struct vec4
 		return *this;
 	}
 
-	constexpr t_this&
+	FORCE_INLINE constexpr t_this&
 	operator/=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
@@ -569,20 +569,20 @@ struct vec4
 		return *this;
 	}
 
-	constexpr decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	operator-() const noexcept
 		requires(std::is_signed_v<t>)
 	{
 		return t_this{ -x, -y, -z, -w };
 	}
 
-	constexpr bool
+	FORCE_INLINE constexpr bool
 	is_zero() const noexcept
 	{
 		return x == t{ 0 } && y == t{ 0 } && z == t{ 0 } && w == t{ 0 };
 	}
 
-	constexpr t
+	FORCE_INLINE constexpr t
 	manhattan() const noexcept
 		requires(std::is_integral_v<t> && std::is_signed_v<t>)
 	{
@@ -593,37 +593,37 @@ struct vec4
 		return t{ ax + ay + az + aw };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ 0, 0, 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	one() noexcept
 	{
 		return t_this{ 1, 1, 1, 1 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_x() noexcept
 	{
 		return t_this{ 1, 0, 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_y() noexcept
 	{
 		return t_this{ 0, 1, 0, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_z() noexcept
 	{
 		return t_this{ 0, 0, 1, 0 };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	unit_w() noexcept
 	{
 		return t_this{ 0, 0, 0, 1 };
@@ -664,15 +664,15 @@ struct mat22
 	t_row r0{ t{ 1 }, t{ 0 } };
 	t_row r1{ t{ 0 }, t{ 1 } };
 
-	constexpr mat22() noexcept = default;
+	FORCE_INLINE constexpr mat22() noexcept = default;
 
-	constexpr mat22(auto&& other) noexcept
+	FORCE_INLINE constexpr mat22(auto&& other) noexcept
 		requires(std::convertible_to<decltype(other), t_row>)
 		: r0{ FWD(other) }, r1{ FWD(other) }
 	{
 	}
 
-	constexpr mat22(auto&& other) noexcept
+	FORCE_INLINE constexpr mat22(auto&& other) noexcept
 		requires(not std::convertible_to<decltype(other), t_row>
 				 and requires { other.r0; other.r1; }
 				 and std::convertible_to<decltype(other.r0), t_row>
@@ -681,7 +681,7 @@ struct mat22
 	{
 	}
 
-	constexpr mat22(auto&& other1, auto&& other2) noexcept
+	FORCE_INLINE constexpr mat22(auto&& other1, auto&& other2) noexcept
 		requires(std::convertible_to<decltype(other1), t_row>
 				 and std::convertible_to<decltype(other2), t_row>)
 		: r0{ FWD(other1) }, r1{ FWD(other2) }
@@ -718,7 +718,7 @@ struct mat22
 		return t_row{ r0[c], r1[c] };
 	}
 
-	constexpr void
+	FORCE_INLINE constexpr void
 	transpose() noexcept
 	{
 		auto temp	  = (*this)[0][1];
@@ -726,19 +726,19 @@ struct mat22
 		(*this)[1][0] = temp;
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	identity() noexcept
 	{
 		return t_this{};
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ t{ 0 } };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	from_diagonal(t v) noexcept
 	{
 		return t_this{ t_row{ t{ v }, t{ 0 } },
@@ -775,15 +775,15 @@ struct mat33
 	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 } };
 	t_row r2{ t{ 0 }, t{ 0 }, t{ 1 } };
 
-	constexpr mat33() noexcept = default;
+	FORCE_INLINE constexpr mat33() noexcept = default;
 
-	constexpr mat33(auto&& other) noexcept
+	FORCE_INLINE constexpr mat33(auto&& other) noexcept
 		requires(std::convertible_to<decltype(other), t_row>)
 		: r0{ FWD(other) }, r1{ FWD(other) }, r2{ FWD(other) }
 	{
 	}
 
-	constexpr mat33(auto&& other) noexcept
+	FORCE_INLINE constexpr mat33(auto&& other) noexcept
 		requires(not std::convertible_to<decltype(other), t_row>
 				 and requires { other.r0; other.r1; other.r2; }
 				 and std::convertible_to<decltype(other.r0), t_row>
@@ -793,7 +793,7 @@ struct mat33
 	{
 	}
 
-	constexpr mat33(auto&& other1, auto&& other2, auto&& other3) noexcept
+	FORCE_INLINE constexpr mat33(auto&& other1, auto&& other2, auto&& other3) noexcept
 		requires(std::convertible_to<decltype(other1), t_row>
 				 and std::convertible_to<decltype(other2), t_row>
 				 and std::convertible_to<decltype(other3), t_row>)
@@ -831,7 +831,7 @@ struct mat33
 		return t_row{ r0[c], r1[c], r2[c] };
 	}
 
-	constexpr void
+	FORCE_INLINE constexpr void
 	transpose() noexcept
 	{
 		// swap (0,1), (0,2), (1,2)
@@ -848,19 +848,19 @@ struct mat33
 		(*this)[2][1] = temp;
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	identity() noexcept
 	{
 		return t_this{};
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ t{ 0 } };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	from_diagonal(t v) noexcept
 	{
 		return t_this{
@@ -901,15 +901,15 @@ struct mat44
 	t_row r2{ t{ 0 }, t{ 0 }, t{ 1 }, t{ 0 } };
 	t_row r3{ t{ 0 }, t{ 0 }, t{ 0 }, t{ 1 } };
 
-	constexpr mat44() noexcept = default;
+	FORCE_INLINE constexpr mat44() noexcept = default;
 
-	constexpr mat44(auto&& other) noexcept
+	FORCE_INLINE constexpr mat44(auto&& other) noexcept
 		requires(std::convertible_to<decltype(other), t_row>)
 		: r0{ FWD(other) }, r1{ FWD(other) }, r2{ FWD(other) }, r3{ FWD(other) }
 	{
 	}
 
-	constexpr mat44(auto&& other) noexcept
+	FORCE_INLINE constexpr mat44(auto&& other) noexcept
 		requires(not std::convertible_to<decltype(other), t_row>
 				 and requires { other.r0; other.r1; other.r2; other.r3; }
 				 and std::convertible_to<decltype(other.r0), t_row>
@@ -920,7 +920,7 @@ struct mat44
 	{
 	}
 
-	constexpr mat44(auto&& other1, auto&& other2, auto&& other3, auto&& other4) noexcept
+	FORCE_INLINE constexpr mat44(auto&& other1, auto&& other2, auto&& other3, auto&& other4) noexcept
 		requires(std::convertible_to<decltype(other1), t_row>
 				 and std::convertible_to<decltype(other2), t_row>
 				 and std::convertible_to<decltype(other3), t_row>
@@ -959,7 +959,7 @@ struct mat44
 		return t_row{ r0[c], r1[c], r2[c], r3[c] };
 	}
 
-	constexpr void
+	FORCE_INLINE constexpr void
 	transpose() noexcept
 	{
 		// swap upper triangle with lower triangle: 6 swaps
@@ -988,19 +988,19 @@ struct mat44
 		(*this)[3][2] = temp;
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	identity() noexcept
 	{
 		return t_this{};
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
 		return t_this{ t{ 0 } };
 	}
 
-	static constexpr decltype(auto)
+	FORCE_INLINE static constexpr decltype(auto)
 	from_diagonal(t v) noexcept
 	{
 		return t_this{

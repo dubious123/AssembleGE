@@ -53,8 +53,10 @@ namespace age::external::earcut
 				}
 			}(m, f);
 
-
 			polygon.resize(f.to_boundary_idx_count);
+
+			auto** pp_corner_span_arr = new std::pair<float, float>*[f.to_boundary_idx_count];
+			auto*  p_corner_count_arr = new uint32[f.to_boundary_idx_count];
 
 			for (auto&& [b_idx, b] : m.boundary_view(f) | std::views::enumerate)
 			{
@@ -70,13 +72,28 @@ namespace age::external::earcut
 				{
 					std::ranges::reverse(polygon[b_idx]);
 				}
+
+				pp_corner_span_arr[b_idx] = polygon[b_idx].data();
+				p_corner_count_arr[b_idx] = static_cast<uint32>(polygon[b_idx].size());
 			}
 
-			idx_vec.append_range(mapbox::earcut(polygon)
+
+			auto p_idx_arr = (uint32*)nullptr;
+			auto idx_size  = detail::perform(
+				(void**)pp_corner_span_arr,
+				p_corner_count_arr,
+				f.to_boundary_idx_count,
+				p_idx_arr);
+
+			idx_vec.append_range(std::span{ p_idx_arr, idx_size }
 								 | std::views::transform(
-									 [offset](auto idx) {
-										 return idx + offset;
+									 [offset, &m](auto idx) {
+										 return m.boundary_to_vertex_idx_vec[idx + offset];
 									 }));
+
+			delete[] pp_corner_span_arr;
+			delete[] p_corner_count_arr;
+			delete[] p_idx_arr;
 		}
 
 		return idx_vec;

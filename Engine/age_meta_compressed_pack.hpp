@@ -15,7 +15,7 @@ namespace age::meta
 	{
 		no_unique_addr t_head head;
 
-		constexpr compressed_pack(auto&& h_arg)
+		FORCE_INLINE constexpr compressed_pack(auto&& h_arg)
 			: head{ FWD(h_arg) }
 		{
 		}
@@ -41,9 +41,9 @@ namespace age::meta
 		no_unique_addr t_head head;
 		no_unique_addr compressed_pack<t_tail...> tail;
 
-		constexpr compressed_pack() = default;
+		FORCE_INLINE constexpr compressed_pack() = default;
 
-		constexpr compressed_pack(auto&& h_arg, auto&&... t_arg)
+		FORCE_INLINE constexpr compressed_pack(auto&& h_arg, auto&&... t_arg)
 			: head{ FWD(h_arg) }, tail{ FWD(t_arg)... }
 		{
 		}

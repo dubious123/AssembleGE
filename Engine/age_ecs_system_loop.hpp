@@ -9,7 +9,9 @@ namespace age::ecs::system
 
 		no_unique_addr t_sys_cond sys_cond;
 
-		constexpr break_if(auto&& arg) noexcept : sys_cond{ FWD(arg) } { }
+		FORCE_INLINE constexpr break_if(auto&& arg) noexcept : sys_cond{ FWD(arg) }
+		{
+		}
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, cx_ctx auto&& ctx, auto&&... arg) noexcept
@@ -32,7 +34,9 @@ namespace age::ecs::system
 
 		no_unique_addr t_sys_cond sys_cond;
 
-		constexpr continue_if(auto&& arg) noexcept : sys_cond{ FWD(arg) } { }
+		FORCE_INLINE constexpr continue_if(auto&& arg) noexcept : sys_cond{ FWD(arg) }
+		{
+		}
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, cx_ctx auto&& ctx, auto&&... arg) noexcept
@@ -75,9 +79,9 @@ namespace age::ecs::system
 
 		no_unique_addr age::meta::compressed_pack<t_sys...> systems;
 
-		constexpr loop(auto&& sys_cond_arg, auto&&... sys_arg) noexcept
+		FORCE_INLINE constexpr loop(auto&& sys_cond_arg, auto&&... sys_arg) noexcept
 			: sys_cond{ FWD(sys_cond_arg) },
-			  systems{ FWD(sys_arg)... } { };
+			  systems{ FWD(sys_arg)... } {};
 
 #define __SYS_LOOP_IMPL(N)                                              \
 	if constexpr (N < sizeof...(t_sys))                                 \

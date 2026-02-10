@@ -52,9 +52,9 @@ namespace age::platform
 {
 	struct window_desc
 	{
-		const uint32	  width;
-		const uint32	  height;
-		const std::string name;
+		const uint32		   width;
+		const uint32		   height;
+		const std::string_view name;
 	};
 
 	void

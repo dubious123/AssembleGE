@@ -32,10 +32,11 @@ main()
 	}
 
 	using namespace age::ecs::system;
-	// age::asset::create_primitive(age::asset::primitive_desc{});
-	// age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 1000 });
-	// age::asset::create_primitive(age::asset::primitive_desc{ .seg_v = 1000 });
-	// age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 8, .seg_v = 3 });
+	age::asset::create_primitive(age::asset::primitive_desc{});
+	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 1000 });
+	age::asset::create_primitive(age::asset::primitive_desc{ .seg_v = 1000 });
+	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 8, .seg_v = 3 });
+	// age::asset::create_primitive(age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 99, .seg_v = 300 });
 	on_ctx{
 		AGE_FUNC(age::platform::init),
 		AGE_FUNC(age::graphics::init),
@@ -44,9 +45,9 @@ main()
 			| age::asset::create_primitive
 			| age::asset::triangulate<age::asset::vertex_pnt_uv0>,
 
-		identity{ age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 99, .seg_v = 300 } }
+		identity{ age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 30, .seg_v = 30 } }
 			| age::asset::create_primitive
-			| age::asset::triangulate<age::asset::vertex_pnt_uv0>,
+			| age::asset::bake_mesh,
 
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
 			| AGE_FUNC(age::platform::create_window)

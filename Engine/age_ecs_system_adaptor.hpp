@@ -9,7 +9,7 @@ namespace age::ecs::system
 
 		no_unique_addr t_sys sys;
 
-		constexpr with_ctx(auto&&... arg) noexcept(std::is_nothrow_constructible_v<t_sys, decltype(arg)...>)
+		FORCE_INLINE constexpr with_ctx(auto&&... arg) noexcept(std::is_nothrow_constructible_v<t_sys, decltype(arg)...>)
 			: sys{ FWD(arg)... }
 		{
 		}
@@ -49,7 +49,7 @@ namespace age::ecs::system
 
 		no_unique_addr t_data data;
 
-		constexpr identity(auto&& arg) noexcept : data{ FWD(arg) } { };
+		FORCE_INLINE constexpr identity(auto&& arg) noexcept : data{ FWD(arg) } {};
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self) noexcept
@@ -86,7 +86,7 @@ namespace age::ecs::system
 
 		no_unique_addr t_data data;
 
-		constexpr sys_move_data(auto&& arg) noexcept : data{ FWD(arg) } { };
+		FORCE_INLINE constexpr sys_move_data(auto&& arg) noexcept : data{ FWD(arg) } {};
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(auto&& arg) noexcept

@@ -71,7 +71,8 @@
 	#define INLINE_LAMBDA_FRONT __attribute__((always_inline))
 	#define INLINE_LAMBDA_BACK
 #else
-	#define INLINE_LAMBDA
+	#define INLINE_LAMBDA_FRONT
+	#define INLINE_LAMBDA_BACK
 #endif
 
 #ifdef AGE_COMPILER_MSVC

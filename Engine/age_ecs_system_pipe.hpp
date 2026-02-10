@@ -9,7 +9,7 @@ namespace age::ecs::system
 
 		no_unique_addr age::meta::compressed_pack<t_sys...> systems;
 
-		constexpr pipe(auto&&... sys) noexcept : systems{ FWD(sys)... } { };
+		FORCE_INLINE constexpr pipe(auto&&... sys) noexcept : systems{ FWD(sys)... } {};
 
 	  private:
 		template <std::size_t sys_idx>
@@ -95,7 +95,7 @@ namespace age::ecs::system
 	FORCE_INLINE constexpr decltype(auto)
 	operator|(pipe<t_sys_l...>&& sys_l, t_sys_r&& sys_r) noexcept
 	{
-		return []<std::size_t... i>(std::index_sequence<i...>, auto&& sys_l, auto&& sys_r) {
+		return []<std::size_t... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& sys_l, auto&& sys_r) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 			return pipe{ FWD(sys_l).systems.template get<i>()..., FWD(sys_r) };
 		}(std::index_sequence_for<t_sys_l...>{}, FWD(sys_l), FWD(sys_r));
 	}
@@ -104,7 +104,7 @@ namespace age::ecs::system
 	FORCE_INLINE constexpr decltype(auto)
 	operator|(t_sys_l&& sys_l, pipe<t_sys_r...>&& sys_r) noexcept
 	{
-		return []<std::size_t... i>(std::index_sequence<i...>, auto&& sys_l, auto&& sys_r) {
+		return []<std::size_t... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& sys_l, auto&& sys_r) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 			return pipe{ FWD(sys_l), FWD(sys_r).systems.template get<i>()... };
 		}(std::index_sequence_for<t_sys_r...>{}, FWD(sys_l), FWD(sys_r));
 	}
@@ -113,7 +113,7 @@ namespace age::ecs::system
 	FORCE_INLINE constexpr decltype(auto)
 	operator|(pipe<t_sys_l...>&& sys_l, pipe<t_sys_r...>&& sys_r) noexcept
 	{
-		return []<std::size_t... i_l, std::size_t... i_r>(std::index_sequence<i_l...>, std::index_sequence<i_r...>, auto&& sys_l, auto&& sys_r) {
+		return []<std::size_t... i_l, std::size_t... i_r> INLINE_LAMBDA_FRONT(std::index_sequence<i_l...>, std::index_sequence<i_r...>, auto&& sys_l, auto&& sys_r) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 			return pipe{ FWD(sys_l).systems.template get<i_l>()..., FWD(sys_r).systems.template get<i_r>()... };
 		}(std::index_sequence_for<t_sys_l...>{}, std::index_sequence_for<t_sys_r...>{}, FWD(sys_l), FWD(sys_r));
 	}

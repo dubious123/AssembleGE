@@ -1,8 +1,9 @@
 #pragma once
+#include "age.hpp"
 
 namespace age::external::mikk
 {
-	bool
+	FORCE_INLINE bool
 	gen_tangent(asset::mesh_editable&, const float angular_threshold = 180.0f) noexcept;
 }	 // namespace age::external::mikk
 
@@ -105,8 +106,8 @@ namespace age::external::meshopt
 		const float*  vertex_positions,
 		std::size_t	  vertex_count,
 		std::size_t	  vertex_positions_stride,
-		int (*callback)(void*, uint32, uint32),
-		void* context) noexcept;
+		int			  (*callback)(void*, uint32, uint32),
+		void*		  context) noexcept;
 
 	// Remap buffers
 	void
@@ -319,6 +320,39 @@ namespace age::external::meshopt
 	decodeVertexVersion(
 		const unsigned char* buffer,
 		std::size_t			 buffer_size) noexcept;
+
+	std::size_t
+	encodeMeshlet(
+		unsigned char*		 buffer,
+		std::size_t			 buffer_size,
+		const unsigned int*	 vertices,
+		std::size_t			 vertex_count,
+		const unsigned char* triangles,
+		std::size_t			 triangle_count);
+	std::size_t
+	encodeMeshletBound(
+		std::size_t max_vertices,
+		std::size_t max_triangles);
+
+	int
+	decodeMeshlet(
+		void*				 vertices,
+		std::size_t			 vertex_count,
+		std::size_t			 vertex_size,
+		void*				 triangles,
+		std::size_t			 triangle_count,
+		std::size_t			 triangle_size,
+		const unsigned char* buffer,
+		std::size_t			 buffer_size);
+	int
+	decodeMeshletRaw(
+		unsigned int*		 vertices,
+		std::size_t			 vertex_count,
+		unsigned int*		 triangles,
+		std::size_t			 triangle_count,
+		const unsigned char* buffer,
+		std::size_t			 buffer_size);
+
 
 	// Decode filters
 	void
@@ -642,4 +676,5 @@ namespace age::external::meshopt
 	setAllocator(
 		void*(AGE_ALLOC_CALLCONV* allocate)(std::size_t),
 		void(AGE_ALLOC_CALLCONV* deallocate)(void*)) noexcept;
+
 }	 // namespace age::external::meshopt

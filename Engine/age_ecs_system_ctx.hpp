@@ -16,7 +16,7 @@ namespace age::ecs::system
 
 		no_unique_addr age::meta::compressed_pack<t...> storage;
 
-		constexpr on_ctx(auto&&... arg) noexcept : storage{ FWD(arg)... } { };
+		FORCE_INLINE constexpr on_ctx(auto&&... arg) noexcept : storage{ FWD(arg)... } {};
 
 		FORCE_INLINE constexpr decltype(auto)
 		get_executor(this auto&& self) noexcept
@@ -36,7 +36,7 @@ namespace age::ecs::system
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, auto&&... arg) noexcept
 		{
-			return FWD(self).get_executor().run_all(FWD(self), std::make_index_sequence<sys_count>{}, FWD(arg)...);
+			return FWD(self).storage.get<executor_idx>().run_all(FWD(self), std::make_index_sequence<sys_count>{}, FWD(arg)...);
 		}
 	};
 

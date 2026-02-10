@@ -11,7 +11,9 @@ namespace age::ecs::system::detail
 
 		static inline constexpr decltype(n) case_value = n;
 
-		constexpr sys_case(auto&& arg) noexcept : sys{ FWD(arg) } { }
+		FORCE_INLINE constexpr sys_case(auto&& arg) noexcept : sys{ FWD(arg) }
+		{
+		}
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, cx_ctx auto&& ctx, auto&&... arg) noexcept
@@ -39,7 +41,9 @@ namespace age::ecs::system::detail
 		using t_ctx_tag = ctx_tag<tag_adaptor, tag_ctx_bound>;
 		no_unique_addr t_sys sys;
 
-		constexpr sys_default(auto&& arg) noexcept : sys{ FWD(arg) } { }
+		FORCE_INLINE constexpr sys_default(auto&& arg) noexcept : sys{ FWD(arg) }
+		{
+		}
 
 		FORCE_INLINE constexpr decltype(auto)
 		operator()(this auto&& self, cx_ctx auto&& ctx, auto&&... arg) noexcept
@@ -52,7 +56,7 @@ namespace age::ecs::system::detail
 	struct sys_default<void>
 	{
 		template <typename t_sys>
-		constexpr decltype(auto)
+		FORCE_INLINE constexpr decltype(auto)
 		operator=(t_sys&& sys) const noexcept
 		{
 			return sys_default<t_sys>{ FWD(sys) };
@@ -127,9 +131,9 @@ namespace age::ecs::system
 
 		no_unique_addr age::meta::compressed_pack<t_sys_case...> sys_cases;
 
-		constexpr match(auto&& sys_selector_arg, auto&&... sys_case_arg) noexcept
+		FORCE_INLINE constexpr match(auto&& sys_selector_arg, auto&&... sys_case_arg) noexcept
 			: sys_selector{ FWD(sys_selector_arg) },
-			  sys_cases{ FWD(sys_case_arg)... } { };
+			  sys_cases{ FWD(sys_case_arg)... } {};
 
 		static consteval decltype(auto)
 		case_id_arr()
