@@ -17,12 +17,11 @@
 
 ## external wrapper
 ### 1. directx Math 
-### 2. mikk Tspace
+
 ### 3. dxcapi shader compiler
 ### 4. dx12
 ### 5. windows
 
-## support half, half_2, half_4, mat ...
 ## support arm arch 
 
 ## meta cleanup
@@ -32,3 +31,5 @@
 ## rewrite mikk tspace
 
 ## handle pdb
+
+## clean up data_structure, write data_structure benchmark and test

@@ -6,14 +6,12 @@ namespace age::external::earcut
 	data_structure::vector<uint32>
 	perform(const asset::mesh_editable& m) noexcept
 	{
-		auto idx_vec	= data_structure::vector<uint32>{};
-		auto pos_2d_vec = data_structure::vector<std::pair<float, float>>{};
-		pos_2d_vec.resize(m.boundary_to_vertex_idx_vec.size());
+		auto idx_vec	  = data_structure::vector<uint32>{};
+		auto p_pos_2d_arr = new std::pair<float, float>[m.boundary_to_vertex_idx_vec.size()];
 
 		for (auto& f : m.face_vec)
 		{
 			auto offset				   = m.outer_boundary(f).to_vertex_idx_offset;
-			auto polygon			   = data_structure::vector<std::span<std::pair<float, float>>>{};
 			auto [proj_fptr, reversed] = [](const auto& m, const auto& f) {
 				auto& b				= m.boundary_vec[m.face_to_boundary_idx_vec[f.to_outer_boundary_idx_offset()]];
 				auto  s				= m.vertex_idx_span(b);
@@ -53,33 +51,33 @@ namespace age::external::earcut
 				}
 			}(m, f);
 
-			polygon.resize(f.to_boundary_idx_count);
-
+			auto*  p_polygon		  = new std::span<std::pair<float, float>>[f.to_boundary_idx_count];
 			auto** pp_corner_span_arr = new std::pair<float, float>*[f.to_boundary_idx_count];
 			auto*  p_corner_count_arr = new uint32[f.to_boundary_idx_count];
 
 			for (auto&& [b_idx, b] : m.boundary_view(f) | std::views::enumerate)
 			{
-				polygon[b_idx] = { pos_2d_vec.data() + b.to_vertex_idx_offset, b.to_vertex_idx_count };
+				p_polygon[b_idx] = { p_pos_2d_arr + b.to_vertex_idx_offset, b.to_vertex_idx_count };
 
 				for (auto&& [v_idx, v] : m.vertex_view(b) | std::views::enumerate)
 				{
-					c_auto& p			  = m.position_vec[v.pos_idx];
-					polygon[b_idx][v_idx] = proj_fptr(p);
+					c_auto& p				= m.position_vec[v.pos_idx];
+					p_polygon[b_idx][v_idx] = proj_fptr(p);
 				}
 
 				if (reversed)
 				{
-					std::ranges::reverse(polygon[b_idx]);
+					std::ranges::reverse(p_polygon[b_idx]);
 				}
 
-				pp_corner_span_arr[b_idx] = polygon[b_idx].data();
-				p_corner_count_arr[b_idx] = static_cast<uint32>(polygon[b_idx].size());
+				pp_corner_span_arr[b_idx] = p_polygon[b_idx].data();
+				p_corner_count_arr[b_idx] = static_cast<uint32>(p_polygon[b_idx].size());
 			}
 
 
-			auto p_idx_arr = (uint32*)nullptr;
-			auto idx_size  = detail::perform(
+			auto* p_idx_arr = (uint32*)nullptr;
+
+			auto idx_size = detail::perform(
 				(void**)pp_corner_span_arr,
 				p_corner_count_arr,
 				f.to_boundary_idx_count,
@@ -91,11 +89,13 @@ namespace age::external::earcut
 										 return m.boundary_to_vertex_idx_vec[idx + offset];
 									 }));
 
-			delete[] pp_corner_span_arr;
-			delete[] p_corner_count_arr;
 			delete[] p_idx_arr;
+			delete[] p_corner_count_arr;
+			delete[] pp_corner_span_arr;
+			delete[] p_polygon;
 		}
 
+		delete[] p_pos_2d_arr;
 		return idx_vec;
 	}
 }	 // namespace age::external::earcut

@@ -13,8 +13,7 @@ namespace age::asset
 			AGE_ASSERT(idx < m.vertex_vec.size());
 		}
 
-		auto v_idx_remap_vec = data_structure::vector<uint32>{};
-		v_idx_remap_vec.resize(m.v_idx_vec.size());
+		auto v_idx_remap_vec = data_structure::vector<uint32>::gen_reserved(m.v_idx_vec.size());
 
 		auto new_vertex_count = external::meshopt::generateVertexRemap(
 			v_idx_remap_vec.data(),
@@ -27,12 +26,8 @@ namespace age::asset
 		//// meshopt_generateVertexRemapMulti
 
 
-		auto new_idx_vec	= data_structure::vector<uint32>{};
-		auto new_vertex_vec = data_structure::vector<asset::vertex_fat>{};
-		{
-			new_idx_vec.resize(v_idx_remap_vec.size());
-			new_vertex_vec.resize(new_vertex_count);
-		}
+		auto new_idx_vec	= data_structure::vector<uint32>::gen_reserved(v_idx_remap_vec.size());
+		auto new_vertex_vec = data_structure::vector<asset::vertex_fat>::gen_reserved(new_vertex_count);
 		// external::meshopt::remapIndexBuffer(
 		//	new_idx_vec.data(),
 		//	m.v_idx_vec.data(), m.v_idx_vec.size(),

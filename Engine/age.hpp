@@ -26,7 +26,7 @@ namespace age
 	{
 	}
 
-	namespace data_structure
+	inline namespace data_structure
 	{
 	}
 

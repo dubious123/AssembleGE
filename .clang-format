@@ -15,8 +15,8 @@ AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 4
 AlwaysBreakTemplateDeclarations: Yes
-AllowShortBlocksOnASingleLine : Empty
-AllowShortIfStatementsOnASingleLine : WithoutElse
+AllowShortBlocksOnASingleLine : Always
+AllowShortIfStatementsOnASingleLine : Always
 AllowShortLambdasOnASingleLine : All
 IndentWidth: 4 
 IndentExternBlock : NoIndent
@@ -40,9 +40,10 @@ BraceWrapping:
   AfterFunction: true
   AfterEnum: true
   AfterControlStatement: Always
-  AfterClass: true
+  AfterClass: false
   AfterStruct: true
   AfterCaseLabel: true
+  SplitEmptyRecord: false
 PointerAlignment: Left
 QualifierAlignment: Left
 ReferenceAlignment: Left
@@ -66,7 +67,7 @@ BreakAfterReturnType : All
 #AlignArrayOfStructures: Left
 IndentWrappedFunctionNames: false
 PenaltyReturnTypeOnItsOwnLine: 1000
-AttributeMacros: ['FORCE_INLINE']
+AttributeMacros: ['FORCE_INLINE', 'no_unique_addr']
 BreakBeforeBinaryOperators: NonAssignment 
 
 AlignOperands: AlignAfterOperator
@@ -77,3 +78,5 @@ AlignConsecutiveDeclarations:
   AlignFunctionPointers: true
   AlignFunctionDeclarations: false
   AlignCompound: true
+
+AllowShortNamespacesOnASingleLine: true

@@ -9,7 +9,7 @@ namespace age::external::mikk
 
 namespace age::external::earcut
 {
-	data_structure::vector<uint32>
+	age::vector<uint32>
 	perform(const asset::mesh_editable&) noexcept;
 }
 
@@ -88,6 +88,35 @@ namespace age::external::meshopt
 		const void*	  vertices,
 		std::size_t	  vertex_count,
 		std::size_t	  vertex_size) noexcept;
+
+	template <typename t_vertex>
+	age::vector<uint32>
+	gen_vertex_remap(
+		const age::vector<uint32>&	 index_buffer,
+		const age::vector<t_vertex>& vertex_buffer,
+		std::size_t					 vertex_size_and_stride = sizeof(t_vertex)) noexcept
+	{
+		auto remap_index_buffer = std::views::repeat(0, index_buffer.size())
+								| std::ranges::to<age::vector<uint32>>();
+
+
+		// age::vector<uint32>::gen_reserved(10);
+		auto new_vertex_buffer =
+			age::vector<t_vertex>::reserved(
+				detail::gen_vertex_remap(
+					remap_index_buffer.data(),
+					index_buffer.data(),
+					index_buffer.size(),
+					vertex_buffer.data(),
+					vertex_buffer.size(),
+					sizeof(t_vertex)));
+		/*auto new_index_buffer = age::vector<uint32>*/
+
+		// detail::gen_remapped_index_buffer(
+
+		//);
+		// detail::gen_remapped_vertex_buffer();
+	}
 
 	std::size_t
 	generateVertexRemapMulti(

@@ -107,7 +107,7 @@
 	#endif
 #endif
 
-#define USE_STL_VECTOR
+// #define USE_STL_VECTOR
 #define USE_STL_SET
 #define USE_STL_LIST
 #define USE_STL_MAP

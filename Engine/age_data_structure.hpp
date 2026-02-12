@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"
 #ifdef USE_STL_VECTOR
 namespace age::data_structure
 {
@@ -8,150 +9,667 @@ namespace age::data_structure
 #else
 namespace age::data_structure
 {
-	template <typename T>
-	class vector
+	template <typename t, typename t_container, typename t_allocator, typename... t_args>
+	concept emplace_constructible =
+		std::is_same_v<t*, typename t_container::pointer>
+		and std::is_same_v<typename t_container::allocator_type, typename std::allocator_traits<t_allocator>::template rebind_alloc<t>>
+		and requires {
+				std::allocator_traits<t_allocator>::construct(
+					std::declval<t_allocator&>(),
+					std::declval<t*>(),
+					std::declval<t_args>()...);
+			};
+
+	template <typename t, typename t_container, typename t_allocator, typename... t_args>
+	concept move_insertable =
+		std::is_same_v<typename t_container::value_type, t>
+		and std::is_same_v<typename t_container::allocator_type, typename std::allocator_traits<t_allocator>::template rebind_alloc<t>>
+		and requires {
+				std::allocator_traits<t_allocator>::construct(
+					std::declval<t_allocator&>(),
+					std::declval<t*>(),
+					std::declval<t_args>()...);
+			};
+
+	template <typename t, typename t_allocator = std::allocator<t>>
+	struct vector
 	{
-	  private:
-		T*	   _head;
-		size_t _size;
-		size_t _capacity;
+		using value_type	 = t;
+		using allocator_type = typename std::allocator_traits<t_allocator>::template rebind_alloc<t>;
+
+		using size_type		  = std::size_t;
+		using difference_type = std::ptrdiff_t;
+		using reference		  = value_type&;
+		using pointer		  = typename std::allocator_traits<allocator_type>::pointer;
+		using const_pointer	  = typename std::allocator_traits<allocator_type>::const_pointer;
+
+		using iterator				 = t*;
+		using const_iterator		 = const t*;
+		using reverse_iterator		 = std::reverse_iterator<iterator>;
+		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+		static_assert(std::is_same_v<typename std::allocator_traits<t_allocator>::value_type, t>);
+		static_assert(std::is_empty_v<t_allocator>);
+		static_assert(std::is_same_v<pointer, t*>, "fancy pointer not supported yet");
 
 	  private:
-		void
-		_resize()
-		{
-			if (_capacity == 0)
-			{
-				_capacity = 3;
-				_head	  = (T*)malloc(sizeof(T) * 3);
-				assert(_head != nullptr);
-			}
-			else
-			{
-				_capacity *= 2;
-				_head	   = (T*)realloc(_head, sizeof(T) * _capacity);
-				assert(_head != nullptr);
-			}
-		};
+		size_type count	 = {};
+		size_type cap	 = {};
+		t*		  p_data = nullptr;
 
+		no_unique_addr
+		allocator_type alloc;
 
 	  public:
-		constexpr vector()
-		{
-			_head	  = nullptr;
-			_size	  = 0;
-			_capacity = 0;
-		};
+		constexpr vector() noexcept
+			: alloc{ allocator_type{} } { };
 
-		~vector()
+		constexpr vector(const vector& other) noexcept
+			: count{ other.count },
+			  cap{ other.count },
+			  p_data{ _alloc(other.get_allocator(), other.count) },
+			  alloc{ other.get_allocator() }
+
 		{
-			if constexpr (std::is_trivially_destructible_v<T> == false)
+			_copy_construct_n(alloc, p_data, other.p_data, count);
+		}
+
+		constexpr vector(vector&& other) noexcept
+			: count{ std::exchange(other.count, 0) },
+			  cap{ std::exchange(other.cap, 0) },
+			  p_data{ std::exchange(other.p_data, nullptr) },
+			  alloc{ other.get_allocator() }
+		{
+		}
+
+		FORCE_INLINE constexpr vector(std::initializer_list<t> init) noexcept
+			: count{ init.size() },
+			  cap{ init.size() },
+			  p_data{ _alloc(init.size()) },
+			  alloc{ allocator_type{} }
+		{
+			_move_construct_n(alloc, p_data, init.begin(), count);
+		}
+
+		template <typename t_input_it>
+		FORCE_INLINE constexpr vector(t_input_it first, t_input_it last) noexcept
+			: alloc{ allocator_type{} }
+		{
+			if constexpr (std::random_access_iterator<t_input_it>)
 			{
-				for (size_t i = 0; i < _size; ++i)
-				{
-					(_head + i)->~T();
-				}
-
-				free(_head);
+				count  = static_cast<size_type>(last - first);
+				cap	   = count;
+				p_data = _alloc(alloc, cap);
+			}
+			else if constexpr (std::forward_iterator<t_input_it>)
+			{
+				count  = static_cast<size_type>(std::distance(first, last));
+				cap	   = count;
+				p_data = _alloc(alloc, cap);
 			}
 			else
 			{
-				free(_head);
+				static_assert(false, "not supported yet");
+			}
+
+			if consteval
+			{
+				for (auto i = 0; i < count; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(alloc, p_data + i, *first++);
+				}
+			}
+			else
+			{
+				if constexpr (std::contiguous_iterator<t_input_it> and std::is_trivially_copyable_v<t>)
+				{
+					std::memcpy(p_data, std::to_address(first), sizeof(t) * count);
+				}
+				else if constexpr (std::is_nothrow_copy_constructible_v<t>)
+				{
+					for (auto i = 0; i < count; ++i)
+					{
+						std::allocator_traits<allocator_type>::construct(alloc, p_data + i, *first++);
+					}
+				}
+				else
+				{
+					static_assert(false, "throwable element is not supported yet");
+				}
+			}
+		}
+
+		template <std::ranges::input_range r>
+		constexpr vector(std::from_range_t, r&& rg) noexcept
+		{
+			static_assert(emplace_constructible<t, vector<t, t_allocator>, allocator_type, decltype(*std::ranges::begin(rg))>);
+			static_assert(
+				std::ranges::sized_range<r>
+				or std::ranges::forward_range<r>
+				or move_insertable<t, vector<t, t_allocator>, allocator_type, decltype(*std::ranges::begin(rg))>);
+
+			append_range(FWD(rg));
+		}
+
+		constexpr vector&
+		operator=(const vector& other) noexcept
+		{
+			if (this == &other) { return *this; }
+
+			_destroy_n(alloc, p_data, count);
+
+			if (cap < other.count)
+			{
+				_dealloc(alloc, p_data, cap);
+				cap = _alloc(alloc, other.count);
+			}
+
+			_copy_construct_n(alloc, p_data, other.p_data, other.count);
+
+			count = other.count;
+
+			return *this;
+		}
+
+		constexpr vector&
+		operator=(vector&& other) noexcept
+		{
+			if (this == &other) return *this;
+
+			clear();
+
+			_destroy_n(alloc, p_data, count);
+			_dealloc(alloc, p_data, cap);
+
+			p_data = other.p_data;
+			count  = other.count;
+			cap	   = other.cap;
+			alloc  = other.get_allocator();
+
+			other.p_data = nullptr;
+			other.count	 = 0;
+			other.cap	 = 0;
+
+			return *this;
+		}
+
+		constexpr ~vector() noexcept
+		{
+			_destroy_n(alloc, p_data, count);
+			_dealloc(alloc, p_data, cap);
+		}
+
+		FORCE_INLINE static constexpr vector
+		gen_reserved(size_type n) noexcept
+		{
+			auto vec   = vector{};
+			vec.count  = n;
+			vec.cap	   = n;
+			vec.p_data = _alloc(vec.alloc, n);
+			return vec;
+		}
+
+		FORCE_INLINE constexpr t&
+		at(size_type i) noexcept
+		{
+			AGE_ASSERT(i < count);
+			return p_data[i];
+		}
+
+		FORCE_INLINE constexpr const t&
+		at(size_type i) const noexcept
+		{
+			AGE_ASSERT(i < count);
+			return p_data[i];
+		}
+
+		FORCE_INLINE constexpr t&
+		front() noexcept
+		{
+			AGE_ASSERT(not empty());
+			return p_data[0];
+		}
+
+		FORCE_INLINE constexpr const t&
+		front() const noexcept
+		{
+			AGE_ASSERT(not empty());
+			return p_data[0];
+		}
+
+		FORCE_INLINE constexpr t&
+		back() noexcept
+		{
+			AGE_ASSERT(not empty());
+			return p_data[count - 1];
+		}
+
+		FORCE_INLINE constexpr const t&
+		back() const noexcept
+		{
+			AGE_ASSERT(not empty());
+			return p_data[count - 1];
+		}
+
+		FORCE_INLINE constexpr reference
+		operator[](size_type i) noexcept
+		{
+			AGE_ASSERT(i < count);
+			return p_data[i];
+		}
+
+		FORCE_INLINE constexpr reference
+		operator[](size_type i) const noexcept
+		{
+			AGE_ASSERT(i < count);
+			return p_data[i];
+		}
+
+		FORCE_INLINE constexpr const t*
+		data() const noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr t*
+		data() noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr decltype(count)
+		size() const noexcept
+		{
+			return count;
+		}
+
+		FORCE_INLINE constexpr decltype(cap)
+		capacity() const noexcept
+		{
+			return cap;
+		}
+
+		FORCE_INLINE constexpr bool
+		empty() const noexcept
+		{
+			return count == 0;
+		}
+
+		FORCE_INLINE constexpr iterator
+		begin() noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr const_iterator
+		begin() const noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr const_iterator
+		cbegin() const noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr iterator
+		end() noexcept
+		{
+			return p_data + count;
+		}
+
+		FORCE_INLINE constexpr const_iterator
+		end() const noexcept
+		{
+			return p_data + count;
+		}
+
+		FORCE_INLINE constexpr const_iterator
+		cend() const noexcept
+		{
+			return p_data + count;
+		}
+
+		FORCE_INLINE constexpr reverse_iterator
+		rbegin() noexcept
+		{
+			return reverse_iterator(end());
+		}
+
+		FORCE_INLINE constexpr const_reverse_iterator
+		rbegin() const noexcept
+		{
+			return const_reverse_iterator(end());
+		}
+
+		FORCE_INLINE constexpr const_reverse_iterator
+		crbegin() const noexcept
+		{
+			return const_reverse_iterator(cend());
+		}
+
+		FORCE_INLINE constexpr reverse_iterator
+		rend() noexcept
+		{
+			return reverse_iterator(begin());
+		}
+
+		FORCE_INLINE constexpr const_reverse_iterator
+		rend() const noexcept
+		{
+			return const_reverse_iterator(begin());
+		}
+
+		FORCE_INLINE constexpr const_reverse_iterator
+		crend() const noexcept
+		{
+			return const_reverse_iterator(cbegin());
+		}
+
+		FORCE_INLINE constexpr allocator_type
+		get_allocator() const
+		{
+			return alloc;
+		}
+
+		FORCE_INLINE constexpr void
+		reserve(size_type new_cap) noexcept
+		{
+			if (cap >= new_cap)
+			{
+				return;
+			}
+
+			auto* p_new_data = _alloc(alloc, new_cap, p_data);
+
+			if (p_data is_not_nullptr)
+			{
+				_move_construct_n(alloc, p_new_data, p_data, count);
+				_dealloc(get_allocator(), p_data, cap);
+			}
+
+			p_data = p_new_data;
+			cap	   = new_cap;
+		}
+
+		FORCE_INLINE constexpr void
+		clear() noexcept
+		{
+			_destroy_n(alloc, p_data, count);
+			count = 0;
+		}
+
+		FORCE_INLINE constexpr reference
+		emplace_back(auto&&... arg) noexcept
+		{
+			static_assert(std::is_nothrow_constructible_v<t, decltype(arg)...>, "not supported");
+
+			if (_is_full())
+			{
+				reserve(cap * 2 + 1);
+			}
+
+			std::allocator_traits<allocator_type>::construct(alloc, p_data + count++, FWD(arg)...);
+			return back();
+		}
+
+		template <typename r>
+		constexpr void
+		append_range(r&& rg) noexcept
+		{
+			static_assert(std::assignable_from<t&, std::ranges::range_reference_t<r>>);
+			static_assert(std::is_same_v<decltype(*std::ranges::begin(rg)), std::ranges::range_reference_t<r>>);
+			static_assert(emplace_constructible<t, vector<t, t_allocator>, allocator_type, std::ranges::range_reference_t<r>>);
+
+			if constexpr (std::ranges::sized_range<t> or std::ranges::forward_range<r>)
+			{
+				if constexpr (std::ranges::sized_range<t>)
+				{
+					reserve(count + static_cast<size_type>(std::ranges::size(rg)));
+				}
+				else
+				{
+					reserve(count + static_cast<size_type>(std::ranges::distance(rg)));
+				}
+
+				if consteval
+				{
+					for (auto i = 0; auto&& elem : rg)
+					{
+						std::allocator_traits<allocator_type>::construct(alloc, p_data + i++, FWD(elem));
+					}
+				}
+				else
+				{
+					if constexpr (std::contiguous_iterator<std::ranges::iterator_t<r>> and std::is_trivially_copyable_v<t>)
+					{
+						std::memcpy(p_data, std::to_address(std::ranges::begin(rg)), sizeof(t) * count);
+					}
+					else if constexpr (std::is_nothrow_copy_constructible_v<t>)
+					{
+						auto it = std::ranges::begin(rg);
+						for (size_type i = 0; i < count; ++i)
+						{
+							std::allocator_traits<allocator_type>::construct(alloc, p_data + i, *it++);
+						}
+					}
+					else
+					{
+						static_assert(false, "throwable element is not supported yet");
+					}
+				}
+			}
+			else
+			{
+				static_assert(false, "not efficient");
+				for (auto&& item : rg)
+				{
+					emplace_back(FWD(item));
+				}
 			}
 		}
 
 		constexpr void
-		push_back(T&& item)
+		pop_back() noexcept
 		{
-			if (_size == _capacity)
+			AGE_ASSERT(empty() is_false);
+			--count;
+			if constexpr (std::is_trivially_destructible_v<t>)
 			{
-				_resize();
 			}
-
-			_head[_size++] = item;
-		};
-
-		constexpr void
-		push_back(T item)
-		{
-			if (_size == _capacity)
+			else if constexpr (std::is_nothrow_destructible_v<t>)
 			{
-				_resize();
+				std::allocator_traits<allocator_type>::destroy(p_data + count);
 			}
-
-			_head[_size++] = std::move(item);
-		};
-
-		template <typename... V>
-		T&
-		emplace_back(V&&... args)
-		{
-			if (_size == _capacity)
+			else
 			{
-				_resize();
+				static_assert(false, "not supported");
 			}
-
-			return *(new (_head + _size++) T{ std::forward<V>(args)... });
 		}
 
-		constexpr T&
-		back() const
-		{
-			assert(empty() == false);
-			return _head[_size - 1];
-		};
-
 		constexpr void
-		resize(size_t new_capacity)
+		swap(vector& other) noexcept
 		{
-			_capacity = new_capacity;
-			_head	  = (T*)realloc(_head, sizeof(T) * _capacity);
-			_size	  = min(_size, new_capacity);
+			std::swap(count, other.count);
+			std::swap(cap, other.cap);
+			std::swap(p_data, other.p_data);
 		}
 
-		constexpr bool
-		empty() const
+		constexpr void
+		resize(size_type new_size) noexcept
 		{
-			return _size == 0;
-		};
+			if (new_size < count)
+			{
+				_destroy_n(alloc, p_data + new_size, count - new_size);
+			}
+			else if (new_size > count)
+			{
+				reserve(new_size);
 
-		constexpr size_t
-		size() const
+				for (auto i = count; i < new_size; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(alloc, p_data + count);
+				}
+			}
+
+			count = new_size;
+		}
+
+		constexpr void
+		resize(size_type new_size, const value_type& value) noexcept
 		{
-			return _size;
-		};
+			if (new_size < count)
+			{
+				_destroy_n(p_data + new_size, count - new_size);
+			}
+			else if (new_size > count)
+			{
+				reserve(new_size);
 
-		constexpr size_t
-		capacity() const
+				for (auto i = 0; i < count - new_size; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(get_allocator(), p_data + i, value);
+				}
+			}
+
+			count = new_size;
+		}
+
+	  private:
+		FORCE_INLINE static constexpr void
+		_dealloc(allocator_type alloc, t* p_data, const size_type cap) noexcept
 		{
-			return _capacity;
-		};
+			std::allocator_traits<allocator_type>::deallocate(alloc, p_data, cap);
+		}
 
-		constexpr T&
-		operator[](size_t index) const
+		FORCE_INLINE static constexpr t*
+		_alloc(allocator_type alloc, const size_type cap) noexcept
 		{
-			assert(index < _size);
-			return _head[index];
-		};
+			return std::allocator_traits<allocator_type>::allocate(alloc, cap);
+		}
 
-		// vector<T>& operator=(const vector<T>& other)
-		//{
-		//	free(_head);
-		//	_head	  = other._head;
-		//	_capacity = other.capacity();
-		//	_size	  = other.size();
+		FORCE_INLINE static constexpr t*
+		_alloc(allocator_type alloc, const size_type cap, t* p_hint) noexcept
+		{
+			return std::allocator_traits<allocator_type>::allocate(alloc, cap, p_hint);
+		}
 
-		//	return *this;
-		//}
+		FORCE_INLINE static constexpr void
+		_copy_construct_n(allocator_type alloc, t* p_dst, t* p_src, size_type n) noexcept
+		{
+			if consteval
+			{
+				for (auto i = 0; i < n; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(alloc, p_dst + i, p_src[i]);
+				}
+			}
+			else
+			{
+				if constexpr (std::is_trivially_copyable_v<t>)
+				{
+					std::memcpy(p_dst, p_src, sizeof(t) * n);
+				}
+				else if constexpr (std::is_nothrow_copy_constructible_v<t>)
+				{
+					for (auto i = 0; i < n; ++i)
+					{
+						std::allocator_traits<allocator_type>::construct(alloc, p_dst + i, p_src[i]);
+					}
+				}
+				else
+				{
+					static_assert(false, "throwable element not supported yet");
+				}
+			}
+		}
 
-		// constexpr void operator=(const vector<T>&& other) noexcept
-		//{
-		//	free(_head);
-		//	_head	  = other._head;
-		//	_capacity = other.capacity();
-		//	_size	  = other.size();
-		// }
+		FORCE_INLINE static constexpr void
+		_move_construct_n(allocator_type alloc, t* p_dst, t* p_src, size_type n) noexcept
+		{
+			if consteval
+			{
+				for (auto i = 0; i < n; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(alloc, p_dst + i, std::move(p_src[i]));
+				}
+			}
+			else
+			{
+				if constexpr (std::is_trivially_move_constructible_v<t>)
+				{
+					std::memcpy(p_dst, p_src, sizeof(t) * n);
+				}
+				else if constexpr (std::is_nothrow_move_constructible_v<t>)
+				{
+					for (auto i = 0; i < n; ++i)
+					{
+						std::allocator_traits<allocator_type>::construct(alloc, p_dst + i, std::move(p_src[i]));
+					}
+				}
+				else
+				{
+					static_assert(false, "throwable element not supported yet");
+				}
+			}
+		}
+
+		FORCE_INLINE static constexpr void
+		_destroy_n(allocator_type alloc, t* p_data, size_type n) noexcept
+		{
+			if consteval
+			{
+				for (auto i = 0; i < n; ++i)
+				{
+					std::allocator_traits<allocator_type>::destroy(alloc, p_data + i);
+				}
+			}
+			else
+			{
+				if constexpr (std::is_trivially_destructible_v<t>)
+				{
+				}
+				else if constexpr (std::is_nothrow_destructible_v<t>)
+				{
+					for (auto i = 0; i < n; ++i)
+					{
+						std::allocator_traits<allocator_type>::destroy(alloc, p_data + i);
+					}
+				}
+				else
+				{
+					static_assert(false, "not supported yet");
+				}
+			}
+		}
+
+		FORCE_INLINE constexpr bool
+		_is_full() const noexcept
+		{
+			return count == cap;
+		}
 	};
+
+	template <typename t, typename t_alloc>
+	FORCE_INLINE constexpr bool
+	operator==(const vector<t, t_alloc>& lhs,
+			   const vector<t, t_alloc>& rhs) noexcept
+	{
+		if (lhs.size() != rhs.size()) return false;
+
+		return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+	}
+
+	template <typename t, typename t_alloc>
+	FORCE_INLINE constexpr auto
+	operator<=>(const vector<t, t_alloc>& lhs,
+				const vector<t, t_alloc>& rhs) noexcept
+	{
+		return std::lexicographical_compare_three_way(
+			lhs.begin(), lhs.end(),
+			rhs.begin(), rhs.end());
+	}
 }	 // namespace age::data_structure
 #endif
 
@@ -182,8 +700,7 @@ namespace age::data_structure
 namespace age::data_structure
 {
 	template <typename T>
-	class list
-	{
+	class list {
 		struct node
 		{
 			T	  value;
@@ -392,33 +909,36 @@ namespace age::data_structure
 			alignas(alignof(storage_t))
 				std::byte storage[sizeof(storage_t)];
 
+			FORCE_INLINE
 			bucket() noexcept = default;
 
 			template <typename... t>
-			bucket(t&&... arg)
+			FORCE_INLINE
+			bucket(t&&... arg) noexcept
 			{
 				std::construct_at(reinterpret_cast<t_data*>(storage), std::forward<t>(arg)...);
 			}
 
-			bucket(const t_data& data)
+			FORCE_INLINE
+			bucket(const t_data& data) noexcept
 			{
 				std::construct_at(reinterpret_cast<t_data*>(storage), data);
 			}
 
-			t_data&
-			data()
+			FORCE_INLINE t_data&
+			data() noexcept
 			{
 				return *std::launder(reinterpret_cast<t_data*>(storage));
 			}
 
-			const t_data&
-			data() const
+			FORCE_INLINE const t_data&
+			data() const noexcept
 			{
 				return *std::launder(reinterpret_cast<const t_data*>(storage));
 			}
 
-			std::size_t&
-			next_hole_idx()
+			FORCE_INLINE std::size_t&
+			next_hole_idx() noexcept
 			{
 				return *std::launder(reinterpret_cast<std::size_t*>(storage));
 			}
@@ -510,15 +1030,13 @@ namespace age::data_structure
 			++hole_count;
 		}
 
-		FORCE_INLINE
-		t_data&
+		FORCE_INLINE t_data&
 		operator[](std::size_t idx) noexcept
 		{
 			return container[idx].data();
 		}
 
-		FORCE_INLINE
-		const t_data&
+		FORCE_INLINE const t_data&
 		operator[](std::size_t idx) const noexcept
 		{
 			return container[idx].data();

@@ -11,15 +11,54 @@ struct A
 	int					 a;
 };
 
+consteval int
+test_new()
+{
+	int* p_data = new int[3];
+	for (auto i = 0; i < 3; ++i)
+	{
+		std::construct_at(p_data + i, i);
+	}
+
+	int v = *(p_data + 2);
+	delete[] p_data;
+
+	return v;
+}
+
+consteval int
+test_new2()
+{
+	int* p_data	 = std::allocator<int>{}.allocate(3);
+	int* p_data2 = std::allocator<int>{}.allocate(3);
+
+	// std::memcpy(p_data, p_data2, sizeof(int) * 3);
+	for (auto i = 0; i < 3; ++i)
+	{
+		std::construct_at(p_data + i, i);
+	}
+
+	int v = *(p_data + 2);
+
+	std::allocator<int>{}.deallocate(p_data, 3);
+	std::allocator<int>{}.deallocate(p_data2, 3);
+
+	return v;
+}
+
+static_assert(test_new2() == 2);
+
+static_assert(std::random_access_iterator<age::asset::mesh_editable*>);
+static_assert(std::contiguous_iterator<int*>);
+static_assert(std::random_access_iterator<const int*>);
+static_assert(std::contiguous_iterator<const int*>);
+
 int
 main()
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	using namespace age::ecs::system;
-
-	A inst{};
-	static_assert(sizeof(inst) == 4);
 
 	auto _game = my_game();
 
