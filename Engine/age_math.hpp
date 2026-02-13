@@ -1,18 +1,21 @@
 #pragma once
 
-namespace age::math
+namespace age
 {
-	template <typename t>
-	requires(not std::is_same_v<t, bool> and std::is_arithmetic_v<t>)
-	struct extent_2d
+	inline namespace math
 	{
-		t width;
-		t height;
+		template <typename t>
+		requires(not std::is_same_v<t, bool> and std::is_arithmetic_v<t>)
+		struct extent_2d
+		{
+			t width;
+			t height;
 
-		constexpr auto
-		operator<=>(const extent_2d<t>&) const noexcept = default;
-	};
-}	 // namespace age::math
+			constexpr auto
+			operator<=>(const extent_2d<t>&) const noexcept = default;
+		};
+	}	 // namespace math
+}	 // namespace age
 
 using uint64 = uint64_t;
 using uint32 = uint32_t;
@@ -1222,7 +1225,7 @@ struct oct<int8>
 	int8 y;
 };
 
-namespace age::math
+namespace age::inline math
 {
 	namespace e
 	{
@@ -1317,7 +1320,7 @@ namespace age::math
 	{
 		return v_l.x * v_r.x + v_l.y * v_r.y + v_l.z * v_r.z + v_l.w * v_r.w;
 	}
-}	 // namespace age::math
+}	 // namespace age::inline math
 
 enum e_primitive_type
 {

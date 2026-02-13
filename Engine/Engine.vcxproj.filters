@@ -4,7 +4,7 @@
     <ClInclude Include="age.hpp" />
     <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_macro.h" />
-    <ClInclude Include="age_macro_foreach.h" />
+    <ClInclude Include="age_macro_pp_foreach.h" />
     <ClInclude Include="age_meta.hpp" />
     <ClInclude Include="age_meta_hash.hpp" />
     <ClInclude Include="age_math.hpp" />
@@ -41,9 +41,14 @@
     <ClInclude Include="age_asset_mesh_editable.hpp" />
     <ClInclude Include="age_util_views.hpp" />
     <ClInclude Include="age_math_simd.hpp" />
-    <ClInclude Include="age_external_wrapper.hpp" />
+    <ClInclude Include="age_external_adapter.hpp" />
     <ClInclude Include="age_fwd.hpp" />
     <ClInclude Include="age_asset_mesh_baked.hpp" />
+    <ClInclude Include="age_data_structure_vector.hpp" />
+    <ClInclude Include="age_data_structure_array.hpp" />
+    <ClInclude Include="age_meta_traits.hpp" />
+    <ClInclude Include="age_extern_templates.hpp" />
+    <ClInclude Include="age_macro_pp.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -83,6 +88,7 @@
     <ClCompile Include="age_external_wrapper_earcut.cpp" />
     <ClCompile Include="age_external_wrapper_meshopt.cpp" />
     <ClCompile Include="age_external_wrapper_mikktspace.cpp" />
+    <ClCompile Include="age_extern_templates.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />

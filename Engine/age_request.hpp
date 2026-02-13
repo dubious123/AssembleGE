@@ -45,7 +45,6 @@ namespace age::request
 // meta
 namespace age::request::detail
 {
-
 	template <subsystem::flags v_listeners>
 	struct phase_meta
 	{

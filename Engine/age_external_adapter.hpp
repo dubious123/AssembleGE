@@ -96,9 +96,7 @@ namespace age::external::meshopt
 		const age::vector<t_vertex>& vertex_buffer,
 		std::size_t					 vertex_size_and_stride = sizeof(t_vertex)) noexcept
 	{
-		auto remap_index_buffer = std::views::repeat(0, index_buffer.size())
-								| std::ranges::to<age::vector<uint32>>();
-
+		auto remap_index_buffer = age::vector<uint32>::gen_reserved(index_buffer.size());
 
 		// age::vector<uint32>::gen_reserved(10);
 		auto new_vertex_buffer =

@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mdspan>
+#include <memory>
 #include <numeric>
 #include <print>
 #include <ranges>

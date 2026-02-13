@@ -246,3 +246,5 @@ AGENTS.md
 
 # Ignore .dat
 *.dat
+
+*.i

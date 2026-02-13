@@ -272,7 +272,7 @@ namespace age::graphics
 		}
 
 		FORCE_INLINE descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
-					 h_rtv_desc() noexcept
+		h_rtv_desc() noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx];
 		}
@@ -609,7 +609,7 @@ namespace age::graphics::stage
 					.Texture2D				 = { .MostDetailedMip	  = 0,
 												 .MipLevels			  = 1,
 												 .PlaneSlice		  = 0,
-												 .ResourceMinLODClamp = 0.f } }))
+												 .ResourceMinLODClamp = 0.f } }));
 
 		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
 			depth_buffer_view,
@@ -621,7 +621,7 @@ namespace age::graphics::stage
 					.Format		   = DXGI_FORMAT_D32_FLOAT,
 					.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
 					.Flags		   = D3D12_DSV_FLAG_NONE,
-					.Texture2D	   = { .MipSlice = 0 } }))
+					.Texture2D	   = { .MipSlice = 0 } }));
 
 		AGE_RESOURCE_FLOW_PHASE(
 			phase_geo,
@@ -673,7 +673,7 @@ namespace age::graphics::stage
 				.StencilBeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS },
 				.DepthEndingAccess		= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD },
 				.StencilEndingAccess{ .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS },
-			}))
+			}));
 
 		AGE_RESOURCE_FLOW_PHASE(
 			phase_fx,
@@ -698,7 +698,7 @@ namespace age::graphics::stage
 						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_READ,
 					},
 				}),
-			AGE_RENDER_PASS_RT_DESC_ARR(), AGE_RENDER_PASS_DS_DESC())
+			AGE_RENDER_PASS_RT_DESC_ARR(), AGE_RENDER_PASS_DS_DESC());
 
 		ID3D12RootSignature* p_root_sig = nullptr;
 		ID3D12PipelineState* p_pso		= nullptr;

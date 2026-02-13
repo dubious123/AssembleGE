@@ -1,93 +1,60 @@
 #pragma once
 
+// clang-format off
 namespace age
 {
-	namespace config
-	{
-	}
+	namespace config {}
 
-	inline namespace math
-	{
-	}
+	inline namespace math {}
 
-	namespace math::simd
-	{
-	}
+	namespace math::simd {}
 
-	namespace literals
-	{
-	}
+	namespace literals {}
 
-	namespace meta
-	{
-	}
+	namespace meta {}
 
-	namespace util
-	{
-	}
+	namespace meta::inline traits {}
 
-	inline namespace data_structure
-	{
-	}
+	namespace util {}
 
-	namespace external
-	{
-	}
+	inline namespace data_structure {}
 
-	namespace asset
-	{
-	}
+	namespace external {}
 
-	namespace ecs
-	{
-	}
+	namespace asset {}
 
-	namespace ecs::component
-	{
-	}
+	namespace ecs {}
 
-	namespace ecs::system
-	{
-	}
+	namespace ecs::component {}
 
-	namespace ecs::entity_block
-	{
-	}
+	namespace ecs::system {}
 
-	namespace ecs::entity_storage
-	{
-	}
+	namespace ecs::entity_block {}
 
-	namespace platform
-	{
-	}
+	namespace ecs::entity_storage {}
 
-	namespace graphics
-	{
-	}
+	namespace platform {}
 
-	namespace global
-	{
-	}
+	namespace graphics {}
 
-	namespace runtime
-	{
-	}
+	namespace global {}
 
-	namespace request
-	{
-	}
+	namespace runtime {}
+
+	namespace reque {}
 }	 // namespace age
 
+// clang-format on
+//
 //---[ age_pch.hpp ]------------------------------------------------------------
 // Precompiled Header (build-only)
 #include "age_config.hpp"
 #include "age_macro.h"
-#include "age_macro_foreach.h"
+#include "age_macro_pp.h"
+#include "age_macro_pp_foreach.h"
 
 #include "age_external.h"
-//------------------------------------------------------------------------------
-#include "age_fwd.hpp"
+
 #include "age_math.hpp"
 
 #include "age_meta.hpp"
@@ -103,8 +70,11 @@ namespace age
 #include "age_util_views.hpp"
 
 #include "age_data_structure.hpp"
+//------------------------------------------------------------------------------
+#include "age_extern_templates.hpp"
+#include "age_fwd.hpp"
 
-#include "age_external_wrapper.hpp"
+#include "age_external_adapter.hpp"
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"

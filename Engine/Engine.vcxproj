@@ -33,6 +33,8 @@
     <ClInclude Include="age_asset_mesh_editable.hpp" />
     <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_data_structure.hpp" />
+    <ClInclude Include="age_data_structure_array.hpp" />
+    <ClInclude Include="age_data_structure_vector.hpp" />
     <ClInclude Include="age_ecs.hpp" />
     <ClInclude Include="age_ecs_component.hpp" />
     <ClInclude Include="age_ecs_entity_block_basic.hpp" />
@@ -46,7 +48,8 @@
     <ClInclude Include="age_ecs_system_loop.hpp" />
     <ClInclude Include="age_ecs_system_match.hpp" />
     <ClInclude Include="age_ecs_system_pipe.hpp" />
-    <ClInclude Include="age_external_wrapper.hpp" />
+    <ClInclude Include="age_external_adapter.hpp" />
+    <ClInclude Include="age_extern_templates.hpp" />
     <ClInclude Include="age_fwd.hpp" />
     <ClInclude Include="age_global.hpp" />
     <ClInclude Include="age_graphics.hpp" />
@@ -55,13 +58,15 @@
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />
-    <ClInclude Include="age_macro_foreach.h" />
+    <ClInclude Include="age_macro_pp_foreach.h" />
+    <ClInclude Include="age_macro_pp.h" />
     <ClInclude Include="age_math.hpp" />
     <ClInclude Include="age_math_simd.hpp" />
     <ClInclude Include="age_meta.hpp" />
     <ClInclude Include="age_meta_compressed_pack.hpp" />
     <ClInclude Include="age_meta_hash.hpp" />
     <ClInclude Include="age_external.h" />
+    <ClInclude Include="age_meta_traits.hpp" />
     <ClInclude Include="age_pch.hpp" />
     <ClInclude Include="age_platform.hpp" />
     <ClInclude Include="age_request.hpp" />
@@ -120,6 +125,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="age_extern_templates.cpp" />
     <ClCompile Include="age_graphics_backend_dx12.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Use</PrecompiledHeader>

@@ -2,7 +2,6 @@
 
 namespace age::util
 {
-
 	template <std::unsigned_integral t>
 	FORCE_INLINE constexpr auto
 	popcount(t x)
@@ -65,8 +64,7 @@ namespace age::util
 		}(std::make_index_sequence<sizeof...(idx)>{}, FWD(md_span), FWD(idx)...);
 	}
 
-	FORCE_INLINE
-	constexpr void
+	FORCE_INLINE constexpr void
 	assign_n(auto&& indexable, auto&&... arg) noexcept
 	{
 		[]<std::size_t... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& v, auto&&... o) noexcept INLINE_LAMBDA_BACK {
