@@ -1,3 +1,16 @@
+#define AGE_PP_EVAL(...)	 __VA_ARGS__
+#define AGE_PP_EVAL1(...)	 AGE_PP_EVAL(AGE_PP_EVAL(AGE_PP_EVAL(__VA_ARGS__)))
+#define AGE_PP_EVAL2(...)	 AGE_PP_EVAL1(AGE_PP_EVAL1(AGE_PP_EVAL1(__VA_ARGS__)))
+#define AGE_PP_EVAL3(...)	 AGE_PP_EVAL2(AGE_PP_EVAL2(AGE_PP_EVAL2(__VA_ARGS__)))
+#define AGE_PP_EVAL4(...)	 AGE_PP_EVAL3(AGE_PP_EVAL3(AGE_PP_EVAL3(__VA_ARGS__)))
+#define AGE_PP_EVAL_MAX(...) AGE_PP_EVAL4(AGE_PP_EVAL4(AGE_PP_EVAL4(__VA_ARGS__)))
+
+#define __DEFER_EMPTY__()
+
+// clang-format off
+#define AGE_PP_DEFER(macro_id) macro_id __DEFER_EMPTY__ () ()
+// clang-format on
+
 #define AGE_PP_SEQN_REVERSED                                                                                \
 	511, 510, 509, 508, 507, 506, 505, 504, 503, 502, 501, 500,                                             \
 		499, 498, 497, 496, 495, 494, 493, 492, 491, 490, 489, 488, 487, 486, 485, 484, 483, 482, 481, 480, \
@@ -104,7 +117,8 @@
 #define AGE_PP_CALL_UNPACKED_I(ctx, ...) AGE_PP_CALL_I(AGE_PP_STRIP_PARENS(ctx), __VA_ARGS__)
 
 
-#define AGE_TUPLE_UNPACK_RIGHT_I(tpl)			   AGE_PP_CALL_I(__AGE_PP_TUPLE_UNPACK_RIGHT_IMPL_I__, AGE_PP_REMOVE_PARENS_R tpl)
+// #define AGE_TUPLE_UNPACK_RIGHT_I(tpl)			   AGE_PP_CALL_I(__AGE_PP_TUPLE_UNPACK_RIGHT_IMPL_I__, AGE_PP_REMOVE_PARENS_R tpl)
+#define AGE_TUPLE_UNPACK_RIGHT_I(tpl)			   __AGE_PP_TUPLE_UNPACK_RIGHT_IMPL_I__ tpl
 #define __AGE_PP_TUPLE_UNPACK_RIGHT_IMPL_I__(l, r) (l, AGE_PP_REMOVE_PARENS_I(r))
 
 
@@ -112,8 +126,28 @@
 	FOR_EACH_SEP(AGE_TUPLE_UNPACK_RIGHT_I, AGE_PP_EMPTY_I,         \
 				 FOR_EACH_SEP(AGE_PP_SWAP_TUPLE_I, AGE_PP_EMPTY_I, \
 							  FOR_EACH_CTX(                        \
-								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))));
+								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
+
+
+#define FOR_EACH_CTX_DEFER_ID()			   FOR_EACH_CTX2
+#define AGE_PP_DISTRIBUTE(tpl)			   __AGE_PP_DISTRIBUTE_impl__ tpl
+#define __AGE_PP_DISTRIBUTE_impl__(x, tpl) (AGE_PP_DEFER(FOR_EACH_CTX_DEFER_ID)((AGE_PP_MAKE_TUPLE_I, x), AGE_PP_COMMA_I, tpl))
+
+#define AGE_PP_CARTESIAN_PRODUCT2(tpl_l, tpl_r)                      \
+	FOR_EACH_CTX((AGE_PP_DISTRIBUTE), AGE_PP_EMPTY_I,                \
+				 FOR_EACH_CTX((AGE_PP_SWAP_TUPLE_I), AGE_PP_EMPTY_I, \
+							  FOR_EACH_CTX(                          \
+								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
 
 #define AGE_PP_MAKE_TUPLE_I(l, r) (l, r)
 #define AGE_PP_SWAP_TUPLE_I(tpl)  AGE_PP_SWAP_TUPLE_R tpl
 #define AGE_PP_SWAP_TUPLE_R(l, r) (r, l)
+
+
+#define AGE_PP_SEQ_END_()
+#define AGE_PP_SEQ_TO_VA_ARGS(seq) AGE_PP_REMOVE_PARENS_I(AGE_PP_CONCAT_I(AGE_PP_SEQ_A seq, _END_))
+#define AGE_PP_SEQ_A(x) (x AGE_PP_SEQ_B
+#define AGE_PP_SEQ_B(x) , x AGE_PP_SEQ_A
+
+#define AGE_PP_SEQ_A_END_ )
+#define AGE_PP_SEQ_B_END_ )

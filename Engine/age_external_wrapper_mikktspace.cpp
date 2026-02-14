@@ -15,7 +15,6 @@ namespace age::external::mikk
 			[](void* p_ctx, const int f_idx) {
 				auto& mesh_edit = *static_cast<const mesh_editable*>(p_ctx);
 				return static_cast<int>( mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]).to_vertex_idx_count); },
-
 			[](void* p_ctx, float pos_out[], const int f_idx, const int outer_b2v_idx) {
 				auto& mesh_edit = *static_cast<mesh_editable*>(p_ctx);
 				auto& b = mesh_edit.outer_boundary(mesh_edit.face_vec[f_idx]);

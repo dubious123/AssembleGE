@@ -82,7 +82,7 @@ main()
 		AGE_FUNC(age::runtime::init),
 		identity{ age::asset::primitive_desc{} }
 			| age::asset::create_primitive
-			| age::asset::triangulate<age::asset::vertex_pnt_uv0>,
+			| age::asset::triangulate<age::asset::vertex_fat>,
 
 		identity{ age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 30, .seg_v = 30 } }
 			| age::asset::create_primitive

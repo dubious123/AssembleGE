@@ -79,6 +79,8 @@ namespace age::external::meshopt
 
 namespace age::external::meshopt
 {
+
+
 	// Vertex remap
 	std::size_t
 	generateVertexRemap(
@@ -96,7 +98,7 @@ namespace age::external::meshopt
 		const age::vector<t_vertex>& vertex_buffer,
 		std::size_t					 vertex_size_and_stride = sizeof(t_vertex)) noexcept
 	{
-		auto remap_index_buffer = age::vector<uint32>::gen_reserved(index_buffer.size());
+		auto remap_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
 
 		// age::vector<uint32>::gen_reserved(10);
 		auto new_vertex_buffer =
@@ -704,4 +706,73 @@ namespace age::external::meshopt
 		void*(AGE_ALLOC_CALLCONV* allocate)(std::size_t),
 		void(AGE_ALLOC_CALLCONV* deallocate)(void*)) noexcept;
 
+}	 // namespace age::external::meshopt
+
+namespace age::external::meshopt
+{
+	template <typename t_vertex>
+	std::pair<age::vector<uint32>, age::vector<t_vertex>>
+	gen_remap(
+		const age::vector<uint32>&	 index_buffer,
+		const age::vector<t_vertex>& vertex_buffer,
+		const std::size_t			 vertex_size_and_stride = sizeof(t_vertex)) noexcept
+	{
+		auto remap_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
+		auto new_index_buffer	= age::vector<uint32>::gen_sized(index_buffer.size());
+		auto new_vertex_buffer	= age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
+			remap_index_buffer.data(),
+			index_buffer.data(),
+			index_buffer.size(),
+			vertex_buffer.data(),
+			vertex_buffer.size(),
+			vertex_size_and_stride));
+
+		detail::gen_remapped_vertex_buffer(
+			new_vertex_buffer.data(),
+			vertex_buffer.data(),
+			vertex_buffer.size(),
+			vertex_size_and_stride,
+			remap_index_buffer.data());
+
+		detail::gen_remapped_index_buffer(
+			new_index_buffer.data(),
+			index_buffer.data(),
+			index_buffer.size(),
+			remap_index_buffer.data());
+
+		return std::pair{ new_index_buffer, new_vertex_buffer };
+	}
+
+	template <typename t_vertex>
+	void
+	opt_reorder_buffers(
+		age::vector<uint32>&   index_buffer,
+		age::vector<t_vertex>& vertex_buffer,
+		const std::size_t	   vertex_size_and_stride	   = sizeof(t_vertex),
+		const float			   threshold_for_less_overdarw = 1.05f) noexcept
+	{
+		static_assert(sizeof(t_vertex) >= sizeof(float) * 3);
+		detail::opt_index_buffer_for_vertex_cache(
+			index_buffer.data(),
+			index_buffer.data(),
+			index_buffer.size(),
+			vertex_buffer.size());
+
+		detail::opt_index_buffer_for_less_overdraw(
+			index_buffer.data(),
+			index_buffer.data(),
+			index_buffer.size(),
+			reinterpret_cast<float*>(vertex_buffer.data()),
+			vertex_buffer.size(),
+			vertex_size_and_stride,
+			threshold_for_less_overdarw);
+
+		detail::opt_vertex_buffer_for_vertex_fetch(
+			vertex_buffer.data(),
+			index_buffer.data(),
+			index_buffer.size(),
+			vertex_buffer.data(),
+			vertex_buffer.size(),
+			vertex_size_and_stride);
+	}
 }	 // namespace age::external::meshopt

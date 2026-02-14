@@ -248,3 +248,11 @@ AGENTS.md
 *.dat
 
 *.i
+*.pch
+*.ipch
+*.obj
+*.pdb
+*.ilk
+*.ib_tag
+
+pch/

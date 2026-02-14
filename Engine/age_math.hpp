@@ -143,10 +143,22 @@ struct vec2
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	operator*(const t_this& v) const noexcept
+	{
+		return t_this{ x * v.x, y * v.y };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator/(const t_this& v) const noexcept
+	{
+		return t_this{ x / v.x, y / v.y };
 	}
 
 	FORCE_INLINE constexpr t_this&
@@ -334,10 +346,22 @@ struct vec3
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	operator*(const t_this& v) const noexcept
+	{
+		return t_this{ x * v.x, y * v.y, z * v.z };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v, z / v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator/(const t_this& v) const noexcept
+	{
+		return t_this{ x / v.x, y / v.y, z / v.z };
 	}
 
 	FORCE_INLINE constexpr t_this&
@@ -544,10 +568,22 @@ struct vec4
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	operator*(const t_this& v) const noexcept
+	{
+		return t_this{ x * v.x, y * v.y, z * v.z, w * v.w };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
 	{
 		return t_this{ x / v, y / v, z / v, w / v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator/(const t_this& v) const noexcept
+	{
+		return t_this{ x / v.x, y / v.y, z / v.z, w / v.w };
 	}
 
 	FORCE_INLINE constexpr t_this&

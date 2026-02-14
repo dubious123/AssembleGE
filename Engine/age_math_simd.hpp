@@ -407,6 +407,42 @@ operator+(fxm_vec v1, fxm_vec v2) noexcept
 // packed
 namespace age::math
 {
+	struct cvt_tag_unorm
+	{ };
+
+	struct cvt_tag_snorm
+	{ };
+
+	template <typename t_src, typename t_dst>
+	FORCE_INLINE t_dst
+	cvt_to_unorm(const t_src& v) noexcept
+	{
+		static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
+		return v;
+	}
+
+	template <>
+	FORCE_INLINE uint8
+	cvt_to_unorm<float, uint8>(const float& f) noexcept
+	{
+		return static_cast<uint8>(f * 255 + 0.5f);
+	}
+
+	template <typename t_src, typename t_dst>
+	FORCE_INLINE t_dst
+	cvt_to_snorm(const t_src& v) noexcept
+	{
+		static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
+		return v;
+	}
+
+	template <>
+	FORCE_INLINE int8
+	cvt_to_snorm<float, int8>(const float& f) noexcept
+	{
+		return static_cast<int8>(f * 127 + std::copysignf(0.5f, f));
+	}
+
 	namespace detail
 	{
 		template <typename t_src, typename t_dst>
@@ -460,13 +496,6 @@ namespace age::math
 		}
 
 		template <>
-		FORCE_INLINE uint8
-		cvt_to_impl<float, uint8>(const float& f) noexcept
-		{
-			return static_cast<uint8>(f * 255 + 0.5f);
-		}
-
-		template <>
 		FORCE_INLINE oct<uint8>
 		cvt_to_impl<float3, oct<uint8>>(const float3& f) noexcept
 		{
@@ -483,16 +512,9 @@ namespace age::math
 			}
 
 			return oct<uint8>{
-				.x = cvt_to_impl<float, uint8>(0.5f + x * 0.5f),
-				.y = cvt_to_impl<float, uint8>(0.5f + y * 0.5f)
+				.x = cvt_to_unorm<float, uint8>(0.5f + x * 0.5f),
+				.y = cvt_to_unorm<float, uint8>(0.5f + y * 0.5f)
 			};
-		}
-
-		template <>
-		FORCE_INLINE int8
-		cvt_to_impl<float, int8>(const float& f) noexcept
-		{
-			return static_cast<int8>(f * 127 + std::copysignf(0.5f, f));
 		}
 
 		template <>
@@ -512,8 +534,8 @@ namespace age::math
 			}
 
 			return oct<int8>{
-				.x = cvt_to_impl<float, int8>(x),
-				.y = cvt_to_impl<float, int8>(y)
+				.x = cvt_to_snorm<float, int8>(x),
+				.y = cvt_to_snorm<float, int8>(y)
 			};
 		}
 

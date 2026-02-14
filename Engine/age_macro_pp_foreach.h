@@ -1228,8 +1228,15 @@
 #define __AGE_FOR_EACH_IMPL__511(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__510(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_IMPL__512(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__511(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
 
-#define FOR_EACH_CTX(ctx, separator_i, ...) AGE_PP_CONCAT_I(__AGE_FOR_EACH_GENERAL_IMPL__, AGE_PP_VA_COUNT(__VA_ARGS__))(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
+#define FOR_EACH_CTX(...)							 __FOR_EACH_CTX_IMPL__(__VA_ARGS__)
+#define __FOR_EACH_CTX_IMPL__(ctx, separator_i, ...) AGE_PP_CONCAT_I(__AGE_FOR_EACH_GENERAL_IMPL__, AGE_PP_VA_COUNT(__VA_ARGS__))(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
 
+
+#define FOR_EACH_CTX2(ctx, separator_i, args_tpl) __FOR_EACH_CTX2_IMPL__(AGE_PP_CONCAT_I(__AGE_FOR_EACH_GENERAL_IMPL__, AGE_PP_VA_COUNT args_tpl), (ctx, separator_i, AGE_PP_REMOVE_PARENS_I(args_tpl)))
+#define __FOR_EACH_CTX2_IMPL__(func, args)		  func args
+
+#define FOR_EACH_CTX3(ctx, separator_i, args_tpl) __FOR_EACH_CTX3_IMPL__(AGE_PP_CONCAT_I(__AGE_FOR_EACH_GENERAL_IMPL__, AGE_PP_VA_COUNT2 args_tpl), (ctx, separator_i, AGE_PP_REMOVE_PARENS_I(args_tpl)))
+#define __FOR_EACH_CTX3_IMPL__(func, args)		  func args
 // #define FOR_EACH_SEP(...)							  __FOR_EACH_SEP_IMPL__(__VA_ARGS__)
 // #define __FOR_EACH_SEP_IMPL__(what, separator_i, ...) AGE_PP_CONCAT_I(__AGE_FOR_EACH_GENERAL_IMPL__, AGE_PP_VA_COUNT(__VA_ARGS__))((what), separator_i __VA_OPT__(, ) __VA_ARGS__)
 

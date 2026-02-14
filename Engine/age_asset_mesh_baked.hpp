@@ -98,6 +98,7 @@ namespace age::asset::detail
 	};
 
 	template <typename t>
+
 	inline constexpr auto uv_count_v = uv_count<t>::value;
 }	 // namespace age::asset::detail
 
@@ -139,47 +140,98 @@ namespace age::asset
 		data_structure::vector<uint32>	 v_idx_vec{};
 	};
 
-	template <typename t_vertex>
-	t_vertex
-	gather_vertex(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	template <typename t_vertex_to>
+	age::vector<t_vertex_to>
+	quantize(const age::vector<vertex_fat>& vertex_fat_vec) noexcept
 	{
-		constexpr auto uv_count = detail::uv_count_v<t_vertex>;
+		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
 
-		auto	res	 = t_vertex{};
-		c_auto& pos	 = mesh_edit.position_vec[v.pos_idx];
-		c_auto& attr = mesh_edit.vertex_attr_vec[v.attribute_idx];
+		auto res = t_vertex_to{};
 
-		res.pos = pos;
+
+		return res;
+	}
+
+	template <typename t_vertex_to>
+	FORCE_INLINE t_vertex_to
+	cvt_vertex_to(const vertex_fat& v_fat, float3 offset, float3 scale) noexcept
+	{
+		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
+
+		auto res = t_vertex_to{};
+
+		res.pos = math::cvt_to<uint16_3>((v_fat.pos - offset) * scale);
+
 		if constexpr (uv_count > 0)
 		{
 			age::math::cvt_to<uv_count>(
-				attr.uv_set[0].data(),
+				v_fat.uv_set[0].data(),
 				reinterpret_cast<half*>(res.uv_set.data() + uv_count));
 		}
 
-		if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_p_uv>)
+		if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_p_uv>)
 		{
 		}
-		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_pn_uv>)
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_pn_uv>)
 		{
-			res.normal_oct = cvt_to<oct<int8>>(attr.normal);
+			res.normal_oct = cvt_to<oct<int8>>(v_fat.normal);
 		}
-		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex, detail::vertex_pnt_uv>)
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_pnt_uv>)
 		{
-			res.normal_oct	= cvt_to<oct<int8>>(attr.normal);
-			res.tangent_oct = cvt_to<oct<int8>>(attr.tangent.xyz);
+			res.normal_oct	= cvt_to<oct<int8>>(v_fat.normal);
+			res.tangent_oct = cvt_to<oct<int8>>(v_fat.tangent.xyz);
 		}
 		else
 		{
-			static_assert(false, "invalid vertex type");
+			static_assert(false, "invalid type conversion");
 		}
 
 		return res;
 	}
 
+	template <typename t_vertex_to>
+	FORCE_INLINE age::vector<t_vertex_to>
+	cvt_vertex_to(const age::vector<vertex_fat>& vertex_fat_vec) noexcept
+	{
+		auto aabb_min = float3{};
+		auto aabb_max = float3{};
+		for (auto aabb_min = vertex_fat_vec[0].pos, aabb_max = vertex_fat_vec[0].pos;
+			 c_auto& v : vertex_fat_vec)
+		{
+			if (v.pos.x < aabb_min.x) aabb_min.x = v.pos.x;
+			if (v.pos.y < aabb_min.y) aabb_min.y = v.pos.y;
+			if (v.pos.z < aabb_min.z) aabb_min.z = v.pos.z;
+
+			if (v.pos.x > aabb_max.x) aabb_max.x = v.pos.x;
+			if (v.pos.y > aabb_max.y) aabb_max.y = v.pos.y;
+			if (v.pos.z > aabb_max.z) aabb_max.z = v.pos.z;
+		}
+
+		auto vec = age::vector<t_vertex_to>::gen_reserved(vertex_fat_vec.size());
+
+		for (const auto& v_fat : vertex_fat_vec)
+		{
+			vec.emplace_back(cvt_vertex_to<t_vertex_to>(v_fat, aabb_min, float3::one() / (aabb_max - aabb_min) * static_cast<float>(std::numeric_limits<uint16>::max())));
+		}
+		return vec;
+		// return vertex_fat_vec
+		//	 | std::ranges::transform([scale = float3::one() / (aabb_max - aabb_min), aabb_min](c_auto& v) {
+		//		   // return cvt_vertex_to<t_vertex_to>(v, aabb_min, scale);
+		//		   return t_vertex_to{};
+		//	   })
+		//	 | std::ranges::to<age::vector<t_vertex_to>>();
+	}
+
+	template <typename t_vertex_to>
+	FORCE_INLINE t_vertex_to
+	cvt_vertex_to(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	{
+		static_assert(false, "not supported conversion");
+	}
+
 	template <>
 	FORCE_INLINE vertex_fat
-	gather_vertex<vertex_fat>(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	cvt_vertex_to<vertex_fat>(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
 	{
 		return {
 			.pos	 = mesh_edit.position_vec[v.pos_idx],
@@ -189,21 +241,14 @@ namespace age::asset
 		};
 	}
 
-	template <typename t_vertex>
-	FORCE_INLINE t_vertex
-	gather_vertex(const mesh_editable& mesh_edit, uint32 v_idx) noexcept
-	{
-		return gather_vertex<t_vertex>(mesh_edit, mesh_edit.vertex_vec[v_idx]);
-	}
-
-	template <typename t_vertex>
-	mesh_triangulated<t_vertex>
+	template <typename t_vertex_to>
+	mesh_triangulated<t_vertex_to>
 	triangulate(const mesh_editable& m) noexcept
 	{
 		return {
 			.vertex_vec = m.vertex_vec
-						| std::views::transform([&m](auto& v) { return gather_vertex<t_vertex>(m, v); })
-						| std::ranges::to<data_structure::vector<t_vertex>>(),
+						| std::views::transform([&m](auto& v) { return cvt_vertex_to<t_vertex_to>(m, v); })
+						| std::ranges::to<age::vector<t_vertex_to>>(),
 			.v_idx_vec = external::earcut::perform(m)
 		};
 	}

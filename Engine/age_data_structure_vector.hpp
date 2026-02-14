@@ -174,19 +174,48 @@ namespace age::inline data_structure
 			return *this;
 		}
 
-		constexpr ~vector() noexcept
+		FORCE_INLINE constexpr ~vector() noexcept
 		{
 			_destroy_n(alloc, p_data, count);
 			_dealloc(alloc, p_data, cap);
 		}
 
 		FORCE_INLINE static constexpr vector
-		gen_reserved(size_type n) noexcept
+		gen_reserved(size_type n, void* p_hint = nullptr) noexcept
 		{
+			auto vec   = vector{};
+			vec.count  = 0;
+			vec.cap	   = n;
+			vec.p_data = _alloc(vec.alloc, n, p_hint);
+			return vec;
+		}
+
+		FORCE_INLINE static constexpr vector
+		gen_sized(size_type n) noexcept
+		{
+			static_assert(std::is_default_constructible_v<t>);
+
 			auto vec   = vector{};
 			vec.count  = n;
 			vec.cap	   = n;
 			vec.p_data = _alloc(vec.alloc, n);
+
+			if constexpr (meta::is_zero_initializable<t>)
+			{
+				std::uninitialized_default_construct_n(vec.p_data, n);
+			}
+			else if constexpr (std::is_nothrow_constructible_v<t>)
+			{
+				for (auto i = 0; i < vec.count; ++i)
+				{
+					std::allocator_traits<allocator_type>::construct(vec.alloc, vec.p_data + i);
+				}
+			}
+			else
+			{
+				static_assert(false, "throwable element not supported yet");
+			}
+
 			return vec;
 		}
 
@@ -258,7 +287,7 @@ namespace age::inline data_structure
 			return p_data;
 		}
 
-		FORCE_INLINE constexpr decltype(count)
+		FORCE_INLINE constexpr size_type
 		size() const noexcept
 		{
 			return count;
@@ -405,13 +434,16 @@ namespace age::inline data_structure
 
 			if constexpr (std::ranges::sized_range<t> or std::ranges::forward_range<r>)
 			{
+				auto range_size = 0ull;
 				if constexpr (std::ranges::sized_range<t>)
 				{
-					reserve(count + static_cast<size_type>(std::ranges::size(rg)));
+					range_size = std::ranges::size(rg);
+					reserve(static_cast<size_type>(count + range_size));
 				}
 				else
 				{
-					reserve(count + static_cast<size_type>(std::ranges::distance(rg)));
+					range_size = std::ranges::distance(rg);
+					reserve(static_cast<size_type>(count + range_size));
 				}
 
 				if consteval
@@ -425,14 +457,13 @@ namespace age::inline data_structure
 				{
 					if constexpr (std::contiguous_iterator<std::ranges::iterator_t<r>> and std::is_trivially_copyable_v<t>)
 					{
-						std::memcpy(p_data, std::to_address(std::ranges::begin(rg)), sizeof(t) * count);
+						std::memcpy(p_data, std::to_address(std::ranges::begin(rg)), sizeof(t) * range_size);
 					}
-					else if constexpr (std::is_nothrow_copy_constructible_v<t>)
+					else if constexpr (std::is_nothrow_constructible_v<t, decltype(*std::ranges::begin(rg))>)
 					{
-						auto it = std::ranges::begin(rg);
-						for (size_type i = 0; i < count; ++i)
+						for (size_type i = 0; auto&& elem : rg)
 						{
-							std::allocator_traits<allocator_type>::construct(alloc, p_data + i, *it++);
+							std::allocator_traits<allocator_type>::construct(alloc, p_data + count + i++, FWD(elem));
 						}
 					}
 					else
@@ -440,6 +471,8 @@ namespace age::inline data_structure
 						static_assert(false, "throwable element is not supported yet");
 					}
 				}
+
+				count += range_size;
 			}
 			else
 			{
@@ -488,9 +521,16 @@ namespace age::inline data_structure
 			{
 				reserve(new_size);
 
-				for (auto i = count; i < new_size; ++i)
+				if constexpr (meta::is_zero_initializable<t>)
 				{
-					std::allocator_traits<allocator_type>::construct(alloc, p_data + count);
+					std::uninitialized_default_construct_n(p_data + count, new_size - count);
+				}
+				else
+				{
+					for (auto i = count; i < new_size; ++i)
+					{
+						std::allocator_traits<allocator_type>::construct(alloc, p_data + i);
+					}
 				}
 			}
 
@@ -531,7 +571,7 @@ namespace age::inline data_structure
 		}
 
 		FORCE_INLINE static constexpr t*
-		_alloc(allocator_type alloc, const size_type cap, t* p_hint) noexcept
+		_alloc(allocator_type alloc, const size_type cap, void* p_hint) noexcept
 		{
 			return std::allocator_traits<allocator_type>::allocate(alloc, cap, p_hint);
 		}

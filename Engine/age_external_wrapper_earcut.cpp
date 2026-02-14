@@ -6,8 +6,14 @@ namespace age::external::earcut
 	data_structure::vector<uint32>
 	perform(const asset::mesh_editable& m) noexcept
 	{
-		auto idx_vec	  = data_structure::vector<uint32>{};
-		auto p_pos_2d_arr = new std::pair<float, float>[m.boundary_to_vertex_idx_vec.size()];
+		auto idx_vec = age::vector<uint32>::gen_reserved(
+			std::ranges::fold_left(
+				m.face_vec | std::views::transform([&m](c_auto& f) { return std::ranges::distance(m.vertex_view(f)) * 3; }),
+				0ull,
+				std::plus{}));
+
+		auto corner_pos_arr = dynamic_array<std::pair<float, float>>::gen_sized_default(m.boundary_to_vertex_idx_vec.size());
+
 
 		for (auto& f : m.face_vec)
 		{
@@ -51,35 +57,33 @@ namespace age::external::earcut
 				}
 			}(m, f);
 
-			auto*  p_polygon		  = new std::span<std::pair<float, float>>[f.to_boundary_idx_count];
-			auto** pp_corner_span_arr = new std::pair<float, float>*[f.to_boundary_idx_count];
-			auto*  p_corner_count_arr = new uint32[f.to_boundary_idx_count];
+			auto corner_span_ptr_arr   = dynamic_array<std::pair<float, float>*>::gen_sized_default(f.to_boundary_idx_count);
+			auto corner_span_count_arr = dynamic_array<uint32>::gen_sized_default(f.to_boundary_idx_count, corner_span_ptr_arr.data());
 
-			for (auto&& [b_idx, b] : m.boundary_view(f) | std::views::enumerate)
+			for (auto&& [nth_boundary, b] : m.boundary_view(f) | std::views::enumerate)
 			{
-				p_polygon[b_idx] = { p_pos_2d_arr + b.to_vertex_idx_offset, b.to_vertex_idx_count };
+				auto corner_pos_span = std::span{ corner_pos_arr.data() + b.to_vertex_idx_offset, b.to_vertex_idx_count };
 
-				for (auto&& [v_idx, v] : m.vertex_view(b) | std::views::enumerate)
+				for (auto&& [corner_idx, v] : m.vertex_view(b) | std::views::enumerate)
 				{
-					c_auto& p				= m.position_vec[v.pos_idx];
-					p_polygon[b_idx][v_idx] = proj_fptr(p);
+					corner_pos_span[corner_idx] = proj_fptr(m.position_vec[v.pos_idx]);
 				}
 
 				if (reversed)
 				{
-					std::ranges::reverse(p_polygon[b_idx]);
+					std::ranges::reverse(corner_pos_span);
 				}
 
-				pp_corner_span_arr[b_idx] = p_polygon[b_idx].data();
-				p_corner_count_arr[b_idx] = static_cast<uint32>(p_polygon[b_idx].size());
+				corner_span_ptr_arr[nth_boundary]	= corner_pos_span.data();
+				corner_span_count_arr[nth_boundary] = static_cast<uint32>(corner_pos_span.size());
 			}
 
 
 			auto* p_idx_arr = (uint32*)nullptr;
 
 			auto idx_size = detail::perform(
-				(void**)pp_corner_span_arr,
-				p_corner_count_arr,
+				(void**)corner_span_ptr_arr.data(),
+				corner_span_count_arr.data(),
 				f.to_boundary_idx_count,
 				p_idx_arr);
 
@@ -90,12 +94,8 @@ namespace age::external::earcut
 									 }));
 
 			delete[] p_idx_arr;
-			delete[] p_corner_count_arr;
-			delete[] pp_corner_span_arr;
-			delete[] p_polygon;
 		}
 
-		delete[] p_pos_2d_arr;
 		return idx_vec;
 	}
 }	 // namespace age::external::earcut

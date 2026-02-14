@@ -92,15 +92,14 @@
 
 #include "external\include\age_external\age_engine_external_libs.hpp"
 
-#pragma comment(lib, "age_engine_external_d.lib")
-// #if defined(AGE_DEBUG)
-//	#pragma comment(lib, "age_engine_external_d.lib")
-//
-// #elif defined(AGE_RELEASE)
-//	#pragma comment(lib, "age_engine_external.lib")
-// #else
-//	#error invalid configuration
-// #endif
+#if defined(AGE_DEBUG)
+	#pragma comment(lib, "age_engine_external_d.lib")
+
+#elif defined(AGE_RELEASE)
+	#pragma comment(lib, "age_engine_external.lib")
+#else
+	#error invalid configuration
+#endif
 #if defined(memcpy)
 	#undef memcpy
 #endif

@@ -134,7 +134,7 @@ namespace age::external::meshopt::detail
 	// Reorder buffers
 	void
 	gen_remapped_vertex_buffer(
-		void*				p_remapped__vertex_buffer_out,
+		void*				p_remapped_vertex_buffer_out,
 		const void*			p_old_vertex_buffer,
 		unsigned long long	vertex_count,
 		unsigned long long	vertex_size_and_stride,
@@ -142,7 +142,7 @@ namespace age::external::meshopt::detail
 
 	void
 	gen_remapped_index_buffer(
-		unsigned int*		p_remapped__index_buffer_out,
+		unsigned int*		p_remapped_index_buffer_out,
 		const unsigned int* p_index_buffer,
 		unsigned long long	index_count,
 		const unsigned int* p_remap_idx_arr) noexcept;

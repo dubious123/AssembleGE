@@ -35,4 +35,9 @@ namespace age::meta::inline traits
 				{ std::allocator_traits<t>::allocate(a, n) } -> std::same_as<typename std::allocator_traits<t>::pointer>;
 				{ std::allocator_traits<t>::deallocate(a, std::allocator_traits<t>::allocate(a, n), n) };
 			};
+
+	template <typename t>
+	concept is_zero_initializable =
+		std::is_trivially_default_constructible_v<t>
+		and std::is_trivially_copyable_v<t>;
 }	 // namespace age::meta::inline traits
