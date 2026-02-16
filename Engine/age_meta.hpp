@@ -2,6 +2,9 @@
 
 namespace age::meta
 {
+	template <typename t>
+	using bare_t = std::remove_cvref_t<t>;
+
 	template <typename t, typename u>
 	struct copy_cv_ref
 	{
@@ -16,8 +19,8 @@ namespace age::meta
 		using type = u4;
 	};
 
-	template <typename t_from, typename t_to>
-	using copy_cv_ref_t = copy_cv_ref<t_from, t_to>::type;
+	template <typename t_from, typename t_dst>
+	using copy_cv_ref_t = copy_cv_ref<t_from, t_dst>::type;
 
 	template <auto v>
 	struct auto_wrapper
@@ -135,16 +138,16 @@ namespace age::meta
 	};
 
 	template <typename t, typename h, typename... ts>
-	constexpr inline auto variadic_constains_v = variadic_contains<t, h, ts...>();
+	constexpr inline auto variadic_contains_v = variadic_contains<t, h, ts...>();
 
 	template <auto t, auto h, auto... ts>
-	constexpr inline auto variadic_auto_constains_v = variadic_contains<t, h, ts...>();
+	constexpr inline auto variadic_auto_contains_v = variadic_contains<t, h, ts...>();
 
 	template <typename t, typename ret, typename... args>
 	consteval bool
 	param_constains(ret (*func)(args...))
 	{
-		return meta::variadic_constains_v<t, args...>;
+		return meta::variadic_contains_v<t, args...>;
 	};
 
 	template <typename t, auto f>
@@ -887,7 +890,7 @@ namespace age::meta
 		}
 		else
 		{
-			return variadic_constains_v<t, ts...> == false;
+			return variadic_contains_v<t, ts...> == false;
 		}
 	}();
 
@@ -1276,11 +1279,17 @@ namespace age::meta
 	// template <typename t_target>
 	// using pred_is_same_t = template pred_is_same<t_target>::type;
 
-	template <typename t1, template <typename...> typename t2>
-	inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
+	// template <typename t1, template <typename...> typename t2>
+	// inline constexpr auto is_specialization_of_v = is_specialization_of<t1, t2>::value;
 
-	template <typename t1, template <auto...> typename t2>
-	inline constexpr auto is_specialization_of_nttp_v = is_specialization_of_nttp<t1, t2>::value;
+	template <typename t1, template <typename...> typename... t2>
+	inline constexpr auto is_specialization_of_v = (is_specialization_of<t1, t2>::value or ...);
+
+	// template <typename t1, template <auto...> typename t2>
+	// inline constexpr auto is_specialization_of_nttp_v = is_specialization_of_nttp<t1, t2>::value;
+
+	template <typename t1, template <auto...> typename... t2>
+	inline constexpr auto is_specialization_of_nttp_v = (is_specialization_of_nttp<t1, t2>::value or ...);
 
 	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
 

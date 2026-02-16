@@ -1,5 +1,4 @@
 #pragma once
-#include "age_pch.hpp"
 
 namespace age::inline data_structure
 {
@@ -37,10 +36,10 @@ namespace age::inline data_structure
 		static_assert(std::contiguous_iterator<iterator>);
 		static_assert(std::contiguous_iterator<const_iterator>);
 
-		AGE_DISABLE_COPY_MOVE(dynamic_array)
+		AGE_DISABLE_COPY(dynamic_array)
 
 	  private:
-		const size_type count = {};
+		size_type count = {};
 
 		t* p_data = nullptr;
 
@@ -48,6 +47,13 @@ namespace age::inline data_structure
 		allocator_type alloc;
 
 	  public:
+		constexpr dynamic_array(dynamic_array&& other) noexcept
+			: count{ std::exchange(other.count, 0) },
+			  p_data{ std::exchange(other.p_data, nullptr) },
+			  alloc{ other.get_allocator() }
+		{
+		}
+
 		FORCE_INLINE constexpr dynamic_array(auto&&... args) noexcept
 			requires(std::is_constructible_v<t, decltype(args)> and ...)
 			: count{ sizeof...(args) },

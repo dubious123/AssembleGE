@@ -75,8 +75,8 @@ namespace age::graphics::resource
 	FORCE_INLINE void
 	create_view(const ID3D12Resource& res, const auto& h_desc, const auto& view_desc) noexcept
 	{
-		using t_descriptor_handle = std::remove_cvref_t<decltype(h_desc)>;
-		using t_view_desc		  = std::remove_cvref_t<decltype(view_desc)>;
+		using t_descriptor_handle = BARE_OF(h_desc);
+		using t_view_desc		  = BARE_OF(view_desc);
 
 		if constexpr (std::is_same_v<t_descriptor_handle, age::graphics::cbv_desc_handle>
 					  and std::is_same_v<t_view_desc, D3D12_CONSTANT_BUFFER_VIEW_DESC>)

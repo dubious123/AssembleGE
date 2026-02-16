@@ -137,7 +137,7 @@ namespace age::graphics
 	void
 	pop_descriptor(auto& h_descriptor_out) noexcept
 	{
-		using t_descriptor_handle = std::remove_cvref_t<decltype(h_descriptor_out)>;
+		using t_descriptor_handle = BARE_OF(h_descriptor_out);
 
 		if constexpr (std::is_same_v<t_descriptor_handle, cbv_desc_handle>
 					  or std::is_same_v<t_descriptor_handle, srv_desc_handle>
@@ -166,7 +166,7 @@ namespace age::graphics
 	void
 	push_descriptor(const auto& h_descriptor) noexcept
 	{
-		using t_descriptor_handle = std::remove_cvref_t<decltype(h_descriptor)>;
+		using t_descriptor_handle = BARE_OF(h_descriptor);
 
 		if constexpr (std::is_same_v<t_descriptor_handle, cbv_desc_handle>
 					  or std::is_same_v<t_descriptor_handle, srv_desc_handle>

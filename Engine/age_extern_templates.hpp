@@ -8,7 +8,7 @@ namespace age::inline data_structure
 	uint8, uint16, uint32, uint64, \
 		int8, int16, int32, int64, \
 		float, double, half
-#define container_types vector, stable_dense_vector, sparse_vector
+#define container_types vector, stable_dense_vector /*, sparse_vector*/
 
 #define vec_types_impl(type) vec2<type>, vec2a<type>, vec3<type>, vec3a<type>, vec4<type>, vec4a<type>
 #define mat_types_impl(type) mat22<type>, mat33<type>, mat44<type>, mat22a<type>, mat33a<type>, mat44a<type>
@@ -20,6 +20,9 @@ namespace age::inline data_structure
 				 AGE_PP_CARTESIAN_PRODUCT((container_types),
 										  (FOR_EACH_ARG(vec_types_impl, value_types),
 										   FOR_EACH_ARG(mat_types_impl, value_types))));
+
+#undef inst_template_step_1
+#undef inst_template_step_0
 
 #undef mat_types_impl
 #undef vec_types_impl

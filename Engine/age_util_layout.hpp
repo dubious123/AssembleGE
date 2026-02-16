@@ -174,7 +174,7 @@ namespace age::util
 			count_of()
 			{
 				static_assert(contains<t_tag>(), "tag not included");
-				if constexpr (age::meta::variadic_constains_v<t_tag, typename t_unit_flex::tag_type...>)
+				if constexpr (age::meta::variadic_contains_v<t_tag, typename t_unit_flex::tag_type...>)
 				{
 					return soa_count;
 				}
@@ -741,13 +741,13 @@ namespace age::util
 
 		template <typename t_tag>
 		FORCE_INLINE std::size_t
-					 offset_of()
+		offset_of()
 		{
 			return result_arr[key_lut[index_of<t_tag>()]].first;
 		}
 
 		FORCE_INLINE std::size_t
-					 offset_of(uint32 runtime_idx)
+		offset_of(uint32 runtime_idx)
 		{
 			return result_arr[key_lut[index_of(runtime_idx)]].first;
 		}

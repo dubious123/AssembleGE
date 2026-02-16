@@ -9,6 +9,8 @@ namespace age
 
 	namespace math::simd {}
 
+	namespace simd = math::simd;
+
 	namespace literals {}
 
 	namespace meta {}
@@ -20,6 +22,8 @@ namespace age
 	inline namespace data_structure {}
 
 	namespace external {}
+
+	namespace buffer {}
 
 	namespace asset {}
 
@@ -48,33 +52,40 @@ namespace age
 //
 //---[ age_pch.hpp ]------------------------------------------------------------
 // Precompiled Header (build-only)
-#include "age_config.hpp"
-#include "age_macro.h"
-#include "age_macro_pp.h"
-#include "age_macro_pp_foreach.h"
+#include "age_pch.hpp"
 
-#include "age_external.h"
+#if defined(__INTELLISENSE__)
+	#include "age_config.hpp"
+	#include "age_macro.h"
+	#include "age_macro_pp.h"
+	#include "age_macro_pp_foreach.h"
 
-#include "age_math.hpp"
+	#include "age_external.h"
 
-#include "age_meta.hpp"
-#include "age_meta_compressed_pack.hpp"
-#include "age_meta_hash.hpp"
+	#include "age_math.hpp"
 
-#include "age_math_simd.hpp"
+	#include "age_meta.hpp"
+	#include "age_meta_compressed_pack.hpp"
+	#include "age_meta_hash.hpp"
+	#include "age_meta_traits.hpp"
 
-#include "age_literal.hpp"
+	#include "age_math_simd.hpp"
 
-#include "age_util.hpp"
-#include "age_util_layout.hpp"
-#include "age_util_views.hpp"
+	#include "age_literal.hpp"
 
-#include "age_data_structure.hpp"
+	#include "age_util.hpp"
+	#include "age_util_layout.hpp"
+	#include "age_util_views.hpp"
+
+	#include "age_data_structure.hpp"
+#endif
 //------------------------------------------------------------------------------
 #include "age_extern_templates.hpp"
 #include "age_fwd.hpp"
 
 #include "age_external_adapter.hpp"
+
+#include "age_buffer.hpp"
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"

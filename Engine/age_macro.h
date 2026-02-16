@@ -1,4 +1,5 @@
 #pragma once
+
 #define c_auto const auto
 
 #define is_false == false
@@ -9,7 +10,10 @@
 
 #define is_not_nullptr != nullptr
 
-#define FWD(x) std::forward<decltype(x)>(x)
+#define FWD(x) std::forward<decltype(x)>((x))
+
+// reference will be removed in most cases anyway so perfect forwarding is not necessary
+#define BARE_OF(expr) std::remove_cvref_t<decltype((expr))>
 
 #define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
 

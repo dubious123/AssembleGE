@@ -47,7 +47,8 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct vec2
 {
-	using t_this = vec2<t>;
+	using t_value = t;
+	using t_this  = vec2<t>;
 
 	t x;
 	t y;
@@ -237,7 +238,8 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct vec3
 {
-	using t_this = vec3<t>;
+	using t_value = t;
+	using t_this  = vec3<t>;
 
 	union
 	{
@@ -448,7 +450,8 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct vec4
 {
-	using t_this = vec4<t>;
+	using t_value = t;
+	using t_this  = vec4<t>;
 
 	union
 	{
@@ -697,8 +700,9 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct mat22
 {
-	using t_this = mat22<t>;
-	using t_row	 = vec2<t>;
+	using t_value = t;
+	using t_this  = mat22<t>;
+	using t_row	  = vec2<t>;
 
 	t_row r0{ t{ 1 }, t{ 0 } };
 	t_row r1{ t{ 0 }, t{ 1 } };
@@ -807,8 +811,9 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct mat33
 {
-	using t_this = mat33<t>;
-	using t_row	 = vec3<t>;
+	using t_value = t;
+	using t_this  = mat33<t>;
+	using t_row	  = vec3<t>;
 
 	t_row r0{ t{ 1 }, t{ 0 }, t{ 0 } };
 	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 } };
@@ -932,8 +937,9 @@ template <typename t>
 requires(std::is_arithmetic_v<t>)
 struct mat44
 {
-	using t_this = mat44<t>;
-	using t_row	 = vec4<t>;
+	using t_value = t;
+	using t_this  = mat44<t>;
+	using t_row	  = vec4<t>;
 
 	t_row r0{ t{ 1 }, t{ 0 }, t{ 0 }, t{ 0 } };
 	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 }, t{ 0 } };
@@ -1244,21 +1250,16 @@ static_assert(offsetof(double2x2a, r1) == sizeof(double2x2a::t_row) * (double2x2
 static_assert(offsetof(double3x3a, r2) == sizeof(double3x3a::t_row) * (double3x3a::dim() - 1));
 static_assert(offsetof(double4x4a, r3) == sizeof(double4x4a::t_row) * (double4x4a::dim() - 1));
 
+// template <typename t>
+// struct oct;
+
 template <typename t>
-struct oct;
-
-template <>
-struct oct<uint8>
+requires std::is_same_v<t, uint8> or std::is_same_v<t, int8>
+struct oct
 {
-	uint8 x;
-	uint8 y;
-};
-
-template <>
-struct oct<int8>
-{
-	int8 x;
-	int8 y;
+	using t_value = t;
+	t x;
+	t y;
 };
 
 namespace age::inline math

@@ -84,6 +84,7 @@
     <ClInclude Include="editor_utilities.h">
       <Filter>B.editor</Filter>
     </ClInclude>
+    <ClInclude Include="..\Engine\age_external_adapter.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="A.external">

@@ -1,5 +1,4 @@
 #pragma once
-#include "age_pch.hpp"
 
 namespace age::meta::inline traits
 {
@@ -40,4 +39,15 @@ namespace age::meta::inline traits
 	concept is_zero_initializable =
 		std::is_trivially_default_constructible_v<t>
 		and std::is_trivially_copyable_v<t>;
+
+	template <typename t>
+	concept cx_byte_writable_contiguous_range =
+		std::ranges::contiguous_range<t>
+		and std::ranges::sized_range<t>
+		and std::is_trivially_copyable_v<std::ranges::range_value_t<t>>;
+
+	template <typename t>
+	concept cx_implicit_lifetime =
+		std::is_trivially_copyable_v<std::remove_cvref_t<t>>
+		and std::is_trivially_destructible_v<std::remove_cvref_t<t>>;
 }	 // namespace age::meta::inline traits

@@ -121,6 +121,30 @@ namespace age::asset
 	using vertex_pnt_uv1 = detail::vertex_pnt_uv<2>;
 	using vertex_pnt_uv2 = detail::vertex_pnt_uv<3>;
 	using vertex_pnt_uv3 = detail::vertex_pnt_uv<4>;
+
+	template <typename t_vertex>
+	e::vertex_kind
+	get_vertex_kind() noexcept
+	{
+		if constexpr (std::same_as<t_vertex, vertex_p_uv0>) { return e::vertex_kind::p_uv0; }
+		else if constexpr (std::same_as<t_vertex, vertex_pn_uv0>) { return e::vertex_kind::pn_uv0; }
+		else if constexpr (std::same_as<t_vertex, vertex_pnt_uv0>) { return e::vertex_kind::pnt_uv0; }
+		else if constexpr (std::same_as<t_vertex, vertex_p_uv1>) { return e::vertex_kind::p_uv1; }
+		else if constexpr (std::same_as<t_vertex, vertex_pn_uv1>) { return e::vertex_kind::pn_uv1; }
+		else if constexpr (std::same_as<t_vertex, vertex_pnt_uv1>) { return e::vertex_kind::pnt_uv1; }
+		else if constexpr (std::same_as<t_vertex, vertex_p_uv2>) { return e::vertex_kind::p_uv2; }
+		else if constexpr (std::same_as<t_vertex, vertex_pn_uv2>) { return e::vertex_kind::pn_uv2; }
+		else if constexpr (std::same_as<t_vertex, vertex_pnt_uv2>) { return e::vertex_kind::pnt_uv2; }
+		else if constexpr (std::same_as<t_vertex, vertex_p_uv3>) { return e::vertex_kind::p_uv3; }
+		else if constexpr (std::same_as<t_vertex, vertex_pn_uv3>) { return e::vertex_kind::pn_uv3; }
+		else if constexpr (std::same_as<t_vertex, vertex_pnt_uv3>) { return e::vertex_kind::pnt_uv3; }
+		else
+		{
+			static_assert(false, "invalid type");
+			AGE_UNREACHABLE();
+			return -1;
+		}
+	}
 }	 // namespace age::asset
 
 namespace age::asset
@@ -159,14 +183,13 @@ namespace age::asset
 		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
 
 		auto res = t_vertex_to{};
-
-		res.pos = math::cvt_to<uint16_3>((v_fat.pos - offset) * scale);
+		res.pos	 = age::cvt_to<uint16_3>((v_fat.pos - offset) * scale, age::cvt_unorm_tag{});
 
 		if constexpr (uv_count > 0)
 		{
-			age::math::cvt_to<uv_count>(
+			age::cvt_to(
 				v_fat.uv_set[0].data(),
-				reinterpret_cast<half*>(res.uv_set.data() + uv_count));
+				reinterpret_cast<half*>(res.uv_set.data() + uv_count), uv_count);
 		}
 
 		if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_p_uv>)
@@ -174,12 +197,12 @@ namespace age::asset
 		}
 		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_pn_uv>)
 		{
-			res.normal_oct = cvt_to<oct<int8>>(v_fat.normal);
+			res.normal_oct = age::cvt_to<oct<int8>>(v_fat.normal, age::cvt_cast_tag{});
 		}
 		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_pnt_uv>)
 		{
-			res.normal_oct	= cvt_to<oct<int8>>(v_fat.normal);
-			res.tangent_oct = cvt_to<oct<int8>>(v_fat.tangent.xyz);
+			res.normal_oct	= age::cvt_to<oct<int8>>(v_fat.normal, age::cvt_cast_tag{});
+			res.tangent_oct = age::cvt_to<oct<int8>>(v_fat.tangent.xyz, age::cvt_cast_tag{});
 		}
 		else
 		{
@@ -195,8 +218,7 @@ namespace age::asset
 	{
 		auto aabb_min = float3{};
 		auto aabb_max = float3{};
-		for (auto aabb_min = vertex_fat_vec[0].pos, aabb_max = vertex_fat_vec[0].pos;
-			 c_auto& v : vertex_fat_vec)
+		for (c_auto& v : vertex_fat_vec)
 		{
 			if (v.pos.x < aabb_min.x) aabb_min.x = v.pos.x;
 			if (v.pos.y < aabb_min.y) aabb_min.y = v.pos.y;
@@ -207,19 +229,11 @@ namespace age::asset
 			if (v.pos.z > aabb_max.z) aabb_max.z = v.pos.z;
 		}
 
-		auto vec = age::vector<t_vertex_to>::gen_reserved(vertex_fat_vec.size());
-
-		for (const auto& v_fat : vertex_fat_vec)
-		{
-			vec.emplace_back(cvt_vertex_to<t_vertex_to>(v_fat, aabb_min, float3::one() / (aabb_max - aabb_min) * static_cast<float>(std::numeric_limits<uint16>::max())));
-		}
-		return vec;
-		// return vertex_fat_vec
-		//	 | std::ranges::transform([scale = float3::one() / (aabb_max - aabb_min), aabb_min](c_auto& v) {
-		//		   // return cvt_vertex_to<t_vertex_to>(v, aabb_min, scale);
-		//		   return t_vertex_to{};
-		//	   })
-		//	 | std::ranges::to<age::vector<t_vertex_to>>();
+		return vertex_fat_vec
+			 | std::views::transform([offset = aabb_min, scale = float3::one() / (aabb_max - aabb_min) * static_cast<float>(std::numeric_limits<uint16>::max())](c_auto& v) {
+				   return cvt_vertex_to<t_vertex_to>(v, offset, scale);
+			   })
+			 | std::ranges::to<age::vector<t_vertex_to>>();
 	}
 
 	template <typename t_vertex_to>
@@ -279,9 +293,11 @@ namespace age::asset
 
 	struct mesh_baked_header
 	{
-		uint32			 vertex_count{};
-		uint32			 global_vertex_count{};
-		uint32			 primitive_count{};
+		// uint32 vertex_offset = 0;
+		uint32			 global_vertex_index_buffer_offset{};
+		uint32			 local_vertex_index_buffer_offset{};
+		uint32			 meshlet_header_buffer_offset{};
+		uint32			 meshlet_buffer_offset{};
 		uint32			 meshlet_count{};
 		e::vertex_kind	 vertex_kind{};
 		e::topology_kind topology_kind{};
@@ -291,12 +307,12 @@ namespace age::asset
 	// [vertex_buffer]
 	// [global_vertex_index_buffer]
 	// [local_vertex_index_buffer]
-	// [meshlet_array]
+	// [meshlet_header_buffer]
+	// [meshlet_buffer]
 	struct mesh_baked
 	{
-		mesh_baked_header header{};
-
-		age::asset::handle h_asset{};
+		age::dynamic_array<std::byte> buffer{};
+		mesh_baked_header			  header{};
 	};
 
 	struct lod_group_baked_header
@@ -323,6 +339,45 @@ namespace age::asset
 
 namespace age::asset
 {
+	template <typename t_vertex>
 	mesh_baked
-	bake_mesh(const asset::mesh_editable&) noexcept;
-}
+	bake_mesh(const asset::mesh_editable& mesh_edit) noexcept
+	{
+		auto m = asset::triangulate<vertex_fat>(mesh_edit);
+		AGE_ASSERT(m.v_idx_vec.size() % 3 == 0);
+		for (auto [nth, idx] : m.v_idx_vec | std::views::enumerate)
+		{
+			AGE_ASSERT(idx < m.vertex_vec.size());
+		}
+
+		auto&& [index_buffer, vertex_buffer] = external::meshopt::gen_remap(m.v_idx_vec, m.vertex_vec);
+
+		external::meshopt::opt_reorder_buffers(index_buffer, vertex_buffer);
+
+		auto&& [meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_vec, meshlet_bound_vec] =
+			external::meshopt::gen_meshlets(
+				index_buffer,
+				vertex_buffer);
+
+		auto vertex_buffer_quantized = cvt_vertex_to<t_vertex>(vertex_buffer);
+
+		auto buffer = age::buffer::write_bytes(vertex_buffer_quantized,
+											   meshlet_global_index_buffer,
+											   meshlet_local_index_buffer,
+											   meshlet_bound_vec,
+											   meshlet_vec);
+
+		auto header = mesh_baked_header{};
+		{
+			header.global_vertex_index_buffer_offset = static_cast<uint32>(sizeof(vertex_buffer_quantized[0]) * vertex_buffer_quantized.size());
+			header.local_vertex_index_buffer_offset	 = header.global_vertex_index_buffer_offset + static_cast<uint32>(sizeof(meshlet_global_index_buffer[0]) * meshlet_global_index_buffer.size());
+			header.meshlet_header_buffer_offset		 = header.local_vertex_index_buffer_offset + static_cast<uint32>(sizeof(meshlet_local_index_buffer[0]) * meshlet_local_index_buffer.size());
+			header.meshlet_buffer_offset			 = header.meshlet_header_buffer_offset + static_cast<uint32>(sizeof(meshlet_bound_vec[0]) * meshlet_bound_vec.size());
+			header.meshlet_count					 = static_cast<uint32>(meshlet_vec.size());
+			header.vertex_kind						 = get_vertex_kind<t_vertex>();
+			header.topology_kind					 = e::topology_kind::triangle;
+		};
+
+		return { .buffer = std::move(buffer), .header = header };
+	}
+}	 // namespace age::asset

@@ -143,6 +143,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Engine\age_external_adapter.hpp" />
     <ClInclude Include="editor.h" />
     <ClInclude Include="editor_background.h" />
     <ClInclude Include="editor_common.h" />

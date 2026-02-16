@@ -42,7 +42,7 @@ namespace age::ecs::entity_storage
 			}
 
 			FORCE_INLINE std::size_t
-						 free_block_idx() noexcept
+			free_block_idx() noexcept
 			{
 				return static_cast<std::size_t>(ent_block_vec.size() - free_block_count);
 			}
@@ -275,7 +275,7 @@ namespace age::ecs::entity_storage
 			{
 				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
 				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
-				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(FWD(arg)...)...);
@@ -317,7 +317,7 @@ namespace age::ecs::entity_storage
 			{
 				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
 				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
-				static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(id, FWD(arg)...)...);
@@ -330,7 +330,7 @@ namespace age::ecs::entity_storage
 		remove_component(const t_ent_id id) noexcept
 		{
 
-			static_assert((age::meta::variadic_constains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
+			static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 				return this->remove_component_impl<meta::variadic_at_t<i, t...>...>(id);

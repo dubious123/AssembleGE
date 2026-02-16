@@ -1,4 +1,5 @@
 #pragma once
+
 using xm_vec = DirectX::XMVECTOR;
 using xm_mat = DirectX::XMMATRIX;
 
@@ -407,97 +408,114 @@ operator+(fxm_vec v1, fxm_vec v2) noexcept
 // packed
 namespace age::math
 {
-	struct cvt_tag_unorm
-	{ };
+	class cvt_unorm_tag { };
 
-	struct cvt_tag_snorm
-	{ };
+	class cvt_snorm_tag { };
 
-	template <typename t_src, typename t_dst>
-	FORCE_INLINE t_dst
-	cvt_to_unorm(const t_src& v) noexcept
-	{
-		static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
-		return v;
-	}
+	class cvt_cast_tag { };
 
-	template <>
-	FORCE_INLINE uint8
-	cvt_to_unorm<float, uint8>(const float& f) noexcept
-	{
-		return static_cast<uint8>(f * 255 + 0.5f);
-	}
-
-	template <typename t_src, typename t_dst>
-	FORCE_INLINE t_dst
-	cvt_to_snorm(const t_src& v) noexcept
-	{
-		static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
-		return v;
-	}
-
-	template <>
-	FORCE_INLINE int8
-	cvt_to_snorm<float, int8>(const float& f) noexcept
-	{
-		return static_cast<int8>(f * 127 + std::copysignf(0.5f, f));
-	}
+	template <typename t>
+	concept cx_cvt_tag = std::is_same_v<t, cvt_unorm_tag>
+					  or std::is_same_v<t, cvt_snorm_tag>
+					  or std::is_same_v<t, cvt_cast_tag>;
 
 	namespace detail
 	{
-		template <typename t_src, typename t_dst>
+		template <typename t_dst, typename t_src, typename t_tag>
+		requires false
 		FORCE_INLINE t_dst
-		cvt_to_impl(const t_src& v) noexcept
+		cvt_to_impl(const t_src& v, t_tag) noexcept;
+
+		template <typename t_dst>
+		requires meta::variadic_contains_v<t_dst, uint8, uint16>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const float& f, cvt_unorm_tag) noexcept
 		{
-			static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
-			return v;
+			return static_cast<t_dst>(
+				std::clamp(f, 0.f, 1.f) * std::numeric_limits<t_dst>::max() + 0.5f);
 		}
 
-		template <>
-		FORCE_INLINE float
-		cvt_to_impl<half, float>(const half& h) noexcept
+		template <typename t_dst>
+		requires meta::variadic_contains_v<t_dst, int8, int16>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const float& f, cvt_snorm_tag) noexcept
 		{
-			return DirectX::PackedVector::XMConvertHalfToFloat(h);
+			return static_cast<t_dst>(
+				std::clamp(f, -1.f, 1.f) * (std::numeric_limits<t_dst>::max()) + std::copysignf(0.5f, f));
 		}
 
-		template <>
-		FORCE_INLINE float2
-		cvt_to_impl<half2, float2>(const half2& h) noexcept
-		{
-			return simd::to<float2>(simd::load(h));
-		}
-
-		template <>
-		FORCE_INLINE float4
-		cvt_to_impl<half4, float4>(const half4& h) noexcept
-		{
-			return simd::to<float4>(simd::load(h));
-		}
-
-		template <>
+		template <typename t_dst>
+		requires std::is_same_v<t_dst, half>
 		FORCE_INLINE half
-		cvt_to_impl<float, half>(const float& f) noexcept
+		cvt_to_impl(const float& f, cvt_cast_tag) noexcept
 		{
 			return DirectX::PackedVector::XMConvertFloatToHalf(f);
 		}
 
-		template <>
-		FORCE_INLINE half2
-		cvt_to_impl<float2, half2>(const float2& f) noexcept
+		template <typename t_dst = float, typename t_src>
+		requires meta::variadic_contains_v<t_src, uint8, uint16>
+			 and meta::variadic_contains_v<t_dst, float, double, half>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const t_src& u, cvt_unorm_tag) noexcept
 		{
-			return simd::to<half2>(simd::load(f));
+			if constexpr (std::is_same_v<t_dst, half>)
+			{
+				cvt_to_impl<half>(static_cast<float>(u) / std::numeric_limits<t_src>::max());
+			}
+			else
+			{
+				return static_cast<t_dst>(u) / std::numeric_limits<t_src>::max();
+			}
 		}
 
-		template <>
-		FORCE_INLINE half4
-		cvt_to_impl<float4, half4>(const float4& f) noexcept
+		template <typename t_dst = float, typename t_src>
+		requires meta::variadic_contains_v<t_src, int8, int16>
+			 and meta::variadic_contains_v<t_dst, float, double, half>
+		FORCE_INLINE float
+		cvt_to_impl(const t_src& i, cvt_snorm_tag) noexcept
 		{
-			return simd::to<half4>(simd::load(f));
+			if constexpr (std::is_same_v<t_dst, half>)
+			{
+				cvt_to_impl<half>(static_cast<float>(i) / std::numeric_limits<t_src>::max());
+			}
+			else
+			{
+				return static_cast<t_dst>(i) / std::numeric_limits<t_src>::max();
+			}
 		}
 
-		template <>
-		FORCE_INLINE oct<uint8>
-		cvt_to_impl<float3, oct<uint8>>(const float3& f) noexcept
+		template <typename t_dst = float>
+		requires meta::variadic_contains_v<t_dst, float, double, half>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const half& h, cvt_cast_tag) noexcept
+		{
+			if constexpr (std::is_same_v<t_dst, float>)
+			{
+				return DirectX::PackedVector::XMConvertHalfToFloat(h);
+			}
+			else if constexpr (std::is_same_v<t_dst, double>)
+			{
+				return static_cast<double>(DirectX::PackedVector::XMConvertHalfToFloat(h));
+			}
+			else
+			{
+				return h;
+			}
+		}
+
+		template <typename t_dst, template <typename> typename t_vec, typename t_src>
+		requires(std::is_same_v<t_src, float> and std::is_same_v<t_dst, t_vec<half>>)
+			 or (std::is_same_v<t_src, half> and std::is_same_v<t_dst, t_vec<float>>)
+		FORCE_INLINE t_dst
+		cvt_to_impl(const t_vec<t_src>& src, cvt_cast_tag) noexcept
+		{
+			return simd::to<t_dst>(simd::load(src));
+		}
+
+		template <typename t_dst>
+		requires std::is_same_v<t_dst, oct<uint8>>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const float3& f, cvt_cast_tag) noexcept
 		{
 			auto l1_norm = std::abs(f.x) + std::abs(f.y) + std::abs(f.z);
 			auto x		 = f.x / l1_norm;
@@ -511,15 +529,16 @@ namespace age::math
 				y = std::copysignf(1.f - std::abs(old_x), old_y);
 			}
 
-			return oct<uint8>{
-				.x = cvt_to_unorm<float, uint8>(0.5f + x * 0.5f),
-				.y = cvt_to_unorm<float, uint8>(0.5f + y * 0.5f)
+			return t_dst{
+				.x = cvt_to_impl<typename t_dst::t_value>(0.5f + x * 0.5f, cvt_unorm_tag{}),
+				.y = cvt_to_impl<typename t_dst::t_value>(0.5f + y * 0.5f, cvt_unorm_tag{})
 			};
 		}
 
-		template <>
-		FORCE_INLINE oct<int8>
-		cvt_to_impl<float3, oct<int8>>(const float3& f) noexcept
+		template <typename t_dst>
+		requires std::is_same_v<t_dst, oct<int8>>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const float3& f, cvt_cast_tag) noexcept
 		{
 			auto l1_norm = std::abs(f.x) + std::abs(f.y) + std::abs(f.z);
 			auto x		 = f.x / l1_norm;
@@ -533,33 +552,21 @@ namespace age::math
 				y = std::copysignf(1.f - std::abs(old_x), old_y);
 			}
 
-			return oct<int8>{
-				.x = cvt_to_snorm<float, int8>(x),
-				.y = cvt_to_snorm<float, int8>(y)
+			return t_dst{
+				.x = cvt_to_impl<typename t_dst::t_value>(x, cvt_snorm_tag{}),
+				.y = cvt_to_impl<typename t_dst::t_value>(y, cvt_snorm_tag{})
 			};
 		}
 
-		template <>
-		FORCE_INLINE float
-		cvt_to_impl<uint8, float>(const uint8& u) noexcept
-		{
-			return static_cast<float>(u) / 255.f;
-		}
-
-		template <>
-		FORCE_INLINE float
-		cvt_to_impl<int8, float>(const int8& i) noexcept
-		{
-			return static_cast<float>(i) / 127.f;
-		}
-
-		template <>
+		template <typename t_dst, typename t_src>
+		requires std::is_same_v<t_dst, float3>
+			 and meta::variadic_contains_v<t_src, uint8, uint16>
 		FORCE_INLINE float3
-		cvt_to_impl<oct<uint8>, float3>(const oct<uint8>& o) noexcept
+		cvt_to_impl(const oct<t_src>& o, cvt_cast_tag) noexcept
 		{
 			auto res = float3(
-				cvt_to_impl<uint8, float>(o.x) * 2.f - 1.f,
-				cvt_to_impl<uint8, float>(o.y) * 2.f - 1.f,
+				cvt_to_impl<float>(o.x, cvt_unorm_tag{}) * 2.f - 1.f,
+				cvt_to_impl<float>(o.y, cvt_unorm_tag{}) * 2.f - 1.f,
 				0.f);
 			res.z = 1.f - std::abs(res.x) - std::abs(res.y);
 
@@ -578,13 +585,15 @@ namespace age::math
 				 | simd::to<float3>();
 		}
 
-		template <>
+		template <typename t_dst, typename t_src>
+		requires std::is_same_v<t_dst, float3>
+			 and meta::variadic_contains_v<t_src, int8, int16>
 		FORCE_INLINE float3
-		cvt_to_impl<oct<int8>, float3>(const oct<int8>& o) noexcept
+		cvt_to_impl(const oct<t_src>& o, cvt_cast_tag) noexcept
 		{
 			auto res = float3(
-				cvt_to_impl<int8, float>(o.x),
-				cvt_to_impl<int8, float>(o.y),
+				cvt_to_impl(o.x, cvt_snorm_tag{}),
+				cvt_to_impl(o.y, cvt_snorm_tag{}),
 				0.f);
 			res.z = 1.f - std::abs(res.x) - std::abs(res.y);
 
@@ -601,38 +610,61 @@ namespace age::math
 			return simd::load(res)
 				 | simd::normalize3()
 				 | simd::to<float3>();
+		}
+
+		template <typename t_dst, typename t_tag>
+		requires meta::variadic_contains_v<t_dst, vec3<uint8>, vec3<uint16>, vec3<int8>, vec3<int16>>
+			 and meta::variadic_contains_v<t_tag, cvt_unorm_tag, cvt_snorm_tag>
+		FORCE_INLINE t_dst
+		cvt_to_impl(const float3& f3, t_tag) noexcept
+		{
+			return t_dst{
+				cvt_to_impl<typename t_dst::t_value>(f3.x, t_tag{}),
+				cvt_to_impl<typename t_dst::t_value>(f3.y, t_tag{}),
+				cvt_to_impl<typename t_dst::t_value>(f3.z, t_tag{})
+			};
 		}
 	}	 // namespace detail
 
 	namespace detail
 	{
-		template <std::size_t n>
+		template <typename t_src, typename t_dst, typename t_tag = cvt_cast_tag>
+		requires cx_cvt_tag<t_tag>
 		FORCE_INLINE void
-		cvt_to_stream_impl(const half* p_src, float* p_dst)
+		cvt_to_stream_impl(const t_src* p_src, t_dst* p_dst, std::size_t n, t_tag)
+		{
+			static_assert(std::is_same_v<t_src, t_dst>, "cvt_to_impl: unsupported conversion");
+		}
+
+		template <>
+		FORCE_INLINE void
+		cvt_to_stream_impl(const half* p_src, float* p_dst, std::size_t n, cvt_cast_tag)
 		{
 			DirectX::PackedVector::XMConvertHalfToFloatStream(p_dst, sizeof(float), p_src, sizeof(half), n);
 		}
 
-		template <std::size_t n>
+		template <>
 		FORCE_INLINE void
-		cvt_to_stream_impl(const float* p_src, half* p_dst)
+		cvt_to_stream_impl(const float* p_src, half* p_dst, std::size_t n, cvt_cast_tag)
 		{
 			DirectX::PackedVector::XMConvertFloatToHalfStream(p_dst, sizeof(half), p_src, sizeof(float), n);
 		}
 	}	 // namespace detail
 
-	template <typename t_dst>
+	template <typename t_dst, typename t_src, typename t_tag = cvt_cast_tag>
+	requires cx_cvt_tag<t_tag>
 	FORCE_INLINE decltype(auto)
-	cvt_to(const auto& v) noexcept
+	cvt_to(const t_src& src, t_tag tag = {}) noexcept
 	{
-		return detail::cvt_to_impl<std::remove_cvref_t<decltype(v)>, t_dst>(v);
+		return age::math::detail::cvt_to_impl<t_dst>(src, tag);
 	}
 
-	template <std::size_t n>
+	template <typename t_src, typename t_dst, typename t_tag = cvt_cast_tag>
+	requires cx_cvt_tag<t_tag>
 	FORCE_INLINE decltype(auto)
-	cvt_to(const auto* p_src, auto* p_dst)
+	cvt_to(const t_src* p_src, t_dst* p_dst, std::size_t n, t_tag tag = {})
 	{
-		return detail::cvt_to_stream_impl<n>(p_src, p_dst);
+		return math::detail::cvt_to_stream_impl(p_src, p_dst, n, tag);
 	}
 }	 // namespace age::math
 

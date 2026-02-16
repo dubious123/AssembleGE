@@ -103,7 +103,7 @@ namespace age::ecs::entity_block
 
 		template <typename t_tag>
 		FORCE_INLINE t_tag::type&
-					 access_as()
+		access_as()
 		{
 			constexpr auto offset = align_info::template offset_of<t_tag>();
 
@@ -263,11 +263,11 @@ namespace age::ecs::entity_block
 			[this]<std::size_t... local_cmp_idx>(std::index_sequence<local_cmp_idx...>) {
 				([this] {
 					using cmp_curr = age::meta::variadic_at_t<local_cmp_idx, t...>;
-					age::util::write_bytes(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx,
-										   static_cast<t_component_size>(sizeof(cmp_curr)));
+					buffer::write_bytes(reinterpret_cast<t_component_size*>(&storage[total_align_info::template offset_of<component_size_tag>()]) + local_cmp_idx,
+										static_cast<t_component_size>(sizeof(cmp_curr)));
 
-					age::util::write_bytes(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx,
-										   static_cast<t_component_offset>(total_align_info::template offset_of<std::type_identity<cmp_curr>>()));
+					buffer::write_bytes(reinterpret_cast<t_component_offset*>(&storage[total_align_info::template offset_of<component_offset_tag>()]) + local_cmp_idx,
+										static_cast<t_component_offset>(total_align_info::template offset_of<std::type_identity<cmp_curr>>()));
 				}(),
 				 ...);
 			}(std::index_sequence_for<t...>{});

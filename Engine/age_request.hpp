@@ -28,7 +28,7 @@ namespace age::request
 
 		constexpr param(detail::cx_request_payload auto&& arg) noexcept
 		{
-			age::util::write_bytes(storage, FWD(arg));
+			buffer::write_bytes(storage, FWD(arg));
 		};
 
 		template <detail::cx_request_payload t>

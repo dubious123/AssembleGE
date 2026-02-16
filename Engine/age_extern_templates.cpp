@@ -19,6 +19,8 @@ namespace age::data_structure
 				 AGE_PP_CARTESIAN_PRODUCT((container_types),
 										  (FOR_EACH_ARG(vec_types_impl, value_types),
 										   FOR_EACH_ARG(mat_types_impl, value_types))));
+#undef inst_template_step_1
+#undef inst_template_step_0
 
 #undef mat_types_impl
 #undef vec_types_impl

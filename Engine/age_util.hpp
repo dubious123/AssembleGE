@@ -58,7 +58,7 @@ namespace age::util
 	constexpr std::size_t
 	mdspan_idx(auto&& md_span, auto&&... idx) noexcept
 	{
-		static_assert(sizeof...(idx) == std::remove_cvref_t<decltype(md_span)>::rank());
+		static_assert(sizeof...(idx) == BARE_OF(md_span)::rank());
 		return []<std::size_t... n> INLINE_LAMBDA_FRONT(std::index_sequence<n...>, auto&& m, auto&&... i) noexcept INLINE_LAMBDA_BACK {
 			return ((m.mapping().stride(n) * i) + ...);
 		}(std::make_index_sequence<sizeof...(idx)>{}, FWD(md_span), FWD(idx)...);
@@ -119,34 +119,11 @@ namespace age::util
 
 namespace age::util
 {
-	template <typename t>
-	concept cx_implicit_lifetime =
-		std::is_trivially_copyable_v<std::remove_cvref_t<t>>
-		and std::is_trivially_destructible_v<std::remove_cvref_t<t>>;
-
-	template <cx_implicit_lifetime t>
+	template <meta::cx_implicit_lifetime t>
 	FORCE_INLINE constexpr t*
 	start_lifetime_as(void* ptr) noexcept
 	{
 		return std::launder(static_cast<t*>(std::memmove(ptr, ptr, sizeof(t))));
-	}
-
-	template <typename t>
-	FORCE_INLINE void
-	write_bytes(t* dst, const t& v) noexcept
-		requires std::is_trivially_copyable_v<t>
-
-	{
-		std::memcpy(dst, &v, sizeof(v));
-	}
-
-	template <typename t>
-	FORCE_INLINE void
-	write_bytes(void* dst, const t& v) noexcept
-		requires std::is_trivially_copyable_v<t>
-
-	{
-		std::memcpy(dst, &v, sizeof(v));
 	}
 }	 // namespace age::util
 

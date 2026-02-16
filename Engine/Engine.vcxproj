@@ -31,6 +31,7 @@
     <ClInclude Include="age_asset.hpp" />
     <ClInclude Include="age_asset_mesh_baked.hpp" />
     <ClInclude Include="age_asset_mesh_editable.hpp" />
+    <ClInclude Include="age_buffer.hpp" />
     <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_data_structure.hpp" />
     <ClInclude Include="age_data_structure_array.hpp" />
@@ -125,7 +126,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="age_extern_templates.cpp" />
+    <ClCompile Include="age_extern_templates.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Use</PrecompiledHeader>
@@ -741,6 +749,7 @@
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -775,6 +784,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <OmitFramePointers>true</OmitFramePointers>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -810,6 +820,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -846,6 +857,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <ConformanceMode>true</ConformanceMode>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
@@ -874,6 +886,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <OmitFramePointers>true</OmitFramePointers>
       <FunctionLevelLinking>true</FunctionLevelLinking>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
@@ -902,6 +915,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
+      <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)

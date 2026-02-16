@@ -359,6 +359,20 @@ namespace age::external::meshopt::detail
 			split_factor);
 	}
 
+	void
+	opt_meshlet(
+		unsigned int*	   p_meshlet_global_index_buffer,
+		unsigned char*	   p_meshlet_local_index_buffer,
+		unsigned long long meshlet_triangle_count,
+		unsigned long long meshlet_vertex_count) noexcept
+	{
+		meshopt_optimizeMeshlet(
+			p_meshlet_global_index_buffer,
+			p_meshlet_local_index_buffer,
+			meshlet_triangle_count,
+			meshlet_vertex_count);
+	}
+
 	unsigned long long
 	gen_meshlet_buffer_fast(
 		void*				p_meshlet_buffer_out,

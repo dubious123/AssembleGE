@@ -1,5 +1,4 @@
 #pragma once
-#include "age_pch.hpp"
 
 #include "age_data_structure_array.hpp"
 
@@ -303,7 +302,7 @@ namespace age::inline data_structure
 			}
 		}
 
-		constexpr sparse_vector() noexcept requires(is_static is_false)
+		constexpr sparse_vector() noexcept requires(is_static == false)
 		= default;
 
 		FORCE_INLINE constexpr std::size_t

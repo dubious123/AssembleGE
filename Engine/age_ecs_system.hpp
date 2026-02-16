@@ -46,7 +46,7 @@ namespace age::ecs::system
 	struct ctx_tag
 	{
 		template <typename t>
-		static inline constexpr bool has_tag = meta::variadic_constains_v<t, t_tag...>;
+		static inline constexpr bool has_tag = meta::variadic_contains_v<t, t_tag...>;
 	};
 }	 // namespace age::ecs::system
 
@@ -62,8 +62,8 @@ namespace age::ecs::system
 		concept cx_valid_sys_call =
 			!std::same_as<std::remove_cvref_t<t>, invalid_sys_call>;
 
-		template <typename t_from, typename t_to>
-		concept cx_convertible_to = std::is_convertible_v<t_from, t_to> || requires(t_from&& arg) { t_to{ FWD(arg) }; };
+		template <typename t_from, typename t_dst>
+		concept cx_convertible_to = std::is_convertible_v<t_from, t_dst> || requires(t_from&& arg) { t_dst{ FWD(arg) }; };
 
 		template <typename t_tpl_from, typename t_tpl_to>
 		concept cx_tpl_convertible_to = requires {
@@ -76,17 +76,17 @@ namespace age::ecs::system
 			(std::make_index_sequence<std::tuple_size_v<t_tpl_from>>{});
 		};
 
-		template <typename t_to, typename t_from>
+		template <typename t_dst, typename t_from>
 		FORCE_INLINE constexpr decltype(auto)
 		make_param(t_from&& arg) noexcept
 		{
-			if constexpr (std::is_convertible_v<t_from, t_to>)
+			if constexpr (std::is_convertible_v<t_from, t_dst>)
 			{
 				return FWD(arg);
 			}
 			else
 			{
-				return t_to{ FWD(arg) };
+				return t_dst{ FWD(arg) };
 			}
 		}
 
@@ -178,7 +178,7 @@ namespace age::ecs::system
 				return []<std::size_t... idx> INLINE_LAMBDA_FRONT(std::index_sequence<idx...>, auto&& sys, auto&& ctx, auto&& arg_tpl) noexcept(
 						   noexcept(sys_invoke(FWD(sys), FWD(ctx), std::get<idx>(FWD(arg_tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 					return sys_invoke(FWD(sys), FWD(ctx), std::get<idx>(FWD(arg_tpl))...);
-				}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(arg_tpl)>>>{}, FWD(sys), FWD(ctx), FWD(arg_tpl));
+				}(std::make_index_sequence<std::tuple_size_v<BARE_OF(arg_tpl)>>{}, FWD(sys), FWD(ctx), FWD(arg_tpl));
 			}
 		}
 	}	 // namespace detail
@@ -222,13 +222,13 @@ namespace age::ecs::system
 			using t_ret = decltype([]<std::size_t... idx> INLINE_LAMBDA_FRONT(std::index_sequence<idx...>, auto&& sys, auto&& arg_tpl) noexcept(
 									   noexcept(detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 				return detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...);
-			}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(arg_tpl)>>>{}, FWD(sys), FWD(arg_tpl)));
+			}(std::make_index_sequence<std::tuple_size_v<BARE_OF(arg_tpl)>>{}, FWD(sys), FWD(arg_tpl)));
 			static_assert(detail::cx_valid_sys_call<t_ret>);
 
 			return []<std::size_t... idx> INLINE_LAMBDA_FRONT(std::index_sequence<idx...>, auto&& sys, auto&& arg_tpl) noexcept(
 					   noexcept(detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 				return detail::sys_invoke(FWD(sys), std::get<idx>(FWD(arg_tpl))...);
-			}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<decltype(arg_tpl)>>>{}, FWD(sys), FWD(arg_tpl));
+			}(std::make_index_sequence<std::tuple_size_v<BARE_OF(arg_tpl)>>{}, FWD(sys), FWD(arg_tpl));
 		}
 	}
 }	 // namespace age::ecs::system

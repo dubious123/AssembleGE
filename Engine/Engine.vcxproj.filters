@@ -49,6 +49,7 @@
     <ClInclude Include="age_meta_traits.hpp" />
     <ClInclude Include="age_extern_templates.hpp" />
     <ClInclude Include="age_macro_pp.h" />
+    <ClInclude Include="age_buffer.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

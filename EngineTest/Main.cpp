@@ -1,58 +1,6 @@
 #include "pch.hpp"
 #include "test.h"
 
-struct Empty
-{
-};
-
-struct A
-{
-	no_unique_addr Empty b;
-	int					 a;
-};
-
-consteval int
-test_new()
-{
-	int* p_data = new int[3];
-	for (auto i = 0; i < 3; ++i)
-	{
-		std::construct_at(p_data + i, i);
-	}
-
-	int v = *(p_data + 2);
-	delete[] p_data;
-
-	return v;
-}
-
-consteval int
-test_new2()
-{
-	int* p_data	 = std::allocator<int>{}.allocate(3);
-	int* p_data2 = std::allocator<int>{}.allocate(3);
-
-	// std::memcpy(p_data, p_data2, sizeof(int) * 3);
-	for (auto i = 0; i < 3; ++i)
-	{
-		std::construct_at(p_data + i, i);
-	}
-
-	int v = *(p_data + 2);
-
-	std::allocator<int>{}.deallocate(p_data, 3);
-	std::allocator<int>{}.deallocate(p_data2, 3);
-
-	return v;
-}
-
-static_assert(test_new2() == 2);
-
-static_assert(std::random_access_iterator<age::asset::mesh_editable*>);
-static_assert(std::contiguous_iterator<int*>);
-static_assert(std::random_access_iterator<const int*>);
-static_assert(std::contiguous_iterator<const int*>);
-
 int
 main()
 {
@@ -86,7 +34,7 @@ main()
 
 		identity{ age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 30, .seg_v = 30 } }
 			| age::asset::create_primitive
-			| age::asset::bake_mesh,
+			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>,
 
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
 			| AGE_FUNC(age::platform::create_window)
