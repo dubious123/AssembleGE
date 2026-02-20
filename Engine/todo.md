@@ -37,3 +37,5 @@
 ## better macro, (a,b,c) -> (a)(b)(c) to reduce macro parameter size
 
 ## do pgo
+
+## do execute indirect

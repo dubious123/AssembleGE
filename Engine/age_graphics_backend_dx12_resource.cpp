@@ -113,7 +113,12 @@ namespace age::graphics::resource
 			static_assert(false, "invalid descriptor handle type or desc type");
 		}
 	}
-}	 // namespace age::graphics::resource
 
+	FORCE_INLINE void
+	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept
+	{
+		create_view(*g::resource_vec[h_resource].p_resource, h_desc, view_desc);
+	}
+}	 // namespace age::graphics::resource
 
 #endif

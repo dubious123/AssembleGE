@@ -1,0 +1,43 @@
+#pragma once
+
+namespace age::asset
+{
+	struct vertex_fat
+	{
+		float3				  pos	  = {};
+		float3				  normal  = {};
+		float4				  tangent = {};
+		std::array<float2, 4> uv_set  = {};
+	};
+
+	template <typename t_vertex>
+	struct mesh_triangulated
+	{
+		data_structure::vector<t_vertex> vertex_vec{};
+		data_structure::vector<uint32>	 v_idx_vec{};
+	};
+
+	struct meshlet_header
+	{
+		oct<int8> cone_axis_oct;
+		int8	  cone_cull_cutoff;
+		int8	  apex_offset;	  // apex = center - axis * offset;
+	};
+
+	struct meshlet
+	{
+		// local_idx = local_idx_buffer[ nth primitive * i ]
+		// global_idx = global_idx_buffer[local_idx]
+		// vertex = vertex_buffer[global_idx]
+
+		uint32 global_index_offset{};
+		uint32 primitive_offset{};
+
+		uint8  vertex_count{};
+		uint8  primitive_count{};
+		uint16 padding{};
+
+		int16_3	 aabb_min{};
+		uint16_3 aabb_size{};
+	};
+}	 // namespace age::asset

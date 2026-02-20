@@ -41,6 +41,8 @@ namespace age
 
 	namespace graphics {}
 
+	namespace graphics::render_pipeline::forward_plus {}
+
 	namespace global {}
 
 	namespace runtime {}
@@ -75,6 +77,7 @@ namespace age
 
 	#include "age_util.hpp"
 	#include "age_util_layout.hpp"
+	#include "age_util_string.hpp"
 	#include "age_util_views.hpp"
 
 	#include "age_data_structure.hpp"
@@ -82,6 +85,8 @@ namespace age
 //------------------------------------------------------------------------------
 #include "age_extern_templates.hpp"
 #include "age_fwd.hpp"
+
+#include "age_asset_types.hpp"
 
 #include "age_external_adapter.hpp"
 
@@ -122,3 +127,14 @@ namespace age
 #include "age_runtime.hpp"
 
 #include "age_request.hpp"
+
+#if defined AGE_GRAPHICS_BACKEND_DX12
+	#include "age_graphics_backend_dx12.hpp"
+	#include "age_graphics_backend_dx12_defaults.hpp"
+	#include "age_graphics_backend_dx12_descriptor_pool.hpp"
+	#include "age_graphics_backend_dx12_root_signature.hpp"
+	#include "age_graphics_backend_dx12_resource_view.hpp"
+	#include "age_graphics_backend_dx12_pso.hpp"
+	#include "age_graphics_backend_dx12_render_pipeline_test.hpp"
+	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
+#endif

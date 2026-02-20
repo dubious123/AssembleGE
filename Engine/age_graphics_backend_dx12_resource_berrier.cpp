@@ -32,7 +32,7 @@ namespace age::graphics
 		this->add({ .Type  = D3D12_RESOURCE_BARRIER_TYPE_UAV,
 					.Flags = flags,
 					.UAV   = {
-						  .pResource = &resource } });
+						.pResource = &resource } });
 	}
 
 	void
@@ -48,14 +48,14 @@ namespace age::graphics
 	}
 
 	void
-	resource_barrier::apply_and_reset(t_igraphics_cmd_list& cmd_list) noexcept
+	resource_barrier::apply_and_reset(t_cmd_list& cmd_list) noexcept
 	{
 		cmd_list.ResourceBarrier(barrier_count, barrier_arr.data());
 		barrier_count = 0;
 	}
 
 	void
-	resource_barrier::apply(t_igraphics_cmd_list& cmd_list) noexcept
+	resource_barrier::apply(t_cmd_list& cmd_list) noexcept
 	{
 		cmd_list.ResourceBarrier(barrier_count, barrier_arr.data());
 	}

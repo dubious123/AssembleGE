@@ -14,8 +14,7 @@ namespace age::graphics
 			AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
 			present_flags = allow_tearing ? DXGI_PRESENT_ALLOW_TEARING : UINT{ 0 };
 
-
-			DXGI_FORMAT dxgi_format{};
+			auto dxgi_format = DXGI_FORMAT{};
 			{
 				switch (global::get<interface>().display_color_space())
 				{
@@ -78,6 +77,34 @@ namespace age::graphics
 
 		AGE_ASSERT(present_waitable_obj != NULL);
 
+		if (global::get<interface>().display_color_space() == color_space::hdr)
+		{
+			c_auto color_space = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+
+			auto color_space_support = uint32{ 0 };
+
+			AGE_HR_CHECK(p_swap_chain->CheckColorSpaceSupport(color_space, &color_space_support));
+
+			AGE_CHECK(color_space_support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
+
+			AGE_HR_CHECK(p_swap_chain->SetColorSpace1(color_space));
+		}
+		else if (global::get<interface>().display_color_space() == color_space::srgb)
+		{
+			c_auto color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+
+			auto color_space_support = uint32{ 0 };
+
+			AGE_HR_CHECK(p_swap_chain->CheckColorSpaceSupport(color_space, &color_space_support));
+
+			AGE_CHECK(color_space_support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT);
+
+			AGE_HR_CHECK(p_swap_chain->SetColorSpace1(color_space));
+		}
+		else
+		{
+			AGE_ASSERT(false, "invalid color space");
+		}
 
 		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
 		{
@@ -106,7 +133,6 @@ namespace age::graphics
 			DXGI_FORMAT_UNKNOWN,
 			DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
 				| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }));
-
 
 		rebuild_from_swapchain();
 	}
@@ -144,13 +170,22 @@ namespace age::graphics
 		{
 			AGE_HR_CHECK(p_swap_chain->GetBuffer(idx, IID_PPV_ARGS(&back_buffer_ptr_arr[idx])));
 
-			auto rtv_desc = D3D12_RENDER_TARGET_VIEW_DESC{
-				/*DXGI_FORMAT			*/ .Format		  = rtv_format,
-				/*D3D12_RTV_DIMENSION	*/ .ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-				/*D3D12_TEX2D_RTV		*/ .Texture2D	  = D3D12_TEX2D_RTV{ .MipSlice = 0, .PlaneSlice = 0 }
-			};
+			if (global::get<interface>().display_color_space() == color_space::hdr)
+			{
+				AGE_ASSERT(defaults::rtv_view_desc::hdr10_2d.Format == rtv_format);
 
-			g::p_main_device->CreateRenderTargetView(back_buffer_ptr_arr[idx], &rtv_desc, rtv_desc_handle_arr[idx].h_cpu);
+				resource::create_view(*back_buffer_ptr_arr[idx], rtv_desc_handle_arr[idx], defaults::rtv_view_desc::hdr10_2d);
+			}
+			else if (global::get<interface>().display_color_space() == color_space::srgb)
+			{
+				AGE_ASSERT(defaults::rtv_view_desc::srgb_2d.Format == rtv_format);
+
+				resource::create_view(*back_buffer_ptr_arr[idx], rtv_desc_handle_arr[idx], defaults::rtv_view_desc::srgb_2d);
+			}
+			else
+			{
+				AGE_ASSERT(false, "invalid color space");
+			}
 		}
 
 		auto desc = DXGI_SWAP_CHAIN_DESC{};

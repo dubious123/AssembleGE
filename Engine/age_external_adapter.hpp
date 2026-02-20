@@ -49,21 +49,7 @@ namespace age::external::meshopt
 		float extent; /* viewport size in mesh coordinates */
 	};
 
-	struct bounds
-	{
-		/* bounding sphere, useful for frustum and occlusion culling */
-		float center[3];
-		float radius;
 
-		/* normal cone, useful for backface culling */
-		float cone_apex[3];
-		float cone_axis[3];
-		float cone_cutoff; /* = cos(angle/2) */
-
-		/* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
-		signed char cone_axis_s8[3];
-		signed char cone_cutoff_s8;
-	};
 }	 // namespace age::external::meshopt
 
 // namespace age::external::meshopt
@@ -764,17 +750,6 @@ namespace age::external::meshopt
 			vertex_size_and_stride);
 	}
 
-	struct meshlet
-	{
-		/* offsets within meshlet_vertices and meshlet_triangles arrays with meshlet data */
-		uint32 vertex_offset;
-		uint32 triangle_offset;
-
-		/* number of vertices and triangles used in the meshlet; data is stored in consecutive range [offset..offset+count) for vertices and [offset..offset+count*3) for triangles */
-		uint32 vertex_count;
-		uint32 triangle_count;
-	};
-
 	template <typename t_vertex>
 	decltype(auto)
 	gen_meshlets(
@@ -785,17 +760,44 @@ namespace age::external::meshopt
 		const std::size_t			 max_triangle_count_per_meshlet = 126,
 		const float					 cone_culling_weight			= 0.25f) noexcept
 	{
+		struct meshlet_fat
+		{
+			/* offsets within meshlet_vertices and meshlet_triangles arrays with meshlet data */
+			uint32 vertex_offset;
+			uint32 triangle_offset;
+
+			/* number of vertices and triangles used in the meshlet; data is stored in consecutive range [offset..offset+count) for vertices and [offset..offset+count*3) for triangles */
+			uint32 vertex_count;
+			uint32 triangle_count;
+		};
+
+		struct meshlet_bounds_fat
+		{
+			/* bounding sphere, useful for frustum and occlusion culling */
+			float center[3];
+			float radius;
+
+			/* normal cone, useful for backface culling */
+			float cone_apex[3];
+			float cone_axis[3];
+			float cone_cutoff; /* = cos(angle/2) */
+
+			/* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
+			signed char cone_axis_s8[3];
+			signed char cone_cutoff_s8;
+		};
+
 		auto max_meshlet_count = detail::calc_meshlet_max_count(
 			index_buffer.size(),
 			max_vertex_count_per_meshlet,
 			max_triangle_count_per_meshlet);
 
-		auto meshlet_vec				 = age::vector<meshlet>::gen_sized(max_meshlet_count);
+		auto mashlet_fat_vec			 = age::vector<meshlet_fat>::gen_sized(max_meshlet_count);
 		auto meshlet_global_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
 		auto meshlet_local_index_buffer	 = age::vector<uint8>::gen_sized(index_buffer.size());
 
 		auto meshlet_count = detail::gen_meshlet_buffer_balanced(
-			meshlet_vec.data(),
+			mashlet_fat_vec.data(),
 			meshlet_global_index_buffer.data(),
 			meshlet_local_index_buffer.data(),
 			index_buffer.data(),
@@ -808,32 +810,99 @@ namespace age::external::meshopt
 			cone_culling_weight);
 
 		{
-			auto& meshlet_last = meshlet_vec[meshlet_count - 1];
+			auto& meshlet_last = mashlet_fat_vec[meshlet_count - 1];
 			meshlet_global_index_buffer.resize(meshlet_last.vertex_offset + meshlet_last.vertex_count);
 			meshlet_local_index_buffer.resize(meshlet_last.triangle_offset + meshlet_last.triangle_count * 3);
-			meshlet_vec.resize(meshlet_count);
+			mashlet_fat_vec.resize(meshlet_count);
 		}
 
-		auto meshlet_bound_vec = age::vector<bounds>::gen_sized(meshlet_vec.size());
+		auto meshlet_bound_fat_vec = age::vector<meshlet_bounds_fat>::gen_sized(mashlet_fat_vec.size());
 
-		for (auto&& [m, b] : std::views::zip(meshlet_vec, meshlet_bound_vec))
+		auto meshlet_vec		= age::vector<asset::meshlet>::gen_sized(mashlet_fat_vec.size());
+		auto meshlet_header_vec = age::vector<asset::meshlet_header>::gen_sized(mashlet_fat_vec.size());
+
+		for (auto&& [idx, arg_tpl] : std::views::zip(mashlet_fat_vec, meshlet_bound_fat_vec) | std::views::enumerate)
 		{
+			auto&& [m_fat, b_fat] = arg_tpl;
 			detail::opt_meshlet(
-				&meshlet_global_index_buffer[m.vertex_offset],
-				&meshlet_local_index_buffer[m.triangle_offset],
-				m.vertex_count,
-				m.triangle_count);
+				&meshlet_global_index_buffer[m_fat.vertex_offset],
+				&meshlet_local_index_buffer[m_fat.triangle_offset],
+				m_fat.vertex_count,
+				m_fat.triangle_count);
 
 			detail::calc_meshlet_bounds(
-				&b,
-				&meshlet_global_index_buffer[m.vertex_offset],
-				&meshlet_local_index_buffer[m.triangle_offset],
-				m.triangle_count,
+				&b_fat,
+				&meshlet_global_index_buffer[m_fat.vertex_offset],
+				&meshlet_local_index_buffer[m_fat.triangle_offset],
+				m_fat.triangle_count,
 				reinterpret_cast<const float*>(vertex_buffer.data()),
-				m.vertex_count,
+				m_fat.vertex_count,
 				vertex_position_stride);
+
+			auto aabb_min_f = float3{};
+			auto aabb_max_f = float3{};
+
+			for (auto&& pos : std::views::iota(meshlet_global_index_buffer.begin() + m_fat.vertex_offset)
+								  | std::views::take(m_fat.vertex_count)
+								  | std::views::transform([&vertex_buffer](auto vertex_index_it) -> decltype(auto) { 
+											auto* p_pos =  reinterpret_cast<const float*>(&vertex_buffer[*vertex_index_it]);
+											return float3{p_pos[0], p_pos[1], p_pos[2]}; }))
+			{
+				if (pos.x < aabb_min_f.x) aabb_min_f.x = pos.x;
+				if (pos.y < aabb_min_f.y) aabb_min_f.y = pos.y;
+				if (pos.z < aabb_min_f.z) aabb_min_f.z = pos.z;
+
+				if (pos.x > aabb_max_f.x) aabb_max_f.x = pos.x;
+				if (pos.y > aabb_max_f.y) aabb_max_f.y = pos.y;
+				if (pos.z > aabb_max_f.z) aabb_max_f.z = pos.z;
+			}
+
+			aabb_min_f				 = math::floor(aabb_min_f);
+			const auto aabb_size_f	 = math::ceil(aabb_max_f - aabb_min_f);
+			const auto aabb_center_f = aabb_min_f + aabb_size_f * 0.5f;
+
+
+			meshlet_vec[idx] = asset::meshlet{
+				.global_index_offset = m_fat.vertex_offset,
+				.primitive_offset	 = m_fat.triangle_offset,
+				.vertex_count		 = static_cast<uint8>(m_fat.vertex_count),
+				.primitive_count	 = static_cast<uint8>(m_fat.triangle_count),
+				.padding			 = { 0 },
+				.aabb_min			 = int16_3{ aabb_min_f },
+				.aabb_size			 = uint16_3{ aabb_size_f },
+			};
+
+			auto apex_offset = float{};
+
+			{
+				auto&& [xm_cone_apex, xm_cone_axis, xm_aabb_center] = simd::load(float3{ b_fat.cone_apex }, float3{ b_fat.cone_axis }, aabb_center_f);
+
+				apex_offset = xm_aabb_center - xm_cone_apex
+							| simd::dot3(xm_cone_axis)
+							| simd::ceil()
+							| simd::get_x();
+			}
+
+			meshlet_header_vec[idx] = asset::meshlet_header{
+				.cone_axis_oct	  = cvt_to<oct<int8>>(float3{ b_fat.cone_axis }),
+				.cone_cull_cutoff = b_fat.cone_cutoff_s8,
+				.apex_offset	  = static_cast<int8>(apex_offset)
+			};
+
+			AGE_ASSERT(apex_offset < std::numeric_limits<int8>::max() and apex_offset > std::numeric_limits<int8>::min());
+
+			AGE_ASSERT(aabb_min_f.x < std::numeric_limits<int16>::max() and aabb_min_f.x > std::numeric_limits<int16>::min());
+			AGE_ASSERT(aabb_min_f.y < std::numeric_limits<int16>::max() and aabb_min_f.y > std::numeric_limits<int16>::min());
+			AGE_ASSERT(aabb_min_f.z < std::numeric_limits<int16>::max() and aabb_min_f.z > std::numeric_limits<int16>::min());
+
+			AGE_ASSERT(aabb_size_f.x < std::numeric_limits<uint16>::max());
+			AGE_ASSERT(aabb_size_f.y < std::numeric_limits<uint16>::max());
+			AGE_ASSERT(aabb_size_f.z < std::numeric_limits<uint16>::max());
+
+			AGE_ASSERT(m_fat.vertex_count < std::numeric_limits<uint8>::max());
+			AGE_ASSERT(m_fat.triangle_count < std::numeric_limits<uint8>::max());
 		}
 
-		return std::tuple{ meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_vec, meshlet_bound_vec };
+		return std::tuple{ meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_vec, meshlet_vec };
 	}
 }	 // namespace age::external::meshopt

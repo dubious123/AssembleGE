@@ -102,9 +102,9 @@ namespace age::graphics::root_signature
 			return D3D12_ROOT_PARAMETER1{
 				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
 				.Constants	   = {
-						.ShaderRegister = reg.idx,
-						.RegisterSpace	= reg.space,
-						.Num32BitValues = num_32bit },
+					.ShaderRegister = reg.idx,
+					.RegisterSpace	= reg.space,
+					.Num32BitValues = num_32bit },
 				.ShaderVisibility = visibility
 			};
 		}
@@ -138,9 +138,9 @@ namespace age::graphics::root_signature
 			return D3D12_ROOT_PARAMETER1{
 				.ParameterType = root_param_type(),
 				.Descriptor	   = {
-					   .ShaderRegister = reg.idx,
-					   .RegisterSpace  = reg.space,
-					   .Flags		   = flags },
+					.ShaderRegister = reg.idx,
+					.RegisterSpace	= reg.space,
+					.Flags			= flags },
 				.ShaderVisibility = visibility
 			};
 		}
@@ -297,21 +297,19 @@ namespace age::graphics::root_signature
 
 namespace age::graphics::root_signature
 {
+	template <auto root_param_size, auto sampler_param_size>
 	handle
-	create(auto&&... root_parameter) noexcept
+	create(D3D12_ROOT_SIGNATURE_FLAGS										 flags,
+		   const std::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
+		   const std::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept
 	{
-		static_assert((detail::cx_root_parameter<decltype(root_parameter)> and ...),
-					  "invalid root parameter: expected constants/descriptor/descriptor_table");
-
-		auto root_parameter_arr = std::array{ root_parameter.build_d3d12_root_parameter()... };
-
 		auto root_signature_desc = D3D12_VERSIONED_ROOT_SIGNATURE_DESC{
 			.Version  = D3D_ROOT_SIGNATURE_VERSION_1_2,
 			.Desc_1_2 = {
-				.NumParameters	   = static_cast<UINT>(root_parameter_arr.size()),
-				.pParameters	   = root_parameter_arr.data(),
-				.NumStaticSamplers = 0,
-				.pStaticSamplers   = nullptr,
+				.NumParameters	   = static_cast<UINT>(root_param_arr.size()),
+				.pParameters	   = root_param_arr.data(),
+				.NumStaticSamplers = static_cast<UINT>(sampler_arr.size()),
+				.pStaticSamplers   = sampler_arr.data(),
 				.Flags			   = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT }
 		};
 
@@ -345,6 +343,18 @@ namespace age::graphics::root_signature
 		p_serialized_root_signature->Release();
 
 		return handle{ .id = g::root_signature_ptr_vec.emplace_back(p_signature) };
+	}
+
+	handle
+	create(D3D12_ROOT_SIGNATURE_FLAGS flags, auto&&... root_parameter) noexcept
+		requires(detail::cx_root_parameter<BARE_OF(root_parameter)> and ...)
+	{
+		static_assert((detail::cx_root_parameter<decltype(root_parameter)> and ...),
+					  "invalid root parameter: expected constants/descriptor/descriptor_table");
+
+		return root_signature::create(flags,
+									  std::array<D3D12_ROOT_PARAMETER1, sizeof...(root_parameter)>{ root_parameter.build_d3d12_root_parameter()... },
+									  std::array<D3D12_STATIC_SAMPLER_DESC1, 0>{});
 	}
 
 	inline void

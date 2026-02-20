@@ -265,6 +265,8 @@ namespace age::math::simd
 	AGE_SIMD_VEC_UNARY_OP(reciprocal_length_est3, XMVector3ReciprocalLengthEst);
 	AGE_SIMD_VEC_UNARY_OP(acos, XMVectorACos);
 	AGE_SIMD_VEC_UNARY_OP(acos_est, XMVectorACosEst);
+	AGE_SIMD_VEC_UNARY_OP(ceil, XMVectorCeiling);
+	AGE_SIMD_VEC_UNARY_OP(floor, XMVectorFloor);
 
 	AGE_SIMD_VEC_GETTER_OP(get_x, XMVectorGetX, XMVectorGetIntX);
 	AGE_SIMD_VEC_GETTER_OP(get_y, XMVectorGetY, XMVectorGetIntY);

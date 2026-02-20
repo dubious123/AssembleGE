@@ -15,27 +15,27 @@ namespace age::graphics::shader
 		util::ensure_dir_exists(g::engine_shaders_dir_path);
 		util::ensure_dir_exists(g::engine_shaders_compiled_blob_dir_path);
 
-		for (const auto& shader_name : engine_shaders)
+		for (const auto&& shader_name : std::views::iota(0ul)
+											| std::views::take(e::size<e::engine_shader_kind>())
+											| std::views::transform([](auto i) { return e::to_wstring(static_cast<e::engine_shader_kind>(i)); }))
 		{
-			auto hlsl_path = g::engine_shaders_dir_path / std::filesystem::path{ shader_name }.concat(".hlsl");
+			c_auto hlsl_path = g::engine_shaders_dir_path / std::filesystem::path{ shader_name }.concat(".hlsl");
 			AGE_ASSERT(std::filesystem::exists(hlsl_path));
 
-			auto compiled_blob_path = g::engine_shaders_compiled_blob_dir_path / std::filesystem::path{ shader_name }.concat(".bin");
+			c_auto compiled_blob_path = g::engine_shaders_compiled_blob_dir_path / std::filesystem::path{ shader_name }.concat(".bin");
 
 			AGE_ASSERT(shader_name.find_last_of('_') != std::wstring_view::npos);
-			auto stage = std::wstring{ shader_name.substr(shader_name.find_last_of('_') + 1) } + L"_6_5";
 
+			c_auto stage	   = std::wstring{ shader_name.substr(shader_name.find_last_of('_') + 1) };
+			c_auto target	   = stage + L"_6_8";
+			c_auto entry_point = L"main_" + stage;
 
-			bool need_recompile =
-				std::filesystem::exists(compiled_blob_path) is_false
-				or std::filesystem::last_write_time(hlsl_path) > std::filesystem::last_write_time(compiled_blob_path)
-				or std::filesystem::file_size(compiled_blob_path) == 0;
-
-			if (need_recompile)
+			if (c_auto need_recompile =
+					std::filesystem::exists(compiled_blob_path) is_false
+					or std::filesystem::last_write_time(hlsl_path) > std::filesystem::last_write_time(compiled_blob_path)
+					or std::filesystem::file_size(compiled_blob_path) == 0)
 			{
-				auto blob_file = std::ofstream{ compiled_blob_path, std::ios::out | std::ios::binary };
-
-				compile_shader(hlsl_path.c_str(), shader_name, stage, compiled_blob_path);
+				compile_shader(hlsl_path.c_str(), entry_point, target, compiled_blob_path);
 			}
 
 			load_shader(compiled_blob_path);
@@ -91,6 +91,7 @@ namespace age::graphics::shader
 				L"-I", dir_path.c_str(),
 				L"-Qstrip_reflect",
 				L"-Qstrip_debug",
+				L"-enable-16bit-types",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
 	#if defined(AGE_DEBUG)
 				DXC_ARG_DEBUG,
@@ -136,10 +137,13 @@ namespace age::graphics::shader
 		}
 
 		auto blob_file = std::ofstream{ save_path, std::ios::out | std::ios::binary };
-		blob_file.clear();
-		auto res = blob_file.write(static_cast<const char*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize()).good();
-		AGE_ASSERT(res);
-		blob_file.close();
+		{
+			blob_file.clear();
+
+			AGE_CHECK(blob_file.write(static_cast<const char*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize()).good());
+
+			blob_file.close();
+		}
 
 		p_res_blob->Release();
 	}

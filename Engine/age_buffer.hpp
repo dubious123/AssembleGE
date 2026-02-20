@@ -20,11 +20,12 @@ namespace age::buffer
 	}	 // namespace detail
 
 	template <typename t>
-	FORCE_INLINE void
+	FORCE_INLINE std::size_t
 	write_bytes(t* p_dst, auto&& v) noexcept
 		requires std::is_trivially_copyable_v<BARE_OF(v)>
 	{
 		std::memcpy(p_dst, &v, sizeof(v));
+		return sizeof(v);
 	}
 
 	template <typename t>
@@ -62,7 +63,7 @@ namespace age::buffer
 
 
 		auto offset = 0ull;
-		((offset += write_bytes(arr.data() + offset, v)), ...);
+		((offset += write_bytes(arr.data() + offset, FWD(v))), ...);
 
 		AGE_ASSERT(offset == byte_size);
 

@@ -149,21 +149,6 @@ namespace age::asset
 
 namespace age::asset
 {
-	struct vertex_fat
-	{
-		float3				  pos	  = {};
-		float3				  normal  = {};
-		float4				  tangent = {};
-		std::array<float2, 4> uv_set  = {};
-	};
-
-	template <typename t_vertex>
-	struct mesh_triangulated
-	{
-		data_structure::vector<t_vertex> vertex_vec{};
-		data_structure::vector<uint32>	 v_idx_vec{};
-	};
-
 	template <typename t_vertex_to>
 	age::vector<t_vertex_to>
 	quantize(const age::vector<vertex_fat>& vertex_fat_vec) noexcept
@@ -237,15 +222,9 @@ namespace age::asset
 	}
 
 	template <typename t_vertex_to>
-	FORCE_INLINE t_vertex_to
-	cvt_vertex_to(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
-	{
-		static_assert(false, "not supported conversion");
-	}
-
-	template <>
+	requires std::is_same_v<t_vertex_to, vertex_fat>
 	FORCE_INLINE vertex_fat
-	cvt_vertex_to<vertex_fat>(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
+	cvt_vertex_to(const mesh_editable& mesh_edit, const mesh_editable::vertex& v) noexcept
 	{
 		return {
 			.pos	 = mesh_edit.position_vec[v.pos_idx],
@@ -270,30 +249,9 @@ namespace age::asset
 
 namespace age::asset
 {
-	struct meshlet_cull_data
-	{
-		float4 bounding_sphere{};	 // xyz = center, w = radius
-		uint8  normal_cone[4]{};	 // xyz = axis, w = -cos(a + 90)
-		float  apex_offset{};		 // apex = center - axis * offset
-	};	  // Source: Microsoft DirectX-Graphics-Samples (D3D12MeshShaders)
-
-	struct meshlet
-	{
-		// local_idx = local_idx_buffer[ nth primitive * i ]
-		// global_idx = global_idx_buffer[local_idx]
-		// vertex = vertex_buffer[global_idx]
-
-		uint32 global_index_offset{};
-		uint32 local_index_offset{};
-
-		uint8  vertex_count{};
-		uint8  primitive_count{};
-		uint16 padding{};
-	};
-
 	struct mesh_baked_header
 	{
-		// uint32 vertex_offset = 0;
+		// uint32 vertex_offset = sizeof(header);
 		uint32			 global_vertex_index_buffer_offset{};
 		uint32			 local_vertex_index_buffer_offset{};
 		uint32			 meshlet_header_buffer_offset{};
@@ -312,7 +270,18 @@ namespace age::asset
 	struct mesh_baked
 	{
 		age::dynamic_array<std::byte> buffer{};
-		mesh_baked_header			  header{};
+
+		mesh_baked_header
+		get_header() const noexcept
+		{
+			AGE_ASSERT(buffer.size() >= sizeof(mesh_baked_header));
+
+			auto res = mesh_baked_header{};
+			std::memcpy(&res, buffer.data(), sizeof(mesh_baked_header));
+			return res;
+		}
+
+		mesh_baked_header header{};
 	};
 
 	struct lod_group_baked_header
@@ -354,30 +323,31 @@ namespace age::asset
 
 		external::meshopt::opt_reorder_buffers(index_buffer, vertex_buffer);
 
-		auto&& [meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_vec, meshlet_bound_vec] =
+		auto&& [meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_vec, meshlet_vec] =
 			external::meshopt::gen_meshlets(
 				index_buffer,
 				vertex_buffer);
 
 		auto vertex_buffer_quantized = cvt_vertex_to<t_vertex>(vertex_buffer);
 
-		auto buffer = age::buffer::write_bytes(vertex_buffer_quantized,
-											   meshlet_global_index_buffer,
-											   meshlet_local_index_buffer,
-											   meshlet_bound_vec,
-											   meshlet_vec);
-
 		auto header = mesh_baked_header{};
 		{
-			header.global_vertex_index_buffer_offset = static_cast<uint32>(sizeof(vertex_buffer_quantized[0]) * vertex_buffer_quantized.size());
-			header.local_vertex_index_buffer_offset	 = header.global_vertex_index_buffer_offset + static_cast<uint32>(sizeof(meshlet_global_index_buffer[0]) * meshlet_global_index_buffer.size());
-			header.meshlet_header_buffer_offset		 = header.local_vertex_index_buffer_offset + static_cast<uint32>(sizeof(meshlet_local_index_buffer[0]) * meshlet_local_index_buffer.size());
-			header.meshlet_buffer_offset			 = header.meshlet_header_buffer_offset + static_cast<uint32>(sizeof(meshlet_bound_vec[0]) * meshlet_bound_vec.size());
+			header.global_vertex_index_buffer_offset = static_cast<uint32>(sizeof(mesh_baked_header)) + vertex_buffer_quantized.byte_size<uint32>();
+			header.local_vertex_index_buffer_offset	 = header.global_vertex_index_buffer_offset + meshlet_local_index_buffer.byte_size<uint32>();
+			header.meshlet_header_buffer_offset		 = header.local_vertex_index_buffer_offset + meshlet_header_vec.byte_size<uint32>();
+			header.meshlet_buffer_offset			 = header.meshlet_header_buffer_offset + meshlet_vec.byte_size<uint32>();
 			header.meshlet_count					 = static_cast<uint32>(meshlet_vec.size());
 			header.vertex_kind						 = get_vertex_kind<t_vertex>();
 			header.topology_kind					 = e::topology_kind::triangle;
 		};
 
-		return { .buffer = std::move(buffer), .header = header };
+		auto buffer = age::buffer::write_bytes(header,
+											   vertex_buffer_quantized,
+											   meshlet_global_index_buffer,
+											   meshlet_local_index_buffer,
+											   meshlet_header_vec,
+											   meshlet_vec);
+
+		return { .buffer = std::move(buffer) };
 	}
 }	 // namespace age::asset

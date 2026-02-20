@@ -69,17 +69,17 @@ struct shader_constants
 {
     float width;
     float height;
-    uint  frame;
+    uint frame;
 };
 
-ConstantBuffer<shader_constants>         shader_constant_buffer                    : register(b1);
+ConstantBuffer<shader_constants> shader_constant_buffer                    : register(b1);
 
 #define SAMPLES 4
 
-float4 fill_color_ps(in noperspective float4 position : SV_Position,
+float4 main_ps(in noperspective float4 position : SV_Position,
                in noperspective float2 un_used : TEXCOORD) : SV_Target0
 {
-	const float offset = 0.2f;
+    const float offset = 0.2f;
     const float2 offsets[4] =
     {
         float2(-offset, offset),

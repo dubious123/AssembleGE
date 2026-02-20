@@ -11,6 +11,9 @@ main()
 	auto _game = my_game();
 
 	run_benchmark(_game, 1'000);
+	static_assert(age::util::str_to_uint64(AGE_PP_STRINGIFY(008)) == 8);
+	static_assert(AGE_PP_VA_COUNT(0, 1, 2, 3, 4, 5) == 6);
+	static_assert(AGE_PP_VA_COUNT(1) == 1);
 
 	if (false)
 	{
@@ -23,11 +26,13 @@ main()
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 1000 });
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_v = 1000 });
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 8, .seg_v = 3 });
+
 	// age::asset::create_primitive(age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 99, .seg_v = 300 });
 	on_ctx{
 		AGE_FUNC(age::platform::init),
 		AGE_FUNC(age::graphics::init),
 		AGE_FUNC(age::runtime::init),
+
 		identity{ age::asset::primitive_desc{} }
 			| age::asset::create_primitive
 			| age::asset::triangulate<age::asset::vertex_fat>,
@@ -35,6 +40,13 @@ main()
 		identity{ age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 30, .seg_v = 30 } }
 			| age::asset::create_primitive
 			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>,
+
+		[]() {
+			auto forward_plus_pipeline = age::graphics::render_pipeline::forward_plus::pipeline{};
+			forward_plus_pipeline.init();
+
+			forward_plus_pipeline.deinit();
+		},
 
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
 			| AGE_FUNC(age::platform::create_window)
@@ -56,7 +68,6 @@ main()
 
 			  AGE_FUNC(age::graphics::begin_frame),
 
-
 			  //[] { std::println("now : {:%T}, delta_time_ns : {:%T}", age::global::get<age::runtime::interface>().now(), age::global::get<age::runtime::interface>().delta_time_ns()); }
 			  [] {
 				  std::println("now : {:%F %T}", std::chrono::system_clock::now());
@@ -64,7 +75,6 @@ main()
 			  },
 			  //[] { std::this_thread::sleep_for(std::chrono::seconds(1)); },
 			  AGE_FUNC(age::graphics::render), AGE_FUNC(age::graphics::end_frame) },
-
 
 		AGE_FUNC(age::graphics::deinit),
 		AGE_FUNC(age::platform::deinit),

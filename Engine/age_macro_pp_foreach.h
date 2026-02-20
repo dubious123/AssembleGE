@@ -1,6 +1,6 @@
 #pragma once
-#define __AGE_FOR_EACH_GENERAL_IMPL__000(ctx, separator_i, x)	   AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x)
-#define __AGE_FOR_EACH_GENERAL_IMPL__001(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x) separator_i() __AGE_FOR_EACH_GENERAL_IMPL__000(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
+// #define __AGE_FOR_EACH_GENERAL_IMPL__000(ctx, separator_i, x)	   AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x)
+#define __AGE_FOR_EACH_GENERAL_IMPL__001(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x)	   // separator_i() __AGE_FOR_EACH_GENERAL_IMPL__000(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_GENERAL_IMPL__002(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x) separator_i() __AGE_FOR_EACH_GENERAL_IMPL__001(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_GENERAL_IMPL__003(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x) separator_i() __AGE_FOR_EACH_GENERAL_IMPL__002(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_GENERAL_IMPL__004(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x) separator_i() __AGE_FOR_EACH_GENERAL_IMPL__003(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
@@ -614,8 +614,8 @@
 #define __AGE_FOR_EACH_GENERAL_IMPL__512(ctx, separator_i, x, ...) AGE_PP_CALL_I(AGE_PP_REMOVE_PARENS_R ctx, x) separator_i() __AGE_FOR_EACH_GENERAL_IMPL__511(ctx, separator_i __VA_OPT__(, ) __VA_ARGS__)
 
 
-#define __AGE_FOR_EACH_IMPL__000(what, separator_i, x)		what(x)
-#define __AGE_FOR_EACH_IMPL__001(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__000(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
+// #define __AGE_FOR_EACH_IMPL__000(what, separator_i, x)		what(x)
+#define __AGE_FOR_EACH_IMPL__001(what, separator_i, x, ...) what(x)	   // separator_i() __AGE_FOR_EACH_IMPL__000(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_IMPL__002(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__001(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_IMPL__003(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__002(what, separator_i __VA_OPT__(, ) __VA_ARGS__)
 #define __AGE_FOR_EACH_IMPL__004(what, separator_i, x, ...) what(x) separator_i() __AGE_FOR_EACH_IMPL__003(what, separator_i __VA_OPT__(, ) __VA_ARGS__)

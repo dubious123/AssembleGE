@@ -31,7 +31,6 @@
 	}                           \
 	while (false)
 
-
 #ifdef AGE_DEBUG
 	#define AGE_DEBUG_LOG(...) AGE_DO_WHILE(__VA_OPT__(std::cout << std::format(__VA_ARGS__) << '\n');)
 #else
@@ -97,6 +96,24 @@
 		while (false)
 #else
 	#define AGE_ASSERT(expression, ...)
+#endif
+
+#if defined(AGE_DEBUG)
+	#define AGE_CHECK(expression, ...)                                             \
+		do                                                                         \
+		{                                                                          \
+			if ((expression)is_false)                                              \
+			{                                                                      \
+				std::println("  expr : {}", #expression);                          \
+				std::println("  file : {}", __FILE__);                             \
+				std::println("  line : {}", __LINE__);                             \
+				__VA_OPT__(std::println("   msg : {}", std::format(__VA_ARGS__));) \
+				AGE_DEBUG_BREAK();                                                 \
+			}                                                                      \
+		}                                                                          \
+		while (false)
+#else
+	#define AGE_CHECK(expression, ...) AGE_DO_WHILE((expression);)
 #endif
 
 #if defined(AGE_COMPILER_MSVC)
@@ -230,6 +247,12 @@
 		return #enum_name;                 \
 	}
 
+#define AGE_ENUM_TO_WSTRING_CASE(enum_name) \
+	case __t_enum__::enum_name:             \
+	{                                       \
+		return L## #enum_name;              \
+	}
+
 #define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                  \
 	enum class enum_class_name : underlying_type                                \
 	{                                                                           \
@@ -246,7 +269,23 @@
 			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
 		}                                                                       \
 		}                                                                       \
-	}
+	}                                                                           \
+	constexpr inline std::wstring_view to_wstring(enum_class_name e) noexcept   \
+	{                                                                           \
+		using __t_enum__ = enum_class_name;                                     \
+		switch (e)                                                              \
+		{                                                                       \
+			FOR_EACH(AGE_ENUM_TO_WSTRING_CASE, __VA_ARGS__);                    \
+		default:                                                                \
+		{                                                                       \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+		}                                                                       \
+		}                                                                       \
+	}                                                                           \
+	template <typename t>                                                       \
+	requires std::is_same_v<t, enum_class_name>                                 \
+	consteval std::size_t size() noexcept                                       \
+	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }
 
 #define AGE_DEFINE_ENUM_MEMBER(enum_class_name, underlying_type, ...)           \
 	enum class enum_class_name : underlying_type                                \
@@ -303,7 +342,7 @@
 #define AGE_VALIDATE_DIMENSION(expected) AGE_ASSERT(__age_resource_desc__.Dimension == expected, "[resource validate] invalid dimension, expected : {}, actual : {}", #expected, to_string(__age_resource_desc__.Dimension));
 #define AGE_RESOURCE_VIEW_VALIDATE(...)	 AGE_DO_WHILE(__VA_ARGS__);
 
-#define AGE_DESC_HANDLE_MEMBER_CBV(h_desc_member_name, ...)		(age::graphics::cbv_desc_handle, h_desc_member_name, (__VA_ARGS__))
+// #define AGE_DESC_HANDLE_MEMBER_CBV(h_desc_member_name, ...)		(age::graphics::cbv_desc_handle, h_desc_member_name, (__VA_ARGS__))
 #define AGE_DESC_HANDLE_MEMBER_SRV(h_desc_member_name, ...)		(age::graphics::srv_desc_handle, h_desc_member_name, (__VA_ARGS__))
 #define AGE_DESC_HANDLE_MEMBER_UAV(h_desc_member_name, ...)		(age::graphics::uav_desc_handle, h_desc_member_name, (__VA_ARGS__))
 #define AGE_DESC_HANDLE_MEMBER_RTV(h_desc_member_name, ...)		(age::graphics::rtv_desc_handle, h_desc_member_name, (__VA_ARGS__))
@@ -475,7 +514,7 @@
 
 #define AGE_RESOURCE_FLOW_PHASE(phase_name, resource_barrier_arr, render_pass_rt_desc_arr, render_pass_ds_desc, ...)                                                                                                                  \
 	FORCE_INLINE decltype(auto)                                                                                                                                                                                                       \
-	phase_name(t_igraphics_cmd_list& __age_cmd_list__) noexcept                                                                                                                                                                       \
+	phase_name(t_cmd_list& __age_cmd_list__) noexcept                                                                                                                                                                                 \
 	{                                                                                                                                                                                                                                 \
 		resource_barrier_arr;                                                                                                                                                                                                         \
 		render_pass_rt_desc_arr;                                                                                                                                                                                                      \

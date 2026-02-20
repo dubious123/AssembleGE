@@ -2,32 +2,6 @@
 #include "age.hpp"
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
-namespace age::graphics
-{
-	pso_handle
-	create_pso(void* pss_stream, uint32 size_in_bytes) noexcept
-	{
-		AGE_ASSERT(pss_stream is_not_nullptr);
-		AGE_ASSERT(size_in_bytes > 0);
-		auto* p_pso = (ID3D12PipelineState*)nullptr;
-		auto  desc	= D3D12_PIPELINE_STATE_STREAM_DESC{
-			  .SizeInBytes					 = size_in_bytes,
-			  .pPipelineStateSubobjectStream = pss_stream,
-		};
-
-		AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
-
-		return pso_handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
-	}
-
-	void
-	destroy_pso(pso_handle h_pso) noexcept
-	{
-		g::pso_ptr_vec[h_pso.id]->Release();
-		g::pso_ptr_vec.remove(h_pso.id);
-	}
-}	 // namespace age::graphics
-
 // main
 namespace age::graphics
 {

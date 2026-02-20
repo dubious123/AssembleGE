@@ -77,6 +77,13 @@ struct vec2
 	{
 	}
 
+	template <typename u>
+	FORCE_INLINE constexpr vec2(const u (&other)[2]) noexcept
+		requires(std::convertible_to<u, t>)
+		: x{ static_cast<t>(other[0]) }, y{ static_cast<t>(other[1]) }
+	{
+	}
+
 	FORCE_INLINE constexpr t*
 	data() noexcept
 	{
@@ -276,6 +283,13 @@ struct vec3
 				 and std::convertible_to<decltype(y_other), t>
 				 and std::convertible_to<decltype(z_other), t>)
 		: x{ static_cast<t>(FWD(x_other)) }, y{ static_cast<t>(FWD(y_other)) }, z{ static_cast<t>(FWD(z_other)) }
+	{
+	}
+
+	template <typename u>
+	FORCE_INLINE constexpr vec3(const u (&other)[3]) noexcept
+		requires(std::convertible_to<u, t>)
+		: x{ static_cast<t>(other[0]) }, y{ static_cast<t>(other[1]) }, z{ static_cast<t>(other[2]) }
 	{
 	}
 
@@ -496,6 +510,13 @@ struct vec4
 					&& std::convertible_to<t_z, t>
 					&& std::convertible_to<t_w, t>)
 		: xyz{ FWD(x_other), FWD(y_other), FWD(z_other) }, w{ static_cast<t>(FWD(w_other)) }
+	{
+	}
+
+	template <typename u>
+	FORCE_INLINE constexpr vec4(const u (&other)[4]) noexcept
+		requires(std::convertible_to<u, t>)
+		: x{ static_cast<t>(other[0]) }, y{ static_cast<t>(other[1]) }, z{ static_cast<t>(other[2]) }, w{ static_cast<t>(other[3]) }
 	{
 	}
 
@@ -1196,6 +1217,7 @@ using double3x3a = mat33a<double>;
 using double4x4a = mat44a<double>;
 
 using half2 = vec2<half>;
+using half3 = vec3<half>;
 using half4 = vec4<half>;
 
 static_assert(alignof(uint8_2a) == 16 and sizeof(uint8_2a) % 16 == 0);
@@ -1264,43 +1286,42 @@ struct oct
 
 namespace age::inline math
 {
-	namespace e
-	{
-		AGE_DEFINE_ENUM(
-			axis_kind,
-			uint8,
-			x_pos,
-			y_pos,
-			z_pos,
-			x_neg,
-			y_neg,
-			z_neg,
-			count);
-	}
+	// namespace e
+	//{
+	//	AGE_DEFINE_ENUM(
+	//		axis_kind,
+	//		uint8,
+	//		x_pos,
+	//		y_pos,
+	//		z_pos,
+	//		x_neg,
+	//		y_neg,
+	//		z_neg);
+	// }
 
-	FORCE_INLINE constexpr float3
-	basis_vec(e::axis_kind kind)
-	{
-		switch (kind)
-		{
-		case age::math::e::axis_kind::x_pos:
-			return { 1.f, 0.f, 0.f };
-		case age::math::e::axis_kind::y_pos:
-			return { 0.f, 1.f, 0.f };
-		case age::math::e::axis_kind::z_pos:
-			return { 0.f, 0.f, 1.f };
-		case age::math::e::axis_kind::x_neg:
-			return { -1.f, 0.f, 0.f };
-		case age::math::e::axis_kind::y_neg:
-			return { 0.f, -1.f, 0.f };
-		case age::math::e::axis_kind::z_neg:
-			return { 0.f, 0.f, -1.f };
-		default:
-		{
-			AGE_UNREACHABLE("invalid axis_type : {}", to_string(kind));
-		}
-		}
-	}
+	// FORCE_INLINE constexpr float3
+	// basis_vec(e::axis_kind kind)
+	//{
+	//	switch (kind)
+	//	{
+	//	case age::math::e::axis_kind::x_pos:
+	//		return { 1.f, 0.f, 0.f };
+	//	case age::math::e::axis_kind::y_pos:
+	//		return { 0.f, 1.f, 0.f };
+	//	case age::math::e::axis_kind::z_pos:
+	//		return { 0.f, 0.f, 1.f };
+	//	case age::math::e::axis_kind::x_neg:
+	//		return { -1.f, 0.f, 0.f };
+	//	case age::math::e::axis_kind::y_neg:
+	//		return { 0.f, -1.f, 0.f };
+	//	case age::math::e::axis_kind::z_neg:
+	//		return { 0.f, 0.f, -1.f };
+	//	default:
+	//	{
+	//		AGE_UNREACHABLE("invalid axis_type : {}", to_string(kind));
+	//	}
+	//	}
+	// }
 
 	template <typename t>
 	FORCE_INLINE constexpr bool
@@ -1430,3 +1451,50 @@ enum e_primitive_type
 
 	primitive_type_Count = primitive_type_count
 };
+
+// math utils
+
+namespace age::inline math
+{
+	FORCE_INLINE decltype(auto)
+	ceil(auto&& vec) noexcept
+	{
+		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		{
+			return float2{ std::ceil(vec.x), std::ceil(vec.y) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float3> or std::is_same_v<BARE_OF(vec), float3a>)
+		{
+			return float3{ std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float4> or std::is_same_v<BARE_OF(vec), float4a>)
+		{
+			return float4{ std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z), std::ceil(vec.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for ceil");
+		}
+	}
+
+	FORCE_INLINE decltype(auto)
+	floor(auto&& vec) noexcept
+	{
+		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		{
+			return float2{ std::floor(vec.x), std::floor(vec.y) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float3> or std::is_same_v<BARE_OF(vec), float3a>)
+		{
+			return float3{ std::floor(vec.x), std::floor(vec.y), std::floor(vec.z) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float4> or std::is_same_v<BARE_OF(vec), float4a>)
+		{
+			return float4{ std::floor(vec.x), std::floor(vec.y), std::floor(vec.z), std::floor(vec.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for floor");
+		}
+	}
+}	 // namespace age::inline math

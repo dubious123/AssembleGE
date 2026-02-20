@@ -13,7 +13,7 @@ namespace age::global
 		bool running = true;
 
 		// graphics
-		graphics::color_space display_color_space = graphics::color_space::srgb;
+		graphics::color_space display_color_space = graphics::color_space::hdr;
 	};
 
 	inline state g_state;

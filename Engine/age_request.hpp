@@ -6,8 +6,7 @@ namespace age::request
 					window_closed,
 					window_resized,
 					window_maximized,
-					window_minimized,
-					count)
+					window_minimized)
 
 	using t_phase		   = uint8;
 	using t_sync_state_idx = uint16;

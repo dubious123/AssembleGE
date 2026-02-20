@@ -50,6 +50,13 @@
     <ClInclude Include="age_extern_templates.hpp" />
     <ClInclude Include="age_macro_pp.h" />
     <ClInclude Include="age_buffer.hpp" />
+    <ClInclude Include="age_asset_types.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_test.hpp" />
+    <ClInclude Include="age_util_string.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_resource_view.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -90,6 +97,7 @@
     <ClCompile Include="age_external_wrapper_meshopt.cpp" />
     <ClCompile Include="age_external_wrapper_mikktspace.cpp" />
     <ClCompile Include="age_extern_templates.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
@@ -97,6 +105,13 @@
     <FxCompile Include="resources\engine_shaders\dx12\fill_color_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\fullscreen_triangle_vs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\fx_present_ps.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_opaque_as.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_opaque_ms.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_common.hlsli" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_opaque_ps.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_ms.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_hdr10_ps.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_sdr_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

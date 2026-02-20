@@ -321,6 +321,15 @@ namespace age::inline data_structure
 			return count;
 		}
 
+		template <typename t_ret = std::size_t>
+		FORCE_INLINE constexpr t_ret
+		byte_size() const noexcept
+		{
+			static_assert(std::unsigned_integral<t_ret>, "invalid return type");
+			AGE_ASSERT(count * sizeof(t) <= std::numeric_limits<t_ret>::max());
+			return static_cast<t_ret>(count * sizeof(t));
+		}
+
 		FORCE_INLINE constexpr bool
 		empty() const noexcept
 		{

@@ -1,9 +1,10 @@
 #pragma once
+#include "age.hpp"
 
 // using
 namespace age::graphics
 {
-	using t_igraphics_cmd_list = ID3D12GraphicsCommandList9;
+	using t_cmd_list = ID3D12GraphicsCommandList9;
 }
 
 // constants
@@ -21,80 +22,6 @@ namespace age::graphics::g
 
 	const auto engine_shaders_dir_path				 = std::filesystem::path{ "./resources/engine_shaders/dx12/" };
 	const auto engine_shaders_compiled_blob_dir_path = std::filesystem::path{ "./resources/engine_shaders/dx12/bin/" };
-
-	constexpr struct
-	{
-		const D3D12_RASTERIZER_DESC no_cull{
-			D3D12_FILL_MODE_SOLID,						  // FillMode
-			D3D12_CULL_MODE_NONE,						  // CullMode
-			0,											  // FrontCounterClockwise
-			0,											  // DepthBias
-			0,											  // DepthBiasClamp
-			0,											  // SlopeScaledDepthBias
-			1,											  // DepthClipEnable
-			1,											  // MultisampleEnable
-			0,											  // AntialiasedLineEnable
-			0,											  // ForcedSampleCount
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
-		};
-
-		const D3D12_RASTERIZER_DESC backface_cull{
-			D3D12_FILL_MODE_SOLID,						  // FillMode
-			D3D12_CULL_MODE_BACK,						  // CullMode
-			0,											  // FrontCounterClockwise
-			0,											  // DepthBias
-			0,											  // DepthBiasClamp
-			0,											  // SlopeScaledDepthBias
-			1,											  // DepthClipEnable
-			1,											  // MultisampleEnable
-			0,											  // AntialiasedLineEnable
-			0,											  // ForcedSampleCount
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
-		};
-
-		const D3D12_RASTERIZER_DESC frontface_cull{
-			D3D12_FILL_MODE_SOLID,						  // FillMode
-			D3D12_CULL_MODE_FRONT,						  // CullMode
-			0,											  // FrontCounterClockwise
-			0,											  // DepthBias
-			0,											  // DepthBiasClamp
-			0,											  // SlopeScaledDepthBias
-			1,											  // DepthClipEnable
-			1,											  // MultisampleEnable
-			0,											  // AntialiasedLineEnable
-			0,											  // ForcedSampleCount
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
-		};
-
-		const D3D12_RASTERIZER_DESC wireframe{
-			D3D12_FILL_MODE_WIREFRAME,					  // FillMode
-			D3D12_CULL_MODE_NONE,						  // CullMode
-			0,											  // FrontCounterClockwise
-			0,											  // DepthBias
-			0,											  // DepthBiasClamp
-			0,											  // SlopeScaledDepthBias
-			1,											  // DepthClipEnable
-			1,											  // MultisampleEnable
-			0,											  // AntialiasedLineEnable
-			0,											  // ForcedSampleCount
-			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
-		};
-	} rasterizer_desc;
-
-	constexpr struct
-	{
-		const D3D12_DEPTH_STENCIL_DESC1 disabled{
-			0,									 // DepthEnable
-			D3D12_DEPTH_WRITE_MASK_ZERO,		 // DepthWriteMask
-			D3D12_COMPARISON_FUNC_LESS_EQUAL,	 // DepthFunc
-			0,									 // StencilEnable
-			0,									 // StencilReadMask
-			0,									 // StencilWriteMask
-			{},									 // FrontFace
-			{},									 // BackFace
-			0									 // DepthBoundsTestEnable
-		};
-	} depth_stencil_desc1;
 }	 // namespace age::graphics::g
 
 // util
@@ -117,11 +44,10 @@ namespace age::graphics
 	struct cmd_system
 	{
 		ID3D12CommandQueue*		p_cmd_queue = nullptr;
-		t_igraphics_cmd_list*	cmd_list_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
+		t_cmd_list*				cmd_list_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
 		ID3D12CommandAllocator* cmd_allocator_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
 		ID3D12Fence1*			p_fence		= nullptr;
 		HANDLE					fence_event = nullptr;
-
 
 		constexpr cmd_system() = default;
 
@@ -266,7 +192,7 @@ namespace age::graphics
 		uint32 back_buffer_idx = 0;
 
 		FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE
-		get_rtv() noexcept
+		get_h_cpu_desc() noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx].h_cpu;
 		}
@@ -350,6 +276,9 @@ namespace age::graphics::resource
 
 	FORCE_INLINE void
 	create_view(const ID3D12Resource&, const auto& h_desc, const auto& view_desc) noexcept;
+
+	FORCE_INLINE void
+	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier
@@ -378,10 +307,10 @@ namespace age::graphics
 					 D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
 
 		FORCE_INLINE void
-		apply_and_reset(t_igraphics_cmd_list&) noexcept;
+		apply_and_reset(t_cmd_list&) noexcept;
 
 		FORCE_INLINE void
-		apply(t_igraphics_cmd_list&) noexcept;
+		apply(t_cmd_list&) noexcept;
 
 		FORCE_INLINE void
 		reset() noexcept;
@@ -412,11 +341,7 @@ namespace age::graphics::root_signature
 	template <typename... t_arg>
 	descriptor_table(D3D12_SHADER_VISIBILITY, t_arg&&...) -> descriptor_table<t_arg...>;
 
-	handle
-	create(auto&&... root_parameter) noexcept;
-
-	inline void
-		destroy(handle) noexcept;
+	inline void destroy(handle) noexcept;
 
 	inline void
 	init() noexcept;
@@ -425,84 +350,25 @@ namespace age::graphics::root_signature
 	deinit() noexcept;
 }	 // namespace age::graphics::root_signature
 
-// pipeline
-namespace age::graphics
+namespace age::graphics::shader::e
 {
-	using t_pso_id = uint32;
+	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
 
-	struct pso_handle
-	{
-		t_pso_id id;
-	};
+					test_vs,
+					test_ps,
 
-	template <D3D12_PIPELINE_STATE_SUBOBJECT_TYPE pss_type_v, typename t_subobj>
-	struct alignas(void*) pss
-	{
-		// using type = typename pss<pss_type, t_subobj>;
+					fullscreen_triangle_vs,
+					fill_color_ps,
 
-		const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE pss_type = pss_type_v;
-		t_subobj								  subobj{};
-	};
+					fx_present_ps,
 
-	template <typename... t_pss>
-	struct alignas(void*) pss_stream
-	{
-		static constexpr std::size_t size_in_bytes = (age::util::align_up(sizeof(t_pss), alignof(void*)) + ...);
-		alignas(void*)
-			std::byte storage[size_in_bytes]{ std::byte{ 0 } };
-
-		constexpr pss_stream(t_pss&&... arg) noexcept
-		{
-			auto offset = std::size_t{ 0 };
-
-			(([&] {
-				 std::memcpy(&storage[offset], &arg, sizeof(arg));
-				 offset += age::util::align_up(sizeof(t_pss), alignof(void*));
-			 }()),
-			 ...);
-
-			AGE_ASSERT(offset == size_in_bytes);
-		}
-	};
-
-	template <typename... t_pss>
-	pss_stream(t_pss&&...) -> pss_stream<t_pss...>;
-
-	using pss_root_signature		= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE, ID3D12RootSignature*>;
-	using pss_vs					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VS, D3D12_SHADER_BYTECODE>;
-	using pss_ps					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS, D3D12_SHADER_BYTECODE>;
-	using pss_ds					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS, D3D12_SHADER_BYTECODE>;
-	using pss_hs					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS, D3D12_SHADER_BYTECODE>;
-	using pss_gs					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_GS, D3D12_SHADER_BYTECODE>;
-	using pss_cs					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS, D3D12_SHADER_BYTECODE>;
-	using pss_stream_output			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT, D3D12_STREAM_OUTPUT_DESC>;
-	using pss_blend					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND, D3D12_BLEND_DESC>;
-	using pss_sample_mask			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK, UINT>;
-	using pss_rasterizer			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER, D3D12_RASTERIZER_DESC>;
-	using pss_depth_stencil			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL, D3D12_DEPTH_STENCIL_DESC>;
-	using pss_input_layout			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT, D3D12_INPUT_LAYOUT_DESC>;
-	using pss_ib_strip_cut_value	= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_IB_STRIP_CUT_VALUE, D3D12_INDEX_BUFFER_STRIP_CUT_VALUE>;
-	using pss_primitive_topology	= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY, D3D12_PRIMITIVE_TOPOLOGY_TYPE>;
-	using pss_render_target_formats = pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS, D3D12_RT_FORMAT_ARRAY>;
-	using pss_depth_stencil_format	= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT, DXGI_FORMAT>;
-	using pss_sample_desc			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC, DXGI_SAMPLE_DESC>;
-	using pss_node_mask				= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK, D3D12_NODE_MASK>;
-	using pss_cached_pso			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO, D3D12_CACHED_PIPELINE_STATE>;
-	using pss_flags					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS, D3D12_PIPELINE_STATE_FLAGS>;
-	using pss_depth_stencil1		= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1, D3D12_DEPTH_STENCIL_DESC1>;
-	using pss_view_instancing		= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING, D3D12_VIEW_INSTANCING_DESC>;
-	using pss_as					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS, D3D12_SHADER_BYTECODE>;
-	using pss_ms					= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS, D3D12_SHADER_BYTECODE>;
-	using pss_depth_stencil2		= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2, D3D12_DEPTH_STENCIL_DESC2>;
-	using pss_rasterizer1			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER1, D3D12_RASTERIZER_DESC1>;
-	using pss_rasterizer2			= pss<D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER2, D3D12_RASTERIZER_DESC2>;
-
-	pso_handle
-	create_pso(void* pss_stream, uint32 size_in_bytes) noexcept;
-
-	void
-		destroy_pso(pso_handle) noexcept;
-}	 // namespace age::graphics
+					forward_plus_opaque_as,
+					forward_plus_opaque_ms,
+					forward_plus_opaque_ps,
+					forward_plus_presentation_ms,
+					forward_plus_presentation_hdr10_ps,
+					forward_plus_presentation_sdr_ps);
+}
 
 // shader
 namespace age::graphics::shader
@@ -512,41 +378,6 @@ namespace age::graphics::shader
 	struct shader_handle
 	{
 		t_shader_id id;
-	};
-
-	enum class shader_type : uint32
-	{
-		vertex = 0,
-		hull,
-		domain,
-		geometry,
-		pixel,
-		compute,
-		amplification,
-		mesh,
-
-		count
-	};
-
-	enum class engine_shader : uint32
-	{
-		test_vs = 0,
-		test_ps,
-
-		fullscreen_triangle_vs,
-		fill_color_ps,
-
-		fx_present_ps,
-
-		count
-	};
-
-	constexpr auto engine_shaders = std::array<std::wstring_view, std::to_underlying(engine_shader::count)>{
-		L"test_vs",
-		L"test_ps",
-		L"fullscreen_triangle_vs",
-		L"fill_color_ps",
-		L"fx_present_ps"
 	};
 
 	struct shader_blob
@@ -586,438 +417,12 @@ namespace age::graphics::stage
 
 	void
 	deinit() noexcept;
-
-	struct my_stage
-	{
-		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
-			main_buffer_view,
-			AGE_RESOURCE_VIEW_VALIDATE(
-				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
-			AGE_DESC_HANDLE_MEMBER_RTV(
-				h_rtv_desc,
-				D3D12_RENDER_TARGET_VIEW_DESC{
-					.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-					.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 } }),
-
-			AGE_DESC_HANDLE_MEMBER_SRV(
-				h_srv_desc,
-				D3D12_SHADER_RESOURCE_VIEW_DESC{
-					.Format					 = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2D,
-					.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-					.Texture2D				 = { .MostDetailedMip	  = 0,
-												 .MipLevels			  = 1,
-												 .PlaneSlice		  = 0,
-												 .ResourceMinLODClamp = 0.f } }));
-
-		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
-			depth_buffer_view,
-			AGE_RESOURCE_VIEW_VALIDATE(
-				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
-			AGE_DESC_HANDLE_MEMBER_DSV(
-				h_dsv_desc,
-				D3D12_DEPTH_STENCIL_VIEW_DESC{
-					.Format		   = DXGI_FORMAT_D32_FLOAT,
-					.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-					.Flags		   = D3D12_DSV_FLAG_NONE,
-					.Texture2D	   = { .MipSlice = 0 } }));
-
-		AGE_RESOURCE_FLOW_PHASE(
-			phase_geo,
-			AGE_RESOURCE_BARRIER_ARR(
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-						.StateAfter	 = D3D12_RESOURCE_STATE_RENDER_TARGET,
-					},
-				},
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ,
-						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_WRITE,
-					},
-				}),
-			AGE_RENDER_PASS_RT_DESC_ARR({
-				.cpuDescriptor	 = main_buffer_view.h_rtv_desc.h_cpu,
-				.BeginningAccess = {
-					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
-					.Clear = {
-						.ClearValue = {
-							.Format = main_buffer_view.h_rtv_desc_view_desc().Format,
-							.Color	= { 0.5f, 0.5f, 0.5f, 1.0f },
-						},
-					},
-				},
-				.EndingAccess = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
-			}),
-			AGE_RENDER_PASS_DS_DESC({
-				.cpuDescriptor		  = depth_buffer_view.h_dsv_desc.h_cpu,
-				.DepthBeginningAccess = {
-					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
-					.Clear = {
-						.ClearValue = {
-							.Format		  = depth_buffer_view.h_dsv_desc_view_desc().Format,
-							.DepthStencil = { .Depth = 1.f },
-						},
-					},
-				},
-				.StencilBeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS },
-				.DepthEndingAccess		= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD },
-				.StencilEndingAccess{ .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS },
-			}));
-
-		AGE_RESOURCE_FLOW_PHASE(
-			phase_fx,
-			AGE_RESOURCE_BARRIER_ARR(
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
-						.StateAfter	 = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-					},
-				},
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE,
-						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_READ,
-					},
-				}),
-			AGE_RENDER_PASS_RT_DESC_ARR(), AGE_RENDER_PASS_DS_DESC());
-
-		ID3D12RootSignature* p_root_sig = nullptr;
-		ID3D12PipelineState* p_pso		= nullptr;
-
-
-		void
-		init() noexcept;
-
-		void
-		bind(graphics::root_signature::handle,
-			 graphics::pso_handle,
-			 graphics::resource_handle h_main_buffer,
-			 graphics::resource_handle h_depth_buffer) noexcept;
-
-		void
-		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
-
-		void
-		deinit() noexcept;
-	};
-
-	struct my_pipeline
-	{
-		my_stage stage{};
-
-		extent_2d<uint16> extent{ .width = 100, .height = 100 };
-
-		resource_handle h_main_buffer{};
-		resource_handle h_depth_buffer{};
-
-		void
-		init() noexcept
-		{
-			stage.init();
-			this->create_buffers();
-		}
-
-		void
-		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
-
-		void
-		deinit() noexcept
-		{
-			stage.deinit();
-		}
-
-	  private:
-		void
-		create_buffers() noexcept
-		{
-			h_main_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET },
-				  .clear_value{
-					  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
-				  .initial_state	= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-
-			h_depth_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_D32_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
-				  .clear_value{
-					  .Format		= DXGI_FORMAT_D32_FLOAT,
-					  .DepthStencil = { .Depth = 1.f, .Stencil = 0 } },
-				  .initial_state	= D3D12_RESOURCE_STATE_DEPTH_READ,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-		}
-
-		void
-		resize(const age::extent_2d<uint16>& new_extent) noexcept
-		{
-			extent = new_extent;
-
-			resource::release_resource(h_main_buffer);
-			resource::release_resource(h_depth_buffer);
-
-			this->create_buffers();
-		}
-	};
-
-	struct my_mesh_shader_stage
-	{
-		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
-			main_buffer_view,
-			AGE_RESOURCE_VIEW_VALIDATE(
-				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
-			AGE_DESC_HANDLE_MEMBER_RTV(
-				h_rtv_desc,
-				D3D12_RENDER_TARGET_VIEW_DESC{
-					.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-					.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 } }),
-
-			AGE_DESC_HANDLE_MEMBER_SRV(
-				h_srv_desc,
-				D3D12_SHADER_RESOURCE_VIEW_DESC{
-					.Format					 = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2D,
-					.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-					.Texture2D				 = { .MostDetailedMip	  = 0,
-												 .MipLevels			  = 1,
-												 .PlaneSlice		  = 0,
-												 .ResourceMinLODClamp = 0.f } }));
-
-		AGE_DEFINE_LOCAL_RESOURCE_VIEW(
-			depth_buffer_view,
-			AGE_RESOURCE_VIEW_VALIDATE(
-				AGE_VALIDATE_DIMENSION(D3D12_RESOURCE_DIMENSION_TEXTURE2D)),
-			AGE_DESC_HANDLE_MEMBER_DSV(
-				h_dsv_desc,
-				D3D12_DEPTH_STENCIL_VIEW_DESC{
-					.Format		   = DXGI_FORMAT_D32_FLOAT,
-					.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-					.Flags		   = D3D12_DSV_FLAG_NONE,
-					.Texture2D	   = { .MipSlice = 0 } }));
-
-		AGE_RESOURCE_FLOW_PHASE(
-			phase_geo,
-			AGE_RESOURCE_BARRIER_ARR(
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-						.StateAfter	 = D3D12_RESOURCE_STATE_RENDER_TARGET,
-					},
-				},
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_READ,
-						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_WRITE,
-					},
-				}),
-			AGE_RENDER_PASS_RT_DESC_ARR({
-				.cpuDescriptor	 = main_buffer_view.h_rtv_desc.h_cpu,
-				.BeginningAccess = {
-					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
-					.Clear = {
-						.ClearValue = {
-							.Format = main_buffer_view.h_rtv_desc_view_desc().Format,
-							.Color	= { 0.5f, 0.5f, 0.5f, 1.0f },
-						},
-					},
-				},
-				.EndingAccess = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
-			}),
-			AGE_RENDER_PASS_DS_DESC({
-				.cpuDescriptor		  = depth_buffer_view.h_dsv_desc.h_cpu,
-				.DepthBeginningAccess = {
-					.Type  = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR,
-					.Clear = {
-						.ClearValue = {
-							.Format		  = depth_buffer_view.h_dsv_desc_view_desc().Format,
-							.DepthStencil = { .Depth = 1.f },
-						},
-					},
-				},
-				.StencilBeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS },
-				.DepthEndingAccess		= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD },
-				.StencilEndingAccess{ .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS },
-			}));
-
-		AGE_RESOURCE_FLOW_PHASE(
-			phase_fx,
-			AGE_RESOURCE_BARRIER_ARR(
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(main_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET,
-						.StateAfter	 = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-					},
-				},
-				{
-					.Type		= D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
-					.Flags		= D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					.Transition = {
-						.pResource	 = const_cast<ID3D12Resource*>(depth_buffer_view.p_resource),
-						.Subresource = 0,
-						.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE,
-						.StateAfter	 = D3D12_RESOURCE_STATE_DEPTH_READ,
-					},
-				}),
-			AGE_RENDER_PASS_RT_DESC_ARR(), AGE_RENDER_PASS_DS_DESC());
-
-		ID3D12RootSignature* p_root_sig = nullptr;
-		ID3D12PipelineState* p_pso		= nullptr;
-
-
-		void
-		init() noexcept;
-
-		void
-		bind(graphics::root_signature::handle,
-			 graphics::pso_handle,
-			 graphics::resource_handle h_main_buffer,
-			 graphics::resource_handle h_depth_buffer) noexcept;
-
-		void
-		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
-
-		void
-		deinit() noexcept;
-	};
-
-	struct my_mesh_shader_pipeline
-	{
-		my_mesh_shader_stage stage{};
-
-		extent_2d<uint16> extent{ .width = 100, .height = 100 };
-
-		resource_handle h_main_buffer{};
-		resource_handle h_depth_buffer{};
-
-		void
-		init() noexcept
-		{
-			stage.init();
-			this->create_buffers();
-		}
-
-		void
-		execute(t_igraphics_cmd_list& cmd_list, render_surface& rs) noexcept;
-
-		void
-		deinit() noexcept
-		{
-			stage.deinit();
-		}
-
-	  private:
-		void
-		create_buffers() noexcept
-		{
-			h_main_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET },
-				  .clear_value{
-					  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
-				  .initial_state	= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-
-			h_depth_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_D32_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
-				  .clear_value{
-					  .Format		= DXGI_FORMAT_D32_FLOAT,
-					  .DepthStencil = { .Depth = 1.f, .Stencil = 0 } },
-				  .initial_state	= D3D12_RESOURCE_STATE_DEPTH_READ,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-		}
-
-		void
-		resize(const age::extent_2d<uint16>& new_extent) noexcept
-		{
-			extent = new_extent;
-
-			resource::release_resource(h_main_buffer);
-			resource::release_resource(h_depth_buffer);
-
-			this->create_buffers();
-		}
-	};
 }	 // namespace age::graphics::stage
 
 // internal globals
 namespace age::graphics::g
 {
-	inline auto frame_buffer_idx	= uint8{ 0 };
+	inline auto frame_buffer_idx	= uint8{ 0 };	 // [0, 1 ... ,frame_buffer_count - 1]
 	inline auto current_fence_value = uint64{ 0 };
 
 	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
@@ -1042,7 +447,6 @@ namespace age::graphics::g
 
 	inline auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 2 };
 
-
 	inline auto root_signature_ptr_vec = data_structure::stable_dense_vector<ID3D12RootSignature*>{ 2 };
 
 	inline auto pso_ptr_vec = data_structure::stable_dense_vector<ID3D12PipelineState*>{ 2 };
@@ -1054,12 +458,6 @@ namespace age::graphics::g
 	//------------------------------------------------------------------------------
 
 	//---[ stage ]------------------------------------------------------------
-	inline auto h_geometry_stage_default_pso	  = pso_handle{};
-	inline auto h_geometry_stage_default_root_sig = root_signature::handle{};
 
-	inline auto h_fx_present_stage_default_pso		= pso_handle{};
-	inline auto h_fx_present_stage_default_root_sig = root_signature::handle{};
-
-	inline auto test_pipeline = stage::my_pipeline{};
 	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g

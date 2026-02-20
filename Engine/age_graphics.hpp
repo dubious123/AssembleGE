@@ -71,9 +71,3 @@ namespace age::graphics
 	void
 	end_frame() noexcept;
 }	 // namespace age::graphics
-
-#if defined AGE_GRAPHICS_BACKEND_DX12
-	#include "age_graphics_backend_dx12.hpp"
-	#include "age_graphics_backend_dx12_descriptor_pool.hpp"
-	#include "age_graphics_backend_dx12_root_signature.hpp"
-#endif
