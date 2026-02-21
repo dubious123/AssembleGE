@@ -50,7 +50,6 @@ namespace age::graphics
 		AGE_ASSERT(g::p_main_adapter is_not_nullptr);
 		AGE_ASSERT(g::p_main_device is_not_nullptr);
 
-
 		if constexpr (age::config::debug_mode)
 		{
 			g::p_main_device->SetName(L"age graphics main device");
@@ -123,9 +122,7 @@ namespace age::graphics
 		}
 
 		age::graphics::stage::deinit();
-
 		age::graphics::shader::deinit();
-
 		age::graphics::root_signature::deinit();
 
 		{
@@ -343,7 +340,6 @@ namespace age::graphics
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
 
-
 		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
 		{
 			auto& rs = g::render_surface_vec.nth_data(n);
@@ -355,7 +351,6 @@ namespace age::graphics
 
 			rs.present();
 		}
-
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 

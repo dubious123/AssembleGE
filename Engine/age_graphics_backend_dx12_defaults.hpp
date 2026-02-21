@@ -1,6 +1,188 @@
 #pragma once
 #include "age.hpp"
 
+// resource desc
+
+namespace age::graphics::defaults
+{
+	namespace heap_properties
+	{
+		constexpr FORCE_INLINE decltype(auto)
+		committed_heap(age::graphics::resource::e::memory_kind kind) noexcept
+		{
+			return D3D12_HEAP_PROPERTIES{
+				.Type				  = static_cast<D3D12_HEAP_TYPE>(kind),
+				.CPUPageProperty	  = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+				.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+				.CreationNodeMask	  = 1,
+				.VisibleNodeMask	  = 1
+			};
+		}
+	}	 // namespace heap_properties
+
+	namespace resource_desc
+	{
+		FORCE_INLINE decltype(auto)
+		buffer(uint64 byte_size, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
+		{
+			return D3D12_RESOURCE_DESC{
+				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension		 = D3D12_RESOURCE_DIMENSION_BUFFER,
+				/*UINT64						*/ .Alignment		 = 0,
+				/*UINT64						*/ .Width			 = byte_size,
+				/*UINT							*/ .Height			 = 1,
+				/*UINT16						*/ .DepthOrArraySize = 1,
+				/*UINT16						*/ .MipLevels		 = 1,
+				/*DXGI_FORMAT					*/ .Format			 = DXGI_FORMAT_UNKNOWN,
+				/*DXGI_SAMPLE_DESC				*/ .SampleDesc		 = { .Count = 1, .Quality = 0 },
+				/*D3D12_TEXTURE_LAYOUT			*/ .Layout			 = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+				/*D3D12_RESOURCE_FLAGS			*/ .Flags			 = flags
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		texture_2d_array(uint32				  width,
+						 uint32				  height,
+						 DXGI_FORMAT		  format,
+						 uint16				  array_size,
+						 D3D12_RESOURCE_FLAGS flags			 = D3D12_RESOURCE_FLAG_NONE,
+						 uint16				  mip_levels	 = 1,
+						 uint16				  sample_count	 = 1,
+						 uint16				  sample_quality = 0) noexcept
+		{
+			AGE_ASSERT(sample_count == 1 or mip_levels == 1);
+			return D3D12_RESOURCE_DESC{
+				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension		 = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+				/*UINT64						*/ .Alignment		 = 0,
+				/*UINT64						*/ .Width			 = width,
+				/*UINT							*/ .Height			 = height,
+				/*UINT16						*/ .DepthOrArraySize = array_size,
+				/*UINT16						*/ .MipLevels		 = mip_levels,
+				/*DXGI_FORMAT					*/ .Format			 = format,
+				/*DXGI_SAMPLE_DESC				*/ .SampleDesc		 = { .Count = sample_count, .Quality = sample_quality },
+				/*D3D12_TEXTURE_LAYOUT			*/ .Layout			 = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+				/*D3D12_RESOURCE_FLAGS			*/ .Flags			 = flags
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		texture_2d(uint32				width,
+				   uint32				height,
+				   DXGI_FORMAT			format,
+				   D3D12_RESOURCE_FLAGS flags		   = D3D12_RESOURCE_FLAG_NONE,
+				   uint16				mip_levels	   = 1,
+				   uint16				sample_count   = 1,
+				   uint16				sample_quality = 0) noexcept
+		{
+			return texture_2d_array(width,
+									height,
+									format,
+									1,
+									flags,
+									mip_levels,
+									sample_count,
+									sample_quality);
+		}
+
+		FORCE_INLINE decltype(auto)
+		texture_rt_2d(uint32			   width,
+					  uint32			   height,
+					  D3D12_RESOURCE_FLAGS extra_flags	  = D3D12_RESOURCE_FLAG_NONE,
+					  DXGI_FORMAT		   format		  = DXGI_FORMAT_R16G16B16A16_FLOAT,
+					  uint16			   array_size	  = 1,
+					  uint16			   mip_levels	  = 1,
+					  uint16			   sample_count	  = 1,
+					  uint16			   sample_quality = 0) noexcept
+		{
+			return texture_2d_array(width,
+									height,
+									format,
+									array_size,
+									D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | extra_flags,
+									mip_levels,
+									sample_count,
+									sample_quality);
+		}
+
+		FORCE_INLINE decltype(auto)
+		texture_ds_2d(uint32			   width,
+					  uint32			   height,
+					  D3D12_RESOURCE_FLAGS extra_flags	  = D3D12_RESOURCE_FLAG_NONE,
+					  DXGI_FORMAT		   format		  = DXGI_FORMAT_D32_FLOAT,
+					  uint16			   array_size	  = 1,
+					  uint16			   mip_levels	  = 1,
+					  uint16			   sample_count	  = 1,
+					  uint16			   sample_quality = 0) noexcept
+		{
+			return texture_2d_array(width,
+									height,
+									format,
+									array_size,
+									D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | extra_flags,
+									mip_levels,
+									sample_count,
+									sample_quality);
+		}
+	}	 // namespace resource_desc
+
+}	 // namespace age::graphics::defaults
+
+// resource view descs
+namespace age::graphics::defaults
+{
+	namespace rtv_view_desc
+	{
+		// main buffer format for hdr rendering
+		inline constexpr auto hdr_rgba16_2d = D3D12_RENDER_TARGET_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
+			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
+		};
+
+		// back buffer format for hdr rendering (for swap chain buffers with hdr support)
+		inline constexpr auto hdr10_2d = D3D12_RENDER_TARGET_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_R10G10B10A2_UNORM,
+			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
+		};
+
+		// back buffer format for sRGB rendering (for swap chain buffers with sRGB support)
+		inline constexpr auto srgb_2d = D3D12_RENDER_TARGET_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
+		};
+	}	 // namespace rtv_view_desc
+
+	namespace dsv_view_desc
+	{
+		inline constexpr auto d32_float_2d = D3D12_DEPTH_STENCIL_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_D32_FLOAT,
+			.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+			.Flags		   = D3D12_DSV_FLAG_NONE,
+			.Texture2D	   = { .MipSlice = 0 }
+		};
+	}
+
+	namespace srv_view_desc
+	{
+		FORCE_INLINE decltype(auto)
+		tex2d(DXGI_FORMAT format, uint32 mip_levels = 1) noexcept
+		{
+			AGE_ASSERT(mip_levels > 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = format,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2D,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Texture2D				 = D3D12_TEX2D_SRV{
+					.MostDetailedMip	 = 0,
+					.MipLevels			 = mip_levels,
+					.PlaneSlice			 = 0,
+					.ResourceMinLODClamp = 0.0f }
+			};
+		}
+	}	 // namespace srv_view_desc
+}	 // namespace age::graphics::defaults
+
 // pss subobjects
 namespace age::graphics::defaults
 {
@@ -109,62 +291,6 @@ namespace age::graphics::defaults
 			} },
 		};
 	}
-}	 // namespace age::graphics::defaults
-
-// resource view descs
-namespace age::graphics::defaults
-{
-	namespace rtv_view_desc
-	{
-		// main buffer format for hdr rendering
-		inline constexpr auto hdr_rgba16_2d = D3D12_RENDER_TARGET_VIEW_DESC{
-			.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
-			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
-		};
-
-		// back buffer format for hdr rendering (for swap chain buffers with hdr support)
-		inline constexpr auto hdr10_2d = D3D12_RENDER_TARGET_VIEW_DESC{
-			.Format		   = DXGI_FORMAT_R10G10B10A2_UNORM,
-			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
-		};
-
-		// back buffer format for sRGB rendering (for swap chain buffers with sRGB support)
-		inline constexpr auto srgb_2d = D3D12_RENDER_TARGET_VIEW_DESC{
-			.Format		   = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
-		};
-	}	 // namespace rtv_view_desc
-
-	namespace dsv_view_desc
-	{
-		inline constexpr auto d32_float_2d = D3D12_DEPTH_STENCIL_VIEW_DESC{
-			.Format		   = DXGI_FORMAT_D32_FLOAT,
-			.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-			.Flags		   = D3D12_DSV_FLAG_NONE,
-			.Texture2D	   = { .MipSlice = 0 }
-		};
-	}
-
-	namespace srv_view_desc
-	{
-		FORCE_INLINE decltype(auto)
-		tex2d(DXGI_FORMAT format, uint32 mip_levels = 0) noexcept
-		{
-			return D3D12_SHADER_RESOURCE_VIEW_DESC{
-				.Format					 = format,
-				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2D,
-				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-				.Texture2D				 = D3D12_TEX2D_SRV{
-					.MostDetailedMip	 = 0,
-					.MipLevels			 = mip_levels,
-					.PlaneSlice			 = 0,
-					.ResourceMinLODClamp = 0.0f }
-			};
-		}
-	}	 // namespace srv_view_desc
 }	 // namespace age::graphics::defaults
 
 // render pass descs

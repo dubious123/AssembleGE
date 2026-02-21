@@ -65,7 +65,6 @@ UseTab: Always
 SpaceBeforeCpp11BracedList: false
 BreakAfterReturnType : All
 #AlignArrayOfStructures: Left
-IndentWrappedFunctionNames: false
 PenaltyReturnTypeOnItsOwnLine: 1000
 AttributeMacros: ['FORCE_INLINE', 'no_unique_addr']
 BreakBeforeBinaryOperators: NonAssignment 
@@ -86,3 +85,7 @@ KeepEmptyLines:
   AtEndOfFile: false
   AtStartOfBlock: false
   AtStartOfFile: false
+
+IndentWrappedFunctionNames: false
+
+

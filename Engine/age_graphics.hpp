@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"
 
 namespace age::graphics
 {
@@ -35,7 +36,10 @@ namespace age::graphics
 
 	struct resource_handle
 	{
-		t_resource_id id;
+		t_resource_id id = invalid_id_uint32;
+
+		FORCE_INLINE auto*
+		operator->() noexcept;
 	};
 
 	using t_render_surface_id = uint32;
@@ -55,12 +59,13 @@ namespace age::graphics
 	deinit() noexcept;
 
 	render_surface_handle
-		create_render_surface(platform::window_handle) noexcept;
+	create_render_surface(platform::window_handle _) noexcept;
 
 	render_surface_handle
 	find_render_surface(platform::window_handle h_window) noexcept;
 
-	void resize_render_surface(render_surface_handle) noexcept;
+	void
+	resize_render_surface(render_surface_handle _) noexcept;
 
 	void
 	render() noexcept;

@@ -157,7 +157,6 @@ namespace age::asset
 
 		auto res = t_vertex_to{};
 
-
 		return res;
 	}
 
@@ -280,8 +279,6 @@ namespace age::asset
 			std::memcpy(&res, buffer.data(), sizeof(mesh_baked_header));
 			return res;
 		}
-
-		mesh_baked_header header{};
 	};
 
 	struct lod_group_baked_header

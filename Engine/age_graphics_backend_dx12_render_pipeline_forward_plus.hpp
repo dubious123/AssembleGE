@@ -136,16 +136,6 @@ namespace age::graphics::render_pipeline::forward_plus
 {
 	struct opaque_stage
 	{
-		binding_config_t::reg_b<0>	  frame_data_buffer;
-		binding_config_t::reg_t<0, 1> asset_data_buffer;
-		binding_config_t::reg_t<0>	  job_data_buffer;
-		binding_config_t::reg_t<1>	  object_data_buffer;
-		binding_config_t::reg_t<2>	  meshlet_header_buffer;
-		binding_config_t::reg_t<3>	  meshlet_buffer;
-		binding_config_t::reg_t<4>	  vertex_buffer;
-		binding_config_t::reg_t<5>	  meshlet_global_index_buffer;
-		binding_config_t::reg_t<6>	  meshlet_primitive_index_buffer;
-
 		rtv_desc_handle h_main_buffer_rtv_desc;
 		dsv_desc_handle h_depth_buffer_dsv_desc;
 
@@ -176,6 +166,9 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_node_mask{ .subobj = 0 });
 
 			p_pso = g::pso_ptr_vec[h_pso];
+
+			h_main_buffer_rtv_desc	= g::rtv_desc_pool.pop();
+			h_depth_buffer_dsv_desc = g::dsv_desc_pool.pop();
 		}
 
 		inline void
@@ -214,6 +207,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
+			g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
+			g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
+
 			pso::destroy(h_pso);
 		}
 	};
@@ -222,8 +218,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		pso::handle			 h_pso = {};
 		ID3D12PipelineState* p_pso = nullptr;
-
-		srv_desc_handle h_main_buffer_srv_desc;
 
 		inline void
 		init(root_signature::handle h_root_sig) noexcept
@@ -268,14 +262,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		inline void
-		bind_rtv(graphics::resource_handle h_main_buffer) noexcept
-		{
-			resource::create_view(h_main_buffer,
-								  h_main_buffer_srv_desc,
-								  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16B16A16_FLOAT));
-		}
-
-		inline void
 		deinit() noexcept
 		{
 			pso::destroy(h_pso);
@@ -317,124 +303,78 @@ namespace age::graphics::render_pipeline::forward_plus
 		opaque_stage	   stage_opaque{};
 		presentation_stage stage_presentation{};
 
-		inline void
-		init() noexcept
-		{
-			h_root_sig = create_root_signature();
-			p_root_sig = g::root_signature_ptr_vec[h_root_sig];
+		binding_config_t::reg_b<0>	  frame_data_buffer;
+		binding_config_t::reg_t<0, 1> asset_data_buffer;
+		binding_config_t::reg_t<0>	  job_data_buffer;
+		binding_config_t::reg_t<1>	  object_data_buffer;
+		binding_config_t::reg_t<2>	  meshlet_header_buffer;
+		binding_config_t::reg_t<3>	  meshlet_buffer;
+		binding_config_t::reg_t<4>	  vertex_buffer;
+		binding_config_t::reg_t<5>	  meshlet_global_index_buffer;
+		binding_config_t::reg_t<6>	  meshlet_primitive_index_buffer;
 
-			create_buffers();
-			stage_opaque.init(h_root_sig);
-			stage_presentation.init(h_root_sig);
+		resource::mapping_handle h_mapping_frame_data		  = {};
+		resource::mapping_handle h_mappint_asset_data_buffer  = {};
+		resource::mapping_handle h_mapping_job_data_buffer	  = {};
+		resource::mapping_handle h_mapping_object_data_buffer = {};
+
+		resource::mapping_handle h_mapping_meshlet_header_buffer		  = {};
+		resource::mapping_handle h_mapping_meshlet_buffer				  = {};
+		resource::mapping_handle h_mapping_vertex_buffer				  = {};
+		resource::mapping_handle h_mapping_meshlet_global_index_buffer	  = {};
+		resource::mapping_handle h_mapping_meshlet_primitive_index_buffer = {};
+
+		static constexpr auto max_asset_data_count			   = 1024;
+		static constexpr auto max_job_data					   = 1024 * g::thread_count;
+		static constexpr auto max_object_data_count			   = 1024;
+		static constexpr auto max_meshlet_count				   = max_asset_data_count * 1024;
+		static constexpr auto max_vertex_count				   = max_meshlet_count * 64;
+		static constexpr auto max_global_index_buffer_count	   = max_meshlet_count * 64;
+		static constexpr auto max_primitive_index_buffer_count = max_meshlet_count * 126;
+
+		// bindless texture
+		srv_desc_handle h_main_buffer_srv_desc;
+
+		resource_barrier barrier = {};
+
+		using t_mesh_id = uint32;
+
+		std::array<uint32, max_asset_data_count> asset_id_pool = age::util::iota_array<0u, max_asset_data_count>();
+
+		t_mesh_id
+		upload_mesh(const asset::mesh_baked& baked) noexcept
+		{
+			// std::memcpy(h_mapping_meshlet_header_buffer->ptr, baked.header)
+			return {};
 		}
 
-		inline void
-		deinit() noexcept
+		void
+		init() noexcept;
+
+		void
+		deinit() noexcept;
+
+		void
+		begin_render(render_surface& rs) noexcept;
+
+		void
+		render(uint8 thread_id, uint32 object_id) noexcept
 		{
-			stage_presentation.deinit();
-			stage_opaque.deinit();
-			root_signature::destroy(h_root_sig);
+			// fill in job data (per meshlet)
+			// maybe update object data
+			// maybe update frame data
+			// maybe upload mesh or texture or ...
+			// maybe release unused mesh or ...
 		}
 
-		inline void
-		execute(t_cmd_list& cmd_list, render_surface& rs, uint32 job_count) noexcept
-		{
-			auto barrier = resource_barrier{};
-
-			cmd_list.RSSetViewports(1, &rs.default_viewport);
-			cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
-			cmd_list.SetGraphicsRootSignature(p_root_sig);
-			cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-
-			barrier.add_transition(rs.get_back_buffer(),
-								   D3D12_RESOURCE_STATE_PRESENT,
-								   D3D12_RESOURCE_STATE_RENDER_TARGET,
-								   D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
-
-			barrier.add_transition(*p_main_buffer,
-								   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-								   D3D12_RESOURCE_STATE_RENDER_TARGET);
-			barrier.add_transition(*p_depth_buffer,
-								   D3D12_RESOURCE_STATE_DEPTH_READ,
-								   D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-			barrier.apply_and_reset(cmd_list);
-
-			stage_opaque.execute(cmd_list, job_count);
-
-			barrier.add_transition(*p_main_buffer,
-								   D3D12_RESOURCE_STATE_RENDER_TARGET,
-								   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-			barrier.add_transition(*p_depth_buffer,
-								   D3D12_RESOURCE_STATE_DEPTH_WRITE,
-								   D3D12_RESOURCE_STATE_DEPTH_READ);
-
-			barrier.add_transition(rs.get_back_buffer(),
-								   D3D12_RESOURCE_STATE_RENDER_TARGET,
-								   D3D12_RESOURCE_STATE_PRESENT,
-								   D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
-
-			barrier.apply_and_reset(cmd_list);
-
-			stage_presentation.execute(cmd_list, rs);
-		}
+		void
+		end_render(render_surface& rs) noexcept;
 
 	  private:
 		void
-		create_buffers() noexcept
-		{
-			h_main_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET },
-				  .clear_value{
-					  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
-					  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
-				  .initial_state	= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-
-			h_depth_buffer = resource::create_resource(
-				{ .d3d12_desc{
-					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					  .Alignment		= 0,
-					  .Width			= extent.width,
-					  .Height			= extent.height,
-					  .DepthOrArraySize = 1,
-					  .MipLevels		= 1,
-					  .Format			= DXGI_FORMAT_D32_FLOAT,
-					  .SampleDesc		= { 1, 0 },
-					  .Layout			= D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					  .Flags			= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
-				  .clear_value{
-					  .Format		= DXGI_FORMAT_D32_FLOAT,
-					  .DepthStencil = { .Depth = 1.f, .Stencil = 0 } },
-				  .initial_state	= D3D12_RESOURCE_STATE_DEPTH_READ,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-
-			p_main_buffer  = g::resource_vec[h_main_buffer].p_resource;
-			p_depth_buffer = g::resource_vec[h_depth_buffer].p_resource;
-		}
+		create_buffers() noexcept;
 
 		void
-		resize(const age::extent_2d<uint16>& new_extent) noexcept
-		{
-			extent = new_extent;
-
-			resource::release_resource(h_main_buffer);
-			resource::release_resource(h_depth_buffer);
-
-			this->create_buffers();
-		}
+		resize(const age::extent_2d<uint16>& new_extent) noexcept;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

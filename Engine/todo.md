@@ -39,3 +39,5 @@
 ## do pgo
 
 ## do execute indirect
+
+## remove | take(n)

@@ -150,7 +150,7 @@ namespace age::graphics
 		push(t_descriptor_handle h) noexcept;
 
 		uint32
-			calc_idx(t_descriptor_handle) noexcept;
+		calc_idx(t_descriptor_handle _) noexcept;
 	};
 
 	void
@@ -230,36 +230,49 @@ namespace age::graphics
 // resource
 namespace age::graphics::resource
 {
-	enum class memory_kind : uint8
+	namespace e
 	{
-		gpu_only   = D3D12_HEAP_TYPE_DEFAULT,	  // DEFAULT
-		cpu_to_gpu = D3D12_HEAP_TYPE_UPLOAD,	  // UPLOAD
-		gpu_to_cpu = D3D12_HEAP_TYPE_READBACK,	  // READBACK
-		count
-	};
+		enum class memory_kind : uint8
+		{
+			gpu_only		  = D3D12_HEAP_TYPE_DEFAULT,	   // DEFAULT
+			cpu_to_gpu		  = D3D12_HEAP_TYPE_UPLOAD,		   // UPLOAD
+			gpu_to_cpu		  = D3D12_HEAP_TYPE_READBACK,	   // READBACK
+			cpu_to_gpu_direct = D3D12_HEAP_TYPE_GPU_UPLOAD,	   // GPU Upload Heaps with Resizable BAR
+			count
+		};
 
-	struct d3d12_resource_desc
+	}
+
+	struct resource_create_desc
 	{
-		D3D12_RESOURCE_DESC	  d3d12_desc;
+		D3D12_RESOURCE_DESC	  d3d12_resource_desc;
 		D3D12_CLEAR_VALUE	  clear_value;
 		D3D12_RESOURCE_STATES initial_state;
-		memory_kind			  heap_memory_kind;
+		e::memory_kind		  heap_memory_kind;
 		bool				  has_clear_value;
 	};
 
 	struct d3d12_resource
 	{
-		ID3D12Resource* p_resource;
+		ID3D12Resource* p_resource = nullptr;
 
-		void
-		release()
-		{
-			p_resource->Release();
-			if constexpr (age::config::debug_mode)
-			{
-				p_resource = nullptr;
-			}
-		}
+		uint32 map_count = {};
+	};
+
+	struct resource_mapping
+	{
+		void*			ptr;
+		resource_handle h_resource;
+	};
+
+	using t_mapping_handle_id = uint32;
+
+	struct mapping_handle
+	{
+		t_mapping_handle_id id;
+
+		FORCE_INLINE resource_mapping*
+		operator->() noexcept;
 	};
 
 	void
@@ -269,10 +282,38 @@ namespace age::graphics::resource
 	deinit() noexcept;
 
 	resource_handle
-	create_resource(const d3d12_resource_desc& desc) noexcept;
+	create_committed(const resource_create_desc& desc) noexcept;
+
+	resource_handle
+	create_placed(const resource_create_desc& desc, ID3D12Heap& heap, uint64 offset) noexcept;
+
+	resource::mapping_handle
+	create_buffer_committed(uint32					 buffer_byte_size,
+							const void*				 p_data = nullptr,
+							resource::e::memory_kind kind	= resource::e::memory_kind::cpu_to_gpu_direct,
+							D3D12_RESOURCE_STATES	 state	= D3D12_RESOURCE_STATE_COMMON,
+							D3D12_RESOURCE_FLAGS	 flags	= D3D12_RESOURCE_FLAG_NONE) noexcept;
+
+	mapping_handle
+	create_buffer_placed(uint32				   buffer_byte_size,
+						 ID3D12Heap&		   heap,
+						 uint64				   offset,
+						 const void*		   p_data = nullptr,
+						 e::memory_kind		   kind	  = resource::e::memory_kind::cpu_to_gpu_direct,
+						 D3D12_RESOURCE_STATES state  = D3D12_RESOURCE_STATE_COMMON,
+						 D3D12_RESOURCE_FLAGS  flags  = D3D12_RESOURCE_FLAG_NONE) noexcept;
 
 	void
-		release_resource(resource_handle) noexcept;
+	release_resource(resource_handle _) noexcept;
+
+	mapping_handle
+	map_all(resource_handle _) noexcept;
+
+	void
+	unmap(mapping_handle _) noexcept;
+
+	void
+	unmap_and_release(mapping_handle _) noexcept;
 
 	FORCE_INLINE void
 	create_view(const ID3D12Resource&, const auto& h_desc, const auto& view_desc) noexcept;
@@ -455,6 +496,8 @@ namespace age::graphics::g
 
 	//---[ resource ]--------------------------------------------------------------
 	inline auto resource_vec = data_structure::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
+
+	inline auto resource_mapping_vec = data_structure::stable_dense_vector<resource::resource_mapping>{ 2 };
 	//------------------------------------------------------------------------------
 
 	//---[ stage ]------------------------------------------------------------

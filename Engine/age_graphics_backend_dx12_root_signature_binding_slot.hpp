@@ -293,7 +293,7 @@ namespace age::graphics
 		}
 
 		void
-		bind(D3D12_GPU_VIRTUAL_ADDRESS va, auto ring_idx = g::frame_buffer_idx) noexcept
+		bind(D3D12_GPU_VIRTUAL_ADDRESS va, uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			bind_impl(va, ring_idx);

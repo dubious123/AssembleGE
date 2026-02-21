@@ -1,6 +1,8 @@
 #include "pch.hpp"
 #include "test.h"
 
+#include <thread>
+
 int
 main()
 {
@@ -11,9 +13,6 @@ main()
 	auto _game = my_game();
 
 	run_benchmark(_game, 1'000);
-	static_assert(age::util::str_to_uint64(AGE_PP_STRINGIFY(008)) == 8);
-	static_assert(AGE_PP_VA_COUNT(0, 1, 2, 3, 4, 5) == 6);
-	static_assert(AGE_PP_VA_COUNT(1) == 1);
 
 	if (false)
 	{
@@ -26,6 +25,17 @@ main()
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 1000 });
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_v = 1000 });
 	age::asset::create_primitive(age::asset::primitive_desc{ .seg_u = 8, .seg_v = 3 });
+
+	// for( e : scene | foreach_entity< mesh > )
+	//   forward_plus_renderer.upload(e.get_component<mesh>)
+	//	 forward_plus_renderer.render(e)
+
+	// pipeline.begin_render(rs)
+	//
+	//
+	// pipeline.end_render(rs)
+	//
+	//
 
 	// age::asset::create_primitive(age::asset::primitive_desc{ .size = { 10.f, 10.f, 10.f }, .seg_u = 99, .seg_v = 300 });
 	on_ctx{
@@ -45,7 +55,13 @@ main()
 			auto forward_plus_pipeline = age::graphics::render_pipeline::forward_plus::pipeline{};
 			forward_plus_pipeline.init();
 
+			auto vec = std::views::iota(0, 1000) | std::ranges::to<age::vector<uint32>>();
+
+			auto h_map = age::graphics::resource::create_buffer_committed(1000 * sizeof(uint32), vec.data());
+
 			forward_plus_pipeline.deinit();
+
+			age::graphics::resource::unmap_and_release(h_map);
 		},
 
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
@@ -74,7 +90,9 @@ main()
 				  std::println("now : {}ns", age::global::get<age::runtime::interface>().delta_time_ns().count());
 			  },
 			  //[] { std::this_thread::sleep_for(std::chrono::seconds(1)); },
-			  AGE_FUNC(age::graphics::render), AGE_FUNC(age::graphics::end_frame) },
+			  AGE_FUNC(age::graphics::render),
+
+			  AGE_FUNC(age::graphics::end_frame) },
 
 		AGE_FUNC(age::graphics::deinit),
 		AGE_FUNC(age::platform::deinit),

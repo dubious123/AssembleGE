@@ -60,7 +60,7 @@
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_test.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_resource_view.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
     <ClInclude Include="age_literal.hpp" />
@@ -80,6 +80,7 @@
     <ClInclude Include="age_runtime.hpp" />
     <ClInclude Include="age_subsystem.hpp" />
     <ClInclude Include="age_util.hpp" />
+    <ClInclude Include="age_util_container.hpp" />
     <ClInclude Include="age_util_layout.hpp" />
     <ClInclude Include="age_util_string.hpp" />
     <ClInclude Include="age_util_views.hpp" />
@@ -110,14 +111,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="age_external_wrapper_earcut.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="age_external_wrapper_meshopt.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
@@ -162,6 +155,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_test.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

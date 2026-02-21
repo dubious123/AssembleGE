@@ -173,8 +173,8 @@ namespace age::graphics::stage
 		void
 		create_buffers() noexcept
 		{
-			h_main_buffer = resource::create_resource(
-				{ .d3d12_desc{
+			h_main_buffer = resource::create_committed(
+				{ .d3d12_resource_desc{
 					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 					  .Alignment		= 0,
 					  .Width			= extent.width,
@@ -189,11 +189,11 @@ namespace age::graphics::stage
 					  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
 					  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
 				  .initial_state	= D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
+				  .heap_memory_kind = resource::e::memory_kind::gpu_only,
 				  .has_clear_value	= true });
 
-			h_depth_buffer = resource::create_resource(
-				{ .d3d12_desc{
+			h_depth_buffer = resource::create_committed(
+				{ .d3d12_resource_desc{
 					  .Dimension		= D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 					  .Alignment		= 0,
 					  .Width			= extent.width,
@@ -208,7 +208,7 @@ namespace age::graphics::stage
 					  .Format		= DXGI_FORMAT_D32_FLOAT,
 					  .DepthStencil = { .Depth = 1.f, .Stencil = 0 } },
 				  .initial_state	= D3D12_RESOURCE_STATE_DEPTH_READ,
-				  .heap_memory_kind = resource::memory_kind::gpu_only,
+				  .heap_memory_kind = resource::e::memory_kind::gpu_only,
 				  .has_clear_value	= true });
 		}
 

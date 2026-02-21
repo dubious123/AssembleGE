@@ -79,6 +79,7 @@ namespace age
 	#include "age_util_layout.hpp"
 	#include "age_util_string.hpp"
 	#include "age_util_views.hpp"
+	#include "age_util_container.hpp"
 
 	#include "age_data_structure.hpp"
 #endif
@@ -133,7 +134,7 @@ namespace age
 	#include "age_graphics_backend_dx12_defaults.hpp"
 	#include "age_graphics_backend_dx12_descriptor_pool.hpp"
 	#include "age_graphics_backend_dx12_root_signature.hpp"
-	#include "age_graphics_backend_dx12_resource_view.hpp"
+	#include "age_graphics_backend_dx12_root_signature_binding_slot.hpp"
 	#include "age_graphics_backend_dx12_pso.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_test.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
