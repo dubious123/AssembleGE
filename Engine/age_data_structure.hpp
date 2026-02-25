@@ -28,7 +28,6 @@ namespace age::inline data_structure
 }	 // namespace age::inline data_structure
 #endif
 
-
 #ifdef USE_STL_LIST
 namespace age::inline data_structure
 {
@@ -194,7 +193,6 @@ namespace age::inline data_structure
 			auto* prev = at->prev;
 			at->prev   = (node*)malloc(sizeof(node));
 			new (&at->prev->value) T{ std::forward<V>(args)... };
-
 
 			(at->prev)->prev = prev;
 			(at->prev)->next = prev->next;
@@ -432,7 +430,6 @@ namespace age::inline data_structure
 		t_idx free_idx_count;
 
 		std::byte* p_storage;
-
 
 	  public:
 		explicit stable_dense_vector(t_idx cap = 2)
@@ -703,7 +700,6 @@ namespace age::inline data_structure
 					p_storage + (sizeof(t_data) + sizeof(t_idx)) * capacity,
 					sizeof(t_idx) * (size + free_idx_count));
 			}
-
 
 			::operator delete(p_storage, std::align_val_t{ alignment });
 

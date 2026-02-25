@@ -49,7 +49,6 @@ namespace age::external::meshopt
 		float extent; /* viewport size in mesh coordinates */
 	};
 
-
 }	 // namespace age::external::meshopt
 
 // namespace age::external::meshopt
@@ -827,8 +826,8 @@ namespace age::external::meshopt
 			detail::opt_meshlet(
 				&meshlet_global_index_buffer[m_fat.vertex_offset],
 				&meshlet_local_index_buffer[m_fat.triangle_offset],
-				m_fat.vertex_count,
-				m_fat.triangle_count);
+				m_fat.triangle_count,
+				m_fat.vertex_count);
 
 			detail::calc_meshlet_bounds(
 				&b_fat,
@@ -839,8 +838,8 @@ namespace age::external::meshopt
 				m_fat.vertex_count,
 				vertex_position_stride);
 
-			auto aabb_min_f = float3{};
-			auto aabb_max_f = float3{};
+			auto aabb_min_f = float3{ std::numeric_limits<float>::max() };
+			auto aabb_max_f = float3{ std::numeric_limits<float>::lowest() };
 
 			for (auto&& pos : std::views::iota(meshlet_global_index_buffer.begin() + m_fat.vertex_offset)
 								  | std::views::take(m_fat.vertex_count)
@@ -860,7 +859,6 @@ namespace age::external::meshopt
 			aabb_min_f				 = math::floor(aabb_min_f);
 			const auto aabb_size_f	 = math::ceil(aabb_max_f - aabb_min_f);
 			const auto aabb_center_f = aabb_min_f + aabb_size_f * 0.5f;
-
 
 			meshlet_vec[idx] = asset::meshlet{
 				.global_index_offset = m_fat.vertex_offset,

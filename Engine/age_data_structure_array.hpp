@@ -66,20 +66,13 @@ namespace age::inline data_structure
 
 		template <std::ranges::input_range r>
 		constexpr dynamic_array(std::from_range_t, r&& rg) noexcept
+			requires(std::ranges::sized_range<r> or std::ranges::forward_range<r>)
+			: count{ static_cast<size_type>(std::ranges::size(rg)) },
+			  alloc(allocator_type{})
 		{
 			static_assert(meta::emplace_constructible<t, dynamic_array<t, t_allocator>, allocator_type, decltype(*std::ranges::begin(rg))>);
-			static_assert(
-				std::ranges::sized_range<r>
-				or std::ranges::forward_range<r>);
 
-			if constexpr (std::ranges::sized_range<r>)
-			{
-				count = static_cast<size_type>(std::ranges::size(rg));
-			}
-			else
-			{
-				count = static_cast<size_type>(std::ranges::size(rg));
-			}
+			p_data = _alloc(alloc, count);
 
 			if consteval
 			{
@@ -416,21 +409,21 @@ namespace age::inline data_structure
 
 	  private:
 		FORCE_INLINE static constexpr void
-		_dealloc(allocator_type alloc, t* p_data, const size_type cap) noexcept
+		_dealloc(allocator_type alloc, t* p_data, const size_type n) noexcept
 		{
-			std::allocator_traits<allocator_type>::deallocate(alloc, p_data, cap);
+			std::allocator_traits<allocator_type>::deallocate(alloc, p_data, n);
 		}
 
 		FORCE_INLINE static constexpr t*
-		_alloc(allocator_type alloc, const size_type cap) noexcept
+		_alloc(allocator_type alloc, const size_type n) noexcept
 		{
-			return std::allocator_traits<allocator_type>::allocate(alloc, cap);
+			return std::allocator_traits<allocator_type>::allocate(alloc, n);
 		}
 
 		FORCE_INLINE static constexpr t*
-		_alloc(allocator_type alloc, const size_type cap, void* p_hint) noexcept
+		_alloc(allocator_type alloc, const size_type n, void* p_hint) noexcept
 		{
-			return std::allocator_traits<allocator_type>::allocate(alloc, cap, p_hint);
+			return std::allocator_traits<allocator_type>::allocate(alloc, n, p_hint);
 		}
 
 		FORCE_INLINE static constexpr void

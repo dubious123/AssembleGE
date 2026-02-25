@@ -1,7 +1,7 @@
 #ifndef AGE_FORWARD_PLUS_COMMON_HLSLI
 #define AGE_FORWARD_PLUS_COMMON_HLSLI
 
-#define UV_COUNT 3
+#define UV_COUNT 2
 
 #if UV_COUNT == 1
 #define UV_FIELDS half2 uv0 : TEXCOORD0;
@@ -25,6 +25,11 @@
 static const float sqrt_2 = 1.41421356f;
 static const float sqrt_2_inv = 0.70710678f;
 
+float int8_to_float(uint raw)
+{
+    return float(int((raw & 0xffu) << 24) >> 24);
+}
+
 float
 snorm8_to_float(int raw)
 {
@@ -35,6 +40,48 @@ float
 unorm8_to_float(uint raw)
 {
     return (raw & 0xffu) / 255.f;
+}
+
+int16_t
+uint32_upper_to_int16(uint u)
+{
+    return int16_t(u >> 16);
+}
+
+int16_t
+uint32_lower_to_int16(uint u)
+{
+    return int16_t(u & 0xffff);
+}
+
+uint16_t
+uint32_upper_to_uint16(uint u)
+{
+    return uint16_t(u >> 16);
+}
+
+uint16_t
+uint32_lower_to_uint16(uint u)
+{
+    return uint16_t(u & 0xffff);
+}
+
+half
+uint32_lower_to_half(uint u)
+{
+    return asfloat16(uint32_lower_to_uint16(u));
+}
+
+half
+uint32_upper_to_half(uint u)
+{
+    return asfloat16(uint32_upper_to_uint16(u));
+}
+
+half2
+uint32_to_half2(uint u)
+{
+    return half2(uint32_lower_to_half(u), uint32_upper_to_half(u));
 }
 
 // 10-10-10-2 Smallest Three Quaternion decoding
@@ -130,13 +177,13 @@ struct t_meshlet
 
     uint vertex_count_prim_count_extra; // [vertex_count(8bit)][primitive_count(8bit)][extra(16bit)]
 
-    vector<int16_t, 3> aabb_min; // 6byte
-    vector<uint16_t, 3> aabb_size; // 6byte 
+    int16_t3 aabb_min; // 6byte
+    uint16_t3 aabb_size; // 6byte 
 };
 
 struct t_vertex_encoded
 {
-    vector<uint16_t, 3> pos;
+    uint16_t3 pos;
     uint16_t normal_oct;
     uint16_t tangent_oct;
     uint16_t extra;
@@ -162,28 +209,25 @@ struct t_transform
 
 struct t_object_data
 {
-    t_transform transform; // 22
-    uint16_t instance_idx; // 2
-    uint16_t asset_idx; // 2
+    float3 pos;
+    uint quaternion; // 10 10 10 2
+    half3 scale;
+    //uint16_t instance_idx; // 2
+    //uint16_t asset_idx; // 2
     uint16_t extra; // 2
 };
 
-struct t_asset_data
-{
-    uint meshlet_vertex_buffer_offset;
-    uint meshlet_global_index_buffer_offset;
-    uint meshlet_primitive_index_buffer_offset;
-};
-
-struct t_job_data
+struct t_meshlet_render_job
 {
     uint object_idx;
+    uint mesh_byte_offset;
+    uint meshlet_idx;
 };
 
 cbuffer frame_data : register(b0)
 {
-    float4x4 view_proj; // 64 bytes
-    float4x4 view_proj_inv; // 64 bytes
+    row_major float4x4 view_proj; // 64 bytes
+    row_major float4x4 view_proj_inv; // 64 bytes
     float3 camera_pos; // 12 
     float time; // 4 
     float4 frustum_planes[6]; // 96
@@ -193,51 +237,189 @@ cbuffer frame_data : register(b0)
                                     // total: 256 bytes 
 };
 
-StructuredBuffer<t_asset_data> asset_data_buffer : register(t0, space1);
+StructuredBuffer<t_meshlet_render_job> meshlet_render_job_buffer : register(t0);
+StructuredBuffer<t_object_data> object_data_buffer : register(t1);
+ByteAddressBuffer mesh_data_buffer : register(t2);
 
-#if defined(PRESENTATION_PS)
+// mesh header
+struct t_mesh_header
+{
+	// uint32 vertex_offset = sizeof(mesh_baked_header), sizeof(mesh_baked_header) == 20
+    uint vertex_buffer_offset; // not from gpu, calculated from read_mesh_header function
+    
+    uint global_vertex_index_buffer_offset;
+    uint local_vertex_index_buffer_offset;
+    uint meshlet_header_buffer_offset;
+    uint meshlet_buffer_offset;
+    uint meshlet_count;
+    float3 aabb_min;
+    float3 aabb_size;
+};
+
+t_mesh_header
+read_mesh_header(uint mesh_byte_offset)
+{
+    t_mesh_header res;
+    
+    res.vertex_buffer_offset = 44 + mesh_byte_offset;
+    {
+        uint4 raw4 = mesh_data_buffer.Load4(mesh_byte_offset);
+        res.global_vertex_index_buffer_offset = mesh_byte_offset + raw4.x;
+        res.local_vertex_index_buffer_offset = mesh_byte_offset + raw4.y;
+        res.meshlet_header_buffer_offset = mesh_byte_offset + raw4.z;
+        res.meshlet_buffer_offset = mesh_byte_offset + raw4.w;
+    }
+    
+    {
+        uint4 raw4 = mesh_data_buffer.Load4(mesh_byte_offset + sizeof(uint4));
+        res.meshlet_count = raw4.x;
+        res.aabb_min.x = asfloat(raw4.y);
+        res.aabb_min.y = asfloat(raw4.z);
+        res.aabb_min.z = asfloat(raw4.w);
+    }
+    
+    {
+        uint4 raw4 = mesh_data_buffer.Load4(mesh_byte_offset + sizeof(uint4) * 2);
+        res.aabb_size.x = asfloat(raw4.x);
+        res.aabb_size.y = asfloat(raw4.y);
+        res.aabb_size.z = asfloat(raw4.z);
+    }
+    
+    return res;
+}
+
+
+t_meshlet_header
+read_meshlet_header(t_mesh_header header, uint meshlet_idx)
+{
+    t_meshlet_header res;
+
+    uint raw = mesh_data_buffer.Load(header.meshlet_header_buffer_offset + meshlet_idx * sizeof(t_meshlet_header));
+    
+    res.cone_axis_oct = uint32_lower_to_uint16(raw);
+    res.cone_cull_cutoff_and_offset = uint32_upper_to_uint16(raw);
+    
+    return res;
+}
+
+t_meshlet
+read_meshlet(t_mesh_header header, uint meshlet_idx)
+{
+    t_meshlet res;
+    
+    uint4 raw1 = mesh_data_buffer.Load4(header.meshlet_buffer_offset + meshlet_idx * sizeof(t_meshlet));
+    uint2 raw2 = mesh_data_buffer.Load2(header.meshlet_buffer_offset + meshlet_idx * sizeof(t_meshlet) + sizeof(uint4));
+    
+    res.global_index_offset = raw1.x;
+    res.primitive_offset = raw1.y;
+    res.vertex_count_prim_count_extra = raw1.z;
+    res.aabb_min = int16_t3(
+        uint32_lower_to_int16(raw1.w),
+        uint32_upper_to_int16(raw1.w),
+        uint32_lower_to_int16(raw2.x));
+    
+    res.aabb_size = uint16_t3(
+        uint32_upper_to_uint16(raw2.x),
+        uint32_lower_to_uint16(raw2.y),
+        uint32_upper_to_uint16(raw2.y));
+    
+    return res;
+}
+
+// meshlet local vertex_idx : 0 ~ 64
+uint
+read_global_vertex_index(t_mesh_header header, t_meshlet meshlet, uint vertex_idx)
+{
+    return mesh_data_buffer.Load(header.global_vertex_index_buffer_offset + (meshlet.global_index_offset + vertex_idx) * sizeof(uint));
+}
+
+t_vertex_encoded
+read_vertex_encoded(t_mesh_header header, uint global_vertex_idx)
+{
+    t_vertex_encoded res;
+    uint offset = header.vertex_buffer_offset + global_vertex_idx * sizeof(t_vertex_encoded);
+    
+    uint3 raw3 = mesh_data_buffer.Load3(offset);
+    
+    res.pos = uint16_t3(
+        uint32_lower_to_uint16(raw3.x),
+        uint32_upper_to_uint16(raw3.x),
+        uint32_lower_to_uint16(raw3.y));
+    
+    res.normal_oct = uint32_upper_to_uint16(raw3.y);
+    res.tangent_oct = uint32_lower_to_uint16(raw3.z);
+    res.extra = uint32_upper_to_uint16(raw3.z);
+    
+    offset += sizeof(raw3);
+#if UV_COUNT >= 1
+    {
+        uint raw = mesh_data_buffer.Load(offset);
+        res.uv_set[0] = uint32_to_half2(raw);
+        offset += sizeof(half2);
+    }
+#endif
+#if UV_COUNT >= 2
+    {
+        uint raw = mesh_data_buffer.Load(offset);
+        res.uv_set[1] = uint32_to_half2(raw);
+        offset += sizeof(half2);
+    }
+#endif
+#if UV_COUNT >= 3
+    {
+        uint raw = mesh_data_buffer.Load(offset);
+        res.uv_set[2] = uint32_to_half2(raw);
+        offset += sizeof(half2);
+    }
+#endif
+#if UV_COUNT >= 4
+    {
+        uint raw = mesh_data_buffer.Load(offset);
+        res.uv_set[3] = uint32_to_half2(raw);
+        offset += sizeof(half2);
+    }
+#endif
+    return res;
+}
+
+// meshlet local primitive_idx : 0 ~ 126
+uint3
+read_meshlet_primitive(t_mesh_header header, t_meshlet meshlet, uint primitive_idx)
+{
+    const uint load_pos_1byte_aligned = header.local_vertex_index_buffer_offset + meshlet.primitive_offset + primitive_idx * 3;
+    const uint load_pos_4bytes_aligned = load_pos_1byte_aligned & ~0x3u;
+    const uint bit_shift_required = (load_pos_1byte_aligned & 0x3u) * 8;
+
+    const uint2 raw = mesh_data_buffer.Load2(load_pos_4bytes_aligned);
+    const uint64_t raw64 = (uint64_t(raw.y) << 32) | uint64_t(raw.x);
+
+    return uint3(
+		(raw64 >> (bit_shift_required + 0)) & 0xff,
+		(raw64 >> (bit_shift_required + 8)) & 0xff,
+		(raw64 >> (bit_shift_required + 16)) & 0xff);
+}
+
 SamplerState linear_clamp_sampler : register(s0);
-#endif
 
-#if defined(SHADER_STAGE_AS) || defined(SHADER_STAGE_MS)
-StructuredBuffer<t_job_data> job_data_buffer :register(t0);
-#endif
-
-#if defined(SHADER_STAGE_AS) || defined(SHADER_STAGE_MS)
-StructuredBuffer<t_object_data> object_data_buffer :register(t1);
-#endif
-
-#if defined(SHADER_STAGE_AS) || defined(SHADER_STAGE_MS)
-StructuredBuffer<t_meshlet_header> meshlet_header_buffer :register(t2);
-#endif
-
-#if defined(SHADER_STAGE_AS) || defined(SHADER_STAGE_MS)
-StructuredBuffer<t_meshlet> meshlet_buffer :register(t3);
-#endif
-
-#if defined(SHADER_STAGE_MS)
-StructuredBuffer<t_vertex_encoded> vertex_buffer :register(t4);
-StructuredBuffer<uint> meshlet_global_index_buffer :register(t5);
-ByteAddressBuffer meshlet_primitive_index_buffer :register(t6);
-#endif
-
-struct t_as_to_ms
+// opaque
+struct t_opaque_as_to_ms
 {
     uint meshlet_32_group_idx;
     uint meshlet_alive_mask;
 };
 
-struct t_ms_to_ps
+struct t_opaque_ms_to_ps
 {
     float4 pos	        : SV_Position;
     float3 normal       : NORMAL;
-    nointerpolation
-    uint meshlet_index  : MESHLET_INDEX;
+    nointerpolation uint meshlet_render_job_id  : MESHLET_INDEX;
     float4 tangent      : TANGENT;
 	UV_FIELDS
 };
 
-struct t_ps_out
+// presentation
+
+struct t_presentation_ps_out
 {
     float4 color : SV_Target0;
 };

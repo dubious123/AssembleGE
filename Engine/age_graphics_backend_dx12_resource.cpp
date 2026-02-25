@@ -116,11 +116,11 @@ namespace age::graphics::resource
 	{
 		auto cpu_read_range = D3D12_RANGE{};
 
-		void* cpu_address = nullptr;
-		AGE_HR_CHECK(h_resource->p_resource->Map(0, &cpu_read_range, &cpu_address));
-		AGE_ASSERT(cpu_address is_not_nullptr);
+		auto p_cpu_address = (std::byte*)nullptr;
+		AGE_HR_CHECK(h_resource->p_resource->Map(0, &cpu_read_range, (void**)&p_cpu_address));
+		AGE_ASSERT(p_cpu_address is_not_nullptr);
 
-		return mapping_handle{ .id = g::resource_mapping_vec.emplace_back(cpu_address, h_resource) };
+		return mapping_handle{ .id = g::resource_mapping_vec.emplace_back(p_cpu_address, h_resource) };
 	}
 
 	void

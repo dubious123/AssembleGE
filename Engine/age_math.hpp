@@ -1380,78 +1380,6 @@ namespace age::inline math
 	}
 }	 // namespace age::inline math
 
-enum e_primitive_type
-{
-	primitive_type_int2,
-	primitive_type_int3,
-	primitive_type_int4,
-
-	primitive_type_uint2,
-	primitive_type_uint3,
-	primitive_type_uint4,
-
-	primitive_type_float2,
-	primitive_type_float2a,
-	primitive_type_float3,
-	primitive_type_float3a,
-	primitive_type_float4,
-	primitive_type_float4a,
-
-	primitive_type_float3x3,
-	primitive_type_float4x4,
-	primitive_type_float4x4a,
-
-	primitive_type_uint64,
-	primitive_type_uint32,
-	primitive_type_uint16,
-	primitive_type_uint8,
-
-	primitive_type_int64,
-	primitive_type_int32,
-	primitive_type_int16,
-	primitive_type_int8,
-
-	primitive_type_float32,
-	primitive_type_double64,
-
-	primitive_type_count,
-	//----------------------------------------------
-
-	primitive_type_Int2 = primitive_type_int2,
-	primitive_type_Int3 = primitive_type_int3,
-	primitive_type_Int4 = primitive_type_int4,
-
-	primitive_type_Uint2 = primitive_type_uint2,
-	primitive_type_Uint3 = primitive_type_uint3,
-	primitive_type_Uint4 = primitive_type_uint4,
-
-	primitive_type_Float2  = primitive_type_float2,
-	primitive_type_Float2a = primitive_type_float2a,
-	primitive_type_Float3  = primitive_type_float3,
-	primitive_type_Float3a = primitive_type_float3a,
-	primitive_type_Float4  = primitive_type_float4,
-	primitive_type_Float4a = primitive_type_float4a,
-
-	primitive_type_Float3x3	 = primitive_type_float3x3,
-	primitive_type_Float4x4	 = primitive_type_float4x4,
-	primitive_type_Float4x4a = primitive_type_float4x4a,
-
-	primitive_type_Uint64 = primitive_type_uint64,
-	primitive_type_Uint32 = primitive_type_uint32,
-	primitive_type_Uint16 = primitive_type_uint16,
-	primitive_type_Uint8  = primitive_type_uint8,
-
-	primitive_type_Int64 = primitive_type_int64,
-	primitive_type_Int32 = primitive_type_int32,
-	primitive_type_Int16 = primitive_type_int16,
-	primitive_type_Int8	 = primitive_type_int8,
-
-	primitive_type_Float32	= primitive_type_float32,
-	primitive_type_Double64 = primitive_type_double64,
-
-	primitive_type_Count = primitive_type_count
-};
-
 // math utils
 
 namespace age::inline math
@@ -1497,4 +1425,71 @@ namespace age::inline math
 			static_assert(false, "unsupported type for floor");
 		}
 	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE decltype(auto)
+	min(const v<t>& lhs, const v<t>& rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z), std::min(lhs.w, rhs.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for floor");
+		}
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE decltype(auto)
+	max(const v<t>& lhs, const v<t>& rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z), std::max(lhs.w, rhs.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for floor");
+		}
+	}
 }	 // namespace age::inline math
+
+namespace age::inline math::g
+{
+	inline constexpr auto sqrt_2	 = 1.4142135623730950488f;
+	inline constexpr auto sqrt_2_inv = 0.7071067811865475244f;
+
+	inline constexpr auto quaternion_idntity = float4{ 0.f, 0.f, 0.f, 1.f };
+
+	inline constexpr auto fsign_mask = 0x8000'0000u;
+
+	// 0.0001
+	inline constexpr auto epsilon_1e4 = 1e-4f;
+	inline constexpr auto epsilon_1e6 = 1e-6f;
+
+	inline constexpr auto pi			   = 3.141592654f;
+	inline constexpr auto pi_2			   = 6.283185307f;
+	inline constexpr auto pi_inv		   = 0.318309886f;
+	inline constexpr auto pi_2_inv		   = 0.159154943f;
+	inline constexpr auto pi_div_2		   = 1.570796327f;
+	inline constexpr auto pi_div_4		   = 0.785398163f;
+	inline constexpr auto degree_to_radian = pi / 180.f;
+	inline constexpr auto radian_to_degree = 180.f / pi;
+}	 // namespace age::inline math::g

@@ -63,12 +63,14 @@
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />
     <ClInclude Include="age_macro_pp_foreach.h" />
     <ClInclude Include="age_macro_pp.h" />
     <ClInclude Include="age_math.hpp" />
     <ClInclude Include="age_math_simd.hpp" />
+    <ClInclude Include="age_math_transform.hpp" />
     <ClInclude Include="age_meta.hpp" />
     <ClInclude Include="age_meta_compressed_pack.hpp" />
     <ClInclude Include="age_meta_hash.hpp" />
@@ -82,6 +84,7 @@
     <ClInclude Include="age_util.hpp" />
     <ClInclude Include="age_util_container.hpp" />
     <ClInclude Include="age_util_layout.hpp" />
+    <ClInclude Include="age_util_offset_allocator.hpp" />
     <ClInclude Include="age_util_string.hpp" />
     <ClInclude Include="age_util_views.hpp" />
   </ItemGroup>
@@ -758,6 +761,16 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">6.8</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Mesh</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.8</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">main_ms</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">main_ms</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">main_ms</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">main_ms</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">main_ms</EntryPointName>
     </FxCompile>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.5</ShaderModel>
@@ -957,6 +970,7 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -992,6 +1006,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <OmitFramePointers>true</OmitFramePointers>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -1007,6 +1023,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">
@@ -1028,6 +1045,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -1065,6 +1083,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
@@ -1094,6 +1113,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <OmitFramePointers>true</OmitFramePointers>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
@@ -1123,6 +1143,7 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)

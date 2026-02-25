@@ -1,15 +1,15 @@
 #pragma once
 #include "age.hpp"
 
+namespace age::graphics::e
+{
+	AGE_DEFINE_ENUM(camera_kind, uint8, perspective, orthographic);
+}
+
 namespace age::graphics
 {
-	enum class color_space : uint8
-	{
-		srgb,
-		hdr,
-		count
-	};
-}
+	AGE_DEFINE_ENUM(color_space, uint8, srgb, hdr);
+}	 // namespace age::graphics
 
 namespace age::graphics
 {

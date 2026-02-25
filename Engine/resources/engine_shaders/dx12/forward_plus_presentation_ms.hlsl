@@ -16,10 +16,11 @@ main_ms(
 		out vertices vertex vertex_arr[3],
 		out indices uint3 triangle_arr[1])
 {
-    vertex_arr[0].pos = float4(-1.f, -1.f, 0.f, 0.f);
-    vertex_arr[1].pos = float4(-1.f, 3.f, 0.f, 0.f);
-    vertex_arr[2].pos = float4(3.f, -1.f, 0.f, 0.f);
+    SetMeshOutputCounts(3, 1);
+    
+    vertex_arr[0].pos = float4(-1.f, -1.f, 0.f, 1.f);
+    vertex_arr[1].pos = float4(-1.f, 3.f, 0.f, 1.f);
+    vertex_arr[2].pos = float4(3.f, -1.f, 0.f, 1.f);
     
     triangle_arr[0] = uint3(0, 1, 2);
-    SetMeshOutputCounts(3, 1);
 }

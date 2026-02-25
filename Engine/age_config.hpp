@@ -75,6 +75,8 @@
 	#define INLINE_LAMBDA_BACK
 #endif
 
+#define AGE_SIMD_CALL XM_CALLCONV	 // todo
+
 #ifdef AGE_COMPILER_MSVC
 	#define AGE_ALLOC_CALLCONV __cdecl
 #else

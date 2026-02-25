@@ -113,7 +113,6 @@ namespace age::util
 												   ? 0
 												   : (mem_size - static_overhead) / soa_unit_size;
 
-
 				for (uint64 low = 0, high = upper_bound;;)
 				{
 					if (low >= high)
@@ -333,7 +332,6 @@ namespace age::util
 				}
 				else
 				{
-
 					return []<std::size_t... i>(std::index_sequence<i...> _) {
 						using tpl	 = age::meta::pop_back_tpl_t<t_layout_group...>;
 						using t_last = age::meta::variadic_at_t<sizeof...(t_layout_group) - 1, t_layout_group...>;
@@ -629,15 +627,14 @@ namespace age::util
 			std::size_t offset;
 		};
 
-		std::array<slot_info, 10> with_n_buffer{};
-		std::array<slot_info, 10> with_flex_buffer{};
-
+		std::array<slot_info, 10> with_n_buffer;
+		std::array<slot_info, 10> with_flex_buffer;
 
 		std::array<uint32, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
-			key_lut{};
+			key_lut;
 
 		std::array<std::pair<std::size_t, uint32>, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
-			result_arr{};
+			result_arr;
 
 		uint32 runtime_key	 = known_type_count;
 		uint32 with_n_idx	 = 0;
@@ -676,7 +673,6 @@ namespace age::util
 							with_n_buffer[with_n_idx].count	 = t_elem::count;
 							with_n_buffer[with_n_idx].size	*= t_elem::count;
 						}
-
 
 						++with_n_idx;
 					}
@@ -816,7 +812,6 @@ namespace age::util
 					assert(std::numeric_limits<uint32>::max() > res and "memsize too big");
 					return static_cast<uint32>(res);
 				}();
-
 
 				for (uint32 low = 0ul, high = upper_bound;;)
 				{

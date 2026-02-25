@@ -454,13 +454,13 @@ namespace age::graphics
 		{
 			static_assert(kind == where::e::reg_kind::b or kind == where::e::reg_kind::t or kind == where::e::reg_kind::u, "Unsupported register kind");
 
-			constexpr auto nth = template_param_index<kind, register_index, register_space>;
+			constexpr auto nth					= template_param_index<kind, register_index, register_space>;
+			auto		   root_param_index_arr = meta::seq_to_arr(t_root_param_index_seq{});
+			auto		   res					= 0;
 
-			auto root_param_index_arr = meta::seq_to_arr(t_root_param_index_seq{});
-			auto res				  = 0;
 			for (auto i : root_param_index_arr)
 			{
-				if (i <= nth)
+				if (i < nth)
 				{
 					++res;
 				}

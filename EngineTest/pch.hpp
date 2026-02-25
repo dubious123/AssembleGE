@@ -35,7 +35,6 @@ typedef int (*import_func)();
 		return func();                                                 \
 	}()
 
-
 #include <chrono>
 #include "age.hpp"
 

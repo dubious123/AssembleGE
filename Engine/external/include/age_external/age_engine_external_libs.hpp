@@ -45,36 +45,6 @@ namespace age::external::earcut::detail
 
 namespace age::external::meshopt::detail
 {
-	struct vertex_cache_staticstics
-	{
-		unsigned int vertices_transformed;
-		unsigned int warps_executed;
-		float		 acmr; /* transformed vertices / triangle count; best case 0.5, worst case 3.0, optimum depends on topology */
-		float		 atvr; /* transformed vertices / vertex count; best case 1.0, worst case 6.0, optimum is 1.0 (each vertex is transformed once) */
-	};
-
-	struct vertex_fetch_statistics
-	{
-		unsigned int bytes_fetched;
-		float		 overfetch; /* fetched bytes / vertex buffer size; best case 1.0 (each byte is fetched once) */
-	};
-
-	struct overdraw_statistics
-	{
-		unsigned int pixels_covered;
-		unsigned int pixels_shaded;
-		float		 overdraw; /* shaded pixels / covered pixels; best case 1.0 */
-	};
-
-	struct coverage_statistics
-	{
-		float coverage[3];
-		float extent; /* viewport size in mesh coordinates */
-	};
-}	 // namespace age::external::meshopt::detail
-
-namespace age::external::meshopt::detail
-{
 	// Vertex remap
 
 	// out : p_remap (size == index_count)
@@ -130,7 +100,6 @@ namespace age::external::meshopt::detail
 		unsigned long long vertex_count,
 		unsigned long long vertex_positions_stride) noexcept;
 
-
 	// Reorder buffers
 	void
 	gen_remapped_vertex_buffer(
@@ -146,7 +115,6 @@ namespace age::external::meshopt::detail
 		const unsigned int* p_index_buffer,
 		unsigned long long	index_count,
 		const unsigned int* p_remap_idx_arr) noexcept;
-
 
 	// Shadow index buffers
 	void
@@ -534,7 +502,6 @@ namespace age::external::meshopt::detail
 		const unsigned char* buffer,
 		unsigned long long	 buffer_size);
 
-
 	// Decode filters
 	void
 	decodeFilterOct(void* buffer, unsigned long long count, unsigned long long stride) noexcept;
@@ -679,37 +646,37 @@ namespace age::external::meshopt::detail
 	unstripifyBound(unsigned long long index_count) noexcept;
 
 	// Analysis
-	vertex_cache_staticstics
-	analyzeVertexCache(
-		const unsigned int* indices,
-		unsigned long long	index_count,
-		unsigned long long	vertex_count,
-		unsigned int		cache_size,
-		unsigned int		warp_size,
-		unsigned int		primgroup_size) noexcept;
+	// vertex_cache_staticstics
+	// analyzeVertexCache(
+	//	const unsigned int* indices,
+	//	unsigned long long	index_count,
+	//	unsigned long long	vertex_count,
+	//	unsigned int		cache_size,
+	//	unsigned int		warp_size,
+	//	unsigned int		primgroup_size) noexcept;
 
-	vertex_fetch_statistics
-	analyzeVertexFetch(
-		const unsigned int* indices,
-		unsigned long long	index_count,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_size) noexcept;
+	// vertex_fetch_statistics
+	// analyzeVertexFetch(
+	//	const unsigned int* indices,
+	//	unsigned long long	index_count,
+	//	unsigned long long	vertex_count,
+	//	unsigned long long	vertex_size) noexcept;
 
-	overdraw_statistics
-	analyzeOverdraw(
-		const unsigned int* indices,
-		unsigned long long	index_count,
-		const float*		vertex_positions,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_positions_stride) noexcept;
+	// overdraw_statistics
+	// analyzeOverdraw(
+	//	const unsigned int* indices,
+	//	unsigned long long	index_count,
+	//	const float*		vertex_positions,
+	//	unsigned long long	vertex_count,
+	//	unsigned long long	vertex_positions_stride) noexcept;
 
-	coverage_statistics
-	analyzeCoverage(
-		const unsigned int* indices,
-		unsigned long long	index_count,
-		const float*		vertex_positions,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_positions_stride) noexcept;
+	// coverage_statistics
+	// analyzeCoverage(
+	//	const unsigned int* indices,
+	//	unsigned long long	index_count,
+	//	const float*		vertex_positions,
+	//	unsigned long long	vertex_count,
+	//	unsigned long long	vertex_positions_stride) noexcept;
 
 	// Allocator
 	void

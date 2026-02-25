@@ -41,3 +41,5 @@
 ## do execute indirect
 
 ## remove | take(n)
+
+## offset allocator

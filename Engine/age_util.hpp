@@ -45,11 +45,12 @@ namespace age::util
 	}
 
 	// assume align is power of 2
-	FORCE_INLINE constexpr std::size_t
+	template <std::integral t_ret = std::size_t>
+	FORCE_INLINE constexpr t_ret
 	align_up(std::size_t offset, std::size_t align)
 	{
 		// (offset + align - 1) / align * align
-		return (offset + align - 1) & ~(align - 1);
+		return static_cast<t_ret>((offset + align - 1) & ~(align - 1));
 	}
 }	 // namespace age::util
 

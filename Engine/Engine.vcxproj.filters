@@ -58,6 +58,9 @@
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
     <ClInclude Include="age_util_container.hpp" />
+    <ClInclude Include="age_util_offset_allocator.hpp" />
+    <ClInclude Include="age_math_transform.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -92,13 +95,15 @@
     <ClCompile Include="external\include\meshoptimizer\indexgenerator.cpp" />
     <ClCompile Include="external\include\meshoptimizer\indexcodec.cpp" />
     <ClCompile Include="external\include\meshoptimizer\indexanalyzer.cpp" />
-    <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
     <ClCompile Include="external\include\meshoptimizer\clusterizer.cpp" />
     <ClCompile Include="age_external_wrapper_earcut.cpp" />
     <ClCompile Include="age_external_wrapper_mikktspace.cpp" />
     <ClCompile Include="age_extern_templates.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_test.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp" />
+    <ClCompile Include="external\include\meshoptimizer\allocator.cpp">
+      <Filter>external</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
@@ -117,5 +122,10 @@
   <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="todo.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="external">
+      <UniqueIdentifier>{0ab2aa1f-ff2c-400d-bb1e-3e0ae94b1452}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

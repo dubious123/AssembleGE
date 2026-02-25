@@ -3,50 +3,7 @@
 
 namespace age::graphics::render_pipeline::forward_plus
 {
-	struct frame_data
-	{
-		float4x4 view_proj;					// 64 bytes
-		float4x4 view_proj_inv;				// 64 bytes
-		float3	 camera_pos;				// 12
-		float	 time;						// 4
-		float4	 frustum_planes[6];			// 96
-		uint32	 frame_index;				// 4
-		float2	 inv_backbuffer_size;		// 8
-		uint32	 main_buffer_texture_id;	// 4
-											// total: 256 bytes
-	};
-
-	struct job_data
-	{
-		uint32 object_idx;
-	};
-
-	struct object_data
-	{
-		float3 pos;				// 12
-		uint32 quaternion;		// 4 10 10 10 2
-		half3  scale;			// 6
-
-		uint16 instance_idx;	// 2
-		uint16 asset_idx;		// 2
-		uint16 extra;			// 2
-	};	  // total: 28 bytes
-
-	struct asset_data
-	{
-		uint32 meshlet_vertex_buffer_offset;
-		uint32 meshlet_global_index_buffer_offset;
-		uint32 meshlet_primitive_index_buffer_offset;
-	};	  // total: 12 bytes
-
 	using binding_config_t = binding_slot_config<
-		binding_slot<
-			"linear_clamp_sampler",
-			D3D12_SAMPLER_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
-			what::sampler<defaults::static_sampler_desc::linear_clamp>,
-			how::static_sampler,
-			where::s<0>>,
 
 		binding_slot<
 			"frame_data_buffer",
@@ -57,18 +14,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::b<0>>,
 
 		binding_slot<
-			"asset_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<job_data>,
-			how::root_descriptor,
-			where::t<0, 1>>,
-
-		binding_slot<
 			"job_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<asset_data>,
+			what::structured_buffer<job_data>,
 			how::root_descriptor,
 			where::t<0>>,
 
@@ -81,44 +30,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1>>,
 
 		binding_slot<
-			"meshlet_header_buffer",
+			"mesh_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<asset::meshlet_header>,
+			what::byte_address_buffer,
 			how::root_descriptor,
 			where::t<2>>,
 
 		binding_slot<
-			"meshlet_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<asset::meshlet>,
-			how::root_descriptor,
-			where::t<3>>,
+			"linear_clamp_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::sampler<defaults::static_sampler_desc::linear_clamp>,
+			how::static_sampler,
+			where::s<0>>
 
-		binding_slot<
-			"vertex_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_MESH,
-			what::structured_buffer<asset::vertex_p_uv1>,
-			how::root_descriptor,
-			where::t<4>>,
-
-		binding_slot<
-			"meshlet_global_index_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_MESH,
-			what::structured_buffer<uint32>,
-			how::root_descriptor,
-			where::t<5>>,
-
-		binding_slot<
-			"meshlet_primitive_index_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_MESH,
-			what::byte_address_buffer,
-			how::root_descriptor,
-			where::t<6>>>;
+		>;
 
 	inline root_signature::handle
 	create_root_signature() noexcept
@@ -159,8 +86,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
-				pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
-				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::wireframe },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
 				pss_blend{ .subobj = defaults::blend_desc::opaque },
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
@@ -178,6 +105,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			resource::create_view(h_main_buffer,
 								  h_main_buffer_rtv_desc,
 								  defaults::rtv_view_desc::hdr_rgba16_2d);
+
 			resource::create_view(h_depth_buffer,
 								  h_depth_buffer_dsv_desc,
 								  defaults::dsv_view_desc::d32_float_2d);
@@ -186,19 +114,24 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
 		{
-			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(h_main_buffer_rtv_desc);
-			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc);
+			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_main_buffer_rtv_desc, nullptr);
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, -1.f);
 
 			cmd_list.BeginRenderPass(
 				1,
 				&render_pass_rt_desc,
 				&render_pass_ds_desc,
-				D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_STENCIL);
+				D3D12_RENDER_PASS_FLAG_NONE);
 
 			{
 				cmd_list.SetPipelineState(p_pso);
 
-				cmd_list.DispatchMesh(job_count, 1, 1);
+				if (job_count > 0) [[likely]]
+				{
+					const uint32 group_count = (job_count + 31u) / 32u;
+
+					cmd_list.DispatchMesh(group_count, 1, 1);
+				}
 			}
 
 			cmd_list.EndRenderPass();
@@ -303,72 +236,179 @@ namespace age::graphics::render_pipeline::forward_plus
 		opaque_stage	   stage_opaque{};
 		presentation_stage stage_presentation{};
 
-		binding_config_t::reg_b<0>	  frame_data_buffer;
-		binding_config_t::reg_t<0, 1> asset_data_buffer;
-		binding_config_t::reg_t<0>	  job_data_buffer;
-		binding_config_t::reg_t<1>	  object_data_buffer;
-		binding_config_t::reg_t<2>	  meshlet_header_buffer;
-		binding_config_t::reg_t<3>	  meshlet_buffer;
-		binding_config_t::reg_t<4>	  vertex_buffer;
-		binding_config_t::reg_t<5>	  meshlet_global_index_buffer;
-		binding_config_t::reg_t<6>	  meshlet_primitive_index_buffer;
+		binding_config_t::reg_b<0> frame_data_buffer;
+		binding_config_t::reg_t<0> job_data_buffer;
+		binding_config_t::reg_t<1> object_data_buffer;
+		binding_config_t::reg_t<2> mesh_data_buffer;
+
+		static_assert(binding_config_t::reg_b<0>::slot_id == 0);
+		static_assert(binding_config_t::reg_t<0>::slot_id == 1);
+		static_assert(binding_config_t::reg_t<1>::slot_id == 2);
+		static_assert(binding_config_t::reg_t<2>::slot_id == 3);
 
 		resource::mapping_handle h_mapping_frame_data		  = {};
-		resource::mapping_handle h_mappint_asset_data_buffer  = {};
 		resource::mapping_handle h_mapping_job_data_buffer	  = {};
 		resource::mapping_handle h_mapping_object_data_buffer = {};
-
-		resource::mapping_handle h_mapping_meshlet_header_buffer		  = {};
-		resource::mapping_handle h_mapping_meshlet_buffer				  = {};
-		resource::mapping_handle h_mapping_vertex_buffer				  = {};
-		resource::mapping_handle h_mapping_meshlet_global_index_buffer	  = {};
-		resource::mapping_handle h_mapping_meshlet_primitive_index_buffer = {};
-
-		static constexpr auto max_asset_data_count			   = 1024;
-		static constexpr auto max_job_data					   = 1024 * g::thread_count;
-		static constexpr auto max_object_data_count			   = 1024;
-		static constexpr auto max_meshlet_count				   = max_asset_data_count * 1024;
-		static constexpr auto max_vertex_count				   = max_meshlet_count * 64;
-		static constexpr auto max_global_index_buffer_count	   = max_meshlet_count * 64;
-		static constexpr auto max_primitive_index_buffer_count = max_meshlet_count * 126;
+		resource::mapping_handle h_mapping_mesh_buffer		  = {};
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 
-		resource_barrier barrier = {};
+		resource_barrier barrier;
 
-		using t_mesh_id = uint32;
+		std::array<t_object_id, max_object_data_count> object_id_stack = age::util::iota_array<0u, max_object_data_count>();
 
-		std::array<uint32, max_asset_data_count> asset_id_pool = age::util::iota_array<0u, max_asset_data_count>();
+		uint32 object_count = 0;
+
+		struct mesh_data
+		{
+			t_mesh_id id;
+			uint32	  offset;
+			uint32	  byte_size;
+			uint32	  meshlet_count;
+		};
+
+		struct camera_data
+		{
+			float3				  pos;
+			float4x4			  view_proj;
+			float4x4			  view_proj_inv;
+			std::array<float4, 6> frustom_plane_arr;
+		};
+
+		data_structure::sparse_vector<camera_data> camera_data_vec;
+
+		data_structure::sparse_vector<mesh_data> mesh_data_vec;
+		uint32									 mesh_byte_offset = 0;
+
+		job_data job_array[g::frame_buffer_count][g::thread_count][max_job_count_per_thread];
+		uint32	 job_count_array[g::frame_buffer_count][g::thread_count];
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
 		{
-			// std::memcpy(h_mapping_meshlet_header_buffer->ptr, baked.header)
-			return {};
+			AGE_ASSERT(baked.buffer.byte_size() < std::numeric_limits<uint32>::max() - mesh_byte_offset);
+			AGE_ASSERT(baked.buffer.byte_size() % 4 == 0);
+
+			auto id = static_cast<t_mesh_id>(mesh_data_vec.emplace_back(
+				mesh_data{
+					.id			   = static_cast<t_mesh_id>(mesh_data_vec.size()),
+					.offset		   = mesh_byte_offset,
+					.byte_size	   = baked.buffer.byte_size<uint32>(),
+					.meshlet_count = baked.get_header().meshlet_count }));
+
+			auto d = mesh_data_vec[0];
+
+			std::memcpy(h_mapping_mesh_buffer->ptr + mesh_byte_offset, baked.buffer.data(), baked.buffer.byte_size());
+
+			mesh_byte_offset += baked.buffer.byte_size<uint32>();
+
+			return id;
+		}
+
+		void
+		release_mesh(t_mesh_id id) noexcept
+		{
+			mesh_data_vec.remove(id);
+		}
+
+		t_camera_id
+		add_camera(camera_desc desc) noexcept
+		{
+			auto id = t_camera_id{};
+
+			auto&& [xm_pos, xm_quat] = simd::load(desc.pos, desc.quaternion);
+			c_auto xm_forward		 = simd::g::xm_forward_f4 | simd::rotate3(xm_quat);
+			c_auto xm_up			 = simd::g::xm_up_f4 | simd::rotate3(xm_quat);
+
+			c_auto xm_view = simd::view_look_to(xm_pos, xm_forward, xm_up);
+
+			c_auto xm_proj = (desc.kind == e::camera_kind::perspective)
+							   ? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
+							   : simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+
+			c_auto xm_view_proj		= xm_proj * xm_view;
+			c_auto xm_view_proj_inv = xm_view_proj | simd::mat_inv();
+
+			c_auto frustom_plane_arr = std::array{
+				xm_view_proj.r[3] | simd::add(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// left
+				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// right
+				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[1]) | simd::plane_normalize() | simd::to<float4>(),	// top
+				xm_view_proj.r[3] | simd::add(xm_view_proj.r[1]) | simd::plane_normalize() | simd::to<float4>(),	// bottom
+				xm_view_proj.r[2] | simd::plane_normalize() | simd::to<float4>(),									// near
+				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[2]) | simd::plane_normalize() | simd::to<float4>(),	// far
+			};
+
+			switch (desc.kind)
+			{
+			case e::camera_kind::perspective:
+			{
+				id = (t_camera_id)camera_data_vec.emplace_back(
+					camera_data{
+						.pos			   = desc.pos,
+						.view_proj		   = xm_view_proj | simd::to<float4x4>(),
+						.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
+						.frustom_plane_arr = frustom_plane_arr }
+
+				);
+
+				break;
+			}
+			default:
+				AGE_UNREACHABLE();
+				break;
+			}
+
+			return id;
+		}
+
+		void
+		remove_camera(t_camera_id id) noexcept
+		{
+			camera_data_vec.remove(id);
+		}
+
+		t_object_id
+		add_object(t_mesh_id mesh_id, object_data data = {}) noexcept
+		{
+			auto object_id = object_id_stack[object_count++];
+
+			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(object_data) * object_id, &data, sizeof(object_data));
+
+			return object_id;
+		}
+
+		void
+		update_object(t_object_id id, object_data data = {}) noexcept
+		{
+			AGE_ASSERT(id < object_id_stack.size());
+
+			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(object_data) * id, &data, sizeof(object_data));
+		}
+
+		void
+		remove_object(t_object_id id) noexcept
+		{
+			object_id_stack[--object_count] = id;
 		}
 
 		void
 		init() noexcept;
 
 		void
+		bind() noexcept;
+
+		void
 		deinit() noexcept;
 
-		void
-		begin_render(render_surface& rs) noexcept;
+		bool
+		begin_render(render_surface_handle h_rs) noexcept;
 
 		void
-		render(uint8 thread_id, uint32 object_id) noexcept
-		{
-			// fill in job data (per meshlet)
-			// maybe update object data
-			// maybe update frame data
-			// maybe upload mesh or texture or ...
-			// maybe release unused mesh or ...
-		}
+		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
 
 		void
-		end_render(render_surface& rs) noexcept;
+		end_render(render_surface_handle h_rs) noexcept;
 
 	  private:
 		void

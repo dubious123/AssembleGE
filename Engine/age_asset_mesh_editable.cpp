@@ -4,16 +4,14 @@
 namespace age::asset::detail
 {
 	FORCE_INLINE auto
-	face_normal(mesh_editable& mesh_edit, mesh_editable::face& f) noexcept
+	face_normal_cw(mesh_editable& mesh_edit, mesh_editable::face& f) noexcept
 	{
-		auto& b					  = mesh_edit.boundary_vec[mesh_edit.face_to_boundary_idx_vec[f.to_outer_boundary_idx_offset()]];
-		auto  s					  = mesh_edit.vertex_idx_span(b);
-		auto&& [v0, v1, v2]		  = std::tie(mesh_edit.vertex_vec[s[0]], mesh_edit.vertex_vec[s[1]], mesh_edit.vertex_vec[s[2]]);
-		auto&& [p0, p1, p2]		  = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
-		auto&& [xmv0, xmv1, xmv2] = simd::load(p0, p1, p2);
-		return (xmv2 - xmv0)
-			 | simd::cross3(xmv1 - xmv0)
-			 | simd::normalize3();
+		auto& b				   = mesh_edit.boundary_vec[mesh_edit.face_to_boundary_idx_vec[f.to_outer_boundary_idx_offset()]];
+		auto  s				   = mesh_edit.vertex_idx_span(b);
+		auto&& [v0, v1, v2]	   = std::tie(mesh_edit.vertex_vec[s[0]], mesh_edit.vertex_vec[s[1]], mesh_edit.vertex_vec[s[2]]);
+		auto&& [p0, p1, p2]	   = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
+		auto&& [xm0, xm1, xm2] = simd::load(p0, p1, p2);
+		return (xm1 - xm0) | simd::cross3(xm2 - xm1) | simd::normalize3();
 	}
 
 	void
@@ -21,7 +19,7 @@ namespace age::asset::detail
 	{
 		for (auto&& [f_idx, f] : mesh_edit.face_vec | std::views::enumerate)
 		{
-			auto xm_f_normal = detail::face_normal(mesh_edit, f);
+			auto xm_f_normal = detail::face_normal_cw(mesh_edit, f);
 			for (auto& b : mesh_edit.boundary_view(f))
 			{
 				for (const auto [v0, v1, v2] :
@@ -146,7 +144,6 @@ namespace age::asset
 				   v_offset = desc.local_basis[2] * (-0.5f * desc.size[1]),
 				   v_step	= desc.local_basis[2] * (desc.size[1] / desc.seg_v);
 
-
 			res.position_vec[vertex_idx] =
 				(v_offset + v_step * vertex_v_idx) + (u_offset + u_step * vertex_u_idx);
 
@@ -174,7 +171,6 @@ namespace age::asset
 			v_adj.to_edge_idx_count		= 4
 										- uint32{ vertex_u_idx % desc.seg_u == 0 }
 										- uint32{ vertex_v_idx % desc.seg_v == 0 };
-
 
 			c_auto edge_right_idx = vertex_v_idx * desc.seg_u + vertex_u_idx;
 			c_auto edge_up_idx	  = edge_horizontal_count + vertex_v_idx * grid_u + vertex_u_idx;
@@ -239,7 +235,6 @@ namespace age::asset
 			e.to_face_idx_count		= 0;
 		}
 
-
 		for (const auto [face_v_idx, face_u_idx] : std::views::cartesian_product(
 				 std::views::iota(0u) | std::views::take(desc.seg_v),
 				 std::views::iota(0u) | std::views::take(desc.seg_u)))
@@ -247,25 +242,47 @@ namespace age::asset
 			c_auto face_idx		= face_v_idx * desc.seg_u + face_u_idx;
 			c_auto boundary_idx = face_idx;
 
-			c_auto vertex_uv_arr = std::array{
-				uint32_2{ face_v_idx + 0, face_u_idx + 0 },
-				uint32_2{ face_v_idx + 0, face_u_idx + 1 },
-				uint32_2{ face_v_idx + 1, face_u_idx + 1 },
-				uint32_2{ face_v_idx + 1, face_u_idx + 0 }
-			};
+			// RH
+			// c_auto vertex_uv_arr = std::array{
+			//	uint32_2{ face_v_idx + 0, face_u_idx + 0 },
+			//	uint32_2{ face_v_idx + 0, face_u_idx + 1 },
+			//	uint32_2{ face_v_idx + 1, face_u_idx + 1 },
+			//	uint32_2{ face_v_idx + 1, face_u_idx + 0 }
+			// };
+
+			// c_auto vertex_idx_arr = std::array{
+			//	(face_v_idx + 0) * grid_u + (face_u_idx + 0),
+			//	(face_v_idx + 0) * grid_u + (face_u_idx + 1),
+			//	(face_v_idx + 1) * grid_u + (face_u_idx + 1),
+			//	(face_v_idx + 1) * grid_u + (face_u_idx + 0)
+			// };
+
+			// c_auto edge_idx_arr = std::array{
+			//	(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),
+			//	(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,
+			//	(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),
+			//	(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count
+			// };
+
+			// c_auto vertex_uv_arr = std::array{
+			//	uint32_2{ face_v_idx + 0, face_u_idx + 0 },
+			//	uint32_2{ face_v_idx + 1, face_u_idx + 0 },
+			//	uint32_2{ face_v_idx + 1, face_u_idx + 1 },
+			//	uint32_2{ face_v_idx + 0, face_u_idx + 1 }
+			// };
 
 			c_auto vertex_idx_arr = std::array{
 				(face_v_idx + 0) * grid_u + (face_u_idx + 0),
-				(face_v_idx + 0) * grid_u + (face_u_idx + 1),
+				(face_v_idx + 1) * grid_u + (face_u_idx + 0),
 				(face_v_idx + 1) * grid_u + (face_u_idx + 1),
-				(face_v_idx + 1) * grid_u + (face_u_idx + 0)
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1)
 			};
 
 			c_auto edge_idx_arr = std::array{
-				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),
-				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,
-				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),
-				(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count
+				(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count,	 // 0->2
+				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),						 // 3->2
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,	 // 1->2
+				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),						 // 0->1
 			};
 
 			auto& f = res.face_vec[face_idx];
@@ -414,7 +431,6 @@ namespace age::asset
 						== 1);
 				}
 			}
-
 
 			for (auto&& [b_idx, b] : boundary_vec | std::views::enumerate)
 			{

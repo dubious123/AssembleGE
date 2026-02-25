@@ -310,7 +310,7 @@ namespace age::graphics::root_signature
 				.pParameters	   = root_param_arr.data(),
 				.NumStaticSamplers = static_cast<UINT>(sampler_arr.size()),
 				.pStaticSamplers   = sampler_arr.data(),
-				.Flags			   = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT }
+				.Flags			   = flags }
 		};
 
 		auto* p_serialized_root_signature = (ID3DBlob*)nullptr;

@@ -166,22 +166,22 @@ namespace age::graphics
 	struct render_surface
 	{
 		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, g::frame_buffer_count>
-			rtv_desc_handle_arr{};
+			rtv_desc_handle_arr;
 
 		std::array<ID3D12Resource*, g::frame_buffer_count>
-			back_buffer_ptr_arr{};
+			back_buffer_ptr_arr;
 
 		IDXGISwapChain4* p_swap_chain = nullptr;
 
-		platform::window_handle h_window{};
+		platform::window_handle h_window;
 
-		DXGI_FORMAT rtv_format{};
+		DXGI_FORMAT rtv_format;
 
 		UINT present_flags = 0;
 		bool should_render = true;
 
-		D3D12_VIEWPORT default_viewport{};
-		D3D12_RECT	   default_scissor_rect{};
+		D3D12_VIEWPORT default_viewport;
+		D3D12_RECT	   default_scissor_rect;
 
 		// for closing pending (present)
 		HANDLE present_waitable_obj = nullptr;
@@ -261,7 +261,7 @@ namespace age::graphics::resource
 
 	struct resource_mapping
 	{
-		void*			ptr;
+		std::byte*		ptr;
 		resource_handle h_resource;
 	};
 

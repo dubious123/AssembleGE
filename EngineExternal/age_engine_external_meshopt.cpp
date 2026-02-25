@@ -13,7 +13,7 @@
 #include "meshoptimizer/spatialorder.cpp"
 #include "meshoptimizer/stripifier.cpp"
 #include "meshoptimizer/vcacheoptimizer.cpp"
-#include "meshoptimizer/vertexcodec.cpp"
+#include "meshoptimizer/vertexcodec.cpp"	
 #include "meshoptimizer/vfetchoptimizer.cpp"
 #include "meshoptimizer/vertexfilter.cpp"
 

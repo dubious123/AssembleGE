@@ -150,25 +150,17 @@ namespace age::asset
 namespace age::asset
 {
 	template <typename t_vertex_to>
-	age::vector<t_vertex_to>
-	quantize(const age::vector<vertex_fat>& vertex_fat_vec) noexcept
-	{
-		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
-
-		auto res = t_vertex_to{};
-
-		return res;
-	}
-
-	template <typename t_vertex_to>
 	FORCE_INLINE t_vertex_to
-	cvt_vertex_to(const vertex_fat& v_fat, float3 offset, float3 scale) noexcept
+	cvt_vertex_to(const vertex_fat& v_fat, float3 aabb_min, float3 aabb_size) noexcept
 	{
 		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
 
 		auto res = t_vertex_to{};
-		res.pos	 = age::cvt_to<uint16_3>((v_fat.pos - offset) * scale, age::cvt_unorm_tag{});
 
+		auto aabb_size_inv = float3::one() / aabb_size;
+
+		res.pos = age::cvt_to<uint16_3>((v_fat.pos - aabb_min) * aabb_size_inv, age::cvt_unorm_tag{});
+		auto p	= res.pos;
 		if constexpr (uv_count > 0)
 		{
 			age::cvt_to(
@@ -194,30 +186,6 @@ namespace age::asset
 		}
 
 		return res;
-	}
-
-	template <typename t_vertex_to>
-	FORCE_INLINE age::vector<t_vertex_to>
-	cvt_vertex_to(const age::vector<vertex_fat>& vertex_fat_vec) noexcept
-	{
-		auto aabb_min = float3{};
-		auto aabb_max = float3{};
-		for (c_auto& v : vertex_fat_vec)
-		{
-			if (v.pos.x < aabb_min.x) aabb_min.x = v.pos.x;
-			if (v.pos.y < aabb_min.y) aabb_min.y = v.pos.y;
-			if (v.pos.z < aabb_min.z) aabb_min.z = v.pos.z;
-
-			if (v.pos.x > aabb_max.x) aabb_max.x = v.pos.x;
-			if (v.pos.y > aabb_max.y) aabb_max.y = v.pos.y;
-			if (v.pos.z > aabb_max.z) aabb_max.z = v.pos.z;
-		}
-
-		return vertex_fat_vec
-			 | std::views::transform([offset = aabb_min, scale = float3::one() / (aabb_max - aabb_min) * static_cast<float>(std::numeric_limits<uint16>::max())](c_auto& v) {
-				   return cvt_vertex_to<t_vertex_to>(v, offset, scale);
-			   })
-			 | std::ranges::to<age::vector<t_vertex_to>>();
 	}
 
 	template <typename t_vertex_to>
@@ -250,14 +218,14 @@ namespace age::asset
 {
 	struct mesh_baked_header
 	{
-		// uint32 vertex_offset = sizeof(header);
-		uint32			 global_vertex_index_buffer_offset{};
-		uint32			 local_vertex_index_buffer_offset{};
-		uint32			 meshlet_header_buffer_offset{};
-		uint32			 meshlet_buffer_offset{};
-		uint32			 meshlet_count{};
-		e::vertex_kind	 vertex_kind{};
-		e::topology_kind topology_kind{};
+		// uint32 vertex_offset = sizeof(mesh_baked_header)
+		uint32 global_vertex_index_buffer_offset;
+		uint32 local_vertex_index_buffer_offset;
+		uint32 meshlet_header_buffer_offset;
+		uint32 meshlet_buffer_offset;
+		uint32 meshlet_count;
+		float3 aabb_min;
+		float3 aabb_size;
 	};
 
 	// [mesh_baked_header]
@@ -325,25 +293,82 @@ namespace age::asset
 				index_buffer,
 				vertex_buffer);
 
-		auto vertex_buffer_quantized = cvt_vertex_to<t_vertex>(vertex_buffer);
+		// print meshlets
+
+		// for (auto&& [mshlt_idx, mshlt] : meshlet_vec | std::views::enumerate)
+		//{
+		//	std::println("meshlet[{}] begin", mshlt_idx);
+		//	for (auto&& [idx, v] : std::views::iota(mshlt.global_index_offset)
+		//							   | std::views::take(mshlt.vertex_count)
+		//							   | std::views::transform([&meshlet_global_index_buffer](auto i) { return meshlet_global_index_buffer[i]; })
+		//							   | std::views::transform([&vertex_buffer](auto i) -> decltype(auto) { return vertex_buffer[i]; })
+		//							   | std::views::enumerate)
+		//	{
+		//		std::println("vertex[{}] : [{}, {}, {}]", idx, v.pos.x, v.pos.y, v.pos.z);
+		//	}
+
+		//	for (auto&& [idx, tpl] : std::views::iota(0)
+		//								 | std::views::take(mshlt.primitive_count)
+		//								 | std::views::transform([&meshlet_local_index_buffer, &mshlt](auto i) { return uint32_3{ meshlet_local_index_buffer[mshlt.primitive_offset + i * 3], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 1], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 2] }; })
+		//								 | std::views::transform([&meshlet_global_index_buffer, &mshlt](auto u3) { return uint32_3{ meshlet_global_index_buffer[mshlt.global_index_offset + u3.x], meshlet_global_index_buffer[mshlt.global_index_offset + u3.y], meshlet_global_index_buffer[mshlt.global_index_offset + u3.z] }; })
+		//								 | std::views::transform([&vertex_buffer](auto u3) -> decltype(auto) { return std::tuple{ vertex_buffer[u3.x], vertex_buffer[u3.y], vertex_buffer[u3.z] }; })
+		//								 | std::views::enumerate)
+		//	{
+		//		std::println("triangle [{}] : [{}, {}, {}], [{}, {}, {}], [{}, {}, {}]", idx,
+		//					 std::get<0>(tpl).pos.x, std::get<0>(tpl).pos.y, std::get<0>(tpl).pos.z,
+		//					 std::get<1>(tpl).pos.x, std::get<1>(tpl).pos.y, std::get<1>(tpl).pos.z,
+		//					 std::get<2>(tpl).pos.x, std::get<2>(tpl).pos.y, std::get<2>(tpl).pos.z
+
+		//		);
+		//	}
+
+		//	std::println("meshlet[{}] end", mshlt_idx);
+		//}
+
+		// auto aabb_min = int16_3{ std::numeric_limits<int16>::max() },
+		//	 aabb_max = int16_3{ std::numeric_limits<int16>::lowest() };
+
+		auto aabb_min = float3{ std::numeric_limits<float>::max() };
+		auto aabb_max = float3{ std::numeric_limits<float>::lowest() };
+		for (c_auto& v : vertex_buffer)
+		{
+			aabb_min = age::min(aabb_min, v.pos);
+			aabb_max = age::max(aabb_max, v.pos);
+		}
+
+		c_auto aabb_size = age::max(aabb_max - aabb_min, float3{ age::g::epsilon_1e6 });
+
+		c_auto vertex_buffer_quantized_buffer = vertex_buffer
+											  | std::views::transform([aabb_min, aabb_size](c_auto& v) {
+													return cvt_vertex_to<t_vertex>(v, aabb_min, aabb_size);
+												})
+											  | std::ranges::to<age::vector<t_vertex>>();
 
 		auto header = mesh_baked_header{};
 		{
-			header.global_vertex_index_buffer_offset = static_cast<uint32>(sizeof(mesh_baked_header)) + vertex_buffer_quantized.byte_size<uint32>();
-			header.local_vertex_index_buffer_offset	 = header.global_vertex_index_buffer_offset + meshlet_local_index_buffer.byte_size<uint32>();
-			header.meshlet_header_buffer_offset		 = header.local_vertex_index_buffer_offset + meshlet_header_vec.byte_size<uint32>();
-			header.meshlet_buffer_offset			 = header.meshlet_header_buffer_offset + meshlet_vec.byte_size<uint32>();
+			c_auto header_vertex_buffer_offset = static_cast<uint32>(sizeof(mesh_baked_header));
+
+			header.meshlet_header_buffer_offset		 = header_vertex_buffer_offset + vertex_buffer_quantized_buffer.byte_size<uint32>();
+			header.meshlet_buffer_offset			 = header.meshlet_header_buffer_offset + meshlet_header_vec.byte_size<uint32>();
+			header.global_vertex_index_buffer_offset = header.meshlet_buffer_offset + meshlet_vec.byte_size<uint32>();
+			header.local_vertex_index_buffer_offset	 = header.global_vertex_index_buffer_offset + meshlet_global_index_buffer.byte_size<uint32>();
 			header.meshlet_count					 = static_cast<uint32>(meshlet_vec.size());
-			header.vertex_kind						 = get_vertex_kind<t_vertex>();
-			header.topology_kind					 = e::topology_kind::triangle;
+			header.aabb_min							 = aabb_min;
+			header.aabb_size						 = aabb_size;
+
+			AGE_ASSERT(header.meshlet_header_buffer_offset % 4 == 0);
+			AGE_ASSERT(header.meshlet_buffer_offset % 4 == 0);
+			AGE_ASSERT(header.meshlet_header_buffer_offset % 4 == 0);
+			AGE_ASSERT(header.global_vertex_index_buffer_offset % 4 == 0);
+			AGE_ASSERT(header.local_vertex_index_buffer_offset % 4 == 0);
 		};
 
-		auto buffer = age::buffer::write_bytes(header,
-											   vertex_buffer_quantized,
-											   meshlet_global_index_buffer,
-											   meshlet_local_index_buffer,
-											   meshlet_header_vec,
-											   meshlet_vec);
+		auto buffer = age::buffer::write_bytes<alignof(uint32)>(header,
+																vertex_buffer_quantized_buffer,
+																meshlet_header_vec,
+																meshlet_vec,
+																meshlet_global_index_buffer,
+																meshlet_local_index_buffer);
 
 		return { .buffer = std::move(buffer) };
 	}

@@ -144,7 +144,6 @@ namespace age::platform
 			::TranslateMessage(&msg);
 			::DispatchMessage(&msg);
 
-
 			if (msg.message == WM_QUIT) [[unlikely]]
 			{
 				i_platform.running() = false;
@@ -195,7 +194,7 @@ namespace age::platform
 	}
 
 	window_handle
-	create_window(window_desc&& desc) noexcept
+	create_window(const window_desc& desc) noexcept
 	{
 		auto	   i_platform	 = global::get<platform::interface>();
 		const auto wname		 = std::wstring{ i_platform.name().begin(), i_platform.name().end() };

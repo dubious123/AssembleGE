@@ -309,16 +309,16 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
-		clear_preserve(rtv_desc_handle h_rtv_desc, const float* clear_color) noexcept
+		clear_preserve(rtv_desc_handle h_rtv_desc, const float* p_clear_color) noexcept
 		{
 			D3D12_RENDER_PASS_RENDER_TARGET_DESC desc = {
 				.cpuDescriptor	 = h_rtv_desc.h_cpu,
 				.BeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
 				.EndingAccess	 = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE }
 			};
-			if (clear_color)
+			if (p_clear_color)
 			{
-				std::memcpy(desc.BeginningAccess.Clear.ClearValue.Color, clear_color, sizeof(float) * 4);
+				std::memcpy(desc.BeginningAccess.Clear.ClearValue.Color, p_clear_color, sizeof(float) * 4);
 			}
 			return desc;
 		}

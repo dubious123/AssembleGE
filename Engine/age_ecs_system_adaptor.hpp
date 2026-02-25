@@ -55,7 +55,6 @@ namespace age::ecs::system
 		operator()(this auto&& self) noexcept
 		{
 			return std::move(FWD(self).data);
-			// return static_cast<age::meta::copy_cv_ref_t<decltype(FWD(self)), std::remove_cvref_t<t_data>>>(FWD(self).data);
 		}
 	};
 

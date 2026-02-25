@@ -84,6 +84,10 @@ namespace age
 	#include "age_data_structure.hpp"
 #endif
 //------------------------------------------------------------------------------
+#include "age_math_transform.hpp"			//todo, move to pch.hpp
+
+#include "age_util_offset_allocator.hpp"	//todo
+
 #include "age_extern_templates.hpp"
 #include "age_fwd.hpp"
 
@@ -137,5 +141,7 @@ namespace age
 	#include "age_graphics_backend_dx12_root_signature_binding_slot.hpp"
 	#include "age_graphics_backend_dx12_pso.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_test.hpp"
+
+	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
 #endif

@@ -67,7 +67,7 @@ namespace age::platform
 	deinit() noexcept;
 
 	window_handle
-	create_window(window_desc&&) noexcept;
+	create_window(const window_desc&) noexcept;
 	void
 	move_window(window_handle, int32 x, int32 y) noexcept;
 }	 // namespace age::platform
