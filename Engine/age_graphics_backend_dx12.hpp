@@ -450,16 +450,6 @@ namespace age::graphics::shader
 		unload_shader(shader_handle) noexcept;
 }	 // namespace age::graphics::shader
 
-// stage
-namespace age::graphics::stage
-{
-	void
-	init() noexcept;
-
-	void
-	deinit() noexcept;
-}	 // namespace age::graphics::stage
-
 // internal globals
 namespace age::graphics::g
 {

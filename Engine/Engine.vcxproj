@@ -59,7 +59,6 @@
     <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_test.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
@@ -166,22 +165,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_test.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="age_graphics_backend_dx12_stage.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12_render_surface.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

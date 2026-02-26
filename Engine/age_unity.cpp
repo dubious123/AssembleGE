@@ -41,12 +41,6 @@
 #line 1 "age_graphics_backend_dx12_shader.cpp"
 #include "age_graphics_backend_dx12_shader.cpp"
 
-#line 1 "age_graphics_backend_dx12_stage.cpp"
-#include "age_graphics_backend_dx12_stage.cpp"
-
-#line 1 "age_graphics_backend_dx12_render_pipeline_test.cpp"
-#include "age_graphics_backend_dx12_render_pipeline_test.cpp"
-
 #line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
 

@@ -82,10 +82,6 @@ namespace age::graphics
 		age::graphics::root_signature::init();
 
 		age::graphics::shader::init();
-
-		age::graphics::stage::init();
-
-		g::test_pipeline.init();
 	}
 
 	void
@@ -116,12 +112,8 @@ namespace age::graphics
 			{
 				g::render_surface_vec.debug_validate();
 			}
-
-			// test
-			g::test_pipeline.deinit();
 		}
 
-		age::graphics::stage::deinit();
 		age::graphics::shader::deinit();
 		age::graphics::root_signature::deinit();
 

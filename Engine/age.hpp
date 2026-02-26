@@ -140,7 +140,6 @@ namespace age
 	#include "age_graphics_backend_dx12_root_signature.hpp"
 	#include "age_graphics_backend_dx12_root_signature_binding_slot.hpp"
 	#include "age_graphics_backend_dx12_pso.hpp"
-	#include "age_graphics_backend_dx12_render_pipeline_test.hpp"
 
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
