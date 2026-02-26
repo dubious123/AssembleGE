@@ -33,7 +33,7 @@ namespace age::inline math
 	}
 
 	FORCE_INLINE uint32
-	quaternoin_encode(float4 q) noexcept
+	quaternion_encode(float4 q) noexcept
 	{
 		using namespace age::math::simd;
 		auto xm_q = simd::load(q);

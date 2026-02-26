@@ -64,8 +64,16 @@
 #else
 #endif
 
+#define AGE_LAMBDA(arg_tpl, ...) [&] INLINE_LAMBDA_FRONT arg_tpl noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	__VA_ARGS__                                                                                                  \
+}
+
 #define AGE_FUNC(...) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
 	return __VA_ARGS__(FWD(arg)...);                                                                        \
+}
+
+#define AGE_CAPTURE_FUNC(...) [&] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	return __VA_ARGS__(FWD(arg)...);                                                                                 \
 }
 
 #define AGE_FUNC_MEM(overloaded_func_name) [this] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
@@ -263,7 +271,8 @@
 		using __t_enum__ = enum_class_name;                                     \
 		switch (e)                                                              \
 		{                                                                       \
-			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__);                     \
+			FOR_EACH (AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                     \
+				;                                                               \
 		default:                                                                \
 		{                                                                       \
 			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
@@ -275,7 +284,8 @@
 		using __t_enum__ = enum_class_name;                                     \
 		switch (e)                                                              \
 		{                                                                       \
-			FOR_EACH(AGE_ENUM_TO_WSTRING_CASE, __VA_ARGS__);                    \
+			FOR_EACH (AGE_ENUM_TO_WSTRING_CASE, __VA_ARGS__)                    \
+				;                                                               \
 		default:                                                                \
 		{                                                                       \
 			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
@@ -297,7 +307,8 @@
 		using __t_enum__ = enum_class_name;                                     \
 		switch (e)                                                              \
 		{                                                                       \
-			FOR_EACH(AGE_ENUM_TO_STRING_CASE, __VA_ARGS__);                     \
+			FOR_EACH (AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                     \
+				;                                                               \
 		default:                                                                \
 		{                                                                       \
 			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
@@ -309,7 +320,7 @@
 #define __AGE_REQUEST_COMBINE_FLAGS__(x) age::subsystem::flags::x |
 
 #define AGE_REQUEST_PHASE(...) \
-	phase_meta<FOR_EACH(__AGE_REQUEST_COMBINE_FLAGS__, __VA_ARGS__) age::subsystem::flags{ 0 }>
+	phase_meta<FOR_EACH (__AGE_REQUEST_COMBINE_FLAGS__, __VA_ARGS__) age::subsystem::flags{ 0 }>
 
 #define AGE_DEFINE_REQUEST_BEGIN           \
 	template <age::request::type req_type> \
@@ -376,7 +387,8 @@
 	{                                                                                                                                                                                                     \
 		const ID3D12Resource* p_resource = nullptr;                                                                                                                                                       \
 		__AGE_VALIDATE_HELPER__(__VA_ARGS__)                                                                                                                                                              \
-		FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_DEFINE_MEMBER_AND_GET_DESC_FUNC__ __VA_OPT__(, ) __VA_ARGS__);                                                                                              \
+		FOR_EACH (__AGE_GRAPHICS_RESOURCE_VIEW_DEFINE_MEMBER_AND_GET_DESC_FUNC__ __VA_OPT__(, ) __VA_ARGS__)                                                                                              \
+			;                                                                                                                                                                                             \
                                                                                                                                                                                                           \
 	  public:                                                                                                                                                                                             \
 		static constexpr std::string_view                                                                                                                                                                 \
@@ -481,14 +493,16 @@
 		void                                                                                                                                                                                              \
 		init() noexcept                                                                                                                                                                                   \
 		{                                                                                                                                                                                                 \
-			FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_INIT__ __VA_OPT__(, ) __VA_ARGS__);                                                                                                                     \
+			FOR_EACH (__AGE_GRAPHICS_RESOURCE_VIEW_INIT__ __VA_OPT__(, ) __VA_ARGS__)                                                                                                                     \
+				;                                                                                                                                                                                         \
 		}                                                                                                                                                                                                 \
 		void                                                                                                                                                                                              \
 		bind(ID3D12Resource& __age_resource__) noexcept                                                                                                                                                   \
 		{                                                                                                                                                                                                 \
 			p_resource = &__age_resource__;                                                                                                                                                               \
 			validate(__age_resource__);                                                                                                                                                                   \
-			FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_BIND__ __VA_OPT__(, ) __VA_ARGS__);                                                                                                                     \
+			FOR_EACH (__AGE_GRAPHICS_RESOURCE_VIEW_BIND__ __VA_OPT__(, ) __VA_ARGS__)                                                                                                                     \
+				;                                                                                                                                                                                         \
 		}                                                                                                                                                                                                 \
 		void                                                                                                                                                                                              \
 		deinit() noexcept                                                                                                                                                                                 \
@@ -497,7 +511,8 @@
 			{                                                                                                                                                                                             \
 				p_resource = nullptr;                                                                                                                                                                     \
 			}                                                                                                                                                                                             \
-			FOR_EACH(__AGE_GRAPHICS_RESOURCE_VIEW_DEINIT__ __VA_OPT__(, ) __VA_ARGS__);                                                                                                                   \
+			FOR_EACH (__AGE_GRAPHICS_RESOURCE_VIEW_DEINIT__ __VA_OPT__(, ) __VA_ARGS__)                                                                                                                   \
+				;                                                                                                                                                                                         \
 		}                                                                                                                                                                                                 \
 	} view_local_name;
 

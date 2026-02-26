@@ -1476,7 +1476,7 @@ namespace age::inline math::g
 	inline constexpr auto sqrt_2	 = 1.4142135623730950488f;
 	inline constexpr auto sqrt_2_inv = 0.7071067811865475244f;
 
-	inline constexpr auto quaternion_idntity = float4{ 0.f, 0.f, 0.f, 1.f };
+	inline constexpr auto quaternion_identity = float4{ 0.f, 0.f, 0.f, 1.f };
 
 	inline constexpr auto fsign_mask = 0x8000'0000u;
 

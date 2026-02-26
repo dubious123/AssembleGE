@@ -97,3 +97,25 @@ namespace age::ecs::system
 	template <typename t_arg>
 	sys_move_data(t_arg&&) -> sys_move_data<t_arg>;
 }	 // namespace age::ecs::system
+
+namespace age::ecs::system
+{
+	template <typename t_sys>
+	struct when
+	{
+		using t_ctx_tag = ctx_tag<tag_adaptor>;
+
+		no_unique_addr t_sys sys_cond;
+
+		FORCE_INLINE constexpr when(auto&& arg) noexcept : sys_cond{ FWD(arg) } {};
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(auto&&... arg) noexcept
+		{
+			return run_sys(sys_cond, FWD(arg)...);
+		}
+	};
+
+	template <typename t_arg>
+	when(t_arg&&) -> when<t_arg>;
+}	 // namespace age::ecs::system

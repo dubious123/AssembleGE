@@ -111,12 +111,12 @@ namespace age
 #include "age_ecs_system_exec_inline.hpp"
 #include "age_ecs_system_ctx.hpp"
 
+#include "age_ecs_system_adaptor.hpp"
+
 #include "age_ecs_system_pipe.hpp"
 #include "age_ecs_system_cond.hpp"
 #include "age_ecs_system_loop.hpp"
 #include "age_ecs_system_match.hpp"
-
-#include "age_ecs_system_adaptor.hpp"
 
 #include "age_ecs_entity_block_basic.hpp"
 #include "age_ecs_entity_storage_basic.hpp"

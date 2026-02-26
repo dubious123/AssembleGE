@@ -315,25 +315,6 @@ namespace age::graphics
 	}
 
 	void
-	render() noexcept
-	{
-		constexpr auto thread_idx = 4;
-		auto&		   cmd_list	  = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][thread_idx];
-
-		cmd_list.SetDescriptorHeaps(1, &g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-
-		for (auto& rs : g::render_surface_vec)
-		{
-			if (rs.should_render is_false) [[unlikely]]
-			{
-				continue;
-			}
-
-			g::test_pipeline.execute(cmd_list, rs);
-		}
-	}
-
-	void
 	end_frame() noexcept
 	{
 		g::cmd_system_direct.end_frame();

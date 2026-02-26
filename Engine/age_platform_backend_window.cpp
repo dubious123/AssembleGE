@@ -6,11 +6,12 @@ namespace age::platform
 {
 	struct window_info
 	{
-		HWND		 hwnd		  = {};
-		RECT		 client_rect  = {};
-		POINT		 top_left_pos = {};
-		window_mode	 mode		  = {};
-		window_state state		  = window_state::normal;
+		HWND		 hwnd			 = {};
+		RECT		 client_rect	 = {};
+		POINT		 top_left_pos	 = {};
+		window_mode	 mode			 = {};
+		window_state state			 = window_state::normal;
+		bool		 close_requested = false;
 	};
 }	 // namespace age::platform
 
@@ -35,7 +36,7 @@ namespace age::platform::detail
 			case WM_NCDESTROY:
 			case WM_DESTROY:
 			case WM_CLOSE:
-				break;	  // 정상 종료 시퀀스는 통과
+				break;
 			}
 		}
 		else
@@ -44,7 +45,8 @@ namespace age::platform::detail
 			{
 			case WM_CLOSE:
 			{
-				age::platform::on_window_closed(h_window);
+				platform::g::window_info_vec[h_window].close_requested = true;
+				// age::platform::on_window_closed(h_window);
 				return LRESULT{};
 			}
 			case WM_SETCURSOR:
@@ -158,9 +160,10 @@ namespace age::platform
 			{
 				AGE_ASSERT(req.phase == 1, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
 
-				auto handle = req.req_param.as<window_handle>();
-				::DestroyWindow(get_hwnd(handle));
-				g::window_info_vec.remove(handle);
+				auto h_window = req.req_param.as<window_handle>();
+				::DestroyWindow(get_hwnd(h_window));
+
+				g::window_info_vec[h_window].state = window_state::closed;
 
 				if (g::window_info_vec.is_empty())
 				{
@@ -240,16 +243,56 @@ namespace age::platform
 	}
 
 	void
-	move_window(window_handle w_handle, int32 x, int32 y) noexcept
+	move_window(window_handle h_window, int32 x, int32 y) noexcept
 	{
 		AGE_WIN32_CHECK(::SetWindowPos(
-			get_hwnd(w_handle),
+			get_hwnd(h_window),
 			nullptr,
 			x,
 			y,
 			0,
 			0,
 			SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+	}
+
+	void
+	close_window(window_handle h_window) noexcept
+	{
+		if (g::window_info_vec[h_window].state == window_state::closing)
+		{
+			return;
+		}
+
+		g::window_info_vec[h_window].close_requested = true;
+
+		on_window_closed(h_window);
+	}
+
+	bool
+	window_close_requested(window_handle h_window) noexcept
+	{
+		return g::window_info_vec[h_window].close_requested;
+	}
+
+	bool
+	is_window_closed(window_handle h_window) noexcept
+	{
+		return g::window_info_vec[h_window].state == window_state::closed;
+	}
+
+	void
+	remove_window(window_handle& h_window) noexcept
+	{
+		AGE_ASSERT(g::window_info_vec[h_window].state == window_state::closed);
+		g::window_info_vec.remove(h_window);
+
+		h_window.id = invalid_id_uint32;
+	}
+
+	uint32
+	window_count() noexcept
+	{
+		return g::window_info_vec.count();
 	}
 }	 // namespace age::platform
 

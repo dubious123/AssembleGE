@@ -10,7 +10,7 @@ namespace age::platform
 		count
 	};
 
-	AGE_DEFINE_ENUM(window_state, uint8, normal, maximized, minimized, closing);
+	AGE_DEFINE_ENUM(window_state, uint8, normal, maximized, minimized, closing, closed);
 }	 // namespace age::platform
 
 // interface
@@ -41,7 +41,7 @@ namespace age::platform
 
 	struct window_handle
 	{
-		t_window_id id;
+		t_window_id id = invalid_id_uint32;
 
 		constexpr auto
 		operator<=>(const window_handle&) const noexcept = default;
@@ -68,8 +68,24 @@ namespace age::platform
 
 	window_handle
 	create_window(const window_desc&) noexcept;
+
 	void
 	move_window(window_handle, int32 x, int32 y) noexcept;
+
+	void
+	close_window(window_handle _) noexcept;
+
+	bool
+	window_close_requested(window_handle _) noexcept;
+
+	bool
+	is_window_closed(window_handle _) noexcept;
+
+	void
+	remove_window(window_handle& _) noexcept;
+
+	uint32
+	window_count() noexcept;
 }	 // namespace age::platform
 
 namespace age::platform

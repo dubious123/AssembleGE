@@ -20,7 +20,18 @@ namespace age::ecs::system
 				requires { {run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...)} -> detail::cx_valid_sys_call; },
 				"[pipe] invalid_sys_call - check that system left is callable with given arguments.");
 
-			if constexpr (sys_idx + 1 == sizeof...(t_sys))
+			if constexpr (meta::is_specialization_of_v<BARE_OF(systems.get<sys_idx>()), when>)
+			{
+				static_assert(std::is_convertible_v<BARE_OF(run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...)), bool>,
+							  "[pipe] when<> condition must return a type convertible to bool");
+
+				if (run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...))
+				{
+					__run_impl<sys_idx + 1>(FWD(ctx), FWD(arg)...);
+				}
+				return;
+			}
+			else if constexpr (sys_idx + 1 == sizeof...(t_sys))
 			{
 				return run_sys(FWD(ctx), systems.get<sys_idx>(), FWD(arg)...);
 			}
@@ -48,7 +59,18 @@ namespace age::ecs::system
 				requires { {run_sys(systems.get<sys_idx>(), FWD(arg)...)}->detail::cx_valid_sys_call; },
 				"[pipe] invalid_sys_call - check that system left is callable with given arguments.");
 
-			if constexpr (sys_idx + 1 == sizeof...(t_sys))
+			if constexpr (meta::is_specialization_of_v<BARE_OF(systems.get<sys_idx>()), when>)
+			{
+				static_assert(std::is_convertible_v<BARE_OF(run_sys(systems.get<sys_idx>(), FWD(arg)...)), bool>,
+							  "[pipe] when<> condition must return a type convertible to bool");
+
+				if (run_sys(systems.get<sys_idx>(), FWD(arg)...))
+				{
+					__run_impl<sys_idx + 1>(FWD(arg)...);
+				}
+				return;
+			}
+			else if constexpr (sys_idx + 1 == sizeof...(t_sys))
 			{
 				return run_sys(systems.get<sys_idx>(), FWD(arg)...);
 			}

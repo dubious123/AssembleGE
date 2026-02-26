@@ -68,9 +68,6 @@ namespace age::graphics
 	resize_render_surface(render_surface_handle _) noexcept;
 
 	void
-	render() noexcept;
-
-	void
 	begin_frame() noexcept;
 
 	void

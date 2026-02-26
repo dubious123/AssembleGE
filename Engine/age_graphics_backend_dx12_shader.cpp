@@ -140,7 +140,9 @@ namespace age::graphics::shader
 		{
 			blob_file.clear();
 
-			AGE_CHECK(blob_file.write(static_cast<const char*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize()).good());
+			auto& stream = blob_file.write(static_cast<const char*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize());
+
+			AGE_ASSERT(stream.good());
 
 			blob_file.close();
 		}
