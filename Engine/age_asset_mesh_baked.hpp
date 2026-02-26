@@ -295,38 +295,48 @@ namespace age::asset
 
 		// print meshlets
 
-		// for (auto&& [mshlt_idx, mshlt] : meshlet_vec | std::views::enumerate)
-		//{
-		//	std::println("meshlet[{}] begin", mshlt_idx);
-		//	for (auto&& [idx, v] : std::views::iota(mshlt.global_index_offset)
-		//							   | std::views::take(mshlt.vertex_count)
-		//							   | std::views::transform([&meshlet_global_index_buffer](auto i) { return meshlet_global_index_buffer[i]; })
-		//							   | std::views::transform([&vertex_buffer](auto i) -> decltype(auto) { return vertex_buffer[i]; })
-		//							   | std::views::enumerate)
-		//	{
-		//		std::println("vertex[{}] : [{}, {}, {}]", idx, v.pos.x, v.pos.y, v.pos.z);
-		//	}
+		for (auto&& [mshlt_idx, mshlt] : meshlet_vec | std::views::enumerate)
+		{
+			// std::println("meshlet[{}] begin", mshlt_idx);
 
-		//	for (auto&& [idx, tpl] : std::views::iota(0)
-		//								 | std::views::take(mshlt.primitive_count)
-		//								 | std::views::transform([&meshlet_local_index_buffer, &mshlt](auto i) { return uint32_3{ meshlet_local_index_buffer[mshlt.primitive_offset + i * 3], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 1], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 2] }; })
-		//								 | std::views::transform([&meshlet_global_index_buffer, &mshlt](auto u3) { return uint32_3{ meshlet_global_index_buffer[mshlt.global_index_offset + u3.x], meshlet_global_index_buffer[mshlt.global_index_offset + u3.y], meshlet_global_index_buffer[mshlt.global_index_offset + u3.z] }; })
-		//								 | std::views::transform([&vertex_buffer](auto u3) -> decltype(auto) { return std::tuple{ vertex_buffer[u3.x], vertex_buffer[u3.y], vertex_buffer[u3.z] }; })
-		//								 | std::views::enumerate)
-		//	{
-		//		std::println("triangle [{}] : [{}, {}, {}], [{}, {}, {}], [{}, {}, {}]", idx,
-		//					 std::get<0>(tpl).pos.x, std::get<0>(tpl).pos.y, std::get<0>(tpl).pos.z,
-		//					 std::get<1>(tpl).pos.x, std::get<1>(tpl).pos.y, std::get<1>(tpl).pos.z,
-		//					 std::get<2>(tpl).pos.x, std::get<2>(tpl).pos.y, std::get<2>(tpl).pos.z
+			// c_auto& mshlt_header = meshlet_header_vec[mshlt_idx];
 
-		//		);
-		//	}
+			// std::println("meshlet[{}]  aabb_min int16_3 : [{}, {}, {}], aabb_size uint16_3 : [{}, {}, {}]",
+			//			 mshlt_idx,
+			//			 mshlt_header.aabb_min.x,
+			//			 mshlt_header.aabb_min.y,
+			//			 mshlt_header.aabb_min.z,
+			//			 mshlt_header.aabb_size.x,
+			//			 mshlt_header.aabb_size.y,
+			//			 mshlt_header.aabb_size.z);
 
-		//	std::println("meshlet[{}] end", mshlt_idx);
-		//}
 
-		// auto aabb_min = int16_3{ std::numeric_limits<int16>::max() },
-		//	 aabb_max = int16_3{ std::numeric_limits<int16>::lowest() };
+			// for (auto&& [idx, v] : std::views::iota(mshlt.global_index_offset)
+			//						   | std::views::take(mshlt.vertex_count)
+			//						   | std::views::transform([&meshlet_global_index_buffer](auto i) { return meshlet_global_index_buffer[i]; })
+			//						   | std::views::transform([&vertex_buffer](auto i) -> decltype(auto) { return vertex_buffer[i]; })
+			//						   | std::views::enumerate)
+			//{
+			//	std::println("vertex[{}] : [{}, {}, {}]", idx, v.pos.x, v.pos.y, v.pos.z);
+			// }
+
+			// for (auto&& [idx, tpl] : std::views::iota(0)
+			//							 | std::views::take(mshlt.primitive_count)
+			//							 | std::views::transform([&meshlet_local_index_buffer, &mshlt](auto i) { return uint32_3{ meshlet_local_index_buffer[mshlt.primitive_offset + i * 3], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 1], meshlet_local_index_buffer[mshlt.primitive_offset + i * 3 + 2] }; })
+			//							 | std::views::transform([&meshlet_global_index_buffer, &mshlt](auto u3) { return uint32_3{ meshlet_global_index_buffer[mshlt.global_index_offset + u3.x], meshlet_global_index_buffer[mshlt.global_index_offset + u3.y], meshlet_global_index_buffer[mshlt.global_index_offset + u3.z] }; })
+			//							 | std::views::transform([&vertex_buffer](auto u3) -> decltype(auto) { return std::tuple{ vertex_buffer[u3.x], vertex_buffer[u3.y], vertex_buffer[u3.z] }; })
+			//							 | std::views::enumerate)
+			//{
+			//	std::println("triangle [{}] : [{}, {}, {}], [{}, {}, {}], [{}, {}, {}]", idx,
+			//				 std::get<0>(tpl).pos.x, std::get<0>(tpl).pos.y, std::get<0>(tpl).pos.z,
+			//				 std::get<1>(tpl).pos.x, std::get<1>(tpl).pos.y, std::get<1>(tpl).pos.z,
+			//				 std::get<2>(tpl).pos.x, std::get<2>(tpl).pos.y, std::get<2>(tpl).pos.z
+
+			//	);
+			//}
+
+			std::println("meshlet[{}] end", mshlt_idx);
+		}
 
 		auto aabb_min = float3{ std::numeric_limits<float>::max() };
 		auto aabb_max = float3{ std::numeric_limits<float>::lowest() };
@@ -362,14 +372,12 @@ namespace age::asset
 			AGE_ASSERT(header.global_vertex_index_buffer_offset % 4 == 0);
 			AGE_ASSERT(header.local_vertex_index_buffer_offset % 4 == 0);
 		};
-
 		auto buffer = age::buffer::write_bytes<alignof(uint32)>(header,
 																vertex_buffer_quantized_buffer,
 																meshlet_header_vec,
 																meshlet_vec,
 																meshlet_global_index_buffer,
 																meshlet_local_index_buffer);
-
 		return { .buffer = std::move(buffer) };
 	}
 }	 // namespace age::asset

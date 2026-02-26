@@ -9,9 +9,6 @@
 ## Compressed pack
 ### 1. impl std::get
 
-## Mesh editable
-### 1. calculate_normal_by_angle
-
 ## mikktspace 
 ### remove external and move to test
 
@@ -40,6 +37,6 @@
 
 ## do execute indirect
 
-## remove | take(n)
-
 ## offset allocator
+
+## material system ( programmable render pipeline stage )

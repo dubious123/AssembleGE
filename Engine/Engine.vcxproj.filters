@@ -60,6 +60,7 @@
     <ClInclude Include="age_util_offset_allocator.hpp" />
     <ClInclude Include="age_math_transform.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

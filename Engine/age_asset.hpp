@@ -176,7 +176,7 @@ namespace age::asset
 	};
 
 	mesh_editable
-	create_primitive(const primitive_desc& desc) noexcept;
+	create_primitive_mesh(const primitive_desc& desc) noexcept;
 
 	void
 	calculate_normal(mesh_editable&, const normal_calc_desc&) noexcept;

@@ -18,6 +18,8 @@ namespace age::runtime
 
 		AGE_PROP(running)
 
+		AGE_PROP(frame_count)
+
 		// FORCE_INLINE constexpr decltype((data.now))
 		// now()
 		//{

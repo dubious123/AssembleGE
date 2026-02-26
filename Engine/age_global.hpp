@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"
 
 namespace age::global
 {
@@ -9,6 +10,8 @@ namespace age::global
 		std::chrono::steady_clock::time_point now;
 
 		std::chrono::nanoseconds delta_time_ns{ 0 };
+
+		uint32 frame_count = 0;
 
 		bool running = true;
 

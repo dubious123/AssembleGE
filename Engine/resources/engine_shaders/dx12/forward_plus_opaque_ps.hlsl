@@ -20,7 +20,7 @@ float3 get_random_color(uint index)
 }
 
 float4
-main_ps(t_opaque_ms_to_ps fragment): SV_Target0
+main_ps(opaque_ms_to_ps fragment): SV_Target0
 {
     const float3 meshlet_color = get_random_color(fragment.meshlet_render_job_id);
     
@@ -30,14 +30,10 @@ main_ps(t_opaque_ms_to_ps fragment): SV_Target0
 
     const float3 final_color = meshlet_color * diff;
     
-    //if (select32_nth_set_bit(0x5, 1) == 2)
-    //{
-    //    return float4(0.0f, 0.0f, 1.0f, 1.0f); // 파란색: Identity 맞음
-    //}
+    //if (sizeof(meshlet_header) == 16)
+    //    return float4(0, 0, 1, 1); // 파랑 = 정상
     //else
-    //{
-    //    return float4(1.0f, 0.0f, 0.0f, 1.0f); // 빨간색: 회전 적용됨
-    //}
+    //    return float4(1, 0, 0, 1); // 빨강 = 문제
     
     return float4(final_color, 1.0f);
 }

@@ -22,22 +22,18 @@ namespace age::asset
 		oct<int8> cone_axis_oct;
 		int8	  cone_cull_cutoff;
 		int8	  apex_offset;	  // apex = center - axis * offset;
+
+		int16_3	 aabb_min;		  // 6byte
+		uint16_3 aabb_size;		  // 6byte
 	};
 
 	struct meshlet
 	{
-		// local_idx = local_idx_buffer[ nth primitive * i ]
-		// global_idx = global_idx_buffer[local_idx]
-		// vertex = vertex_buffer[global_idx]
-
 		uint32 global_index_offset{};
 		uint32 primitive_offset{};
 
 		uint8  vertex_count{};
 		uint8  primitive_count{};
 		uint16 padding{};
-
-		int16_3	 aabb_min{};
-		uint16_3 aabb_size{};
 	};
 }	 // namespace age::asset

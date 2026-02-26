@@ -3,64 +3,6 @@
 
 namespace age::graphics::render_pipeline::forward_plus
 {
-	using binding_config_t = binding_slot_config<
-
-		binding_slot<
-			"frame_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::constant_buffer_array<frame_data>,
-			how::root_descriptor,
-			where::b<0>>,
-
-		binding_slot<
-			"job_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<job_data>,
-			how::root_descriptor,
-			where::t<0>>,
-
-		binding_slot<
-			"object_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<object_data>,
-			how::root_descriptor,
-			where::t<1>>,
-
-		binding_slot<
-			"mesh_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::byte_address_buffer,
-			how::root_descriptor,
-			where::t<2>>,
-
-		binding_slot<
-			"linear_clamp_sampler",
-			D3D12_SAMPLER_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
-			what::sampler<defaults::static_sampler_desc::linear_clamp>,
-			how::static_sampler,
-			where::s<0>>
-
-		>;
-
-	inline root_signature::handle
-	create_root_signature() noexcept
-	{
-		return binding_config_t::create_root_signature(
-			D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
-			| D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS
-			| D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
-			| D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
-			| D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
-	}
-}	 // namespace age::graphics::render_pipeline::forward_plus
-
-namespace age::graphics::render_pipeline::forward_plus
-{
 	struct opaque_stage
 	{
 		rtv_desc_handle h_main_buffer_rtv_desc;
@@ -281,8 +223,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		data_structure::sparse_vector<mesh_data> mesh_data_vec;
 		uint32									 mesh_byte_offset = 0;
 
-		job_data job_array[g::frame_buffer_count][g::thread_count][max_job_count_per_thread];
-		uint32	 job_count_array[g::frame_buffer_count][g::thread_count];
+		shared_type::job_data job_array[g::frame_buffer_count][g::thread_count][max_job_count_per_thread];
+		uint32				  job_count_array[g::frame_buffer_count][g::thread_count];
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -296,8 +238,6 @@ namespace age::graphics::render_pipeline::forward_plus
 					.offset		   = mesh_byte_offset,
 					.byte_size	   = baked.buffer.byte_size<uint32>(),
 					.meshlet_count = baked.get_header().meshlet_count }));
-
-			auto d = mesh_data_vec[0];
 
 			std::memcpy(h_mapping_mesh_buffer->ptr + mesh_byte_offset, baked.buffer.data(), baked.buffer.byte_size());
 
@@ -369,21 +309,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		t_object_id
-		add_object(t_mesh_id mesh_id, object_data data = {}) noexcept
+		add_object(t_mesh_id mesh_id, shared_type::object_data data = {}) noexcept
 		{
 			auto object_id = object_id_stack[object_count++];
 
-			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(object_data) * object_id, &data, sizeof(object_data));
+			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * object_id, &data, sizeof(shared_type::object_data));
 
 			return object_id;
 		}
 
 		void
-		update_object(t_object_id id, object_data data = {}) noexcept
+		update_object(t_object_id id, shared_type::object_data data = {}) noexcept
 		{
 			AGE_ASSERT(id < object_id_stack.size());
 
-			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(object_data) * id, &data, sizeof(object_data));
+			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * id, &data, sizeof(shared_type::object_data));
 		}
 
 		void

@@ -7,25 +7,33 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::init() noexcept
 	{
-		h_root_sig = create_root_signature();
+		h_root_sig = binding_config_t::create_root_signature(
+			D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
+			| D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS
+			| D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+			| D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+			| D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
+
 		p_root_sig = g::root_signature_ptr_vec[h_root_sig];
 
-		h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(frame_data) * 3);
-		h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(job_data) * max_job_data);
-		h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(object_data) * max_object_data_count);
+		h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(shared_type::frame_data) * 3);
+		h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::job_data) * max_job_count_per_frame * g::frame_buffer_count);
+		h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count);
 		h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
 
 		h_main_buffer_srv_desc = g::cbv_srv_uav_desc_pool.pop();
 
 		{
 			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_frame_data].h_resource].p_resource;
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(frame_data) * 0, 0);
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(frame_data) * 1, 1);
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(frame_data) * 2, 2);
+			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 0, 0);
+			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
+			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
 		}
 		{
 			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_job_data_buffer].h_resource].p_resource;
-			job_data_buffer.bind(p_resource->GetGPUVirtualAddress());
+			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 0, 0);
+			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 1, 1);
+			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 2, 2);
 		}
 		{
 			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_object_data_buffer].h_resource].p_resource;
@@ -125,13 +133,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto mesh_offset	 = mesh_data_vec[mesh_id].offset;
 		c_auto meshlet_count = mesh_data_vec[mesh_id].meshlet_count;
 
-		for (auto meshlet_idx = 0u;
+		for (auto meshlet_id = 0u;
 			 auto i : std::views::iota(0) | std::views::take(meshlet_count))
 		{
-			job_array[g::frame_buffer_idx][thread_id][job_idx + i] = job_data{
+			job_array[g::frame_buffer_idx][thread_id][job_idx + i] = shared_type::job_data{
 				.object_id		  = object_id,
 				.mesh_byte_offset = mesh_offset,
-				.meshlet_idx	  = meshlet_idx++
+				.meshlet_id		  = meshlet_id++
 			};
 		}
 
@@ -147,18 +155,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			auto total_job_count = 0;
 
-			for (auto* p_dst = h_mapping_job_data_buffer->ptr;
-				 auto  thread_id : std::views::iota(0, g::thread_count))
+			for (
+				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::job_data) * max_job_count_per_frame * g::frame_buffer_idx;
+				auto  thread_id : std::views::iota(0, g::thread_count))
 			{
 				c_auto& job_arr	  = job_array[g::frame_buffer_idx][thread_id];
 				c_auto& job_count = job_count_array[g::frame_buffer_idx][thread_id];
-				c_auto	byte_size = sizeof(job_data) * job_count;
+				c_auto	byte_size = sizeof(shared_type::job_data) * job_count;
 
-				if (g::frame_buffer_idx % g::frame_buffer_count == 0)
-				{
-					std::memcpy(p_dst, &job_arr[0], byte_size);
-				}
-				// std::memcpy(p_dst, &job_arr[0], byte_size);
+				std::memcpy(p_dst, &job_arr[0], byte_size);
 				total_job_count += job_count;
 				p_dst			+= byte_size;
 			}
@@ -171,61 +176,20 @@ namespace age::graphics::render_pipeline::forward_plus
 				auto dt_ns	  = age::global::get<runtime::interface>().delta_time_ns();
 				auto dt_ms	  = std::chrono::duration<float, std::milli>(dt_ns).count();
 
-				auto frame_d = frame_data{
-					.view_proj				= cam_data.view_proj,
-					.view_proj_inv			= cam_data.view_proj_inv,
-					.camera_pos				= cam_data.pos,
-					.time					= dt_ms,
-					.frustum_planes			= cam_data.frustom_plane_arr,
-					.frame_index			= frame_index++,
+				auto frame_d = shared_type::frame_data{
+					.view_proj	   = cam_data.view_proj,
+					.view_proj_inv = cam_data.view_proj_inv,
+					.camera_pos	   = cam_data.pos,
+					.time		   = dt_ms,
+					//.frustum_planes			= cam_data.frustom_plane_arr,
+					.frame_index			= age::global::get<runtime::interface>().frame_count(),
 					.inv_backbuffer_size	= float2{ 1.f / extent.width, 1.f / extent.height },
 					.main_buffer_texture_id = g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc)
 				};
 
-				std::memcpy(h_mapping_frame_data->ptr + sizeof(frame_data) * g::frame_buffer_idx, &frame_d, sizeof(frame_data));
-			}
+				std::ranges::copy(cam_data.frustom_plane_arr, frame_d.frustum_planes);
 
-			auto* ptr1 = h_mapping_frame_data->ptr;
-			auto* ptr2 = h_mapping_job_data_buffer->ptr;
-			auto* ptr3 = h_mapping_mesh_buffer->ptr;
-			auto* ptr4 = h_mapping_object_data_buffer->ptr;
-
-			for (auto j_id : std::views::iota(0) | std::views::take(total_job_count))
-			{
-				auto& job = reinterpret_cast<job_data*>(h_mapping_job_data_buffer->ptr)[j_id];
-				auto& obj = reinterpret_cast<object_data*>(h_mapping_object_data_buffer->ptr)[job.object_id];
-
-				auto p = obj.pos;
-
-				asset::mesh_baked_header header;
-
-				{
-					uint32_4 raw4 = *(uint32_4*)(reinterpret_cast<std::byte*>(h_mapping_mesh_buffer->ptr) + job.mesh_byte_offset);
-
-					// res.vertex_buffer_offset = 20 + mesh_byte_offset;
-
-					header.global_vertex_index_buffer_offset = job.mesh_byte_offset + raw4.x;
-					header.local_vertex_index_buffer_offset	 = job.mesh_byte_offset + raw4.y;
-					header.meshlet_header_buffer_offset		 = job.mesh_byte_offset + raw4.z;
-					header.meshlet_buffer_offset			 = job.mesh_byte_offset + raw4.w;
-
-					header.meshlet_count = *(uint32*)(reinterpret_cast<std::byte*>(h_mapping_mesh_buffer->ptr) + (job.mesh_byte_offset + sizeof(uint32_4)));
-
-					int a = 1;
-				}
-
-				asset::meshlet mshlt;
-				{
-					uint32_4 raw1 = *(uint32_4*)(reinterpret_cast<std::byte*>(h_mapping_mesh_buffer->ptr) + (header.meshlet_buffer_offset + (j_id % 32) * sizeof(asset::meshlet)));
-					uint32_2 raw2 = *(uint32_2*)(reinterpret_cast<std::byte*>(h_mapping_mesh_buffer->ptr) + (header.meshlet_buffer_offset + (j_id % 32) * sizeof(asset::meshlet) + sizeof(uint32_4)));
-
-					mshlt.global_index_offset = raw1.x;
-					mshlt.primitive_offset	  = raw1.y;
-					mshlt.vertex_count		  = raw1.z & 0xffu;
-					mshlt.primitive_count	  = (raw1.z >> 8) & 0xffu;
-
-					int a = 1;
-				}
+				std::memcpy(h_mapping_frame_data->ptr + sizeof(shared_type::frame_data) * g::frame_buffer_idx, &frame_d, sizeof(shared_type::frame_data));
 			}
 
 			stage_opaque.execute(cmd_list, total_job_count);

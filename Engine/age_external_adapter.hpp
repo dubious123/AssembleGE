@@ -866,8 +866,8 @@ namespace age::external::meshopt
 				.vertex_count		 = static_cast<uint8>(m_fat.vertex_count),
 				.primitive_count	 = static_cast<uint8>(m_fat.triangle_count),
 				.padding			 = { 0 },
-				.aabb_min			 = int16_3{ aabb_min_f },
-				.aabb_size			 = uint16_3{ aabb_size_f },
+				//.aabb_min			 = int16_3{ aabb_min_f },
+				//.aabb_size			 = uint16_3{ aabb_size_f },
 			};
 
 			auto apex_offset = float{};
@@ -884,7 +884,9 @@ namespace age::external::meshopt
 			meshlet_header_vec[idx] = asset::meshlet_header{
 				.cone_axis_oct	  = cvt_to<oct<int8>>(float3{ b_fat.cone_axis }),
 				.cone_cull_cutoff = b_fat.cone_cutoff_s8,
-				.apex_offset	  = static_cast<int8>(apex_offset)
+				.apex_offset	  = static_cast<int8>(apex_offset),
+				.aabb_min		  = int16_3{ aabb_min_f },
+				.aabb_size		  = uint16_3{ aabb_size_f },
 			};
 
 			AGE_ASSERT(apex_offset < std::numeric_limits<int8>::max() and apex_offset > std::numeric_limits<int8>::min());

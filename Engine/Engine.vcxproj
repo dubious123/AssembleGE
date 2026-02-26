@@ -59,6 +59,7 @@
     <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
@@ -963,7 +964,8 @@
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
@@ -1002,7 +1004,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
@@ -1040,7 +1043,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
@@ -1071,7 +1075,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
@@ -1101,7 +1106,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>
@@ -1131,7 +1137,8 @@ xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\dxc\dxcompiler.dll $(OutDir)
 xcopy /Y /D $(ProjectDir)external\dll\dxc\dxil.dll $(OutDir)
-xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"</Command>
+xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" </Command>
     </PreBuildEvent>
     <Lib>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(ProjectDir)external\lib\$(Platform)\dxc;$(ProjectDir)external\lib\$(Platform)\age_external</AdditionalLibraryDirectories>

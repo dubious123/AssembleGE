@@ -1,8 +1,6 @@
 #include "pch.hpp"
 #include "test.h"
 
-#include <thread>
-
 auto forward_plus_pipeline = age::graphics::render_pipeline::forward_plus::pipeline();
 
 auto h_window_test_app_1 = age::platform::window_handle{};
@@ -16,7 +14,7 @@ auto mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_m
 auto obj_id_vec	 = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
 auto camera_vec	 = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
 
-auto _game = my_game();
+auto test_game = my_game();
 
 int
 main()
@@ -25,7 +23,7 @@ main()
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 	using namespace age::ecs::system;
 
-	run_benchmark(_game, 1'000);
+	run_benchmark(test_game, 1'000);
 
 	if (false)
 	{
@@ -40,7 +38,7 @@ main()
 		age::graphics::init,
 		age::runtime::init,
 
-		AGE_CAPTURE_FUNC(forward_plus_pipeline.init),
+		AGE_FUNC(forward_plus_pipeline.init),
 
 		identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
 			.kind		= age::graphics::e::camera_kind::perspective,
@@ -51,27 +49,27 @@ main()
 				.far_z		  = 100.f,
 				.fov_y		  = age::cvt_to_radian(120.f),
 				.aspect_ratio = 16.f / 9.f } } }
-			| AGE_CAPTURE_FUNC(forward_plus_pipeline.add_camera)
-			| AGE_CAPTURE_FUNC(camera_vec.emplace_back),
+			| AGE_FUNC(forward_plus_pipeline.add_camera)
+			| AGE_FUNC(camera_vec.emplace_back),
 
-		identity{ age::asset::primitive_desc{ .size = { 1, 1, 1 }, .seg_u = 30, .seg_v = 30 } }
-			| age::asset::create_primitive
+		identity{ age::asset::primitive_desc{ .size = { 1, 1, 1 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::plane } }
+			| age::asset::create_primitive_mesh
 			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-			| AGE_CAPTURE_FUNC(forward_plus_pipeline.upload_mesh)
-			| AGE_CAPTURE_FUNC(mesh_id_vec.emplace_back),
+			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
+			| AGE_FUNC(mesh_id_vec.emplace_back),
 
 		AGE_LAMBDA(
 			(),
 			{
 				for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-1, 2), std::views::iota(-1, 2), std::views::iota(-1, 2)))
 				{
-					auto object_data = age::graphics::render_pipeline::forward_plus::object_data{
+					auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
 						.pos		= float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
 						.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
 						.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
 					};
 
-					obj_id_vec.emplace_back(forward_plus_pipeline.add_object(mesh_id_vec[0], object_data));
+					obj_id_vec.emplace_back(forward_plus_pipeline.add_object(mesh_id_vec[0], data));
 				}
 			}),
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
@@ -89,7 +87,7 @@ main()
 			| age::runtime::assign_to(h_window_test_app_3)
 			| age::graphics::create_render_surface,
 
-		identity{ age::platform::window_desc{ 1080 / 2, 920 / 2, "test_render_surface" } }
+		identity{ age::platform::window_desc{ 1080 * 2, 920 * 2, "test_render_surface" } }
 			| age::platform::create_window
 			| age::runtime::assign_to(h_game_window)
 			| age::graphics::create_render_surface
@@ -110,7 +108,7 @@ main()
 			  },
 
 			  age::runtime::when_window_alive(h_game_window)
-				  | [&] {
+				  | [] {
 						if (forward_plus_pipeline.begin_render(h_forward_plus_rs))
 						{
 							for (auto obj_id : obj_id_vec)
@@ -145,8 +143,8 @@ main()
 				}
 			}),
 
-		AGE_CAPTURE_FUNC(forward_plus_pipeline.deinit),
-		AGE_CAPTURE_FUNC(_game.deinit),
+		AGE_FUNC(forward_plus_pipeline.deinit),
+		AGE_FUNC(test_game.deinit),
 		age::graphics::deinit,
 		age::platform::deinit,
 		age::asset::deinit,

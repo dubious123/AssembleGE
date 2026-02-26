@@ -337,6 +337,12 @@ namespace age::graphics
 			}
 		}
 
+		D3D12_GPU_VIRTUAL_ADDRESS
+		get_va(std::size_t ring_idx = g::frame_buffer_idx) noexcept
+		{
+			return gpu_va_arr[ring_idx];
+		}
+
 	  private:
 		void
 		bind_impl(D3D12_GPU_VIRTUAL_ADDRESS va, auto ring_idx) noexcept

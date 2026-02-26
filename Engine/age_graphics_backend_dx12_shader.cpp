@@ -30,9 +30,19 @@ namespace age::graphics::shader
 			c_auto target	   = stage + L"_6_8";
 			c_auto entry_point = L"main_" + stage;
 
+			auto newest_include_time = std::filesystem::last_write_time(hlsl_path);
+			for (auto& entry : std::filesystem::directory_iterator(hlsl_path.parent_path()))
+			{
+				c_auto ext = entry.path().extension();
+				if (ext == ".h" or ext == ".hlsli")
+				{
+					newest_include_time = std::max(newest_include_time, entry.last_write_time());
+				}
+			}
+
 			if (c_auto need_recompile =
 					std::filesystem::exists(compiled_blob_path) is_false
-					or std::filesystem::last_write_time(hlsl_path) > std::filesystem::last_write_time(compiled_blob_path)
+					or newest_include_time > std::filesystem::last_write_time(compiled_blob_path)
 					or std::filesystem::file_size(compiled_blob_path) == 0)
 			{
 				compile_shader(hlsl_path.c_str(), entry_point, target, compiled_blob_path);

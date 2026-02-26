@@ -58,7 +58,7 @@ SpacesBeforeTrailingComments: 4
 SpacesInAngles: Never
 SpacesInContainerLiterals: true
 Cpp11BracedListStyle : false
-MaxEmptyLinesToKeep : 1
+MaxEmptyLinesToKeep : 2
 ColumnLimit: 0
 TabWidth: 4
 UseTab: Always
@@ -87,7 +87,7 @@ KeepEmptyLines:
 
 IndentWrappedFunctionNames: false
 
-AttributeMacros: ['FORCE_INLINE', 'no_unique_addr', 'INLINE_LAMBDA_FRONT', 'INLINE_LAMBDA_BACK']
+AttributeMacros: ['FORCE_INLINE', 'no_unique_addr', 'INLINE_LAMBDA_FRONT', 'INLINE_LAMBDA_BACK', 'REG']
 ForEachMacros: [FOR_EACH]
 # Macros:
 #   - AGE_LAMBDA(arg_tpl, body)=[&] INLINE_LAMBDA_FRONT arg_tpl noexcept INLINE_LAMBDA_BACK -> decltype(auto) { body }

@@ -87,8 +87,9 @@ namespace age::asset
 
 namespace age::asset
 {
+
 	mesh_editable
-	create_primitive(const primitive_desc& desc) noexcept
+	create_primitive_mesh_plane(const primitive_desc& desc) noexcept
 	{
 		AGE_ASSERT(age::math::simd::is_orthogonal_basis(desc.local_basis));
 		AGE_ASSERT(desc.seg_u > 0);
@@ -363,6 +364,24 @@ namespace age::asset
 		}
 
 		return res;
+	}
+}	 // namespace age::asset
+
+namespace age::asset
+{
+	mesh_editable
+	create_primitive_mesh(const primitive_desc& desc) noexcept
+	{
+		switch (desc.mesh_kind)
+		{
+		case e::primitive_mesh_kind ::plane:
+		{
+			return create_primitive_mesh_plane(desc);
+		}
+		default:
+			AGE_UNREACHABLE("invalid primitive mesh type {}", std::to_underlying(desc.mesh_kind));
+			break;
+		}
 	}
 
 	void
