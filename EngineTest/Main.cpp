@@ -47,16 +47,24 @@ main()
 			.perspective{
 				.near_z		  = 0.1f,
 				.far_z		  = 100.f,
-				.fov_y		  = age::cvt_to_radian(120.f),
+				.fov_y		  = age::cvt_to_radian(75.f),
 				.aspect_ratio = 16.f / 9.f } } }
 			| AGE_FUNC(forward_plus_pipeline.add_camera)
 			| AGE_FUNC(camera_vec.emplace_back),
+
+		identity{ age::asset::primitive_desc{ .size = { 1, 1, 1 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
+			| age::asset::create_primitive_mesh
+			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
+			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
+			| AGE_FUNC(mesh_id_vec.emplace_back),
+
 
 		identity{ age::asset::primitive_desc{ .size = { 1, 1, 1 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::plane } }
 			| age::asset::create_primitive_mesh
 			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
 			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
 			| AGE_FUNC(mesh_id_vec.emplace_back),
+
 
 		AGE_LAMBDA(
 			(),
@@ -111,9 +119,14 @@ main()
 				  | [] {
 						if (forward_plus_pipeline.begin_render(h_forward_plus_rs))
 						{
-							for (auto obj_id : obj_id_vec)
+							for (auto obj_id : obj_id_vec | std::views::drop(9))
 							{
-								forward_plus_pipeline.render_mesh(0, obj_id, mesh_id_vec[0]);
+								forward_plus_pipeline.render_mesh(obj_id % age::graphics::g::thread_count, obj_id, mesh_id_vec[1]);
+							}
+							
+							for (auto obj_id : obj_id_vec | std::views::take(9))
+							{
+								forward_plus_pipeline.render_mesh(obj_id_vec[obj_id] % age::graphics::g::thread_count, obj_id, mesh_id_vec[0]);
 							}
 
 							forward_plus_pipeline.end_render(h_forward_plus_rs);

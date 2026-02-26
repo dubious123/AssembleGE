@@ -153,7 +153,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& cmd_list = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][0];
 
 		{
-			auto total_job_count = 0;
+			auto total_job_count = 0u;
 
 			for (
 				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::job_data) * max_job_count_per_frame * g::frame_buffer_idx;
@@ -191,6 +191,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				std::memcpy(h_mapping_frame_data->ptr + sizeof(shared_type::frame_data) * g::frame_buffer_idx, &frame_d, sizeof(shared_type::frame_data));
 			}
+
+			// root_constants.bind(total_job_count);
+			// root_constants.apply(cmd_list);
+			root_constants.bind(total_job_count);
+			root_constants.apply(cmd_list);
 
 			stage_opaque.execute(cmd_list, total_job_count);
 		}

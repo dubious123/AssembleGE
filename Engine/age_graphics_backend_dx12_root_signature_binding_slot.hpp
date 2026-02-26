@@ -54,7 +54,6 @@ namespace age::graphics
 		struct constant_buffer_array
 		{
 			static_assert(n > 0);
-			static_assert(sizeof(t_data_) % 256 == 0);
 
 			using t_data = t_data_;
 
@@ -66,6 +65,8 @@ namespace age::graphics
 		{
 			static_assert(n > 0);
 			static constexpr auto array_size = n;
+
+			using t_data = std::byte;
 		};
 
 		template <typename t_data_, std::size_t n = g::frame_buffer_count>
@@ -242,7 +243,7 @@ namespace age::graphics
 		std::array<t_data, t_what::array_size> constant_arr;
 
 		void
-		bind(const t_data& data, auto ring_idx = g::frame_buffer_idx) noexcept
+		bind(const t_data& data, uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			constant_arr[ring_idx] = data;
@@ -256,7 +257,7 @@ namespace age::graphics
 		}
 
 		void
-		apply(t_cmd_list& cmd_list, auto ring_idx = g::frame_buffer_idx) noexcept
+		apply(t_cmd_list& cmd_list, uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -284,6 +285,9 @@ namespace age::graphics
 		static constexpr auto slot_id			= slot_id_;
 
 		std::array<D3D12_GPU_VIRTUAL_ADDRESS, t_what::array_size> gpu_va_arr;
+
+		static_assert(not(detail::is_constant_buffer_v<t_what> or detail::is_constant_buffer_array_v<t_what>)
+					  or (sizeof(typename t_what::t_data) % 256 == 0));
 
 		void
 		bind(D3D12_GPU_VIRTUAL_ADDRESS va) noexcept

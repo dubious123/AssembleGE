@@ -51,27 +51,29 @@ opaque_as_to_ms as_out;
 
 [numthreads(32, 1, 1)]
 void main_as(
-    uint3 dispatch_thread_id : SV_DispatchThreadID,
-    uint3 group_id : SV_GroupID,
-    uint3 group_thread_id : SV_GroupThreadID)
+    uint32_3 dispatch_thread_id : SV_DispatchThreadID,
+    uint32_3 group_id : SV_GroupID,
+    uint32_3 group_thread_id : SV_GroupThreadID)
 {
-    uint visible_mask;
+    const uint32 job_id = dispatch_thread_id.x;
     
+    bool visible = false;
+    
+    if (job_id < job_count)
     {
-        const uint job_id = dispatch_thread_id.x;
         const job_data job = meshlet_render_job_buffer[job_id];
         const object_data obj_data = object_data_buffer[job.object_id];
-        
+
         const uint meshlet_idx = job.meshlet_id;
-        
+
         const mesh_header msh_header = read_mesh_header(job.mesh_byte_offset);
         const meshlet_header mshlt_header = read_meshlet_header(msh_header, meshlet_idx);
-    
-        const bool visible = is_visible(obj_data, mshlt_header);
-    
-        const uint4 ballot = WaveActiveBallot(visible);
-        visible_mask = ballot.x;
+
+        visible = is_visible(obj_data, mshlt_header);
     }
+       
+    const uint32_4 ballot = WaveActiveBallot(visible);
+    uint32 visible_mask = ballot.x;
 
     
     if (WaveIsFirstLane())

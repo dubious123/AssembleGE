@@ -120,6 +120,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 													  // total: 256 bytes
 	};
 
+	cbuffer root_constants REG(b1)
+	{
+		uint32 job_count;
+	};
+
 #if !defined(AGE_HLSL)
 	#undef UV_COUNT
 

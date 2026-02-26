@@ -29,7 +29,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
 				pss_rasterizer{ .subobj = defaults::rasterizer_desc::wireframe },
-				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only },
 				pss_blend{ .subobj = defaults::blend_desc::opaque },
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
@@ -57,7 +57,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
 		{
 			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_main_buffer_rtv_desc, nullptr);
-			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, -1.f);
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 1.f);
 
 			cmd_list.BeginRenderPass(
 				1,
@@ -70,9 +70,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				if (job_count > 0) [[likely]]
 				{
-					const uint32 group_count = (job_count + 31u) / 32u;
-
-					cmd_list.DispatchMesh(group_count, 1, 1);
+					cmd_list.DispatchMesh((job_count + 31u) / 32u, 1, 1);
 				}
 			}
 
@@ -179,14 +177,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		presentation_stage stage_presentation{};
 
 		binding_config_t::reg_b<0> frame_data_buffer;
+		binding_config_t::reg_b<1> root_constants;
 		binding_config_t::reg_t<0> job_data_buffer;
 		binding_config_t::reg_t<1> object_data_buffer;
 		binding_config_t::reg_t<2> mesh_data_buffer;
 
 		static_assert(binding_config_t::reg_b<0>::slot_id == 0);
-		static_assert(binding_config_t::reg_t<0>::slot_id == 1);
-		static_assert(binding_config_t::reg_t<1>::slot_id == 2);
-		static_assert(binding_config_t::reg_t<2>::slot_id == 3);
+		static_assert(binding_config_t::reg_t<0>::slot_id == 2);
+		static_assert(binding_config_t::reg_t<1>::slot_id == 3);
+		static_assert(binding_config_t::reg_t<2>::slot_id == 4);
 
 		resource::mapping_handle h_mapping_frame_data		  = {};
 		resource::mapping_handle h_mapping_job_data_buffer	  = {};
