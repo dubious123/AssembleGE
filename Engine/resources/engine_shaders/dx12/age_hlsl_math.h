@@ -22,6 +22,30 @@ unorm8_to_float(uint32 raw)
 	return (raw & 0xffu) / 255.f;
 }
 
+int32
+uint32_x_to_int8(uint32 u)
+{
+	return (int32)(int32(u << 24) >> 24);
+}
+
+int32
+uint32_y_to_int8(uint32 u)
+{
+	return (int32)(int32(u << 16) >> 24);
+}
+
+int32
+uint32_z_to_int8(uint32 u)
+{
+	return (int32)(int32(u << 8) >> 24);
+}
+
+int32
+uint32_w_to_int8(uint32 u)
+{
+	return (int32)(int32(u) >> 24);
+}
+
 int16
 uint32_upper_to_int16(uint32 u)
 {

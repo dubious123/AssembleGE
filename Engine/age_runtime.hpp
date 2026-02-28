@@ -20,6 +20,12 @@ namespace age::runtime
 
 		AGE_PROP(frame_count)
 
+		FORCE_INLINE constexpr float
+		delta_time_s() noexcept
+		{
+			return std::chrono::duration<float>(delta_time_ns()).count();
+		}
+
 		// FORCE_INLINE constexpr decltype((data.now))
 		// now()
 		//{
@@ -54,16 +60,58 @@ namespace age::runtime
 			static_assert(false);
 		}
 	}
+
+	FORCE_INLINE bool
+	is_handle_valid(auto&& any_handle) noexcept
+	{
+		if constexpr (std::is_same_v<uint32, BARE_OF(any_handle.id)>)
+		{
+			return any_handle.id != invalid_id_uint32;
+		}
+		else
+		{
+			static_assert(false);
+		}
+	}
 }	 // namespace age::runtime
 
 namespace age::runtime
 {
 	FORCE_INLINE decltype(auto)
 	assign_to(auto&... dst) noexcept
+		requires(sizeof...(dst) > 1)
 	{
 		return [&] INLINE_LAMBDA_FRONT(auto&&... src) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 			((dst = FWD(src)), ...);
 			return std::forward_as_tuple(dst...);
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	assign_to(auto& dst) noexcept
+	{
+		return [&] INLINE_LAMBDA_FRONT(auto&& src) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+			if constexpr (std::is_assignable_v<decltype(src), decltype(dst)>)
+			{
+				dst = FWD(src);
+				return dst;
+			}
+			else if constexpr (meta::is_tuple_like_v<BARE_OF(src)>)
+			{
+				if constexpr (std::is_assignable_v<decltype(std::get<0>(src)), decltype(dst)>)
+				{
+					dst = std::get<0>(FWD(src));
+					return dst;
+				}
+				else
+				{
+					static_assert(false);
+				}
+			}
+			else
+			{
+				static_assert(false);
+			}
 		};
 	}
 }	 // namespace age::runtime

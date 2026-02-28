@@ -56,7 +56,7 @@ read_meshlet_header(mesh_header header, uint32 meshlet_idx)
 
     
     res.cone_axis_oct = uint32_lower_to_uint16(raw4.x);
-    res.cone_cull_cutoff_and_offset = uint32_upper_to_uint16(raw4.x);
+    res.cone_cull_cutoff_and_extra = uint32_upper_to_uint16(raw4.x);
     
     res.aabb_min = int16_3(
         uint32_lower_to_int16(raw4.y),

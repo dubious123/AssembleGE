@@ -1384,7 +1384,7 @@ namespace age::inline math
 
 namespace age::inline math
 {
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	ceil(auto&& vec) noexcept
 	{
 		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
@@ -1405,7 +1405,7 @@ namespace age::inline math
 		}
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	floor(auto&& vec) noexcept
 	{
 		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
@@ -1427,7 +1427,7 @@ namespace age::inline math
 	}
 
 	template <template <typename> typename v, typename t>
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	min(const v<t>& lhs, const v<t>& rhs) noexcept
 	{
 		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
@@ -1449,7 +1449,7 @@ namespace age::inline math
 	}
 
 	template <template <typename> typename v, typename t>
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	max(const v<t>& lhs, const v<t>& rhs) noexcept
 	{
 		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
@@ -1468,6 +1468,34 @@ namespace age::inline math
 		{
 			static_assert(false, "unsupported type for floor");
 		}
+	}
+
+	template <template <typename> typename v, typename t_>
+	FORCE_INLINE constexpr decltype(auto)
+	lerp(const v<t_>& a, const v<t_>& b, float t) noexcept
+	{
+		if constexpr (std::is_same_v<v<t_>, float2> or std::is_same_v<v<t_>, float2a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t) };
+		}
+		else if constexpr (std::is_same_v<v<t_>, float3> or std::is_same_v<v<t_>, float3a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t), std::lerp(a.z, b.z, t) };
+		}
+		else if constexpr (std::is_same_v<v<t_>, float4> or std::is_same_v<v<t_>, float4a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t), std::lerp(a.z, b.z, t), std::lerp(a.w, b.w, t) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for lerp");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	lerp(float a, float b, float t) noexcept
+	{
+		return a + t * (b - a);
 	}
 }	 // namespace age::inline math
 
@@ -1489,7 +1517,9 @@ namespace age::inline math::g
 	inline constexpr auto pi_inv		   = 0.318309886f;
 	inline constexpr auto pi_2_inv		   = 0.159154943f;
 	inline constexpr auto pi_div_2		   = 1.570796327f;
+	inline constexpr auto pi_half		   = pi_div_2;
 	inline constexpr auto pi_div_4		   = 0.785398163f;
 	inline constexpr auto degree_to_radian = pi / 180.f;
 	inline constexpr auto radian_to_degree = 180.f / pi;
+
 }	 // namespace age::inline math::g

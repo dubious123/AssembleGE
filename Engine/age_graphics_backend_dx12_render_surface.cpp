@@ -143,8 +143,6 @@ namespace age::graphics
 		AGE_HR_CHECK(p_swap_chain->Present(0, present_flags));
 		back_buffer_idx			  = p_swap_chain->GetCurrentBackBufferIndex();
 		last_used_cmd_fence_value = g::current_fence_value;
-
-		std::println("present, fence_value :  {}", g::current_fence_value);
 	}
 
 	void

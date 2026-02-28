@@ -327,8 +327,6 @@ namespace age::graphics
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 
-		AGE_DEBUG_LOG("fence_value : {}", g::current_fence_value);
-
 		++g::current_fence_value;
 	}
 }	 // namespace age::graphics

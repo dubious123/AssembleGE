@@ -195,6 +195,8 @@
 	AGE_DISABLE_COPY(T)          \
 	AGE_DISABLE_MOVE(T)
 
+//---[ enum ]------------------------------------------------------------
+
 #define __AGE_ENUM_FLAG_OPERATORS_IMPL__(T, enable_static_member)                              \
 	[[nodiscard]] FORCE_INLINE enable_static_member constexpr T                                \
 	operator|(T a, T b) noexcept                                                               \
@@ -296,6 +298,50 @@
 	requires std::is_same_v<t, enum_class_name>                                 \
 	consteval std::size_t size() noexcept                                       \
 	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }
+
+
+#define AGE_ENUM_DECL_VAL(tpl) AGE_PP_TUPLE_GET_0_I(tpl) = AGE_PP_TUPLE_GET_1_I(tpl)
+
+#define AGE_ENUM_TO_STRING_CASE_VAL(tpl)			AGE_ENUM_TO_STRING_CASE_VAL_IMPL tpl
+#define AGE_ENUM_TO_STRING_CASE_VAL_IMPL(name, val) AGE_ENUM_TO_STRING_CASE(name)
+
+#define AGE_ENUM_TO_WSTRING_CASE_VAL(tpl)			 AGE_ENUM_TO_WSTRING_CASE_VAL_IMPL tpl
+#define AGE_ENUM_TO_WSTRING_CASE_VAL_IMPL(name, val) AGE_ENUM_TO_WSTRING_CASE(name)
+
+#define AGE_DEFINE_ENUM_WITH_VALUE(enum_class_name, underlying_type, ...)           \
+	enum class enum_class_name : underlying_type                                    \
+	{                                                                               \
+		FOR_EACH_SEP(AGE_ENUM_DECL_VAL, AGE_PP_COMMA_I, __VA_ARGS__)                \
+	};                                                                              \
+	constexpr inline std::string_view to_string(enum_class_name e) noexcept         \
+	{                                                                               \
+		using __t_enum__ = enum_class_name;                                         \
+		switch (e)                                                                  \
+		{                                                                           \
+			FOR_EACH (AGE_ENUM_TO_STRING_CASE_VAL, __VA_ARGS__)                     \
+			default:                                                                \
+			{                                                                       \
+				AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+			}                                                                       \
+		}                                                                           \
+	}                                                                               \
+	constexpr inline std::wstring_view to_wstring(enum_class_name e) noexcept       \
+	{                                                                               \
+		using __t_enum__ = enum_class_name;                                         \
+		switch (e)                                                                  \
+		{                                                                           \
+			FOR_EACH (AGE_ENUM_TO_WSTRING_CASE_VAL, __VA_ARGS__)                    \
+			default:                                                                \
+			{                                                                       \
+				AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
+			}                                                                       \
+		}                                                                           \
+	}                                                                               \
+	template <typename t>                                                           \
+	requires std::is_same_v<t, enum_class_name>                                     \
+	consteval std::size_t size() noexcept                                           \
+	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }
+
 
 #define AGE_DEFINE_ENUM_MEMBER(enum_class_name, underlying_type, ...)           \
 	enum class enum_class_name : underlying_type                                \

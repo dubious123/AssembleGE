@@ -13,10 +13,14 @@ namespace age::runtime
 	void
 	update() noexcept
 	{
+		constexpr auto max_delta = std::chrono::nanoseconds{ 1'000'000'000 / age::config::min_fps };
+
 		auto i_runtime = age::global::get<runtime::interface>();
 		auto time_now  = std::chrono::steady_clock::now();
 
-		i_runtime.delta_time_ns() = time_now - i_runtime.now();
-		i_runtime.now()			  = time_now;
+		auto raw_delta	= time_now - i_runtime.now();
+		i_runtime.now() = time_now;
+
+		i_runtime.delta_time_ns() = std::min(raw_delta, max_delta);
 	}
 }	 // namespace age::runtime

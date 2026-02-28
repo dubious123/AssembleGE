@@ -28,7 +28,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct meshlet_header
 	{
 		uint16 cone_axis_oct;
-		uint16 cone_cull_cutoff_and_offset;
+
+		// uint16 cone_cull_cutoff_and_offset;
+		uint16 cone_cull_cutoff_and_extra;
 
 		int16_3	 aabb_min;						 // 6byte
 		uint16_3 aabb_size;						 // 6byte

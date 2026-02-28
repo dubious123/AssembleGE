@@ -28,7 +28,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
-				pss_rasterizer{ .subobj = defaults::rasterizer_desc::wireframe },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
 				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only },
 				pss_blend{ .subobj = defaults::blend_desc::opaque },
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
@@ -217,6 +217,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			std::array<float4, 6> frustom_plane_arr;
 		};
 
+		// for contents updating camera
+		data_structure::sparse_vector<camera_desc> camera_desc_vec;
 		data_structure::sparse_vector<camera_data> camera_data_vec;
 
 		data_structure::sparse_vector<mesh_data> mesh_data_vec;
@@ -251,11 +253,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data_vec.remove(id);
 		}
 
-		t_camera_id
-		add_camera(camera_desc desc) noexcept
+	  private:
+		static FORCE_INLINE camera_data
+		calc_camera_data(const camera_desc& desc) noexcept
 		{
-			auto id = t_camera_id{};
-
 			auto&& [xm_pos, xm_quat] = simd::load(desc.pos, desc.quaternion);
 			c_auto xm_forward		 = simd::g::xm_forward_f4 | simd::rotate3(xm_quat);
 			c_auto xm_up			 = simd::g::xm_up_f4 | simd::rotate3(xm_quat);
@@ -278,32 +279,51 @@ namespace age::graphics::render_pipeline::forward_plus
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[2]) | simd::plane_normalize() | simd::to<float4>(),	// far
 			};
 
-			switch (desc.kind)
+			if (desc.kind == e::camera_kind::perspective)
 			{
-			case e::camera_kind::perspective:
+				return camera_data{
+					.pos			   = desc.pos,
+					.view_proj		   = xm_view_proj | simd::to<float4x4>(),
+					.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
+					.frustom_plane_arr = frustom_plane_arr
+				};
+			}
+			else
 			{
-				id = (t_camera_id)camera_data_vec.emplace_back(
-					camera_data{
-						.pos			   = desc.pos,
-						.view_proj		   = xm_view_proj | simd::to<float4x4>(),
-						.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
-						.frustom_plane_arr = frustom_plane_arr }
-
-				);
-
-				break;
+				AGE_ASSERT(false, "orthographic camera is not supported yet");
+				return {};
 			}
-			default:
-				AGE_UNREACHABLE();
-				break;
-			}
+		}
 
-			return id;
+	  public:
+		t_camera_id
+		add_camera(const camera_desc& desc) noexcept
+		{
+			c_auto desc_id = camera_desc_vec.emplace_back(desc);
+			c_auto data_id = camera_data_vec.emplace_back(calc_camera_data(desc));
+
+			AGE_ASSERT(desc_id == data_id);
+
+			return static_cast<t_camera_id>(data_id);
+		}
+
+		camera_desc
+		get_camera_desc(t_camera_id id) noexcept
+		{
+			return camera_desc_vec[id];
+		}
+
+		void
+		update_camera(t_camera_id id, const camera_desc& desc) noexcept
+		{
+			camera_data_vec[id] = calc_camera_data(desc);
+			camera_desc_vec[id] = desc;
 		}
 
 		void
 		remove_camera(t_camera_id id) noexcept
 		{
+			camera_desc_vec.remove(id);
 			camera_data_vec.remove(id);
 		}
 

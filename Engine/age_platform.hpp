@@ -43,6 +43,9 @@ namespace age::platform
 	{
 		t_window_id id = invalid_id_uint32;
 
+		FORCE_INLINE auto*
+		operator->() noexcept;
+
 		constexpr auto
 		operator<=>(const window_handle&) const noexcept = default;
 	};
@@ -86,6 +89,15 @@ namespace age::platform
 
 	uint32
 	window_count() noexcept;
+
+	void
+	register_input_context(window_handle, age::input::context_handle _) noexcept;
+
+	void
+	enable_raw_input(window_handle, age::input::e::source_kind flags) noexcept;
+
+	void
+	disable_raw_input(window_handle, age::input::e::source_kind flags) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform

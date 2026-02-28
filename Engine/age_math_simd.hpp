@@ -338,6 +338,8 @@ namespace age::math::simd
 	AGE_SIMD_VEC_UNARY_OP(saturate, XMVectorSaturate);
 	AGE_SIMD_VEC_UNARY_OP(round, XMVectorRound);
 
+	AGE_SIMD_VEC_UNARY_OP(euler_to_quat, XMQuaternionRotationRollPitchYawFromVector);
+
 	AGE_SIMD_VEC_GETTER_OP(get_x, XMVectorGetX, XMVectorGetIntX);
 	AGE_SIMD_VEC_GETTER_OP(get_y, XMVectorGetY, XMVectorGetIntY);
 	AGE_SIMD_VEC_GETTER_OP(get_z, XMVectorGetZ, XMVectorGetIntZ);
@@ -500,6 +502,8 @@ namespace age::math::simd
 	AGE_SIMD_VEC_BINARY_OP(cmp_equal, XMVectorEqual, fxm_vec);
 
 	AGE_SIMD_VEC_BINARY_OP(rotate3, XMVector3Rotate, fxm_vec);
+
+	AGE_SIMD_VEC_BINARY_OP(quaternion_mul, XMQuaternionMultiply, fxm_vec);
 
 	AGE_SIMD_VEC_BINARY_OP(transform_coord3, XMVector3TransformCoord, fxm_mat);
 

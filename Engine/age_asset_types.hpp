@@ -21,10 +21,10 @@ namespace age::asset
 	{
 		oct<int8> cone_axis_oct;
 		int8	  cone_cull_cutoff;
-		int8	  apex_offset;	  // apex = center - axis * offset;
+		uint8	  padding;	   // apex = center - axis * offset;
 
-		int16_3	 aabb_min;		  // 6byte
-		uint16_3 aabb_size;		  // 6byte
+		int16_3	 aabb_min;	   // 6byte
+		uint16_3 aabb_size;	   // 6byte
 	};
 
 	struct meshlet

@@ -866,30 +866,15 @@ namespace age::external::meshopt
 				.vertex_count		 = static_cast<uint8>(m_fat.vertex_count),
 				.primitive_count	 = static_cast<uint8>(m_fat.triangle_count),
 				.padding			 = { 0 },
-				//.aabb_min			 = int16_3{ aabb_min_f },
-				//.aabb_size			 = uint16_3{ aabb_size_f },
 			};
-
-			auto apex_offset = float{};
-
-			{
-				auto&& [xm_cone_apex, xm_cone_axis, xm_aabb_center] = simd::load(float3{ b_fat.cone_apex }, float3{ b_fat.cone_axis }, aabb_center_f);
-
-				apex_offset = xm_aabb_center - xm_cone_apex
-							| simd::dot3(xm_cone_axis)
-							| simd::ceil()
-							| simd::get_x();
-			}
 
 			meshlet_header_vec[idx] = asset::meshlet_header{
 				.cone_axis_oct	  = cvt_to<oct<int8>>(float3{ b_fat.cone_axis }),
 				.cone_cull_cutoff = b_fat.cone_cutoff_s8,
-				.apex_offset	  = static_cast<int8>(apex_offset),
+				.padding		  = uint8{ 0 },
 				.aabb_min		  = int16_3{ aabb_min_f },
 				.aabb_size		  = uint16_3{ aabb_size_f },
 			};
-
-			AGE_ASSERT(apex_offset < std::numeric_limits<int8>::max() and apex_offset > std::numeric_limits<int8>::min());
 
 			AGE_ASSERT(aabb_min_f.x < std::numeric_limits<int16>::max() and aabb_min_f.x > std::numeric_limits<int16>::min());
 			AGE_ASSERT(aabb_min_f.y < std::numeric_limits<int16>::max() and aabb_min_f.y > std::numeric_limits<int16>::min());

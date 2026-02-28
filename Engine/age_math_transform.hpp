@@ -13,6 +13,12 @@ namespace age::inline math
 	{
 		return radians * g::radian_to_degree;
 	}
+
+	FORCE_INLINE float3
+	normalize(float3 v) noexcept
+	{
+		return v | simd::load() | simd::normalize3() | simd::to<float3>();
+	}
 }	 // namespace age::inline math
 
 // quaternoin

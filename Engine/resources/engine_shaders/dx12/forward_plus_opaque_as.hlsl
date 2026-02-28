@@ -28,20 +28,16 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
         }
     }
     
-    //2. back face culling using normal cone
-    
-    const float3 cone_axis_local = decode_oct_snorm(m_header.cone_axis_oct);
-    const float3 cone_axis_world = rotate(cone_axis_local, quaternion);
-    const float cone_cull_cutoff = snorm8_to_float(m_header.cone_cull_cutoff_and_offset & 0xffu);
-    
-    const float cone_cull_offset = int8_to_float(m_header.cone_cull_cutoff_and_offset >> 8);
-    
-    const float3 view_dir = normalize(sphere_center - cone_cull_offset * length(cone_axis_local * scale) * cone_axis_world - camera_pos);
-    
-    //if (dot(cone_axis_world, view_dir) >= cone_cull_cutoff)
-    //{
-    //    return false;
-    //}
+    // 2. cone culling
+    const float3 cone_axis_world = rotate(decode_oct_snorm(m_header.cone_axis_oct), quaternion);
+    const float cone_cutoff = snorm8_to_float(m_header.cone_cull_cutoff_and_extra & 0xffu);
+    const float3 center_to_cam = sphere_center - camera_pos;
+    const float dist = length(center_to_cam);
+
+    if (dot(center_to_cam, cone_axis_world) >= cone_cutoff * dist + sphere_radius)
+    {
+        return false;
+    }
     
     return true;
 }

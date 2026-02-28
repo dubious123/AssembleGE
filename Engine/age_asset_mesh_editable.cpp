@@ -701,6 +701,251 @@ namespace age::asset
 
 		return res;
 	}
+
+	mesh_editable
+	create_primitive_mesh_uv_sphere(const primitive_desc& desc) noexcept
+	{
+		AGE_ASSERT(desc.seg_u > 0);
+		AGE_ASSERT(desc.seg_v > 0);
+		AGE_ASSERT(desc.size[0] > 0.f);
+
+		c_auto grid_u				 = desc.seg_u + 1;
+		c_auto grid_v				 = desc.seg_v + 1;
+		c_auto vertex_count			 = grid_u * grid_v;
+		c_auto edge_count			 = desc.seg_v * grid_u + desc.seg_u * grid_v;
+		c_auto edge_horizontal_count = desc.seg_u * grid_v;
+		c_auto boundary_count		 = desc.seg_u * desc.seg_v;
+		c_auto face_count			 = boundary_count;
+
+		auto res = mesh_editable{};
+		{
+			res.position_vec.resize(vertex_count);
+			res.vertex_attr_vec.resize(vertex_count);
+			res.vertex_adj_vec.resize(vertex_count);
+			res.vertex_vec.resize(vertex_count);
+			res.edge_vec.resize(edge_count);
+			res.boundary_vec.resize(boundary_count);
+			res.face_vec.resize(face_count);
+			// undirected edge, no self-loop, vertex_to_edge_count == edge_to_vertex_count == edge_count * 2
+			res.vertex_to_edge_idx_vec.resize(edge_count * 2);
+			res.vertex_to_boundary_idx_vec.resize(boundary_count * 4);
+			res.vertex_to_face_idx_vec.resize(face_count * 4);
+			res.edge_to_boundary_idx_vec.resize(boundary_count * 4);
+			res.edge_to_face_idx_vec.resize(face_count * 4);
+			res.boundary_to_vertex_idx_vec.resize(boundary_count * 4);
+			res.boundary_to_edge_idx_vec.resize(boundary_count * 4);
+			res.boundary_to_face_idx_vec.resize(boundary_count);
+			res.face_to_boundary_idx_vec.resize(face_count);
+		};
+
+		c_auto radius = desc.size[0] * 0.5f;
+
+		// 1. generate_vertices_from_uv
+		for (const auto&& [vertex_v_idx, vertex_u_idx] : std::views::cartesian_product(
+				 std::views::iota(0u) | std::views::take(grid_v),
+				 std::views::iota(0u) | std::views::take(grid_u)))
+		{
+			c_auto vertex_idx		   = vertex_v_idx * grid_u + vertex_u_idx;
+			res.vertex_vec[vertex_idx] = {
+				.pos_idx		= vertex_idx,
+				.attribute_idx	= vertex_idx,
+				.vertex_adj_idx = vertex_idx
+			};
+
+			c_auto u_t = static_cast<float>(vertex_u_idx) / static_cast<float>(desc.seg_u);
+			c_auto v_t = static_cast<float>(vertex_v_idx) / static_cast<float>(desc.seg_v);
+
+			c_auto theta = u_t * age::g::pi_2;	  // 0 ~ 2PI
+			c_auto phi	 = v_t * age::g::pi;	  // 0 ~ PI
+
+			res.position_vec[vertex_idx] = float3{
+				radius * std::sin(phi) * std::cos(theta),
+				radius * std::cos(phi),
+				radius * std::sin(phi) * std::sin(theta)
+			};
+
+			res.vertex_attr_vec[vertex_idx] = {
+				.uv_set	  = { float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t } },
+				.uv_count = 4
+			};
+
+			auto& v_adj		 = res.vertex_adj_vec[vertex_idx];
+			auto& v_adj_prev = res.vertex_adj_vec[std::max(static_cast<int32>(vertex_idx) - 1, 0)];
+
+			v_adj.to_boundary_idx_offset = v_adj_prev.to_boundary_idx_offset + v_adj_prev.to_boundary_idx_count;
+			v_adj.to_face_idx_offset	 = v_adj_prev.to_face_idx_offset + v_adj_prev.to_face_idx_count;
+			v_adj.to_edge_idx_offset	 = v_adj_prev.to_edge_idx_offset + v_adj_prev.to_edge_idx_count;
+
+			c_auto is_horizontal_boundary = vertex_u_idx % desc.seg_u == 0;
+			c_auto is_vertical_boundary	  = vertex_v_idx % desc.seg_v == 0;
+			c_auto to_face_idx_count	  = (is_vertical_boundary and is_horizontal_boundary) ? 1u
+										  : (is_vertical_boundary or is_horizontal_boundary)  ? 2u
+																							  : 4u;
+			c_auto to_boundary_idx_count  = to_face_idx_count;
+
+			v_adj.to_face_idx_count		= to_face_idx_count;
+			v_adj.to_boundary_idx_count = to_boundary_idx_count;
+			v_adj.to_edge_idx_count		= 4
+										- uint32{ vertex_u_idx % desc.seg_u == 0 }
+										- uint32{ vertex_v_idx % desc.seg_v == 0 };
+
+			c_auto edge_right_idx = vertex_v_idx * desc.seg_u + vertex_u_idx;
+			c_auto edge_up_idx	  = edge_horizontal_count + vertex_v_idx * grid_u + vertex_u_idx;
+
+			if (vertex_u_idx != desc.seg_u)
+			{
+				auto& e_right = res.edge_vec[edge_right_idx];
+				e_right		  = {
+					.v0_idx				   = vertex_idx,
+					.v1_idx				   = vertex_idx + 1,
+					.to_boundary_idx_count = 2u - uint32{ is_vertical_boundary },
+					.to_face_idx_count	   = 2u - uint32{ is_vertical_boundary }
+				};
+			}
+			if (vertex_v_idx != desc.seg_v)
+			{
+				auto& e_up = res.edge_vec[edge_up_idx];
+				e_up	   = {
+					.v0_idx				   = vertex_idx,
+					.v1_idx				   = vertex_idx + grid_u,
+					.to_boundary_idx_count = 2u - uint32{ is_horizontal_boundary },
+					.to_face_idx_count	   = 2u - uint32{ is_horizontal_boundary }
+				};
+			}
+		}
+
+		for (auto& v_adj : res.vertex_adj_vec)
+		{
+			v_adj.to_edge_idx_count		= 0;
+			v_adj.to_boundary_idx_count = 0;
+			v_adj.to_face_idx_count		= 0;
+		}
+
+		// vertex_to_edge, v_adj
+		for (auto edge_to_boundary_offset = 0u, edge_to_face_offset = 0u;
+			 auto&& [e_idx, e] : res.edge_vec | std::views::enumerate)
+		{
+			auto& v0_adj = res.vertex_adj_vec[e.v0_idx];
+			auto& v1_adj = res.vertex_adj_vec[e.v1_idx];
+
+			res.vertex_to_edge_idx_vec[v0_adj.to_edge_idx_offset + v0_adj.to_edge_idx_count] = static_cast<uint32>(e_idx);
+			res.vertex_to_edge_idx_vec[v1_adj.to_edge_idx_offset + v1_adj.to_edge_idx_count] = static_cast<uint32>(e_idx);
+
+			++v0_adj.to_edge_idx_count;
+			++v1_adj.to_edge_idx_count;
+
+			e.to_boundary_idx_offset  = edge_to_boundary_offset;
+			e.to_face_idx_offset	  = edge_to_face_offset;
+			edge_to_boundary_offset	 += e.to_boundary_idx_count;
+			edge_to_face_offset		 += e.to_face_idx_count;
+		}
+
+		for (auto& e : res.edge_vec)
+		{
+			e.to_boundary_idx_count = 0;
+			e.to_face_idx_count		= 0;
+		}
+
+		for (const auto [face_v_idx, face_u_idx] : std::views::cartesian_product(
+				 std::views::iota(0u) | std::views::take(desc.seg_v),
+				 std::views::iota(0u) | std::views::take(desc.seg_u)))
+		{
+			c_auto face_idx		= face_v_idx * desc.seg_u + face_u_idx;
+			c_auto boundary_idx = face_idx;
+
+			c_auto vertex_idx_arr = std::array{
+				(face_v_idx + 0) * grid_u + (face_u_idx + 0),
+				(face_v_idx + 1) * grid_u + (face_u_idx + 0),
+				(face_v_idx + 1) * grid_u + (face_u_idx + 1),
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1)
+			};
+
+			c_auto edge_idx_arr = std::array{
+				(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count,	 // 0->2
+				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),						 // 3->2
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,	 // 1->2
+				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),						 // 0->1
+			};
+
+			auto& f = res.face_vec[face_idx];
+			{
+				f = {
+					.to_boundary_idx_offset = boundary_idx,
+					.to_boundary_idx_count	= 1
+				};
+				age::util::assign_n(res.boundary_idx_span(f), boundary_idx);
+			}
+
+			auto& b = res.boundary_vec[boundary_idx];
+			{
+				b = {
+					.to_vertex_idx_offset = boundary_idx * 4,
+					.to_vertex_idx_count  = 4,
+					.to_edge_idx_offset	  = boundary_idx * 4,
+					.to_face_idx_offset	  = boundary_idx,
+					.to_face_idx_count	  = 1,
+				};
+
+				age::util::assign_n(
+					res.face_idx_span(b),
+					face_idx);
+
+				age::util::assign_n(
+					res.vertex_idx_span(b),
+					vertex_idx_arr[0],
+					vertex_idx_arr[1],
+					vertex_idx_arr[2],
+					vertex_idx_arr[3]);
+
+				age::util::assign_n(
+					res.edge_idx_span(b),
+					edge_idx_arr[0],
+					edge_idx_arr[1],
+					edge_idx_arr[2],
+					edge_idx_arr[3]);
+
+				// vertex_to_boundary, face
+				for (c_auto v_idx : res.vertex_idx_span(b))
+				{
+					auto&  v_adj   = res.vertex_adj_vec[v_idx];
+					c_auto v2b_idx = v_adj.to_boundary_idx_offset + v_adj.to_boundary_idx_count;
+					c_auto v2f_idx = v2b_idx;
+
+					res.vertex_to_boundary_idx_vec[v2b_idx] = boundary_idx;
+					res.vertex_to_face_idx_vec[v2f_idx]		= face_idx;
+					++v_adj.to_boundary_idx_count;
+					++v_adj.to_face_idx_count;
+				}
+
+				// edge_to_boundary, face
+				for (c_auto e_idx : res.edge_idx_span(b))
+				{
+					auto& e = res.edge_vec[e_idx];
+
+					c_auto e2b_idx						  = e.to_boundary_idx_offset + e.to_boundary_idx_count;
+					c_auto e2f_idx						  = e.to_face_idx_offset + e.to_face_idx_count;
+					res.edge_to_boundary_idx_vec[e2b_idx] = boundary_idx;
+					res.edge_to_face_idx_vec[e2f_idx]	  = face_idx;
+
+					++e.to_boundary_idx_count;
+					++e.to_face_idx_count;
+				}
+			}
+		}
+
+		calculate_normal(res,
+						 normal_calc_desc{
+							 .calc_mode = normal_calc_desc::mode::angle,
+						 });
+		calculate_tangent(res, tangent_calc_desc{});
+
+		if constexpr (age::config::debug_mode)
+		{
+			res.debug_validate();
+		}
+
+		return res;
+	}
 }	 // namespace age::asset
 
 namespace age::asset
@@ -710,13 +955,17 @@ namespace age::asset
 	{
 		switch (desc.mesh_kind)
 		{
-		case e::primitive_mesh_kind ::plane:
+		case e::primitive_mesh_kind::plane:
 		{
 			return create_primitive_mesh_plane(desc);
 		}
-		case e::primitive_mesh_kind ::cube:
+		case e::primitive_mesh_kind::cube:
 		{
 			return create_primitive_mesh_cube(desc);
+		}
+		case e::primitive_mesh_kind::uv_sphere:
+		{
+			return create_primitive_mesh_uv_sphere(desc);
 		}
 		default:
 			AGE_UNREACHABLE("invalid primitive mesh type {}", std::to_underlying(desc.mesh_kind));

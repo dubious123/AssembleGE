@@ -6,12 +6,12 @@
 #define uint64 uint64_t
 #define uint32 uint
 #define uint16 uint16_t
-#define uint8  uint8_t
+// #define uint8  uint
 
 #define int64 int64_t
 #define int32 int
 #define int16 int16_t
-#define int8  int8_t
+// #define int8  uint
 
 #define int32_2 int2
 #define int32_3 int3

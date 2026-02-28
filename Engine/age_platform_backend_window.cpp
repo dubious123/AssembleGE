@@ -4,24 +4,50 @@
 #if defined AGE_PLATFORM_WINDOW
 namespace age::platform
 {
-	struct window_info
+	FORCE_INLINE auto*
+	window_handle::operator->() noexcept
 	{
-		HWND		 hwnd			 = {};
-		RECT		 client_rect	 = {};
-		POINT		 top_left_pos	 = {};
-		window_mode	 mode			 = {};
-		window_state state			 = window_state::normal;
-		bool		 close_requested = false;
-	};
+		return &g::window_info_vec[id];
+	}
 }	 // namespace age::platform
-
-namespace age::platform::g
-{
-	data_structure::stable_dense_vector<window_info> window_info_vec{ 2 };
-}
 
 namespace age::platform::detail
 {
+	void
+	set_raw_input_impl(HWND hwnd, input::e::source_kind flags, bool receive_when_unfocused, bool disable_legacy) noexcept
+	{
+		auto rid_arr = std::array<RAWINPUTDEVICE, input::e::size<input::e::source_kind>()>{};
+
+		c_auto base_flag   = DWORD{ receive_when_unfocused ? RIDEV_INPUTSINK : 0ul };
+		c_auto legacy_flag = DWORD{ disable_legacy ? RIDEV_NOLEGACY : 0ul };
+
+		auto rid_count = 0;
+
+		if (input::e::has_any(flags, input::e::source_kind::mouse))
+		{
+			rid_arr[rid_count].usUsagePage	= 0x01;	   // HID_USAGE_PAGE_GENERIC
+			rid_arr[rid_count].usUsage		= 0x02;	   // HID_USAGE_GENERIC_MOUSE
+			rid_arr[rid_count].dwFlags		= base_flag | legacy_flag;
+			rid_arr[rid_count++].hwndTarget = hwnd;
+		}
+
+
+		if (input::e::has_any(flags, input::e::source_kind::keyboard))
+		{
+			rid_arr[rid_count].usUsagePage	= 0x01;	   // HID_USAGE_PAGE_GENERIC
+			rid_arr[rid_count].usUsage		= 0x06;	   // HID_USAGE_GENERIC_KEYBOARD
+			rid_arr[rid_count].dwFlags		= base_flag | legacy_flag;
+			rid_arr[rid_count++].hwndTarget = hwnd;
+		}
+
+		if (input::e::has_any(flags, input::e::source_kind::controller))
+		{
+			AGE_ASSERT(false, "not supported yet");
+		}
+
+		AGE_WIN32_CHECK(::RegisterRawInputDevices(rid_arr.data(), rid_count, sizeof(rid_arr[0])));
+	}
+
 	LRESULT CALLBACK
 	window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 	{
@@ -29,7 +55,7 @@ namespace age::platform::detail
 
 		auto h_window = get_handle(hwnd);
 
-		if (g::window_info_vec[h_window].state == window_state::closing) [[unlikely]]
+		if (h_window->state == window_state::closing) [[unlikely]]
 		{
 			switch (message)
 			{
@@ -45,7 +71,7 @@ namespace age::platform::detail
 			{
 			case WM_CLOSE:
 			{
-				platform::g::window_info_vec[h_window].close_requested = true;
+				h_window->close_requested = true;
 				// age::platform::on_window_closed(h_window);
 				return LRESULT{};
 			}
@@ -62,20 +88,20 @@ namespace age::platform::detail
 				case SIZE_MAXSHOW:
 				{
 					// The window has been resized, but neither the SIZE_MINIMIZED nor SIZE_MAXIMIZED value applies.
-					age::platform::on_window_restored(get_handle(hwnd));
+					age::platform::on_window_restored(h_window);
 					break;
 				}
 				case SIZE_MINIMIZED:
 				case SIZE_MAXHIDE:
 				{
 					// The window has been minimized.
-					age::platform::on_window_minimized(get_handle(hwnd));
+					age::platform::on_window_minimized(h_window);
 					break;
 				}
 				case SIZE_MAXIMIZED:
 				{
 					// The window has been maximized.
-					age::platform::on_window_maximized(get_handle(hwnd));
+					age::platform::on_window_maximized(h_window);
 					break;
 				}
 				}
@@ -87,7 +113,7 @@ namespace age::platform::detail
 				::GetClientRect(hwnd, &rect);
 
 				age::platform::on_window_resized(
-					platform::get_handle(hwnd),
+					h_window,
 					age::extent_2d<uint32>{
 						.width	= static_cast<uint32>(rect.right - rect.left),
 						.height = static_cast<uint32>(rect.bottom - rect.top) });
@@ -98,6 +124,96 @@ namespace age::platform::detail
 				break;
 				// It is more efficient to perform any move or size change processing during the WM_WINDOWPOSCHANGED message without calling DefWindowProc.
 			}
+
+
+				//---[ inputs ]------------------------------------------------------------
+
+
+			case WM_KEYDOWN:
+			case WM_SYSKEYDOWN:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					age::input::set_key_down(h_window->h_input, g::vk_lut[w_param & 0xff]);
+				}
+
+				break;
+			}
+			case WM_KEYUP:
+			case WM_SYSKEYUP:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					age::input::set_key_up(h_window->h_input, g::vk_lut[w_param & 0xff]);
+				}
+
+
+				break;
+			}
+			case WM_MOUSEMOVE:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					age::input::set_mouse_move(h_window->h_input, float2{ static_cast<int16>(l_param & 0x0000ffff), static_cast<int16>(l_param >> 16) });
+				}
+
+
+				break;
+			}
+			case WM_LBUTTONDOWN:
+			case WM_RBUTTONDOWN:
+			case WM_MBUTTONDOWN:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					c_auto key = message == WM_LBUTTONDOWN ? input::e::key_kind::mouse_left
+							   : message == WM_RBUTTONDOWN ? input::e::key_kind::mouse_right
+														   : input::e::key_kind::mouse_middle;
+
+					age::input::set_mouse_down(h_window->h_input, key, float2{ static_cast<int16>(l_param & 0x0000ffff), static_cast<int16>(l_param >> 16) });
+
+					::SetCapture(hwnd);
+				}
+
+				break;
+			}
+			case WM_LBUTTONUP:
+			case WM_RBUTTONUP:
+			case WM_MBUTTONUP:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					c_auto key = message == WM_LBUTTONUP ? input::e::key_kind::mouse_left
+							   : message == WM_RBUTTONUP ? input::e::key_kind::mouse_right
+														 : input::e::key_kind::mouse_middle;
+
+					age::input::set_mouse_up(h_window->h_input, key, float2{ static_cast<int16>(l_param & 0x0000ffff), static_cast<int16>(l_param >> 16) });
+
+					::ReleaseCapture();
+				}
+
+				break;
+			}
+			case WM_MOUSEWHEEL:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					age::input::set_mouse_wheel(h_window->h_input, static_cast<float>(GET_WHEEL_DELTA_WPARAM(w_param)) / WHEEL_DELTA);
+				}
+
+				break;
+			}
+			case WM_KILLFOCUS:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					age::input::on_focus_kill(h_window->h_input);
+				}
+
+				break;
+			}
+			default:
+				break;
 			}
 		}
 
@@ -152,7 +268,7 @@ namespace age::platform
 			}
 		}
 
-		for (auto& req : request::for_each<subsystem::type::platform>())
+		for (auto& req : age::request::for_each<subsystem::type::platform>())
 		{
 			switch (req.type)
 			{
@@ -293,6 +409,25 @@ namespace age::platform
 	window_count() noexcept
 	{
 		return g::window_info_vec.count();
+	}
+
+	void
+	register_input_context(window_handle h_window, age::input::context_handle h_input) noexcept
+	{
+		AGE_ASSERT(runtime::is_handle_invalid(h_window->h_input) and runtime::is_handle_valid(h_input));
+		h_window->h_input = h_input;
+	}
+
+	void
+	enable_raw_input(window_handle h_window, age::input::e::source_kind source_kind_flag) noexcept
+	{
+		detail::set_raw_input_impl(h_window->hwnd, source_kind_flag, false, true);
+	}
+
+	void
+	disable_raw_input(window_handle h_window, age::input::e::source_kind source_kind_flag) noexcept
+	{
+		detail::set_raw_input_impl(h_window->hwnd, source_kind_flag, false, false);
 	}
 }	 // namespace age::platform
 

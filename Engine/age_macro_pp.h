@@ -139,9 +139,16 @@
 							  FOR_EACH_CTX(                          \
 								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
 
+// pp_tuple
 #define AGE_PP_MAKE_TUPLE_I(l, r) (l, r)
 #define AGE_PP_SWAP_TUPLE_I(tpl)  AGE_PP_SWAP_TUPLE_R tpl
 #define AGE_PP_SWAP_TUPLE_R(l, r) (r, l)
+
+#define AGE_PP_TUPLE_GET_0_R(a, b) a
+#define AGE_PP_TUPLE_GET_0_I(tpl)  AGE_PP_TUPLE_GET_0_R tpl
+
+#define AGE_PP_TUPLE_GET_1_R(a, b) b
+#define AGE_PP_TUPLE_GET_1_I(tpl)  AGE_PP_TUPLE_GET_1_R tpl
 
 
 #define AGE_PP_SEQ_END_()

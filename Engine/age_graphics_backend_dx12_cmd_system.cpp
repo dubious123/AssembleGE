@@ -102,8 +102,6 @@ namespace age::graphics
 		auto completed_value = p_fence->GetCompletedValue();
 		auto need_to_wait	 = completed_value + g::frame_buffer_count < g::current_fence_value;
 
-		AGE_DEBUG_LOG("[{}], fence_value = {}, completed_value= {}, need_to_wait= {},", (int)cmd_list_type, g::current_fence_value, completed_value, need_to_wait);
-
 		if (need_to_wait)
 		{
 			AGE_HR_CHECK(p_fence->SetEventOnCompletion(completed_value + 1, fence_event));
@@ -138,7 +136,6 @@ namespace age::graphics
 
 		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
 
-		AGE_DEBUG_LOG("[{}], signaling fence, from {} to {}", (int)cmd_list_type, p_fence->GetCompletedValue(), g::current_fence_value);
 		AGE_HR_CHECK(p_cmd_queue->Signal(p_fence, g::current_fence_value));
 	}
 

@@ -61,6 +61,8 @@
     <ClInclude Include="age_math_transform.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
+    <ClInclude Include="age_input.hpp" />
+    <ClInclude Include="age_platform_backend_window.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -100,6 +102,7 @@
     <ClCompile Include="age_extern_templates.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp" />
     <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
+    <ClCompile Include="age_input.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />

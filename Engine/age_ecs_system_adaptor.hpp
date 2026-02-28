@@ -118,4 +118,31 @@ namespace age::ecs::system
 
 	template <typename t_arg>
 	when(t_arg&&) -> when<t_arg>;
+
+	template <typename t_sys>
+	struct tap
+	{
+		using t_ctx_tag = ctx_tag<tag_adaptor>;
+
+		no_unique_addr t_sys sys;
+
+		FORCE_INLINE constexpr tap(auto&& arg) noexcept : sys{ FWD(arg) } {};
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(auto&&... arg) noexcept
+		{
+			run_sys(sys, arg...);
+			if constexpr (sizeof...(arg) == 0)
+			{
+				return (FWD(arg), ...);
+			}
+			else
+			{
+				return std::forward_as_tuple(FWD(arg)...);
+			}
+		}
+	};
+
+	template <typename t_arg>
+	tap(t_arg&&) -> tap<t_arg>;
 }	 // namespace age::ecs::system

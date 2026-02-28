@@ -301,6 +301,7 @@ namespace age::asset
 
 			// c_auto& mshlt_header = meshlet_header_vec[mshlt_idx];
 
+
 			// std::println("meshlet[{}]  aabb_min int16_3 : [{}, {}, {}], aabb_size uint16_3 : [{}, {}, {}]",
 			//			 mshlt_idx,
 			//			 mshlt_header.aabb_min.x,
@@ -335,7 +336,7 @@ namespace age::asset
 			//	);
 			//}
 
-			std::println("meshlet[{}] end", mshlt_idx);
+			// std::println("meshlet[{}] end", mshlt_idx);
 		}
 
 		auto aabb_min = float3{ std::numeric_limits<float>::max() };

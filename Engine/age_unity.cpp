@@ -19,6 +19,9 @@
 #line 1 "age_request.cpp"
 #include "age_request.cpp"
 
+#line 1 "age_input.cpp"
+#include "age_input.cpp"
+
 #line 1 "age_platform_backend_window.cpp"
 #include "age_platform_backend_window.cpp"
 

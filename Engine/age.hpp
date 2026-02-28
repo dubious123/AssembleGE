@@ -37,6 +37,8 @@ namespace age
 
 	namespace ecs::entity_storage {}
 
+	namespace input {}
+
 	namespace platform {}
 
 	namespace graphics {}
@@ -123,7 +125,12 @@ namespace age
 
 #include "age_subsystem.hpp"
 
+#include "age_input.hpp"
+
 #include "age_platform.hpp"
+#if defined AGE_PLATFORM_WINDOW
+	#include "age_platform_backend_window.hpp"
+#endif
 
 #include "age_graphics.hpp"
 

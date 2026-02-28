@@ -131,4 +131,6 @@ namespace age::config
 
 	inline constexpr unsigned short version_major = 0;
 	inline constexpr unsigned short version_minor = 0;
+
+	inline constexpr auto min_fps = 60u;
 }	 // namespace age::config

@@ -12,8 +12,8 @@ namespace age::subsystem
 
 	enum class flags : uint8
 	{
-		platform = 1ul << (uint8)type::platform,
-		graphics = 1ul << (uint8)type::graphics,
+		platform = 1ul << std::to_underlying(type::platform),
+		graphics = 1ul << std::to_underlying(type::graphics),
 	};
 
 	AGE_ENUM_FLAG_OPERATORS(flags)
