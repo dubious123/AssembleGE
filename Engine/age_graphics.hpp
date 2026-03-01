@@ -4,7 +4,9 @@
 namespace age::graphics::e
 {
 	AGE_DEFINE_ENUM(camera_kind, uint8, perspective, orthographic);
-}
+
+	AGE_DEFINE_ENUM(light_kind, uint8, directional, point, spot, area, volumn);
+}	 // namespace age::graphics::e
 
 namespace age::graphics
 {

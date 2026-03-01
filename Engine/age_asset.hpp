@@ -79,6 +79,7 @@ namespace age::asset::e
 		cylinder,
 		ico_sphere,
 		uv_sphere,
+		cube_sphere,
 		count);
 
 	AGE_DEFINE_ENUM(

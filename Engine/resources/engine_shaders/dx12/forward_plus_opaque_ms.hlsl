@@ -78,6 +78,8 @@ main_ms(
         opaque_ms_to_ps v = decode_vertex(v_encoded, aabb_min, aabb_size);
         
         v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
+        
+        v.world_pos = v.pos.xyz;
 
         v.pos = mul(view_proj, v.pos);
         

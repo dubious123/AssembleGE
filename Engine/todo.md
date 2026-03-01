@@ -42,3 +42,16 @@
 ## material system ( programmable render pipeline stage )
 
 ## imple raw input
+
+## fix cone culling (really), maybe sphere mesh generation code bug
+
+## lights!!
+### 1. ambient light
+### 2. directional light 
+### 3. point light 
+### 4. spot light
+### 5. area light 
+
+
+### forward plus
+#### 1. depth prepass

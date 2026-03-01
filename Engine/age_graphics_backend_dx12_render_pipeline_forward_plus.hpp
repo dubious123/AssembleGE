@@ -3,6 +3,10 @@
 
 namespace age::graphics::render_pipeline::forward_plus
 {
+	struct depth_stage
+	{
+	};
+
 	struct opaque_stage
 	{
 		rtv_desc_handle h_main_buffer_rtv_desc;
@@ -28,8 +32,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
-				pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
-				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
 				pss_blend{ .subobj = defaults::blend_desc::opaque },
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
@@ -57,7 +61,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
 		{
 			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_main_buffer_rtv_desc, nullptr);
-			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 1.f);
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
 
 			cmd_list.BeginRenderPass(
 				1,
@@ -162,6 +166,22 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct pipeline
 	{
+		struct mesh_data
+		{
+			t_mesh_id id;
+			uint32	  offset;
+			uint32	  byte_size;
+			uint32	  meshlet_count;
+		};
+
+		struct camera_data
+		{
+			float3				  pos;
+			float4x4			  view_proj;
+			float4x4			  view_proj_inv;
+			std::array<float4, 6> frustom_plane_arr;
+		};
+
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
 		resource_handle h_main_buffer  = {};
@@ -182,15 +202,18 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<1> object_data_buffer;
 		binding_config_t::reg_t<2> mesh_data_buffer;
 
-		static_assert(binding_config_t::reg_b<0>::slot_id == 0);
-		static_assert(binding_config_t::reg_t<0>::slot_id == 2);
-		static_assert(binding_config_t::reg_t<1>::slot_id == 3);
-		static_assert(binding_config_t::reg_t<2>::slot_id == 4);
+		binding_config_t::reg_t<3> directional_light_buffer;
+		binding_config_t::reg_t<4> point_light_buffer;
+		binding_config_t::reg_t<5> spot_light_buffer;
 
 		resource::mapping_handle h_mapping_frame_data		  = {};
 		resource::mapping_handle h_mapping_job_data_buffer	  = {};
 		resource::mapping_handle h_mapping_object_data_buffer = {};
 		resource::mapping_handle h_mapping_mesh_buffer		  = {};
+
+		resource::mapping_handle h_mapping_directional_light_buffer = {};
+		resource::mapping_handle h_mapping_point_light_buffer		= {};
+		resource::mapping_handle h_mapping_spot_light_buffer		= {};
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
@@ -201,22 +224,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		uint32 object_count = 0;
 
-		struct mesh_data
-		{
-			t_mesh_id id;
-			uint32	  offset;
-			uint32	  byte_size;
-			uint32	  meshlet_count;
-		};
-
-		struct camera_data
-		{
-			float3				  pos;
-			float4x4			  view_proj;
-			float4x4			  view_proj_inv;
-			std::array<float4, 6> frustom_plane_arr;
-		};
-
 		// for contents updating camera
 		data_structure::sparse_vector<camera_desc> camera_desc_vec;
 		data_structure::sparse_vector<camera_data> camera_data_vec;
@@ -226,6 +233,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		shared_type::job_data job_array[g::frame_buffer_count][g::thread_count][max_job_count_per_thread];
 		uint32				  job_count_array[g::frame_buffer_count][g::thread_count];
+
+		data_structure::sparse_vector<t_directional_light_id, max_directional_light_count> directional_light_id_arr;
+		data_structure::sparse_vector<t_point_light_id, max_point_light_count>			   point_light_id_arr;
+		data_structure::sparse_vector<t_spot_light_id, max_spot_light_count>			   spot_light_id_arr;
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -254,6 +265,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 	  private:
+		template <bool reversed = false>
 		static FORCE_INLINE camera_data
 		calc_camera_data(const camera_desc& desc) noexcept
 		{
@@ -263,9 +275,20 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			c_auto xm_view = simd::view_look_to(xm_pos, xm_forward, xm_up);
 
-			c_auto xm_proj = (desc.kind == e::camera_kind::perspective)
-							   ? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
-							   : simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+			auto xm_proj = xm_mat{};
+
+			if constexpr (reversed)
+			{
+				xm_proj = (desc.kind == e::camera_kind::perspective)
+							? simd::proj_perspective_fov_reversed(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
+							: simd::proj_orthographic_reversed(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+			}
+			else
+			{
+				xm_proj = (desc.kind == e::camera_kind::perspective)
+							? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
+							: simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+			}
 
 			c_auto xm_view_proj		= xm_proj * xm_view;
 			c_auto xm_view_proj_inv = xm_view_proj | simd::mat_inv();
@@ -300,7 +323,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		add_camera(const camera_desc& desc) noexcept
 		{
 			c_auto desc_id = camera_desc_vec.emplace_back(desc);
-			c_auto data_id = camera_data_vec.emplace_back(calc_camera_data(desc));
+			c_auto data_id = camera_data_vec.emplace_back(calc_camera_data<true>(desc));
 
 			AGE_ASSERT(desc_id == data_id);
 
@@ -316,19 +339,98 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_camera(t_camera_id id, const camera_desc& desc) noexcept
 		{
-			camera_data_vec[id] = calc_camera_data(desc);
+			camera_data_vec[id] = calc_camera_data<true>(desc);
 			camera_desc_vec[id] = desc;
 		}
 
 		void
-		remove_camera(t_camera_id id) noexcept
+		remove_camera(t_camera_id& id) noexcept
 		{
 			camera_desc_vec.remove(id);
 			camera_data_vec.remove(id);
+			id = invalid_id_uint32;
+		}
+
+		void
+		update_directional_light(t_directional_light_id id, const shared_type::directional_light& data) noexcept
+		{
+			std::memcpy(h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * id,
+						&data,
+						sizeof(shared_type::directional_light));
+		}
+
+		t_directional_light_id
+		add_directional_light(const shared_type::directional_light& data) noexcept
+		{
+			c_auto id = static_cast<t_directional_light_id>(
+				directional_light_id_arr.emplace_back(
+					static_cast<t_directional_light_id>(directional_light_id_arr.size())));
+
+			update_directional_light(id, data);
+
+			return static_cast<t_directional_light_id>(id);
+		}
+
+		void
+		remove_directional_light(t_directional_light_id& id) noexcept
+		{
+			directional_light_id_arr.remove(id);
+
+			id = age::get_invalid_id<t_directional_light_id>();
+		}
+
+		void
+		update_point_light(t_point_light_id id, const shared_type::point_light& data) noexcept
+		{
+			std::memcpy(h_mapping_point_light_buffer->ptr + sizeof(shared_type::point_light) * id,
+						&data,
+						sizeof(shared_type::point_light));
+		}
+
+		t_point_light_id
+		add_point_light(const shared_type::point_light& data) noexcept
+		{
+			c_auto id = static_cast<t_point_light_id>(
+				point_light_id_arr.emplace_back(
+					static_cast<t_point_light_id>(point_light_id_arr.size())));
+			update_point_light(id, data);
+			return static_cast<t_point_light_id>(id);
+		}
+
+		void
+		remove_point_light(t_point_light_id& id) noexcept
+		{
+			point_light_id_arr.remove(id);
+			id = age::get_invalid_id<t_point_light_id>();
+		}
+
+		void
+		update_spot_light(t_spot_light_id id, const shared_type::spot_light& data) noexcept
+		{
+			std::memcpy(h_mapping_spot_light_buffer->ptr + sizeof(shared_type::spot_light) * id,
+						&data,
+						sizeof(shared_type::spot_light));
+		}
+
+		t_spot_light_id
+		add_spot_light(const shared_type::spot_light& data) noexcept
+		{
+			c_auto id = static_cast<t_spot_light_id>(
+				spot_light_id_arr.emplace_back(
+					static_cast<t_spot_light_id>(spot_light_id_arr.size())));
+			update_spot_light(id, data);
+			return static_cast<t_spot_light_id>(id);
+		}
+
+		void
+		remove_spot_light(t_spot_light_id& id) noexcept
+		{
+			spot_light_id_arr.remove(id);
+			id = age::get_invalid_id<t_spot_light_id>();
 		}
 
 		t_object_id
-		add_object(t_mesh_id mesh_id, shared_type::object_data data = {}) noexcept
+		add_object(shared_type::object_data data = {}) noexcept
 		{
 			auto object_id = object_id_stack[object_count++];
 

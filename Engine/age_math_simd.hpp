@@ -695,12 +695,30 @@ namespace age::math::simd
 	}
 
 	FORCE_INLINE xm_mat AGE_SIMD_CALL
+	proj_perspective_fov_reversed(float fov_y,
+								  float aspect_ratio,
+								  float near_z,
+								  float far_z) noexcept
+	{
+		return DirectX::XMMatrixTranspose(DirectX::XMMatrixPerspectiveFovLH(fov_y, aspect_ratio, far_z, near_z));
+	}
+
+	FORCE_INLINE xm_mat AGE_SIMD_CALL
 	proj_orthographic(float view_width,
 					  float view_height,
 					  float near_z,
 					  float far_z) noexcept
 	{
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH(view_width, view_height, near_z, far_z));
+	}
+
+	FORCE_INLINE xm_mat AGE_SIMD_CALL
+	proj_orthographic_reversed(float view_width,
+							   float view_height,
+							   float near_z,
+							   float far_z) noexcept
+	{
+		return DirectX::XMMatrixTranspose(DirectX::XMMatrixOrthographicLH(view_width, view_height, far_z, near_z));
 	}
 
 	FORCE_INLINE

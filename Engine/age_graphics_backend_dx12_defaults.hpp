@@ -248,27 +248,65 @@ namespace age::graphics::defaults
 	namespace depth_stencil_desc1
 	{
 		inline constexpr auto disabled = D3D12_DEPTH_STENCIL_DESC1{
-			0,									 // DepthEnable
-			D3D12_DEPTH_WRITE_MASK_ZERO,		 // DepthWriteMask
-			D3D12_COMPARISON_FUNC_LESS_EQUAL,	 // DepthFunc
-			0,									 // StencilEnable
-			0,									 // StencilReadMask
-			0,									 // StencilWriteMask
-			{},									 // FrontFace
-			{},									 // BackFace
-			0									 // DepthBoundsTestEnable
+			0,										// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ZERO,			// DepthWriteMask
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,		// DepthFunc
+			0,										// StencilEnable
+			0,										// StencilReadMask
+			0,										// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			0										// DepthBoundsTestEnable
 		};
 
 		inline constexpr auto depth_only = D3D12_DEPTH_STENCIL_DESC1{
-			TRUE,								 // DepthEnable
-			D3D12_DEPTH_WRITE_MASK_ALL,			 // DepthWriteMask
-			D3D12_COMPARISON_FUNC_LESS_EQUAL,	 // DepthFunc
-			FALSE,								 // StencilEnable
-			D3D12_DEFAULT_STENCIL_READ_MASK,	 // StencilReadMask
-			D3D12_DEFAULT_STENCIL_WRITE_MASK,	 // StencilWriteMask
-			{},									 // FrontFace
-			{},									 // BackFace
-			FALSE								 // DepthBoundsTestEnable
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ALL,				// DepthWriteMask
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,		// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
+		};
+
+
+		inline constexpr auto depth_readonly = D3D12_DEPTH_STENCIL_DESC1{
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ZERO,			// DepthWriteMask
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,		// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
+		};
+
+		inline constexpr auto depth_only_reversed = D3D12_DEPTH_STENCIL_DESC1{
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ALL,				// DepthWriteMask
+			D3D12_COMPARISON_FUNC_GREATER_EQUAL,	// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
+		};
+
+
+		inline constexpr auto depth_readonly_reversed = D3D12_DEPTH_STENCIL_DESC1{
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ZERO,			// DepthWriteMask
+			D3D12_COMPARISON_FUNC_GREATER_EQUAL,	// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
 		};
 	}	 // namespace depth_stencil_desc1
 
@@ -298,6 +336,18 @@ namespace age::graphics::defaults
 {
 	namespace render_pass_rtv_desc
 	{
+		FORCE_INLINE decltype(auto)
+		load_preserve(rtv_desc_handle h_rtv_desc) noexcept
+		{
+			D3D12_RENDER_PASS_RENDER_TARGET_DESC desc = {
+				.cpuDescriptor	 = h_rtv_desc.h_cpu,
+				.BeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE },
+				.EndingAccess	 = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE }
+			};
+
+			return desc;
+		}
+
 		FORCE_INLINE decltype(auto)
 		overwrite_preserve(rtv_desc_handle h_rtv_desc) noexcept
 		{

@@ -34,11 +34,37 @@ using half	   = uint16;
 inline constexpr uint64 invalid_id_uint64 = 0xffff'ffff'ffff'ffffui64;
 inline constexpr uint32 invalid_id_uint32 = 0xffff'ffffui32;
 inline constexpr uint16 invalid_id_uint16 = 0xffffui16;
+inline constexpr uint8	invalid_id_uint8  = 0xffui8;
 
-inline constexpr uint64 invalid_idx_uint64 = 0xffff'ffff'ffff'ffffui64;
-inline constexpr uint32 invalid_idx_uint32 = 0xffff'ffffui32;
-inline constexpr uint16 invalid_idx_uint16 = 0xffffui16;
-inline constexpr uint16 invalid_idx_uint8  = 0xffui8;
+// todo, move to better header
+namespace age
+{
+	template <typename t>
+	consteval t
+	get_invalid_id() noexcept
+	{
+		if constexpr (std::is_same_v<t, uint64>)
+		{
+			return invalid_id_uint64;
+		}
+		else if constexpr (std::is_same_v<t, uint32>)
+		{
+			return invalid_id_uint32;
+		}
+		else if constexpr (std::is_same_v<t, uint16>)
+		{
+			return invalid_id_uint16;
+		}
+		else if constexpr (std::is_same_v<t, uint8>)
+		{
+			return invalid_id_uint8;
+		}
+		else
+		{
+			static_assert(false, "invalid id type");
+		}
+	}
+}	 // namespace age
 
 static_assert(sizeof(float32) == 4);
 static_assert(sizeof(double64) == 8);
@@ -1286,43 +1312,6 @@ struct oct
 
 namespace age::inline math
 {
-	// namespace e
-	//{
-	//	AGE_DEFINE_ENUM(
-	//		axis_kind,
-	//		uint8,
-	//		x_pos,
-	//		y_pos,
-	//		z_pos,
-	//		x_neg,
-	//		y_neg,
-	//		z_neg);
-	// }
-
-	// FORCE_INLINE constexpr float3
-	// basis_vec(e::axis_kind kind)
-	//{
-	//	switch (kind)
-	//	{
-	//	case age::math::e::axis_kind::x_pos:
-	//		return { 1.f, 0.f, 0.f };
-	//	case age::math::e::axis_kind::y_pos:
-	//		return { 0.f, 1.f, 0.f };
-	//	case age::math::e::axis_kind::z_pos:
-	//		return { 0.f, 0.f, 1.f };
-	//	case age::math::e::axis_kind::x_neg:
-	//		return { -1.f, 0.f, 0.f };
-	//	case age::math::e::axis_kind::y_neg:
-	//		return { 0.f, -1.f, 0.f };
-	//	case age::math::e::axis_kind::z_neg:
-	//		return { 0.f, 0.f, -1.f };
-	//	default:
-	//	{
-	//		AGE_UNREACHABLE("invalid axis_type : {}", to_string(kind));
-	//	}
-	//	}
-	// }
-
 	template <typename t>
 	FORCE_INLINE constexpr bool
 	is_zero(const t& v) noexcept

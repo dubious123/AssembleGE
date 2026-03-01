@@ -21,28 +21,28 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count);
 		h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
 
+		h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_directional_light_count);
+		h_mapping_point_light_buffer	   = resource::create_buffer_committed(sizeof(shared_type::point_light) * max_point_light_count);
+		h_mapping_spot_light_buffer		   = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_spot_light_count);
+
 		h_main_buffer_srv_desc = g::cbv_srv_uav_desc_pool.pop();
 
-		{
-			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_frame_data].h_resource].p_resource;
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 0, 0);
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
-			frame_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
-		}
-		{
-			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_job_data_buffer].h_resource].p_resource;
-			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 0, 0);
-			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 1, 1);
-			job_data_buffer.bind(p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 2, 2);
-		}
-		{
-			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_object_data_buffer].h_resource].p_resource;
-			object_data_buffer.bind(p_resource->GetGPUVirtualAddress());
-		}
-		{
-			ID3D12Resource* p_resource = g::resource_vec[g::resource_mapping_vec[h_mapping_mesh_buffer].h_resource].p_resource;
-			mesh_data_buffer.bind(p_resource->GetGPUVirtualAddress());
-		}
+		frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 0, 0);
+		frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
+		frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
+
+		job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 0, 0);
+		job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 1, 1);
+		job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 2, 2);
+
+		object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+
+		mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+
+		directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+		point_light_buffer.bind(h_mapping_point_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+		spot_light_buffer.bind(h_mapping_spot_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+
 
 		stage_opaque.init(h_root_sig);
 		stage_presentation.init(h_root_sig);
@@ -107,6 +107,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			job_data_buffer.apply(cmd_list);
 			object_data_buffer.apply(cmd_list);
 			mesh_data_buffer.apply(cmd_list);
+
+			directional_light_buffer.apply(cmd_list);
+			point_light_buffer.apply(cmd_list);
+			spot_light_buffer.apply(cmd_list);
 		}
 
 		barrier.add_transition(rs.get_back_buffer(),
@@ -169,19 +173,16 @@ namespace age::graphics::render_pipeline::forward_plus
 			}
 
 			{
-				// todo
-				static uint32 frame_index = 0;
-
-				auto cam_data = camera_data_vec[0];
-				auto dt_ns	  = age::global::get<runtime::interface>().delta_time_ns();
-				auto dt_ms	  = std::chrono::duration<float, std::milli>(dt_ns).count();
+				// todo multiple camera
+				c_auto& cam_data = camera_data_vec[0];
+				c_auto	dt_ns	 = age::global::get<runtime::interface>().delta_time_ns();
+				c_auto	dt_ms	 = std::chrono::duration<float, std::milli>(dt_ns).count();
 
 				auto frame_d = shared_type::frame_data{
-					.view_proj	   = cam_data.view_proj,
-					.view_proj_inv = cam_data.view_proj_inv,
-					.camera_pos	   = cam_data.pos,
-					.time		   = dt_ms,
-					//.frustum_planes			= cam_data.frustom_plane_arr,
+					.view_proj				= cam_data.view_proj,
+					.view_proj_inv			= cam_data.view_proj_inv,
+					.camera_pos				= cam_data.pos,
+					.time					= dt_ms,
 					.frame_index			= age::global::get<runtime::interface>().frame_count(),
 					.inv_backbuffer_size	= float2{ 1.f / extent.width, 1.f / extent.height },
 					.main_buffer_texture_id = g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc)
@@ -194,7 +195,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			// root_constants.bind(total_job_count);
 			// root_constants.apply(cmd_list);
-			root_constants.bind(total_job_count);
+			root_constants.bind(shared_type::root_constants{
+				.job_count						   = total_job_count,
+				.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_id_arr.size()),
+				.point_light_count				   = static_cast<t_point_light_id>(point_light_id_arr.size()),
+				.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()) });
 			root_constants.apply(cmd_list);
 
 			stage_opaque.execute(cmd_list, total_job_count);

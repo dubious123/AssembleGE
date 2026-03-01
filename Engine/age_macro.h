@@ -17,13 +17,6 @@
 
 #define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
 
-#if defined(__cpp_multidimensional_subscript)
-	#define AGE_MD_INDEX(...) __VA_ARGS__
-#else
-	#define AGE_MD_INDEX(...) \
-		std::array { __VA_ARGS__ }
-#endif
-
 #define AGE_DO_WHILE(...)       \
 	do                          \
 	{                           \

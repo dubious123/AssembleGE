@@ -1,8 +1,10 @@
 #pragma once
 #include "age_hlsl.h"
 
-static const float sqrt_2	  = 1.41421356f;
-static const float sqrt_2_inv = 0.70710678f;
+static const float epsilon_1e4 = 0.0001f;
+static const float epsilon_1e6 = 0.000001f;
+static const float sqrt_2	   = 1.41421356f;
+static const float sqrt_2_inv  = 0.70710678f;
 
 float
 int8_to_float(uint32 raw)

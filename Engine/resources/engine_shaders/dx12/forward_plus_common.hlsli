@@ -7,6 +7,11 @@
 StructuredBuffer<job_data> meshlet_render_job_buffer : register(t0);
 StructuredBuffer<object_data> object_data_buffer : register(t1);
 ByteAddressBuffer mesh_data_buffer : register(t2);
+
+StructuredBuffer<directional_light> directional_light_buffer : register(t3);
+StructuredBuffer<point_light> point_light_buffer : register(t4);
+StructuredBuffer<spot_light> spot_light_buffer : register(t5);
+
 SamplerState linear_clamp_sampler : register(s0);
 
 mesh_header
@@ -181,10 +186,11 @@ struct opaque_as_to_ms
 
 struct opaque_ms_to_ps
 {
-    float4 pos	        : SV_Position;
-    float3 normal       : NORMAL;
-    nointerpolation uint meshlet_render_job_id  : MESHLET_INDEX;
-    float4 tangent      : TANGENT;
+    float4 pos	                                  : SV_Position;
+    float3 world_pos                              : WORLD_POS;
+    float3 normal                                 : NORMAL;
+    nointerpolation uint32 meshlet_render_job_id  : MESHLET_INDEX;
+    float4 tangent                                : TANGENT;
  
 #if UV_COUNT >= 1
     half2 uv0 SYS_VAL(TEXCOORD0);

@@ -48,11 +48,53 @@ main()
 			.quaternion = age::g::quaternion_identity,
 			.perspective{
 				.near_z		  = 0.1f,
-				.far_z		  = 100.f,
+				.far_z		  = 1000000.f,
 				.fov_y		  = age::cvt_to_radian(75.f),
 				.aspect_ratio = 16.f / 9.f } } }
 			| AGE_FUNC(forward_plus_pipeline.add_camera)
 			| AGE_FUNC(camera_vec.emplace_back),
+
+		// sun diagonal from upper right, illuminates entire scene
+		identity{ age::graphics::render_pipeline::forward_plus::shared_type::directional_light{
+			.direction = age::normalize(float3{ 1.0f, -1.0f, 1.f }),
+			.intensity = 0.5f,
+			.color	   = float3{ 1.0f, 0.95f, 0.85f } } }
+			| AGE_FUNC(forward_plus_pipeline.add_directional_light),
+
+		AGE_LAMBDA(
+			(),
+			{
+				constexpr uint32 light_count = 1000;
+				constexpr float	 scene_min	 = -10.0f;
+				constexpr float	 scene_max	 = 10.0f;
+				constexpr float	 range		 = 4.0f;
+				constexpr float	 intensity	 = 0.3f;
+
+				auto rng		= std::mt19937{ 42 };
+				auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
+				auto dist_color = std::uniform_real_distribution<float>{ 0.2f, 1.0f };
+
+				for (uint32 i = 0; i < light_count; ++i)
+				{
+					forward_plus_pipeline.add_point_light(
+						age::graphics::render_pipeline::forward_plus::shared_type::point_light{
+							.position  = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
+							.range	   = range,
+							.color	   = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
+							.intensity = intensity });
+				}
+			}),
+
+		// yellow spot top down onto scene center
+		identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
+			.position  = float3{ 0.0f, 12.0f, 0.0f },
+			.range	   = 25.0f,
+			.direction = float3{ 0.0f, -1.0f, 0.0f },
+			.intensity = 800.0f,
+			.color	   = float3{ 1.0f, 0.9f, 0.6f },
+			.cos_inner = 0.96f,
+			.cos_outer = 0.87f } }
+			| AGE_FUNC(forward_plus_pipeline.add_spot_light),
 
 		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 			| age::asset::create_primitive_mesh
@@ -60,14 +102,13 @@ main()
 			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
 			| AGE_FUNC(mesh_id_vec.emplace_back),
 
-
 		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::plane } }
 			| age::asset::create_primitive_mesh
 			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
 			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
 			| AGE_FUNC(mesh_id_vec.emplace_back),
 
-		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::uv_sphere } }
+		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere } }
 			| age::asset::create_primitive_mesh
 			| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
 			| AGE_FUNC(forward_plus_pipeline.upload_mesh)
@@ -76,7 +117,7 @@ main()
 		AGE_LAMBDA(
 			(),
 			{
-				for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-1, 2), std::views::iota(-1, 2), std::views::iota(-1, 2)))
+				for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-5, 5), std::views::iota(-5, 5), std::views::iota(-5, 5)))
 				{
 					auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
 						.pos		= float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
@@ -84,9 +125,10 @@ main()
 						.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
 					};
 
-					obj_id_vec.emplace_back(forward_plus_pipeline.add_object(mesh_id_vec[0], data));
+					obj_id_vec.emplace_back(forward_plus_pipeline.add_object(data));
 				}
 			}),
+
 		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
 			| age::platform::create_window
 			| age::runtime::assign_to(h_window_test_app_1)
@@ -126,9 +168,29 @@ main()
 			  age::runtime::update,
 			  age::graphics::begin_frame,
 			  [] {
-				  // std::println("now : {:%T}, delta_time_ns : {:%T}", age::global::get<age::runtime::interface>().now(), age::global::get<age::runtime::interface>().delta_time_ns());
+				  static uint32 frame_count		   = 0;
+				  static double accumulated_time_s = 0.0;
+
+				  c_auto dt = age::global::get<age::runtime::interface>().delta_time_s();
+
+				  ++frame_count;
+				  accumulated_time_s += dt;
+
+				  if (accumulated_time_s >= 1.0)
+				  {
+					  c_auto average_fps = static_cast<double>(frame_count) / accumulated_time_s;
+
+					  std::println("[Profiler] Average FPS : {:.1f} ({} frames in {:.4f}s)",
+								   average_fps, frame_count, accumulated_time_s);
+
+					  frame_count		 = 0;
+					  accumulated_time_s = 0.0;
+				  }
+
 				  // std::println("now : {:%F %T}", std::chrono::system_clock::now());
-				  // std::println("now : {}ns", age::global::get<age::runtime::interface>().delta_time_ns().count());
+				  // std::println("now : {}ns, {}s",
+				  //	   age::global::get<age::runtime::interface>().delta_time_ns().count(),
+				  //	   age::global::get<age::runtime::interface>().delta_time_s());
 				  // std::this_thread::sleep_for(std::chrono::seconds(1));
 			  },
 
@@ -239,19 +301,9 @@ main()
 					  {
 						  if (forward_plus_pipeline.begin_render(h_forward_plus_rs))
 						  {
-							  for (auto obj_id : obj_id_vec | std::views::drop(0) | std::views::take(9))
+							  for (auto obj_id : obj_id_vec)
 							  {
-								  forward_plus_pipeline.render_mesh(obj_id % age::graphics::g::thread_count, obj_id, mesh_id_vec[0]);
-							  }
-
-							  for (auto obj_id : obj_id_vec | std::views::drop(9) | std::views::take(9))
-							  {
-								  forward_plus_pipeline.render_mesh(obj_id_vec[obj_id] % age::graphics::g::thread_count, obj_id, mesh_id_vec[1]);
-							  }
-
-							  for (auto obj_id : obj_id_vec | std::views::drop(18) | std::views::take(9))
-							  {
-								  forward_plus_pipeline.render_mesh(obj_id_vec[obj_id] % age::graphics::g::thread_count, obj_id, mesh_id_vec[2]);
+								  forward_plus_pipeline.render_mesh(obj_id % age::graphics::g::thread_count, obj_id, mesh_id_vec[obj_id % mesh_id_vec.size()]);
 							  }
 
 							  forward_plus_pipeline.end_render(h_forward_plus_rs);

@@ -10,6 +10,11 @@ namespace age::graphics::render_pipeline::forward_plus
 	inline constexpr auto max_job_count_per_thread	= max_job_count_per_frame / g::thread_count;
 	inline constexpr auto max_object_data_count		= 1024u;
 	inline constexpr auto max_mesh_buffer_byte_size = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
+
+	inline constexpr auto max_directional_light_count = 2;
+	inline constexpr auto max_point_light_count		  = (1u << 14);
+	inline constexpr auto max_spot_light_count		  = (1u << 13);
+
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
 // root signatures
@@ -28,7 +33,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"root_constants",
 			D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::constant_buffer_array<uint32>,
+			what::constant_buffer_array<shared_type::root_constants>,
 			how::root_constant,
 			where::b<1>>,
 
@@ -55,6 +60,30 @@ namespace age::graphics::render_pipeline::forward_plus
 			what::byte_address_buffer,
 			how::root_descriptor,
 			where::t<2>>,
+
+		binding_slot<
+			"directional_light_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::directional_light>,
+			how::root_descriptor,
+			where::t<3>>,
+
+		binding_slot<
+			"point_light_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::point_light>,
+			how::root_descriptor,
+			where::t<4>>,
+
+		binding_slot<
+			"spot_light_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::spot_light>,
+			how::root_descriptor,
+			where::t<5>>,
 
 		binding_slot<
 			"linear_clamp_sampler",
