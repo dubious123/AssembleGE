@@ -40,6 +40,12 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
+		buffer_uav(uint64 byte_size) noexcept
+		{
+			return buffer(byte_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		}
+
+		FORCE_INLINE decltype(auto)
 		texture_2d_array(uint32				  width,
 						 uint32				  height,
 						 DXGI_FORMAT		  format,
@@ -188,6 +194,39 @@ namespace age::graphics::defaults
 			};
 		}
 	}	 // namespace srv_view_desc
+
+	namespace uav_view_desc
+	{
+		FORCE_INLINE decltype(auto)
+		byte_address_buffer(uint64 byte_size) noexcept
+		{
+			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
+				.Format		   = DXGI_FORMAT_R32_TYPELESS,
+				.ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+				.Buffer		   = {
+					.FirstElement		  = 0,
+					.NumElements		  = static_cast<uint32>(byte_size / 4),
+					.StructureByteStride  = 0,
+					.CounterOffsetInBytes = 0,
+					.Flags				  = D3D12_BUFFER_UAV_FLAG_RAW }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		structured_buffer(uint32 element_count, uint32 byte_size) noexcept
+		{
+			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
+				.Format		   = DXGI_FORMAT_UNKNOWN,
+				.ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+				.Buffer		   = {
+					.FirstElement		  = 0,
+					.NumElements		  = element_count,
+					.StructureByteStride  = byte_size,
+					.CounterOffsetInBytes = 0,
+					.Flags				  = D3D12_BUFFER_UAV_FLAG_NONE }
+			};
+		}
+	}	 // namespace uav_view_desc
 }	 // namespace age::graphics::defaults
 
 // pss subobjects

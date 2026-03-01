@@ -271,6 +271,22 @@ namespace age::graphics
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
 			cmd_list.SetGraphicsRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[0], 0);
 		}
+
+		void
+		apply_compute(t_cmd_list& cmd_list, uint8 ring_idx = g::frame_buffer_idx) noexcept
+			requires(constant_arr.size() > 1)
+		{
+			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
+			cmd_list.SetComputeRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[ring_idx], 0);
+		}
+
+		void
+		apply_compute(t_cmd_list& cmd_list) noexcept
+			requires(constant_arr.size() == 1)
+		{
+			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
+			cmd_list.SetComputeRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[0], 0);
+		}
 	};
 
 	template <util::nttp_string_holder str_nttp, auto flags, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, std::size_t slot_id_>
@@ -338,6 +354,44 @@ namespace age::graphics
 			else
 			{
 				cmd_list.SetGraphicsRootUnorderedAccessView(slot_id, gpu_va_arr[ring_idx]);
+			}
+		}
+
+		void
+		apply_compute(t_cmd_list& cmd_list) noexcept
+			requires(gpu_va_arr.size() == 1)
+		{
+			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
+			if constexpr (detail::is_constant_buffer_v<t_what>)
+			{
+				cmd_list.SetComputeRootConstantBufferView(slot_id, gpu_va_arr[0]);
+			}
+			else if constexpr (detail::is_structured_buffer_v<t_what> or detail::is_byte_address_buffer_v<t_what>)
+			{
+				cmd_list.SetComputeRootShaderResourceView(slot_id, gpu_va_arr[0]);
+			}
+			else
+			{
+				cmd_list.SetComputeRootUnorderedAccessView(slot_id, gpu_va_arr[0]);
+			}
+		}
+
+		void
+		apply_compute(t_cmd_list& cmd_list, std::size_t ring_idx = g::frame_buffer_idx) noexcept
+			requires(gpu_va_arr.size() > 1)
+		{
+			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
+			if constexpr (detail::is_constant_buffer_array_v<t_what>)
+			{
+				cmd_list.SetComputeRootConstantBufferView(slot_id, gpu_va_arr[ring_idx]);
+			}
+			else if constexpr (detail::is_structured_buffer_array_v<t_what> or detail::is_byte_address_buffer_array_v<t_what>)
+			{
+				cmd_list.SetComputeRootShaderResourceView(slot_id, gpu_va_arr[ring_idx]);
+			}
+			else
+			{
+				cmd_list.SetComputeRootUnorderedAccessView(slot_id, gpu_va_arr[ring_idx]);
 			}
 		}
 

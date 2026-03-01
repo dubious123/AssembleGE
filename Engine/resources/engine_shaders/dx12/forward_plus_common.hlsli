@@ -12,6 +12,13 @@ StructuredBuffer<directional_light> directional_light_buffer : register(t3);
 StructuredBuffer<point_light> point_light_buffer : register(t4);
 StructuredBuffer<spot_light> spot_light_buffer : register(t5);
 
+StructuredBuffer<uint32> global_light_index_buffer_srv : register(t6); // (offset, count)
+StructuredBuffer<cluster_light_info> cluster_light_info_buffer_srv : register(t7);
+
+RWStructuredBuffer<uint32> global_light_index_buffer_uav : register(u0); // (offset, count)
+RWStructuredBuffer<cluster_light_info> cluster_light_info_buffer_uav : register(u1);
+RWStructuredBuffer<uint32> global_counter : register(u2);
+
 SamplerState linear_clamp_sampler : register(s0);
 
 mesh_header
@@ -81,25 +88,11 @@ read_meshlet(mesh_header header, uint32 meshlet_idx)
 {
     meshlet res;
     
-    //uint32_3 raw1 = mesh_data_buffer.Load3(header.meshlet_buffer_offset + meshlet_idx * sizeof(meshlet));
     uint32_3 raw1 = mesh_data_buffer.Load3(header.meshlet_buffer_offset + meshlet_idx * sizeof(meshlet));
-    // uint32_4 raw1 = mesh_data_buffer.Load4(header.meshlet_buffer_offset + meshlet_idx * 16);
-    //uint32_4 raw1 = mesh_data_buffer.Load4(header.meshlet_buffer_offset + meshlet_idx * sizeof(meshlet));
-    //uint32_2 raw2 = mesh_data_buffer.Load2(header.meshlet_buffer_offset + meshlet_idx * sizeof(meshlet) + sizeof(raw1));
-    
+
     res.global_index_offset = raw1.x;
     res.primitive_offset = raw1.y;
     res.vertex_count_prim_count_extra = raw1.z;
-    //res.aabb_min = int16_3(
-    //    uint32_lower_to_int16(raw1.w),
-    //    uint32_upper_to_int16(raw1.w),
-    //    uint32_lower_to_int16(raw2.x));
-    
-    //res.aabb_size = uint16_3(
-    //    uint32_upper_to_uint16(raw2.x),
-    //    uint32_lower_to_uint16(raw2.y),
-    //    uint32_upper_to_uint16(raw2.y));
-    
     return res;
 }
 

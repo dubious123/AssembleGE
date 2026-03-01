@@ -578,6 +578,32 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">Mesh</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Mesh</ShaderType>
     </FxCompile>
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_culling_cs.hlsl">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.8</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">6.8</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">6.8</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.8</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">6.8</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">main_cs</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">6.8</ShaderModel>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+    </FxCompile>
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_opaque_ps.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">false</ExcludedFromBuild>

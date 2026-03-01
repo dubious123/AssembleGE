@@ -4,40 +4,6 @@
 
 #undef SHADER_STAGE_MS
 
-opaque_ms_to_ps
-decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float3 aabb_size)
-{
-    float3 pos_decoded = ((float3)v_encoded.pos) / 65535.f
-						  * aabb_size
-						  + aabb_min;
-    
-    float3 normal_decoded = decode_oct_snorm(v_encoded.normal_oct);
-
-    float4 tangent_decoded = float4(
-		decode_oct_snorm(v_encoded.tangent_oct),
-		1.0f - 2.0f * float(v_encoded.extra & 1u));
-    
-    opaque_ms_to_ps res;
-    
-    res.pos = float4(pos_decoded, 1.f);
-    res.normal = normal_decoded;
-    res.tangent = tangent_decoded;
-#if UV_COUNT >= 1
-    res.uv0 = v_encoded.uv_set[0];
-#endif
-#if UV_COUNT >= 2
-    res.uv1 = v_encoded.uv_set[1];
-#endif
-#if UV_COUNT >= 3
-    res.uv2 = v_encoded.uv_set[2];
-#endif
-#if UV_COUNT >= 4
-	res.uv3 = v_encoded.uv_set[3];
-#endif
-    
-    return res;
-}
-
 struct depth_ms_out
 {
     float4 pos : SV_Position;

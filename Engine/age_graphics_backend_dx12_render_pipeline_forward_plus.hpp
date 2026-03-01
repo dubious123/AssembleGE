@@ -19,7 +19,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			auto ms_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_depth_ms) });
 
 			h_pso = graphics::pso::create(
-				pss_root_signature{ .subobj = g::root_signature_ptr_vec[h_root_sig] },
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_as{ .subobj = as_byte_code },
 				pss_ms{ .subobj = ms_byte_code },
 				// no PS
@@ -31,9 +31,9 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
 
-			p_pso = g::pso_ptr_vec[h_pso];
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
 
-			h_depth_buffer_dsv_desc = g::dsv_desc_pool.pop();
+			h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
 		}
 
 		inline void
@@ -70,7 +70,44 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
-			g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
+			graphics::g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
+			pso::destroy(h_pso);
+		}
+	};
+
+	struct light_culling_stage
+	{
+		graphics::pso::handle h_pso = {};
+		ID3D12PipelineState*  p_pso = nullptr;
+
+		uint32 tile_count_x	 = 0;
+		uint32 tile_count_y	 = 0;
+		uint32 cluster_count = 0;
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept
+		{
+			using namespace graphics::pso;
+
+			auto cs_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_culling_cs) });
+
+			h_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = cs_byte_code });
+
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
+		}
+
+		inline void
+		execute(t_cmd_list& cmd_list, uint32 tile_count_x, uint32 tile_count_y) noexcept
+		{
+			cmd_list.SetPipelineState(p_pso);
+			cmd_list.Dispatch(tile_count_x, tile_count_y, g::light_culling_depth_slice_count);
+		}
+
+		inline void
+		deinit() noexcept
+		{
 			pso::destroy(h_pso);
 		}
 	};
@@ -93,7 +130,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			auto ps_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_opaque_ps) });
 
 			h_pso = graphics::pso::create(
-				pss_root_signature{ .subobj = g::root_signature_ptr_vec[h_root_sig] },
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_as{ .subobj = as_byte_code },
 				pss_ms{ .subobj = ms_byte_code },
 				pss_ps{ .subobj = ps_byte_code },
@@ -106,10 +143,10 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
 
-			p_pso = g::pso_ptr_vec[h_pso];
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
 
-			h_main_buffer_rtv_desc	= g::rtv_desc_pool.pop();
-			h_depth_buffer_dsv_desc = g::dsv_desc_pool.pop();
+			h_main_buffer_rtv_desc	= graphics::g::rtv_desc_pool.pop();
+			h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
 		}
 
 		inline void
@@ -152,8 +189,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
-			g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
-			g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
+			graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
+			graphics::g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
 
 			pso::destroy(h_pso);
 		}
@@ -192,7 +229,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			}();
 
 			h_pso = graphics::pso::create(
-				pss_root_signature{ .subobj = g::root_signature_ptr_vec[h_root_sig] },
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_ms{ .subobj = ms_byte_code },
 				pss_ps{ .subobj = ps_byte_code },
 				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
@@ -203,7 +240,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
 
-			p_pso = g::pso_ptr_vec[h_pso];
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
 		}
 
 		inline void
@@ -252,18 +289,28 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
+		uint16 light_culling_tile_count_x = (extent.width + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
+		uint16 light_culling_tile_count_y = (extent.height + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
+
 		resource_handle h_main_buffer  = {};
 		resource_handle h_depth_buffer = {};
+
+		resource_handle h_global_light_index_buffer = {};
+		resource_handle h_cluster_light_data_buffer = {};
 
 		ID3D12Resource* p_main_buffer  = nullptr;
 		ID3D12Resource* p_depth_buffer = nullptr;
 
+		ID3D12Resource* p_global_light_index_buffer = nullptr;
+		ID3D12Resource* p_cluster_light_data_buffer = nullptr;
+
 		graphics::root_signature::handle h_root_sig = {};
 		ID3D12RootSignature*			 p_root_sig = nullptr;
 
-		depth_stage		   stage_depth{};
-		opaque_stage	   stage_opaque{};
-		presentation_stage stage_presentation{};
+		depth_stage			stage_depth{};
+		light_culling_stage stage_light_culling{};
+		opaque_stage		stage_opaque{};
+		presentation_stage	stage_presentation{};
 
 		binding_config_t::reg_b<0> frame_data_buffer;
 		binding_config_t::reg_b<1> root_constants;
@@ -275,6 +322,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<4> point_light_buffer;
 		binding_config_t::reg_t<5> spot_light_buffer;
 
+		binding_config_t::reg_t<6> global_light_index_buffer_srv;
+		binding_config_t::reg_t<7> cluster_light_info_buffer_srv;
+
+		binding_config_t::reg_u<0> global_light_index_buffer_uav;
+		binding_config_t::reg_u<1> cluster_light_info_buffer_uav;
+
+		binding_config_t::reg_u<2> global_counter_buffer;
+
 		resource::mapping_handle h_mapping_frame_data		  = {};
 		resource::mapping_handle h_mapping_job_data_buffer	  = {};
 		resource::mapping_handle h_mapping_object_data_buffer = {};
@@ -283,6 +338,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_directional_light_buffer = {};
 		resource::mapping_handle h_mapping_point_light_buffer		= {};
 		resource::mapping_handle h_mapping_spot_light_buffer		= {};
+
+		resource::mapping_handle h_mapping_global_counter_buffer = {};
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
@@ -300,8 +357,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		data_structure::sparse_vector<mesh_data> mesh_data_vec;
 		uint32									 mesh_byte_offset = 0;
 
-		shared_type::job_data job_array[g::frame_buffer_count][g::thread_count][max_job_count_per_thread];
-		uint32				  job_count_array[g::frame_buffer_count][g::thread_count];
+		shared_type::job_data job_array[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
+		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		data_structure::sparse_vector<t_directional_light_id, max_directional_light_count> directional_light_id_arr;
 		data_structure::sparse_vector<t_point_light_id, max_point_light_count>			   point_light_id_arr;
@@ -542,9 +599,12 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	  private:
 		void
-		create_buffers() noexcept;
+		create_resolution_dependent_buffers() noexcept;
 
 		void
-		resize(const age::extent_2d<uint16>& new_extent) noexcept;
+		create_static_buffers() noexcept;
+
+		void
+		resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

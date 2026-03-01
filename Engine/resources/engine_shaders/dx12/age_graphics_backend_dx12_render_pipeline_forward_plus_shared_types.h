@@ -1,5 +1,8 @@
 #pragma once
-#define UV_COUNT 2
+#define UV_COUNT							2
+#define CLUSTER_TILE_SIZE					16
+#define CLUSTER_DEPTH_SLICE_COUNT			24
+#define CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER 256
 
 #if !defined(AGE_HLSL)
 	#include "age.hpp"
@@ -13,7 +16,21 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_directional_light_id = uint8;
 	using t_point_light_id		 = uint16;
 	using t_spot_light_id		 = uint16;
+
+	using t_global_light_index = uint32;
 }	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus::g
+{
+	inline constexpr uint8 uv_count = UV_COUNT;
+
+	// light culling
+	inline constexpr uint8	light_culling_cluster_tile_size					  = (uint8)CLUSTER_TILE_SIZE;
+	inline constexpr uint8	light_culling_cluster_depth_slice_count			  = (uint8)CLUSTER_DEPTH_SLICE_COUNT;
+	inline constexpr uint8	light_culling_cluster_max_light_count_per_cluster = (uint8)CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER;
+	inline constexpr uint32 light_culling_max_global_light_index_count		  = 1024 * 1024;	// 1M
+	inline constexpr uint8	light_culling_depth_slice_count					  = 24u;
+}	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
@@ -30,6 +47,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#define t_directional_light_id uint8
 	#define t_point_light_id	   uint16
 	#define t_spot_light_id		   uint16
+
+	#define UV_COUNT 2
 #endif
 	//---[ lights ]------------------------------------------------------------
 	struct directional_light
@@ -59,7 +78,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cos_outer;	 // 4  (cosine)
 	};	  // 52 bytes (1 cache line)
 
-	//---[ lights ends]------------------------------------------------------------
+	//---[ light culling ]------------------------------------------------------------
+
+	struct cluster_light_info
+	{
+		uint32 offset;	  // start index in global_light_index_buffer
+		uint32 count;	  // number of lights affecting this cluster
+	};
 
 	// data only used by amplification shader
 	struct meshlet_header
@@ -164,6 +189,15 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			 directional_light_count_and_extra;	   // 4 bytes
 		t_point_light_id point_light_count;					   // 2 btyes
 		t_spot_light_id	 spot_light_count;					   // 2 bytes
+
+		uint32 cluster_tile_count_x;
+		uint32 cluster_tile_count_y;
+		uint32 cluster_depth_slices;
+		uint32 cluster_count;
+		float  cluster_near_z;
+		float  cluster_far_z;
+		float  cluster_log_far_near_ratio;
+		uint32 depth_buffer_texture_id;	   // bindless index for depth buffer
 	};
 
 #if !defined(AGE_HLSL)
@@ -173,6 +207,10 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#undef cbuffer
 	#undef REG
 	#undef row_major
+
+	#undef CLUSTER_TILE_SIZE
+	#undef CLUSTER_DEPTH_SLICES
+	#undef CLUSTER_MAX_LIGHTS_PER_CLUSTER
 }	 // namespace age::graphics::render_pipeline::forward_plus
 #else
 

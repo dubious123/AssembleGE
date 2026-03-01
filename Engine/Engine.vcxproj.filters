@@ -118,6 +118,7 @@
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_hdr10_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_sdr_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_depth_ms.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_culling_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
