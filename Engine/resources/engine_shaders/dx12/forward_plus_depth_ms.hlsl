@@ -38,6 +38,11 @@ decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float
     return res;
 }
 
+struct depth_ms_out
+{
+    float4 pos : SV_Position;
+};
+
 [numthreads(32, 1, 1)]
 [outputtopology("triangle")]
 void
@@ -45,7 +50,7 @@ main_ms(
 		in payload opaque_as_to_ms ms_in,
 		uint32_3 group_id : SV_GroupID,
 		uint32_3 group_thread_id : SV_GroupThreadID,
-		out vertices opaque_ms_to_ps ms_out_vertex_arr[64],
+		out vertices depth_ms_out ms_out_vertex_arr[64],
 		out indices uint32_3 ms_out_triangle_arr[126])
 {
     const uint meshlet_count_per_group = 32;
@@ -66,32 +71,19 @@ main_ms(
     const float3 scale = (float3)obj_data.scale;
     const float3 pos = obj_data.pos;
     
-	[unroll(2)]
-    for (uint nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += 32)
+    [unroll(2)]
+    for (uint32 nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += 32)
     {
-        const uint global_vertex_index = read_global_vertex_index(mesh_header, mshlt, nth_vertex);
+        const uint32 global_vertex_index = read_global_vertex_index(mesh_header, mshlt, nth_vertex);
         const vertex_encoded v_encoded = read_vertex_encoded(mesh_header, global_vertex_index);
         
-        const float3 aabb_min = mesh_header.aabb_min;
-        const float3 aabb_size = mesh_header.aabb_size;
-        
-        opaque_ms_to_ps v = decode_vertex(v_encoded, aabb_min, aabb_size);
-        
-        v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
-        
-        v.world_pos = v.pos.xyz;
+        const float3 pos_local = ((float3)v_encoded.pos) / 65535.f
+						  * mesh_header.aabb_size
+						  + mesh_header.aabb_min;
 
-        v.pos = mul(view_proj, v.pos);
-        
-        v.normal = normalize(rotate(v.normal / scale, quaternion));
-        
-        const float3 t = normalize(rotate(v.tangent.xyz * scale, quaternion));
-        
-        v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
+        const float3 pos_world = rotate(pos_local * scale, quaternion) + pos;
 
-        v.meshlet_render_job_id = meshlet_render_job_id;
-        
-        ms_out_vertex_arr[nth_vertex] = v;
+        ms_out_vertex_arr[nth_vertex].pos = mul(view_proj, float4(pos_world, 1.0));
     }
 
 	[unroll(4)]

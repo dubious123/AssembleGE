@@ -5,6 +5,74 @@ namespace age::graphics::render_pipeline::forward_plus
 {
 	struct depth_stage
 	{
+		dsv_desc_handle h_depth_buffer_dsv_desc;
+
+		graphics::pso::handle h_pso = {};
+		ID3D12PipelineState*  p_pso = nullptr;
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept
+		{
+			using namespace graphics::pso;
+
+			auto as_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_opaque_as) });
+			auto ms_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_depth_ms) });
+
+			h_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = g::root_signature_ptr_vec[h_root_sig] },
+				pss_as{ .subobj = as_byte_code },
+				pss_ms{ .subobj = ms_byte_code },
+				// no PS
+				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{}, .NumRenderTargets = 0 } },
+				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+				pss_node_mask{ .subobj = 0 });
+
+			p_pso = g::pso_ptr_vec[h_pso];
+
+			h_depth_buffer_dsv_desc = g::dsv_desc_pool.pop();
+		}
+
+		inline void
+		bind_dsv(graphics::resource_handle h_depth_buffer) noexcept
+		{
+			resource::create_view(h_depth_buffer,
+								  h_depth_buffer_dsv_desc,
+								  defaults::dsv_view_desc::d32_float_2d);
+		}
+
+		inline void
+		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
+		{
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
+
+			cmd_list.BeginRenderPass(
+				0,			// no render targets
+				nullptr,	// no render targets
+				&render_pass_ds_desc,
+				D3D12_RENDER_PASS_FLAG_NONE);
+
+			{
+				cmd_list.SetPipelineState(p_pso);
+
+				if (job_count > 0) [[likely]]
+				{
+					cmd_list.DispatchMesh((job_count + 31u) / 32u, 1, 1);
+				}
+			}
+
+			cmd_list.EndRenderPass();
+		}
+
+		inline void
+		deinit() noexcept
+		{
+			g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
+			pso::destroy(h_pso);
+		}
 	};
 
 	struct opaque_stage
@@ -33,7 +101,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
 				pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
-				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_equal_readonly_reversed },
 				pss_blend{ .subobj = defaults::blend_desc::opaque },
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
@@ -54,20 +122,20 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			resource::create_view(h_depth_buffer,
 								  h_depth_buffer_dsv_desc,
-								  defaults::dsv_view_desc::d32_float_2d);
+								  defaults::dsv_view_desc::d32_float_2d_readonly);
 		}
 
 		inline void
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
 		{
 			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_main_buffer_rtv_desc, nullptr);
-			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_load_preserve(h_depth_buffer_dsv_desc);
 
 			cmd_list.BeginRenderPass(
 				1,
 				&render_pass_rt_desc,
 				&render_pass_ds_desc,
-				D3D12_RENDER_PASS_FLAG_NONE);
+				D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_DEPTH);
 
 			{
 				cmd_list.SetPipelineState(p_pso);
@@ -193,6 +261,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::root_signature::handle h_root_sig = {};
 		ID3D12RootSignature*			 p_root_sig = nullptr;
 
+		depth_stage		   stage_depth{};
 		opaque_stage	   stage_opaque{};
 		presentation_stage stage_presentation{};
 

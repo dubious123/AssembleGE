@@ -161,7 +161,14 @@ namespace age::graphics::defaults
 			.Flags		   = D3D12_DSV_FLAG_NONE,
 			.Texture2D	   = { .MipSlice = 0 }
 		};
-	}
+
+		inline constexpr auto d32_float_2d_readonly = D3D12_DEPTH_STENCIL_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_D32_FLOAT,
+			.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+			.Flags		   = D3D12_DSV_FLAG_READ_ONLY_DEPTH,
+			.Texture2D	   = { .MipSlice = 0 }
+		};
+	}	 // namespace dsv_view_desc
 
 	namespace srv_view_desc
 	{
@@ -308,6 +315,18 @@ namespace age::graphics::defaults
 			{},										// BackFace
 			FALSE									// DepthBoundsTestEnable
 		};
+
+		inline constexpr auto depth_equal_readonly_reversed = D3D12_DEPTH_STENCIL_DESC1{
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ZERO,			// DepthWriteMask
+			D3D12_COMPARISON_FUNC_EQUAL,			// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
+		};
 	}	 // namespace depth_stencil_desc1
 
 	namespace blend_desc
@@ -377,6 +396,19 @@ namespace age::graphics::defaults
 	namespace render_pass_ds_desc
 	{
 		// stencil no access
+		FORCE_INLINE decltype(auto)
+		depth_load_preserve(dsv_desc_handle h_dsv_desc) noexcept
+		{
+			return D3D12_RENDER_PASS_DEPTH_STENCIL_DESC{
+				.cpuDescriptor		  = h_dsv_desc.h_cpu,
+				.DepthBeginningAccess = {
+					.Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE },
+				.StencilBeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS },
+				.DepthEndingAccess		= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
+				.StencilEndingAccess	= { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS }
+			};
+		}
+
 		FORCE_INLINE decltype(auto)
 		depth_clear_preserve(dsv_desc_handle h_dsv_desc, float depth_val = 1.0f) noexcept
 		{

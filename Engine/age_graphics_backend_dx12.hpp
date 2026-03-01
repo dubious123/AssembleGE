@@ -403,6 +403,8 @@ namespace age::graphics::shader::e
 
 					fx_present_ps,
 
+					forward_plus_depth_ms,
+
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,
 					forward_plus_opaque_ps,

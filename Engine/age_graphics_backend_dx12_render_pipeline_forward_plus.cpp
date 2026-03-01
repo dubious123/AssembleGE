@@ -44,6 +44,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		spot_light_buffer.bind(h_mapping_spot_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
 
+		stage_depth.init(h_root_sig);
 		stage_opaque.init(h_root_sig);
 		stage_presentation.init(h_root_sig);
 
@@ -55,6 +56,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		stage_presentation.deinit();
 		stage_opaque.deinit();
+		stage_depth.deinit();
+
 		root_signature::destroy(h_root_sig);
 
 		g::cbv_srv_uav_desc_pool.push(h_main_buffer_srv_desc);
@@ -156,9 +159,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& rs	   = g::render_surface_vec[h_rs];
 		auto& cmd_list = *g::cmd_system_direct.cmd_list_pool[g::frame_buffer_idx][0];
 
-		{
-			auto total_job_count = 0u;
+		auto total_job_count = 0u;
 
+		{
 			for (
 				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::job_data) * max_job_count_per_frame * g::frame_buffer_idx;
 				auto  thread_id : std::views::iota(0, g::thread_count))
@@ -201,17 +204,22 @@ namespace age::graphics::render_pipeline::forward_plus
 				.point_light_count				   = static_cast<t_point_light_id>(point_light_id_arr.size()),
 				.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()) });
 			root_constants.apply(cmd_list);
-
-			stage_opaque.execute(cmd_list, total_job_count);
 		}
+
+		stage_depth.execute(cmd_list, total_job_count);
+
+		barrier.add_transition(*p_depth_buffer,
+							   D3D12_RESOURCE_STATE_DEPTH_WRITE,
+							   D3D12_RESOURCE_STATE_DEPTH_READ);
+
+		barrier.apply_and_reset(cmd_list);
+
+		stage_opaque.execute(cmd_list, total_job_count);
 
 		barrier.add_transition(*p_main_buffer,
 							   D3D12_RESOURCE_STATE_RENDER_TARGET,
 							   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-		barrier.add_transition(*p_depth_buffer,
-							   D3D12_RESOURCE_STATE_DEPTH_WRITE,
-							   D3D12_RESOURCE_STATE_DEPTH_READ);
 
 		barrier.add_transition(rs.get_back_buffer(),
 							   D3D12_RESOURCE_STATE_PRESENT,
@@ -257,6 +265,7 @@ namespace age::graphics::render_pipeline::forward_plus
 							  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16B16A16_FLOAT));
 
 		stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
+		stage_depth.bind_dsv(h_depth_buffer);
 	}
 
 	void
