@@ -46,9 +46,9 @@ main()
 			.kind		= age::graphics::e::camera_kind::perspective,
 			.pos		= float3{ 0.f, 0.5f, -4.f },
 			.quaternion = age::g::quaternion_identity,
+			.near_z		= 0.1f,
+			.far_z		= 500.f,
 			.perspective{
-				.near_z		  = 0.1f,
-				.far_z		  = 1000000.f,
 				.fov_y		  = age::cvt_to_radian(75.f),
 				.aspect_ratio = 16.f / 9.f } } }
 			| AGE_FUNC(forward_plus_pipeline.add_camera)
@@ -64,10 +64,10 @@ main()
 		AGE_LAMBDA(
 			(),
 			{
-				constexpr uint32 light_count = 1000;
-				constexpr float	 scene_min	 = -10.0f;
-				constexpr float	 scene_max	 = 10.0f;
-				constexpr float	 range		 = 4.0f;
+				constexpr uint32 light_count = 50000;
+				constexpr float	 scene_min	 = -50.0f;
+				constexpr float	 scene_max	 = 50.0f;
+				constexpr float	 range		 = 6.0f;
 				constexpr float	 intensity	 = 0.3f;
 
 				auto rng		= std::mt19937{ 42 };
@@ -129,20 +129,20 @@ main()
 				}
 			}),
 
-		identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
-			| age::platform::create_window
-			| age::runtime::assign_to(h_window_test_app_1)
-			| age::graphics::create_render_surface,
+		// identity{ age::platform::window_desc{ 1080, 920, "test_app1" } }
+		//	| age::platform::create_window
+		//	| age::runtime::assign_to(h_window_test_app_1)
+		//	| age::graphics::create_render_surface,
 
-		identity{ age::platform::window_desc{ 1080 / 2, 920, "test_app2" } }
-			| age::platform::create_window
-			| age::runtime::assign_to(h_window_test_app_2)
-			| age::graphics::create_render_surface,
+		// identity{ age::platform::window_desc{ 1080 / 2, 920, "test_app2" } }
+		//	| age::platform::create_window
+		//	| age::runtime::assign_to(h_window_test_app_2)
+		//	| age::graphics::create_render_surface,
 
-		identity{ age::platform::window_desc{ 1080, 920 / 2, "test_app3" } }
-			| age::platform::create_window
-			| age::runtime::assign_to(h_window_test_app_3)
-			| age::graphics::create_render_surface,
+		// identity{ age::platform::window_desc{ 1080, 920 / 2, "test_app3" } }
+		//	| age::platform::create_window
+		//	| age::runtime::assign_to(h_window_test_app_3)
+		//	| age::graphics::create_render_surface,
 
 		identity{ age::platform::window_desc{ 1080 * 2, 920 * 2, "test_render_surface" } }
 			| age::platform::create_window

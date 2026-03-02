@@ -313,10 +313,8 @@ namespace age::graphics
 		g::cmd_system_compute.end_frame();
 		g::cmd_system_copy.end_frame();
 
-		for (auto n : std::views::iota(0) | std::views::take(g::render_surface_vec.count()) | std::views::reverse)
+		for (auto& rs : g::render_surface_vec)
 		{
-			auto& rs = g::render_surface_vec.nth_data(n);
-
 			if (rs.should_render is_false) [[unlikely]]
 			{
 				continue;

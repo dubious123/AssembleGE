@@ -107,6 +107,26 @@ namespace age::util
 			func();
 		}
 	};
+
+	template <typename t>
+	scope_guard(t&&) -> scope_guard<t>;
+
+	struct scope_timer
+	{
+		const char*									   name_;
+		std::chrono::high_resolution_clock::time_point start_;
+
+	  public:
+		scope_timer(const char* name)
+			: name_(name), start_(std::chrono::high_resolution_clock::now()) { }
+
+		~scope_timer()
+		{
+			auto  end = std::chrono::high_resolution_clock::now();
+			float ms  = std::chrono::duration<float, std::milli>(end - start_).count();
+			std::println("[timer] {}: {} ms", name_, ms);
+		}
+	};
 }	 // namespace age::util
 
 namespace age::util

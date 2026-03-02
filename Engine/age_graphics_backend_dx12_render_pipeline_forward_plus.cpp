@@ -58,7 +58,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 
-		h_main_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+		h_main_buffer_srv_desc	= graphics::g::cbv_srv_uav_desc_pool.pop();
+		h_depth_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 
 		stage_depth.init(h_root_sig);
 		stage_light_culling.init(h_root_sig);
@@ -70,9 +71,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			global_light_index_buffer_uav.bind(p_global_light_index_buffer->GetGPUVirtualAddress());
-			cluster_light_info_buffer_uav.bind(p_cluster_light_data_buffer->GetGPUVirtualAddress());
+			cluster_light_info_buffer_uav.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 			global_light_index_buffer_srv.bind(p_global_light_index_buffer->GetGPUVirtualAddress());
-			cluster_light_info_buffer_srv.bind(p_cluster_light_data_buffer->GetGPUVirtualAddress());
+			cluster_light_info_buffer_srv.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 		}
 	}
 
@@ -87,6 +88,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		root_signature::destroy(h_root_sig);
 
 		graphics::g::cbv_srv_uav_desc_pool.push(h_main_buffer_srv_desc);
+		graphics::g::cbv_srv_uav_desc_pool.push(h_depth_buffer_srv_desc);
 
 		resource::unmap_and_release(h_mapping_frame_data);
 		resource::unmap_and_release(h_mapping_job_data_buffer);
@@ -123,6 +125,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[graphics::g::frame_buffer_idx][0];
 
+
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= std::max(extent.width, static_cast<uint16>(age::platform::get_client_width(rs.h_window))),
 			.height = std::max(extent.height, static_cast<uint16>(age::platform::get_client_height(rs.h_window)))
@@ -131,8 +134,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		if (extent != new_extent) [[unlikely]]
 		{
 			resize_resolution_dependent_buffers(new_extent);
-			cluster_light_info_buffer_uav.bind(p_cluster_light_data_buffer->GetGPUVirtualAddress());
-			cluster_light_info_buffer_srv.bind(p_cluster_light_data_buffer->GetGPUVirtualAddress());
+			cluster_light_info_buffer_uav.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
+			cluster_light_info_buffer_srv.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 		}
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
@@ -141,6 +144,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		cmd_list.SetDescriptorHeaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
 		cmd_list.SetGraphicsRootSignature(p_root_sig);
 		cmd_list.SetComputeRootSignature(p_root_sig);
+
 
 		{
 			frame_data_buffer.apply(cmd_list);
@@ -155,11 +159,21 @@ namespace age::graphics::render_pipeline::forward_plus
 			global_light_index_buffer_srv.apply(cmd_list);
 			cluster_light_info_buffer_srv.apply(cmd_list);
 
+			frame_data_buffer.apply_compute(cmd_list);
+			job_data_buffer.apply_compute(cmd_list);
+			object_data_buffer.apply_compute(cmd_list);
+			mesh_data_buffer.apply_compute(cmd_list);
+
+			directional_light_buffer.apply_compute(cmd_list);
+			point_light_buffer.apply_compute(cmd_list);
+			spot_light_buffer.apply_compute(cmd_list);
+
 			global_counter_buffer.apply_compute(cmd_list);
 
 			global_light_index_buffer_uav.apply_compute(cmd_list);
 			cluster_light_info_buffer_uav.apply_compute(cmd_list);
 		}
+
 
 		barrier.add_transition(rs.get_back_buffer(),
 							   D3D12_RESOURCE_STATE_PRESENT,
@@ -233,7 +247,8 @@ namespace age::graphics::render_pipeline::forward_plus
 					.time					= dt_ms,
 					.frame_index			= age::global::get<runtime::interface>().frame_count(),
 					.inv_backbuffer_size	= float2{ 1.f / extent.width, 1.f / extent.height },
-					.main_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc)
+					.main_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
+					.camera_forward			= cam_data.forward
 				};
 
 				std::ranges::copy(cam_data.frustom_plane_arr, frame_d.frustum_planes);
@@ -241,14 +256,26 @@ namespace age::graphics::render_pipeline::forward_plus
 				std::memcpy(h_mapping_frame_data->ptr + sizeof(shared_type::frame_data) * graphics::g::frame_buffer_idx, &frame_d, sizeof(shared_type::frame_data));
 			}
 
-			// root_constants.bind(total_job_count);
-			// root_constants.apply(cmd_list);
-			root_constants.bind(shared_type::root_constants{
-				.job_count						   = total_job_count,
-				.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_id_arr.size()),
-				.point_light_count				   = static_cast<t_point_light_id>(point_light_id_arr.size()),
-				.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()) });
-			root_constants.apply(cmd_list);
+			{
+				c_auto& cam_desc = camera_desc_vec[0];
+				// root_constants.bind(total_job_count);
+				// root_constants.apply(cmd_list);
+				root_constants.bind(shared_type::root_constants{
+					.job_count						   = total_job_count,
+					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_id_arr.size()),
+					.point_light_count				   = static_cast<t_point_light_id>(point_light_id_arr.size()),
+					.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()),
+					.cluster_tile_count_x			   = light_culling_tile_count_x,
+					.cluster_tile_count_y			   = light_culling_tile_count_y,
+					.cluster_near_z					   = cam_desc.near_z,
+					.cluster_far_z					   = cam_desc.far_z,
+					.cluster_log_far_near_ratio		   = std::log2(cam_desc.far_z / cam_desc.near_z),
+					.depth_buffer_texture_id		   = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
+				});
+
+				root_constants.apply(cmd_list);
+				root_constants.apply_compute(cmd_list);
+			}
 		}
 
 		stage_depth.execute(cmd_list, total_job_count);
@@ -267,7 +294,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_light_culling.execute(cmd_list, light_culling_tile_count_x, light_culling_tile_count_y);
 
 			barrier.add_uav(*p_global_light_index_buffer);
-			barrier.add_uav(*p_cluster_light_data_buffer);
+			barrier.add_uav(*p_cluster_light_info_buffer);
 			barrier.apply_and_reset(cmd_list);
 		}
 
@@ -322,6 +349,10 @@ namespace age::graphics::render_pipeline::forward_plus
 							  h_main_buffer_srv_desc,
 							  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16B16A16_FLOAT));
 
+		resource::create_view(h_depth_buffer,
+							  h_depth_buffer_srv_desc,
+							  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R32_FLOAT));
+
 		stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 		stage_depth.bind_dsv(h_depth_buffer);
 
@@ -332,7 +363,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });
 
-		p_cluster_light_data_buffer = h_cluster_light_data_buffer->p_resource;
+		p_cluster_light_info_buffer = h_cluster_light_data_buffer->p_resource;
 	}
 
 	void

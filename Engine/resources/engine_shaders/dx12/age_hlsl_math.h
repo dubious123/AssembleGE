@@ -215,3 +215,19 @@ select32_nth_set_bit(const uint32 mask, const uint32 n)
 
 	return byte_idx * 8u + pos_in_byte;
 }
+
+float2
+screen_to_ndc(float2 screen_pos, float2 inv_backbuffer_size)
+{
+	float2 ndc = screen_pos * inv_backbuffer_size * 2.0 - 1.0;
+	ndc.y	   = -ndc.y;
+	return ndc;
+}
+
+bool
+sphere_aabb_intersect(float3 sphere_position, float sphere_range, float3 aabb_min, float3 aabb_max)
+{
+	const float3 closest = clamp(sphere_position, aabb_min, aabb_max);
+	const float3 diff	 = sphere_position - closest;
+	return dot(diff, diff) <= sphere_range * sphere_range;
+}

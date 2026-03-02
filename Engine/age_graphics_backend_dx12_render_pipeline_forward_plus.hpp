@@ -282,6 +282,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		struct camera_data
 		{
 			float3				  pos;
+			float3				  forward;
 			float4x4			  view_proj;
 			float4x4			  view_proj_inv;
 			std::array<float4, 6> frustom_plane_arr;
@@ -289,8 +290,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
-		uint16 light_culling_tile_count_x = (extent.width + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
-		uint16 light_culling_tile_count_y = (extent.height + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
+		uint32 light_culling_tile_count_x = (extent.width + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
+		uint32 light_culling_tile_count_y = (extent.height + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
 
 		resource_handle h_main_buffer  = {};
 		resource_handle h_depth_buffer = {};
@@ -302,7 +303,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12Resource* p_depth_buffer = nullptr;
 
 		ID3D12Resource* p_global_light_index_buffer = nullptr;
-		ID3D12Resource* p_cluster_light_data_buffer = nullptr;
+		ID3D12Resource* p_cluster_light_info_buffer = nullptr;
 
 		graphics::root_signature::handle h_root_sig = {};
 		ID3D12RootSignature*			 p_root_sig = nullptr;
@@ -343,6 +344,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
+		srv_desc_handle h_depth_buffer_srv_desc;
 
 		resource_barrier barrier;
 
@@ -360,9 +362,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		shared_type::job_data job_array[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
 		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
-		data_structure::sparse_vector<t_directional_light_id, max_directional_light_count> directional_light_id_arr;
-		data_structure::sparse_vector<t_point_light_id, max_point_light_count>			   point_light_id_arr;
-		data_structure::sparse_vector<t_spot_light_id, max_spot_light_count>			   spot_light_id_arr;
+		data_structure::sparse_vector<t_directional_light_id> directional_light_id_arr;
+		data_structure::sparse_vector<t_point_light_id>		  point_light_id_arr;
+		data_structure::sparse_vector<t_spot_light_id>		  spot_light_id_arr;
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -406,14 +408,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			if constexpr (reversed)
 			{
 				xm_proj = (desc.kind == e::camera_kind::perspective)
-							? simd::proj_perspective_fov_reversed(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
-							: simd::proj_orthographic_reversed(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+							? simd::proj_perspective_fov_reversed(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.near_z, desc.far_z)
+							: simd::proj_orthographic_reversed(desc.orthographic.view_width, desc.orthographic.view_height, desc.near_z, desc.far_z);
 			}
 			else
 			{
 				xm_proj = (desc.kind == e::camera_kind::perspective)
-							? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.perspective.near_z, desc.perspective.far_z)
-							: simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.orthographic.near_z, desc.orthographic.far_z);
+							? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.near_z, desc.far_z)
+							: simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.near_z, desc.far_z);
 			}
 
 			c_auto xm_view_proj		= xm_proj * xm_view;
@@ -432,6 +434,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				return camera_data{
 					.pos			   = desc.pos,
+					.forward		   = xm_forward | simd::to<float3>(),
 					.view_proj		   = xm_view_proj | simd::to<float4x4>(),
 					.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
 					.frustom_plane_arr = frustom_plane_arr

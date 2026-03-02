@@ -3,6 +3,12 @@
 #define CLUSTER_TILE_SIZE					16
 #define CLUSTER_DEPTH_SLICE_COUNT			24
 #define CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER 256
+#define MAX_GLOBAL_LIGHT_INDEX_COUNT		16 * 1024 * 1024
+
+#define LIGHT_TYPE_POINT 0
+#define LIGHT_TYPE_SPOT	 1
+#define LIGHT_TYPE_BITS	 3
+#define LIGHT_INDEX_MASK ((1u << (32 - LIGHT_TYPE_BITS)) - 1)
 
 #if !defined(AGE_HLSL)
 	#include "age.hpp"
@@ -14,8 +20,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_camera_id = uint32;
 
 	using t_directional_light_id = uint8;
-	using t_point_light_id		 = uint16;
-	using t_spot_light_id		 = uint16;
+	using t_point_light_id		 = uint32;
+	using t_spot_light_id		 = uint32;
 
 	using t_global_light_index = uint32;
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -28,7 +34,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint8	light_culling_cluster_tile_size					  = (uint8)CLUSTER_TILE_SIZE;
 	inline constexpr uint8	light_culling_cluster_depth_slice_count			  = (uint8)CLUSTER_DEPTH_SLICE_COUNT;
 	inline constexpr uint8	light_culling_cluster_max_light_count_per_cluster = (uint8)CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER;
-	inline constexpr uint32 light_culling_max_global_light_index_count		  = 1024 * 1024;	// 1M
+	inline constexpr uint32 light_culling_max_global_light_index_count		  = MAX_GLOBAL_LIGHT_INDEX_COUNT;	 // 4M
 	inline constexpr uint8	light_culling_depth_slice_count					  = 24u;
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
@@ -45,8 +51,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#define t_camera_id uint32
 
 	#define t_directional_light_id uint8
-	#define t_point_light_id	   uint16
-	#define t_spot_light_id		   uint16
+	#define t_point_light_id	   uint32
+	#define t_spot_light_id		   uint32
 
 	#define UV_COUNT 2
 #endif
@@ -180,20 +186,21 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   frame_index;						   // 4
 		float2			   inv_backbuffer_size;				   // 8
 		uint32			   main_buffer_texture_id;			   // 4
-															   // total: 256 bytes
+
+		float3 camera_forward;								   // 12
+		uint32 extra[61];									   // 4 * 61
+															   // total: 256 * 2 bytes
 	};
 
 	cbuffer root_constants REG(b1)
 	{
 		uint32			 job_count;							   // 4 bytes
 		uint32			 directional_light_count_and_extra;	   // 4 bytes
-		t_point_light_id point_light_count;					   // 2 btyes
-		t_spot_light_id	 spot_light_count;					   // 2 bytes
+		t_point_light_id point_light_count;					   // 4 btyes
+		t_spot_light_id	 spot_light_count;					   // 4 bytes
 
 		uint32 cluster_tile_count_x;
 		uint32 cluster_tile_count_y;
-		uint32 cluster_depth_slices;
-		uint32 cluster_count;
 		float  cluster_near_z;
 		float  cluster_far_z;
 		float  cluster_log_far_near_ratio;
@@ -209,8 +216,14 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#undef row_major
 
 	#undef CLUSTER_TILE_SIZE
-	#undef CLUSTER_DEPTH_SLICES
-	#undef CLUSTER_MAX_LIGHTS_PER_CLUSTER
+	#undef CLUSTER_DEPTH_SLICE_COUNT
+	#undef CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER
+	#undef MAX_GLOBAL_LIGHT_INDEX_COUNT
+
+	#undef LIGHT_TYPE_POINT
+	#undef LIGHT_TYPE_SPOT
+	#undef LIGHT_TYPE_BITS
+	#undef LIGHT_INDEX_MASK
 }	 // namespace age::graphics::render_pipeline::forward_plus
 #else
 

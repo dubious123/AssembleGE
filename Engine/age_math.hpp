@@ -1486,6 +1486,21 @@ namespace age::inline math
 	{
 		return a + t * (b - a);
 	}
+
+	FORCE_INLINE void
+	print(float4x4 mat) noexcept
+	{
+		std::println(
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
+			mat.r0[0], mat.r0[1], mat.r0[2], mat.r0[3],
+			mat.r1[0], mat.r1[1], mat.r1[2], mat.r1[3],
+			mat.r2[0], mat.r2[1], mat.r2[2], mat.r2[3],
+			mat.r3[0], mat.r3[1], mat.r3[2], mat.r3[3]);
+	}
+
 }	 // namespace age::inline math
 
 namespace age::inline math::g

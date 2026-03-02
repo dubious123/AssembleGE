@@ -169,6 +169,23 @@ read_meshlet_primitive(mesh_header header, meshlet mshlt, uint32 primitive_idx)
 		(raw64 >> (bit_shift_required + 16)) & 0xff);
 }
 
+uint32
+pack_light_index(uint32 light_type, uint32 light_index)
+{
+    return (light_type << (32 - LIGHT_TYPE_BITS)) | (light_index & LIGHT_INDEX_MASK);
+}
+
+uint32
+unpack_light_type(uint32 packed)
+{
+    return packed >> (32 - LIGHT_TYPE_BITS);
+}
+
+uint32
+unpack_light_index(uint32 packed)
+{
+    return packed & LIGHT_INDEX_MASK;
+}
 
 // opaque
 struct opaque_as_to_ms

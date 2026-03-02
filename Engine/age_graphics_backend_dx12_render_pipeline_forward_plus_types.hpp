@@ -12,8 +12,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	inline constexpr auto max_mesh_buffer_byte_size = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
 
 	inline constexpr auto max_directional_light_count = 2;
-	inline constexpr auto max_point_light_count		  = (1u << 14);
-	inline constexpr auto max_spot_light_count		  = (1u << 13);
+	inline constexpr auto max_point_light_count		  = (1u << 20);
+	inline constexpr auto max_spot_light_count		  = (1u << 20);
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -87,7 +87,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_slot<
 			"global_light_index_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_PIXEL,
 			what::structured_buffer<t_global_light_index>,
 			how::root_descriptor,
@@ -95,7 +95,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_slot<
 			"cluster_light_info_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_PIXEL,
 			what::structured_buffer<shared_type::cluster_light_info>,
 			how::root_descriptor,
@@ -142,12 +142,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		float3		   pos;
 		float4		   quaternion;
 
+		float near_z;
+		float far_z;
+
 		union
 		{
 			struct
 			{
-				float near_z;
-				float far_z;
 				float fov_y;
 				float aspect_ratio;
 			} perspective;
@@ -156,8 +157,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				float view_width;
 				float view_height;
-				float near_z;
-				float far_z;
 			} orthographic;
 		};
 	};

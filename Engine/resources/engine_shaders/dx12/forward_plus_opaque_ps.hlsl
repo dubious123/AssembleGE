@@ -96,7 +96,7 @@ main_ps2(opaque_ms_to_ps fragment): SV_Target0
 }
 
 float4
-main_ps(opaque_ms_to_ps fragment): SV_Target0
+main_ps1(opaque_ms_to_ps fragment): SV_Target0
 {
     const float3 ambient_light = float3(0.03, 0.03, 0.03);
     
@@ -130,4 +130,59 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     
     //return float4(lighting * albedo, 1.0f);
     return float4(lighting * meshlet_color, 1.0f);
+}
+
+float4
+main_ps(opaque_ms_to_ps fragment): SV_Target0
+{
+    const float3 ambient_light = float3(0.03, 0.03, 0.03);
+    const float3 albedo = float3(0.8, 0.8, 0.8);
+    //const float3 albedo = get_random_color(fragment.meshlet_render_job_id);
+
+    const float3 surface_normal = normalize(fragment.normal);
+    const float3 view_dir = normalize(camera_pos - fragment.world_pos);
+    
+    const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
+
+    // calculate cluster index
+    const uint32 tile_x = uint32(fragment.pos.x) / CLUSTER_TILE_SIZE;
+    const uint32 tile_y = uint32(fragment.pos.y) / CLUSTER_TILE_SIZE;
+
+    const float linear_depth = length(fragment.world_pos - camera_pos);
+    const uint32 slice = uint32(log2(linear_depth / cluster_near_z) * CLUSTER_DEPTH_SLICE_COUNT / cluster_log_far_near_ratio);
+    const uint32 clamped_slice = clamp(slice, 0, CLUSTER_DEPTH_SLICE_COUNT - 1);
+
+    const uint32 cluster_id = tile_x
+                            + tile_y * cluster_tile_count_x
+                            + clamped_slice * cluster_tile_count_x * cluster_tile_count_y;
+
+    // read cluster light info
+    const cluster_light_info info = cluster_light_info_buffer_srv[cluster_id];
+
+    float3 lighting = ambient_light;
+
+    // directional lights — still brute force (1-2 lights)
+    for (uint32 d = 0; d < directional_light_count; ++d)
+    {
+        lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
+    }
+
+    // clustered lights
+    for (uint32 i = 0; i < info.count; ++i)
+    {
+        const uint32 packed = global_light_index_buffer_srv[info.offset + i];
+        const uint32 light_type = unpack_light_type(packed);
+        const uint32 light_index = unpack_light_index(packed);
+
+        if (light_type == LIGHT_TYPE_POINT)
+        {
+            lighting += calc_blinn_phong_point_light_color(point_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
+        }
+        else if (light_type == LIGHT_TYPE_SPOT)
+        {
+            lighting += calc_blinn_phong_spot_light_color(spot_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
+        }
+    }
+    
+    return float4(lighting * albedo, 1.0f);
 }
