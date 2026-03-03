@@ -22,5 +22,6 @@ namespace age::runtime
 		i_runtime.now() = time_now;
 
 		i_runtime.delta_time_ns() = std::min(raw_delta, max_delta);
+		// i_runtime.delta_time_ns() = raw_delta;
 	}
 }	 // namespace age::runtime

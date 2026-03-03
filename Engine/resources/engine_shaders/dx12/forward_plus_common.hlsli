@@ -187,6 +187,11 @@ unpack_light_index(uint32 packed)
     return packed & LIGHT_INDEX_MASK;
 }
 
+float safe_dot_camera_forward(float3 dir)
+{
+    return max(dot(dir, camera_forward), epsilon_1e4);
+}
+
 // opaque
 struct opaque_as_to_ms
 {

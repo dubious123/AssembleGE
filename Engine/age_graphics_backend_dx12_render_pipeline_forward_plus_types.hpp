@@ -125,12 +125,13 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::u<2>>,
 
-		binding_slot<"linear_clamp_sampler",
-					 D3D12_SAMPLER_FLAG_NONE,
-					 D3D12_SHADER_VISIBILITY_PIXEL,
-					 what::sampler<defaults::static_sampler_desc::linear_clamp>,
-					 how::static_sampler,
-					 where::s<0>>>;
+		binding_slot<
+			"linear_clamp_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::sampler<defaults::static_sampler_desc::linear_clamp>,
+			how::static_sampler,
+			where::s<0>>>;
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
 // descriptors

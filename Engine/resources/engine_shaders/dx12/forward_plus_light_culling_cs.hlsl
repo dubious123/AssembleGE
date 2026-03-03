@@ -37,6 +37,7 @@ groupshared float3 shared_aabb_max;
 //    }
 //}
 
+
 void append_to_shared_light_list(bool hit, uint packed_index)
 {
     if (hit)
@@ -50,11 +51,6 @@ void append_to_shared_light_list(bool hit, uint packed_index)
     }
 }
 
-float safe_dot_camera_forward(float3 dir)
-{
-    return max(dot(dir, camera_forward), epsilon_1e4);
-}
-
 [numthreads(CLUSTER_TILE_SIZE, CLUSTER_TILE_SIZE, 1)]
 void main_cs(
     uint32_3 group_id : SV_GroupID, // (tile_x, tile_y, depth_slice)
@@ -64,7 +60,7 @@ void main_cs(
     uint32 cluster_id = group_id.x
                       + group_id.y * cluster_tile_count_x
                       + group_id.z * cluster_tile_count_x * cluster_tile_count_y;
-
+    
     // init shared memory
     if (group_index == 0)
     {
@@ -81,7 +77,7 @@ void main_cs(
         static const float inv_depth_slices = 1.0f / float(CLUSTER_DEPTH_SLICE_COUNT);
         const float slice_near = cluster_near_z * exp2(float(group_id.z) * cluster_log_far_near_ratio * inv_depth_slices);
         const float slice_far = cluster_near_z * exp2(float(group_id.z + 1) * cluster_log_far_near_ratio * inv_depth_slices);
-    
+        
         float4 c0 = mul(view_proj_inv, float4(tile_min_ndc.x, tile_min_ndc.y, 1, 1));
         float4 c1 = mul(view_proj_inv, float4(tile_max_ndc.x, tile_min_ndc.y, 1, 1));
         float4 c2 = mul(view_proj_inv, float4(tile_min_ndc.x, tile_max_ndc.y, 1, 1));
@@ -131,6 +127,7 @@ void main_cs(
         const float3 sphere_center = (light.position + end_center) * 0.5;
         const float sphere_radius = light.range * 0.5;
         const bool hit = sphere_aabb_intersect(sphere_center, sphere_radius, shared_aabb_min, shared_aabb_max);
+        
         append_to_shared_light_list(hit, pack_light_index(1, spot_light_idx));
     }
     
@@ -147,14 +144,15 @@ void main_cs(
         }
         
         
-        if (shared_global_offset + count > MAX_GLOBAL_LIGHT_INDEX_COUNT)
-        {
-            count = 0;
-        }
+        //if (shared_global_offset + count > MAX_GLOBAL_LIGHT_INDEX_COUNT)
+        //{
+        //    count = 0;
+        //}
 
         cluster_light_info_buffer_uav[cluster_id].offset = shared_global_offset;
         cluster_light_info_buffer_uav[cluster_id].count = count;
     }
+    
     GroupMemoryBarrierWithGroupSync();
 
     // copy shared list to global list
