@@ -143,12 +143,6 @@ void main_cs(
             InterlockedAdd(global_counter[0], count, shared_global_offset);
         }
         
-        
-        //if (shared_global_offset + count > MAX_GLOBAL_LIGHT_INDEX_COUNT)
-        //{
-        //    count = 0;
-        //}
-
         cluster_light_info_buffer_uav[cluster_id].offset = shared_global_offset;
         cluster_light_info_buffer_uav[cluster_id].count = count;
     }

@@ -267,10 +267,12 @@ namespace age::graphics::render_pipeline::forward_plus
 					.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()),
 					.cluster_tile_count_x			   = light_culling_tile_count_x,
 					.cluster_tile_count_y			   = light_culling_tile_count_y,
-					.cluster_near_z					   = cam_desc.near_z,
-					.cluster_far_z					   = cam_desc.far_z,
-					.cluster_log_far_near_ratio		   = std::log2(cam_desc.far_z / cam_desc.near_z),
-					.depth_buffer_texture_id		   = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
+					//.cluster_near_z					   = cam_desc.near_z,
+					//.cluster_far_z					   = cam_desc.far_z,
+					.cluster_near_z				= 0.5,
+					.cluster_far_z				= cam_desc.far_z,
+					.cluster_log_far_near_ratio = std::log2(cam_desc.far_z / cam_desc.near_z),
+					.depth_buffer_texture_id	= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
 				});
 
 				root_constants.apply(cmd_list);

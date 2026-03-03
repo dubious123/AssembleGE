@@ -47,7 +47,7 @@ main()
 			.pos		= float3{ 0.f, 0.5f, -4.f },
 			.quaternion = age::g::quaternion_identity,
 			.near_z		= 0.01f,
-			.far_z		= 100.f,
+			.far_z		= 1000.f,
 			.perspective{
 				.fov_y		  = age::cvt_to_radian(75.f),
 				.aspect_ratio = 16.f / 9.f } } }
@@ -67,7 +67,7 @@ main()
 				constexpr uint32 light_count = 1000;
 				constexpr float	 scene_min	 = -10.0f;
 				constexpr float	 scene_max	 = 10.0f;
-				constexpr float	 range		 = 6.0f;
+				constexpr float	 range		 = 3.0f;
 				constexpr float	 intensity	 = 0.3f;
 
 				auto rng		= std::mt19937{ 42 };
@@ -80,22 +80,22 @@ main()
 						age::graphics::render_pipeline::forward_plus::shared_type::point_light{
 							.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
 							.range	  = range,
-							//.color	   = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
-							.color	   = float3{ 1, 1, 1 },
+							.color	  = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
+							//.color	   = float3{ 1, 1, 1 },
 							.intensity = intensity });
 				}
 			}),
 
 		// yellow spot top down onto scene center
-		// identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
-		//	.position  = float3{ 0.0f, 12.0f, 0.0f },
-		//	.range	   = 25.0f,
-		//	.direction = float3{ 0.0f, -1.0f, 0.0f },
-		//	.intensity = 10.0f,
-		//	.color	   = float3{ 1.0f, 0.9f, 0.6f },
-		//	.cos_inner = 0.96f,
-		//	.cos_outer = 0.87f } }
-		//	| AGE_FUNC(forward_plus_pipeline.add_spot_light),
+		identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
+			.position  = float3{ 0.0f, 12.0f, 0.0f },
+			.range	   = 25.0f,
+			.direction = float3{ 0.0f, -1.0f, 0.0f },
+			.intensity = 10.0f,
+			.color	   = float3{ 1.0f, 0.9f, 0.6f },
+			.cos_inner = 0.96f,
+			.cos_outer = 0.87f } }
+			| AGE_FUNC(forward_plus_pipeline.add_spot_light),
 
 		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 			| age::asset::create_primitive_mesh
