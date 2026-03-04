@@ -405,6 +405,10 @@ namespace age::graphics::shader::e
 
 					forward_plus_depth_ms,
 
+					forward_plus_light_cull_cs,
+					forward_plus_light_sort_cs,
+					forward_plus_light_zbin_cs,
+
 					forward_plus_light_culling_cs,
 
 					forward_plus_opaque_as,

@@ -75,6 +75,59 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 	};
 
+	struct light_culling_stage_new
+	{
+		graphics::pso::handle h_pso_cull = {};
+		ID3D12PipelineState*  p_pso_cull = nullptr;
+		graphics::pso::handle h_pso_sort = {};
+		ID3D12PipelineState*  p_pso_sort = nullptr;
+		graphics::pso::handle h_pso_zbin = {};
+		ID3D12PipelineState*  p_pso_zbin = nullptr;
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept
+		{
+			using namespace graphics::pso;
+
+			h_pso_cull = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_cull_cs) }) });
+
+			p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
+
+			h_pso_sort = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_cs) }) });
+
+			p_pso_sort = graphics::g::pso_ptr_vec[h_pso_sort];
+
+			h_pso_zbin = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_cs) }) });
+
+			p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
+		}
+
+		inline void
+		execute(t_cmd_list& cmd_list, uint32 light_count) noexcept
+		{
+			cmd_list.SetPipelineState(p_pso_cull);
+
+			if (light_count > 0)
+			{
+				cmd_list.Dispatch((light_count + LIGHT_CULL_CS_THREAD_COUNT - 1) / LIGHT_CULL_CS_THREAD_COUNT, 1, 1);
+			}
+		}
+
+		inline void
+		deinit() noexcept
+		{
+			pso::destroy(h_pso_cull);
+			pso::destroy(h_pso_sort);
+			pso::destroy(h_pso_zbin);
+		}
+	};
+
 	struct light_culling_stage
 	{
 		graphics::pso::handle h_pso = {};
@@ -308,10 +361,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::root_signature::handle h_root_sig = {};
 		ID3D12RootSignature*			 p_root_sig = nullptr;
 
-		depth_stage			stage_depth{};
-		light_culling_stage stage_light_culling{};
-		opaque_stage		stage_opaque{};
-		presentation_stage	stage_presentation{};
+		depth_stage				stage_depth{};
+		light_culling_stage_new stage_light_culling_new{};
+		light_culling_stage		stage_light_culling{};
+		opaque_stage			stage_opaque{};
+		presentation_stage		stage_presentation{};
 
 		binding_config_t::reg_b<0> frame_data_buffer;
 		binding_config_t::reg_b<1> root_constants;

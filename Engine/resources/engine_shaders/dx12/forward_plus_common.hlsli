@@ -12,12 +12,14 @@ StructuredBuffer<directional_light> directional_light_buffer : register(t3);
 StructuredBuffer<point_light> point_light_buffer : register(t4);
 StructuredBuffer<spot_light> spot_light_buffer : register(t5);
 
-StructuredBuffer<uint32> global_light_index_buffer_srv : register(t6); // (offset, count)
+StructuredBuffer<uint32> global_light_index_buffer_srv : register(t6);
 StructuredBuffer<cluster_light_info> cluster_light_info_buffer_srv : register(t7);
 
-RWStructuredBuffer<uint32> global_light_index_buffer_uav : register(u0); // (offset, count)
+RWStructuredBuffer<uint32> global_light_index_buffer_uav : register(u0);
 RWStructuredBuffer<cluster_light_info> cluster_light_info_buffer_uav : register(u1);
 RWStructuredBuffer<uint32> global_counter : register(u2);
+
+RWStructuredBuffer<uint32> visible_light_list : register(u3);
 
 SamplerState linear_clamp_sampler : register(s0);
 

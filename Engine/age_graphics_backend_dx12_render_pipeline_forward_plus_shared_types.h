@@ -5,6 +5,10 @@
 #define CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER 1000
 #define MAX_GLOBAL_LIGHT_INDEX_COUNT		256 * 1024 * 1024
 
+
+#define LIGHT_CULL_CS_THREAD_COUNT		   256
+#define LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT 1024 * 1024
+
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPOT	 1
 #define LIGHT_TYPE_BITS	 3
@@ -36,6 +40,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint8	light_culling_cluster_max_light_count_per_cluster = (uint8)CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER;
 	inline constexpr uint32 light_culling_max_global_light_index_count		  = MAX_GLOBAL_LIGHT_INDEX_COUNT;	 // 4M
 	inline constexpr uint8	light_culling_depth_slice_count					  = 24u;
+
+	inline constexpr uint32 light_cull_cs_thread_count		   = LIGHT_CULL_CS_THREAD_COUNT;
+	inline constexpr uint32 light_cull_cs_max_cull_light_count = LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT;
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type

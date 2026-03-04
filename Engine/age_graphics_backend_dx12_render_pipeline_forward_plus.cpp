@@ -62,6 +62,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_depth_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 
 		stage_depth.init(h_root_sig);
+		stage_light_culling_new.init(h_root_sig);
 		stage_light_culling.init(h_root_sig);
 		stage_opaque.init(h_root_sig);
 		stage_presentation.init(h_root_sig);
@@ -83,6 +84,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_presentation.deinit();
 		stage_light_culling.deinit();
 		stage_opaque.deinit();
+		stage_light_culling_new.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
@@ -287,6 +289,12 @@ namespace age::graphics::render_pipeline::forward_plus
 							   D3D12_RESOURCE_STATE_DEPTH_READ);
 
 		barrier.apply_and_reset(cmd_list);
+
+
+		{
+			auto light_count = static_cast<uint32>(point_light_id_arr.size() + spot_light_id_arr.size());
+			stage_light_culling_new.execute(cmd_list, light_count);
+		}
 
 
 		{
