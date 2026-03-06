@@ -86,16 +86,16 @@ main()
 				}
 			}),
 
-		//// yellow spot top down onto scene center
-		// identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
-		//	.position  = float3{ 0.0f, 12.0f, 0.0f },
-		//	.range	   = 6.0f,
-		//	.direction = float3{ 0.0f, -1.0f, 0.0f },
-		//	.intensity = 10.0f,
-		//	.color	   = float3{ 1.0f, 0.9f, 0.6f },
-		//	.cos_inner = 0.96f,
-		//	.cos_outer = 0.87f } }
-		//	| AGE_FUNC(forward_plus_pipeline.add_spot_light),
+		// yellow spot top down onto scene center
+		identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
+			.position  = float3{ 0.0f, 12.0f, 0.0f },
+			.range	   = 6.0f,
+			.direction = float3{ 0.0f, -1.0f, 0.0f },
+			.intensity = 10.0f,
+			.color	   = float3{ 1.0f, 0.9f, 0.6f },
+			.cos_inner = 0.96f,
+			.cos_outer = 0.87f } }
+			| AGE_FUNC(forward_plus_pipeline.add_spot_light),
 
 		identity{ age::asset::primitive_desc{ .size = { 0.5, 0.5, 0.5 }, .seg_u = 30, .seg_v = 30, .mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 			| age::asset::create_primitive_mesh

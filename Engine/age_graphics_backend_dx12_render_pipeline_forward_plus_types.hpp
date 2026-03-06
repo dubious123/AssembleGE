@@ -12,9 +12,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	inline constexpr auto max_mesh_buffer_byte_size = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
 
 	inline constexpr auto max_directional_light_count = 2;
-	inline constexpr auto max_point_light_count		  = (1u << 20);
-	inline constexpr auto max_spot_light_count		  = (1u << 20);
-
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
 // root signatures
@@ -70,20 +67,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<3>>,
 
 		binding_slot<
-			"point_light_buffer",
+			"unified_light_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::point_light>,
+			what::structured_buffer<shared_type::unified_light>,
 			how::root_descriptor,
-			where::t<4>>,
-
-		binding_slot<
-			"spot_light_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::spot_light>,
-			how::root_descriptor,
-			where::t<5>>,
+			where::t<6>>,
 
 		binding_slot<
 			"culled_light_buffer",
@@ -148,6 +137,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			what::structured_buffer<uint32>,
 			how::root_descriptor,
 			where::t<2, 3>>,
+
+		binding_slot<
+			"unified_sorted_light_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer<shared_type::unified_light>,
+			how::root_descriptor,
+			where::u<3, 3>>,
+
+		binding_slot<
+			"unified_sorted_light_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::structured_buffer<shared_type::unified_light>,
+			how::root_descriptor,
+			where::t<3, 3>>,
 
 		binding_slot<
 			"debug_uav",

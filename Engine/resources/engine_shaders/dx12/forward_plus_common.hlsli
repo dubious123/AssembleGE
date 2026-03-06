@@ -9,14 +9,13 @@ StructuredBuffer<object_data> object_data_buffer : register(t1);
 ByteAddressBuffer mesh_data_buffer : register(t2);
 
 StructuredBuffer<directional_light> directional_light_buffer : register(t3);
-StructuredBuffer<point_light> point_light_buffer : register(t4);
-StructuredBuffer<spot_light> spot_light_buffer : register(t5);
+
+StructuredBuffer<unified_light> unified_light_buffer : register(t6);
 
 RWStructuredBuffer<uint32> culled_light_buffer : register(u0);
 RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
 
 RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);
-
 StructuredBuffer<uint32> sort_buffer_srv : register(t0, space3);
 
 RWStructuredBuffer<zbin_entry> zbin_buffer_uav : register(u1, space3);
@@ -25,9 +24,12 @@ StructuredBuffer<zbin_entry> zbin_buffer_srv : register(t1, space3);
 RWStructuredBuffer<uint32> tile_mask_buffer_uav : register(u2, space3);
 StructuredBuffer<uint32> tile_mask_buffer_srv : register(t2, space3);
 
+RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3, space3);
+StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space3);
+
+
 
 RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);
-
 
 
 SamplerState linear_clamp_sampler : register(s0);
@@ -184,24 +186,6 @@ read_meshlet_primitive(mesh_header header, meshlet mshlt, uint32 primitive_idx)
 		(raw64 >> (bit_shift_required + 0)) & 0xff,
 		(raw64 >> (bit_shift_required + 8)) & 0xff,
 		(raw64 >> (bit_shift_required + 16)) & 0xff);
-}
-
-uint32
-pack_light_index(uint32 light_type, uint32 light_index)
-{
-    return (light_type << (32 - LIGHT_TYPE_BITS)) | (light_index & LIGHT_INDEX_MASK);
-}
-
-uint32
-unpack_light_type(uint32 packed)
-{
-    return packed >> (32 - LIGHT_TYPE_BITS);
-}
-
-uint32
-unpack_light_index(uint32 packed)
-{
-    return packed & LIGHT_INDEX_MASK;
 }
 
 float safe_dot_camera_forward(float3 dir)

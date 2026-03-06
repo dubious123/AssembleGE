@@ -24,8 +24,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
 
 			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_directional_light_count);
-			h_mapping_point_light_buffer	   = resource::create_buffer_committed(sizeof(shared_type::point_light) * max_point_light_count);
-			h_mapping_spot_light_buffer		   = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_spot_light_count);
+
+			h_mapping_unified_light_buffer = resource::create_buffer_committed(sizeof(shared_type::unified_light) * g::max_light_count);
 
 			h_mapping_frame_data_rw_buffer = resource::create_buffer_committed(
 				sizeof(shared_type::frame_data_rw) * graphics::g::frame_buffer_count,
@@ -56,8 +56,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
 			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
-			point_light_buffer.bind(h_mapping_point_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
-			spot_light_buffer.bind(h_mapping_spot_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
 			frame_data_rw_buffer.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 0, 0);
 			frame_data_rw_buffer.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 1, 1);
@@ -103,6 +103,20 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	   = false });
 			p_zbin_buffer = h_zbin_buffer->p_resource;
 
+			h_unified_light_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_light_count * sizeof(shared_type::unified_light)),
+				  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
+				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+			p_unified_light_buffer = h_unified_light_buffer->p_resource;
+
+			h_unified_sorted_light_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_visible_light_count * sizeof(shared_type::unified_light)),
+				  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
+				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+			p_unified_sorted_light_buffer = h_unified_sorted_light_buffer->p_resource;
+
 			culled_light_buffer.bind(p_culled_light_buffer->GetGPUVirtualAddress());
 
 			light_sort_buffer_uav.bind(p_light_sort_buffer->GetGPUVirtualAddress());
@@ -110,6 +124,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			zbin_buffer_uav.bind(p_zbin_buffer->GetGPUVirtualAddress());
 			zbin_buffer_srv.bind(p_zbin_buffer->GetGPUVirtualAddress());
+
+			unified_sorted_light_buffer_uav.bind(p_unified_sorted_light_buffer->GetGPUVirtualAddress());
+			unified_sorted_light_buffer_srv.bind(p_unified_sorted_light_buffer->GetGPUVirtualAddress());
 		}
 
 		create_resolution_dependent_buffers();
@@ -135,8 +152,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 
 		resource::unmap_and_release(h_mapping_directional_light_buffer);
-		resource::unmap_and_release(h_mapping_point_light_buffer);
-		resource::unmap_and_release(h_mapping_spot_light_buffer);
+		resource::unmap_and_release(h_mapping_unified_light_buffer);
 		resource::unmap_and_release(h_mapping_frame_data_rw_buffer);
 
 
@@ -151,6 +167,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource::release_resource(h_zbin_buffer);
 		resource::release_resource(h_tile_mask_buffer);
+
+		resource::release_resource(h_unified_light_buffer);
+		resource::release_resource(h_unified_sorted_light_buffer);
 
 		AGE_ASSERT(object_count == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
@@ -196,8 +215,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data_buffer.apply(cmd_list);
 
 			directional_light_buffer.apply(cmd_list);
-			point_light_buffer.apply(cmd_list);
-			spot_light_buffer.apply(cmd_list);
 
 			frame_data_buffer.apply_compute(cmd_list);
 			job_data_buffer.apply_compute(cmd_list);
@@ -205,8 +222,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data_buffer.apply_compute(cmd_list);
 
 			directional_light_buffer.apply_compute(cmd_list);
-			point_light_buffer.apply_compute(cmd_list);
-			spot_light_buffer.apply_compute(cmd_list);
 
 			frame_data_rw_buffer.apply(cmd_list);
 			frame_data_rw_buffer.apply_compute(cmd_list);
@@ -218,6 +233,12 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			zbin_buffer_srv.apply(cmd_list);
 			zbin_buffer_uav.apply_compute(cmd_list);
+
+			// unified_light_buffer.apply(cmd_list);
+			unified_light_buffer.apply_compute(cmd_list);
+
+			unified_sorted_light_buffer_srv.apply(cmd_list);
+			unified_sorted_light_buffer_uav.apply_compute(cmd_list);
 
 			tile_mask_buffer_srv.apply(cmd_list);
 
@@ -317,8 +338,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				root_constants.bind(shared_type::root_constants{
 					.job_count						   = total_job_count,
 					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_id_arr.size()),
-					.point_light_count				   = static_cast<t_point_light_id>(point_light_id_arr.size()),
-					.spot_light_count				   = static_cast<t_spot_light_id>(spot_light_id_arr.size()),
+					.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_id_arr.size()),
 					.cluster_tile_count_x			   = light_tile_count_x,
 					.cluster_tile_count_y			   = light_tile_count_y,
 					//.cluster_near_z					   = cam_desc.near_z,
@@ -348,28 +368,22 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			// #if 1
 			//		auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
-			//		std::println("{},{},{},{},{},{},{},{},{},{}",
-			//					 ptr->tile_min_x,
-			//					 ptr->tile_max_x,
-			//					 ptr->tile_min_y,
-			//					 ptr->tile_max_y,
-			//					 ptr->screen_min.x,
-			//					 ptr->screen_min.y,
-			//					 ptr->screen_max.x,
-			//					 ptr->screen_max.y,
-			//					 ptr->backbuffer_size.x,
-			//					 ptr->backbuffer_size.y);
+			//		auto  arr = std::span<uint32, 100>(ptr->tile_bit_mask_arr);
+			//		std::println("{}",
+			//					 arr);
 			// #endif
 
-			c_auto light_count = static_cast<uint32>(point_light_id_arr.size() + spot_light_id_arr.size());
 			stage_light_culling_new.execute(cmd_list,
 											barrier,
+											light_tile_count_x,
+											light_tile_count_y,
 											*p_culled_light_buffer,
 											*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 											*p_light_sort_buffer,
 											*p_zbin_buffer,
 											*p_tile_mask_buffer,
-											light_count);
+											*p_unified_sorted_light_buffer,
+											static_cast<t_unified_light_id>(unified_light_id_arr.size()));
 		}
 
 		stage_opaque.execute(cmd_list, total_job_count);

@@ -413,7 +413,8 @@ namespace age::graphics::shader::e
 					forward_plus_light_sort_prefix_cs,
 					forward_plus_light_sort_scatter_cs,
 
-					forward_plus_light_zbin_tile_cs,
+					forward_plus_light_zbin_cs,
+					forward_plus_light_tile_cs,
 
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,

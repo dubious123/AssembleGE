@@ -36,28 +36,17 @@ void main_cs(uint32 light_culled_id : SV_DispatchThreadID)
         return;
     }
     
-    const uint32 packed = culled_light_buffer[light_culled_id];
-    const uint32 light_type = unpack_light_type(packed);
-    const uint32 light_id = unpack_light_index(packed);
+    const t_unified_light_id light_id = culled_light_buffer[light_culled_id];
     
-    float3 pos;
-    float range;
+    const unified_light light = unified_light_buffer[light_id];
     
-    if (light_type == LIGHT_TYPE_POINT)
-    {
-        pos = point_light_buffer[light_id].position;
-        range = point_light_buffer[light_id].range;
-    }
-    else
-    {
-        pos = spot_light_buffer[light_id].position;
-        range = spot_light_buffer[light_id].range;
-    }
+    float3 pos = light.position;
+    float range = light.range;
     
     const float view_z = dot(pos - camera_pos, camera_forward);
     const float min_z = view_z - range;
     
     sort_buffer[LIGHT_SORT_CS_SORT_KEYS_OFFSET + light_culled_id] = float_to_sortable(min_z);
-    sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + light_culled_id] = packed;
+    sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + light_culled_id] = light_id;
 }
 

@@ -129,6 +129,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_zbin;
 		ID3D12PipelineState*  p_pso_zbin;
 
+		graphics::pso::handle h_pso_tile;
+		ID3D12PipelineState*  p_pso_tile;
+
 		inline void
 		init(graphics::root_signature::handle h_root_sig) noexcept
 		{
@@ -166,19 +169,28 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_pso_zbin = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_tile_cs) }) });
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_cs) }) });
 
 			p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
+
+			h_pso_tile = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_tile_cs) }) });
+
+			p_pso_tile = graphics::g::pso_ptr_vec[h_pso_tile];
 		}
 
 		inline void
 		execute(t_cmd_list&					cmd_list,
 				graphics::resource_barrier& barrier,
+				uint32						light_tile_count_x,
+				uint32						light_tile_count_y,
 				ID3D12Resource&				culled_light_buffer,
 				ID3D12Resource&				frame_data_rw_buffer,
 				ID3D12Resource&				sort_buffer,
 				ID3D12Resource&				zbin_buffer,
 				ID3D12Resource&				tile_mask_buffer,
+				ID3D12Resource&				unified_sorted_light_buffer,
 				uint32						light_count) noexcept
 		{
 			if (light_count > 0)
@@ -191,7 +203,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				barrier.apply_and_reset(cmd_list);
 
 				cmd_list.SetPipelineState(p_pso_sort_gen_keys);
-				cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+				cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
 				barrier.add_uav(sort_buffer);
 				barrier.apply_and_reset(cmd_list);
 
@@ -204,7 +216,7 @@ namespace age::graphics::render_pipeline::forward_plus
 						offsetof(shared_type::root_constants, light_radix_sort_pass) / 4);
 
 					cmd_list.SetPipelineState(p_pso_sort_histogram);
-					cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
 					barrier.add_uav(sort_buffer);
 					barrier.apply_and_reset(cmd_list);
 
@@ -214,15 +226,21 @@ namespace age::graphics::render_pipeline::forward_plus
 					barrier.apply_and_reset(cmd_list);
 
 					cmd_list.SetPipelineState(p_pso_sort_scatter);
-					cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
 					barrier.add_uav(sort_buffer);
 					barrier.apply_and_reset(cmd_list);
 				}
 
 				cmd_list.SetPipelineState(p_pso_zbin);
-				cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+				cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
 
+				// barrier.add_uav(tile_mask_buffer);
+				barrier.add_uav(unified_sorted_light_buffer);
 				barrier.add_uav(zbin_buffer);
+				barrier.apply_and_reset(cmd_list);
+
+				cmd_list.SetPipelineState(p_pso_tile);
+				cmd_list.Dispatch(light_tile_count_x, light_tile_count_y, 1);
 				barrier.add_uav(tile_mask_buffer);
 				barrier.apply_and_reset(cmd_list);
 			}
@@ -239,6 +257,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pso::destroy(h_pso_sort_scatter);
 
 			pso::destroy(h_pso_zbin);
+			pso::destroy(h_pso_tile);
 		}
 	};
 
@@ -440,6 +459,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
 
+		resource_handle h_unified_light_buffer;
+		ID3D12Resource* p_unified_light_buffer;
+
+		resource_handle h_unified_sorted_light_buffer;
+		ID3D12Resource* p_unified_sorted_light_buffer;
+
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
 
@@ -456,8 +481,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<2> mesh_data_buffer;
 
 		binding_config_t::reg_t<3> directional_light_buffer;
-		binding_config_t::reg_t<4> point_light_buffer;
-		binding_config_t::reg_t<5> spot_light_buffer;
+
+		binding_config_t::reg_t<6> unified_light_buffer;
 
 		binding_config_t::reg_u<0> culled_light_buffer;
 		binding_config_t::reg_u<2> frame_data_rw_buffer;
@@ -470,6 +495,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<2, 3> tile_mask_buffer_uav;
 		binding_config_t::reg_t<2, 3> tile_mask_buffer_srv;
 
+		binding_config_t::reg_u<3, 3> unified_sorted_light_buffer_uav;
+		binding_config_t::reg_t<3, 3> unified_sorted_light_buffer_srv;
+
 
 		binding_config_t::reg_u<7, 7> debug_buffer_uav;
 
@@ -480,8 +508,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_mesh_buffer;
 
 		resource::mapping_handle h_mapping_directional_light_buffer;
-		resource::mapping_handle h_mapping_point_light_buffer;
-		resource::mapping_handle h_mapping_spot_light_buffer;
+
+		resource::mapping_handle h_mapping_unified_light_buffer;
 
 		resource::mapping_handle h_mapping_frame_data_rw_buffer;
 
@@ -509,8 +537,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		data_structure::sparse_vector<t_directional_light_id> directional_light_id_arr;
-		data_structure::sparse_vector<t_point_light_id>		  point_light_id_arr;
-		data_structure::sparse_vector<t_spot_light_id>		  spot_light_id_arr;
+
+		data_structure::sparse_vector<t_unified_light_id> unified_light_id_arr;
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -656,53 +684,60 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		void
-		update_point_light(t_point_light_id id, const shared_type::point_light& data) noexcept
+		update_unified_light(t_unified_light_id id, const shared_type::unified_light& data) noexcept
 		{
-			std::memcpy(h_mapping_point_light_buffer->ptr + sizeof(shared_type::point_light) * id,
+			std::memcpy(h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * id,
 						&data,
-						sizeof(shared_type::point_light));
+						sizeof(shared_type::unified_light));
 		}
 
-		t_point_light_id
+		t_unified_light_id
 		add_point_light(const shared_type::point_light& data) noexcept
 		{
-			c_auto id = static_cast<t_point_light_id>(
-				point_light_id_arr.emplace_back(
-					static_cast<t_point_light_id>(point_light_id_arr.size())));
-			update_point_light(id, data);
-			return static_cast<t_point_light_id>(id);
+			c_auto id = static_cast<t_unified_light_id>(
+				unified_light_id_arr.emplace_back(
+					static_cast<t_unified_light_id>(unified_light_id_arr.size())));
+
+			c_auto light = shared_type::unified_light{
+				.position  = data.position,
+				.range	   = data.range,
+				.color	   = math::cvt_to<half3>(data.color),
+				.intensity = math::cvt_to<half>(data.intensity),
+				.direction = math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f }),
+				.cos_inner = math::cvt_to<half>(-1.f),
+				.cos_outer = math::cvt_to<half>(-2.f),
+			};
+
+			update_unified_light(id, light);
+			return id;
 		}
 
-		void
-		remove_point_light(t_point_light_id& id) noexcept
-		{
-			point_light_id_arr.remove(id);
-			id = age::get_invalid_id<t_point_light_id>();
-		}
-
-		void
-		update_spot_light(t_spot_light_id id, const shared_type::spot_light& data) noexcept
-		{
-			std::memcpy(h_mapping_spot_light_buffer->ptr + sizeof(shared_type::spot_light) * id,
-						&data,
-						sizeof(shared_type::spot_light));
-		}
-
-		t_spot_light_id
+		t_unified_light_id
 		add_spot_light(const shared_type::spot_light& data) noexcept
 		{
-			c_auto id = static_cast<t_spot_light_id>(
-				spot_light_id_arr.emplace_back(
-					static_cast<t_spot_light_id>(spot_light_id_arr.size())));
-			update_spot_light(id, data);
-			return static_cast<t_spot_light_id>(id);
+			c_auto id = static_cast<t_unified_light_id>(
+				unified_light_id_arr.emplace_back(
+					static_cast<t_unified_light_id>(unified_light_id_arr.size())));
+
+			c_auto light = shared_type::unified_light{
+				.position  = data.position,
+				.range	   = data.range,
+				.color	   = math::cvt_to<half3>(data.color),
+				.intensity = math::cvt_to<half>(data.intensity),
+				.direction = math::cvt_to<half3>(data.direction),
+				.cos_inner = math::cvt_to<half>(data.cos_inner),
+				.cos_outer = math::cvt_to<half>(data.cos_outer),
+			};
+
+			update_unified_light(id, light);
+			return id;
 		}
 
 		void
-		remove_spot_light(t_spot_light_id& id) noexcept
+		remove_unified_light(t_unified_light_id& id) noexcept
 		{
-			spot_light_id_arr.remove(id);
-			id = age::get_invalid_id<t_spot_light_id>();
+			unified_light_id_arr.remove(id);
+			id = age::get_invalid_id<t_unified_light_id>();
 		}
 
 		t_object_id

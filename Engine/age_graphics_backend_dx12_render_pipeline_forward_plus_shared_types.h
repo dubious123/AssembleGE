@@ -2,6 +2,8 @@
 #define UV_COUNT		2
 #define LIGHT_TILE_SIZE 32
 
+#define MAX_LIGHT_COUNT (1024 * 1024)
+
 #define MAX_VISIBLE_LIGHT_COUNT	   (16 * 1024)
 #define LIGHT_CULL_CS_THREAD_COUNT 256
 #define LIGHT_SORT_CS_THREAD_COUNT 256
@@ -19,11 +21,6 @@
 
 #define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
 
-#define LIGHT_TYPE_POINT 0
-#define LIGHT_TYPE_SPOT	 1
-#define LIGHT_TYPE_BITS	 3
-#define LIGHT_INDEX_MASK ((1u << (32 - LIGHT_TYPE_BITS)) - 1)
-
 #if !defined(AGE_HLSL)
 	#include "age.hpp"
 
@@ -34,25 +31,24 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_camera_id = uint32;
 
 	using t_directional_light_id = uint8;
-	using t_point_light_id		 = uint32;
-	using t_spot_light_id		 = uint32;
+	using t_unified_light_id	 = uint32;
 
 	using t_global_light_index = uint32;
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
 namespace age::graphics::render_pipeline::forward_plus::g
 {
-	inline constexpr uint8 uv_count = UV_COUNT;
+	inline constexpr uint8	uv_count		= UV_COUNT;
+	inline constexpr uint32 max_light_count = MAX_LIGHT_COUNT;
 
 	inline constexpr uint32 max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
 	// light culling
 
 	inline constexpr uint8 light_tile_size = (uint8)LIGHT_TILE_SIZE;
 
-	inline constexpr uint32 light_cull_cs_thread_count			  = LIGHT_CULL_CS_THREAD_COUNT;
-	inline constexpr uint32 light_sort_cs_thread_count			  = LIGHT_SORT_CS_THREAD_COUNT;
-	inline constexpr uint32 light_sort_cs_max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
-	inline constexpr uint32 light_bitmask_uint32_count			  = LIGHT_BITMASK_UINT32_COUNT;
+	inline constexpr uint32 light_cull_cs_thread_count = LIGHT_CULL_CS_THREAD_COUNT;
+	inline constexpr uint32 light_sort_cs_thread_count = LIGHT_SORT_CS_THREAD_COUNT;
+	inline constexpr uint32 light_bitmask_uint32_count = LIGHT_BITMASK_UINT32_COUNT;
 
 	inline constexpr uint32 sort_buffer_total_byte_size = LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE * sizeof(uint32);
 
@@ -75,8 +71,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#define t_camera_id uint32
 
 	#define t_directional_light_id uint8
-	#define t_point_light_id	   uint32
-	#define t_spot_light_id		   uint32
+	#define t_unified_light_id	   uint32
 
 	#define UV_COUNT 2
 #endif
@@ -91,6 +86,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float2 screen_max;
 
 		float2 backbuffer_size;
+
+		uint32 tile_bit_mask_arr[100];
 	};
 
 	struct frame_data_rw
@@ -132,6 +129,30 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cos_inner;	 // 4  (falloff begin, cosine)
 		float  cos_outer;	 // 4  (cosine)
 	};	  // 52 bytes (1 cache line)
+
+	// struct unified_light
+	//{
+	//	float3 position;	 // 12
+	//	float  range;		 // 4
+	//	float3 color;		 // 12
+	//	float  intensity;	 // 4
+	//	float3 direction;	 // 12
+	//	float  cos_inner;	 // 4
+	//	float  cos_outer;	 // 4
+	//	uint32 padding;		 // 4
+	// };	  // total: 56 bytes
+
+	struct unified_light
+	{
+		float3 position;	 // 12
+		float  range;		 // 4
+		half3  color;		 // 6
+		half   intensity;	 // 2
+		half3  direction;	 // 6
+		half   cos_inner;	 // 2
+		half   cos_outer;	 // 2
+		uint16 padding;		 // 2
+	};	  // total: 36 bytes
 
 	//---[ light culling ]------------------------------------------------------------
 
@@ -221,28 +242,27 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data REG(b0)
 	{
-		row_major float4x4 view_proj;						   // 64 bytes
-		row_major float4x4 view_proj_inv;					   // 64 bytes
-		float3			   camera_pos;						   // 12
-		float			   time;							   // 4
-		float4			   frustum_planes[6];				   // 96
-		float2			   inv_backbuffer_size;				   // 8
-		float2			   backbuffer_size;					   // 8
-		float3			   camera_forward;					   // 12
-		uint32			   frame_index;						   // 4
-		float3			   camera_right;					   // 12
-		uint32			   main_buffer_texture_id;			   // 4
+		row_major float4x4 view_proj;							 // 64 bytes
+		row_major float4x4 view_proj_inv;						 // 64 bytes
+		float3			   camera_pos;							 // 12
+		float			   time;								 // 4
+		float4			   frustum_planes[6];					 // 96
+		float2			   inv_backbuffer_size;					 // 8
+		float2			   backbuffer_size;						 // 8
+		float3			   camera_forward;						 // 12
+		uint32			   frame_index;							 // 4
+		float3			   camera_right;						 // 12
+		uint32			   main_buffer_texture_id;				 // 4
 
-		uint32 extra[56];									   // 4 * 56
-															   // total: 256 * 2 bytes
+		uint32 extra[56];										 // 4 * 56
+																 // total: 256 * 2 bytes
 	};
 
 	cbuffer root_constants REG(b1)
 	{
-		uint32			 job_count;							   // 4 bytes
-		uint32			 directional_light_count_and_extra;	   // 4 bytes
-		t_point_light_id point_light_count;					   // 4 btyes
-		t_spot_light_id	 spot_light_count;					   // 4 bytes
+		uint32			   job_count;							 // 4 bytes
+		uint32			   directional_light_count_and_extra;	 // 4 bytes
+		t_unified_light_id unified_light_count;					 // 4 btyes
 
 		uint32 cluster_tile_count_x;
 		uint32 cluster_tile_count_y;
@@ -260,6 +280,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#undef row_major
 
 	#undef UV_COUNT
+	#undef MAX_LIGHT_COUNT
 	#undef LIGHT_TILE_SIZE
 	#undef LIGHT_CULL_CS_THREAD_COUNT
 	#undef LIGHT_SORT_CS_THREAD_COUNT
