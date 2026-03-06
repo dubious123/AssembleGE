@@ -15,9 +15,9 @@ void main_cs(uint32 light_id : SV_DispatchThreadID)
             uint32 idx;
             InterlockedAdd(frame_data_rw_buffer[0].not_culled_light_count, 1, idx);
         
-            if (idx < LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT)
+            if (idx < MAX_VISIBLE_LIGHT_COUNT)
             {
-                global_light_index_buffer_uav[idx] = pack_light_index(LIGHT_TYPE_POINT, point_light_id);
+                culled_light_buffer[idx] = pack_light_index(LIGHT_TYPE_POINT, point_light_id);
             }
         }
     }
@@ -35,9 +35,9 @@ void main_cs(uint32 light_id : SV_DispatchThreadID)
             uint32 idx;
             InterlockedAdd(frame_data_rw_buffer[0].not_culled_light_count, 1, idx);
         
-            if (idx < LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT)
+            if (idx < MAX_VISIBLE_LIGHT_COUNT)
             {
-                global_light_index_buffer_uav[idx] = pack_light_index(LIGHT_TYPE_SPOT, spot_light_id);
+                culled_light_buffer[idx] = pack_light_index(LIGHT_TYPE_SPOT, spot_light_id);
             }
         }
     }

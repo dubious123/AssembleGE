@@ -8,7 +8,7 @@ groupshared uint32 bin_offset[LIGHT_SORT_CS_THREAD_COUNT];
 void main_cs(uint32 group_thread_id : SV_GroupThreadID,
              uint32 visible_light_id : SV_DispatchThreadID)
 {
-    const uint32 group_count = LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT;
+    const uint32 group_count = MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT;
     
     // for each bin 0x??
     uint32 bin_total = 0;

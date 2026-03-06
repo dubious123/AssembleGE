@@ -118,15 +118,12 @@
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_hdr10_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_presentation_sdr_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_depth_ms.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_culling_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_cull_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_sort_gen_keys_cs.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_zbin_cs.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_zbin_tile_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_sort_histogram_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_sort_prefix_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_sort_scatter_cs.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_gen_light_tile_mask_ms.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_gen_light_tile_mask_ps.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_init_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>

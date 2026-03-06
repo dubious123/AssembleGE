@@ -1,29 +1,23 @@
 #pragma once
-#define UV_COUNT							2
-#define CLUSTER_TILE_SIZE					16
-#define CLUSTER_DEPTH_SLICE_COUNT			24
-#define CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER 1000
-#define MAX_GLOBAL_LIGHT_INDEX_COUNT		(256 * 1024 * 1024)
+#define UV_COUNT		2
+#define LIGHT_TILE_SIZE 32
 
+#define MAX_VISIBLE_LIGHT_COUNT	   (16 * 1024)
+#define LIGHT_CULL_CS_THREAD_COUNT 256
+#define LIGHT_SORT_CS_THREAD_COUNT 256
 
-#define LIGHT_CULL_CS_THREAD_COUNT		   256
-#define LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT (1024 * 1024)
-
-#define LIGHT_SORT_CS_THREAD_COUNT			  256
-#define LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
-
-#define SORT_GROUP_COUNT					 (LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT)
+#define SORT_GROUP_COUNT					 (MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT)
 #define HISTOGRAM_SIZE						 (256 * SORT_GROUP_COUNT)
-#define LIGHT_SORT_CS_SORT_KEYS_OFFSET		 0																				   // 0
-#define LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)		   // 16384
-#define LIGHT_SORT_CS_SORT_VALUES_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)	   // 32768
-#define LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET (LIGHT_SORT_CS_SORT_VALUES_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)		   // 49152
-#define LIGHT_SORT_CS_HISTOGRAM_OFFSET		 (LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)	   // 65536
-#define LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE (LIGHT_SORT_CS_HISTOGRAM_OFFSET + HISTOGRAM_SIZE)								   // 65536 + 16384 = 81920
+#define LIGHT_SORT_CS_SORT_KEYS_OFFSET		 0																	 // 0
+#define LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_OFFSET + MAX_VISIBLE_LIGHT_COUNT)			 // 16384
+#define LIGHT_SORT_CS_SORT_VALUES_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		 // 32768
+#define LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET (LIGHT_SORT_CS_SORT_VALUES_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		 // 49152
+#define LIGHT_SORT_CS_HISTOGRAM_OFFSET		 (LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)	 // 65536
+#define LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE (LIGHT_SORT_CS_HISTOGRAM_OFFSET + HISTOGRAM_SIZE)					 // 65536 + 16384 = 81920
 
 #define Z_SLICE_COUNT (4 * 1024)
 
-#define LIGHT_BITMASK_UINT32_COUNT (LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT / 32)
+#define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
 
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPOT	 1
@@ -50,35 +44,22 @@ namespace age::graphics::render_pipeline::forward_plus::g
 {
 	inline constexpr uint8 uv_count = UV_COUNT;
 
+	inline constexpr uint32 max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
 	// light culling
-	inline constexpr uint8	light_culling_cluster_tile_size					  = (uint8)CLUSTER_TILE_SIZE;
-	inline constexpr uint8	light_culling_cluster_depth_slice_count			  = (uint8)CLUSTER_DEPTH_SLICE_COUNT;
-	inline constexpr uint8	light_culling_cluster_max_light_count_per_cluster = (uint8)CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER;
-	inline constexpr uint32 light_culling_max_global_light_index_count		  = MAX_GLOBAL_LIGHT_INDEX_COUNT;	 // 4M
-	inline constexpr uint8	light_culling_depth_slice_count					  = 24u;
 
-	inline constexpr uint32 light_cull_cs_thread_count		   = LIGHT_CULL_CS_THREAD_COUNT;
-	inline constexpr uint32 light_cull_cs_max_cull_light_count = LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT;
+	inline constexpr uint8 light_tile_size = (uint8)LIGHT_TILE_SIZE;
 
+	inline constexpr uint32 light_cull_cs_thread_count			  = LIGHT_CULL_CS_THREAD_COUNT;
 	inline constexpr uint32 light_sort_cs_thread_count			  = LIGHT_SORT_CS_THREAD_COUNT;
-	inline constexpr uint32 light_sort_cs_max_visible_light_count = LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT;
+	inline constexpr uint32 light_sort_cs_max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
 	inline constexpr uint32 light_bitmask_uint32_count			  = LIGHT_BITMASK_UINT32_COUNT;
 
-	inline constexpr uint32 sort_group_count = SORT_GROUP_COUNT;
-	inline constexpr uint32 histogram_size	 = HISTOGRAM_SIZE;
-
-	inline constexpr uint32 sort_keys_offset			= LIGHT_SORT_CS_SORT_KEYS_OFFSET;
-	inline constexpr uint32 sort_keys_alt_offset		= LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET;
-	inline constexpr uint32 sort_values_offset			= LIGHT_SORT_CS_SORT_VALUES_OFFSET;
-	inline constexpr uint32 sort_values_alt_offset		= LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET;
-	inline constexpr uint32 histogram_offset			= LIGHT_SORT_CS_HISTOGRAM_OFFSET;
-	inline constexpr uint32 sort_buffer_total_size		= LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE;
-	inline constexpr uint32 sort_buffer_total_byte_size = sort_buffer_total_size * sizeof(uint32);
+	inline constexpr uint32 sort_buffer_total_byte_size = LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE * sizeof(uint32);
 
 	inline constexpr uint32 z_slice_count = Z_SLICE_COUNT;
 
 
-	static_assert(g::light_cull_cs_max_cull_light_count % g::light_sort_cs_thread_count == 0);
+	static_assert(MAX_VISIBLE_LIGHT_COUNT % g::light_sort_cs_thread_count == 0);
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
@@ -153,12 +134,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	};	  // 52 bytes (1 cache line)
 
 	//---[ light culling ]------------------------------------------------------------
-
-	struct cluster_light_info
-	{
-		uint32 offset;	  // start index in global_light_index_buffer
-		uint32 count;	  // number of lights affecting this cluster
-	};
 
 	// data only used by amplification shader
 	struct meshlet_header
@@ -279,22 +254,31 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	};
 
 #if !defined(AGE_HLSL)
-	#undef UV_COUNT
-
 	#undef SYS_VAL
 	#undef cbuffer
 	#undef REG
 	#undef row_major
 
-	#undef CLUSTER_TILE_SIZE
-	#undef CLUSTER_DEPTH_SLICE_COUNT
-	#undef CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER
-	#undef MAX_GLOBAL_LIGHT_INDEX_COUNT
-
+	#undef UV_COUNT
+	#undef LIGHT_TILE_SIZE
+	#undef LIGHT_CULL_CS_THREAD_COUNT
+	#undef LIGHT_SORT_CS_THREAD_COUNT
+	#undef MAX_VISIBLE_LIGHT_COUNT
+	#undef SORT_GROUP_COUNT
+	#undef HISTOGRAM_SIZE
+	#undef LIGHT_SORT_CS_SORT_KEYS_OFFSET
+	#undef LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET
+	#undef LIGHT_SORT_CS_SORT_VALUES_OFFSET
+	#undef LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET
+	#undef LIGHT_SORT_CS_HISTOGRAM_OFFSET
+	#undef LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE
+	#undef Z_SLICE_COUNT
+	#undef LIGHT_BITMASK_UINT32_COUNT
 	#undef LIGHT_TYPE_POINT
 	#undef LIGHT_TYPE_SPOT
 	#undef LIGHT_TYPE_BITS
 	#undef LIGHT_INDEX_MASK
+
 }	 // namespace age::graphics::render_pipeline::forward_plus
 #else
 

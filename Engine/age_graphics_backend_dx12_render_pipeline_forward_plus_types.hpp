@@ -86,36 +86,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<5>>,
 
 		binding_slot<
-			"global_light_index_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
-			what::structured_buffer<t_global_light_index>,
-			how::root_descriptor,
-			where::t<6>>,
-
-		binding_slot<
-			"cluster_light_info_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
-			what::structured_buffer<shared_type::cluster_light_info>,
-			how::root_descriptor,
-			where::t<7>>,
-
-		binding_slot<
-			"global_light_index_buffer_uav",
+			"culled_light_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::rw_structured_buffer<t_global_light_index>,
 			how::root_descriptor,
 			where::u<0>>,
-
-		binding_slot<
-			"cluster_light_info_buffer_uav",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer<shared_type::cluster_light_info>,
-			how::root_descriptor,
-			where::u<1>>,
 
 		binding_slot<
 			"frame_data_rw_uav",

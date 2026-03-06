@@ -5,7 +5,7 @@
 [numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
 void main_cs(uint32 sorted_id : SV_DispatchThreadID)
 {
-    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT);
+    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
     if (sorted_id >= visible_count)
     {
         return;
@@ -85,10 +85,10 @@ void main_cs(uint32 sorted_id : SV_DispatchThreadID)
         const float2 screen_min = float2(screen_a.x, screen_b.y);
         const float2 screen_max = float2(screen_b.x, screen_a.y);
 
-        const uint32 tile_min_x = clamp(int32(screen_min.x) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
-        const uint32 tile_max_x = clamp(int32(screen_max.x) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
-        const uint32 tile_min_y = clamp(int32(screen_min.y) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
-        const uint32 tile_max_y = clamp(int32(screen_max.y) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
+        const uint32 tile_min_x = clamp(int32(screen_min.x) / LIGHT_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
+        const uint32 tile_max_x = clamp(int32(screen_max.x) / LIGHT_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
+        const uint32 tile_min_y = clamp(int32(screen_min.y) / LIGHT_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
+        const uint32 tile_max_y = clamp(int32(screen_max.y) / LIGHT_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
        
 
         for (uint32 y = tile_min_y; y <= tile_max_y; ++y)

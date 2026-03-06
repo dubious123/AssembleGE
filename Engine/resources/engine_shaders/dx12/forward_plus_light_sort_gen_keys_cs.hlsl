@@ -28,7 +28,7 @@
 [numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
 void main_cs(uint32 light_culled_id : SV_DispatchThreadID)
 {
-    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT);
+    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
     if (light_culled_id >= visible_count)
     {
         sort_buffer[LIGHT_SORT_CS_SORT_KEYS_OFFSET + light_culled_id] = invalid_id_uint32;
@@ -36,7 +36,7 @@ void main_cs(uint32 light_culled_id : SV_DispatchThreadID)
         return;
     }
     
-    const uint32 packed = global_light_index_buffer_uav[light_culled_id];
+    const uint32 packed = culled_light_buffer[light_culled_id];
     const uint32 light_type = unpack_light_type(packed);
     const uint32 light_id = unpack_light_index(packed);
     

@@ -129,9 +129,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_zbin;
 		ID3D12PipelineState*  p_pso_zbin;
 
-		graphics::pso::handle h_pso_tile_mask;
-		ID3D12PipelineState*  p_pso_tile_mask;
-
 		inline void
 		init(graphics::root_signature::handle h_root_sig) noexcept
 		{
@@ -169,27 +166,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_pso_zbin = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_cs) }) });
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_tile_cs) }) });
 
 			p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
-
-			h_pso_tile_mask = graphics::pso::create(
-				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_gen_light_tile_mask_ms) }) },
-				pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_gen_light_tile_mask_ps) }) },
-				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
-				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{}, .NumRenderTargets = 0 } },
-				pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull_conservative },
-				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
-				pss_node_mask{ .subobj = 0 });
-
-			p_pso_tile_mask = graphics::g::pso_ptr_vec[h_pso_tile_mask];
 		}
 
 		inline void
 		execute(t_cmd_list&					cmd_list,
 				graphics::resource_barrier& barrier,
-				ID3D12Resource&				global_light_idx_buffer,
+				ID3D12Resource&				culled_light_buffer,
 				ID3D12Resource&				frame_data_rw_buffer,
 				ID3D12Resource&				sort_buffer,
 				ID3D12Resource&				zbin_buffer,
@@ -201,7 +186,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				cmd_list.SetPipelineState(p_pso_cull);
 				cmd_list.Dispatch((light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
 
-				barrier.add_uav(global_light_idx_buffer);
+				barrier.add_uav(culled_light_buffer);
 				barrier.add_uav(frame_data_rw_buffer);
 				barrier.apply_and_reset(cmd_list);
 
@@ -238,11 +223,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
 
 				barrier.add_uav(zbin_buffer);
-				// barrier.apply_and_reset(cmd_list);
-
-				// cmd_list.SetPipelineState(p_pso_tile_mask);
-
-				// cmd_list.DispatchMesh(g::light_sort_cs_max_visible_light_count / 4, 1, 1);
 				barrier.add_uav(tile_mask_buffer);
 				barrier.apply_and_reset(cmd_list);
 			}
@@ -259,44 +239,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			pso::destroy(h_pso_sort_scatter);
 
 			pso::destroy(h_pso_zbin);
-			pso::destroy(h_pso_tile_mask);
-		}
-	};
-
-	struct light_culling_stage
-	{
-		graphics::pso::handle h_pso = {};
-		ID3D12PipelineState*  p_pso = nullptr;
-
-		uint32 tile_count_x	 = 0;
-		uint32 tile_count_y	 = 0;
-		uint32 cluster_count = 0;
-
-		inline void
-		init(graphics::root_signature::handle h_root_sig) noexcept
-		{
-			using namespace graphics::pso;
-
-			auto cs_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_culling_cs) });
-
-			h_pso = graphics::pso::create(
-				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = cs_byte_code });
-
-			p_pso = graphics::g::pso_ptr_vec[h_pso];
-		}
-
-		inline void
-		execute(t_cmd_list& cmd_list, uint32 tile_count_x, uint32 tile_count_y) noexcept
-		{
-			cmd_list.SetPipelineState(p_pso);
-			cmd_list.Dispatch(tile_count_x, tile_count_y, g::light_culling_depth_slice_count);
-		}
-
-		inline void
-		deinit() noexcept
-		{
-			pso::destroy(h_pso);
 		}
 	};
 
@@ -479,8 +421,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
-		uint32 light_culling_tile_count_x = (extent.width + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
-		uint32 light_culling_tile_count_y = (extent.height + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
+		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
+		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
 
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
@@ -488,15 +430,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12Resource* p_main_buffer;
 		ID3D12Resource* p_depth_buffer;
 
-		resource_handle h_global_light_index_buffer;
+		resource_handle h_culled_light_buffer;
 		resource_handle h_light_sort_buffer;
-		resource_handle h_cluster_light_data_buffer;
 		resource_handle h_zbin_buffer;
 		resource_handle h_tile_mask_buffer;
 
-		ID3D12Resource* p_global_light_index_buffer;
+		ID3D12Resource* p_culled_light_buffer;
 		ID3D12Resource* p_light_sort_buffer;
-		ID3D12Resource* p_cluster_light_info_buffer;
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
 
@@ -506,7 +446,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		init_stage				stage_init;
 		depth_stage				stage_depth;
 		light_culling_stage_new stage_light_culling_new;
-		light_culling_stage		stage_light_culling;
 		opaque_stage			stage_opaque;
 		presentation_stage		stage_presentation;
 
@@ -520,11 +459,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<4> point_light_buffer;
 		binding_config_t::reg_t<5> spot_light_buffer;
 
-		binding_config_t::reg_t<6> global_light_index_buffer_srv;
-		binding_config_t::reg_t<7> cluster_light_info_buffer_srv;
-
-		binding_config_t::reg_u<0> global_light_index_buffer_uav;
-		binding_config_t::reg_u<1> cluster_light_info_buffer_uav;
+		binding_config_t::reg_u<0> culled_light_buffer;
 		binding_config_t::reg_u<2> frame_data_rw_buffer;
 
 		binding_config_t::reg_u<0, 3> light_sort_buffer_uav;
@@ -815,9 +750,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	  private:
 		void
 		create_resolution_dependent_buffers() noexcept;
-
-		void
-		create_static_buffers() noexcept;
 
 		void
 		resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept;

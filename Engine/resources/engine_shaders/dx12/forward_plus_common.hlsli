@@ -12,12 +12,7 @@ StructuredBuffer<directional_light> directional_light_buffer : register(t3);
 StructuredBuffer<point_light> point_light_buffer : register(t4);
 StructuredBuffer<spot_light> spot_light_buffer : register(t5);
 
-StructuredBuffer<uint32> global_light_index_buffer_srv : register(t6);
-StructuredBuffer<cluster_light_info> cluster_light_info_buffer_srv : register(t7);
-
-
-RWStructuredBuffer<uint32> global_light_index_buffer_uav : register(u0);
-RWStructuredBuffer<cluster_light_info> cluster_light_info_buffer_uav : register(u1);
+RWStructuredBuffer<uint32> culled_light_buffer : register(u0);
 RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
 
 RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);
