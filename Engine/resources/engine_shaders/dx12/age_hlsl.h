@@ -2,6 +2,7 @@
 #define AGE_HLSL
 #define SYS_VAL(name) : name
 #define REG(...) : register(__VA_ARGS__)
+#define UNROLL [[unroll]]
 
 #define uint64 uint64_t
 #define uint32 uint

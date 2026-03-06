@@ -15,13 +15,33 @@ StructuredBuffer<spot_light> spot_light_buffer : register(t5);
 StructuredBuffer<uint32> global_light_index_buffer_srv : register(t6);
 StructuredBuffer<cluster_light_info> cluster_light_info_buffer_srv : register(t7);
 
+
 RWStructuredBuffer<uint32> global_light_index_buffer_uav : register(u0);
 RWStructuredBuffer<cluster_light_info> cluster_light_info_buffer_uav : register(u1);
-RWStructuredBuffer<uint32> global_counter : register(u2);
+RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
 
-RWStructuredBuffer<uint32> visible_light_list : register(u3);
+RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);
+
+StructuredBuffer<uint32> sort_buffer_srv : register(t0, space3);
+
+RWStructuredBuffer<zbin_entry> zbin_buffer_uav : register(u1, space3);
+StructuredBuffer<zbin_entry> zbin_buffer_srv : register(t1, space3);
+
+RWStructuredBuffer<uint32> tile_mask_buffer_uav : register(u2, space3);
+StructuredBuffer<uint32> tile_mask_buffer_srv : register(t2, space3);
+
+
+RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);
+
+
 
 SamplerState linear_clamp_sampler : register(s0);
+
+uint32 depth_to_bin(float linear_depth)
+{
+    float t = (linear_depth - cluster_near_z) / (cluster_far_z - cluster_near_z);
+    return (uint32)(t * (Z_SLICE_COUNT - 1));
+}
 
 mesh_header
 read_mesh_header(uint32 mesh_byte_offset)
@@ -221,6 +241,13 @@ struct opaque_ms_to_ps
 #if UV_COUNT >= 4
 		half2 uv3 SYS_VAL(TEXCOORD3);
 #endif
+};
+
+// light culling tile mask
+struct tile_mask_ms_to_ps
+{
+    float4 pos : SV_Position;
+    nointerpolation uint32 sorted_id : SORTED_ID;
 };
 
 // presentation

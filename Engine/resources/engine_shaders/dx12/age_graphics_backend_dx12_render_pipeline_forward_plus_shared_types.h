@@ -3,11 +3,27 @@
 #define CLUSTER_TILE_SIZE					16
 #define CLUSTER_DEPTH_SLICE_COUNT			24
 #define CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER 1000
-#define MAX_GLOBAL_LIGHT_INDEX_COUNT		256 * 1024 * 1024
+#define MAX_GLOBAL_LIGHT_INDEX_COUNT		(256 * 1024 * 1024)
 
 
 #define LIGHT_CULL_CS_THREAD_COUNT		   256
-#define LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT 1024 * 1024
+#define LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT (1024 * 1024)
+
+#define LIGHT_SORT_CS_THREAD_COUNT			  256
+#define LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
+
+#define SORT_GROUP_COUNT					 (LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT)
+#define HISTOGRAM_SIZE						 (256 * SORT_GROUP_COUNT)
+#define LIGHT_SORT_CS_SORT_KEYS_OFFSET		 0																				   // 0
+#define LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)		   // 16384
+#define LIGHT_SORT_CS_SORT_VALUES_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)	   // 32768
+#define LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET (LIGHT_SORT_CS_SORT_VALUES_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)		   // 49152
+#define LIGHT_SORT_CS_HISTOGRAM_OFFSET		 (LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET + LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT)	   // 65536
+#define LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE (LIGHT_SORT_CS_HISTOGRAM_OFFSET + HISTOGRAM_SIZE)								   // 65536 + 16384 = 81920
+
+#define Z_SLICE_COUNT (4 * 1024)
+
+#define LIGHT_BITMASK_UINT32_COUNT (LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT / 32)
 
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPOT	 1
@@ -43,6 +59,26 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr uint32 light_cull_cs_thread_count		   = LIGHT_CULL_CS_THREAD_COUNT;
 	inline constexpr uint32 light_cull_cs_max_cull_light_count = LIGHT_CULL_CS_MAX_CULL_LIGHT_COUNT;
+
+	inline constexpr uint32 light_sort_cs_thread_count			  = LIGHT_SORT_CS_THREAD_COUNT;
+	inline constexpr uint32 light_sort_cs_max_visible_light_count = LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT;
+	inline constexpr uint32 light_bitmask_uint32_count			  = LIGHT_BITMASK_UINT32_COUNT;
+
+	inline constexpr uint32 sort_group_count = SORT_GROUP_COUNT;
+	inline constexpr uint32 histogram_size	 = HISTOGRAM_SIZE;
+
+	inline constexpr uint32 sort_keys_offset			= LIGHT_SORT_CS_SORT_KEYS_OFFSET;
+	inline constexpr uint32 sort_keys_alt_offset		= LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET;
+	inline constexpr uint32 sort_values_offset			= LIGHT_SORT_CS_SORT_VALUES_OFFSET;
+	inline constexpr uint32 sort_values_alt_offset		= LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET;
+	inline constexpr uint32 histogram_offset			= LIGHT_SORT_CS_HISTOGRAM_OFFSET;
+	inline constexpr uint32 sort_buffer_total_size		= LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE;
+	inline constexpr uint32 sort_buffer_total_byte_size = sort_buffer_total_size * sizeof(uint32);
+
+	inline constexpr uint32 z_slice_count = Z_SLICE_COUNT;
+
+
+	static_assert(g::light_cull_cs_max_cull_light_count % g::light_sort_cs_thread_count == 0);
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
@@ -63,6 +99,31 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	#define UV_COUNT 2
 #endif
+	struct debug_77
+	{
+		uint32 tile_min_x;
+		uint32 tile_max_x;
+		uint32 tile_min_y;
+		uint32 tile_max_y;
+
+		float2 screen_min;
+		float2 screen_max;
+
+		float2 backbuffer_size;
+	};
+
+	struct frame_data_rw
+	{
+		uint32 generic_counter;
+		uint32 not_culled_light_count;
+	};
+
+	struct zbin_entry
+	{
+		uint32 min_idx;
+		uint32 max_idx;
+	};
+
 	//---[ lights ]------------------------------------------------------------
 	struct directional_light
 	{
@@ -190,12 +251,14 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3			   camera_pos;						   // 12
 		float			   time;							   // 4
 		float4			   frustum_planes[6];				   // 96
-		uint32			   frame_index;						   // 4
 		float2			   inv_backbuffer_size;				   // 8
+		float2			   backbuffer_size;					   // 8
+		float3			   camera_forward;					   // 12
+		uint32			   frame_index;						   // 4
+		float3			   camera_right;					   // 12
 		uint32			   main_buffer_texture_id;			   // 4
 
-		float3 camera_forward;								   // 12
-		uint32 extra[61];									   // 4 * 61
+		uint32 extra[56];									   // 4 * 56
 															   // total: 256 * 2 bytes
 	};
 
@@ -212,6 +275,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cluster_far_z;
 		float  cluster_log_far_near_ratio;
 		uint32 depth_buffer_texture_id;	   // bindless index for depth buffer
+		uint32 light_radix_sort_pass;
 	};
 
 #if !defined(AGE_HLSL)

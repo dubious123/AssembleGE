@@ -2,160 +2,102 @@
 #include "forward_plus_common.hlsli"
 #undef SHADER_STAGE_CS
 
-// per-cluster shared memory — shared among 256 threads (16x16) working on the same cluster frustum
-
-// number of lights intersecting this cluster
-groupshared uint32 shared_light_count;
-// packed light indices (type + index) that passed intersection test
-groupshared uint32 shared_light_indices[CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER];
- // allocated start position in global_light_index_list
-groupshared uint32 shared_global_offset;
-
-groupshared float3 shared_aabb_min;
-groupshared float3 shared_aabb_max;
-
-//void append_to_shared_light_list(bool hit, uint packed_index)
-//{
-//    const uint32 wave_hit_count = WaveActiveCountBits(hit);
-//    const uint32 thread_offset = WavePrefixCountBits(hit);
-
-//    uint32 wave_base = 0;
-//    if (wave_hit_count > 0 && WaveIsFirstLane())
-//    {
-//        InterlockedAdd(shared_light_count, wave_hit_count, wave_base);
-//    }
-    
-//    wave_base = WaveReadLaneFirst(wave_base);
-
-//    if (hit)
-//    {
-//        const uint32 idx = wave_base + thread_offset;
-//        if (idx < CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER)
-//        {
-//            shared_light_indices[idx] = packed_index;
-//        }
-//    }
-//}
-
-
-void append_to_shared_light_list(bool hit, uint packed_index)
+[numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
+void main_cs(uint32 sorted_id : SV_DispatchThreadID)
 {
-    if (hit)
+    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, LIGHT_SORT_CS_MAX_VISIBLE_LIGHT_COUNT);
+    if (sorted_id >= visible_count)
     {
-        uint32 idx;
-        InterlockedAdd(shared_light_count, 1, idx);
-        if (idx < CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER)
+        return;
+    }
+    
+    const uint32 packed = sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + sorted_id];
+    
+    //if (packed == invalid_id_uint32)
+    //{
+    //    return;
+    //}
+    
+    const uint32 light_type = unpack_light_type(packed);
+    const uint32 light_id = unpack_light_index(packed);
+    
+    float3 pos = float3(0, 0, 0);
+    float range = 0;
+    if (light_type == LIGHT_TYPE_POINT)
+    {
+        pos = point_light_buffer[light_id].position;
+        range = point_light_buffer[light_id].range;
+    }
+    else
+    {
+        pos = spot_light_buffer[light_id].position;
+        range = spot_light_buffer[light_id].range;
+    }
+    
+    const float view_z = dot(pos - camera_pos, camera_forward);
+    const float min_z = view_z - range;
+    const float max_z = view_z + range;
+    
+    const uint32 bin_begin = clamp(depth_to_bin(min_z), 0, Z_SLICE_COUNT - 1);
+    const uint32 bin_end = clamp(depth_to_bin(max_z), 0, Z_SLICE_COUNT - 1);
+    
+    for (uint32 i = bin_begin; i <= bin_end; ++i)
+    {
+        InterlockedMin(zbin_buffer_uav[i].min_idx, sorted_id);
+        InterlockedMax(zbin_buffer_uav[i].max_idx, sorted_id);
+    }
+
+    const float3 cam_to_light = pos - camera_pos;
+    const float dist = length(cam_to_light);
+
+    const uint32 word_index = sorted_id / 32;
+    const uint32 bit = 1u << (sorted_id % 32);
+
+    if (dist < range)
+    {
+        for (uint32 y = 0; y < cluster_tile_count_y; ++y)
         {
-            shared_light_indices[idx] = packed_index;
+            for (uint32 x = 0; x < cluster_tile_count_x; ++x)
+            {
+                const uint32 tile_id = x + y * cluster_tile_count_x;
+                InterlockedOr(tile_mask_buffer_uav[tile_id * LIGHT_BITMASK_UINT32_COUNT + word_index], bit);
+            }
         }
     }
-}
-
-[numthreads(CLUSTER_TILE_SIZE, CLUSTER_TILE_SIZE, 1)]
-void main_cs(
-    uint32_3 group_id : SV_GroupID, // (tile_x, tile_y, depth_slice)
-    uint32_3 group_thread_id : SV_GroupThreadID,
-    uint32 group_index : SV_GroupIndex)      // 0..255 (16x16)
-{
-    uint32 cluster_id = group_id.x
-                      + group_id.y * cluster_tile_count_x
-                      + group_id.z * cluster_tile_count_x * cluster_tile_count_y;
-    
-    // init shared memory
-    if (group_index == 0)
+    else
     {
-        shared_light_count = 0;
-        shared_global_offset = 0;
+        const float4 light_pos_clip = mul(view_proj, float4(pos, 1));
+        const float2 light_pos_ndc = light_pos_clip.xy / light_pos_clip.w;
         
-        const float2 tile_min_screen = float2(group_id.x, group_id.y) * CLUSTER_TILE_SIZE;
-        const float2 tile_max_screen = float2(group_id.x + 1, group_id.y + 1) * CLUSTER_TILE_SIZE;
-    
-        const float2 tile_min_ndc = screen_to_ndc(tile_min_screen, inv_backbuffer_size);
-        const float2 tile_max_ndc = screen_to_ndc(tile_max_screen, inv_backbuffer_size);
-    
-    // slice_depth(i) = near * (far/near) ^ (i/slices)
-        static const float inv_depth_slices = 1.0f / float(CLUSTER_DEPTH_SLICE_COUNT);
-        const float slice_near = cluster_near_z * exp2(float(group_id.z) * cluster_log_far_near_ratio * inv_depth_slices);
-        const float slice_far = cluster_near_z * exp2(float(group_id.z + 1) * cluster_log_far_near_ratio * inv_depth_slices);
+        const float projected_radius = range * dist / sqrt(dist * dist - range * range);
         
-        float4 c0 = mul(view_proj_inv, float4(tile_min_ndc.x, tile_min_ndc.y, 1, 1));
-        float4 c1 = mul(view_proj_inv, float4(tile_max_ndc.x, tile_min_ndc.y, 1, 1));
-        float4 c2 = mul(view_proj_inv, float4(tile_min_ndc.x, tile_max_ndc.y, 1, 1));
-        float4 c3 = mul(view_proj_inv, float4(tile_max_ndc.x, tile_max_ndc.y, 1, 1));
-        c0 /= c0.w;
-        c1 /= c1.w;
-        c2 /= c2.w;
-        c3 /= c3.w;
-    
-        const float3 cam_to_aabb_corner_ld_dir = normalize(c0.xyz - camera_pos);
-        const float3 cam_to_aabb_corner_rd_dir = normalize(c1.xyz - camera_pos);
-        const float3 cam_to_aabb_corner_lu_dir = normalize(c2.xyz - camera_pos);
-        const float3 cam_to_aabb_corner_ru_dir = normalize(c3.xyz - camera_pos);
-    
-        const float3 p0 = camera_pos + cam_to_aabb_corner_ld_dir * (slice_near / safe_dot_camera_forward(cam_to_aabb_corner_ld_dir));
-        const float3 p1 = camera_pos + cam_to_aabb_corner_rd_dir * (slice_near / safe_dot_camera_forward(cam_to_aabb_corner_rd_dir));
-        const float3 p2 = camera_pos + cam_to_aabb_corner_lu_dir * (slice_near / safe_dot_camera_forward(cam_to_aabb_corner_lu_dir));
-        const float3 p3 = camera_pos + cam_to_aabb_corner_ru_dir * (slice_near / safe_dot_camera_forward(cam_to_aabb_corner_ru_dir));
-        const float3 p4 = camera_pos + cam_to_aabb_corner_ld_dir * (slice_far / safe_dot_camera_forward(cam_to_aabb_corner_ld_dir));
-        const float3 p5 = camera_pos + cam_to_aabb_corner_rd_dir * (slice_far / safe_dot_camera_forward(cam_to_aabb_corner_rd_dir));
-        const float3 p6 = camera_pos + cam_to_aabb_corner_lu_dir * (slice_far / safe_dot_camera_forward(cam_to_aabb_corner_lu_dir));
-        const float3 p7 = camera_pos + cam_to_aabb_corner_ru_dir * (slice_far / safe_dot_camera_forward(cam_to_aabb_corner_ru_dir));
-    
-        shared_aabb_min = min(min(min(p0, p1), min(p2, p3)), min(min(p4, p5), min(p6, p7)));
-        shared_aabb_max = max(max(max(p0, p1), max(p2, p3)), max(max(p4, p5), max(p6, p7)));
-    }
-    
-    GroupMemoryBarrierWithGroupSync();
+        const float4 light_right_clip = mul(view_proj, float4(pos + camera_right * projected_radius, 1));
+        const float2 light_right_ndc = light_right_clip.xy / light_right_clip.w;
+        
+        const float light_radius_ndc = length(light_right_ndc - light_pos_ndc);
 
-    // --- iterate lights, intersection test ---
-    static const uint32 thread_count = CLUSTER_TILE_SIZE * CLUSTER_TILE_SIZE; // 256
-    
-    // point lights — 256 threads divide the work
-    for (uint32 point_light_idx = group_index; point_light_idx < point_light_count; point_light_idx += thread_count)
-    {
-        const point_light light = point_light_buffer[point_light_idx];
-        const bool hit = sphere_aabb_intersect(light.position, light.range, shared_aabb_min, shared_aabb_max);
+        const float2 ndc_min = light_pos_ndc - float2(light_radius_ndc, light_radius_ndc);
+        const float2 ndc_max = light_pos_ndc + float2(light_radius_ndc, light_radius_ndc);
         
-        append_to_shared_light_list(hit, pack_light_index(0, point_light_idx));
-    }
-    
-    // spot lights
-    for (uint32 spot_light_idx = group_index; spot_light_idx < spot_light_count; spot_light_idx += thread_count)
-    {
-        const spot_light light = spot_light_buffer[spot_light_idx];
-        const float3 end_center = light.position + light.direction * light.range;
-        const float3 sphere_center = (light.position + end_center) * 0.5;
-        const float sphere_radius = light.range * 0.5;
-        const bool hit = sphere_aabb_intersect(sphere_center, sphere_radius, shared_aabb_min, shared_aabb_max);
+        const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
+        const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);
         
-        append_to_shared_light_list(hit, pack_light_index(1, spot_light_idx));
-    }
-    
-    GroupMemoryBarrierWithGroupSync();
+        const float2 screen_min = float2(screen_a.x, screen_b.y);
+        const float2 screen_max = float2(screen_b.x, screen_a.y);
 
-    // allocate global space and write cluster info
-    uint32 count = min(shared_light_count, CLUSTER_MAX_LIGHT_COUNT_PER_CLUSTER);
+        const uint32 tile_min_x = clamp(int32(screen_min.x) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
+        const uint32 tile_max_x = clamp(int32(screen_max.x) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_x - 1));
+        const uint32 tile_min_y = clamp(int32(screen_min.y) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
+        const uint32 tile_max_y = clamp(int32(screen_max.y) / CLUSTER_TILE_SIZE, 0, int32(cluster_tile_count_y - 1));
+       
 
-    if (group_index == 0)
-    {
-        if (count > 0)
+        for (uint32 y = tile_min_y; y <= tile_max_y; ++y)
         {
-            InterlockedAdd(global_counter[0], count, shared_global_offset);
-        }
-        
-        cluster_light_info_buffer_uav[cluster_id].offset = shared_global_offset;
-        cluster_light_info_buffer_uav[cluster_id].count = count;
-    }
-    
-    GroupMemoryBarrierWithGroupSync();
-
-    // copy shared list to global list
-    for (uint32 i = group_index; i < count; i += thread_count)
-    {
-        uint32 idx = shared_global_offset + i;
-        if (idx < MAX_GLOBAL_LIGHT_INDEX_COUNT)
-        {
-            global_light_index_buffer_uav[idx] = shared_light_indices[i];
+            for (uint32 x = tile_min_x; x <= tile_max_x; ++x)
+            {
+                const uint32 tile_id = x + y * cluster_tile_count_x;
+                InterlockedOr(tile_mask_buffer_uav[tile_id * LIGHT_BITMASK_UINT32_COUNT + word_index], bit);
+            }
         }
     }
 }

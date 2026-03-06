@@ -6,6 +6,8 @@ static const float epsilon_1e6 = 0.000001f;
 static const float sqrt_2	   = 1.41421356f;
 static const float sqrt_2_inv  = 0.70710678f;
 
+static const uint32 invalid_id_uint32 = 0xffffffff;
+
 float
 int8_to_float(uint32 raw)
 {
@@ -204,7 +206,8 @@ select32_nth_set_bit(const uint32 mask, const uint32 n)
 	uint32 byte_mask = (mask >> (byte_idx * 8u)) & 0xFFu;
 
 	uint32 pos_in_byte = firstbitlow(byte_mask);
-	[unroll] for (uint32 i = 0; i < 8; ++i)
+	UNROLL
+	for (uint32 i = 0; i < 8; ++i)
 	{
 		if (i < local_n)
 		{
@@ -216,6 +219,14 @@ select32_nth_set_bit(const uint32 mask, const uint32 n)
 	return byte_idx * 8u + pos_in_byte;
 }
 
+uint32
+float_to_sortable(float f)
+{
+	uint32 bits = asuint(f);
+	uint32 mask = (bits & 0x80000000) ? 0xFFFFFFFF : 0x80000000;
+	return bits ^ mask;
+}
+
 float2
 screen_to_ndc(float2 screen_pos, float2 inv_backbuffer_size)
 {
@@ -224,10 +235,30 @@ screen_to_ndc(float2 screen_pos, float2 inv_backbuffer_size)
 	return ndc;
 }
 
+float2
+ndc_xy_to_screen(float2 ndc_xy, float2 screen_size)
+{
+	return float2(ndc_xy.x * 0.5 + 0.5, -ndc_xy.y * 0.5 + 0.5) * screen_size;
+}
+
 bool
 sphere_aabb_intersect(float3 sphere_position, float sphere_range, float3 aabb_min, float3 aabb_max)
 {
 	const float3 closest = clamp(sphere_position, aabb_min, aabb_max);
 	const float3 diff	 = sphere_position - closest;
 	return dot(diff, diff) <= sphere_range * sphere_range;
+}
+
+bool
+sphere_frustum_test(float3 center, float radius, float4 frustum_planes[6])
+{
+	UNROLL
+	for (uint32 i = 0; i < 6; i++)
+	{
+		if (dot(frustum_planes[i], float4(center, 1.f)) < -radius)
+		{
+			return false;
+		}
+	}
+	return true;
 }

@@ -403,13 +403,22 @@ namespace age::graphics::shader::e
 
 					fx_present_ps,
 
+					forward_plus_init_cs,
+
 					forward_plus_depth_ms,
 
 					forward_plus_light_cull_cs,
-					forward_plus_light_sort_cs,
+					forward_plus_light_sort_gen_keys_cs,
+					forward_plus_light_sort_histogram_cs,
+					forward_plus_light_sort_prefix_cs,
+					forward_plus_light_sort_scatter_cs,
+
 					forward_plus_light_zbin_cs,
 
 					forward_plus_light_culling_cs,
+
+					forward_plus_gen_light_tile_mask_ms,
+					forward_plus_gen_light_tile_mask_ps,
 
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,

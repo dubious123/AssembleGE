@@ -248,6 +248,20 @@ namespace age::graphics::defaults
 			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
 		};
 
+		inline constexpr auto no_cull_conservative = D3D12_RASTERIZER_DESC{
+			D3D12_FILL_MODE_SOLID,						  // FillMode
+			D3D12_CULL_MODE_NONE,						  // CullMode
+			0,											  // FrontCounterClockwise
+			0,											  // DepthBias
+			0,											  // DepthBiasClamp
+			0,											  // SlopeScaledDepthBias
+			1,											  // DepthClipEnable
+			1,											  // MultisampleEnable
+			0,											  // AntialiasedLineEnable
+			0,											  // ForcedSampleCount
+			D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON,	  // ConservativeRaster
+		};
+
 		inline constexpr auto backface_cull = D3D12_RASTERIZER_DESC{
 			D3D12_FILL_MODE_SOLID,						  // FillMode
 			D3D12_CULL_MODE_BACK,						  // CullMode

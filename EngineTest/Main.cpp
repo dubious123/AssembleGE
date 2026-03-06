@@ -64,10 +64,10 @@ main()
 		AGE_LAMBDA(
 			(),
 			{
-				constexpr uint32 light_count = 1000;
-				constexpr float	 scene_min	 = -10.0f;
-				constexpr float	 scene_max	 = 10.0f;
-				constexpr float	 range		 = 3.0f;
+				constexpr uint32 light_count = 5000;
+				constexpr float	 scene_min	 = -15.0f;
+				constexpr float	 scene_max	 = 15.0f;
+				constexpr float	 range		 = 6.0f;
 				constexpr float	 intensity	 = 0.3f;
 
 				auto rng		= std::mt19937{ 42 };
@@ -89,7 +89,7 @@ main()
 		// yellow spot top down onto scene center
 		identity{ age::graphics::render_pipeline::forward_plus::shared_type::spot_light{
 			.position  = float3{ 0.0f, 12.0f, 0.0f },
-			.range	   = 25.0f,
+			.range	   = 6.0f,
 			.direction = float3{ 0.0f, -1.0f, 0.0f },
 			.intensity = 10.0f,
 			.color	   = float3{ 1.0f, 0.9f, 0.6f },

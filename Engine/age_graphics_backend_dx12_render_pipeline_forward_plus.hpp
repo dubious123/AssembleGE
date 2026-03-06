@@ -3,6 +3,40 @@
 
 namespace age::graphics::render_pipeline::forward_plus
 {
+	struct init_stage
+	{
+		graphics::pso::handle h_pso = {};
+		ID3D12PipelineState*  p_pso = nullptr;
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept
+		{
+			using namespace graphics::pso;
+
+			h_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_init_cs) }) });
+
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
+		}
+
+		inline void
+		execute(t_cmd_list& cmd_list, uint32 tile_total_uint32_count) noexcept
+		{
+			{
+				cmd_list.SetPipelineState(p_pso);
+
+				cmd_list.Dispatch((tile_total_uint32_count + 255) / 256, 1, 1);
+			}
+		}
+
+		inline void
+		deinit() noexcept
+		{
+			pso::destroy(h_pso);
+		}
+	};
+
 	struct depth_stage
 	{
 		dsv_desc_handle h_depth_buffer_dsv_desc;
@@ -77,12 +111,26 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct light_culling_stage_new
 	{
-		graphics::pso::handle h_pso_cull = {};
-		ID3D12PipelineState*  p_pso_cull = nullptr;
-		graphics::pso::handle h_pso_sort = {};
-		ID3D12PipelineState*  p_pso_sort = nullptr;
-		graphics::pso::handle h_pso_zbin = {};
-		ID3D12PipelineState*  p_pso_zbin = nullptr;
+		graphics::pso::handle h_pso_cull;
+		ID3D12PipelineState*  p_pso_cull;
+
+		graphics::pso::handle h_pso_sort_gen_keys;
+		ID3D12PipelineState*  p_pso_sort_gen_keys;
+
+		graphics::pso::handle h_pso_sort_histogram;
+		ID3D12PipelineState*  p_pso_sort_histogram;
+
+		graphics::pso::handle h_pso_sort_prefix;
+		ID3D12PipelineState*  p_pso_sort_prefix;
+
+		graphics::pso::handle h_pso_sort_scatter;
+		ID3D12PipelineState*  p_pso_sort_scatter;
+
+		graphics::pso::handle h_pso_zbin;
+		ID3D12PipelineState*  p_pso_zbin;
+
+		graphics::pso::handle h_pso_tile_mask;
+		ID3D12PipelineState*  p_pso_tile_mask;
 
 		inline void
 		init(graphics::root_signature::handle h_root_sig) noexcept
@@ -95,27 +143,108 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
 
-			h_pso_sort = graphics::pso::create(
+			h_pso_sort_gen_keys = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_cs) }) });
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_gen_keys_cs) }) });
 
-			p_pso_sort = graphics::g::pso_ptr_vec[h_pso_sort];
+			p_pso_sort_gen_keys = graphics::g::pso_ptr_vec[h_pso_sort_gen_keys];
+
+			h_pso_sort_histogram = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_histogram_cs) }) });
+
+			p_pso_sort_histogram = graphics::g::pso_ptr_vec[h_pso_sort_histogram];
+
+			h_pso_sort_prefix = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_prefix_cs) }) });
+
+			p_pso_sort_prefix = graphics::g::pso_ptr_vec[h_pso_sort_prefix];
+
+			h_pso_sort_scatter = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_scatter_cs) }) });
+
+			p_pso_sort_scatter = graphics::g::pso_ptr_vec[h_pso_sort_scatter];
 
 			h_pso_zbin = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_zbin_cs) }) });
 
 			p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
+
+			h_pso_tile_mask = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_gen_light_tile_mask_ms) }) },
+				pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_gen_light_tile_mask_ps) }) },
+				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{}, .NumRenderTargets = 0 } },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull_conservative },
+				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+				pss_node_mask{ .subobj = 0 });
+
+			p_pso_tile_mask = graphics::g::pso_ptr_vec[h_pso_tile_mask];
 		}
 
 		inline void
-		execute(t_cmd_list& cmd_list, uint32 light_count) noexcept
+		execute(t_cmd_list&					cmd_list,
+				graphics::resource_barrier& barrier,
+				ID3D12Resource&				global_light_idx_buffer,
+				ID3D12Resource&				frame_data_rw_buffer,
+				ID3D12Resource&				sort_buffer,
+				ID3D12Resource&				zbin_buffer,
+				ID3D12Resource&				tile_mask_buffer,
+				uint32						light_count) noexcept
 		{
-			cmd_list.SetPipelineState(p_pso_cull);
-
 			if (light_count > 0)
 			{
-				cmd_list.Dispatch((light_count + LIGHT_CULL_CS_THREAD_COUNT - 1) / LIGHT_CULL_CS_THREAD_COUNT, 1, 1);
+				cmd_list.SetPipelineState(p_pso_cull);
+				cmd_list.Dispatch((light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
+
+				barrier.add_uav(global_light_idx_buffer);
+				barrier.add_uav(frame_data_rw_buffer);
+				barrier.apply_and_reset(cmd_list);
+
+				cmd_list.SetPipelineState(p_pso_sort_gen_keys);
+				cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+				barrier.add_uav(sort_buffer);
+				barrier.apply_and_reset(cmd_list);
+
+				for (uint32 pass : std::views::iota(0u) | std::views::take(4))
+				{
+					cmd_list.SetComputeRoot32BitConstants(
+						binding_config_t::reg_b<1>::slot_id,
+						sizeof(uint32) / 4,
+						&pass,
+						offsetof(shared_type::root_constants, light_radix_sort_pass) / 4);
+
+					cmd_list.SetPipelineState(p_pso_sort_histogram);
+					cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					barrier.add_uav(sort_buffer);
+					barrier.apply_and_reset(cmd_list);
+
+					cmd_list.SetPipelineState(p_pso_sort_prefix);
+					cmd_list.Dispatch(1, 1, 1);
+					barrier.add_uav(sort_buffer);
+					barrier.apply_and_reset(cmd_list);
+
+					cmd_list.SetPipelineState(p_pso_sort_scatter);
+					cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					barrier.add_uav(sort_buffer);
+					barrier.apply_and_reset(cmd_list);
+				}
+
+				cmd_list.SetPipelineState(p_pso_zbin);
+				cmd_list.Dispatch(g::light_sort_cs_max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+
+				barrier.add_uav(zbin_buffer);
+				// barrier.apply_and_reset(cmd_list);
+
+				// cmd_list.SetPipelineState(p_pso_tile_mask);
+
+				// cmd_list.DispatchMesh(g::light_sort_cs_max_visible_light_count / 4, 1, 1);
+				barrier.add_uav(tile_mask_buffer);
+				barrier.apply_and_reset(cmd_list);
 			}
 		}
 
@@ -123,8 +252,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept
 		{
 			pso::destroy(h_pso_cull);
-			pso::destroy(h_pso_sort);
+
+			pso::destroy(h_pso_sort_gen_keys);
+			pso::destroy(h_pso_sort_histogram);
+			pso::destroy(h_pso_sort_prefix);
+			pso::destroy(h_pso_sort_scatter);
+
 			pso::destroy(h_pso_zbin);
+			pso::destroy(h_pso_tile_mask);
 		}
 	};
 
@@ -336,6 +471,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			float3				  pos;
 			float3				  forward;
+			float3				  right;
 			float4x4			  view_proj;
 			float4x4			  view_proj_inv;
 			std::array<float4, 6> frustom_plane_arr;
@@ -346,26 +482,33 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32 light_culling_tile_count_x = (extent.width + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
 		uint32 light_culling_tile_count_y = (extent.height + g::light_culling_cluster_tile_size - 1) / g::light_culling_cluster_tile_size;
 
-		resource_handle h_main_buffer  = {};
-		resource_handle h_depth_buffer = {};
+		resource_handle h_main_buffer;
+		resource_handle h_depth_buffer;
 
-		resource_handle h_global_light_index_buffer = {};
-		resource_handle h_cluster_light_data_buffer = {};
+		ID3D12Resource* p_main_buffer;
+		ID3D12Resource* p_depth_buffer;
 
-		ID3D12Resource* p_main_buffer  = nullptr;
-		ID3D12Resource* p_depth_buffer = nullptr;
+		resource_handle h_global_light_index_buffer;
+		resource_handle h_light_sort_buffer;
+		resource_handle h_cluster_light_data_buffer;
+		resource_handle h_zbin_buffer;
+		resource_handle h_tile_mask_buffer;
 
-		ID3D12Resource* p_global_light_index_buffer = nullptr;
-		ID3D12Resource* p_cluster_light_info_buffer = nullptr;
+		ID3D12Resource* p_global_light_index_buffer;
+		ID3D12Resource* p_light_sort_buffer;
+		ID3D12Resource* p_cluster_light_info_buffer;
+		ID3D12Resource* p_zbin_buffer;
+		ID3D12Resource* p_tile_mask_buffer;
 
-		graphics::root_signature::handle h_root_sig = {};
-		ID3D12RootSignature*			 p_root_sig = nullptr;
+		graphics::root_signature::handle h_root_sig;
+		ID3D12RootSignature*			 p_root_sig;
 
-		depth_stage				stage_depth{};
-		light_culling_stage_new stage_light_culling_new{};
-		light_culling_stage		stage_light_culling{};
-		opaque_stage			stage_opaque{};
-		presentation_stage		stage_presentation{};
+		init_stage				stage_init;
+		depth_stage				stage_depth;
+		light_culling_stage_new stage_light_culling_new;
+		light_culling_stage		stage_light_culling;
+		opaque_stage			stage_opaque;
+		presentation_stage		stage_presentation;
 
 		binding_config_t::reg_b<0> frame_data_buffer;
 		binding_config_t::reg_b<1> root_constants;
@@ -382,19 +525,33 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_u<0> global_light_index_buffer_uav;
 		binding_config_t::reg_u<1> cluster_light_info_buffer_uav;
+		binding_config_t::reg_u<2> frame_data_rw_buffer;
 
-		binding_config_t::reg_u<2> global_counter_buffer;
+		binding_config_t::reg_u<0, 3> light_sort_buffer_uav;
+		binding_config_t::reg_t<0, 3> light_sort_buffer_srv;
+		binding_config_t::reg_u<1, 3> zbin_buffer_uav;
+		binding_config_t::reg_t<1, 3> zbin_buffer_srv;
 
-		resource::mapping_handle h_mapping_frame_data		  = {};
-		resource::mapping_handle h_mapping_job_data_buffer	  = {};
-		resource::mapping_handle h_mapping_object_data_buffer = {};
-		resource::mapping_handle h_mapping_mesh_buffer		  = {};
+		binding_config_t::reg_u<2, 3> tile_mask_buffer_uav;
+		binding_config_t::reg_t<2, 3> tile_mask_buffer_srv;
 
-		resource::mapping_handle h_mapping_directional_light_buffer = {};
-		resource::mapping_handle h_mapping_point_light_buffer		= {};
-		resource::mapping_handle h_mapping_spot_light_buffer		= {};
 
-		resource::mapping_handle h_mapping_global_counter_buffer = {};
+		binding_config_t::reg_u<7, 7> debug_buffer_uav;
+
+
+		resource::mapping_handle h_mapping_frame_data;
+		resource::mapping_handle h_mapping_job_data_buffer;
+		resource::mapping_handle h_mapping_object_data_buffer;
+		resource::mapping_handle h_mapping_mesh_buffer;
+
+		resource::mapping_handle h_mapping_directional_light_buffer;
+		resource::mapping_handle h_mapping_point_light_buffer;
+		resource::mapping_handle h_mapping_spot_light_buffer;
+
+		resource::mapping_handle h_mapping_frame_data_rw_buffer;
+
+
+		resource::mapping_handle h_mapping_debug_buffer_uav;
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
@@ -489,6 +646,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				return camera_data{
 					.pos			   = desc.pos,
 					.forward		   = xm_forward | simd::to<float3>(),
+					.right			   = simd::g::xm_right_f4 | simd::rotate3(xm_quat) | simd::to<float3>(),
 					.view_proj		   = xm_view_proj | simd::to<float4x4>(),
 					.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
 					.frustom_plane_arr = frustom_plane_arr

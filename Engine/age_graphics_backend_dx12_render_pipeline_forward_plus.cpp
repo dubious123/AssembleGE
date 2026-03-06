@@ -27,8 +27,15 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_point_light_buffer	   = resource::create_buffer_committed(sizeof(shared_type::point_light) * max_point_light_count);
 			h_mapping_spot_light_buffer		   = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_spot_light_count);
 
-			h_mapping_global_counter_buffer = resource::create_buffer_committed(
-				sizeof(uint32) * graphics::g::frame_buffer_count,
+			h_mapping_frame_data_rw_buffer = resource::create_buffer_committed(
+				sizeof(shared_type::frame_data_rw) * graphics::g::frame_buffer_count,
+				nullptr,
+				resource::e::memory_kind::cpu_to_gpu_direct,
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+			h_mapping_debug_buffer_uav = resource::create_buffer_committed(
+				sizeof(shared_type::debug_77) * graphics::g::frame_buffer_count,
 				nullptr,
 				resource::e::memory_kind::cpu_to_gpu_direct,
 				D3D12_RESOURCE_STATE_COMMON,
@@ -52,15 +59,20 @@ namespace age::graphics::render_pipeline::forward_plus
 			point_light_buffer.bind(h_mapping_point_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 			spot_light_buffer.bind(h_mapping_spot_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
-			global_counter_buffer.bind(h_mapping_global_counter_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(uint32) * 0, 0);
-			global_counter_buffer.bind(h_mapping_global_counter_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(uint32) * 1, 1);
-			global_counter_buffer.bind(h_mapping_global_counter_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(uint32) * 2, 2);
+			frame_data_rw_buffer.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 0, 0);
+			frame_data_rw_buffer.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 1, 1);
+			frame_data_rw_buffer.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 2, 2);
+
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 0, 0);
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 1, 1);
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 2, 2);
 		}
 
 
 		h_main_buffer_srv_desc	= graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_depth_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 
+		stage_init.init(h_root_sig);
 		stage_depth.init(h_root_sig);
 		stage_light_culling_new.init(h_root_sig);
 		stage_light_culling.init(h_root_sig);
@@ -72,15 +84,26 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			global_light_index_buffer_uav.bind(p_global_light_index_buffer->GetGPUVirtualAddress());
-			cluster_light_info_buffer_uav.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 			global_light_index_buffer_srv.bind(p_global_light_index_buffer->GetGPUVirtualAddress());
+
+			cluster_light_info_buffer_uav.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 			cluster_light_info_buffer_srv.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
+
+			light_sort_buffer_uav.bind(p_light_sort_buffer->GetGPUVirtualAddress());
+			light_sort_buffer_srv.bind(p_light_sort_buffer->GetGPUVirtualAddress());
+
+			zbin_buffer_uav.bind(p_zbin_buffer->GetGPUVirtualAddress());
+			zbin_buffer_srv.bind(p_zbin_buffer->GetGPUVirtualAddress());
+
+			tile_mask_buffer_uav.bind(p_tile_mask_buffer->GetGPUVirtualAddress());
+			tile_mask_buffer_srv.bind(p_tile_mask_buffer->GetGPUVirtualAddress());
 		}
 	}
 
 	void
 	pipeline::deinit() noexcept
 	{
+		stage_init.deinit();
 		stage_presentation.deinit();
 		stage_light_culling.deinit();
 		stage_opaque.deinit();
@@ -100,13 +123,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_directional_light_buffer);
 		resource::unmap_and_release(h_mapping_point_light_buffer);
 		resource::unmap_and_release(h_mapping_spot_light_buffer);
-		resource::unmap_and_release(h_mapping_global_counter_buffer);
+		resource::unmap_and_release(h_mapping_frame_data_rw_buffer);
+
+
+		resource::unmap_and_release(h_mapping_debug_buffer_uav);
+
 
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
 		resource::release_resource(h_global_light_index_buffer);
+		resource::release_resource(h_light_sort_buffer);
 		resource::release_resource(h_cluster_light_data_buffer);
+
+		resource::release_resource(h_zbin_buffer);
+		resource::release_resource(h_tile_mask_buffer);
 
 		AGE_ASSERT(object_count == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
@@ -138,6 +169,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			resize_resolution_dependent_buffers(new_extent);
 			cluster_light_info_buffer_uav.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
 			cluster_light_info_buffer_srv.bind(p_cluster_light_info_buffer->GetGPUVirtualAddress());
+
+			tile_mask_buffer_srv.bind(p_tile_mask_buffer->GetGPUVirtualAddress());
+			tile_mask_buffer_uav.bind(p_tile_mask_buffer->GetGPUVirtualAddress());
 		}
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
@@ -170,10 +204,25 @@ namespace age::graphics::render_pipeline::forward_plus
 			point_light_buffer.apply_compute(cmd_list);
 			spot_light_buffer.apply_compute(cmd_list);
 
-			global_counter_buffer.apply_compute(cmd_list);
+			frame_data_rw_buffer.apply(cmd_list);
+			frame_data_rw_buffer.apply_compute(cmd_list);
 
 			global_light_index_buffer_uav.apply_compute(cmd_list);
 			cluster_light_info_buffer_uav.apply_compute(cmd_list);
+
+			light_sort_buffer_srv.apply(cmd_list);
+			light_sort_buffer_uav.apply_compute(cmd_list);
+
+			zbin_buffer_srv.apply(cmd_list);
+			zbin_buffer_uav.apply_compute(cmd_list);
+
+			tile_mask_buffer_srv.apply(cmd_list);
+
+			tile_mask_buffer_uav.apply(cmd_list);
+			tile_mask_buffer_uav.apply_compute(cmd_list);
+
+			debug_buffer_uav.apply(cmd_list);
+			debug_buffer_uav.apply_compute(cmd_list);
 		}
 
 
@@ -247,10 +296,12 @@ namespace age::graphics::render_pipeline::forward_plus
 					.view_proj_inv			= cam_data.view_proj_inv,
 					.camera_pos				= cam_data.pos,
 					.time					= dt_ms,
-					.frame_index			= age::global::get<runtime::interface>().frame_count(),
 					.inv_backbuffer_size	= float2{ 1.f / extent.width, 1.f / extent.height },
+					.backbuffer_size		= float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
+					.camera_forward			= cam_data.forward,
+					.frame_index			= age::global::get<runtime::interface>().frame_count(),
+					.camera_right			= cam_data.right,
 					.main_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
-					.camera_forward			= cam_data.forward
 				};
 
 				std::ranges::copy(cam_data.frustom_plane_arr, frame_d.frustum_planes);
@@ -282,6 +333,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			}
 		}
 
+		stage_init.execute(cmd_list, light_culling_tile_count_x * light_culling_tile_count_y * g::light_bitmask_uint32_count);
+
 		stage_depth.execute(cmd_list, total_job_count);
 
 		barrier.add_transition(*p_depth_buffer,
@@ -292,16 +345,39 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		{
-			auto light_count = static_cast<uint32>(point_light_id_arr.size() + spot_light_id_arr.size());
-			stage_light_culling_new.execute(cmd_list, light_count);
+			// #if 1
+			//		auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
+			//		std::println("{},{},{},{},{},{},{},{},{},{}",
+			//					 ptr->tile_min_x,
+			//					 ptr->tile_max_x,
+			//					 ptr->tile_min_y,
+			//					 ptr->tile_max_y,
+			//					 ptr->screen_min.x,
+			//					 ptr->screen_min.y,
+			//					 ptr->screen_max.x,
+			//					 ptr->screen_max.y,
+			//					 ptr->backbuffer_size.x,
+			//					 ptr->backbuffer_size.y);
+			// #endif
+
+			c_auto light_count = static_cast<uint32>(point_light_id_arr.size() + spot_light_id_arr.size());
+			stage_light_culling_new.execute(cmd_list,
+											barrier,
+											*p_global_light_index_buffer,
+											*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+											*p_light_sort_buffer,
+											*p_zbin_buffer,
+											*p_tile_mask_buffer,
+											light_count);
 		}
 
 
 		{
-			c_auto zero = 0u;
-			std::memcpy(h_mapping_global_counter_buffer->ptr + sizeof(uint32) * graphics::g::frame_buffer_idx, &zero, sizeof(uint32));
+			// c_auto fame_data_rw_zero = shared_type::frame_data_rw{};
 
-			stage_light_culling.execute(cmd_list, light_culling_tile_count_x, light_culling_tile_count_y);
+			// std::memcpy(h_mapping_frame_data_rw_buffer->ptr + sizeof(shared_type::frame_data_rw) * graphics::g::frame_buffer_idx, &fame_data_rw_zero, sizeof(shared_type::frame_data_rw));
+
+			// stage_light_culling.execute(cmd_list, light_culling_tile_count_x, light_culling_tile_count_y);
 
 			barrier.add_uav(*p_global_light_index_buffer);
 			barrier.add_uav(*p_cluster_light_info_buffer);
@@ -374,6 +450,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .has_clear_value	   = false });
 
 		p_cluster_light_info_buffer = h_cluster_light_data_buffer->p_resource;
+
+		h_tile_mask_buffer = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(uint32) * light_culling_tile_count_x * light_culling_tile_count_y * g::light_bitmask_uint32_count),
+			  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
+			  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+
+		p_tile_mask_buffer = h_tile_mask_buffer->p_resource;
 	}
 
 	void
@@ -388,6 +472,20 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		p_global_light_index_buffer = h_global_light_index_buffer->p_resource;
+
+		h_light_sort_buffer = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::sort_buffer_total_byte_size),
+			  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
+			  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+		p_light_sort_buffer = h_light_sort_buffer->p_resource;
+
+		h_zbin_buffer = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::z_slice_count * sizeof(shared_type::zbin_entry)),
+			  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
+			  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+		p_zbin_buffer = h_zbin_buffer->p_resource;
 	}
 
 	void
@@ -402,6 +500,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_depth_buffer);
 
 		resource::release_resource(h_cluster_light_data_buffer);
+
+		resource::release_resource(h_tile_mask_buffer);
 
 		create_resolution_dependent_buffers();
 	}

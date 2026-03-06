@@ -140,7 +140,7 @@ void main_cs(
     {
         if (count > 0)
         {
-            InterlockedAdd(global_counter[0], count, shared_global_offset);
+            InterlockedAdd(frame_data_rw_buffer[0].generic_counter, count, shared_global_offset);
         }
         
         cluster_light_info_buffer_uav[cluster_id].offset = shared_global_offset;

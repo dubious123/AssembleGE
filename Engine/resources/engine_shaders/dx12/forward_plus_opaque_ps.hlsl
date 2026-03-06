@@ -82,7 +82,7 @@ float3 calc_blinn_phong_spot_light_color(spot_light light, float3 surface_pos, f
 }
 
 float4
-main_ps1(opaque_ms_to_ps fragment): SV_Target0
+main_ps_(opaque_ms_to_ps fragment): SV_Target0
 {
     const float3 ambient_light = float3(0.03, 0.03, 0.03);
     
@@ -130,50 +130,55 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     
     const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
-    // calculate cluster index
     const uint32 tile_x = uint32(fragment.pos.x) / CLUSTER_TILE_SIZE;
     const uint32 tile_y = uint32(fragment.pos.y) / CLUSTER_TILE_SIZE;
-
-    //const float linear_depth = length(fragment.world_pos - camera_pos);
+    const uint32 tile_id = tile_x + tile_y * cluster_tile_count_x;
     
-    const float linear_depth = dot(fragment.world_pos - camera_pos, camera_forward);
-    
-    const uint32 slice = uint32(log2(linear_depth / cluster_near_z) * CLUSTER_DEPTH_SLICE_COUNT / cluster_log_far_near_ratio);
-    const uint32 clamped_slice = clamp(slice, 0, CLUSTER_DEPTH_SLICE_COUNT - 1);
-
-    const uint32 cluster_id = tile_x
-                            + tile_y * cluster_tile_count_x
-                            + clamped_slice * cluster_tile_count_x * cluster_tile_count_y;
-
-    // read cluster light info
-    const cluster_light_info info = cluster_light_info_buffer_srv[cluster_id];
-
     float3 lighting = ambient_light;
-
-    // directional lights — still brute force (1-2 lights)
-    for (uint32 d = 0; d < directional_light_count; ++d)
+    
+    for (uint d = 0; d < directional_light_count; ++d)
     {
         lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
+    
+    const float linear_depth = dot(fragment.world_pos - camera_pos, camera_forward);
+    
+    const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
+    
+    const uint32 z_min = zbin_buffer_srv[bin].min_idx;
+    const uint32 z_max = zbin_buffer_srv[bin].max_idx;
 
-    // clustered lights
-    for (uint32 i = 0; i < info.count; ++i)
+    const uint32 wave_z_min = WaveActiveMin(z_min);
+    const uint32 wave_z_max = WaveActiveMax(z_max);
+    
+    const uint32 word_begin = wave_z_min / 32;
+    const uint32 word_end = wave_z_max / 32;
+
+    for (uint32 w = word_begin; w <= word_end; ++w)
     {
-        const uint32 packed = global_light_index_buffer_srv[info.offset + i];
-        const uint32 light_type = unpack_light_type(packed);
-        const uint32 light_index = unpack_light_index(packed);
+        uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
+        bit_mask = WaveActiveBitOr(bit_mask);
 
-        if (light_type == LIGHT_TYPE_POINT)
+        while (bit_mask != 0)
         {
-            lighting += calc_blinn_phong_point_light_color(point_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
-        }
-        else if (light_type == LIGHT_TYPE_SPOT)
-        {
-            lighting += calc_blinn_phong_spot_light_color(spot_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
+            const uint32 bit = firstbitlow(bit_mask);
+            const uint32 sorted_id = w * 32 + bit;
+            bit_mask &= ~(1u << bit);
+
+            const uint32 packed = sort_buffer_srv[LIGHT_SORT_CS_SORT_VALUES_OFFSET + sorted_id];
+            const uint32 light_type = unpack_light_type(packed);
+            const uint32 light_index = unpack_light_index(packed);
+
+            if (light_type == LIGHT_TYPE_POINT)
+            {
+                lighting += calc_blinn_phong_point_light_color(point_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
+            }
+            else if (light_type == LIGHT_TYPE_SPOT)
+            {
+                lighting += calc_blinn_phong_spot_light_color(spot_light_buffer[light_index], fragment.world_pos, surface_normal, view_dir);
+            }
         }
     }
-    
-    //return float4(get_random_color(clamped_slice), 1.f);
 
     return float4(lighting * albedo, 1.0f);
 }

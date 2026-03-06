@@ -100,7 +100,7 @@ namespace age::graphics::shader
 				L"-T", target.data(),
 				L"-I", dir_path.c_str(),
 				L"-Qstrip_reflect",
-				L"-Qstrip_debug",
+				// L"-Qstrip_debug",
 				L"-enable-16bit-types",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
 	#if defined(AGE_DEBUG)

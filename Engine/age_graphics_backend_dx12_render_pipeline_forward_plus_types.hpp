@@ -118,12 +118,68 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<1>>,
 
 		binding_slot<
-			"global_light_counter_uav",
+			"frame_data_rw_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer_array<uint32>,
+			what::rw_structured_buffer_array<shared_type::frame_data_rw>,
 			how::root_descriptor,
 			where::u<2>>,
+
+		binding_slot<
+			"sort_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer<uint32>,
+			how::root_descriptor,
+			where::u<0, 3>>,
+
+		binding_slot<
+			"sort_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<uint32>,
+			how::root_descriptor,
+			where::t<0, 3>>,
+
+		binding_slot<
+			"zbin_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer<shared_type::zbin_entry>,
+			how::root_descriptor,
+			where::u<1, 3>>,
+
+		binding_slot<
+			"zbin_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::zbin_entry>,
+			how::root_descriptor,
+			where::t<1, 3>>,
+
+		binding_slot<
+			"tile_mask_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer<uint32>,
+			how::root_descriptor,
+			where::u<2, 3>>,
+
+		binding_slot<
+			"tile_mask_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::structured_buffer<uint32>,
+			how::root_descriptor,
+			where::t<2, 3>>,
+
+		binding_slot<
+			"debug_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer_array<shared_type::debug_77>,
+			how::root_descriptor,
+			where::u<7, 7>>,
 
 		binding_slot<
 			"linear_clamp_sampler",
