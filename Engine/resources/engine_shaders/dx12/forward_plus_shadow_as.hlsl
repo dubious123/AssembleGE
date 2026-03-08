@@ -9,34 +9,23 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
     const float3 scale = (float3)obj_data.scale;
     const float3 pos = obj_data.pos;
     
-    //1. frustum culling using meshlet shpere   
-    
     const float3 sphere_center =
               rotate(((float3)m_header.aabb_min + (float3)m_header.aabb_size * 0.5f) * scale, quaternion)
             + pos;
         
     const float sphere_radius = length((float3)m_header.aabb_size * 0.5f) * max(max(scale.x, scale.y), scale.z);
     
+    const shadow_light light = shadow_light_buffer[shadow_light_index];
+    
     [unroll]
     for (uint i = 0; i < 6; ++i)
     {
-        if (calc_point_to_plane_distance(sphere_center, frustum_planes[i]) < -sphere_radius)
+        if (calc_point_to_plane_distance(sphere_center, light.frustum_planes[i]) < -sphere_radius)
         {
             return false;
         }
     }
-    
-    // 2. cone culling
-    const float3 cone_axis_world = rotate(decode_oct_snorm(m_header.cone_axis_oct), quaternion);
-    const float cone_cutoff = snorm8_to_float(m_header.cone_cull_cutoff_and_extra & 0xffu);
-    const float3 center_to_cam = sphere_center - camera_pos;
-    const float dist = length(center_to_cam);
 
-    if (dot(center_to_cam, cone_axis_world) >= cone_cutoff * dist + sphere_radius)
-    {
-        return false;
-    }
-    
     return true;
 }
 
@@ -69,7 +58,6 @@ void main_as(
     const uint32_4 ballot = WaveActiveBallot(visible);
     uint32 visible_mask = ballot.x;
 
-    
     if (WaveIsFirstLane())
     {
         as_out.meshlet_32_group_idx = group_id.x;

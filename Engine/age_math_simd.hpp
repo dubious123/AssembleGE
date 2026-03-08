@@ -208,11 +208,26 @@ namespace age::math::simd
 		return __load__{};
 	}
 
+	struct __replicate__
+	{
+		FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+		operator()(const float& v) const noexcept
+		{
+			return DirectX::XMVectorReplicate(v);
+		}
+	};
+
 	FORCE_INLINE
 	xm_vec AGE_SIMD_CALL
-	load_vec_replicate(const float& f) noexcept
+	replicate(const float& f) noexcept
 	{
 		return DirectX::XMVectorReplicate(f);
+	}
+
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+	replicate() noexcept
+	{
+		return __replicate__{};
 	}
 }	 // namespace age::math::simd
 
@@ -328,6 +343,10 @@ namespace age::math::simd
 	AGE_SIMD_VEC_UNARY_OP(length_square4, XMVector4LengthSq);
 	AGE_SIMD_VEC_UNARY_OP(length_square3, XMVector3LengthSq);
 	AGE_SIMD_VEC_UNARY_OP(length_square2, XMVector2LengthSq);
+
+	AGE_SIMD_VEC_UNARY_OP(length_4, XMVector4Length);
+	AGE_SIMD_VEC_UNARY_OP(length_3, XMVector3Length);
+	AGE_SIMD_VEC_UNARY_OP(length_2, XMVector2Length);
 
 	AGE_SIMD_VEC_UNARY_OP(plane_normalize, XMPlaneNormalize);
 
@@ -624,6 +643,51 @@ namespace age::math::simd
 		return DirectX::XMMatrixInverse(p_det, m);
 	};
 
+	struct __transform4__
+	{
+		fxm_vec __vec__;
+
+		__forceinline decltype(auto) __vectorcall
+		operator()(fxm_mat mat) const noexcept
+		{
+			return DirectX::XMVector4Transform(__vec__, simd::mat_transpose(mat));
+		}
+	};
+
+	__forceinline decltype(auto) __vectorcall
+	transform4(fxm_vec vec) noexcept
+	{
+		return __transform4__{ vec };
+	}
+
+	__forceinline decltype(auto) __vectorcall
+	transform4(fxm_mat mat, fxm_vec vec) noexcept
+	{
+		return DirectX::XMVector4Transform(vec, simd::mat_transpose(mat));
+	};
+
+	struct __transform3__
+	{
+		fxm_vec __vec__;
+
+		__forceinline decltype(auto) __vectorcall
+		operator()(fxm_mat mat) const noexcept
+		{
+			return DirectX::XMVector3Transform(__vec__, simd::mat_transpose(mat));
+		}
+	};
+
+	__forceinline decltype(auto) __vectorcall
+	transform3(fxm_vec vec) noexcept
+	{
+		return __transform3__{ vec };
+	}
+
+	__forceinline decltype(auto) __vectorcall
+	transform3(fxm_mat mat, fxm_vec vec) noexcept
+	{
+		return DirectX::XMVector3Transform(vec, simd::mat_transpose(mat));
+	};
 }	 // namespace age::math::simd
 
 namespace age::math::simd
@@ -680,6 +744,31 @@ namespace age::math::simd
 				 fxm_vec eye_up) noexcept
 	{
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixLookToLH(eye_pos, eye_dir, eye_up));
+	}
+
+	struct __translation__
+	{
+		float x;
+		float y;
+
+		FORCE_INLINE xm_mat AGE_SIMD_CALL
+		operator()(float z) noexcept
+		{
+			return DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(x, y, z));
+		}
+	};
+
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+	translation(float x,
+				float y) noexcept
+	{
+		return __translation__{ x, y };
+	}
+
+	FORCE_INLINE xm_mat AGE_SIMD_CALL
+	translation(float x, float y, float z) noexcept
+	{
+		return DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(x, y, z));
 	}
 }	 // namespace age::math::simd
 

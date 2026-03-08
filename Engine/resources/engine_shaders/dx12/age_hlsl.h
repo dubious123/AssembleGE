@@ -1,4 +1,5 @@
 #pragma once
+
 #define AGE_HLSL
 #define SYS_VAL(name) : name
 #define REG(...) : register(__VA_ARGS__)

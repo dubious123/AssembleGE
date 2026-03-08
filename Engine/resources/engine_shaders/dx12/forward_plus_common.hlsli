@@ -28,11 +28,16 @@ RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3,
 StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space3);
 
 
+StructuredBuffer<shadow_light> shadow_light_buffer : register(t4, space3);
+
+
 
 RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);
 
 
 SamplerState linear_clamp_sampler : register(s0);
+
+SamplerComparisonState shadow_sampler : register(s1);
 
 uint32 depth_to_bin(float linear_depth)
 {

@@ -83,11 +83,11 @@ void main_cs(uint32_3 group_id : SV_GroupID,
         tile_mask_buffer_uav[offset + j] = shared_bitmask[j];
     }
     
-    if (tile_id < 100 && group_thread_id == 0)
-    {
-        uint32 total = 0;
-        for (uint32 k = 0; k < LIGHT_BITMASK_UINT32_COUNT; ++k)
-            total += countbits(shared_bitmask[k]);
-        debug_buffer[0].tile_bit_mask_arr[tile_id] = total;
-    }
+    //if (tile_id < 100 && group_thread_id == 0)
+    //{
+    //    uint32 total = 0;
+    //    for (uint32 k = 0; k < LIGHT_BITMASK_UINT32_COUNT; ++k)
+    //        total += countbits(shared_bitmask[k]);
+    //    debug_buffer[0].tile_bit_mask_arr[tile_id] = total;
+    //}
 }

@@ -47,7 +47,7 @@ main()
 			.pos		= float3{ 0.f, 0.5f, -4.f },
 			.quaternion = age::g::quaternion_identity,
 			.near_z		= 0.01f,
-			.far_z		= 1000.f,
+			.far_z		= 100.f,
 			.perspective{
 				.fov_y		  = age::cvt_to_radian(75.f),
 				.aspect_ratio = 16.f / 9.f } } }
@@ -55,9 +55,9 @@ main()
 			| AGE_FUNC(camera_vec.emplace_back),
 
 		// sun diagonal from upper right, illuminates entire scene
-		identity{ age::graphics::render_pipeline::forward_plus::shared_type::directional_light{
-			.direction = age::normalize(float3{ 1.0f, -1.0f, 1.f }),
-			.intensity = 0.5f,
+		identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
+			.direction = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
+			.intensity = 0.3f,
 			.color	   = float3{ 1.0f, 0.95f, 0.85f } } }
 			| AGE_FUNC(forward_plus_pipeline.add_directional_light),
 
@@ -118,15 +118,35 @@ main()
 		AGE_LAMBDA(
 			(),
 			{
-				for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-5, 5), std::views::iota(-5, 5), std::views::iota(-5, 5)))
-				{
-					auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
-						.pos		= float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
-						.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
-						.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
-					};
+				// for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-5, 5), std::views::iota(-5, 5), std::views::iota(-5, 5)))
+				//{
+				//	auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
+				//		.pos		= float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
+				//		.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
+				//		.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
+				//	};
 
-					obj_id_vec.emplace_back(forward_plus_pipeline.add_object(data));
+				//	obj_id_vec.emplace_back(forward_plus_pipeline.add_object(data));
+				//}
+
+				auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
+					.pos		= float3{ 0, -5, 0 },
+					.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
+					.scale		= age::cvt_to<half3>(float3{ 50.0f, 0.1f, 50.0f })
+				};
+				obj_id_vec.emplace_back(forward_plus_pipeline.add_object(data));
+
+				for (int x = -2; x <= 2; ++x)
+				{
+					for (int z = -2; z <= 2; ++z)
+					{
+						auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
+							.pos		= float3{ x * 4.0f, 0.0f, z * 4.0f },
+							.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
+							.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
+						};
+						obj_id_vec.emplace_back(forward_plus_pipeline.add_object(data));
+					}
 				}
 			}),
 

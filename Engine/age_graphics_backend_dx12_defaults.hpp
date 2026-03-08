@@ -193,6 +193,24 @@ namespace age::graphics::defaults
 					.ResourceMinLODClamp = 0.0f }
 			};
 		}
+
+		FORCE_INLINE decltype(auto)
+		tex2d_array(DXGI_FORMAT format, uint32 array_size, uint32 mip_levels = 1) noexcept
+		{
+			AGE_ASSERT(mip_levels > 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = format,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE2DARRAY,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Texture2DArray			 = D3D12_TEX2D_ARRAY_SRV{
+					.MostDetailedMip	 = 0,
+					.MipLevels			 = mip_levels,
+					.FirstArraySlice	 = 0,
+					.ArraySize			 = array_size,
+					.PlaneSlice			 = 0,
+					.ResourceMinLODClamp = 0.0f }
+			};
+		}
 	}	 // namespace srv_view_desc
 
 	namespace uav_view_desc
@@ -303,6 +321,27 @@ namespace age::graphics::defaults
 			0,											  // ForcedSampleCount
 			D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,	  // ConservativeRaster
 		};
+
+		// final_bias = depth_bias * epsilon + slope_scaled_bias * max(|dz/dx|, |dz/dy|) // bias_clamp == 0.f
+		// final_bias = min(depth_bias * epsilon + slope_scaled_bias * max(|dz/dx|, |dz/dy|), bias_clamp) // bias_clamp > 0
+		// final_bias = max(depth_bias * epsilon + slope_scaled_bias * max(|dz/dx|, |dz/dy|), bias_clamp) // bias_clamp < 0
+		FORCE_INLINE decltype(auto)
+		shadow_depth_bias(int32 depth_bias = 1000, float slope_scaled_bias = 2.0f, float bias_clamp = 0.0f) noexcept
+		{
+			return D3D12_RASTERIZER_DESC{
+				D3D12_FILL_MODE_SOLID,
+				D3D12_CULL_MODE_BACK,
+				FALSE,
+				depth_bias,
+				bias_clamp,
+				slope_scaled_bias,
+				TRUE,
+				FALSE,
+				FALSE,
+				0,
+				D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+			};
+		}
 	}	 // namespace rasterizer_desc
 
 	namespace depth_stencil_desc1
@@ -545,6 +584,27 @@ namespace age::graphics::defaults::static_sampler_desc
 			/*UINT							*/ .RegisterSpace	 = register_space,
 			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
 			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	shadow_cmp(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			.Filter			  = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+			.AddressU		  = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			.AddressV		  = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			.AddressW		  = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			.MipLODBias		  = 0.0f,
+			.MaxAnisotropy	  = 1,
+			.ComparisonFunc	  = D3D12_COMPARISON_FUNC_GREATER_EQUAL,	// reverse-z
+			.BorderColor	  = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			.MinLOD			  = 0.f,
+			.MaxLOD			  = D3D12_FLOAT32_MAX,
+			.ShaderRegister	  = register_index,
+			.RegisterSpace	  = register_space,
+			.ShaderVisibility = shader_visibility,
+			.Flags			  = sampler_flags
 		};
 	}
 }	 // namespace age::graphics::defaults::static_sampler_desc

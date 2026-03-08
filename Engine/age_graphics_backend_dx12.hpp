@@ -151,6 +151,12 @@ namespace age::graphics
 
 		uint32
 		calc_idx(t_descriptor_handle _) noexcept;
+
+		FORCE_INLINE uint32
+		count() noexcept
+		{
+			return capacity - desc_idx_pool.free_count;
+		}
 	};
 
 	void
@@ -406,6 +412,9 @@ namespace age::graphics::shader::e
 					forward_plus_init_cs,
 
 					forward_plus_depth_ms,
+
+					forward_plus_shadow_as,
+					forward_plus_shadow_ms,
 
 					forward_plus_light_cull_cs,
 					forward_plus_light_sort_gen_keys_cs,

@@ -155,6 +155,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<3, 3>>,
 
 		binding_slot<
+			"shadow_light_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::shadow_light>,
+			how::root_descriptor,
+			where::t<4, 3>>,
+
+		binding_slot<
 			"debug_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
@@ -168,7 +176,15 @@ namespace age::graphics::render_pipeline::forward_plus
 			D3D12_SHADER_VISIBILITY_PIXEL,
 			what::sampler<defaults::static_sampler_desc::linear_clamp>,
 			how::static_sampler,
-			where::s<0>>>;
+			where::s<0>>,
+
+		binding_slot<
+			"shadow_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::sampler<defaults::static_sampler_desc::shadow_cmp>,
+			how::static_sampler,
+			where::s<1>>>;
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
 // descriptors
@@ -197,5 +213,50 @@ namespace age::graphics::render_pipeline::forward_plus
 				float view_height;
 			} orthographic;
 		};
+	};
+
+	struct camera_data
+	{
+		float3				  pos;
+		float3				  forward;
+		float3				  right;
+		float4x4			  view_proj;
+		float4x4			  view_proj_inv;
+		std::array<float4, 6> frustum_plane_arr;
+	};
+
+	struct mesh_data
+	{
+		t_mesh_id id;
+		uint32	  offset;
+		uint32	  byte_size;
+		uint32	  meshlet_count;
+	};
+
+	struct unified_light_data
+	{
+		t_unified_light_id id;
+		t_shadow_light_id  shadow_light_count = 0;
+		t_shadow_light_id  shadow_light_offset;
+	};
+
+	struct directional_light_desc
+	{
+		float3 direction;	 // 12
+		float  intensity;	 // 4
+		float3 color;		 // 12
+	};	  // 28 bytes
+
+	struct directional_light_data
+	{
+		directional_light_desc desc;
+		t_directional_light_id id;
+		t_shadow_light_id	   shadow_light_count = 0;
+		t_shadow_light_id	   shadow_light_offset;
+	};
+
+	struct shadow_light_header
+	{
+		uint8 slice_index;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

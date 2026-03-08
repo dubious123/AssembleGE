@@ -13,6 +13,12 @@ void main_cs(uint32 sorted_id : SV_DispatchThreadID)
     
     const t_unified_light_id light_id = sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + sorted_id];
     
+    //todo
+    if (light_id == invalid_id_uint32)
+    {
+        return;
+    }
+    
     const unified_light light = unified_light_buffer[light_id];
         
     unified_sorted_light_buffer_uav[sorted_id] = light;

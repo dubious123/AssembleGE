@@ -32,6 +32,8 @@ namespace age::graphics::resource
 	void
 	deinit() noexcept
 	{
+		AGE_ASSERT(g::resource_mapping_vec.is_empty(), "all mapping should be unmapped");
+		AGE_ASSERT(g::resource_vec.is_empty(), "all resource should be released");
 		for (auto& m : g::resource_mapping_vec)
 		{
 			m.h_resource->p_resource->Unmap(0, nullptr);

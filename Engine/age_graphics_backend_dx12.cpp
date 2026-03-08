@@ -15,9 +15,9 @@ namespace age::graphics
 
 			p_debug->EnableDebugLayer();
 
-			// #if 1
-			//		p_debug->SetEnableGPUBasedValidation(true);
-			// #endif
+	#if 1
+			p_debug->SetEnableGPUBasedValidation(true);
+	#endif
 
 			p_debug->Release();
 		}
@@ -132,6 +132,11 @@ namespace age::graphics
 		}
 
 		{
+			AGE_ASSERT(g::sampler_desc_pool.count() == 0);
+			AGE_ASSERT(g::cbv_srv_uav_desc_pool.count() == 0);
+			AGE_ASSERT(g::dsv_desc_pool.count() == 0);
+			AGE_ASSERT(g::rtv_desc_pool.count() == 0);
+
 			g::sampler_desc_pool.deinit();
 			g::cbv_srv_uav_desc_pool.deinit();
 			g::dsv_desc_pool.deinit();

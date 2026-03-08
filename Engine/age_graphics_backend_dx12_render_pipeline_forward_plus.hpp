@@ -81,7 +81,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept
 		{
-			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
+			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
 
 			cmd_list.BeginRenderPass(
 				0,			// no render targets
@@ -109,7 +109,112 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 	};
 
-	struct light_culling_stage_new
+	struct shadow_stage
+	{
+		graphics::pso::handle h_pso;
+		ID3D12PipelineState*  p_pso;
+
+		dsv_desc_handle h_shadow_atlas_dsv_desc;
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept
+		{
+			using namespace graphics::pso;
+
+			h_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_as{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_as) }) },
+				pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_ms) }) },
+				// no PS
+				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{}, .NumRenderTargets = 0 } },
+				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+				pss_rasterizer{ .subobj = defaults::rasterizer_desc::shadow_depth_bias(-g::shadow_depth_bias, -g::shadow_slope_bias) },
+				pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+				pss_node_mask{ .subobj = 0 });
+
+			p_pso = graphics::g::pso_ptr_vec[h_pso];
+
+			h_shadow_atlas_dsv_desc = graphics::g::dsv_desc_pool.pop();
+		}
+
+		inline void
+		bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept
+		{
+			resource::create_view(h_shadow_atlas,
+								  h_shadow_atlas_dsv_desc,
+								  defaults::dsv_view_desc::d32_float_2d);
+		}
+
+		inline void
+		execute(t_cmd_list& cmd_list, const data_structure::stable_dense_vector<shadow_light_header>& shadow_light_header_vec, uint32 job_count) noexcept
+		{
+			if (job_count == 0) [[unlikely]]
+			{
+				return;
+			}
+
+
+			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_shadow_atlas_dsv_desc, 0.f);
+
+			cmd_list.BeginRenderPass(
+				0,			// no render targets
+				nullptr,	// no render targets
+				&render_pass_ds_desc,
+				D3D12_RENDER_PASS_FLAG_NONE);
+
+			cmd_list.SetPipelineState(p_pso);
+
+			for (auto&& [i, header] : shadow_light_header_vec | std::views::enumerate)
+			{
+				uint32 slice_index = header.slice_index;
+
+				c_auto col	   = slice_index % g::shadow_atlas_seg_u;
+				c_auto row	   = slice_index / g::shadow_atlas_seg_u;
+				c_auto atlas_x = col * g::shadow_map_width;
+				c_auto atlas_y = row * g::shadow_map_height;
+
+				c_auto viewport = D3D12_VIEWPORT{
+					(float)atlas_x, (float)atlas_y,
+					(float)g::shadow_map_width, (float)g::shadow_map_height,
+					0.0f, 1.0f
+				};
+				c_auto scissor = D3D12_RECT{
+					(LONG)atlas_x,
+					(LONG)atlas_y,
+					(LONG)(atlas_x + g::shadow_map_width),
+					(LONG)(atlas_y + g::shadow_map_height)
+				};
+
+				cmd_list.RSSetViewports(1, &viewport);
+				cmd_list.RSSetScissorRects(1, &scissor);
+
+				cmd_list.SetGraphicsRoot32BitConstants(
+					binding_config_t::reg_b<1>::slot_id,
+					sizeof(uint32) / 4,
+					&slice_index,
+					offsetof(shared_type::root_constants, shadow_light_index) / 4);
+
+				if (job_count > 0) [[likely]]
+				{
+					cmd_list.DispatchMesh((job_count + 31u) / 32u, 1, 1);
+				}
+			}
+
+			cmd_list.EndRenderPass();
+		}
+
+		inline void
+		deinit() noexcept
+		{
+			pso::destroy(h_pso);
+
+			graphics::g::dsv_desc_pool.push(h_shadow_atlas_dsv_desc);
+		}
+	};
+
+	struct light_culling_stage
 	{
 		graphics::pso::handle h_pso_cull;
 		ID3D12PipelineState*  p_pso_cull;
@@ -420,24 +525,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct pipeline
 	{
-		struct mesh_data
-		{
-			t_mesh_id id;
-			uint32	  offset;
-			uint32	  byte_size;
-			uint32	  meshlet_count;
-		};
-
-		struct camera_data
-		{
-			float3				  pos;
-			float3				  forward;
-			float3				  right;
-			float4x4			  view_proj;
-			float4x4			  view_proj_inv;
-			std::array<float4, 6> frustom_plane_arr;
-		};
-
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
@@ -454,13 +541,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_zbin_buffer;
 		resource_handle h_tile_mask_buffer;
 
+		resource_handle h_shadow_atlas;
+		ID3D12Resource* p_shadow_atlas;
+
 		ID3D12Resource* p_culled_light_buffer;
 		ID3D12Resource* p_light_sort_buffer;
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
-
-		resource_handle h_unified_light_buffer;
-		ID3D12Resource* p_unified_light_buffer;
 
 		resource_handle h_unified_sorted_light_buffer;
 		ID3D12Resource* p_unified_sorted_light_buffer;
@@ -468,11 +555,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
 
-		init_stage				stage_init;
-		depth_stage				stage_depth;
-		light_culling_stage_new stage_light_culling_new;
-		opaque_stage			stage_opaque;
-		presentation_stage		stage_presentation;
+		init_stage			stage_init;
+		depth_stage			stage_depth;
+		shadow_stage		stage_shadow;
+		light_culling_stage stage_light_culling;
+		opaque_stage		stage_opaque;
+		presentation_stage	stage_presentation;
 
 		binding_config_t::reg_b<0> frame_data_buffer;
 		binding_config_t::reg_b<1> root_constants;
@@ -498,9 +586,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<3, 3> unified_sorted_light_buffer_uav;
 		binding_config_t::reg_t<3, 3> unified_sorted_light_buffer_srv;
 
+		binding_config_t::reg_t<4, 3> shadow_light_buffer;
 
 		binding_config_t::reg_u<7, 7> debug_buffer_uav;
-
 
 		resource::mapping_handle h_mapping_frame_data;
 		resource::mapping_handle h_mapping_job_data_buffer;
@@ -513,12 +601,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource::mapping_handle h_mapping_frame_data_rw_buffer;
 
+		resource::mapping_handle h_mapping_shadow_light_buffer;
 
 		resource::mapping_handle h_mapping_debug_buffer_uav;
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_depth_buffer_srv_desc;
+
+		srv_desc_handle h_shadow_atlas_srv_desc;
 
 		resource_barrier barrier;
 
@@ -536,9 +627,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		shared_type::job_data job_array[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
 		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
-		data_structure::sparse_vector<t_directional_light_id> directional_light_id_arr;
+		data_structure::stable_dense_vector<directional_light_data> directional_light_data_vec;
 
-		data_structure::sparse_vector<t_unified_light_id> unified_light_id_arr;
+		data_structure::sparse_vector<unified_light_data> unified_light_data_vec;
+
+		data_structure::stable_dense_vector<shadow_light_header> shadow_light_header_vec;
+
+		std::array<shared_type::shadow_light, g::max_shadow_light_count> shadow_light_arr;
+
+		std::array<float, g::directional_shadow_cascade_count + 1> cascade_splits;
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -595,7 +692,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			c_auto xm_view_proj		= xm_proj * xm_view;
 			c_auto xm_view_proj_inv = xm_view_proj | simd::mat_inv();
 
-			c_auto frustom_plane_arr = std::array{
+			c_auto frustum_plane_arr = std::array{
 				xm_view_proj.r[3] | simd::add(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// left
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// right
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[1]) | simd::plane_normalize() | simd::to<float4>(),	// top
@@ -612,7 +709,7 @@ namespace age::graphics::render_pipeline::forward_plus
 					.right			   = simd::g::xm_right_f4 | simd::rotate3(xm_quat) | simd::to<float3>(),
 					.view_proj		   = xm_view_proj | simd::to<float4x4>(),
 					.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
-					.frustom_plane_arr = frustom_plane_arr
+					.frustum_plane_arr = frustum_plane_arr
 				};
 			}
 			else
@@ -645,6 +742,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			camera_data_vec[id] = calc_camera_data<true>(desc);
 			camera_desc_vec[id] = desc;
+
+			for (auto&& [i, split] : cascade_splits | std::views::enumerate)
+			{
+				const float t		  = static_cast<float>(i) / g::directional_shadow_cascade_count;
+				const float safe_near = std::max(desc.near_z, 0.1f);
+				const float log_t	  = safe_near * std::pow(desc.far_z / safe_near, t);
+				split				  = log_t * 0.5f + (safe_near + t * (desc.far_z - safe_near)) * 0.5f;
+			}
+
+			cascade_splits[0] = desc.near_z;
 		}
 
 		void
@@ -656,29 +763,69 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		void
-		update_directional_light(t_directional_light_id id, const shared_type::directional_light& data) noexcept
+		update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept
 		{
+			auto& data = directional_light_data_vec[id];
+			data.desc  = desc;
+
+			auto dl = shared_type::directional_light{
+				.direction = desc.direction,
+				.intensity = desc.intensity,
+				.color	   = desc.color,
+				.shadow_id = data.shadow_light_offset,
+			};
+
 			std::memcpy(h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * id,
-						&data,
+						&dl,
 						sizeof(shared_type::directional_light));
 		}
 
 		t_directional_light_id
-		add_directional_light(const shared_type::directional_light& data) noexcept
+		add_directional_light(const directional_light_desc& desc, bool cast_shadow = true) noexcept
 		{
-			c_auto id = static_cast<t_directional_light_id>(
-				directional_light_id_arr.emplace_back(
-					static_cast<t_directional_light_id>(directional_light_id_arr.size())));
+			c_auto id = static_cast<t_directional_light_id>(directional_light_data_vec.count());
 
-			update_directional_light(id, data);
 
-			return static_cast<t_directional_light_id>(id);
+			auto data = directional_light_data{
+				.desc = desc,
+				.id	  = id
+			};
+
+			if (cast_shadow)
+			{
+				// shadow_light_buffer
+				c_auto shadow_id = static_cast<t_shadow_light_id>(shadow_light_header_vec.count());
+
+				data.shadow_light_offset = shadow_id;
+
+				directional_light_data_vec.emplace_back(data);
+
+				for (auto i : std::views::iota(shadow_id) | std::views::take(g::directional_shadow_cascade_count))
+				{
+					shadow_light_header_vec.emplace_back(shadow_light_header{
+						.slice_index = i });
+				}
+			}
+			else
+			{
+				directional_light_data_vec.emplace_back(data);
+			}
+
+			update_directional_light(id, desc);
+
+			return id;
 		}
 
 		void
 		remove_directional_light(t_directional_light_id& id) noexcept
 		{
-			directional_light_id_arr.remove(id);
+			c_auto& data = directional_light_data_vec[id];
+			for (auto i : std::views::iota(data.shadow_light_offset) | std::views::take(data.shadow_light_count))
+			{
+				shadow_light_header_vec.remove(i);
+			}
+
+			directional_light_data_vec.remove(id);
 
 			id = age::get_invalid_id<t_directional_light_id>();
 		}
@@ -692,11 +839,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		t_unified_light_id
-		add_point_light(const shared_type::point_light& data) noexcept
+		add_point_light(const shared_type::point_light& data, bool cast_shadow = false) noexcept
 		{
-			c_auto id = static_cast<t_unified_light_id>(
-				unified_light_id_arr.emplace_back(
-					static_cast<t_unified_light_id>(unified_light_id_arr.size())));
+			c_auto id = static_cast<t_unified_light_id>(unified_light_data_vec.size());
+			unified_light_data_vec.emplace_back(unified_light_data{ .id = id });
 
 			c_auto light = shared_type::unified_light{
 				.position  = data.position,
@@ -713,11 +859,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		t_unified_light_id
-		add_spot_light(const shared_type::spot_light& data) noexcept
+		add_spot_light(const shared_type::spot_light& data, bool cast_shadow = false) noexcept
 		{
-			c_auto id = static_cast<t_unified_light_id>(
-				unified_light_id_arr.emplace_back(
-					static_cast<t_unified_light_id>(unified_light_id_arr.size())));
+			c_auto id = static_cast<t_unified_light_id>(unified_light_data_vec.size());
+			unified_light_data_vec.emplace_back(unified_light_data{ .id = id });
 
 			c_auto light = shared_type::unified_light{
 				.position  = data.position,
@@ -736,7 +881,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		remove_unified_light(t_unified_light_id& id) noexcept
 		{
-			unified_light_id_arr.remove(id);
+			unified_light_data_vec.remove(id);
 			id = age::get_invalid_id<t_unified_light_id>();
 		}
 

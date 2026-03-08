@@ -127,7 +127,7 @@ namespace age::graphics::shader
 			p_result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&p_error), nullptr);
 	#pragma warning(default : 6387)
 
-			if (p_error is_not_nullptr)
+			if (p_error is_not_nullptr and p_error->GetBufferSize() > 0)
 			{
 				std::println("{}", p_error->GetStringPointer());
 

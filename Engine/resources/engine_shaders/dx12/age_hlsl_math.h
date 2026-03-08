@@ -1,5 +1,4 @@
 #pragma once
-#include "age_hlsl.h"
 
 static const float epsilon_1e4 = 0.0001f;
 static const float epsilon_1e6 = 0.000001f;
@@ -261,4 +260,10 @@ sphere_frustum_test(float3 center, float radius, float4 frustum_planes[6])
 		}
 	}
 	return true;
+}
+
+float
+calc_point_to_plane_distance(float3 pos, float4 plane)
+{
+	return dot(pos, plane.xyz) + plane.w;
 }

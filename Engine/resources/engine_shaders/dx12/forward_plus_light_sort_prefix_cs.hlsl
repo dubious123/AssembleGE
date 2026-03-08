@@ -10,7 +10,7 @@ void main_cs(uint32 group_thread_id : SV_GroupThreadID,
 {
     const uint32 group_count = MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT;
     
-    // for each bin 0x??
+    // for each bin 0xXX
     uint32 bin_total = 0;
     for (uint32 group_id = 0; group_id < group_count; ++group_id)
     {
