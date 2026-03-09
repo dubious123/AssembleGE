@@ -40,3 +40,22 @@
 #define uint8_4 uint8_t4
 
 #include "age_hlsl_math.h"
+
+#define DECLARE_CALC_THREAD_GROUP_PREFIX_SUM(thread_count)                                                  \
+	groupshared uint32 __age_hlsl_prefix_sum_arr__[thread_count];                                           \
+	uint32 calc_thread_group_prefix_sum(uint32 thread_local, uint32 thread_id)                              \
+	{                                                                                                       \
+		uint32		 wave_prefix = WavePrefixSum(thread_local);                                             \
+		const uint32 wave_id	 = thread_id / WaveGetLaneCount();                                          \
+		if (WaveGetLaneIndex() == WaveGetLaneCount() - 1)                                                   \
+		{                                                                                                   \
+			__age_hlsl_prefix_sum_arr__[wave_id] = wave_prefix + thread_local;                              \
+		}                                                                                                   \
+		GroupMemoryBarrierWithGroupSync();                                                                  \
+		if (wave_id == 0)                                                                                   \
+		{                                                                                                   \
+			__age_hlsl_prefix_sum_arr__[thread_id] = WavePrefixSum(__age_hlsl_prefix_sum_arr__[thread_id]); \
+		}                                                                                                   \
+		GroupMemoryBarrierWithGroupSync();                                                                  \
+		return __age_hlsl_prefix_sum_arr__[wave_id] + wave_prefix;                                          \
+	}

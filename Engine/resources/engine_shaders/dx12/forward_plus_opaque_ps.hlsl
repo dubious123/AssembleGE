@@ -176,6 +176,7 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
         float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, directional_light_buffer[d].shadow_id);
         shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
         lighting += shadow * calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
+        lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
     
     for (uint32 w = word_begin; w <= word_end; ++w)
@@ -194,6 +195,28 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
             lighting += calc_blinn_phong_light_color(unified_sorted_light_buffer_srv[sorted_id], fragment.world_pos, surface_normal, view_dir);
         }
     }
+    //uint32 loop_count = 0;
+    //for (uint32 w = word_begin; w <= word_end; ++w)
+    //{
+    //    const uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
+    
+    //    uint32 wave_mask = WaveActiveBitOr(bit_mask);
+
+    //    while (wave_mask != 0)
+    //    {
+    //        const uint32 bit = firstbitlow(wave_mask);
+    //        wave_mask &= ~(1u << bit);
+        
+    //        if (bit_mask & (1u << bit))
+    //        {
+    //            const uint32 sorted_id = w * 32 + bit;
+            
+    //            const unified_light light = unified_sorted_light_buffer_srv[sorted_id];
+    //            lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+    //        }
+    //    }
+    //}
+    
     
     return float4(lighting * albedo, 1.0f);
 }

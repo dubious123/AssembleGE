@@ -4,7 +4,7 @@
 
 groupshared uint32 shared_bitmask[LIGHT_BITMASK_UINT32_COUNT];
 
-[numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
+[numthreads(LIGHT_SORT_THREAD_COUNT, 1, 1)]
 void main_cs(uint32_3 group_id : SV_GroupID,
              uint32 group_thread_id : SV_GroupThreadID)
 {
@@ -12,8 +12,8 @@ void main_cs(uint32_3 group_id : SV_GroupID,
     const uint32 tile_y = group_id.y;
     const uint32 tile_id = tile_y * cluster_tile_count_x + tile_x;
     
-    [unroll(LIGHT_BITMASK_UINT32_COUNT / LIGHT_SORT_CS_THREAD_COUNT)]
-    for (uint32 i = group_thread_id; i < LIGHT_BITMASK_UINT32_COUNT; i += LIGHT_SORT_CS_THREAD_COUNT)
+    [unroll(LIGHT_BITMASK_UINT32_COUNT / LIGHT_SORT_THREAD_COUNT)]
+    for (uint32 i = group_thread_id; i < LIGHT_BITMASK_UINT32_COUNT; i += LIGHT_SORT_THREAD_COUNT)
     {
         shared_bitmask[i] = 0;
     }
@@ -21,7 +21,7 @@ void main_cs(uint32_3 group_id : SV_GroupID,
     
     const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
     
-    for (uint32 sorted_id = group_thread_id; sorted_id < visible_count; sorted_id += LIGHT_SORT_CS_THREAD_COUNT)
+    for (uint32 sorted_id = group_thread_id; sorted_id < visible_count; sorted_id += LIGHT_SORT_THREAD_COUNT)
     {
         const unified_light light = unified_sorted_light_buffer_uav[sorted_id];
         
@@ -77,17 +77,9 @@ void main_cs(uint32_3 group_id : SV_GroupID,
     GroupMemoryBarrierWithGroupSync();
     const uint32 offset = tile_id * LIGHT_BITMASK_UINT32_COUNT;
    
-    [unroll(LIGHT_BITMASK_UINT32_COUNT / LIGHT_SORT_CS_THREAD_COUNT)]
-    for (uint32 j = group_thread_id; j < LIGHT_BITMASK_UINT32_COUNT; j += LIGHT_SORT_CS_THREAD_COUNT)
+    [unroll(LIGHT_BITMASK_UINT32_COUNT / LIGHT_SORT_THREAD_COUNT)]
+    for (uint32 j = group_thread_id; j < LIGHT_BITMASK_UINT32_COUNT; j += LIGHT_SORT_THREAD_COUNT)
     {
         tile_mask_buffer_uav[offset + j] = shared_bitmask[j];
     }
-    
-    //if (tile_id < 100 && group_thread_id == 0)
-    //{
-    //    uint32 total = 0;
-    //    for (uint32 k = 0; k < LIGHT_BITMASK_UINT32_COUNT; ++k)
-    //        total += countbits(shared_bitmask[k]);
-    //    debug_buffer[0].tile_bit_mask_arr[tile_id] = total;
-    //}
 }

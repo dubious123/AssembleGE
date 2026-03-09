@@ -551,17 +551,7 @@ namespace age::graphics::render_pipeline::forward_plus
 							   D3D12_RESOURCE_STATE_DEPTH_WRITE,
 							   D3D12_RESOURCE_STATE_DEPTH_READ | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-		barrier.apply_and_reset(cmd_list);
-
-
 		{
-			// #if 1
-			//		auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
-			//		auto  arr = std::span<uint32, 100>(ptr->tile_bit_mask_arr);
-			//		std::println("{}",
-			//					 arr);
-			// #endif
-
 			stage_light_culling.execute(cmd_list,
 										barrier,
 										light_tile_count_x,
@@ -573,6 +563,16 @@ namespace age::graphics::render_pipeline::forward_plus
 										*p_tile_mask_buffer,
 										*p_unified_sorted_light_buffer,
 										static_cast<t_unified_light_id>(unified_light_data_vec.size()));
+
+			barrier.add_uav(*h_mapping_debug_buffer_uav->h_resource->p_resource);
+			barrier.apply_and_reset(cmd_list);
+
+			// #if 1
+			//		auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
+
+
+			//		std::println("invalid_count : {}, visible_count : {}", ptr->invalid_count, std::min(g::max_visible_light_count, ptr->visible_count));
+			// #endif
 		}
 
 		stage_opaque.execute(cmd_list, total_job_count);

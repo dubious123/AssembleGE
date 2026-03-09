@@ -416,6 +416,7 @@ namespace age::graphics::shader::e
 					forward_plus_shadow_as,
 					forward_plus_shadow_ms,
 
+					forward_plus_light_init_cs,
 					forward_plus_light_cull_cs,
 					forward_plus_light_sort_gen_keys_cs,
 					forward_plus_light_sort_histogram_cs,

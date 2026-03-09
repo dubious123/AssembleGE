@@ -4,20 +4,40 @@
 
 #define MAX_LIGHT_COUNT (1024 * 1024)
 
-#define MAX_VISIBLE_LIGHT_COUNT	   (16 * 1024)
-#define LIGHT_CULL_CS_THREAD_COUNT 256
-#define LIGHT_SORT_CS_THREAD_COUNT 256
+#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
+#define LIGHT_CULL_THREAD_COUNT 256
 
-#define SORT_GROUP_COUNT					 (MAX_VISIBLE_LIGHT_COUNT / LIGHT_SORT_CS_THREAD_COUNT)
-#define HISTOGRAM_SIZE						 (256 * SORT_GROUP_COUNT)
-#define LIGHT_SORT_CS_SORT_KEYS_OFFSET		 0																	 // 0
-#define LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_OFFSET + MAX_VISIBLE_LIGHT_COUNT)			 // 16384
-#define LIGHT_SORT_CS_SORT_VALUES_OFFSET	 (LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		 // 32768
-#define LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET (LIGHT_SORT_CS_SORT_VALUES_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		 // 49152
-#define LIGHT_SORT_CS_HISTOGRAM_OFFSET		 (LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)	 // 65536
-#define LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE (LIGHT_SORT_CS_HISTOGRAM_OFFSET + HISTOGRAM_SIZE)					 // 65536 + 16384 = 81920
+#define LIGHT_SORT_THREAD_COUNT				128
+#define LIGHT_SORT_ELEMENT_COUNT_PER_THREAD 4
+#define LIGHT_SORT_BLOCK_SIZE				(LIGHT_SORT_THREAD_COUNT * LIGHT_SORT_ELEMENT_COUNT_PER_THREAD)
 
-#define Z_SLICE_COUNT (4 * 1024)
+#define LIGHT_ZBIN_THREAD_COUNT 256
+
+#define LIGHT_SORT_BLOCK_COUNT ((MAX_VISIBLE_LIGHT_COUNT + LIGHT_SORT_BLOCK_SIZE - 1) / LIGHT_SORT_BLOCK_SIZE)
+
+#if defined(AGE_HLSL)
+	#define LIGHT_SORT_GROUP_COUNT (min(LIGHT_SORT_BLOCK_SIZE, LIGHT_SORT_BLOCK_COUNT))
+#else
+	#define LIGHT_SORT_GROUP_COUNT (std::min(LIGHT_SORT_BLOCK_SIZE, LIGHT_SORT_BLOCK_COUNT))
+#endif
+
+#define LIGHT_SORT_BLOCK_COUNT_PER_GROUP ((LIGHT_SORT_BLOCK_COUNT + LIGHT_SORT_GROUP_COUNT - 1) / LIGHT_SORT_GROUP_COUNT)
+
+
+#define LIGHT_SORT_BIN_BIT_WIDTH 4
+#define LIGHT_SORT_BIN_COUNT	 (1 << LIGHT_SORT_BIN_BIT_WIDTH)
+
+#define LIGHT_SORT_HISTOGRAM_TABLE_SIZE (LIGHT_SORT_BIN_COUNT * LIGHT_SORT_GROUP_COUNT)
+
+#define LIGHT_SORT_SORT_KEYS_OFFSET		  0																   // 0
+#define LIGHT_SORT_SORT_KEYS_ALT_OFFSET	  (LIGHT_SORT_SORT_KEYS_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		   // 16384
+#define LIGHT_SORT_SORT_VALUES_OFFSET	  (LIGHT_SORT_SORT_KEYS_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)	   // 32768
+#define LIGHT_SORT_SORT_VALUES_ALT_OFFSET (LIGHT_SORT_SORT_VALUES_OFFSET + MAX_VISIBLE_LIGHT_COUNT)		   // 49152
+#define LIGHT_SORT_HISTOGRAM_OFFSET		  (LIGHT_SORT_SORT_VALUES_ALT_OFFSET + MAX_VISIBLE_LIGHT_COUNT)	   // 65536
+#define LIGHT_SORT_BIN_COUNT_OFFSET		  (LIGHT_SORT_HISTOGRAM_OFFSET + LIGHT_SORT_HISTOGRAM_TABLE_SIZE)
+#define LIGHT_SORT_SORT_BUFFER_TOTAL_SIZE (LIGHT_SORT_BIN_COUNT_OFFSET + LIGHT_SORT_BIN_COUNT)			   //
+
+#define Z_SLICE_COUNT (512)
 
 #define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
 
@@ -60,15 +80,20 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 max_light_count = MAX_LIGHT_COUNT;
 
 	inline constexpr uint32 max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
+
+	inline constexpr uint32 light_sort_bin_count	   = LIGHT_SORT_BIN_COUNT;
+	inline constexpr uint32 light_sort_iteration_count = sizeof(float) * 8 / LIGHT_SORT_BIN_BIT_WIDTH;
+	inline constexpr uint32 light_sort_group_count	   = LIGHT_SORT_GROUP_COUNT;
+
 	// light culling
 
 	inline constexpr uint8 light_tile_size = (uint8)LIGHT_TILE_SIZE;
 
-	inline constexpr uint32 light_cull_cs_thread_count = LIGHT_CULL_CS_THREAD_COUNT;
-	inline constexpr uint32 light_sort_cs_thread_count = LIGHT_SORT_CS_THREAD_COUNT;
+	inline constexpr uint32 light_cull_cs_thread_count = LIGHT_CULL_THREAD_COUNT;
+	inline constexpr uint32 light_sort_cs_thread_count = LIGHT_SORT_THREAD_COUNT;
 	inline constexpr uint32 light_bitmask_uint32_count = LIGHT_BITMASK_UINT32_COUNT;
 
-	inline constexpr uint32 sort_buffer_total_byte_size = LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE * sizeof(uint32);
+	inline constexpr uint32 sort_buffer_total_byte_size = LIGHT_SORT_SORT_BUFFER_TOTAL_SIZE * sizeof(uint32);
 
 	inline constexpr uint32 z_slice_count = Z_SLICE_COUNT;
 
@@ -89,8 +114,15 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr uint32 directional_shadow_cascade_count = DIRECTIONAL_SHADOW_CASCADE_COUNT;
 
-
 	static_assert(MAX_VISIBLE_LIGHT_COUNT % g::light_sort_cs_thread_count == 0);
+
+	static_assert(MAX_VISIBLE_LIGHT_COUNT <= LIGHT_SORT_GROUP_COUNT * LIGHT_SORT_BLOCK_COUNT_PER_GROUP * LIGHT_SORT_BLOCK_SIZE);
+	static_assert(LIGHT_SORT_GROUP_COUNT <= LIGHT_SORT_BLOCK_SIZE);
+
+	static_assert(LIGHT_SORT_BIN_BIT_WIDTH == 4);
+	static_assert(LIGHT_SORT_THREAD_COUNT <= 0xff);
+	static_assert(LIGHT_SORT_THREAD_COUNT > 0);
+	static_assert(std::popcount<uint32>(LIGHT_SORT_THREAD_COUNT) == 1);
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
@@ -122,6 +154,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float2 screen_max;
 
 		float2 backbuffer_size;
+		uint32 visible_count;
+		uint32 invalid_count;
 
 		uint32 tile_bit_mask_arr[100];
 	};
@@ -326,17 +360,17 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#undef UV_COUNT
 	#undef MAX_LIGHT_COUNT
 	#undef LIGHT_TILE_SIZE
-	#undef LIGHT_CULL_CS_THREAD_COUNT
-	#undef LIGHT_SORT_CS_THREAD_COUNT
+	#undef LIGHT_CULL_THREAD_COUNT
+	#undef LIGHT_SORT_THREAD_COUNT
 	#undef MAX_VISIBLE_LIGHT_COUNT
 	#undef SORT_GROUP_COUNT
 	#undef HISTOGRAM_SIZE
-	#undef LIGHT_SORT_CS_SORT_KEYS_OFFSET
-	#undef LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET
-	#undef LIGHT_SORT_CS_SORT_VALUES_OFFSET
-	#undef LIGHT_SORT_CS_SORT_VALUES_ALT_OFFSET
-	#undef LIGHT_SORT_CS_HISTOGRAM_OFFSET
-	#undef LIGHT_SORT_CS_SORT_BUFFER_TOTAL_SIZE
+	#undef LIGHT_SORT_SORT_KEYS_OFFSET
+	#undef LIGHT_SORT_SORT_KEYS_ALT_OFFSET
+	#undef LIGHT_SORT_SORT_VALUES_OFFSET
+	#undef LIGHT_SORT_SORT_VALUES_ALT_OFFSET
+	#undef LIGHT_SORT_HISTOGRAM_OFFSET
+	#undef LIGHT_SORT_SORT_BUFFER_TOTAL_SIZE
 	#undef Z_SLICE_COUNT
 	#undef LIGHT_BITMASK_UINT32_COUNT
 	#undef LIGHT_TYPE_POINT

@@ -83,7 +83,7 @@ namespace age::graphics::shader
 		auto* p_result	 = (IDxcResult*)nullptr;
 		auto* p_res_blob = (IDxcBlob*)nullptr;
 
-		auto dir_path = std::filesystem::path{ hlsl_path }.root_directory();
+		auto dir_path = std::filesystem::path{ hlsl_path }.parent_path();
 
 		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(hlsl_path.data(), nullptr, &p_file));
 
@@ -104,8 +104,10 @@ namespace age::graphics::shader
 				L"-enable-16bit-types",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
 	#if defined(AGE_DEBUG)
+				L"-Qembed_debug",
 				DXC_ARG_DEBUG,
 				DXC_ARG_SKIP_OPTIMIZATIONS
+
 	#elif defined(AGE_RELEASE)
 				DXC_ARG_ALL_RESOURCES_BOUND,
 				DXC_ARG_OPTIMIZATION_LEVEL3,
@@ -137,6 +139,27 @@ namespace age::graphics::shader
 			auto status = (HRESULT)S_OK;
 			p_result->GetStatus(&status);
 			AGE_HR_CHECK(status);
+
+			// auto* p_pdb		 = (IDxcBlob*)nullptr;
+			// auto* p_pdb_name = (IDxcBlobUtf16*)nullptr;
+
+			// AGE_HR_CHECK(p_result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&p_pdb), &p_pdb_name));
+
+			// if (p_pdb is_not_nullptr and p_pdb->GetBufferSize() > 0)
+			//{
+			//	auto full_pdb_path = std::filesystem::path(dir_path) / p_pdb_name->GetStringPointer();
+			//	auto blob_file	   = std::ofstream{ full_pdb_path, std::ios::out | std::ios::binary };
+			//	blob_file.clear();
+
+			//	auto& stream = blob_file.write(static_cast<const char*>(p_pdb->GetBufferPointer()), p_pdb->GetBufferSize());
+
+			//	AGE_ASSERT(stream.good());
+
+			//	blob_file.close();
+
+			//	p_pdb->Release();
+			//	p_pdb_name->Release();
+			//}
 		}
 
 		AGE_HR_CHECK(p_result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&p_res_blob), nullptr));

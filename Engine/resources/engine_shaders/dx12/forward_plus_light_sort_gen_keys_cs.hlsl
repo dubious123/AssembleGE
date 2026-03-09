@@ -25,18 +25,27 @@
 // dst_value[offset] = src_value
 // dst_key[offset] = src_key
 
-[numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
+[numthreads(LIGHT_SORT_THREAD_COUNT, 1, 1)]
 void main_cs(uint32 light_culled_id : SV_DispatchThreadID)
 {
-    const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
-    if (light_culled_id >= visible_count)
-    {
-        sort_buffer[LIGHT_SORT_CS_SORT_KEYS_OFFSET + light_culled_id] = invalid_id_uint32;
-        sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + light_culled_id] = invalid_id_uint32;
-        return;
-    }
+    //const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
+    //if (light_culled_id >= visible_count)
+    //{
+    //    sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_culled_id] = invalid_id_uint32;
+    //    sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_culled_id] = invalid_id_uint32;
+    //    return;
+    //}
     
     const t_unified_light_id light_id = culled_light_buffer[light_culled_id];
+    
+
+    
+    if (light_id == invalid_id_uint32)
+    {
+        sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_culled_id] = invalid_id_uint32;
+        sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_culled_id] = invalid_id_uint32;
+        return;
+    }
     
     const unified_light light = unified_light_buffer[light_id];
     
@@ -46,7 +55,7 @@ void main_cs(uint32 light_culled_id : SV_DispatchThreadID)
     const float view_z = dot(pos - camera_pos, camera_forward);
     const float min_z = view_z - range;
     
-    sort_buffer[LIGHT_SORT_CS_SORT_KEYS_OFFSET + light_culled_id] = float_to_sortable(min_z);
-    sort_buffer[LIGHT_SORT_CS_SORT_VALUES_OFFSET + light_culled_id] = light_id;
+    sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_culled_id] = float_to_sortable(min_z);
+    sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_culled_id] = light_id;
 }
 

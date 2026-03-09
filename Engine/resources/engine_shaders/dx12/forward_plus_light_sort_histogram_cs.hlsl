@@ -2,25 +2,59 @@
 #include "forward_plus_common.hlsli"
 #undef SHADER_STAGE_CS
 
-groupshared uint32 local_histogram[LIGHT_SORT_CS_THREAD_COUNT];
+// 16 * 128 = 8k byte
+groupshared uint32
+local_histogram[LIGHT_SORT_BIN_COUNT][LIGHT_SORT_THREAD_COUNT];
 
-[numthreads(LIGHT_SORT_CS_THREAD_COUNT, 1, 1)]
+[numthreads(LIGHT_SORT_THREAD_COUNT, 1, 1)]
 void main_cs(uint32 visible_light_id : SV_DispatchThreadID,
+             uint32 group_id : SV_GroupID,
              uint32 thread_id : SV_GroupThreadID)
 {
-    local_histogram[thread_id] = 0;
+    for (uint32 bin = 0; bin < LIGHT_SORT_BIN_COUNT; ++bin)
+    {
+        local_histogram[bin][thread_id] = 0;
+    }
     GroupMemoryBarrierWithGroupSync();
     
     const uint32 src_keys_offset = (light_radix_sort_pass % 2 == 0)
-        ? LIGHT_SORT_CS_SORT_KEYS_OFFSET
-        : LIGHT_SORT_CS_SORT_KEYS_ALT_OFFSET;
+        ? LIGHT_SORT_SORT_KEYS_OFFSET
+        : LIGHT_SORT_SORT_KEYS_ALT_OFFSET;
     
-    const uint32 key = sort_buffer[src_keys_offset + visible_light_id];
-    const uint32 radix = (key >> (8 * light_radix_sort_pass)) & 0xff;
-    InterlockedAdd(local_histogram[radix], 1);
+    for (uint32 block_index = 0; block_index < LIGHT_SORT_BLOCK_COUNT_PER_GROUP; ++block_index)
+    {
+        // expect compiler to prefetch all elements, hiding memory latency
+        [unroll(LIGHT_SORT_ELEMENT_COUNT_PER_THREAD)]
+        for (uint32 i = 0; i < LIGHT_SORT_ELEMENT_COUNT_PER_THREAD; ++i)
+        {
+            const uint32 key_index = src_keys_offset
+                                   + group_id * LIGHT_SORT_BLOCK_COUNT_PER_GROUP * LIGHT_SORT_BLOCK_SIZE
+                                   + block_index * LIGHT_SORT_BLOCK_SIZE
+                                   + i * LIGHT_SORT_THREAD_COUNT
+                                   + thread_id;
+            
+            const uint32 key = sort_buffer[key_index];
+        
+            static const uint32 bin_bit_mask = LIGHT_SORT_BIN_COUNT - 1;
+            const uint32 bin = (key >> (light_radix_sort_pass * LIGHT_SORT_BIN_BIT_WIDTH)) & bin_bit_mask;
+            
+            ++local_histogram[bin][thread_id];
+        }
+    }
+    
     GroupMemoryBarrierWithGroupSync();
     
-    // histogram[256 * group_id + nth_bin] = local_histogram[nth_bin], nth_bin = 0x00 ~ 0xff
-    sort_buffer[LIGHT_SORT_CS_HISTOGRAM_OFFSET + visible_light_id] = local_histogram[thread_id];
+    if (thread_id < LIGHT_SORT_BIN_COUNT)
+    {
+        const uint32 bin = thread_id;
+        uint32 block_histogram = 0;
+        
+        for (uint32 row = 0; row < LIGHT_SORT_THREAD_COUNT; ++row)
+        {
+            block_histogram += local_histogram[bin][row];
+        }
+        //histogram[bin][group_id] = block_histogram
+        sort_buffer[LIGHT_SORT_HISTOGRAM_OFFSET + bin * (LIGHT_SORT_GROUP_COUNT) + group_id] = block_histogram;
+    }
 }
 

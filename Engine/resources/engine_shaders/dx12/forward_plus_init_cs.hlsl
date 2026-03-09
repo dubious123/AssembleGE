@@ -20,5 +20,8 @@ void main_cs(uint32 thread_id : SV_DispatchThreadID)
     {
         frame_data_rw_buffer[0].not_culled_light_count = 0;
         frame_data_rw_buffer[0].generic_counter = 0;
+        
+        debug_buffer[0].invalid_count = 0;
+        debug_buffer[0].visible_count = 0;
     }
 }

@@ -216,6 +216,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct light_culling_stage
 	{
+		graphics::pso::handle h_pso_init;
+		ID3D12PipelineState*  p_pso_init;
+
 		graphics::pso::handle h_pso_cull;
 		ID3D12PipelineState*  p_pso_cull;
 
@@ -241,6 +244,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept
 		{
 			using namespace graphics::pso;
+
+			h_pso_init = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_init_cs) }) });
+			p_pso_init = graphics::g::pso_ptr_vec[h_pso_init];
 
 			h_pso_cull = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -300,6 +308,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			if (light_count > 0)
 			{
+				cmd_list.SetPipelineState(p_pso_init);
+				cmd_list.Dispatch(g::max_visible_light_count / 32, 1, 1);
+				barrier.add_uav(culled_light_buffer);
+				barrier.apply_and_reset(cmd_list);
+
 				cmd_list.SetPipelineState(p_pso_cull);
 				cmd_list.Dispatch((light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
 
@@ -312,7 +325,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				barrier.add_uav(sort_buffer);
 				barrier.apply_and_reset(cmd_list);
 
-				for (uint32 pass : std::views::iota(0u) | std::views::take(4))
+				for (uint32 pass : std::views::iota(0u) | std::views::take(g::light_sort_iteration_count))
 				{
 					cmd_list.SetComputeRoot32BitConstants(
 						binding_config_t::reg_b<1>::slot_id,
@@ -321,25 +334,24 @@ namespace age::graphics::render_pipeline::forward_plus
 						offsetof(shared_type::root_constants, light_radix_sort_pass) / 4);
 
 					cmd_list.SetPipelineState(p_pso_sort_histogram);
-					cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
 					barrier.add_uav(sort_buffer);
 					barrier.apply_and_reset(cmd_list);
 
 					cmd_list.SetPipelineState(p_pso_sort_prefix);
-					cmd_list.Dispatch(1, 1, 1);
+					cmd_list.Dispatch(g::light_sort_bin_count, 1, 1);
 					barrier.add_uav(sort_buffer);
 					barrier.apply_and_reset(cmd_list);
 
 					cmd_list.SetPipelineState(p_pso_sort_scatter);
-					cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+					cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
 					barrier.add_uav(sort_buffer);
 					barrier.apply_and_reset(cmd_list);
 				}
 
 				cmd_list.SetPipelineState(p_pso_zbin);
-				cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+				cmd_list.Dispatch(g::max_visible_light_count / g::light_cull_cs_thread_count, 1, 1);
 
-				// barrier.add_uav(tile_mask_buffer);
 				barrier.add_uav(unified_sorted_light_buffer);
 				barrier.add_uav(zbin_buffer);
 				barrier.apply_and_reset(cmd_list);
@@ -354,6 +366,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
+			pso::destroy(h_pso_init);
 			pso::destroy(h_pso_cull);
 
 			pso::destroy(h_pso_sort_gen_keys);

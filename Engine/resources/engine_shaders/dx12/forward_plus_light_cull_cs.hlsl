@@ -2,12 +2,12 @@
 #include "forward_plus_common.hlsli"
 #undef SHADER_STAGE_CS
 
-[numthreads(LIGHT_CULL_CS_THREAD_COUNT, 1, 1)]
+[numthreads(LIGHT_CULL_THREAD_COUNT, 1, 1)]
 void main_cs(uint32 light_id : SV_DispatchThreadID)
 {
     if (light_id < unified_light_count)
     {
-        const unified_light light = unified_light_buffer[light_id - 0];
+        const unified_light light = unified_light_buffer[light_id];
         
         if (sphere_frustum_test(light.position, light.range, frustum_planes))
         {
