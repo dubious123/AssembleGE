@@ -75,14 +75,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<6>>,
 
 		binding_slot<
-			"culled_light_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer<t_global_light_index>,
-			how::root_descriptor,
-			where::u<0>>,
-
-		binding_slot<
 			"frame_data_rw_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,

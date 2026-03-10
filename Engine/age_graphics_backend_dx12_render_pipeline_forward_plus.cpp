@@ -200,15 +200,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		{
-			h_culled_light_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(t_global_light_index) * g::max_visible_light_count),
-				  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-
-			p_culled_light_buffer = h_culled_light_buffer->p_resource;
-
 			h_light_sort_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::sort_buffer_total_byte_size),
 				  .initial_state	   = D3D12_RESOURCE_STATE_COMMON,
@@ -245,8 +236,6 @@ namespace age::graphics::render_pipeline::forward_plus
 								  h_shadow_atlas_srv_desc,
 								  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R32_FLOAT));
 
-			culled_light_buffer.bind(p_culled_light_buffer->GetGPUVirtualAddress());
-
 			light_sort_buffer_uav.bind(p_light_sort_buffer->GetGPUVirtualAddress());
 			light_sort_buffer_srv.bind(p_light_sort_buffer->GetGPUVirtualAddress());
 
@@ -270,6 +259,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_depth.bind_dsv(h_depth_buffer);
 
 		stage_shadow.bind_dsv(h_shadow_atlas);
+
+		p_light_sort_buffer->SetName(L"sort buffer");
+		p_unified_sorted_light_buffer->SetName(L"unified_sorted_light_buffer");
+		p_zbin_buffer->SetName(L"zbin buffer");
+		h_mapping_unified_light_buffer->h_resource->p_resource->SetName(L"unified_light_buffer");
 	}
 
 	void
@@ -305,7 +299,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
-		resource::release_resource(h_culled_light_buffer);
 		resource::release_resource(h_light_sort_buffer);
 
 		resource::release_resource(h_zbin_buffer);
@@ -371,8 +364,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			frame_data_rw_buffer.apply(cmd_list);
 			frame_data_rw_buffer.apply_compute(cmd_list);
-
-			culled_light_buffer.apply_compute(cmd_list);
 
 			light_sort_buffer_srv.apply(cmd_list);
 			light_sort_buffer_uav.apply_compute(cmd_list);
@@ -496,7 +487,7 @@ namespace age::graphics::render_pipeline::forward_plus
 					.cluster_tile_count_y			   = light_tile_count_y,
 					//.cluster_near_z					   = cam_desc.near_z,
 					//.cluster_far_z					   = cam_desc.far_z,
-					.cluster_near_z				= 0.5,
+					.cluster_near_z				= cam_desc.near_z,
 					.cluster_far_z				= cam_desc.far_z,
 					.cluster_log_far_near_ratio = std::log2(cam_desc.far_z / cam_desc.near_z),
 					.shadow_atlas_id			= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
@@ -556,7 +547,6 @@ namespace age::graphics::render_pipeline::forward_plus
 										barrier,
 										light_tile_count_x,
 										light_tile_count_y,
-										*p_culled_light_buffer,
 										*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 										*p_light_sort_buffer,
 										*p_zbin_buffer,
@@ -571,7 +561,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			//		auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
 
 
-			//		std::println("invalid_count : {}, visible_count : {}", ptr->invalid_count, std::min(g::max_visible_light_count, ptr->visible_count));
+			//		std::println("invalid_count : {}, visible_count : {}", ptr->invalid_count, ptr->visible_count);
+			//			// std::println("{}", std::span{ ptr->tile_bit_mask_arr });
+
+			//			// auto* ptr2 = (shared_type::frame_data_rw*)h_mapping_frame_data_rw_buffer->ptr + graphics::g::frame_buffer_idx;
+			//			// std::println("invalid_count : {}, visible_count : ", ptr2->visible_count);
+
 			// #endif
 		}
 
@@ -648,6 +643,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
 		light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
+
+		AGE_ASSERT(light_tile_count_x <= 0xff);
+		AGE_ASSERT(light_tile_count_y <= 0xff);
 
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);

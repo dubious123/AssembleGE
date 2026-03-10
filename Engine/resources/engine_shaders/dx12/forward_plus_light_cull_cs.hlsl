@@ -11,13 +11,16 @@ void main_cs(uint32 light_id : SV_DispatchThreadID)
         
         if (sphere_frustum_test(light.position, light.range, frustum_planes))
         {
-            uint32 idx;
-            InterlockedAdd(frame_data_rw_buffer[0].not_culled_light_count, 1, idx);
-        
-            if (idx < MAX_VISIBLE_LIGHT_COUNT)
-            {
-                culled_light_buffer[idx] = light_id;
-            }
+            const float view_z = dot(light.position - camera_pos, camera_forward);
+            const float min_z = view_z - light.range;
+            
+            sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_id] = float_to_sortable(min_z);
+            sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_id] = light_id;
+            
+            return;
         }
     }
+    
+    sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_id] = invalid_id_uint32;
+    sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_id] = invalid_id_uint32;
 }

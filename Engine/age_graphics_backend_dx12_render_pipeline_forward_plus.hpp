@@ -216,14 +216,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct light_culling_stage
 	{
-		graphics::pso::handle h_pso_init;
-		ID3D12PipelineState*  p_pso_init;
-
 		graphics::pso::handle h_pso_cull;
 		ID3D12PipelineState*  p_pso_cull;
-
-		graphics::pso::handle h_pso_sort_gen_keys;
-		ID3D12PipelineState*  p_pso_sort_gen_keys;
 
 		graphics::pso::handle h_pso_sort_histogram;
 		ID3D12PipelineState*  p_pso_sort_histogram;
@@ -245,22 +239,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			using namespace graphics::pso;
 
-			h_pso_init = graphics::pso::create(
-				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_init_cs) }) });
-			p_pso_init = graphics::g::pso_ptr_vec[h_pso_init];
-
 			h_pso_cull = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_cull_cs) }) });
 
 			p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
-
-			h_pso_sort_gen_keys = graphics::pso::create(
-				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_light_sort_gen_keys_cs) }) });
-
-			p_pso_sort_gen_keys = graphics::g::pso_ptr_vec[h_pso_sort_gen_keys];
 
 			h_pso_sort_histogram = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -298,7 +281,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				graphics::resource_barrier& barrier,
 				uint32						light_tile_count_x,
 				uint32						light_tile_count_y,
-				ID3D12Resource&				culled_light_buffer,
 				ID3D12Resource&				frame_data_rw_buffer,
 				ID3D12Resource&				sort_buffer,
 				ID3D12Resource&				zbin_buffer,
@@ -308,20 +290,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			if (light_count > 0)
 			{
-				cmd_list.SetPipelineState(p_pso_init);
-				cmd_list.Dispatch(g::max_visible_light_count / 32, 1, 1);
-				barrier.add_uav(culled_light_buffer);
-				barrier.apply_and_reset(cmd_list);
-
 				cmd_list.SetPipelineState(p_pso_cull);
-				cmd_list.Dispatch((light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
-
-				barrier.add_uav(culled_light_buffer);
-				barrier.add_uav(frame_data_rw_buffer);
-				barrier.apply_and_reset(cmd_list);
-
-				cmd_list.SetPipelineState(p_pso_sort_gen_keys);
-				cmd_list.Dispatch(g::max_visible_light_count / g::light_sort_cs_thread_count, 1, 1);
+				cmd_list.Dispatch((g::max_light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
 				barrier.add_uav(sort_buffer);
 				barrier.apply_and_reset(cmd_list);
 
@@ -350,15 +320,17 @@ namespace age::graphics::render_pipeline::forward_plus
 				}
 
 				cmd_list.SetPipelineState(p_pso_zbin);
-				cmd_list.Dispatch(g::max_visible_light_count / g::light_cull_cs_thread_count, 1, 1);
+				cmd_list.Dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
 
-				barrier.add_uav(unified_sorted_light_buffer);
 				barrier.add_uav(zbin_buffer);
+				barrier.add_uav(sort_buffer);
+				barrier.add_uav(frame_data_rw_buffer);
 				barrier.apply_and_reset(cmd_list);
 
 				cmd_list.SetPipelineState(p_pso_tile);
 				cmd_list.Dispatch(light_tile_count_x, light_tile_count_y, 1);
 				barrier.add_uav(tile_mask_buffer);
+				barrier.add_uav(unified_sorted_light_buffer);
 				barrier.apply_and_reset(cmd_list);
 			}
 		}
@@ -366,10 +338,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
-			pso::destroy(h_pso_init);
 			pso::destroy(h_pso_cull);
 
-			pso::destroy(h_pso_sort_gen_keys);
 			pso::destroy(h_pso_sort_histogram);
 			pso::destroy(h_pso_sort_prefix);
 			pso::destroy(h_pso_sort_scatter);
@@ -549,7 +519,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12Resource* p_main_buffer;
 		ID3D12Resource* p_depth_buffer;
 
-		resource_handle h_culled_light_buffer;
 		resource_handle h_light_sort_buffer;
 		resource_handle h_zbin_buffer;
 		resource_handle h_tile_mask_buffer;
@@ -557,7 +526,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_shadow_atlas;
 		ID3D12Resource* p_shadow_atlas;
 
-		ID3D12Resource* p_culled_light_buffer;
 		ID3D12Resource* p_light_sort_buffer;
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
@@ -585,7 +553,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_t<6> unified_light_buffer;
 
-		binding_config_t::reg_u<0> culled_light_buffer;
 		binding_config_t::reg_u<2> frame_data_rw_buffer;
 
 		binding_config_t::reg_u<0, 3> light_sort_buffer_uav;
@@ -846,6 +813,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_unified_light(t_unified_light_id id, const shared_type::unified_light& data) noexcept
 		{
+			AGE_ASSERT(id < g::max_light_count);
 			std::memcpy(h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * id,
 						&data,
 						sizeof(shared_type::unified_light));

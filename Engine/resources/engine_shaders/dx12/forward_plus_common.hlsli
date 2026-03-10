@@ -12,7 +12,6 @@ StructuredBuffer<directional_light> directional_light_buffer : register(t3);
 
 StructuredBuffer<unified_light> unified_light_buffer : register(t6);
 
-RWStructuredBuffer<uint32> culled_light_buffer : register(u0);
 RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
 
 RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);

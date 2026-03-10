@@ -24,4 +24,6 @@ void main_cs(uint32 thread_id : SV_DispatchThreadID)
         debug_buffer[0].invalid_count = 0;
         debug_buffer[0].visible_count = 0;
     }
+    
+    // culled_light_buffer[thread_id] = invalid_id_uint32;
 }

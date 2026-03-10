@@ -41,10 +41,10 @@ float3 calc_blinn_phong_light_color(unified_light light, float3 surface_pos, flo
     const float3 surface_to_light = light.position - surface_pos;
     const float distance = length(surface_to_light);
     
-    if (light.range < distance)
-    {
-        return float3(0, 0, 0);
-    }
+    //if (light.range < distance)
+    //{
+    //    return float3(0, 0, 0);
+    //}
     
     const float3 color = (float3)light.color;
     const float intensity = (float)light.intensity;
@@ -104,9 +104,6 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
         }
     }
    
-    
-    cascade_index = 1;
-    
     const shadow_light light = shadow_light_buffer[shadow_offset + cascade_index];
     
     float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
@@ -167,16 +164,17 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     const uint32 word_begin = wave_z_min / 32;
     const uint32 word_end = wave_z_max / 32;
     
+    const float3 ddx_pos = ddx(fragment.world_pos);
+    const float3 ddy_pos = ddy(fragment.world_pos);
+    const float3 normal = normalize(cross(ddx_pos, ddy_pos));
+    
     for (uint d = 0; d < directional_light_count; ++d)
     {
-        float3 ddx_pos = ddx(fragment.world_pos);
-        float3 ddy_pos = ddy(fragment.world_pos);
-        float3 normal = normalize(cross(ddx_pos, ddy_pos));
         float n_dot_l = saturate(dot(normal, -directional_light_buffer[d].direction));
         float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, directional_light_buffer[d].shadow_id);
         shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
         lighting += shadow * calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
-        lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
+        // lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
     
     for (uint32 w = word_begin; w <= word_end; ++w)
@@ -191,8 +189,7 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
             bit_mask &= ~(1u << bit);
             
             const unified_light light = unified_sorted_light_buffer_srv[sorted_id];
-            
-            lighting += calc_blinn_phong_light_color(unified_sorted_light_buffer_srv[sorted_id], fragment.world_pos, surface_normal, view_dir);
+            lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
         }
     }
     //uint32 loop_count = 0;
@@ -216,7 +213,7 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     //        }
     //    }
     //}
-    
-    
+    //return float4(color, 1);
+    //return float4(light_count / 100.f, light_count / 10.f, light_count, 1);
     return float4(lighting * albedo, 1.0f);
 }

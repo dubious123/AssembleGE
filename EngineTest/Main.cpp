@@ -64,11 +64,11 @@ main()
 		AGE_LAMBDA(
 			(),
 			{
-				constexpr uint32 light_count = 500000;
+				constexpr uint32 light_count = 50000;
 				constexpr float	 scene_min	 = -15.0f;
 				constexpr float	 scene_max	 = 15.0f;
 				constexpr float	 range		 = 6.0f;
-				constexpr float	 intensity	 = 0.1f;
+				constexpr float	 intensity	 = 0.3f;
 
 				auto rng		= std::mt19937{ 42 };
 				auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
