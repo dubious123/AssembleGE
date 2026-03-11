@@ -51,6 +51,7 @@ namespace age::graphics::resource
 			g::resource_vec.debug_validate();
 		}
 
+		g::resource_mapping_vec.clear();
 		g::resource_vec.clear();
 	}
 }	 // namespace age::graphics::resource

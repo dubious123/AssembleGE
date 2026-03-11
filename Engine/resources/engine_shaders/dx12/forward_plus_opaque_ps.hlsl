@@ -174,7 +174,7 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
         float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, directional_light_buffer[d].shadow_id);
         shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
         lighting += shadow * calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
-        // lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
+        //lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
     
     for (uint32 w = word_begin; w <= word_end; ++w)

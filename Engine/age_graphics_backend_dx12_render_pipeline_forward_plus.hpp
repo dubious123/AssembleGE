@@ -515,22 +515,19 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
-
-		ID3D12Resource* p_main_buffer;
-		ID3D12Resource* p_depth_buffer;
-
 		resource_handle h_light_sort_buffer;
 		resource_handle h_zbin_buffer;
 		resource_handle h_tile_mask_buffer;
-
 		resource_handle h_shadow_atlas;
-		ID3D12Resource* p_shadow_atlas;
+		resource_handle h_unified_sorted_light_buffer;
 
+
+		ID3D12Resource* p_main_buffer;
+		ID3D12Resource* p_depth_buffer;
+		ID3D12Resource* p_shadow_atlas;
 		ID3D12Resource* p_light_sort_buffer;
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
-
-		resource_handle h_unified_sorted_light_buffer;
 		ID3D12Resource* p_unified_sorted_light_buffer;
 
 		graphics::root_signature::handle h_root_sig;
@@ -574,15 +571,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_job_data_buffer;
 		resource::mapping_handle h_mapping_object_data_buffer;
 		resource::mapping_handle h_mapping_mesh_buffer;
-
 		resource::mapping_handle h_mapping_directional_light_buffer;
-
 		resource::mapping_handle h_mapping_unified_light_buffer;
-
 		resource::mapping_handle h_mapping_frame_data_rw_buffer;
-
 		resource::mapping_handle h_mapping_shadow_light_buffer;
-
 		resource::mapping_handle h_mapping_debug_buffer_uav;
 
 		// bindless texture
@@ -593,9 +585,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource_barrier barrier;
 
-		std::array<t_object_id, max_object_data_count> object_id_stack = age::util::iota_array<0u, max_object_data_count>();
-
-		uint32 object_count = 0;
+		data_structure::stable_dense_vector<shared_type::object_data> object_data_vec;
 
 		// for contents updating camera
 		data_structure::sparse_vector<camera_desc> camera_desc_vec;
@@ -607,9 +597,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		shared_type::job_data job_array[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
 		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
-		data_structure::stable_dense_vector<directional_light_data> directional_light_data_vec;
+		data_structure::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
-		data_structure::sparse_vector<unified_light_data> unified_light_data_vec;
+		data_structure::stable_dense_vector<shared_type::unified_light> unified_light_vec;
 
 		data_structure::stable_dense_vector<shadow_light_header> shadow_light_header_vec;
 
@@ -745,40 +735,23 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept
 		{
-			auto& data = directional_light_data_vec[id];
-			data.desc  = desc;
-
-			auto dl = shared_type::directional_light{
-				.direction = desc.direction,
-				.intensity = desc.intensity,
-				.color	   = desc.color,
-				.shadow_id = data.shadow_light_offset,
-			};
-
-			std::memcpy(h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * id,
-						&dl,
-						sizeof(shared_type::directional_light));
+			auto& light		= directional_light_vec[id];
+			light.direction = desc.direction;
+			light.intensity = desc.intensity;
+			light.color		= desc.color;
 		}
 
 		t_directional_light_id
 		add_directional_light(const directional_light_desc& desc, bool cast_shadow = true) noexcept
 		{
-			c_auto id = static_cast<t_directional_light_id>(directional_light_data_vec.count());
-
-
-			auto data = directional_light_data{
-				.desc = desc,
-				.id	  = id
-			};
+			t_unified_light_id id = static_cast<t_directional_light_id>(directional_light_vec.emplace_back());
 
 			if (cast_shadow)
 			{
 				// shadow_light_buffer
 				c_auto shadow_id = static_cast<t_shadow_light_id>(shadow_light_header_vec.count());
 
-				data.shadow_light_offset = shadow_id;
-
-				directional_light_data_vec.emplace_back(data);
+				directional_light_vec[id].shadow_id = shadow_id;
 
 				for (auto i : std::views::iota(shadow_id) | std::views::take(g::directional_shadow_cascade_count))
 				{
@@ -788,7 +761,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			}
 			else
 			{
-				directional_light_data_vec.emplace_back(data);
+				directional_light_vec[id].shadow_id = age::get_invalid_id<t_shadow_light_id>();
 			}
 
 			update_directional_light(id, desc);
@@ -799,95 +772,96 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		remove_directional_light(t_directional_light_id& id) noexcept
 		{
-			c_auto& data = directional_light_data_vec[id];
-			for (auto i : std::views::iota(data.shadow_light_offset) | std::views::take(data.shadow_light_count))
+			c_auto& data = directional_light_vec[id];
+			if (data.shadow_id != age::get_invalid_id<t_shadow_light_id>())
 			{
-				shadow_light_header_vec.remove(i);
+				for (auto i : std::views::iota(data.shadow_id) | std::views::take(g::directional_shadow_cascade_count))
+				{
+					shadow_light_header_vec.remove(i);
+				}
 			}
 
-			directional_light_data_vec.remove(id);
+			directional_light_vec.remove(id);
 
 			id = age::get_invalid_id<t_directional_light_id>();
 		}
 
 		void
-		update_unified_light(t_unified_light_id id, const shared_type::unified_light& data) noexcept
+		update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow = false) noexcept
 		{
-			AGE_ASSERT(id < g::max_light_count);
-			std::memcpy(h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * id,
-						&data,
-						sizeof(shared_type::unified_light));
-		}
-
-		t_unified_light_id
-		add_point_light(const shared_type::point_light& data, bool cast_shadow = false) noexcept
-		{
-			c_auto id = static_cast<t_unified_light_id>(unified_light_data_vec.size());
-			unified_light_data_vec.emplace_back(unified_light_data{ .id = id });
-
-			c_auto light = shared_type::unified_light{
-				.position  = data.position,
-				.range	   = data.range,
-				.color	   = math::cvt_to<half3>(data.color),
-				.intensity = math::cvt_to<half>(data.intensity),
+			unified_light_vec[id] = shared_type::unified_light{
+				.position  = desc.position,
+				.range	   = desc.range,
+				.color	   = math::cvt_to<half3>(desc.color),
+				.intensity = math::cvt_to<half>(desc.intensity),
 				.direction = math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f }),
 				.cos_inner = math::cvt_to<half>(-1.f),
 				.cos_outer = math::cvt_to<half>(-2.f),
 			};
-
-			update_unified_light(id, light);
-			return id;
 		}
 
 		t_unified_light_id
-		add_spot_light(const shared_type::spot_light& data, bool cast_shadow = false) noexcept
+		add_point_light(const point_light_desc& desc, bool cast_shadow = false) noexcept
 		{
-			c_auto id = static_cast<t_unified_light_id>(unified_light_data_vec.size());
-			unified_light_data_vec.emplace_back(unified_light_data{ .id = id });
+			t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
 
-			c_auto light = shared_type::unified_light{
-				.position  = data.position,
-				.range	   = data.range,
-				.color	   = math::cvt_to<half3>(data.color),
-				.intensity = math::cvt_to<half>(data.intensity),
-				.direction = math::cvt_to<half3>(data.direction),
-				.cos_inner = math::cvt_to<half>(data.cos_inner),
-				.cos_outer = math::cvt_to<half>(data.cos_outer),
+			update_point_light(id, desc);
+
+			return id;
+		}
+
+		void
+		update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow = false) noexcept
+		{
+			unified_light_vec[id] = shared_type::unified_light{
+				.position  = desc.position,
+				.range	   = desc.range,
+				.color	   = math::cvt_to<half3>(desc.color),
+				.intensity = math::cvt_to<half>(desc.intensity),
+				.direction = math::cvt_to<half3>(desc.direction),
+				.cos_inner = math::cvt_to<half>(desc.cos_inner),
+				.cos_outer = math::cvt_to<half>(desc.cos_outer),
 			};
+		}
 
-			update_unified_light(id, light);
+		t_unified_light_id
+		add_spot_light(const spot_light_desc& desc, bool cast_shadow = false) noexcept
+		{
+			t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
+
+			update_spot_light(id, desc);
+
 			return id;
 		}
 
 		void
 		remove_unified_light(t_unified_light_id& id) noexcept
 		{
-			unified_light_data_vec.remove(id);
+			unified_light_vec.remove(id);
 			id = age::get_invalid_id<t_unified_light_id>();
 		}
 
 		t_object_id
-		add_object(shared_type::object_data data = {}) noexcept
+		add_object(const shared_type::object_data& data = {}) noexcept
 		{
-			auto object_id = object_id_stack[object_count++];
+			c_auto id = static_cast<t_object_id>(object_data_vec.count());
 
-			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * object_id, &data, sizeof(shared_type::object_data));
+			object_data_vec.emplace_back(data);
 
-			return object_id;
+			return id;
 		}
 
 		void
-		update_object(t_object_id id, shared_type::object_data data = {}) noexcept
+		update_object(t_object_id id, const shared_type::object_data& data = {}) noexcept
 		{
-			AGE_ASSERT(id < object_id_stack.size());
-
-			std::memcpy(h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * id, &data, sizeof(shared_type::object_data));
+			object_data_vec[id] = data;
 		}
 
 		void
-		remove_object(t_object_id id) noexcept
+		remove_object(t_object_id& id) noexcept
 		{
-			object_id_stack[--object_count] = id;
+			object_data_vec.remove(id);
+			id = age::get_invalid_id<t_object_id>();
 		}
 
 		void
@@ -907,6 +881,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		end_render(render_surface_handle h_rs) noexcept;
+
+		void
+		flush_jobs() noexcept
+		{
+			for (auto& i : job_count_array | std::views::join)
+			{
+				i = 0;
+			}
+		}
+
 
 	  private:
 		void

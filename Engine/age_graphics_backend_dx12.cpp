@@ -189,6 +189,9 @@ namespace age::graphics
 			p_dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
 			p_dxgi_debug->Release();
 		}
+
+		g::frame_buffer_idx	   = 0;
+		g::current_fence_value = 0;
 	}
 
 	void

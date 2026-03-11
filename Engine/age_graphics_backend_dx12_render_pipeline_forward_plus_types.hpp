@@ -46,7 +46,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"object_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::object_data>,
+			what::structured_buffer_array<shared_type::object_data>,
 			how::root_descriptor,
 			where::t<1>>,
 
@@ -62,7 +62,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"directional_light_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::directional_light>,
+			what::structured_buffer_array<shared_type::directional_light>,
 			how::root_descriptor,
 			where::t<3>>,
 
@@ -70,7 +70,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"unified_light_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::unified_light>,
+			what::structured_buffer_array<shared_type::unified_light>,
 			how::root_descriptor,
 			where::t<6>>,
 
@@ -225,11 +225,23 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32	  meshlet_count;
 	};
 
-	struct unified_light_data
+	struct point_light_desc
 	{
-		t_unified_light_id id;
-		t_shadow_light_id  shadow_light_count = 0;
-		t_shadow_light_id  shadow_light_offset;
+		float3 position;	 // 12
+		float  range;		 // 4
+		float3 color;		 // 12
+		float  intensity;	 // 4
+	};	  // 32 bytes
+
+	struct spot_light_desc
+	{
+		float3 position;	 // 12
+		float  range;		 // 4
+		float3 direction;	 // 12
+		float  intensity;	 // 4
+		float3 color;		 // 12
+		float  cos_inner;	 // 4  (falloff begin, cosine)
+		float  cos_outer;	 // 4  (cosine)
 	};
 
 	struct directional_light_desc
@@ -238,14 +250,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		float  intensity;	 // 4
 		float3 color;		 // 12
 	};	  // 28 bytes
-
-	struct directional_light_data
-	{
-		directional_light_desc desc;
-		t_directional_light_id id;
-		t_shadow_light_id	   shadow_light_count = 0;
-		t_shadow_light_id	   shadow_light_offset;
-	};
 
 	struct shadow_light_header
 	{

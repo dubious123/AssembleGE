@@ -56,7 +56,7 @@
 #define SHADOW_ATLAS_WIDTH	(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U)
 #define SHADOW_ATLAS_HEIGHT (SHADOW_MAP_HEIGHT * SHADOW_ATLAS_SEG_V)
 
-#define SHADOW_DEPTH_BIAS 100
+#define SHADOW_DEPTH_BIAS 1000
 #define SHADOW_SLOPE_BIAS 2.f
 
 #define DIRECTIONAL_SHADOW_CASCADE_COUNT 4
@@ -191,37 +191,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 color;		 // 12
 		uint32 shadow_id;	 // 4
 	};	  // 32 bytes
-
-	struct point_light
-	{
-		float3 position;	 // 12
-		float  range;		 // 4
-		float3 color;		 // 12
-		float  intensity;	 // 4
-	};	  // 32 bytes
-
-	struct spot_light
-	{
-		float3 position;	 // 12
-		float  range;		 // 4
-		float3 direction;	 // 12
-		float  intensity;	 // 4
-		float3 color;		 // 12
-		float  cos_inner;	 // 4  (falloff begin, cosine)
-		float  cos_outer;	 // 4  (cosine)
-	};	  // 52 bytes (1 cache line)
-
-	// struct unified_light
-	//{
-	//	float3 position;	 // 12
-	//	float  range;		 // 4
-	//	float3 color;		 // 12
-	//	float  intensity;	 // 4
-	//	float3 direction;	 // 12
-	//	float  cos_inner;	 // 4
-	//	float  cos_outer;	 // 4
-	//	uint32 padding;		 // 4
-	// };	  // total: 56 bytes
 
 	struct unified_light
 	{

@@ -57,6 +57,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="demo_game.hpp" />
     <ClInclude Include="pch.hpp" />
     <ClInclude Include="test.h" />
   </ItemGroup>

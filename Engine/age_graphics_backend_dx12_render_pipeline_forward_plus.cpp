@@ -139,12 +139,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
 			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::job_data) * max_job_count_per_frame * graphics::g::frame_buffer_count);
-			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count);
+			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_count);
 			h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
 
-			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_directional_light_count);
+			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_directional_light_count * graphics::g::frame_buffer_count);
 
-			h_mapping_unified_light_buffer = resource::create_buffer_committed(sizeof(shared_type::unified_light) * g::max_light_count);
+			h_mapping_unified_light_buffer = resource::create_buffer_committed(sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_count);
 
 			h_mapping_shadow_light_buffer = resource::create_buffer_committed(sizeof(shared_type::shadow_light) * g::max_shadow_light_count * graphics::g::frame_buffer_count);
 
@@ -172,13 +172,19 @@ namespace age::graphics::render_pipeline::forward_plus
 			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 1, 1);
 			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 2, 2);
 
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 0, 0);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 1, 1);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 2, 2);
 
 			mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 0, 0);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 1, 1);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 2, 2);
 
-			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 0, 0);
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 1, 1);
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 2, 2);
 
 			shadow_light_buffer.bind(h_mapping_shadow_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light) * g::max_shadow_light_count * 0, 0);
 			shadow_light_buffer.bind(h_mapping_shadow_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light) * g::max_shadow_light_count * 1, 1);
@@ -269,6 +275,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::deinit() noexcept
 	{
+		flush_jobs();
+
 		stage_init.deinit();
 		stage_presentation.deinit();
 		stage_opaque.deinit();
@@ -309,9 +317,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_shadow_atlas);
 
 
-		AGE_ASSERT(object_count == 0);
+		AGE_ASSERT(object_data_vec.count() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
+		AGE_ASSERT(directional_light_vec.count() == 0);
+		AGE_ASSERT(unified_light_vec.count() == 0);
 	}
 
 	bool
@@ -349,17 +359,18 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			frame_data_buffer.apply(cmd_list);
-			job_data_buffer.apply(cmd_list);
-			object_data_buffer.apply(cmd_list);
-			mesh_data_buffer.apply(cmd_list);
-
-			directional_light_buffer.apply(cmd_list);
-
 			frame_data_buffer.apply_compute(cmd_list);
+
+			job_data_buffer.apply(cmd_list);
 			job_data_buffer.apply_compute(cmd_list);
+
+			object_data_buffer.apply(cmd_list);
 			object_data_buffer.apply_compute(cmd_list);
+
+			mesh_data_buffer.apply(cmd_list);
 			mesh_data_buffer.apply_compute(cmd_list);
 
+			directional_light_buffer.apply(cmd_list);
 			directional_light_buffer.apply_compute(cmd_list);
 
 			frame_data_rw_buffer.apply(cmd_list);
@@ -438,6 +449,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto total_job_count = 0u;
 
 		{
+			std::memcpy(
+				h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_idx,
+				object_data_vec.data(),
+				sizeof(shared_type::object_data) * object_data_vec.count());
+
+			std::memcpy(
+				h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * max_directional_light_count * graphics::g::frame_buffer_idx,
+				directional_light_vec.data(),
+				sizeof(shared_type::directional_light) * max_directional_light_count);
+
+			std::memcpy(
+				h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_idx,
+				unified_light_vec.data(),
+				sizeof(shared_type::unified_light) * unified_light_vec.count());
+
 			for (
 				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::job_data) * max_job_count_per_frame * graphics::g::frame_buffer_idx;
 				auto  thread_id : std::views::iota(0, graphics::g::thread_count))
@@ -470,6 +496,7 @@ namespace age::graphics::render_pipeline::forward_plus
 					.main_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
 				};
 
+
 				std::ranges::copy(cam_data.frustum_plane_arr, frame_d.frustum_planes);
 
 				std::memcpy(frame_d.cascade_splits[0].data(), cascade_splits.data() + 1, sizeof(cascade_splits[0]) * g::directional_shadow_cascade_count);
@@ -481,8 +508,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				c_auto& cam_desc = camera_desc_vec[0];
 				root_constants.bind(shared_type::root_constants{
 					.job_count						   = total_job_count,
-					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_data_vec.count()),
-					.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_data_vec.size()),
+					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.count()),
+					.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_vec.count()),
 					.cluster_tile_count_x			   = light_tile_count_x,
 					.cluster_tile_count_y			   = light_tile_count_y,
 					//.cluster_near_z					   = cam_desc.near_z,
@@ -503,12 +530,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			c_auto& cam_desc = camera_desc_vec[0];
 
 			for (auto		 offset = 0u;
-				 const auto& data : directional_light_data_vec)
+				 const auto& data : directional_light_vec)
 			{
 				calc_directional_shadow(
 					cam_data,
 					cascade_splits,
-					data.desc.direction,
+					data.direction,
 					std::span{ shadow_light_arr.data() + offset, g::directional_shadow_cascade_count });
 
 				offset += g::directional_shadow_cascade_count;
@@ -552,7 +579,7 @@ namespace age::graphics::render_pipeline::forward_plus
 										*p_zbin_buffer,
 										*p_tile_mask_buffer,
 										*p_unified_sorted_light_buffer,
-										static_cast<t_unified_light_id>(unified_light_data_vec.size()));
+										static_cast<t_unified_light_id>(unified_light_vec.count()));
 
 			barrier.add_uav(*h_mapping_debug_buffer_uav->h_resource->p_resource);
 			barrier.apply_and_reset(cmd_list);

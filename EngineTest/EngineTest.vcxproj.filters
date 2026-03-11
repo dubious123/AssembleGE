@@ -7,5 +7,6 @@
   <ItemGroup>
     <ClInclude Include="test.h" />
     <ClInclude Include="pch.hpp" />
+    <ClInclude Include="demo_game.hpp" />
   </ItemGroup>
 </Project>

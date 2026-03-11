@@ -34,7 +34,7 @@ namespace age::platform::g
 		age::input::e::key_kind::none,				  // 0x0A RESERVED
 		age::input::e::key_kind::none,				  // 0x0B RESERVED
 		age::input::e::key_kind::none,				  // 0x0C VK_CLEAR
-		age::input::e::key_kind::key_return,		  // 0x0D VK_RETURN
+		age::input::e::key_kind::key_enter,			  // 0x0D VK_RETURN
 		age::input::e::key_kind::none,				  // 0x0E UNASSIGNED
 		age::input::e::key_kind::none,				  // 0x0F UNASSIGNED
 

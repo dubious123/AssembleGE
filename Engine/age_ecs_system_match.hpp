@@ -182,7 +182,7 @@ namespace age::ecs::system
 		operator()(this auto&& self, cx_ctx auto&& ctx, auto&&... arg)
 		{
 			constexpr auto default_to_exists = (detail::is_sys_default_v<t_sys_case> | ...);
-			constexpr auto sys_case_count	 = sizeof...(t_sys_case) - (default_to_exists ? 0 : 1);
+			constexpr auto sys_case_count	 = sizeof...(t_sys_case) - (default_to_exists ? 1 : 0);
 
 			// if constexpr (default_to_exists)
 			//{

@@ -1487,6 +1487,20 @@ namespace age::inline math
 		return a + t * (b - a);
 	}
 
+	FORCE_INLINE decltype(auto)
+	to_string(float4x4 mat) noexcept
+	{
+		return std::format(
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]"
+			"[{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
+			mat.r0[0], mat.r0[1], mat.r0[2], mat.r0[3],
+			mat.r1[0], mat.r1[1], mat.r1[2], mat.r1[3],
+			mat.r2[0], mat.r2[1], mat.r2[2], mat.r2[3],
+			mat.r3[0], mat.r3[1], mat.r3[2], mat.r3[3]);
+	}
+
 	FORCE_INLINE void
 	print(float4x4 mat) noexcept
 	{
@@ -1500,8 +1514,49 @@ namespace age::inline math
 			mat.r2[0], mat.r2[1], mat.r2[2], mat.r2[3],
 			mat.r3[0], mat.r3[1], mat.r3[2], mat.r3[3]);
 	}
-
 }	 // namespace age::inline math
+
+template <>
+struct std::formatter<float4x4>
+{
+	constexpr auto
+	parse(std::format_parse_context& ctx)
+	{
+		return ctx.begin();
+	}
+
+	auto
+	format(const float4x4& mat, std::format_context& ctx) const
+	{
+		return std::format_to(ctx.out(),
+							  "[{:.6f}, {:.6f}, {:.6f}, {:.6f}]\n"
+							  "[{:.6f}, {:.6f}, {:.6f}, {:.6f}]\n"
+							  "[{:.6f}, {:.6f}, {:.6f}, {:.6f}]\n"
+							  "[{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
+							  mat.r0[0], mat.r0[1], mat.r0[2], mat.r0[3],
+							  mat.r1[0], mat.r1[1], mat.r1[2], mat.r1[3],
+							  mat.r2[0], mat.r2[1], mat.r2[2], mat.r2[3],
+							  mat.r3[0], mat.r3[1], mat.r3[2], mat.r3[3]);
+	}
+};
+
+template <>
+struct std::formatter<float3>
+{
+	constexpr auto
+	parse(std::format_parse_context& ctx)
+	{
+		return ctx.begin();
+	}
+
+	auto
+	format(const float3& vec, std::format_context& ctx) const
+	{
+		return std::format_to(ctx.out(),
+							  "[{:.6f}, {:.6f}, {:.6f}]",
+							  vec[0], vec[1], vec[2]);
+	}
+};
 
 namespace age::inline math::g
 {

@@ -497,7 +497,7 @@ namespace age::inline data_structure
 		{
 			AGE_ASSERT(size > 0);
 			AGE_ASSERT(remove_idx < capacity);
-			AGE_ASSERT(this->idx_to_pos_arr()[remove_idx] < size);
+			AGE_ASSERT(this->idx_to_pos_arr()[remove_idx] < capacity);
 
 			const auto back_pos	  = size - 1;
 			const auto back_idx	  = this->pos_to_idx_arr()[back_pos];
@@ -593,7 +593,7 @@ namespace age::inline data_structure
 		operator[](this auto& self, t_idx idx) noexcept
 		{
 			AGE_ASSERT(idx < self.capacity);
-			AGE_ASSERT(self.idx_to_pos_arr()[idx] < self.size);
+			AGE_ASSERT(self.idx_to_pos_arr()[idx] < self.capacity);
 
 			return self.data_arr()[self.idx_to_pos_arr()[idx]];
 		}
@@ -627,6 +627,25 @@ namespace age::inline data_structure
 		{
 			this->size			 = 0;
 			this->free_idx_count = 0;
+
+			for (t_idx idx : std::views::iota(0) | std::views::take(capacity))
+			{
+				this->idx_to_pos_arr()[idx] = idx;
+				this->pos_to_idx_arr()[idx] = idx;
+			}
+		}
+
+		FORCE_INLINE decltype(auto)
+		data() noexcept
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				return data_arr().data();
+			}
+			else
+			{
+				return data_arr();
+			}
 		}
 
 		void

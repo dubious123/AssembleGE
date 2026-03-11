@@ -66,7 +66,7 @@ namespace age::input::e
 
 		key_backspace,
 		key_tab,
-		key_return,
+		key_enter,
 		key_shift,
 		key_left_shift,
 		key_right_shift,
