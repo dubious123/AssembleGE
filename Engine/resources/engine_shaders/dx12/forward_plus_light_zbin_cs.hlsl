@@ -87,7 +87,7 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
         const uint32 word_index = sorted_id / 32;
         const uint32 bit = 1u << (sorted_id % 32);
         
-        uint32_4 tile_aabb = uint32_4(0, cluster_tile_count_x - 1, 0, cluster_tile_count_y - 1);
+        uint32_4 tile_aabb = uint32_4(0, light_tile_count_x - 1, 0, light_tile_count_y - 1);
         
         const float4 light_pos_clip = mul(view_proj, float4(pos, 1));
         
@@ -111,10 +111,10 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
             const float2 screen_min = float2(screen_a.x, screen_b.y);
             const float2 screen_max = float2(screen_b.x, screen_a.y);
             
-            tile_aabb.x = clamp(int(screen_min.x) / LIGHT_TILE_SIZE, 0, int(cluster_tile_count_x - 1));
-            tile_aabb.y = clamp(int(screen_max.x + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(cluster_tile_count_x - 1));
-            tile_aabb.z = clamp(int(screen_min.y) / LIGHT_TILE_SIZE, 0, int(cluster_tile_count_y - 1));
-            tile_aabb.w = clamp(int(screen_max.y + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(cluster_tile_count_y - 1));
+            tile_aabb.x = clamp(int(screen_min.x) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
+            tile_aabb.y = clamp(int(screen_max.x + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
+            tile_aabb.z = clamp(int(screen_min.y) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
+            tile_aabb.w = clamp(int(screen_max.y + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
         }
         
         uint32 packed_aabb = (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;

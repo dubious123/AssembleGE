@@ -59,3 +59,30 @@
 		GroupMemoryBarrierWithGroupSync();                                                                  \
 		return __age_hlsl_prefix_sum_arr__[wave_id] + wave_prefix;                                          \
 	}
+
+#define DECLARE_CALC_THREAD_GROUP_MIN_MAX(thread_count)                                                    \
+	groupshared uint32 __age_hlsl_min_arr__[thread_count];                                                 \
+	groupshared uint32 __age_hlsl_max_arr__[thread_count];                                                 \
+                                                                                                           \
+	uint32_2 calc_thread_group_min_max(uint32 thread_local_min, uint32 thread_local_max, uint32 thread_id) \
+	{                                                                                                      \
+		uint32		 wave_min	= WaveActiveMin(thread_local_min);                                         \
+		uint32		 wave_max	= WaveActiveMax(thread_local_max);                                         \
+		const uint32 wave_count = (thread_count + WaveGetLaneCount() - 1) / WaveGetLaneCount();            \
+		const uint32 wave_id	= thread_id / WaveGetLaneCount();                                          \
+                                                                                                           \
+		if (WaveIsFirstLane())                                                                             \
+		{                                                                                                  \
+			__age_hlsl_min_arr__[wave_id] = wave_min;                                                      \
+			__age_hlsl_max_arr__[wave_id] = wave_max;                                                      \
+		}                                                                                                  \
+		GroupMemoryBarrierWithGroupSync();                                                                 \
+                                                                                                           \
+		if (wave_id == 0 && thread_id < wave_count)                                                        \
+		{                                                                                                  \
+			__age_hlsl_min_arr__[thread_id] = WaveActiveMin(__age_hlsl_min_arr__[thread_id]);              \
+			__age_hlsl_max_arr__[thread_id] = WaveActiveMax(__age_hlsl_max_arr__[thread_id]);              \
+		}                                                                                                  \
+		GroupMemoryBarrierWithGroupSync();                                                                 \
+		return uint32_2(__age_hlsl_min_arr__[wave_id], __age_hlsl_max_arr__[wave_id]);                     \
+	}

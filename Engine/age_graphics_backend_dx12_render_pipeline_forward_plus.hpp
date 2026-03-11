@@ -111,8 +111,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct shadow_stage
 	{
-		graphics::pso::handle h_pso;
-		ID3D12PipelineState*  p_pso;
+		graphics::pso::handle h_depth_reduce_pso;
+		ID3D12PipelineState*  p_depth_reduce_pso;
+
+		graphics::pso::handle h_sdsm_pso;
+		ID3D12PipelineState*  p_sdsm_pso;
+
+		graphics::pso::handle h_shadow_map_pso;
+		ID3D12PipelineState*  p_shadow_map_pso;
 
 		dsv_desc_handle h_shadow_atlas_dsv_desc;
 
@@ -121,7 +127,20 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			using namespace graphics::pso;
 
-			h_pso = graphics::pso::create(
+			h_depth_reduce_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_depth_reduce_cs) }) });
+
+			p_depth_reduce_pso = graphics::g::pso_ptr_vec[h_depth_reduce_pso];
+
+			h_sdsm_pso = graphics::pso::create(
+				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_sdsm_cs) }) });
+
+			p_sdsm_pso = graphics::g::pso_ptr_vec[h_sdsm_pso];
+
+
+			h_shadow_map_pso = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_as{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_as) }) },
 				pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_ms) }) },
@@ -134,7 +153,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 				pss_node_mask{ .subobj = 0 });
 
-			p_pso = graphics::g::pso_ptr_vec[h_pso];
+			p_shadow_map_pso = graphics::g::pso_ptr_vec[h_shadow_map_pso];
 
 			h_shadow_atlas_dsv_desc = graphics::g::dsv_desc_pool.pop();
 		}
@@ -148,13 +167,35 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		inline void
-		execute(t_cmd_list& cmd_list, const data_structure::stable_dense_vector<shadow_light_header>& shadow_light_header_vec, uint32 job_count) noexcept
+		execute(t_cmd_list&														cmd_list,
+				graphics::resource_barrier&										barrier,
+				uint32															width,
+				uint32															height,
+				uint32															directional_light_count,
+				ID3D12Resource&													frame_data_rw_buffer,
+				ID3D12Resource&													shadow_light_rw_buffer,
+				const data_structure::stable_dense_vector<shadow_light_header>& shadow_light_header_vec,
+				uint32															job_count) noexcept
 		{
 			if (job_count == 0) [[unlikely]]
 			{
 				return;
 			}
 
+			cmd_list.SetPipelineState(p_depth_reduce_pso);
+			cmd_list.Dispatch(
+				(width + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
+				(height + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
+				1);
+
+			barrier.add_uav(frame_data_rw_buffer);
+			barrier.apply_and_reset(cmd_list);
+
+			cmd_list.SetPipelineState(p_sdsm_pso);
+			cmd_list.Dispatch(directional_light_count, 1, 1);
+			barrier.add_uav(shadow_light_rw_buffer);
+
+			barrier.apply_and_reset(cmd_list);
 
 			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_shadow_atlas_dsv_desc, 0.f);
 
@@ -164,7 +205,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				&render_pass_ds_desc,
 				D3D12_RENDER_PASS_FLAG_NONE);
 
-			cmd_list.SetPipelineState(p_pso);
+			cmd_list.SetPipelineState(p_shadow_map_pso);
 
 			for (auto&& [i, header] : shadow_light_header_vec | std::views::enumerate)
 			{
@@ -208,7 +249,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		deinit() noexcept
 		{
-			pso::destroy(h_pso);
+			pso::destroy(h_depth_reduce_pso);
+			pso::destroy(h_sdsm_pso);
+			pso::destroy(h_shadow_map_pso);
 
 			graphics::g::dsv_desc_pool.push(h_shadow_atlas_dsv_desc);
 		}
@@ -550,7 +593,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_t<6> unified_light_buffer;
 
-		binding_config_t::reg_u<2> frame_data_rw_buffer;
+		binding_config_t::reg_u<2>	  frame_data_rw_buffer;
+		binding_config_t::reg_t<2, 2> frame_data_rw_buffer_srv;
 
 		binding_config_t::reg_u<0, 3> light_sort_buffer_uav;
 		binding_config_t::reg_t<0, 3> light_sort_buffer_srv;
@@ -563,7 +607,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<3, 3> unified_sorted_light_buffer_uav;
 		binding_config_t::reg_t<3, 3> unified_sorted_light_buffer_srv;
 
-		binding_config_t::reg_t<4, 3> shadow_light_buffer;
+		binding_config_t::reg_t<4, 3> shadow_light_buffer_srv;
+		binding_config_t::reg_u<4, 3> shadow_light_buffer_uav;
 
 		binding_config_t::reg_u<7, 7> debug_buffer_uav;
 

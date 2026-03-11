@@ -88,6 +88,41 @@ float sample_shadow_pcf(Texture2D<float> atlas, SamplerComparisonState samp, flo
     return shadow / 9.0;
 }
 
+float sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_normal)
+{
+    const uint32 step_count = 16;
+    const float max_distance = 0.3;
+    const float thickness = 0.05;
+
+    float3 ray_step = light_dir_ws * (max_distance / step_count);
+    float3 ray_pos = world_pos + light_dir_ws * 0.01 + surface_normal * 0.02;
+
+    Texture2D<float> depth_tex = ResourceDescriptorHeap[depth_buffer_texture_id];
+
+    for (uint32 i = 0; i < step_count; ++i)
+    {
+        ray_pos += ray_step;
+
+        float4 clip = mul(view_proj, float4(ray_pos, 1));
+        float2 uv = float2(clip.x / clip.w * 0.5 + 0.5, -clip.y / clip.w * 0.5 + 0.5);
+
+        if (any(uv < 0) || any(uv > 1))
+        {
+            return 1.0;
+        }
+
+        float scene_z = linearize_reverse_z(depth_tex[int2(uv * backbuffer_size)], cam_near_z, cam_far_z);
+        float ray_z = clip.w; // view-space depth = clip.w (perspective projection)
+
+        float depth_diff = ray_z - scene_z;
+
+        if (depth_diff > 0.005 && depth_diff < thickness)
+        {
+            return 0.0;
+        }
+    }
+    return 1.0;
+}
 float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_offset)
 {
     uint32 cascade_index = DIRECTIONAL_SHADOW_CASCADE_COUNT - 1;
@@ -95,7 +130,7 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
     {
         const uint32 arr_idx = c / 4;
         const uint32 comp = c % 4;
-        const float split = cascade_splits[arr_idx][comp];
+        const float split = frame_data_rw_buffer_srv[0].cascade_splits[arr_idx][comp];
     
         if (linear_depth < split)
         {
@@ -104,7 +139,7 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
         }
     }
    
-    const shadow_light light = shadow_light_buffer[shadow_offset + cascade_index];
+    const shadow_light light = shadow_light_buffer_srv[shadow_offset + cascade_index];
     
     float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
     float3 light_ndc = light_clip.xyz / light_clip.w;
@@ -131,6 +166,8 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
         }
     }
     return shadow / 9.0;
+    
+    // return shadow_atlas.SampleCmp(shadow_sampler, atlas_uv, light_ndc.z);
 }
 
 float4
@@ -138,16 +175,17 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
 {
     const float3 ambient_light = float3(0.03, 0.03, 0.03);
     const float3 albedo = float3(0.8, 0.8, 0.8);
-    //const float3 albedo = get_random_color(fragment.meshlet_render_job_id);
+    // const float3 albedo = get_random_color(fragment.meshlet_render_job_id);
 
     const float3 surface_normal = normalize(fragment.normal);
+    
     const float3 view_dir = normalize(camera_pos - fragment.world_pos);
     
     const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
     const uint32 tile_x = uint32(fragment.pos.x) / LIGHT_TILE_SIZE;
     const uint32 tile_y = uint32(fragment.pos.y) / LIGHT_TILE_SIZE;
-    const uint32 tile_id = tile_x + tile_y * cluster_tile_count_x;
+    const uint32 tile_id = tile_x + tile_y * light_tile_count_x;
     
     float3 lighting = ambient_light;
     
@@ -170,12 +208,52 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     
     for (uint d = 0; d < directional_light_count; ++d)
     {
-        float n_dot_l = saturate(dot(normal, -directional_light_buffer[d].direction));
-        float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, directional_light_buffer[d].shadow_id);
+        const directional_light light = directional_light_buffer[d];
+        float n_dot_l = saturate(dot(normal, -light.direction));
+        float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, light.shadow_id);
         shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
-        lighting += shadow * calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
+        //float contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
+        //contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+        
+        lighting += shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
+        //lighting += contact * shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
         //lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
+    
+    //uint32 cascade_index = DIRECTIONAL_SHADOW_CASCADE_COUNT - 1;
+    //for (uint32 c = 0; c < DIRECTIONAL_SHADOW_CASCADE_COUNT; ++c)
+    //{
+    //    const uint32 arr_idx = c / 4;
+    //    const uint32 comp = c % 4;
+    //    const float split = frame_data_rw_buffer_srv[0].cascade_splits[arr_idx][comp];
+    
+    //    if (linear_depth < split)
+    //    {
+    //        cascade_index = c;
+    //        break;
+    //    }
+    //}
+    
+    //if (cascade_index == 0)
+    //{
+    //    return float4(1, 0, 0, 1);
+    //}
+    //else if (cascade_index == 1)
+    //{
+    //    return float4(0, 1, 0, 1);
+    //}
+    //else if (cascade_index == 2)
+    //{
+    //    return float4(0, 0, 1, 1);
+    //}
+    //else if (cascade_index == 3)
+    //{
+    //    return float4(1, 1, 0, 1);
+    //}
+    //else
+    //{
+    //    return float4(1, 1, 1, 1);
+    //}
     
     for (uint32 w = word_begin; w <= word_end; ++w)
     {
@@ -192,6 +270,10 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
             lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
         }
     }
+    
+    
+    
+    
     //uint32 loop_count = 0;
     //for (uint32 w = word_begin; w <= word_end; ++w)
     //{

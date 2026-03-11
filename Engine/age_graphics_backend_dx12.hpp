@@ -413,6 +413,9 @@ namespace age::graphics::shader::e
 
 					forward_plus_depth_ms,
 
+					forward_plus_shadow_depth_reduce_cs,
+					forward_plus_shadow_sdsm_cs,
+
 					forward_plus_shadow_as,
 					forward_plus_shadow_ms,
 

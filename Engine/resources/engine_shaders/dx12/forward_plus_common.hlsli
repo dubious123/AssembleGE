@@ -13,6 +13,7 @@ StructuredBuffer<directional_light> directional_light_buffer : register(t3);
 StructuredBuffer<unified_light> unified_light_buffer : register(t6);
 
 RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
+StructuredBuffer<frame_data_rw> frame_data_rw_buffer_srv : register(t2, space2);
 
 RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);
 StructuredBuffer<uint32> sort_buffer_srv : register(t0, space3);
@@ -27,7 +28,8 @@ RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3,
 StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space3);
 
 
-StructuredBuffer<shadow_light> shadow_light_buffer : register(t4, space3);
+RWStructuredBuffer<shadow_light> shadow_light_buffer_uav : register(u4, space3);
+StructuredBuffer<shadow_light> shadow_light_buffer_srv : register(t4, space3);
 
 
 
@@ -40,7 +42,7 @@ SamplerComparisonState shadow_sampler : register(s1);
 
 uint32 depth_to_bin(float linear_depth)
 {
-    float t = (linear_depth - cluster_near_z) / (cluster_far_z - cluster_near_z);
+    float t = (linear_depth - cam_near_z) / (cam_far_z - cam_near_z);
     return (uint32)(t * (Z_SLICE_COUNT - 1));
 }
 

@@ -83,6 +83,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<2>>,
 
 		binding_slot<
+			"frame_data_rw_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::frame_data_rw>,
+			how::root_descriptor,
+			where::t<2, 2>>,
+
+		binding_slot<
 			"sort_buffer_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
@@ -147,12 +155,20 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<3, 3>>,
 
 		binding_slot<
-			"shadow_light_buffer",
+			"shadow_light_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::structured_buffer_array<shared_type::shadow_light>,
 			how::root_descriptor,
 			where::t<4, 3>>,
+
+		binding_slot<
+			"shadow_light_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer_array<shared_type::shadow_light>,
+			how::root_descriptor,
+			where::u<4, 3>>,
 
 		binding_slot<
 			"debug_uav",

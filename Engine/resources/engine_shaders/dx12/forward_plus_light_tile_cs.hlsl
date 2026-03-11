@@ -10,7 +10,7 @@ void main_cs(uint32_3 group_id : SV_GroupID,
 {
     const uint32 tile_x = group_id.x;
     const uint32 tile_y = group_id.y;
-    const uint32 tile_id = tile_y * cluster_tile_count_x + tile_x;
+    const uint32 tile_id = tile_y * light_tile_count_x + tile_x;
     
     [unroll(LIGHT_BITMASK_UINT32_COUNT / LIGHT_SORT_THREAD_COUNT)]
     for (uint32 i = group_thread_id; i < LIGHT_BITMASK_UINT32_COUNT; i += LIGHT_SORT_THREAD_COUNT)

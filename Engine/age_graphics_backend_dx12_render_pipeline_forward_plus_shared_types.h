@@ -44,6 +44,7 @@
 
 #define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
 
+#define SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT 16
 
 #define SHADOW_MAP_WIDTH  (2048 * 2)
 #define SHADOW_MAP_HEIGHT (2048 * 2)
@@ -60,6 +61,9 @@
 #define SHADOW_SLOPE_BIAS 2.f
 
 #define DIRECTIONAL_SHADOW_CASCADE_COUNT 4
+#define SHADOW_CASCADE_SPLIT_FACTOR		 0.5f
+
+#define DIRECTIONAL_SHADOW_BACKOFF 50.f
 
 #if !defined(AGE_HLSL)
 	#include "age.hpp"
@@ -169,6 +173,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint32 generic_counter;
 		uint32 not_culled_light_count;
+
+		uint32 z_min;
+		uint32 z_max;
+
+		float4 cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
 	};
 
 	struct zbin_entry
@@ -292,34 +301,35 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data REG(b0)
 	{
-		row_major float4x4 view_proj;										// 64 bytes
-		row_major float4x4 view_proj_inv;									// 64 bytes
-		float3			   camera_pos;										// 12
-		float			   time;											// 4
-		float4			   frustum_planes[6];								// 96
-		float2			   inv_backbuffer_size;								// 8
-		float2			   backbuffer_size;									// 8
-		float3			   camera_forward;									// 12
-		uint32			   frame_index;										// 4
-		float3			   camera_right;									// 12
-		uint32			   main_buffer_texture_id;							// 4
-		float4			   cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
+		row_major float4x4 view_proj;							 // 64 bytes
+		row_major float4x4 view_proj_inv;						 // 64 bytes
+		float3			   camera_pos;							 // 12
+		float			   time;								 // 4
+		float4			   frustum_planes[6];					 // 96
+		float2			   inv_backbuffer_size;					 // 8
+		float2			   backbuffer_size;						 // 8
+		float3			   camera_forward;						 // 12
+		uint32			   frame_index;							 // 4
+		float3			   camera_right;						 // 12
+		uint32			   main_buffer_texture_id;				 // 4
+		uint32			   depth_buffer_texture_id;
+		uint32_3		   padding;
 
-		uint32_4 extra[14 - (DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];	//
-																			// total: 256 * 2 bytes
+		uint32_4 extra[13];										 //
+																 // total: 256 * 2 bytes
 	};
 
 	cbuffer root_constants REG(b1)
 	{
-		uint32			   job_count;										// 4 bytes
-		uint32			   directional_light_count_and_extra;				// 4 bytes
-		t_unified_light_id unified_light_count;								// 4 btyes
+		uint32			   job_count;							 // 4 bytes
+		uint32			   directional_light_count_and_extra;	 // 4 bytes
+		t_unified_light_id unified_light_count;					 // 4 btyes
 
-		uint32 cluster_tile_count_x;
-		uint32 cluster_tile_count_y;
-		float  cluster_near_z;
-		float  cluster_far_z;
-		float  cluster_log_far_near_ratio;
+		uint32 light_tile_count_x;
+		uint32 light_tile_count_y;
+		float  cam_near_z;
+		float  cam_far_z;
+		float  cam_log_far_near_ratio;
 		uint32 shadow_atlas_id;	   // bindless index for shadow atlas
 		uint32 light_radix_sort_pass;
 		uint32 shadow_light_index;

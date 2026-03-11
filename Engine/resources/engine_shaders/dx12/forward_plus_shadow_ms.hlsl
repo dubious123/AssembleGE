@@ -37,7 +37,7 @@ main_ms(
     const float3 scale = (float3)obj_data.scale;
     const float3 pos = obj_data.pos;
     
-    const float4x4 view_proj = shadow_light_buffer[shadow_light_index].view_proj;
+    const float4x4 view_proj = shadow_light_buffer_srv[shadow_light_index].view_proj;
     
     [unroll(2)]
     for (uint32 nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += 32)

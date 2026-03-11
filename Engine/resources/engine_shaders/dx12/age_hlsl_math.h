@@ -267,3 +267,54 @@ calc_point_to_plane_distance(float3 pos, float4 plane)
 {
 	return dot(pos, plane.xyz) + plane.w;
 }
+
+float
+linearize_reverse_z(float z, float n, float f)
+{
+	return n * f / (z * (f - n) + n);
+}
+
+float4x4
+view_look_to(float3 pos, float3 dir)
+{
+	const float3 z_axis = normalize(dir);
+	const float3 up		= abs(dot(z_axis, float3(0, 1, 0))) > 0.999f
+							? float3(1, 0, 0)
+							: float3(0, 1, 0);
+	const float3 x_axis = normalize(cross(up, z_axis));
+	const float3 y_axis = cross(z_axis, x_axis);
+
+	return float4x4(
+		x_axis.x, x_axis.y, x_axis.z, -dot(x_axis, pos),
+		y_axis.x, y_axis.y, y_axis.z, -dot(y_axis, pos),
+		z_axis.x, z_axis.y, z_axis.z, -dot(z_axis, pos),
+		0, 0, 0, 1);
+}
+
+float4x4
+translation(float x, float y, float z)
+{
+	return float4x4(
+		1, 0, 0, x,
+		0, 1, 0, y,
+		0, 0, 1, z,
+		0, 0, 0, 1);
+}
+
+float4x4
+proj_orthographic_reversed(float width, float height, float near_z, float far_z)
+{
+	const float rng = far_z - near_z;
+
+	return float4x4(
+		2.0 / width, 0, 0, 0,
+		0, 2.0 / height, 0, 0,
+		0, 0, -1.0 / rng, far_z / rng,
+		0, 0, 0, 1);
+}
+
+float4
+normalize_plane(float4 p)
+{
+	return p / length(p.xyz);
+}
