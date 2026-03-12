@@ -61,9 +61,16 @@
 #define SHADOW_SLOPE_BIAS 2.f
 
 #define DIRECTIONAL_SHADOW_CASCADE_COUNT 4
-#define SHADOW_CASCADE_SPLIT_FACTOR		 0.5f
+
+#define SHADOW_CASCADE_SPLIT_FACTOR 0.5f
 
 #define DIRECTIONAL_SHADOW_BACKOFF 50.f
+
+#define LIGHT_KIND_DIRECTIONAL 0
+#define LIGHT_KIND_POINT	   1
+#define LIGHT_KIND_SPOT		   2
+#define LIGHT_KIND_AREA		   3
+#define LIGHT_KIND_VOLUMN	   4
 
 #if !defined(AGE_HLSL)
 	#include "age.hpp"
@@ -74,9 +81,9 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_mesh_id	  = uint32;
 	using t_camera_id = uint32;
 
-	using t_directional_light_id = uint8;
+	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
-	using t_shadow_light_id		 = uint8;
+	using t_shadow_light_id		 = uint16;
 
 	using t_global_light_index = uint32;
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -146,29 +153,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	#define t_mesh_id	uint32
 	#define t_camera_id uint32
 
-	#define t_directional_light_id uint8
+	#define t_directional_light_id uint16
 	#define t_unified_light_id	   uint32
-	#define t_shadow_light_id	   uint8
+	#define t_shadow_light_id	   uint16
 
 	#define UV_COUNT 2
 #endif
-	struct debug_77
-	{
-		uint32 tile_min_x;
-		uint32 tile_max_x;
-		uint32 tile_min_y;
-		uint32 tile_max_y;
-
-		float2 screen_min;
-		float2 screen_max;
-
-		float2 backbuffer_size;
-		uint32 visible_count;
-		uint32 invalid_count;
-
-		uint32 tile_bit_mask_arr[100];
-	};
-
 	struct frame_data_rw
 	{
 		uint32 generic_counter;
@@ -193,25 +183,60 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float4			   frustum_planes[6];	 // 96
 	};	  // 160 bytes
 
+	struct shadow_light_header
+	{
+		uint32 light_id;
+		uint16 light_kind;
+		uint16 shadow_id;
+	};
+
 	struct directional_light
 	{
-		float3 direction;	 // 12
-		float  intensity;	 // 4
-		float3 color;		 // 12
-		uint32 shadow_id;	 // 4
+		float3 direction;			   // 12
+		float  intensity;			   // 4
+		float3 color;				   // 12
+		uint32 shadow_id_and_extra;	   // 4
 	};	  // 32 bytes
 
 	struct unified_light
 	{
-		float3 position;	 // 12
-		float  range;		 // 4
-		half3  color;		 // 6
-		half   intensity;	 // 2
-		half3  direction;	 // 6
-		half   cos_inner;	 // 2
-		half   cos_outer;	 // 2
-		uint16 padding;		 // 2
+		float3 position;			   // 12
+		float  range;				   // 4
+		half3  color;				   // 6
+		half   intensity;			   // 2
+		half3  direction;			   // 6
+		half   cos_inner;			   // 2
+		half   cos_outer;			   // 2
+		uint16 shadow_id_and_extra;	   // 2
 	};	  // total: 36 bytes
+
+	struct debug_77
+	{
+		uint32 tile_min_x;
+		uint32 tile_max_x;
+		uint32 tile_min_y;
+		uint32 tile_max_y;
+
+		float2 screen_min;
+		float2 screen_max;
+
+		float2 backbuffer_size;
+		uint32 visible_count;
+		uint32 invalid_count;
+
+		uint32 light_id_0;
+		uint32 key_0;
+
+		uint32 light_id_1;
+		uint32 key_1;
+
+
+		uint32 light_id_2;
+		uint32 key_2;
+
+
+		// uint32 tile_bit_mask_arr[100];
+	};
 
 	//---[ light culling ]------------------------------------------------------------
 
@@ -301,8 +326,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data REG(b0)
 	{
-		row_major float4x4 view_proj;							 // 64 bytes
-		row_major float4x4 view_proj_inv;						 // 64 bytes
+		row_major float4x4 view_proj;							 // 64
+		row_major float4x4 view_proj_inv;						 // 64
 		float3			   camera_pos;							 // 12
 		float			   time;								 // 4
 		float4			   frustum_planes[6];					 // 96
@@ -312,7 +337,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   frame_index;							 // 4
 		float3			   camera_right;						 // 12
 		uint32			   main_buffer_texture_id;				 // 4
-		uint32			   depth_buffer_texture_id;
+		uint32			   depth_buffer_texture_id;				 // 4
 		uint32_3		   padding;
 
 		uint32_4 extra[13];										 //
@@ -330,9 +355,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_near_z;
 		float  cam_far_z;
 		float  cam_log_far_near_ratio;
-		uint32 shadow_atlas_id;	   // bindless index for shadow atlas
+		uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 light_radix_sort_pass;
-		uint32 shadow_light_index;
+		uint32 shadow_light_index;	  // shadow mapping
 	};
 
 #if !defined(AGE_HLSL)

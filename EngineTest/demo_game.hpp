@@ -36,7 +36,10 @@ namespace demo_game
 				camera_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
 
 			age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-				unified_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+				point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+
+			age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
+				spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
 
 			age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
 				directional_light_id_vec;
@@ -76,7 +79,10 @@ namespace demo_game
 				camera_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
 
 			age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-				unified_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+				point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+
+			age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
+				spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
 
 			age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
 				directional_light_id_vec;
@@ -119,7 +125,7 @@ namespace demo_game::scene_0
 			auto& mesh_id_vec			   = game_ctx.scene_0.mesh_id_vec;
 			auto& obj_id_vec			   = game_ctx.scene_0.obj_id_vec;
 			auto& camera_vec			   = game_ctx.scene_0.camera_vec;
-			auto& unified_light_id_vec	   = game_ctx.scene_0.unified_light_id_vec;
+			auto& unified_light_id_vec	   = game_ctx.scene_0.point_light_id_vec;
 			auto& directional_light_id_vec = game_ctx.scene_0.directional_light_id_vec;
 		}
 
@@ -170,7 +176,7 @@ namespace demo_game::scene_0
 
 					for (auto i = 0; i < light_count; ++i)
 					{
-						game_ctx.scene_0.unified_light_id_vec.emplace_back(
+						game_ctx.scene_0.point_light_id_vec.emplace_back(
 							game_ctx.render_pipeline.add_point_light(
 								age::graphics::render_pipeline::forward_plus::point_light_desc{
 									.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
@@ -182,16 +188,16 @@ namespace demo_game::scene_0
 				}),
 
 			// yellow spot top down onto scene center
-			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
-				.position  = float3{ 0.0f, 12.0f, 0.0f },
-				.range	   = 6.0f,
-				.direction = float3{ 0.0f, -1.0f, 0.0f },
-				.intensity = 10.0f,
-				.color	   = float3{ 1.0f, 0.9f, 0.6f },
-				.cos_inner = 0.96f,
-				.cos_outer = 0.87f } }
-				| AGE_FUNC(game_ctx.render_pipeline.add_spot_light)
-				| AGE_FUNC(game_ctx.scene_0.unified_light_id_vec.emplace_back),
+			// identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
+			//	.position  = float3{ 0.0f, 12.0f, 0.0f },
+			//	.range	   = 6.0f,
+			//	.direction = float3{ 0.0f, -1.0f, 0.0f },
+			//	.intensity = 10.0f,
+			//	.color	   = float3{ 1.0f, 0.9f, 0.6f },
+			//	.cos_inner = 0.96f,
+			//	.cos_outer = 0.87f } }
+			//	| AGE_FUNC(game_ctx.render_pipeline.add_spot_light)
+			//	| AGE_FUNC(game_ctx.scene_0.spot_light_id_vec.emplace_back),
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
@@ -331,9 +337,14 @@ namespace demo_game::scene_0
 			game_ctx.render_pipeline.remove_camera(c_id);
 		}
 
-		for (auto l_id : game_ctx.scene_0.unified_light_id_vec)
+		for (auto l_id : game_ctx.scene_0.point_light_id_vec)
 		{
-			game_ctx.render_pipeline.remove_unified_light(l_id);
+			game_ctx.render_pipeline.remove_point_light(l_id);
+		}
+
+		for (auto l_id : game_ctx.scene_0.spot_light_id_vec)
+		{
+			game_ctx.render_pipeline.remove_spot_light(l_id);
 		}
 
 		for (auto d_id : game_ctx.scene_0.directional_light_id_vec)
@@ -344,7 +355,8 @@ namespace demo_game::scene_0
 		game_ctx.scene_0.obj_id_vec.clear();
 		game_ctx.scene_0.mesh_id_vec.clear();
 		game_ctx.scene_0.camera_vec.clear();
-		game_ctx.scene_0.unified_light_id_vec.clear();
+		game_ctx.scene_0.point_light_id_vec.clear();
+		game_ctx.scene_0.spot_light_id_vec.clear();
 		game_ctx.scene_0.directional_light_id_vec.clear();
 	}
 }	 // namespace demo_game::scene_0
@@ -360,7 +372,7 @@ namespace demo_game::scene_1
 			auto& mesh_id_vec			   = game_ctx.scene_1.mesh_id_vec;
 			auto& obj_id_vec			   = game_ctx.scene_1.obj_id_vec;
 			auto& camera_vec			   = game_ctx.scene_1.camera_vec;
-			auto& unified_light_id_vec	   = game_ctx.scene_1.unified_light_id_vec;
+			auto& unified_light_id_vec	   = game_ctx.scene_1.point_light_id_vec;
 			auto& directional_light_id_vec = game_ctx.scene_1.directional_light_id_vec;
 		}
 		on_ctx{
@@ -396,6 +408,32 @@ namespace demo_game::scene_1
 				| AGE_FUNC(game_ctx.render_pipeline.add_directional_light)
 				| AGE_FUNC(game_ctx.scene_1.directional_light_id_vec.emplace_back),
 
+			// AGE_LAMBDA(
+			//	(),
+			//	{
+			//		constexpr uint32 light_count = 1000;
+			//		constexpr float	 scene_min	 = -15.0f;
+			//		constexpr float	 scene_max	 = 15.0f;
+			//		constexpr float	 range		 = 6.0f;
+			//		constexpr float	 intensity	 = 0.3f;
+
+			//		auto rng		= std::mt19937{ 42 };
+			//		auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
+			//		auto dist_color = std::uniform_real_distribution<float>{ 0.2f, 1.0f };
+
+			//		for (auto i = 0; i < light_count; ++i)
+			//		{
+			//			game_ctx.scene_1.point_light_id_vec.emplace_back(
+			//				game_ctx.render_pipeline.add_point_light(
+			//					age::graphics::render_pipeline::forward_plus::point_light_desc{
+			//						.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
+			//						.range	  = range,
+			//						.color	  = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
+			//						//.color	   = float3{ 1, 1, 1 },
+			//						.intensity = intensity }));
+			//		}
+			//	}),
+
 			// === point lights - distinct colors for shadow identification ===
 
 			// red light - left side, low
@@ -404,8 +442,10 @@ namespace demo_game::scene_1
 				.range	   = 15.0f,
 				.color	   = float3{ 1.0f, 0.2f, 0.2f },
 				.intensity = 3.0f } }
+				//| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(desc, false); })
+				//| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(desc, false); })
 				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
-				| AGE_FUNC(game_ctx.scene_1.unified_light_id_vec.emplace_back),
+				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
 
 			// green light - right side, mid height
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
@@ -414,7 +454,7 @@ namespace demo_game::scene_1
 				.color	   = float3{ 0.2f, 1.0f, 0.2f },
 				.intensity = 3.0f } }
 				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
-				| AGE_FUNC(game_ctx.scene_1.unified_light_id_vec.emplace_back),
+				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
 
 			// blue light - center, high above
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
@@ -423,7 +463,7 @@ namespace demo_game::scene_1
 				.color	   = float3{ 0.3f, 0.3f, 1.0f },
 				.intensity = 3.0f } }
 				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
-				| AGE_FUNC(game_ctx.scene_1.unified_light_id_vec.emplace_back),
+				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
 
 			// === meshes ===
 
@@ -592,9 +632,14 @@ namespace demo_game::scene_1
 			game_ctx.render_pipeline.remove_camera(c_id);
 		}
 
-		for (auto l_id : game_ctx.scene_1.unified_light_id_vec)
+		for (auto l_id : game_ctx.scene_1.point_light_id_vec)
 		{
-			game_ctx.render_pipeline.remove_unified_light(l_id);
+			game_ctx.render_pipeline.remove_point_light(l_id);
+		}
+
+		for (auto l_id : game_ctx.scene_1.spot_light_id_vec)
+		{
+			game_ctx.render_pipeline.remove_spot_light(l_id);
 		}
 
 		for (auto d_id : game_ctx.scene_1.directional_light_id_vec)
@@ -605,7 +650,8 @@ namespace demo_game::scene_1
 		game_ctx.scene_1.obj_id_vec.clear();
 		game_ctx.scene_1.mesh_id_vec.clear();
 		game_ctx.scene_1.camera_vec.clear();
-		game_ctx.scene_1.unified_light_id_vec.clear();
+		game_ctx.scene_1.point_light_id_vec.clear();
+		game_ctx.scene_1.spot_light_id_vec.clear();
 		game_ctx.scene_1.directional_light_id_vec.clear();
 	}
 }	 // namespace demo_game::scene_1

@@ -193,6 +193,16 @@ namespace age::math::simd
 		};
 	}
 
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+	load(const half3& h3) noexcept
+	{
+		return load(float3{
+			DirectX::PackedVector::XMConvertHalfToFloat(h3.x),
+			DirectX::PackedVector::XMConvertHalfToFloat(h3.y),
+			DirectX::PackedVector::XMConvertHalfToFloat(h3.z),
+		});
+	}
+
 	struct __load__
 	{
 		FORCE_INLINE decltype(auto) AGE_SIMD_CALL

@@ -23,7 +23,7 @@ void main_cs(uint32_3 group_id : SV_GroupID,
     const uint32 visible_count = frame_data_rw_buffer[0].not_culled_light_count;
     for (uint32 sorted_id = group_thread_id; sorted_id < visible_count; sorted_id += LIGHT_SORT_THREAD_COUNT)
     {
-        uint32 packed_aabb = sort_buffer[LIGHT_TILE_AABB_OFFSET + sorted_id];
+        uint32 packed_aabb = sort_buffer_srv[LIGHT_TILE_AABB_OFFSET + sorted_id];
 
         uint32 tile_min_x = (packed_aabb >> 24) & 0xff;
         uint32 tile_max_x = (packed_aabb >> 16) & 0xff;

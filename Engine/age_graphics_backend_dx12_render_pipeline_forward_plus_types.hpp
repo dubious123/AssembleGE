@@ -156,9 +156,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_slot<
 			"shadow_light_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::shadow_light>,
+			what::structured_buffer<shared_type::shadow_light>,
 			how::root_descriptor,
 			where::t<4, 3>>,
 
@@ -166,9 +166,17 @@ namespace age::graphics::render_pipeline::forward_plus
 			"shadow_light_buffer_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer_array<shared_type::shadow_light>,
+			what::rw_structured_buffer<shared_type::shadow_light>,
 			how::root_descriptor,
 			where::u<4, 3>>,
+
+		binding_slot<
+			"shadow_light_header_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::shadow_light_header>,
+			how::root_descriptor,
+			where::t<5, 3>>,
 
 		binding_slot<
 			"debug_uav",
@@ -200,9 +208,9 @@ namespace age::graphics::render_pipeline::forward_plus
 {
 	struct camera_desc
 	{
-		e::camera_kind kind;
-		float3		   pos;
-		float4		   quaternion;
+		graphics::e::camera_kind kind;
+		float3					 pos;
+		float4					 quaternion;
 
 		float near_z;
 		float far_z;
@@ -269,6 +277,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct shadow_light_header
 	{
-		uint8 slice_index;
+		uint32			  light_id;
+		e::light_kind	  light_kind;
+		t_shadow_light_id shadow_id;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

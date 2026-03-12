@@ -209,13 +209,23 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     for (uint d = 0; d < directional_light_count; ++d)
     {
         const directional_light light = directional_light_buffer[d];
-        float n_dot_l = saturate(dot(normal, -light.direction));
-        float shadow = sample_directional_shadow(fragment.world_pos, linear_depth, light.shadow_id);
-        shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
-        //float contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
-        //contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
         
-        lighting += shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
+        float shadow = 1.f;
+        float contact = 1.f;
+        
+        uint32 shadow_id = light.shadow_id_and_extra & 0xf;
+        
+        if (shadow_id != 0xf)
+        {
+            float n_dot_l = saturate(dot(normal, -light.direction));
+            shadow = sample_directional_shadow(fragment.world_pos, linear_depth, shadow_id);
+            shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
+            
+            //contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
+            //contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+        }
+        
+        lighting += shadow * contact * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
         //lighting += contact * shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
         //lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
     }
@@ -255,6 +265,11 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     //    return float4(1, 1, 1, 1);
     //}
     
+    //const unified_light light = unified_sorted_light_buffer_srv[0];
+    //lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+    
+    // return float4(lighting * albedo, 1.0f);
+    
     for (uint32 w = word_begin; w <= word_end; ++w)
     {
         uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
@@ -270,9 +285,6 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
             lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
         }
     }
-    
-    
-    
     
     //uint32 loop_count = 0;
     //for (uint32 w = word_begin; w <= word_end; ++w)

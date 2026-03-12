@@ -4,6 +4,7 @@ static const float epsilon_1e4 = 0.0001f;
 static const float epsilon_1e6 = 0.000001f;
 static const float sqrt_2	   = 1.41421356f;
 static const float sqrt_2_inv  = 0.70710678f;
+static const float pi_half	   = 1.570796327f;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
@@ -302,6 +303,21 @@ translation(float x, float y, float z)
 }
 
 float4x4
+proj_perspective_reversed(float fov_y, float aspect_ratio, float near_z, float far_z)
+{
+	float h = 1.0f / tan(fov_y * 0.5f);
+	float w = h / aspect_ratio;
+	float a = near_z / (far_z - near_z);
+	float b = far_z * near_z / (far_z - near_z);
+
+	return float4x4(
+		w, 0.0f, 0.0f, 0.0f,
+		0.0f, h, 0.0f, 0.0f,
+		0.0f, 0.0f, a, 1.0f,
+		0.0f, 0.0f, b, 0.0f);
+}
+
+float4x4
 proj_orthographic_reversed(float width, float height, float near_z, float far_z)
 {
 	const float rng = far_z - near_z;
@@ -317,4 +333,21 @@ float4
 normalize_plane(float4 p)
 {
 	return p / length(p.xyz);
+}
+
+void
+gen_frustum_planes(float4x4 view_proj_mat, out float4 planes[6])
+{
+	// frustum planes (Gribb-Hartmann)
+	const float4 r0 = view_proj_mat[0];
+	const float4 r1 = view_proj_mat[1];
+	const float4 r2 = view_proj_mat[2];
+	const float4 r3 = view_proj_mat[3];
+
+	planes[0] = normalize_plane(r3 + r0);	 // left
+	planes[1] = normalize_plane(r3 - r0);	 // right
+	planes[2] = normalize_plane(r3 - r1);	 // top
+	planes[3] = normalize_plane(r3 + r1);	 // bottom
+	planes[4] = normalize_plane(r2);		 // near
+	planes[5] = normalize_plane(r3 - r2);	 // far
 }

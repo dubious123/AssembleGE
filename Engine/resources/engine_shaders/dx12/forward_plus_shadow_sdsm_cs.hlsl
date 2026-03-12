@@ -2,9 +2,7 @@
 #include "forward_plus_common.hlsli"
 #undef SHADER_STAGE_CS
 
-[numthreads(DIRECTIONAL_SHADOW_CASCADE_COUNT, 1, 1)]
-void main_cs(uint32 directional_light_id : SV_GroupID,
-             uint32 cascade_idx : SV_GroupThreadID)
+void handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx, uint32 shadow_id)
 {
     const directional_light light = directional_light_buffer[directional_light_id];
     float depth_min = asfloat(frame_data_rw_buffer[0].z_min);
@@ -101,8 +99,6 @@ void main_cs(uint32 directional_light_id : SV_GroupID,
     const float offset_x = snap_x - center_light_space.x;
     const float offset_y = snap_y - center_light_space.y;
     
-    
-
     // ortho projection (reverse-z)
     const float diameter = radius * 2.0;
     const float rng = diameter;
@@ -114,23 +110,86 @@ void main_cs(uint32 directional_light_id : SV_GroupID,
         radius * 2.0f + back_offset);
 
     const float4x4 light_view_proj = mul(mul(light_proj, translation(offset_x, offset_y, 0.f)), light_view_mat);
-
-    // frustum planes (Gribb-Hartmann)
-    const float4 r0 = light_view_proj[0];
-    const float4 r1 = light_view_proj[1];
-    const float4 r2 = light_view_proj[2];
-    const float4 r3 = light_view_proj[3];
-
-    const uint32 shadow_id = directional_light_id * DIRECTIONAL_SHADOW_CASCADE_COUNT + cascade_idx;
-
-    shadow_light_buffer_uav[shadow_id].view_proj = light_view_proj;
-    shadow_light_buffer_uav[shadow_id].frustum_planes[0] = normalize_plane(r3 + r0); // left
-    shadow_light_buffer_uav[shadow_id].frustum_planes[1] = normalize_plane(r3 - r0); // right
-    shadow_light_buffer_uav[shadow_id].frustum_planes[2] = normalize_plane(r3 - r1); // top
-    shadow_light_buffer_uav[shadow_id].frustum_planes[3] = normalize_plane(r3 + r1); // bottom
-    shadow_light_buffer_uav[shadow_id].frustum_planes[4] = normalize_plane(r2); // near
-    shadow_light_buffer_uav[shadow_id].frustum_planes[5] = normalize_plane(r3 - r2); // far
+    
+    shadow_light_buffer_uav[shadow_id + cascade_idx].view_proj = light_view_proj;
+    gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + cascade_idx].frustum_planes);
     
     frame_data_rw_buffer[0].cascade_splits[cascade_idx / 4][cascade_idx % 4] = split_far;
+    
     // frame_data_rw_buffer[0].radius[cascade_idx] = radius;
+}
+
+void handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
+{
+    static const float3 face_dirs[6] =
+    {
+        float3(1, 0, 0), // +X
+        float3(-1, 0, 0), // -X
+        float3(0, 1, 0), // +Y
+        float3(0, -1, 0), // -Y
+        float3(0, 0, 1), // +Z
+        float3(0, 0, -1), // -Z
+    };
+    
+    const unified_light light = unified_light_buffer[id];
+
+    const float4x4 light_view_mat = view_look_to(light.position, face_dirs[face_idx]);
+
+    const float4x4 light_proj = proj_perspective_reversed(
+        pi_half,
+        1.0f,
+        epsilon_1e4,
+        light.range);
+
+    const float4x4 light_view_proj = mul(light_proj, light_view_mat);
+
+    shadow_light_buffer_uav[shadow_id + face_idx].view_proj = light_view_proj;
+    gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + face_idx].frustum_planes);
+}
+
+void handle_spot_light_shadow(uint32 id, uint32 shadow_id)
+{
+    const unified_light light = unified_light_buffer[id];
+    
+    const float4x4 light_view_mat = view_look_to(light.position, light.direction);
+    
+    const float4x4 light_proj = proj_perspective_reversed(
+        2.0f * acos((float)light.cos_outer),
+        1,
+        epsilon_1e4,
+        light.range);
+    
+    const float4x4 light_view_proj = mul(light_proj, light_view_mat);
+    
+    shadow_light_buffer_uav[shadow_id].view_proj = light_view_proj;
+    gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id].frustum_planes);
+}
+
+[numthreads(6, 1, 1)]
+void main_cs(uint32 shadow_light_header_id : SV_GroupID,
+             uint32 thread_id : SV_GroupThreadID)
+{
+    const shadow_light_header header = shadow_light_header_buffer[shadow_light_header_id];
+    
+    if (header.light_kind == LIGHT_KIND_DIRECTIONAL)
+    {
+        if (thread_id < DIRECTIONAL_SHADOW_CASCADE_COUNT)
+        {
+            handle_directional_light_shadow(header.light_id, thread_id, header.shadow_id);
+        }
+    }
+    else if (header.light_kind == LIGHT_KIND_POINT)
+    {
+        if (thread_id < 6)
+        {
+            handle_point_light_shadow(header.light_id, thread_id, header.shadow_id);
+        }
+    }
+    else if (header.light_kind == LIGHT_KIND_SPOT)
+    {
+        if (thread_id < 1)
+        {
+            handle_spot_light_shadow(header.light_id, header.shadow_id);
+        }
+    }
 }

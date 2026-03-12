@@ -28,9 +28,11 @@ RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3,
 StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space3);
 
 
+
 RWStructuredBuffer<shadow_light> shadow_light_buffer_uav : register(u4, space3);
 StructuredBuffer<shadow_light> shadow_light_buffer_srv : register(t4, space3);
 
+StructuredBuffer<shadow_light_header> shadow_light_header_buffer : register(t5, space3);
 
 
 RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);

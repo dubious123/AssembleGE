@@ -139,12 +139,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			p_sdsm_pso = graphics::g::pso_ptr_vec[h_sdsm_pso];
 
-
 			h_shadow_map_pso = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 				pss_as{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_as) }) },
 				pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_ms) }) },
-				// no PS
 				pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 				pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{}, .NumRenderTargets = 0 } },
 				pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
@@ -167,20 +165,24 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		inline void
-		execute(t_cmd_list&														cmd_list,
-				graphics::resource_barrier&										barrier,
-				uint32															width,
-				uint32															height,
-				uint32															directional_light_count,
-				ID3D12Resource&													frame_data_rw_buffer,
-				ID3D12Resource&													shadow_light_rw_buffer,
-				const data_structure::stable_dense_vector<shadow_light_header>& shadow_light_header_vec,
-				uint32															job_count) noexcept
+		execute(t_cmd_list&					cmd_list,
+				graphics::resource_barrier& barrier,
+				uint32						width,
+				uint32						height,
+				uint32						shadow_light_count,
+				uint32						shadow_light_header_count,
+				ID3D12Resource&				frame_data_rw_buffer,
+				ID3D12Resource&				shadow_light_rw_buffer,
+				uint32						job_count) noexcept
 		{
 			if (job_count == 0) [[unlikely]]
 			{
 				return;
 			}
+
+			barrier.add_transition(shadow_light_rw_buffer,
+								   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+								   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			cmd_list.SetPipelineState(p_depth_reduce_pso);
 			cmd_list.Dispatch(
@@ -192,8 +194,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier.apply_and_reset(cmd_list);
 
 			cmd_list.SetPipelineState(p_sdsm_pso);
-			cmd_list.Dispatch(directional_light_count, 1, 1);
-			barrier.add_uav(shadow_light_rw_buffer);
+			cmd_list.Dispatch(shadow_light_header_count, 1, 1);
+
+			barrier.add_transition(shadow_light_rw_buffer,
+								   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+								   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			barrier.apply_and_reset(cmd_list);
 
@@ -207,12 +212,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			cmd_list.SetPipelineState(p_shadow_map_pso);
 
-			for (auto&& [i, header] : shadow_light_header_vec | std::views::enumerate)
+			for (auto shadow_id : std::views::iota(0) | std::views::take(shadow_light_count))
 			{
-				uint32 slice_index = header.slice_index;
-
-				c_auto col	   = slice_index % g::shadow_atlas_seg_u;
-				c_auto row	   = slice_index / g::shadow_atlas_seg_u;
+				c_auto col	   = shadow_id % g::shadow_atlas_seg_u;
+				c_auto row	   = shadow_id / g::shadow_atlas_seg_u;
 				c_auto atlas_x = col * g::shadow_map_width;
 				c_auto atlas_y = row * g::shadow_map_height;
 
@@ -234,7 +237,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				cmd_list.SetGraphicsRoot32BitConstants(
 					binding_config_t::reg_b<1>::slot_id,
 					sizeof(uint32) / 4,
-					&slice_index,
+					&shadow_id,
 					offsetof(shared_type::root_constants, shadow_light_index) / 4);
 
 				if (job_count > 0) [[likely]]
@@ -324,15 +327,19 @@ namespace age::graphics::render_pipeline::forward_plus
 				graphics::resource_barrier& barrier,
 				uint32						light_tile_count_x,
 				uint32						light_tile_count_y,
+				ID3D12Resource&				unified_sorted_light_buffer,
 				ID3D12Resource&				frame_data_rw_buffer,
 				ID3D12Resource&				sort_buffer,
 				ID3D12Resource&				zbin_buffer,
-				ID3D12Resource&				tile_mask_buffer,
-				ID3D12Resource&				unified_sorted_light_buffer,
 				uint32						light_count) noexcept
 		{
 			if (light_count > 0)
 			{
+				barrier.add_transition(sort_buffer,
+									   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+									   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				barrier.apply_and_reset(cmd_list);
+
 				cmd_list.SetPipelineState(p_pso_cull);
 				cmd_list.Dispatch((g::max_light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
 				barrier.add_uav(sort_buffer);
@@ -366,15 +373,17 @@ namespace age::graphics::render_pipeline::forward_plus
 				cmd_list.Dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
 
 				barrier.add_uav(zbin_buffer);
-				barrier.add_uav(sort_buffer);
+				// barrier.add_uav(sort_buffer);
 				barrier.add_uav(frame_data_rw_buffer);
+
+				barrier.add_transition(sort_buffer,
+									   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+									   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
 				barrier.apply_and_reset(cmd_list);
 
 				cmd_list.SetPipelineState(p_pso_tile);
 				cmd_list.Dispatch(light_tile_count_x, light_tile_count_y, 1);
-				barrier.add_uav(tile_mask_buffer);
-				barrier.add_uav(unified_sorted_light_buffer);
-				barrier.apply_and_reset(cmd_list);
 			}
 		}
 
@@ -563,6 +572,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_tile_mask_buffer;
 		resource_handle h_shadow_atlas;
 		resource_handle h_unified_sorted_light_buffer;
+		resource_handle h_shadow_light_buffer;
 
 
 		ID3D12Resource* p_main_buffer;
@@ -572,6 +582,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12Resource* p_zbin_buffer;
 		ID3D12Resource* p_tile_mask_buffer;
 		ID3D12Resource* p_unified_sorted_light_buffer;
+		ID3D12Resource* p_shadow_light_buffer;
 
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
@@ -610,6 +621,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<4, 3> shadow_light_buffer_srv;
 		binding_config_t::reg_u<4, 3> shadow_light_buffer_uav;
 
+		binding_config_t::reg_t<5, 3> shadow_light_header_buffer;
+
 		binding_config_t::reg_u<7, 7> debug_buffer_uav;
 
 		resource::mapping_handle h_mapping_frame_data;
@@ -619,7 +632,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_directional_light_buffer;
 		resource::mapping_handle h_mapping_unified_light_buffer;
 		resource::mapping_handle h_mapping_frame_data_rw_buffer;
-		resource::mapping_handle h_mapping_shadow_light_buffer;
+		resource::mapping_handle h_mapping_shadow_light_header_buffer;
 		resource::mapping_handle h_mapping_debug_buffer_uav;
 
 		// bindless texture
@@ -646,11 +659,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		data_structure::stable_dense_vector<shared_type::unified_light> unified_light_vec;
 
-		data_structure::stable_dense_vector<shadow_light_header> shadow_light_header_vec;
+		std::array<shadow_light_header, g::max_shadow_light_count> shadow_light_header_arr;
 
-		std::array<shared_type::shadow_light, g::max_shadow_light_count> shadow_light_arr;
-
-		std::array<float, g::directional_shadow_cascade_count + 1> cascade_splits;
+		t_shadow_light_id shadow_light_header_count		 = 0u;
+		t_shadow_light_id next_shadow_light_id			 = 0u;
+		t_shadow_light_id directional_shadow_light_count = 0u;
 
 		t_mesh_id
 		upload_mesh(const asset::mesh_baked& baked) noexcept
@@ -693,13 +706,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if constexpr (reversed)
 			{
-				xm_proj = (desc.kind == e::camera_kind::perspective)
+				xm_proj = (desc.kind == graphics::e::camera_kind::perspective)
 							? simd::proj_perspective_fov_reversed(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.near_z, desc.far_z)
 							: simd::proj_orthographic_reversed(desc.orthographic.view_width, desc.orthographic.view_height, desc.near_z, desc.far_z);
 			}
 			else
 			{
-				xm_proj = (desc.kind == e::camera_kind::perspective)
+				xm_proj = (desc.kind == graphics::e::camera_kind::perspective)
 							? simd::proj_perspective_fov(desc.perspective.fov_y, desc.perspective.aspect_ratio, desc.near_z, desc.far_z)
 							: simd::proj_orthographic(desc.orthographic.view_width, desc.orthographic.view_height, desc.near_z, desc.far_z);
 			}
@@ -716,7 +729,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[2]) | simd::plane_normalize() | simd::to<float4>(),	// far
 			};
 
-			if (desc.kind == e::camera_kind::perspective)
+			if (desc.kind == graphics::e::camera_kind::perspective)
 			{
 				return camera_data{
 					.pos			   = desc.pos,
@@ -732,6 +745,120 @@ namespace age::graphics::render_pipeline::forward_plus
 				AGE_ASSERT(false, "orthographic camera is not supported yet");
 				return {};
 			}
+		}
+
+		constexpr FORCE_INLINE t_shadow_light_id
+		get_shadow_light_count(graphics::e::light_kind kind) noexcept
+		{
+			switch (kind)
+			{
+			case graphics::e::light_kind::directional:
+				return static_cast<t_shadow_light_id>(g::directional_shadow_cascade_count);
+			case graphics::e::light_kind::point:
+				return static_cast<t_shadow_light_id>(6);
+			case graphics::e::light_kind::spot:
+				return static_cast<t_shadow_light_id>(1);
+			default:
+				AGE_UNREACHABLE();
+			}
+		}
+
+		constexpr FORCE_INLINE void
+		handle_shadow_light_add(graphics::e::light_kind kind, uint32 id, bool cast_shadow) noexcept
+		{
+			if (kind == graphics::e::light_kind::directional)
+			{
+				if (cast_shadow)
+				{
+					std::move_backward(shadow_light_header_arr.begin(),
+									   shadow_light_header_arr.begin() + shadow_light_header_count,
+									   shadow_light_header_arr.begin() + shadow_light_header_count + 1);
+					for (auto& header : shadow_light_header_arr | std::views::drop(1) | std::views::take(shadow_light_header_count))
+					{
+						header.shadow_id += g::directional_shadow_cascade_count;
+						if (header.light_kind == graphics::e::light_kind::directional)
+						{
+							directional_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
+						}
+						else
+						{
+							unified_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
+						}
+
+						AGE_ASSERT(header.shadow_id < g::max_shadow_light_count);
+					}
+
+					shadow_light_header_arr[0] = shadow_light_header{
+						.light_id	= id,
+						.light_kind = kind,
+						.shadow_id	= 0
+					};
+
+					next_shadow_light_id += get_shadow_light_count(kind);
+
+					++shadow_light_header_count;
+					++directional_shadow_light_count;
+				}
+				else
+				{
+					directional_light_vec[id].shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
+				}
+			}
+			else
+			{
+				if (cast_shadow)
+				{
+					shadow_light_header_arr[shadow_light_header_count++] = shadow_light_header{
+						.light_id	= id,
+						.light_kind = kind,
+						.shadow_id	= next_shadow_light_id,
+					};
+
+					unified_light_vec[id].shadow_id_and_extra = next_shadow_light_id;
+
+					next_shadow_light_id += get_shadow_light_count(kind);
+				}
+				else
+				{
+					unified_light_vec[id].shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
+				}
+			}
+
+			AGE_ASSERT(shadow_light_header_count <= g::max_shadow_light_count);
+		}
+
+		constexpr FORCE_INLINE void
+		handle_shadow_light_remove(graphics::e::light_kind kind, t_shadow_light_id shadow_id) noexcept
+		{
+			auto it = std::ranges::find_if(shadow_light_header_arr, [shadow_id](const auto& h) { return h.shadow_id == shadow_id; });
+
+			AGE_ASSERT(it->light_kind == kind);
+
+			for (auto idx = std::distance(shadow_light_header_arr.begin(), it), idx_next = idx + 1;
+				 idx_next < shadow_light_header_count;
+				 ++idx, ++idx_next)
+			{
+				auto& header	  = shadow_light_header_arr[idx];
+				header			  = shadow_light_header_arr[idx_next];
+				header.shadow_id -= get_shadow_light_count(kind);
+				if (header.light_kind == graphics::e::light_kind::directional)
+				{
+					directional_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
+				}
+				else
+				{
+					unified_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
+				}
+
+				AGE_ASSERT(shadow_light_header_arr[idx].shadow_id < g::max_shadow_light_count);
+			}
+
+			if (kind == graphics::e::light_kind::directional)
+			{
+				--directional_shadow_light_count;
+			}
+			--shadow_light_header_count;
+			next_shadow_light_id -= get_shadow_light_count(kind);
 		}
 
 	  public:
@@ -757,16 +884,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			camera_data_vec[id] = calc_camera_data<true>(desc);
 			camera_desc_vec[id] = desc;
-
-			for (auto&& [i, split] : cascade_splits | std::views::enumerate)
-			{
-				const float t		  = static_cast<float>(i) / g::directional_shadow_cascade_count;
-				const float safe_near = std::max(desc.near_z, 0.1f);
-				const float log_t	  = safe_near * std::pow(desc.far_z / safe_near, t);
-				split				  = log_t * 0.5f + (safe_near + t * (desc.far_z - safe_near)) * 0.5f;
-			}
-
-			cascade_splits[0] = desc.near_z;
 		}
 
 		void
@@ -789,25 +906,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		t_directional_light_id
 		add_directional_light(const directional_light_desc& desc, bool cast_shadow = true) noexcept
 		{
-			t_unified_light_id id = static_cast<t_directional_light_id>(directional_light_vec.emplace_back());
+			t_directional_light_id id = static_cast<t_directional_light_id>(directional_light_vec.emplace_back());
 
-			if (cast_shadow)
-			{
-				// shadow_light_buffer
-				c_auto shadow_id = static_cast<t_shadow_light_id>(shadow_light_header_vec.count());
-
-				directional_light_vec[id].shadow_id = shadow_id;
-
-				for (auto i : std::views::iota(shadow_id) | std::views::take(g::directional_shadow_cascade_count))
-				{
-					shadow_light_header_vec.emplace_back(shadow_light_header{
-						.slice_index = i });
-				}
-			}
-			else
-			{
-				directional_light_vec[id].shadow_id = age::get_invalid_id<t_shadow_light_id>();
-			}
+			handle_shadow_light_add(graphics::e::light_kind::directional, id, cast_shadow);
 
 			update_directional_light(id, desc);
 
@@ -817,13 +918,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		remove_directional_light(t_directional_light_id& id) noexcept
 		{
-			c_auto& data = directional_light_vec[id];
-			if (data.shadow_id != age::get_invalid_id<t_shadow_light_id>())
+			c_auto&			  light		= directional_light_vec[id];
+			t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+			if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
 			{
-				for (auto i : std::views::iota(data.shadow_id) | std::views::take(g::directional_shadow_cascade_count))
-				{
-					shadow_light_header_vec.remove(i);
-				}
+				handle_shadow_light_remove(graphics::e::light_kind::directional, shadow_id);
 			}
 
 			directional_light_vec.remove(id);
@@ -832,17 +931,18 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		void
-		update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow = false) noexcept
+		update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept
 		{
-			unified_light_vec[id] = shared_type::unified_light{
-				.position  = desc.position,
-				.range	   = desc.range,
-				.color	   = math::cvt_to<half3>(desc.color),
-				.intensity = math::cvt_to<half>(desc.intensity),
-				.direction = math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f }),
-				.cos_inner = math::cvt_to<half>(-1.f),
-				.cos_outer = math::cvt_to<half>(-2.f),
-			};
+			auto& light = unified_light_vec[id];
+
+
+			light.position	= desc.position;
+			light.range		= desc.range;
+			light.color		= math::cvt_to<half3>(desc.color);
+			light.intensity = math::cvt_to<half>(desc.intensity);
+			light.direction = math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f });
+			light.cos_inner = math::cvt_to<half>(-1.f);
+			light.cos_outer = math::cvt_to<half>(-2.f);
 		}
 
 		t_unified_light_id
@@ -850,23 +950,25 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
 
+			handle_shadow_light_add(graphics::e::light_kind::point, id, cast_shadow);
+
 			update_point_light(id, desc);
 
 			return id;
 		}
 
 		void
-		update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow = false) noexcept
+		update_spot_light(t_unified_light_id id, const spot_light_desc& desc) noexcept
 		{
-			unified_light_vec[id] = shared_type::unified_light{
-				.position  = desc.position,
-				.range	   = desc.range,
-				.color	   = math::cvt_to<half3>(desc.color),
-				.intensity = math::cvt_to<half>(desc.intensity),
-				.direction = math::cvt_to<half3>(desc.direction),
-				.cos_inner = math::cvt_to<half>(desc.cos_inner),
-				.cos_outer = math::cvt_to<half>(desc.cos_outer),
-			};
+			auto& light = unified_light_vec[id];
+
+			light.position	= desc.position;
+			light.range		= desc.range;
+			light.color		= math::cvt_to<half3>(desc.color);
+			light.intensity = math::cvt_to<half>(desc.intensity);
+			light.direction = math::cvt_to<half3>(desc.direction);
+			light.cos_inner = math::cvt_to<half>(desc.cos_inner);
+			light.cos_outer = math::cvt_to<half>(desc.cos_outer);
 		}
 
 		t_unified_light_id
@@ -874,15 +976,40 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
 
+			handle_shadow_light_add(graphics::e::light_kind::spot, id, cast_shadow);
+
 			update_spot_light(id, desc);
 
 			return id;
 		}
 
 		void
-		remove_unified_light(t_unified_light_id& id) noexcept
+		remove_point_light(t_unified_light_id& id) noexcept
 		{
+			c_auto&			  light		= unified_light_vec[id];
+			t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+			if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
+			{
+				handle_shadow_light_remove(graphics::e::light_kind::point, shadow_id);
+			}
+
 			unified_light_vec.remove(id);
+
+			id = age::get_invalid_id<t_unified_light_id>();
+		}
+
+		void
+		remove_spot_light(t_unified_light_id& id) noexcept
+		{
+			c_auto&			  light		= unified_light_vec[id];
+			t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+			if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
+			{
+				handle_shadow_light_remove(graphics::e::light_kind::spot, shadow_id);
+			}
+
+			unified_light_vec.remove(id);
+
 			id = age::get_invalid_id<t_unified_light_id>();
 		}
 

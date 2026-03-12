@@ -82,6 +82,8 @@ void main_cs(uint32 group_id : SV_GroupID,
                 // histogram[2] == count of bit_bin #2
                 const uint32 histogram = gs_generic[0];
                 
+                GroupMemoryBarrierWithGroupSync();
+                
                 // base_offset : uint8[4]
                 // base_offset[2] == base_offset of bit_bin #2
                 // [ #2 + #1 + #0 | #1 + #0 | #0 | 0 ]
@@ -93,7 +95,7 @@ void main_cs(uint32 group_id : SV_GroupID,
                 const uint32 packed_bit_bin_offset = packed_prefix_offset + histogram_prefix_sum;
                 
                 const uint32 bit_bin_offset = (packed_bit_bin_offset >> (bit_bin * 8)) & (LIGHT_SORT_THREAD_COUNT - 1);
-            
+                
                 // swap key and value
                 gs_generic[bit_bin_offset] = key;
                 

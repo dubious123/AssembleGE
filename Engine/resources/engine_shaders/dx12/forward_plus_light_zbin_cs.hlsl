@@ -62,7 +62,25 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
     if ( /*light_id < MAX_VISIBLE_LIGHT_COUNT &&*/light_id != invalid_id_uint32)
     {
         const unified_light light = unified_light_buffer[light_id];
+        //const unified_light light = unified_light_buffer[0];
         unified_sorted_light_buffer_uav[sorted_id] = light;
+        
+        if (sorted_id == 0)
+        {
+            debug_buffer[0].light_id_0 = light_id;
+            debug_buffer[0].key_0 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
+        }
+        else if (sorted_id == 1)
+        {
+            debug_buffer[0].light_id_1 = light_id;
+            debug_buffer[0].key_1 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
+        }
+        else if (sorted_id == 2)
+        {
+            debug_buffer[0].light_id_2 = light_id;
+            debug_buffer[0].key_2 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
+        }
+        
         
         const float view_z = dot(light.position - camera_pos, camera_forward);
         const float min_z = view_z - light.range;
