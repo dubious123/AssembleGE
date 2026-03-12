@@ -307,14 +307,14 @@ proj_perspective_reversed(float fov_y, float aspect_ratio, float near_z, float f
 {
 	float h = 1.0f / tan(fov_y * 0.5f);
 	float w = h / aspect_ratio;
-	float a = near_z / (far_z - near_z);
+	float a = -near_z / (far_z - near_z);
 	float b = far_z * near_z / (far_z - near_z);
 
 	return float4x4(
-		w, 0.0f, 0.0f, 0.0f,
-		0.0f, h, 0.0f, 0.0f,
-		0.0f, 0.0f, a, 1.0f,
-		0.0f, 0.0f, b, 0.0f);
+		w, 0, 0, 0,
+		0, h, 0, 0,
+		0, 0, a, b,
+		0, 0, 1, 0);
 }
 
 float4x4

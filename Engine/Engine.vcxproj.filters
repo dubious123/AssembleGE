@@ -127,7 +127,7 @@
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_light_zbin_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_ms.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_as.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_sdsm_cs.hlsl" />
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_fill_shadow_buffer_cs.hlsl" />
     <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_depth_reduce_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>

@@ -934,7 +934,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_sdsm_cs.hlsl">
+    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_shadow_fill_shadow_buffer_cs.hlsl">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">-enable-16bit-types %(AdditionalOptions)</AdditionalOptions>

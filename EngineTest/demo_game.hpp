@@ -188,16 +188,16 @@ namespace demo_game::scene_0
 				}),
 
 			// yellow spot top down onto scene center
-			// identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
-			//	.position  = float3{ 0.0f, 12.0f, 0.0f },
-			//	.range	   = 6.0f,
-			//	.direction = float3{ 0.0f, -1.0f, 0.0f },
-			//	.intensity = 10.0f,
-			//	.color	   = float3{ 1.0f, 0.9f, 0.6f },
-			//	.cos_inner = 0.96f,
-			//	.cos_outer = 0.87f } }
-			//	| AGE_FUNC(game_ctx.render_pipeline.add_spot_light)
-			//	| AGE_FUNC(game_ctx.scene_0.spot_light_id_vec.emplace_back),
+			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
+				.position  = float3{ 0.0f, 12.0f, 0.0f },
+				.range	   = 6.0f,
+				.direction = float3{ 0.0f, -1.0f, 0.0f },
+				.intensity = 10.0f,
+				.color	   = float3{ 1.0f, 0.9f, 0.6f },
+				.cos_inner = 0.96f,
+				.cos_outer = 0.87f } }
+				| AGE_FUNC(game_ctx.render_pipeline.add_spot_light)
+				| AGE_FUNC(game_ctx.scene_0.spot_light_id_vec.emplace_back),
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
@@ -442,9 +442,7 @@ namespace demo_game::scene_1
 				.range	   = 15.0f,
 				.color	   = float3{ 1.0f, 0.2f, 0.2f },
 				.intensity = 3.0f } }
-				//| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(desc, false); })
-				//| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(desc, false); })
-				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
+				| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(FWD(desc), false); })
 				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
 
 			// green light - right side, mid height
@@ -453,7 +451,7 @@ namespace demo_game::scene_1
 				.range	   = 15.0f,
 				.color	   = float3{ 0.2f, 1.0f, 0.2f },
 				.intensity = 3.0f } }
-				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
+				| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_point_light(FWD(desc), true); })
 				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
 
 			// blue light - center, high above
@@ -464,6 +462,17 @@ namespace demo_game::scene_1
 				.intensity = 3.0f } }
 				| AGE_FUNC(game_ctx.render_pipeline.add_point_light)
 				| AGE_FUNC(game_ctx.scene_1.point_light_id_vec.emplace_back),
+
+			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
+				.position  = float3{ -4.0f, 4.0f, 0.0f },
+				.range	   = 30.0f,
+				.direction = age::normalize(float3{ 2.0f, -1.0f, 0.0f }),
+				.intensity = 30.0f,
+				.color	   = float3{ 1.0f, 0.9f, 0.6f },
+				.cos_inner = 0.96f,
+				.cos_outer = 0.87f } }
+				| AGE_LAMBDA((auto&& desc), { return game_ctx.render_pipeline.add_spot_light(FWD(desc), true); })
+				| AGE_FUNC(game_ctx.scene_1.spot_light_id_vec.emplace_back),
 
 			// === meshes ===
 

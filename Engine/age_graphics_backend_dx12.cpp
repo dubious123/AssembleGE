@@ -8,15 +8,6 @@ namespace age::graphics
 	void
 	init() noexcept
 	{
-		{
-			auto* p_dred_settings = (ID3D12DeviceRemovedExtendedDataSettings*)nullptr;
-			AGE_HR_CHECK(::D3D12GetDebugInterface(IID_PPV_ARGS(&p_dred_settings)));
-			p_dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-			p_dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-
-			p_dred_settings->Release();
-		}
-
 		if constexpr (age::config::debug_mode)
 		{
 			auto* p_debug = (ID3D12Debug3*)nullptr;
@@ -29,6 +20,13 @@ namespace age::graphics
 			// #endif
 
 			p_debug->Release();
+
+			auto* p_dred_settings = (ID3D12DeviceRemovedExtendedDataSettings*)nullptr;
+			AGE_HR_CHECK(::D3D12GetDebugInterface(IID_PPV_ARGS(&p_dred_settings)));
+			p_dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			p_dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+
+			p_dred_settings->Release();
 		}
 
 		AGE_HR_CHECK(::CreateDXGIFactory2(g::dxgi_factory_flag, IID_PPV_ARGS(&g::p_dxgi_factory)));

@@ -50,7 +50,7 @@ main_ms(
 						  + mesh_header.aabb_min;
 
         const float3 pos_world = rotate(pos_local * scale, quaternion) + pos;
-
+         
         ms_out_vertex_arr[nth_vertex].pos = mul(view_proj, float4(pos_world, 1.0));
     }
 

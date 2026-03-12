@@ -114,8 +114,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_depth_reduce_pso;
 		ID3D12PipelineState*  p_depth_reduce_pso;
 
-		graphics::pso::handle h_sdsm_pso;
-		ID3D12PipelineState*  p_sdsm_pso;
+		graphics::pso::handle h_fill_shadow_buffer_pso;
+		ID3D12PipelineState*  p_fill_shadow_buffer_pso;
 
 		graphics::pso::handle h_shadow_map_pso;
 		ID3D12PipelineState*  p_shadow_map_pso;
@@ -133,11 +133,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			p_depth_reduce_pso = graphics::g::pso_ptr_vec[h_depth_reduce_pso];
 
-			h_sdsm_pso = graphics::pso::create(
+			h_fill_shadow_buffer_pso = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_sdsm_cs) }) });
+				pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_shadow_fill_shadow_buffer_cs) }) });
 
-			p_sdsm_pso = graphics::g::pso_ptr_vec[h_sdsm_pso];
+			p_fill_shadow_buffer_pso = graphics::g::pso_ptr_vec[h_fill_shadow_buffer_pso];
 
 			h_shadow_map_pso = graphics::pso::create(
 				pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -193,7 +193,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier.add_uav(frame_data_rw_buffer);
 			barrier.apply_and_reset(cmd_list);
 
-			cmd_list.SetPipelineState(p_sdsm_pso);
+			cmd_list.SetPipelineState(p_fill_shadow_buffer_pso);
 			cmd_list.Dispatch(shadow_light_header_count, 1, 1);
 
 			barrier.add_transition(shadow_light_rw_buffer,
@@ -253,7 +253,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept
 		{
 			pso::destroy(h_depth_reduce_pso);
-			pso::destroy(h_sdsm_pso);
+			pso::destroy(h_fill_shadow_buffer_pso);
 			pso::destroy(h_shadow_map_pso);
 
 			graphics::g::dsv_desc_pool.push(h_shadow_atlas_dsv_desc);

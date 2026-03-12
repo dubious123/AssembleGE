@@ -123,7 +123,7 @@ float sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surfac
     }
     return 1.0;
 }
-float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_offset)
+float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id)
 {
     uint32 cascade_index = DIRECTIONAL_SHADOW_CASCADE_COUNT - 1;
     for (uint32 c = 0; c < DIRECTIONAL_SHADOW_CASCADE_COUNT; ++c)
@@ -139,15 +139,15 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
         }
     }
    
-    const shadow_light light = shadow_light_buffer_srv[shadow_offset + cascade_index];
+    const shadow_light light = shadow_light_buffer_srv[shadow_id + cascade_index];
     
-    float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
-    float3 light_ndc = light_clip.xyz / light_clip.w;
+    const float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
+    const float3 light_ndc = light_clip.xyz / light_clip.w;
     
-    float2 shadow_uv = float2(light_ndc.x * 0.5 + 0.5, -light_ndc.y * 0.5 + 0.5);
+    const float2 shadow_uv = float2(light_ndc.x * 0.5 + 0.5, -light_ndc.y * 0.5 + 0.5);
     
-    uint32 col = (shadow_offset + cascade_index) % SHADOW_ATLAS_SEG_U;
-    uint32 row = (shadow_offset + cascade_index) / SHADOW_ATLAS_SEG_U;
+    const uint32 col = (shadow_id + cascade_index) % SHADOW_ATLAS_SEG_U;
+    const uint32 row = (shadow_id + cascade_index) / SHADOW_ATLAS_SEG_U;
     
     float2 atlas_uv;
     atlas_uv.x = col * (1.f / SHADOW_ATLAS_SEG_U) + shadow_uv.x / SHADOW_ATLAS_SEG_U;
@@ -155,19 +155,76 @@ float sample_directional_shadow(float3 world_pos, float linear_depth, uint32 sha
     
     Texture2D<float> shadow_atlas = ResourceDescriptorHeap[shadow_atlas_id];
     
-    float texel_size = 1.0 / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
+    static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
     
     float shadow = 0;
     for (int32 y = -1; y <= 1; ++y)
     {
         for (int32 x = -1; x <= 1; ++x)
         {
-            shadow += shadow_atlas.SampleCmp(shadow_sampler, atlas_uv + float2(x, y) * texel_size, light_ndc.z);
+            shadow += shadow_atlas.SampleCmpLevelZero(shadow_sampler, atlas_uv + float2(x, y) * texel_size, light_ndc.z);
         }
     }
-    return shadow / 9.0;
+    return shadow / 9.f;
     
     // return shadow_atlas.SampleCmp(shadow_sampler, atlas_uv, light_ndc.z);
+}
+
+float sample_unified_shadow(float3 world_pos, uint32 shadow_id)
+{
+    const shadow_light light = shadow_light_buffer_srv[shadow_id];
+    
+    const float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
+    const float3 light_ndc = light_clip.xyz / light_clip.w;
+    
+    const float2 shadow_uv = float2(light_ndc.x * 0.5 + 0.5, -light_ndc.y * 0.5 + 0.5);
+    
+    const uint32 col = (shadow_id) % SHADOW_ATLAS_SEG_U;
+    const uint32 row = (shadow_id) / SHADOW_ATLAS_SEG_U;
+    
+    float2 atlas_uv;
+    atlas_uv.x = col * (1.f / SHADOW_ATLAS_SEG_U) + shadow_uv.x / SHADOW_ATLAS_SEG_U;
+    atlas_uv.y = row * (1.f / SHADOW_ATLAS_SEG_V) + shadow_uv.y / SHADOW_ATLAS_SEG_V;
+    
+    Texture2D<float> shadow_atlas = ResourceDescriptorHeap[shadow_atlas_id];
+    
+    static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
+    
+    float shadow = 0;
+    for (int32 y = -1; y <= 1; ++y)
+    {
+        for (int32 x = -1; x <= 1; ++x)
+        {
+            shadow += shadow_atlas.SampleCmpLevelZero(shadow_sampler, atlas_uv + float2(x, y) * texel_size, light_ndc.z);
+        }
+    }
+    return shadow / 9.f;
+    
+    // return shadow_atlas.SampleCmpLevelZero(shadow_sampler, atlas_uv, light_ndc.z);
+}
+
+uint32
+get_unified_shadow_offset(const unified_light light, float3 world_pos)
+{
+    if (light.cos_outer == -2.h)
+    {
+        const float3 dir = world_pos - light.position;
+        const float3 dir_abs = abs(dir);
+        if (dir_abs.x >= dir_abs.y && dir_abs.x >= dir_abs.z)
+        {
+            return dir.x > 0 ? 0 : 1; // +X, -X
+            
+        }
+        if (dir_abs.y >= dir_abs.x && dir_abs.y >= dir_abs.z)
+        {
+            return dir.y > 0 ? 2 : 3; // +Y, -Y
+        }
+        return dir.z > 0 ? 4 : 5; // +Z, -Z
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 float4
@@ -282,7 +339,26 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
             bit_mask &= ~(1u << bit);
             
             const unified_light light = unified_sorted_light_buffer_srv[sorted_id];
-            lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+            
+            const uint32 shadow_id = light.shadow_id_and_extra & 0xf;
+            
+            float shadow = 1.f;
+            float contact = 1.f;
+        
+            if (shadow_id != 0xf)
+            {
+                const uint32 offset = get_unified_shadow_offset(light, fragment.world_pos);
+                
+                const float3 to_light = normalize(light.position - fragment.world_pos);
+                const float n_dot_l = saturate(dot(normal, to_light));
+                shadow = sample_unified_shadow(fragment.world_pos, shadow_id + offset);
+                shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
+            
+                //contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
+                //contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+            }
+            
+            lighting += shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
         }
     }
     

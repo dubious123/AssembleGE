@@ -353,10 +353,27 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto total_job_count = 0u;
 
 		{
+			auto src_arr = std::array<shared_type::shadow_light_header, g::max_shadow_light_count>{};
+
+			for (auto&& [i, header] : shadow_light_header_arr | std::views::enumerate)
+			{
+				if (header.light_kind == graphics::e::light_kind::directional)
+				{
+					src_arr[i].light_id = directional_light_vec.get_pos(header.light_id);
+				}
+				else
+				{
+					src_arr[i].light_id = unified_light_vec.get_pos(header.light_id);
+				}
+				src_arr[i].light_kind = std::to_underlying(header.light_kind);
+				src_arr[i].shadow_id  = header.shadow_id;
+			}
+
 			std::memcpy(
 				h_mapping_shadow_light_header_buffer->ptr + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * graphics::g::frame_buffer_idx,
-				shadow_light_header_arr.data(),
+				src_arr.data(),
 				sizeof(shared_type::shadow_light_header) * shadow_light_header_count);
+
 
 			std::memcpy(
 				h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_idx,

@@ -622,6 +622,12 @@ namespace age::inline data_structure
 			return self.pos_to_idx_arr()[pos];
 		}
 
+		FORCE_INLINE decltype(auto)
+		get_pos(this auto& self, t_idx idx) noexcept
+		{
+			return self.idx_to_pos_arr()[idx];
+		}
+
 		void
 		clear()
 		{

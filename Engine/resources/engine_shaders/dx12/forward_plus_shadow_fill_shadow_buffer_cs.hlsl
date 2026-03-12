@@ -133,15 +133,15 @@ void handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
     
     const unified_light light = unified_light_buffer[id];
 
-    const float4x4 light_view_mat = view_look_to(light.position, face_dirs[face_idx]);
+    const float4x4 light_view = view_look_to(light.position, face_dirs[face_idx]);
 
     const float4x4 light_proj = proj_perspective_reversed(
         pi_half,
         1.0f,
-        epsilon_1e4,
+        0.1f,
         light.range);
 
-    const float4x4 light_view_proj = mul(light_proj, light_view_mat);
+    const float4x4 light_view_proj = mul(light_proj, light_view);
 
     shadow_light_buffer_uav[shadow_id + face_idx].view_proj = light_view_proj;
     gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + face_idx].frustum_planes);
@@ -151,7 +151,7 @@ void handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 {
     const unified_light light = unified_light_buffer[id];
     
-    const float4x4 light_view_mat = view_look_to(light.position, light.direction);
+    const float4x4 light_view = view_look_to(light.position, light.direction);
     
     const float4x4 light_proj = proj_perspective_reversed(
         2.0f * acos((float)light.cos_outer),
@@ -159,7 +159,7 @@ void handle_spot_light_shadow(uint32 id, uint32 shadow_id)
         epsilon_1e4,
         light.range);
     
-    const float4x4 light_view_proj = mul(light_proj, light_view_mat);
+    const float4x4 light_view_proj = mul(light_proj, light_view);
     
     shadow_light_buffer_uav[shadow_id].view_proj = light_view_proj;
     gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id].frustum_planes);
