@@ -138,7 +138,7 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
         uint32 packed_aabb = (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;
         sort_buffer[LIGHT_TILE_AABB_OFFSET + sorted_id] = packed_aabb;
         
-        InterlockedAdd(frame_data_rw_buffer[0].not_culled_light_count, 1);
+        InterlockedAdd(frame_data_rw_buffer_uav[0].not_culled_light_count, 1);
     }
     GroupMemoryBarrierWithGroupSync();
 

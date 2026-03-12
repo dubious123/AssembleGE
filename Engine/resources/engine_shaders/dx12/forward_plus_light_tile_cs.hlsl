@@ -20,7 +20,7 @@ void main_cs(uint32_3 group_id : SV_GroupID,
     GroupMemoryBarrierWithGroupSync();
     
     //const uint32 visible_count = min(frame_data_rw_buffer[0].not_culled_light_count, MAX_VISIBLE_LIGHT_COUNT);
-    const uint32 visible_count = frame_data_rw_buffer[0].not_culled_light_count;
+    const uint32 visible_count = frame_data_rw_buffer_uav[0].not_culled_light_count;
     for (uint32 sorted_id = group_thread_id; sorted_id < visible_count; sorted_id += LIGHT_SORT_THREAD_COUNT)
     {
         uint32 packed_aabb = sort_buffer_srv[LIGHT_TILE_AABB_OFFSET + sorted_id];

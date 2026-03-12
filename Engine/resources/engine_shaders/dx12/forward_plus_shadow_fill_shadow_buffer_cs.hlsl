@@ -5,8 +5,8 @@
 void handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx, uint32 shadow_id)
 {
     const directional_light light = directional_light_buffer[directional_light_id];
-    float depth_min = asfloat(frame_data_rw_buffer[0].z_min);
-    float depth_max = asfloat(frame_data_rw_buffer[0].z_max);
+    float depth_min = asfloat(frame_data_rw_buffer_uav[0].z_min);
+    float depth_max = asfloat(frame_data_rw_buffer_uav[0].z_max);
 
     // fallback
     if (depth_min >= depth_max)
@@ -114,7 +114,7 @@ void handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade
     shadow_light_buffer_uav[shadow_id + cascade_idx].view_proj = light_view_proj;
     gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + cascade_idx].frustum_planes);
     
-    frame_data_rw_buffer[0].cascade_splits[cascade_idx / 4][cascade_idx % 4] = split_far;
+    frame_data_rw_buffer_uav[0].cascade_splits[cascade_idx / 4][cascade_idx % 4] = split_far;
     
     // frame_data_rw_buffer[0].radius[cascade_idx] = radius;
 }

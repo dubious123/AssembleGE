@@ -4,42 +4,46 @@
 #include "age_hlsl.h"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 
-StructuredBuffer<job_data> meshlet_render_job_buffer : register(t0);
-StructuredBuffer<object_data> object_data_buffer : register(t1);
-ByteAddressBuffer mesh_data_buffer : register(t2);
+// global
+StructuredBuffer<job_data> meshlet_render_job_buffer : register(t0, space0);
+StructuredBuffer<object_data> object_data_buffer : register(t1, space0);
+ByteAddressBuffer mesh_data_buffer : register(t2, space0);
 
-StructuredBuffer<directional_light> directional_light_buffer : register(t3);
+StructuredBuffer<directional_light> directional_light_buffer : register(t3, space0);
+StructuredBuffer<unified_light> unified_light_buffer : register(t4, space0);
 
-StructuredBuffer<unified_light> unified_light_buffer : register(t6);
+StructuredBuffer<frame_data_rw> frame_data_rw_buffer_srv : register(t5, space0);
+RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer_uav : register(u5, space0);
 
-RWStructuredBuffer<frame_data_rw> frame_data_rw_buffer : register(u2);
-StructuredBuffer<frame_data_rw> frame_data_rw_buffer_srv : register(t2, space2);
 
-RWStructuredBuffer<uint32> sort_buffer : register(u0, space3);
-StructuredBuffer<uint32> sort_buffer_srv : register(t0, space3);
+// shadow
+StructuredBuffer<shadow_light_header> shadow_light_header_buffer : register(t0, space1);
 
-RWStructuredBuffer<zbin_entry> zbin_buffer_uav : register(u1, space3);
-StructuredBuffer<zbin_entry> zbin_buffer_srv : register(t1, space3);
-
-RWStructuredBuffer<uint32> tile_mask_buffer_uav : register(u2, space3);
-StructuredBuffer<uint32> tile_mask_buffer_srv : register(t2, space3);
-
-RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3, space3);
-StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space3);
+StructuredBuffer<shadow_light> shadow_light_buffer_srv : register(t1, space1);
+RWStructuredBuffer<shadow_light> shadow_light_buffer_uav : register(u1, space1);
 
 
 
-RWStructuredBuffer<shadow_light> shadow_light_buffer_uav : register(u4, space3);
-StructuredBuffer<shadow_light> shadow_light_buffer_srv : register(t4, space3);
+// light culling
+StructuredBuffer<uint32> sort_buffer_srv : register(t0, space2);
+RWStructuredBuffer<uint32> sort_buffer : register(u0, space2);
 
-StructuredBuffer<shadow_light_header> shadow_light_header_buffer : register(t5, space3);
+StructuredBuffer<zbin_entry> zbin_buffer_srv : register(t1, space2);
+RWStructuredBuffer<zbin_entry> zbin_buffer_uav : register(u1, space2);
+
+StructuredBuffer<uint32> tile_mask_buffer_srv : register(t2, space2);
+RWStructuredBuffer<uint32> tile_mask_buffer_uav : register(u2, space2);
+
+StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space2);
+RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3, space2);
 
 
+// debug
 RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);
 
 
+// sampler
 SamplerState linear_clamp_sampler : register(s0);
-
 SamplerComparisonState shadow_sampler : register(s1);
 
 uint32 depth_to_bin(float linear_depth)

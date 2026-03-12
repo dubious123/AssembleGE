@@ -29,7 +29,7 @@ uint32_2 thread_id : SV_DispatchThreadID)
     
     if (all(local_thread_id == uint32_2(0, 0)))
     {
-        InterlockedMin(frame_data_rw_buffer[0].z_min, group_min_max.x);
-        InterlockedMax(frame_data_rw_buffer[0].z_max, group_min_max.y);
+        InterlockedMin(frame_data_rw_buffer_uav[0].z_min, group_min_max.x);
+        InterlockedMax(frame_data_rw_buffer_uav[0].z_max, group_min_max.y);
     }
 }

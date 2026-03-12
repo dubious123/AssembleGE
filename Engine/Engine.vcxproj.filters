@@ -103,6 +103,7 @@
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp" />
     <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
     <ClCompile Include="age_input.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />

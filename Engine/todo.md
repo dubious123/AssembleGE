@@ -43,8 +43,6 @@
 
 ## imple raw input
 
-## fix cone culling (really), maybe sphere mesh generation code bug
-
 ## lights!!
 ### 5. area light 
 
