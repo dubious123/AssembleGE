@@ -237,8 +237,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		data_structure::sparse_vector<mesh_data> mesh_data_vec;
 		uint32									 mesh_byte_offset = 0;
 
-		shared_type::job_data job_array[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
-		uint32				  job_count_array[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		shared_type::opaque_meshlet_render_data opaque_meshlet_render_arr[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
+		uint32									opaque_meshlet_count_arr[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		data_structure::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
@@ -265,6 +265,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
+
+		void
+		render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
 
 		void
 		end_render(render_surface_handle h_rs) noexcept;

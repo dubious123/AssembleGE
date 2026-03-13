@@ -300,7 +300,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint16_t extra;			// 2
 	};	  // total: 24 bytes
 
-	struct job_data
+	struct opaque_meshlet_render_data
 	{
 		uint32 object_id;
 		uint32 mesh_byte_offset;

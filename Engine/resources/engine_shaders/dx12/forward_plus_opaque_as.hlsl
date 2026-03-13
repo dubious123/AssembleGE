@@ -49,18 +49,18 @@ void main_as(
     uint32_3 group_id : SV_GroupID,
     uint32_3 group_thread_id : SV_GroupThreadID)
 {
-    const uint32 job_id = dispatch_thread_id.x;
+    const uint32 render_data_id = dispatch_thread_id.x;
     
     bool visible = false;
     
-    if (job_id < job_count)
+    if (render_data_id < job_count)
     {
-        const job_data job = meshlet_render_job_buffer[job_id];
-        const object_data obj_data = object_data_buffer[job.object_id];
+        const opaque_meshlet_render_data render_data = opaque_meshlet_render_data_buffer[render_data_id];
+        const object_data obj_data = object_data_buffer[render_data.object_id];
 
-        const uint meshlet_idx = job.meshlet_id;
+        const uint meshlet_idx = render_data.meshlet_id;
 
-        const mesh_header msh_header = read_mesh_header(job.mesh_byte_offset);
+        const mesh_header msh_header = read_mesh_header(render_data.mesh_byte_offset);
         const meshlet_header mshlt_header = read_meshlet_header(msh_header, meshlet_idx);
 
         visible = is_visible(obj_data, mshlt_header);

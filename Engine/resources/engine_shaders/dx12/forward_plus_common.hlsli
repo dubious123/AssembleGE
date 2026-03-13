@@ -5,7 +5,7 @@
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 
 // global
-StructuredBuffer<job_data> meshlet_render_job_buffer : register(t0, space0);
+StructuredBuffer<opaque_meshlet_render_data> opaque_meshlet_render_data_buffer : register(t0, space0);
 StructuredBuffer<object_data> object_data_buffer : register(t1, space0);
 ByteAddressBuffer mesh_data_buffer : register(t2, space0);
 
@@ -214,11 +214,11 @@ struct opaque_as_to_ms
 
 struct opaque_ms_to_ps
 {
-    float4 pos	                                  : SV_Position;
-    float3 world_pos                              : WORLD_POS;
-    float3 normal                                 : NORMAL;
-    nointerpolation uint32 meshlet_render_job_id  : MESHLET_INDEX;
-    float4 tangent                                : TANGENT;
+    float4 pos	                                   : SV_Position;
+    float3 world_pos                               : WORLD_POS;
+    float3 normal                                  : NORMAL;
+    nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
+    float4 tangent                                 : TANGENT;
  
 #if UV_COUNT >= 1
     half2 uv0 SYS_VAL(TEXCOORD0);

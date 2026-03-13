@@ -232,7 +232,7 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
 {
     const float3 ambient_light = float3(0.03, 0.03, 0.03);
     const float3 albedo = float3(0.8, 0.8, 0.8);
-    // const float3 albedo = get_random_color(fragment.meshlet_render_job_id);
+    // const float3 albedo = get_random_color(fragment.meshlet_render_data_id);
 
     const float3 surface_normal = normalize(fragment.normal);
     

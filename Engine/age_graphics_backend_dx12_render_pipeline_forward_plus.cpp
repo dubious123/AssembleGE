@@ -23,7 +23,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
-			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::job_data) * max_job_count_per_frame * graphics::g::frame_buffer_count);
+			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * graphics::g::frame_buffer_count);
 			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_count);
 			h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
 
@@ -86,9 +86,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
 
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 0, 0);
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 1, 1);
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::job_data) * max_job_count_per_frame * 2, 2);
+			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 0, 0);
+			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 1, 1);
+			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 2, 2);
 
 			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 0, 0);
 			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 1, 1);
@@ -183,7 +183,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::deinit() noexcept
 	{
-		for (auto& i : job_count_array | std::views::join)
+		for (auto& i : opaque_meshlet_count_arr | std::views::join)
 		{
 			i = 0;
 		}
@@ -251,7 +251,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			return false;
 		}
 
-		std::ranges::fill(job_count_array[graphics::g::frame_buffer_idx], 0);
+		std::ranges::fill(opaque_meshlet_count_arr[graphics::g::frame_buffer_idx], 0);
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= std::max(extent.width, static_cast<uint16>(age::platform::get_client_width(rs.h_window))),
@@ -339,21 +339,26 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
-		c_auto job_idx		 = job_count_array[graphics::g::frame_buffer_idx][thread_id];
+		c_auto meshlet_idx	 = opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
 		c_auto mesh_offset	 = mesh_data_vec[mesh_id].offset;
 		c_auto meshlet_count = mesh_data_vec[mesh_id].meshlet_count;
 
 		for (auto meshlet_id = 0u;
 			 auto i : std::views::iota(0) | std::views::take(meshlet_count))
 		{
-			job_array[graphics::g::frame_buffer_idx][thread_id][job_idx + i] = shared_type::job_data{
+			opaque_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i] = shared_type::opaque_meshlet_render_data{
 				.object_id		  = object_id,
 				.mesh_byte_offset = mesh_offset,
 				.meshlet_id		  = meshlet_id++
 			};
 		}
 
-		job_count_array[graphics::g::frame_buffer_idx][thread_id] += meshlet_count;
+		opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id] += meshlet_count;
+	}
+
+	void
+	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
+	{
 	}
 
 	void
@@ -362,7 +367,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& rs	   = graphics::g::render_surface_vec[h_rs];
 		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[graphics::g::frame_buffer_idx][0];
 
-		auto total_job_count = 0u;
+		auto total_opaque_meshlet_count = 0u;
 
 		{
 			auto src_arr = std::array<shared_type::shadow_light_header, g::max_shadow_light_count>{};
@@ -403,16 +408,16 @@ namespace age::graphics::render_pipeline::forward_plus
 				sizeof(shared_type::unified_light) * unified_light_vec.count());
 
 			for (
-				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::job_data) * max_job_count_per_frame * graphics::g::frame_buffer_idx;
+				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * graphics::g::frame_buffer_idx;
 				auto  thread_id : std::views::iota(0, graphics::g::thread_count))
 			{
-				c_auto& job_arr	  = job_array[graphics::g::frame_buffer_idx][thread_id];
-				c_auto& job_count = job_count_array[graphics::g::frame_buffer_idx][thread_id];
-				c_auto	byte_size = sizeof(shared_type::job_data) * job_count;
+				c_auto& render_arr			 = opaque_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id];
+				c_auto& opaque_meshlet_count = opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
+				c_auto	byte_size			 = sizeof(shared_type::opaque_meshlet_render_data) * opaque_meshlet_count;
 
-				std::memcpy(p_dst, &job_arr[0], byte_size);
-				total_job_count += job_count;
-				p_dst			+= byte_size;
+				std::memcpy(p_dst, &render_arr[0], byte_size);
+				total_opaque_meshlet_count += opaque_meshlet_count;
+				p_dst					   += byte_size;
 			}
 
 			{
@@ -444,7 +449,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				c_auto& cam_desc = camera_desc_vec[0];
 				root_constants.bind(shared_type::root_constants{
-					.job_count						   = total_job_count,
+					.job_count						   = total_opaque_meshlet_count,
 					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.count()),
 					.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_vec.count()),
 					.light_tile_count_x				   = light_tile_count_x,
@@ -474,7 +479,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
 		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
-		stage_depth.execute(cmd_list, total_job_count);
+		stage_depth.execute(cmd_list, total_opaque_meshlet_count);
 
 		apply_barriers(cmd_list,
 					   barrier::srv_to_dsv_write(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
@@ -490,7 +495,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 			*h_shadow_light_buffer->p_resource,
 			shadow_light_buffer_srv,
-			total_job_count);
+			total_opaque_meshlet_count);
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
 		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
@@ -529,7 +534,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		unified_sorted_light_buffer_srv.apply(cmd_list);
 		tile_mask_buffer_srv.apply(cmd_list);
 
-		stage_opaque.execute(cmd_list, total_job_count);
+		stage_opaque.execute(cmd_list, total_opaque_meshlet_count);
 
 		apply_barriers(
 			cmd_list,

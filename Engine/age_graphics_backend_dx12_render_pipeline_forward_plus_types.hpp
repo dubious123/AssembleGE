@@ -35,10 +35,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::b<1, 0>>,
 
 		binding_slot<
-			"job_data_buffer",
+			"opaque_meshlet_render_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::job_data>,
+			what::structured_buffer_array<shared_type::opaque_meshlet_render_data>,
 			how::root_descriptor,
 			where::t<0, 0>>,
 
