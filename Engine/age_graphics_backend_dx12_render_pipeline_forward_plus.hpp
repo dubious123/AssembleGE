@@ -182,7 +182,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
 
-		binding_config_t::reg_t<0, 0> job_data_buffer;
+		binding_config_t::reg_t<0, 0> opaque_render_data_buffer;
 		binding_config_t::reg_t<1, 0> object_data_buffer;
 		binding_config_t::reg_t<2, 0> mesh_data_buffer;
 
@@ -229,20 +229,19 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
 		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
 
-		data_structure::stable_dense_vector<shared_type::object_data> object_data_vec;
+		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 
-		data_structure::sparse_vector<camera_desc> camera_desc_vec;
-		data_structure::sparse_vector<camera_data> camera_data_vec;
+		age::sparse_vector<camera_desc> camera_desc_vec;
+		age::sparse_vector<camera_data> camera_data_vec;
 
-		data_structure::sparse_vector<mesh_data> mesh_data_vec;
-		uint32									 mesh_byte_offset = 0;
+		age::sparse_vector<mesh_data> mesh_data_vec;
+		uint32						  mesh_byte_offset = 0;
 
-		shared_type::opaque_meshlet_render_data opaque_meshlet_render_arr[graphics::g::frame_buffer_count][graphics::g::thread_count][max_job_count_per_thread];
-		uint32									opaque_meshlet_count_arr[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
-		data_structure::stable_dense_vector<shared_type::directional_light> directional_light_vec;
+		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
-		data_structure::stable_dense_vector<shared_type::unified_light> unified_light_vec;
+		age::stable_dense_vector<shared_type::unified_light> unified_light_vec;
 
 		std::array<shadow_light_header, g::max_shadow_light_count> shadow_light_header_arr;
 

@@ -90,6 +90,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 namespace age::graphics::render_pipeline::forward_plus::g
 {
+
 	inline constexpr uint8	uv_count		= UV_COUNT;
 	inline constexpr uint32 max_light_count = MAX_LIGHT_COUNT;
 

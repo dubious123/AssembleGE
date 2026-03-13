@@ -23,11 +23,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
-			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * graphics::g::frame_buffer_count);
-			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_count);
-			h_mapping_mesh_buffer		 = resource::create_buffer_committed(max_mesh_buffer_byte_size);
+			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_count);
+			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_count);
+			h_mapping_mesh_buffer		 = resource::create_buffer_committed(g::max_mesh_buffer_byte_size);
 
-			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * max_directional_light_count * graphics::g::frame_buffer_count);
+			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * g::max_directional_light_count * graphics::g::frame_buffer_count);
 
 			h_mapping_unified_light_buffer = resource::create_buffer_committed(sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_count);
 
@@ -86,19 +86,19 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
 
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 0, 0);
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 1, 1);
-			job_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * 2, 2);
+			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 0, 0);
+			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 1, 1);
+			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 2, 2);
 
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 0, 0);
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 1, 1);
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * max_object_data_count * 2, 2);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 0, 0);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 1, 1);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 2, 2);
 
 			mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->p_resource->GetGPUVirtualAddress());
 
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 0, 0);
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 1, 1);
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * max_directional_light_count * 2, 2);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 0, 0);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 1, 1);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 2, 2);
 
 			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 0, 0);
 			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 1, 1);
@@ -183,9 +183,9 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::deinit() noexcept
 	{
-		for (auto& i : opaque_meshlet_count_arr | std::views::join)
+		for (auto& vec : opaque_meshlet_render_data_vec | std::views::join)
 		{
-			i = 0;
+			vec.clear();
 		}
 
 		stage_init.deinit();
@@ -251,7 +251,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			return false;
 		}
 
-		std::ranges::fill(opaque_meshlet_count_arr[graphics::g::frame_buffer_idx], 0);
+		for (auto& vec : opaque_meshlet_render_data_vec | std::views::join)
+		{
+			vec.clear();
+		}
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= std::max(extent.width, static_cast<uint16>(age::platform::get_client_width(rs.h_window))),
@@ -274,8 +277,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_buffer.apply(cmd_list);
 			frame_data_buffer.apply_compute(cmd_list);
 
-			job_data_buffer.apply(cmd_list);
-			job_data_buffer.apply_compute(cmd_list);
+			opaque_render_data_buffer.apply(cmd_list);
+			opaque_render_data_buffer.apply_compute(cmd_list);
 
 			object_data_buffer.apply(cmd_list);
 			object_data_buffer.apply_compute(cmd_list);
@@ -339,26 +342,43 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
-		c_auto meshlet_idx	 = opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
-		c_auto mesh_offset	 = mesh_data_vec[mesh_id].offset;
-		c_auto meshlet_count = mesh_data_vec[mesh_id].meshlet_count;
+		auto&  render_data_vec = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		c_auto mesh_offset	   = mesh_data_vec[mesh_id].offset;
+		c_auto meshlet_count   = mesh_data_vec[mesh_id].meshlet_count;
 
 		for (auto meshlet_id = 0u;
 			 auto i : std::views::iota(0) | std::views::take(meshlet_count))
 		{
-			opaque_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i] = shared_type::opaque_meshlet_render_data{
-				.object_id		  = object_id,
-				.mesh_byte_offset = mesh_offset,
-				.meshlet_id		  = meshlet_id++
-			};
+			render_data_vec.emplace_back(
+				shared_type::opaque_meshlet_render_data{
+					.object_id		  = object_id,
+					.mesh_byte_offset = mesh_offset,
+					.meshlet_id		  = meshlet_id++ });
 		}
 
-		opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id] += meshlet_count;
+		AGE_ASSERT(render_data_vec.size() < max_opaque_meshlet_per_thread);
 	}
 
 	void
 	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
+		// c_auto meshlet_idx	 = transparent_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
+		// c_auto mesh_offset	 = mesh_data_vec[mesh_id].offset;
+		// c_auto meshlet_count = mesh_data_vec[mesh_id].meshlet_count;
+
+		// transparent_obj_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i]
+
+		//	for (auto meshlet_id = 0u;
+		//		 auto i : std::views::iota(0) | std::views::take(meshlet_count))
+		//{
+		//	transparent_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i] = shared_type::transparent_meshlet_render_data{
+		//		.object_id		  = object_id,
+		//		.mesh_byte_offset = mesh_offset,
+		//		.meshlet_id		  = meshlet_id++
+		//	};
+		//}
+
+		// transparent_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id] += meshlet_count;
 	}
 
 	void
@@ -393,14 +413,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 			std::memcpy(
-				h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * max_object_data_count * graphics::g::frame_buffer_idx,
+				h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,
 				object_data_vec.data(),
 				sizeof(shared_type::object_data) * object_data_vec.count());
 
 			std::memcpy(
-				h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * max_directional_light_count * graphics::g::frame_buffer_idx,
+				h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * g::max_directional_light_count * graphics::g::frame_buffer_idx,
 				directional_light_vec.data(),
-				sizeof(shared_type::directional_light) * max_directional_light_count);
+				sizeof(shared_type::directional_light) * g::max_directional_light_count);
 
 			std::memcpy(
 				h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_idx,
@@ -408,15 +428,13 @@ namespace age::graphics::render_pipeline::forward_plus
 				sizeof(shared_type::unified_light) * unified_light_vec.count());
 
 			for (
-				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::opaque_meshlet_render_data) * max_job_count_per_frame * graphics::g::frame_buffer_idx;
-				auto  thread_id : std::views::iota(0, graphics::g::thread_count))
+				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_idx;
+				auto& render_vec : opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx])
 			{
-				c_auto& render_arr			 = opaque_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id];
-				c_auto& opaque_meshlet_count = opaque_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
-				c_auto	byte_size			 = sizeof(shared_type::opaque_meshlet_render_data) * opaque_meshlet_count;
+				c_auto byte_size = sizeof(shared_type::opaque_meshlet_render_data) * render_vec.size();
 
-				std::memcpy(p_dst, &render_arr[0], byte_size);
-				total_opaque_meshlet_count += opaque_meshlet_count;
+				std::memcpy(p_dst, render_vec.data(), byte_size);
+				total_opaque_meshlet_count += static_cast<uint32>(render_vec.size());
 				p_dst					   += byte_size;
 			}
 

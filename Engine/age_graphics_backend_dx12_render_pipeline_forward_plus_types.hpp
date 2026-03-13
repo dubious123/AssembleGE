@@ -3,16 +3,16 @@
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 
 // shader shared types
-namespace age::graphics::render_pipeline::forward_plus
+namespace age::graphics::render_pipeline::forward_plus::g
 {
-	inline constexpr auto max_mesh_count			= 1024u;
-	inline constexpr auto max_job_count_per_frame	= (1u << 20);	 // 1M
-	inline constexpr auto max_job_count_per_thread	= max_job_count_per_frame / age::graphics::g::thread_count;
-	inline constexpr auto max_object_data_count		= 1024u;
-	inline constexpr auto max_mesh_buffer_byte_size = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
+	inline constexpr auto max_mesh_count					   = 1024u;
+	inline constexpr auto max_opaque_meshlet_render_data_count = (1u << 20);
+	inline constexpr auto max_opaque_meshlet_per_thread		   = max_opaque_meshlet_render_data_count / age::graphics::g::thread_count;
+	inline constexpr auto max_object_data_count				   = 1024u;
+	inline constexpr auto max_mesh_buffer_byte_size			   = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
 
 	inline constexpr auto max_directional_light_count = 2;
-}	 // namespace age::graphics::render_pipeline::forward_plus
+}	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 // root signatures
 namespace age::graphics::render_pipeline::forward_plus
