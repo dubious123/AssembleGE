@@ -14,10 +14,9 @@ namespace age::graphics
 			AGE_HR_CHECK(::D3D12GetDebugInterface(IID_PPV_ARGS(&p_debug)));
 
 			p_debug->EnableDebugLayer();
+			p_debug->SetEnableSynchronizedCommandQueueValidation(TRUE);
 
-			// #if 1
-			//		p_debug->SetEnableGPUBasedValidation(true);
-			// #endif
+			p_debug->SetEnableGPUBasedValidation(true);
 
 			p_debug->Release();
 
@@ -69,6 +68,14 @@ namespace age::graphics
 			p_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 
 			p_info_queue->Release();
+		}
+
+		{
+			auto options12 = D3D12_FEATURE_DATA_D3D12_OPTIONS12{};
+
+			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
+
+			AGE_ASSERT(options12.EnhancedBarriersSupported);
 		}
 
 		{

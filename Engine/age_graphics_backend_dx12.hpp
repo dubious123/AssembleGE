@@ -251,11 +251,11 @@ namespace age::graphics::resource
 
 	struct resource_create_desc
 	{
-		D3D12_RESOURCE_DESC	  d3d12_resource_desc;
-		D3D12_CLEAR_VALUE	  clear_value;
-		D3D12_RESOURCE_STATES initial_state;
-		e::memory_kind		  heap_memory_kind;
-		bool				  has_clear_value;
+		D3D12_RESOURCE_DESC1 d3d12_resource_desc;
+		D3D12_CLEAR_VALUE	 clear_value;
+		D3D12_BARRIER_LAYOUT initial_layout;
+		e::memory_kind		 heap_memory_kind;
+		bool				 has_clear_value;
 	};
 
 	struct d3d12_resource
@@ -295,19 +295,19 @@ namespace age::graphics::resource
 
 	resource::mapping_handle
 	create_buffer_committed(uint32					 buffer_byte_size,
-							const void*				 p_data = nullptr,
-							resource::e::memory_kind kind	= resource::e::memory_kind::cpu_to_gpu_direct,
-							D3D12_RESOURCE_STATES	 state	= D3D12_RESOURCE_STATE_COMMON,
-							D3D12_RESOURCE_FLAGS	 flags	= D3D12_RESOURCE_FLAG_NONE) noexcept;
+							const void*				 p_data			= nullptr,
+							resource::e::memory_kind kind			= resource::e::memory_kind::cpu_to_gpu_direct,
+							D3D12_BARRIER_LAYOUT	 initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
+							D3D12_RESOURCE_FLAGS	 flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
 	mapping_handle
-	create_buffer_placed(uint32				   buffer_byte_size,
-						 ID3D12Heap&		   heap,
-						 uint64				   offset,
-						 const void*		   p_data = nullptr,
-						 e::memory_kind		   kind	  = resource::e::memory_kind::cpu_to_gpu_direct,
-						 D3D12_RESOURCE_STATES state  = D3D12_RESOURCE_STATE_COMMON,
-						 D3D12_RESOURCE_FLAGS  flags  = D3D12_RESOURCE_FLAG_NONE) noexcept;
+	create_buffer_placed(uint32				  buffer_byte_size,
+						 ID3D12Heap&		  heap,
+						 uint64				  offset,
+						 const void*		  p_data		 = nullptr,
+						 e::memory_kind		  kind			 = resource::e::memory_kind::cpu_to_gpu_direct,
+						 D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
+						 D3D12_RESOURCE_FLAGS flags			 = D3D12_RESOURCE_FLAG_NONE) noexcept;
 
 	void
 	release_resource(resource_handle _) noexcept;
@@ -331,37 +331,8 @@ namespace age::graphics::resource
 // resource_barrier
 namespace age::graphics
 {
-	struct resource_barrier
-	{
-		static constexpr uint32						  max_count		= 32;
-		uint32										  barrier_count = 0;
-		std::array<D3D12_RESOURCE_BARRIER, max_count> barrier_arr	= {};
-
-		FORCE_INLINE void
-		add(const D3D12_RESOURCE_BARRIER&) noexcept;
-
-		FORCE_INLINE void
-		add_transition(ID3D12Resource&,
-					   D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after,
-					   D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE,
-					   uint32 subresource			= D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) noexcept;
-
-		FORCE_INLINE void
-		add_uav(ID3D12Resource&, D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
-
-		FORCE_INLINE void
-		add_aliasing(ID3D12Resource& p_resource_before, ID3D12Resource& p_resource_after,
-					 D3D12_RESOURCE_BARRIER_FLAGS = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept;
-
-		FORCE_INLINE void
-		apply_and_reset(t_cmd_list&) noexcept;
-
-		FORCE_INLINE void
-		apply(t_cmd_list&) noexcept;
-
-		FORCE_INLINE void
-		reset() noexcept;
-	};
+	FORCE_INLINE void
+	apply_barriers(t_cmd_list&, auto&&... barrier) noexcept;
 }	 // namespace age::graphics
 
 // root signature

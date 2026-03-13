@@ -147,24 +147,20 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	inline void
-	shadow_stage::execute(t_cmd_list&				  cmd_list,
-						  graphics::resource_barrier& barrier,
-						  uint32					  width,
-						  uint32					  height,
-						  uint32					  shadow_light_count,
-						  uint32					  shadow_light_header_count,
-						  ID3D12Resource&			  frame_data_rw_buffer,
-						  ID3D12Resource&			  shadow_light_rw_buffer,
-						  uint32					  job_count) noexcept
+	shadow_stage::execute(t_cmd_list&	  cmd_list,
+						  uint32		  width,
+						  uint32		  height,
+						  uint32		  shadow_light_count,
+						  uint32		  shadow_light_header_count,
+						  ID3D12Resource& frame_data_rw_buffer,
+						  ID3D12Resource& shadow_light_rw_buffer,
+						  auto&			  slot_shadow_light_rw_buffer_srv,
+						  uint32		  job_count) noexcept
 	{
 		if (job_count == 0) [[unlikely]]
 		{
 			return;
 		}
-
-		barrier.add_transition(shadow_light_rw_buffer,
-							   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-							   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 		cmd_list.SetPipelineState(p_depth_reduce_pso);
 		cmd_list.Dispatch(
@@ -172,17 +168,15 @@ namespace age::graphics::render_pipeline::forward_plus
 			(height + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
 			1);
 
-		barrier.add_uav(frame_data_rw_buffer);
-		barrier.apply_and_reset(cmd_list);
+		apply_barriers(cmd_list, barrier::buf_uav_to_uav(&frame_data_rw_buffer));
 
 		cmd_list.SetPipelineState(p_fill_shadow_buffer_pso);
 		cmd_list.Dispatch(shadow_light_header_count, 1, 1);
 
-		barrier.add_transition(shadow_light_rw_buffer,
-							   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-							   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-		barrier.apply_and_reset(cmd_list);
+		apply_barriers(cmd_list,
+					   barrier::buf_uav_to_srv(&shadow_light_rw_buffer,
+											   D3D12_BARRIER_SYNC_VERTEX_SHADING));
+		slot_shadow_light_rw_buffer_srv.apply(cmd_list);
 
 		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_shadow_atlas_dsv_desc, 0.f);
 
@@ -288,68 +282,70 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	inline void
-	light_culling_stage::execute(t_cmd_list&				 cmd_list,
-								 graphics::resource_barrier& barrier,
-								 uint32						 light_tile_count_x,
-								 uint32						 light_tile_count_y,
-								 ID3D12Resource&			 unified_sorted_light_buffer,
-								 ID3D12Resource&			 frame_data_rw_buffer,
-								 ID3D12Resource&			 sort_buffer,
-								 ID3D12Resource&			 zbin_buffer,
-								 uint32						 light_count) noexcept
+	light_culling_stage::execute(t_cmd_list&	 cmd_list,
+								 uint32			 light_tile_count_x,
+								 uint32			 light_tile_count_y,
+								 ID3D12Resource& unified_sorted_light_buffer,
+								 ID3D12Resource& frame_data_rw_buffer,
+								 auto&			 slot_frame_data_rw_buffer_srv,
+								 ID3D12Resource& sort_buffer,
+								 auto&			 slot_sort_buffer_srv,
+								 ID3D12Resource& zbin_buffer,
+								 auto&			 slot_zbin_buffer_srv) noexcept
 	{
-		if (light_count > 0)
+		cmd_list.SetPipelineState(p_pso_cull);
+		cmd_list.Dispatch((g::max_light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
+
+		apply_barriers(cmd_list, barrier::buf_uav_to_uav(&sort_buffer));
+
+		for (uint32 pass : std::views::iota(0u) | std::views::take(g::light_sort_iteration_count))
 		{
-			barrier.add_transition(sort_buffer,
-								   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-								   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			barrier.apply_and_reset(cmd_list);
+			cmd_list.SetComputeRoot32BitConstants(
+				binding_config_t::reg_b<1>::slot_id,
+				sizeof(uint32) / 4,
+				&pass,
+				offsetof(shared_type::root_constants, light_radix_sort_pass) / 4);
 
-			cmd_list.SetPipelineState(p_pso_cull);
-			cmd_list.Dispatch((g::max_light_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
-			barrier.add_uav(sort_buffer);
-			barrier.apply_and_reset(cmd_list);
+			cmd_list.SetPipelineState(p_pso_sort_histogram);
+			cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
 
-			for (uint32 pass : std::views::iota(0u) | std::views::take(g::light_sort_iteration_count))
-			{
-				cmd_list.SetComputeRoot32BitConstants(
-					binding_config_t::reg_b<1>::slot_id,
-					sizeof(uint32) / 4,
-					&pass,
-					offsetof(shared_type::root_constants, light_radix_sort_pass) / 4);
+			apply_barriers(cmd_list, barrier::buf_uav_to_uav(&sort_buffer));
 
-				cmd_list.SetPipelineState(p_pso_sort_histogram);
-				cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
-				barrier.add_uav(sort_buffer);
-				barrier.apply_and_reset(cmd_list);
+			cmd_list.SetPipelineState(p_pso_sort_prefix);
+			cmd_list.Dispatch(g::light_sort_bin_count, 1, 1);
 
-				cmd_list.SetPipelineState(p_pso_sort_prefix);
-				cmd_list.Dispatch(g::light_sort_bin_count, 1, 1);
-				barrier.add_uav(sort_buffer);
-				barrier.apply_and_reset(cmd_list);
+			apply_barriers(cmd_list, barrier::buf_uav_to_uav(&sort_buffer));
 
-				cmd_list.SetPipelineState(p_pso_sort_scatter);
-				cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
-				barrier.add_uav(sort_buffer);
-				barrier.apply_and_reset(cmd_list);
-			}
+			cmd_list.SetPipelineState(p_pso_sort_scatter);
+			cmd_list.Dispatch(g::light_sort_group_count, 1, 1);
 
-			cmd_list.SetPipelineState(p_pso_zbin);
-			cmd_list.Dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
-
-			barrier.add_uav(zbin_buffer);
-			// barrier.add_uav(sort_buffer);
-			barrier.add_uav(frame_data_rw_buffer);
-
-			barrier.add_transition(sort_buffer,
-								   D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-								   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-			barrier.apply_and_reset(cmd_list);
-
-			cmd_list.SetPipelineState(p_pso_tile);
-			cmd_list.Dispatch(light_tile_count_x, light_tile_count_y, 1);
+			apply_barriers(cmd_list, barrier::buf_uav_to_uav(&sort_buffer));
 		}
+
+		cmd_list.SetPipelineState(p_pso_zbin);
+		cmd_list.Dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
+
+		apply_barriers(
+			cmd_list,
+			// used by opaque_ps
+			barrier::buf_uav_to_srv(&zbin_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			// zbin_cs writes not_culled_light_count,
+			// tile_cs reads not_culled_light_count
+			// opaque_ps reads cascade_splits
+			barrier::buf_uav_to_srv(&frame_data_rw_buffer,
+									D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+
+			barrier::buf_uav_to_srv(&sort_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+		slot_zbin_buffer_srv.apply(cmd_list);
+
+		slot_frame_data_rw_buffer_srv.apply_compute(cmd_list);
+		slot_frame_data_rw_buffer_srv.apply(cmd_list);
+
+		slot_sort_buffer_srv.apply_compute(cmd_list);
+
+		cmd_list.SetPipelineState(p_pso_tile);
+		cmd_list.Dispatch(light_tile_count_x, light_tile_count_y, 1);
 	}
 
 	inline void

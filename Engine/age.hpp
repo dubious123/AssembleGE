@@ -143,6 +143,7 @@ namespace age
 #if defined AGE_GRAPHICS_BACKEND_DX12
 	#include "age_graphics_backend_dx12.hpp"
 	#include "age_graphics_backend_dx12_defaults.hpp"
+	#include "age_graphics_backend_dx12_resource_barrier.hpp"
 	#include "age_graphics_backend_dx12_descriptor_pool.hpp"
 	#include "age_graphics_backend_dx12_root_signature.hpp"
 	#include "age_graphics_backend_dx12_root_signature_binding_slot.hpp"

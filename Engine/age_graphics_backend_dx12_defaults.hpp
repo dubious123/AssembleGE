@@ -25,17 +25,18 @@ namespace age::graphics::defaults
 		FORCE_INLINE decltype(auto)
 		buffer(uint64 byte_size, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
 		{
-			return D3D12_RESOURCE_DESC{
-				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension		 = D3D12_RESOURCE_DIMENSION_BUFFER,
-				/*UINT64						*/ .Alignment		 = 0,
-				/*UINT64						*/ .Width			 = byte_size,
-				/*UINT							*/ .Height			 = 1,
-				/*UINT16						*/ .DepthOrArraySize = 1,
-				/*UINT16						*/ .MipLevels		 = 1,
-				/*DXGI_FORMAT					*/ .Format			 = DXGI_FORMAT_UNKNOWN,
-				/*DXGI_SAMPLE_DESC				*/ .SampleDesc		 = { .Count = 1, .Quality = 0 },
-				/*D3D12_TEXTURE_LAYOUT			*/ .Layout			 = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-				/*D3D12_RESOURCE_FLAGS			*/ .Flags			 = flags
+			return D3D12_RESOURCE_DESC1{
+				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension				 = D3D12_RESOURCE_DIMENSION_BUFFER,
+				/*UINT64						*/ .Alignment				 = 0,
+				/*UINT64						*/ .Width					 = byte_size,
+				/*UINT							*/ .Height					 = 1,
+				/*UINT16						*/ .DepthOrArraySize		 = 1,
+				/*UINT16						*/ .MipLevels				 = 1,
+				/*DXGI_FORMAT					*/ .Format					 = DXGI_FORMAT_UNKNOWN,
+				/*DXGI_SAMPLE_DESC				*/ .SampleDesc				 = { .Count = 1, .Quality = 0 },
+				/*D3D12_TEXTURE_LAYOUT			*/ .Layout					 = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+				/*D3D12_RESOURCE_FLAGS			*/ .Flags					 = flags,
+				/*D3D12_MIP_REGION				*/ .SamplerFeedbackMipRegion = D3D12_MIP_REGION{}
 			};
 		}
 
@@ -56,17 +57,18 @@ namespace age::graphics::defaults
 						 uint16				  sample_quality = 0) noexcept
 		{
 			AGE_ASSERT(sample_count == 1 or mip_levels == 1);
-			return D3D12_RESOURCE_DESC{
-				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension		 = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-				/*UINT64						*/ .Alignment		 = 0,
-				/*UINT64						*/ .Width			 = width,
-				/*UINT							*/ .Height			 = height,
-				/*UINT16						*/ .DepthOrArraySize = array_size,
-				/*UINT16						*/ .MipLevels		 = mip_levels,
-				/*DXGI_FORMAT					*/ .Format			 = format,
-				/*DXGI_SAMPLE_DESC				*/ .SampleDesc		 = { .Count = sample_count, .Quality = sample_quality },
-				/*D3D12_TEXTURE_LAYOUT			*/ .Layout			 = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-				/*D3D12_RESOURCE_FLAGS			*/ .Flags			 = flags
+			return D3D12_RESOURCE_DESC1{
+				/*D3D12_RESOURCE_DIMENSION		*/ .Dimension				 = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+				/*UINT64						*/ .Alignment				 = 0,
+				/*UINT64						*/ .Width					 = width,
+				/*UINT							*/ .Height					 = height,
+				/*UINT16						*/ .DepthOrArraySize		 = array_size,
+				/*UINT16						*/ .MipLevels				 = mip_levels,
+				/*DXGI_FORMAT					*/ .Format					 = format,
+				/*DXGI_SAMPLE_DESC				*/ .SampleDesc				 = { .Count = sample_count, .Quality = sample_quality },
+				/*D3D12_TEXTURE_LAYOUT			*/ .Layout					 = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+				/*D3D12_RESOURCE_FLAGS			*/ .Flags					 = flags,
+				/*D3D12_MIP_REGION				*/ .SamplerFeedbackMipRegion = D3D12_MIP_REGION{}
 			};
 		}
 

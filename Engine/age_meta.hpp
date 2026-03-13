@@ -115,7 +115,6 @@ namespace age::meta
 	consteval bool
 	variadic_contains()
 	{
-
 		if constexpr (std::is_same_v<auto_wrapper<v>, auto_wrapper<h>>)
 		{
 			return true;
@@ -290,7 +289,7 @@ namespace age::meta
 		using type = variadic_at_t<i, args...>;	   // std::tuple_element_t<i, std::tuple<args...>>;
 	};
 
-	// template <auto func>
+												   // template <auto func>
 	// struct function_traits;
 
 	//// Specialization for function pointers.
@@ -335,6 +334,29 @@ namespace age::meta
 	// struct callable_traits : function_traits<&decltype(callable)::operator()>
 	//{
 	// };
+
+	template <typename t, typename... ts>
+	consteval size_t
+	variadic_count()
+	{
+		size_t res = 0;
+		([&res]() {
+			if (std::is_same_v<t, ts>)
+			{
+				++res;
+			}
+		}(),
+		 ...);
+
+		return res;
+	}
+
+	template <auto v, auto... vs>
+	consteval size_t
+	variadic_count()
+	{
+		return variadic_count<auto_wrapper<v>, auto_wrapper<vs>...>();
+	}
 
 	template <typename t, typename head, typename... tails>
 	consteval std::size_t
@@ -717,6 +739,25 @@ namespace age::meta
 		return indices;
 	}
 
+	template <typename t_target, typename... t>
+	consteval auto
+	filter_indices()
+	{
+		c_auto flags   = std::array{ std::is_same_v<t_target, t>... };
+		auto   indices = std::array<std::size_t, variadic_count<t_target, t...>()>{};
+
+		std::size_t idx = 0;
+		for (auto i = 0; i < sizeof...(t); ++i)
+		{
+			if (flags[i])
+			{
+				indices[idx++] = i;
+			}
+		}
+
+		return indices;
+	}
+
 	template <template <typename> typename pred, typename... t>
 	consteval auto
 	make_filtered_index_sequence()
@@ -728,8 +769,31 @@ namespace age::meta
 		}(std::make_index_sequence<arr.size()>{});
 	}
 
+	template <typename t_target, typename... t>
+	consteval auto
+	make_filtered_index_sequence()
+	{
+		constexpr auto arr = filter_indices<t_target, t...>();
+
+		return [&]<std::size_t... i>(std::index_sequence<i...>) {
+			return std::index_sequence<arr[i]...>{};
+		}(std::make_index_sequence<arr.size()>{});
+	}
+
 	template <template <typename> typename pred, typename... t>
 	using filtered_index_sequence_t = decltype(make_filtered_index_sequence<pred, t...>());
+
+	template <typename t_target>
+	constexpr decltype(auto)
+	make_filtered_array(auto&&... args)
+	{
+		return
+			[&]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+				return std::array<t_target, meta::index_sequence_size_v<decltype(make_filtered_index_sequence<t_target, BARE_OF(args)...>())>>{
+					meta::variadic_get<i>(FWD(arg)...)...
+				};
+			}(make_filtered_index_sequence<t_target, BARE_OF(args)...>(), FWD(args)...);
+	}
 
 	template <template <typename> typename pred, typename... t>
 	struct filtered_variadic
@@ -853,29 +917,6 @@ namespace age::meta
 		return [&]<std::size_t... i>(std::index_sequence<i...>, auto&& args_tpl) {
 			return filtered_variadic_t<pred, t...>(std::forward<std::tuple_element_t<i, std::tuple<t&&...>>>(std::get<i>(args_tpl))...);
 		}(make_filtered_index_sequence<pred, t...>(), std::tuple(std::forward<t>(args)...));
-	}
-
-	template <typename t, typename... ts>
-	consteval size_t
-	variadic_count()
-	{
-		size_t res = 0;
-		([&res]() {
-			if (std::is_same_v<t, ts>)
-			{
-				++res;
-			}
-		}(),
-		 ...);
-
-		return res;
-	}
-
-	template <auto v, auto... vs>
-	consteval size_t
-	variadic_count()
-	{
-		return variadic_count<auto_wrapper<v>, auto_wrapper<vs>...>();
 	}
 
 	template <typename t, typename... ts>

@@ -56,15 +56,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept;
 
 		inline void
-		execute(t_cmd_list&					cmd_list,
-				graphics::resource_barrier& barrier,
-				uint32						width,
-				uint32						height,
-				uint32						shadow_light_count,
-				uint32						shadow_light_header_count,
-				ID3D12Resource&				frame_data_rw_buffer,
-				ID3D12Resource&				shadow_light_rw_buffer,
-				uint32						job_count) noexcept;
+		execute(t_cmd_list&		cmd_list,
+				uint32			width,
+				uint32			height,
+				uint32			shadow_light_count,
+				uint32			shadow_light_header_count,
+				ID3D12Resource& frame_data_rw_buffer,
+				ID3D12Resource& shadow_light_rw_buffer,
+				auto&			slot_shadow_light_rw_buffer_srv,
+				uint32			job_count) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -94,15 +94,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(t_cmd_list&					cmd_list,
-				graphics::resource_barrier& barrier,
-				uint32						light_tile_count_x,
-				uint32						light_tile_count_y,
-				ID3D12Resource&				unified_sorted_light_buffer,
-				ID3D12Resource&				frame_data_rw_buffer,
-				ID3D12Resource&				sort_buffer,
-				ID3D12Resource&				zbin_buffer,
-				uint32						light_count) noexcept;
+		execute(t_cmd_list&		cmd_list,
+				uint32			light_tile_count_x,
+				uint32			light_tile_count_y,
+				ID3D12Resource& unified_sorted_light_buffer,
+				ID3D12Resource& frame_data_rw_buffer,
+				auto&			slot_frame_data_rw_buffer_srv,
+				ID3D12Resource& sort_buffer,
+				auto&			slot_sort_buffer_srv,
+				ID3D12Resource& zbin_buffer,
+				auto&			slot_zbin_buffer_srv) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -227,9 +228,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
 		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
-
-
-		resource_barrier barrier;
 
 		data_structure::stable_dense_vector<shared_type::object_data> object_data_vec;
 

@@ -70,13 +70,17 @@ namespace age::graphics::resource
 			AGE_ASSERT(desc.has_clear_value is_false);
 		}
 
-		AGE_HR_CHECK(g::p_main_device->CreateCommittedResource(
-			&heap_prop,
-			D3D12_HEAP_FLAG_NONE,
-			&desc.d3d12_resource_desc,
-			desc.initial_state,
-			desc.has_clear_value ? &desc.clear_value : nullptr,
-			IID_PPV_ARGS(&p_resource)));
+		AGE_HR_CHECK(
+			g::p_main_device->CreateCommittedResource3(
+				&heap_prop,
+				D3D12_HEAP_FLAG_NONE,
+				&desc.d3d12_resource_desc,
+				desc.initial_layout,
+				desc.has_clear_value ? &desc.clear_value : nullptr,
+				nullptr,
+				0,
+				nullptr,
+				IID_PPV_ARGS(&p_resource)));
 
 		return resource_handle{ .id = g::resource_vec.emplace_back(p_resource) };
 	}
@@ -92,16 +96,18 @@ namespace age::graphics::resource
 		}
 
 		{
-			auto info = g::p_main_device->GetResourceAllocationInfo(0, 1, &desc.d3d12_resource_desc);
+			auto info = g::p_main_device->GetResourceAllocationInfo2(0, 1, &desc.d3d12_resource_desc, nullptr);
 			AGE_ASSERT((offset % info.Alignment) == 0);
 		}
 
-		AGE_HR_CHECK(g::p_main_device->CreatePlacedResource(
+		AGE_HR_CHECK(g::p_main_device->CreatePlacedResource2(
 			&heap,
 			offset,
 			&desc.d3d12_resource_desc,
-			desc.initial_state,
+			desc.initial_layout,
 			desc.has_clear_value ? &desc.clear_value : nullptr,
+			0,
+			nullptr,
 			IID_PPV_ARGS(&p_resource)));
 
 		return resource_handle{ .id = g::resource_vec.emplace_back(p_resource) };
@@ -149,15 +155,15 @@ namespace age::graphics::resource
 namespace age::graphics::resource
 {
 	mapping_handle
-	create_buffer_committed(uint32				  buffer_byte_size,
-							const void*			  p_data,
-							e::memory_kind		  kind,
-							D3D12_RESOURCE_STATES state,
-							D3D12_RESOURCE_FLAGS  flags) noexcept
+	create_buffer_committed(uint32				 buffer_byte_size,
+							const void*			 p_data,
+							e::memory_kind		 kind,
+							D3D12_BARRIER_LAYOUT initial_layout,
+							D3D12_RESOURCE_FLAGS flags) noexcept
 	{
 		auto h_resource = create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer(buffer_byte_size, flags),
-			  .initial_state	   = state,
+			  .initial_layout	   = initial_layout,
 			  .heap_memory_kind	   = kind,
 			  .has_clear_value	   = false });
 
@@ -192,17 +198,17 @@ namespace age::graphics::resource
 	}
 
 	mapping_handle
-	create_buffer_placed(uint32				   buffer_byte_size,
-						 ID3D12Heap&		   heap,
-						 uint64				   offset,
-						 const void*		   p_data,
-						 e::memory_kind		   kind,
-						 D3D12_RESOURCE_STATES state,
-						 D3D12_RESOURCE_FLAGS  flags) noexcept
+	create_buffer_placed(uint32				  buffer_byte_size,
+						 ID3D12Heap&		  heap,
+						 uint64				  offset,
+						 const void*		  p_data,
+						 e::memory_kind		  kind,
+						 D3D12_BARRIER_LAYOUT initial_layout,
+						 D3D12_RESOURCE_FLAGS flags) noexcept
 	{
 		auto h_resource = create_placed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer(buffer_byte_size, flags),
-			  .initial_state	   = state,
+			  .initial_layout	   = initial_layout,
 			  .heap_memory_kind	   = kind,
 			  .has_clear_value	   = false },
 			heap,
