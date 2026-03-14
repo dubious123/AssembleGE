@@ -132,6 +132,13 @@ namespace age::graphics::pso
 
 		AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
 
+		auto re = g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso));
+
+		if (re != S_OK)
+		{
+			std::println("Failed to create PSO. HRESULT: {:#x}", static_cast<uint32_t>(re));
+		}
+
 		return handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
 	}
 }	 // namespace age::graphics::pso

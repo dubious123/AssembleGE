@@ -1,6 +1,14 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
+#if defined(AGE_GRAPHICS_BACKEND_DX12) && defined(AGE_PLATFORM_WINDOW)
+extern "C"
+{
+__declspec(dllexport) extern const uint32_t D3D12SDKVersion = 619;
+__declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
+}
+#endif
+
 // external
 #line 1 "age_external_wrapper_mikktspace.cpp"
 #include "age_external_wrapper_mikktspace.cpp"
@@ -34,6 +42,9 @@
 
 #line 1 "age_graphics_backend_dx12_cmd_system.cpp"
 #include "age_graphics_backend_dx12_cmd_system.cpp"
+
+#line 1 "age_graphics_backend_dx12_command_signature.cpp"
+#include "age_graphics_backend_dx12_command_signature.cpp"
 
 #line 1 "age_graphics_backend_dx12_render_surface.cpp"
 #include "age_graphics_backend_dx12_render_surface.cpp"

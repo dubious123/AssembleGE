@@ -22,16 +22,18 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_shadow_atlas_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 
 		{
-			h_mapping_frame_data		 = resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
-			h_mapping_job_data_buffer	 = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_count);
-			h_mapping_object_data_buffer = resource::create_buffer_committed(sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_count);
-			h_mapping_mesh_buffer		 = resource::create_buffer_committed(g::max_mesh_buffer_byte_size);
+			h_mapping_frame_data						= resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
+			h_mapping_opaque_meshlet_render_data_buffer = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_count);
+			h_mapping_object_data_buffer				= resource::create_buffer_committed(sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_count);
+			h_mapping_mesh_buffer						= resource::create_buffer_committed(g::max_mesh_buffer_byte_size);
 
 			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * g::max_directional_light_count * graphics::g::frame_buffer_count);
 
 			h_mapping_unified_light_buffer = resource::create_buffer_committed(sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_count);
 
 			h_mapping_shadow_light_header_buffer = resource::create_buffer_committed(sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * graphics::g::frame_buffer_count);
+
+			h_mapping_transparent_object_render_data_buffer = resource::create_buffer_committed(sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * graphics::g::frame_buffer_count);
 
 			h_mapping_frame_data_rw_buffer = resource::create_buffer_committed(
 				sizeof(shared_type::frame_data_rw) * graphics::g::frame_buffer_count,
@@ -47,7 +49,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				D3D12_BARRIER_LAYOUT_UNDEFINED,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-			h_light_sort_buffer = resource::create_committed(
+			h_sort_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::sort_buffer_total_byte_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
@@ -86,9 +88,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
 			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
 
-			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 0, 0);
-			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 1, 1);
-			opaque_render_data_buffer.bind(h_mapping_job_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 2, 2);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 0, 0);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 1, 1);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 2, 2);
 
 			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 0, 0);
 			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 1, 1);
@@ -116,12 +118,17 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_rw_buffer_srv.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 1, 1);
 			frame_data_rw_buffer_srv.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 2, 2);
 
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 0, 0);
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 1, 1);
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 2, 2);
+
+
 			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 0, 0);
 			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 1, 1);
 			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 2, 2);
 
-			light_sort_buffer_uav.bind(h_light_sort_buffer->p_resource->GetGPUVirtualAddress());
-			light_sort_buffer_srv.bind(h_light_sort_buffer->p_resource->GetGPUVirtualAddress());
+			sort_buffer_uav.bind(h_sort_buffer->p_resource->GetGPUVirtualAddress());
+			sort_buffer_srv.bind(h_sort_buffer->p_resource->GetGPUVirtualAddress());
 
 			zbin_buffer_uav.bind(h_zbin_buffer->p_resource->GetGPUVirtualAddress());
 			zbin_buffer_srv.bind(h_zbin_buffer->p_resource->GetGPUVirtualAddress());
@@ -155,6 +162,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_opaque.init(h_root_sig);
 			stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 
+			stage_transparent.init(h_root_sig);
+			stage_transparent.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
+
 			stage_presentation.init(h_root_sig);
 		}
 
@@ -162,7 +172,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_main_buffer->p_resource->SetName(L"main_buffer");
 		h_depth_buffer->p_resource->SetName(L"depth_buffer");
 		h_shadow_atlas->p_resource->SetName(L"shadow_atlas");
-		h_light_sort_buffer->p_resource->SetName(L"light_sort_buffer");
+		h_sort_buffer->p_resource->SetName(L"sort_buffer");
 		h_zbin_buffer->p_resource->SetName(L"zbin_buffer");
 		h_tile_mask_buffer->p_resource->SetName(L"tile_mask_buffer");
 		h_unified_sorted_light_buffer->p_resource->SetName(L"unified_sorted_light_buffer");
@@ -170,13 +180,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		h_mapping_frame_data->h_resource->p_resource->SetName(L"mapping_frame_data");
-		h_mapping_job_data_buffer->h_resource->p_resource->SetName(L"mapping_job_data_buffer");
+		h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->SetName(L"mapping_job_data_buffer");
 		h_mapping_object_data_buffer->h_resource->p_resource->SetName(L"mapping_object_data_buffer");
 		h_mapping_mesh_buffer->h_resource->p_resource->SetName(L"mapping_mesh_buffer");
 		h_mapping_directional_light_buffer->h_resource->p_resource->SetName(L"mapping_directional_light_buffer");
 		h_mapping_unified_light_buffer->h_resource->p_resource->SetName(L"mapping_unified_light_buffer");
 		h_mapping_frame_data_rw_buffer->h_resource->p_resource->SetName(L"mapping_frame_data_rw_buffer");
 		h_mapping_shadow_light_header_buffer->h_resource->p_resource->SetName(L"mapping_shadow_light_header_buffer");
+
+		h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->SetName(L"transparent_object_render_data_buffer");
 		h_mapping_debug_buffer_uav->h_resource->p_resource->SetName(L"mapping_debug_buffer_uav");
 	}
 
@@ -187,9 +199,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
+		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		{
+			vec.clear();
+		}
 
 		stage_init.deinit();
 		stage_presentation.deinit();
+		stage_transparent.deinit();
 		stage_opaque.deinit();
 		stage_light_culling.deinit();
 		stage_shadow.deinit();
@@ -202,13 +219,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::g::cbv_srv_uav_desc_pool.push(h_shadow_atlas_srv_desc);
 
 		resource::unmap_and_release(h_mapping_frame_data);
-		resource::unmap_and_release(h_mapping_job_data_buffer);
+		resource::unmap_and_release(h_mapping_opaque_meshlet_render_data_buffer);
 		resource::unmap_and_release(h_mapping_object_data_buffer);
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 
 		resource::unmap_and_release(h_mapping_directional_light_buffer);
 		resource::unmap_and_release(h_mapping_unified_light_buffer);
 		resource::unmap_and_release(h_mapping_frame_data_rw_buffer);
+
+		resource::unmap_and_release(h_mapping_transparent_object_render_data_buffer);
 
 		resource::unmap_and_release(h_mapping_shadow_light_header_buffer);
 
@@ -218,7 +237,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
-		resource::release_resource(h_light_sort_buffer);
+		resource::release_resource(h_sort_buffer);
 
 		resource::release_resource(h_zbin_buffer);
 		resource::release_resource(h_tile_mask_buffer);
@@ -238,6 +257,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(shadow_light_header_count == 0);
 		AGE_ASSERT(next_shadow_light_id == 0);
 		AGE_ASSERT(directional_shadow_light_count == 0);
+
+		object_data_vec.clear();
+		directional_light_vec.clear();
+		unified_light_vec.clear();
 	}
 
 	bool
@@ -255,6 +278,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
+		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		{
+			vec.clear();
+		}
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= std::max(extent.width, static_cast<uint16>(age::platform::get_client_width(rs.h_window))),
@@ -265,8 +292,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			resize_resolution_dependent_buffers(new_extent);
 
-			stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 			stage_depth.bind_dsv(h_depth_buffer);
+			stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
+			stage_transparent.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 		}
 
 		cmd_list.SetDescriptorHeaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
@@ -298,7 +326,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			// light_sort_buffer_srv.apply(cmd_list);
 			// light_sort_buffer_srv.apply_compute(cmd_list);
-			light_sort_buffer_uav.apply_compute(cmd_list);
+			sort_buffer_uav.apply_compute(cmd_list);
 
 			// zbin_buffer_srv.apply(cmd_list);
 			zbin_buffer_uav.apply_compute(cmd_list);
@@ -314,28 +342,19 @@ namespace age::graphics::render_pipeline::forward_plus
 			tile_mask_buffer_uav.apply(cmd_list);
 			tile_mask_buffer_uav.apply_compute(cmd_list);
 
+			transparent_object_render_data_buffer.apply(cmd_list);
+			transparent_object_render_data_buffer.apply_compute(cmd_list);
+
 			debug_buffer_uav.apply(cmd_list);
 			debug_buffer_uav.apply_compute(cmd_list);
 		}
 
 
 		apply_barriers(cmd_list,
-					   barrier::srv_to_rtv(
-						   h_main_buffer->p_resource,
-						   D3D12_BARRIER_SYNC_PIXEL_SHADING,
-						   D3D12_TEXTURE_BARRIER_FLAG_DISCARD)
-						   | barrier::as_split_begin,
-
-					   barrier::dsv_read_to_dsv_write(
-						   h_depth_buffer->p_resource,
-						   D3D12_TEXTURE_BARRIER_FLAG_DISCARD)
-						   | barrier::as_split_begin,
-
-					   barrier::srv_to_dsv_write(
-						   h_shadow_atlas->p_resource,
-						   D3D12_BARRIER_SYNC_PIXEL_SHADING,
-						   D3D12_TEXTURE_BARRIER_FLAG_DISCARD)
-						   | barrier::as_split_begin);
+					   barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+					   barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+					   barrier::undefined_to_dsv_write(h_shadow_atlas->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+					   barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
 		return true;
 	}
 
@@ -351,34 +370,22 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			render_data_vec.emplace_back(
 				shared_type::opaque_meshlet_render_data{
-					.object_id		  = object_id,
+					.object_id		  = object_data_vec.get_pos(object_id),
 					.mesh_byte_offset = mesh_offset,
 					.meshlet_id		  = meshlet_id++ });
 		}
-
-		AGE_ASSERT(render_data_vec.size() < max_opaque_meshlet_per_thread);
 	}
 
 	void
 	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
-		// c_auto meshlet_idx	 = transparent_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id];
-		// c_auto mesh_offset	 = mesh_data_vec[mesh_id].offset;
-		// c_auto meshlet_count = mesh_data_vec[mesh_id].meshlet_count;
+		c_auto mesh_offset = mesh_data_vec[mesh_id].offset;
 
-		// transparent_obj_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i]
-
-		//	for (auto meshlet_id = 0u;
-		//		 auto i : std::views::iota(0) | std::views::take(meshlet_count))
-		//{
-		//	transparent_meshlet_render_arr[graphics::g::frame_buffer_idx][thread_id][meshlet_idx + i] = shared_type::transparent_meshlet_render_data{
-		//		.object_id		  = object_id,
-		//		.mesh_byte_offset = mesh_offset,
-		//		.meshlet_id		  = meshlet_id++
-		//	};
-		//}
-
-		// transparent_meshlet_count_arr[graphics::g::frame_buffer_idx][thread_id] += meshlet_count;
+		auto& object_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		object_render_data_vec.emplace_back(
+			shared_type::transparent_object_render_data{
+				.object_id		  = object_data_vec.get_pos(object_id),
+				.mesh_byte_offset = mesh_offset });
 	}
 
 	void
@@ -387,7 +394,43 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& rs	   = graphics::g::render_surface_vec[h_rs];
 		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[graphics::g::frame_buffer_idx][0];
 
-		auto total_opaque_meshlet_count = 0u;
+		std::memcpy(
+			h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,
+			object_data_vec.data(),
+			sizeof(shared_type::object_data) * object_data_vec.count());
+
+		auto opaque_meshlet_render_data_count	  = 0u;
+		auto transparent_object_render_data_count = 0u;
+
+		{
+			auto* p_dst_opaque_meshlet_render_data	   = h_mapping_opaque_meshlet_render_data_buffer->ptr + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_idx;
+			auto* p_dst_transparent_object_render_data = h_mapping_transparent_object_render_data_buffer->ptr + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * graphics::g::frame_buffer_idx;
+			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
+			{
+				auto& opaque_mshlt_render_data_vec = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][i];
+
+				auto& transparent_obj_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][i];
+
+				{
+					c_auto byte_size = sizeof(shared_type::opaque_meshlet_render_data) * opaque_mshlt_render_data_vec.size();
+
+					std::memcpy(p_dst_opaque_meshlet_render_data, opaque_mshlt_render_data_vec.data(), byte_size);
+					opaque_meshlet_render_data_count += static_cast<uint32>(opaque_mshlt_render_data_vec.size());
+					p_dst_opaque_meshlet_render_data += byte_size;
+				}
+
+				{
+					c_auto byte_size = sizeof(shared_type::transparent_object_render_data) * transparent_obj_render_data_vec.size();
+
+					std::memcpy(p_dst_transparent_object_render_data, transparent_obj_render_data_vec.data(), byte_size);
+					transparent_object_render_data_count += static_cast<uint32>(transparent_obj_render_data_vec.size());
+					p_dst_transparent_object_render_data += byte_size;
+				}
+			}
+
+			AGE_ASSERT(opaque_meshlet_render_data_count < g::max_opaque_meshlet_render_data_count);
+			AGE_ASSERT(transparent_object_render_data_count < g::max_transparent_object_count);
+		}
 
 		{
 			auto src_arr = std::array<shared_type::shadow_light_header, g::max_shadow_light_count>{};
@@ -411,12 +454,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				src_arr.data(),
 				sizeof(shared_type::shadow_light_header) * shadow_light_header_count);
 
-
-			std::memcpy(
-				h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,
-				object_data_vec.data(),
-				sizeof(shared_type::object_data) * object_data_vec.count());
-
 			std::memcpy(
 				h_mapping_directional_light_buffer->ptr + sizeof(shared_type::directional_light) * g::max_directional_light_count * graphics::g::frame_buffer_idx,
 				directional_light_vec.data(),
@@ -426,17 +463,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_idx,
 				unified_light_vec.data(),
 				sizeof(shared_type::unified_light) * unified_light_vec.count());
-
-			for (
-				auto* p_dst = h_mapping_job_data_buffer->ptr + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_idx;
-				auto& render_vec : opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx])
-			{
-				c_auto byte_size = sizeof(shared_type::opaque_meshlet_render_data) * render_vec.size();
-
-				std::memcpy(p_dst, render_vec.data(), byte_size);
-				total_opaque_meshlet_count += static_cast<uint32>(render_vec.size());
-				p_dst					   += byte_size;
-			}
 
 			{
 				// todo multiple camera
@@ -467,11 +493,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				c_auto& cam_desc = camera_desc_vec[0];
 				root_constants.bind(shared_type::root_constants{
-					.job_count						   = total_opaque_meshlet_count,
-					.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.count()),
-					.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_vec.count()),
-					.light_tile_count_x				   = light_tile_count_x,
-					.light_tile_count_y				   = light_tile_count_y,
+					.opaque_meshlet_render_data_count	  = opaque_meshlet_render_data_count,
+					.directional_light_count_and_extra	  = static_cast<t_directional_light_id>(directional_light_vec.count()),
+					.unified_light_count				  = static_cast<t_unified_light_id>(unified_light_vec.count()),
+					.transparent_object_render_data_count = static_cast<uint32>(transparent_object_render_data_count),
+					.light_tile_count_x					  = light_tile_count_x,
+					.light_tile_count_y					  = light_tile_count_y,
 					//.cluster_near_z					   = cam_desc.near_z,
 					//.cluster_far_z					   = cam_desc.far_z,
 					.cam_near_z				= cam_desc.near_z,
@@ -484,9 +511,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				root_constants.apply_compute(cmd_list);
 			}
 		}
-		apply_barriers(cmd_list,
-					   barrier::dsv_read_to_dsv_write(h_depth_buffer->p_resource)
-						   | barrier::as_split_end);
 
 		stage_init.execute(cmd_list, light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count);
 
@@ -497,12 +521,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
 		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
-		stage_depth.execute(cmd_list, total_opaque_meshlet_count);
+		stage_depth.execute(cmd_list, opaque_meshlet_render_data_count);
 
-		apply_barriers(cmd_list,
-					   barrier::srv_to_dsv_write(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
-						   | barrier::as_split_end,
-					   barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		apply_barriers(cmd_list, barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		stage_shadow.execute(
 			cmd_list,
@@ -513,7 +534,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 			*h_shadow_light_buffer->p_resource,
 			shadow_light_buffer_srv,
-			total_opaque_meshlet_count);
+			opaque_meshlet_render_data_count);
 
 		cmd_list.RSSetViewports(1, &rs.default_viewport);
 		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
@@ -529,38 +550,40 @@ namespace age::graphics::render_pipeline::forward_plus
 									*h_unified_sorted_light_buffer->p_resource,
 									*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 									frame_data_rw_buffer_srv,
-									*h_light_sort_buffer->p_resource,
-									light_sort_buffer_srv,
+									*h_sort_buffer->p_resource,
+									sort_buffer_srv,
 									*h_zbin_buffer->p_resource,
 									zbin_buffer_srv);
 
 		apply_barriers(
 			cmd_list,
-			barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource,
-									D3D12_BARRIER_SYNC_PIXEL_SHADING),
-
-			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource,
-									D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
 
 			// handled by light_culling_stage
 			// barrier::buf_uav_to_srv(h_mapping_frame_data_rw_buffer->h_resource->p_resource,
 			//								  D3D12_BARRIER_SYNC_PIXEL_SHADING),
-
-			barrier::srv_to_rtv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
-				| barrier::as_split_end);
+		);
 
 		unified_sorted_light_buffer_srv.apply(cmd_list);
 		tile_mask_buffer_srv.apply(cmd_list);
 
-		stage_opaque.execute(cmd_list, total_opaque_meshlet_count);
+		stage_opaque.execute(cmd_list, opaque_meshlet_render_data_count);
+
+		apply_barriers(cmd_list,
+					   barrier::buf_srv_to_uav(h_mapping_frame_data_rw_buffer->h_resource->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+					   barrier::buf_srv_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+		stage_transparent.execute(cmd_list,
+								  *h_sort_buffer->p_resource,
+								  sort_buffer_srv,
+								  *h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+								  frame_data_rw_buffer_srv);
+
 
 		apply_barriers(
 			cmd_list,
-			barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::present_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD)
-
-		);
-
+			barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		stage_presentation.execute(cmd_list, rs);
 
@@ -688,11 +711,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	t_object_id
 	pipeline::add_object(const shared_type::object_data& data) noexcept
 	{
-		c_auto id = static_cast<t_object_id>(object_data_vec.count());
-
-		object_data_vec.emplace_back(data);
-
-		return id;
+		return static_cast<t_object_id>(object_data_vec.emplace_back(data));
 	}
 
 	void

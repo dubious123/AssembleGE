@@ -34,7 +34,7 @@ namespace age::graphics
 	to_string(D3D12_RESOURCE_DIMENSION dim) noexcept;
 
 	constexpr std::string_view
-		to_string(DXGI_FORMAT) noexcept;
+	to_string(DXGI_FORMAT _) noexcept;
 }	 // namespace age::graphics
 
 // cmd_system fwd
@@ -343,6 +343,12 @@ namespace age::graphics::root_signature
 	struct handle
 	{
 		t_root_signature_id id;
+
+		FORCE_INLINE decltype(auto)
+		operator->() noexcept;
+
+		FORCE_INLINE decltype(auto)
+		ptr() const noexcept;
 	};
 
 	struct constants;
@@ -368,6 +374,32 @@ namespace age::graphics::root_signature
 	deinit() noexcept;
 }	 // namespace age::graphics::root_signature
 
+namespace age::graphics::command_signature
+{
+	using t_command_signature_id = uint32;
+
+	struct handle
+	{
+		t_command_signature_id id;
+
+		FORCE_INLINE decltype(auto)
+		ptr() const noexcept;
+	};
+
+	template <typename t_indirect_arg>
+	FORCE_INLINE handle
+	create(root_signature::handle, auto&&... indirect_arg_desc) noexcept;
+
+	void
+	destroy(handle& _) noexcept;
+
+	void
+	init() noexcept;
+
+	void
+	deinit() noexcept;
+}	 // namespace age::graphics::command_signature
+
 namespace age::graphics::shader::e
 {
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
@@ -391,9 +423,9 @@ namespace age::graphics::shader::e
 					forward_plus_shadow_ms,
 
 					forward_plus_light_cull_cs,
-					forward_plus_light_sort_histogram_cs,
-					forward_plus_light_sort_prefix_cs,
-					forward_plus_light_sort_scatter_cs,
+					forward_plus_sort_histogram_cs,
+					forward_plus_sort_prefix_cs,
+					forward_plus_sort_scatter_cs,
 
 					forward_plus_light_zbin_cs,
 					forward_plus_light_tile_cs,
@@ -401,6 +433,13 @@ namespace age::graphics::shader::e
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,
 					forward_plus_opaque_ps,
+
+					forward_plus_transparent_as,
+					forward_plus_transparent_cull_cs,
+					forward_plus_transparent_gen_indirect_arg_cs,
+					forward_plus_transparent_ms,
+					forward_plus_transparent_ps,
+
 					forward_plus_presentation_ms,
 					forward_plus_presentation_hdr10_ps,
 					forward_plus_presentation_sdr_ps);
@@ -466,23 +505,25 @@ namespace age::graphics::g
 	inline auto cmd_system_copy	   = cmd_system<D3D12_COMMAND_LIST_TYPE_COPY, graphics::g::thread_count>{};
 
 	// todo config capacity
-	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048>{};
-	inline auto dsv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 512>{};
-	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 512 * 1024>{};
-	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 512>{};
+	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128>{};
+	inline auto dsv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128>{};
+	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024>{};
+	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128>{};
 
-	inline auto render_surface_vec = data_structure::stable_dense_vector<render_surface>{ 2 };
+	inline auto render_surface_vec = age::stable_dense_vector<render_surface>{ 2 };
 
-	inline auto root_signature_ptr_vec = data_structure::stable_dense_vector<ID3D12RootSignature*>{ 2 };
+	inline auto root_signature_ptr_vec = age::stable_dense_vector<ID3D12RootSignature*>{ 2 };
 
-	inline auto pso_ptr_vec = data_structure::stable_dense_vector<ID3D12PipelineState*>{ 2 };
+	inline auto pso_ptr_vec = age::stable_dense_vector<ID3D12PipelineState*>{ 2 };
 
-	inline auto shader_blob_vec = data_structure::stable_dense_vector<shader::shader_blob>{ 16 };
+	inline auto shader_blob_vec = age::stable_dense_vector<shader::shader_blob>{ 16 };
+
+	inline auto command_signature_ptr_vec = age::stable_dense_vector<ID3D12CommandSignature*>{ 2 };
 
 	//---[ resource ]--------------------------------------------------------------
-	inline auto resource_vec = data_structure::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
+	inline auto resource_vec = age::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
 
-	inline auto resource_mapping_vec = data_structure::stable_dense_vector<resource::resource_mapping>{ 2 };
+	inline auto resource_mapping_vec = age::stable_dense_vector<resource::resource_mapping>{ 2 };
 	//------------------------------------------------------------------------------
 
 	//---[ stage ]------------------------------------------------------------

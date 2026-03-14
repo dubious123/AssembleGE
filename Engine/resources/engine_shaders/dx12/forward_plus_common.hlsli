@@ -37,6 +37,7 @@ RWStructuredBuffer<uint32> tile_mask_buffer_uav : register(u2, space2);
 StructuredBuffer<unified_light> unified_sorted_light_buffer_srv : register(t3, space2);
 RWStructuredBuffer<unified_light> unified_sorted_light_buffer_uav : register(u3, space2);
 
+StructuredBuffer<transparent_object_render_data> transparent_object_render_data_buffer : register(t0, space3);
 
 // debug
 RWStructuredBuffer<debug_77> debug_buffer : register(u7, space7);
@@ -217,7 +218,7 @@ struct opaque_ms_to_ps
     float4 pos	                                   : SV_Position;
     float3 world_pos                               : WORLD_POS;
     float3 normal                                  : NORMAL;
-    nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
+    // nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
     float4 tangent                                 : TANGENT;
  
 #if UV_COUNT >= 1
@@ -233,6 +234,9 @@ struct opaque_ms_to_ps
 		half2 uv3 SYS_VAL(TEXCOORD3);
 #endif
 };
+
+
+
 
 // light culling tile mask
 struct tile_mask_ms_to_ps

@@ -60,6 +60,25 @@
 		return __age_hlsl_prefix_sum_arr__[wave_id] + wave_prefix;                                          \
 	}
 
+#define DECLARE_CALC_THREAD_GROUP_SUM(thread_count)                                           \
+	groupshared uint32 __age_hlsl_sum_arr__[thread_count];                                    \
+	uint32 calc_thread_group_sum(uint32 thread_local, uint32 thread_id)                       \
+	{                                                                                         \
+		uint32		 wave_sum = WaveActiveSum(thread_local);                                  \
+		const uint32 wave_id  = thread_id / WaveGetLaneCount();                               \
+		if (WaveGetLaneIndex() == 0)                                                          \
+		{                                                                                     \
+			__age_hlsl_sum_arr__[wave_id] = wave_sum;                                         \
+		}                                                                                     \
+		GroupMemoryBarrierWithGroupSync();                                                    \
+		if (wave_id == 0)                                                                     \
+		{                                                                                     \
+			__age_hlsl_sum_arr__[thread_id] = WaveActiveSum(__age_hlsl_sum_arr__[thread_id]); \
+		}                                                                                     \
+		GroupMemoryBarrierWithGroupSync();                                                    \
+		return __age_hlsl_sum_arr__[0];                                                       \
+	}
+
 #define DECLARE_CALC_THREAD_GROUP_MIN_MAX(thread_count)                                                    \
 	groupshared uint32 __age_hlsl_min_arr__[thread_count];                                                 \
 	groupshared uint32 __age_hlsl_max_arr__[thread_count];                                                 \

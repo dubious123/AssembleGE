@@ -232,6 +232,8 @@ obj
 !Editor/external/lib
 !Editor/external/lib/*
 
+!Engine/external/**
+
 # Ignore .vs folder
 .vs/
 

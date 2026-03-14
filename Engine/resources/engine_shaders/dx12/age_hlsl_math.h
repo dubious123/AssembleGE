@@ -303,6 +303,23 @@ translation(float x, float y, float z)
 }
 
 float4x4
+affine_transformation(float3 pos, float4 quat, float3 scale)
+{
+	const float x = quat.x, y = quat.y, z = quat.z, w = quat.w;
+
+	const float x2 = x + x, y2 = y + y, z2 = z + z;
+	const float xx = x * x2, xy = x * y2, xz = x * z2;
+	const float yy = y * y2, yz = y * z2, zz = z * z2;
+	const float wx = w * x2, wy = w * y2, wz = w * z2;
+
+	return float4x4(
+		(1 - (yy + zz)) * scale.x, (xy - wz) * scale.y, (xz + wy) * scale.z, pos.x,
+		(xy + wz) * scale.x, (1 - (xx + zz)) * scale.y, (yz - wx) * scale.z, pos.y,
+		(xz - wy) * scale.x, (yz + wx) * scale.y, (1 - (xx + yy)) * scale.z, pos.z,
+		0, 0, 0, 1);
+}
+
+float4x4
 proj_perspective_reversed(float fov_y, float aspect_ratio, float near_z, float far_z)
 {
 	float h = 1.0f / tan(fov_y * 0.5f);

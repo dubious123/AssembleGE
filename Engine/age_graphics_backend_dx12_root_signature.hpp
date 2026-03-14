@@ -266,6 +266,21 @@ namespace age::graphics::root_signature::detail
 
 namespace age::graphics::root_signature
 {
+	FORCE_INLINE decltype(auto)
+	handle::operator->() noexcept
+	{
+		return g::root_signature_ptr_vec[id];
+	}
+
+	FORCE_INLINE decltype(auto)
+	handle::ptr() const noexcept
+	{
+		return g::root_signature_ptr_vec[id];
+	}
+}	 // namespace age::graphics::root_signature
+
+namespace age::graphics::root_signature
+{
 	inline void
 	init() noexcept
 	{
@@ -282,6 +297,7 @@ namespace age::graphics::root_signature
 	inline void
 	deinit() noexcept
 	{
+		AGE_ASSERT(g::root_signature_ptr_vec.is_empty());
 		for (auto* p_root_signature : g::root_signature_ptr_vec)
 		{
 			p_root_signature->Release();

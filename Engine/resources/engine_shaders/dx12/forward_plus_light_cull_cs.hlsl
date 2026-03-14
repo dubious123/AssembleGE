@@ -14,13 +14,13 @@ void main_cs(uint32 light_id : SV_DispatchThreadID)
             const float view_z = dot(light.position - camera_pos, camera_forward);
             const float min_z = view_z - light.range;
             
-            sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_id] = float_to_sortable(min_z);
-            sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_id] = light_id;
+            sort_buffer[SORT_KEYS_OFFSET + light_id] = float_to_sortable(min_z);
+            sort_buffer[SORT_VALUES_OFFSET + light_id] = light_id;
             
-            return;
+            return; 
         }
     }
     
-    sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + light_id] = invalid_id_uint32;
-    sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + light_id] = invalid_id_uint32;
+    sort_buffer[SORT_KEYS_OFFSET + light_id] = invalid_id_uint32;
+    sort_buffer[SORT_VALUES_OFFSET + light_id] = invalid_id_uint32;
 }

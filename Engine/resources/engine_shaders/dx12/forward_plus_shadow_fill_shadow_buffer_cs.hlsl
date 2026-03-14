@@ -11,7 +11,7 @@ void handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade
     // fallback
     if (depth_min >= depth_max)
     {
-        depth_min = cam_near_z;
+        depth_min = cam_near_z; 
         depth_max = cam_far_z;
     }
 
@@ -119,25 +119,59 @@ void handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade
     // frame_data_rw_buffer[0].radius[cascade_idx] = radius;
 }
 
+//[noinline]
 void handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 {
-    static const float3 face_dirs[6] =
-    {
-        float3(1, 0, 0), // +X
-        float3(-1, 0, 0), // -X
-        float3(0, 1, 0), // +Y
-        float3(0, -1, 0), // -Y
-        float3(0, 0, 1), // +Z
-        float3(0, 0, -1), // -Z
-    };
+    // DXC SM 6.9 suspected inlining bug (DXC 1.9.2602.16)
+    // When this function is inlined, certain thread_id values (e.g., 3 and 4 out of 0-5)
+    // appear to be skipped when using static const array indexing.
+    // Replacing array indexing with a switch statement resolves the issue.
+    // Marking the function as [noinline] also resolves the issue.
+    // SM 6.8 is not affected. Possibly related to optimizer constant propagation
+    // misidentifying some array indices as unreachable in the caller's branch context.
+    
+    //static const float3 face_dirs[6] =
+    //{
+    //    float3(1, 0, 0), // +X
+    //    float3(-1, 0, 0), // -X
+    //    float3(0, 1, 0), // +Y
+    //    float3(0, -1, 0), // -Y
+    //    float3(0, 0, 1), // +Z
+    //    float3(0, 0, -1), // -Z
+    //};
     
     const unified_light light = unified_light_buffer[id];
+    
+    float4x4 light_view;
+    switch(face_idx)
+    {
+        case 0:
+            light_view = view_look_to(light.position, float3(1, 0, 0));
+            break;
+        case 1:
+            light_view = view_look_to(light.position, float3(-1, 0, 0));
+            break;
+        case 2:
+            light_view = view_look_to(light.position, float3(0, 1, 0));
+            break;
+        case 3:
+            light_view = view_look_to(light.position, float3(0, -1, 0));
+            break;
+        case 4:
+            light_view = view_look_to(light.position, float3(0, 0, 1));
+            break;
+        case 5:
+            light_view = view_look_to(light.position, float3(1, 0, -1));
+            break;
+        
+    }
 
-    const float4x4 light_view = view_look_to(light.position, face_dirs[face_idx]);
+    //const float4x4 light_view = view_look_to(light.position, float3(0, -1, 0));
+    //const float4x4 light_view = view_look_to(light.position, face_dirs[face_idx]);
 
     const float4x4 light_proj = proj_perspective_reversed(
         pi_half,
-        1.0f,
+        1.0f, 
         0.1f,
         light.range);
 
@@ -151,13 +185,13 @@ void handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 {
     const unified_light light = unified_light_buffer[id];
     
-    const float4x4 light_view = view_look_to(light.position, light.direction);
-    
+    const float4x4 light_view = view_look_to(light.position, (float3)light.direction);
+      
     const float4x4 light_proj = proj_perspective_reversed(
-        2.0f * acos((float)light.cos_outer),
+        2.0f * acos(light.cos_outer),
         1,
         epsilon_1e4,
-        light.range);
+        light.range); 
     
     const float4x4 light_view_proj = mul(light_proj, light_view);
     
@@ -173,7 +207,7 @@ void main_cs(uint32 shadow_light_header_id : SV_GroupID,
     
     if (header.light_kind == LIGHT_KIND_DIRECTIONAL)
     {
-        if (thread_id < DIRECTIONAL_SHADOW_CASCADE_COUNT)
+        if (thread_id < DIRECTIONAL_SHADOW_CASCADE_COUNT)  
         {
             handle_directional_light_shadow(header.light_id, thread_id, header.shadow_id);
         }

@@ -17,7 +17,7 @@ uint32_2 thread_id : SV_DispatchThreadID)
     
         const float z = depth_buffer_tex[thread_id];
         
-        if (z > epsilon_1e4)
+        if (z > epsilon_1e4) 
         {
             uint32 linear_z = asuint(linearize_reverse_z(z, cam_near_z, cam_far_z));
         

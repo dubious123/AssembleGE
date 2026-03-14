@@ -73,7 +73,8 @@
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12) && defined(AGE_PLATFORM_WINDOW)
 	#include <dxgi1_6.h>
-	#include <d3d12.h>
+	#include "external\include\d3d12\d3d12.h"
+	// #include <d3d12.h>
 	#include <dxgidebug.h>
 	#include "external\include\dxc\dxcapi.h"
 
@@ -85,6 +86,9 @@
 	#pragma comment(lib, "dxgi.lib")
 	#pragma comment(lib, "dxcompiler.lib")
 	#pragma comment(lib, "dxguid.lib")
+
+	#pragma comment(linker, "/INCLUDE:D3D12SDKVersion")
+	#pragma comment(linker, "/INCLUDE:D3D12SDKPath")
 #else
 	#error "need at least one graphics backend"
 #endif

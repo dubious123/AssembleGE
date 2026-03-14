@@ -18,7 +18,7 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
     const float sphere_radius = length((float3)m_header.aabb_size * 0.5f) * max(max(scale.x, scale.y), scale.z);
     
     [unroll]
-    for (uint i = 0; i < 6; ++i)
+    for (uint i = 0; i < 6; ++i) 
     {
         if (calc_point_to_plane_distance(sphere_center, frustum_planes[i]) < -sphere_radius)
         {
@@ -53,7 +53,7 @@ void main_as(
     
     bool visible = false;
     
-    if (render_data_id < job_count)
+    if (render_data_id < opaque_meshlet_render_data_count)
     {
         const opaque_meshlet_render_data render_data = opaque_meshlet_render_data_buffer[render_data_id];
         const object_data obj_data = object_data_buffer[render_data.object_id];

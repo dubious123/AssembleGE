@@ -318,7 +318,7 @@ namespace age::inline data_structure
 
 		template <typename... t>
 		std::size_t
-		emplace_back(t&&... arg)
+		emplace_back(t&&... arg) noexcept
 		{
 			auto res = 0uz;
 
@@ -355,7 +355,7 @@ namespace age::inline data_structure
 		}
 
 		void
-		remove(std::size_t idx)
+		remove(std::size_t idx) noexcept
 		{
 			if constexpr (not std::is_trivially_destructible_v<t_data>)
 			{

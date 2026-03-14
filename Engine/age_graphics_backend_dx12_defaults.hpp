@@ -441,7 +441,24 @@ namespace age::graphics::defaults
 				.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,	  // UINT8
 			} },
 		};
-	}
+
+		inline constexpr auto alpha = D3D12_BLEND_DESC{
+			.AlphaToCoverageEnable	= FALSE,							  // BOOL
+			.IndependentBlendEnable = FALSE,							  // BOOL
+			.RenderTarget			= { D3D12_RENDER_TARGET_BLEND_DESC{
+				.BlendEnable		   = TRUE,							  // BOOL
+				.LogicOpEnable		   = FALSE,							  // BOOL
+				.SrcBlend			   = D3D12_BLEND_SRC_ALPHA,			  // D3D12_BLEND
+				.DestBlend			   = D3D12_BLEND_INV_SRC_ALPHA,		  // D3D12_BLEND
+				.BlendOp			   = D3D12_BLEND_OP_ADD,			  // D3D12_BLEND_OP
+				.SrcBlendAlpha		   = D3D12_BLEND_ONE,				  // D3D12_BLEND
+				.DestBlendAlpha		   = D3D12_BLEND_INV_SRC_ALPHA,		  // D3D12_BLEND
+				.BlendOpAlpha		   = D3D12_BLEND_OP_ADD,			  // D3D12_BLEND_OP
+				.LogicOp			   = D3D12_LOGIC_OP_NOOP,			  // D3D12_LOGIC_OP
+				.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,	  // UINT8
+			} },
+		};
+	}	 // namespace blend_desc
 }	 // namespace age::graphics::defaults
 
 // render pass descs
@@ -610,3 +627,27 @@ namespace age::graphics::defaults::static_sampler_desc
 		};
 	}
 }	 // namespace age::graphics::defaults::static_sampler_desc
+
+namespace age::graphics::defaults::cmd_sig
+{
+	constexpr inline auto dispatch_mesh = D3D12_INDIRECT_ARGUMENT_DESC{
+		.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH
+	};
+
+	constexpr inline auto dispatch_compute = D3D12_INDIRECT_ARGUMENT_DESC{
+		.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH
+	};
+
+	FORCE_INLINE decltype(auto)
+	constant(uint32 slot_id, uint32 uint32_size, uint32 uint32_offset = 0) noexcept
+	{
+		return D3D12_INDIRECT_ARGUMENT_DESC{
+			.Type	  = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT,
+			.Constant = {
+				.RootParameterIndex		 = slot_id,
+				.DestOffsetIn32BitValues = uint32_offset,
+				.Num32BitValuesToSet	 = uint32_size,
+			}
+		};
+	};
+}	 // namespace age::graphics::defaults::cmd_sig

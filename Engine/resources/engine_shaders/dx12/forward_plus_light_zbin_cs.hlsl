@@ -2,47 +2,6 @@
 #include "forward_plus_common.hlsli"
 #undef SHADER_STAGE_CS
 
-//[numthreads(256, 1, 1)]
-//void main_cs(uint32 sorted_id : SV_DispatchThreadID,
-//             uint32 group_id : SV_GroupID)
-//{
-//    const t_unified_light_id light_id = sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + sorted_id];
-    
-//    //todo
-//    if (light_id == invalid_id_uint32)
-//    {
-//        return;
-//    }
-    
-//    const unified_light light = unified_light_buffer[light_id];
-        
-//    unified_sorted_light_buffer_uav[sorted_id] = light;
-    
-//    const float3 pos = light.position;
-//    const float range = light.range;
-
-//    const float view_z = dot(pos - camera_pos, camera_forward);
-//    const float min_z = view_z - range;
-//    const float max_z = view_z + range;
-    
-//    const uint32 bin_begin = clamp(depth_to_bin(min_z), 0, Z_SLICE_COUNT - 1);
-//    const uint32 bin_end = clamp(depth_to_bin(max_z), 0, Z_SLICE_COUNT - 1);
-    
-//    for (uint32 i = bin_begin; i <= bin_end; ++i)
-//    {
-//        InterlockedMin(zbin_buffer_uav[i].min_idx, sorted_id);
-//        InterlockedMax(zbin_buffer_uav[i].max_idx, sorted_id);
-//    }
-//}
-
-
-
-
-
-
-
-
-
 groupshared uint local_min_idx[Z_SLICE_COUNT];
 groupshared uint local_max_idx[Z_SLICE_COUNT];
 
@@ -53,35 +12,20 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
     for (uint32 i = group_thread_id; i < Z_SLICE_COUNT; i += LIGHT_ZBIN_THREAD_COUNT)
     {
         local_min_idx[i] = 0xffffffff;
-        local_max_idx[i] = 0;
+        local_max_idx[i] = 0; 
     }
     GroupMemoryBarrierWithGroupSync();
 
-    const t_unified_light_id light_id = sort_buffer[LIGHT_SORT_SORT_VALUES_OFFSET + sorted_id];
+    const t_unified_light_id light_id = sort_buffer[SORT_VALUES_OFFSET + sorted_id];
     
     if ( /*light_id < MAX_VISIBLE_LIGHT_COUNT &&*/light_id != invalid_id_uint32)
     {
+        InterlockedAdd(frame_data_rw_buffer_uav[0].not_culled_light_count, 1);
+        
         const unified_light light = unified_light_buffer[light_id];
         //const unified_light light = unified_light_buffer[0];
         unified_sorted_light_buffer_uav[sorted_id] = light;
-        
-        if (sorted_id == 0)
-        {
-            debug_buffer[0].light_id_0 = light_id;
-            debug_buffer[0].key_0 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
-        }
-        else if (sorted_id == 1)
-        {
-            debug_buffer[0].light_id_1 = light_id;
-            debug_buffer[0].key_1 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
-        }
-        else if (sorted_id == 2)
-        {
-            debug_buffer[0].light_id_2 = light_id;
-            debug_buffer[0].key_2 = sort_buffer[LIGHT_SORT_SORT_KEYS_OFFSET + sorted_id];
-        }
-        
-        
+   
         const float view_z = dot(light.position - camera_pos, camera_forward);
         const float min_z = view_z - light.range;
         const float max_z = view_z + light.range;
@@ -137,8 +81,6 @@ void main_cs(uint32 sorted_id   : SV_DispatchThreadID,
         
         uint32 packed_aabb = (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;
         sort_buffer[LIGHT_TILE_AABB_OFFSET + sorted_id] = packed_aabb;
-        
-        InterlockedAdd(frame_data_rw_buffer_uav[0].not_culled_light_count, 1);
     }
     GroupMemoryBarrierWithGroupSync();
 

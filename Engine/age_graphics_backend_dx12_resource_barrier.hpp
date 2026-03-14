@@ -3,6 +3,38 @@
 namespace age::graphics::barrier
 {
 	FORCE_INLINE decltype(auto)
+	undefined_to_rtv(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_NONE,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_RENDER_TARGET,
+			.AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_RENDER_TARGET,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_UNDEFINED,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	undefined_to_dsv_write(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_NONE,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
+			.AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_UNDEFINED,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	present_to_rtv(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
@@ -14,7 +46,7 @@ namespace age::graphics::barrier
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -72,7 +104,7 @@ namespace age::graphics::barrier
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -93,7 +125,7 @@ namespace age::graphics::barrier
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -114,7 +146,7 @@ namespace age::graphics::barrier
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -135,7 +167,7 @@ namespace age::graphics::barrier
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -151,7 +183,7 @@ namespace age::graphics::barrier
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
-			.Flags		  = {}
+			.Flags		  = flag
 		};
 	}
 
@@ -203,6 +235,21 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
+	buf_uav_to_indirect(ID3D12Resource*	   p_resource,
+						D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
+	{
+		return D3D12_BUFFER_BARRIER{
+			.SyncBefore	  = sync_before,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_EXECUTE_INDIRECT,
+			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT,
+			.pResource	  = p_resource,
+			.Offset		  = 0,
+			.Size		  = UINT64_MAX,
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	buf_srv_to_uav(ID3D12Resource*	  p_resource,
 				   D3D12_BARRIER_SYNC sync_before,
 				   D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
@@ -225,11 +272,13 @@ namespace age::graphics::barrier
 	});
 
 	inline constexpr auto as_split_begin = AGE_LAMBDA((auto&& barrier), {
+		AGE_ASSERT(barrier.Flags != D3D12_TEXTURE_BARRIER_FLAG_DISCARD);
 		barrier.SyncAfter = D3D12_BARRIER_SYNC_SPLIT;
 		return barrier;
 	});
 
 	inline constexpr auto as_split_end = AGE_LAMBDA((auto&& barrier), {
+		AGE_ASSERT(barrier.Flags != D3D12_TEXTURE_BARRIER_FLAG_DISCARD);
 		barrier.SyncBefore = D3D12_BARRIER_SYNC_SPLIT;
 		return barrier;
 	});

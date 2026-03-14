@@ -61,8 +61,8 @@
 	__VA_ARGS__                                                                                                  \
 }
 
-#define AGE_FUNC(...) [] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
-	return __VA_ARGS__(FWD(arg)...);                                                                        \
+#define AGE_FUNC(...) [&] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
+	return __VA_ARGS__(FWD(arg)...);                                                                         \
 }
 
 #define AGE_CAPTURE_FUNC(...) [&] INLINE_LAMBDA_FRONT(auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \

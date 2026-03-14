@@ -19,15 +19,15 @@ main_ps(float4 pos : SV_Position) : SV_Target0
     const float e = 0.14f;
     color = saturate((color * (a * color + b)) / (color * (c * color + d) + e));
     
-    //Texture2D<float> shadow_atlas = ResourceDescriptorHeap[shadow_atlas_id];
-    //float2 debug_uv = pos.xy * inv_backbuffer_size;
-    //if (debug_uv.x < 0.25 && debug_uv.y < 0.25)
-    //{
-    //    float2 shadow_uv = debug_uv * 4.0;
-    //    float depth = shadow_atlas.Sample(linear_clamp_sampler, shadow_uv).r;
+    Texture2D<float> shadow_atlas = ResourceDescriptorHeap[shadow_atlas_id];
+    float2 debug_uv = pos.xy * inv_backbuffer_size;
+    if (debug_uv.x < 0.25 && debug_uv.y < 0.25)
+    {
+        float2 shadow_uv = debug_uv * 4.0;
+        float depth = shadow_atlas.Sample(linear_clamp_sampler, shadow_uv).r;
         
-    //    return float4(depth, depth, depth, 1.0) * float4(10.f, 0, 0, 1);
-    //}
+        return float4(depth, depth, depth, 1.0) * float4(10.f, 0, 0, 1);
+    }
 
     return float4(color, 1.f);
 }

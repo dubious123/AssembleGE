@@ -114,8 +114,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		rtv_desc_handle h_main_buffer_rtv_desc;
 		dsv_desc_handle h_depth_buffer_dsv_desc;
 
-		graphics::pso::handle h_pso = {};
-		ID3D12PipelineState*  p_pso = nullptr;
+		graphics::pso::handle h_pso;
+		ID3D12PipelineState*  p_pso;
 
 		inline void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
@@ -126,6 +126,51 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		inline void
 		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept;
+		inline void
+		deinit() noexcept;
+	};
+
+	struct transparent_stage
+	{
+		graphics::pso::handle h_pso_cull;
+		ID3D12PipelineState*  p_pso_cull;
+
+		graphics::pso::handle h_pso_sort_histogram;
+		ID3D12PipelineState*  p_pso_sort_histogram;
+
+		graphics::pso::handle h_pso_sort_prefix;
+		ID3D12PipelineState*  p_pso_sort_prefix;
+
+		graphics::pso::handle h_pso_sort_scatter;
+		ID3D12PipelineState*  p_pso_sort_scatter;
+
+		graphics::pso::handle h_pso_transparent_gen_indirect_arg;
+		ID3D12PipelineState*  p_pso_transparent_gen_indirect_arg;
+
+		graphics::pso::handle h_pso_draw;
+		ID3D12PipelineState*  p_pso_draw;
+
+		command_signature::handle h_draw_cmd_sig;
+		ID3D12CommandSignature*	  p_draw_cmd_sig;
+
+		rtv_desc_handle h_main_buffer_rtv_desc;
+		dsv_desc_handle h_depth_buffer_dsv_desc;
+
+
+		inline void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
+					 graphics::resource_handle h_depth_buffer) noexcept;
+
+		inline void
+		execute(t_cmd_list&		cmd_list,
+				ID3D12Resource& sort_buffer,
+				auto&			slot_sort_buffer_srv,
+				ID3D12Resource& frame_data_rw_buffer,
+				auto&			frame_data_rw_buffer_srv) noexcept;
+
 		inline void
 		deinit() noexcept;
 	};
@@ -155,11 +200,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		shadow_stage		stage_shadow;
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
+		transparent_stage	stage_transparent;
 		presentation_stage	stage_presentation;
 
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
-		resource_handle h_light_sort_buffer;
+		resource_handle h_sort_buffer;
 		resource_handle h_zbin_buffer;
 		resource_handle h_tile_mask_buffer;
 		resource_handle h_shadow_atlas;
@@ -168,19 +214,21 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		resource::mapping_handle h_mapping_frame_data;
-		resource::mapping_handle h_mapping_job_data_buffer;
+		resource::mapping_handle h_mapping_opaque_meshlet_render_data_buffer;
 		resource::mapping_handle h_mapping_object_data_buffer;
 		resource::mapping_handle h_mapping_mesh_buffer;
 		resource::mapping_handle h_mapping_directional_light_buffer;
 		resource::mapping_handle h_mapping_unified_light_buffer;
 		resource::mapping_handle h_mapping_frame_data_rw_buffer;
 		resource::mapping_handle h_mapping_shadow_light_header_buffer;
+		resource::mapping_handle h_mapping_transparent_object_render_data_buffer;
 		resource::mapping_handle h_mapping_debug_buffer_uav;
 
 
 		// global
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
+		binding_config_t::reg_b<2, 0> indirect_arg;
 
 		binding_config_t::reg_t<0, 0> opaque_render_data_buffer;
 		binding_config_t::reg_t<1, 0> object_data_buffer;
@@ -201,8 +249,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		// light culling
-		binding_config_t::reg_t<0, 2> light_sort_buffer_srv;
-		binding_config_t::reg_u<0, 2> light_sort_buffer_uav;
+		binding_config_t::reg_t<0, 2> sort_buffer_srv;
+		binding_config_t::reg_u<0, 2> sort_buffer_uav;
 
 		binding_config_t::reg_t<1, 2> zbin_buffer_srv;
 		binding_config_t::reg_u<1, 2> zbin_buffer_uav;
@@ -212,6 +260,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_t<3, 2> unified_sorted_light_buffer_srv;
 		binding_config_t::reg_u<3, 2> unified_sorted_light_buffer_uav;
+
+		// transparent
+		binding_config_t::reg_t<0, 3> transparent_object_render_data_buffer;
 
 
 		// debug
@@ -229,7 +280,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
 		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
 
-		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
@@ -237,7 +287,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::sparse_vector<mesh_data> mesh_data_vec;
 		uint32						  mesh_byte_offset = 0;
 
+		age::stable_dense_vector<shared_type::object_data> object_data_vec;
+
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+
+		age::vector<shared_type::transparent_object_render_data> transparent_object_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 

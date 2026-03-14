@@ -327,6 +327,8 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     
     // return float4(lighting * albedo, 1.0f);
     
+    uint32 light_count = 0;
+    uint32 shadow_count = 0;
     for (uint32 w = word_begin; w <= word_end; ++w)
     {
         uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
@@ -352,10 +354,24 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
                 const float3 to_light = normalize(light.position - fragment.world_pos);
                 const float n_dot_l = saturate(dot(normal, to_light));
                 shadow = sample_unified_shadow(fragment.world_pos, shadow_id + offset);
+                
                 shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
             
                 //contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
                 //contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+                
+                if (shadow == 0)
+                {
+                    ++shadow_count;
+                }
+                
+            }
+            
+            float3 add_light = shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+            
+            if(any(add_light) )
+            {
+                ++light_count;
             }
             
             lighting += shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
@@ -383,7 +399,8 @@ main_ps(opaque_ms_to_ps fragment): SV_Target0
     //        }
     //    }
     //}
-    //return float4(color, 1);
-    //return float4(light_count / 100.f, light_count / 10.f, light_count, 1);
-    return float4(lighting * albedo, 1.0f);
+    //return float4(color, 1); 
+    //return float4(light_count / 4.f, 0, 0, 1);
+    //return float4(0, 0, shadow_count / 8.f, 1);
+    return float4(lighting * albedo, 1.0f); 
 }

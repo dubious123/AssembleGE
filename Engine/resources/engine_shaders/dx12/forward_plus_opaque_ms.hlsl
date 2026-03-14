@@ -39,7 +39,7 @@ decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float
 }
 
 [numthreads(32, 1, 1)]
-[outputtopology("triangle")]
+[outputtopology("triangle")] 
 void
 main_ms(
 		in payload opaque_as_to_ms ms_in,
@@ -89,7 +89,7 @@ main_ms(
         
         v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
 
-        v.meshlet_render_data_id = meshlet_render_data_id;
+        // v.meshlet_render_data_id = meshlet_render_data_id;
         
         ms_out_vertex_arr[nth_vertex] = v;
     }

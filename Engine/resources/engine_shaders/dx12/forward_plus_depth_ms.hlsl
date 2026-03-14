@@ -13,7 +13,7 @@ struct depth_ms_out
 [outputtopology("triangle")]
 void
 main_ms(
-		in payload opaque_as_to_ms ms_in,
+		in payload opaque_as_to_ms ms_in, 
 		uint32_3 group_id : SV_GroupID,
 		uint32_3 group_thread_id : SV_GroupThreadID,
 		out vertices depth_ms_out ms_out_vertex_arr[64],

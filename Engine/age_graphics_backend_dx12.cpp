@@ -76,6 +76,12 @@ namespace age::graphics
 			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
 
 			AGE_ASSERT(options12.EnhancedBarriersSupported);
+
+			auto sm = D3D12_FEATURE_DATA_SHADER_MODEL{ D3D_SHADER_MODEL_6_9 };
+
+			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &sm, sizeof(sm)));
+
+			AGE_ASSERT(sm.HighestShaderModel == D3D_SHADER_MODEL_6_9);
 		}
 
 		{
@@ -93,6 +99,7 @@ namespace age::graphics
 			g::sampler_desc_pool.init();
 		}
 
+		age::graphics::command_signature::init();
 		age::graphics::root_signature::init();
 
 		age::graphics::shader::init();
@@ -130,8 +137,11 @@ namespace age::graphics
 
 		age::graphics::shader::deinit();
 		age::graphics::root_signature::deinit();
+		age::graphics::command_signature::deinit();
 
 		{
+			AGE_ASSERT(g::pso_ptr_vec.is_empty());
+
 			for (auto* p_pso : g::pso_ptr_vec)
 			{
 				p_pso->Release();
