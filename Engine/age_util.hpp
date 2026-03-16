@@ -256,3 +256,31 @@ namespace age::util
 		}
 	};
 }	 // namespace age::util
+
+namespace age::util
+{
+	template <typename t>
+	struct setter
+	{
+		t& data;
+
+		void
+		operator=(auto&& val) noexcept
+		{
+			data = FWD(val);
+		}
+
+		// void
+		// opeartor()(auto&& val) noexcept
+		//{
+		//	data = FWD(val);
+		// }
+	};
+
+	template <typename t>
+	void
+	operator|(auto&& val, setter<t> self) noexcept
+	{
+		self.data = FWD(val);
+	}
+}	 // namespace age::util

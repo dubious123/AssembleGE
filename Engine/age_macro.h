@@ -56,7 +56,6 @@
 	#define AGE_WARNING_DISABLE_CLANG(w)
 #else
 #endif
-
 #define AGE_LAMBDA(arg_tpl, ...) [&] INLINE_LAMBDA_FRONT arg_tpl noexcept INLINE_LAMBDA_BACK -> decltype(auto) { \
 	__VA_ARGS__                                                                                                  \
 }
@@ -79,7 +78,58 @@
 	property_name() noexcept                              \
 	{                                                     \
 		return data.property_name;                        \
+	}                                                     \
+	FORCE_INLINE constexpr decltype((data.property_name)) \
+	get_##property_name() noexcept                        \
+	{                                                     \
+		return data.property_name;                        \
+	}                                                     \
+	FORCE_INLINE constexpr decltype((data.property_name)) \
+	set_##property_name(auto&& arg) noexcept              \
+	{                                                     \
+		return data.property_name = FWD(arg);             \
 	}
+
+#define AGE_SET(func_name, property_name)                       \
+	FORCE_INLINE constexpr decltype((data.property_name))       \
+	set_##func_name(auto&& arg) noexcept                        \
+	{                                                           \
+		return data.property_name = FWD(arg);                   \
+	}                                                           \
+	FORCE_INLINE constexpr decltype(auto)                       \
+	set_##func_name() noexcept                                  \
+	{                                                           \
+		return age::util::setter{ .data = data.property_name }; \
+	}
+
+#define AGE_GET(func_name, property_name)                 \
+	FORCE_INLINE constexpr decltype((data.property_name)) \
+	get_##func_name() noexcept                            \
+	{                                                     \
+		return data.property_name;                        \
+	}
+
+#define AGE_GETSET(func_name, property_name)                    \
+	FORCE_INLINE constexpr decltype((data.property_name))       \
+	set_##func_name(auto&& arg) noexcept                        \
+	{                                                           \
+		return data.property_name = FWD(arg);                   \
+	}                                                           \
+	FORCE_INLINE constexpr decltype(auto)                       \
+	set_##func_name() noexcept                                  \
+	{                                                           \
+		return age::util::setter{ .data = data.property_name }; \
+	}                                                           \
+                                                                \
+	FORCE_INLINE constexpr decltype((data.property_name))       \
+	get_##func_name() noexcept                                  \
+	{                                                           \
+		return data.property_name;                              \
+	}
+
+#define AGE_GET_PROP(x)	   AGE_GET(x, x)
+#define AGE_SET_PROP(x)	   AGE_SET(x, x)
+#define AGE_GETSET_PROP(x) AGE_GETSET(x, x)
 
 #if defined(AGE_DEBUG)
 	#define AGE_ASSERT(expression, ...)                                            \

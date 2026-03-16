@@ -49,7 +49,7 @@ namespace age
 
 	namespace runtime {}
 
-	namespace reque {}
+	namespace request {}
 }	 // namespace age
 
 // clang-format on
