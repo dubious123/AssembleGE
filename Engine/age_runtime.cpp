@@ -11,6 +11,13 @@ namespace age::runtime
 	}
 
 	void
+	deinit() noexcept
+	{
+		auto i_runtime	= age::global::get<runtime::interface>();
+		i_runtime.now() = std::chrono::steady_clock::now();
+	}
+
+	void
 	update() noexcept
 	{
 		constexpr auto max_delta = std::chrono::nanoseconds{ 1'000'000'000 / age::config::min_fps };

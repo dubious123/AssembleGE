@@ -302,9 +302,20 @@ namespace age::platform
 	void
 	deinit() noexcept
 	{
-		auto	   i_platform = global::get<platform::interface>();
-		const auto wname	  = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
+		auto i_platform = global::get<platform::interface>();
+
+		AGE_ASSERT(g::window_info_vec.is_empty());
+
+		for (auto& w_info : g::window_info_vec)
+		{
+			::DestroyWindow(w_info.hwnd);
+		}
+
+		g::window_info_vec.clear();
+
+		const auto wname = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
 		::UnregisterClass(wname.c_str(), ::GetModuleHandle(nullptr));
+
 
 		if constexpr (age::config::debug_mode)
 		{

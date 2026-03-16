@@ -20,7 +20,7 @@
 
 #define SORT_BLOCK_COUNT ((MAX_SORT_COUNT + SORT_BLOCK_SIZE - 1) / SORT_BLOCK_SIZE)
 
-#if defined(AGE_HLSL)
+#if defined(AGE_SHADER)
 	#define SORT_GROUP_COUNT (min(SORT_BLOCK_SIZE, SORT_BLOCK_COUNT))
 #else
 	#define SORT_GROUP_COUNT (std::min(SORT_BLOCK_SIZE, SORT_BLOCK_COUNT))
@@ -80,7 +80,7 @@
 #define TRANSPARENT_CULL_THREAD_COUNT 32
 
 
-#if !defined(AGE_HLSL)
+#if !defined(AGE_SHADER)
 	#include "age.hpp"
 
 namespace age::graphics::render_pipeline::forward_plus
@@ -154,10 +154,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
-	#define SYS_VAL(name)
+	#define reg(...)
 	#define cbuffer struct
-	#define REG(...)
 	#define row_major
+	#define sys_val(...)
 
 #else
 	#define t_object_id uint32
@@ -293,22 +293,22 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct vertex_decoded
 	{
-		float4 pos	   SYS_VAL(SV_Position);
-		float3 normal  SYS_VAL(NORMAL);
-		float4 tangent SYS_VAL(TANGENT);
+		float4 pos	   sys_val(SV_Position);
+		float3 normal  sys_val(NORMAL);
+		float4 tangent sys_val(TANGENT);
 
 		// clang-format off
 #if UV_COUNT >= 1
-		half2 uv0 SYS_VAL(TEXCOORD0);
+		half2 uv0 sys_val(TEXCOORD0);
 #endif
 #if UV_COUNT >= 2
-		half2 uv1 SYS_VAL(TEXCOORD1);
+		half2 uv1 sys_val(TEXCOORD1);
 #endif
 #if UV_COUNT >= 3
-		half2 uv2 SYS_VAL(TEXCOORD2);
+		half2 uv2 sys_val(TEXCOORD2);
 #endif
 #if UV_COUNT >= 4
-		half2 uv3 SYS_VAL(TEXCOORD3);
+		half2 uv3 sys_val(TEXCOORD3);
 #endif
 		// clang-format on
 	};
@@ -337,7 +337,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct mesh_header
 	{
 		// uint32 vertex_offset = sizeof(mesh_baked_header), sizeof(mesh_baked_header) == 20
-#if !defined(AGE_HLSL)
+#if !defined(AGE_SHADER)
 #else
 	uint32 vertex_buffer_offset;	// not from gpu, calculated from read_mesh_header function
 #endif
@@ -351,7 +351,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 aabb_size;
 	};
 
-	cbuffer frame_data REG(b0)
+	cbuffer frame_data reg(b0)
 	{
 		row_major float4x4 view_proj;							 // 64
 		row_major float4x4 view_proj_inv;						 // 64
@@ -371,7 +371,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 																 // total: 256 * 2 bytes
 	};
 
-	cbuffer root_constants REG(b1)
+	cbuffer root_constants reg(b1)
 	{
 		uint32			   opaque_meshlet_render_data_count;	 // 4 bytes
 		uint32			   directional_light_count_and_extra;	 // 4 bytes
@@ -388,7 +388,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 shadow_light_index;	  // shadow mapping
 	};
 
-	cbuffer indirect_arg_constants REG(b2)
+	cbuffer indirect_arg_constants reg(b2)
 	{
 		uint32 arg0;
 		uint32 arg1;
@@ -398,7 +398,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		// arg1 : mesh_byte_offset
 	};
 
-#if !defined(AGE_HLSL)
+#if !defined(AGE_SHADER)
 
 
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);

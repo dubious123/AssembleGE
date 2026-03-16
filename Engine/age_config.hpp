@@ -133,4 +133,7 @@ namespace age::config
 	inline constexpr unsigned short version_minor = 0;
 
 	inline constexpr auto min_fps = 60u;
+
+	inline constexpr const char* shader_extension		  = ".asl";
+	inline constexpr const char* shader_include_extension = ".asli";
 }	 // namespace age::config

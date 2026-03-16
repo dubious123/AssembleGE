@@ -105,14 +105,6 @@
     <ClCompile Include="age_input.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="resources\engine_shaders\dx12\test_ps.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\test_vs.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\fill_color_ps.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\fullscreen_triangle_vs.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\fx_present_ps.hlsl" />
-    <FxCompile Include="resources\engine_shaders\dx12\forward_plus_common.hlsli" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="todo.md" />
   </ItemGroup>

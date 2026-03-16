@@ -1,0 +1,535 @@
+#pragma once
+#define AGE_SHADER
+
+#ifdef __INTELLISENSE__
+	#include "../../../age.hpp"
+
+FORCE_INLINE constexpr half
+operator""h(long double val) noexcept
+{
+	return half{};
+}
+
+struct
+{
+	struct proxy
+	{
+		template <typename t>
+		operator t() const noexcept
+		{
+			return t();
+		}
+	};
+
+	proxy
+	operator[](uint32 i) const noexcept
+	{
+		return proxy{};
+	}
+} global_resource_buffer;
+
+template <typename t>
+struct structured_buffer
+{
+	t obj;
+
+	t&
+	operator[](uint32 idx)
+	{
+		return obj;
+	};
+};
+
+template <typename t>
+struct rw_structured_buffer
+{
+	t obj;
+
+	t&
+	operator[](uint32 idx)
+	{
+		return obj;
+	};
+};
+
+struct byte_address_buffer
+{
+	template <typename t>
+	t
+	Load(byte_address_buffer buffer, uint32 offset)
+	{
+		return t{};
+	}
+};
+
+template <typename t>
+struct texture_2d
+{
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	template <typename v>
+	t
+	operator[](v pos)
+	{
+		return t{};
+	}
+};
+
+struct sampler_state
+{ };
+
+struct sampler_cmp_state
+{ };
+
+template <typename t>
+t
+abs(t)
+{
+	return t{};
+}
+
+float
+max(float a, float b)
+{
+	return std::max(a, b);
+}
+
+float3
+max(float3, float)
+{
+	return float3{};
+}
+
+float
+min(float a, float b)
+{
+	return std::min(a, b);
+}
+
+float
+smoothstep(float min, float max, float x)
+{
+	return 0.f;
+}
+
+float
+dot(float3 a, float3 b)
+{
+	return 0.f;
+}
+
+float
+dot(float4 a, float4 b)
+{
+	return 0.f;
+}
+
+float4
+mul(float4x4, float4)
+{
+	return float4{};
+}
+
+float4x4
+mul(float4x4, float4x4)
+{
+	return float4x4{};
+}
+
+float
+length(auto _)
+{
+	return 0.f;
+}
+
+auto
+clamp(auto a, auto b, auto c)
+{
+	return std::clamp(a, b, c);
+}
+
+float
+lerp(float, float, float)
+{
+	return 0.f;
+}
+
+template <typename t>
+t cast(auto)
+{
+	return t{};
+}
+
+uint32
+as_uint(auto _)
+{
+	return 0;
+}
+
+float
+as_float(auto _)
+{
+	return 0.f;
+}
+
+half
+as_float16(auto _)
+{
+	return half{};
+}
+
+bool
+wave_is_first_lane()
+{
+	return true;
+}
+
+uint32_4
+wave_active_ballot(bool)
+{
+	return uint32_4{};
+}
+
+auto
+wave_active_min(auto val)
+{
+	return val;
+}
+
+auto
+wave_active_max(auto val)
+{
+	return val;
+}
+
+uint32
+wave_active_bit_or(uint32 val)
+{
+	return val;
+}
+
+auto
+wave_active_sum(auto val)
+{
+	return val;
+}
+
+uint32
+wave_lane_count()
+{
+	return 32;
+}
+
+uint32
+wave_lane_index()
+{
+	return 0;
+}
+
+uint32
+wave_prefix_sum(auto val)
+{
+	return val;
+}
+
+uint32
+first_bit_low(uint32 val)
+{
+	return val;
+}
+
+void
+dispatch_mesh(uint32, uint32, uint32, auto)
+{
+}
+
+uint32
+countbits(uint32)
+{
+	return 0;
+}
+
+float
+sign(auto _)
+{
+	return 1.f;
+}
+
+template <typename t>
+t
+normalize(t)
+{
+	return t{};
+}
+
+template <typename t>
+t
+saturate(t)
+{
+	return t{};
+}
+
+decltype(auto)
+ddx(auto v)
+{
+	return v;
+}
+
+decltype(auto)
+ddy(auto v)
+{
+	return v;
+}
+
+float3
+cross(float3, float3)
+{
+	return float3{};
+}
+
+	#define all(...) true
+	#define any(...) true
+
+	#define space1
+	#define space2
+	#define space3
+	#define space4
+	#define space5
+
+	#define sv_dispatch_thread_id
+	#define sv_thread_id
+	#define sv_group_id
+	#define sv_group_thread_id
+	#define sv_position
+	#define sv_target_0
+	#define numthreads(x, y, z) [force_inline]
+
+	#define interlocked_add
+	#define interlocked_or
+	#define interlocked_min
+	#define interlocked_max
+
+	#define reg(...)
+	#define cbuffer struct
+	#define row_major
+	#define sys_val(...)
+	#define output_topology(x) [force_inline]
+	#define nointerpolation
+	#define in
+	#define out
+	#define vertices
+	#define indices
+	#define payload
+	#define set_mesh_output_counts(x, y)
+	#define expand(...) [[assume(true)]]
+	#define groupshared
+
+	#define group_memory_barrier_with_sync()
+
+#else
+	#define sv_dispatch_thread_id : SV_DispatchThreadID
+	#define sv_thread_id : SV_ThreadID
+	#define sv_group_id : SV_GroupID
+	#define sv_position : SV_Position
+	#define sv_target_0 : SV_Target0
+	#define sv_group_thread_id : SV_GroupThreadID
+
+	#define interlocked_add InterlockedAdd
+	#define interlocked_or	InterlockedOr
+	#define interlocked_min InterlockedMin
+	#define interlocked_max InterlockedMax
+
+	#define reg(...) : register(__VA_ARGS__)
+	#define sys_val(x) : x
+	#define output_topology(x)				 outputtopology(x)
+	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
+	#define expand(x)						 [unroll(x)]
+	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
+
+
+	#define wave_is_first_lane()  WaveIsFirstLane()
+	#define wave_active_ballot(x) WaveActiveBallot(x)
+	#define wave_active_min(x)	  WaveActiveMin(x)
+	#define wave_active_max(x)	  WaveActiveMax(x)
+	#define wave_active_bit_or(x) WaveActiveBitOr(x)
+	#define wave_active_sum(x)	  WaveActiveSum(x)
+	#define wave_lane_count()	  WaveGetLaneCount()
+	#define wave_lane_index()	  WaveGetLaneIndex()
+	#define wave_prefix_sum(x)	  WavePrefixSum(x)
+
+	#define first_bit_low(x) firstbitlow(x)
+
+
+	#define dispatch_mesh(x, y, z, w) DispatchMesh(x, y, z, w)
+
+	#define global_resource_buffer ResourceDescriptorHeap
+
+	#define as_uint	   asuint
+	#define as_float   asfloat
+	#define as_float16 asfloat16
+
+	#define sampler_state SamplerState
+
+	#define sampler_cmp_state SamplerComparisonState
+
+template <typename T>
+using structured_buffer = StructuredBuffer<T>;
+
+template <typename T>
+using rw_structured_buffer = RWStructuredBuffer<T>;
+
+using byte_address_buffer = ByteAddressBuffer;
+
+template <typename t>
+using texture_2d = Texture2D<t>;
+
+	#define uint64 uint64_t
+	#define uint32 uint
+	#define uint16 uint16_t
+
+	#define int64 int64_t
+	#define int32 int
+	#define int16 int16_t
+
+	#define int32_2 int2
+	#define int32_3 int3
+	#define int32_4 int4
+
+	#define uint32_2 uint2
+	#define uint32_3 uint3
+	#define uint32_4 uint4
+
+	#define int16_2 int16_t2
+	#define int16_3 int16_t3
+	#define int16_4 int16_t4
+
+	#define uint16_2 uint16_t2
+	#define uint16_3 uint16_t3
+	#define uint16_4 uint16_t4
+
+	#define int8_2 int8_t2
+	#define int8_3 int8_t3
+	#define int8_4 int8_t4
+
+	#define uint8_2 uint8_t2
+	#define uint8_3 uint8_t3
+	#define uint8_4 uint8_t4
+
+template <typename t, typename t_src>
+t
+cast(t_src input)
+{
+	return (t)input;
+}
+#endif
+
+template <typename t>
+t
+load(byte_address_buffer buffer, uint32 offset)
+{
+	return buffer.Load<t>(offset);
+}
+
+template <typename t, typename t_sample>
+float4
+sample(texture_2d<t> tex, t_sample s, float2 location)
+{
+	return tex.Sample(s, location);
+}
+
+template <typename t>
+float
+sample_cmp(texture_2d<t> tex, sampler_cmp_state s, float2 location, float compare_value)
+{
+	return tex.SampleCmp(s, location, compare_value);
+}
+
+template <typename t>
+float
+sample_cmp_level_zero(texture_2d<t> tex, sampler_cmp_state s, float2 location, float compare_value)
+{
+	return tex.SampleCmpLevelZero(s, location, compare_value);
+}
+
+#define DECLARE_CALC_THREAD_GROUP_PREFIX_SUM(thread_count)                                                    \
+	groupshared uint32 __age_hlsl_prefix_sum_arr__[thread_count];                                             \
+	uint32 calc_thread_group_prefix_sum(uint32 _thread_local, uint32 thread_id)                               \
+	{                                                                                                         \
+		uint32		 wave_prefix = wave_prefix_sum(_thread_local);                                            \
+		const uint32 wave_id	 = thread_id / wave_lane_count();                                             \
+		if (wave_lane_index() == wave_lane_count() - 1)                                                       \
+		{                                                                                                     \
+			__age_hlsl_prefix_sum_arr__[wave_id] = wave_prefix + _thread_local;                               \
+		}                                                                                                     \
+		group_memory_barrier_with_sync();                                                                     \
+		if (wave_id == 0)                                                                                     \
+		{                                                                                                     \
+			__age_hlsl_prefix_sum_arr__[thread_id] = wave_prefix_sum(__age_hlsl_prefix_sum_arr__[thread_id]); \
+		}                                                                                                     \
+		group_memory_barrier_with_sync();                                                                     \
+		return __age_hlsl_prefix_sum_arr__[wave_id] + wave_prefix;                                            \
+	}
+
+#define DECLARE_CALC_THREAD_GROUP_SUM(thread_count)                                             \
+	groupshared uint32 __age_hlsl_sum_arr__[thread_count];                                      \
+	uint32 calc_thread_group_sum(uint32 _thread_local, uint32 thread_id)                        \
+	{                                                                                           \
+		uint32		 wave_sum = wave_active_sum(_thread_local);                                 \
+		const uint32 wave_id  = thread_id / wave_lane_count();                                  \
+		if (wave_lane_index() == 0)                                                             \
+		{                                                                                       \
+			__age_hlsl_sum_arr__[wave_id] = wave_sum;                                           \
+		}                                                                                       \
+		group_memory_barrier_with_sync();                                                       \
+		if (wave_id == 0)                                                                       \
+		{                                                                                       \
+			__age_hlsl_sum_arr__[thread_id] = wave_active_sum(__age_hlsl_sum_arr__[thread_id]); \
+		}                                                                                       \
+		group_memory_barrier_with_sync();                                                       \
+		return __age_hlsl_sum_arr__[0];                                                         \
+	}
+
+#define DECLARE_CALC_THREAD_GROUP_MIN_MAX(thread_count)                                                    \
+	groupshared uint32 __age_hlsl_min_arr__[thread_count];                                                 \
+	groupshared uint32 __age_hlsl_max_arr__[thread_count];                                                 \
+                                                                                                           \
+	uint32_2 calc_thread_group_min_max(uint32 thread_local_min, uint32 thread_local_max, uint32 thread_id) \
+	{                                                                                                      \
+		uint32		 wave_min	= wave_active_min(thread_local_min);                                       \
+		uint32		 wave_max	= wave_active_max(thread_local_max);                                       \
+		const uint32 wave_count = (thread_count + wave_lane_count() - 1) / wave_lane_count();              \
+		const uint32 wave_id	= thread_id / wave_lane_count();                                           \
+                                                                                                           \
+		if (wave_is_first_lane())                                                                          \
+		{                                                                                                  \
+			__age_hlsl_min_arr__[wave_id] = wave_min;                                                      \
+			__age_hlsl_max_arr__[wave_id] = wave_max;                                                      \
+		}                                                                                                  \
+		group_memory_barrier_with_sync();                                                                  \
+                                                                                                           \
+		if (wave_id == 0 && thread_id < wave_count)                                                        \
+		{                                                                                                  \
+			__age_hlsl_min_arr__[thread_id] = wave_active_min(__age_hlsl_min_arr__[thread_id]);            \
+			__age_hlsl_max_arr__[thread_id] = wave_active_max(__age_hlsl_max_arr__[thread_id]);            \
+		}                                                                                                  \
+		group_memory_barrier_with_sync();                                                                  \
+		return uint32_2(__age_hlsl_min_arr__[wave_id], __age_hlsl_max_arr__[wave_id]);                     \
+	}
+
+#include "age_math.asli"

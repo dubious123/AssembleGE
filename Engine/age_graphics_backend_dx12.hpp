@@ -403,15 +403,6 @@ namespace age::graphics::command_signature
 namespace age::graphics::shader::e
 {
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
-
-					test_vs,
-					test_ps,
-
-					fullscreen_triangle_vs,
-					fill_color_ps,
-
-					fx_present_ps,
-
 					forward_plus_init_cs,
 
 					forward_plus_depth_ms,
@@ -481,7 +472,7 @@ namespace age::graphics::shader
 	get_d3d12_bytecode(shader_handle) noexcept;
 
 	void
-		unload_shader(shader_handle) noexcept;
+	unload_shader(shader_handle _) noexcept;
 }	 // namespace age::graphics::shader
 
 // internal globals

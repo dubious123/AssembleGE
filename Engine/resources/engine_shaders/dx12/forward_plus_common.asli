@@ -1,0 +1,275 @@
+#pragma once
+#include "age.asli"
+#include "age_math.asli"
+#include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
+
+// global
+structured_buffer<opaque_meshlet_render_data> opaque_meshlet_render_data_buffer reg(t0, space0);
+structured_buffer<object_data>				  object_data_buffer reg(t1, space0);
+byte_address_buffer							  mesh_data_buffer reg(t2, space0);
+
+structured_buffer<directional_light> directional_light_buffer reg(t3, space0);
+structured_buffer<unified_light>	 unified_light_buffer reg(t4, space0);
+
+structured_buffer<frame_data_rw>	frame_data_rw_buffer_srv reg(t5, space0);
+rw_structured_buffer<frame_data_rw> frame_data_rw_buffer_uav reg(u5, space0);
+
+
+// shadow
+structured_buffer<shadow_light_header> shadow_light_header_buffer reg(t0, space1);
+
+structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space1);
+rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space1);
+
+
+// light culling
+structured_buffer<uint32>	 sort_buffer_srv reg(t0, space2);
+rw_structured_buffer<uint32> sort_buffer reg(u0, space2);
+
+structured_buffer<zbin_entry>	 zbin_buffer_srv reg(t1, space2);
+rw_structured_buffer<zbin_entry> zbin_buffer_uav reg(u1, space2);
+
+structured_buffer<uint32>	 tile_mask_buffer_srv reg(t2, space2);
+rw_structured_buffer<uint32> tile_mask_buffer_uav reg(u2, space2);
+
+structured_buffer<unified_light>	unified_sorted_light_buffer_srv reg(t3, space2);
+rw_structured_buffer<unified_light> unified_sorted_light_buffer_uav reg(u3, space2);
+
+structured_buffer<transparent_object_render_data> transparent_object_render_data_buffer reg(t0, space3);
+
+// debug
+rw_structured_buffer<debug_77> debug_buffer reg(u7, space7);
+
+
+// sampler
+sampler_state linear_clamp_sampler reg(s0);
+
+sampler_cmp_state shadow_sampler reg(s1);
+
+#ifdef __INTELLISENSE__
+// cbuffer frame_data reg(b0)
+float4x4 view_proj;
+float4x4 view_proj_inv;
+float3	 camera_pos;
+float	 time;
+float4	 frustum_planes[6];
+float2	 inv_backbuffer_size;
+float2	 backbuffer_size;
+float3	 camera_forward;
+uint32	 frame_index;
+float3	 camera_right;
+uint32	 main_buffer_texture_id;
+uint32	 depth_buffer_texture_id;
+
+
+// cbuffer root_constants reg(b1)
+uint32			   opaque_meshlet_render_data_count;
+uint32			   directional_light_count_and_extra;
+t_unified_light_id unified_light_count;
+uint32			   transparent_object_render_data_count;
+
+uint32 light_tile_count_x;
+uint32 light_tile_count_y;
+float  cam_near_z;
+float  cam_far_z;
+float  cam_log_far_near_ratio;
+uint32 shadow_atlas_id;		  // bindless index for shadow atlas
+uint32 radix_sort_pass;
+uint32 shadow_light_index;	  // shadow mapping
+
+
+// cbuffer indirect_arg_constants reg(b2)
+
+// transparent
+// arg0 : object_id
+// arg1 : mesh_byte_offset
+uint32 arg0;
+uint32 arg1;
+
+#endif
+
+uint32
+depth_to_bin(float linear_depth)
+{
+	float t = (linear_depth - cam_near_z) / (cam_far_z - cam_near_z);
+	return (uint32)(t * (Z_SLICE_COUNT - 1));
+}
+
+struct mesh_header_raw
+{
+	uint32 global_vertex_index_buffer_offset;
+	uint32 local_vertex_index_buffer_offset;
+	uint32 meshlet_header_buffer_offset;
+	uint32 meshlet_buffer_offset;
+	uint32 meshlet_count;
+	float3 aabb_min;
+	float3 aabb_size;
+};
+
+mesh_header
+read_mesh_header(uint32 mesh_byte_offset)
+{
+	mesh_header_raw raw = load<mesh_header_raw>(mesh_data_buffer, mesh_byte_offset);
+
+	mesh_header res;
+	res.global_vertex_index_buffer_offset = mesh_byte_offset + raw.global_vertex_index_buffer_offset;
+	res.local_vertex_index_buffer_offset  = mesh_byte_offset + raw.local_vertex_index_buffer_offset;
+	res.meshlet_header_buffer_offset	  = mesh_byte_offset + raw.meshlet_header_buffer_offset;
+	res.meshlet_buffer_offset			  = mesh_byte_offset + raw.meshlet_buffer_offset;
+	res.vertex_buffer_offset			  = 44 + mesh_byte_offset;
+	res.meshlet_count					  = raw.meshlet_count;
+	res.aabb_min						  = raw.aabb_min;
+	res.aabb_size						  = raw.aabb_size;
+	return res;
+}
+
+meshlet_header
+read_meshlet_header(mesh_header header, uint32 meshlet_idx)
+{
+	meshlet_header res;
+
+	uint32_4 raw4 = load<uint32_4>(mesh_data_buffer, header.meshlet_header_buffer_offset + meshlet_idx * sizeof(meshlet_header));
+
+	res.cone_axis_oct			   = uint32_lower_to_uint16(raw4.x);
+	res.cone_cull_cutoff_and_extra = uint32_upper_to_uint16(raw4.x);
+
+	res.aabb_min = int16_3(
+		uint32_lower_to_int16(raw4.y),
+		uint32_upper_to_int16(raw4.y),
+		uint32_lower_to_int16(raw4.z));
+
+	res.aabb_size = uint16_3(
+		uint32_upper_to_uint16(raw4.z),
+		uint32_lower_to_uint16(raw4.w),
+		uint32_upper_to_uint16(raw4.w));
+
+	return res;
+}
+
+meshlet
+read_meshlet(mesh_header header, uint32 meshlet_idx)
+{
+	return load<meshlet>(mesh_data_buffer, header.meshlet_buffer_offset + meshlet_idx * sizeof(meshlet));
+}
+
+// meshlet local vertex_idx : 0 ~ 64
+uint32
+read_global_vertex_index(mesh_header header, meshlet mshlt, uint32 vertex_idx)
+{
+	return load<uint32>(mesh_data_buffer, header.global_vertex_index_buffer_offset + (mshlt.global_index_offset + vertex_idx) * sizeof(uint32));
+}
+
+vertex_encoded
+read_vertex_encoded(mesh_header header, uint32 global_vertex_idx)
+{
+	vertex_encoded res;
+	uint32		   offset = header.vertex_buffer_offset + global_vertex_idx * sizeof(vertex_encoded);
+
+	uint32_3 raw3 = load<uint32_3>(mesh_data_buffer, offset);
+
+	res.pos = uint16_3(
+		uint32_lower_to_uint16(raw3.x),
+		uint32_upper_to_uint16(raw3.x),
+		uint32_lower_to_uint16(raw3.y));
+
+	res.normal_oct	= uint32_upper_to_uint16(raw3.y);
+	res.tangent_oct = uint32_lower_to_uint16(raw3.z);
+	res.extra		= uint32_upper_to_uint16(raw3.z);
+
+	offset += sizeof(raw3);
+#if UV_COUNT >= 1
+	{
+		uint32 raw	   = load<uint32>(mesh_data_buffer, offset);
+		res.uv_set[0]  = uint32_to_half2(raw);
+		offset		  += sizeof(half2);
+	}
+#endif
+#if UV_COUNT >= 2
+	{
+		uint32 raw	   = load<uint32>(mesh_data_buffer, offset);
+		res.uv_set[1]  = uint32_to_half2(raw);
+		offset		  += sizeof(half2);
+	}
+#endif
+#if UV_COUNT >= 3
+	{
+		uint32 raw	   = load<uint32>(mesh_data_buffer, offset);
+		res.uv_set[2]  = uint32_to_half2(raw);
+		offset		  += sizeof(half2);
+	}
+#endif
+#if UV_COUNT >= 4
+	{
+		uint32 raw	   = load<uint32>(mesh_data_buffer, offset);
+		res.uv_set[3]  = uint32_to_half2(raw);
+		offset		  += sizeof(half2);
+	}
+#endif
+	return res;
+}
+
+// meshlet local primitive_idx : 0 ~ 126
+uint32_3
+read_meshlet_primitive(mesh_header header, meshlet mshlt, uint32 primitive_idx)
+{
+	const uint32 load_pos_1byte_aligned	 = header.local_vertex_index_buffer_offset + mshlt.primitive_offset + primitive_idx * 3;
+	const uint32 load_pos_4bytes_aligned = load_pos_1byte_aligned & ~0x3u;
+	const uint32 bit_shift_required		 = (load_pos_1byte_aligned & 0x3u) * 8;
+
+	const uint32_2 raw	 = load<uint32_2>(mesh_data_buffer, load_pos_4bytes_aligned);
+	const uint64   raw64 = (uint64_t(raw.y) << 32) | uint64_t(raw.x);
+
+	return uint32_3(
+		(raw64 >> (bit_shift_required + 0)) & 0xff,
+		(raw64 >> (bit_shift_required + 8)) & 0xff,
+		(raw64 >> (bit_shift_required + 16)) & 0xff);
+}
+
+float
+safe_dot_camera_forward(float3 dir)
+{
+	return max(dot(dir, camera_forward), epsilon_1e4);
+}
+
+// opaque
+struct opaque_as_to_ms
+{
+	uint32 meshlet_32_group_idx;
+	uint32 meshlet_alive_mask;
+};
+
+struct opaque_ms_to_ps
+{
+	float4 pos		 sv_position;
+	float3 world_pos sys_val(WORLD_POS);
+	float3 normal	 sys_val(NORMAL);
+	// nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
+	float4 tangent sys_val(TANGENT);
+
+#if UV_COUNT >= 1
+	half2 uv0 sys_val(TEXCOORD0);
+#endif
+#if UV_COUNT >= 2
+	half2 uv1 sys_val(TEXCOORD1);
+#endif
+#if UV_COUNT >= 3
+	half2 uv2 sys_val(TEXCOORD2);
+#endif
+#if UV_COUNT >= 4
+	half2 uv3 sys_val(TEXCOORD3);
+#endif
+};
+
+// light culling tile mask
+struct tile_mask_ms_to_ps
+{
+	float4 pos						 sv_position;
+	nointerpolation uint32 sorted_id sys_val(SORTED_ID);
+};
+
+// presentation
+
+struct presentation_ps_out
+{
+	float4 color sv_target_0;
+};

@@ -60,6 +60,25 @@ namespace age::ecs::system
 
 	template <typename t_arg>
 	identity(t_arg&&) -> identity<t_arg>;
+
+	template <typename t_data>
+	struct ref
+	{
+		using t_ctx_tag = age::ecs::system::ctx_tag<age::ecs::system::tag_adaptor>;
+
+		no_unique_addr t_data data;
+
+		FORCE_INLINE constexpr ref(auto&& arg) noexcept : data{ FWD(arg) } {};
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(this auto&& self) noexcept
+		{
+			return self.data;
+		}
+	};
+
+	template <typename t_arg>
+	ref(t_arg&&) -> ref<t_arg>;
 }	 // namespace age::ecs::system
 
 namespace age::ecs::system
@@ -113,6 +132,12 @@ namespace age::ecs::system
 		operator()(auto&&... arg) noexcept
 		{
 			return run_sys(sys_cond, FWD(arg)...);
+		}
+
+		FORCE_INLINE constexpr decltype(auto)
+		operator()(cx_ctx auto&& ctx, auto&&... arg) noexcept
+		{
+			return run_sys(sys_cond, FWD(ctx), FWD(arg)...);
 		}
 	};
 

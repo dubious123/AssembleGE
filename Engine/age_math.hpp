@@ -393,6 +393,14 @@ struct vec3
 		return t_this{ x * v.x, y * v.y, z * v.z };
 	}
 
+	template <typename t_scalar>
+	friend FORCE_INLINE constexpr auto
+	operator*(t_scalar v, const t_this& vec) noexcept
+		requires(std::is_arithmetic_v<std::decay_t<t_scalar>> and requires { v * t{}; })
+	{
+		return vec * v;
+	}
+
 	FORCE_INLINE constexpr decltype(auto)
 	operator/(auto v) const noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v / t{}; })
@@ -536,6 +544,17 @@ struct vec4
 					&& std::convertible_to<t_z, t>
 					&& std::convertible_to<t_w, t>)
 		: xyz{ FWD(x_other), FWD(y_other), FWD(z_other) }, w{ static_cast<t>(FWD(w_other)) }
+	{
+	}
+
+	FORCE_INLINE constexpr vec4(vec3<t> other, t w_other) noexcept
+		// requires(
+		//			requires { other.x; other.y; other.z; }
+		//			&& std::convertible_to<decltype(other.x), t>
+		//			&& std::convertible_to<decltype(other.y), t>
+		//			&& std::convertible_to<decltype(other.z), t>
+		//			&& std::convertible_to<decltype(w_other), t>)
+		: xyz{ FWD(other).x, FWD(other).y, FWD(other).z }, w{ static_cast<t>(w_other) }
 	{
 	}
 

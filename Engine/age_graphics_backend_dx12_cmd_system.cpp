@@ -143,8 +143,10 @@ namespace age::graphics
 	FORCE_INLINE void
 	cmd_system<cmd_list_type, cmd_list_count>::flush() noexcept
 	{
-		AGE_HR_CHECK(p_fence->SetEventOnCompletion(g::current_fence_value - 1, fence_event));
+		uint64_t fence_to_wait = g::current_fence_value++;
+		p_cmd_queue->Signal(p_fence, fence_to_wait);
 
+		p_fence->SetEventOnCompletion(fence_to_wait, fence_event);
 		::WaitForSingleObject(fence_event, INFINITE);
 	}
 }	 // namespace age::graphics

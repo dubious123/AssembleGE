@@ -19,7 +19,7 @@ namespace age::graphics::shader
 											| std::views::take(e::size<e::engine_shader_kind>())
 											| std::views::transform([](auto i) { return e::to_wstring(static_cast<e::engine_shader_kind>(i)); }))
 		{
-			c_auto hlsl_path = g::engine_shaders_dir_path / std::filesystem::path{ shader_name }.concat(".hlsl");
+			c_auto hlsl_path = g::engine_shaders_dir_path / std::filesystem::path{ shader_name }.concat(config::shader_extension);
 			AGE_ASSERT(std::filesystem::exists(hlsl_path));
 
 			c_auto compiled_blob_path = g::engine_shaders_compiled_blob_dir_path / std::filesystem::path{ shader_name }.concat(".bin");
@@ -34,7 +34,7 @@ namespace age::graphics::shader
 			for (auto& entry : std::filesystem::directory_iterator(hlsl_path.parent_path()))
 			{
 				c_auto ext = entry.path().extension();
-				if (ext == ".h" or ext == ".hlsli")
+				if (ext == ".h" or ext == config::shader_include_extension)
 				{
 					newest_include_time = std::max(newest_include_time, entry.last_write_time());
 				}
@@ -99,6 +99,7 @@ namespace age::graphics::shader
 				L"-E", entry_point.data(),
 				L"-T", target.data(),
 				L"-I", dir_path.c_str(),
+				L"-HV", L"2021",
 				L"-Qstrip_reflect",
 				// L"-Qstrip_debug",
 				L"-enable-16bit-types",

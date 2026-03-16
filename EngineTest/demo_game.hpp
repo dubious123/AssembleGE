@@ -823,7 +823,7 @@ namespace demo_game
 		using namespace age::ecs::system;
 
 		return loop{
-			AGE_LAMBDA((), { return true; }),
+			AGE_LAMBDA((), { return age::global::get<age::runtime::interface>().running(); }),
 
 			break_if_unlikely{ [] { return age::platform::window_count() == 0; } },
 			identity{ game_ctx.h_input_ctx }
@@ -869,11 +869,11 @@ namespace demo_game
 
 		return on_ctx{
 			match{ identity{ game_ctx.scene_id },
-				   on<0>	  = scene_0::deinit,
-				   on<1>	  = scene_1::deinit,
-				   default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) },
+				   on<0> = scene_0::deinit,
+				   on<1> = scene_1::deinit,
+				   /* default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) */ },
 
-			AGE_FUNC(game_ctx.render_pipeline.deinit),
+			AGE_LAMBDA((), { game_ctx.render_pipeline.deinit(); }),
 			age::ecs::system::exec_inline{}
 		};
 	}
