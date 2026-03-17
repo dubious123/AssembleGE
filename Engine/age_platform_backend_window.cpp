@@ -51,8 +51,6 @@ namespace age::platform::detail
 	LRESULT CALLBACK
 	window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 	{
-		auto i_platform = age::global::get<age::platform::interface>();
-
 		auto h_window = get_handle(hwnd);
 
 		if (h_window->state == window_state::closing) [[unlikely]]
@@ -226,9 +224,7 @@ namespace age::platform
 	void
 	init() noexcept
 	{
-		auto i_platform = global::get<platform::interface>();
-
-		const auto wname = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
+		const auto wname = std::wstring{ i_window.get_name->begin(), i_window.get_name->end() };
 
 		const auto window_class = WNDCLASSEX{
 			.cbSize		   = sizeof(WNDCLASSEX),
@@ -254,8 +250,6 @@ namespace age::platform
 	void
 	update() noexcept
 	{
-		auto i_platform = global::get<platform::interface>();
-
 		auto msg = MSG{};
 		while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
 		{
@@ -264,7 +258,7 @@ namespace age::platform
 
 			if (msg.message == WM_QUIT) [[unlikely]]
 			{
-				i_platform.running() = false;
+				i_window.set_running = false;
 			}
 		}
 
@@ -302,8 +296,6 @@ namespace age::platform
 	void
 	deinit() noexcept
 	{
-		auto i_platform = global::get<platform::interface>();
-
 		AGE_ASSERT(g::window_info_vec.is_empty());
 
 		for (auto& w_info : g::window_info_vec)
@@ -313,7 +305,7 @@ namespace age::platform
 
 		g::window_info_vec.clear();
 
-		const auto wname = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
+		const auto wname = std::wstring{ i_window.get_name->begin(), i_window.get_name->end() };
 		::UnregisterClass(wname.c_str(), ::GetModuleHandle(nullptr));
 
 
@@ -326,8 +318,7 @@ namespace age::platform
 	window_handle
 	create_window(const window_desc& desc) noexcept
 	{
-		auto	   i_platform	 = global::get<platform::interface>();
-		const auto wname		 = std::wstring{ i_platform.name().begin(), i_platform.name().end() };
+		const auto wname		 = std::wstring{ i_window.get_name->begin(), i_window.get_name->end() };
 		const auto w_window_name = std::wstring{ desc.name.begin(), desc.name.end() };
 		auto	   id			 = static_cast<t_window_id>(g::window_info_vec.emplace_back());
 

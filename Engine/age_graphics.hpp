@@ -15,25 +15,42 @@ namespace age::graphics::e
 
 namespace age::graphics
 {
-	AGE_DEFINE_ENUM(color_space, uint8, srgb, hdr);
-}	 // namespace age::graphics
-
-namespace age::graphics
-{
-	template <typename t>
-	struct interface
+	struct
 	{
-	  private:
-		no_unique_addr t data;
+		struct
+		{
+			__forceinline decltype(auto)
+			operator->() noexcept
+			{
+				if constexpr (age::meta::cx_has_arrow<std::remove_cvref_t<decltype((global::detail::ctx.display_color_space))>>)
+				{
+					return global::detail::ctx.display_color_space;
+				}
+				else
+				{
+					return &global::detail::ctx.display_color_space;
+				}
+			}
 
-	  public:
-		constexpr interface(auto&& arg) noexcept : data(FWD(arg)) { }
+			__forceinline auto&
+			operator()() noexcept
+			{
+				return global::detail::ctx.display_color_space;
+			}
 
-		AGE_PROP(display_color_space)
-	};
+			__forceinline
+			operator auto&() noexcept
+			{
+				return global::detail::ctx.display_color_space;
+			}
 
-	template <typename t>
-	interface(t&&) -> interface<t>;
+			__forceinline decltype(auto)
+			operator[](auto&&... i) noexcept
+			{
+				return global::detail::ctx.display_color_space[std::forward<decltype(i)>((i))...];
+			}
+		} get_display_color_space;
+	} i_color;
 }	 // namespace age::graphics
 
 // handle

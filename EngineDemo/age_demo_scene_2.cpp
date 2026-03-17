@@ -1,12 +1,15 @@
 #include "age_demo_pch.hpp"
 #include "age_demo.hpp"
+#include "age_demo_pch.hpp"
+#include "age_demo.hpp"
 
-namespace age_demo::scene_1
+namespace age_demo::scene_2
 {
 	FORCE_INLINE decltype(auto)
 	init() noexcept
 	{
 		using namespace age::ecs::system;
+
 		on_ctx{
 			AGE_LAMBDA(
 				(),
@@ -19,92 +22,44 @@ namespace age_demo::scene_1
 					i_init.set_smoothed_pan(float2{ 0.f, 0.f });
 				}),
 
-
+			// camera - pulled back and slightly elevated to see the full scene + skybox
 			identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
 				.kind		= age::graphics::e::camera_kind::perspective,
-				.pos		= float3{ 0.f, 6.f, -10.f },
+				.pos		= float3{ 0.f, 4.f, -14.f },
 				.quaternion = age::g::quaternion_identity,
 				.near_z		= 0.01f,
-				.far_z		= 100.f,
+				.far_z		= 1000.f,
 				.perspective{
 					.fov_y		  = age::cvt_to_radian(75.f),
 					.aspect_ratio = 16.f / 9.f } } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_camera)
 				| AGE_FUNC(i_init.get_camera_id_vec().emplace_back),
 
-			// dim ambient directional light
+			// strong directional light from above-right - good for seeing transparency + shadows
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
-				.direction = age::normalize(float3{ 0.0f, -1.0f, 0.0f }),
-				.intensity = 0.05f,
-				.color	   = float3{ 1.0f, 1.0f, 1.0f } } }
+				.direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f }),
+				.intensity = 0.3f,
+				.color	   = float3{ 1.0f, 0.95f, 0.9f } } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec().emplace_back),
 
-			// AGE_LAMBDA(
-			//	(),
-			//	{
-			//		constexpr uint32 light_count = 1000;
-			//		constexpr float	 scene_min	 = -15.0f;
-			//		constexpr float	 scene_max	 = 15.0f;
-			//		constexpr float	 range		 = 6.0f;
-			//		constexpr float	 intensity	 = 0.3f;
-
-			//		auto rng		= std::mt19937{ 42 };
-			//		auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
-			//		auto dist_color = std::uniform_real_distribution<float>{ 0.2f, 1.0f };
-
-			//		for (auto i = 0; i < light_count; ++i)
-			//		{
-			//			i_init.get_point_light_id_vec().emplace_back(
-			//				i_init.get_render_pipeline().add_point_light(
-			//					age::graphics::render_pipeline::forward_plus::point_light_desc{
-			//						.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
-			//						.range	  = range,
-			//						.color	  = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
-			//						//.color	   = float3{ 1, 1, 1 },
-			//						.intensity = intensity }));
-			//		}
-			//	}),
-
-			// === point lights - distinct colors for shadow identification ===
-
-			// red light - left side, low
+			// warm point light - left side, illuminates transparent objects from behind
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ -3.0f, 2.0f, 0.0f },
-				.range	   = 15.0f,
-				.color	   = float3{ 1.0f, 0.2f, 0.2f },
-				.intensity = 3.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), false); })
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
-
-			// green light - right side, mid height
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ 3.0f, 4.0f, 0.0f },
-				.range	   = 15.0f,
-				.color	   = float3{ 0.2f, 1.0f, 0.2f },
-				.intensity = 3.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
-
-			// blue light - center, high above
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ 0.0f, 6.0f, 2.0f },
-				.range	   = 15.0f,
-				.color	   = float3{ 0.3f, 0.3f, 1.0f },
-				.intensity = 3.0f } }
+				.position  = float3{ -5.0f, 3.0f, 4.0f },
+				.range	   = 20.0f,
+				.color	   = float3{ 1.0f, 0.7f, 0.3f },
+				.intensity = 4.0f } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
-			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
-				.position  = float3{ -4.0f, 4.0f, 0.0f },
-				.range	   = 30.0f,
-				.direction = age::normalize(float3{ 2.0f, -1.0f, 0.0f }),
-				.intensity = 30.0f,
-				.color	   = float3{ 1.0f, 0.9f, 0.6f },
-				.cos_inner = 0.96f,
-				.cos_outer = 0.87f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_spot_light(FWD(desc), true); })
-				| AGE_FUNC(i_init.get_spot_light_id_vec().emplace_back),
+			// cool point light - right side, color mixing through transparent surfaces
+			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+				.position  = float3{ 5.0f, 3.0f, -2.0f },
+				.range	   = 20.0f,
+				.color	   = float3{ 0.3f, 0.5f, 1.0f },
+				.intensity = 4.0f } }
+				| AGE_FUNC(i_init.get_render_pipeline().add_point_light)
+				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
 			// === meshes ===
 
@@ -144,8 +99,8 @@ namespace age_demo::scene_1
 			AGE_LAMBDA(
 				(),
 				{
-					auto add_obj = [&](float3 pos, float3 scale, float4 quat = age::g::quaternion_identity) {
-						i_init.get_obj_id_vec().emplace_back(
+					auto add_opaque_obj = [&](float3 pos, float3 scale, float4 quat = age::g::quaternion_identity) {
+						i_init.get_opaque_obj_id_vec().emplace_back(
 							i_init.get_render_pipeline().add_object(
 								age::graphics::render_pipeline::forward_plus::shared_type::object_data{
 									.pos		= pos,
@@ -153,32 +108,58 @@ namespace age_demo::scene_1
 									.scale		= age::cvt_to<half3>(scale) }));
 					};
 
-					// ground plane - large, receives all shadows
-					add_obj(float3{ 0.0f, -0.5f, 0.0f }, float3{ 40.0f, 1.0f, 40.0f });
+					auto add_transparent_obj = [&](float3 pos, float3 scale, float4 quat = age::g::quaternion_identity) {
+						i_init.get_transparent_obj_id_vec().emplace_back(
+							i_init.get_render_pipeline().add_object(
+								age::graphics::render_pipeline::forward_plus::shared_type::object_data{
+									.pos		= pos,
+									.quaternion = age::math::quaternion_encode(quat),
+									.scale		= age::cvt_to<half3>(scale) }));
+					};
 
-					// back wall - catches shadows from behind
-					add_obj(float3{ 0.0f, 4.0f, 8.0f }, float3{ 20.0f, 10.0f, 0.5f });
+					// ===== opaque reference objects =====
 
-					// tall pillar - casts long shadow in all directions
-					add_obj(float3{ 0.0f, 2.0f, 0.0f }, float3{ 0.5f, 4.0f, 0.5f });
+					// ground plane - small, so skybox is visible at horizon
+					add_opaque_obj(float3{ 0.0f, -0.5f, 0.0f }, float3{ 40.0f, 1.0f, 40.0f });
 
-					// small cube near red light - close shadow, sharp edge
-					add_obj(float3{ -1.5f, 0.5f, 0.0f }, float3{ 1.0f, 1.0f, 1.0f });
+					// opaque pillar behind transparent objects - occlusion reference
+					add_opaque_obj(float3{ 0.0f, 2.0f, 5.0f }, float3{ 1.0f, 4.0f, 1.0f });
 
-					// small cube near green light - close shadow from other side
-					add_obj(float3{ 1.5f, 0.5f, 0.0f }, float3{ 1.0f, 1.0f, 1.0f });
+					// opaque cube on the right - reference for color blending comparison
+					add_opaque_obj(float3{ 6.0f, 1.0f, 0.0f }, float3{ 2.0f, 2.0f, 2.0f });
 
-					// floating cube - shadow on ground with gap (tests detached shadow)
-					add_obj(float3{ 0.0f, 3.0f, -2.0f }, float3{ 1.5f, 1.5f, 1.5f });
+					// ===== transparency test: overlapping planes at different depths =====
+					// three parallel planes stacked in Z - classic sort-order test
+					add_transparent_obj(float3{ -4.0f, 2.0f, 1.0f }, float3{ 3.0f, 3.0f, 0.05f });
+					add_transparent_obj(float3{ -4.0f, 2.0f, 2.0f }, float3{ 3.0f, 3.0f, 0.05f });
+					add_transparent_obj(float3{ -4.0f, 2.0f, 3.0f }, float3{ 3.0f, 3.0f, 0.05f });
 
-					// sphere - smooth shadow silhouette
-					add_obj(float3{ -2.5f, 0.5f, 3.0f }, float3{ 2.0f, 2.0f, 2.0f });
+					// ===== transparency test: intersecting cubes =====
+					// two cubes crossing through each other - per-pixel sort stress test
+					add_transparent_obj(float3{ 0.0f, 2.0f, 0.0f }, float3{ 3.0f, 1.0f, 1.0f });
+					add_transparent_obj(float3{ 0.0f, 2.0f, 0.0f }, float3{ 1.0f, 1.0f, 3.0f });
 
-					// sphere - overlapping shadow test (close to pillar)
-					add_obj(float3{ 1.0f, 0.5f, 1.5f }, float3{ 1.5f, 1.5f, 1.5f });
+					// ===== transparency test: nested spheres =====
+					// concentric spheres - inside-out ordering
+					add_transparent_obj(float3{ 4.0f, 2.0f, 2.0f }, float3{ 3.0f, 3.0f, 3.0f });
+					// add_transparent_obj(float3{ 4.0f, 2.0f, 2.1f }, float3{ 2.0f, 2.0f, 2.0f });
+					// add_transparent_obj(float3{ 4.0f, 2.0f, 2.2f }, float3{ 1.0f, 1.0f, 1.0f });
 
-					// flat box on ground - self-shadow / contact shadow test
-					add_obj(float3{ 3.0f, 0.1f, -2.0f }, float3{ 2.0f, 0.2f, 2.0f });
+					// ===== transparency test: transparent in front of opaque =====
+					// transparent plane hovering in front of the opaque pillar
+					add_transparent_obj(float3{ 0.0f, 2.0f, 3.5f }, float3{ 4.0f, 4.0f, 0.05f });
+
+					// ===== transparency test: ground-contact =====
+					// flat transparent slab on the ground - blending with opaque floor
+					add_transparent_obj(float3{ -2.0f, 1.f, -3.0f }, float3{ 4.0f, 0.1f, 4.0f });
+
+					// ===== skybox visibility objects =====
+					// tall thin columns at edges - silhouettes against skybox
+					add_opaque_obj(float3{ -8.0f, 3.0f, 8.0f }, float3{ 0.3f, 6.0f, 0.3f });
+					add_opaque_obj(float3{ 8.0f, 3.0f, 8.0f }, float3{ 0.3f, 6.0f, 0.3f });
+
+					// floating sphere high up - overlaps skybox
+					add_opaque_obj(float3{ 0.0f, 8.0f, 6.0f }, float3{ 2.0f, 2.0f, 2.0f });
 				}),
 			exec_inline{}
 		}();
@@ -192,8 +173,7 @@ namespace age_demo::scene_1
 			1.f / 160);
 
 		c_auto speed	= i_update.get_sprint() ? input::g::move_speed * input::g::sprint_mult : input::g::move_speed;
-		auto   cam_desc = i_update.get_render_pipeline().get_camera_desc(i_update.get_camera_id_vec()[0]);
-
+		auto   cam_desc = i_update.get_render_pipeline().get_camera_desc(i_update.get_camera_id_vec[0]);
 
 		c_auto move_smoothing_factor = 1.f - std::exp(-input::g::move_smoothing * dt_s);
 		c_auto look_smoothing_factor = 1.f - std::exp(-input::g::look_smoothing * dt_s);
@@ -236,23 +216,33 @@ namespace age_demo::scene_1
 
 		cam_desc.quaternion = xm_look_quat | age::simd::to<float4>();
 
-		i_update.get_render_pipeline().update_camera(i_update.get_camera_id_vec()[0], cam_desc);
+		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 
-		if (i_update.get_render_pipeline().begin_render(i_update.get_h_render_surface()))
+		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface()))
 		{
-			for (auto&& [i, obj_id] : i_update.get_obj_id_vec() | std::views::enumerate)
+			for (auto&& [i, obj_id] : i_update.get_opaque_obj_id_vec() | std::views::enumerate)
 			{
-				i_update.get_render_pipeline().render_mesh(obj_id % age::graphics::g::thread_count, obj_id, i_update.get_mesh_id_vec()[i % i_update.get_mesh_id_vec().size()]);
+				i_update.get_render_pipeline->render_mesh(obj_id % age::graphics::g::thread_count, obj_id, i_update.get_mesh_id_vec()[i % i_update.get_mesh_id_vec->size()]);
 			}
 
-			i_update.get_render_pipeline().end_render(i_update.get_h_render_surface());
+			for (auto&& [i, obj_id] : i_update.get_transparent_obj_id_vec() | std::views::enumerate)
+			{
+				i_update.get_render_pipeline->render_transparent_mesh(obj_id % age::graphics::g::thread_count, obj_id, i_update.get_mesh_id_vec[0]);
+			}
+
+			i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 		}
 	}
 
 	FORCE_INLINE decltype(auto)
 	deinit() noexcept
 	{
-		for (auto o_id : i_deinit.get_obj_id_vec())
+		for (auto o_id : i_deinit.get_opaque_obj_id_vec())
+		{
+			i_deinit.get_render_pipeline().remove_object(o_id);
+		}
+
+		for (auto o_id : i_deinit.get_transparent_obj_id_vec())
 		{
 			i_deinit.get_render_pipeline().remove_object(o_id);
 		}
@@ -282,11 +272,12 @@ namespace age_demo::scene_1
 			i_deinit.get_render_pipeline().remove_directional_light(d_id);
 		}
 
-		i_deinit.get_obj_id_vec().clear();
+		i_deinit.get_opaque_obj_id_vec().clear();
+		i_deinit.get_transparent_obj_id_vec().clear();
 		i_deinit.get_mesh_id_vec().clear();
 		i_deinit.get_camera_id_vec().clear();
 		i_deinit.get_point_light_id_vec().clear();
 		i_deinit.get_spot_light_id_vec().clear();
 		i_deinit.get_directional_light_id_vec().clear();
 	}
-}	 // namespace age_demo::scene_1
+}	 // namespace age_demo::scene_2

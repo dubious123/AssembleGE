@@ -16,22 +16,11 @@ namespace age::platform
 // interface
 namespace age::platform
 {
-	template <typename t>
-	struct interface
+	struct
 	{
-	  private:
-		no_unique_addr t data;
-
-	  public:
-		constexpr interface(auto&& arg) noexcept : data(FWD(arg)) { }
-
-		AGE_PROP(name)
-
-		AGE_PROP(running)
-	};
-
-	template <typename t>
-	interface(t&&) -> interface<t>;
+		AGE_GET(name, name)
+		AGE_SET(running, name)
+	} i_window;
 }	 // namespace age::platform
 
 // handle

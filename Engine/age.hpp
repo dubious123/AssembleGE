@@ -37,6 +37,8 @@ namespace age
 
 	namespace ecs::entity_storage {}
 
+	namespace global {}
+
 	namespace input {}
 
 	namespace platform {}
@@ -44,8 +46,6 @@ namespace age
 	namespace graphics {}
 
 	namespace graphics::render_pipeline::forward_plus {}
-
-	namespace global {}
 
 	namespace runtime {}
 
@@ -60,9 +60,9 @@ namespace age
 
 #if defined(__INTELLISENSE__)
 	#include "age_config.hpp"
-	#include "age_macro.h"
 	#include "age_macro_pp.h"
 	#include "age_macro_pp_foreach.h"
+	#include "age_macro.h"
 
 	#include "age_external.h"
 
@@ -91,6 +91,7 @@ namespace age
 #include "age_util_offset_allocator.hpp"	//todo
 
 #include "age_extern_templates.hpp"
+
 #include "age_fwd.hpp"
 
 #include "age_asset_types.hpp"
@@ -125,6 +126,8 @@ namespace age
 
 #include "age_subsystem.hpp"
 
+#include "age_global.hpp"
+
 #include "age_input.hpp"
 
 #include "age_platform.hpp"
@@ -133,8 +136,6 @@ namespace age
 #endif
 
 #include "age_graphics.hpp"
-
-#include "age_global.hpp"
 
 #include "age_runtime.hpp"
 

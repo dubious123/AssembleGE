@@ -73,63 +73,56 @@
 	return overloaded_func_name(FWD(arg)...);                                                                                        \
 }
 
-#define AGE_PROP(property_name)                           \
-	FORCE_INLINE constexpr decltype((data.property_name)) \
-	property_name() noexcept                              \
-	{                                                     \
-		return data.property_name;                        \
-	}                                                     \
-	FORCE_INLINE constexpr decltype((data.property_name)) \
-	get_##property_name() noexcept                        \
-	{                                                     \
-		return data.property_name;                        \
-	}                                                     \
-	FORCE_INLINE constexpr decltype((data.property_name)) \
-	set_##property_name(auto&& arg) noexcept              \
-	{                                                     \
-		return data.property_name = FWD(arg);             \
-	}
+#define __AGE_GET_IMPL__(name, path)                                                  \
+	struct                                                                            \
+	{                                                                                 \
+		FORCE_INLINE decltype(auto)                                                   \
+		operator->() noexcept                                                         \
+		{                                                                             \
+			if constexpr (age::meta::cx_has_arrow<BARE_OF(global::detail::ctx.path)>) \
+			{                                                                         \
+				return global::detail::ctx.path;                                      \
+			}                                                                         \
+			else                                                                      \
+			{                                                                         \
+				return &global::detail::ctx.path;                                     \
+			}                                                                         \
+		}                                                                             \
+		FORCE_INLINE auto&                                                            \
+		operator()() noexcept                                                         \
+		{                                                                             \
+			return global::detail::ctx.path;                                          \
+		}                                                                             \
+		FORCE_INLINE                                                                  \
+		operator auto&() noexcept                                                     \
+		{                                                                             \
+			return global::detail::ctx.path;                                          \
+		}                                                                             \
+		FORCE_INLINE decltype(auto)                                                   \
+		operator[](auto&&... i) noexcept                                              \
+		{                                                                             \
+			return global::detail::ctx.path[FWD(i)...];                               \
+		}                                                                             \
+	} get_##name;
 
-#define AGE_SET(func_name, property_name)                       \
-	FORCE_INLINE constexpr decltype((data.property_name))       \
-	set_##func_name(auto&& arg) noexcept                        \
-	{                                                           \
-		return data.property_name = FWD(arg);                   \
-	}                                                           \
-	FORCE_INLINE constexpr decltype(auto)                       \
-	set_##func_name() noexcept                                  \
-	{                                                           \
-		return age::util::setter{ .data = data.property_name }; \
-	}
+#define __AGE_SET_IMPL__(name, path)                  \
+	struct                                            \
+	{                                                 \
+		FORCE_INLINE auto&                            \
+		operator=(auto&& v) noexcept                  \
+		{                                             \
+			return global::detail::ctx.path = FWD(v); \
+		}                                             \
+		FORCE_INLINE auto&                            \
+		operator()(auto&& v) noexcept                 \
+		{                                             \
+			return global::detail::ctx.path = FWD(v); \
+		}                                             \
+	} set_##name;
 
-#define AGE_GET(func_name, property_name)                 \
-	FORCE_INLINE constexpr decltype((data.property_name)) \
-	get_##func_name() noexcept                            \
-	{                                                     \
-		return data.property_name;                        \
-	}
-
-#define AGE_GETSET(func_name, property_name)                    \
-	FORCE_INLINE constexpr decltype((data.property_name))       \
-	set_##func_name(auto&& arg) noexcept                        \
-	{                                                           \
-		return data.property_name = FWD(arg);                   \
-	}                                                           \
-	FORCE_INLINE constexpr decltype(auto)                       \
-	set_##func_name() noexcept                                  \
-	{                                                           \
-		return age::util::setter{ .data = data.property_name }; \
-	}                                                           \
-                                                                \
-	FORCE_INLINE constexpr decltype((data.property_name))       \
-	get_##func_name() noexcept                                  \
-	{                                                           \
-		return data.property_name;                              \
-	}
-
-#define AGE_GET_PROP(x)	   AGE_GET(x, x)
-#define AGE_SET_PROP(x)	   AGE_SET(x, x)
-#define AGE_GETSET_PROP(x) AGE_GETSET(x, x)
+#define AGE_GET(name, path)	   __AGE_GET_IMPL__(name, path)
+#define AGE_SET(name, path)	   __AGE_SET_IMPL__(name, path)
+#define AGE_GETSET(name, path) __AGE_GET_IMPL__(name, path) __AGE_SET_IMPL__(name, path)
 
 #if defined(AGE_DEBUG)
 	#define AGE_ASSERT(expression, ...)                                            \

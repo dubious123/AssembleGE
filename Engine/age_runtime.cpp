@@ -6,15 +6,7 @@ namespace age::runtime
 	void
 	init() noexcept
 	{
-		auto i_runtime	= age::global::get<runtime::interface>();
-		i_runtime.now() = std::chrono::steady_clock::now();
-	}
-
-	void
-	deinit() noexcept
-	{
-		auto i_runtime	= age::global::get<runtime::interface>();
-		i_runtime.now() = std::chrono::steady_clock::now();
+		i_init.set_now = std::chrono::steady_clock::now();
 	}
 
 	void
@@ -22,13 +14,18 @@ namespace age::runtime
 	{
 		constexpr auto max_delta = std::chrono::nanoseconds{ 1'000'000'000 / age::config::min_fps };
 
-		auto i_runtime = age::global::get<runtime::interface>();
-		auto time_now  = std::chrono::steady_clock::now();
+		auto time_now = std::chrono::steady_clock::now();
 
-		auto raw_delta	= time_now - i_runtime.now();
-		i_runtime.now() = time_now;
+		auto raw_delta	 = time_now - i_update.get_now();
+		i_update.set_now = time_now;
 
-		i_runtime.delta_time_ns() = std::min(raw_delta, max_delta);
+		i_update.set_delta_time_ns = std::min(raw_delta, max_delta);
 		// i_runtime.delta_time_ns() = raw_delta;
+	}
+
+	void
+	deinit() noexcept
+	{
+		i_update.set_now = std::chrono::steady_clock::now();
 	}
 }	 // namespace age::runtime

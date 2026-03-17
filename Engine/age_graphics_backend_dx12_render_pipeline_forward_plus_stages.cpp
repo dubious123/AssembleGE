@@ -568,6 +568,16 @@ namespace age::graphics::render_pipeline::forward_plus
 					   barrier::buf_uav_to_indirect(&sort_buffer),
 					   barrier::buf_uav_to_indirect(&frame_data_rw_buffer));
 
+
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+		auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_load_preserve(h_depth_buffer_dsv_desc);
+
+		cmd_list.BeginRenderPass(
+			1,
+			&render_pass_rt_desc,
+			&render_pass_ds_desc,
+			D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_DEPTH);
+
 		cmd_list.SetPipelineState(p_pso_draw);
 
 		cmd_list.ExecuteIndirect(
@@ -577,6 +587,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			TRANSPARENT_INDIRECT_ARG_OFFSET * sizeof(uint32),							   // argument buffer byte offset
 			&frame_data_rw_buffer,														   // count buffer
 			offsetof(shared_type::frame_data_rw, not_culled_transparent_object_count));	   // count buffer bytes offset
+
+
+		cmd_list.EndRenderPass();
 	}
 
 	inline void
@@ -610,8 +623,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto ms_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(shader::e::engine_shader_kind::forward_plus_presentation_ms) });
 
 		auto&& [ps_byte_code, back_buffer_rt_format] = [&]() {
-			auto space = global::get<graphics::interface>().display_color_space();
-			switch (space)
+			switch (graphics::i_color.get_display_color_space())
 			{
 			case color_space::srgb:
 				return std::tuple{

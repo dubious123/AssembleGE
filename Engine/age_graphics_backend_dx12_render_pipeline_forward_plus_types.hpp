@@ -74,7 +74,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"frame_data_rw_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::frame_data_rw>,
+			what::structured_buffer<shared_type::frame_data_rw>,
 			how::root_descriptor,
 			where::t<5, 0>>,
 
@@ -82,7 +82,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"frame_data_rw_buffer_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer_array<shared_type::frame_data_rw>,
+			what::rw_structured_buffer<shared_type::frame_data_rw>,
 			how::root_descriptor,
 			where::u<5, 0>>,
 

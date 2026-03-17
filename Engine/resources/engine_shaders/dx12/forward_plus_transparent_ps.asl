@@ -23,8 +23,8 @@ calc_blinn_phong_directional_light_color(directional_light light, float3 surface
 	const float3 surface_to_light = -light.direction;
 	const float3 half_dir		  = normalize(surface_to_light + view_dir);
 
-	const float diffuse	  = saturate(dot(surface_normal, surface_to_light));
-	float		specular  = saturate(dot(surface_normal, half_dir));
+	const float diffuse	  = saturate(abs(dot(surface_normal, surface_to_light)));
+	float		specular  = saturate(abs(dot(surface_normal, half_dir)));
 	specular			 *= specular;	 // 2
 	specular			 *= specular;	 // 4
 	specular			 *= specular;	 // 8
@@ -57,8 +57,8 @@ calc_blinn_phong_light_color(unified_light light, float3 surface_pos, float3 sur
 
 	const float3 half_dir = normalize(surface_to_light_dir + view_dir);
 
-	const float diffuse	  = saturate(dot(surface_normal, surface_to_light_dir));
-	float		specular  = saturate(dot(surface_normal, half_dir));
+	const float diffuse	  = saturate(abs(dot(surface_normal, surface_to_light_dir)));
+	float		specular  = saturate(abs(dot(surface_normal, half_dir)));
 	specular			 *= specular;	 // 2
 	specular			 *= specular;	 // 4
 	specular			 *= specular;	 // 8
@@ -286,7 +286,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
 		}
 
-		lighting += shadow * contact * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
+		// lighting += shadow * contact * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
+		lighting += calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
 		// lighting += contact * shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
 		// lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
 	}
@@ -331,8 +332,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	// return float4(lighting * albedo, 1.0f);
 
-	uint32 light_count	= 0;
-	uint32 shadow_count = 0;
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
 		uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
@@ -363,21 +362,10 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 				// contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
 				// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
-
-				if (shadow == 0)
-				{
-					++shadow_count;
-				}
 			}
 
-			float3 add_light = shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
-
-			if (any(add_light))
-			{
-				++light_count;
-			}
-
-			lighting += shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+			// lighting += shadow * contact * calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+			lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
 		}
 	}
 
@@ -405,5 +393,5 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// return float4(color, 1);
 	// return float4(light_count / 4.f, 0, 0, 1);
 	// return float4(0, 0, shadow_count / 8.f, 1);
-	return float4(lighting * albedo, 1.0f);
+	return float4(lighting * albedo, 0.5f);
 }

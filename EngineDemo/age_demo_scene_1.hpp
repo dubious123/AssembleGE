@@ -3,63 +3,9 @@
 
 namespace age_demo::scene_1
 {
-	namespace input::g
+	struct
 	{
-		inline constexpr auto move_speed	= 2.f;
-		inline constexpr auto sprint_mult	= 4.f;
-		inline constexpr auto sensitivity	= 0.003f;
-		inline constexpr auto zoom_speed	= 2.f;
-		inline constexpr auto zoom_distance = 4.f;
-		inline constexpr auto pan_speed		= 0.6f;
-
-		inline constexpr auto move_smoothing = 15.f / 2.f;
-		inline constexpr auto look_smoothing = 25.f / 2.f;
-		inline constexpr auto zoom_smoothing = 12.f / 2.f;
-	}	 // namespace input::g
-
-	struct ctx
-	{
-		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
-			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(1);
-
-		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
-			obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
-
-		age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>
-			camera_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
-
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
-
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
-
-		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
-			directional_light_id_vec;
-
-		// input
-		struct
-		{
-			float euler_x = 0.f;
-			float euler_y = 0.f;
-
-			float2 smoothed_move = float2{ 0.f, 0.f };
-			float2 smoothed_look = float2{ 0.f, 0.f };
-			float  smoothed_zoom = 0.f;
-			float2 smoothed_pan	 = float2{ 0.f, 0.f };
-		} input;
-	};
-
-
-}	 // namespace age_demo::scene_1
-
-namespace age_demo::scene_1
-{
-	template <typename t>
-	struct interface_init
-	{
-		t& data;
-		AGE_GET_PROP(render_pipeline)
+		AGE_GET(render_pipeline, render_pipeline)
 
 		AGE_GET(mesh_id_vec, scene_1_ctx.mesh_id_vec)
 		AGE_GET(obj_id_vec, scene_1_ctx.obj_id_vec)
@@ -74,21 +20,19 @@ namespace age_demo::scene_1
 		AGE_SET(smoothed_look, scene_1_ctx.input.smoothed_look)
 		AGE_SET(smoothed_zoom, scene_1_ctx.input.smoothed_zoom)
 		AGE_SET(smoothed_pan, scene_1_ctx.input.smoothed_pan)
-	};
+	} i_init;
 
-	template <typename t>
-	struct interface_loop
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(render_pipeline)
-		AGE_GET_PROP(h_render_surface)
+		AGE_GET(render_pipeline, render_pipeline)
+		AGE_GET(h_render_surface, h_render_surface)
 
-		AGE_GET_PROP(sprint)
-		AGE_GET_PROP(move)
-		AGE_GET_PROP(zoom)
-		AGE_GET_PROP(look)
-		AGE_GET_PROP(right_mouse_down)
-		AGE_GET_PROP(middle_mouse_down)
+		AGE_GET(sprint, sprint)
+		AGE_GET(move, move)
+		AGE_GET(zoom, zoom)
+		AGE_GET(look, look)
+		AGE_GET(right_mouse_down, right_mouse_down)
+		AGE_GET(middle_mouse_down, middle_mouse_down)
 
 		AGE_GET(mesh_id_vec, scene_1_ctx.mesh_id_vec)
 		AGE_GET(obj_id_vec, scene_1_ctx.obj_id_vec)
@@ -100,13 +44,11 @@ namespace age_demo::scene_1
 		AGE_GETSET(smoothed_look, scene_1_ctx.input.smoothed_look)
 		AGE_GETSET(smoothed_zoom, scene_1_ctx.input.smoothed_zoom)
 		AGE_GETSET(smoothed_pan, scene_1_ctx.input.smoothed_pan)
-	};
+	} i_update;
 
-	template <typename t>
-	struct interface_deinit
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(render_pipeline)
+		AGE_GET(render_pipeline, render_pipeline)
 
 		AGE_GET(mesh_id_vec, scene_1_ctx.mesh_id_vec)
 		AGE_GET(obj_id_vec, scene_1_ctx.obj_id_vec)
@@ -114,7 +56,7 @@ namespace age_demo::scene_1
 		AGE_GET(point_light_id_vec, scene_1_ctx.point_light_id_vec)
 		AGE_GET(spot_light_id_vec, scene_1_ctx.spot_light_id_vec)
 		AGE_GET(directional_light_id_vec, scene_1_ctx.directional_light_id_vec)
-	};
+	} i_deinit;
 }	 // namespace age_demo::scene_1
 
 namespace age_demo::scene_1

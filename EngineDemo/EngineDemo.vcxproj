@@ -52,11 +52,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_demo.hpp" />
+    <ClInclude Include="age_demo_fwd.hpp" />
     <ClInclude Include="age_demo_game.hpp" />
-    <ClInclude Include="age_demo_global.hpp" />
     <ClInclude Include="age_demo_pch.hpp" />
     <ClInclude Include="age_demo_scene_0.hpp" />
     <ClInclude Include="age_demo_scene_1.hpp" />
+    <ClInclude Include="age_demo_scene_2.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

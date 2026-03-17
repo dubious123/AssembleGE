@@ -3,50 +3,39 @@
 
 namespace age::runtime
 {
-	template <typename t>
-	struct interface
+	struct
 	{
-	  private:
-		no_unique_addr t data;
+		AGE_GET(running, running)
+	} i;
 
-	  public:
-		constexpr interface(auto&& arg) noexcept : data(FWD(arg)) { }
-
-		AGE_PROP(now)
-
-		AGE_PROP(delta_time_ns)
-
-		AGE_PROP(running)
-
-		AGE_PROP(frame_count)
+	struct
+	{
+		AGE_GET(now, now)
+		AGE_GET(delta_time_ns, delta_time_ns)
+		AGE_GET(frame_count, frame_count)
 
 		FORCE_INLINE constexpr float
-		delta_time_s() noexcept
+		get_delta_time_s() noexcept
 		{
-			return std::chrono::duration<float>(delta_time_ns()).count();
+			return std::chrono::duration<float>(get_delta_time_ns()).count();
 		}
+	} i_time;
 
-		// FORCE_INLINE constexpr decltype((data.now))
-		// now()
-		//{
-		//	return data.now;
-		// }
+	struct
+	{
+		AGE_GETSET(now, now)
+	} i_init;
 
-		// FORCE_INLINE constexpr decltype((data.delta_time_ns))
-		// delta_time_ns()
-		//{
-		//	return data.delta_time_ns;
-		// }
+	struct
+	{
+		AGE_GETSET(now, now)
+		AGE_SET(delta_time_ns, delta_time_ns)
+	} i_update;
 
-		// FORCE_INLINE constexpr bool&
-		// running()
-		//{
-		//	return data.running;
-		// }
-	};
-
-	template <typename t>
-	interface(t&&) -> interface<t>;
+	struct
+	{
+		AGE_GETSET(now, now)
+	} i_deinit;
 
 	FORCE_INLINE bool
 	is_handle_invalid(auto&& any_handle) noexcept

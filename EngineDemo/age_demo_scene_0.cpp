@@ -7,18 +7,16 @@ namespace age_demo::scene_0
 	init() noexcept
 	{
 		using namespace age::ecs::system;
-		auto i_ctx = global::get<interface_init>();
-
 		on_ctx{
 			AGE_LAMBDA(
 				(),
 				{
-					i_ctx.set_euler_x(0.f);
-					i_ctx.set_euler_y(0.f);
-					i_ctx.set_smoothed_move(float2{ 0.f, 0.f });
-					i_ctx.set_smoothed_look(float2{ 0.f, 0.f });
-					i_ctx.set_smoothed_zoom(0.f);
-					i_ctx.set_smoothed_pan(float2{ 0.f, 0.f });
+					i_init.set_euler_x(0.f);
+					i_init.set_euler_y(0.f);
+					i_init.set_smoothed_move(float2{ 0.f, 0.f });
+					i_init.set_smoothed_look(float2{ 0.f, 0.f });
+					i_init.set_smoothed_zoom(0.f);
+					i_init.set_smoothed_pan(float2{ 0.f, 0.f });
 				}),
 
 			identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
@@ -30,15 +28,15 @@ namespace age_demo::scene_0
 				.perspective{
 					.fov_y		  = age::cvt_to_radian(75.f),
 					.aspect_ratio = 16.f / 9.f } } }
-				| AGE_FUNC(i_ctx.get_render_pipeline().add_camera)
-				| AGE_FUNC(i_ctx.get_camera_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->add_camera)
+				| AGE_FUNC(i_init.get_camera_id_vec->emplace_back),
 
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
 				.intensity = 0.3f,
 				.color	   = float3{ 1.0f, 0.95f, 0.85f } } }
-				| AGE_FUNC(i_ctx.get_render_pipeline().add_directional_light)
-				| AGE_FUNC(i_ctx.get_directional_light_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->add_directional_light)
+				| AGE_FUNC(i_init.get_directional_light_id_vec->emplace_back),
 
 			AGE_LAMBDA(
 				(),
@@ -55,8 +53,8 @@ namespace age_demo::scene_0
 
 					for (auto i = 0; i < light_count; ++i)
 					{
-						i_ctx.get_point_light_id_vec().emplace_back(
-							i_ctx.get_render_pipeline().add_point_light(
+						i_init.get_point_light_id_vec->emplace_back(
+							i_init.get_render_pipeline->add_point_light(
 								age::graphics::render_pipeline::forward_plus::point_light_desc{
 									.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
 									.range	  = range,
@@ -75,8 +73,8 @@ namespace age_demo::scene_0
 				.color	   = float3{ 1.0f, 0.9f, 0.6f },
 				.cos_inner = 0.96f,
 				.cos_outer = 0.87f } }
-				| AGE_FUNC(i_ctx.get_render_pipeline().add_spot_light)
-				| AGE_FUNC(i_ctx.get_spot_light_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)
+				| AGE_FUNC(i_init.get_spot_light_id_vec->emplace_back),
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
@@ -85,8 +83,8 @@ namespace age_demo::scene_0
 				.mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_ctx.get_render_pipeline().upload_mesh)
-				| AGE_FUNC(i_ctx.get_mesh_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
+				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
@@ -95,8 +93,8 @@ namespace age_demo::scene_0
 				.mesh_kind = age::asset::e::primitive_mesh_kind::plane } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_ctx.get_render_pipeline().upload_mesh)
-				| AGE_FUNC(i_ctx.get_mesh_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
+				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
@@ -105,8 +103,8 @@ namespace age_demo::scene_0
 				.mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_ctx.get_render_pipeline().upload_mesh)
-				| AGE_FUNC(i_ctx.get_mesh_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
+				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
 
 
 			AGE_LAMBDA(
@@ -120,7 +118,7 @@ namespace age_demo::scene_0
 							.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
 						};
 
-						i_ctx.get_obj_id_vec().emplace_back(i_ctx.get_render_pipeline().add_object(data));
+						i_init.get_obj_id_vec->emplace_back(i_init.get_render_pipeline->add_object(data));
 					}
 				}),
 			exec_inline{}
@@ -130,37 +128,35 @@ namespace age_demo::scene_0
 	FORCE_INLINE decltype(auto)
 	update() noexcept
 	{
-		auto i_ctx = global::get<interface_loop>();
-
 		c_auto dt_s = std::max(
-			age::global::get<age::runtime::interface>().delta_time_s(),
+			age::runtime::i_time.get_delta_time_s(),
 			1.f / 160);
 
-		c_auto speed	= i_ctx.get_sprint() ? input::g::move_speed * input::g::sprint_mult : input::g::move_speed;
-		auto   cam_desc = i_ctx.get_render_pipeline().get_camera_desc(i_ctx.get_camera_id_vec()[0]);
+		c_auto speed	= i_update.get_sprint ? input::g::move_speed * input::g::sprint_mult : input::g::move_speed;
+		auto   cam_desc = i_update.get_render_pipeline->get_camera_desc(i_update.get_camera_id_vec[0]);
 
 
 		c_auto move_smoothing_factor = 1.f - std::exp(-input::g::move_smoothing * dt_s);
 		c_auto look_smoothing_factor = 1.f - std::exp(-input::g::look_smoothing * dt_s);
 		c_auto zoom_smoothing_factor = 1.f - std::exp(-input::g::zoom_smoothing * dt_s);
 
-		i_ctx.set_smoothed_move() = age::math::lerp(i_ctx.get_smoothed_move(), i_ctx.get_move(), move_smoothing_factor);
+		i_update.set_smoothed_move = age::math::lerp(i_update.get_smoothed_move(), i_update.get_move(), move_smoothing_factor);
 
-		i_ctx.set_smoothed_zoom() = age::math::lerp(i_ctx.get_smoothed_zoom(), i_ctx.get_zoom(), zoom_smoothing_factor);
+		i_update.set_smoothed_zoom = age::math::lerp(i_update.get_smoothed_zoom(), i_update.get_zoom(), zoom_smoothing_factor);
 
-		auto look_target		  = i_ctx.get_right_mouse_down() ? i_ctx.get_look() : float2{ 0.f, 0.f };
-		i_ctx.set_smoothed_look() = age::math::lerp(i_ctx.get_smoothed_look(), look_target, look_smoothing_factor);
+		auto look_target		   = i_update.get_right_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
+		i_update.set_smoothed_look = age::math::lerp(i_update.get_smoothed_look(), look_target, look_smoothing_factor);
 
-		auto pan_target			 = i_ctx.get_middle_mouse_down() ? i_ctx.get_look() : float2{ 0.f, 0.f };
-		i_ctx.set_smoothed_pan() = age::math::lerp(i_ctx.get_smoothed_pan(), pan_target, look_smoothing_factor);
+		auto pan_target			  = i_update.get_middle_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
+		i_update.set_smoothed_pan = age::math::lerp(i_update.get_smoothed_pan(), pan_target, look_smoothing_factor);
 
-		i_ctx.set_euler_y() = i_ctx.get_euler_y() + i_ctx.get_smoothed_look().x * input::g::sensitivity;
+		i_update.set_euler_y = i_update.get_euler_y() + i_update.get_smoothed_look->x * input::g::sensitivity;
 
-		i_ctx.set_euler_x() = i_ctx.get_euler_x() + i_ctx.get_smoothed_look().y * input::g::sensitivity;
+		i_update.set_euler_x = i_update.get_euler_x() + i_update.get_smoothed_look->y * input::g::sensitivity;
 
-		i_ctx.set_euler_x() = std::clamp(i_ctx.get_euler_x(), -89.f * age::g::degree_to_radian, 89.f * age::g::degree_to_radian);
+		i_update.set_euler_x = std::clamp(i_update.get_euler_x(), -89.f * age::g::degree_to_radian, 89.f * age::g::degree_to_radian);
 
-		c_auto xm_look_quat = float3{ i_ctx.get_euler_x(), i_ctx.get_euler_y(), 0.f }
+		c_auto xm_look_quat = float3{ i_update.get_euler_x(), i_update.get_euler_y(), 0.f }
 							| age::simd::load()
 							| age::simd::euler_to_quat();
 
@@ -174,66 +170,64 @@ namespace age_demo::scene_0
 					   | age::simd::rotate3(xm_look_quat)
 					   | age::simd::to<float3>();
 
-		cam_desc.pos -= right * i_ctx.get_smoothed_pan().x * input::g::pan_speed * dt_s;
-		cam_desc.pos += up * i_ctx.get_smoothed_pan().y * input::g::pan_speed * dt_s;
-		cam_desc.pos += forward * i_ctx.get_smoothed_zoom() * input::g::zoom_speed;
-		cam_desc.pos += (right * i_ctx.get_smoothed_move().x + forward * i_ctx.get_smoothed_move().y) * speed * dt_s;
+		cam_desc.pos -= right * i_update.get_smoothed_pan->x * input::g::pan_speed * dt_s;
+		cam_desc.pos += up * i_update.get_smoothed_pan->y * input::g::pan_speed * dt_s;
+		cam_desc.pos += forward * i_update.get_smoothed_zoom() * input::g::zoom_speed;
+		cam_desc.pos += (right * i_update.get_smoothed_move->x + forward * i_update.get_smoothed_move->y) * speed * dt_s;
 
 		cam_desc.quaternion = xm_look_quat | age::simd::to<float4>();
 
-		i_ctx.get_render_pipeline().update_camera(i_ctx.get_camera_id_vec()[0], cam_desc);
+		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 
-		if (i_ctx.get_render_pipeline().begin_render(i_ctx.get_h_render_surface()))
+		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface()))
 		{
-			for (auto&& [i, obj_id] : i_ctx.get_obj_id_vec() | std::views::enumerate)
+			for (auto&& [i, obj_id] : i_update.get_obj_id_vec() | std::views::enumerate)
 			{
-				i_ctx.get_render_pipeline().render_mesh(obj_id % age::graphics::g::thread_count, obj_id, i_ctx.get_mesh_id_vec()[i % i_ctx.get_mesh_id_vec().size()]);
+				i_update.get_render_pipeline->render_mesh(obj_id % age::graphics::g::thread_count, obj_id, i_update.get_mesh_id_vec()[i % i_update.get_mesh_id_vec->size()]);
 			}
 
-			i_ctx.get_render_pipeline().end_render(i_ctx.get_h_render_surface());
+			i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 		}
 	}
 
 	FORCE_INLINE decltype(auto)
 	deinit() noexcept
 	{
-		auto i_ctx = global::get<interface_deinit>();
-
-		for (auto o_id : i_ctx.get_obj_id_vec())
+		for (auto o_id : i_deinit.get_obj_id_vec())
 		{
-			i_ctx.get_render_pipeline().remove_object(o_id);
+			i_deinit.get_render_pipeline->remove_object(o_id);
 		}
 
-		for (auto m_id : i_ctx.get_mesh_id_vec() | std::views::reverse)
+		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
 		{
-			i_ctx.get_render_pipeline().release_mesh(m_id);
+			i_deinit.get_render_pipeline->release_mesh(m_id);
 		}
 
-		for (auto c_id : i_ctx.get_camera_id_vec())
+		for (auto c_id : i_deinit.get_camera_id_vec())
 		{
-			i_ctx.get_render_pipeline().remove_camera(c_id);
+			i_deinit.get_render_pipeline->remove_camera(c_id);
 		}
 
-		for (auto l_id : i_ctx.get_point_light_id_vec())
+		for (auto l_id : i_deinit.get_point_light_id_vec())
 		{
-			i_ctx.get_render_pipeline().remove_point_light(l_id);
+			i_deinit.get_render_pipeline->remove_point_light(l_id);
 		}
 
-		for (auto l_id : i_ctx.get_spot_light_id_vec())
+		for (auto l_id : i_deinit.get_spot_light_id_vec())
 		{
-			i_ctx.get_render_pipeline().remove_spot_light(l_id);
+			i_deinit.get_render_pipeline->remove_spot_light(l_id);
 		}
 
-		for (auto d_id : i_ctx.get_directional_light_id_vec())
+		for (auto d_id : i_deinit.get_directional_light_id_vec())
 		{
-			i_ctx.get_render_pipeline().remove_directional_light(d_id);
+			i_deinit.get_render_pipeline->remove_directional_light(d_id);
 		}
 
-		i_ctx.get_obj_id_vec().clear();
-		i_ctx.get_mesh_id_vec().clear();
-		i_ctx.get_camera_id_vec().clear();
-		i_ctx.get_point_light_id_vec().clear();
-		i_ctx.get_spot_light_id_vec().clear();
-		i_ctx.get_directional_light_id_vec().clear();
+		i_deinit.get_obj_id_vec->clear();
+		i_deinit.get_mesh_id_vec->clear();
+		i_deinit.get_camera_id_vec->clear();
+		i_deinit.get_point_light_id_vec->clear();
+		i_deinit.get_spot_light_id_vec->clear();
+		i_deinit.get_directional_light_id_vec->clear();
 	}
 }	 // namespace age_demo::scene_0

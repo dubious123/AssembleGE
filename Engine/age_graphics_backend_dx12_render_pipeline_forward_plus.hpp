@@ -210,6 +210,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_tile_mask_buffer;
 		resource_handle h_shadow_atlas;
 		resource_handle h_unified_sorted_light_buffer;
+		resource_handle h_frame_data_rw_buffer;
 		resource_handle h_shadow_light_buffer;
 
 
@@ -219,7 +220,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_mesh_buffer;
 		resource::mapping_handle h_mapping_directional_light_buffer;
 		resource::mapping_handle h_mapping_unified_light_buffer;
-		resource::mapping_handle h_mapping_frame_data_rw_buffer;
 		resource::mapping_handle h_mapping_shadow_light_header_buffer;
 		resource::mapping_handle h_mapping_transparent_object_render_data_buffer;
 		resource::mapping_handle h_mapping_debug_buffer_uav;

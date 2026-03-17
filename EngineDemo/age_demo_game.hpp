@@ -1,6 +1,11 @@
 #pragma once
 #include "age_demo.hpp"
 
+namespace age_demo::game::g
+{
+	inline constexpr auto first_scene_idx = 2;
+}
+
 namespace age_demo::game
 {
 	FORCE_INLINE void
@@ -24,56 +29,46 @@ namespace age_demo::game
 
 namespace age_demo::game
 {
-	template <typename t>
-	struct interface_input
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(h_input_ctx)
-		AGE_SET_PROP(move)
-		AGE_SET_PROP(look)
-		AGE_SET_PROP(zoom)
-		AGE_SET_PROP(sprint)
-		AGE_SET_PROP(right_mouse_down)
-		AGE_SET_PROP(middle_mouse_down)
-	};
+		AGE_GET(h_input_ctx, h_input_ctx)
+		AGE_SET(move, move)
+		AGE_SET(look, look)
+		AGE_SET(zoom, zoom)
+		AGE_SET(sprint, sprint)
+		AGE_SET(right_mouse_down, right_mouse_down)
+		AGE_SET(middle_mouse_down, middle_mouse_down)
+	} i_input;
 
-	template <typename t>
-	struct interface_scene
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(scene_0_ctx)
-		AGE_GET_PROP(scene_1_ctx)
-		AGE_GET_PROP(scene_id_next)
-		AGE_GETSET_PROP(scene_id)
-	};
+		AGE_GET(scene_0_ctx, scene_0_ctx)
+		AGE_GET(scene_1_ctx, scene_1_ctx)
+		AGE_GET(scene_id_next, scene_id_next)
+		AGE_GETSET(scene_id, scene_id)
+	} i_scene;
 
-	template <typename t>
-	struct interface_init
+	struct
 	{
-		t& data;
-		AGE_SET_PROP(scene_id)
-		AGE_SET_PROP(scene_id_next)
-		AGE_GETSET_PROP(h_window)
-		AGE_SET_PROP(h_render_surface)
-		AGE_SET_PROP(h_input_ctx)
-		AGE_GET_PROP(render_pipeline)
-	};
+		AGE_SET(scene_id, scene_id)
+		AGE_SET(scene_id_next, scene_id_next)
+		AGE_GETSET(h_window, h_window)
+		AGE_SET(h_render_surface, h_render_surface)
+		AGE_SET(h_input_ctx, h_input_ctx)
+		AGE_GET(render_pipeline, render_pipeline)
+	} i_init;
 
-	template <typename t>
-	struct interface_deinit
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(scene_id)
-		AGE_GET_PROP(render_pipeline)
-	};
+		AGE_GET(scene_id, scene_id)
+		AGE_GET(render_pipeline, render_pipeline)
+	} i_deinit;
 
-	template <typename t>
-	struct interface_loop
+	struct
 	{
-		t& data;
-		AGE_GET_PROP(scene_id)
-		AGE_SET_PROP(scene_id_next)
-		AGE_GET_PROP(h_input_ctx)
-		AGE_GET_PROP(h_window)
-	};
+		AGE_GETSET(scene_id, scene_id)
+		AGE_GETSET(scene_id_next, scene_id_next)
+		AGE_GET(h_input_ctx, h_input_ctx)
+		AGE_GET(h_window, h_window)
+	} i_loop;
 }	 // namespace age_demo::game

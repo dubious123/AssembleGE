@@ -19,12 +19,8 @@ namespace age::global
 		graphics::color_space display_color_space = graphics::color_space::hdr;
 	};
 
-	inline state g_state;
-
-	template <template <typename> typename t_interface>
-	FORCE_INLINE decltype(auto)
-	get() noexcept
+	namespace detail
 	{
-		return t_interface{ g_state };
+		inline state ctx;
 	}
 }	 // namespace age::global

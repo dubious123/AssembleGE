@@ -16,7 +16,7 @@ namespace age::graphics
 
 			auto dxgi_format = DXGI_FORMAT{};
 			{
-				switch (global::get<interface>().display_color_space())
+				switch (i_color.get_display_color_space())
 				{
 				case color_space::srgb:
 					dxgi_format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -77,7 +77,7 @@ namespace age::graphics
 
 		AGE_ASSERT(present_waitable_obj != NULL);
 
-		if (global::get<interface>().display_color_space() == color_space::hdr)
+		if (i_color.get_display_color_space() == color_space::hdr)
 		{
 			c_auto color_space = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 
@@ -89,7 +89,7 @@ namespace age::graphics
 
 			AGE_HR_CHECK(p_swap_chain->SetColorSpace1(color_space));
 		}
-		else if (global::get<interface>().display_color_space() == color_space::srgb)
+		else if (i_color.get_display_color_space() == color_space::srgb)
 		{
 			c_auto color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 
@@ -168,13 +168,13 @@ namespace age::graphics
 		{
 			AGE_HR_CHECK(p_swap_chain->GetBuffer(idx, IID_PPV_ARGS(&back_buffer_ptr_arr[idx])));
 
-			if (global::get<interface>().display_color_space() == color_space::hdr)
+			if (i_color.get_display_color_space() == color_space::hdr)
 			{
 				AGE_ASSERT(defaults::rtv_view_desc::hdr10_2d.Format == rtv_format);
 
 				resource::create_view(*back_buffer_ptr_arr[idx], rtv_desc_handle_arr[idx], defaults::rtv_view_desc::hdr10_2d);
 			}
-			else if (global::get<interface>().display_color_space() == color_space::srgb)
+			else if (i_color.get_display_color_space() == color_space::srgb)
 			{
 				AGE_ASSERT(defaults::rtv_view_desc::srgb_2d.Format == rtv_format);
 

@@ -7,6 +7,9 @@
 #line 1 "age_demo_scene_1.cpp"
 #include "age_demo_scene_1.cpp"
 
+#line 1 "age_demo_scene_2.cpp"
+#include "age_demo_scene_2.cpp"
+
 #line 1 "age_demo_game.cpp"
 #include "age_demo_game.cpp"
 

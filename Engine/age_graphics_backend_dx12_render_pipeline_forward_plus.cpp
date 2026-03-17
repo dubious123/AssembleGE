@@ -35,13 +35,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_transparent_object_render_data_buffer = resource::create_buffer_committed(sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * graphics::g::frame_buffer_count);
 
-			h_mapping_frame_data_rw_buffer = resource::create_buffer_committed(
-				sizeof(shared_type::frame_data_rw) * graphics::g::frame_buffer_count,
-				nullptr,
-				resource::e::memory_kind::cpu_to_gpu_direct,
-				D3D12_BARRIER_LAYOUT_UNDEFINED,
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
 			h_mapping_debug_buffer_uav = resource::create_buffer_committed(
 				sizeof(shared_type::debug_77) * graphics::g::frame_buffer_count,
 				nullptr,
@@ -75,6 +68,12 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 				  .heap_memory_kind = resource::e::memory_kind::gpu_only,
 				  .has_clear_value	= true });
+
+			h_frame_data_rw_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::frame_data_rw)),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
 
 			h_shadow_light_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_shadow_light_count * sizeof(shared_type::shadow_light)),
@@ -110,14 +109,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 1, 1);
 			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 2, 2);
 
-			frame_data_rw_buffer_uav.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 0, 0);
-			frame_data_rw_buffer_uav.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 1, 1);
-			frame_data_rw_buffer_uav.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 2, 2);
-
-			frame_data_rw_buffer_srv.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 0, 0);
-			frame_data_rw_buffer_srv.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 1, 1);
-			frame_data_rw_buffer_srv.bind(h_mapping_frame_data_rw_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data_rw) * 2, 2);
-
 			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 0, 0);
 			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 1, 1);
 			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 2, 2);
@@ -135,6 +126,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			unified_sorted_light_buffer_uav.bind(h_unified_sorted_light_buffer->p_resource->GetGPUVirtualAddress());
 			unified_sorted_light_buffer_srv.bind(h_unified_sorted_light_buffer->p_resource->GetGPUVirtualAddress());
+
+			frame_data_rw_buffer_uav.bind(h_frame_data_rw_buffer->p_resource->GetGPUVirtualAddress());
+			frame_data_rw_buffer_srv.bind(h_frame_data_rw_buffer->p_resource->GetGPUVirtualAddress());
 
 			shadow_light_buffer_srv.bind(h_shadow_light_buffer->p_resource->GetGPUVirtualAddress());
 			shadow_light_buffer_uav.bind(h_shadow_light_buffer->p_resource->GetGPUVirtualAddress());
@@ -176,6 +170,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_zbin_buffer->p_resource->SetName(L"zbin_buffer");
 		h_tile_mask_buffer->p_resource->SetName(L"tile_mask_buffer");
 		h_unified_sorted_light_buffer->p_resource->SetName(L"unified_sorted_light_buffer");
+		h_frame_data_rw_buffer->p_resource->SetName(L"frame_data_rw_buffer");
 		h_shadow_light_buffer->p_resource->SetName(L"shadow_light_buffer");
 
 
@@ -185,7 +180,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_mapping_mesh_buffer->h_resource->p_resource->SetName(L"mapping_mesh_buffer");
 		h_mapping_directional_light_buffer->h_resource->p_resource->SetName(L"mapping_directional_light_buffer");
 		h_mapping_unified_light_buffer->h_resource->p_resource->SetName(L"mapping_unified_light_buffer");
-		h_mapping_frame_data_rw_buffer->h_resource->p_resource->SetName(L"mapping_frame_data_rw_buffer");
 		h_mapping_shadow_light_header_buffer->h_resource->p_resource->SetName(L"mapping_shadow_light_header_buffer");
 
 		h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->SetName(L"transparent_object_render_data_buffer");
@@ -225,7 +219,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource::unmap_and_release(h_mapping_directional_light_buffer);
 		resource::unmap_and_release(h_mapping_unified_light_buffer);
-		resource::unmap_and_release(h_mapping_frame_data_rw_buffer);
 
 		resource::unmap_and_release(h_mapping_transparent_object_render_data_buffer);
 
@@ -243,6 +236,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_tile_mask_buffer);
 
 		resource::release_resource(h_unified_sorted_light_buffer);
+
+		resource::release_resource(h_frame_data_rw_buffer);
 
 		resource::release_resource(h_shadow_atlas);
 		resource::release_resource(h_shadow_light_buffer);
@@ -467,7 +462,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				// todo multiple camera
 				c_auto& cam_data = camera_data_vec[0];
-				c_auto	dt_ns	 = age::global::get<runtime::interface>().delta_time_ns();
+				c_auto	dt_ns	 = runtime::i_time.get_delta_time_ns();
 				c_auto	dt_ms	 = std::chrono::duration<float, std::milli>(dt_ns).count();
 
 				auto frame_d = shared_type::frame_data{
@@ -478,7 +473,7 @@ namespace age::graphics::render_pipeline::forward_plus
 					.inv_backbuffer_size	 = float2{ 1.f / extent.width, 1.f / extent.height },
 					.backbuffer_size		 = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
 					.camera_forward			 = cam_data.forward,
-					.frame_index			 = age::global::get<runtime::interface>().frame_count(),
+					.frame_index			 = runtime::i_time.get_frame_count(),
 					.camera_right			 = cam_data.right,
 					.main_buffer_texture_id	 = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
 					.depth_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
@@ -515,7 +510,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_init.execute(cmd_list, light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count);
 
 		apply_barriers(cmd_list,
-					   barrier::buf_uav_to_uav(h_mapping_frame_data_rw_buffer->h_resource->p_resource),
+					   barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource),
 					   barrier::buf_uav_to_uav(h_tile_mask_buffer->p_resource),
 					   barrier::buf_uav_to_uav(h_zbin_buffer->p_resource));
 
@@ -531,7 +526,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			extent.height,
 			next_shadow_light_id,
 			shadow_light_header_count,
-			*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+			*h_frame_data_rw_buffer->p_resource,
 			*h_shadow_light_buffer->p_resource,
 			shadow_light_buffer_srv,
 			opaque_meshlet_render_data_count);
@@ -548,7 +543,7 @@ namespace age::graphics::render_pipeline::forward_plus
 									light_tile_count_x,
 									light_tile_count_y,
 									*h_unified_sorted_light_buffer->p_resource,
-									*h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+									*h_frame_data_rw_buffer->p_resource,
 									frame_data_rw_buffer_srv,
 									*h_sort_buffer->p_resource,
 									sort_buffer_srv,
@@ -561,7 +556,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
 
 			// handled by light_culling_stage
-			// barrier::buf_uav_to_srv(h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+			// barrier::buf_uav_to_srv(h_frame_data_rw_buffer->p_resource,
 			//								  D3D12_BARRIER_SYNC_PIXEL_SHADING),
 		);
 
@@ -571,13 +566,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_opaque.execute(cmd_list, opaque_meshlet_render_data_count);
 
 		apply_barriers(cmd_list,
-					   barrier::buf_srv_to_uav(h_mapping_frame_data_rw_buffer->h_resource->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+					   barrier::buf_srv_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 					   barrier::buf_srv_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		stage_transparent.execute(cmd_list,
 								  *h_sort_buffer->p_resource,
 								  sort_buffer_srv,
-								  *h_mapping_frame_data_rw_buffer->h_resource->p_resource,
+								  *h_frame_data_rw_buffer->p_resource,
 								  frame_data_rw_buffer_srv);
 
 
@@ -606,10 +601,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			// }
 
 			// std::println("{}", std::span{ ptr->tile_bit_mask_arr });
-
-			// auto* ptr2 = (shared_type::frame_data_rw*)h_mapping_frame_data_rw_buffer->ptr + graphics::g::frame_buffer_idx;
-			// std::println("ptr2->z_min : {}, ptr2->z_max: {}", std::bit_cast<float>(ptr2->z_min), std::bit_cast<float>(ptr2->z_max));
-			// std::println("ptr2->cascade_splits : {}", ptr2->cascade_splits[0]);
 		}
 	}
 

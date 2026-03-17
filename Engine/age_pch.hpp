@@ -1,8 +1,8 @@
 #pragma once
 #include "age_config.hpp"
-#include "age_macro.h"
 #include "age_macro_pp.h"
 #include "age_macro_pp_foreach.h"
+#include "age_macro.h"
 
 #include "age_external.h"
 

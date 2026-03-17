@@ -283,4 +283,40 @@ namespace age::util
 	{
 		self.data = FWD(val);
 	}
+
+	template <typename t>
+	struct getter
+	{
+		t& data;
+
+		FORCE_INLINE
+		operator t&() noexcept
+		{
+			return data;
+		}
+
+		FORCE_INLINE
+		operator const t&() const noexcept
+		{
+			return data;
+		}
+
+		FORCE_INLINE auto*
+		operator->() noexcept
+		{
+			return &data;
+		}
+
+		FORCE_INLINE c_auto*
+		operator->() const noexcept
+		{
+			return &data;
+		}
+
+		decltype(auto)
+		operator[](auto&&... arg) noexcept
+		{
+			return data[FWD(arg)...];
+		}
+	};
 }	 // namespace age::util
