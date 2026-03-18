@@ -44,7 +44,7 @@ namespace age::graphics
 	struct cmd_system
 	{
 		ID3D12CommandQueue*		p_cmd_queue = nullptr;
-		t_cmd_list*				cmd_list_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
+		t_cmd_list*				cmd_list_pool[cmd_list_count]{ nullptr };
 		ID3D12CommandAllocator* cmd_allocator_pool[g::frame_buffer_count][cmd_list_count]{ nullptr };
 		ID3D12Fence1*			p_fence		= nullptr;
 		HANDLE					fence_event = nullptr;

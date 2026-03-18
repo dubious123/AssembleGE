@@ -271,7 +271,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::begin_render(render_surface_handle h_rs) noexcept
 	{
 		auto& rs	   = graphics::g::render_surface_vec[h_rs];
-		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[graphics::g::frame_buffer_idx][0];
+		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[0];
 
 		if (rs.should_render is_false) [[unlikely]]
 		{
@@ -396,7 +396,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::end_render(render_surface_handle h_rs) noexcept
 	{
 		auto& rs	   = graphics::g::render_surface_vec[h_rs];
-		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[graphics::g::frame_buffer_idx][0];
+		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[0];
 
 		std::memcpy(
 			h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,

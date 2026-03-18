@@ -50,23 +50,28 @@ namespace age::graphics
 		{
 			for (auto j : std::views::iota(0, cmd_list_count))
 			{
-				AGE_HR_CHECK(g::p_main_device->CreateCommandAllocator(cmd_list_type, IID_PPV_ARGS(&cmd_allocator_pool[i][j])));
+				AGE_HR_CHECK(g::p_main_device->CreateCommandAllocator(
+					cmd_list_type, IID_PPV_ARGS(&cmd_allocator_pool[i][j])));
 
-				AGE_HR_CHECK(g::p_main_device->CreateCommandList(
-					0,
-					cmd_list_type,
-					cmd_allocator_pool[i][j],
-					nullptr,
-					IID_PPV_ARGS(&cmd_list_pool[i][j])));
+				auto cmd_allocator_name = std::format(L"[{}] cmd list allocator[{}][{}]", wstr_type, i, j);
 
-				AGE_HR_CHECK(cmd_list_pool[i][j]->Close());
-
-				auto list_name	= std::format(L"[{}] cmd list[{}][{}]", wstr_type, i, j);
-				auto queue_name = std::format(L"[{}] cmd list allocator[{}][{}]", wstr_type, i, j);
-
-				cmd_list_pool[i][j]->SetName(list_name.c_str());
-				cmd_allocator_pool[i][j]->SetName(queue_name.c_str());
+				cmd_allocator_pool[i][j]->SetName(cmd_allocator_name.c_str());
 			}
+		}
+
+		for (auto j : std::views::iota(0, cmd_list_count))
+		{
+			AGE_HR_CHECK(g::p_main_device->CreateCommandList(
+				0,
+				cmd_list_type,
+				cmd_allocator_pool[0][j],
+				nullptr,
+				IID_PPV_ARGS(&cmd_list_pool[j])));
+
+			AGE_HR_CHECK(cmd_list_pool[j]->Close());
+
+			auto list_name = std::format(L"[{}] cmd list[{}]", wstr_type, j);
+			cmd_list_pool[j]->SetName(list_name.c_str());
 		}
 	}
 
@@ -84,7 +89,7 @@ namespace age::graphics
 		p_fence->Release();
 		::CloseHandle(fence_event);
 
-		for (auto* p_cmd_list : std::views::join(cmd_list_pool))
+		for (auto* p_cmd_list : cmd_list_pool)
 		{
 			p_cmd_list->Release();
 		}
@@ -117,7 +122,7 @@ namespace age::graphics
 		for (auto i : std::views::iota(0, cmd_list_count))
 		{
 			AGE_HR_CHECK(cmd_allocator_pool[g::frame_buffer_idx][i]->Reset());
-			AGE_HR_CHECK(cmd_list_pool[g::frame_buffer_idx][i]->Reset(cmd_allocator_pool[g::frame_buffer_idx][i], nullptr));
+			AGE_HR_CHECK(cmd_list_pool[i]->Reset(cmd_allocator_pool[g::frame_buffer_idx][i], nullptr));
 		}
 	}
 
@@ -129,9 +134,9 @@ namespace age::graphics
 		auto cmd_lists = std::array<ID3D12CommandList*, cmd_list_count>{};
 		for (auto i : std::views::iota(0, cmd_list_count))
 		{
-			AGE_HR_CHECK(cmd_list_pool[g::frame_buffer_idx][i]->Close());
+			AGE_HR_CHECK(cmd_list_pool[i]->Close());
 
-			cmd_lists[i] = cmd_list_pool[g::frame_buffer_idx][i];
+			cmd_lists[i] = cmd_list_pool[i];
 		}
 
 		p_cmd_queue->ExecuteCommandLists(cmd_list_count, cmd_lists.data());
