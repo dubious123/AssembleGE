@@ -123,7 +123,7 @@ namespace age::asset
 	using vertex_pnt_uv3 = detail::vertex_pnt_uv<4>;
 
 	template <typename t_vertex>
-	e::vertex_kind
+	constexpr e::vertex_kind
 	get_vertex_kind() noexcept
 	{
 		if constexpr (std::same_as<t_vertex, vertex_p_uv0>) { return e::vertex_kind::p_uv0; }
@@ -145,6 +145,11 @@ namespace age::asset
 			return -1;
 		}
 	}
+
+	template <typename t>
+	concept cx_baked_vertex = meta::is_specialization_of_nttp_v<t, detail::vertex_p_uv>
+						   or meta::is_specialization_of_nttp_v<t, detail::vertex_pn_uv>
+						   or meta::is_specialization_of_nttp_v<t, detail::vertex_pnt_uv>;
 }	 // namespace age::asset
 
 namespace age::asset
@@ -163,9 +168,7 @@ namespace age::asset
 		auto p	= res.pos;
 		if constexpr (uv_count > 0)
 		{
-			age::cvt_to(
-				v_fat.uv_set[0].data(),
-				reinterpret_cast<half*>(res.uv_set.data() + uv_count), uv_count);
+			age::cvt_to(v_fat.uv_set[0].data(), res.uv_set[0].data(), uv_count * 2);
 		}
 
 		if constexpr (meta::is_specialization_of_nttp_v<t_vertex_to, detail::vertex_p_uv>)
@@ -179,6 +182,7 @@ namespace age::asset
 		{
 			res.normal_oct	= age::cvt_to<oct<int8>>(v_fat.normal, age::cvt_cast_tag{});
 			res.tangent_oct = age::cvt_to<oct<int8>>(v_fat.tangent.xyz, age::cvt_cast_tag{});
+			res.extra		= v_fat.tangent.w > 0.f ? 1 : 0;
 		}
 		else
 		{
@@ -199,6 +203,44 @@ namespace age::asset
 			.tangent = mesh_edit.vertex_attr_vec[v.attribute_idx].tangent,
 			.uv_set	 = mesh_edit.vertex_attr_vec[v.attribute_idx].uv_set
 		};
+	}
+
+	template <typename t_vertex_to, cx_baked_vertex t_vertex_baked>
+	requires std::is_same_v<t_vertex_to, vertex_fat>
+	FORCE_INLINE vertex_fat
+	cvt_vertex_to(const t_vertex_baked& v, float3 aabb_min, float3 aabb_size) noexcept
+	{
+		constexpr auto uv_count = detail::uv_count_v<t_vertex_baked>;
+
+		auto res = vertex_fat{};
+
+		res.pos = age::cvt_to<float3>(v.pos) / 65535.f * aabb_size + aabb_min;
+
+		if constexpr (uv_count > 0)
+		{
+			age::cvt_to(v.uv_set[0].data(), res.uv_set[0].data(), uv_count * 2);
+		}
+
+		if constexpr (meta::is_specialization_of_nttp_v<t_vertex_baked, detail::vertex_p_uv>)
+		{
+		}
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_baked, detail::vertex_pn_uv>)
+		{
+			res.normal = age::cvt_to<float3>(v.normal_oct, age::cvt_cast_tag{});
+		}
+		else if constexpr (meta::is_specialization_of_nttp_v<t_vertex_baked, detail::vertex_pnt_uv>)
+		{
+			res.normal		= age::cvt_to<float3>(v.normal_oct, age::cvt_cast_tag{});
+			res.tangent.xyz = age::cvt_to<float3>(v.tangent_oct, age::cvt_cast_tag{});
+			res.tangent.w	= 2.0f * float(v.extra.x & 1u) - 1.f;
+		}
+		else
+		{
+			static_assert(false, "invalid type conversion");
+		}
+
+
+		return res;
 	}
 
 	template <typename t_vertex_to>
@@ -238,15 +280,39 @@ namespace age::asset
 	{
 		age::dynamic_array<std::byte> buffer{};
 
+		FORCE_INLINE
 		mesh_baked_header
-		get_header() const noexcept
-		{
-			AGE_ASSERT(buffer.size() >= sizeof(mesh_baked_header));
+		get_header() const noexcept;
 
-			auto res = mesh_baked_header{};
-			std::memcpy(&res, buffer.data(), sizeof(mesh_baked_header));
-			return res;
-		}
+		FORCE_INLINE
+		std::span<const uint32>
+		get_global_vertex_index_buffer() const noexcept;
+
+		FORCE_INLINE
+		std::span<const uint8>
+		get_local_vertex_index_buffer() const noexcept;
+
+		FORCE_INLINE
+		std::span<const meshlet>
+		get_meshlet_buffer() const noexcept;
+
+		FORCE_INLINE
+		std::span<const meshlet_header>
+		get_mesh_header_buffer() const noexcept;
+
+		template <cx_baked_vertex t>
+		FORCE_INLINE
+		std::span<const t>
+		get_vertex_buffer() const noexcept;
+
+		FORCE_INLINE
+		age::dynamic_array<uint32>
+		gen_flat_index_arr() const noexcept;
+
+		template <cx_baked_vertex t>
+		FORCE_INLINE
+		age::dynamic_array<float3>
+		gen_vertex_pos_arr() const noexcept;
 	};
 
 	struct lod_group_baked_header

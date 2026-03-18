@@ -36,6 +36,7 @@
     <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_data_structure.hpp" />
     <ClInclude Include="age_data_structure_array.hpp" />
+    <ClInclude Include="age_data_structure_stable_dense_vector.hpp" />
     <ClInclude Include="age_data_structure_vector.hpp" />
     <ClInclude Include="age_ecs.hpp" />
     <ClInclude Include="age_ecs_component.hpp" />
@@ -648,6 +649,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -687,7 +689,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <OmitFramePointers>true</OmitFramePointers>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -734,7 +736,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
@@ -782,6 +784,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxcompiler.dll $(OutDir)
@@ -814,7 +817,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <OmitFramePointers>true</OmitFramePointers>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
@@ -852,7 +855,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>

@@ -651,3 +651,31 @@ namespace age::graphics::defaults::cmd_sig
 		};
 	};
 }	 // namespace age::graphics::defaults::cmd_sig
+
+namespace age::graphics::defaults::rt::geo_desc
+{
+	FORCE_INLINE decltype(auto)
+	triangles(uint32					index_count,
+			  uint32					vertex_count,
+			  D3D12_GPU_VIRTUAL_ADDRESS va_index_buffer,
+			  D3D12_GPU_VIRTUAL_ADDRESS va_vertex_buffer) noexcept
+	{
+		return D3D12_RAYTRACING_GEOMETRY_DESC{
+			.Type  = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
+			.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+
+			.Triangles = {
+				.Transform3x4 = 0,
+				.IndexFormat  = DXGI_FORMAT_R32_UINT,
+				.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,	// float3
+				.IndexCount	  = index_count,
+				.VertexCount  = vertex_count,
+				.IndexBuffer  = va_index_buffer,
+				.VertexBuffer = {
+					.StartAddress  = va_vertex_buffer,
+					.StrideInBytes = sizeof(float3),
+				},
+			}
+		};
+	}
+}	 // namespace age::graphics::defaults::rt::geo_desc

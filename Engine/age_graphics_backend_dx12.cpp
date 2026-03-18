@@ -103,6 +103,8 @@ namespace age::graphics
 		age::graphics::root_signature::init();
 
 		age::graphics::shader::init();
+
+		age::graphics::rt::init();
 	}
 
 	void
@@ -135,6 +137,7 @@ namespace age::graphics
 			}
 		}
 
+		age::graphics::rt::deinit();
 		age::graphics::shader::deinit();
 		age::graphics::root_signature::deinit();
 		age::graphics::command_signature::deinit();

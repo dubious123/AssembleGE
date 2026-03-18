@@ -80,6 +80,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
+
+			h_rt_blas_buffer = rt::create_blas_buffer(1024);
 		}
 
 		{
@@ -184,11 +186,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->SetName(L"transparent_object_render_data_buffer");
 		h_mapping_debug_buffer_uav->h_resource->p_resource->SetName(L"mapping_debug_buffer_uav");
+
+		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
 	}
 
 	void
 	pipeline::deinit() noexcept
 	{
+		mesh_byte_offset			= 0;
+		rt_index_buffer_byte_offset = 0;
+
 		for (auto& vec : opaque_meshlet_render_data_vec | std::views::join)
 		{
 			vec.clear();
@@ -242,12 +249,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_shadow_atlas);
 		resource::release_resource(h_shadow_light_buffer);
 
+		rt::release_blas_buffer(h_rt_blas_buffer);
 
-		AGE_ASSERT(object_data_vec.count() == 0);
+
+		AGE_ASSERT(object_data_vec.size() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
-		AGE_ASSERT(directional_light_vec.count() == 0);
-		AGE_ASSERT(unified_light_vec.count() == 0);
+		AGE_ASSERT(directional_light_vec.size() == 0);
+		AGE_ASSERT(unified_light_vec.size() == 0);
 
 		AGE_ASSERT(shadow_light_header_count == 0);
 		AGE_ASSERT(next_shadow_light_id == 0);
@@ -392,7 +401,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		std::memcpy(
 			h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,
 			object_data_vec.data(),
-			sizeof(shared_type::object_data) * object_data_vec.count());
+			sizeof(shared_type::object_data) * object_data_vec.size());
 
 		auto opaque_meshlet_render_data_count	  = 0u;
 		auto transparent_object_render_data_count = 0u;
@@ -457,7 +466,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			std::memcpy(
 				h_mapping_unified_light_buffer->ptr + sizeof(shared_type::unified_light) * g::max_light_count * graphics::g::frame_buffer_idx,
 				unified_light_vec.data(),
-				sizeof(shared_type::unified_light) * unified_light_vec.count());
+				sizeof(shared_type::unified_light) * unified_light_vec.size());
 
 			{
 				// todo multiple camera
@@ -489,8 +498,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				c_auto& cam_desc = camera_desc_vec[0];
 				root_constants.bind(shared_type::root_constants{
 					.opaque_meshlet_render_data_count	  = opaque_meshlet_render_data_count,
-					.directional_light_count_and_extra	  = static_cast<t_directional_light_id>(directional_light_vec.count()),
-					.unified_light_count				  = static_cast<t_unified_light_id>(unified_light_vec.count()),
+					.directional_light_count_and_extra	  = static_cast<t_directional_light_id>(directional_light_vec.size()),
+					.unified_light_count				  = static_cast<t_unified_light_id>(unified_light_vec.size()),
 					.transparent_object_render_data_count = static_cast<uint32>(transparent_object_render_data_count),
 					.light_tile_count_x					  = light_tile_count_x,
 					.light_tile_count_y					  = light_tile_count_y,
@@ -675,16 +684,31 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(baked.buffer.byte_size() < std::numeric_limits<uint32>::max() - mesh_byte_offset);
 		AGE_ASSERT(baked.buffer.byte_size() % 4 == 0);
 
+		c_auto flat_index_arr = baked.gen_flat_index_arr();
+		c_auto vertex_pos_arr = baked.gen_vertex_pos_arr<asset::vertex_pnt_uv1>();
+
+		h_mapping_rt_vertex_scratch_buffer->upload(flat_index_arr.data(), flat_index_arr.size(), rt_index_buffer_byte_offset);
+		h_mapping_rt_index_buffer->upload(vertex_pos_arr.data(), vertex_pos_arr.size());
+		h_mapping_mesh_buffer->upload(baked.buffer.data(), baked.buffer.byte_size(), mesh_byte_offset);
+
+		auto h_blas = graphics::rt::build_blas(
+			h_rt_blas_buffer,
+			defaults::rt::geo_desc::triangles(
+				static_cast<uint32>(flat_index_arr.size()),
+				static_cast<uint32>(vertex_pos_arr.size()),
+				h_mapping_rt_index_buffer->h_resource->get_va() + rt_index_buffer_byte_offset,
+				h_mapping_rt_vertex_scratch_buffer->h_resource->get_va()));
+
 		auto id = static_cast<t_mesh_id>(mesh_data_vec.emplace_back(
 			mesh_data{
 				.id			   = static_cast<t_mesh_id>(mesh_data_vec.size()),
 				.offset		   = mesh_byte_offset,
 				.byte_size	   = baked.buffer.byte_size<uint32>(),
-				.meshlet_count = baked.get_header().meshlet_count }));
+				.meshlet_count = baked.get_header().meshlet_count,
+				.h_blas		   = h_blas }));
 
-		std::memcpy(h_mapping_mesh_buffer->ptr + mesh_byte_offset, baked.buffer.data(), baked.buffer.byte_size());
-
-		mesh_byte_offset += baked.buffer.byte_size<uint32>();
+		mesh_byte_offset			+= baked.buffer.byte_size<uint32>();
+		rt_index_buffer_byte_offset += flat_index_arr.byte_size<uint32>();
 
 		return id;
 	}
@@ -692,6 +716,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::release_mesh(t_mesh_id id) noexcept
 	{
+		rt::release_blas(mesh_data_vec[id].h_blas);
+
 		mesh_data_vec.remove(id);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus

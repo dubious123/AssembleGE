@@ -263,12 +263,21 @@ namespace age::graphics::resource
 		ID3D12Resource* p_resource = nullptr;
 
 		uint32 map_count = {};
+
+		FORCE_INLINE std::size_t
+		buffer_size() noexcept;
+
+		FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
+		get_va() noexcept;
 	};
 
 	struct resource_mapping
 	{
 		std::byte*		ptr;
 		resource_handle h_resource;
+
+		FORCE_INLINE void
+		upload(const void* p_src, std::size_t size, std::size_t offset = 0u) noexcept;
 	};
 
 	using t_mapping_handle_id = uint32;
@@ -311,6 +320,7 @@ namespace age::graphics::resource
 
 	void
 	release_resource(resource_handle _) noexcept;
+
 
 	mapping_handle
 	map_all(resource_handle _) noexcept;
@@ -475,6 +485,70 @@ namespace age::graphics::shader
 	unload_shader(shader_handle _) noexcept;
 }	 // namespace age::graphics::shader
 
+namespace age::graphics::rt
+{
+	using t_blas_buffer_handle_id = uint8;
+
+	struct blas_buffer_handle
+	{
+		t_blas_buffer_handle_id id;
+
+		FORCE_INLINE auto*
+		operator->() noexcept;
+	};
+
+	using t_blas_handle_id = uint8;
+
+	struct blas_handle
+	{
+		t_blas_handle_id id;
+
+		FORCE_INLINE auto*
+		operator->() noexcept;
+	};
+
+	struct blas_data
+	{
+		blas_buffer_handle h_blas_buffer;
+		uint32			   blas_entry_id;
+	};
+
+	struct blas_buffer_data
+	{
+		struct blas_entry
+		{
+			uint32 offset;
+			uint32 size;
+		};
+
+		resource_handle						 h_resource;
+		uint32								 next_offset;
+		uint32								 size;
+		age::stable_dense_vector<blas_entry> blas_entry_vec;
+
+		FORCE_INLINE void
+		set_name(const wchar_t* ptr) noexcept;
+	};
+
+	void
+	init() noexcept;
+
+	blas_buffer_handle
+	create_blas_buffer(std::size_t initial_size) noexcept;
+
+	void
+	release_blas_buffer(blas_buffer_handle&) noexcept;
+
+	blas_handle
+	build_blas(blas_buffer_handle, auto&&... rt_geo_desc) noexcept;
+
+	void
+	release_blas(blas_handle& h_blas) noexcept;
+
+	void
+	deinit() noexcept;
+}	 // namespace age::graphics::rt
+
 // internal globals
 namespace age::graphics::g
 {
@@ -501,23 +575,29 @@ namespace age::graphics::g
 	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024>{};
 	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128>{};
 
-	inline auto render_surface_vec = age::stable_dense_vector<render_surface>{ 2 };
+	inline auto render_surface_vec = age::stable_dense_vector<render_surface>::gen_reserved(2);
 
-	inline auto root_signature_ptr_vec = age::stable_dense_vector<ID3D12RootSignature*>{ 2 };
+	inline auto root_signature_ptr_vec = age::stable_dense_vector<ID3D12RootSignature*>::gen_reserved(2);
 
-	inline auto pso_ptr_vec = age::stable_dense_vector<ID3D12PipelineState*>{ 2 };
+	inline auto pso_ptr_vec = age::stable_dense_vector<ID3D12PipelineState*>::gen_reserved(2);
 
-	inline auto shader_blob_vec = age::stable_dense_vector<shader::shader_blob>{ 16 };
+	inline auto shader_blob_vec = age::stable_dense_vector<shader::shader_blob>::gen_reserved(16);
 
-	inline auto command_signature_ptr_vec = age::stable_dense_vector<ID3D12CommandSignature*>{ 2 };
+	inline auto command_signature_ptr_vec = age::stable_dense_vector<ID3D12CommandSignature*>::gen_reserved(2);
 
 	//---[ resource ]--------------------------------------------------------------
-	inline auto resource_vec = age::stable_dense_vector<age::graphics::resource::d3d12_resource>{ 2 };
+	inline auto resource_vec = age::stable_dense_vector<age::graphics::resource::d3d12_resource>::gen_reserved(2);
 
-	inline auto resource_mapping_vec = age::stable_dense_vector<resource::resource_mapping>{ 2 };
+	inline auto resource_mapping_vec = age::stable_dense_vector<resource::resource_mapping>::gen_reserved(2);
+
 	//------------------------------------------------------------------------------
 
-	//---[ stage ]------------------------------------------------------------
+	//---[ rt ]---------------------------------------------------------------------
+
+	inline auto h_rt_scratch_buffer = age::graphics::resource_handle{};
+
+	inline auto blas_buffer_data_vec = age::stable_dense_vector<rt::blas_buffer_data>::gen_reserved(2);
+	inline auto blas_data_vec		 = age::stable_dense_vector<rt::blas_data>::gen_reserved(2);
 
 	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g

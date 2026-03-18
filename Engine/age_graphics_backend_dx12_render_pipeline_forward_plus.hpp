@@ -222,7 +222,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::mapping_handle h_mapping_unified_light_buffer;
 		resource::mapping_handle h_mapping_shadow_light_header_buffer;
 		resource::mapping_handle h_mapping_transparent_object_render_data_buffer;
+
+
+		resource::mapping_handle h_mapping_rt_index_buffer;
+
+
 		resource::mapping_handle h_mapping_debug_buffer_uav;
+
+		// rt, not for binding
+		resource::mapping_handle h_mapping_rt_vertex_scratch_buffer;
+
+		rt::blas_buffer_handle h_rt_blas_buffer;
 
 
 		// global
@@ -277,13 +287,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
-		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
-		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
-
-
+		// camera
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
 
+		// mesh
 		age::sparse_vector<mesh_data> mesh_data_vec;
 		uint32						  mesh_byte_offset = 0;
 
@@ -293,10 +301,19 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::vector<shared_type::transparent_object_render_data> transparent_object_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
+		// mesh-rt
+		uint32 rt_index_buffer_byte_offset = 0;
+
+
+		// light
+		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
+		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
+
 		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
 		age::stable_dense_vector<shared_type::unified_light> unified_light_vec;
 
+		// shadow
 		std::array<shadow_light_header, g::max_shadow_light_count> shadow_light_header_arr;
 
 		t_shadow_light_id shadow_light_header_count		 = 0u;

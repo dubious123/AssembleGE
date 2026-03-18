@@ -12,7 +12,7 @@ decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float
 
 	float4 tangent_decoded = float4(
 		decode_oct_snorm(v_encoded.tangent_oct),
-		1.0f - 2.0f * float(v_encoded.extra & 1u));
+		2.0f * float(v_encoded.extra & 1u) - 1.f);
 
 	opaque_ms_to_ps res;
 

@@ -55,6 +55,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_graphics_backend_dx12_shader.cpp"
 #include "age_graphics_backend_dx12_shader.cpp"
 
+#line 1 "age_graphics_backend_dx12_rt.cpp"
+#include "age_graphics_backend_dx12_rt.cpp"
+
 #line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
 

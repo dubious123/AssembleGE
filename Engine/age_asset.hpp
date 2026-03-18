@@ -198,5 +198,5 @@ namespace age::asset::e
 
 namespace age::asset::g
 {
-	inline auto asset_data_vec = age::data_structure::stable_dense_vector<asset::data>{ 2 };
+	inline auto asset_data_vec = age::data_structure::stable_dense_vector<asset::data>::gen_reserved(2);
 }

@@ -55,7 +55,7 @@ namespace age::graphics::shader
 	void
 	deinit() noexcept
 	{
-		for (auto idx : std::views::iota(0ul) | std::views::take(g::shader_blob_vec.count()))
+		for (auto idx : std::views::iota(0ul) | std::views::take(g::shader_blob_vec.size()))
 		{
 			unload_shader(shader_handle{ .id = idx });
 		}

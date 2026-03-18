@@ -18,7 +18,7 @@ namespace age::platform
 
 namespace age::platform::g
 {
-	inline data_structure::stable_dense_vector<window_info> window_info_vec{ 2 };
+	inline auto window_info_vec = data_structure::stable_dense_vector<window_info>::gen_reserved(2);
 
 	inline constexpr input::e::key_kind vk_lut[256]{
 		age::input::e::key_kind::none,				  // 0x00

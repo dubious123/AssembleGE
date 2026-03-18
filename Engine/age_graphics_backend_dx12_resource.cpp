@@ -2,6 +2,7 @@
 #include "age.hpp"
 #if defined AGE_GRAPHICS_BACKEND_DX12
 
+
 namespace age::graphics
 {
 	FORCE_INLINE auto*
@@ -9,7 +10,23 @@ namespace age::graphics
 	{
 		return &g::resource_vec[id];
 	}
+
 }	 // namespace age::graphics
+
+namespace age::graphics::resource
+{
+	FORCE_INLINE std::size_t
+	d3d12_resource::buffer_size() noexcept
+	{
+		return p_resource->GetDesc().Width;
+	}
+
+	FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
+	d3d12_resource::get_va() noexcept
+	{
+		return p_resource->GetGPUVirtualAddress();
+	}
+}	 // namespace age::graphics::resource
 
 namespace age::graphics::resource
 {
@@ -19,6 +36,11 @@ namespace age::graphics::resource
 		return &g::resource_mapping_vec[id];
 	}
 
+	FORCE_INLINE void
+	resource_mapping::upload(const void* p_src, std::size_t size, std::size_t offset /* = 0u */) noexcept
+	{
+		std::memcpy(ptr + offset, p_src, size);
+	}
 }	 // namespace age::graphics::resource
 
 namespace age::graphics::resource

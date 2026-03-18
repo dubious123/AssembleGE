@@ -224,7 +224,7 @@ namespace age::graphics
 	render_surface_handle
 	find_render_surface(platform::window_handle h_window) noexcept
 	{
-		for (auto nth : std::views::iota(0ul) | std::views::take(g::render_surface_vec.count()))
+		for (auto nth : std::views::iota(0ul) | std::views::take(g::render_surface_vec.size()))
 		{
 			auto  idx = g::render_surface_vec.nth_id(nth);
 			auto& rs  = g::render_surface_vec[idx];

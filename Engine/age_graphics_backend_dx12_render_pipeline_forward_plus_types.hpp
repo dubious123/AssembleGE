@@ -250,10 +250,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct mesh_data
 	{
-		t_mesh_id id;
-		uint32	  offset;
-		uint32	  byte_size;
-		uint32	  meshlet_count;
+		t_mesh_id				  id;
+		uint32					  offset;
+		uint32					  byte_size;
+		uint32					  meshlet_count;
+		graphics::rt::blas_handle h_blas;
 	};
 
 	struct point_light_desc

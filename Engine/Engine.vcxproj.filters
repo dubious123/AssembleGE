@@ -63,6 +63,7 @@
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
     <ClInclude Include="age_input.hpp" />
     <ClInclude Include="age_platform_backend_window.hpp" />
+    <ClInclude Include="age_data_structure_stable_dense_vector.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
