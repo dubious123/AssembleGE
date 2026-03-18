@@ -102,7 +102,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto max_opaque_meshlet_render_data_count = (1u << 20);
 	inline constexpr auto max_opaque_meshlet_per_thread		   = max_opaque_meshlet_render_data_count / age::graphics::g::thread_count;
 	inline constexpr auto max_object_data_count				   = 1024u;
-	inline constexpr auto max_mesh_buffer_byte_size			   = static_cast<uint32>(std::numeric_limits<uint32>::max() * 0.5f);
 
 	inline constexpr auto max_directional_light_count = 2;
 

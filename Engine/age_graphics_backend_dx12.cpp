@@ -28,7 +28,15 @@ namespace age::graphics
 			p_dred_settings->Release();
 		}
 
-		AGE_HR_CHECK(::CreateDXGIFactory2(g::dxgi_factory_flag, IID_PPV_ARGS(&g::p_dxgi_factory)));
+		if constexpr (config::debug_mode)
+		{
+			AGE_HR_CHECK(::CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&g::p_dxgi_factory)));
+		}
+		else
+		{
+			AGE_HR_CHECK(::CreateDXGIFactory2(0, IID_PPV_ARGS(&g::p_dxgi_factory)));
+		}
+
 
 		for (uint32 adapter_idx : std::views::iota(0))
 		{
@@ -84,13 +92,9 @@ namespace age::graphics
 			AGE_ASSERT(sm.HighestShaderModel == D3D_SHADER_MODEL_6_9);
 		}
 
-		{
-			g::cmd_system_direct.init();
-			g::cmd_system_compute.init();
-			g::cmd_system_copy.init();
-		}
+		command::init();
 
-		age::graphics::resource::init();
+		resource::init();
 
 		{
 			g::rtv_desc_pool.init();
@@ -99,12 +103,12 @@ namespace age::graphics
 			g::sampler_desc_pool.init();
 		}
 
-		age::graphics::command_signature::init();
-		age::graphics::root_signature::init();
+		command_signature::init();
+		root_signature::init();
 
-		age::graphics::shader::init();
+		shader::init();
 
-		age::graphics::rt::init();
+		rt::init();
 	}
 
 	void
@@ -119,11 +123,9 @@ namespace age::graphics
 			p_info_queue->Release();
 		}
 
-		{
-			g::cmd_system_compute.flush();
-			g::cmd_system_copy.flush();
-			g::cmd_system_direct.flush();
-		}
+		command::cpu_wait(e::queue_kind::direct);
+		command::cpu_wait(e::queue_kind::compute);
+		command::cpu_wait(e::queue_kind::copy);
 
 		{
 			for (auto& rs : g::render_surface_vec)
@@ -137,10 +139,10 @@ namespace age::graphics
 			}
 		}
 
-		age::graphics::rt::deinit();
-		age::graphics::shader::deinit();
-		age::graphics::root_signature::deinit();
-		age::graphics::command_signature::deinit();
+		rt::deinit();
+		shader::deinit();
+		root_signature::deinit();
+		command_signature::deinit();
 
 		{
 			AGE_ASSERT(g::pso_ptr_vec.is_empty());
@@ -170,18 +172,8 @@ namespace age::graphics
 			g::rtv_desc_pool.deinit();
 		}
 
-		age::graphics::resource::deinit();
-
-		{
-			if constexpr (age::config::debug_mode)
-			{
-				g::current_fence_value = std::numeric_limits<decltype(g::current_fence_value)>::max();
-			}
-
-			g::cmd_system_copy.deinit();
-			g::cmd_system_compute.deinit();
-			g::cmd_system_direct.deinit();
-		}
+		resource::deinit();
+		command::deinit();
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -208,8 +200,7 @@ namespace age::graphics
 			p_dxgi_debug->Release();
 		}
 
-		g::frame_buffer_idx	   = 0;
-		g::current_fence_value = 0;
+		g::frame_buffer_idx = 0;
 	}
 
 	void
@@ -238,7 +229,7 @@ namespace age::graphics
 
 				auto is_pending =
 					wait_event == WAIT_TIMEOUT
-					or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
+					or command::is_complete(e::queue_kind::direct, rs.present_fence_value) is_false;
 
 				if (is_pending is_false)
 				{
@@ -266,7 +257,7 @@ namespace age::graphics
 
 				auto is_pending =
 					wait_event == WAIT_TIMEOUT
-					or g::cmd_system_direct.p_fence->GetCompletedValue() <= rs.last_used_cmd_fence_value;
+					or command::is_complete(e::queue_kind::direct, rs.present_fence_value) is_false;
 
 				if (is_pending is_false)
 				{
@@ -332,22 +323,11 @@ namespace age::graphics
 			}
 			}
 		}
-
-		g::cmd_system_direct.wait();
-		g::cmd_system_direct.begin_frame();
-		g::cmd_system_compute.wait();
-		g::cmd_system_compute.begin_frame();
-		g::cmd_system_copy.wait();
-		g::cmd_system_copy.begin_frame();
 	}
 
 	void
 	end_frame() noexcept
 	{
-		g::cmd_system_direct.end_frame();
-		g::cmd_system_compute.end_frame();
-		g::cmd_system_copy.end_frame();
-
 		for (auto& rs : g::render_surface_vec)
 		{
 			if (rs.should_render is_false) [[unlikely]]
@@ -359,8 +339,6 @@ namespace age::graphics
 		}
 
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
-
-		++g::current_fence_value;
 	}
 }	 // namespace age::graphics
 #endif

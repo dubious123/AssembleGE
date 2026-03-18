@@ -13,7 +13,7 @@ namespace age::graphics
 
 }	 // namespace age::graphics
 
-namespace age::graphics::resource
+namespace age::graphics
 {
 	FORCE_INLINE std::size_t
 	d3d12_resource::buffer_size() noexcept
@@ -26,9 +26,15 @@ namespace age::graphics::resource
 	{
 		return p_resource->GetGPUVirtualAddress();
 	}
-}	 // namespace age::graphics::resource
 
-namespace age::graphics::resource
+	void
+	d3d12_resource::set_name(const wchar_t* name) noexcept
+	{
+		p_resource->SetName(name);
+	}
+}	 // namespace age::graphics
+
+namespace age::graphics
 {
 	FORCE_INLINE resource_mapping*
 	mapping_handle::operator->() noexcept
@@ -41,7 +47,7 @@ namespace age::graphics::resource
 	{
 		std::memcpy(ptr + offset, p_src, size);
 	}
-}	 // namespace age::graphics::resource
+}	 // namespace age::graphics
 
 namespace age::graphics::resource
 {
@@ -136,10 +142,11 @@ namespace age::graphics::resource
 	}
 
 	void
-	release_resource(resource_handle h_resource) noexcept
+	release_resource(resource_handle& h_resource) noexcept
 	{
 		g::resource_vec[h_resource].p_resource->Release();
 		g::resource_vec.remove(h_resource);
+		h_resource = {};
 	}
 
 	mapping_handle
@@ -155,14 +162,16 @@ namespace age::graphics::resource
 	}
 
 	void
-	unmap(mapping_handle h_map) noexcept
+	unmap(mapping_handle& h_map) noexcept
 	{
 		h_map->h_resource->p_resource->Unmap(0, nullptr);
 		g::resource_mapping_vec.remove(h_map);
+
+		h_map = {};
 	}
 
 	void
-	unmap_and_release(mapping_handle h_map) noexcept
+	unmap_and_release(mapping_handle& h_map) noexcept
 	{
 		h_map->h_resource->p_resource->Unmap(0, nullptr);
 
@@ -171,6 +180,8 @@ namespace age::graphics::resource
 		release_resource(h_map->h_resource);
 
 		g::resource_mapping_vec.remove(h_map);
+
+		h_map = {};
 	}
 }	 // namespace age::graphics::resource
 
@@ -195,20 +206,17 @@ namespace age::graphics::resource
 		{
 			switch (kind)
 			{
-			case age::graphics::resource::e::memory_kind::gpu_only:
+			case e::memory_kind::gpu_only:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::cpu_to_gpu:
+			case e::memory_kind::cpu_to_gpu:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::gpu_to_cpu:
+			case e::memory_kind::gpu_to_cpu:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::cpu_to_gpu_direct:
+			case e::memory_kind::cpu_to_gpu_direct:
 				std::memcpy(h_map->ptr, p_data, buffer_byte_size);
-				break;
-			case age::graphics::resource::e::memory_kind::count:
-				AGE_UNREACHABLE();
 				break;
 			default:
 				AGE_UNREACHABLE();
@@ -242,20 +250,17 @@ namespace age::graphics::resource
 		{
 			switch (kind)
 			{
-			case age::graphics::resource::e::memory_kind::gpu_only:
+			case e::memory_kind::gpu_only:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::cpu_to_gpu:
+			case e::memory_kind::cpu_to_gpu:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::gpu_to_cpu:
+			case e::memory_kind::gpu_to_cpu:
 				AGE_UNREACHABLE();
 				break;
-			case age::graphics::resource::e::memory_kind::cpu_to_gpu_direct:
+			case e::memory_kind::cpu_to_gpu_direct:
 				std::memcpy(h_map->ptr, p_data, buffer_byte_size);
-				break;
-			case age::graphics::resource::e::memory_kind::count:
-				AGE_UNREACHABLE();
 				break;
 			default:
 				AGE_UNREACHABLE();

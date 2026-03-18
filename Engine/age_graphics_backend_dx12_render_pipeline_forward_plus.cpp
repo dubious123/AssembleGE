@@ -25,7 +25,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_frame_data						= resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
 			h_mapping_opaque_meshlet_render_data_buffer = resource::create_buffer_committed(sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * graphics::g::frame_buffer_count);
 			h_mapping_object_data_buffer				= resource::create_buffer_committed(sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_count);
-			h_mapping_mesh_buffer						= resource::create_buffer_committed(g::max_mesh_buffer_byte_size);
+
+			h_mapping_mesh_buffer			   = resource::create_buffer_committed(1024);
+			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
+			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(1024);
+
 
 			h_mapping_directional_light_buffer = resource::create_buffer_committed(sizeof(shared_type::directional_light) * g::max_directional_light_count * graphics::g::frame_buffer_count);
 
@@ -38,26 +42,26 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_debug_buffer_uav = resource::create_buffer_committed(
 				sizeof(shared_type::debug_77) * graphics::g::frame_buffer_count,
 				nullptr,
-				resource::e::memory_kind::cpu_to_gpu_direct,
+				e::memory_kind::cpu_to_gpu_direct,
 				D3D12_BARRIER_LAYOUT_UNDEFINED,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 			h_sort_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::sort_buffer_total_byte_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_zbin_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::z_slice_count * sizeof(shared_type::zbin_entry)),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_unified_sorted_light_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_visible_light_count * sizeof(shared_type::unified_light)),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_shadow_atlas = resource::create_committed(
@@ -66,74 +70,74 @@ namespace age::graphics::render_pipeline::forward_plus
 					  .Format		= DXGI_FORMAT_D32_FLOAT,
 					  .DepthStencil = { .Depth = 0.f, .Stencil = 0 } },
 				  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-				  .heap_memory_kind = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind = e::memory_kind::gpu_only,
 				  .has_clear_value	= true });
 
 			h_frame_data_rw_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::frame_data_rw)),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_shadow_light_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_shadow_light_count * sizeof(shared_type::shadow_light)),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_rt_blas_buffer = rt::create_blas_buffer(1024);
 		}
 
 		{
-			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 0, 0);
-			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 1, 1);
-			frame_data_buffer.bind(h_mapping_frame_data->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::frame_data) * 2, 2);
+			frame_data_buffer.bind(h_mapping_frame_data->h_resource->get_va() + sizeof(shared_type::frame_data) * 0, 0);
+			frame_data_buffer.bind(h_mapping_frame_data->h_resource->get_va() + sizeof(shared_type::frame_data) * 1, 1);
+			frame_data_buffer.bind(h_mapping_frame_data->h_resource->get_va() + sizeof(shared_type::frame_data) * 2, 2);
 
-			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 0, 0);
-			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 1, 1);
-			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 2, 2);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->get_va() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 0, 0);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->get_va() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 1, 1);
+			opaque_render_data_buffer.bind(h_mapping_opaque_meshlet_render_data_buffer->h_resource->get_va() + sizeof(shared_type::opaque_meshlet_render_data) * g::max_opaque_meshlet_render_data_count * 2, 2);
 
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 0, 0);
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 1, 1);
-			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::object_data) * g::max_object_data_count * 2, 2);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->get_va() + sizeof(shared_type::object_data) * g::max_object_data_count * 0, 0);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->get_va() + sizeof(shared_type::object_data) * g::max_object_data_count * 1, 1);
+			object_data_buffer.bind(h_mapping_object_data_buffer->h_resource->get_va() + sizeof(shared_type::object_data) * g::max_object_data_count * 2, 2);
 
-			mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->p_resource->GetGPUVirtualAddress());
+			mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->get_va());
 
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 0, 0);
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 1, 1);
-			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 2, 2);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->get_va() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 0, 0);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->get_va() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 1, 1);
+			directional_light_buffer.bind(h_mapping_directional_light_buffer->h_resource->get_va() + sizeof(shared_type::directional_light) * g::max_directional_light_count * 2, 2);
 
-			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 0, 0);
-			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 1, 1);
-			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::unified_light) * g::max_light_count * 2, 2);
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->get_va() + sizeof(shared_type::unified_light) * g::max_light_count * 0, 0);
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->get_va() + sizeof(shared_type::unified_light) * g::max_light_count * 1, 1);
+			unified_light_buffer.bind(h_mapping_unified_light_buffer->h_resource->get_va() + sizeof(shared_type::unified_light) * g::max_light_count * 2, 2);
 
-			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 0, 0);
-			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 1, 1);
-			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 2, 2);
+			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->get_va() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 0, 0);
+			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->get_va() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 1, 1);
+			shadow_light_header_buffer.bind(h_mapping_shadow_light_header_buffer->h_resource->get_va() + sizeof(shared_type::shadow_light_header) * g::max_shadow_light_count * 2, 2);
 
-			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 0, 0);
-			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 1, 1);
-			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 2, 2);
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->get_va() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 0, 0);
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->get_va() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 1, 1);
+			transparent_object_render_data_buffer.bind(h_mapping_transparent_object_render_data_buffer->h_resource->get_va() + sizeof(shared_type::transparent_object_render_data) * g::max_transparent_object_count * 2, 2);
 
 
-			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 0, 0);
-			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 1, 1);
-			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->p_resource->GetGPUVirtualAddress() + sizeof(shared_type::debug_77) * 2, 2);
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->get_va() + sizeof(shared_type::debug_77) * 0, 0);
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->get_va() + sizeof(shared_type::debug_77) * 1, 1);
+			debug_buffer_uav.bind(h_mapping_debug_buffer_uav->h_resource->get_va() + sizeof(shared_type::debug_77) * 2, 2);
 
-			sort_buffer_uav.bind(h_sort_buffer->p_resource->GetGPUVirtualAddress());
-			sort_buffer_srv.bind(h_sort_buffer->p_resource->GetGPUVirtualAddress());
+			sort_buffer_uav.bind(h_sort_buffer->get_va());
+			sort_buffer_srv.bind(h_sort_buffer->get_va());
 
-			zbin_buffer_uav.bind(h_zbin_buffer->p_resource->GetGPUVirtualAddress());
-			zbin_buffer_srv.bind(h_zbin_buffer->p_resource->GetGPUVirtualAddress());
+			zbin_buffer_uav.bind(h_zbin_buffer->get_va());
+			zbin_buffer_srv.bind(h_zbin_buffer->get_va());
 
-			unified_sorted_light_buffer_uav.bind(h_unified_sorted_light_buffer->p_resource->GetGPUVirtualAddress());
-			unified_sorted_light_buffer_srv.bind(h_unified_sorted_light_buffer->p_resource->GetGPUVirtualAddress());
+			unified_sorted_light_buffer_uav.bind(h_unified_sorted_light_buffer->get_va());
+			unified_sorted_light_buffer_srv.bind(h_unified_sorted_light_buffer->get_va());
 
-			frame_data_rw_buffer_uav.bind(h_frame_data_rw_buffer->p_resource->GetGPUVirtualAddress());
-			frame_data_rw_buffer_srv.bind(h_frame_data_rw_buffer->p_resource->GetGPUVirtualAddress());
+			frame_data_rw_buffer_uav.bind(h_frame_data_rw_buffer->get_va());
+			frame_data_rw_buffer_srv.bind(h_frame_data_rw_buffer->get_va());
 
-			shadow_light_buffer_srv.bind(h_shadow_light_buffer->p_resource->GetGPUVirtualAddress());
-			shadow_light_buffer_uav.bind(h_shadow_light_buffer->p_resource->GetGPUVirtualAddress());
+			shadow_light_buffer_srv.bind(h_shadow_light_buffer->get_va());
+			shadow_light_buffer_uav.bind(h_shadow_light_buffer->get_va());
 		}
 
 		{
@@ -222,7 +226,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_frame_data);
 		resource::unmap_and_release(h_mapping_opaque_meshlet_render_data_buffer);
 		resource::unmap_and_release(h_mapping_object_data_buffer);
+
 		resource::unmap_and_release(h_mapping_mesh_buffer);
+		resource::unmap_and_release(h_mapping_rt_index_buffer);
+		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
 
 		resource::unmap_and_release(h_mapping_directional_light_buffer);
 		resource::unmap_and_release(h_mapping_unified_light_buffer);
@@ -251,7 +258,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		rt::release_blas_buffer(h_rt_blas_buffer);
 
-
 		AGE_ASSERT(object_data_vec.size() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
@@ -270,8 +276,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	bool
 	pipeline::begin_render(render_surface_handle h_rs) noexcept
 	{
-		auto& rs	   = graphics::g::render_surface_vec[h_rs];
-		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[0];
+		auto& rs = graphics::g::render_surface_vec[h_rs];
 
 		if (rs.should_render is_false) [[unlikely]]
 		{
@@ -301,61 +306,62 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_transparent.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 		}
 
-		cmd_list.SetDescriptorHeaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-		cmd_list.SetGraphicsRootSignature(p_root_sig);
-		cmd_list.SetComputeRootSignature(p_root_sig);
+		command::begin_frame();
+
+		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+		command::set_graphics_root_sig(p_root_sig);
+		command::set_compute_root_sig(p_root_sig);
 
 		{
-			frame_data_buffer.apply(cmd_list);
-			frame_data_buffer.apply_compute(cmd_list);
+			frame_data_buffer.apply();
+			frame_data_buffer.apply_compute();
 
-			opaque_render_data_buffer.apply(cmd_list);
-			opaque_render_data_buffer.apply_compute(cmd_list);
+			opaque_render_data_buffer.apply();
+			opaque_render_data_buffer.apply_compute();
 
-			object_data_buffer.apply(cmd_list);
-			object_data_buffer.apply_compute(cmd_list);
+			object_data_buffer.apply();
+			object_data_buffer.apply_compute();
 
-			mesh_data_buffer.apply(cmd_list);
-			mesh_data_buffer.apply_compute(cmd_list);
+			mesh_data_buffer.apply();
+			mesh_data_buffer.apply_compute();
 
-			directional_light_buffer.apply(cmd_list);
-			directional_light_buffer.apply_compute(cmd_list);
+			directional_light_buffer.apply();
+			directional_light_buffer.apply_compute();
 
-			shadow_light_header_buffer.apply_compute(cmd_list);
+			shadow_light_header_buffer.apply_compute();
 
-			unified_light_buffer.apply_compute(cmd_list);
+			unified_light_buffer.apply_compute();
 
-			frame_data_rw_buffer_uav.apply_compute(cmd_list);
-			// frame_data_rw_buffer_srv.apply(cmd_list);
+			frame_data_rw_buffer_uav.apply_compute();
+			// frame_data_rw_buffer_srv.apply();
 
-			// light_sort_buffer_srv.apply(cmd_list);
-			// light_sort_buffer_srv.apply_compute(cmd_list);
-			sort_buffer_uav.apply_compute(cmd_list);
+			// light_sort_buffer_srv.apply();
+			// light_sort_buffer_srv.apply_compute();
+			sort_buffer_uav.apply_compute();
 
-			// zbin_buffer_srv.apply(cmd_list);
-			zbin_buffer_uav.apply_compute(cmd_list);
+			// zbin_buffer_srv.apply();
+			zbin_buffer_uav.apply_compute();
 
-			shadow_light_buffer_uav.apply_compute(cmd_list);
-			// shadow_light_buffer_srv.apply(cmd_list);
+			shadow_light_buffer_uav.apply_compute();
+			// shadow_light_buffer_srv.apply();
 
-			// unified_sorted_light_buffer_srv.apply(cmd_list);
-			unified_sorted_light_buffer_uav.apply_compute(cmd_list);
+			// unified_sorted_light_buffer_srv.apply();
+			unified_sorted_light_buffer_uav.apply_compute();
 
-			// tile_mask_buffer_srv.apply(cmd_list);
+			// tile_mask_buffer_srv.apply();
 
-			tile_mask_buffer_uav.apply(cmd_list);
-			tile_mask_buffer_uav.apply_compute(cmd_list);
+			tile_mask_buffer_uav.apply();
+			tile_mask_buffer_uav.apply_compute();
 
-			transparent_object_render_data_buffer.apply(cmd_list);
-			transparent_object_render_data_buffer.apply_compute(cmd_list);
+			transparent_object_render_data_buffer.apply();
+			transparent_object_render_data_buffer.apply_compute();
 
-			debug_buffer_uav.apply(cmd_list);
-			debug_buffer_uav.apply_compute(cmd_list);
+			debug_buffer_uav.apply();
+			debug_buffer_uav.apply_compute();
 		}
 
 
-		apply_barriers(cmd_list,
-					   barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+		apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 					   barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 					   barrier::undefined_to_dsv_write(h_shadow_atlas->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 					   barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
@@ -395,8 +401,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::end_render(render_surface_handle h_rs) noexcept
 	{
-		auto& rs	   = graphics::g::render_surface_vec[h_rs];
-		auto& cmd_list = *graphics::g::cmd_system_direct.cmd_list_pool[0];
+		auto& rs = graphics::g::render_surface_vec[h_rs];
 
 		std::memcpy(
 			h_mapping_object_data_buffer->ptr + sizeof(shared_type::object_data) * g::max_object_data_count * graphics::g::frame_buffer_idx,
@@ -511,26 +516,25 @@ namespace age::graphics::render_pipeline::forward_plus
 					.shadow_atlas_id		= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
 				});
 
-				root_constants.apply(cmd_list);
-				root_constants.apply_compute(cmd_list);
+				root_constants.apply();
+				root_constants.apply_compute();
 			}
 		}
 
-		stage_init.execute(cmd_list, light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count);
+		stage_init.execute(light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count);
 
-		apply_barriers(cmd_list,
-					   barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource),
+		apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource),
 					   barrier::buf_uav_to_uav(h_tile_mask_buffer->p_resource),
 					   barrier::buf_uav_to_uav(h_zbin_buffer->p_resource));
 
-		cmd_list.RSSetViewports(1, &rs.default_viewport);
-		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
-		stage_depth.execute(cmd_list, opaque_meshlet_render_data_count);
+		command::set_view_ports(1, &rs.default_viewport);
+		command::set_scissor_rects(1, &rs.default_scissor_rect);
 
-		apply_barriers(cmd_list, barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		stage_depth.execute(opaque_meshlet_render_data_count);
+
+		apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		stage_shadow.execute(
-			cmd_list,
 			extent.width,
 			extent.height,
 			next_shadow_light_id,
@@ -540,16 +544,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			shadow_light_buffer_srv,
 			opaque_meshlet_render_data_count);
 
-		cmd_list.RSSetViewports(1, &rs.default_viewport);
-		cmd_list.RSSetScissorRects(1, &rs.default_scissor_rect);
+		command::set_view_ports(1, &rs.default_viewport);
+		command::set_scissor_rects(1, &rs.default_scissor_rect);
 
-		apply_barriers(cmd_list,
-					   // used by opaque
-					   barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-					   barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		apply_barriers(
+			barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),	 // used by opaque
+			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		stage_light_culling.execute(cmd_list,
-									light_tile_count_x,
+		stage_light_culling.execute(light_tile_count_x,
 									light_tile_count_y,
 									*h_unified_sorted_light_buffer->p_resource,
 									*h_frame_data_rw_buffer->p_resource,
@@ -559,41 +561,33 @@ namespace age::graphics::render_pipeline::forward_plus
 									*h_zbin_buffer->p_resource,
 									zbin_buffer_srv);
 
-		apply_barriers(
-			cmd_list,
-			barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
+		apply_barriers(barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
+					   barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING)
 
-			// handled by light_culling_stage
-			// barrier::buf_uav_to_srv(h_frame_data_rw_buffer->p_resource,
-			//								  D3D12_BARRIER_SYNC_PIXEL_SHADING),
+					   // handled by light_culling_stage
+					   // barrier::buf_uav_to_srv(h_frame_data_rw_buffer->p_resource,
+					   //								  D3D12_BARRIER_SYNC_PIXEL_SHADING),
 		);
 
-		unified_sorted_light_buffer_srv.apply(cmd_list);
-		tile_mask_buffer_srv.apply(cmd_list);
+		unified_sorted_light_buffer_srv.apply();
+		tile_mask_buffer_srv.apply();
 
-		stage_opaque.execute(cmd_list, opaque_meshlet_render_data_count);
+		stage_opaque.execute(opaque_meshlet_render_data_count);
 
-		apply_barriers(cmd_list,
-					   barrier::buf_srv_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+		apply_barriers(barrier::buf_srv_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 					   barrier::buf_srv_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		stage_transparent.execute(cmd_list,
-								  *h_sort_buffer->p_resource,
+		stage_transparent.execute(*h_sort_buffer->p_resource,
 								  sort_buffer_srv,
 								  *h_frame_data_rw_buffer->p_resource,
 								  frame_data_rw_buffer_srv);
 
 
-		apply_barriers(
-			cmd_list,
-			barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		stage_presentation.execute(cmd_list, rs);
+		stage_presentation.execute(rs);
 
-		apply_barriers(
-			cmd_list,
-			barrier::rtv_to_present(&rs.get_back_buffer()));
+		apply_barriers(barrier::rtv_to_present(&rs.get_back_buffer()));
 
 
 		{
@@ -611,6 +605,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			// std::println("{}", std::span{ ptr->tile_bit_mask_arr });
 		}
+
+		command::end_frame();
 	}
 
 	void
@@ -622,7 +618,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .Format = DXGI_FORMAT_R16G16B16A16_FLOAT,
 				  .Color  = { 0.5f, 0.5f, 0.5f, 1.0f } },
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-			  .heap_memory_kind = resource::e::memory_kind::gpu_only,
+			  .heap_memory_kind = e::memory_kind::gpu_only,
 			  .has_clear_value	= true });
 
 		h_depth_buffer = resource::create_committed(
@@ -631,7 +627,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .Format		= DXGI_FORMAT_D32_FLOAT,
 				  .DepthStencil = { .Depth = 0.f, .Stencil = 0 } },
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
-			  .heap_memory_kind = resource::e::memory_kind::gpu_only,
+			  .heap_memory_kind = e::memory_kind::gpu_only,
 			  .has_clear_value	= true });
 
 		h_main_buffer->p_resource->SetName(L"main_buffer");
@@ -648,7 +644,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_tile_mask_buffer = resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
 			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-			  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+			  .heap_memory_kind	   = e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });
 
 		tile_mask_buffer_uav.bind(h_tile_mask_buffer->p_resource->GetGPUVirtualAddress());
@@ -687,8 +683,74 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto flat_index_arr = baked.gen_flat_index_arr();
 		c_auto vertex_pos_arr = baked.gen_vertex_pos_arr<asset::vertex_pnt_uv1>();
 
-		h_mapping_rt_vertex_scratch_buffer->upload(flat_index_arr.data(), flat_index_arr.size(), rt_index_buffer_byte_offset);
-		h_mapping_rt_index_buffer->upload(vertex_pos_arr.data(), vertex_pos_arr.size());
+		c_auto mesh_required_size = mesh_byte_offset + baked.buffer.byte_size();
+		c_auto mesh_need_resize	  = h_mapping_mesh_buffer->h_resource->buffer_size() < mesh_required_size;
+		c_auto mesh_new_size	  = std::max(mesh_required_size, h_mapping_mesh_buffer->h_resource->buffer_size() * 2);
+
+		c_auto index_required_size = rt_index_buffer_byte_offset + flat_index_arr.byte_size();
+		c_auto index_need_resize   = h_mapping_rt_index_buffer->h_resource->buffer_size() < index_required_size;
+		c_auto index_new_size	   = std::max(index_required_size, h_mapping_rt_index_buffer->h_resource->buffer_size() * 2);
+
+		c_auto vertex_required_size = 0 + vertex_pos_arr.byte_size();
+		c_auto vertex_need_resize	= h_mapping_rt_vertex_scratch_buffer->h_resource->buffer_size() < vertex_required_size;
+		c_auto vertex_new_size		= std::max(vertex_required_size, h_mapping_rt_vertex_scratch_buffer->h_resource->buffer_size() * 2);
+
+		c_auto need_copy = mesh_need_resize or index_need_resize;
+
+		auto h_new_mesh_buffer	= mapping_handle{};
+		auto h_new_index_buffer = mapping_handle{};
+
+		if (need_copy)
+		{
+			command::begin(e::queue_kind::copy);
+		}
+
+		if (mesh_need_resize)
+		{
+			h_new_mesh_buffer = resource::create_buffer_committed(static_cast<uint32>(mesh_new_size));
+
+			command::copy_buffer(e::queue_kind::copy, 0,
+								 h_new_mesh_buffer->h_resource->p_resource, 0,
+								 h_mapping_mesh_buffer->h_resource->p_resource, 0,
+								 mesh_byte_offset);
+		}
+		if (index_need_resize)
+		{
+			h_new_index_buffer = resource::create_buffer_committed(static_cast<uint32>(index_new_size));
+
+			command::copy_buffer(e::queue_kind::copy, 0,
+								 h_new_index_buffer->h_resource->p_resource, 0,
+								 h_mapping_rt_index_buffer->h_resource->p_resource, 0,
+								 rt_index_buffer_byte_offset);
+		}
+
+		if (vertex_need_resize)
+		{
+			resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
+			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(static_cast<uint32>(vertex_new_size));
+		}
+
+		if (need_copy)
+		{
+			command::execute_and_wait(e::queue_kind::copy);
+
+			if (mesh_need_resize)
+			{
+				resource::unmap_and_release(h_mapping_mesh_buffer);
+				h_mapping_mesh_buffer = h_new_mesh_buffer;
+
+				mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->get_va());
+			}
+
+			if (index_need_resize)
+			{
+				resource::unmap_and_release(h_mapping_rt_index_buffer);
+				h_mapping_rt_index_buffer = h_new_index_buffer;
+			}
+		}
+
+		h_mapping_rt_index_buffer->upload(flat_index_arr.data(), flat_index_arr.byte_size(), rt_index_buffer_byte_offset);
+		h_mapping_rt_vertex_scratch_buffer->upload(vertex_pos_arr.data(), vertex_pos_arr.byte_size());
 		h_mapping_mesh_buffer->upload(baked.buffer.data(), baked.buffer.byte_size(), mesh_byte_offset);
 
 		auto h_blas = graphics::rt::build_blas(

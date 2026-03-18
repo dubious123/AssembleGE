@@ -36,7 +36,7 @@ namespace age::graphics
 		template <uint32 n, uint32 space = 0>
 		using s = reg<e::reg_kind::s, n, space>;	// Sampler
 
-													// template <typename t_reg_base, std::size_t n>
+													// template <typename t_reg_base, uint32 n>
 	}	 // namespace where
 
 	namespace how
@@ -50,7 +50,7 @@ namespace age::graphics
 
 	namespace what
 	{
-		template <typename t_data_, std::size_t n = g::frame_buffer_count>
+		template <typename t_data_, uint32 n = g::frame_buffer_count>
 		struct constant_buffer_array
 		{
 			static_assert(n > 0);
@@ -60,7 +60,7 @@ namespace age::graphics
 			static constexpr auto array_size = n;
 		};
 
-		template <std::size_t n = g::frame_buffer_count>
+		template <uint32 n = g::frame_buffer_count>
 		struct byte_address_buffer_array
 		{
 			static_assert(n > 0);
@@ -69,7 +69,7 @@ namespace age::graphics
 			using t_data = std::byte;
 		};
 
-		template <typename t_data_, std::size_t n = g::frame_buffer_count>
+		template <typename t_data_, uint32 n = g::frame_buffer_count>
 		struct structured_buffer_array
 		{
 			static_assert(n > 0);
@@ -83,14 +83,14 @@ namespace age::graphics
 		template <typename t_data>
 		class constant_buffer : public constant_buffer_array<t_data, 1> { };
 
-		template <std::size_t n = g::frame_buffer_count>
+		template <uint32 n = g::frame_buffer_count>
 		class rw_byte_address_buffer_array : public byte_address_buffer_array<n> { };
 
 		class byte_address_buffer : public byte_address_buffer_array<1> { };
 
 		class rw_byte_address_buffer : public byte_address_buffer_array<1> { };
 
-		template <typename t_data, std::size_t n = g::frame_buffer_count>
+		template <typename t_data, uint32 n = g::frame_buffer_count>
 		class rw_structured_buffer_array : public structured_buffer_array<t_data, n> { };
 
 		template <typename t_data>
@@ -141,31 +141,31 @@ namespace age::graphics
 		template <typename t>
 		class is_constant_buffer_array : public std::false_type { };
 
-		template <typename t, std::size_t n>
+		template <typename t, uint32 n>
 		class is_constant_buffer_array<what::constant_buffer_array<t, n>> : public std::true_type { };
 
 		template <typename t>
 		class is_structured_buffer_array : public std::false_type { };
 
-		template <typename t, std::size_t n>
+		template <typename t, uint32 n>
 		class is_structured_buffer_array<what::structured_buffer_array<t, n>> : public std::true_type { };
 
 		template <typename t>
 		class is_byte_address_buffer_array : public std::false_type { };
 
-		template <std::size_t n>
+		template <uint32 n>
 		class is_byte_address_buffer_array<what::byte_address_buffer_array<n>> : public std::true_type { };
 
 		template <typename t>
 		class is_rw_structured_buffer_array : public std::false_type { };
 
-		template <typename t, std::size_t n>
+		template <typename t, uint32 n>
 		class is_rw_structured_buffer_array<what::rw_structured_buffer_array<t, n>> : public std::true_type { };
 
 		template <typename t>
 		class is_rw_byte_address_buffer_array : public std::false_type { };
 
-		template <std::size_t n>
+		template <uint32 n>
 		class is_rw_byte_address_buffer_array<what::rw_byte_address_buffer_array<n>> : public std::true_type { };
 
 		template <typename t>
@@ -220,13 +220,13 @@ namespace age::graphics
 		inline constexpr bool is_sampler_v = is_sampler<std::remove_cvref_t<t>>::value;
 	}	 // namespace detail
 
-	template <util::nttp_string_holder str_nttp, auto, D3D12_SHADER_VISIBILITY, typename t_what, typename t_how, typename t_where, std::size_t slot_id = -1>
+	template <util::nttp_string_holder str_nttp, auto, D3D12_SHADER_VISIBILITY, typename t_what, typename t_how, typename t_where, uint32 slot_id = -1>
 	struct binding_slot
 	{
 		static_assert(false);
 	};
 
-	template <util::nttp_string_holder str_nttp, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, std::size_t slot_id_>
+	template <util::nttp_string_holder str_nttp, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, uint32 slot_id_>
 	requires(detail::is_constant_buffer_v<t_what> || detail::is_constant_buffer_array_v<t_what>)
 	struct binding_slot<str_nttp, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility, t_what, how::root_constant, t_where_, slot_id_>
 	{
@@ -257,39 +257,39 @@ namespace age::graphics
 		}
 
 		void
-		apply(t_cmd_list& cmd_list, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		apply(uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			cmd_list.SetGraphicsRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[ring_idx], 0);
+			command::set_graphics_root_constants(slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[ring_idx], 0);
 		}
 
 		void
-		apply(t_cmd_list& cmd_list) noexcept
+		apply() noexcept
 			requires(constant_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			cmd_list.SetGraphicsRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[0], 0);
+			command::set_graphics_root_constants(slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
 		}
 
 		void
-		apply_compute(t_cmd_list& cmd_list, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		apply_compute(uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			cmd_list.SetComputeRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[ring_idx], 0);
+			command::set_compute_root_constants(slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[ring_idx], 0);
 		}
 
 		void
-		apply_compute(t_cmd_list& cmd_list) noexcept
+		apply_compute() noexcept
 			requires(constant_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			cmd_list.SetComputeRoot32BitConstants(slot_id, sizeof(t_data) / 4, &constant_arr[0], 0);
+			command::set_compute_root_constants(slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
 		}
 	};
 
-	template <util::nttp_string_holder str_nttp, auto flags, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, std::size_t slot_id_>
+	template <util::nttp_string_holder str_nttp, auto flags, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, uint32 slot_id_>
 	requires detail::is_root_descriptor_compatible_v<t_what>
 	struct binding_slot<str_nttp, flags, visibility, t_what, how::root_descriptor, t_where_, slot_id_>
 	{
@@ -320,83 +320,83 @@ namespace age::graphics
 		}
 
 		void
-		apply(t_cmd_list& cmd_list) noexcept
+		apply() noexcept
 			requires(gpu_va_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
 			if constexpr (detail::is_constant_buffer_v<t_what>)
 			{
-				cmd_list.SetGraphicsRootConstantBufferView(slot_id, gpu_va_arr[0]);
+				command::set_graphics_root_cbv(slot_id, gpu_va_arr[0]);
 			}
 			else if constexpr (detail::is_structured_buffer_v<t_what> or detail::is_byte_address_buffer_v<t_what>)
 			{
-				cmd_list.SetGraphicsRootShaderResourceView(slot_id, gpu_va_arr[0]);
+				command::set_graphics_root_srv(slot_id, gpu_va_arr[0]);
 			}
 			else
 			{
-				cmd_list.SetGraphicsRootUnorderedAccessView(slot_id, gpu_va_arr[0]);
+				command::set_graphics_root_uav(slot_id, gpu_va_arr[0]);
 			}
 		}
 
 		void
-		apply(t_cmd_list& cmd_list, std::size_t ring_idx = g::frame_buffer_idx) noexcept
+		apply(uint32 ring_idx = g::frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
 			if constexpr (detail::is_constant_buffer_array_v<t_what>)
 			{
-				cmd_list.SetGraphicsRootConstantBufferView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_graphics_root_cbv(slot_id, gpu_va_arr[ring_idx]);
 			}
 			else if constexpr (detail::is_structured_buffer_array_v<t_what> or detail::is_byte_address_buffer_array_v<t_what>)
 			{
-				cmd_list.SetGraphicsRootShaderResourceView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_graphics_root_srv(slot_id, gpu_va_arr[ring_idx]);
 			}
 			else
 			{
-				cmd_list.SetGraphicsRootUnorderedAccessView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_graphics_root_uav(slot_id, gpu_va_arr[ring_idx]);
 			}
 		}
 
 		void
-		apply_compute(t_cmd_list& cmd_list) noexcept
+		apply_compute() noexcept
 			requires(gpu_va_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
 			if constexpr (detail::is_constant_buffer_v<t_what>)
 			{
-				cmd_list.SetComputeRootConstantBufferView(slot_id, gpu_va_arr[0]);
+				command::set_compute_root_cbv(slot_id, gpu_va_arr[0]);
 			}
 			else if constexpr (detail::is_structured_buffer_v<t_what> or detail::is_byte_address_buffer_v<t_what>)
 			{
-				cmd_list.SetComputeRootShaderResourceView(slot_id, gpu_va_arr[0]);
+				command::set_compute_root_srv(slot_id, gpu_va_arr[0]);
 			}
 			else
 			{
-				cmd_list.SetComputeRootUnorderedAccessView(slot_id, gpu_va_arr[0]);
+				command::set_compute_root_uav(slot_id, gpu_va_arr[0]);
 			}
 		}
 
 		void
-		apply_compute(t_cmd_list& cmd_list, std::size_t ring_idx = g::frame_buffer_idx) noexcept
+		apply_compute(uint32 ring_idx = g::frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
 			if constexpr (detail::is_constant_buffer_array_v<t_what>)
 			{
-				cmd_list.SetComputeRootConstantBufferView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_compute_root_cbv(slot_id, gpu_va_arr[ring_idx]);
 			}
 			else if constexpr (detail::is_structured_buffer_array_v<t_what> or detail::is_byte_address_buffer_array_v<t_what>)
 			{
-				cmd_list.SetComputeRootShaderResourceView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_compute_root_srv(slot_id, gpu_va_arr[ring_idx]);
 			}
 			else
 			{
-				cmd_list.SetComputeRootUnorderedAccessView(slot_id, gpu_va_arr[ring_idx]);
+				command::set_compute_root_uav(slot_id, gpu_va_arr[ring_idx]);
 			}
 		}
 
 		D3D12_GPU_VIRTUAL_ADDRESS
-		get_va(std::size_t ring_idx = g::frame_buffer_idx) noexcept
+		get_va(uint32 ring_idx = g::frame_buffer_idx) noexcept
 		{
 			return gpu_va_arr[ring_idx];
 		}
@@ -420,7 +420,7 @@ namespace age::graphics
 		}
 	};
 
-	template <util::nttp_string_holder str_nttp, D3D12_SAMPLER_FLAGS flags, D3D12_SHADER_VISIBILITY visibility, typename t_what_, typename t_where_, std::size_t slot_id_>
+	template <util::nttp_string_holder str_nttp, D3D12_SAMPLER_FLAGS flags, D3D12_SHADER_VISIBILITY visibility, typename t_what_, typename t_where_, uint32 slot_id_>
 	requires(detail::is_sampler_v<t_what_>)
 	struct binding_slot<str_nttp, flags, visibility, t_what_, how::static_sampler, t_where_, slot_id_>
 	{
@@ -440,7 +440,7 @@ namespace age::graphics
 		{
 		};
 
-		template <util::nttp_string_holder str_nttp, auto n0, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_how, typename t_where, std::size_t slot_id>
+		template <util::nttp_string_holder str_nttp, auto n0, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_how, typename t_where, uint32 slot_id>
 		struct is_binding_slot<binding_slot<str_nttp, n0, visibility, t_what, t_how, t_where, slot_id>> : std::true_type
 		{
 		};
@@ -450,14 +450,14 @@ namespace age::graphics
 
 		template <typename... t_binding_slot>
 		consteval decltype(auto)
-		find_slot_index(where::e::reg_kind kind, std::size_t register_index, std::size_t register_space = 0)
+		find_slot_index(where::e::reg_kind kind, uint32 register_index, uint32 register_space = 0)
 		{
 			[]<auto... n>(std::index_sequence<n...>) {
 
 			}(std::index_sequence_for<t_binding_slot...>{});
 		}
 
-		template <where::e::reg_kind kind, std::size_t register_index, std::size_t register_space = 0>
+		template <where::e::reg_kind kind, uint32 register_index, uint32 register_space = 0>
 		struct find_template_param_index_pred
 		{
 			template <typename t>
@@ -478,23 +478,23 @@ namespace age::graphics
 			};
 		};
 
-		template <typename t_slot_type, std::size_t new_slot_id>
+		template <typename t_slot_type, uint32 new_slot_id>
 		struct rebind_slot;
 
-		template <util::nttp_string_holder str_nttp, auto visibility, typename t_what, typename t_where_, std::size_t slot_id, std::size_t new_slot_id>
+		template <util::nttp_string_holder str_nttp, auto visibility, typename t_what, typename t_where_, uint32 slot_id, uint32 new_slot_id>
 		struct rebind_slot<binding_slot<str_nttp, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility, t_what, how::root_constant, t_where_, slot_id>, new_slot_id>
 		{
 			using type = binding_slot<str_nttp, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, visibility, t_what, how::root_constant, t_where_, new_slot_id>;
 		};
 
-		template <util::nttp_string_holder str_nttp, auto flags, auto visibility, typename t_what, typename t_where_, std::size_t slot_id, std::size_t new_slot_id>
+		template <util::nttp_string_holder str_nttp, auto flags, auto visibility, typename t_what, typename t_where_, uint32 slot_id, uint32 new_slot_id>
 		requires detail::is_root_descriptor_compatible_v<t_what>
 		struct rebind_slot<binding_slot<str_nttp, flags, visibility, t_what, how::root_descriptor, t_where_, slot_id>, new_slot_id>
 		{
 			using type = binding_slot<str_nttp, flags, visibility, t_what, how::root_descriptor, t_where_, new_slot_id>;
 		};
 
-		template <typename t_slot, std::size_t slot_index>
+		template <typename t_slot, uint32 slot_index>
 		using rebind_slot_t = rebind_slot<t_slot, slot_index>::type;
 	}	 // namespace detail
 
@@ -505,15 +505,15 @@ namespace age::graphics
 		using t_sampler_index_seq	 = meta::filtered_index_sequence_t<detail::find_slot_index_by_reg_kind_pred<where::e::reg_kind::s>::template pred, t...>;
 		using t_root_param_index_seq = meta::filtered_index_sequence_t<detail::find_slot_index_by_reg_kind_pred<static_cast<where::e::reg_kind>(7u)>::template pred, t...>;
 
-		template <std::size_t n>
+		template <uint32 n>
 		using t_nth_binding_slot = meta::variadic_at_t<n, t...>;
 
-		template <where::e::reg_kind kind, std::size_t register_index, std::size_t register_space = 0>
+		template <where::e::reg_kind kind, uint32 register_index, uint32 register_space = 0>
 		static constexpr auto template_param_index = meta::variadic_index_v<
 			detail::find_template_param_index_pred<kind, register_index, register_space>::template pred, t...>;
 
-		template <where::e::reg_kind kind, std::size_t register_index, std::size_t register_space = 0>
-		static consteval std::size_t
+		template <where::e::reg_kind kind, uint32 register_index, uint32 register_space = 0>
+		static consteval uint32
 		calc_slot_index()
 		{
 			static_assert(kind == where::e::reg_kind::b or kind == where::e::reg_kind::t or kind == where::e::reg_kind::u, "Unsupported register kind");
@@ -533,19 +533,19 @@ namespace age::graphics
 			return res;
 		}
 
-		template <std::size_t register_index, std::size_t register_space = 0>
+		template <uint32 register_index, uint32 register_space = 0>
 		using reg_b =
 			detail::rebind_slot_t<
 				meta::variadic_at_t<template_param_index<where::e::reg_kind::b, register_index, register_space>, t...>,
 				calc_slot_index<where::e::reg_kind::b, register_index, register_space>()>;
 
-		template <std::size_t register_index, std::size_t register_space = 0>
+		template <uint32 register_index, uint32 register_space = 0>
 		using reg_t =
 			detail::rebind_slot_t<
 				meta::variadic_at_t<template_param_index<where::e::reg_kind::t, register_index, register_space>, t...>,
 				calc_slot_index<where::e::reg_kind::t, register_index, register_space>()>;
 
-		template <std::size_t register_index, std::size_t register_space = 0>
+		template <uint32 register_index, uint32 register_space = 0>
 		using reg_u =
 			detail::rebind_slot_t<
 				meta::variadic_at_t<template_param_index<where::e::reg_kind::u, register_index, register_space>, t...>,

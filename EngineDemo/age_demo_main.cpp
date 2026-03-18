@@ -25,20 +25,20 @@ main()
 		exec_inline{}
 	}();
 
-	// on_ctx{
-	//	age::platform::init,
-	//	age::graphics::init,
-	//	age::runtime::init,
+	on_ctx{
+		age::platform::init,
+		age::graphics::init,
+		age::runtime::init,
 
-	//	age_demo::game::get_sys_init(),
+		age_demo::game::get_sys_init(),
 
-	//	age_demo::game::get_sys_loop(),
+		age_demo::game::get_sys_loop(),
 
-	//	age_demo::game::get_sys_deinit(),
+		age_demo::game::get_sys_deinit(),
 
-	//	age::graphics::deinit,
-	//	age::platform::deinit,
-	//	age::asset::deinit,
-	//	exec_inline{}
-	//}();
+		age::graphics::deinit,
+		age::platform::deinit,
+		age::asset::deinit,
+		exec_inline{}
+	}();
 }

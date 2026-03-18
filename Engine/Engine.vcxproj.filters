@@ -64,6 +64,7 @@
     <ClInclude Include="age_input.hpp" />
     <ClInclude Include="age_platform_backend_window.hpp" />
     <ClInclude Include="age_data_structure_stable_dense_vector.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_fwd.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -76,7 +77,6 @@
     <ClCompile Include="age_unity.cpp" />
     <ClCompile Include="age_request.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_surface.cpp" />
-    <ClCompile Include="age_graphics_backend_dx12_cmd_system.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_util.cpp" />
     <ClCompile Include="age_asset.cpp" />
     <ClCompile Include="age_asset_mesh_editable.cpp" />

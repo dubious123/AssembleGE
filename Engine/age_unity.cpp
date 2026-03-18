@@ -37,11 +37,11 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_graphics_backend_dx12.cpp"
 #include "age_graphics_backend_dx12.cpp"
 
+#line 1 "age_graphics_backend_dx12_command.cpp"
+#include "age_graphics_backend_dx12_command.cpp"
+
 #line 1 "age_graphics_backend_dx12_util.cpp"
 #include "age_graphics_backend_dx12_util.cpp"
-
-#line 1 "age_graphics_backend_dx12_cmd_system.cpp"
-#include "age_graphics_backend_dx12_cmd_system.cpp"
 
 #line 1 "age_graphics_backend_dx12_command_signature.cpp"
 #include "age_graphics_backend_dx12_command_signature.cpp"

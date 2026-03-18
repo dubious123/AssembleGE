@@ -57,7 +57,7 @@ namespace age::graphics
 			auto* p_swap_chain_1 = (IDXGISwapChain1*)nullptr;
 			{
 				AGE_HR_CHECK(g::p_dxgi_factory->CreateSwapChainForHwnd(
-					g::cmd_system_direct.p_cmd_queue,
+					g::queue_ctx[std::to_underlying(e::queue_kind::direct)].p_queue,
 					platform::get_hwnd(w_handle),
 					&swap_chain_desc,
 					&full_screen_desc,
@@ -141,8 +141,9 @@ namespace age::graphics
 	render_surface::present() noexcept
 	{
 		AGE_HR_CHECK(p_swap_chain->Present(0, present_flags));
-		back_buffer_idx			  = p_swap_chain->GetCurrentBackBufferIndex();
-		last_used_cmd_fence_value = g::current_fence_value;
+		back_buffer_idx = p_swap_chain->GetCurrentBackBufferIndex();
+
+		present_fence_value = command::signal(e::queue_kind::direct);
 	}
 
 	void

@@ -298,7 +298,7 @@ namespace age::graphics::barrier
 namespace age::graphics
 {
 	FORCE_INLINE void
-	apply_barriers(t_cmd_list& cmd_list, auto&&... barrier) noexcept
+	apply_barriers(auto&&... barrier) noexcept
 	{
 		c_auto global_barrier_arr  = meta::make_filtered_array<D3D12_GLOBAL_BARRIER>(FWD(barrier)...);
 		c_auto texture_barrier_arr = meta::make_filtered_array<D3D12_TEXTURE_BARRIER>(FWD(barrier)...);
@@ -326,7 +326,7 @@ namespace age::graphics
 				groups[i++] = { D3D12_BARRIER_TYPE_BUFFER, (uint32)buffer_barrier_arr.size(), { .pBufferBarriers = buffer_barrier_arr.data() } };
 			}
 
-			cmd_list.Barrier(group_count, groups);
+			command::set_barrier(group_count, groups);
 		}
 	}
 }	 // namespace age::graphics

@@ -142,6 +142,7 @@ namespace age
 #include "age_request.hpp"
 
 #if defined AGE_GRAPHICS_BACKEND_DX12
+	#include "age_graphics_backend_dx12_fwd.hpp"
 	#include "age_graphics_backend_dx12.hpp"
 	#include "age_graphics_backend_dx12_defaults.hpp"
 	#include "age_graphics_backend_dx12_resource_barrier.hpp"

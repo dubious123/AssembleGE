@@ -12,7 +12,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(t_cmd_list& cmd_list, uint32 tile_total_uint32_count) noexcept;
+		execute(uint32 tile_total_uint32_count) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -31,7 +31,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		bind_dsv(graphics::resource_handle h_depth_buffer) noexcept;
 		inline void
-		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept;
+		execute(uint32 opaque_meshlet_count) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -56,15 +56,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept;
 
 		inline void
-		execute(t_cmd_list&		cmd_list,
-				uint32			width,
+		execute(uint32			width,
 				uint32			height,
 				uint32			shadow_light_count,
 				uint32			shadow_light_header_count,
 				ID3D12Resource& frame_data_rw_buffer,
 				ID3D12Resource& shadow_light_rw_buffer,
 				auto&			slot_shadow_light_rw_buffer_srv,
-				uint32			job_count) noexcept;
+				uint32			opaque_meshlet_count) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -94,8 +93,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(t_cmd_list&		cmd_list,
-				uint32			light_tile_count_x,
+		execute(uint32			light_tile_count_x,
 				uint32			light_tile_count_y,
 				ID3D12Resource& unified_sorted_light_buffer,
 				ID3D12Resource& frame_data_rw_buffer,
@@ -125,7 +123,8 @@ namespace age::graphics::render_pipeline::forward_plus
 					 graphics::resource_handle h_depth_buffer) noexcept;
 
 		inline void
-		execute(t_cmd_list& cmd_list, uint32 job_count) noexcept;
+		execute(uint32 meshlet_count) noexcept;
+
 		inline void
 		deinit() noexcept;
 	};
@@ -165,8 +164,7 @@ namespace age::graphics::render_pipeline::forward_plus
 					 graphics::resource_handle h_depth_buffer) noexcept;
 
 		inline void
-		execute(t_cmd_list&		cmd_list,
-				ID3D12Resource& sort_buffer,
+		execute(ID3D12Resource& sort_buffer,
 				auto&			slot_sort_buffer_srv,
 				ID3D12Resource& frame_data_rw_buffer,
 				auto&			frame_data_rw_buffer_srv) noexcept;
@@ -184,7 +182,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(t_cmd_list& cmd_list, render_surface& rs) noexcept;
+		execute(render_surface& rs) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -214,23 +212,23 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_shadow_light_buffer;
 
 
-		resource::mapping_handle h_mapping_frame_data;
-		resource::mapping_handle h_mapping_opaque_meshlet_render_data_buffer;
-		resource::mapping_handle h_mapping_object_data_buffer;
-		resource::mapping_handle h_mapping_mesh_buffer;
-		resource::mapping_handle h_mapping_directional_light_buffer;
-		resource::mapping_handle h_mapping_unified_light_buffer;
-		resource::mapping_handle h_mapping_shadow_light_header_buffer;
-		resource::mapping_handle h_mapping_transparent_object_render_data_buffer;
+		mapping_handle h_mapping_frame_data;
+		mapping_handle h_mapping_opaque_meshlet_render_data_buffer;
+		mapping_handle h_mapping_object_data_buffer;
+		mapping_handle h_mapping_mesh_buffer;
+		mapping_handle h_mapping_directional_light_buffer;
+		mapping_handle h_mapping_unified_light_buffer;
+		mapping_handle h_mapping_shadow_light_header_buffer;
+		mapping_handle h_mapping_transparent_object_render_data_buffer;
 
 
-		resource::mapping_handle h_mapping_rt_index_buffer;
+		mapping_handle h_mapping_rt_index_buffer;
 
 
-		resource::mapping_handle h_mapping_debug_buffer_uav;
+		mapping_handle h_mapping_debug_buffer_uav;
 
 		// rt, not for binding
-		resource::mapping_handle h_mapping_rt_vertex_scratch_buffer;
+		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 
 		rt::blas_buffer_handle h_rt_blas_buffer;
 

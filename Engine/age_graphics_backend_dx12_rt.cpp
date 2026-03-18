@@ -36,18 +36,22 @@ namespace age::graphics::rt
 			return resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(byte_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 		}
 
 		resource_handle
 		create_blas_buffer(std::size_t byte_size) noexcept
 		{
-			return resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(byte_size),
+			auto h_res = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_rt(byte_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = resource::e::memory_kind::gpu_only,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
+
+			h_res->set_name(L"blas_buffer");
+
+			return h_res;
 		}
 	}	 // namespace detail
 
@@ -55,6 +59,8 @@ namespace age::graphics::rt
 	init() noexcept
 	{
 		g::h_rt_scratch_buffer = detail::create_scratch_buffer(1024u);
+
+		g::h_rt_scratch_buffer->set_name(L"rt_scratch_buffer");
 	}
 
 	void
@@ -136,25 +142,27 @@ namespace age::graphics::rt
 			g::h_rt_scratch_buffer = detail::create_scratch_buffer(prebuild.ScratchDataSizeInBytes);
 		}
 
+
 		if (h_blas_buffer->size - h_blas_buffer->next_offset < blas_byte_size)
 		{
+			command::begin();
+
 			c_auto new_size		  = std::max(h_blas_buffer->next_offset + blas_byte_size, h_blas_buffer->size * 2);
 			auto   h_resource_new = detail::create_blas_buffer(new_size);
 			auto   offset		  = 0u;
 
 			for (auto& entry : h_blas_buffer->blas_entry_vec)
 			{
-				// command::add(
-				//	copy_raytracing_acceleration_structure(
-				//		h_resource_new->get_va() + offset,
-				//		h_blas_buffer->h_resource->GetGPUVirtualAddress() + entry.offset,
-				//		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE));
+				command::copy_rt_acceleration_structure(
+					h_resource_new->get_va() + offset,
+					h_blas_buffer->h_resource->get_va() + entry.offset,
+					D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE);
 
 				entry.offset  = offset;
 				offset		 += entry.size;
 			}
 
-			// command::execute_and_wait();
+			command::execute_and_wait();
 
 			resource::release_resource(h_blas_buffer->h_resource);
 			h_blas_buffer->h_resource  = h_resource_new;
@@ -167,9 +175,11 @@ namespace age::graphics::rt
 			.Inputs							  = inputs,
 			.ScratchAccelerationStructureData = g::h_rt_scratch_buffer->get_va(),
 		};
+		command::begin();
 
-		// command::execute_and_wait(
-		//	command::build_raytracing_acceleration_structure(&build_desc, 0, nullptr));
+		command::build_rt_acceleration_structure(&build_desc, 0, nullptr);
+
+		command::execute_and_wait();
 
 		auto entry_id = h_blas_buffer->blas_entry_vec.emplace_back(
 			blas_buffer_data::blas_entry{

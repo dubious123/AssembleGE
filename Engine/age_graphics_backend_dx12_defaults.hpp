@@ -8,7 +8,7 @@ namespace age::graphics::defaults
 	namespace heap_properties
 	{
 		constexpr FORCE_INLINE decltype(auto)
-		committed_heap(age::graphics::resource::e::memory_kind kind) noexcept
+		committed_heap(e::memory_kind kind) noexcept
 		{
 			return D3D12_HEAP_PROPERTIES{
 				.Type				  = static_cast<D3D12_HEAP_TYPE>(kind),
@@ -44,6 +44,13 @@ namespace age::graphics::defaults
 		buffer_uav(uint64 byte_size) noexcept
 		{
 			return buffer(byte_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		}
+
+		FORCE_INLINE decltype(auto)
+		buffer_rt(uint64 byte_size) noexcept
+		{
+			return buffer(byte_size, D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE
+										 | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		}
 
 		FORCE_INLINE decltype(auto)
