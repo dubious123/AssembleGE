@@ -150,6 +150,7 @@ namespace age::graphics::render_pipeline::forward_plus
 						  uint32		  shadow_light_count,
 						  uint32		  shadow_light_header_count,
 						  ID3D12Resource& frame_data_rw_buffer,
+						  auto&			  slot_frame_data_rw_buffer_srv,
 						  ID3D12Resource& shadow_light_rw_buffer,
 						  auto&			  slot_shadow_light_rw_buffer_srv,
 						  uint32		  opaque_meshlet_count) noexcept
@@ -166,7 +167,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			1);
 
 		command::apply_barriers(barrier::buf_uav_to_uav(&frame_data_rw_buffer));
-
+		slot_frame_data_rw_buffer_srv.apply_compute();
 		command::set_pso(p_fill_shadow_buffer_pso);
 		command::dispatch(shadow_light_header_count, 1, 1);
 
@@ -282,77 +283,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		p_pso_tile = graphics::g::pso_ptr_vec[h_pso_tile];
 	}
 
-	// inline void
-	// light_culling_stage::execute(uint32			 light_tile_count_x,
-	//							 uint32			 light_tile_count_y,
-	//							 ID3D12Resource& tile_mask_buffer,
-	//							 ID3D12Resource& light_cull_data_buffer,
-	//							 auto&			 slot_light_cull_data_buffer_srv,
-	//							 ID3D12Resource& sort_buffer,
-	//							 auto&			 slot_sort_buffer_srv,
-	//							 ID3D12Resource& zbin_buffer) noexcept
-	//{
-	//	command::set_pso(p_pso_init);
-	//	command::dispatch((light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count + 255) / 256, 1, 1);
-	//	command::apply_barriers(
-	//		barrier::buf_uav_to_uav(&tile_mask_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-	//		barrier::buf_uav_to_uav(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-	//		barrier::buf_uav_to_uav(&zbin_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-
-	//	// slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
-	//	slot_light_cull_data_buffer_srv.apply_compute();
-
-	//	command::set_pso(p_pso_cull);
-	//	command::dispatch((g::max_sort_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
-
-	//	command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-	//	slot_sort_buffer_srv.apply_compute();
-	//	// slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
-
-	//	for (uint32 pass : std::views::iota(0u) | std::views::take(g::sort_iteration_count))
-	//	{
-	//		command::set_compute_root_constants(
-	//			binding_config_t::reg_b<1>::slot_id,
-	//			static_cast<uint32>(sizeof(uint32) / 4),
-	//			&pass,
-	//			static_cast<uint32>(offsetof(shared_type::root_constants, radix_sort_pass) / 4));
-
-	//		command::set_pso(p_pso_sort_histogram);
-	//		command::dispatch(g::sort_group_count, 1, 1);
-
-	//		command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-	//		slot_sort_buffer_srv.apply_compute();
-
-	//		command::set_pso(p_pso_sort_prefix);
-	//		command::dispatch(g::sort_bin_count, 1, 1);
-
-	//		command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-	//		slot_sort_buffer_srv.apply_compute();
-
-	//		command::set_pso(p_pso_sort_scatter);
-	//		command::dispatch(g::sort_group_count, 1, 1);
-
-	//		command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-	//		slot_sort_buffer_srv.apply_compute();
-	//	}
-
-	//	command::set_pso(p_pso_zbin);
-	//	command::dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
-
-	//	command::apply_barriers(
-	//		barrier::buf_uav_to_srv(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-	//		barrier::buf_uav_to_srv(&sort_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-
-
-	//	// slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
-	//	slot_light_cull_data_buffer_srv.apply_compute();
-	//	// slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
-	//	slot_sort_buffer_srv.apply_compute();
-
-	//	command::set_pso(p_pso_tile);
-	//	command::dispatch(light_tile_count_x, light_tile_count_y, 1);
-	//}
-
 	inline void
 	light_culling_stage::execute(uint32			 light_tile_count_x,
 								 uint32			 light_tile_count_y,
@@ -363,62 +293,133 @@ namespace age::graphics::render_pipeline::forward_plus
 								 auto&			 slot_sort_buffer_srv,
 								 ID3D12Resource& zbin_buffer) noexcept
 	{
-		command::compute::set_pso(p_pso_init);
-		command::compute::dispatch((light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count + 255) / 256, 1, 1);
-		command::compute::apply_barriers(
+		command::set_pso(p_pso_init);
+		command::dispatch((light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count + 255) / 256, 1, 1);
+		command::apply_barriers(
 			barrier::buf_uav_to_uav(&tile_mask_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 			barrier::buf_uav_to_uav(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 			barrier::buf_uav_to_uav(&zbin_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+		// slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+		slot_light_cull_data_buffer_srv.apply_compute();
 
-		command::compute::set_pso(p_pso_cull);
-		command::compute::dispatch((g::max_sort_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
+		command::set_pso(p_pso_cull);
+		command::dispatch((g::max_sort_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
 
-		command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-		slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+		command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+		slot_sort_buffer_srv.apply_compute();
+		// slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
 
 		for (uint32 pass : std::views::iota(0u) | std::views::take(g::sort_iteration_count))
 		{
-			command::compute::set_compute_root_constants(
+			command::set_compute_root_constants(
 				binding_config_t::reg_b<1>::slot_id,
 				static_cast<uint32>(sizeof(uint32) / 4),
 				&pass,
 				static_cast<uint32>(offsetof(shared_type::root_constants, radix_sort_pass) / 4));
 
-			command::compute::set_pso(p_pso_sort_histogram);
-			command::compute::dispatch(g::sort_group_count, 1, 1);
+			command::set_pso(p_pso_sort_histogram);
+			command::dispatch(g::sort_group_count, 1, 1);
 
-			command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-			slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+			command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+			slot_sort_buffer_srv.apply_compute();
 
-			command::compute::set_pso(p_pso_sort_prefix);
-			command::compute::dispatch(g::sort_bin_count, 1, 1);
+			command::set_pso(p_pso_sort_prefix);
+			command::dispatch(g::sort_bin_count, 1, 1);
 
-			command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-			slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+			command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+			slot_sort_buffer_srv.apply_compute();
 
-			command::compute::set_pso(p_pso_sort_scatter);
-			command::compute::dispatch(g::sort_group_count, 1, 1);
+			command::set_pso(p_pso_sort_scatter);
+			command::dispatch(g::sort_group_count, 1, 1);
 
-			command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
-			slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+			command::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+			slot_sort_buffer_srv.apply_compute();
 		}
 
-		command::compute::set_pso(p_pso_zbin);
-		command::compute::dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
+		command::set_pso(p_pso_zbin);
+		command::dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
 
-		command::compute::apply_barriers(
+		command::apply_barriers(
 			barrier::buf_uav_to_srv(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 			barrier::buf_uav_to_srv(&sort_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 
-		slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
-		slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+		// slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+		slot_light_cull_data_buffer_srv.apply_compute();
+		// slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+		slot_sort_buffer_srv.apply_compute();
 
-		command::compute::set_pso(p_pso_tile);
-		command::compute::dispatch(light_tile_count_x, light_tile_count_y, 1);
+		command::set_pso(p_pso_tile);
+		command::dispatch(light_tile_count_x, light_tile_count_y, 1);
 	}
+
+	// inline void
+	// light_culling_stage::execute(uint32			 light_tile_count_x,
+	//							 uint32			 light_tile_count_y,
+	//							 ID3D12Resource& tile_mask_buffer,
+	//							 ID3D12Resource& light_cull_data_buffer,
+	//							 auto&			 slot_light_cull_data_buffer_srv,
+	//							 ID3D12Resource& sort_buffer,
+	//							 auto&			 slot_sort_buffer_srv,
+	//							 ID3D12Resource& zbin_buffer) noexcept
+	//{
+	//	command::compute::set_pso(p_pso_init);
+	//	command::compute::dispatch((light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count + 255) / 256, 1, 1);
+	//	command::compute::apply_barriers(
+	//		barrier::buf_uav_to_uav(&tile_mask_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+	//		barrier::buf_uav_to_uav(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+	//		barrier::buf_uav_to_uav(&zbin_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+	//	slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+
+	//	command::compute::set_pso(p_pso_cull);
+	//	command::compute::dispatch((g::max_sort_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
+
+	//	command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+	//	slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+
+	//	for (uint32 pass : std::views::iota(0u) | std::views::take(g::sort_iteration_count))
+	//	{
+	//		command::compute::set_compute_root_constants(
+	//			binding_config_t::reg_b<1>::slot_id,
+	//			static_cast<uint32>(sizeof(uint32) / 4),
+	//			&pass,
+	//			static_cast<uint32>(offsetof(shared_type::root_constants, radix_sort_pass) / 4));
+
+	//		command::compute::set_pso(p_pso_sort_histogram);
+	//		command::compute::dispatch(g::sort_group_count, 1, 1);
+
+	//		command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+	//		slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+
+	//		command::compute::set_pso(p_pso_sort_prefix);
+	//		command::compute::dispatch(g::sort_bin_count, 1, 1);
+
+	//		command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+	//		slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+
+	//		command::compute::set_pso(p_pso_sort_scatter);
+	//		command::compute::dispatch(g::sort_group_count, 1, 1);
+
+	//		command::compute::apply_barriers(barrier::buf_uav_to_uav(&sort_buffer));
+	//		slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+	//	}
+
+	//	command::compute::set_pso(p_pso_zbin);
+	//	command::compute::dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
+
+	//	command::compute::apply_barriers(
+	//		barrier::buf_uav_to_srv(&light_cull_data_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+	//		barrier::buf_uav_to_srv(&sort_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+
+	//	slot_light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+	//	slot_sort_buffer_srv.apply_compute(e::queue_kind::compute);
+
+	//	command::compute::set_pso(p_pso_tile);
+	//	command::compute::dispatch(light_tile_count_x, light_tile_count_y, 1);
+	//}
 
 	inline void
 	light_culling_stage::deinit() noexcept

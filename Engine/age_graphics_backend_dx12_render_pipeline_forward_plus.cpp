@@ -318,9 +318,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		command::begin_frame(e::queue_kind::direct);
-		command::begin_frame(e::queue_kind::compute);
-		command::gpu_wait_frame(e::queue_kind::direct, e::queue_kind::compute);
-		command::gpu_wait_frame(e::queue_kind::compute, e::queue_kind::direct);
 
 		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
 		command::set_graphics_root_sig(p_root_sig);
@@ -328,68 +325,56 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			frame_data_buffer.apply();
-			// frame_data_buffer.apply_compute();
+			frame_data_buffer.apply_compute();
 
 			opaque_render_data_buffer.apply();
-			// opaque_render_data_buffer.apply_compute();
 
 			object_data_buffer.apply();
-			// object_data_buffer.apply_compute();
+			object_data_buffer.apply_compute();
 
 			mesh_data_buffer.apply();
-			// mesh_data_buffer.apply_compute();
+			mesh_data_buffer.apply_compute();
 
-			// directional_light_buffer.apply();
-			// directional_light_buffer.apply_compute();
+			directional_light_buffer.apply();
+			directional_light_buffer.apply_compute();
 
-			// shadow_light_header_buffer.apply_compute();
+			shadow_light_header_buffer.apply();
+			shadow_light_header_buffer.apply_compute();
+
+			shadow_light_buffer_uav.apply_compute();
+
+			shadow_light_buffer_srv.apply_compute();
+			shadow_light_buffer_srv.apply();
 
 			frame_data_rw_buffer_uav.apply_compute();
 
-			// sort_buffer_uav.apply_compute();
-
-			// shadow_light_buffer_uav.apply_compute();
-
-			// unified_light_buffer.apply_compute();
-			//  shadow_light_buffer_srv.apply();
-
-			// unified_sorted_light_buffer_srv.apply();
-
-			// tile_mask_buffer_srv.apply();
-
-
-			// transparent_object_render_data_buffer.apply();
-			// transparent_object_render_data_buffer.apply_compute();
-
-			// light_cull_data_buffer_srv.apply();
+			transparent_object_render_data_buffer.apply();
+			transparent_object_render_data_buffer.apply_compute();
 
 			debug_buffer_uav.apply();
 			debug_buffer_uav.apply_compute();
 		}
 
 		{
-			command::compute::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-			command::compute::set_compute_root_sig(p_root_sig);
-			unified_light_buffer.apply_compute(e::queue_kind::compute);
-			unified_sorted_light_buffer_uav.apply_compute(e::queue_kind::compute);
-			light_cull_data_buffer_uav.apply_compute(e::queue_kind::compute);
-			light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
-			sort_buffer_uav.apply_compute(e::queue_kind::compute);
-			sort_buffer_srv.apply_compute(e::queue_kind::compute);
-			zbin_buffer_uav.apply_compute(e::queue_kind::compute);
-			tile_mask_buffer_uav.apply_compute(e::queue_kind::compute);
-			frame_data_buffer.apply_compute(e::queue_kind::compute);
+			// command::compute::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+			// command::compute::set_compute_root_sig(p_root_sig);
+			// unified_light_buffer.apply_compute(e::queue_kind::compute);
+			// unified_sorted_light_buffer_uav.apply_compute(e::queue_kind::compute);
+			// light_cull_data_buffer_uav.apply_compute(e::queue_kind::compute);
+			// light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
+			// sort_buffer_uav.apply_compute(e::queue_kind::compute);
+			// sort_buffer_srv.apply_compute(e::queue_kind::compute);
+			// zbin_buffer_uav.apply_compute(e::queue_kind::compute);
+			// tile_mask_buffer_uav.apply_compute(e::queue_kind::compute);
+			// frame_data_buffer.apply_compute(e::queue_kind::compute);
 
 
-			// unified_light_buffer.apply_compute();
-			// unified_sorted_light_buffer_uav.apply_compute();
-			// light_cull_data_buffer_uav.apply_compute();
-			// light_cull_data_buffer_srv.apply_compute();
-			// sort_buffer_uav.apply_compute();
-			// sort_buffer_srv.apply_compute();
-			// zbin_buffer_uav.apply_compute();
-			// tile_mask_buffer_uav.apply_compute();
-			// frame_data_buffer.apply_compute();
+			unified_light_buffer.apply_compute();
+			unified_sorted_light_buffer_uav.apply_compute();
+			light_cull_data_buffer_uav.apply_compute();
+			sort_buffer_uav.apply_compute();
+			zbin_buffer_uav.apply_compute();
+			tile_mask_buffer_uav.apply_compute();
 		}
 
 
@@ -550,8 +535,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				root_constants.apply();
 				root_constants.apply_compute();
-
-				root_constants.apply_compute(e::queue_kind::compute);
 			}
 		}
 
@@ -570,138 +553,8 @@ namespace age::graphics::render_pipeline::forward_plus
 									*h_sort_buffer->p_resource,
 									sort_buffer_srv,
 									*h_zbin_buffer->p_resource);
-		command::end_frame(e::queue_kind::compute);
-
-		// command::execute_and_resume(e::queue_kind::compute);
-
-		// command::compute::apply_barriers(
-		//	barrier::buf_srv_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-		//	barrier::buf_uav_to_uav(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-		//	barrier::buf_uav_to_uav(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-		//	barrier::buf_uav_to_uav(h_zbin_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-
-		// command::compute::apply_barriers(
-		//	barrier::buf_srv_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-		//	barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-		//	barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-		//	barrier::buf_uav_to_srv(h_zbin_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
-
-		// command::compute::apply_barriers(
-		//	barrier::buf_uav_to_uav(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-
-
-		stage_init.execute();
-
-		command::apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource));
-
-		command::set_view_ports(1, &rs.default_viewport);
-		command::set_scissor_rects(1, &rs.default_scissor_rect);
-
-		stage_depth.execute(opaque_meshlet_render_data_count);
-
-		command::execute_and_resume(e::queue_kind::direct);
-
-
-		command::gpu_wait(e::queue_kind::direct, e::queue_kind::compute);
-		// command::gpu_wait(e::queue_kind::compute, e::queue_kind::direct);
-
-		{
-			command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-			command::set_graphics_root_sig(p_root_sig);
-			command::set_compute_root_sig(p_root_sig);
-
-			{
-				frame_data_buffer.apply();
-				frame_data_buffer.apply_compute();
-
-				opaque_render_data_buffer.apply();
-				opaque_render_data_buffer.apply_compute();
-
-				object_data_buffer.apply();
-				object_data_buffer.apply_compute();
-
-				mesh_data_buffer.apply();
-				mesh_data_buffer.apply_compute();
-
-				directional_light_buffer.apply();
-				directional_light_buffer.apply_compute();
-
-				shadow_light_header_buffer.apply_compute();
-
-				frame_data_rw_buffer_uav.apply_compute();
-
-				sort_buffer_uav.apply_compute();
-
-				shadow_light_buffer_uav.apply_compute();
-
-				unified_light_buffer.apply_compute();
-				// shadow_light_buffer_srv.apply();
-
-				// unified_sorted_light_buffer_srv.apply();
-
-				// tile_mask_buffer_srv.apply();
-
-
-				transparent_object_render_data_buffer.apply();
-				transparent_object_render_data_buffer.apply_compute();
-
-				light_cull_data_buffer_srv.apply();
-
-				debug_buffer_uav.apply();
-				debug_buffer_uav.apply_compute();
-			}
-
-			{
-				// todo multiple camera
-				c_auto& cam_data = camera_data_vec[0];
-				c_auto	dt_ns	 = runtime::i_time.get_delta_time_ns();
-				c_auto	dt_ms	 = std::chrono::duration<float, std::milli>(dt_ns).count();
-
-				auto frame_d = shared_type::frame_data{
-					.view_proj				 = cam_data.view_proj,
-					.view_proj_inv			 = cam_data.view_proj_inv,
-					.camera_pos				 = cam_data.pos,
-					.time					 = dt_ms,
-					.inv_backbuffer_size	 = float2{ 1.f / extent.width, 1.f / extent.height },
-					.backbuffer_size		 = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
-					.camera_forward			 = cam_data.forward,
-					.frame_index			 = runtime::i_time.get_frame_count(),
-					.camera_right			 = cam_data.right,
-					.main_buffer_texture_id	 = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
-					.depth_buffer_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
-				};
-
-
-				std::ranges::copy(cam_data.frustum_plane_arr, frame_d.frustum_planes);
-
-				std::memcpy(h_mapping_frame_data->ptr + sizeof(shared_type::frame_data) * graphics::g::frame_buffer_idx, &frame_d, sizeof(shared_type::frame_data));
-			}
-
-			{
-				c_auto& cam_desc = camera_desc_vec[0];
-				root_constants.bind(shared_type::root_constants{
-					.opaque_meshlet_render_data_count	  = opaque_meshlet_render_data_count,
-					.directional_light_count_and_extra	  = static_cast<t_directional_light_id>(directional_light_vec.size()),
-					.unified_light_count				  = static_cast<t_unified_light_id>(unified_light_vec.size()),
-					.transparent_object_render_data_count = static_cast<uint32>(transparent_object_render_data_count),
-					.light_tile_count_x					  = light_tile_count_x,
-					.light_tile_count_y					  = light_tile_count_y,
-					//.cluster_near_z					   = cam_desc.near_z,
-					//.cluster_far_z					   = cam_desc.far_z,
-					.cam_near_z				= cam_desc.near_z,
-					.cam_far_z				= cam_desc.far_z,
-					.cam_log_far_near_ratio = std::log2(cam_desc.far_z / cam_desc.near_z),
-					.shadow_atlas_id		= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
-				});
-
-				root_constants.apply();
-				root_constants.apply_compute();
-			}
-		}
-
-
 		command::apply_barriers(
-			// barrier::buf_uav_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::buf_uav_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 			barrier::buf_uav_to_srv(h_zbin_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
 			barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
 			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
@@ -712,6 +565,19 @@ namespace age::graphics::render_pipeline::forward_plus
 		tile_mask_buffer_srv.apply();
 		zbin_buffer_srv.apply();
 
+		stage_init.execute();
+
+		command::apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource));
+
+		frame_data_rw_buffer_srv.apply();
+		frame_data_rw_buffer_srv.apply_compute();
+
+		command::set_view_ports(1, &rs.default_viewport);
+		command::set_scissor_rects(1, &rs.default_scissor_rect);
+
+		stage_depth.execute(opaque_meshlet_render_data_count);
+
+
 		command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		stage_shadow.execute(
@@ -720,6 +586,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			next_shadow_light_id,
 			shadow_light_header_count,
 			*h_frame_data_rw_buffer->p_resource,
+			frame_data_rw_buffer_srv,
 			*h_shadow_light_buffer->p_resource,
 			shadow_light_buffer_srv,
 			opaque_meshlet_render_data_count);
@@ -732,7 +599,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
 			barrier::buf_uav_to_srv(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));	   // used by opaque
 		frame_data_rw_buffer_srv.apply();
-
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
 
@@ -768,7 +634,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		command::end_frame(e::queue_kind::direct);
-		// command::end_frame(e::queue_kind::compute);
 	}
 
 	void

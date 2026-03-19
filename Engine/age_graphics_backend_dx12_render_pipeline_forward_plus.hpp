@@ -61,6 +61,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				uint32			shadow_light_count,
 				uint32			shadow_light_header_count,
 				ID3D12Resource& frame_data_rw_buffer,
+				auto&			slot_frame_data_rw_buffer_srv,
 				ID3D12Resource& shadow_light_rw_buffer,
 				auto&			slot_shadow_light_rw_buffer_srv,
 				uint32			opaque_meshlet_count) noexcept;

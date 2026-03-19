@@ -3,7 +3,7 @@
 
 namespace age_demo::game::g
 {
-	inline constexpr auto first_scene_idx = 2;
+	inline constexpr auto first_scene_idx = 0;
 }
 
 namespace age_demo::game
