@@ -271,6 +271,12 @@ namespace age::graphics::barrier
 		return barrier;
 	});
 
+	inline constexpr auto as_frame_end = AGE_LAMBDA((auto&& barrier), {
+		barrier.SyncAfter	= D3D12_BARRIER_SYNC_NONE;
+		barrier.AccessAfter = D3D12_BARRIER_ACCESS_NO_ACCESS;
+		return barrier;
+	});
+
 	inline constexpr auto as_split_begin = AGE_LAMBDA((auto&& barrier), {
 		AGE_ASSERT(barrier.Flags != D3D12_TEXTURE_BARRIER_FLAG_DISCARD);
 		barrier.SyncAfter = D3D12_BARRIER_SYNC_SPLIT;
@@ -288,45 +294,10 @@ namespace age::graphics::barrier
 	operator|(t_barrier barrier, auto&& modifier) noexcept
 		requires(meta::variadic_contains_v<BARE_OF(modifier),
 										   BARE_OF(as_frame_start),
+										   BARE_OF(as_frame_end),
 										   BARE_OF(as_split_begin),
 										   BARE_OF(as_split_end)>)
 	{
 		return modifier(barrier);
 	}
 };	  // namespace age::graphics::barrier
-
-namespace age::graphics
-{
-	FORCE_INLINE void
-	apply_barriers(auto&&... barrier) noexcept
-	{
-		c_auto global_barrier_arr  = meta::make_filtered_array<D3D12_GLOBAL_BARRIER>(FWD(barrier)...);
-		c_auto texture_barrier_arr = meta::make_filtered_array<D3D12_TEXTURE_BARRIER>(FWD(barrier)...);
-		c_auto buffer_barrier_arr  = meta::make_filtered_array<D3D12_BUFFER_BARRIER>(FWD(barrier)...);
-
-		constexpr auto group_count = (global_barrier_arr.size() > 0)
-								   + (texture_barrier_arr.size() > 0)
-								   + (buffer_barrier_arr.size() > 0);
-
-		if constexpr (group_count > 0)
-		{
-			D3D12_BARRIER_GROUP groups[group_count];
-			uint32				i = 0;
-
-			if constexpr (global_barrier_arr.size() > 0)
-			{
-				groups[i++] = { D3D12_BARRIER_TYPE_GLOBAL, (uint32)global_barrier_arr.size(), { .pGlobalBarriers = global_barrier_arr.data() } };
-			}
-			if constexpr (texture_barrier_arr.size() > 0)
-			{
-				groups[i++] = { D3D12_BARRIER_TYPE_TEXTURE, (uint32)texture_barrier_arr.size(), { .pTextureBarriers = texture_barrier_arr.data() } };
-			}
-			if constexpr (buffer_barrier_arr.size() > 0)
-			{
-				groups[i++] = { D3D12_BARRIER_TYPE_BUFFER, (uint32)buffer_barrier_arr.size(), { .pBufferBarriers = buffer_barrier_arr.data() } };
-			}
-
-			command::set_barrier(group_count, groups);
-		}
-	}
-}	 // namespace age::graphics

@@ -7,6 +7,7 @@ namespace age_demo::scene_1
 	init() noexcept
 	{
 		using namespace age::ecs::system;
+
 		on_ctx{
 			AGE_LAMBDA(
 				(),
@@ -254,39 +255,39 @@ namespace age_demo::scene_1
 	{
 		for (auto o_id : i_deinit.get_obj_id_vec())
 		{
-			i_deinit.get_render_pipeline().remove_object(o_id);
+			i_deinit.get_render_pipeline->remove_object(o_id);
 		}
 
 		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
 		{
-			i_deinit.get_render_pipeline().release_mesh(m_id);
+			i_deinit.get_render_pipeline->release_mesh(m_id);
 		}
 
 		for (auto c_id : i_deinit.get_camera_id_vec())
 		{
-			i_deinit.get_render_pipeline().remove_camera(c_id);
+			i_deinit.get_render_pipeline->remove_camera(c_id);
 		}
 
 		for (auto l_id : i_deinit.get_point_light_id_vec())
 		{
-			i_deinit.get_render_pipeline().remove_point_light(l_id);
+			i_deinit.get_render_pipeline->remove_point_light(l_id);
 		}
 
 		for (auto l_id : i_deinit.get_spot_light_id_vec())
 		{
-			i_deinit.get_render_pipeline().remove_spot_light(l_id);
+			i_deinit.get_render_pipeline->remove_spot_light(l_id);
 		}
 
 		for (auto d_id : i_deinit.get_directional_light_id_vec())
 		{
-			i_deinit.get_render_pipeline().remove_directional_light(d_id);
+			i_deinit.get_render_pipeline->remove_directional_light(d_id);
 		}
 
-		i_deinit.get_obj_id_vec().clear();
-		i_deinit.get_mesh_id_vec().clear();
-		i_deinit.get_camera_id_vec().clear();
-		i_deinit.get_point_light_id_vec().clear();
-		i_deinit.get_spot_light_id_vec().clear();
-		i_deinit.get_directional_light_id_vec().clear();
+		i_deinit.get_obj_id_vec->clear();
+		i_deinit.get_mesh_id_vec->clear();
+		i_deinit.get_camera_id_vec->clear();
+		i_deinit.get_point_light_id_vec->clear();
+		i_deinit.get_spot_light_id_vec->clear();
+		i_deinit.get_directional_light_id_vec->clear();
 	}
 }	 // namespace age_demo::scene_1

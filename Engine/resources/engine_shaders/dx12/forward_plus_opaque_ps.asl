@@ -326,8 +326,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	//     return float4(1, 1, 1, 1);
 	// }
 
-	// const unified_light light = unified_sorted_light_buffer_srv[0];
-	// lighting += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
+	// const unified_light light  = unified_sorted_light_buffer_srv[5];
+	// lighting				  += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
 
 	// return float4(lighting * albedo, 1.0f);
 

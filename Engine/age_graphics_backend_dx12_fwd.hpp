@@ -37,6 +37,7 @@ namespace age::graphics::e
 					forward_plus_shadow_as,
 					forward_plus_shadow_ms,
 
+					forward_plus_light_init_cs,
 					forward_plus_light_cull_cs,
 					forward_plus_sort_histogram_cs,
 					forward_plus_sort_prefix_cs,
@@ -96,10 +97,10 @@ namespace age::graphics
 		uint32 map_count = {};
 
 		FORCE_INLINE std::size_t
-		buffer_size() noexcept;
+		buffer_size() const noexcept;
 
 		FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
-		get_va() noexcept;
+		get_va() const noexcept;
 
 		void
 		set_name(const wchar_t* name) noexcept;

@@ -11,18 +11,24 @@ namespace age::graphics
 		return &g::resource_vec[id];
 	}
 
+	FORCE_INLINE c_auto*
+	resource_handle::operator->() const noexcept
+	{
+		return &g::resource_vec[id];
+	}
+
 }	 // namespace age::graphics
 
 namespace age::graphics
 {
 	FORCE_INLINE std::size_t
-	d3d12_resource::buffer_size() noexcept
+	d3d12_resource::buffer_size() const noexcept
 	{
 		return p_resource->GetDesc().Width;
 	}
 
 	FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
-	d3d12_resource::get_va() noexcept
+	d3d12_resource::get_va() const noexcept
 	{
 		return p_resource->GetGPUVirtualAddress();
 	}
@@ -113,6 +119,18 @@ namespace age::graphics::resource
 		return resource_handle{ .id = g::resource_vec.emplace_back(p_resource) };
 	}
 
+	template <auto n>
+	std::array<resource_handle, n>
+	create_committed(const resource_create_desc& desc) noexcept
+	{
+		auto result = std::array<resource_handle, n>{};
+		for (auto& h : result)
+		{
+			h = create_committed(desc);
+		}
+		return result;
+	}
+
 	resource_handle
 	create_placed(const resource_create_desc& desc, ID3D12Heap& heap, uint64 offset) noexcept
 	{
@@ -147,6 +165,15 @@ namespace age::graphics::resource
 		g::resource_vec[h_resource].p_resource->Release();
 		g::resource_vec.remove(h_resource);
 		h_resource = {};
+	}
+
+	void
+	release_resource(std::span<resource_handle> h_resources) noexcept
+	{
+		for (auto& h : h_resources)
+		{
+			release_resource(h);
+		}
 	}
 
 	mapping_handle
@@ -320,6 +347,19 @@ namespace age::graphics::resource
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept
 	{
 		create_view(*g::resource_vec[h_resource].p_resource, h_desc, view_desc);
+	}
+}	 // namespace age::graphics::resource
+
+namespace age::graphics::resource
+{
+	inline void
+	set_name(auto&& rng, const wchar_t* fmt) noexcept
+	{
+		for (auto&& [i, h_resource] : rng | std::views::enumerate)
+		{
+			auto str = std::vformat(fmt, std::make_wformat_args(i));
+			h_resource->set_name(str.c_str());
+		}
 	}
 }	 // namespace age::graphics::resource
 

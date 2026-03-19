@@ -20,10 +20,19 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	gpu_wait(e::queue_kind who, e::queue_kind what) noexcept
 	{
-		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
 		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
+		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
 
 		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.fence_value));
+	}
+
+	FORCE_INLINE void
+	gpu_wait_frame(e::queue_kind who, e::queue_kind what) noexcept
+	{
+		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
+		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
+
+		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(g::frame_buffer_idx - 1 + g::frame_buffer_count) % g::frame_buffer_count]));
 	}
 }	 // namespace age::graphics::command
 
@@ -119,6 +128,32 @@ namespace age::graphics::command
 		execute_and_wait(kind, 0);
 	}
 
+	namespace detail
+	{
+		FORCE_INLINE void
+		resume(e::queue_kind kind, uint8 thread_idx) noexcept
+		{
+			auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+
+			AGE_HR_CHECK(ctx.p_cmd_list[thread_idx]->Reset(
+				ctx.p_allocator[g::frame_buffer_idx][thread_idx], nullptr));
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE void
+	execute_and_resume(e::queue_kind kind, auto... thread_idx) noexcept
+	{
+		execute(kind, thread_idx...);
+
+		(detail::resume(kind, thread_idx), ...);
+	}
+
+	FORCE_INLINE void
+	execute_and_resume(e::queue_kind kind) noexcept
+	{
+		execute_and_resume(kind, 0);
+	}
+
 	FORCE_INLINE void
 	end_frame(e::queue_kind kind, auto... thread_idx) noexcept
 	{
@@ -158,6 +193,69 @@ namespace age::graphics::command
 		// >= instead of == to handle UINT64_MAX on device lost
 		return ctx.p_fence->GetCompletedValue() >= ctx.fence_value;
 	}
+}	 // namespace age::graphics::command
+
+namespace age::graphics::command
+{
+	FORCE_INLINE void
+	apply_barriers(e::queue_kind kind, uint8 thread_idx, auto&&... arg)
+	{
+		c_auto global_barrier_arr  = meta::make_filtered_array<D3D12_GLOBAL_BARRIER>(FWD(arg)...);
+		c_auto texture_barrier_arr = meta::make_filtered_array<D3D12_TEXTURE_BARRIER>(FWD(arg)...);
+		c_auto buffer_barrier_arr  = meta::make_filtered_array<D3D12_BUFFER_BARRIER>(FWD(arg)...);
+
+		constexpr auto group_count = (global_barrier_arr.size() > 0)
+								   + (texture_barrier_arr.size() > 0)
+								   + (buffer_barrier_arr.size() > 0);
+
+		if constexpr (group_count > 0)
+		{
+			D3D12_BARRIER_GROUP groups[group_count];
+			uint32				i = 0;
+
+			if constexpr (global_barrier_arr.size() > 0)
+			{
+				groups[i++] = { D3D12_BARRIER_TYPE_GLOBAL, (uint32)global_barrier_arr.size(), { .pGlobalBarriers = global_barrier_arr.data() } };
+			}
+			if constexpr (texture_barrier_arr.size() > 0)
+			{
+				groups[i++] = { D3D12_BARRIER_TYPE_TEXTURE, (uint32)texture_barrier_arr.size(), { .pTextureBarriers = texture_barrier_arr.data() } };
+			}
+			if constexpr (buffer_barrier_arr.size() > 0)
+			{
+				groups[i++] = { D3D12_BARRIER_TYPE_BUFFER, (uint32)buffer_barrier_arr.size(), { .pBufferBarriers = buffer_barrier_arr.data() } };
+			}
+
+			command::set_barrier(kind, thread_idx, group_count, groups);
+		}
+	}
+
+	FORCE_INLINE void
+	apply_barriers(auto&&... arg) noexcept
+		requires(sizeof...(arg) == 0 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>)
+	{
+		apply_barriers(e::queue_kind::direct, uint8{ 0 }, FWD(arg)...);
+	}
+
+	namespace compute
+	{
+		FORCE_INLINE void
+		apply_barriers(auto&&... arg) noexcept
+			requires(sizeof...(arg) == 0 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>)
+		{
+			command::apply_barriers(e::queue_kind::compute, uint8{ 0 }, FWD(arg)...);
+		}
+	}	 // namespace compute
+
+	namespace copy
+	{
+		FORCE_INLINE void
+		apply_barriers(auto&&... arg) noexcept
+			requires(sizeof...(arg) == 0 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>)
+		{
+			command::apply_barriers(e::queue_kind::copy, uint8{ 0 }, FWD(arg)...);
+		}
+	}	 // namespace copy
 }	 // namespace age::graphics::command
 
 namespace age::graphics::command

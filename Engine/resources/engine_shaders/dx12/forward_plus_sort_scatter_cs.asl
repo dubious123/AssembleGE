@@ -9,7 +9,7 @@ groupshared uint32 gs_generic[SORT_THREAD_COUNT];
 groupshared uint32 local_histogram[SORT_BIN_COUNT];
 
 [numthreads(SORT_THREAD_COUNT, 1, 1)] void
-main_cs(uint32 group_id	 sv_group_id,
+main_cs(uint32 group_id sv_group_id,
 		uint32 thread_id sv_group_thread_id)
 
 {
@@ -153,7 +153,7 @@ main_cs(uint32 group_id	 sv_group_id,
 				bin_offset_arr[thread_id] += local_histogram[thread_id];
 			}
 
-			// GroupMemoryBarrierWithGroupSync();
+			// group_memory_barrier_with_sync();
 		}
 	}
 }

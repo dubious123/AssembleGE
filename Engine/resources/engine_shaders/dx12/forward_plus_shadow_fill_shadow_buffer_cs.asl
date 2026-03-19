@@ -203,7 +203,7 @@ handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 
 [numthreads(6, 1, 1)] void
 main_cs(uint32 shadow_light_header_id sv_group_id,
-		uint32 thread_id			  sv_group_thread_id) {
+		uint32 thread_id sv_group_thread_id) {
 	const shadow_light_header header = shadow_light_header_buffer[shadow_light_header_id];
 
 	if (header.light_kind == LIGHT_KIND_DIRECTIONAL)

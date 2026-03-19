@@ -64,6 +64,9 @@ namespace age::graphics
 
 		FORCE_INLINE auto*
 		operator->() noexcept;
+
+		FORCE_INLINE c_auto*
+		operator->() const noexcept;
 	};
 
 	using t_render_surface_id = uint32;

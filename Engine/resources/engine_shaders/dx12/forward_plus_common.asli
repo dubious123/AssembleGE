@@ -35,6 +35,9 @@ rw_structured_buffer<uint32> tile_mask_buffer_uav reg(u2, space2);
 structured_buffer<unified_light>	unified_sorted_light_buffer_srv reg(t3, space2);
 rw_structured_buffer<unified_light> unified_sorted_light_buffer_uav reg(u3, space2);
 
+structured_buffer<light_cull_data>	  light_cull_data_buffer_srv reg(t4, space2);
+rw_structured_buffer<light_cull_data> light_cull_data_buffer_uav reg(u4, space2);
+
 structured_buffer<transparent_object_render_data> transparent_object_render_data_buffer reg(t0, space3);
 
 // debug

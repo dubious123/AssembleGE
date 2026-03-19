@@ -687,6 +687,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <Optimization>MaxSpeed</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

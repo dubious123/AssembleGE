@@ -27,7 +27,7 @@ namespace age::graphics::shader
 			AGE_ASSERT(shader_name.find_last_of('_') != std::wstring_view::npos);
 
 			c_auto stage	   = std::wstring{ shader_name.substr(shader_name.find_last_of('_') + 1) };
-			c_auto target	   = stage + L"_6_9";
+			c_auto target	   = stage + L"_6_8";
 			c_auto entry_point = L"main_" + stage;
 
 			auto newest_include_time = std::filesystem::last_write_time(hlsl_path);
@@ -100,15 +100,16 @@ namespace age::graphics::shader
 				L"-T", target.data(),
 				L"-I", dir_path.c_str(),
 				L"-HV", L"2021",
-				L"-Qstrip_reflect",
+				// L"-Qstrip_reflect",
 				// L"-Qstrip_debug",
 				L"-enable-16bit-types",
+				L"-Zi",
+				L"-Qembed_debug",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
 	#if defined(AGE_DEBUG)
 				L"-Qembed_debug",
 				DXC_ARG_DEBUG,
 				DXC_ARG_SKIP_OPTIMIZATIONS
-
 	#elif defined(AGE_RELEASE)
 				DXC_ARG_ALL_RESOURCES_BOUND,
 				DXC_ARG_OPTIMIZATION_LEVEL3,

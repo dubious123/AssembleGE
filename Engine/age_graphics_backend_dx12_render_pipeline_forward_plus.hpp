@@ -12,7 +12,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(uint32 tile_total_uint32_count) noexcept;
+		execute() noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -71,6 +71,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct light_culling_stage
 	{
+		graphics::pso::handle h_pso_init;
+		ID3D12PipelineState*  p_pso_init;
+
 		graphics::pso::handle h_pso_cull;
 		ID3D12PipelineState*  p_pso_cull;
 
@@ -95,13 +98,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		execute(uint32			light_tile_count_x,
 				uint32			light_tile_count_y,
-				ID3D12Resource& unified_sorted_light_buffer,
-				ID3D12Resource& frame_data_rw_buffer,
-				auto&			slot_frame_data_rw_buffer_srv,
+				ID3D12Resource& tile_mask_buffer,
+				ID3D12Resource& light_cull_data_buffer,
+				auto&			slot_light_cull_data_buffer_srv,
 				ID3D12Resource& sort_buffer,
 				auto&			slot_sort_buffer_srv,
-				ID3D12Resource& zbin_buffer,
-				auto&			slot_zbin_buffer_srv) noexcept;
+				ID3D12Resource& zbin_buffer) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -203,14 +205,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
-		resource_handle h_sort_buffer;
-		resource_handle h_zbin_buffer;
-		resource_handle h_tile_mask_buffer;
 		resource_handle h_shadow_atlas;
-		resource_handle h_unified_sorted_light_buffer;
 		resource_handle h_frame_data_rw_buffer;
 		resource_handle h_shadow_light_buffer;
 
+		std::array<resource_handle, graphics::g::frame_buffer_count> h_sort_buffer_arr;
+		std::array<resource_handle, graphics::g::frame_buffer_count> h_zbin_buffer_arr;
+		std::array<resource_handle, graphics::g::frame_buffer_count> h_tile_mask_buffer_arr;
+		std::array<resource_handle, graphics::g::frame_buffer_count> h_light_cull_data_buffer_arr;
+		std::array<resource_handle, graphics::g::frame_buffer_count> h_unified_sorted_light_buffer_arr;
 
 		mapping_handle h_mapping_frame_data;
 		mapping_handle h_mapping_opaque_meshlet_render_data_buffer;
@@ -269,6 +272,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<3, 2> unified_sorted_light_buffer_srv;
 		binding_config_t::reg_u<3, 2> unified_sorted_light_buffer_uav;
 
+		binding_config_t::reg_t<4, 2> light_cull_data_buffer_srv;
+		binding_config_t::reg_u<4, 2> light_cull_data_buffer_uav;
+
 		// transparent
 		binding_config_t::reg_t<0, 3> transparent_object_render_data_buffer;
 
@@ -321,9 +327,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		// main
 		void
 		init() noexcept;
-
-		void
-		bind() noexcept;
 
 		void
 		deinit() noexcept;

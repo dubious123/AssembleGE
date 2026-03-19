@@ -181,7 +181,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct frame_data_rw
 	{
 		uint32 generic_counter;
-		uint32 not_culled_light_count;
 
 		uint32 z_min;
 		uint32 z_max;
@@ -189,6 +188,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float4 cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
 
 		uint32 not_culled_transparent_object_count;
+	};
+
+	struct light_cull_data
+	{
+		uint32 not_culled_light_count;
 	};
 
 	struct zbin_entry

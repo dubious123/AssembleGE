@@ -89,6 +89,12 @@ namespace age::graphics::command
 	execute_and_wait(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
 
 	FORCE_INLINE void
+	execute_and_resume(e::queue_kind, auto... thread_idx) noexcept;
+
+	FORCE_INLINE void
+	execute_and_resume(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
+
+	FORCE_INLINE void
 	begin_frame(e::queue_kind, auto... thread_idx /*[0, thread_count)*/) noexcept;
 
 	FORCE_INLINE void
@@ -103,23 +109,42 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	end_frame(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
 
-#define DEF_CMD(my_name, dx12_name)                                                            \
-	FORCE_INLINE void                                                                          \
-	my_name(e::queue_kind kind, uint8 thread_idx, auto&&... arg)                               \
-	{                                                                                          \
-		auto& cmd_list = *g::queue_ctx[std::to_underlying(kind)].p_cmd_list[thread_idx];       \
-                                                                                               \
-		cmd_list.dx12_name(FWD(arg)...);                                                       \
-	}                                                                                          \
-                                                                                               \
-	FORCE_INLINE void                                                                          \
-	my_name(auto&&... arg)                                                                     \
-		requires(sizeof...(arg) == 0                                                           \
-				 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>) \
-	{                                                                                          \
-		my_name(e::queue_kind::direct, uint8{ 0 }, FWD(arg)...);                               \
+#define DEF_CMD(my_name, dx12_name)                                                                \
+	FORCE_INLINE void                                                                              \
+	my_name(e::queue_kind kind, uint8 thread_idx, auto&&... arg)                                   \
+	{                                                                                              \
+		auto& cmd_list = *g::queue_ctx[std::to_underlying(kind)].p_cmd_list[thread_idx];           \
+                                                                                                   \
+		cmd_list.dx12_name(FWD(arg)...);                                                           \
+	}                                                                                              \
+                                                                                                   \
+	FORCE_INLINE void                                                                              \
+	my_name(auto&&... arg)                                                                         \
+		requires(sizeof...(arg) == 0                                                               \
+				 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>)     \
+	{                                                                                              \
+		my_name(e::queue_kind::direct, uint8{ 0 }, FWD(arg)...);                                   \
+	}                                                                                              \
+	namespace compute                                                                              \
+	{                                                                                              \
+		FORCE_INLINE void                                                                          \
+		my_name(auto&&... arg)                                                                     \
+			requires(sizeof...(arg) == 0                                                           \
+					 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>) \
+		{                                                                                          \
+			command::my_name(e::queue_kind::compute, uint8{ 0 }, FWD(arg)...);                     \
+		}                                                                                          \
+	}                                                                                              \
+	namespace copy                                                                                 \
+	{                                                                                              \
+		FORCE_INLINE void                                                                          \
+		my_name(auto&&... arg)                                                                     \
+			requires(sizeof...(arg) == 0                                                           \
+					 or meta::not_same_as<meta::variadic_front_t<BARE_OF(arg)...>, e::queue_kind>) \
+		{                                                                                          \
+			command::my_name(e::queue_kind::copy, uint8{ 0 }, FWD(arg)...);                        \
+		}                                                                                          \
 	}
-
 
 	DEF_CMD(set_descriptor_heaps, SetDescriptorHeaps);
 	DEF_CMD(set_graphics_root_sig, SetGraphicsRootSignature);
@@ -155,6 +180,9 @@ namespace age::graphics::command
 
 	// copy
 	DEF_CMD(copy_buffer, CopyBufferRegion)
+
+	FORCE_INLINE void
+	apply_barriers(auto&&...) noexcept;
 
 #undef DEF_CMD
 
@@ -196,6 +224,10 @@ namespace age::graphics::resource
 	resource_handle
 	create_committed(const resource_create_desc& desc) noexcept;
 
+	template <auto n>
+	std::array<resource_handle, n>
+	create_committed(const resource_create_desc& desc) noexcept;
+
 	resource_handle
 	create_placed(const resource_create_desc& desc, ID3D12Heap& heap, uint64 offset) noexcept;
 
@@ -218,6 +250,9 @@ namespace age::graphics::resource
 	void
 	release_resource(resource_handle& _) noexcept;
 
+	void
+	release_resource(std::span<resource_handle> h_resources) noexcept;
+
 
 	mapping_handle
 	map_all(resource_handle _) noexcept;
@@ -233,6 +268,9 @@ namespace age::graphics::resource
 
 	FORCE_INLINE void
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
+
+	inline void
+	set_name(auto&& rng, const wchar_t* fmt) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier

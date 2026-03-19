@@ -20,7 +20,7 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 
 	if (/*light_id < MAX_VISIBLE_LIGHT_COUNT &&*/ light_id != invalid_id_uint32)
 	{
-		interlocked_add(frame_data_rw_buffer_uav[0].not_culled_light_count, 1);
+		interlocked_add(light_cull_data_buffer_uav[0].not_culled_light_count, 1);
 
 		const unified_light light = unified_light_buffer[light_id];
 		// const unified_light light = unified_light_buffer[0];
