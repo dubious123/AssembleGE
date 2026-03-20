@@ -91,7 +91,8 @@ namespace age::graphics
 
 	struct d3d12_resource
 	{
-		ID3D12Resource* p_resource = nullptr;
+		ID3D12Resource*		 p_resource = nullptr;
+		resource_create_desc desc;
 
 		uint32 map_count = {};
 
@@ -126,6 +127,13 @@ namespace age::graphics
 		FORCE_INLINE const resource_mapping*
 		operator->() const noexcept;
 	};
+
+	struct deferred_release_data
+	{
+		resource_handle h_resource;
+		e::queue_kind	kind;
+		uint64			fence_value;
+	};
 }	 // namespace age::graphics
 
 // rt
@@ -139,6 +147,10 @@ namespace age::graphics::rt
 
 		FORCE_INLINE auto*
 		operator->() noexcept;
+
+
+		FORCE_INLINE c_auto*
+		operator->() const noexcept;
 	};
 
 	using t_blas_handle_id = uint8;
@@ -149,12 +161,18 @@ namespace age::graphics::rt
 
 		FORCE_INLINE auto*
 		operator->() noexcept;
+
+		FORCE_INLINE c_auto*
+		operator->() const noexcept;
 	};
 
 	struct blas_data
 	{
 		blas_buffer_handle h_blas_buffer;
 		uint32			   blas_entry_id;
+
+		FORCE_INLINE auto
+		get_va() const noexcept;
 	};
 
 	struct blas_buffer_data

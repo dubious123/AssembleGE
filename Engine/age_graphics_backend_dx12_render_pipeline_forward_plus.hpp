@@ -195,6 +195,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_light_cull_stage_sorted_light_buffer;
 		resource_handle h_transparent_stage_buffer;
 
+
 		mapping_handle h_mapping_frame_data;
 		mapping_handle h_mapping_mesh_buffer;
 
@@ -202,12 +203,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_static_ring_buffer_arr;
 
 
-		mapping_handle h_mapping_rt_index_buffer;
-
 		// rt, not for binding
-		mapping_handle h_mapping_rt_vertex_scratch_buffer;
+		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>					rt_instance_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		mapping_handle												h_mapping_rt_index_buffer;
+		mapping_handle												h_mapping_rt_vertex_scratch_buffer;
+		rt::blas_buffer_handle										h_rt_blas_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
 
-		rt::blas_buffer_handle h_rt_blas_buffer;
+		resource_handle h_rt_tlas_buffer;
+		resource_handle h_rt_tlas_scratch_buffer;
 
 		// global
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
@@ -254,6 +258,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32						  mesh_byte_offset = 0;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
+		age::stable_dense_vector<float3x4>				   object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
@@ -306,10 +311,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// object
 		t_object_id
-		add_object(const shared_type::object_data& data = {}) noexcept;
+		add_object(const float3 pos, const float4 quat, const float3 scale) noexcept;
 
 		void
-		update_object(t_object_id id, const shared_type::object_data& data = {}) noexcept;
+		update_object(t_object_id id, const float3 pos, const float4 quat, const float3 scale) noexcept;
 
 		void
 		remove_object(t_object_id& id) noexcept;

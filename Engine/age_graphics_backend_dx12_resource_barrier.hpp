@@ -265,6 +265,21 @@ namespace age::graphics::barrier
 		};
 	}
 
+	FORCE_INLINE decltype(auto)
+	rt_write_to_rt_read(ID3D12Resource*	   p_resource,
+						D3D12_BARRIER_SYNC sync_after) noexcept
+	{
+		return D3D12_BUFFER_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_BUILD_RAYTRACING_ACCELERATION_STRUCTURE,
+			.SyncAfter	  = sync_after,
+			.AccessBefore = D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ,
+			.pResource	  = p_resource,
+			.Offset		  = 0,
+			.Size		  = UINT64_MAX,
+		};
+	}
+
 	inline constexpr auto as_frame_start = AGE_LAMBDA((auto&& barrier), {
 		barrier.SyncBefore	 = D3D12_BARRIER_SYNC_NONE;
 		barrier.AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS;

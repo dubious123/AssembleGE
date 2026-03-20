@@ -1143,6 +1143,104 @@ struct mat44
 
 template <typename t>
 requires(std::is_arithmetic_v<t>)
+struct mat34
+{
+	using t_value = t;
+	using t_this  = mat34<t>;
+	using t_row	  = vec4<t>;
+
+	t_row r0{ t{ 1 }, t{ 0 }, t{ 0 }, t{ 0 } };
+	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 }, t{ 0 } };
+	t_row r2{ t{ 0 }, t{ 0 }, t{ 1 }, t{ 0 } };
+
+	FORCE_INLINE constexpr mat34() noexcept = default;
+
+	FORCE_INLINE constexpr mat34(auto&& other) noexcept
+		requires(std::convertible_to<decltype(other), t_row>)
+		: r0{ FWD(other) }, r1{ FWD(other) }, r2{ FWD(other) }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(auto&& other) noexcept
+		requires(not std::convertible_to<decltype(other), t_row>
+				 and requires { other.r0; other.r1; other.r2; }
+				 and std::convertible_to<decltype(other.r0), t_row>
+				 and std::convertible_to<decltype(other.r1), t_row>
+				 and std::convertible_to<decltype(other.r2), t_row>)
+		: r0{ FWD(other).r0 }, r1{ FWD(other).r1 }, r2{ FWD(other).r2 }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(auto&& other1, auto&& other2, auto&& other3) noexcept
+		requires(std::convertible_to<decltype(other1), t_row>
+				 and std::convertible_to<decltype(other2), t_row>
+				 and std::convertible_to<decltype(other3), t_row>)
+		: r0{ FWD(other1) }, r1{ FWD(other2) }, r2{ FWD(other3) }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(const mat44<t>& other) noexcept
+		: r0{ other.r0 }, r1{ other.r1 }, r2{ other.r2 }
+	{
+	}
+
+	FORCE_INLINE constexpr t*
+	data() noexcept
+	{
+		return &r0[0];
+	}
+
+	FORCE_INLINE constexpr const t*
+	data() const noexcept
+	{
+		return &r0[0];
+	}
+
+	FORCE_INLINE constexpr t_row&
+	operator[](std::size_t r) noexcept
+	{
+		return (&r0)[r];
+	}
+
+	FORCE_INLINE constexpr const t_row&
+	operator[](std::size_t r) const noexcept
+	{
+		return (&r0)[r];
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	col(std::size_t c) const noexcept
+	{
+		return vec3<t>{ r0[c], r1[c], r2[c] };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	identity() noexcept
+	{
+		return t_this{};
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	zero() noexcept
+	{
+		return t_this{ t{ 0 } };
+	}
+
+	FORCE_INLINE static constexpr std::size_t
+	rows() noexcept
+	{
+		return 3;
+	}
+
+	FORCE_INLINE static constexpr std::size_t
+	cols() noexcept
+	{
+		return 4;
+	}
+};
+
+template <typename t>
+requires(std::is_arithmetic_v<t>)
 struct alignas(16) mat22a : public mat22<t>
 {
 	using t_base = mat22<t>;
@@ -1264,6 +1362,8 @@ using double4x4a = mat44a<double>;
 using half2 = vec2<half>;
 using half3 = vec3<half>;
 using half4 = vec4<half>;
+
+using float3x4 = mat34<float>;
 
 static_assert(alignof(uint8_2a) == 16 and sizeof(uint8_2a) % 16 == 0);
 static_assert(alignof(uint8_3a) == 16 and sizeof(uint8_3a) % 16 == 0);

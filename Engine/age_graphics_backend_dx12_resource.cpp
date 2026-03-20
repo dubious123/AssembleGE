@@ -72,6 +72,17 @@ namespace age::graphics::resource
 	void
 	deinit() noexcept
 	{
+		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_vec.size()) | std::views::reverse)
+		{
+			auto& data = g::deferred_release_data_vec[i];
+
+			AGE_ASSERT(command::is_complete(data.kind, data.fence_value));
+
+			resource::release(data.h_resource);
+			g::deferred_release_data_vec.pop_back();
+		}
+
+
 		AGE_ASSERT(g::resource_mapping_vec.is_empty(), "all mapping should be unmapped");
 		AGE_ASSERT(g::resource_vec.is_empty(), "all resource should be released");
 		for (auto& m : g::resource_mapping_vec)
@@ -122,7 +133,12 @@ namespace age::graphics::resource
 				nullptr,
 				IID_PPV_ARGS(&p_resource)));
 
-		return resource_handle{ .id = g::resource_vec.emplace_back(p_resource) };
+		c_auto res = d3d12_resource{
+			.p_resource = p_resource,
+			.desc		= desc
+		};
+
+		return resource_handle{ .id = g::resource_vec.emplace_back(res) };
 	}
 
 	template <auto n>
@@ -162,11 +178,16 @@ namespace age::graphics::resource
 			nullptr,
 			IID_PPV_ARGS(&p_resource)));
 
-		return resource_handle{ .id = g::resource_vec.emplace_back(p_resource) };
+		c_auto res = d3d12_resource{
+			.p_resource = p_resource,
+			.desc		= desc
+		};
+
+		return resource_handle{ .id = g::resource_vec.emplace_back(res) };
 	}
 
 	void
-	release_resource(resource_handle& h_resource) noexcept
+	release(resource_handle& h_resource) noexcept
 	{
 		g::resource_vec[h_resource].p_resource->Release();
 		g::resource_vec.remove(h_resource);
@@ -174,12 +195,67 @@ namespace age::graphics::resource
 	}
 
 	void
-	release_resource(std::span<resource_handle> h_resources) noexcept
+	release(std::span<resource_handle> h_resources) noexcept
 	{
 		for (auto& h : h_resources)
 		{
-			release_resource(h);
+			release(h);
 		}
+	}
+
+	FORCE_INLINE void
+	release_deferred(resource_handle& h_resource, e::queue_kind kind) noexcept
+	{
+		g::deferred_release_data_vec.emplace_back(
+			deferred_release_data{
+				.h_resource	 = h_resource,
+				.kind		 = kind,
+				.fence_value = command::current_fence_value(kind) });
+
+		h_resource = {};
+	}
+
+	void
+	process_deferred_releases() noexcept
+	{
+		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_vec.size()) | std::views::reverse)
+		{
+			auto& data = g::deferred_release_data_vec[i];
+
+			if (command::is_complete(data.kind, data.fence_value))
+			{
+				resource::release(data.h_resource);
+				if (i != g::deferred_release_data_vec.size() - 1)
+				{
+					g::deferred_release_data_vec[i] = std::move(g::deferred_release_data_vec.back());
+				}
+				g::deferred_release_data_vec.pop_back();
+			}
+		}
+	}
+
+	FORCE_INLINE void
+	resize_buffer(resource_handle& h_resource, uint64 required_size) noexcept
+	{
+		if (h_resource->buffer_size() >= required_size)
+		{
+			return;
+		}
+
+		c_auto new_size = std::max(h_resource->buffer_size() * 2, required_size);
+
+		auto desc					   = h_resource->desc;
+		desc.d3d12_resource_desc.Width = new_size;
+
+		auto h_new = resource::create_committed(desc);
+
+		wchar_t name[256]{};
+		auto	size = static_cast<UINT>(sizeof(name));
+		h_resource->p_resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+		h_new->set_name(name);
+
+		release_deferred(h_resource);
+		h_resource = h_new;
 	}
 
 	mapping_handle
@@ -210,7 +286,7 @@ namespace age::graphics::resource
 
 		AGE_ASSERT(h_map->h_resource->map_count == 0);
 
-		release_resource(h_map->h_resource);
+		release(h_map->h_resource);
 
 		g::resource_mapping_vec.remove(h_map);
 

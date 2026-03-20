@@ -156,6 +156,10 @@
 	#define TRANSPARENT_STAGE_BUFFER_SIZE			(TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + sizeof(transparent_indirect_arg) * MAX_TRANSPARENT_OBJECT_COUNT)
 #endif
 
+#define RT_MASK_OPAQUE		0x01
+#define RT_MASK_TRANSPARENT 0x02
+#define RT_MASK_ALL			0xff
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"

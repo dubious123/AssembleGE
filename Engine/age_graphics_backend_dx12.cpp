@@ -342,6 +342,8 @@ namespace age::graphics
 			rs.present();
 		}
 
+		resource::process_deferred_releases();
+
 		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % g::frame_buffer_count;
 	}
 }	 // namespace age::graphics

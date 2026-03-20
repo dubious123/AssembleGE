@@ -9,6 +9,12 @@ namespace age::graphics::rt
 		return &g::blas_buffer_data_vec[id];
 	}
 
+	FORCE_INLINE c_auto*
+	blas_buffer_handle::operator->() const noexcept
+	{
+		return &g::blas_buffer_data_vec[id];
+	}
+
 	FORCE_INLINE void
 	blas_buffer_data::set_name(const wchar_t* p_name) noexcept
 	{
@@ -18,12 +24,23 @@ namespace age::graphics::rt
 
 namespace age::graphics::rt
 {
+	FORCE_INLINE auto
+	blas_data::get_va() const noexcept
+	{
+		return h_blas_buffer->h_resource->get_va() + h_blas_buffer->blas_entry_vec[blas_entry_id].offset;
+	}
+
 	FORCE_INLINE auto*
 	blas_handle::operator->() noexcept
 	{
 		return &g::blas_data_vec[id];
 	}
 
+	FORCE_INLINE c_auto*
+	blas_handle::operator->() const noexcept
+	{
+		return &g::blas_data_vec[id];
+	}
 }	 // namespace age::graphics::rt
 
 namespace age::graphics::rt
@@ -58,9 +75,9 @@ namespace age::graphics::rt
 	void
 	init() noexcept
 	{
-		g::h_rt_scratch_buffer = detail::create_scratch_buffer(1024u);
+		g::h_rt_blas_scratch_buffer = detail::create_scratch_buffer(1024u);
 
-		g::h_rt_scratch_buffer->set_name(L"rt_scratch_buffer");
+		g::h_rt_blas_scratch_buffer->set_name(L"rt_blas_scratch_buffer");
 	}
 
 	void
@@ -71,13 +88,13 @@ namespace age::graphics::rt
 
 		for (auto& data : g::blas_buffer_data_vec)
 		{
-			resource::release_resource(data.h_resource);
+			resource::release(data.h_resource);
 		}
 
 		g::blas_buffer_data_vec.clear();
 		g::blas_data_vec.clear();
 
-		resource::release_resource(g::h_rt_scratch_buffer);
+		resource::release(g::h_rt_blas_scratch_buffer);
 	}
 }	 // namespace age::graphics::rt
 
@@ -103,7 +120,7 @@ namespace age::graphics::rt
 	void
 	release_blas_buffer(blas_buffer_handle& h_blas_buffer) noexcept
 	{
-		resource::release_resource(h_blas_buffer->h_resource);
+		resource::release(h_blas_buffer->h_resource);
 
 		AGE_ASSERT(h_blas_buffer->blas_entry_vec.is_empty());
 
@@ -136,10 +153,12 @@ namespace age::graphics::rt
 		graphics::g::p_main_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuild);
 
 		c_auto blas_byte_size = static_cast<uint32>(util::align_up(prebuild.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT));
-		if (g::h_rt_scratch_buffer->buffer_size() < prebuild.ScratchDataSizeInBytes)
+
+		if (g::h_rt_blas_scratch_buffer->buffer_size() < prebuild.ScratchDataSizeInBytes)
 		{
-			resource::release_resource(g::h_rt_scratch_buffer);
-			g::h_rt_scratch_buffer = detail::create_scratch_buffer(prebuild.ScratchDataSizeInBytes);
+			resource::release(g::h_rt_blas_scratch_buffer);
+			g::h_rt_blas_scratch_buffer = detail::create_scratch_buffer(prebuild.ScratchDataSizeInBytes);
+			g::h_rt_blas_scratch_buffer->set_name(L"rt_blas_scratch_buffer");
 		}
 
 
@@ -164,7 +183,7 @@ namespace age::graphics::rt
 
 			command::execute_and_wait();
 
-			resource::release_resource(h_blas_buffer->h_resource);
+			resource::release(h_blas_buffer->h_resource);
 			h_blas_buffer->h_resource  = h_resource_new;
 			h_blas_buffer->next_offset = offset;
 			h_blas_buffer->size		   = new_size;
@@ -173,7 +192,7 @@ namespace age::graphics::rt
 		auto build_desc = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC{
 			.DestAccelerationStructureData	  = h_blas_buffer->h_resource->get_va() + h_blas_buffer->next_offset,
 			.Inputs							  = inputs,
-			.ScratchAccelerationStructureData = g::h_rt_scratch_buffer->get_va(),
+			.ScratchAccelerationStructureData = g::h_rt_blas_scratch_buffer->get_va(),
 		};
 		command::begin();
 
@@ -195,6 +214,41 @@ namespace age::graphics::rt
 
 
 		return blas_handle{ .id = static_cast<t_blas_handle_id>(blas_id) };
+	}
+
+	FORCE_INLINE
+	std::tuple<uint64, uint64>
+	query_tlas_size(uint32 instance_count) noexcept
+	{
+		c_auto inputs = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS{
+			.Type		 = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+			.Flags		 = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD,
+			.NumDescs	 = instance_count,
+			.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+		};
+
+		auto prebuild = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO{};
+		g::p_main_device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuild);
+
+		return { prebuild.ResultDataMaxSizeInBytes, prebuild.ScratchDataSizeInBytes };
+	}
+
+	FORCE_INLINE void
+	build_tlas(resource_handle h_tlas_buffer, resource_handle h_tlas_scratch_buffer, resource_handle h_instance_buffer, uint32 instance_count) noexcept
+	{
+		c_auto build_desc = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC{
+			.DestAccelerationStructureData = h_tlas_buffer->get_va(),
+			.Inputs						   = {
+				.Type		   = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+				.Flags		   = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_BUILD,
+				.NumDescs	   = instance_count,
+				.DescsLayout   = D3D12_ELEMENTS_LAYOUT_ARRAY,
+				.InstanceDescs = h_instance_buffer->get_va(),
+			},
+			.ScratchAccelerationStructureData = h_tlas_scratch_buffer->get_va(),
+		};
+
+		command::build_rt_acceleration_structure(&build_desc, 0, nullptr);
 	}
 
 	void

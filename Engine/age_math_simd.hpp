@@ -3,11 +3,12 @@
 using xm_vec = DirectX::XMVECTOR;
 using xm_mat = DirectX::XMMATRIX;
 
-using fxm_vec = const xm_vec;
-using cxm_vec = const xm_vec&;
+using fxm_vec = DirectX::FXMVECTOR;
+using gxm_vec = DirectX::GXMVECTOR;
+using cxm_vec = DirectX::CXMVECTOR;
 
-using fxm_mat = const xm_mat;
-using cxm_mat = const xm_mat&;
+using fxm_mat = DirectX::FXMMATRIX;
+using cxm_mat = DirectX::CXMMATRIX;
 
 namespace age::math::simd::g
 {
@@ -76,55 +77,55 @@ namespace age::math::simd
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(uint32_3& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreUInt3(reinterpret_cast<DirectX::XMUINT3*>(&out), v);
+		DirectX::XMStoreUInt3(reinterpret_cast<DirectX::XMUINT3*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(uint32_4& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreUInt4(reinterpret_cast<DirectX::XMUINT4*>(&out), v);
+		DirectX::XMStoreUInt4(reinterpret_cast<DirectX::XMUINT4*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float2& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat2(reinterpret_cast<DirectX::XMFLOAT2*>(&out), v);
+		DirectX::XMStoreFloat2(reinterpret_cast<DirectX::XMFLOAT2*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float3& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat3(reinterpret_cast<DirectX::XMFLOAT3*>(&out), v);
+		DirectX::XMStoreFloat3(reinterpret_cast<DirectX::XMFLOAT3*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float4& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(&out), v);
+		DirectX::XMStoreFloat4(reinterpret_cast<DirectX::XMFLOAT4*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float2a& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat2A(reinterpret_cast<DirectX::XMFLOAT2A*>(&out), v);
+		DirectX::XMStoreFloat2A(reinterpret_cast<DirectX::XMFLOAT2A*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float3a& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat3A(reinterpret_cast<DirectX::XMFLOAT3A*>(&out), v);
+		DirectX::XMStoreFloat3A(reinterpret_cast<DirectX::XMFLOAT3A*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float4a& out, fxm_vec v) noexcept
 	{
-		DirectX::XMStoreFloat4A(reinterpret_cast<DirectX::XMFLOAT4A*>(&out), v);
+		DirectX::XMStoreFloat4A(reinterpret_cast<DirectX::XMFLOAT4A*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(half2& out, fxm_vec v) noexcept
 	{
-		DirectX::PackedVector::XMStoreHalf2(reinterpret_cast<DirectX::PackedVector::XMHALF2*>(&out), v);
+		DirectX::PackedVector::XMStoreHalf2(reinterpret_cast<DirectX::PackedVector::XMHALF2*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
@@ -132,24 +133,30 @@ namespace age::math::simd
 	{
 #if defined(__F16C__) || (defined(AGE_COMPILER_MSVC) and defined(__AVX__))
 		__m128i h = _mm_cvtps_ph(v, _MM_FROUND_TO_NEAREST_INT);
-		std::memcpy(&out, &h, sizeof(half) * 3);
+		std::memcpy(& out, &h, sizeof(half) * 3);
 #else
 		DirectX::PackedVector::XMHALF4 tmp;
 		DirectX::PackedVector::XMStoreHalf4(&tmp, v);
-		std::memcpy(&out, &tmp, sizeof(half) * 3);
+		std::memcpy(& out, &tmp, sizeof(half) * 3);
 #endif
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(half4& out, fxm_vec v) noexcept
 	{
-		DirectX::PackedVector::XMStoreHalf4(reinterpret_cast<DirectX::PackedVector::XMHALF4*>(&out), v);
+		DirectX::PackedVector::XMStoreHalf4(reinterpret_cast<DirectX::PackedVector::XMHALF4*>(& out), v);
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
 	store(float4x4& out, fxm_mat m) noexcept
 	{
-		DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(&out), m);
+		DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(& out), m);
+	}
+
+	FORCE_INLINE void AGE_SIMD_CALL
+	store(float3x4& out, fxm_mat m) noexcept
+	{
+		DirectX::XMStoreFloat3x4(reinterpret_cast<DirectX::XMFLOAT3X4*>(& out), m);
 	}
 
 #define AGE_SIMD_LOAD(name, input_type, func)                                \
@@ -177,6 +184,7 @@ namespace age::math::simd
 	AGE_SIMD_LOAD(load, float4a, XMLoadFloat4A);
 	AGE_SIMD_LOAD(load, float3x3, XMLoadFloat3x3);
 	AGE_SIMD_LOAD(load, float4x4, XMLoadFloat4x4);
+	AGE_SIMD_LOAD(load, float3x4, XMLoadFloat3x4);
 	AGE_SIMD_LOAD(load, float3x3a, XMLoadFloat4x4A);
 	AGE_SIMD_LOAD(load, float4x4a, XMLoadFloat4x4A);
 	AGE_SIMD_LOAD(load, half2, PackedVector::XMLoadHalf2);
@@ -779,6 +787,12 @@ namespace age::math::simd
 	translation(float x, float y, float z) noexcept
 	{
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixTranslation(x, y, z));
+	}
+
+	FORCE_INLINE xm_mat AGE_SIMD_CALL
+	transformation(fxm_vec scaling, fxm_vec rotation_origin, fxm_vec quat, gxm_vec translation) noexcept
+	{
+		return DirectX::XMMatrixTranspose(DirectX::XMMatrixAffineTransformation(scaling, rotation_origin, quat, translation));
 	}
 }	 // namespace age::math::simd
 

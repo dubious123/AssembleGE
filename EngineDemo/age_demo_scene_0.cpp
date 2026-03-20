@@ -112,13 +112,10 @@ namespace age_demo::scene_0
 				{
 					for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-5, 5), std::views::iota(-5, 5), std::views::iota(-5, 5)))
 					{
-						auto data = age::graphics::render_pipeline::forward_plus::shared_type::object_data{
-							.pos		= float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
-							.quaternion = age::math::quaternion_encode(age::g::quaternion_identity),
-							.scale		= age::cvt_to<half3>(float3{ 1.0f, 1.0f, 1.0f })
-						};
-
-						i_init.get_obj_id_vec->emplace_back(i_init.get_render_pipeline->add_object(data));
+						i_init.get_obj_id_vec->emplace_back(i_init.get_render_pipeline->add_object(
+							float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
+							age::g::quaternion_identity,
+							float3{ 1.0f, 1.0f, 1.0f }));
 					}
 				}),
 			exec_inline{}
@@ -177,7 +174,7 @@ namespace age_demo::scene_0
 
 		cam_desc.quaternion = xm_look_quat | age::simd::to<float4>();
 
-		cam_desc.perspective.aspect_ratio = age::platform::get_client_width(i_update.get_h_window) / static_cast<float>(age::platform::get_client_height(i_update.get_h_window));
+		// cam_desc.perspective.aspect_ratio = age::platform::get_client_width(i_update.get_h_window) / static_cast<float>(age::platform::get_client_height(i_update.get_h_window));
 
 		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 

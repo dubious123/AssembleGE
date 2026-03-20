@@ -70,6 +70,20 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	   = false });
 
 			h_rt_blas_buffer = rt::create_blas_buffer(1024);
+
+			h_rt_tlas_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_rt(1024),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_rt_tlas_scratch_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(1024),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_mapping_rt_instance_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 		}
 
 		{
@@ -118,7 +132,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_presentation.init(h_root_sig);
 		}
 
-		resource::set_name(h_mapping_static_ring_buffer_arr, L"static_ring_buffer");
+		resource::set_name(h_mapping_static_ring_buffer_arr, L"static_ring_buffer[{}]");
 
 
 		h_main_buffer->set_name(L"main_buffer");
@@ -137,6 +151,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
 		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
+
+		h_rt_tlas_buffer->set_name(L"rt_tlas_buffer");
+		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
+
+		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
 	}
 
 	void
@@ -150,6 +169,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			vec.clear();
 		}
 		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		{
+			vec.clear();
+		}
+		for (auto& vec : rt_instance_data_vec | std::views::join)
 		{
 			vec.clear();
 		}
@@ -175,26 +198,32 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
 		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
+		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
 
-		resource::release_resource(h_main_buffer);
-		resource::release_resource(h_depth_buffer);
+		resource::release(h_main_buffer);
+		resource::release(h_depth_buffer);
 
-		resource::release_resource(h_scratch_buffer);
+		resource::release(h_scratch_buffer);
 
-		resource::release_resource(h_light_cull_stage_buffer);
+		resource::release(h_light_cull_stage_buffer);
 
 
 		// shadow
-		resource::release_resource(h_shadow_atlas);
-		resource::release_resource(h_shadow_stage_buffer);
-		resource::release_resource(h_shadow_stage_shadow_light_buffer);
-		resource::release_resource(h_light_cull_stage_sorted_light_buffer);
+		resource::release(h_shadow_atlas);
+		resource::release(h_shadow_stage_buffer);
+		resource::release(h_shadow_stage_shadow_light_buffer);
+		resource::release(h_light_cull_stage_sorted_light_buffer);
 
-		resource::release_resource(h_transparent_stage_buffer);
+		resource::release(h_transparent_stage_buffer);
 
+		// rt
 		rt::release_blas_buffer(h_rt_blas_buffer);
+		resource::release(h_rt_tlas_buffer);
+		resource::release(h_rt_tlas_scratch_buffer);
+
 
 		AGE_ASSERT(object_data_vec.size() == 0);
+		AGE_ASSERT(object_transform_data_vec.size() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
 		AGE_ASSERT(directional_light_vec.size() == 0);
@@ -205,6 +234,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(directional_shadow_light_count == 0);
 
 		object_data_vec.clear();
+		object_transform_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
 	}
@@ -224,6 +254,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			vec.clear();
 		}
 		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		{
+			vec.clear();
+		}
+		for (auto& vec : rt_instance_data_vec | std::views::join)
 		{
 			vec.clear();
 		}
@@ -275,6 +309,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
 		auto&  render_data_vec = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto&  rt_instance_vec = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
 		c_auto mesh_offset	   = mesh_data_vec[mesh_id].offset;
 		c_auto meshlet_count   = mesh_data_vec[mesh_id].meshlet_count;
 
@@ -287,6 +322,20 @@ namespace age::graphics::render_pipeline::forward_plus
 					.mesh_byte_offset = mesh_offset,
 					.meshlet_id		  = meshlet_id++ });
 		}
+
+		c_auto& transform = object_transform_data_vec[object_id];
+
+		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
+			.InstanceID							 = object_data_vec.get_pos(object_id),
+			.InstanceMask						 = RT_MASK_OPAQUE,
+			.InstanceContributionToHitGroupIndex = 0,
+			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_NONE,
+			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
+		};
+
+		std::memcpy(desc.Transform, &transform, sizeof(float3x4));
+
+		rt_instance_vec.emplace_back(desc);
 	}
 
 	void
@@ -295,10 +344,26 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto mesh_offset = mesh_data_vec[mesh_id].offset;
 
 		auto& object_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto& rt_instance_vec		 = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
+
 		object_render_data_vec.emplace_back(
 			shared_type::transparent_object_render_data{
 				.object_id		  = object_data_vec.get_pos(object_id),
 				.mesh_byte_offset = mesh_offset });
+
+		c_auto& transform = object_transform_data_vec[object_id];
+
+		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
+			.InstanceID							 = object_data_vec.get_pos(object_id),
+			.InstanceMask						 = RT_MASK_TRANSPARENT,
+			.InstanceContributionToHitGroupIndex = 0,
+			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_NONE,
+			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
+		};
+
+		std::memcpy(desc.Transform, &transform, sizeof(float3x4));
+
+		rt_instance_vec.emplace_back(desc);
 	}
 
 	void
@@ -307,6 +372,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& rs = graphics::g::render_surface_vec[h_rs];
 
 		c_auto opaque_meshlet_render_data_count = upload_data();
+
 
 		root_constants.apply();
 		root_constants.apply_compute();
@@ -420,10 +486,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(light_tile_count_x <= 0xff);
 		AGE_ASSERT(light_tile_count_y <= 0xff);
 
-		resource::release_resource(h_main_buffer);
-		resource::release_resource(h_depth_buffer);
+		resource::release(h_main_buffer);
+		resource::release(h_depth_buffer);
 
-		resource::release_resource(h_light_cull_stage_buffer);
+		resource::release(h_light_cull_stage_buffer);
 
 		create_resolution_dependent_buffers();
 	}
@@ -546,21 +612,32 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus
 {
 	t_object_id
-	pipeline::add_object(const shared_type::object_data& data) noexcept
+	pipeline::add_object(const float3 pos, const float4 quat, const float3 scale) noexcept
 	{
-		return static_cast<t_object_id>(object_data_vec.emplace_back(data));
+		c_auto id = static_cast<t_object_id>(object_data_vec.emplace_back());
+		object_transform_data_vec.emplace_back();
+
+		pipeline::update_object(id, pos, quat, scale);
+
+		return id;
 	}
 
 	void
-	pipeline::update_object(t_object_id id, const shared_type::object_data& data) noexcept
+	pipeline::update_object(t_object_id id, const float3 pos, const float4 quat, const float3 scale) noexcept
 	{
-		object_data_vec[id] = data;
+		object_data_vec[id] = shared_type::object_data{
+			.pos		= pos,
+			.quaternion = math::quaternion_encode(quat),
+			.scale		= age::cvt_to<half3>(scale)
+		};
+		object_transform_data_vec[id] = math::trs(pos, quat, scale);
 	}
 
 	void
 	pipeline::remove_object(t_object_id& id) noexcept
 	{
 		object_data_vec.remove(id);
+		object_transform_data_vec.remove(id);
 		id = age::get_invalid_id<t_object_id>();
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -904,30 +981,65 @@ namespace age::graphics::render_pipeline::forward_plus
 	uint32
 	pipeline::upload_data() noexcept
 	{
-		auto h_mapping_static_buffer = h_mapping_static_ring_buffer_arr[graphics::g::frame_buffer_idx];
+		auto  h_mapping_static_buffer	   = h_mapping_static_ring_buffer_arr[graphics::g::frame_buffer_idx];
+		auto& h_mapping_rt_instance_buffer = h_mapping_rt_instance_buffer_arr[graphics::g::frame_buffer_idx];
 
 		auto opaque_mshlt_object_data_count	   = 0u;
 		auto transparent_obj_render_data_count = 0u;
 		{
 			auto opaque_offset		= g::opaque_mshlt_object_data_offset;
 			auto transparent_offset = g::transparent_render_object_data_offset;
+
+			auto rt_instance_count	= 0ul;
+			auto rt_instance_offset = 0ull;
 			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
 			{
 				auto& opaque_mshlt_render_data_vec	  = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][i];
 				auto& transparent_obj_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& rt_instance_vec				  = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
 
 				h_mapping_static_buffer->upload(opaque_mshlt_render_data_vec.data(), opaque_mshlt_render_data_vec.byte_size<uint32>(), opaque_offset);
 				h_mapping_static_buffer->upload(transparent_obj_render_data_vec.data(), transparent_obj_render_data_vec.byte_size<uint32>(), transparent_offset);
 
 				opaque_offset	   += opaque_mshlt_render_data_vec.byte_size<uint32>();
 				transparent_offset += transparent_obj_render_data_vec.byte_size<uint32>();
+				rt_instance_offset += rt_instance_vec.byte_size<uint32>();
 
 				opaque_mshlt_object_data_count	  += opaque_mshlt_render_data_vec.size<uint32>();
 				transparent_obj_render_data_count += transparent_obj_render_data_vec.size<uint32>();
+				rt_instance_count				  += rt_instance_vec.size<uint32>();
 			}
 
 			AGE_ASSERT(opaque_offset < g::transparent_render_object_data_offset);
 			AGE_ASSERT(transparent_offset < g::object_data_offset);
+
+			if (h_mapping_rt_instance_buffer->h_resource->buffer_size() < rt_instance_offset)
+			{
+				c_auto new_size		 = static_cast<uint32>(std::max(h_mapping_rt_instance_buffer->h_resource->buffer_size() * 2, rt_instance_offset));
+				c_auto h_new_mapping = resource::create_buffer_committed(new_size);
+				resource::unmap_and_release(h_mapping_rt_instance_buffer);
+				h_mapping_rt_instance_buffer = h_new_mapping;
+			}
+
+			rt_instance_offset = 0;
+			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
+			{
+				auto& rt_instance_vec = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
+				h_mapping_rt_instance_buffer->upload(rt_instance_vec.data(), rt_instance_vec.byte_size<uint32>(), rt_instance_offset);
+				rt_instance_offset += rt_instance_vec.byte_size<uint32>();
+				h_mapping_rt_instance_buffer->h_resource->set_name(
+					std::format(L"mapping_rt_instance_buffer [{}]", graphics::g::frame_buffer_idx).c_str());
+			}
+
+			auto&& [tlas_buffer_size, tlas_scratch_buffer_size] = graphics::rt::query_tlas_size(rt_instance_count);
+
+			resource::resize_buffer(h_rt_tlas_buffer, tlas_buffer_size);
+
+			resource::resize_buffer(h_rt_tlas_scratch_buffer, tlas_scratch_buffer_size);
+
+			graphics::rt::build_tlas(h_rt_tlas_buffer, h_rt_tlas_scratch_buffer, h_mapping_rt_instance_buffer->h_resource, rt_instance_count);
+
+			command::apply_barriers(barrier::rt_write_to_rt_read(h_rt_tlas_buffer->p_resource, D3D12_BARRIER_SYNC_RAYTRACING));
 		}
 
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);

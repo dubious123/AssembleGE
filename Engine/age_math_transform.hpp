@@ -24,6 +24,13 @@ namespace age::inline math
 // quaternoin
 namespace age::inline math
 {
+	FORCE_INLINE float3x4
+	trs(float3 pos, float4 quat, float3 scale) noexcept
+	{
+		return simd::transformation(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos))
+			 | simd::to<float3x4>();
+	}
+
 	FORCE_INLINE bool AGE_SIMD_CALL
 	is_quaternoin_normalized(fxm_vec quaternion) noexcept
 	{

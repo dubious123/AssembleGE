@@ -39,9 +39,11 @@ namespace age::graphics::g
 
 	inline auto resource_mapping_vec = age::stable_dense_vector<resource_mapping>::gen_reserved(2);
 
+	inline auto deferred_release_data_vec = age::vector<deferred_release_data>::gen_reserved(2);
+
 	//---[ rt ]---------------------------------------------------------------------
 
-	inline auto h_rt_scratch_buffer = age::graphics::resource_handle{};
+	inline auto h_rt_blas_scratch_buffer = age::graphics::resource_handle{};
 
 	inline auto blas_buffer_data_vec = age::stable_dense_vector<rt::blas_buffer_data>::gen_reserved(2);
 	inline auto blas_data_vec		 = age::stable_dense_vector<rt::blas_data>::gen_reserved(2);
@@ -108,6 +110,12 @@ namespace age::graphics::command
 
 	FORCE_INLINE void
 	end_frame(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
+
+	FORCE_INLINE uint64
+	get_frame_fence_value(e::queue_kind _ = e::queue_kind::direct) noexcept;
+
+	FORCE_INLINE uint64
+	get_completed_fence_value(e::queue_kind _ = e::queue_kind::direct) noexcept;
 
 #define DEF_CMD(my_name, dx12_name)                                                                \
 	FORCE_INLINE void                                                                              \
@@ -256,11 +264,19 @@ namespace age::graphics::resource
 						 D3D12_RESOURCE_FLAGS flags			 = D3D12_RESOURCE_FLAG_NONE) noexcept;
 
 	void
-	release_resource(resource_handle& _) noexcept;
+	release(resource_handle& _) noexcept;
 
 	void
-	release_resource(std::span<resource_handle> _) noexcept;
+	release(std::span<resource_handle> _) noexcept;
 
+	FORCE_INLINE void
+	release_deferred(resource_handle&, e::queue_kind = e::queue_kind::direct) noexcept;
+
+	void
+	process_deferred_releases() noexcept;
+
+	FORCE_INLINE void
+	resize_buffer(resource_handle&, uint64 required_size) noexcept;
 
 	mapping_handle
 	map_all(resource_handle _) noexcept;
@@ -364,6 +380,13 @@ namespace age::graphics::rt
 
 	void
 	release_blas(blas_handle& h_blas) noexcept;
+
+	FORCE_INLINE
+	std::tuple<uint64, uint64>
+	query_tlas_size(uint32 instance_count) noexcept;
+
+	FORCE_INLINE void
+	build_tlas(resource_handle h_tlas_buffer, resource_handle h_tlas_scratch_buffer, resource_handle h_instance_buffer, uint32 instance_count) noexcept;
 
 	void
 	deinit() noexcept;

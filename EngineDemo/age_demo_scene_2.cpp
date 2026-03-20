@@ -100,21 +100,13 @@ namespace age_demo::scene_2
 				(),
 				{
 					auto add_opaque_obj = [&](float3 pos, float3 scale, float4 quat = age::g::quaternion_identity) {
-						i_init.get_opaque_obj_id_vec().emplace_back(
-							i_init.get_render_pipeline().add_object(
-								age::graphics::render_pipeline::forward_plus::shared_type::object_data{
-									.pos		= pos,
-									.quaternion = age::math::quaternion_encode(quat),
-									.scale		= age::cvt_to<half3>(scale) }));
+						i_init.get_opaque_obj_id_vec->emplace_back(
+							i_init.get_render_pipeline->add_object(pos, quat, scale));
 					};
 
 					auto add_transparent_obj = [&](float3 pos, float3 scale, float4 quat = age::g::quaternion_identity) {
-						i_init.get_transparent_obj_id_vec().emplace_back(
-							i_init.get_render_pipeline().add_object(
-								age::graphics::render_pipeline::forward_plus::shared_type::object_data{
-									.pos		= pos,
-									.quaternion = age::math::quaternion_encode(quat),
-									.scale		= age::cvt_to<half3>(scale) }));
+						i_init.get_transparent_obj_id_vec->emplace_back(
+							i_init.get_render_pipeline->add_object(pos, quat, scale));
 					};
 
 					// ===== opaque reference objects =====
