@@ -123,6 +123,9 @@ namespace age::graphics
 
 		FORCE_INLINE resource_mapping*
 		operator->() noexcept;
+
+		FORCE_INLINE const resource_mapping*
+		operator->() const noexcept;
 	};
 }	 // namespace age::graphics
 

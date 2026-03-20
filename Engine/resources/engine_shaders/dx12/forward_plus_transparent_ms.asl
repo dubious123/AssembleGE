@@ -47,7 +47,7 @@ main_ms(
 	const uint32	  object_id		   = arg0;
 	const uint32	  mesh_byte_offset = arg1;
 	const mesh_header msh_header	   = read_mesh_header(mesh_byte_offset);
-	const object_data obj_data		   = object_data_buffer[object_id];
+	const object_data obj_data		   = load_object_data(object_id);
 
 	const uint32 meshlet_count_per_group			= 32;
 	const uint32 not_culled_render_data_local_index = select32_nth_set_bit(ms_in.meshlet_alive_mask, group_id);

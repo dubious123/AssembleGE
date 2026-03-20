@@ -6,7 +6,7 @@ main_cs(uint32 light_id sv_dispatch_thread_id)
 {
 	if (light_id < unified_light_count)
 	{
-		const unified_light light = unified_light_buffer[light_id];
+		const unified_light light = load_unified_light(light_id);
 
 		if (sphere_frustum_test(light.position, light.range, frustum_planes))
 		{

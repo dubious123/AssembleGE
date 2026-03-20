@@ -180,10 +180,18 @@ namespace age::inline data_structure
 			return count == 0;
 		}
 
+		template <typename t_ret = std::size_t>
 		FORCE_INLINE decltype(auto)
 		size() const noexcept
 		{
-			return count;
+			return static_cast<t_ret>(count);
+		}
+
+		template <typename t_ret = std::size_t>
+		FORCE_INLINE t_ret
+		byte_size() const noexcept
+		{
+			return static_cast<t_ret>(count * sizeof(value_type));
 		}
 
 		t_idx

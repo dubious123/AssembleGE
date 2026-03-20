@@ -269,7 +269,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	for (uint32 d = 0; d < directional_light_count; ++d)
 	{
-		const directional_light light = directional_light_buffer[d];
+		const directional_light light = load_directional_light(d);
 
 		float shadow  = 1.f;
 		float contact = 1.f;

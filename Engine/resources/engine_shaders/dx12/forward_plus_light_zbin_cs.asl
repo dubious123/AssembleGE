@@ -22,7 +22,7 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 	{
 		interlocked_add(light_cull_data_buffer_uav[0].not_culled_light_count, 1);
 
-		const unified_light light = unified_light_buffer[light_id];
+		const unified_light light = load_unified_light(light_id);
 		// const unified_light light = unified_light_buffer[0];
 		unified_sorted_light_buffer_uav[sorted_id] = light;
 

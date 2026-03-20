@@ -338,6 +338,16 @@ namespace age::graphics
 			}
 		}
 
+		template <auto n>
+		void
+		bind_array(const std::array<mapping_handle, n>& arr) noexcept
+		{
+			for (auto i = 0; i < n; ++i)
+			{
+				bind_impl(arr[i]->h_resource->get_va(), i);
+			}
+		}
+
 		void
 		apply(e::queue_kind kind = e::queue_kind::direct) noexcept
 			requires(gpu_va_arr.size() == 1)
@@ -415,7 +425,7 @@ namespace age::graphics
 		}
 
 		D3D12_GPU_VIRTUAL_ADDRESS
-		get_va(uint32 ring_idx = g::frame_buffer_idx) noexcept
+		get_va(uint32 ring_idx = g::frame_buffer_idx) const noexcept
 		{
 			return gpu_va_arr[ring_idx];
 		}

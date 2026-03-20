@@ -31,20 +31,13 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::b<2, 0>>,
 
 		binding_slot<
-			"opaque_meshlet_render_data_buffer",
+			"static_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::opaque_meshlet_render_data>,
+			what::byte_address_buffer_array<>,
 			how::root_descriptor,
 			where::t<0, 0>>,
 
-		binding_slot<
-			"object_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::object_data>,
-			how::root_descriptor,
-			where::t<1, 0>>,
 
 		binding_slot<
 			"mesh_data_buffer",
@@ -54,21 +47,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::t<2, 0>>,
 
-		binding_slot<
-			"directional_light_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::directional_light>,
-			how::root_descriptor,
-			where::t<3, 0>>,
-
-		binding_slot<
-			"unified_light_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::unified_light>,
-			how::root_descriptor,
-			where::t<4, 0>>,
 
 		binding_slot<
 			"frame_data_rw_buffer_srv",
@@ -86,13 +64,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::u<5, 0>>,
 
-		binding_slot<
-			"shadow_light_header_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::shadow_light_header>,
-			how::root_descriptor,
-			where::t<0, 1>>,
 
 		binding_slot<
 			"shadow_light_buffer_srv",
@@ -193,13 +164,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::u<4, 2>>,
 
-		binding_slot<
-			"transparent_object_data_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::transparent_object_render_data>,
-			how::root_descriptor,
-			where::t<0, 3>>,
 
 		binding_slot<
 			"debug_uav",

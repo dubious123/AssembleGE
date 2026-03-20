@@ -3,7 +3,7 @@
 void
 handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx, uint32 shadow_id)
 {
-	const directional_light light	  = directional_light_buffer[directional_light_id];
+	const directional_light light	  = load_directional_light(directional_light_id);
 	float					depth_min = as_float(frame_data_rw_buffer_uav[0].z_min);
 	float					depth_max = as_float(frame_data_rw_buffer_uav[0].z_max);
 
@@ -142,7 +142,7 @@ handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 	//     float3(0, 0, -1), // -Z
 	// };
 
-	const unified_light light = unified_light_buffer[id];
+	const unified_light light = load_unified_light(id);
 
 	float4x4 light_view;
 	switch (face_idx)
@@ -185,7 +185,7 @@ handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 void
 handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 {
-	const unified_light light = unified_light_buffer[id];
+	const unified_light light = load_unified_light(id);
 
 	const float4x4 light_view = view_look_to(light.position, cast<float3>(light.direction));
 
@@ -204,7 +204,7 @@ handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 [numthreads(6, 1, 1)] void
 main_cs(uint32 shadow_light_header_id sv_group_id,
 		uint32 thread_id sv_group_thread_id) {
-	const shadow_light_header header = shadow_light_header_buffer[shadow_light_header_id];
+	const shadow_light_header header = load_shadow_light_header(shadow_light_header_id);
 
 	if (header.light_kind == LIGHT_KIND_DIRECTIONAL)
 	{

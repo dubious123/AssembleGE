@@ -217,45 +217,35 @@ namespace age::graphics::render_pipeline::forward_plus
 		std::array<resource_handle, graphics::g::frame_buffer_count> h_unified_sorted_light_buffer_arr;
 
 		mapping_handle h_mapping_frame_data;
-		mapping_handle h_mapping_opaque_meshlet_render_data_buffer;
-		mapping_handle h_mapping_object_data_buffer;
+
 		mapping_handle h_mapping_mesh_buffer;
-		mapping_handle h_mapping_directional_light_buffer;
-		mapping_handle h_mapping_unified_light_buffer;
-		mapping_handle h_mapping_shadow_light_header_buffer;
-		mapping_handle h_mapping_transparent_object_render_data_buffer;
+
+
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_static_ring_buffer_arr;
 
 
 		mapping_handle h_mapping_rt_index_buffer;
 
-
-		mapping_handle h_mapping_debug_buffer_uav;
 
 		// rt, not for binding
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 
 		rt::blas_buffer_handle h_rt_blas_buffer;
 
-
 		// global
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
 		binding_config_t::reg_b<2, 0> indirect_arg;
 
-		binding_config_t::reg_t<0, 0> opaque_render_data_buffer;
-		binding_config_t::reg_t<1, 0> object_data_buffer;
-		binding_config_t::reg_t<2, 0> mesh_data_buffer;
+		binding_config_t::reg_t<0, 0> static_ring_buffer;
 
-		binding_config_t::reg_t<3, 0> directional_light_buffer;
-		binding_config_t::reg_t<4, 0> unified_light_buffer;
+		binding_config_t::reg_t<2, 0> mesh_data_buffer;
 
 		binding_config_t::reg_t<5, 0> frame_data_rw_buffer_srv;
 		binding_config_t::reg_u<5, 0> frame_data_rw_buffer_uav;
 
 
 		// shadow
-		binding_config_t::reg_t<0, 1> shadow_light_header_buffer;
-
 		binding_config_t::reg_t<1, 1> shadow_light_buffer_srv;
 		binding_config_t::reg_u<1, 1> shadow_light_buffer_uav;
 
@@ -275,10 +265,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_t<4, 2> light_cull_data_buffer_srv;
 		binding_config_t::reg_u<4, 2> light_cull_data_buffer_uav;
-
-		// transparent
-		binding_config_t::reg_t<0, 3> transparent_object_render_data_buffer;
-
 
 		// debug
 		binding_config_t::reg_u<7, 7> debug_buffer_uav;
@@ -407,5 +393,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept;
+
+		uint32
+		upload_data() noexcept;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

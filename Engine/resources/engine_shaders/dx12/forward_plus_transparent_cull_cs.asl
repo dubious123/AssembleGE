@@ -7,8 +7,8 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id)
 	uint32 transparent_render_data_id = dispatch_thread_id;
 	if (transparent_render_data_id < transparent_object_render_data_count)
 	{
-		const transparent_object_render_data render_data = transparent_object_render_data_buffer[transparent_render_data_id];
-		const object_data					 obj_data	 = object_data_buffer[render_data.object_id];
+		const transparent_object_render_data render_data = load_transparent_object_render_data(transparent_render_data_id);
+		const object_data					 obj_data	 = load_object_data(render_data.object_id);
 		const mesh_header					 msh_header	 = read_mesh_header(render_data.mesh_byte_offset);
 
 		const float4   quat		 = decode_quaternion(obj_data.quaternion);

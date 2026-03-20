@@ -48,10 +48,10 @@ main_ms(
 	const uint32 not_culled_render_data_local_index = select32_nth_set_bit(ms_in.meshlet_alive_mask, group_id.x);
 	const uint32 meshlet_render_data_id				= ms_in.meshlet_32_group_idx * meshlet_count_per_group + not_culled_render_data_local_index;
 
-	const opaque_meshlet_render_data render_data = opaque_meshlet_render_data_buffer[meshlet_render_data_id];
+	const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(meshlet_render_data_id);
 	const mesh_header				 mesh_header = read_mesh_header(render_data.mesh_byte_offset);
 	const meshlet					 mshlt		 = read_meshlet(mesh_header, render_data.meshlet_id);
-	const object_data				 obj_data	 = object_data_buffer[render_data.object_id];
+	const object_data				 obj_data	 = load_object_data(render_data.object_id);
 
 	const uint32 vertex_count	 = mshlt.vertex_count_prim_count_extra & 0xffu;
 	const uint32 primitive_count = (mshlt.vertex_count_prim_count_extra >> 8u) & 0xffu;

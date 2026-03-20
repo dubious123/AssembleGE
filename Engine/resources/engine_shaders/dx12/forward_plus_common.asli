@@ -3,20 +3,89 @@
 #include "age_math.asli"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 
-// global
-structured_buffer<opaque_meshlet_render_data> opaque_meshlet_render_data_buffer reg(t0, space0);
-structured_buffer<object_data>				  object_data_buffer reg(t1, space0);
-byte_address_buffer							  mesh_data_buffer reg(t2, space0);
+// constants
+// 1. frame data
+// 2. constants
+// 3. indirect
 
-structured_buffer<directional_light> directional_light_buffer reg(t3, space0);
-structured_buffer<unified_light>	 unified_light_buffer reg(t4, space0);
+// static ring buffer (srv only)
+// 1. h_mapping_frame_data
+// 2. h_mapping_opaque_meshlet_render_data_buffer
+// 3. h_mapping_object_data_buffer
+// 4. h_mapping_directional_light_buffer
+// 5. h_mapping_unified_light_buffer
+// 6. h_mapping_shadow_light_header_buffer
+// 7. h_mapping_transparent_object_render_data_buffer
+
+// fixed size uav buffer
+// 1. h_sort_buffer_arr
+// 2. h_zbin_buffer_arr
+// 3. h_unified_sorted_light_buffer_arr
+// 4. h_light_cull_data_buffer_arr
+// 5. h_frame_data_rw_buffer
+// 6. h_shadow_light_buffer
+
+// 7. h_rt_blas_buffer
+
+// texture
+// 1. main buffer
+// 2. depth buffer
+// 3. shadow atlas (fixed)
+
+// resizable uav buffer
+// 1. tile_mask_buffer
+
+// resizable srv mapping buffer
+// 1. mesh buffer
+// 2. mapping rt_index_buffer
+// 3. mappint rt_vertex_scratch_buffer
+
+
+// global
+byte_address_buffer static_buffer reg(t0, space0);
+
+opaque_meshlet_render_data
+load_opaque_meshlet_render_data(uint32 idx)
+{
+	return load<opaque_meshlet_render_data>(static_buffer, OPAQUE_MSHLT_OBJECT_DATA_OFFSET + idx * sizeof(opaque_meshlet_render_data));
+}
+
+transparent_object_render_data
+load_transparent_object_render_data(uint32 idx)
+{
+	return load<transparent_object_render_data>(static_buffer, TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + idx * sizeof(transparent_object_render_data));
+}
+
+object_data
+load_object_data(uint32 idx)
+{
+	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + idx * sizeof(object_data));
+}
+
+directional_light
+load_directional_light(uint32 idx)
+{
+	return load<directional_light>(static_buffer, DIRECTIONAL_LIGHT_OFFSET + idx * sizeof(directional_light));
+}
+
+unified_light
+load_unified_light(uint32 idx)
+{
+	return load<unified_light>(static_buffer, UNIFIED_LIGHT_OFFSET + idx * sizeof(unified_light));
+}
+
+shadow_light_header
+load_shadow_light_header(uint32 idx)
+{
+	return load<shadow_light_header>(static_buffer, SHADOW_LIGHT_HEADER_OFFSET + idx * sizeof(shadow_light_header));
+}
+
+byte_address_buffer mesh_data_buffer reg(t2, space0);
+
 
 structured_buffer<frame_data_rw>	frame_data_rw_buffer_srv reg(t5, space0);
 rw_structured_buffer<frame_data_rw> frame_data_rw_buffer_uav reg(u5, space0);
 
-
-// shadow
-structured_buffer<shadow_light_header> shadow_light_header_buffer reg(t0, space1);
 
 structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space1);
 rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space1);
@@ -37,8 +106,6 @@ rw_structured_buffer<unified_light> unified_sorted_light_buffer_uav reg(u3, spac
 
 structured_buffer<light_cull_data>	  light_cull_data_buffer_srv reg(t4, space2);
 rw_structured_buffer<light_cull_data> light_cull_data_buffer_uav reg(u4, space2);
-
-structured_buffer<transparent_object_render_data> transparent_object_render_data_buffer reg(t0, space3);
 
 // debug
 rw_structured_buffer<debug_77> debug_buffer reg(u7, space7);

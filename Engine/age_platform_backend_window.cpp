@@ -410,7 +410,7 @@ namespace age::platform
 	uint32
 	window_count() noexcept
 	{
-		return g::window_info_vec.size();
+		return g::window_info_vec.size<uint32>();
 	}
 
 	void

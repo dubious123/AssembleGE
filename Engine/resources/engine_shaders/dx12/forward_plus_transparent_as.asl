@@ -46,7 +46,7 @@ main_as(
 
 	if (meshlet_idx < msh_header.meshlet_count)
 	{
-		const object_data obj_data = object_data_buffer[object_id];
+		const object_data obj_data = load_object_data(object_id);
 
 		const meshlet_header mshlt_header = read_meshlet_header(msh_header, meshlet_idx);
 

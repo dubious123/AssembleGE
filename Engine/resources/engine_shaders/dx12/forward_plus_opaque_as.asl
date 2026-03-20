@@ -54,10 +54,10 @@ main_as(
 
 	if (render_data_id < opaque_meshlet_render_data_count)
 	{
-		const opaque_meshlet_render_data render_data = opaque_meshlet_render_data_buffer[render_data_id];
-		const object_data				 obj_data	 = object_data_buffer[render_data.object_id];
+		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_data_id);
+		const object_data				 obj_data	 = load_object_data(render_data.object_id);
 
-		const uint meshlet_idx = render_data.meshlet_id;
+		const uint32 meshlet_idx = render_data.meshlet_id;
 
 		const mesh_header	 msh_header	  = read_mesh_header(render_data.mesh_byte_offset);
 		const meshlet_header mshlt_header = read_meshlet_header(msh_header, meshlet_idx);

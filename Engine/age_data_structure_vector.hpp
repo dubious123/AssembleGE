@@ -286,10 +286,11 @@ namespace age::inline data_structure
 			return p_data;
 		}
 
-		FORCE_INLINE constexpr size_type
+		template <typename t_ret = std::size_t>
+		FORCE_INLINE constexpr decltype(auto)
 		size() const noexcept
 		{
-			return count;
+			return static_cast<t_ret>(count);
 		}
 
 		template <typename t_ret = std::size_t>

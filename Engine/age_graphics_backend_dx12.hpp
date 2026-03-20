@@ -238,6 +238,14 @@ namespace age::graphics::resource
 							D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
 							D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
+	template <auto n>
+	std::array<mapping_handle, n>
+	create_buffer_committed(uint32				 buffer_byte_size,
+							const void*			 p_data			= nullptr,
+							e::memory_kind		 kind			= e::memory_kind::cpu_to_gpu_direct,
+							D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
+							D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
+
 	mapping_handle
 	create_buffer_placed(uint32				  buffer_byte_size,
 						 ID3D12Heap&		  heap,
@@ -251,7 +259,7 @@ namespace age::graphics::resource
 	release_resource(resource_handle& _) noexcept;
 
 	void
-	release_resource(std::span<resource_handle> h_resources) noexcept;
+	release_resource(std::span<resource_handle> _) noexcept;
 
 
 	mapping_handle
@@ -263,6 +271,9 @@ namespace age::graphics::resource
 	void
 	unmap_and_release(mapping_handle& _) noexcept;
 
+	void
+	unmap_and_release(std::span<mapping_handle> _) noexcept;
+
 	FORCE_INLINE void
 	create_view(const ID3D12Resource&, const auto& h_desc, const auto& view_desc) noexcept;
 
@@ -270,7 +281,10 @@ namespace age::graphics::resource
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
 
 	inline void
-	set_name(auto&& rng, const wchar_t* fmt) noexcept;
+	set_name(std::span<resource_handle>, const wchar_t* fmt) noexcept;
+
+	inline void
+	set_name(std::span<mapping_handle>, const wchar_t* fmt) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier

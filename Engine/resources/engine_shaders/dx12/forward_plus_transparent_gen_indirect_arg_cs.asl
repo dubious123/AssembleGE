@@ -13,7 +13,7 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id)
 
 	InterlockedAdd(frame_data_rw_buffer_uav[0].not_culled_transparent_object_count, 1);
 
-	transparent_object_render_data render_data = transparent_object_render_data_buffer[render_data_id];
+	transparent_object_render_data render_data = load_transparent_object_render_data(render_data_id);
 	mesh_header					   msh_header  = read_mesh_header(render_data.mesh_byte_offset);
 
 	uint32 offset = TRANSPARENT_INDIRECT_ARG_OFFSET + dispatch_thread_id * 5;

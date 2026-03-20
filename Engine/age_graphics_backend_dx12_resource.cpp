@@ -48,6 +48,12 @@ namespace age::graphics
 		return &g::resource_mapping_vec[id];
 	}
 
+	FORCE_INLINE const resource_mapping*
+	mapping_handle::operator->() const noexcept
+	{
+		return &g::resource_mapping_vec[id];
+	}
+
 	FORCE_INLINE void
 	resource_mapping::upload(const void* p_src, std::size_t size, std::size_t offset /* = 0u */) noexcept
 	{
@@ -210,6 +216,15 @@ namespace age::graphics::resource
 
 		h_map = {};
 	}
+
+	void
+	unmap_and_release(std::span<mapping_handle> h_mappings) noexcept
+	{
+		for (auto& h : h_mappings)
+		{
+			unmap_and_release(h);
+		}
+	}
 }	 // namespace age::graphics::resource
 
 namespace age::graphics::resource
@@ -252,6 +267,22 @@ namespace age::graphics::resource
 		}
 
 		return h_map;
+	}
+
+	template <auto n>
+	std::array<mapping_handle, n>
+	create_buffer_committed(uint32				 buffer_byte_size,
+							const void*			 p_data,
+							e::memory_kind		 kind,
+							D3D12_BARRIER_LAYOUT initial_layout,
+							D3D12_RESOURCE_FLAGS flags) noexcept
+	{
+		auto result = std::array<mapping_handle, n>{};
+		for (auto& h : result)
+		{
+			h = create_buffer_committed(buffer_byte_size, p_data, kind, initial_layout, flags);
+		}
+		return result;
 	}
 
 	mapping_handle
@@ -353,12 +384,22 @@ namespace age::graphics::resource
 namespace age::graphics::resource
 {
 	inline void
-	set_name(auto&& rng, const wchar_t* fmt) noexcept
+	set_name(std::span<resource_handle> rng, const wchar_t* fmt) noexcept
 	{
 		for (auto&& [i, h_resource] : rng | std::views::enumerate)
 		{
 			auto str = std::vformat(fmt, std::make_wformat_args(i));
 			h_resource->set_name(str.c_str());
+		}
+	}
+
+	inline void
+	set_name(std::span<mapping_handle> rng, const wchar_t* fmt) noexcept
+	{
+		for (auto&& [i, h_mapping] : rng | std::views::enumerate)
+		{
+			auto str = std::vformat(fmt, std::make_wformat_args(i));
+			h_mapping->h_resource->set_name(str.c_str());
 		}
 	}
 }	 // namespace age::graphics::resource
