@@ -424,6 +424,9 @@ cross(float3, float3)
 	#define space5
 	#define space6
 	#define space7
+	#define space8
+	#define space9
+	#define space10
 
 	#define sv_dispatch_thread_id
 	#define sv_thread_id

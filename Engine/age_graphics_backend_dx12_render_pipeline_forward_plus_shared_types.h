@@ -1,11 +1,28 @@
 #pragma once
-// static buffer offset
 
+#define UV_COUNT 2
+
+// static buffer offset
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
 #define MAX_TRANSPARENT_OBJECT_COUNT		 1024
 #define MAX_OBJECT_DATA_COUNT				 1024u
 #define MAX_DIRECTIONAL_LIGHT_COUNT			 2
 #define MAX_LIGHT_COUNT						 (512 * 512)
+
+// shadow
+#define SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT 16
+
+#define SHADOW_MAP_WIDTH  (2048 * 2)
+#define SHADOW_MAP_HEIGHT (2048 * 2)
+
+#define SHADOW_ATLAS_WIDTH	(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U)
+#define SHADOW_ATLAS_HEIGHT (SHADOW_MAP_HEIGHT * SHADOW_ATLAS_SEG_V)
+
+#define SHADOW_DEPTH_BIAS 1000
+#define SHADOW_SLOPE_BIAS 5.f
+
+#define SHADOW_CASCADE_SPLIT_FACTOR 0.5f
+#define DIRECTIONAL_SHADOW_BACKOFF	50.f
 
 #define SHADOW_ATLAS_SEG_U 4
 #define SHADOW_ATLAS_SEG_V 4
@@ -14,86 +31,31 @@
 
 #define SHADOW_CASCADE_COUNT 4
 
-#if !defined(AGE_SHADER)
-	// static
-	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
-	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(shared_type::opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(shared_type::transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
-	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(shared_type::object_data) * MAX_OBJECT_DATA_COUNT)
-	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(shared_type::directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(shared_type::unified_light) * MAX_LIGHT_COUNT)
-	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shared_type::shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+// light cull
+#define LIGHT_CULL_THREAD_COUNT 256
+#define LIGHT_ZBIN_THREAD_COUNT 256
 
-	// shadow
-	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET   (0)
-	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET   (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
-	#define SHADOW_STAGE_BUFFER_LIGHT_OFFSET   (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
-	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET (SHADOW_STAGE_BUFFER_LIGHT_OFFSET + sizeof(shared_type::shadow_light) * MAX_SHADOW_LIGHT_COUNT)
-	#define SHADOW_STAGE_BUFFER_SIZE		   (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
-#else
-	// static
-	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
-	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
-	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(object_data) * MAX_OBJECT_DATA_COUNT)
-	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(unified_light) * MAX_LIGHT_COUNT)
-	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
+#define Z_SLICE_COUNT			(512)
 
-	// shadow
-	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET	  (0)
-	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET	  (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
-	#define SHADOW_STAGE_BUFFER_LIGHT_OFFSET	  (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
-	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET	  (SHADOW_STAGE_BUFFER_LIGHT_OFFSET + sizeof(shadow_light) * MAX_SHADOW_LIGHT_COUNT)
-	#define SHADOW_STAGE_BUFFER_SIZE			  (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
-#endif
+#define LIGHT_TILE_SIZE			   32
+#define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
+
+#define LIGHT_KIND_DIRECTIONAL 0
+#define LIGHT_KIND_POINT	   1
+#define LIGHT_KIND_SPOT		   2
+#define LIGHT_KIND_AREA		   3
+#define LIGHT_KIND_VOLUMN	   4
 
 // scratch buffer
 
-// dynamic buffer (read after write buffer)
-
-// shadow
-// depth reduce (z_min, z_max)
-// shadow_lights (shadow)
-
-
-// uint32 z_min;
-// uint32 z_max;
-// float4 cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
-// struct shadow_light * shadow_light_count
-//{
-//	row_major float4x4 view_proj;			 // 64
-//	float4			   frustum_planes[6];	 // 96
-//};	  // 160 bytes
-
-
-#define LIGHT_CULL_ZBIN_ENTRY_OFFSET 0
-
-// z_min, z_max (depth)
-// cascade (depth)
-// not_culled_transparent_object_count (transparent)
-// light cull data (zbin, tile, unified_sorted_light) (light cull)
-
-// light cull data
-// shadow
-// transparent
-
-
-#define UV_COUNT		2
-#define LIGHT_TILE_SIZE 32
-
-
-#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
-
-#define LIGHT_CULL_THREAD_COUNT 256
-
+// sort
 #define SORT_THREAD_COUNT			  128
 #define SORT_ELEMENT_COUNT_PER_THREAD 4
-#define SORT_BLOCK_SIZE				  (SORT_THREAD_COUNT * SORT_ELEMENT_COUNT_PER_THREAD)
-
-#define LIGHT_ZBIN_THREAD_COUNT 256
 
 #define MAX_SORT_COUNT (512 * 512)
+
+#define SORT_BLOCK_SIZE (SORT_THREAD_COUNT * SORT_ELEMENT_COUNT_PER_THREAD)
 
 #define SORT_BLOCK_COUNT ((MAX_SORT_COUNT + SORT_BLOCK_SIZE - 1) / SORT_BLOCK_SIZE)
 
@@ -110,46 +72,89 @@
 
 #define SORT_HISTOGRAM_TABLE_SIZE (SORT_BIN_COUNT * SORT_GROUP_COUNT)
 
-#define SORT_KEYS_OFFSET	   0
-#define SORT_KEYS_ALT_OFFSET   (SORT_KEYS_OFFSET + MAX_SORT_COUNT)
-#define SORT_VALUES_OFFSET	   (SORT_KEYS_ALT_OFFSET + MAX_SORT_COUNT)
-#define SORT_VALUES_ALT_OFFSET (SORT_VALUES_OFFSET + MAX_SORT_COUNT)
-#define SORT_HISTOGRAM_OFFSET  (SORT_VALUES_ALT_OFFSET + MAX_SORT_COUNT)
-#define SORT_BIN_COUNT_OFFSET  (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE)
-#define SORT_BUFFER_TOTAL_SIZE (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT)
 
-#define LIGHT_TILE_AABB_OFFSET 0
-
-#define TRANSPARENT_INDIRECT_ARG_OFFSET 0
-
-#define Z_SLICE_COUNT (512)
-
-#define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
-
-#define SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT 16
-
-#define SHADOW_MAP_WIDTH  (2048 * 2)
-#define SHADOW_MAP_HEIGHT (2048 * 2)
-
-
-#define SHADOW_ATLAS_WIDTH	(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U)
-#define SHADOW_ATLAS_HEIGHT (SHADOW_MAP_HEIGHT * SHADOW_ATLAS_SEG_V)
-
-#define SHADOW_DEPTH_BIAS 1000
-#define SHADOW_SLOPE_BIAS 5.f
-
-
-#define SHADOW_CASCADE_SPLIT_FACTOR 0.5f
-
-#define DIRECTIONAL_SHADOW_BACKOFF 50.f
-
-#define LIGHT_KIND_DIRECTIONAL 0
-#define LIGHT_KIND_POINT	   1
-#define LIGHT_KIND_SPOT		   2
-#define LIGHT_KIND_AREA		   3
-#define LIGHT_KIND_VOLUMN	   4
-
+// transparent
 #define TRANSPARENT_CULL_THREAD_COUNT 32
+
+
+#if !defined(AGE_SHADER)
+	// static
+	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
+	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(shared_type::opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(shared_type::transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
+	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(shared_type::object_data) * MAX_OBJECT_DATA_COUNT)
+	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(shared_type::directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(shared_type::unified_light) * MAX_LIGHT_COUNT)
+	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shared_type::shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+
+	// scratch
+	#define SCRATCH_SORT_BUFFER_OFFSET (0)
+
+	#define SORT_KEYS_OFFSET	   (SCRATCH_SORT_BUFFER_OFFSET)
+	#define SORT_KEYS_ALT_OFFSET   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_VALUES_OFFSET	   (SORT_KEYS_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_VALUES_ALT_OFFSET (SORT_VALUES_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_HISTOGRAM_OFFSET  (SORT_VALUES_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_BIN_COUNT_OFFSET  (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE * sizeof(uint32))
+
+	#define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
+	#define VISIBLE_LIGHT_COUNT_OFFSET	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT * sizeof(uint32))
+	#define SCRATCH_BUFFER_TOTAL_SIZE	  (VISIBLE_LIGHT_COUNT_OFFSET + sizeof(uint32))
+
+	// shadow
+	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET   (0)
+	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET   (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_SIZE		   (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
+
+	// light cull
+	#define LIGHT_CULL_ZBIN_OFFSET		(0)
+	#define LIGHT_CULL_TILE_MASK_OFFSET (LIGHT_CULL_ZBIN_OFFSET + sizeof(shared_type::zbin_entry) * Z_SLICE_COUNT)
+
+	// transparent
+	#define TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET (0)
+	#define TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET (TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET + sizeof(uint32))
+	#define TRANSPARENT_STAGE_BUFFER_SIZE			(TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + sizeof(shared_type::transparent_indirect_arg) * MAX_TRANSPARENT_OBJECT_COUNT)
+#else
+	// static
+	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
+	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
+	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(object_data) * MAX_OBJECT_DATA_COUNT)
+	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(unified_light) * MAX_LIGHT_COUNT)
+	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+
+	// scratch
+	#define SCRATCH_SORT_BUFFER_OFFSET			  (0)
+
+	#define SORT_KEYS_OFFSET	   (SCRATCH_SORT_BUFFER_OFFSET)
+	#define SORT_KEYS_ALT_OFFSET   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_VALUES_OFFSET	   (SORT_KEYS_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_VALUES_ALT_OFFSET (SORT_VALUES_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_HISTOGRAM_OFFSET  (SORT_VALUES_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+	#define SORT_BIN_COUNT_OFFSET  (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE * sizeof(uint32))
+
+	#define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
+	#define VISIBLE_LIGHT_COUNT_OFFSET	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT * sizeof(uint32))
+
+	#define SCRATCH_BUFFER_TOTAL_SIZE				(VISIBLE_LIGHT_COUNT_OFFSET + sizeof(uint32))
+
+	// shadow
+	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET		(0)
+	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET		(SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET		(SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_SIZE				(SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
+
+	// light cull
+	#define LIGHT_CULL_ZBIN_OFFSET					(0)
+	#define LIGHT_CULL_TILE_MASK_OFFSET				(LIGHT_CULL_ZBIN_OFFSET + sizeof(zbin_entry) * Z_SLICE_COUNT)
+
+	// transparent
+	#define TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET (0)
+	#define TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET (TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET + sizeof(uint32))
+	#define TRANSPARENT_STAGE_BUFFER_SIZE			(TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + sizeof(transparent_indirect_arg) * MAX_TRANSPARENT_OBJECT_COUNT)
+#endif
 
 
 #if !defined(AGE_SHADER)
@@ -186,15 +191,13 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr uint32 transparent_cull_thread_count = TRANSPARENT_CULL_THREAD_COUNT;
 
-	inline constexpr uint32 transparent_indirect_arg_offset = TRANSPARENT_INDIRECT_ARG_OFFSET;
 
 	// sort
-	inline constexpr uint32 max_sort_count				= MAX_SORT_COUNT;
-	inline constexpr uint32 sort_cs_thread_count		= SORT_THREAD_COUNT;
-	inline constexpr uint32 sort_buffer_total_byte_size = SORT_BUFFER_TOTAL_SIZE * sizeof(uint32);
-	inline constexpr uint32 sort_bin_count				= SORT_BIN_COUNT;
-	inline constexpr uint32 sort_iteration_count		= sizeof(float) * 8 / SORT_BIN_BIT_WIDTH;
-	inline constexpr uint32 sort_group_count			= SORT_GROUP_COUNT;
+	inline constexpr uint32 max_sort_count		 = MAX_SORT_COUNT;
+	inline constexpr uint32 sort_cs_thread_count = SORT_THREAD_COUNT;
+	inline constexpr uint32 sort_bin_count		 = SORT_BIN_COUNT;
+	inline constexpr uint32 sort_iteration_count = sizeof(float) * 8 / SORT_BIN_BIT_WIDTH;
+	inline constexpr uint32 sort_group_count	 = SORT_GROUP_COUNT;
 
 	// light
 	inline constexpr uint32 max_light_count			= MAX_LIGHT_COUNT;
@@ -249,13 +252,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 thread_group_x;
 		uint32 thread_group_y;
 		uint32 thread_group_z;
-	};
-
-	struct frame_data_rw
-	{
-		uint32 generic_counter;
-
-		uint32 not_culled_transparent_object_count;
 	};
 
 	struct light_cull_data
@@ -485,8 +481,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto static_buffer_size					= STATIC_BUFFER_SIZE;
 
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
-	static_assert(g::max_transparent_object_count <= MAX_SORT_COUNT);
-	static_assert(TRANSPARENT_INDIRECT_ARG_OFFSET + (sizeof(shared_type::transparent_indirect_arg) / sizeof(uint32)) * MAX_TRANSPARENT_OBJECT_COUNT <= SORT_BUFFER_TOTAL_SIZE);
 
 	static_assert(MAX_SORT_COUNT % g::sort_cs_thread_count == 0);
 
@@ -497,33 +491,32 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(SORT_THREAD_COUNT <= 0xff);
 	static_assert(SORT_THREAD_COUNT > 0);
 	static_assert(std::popcount<uint32>(SORT_THREAD_COUNT) == 1);
-	static_assert(LIGHT_TILE_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT < SORT_VALUES_OFFSET);
 
 	#undef SYS_VAL
 	#undef cbuffer
 	#undef REG
 	#undef row_major
 
-	#undef UV_COUNT
-	#undef MAX_LIGHT_COUNT
-	#undef LIGHT_TILE_SIZE
-	#undef LIGHT_CULL_THREAD_COUNT
-	#undef SORT_THREAD_COUNT
-	#undef MAX_VISIBLE_LIGHT_COUNT
-	#undef SORT_GROUP_COUNT
-	#undef HISTOGRAM_SIZE
-	#undef SORT_KEYS_OFFSET
-	#undef SORT_KEYS_ALT_OFFSET
-	#undef SORT_VALUES_OFFSET
-	#undef SORT_VALUES_ALT_OFFSET
-	#undef SORT_HISTOGRAM_OFFSET
-	#undef SORT_BUFFER_TOTAL_SIZE
-	#undef Z_SLICE_COUNT
-	#undef LIGHT_BITMASK_UINT32_COUNT
-	#undef LIGHT_TYPE_POINT
-	#undef LIGHT_TYPE_SPOT
-	#undef LIGHT_TYPE_BITS
-	#undef LIGHT_INDEX_MASK
+	// #undef UV_COUNT
+	// #undef MAX_LIGHT_COUNT
+	// #undef LIGHT_TILE_SIZE
+	// #undef LIGHT_CULL_THREAD_COUNT
+	// #undef SORT_THREAD_COUNT
+	// #undef MAX_VISIBLE_LIGHT_COUNT
+	// #undef SORT_GROUP_COUNT
+	// #undef HISTOGRAM_SIZE
+	// #undef SORT_KEYS_OFFSET
+	// #undef SORT_KEYS_ALT_OFFSET
+	// #undef SORT_VALUES_OFFSET
+	// #undef SORT_VALUES_ALT_OFFSET
+	// #undef SORT_HISTOGRAM_OFFSET
+	// #undef SORT_BUFFER_TOTAL_SIZE
+	// #undef Z_SLICE_COUNT
+	// #undef LIGHT_BITMASK_UINT32_COUNT
+	// #undef LIGHT_TYPE_POINT
+	// #undef LIGHT_TYPE_SPOT
+	// #undef LIGHT_TYPE_BITS
+	// #undef LIGHT_INDEX_MASK
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

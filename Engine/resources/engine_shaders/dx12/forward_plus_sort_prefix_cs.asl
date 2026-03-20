@@ -22,7 +22,7 @@ main_cs(uint32 bin_entry sv_group_id,
 
 		// transpose data
 		bin_prefix_table[row][col] = index < SORT_GROUP_COUNT
-									   ? sort_buffer[SORT_HISTOGRAM_OFFSET + bin_entry * SORT_GROUP_COUNT + index]
+									   ? load_sort_histogram(bin_entry * SORT_GROUP_COUNT + index)
 									   : 0;
 	}
 
@@ -57,12 +57,12 @@ main_cs(uint32 bin_entry sv_group_id,
 
 		if (index < SORT_GROUP_COUNT)
 		{
-			sort_buffer[SORT_HISTOGRAM_OFFSET + bin_entry * SORT_GROUP_COUNT + index] = bin_prefix_table[row][col];
+			store_sort_histogram(bin_entry * SORT_GROUP_COUNT + index, bin_prefix_table[row][col]);
 		}
 	}
 
 	if (thread_id == SORT_THREAD_COUNT - 1)
 	{
-		sort_buffer[SORT_BIN_COUNT_OFFSET + bin_entry] = prefix + thread_local_sum;
+		store_sort_bin_count(bin_entry, prefix + thread_local_sum);
 	}
 }

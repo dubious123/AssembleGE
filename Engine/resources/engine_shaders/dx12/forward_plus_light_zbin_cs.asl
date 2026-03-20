@@ -16,15 +16,17 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 
 	group_memory_barrier_with_sync();
 
-	const t_unified_light_id light_id = sort_buffer[SORT_VALUES_OFFSET + sorted_id];
+
+	const t_unified_light_id light_id = load_sort_value(sorted_id, sort_value_offset(false));
+
 
 	if (/*light_id < MAX_VISIBLE_LIGHT_COUNT &&*/ light_id != invalid_id_uint32)
 	{
-		interlocked_add(light_cull_data_buffer_uav[0].not_culled_light_count, 1);
+		store_visible_light_count_interlocked_add(1);
 
 		const unified_light light = load_unified_light(light_id);
-		// const unified_light light = unified_light_buffer[0];
-		unified_sorted_light_buffer_uav[sorted_id] = light;
+
+		store_sorted_light(sorted_id, light);
 
 		const float view_z = dot(light.position - camera_pos, camera_forward);
 		const float min_z  = view_z - light.range;
@@ -79,8 +81,9 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 			tile_aabb.w = clamp(int(screen_max.y + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
 		}
 
-		uint32 packed_aabb								= (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;
-		sort_buffer[LIGHT_TILE_AABB_OFFSET + sorted_id] = packed_aabb;
+		uint32 packed_aabb = (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;
+
+		store_packed_aabb(sorted_id, packed_aabb);
 	}
 	group_memory_barrier_with_sync();
 
@@ -88,8 +91,8 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 	{
 		if (local_min_idx[i] != 0xffffffff)
 		{
-			interlocked_min(zbin_buffer_uav[i].min_idx, local_min_idx[i]);
-			interlocked_max(zbin_buffer_uav[i].max_idx, local_max_idx[i]);
+			store_zbin_entry_interlocked_min(i, local_min_idx[i]);
+			store_zbin_entry_interlocked_max(i, local_max_idx[i]);
 		}
 	}
 }

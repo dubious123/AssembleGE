@@ -3,21 +3,6 @@
 
 namespace age::graphics::render_pipeline::forward_plus
 {
-	struct init_stage
-	{
-		graphics::pso::handle h_pso = {};
-		ID3D12PipelineState*  p_pso = nullptr;
-
-		inline void
-		init(graphics::root_signature::handle h_root_sig) noexcept;
-
-		inline void
-		execute() noexcept;
-
-		inline void
-		deinit() noexcept;
-	};
-
 	struct depth_stage
 	{
 		dsv_desc_handle h_depth_buffer_dsv_desc;
@@ -65,7 +50,9 @@ namespace age::graphics::render_pipeline::forward_plus
 				uint32			shadow_light_header_count,
 				uint32			opaque_meshlet_count,
 				resource_handle h_shadow_stage_buffer,
-				auto&			shadow_stage_buffer_srv) noexcept;
+				auto&			shadow_stage_buffer_srv,
+				resource_handle h_shadow_stage_shadow_light_buffer,
+				auto&			shadow_stage_shadow_light_buffer_srv) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -100,12 +87,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		inline void
 		execute(uint32			light_tile_count_x,
 				uint32			light_tile_count_y,
-				ID3D12Resource& tile_mask_buffer,
-				ID3D12Resource& light_cull_data_buffer,
-				auto&			slot_light_cull_data_buffer_srv,
-				ID3D12Resource& sort_buffer,
-				auto&			slot_sort_buffer_srv,
-				ID3D12Resource& zbin_buffer) noexcept;
+				resource_handle h_scratch_buffer) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -168,10 +150,8 @@ namespace age::graphics::render_pipeline::forward_plus
 					 graphics::resource_handle h_depth_buffer) noexcept;
 
 		inline void
-		execute(ID3D12Resource& sort_buffer,
-				auto&			slot_sort_buffer_srv,
-				ID3D12Resource& frame_data_rw_buffer,
-				auto&			frame_data_rw_buffer_srv) noexcept;
+		execute(resource_handle h_scratch_buffer,
+				resource_handle transparent_stage_buffer) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -197,7 +177,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
 
-		init_stage			stage_init;
 		depth_stage			stage_depth;
 		shadow_stage		stage_shadow;
 		light_culling_stage stage_light_culling;
@@ -208,18 +187,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
 		resource_handle h_shadow_atlas;
-		resource_handle h_frame_data_rw_buffer;
 
+		resource_handle h_scratch_buffer;
 		resource_handle h_shadow_stage_buffer;
-
-		std::array<resource_handle, graphics::g::frame_buffer_count> h_sort_buffer_arr;
-		std::array<resource_handle, graphics::g::frame_buffer_count> h_zbin_buffer_arr;
-		std::array<resource_handle, graphics::g::frame_buffer_count> h_tile_mask_buffer_arr;
-		std::array<resource_handle, graphics::g::frame_buffer_count> h_light_cull_data_buffer_arr;
-		std::array<resource_handle, graphics::g::frame_buffer_count> h_unified_sorted_light_buffer_arr;
+		resource_handle h_shadow_stage_shadow_light_buffer;
+		resource_handle h_light_cull_stage_buffer;
+		resource_handle h_light_cull_stage_sorted_light_buffer;
+		resource_handle h_transparent_stage_buffer;
 
 		mapping_handle h_mapping_frame_data;
-
 		mapping_handle h_mapping_mesh_buffer;
 
 
@@ -227,7 +203,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		mapping_handle h_mapping_rt_index_buffer;
-
 
 		// rt, not for binding
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
@@ -240,41 +215,32 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_b<2, 0> indirect_arg;
 
 		binding_config_t::reg_t<0, 0> static_ring_buffer;
+		binding_config_t::reg_t<1, 0> mesh_data_buffer;
 
-		binding_config_t::reg_t<2, 0> mesh_data_buffer;
+		binding_config_t::reg_u<0, 0> scratch_buffer_uav;
 
-		binding_config_t::reg_t<0, 7> shadow_stage_buffer_srv;
-		binding_config_t::reg_u<0, 7> shadow_stage_buffer_uav;
+		// light cull
+		binding_config_t::reg_t<0, 1> light_cull_stage_buffer_srv;
+		binding_config_t::reg_u<0, 1> light_cull_stage_buffer_uav;
+		binding_config_t::reg_t<1, 1> light_cull_stage_sorted_light_buffer_srv;
+		binding_config_t::reg_u<1, 1> light_cull_stage_sorted_light_buffer_uav;
 
+		// shadow
+		binding_config_t::reg_t<0, 2> shadow_stage_buffer_srv;
+		binding_config_t::reg_u<0, 2> shadow_stage_buffer_uav;
+		binding_config_t::reg_t<1, 2> shadow_stage_shadow_light_buffer_srv;
+		binding_config_t::reg_u<1, 2> shadow_stage_shadow_light_buffer_uav;
 
-		binding_config_t::reg_t<5, 0> frame_data_rw_buffer_srv;
-		binding_config_t::reg_u<5, 0> frame_data_rw_buffer_uav;
-
-
-		// light culling
-		binding_config_t::reg_t<0, 2> sort_buffer_srv;
-		binding_config_t::reg_u<0, 2> sort_buffer_uav;
-
-		binding_config_t::reg_t<1, 2> zbin_buffer_srv;
-		binding_config_t::reg_u<1, 2> zbin_buffer_uav;
-
-		binding_config_t::reg_t<2, 2> tile_mask_buffer_srv;
-		binding_config_t::reg_u<2, 2> tile_mask_buffer_uav;
-
-		binding_config_t::reg_t<3, 2> unified_sorted_light_buffer_srv;
-		binding_config_t::reg_u<3, 2> unified_sorted_light_buffer_uav;
-
-		binding_config_t::reg_t<4, 2> light_cull_data_buffer_srv;
-		binding_config_t::reg_u<4, 2> light_cull_data_buffer_uav;
-
-		// debug
-		binding_config_t::reg_u<7, 7> debug_buffer_uav;
+		// transparent
+		binding_config_t::reg_t<0, 3> transparent_stage_buffer_srv;
+		binding_config_t::reg_u<0, 3> transparent_stage_buffer_uav;
 
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_depth_buffer_srv_desc;
 		srv_desc_handle h_shadow_atlas_srv_desc;
+
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };

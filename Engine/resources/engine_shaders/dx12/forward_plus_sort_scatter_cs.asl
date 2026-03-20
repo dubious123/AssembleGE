@@ -15,30 +15,18 @@ main_cs(uint32 group_id sv_group_id,
 {
 	if (thread_id < SORT_BIN_COUNT)
 	{
-		const uint32 group_local_bin_offset = sort_buffer[SORT_HISTOGRAM_OFFSET + thread_id * SORT_GROUP_COUNT + group_id];
-		const uint32 offset					= sort_buffer[SORT_BIN_COUNT_OFFSET + thread_id];
-		bin_offset_arr[thread_id]			= wave_prefix_sum(offset) + group_local_bin_offset;
+		const uint32 group_local_bin_offset = load_sort_histogram(thread_id * SORT_GROUP_COUNT + group_id);
+		const uint32 offset					= load_sort_bin_count(thread_id);
+
+		bin_offset_arr[thread_id] = wave_prefix_sum(offset) + group_local_bin_offset;
 	}
 
 	group_memory_barrier_with_sync();
 
-
-	uint32 src_keys_offset, dst_keys_offset;
-	uint32 src_values_offset, dst_values_offset;
-	if (radix_sort_pass % 2 == 0)
-	{
-		src_keys_offset	  = SORT_KEYS_OFFSET;
-		dst_keys_offset	  = SORT_KEYS_ALT_OFFSET;
-		src_values_offset = SORT_VALUES_OFFSET;
-		dst_values_offset = SORT_VALUES_ALT_OFFSET;
-	}
-	else
-	{
-		src_keys_offset	  = SORT_KEYS_ALT_OFFSET;
-		dst_keys_offset	  = SORT_KEYS_OFFSET;
-		src_values_offset = SORT_VALUES_ALT_OFFSET;
-		dst_values_offset = SORT_VALUES_OFFSET;
-	}
+	const uint32 src_keys_offset   = sort_key_offset(radix_sort_pass % 2 == 1);
+	const uint32 dst_keys_offset   = sort_key_offset(radix_sort_pass % 2 == 0);
+	const uint32 src_values_offset = sort_value_offset(radix_sort_pass % 2 == 1);
+	const uint32 dst_values_offset = sort_value_offset(radix_sort_pass % 2 == 0);
 
 	for (uint32 block_index = 0; block_index < SORT_BLOCK_COUNT_PER_GROUP; ++block_index)
 	{
@@ -54,12 +42,8 @@ main_cs(uint32 group_id sv_group_id,
 							   + i * SORT_THREAD_COUNT
 							   + thread_id;
 
-			// uint32 key = index < MAX_VISIBLE_LIGHT_COUNT ? sort_buffer[src_keys_offset + index] : invalid_id_uint32;
-			// uint32 value = index < MAX_VISIBLE_LIGHT_COUNT ? sort_buffer[src_values_offset + index] : invalid_id_uint32;
-
-			uint32 key	 = sort_buffer[src_keys_offset + index];
-			uint32 value = sort_buffer[src_values_offset + index];
-
+			uint32 key	 = load_sort_key(index, src_keys_offset);
+			uint32 value = load_sort_value(index, src_values_offset);
 
 			// sort thread_count(s) keys
 			for (uint32 bit_shift = 0; bit_shift < SORT_BIN_BIT_WIDTH; bit_shift += 2)
@@ -140,13 +124,8 @@ main_cs(uint32 group_id sv_group_id,
 			// thread_id - gs_generic[bin] : local_index of bin
 			const uint32 bin_offset = bin_offset_arr[bin] + (thread_id - gs_generic[bin]);
 
-			// if (bin_offset < MAX_VISIBLE_LIGHT_COUNT)
-			//{
-			//     sort_buffer[dst_keys_offset + bin_offset] = key;
-			//     sort_buffer[dst_values_offset + bin_offset] = value;
-			// }
-			sort_buffer[dst_keys_offset + bin_offset]	= key;
-			sort_buffer[dst_values_offset + bin_offset] = value;
+			store_sort_key(bin_offset, key, dst_keys_offset);
+			store_sort_value(bin_offset, value, dst_values_offset);
 
 			if (thread_id < SORT_BIN_COUNT)
 			{

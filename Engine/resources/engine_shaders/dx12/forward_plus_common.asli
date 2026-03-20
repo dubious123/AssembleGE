@@ -2,45 +2,6 @@
 #include "age.asli"
 #include "age_math.asli"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
-
-// constants
-// 1. frame data
-// 2. constants
-// 3. indirect
-
-// static ring buffer (srv only)
-// 1. h_mapping_frame_data
-// 2. h_mapping_opaque_meshlet_render_data_buffer
-// 3. h_mapping_object_data_buffer
-// 4. h_mapping_directional_light_buffer
-// 5. h_mapping_unified_light_buffer
-// 6. h_mapping_shadow_light_header_buffer
-// 7. h_mapping_transparent_object_render_data_buffer
-
-// fixed size uav buffer
-// 1. h_sort_buffer_arr
-// 2. h_zbin_buffer_arr
-// 3. h_unified_sorted_light_buffer_arr
-// 4. h_light_cull_data_buffer_arr
-// 5. h_frame_data_rw_buffer
-// 6. h_shadow_light_buffer
-
-// 7. h_rt_blas_buffer
-
-// texture
-// 1. main buffer
-// 2. depth buffer
-// 3. shadow atlas (fixed)
-
-// resizable uav buffer
-// 1. tile_mask_buffer
-
-// resizable srv mapping buffer
-// 1. mesh buffer
-// 2. mapping rt_index_buffer
-// 3. mappint rt_vertex_scratch_buffer
-
-
 // global
 byte_address_buffer static_buffer reg(t0, space0);
 
@@ -80,18 +41,175 @@ load_shadow_light_header(uint32 idx)
 	return load<shadow_light_header>(static_buffer, SHADOW_LIGHT_HEADER_OFFSET + idx * sizeof(shadow_light_header));
 }
 
-byte_address_buffer mesh_data_buffer reg(t2, space0);
+byte_address_buffer mesh_data_buffer reg(t1, space0);
 
 // uav only
-byte_address_buffer scratch_buffer reg(t0, space1);
+rw_byte_address_buffer scratch_buffer reg(u0, space0);
 
-structured_buffer<uint32>	 sort_buffer_srv reg(t0, space2);
-rw_structured_buffer<uint32> sort_buffer reg(u0, space2);
+// alt is uniform — compiler folds to branchless select or eliminates dead path
+uint32
+sort_key_offset(bool alt)
+{
+	return alt ? SORT_KEYS_ALT_OFFSET : SORT_KEYS_OFFSET;
+}
 
+uint32
+sort_value_offset(bool alt)
+{
+	return alt ? SORT_VALUES_ALT_OFFSET : SORT_VALUES_OFFSET;
+}
+
+void
+store_sort_key(uint32 idx, uint32 key, uint32 base_offset)
+{
+	store<uint32>(scratch_buffer, base_offset + idx * sizeof(uint32), key);
+}
+
+uint32
+load_sort_key(uint32 idx, uint32 base_offset)
+{
+	return load<uint32>(scratch_buffer, base_offset + idx * sizeof(uint32));
+}
+
+void
+store_sort_value(uint32 idx, uint32 value, uint32 base_offset)
+{
+	store<uint32>(scratch_buffer, base_offset + idx * sizeof(uint32), value);
+}
+
+uint32
+load_sort_value(uint32 idx, uint32 base_offset)
+{
+	return load<uint32>(scratch_buffer, base_offset + idx * sizeof(uint32));
+}
+
+void
+store_sort_histogram(uint32 idx, uint32 value)
+{
+	store<uint32>(scratch_buffer, SORT_HISTOGRAM_OFFSET + idx * sizeof(uint32), value);
+}
+
+uint32
+load_sort_histogram(uint32 idx)
+{
+	return load<uint32>(scratch_buffer, SORT_HISTOGRAM_OFFSET + idx * sizeof(uint32));
+}
+
+void
+store_sort_histogram_interlocked_add(uint32 idx, uint32 value)
+{
+	buf_interlocked_add(scratch_buffer, SORT_HISTOGRAM_OFFSET + idx * sizeof(uint32), value);
+}
+
+void
+store_sort_bin_count(uint32 idx, uint32 value)
+{
+	store<uint32>(scratch_buffer, SORT_BIN_COUNT_OFFSET + idx * sizeof(uint32), value);
+}
+
+uint32
+load_sort_bin_count(uint32 idx)
+{
+	return load<uint32>(scratch_buffer, SORT_BIN_COUNT_OFFSET + idx * sizeof(uint32));
+}
+
+void
+store_packed_aabb(uint32 idx, uint32 packed)
+{
+	store<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32), packed);
+}
+
+uint32
+load_packed_aabb(uint32 idx)
+{
+	return load<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32));
+}
+
+void
+store_visible_light_count(uint32 count)
+{
+	store<uint32>(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET, count);
+}
+
+void
+store_visible_light_count_interlocked_add(uint32 value)
+{
+	buf_interlocked_add(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET, value);
+}
+
+uint32
+load_visible_light_count()
+{
+	return load<uint32>(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET);
+}
+
+// light buffer
+byte_address_buffer	   light_cull_stage_buffer_srv reg(t0, space1);
+rw_byte_address_buffer light_cull_stage_buffer_uav reg(u0, space1);
+
+structured_buffer<unified_light>	sorted_light_buffer_srv reg(t1, space1);
+rw_structured_buffer<unified_light> sorted_light_buffer_uav reg(u1, space1);
+
+void
+store_sorted_light(uint32 idx, unified_light data)
+{
+	sorted_light_buffer_uav[idx] = data;
+}
+
+unified_light
+load_sorted_light(uint32 idx)
+{
+	return sorted_light_buffer_srv[idx];
+}
+
+void
+store_zbin_entry(uint32 idx, zbin_entry data)
+{
+	store<zbin_entry>(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry), data);
+}
+
+void
+store_zbin_entry_interlocked_min(uint32 idx, uint32 min_idx)
+{
+	buf_interlocked_min(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 0, min_idx);
+}
+
+void
+store_zbin_entry_interlocked_max(uint32 idx, uint32 max_idx)
+{
+	buf_interlocked_max(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 1, max_idx);
+}
+
+zbin_entry
+load_zbin_entry(uint32 idx)
+{
+	return load<zbin_entry>(light_cull_stage_buffer_srv, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry));
+}
+
+void
+store_tile_mask(uint32 tile_idx, uint32 word_idx, uint32 mask)
+{
+	store<uint32>(light_cull_stage_buffer_uav, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+}
+
+void
+store_tile_mask_flat(uint32 idx, uint32 mask)
+{
+	store<uint32>(light_cull_stage_buffer_uav, LIGHT_CULL_TILE_MASK_OFFSET + idx * sizeof(uint32), mask);
+}
+
+uint32
+load_tile_mask(uint32 tile_idx, uint32 word_idx)
+{
+	return load<uint32>(light_cull_stage_buffer_srv, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
+}
 
 // shadow buffer
-byte_address_buffer	   shadow_stage_buffer_srv reg(t0, space7);
-rw_byte_address_buffer shadow_stage_buffer_uav reg(u0, space7);
+byte_address_buffer	   shadow_stage_buffer_srv reg(t0, space2);
+rw_byte_address_buffer shadow_stage_buffer_uav reg(u0, space2);
+
+structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space2);
+rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space2);	   // t → u
 
 void
 store_z_min_max(uint32 z_min, uint32 z_max)
@@ -139,13 +257,13 @@ load_z_max()
 void
 store_shadow_light(uint32 idx, shadow_light data)
 {
-	store<shadow_light>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_LIGHT_OFFSET + idx * sizeof(shadow_light), data);
+	shadow_light_buffer_uav[idx] = data;
 }
 
 shadow_light
 load_shadow_light(uint32 idx)
 {
-	return load<shadow_light>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_LIGHT_OFFSET + idx * sizeof(shadow_light));
+	return shadow_light_buffer_srv[idx];
 }
 
 void
@@ -160,44 +278,39 @@ load_cascade_split(uint32 idx)
 	return load<float>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float));
 }
 
-//// light buffer
-// byte_address_buffer	   light_cull_stage_buffer_srv reg(t0, space2);
-// rw_byte_address_buffer light_cull_stage_buffer_uav reg(u0, space2);
-//
-//// Z_SLICE_COUNT * sizeof(zbin_entry)
-// void
-// store_zbin_entry(zbin_entry zbin, uint32 idx)
-//{
-// }
-//
-// void
-// load_zbin_entry(uint32 idx)
-//{
-// }
+// transparent
+byte_address_buffer	   transparent_stage_buffer_srv reg(t0, space3);
+rw_byte_address_buffer transparent_stage_buffer_uav reg(u0, space3);
 
-byte_address_buffer	   transparent_stage_buffer_srv reg(t0, space2);
-rw_byte_address_buffer transparent_stage_buffer_uav reg(u0, space2);
+void
+store_visible_transparent_object_count(uint32 count)
+{
+	store<uint32>(transparent_stage_buffer_uav, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET, count);
+}
 
+void
+store_visible_transparent_object_count_interlocked_add(uint32 value)
+{
+	buf_interlocked_add(transparent_stage_buffer_uav, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET, value);
+}
 
-structured_buffer<frame_data_rw>	frame_data_rw_buffer_srv reg(t5, space0);
-rw_structured_buffer<frame_data_rw> frame_data_rw_buffer_uav reg(u5, space0);
+uint32
+load_visible_transparent_object_count()
+{
+	return load<uint32>(transparent_stage_buffer_srv, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET);
+}
 
+void
+store_transparent_execute_indirect_arg(uint32 idx, transparent_indirect_arg arg)
+{
+	store<transparent_indirect_arg>(transparent_stage_buffer_uav, TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + idx * sizeof(transparent_indirect_arg), arg);
+}
 
-// light culling
-
-
-structured_buffer<zbin_entry>	 zbin_buffer_srv reg(t1, space2);
-rw_structured_buffer<zbin_entry> zbin_buffer_uav reg(u1, space2);
-
-structured_buffer<uint32>	 tile_mask_buffer_srv reg(t2, space2);
-rw_structured_buffer<uint32> tile_mask_buffer_uav reg(u2, space2);
-
-structured_buffer<unified_light>	unified_sorted_light_buffer_srv reg(t3, space2);
-rw_structured_buffer<unified_light> unified_sorted_light_buffer_uav reg(u3, space2);
-
-structured_buffer<light_cull_data>	  light_cull_data_buffer_srv reg(t4, space2);
-rw_structured_buffer<light_cull_data> light_cull_data_buffer_uav reg(u4, space2);
-
+transparent_indirect_arg
+load_transparent_execute_indirect_arg(uint32 idx)
+{
+	return load<transparent_indirect_arg>(transparent_stage_buffer_srv, TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + idx * sizeof(transparent_indirect_arg));
+}
 
 // sampler
 sampler_state	  linear_clamp_sampler reg(s0);

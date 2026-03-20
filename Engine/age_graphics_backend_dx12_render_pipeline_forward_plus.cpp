@@ -20,7 +20,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_main_buffer_srv_desc	= graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_depth_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_shadow_atlas_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
-
 		{
 			h_mapping_static_ring_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(g::static_buffer_size);
 
@@ -29,30 +28,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_mesh_buffer			   = resource::create_buffer_committed(1024);
 			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
 			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(1024);
-
-			h_sort_buffer_arr = resource::create_committed<graphics::g::frame_buffer_count>(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::sort_buffer_total_byte_size),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-			h_zbin_buffer_arr = resource::create_committed<graphics::g::frame_buffer_count>(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::z_slice_count * sizeof(shared_type::zbin_entry)),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-			h_unified_sorted_light_buffer_arr = resource::create_committed<graphics::g::frame_buffer_count>(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_visible_light_count * sizeof(shared_type::unified_light)),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-			h_light_cull_data_buffer_arr = resource::create_committed<graphics::g::frame_buffer_count>(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::light_cull_data)),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
 
 			h_shadow_atlas = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(g::shadow_atlas_width, g::shadow_atlas_height),
@@ -63,15 +38,33 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind = e::memory_kind::gpu_only,
 				  .has_clear_value	= true });
 
-			h_frame_data_rw_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::frame_data_rw)),
+			h_scratch_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SCRATCH_BUFFER_TOTAL_SIZE),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_shadow_stage_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SHADOW_STAGE_BUFFER_SIZE),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_shadow_stage_shadow_light_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::shadow_light) * g::max_shadow_light_count),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_light_cull_stage_sorted_light_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::unified_light) * g::max_visible_light_count),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 
-			h_shadow_stage_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SHADOW_STAGE_BUFFER_SIZE),
+			h_transparent_stage_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(TRANSPARENT_STAGE_BUFFER_SIZE),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
@@ -82,28 +75,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			static_ring_buffer.bind_array(h_mapping_static_ring_buffer_arr);
 
-			frame_data_buffer.bind_array(
-				h_mapping_frame_data->h_resource->get_va(),
-				sizeof(shared_type::frame_data));
+			frame_data_buffer.bind_array(h_mapping_frame_data, sizeof(shared_type::frame_data));
 
+			scratch_buffer_uav.bind(h_scratch_buffer);
 
-			sort_buffer_uav.bind_array(h_sort_buffer_arr);
-			sort_buffer_srv.bind_array(h_sort_buffer_arr);
+			shadow_stage_buffer_srv.bind(h_shadow_stage_buffer);
+			shadow_stage_buffer_uav.bind(h_shadow_stage_buffer);
 
-			zbin_buffer_uav.bind_array(h_zbin_buffer_arr);
-			zbin_buffer_srv.bind_array(h_zbin_buffer_arr);
+			shadow_stage_shadow_light_buffer_srv.bind(h_shadow_stage_shadow_light_buffer);
+			shadow_stage_shadow_light_buffer_uav.bind(h_shadow_stage_shadow_light_buffer);
 
-			unified_sorted_light_buffer_uav.bind_array(h_unified_sorted_light_buffer_arr);
-			unified_sorted_light_buffer_srv.bind_array(h_unified_sorted_light_buffer_arr);
+			light_cull_stage_sorted_light_buffer_srv.bind(h_light_cull_stage_sorted_light_buffer);
+			light_cull_stage_sorted_light_buffer_uav.bind(h_light_cull_stage_sorted_light_buffer);
 
-			light_cull_data_buffer_srv.bind_array(h_light_cull_data_buffer_arr);
-			light_cull_data_buffer_uav.bind_array(h_light_cull_data_buffer_arr);
-
-			frame_data_rw_buffer_uav.bind(h_frame_data_rw_buffer->get_va());
-			frame_data_rw_buffer_srv.bind(h_frame_data_rw_buffer->get_va());
-
-			shadow_stage_buffer_srv.bind(h_shadow_stage_buffer->get_va());
-			shadow_stage_buffer_uav.bind(h_shadow_stage_buffer->get_va());
+			transparent_stage_buffer_srv.bind(h_transparent_stage_buffer);
+			transparent_stage_buffer_uav.bind(h_transparent_stage_buffer);
 		}
 
 		{
@@ -115,8 +101,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		create_resolution_dependent_buffers();
 
 		{
-			stage_init.init(h_root_sig);
-
 			stage_depth.init(h_root_sig);
 			stage_depth.bind_dsv(h_depth_buffer);
 
@@ -137,22 +121,20 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::set_name(h_mapping_static_ring_buffer_arr, L"static_ring_buffer");
 
 
-		resource::set_name(h_light_cull_data_buffer_arr, L"light cull data buffer [{}]");
-		resource::set_name(h_sort_buffer_arr, L"sort_buffer [{}]");
-		resource::set_name(h_zbin_buffer_arr, L"zbin_buffer [{}]");
-		resource::set_name(h_tile_mask_buffer_arr, L"tile_mask_buffer [{}]");
-		resource::set_name(h_unified_sorted_light_buffer_arr, L"unified_sorted_light_buffer [{}]");
-
 		h_main_buffer->set_name(L"main_buffer");
 		h_depth_buffer->set_name(L"depth_buffer");
 		h_shadow_atlas->set_name(L"shadow_atlas");
-		h_frame_data_rw_buffer->set_name(L"frame_data_rw_buffer");
-		h_shadow_stage_buffer->set_name(L"shadow_stage_buffer");
-
 
 		h_mapping_frame_data->h_resource->set_name(L"mapping_frame_data");
 		h_mapping_mesh_buffer->h_resource->set_name(L"mapping_mesh_buffer");
 
+		h_scratch_buffer->set_name(L"scratch_buffer");
+		h_shadow_stage_buffer->set_name(L"shadow_stage_buffer");
+		h_shadow_stage_shadow_light_buffer->set_name(L"shadow_stage_shadow_light_buffer");
+
+		h_transparent_stage_buffer->set_name(L"transparent_stage_buffer");
+
+		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
 		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
 	}
@@ -172,7 +154,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			vec.clear();
 		}
 
-		stage_init.deinit();
 		stage_presentation.deinit();
 		stage_transparent.deinit();
 		stage_opaque.deinit();
@@ -198,20 +179,18 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
-		resource::release_resource(h_sort_buffer_arr);
+		resource::release_resource(h_scratch_buffer);
 
-		resource::release_resource(h_zbin_buffer_arr);
-		resource::release_resource(h_tile_mask_buffer_arr);
+		resource::release_resource(h_light_cull_stage_buffer);
 
-		resource::release_resource(h_unified_sorted_light_buffer_arr);
-
-		resource::release_resource(h_frame_data_rw_buffer);
-
-		resource::release_resource(h_light_cull_data_buffer_arr);
 
 		// shadow
 		resource::release_resource(h_shadow_atlas);
 		resource::release_resource(h_shadow_stage_buffer);
+		resource::release_resource(h_shadow_stage_shadow_light_buffer);
+		resource::release_resource(h_light_cull_stage_sorted_light_buffer);
+
+		resource::release_resource(h_transparent_stage_buffer);
 
 		rt::release_blas_buffer(h_rt_blas_buffer);
 
@@ -276,35 +255,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			static_ring_buffer.apply();
 			static_ring_buffer.apply_compute();
 
-
 			mesh_data_buffer.apply();
 			mesh_data_buffer.apply_compute();
 
+			scratch_buffer_uav.apply_compute();
 
-			frame_data_rw_buffer_uav.apply_compute();
+			shadow_stage_shadow_light_buffer_uav.apply_compute();
+			light_cull_stage_sorted_light_buffer_uav.apply_compute();
 		}
-
-		{
-			// command::compute::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
-			// command::compute::set_compute_root_sig(p_root_sig);
-			// unified_light_buffer.apply_compute(e::queue_kind::compute);
-			// unified_sorted_light_buffer_uav.apply_compute(e::queue_kind::compute);
-			// light_cull_data_buffer_uav.apply_compute(e::queue_kind::compute);
-			// light_cull_data_buffer_srv.apply_compute(e::queue_kind::compute);
-			// sort_buffer_uav.apply_compute(e::queue_kind::compute);
-			// sort_buffer_srv.apply_compute(e::queue_kind::compute);
-			// zbin_buffer_uav.apply_compute(e::queue_kind::compute);
-			// tile_mask_buffer_uav.apply_compute(e::queue_kind::compute);
-			// frame_data_buffer.apply_compute(e::queue_kind::compute);
-
-
-			unified_sorted_light_buffer_uav.apply_compute();
-			light_cull_data_buffer_uav.apply_compute();
-			sort_buffer_uav.apply_compute();
-			zbin_buffer_uav.apply_compute();
-			tile_mask_buffer_uav.apply_compute();
-		}
-
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -352,39 +310,19 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		root_constants.apply();
 		root_constants.apply_compute();
-
-		auto h_sort_buffer				   = h_sort_buffer_arr[graphics::g::frame_buffer_idx];
-		auto h_tile_mask_buffer			   = h_tile_mask_buffer_arr[graphics::g::frame_buffer_idx];
-		auto h_light_cull_data_buffer	   = h_light_cull_data_buffer_arr[graphics::g::frame_buffer_idx];
-		auto h_zbin_buffer				   = h_zbin_buffer_arr[graphics::g::frame_buffer_idx];
-		auto h_unified_sorted_light_buffer = h_unified_sorted_light_buffer_arr[graphics::g::frame_buffer_idx];
+		light_cull_stage_buffer_uav.apply_compute();
+		transparent_stage_buffer_uav.apply_compute();
+		shadow_stage_buffer_uav.apply_compute();
 
 		stage_light_culling.execute(light_tile_count_x,
 									light_tile_count_y,
-									*h_tile_mask_buffer->p_resource,
-									*h_light_cull_data_buffer->p_resource,
-									light_cull_data_buffer_srv,
-									*h_sort_buffer->p_resource,
-									sort_buffer_srv,
-									*h_zbin_buffer->p_resource);
+									h_scratch_buffer);
 		command::apply_barriers(
-			barrier::buf_uav_to_uav(h_sort_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::buf_uav_to_srv(h_zbin_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::buf_uav_to_srv(h_unified_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::buf_uav_to_srv(h_tile_mask_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+			barrier::buf_uav_to_srv(h_light_cull_stage_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			barrier::buf_uav_to_srv(h_light_cull_stage_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		sort_buffer_srv.apply();
-		sort_buffer_srv.apply_compute();
-		unified_sorted_light_buffer_srv.apply();
-		tile_mask_buffer_srv.apply();
-		zbin_buffer_srv.apply();
-
-		stage_init.execute();
-
-		command::apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource));
-
-		frame_data_rw_buffer_srv.apply();
-		frame_data_rw_buffer_srv.apply_compute();
+		light_cull_stage_sorted_light_buffer_srv.apply();
+		light_cull_stage_buffer_srv.apply();
 
 		command::set_view_ports(1, &rs.default_viewport);
 		command::set_scissor_rects(1, &rs.default_scissor_rect);
@@ -393,7 +331,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-		shadow_stage_buffer_uav.apply_compute();
 
 		stage_shadow.execute(
 			extent.width,
@@ -402,7 +339,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			shadow_light_header_count,
 			opaque_meshlet_render_data_count,
 			h_shadow_stage_buffer,
-			shadow_stage_buffer_srv);
+			shadow_stage_buffer_srv,
+			h_shadow_stage_shadow_light_buffer,
+			shadow_stage_shadow_light_buffer_srv);
 
 		command::set_view_ports(1, &rs.default_viewport);
 		command::set_scissor_rects(1, &rs.default_scissor_rect);
@@ -411,16 +350,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		frame_data_rw_buffer_srv.apply();
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		stage_transparent.execute(*h_sort_buffer->p_resource,
-								  sort_buffer_srv,
-								  *h_frame_data_rw_buffer->p_resource,
-								  frame_data_rw_buffer_srv);
+		stage_transparent.execute(h_scratch_buffer, h_transparent_stage_buffer);
 
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
@@ -428,23 +362,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_presentation.execute(rs);
 
 		command::apply_barriers(barrier::rtv_to_present(&rs.get_back_buffer()));
-
-
-		{
-			// auto* ptr = (shared_type::debug_77*)h_mapping_debug_buffer_uav->ptr + graphics::g::frame_buffer_idx;
-
-			// std::println("[0] id : {}, key : {}"
-			//			 "[1] id : {}, key : {}"
-			//			 "[2] id : {}, key : {}",
-			//			 ptr->light_id_0, ptr->key_0, ptr->light_id_1, ptr->key_1, ptr->light_id_2, ptr->key_2);
-
-			// if (ptr->light_id_0 == 0 and ptr->light_id_1 == 0)
-			//{
-			//	std::println("============ frame_idx : {} =======================", graphics::g::frame_buffer_idx);
-			// }
-
-			// std::println("{}", std::span{ ptr->tile_bit_mask_arr });
-		}
 
 		command::end_frame(e::queue_kind::direct);
 	}
@@ -480,17 +397,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::create_view(h_depth_buffer,
 							  h_depth_buffer_srv_desc,
 							  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R32_FLOAT));
-
-		h_tile_mask_buffer_arr = resource::create_committed<graphics::g::frame_buffer_count>(
-			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
+		h_light_cull_stage_buffer = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(LIGHT_CULL_TILE_MASK_OFFSET + sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
 			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 			  .heap_memory_kind	   = e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });
 
-		tile_mask_buffer_uav.bind_array(h_tile_mask_buffer_arr);
-		tile_mask_buffer_srv.bind_array(h_tile_mask_buffer_arr);
+		light_cull_stage_buffer_srv.bind(h_light_cull_stage_buffer);
+		light_cull_stage_buffer_uav.bind(h_light_cull_stage_buffer);
 
-		resource::set_name(h_tile_mask_buffer_arr, L"tile_mask_buffer[{}]");
+		h_light_cull_stage_buffer->set_name(L"light_cull_stage_buffer");
 	}
 
 	void
@@ -507,7 +423,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release_resource(h_main_buffer);
 		resource::release_resource(h_depth_buffer);
 
-		resource::release_resource(h_tile_mask_buffer_arr);
+		resource::release_resource(h_light_cull_stage_buffer);
 
 		create_resolution_dependent_buffers();
 	}
@@ -581,7 +497,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				resource::unmap_and_release(h_mapping_mesh_buffer);
 				h_mapping_mesh_buffer = h_new_mesh_buffer;
 
-				mesh_data_buffer.bind(h_mapping_mesh_buffer->h_resource->get_va());
+				mesh_data_buffer.bind(h_mapping_mesh_buffer);
 			}
 
 			if (index_need_resize)

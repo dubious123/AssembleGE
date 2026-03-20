@@ -6,8 +6,8 @@ groupshared uint32
 
 [numthreads(SORT_THREAD_COUNT, 1, 1)] void
 main_cs(uint32 visible_light_id sv_dispatch_thread_id,
-		uint32 group_id			sv_group_id,
-		uint32 thread_id		sv_group_thread_id)
+		uint32 group_id sv_group_id,
+		uint32 thread_id sv_group_thread_id)
 
 {
 	for (uint32 bin = 0; bin < SORT_BIN_COUNT; ++bin)
@@ -17,9 +17,7 @@ main_cs(uint32 visible_light_id sv_dispatch_thread_id,
 
 	group_memory_barrier_with_sync();
 
-	const uint32 src_keys_offset = (radix_sort_pass % 2 == 0)
-									 ? SORT_KEYS_OFFSET
-									 : SORT_KEYS_ALT_OFFSET;
+	const uint32 src_keys_offset = sort_key_offset(radix_sort_pass % 2 == 1);
 
 	for (uint32 block_index = 0; block_index < SORT_BLOCK_COUNT_PER_GROUP; ++block_index)
 	{
@@ -28,13 +26,12 @@ main_cs(uint32 visible_light_id sv_dispatch_thread_id,
 
 		for (uint32 i = 0; i < SORT_ELEMENT_COUNT_PER_THREAD; ++i)
 		{
-			const uint32 key_index = src_keys_offset
-								   + group_id * SORT_BLOCK_COUNT_PER_GROUP * SORT_BLOCK_SIZE
+			const uint32 key_index = group_id * SORT_BLOCK_COUNT_PER_GROUP * SORT_BLOCK_SIZE
 								   + block_index * SORT_BLOCK_SIZE
 								   + i * SORT_THREAD_COUNT
 								   + thread_id;
 
-			const uint32 key = sort_buffer[key_index];
+			const uint32 key = load_sort_key(key_index, src_keys_offset);
 
 			static const uint32 bin_bit_mask = SORT_BIN_COUNT - 1;
 			const uint32		bin			 = (key >> (radix_sort_pass * SORT_BIN_BIT_WIDTH)) & bin_bit_mask;
@@ -55,6 +52,8 @@ main_cs(uint32 visible_light_id sv_dispatch_thread_id,
 			block_histogram += local_histogram[bin][row];
 		}
 		// histogram[bin][group_id] = block_histogram
-		sort_buffer[SORT_HISTOGRAM_OFFSET + bin * (SORT_GROUP_COUNT) + group_id] = block_histogram;
+		// sort_buffer[SORT_HISTOGRAM_OFFSET + bin * (SORT_GROUP_COUNT) + group_id] = block_histogram;
+
+		store_sort_histogram(bin * (SORT_GROUP_COUNT) + group_id, block_histogram);
 	}
 }

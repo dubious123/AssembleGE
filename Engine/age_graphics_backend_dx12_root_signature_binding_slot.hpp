@@ -306,25 +306,39 @@ namespace age::graphics
 					  or (sizeof(typename t_what::t_data) % 256 == 0));
 
 		void
-		bind(D3D12_GPU_VIRTUAL_ADDRESS va) noexcept
+		bind(resource_handle h_resource) noexcept
 			requires(gpu_va_arr.size() == 1)
 		{
-			bind_impl(va, 0);
+			bind_impl(h_resource->get_va(), 0);
 		}
 
 		void
-		bind(D3D12_GPU_VIRTUAL_ADDRESS va, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		bind(resource_handle h_resource, uint8 ring_idx = g::frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
-			bind_impl(va, ring_idx);
+			bind_impl(h_resource->get_va(), ring_idx);
 		}
 
 		void
-		bind_array(D3D12_GPU_VIRTUAL_ADDRESS va, std::size_t byte_size) noexcept
+		bind(auto h_mapping) noexcept
+			requires(gpu_va_arr.size() == 1)
+		{
+			bind_impl(h_mapping->h_resource->get_va(), 0);
+		}
+
+		void
+		bind(auto h_mapping, uint8 ring_idx = g::frame_buffer_idx) noexcept
+			requires(gpu_va_arr.size() > 1)
+		{
+			bind_impl(h_mapping->h_resource->get_va(), ring_idx);
+		}
+
+		void
+		bind_array(auto h_mapping, std::size_t byte_size) noexcept
 		{
 			for (auto i = 0; i < t_what::array_size; ++i)
 			{
-				bind_impl(va + byte_size * i, i);
+				bind_impl(h_mapping->h_resource->get_va() + byte_size * i, i);
 			}
 		}
 

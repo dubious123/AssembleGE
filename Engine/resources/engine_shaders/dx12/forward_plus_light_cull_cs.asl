@@ -13,13 +13,13 @@ main_cs(uint32 light_id sv_dispatch_thread_id)
 			const float view_z = dot(light.position - camera_pos, camera_forward);
 			const float min_z  = view_z - light.range;
 
-			sort_buffer[SORT_KEYS_OFFSET + light_id]   = float_to_sortable(min_z);
-			sort_buffer[SORT_VALUES_OFFSET + light_id] = light_id;
+			store_sort_key(light_id, float_to_sortable(min_z), sort_key_offset(false));
+			store_sort_value(light_id, light_id, sort_value_offset(false));
 
 			return;
 		}
 	}
 
-	sort_buffer[SORT_KEYS_OFFSET + light_id]   = invalid_id_uint32;
-	sort_buffer[SORT_VALUES_OFFSET + light_id] = invalid_id_uint32;
+	store_sort_key(light_id, invalid_id_uint32, sort_key_offset(false));
+	store_sort_value(light_id, invalid_id_uint32, sort_value_offset(false));
 }

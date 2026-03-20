@@ -42,12 +42,12 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id)
 
 		if (is_visible)
 		{
-			sort_buffer[SORT_KEYS_OFFSET + transparent_render_data_id]	 = ~float_to_sortable(length(center_world - camera_pos));
-			sort_buffer[SORT_VALUES_OFFSET + transparent_render_data_id] = transparent_render_data_id;
+			store_sort_key(transparent_render_data_id, ~float_to_sortable(length(center_world - camera_pos)), sort_key_offset(false));
+			store_sort_value(transparent_render_data_id, transparent_render_data_id, sort_value_offset(false));
 			return;
 		}
 	}
 
-	sort_buffer[SORT_KEYS_OFFSET + transparent_render_data_id]	 = invalid_id_uint32;
-	sort_buffer[SORT_VALUES_OFFSET + transparent_render_data_id] = invalid_id_uint32;
+	store_sort_key(transparent_render_data_id, invalid_id_uint32, sort_key_offset(false));
+	store_sort_value(transparent_render_data_id, invalid_id_uint32, sort_value_offset(false));
 }

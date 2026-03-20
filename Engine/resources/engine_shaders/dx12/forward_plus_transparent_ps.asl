@@ -254,8 +254,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
 
-	const uint32 z_min = zbin_buffer_srv[bin].min_idx;
-	const uint32 z_max = zbin_buffer_srv[bin].max_idx;
+	const uint32 z_min = load_zbin_entry(bin).min_idx;
+	const uint32 z_max = load_zbin_entry(bin).max_idx;
 
 	const uint32 wave_z_min = wave_active_min(z_min);
 	const uint32 wave_z_max = wave_active_max(z_max);
@@ -334,7 +334,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
-		uint32 bit_mask = tile_mask_buffer_srv[tile_id * LIGHT_BITMASK_UINT32_COUNT + w];
+		uint32 bit_mask = load_tile_mask(tile_id, w);
 		bit_mask		= wave_active_bit_or(bit_mask);
 
 		while (bit_mask != 0)
@@ -343,7 +343,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			const uint32 sorted_id	= w * 32 + bit;
 			bit_mask			   &= ~(1u << bit);
 
-			const unified_light light = unified_sorted_light_buffer_srv[sorted_id];
+			const unified_light light = load_sorted_light(sorted_id);
 
 			const uint32 shadow_id = light.shadow_id_and_extra & 0xf;
 

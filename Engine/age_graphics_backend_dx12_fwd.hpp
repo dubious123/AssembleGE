@@ -27,8 +27,6 @@ namespace age::graphics::e
 	);
 
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
-					forward_plus_init_cs,
-
 					forward_plus_depth_ms,
 
 					forward_plus_shadow_init_cs,
