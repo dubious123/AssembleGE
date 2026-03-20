@@ -38,6 +38,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::t<0, 0>>,
 
+		binding_slot<
+			"shadow_stage_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::byte_address_buffer,
+			how::root_descriptor,
+			where::t<0, 7>>,
+
+		binding_slot<
+			"shadow_stage_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_byte_address_buffer,
+			how::root_descriptor,
+			where::u<0, 7>>,
+
 
 		binding_slot<
 			"mesh_data_buffer",

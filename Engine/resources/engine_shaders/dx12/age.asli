@@ -56,9 +56,120 @@ struct byte_address_buffer
 {
 	template <typename t>
 	t
-	Load(byte_address_buffer buffer, uint32 offset)
+	Load(uint32 offset)
 	{
 		return t{};
+	}
+};
+
+struct rw_byte_address_buffer
+{
+	template <typename t>
+	t
+	Load(uint32 offset)
+	{
+		return t{};
+	}
+
+	template <typename t>
+	void
+	Store(uint32 offset, t value)
+	{
+	}
+
+	void
+	InterlockedAdd(uint32 offset, uint32 value)
+	{
+	}
+
+	void
+	InterlockedAdd(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedAdd(uint32 offset, int32 value)
+	{
+	}
+
+	void
+	InterlockedAdd(uint32 offset, int32 value, int32& original)
+	{
+	}
+
+	void
+	InterlockedMin(uint32 offset, uint32 value)
+	{
+	}
+
+	void
+	InterlockedMin(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedMin(uint32 offset, int32 value)
+	{
+	}
+
+	void
+	InterlockedMin(uint32 offset, int32 value, int32& original)
+	{
+	}
+
+	void
+	InterlockedMax(uint32 offset, uint32 value)
+	{
+	}
+
+	void
+	InterlockedMax(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedMax(uint32 offset, int32 value)
+	{
+	}
+
+	void
+	InterlockedMax(uint32 offset, int32 value, int32& original)
+	{
+	}
+
+	void
+	InterlockedAnd(uint32 offset, uint32 value)
+	{
+	}
+
+	void
+	InterlockedAnd(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedOr(uint32 offset, uint32 value)
+	{
+	}
+
+	void
+	InterlockedOr(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedExchange(uint32 offset, uint32 value, uint32& original)
+	{
+	}
+
+	void
+	InterlockedCompareStore(uint32 offset, uint32 compare, uint32 value)
+	{
+	}
+
+	void
+	InterlockedCompareExchange(uint32 offset, uint32 compare, uint32 value, uint32& original)
+	{
 	}
 };
 
@@ -311,6 +422,8 @@ cross(float3, float3)
 	#define space3
 	#define space4
 	#define space5
+	#define space6
+	#define space7
 
 	#define sv_dispatch_thread_id
 	#define sv_thread_id
@@ -321,10 +434,6 @@ cross(float3, float3)
 	#define sv_is_front_face
 	#define numthreads(x, y, z) [force_inline]
 
-	#define interlocked_add
-	#define interlocked_or
-	#define interlocked_min
-	#define interlocked_max
 
 	#define reg(...)
 	#define cbuffer struct
@@ -343,6 +452,16 @@ cross(float3, float3)
 
 	#define group_memory_barrier_with_sync()
 
+	#define interlocked_add(...)
+	#define interlocked_min(...)
+	#define interlocked_max(...)
+	#define interlocked_and(...)
+	#define interlocked_or(...)
+	#define interlocked_xor(...)
+	#define interlocked_exchange(...)
+	#define interlocked_cmp_store(...)
+	#define interlocked_cmp_exchange(...)
+
 #else
 	#define sv_dispatch_thread_id : SV_DispatchThreadID
 	#define sv_thread_id : SV_ThreadID
@@ -352,10 +471,6 @@ cross(float3, float3)
 	#define sv_group_thread_id : SV_GroupThreadID
 	#define sv_is_front_face : SV_IsFrontFace
 
-	#define interlocked_add InterlockedAdd
-	#define interlocked_or	InterlockedOr
-	#define interlocked_min InterlockedMin
-	#define interlocked_max InterlockedMax
 
 	#define reg(...) : register(__VA_ARGS__)
 	#define sys_val(x) : x
@@ -363,6 +478,16 @@ cross(float3, float3)
 	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
 	#define expand(x)						 [unroll(x)]
 	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
+
+	#define interlocked_add(...)		  InterlockedAdd(__VA_ARGS__)
+	#define interlocked_min(...)		  InterlockedMin(__VA_ARGS__)
+	#define interlocked_max(...)		  InterlockedMax(__VA_ARGS__)
+	#define interlocked_and(...)		  InterlockedAnd(__VA_ARGS__)
+	#define interlocked_or(...)			  InterlockedOr(__VA_ARGS__)
+	#define interlocked_xor(...)		  InterlockedXor(__VA_ARGS__)
+	#define interlocked_exchange(...)	  InterlockedExchange(__VA_ARGS__)
+	#define interlocked_cmp_store(...)	  InterlockedCompareStore(__VA_ARGS__)
+	#define interlocked_cmp_exchange(...) InterlockedCompareExchange(__VA_ARGS__)
 
 
 	#define wave_is_first_lane()  WaveIsFirstLane()
@@ -390,13 +515,15 @@ cross(float3, float3)
 
 	#define sampler_cmp_state SamplerComparisonState
 
-template <typename T>
-using structured_buffer = StructuredBuffer<T>;
+template <typename t>
+using structured_buffer = StructuredBuffer<t>;
 
-template <typename T>
-using rw_structured_buffer = RWStructuredBuffer<T>;
+template <typename t>
+using rw_structured_buffer = RWStructuredBuffer<t>;
 
 using byte_address_buffer = ByteAddressBuffer;
+
+using rw_byte_address_buffer = RWByteAddressBuffer;
 
 template <typename t>
 using texture_2d = Texture2D<t>;
@@ -446,6 +573,150 @@ t
 load(byte_address_buffer buffer, uint32 offset)
 {
 	return buffer.Load<t>(offset);
+}
+
+template <typename t>
+t
+load(rw_byte_address_buffer buffer, uint32 offset)
+{
+	return buffer.Load<t>(offset);
+}
+
+template <typename t>
+void
+store(rw_byte_address_buffer buffer, uint32 offset, t value)
+{
+	return buffer.Store<t>(offset, value);
+}
+
+// ── InterlockedAdd ──
+
+void
+buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
+{
+	buffer.InterlockedAdd(offset, value);
+}
+
+void
+buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedAdd(offset, value, original);
+}
+
+void
+buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, int32 value)
+{
+	buffer.InterlockedAdd(offset, value);
+}
+
+void
+buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, int32 value, out int32 original)
+{
+	buffer.InterlockedAdd(offset, value, original);
+}
+
+// ── InterlockedMin ──
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
+{
+	buffer.InterlockedMin(offset, value);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedMin(offset, value, original);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, int32 value)
+{
+	buffer.InterlockedMin(offset, value);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, int32 value, out int32 original)
+{
+	buffer.InterlockedMin(offset, value, original);
+}
+
+// ── InterlockedMax ──
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
+{
+	buffer.InterlockedMax(offset, value);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedMax(offset, value, original);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int32 value)
+{
+	buffer.InterlockedMax(offset, value);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int32 value, out int32 original)
+{
+	buffer.InterlockedMax(offset, value, original);
+}
+
+// ── InterlockedAnd ──
+
+void
+buf_interlocked_and(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
+{
+	buffer.InterlockedAnd(offset, value);
+}
+
+void
+buf_interlocked_and(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedAnd(offset, value, original);
+}
+
+// ── InterlockedOr ──
+
+void
+buf_interlocked_or(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
+{
+	buffer.InterlockedOr(offset, value);
+}
+
+void
+buf_interlocked_or(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedOr(offset, value, original);
+}
+
+// ── InterlockedExchange ──
+
+void
+buf_interlocked_exchange(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
+{
+	buffer.InterlockedExchange(offset, value, original);
+}
+
+// ── InterlockedCompareStore ──
+
+void
+buf_interlocked_compare_store(rw_byte_address_buffer buffer, uint32 offset, uint32 compare, uint32 value)
+{
+	buffer.InterlockedCompareStore(offset, compare, value);
+}
+
+// ── InterlockedCompareExchange ──
+
+void
+buf_interlocked_compare_exchange(rw_byte_address_buffer buffer, uint32 offset, uint32 compare, uint32 value, out uint32 original)
+{
+	buffer.InterlockedCompareExchange(offset, compare, value, original);
 }
 
 template <typename t, typename t_sample>

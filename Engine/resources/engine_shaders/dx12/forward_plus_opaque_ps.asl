@@ -129,12 +129,10 @@ sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_norm
 float
 sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id)
 {
-	uint32 cascade_index = DIRECTIONAL_SHADOW_CASCADE_COUNT - 1;
-	for (uint32 c = 0; c < DIRECTIONAL_SHADOW_CASCADE_COUNT; ++c)
+	uint32 cascade_index = SHADOW_CASCADE_COUNT - 1;
+	for (uint32 c = 0; c < SHADOW_CASCADE_COUNT; ++c)
 	{
-		const uint32 arr_idx = c / 4;
-		const uint32 comp	 = c % 4;
-		const float	 split	 = frame_data_rw_buffer_srv[0].cascade_splits[arr_idx][comp];
+		const float split = load_cascade_split(c);
 
 		if (linear_depth < split)
 		{
@@ -143,7 +141,7 @@ sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id
 		}
 	}
 
-	const shadow_light light = shadow_light_buffer_srv[shadow_id + cascade_index];
+	const shadow_light light = load_shadow_light(shadow_id + cascade_index);
 
 	const float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
 	const float3 light_ndc	= light_clip.xyz / light_clip.w;
@@ -177,7 +175,7 @@ sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id
 float
 sample_unified_shadow(float3 world_pos, uint32 shadow_id)
 {
-	const shadow_light light = shadow_light_buffer_srv[shadow_id];
+	const shadow_light light = load_shadow_light(shadow_id);
 
 	const float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
 	const float3 light_ndc	= light_clip.xyz / light_clip.w;
@@ -285,14 +283,13 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			// contact = sample_contact_shadow(fragment.world_pos, -light.direction, surface_normal);
 			// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
 		}
-
 		lighting += shadow * contact * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
 		// lighting += contact * shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
 		// lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
 	}
 
-	// uint32 cascade_index = DIRECTIONAL_SHADOW_CASCADE_COUNT - 1;
-	// for (uint32 c = 0; c < DIRECTIONAL_SHADOW_CASCADE_COUNT; ++c)
+	// uint32 cascade_index = SHADOW_CASCADE_COUNT - 1;
+	// for (uint32 c = 0; c < SHADOW_CASCADE_COUNT; ++c)
 	//{
 	//     const uint32 arr_idx = c / 4;
 	//     const uint32 comp = c % 4;

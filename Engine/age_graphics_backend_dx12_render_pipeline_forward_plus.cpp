@@ -70,8 +70,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	   = false });
 
 
-			h_shadow_light_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::max_shadow_light_count * sizeof(shared_type::shadow_light)),
+			h_shadow_stage_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SHADOW_STAGE_BUFFER_SIZE),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
@@ -102,8 +102,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			frame_data_rw_buffer_uav.bind(h_frame_data_rw_buffer->get_va());
 			frame_data_rw_buffer_srv.bind(h_frame_data_rw_buffer->get_va());
 
-			shadow_light_buffer_srv.bind(h_shadow_light_buffer->get_va());
-			shadow_light_buffer_uav.bind(h_shadow_light_buffer->get_va());
+			shadow_stage_buffer_srv.bind(h_shadow_stage_buffer->get_va());
+			shadow_stage_buffer_uav.bind(h_shadow_stage_buffer->get_va());
 		}
 
 		{
@@ -147,7 +147,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_depth_buffer->set_name(L"depth_buffer");
 		h_shadow_atlas->set_name(L"shadow_atlas");
 		h_frame_data_rw_buffer->set_name(L"frame_data_rw_buffer");
-		h_shadow_light_buffer->set_name(L"shadow_light_buffer");
+		h_shadow_stage_buffer->set_name(L"shadow_stage_buffer");
 
 
 		h_mapping_frame_data->h_resource->set_name(L"mapping_frame_data");
@@ -186,6 +186,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::g::cbv_srv_uav_desc_pool.push(h_depth_buffer_srv_desc);
 		graphics::g::cbv_srv_uav_desc_pool.push(h_shadow_atlas_srv_desc);
 
+		// static
 		resource::unmap_and_release(h_mapping_static_ring_buffer_arr);
 
 		resource::unmap_and_release(h_mapping_frame_data);
@@ -208,8 +209,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource::release_resource(h_light_cull_data_buffer_arr);
 
+		// shadow
 		resource::release_resource(h_shadow_atlas);
-		resource::release_resource(h_shadow_light_buffer);
+		resource::release_resource(h_shadow_stage_buffer);
 
 		rt::release_blas_buffer(h_rt_blas_buffer);
 
@@ -278,11 +280,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data_buffer.apply();
 			mesh_data_buffer.apply_compute();
 
-
-			shadow_light_buffer_uav.apply_compute();
-
-			shadow_light_buffer_srv.apply_compute();
-			shadow_light_buffer_srv.apply();
 
 			frame_data_rw_buffer_uav.apply_compute();
 		}
@@ -396,30 +393,29 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		shadow_stage_buffer_uav.apply_compute();
 
 		stage_shadow.execute(
 			extent.width,
 			extent.height,
 			next_shadow_light_id,
 			shadow_light_header_count,
-			*h_frame_data_rw_buffer->p_resource,
-			frame_data_rw_buffer_srv,
-			*h_shadow_light_buffer->p_resource,
-			shadow_light_buffer_srv,
-			opaque_meshlet_render_data_count);
+			opaque_meshlet_render_data_count,
+			h_shadow_stage_buffer,
+			shadow_stage_buffer_srv);
 
 		command::set_view_ports(1, &rs.default_viewport);
 		command::set_scissor_rects(1, &rs.default_scissor_rect);
 
 		command::apply_barriers(
 			barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::buf_uav_to_srv(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));	   // used by opaque
+			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
 		frame_data_rw_buffer_srv.apply();
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
 
-		command::apply_barriers(barrier::buf_srv_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_uav(h_frame_data_rw_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		stage_transparent.execute(*h_sort_buffer->p_resource,
 								  sort_buffer_srv,

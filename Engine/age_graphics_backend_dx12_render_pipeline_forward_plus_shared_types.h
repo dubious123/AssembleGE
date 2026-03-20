@@ -12,7 +12,10 @@
 
 #define MAX_SHADOW_LIGHT_COUNT (SHADOW_ATLAS_SEG_U * SHADOW_ATLAS_SEG_V)
 
+#define SHADOW_CASCADE_COUNT 4
+
 #if !defined(AGE_SHADER)
+	// static
 	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
 	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(shared_type::opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
 	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(shared_type::transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
@@ -20,7 +23,15 @@
 	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(shared_type::directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
 	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(shared_type::unified_light) * MAX_LIGHT_COUNT)
 	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shared_type::shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+
+	// shadow
+	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET   (0)
+	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET   (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_LIGHT_OFFSET   (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET (SHADOW_STAGE_BUFFER_LIGHT_OFFSET + sizeof(shared_type::shadow_light) * MAX_SHADOW_LIGHT_COUNT)
+	#define SHADOW_STAGE_BUFFER_SIZE		   (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
 #else
+	// static
 	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
 	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
 	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
@@ -28,7 +39,44 @@
 	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
 	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(unified_light) * MAX_LIGHT_COUNT)
 	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+
+	// shadow
+	#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET	  (0)
+	#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET	  (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_LIGHT_OFFSET	  (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
+	#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET	  (SHADOW_STAGE_BUFFER_LIGHT_OFFSET + sizeof(shadow_light) * MAX_SHADOW_LIGHT_COUNT)
+	#define SHADOW_STAGE_BUFFER_SIZE			  (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
 #endif
+
+// scratch buffer
+
+// dynamic buffer (read after write buffer)
+
+// shadow
+// depth reduce (z_min, z_max)
+// shadow_lights (shadow)
+
+
+// uint32 z_min;
+// uint32 z_max;
+// float4 cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
+// struct shadow_light * shadow_light_count
+//{
+//	row_major float4x4 view_proj;			 // 64
+//	float4			   frustum_planes[6];	 // 96
+//};	  // 160 bytes
+
+
+#define LIGHT_CULL_ZBIN_ENTRY_OFFSET 0
+
+// z_min, z_max (depth)
+// cascade (depth)
+// not_culled_transparent_object_count (transparent)
+// light cull data (zbin, tile, unified_sorted_light) (light cull)
+
+// light cull data
+// shadow
+// transparent
 
 
 #define UV_COUNT		2
@@ -90,7 +138,6 @@
 #define SHADOW_DEPTH_BIAS 1000
 #define SHADOW_SLOPE_BIAS 5.f
 
-#define DIRECTIONAL_SHADOW_CASCADE_COUNT 4
 
 #define SHADOW_CASCADE_SPLIT_FACTOR 0.5f
 
@@ -174,7 +221,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto shadow_depth_bias = SHADOW_DEPTH_BIAS;
 	inline constexpr auto shadow_slope_bias = SHADOW_SLOPE_BIAS;
 
-	inline constexpr uint32 directional_shadow_cascade_count = DIRECTIONAL_SHADOW_CASCADE_COUNT;
+	inline constexpr uint32 directional_shadow_cascade_count = SHADOW_CASCADE_COUNT;
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 namespace age::graphics::render_pipeline::forward_plus::shared_type
@@ -207,11 +254,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct frame_data_rw
 	{
 		uint32 generic_counter;
-
-		uint32 z_min;
-		uint32 z_max;
-
-		float4 cascade_splits[(DIRECTIONAL_SHADOW_CASCADE_COUNT + 3) / 4];
 
 		uint32 not_culled_transparent_object_count;
 	};

@@ -13,7 +13,7 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
 
 	const float sphere_radius = length(cast<float3>(m_header.aabb_size) * 0.5f) * max(max(scale.x, scale.y), scale.z);
 
-	const shadow_light light = shadow_light_buffer_srv[shadow_light_index];
+	const shadow_light light = load_shadow_light(shadow_light_index);
 
 	expand(6)
 

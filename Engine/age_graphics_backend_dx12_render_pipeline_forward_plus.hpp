@@ -39,6 +39,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct shadow_stage
 	{
+		graphics::pso::handle h_init_pso;
+		ID3D12PipelineState*  p_init_pso;
+
 		graphics::pso::handle h_depth_reduce_pso;
 		ID3D12PipelineState*  p_depth_reduce_pso;
 
@@ -60,11 +63,9 @@ namespace age::graphics::render_pipeline::forward_plus
 				uint32			height,
 				uint32			shadow_light_count,
 				uint32			shadow_light_header_count,
-				ID3D12Resource& frame_data_rw_buffer,
-				auto&			slot_frame_data_rw_buffer_srv,
-				ID3D12Resource& shadow_light_rw_buffer,
-				auto&			slot_shadow_light_rw_buffer_srv,
-				uint32			opaque_meshlet_count) noexcept;
+				uint32			opaque_meshlet_count,
+				resource_handle h_shadow_stage_buffer,
+				auto&			shadow_stage_buffer_srv) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -208,7 +209,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_depth_buffer;
 		resource_handle h_shadow_atlas;
 		resource_handle h_frame_data_rw_buffer;
-		resource_handle h_shadow_light_buffer;
+
+		resource_handle h_shadow_stage_buffer;
 
 		std::array<resource_handle, graphics::g::frame_buffer_count> h_sort_buffer_arr;
 		std::array<resource_handle, graphics::g::frame_buffer_count> h_zbin_buffer_arr;
@@ -241,13 +243,12 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_t<2, 0> mesh_data_buffer;
 
+		binding_config_t::reg_t<0, 7> shadow_stage_buffer_srv;
+		binding_config_t::reg_u<0, 7> shadow_stage_buffer_uav;
+
+
 		binding_config_t::reg_t<5, 0> frame_data_rw_buffer_srv;
 		binding_config_t::reg_u<5, 0> frame_data_rw_buffer_uav;
-
-
-		// shadow
-		binding_config_t::reg_t<1, 1> shadow_light_buffer_srv;
-		binding_config_t::reg_u<1, 1> shadow_light_buffer_uav;
 
 
 		// light culling

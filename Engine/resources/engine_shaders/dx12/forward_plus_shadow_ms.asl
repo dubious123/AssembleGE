@@ -32,7 +32,7 @@ main_ms(
 	const float3 scale		= cast<float3>(obj_data.scale);
 	const float3 pos		= obj_data.pos;
 
-	const float4x4 view_proj = shadow_light_buffer_srv[shadow_light_index].view_proj;
+	const float4x4 view_proj = load_shadow_light(shadow_light_index).view_proj;
 
 	expand(2)
 

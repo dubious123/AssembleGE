@@ -82,18 +82,109 @@ load_shadow_light_header(uint32 idx)
 
 byte_address_buffer mesh_data_buffer reg(t2, space0);
 
+// uav only
+byte_address_buffer scratch_buffer reg(t0, space1);
+
+structured_buffer<uint32>	 sort_buffer_srv reg(t0, space2);
+rw_structured_buffer<uint32> sort_buffer reg(u0, space2);
+
+
+// shadow buffer
+byte_address_buffer	   shadow_stage_buffer_srv reg(t0, space7);
+rw_byte_address_buffer shadow_stage_buffer_uav reg(u0, space7);
+
+void
+store_z_min_max(uint32 z_min, uint32 z_max)
+{
+	store<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET, z_min);
+	store<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET, z_max);
+}
+
+void
+store_z_min_interlocked_min(uint32 z_min)
+{
+	buf_interlocked_min(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET, z_min);
+}
+
+void
+store_z_max_interlocked_max(uint32 z_max)
+{
+	buf_interlocked_max(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET, z_max);
+}
+
+uint32
+load_z_min_uav()
+{
+	return load<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET);
+}
+
+uint32
+load_z_max_uav()
+{
+	return load<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET);
+}
+
+uint32
+load_z_min()
+{
+	return load<uint32>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET);
+}
+
+uint32
+load_z_max()
+{
+	return load<uint32>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET);
+}
+
+void
+store_shadow_light(uint32 idx, shadow_light data)
+{
+	store<shadow_light>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_LIGHT_OFFSET + idx * sizeof(shadow_light), data);
+}
+
+shadow_light
+load_shadow_light(uint32 idx)
+{
+	return load<shadow_light>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_LIGHT_OFFSET + idx * sizeof(shadow_light));
+}
+
+void
+store_cascade_split(uint32 idx, float split)
+{
+	store<float>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float), split);
+}
+
+float
+load_cascade_split(uint32 idx)
+{
+	return load<float>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float));
+}
+
+//// light buffer
+// byte_address_buffer	   light_cull_stage_buffer_srv reg(t0, space2);
+// rw_byte_address_buffer light_cull_stage_buffer_uav reg(u0, space2);
+//
+//// Z_SLICE_COUNT * sizeof(zbin_entry)
+// void
+// store_zbin_entry(zbin_entry zbin, uint32 idx)
+//{
+// }
+//
+// void
+// load_zbin_entry(uint32 idx)
+//{
+// }
+
+byte_address_buffer	   transparent_stage_buffer_srv reg(t0, space2);
+rw_byte_address_buffer transparent_stage_buffer_uav reg(u0, space2);
+
 
 structured_buffer<frame_data_rw>	frame_data_rw_buffer_srv reg(t5, space0);
 rw_structured_buffer<frame_data_rw> frame_data_rw_buffer_uav reg(u5, space0);
 
 
-structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space1);
-rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space1);
-
-
 // light culling
-structured_buffer<uint32>	 sort_buffer_srv reg(t0, space2);
-rw_structured_buffer<uint32> sort_buffer reg(u0, space2);
+
 
 structured_buffer<zbin_entry>	 zbin_buffer_srv reg(t1, space2);
 rw_structured_buffer<zbin_entry> zbin_buffer_uav reg(u1, space2);
@@ -107,13 +198,9 @@ rw_structured_buffer<unified_light> unified_sorted_light_buffer_uav reg(u3, spac
 structured_buffer<light_cull_data>	  light_cull_data_buffer_srv reg(t4, space2);
 rw_structured_buffer<light_cull_data> light_cull_data_buffer_uav reg(u4, space2);
 
-// debug
-rw_structured_buffer<debug_77> debug_buffer reg(u7, space7);
-
 
 // sampler
-sampler_state linear_clamp_sampler reg(s0);
-
+sampler_state	  linear_clamp_sampler reg(s0);
 sampler_cmp_state shadow_sampler reg(s1);
 
 #ifdef __INTELLISENSE__

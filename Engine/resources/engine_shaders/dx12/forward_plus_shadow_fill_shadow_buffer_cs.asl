@@ -4,8 +4,8 @@ void
 handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx, uint32 shadow_id)
 {
 	const directional_light light	  = load_directional_light(directional_light_id);
-	float					depth_min = as_float(frame_data_rw_buffer_uav[0].z_min);
-	float					depth_max = as_float(frame_data_rw_buffer_uav[0].z_max);
+	float					depth_min = as_float(load_z_min_uav());
+	float					depth_max = as_float(load_z_max_uav());
 
 	// fallback
 	if (depth_min >= depth_max)
@@ -14,8 +14,8 @@ handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx,
 		depth_max = cam_far_z;
 	}
 
-	const float t_near = (float)cascade_idx / (float)DIRECTIONAL_SHADOW_CASCADE_COUNT;
-	const float t_far  = (float)(cascade_idx + 1) / (float)DIRECTIONAL_SHADOW_CASCADE_COUNT;
+	const float t_near = (float)cascade_idx / (float)SHADOW_CASCADE_COUNT;
+	const float t_far  = (float)(cascade_idx + 1) / (float)SHADOW_CASCADE_COUNT;
 
 	const float log_near = depth_min * pow(depth_max / depth_min, t_near);
 	const float uni_near = depth_min + (depth_max - depth_min) * t_near;
@@ -110,17 +110,17 @@ handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx,
 		epsilon_1e4,
 		radius * 2.0f + back_offset);
 
-	const float4x4 light_view_proj = mul(mul(light_proj, translation(offset_x, offset_y, 0.f)), light_view_mat);
+	shadow_light res;
 
-	shadow_light_buffer_uav[shadow_id + cascade_idx].view_proj = light_view_proj;
-	gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + cascade_idx].frustum_planes);
+	res.view_proj = mul(mul(light_proj, translation(offset_x, offset_y, 0.f)), light_view_mat);
 
-	frame_data_rw_buffer_uav[0].cascade_splits[cascade_idx / 4][cascade_idx % 4] = split_far;
+	gen_frustum_planes(res.view_proj, res.frustum_planes);
 
-	// frame_data_rw_buffer[0].radius[cascade_idx] = radius;
+	store_shadow_light(shadow_id + cascade_idx, res);
+
+	store_cascade_split(cascade_idx, split_far);
 }
 
-//[noinline]
 void
 handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 {
@@ -167,19 +167,19 @@ handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 		break;
 	}
 
-	// const float4x4 light_view = view_look_to(light.position, float3(0, -1, 0));
-	// const float4x4 light_view = view_look_to(light.position, face_dirs[face_idx]);
-
 	const float4x4 light_proj = proj_perspective_reversed(
 		pi_half,
 		1.0f,
 		0.1f,
 		light.range);
 
-	const float4x4 light_view_proj = mul(light_proj, light_view);
+	shadow_light res;
 
-	shadow_light_buffer_uav[shadow_id + face_idx].view_proj = light_view_proj;
-	gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id + face_idx].frustum_planes);
+	res.view_proj = mul(light_proj, light_view);
+
+	gen_frustum_planes(res.view_proj, res.frustum_planes);
+
+	store_shadow_light(shadow_id + face_idx, res);
 }
 
 void
@@ -195,10 +195,13 @@ handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 		epsilon_1e4,
 		light.range);
 
-	const float4x4 light_view_proj = mul(light_proj, light_view);
+	shadow_light res;
 
-	shadow_light_buffer_uav[shadow_id].view_proj = light_view_proj;
-	gen_frustum_planes(light_view_proj, shadow_light_buffer_uav[shadow_id].frustum_planes);
+	res.view_proj = mul(light_proj, light_view);
+
+	gen_frustum_planes(res.view_proj, res.frustum_planes);
+
+	store_shadow_light(shadow_id, res);
 }
 
 [numthreads(6, 1, 1)] void
@@ -208,7 +211,7 @@ main_cs(uint32 shadow_light_header_id sv_group_id,
 
 	if (header.light_kind == LIGHT_KIND_DIRECTIONAL)
 	{
-		if (thread_id < DIRECTIONAL_SHADOW_CASCADE_COUNT)
+		if (thread_id < SHADOW_CASCADE_COUNT)
 		{
 			handle_directional_light_shadow(header.light_id, thread_id, header.shadow_id);
 		}

@@ -31,6 +31,7 @@ namespace age::graphics::e
 
 					forward_plus_depth_ms,
 
+					forward_plus_shadow_init_cs,
 					forward_plus_shadow_depth_reduce_cs,
 					forward_plus_shadow_fill_shadow_buffer_cs,
 

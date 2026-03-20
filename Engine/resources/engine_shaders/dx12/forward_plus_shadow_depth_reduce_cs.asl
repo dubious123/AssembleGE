@@ -4,7 +4,7 @@ DECLARE_CALC_THREAD_GROUP_MIN_MAX((16 * 16))
 
 [numthreads(16, 16, 1)] void
 main_cs(uint32_2 local_thread_id sv_group_thread_id,
-		uint32_2 thread_id		 sv_dispatch_thread_id)
+		uint32_2 thread_id sv_dispatch_thread_id)
 
 {
 	uint32_2 z_min_max = uint32_2(0xffffffff, 0);
@@ -23,11 +23,11 @@ main_cs(uint32_2 local_thread_id sv_group_thread_id,
 		}
 	}
 
-	uint32_2 group_min_max = calc_thread_group_min_max(z_min_max.x, z_min_max.y, local_thread_id.y * 16 + local_thread_id.x);
+	const uint32_2 group_min_max = calc_thread_group_min_max(z_min_max.x, z_min_max.y, local_thread_id.y * 16 + local_thread_id.x);
 
 	if (all(local_thread_id == uint32_2(0, 0)))
 	{
-		interlocked_min(frame_data_rw_buffer_uav[0].z_min, group_min_max.x);
-		interlocked_max(frame_data_rw_buffer_uav[0].z_max, group_min_max.y);
+		store_z_min_interlocked_min(group_min_max.x);
+		store_z_max_interlocked_max(group_min_max.y);
 	}
 }

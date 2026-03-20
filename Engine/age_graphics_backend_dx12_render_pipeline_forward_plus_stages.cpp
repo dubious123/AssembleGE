@@ -107,6 +107,12 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		using namespace graphics::pso;
 
+		h_init_pso = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_shadow_init_cs) }) });
+
+		p_init_pso = graphics::g::pso_ptr_vec[h_init_pso];
+
 		h_depth_reduce_pso = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_shadow_depth_reduce_cs) }) });
@@ -149,16 +155,20 @@ namespace age::graphics::render_pipeline::forward_plus
 						  uint32		  height,
 						  uint32		  shadow_light_count,
 						  uint32		  shadow_light_header_count,
-						  ID3D12Resource& frame_data_rw_buffer,
-						  auto&			  slot_frame_data_rw_buffer_srv,
-						  ID3D12Resource& shadow_light_rw_buffer,
-						  auto&			  slot_shadow_light_rw_buffer_srv,
-						  uint32		  opaque_meshlet_count) noexcept
+						  uint32		  opaque_meshlet_count,
+						  resource_handle h_shadow_stage_buffer,
+						  auto&			  shadow_stage_buffer_srv) noexcept
 	{
 		if (opaque_meshlet_count == 0) [[unlikely]]
 		{
 			return;
 		}
+
+
+		command::set_pso(p_init_pso);
+		command::dispatch(1, 1, 1);
+
+		command::apply_barriers(barrier::buf_uav_to_uav(h_shadow_stage_buffer->p_resource));
 
 		command::set_pso(p_depth_reduce_pso);
 		command::dispatch(
@@ -166,15 +176,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			(height + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
 			1);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(&frame_data_rw_buffer));
-		slot_frame_data_rw_buffer_srv.apply_compute();
+		command::apply_barriers(barrier::buf_uav_to_uav(h_shadow_stage_buffer->p_resource));
+
 		command::set_pso(p_fill_shadow_buffer_pso);
 		command::dispatch(shadow_light_header_count, 1, 1);
 
-		command::apply_barriers(barrier::buf_uav_to_srv(&shadow_light_rw_buffer,
-														D3D12_BARRIER_SYNC_VERTEX_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_srv(h_shadow_stage_buffer->p_resource, D3D12_BARRIER_SYNC_VERTEX_SHADING));
 
-		slot_shadow_light_rw_buffer_srv.apply();
+		shadow_stage_buffer_srv.apply();
 
 		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_shadow_atlas_dsv_desc, 0.f);
 
@@ -223,6 +232,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	inline void
 	shadow_stage::deinit() noexcept
 	{
+		pso::destroy(h_init_pso);
 		pso::destroy(h_depth_reduce_pso);
 		pso::destroy(h_fill_shadow_buffer_pso);
 		pso::destroy(h_shadow_map_pso);
