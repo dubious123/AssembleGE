@@ -229,8 +229,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		c_auto new_extent = age::extent_2d<uint16>{
-			.width	= std::max(extent.width, static_cast<uint16>(age::platform::get_client_width(rs.h_window))),
-			.height = std::max(extent.height, static_cast<uint16>(age::platform::get_client_height(rs.h_window)))
+			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
+			.height = static_cast<uint16>(age::platform::get_client_height(rs.h_window))
 		};
 
 		if (extent != new_extent) [[unlikely]]

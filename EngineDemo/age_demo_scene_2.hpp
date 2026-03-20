@@ -26,6 +26,7 @@ namespace age_demo::scene_2
 	{
 		AGE_GET(render_pipeline, render_pipeline)
 		AGE_GET(h_render_surface, h_render_surface)
+		AGE_GET(h_window, h_window)
 
 		AGE_GET(sprint, sprint)
 		AGE_GET(move, move)

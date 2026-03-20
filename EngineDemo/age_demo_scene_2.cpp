@@ -216,6 +216,8 @@ namespace age_demo::scene_2
 
 		cam_desc.quaternion = xm_look_quat | age::simd::to<float4>();
 
+		cam_desc.perspective.aspect_ratio = age::platform::get_client_width(i_update.get_h_window) / static_cast<float>(age::platform::get_client_height(i_update.get_h_window));
+
 		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 
 		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface()))

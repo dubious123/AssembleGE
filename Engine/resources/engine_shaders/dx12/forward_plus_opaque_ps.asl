@@ -284,49 +284,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
 		}
 		lighting += shadow * contact * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
-		// lighting += contact * shadow * calc_blinn_phong_directional_light_color(light, surface_normal, view_dir);
-		// lighting += calc_blinn_phong_directional_light_color(directional_light_buffer[d], surface_normal, view_dir);
 	}
-
-	// uint32 cascade_index = SHADOW_CASCADE_COUNT - 1;
-	// for (uint32 c = 0; c < SHADOW_CASCADE_COUNT; ++c)
-	//{
-	//     const uint32 arr_idx = c / 4;
-	//     const uint32 comp = c % 4;
-	//     const float split = frame_data_rw_buffer_srv[0].cascade_splits[arr_idx][comp];
-
-	//    if (linear_depth < split)
-	//    {
-	//        cascade_index = c;
-	//        break;
-	//    }
-	//}
-
-	// if (cascade_index == 0)
-	//{
-	//     return float4(1, 0, 0, 1);
-	// }
-	// else if (cascade_index == 1)
-	//{
-	//     return float4(0, 1, 0, 1);
-	// }
-	// else if (cascade_index == 2)
-	//{
-	//     return float4(0, 0, 1, 1);
-	// }
-	// else if (cascade_index == 3)
-	//{
-	//     return float4(1, 1, 0, 1);
-	// }
-	// else
-	//{
-	//     return float4(1, 1, 1, 1);
-	// }
-
-	// const unified_light light  = unified_sorted_light_buffer_srv[5];
-	// lighting				  += calc_blinn_phong_light_color(light, fragment.world_pos, surface_normal, view_dir);
-
-	// return float4(lighting * albedo, 1.0f);
 
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{

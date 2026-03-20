@@ -27,7 +27,7 @@ namespace age::graphics::shader
 			AGE_ASSERT(shader_name.find_last_of('_') != std::wstring_view::npos);
 
 			c_auto stage	   = std::wstring{ shader_name.substr(shader_name.find_last_of('_') + 1) };
-			c_auto target	   = stage + L"_6_9";
+			c_auto target	   = stage + L"_6_8";
 			c_auto entry_point = L"main_" + stage;
 
 			auto newest_include_time = std::filesystem::last_write_time(hlsl_path);
