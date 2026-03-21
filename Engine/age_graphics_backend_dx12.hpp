@@ -278,6 +278,9 @@ namespace age::graphics::resource
 	FORCE_INLINE bool
 	resize_buffer(resource_handle&, uint64 required_size) noexcept;
 
+	FORCE_INLINE bool
+	resize_buffer(mapping_handle& h_mapping, uint64 required_size) noexcept;
+
 	mapping_handle
 	map_all(resource_handle _) noexcept;
 

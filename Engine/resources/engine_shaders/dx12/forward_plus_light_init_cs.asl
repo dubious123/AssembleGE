@@ -21,7 +21,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	if (thread_id == 0)
 	{
 		store_visible_light_count(0);
-		store_visible_transparent_object_count(0);
 	}
 
 	// culled_light_buffer[thread_id] = invalid_id_uint32;

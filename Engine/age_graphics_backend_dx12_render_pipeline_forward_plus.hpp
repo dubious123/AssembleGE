@@ -176,7 +176,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_shadow_stage_shadow_light_buffer;
 		resource_handle h_light_cull_stage_buffer;
 		resource_handle h_light_cull_stage_sorted_light_buffer;
-		resource_handle h_transparent_stage_buffer;
 
 
 		mapping_handle h_mapping_frame_data;
@@ -187,11 +186,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		// rt, not for binding
-		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>					rt_instance_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+
+
 		mapping_handle												h_mapping_rt_index_buffer;
 		mapping_handle												h_mapping_rt_vertex_scratch_buffer;
 		rt::blas_buffer_handle										h_rt_blas_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
 
 		resource_handle h_rt_tlas_buffer;
 		resource_handle h_rt_tlas_scratch_buffer;
@@ -218,9 +221,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<1, 2> shadow_stage_shadow_light_buffer_srv;
 		binding_config_t::reg_u<1, 2> shadow_stage_shadow_light_buffer_uav;
 
-		// transparent
-		binding_config_t::reg_t<0, 3> transparent_stage_buffer_srv;
-		binding_config_t::reg_u<0, 3> transparent_stage_buffer_uav;
+		// rt
+		binding_config_t::reg_t<0, 3> rt_instance_render_data_buffer_srv;
+		binding_config_t::reg_t<1, 3> rt_index_buffer_srv;
 
 
 		// bindless texture
@@ -249,7 +252,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
-		age::vector<shared_type::transparent_object_render_data> transparent_object_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		// mesh-rt
 		uint32 rt_index_buffer_byte_offset = 0;

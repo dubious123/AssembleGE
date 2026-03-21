@@ -470,6 +470,7 @@ namespace age::asset
 					+ fb.axis_v * (v_t - 0.5f) * 2.f * fb.half_v;
 
 				res.vertex_attr_vec[global_idx] = {
+					.normal	  = fb.normal,
 					.uv_set	  = { float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t } },
 					.uv_count = 4
 				};
@@ -688,10 +689,11 @@ namespace age::asset
 			}
 		}
 
-		calculate_normal(res,
-						 normal_calc_desc{
-							 .calc_mode = normal_calc_desc::mode::angle,
-						 });
+		// calculate_normal(res,
+		//				 normal_calc_desc{
+		//					 .calc_mode = normal_calc_desc::mode::angle,
+		//				 });
+
 		calculate_tangent(res, tangent_calc_desc{});
 
 		if constexpr (age::config::debug_mode)

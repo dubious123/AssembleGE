@@ -11,12 +11,6 @@ load_opaque_meshlet_render_data(uint32 idx)
 	return load<opaque_meshlet_render_data>(static_buffer, OPAQUE_MSHLT_OBJECT_DATA_OFFSET + idx * sizeof(opaque_meshlet_render_data));
 }
 
-transparent_object_render_data
-load_transparent_object_render_data(uint32 idx)
-{
-	return load<transparent_object_render_data>(static_buffer, TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + idx * sizeof(transparent_object_render_data));
-}
-
 object_data
 load_object_data(uint32 idx)
 {
@@ -209,7 +203,7 @@ byte_address_buffer	   shadow_stage_buffer_srv reg(t0, space2);
 rw_byte_address_buffer shadow_stage_buffer_uav reg(u0, space2);
 
 structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space2);
-rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space2);	   // t → u
+rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space2);
 
 void
 store_z_min_max(uint32 z_min, uint32 z_max)
@@ -278,38 +272,23 @@ load_cascade_split(uint32 idx)
 	return load<float>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float));
 }
 
-// transparent
-byte_address_buffer	   transparent_stage_buffer_srv reg(t0, space3);
-rw_byte_address_buffer transparent_stage_buffer_uav reg(u0, space3);
+// rt
+structured_buffer<rt_instance_render_data> rt_instance_render_data_buffer_srv reg(t0, space3);
+structured_buffer<uint32>				   rt_index_buffer_srv reg(t1, space3);
 
-void
-store_visible_transparent_object_count(uint32 count)
+rt_instance_render_data
+load_rt_instance_render_data(uint32 instance_id)
 {
-	store<uint32>(transparent_stage_buffer_uav, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET, count);
+	return rt_instance_render_data_buffer_srv[instance_id];
 }
 
-void
-store_visible_transparent_object_count_interlocked_add(uint32 value)
+uint32_3
+load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
 {
-	buf_interlocked_add(transparent_stage_buffer_uav, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET, value);
-}
-
-uint32
-load_visible_transparent_object_count()
-{
-	return load<uint32>(transparent_stage_buffer_srv, TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET);
-}
-
-void
-store_transparent_execute_indirect_arg(uint32 idx, transparent_indirect_arg arg)
-{
-	store<transparent_indirect_arg>(transparent_stage_buffer_uav, TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + idx * sizeof(transparent_indirect_arg), arg);
-}
-
-transparent_indirect_arg
-load_transparent_execute_indirect_arg(uint32 idx)
-{
-	return load<transparent_indirect_arg>(transparent_stage_buffer_srv, TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + idx * sizeof(transparent_indirect_arg));
+	return uint32_3(
+		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 0],
+		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 1],
+		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 2]);
 }
 
 // sampler
@@ -479,6 +458,42 @@ read_vertex_encoded(mesh_header header, uint32 global_vertex_idx)
 		offset		  += sizeof(half2);
 	}
 #endif
+	return res;
+}
+
+template <typename t_res>
+t_res
+decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float3 aabb_size)
+{
+	float3 pos_decoded = cast<float3>(v_encoded.pos)
+						   / 65535.f
+						   * aabb_size
+					   + aabb_min;
+
+	float3 normal_decoded = decode_oct_snorm(v_encoded.normal_oct);
+
+	float4 tangent_decoded = float4(
+		decode_oct_snorm(v_encoded.tangent_oct),
+		2.0f * float(v_encoded.extra & 1u) - 1.f);
+
+	t_res res;
+
+	res.pos		= float4(pos_decoded, 1.f);
+	res.normal	= normal_decoded;
+	res.tangent = tangent_decoded;
+#if UV_COUNT >= 1
+	res.uv0 = v_encoded.uv_set[0];
+#endif
+#if UV_COUNT >= 2
+	res.uv1 = v_encoded.uv_set[1];
+#endif
+#if UV_COUNT >= 3
+	res.uv2 = v_encoded.uv_set[2];
+#endif
+#if UV_COUNT >= 4
+	res.uv3 = v_encoded.uv_set[3];
+#endif
+
 	return res;
 }
 

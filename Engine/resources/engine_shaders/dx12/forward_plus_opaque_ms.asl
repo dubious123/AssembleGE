@@ -1,39 +1,5 @@
 #include "forward_plus_common.asli"
 
-opaque_ms_to_ps
-decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float3 aabb_size)
-{
-	float3 pos_decoded = cast<float3>(v_encoded.pos)
-						   / 65535.f
-						   * aabb_size
-					   + aabb_min;
-
-	float3 normal_decoded = decode_oct_snorm(v_encoded.normal_oct);
-
-	float4 tangent_decoded = float4(
-		decode_oct_snorm(v_encoded.tangent_oct),
-		2.0f * float(v_encoded.extra & 1u) - 1.f);
-
-	opaque_ms_to_ps res;
-
-	res.pos		= float4(pos_decoded, 1.f);
-	res.normal	= normal_decoded;
-	res.tangent = tangent_decoded;
-#if UV_COUNT >= 1
-	res.uv0 = v_encoded.uv_set[0];
-#endif
-#if UV_COUNT >= 2
-	res.uv1 = v_encoded.uv_set[1];
-#endif
-#if UV_COUNT >= 3
-	res.uv2 = v_encoded.uv_set[2];
-#endif
-#if UV_COUNT >= 4
-	res.uv3 = v_encoded.uv_set[3];
-#endif
-
-	return res;
-}
 
 [numthreads(32, 1, 1)][output_topology("triangle")] void
 main_ms(
@@ -72,7 +38,7 @@ main_ms(
 		const float3 aabb_min  = mesh_header.aabb_min;
 		const float3 aabb_size = mesh_header.aabb_size;
 
-		opaque_ms_to_ps v = decode_vertex(v_encoded, aabb_min, aabb_size);
+		opaque_ms_to_ps v = decode_vertex<opaque_ms_to_ps>(v_encoded, aabb_min, aabb_size);
 
 		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
 

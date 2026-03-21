@@ -265,6 +265,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	const float3 ddy_pos = ddy(fragment.world_pos);
 	const float3 normal	 = normalize(cross(ddx_pos, ddy_pos));
 
+	// const float3 normal = fragment.normal;
+
 	for (uint32 d = 0; d < directional_light_count; ++d)
 	{
 		const directional_light light = load_directional_light(d);
@@ -346,5 +348,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// return float4(color, 1);
 	// return float4(light_count / 4.f, 0, 0, 1);
 	// return float4(0, 0, shadow_count / 8.f, 1);
+
+	// return float4(normal, 1.f);
 	return float4(lighting * albedo, 1.0f);
 }

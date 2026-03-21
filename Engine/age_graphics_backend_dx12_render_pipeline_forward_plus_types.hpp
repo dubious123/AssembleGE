@@ -118,22 +118,21 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::u<1, 2>>,
 
-
 		binding_slot<
-			"transparent_stage_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
+			"rt_instance_render_data_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::byte_address_buffer,
+			what::structured_buffer_array<shared_type::rt_instance_render_data>,
 			how::root_descriptor,
 			where::t<0, 3>>,
 
 		binding_slot<
-			"transparent_stage_buffer_uav",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			"rt_index_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_byte_address_buffer,
+			what::structured_buffer<uint32>,
 			how::root_descriptor,
-			where::u<0, 3>>,
+			where::t<1, 3>>,
 
 
 		binding_slot<
@@ -197,6 +196,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32					  offset;
 		uint32					  byte_size;
 		uint32					  meshlet_count;
+		uint32					  rt_index_buffer_elem_offset;
 		graphics::rt::blas_handle h_blas;
 	};
 

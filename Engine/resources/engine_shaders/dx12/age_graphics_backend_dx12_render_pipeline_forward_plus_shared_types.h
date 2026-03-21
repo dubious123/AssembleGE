@@ -4,7 +4,6 @@
 
 // static buffer offset
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
-#define MAX_TRANSPARENT_OBJECT_COUNT		 1024
 #define MAX_OBJECT_DATA_COUNT				 1024u
 #define MAX_DIRECTIONAL_LIGHT_COUNT			 2
 #define MAX_LIGHT_COUNT						 (512 * 512)
@@ -79,13 +78,12 @@
 
 #if !defined(AGE_SHADER)
 	// static
-	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
-	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(shared_type::opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(shared_type::transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
-	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(shared_type::object_data) * MAX_OBJECT_DATA_COUNT)
-	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(shared_type::directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(shared_type::unified_light) * MAX_LIGHT_COUNT)
-	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shared_type::shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
+	#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(shared_type::opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+	#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(shared_type::object_data) * MAX_OBJECT_DATA_COUNT)
+	#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(shared_type::directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+	#define SHADOW_LIGHT_HEADER_OFFSET		(UNIFIED_LIGHT_OFFSET + sizeof(shared_type::unified_light) * MAX_LIGHT_COUNT)
+	#define STATIC_BUFFER_SIZE				(SHADOW_LIGHT_HEADER_OFFSET + sizeof(shared_type::shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
 
 	// scratch
 	#define SCRATCH_SORT_BUFFER_OFFSET (0)
@@ -110,23 +108,17 @@
 	// light cull
 	#define LIGHT_CULL_ZBIN_OFFSET		(0)
 	#define LIGHT_CULL_TILE_MASK_OFFSET (LIGHT_CULL_ZBIN_OFFSET + sizeof(shared_type::zbin_entry) * Z_SLICE_COUNT)
-
-	// transparent
-	#define TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET (0)
-	#define TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET (TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET + sizeof(uint32))
-	#define TRANSPARENT_STAGE_BUFFER_SIZE			(TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET + sizeof(shared_type::transparent_indirect_arg) * MAX_TRANSPARENT_OBJECT_COUNT)
 #else
 	// static
-	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		  (0)
-	#define TRANSPARENT_RENDER_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-	#define OBJECT_DATA_OFFSET					  (TRANSPARENT_RENDER_OBJECT_DATA_OFFSET + sizeof(transparent_object_render_data) * MAX_TRANSPARENT_OBJECT_COUNT)
-	#define DIRECTIONAL_LIGHT_OFFSET			  (OBJECT_DATA_OFFSET + sizeof(object_data) * MAX_OBJECT_DATA_COUNT)
-	#define UNIFIED_LIGHT_OFFSET				  (DIRECTIONAL_LIGHT_OFFSET + sizeof(directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-	#define SHADOW_LIGHT_HEADER_OFFSET			  (UNIFIED_LIGHT_OFFSET + sizeof(unified_light) * MAX_LIGHT_COUNT)
-	#define STATIC_BUFFER_SIZE					  (SHADOW_LIGHT_HEADER_OFFSET + sizeof(shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+	#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
+	#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+	#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(object_data) * MAX_OBJECT_DATA_COUNT)
+	#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+	#define SHADOW_LIGHT_HEADER_OFFSET		(UNIFIED_LIGHT_OFFSET + sizeof(unified_light) * MAX_LIGHT_COUNT)
+	#define STATIC_BUFFER_SIZE				(SHADOW_LIGHT_HEADER_OFFSET + sizeof(shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
 
 	// scratch
-	#define SCRATCH_SORT_BUFFER_OFFSET			  (0)
+	#define SCRATCH_SORT_BUFFER_OFFSET		(0)
 
 	#define SORT_KEYS_OFFSET	   (SCRATCH_SORT_BUFFER_OFFSET)
 	#define SORT_KEYS_ALT_OFFSET   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
@@ -179,14 +171,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 namespace age::graphics::render_pipeline::forward_plus::g
 {
-
-
-	inline constexpr auto	max_mesh_count						 = 1024u;
-	inline constexpr auto	max_opaque_meshlet_render_data_count = (1u << 20);
-	inline constexpr auto	max_opaque_meshlet_per_thread		 = max_opaque_meshlet_render_data_count / age::graphics::g::thread_count;
-	inline constexpr auto	max_object_data_count				 = 1024u;
-	inline constexpr auto	max_directional_light_count			 = 2;
-	inline constexpr uint32 max_transparent_object_count		 = MAX_TRANSPARENT_OBJECT_COUNT;
+	inline constexpr auto max_mesh_count					   = 1024u;
+	inline constexpr auto max_opaque_meshlet_render_data_count = (1u << 20);
+	inline constexpr auto max_opaque_meshlet_per_thread		   = max_opaque_meshlet_render_data_count / age::graphics::g::thread_count;
+	inline constexpr auto max_object_data_count				   = 1024u;
+	inline constexpr auto max_directional_light_count		   = 2;
 
 
 	inline constexpr uint8 uv_count = UV_COUNT;
@@ -249,14 +238,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	#define UV_COUNT 2
 #endif
-	struct transparent_indirect_arg
-	{
-		uint32 object_id;
-		uint32 mesh_byte_offset;
-		uint32 thread_group_x;
-		uint32 thread_group_y;
-		uint32 thread_group_z;
-	};
 
 	struct light_cull_data
 	{
@@ -392,17 +373,19 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint16_t extra;			// 2
 	};	  // total: 24 bytes
 
-	struct transparent_object_render_data
-	{
-		uint32 object_id;
-		uint32 mesh_byte_offset;
-	};
-
 	struct opaque_meshlet_render_data
 	{
 		uint32 object_id;
 		uint32 mesh_byte_offset;
 		uint32 meshlet_id;
+	};
+
+	struct rt_instance_render_data
+	{
+		uint32 object_id;
+		uint32 mesh_byte_offset;
+		uint32 rt_index_buffer_offset;
+		// todo mat_id
 	};
 
 	struct mesh_header
@@ -449,7 +432,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   opaque_meshlet_render_data_count;		// 4 bytes
 		uint32			   directional_light_count_and_extra;		// 4 bytes
 		t_unified_light_id unified_light_count;						// 4 btyes
-		uint32			   transparent_object_render_data_count;
+		// uint32			   transparent_object_render_data_count;
 
 		uint32 light_tile_count_x;
 		uint32 light_tile_count_y;
@@ -478,13 +461,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 namespace age::graphics::render_pipeline::forward_plus::g
 {
-	inline constexpr auto opaque_mshlt_object_data_offset		= OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
-	inline constexpr auto transparent_render_object_data_offset = TRANSPARENT_RENDER_OBJECT_DATA_OFFSET;
-	inline constexpr auto object_data_offset					= OBJECT_DATA_OFFSET;
-	inline constexpr auto directional_light_offset				= DIRECTIONAL_LIGHT_OFFSET;
-	inline constexpr auto unified_light_offset					= UNIFIED_LIGHT_OFFSET;
-	inline constexpr auto shadow_light_header_offset			= SHADOW_LIGHT_HEADER_OFFSET;
-	inline constexpr auto static_buffer_size					= STATIC_BUFFER_SIZE;
+	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
+	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
+	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
+	inline constexpr auto shadow_light_header_offset	  = SHADOW_LIGHT_HEADER_OFFSET;
+	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
 

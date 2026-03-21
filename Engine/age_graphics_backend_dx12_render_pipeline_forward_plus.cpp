@@ -32,6 +32,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
 			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(1024);
 
+			h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
+
 			h_shadow_atlas = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(g::shadow_atlas_width, g::shadow_atlas_height),
 				  .clear_value{
@@ -65,12 +67,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
-			h_transparent_stage_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(TRANSPARENT_STAGE_BUFFER_SIZE),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
 			h_rt_blas_buffer = rt::create_blas_buffer(1024);
 
 			h_rt_tlas_buffer = resource::create_committed(
@@ -85,7 +81,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
-			h_mapping_rt_instance_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+			h_mapping_rt_instance_buffer_arr			 = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+			h_mapping_rt_instance_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::rt_instance_render_data));
 		}
 
 		{
@@ -104,8 +101,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			light_cull_stage_sorted_light_buffer_srv.bind(h_light_cull_stage_sorted_light_buffer);
 			light_cull_stage_sorted_light_buffer_uav.bind(h_light_cull_stage_sorted_light_buffer);
 
-			transparent_stage_buffer_srv.bind(h_transparent_stage_buffer);
-			transparent_stage_buffer_uav.bind(h_transparent_stage_buffer);
+			rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
+
+			rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
 		}
 
 		{
@@ -150,8 +148,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_shadow_stage_buffer->set_name(L"shadow_stage_buffer");
 		h_shadow_stage_shadow_light_buffer->set_name(L"shadow_stage_shadow_light_buffer");
 
-		h_transparent_stage_buffer->set_name(L"transparent_stage_buffer");
-
 		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
 		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
@@ -160,6 +156,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
 
 		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
+		resource::set_name(h_mapping_rt_instance_render_data_buffer_arr, L"mapping_rt_instance_render_data_buffer_arr[{}]");
 	}
 
 	void
@@ -172,7 +169,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
-		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		for (auto& vec : rt_instance_render_data_vec | std::views::join)
 		{
 			vec.clear();
 		}
@@ -205,7 +202,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
 		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
-		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
+
 
 		resource::release(h_main_buffer);
 		resource::release(h_depth_buffer);
@@ -221,13 +218,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_shadow_stage_shadow_light_buffer);
 		resource::release(h_light_cull_stage_sorted_light_buffer);
 
-		resource::release(h_transparent_stage_buffer);
-
 		// rt
 		rt::release_blas_buffer(h_rt_blas_buffer);
 		resource::release(h_rt_tlas_buffer);
 		resource::release(h_rt_tlas_scratch_buffer);
 		resource::release(h_rt_transparent_texture_buffer);
+		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
+		resource::unmap_and_release(h_mapping_rt_instance_render_data_buffer_arr);
 
 
 		AGE_ASSERT(object_data_vec.size() == 0);
@@ -261,7 +258,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
-		for (auto& vec : transparent_object_render_data_vec | std::views::join)
+		for (auto& vec : rt_instance_render_data_vec | std::views::join)
 		{
 			vec.clear();
 		}
@@ -317,25 +314,34 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
-		auto&  render_data_vec = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
-		auto&  rt_instance_vec = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
-		c_auto mesh_offset	   = mesh_data_vec[mesh_id].offset;
-		c_auto meshlet_count   = mesh_data_vec[mesh_id].meshlet_count;
+		auto& render_data_vec		  = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto& rt_instance_vec		  = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto& rt_inst_render_data_vec = rt_instance_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+
+		c_auto rt_instance_id_temp = rt_inst_render_data_vec.size<uint32>();
+
+		c_auto& msh_data = mesh_data_vec[mesh_id];
 
 		for (auto meshlet_id = 0u;
-			 auto i : std::views::iota(0) | std::views::take(meshlet_count))
+			 auto i : std::views::iota(0) | std::views::take(msh_data.meshlet_count))
 		{
 			render_data_vec.emplace_back(
 				shared_type::opaque_meshlet_render_data{
 					.object_id		  = object_data_vec.get_pos(object_id),
-					.mesh_byte_offset = mesh_offset,
+					.mesh_byte_offset = msh_data.offset,
 					.meshlet_id		  = meshlet_id++ });
 		}
+
+		rt_inst_render_data_vec.emplace_back(
+			shared_type::rt_instance_render_data{
+				.object_id				= object_data_vec.get_pos(object_id),
+				.mesh_byte_offset		= msh_data.offset,
+				.rt_index_buffer_offset = msh_data.rt_index_buffer_elem_offset });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
-			.InstanceID							 = object_data_vec.get_pos(object_id),
+			.InstanceID							 = rt_instance_id_temp,
 			.InstanceMask						 = RT_MASK_OPAQUE,
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
@@ -350,20 +356,23 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
-		c_auto mesh_offset = mesh_data_vec[mesh_id].offset;
+		c_auto& msh_data = mesh_data_vec[mesh_id];
 
-		auto& object_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
-		auto& rt_instance_vec		 = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto& rt_inst_render_data_vec = rt_instance_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
+		auto& rt_instance_vec		  = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
 
-		object_render_data_vec.emplace_back(
-			shared_type::transparent_object_render_data{
-				.object_id		  = object_data_vec.get_pos(object_id),
-				.mesh_byte_offset = mesh_offset });
+		c_auto rt_instance_id_temp = rt_inst_render_data_vec.size<uint32>();
+
+		rt_inst_render_data_vec.emplace_back(
+			shared_type::rt_instance_render_data{
+				.object_id				= object_data_vec.get_pos(object_id),
+				.mesh_byte_offset		= msh_data.offset,
+				.rt_index_buffer_offset = msh_data.rt_index_buffer_elem_offset });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
-			.InstanceID							 = object_data_vec.get_pos(object_id),
+			.InstanceID							 = rt_instance_id_temp,
 			.InstanceMask						 = RT_MASK_TRANSPARENT,
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
@@ -386,7 +395,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		root_constants.apply();
 		root_constants.apply_compute();
 		light_cull_stage_buffer_uav.apply_compute();
-		transparent_stage_buffer_uav.apply_compute();
 		shadow_stage_buffer_uav.apply_compute();
 
 		stage_light_culling.execute(light_tile_count_x,
@@ -601,6 +609,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				resource::unmap_and_release(h_mapping_rt_index_buffer);
 				h_mapping_rt_index_buffer = h_new_index_buffer;
+
+				h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
+
+				rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
 			}
 		}
 
@@ -618,15 +630,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto id = static_cast<t_mesh_id>(mesh_data_vec.emplace_back(
 			mesh_data{
-				.id			   = static_cast<t_mesh_id>(mesh_data_vec.size()),
-				.offset		   = mesh_byte_offset,
-				.byte_size	   = baked.buffer.byte_size<uint32>(),
-				.meshlet_count = baked.get_header().meshlet_count,
-				.h_blas		   = h_blas }));
+				.id							 = static_cast<t_mesh_id>(mesh_data_vec.size()),
+				.offset						 = mesh_byte_offset,
+				.byte_size					 = baked.buffer.byte_size<uint32>(),
+				.meshlet_count				 = baked.get_header().meshlet_count,
+				.rt_index_buffer_elem_offset = rt_index_buffer_byte_offset / sizeof(uint32),
+				.h_blas						 = h_blas }));
 
 		mesh_byte_offset			+= baked.buffer.byte_size<uint32>();
 		rt_index_buffer_byte_offset += flat_index_arr.byte_size<uint32>();
-
 		return id;
 	}
 
@@ -1015,54 +1027,61 @@ namespace age::graphics::render_pipeline::forward_plus
 	uint32
 	pipeline::upload_data() noexcept
 	{
-		auto  h_mapping_static_buffer	   = h_mapping_static_ring_buffer_arr[graphics::g::frame_buffer_idx];
-		auto& h_mapping_rt_instance_buffer = h_mapping_rt_instance_buffer_arr[graphics::g::frame_buffer_idx];
+		auto  h_mapping_static_buffer				   = h_mapping_static_ring_buffer_arr[graphics::g::frame_buffer_idx];
+		auto& h_mapping_rt_instance_buffer			   = h_mapping_rt_instance_buffer_arr[graphics::g::frame_buffer_idx];
+		auto& h_mapping_rt_instance_render_data_buffer = h_mapping_rt_instance_render_data_buffer_arr[graphics::g::frame_buffer_idx];
 
-		auto opaque_mshlt_object_data_count	   = 0u;
-		auto transparent_obj_render_data_count = 0u;
+		auto opaque_mshlt_object_data_count = 0u;
 		{
-			auto opaque_offset		= g::opaque_mshlt_object_data_offset;
-			auto transparent_offset = g::transparent_render_object_data_offset;
+			auto opaque_offset = g::opaque_mshlt_object_data_offset;
+
+			auto rt_instance_render_data_offset = 0ull;
 
 			auto rt_instance_count	= 0ul;
 			auto rt_instance_offset = 0ull;
 			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
 			{
-				auto& opaque_mshlt_render_data_vec	  = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][i];
-				auto& transparent_obj_render_data_vec = transparent_object_render_data_vec[graphics::g::frame_buffer_idx][i];
-				auto& rt_instance_vec				  = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& opaque_mshlt_render_data_vec = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& rt_inst_render_data_vec	   = rt_instance_render_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& rt_instance_vec			   = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
 
 				h_mapping_static_buffer->upload(opaque_mshlt_render_data_vec.data(), opaque_mshlt_render_data_vec.byte_size<uint32>(), opaque_offset);
-				h_mapping_static_buffer->upload(transparent_obj_render_data_vec.data(), transparent_obj_render_data_vec.byte_size<uint32>(), transparent_offset);
 
-				opaque_offset	   += opaque_mshlt_render_data_vec.byte_size<uint32>();
-				transparent_offset += transparent_obj_render_data_vec.byte_size<uint32>();
-				rt_instance_offset += rt_instance_vec.byte_size<uint32>();
+				opaque_offset				   += opaque_mshlt_render_data_vec.byte_size<uint32>();
+				rt_instance_render_data_offset += rt_inst_render_data_vec.byte_size<uint32>();
+				rt_instance_offset			   += rt_instance_vec.byte_size<uint32>();
 
-				opaque_mshlt_object_data_count	  += opaque_mshlt_render_data_vec.size<uint32>();
-				transparent_obj_render_data_count += transparent_obj_render_data_vec.size<uint32>();
-				rt_instance_count				  += rt_instance_vec.size<uint32>();
+				// prefix
+				for (auto& desc : rt_instance_vec)
+				{
+					desc.InstanceID += rt_instance_count;
+				}
+
+				opaque_mshlt_object_data_count += opaque_mshlt_render_data_vec.size<uint32>();
+				rt_instance_count			   += rt_instance_vec.size<uint32>();
 			}
 
-			AGE_ASSERT(opaque_offset < g::transparent_render_object_data_offset);
-			AGE_ASSERT(transparent_offset < g::object_data_offset);
+			AGE_ASSERT(opaque_offset < g::object_data_offset);
 
-			if (h_mapping_rt_instance_buffer->h_resource->buffer_size() < rt_instance_offset)
+			resource::resize_buffer(h_mapping_rt_instance_buffer, rt_instance_offset);
+
+			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
 			{
-				c_auto new_size		 = static_cast<uint32>(std::max(h_mapping_rt_instance_buffer->h_resource->buffer_size() * 2, rt_instance_offset));
-				c_auto h_new_mapping = resource::create_buffer_committed(new_size);
-				resource::unmap_and_release(h_mapping_rt_instance_buffer);
-				h_mapping_rt_instance_buffer = h_new_mapping;
+				rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
 			}
 
-			rt_instance_offset = 0;
+			rt_instance_offset			   = 0;
+			rt_instance_render_data_offset = 0;
 			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
 			{
-				auto& rt_instance_vec = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& rt_instance_vec		  = rt_instance_data_vec[graphics::g::frame_buffer_idx][i];
+				auto& rt_inst_render_data_vec = rt_instance_render_data_vec[graphics::g::frame_buffer_idx][i];
+
 				h_mapping_rt_instance_buffer->upload(rt_instance_vec.data(), rt_instance_vec.byte_size<uint32>(), rt_instance_offset);
-				rt_instance_offset += rt_instance_vec.byte_size<uint32>();
-				h_mapping_rt_instance_buffer->h_resource->set_name(
-					std::format(L"mapping_rt_instance_buffer [{}]", graphics::g::frame_buffer_idx).c_str());
+				h_mapping_rt_instance_render_data_buffer->upload(rt_inst_render_data_vec.data(), rt_inst_render_data_vec.byte_size<uint32>(), rt_instance_render_data_offset);
+
+				rt_instance_offset			   += rt_instance_vec.byte_size<uint32>();
+				rt_instance_render_data_offset += rt_inst_render_data_vec.byte_size<uint32>();
 			}
 
 			auto&& [tlas_buffer_size, tlas_scratch_buffer_size] = graphics::rt::query_tlas_size(rt_instance_count);
@@ -1104,12 +1123,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		c_auto& cam_desc = camera_desc_vec[0];
 		root_constants.bind(shared_type::root_constants{
-			.opaque_meshlet_render_data_count	  = static_cast<uint32>(opaque_mshlt_object_data_count),
-			.directional_light_count_and_extra	  = static_cast<t_directional_light_id>(directional_light_vec.size()),
-			.unified_light_count				  = static_cast<t_unified_light_id>(unified_light_vec.size()),
-			.transparent_object_render_data_count = static_cast<uint32>(transparent_obj_render_data_count),
-			.light_tile_count_x					  = light_tile_count_x,
-			.light_tile_count_y					  = light_tile_count_y,
+			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
+			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()),
+			.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_vec.size()),
+			.light_tile_count_x				   = light_tile_count_x,
+			.light_tile_count_y				   = light_tile_count_y,
 			//.cluster_near_z					   = cam_desc.near_z,
 			//.cluster_far_z					   = cam_desc.far_z,
 			.cam_near_z				= cam_desc.near_z,

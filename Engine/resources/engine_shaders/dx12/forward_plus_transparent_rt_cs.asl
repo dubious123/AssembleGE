@@ -4,8 +4,11 @@ static const uint32 MAX_RAY_HIT = 8;
 
 struct hit_data
 {
-	float  t;
 	float4 color;
+	uint32 rt_instance_render_data_id;
+	uint32 triangle_index;
+	float2 barycentrics;
+	float  t;
 };
 
 [numthreads(8, 8, 1)] void
@@ -79,8 +82,12 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			hit_data_arr[i] = hit_data_arr[i - 1];
 		}
 
-		hit_data_arr[pos].t		= t;
-		hit_data_arr[pos].color = color;
+
+		hit_data_arr[pos].t							 = t;
+		hit_data_arr[pos].color						 = color;
+		hit_data_arr[pos].rt_instance_render_data_id = rt_candidate_instance_id(query);
+		hit_data_arr[pos].triangle_index			 = rt_candidate_primitive_index(query) * 3;
+		hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
 
 		if (hit_count < MAX_RAY_HIT)
 		{
@@ -91,6 +98,41 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	float4 result = float4(0, 0, 0, 0);
 	for (int32 i = hit_count - 1; i >= 0; --i)
 	{
+		const hit_data hit = hit_data_arr[i];
+
+		const rt_instance_render_data render_data = load_rt_instance_render_data(hit.rt_instance_render_data_id);
+		const object_data			  obj_data	  = load_object_data(render_data.object_id);
+		const mesh_header			  msh_header  = read_mesh_header(render_data.mesh_byte_offset);
+		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
+
+		const vertex_encoded v_encoded_0 = read_vertex_encoded(msh_header, prim_index.x);
+		const vertex_encoded v_encoded_1 = read_vertex_encoded(msh_header, prim_index.y);
+		const vertex_encoded v_encoded_2 = read_vertex_encoded(msh_header, prim_index.z);
+
+		const vertex_decoded v_decoded_0 = decode_vertex<vertex_decoded>(v_encoded_0, msh_header.aabb_min, msh_header.aabb_size);
+		const vertex_decoded v_decoded_1 = decode_vertex<vertex_decoded>(v_encoded_1, msh_header.aabb_min, msh_header.aabb_size);
+		const vertex_decoded v_decoded_2 = decode_vertex<vertex_decoded>(v_encoded_2, msh_header.aabb_min, msh_header.aabb_size);
+
+		const float3 bary_weights = float3(1.f - hit.barycentrics.x - hit.barycentrics.y,
+										   hit.barycentrics.x,
+										   hit.barycentrics.y);
+
+		const float3 local_pos = v_decoded_0.pos.xyz * bary_weights.x
+							   + v_decoded_1.pos.xyz * bary_weights.y
+							   + v_decoded_2.pos.xyz * bary_weights.z;
+
+		const float3 local_normal = v_decoded_0.normal * bary_weights.x
+								  + v_decoded_1.normal * bary_weights.y
+								  + v_decoded_2.normal * bary_weights.z;
+
+		const float4 quaternion = decode_quaternion(obj_data.quaternion);
+		const float3 scale		= cast<float3>(obj_data.scale);
+		const float3 pos		= obj_data.pos;
+
+		const float3 world_normal = normalize(rotate(local_normal / scale, quaternion));
+		const float3 world_pos	  = rotate(local_pos * scale, quaternion) + pos;
+
+
 		float4 color = hit_data_arr[i].color;
 		result.rgb	 = lerp(result.rgb, color.rgb, color.a);
 		result.a	 = result.a + color.a * (1.f - result.a);
