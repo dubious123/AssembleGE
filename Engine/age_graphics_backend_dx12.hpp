@@ -275,7 +275,7 @@ namespace age::graphics::resource
 	void
 	process_deferred_releases() noexcept;
 
-	FORCE_INLINE void
+	FORCE_INLINE bool
 	resize_buffer(resource_handle&, uint64 required_size) noexcept;
 
 	mapping_handle
@@ -295,6 +295,9 @@ namespace age::graphics::resource
 
 	FORCE_INLINE void
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
+
+	FORCE_INLINE void
+	create_view(const auto& h_desc, const auto& view_desc) noexcept;
 
 	inline void
 	set_name(std::span<resource_handle>, const wchar_t* fmt) noexcept;

@@ -173,6 +173,197 @@ struct rw_byte_address_buffer
 	}
 };
 
+// ── enums ──
+
+static const uint32 CANDIDATE_NON_OPAQUE_TRIANGLE  = 0;
+static const uint32 CANDIDATE_PROCEDURAL_PRIMITIVE = 1;
+
+static const uint32 COMMITTED_NOTHING				   = 0;
+static const uint32 COMMITTED_TRIANGLE_HIT			   = 1;
+static const uint32 COMMITTED_PROCEDURAL_PRIMITIVE_HIT = 2;
+
+static const uint32 RAY_FLAG_NONE							 = 0x00;
+static const uint32 RAY_FLAG_FORCE_OPAQUE					 = 0x01;
+static const uint32 RAY_FLAG_FORCE_NON_OPAQUE				 = 0x02;
+static const uint32 RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH = 0x04;
+static const uint32 RAY_FLAG_SKIP_CLOSEST_HIT_SHADER		 = 0x08;
+static const uint32 RAY_FLAG_CULL_BACK_FACING_TRIANGLES		 = 0x10;
+static const uint32 RAY_FLAG_CULL_FRONT_FACING_TRIANGLES	 = 0x20;
+static const uint32 RAY_FLAG_CULL_OPAQUE					 = 0x40;
+static const uint32 RAY_FLAG_CULL_NON_OPAQUE				 = 0x80;
+static const uint32 RAY_FLAG_SKIP_TRIANGLES					 = 0x100;
+static const uint32 RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES		 = 0x200;
+
+// ── types ──
+
+struct rt_acceleration_structure
+{ };
+
+struct ray_desc
+{
+	float3 Origin;
+	float  TMin;
+	float3 Direction;
+	float  TMax;
+};
+
+// ── ray_query ──
+
+template <uint32 rt_flags>
+struct ray_query
+{
+	// lifecycle
+	void
+	TraceRayInline(
+		rt_acceleration_structure accel,
+		uint32					  ray_flags,
+		uint32					  instance_mask,
+		ray_desc				  ray)
+	{ return; }
+
+	bool
+	Proceed()
+	{ return false; }
+
+	void
+	Abort()
+	{ return; }
+
+	// ── candidate (valid inside Proceed loop) ──
+
+	uint32
+	CandidateType()
+	{ return 0; }
+
+	void
+	CommitNonOpaqueTriangleHit()
+	{ return; }
+
+	void
+	CommitProceduralPrimitiveHit(float t_hit)
+	{ return; }
+
+	float2
+	CandidateTriangleBarycentrics()
+	{ return (float2)0; }
+
+	bool
+	CandidateTriangleFrontFace()
+	{ return false; }
+
+	float
+	CandidateTriangleRayT()
+	{ return 0.0; }
+
+	uint32
+	CandidateInstanceID()
+	{ return 0; }
+
+	uint32
+	CandidateInstanceIndex()
+	{ return 0; }
+
+	uint32
+	CandidateGeometryIndex()
+	{ return 0; }
+
+	uint32
+	CandidatePrimitiveIndex()
+	{ return 0; }
+
+	uint32
+	CandidateInstanceContributionToHitGroupIndex()
+	{ return 0; }
+
+	float3
+	CandidateObjectRayOrigin()
+	{ return (float3)0; }
+
+	float3
+	CandidateObjectRayDirection()
+	{ return (float3)0; }
+
+	float3x4
+	CandidateObjectToWorld3x4()
+	{ return (float3x4)0; }
+
+	float3x4
+	CandidateWorldToObject3x4()
+	{ return (float3x4)0; }
+
+	// ── committed (valid after Proceed returns false) ──
+
+	uint32
+	CommittedStatus()
+	{ return 0; }
+
+	float2
+	CommittedTriangleBarycentrics()
+	{ return (float2)0; }
+
+	bool
+	CommittedTriangleFrontFace()
+	{ return false; }
+
+	float
+	CommittedRayT()
+	{ return 0.0; }
+
+	uint32
+	CommittedInstanceID()
+	{ return 0; }
+
+	uint32
+	CommittedInstanceIndex()
+	{ return 0; }
+
+	uint32
+	CommittedGeometryIndex()
+	{ return 0; }
+
+	uint32
+	CommittedPrimitiveIndex()
+	{ return 0; }
+
+	uint32
+	CommittedInstanceContributionToHitGroupIndex()
+	{ return 0; }
+
+	float3
+	CommittedObjectRayOrigin()
+	{ return (float3)0; }
+
+	float3
+	CommittedObjectRayDirection()
+	{ return (float3)0; }
+
+	float3x4
+	CommittedObjectToWorld3x4()
+	{ return (float3x4)0; }
+
+	float3x4
+	CommittedWorldToObject3x4()
+	{ return (float3x4)0; }
+
+	// ── common ray intrinsics ──
+
+	uint32
+	RayFlags()
+	{ return 0; }
+
+	float3
+	WorldRayOrigin()
+	{ return (float3)0; }
+
+	float3
+	WorldRayDirection()
+	{ return (float3)0; }
+
+	float
+	RayTMin()
+	{ return 0.0; }
+};
+
 template <typename t>
 struct texture_2d
 {
@@ -194,11 +385,54 @@ struct texture_2d
 		return float4{};
 	}
 
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
 	template <typename v>
 	t
 	operator[](v pos)
 	{
 		return t{};
+	}
+};
+
+template <typename t>
+struct rw_texture_2d
+{
+	t data;
+
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
+	template <typename v>
+	t&
+	operator[](v pos)
+	{
+		return data;
 	}
 };
 
@@ -275,10 +509,11 @@ clamp(auto a, auto b, auto c)
 	return std::clamp(a, b, c);
 }
 
-float
-lerp(float, float, float)
+template <typename t = float>
+t
+lerp(t a, t b, float s)
 {
-	return 0.f;
+	return a + s * (b - a);
 }
 
 template <typename t>
@@ -466,6 +701,38 @@ cross(float3, float3)
 	#define interlocked_cmp_exchange(...)
 
 #else
+	#define uint64 uint64_t
+	#define uint32 uint
+	#define uint16 uint16_t
+
+	#define int64 int64_t
+	#define int32 int
+	#define int16 int16_t
+
+	#define int32_2 int2
+	#define int32_3 int3
+	#define int32_4 int4
+
+	#define uint32_2 uint2
+	#define uint32_3 uint3
+	#define uint32_4 uint4
+
+	#define int16_2 int16_t2
+	#define int16_3 int16_t3
+	#define int16_4 int16_t4
+
+	#define uint16_2 uint16_t2
+	#define uint16_3 uint16_t3
+	#define uint16_4 uint16_t4
+
+	#define int8_2 int8_t2
+	#define int8_3 int8_t3
+	#define int8_4 int8_t4
+
+	#define uint8_2 uint8_t2
+	#define uint8_3 uint8_t3
+	#define uint8_4 uint8_t4
+
 	#define sv_dispatch_thread_id : SV_DispatchThreadID
 	#define sv_thread_id : SV_ThreadID
 	#define sv_group_id : SV_GroupID
@@ -528,40 +795,18 @@ using byte_address_buffer = ByteAddressBuffer;
 
 using rw_byte_address_buffer = RWByteAddressBuffer;
 
+using rt_acceleration_structure = RaytracingAccelerationStructure;
+
+template <uint32 flags>
+using ray_query = RayQuery<flags>;
+
+using ray_desc = RayDesc;
+
 template <typename t>
 using texture_2d = Texture2D<t>;
 
-	#define uint64 uint64_t
-	#define uint32 uint
-	#define uint16 uint16_t
-
-	#define int64 int64_t
-	#define int32 int
-	#define int16 int16_t
-
-	#define int32_2 int2
-	#define int32_3 int3
-	#define int32_4 int4
-
-	#define uint32_2 uint2
-	#define uint32_3 uint3
-	#define uint32_4 uint4
-
-	#define int16_2 int16_t2
-	#define int16_3 int16_t3
-	#define int16_4 int16_t4
-
-	#define uint16_2 uint16_t2
-	#define uint16_3 uint16_t3
-	#define uint16_4 uint16_t4
-
-	#define int8_2 int8_t2
-	#define int8_3 int8_t3
-	#define int8_4 int8_t4
-
-	#define uint8_2 uint8_t2
-	#define uint8_3 uint8_t3
-	#define uint8_4 uint8_t4
+template <typename t>
+using rw_texture_2d = RWTexture2D<t>;
 
 template <typename t, typename t_src>
 t
@@ -742,6 +987,211 @@ sample_cmp_level_zero(texture_2d<t> tex, sampler_cmp_state s, float2 location, f
 {
 	return tex.SampleCmpLevelZero(s, location, compare_value);
 }
+
+template <typename t>
+t
+load(texture_2d<t> tex, int32 x, int32 y, uint32 mip = 0)
+{
+	return tex.Load(int32_3(x, y, mip));
+}
+
+template <typename t>
+t
+load(texture_2d<t> tex, float x, float y, uint32 mip = 0)
+{
+	return tex.Load(int32_3(x, y, mip));
+}
+
+// rt
+// ── lifecycle ──
+
+template <uint32 rt_flags>
+void
+rt_trace_ray_inline(
+	ray_query<rt_flags>		  q,
+	rt_acceleration_structure accel,
+	uint32					  ray_flags,
+	uint32					  instance_mask,
+	ray_desc				  ray)
+{ q.TraceRayInline(accel, ray_flags, instance_mask, ray); }
+
+template <uint32 rt_flags>
+bool
+rt_proceed(ray_query<rt_flags> q)
+{ return q.Proceed(); }
+
+template <uint32 rt_flags>
+void
+rt_abort(ray_query<rt_flags> q)
+{ q.Abort(); }
+
+// ── candidate judgment ──
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_type(ray_query<rt_flags> q)
+{ return q.CandidateType(); }
+
+template <uint32 rt_flags>
+void
+rt_commit_non_opaque_triangle_hit(ray_query<rt_flags> q)
+{ q.CommitNonOpaqueTriangleHit(); }
+
+template <uint32 rt_flags>
+void
+rt_commit_procedural_primitive_hit(ray_query<rt_flags> q, float t_hit)
+{ q.CommitProceduralPrimitiveHit(t_hit); }
+
+// ── candidate intrinsics ──
+
+template <uint32 rt_flags>
+float2
+rt_candidate_triangle_barycentrics(ray_query<rt_flags> q)
+{ return q.CandidateTriangleBarycentrics(); }
+
+template <uint32 rt_flags>
+bool
+rt_candidate_triangle_front_face(ray_query<rt_flags> q)
+{ return q.CandidateTriangleFrontFace(); }
+
+template <uint32 rt_flags>
+float
+rt_candidate_triangle_ray_t(ray_query<rt_flags> q)
+{ return q.CandidateTriangleRayT(); }
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_instance_id(ray_query<rt_flags> q)
+{ return q.CandidateInstanceID(); }
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_instance_index(ray_query<rt_flags> q)
+{ return q.CandidateInstanceIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_geometry_index(ray_query<rt_flags> q)
+{ return q.CandidateGeometryIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_primitive_index(ray_query<rt_flags> q)
+{ return q.CandidatePrimitiveIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_candidate_instance_contribution_to_hit_group_index(ray_query<rt_flags> q)
+{ return q.CandidateInstanceContributionToHitGroupIndex(); }
+
+template <uint32 rt_flags>
+float3
+rt_candidate_object_ray_origin(ray_query<rt_flags> q)
+{ return q.CandidateObjectRayOrigin(); }
+
+template <uint32 rt_flags>
+float3
+rt_candidate_object_ray_direction(ray_query<rt_flags> q)
+{ return q.CandidateObjectRayDirection(); }
+
+template <uint32 rt_flags>
+float3x4
+rt_candidate_object_to_world_3x4(ray_query<rt_flags> q)
+{ return q.CandidateObjectToWorld3x4(); }
+
+template <uint32 rt_flags>
+float3x4
+rt_candidate_world_to_object_3x4(ray_query<rt_flags> q)
+{ return q.CandidateWorldToObject3x4(); }
+
+// ── committed intrinsics ──
+
+template <uint32 rt_flags>
+uint32
+rt_committed_status(ray_query<rt_flags> q)
+{ return q.CommittedStatus(); }
+
+template <uint32 rt_flags>
+float2
+rt_committed_triangle_barycentrics(ray_query<rt_flags> q)
+{ return q.CommittedTriangleBarycentrics(); }
+
+template <uint32 rt_flags>
+bool
+rt_committed_triangle_front_face(ray_query<rt_flags> q)
+{ return q.CommittedTriangleFrontFace(); }
+
+template <uint32 rt_flags>
+float
+rt_committed_ray_t(ray_query<rt_flags> q)
+{ return q.CommittedRayT(); }
+
+template <uint32 rt_flags>
+uint32
+rt_committed_instance_id(ray_query<rt_flags> q)
+{ return q.CommittedInstanceID(); }
+
+template <uint32 rt_flags>
+uint32
+rt_committed_instance_index(ray_query<rt_flags> q)
+{ return q.CommittedInstanceIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_committed_geometry_index(ray_query<rt_flags> q)
+{ return q.CommittedGeometryIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_committed_primitive_index(ray_query<rt_flags> q)
+{ return q.CommittedPrimitiveIndex(); }
+
+template <uint32 rt_flags>
+uint32
+rt_committed_instance_contribution_to_hit_group_index(ray_query<rt_flags> q)
+{ return q.CommittedInstanceContributionToHitGroupIndex(); }
+
+template <uint32 rt_flags>
+float3
+rt_committed_object_ray_origin(ray_query<rt_flags> q)
+{ return q.CommittedObjectRayOrigin(); }
+
+template <uint32 rt_flags>
+float3
+rt_committed_object_ray_direction(ray_query<rt_flags> q)
+{ return q.CommittedObjectRayDirection(); }
+
+template <uint32 rt_flags>
+float3x4
+rt_committed_object_to_world_3x4(ray_query<rt_flags> q)
+{ return q.CommittedObjectToWorld3x4(); }
+
+template <uint32 rt_flags>
+float3x4
+rt_committed_world_to_object_3x4(ray_query<rt_flags> q)
+{ return q.CommittedWorldToObject3x4(); }
+
+// ── common ray intrinsics ──
+
+template <uint32 rt_flags>
+uint32
+rt_ray_flags(ray_query<rt_flags> q)
+{ return q.RayFlags(); }
+
+template <uint32 rt_flags>
+float3
+rt_world_ray_origin(ray_query<rt_flags> q)
+{ return q.WorldRayOrigin(); }
+
+template <uint32 rt_flags>
+float3
+rt_world_ray_direction(ray_query<rt_flags> q)
+{ return q.WorldRayDirection(); }
+
+template <uint32 rt_flags>
+float
+rt_ray_t_min(ray_query<rt_flags> q)
+{ return q.RayTMin(); }
 
 #define DECLARE_CALC_THREAD_GROUP_PREFIX_SUM(thread_count)                                                    \
 	groupshared uint32 __age_hlsl_prefix_sum_arr__[thread_count];                                             \

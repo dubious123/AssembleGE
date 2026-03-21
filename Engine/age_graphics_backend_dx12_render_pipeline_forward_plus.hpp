@@ -117,41 +117,23 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct transparent_stage
 	{
-		graphics::pso::handle h_pso_cull;
-		ID3D12PipelineState*  p_pso_cull;
-
-		graphics::pso::handle h_pso_sort_histogram;
-		ID3D12PipelineState*  p_pso_sort_histogram;
-
-		graphics::pso::handle h_pso_sort_prefix;
-		ID3D12PipelineState*  p_pso_sort_prefix;
-
-		graphics::pso::handle h_pso_sort_scatter;
-		ID3D12PipelineState*  p_pso_sort_scatter;
-
-		graphics::pso::handle h_pso_transparent_gen_indirect_arg;
-		ID3D12PipelineState*  p_pso_transparent_gen_indirect_arg;
+		graphics::pso::handle h_pso_rt;
+		ID3D12PipelineState*  p_pso_rt;
 
 		graphics::pso::handle h_pso_draw;
 		ID3D12PipelineState*  p_pso_draw;
 
-		command_signature::handle h_draw_cmd_sig;
-		ID3D12CommandSignature*	  p_draw_cmd_sig;
-
 		rtv_desc_handle h_main_buffer_rtv_desc;
-		dsv_desc_handle h_depth_buffer_dsv_desc;
 
 
 		inline void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
-					 graphics::resource_handle h_depth_buffer) noexcept;
+		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
 
 		inline void
-		execute(resource_handle h_scratch_buffer,
-				resource_handle transparent_stage_buffer) noexcept;
+		execute(resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept;
 
 		inline void
 		deinit() noexcept;
@@ -186,6 +168,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
+		resource_handle h_rt_transparent_texture_buffer;
 		resource_handle h_shadow_atlas;
 
 		resource_handle h_scratch_buffer;
@@ -244,7 +227,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_depth_buffer_srv_desc;
 		srv_desc_handle h_shadow_atlas_srv_desc;
-
+		srv_desc_handle h_rt_tlas_buffer_srv_desc;
+		srv_desc_handle h_rt_transparent_tex_buffer_srv_desc;
+		uav_desc_handle h_rt_transparent_tex_buffer_uav_desc;
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
@@ -258,7 +243,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32						  mesh_byte_offset = 0;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
-		age::stable_dense_vector<float3x4>				   object_transform_data_vec;
+
+		// row vector version
+		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 

@@ -38,6 +38,15 @@ namespace age::graphics
 	{
 		p_resource->SetName(name);
 	}
+
+	std::wstring
+	d3d12_resource::get_name() const noexcept
+	{
+		wchar_t name[256]{};
+		auto	size = static_cast<UINT>(sizeof(name));
+		p_resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+		return std::wstring(name, size / sizeof(wchar_t));
+	}
 }	 // namespace age::graphics
 
 namespace age::graphics
@@ -82,6 +91,14 @@ namespace age::graphics::resource
 			g::deferred_release_data_vec.pop_back();
 		}
 
+		// if (g::resource_vec.is_empty() is_false)
+		//{
+		//	for (auto& r : g::resource_vec)
+		//	{
+		//		// todo better logging
+		//		_putws(r.get_name().c_str());
+		//	}
+		// }
 
 		AGE_ASSERT(g::resource_mapping_vec.is_empty(), "all mapping should be unmapped");
 		AGE_ASSERT(g::resource_vec.is_empty(), "all resource should be released");
@@ -234,12 +251,12 @@ namespace age::graphics::resource
 		}
 	}
 
-	FORCE_INLINE void
+	FORCE_INLINE bool
 	resize_buffer(resource_handle& h_resource, uint64 required_size) noexcept
 	{
 		if (h_resource->buffer_size() >= required_size)
 		{
-			return;
+			return false;
 		}
 
 		c_auto new_size = std::max(h_resource->buffer_size() * 2, required_size);
@@ -256,6 +273,8 @@ namespace age::graphics::resource
 
 		release_deferred(h_resource);
 		h_resource = h_new;
+
+		return true;
 	}
 
 	mapping_handle
@@ -427,7 +446,7 @@ namespace age::graphics::resource
 		else if constexpr (std::is_same_v<t_descriptor_handle, age::graphics::uav_desc_handle>
 						   and std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)
 		{
-			g::p_main_device->CreateUnorderedAccessView(const_cast<ID3D12Resource*>(&res), &view_desc, h_desc.h_cpu);
+			g::p_main_device->CreateUnorderedAccessView(const_cast<ID3D12Resource*>(&res), nullptr, &view_desc, h_desc.h_cpu);
 		}
 		else if constexpr (std::is_same_v<t_descriptor_handle, age::graphics::rtv_desc_handle>
 						   and std::is_same_v<t_view_desc, D3D12_RENDER_TARGET_VIEW_DESC>)
@@ -454,6 +473,12 @@ namespace age::graphics::resource
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept
 	{
 		create_view(*g::resource_vec[h_resource].p_resource, h_desc, view_desc);
+	}
+
+	FORCE_INLINE void
+	create_view(const auto& h_desc, const auto& view_desc) noexcept
+	{
+		g::p_main_device->CreateShaderResourceView(nullptr, &view_desc, h_desc.h_cpu);
 	}
 }	 // namespace age::graphics::resource
 

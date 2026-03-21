@@ -417,132 +417,58 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		using namespace graphics::pso;
 
-		h_pso_cull = graphics::pso::create(
+		h_pso_rt = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_cull_cs) }) });
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_rt_cs) }) });
 
-		p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
-
-		h_pso_sort_histogram = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_histogram_cs) }) });
-
-		p_pso_sort_histogram = graphics::g::pso_ptr_vec[h_pso_sort_histogram];
-
-		h_pso_sort_prefix = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_prefix_cs) }) });
-
-		p_pso_sort_prefix = graphics::g::pso_ptr_vec[h_pso_sort_prefix];
-
-		h_pso_sort_scatter = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_scatter_cs) }) });
-
-		p_pso_sort_scatter = graphics::g::pso_ptr_vec[h_pso_sort_scatter];
-
-		h_pso_transparent_gen_indirect_arg = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_gen_indirect_arg_cs) }) });
-
-		p_pso_transparent_gen_indirect_arg = graphics::g::pso_ptr_vec[h_pso_transparent_gen_indirect_arg];
+		p_pso_rt = graphics::g::pso_ptr_vec[h_pso_rt];
 
 		h_pso_draw = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_as{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_as) }) },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_ms) }) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_ps) }) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_presentation_ms) }) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_blend_ps) }) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
-			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
 			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
-			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_readonly_reversed },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
 			pss_blend{ .subobj = defaults::blend_desc::alpha },
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_draw = graphics::g::pso_ptr_vec[h_pso_draw];
 
-		h_draw_cmd_sig = command_signature::create<shared_type::transparent_indirect_arg>(
-			h_root_sig,
-			defaults::cmd_sig::constant(binding_config_t::reg_b<2, 0>::slot_id, 2),
-			defaults::cmd_sig::dispatch_mesh);
-
-		p_draw_cmd_sig = h_draw_cmd_sig.ptr();
-
-		h_main_buffer_rtv_desc	= graphics::g::rtv_desc_pool.pop();
-		h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
+		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
 
 	inline void
-	transparent_stage::bind_rtv_dsv(graphics::resource_handle h_main_buffer,
-									graphics::resource_handle h_depth_buffer) noexcept
+	transparent_stage::bind_rtv(graphics::resource_handle h_main_buffer) noexcept
 	{
 		resource::create_view(h_main_buffer,
 							  h_main_buffer_rtv_desc,
 							  defaults::rtv_view_desc::hdr_rgba16_2d);
-
-		resource::create_view(h_depth_buffer,
-							  h_depth_buffer_dsv_desc,
-							  defaults::dsv_view_desc::d32_float_2d_readonly);
 	}
 
 	inline void
-	transparent_stage::execute(resource_handle h_scratch_buffer,
-							   resource_handle transparent_stage_buffer) noexcept
+	transparent_stage::execute(resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept
 	{
-		command::set_pso(p_pso_cull);
-		command::dispatch((g::max_sort_count + g::transparent_cull_thread_count - 1) / g::transparent_cull_thread_count, 1, 1);
+		command::set_pso(p_pso_rt);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+		command::dispatch((extent.width + 7) / 8, (extent.height + 7) / 8, 1);
 
-		for (uint32 pass : std::views::iota(0u) | std::views::take(g::sort_iteration_count))
-		{
-			command::set_compute_root_constants(
-				binding_config_t::reg_b<1>::slot_id,
-				static_cast<uint32>(sizeof(uint32) / 4),
-				&pass,
-				static_cast<uint32>(offsetof(shared_type::root_constants, radix_sort_pass) / 4));
-
-			command::set_pso(p_pso_sort_histogram);
-			command::dispatch(g::sort_group_count, 1, 1);
-
-			command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
-
-			command::set_pso(p_pso_sort_prefix);
-			command::dispatch(g::sort_bin_count, 1, 1);
-
-			command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
-
-			command::set_pso(p_pso_sort_scatter);
-			command::dispatch(g::sort_group_count, 1, 1);
-
-			command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
-		}
-
-		command::set_pso(p_pso_transparent_gen_indirect_arg);
-		command::dispatch((g::max_transparent_object_count + 31) / 32, 1, 1);
-
-		command::apply_barriers(barrier::buf_uav_to_indirect(transparent_stage_buffer->p_resource));
+		command::apply_barriers(barrier::tex_uav_to_srv(h_blend_tex->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
-		auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_load_preserve(h_depth_buffer_dsv_desc);
 
 		command::begin_render_pass(
 			1,
 			&render_pass_rt_desc,
-			&render_pass_ds_desc,
-			D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_DEPTH);
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE);
 
 		command::set_pso(p_pso_draw);
 
-		command::execute_indirect(
-			p_draw_cmd_sig,								 // command signature
-			g::max_transparent_object_count,			 // max command count
-			transparent_stage_buffer->p_resource,		 // argument buffer
-			TRANSPARENT_EXECUTE_INDIRECT_ARG_OFFSET,	 // argument buffer byte offset
-			transparent_stage_buffer->p_resource,		 // count buffer
-			TRANSPARENT_VISIBLE_OBJECT_COUNT_OFFSET);	 // count buffer bytes offset
+		command::dispatch_mesh(1, 1, 1);
+
 
 		command::end_render_pass();
 	}
@@ -551,19 +477,9 @@ namespace age::graphics::render_pipeline::forward_plus
 	transparent_stage::deinit() noexcept
 	{
 		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
-		graphics::g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
 
-		pso::destroy(h_pso_cull);
-
-		pso::destroy(h_pso_sort_histogram);
-		pso::destroy(h_pso_sort_prefix);
-		pso::destroy(h_pso_sort_scatter);
-
-		pso::destroy(h_pso_transparent_gen_indirect_arg);
-
+		pso::destroy(h_pso_rt);
 		pso::destroy(h_pso_draw);
-
-		command_signature::destroy(h_draw_cmd_sig);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -622,10 +538,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			nullptr,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		{
-			command::set_pso(p_pso);
-			command::dispatch_mesh(1, 1, 1);
-		}
+		command::set_pso(p_pso);
+		command::dispatch_mesh(1, 1, 1);
 
 		command::end_render_pass();
 	}

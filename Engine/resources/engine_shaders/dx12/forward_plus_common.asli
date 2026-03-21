@@ -328,8 +328,12 @@ float2	 backbuffer_size;
 float3	 camera_forward;
 uint32	 frame_index;
 float3	 camera_right;
-uint32	 main_buffer_texture_id;
-uint32	 depth_buffer_texture_id;
+
+uint32 main_buffer_texture_id;
+uint32 depth_buffer_texture_id;
+uint32 rt_tlas_buffer_id;
+uint32 rt_transparent_buffer_srv_texture_id;
+uint32 rt_transparent_buffer_uav_texture_id;
 
 
 // cbuffer root_constants reg(b1)

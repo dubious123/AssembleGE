@@ -214,7 +214,7 @@ namespace age::asset
 
 		auto res = vertex_fat{};
 
-		res.pos = age::cvt_to<float3>(v.pos) / 65535.f * aabb_size + aabb_min;
+		res.pos = float3{ static_cast<float>(v.pos.x), static_cast<float>(v.pos.y), static_cast<float>(v.pos.z) } / 65535.f * aabb_size + aabb_min;
 
 		if constexpr (uv_count > 0)
 		{

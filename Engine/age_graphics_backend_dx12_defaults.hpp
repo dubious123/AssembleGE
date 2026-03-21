@@ -220,6 +220,17 @@ namespace age::graphics::defaults
 					.ResourceMinLODClamp = 0.0f }
 			};
 		}
+
+		FORCE_INLINE decltype(auto)
+		rt_acceleration_structure(resource_handle h_resource) noexcept
+		{
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format							 = DXGI_FORMAT_UNKNOWN,
+				.ViewDimension					 = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE,
+				.Shader4ComponentMapping		 = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.RaytracingAccelerationStructure = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV{ .Location = g::resource_vec[h_resource].p_resource->GetGPUVirtualAddress() }
+			};
+		}
 	}	 // namespace srv_view_desc
 
 	namespace uav_view_desc
@@ -251,6 +262,18 @@ namespace age::graphics::defaults
 					.StructureByteStride  = byte_size,
 					.CounterOffsetInBytes = 0,
 					.Flags				  = D3D12_BUFFER_UAV_FLAG_NONE }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex2d(DXGI_FORMAT format, uint32 mip_slice = 0, uint32 plane_slice = 0) noexcept
+		{
+			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
+				.Format		   = format,
+				.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+				.Texture2D	   = D3D12_TEX2D_UAV{
+					.MipSlice	= mip_slice,
+					.PlaneSlice = plane_slice }
 			};
 		}
 	}	 // namespace uav_view_desc

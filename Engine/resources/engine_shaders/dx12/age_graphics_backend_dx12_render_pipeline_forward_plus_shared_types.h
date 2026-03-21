@@ -424,29 +424,31 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
-		row_major float4x4 view_proj;							 // 64
-		row_major float4x4 view_proj_inv;						 // 64
-		float3			   camera_pos;							 // 12
-		float			   time;								 // 4
-		float4			   frustum_planes[6];					 // 96
-		float2			   inv_backbuffer_size;					 // 8
-		float2			   backbuffer_size;						 // 8
-		float3			   camera_forward;						 // 12
-		uint32			   frame_index;							 // 4
-		float3			   camera_right;						 // 12
-		uint32			   main_buffer_texture_id;				 // 4
-		uint32			   depth_buffer_texture_id;				 // 4
-		uint32_3		   padding;
+		row_major float4x4 view_proj;								// 64
+		row_major float4x4 view_proj_inv;							// 64
+		float3			   camera_pos;								// 12
+		float			   time;									// 4
+		float4			   frustum_planes[6];						// 96
+		float2			   inv_backbuffer_size;						// 8
+		float2			   backbuffer_size;							// 8
+		float3			   camera_forward;							// 12
+		uint32			   frame_index;								// 4
+		float3			   camera_right;							// 12
+		uint32			   main_buffer_texture_id;					// 4
+		uint32			   depth_buffer_texture_id;					// 4
+		uint32			   rt_tlas_buffer_id;						// 4
+		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
+		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
 
-		uint32_4 extra[13];										 //
-																 // total: 256 * 2 bytes
+		uint32_4 extra[13];											//
+																	// total: 256 * 2 bytes
 	};
 
 	cbuffer root_constants reg(b1)
 	{
-		uint32			   opaque_meshlet_render_data_count;	 // 4 bytes
-		uint32			   directional_light_count_and_extra;	 // 4 bytes
-		t_unified_light_id unified_light_count;					 // 4 btyes
+		uint32			   opaque_meshlet_render_data_count;		// 4 bytes
+		uint32			   directional_light_count_and_extra;		// 4 bytes
+		t_unified_light_id unified_light_count;						// 4 btyes
 		uint32			   transparent_object_render_data_count;
 
 		uint32 light_tile_count_x;

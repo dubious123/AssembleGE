@@ -49,11 +49,8 @@ namespace age::graphics::e
 					forward_plus_opaque_ms,
 					forward_plus_opaque_ps,
 
-					forward_plus_transparent_as,
-					forward_plus_transparent_cull_cs,
-					forward_plus_transparent_gen_indirect_arg_cs,
-					forward_plus_transparent_ms,
-					forward_plus_transparent_ps,
+					forward_plus_transparent_rt_cs,
+					forward_plus_transparent_blend_ps,
 
 					forward_plus_presentation_ms,
 					forward_plus_presentation_hdr10_ps,
@@ -104,6 +101,9 @@ namespace age::graphics
 
 		void
 		set_name(const wchar_t* name) noexcept;
+
+		std::wstring
+		get_name() const noexcept;
 	};
 
 	struct resource_mapping
