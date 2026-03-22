@@ -1,7 +1,12 @@
 #pragma once
+#line 1 "age.asli"
 #include "age.asli"
+#line 1 "age_math.asli"
 #include "age_math.asli"
+#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 #include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
+
+#line 9 "common.asli"
 // global
 byte_address_buffer static_buffer reg(t0, space0);
 
@@ -562,3 +567,6 @@ struct presentation_ps_out
 {
 	float4 color sv_target_0;
 };
+
+#line 1 "age_light.asli"
+#include "age_light.asli"

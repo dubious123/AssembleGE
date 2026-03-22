@@ -23,7 +23,9 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	const texture_2d<float> depth_tex = global_resource_buffer[depth_buffer_texture_id];
 	const float				z_depth	  = load(depth_tex, dispatch_thread_id.x, dispatch_thread_id.y, 0);
 
-	const float2 ndc = screen_to_ndc(float2(dispatch_thread_id.x + .5f, dispatch_thread_id.y + .5f), inv_backbuffer_size);
+	const float2 screen_pos = float2(dispatch_thread_id.x + .5f, dispatch_thread_id.y + .5f);
+
+	const float2 ndc = screen_to_ndc(screen_pos, inv_backbuffer_size);
 
 	float4 world_far  = mul(view_proj_inv, float4(ndc, z_depth, 1.0));
 	world_far.xyz	 /= world_far.w;
@@ -51,7 +53,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	while (rt_proceed(query))
 	{
 		float  t	 = rt_candidate_triangle_ray_t(query);
-		float4 color = float4(0, 1, 0, 0.1);	// todo material
+		float4 color = float4(0.8, 0.8, 0.8, 0.3);	  // todo material
 
 		if (color.a <= 0.01) continue;
 
@@ -86,7 +88,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		hit_data_arr[pos].t							 = t;
 		hit_data_arr[pos].color						 = color;
 		hit_data_arr[pos].rt_instance_render_data_id = rt_candidate_instance_id(query);
-		hit_data_arr[pos].triangle_index			 = rt_candidate_primitive_index(query) * 3;
+		hit_data_arr[pos].triangle_index			 = rt_candidate_primitive_index(query);
 		hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
 
 		if (hit_count < MAX_RAY_HIT)
@@ -96,7 +98,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	}
 
 	float4 result = float4(0, 0, 0, 0);
-	for (int32 i = hit_count - 1; i >= 0; --i)
+	for (int32 i = 0; i < hit_count; ++i)
 	{
 		const hit_data hit = hit_data_arr[i];
 
@@ -121,21 +123,84 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 							   + v_decoded_1.pos.xyz * bary_weights.y
 							   + v_decoded_2.pos.xyz * bary_weights.z;
 
-		const float3 local_normal = v_decoded_0.normal * bary_weights.x
-								  + v_decoded_1.normal * bary_weights.y
-								  + v_decoded_2.normal * bary_weights.z;
+		const float3 local_vertex_normal = v_decoded_0.normal * bary_weights.x
+										 + v_decoded_1.normal * bary_weights.y
+										 + v_decoded_2.normal * bary_weights.z;
+
+		const float3 local_face_normal = normalize(cross(v_decoded_1.pos.xyz - v_decoded_0.pos.xyz, v_decoded_2.pos.xyz - v_decoded_0.pos.xyz));
 
 		const float4 quaternion = decode_quaternion(obj_data.quaternion);
 		const float3 scale		= cast<float3>(obj_data.scale);
 		const float3 pos		= obj_data.pos;
 
-		const float3 world_normal = normalize(rotate(local_normal / scale, quaternion));
-		const float3 world_pos	  = rotate(local_pos * scale, quaternion) + pos;
+		const float3 world_vertex_normal = normalize(rotate(local_vertex_normal / scale, quaternion));
+		const float3 world_face_normal	 = normalize(rotate(local_face_normal / scale, quaternion));
+		const float3 world_pos			 = rotate(local_pos * scale, quaternion) + pos;
+
+		const float3 world_to_cam_dir = normalize(camera_pos - world_pos);
+
+		const float3 ambient_light = float3(0.03, 0.03, 0.03);
+		float3		 lighting	   = ambient_light;
+
+		const float linear_depth = dot(world_pos - camera_pos, camera_forward);
+
+		const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
+
+		for (uint32 d = 0; d < directional_light_count; ++d)
+		{
+			const directional_light light = load_directional_light(d);
+
+			lighting += calc_directional_light(light, world_vertex_normal, world_to_cam_dir)
+					  * calc_directional_shadow(light, world_pos, world_face_normal, linear_depth);
+		}
+
+		{
+			const uint32 tile_x	 = uint32(dispatch_thread_id.x) / LIGHT_TILE_SIZE;
+			const uint32 tile_y	 = uint32(dispatch_thread_id.y) / LIGHT_TILE_SIZE;
+			const uint32 tile_id = tile_x + tile_y * light_tile_count_x;
+
+			const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
+
+			const uint32 z_min = load_zbin_entry(bin).min_idx;
+			const uint32 z_max = load_zbin_entry(bin).max_idx;
+
+			const uint32 wave_z_min = wave_active_min(z_min);
+			const uint32 wave_z_max = wave_active_max(z_max);
+
+			const uint32 word_begin = wave_z_min / 32;
+			const uint32 word_end	= wave_z_max / 32;
 
 
-		float4 color = hit_data_arr[i].color;
-		result.rgb	 = lerp(result.rgb, color.rgb, color.a);
-		result.a	 = result.a + color.a * (1.f - result.a);
+			for (uint32 w = word_begin; w <= word_end; ++w)
+			{
+				uint32 bit_mask		 = load_tile_mask(tile_id, w);
+				uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
+
+				while (wave_bit_mask != 0)
+				{
+					const uint32 bit		= first_bit_low(wave_bit_mask);
+					const uint32 sorted_id	= w * 32 + bit;
+					wave_bit_mask		   &= ~(1u << bit);
+
+					// if (bit_mask & (1u << bit))
+					{
+						const unified_light light = load_sorted_light(sorted_id);
+
+						lighting += calc_unified_light(light, world_pos, world_vertex_normal, world_to_cam_dir)
+								  * calc_unified_shadow(light, world_pos, world_face_normal);
+					}
+				}
+			}
+		}
+
+		float4 color  = hit_data_arr[i].color * float4(lighting.rgb, 1.f);
+		result.rgb	 += color.rgb * color.a * (1.f - result.a);
+		result.a	 += color.a * (1.f - result.a);
+
+		if (result.a >= 1.f)
+		{
+			break;
+		}
 	}
 
 	rw_texture_2d<float4> res_tex = global_resource_buffer[rt_transparent_buffer_uav_texture_id];

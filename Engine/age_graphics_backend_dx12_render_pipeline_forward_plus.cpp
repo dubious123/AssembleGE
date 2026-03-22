@@ -301,6 +301,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			shadow_stage_shadow_light_buffer_uav.apply_compute();
 			light_cull_stage_sorted_light_buffer_uav.apply_compute();
+
+			rt_instance_render_data_buffer_srv.apply_compute();
+			rt_index_buffer_srv.apply_compute();
 		}
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -401,8 +404,8 @@ namespace age::graphics::render_pipeline::forward_plus
 									light_tile_count_y,
 									h_scratch_buffer);
 		command::apply_barriers(
-			barrier::buf_uav_to_srv(h_light_cull_stage_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
-			barrier::buf_uav_to_srv(h_light_cull_stage_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+			barrier::buf_uav_to_srv(h_light_cull_stage_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::buf_uav_to_srv(h_light_cull_stage_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		light_cull_stage_sorted_light_buffer_srv.apply();
 		light_cull_stage_buffer_srv.apply();
@@ -440,8 +443,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			barrier::dsv_read_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 
+		light_cull_stage_sorted_light_buffer_srv.apply_compute();
+		light_cull_stage_buffer_srv.apply_compute();
+		shadow_stage_shadow_light_buffer_srv.apply_compute();
+		shadow_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_rt_transparent_texture_buffer, extent);
-
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -1068,6 +1074,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
 			{
 				rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
+				rt_instance_render_data_buffer_srv.apply_compute();
 			}
 
 			rt_instance_offset			   = 0;

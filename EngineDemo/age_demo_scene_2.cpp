@@ -39,25 +39,25 @@ namespace age_demo::scene_2
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f }),
 				.intensity = 0.3f,
-				.color	   = float3{ 1.0f, 0.95f, 0.9f } } }
+				.color	   = float3{ 1.0f, 0.9f, 0.9f } } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec().emplace_back),
 
 			// warm point light - left side, illuminates transparent objects from behind
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
 				.position  = float3{ -5.0f, 3.0f, 4.0f },
-				.range	   = 20.0f,
+				.range	   = 50.0f,
 				.color	   = float3{ 1.0f, 0.7f, 0.3f },
-				.intensity = 4.0f } }
+				.intensity = 8.0f } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
 			// cool point light - right side, color mixing through transparent surfaces
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
 				.position  = float3{ 5.0f, 3.0f, -2.0f },
-				.range	   = 20.0f,
+				.range	   = 50.0f,
 				.color	   = float3{ 0.3f, 0.5f, 1.0f },
-				.intensity = 4.0f } }
+				.intensity = 8.0f } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
@@ -66,8 +66,8 @@ namespace age_demo::scene_2
 			// [0] cube
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 30,
-				.seg_v	   = 30,
+				.seg_u	   = 1,
+				.seg_v	   = 1,
 				.mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
@@ -119,6 +119,7 @@ namespace age_demo::scene_2
 
 					// opaque cube on the right - reference for color blending comparison
 					add_opaque_obj(float3{ 6.0f, 1.0f, 0.0f }, float3{ 2.0f, 2.0f, 2.0f });
+					add_opaque_obj(float3{ 5.8f, 5.0f, 0.0f }, float3{ 2.0f, 2.0f, 2.0f });
 
 					// ===== transparency test: overlapping planes at different depths =====
 					// three parallel planes stacked in Z - classic sort-order test

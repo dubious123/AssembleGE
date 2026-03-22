@@ -57,7 +57,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_slot<
 			"light_cull_stage_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
+			D3D12_SHADER_VISIBILITY_ALL,
 			what::byte_address_buffer,
 			how::root_descriptor,
 			where::t<0, 1>>,
@@ -73,7 +73,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_slot<
 			"sorted_light_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
+			D3D12_SHADER_VISIBILITY_ALL,
 			what::structured_buffer<shared_type::unified_light>,
 			how::root_descriptor,
 			where::t<1, 1>>,
@@ -138,7 +138,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_slot<
 			"linear_clamp_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
+			D3D12_SHADER_VISIBILITY_ALL,
 			what::sampler<defaults::static_sampler_desc::linear_clamp>,
 			how::static_sampler,
 			where::s<0>>,
@@ -146,7 +146,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_slot<
 			"shadow_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_PIXEL,
+			D3D12_SHADER_VISIBILITY_ALL,
 			what::sampler<defaults::static_sampler_desc::shadow_cmp>,
 			how::static_sampler,
 			where::s<1>>>;
