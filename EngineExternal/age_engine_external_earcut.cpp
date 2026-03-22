@@ -13,14 +13,15 @@ namespace age::external::earcut::detail
 		auto polygon = std::vector<std::span<std::pair<float, float>>>{};
 		polygon.resize(boundary_count);
 
-		for (auto i = 0u, offset = 0u; i < boundary_count;)
+		for (auto i = 0u /*, offset = 0u*/; i < boundary_count;)
 		{
 			polygon[i] = std::span{
-				reinterpret_cast<std::pair<float, float>**>(pp_boundary_arr)[i] + offset,
+				// reinterpret_cast<std::pair<float, float>**>(pp_boundary_arr)[i] + offset,
+				reinterpret_cast<std::pair<float, float>**>(pp_boundary_arr)[i],
 				p_vertex_count_arr[i]
 			};
 
-			offset += p_vertex_count_arr[i];
+			// offset += p_vertex_count_arr[i];
 			++i;
 		}
 
@@ -32,7 +33,8 @@ namespace age::external::earcut::detail
 			return 0;
 		}
 
-		p_idx_out = static_cast<unsigned int*>(::operator new(sizeof(unsigned int) * res_vec.size()));
+		// p_idx_out = static_cast<unsigned int*>(::operator new(sizeof(unsigned int) * res_vec.size()));
+		p_idx_out = new unsigned int[res_vec.size()];
 		for (auto i = 0; i < res_vec.size(); ++i)
 		{
 			p_idx_out[i] = res_vec[i];

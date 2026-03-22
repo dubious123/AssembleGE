@@ -466,7 +466,7 @@ namespace age::inline data_structure
 				{
 					if constexpr (std::contiguous_iterator<std::ranges::iterator_t<r>> and std::is_trivially_copyable_v<t>)
 					{
-						std::memcpy(p_data, std::to_address(std::ranges::begin(rg)), sizeof(t) * range_size);
+						std::memcpy(p_data + count, std::to_address(std::ranges::begin(rg)), sizeof(t) * range_size);
 					}
 					else if constexpr (std::is_nothrow_constructible_v<t, decltype(*std::ranges::begin(rg))>)
 					{

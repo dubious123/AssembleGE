@@ -78,8 +78,8 @@ namespace age_demo::scene_0
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 30,
-				.seg_v	   = 30,
+				.seg_u	   = 1,
+				.seg_v	   = 1,
 				.mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
@@ -95,6 +95,7 @@ namespace age_demo::scene_0
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
 				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
 				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
+
 
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },

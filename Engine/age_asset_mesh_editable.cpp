@@ -87,7 +87,6 @@ namespace age::asset
 
 namespace age::asset
 {
-
 	mesh_editable
 	create_primitive_mesh_plane(const primitive_desc& desc) noexcept
 	{
@@ -104,6 +103,9 @@ namespace age::asset
 		c_auto edge_horizontal_count = desc.seg_u * grid_v;
 		c_auto boundary_count		 = desc.seg_u * desc.seg_v;
 		c_auto face_count			 = boundary_count;
+
+		c_auto u_basis = desc.local_basis[0];
+		c_auto v_basis = -desc.local_basis[2];
 
 		// 1. generate_vertices_from_uv
 
@@ -128,11 +130,15 @@ namespace age::asset
 			res.face_to_boundary_idx_vec.resize(face_count);
 		};
 
-		auto v = std::vector{ vertex_count, mesh_editable{} };
 		for (const auto&& [vertex_v_idx, vertex_u_idx] : std::views::cartesian_product(
 				 std::views::iota(0u) | std::views::take(grid_v),
 				 std::views::iota(0u) | std::views::take(grid_u)))
 		{
+			// UV layout:
+			// (0,0)-----(1,0)
+			//   |         |
+			//   |         |
+			// (0,1)-----(1,1)
 			c_auto vertex_idx		   = vertex_v_idx * grid_u + vertex_u_idx;
 			res.vertex_vec[vertex_idx] = {
 				.pos_idx		= vertex_idx,
@@ -140,16 +146,20 @@ namespace age::asset
 				.vertex_adj_idx = vertex_idx
 			};
 
-			c_auto u_offset = desc.local_basis[0] * (-0.5f * desc.size[0]),
-				   u_step	= desc.local_basis[0] * (desc.size[0] / desc.seg_u),
-				   v_offset = desc.local_basis[2] * (-0.5f * desc.size[1]),
-				   v_step	= desc.local_basis[2] * (desc.size[1] / desc.seg_v);
+			c_auto u_offset = u_basis * (-0.5f * desc.size.x),
+				   u_step	= u_basis * (desc.size.x / desc.seg_u),
+				   v_offset = v_basis * (-0.5f * desc.size.z),
+				   v_step	= v_basis * (desc.size.z / desc.seg_v);
 
 			res.position_vec[vertex_idx] =
-				(v_offset + v_step * vertex_v_idx) + (u_offset + u_step * vertex_u_idx);
+				desc.pos + (v_offset + v_step * vertex_v_idx) + (u_offset + u_step * vertex_u_idx);
 
 			res.vertex_attr_vec[vertex_idx] = {
-				.uv_set	  = { float2{ vertex_u_idx, vertex_v_idx }, float2{ vertex_u_idx, vertex_v_idx }, float2{ vertex_u_idx, vertex_v_idx }, float2{ vertex_u_idx, vertex_v_idx } },
+				.normal	  = desc.local_basis[1],
+				.uv_set	  = { float2{ vertex_u_idx / static_cast<float>(desc.seg_u), vertex_v_idx / static_cast<float>(desc.seg_v) },
+							  float2{ vertex_u_idx / static_cast<float>(desc.seg_u), vertex_v_idx / static_cast<float>(desc.seg_v) },
+							  float2{ vertex_u_idx / static_cast<float>(desc.seg_u), vertex_v_idx / static_cast<float>(desc.seg_v) },
+							  float2{ vertex_u_idx / static_cast<float>(desc.seg_u), vertex_v_idx / static_cast<float>(desc.seg_v) } },
 				.uv_count = 4
 			};
 
@@ -243,54 +253,28 @@ namespace age::asset
 			c_auto face_idx		= face_v_idx * desc.seg_u + face_u_idx;
 			c_auto boundary_idx = face_idx;
 
-			// RH
-			// c_auto vertex_uv_arr = std::array{
-			//	uint32_2{ face_v_idx + 0, face_u_idx + 0 },
-			//	uint32_2{ face_v_idx + 0, face_u_idx + 1 },
-			//	uint32_2{ face_v_idx + 1, face_u_idx + 1 },
-			//	uint32_2{ face_v_idx + 1, face_u_idx + 0 }
-			// };
-
-			// c_auto vertex_idx_arr = std::array{
-			//	(face_v_idx + 0) * grid_u + (face_u_idx + 0),
-			//	(face_v_idx + 0) * grid_u + (face_u_idx + 1),
-			//	(face_v_idx + 1) * grid_u + (face_u_idx + 1),
-			//	(face_v_idx + 1) * grid_u + (face_u_idx + 0)
-			// };
-
-			// c_auto edge_idx_arr = std::array{
-			//	(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),
-			//	(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,
-			//	(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),
-			//	(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count
-			// };
-
-			// c_auto vertex_uv_arr = std::array{
-			//	uint32_2{ face_v_idx + 0, face_u_idx + 0 },
-			//	uint32_2{ face_v_idx + 1, face_u_idx + 0 },
-			//	uint32_2{ face_v_idx + 1, face_u_idx + 1 },
-			//	uint32_2{ face_v_idx + 0, face_u_idx + 1 }
-			// };
-
 			c_auto vertex_idx_arr = std::array{
 				(face_v_idx + 0) * grid_u + (face_u_idx + 0),
-				(face_v_idx + 1) * grid_u + (face_u_idx + 0),
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1),
 				(face_v_idx + 1) * grid_u + (face_u_idx + 1),
-				(face_v_idx + 0) * grid_u + (face_u_idx + 1)
+				(face_v_idx + 1) * grid_u + (face_u_idx + 0)
 			};
 
+			// |-|-|-|  grid : 4, seg : 3  horizontal : vertical grid * seg_u + face_u
 			c_auto edge_idx_arr = std::array{
-				(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count,	 // 0->2
-				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),						 // 3->2
-				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,	 // 1->2
-				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),						 // 0->1
+				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),						 // 0->1 (H)
+				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,	 // 1->2 (V)
+				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),						 // 3->2 (H)
+				(face_v_idx + 0) * grid_u + (face_u_idx + 0) + edge_horizontal_count,	 // 0->3 (V)
 			};
 
 			auto& f = res.face_vec[face_idx];
 			{
 				f = {
 					.to_boundary_idx_offset = boundary_idx,
-					.to_boundary_idx_count	= 1
+					.to_boundary_idx_count	= 1,
+					.u_basis				= u_basis,
+					.v_basis				= v_basis
 				};
 				age::util::assign_n(res.boundary_idx_span(f), boundary_idx);
 			}
@@ -369,332 +353,64 @@ namespace age::asset
 	mesh_editable
 	create_primitive_mesh_cube(const primitive_desc& desc) noexcept
 	{
-		AGE_ASSERT(desc.seg_u > 0);
-		AGE_ASSERT(desc.seg_v > 0);
-		AGE_ASSERT(desc.size[0] > 0.f);
-		AGE_ASSERT(desc.size[1] > 0.f);
-		AGE_ASSERT(desc.size[2] > 0.f);
+		c_auto basis_r = desc.local_basis[0];
+		c_auto basis_u = desc.local_basis[1];
+		c_auto basis_f = desc.local_basis[2];
 
-		// cube = 6 independent faces, each face is a plane grid
-		// each face has its own vertices (hard edges at cube edges)
+		c_auto size_r = desc.size.x;
+		c_auto size_u = desc.size.y;
+		c_auto size_f = desc.size.z;
 
-		struct face_basis
-		{
-			float3 origin;	  // center of face
-			float3 axis_u;	  // grid U direction (tangent)
-			float3 axis_v;	  // grid V direction (bitangent)
-			float3 normal;	  // face normal
-			float  half_u;	  // half-extent along U
-			float  half_v;	  // half-extent along V
+		auto desc_r = age::asset::primitive_desc{
+			.pos		 = basis_r * size_r * 0.5f,
+			.size		 = float3{ size_f, size_r, size_u },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ basis_f, basis_r, basis_u },
+		};
+		auto desc_l = age::asset::primitive_desc{
+			.pos		 = -basis_r * size_r * 0.5f,
+			.size		 = float3{ size_f, size_r, size_u },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ -basis_f, -basis_r, basis_u },
+		};
+		auto desc_u = age::asset::primitive_desc{
+			.pos		 = basis_u * size_u * 0.5f,
+			.size		 = float3{ size_r, size_u, size_f },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ basis_r, basis_u, basis_f },
+		};
+		auto desc_d = age::asset::primitive_desc{
+			.pos		 = -basis_u * size_u * 0.5f,
+			.size		 = float3{ size_r, size_u, size_f },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ basis_r, -basis_u, -basis_f },
+		};
+		auto desc_f = age::asset::primitive_desc{
+			.pos		 = -basis_f * size_f * 0.5f,
+			.size		 = float3{ size_r, size_f, size_u },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ basis_r, -basis_f, basis_u },
+		};
+		auto desc_b = age::asset::primitive_desc{
+			.pos		 = basis_f * size_f * 0.5f,
+			.size		 = float3{ size_r, size_f, size_u },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ -basis_r, basis_f, basis_u },
 		};
 
-		c_auto hx = desc.size[0] * 0.5f;
-		c_auto hy = desc.size[1] * 0.5f;
-		c_auto hz = desc.size[2] * 0.5f;
+		c_auto res = merge(std::array{ create_primitive_mesh_plane(desc_r),
+									   create_primitive_mesh_plane(desc_l),
+									   create_primitive_mesh_plane(desc_u),
+									   create_primitive_mesh_plane(desc_d),
+									   create_primitive_mesh_plane(desc_f),
+									   create_primitive_mesh_plane(desc_b) });
 
-		// 6 faces: +X, -X, +Y, -Y, +Z, -Z
-		// winding: CCW when viewed from outside
-		c_auto face_bases = std::array<face_basis, 6>{
-			face_basis{ .origin = { +hx, 0, 0 }, .axis_u = { 0, 0, -1 }, .axis_v = { 0, +1, 0 }, .normal = { +1, 0, 0 }, .half_u = hz, .half_v = hy },	  // +X
-			face_basis{ .origin = { -hx, 0, 0 }, .axis_u = { 0, 0, +1 }, .axis_v = { 0, +1, 0 }, .normal = { -1, 0, 0 }, .half_u = hz, .half_v = hy },	  // -X
-			face_basis{ .origin = { 0, +hy, 0 }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, 0, +1 }, .normal = { 0, +1, 0 }, .half_u = hx, .half_v = hz },	  // +Y
-			face_basis{ .origin = { 0, -hy, 0 }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, 0, -1 }, .normal = { 0, -1, 0 }, .half_u = hx, .half_v = hz },	  // -Y
-			face_basis{ .origin = { 0, 0, +hz }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, +1, 0 }, .normal = { 0, 0, +1 }, .half_u = hx, .half_v = hy },	  // +Z
-			face_basis{ .origin = { 0, 0, -hz }, .axis_u = { -1, 0, 0 }, .axis_v = { 0, +1, 0 }, .normal = { 0, 0, -1 }, .half_u = hx, .half_v = hy },	  // -Z
-		};
-
-		constexpr uint32 face_count_cube = 6;
-
-		c_auto grid_u			= desc.seg_u + 1;
-		c_auto grid_v			= desc.seg_v + 1;
-		c_auto verts_per_face	= grid_u * grid_v;
-		c_auto quads_per_face	= desc.seg_u * desc.seg_v;
-		c_auto edges_h_per_face = desc.seg_u * grid_v;	  // horizontal edges
-		c_auto edges_v_per_face = desc.seg_v * grid_u;	  // vertical edges
-		c_auto edges_per_face	= edges_h_per_face + edges_v_per_face;
-
-		c_auto total_vertex_count	= face_count_cube * verts_per_face;
-		c_auto total_edge_count		= face_count_cube * edges_per_face;
-		c_auto total_boundary_count = face_count_cube * quads_per_face;
-		c_auto total_face_count		= total_boundary_count;
-
-		auto res = mesh_editable{};
-		{
-			res.position_vec.resize(total_vertex_count);
-			res.vertex_attr_vec.resize(total_vertex_count);
-			res.vertex_adj_vec.resize(total_vertex_count);
-			res.vertex_vec.resize(total_vertex_count);
-			res.edge_vec.resize(total_edge_count);
-			res.boundary_vec.resize(total_boundary_count);
-			res.face_vec.resize(total_face_count);
-			res.vertex_to_edge_idx_vec.resize(total_edge_count * 2);
-			res.vertex_to_boundary_idx_vec.resize(total_boundary_count * 4);
-			res.vertex_to_face_idx_vec.resize(total_face_count * 4);
-			res.edge_to_boundary_idx_vec.resize(total_boundary_count * 4);
-			res.edge_to_face_idx_vec.resize(total_face_count * 4);
-			res.boundary_to_vertex_idx_vec.resize(total_boundary_count * 4);
-			res.boundary_to_edge_idx_vec.resize(total_boundary_count * 4);
-			res.boundary_to_face_idx_vec.resize(total_boundary_count);
-			res.face_to_boundary_idx_vec.resize(total_face_count);
-		};
-
-		for (auto cube_face_idx = 0u; cube_face_idx < face_count_cube; ++cube_face_idx)
-		{
-			c_auto& fb = face_bases[cube_face_idx];
-
-			c_auto vertex_base	 = cube_face_idx * verts_per_face;
-			c_auto edge_base	 = cube_face_idx * edges_per_face;
-			c_auto boundary_base = cube_face_idx * quads_per_face;
-
-			// --- vertices ---
-
-			for (c_auto[local_v, local_u] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(grid_v),
-					 std::views::iota(0u) | std::views::take(grid_u)))
-			{
-				c_auto local_idx  = local_v * grid_u + local_u;
-				c_auto global_idx = vertex_base + local_idx;
-
-				res.vertex_vec[global_idx] = {
-					.pos_idx		= global_idx,
-					.attribute_idx	= global_idx,
-					.vertex_adj_idx = global_idx
-				};
-
-				c_auto u_t = static_cast<float>(local_u) / static_cast<float>(desc.seg_u);
-				c_auto v_t = static_cast<float>(local_v) / static_cast<float>(desc.seg_v);
-
-				res.position_vec[global_idx] =
-					fb.origin
-					+ fb.axis_u * (u_t - 0.5f) * 2.f * fb.half_u
-					+ fb.axis_v * (v_t - 0.5f) * 2.f * fb.half_v;
-
-				res.vertex_attr_vec[global_idx] = {
-					.normal	  = fb.normal,
-					.uv_set	  = { float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t } },
-					.uv_count = 4
-				};
-
-				c_auto is_u_boundary = (local_u == 0) or (local_u == desc.seg_u);
-				c_auto is_v_boundary = (local_v == 0) or (local_v == desc.seg_v);
-
-				auto& v_adj					 = res.vertex_adj_vec[global_idx];
-				v_adj.to_edge_idx_offset	 = 0;
-				v_adj.to_edge_idx_count		 = 4 - uint32{ is_u_boundary } - uint32{ is_v_boundary };
-				v_adj.to_boundary_idx_offset = 0;
-				v_adj.to_boundary_idx_count	 = 0;
-				v_adj.to_face_idx_offset	 = 0;
-				v_adj.to_face_idx_count		 = 0;
-			}
-
-			// compute vertex_adj offsets
-			{
-				auto edge_offset	 = (cube_face_idx == 0) ? 0u : res.vertex_adj_vec[vertex_base - 1].to_edge_idx_offset + res.vertex_adj_vec[vertex_base - 1].to_edge_idx_count;
-				auto boundary_offset = (cube_face_idx == 0) ? 0u : res.vertex_adj_vec[vertex_base - 1].to_boundary_idx_offset + res.vertex_adj_vec[vertex_base - 1].to_boundary_idx_count;
-				auto face_offset	 = boundary_offset;
-
-				for (auto i = 0u; i < verts_per_face; ++i)
-				{
-					auto& v_adj					 = res.vertex_adj_vec[vertex_base + i];
-					v_adj.to_edge_idx_offset	 = edge_offset;
-					v_adj.to_boundary_idx_offset = boundary_offset;
-					v_adj.to_face_idx_offset	 = face_offset;
-
-					c_auto local_u				= i % grid_u;
-					c_auto local_v				= i / grid_u;
-					c_auto is_u_boundary		= (local_u == 0) or (local_u == desc.seg_u);
-					c_auto is_v_boundary		= (local_v == 0) or (local_v == desc.seg_v);
-					c_auto to_face_count		= (is_u_boundary and is_v_boundary) ? 1u
-												: (is_u_boundary or is_v_boundary)	? 2u
-																					: 4u;
-					v_adj.to_boundary_idx_count = to_face_count;
-					v_adj.to_face_idx_count		= to_face_count;
-
-					edge_offset		+= v_adj.to_edge_idx_count;
-					boundary_offset += to_face_count;
-					face_offset		+= to_face_count;
-				}
-			}
-
-			// --- edges ---
-
-			for (c_auto[local_v, local_u] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(grid_v),
-					 std::views::iota(0u) | std::views::take(grid_u)))
-			{
-				c_auto local_vertex_idx	 = local_v * grid_u + local_u;
-				c_auto global_vertex_idx = vertex_base + local_vertex_idx;
-
-				c_auto is_u_boundary = (local_u == 0) or (local_u == desc.seg_u);
-				c_auto is_v_boundary = (local_v == 0) or (local_v == desc.seg_v);
-
-				// horizontal edge (u direction)
-				if (local_u != desc.seg_u)
-				{
-					c_auto local_edge_idx  = local_v * desc.seg_u + local_u;
-					c_auto global_edge_idx = edge_base + local_edge_idx;
-
-					res.edge_vec[global_edge_idx] = {
-						.v0_idx				   = global_vertex_idx,
-						.v1_idx				   = global_vertex_idx + 1,
-						.to_boundary_idx_count = 2u - uint32{ is_v_boundary },
-						.to_face_idx_count	   = 2u - uint32{ is_v_boundary }
-					};
-				}
-
-				// vertical edge (v direction)
-				if (local_v != desc.seg_v)
-				{
-					c_auto local_edge_idx  = edges_h_per_face + local_v * grid_u + local_u;
-					c_auto global_edge_idx = edge_base + local_edge_idx;
-
-					res.edge_vec[global_edge_idx] = {
-						.v0_idx				   = global_vertex_idx,
-						.v1_idx				   = global_vertex_idx + grid_u,
-						.to_boundary_idx_count = 2u - uint32{ is_u_boundary },
-						.to_face_idx_count	   = 2u - uint32{ is_u_boundary }
-					};
-				}
-			}
-
-			// reset vertex edge counts for accumulation
-			for (auto i = 0u; i < verts_per_face; ++i)
-			{
-				res.vertex_adj_vec[vertex_base + i].to_edge_idx_count	  = 0;
-				res.vertex_adj_vec[vertex_base + i].to_boundary_idx_count = 0;
-				res.vertex_adj_vec[vertex_base + i].to_face_idx_count	  = 0;
-			}
-
-			// vertex_to_edge + edge offsets
-			{
-				auto edge_to_boundary_offset = (cube_face_idx == 0) ? 0u
-																	: res.edge_vec[edge_base - 1].to_boundary_idx_offset + res.edge_vec[edge_base - 1].to_boundary_idx_count;
-				auto edge_to_face_offset	 = (cube_face_idx == 0) ? 0u
-																	: res.edge_vec[edge_base - 1].to_face_idx_offset + res.edge_vec[edge_base - 1].to_face_idx_count;
-
-				for (auto local_e = 0u; local_e < edges_per_face; ++local_e)
-				{
-					c_auto global_e = edge_base + local_e;
-					auto&  e		= res.edge_vec[global_e];
-
-					auto& v0_adj = res.vertex_adj_vec[e.v0_idx];
-					auto& v1_adj = res.vertex_adj_vec[e.v1_idx];
-
-					res.vertex_to_edge_idx_vec[v0_adj.to_edge_idx_offset + v0_adj.to_edge_idx_count] = global_e;
-					res.vertex_to_edge_idx_vec[v1_adj.to_edge_idx_offset + v1_adj.to_edge_idx_count] = global_e;
-					++v0_adj.to_edge_idx_count;
-					++v1_adj.to_edge_idx_count;
-
-					e.to_boundary_idx_offset  = edge_to_boundary_offset;
-					e.to_face_idx_offset	  = edge_to_face_offset;
-					edge_to_boundary_offset	 += e.to_boundary_idx_count;
-					edge_to_face_offset		 += e.to_face_idx_count;
-				}
-			}
-
-			// reset edge counts for accumulation in boundary pass
-			for (auto local_e = 0u; local_e < edges_per_face; ++local_e)
-			{
-				auto& e					= res.edge_vec[edge_base + local_e];
-				e.to_boundary_idx_count = 0;
-				e.to_face_idx_count		= 0;
-			}
-
-			// --- boundaries (quads) and faces ---
-
-			for (c_auto[local_fv, local_fu] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(desc.seg_v),
-					 std::views::iota(0u) | std::views::take(desc.seg_u)))
-			{
-				c_auto local_quad_idx = local_fv * desc.seg_u + local_fu;
-				c_auto face_idx		  = boundary_base + local_quad_idx;
-				c_auto boundary_idx	  = face_idx;
-
-				c_auto vertex_idx_arr = std::array{
-					vertex_base + (local_fv + 0) * grid_u + (local_fu + 0),
-					vertex_base + (local_fv + 1) * grid_u + (local_fu + 0),
-					vertex_base + (local_fv + 1) * grid_u + (local_fu + 1),
-					vertex_base + (local_fv + 0) * grid_u + (local_fu + 1)
-				};
-
-				c_auto edge_idx_arr = std::array{
-					edge_base + (local_fv + 0) * grid_u + (local_fu + 0) + edges_h_per_face,	// v0->v1 (vertical)
-					edge_base + (local_fv + 1) * desc.seg_u + (local_fu + 0),					// v1->v2 (horizontal)
-					edge_base + (local_fv + 0) * grid_u + (local_fu + 1) + edges_h_per_face,	// v3->v2 (vertical)
-					edge_base + (local_fv + 0) * desc.seg_u + (local_fu + 0),					// v0->v3 (horizontal)
-				};
-
-				auto& f = res.face_vec[face_idx];
-				{
-					f = {
-						.to_boundary_idx_offset = boundary_idx,
-						.to_boundary_idx_count	= 1
-					};
-					age::util::assign_n(res.boundary_idx_span(f), boundary_idx);
-				}
-
-				auto& b = res.boundary_vec[boundary_idx];
-				{
-					b = {
-						.to_vertex_idx_offset = boundary_idx * 4,
-						.to_vertex_idx_count  = 4,
-						.to_edge_idx_offset	  = boundary_idx * 4,
-						.to_face_idx_offset	  = boundary_idx,
-						.to_face_idx_count	  = 1,
-					};
-
-					age::util::assign_n(
-						res.face_idx_span(b),
-						face_idx);
-
-					age::util::assign_n(
-						res.vertex_idx_span(b),
-						vertex_idx_arr[0],
-						vertex_idx_arr[1],
-						vertex_idx_arr[2],
-						vertex_idx_arr[3]);
-
-					age::util::assign_n(
-						res.edge_idx_span(b),
-						edge_idx_arr[0],
-						edge_idx_arr[1],
-						edge_idx_arr[2],
-						edge_idx_arr[3]);
-
-					for (c_auto v_idx : res.vertex_idx_span(b))
-					{
-						auto&  v_adj   = res.vertex_adj_vec[v_idx];
-						c_auto v2b_idx = v_adj.to_boundary_idx_offset + v_adj.to_boundary_idx_count;
-						c_auto v2f_idx = v_adj.to_face_idx_offset + v_adj.to_face_idx_count;
-
-						res.vertex_to_boundary_idx_vec[v2b_idx] = boundary_idx;
-						res.vertex_to_face_idx_vec[v2f_idx]		= face_idx;
-						++v_adj.to_boundary_idx_count;
-						++v_adj.to_face_idx_count;
-					}
-
-					for (c_auto e_idx : res.edge_idx_span(b))
-					{
-						auto& e = res.edge_vec[e_idx];
-
-						c_auto e2b_idx						  = e.to_boundary_idx_offset + e.to_boundary_idx_count;
-						c_auto e2f_idx						  = e.to_face_idx_offset + e.to_face_idx_count;
-						res.edge_to_boundary_idx_vec[e2b_idx] = boundary_idx;
-						res.edge_to_face_idx_vec[e2f_idx]	  = face_idx;
-
-						++e.to_boundary_idx_count;
-						++e.to_face_idx_count;
-					}
-				}
-			}
-		}
-
-		// calculate_normal(res,
-		//				 normal_calc_desc{
-		//					 .calc_mode = normal_calc_desc::mode::angle,
-		//				 });
-
-		calculate_tangent(res, tangent_calc_desc{});
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -707,318 +423,17 @@ namespace age::asset
 	mesh_editable
 	create_primitive_mesh_cube_sphere(const primitive_desc& desc) noexcept
 	{
-		AGE_ASSERT(desc.seg_u > 0);
-		AGE_ASSERT(desc.seg_v > 0);
-		AGE_ASSERT(desc.size[0] > 0.f);
+		auto   res	  = create_primitive_mesh_cube(desc);
+		c_auto radius = desc.size * 0.5f;
 
-		c_auto radius = desc.size[0] * 0.5f;
-
-		struct face_basis
+		for (auto&& [p, attr] : std::views::zip(res.position_vec, res.vertex_attr_vec))
 		{
-			float3 origin;																			 // center of face on unit cube
-			float3 axis_u;																			 // grid U direction (tangent)
-			float3 axis_v;																			 // grid V direction (bitangent)
-		};
+			attr.normal = normalize(p - desc.pos);
 
-		c_auto face_bases = std::array<face_basis, 6>{
-			face_basis{ .origin = { +1, 0, 0 }, .axis_u = { 0, 0, -1 }, .axis_v = { 0, +1, 0 } },	 // +X
-			face_basis{ .origin = { -1, 0, 0 }, .axis_u = { 0, 0, +1 }, .axis_v = { 0, +1, 0 } },	 // -X
-			face_basis{ .origin = { 0, +1, 0 }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, 0, +1 } },	 // +Y
-			face_basis{ .origin = { 0, -1, 0 }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, 0, -1 } },	 // -Y
-			face_basis{ .origin = { 0, 0, +1 }, .axis_u = { +1, 0, 0 }, .axis_v = { 0, +1, 0 } },	 // +Z
-			face_basis{ .origin = { 0, 0, -1 }, .axis_u = { -1, 0, 0 }, .axis_v = { 0, +1, 0 } },	 // -Z
-		};
-
-		constexpr uint32 face_count_cube = 6;
-
-		c_auto grid_u			= desc.seg_u + 1;
-		c_auto grid_v			= desc.seg_v + 1;
-		c_auto verts_per_face	= grid_u * grid_v;
-		c_auto quads_per_face	= desc.seg_u * desc.seg_v;
-		c_auto edges_h_per_face = desc.seg_u * grid_v;	  // horizontal edges
-		c_auto edges_v_per_face = desc.seg_v * grid_u;	  // vertical edges
-		c_auto edges_per_face	= edges_h_per_face + edges_v_per_face;
-
-		c_auto total_vertex_count	= face_count_cube * verts_per_face;
-		c_auto total_edge_count		= face_count_cube * edges_per_face;
-		c_auto total_boundary_count = face_count_cube * quads_per_face;
-		c_auto total_face_count		= total_boundary_count;
-
-		auto res = mesh_editable{};
-		{
-			res.position_vec.resize(total_vertex_count);
-			res.vertex_attr_vec.resize(total_vertex_count);
-			res.vertex_adj_vec.resize(total_vertex_count);
-			res.vertex_vec.resize(total_vertex_count);
-			res.edge_vec.resize(total_edge_count);
-			res.boundary_vec.resize(total_boundary_count);
-			res.face_vec.resize(total_face_count);
-			res.vertex_to_edge_idx_vec.resize(total_edge_count * 2);
-			res.vertex_to_boundary_idx_vec.resize(total_boundary_count * 4);
-			res.vertex_to_face_idx_vec.resize(total_face_count * 4);
-			res.edge_to_boundary_idx_vec.resize(total_boundary_count * 4);
-			res.edge_to_face_idx_vec.resize(total_face_count * 4);
-			res.boundary_to_vertex_idx_vec.resize(total_boundary_count * 4);
-			res.boundary_to_edge_idx_vec.resize(total_boundary_count * 4);
-			res.boundary_to_face_idx_vec.resize(total_boundary_count);
-			res.face_to_boundary_idx_vec.resize(total_face_count);
-		};
-
-		for (auto cube_face_idx = 0u; cube_face_idx < face_count_cube; ++cube_face_idx)
-		{
-			c_auto& fb = face_bases[cube_face_idx];
-
-			c_auto vertex_base	 = cube_face_idx * verts_per_face;
-			c_auto edge_base	 = cube_face_idx * edges_per_face;
-			c_auto boundary_base = cube_face_idx * quads_per_face;
-
-			// --- vertices ---
-			for (c_auto[local_v, local_u] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(grid_v),
-					 std::views::iota(0u) | std::views::take(grid_u)))
-			{
-				c_auto local_idx  = local_v * grid_u + local_u;
-				c_auto global_idx = vertex_base + local_idx;
-
-				res.vertex_vec[global_idx] = {
-					.pos_idx		= global_idx,
-					.attribute_idx	= global_idx,
-					.vertex_adj_idx = global_idx
-				};
-
-				c_auto u_t = static_cast<float>(local_u) / static_cast<float>(desc.seg_u);
-				c_auto v_t = static_cast<float>(local_v) / static_cast<float>(desc.seg_v);
-
-				float3 unit_cube_pos = fb.origin
-									 + fb.axis_u * (u_t - 0.5f) * 2.f
-									 + fb.axis_v * (v_t - 0.5f) * 2.f;
-
-				float3 sphere_normal = math::normalize(unit_cube_pos);
-
-				res.position_vec[global_idx] = sphere_normal * radius;
-
-				res.vertex_attr_vec[global_idx] = {
-					.normal	  = sphere_normal,
-					.uv_set	  = { float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t }, float2{ u_t, v_t } },
-					.uv_count = 4,
-				};
-
-				c_auto is_u_boundary = (local_u == 0) or (local_u == desc.seg_u);
-				c_auto is_v_boundary = (local_v == 0) or (local_v == desc.seg_v);
-
-				auto& v_adj					 = res.vertex_adj_vec[global_idx];
-				v_adj.to_edge_idx_offset	 = 0;
-				v_adj.to_edge_idx_count		 = 4 - uint32{ is_u_boundary } - uint32{ is_v_boundary };
-				v_adj.to_boundary_idx_offset = 0;
-				v_adj.to_boundary_idx_count	 = 0;
-				v_adj.to_face_idx_offset	 = 0;
-				v_adj.to_face_idx_count		 = 0;
-			}
-
-			{
-				auto edge_offset	 = (cube_face_idx == 0) ? 0u : res.vertex_adj_vec[vertex_base - 1].to_edge_idx_offset + res.vertex_adj_vec[vertex_base - 1].to_edge_idx_count;
-				auto boundary_offset = (cube_face_idx == 0) ? 0u : res.vertex_adj_vec[vertex_base - 1].to_boundary_idx_offset + res.vertex_adj_vec[vertex_base - 1].to_boundary_idx_count;
-				auto face_offset	 = boundary_offset;
-
-				for (auto i = 0u; i < verts_per_face; ++i)
-				{
-					auto& v_adj					 = res.vertex_adj_vec[vertex_base + i];
-					v_adj.to_edge_idx_offset	 = edge_offset;
-					v_adj.to_boundary_idx_offset = boundary_offset;
-					v_adj.to_face_idx_offset	 = face_offset;
-
-					c_auto local_u				= i % grid_u;
-					c_auto local_v				= i / grid_u;
-					c_auto is_u_boundary		= (local_u == 0) or (local_u == desc.seg_u);
-					c_auto is_v_boundary		= (local_v == 0) or (local_v == desc.seg_v);
-					c_auto to_face_count		= (is_u_boundary and is_v_boundary) ? 1u
-												: (is_u_boundary or is_v_boundary)	? 2u
-																					: 4u;
-					v_adj.to_boundary_idx_count = to_face_count;
-					v_adj.to_face_idx_count		= to_face_count;
-
-					edge_offset		+= v_adj.to_edge_idx_count;
-					boundary_offset += to_face_count;
-					face_offset		+= to_face_count;
-				}
-			}
-
-			// --- edges ---
-			for (c_auto[local_v, local_u] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(grid_v),
-					 std::views::iota(0u) | std::views::take(grid_u)))
-			{
-				c_auto local_vertex_idx	 = local_v * grid_u + local_u;
-				c_auto global_vertex_idx = vertex_base + local_vertex_idx;
-
-				c_auto is_u_boundary = (local_u == 0) or (local_u == desc.seg_u);
-				c_auto is_v_boundary = (local_v == 0) or (local_v == desc.seg_v);
-
-				if (local_u != desc.seg_u)
-				{
-					c_auto local_edge_idx		  = local_v * desc.seg_u + local_u;
-					c_auto global_edge_idx		  = edge_base + local_edge_idx;
-					res.edge_vec[global_edge_idx] = {
-						.v0_idx				   = global_vertex_idx,
-						.v1_idx				   = global_vertex_idx + 1,
-						.to_boundary_idx_count = 2u - uint32{ is_v_boundary },
-						.to_face_idx_count	   = 2u - uint32{ is_v_boundary }
-					};
-				}
-
-				if (local_v != desc.seg_v)
-				{
-					c_auto local_edge_idx		  = edges_h_per_face + local_v * grid_u + local_u;
-					c_auto global_edge_idx		  = edge_base + local_edge_idx;
-					res.edge_vec[global_edge_idx] = {
-						.v0_idx				   = global_vertex_idx,
-						.v1_idx				   = global_vertex_idx + grid_u,
-						.to_boundary_idx_count = 2u - uint32{ is_u_boundary },
-						.to_face_idx_count	   = 2u - uint32{ is_u_boundary }
-					};
-				}
-			}
-
-			// reset vertex edge counts for accumulation
-			for (auto i = 0u; i < verts_per_face; ++i)
-			{
-				res.vertex_adj_vec[vertex_base + i].to_edge_idx_count	  = 0;
-				res.vertex_adj_vec[vertex_base + i].to_boundary_idx_count = 0;
-				res.vertex_adj_vec[vertex_base + i].to_face_idx_count	  = 0;
-			}
-
-			// vertex_to_edge + edge offsets
-			{
-				auto edge_to_boundary_offset = (cube_face_idx == 0) ? 0u
-																	: res.edge_vec[edge_base - 1].to_boundary_idx_offset + res.edge_vec[edge_base - 1].to_boundary_idx_count;
-				auto edge_to_face_offset	 = (cube_face_idx == 0) ? 0u
-																	: res.edge_vec[edge_base - 1].to_face_idx_offset + res.edge_vec[edge_base - 1].to_face_idx_count;
-
-				for (auto local_e = 0u; local_e < edges_per_face; ++local_e)
-				{
-					c_auto global_e = edge_base + local_e;
-					auto&  e		= res.edge_vec[global_e];
-
-					auto& v0_adj = res.vertex_adj_vec[e.v0_idx];
-					auto& v1_adj = res.vertex_adj_vec[e.v1_idx];
-
-					res.vertex_to_edge_idx_vec[v0_adj.to_edge_idx_offset + v0_adj.to_edge_idx_count] = global_e;
-					res.vertex_to_edge_idx_vec[v1_adj.to_edge_idx_offset + v1_adj.to_edge_idx_count] = global_e;
-					++v0_adj.to_edge_idx_count;
-					++v1_adj.to_edge_idx_count;
-
-					e.to_boundary_idx_offset  = edge_to_boundary_offset;
-					e.to_face_idx_offset	  = edge_to_face_offset;
-					edge_to_boundary_offset	 += e.to_boundary_idx_count;
-					edge_to_face_offset		 += e.to_face_idx_count;
-				}
-			}
-
-			// reset edge counts for accumulation in boundary pass
-			for (auto local_e = 0u; local_e < edges_per_face; ++local_e)
-			{
-				auto& e					= res.edge_vec[edge_base + local_e];
-				e.to_boundary_idx_count = 0;
-				e.to_face_idx_count		= 0;
-			}
-
-			// --- boundaries (quads) and faces ---
-
-			for (c_auto[local_fv, local_fu] : std::views::cartesian_product(
-					 std::views::iota(0u) | std::views::take(desc.seg_v),
-					 std::views::iota(0u) | std::views::take(desc.seg_u)))
-			{
-				c_auto local_quad_idx = local_fv * desc.seg_u + local_fu;
-				c_auto face_idx		  = boundary_base + local_quad_idx;
-				c_auto boundary_idx	  = face_idx;
-
-				c_auto vertex_idx_arr = std::array{
-					vertex_base + (local_fv + 0) * grid_u + (local_fu + 0),
-					vertex_base + (local_fv + 1) * grid_u + (local_fu + 0),
-					vertex_base + (local_fv + 1) * grid_u + (local_fu + 1),
-					vertex_base + (local_fv + 0) * grid_u + (local_fu + 1)
-				};
-
-				c_auto edge_idx_arr = std::array{
-					edge_base + (local_fv + 0) * grid_u + (local_fu + 0) + edges_h_per_face,	// v0->v1 (vertical)
-					edge_base + (local_fv + 1) * desc.seg_u + (local_fu + 0),					// v1->v2 (horizontal)
-					edge_base + (local_fv + 0) * grid_u + (local_fu + 1) + edges_h_per_face,	// v3->v2 (vertical)
-					edge_base + (local_fv + 0) * desc.seg_u + (local_fu + 0),					// v0->v3 (horizontal)
-				};
-
-				auto& f = res.face_vec[face_idx];
-				{
-					f = {
-						.to_boundary_idx_offset = boundary_idx,
-						.to_boundary_idx_count	= 1
-					};
-					age::util::assign_n(res.boundary_idx_span(f), boundary_idx);
-				}
-
-				auto& b = res.boundary_vec[boundary_idx];
-				{
-					b = {
-						.to_vertex_idx_offset = boundary_idx * 4,
-						.to_vertex_idx_count  = 4,
-						.to_edge_idx_offset	  = boundary_idx * 4,
-						.to_face_idx_offset	  = boundary_idx,
-						.to_face_idx_count	  = 1,
-					};
-
-					age::util::assign_n(
-						res.face_idx_span(b),
-						face_idx);
-
-					age::util::assign_n(
-						res.vertex_idx_span(b),
-						vertex_idx_arr[0],
-						vertex_idx_arr[1],
-						vertex_idx_arr[2],
-						vertex_idx_arr[3]);
-
-					age::util::assign_n(
-						res.edge_idx_span(b),
-						edge_idx_arr[0],
-						edge_idx_arr[1],
-						edge_idx_arr[2],
-						edge_idx_arr[3]);
-
-					for (c_auto v_idx : res.vertex_idx_span(b))
-					{
-						auto&  v_adj   = res.vertex_adj_vec[v_idx];
-						c_auto v2b_idx = v_adj.to_boundary_idx_offset + v_adj.to_boundary_idx_count;
-						c_auto v2f_idx = v_adj.to_face_idx_offset + v_adj.to_face_idx_count;
-
-						res.vertex_to_boundary_idx_vec[v2b_idx] = boundary_idx;
-						res.vertex_to_face_idx_vec[v2f_idx]		= face_idx;
-						++v_adj.to_boundary_idx_count;
-						++v_adj.to_face_idx_count;
-					}
-
-					for (c_auto e_idx : res.edge_idx_span(b))
-					{
-						auto& e = res.edge_vec[e_idx];
-
-						c_auto e2b_idx						  = e.to_boundary_idx_offset + e.to_boundary_idx_count;
-						c_auto e2f_idx						  = e.to_face_idx_offset + e.to_face_idx_count;
-						res.edge_to_boundary_idx_vec[e2b_idx] = boundary_idx;
-						res.edge_to_face_idx_vec[e2f_idx]	  = face_idx;
-
-						++e.to_boundary_idx_count;
-						++e.to_face_idx_count;
-					}
-				}
-			}
+			p = desc.pos + attr.normal * radius;
 		}
 
-		// calculate_normal(res, normal_calc_desc{ .calc_mode = normal_calc_desc::mode::angle });
-
-		calculate_tangent(res, tangent_calc_desc{});
-
-		if constexpr (age::config::debug_mode)
-		{
-			res.debug_validate();
-		}
+		// todo : reduce vertex
 
 		return res;
 	}
@@ -1169,5 +584,278 @@ namespace age::asset
 				}
 			}
 		}
+	}
+}	 // namespace age::asset
+
+namespace age::asset
+{
+	mesh_editable
+	merge(std::span<const mesh_editable> meshes) noexcept
+	{
+		mesh_editable result;
+
+		// reserve phase
+		{
+			struct sizes
+			{
+				size_t position{};
+				size_t vertex_attr{};
+				size_t vertex_adj{};
+				size_t vertex{};
+				size_t edge{};
+				size_t boundary{};
+				size_t face{};
+				size_t boundary_to_vertex{};
+				size_t boundary_to_edge{};
+				size_t boundary_to_face{};
+				size_t vertex_to_edge{};
+				size_t vertex_to_boundary{};
+				size_t vertex_to_face{};
+				size_t edge_to_boundary{};
+				size_t edge_to_face{};
+				size_t face_to_boundary{};
+				size_t vertex_to_edge_free{};
+				size_t vertex_to_boundary_free{};
+				size_t vertex_to_face_free{};
+				size_t edge_to_boundary_free{};
+				size_t edge_to_face_free{};
+				size_t boundary_to_vertex_free{};
+				size_t boundary_to_edge_free{};
+				size_t boundary_to_face_free{};
+				size_t face_to_boundary_free{};
+			} s;
+
+			for (c_auto& m : meshes)
+			{
+				s.position				  += m.position_vec.size();
+				s.vertex_attr			  += m.vertex_attr_vec.size();
+				s.vertex_adj			  += m.vertex_adj_vec.size();
+				s.vertex				  += m.vertex_vec.size();
+				s.edge					  += m.edge_vec.size();
+				s.boundary				  += m.boundary_vec.size();
+				s.face					  += m.face_vec.size();
+				s.boundary_to_vertex	  += m.boundary_to_vertex_idx_vec.size();
+				s.boundary_to_edge		  += m.boundary_to_edge_idx_vec.size();
+				s.boundary_to_face		  += m.boundary_to_face_idx_vec.size();
+				s.vertex_to_edge		  += m.vertex_to_edge_idx_vec.size();
+				s.vertex_to_boundary	  += m.vertex_to_boundary_idx_vec.size();
+				s.vertex_to_face		  += m.vertex_to_face_idx_vec.size();
+				s.edge_to_boundary		  += m.edge_to_boundary_idx_vec.size();
+				s.edge_to_face			  += m.edge_to_face_idx_vec.size();
+				s.face_to_boundary		  += m.face_to_boundary_idx_vec.size();
+				s.vertex_to_edge_free	  += m.vertex_to_edge_idx_free_range_vec.size();
+				s.vertex_to_boundary_free += m.vertex_to_boundary_free_range_vec.size();
+				s.vertex_to_face_free	  += m.vertex_to_face_free_range_vec.size();
+				s.edge_to_boundary_free	  += m.edge_to_boundary_idx_free_range_vec.size();
+				s.edge_to_face_free		  += m.edge_to_face_idx_free_range_vec.size();
+				s.boundary_to_vertex_free += m.boundary_to_vertex_free_range_vec.size();
+				s.boundary_to_edge_free	  += m.boundary_to_edge_free_range_vec.size();
+				s.boundary_to_face_free	  += m.boundary_to_face_free_range_vec.size();
+				s.face_to_boundary_free	  += m.face_to_boundary_idx_free_range_vec.size();
+			}
+
+			result.position_vec.reserve(s.position);
+			result.vertex_attr_vec.reserve(s.vertex_attr);
+			result.vertex_adj_vec.reserve(s.vertex_adj);
+			result.vertex_vec.reserve(s.vertex);
+			result.edge_vec.reserve(s.edge);
+			result.boundary_vec.reserve(s.boundary);
+			result.face_vec.reserve(s.face);
+			result.boundary_to_vertex_idx_vec.reserve(s.boundary_to_vertex);
+			result.boundary_to_edge_idx_vec.reserve(s.boundary_to_edge);
+			result.boundary_to_face_idx_vec.reserve(s.boundary_to_face);
+			result.vertex_to_edge_idx_vec.reserve(s.vertex_to_edge);
+			result.vertex_to_boundary_idx_vec.reserve(s.vertex_to_boundary);
+			result.vertex_to_face_idx_vec.reserve(s.vertex_to_face);
+			result.edge_to_boundary_idx_vec.reserve(s.edge_to_boundary);
+			result.edge_to_face_idx_vec.reserve(s.edge_to_face);
+			result.face_to_boundary_idx_vec.reserve(s.face_to_boundary);
+			result.vertex_to_edge_idx_free_range_vec.reserve(s.vertex_to_edge_free);
+			result.vertex_to_boundary_free_range_vec.reserve(s.vertex_to_boundary_free);
+			result.vertex_to_face_free_range_vec.reserve(s.vertex_to_face_free);
+			result.edge_to_boundary_idx_free_range_vec.reserve(s.edge_to_boundary_free);
+			result.edge_to_face_idx_free_range_vec.reserve(s.edge_to_face_free);
+			result.boundary_to_vertex_free_range_vec.reserve(s.boundary_to_vertex_free);
+			result.boundary_to_edge_free_range_vec.reserve(s.boundary_to_edge_free);
+			result.boundary_to_face_free_range_vec.reserve(s.boundary_to_face_free);
+			result.face_to_boundary_idx_free_range_vec.reserve(s.face_to_boundary_free);
+		}
+
+		struct base
+		{
+			uint32 position;
+			uint32 vertex_attr;
+			uint32 vertex_adj;
+			uint32 vertex;
+			uint32 edge;
+			uint32 boundary;
+			uint32 face;
+			uint32 boundary_to_vertex;
+			uint32 boundary_to_edge;
+			uint32 boundary_to_face;
+			uint32 vertex_to_edge;
+			uint32 vertex_to_boundary;
+			uint32 vertex_to_face;
+			uint32 edge_to_boundary;
+			uint32 edge_to_face;
+			uint32 face_to_boundary;
+		};
+
+		for (c_auto& m : meshes)
+		{
+			c_auto b = base{
+				.position			= result.position_vec.size<uint32>(),
+				.vertex_attr		= result.vertex_attr_vec.size<uint32>(),
+				.vertex_adj			= result.vertex_adj_vec.size<uint32>(),
+				.vertex				= result.vertex_vec.size<uint32>(),
+				.edge				= result.edge_vec.size<uint32>(),
+				.boundary			= result.boundary_vec.size<uint32>(),
+				.face				= result.face_vec.size<uint32>(),
+				.boundary_to_vertex = result.boundary_to_vertex_idx_vec.size<uint32>(),
+				.boundary_to_edge	= result.boundary_to_edge_idx_vec.size<uint32>(),
+				.boundary_to_face	= result.boundary_to_face_idx_vec.size<uint32>(),
+				.vertex_to_edge		= result.vertex_to_edge_idx_vec.size<uint32>(),
+				.vertex_to_boundary = result.vertex_to_boundary_idx_vec.size<uint32>(),
+				.vertex_to_face		= result.vertex_to_face_idx_vec.size<uint32>(),
+				.edge_to_boundary	= result.edge_to_boundary_idx_vec.size<uint32>(),
+				.edge_to_face		= result.edge_to_face_idx_vec.size<uint32>(),
+				.face_to_boundary	= result.face_to_boundary_idx_vec.size<uint32>(),
+			};
+
+			// raw data - no offset fixup
+			result.position_vec.append_range(m.position_vec);
+			result.vertex_attr_vec.append_range(m.vertex_attr_vec);
+
+			// vertex_adj - offset indirection vec offsets
+			for (auto adj : m.vertex_adj_vec)
+			{
+				adj.to_edge_idx_offset	   += b.vertex_to_edge;
+				adj.to_boundary_idx_offset += b.vertex_to_boundary;
+				adj.to_face_idx_offset	   += b.vertex_to_face;
+				result.vertex_adj_vec.emplace_back(adj);
+			}
+
+			// vertex - offset pos, attr, adj indices
+			for (auto v : m.vertex_vec)
+			{
+				v.pos_idx		 += b.position;
+				v.attribute_idx	 += b.vertex_attr;
+				v.vertex_adj_idx += b.vertex_adj;
+				result.vertex_vec.emplace_back(v);
+			}
+
+			// edge - offset vertex indices + indirection offsets
+			for (auto e : m.edge_vec)
+			{
+				e.v0_idx				 += b.vertex;
+				e.v1_idx				 += b.vertex;
+				e.to_boundary_idx_offset += b.edge_to_boundary;
+				e.to_face_idx_offset	 += b.edge_to_face;
+				result.edge_vec.emplace_back(e);
+			}
+
+			// boundary - offset indirection offsets
+			for (auto bd : m.boundary_vec)
+			{
+				bd.to_vertex_idx_offset += b.boundary_to_vertex;
+				bd.to_edge_idx_offset	+= b.boundary_to_edge;
+				bd.to_face_idx_offset	+= b.boundary_to_face;
+				result.boundary_vec.emplace_back(bd);
+			}
+
+			// face - offset boundary indirection offset
+			for (auto f : m.face_vec)
+			{
+				f.to_boundary_idx_offset += b.face_to_boundary;
+				result.face_vec.emplace_back(f);
+			}
+
+			// indirection vecs - values are indices into element vecs, offset accordingly
+			for (auto idx : m.vertex_to_edge_idx_vec)
+			{
+				result.vertex_to_edge_idx_vec.emplace_back(idx + b.edge);
+			}
+			for (auto idx : m.vertex_to_boundary_idx_vec)
+			{
+				result.vertex_to_boundary_idx_vec.emplace_back(idx + b.boundary);
+			}
+			for (auto idx : m.vertex_to_face_idx_vec)
+			{
+				result.vertex_to_face_idx_vec.emplace_back(idx + b.face);
+			}
+			for (auto idx : m.edge_to_boundary_idx_vec)
+			{
+				result.edge_to_boundary_idx_vec.emplace_back(idx + b.boundary);
+			}
+			for (auto idx : m.edge_to_face_idx_vec)
+			{
+				result.edge_to_face_idx_vec.emplace_back(idx + b.face);
+			}
+			for (auto idx : m.boundary_to_vertex_idx_vec)
+			{
+				result.boundary_to_vertex_idx_vec.emplace_back(idx + b.vertex);
+			}
+			for (auto idx : m.boundary_to_edge_idx_vec)
+			{
+				result.boundary_to_edge_idx_vec.emplace_back(idx + b.edge);
+			}
+			for (auto idx : m.boundary_to_face_idx_vec)
+			{
+				result.boundary_to_face_idx_vec.emplace_back(idx + b.face);
+			}
+			for (auto idx : m.face_to_boundary_idx_vec)
+			{
+				result.face_to_boundary_idx_vec.emplace_back(idx + b.boundary);
+			}
+
+			// free range vecs - offset accordingly
+			for (auto r : m.vertex_to_edge_idx_free_range_vec)
+			{
+				r.offset += b.vertex_to_edge;
+				result.vertex_to_edge_idx_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.vertex_to_boundary_free_range_vec)
+			{
+				r.offset += b.vertex_to_boundary;
+				result.vertex_to_boundary_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.vertex_to_face_free_range_vec)
+			{
+				r.offset += b.vertex_to_face;
+				result.vertex_to_face_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.edge_to_boundary_idx_free_range_vec)
+			{
+				r.offset += b.edge_to_boundary;
+				result.edge_to_boundary_idx_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.edge_to_face_idx_free_range_vec)
+			{
+				r.offset += b.edge_to_face;
+				result.edge_to_face_idx_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.boundary_to_vertex_free_range_vec)
+			{
+				r.offset += b.boundary_to_vertex;
+				result.boundary_to_vertex_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.boundary_to_edge_free_range_vec)
+			{
+				r.offset += b.boundary_to_edge;
+				result.boundary_to_edge_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.boundary_to_face_free_range_vec)
+			{
+				r.offset += b.boundary_to_face;
+				result.boundary_to_face_free_range_vec.emplace_back(r);
+			}
+			for (auto r : m.face_to_boundary_idx_free_range_vec)
+			{
+				r.offset += b.face_to_boundary;
+				result.face_to_boundary_idx_free_range_vec.emplace_back(r);
+			}
+		}
+
+		return result;
 	}
 }	 // namespace age::asset

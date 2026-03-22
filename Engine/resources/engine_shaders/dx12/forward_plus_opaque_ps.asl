@@ -349,6 +349,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// return float4(light_count / 4.f, 0, 0, 1);
 	// return float4(0, 0, shadow_count / 8.f, 1);
 
-	// return float4(normal, 1.f);
+	// return float4(surface_normal, 1.f);
+
+	// return float4(fragment.uv0, 0, 1.f);
 	return float4(lighting * albedo, 1.0f);
 }

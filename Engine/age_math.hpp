@@ -1718,4 +1718,11 @@ namespace age::inline math::g
 	inline constexpr auto degree_to_radian = pi / 180.f;
 	inline constexpr auto radian_to_degree = 180.f / pi;
 
+	inline const auto forward  = float3{ +0.f, +0.f, +1.f };
+	inline const auto backward = float3{ +0.f, +0.f, -1.f };
+	inline const auto up	   = float3{ +0.f, +1.f, +0.f };
+	inline const auto down	   = float3{ +0.f, -1.f, +0.f };
+	inline const auto right	   = float3{ +1.f, +0.f, +0.f };
+	inline const auto left	   = float3{ -1.f, +0.f, +0.f };
+
 }	 // namespace age::inline math::g

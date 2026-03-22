@@ -350,6 +350,16 @@ namespace age::asset
 			AGE_ASSERT(idx < m.vertex_vec.size());
 		}
 
+		// for (auto [nth, chunk] : m.v_idx_vec | std::views::chunk(3) | std::views::enumerate)
+		//{
+		//	std::println("face {}", nth);
+
+		//	for (auto v : chunk)
+		//	{
+		//		std::println("{}", m.vertex_vec[v].pos);
+		//	}
+		//}
+
 		auto&& [index_buffer, vertex_buffer] = external::meshopt::gen_remap(m.v_idx_vec, m.vertex_vec);
 
 		external::meshopt::opt_reorder_buffers(index_buffer, vertex_buffer);

@@ -76,6 +76,9 @@ namespace age::asset
 			uint32 to_boundary_idx_offset;
 			uint32 to_boundary_idx_count;
 
+			float3 u_basis;
+			float3 v_basis;
+
 			// bake_flags bake_flag{ bake_flags::front_outer | bake_flags::back_outer | bake_flags::front_hole | bake_flags::back_hole };
 
 		  public:
@@ -429,4 +432,7 @@ namespace age::asset
 		void
 		debug_validate() const noexcept;
 	};
+
+	mesh_editable
+	merge(std::span<const mesh_editable> _) noexcept;
 }	 // namespace age::asset

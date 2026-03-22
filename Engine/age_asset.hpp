@@ -149,6 +149,7 @@ namespace age::asset
 {
 	struct primitive_desc
 	{
+		float3				   pos{ 0, 0, 0 };
 		float3				   size{ 1.f, 1.f, 1.f };
 		uint32				   seg_u{ 1 };
 		uint32				   seg_v{ 1 };
