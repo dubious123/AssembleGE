@@ -23,14 +23,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::b<1, 0>>,
 
 		binding_slot<
-			"indirect_arg",
-			D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::constant_buffer_array<shared_type::indirect_arg_constants>,
-			how::root_constant,
-			where::b<2, 0>>,
-
-		binding_slot<
 			"static_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,

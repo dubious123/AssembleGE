@@ -144,8 +144,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::set_pso(p_depth_reduce_pso);
 		command::dispatch(
-			(width + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
-			(height + SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT - 1) / SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT,
+			(width + g::shadow_depth_reduce_thread_count - 1) / g::shadow_depth_reduce_thread_count,
+			(height + g::shadow_depth_reduce_thread_count - 1) / g::shadow_depth_reduce_thread_count,
 			1);
 
 		command::apply_barriers(barrier::buf_uav_to_uav(h_shadow_stage_buffer->p_resource));
@@ -278,7 +278,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
 
 		command::set_pso(p_pso_cull);
-		command::dispatch((g::max_sort_count + g::light_cull_cs_thread_count - 1) / g::light_cull_cs_thread_count, 1, 1);
+		command::dispatch((g::max_sort_count + g::light_cull_thread_count - 1) / g::light_cull_thread_count, 1, 1);
 
 		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
 

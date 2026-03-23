@@ -335,15 +335,6 @@ uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 uint32 radix_sort_pass;
 uint32 shadow_light_index;	  // shadow mapping
 
-
-// cbuffer indirect_arg_constants reg(b2)
-
-// transparent
-// arg0 : object_id
-// arg1 : mesh_byte_offset
-uint32 arg0;
-uint32 arg1;
-
 #endif
 
 uint32

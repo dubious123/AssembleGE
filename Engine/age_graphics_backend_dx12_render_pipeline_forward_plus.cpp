@@ -44,13 +44,13 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	= true });
 
 			h_scratch_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SCRATCH_BUFFER_TOTAL_SIZE),
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::scratch_buffer_total_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
 			h_shadow_stage_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(SHADOW_STAGE_BUFFER_SIZE),
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::shadow_stage_buffer_size),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
@@ -345,7 +345,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = RT_MASK_OPAQUE,
+			.InstanceMask						 = std::to_underlying(e::rt_mask::opaque),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -376,7 +376,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = RT_MASK_TRANSPARENT,
+			.InstanceMask						 = std::to_underlying(e::rt_mask::transparent),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -508,7 +508,7 @@ namespace age::graphics::render_pipeline::forward_plus
 							  defaults::uav_view_desc::tex2d(DXGI_FORMAT_R16G16B16A16_FLOAT));
 
 		h_light_cull_stage_buffer = resource::create_committed(
-			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(LIGHT_CULL_TILE_MASK_OFFSET + sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::light_cull_tile_mask_offset + sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
 			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 			  .heap_memory_kind	   = e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });

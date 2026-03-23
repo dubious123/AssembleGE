@@ -202,7 +202,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		// global
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
-		binding_config_t::reg_b<2, 0> indirect_arg;
 
 		binding_config_t::reg_t<0, 0> static_ring_buffer;
 		binding_config_t::reg_t<1, 0> mesh_data_buffer;
