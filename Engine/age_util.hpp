@@ -259,6 +259,15 @@ namespace age::util
 
 namespace age::util
 {
+	struct range
+	{
+		uint32 offset;
+		uint32 count;
+	};
+}	 // namespace age::util
+
+namespace age::util
+{
 	template <typename t>
 	struct setter
 	{

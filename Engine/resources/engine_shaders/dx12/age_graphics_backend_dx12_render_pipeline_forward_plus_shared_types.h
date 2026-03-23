@@ -117,6 +117,12 @@
 #define RT_MASK_TRANSPARENT 0x02
 #define RT_MASK_ALL			0xff
 
+// ui
+#define UI_SHAPE_KIND_RECT	 0
+#define UI_SHAPE_KIND_CIRCLE 1
+
+#define UI_BRUSH_KIND_COLOR 0
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -124,7 +130,7 @@
 	#define reg(...)
 	#define cbuffer struct
 	#define row_major
-	#define sys_val(...)
+	#define semantics(...)
 
 namespace age::graphics::render_pipeline::forward_plus
 {
@@ -136,6 +142,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
 	using t_shadow_light_id		 = uint16;
+	using t_ui_id				 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -143,6 +150,38 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
 #endif
+	//---[ ui ]------------------------------------------------------------
+	struct ui_shape_data
+	{
+		uint32_4 data;				 // TBD, corner radius, circle radius, ...
+	};
+
+	struct ui_brush_data
+	{
+		uint32_4 data;				 // TBD, texture_id, static_color, calculate from shadow with delta time...
+	};
+
+	struct ui_data
+	{
+		float2 pivot_pos;			 // screen pos of pivot
+		float2 pivot_uv;
+		float2 size;				 // pixel size
+		float  rotation;			 // z rotation, radian
+		float  border_thickness;
+
+		uint32 shape_kind;			 // 1. rect, 2. rounded_rect, 3. circle, 4. star??? ...
+
+		ui_shape_data shape_data;
+
+		uint32 body_brush_kind;		 // 1. texture_id, 2. color, 3. generated from uv, ...
+
+		ui_brush_data body_brush_data;
+
+		uint32 border_brush_kind;	 // 1. texture_id, 2. color, 3. generated from uv, ...
+
+		ui_brush_data border_brush_data;
+	};
+
 	struct light_cull_data
 	{
 		uint32 not_culled_light_count;
@@ -220,22 +259,22 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct vertex_decoded
 	{
-		float4 pos	   sys_val(SV_Position);
-		float3 normal  sys_val(NORMAL);
-		float4 tangent sys_val(TANGENT);
+		float4 pos	   semantics(SV_Position);
+		float3 normal  semantics(NORMAL);
+		float4 tangent semantics(TANGENT);
 
 		// clang-format off
 #if UV_COUNT >= 1
-		half2 uv0 sys_val(TEXCOORD0);
+		half2 uv0 semantics(TEXCOORD0);
 #endif
 #if UV_COUNT >= 2
-		half2 uv1 sys_val(TEXCOORD1);
+		half2 uv1 semantics(TEXCOORD1);
 #endif
 #if UV_COUNT >= 3
-		half2 uv2 sys_val(TEXCOORD2);
+		half2 uv2 semantics(TEXCOORD2);
 #endif
 #if UV_COUNT >= 4
-		half2 uv3 sys_val(TEXCOORD3);
+		half2 uv3 semantics(TEXCOORD3);
 #endif
 		// clang-format on
 	};
@@ -298,15 +337,15 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
 		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
 
-		uint32_4 extra[13];											//
-																	// total: 256 * 2 bytes
+		uint32_4 extra[13];
+		// total: 256 * 2 bytes
 	};
 
 	cbuffer root_constants reg(b1)
 	{
-		uint32			   opaque_meshlet_render_data_count;		// 4 bytes
-		uint32			   directional_light_count_and_extra;		// 4 bytes
-		t_unified_light_id unified_light_count;						// 4 btyes
+		uint32			   opaque_meshlet_render_data_count;	 // 4 bytes
+		uint32			   directional_light_count_and_extra;	 // 4 bytes
+		t_unified_light_id unified_light_count;					 // 4 btyes
 		// uint32			   transparent_object_render_data_count;
 
 		uint32 light_tile_count_x;
@@ -317,6 +356,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
 		uint32 shadow_light_index;	  // shadow mapping
+		uint32 ui_data_id_offset;
+		uint32 ui_data_count;
 	};
 
 
@@ -379,6 +420,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 shadow_atlas_width				 = SHADOW_ATLAS_WIDTH;
 	inline constexpr uint32 shadow_atlas_height				 = SHADOW_ATLAS_HEIGHT;
 
+	// ui
+	inline constexpr auto max_ui_z_count = 128;
+
 
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
 	static_assert(MAX_SORT_COUNT % SORT_THREAD_COUNT == 0);
@@ -392,7 +436,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef reg
 	#undef cbuffer
 	#undef row_major
-	#undef sys_val
+	#undef semantics
 
 	#undef UV_COUNT
 
@@ -403,7 +447,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MAX_LIGHT_COUNT
 
 	// shadow
-	#undef SHADOW_CS_DEPTH_REDUCE_THREAD_COUNT
+	#undef SHADOW_DEPTH_REDUCE_THREAD_COUNT
 
 	#undef SHADOW_MAP_WIDTH
 	#undef SHADOW_MAP_HEIGHT
@@ -510,6 +554,11 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef RT_MASK_OPAQUE
 	#undef RT_MASK_TRANSPARENT
 	#undef RT_MASK_ALL
+
+	#undef UI_SHAPE_KIND_RECT
+	#undef UI_SHAPE_KIND_CIRCLE
+
+	#undef UI_BRUSH_KIND_COLOR
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

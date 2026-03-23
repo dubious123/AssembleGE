@@ -32,7 +32,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
 			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(1024);
 
-			h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
+			h_mapping_ui_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(1024);
+
 
 			h_shadow_atlas = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(g::shadow_atlas_width, g::shadow_atlas_height),
@@ -104,6 +105,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
 
 			rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
+
+			ui_data_buffer.bind_array(h_mapping_ui_data_buffer_arr);
 		}
 
 		{
@@ -131,6 +134,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_transparent.init(h_root_sig);
 			stage_transparent.bind_rtv(h_main_buffer);
 
+			stage_ui.init(h_root_sig);
+			stage_ui.bind_rtv(h_main_buffer);
+
 			stage_presentation.init(h_root_sig);
 		}
 
@@ -151,12 +157,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
 		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
-
 		h_rt_tlas_buffer->set_name(L"rt_tlas_buffer");
 		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
+		h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
 
 		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
 		resource::set_name(h_mapping_rt_instance_render_data_buffer_arr, L"mapping_rt_instance_render_data_buffer_arr[{}]");
+		resource::set_name(h_mapping_ui_data_buffer_arr, L"mapping_ui_data_buffer_arr[{}]");
 	}
 
 	void
@@ -177,8 +184,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
+		ui_data_flat_vec.clear();
+		ui_data_z_range_vec.clear();
 
 		stage_presentation.deinit();
+		stage_ui.deinit();
 		stage_transparent.deinit();
 		stage_opaque.deinit();
 		stage_light_culling.deinit();
@@ -196,19 +206,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// static
 		resource::unmap_and_release(h_mapping_static_ring_buffer_arr);
-
 		resource::unmap_and_release(h_mapping_frame_data);
-
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
 		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
+		resource::unmap_and_release(h_mapping_ui_data_buffer_arr);
 
 
 		resource::release(h_main_buffer);
 		resource::release(h_depth_buffer);
-
 		resource::release(h_scratch_buffer);
-
 		resource::release(h_light_cull_stage_buffer);
 
 
@@ -242,6 +249,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		object_transform_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
+
+		for (auto& vec : ui_data_vec)
+		{
+			vec.clear();
+		}
 	}
 
 	bool
@@ -266,6 +278,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
+		ui_data_flat_vec.clear();
+		ui_data_z_range_vec.clear();
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
@@ -279,6 +293,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			stage_depth.bind_dsv(h_depth_buffer);
 			stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 			stage_transparent.bind_rtv(h_main_buffer);
+			stage_ui.bind_rtv(h_main_buffer);
 		}
 
 		command::begin_frame(e::queue_kind::direct);
@@ -304,6 +319,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			rt_instance_render_data_buffer_srv.apply_compute();
 			rt_index_buffer_srv.apply_compute();
+
+			ui_data_buffer.apply();
 		}
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -448,6 +465,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		shadow_stage_shadow_light_buffer_srv.apply_compute();
 		shadow_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_rt_transparent_texture_buffer, extent);
+
+		stage_ui.execute(ui_data_z_range_vec);
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -1029,7 +1048,93 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		id = age::get_invalid_id<t_unified_light_id>();
 	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
 
+// ui
+namespace age::graphics::render_pipeline::forward_plus
+{
+	namespace detail
+	{
+		void
+		fill_brush_data(shared_type::ui_brush_data& dst, const ui_desc_brush_data& src, ui::e::brush_kind kind) noexcept
+		{
+			switch (kind)
+			{
+			case age::ui::e::brush_kind::color:
+			{
+				dst.data.x = std::bit_cast<uint32>(src.color.value.x);
+				dst.data.y = std::bit_cast<uint32>(src.color.value.y);
+				dst.data.z = std::bit_cast<uint32>(src.color.value.z);
+				return;
+			}
+			default:
+			{
+				AGE_UNREACHABLE();
+			}
+			}
+		}
+	}	 // namespace detail
+
+	t_ui_id
+	pipeline::add_ui(const ui_desc& desc) noexcept
+	{
+		AGE_ASSERT(desc.z_order < g::max_ui_z_count);
+
+		c_auto id = static_cast<t_ui_id>(ui_header_vec.emplace_back(
+			ui_header{
+				.idx	 = ui_data_vec[desc.z_order].emplace_back(),
+				.z_order = desc.z_order }));
+
+		update_ui(id, desc);
+
+		return id;
+	}
+
+	void
+	pipeline::update_ui(t_ui_id id, const ui_desc& desc) noexcept
+	{
+		auto& header = ui_header_vec[id];
+
+		auto data = shared_type::ui_data{
+			.pivot_pos		   = desc.pivot_pos,
+			.pivot_uv		   = desc.pivot_uv,
+			.size			   = desc.size,
+			.rotation		   = desc.rotation,
+			.border_thickness  = desc.border_thickness,
+			.shape_kind		   = std::to_underlying(desc.shape_kind),
+			.body_brush_kind   = std::to_underlying(desc.body_brush_kind),
+			.border_brush_kind = std::to_underlying(desc.border_brush_kind),
+		};
+
+		detail::fill_brush_data(data.body_brush_data, desc.body_brush_data, desc.body_brush_kind);
+		detail::fill_brush_data(data.border_brush_data, desc.border_brush_data, desc.border_brush_kind);
+
+		if (desc.z_order != header.z_order)
+		{
+			ui_data_vec[header.z_order].remove(header.idx);
+			header.idx	   = ui_data_vec[desc.z_order].emplace_back(data);
+			header.z_order = desc.z_order;
+		}
+		else
+		{
+			ui_data_vec[header.z_order][header.idx] = data;
+		}
+	}
+
+	void
+	pipeline::remove_ui(t_ui_id& id) noexcept
+	{
+		auto& header = ui_header_vec[id];
+
+		ui_data_vec[header.z_order].remove(header.idx);
+		ui_header_vec.remove(id);
+
+		id = age::get_invalid_id<t_ui_id>();
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus
+{
 	uint32
 	pipeline::upload_data() noexcept
 	{
@@ -1127,6 +1232,33 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_static_buffer->upload(src_arr.data(), sizeof(shared_type::shadow_light_header) * shadow_light_header_count, g::shadow_light_header_offset);
 		}
+
+		// ui
+
+		{
+			auto& h_mapping_ui_data_buffer = h_mapping_ui_data_buffer_arr[graphics::g::frame_buffer_idx];
+			AGE_ASSERT(ui_data_flat_vec.is_empty());
+			AGE_ASSERT(ui_data_z_range_vec.is_empty());
+
+			uint32 offset = 0;
+			for (auto& vec : ui_data_vec)
+			{
+				if (vec.is_empty())
+				{
+					continue;
+				}
+
+				ui_data_flat_vec.append_range(vec);
+				ui_data_z_range_vec.emplace_back(util::range{ .offset = offset, .count = vec.size<uint32>() });
+
+				offset += vec.size<uint32>();
+			}
+
+			resource::resize_buffer(h_mapping_ui_data_buffer, ui_data_flat_vec.byte_size<uint32>());
+
+			h_mapping_ui_data_buffer->upload(ui_data_flat_vec.data(), ui_data_flat_vec.byte_size<uint32>());
+		}
+
 
 		c_auto& cam_desc = camera_desc_vec[0];
 		root_constants.bind(shared_type::root_constants{

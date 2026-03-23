@@ -296,6 +296,15 @@ load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
 		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 2]);
 }
 
+// ui
+structured_buffer<ui_data> ui_data_buffer reg(t0, space4);
+
+ui_data
+load_ui_data(uint32 ui_data_id)
+{
+	return ui_data_buffer[ui_data_id];
+}
+
 // sampler
 sampler_state	  linear_clamp_sampler reg(s0);
 sampler_cmp_state shadow_sampler reg(s1);
@@ -335,6 +344,8 @@ uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 uint32 radix_sort_pass;
 uint32 shadow_light_index;	  // shadow mapping
 
+uint32 ui_data_id_offset;
+uint32 ui_data_count;
 #endif
 
 uint32
@@ -526,22 +537,22 @@ struct opaque_as_to_ms
 struct opaque_ms_to_ps
 {
 	float4 pos		 sv_position;
-	float3 world_pos sys_val(WORLD_POS);
-	float3 normal	 sys_val(NORMAL);
+	float3 world_pos semantics(WORLD_POS);
+	float3 normal	 semantics(NORMAL);
 	// nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
-	float4 tangent sys_val(TANGENT);
+	float4 tangent semantics(TANGENT);
 
 #if UV_COUNT >= 1
-	half2 uv0 sys_val(TEXCOORD0);
+	half2 uv0 semantics(TEXCOORD0);
 #endif
 #if UV_COUNT >= 2
-	half2 uv1 sys_val(TEXCOORD1);
+	half2 uv1 semantics(TEXCOORD1);
 #endif
 #if UV_COUNT >= 3
-	half2 uv2 sys_val(TEXCOORD2);
+	half2 uv2 semantics(TEXCOORD2);
 #endif
 #if UV_COUNT >= 4
-	half2 uv3 sys_val(TEXCOORD3);
+	half2 uv3 semantics(TEXCOORD3);
 #endif
 };
 
@@ -549,7 +560,7 @@ struct opaque_ms_to_ps
 struct tile_mask_ms_to_ps
 {
 	float4 pos						 sv_position;
-	nointerpolation uint32 sorted_id sys_val(SORTED_ID);
+	nointerpolation uint32 sorted_id semantics(SORTED_ID);
 };
 
 // presentation
@@ -561,3 +572,5 @@ struct presentation_ps_out
 
 #line 1 "age_light.asli"
 #include "age_light.asli"
+#line 1 "age_ui.asli"
+#include "age_ui.asli"

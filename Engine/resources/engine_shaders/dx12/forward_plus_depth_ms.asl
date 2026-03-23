@@ -2,15 +2,17 @@
 
 struct depth_ms_out
 {
-	float4 pos sys_val(SV_Position);
+	float4 pos sv_position;
 };
 
 [numthreads(32, 1, 1)][output_topology("triangle")] void
 main_ms(in payload opaque_as_to_ms ms_in,
-		uint32_3				   group_id sv_group_id,
-		uint32_3				   group_thread_id sv_group_thread_id,
+		uint32_3 group_id		   sv_group_id,
+		uint32_3 group_thread_id   sv_group_thread_id,
 		out vertices depth_ms_out  ms_out_vertex_arr[64],
-		out indices uint32_3	   ms_out_triangle_arr[126]) {
+		out indices uint32_3	   ms_out_triangle_arr[126])
+
+{
 	const uint32 meshlet_count_per_group			= 32;
 	const uint32 not_culled_render_data_local_index = select32_nth_set_bit(ms_in.meshlet_alive_mask, group_id.x);
 	const uint32 meshlet_render_data_id				= ms_in.meshlet_32_group_idx * meshlet_count_per_group + not_culled_render_data_local_index;

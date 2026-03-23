@@ -13,6 +13,7 @@ namespace age_demo::scene_2
 		AGE_GET(point_light_id_vec, scene_2_ctx.point_light_id_vec)
 		AGE_GET(spot_light_id_vec, scene_2_ctx.spot_light_id_vec)
 		AGE_GET(directional_light_id_vec, scene_2_ctx.directional_light_id_vec)
+		AGE_GET(ui_id_vec, scene_2_ctx.ui_id_vec)
 
 		AGE_SET(euler_x, scene_2_ctx.input.euler_x)
 		AGE_SET(euler_y, scene_2_ctx.input.euler_y)
@@ -59,5 +60,6 @@ namespace age_demo::scene_2
 		AGE_GET(point_light_id_vec, scene_2_ctx.point_light_id_vec)
 		AGE_GET(spot_light_id_vec, scene_2_ctx.spot_light_id_vec)
 		AGE_GET(directional_light_id_vec, scene_2_ctx.directional_light_id_vec)
+		AGE_GET(ui_id_vec, scene_2_ctx.ui_id_vec)
 	} i_deinit;
 }	 // namespace age_demo::scene_2

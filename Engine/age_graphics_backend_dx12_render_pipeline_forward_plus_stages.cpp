@@ -338,15 +338,11 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		using namespace graphics::pso;
 
-		auto as_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_as) });
-		auto ms_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_ms) });
-		auto ps_byte_code = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_ps) });
-
 		h_pso = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_as{ .subobj = as_byte_code },
-			pss_ms{ .subobj = ms_byte_code },
-			pss_ps{ .subobj = ps_byte_code },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_as) }) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_ms) }) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_opaque_ps) }) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
@@ -480,6 +476,76 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		pso::destroy(h_pso_rt);
 		pso::destroy(h_pso_draw);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+// stage opaque
+namespace age::graphics::render_pipeline::forward_plus
+{
+	inline void
+	ui_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_ui_ms) }) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_ui_ps) }) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso = graphics::g::pso_ptr_vec[h_pso];
+
+		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
+	}
+
+	inline void
+	ui_stage::bind_rtv(graphics::resource_handle h_main_buffer) noexcept
+	{
+		resource::create_view(h_main_buffer,
+							  h_main_buffer_rtv_desc,
+							  defaults::rtv_view_desc::hdr_rgba16_2d);
+	}
+
+	inline void
+	ui_stage::execute(const age::vector<util::range>& ui_data_z_range_vec) noexcept
+	{
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		{
+			command::set_pso(p_pso);
+
+			for (auto z_range : ui_data_z_range_vec)
+			{
+				command::set_graphics_root_constants(
+					binding_config_t::reg_b<1>::slot_id,
+					static_cast<uint32>(sizeof(z_range) / 4),
+					&z_range,
+					static_cast<uint32>(offsetof(shared_type::root_constants, ui_data_id_offset) / 4));
+
+				command::dispatch_mesh((z_range.count + 31u) / 32u, 1, 1);
+			}
+		}
+
+		command::end_render_pass();
+	}
+
+	inline void
+	ui_stage::deinit() noexcept
+	{
+		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
+
+		pso::destroy(h_pso);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

@@ -1,6 +1,8 @@
 #pragma once
 #define AGE_SHADER
 
+#define is_false == false
+
 #ifdef __INTELLISENSE__
 	#include "../../../age.hpp"
 
@@ -669,6 +671,8 @@ cross(float3, float3)
 	#define sv_group_thread_id
 	#define sv_position
 	#define sv_target_0
+	#define tex_coord_0
+	#define tex_coord_1
 	#define sv_is_front_face
 	#define numthreads(x, y, z) [force_inline]
 
@@ -676,7 +680,7 @@ cross(float3, float3)
 	#define reg(...)
 	#define cbuffer struct
 	#define row_major
-	#define sys_val(...)
+	#define semantics(...)
 	#define output_topology(x) [force_inline]
 	#define nointerpolation
 	#define in
@@ -741,9 +745,12 @@ cross(float3, float3)
 	#define sv_group_thread_id : SV_GroupThreadID
 	#define sv_is_front_face : SV_IsFrontFace
 
+	#define tex_coord_0 : tex_coord_0
+	#define tex_coord_1 : tex_coord_1
+
 
 	#define reg(...) : register(__VA_ARGS__)
-	#define sys_val(x) : x
+	#define semantics(x) : x
 	#define output_topology(x)				 outputtopology(x)
 	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
 	#define expand(x)						 [unroll(x)]

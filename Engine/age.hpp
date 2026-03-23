@@ -43,6 +43,8 @@ namespace age
 
 	namespace platform {}
 
+	namespace ui {}
+
 	namespace graphics {}
 
 	namespace graphics::render_pipeline::forward_plus {}
@@ -134,6 +136,8 @@ namespace age
 #if defined AGE_PLATFORM_WINDOW
 	#include "age_platform_backend_window.hpp"
 #endif
+
+#include "age_ui.hpp"
 
 #include "age_graphics.hpp"
 

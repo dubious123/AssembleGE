@@ -128,6 +128,12 @@ rotate(float3 v, float4 q)
 	return v + q.w * t + cross(q.xyz, t);
 }
 
+float2
+rotate(float2 v, float radian)
+{
+	return float2((v.x * cos(radian) - v.y * sin(radian)), v.x * sin(radian) + v.y * cos(radian));
+}
+
 float3
 decode_oct_snorm(const uint16 oct)
 {

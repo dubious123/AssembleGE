@@ -1,0 +1,56 @@
+#include "forward_plus_common.asli"
+
+float4
+main_ps(ui_ms_to_ps ps_in) sv_target_0
+{
+	const ui_data data = load_ui_data(ps_in.ui_data_id);
+
+	const float2 px_offset	   = ps_in.pos.xy - data.pivot_pos;
+	const float2 px_rotated	   = rotate(px_offset, -data.rotation);
+	const float2 center_offset = px_rotated - (float2(0.5f, 0.5f) - data.pivot_uv) * data.size;
+
+	float  delta_from_edge = 0.f;
+	float3 body_color	   = float3(1, 1, 1);
+	float3 border_color	   = float3(1, 1, 1);
+
+	switch (data.shape_kind)
+	{
+	case UI_SHAPE_KIND_RECT:
+	{
+		delta_from_edge = ui_calc_shape_rect(center_offset, data.size, data.shape_data);
+		break;
+	}
+	case UI_SHAPE_KIND_CIRCLE:
+	{
+		delta_from_edge = ui_calc_shape_circle(center_offset, data.size, data.shape_data);
+		break;
+	}
+	}
+
+	switch (data.body_brush_kind)
+	{
+	case UI_BRUSH_KIND_COLOR:
+	{
+		body_color = ui_calc_brush_color(ps_in.rect_uv, data.body_brush_data);
+		break;
+	}
+	}
+
+	switch (data.border_brush_kind)
+	{
+	case UI_BRUSH_KIND_COLOR:
+	{
+		border_color = ui_calc_brush_color(ps_in.rect_uv, data.border_brush_data);
+		break;
+	}
+	}
+
+
+	// 0 ~ -border + 1 : border
+	// -border + 1 ~ -border - 1 : lerp
+	// -border - 1 ~ 0 : body
+	float outer_alpha = 1.0 - smoothstep(-1.0, 1.0, delta_from_edge);
+	float inner_alpha = 1.0 - smoothstep(-1.0, 1.0, delta_from_edge + data.border_thickness);
+
+	return float4(lerp(border_color, body_color, inner_alpha), outer_alpha);
+}

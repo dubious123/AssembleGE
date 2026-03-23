@@ -139,6 +139,26 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct ui_stage
+	{
+		pso::handle			 h_pso = {};
+		ID3D12PipelineState* p_pso = nullptr;
+
+		rtv_desc_handle h_main_buffer_rtv_desc;
+
+		inline void
+		init(root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
+
+		inline void
+		execute(const age::vector<util::range>&) noexcept;
+
+		inline void
+		deinit() noexcept;
+	};
+
 	struct presentation_stage
 	{
 		pso::handle			 h_pso = {};
@@ -164,6 +184,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
 		transparent_stage	stage_transparent;
+		ui_stage			stage_ui;
 		presentation_stage	stage_presentation;
 
 		resource_handle h_main_buffer;
@@ -178,11 +199,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_light_cull_stage_sorted_light_buffer;
 
 
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_static_ring_buffer_arr;
+
+
 		mapping_handle h_mapping_frame_data;
 		mapping_handle h_mapping_mesh_buffer;
-
-
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_static_ring_buffer_arr;
+		mapping_handle h_mapping_rt_index_buffer;
+		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 
 
 		// rt, not for binding
@@ -190,8 +213,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 
-		mapping_handle												h_mapping_rt_index_buffer;
-		mapping_handle												h_mapping_rt_vertex_scratch_buffer;
 		rt::blas_buffer_handle										h_rt_blas_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
@@ -219,6 +240,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<0, 2> shadow_stage_buffer_uav;
 		binding_config_t::reg_t<1, 2> shadow_stage_shadow_light_buffer_srv;
 		binding_config_t::reg_u<1, 2> shadow_stage_shadow_light_buffer_uav;
+
+		// ui
+		binding_config_t::reg_t<0, 4>								ui_data_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
+
+		age::stable_dense_vector<ui_header>			   ui_header_vec;
+		age::stable_dense_vector<shared_type::ui_data> ui_data_vec[g::max_ui_z_count];
+		age::vector<shared_type::ui_data>			   ui_data_flat_vec;	   // scratch
+		age::vector<util::range>					   ui_data_z_range_vec;	   // scratch
 
 		// rt
 		binding_config_t::reg_t<0, 3> rt_instance_render_data_buffer_srv;
@@ -346,6 +376,17 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		remove_spot_light(t_unified_light_id& id) noexcept;
+
+		// ui
+		t_ui_id
+		add_ui(const ui_desc&) noexcept;
+
+		void
+		update_ui(t_ui_id, const ui_desc&) noexcept;
+
+		void
+		remove_ui(t_ui_id&) noexcept;
+
 
 	  private:
 		void

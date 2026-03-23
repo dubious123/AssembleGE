@@ -142,6 +142,9 @@ namespace age_demo::scene_2
 		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
 			directional_light_id_vec;
 
+		age::vector<age::graphics::render_pipeline::forward_plus::t_ui_id>
+			ui_id_vec;
+
 		// input
 		struct
 		{

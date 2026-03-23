@@ -314,6 +314,12 @@ namespace age::inline data_structure
 			return count == 0;
 		}
 
+		FORCE_INLINE constexpr bool
+		is_empty() const noexcept
+		{
+			return count == 0;
+		}
+
 		FORCE_INLINE constexpr iterator
 		begin() noexcept
 		{

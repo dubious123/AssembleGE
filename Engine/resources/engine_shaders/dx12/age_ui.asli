@@ -1,0 +1,63 @@
+#pragma once
+#include "age.asli"
+
+struct ui_ms_to_ps
+{
+	float4 pos	   sv_position;
+	float2 rect_uv semantics(rect_uv);
+
+	nointerpolation
+		uint32 ui_data_id semantics(ui_data_id);
+};
+
+// SDF functions based on work by Inigo Quilez
+// https://iquilezles.org/articles
+// Licensed under the MIT License
+// Copyright (c) Inigo Quilez
+
+// sdf
+float
+sdf_rect(float2 pos, float2 size)
+{
+	const float2 delta_from_corner = abs(pos) - size * 0.5;
+	const float	 delta_from_edge   = length(max(delta_from_corner, 0.0)) + min(max(delta_from_corner.x, delta_from_corner.y), 0.0);
+
+	return delta_from_edge;
+}
+
+float
+sdf_circle(float2 pos, float radius)
+{
+	return length(pos) - radius;
+}
+
+float
+sdf_round(float delta_from_edge, float round)
+{
+	return delta_from_edge - round;
+}
+
+float
+sdf_onion(float delta_from_edge, float round)
+{
+	return abs(delta_from_edge) - round;
+}
+
+float
+ui_calc_shape_rect(float2 center_offset, float2 size, ui_shape_data data)
+{
+	return sdf_rect(center_offset, size);
+}
+
+float
+ui_calc_shape_circle(float2 center_offset, float2 size, ui_shape_data data)
+{
+	return sdf_circle(center_offset, min(size.x, size.y) * 0.5);
+}
+
+// brush
+float3
+ui_calc_brush_color(float2 rect_uv, ui_brush_data data)
+{
+	return float3(as_float(data.data.x), as_float(data.data.y), as_float(data.data.z));
+}

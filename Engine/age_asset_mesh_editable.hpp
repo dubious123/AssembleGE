@@ -13,12 +13,6 @@ namespace age::asset
 {
 	struct mesh_editable
 	{
-		struct range
-		{
-			uint32 offset;
-			uint32 count;
-		};
-
 		struct vertex_attribute
 		{
 			float3							  normal;	  // normalized
@@ -117,32 +111,32 @@ namespace age::asset
 		data_structure::vector<boundary> boundary_vec{};
 		data_structure::vector<face>	 face_vec{};
 
-		data_structure::vector<uint32> vertex_to_edge_idx_vec{};
-		data_structure::vector<range>  vertex_to_edge_idx_free_range_vec{};
+		data_structure::vector<uint32>		vertex_to_edge_idx_vec{};
+		data_structure::vector<util::range> vertex_to_edge_idx_free_range_vec{};
 
-		data_structure::vector<uint32> vertex_to_boundary_idx_vec{};
-		data_structure::vector<range>  vertex_to_boundary_free_range_vec{};
+		data_structure::vector<uint32>		vertex_to_boundary_idx_vec{};
+		data_structure::vector<util::range> vertex_to_boundary_free_range_vec{};
 
-		data_structure::vector<uint32> vertex_to_face_idx_vec{};
-		data_structure::vector<range>  vertex_to_face_free_range_vec{};
+		data_structure::vector<uint32>		vertex_to_face_idx_vec{};
+		data_structure::vector<util::range> vertex_to_face_free_range_vec{};
 
-		data_structure::vector<uint32> edge_to_boundary_idx_vec{};
-		data_structure::vector<range>  edge_to_boundary_idx_free_range_vec{};
+		data_structure::vector<uint32>		edge_to_boundary_idx_vec{};
+		data_structure::vector<util::range> edge_to_boundary_idx_free_range_vec{};
 
-		data_structure::vector<uint32> edge_to_face_idx_vec{};
-		data_structure::vector<range>  edge_to_face_idx_free_range_vec{};
+		data_structure::vector<uint32>		edge_to_face_idx_vec{};
+		data_structure::vector<util::range> edge_to_face_idx_free_range_vec{};
 
-		data_structure::vector<uint32> boundary_to_vertex_idx_vec{};
-		data_structure::vector<range>  boundary_to_vertex_free_range_vec{};
+		data_structure::vector<uint32>		boundary_to_vertex_idx_vec{};
+		data_structure::vector<util::range> boundary_to_vertex_free_range_vec{};
 
-		data_structure::vector<uint32> boundary_to_edge_idx_vec{};
-		data_structure::vector<range>  boundary_to_edge_free_range_vec{};
+		data_structure::vector<uint32>		boundary_to_edge_idx_vec{};
+		data_structure::vector<util::range> boundary_to_edge_free_range_vec{};
 
-		data_structure::vector<uint32> boundary_to_face_idx_vec{};
-		data_structure::vector<range>  boundary_to_face_free_range_vec{};
+		data_structure::vector<uint32>		boundary_to_face_idx_vec{};
+		data_structure::vector<util::range> boundary_to_face_free_range_vec{};
 
-		data_structure::vector<uint32> face_to_boundary_idx_vec{};
-		data_structure::vector<range>  face_to_boundary_idx_free_range_vec{};
+		data_structure::vector<uint32>		face_to_boundary_idx_vec{};
+		data_structure::vector<util::range> face_to_boundary_idx_free_range_vec{};
 
 		std::span<const uint32>
 		vertex_idx_span(const boundary& b) const noexcept

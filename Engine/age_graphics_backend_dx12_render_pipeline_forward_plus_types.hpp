@@ -126,6 +126,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::t<1, 3>>,
 
+		binding_slot<
+			"ui_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::ui_data>,
+			how::root_descriptor,
+			where::t<0, 4>>,
+
 
 		binding_slot<
 			"linear_clamp_sampler",
@@ -223,5 +231,47 @@ namespace age::graphics::render_pipeline::forward_plus
 		uint32			  light_id;
 		e::light_kind	  light_kind;
 		t_shadow_light_id shadow_id;
+	};
+
+	struct ui_desc_brush_data
+	{
+		union
+		{
+			struct
+			{
+				float3 value;
+			} color;
+		};
+	};
+
+	struct ui_desc
+	{
+		float2 pivot_pos;	 // screen pos of pivot
+		float2 pivot_uv;
+		float2 size;		 // pixel size
+		float  rotation;	 // z rotation, radian
+		float  border_thickness;
+
+		uint8 z_order;
+
+		age::ui::e::shape_kind shape_kind;
+
+		union
+		{
+		};
+
+		age::ui::e::brush_kind body_brush_kind;
+
+		ui_desc_brush_data body_brush_data;
+
+		age::ui::e::brush_kind border_brush_kind;
+
+		ui_desc_brush_data border_brush_data;
+	};
+
+	struct ui_header
+	{
+		uint32 idx;
+		uint8  z_order;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus
