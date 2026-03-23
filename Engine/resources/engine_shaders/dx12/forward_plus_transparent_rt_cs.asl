@@ -48,19 +48,12 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
 
-	static const uint32 MAX_RAY_ITERATIONS = 128;
-	uint32				it				   = 0;
 	while (rt_proceed(query))
 	{
 		float  t	 = rt_candidate_triangle_ray_t(query);
 		float4 color = float4(0.8, 0.8, 0.8, 0.3);	  // todo material
 
 		if (color.a <= 0.01) continue;
-
-		if (++it >= MAX_RAY_ITERATIONS)
-		{
-			break;
-		}
 
 		if (hit_count >= MAX_RAY_HIT && t >= hit_data_arr[hit_count - 1].t)
 		{

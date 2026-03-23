@@ -163,12 +163,12 @@ handle_point_light_shadow(uint32 id, uint32 face_idx, uint32 shadow_id)
 		light_view = view_look_to(light.position, float3(0, 0, 1));
 		break;
 	case 5:
-		light_view = view_look_to(light.position, float3(1, 0, -1));
+		light_view = view_look_to(light.position, float3(0, 0, -1));
 		break;
 	}
 
 	const float4x4 light_proj = proj_perspective_reversed(
-		pi_half,
+		pi_half + 0.02f,
 		1.0f,
 		0.1f,
 		light.range);

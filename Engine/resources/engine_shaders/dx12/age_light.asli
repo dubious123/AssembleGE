@@ -119,12 +119,14 @@ sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id
 	}
 	return shadow / 9.f;
 
-	// return shadow_atlas.SampleCmp(shadow_sampler, atlas_uv, light_ndc.z);
+	// return sample_cmp_level_zero(shadow_atlas, shadow_sampler, atlas_uv, light_ndc.z);
 }
 
 float
 sample_unified_shadow(float3 world_pos, uint32 shadow_id)
 {
+	static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
+
 	const shadow_light light = load_shadow_light(shadow_id);
 
 	const float4 light_clip = mul(light.view_proj, float4(world_pos, 1.0));
@@ -139,9 +141,12 @@ sample_unified_shadow(float3 world_pos, uint32 shadow_id)
 	atlas_uv.x = col * (1.f / SHADOW_ATLAS_SEG_U) + shadow_uv.x / SHADOW_ATLAS_SEG_U;
 	atlas_uv.y = row * (1.f / SHADOW_ATLAS_SEG_V) + shadow_uv.y / SHADOW_ATLAS_SEG_V;
 
+	const float2 tile_min = float2(col, row) / float2(SHADOW_ATLAS_SEG_U, SHADOW_ATLAS_SEG_V);
+	const float2 tile_max = tile_min + 1.f / float2(SHADOW_ATLAS_SEG_U, SHADOW_ATLAS_SEG_V);
+	atlas_uv			  = clamp(atlas_uv, tile_min + texel_size, tile_max - texel_size);
+
 	texture_2d<float> shadow_atlas = global_resource_buffer[shadow_atlas_id];
 
-	static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
 
 	float shadow = 0;
 	for (int32 y = -1; y <= 1; ++y)
@@ -153,7 +158,7 @@ sample_unified_shadow(float3 world_pos, uint32 shadow_id)
 	}
 	return shadow / 9.f;
 
-	// return shadow_atlas.SampleCmpLevelZero(shadow_sampler, atlas_uv, light_ndc.z);
+	// return sample_cmp_level_zero(shadow_atlas, shadow_sampler, atlas_uv, light_ndc.z);
 }
 
 uint32
@@ -185,25 +190,49 @@ calc_directional_light(directional_light light, float3 vertex_normal, float3 wor
 	return calc_blinn_phong_directional_light_color(light, vertex_normal, world_to_cam_dir);
 }
 
-float
+float3
 calc_directional_shadow(directional_light light, float3 world_pos, float3 face_normal, float linear_depth)
 {
 	uint32 shadow_id = light.shadow_id_and_extra & 0xf;
 
-	float shadow  = 1.f;
-	float contact = 1.f;
+	float  opaque_shadow	  = 1.f;
+	float  contact			  = 1.f;
+	float3 transparent_shadow = float3(1, 1, 1);
 
 	if (shadow_id != 0xf)
 	{
 		float n_dot_l = saturate(dot(face_normal, -light.direction));
-		shadow		  = sample_directional_shadow(world_pos, linear_depth, shadow_id);
-		shadow		  = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
+		opaque_shadow = sample_directional_shadow(world_pos, linear_depth, shadow_id);
+		opaque_shadow = min(opaque_shadow, smoothstep(0.0, 0.05, n_dot_l));
 
 		// contact = sample_contact_shadow(fragment.world_pos, -light.direction, vertex_normal);
 		// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+
+		{
+			rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+			ray_query<RAY_FLAG_NONE> query;
+
+			ray_desc desc;
+			desc.Origin	   = world_pos;
+			desc.Direction = -light.direction;
+			desc.TMin	   = 0.001;
+			desc.TMax	   = linear_depth;
+
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
+
+			while (rt_proceed(query))
+			{
+				uint32 rt_render_data_id = rt_candidate_instance_id(query);
+
+				float4 obj_color = float4(0.8, 0.8, 0.8, 0.3);	  // todo material
+
+				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
+			}
+		}
 	}
 
-	return shadow * contact;
+	return transparent_shadow * opaque_shadow * contact;
 }
 
 float3
@@ -212,27 +241,53 @@ calc_unified_light(unified_light light, float3 world_pos, float3 vertex_normal, 
 	return calc_blinn_phong_light_color(light, world_pos, vertex_normal, world_to_cam_dir);
 }
 
-float
+float3
 calc_unified_shadow(unified_light light, float3 world_pos, float3 face_normal)
 {
 	const uint32 shadow_id = light.shadow_id_and_extra & 0xf;
 
-	float shadow  = 1.f;
-	float contact = 1.f;
+	float opaque_shadow = 1.f;
+	float contact		= 1.f;
+
+	float3 transparent_shadow = float3(1, 1, 1);
 
 	if (shadow_id != 0xf)
 	{
 		const uint32 offset = get_unified_shadow_offset(light, world_pos);
 
-		const float3 world_to_light_dir = normalize(light.position - world_pos);
+		const float3 world_to_light		= light.position - world_pos;
+		const float3 world_to_light_dir = normalize(world_to_light);
 		const float	 n_dot_l			= saturate(dot(face_normal, world_to_light_dir));
-		shadow							= sample_unified_shadow(world_pos, shadow_id + offset);
-
-		shadow = min(shadow, smoothstep(0.0, 0.05, n_dot_l));
+		opaque_shadow					= sample_unified_shadow(world_pos, shadow_id + offset);
+		opaque_shadow					= min(opaque_shadow, smoothstep(0.0, 0.05, n_dot_l));
 
 		// contact = sample_contact_shadow(world_pos, -light.direction, surface_normal);
 		// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
+
+
+		{
+			rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+			ray_query<RAY_FLAG_NONE> query;
+
+			ray_desc desc;
+			desc.Origin	   = world_pos;
+			desc.Direction = world_to_light_dir;
+			desc.TMin	   = 0.001;
+			desc.TMax	   = length(world_to_light);
+
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
+
+			while (rt_proceed(query))
+			{
+				uint32 rt_render_data_id = rt_candidate_instance_id(query);
+
+				float4 obj_color = float4(0.8, 0.8, 0.8, 0.3);	  // todo material
+
+				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
+			}
+		}
 	}
 
-	return shadow * contact;
+	return transparent_shadow * opaque_shadow * contact;
 }

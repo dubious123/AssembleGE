@@ -75,7 +75,7 @@ namespace age_demo::scene_1
 				.range	   = 15.0f,
 				.color	   = float3{ 1.0f, 0.2f, 0.2f },
 				.intensity = 3.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), false); })
+				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
 			// green light - right side, mid height
@@ -104,7 +104,7 @@ namespace age_demo::scene_1
 				.color	   = float3{ 1.0f, 0.9f, 0.6f },
 				.cos_inner = 0.96f,
 				.cos_outer = 0.87f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_spot_light(FWD(desc), true); })
+				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_spot_light(FWD(desc), false); })
 				| AGE_FUNC(i_init.get_spot_light_id_vec().emplace_back),
 
 			// === meshes ===
