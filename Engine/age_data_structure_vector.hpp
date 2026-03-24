@@ -510,7 +510,7 @@ namespace age::inline data_structure
 			}
 			else if constexpr (std::is_nothrow_destructible_v<t>)
 			{
-				std::allocator_traits<allocator_type>::destroy(p_data + count);
+				std::allocator_traits<allocator_type>::destroy(alloc, p_data + count);
 			}
 			else
 			{

@@ -31,9 +31,19 @@ namespace age::inline data_structure
 			using t_ref		  = std::conditional_t<is_const, const value_type&, value_type&>;
 			using t_ptr		  = std::conditional_t<is_const, const value_type*, value_type*>;
 
-			t_block_ptr p_block;
-			t_block_ptr p_block_end;
-			uint32		header_idx;
+			using iterator_concept	= std::forward_iterator_tag;
+			using iterator_category = std::forward_iterator_tag;
+			using value_type		= unordered_map::value_type;
+			using difference_type	= unordered_map::difference_type;
+			using pointer			= t_ptr;
+			using reference			= t_ref;
+
+
+			t_block_ptr p_block		= nullptr;
+			t_block_ptr p_block_end = nullptr;
+			uint32		header_idx	= 0;
+
+			// constexpr basic_iterator() noexcept = default;
 
 			FORCE_INLINE constexpr t_ref
 			operator*() const noexcept
@@ -53,6 +63,14 @@ namespace age::inline data_structure
 				++header_idx;
 				advance();
 				return *this;
+			}
+
+			FORCE_INLINE constexpr basic_iterator
+			operator++(int) noexcept
+			{
+				auto tmp = *this;
+				++(*this);
+				return tmp;
 			}
 
 			FORCE_INLINE constexpr bool
@@ -212,12 +230,12 @@ namespace age::inline data_structure
 			return matches & ~(0x3 << (match_idx * 2));
 		}
 
-		FORCE_INLINE static t_header
+		FORCE_INLINE static constexpr t_header
 		make_header(uint32 header_idx, uint32 home_index, uint64 hash) noexcept
 		{
 			// [distance (00 ~ 1f)][hash][occupied (0, 1)]
 			c_auto distance = (header_idx - home_index) & 0x1f;	   // mod 32, rotation
-			return (distance << 11) | (hash & 0x7fe) | 1;
+			return static_cast<t_header>((distance << 11) | (hash & 0x7fe) | 1);
 		}
 
 		static constexpr alignas(32) int16 needle_base_first[16] = {
@@ -469,7 +487,7 @@ namespace age::inline data_structure
 					{
 						c_auto idx = get_match_idx(matches);
 
-						insert_new(std::move(p_old_block[i].kv_arr[idx]));
+						insert_new(std::move(p_old_block[i].kv_arr[16 + idx]));
 
 						matches = remove_match_idx(matches, idx);
 					}
@@ -494,13 +512,13 @@ namespace age::inline data_structure
 			rehash_from(p_old_block, old_block_count);
 		}
 
-		std::pair<iterator, bool>
+		FORCE_INLINE constexpr std::pair<iterator, bool>
 		insert(const value_type& kv) noexcept
 		{
 			return emplace(kv);
 		}
 
-		std::pair<iterator, bool>
+		FORCE_INLINE constexpr std::pair<iterator, bool>
 		insert(value_type&& kv) noexcept
 		{
 			return emplace(std::move(kv));
@@ -537,8 +555,8 @@ namespace age::inline data_structure
 			c_auto home = h & (capacity - 1);
 			// header count is 32
 			// block_idx = home / 32
-			c_auto block_idx = home >> 5;
-			c_auto home_idx	 = home & (32 - 1);
+			c_auto block_idx = static_cast<uint32>(home >> 5);
+			c_auto home_idx	 = static_cast<uint32>(home & (32 - 1));
 
 			auto* p_block_target = p_block + block_idx;
 			if consteval
@@ -655,8 +673,8 @@ namespace age::inline data_structure
 		{
 			c_auto h		 = hash(key);
 			c_auto home		 = h & (capacity - 1);
-			c_auto block_idx = home >> 5;
-			c_auto home_idx	 = home & (32 - 1);
+			c_auto block_idx = static_cast<uint32>(home >> 5);
+			c_auto home_idx	 = static_cast<uint32>(home & (32 - 1));
 
 			auto* p_block_target = p_block + block_idx;
 
@@ -781,8 +799,8 @@ namespace age::inline data_structure
 		{
 			c_auto h		 = hash(key_value.first);
 			c_auto home		 = h & (capacity - 1);
-			c_auto block_idx = home >> 5;
-			c_auto home_idx	 = home & (32 - 1);
+			c_auto block_idx = static_cast<uint32>(home >> 5);
+			c_auto home_idx	 = static_cast<uint32>(home & (32 - 1));
 
 			auto* p_target = p_block + block_idx;
 
@@ -973,13 +991,13 @@ namespace age::inline data_structure
 			return const_reverse_iterator(cbegin());
 		}*/
 
-		FORCE_INLINE iterator
+		FORCE_INLINE constexpr iterator
 		find(const key_type& key) noexcept
 		{
 			c_auto h		 = hash(key);
 			c_auto home		 = h & (capacity - 1);
-			c_auto block_idx = home >> 5;
-			c_auto home_idx	 = home & (32 - 1);
+			c_auto block_idx = static_cast<uint32>(home >> 5);
+			c_auto home_idx	 = static_cast<uint32>(home & (32 - 1));
 
 			auto* p_target = p_block + block_idx;
 
@@ -1038,7 +1056,7 @@ namespace age::inline data_structure
 			return end();
 		}
 
-		FORCE_INLINE const_iterator
+		FORCE_INLINE constexpr const_iterator
 		find(const key_type& key) const noexcept
 		{
 			return const_cast<unordered_map*>(this)->find(key);
