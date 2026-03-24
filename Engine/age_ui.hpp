@@ -1,17 +1,32 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::ui::e
+namespace age::ui
 {
-	AGE_DEFINE_ENUM(shape_kind, uint32,
-					rect,
-					circle);
+	FORCE_INLINE id_ctx
+	push_id(const char*) noexcept;
 
-	AGE_DEFINE_ENUM(brush_kind, uint32,
-					color);
-}	 // namespace age::ui::e
+	FORCE_INLINE id_ctx
+	push_id(uint64 _) noexcept;
+
+	FORCE_INLINE uint64
+	new_id(const char*) noexcept;
+
+	FORCE_INLINE uint64
+	new_id(uint64 _) noexcept;
+}	 // namespace age::ui
 
 namespace age::ui
 {
+	FORCE_INLINE void
+	init() noexcept;
 
-}
+	FORCE_INLINE void
+	begin_frame() noexcept;
+
+	FORCE_INLINE void
+	end_frame() noexcept;
+
+	FORCE_INLINE void
+	deinit() noexcept;
+}	 // namespace age::ui

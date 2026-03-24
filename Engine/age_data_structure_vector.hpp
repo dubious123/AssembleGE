@@ -121,6 +121,7 @@ namespace age::inline data_structure
 
 		template <std::ranges::input_range r>
 		constexpr vector(std::from_range_t, r&& rg) noexcept
+			: alloc(allocator_type{})
 		{
 			static_assert(meta::emplace_constructible<t, vector<t, t_allocator>, allocator_type, decltype(*std::ranges::begin(rg))>);
 			static_assert(
@@ -154,7 +155,7 @@ namespace age::inline data_structure
 		constexpr vector&
 		operator=(vector&& other) noexcept
 		{
-			if (this == &other) return *this;
+			if (this == &other) { return *this; }
 
 			clear();
 

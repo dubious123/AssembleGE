@@ -35,6 +35,10 @@
 	#include <list>
 #endif
 
+#ifdef USE_STL_UNORDERED_MAP
+	#include <unordered_map>
+#endif
+
 #include <cstdint>
 
 #if defined(AGE_PLATFORM_WINDOW)

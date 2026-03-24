@@ -114,6 +114,8 @@
 #define USE_STL_LIST
 #define USE_STL_MAP
 
+// #define USE_STL_UNORDERED_MAP
+
 namespace age::config
 {
 	inline constexpr bool debug_mode =
