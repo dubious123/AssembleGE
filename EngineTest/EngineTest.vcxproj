@@ -133,6 +133,7 @@
       <PrecompiledHeaderFile>age_test_pch.hpp</PrecompiledHeaderFile>
       <UseStandardPreprocessor>true</UseStandardPreprocessor>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

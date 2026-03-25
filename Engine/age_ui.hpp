@@ -18,15 +18,15 @@ namespace age::ui
 
 namespace age::ui
 {
-	FORCE_INLINE void
+	void
 	init() noexcept;
 
-	FORCE_INLINE void
+	void
 	begin_frame() noexcept;
 
-	FORCE_INLINE void
+	void
 	end_frame() noexcept;
 
-	FORCE_INLINE void
+	void
 	deinit() noexcept;
 }	 // namespace age::ui

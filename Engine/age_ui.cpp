@@ -3,26 +3,27 @@
 
 namespace age::ui
 {
-	FORCE_INLINE void
+	void
 	init() noexcept
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
 	}
 
-	FORCE_INLINE void
+	void
 	begin_frame() noexcept
 	{
 		g::id_stack.emplace_back(g::fnv1a_offset_basis);
 	}
 
-	FORCE_INLINE void
+	void
 	end_frame() noexcept
 	{
 	}
 
-	FORCE_INLINE void
+	void
 	deinit() noexcept
 	{
 		g::id_stack.clear();
+		g::element_state_map.clear();
 	}
 }	 // namespace age::ui

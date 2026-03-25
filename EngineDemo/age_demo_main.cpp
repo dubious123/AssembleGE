@@ -14,6 +14,7 @@ main()
 		age::platform::init,
 		age::graphics::init,
 		age::runtime::init,
+		age::ui::init,
 
 		age_demo::game::get_sys_init(),
 
@@ -21,6 +22,7 @@ main()
 
 		age_demo::game::get_sys_deinit(),
 
+		age::ui::deinit,
 		age::graphics::deinit,
 		age::platform::deinit,
 		age::asset::deinit,
@@ -31,6 +33,7 @@ main()
 		age::platform::init,
 		age::graphics::init,
 		age::runtime::init,
+		age::ui::init,
 
 		age_demo::game::get_sys_init(),
 
@@ -38,6 +41,7 @@ main()
 
 		age_demo::game::get_sys_deinit(),
 
+		age::ui::deinit,
 		age::graphics::deinit,
 		age::platform::deinit,
 		age::asset::deinit,
