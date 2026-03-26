@@ -31,35 +31,42 @@ namespace age::ui::detail
 	{
 		c_auto hash_id = age::ui::new_id(p_str);
 
-		++g::element_layout_data_h_stack[g::layout_h_parent_idx].child_count;
-		++g::element_layout_data_v_stack[g::layout_v_parent_idx].child_count;
+		g::layout_h_parent_idx = g::layout_h_current_idx;
+		g::layout_v_parent_idx = g::layout_v_current_idx;
+
+		g::layout_h_current_idx = static_cast<uint32>(g::element_layout_data_h_stack.size());
+		g::layout_v_current_idx = static_cast<uint32>(g::element_layout_data_v_stack.size());
 
 		g::element_layout_data_h_stack.emplace_back(layout_data_h{
-			// const
-			.layout		   = desc.layout,
-			.align		   = desc.align,
-			.mode		   = desc.size_mode_width.size_mode,
-			.width_min	   = desc.size_mode_width.min,
-			.width_max	   = desc.size_mode_width.max,
-			.padding_left  = desc.padding.x,
-			.padding_right = desc.padding.y,
+			.layout			 = desc.layout,
+			.mode			 = desc.size_mode_width.size_mode,
+			.render_data_idx = static_cast<uint32>(g::element_render_data_vec.size()),
+			.child_count	 = 0,
+			.width			 = 0.f,
+			.width_min		 = desc.size_mode_width.min,
+			.width_max		 = desc.size_mode_width.max,
+			.padding_left	 = desc.padding.x,
+			.padding_right	 = desc.padding.y,
 		});
 
 		g::element_layout_data_v_stack.emplace_back(layout_data_v{
-			// const
-			.layout			= desc.layout,
-			.align			= desc.align,
-			.mode			= desc.size_mode_height.size_mode,
-			.height_min		= desc.size_mode_height.min,
-			.height_max		= desc.size_mode_height.max,
-			.padding_top	= desc.padding.z,
-			.padding_bottom = desc.padding.w,
+			.layout			 = desc.layout,
+			.mode			 = desc.size_mode_height.size_mode,
+			.render_data_idx = static_cast<uint32>(g::element_render_data_vec.size()),
+			.child_count	 = 0,
+			.height			 = 0.f,
+			.height_min		 = desc.size_mode_height.min,
+			.height_max		 = desc.size_mode_height.max,
+			.padding_top	 = desc.padding.z,
+			.padding_bottom	 = desc.padding.w,
 		});
 
-		g::render_data_offset_h_stack.emplace_back(g::element_render_data_vec.size<uint32>());
-		g::render_data_offset_v_stack.emplace_back(g::element_render_data_vec.size<uint32>());
+		g::element_align_vec.emplace_back(desc.align);
 
 		g::element_render_data_vec.emplace_back(desc.render_data);
+
+		++g::element_layout_data_h_stack[g::layout_h_parent_idx].child_count;
+		++g::element_layout_data_v_stack[g::layout_v_parent_idx].child_count;
 
 		return hash_id;
 	}
@@ -67,7 +74,7 @@ namespace age::ui::detail
 	FORCE_INLINE void
 	widget_end() noexcept
 	{
-		auto&	layout_h_parent	   = g::render_data_offset_h_stack[g::layout_h_parent_idx];
+		auto&	layout_h_parent	   = g::element_layout_data_h_stack[g::layout_h_parent_idx];
 		c_auto& layout_h_current   = g::element_layout_data_h_stack.back();
 		c_auto	can_finalize_width = layout_h_current.mode == e::size_mode_kind::fixed
 								  or layout_h_current.mode == e::size_mode_kind::fit;
@@ -75,15 +82,19 @@ namespace age::ui::detail
 		if (can_finalize_width)
 		{
 			// finalize_width;
+			c_auto grow_child_count = g::element_layout_data_h_stack.size<uint32>() - g::layout_h_current_idx - 1;
+
+
+			// calculate positions
 
 			// handle text wrapping
-			g::render_data_offset_h_stack.pop_back();
+
+
 			g::element_layout_data_h_stack.resize(g::layout_h_parent_idx + 1);
-			--g::layout_h_parent_idx;
 		}
 
 
-		auto&	layout_v_parent		= g::render_data_offset_v_stack[g::layout_v_parent_idx];
+		auto&	layout_v_parent		= g::element_layout_data_v_stack[g::layout_v_parent_idx];
 		c_auto& layout_v_current	= g::element_layout_data_v_stack.back();
 		c_auto	can_finalize_height = layout_v_current.mode == e::size_mode_kind::fixed
 								   or layout_v_current.mode == e::size_mode_kind::fit;
@@ -91,17 +102,27 @@ namespace age::ui::detail
 		if (can_finalize_height)
 		{
 			// finalize_height;
-			g::render_data_offset_v_stack.pop_back();
+			c_auto grow_child_count = g::element_layout_data_v_stack.size<uint32>() - g::layout_v_current_idx - 1;
+
 			g::element_layout_data_v_stack.resize(g::layout_v_parent_idx + 1);
-			--g::layout_v_parent_idx;
 		}
 
 
-		if (c_auto is_root = elem_parent.parent_idx == 0)
-		{
-			// finalize_relative_position_and_render_data;
-			g::render_data_offset += g::element_vec.size<uint32>();
-		}
+		// if the size is grow, the size is zero
+		// if the size is finalized, so we can add to parent
+		layout_h_parent.width  += layout_h_current.width;
+		layout_h_parent.height += layout_h_current.height;
+
+		g::layout_h_current_idx = g::layout_h_current_idx;
+		g::layout_v_current_idx = g::layout_v_current_idx;
+
+		--g::layout_h_parent_idx;
+		--g::layout_v_parent_idx;
+		// if (c_auto is_root = elem_parent.parent_idx == 0)
+		//{
+		//	// finalize_relative_position_and_render_data;
+		//	// g::render_data_offset += g::element_vec.size<uint32>();
+		// }
 
 		// 1. fit sizing width | child -> parent
 

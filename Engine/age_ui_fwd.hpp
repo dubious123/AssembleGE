@@ -102,38 +102,42 @@ namespace age::ui
 	// data for calculating element_size
 	struct layout_data_h
 	{
-		const e::widget_layout layout;
-		const e::widget_align  align;
+		e::widget_layout layout;
 
-		const e::size_mode_kind mode;
+		e::size_mode_kind mode;
+
+		uint8  _;
+		uint32 render_data_idx;
 
 		uint32 child_count;
 		float  width;
 
-		const float width_min;
-		const float width_max;
+		float width_min;
+		float width_max;
 
-		const float child_gap = 0.f;
-		const float padding_left;
-		const float padding_right;
+		float child_gap = 0.f;
+		float padding_left;
+		float padding_right;
 	};
 
 	struct layout_data_v
 	{
-		const e::widget_layout layout;
-		const e::widget_align  align;
+		e::widget_layout layout;
 
-		const e::size_mode_kind mode;
+		e::size_mode_kind mode;
+
+		uint8  _;
+		uint32 render_data_idx;
 
 		uint32 child_count;
 		float  height;
 
-		const float height_min;
-		const float height_max;
+		float height_min;
+		float height_max;
 
-		const float child_gap = 0.f;
-		const float padding_top;
-		const float padding_bottom;
+		float child_gap = 0.f;
+		float padding_top;
+		float padding_bottom;
 	};
 }	 // namespace age::ui
 
@@ -149,13 +153,14 @@ namespace age::ui::g
 	inline age::vector<layout_data_h> element_layout_data_h_stack;
 	inline age::vector<layout_data_v> element_layout_data_v_stack;
 
-	inline age::vector<uint32> render_data_offset_h_stack;
-	inline age::vector<uint32> render_data_offset_v_stack;
-
-	inline age::vector<render_data> element_render_data_vec;
+	inline age::vector<render_data>		element_render_data_vec;
+	inline age::vector<e::widget_align> element_align_vec;
 
 	inline uint32 layout_h_parent_idx;
 	inline uint32 layout_v_parent_idx;
+
+	inline uint32 layout_h_current_idx;
+	inline uint32 layout_v_current_idx;
 }	 // namespace age::ui::g
 
 namespace age::ui
