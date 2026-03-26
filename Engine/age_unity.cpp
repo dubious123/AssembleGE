@@ -36,6 +36,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_ui_id.cpp"
 #include "age_ui_id.cpp"
 
+#line 1 "age_ui_widget.cpp"
+#include "age_ui_widget.cpp"
+
 #line 1 "age_ui.cpp"
 #include "age_ui.cpp"
 

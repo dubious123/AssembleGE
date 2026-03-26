@@ -38,15 +38,6 @@ namespace age::ui::detail
 
 namespace age::ui
 {
-	FORCE_INLINE
-	id_ctx::~id_ctx() noexcept
-	{
-		g::id_stack.pop_back();
-	}
-}	 // namespace age::ui
-
-namespace age::ui
-{
 	FORCE_INLINE id_ctx
 	push_id(const char* p_str) noexcept
 	{
