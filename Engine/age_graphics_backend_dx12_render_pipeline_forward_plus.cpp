@@ -184,8 +184,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
-		ui_data_flat_vec.clear();
-		ui_data_z_range_vec.clear();
+		ui_render_data_vec.clear();
+		ui_render_data_z_range_vec.clear();
 
 		stage_presentation.deinit();
 		stage_ui.deinit();
@@ -249,11 +249,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		object_transform_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
-
-		for (auto& vec : ui_data_vec)
-		{
-			vec.clear();
-		}
 	}
 
 	bool
@@ -278,8 +273,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			vec.clear();
 		}
-		ui_data_flat_vec.clear();
-		ui_data_z_range_vec.clear();
+		ui_render_data_vec.clear();
+		ui_render_data_z_range_vec.clear();
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
@@ -466,7 +461,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		shadow_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_rt_transparent_texture_buffer, extent);
 
-		stage_ui.execute(ui_data_z_range_vec);
+		stage_ui.execute(ui_render_data_z_range_vec);
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -1053,83 +1048,16 @@ namespace age::graphics::render_pipeline::forward_plus
 // ui
 namespace age::graphics::render_pipeline::forward_plus
 {
-	namespace detail
+	age::vector<ui::render_data>&
+	pipeline::get_ui_render_data_vec() noexcept
 	{
-		void
-		fill_brush_data(shared_type::ui_brush_data& dst, const ui_desc_brush_data& src, ui::e::brush_kind kind) noexcept
-		{
-			switch (kind)
-			{
-			case age::ui::e::brush_kind::color:
-			{
-				dst.data.x = std::bit_cast<uint32>(src.color.value.x);
-				dst.data.y = std::bit_cast<uint32>(src.color.value.y);
-				dst.data.z = std::bit_cast<uint32>(src.color.value.z);
-				return;
-			}
-			default:
-			{
-				AGE_UNREACHABLE();
-			}
-			}
-		}
-	}	 // namespace detail
-
-	t_ui_id
-	pipeline::add_ui(const ui_desc& desc) noexcept
-	{
-		AGE_ASSERT(desc.z_order < g::max_ui_z_count);
-
-		c_auto id = static_cast<t_ui_id>(ui_header_vec.emplace_back(
-			ui_header{
-				.idx	 = ui_data_vec[desc.z_order].emplace_back(),
-				.z_order = desc.z_order }));
-
-		update_ui(id, desc);
-
-		return id;
+		return ui_render_data_vec;
 	}
 
-	void
-	pipeline::update_ui(t_ui_id id, const ui_desc& desc) noexcept
+	age::vector<util::range>&
+	pipeline::get_ui_render_data_z_range_vec() noexcept
 	{
-		auto& header = ui_header_vec[id];
-
-		auto data = shared_type::ui_data{
-			.pivot_pos		   = desc.pivot_pos,
-			.pivot_uv		   = desc.pivot_uv,
-			.size			   = desc.size,
-			.rotation		   = desc.rotation,
-			.border_thickness  = desc.border_thickness,
-			.shape_kind		   = std::to_underlying(desc.shape_kind),
-			.body_brush_kind   = std::to_underlying(desc.body_brush_kind),
-			.border_brush_kind = std::to_underlying(desc.border_brush_kind),
-		};
-
-		detail::fill_brush_data(data.body_brush_data, desc.body_brush_data, desc.body_brush_kind);
-		detail::fill_brush_data(data.border_brush_data, desc.border_brush_data, desc.border_brush_kind);
-
-		if (desc.z_order != header.z_order)
-		{
-			ui_data_vec[header.z_order].remove(header.idx);
-			header.idx	   = ui_data_vec[desc.z_order].emplace_back(data);
-			header.z_order = desc.z_order;
-		}
-		else
-		{
-			ui_data_vec[header.z_order][header.idx] = data;
-		}
-	}
-
-	void
-	pipeline::remove_ui(t_ui_id& id) noexcept
-	{
-		auto& header = ui_header_vec[id];
-
-		ui_data_vec[header.z_order].remove(header.idx);
-		ui_header_vec.remove(id);
-
-		id = age::get_invalid_id<t_ui_id>();
+		return ui_render_data_z_range_vec;
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -1234,29 +1162,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		// ui
-
 		{
 			auto& h_mapping_ui_data_buffer = h_mapping_ui_data_buffer_arr[graphics::g::frame_buffer_idx];
-			AGE_ASSERT(ui_data_flat_vec.is_empty());
-			AGE_ASSERT(ui_data_z_range_vec.is_empty());
-
-			uint32 offset = 0;
-			for (auto& vec : ui_data_vec)
-			{
-				if (vec.is_empty())
-				{
-					continue;
-				}
-
-				ui_data_flat_vec.append_range(vec);
-				ui_data_z_range_vec.emplace_back(util::range{ .offset = offset, .count = vec.size<uint32>() });
-
-				offset += vec.size<uint32>();
-			}
-
-			resource::resize_buffer(h_mapping_ui_data_buffer, ui_data_flat_vec.byte_size<uint32>());
-
-			h_mapping_ui_data_buffer->upload(ui_data_flat_vec.data(), ui_data_flat_vec.byte_size<uint32>());
+			resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>());
+			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
 		}
 
 

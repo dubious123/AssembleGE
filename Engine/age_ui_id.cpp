@@ -57,6 +57,11 @@ namespace age::ui
 	FORCE_INLINE uint64
 	new_id(const char* p_str) noexcept
 	{
+		if (p_str is_nullptr)
+		{
+			return 0;
+		}
+
 		return detail::hash_combine(g::id_stack.back(), detail::hash(p_str));
 	}
 

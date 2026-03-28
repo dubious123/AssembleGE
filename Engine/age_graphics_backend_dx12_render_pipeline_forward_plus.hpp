@@ -245,10 +245,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<0, 4>								ui_data_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
 
-		age::stable_dense_vector<ui_header>			   ui_header_vec;
-		age::stable_dense_vector<shared_type::ui_data> ui_data_vec[g::max_ui_z_count];
-		age::vector<shared_type::ui_data>			   ui_data_flat_vec;	   // scratch
-		age::vector<util::range>					   ui_data_z_range_vec;	   // scratch
+		age::vector<ui::render_data> ui_render_data_vec;
+		age::vector<util::range>	 ui_render_data_z_range_vec;
 
 		// rt
 		binding_config_t::reg_t<0, 3> rt_instance_render_data_buffer_srv;
@@ -280,7 +278,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
-
 
 		// mesh-rt
 		uint32 rt_index_buffer_byte_offset = 0;
@@ -378,15 +375,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		remove_spot_light(t_unified_light_id& id) noexcept;
 
 		// ui
-		t_ui_id
-		add_ui(const ui_desc&) noexcept;
+		age::vector<ui::render_data>&
+		get_ui_render_data_vec() noexcept;
 
-		void
-		update_ui(t_ui_id, const ui_desc&) noexcept;
-
-		void
-		remove_ui(t_ui_id&) noexcept;
-
+		age::vector<util::range>&
+		get_ui_render_data_z_range_vec() noexcept;
 
 	  private:
 		void

@@ -139,6 +139,7 @@ namespace age
 
 #include "age_ui_fwd.hpp"
 #include "age_ui.hpp"
+#include "age_ui_defaults.hpp"
 
 #include "age_graphics.hpp"
 

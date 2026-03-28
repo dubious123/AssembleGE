@@ -512,7 +512,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	inline void
-	ui_stage::execute(const age::vector<util::range>& ui_data_z_range_vec) noexcept
+	ui_stage::execute(const age::vector<util::range>& ui_render_data_z_range_vec) noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
 
@@ -525,7 +525,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			command::set_pso(p_pso);
 
-			for (auto z_range : ui_data_z_range_vec)
+			for (auto z_range : ui_render_data_z_range_vec)
 			{
 				command::set_graphics_root_constants(
 					binding_config_t::reg_b<1>::slot_id,

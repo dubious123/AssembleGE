@@ -120,8 +120,7 @@
 // ui
 #define UI_SHAPE_KIND_RECT	 0
 #define UI_SHAPE_KIND_CIRCLE 1
-
-#define UI_BRUSH_KIND_COLOR 0
+#define UI_BRUSH_KIND_COLOR	 0
 
 
 #if !defined(AGE_SHADER)
@@ -142,7 +141,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
 	using t_shadow_light_id		 = uint16;
-	using t_ui_id				 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -153,32 +151,26 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	//---[ ui ]------------------------------------------------------------
 	struct ui_shape_data
 	{
-		uint32_4 data;				 // TBD, corner radius, circle radius, ...
+		uint32_4 data;			// TBD, corner radius, circle radius, ...
 	};
 
 	struct ui_brush_data
 	{
-		uint32_4 data;				 // TBD, texture_id, static_color, calculate from shadow with delta time...
+		uint32_4 data;			// TBD, texture_id, static_color, calculate from shadow with delta time...
 	};
 
 	struct ui_data
 	{
-		float2 pivot_pos;			 // screen pos of pivot
+		float2 pivot_pos;		// screen pos of pivot
 		float2 pivot_uv;
-		float2 size;				 // pixel size
-		float  rotation;			 // z rotation, radian
+		float2 size;			// pixel size
+		float  rotation;		// z rotation, radian
 		float  border_thickness;
 
-		uint32 shape_kind;			 // 1. rect, 2. rounded_rect, 3. circle, 4. star??? ...
+		uint32 packed_enums;	// [shape_kind(8bit)][body_brush_kind(8bit)][border_brush_kind(8bit)][extra(8bit)]
 
 		ui_shape_data shape_data;
-
-		uint32 body_brush_kind;		 // 1. texture_id, 2. color, 3. generated from uv, ...
-
 		ui_brush_data body_brush_data;
-
-		uint32 border_brush_kind;	 // 1. texture_id, 2. color, 3. generated from uv, ...
-
 		ui_brush_data border_brush_data;
 	};
 

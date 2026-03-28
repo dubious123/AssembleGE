@@ -69,6 +69,7 @@
     <ClInclude Include="age_ui_fwd.hpp" />
     <ClInclude Include="age_data_structure_unordered_map.hpp" />
     <ClInclude Include="age_data_structure_sparse_vector.hpp" />
+    <ClInclude Include="age_ui_defaults.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

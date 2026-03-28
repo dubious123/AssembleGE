@@ -13,7 +13,11 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	float3 body_color	   = float3(1, 1, 1);
 	float3 border_color	   = float3(1, 1, 1);
 
-	switch (data.shape_kind)
+	const uint32 shape_kind		   = (data.packed_enums >> 0) & 0xff;
+	const uint32 body_brush_kind   = (data.packed_enums >> 8) & 0xff;
+	const uint32 border_brush_kind = (data.packed_enums >> 16) & 0xff;
+
+	switch (shape_kind)
 	{
 	case UI_SHAPE_KIND_RECT:
 	{
@@ -27,7 +31,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	}
 	}
 
-	switch (data.body_brush_kind)
+	switch (body_brush_kind)
 	{
 	case UI_BRUSH_KIND_COLOR:
 	{
@@ -36,7 +40,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	}
 	}
 
-	switch (data.border_brush_kind)
+	switch (border_brush_kind)
 	{
 	case UI_BRUSH_KIND_COLOR:
 	{
