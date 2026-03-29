@@ -476,6 +476,12 @@ smoothstep(float min, float max, float x)
 }
 
 float
+fwidth(auto _)
+{
+	return 0.f;
+}
+
+float
 dot(float3 a, float3 b)
 {
 	return 0.f;

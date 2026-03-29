@@ -57,13 +57,13 @@ namespace age::ui::detail
 	}
 
 	FORCE_INLINE void
-	handle_child_grow_width(const layout_data_h& layout_data) noexcept
+	handle_child_grow_width(const layout_data_h& layout_data, uint32 layout_h_idx) noexcept
 	{
 		if (layout_data.grow_child_count == 0) { return; }
 
 		if (layout_data.layout == e::widget_layout::vertical)
 		{
-			for (auto grow_idx = g::layout_h_current_idx + 1;
+			for (auto grow_idx = layout_h_idx + 1;
 				 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 			{
 				auto& grow_child = g::element_layout_data_h_stack[grow_idx];
@@ -72,7 +72,7 @@ namespace age::ui::detail
 
 				g::element_layout_pos_data_vec[grow_child.global_idx].width = grow_child.width;
 
-				handle_child_grow_width(grow_child);
+				handle_child_grow_width(grow_child, grow_idx);
 
 				grow_idx += grow_child.grow_child_count + 1;
 			}
@@ -85,7 +85,7 @@ namespace age::ui::detail
 
 		auto available = layout_data.width_max - layout_data.width;
 
-		for (auto grow_idx = g::layout_h_current_idx + 1;
+		for (auto grow_idx = layout_h_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
 			auto& grow_child = g::element_layout_data_h_stack[grow_idx];
@@ -117,7 +117,7 @@ namespace age::ui::detail
 			level		  = value;
 		}
 
-		for (auto grow_idx = g::layout_h_current_idx + 1;
+		for (auto grow_idx = layout_h_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
 			auto& grow_child = g::element_layout_data_h_stack[grow_idx];
@@ -125,20 +125,20 @@ namespace age::ui::detail
 
 			g::element_layout_pos_data_vec[grow_child.global_idx].width = grow_child.width;
 
-			handle_child_grow_width(grow_child);
+			handle_child_grow_width(grow_child, grow_idx);
 
 			grow_idx += grow_child.grow_child_count + 1;
 		}
 	}
 
 	FORCE_INLINE void
-	handle_child_grow_height(const layout_data_v& layout_data) noexcept
+	handle_child_grow_height(const layout_data_v& layout_data, uint32 layout_v_idx) noexcept
 	{
 		if (layout_data.grow_child_count == 0) { return; }
 
 		if (layout_data.layout == e::widget_layout::horizontal)
 		{
-			for (auto grow_idx = g::layout_v_current_idx + 1;
+			for (auto grow_idx = layout_v_idx + 1;
 				 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 			{
 				auto& grow_child = g::element_layout_data_v_stack[grow_idx];
@@ -152,7 +152,7 @@ namespace age::ui::detail
 
 				g::element_layout_pos_data_vec[grow_child.global_idx].height = grow_child.height;
 
-				handle_child_grow_height(grow_child);
+				handle_child_grow_height(grow_child, grow_idx);
 
 				grow_idx += grow_child.grow_child_count + 1;
 			}
@@ -165,7 +165,7 @@ namespace age::ui::detail
 
 		auto available = layout_data.height_max - layout_data.height;
 
-		for (auto grow_idx = g::layout_v_current_idx + 1;
+		for (auto grow_idx = layout_v_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
 			auto& grow_child = g::element_layout_data_v_stack[grow_idx];
@@ -204,7 +204,7 @@ namespace age::ui::detail
 			level		  = value;
 		}
 
-		for (auto grow_idx = g::layout_v_current_idx + 1;
+		for (auto grow_idx = layout_v_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
 			auto& grow_child  = g::element_layout_data_v_stack[grow_idx];
@@ -212,7 +212,7 @@ namespace age::ui::detail
 
 			g::element_layout_pos_data_vec[grow_child.global_idx].height = grow_child.height;
 
-			handle_child_grow_height(grow_child);
+			handle_child_grow_height(grow_child, grow_idx);
 
 			grow_idx += grow_child.grow_child_count + 1;
 		}
@@ -290,7 +290,17 @@ namespace age::ui::detail
 			.padding_bottom = desc.padding.w,
 		});
 
-		g::element_render_data_vec.emplace_back(desc.render_data);
+		g::element_render_data_vec.emplace_back(render_data{
+			.pivot_uv		   = desc.pivot_uv,
+			.rotation		   = desc.rotation,
+			.border_thickness  = desc.border_thickness,
+			.shape_kind		   = desc.shape_kind,
+			.body_brush_kind   = desc.body_brush_kind,
+			.border_brush_kind = desc.border_brush_kind,
+			.shape_data		   = desc.shape_data,
+			.body_brush_data   = desc.body_brush_data,
+			.border_brush_data = desc.border_brush_data,
+		});
 
 		AGE_ASSERT(g::element_layout_pos_data_vec.size() == g::element_render_data_vec.size());
 
@@ -331,7 +341,7 @@ namespace age::ui::detail
 		{
 			g::element_layout_pos_data_vec[layout_h_current.global_idx].width = layout_h_current.width;
 
-			detail::handle_child_grow_width(layout_h_current);
+			detail::handle_child_grow_width(layout_h_current, g::layout_h_current_idx);
 
 
 			layout_common_current.child_height_depends_on_width_solved = true;
@@ -357,7 +367,7 @@ namespace age::ui::detail
 		{
 			g::element_layout_pos_data_vec[layout_v_current.global_idx].height = layout_v_current.height;
 
-			detail::handle_child_grow_height(layout_v_current);
+			detail::handle_child_grow_height(layout_v_current, g::layout_v_current_idx);
 		}
 		else
 		{
@@ -383,9 +393,6 @@ namespace age::ui::detail
 		}
 
 
-		g::layout_h_current_idx = layout_common_current.parent_h_idx;
-		g::layout_v_current_idx = layout_common_current.parent_v_idx;
-
 		AGE_ASSERT(layout_h_current.global_idx == layout_v_current.global_idx);
 		g::element_layout_pos_data_vec[layout_v_current.global_idx].child_count = layout_common_current.child_count;
 
@@ -402,16 +409,18 @@ namespace age::ui::detail
 			++g::element_z_order_count_vec[layout_common_current.z_offset];
 		}
 
-		g::element_layout_data_common_stack.pop_back();
-
 		if (can_finalize_width)
 		{
-			g::element_layout_data_h_stack.resize(layout_h_parent_idx + 1);
+			g::element_layout_data_h_stack.resize(g::layout_h_current_idx);
 		}
 		if (can_finalize_height)
 		{
-			g::element_layout_data_v_stack.resize(layout_v_parent_idx + 1);
+			g::element_layout_data_v_stack.resize(g::layout_v_current_idx);
 		}
+
+		g::layout_h_current_idx = layout_common_current.parent_h_idx;
+		g::layout_v_current_idx = layout_common_current.parent_v_idx;
+		g::element_layout_data_common_stack.pop_back();
 	}
 };	  // namespace age::ui::detail
 
@@ -451,23 +460,20 @@ namespace age::ui::widget
 		return begin(
 			nullptr,
 			age::ui::widget_desc{
-				.draw			  = false,
-				.layout			  = age::ui::e::widget_layout::horizontal,
-				.align			  = align,
-				.size_mode_width  = width,
-				.size_mode_height = height,
-				.z_offset		  = 0,
-				.offset			  = offset,
-				.child_gap		  = 10.f,
-				.padding		  = padding,
-				.render_data	  = {
-					.shape_kind		   = age::ui::e::shape_kind::rect,
-					.body_brush_kind   = age::ui::e::brush_kind::color,
-					.border_brush_kind = age::ui::e::brush_kind::color,
-					.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-					.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-				}
-
+				.draw			   = false,
+				.layout			   = age::ui::e::widget_layout::horizontal,
+				.align			   = align,
+				.size_mode_width   = width,
+				.size_mode_height  = height,
+				.z_offset		   = 0,
+				.offset			   = offset,
+				.child_gap		   = 10.f,
+				.padding		   = padding,
+				.shape_kind		   = age::ui::e::shape_kind::rect,
+				.body_brush_kind   = age::ui::e::brush_kind::color,
+				.border_brush_kind = age::ui::e::brush_kind::color,
+				.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
+				.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
 			});
 	}
 
@@ -481,23 +487,20 @@ namespace age::ui::widget
 		return begin(
 			nullptr,
 			age::ui::widget_desc{
-				.draw			  = false,
-				.layout			  = age::ui::e::widget_layout::vertical,
-				.align			  = align,
-				.size_mode_width  = width,
-				.size_mode_height = height,
-				.z_offset		  = 0,
-				.offset			  = offset,
-				.child_gap		  = 10.f,
-				.padding		  = padding,
-				.render_data	  = {
-					.shape_kind		   = age::ui::e::shape_kind::rect,
-					.body_brush_kind   = age::ui::e::brush_kind::color,
-					.border_brush_kind = age::ui::e::brush_kind::color,
-					.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-					.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-				}
-
+				.draw			   = false,
+				.layout			   = age::ui::e::widget_layout::vertical,
+				.align			   = align,
+				.size_mode_width   = width,
+				.size_mode_height  = height,
+				.z_offset		   = 0,
+				.offset			   = offset,
+				.child_gap		   = 10.f,
+				.padding		   = padding,
+				.shape_kind		   = age::ui::e::shape_kind::rect,
+				.body_brush_kind   = age::ui::e::brush_kind::color,
+				.border_brush_kind = age::ui::e::brush_kind::color,
+				.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
+				.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
 			});
 	}
 }	 // namespace age::ui::widget

@@ -38,7 +38,7 @@ namespace age::ui
 				.size_mode_height = size_mode::fixed(platform::get_client_height(h_window)),
 				.z_offset		  = 0,
 				.offset			  = { 0.f, 0.f },
-			});
+				.padding		  = { 0.f, 0.f, 0.f, 0.f } });
 	}
 
 	void
@@ -47,8 +47,8 @@ namespace age::ui
 		detail::widget_end<true>();
 
 		AGE_ASSERT(g::id_stack.size() == 1);
-		AGE_ASSERT(g::element_layout_data_h_stack.size() == 1);
-		AGE_ASSERT(g::element_layout_data_v_stack.size() == 1);
+		AGE_ASSERT(g::element_layout_data_h_stack.size() == 0);
+		AGE_ASSERT(g::element_layout_data_v_stack.size() == 0);
 		AGE_ASSERT(g::element_layout_data_common_stack.size() == 0);
 		AGE_ASSERT(g::element_layout_pos_data_vec.size() == g::element_render_data_vec.size());
 		AGE_ASSERT(g::element_render_data_vec.size() >= 1);
@@ -84,11 +84,11 @@ namespace age::ui
 			if (parent.layout == e::widget_layout::horizontal)
 			{
 				child.offset.x += parent.offset.x;
-				if (child.align == e::widget_align::top)
+				if (child.align == e::widget_align::begin)
 				{
 					child.offset.y += parent.offset.y + parent.padding_top;
 				}
-				else if (child.align == e::widget_align::bottom)
+				else if (child.align == e::widget_align::end)
 				{
 					child.offset.y += parent.offset.y + parent.height - parent.padding_bottom - child.height;
 				}
@@ -106,11 +106,11 @@ namespace age::ui
 			else if (parent.layout == e::widget_layout::vertical)
 			{
 				child.offset.y += parent.offset.y;
-				if (child.align == e::widget_align::left)
+				if (child.align == e::widget_align::begin)
 				{
 					child.offset.x += parent.offset.x + parent.padding_left;
 				}
-				else if (child.align == e::widget_align::right)
+				else if (child.align == e::widget_align::end)
 				{
 					child.offset.x += parent.offset.x + parent.width - parent.padding_right - child.width;
 				}

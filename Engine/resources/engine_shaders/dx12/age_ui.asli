@@ -32,6 +32,15 @@ sdf_circle(float2 pos, float radius)
 }
 
 float
+sdf_line(float2 p, float2 a, float2 b)
+{
+	const float2 pa = p - a;
+	const float2 ba = b - a;
+	const float	 h	= clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+	return length(pa - ba * h);
+}
+
+float
 sdf_round(float delta_from_edge, float round)
 {
 	return delta_from_edge - round;
@@ -44,6 +53,19 @@ sdf_onion(float delta_from_edge, float round)
 }
 
 float
+sdf_union(float a, float b)
+{
+	return min(a, b);
+}
+
+float
+sdf_smooth_union(float a, float b, float k)
+{
+	const float h = clamp(0.5f + 0.5f * (b - a) / k, 0.0f, 1.0f);
+	return lerp(b, a, h) - k * h * (1.0f - h);
+}
+
+float
 ui_calc_shape_rect(float2 center_offset, float2 size, ui_shape_data data)
 {
 	return sdf_rect(center_offset, size);
@@ -53,6 +75,21 @@ float
 ui_calc_shape_circle(float2 center_offset, float2 size, ui_shape_data data)
 {
 	return sdf_circle(center_offset, min(size.x, size.y) * 0.5);
+}
+
+float
+ui_calc_shape_arrow_right(float2 center_offset, float2 size, ui_shape_data data)
+{
+	float2 box = size * 0.5 * 0.35f;
+
+	float2 top	  = float2(-box.x * 0.6, -box.y);
+	float2 middle = float2(box.x * 0.6, 0.0f);
+	float2 bottom = float2(-box.x * 0.6, box.y);
+
+	return sdf_union(
+			   sdf_line(center_offset, top, middle),
+			   sdf_line(center_offset, middle, bottom))
+		 - 1.3f;
 }
 
 // brush

@@ -57,14 +57,14 @@ namespace age::ui::size_mode
 namespace age::ui::brush_data
 {
 	FORCE_INLINE constexpr ui_brush_data
-	color(float r, float g, float b) noexcept
+	color(float r, float g, float b, float a) noexcept
 	{
 		return ui_brush_data{
 			.data = uint32_4{
 				std::bit_cast<uint32>(r),
 				std::bit_cast<uint32>(g),
 				std::bit_cast<uint32>(b),
-				0 }
+				std::bit_cast<uint32>(a) }
 		};
 	}
 }	 // namespace age::ui::brush_data

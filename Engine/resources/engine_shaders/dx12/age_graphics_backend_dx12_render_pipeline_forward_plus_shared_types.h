@@ -118,9 +118,11 @@
 #define RT_MASK_ALL			0xff
 
 // ui
-#define UI_SHAPE_KIND_RECT	 0
-#define UI_SHAPE_KIND_CIRCLE 1
-#define UI_BRUSH_KIND_COLOR	 0
+#define UI_SHAPE_KIND_RECT		  0
+#define UI_SHAPE_KIND_CIRCLE	  1
+#define UI_SHAPE_KIND_ARROW_RIGHT 2
+
+#define UI_BRUSH_KIND_COLOR 0
 
 
 #if !defined(AGE_SHADER)

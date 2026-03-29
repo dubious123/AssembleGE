@@ -29,6 +29,11 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		delta_from_edge = ui_calc_shape_circle(center_offset, data.size, data.shape_data);
 		break;
 	}
+	case UI_SHAPE_KIND_ARROW_RIGHT:
+	{
+		delta_from_edge = ui_calc_shape_arrow_right(center_offset, data.size, data.shape_data);
+		break;
+	}
 	}
 
 	switch (body_brush_kind)
@@ -53,8 +58,11 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	// 0 ~ -border + 1 : border
 	// -border + 1 ~ -border - 1 : lerp
 	// -border - 1 ~ 0 : body
-	float outer_alpha = 1.0 - smoothstep(-1.0, 1.0, delta_from_edge);
-	float inner_alpha = 1.0 - smoothstep(-1.0, 1.0, delta_from_edge + data.border_thickness);
+
+	float aa = fwidth(delta_from_edge);
+
+	float outer_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge);
+	float inner_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge + data.border_thickness);
 
 	return float4(lerp(border_color, body_color, inner_alpha), outer_alpha);
 }

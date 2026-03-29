@@ -288,48 +288,56 @@ namespace age_demo::scene_2
 		age::ui::begin_frame(i_update.get_h_window);
 
 		// ui
-		if (auto _ = age::ui::widget::layout_vertical(age::ui::size_mode::fit(), age::ui::size_mode::fit()))
+		if (auto _ = age::ui::widget::begin(
+				{ .draw				= false,
+				  .layout			= age::ui::e::widget_layout::horizontal,
+				  .size_mode_width	= age::ui::size_mode::fit(),
+				  .size_mode_height = age::ui::size_mode::grow() }))
 		{
-			if (auto h = age::ui::widget::begin(
-					"layout 0",
-					age::ui::widget_desc{
-						.draw			  = true,
-						.layout			  = age::ui::e::widget_layout::horizontal,
-						.overflow		  = age::ui::e::widget_overflow::draw_all,
-						.align			  = age::ui::e::widget_align::center,
-						.size_mode_width  = age::ui::size_mode::fixed(300),
-						.size_mode_height = age::ui::size_mode::fixed(200),
-						.z_offset		  = 1,
-						.child_gap		  = 10.f,
-						.padding		  = { 10.f, 10.f, 10.f, 10.f },
-						.render_data	  = {
-							.rotation		   = 0.f,
-							.border_thickness  = 2.f,
-							.shape_kind		   = age::ui::e::shape_kind::rect,
-							.body_brush_kind   = age::ui::e::brush_kind::color,
-							.border_brush_kind = age::ui::e::brush_kind::color,
+			if (auto _ = age::ui::widget::begin(
+					{ .draw				= false,
+					  .layout			= age::ui::e::widget_layout::vertical,
+					  .size_mode_width	= age::ui::size_mode::fit(),
+					  .size_mode_height = age::ui::size_mode::grow() }))
+			{
+				if (auto _ = age::ui::widget::begin(
+						{ .layout			= age::ui::e::widget_layout::horizontal,
+						  .size_mode_width	= age::ui::size_mode::grow(),
+						  .size_mode_height = age::ui::size_mode::fit(),
+						  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.15f, 0.15f) }))
+				{
+					// arrow
+					age::ui::widget::begin(
+						{ .align			= age::ui::e::widget_align::center,
+						  .size_mode_width	= age::ui::size_mode::fixed(22),
+						  .size_mode_height = age::ui::size_mode::fixed(22),
+						  .border_thickness = 0.f,
+						  .shape_kind		= age::ui::e::shape_kind::arrow_right,
+						  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
+
+					// text
+					// age::ui::widget::text("hello text");
+				}
+
+				if (auto h = age::ui::widget::begin(
+						age::ui::widget_desc{
+							.size_mode_width   = age::ui::size_mode::fixed(300),
+							.size_mode_height  = age::ui::size_mode::fixed(200),
 							.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
 							.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-						}
+						}))
+				{
+				}
 
-					}))
-			{
-			}
-
-			if (auto h = age::ui::widget::begin(
-					age::ui::widget_desc{
-						.align			  = age::ui::e::widget_align::left,
-						.size_mode_width  = age::ui::size_mode::fixed(200),
-						.size_mode_height = age::ui::size_mode::fixed(100),
-
-						.render_data = {
-							.shape_kind		   = age::ui::e::shape_kind::rect,
-							.body_brush_kind   = age::ui::e::brush_kind::color,
-							.border_brush_kind = age::ui::e::brush_kind::color,
+				if (auto h = age::ui::widget::begin(
+						age::ui::widget_desc{
+							.size_mode_width   = age::ui::size_mode::fixed(300),
+							.size_mode_height  = age::ui::size_mode::fixed(200),
 							.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
 							.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-						} }))
-			{
+						}))
+				{
+				}
 			}
 		}
 

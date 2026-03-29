@@ -5,7 +5,8 @@ namespace age::ui::e
 {
 	AGE_DEFINE_ENUM(shape_kind, uint8,
 					rect,
-					circle);
+					circle,
+					arrow_right);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
@@ -14,7 +15,7 @@ namespace age::ui::e
 
 	AGE_DEFINE_ENUM(widget_overflow, uint8, draw_all, discard, clip, scroll)
 
-	AGE_DEFINE_ENUM(widget_align, uint8, left, right, top, bottom, center)
+	AGE_DEFINE_ENUM(widget_align, uint8, begin, center, end)
 
 	AGE_DEFINE_ENUM(size_mode_kind, uint8, fixed, fit, grow, grow_weight, text, aspect_ratio)
 }	 // namespace age::ui::e
@@ -28,25 +29,25 @@ namespace age::ui
 {
 	struct ui_shape_data
 	{
-		uint32_4 data;						// TBD, corner radius, circle radius, ...
+		uint32_4 data;											   // TBD, corner radius, circle radius, ...
 	};
 
 	struct ui_brush_data
 	{
-		uint32_4 data;						// TBD, texture_id, static_color, calculate from shadow with delta time...
+		uint32_4 data;											   // TBD, texture_id, static_color, calculate from shadow with delta time...
 	};
 
 	struct render_data
 	{
-		float2 pivot_pos;					// screen pos of pivot
-		float2 pivot_uv;
-		float2 size;						// pixel size
-		float  rotation;					// z rotation, radian
-		float  border_thickness;
+		float2 pivot_pos;										   // screen pos of pivot
+		float2 pivot_uv = float2{ 0.5f, 0.5f };
+		float2 size;											   // pixel size
+		float  rotation			= 0.f;							   // z rotation, radian
+		float  border_thickness = 0.f;
 
-		e::shape_kind shape_kind;			// 1. rect, 2. rounded_rect, 3. circle, 4. star??? ...
-		e::brush_kind body_brush_kind;		// 1. texture_id, 2. color, 3. generated from uv, ...
-		e::brush_kind border_brush_kind;	// 1. texture_id, 2. color, 3. generated from uv, ...
+		e::shape_kind shape_kind		= e::shape_kind::rect;	   // 1. rect, 2. rounded_rect, 3. circle, 4. star??? ...
+		e::brush_kind body_brush_kind	= e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
+		e::brush_kind border_brush_kind = e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
 
 		uint8 _;
 
@@ -54,10 +55,7 @@ namespace age::ui
 		ui_brush_data body_brush_data;
 		ui_brush_data border_brush_data;
 	};
-}	 // namespace age::ui
 
-namespace age::ui
-{
 	struct widget_size_mode
 	{
 		float min = 0.f;
@@ -73,7 +71,7 @@ namespace age::ui
 		bool			   draw		= true;
 		e::widget_layout   layout	= e::widget_layout::horizontal;
 		e::widget_overflow overflow = e::widget_overflow::draw_all;
-		e::widget_align	   align	= e::widget_align::left;
+		e::widget_align	   align	= e::widget_align::begin;
 
 
 		widget_size_mode size_mode_width  = {};
@@ -82,10 +80,21 @@ namespace age::ui
 
 		float2 offset = float2{ 0, 0 };
 
-		float  child_gap = 0.f;
-		float4 padding	 = {};
+		float  child_gap = 2.f;
+		float4 padding	 = { 2.f, 2.f, 2.f, 2.f };
 
-		render_data render_data = {};
+		float2 pivot_uv			= float2{ 0.5f, 0.5f };
+		float  rotation			= 0.f;
+		float  border_thickness = 1.f;
+
+		e::shape_kind shape_kind		= e::shape_kind::rect;
+		e::brush_kind body_brush_kind	= e::brush_kind::color;
+		e::brush_kind border_brush_kind = e::brush_kind::color;
+		uint8		  _;
+
+		ui_shape_data shape_data;
+		ui_brush_data body_brush_data;
+		ui_brush_data border_brush_data;
 	};
 }	 // namespace age::ui
 

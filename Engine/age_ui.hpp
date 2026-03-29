@@ -44,14 +44,14 @@ namespace age::ui::widget
 	layout_horizontal(widget_size_mode width,
 					  widget_size_mode height,
 					  float4		   padding = float4{ 10.f, 10.f, 10.f, 10.f },
-					  e::widget_align  align   = e::widget_align::center,
+					  e::widget_align  align   = e::widget_align::begin,
 					  float2		   offset  = float2{ 0.f, 0.f }) noexcept;
 
 	widget_ctx
 	layout_vertical(widget_size_mode width,
 					widget_size_mode height,
 					float4			 padding = float4{ 10.f, 10.f, 10.f, 10.f },
-					e::widget_align	 align	 = e::widget_align::center,
+					e::widget_align	 align	 = e::widget_align::begin,
 					float2			 offset	 = float2{ 0.f, 0.f }) noexcept;
 }	 // namespace age::ui::widget
 
@@ -71,5 +71,5 @@ namespace age::ui::size_mode
 namespace age::ui::brush_data
 {
 	FORCE_INLINE constexpr ui_brush_data
-	color(float r, float g, float b) noexcept;
+	color(float r, float g, float b, float a = 1.f) noexcept;
 }	 // namespace age::ui::brush_data
