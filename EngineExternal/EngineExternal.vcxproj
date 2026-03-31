@@ -82,7 +82,8 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"
+xcopy /Y /D "$(ProjectDir)msdfgen\msdf-atlas-gen.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\msdfgen\msdf-atlas-gen.exe*"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -116,7 +117,8 @@
       </Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"
+xcopy /Y /D "$(ProjectDir)msdfgen\msdf-atlas-gen.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\msdfgen\msdf-atlas-gen.exe*"</Command>
     </PostBuildEvent>
     <Lib>
       <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>

@@ -138,4 +138,5 @@ namespace age::config
 
 	inline constexpr const char* shader_extension		  = ".asl";
 	inline constexpr const char* shader_include_extension = ".asli";
+	inline constexpr const char* asset_extension		  = ".age_asset";
 }	 // namespace age::config

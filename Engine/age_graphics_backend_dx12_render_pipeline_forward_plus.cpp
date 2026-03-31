@@ -1106,7 +1106,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
 			{
-				rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
+				rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, graphics::g::frame_buffer_idx);
 				rt_instance_render_data_buffer_srv.apply_compute();
 			}
 
@@ -1164,7 +1164,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		// ui
 		{
 			auto& h_mapping_ui_data_buffer = h_mapping_ui_data_buffer_arr[graphics::g::frame_buffer_idx];
-			resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>());
+
+			if (resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>()))
+			{
+				ui_data_buffer.bind(h_mapping_ui_data_buffer, graphics::g::frame_buffer_idx);
+			}
 			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
 		}
 

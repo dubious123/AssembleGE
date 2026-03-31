@@ -6,3 +6,5 @@
 #include "age_engine_external_mikktspace.cpp"
 #line 1 "age_engine_external_earcut.cpp"
 #include "age_engine_external_earcut.cpp"
+#line 1 "age_engine_external_msdfgen.cpp"
+#include "age_engine_external_msdfgen.cpp"

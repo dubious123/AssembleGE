@@ -31,6 +31,27 @@ namespace age::ui
 	deinit() noexcept;
 }	 // namespace age::ui
 
+namespace age::ui::font
+{
+	void
+	load(const char* p_font_name, asset::e::font_charset_flag flag = asset::e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
+
+	void
+	set_default(const char* p_font_name) noexcept;
+
+	void
+	set_default_size(float size) noexcept;
+
+	void
+	unload(const char* p_font_name) noexcept;
+
+	float
+	get_height(float font_size = g::current_font_size) noexcept;
+
+	float
+	get_advance(const uint16& unicode, float font_size = g::current_font_size) noexcept;
+}	 // namespace age::ui::font
+
 // widgets
 namespace age::ui::widget
 {
@@ -53,6 +74,9 @@ namespace age::ui::widget
 					float4			 padding = float4{ 10.f, 10.f, 10.f, 10.f },
 					e::widget_align	 align	 = e::widget_align::begin,
 					float2			 offset	 = float2{ 0.f, 0.f }) noexcept;
+
+	widget_ctx
+	text(const char* p_str, float font_size = g::current_font_size) noexcept;
 }	 // namespace age::ui::widget
 
 // defaults
@@ -66,6 +90,9 @@ namespace age::ui::size_mode
 
 	FORCE_INLINE constexpr widget_size_mode
 	fit(auto min, auto max) noexcept;
+
+	FORCE_INLINE constexpr widget_size_mode
+	text(auto min, auto max) noexcept;
 }	 // namespace age::ui::size_mode
 
 namespace age::ui::brush_data

@@ -45,6 +45,10 @@ namespace age_demo::game
 			AGE_FUNC(age::input::create_context) 
 				| AGE_LAMBDA((auto h_ctx), { i_init.set_h_input_ctx(h_ctx); return h_ctx; })
 				| AGE_LAMBDA((auto&& h_ctx), { age::platform::register_input_context(i_init.get_h_window(), h_ctx); }),
+
+			AGE_LAMBDA((), { age::ui::font::load("resources\\font\\NotoSansKR-Regular"); }),
+			AGE_LAMBDA((), { age::ui::font::set_default("resources\\font\\NotoSansKR-Regular"); }),
+			AGE_LAMBDA((), { age::ui::font::set_default_size(12.f); }),
 			
 			loop{ [warm_up_frame = 10] mutable { return --warm_up_frame > 0; },
 				  age::platform::update,	// pump platform msg

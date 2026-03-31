@@ -52,6 +52,16 @@ namespace age::ui::size_mode
 			.size_mode = e::size_mode_kind::fit,
 		};
 	}
+
+	FORCE_INLINE constexpr widget_size_mode
+	text(auto min, auto max) noexcept
+	{
+		return widget_size_mode{
+			.min	   = static_cast<float>(min),
+			.max	   = static_cast<float>(max),
+			.size_mode = e::size_mode_kind::text,
+		};
+	}
 }	 // namespace age::ui::size_mode
 
 namespace age::ui::brush_data

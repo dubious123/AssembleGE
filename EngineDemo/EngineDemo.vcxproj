@@ -357,4 +357,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <Target Name="ForcePreBuild" BeforeTargets="Build">
+    <Exec Command="xcopy /Y /D /I /E &quot;$(ProjectDir)resources\font\&quot; &quot;$(OutDir)resources\font\&quot;" />
+  </Target>
 </Project>

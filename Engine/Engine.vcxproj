@@ -31,7 +31,7 @@
     <ClInclude Include="age_asset.hpp" />
     <ClInclude Include="age_asset_mesh_baked.hpp" />
     <ClInclude Include="age_asset_mesh_editable.hpp" />
-    <ClInclude Include="age_asset_types.hpp" />
+    <ClInclude Include="age_asset_fwd.hpp" />
     <ClInclude Include="age_buffer.hpp" />
     <ClInclude Include="age_config.hpp" />
     <ClInclude Include="age_data_structure.hpp" />

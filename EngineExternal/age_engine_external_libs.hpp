@@ -357,12 +357,12 @@ namespace age::external::meshopt::detail
 
 	void
 	spatialSortTriangles(
-		unsigned int*		destination,
+		unsigned int* destination,
 		const unsigned int* indices,
-		unsigned long long	index_count,
-		const float*		vertex_positions,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_positions_stride) noexcept;
+		unsigned long long index_count,
+		const float*	   vertex_positions,
+		unsigned long long vertex_count,
+		unsigned long long vertex_positions_stride) noexcept;
 
 	void
 	spatialClusterPoints(
@@ -383,10 +383,10 @@ namespace age::external::meshopt::detail
 	// Index encoding/decoding
 	unsigned long long
 	encodeIndexBuffer(
-		unsigned char*		buffer,
-		unsigned long long	buffer_size,
+		unsigned char*	   buffer,
+		unsigned long long buffer_size,
 		const unsigned int* indices,
-		unsigned long long	index_count) noexcept;
+		unsigned long long index_count) noexcept;
 
 	unsigned long long
 	encodeIndexBufferBound(
@@ -412,10 +412,10 @@ namespace age::external::meshopt::detail
 	// Index sequence encoding
 	unsigned long long
 	encodeIndexSequence(
-		unsigned char*		buffer,
-		unsigned long long	buffer_size,
+		unsigned char*	   buffer,
+		unsigned long long buffer_size,
 		const unsigned int* indices,
-		unsigned long long	index_count) noexcept;
+		unsigned long long index_count) noexcept;
 
 	unsigned long long
 	encodeIndexSequenceBound(
@@ -435,7 +435,7 @@ namespace age::external::meshopt::detail
 	encodeVertexBuffer(
 		unsigned char*	   buffer,
 		unsigned long long buffer_size,
-		const void*		   vertices,
+		const void* vertices,
 		unsigned long long vertex_count,
 		unsigned long long vertex_size) noexcept;
 
@@ -448,7 +448,7 @@ namespace age::external::meshopt::detail
 	encodeVertexBufferLevel(
 		unsigned char*	   buffer,
 		unsigned long long buffer_size,
-		const void*		   vertices,
+		const void* vertices,
 		unsigned long long vertex_count,
 		unsigned long long vertex_size,
 		int				   level,
@@ -472,9 +472,9 @@ namespace age::external::meshopt::detail
 
 	unsigned long long
 	encodeMeshlet(
-		unsigned char*		 buffer,
-		unsigned long long	 buffer_size,
-		const unsigned int*	 vertices,
+		unsigned char*	   buffer,
+		unsigned long long buffer_size,
+		const unsigned int* vertices,
 		unsigned long long	 vertex_count,
 		const unsigned char* triangles,
 		unsigned long long	 triangle_count);
@@ -485,7 +485,7 @@ namespace age::external::meshopt::detail
 
 	int
 	decodeMeshlet(
-		void*				 vertices,
+		void* vertices,
 		unsigned long long	 vertex_count,
 		unsigned long long	 vertex_size,
 		void*				 triangles,
@@ -495,7 +495,7 @@ namespace age::external::meshopt::detail
 		unsigned long long	 buffer_size);
 	int
 	decodeMeshletRaw(
-		unsigned int*		 vertices,
+		unsigned int* vertices,
 		unsigned long long	 vertex_count,
 		unsigned int*		 triangles,
 		unsigned long long	 triangle_count,
@@ -549,21 +549,21 @@ namespace age::external::meshopt::detail
 	// Simplification
 	unsigned long long
 	simplify(
-		unsigned int*		destination,
+		unsigned int* destination,
 		const unsigned int* indices,
-		unsigned long long	index_count,
-		const float*		vertex_positions,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_positions_stride,
-		unsigned long long	target_index_count,
-		float				target_error,
-		unsigned int		options,
-		float*				result_error) noexcept;
+		unsigned long long index_count,
+		const float*	   vertex_positions,
+		unsigned long long vertex_count,
+		unsigned long long vertex_positions_stride,
+		unsigned long long target_index_count,
+		float			   target_error,
+		unsigned int	   options,
+		float*			   result_error) noexcept;
 
 	unsigned long long
 	simplifyWithAttributes(
-		unsigned int*		 destination,
-		const unsigned int*	 indices,
+		unsigned int* destination,
+		const unsigned int* indices,
 		unsigned long long	 index_count,
 		const float*		 vertex_positions,
 		unsigned long long	 vertex_count,
@@ -580,7 +580,7 @@ namespace age::external::meshopt::detail
 
 	unsigned long long
 	simplifyWithUpdate(
-		unsigned int*		 indices,
+		unsigned int* indices,
 		unsigned long long	 index_count,
 		float*				 vertex_positions,
 		unsigned long long	 vertex_count,
@@ -597,8 +597,8 @@ namespace age::external::meshopt::detail
 
 	unsigned long long
 	simplifySloppy(
-		unsigned int*		 destination,
-		const unsigned int*	 indices,
+		unsigned int* destination,
+		const unsigned int* indices,
 		unsigned long long	 index_count,
 		const float*		 vertex_positions,
 		unsigned long long	 vertex_count,
@@ -610,13 +610,13 @@ namespace age::external::meshopt::detail
 
 	unsigned long long
 	simplifyPrune(
-		unsigned int*		destination,
+		unsigned int* destination,
 		const unsigned int* indices,
-		unsigned long long	index_count,
-		const float*		vertex_positions,
-		unsigned long long	vertex_count,
-		unsigned long long	vertex_positions_stride,
-		float				target_error) noexcept;
+		unsigned long long index_count,
+		const float*	   vertex_positions,
+		unsigned long long vertex_count,
+		unsigned long long vertex_positions_stride,
+		float			   target_error) noexcept;
 
 	unsigned long long
 	simplifyPoints(
@@ -685,3 +685,17 @@ namespace age::external::meshopt::detail
 		void  (*deallocate)(void*)) noexcept;
 
 }	 // namespace age::external::meshopt::detail
+
+namespace age::external::msdfgen
+{
+	bool
+	bake_font(const char*		 font_path,
+			  const char*		 output_image_path,
+			  const char*		 output_csv_path,
+			  const char*		 output_json_path,
+			  unsigned long long font_charset_flag,
+			  unsigned short*	 extra_unicode_arr,
+			  unsigned short	 extra_unicode_arr_count,
+			  unsigned int		 em_size  = 48,
+			  unsigned int		 px_range = 2) noexcept;
+}

@@ -58,14 +58,14 @@ namespace age::asset
 	{
 		switch (desc.calc_mode)
 		{
-		case normal_calc_desc::mode::angle:
+		case e::normal_calc_mode_kind::angle:
 		{
 			detail::calculate_normal_by_angle(mesh_edit);
 			return;
 		}
 		default:
 		{
-			AGE_UNREACHABLE("invalid normal calc mode : {}", normal_calc_desc::to_string(desc.calc_mode));
+			AGE_UNREACHABLE("invalid normal calc mode : {}", e::to_string(desc.calc_mode));
 		}
 		}
 	}
@@ -338,7 +338,7 @@ namespace age::asset
 
 		calculate_normal(res,
 						 normal_calc_desc{
-							 .calc_mode = normal_calc_desc::mode::angle,
+							 .calc_mode = e::normal_calc_mode_kind::angle,
 						 });
 		calculate_tangent(res, tangent_calc_desc{});
 

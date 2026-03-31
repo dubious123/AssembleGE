@@ -300,44 +300,48 @@ namespace age_demo::scene_2
 					  .size_mode_width	= age::ui::size_mode::fit(),
 					  .size_mode_height = age::ui::size_mode::grow() }))
 			{
-				if (auto _ = age::ui::widget::begin(
-						{ .layout			= age::ui::e::widget_layout::horizontal,
-						  .size_mode_width	= age::ui::size_mode::grow(),
-						  .size_mode_height = age::ui::size_mode::fit(),
-						  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.15f, 0.15f) }))
+				for (auto i = 0; i < 4; ++i)
 				{
-					// arrow
-					age::ui::widget::begin(
-						{ .align			= age::ui::e::widget_align::center,
-						  .size_mode_width	= age::ui::size_mode::fixed(22),
-						  .size_mode_height = age::ui::size_mode::fixed(22),
-						  .border_thickness = 0.f,
-						  .shape_kind		= age::ui::e::shape_kind::arrow_right,
-						  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
+					if (auto _ = age::ui::widget::begin(
+							{ .layout			= age::ui::e::widget_layout::horizontal,
+							  .size_mode_width	= age::ui::size_mode::fixed(150),
+							  .size_mode_height = age::ui::size_mode::fit(),
+							  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.15f, 0.15f) }))
+					{
+						// arrow
+						age::ui::widget::begin(
+							{ .align			= age::ui::e::widget_align::center,
+							  .size_mode_width	= age::ui::size_mode::fixed(22),
+							  .size_mode_height = age::ui::size_mode::fixed(22),
+							  .border_thickness = 0.f,
+							  .shape_kind		= age::ui::e::shape_kind::arrow_right,
+							  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
 
-					// text
-					// age::ui::widget::text("hello text");
+						// text
+						age::ui::widget::text("hello text");
+					}
 				}
 
-				if (auto h = age::ui::widget::begin(
-						age::ui::widget_desc{
-							.size_mode_width   = age::ui::size_mode::fixed(300),
-							.size_mode_height  = age::ui::size_mode::fixed(200),
-							.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-							.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-						}))
-				{
-				}
 
-				if (auto h = age::ui::widget::begin(
-						age::ui::widget_desc{
-							.size_mode_width   = age::ui::size_mode::fixed(300),
-							.size_mode_height  = age::ui::size_mode::fixed(200),
-							.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-							.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-						}))
-				{
-				}
+				// if (auto h = age::ui::widget::begin(
+				//		age::ui::widget_desc{
+				//			.size_mode_width   = age::ui::size_mode::fixed(300),
+				//			.size_mode_height  = age::ui::size_mode::fixed(200),
+				//			.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
+				//			.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
+				//		}))
+				//{
+				// }
+
+				// if (auto h = age::ui::widget::begin(
+				//		age::ui::widget_desc{
+				//			.size_mode_width   = age::ui::size_mode::fixed(300),
+				//			.size_mode_height  = age::ui::size_mode::fixed(200),
+				//			.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
+				//			.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
+				//		}))
+				//{
+				// }
 			}
 		}
 

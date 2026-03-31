@@ -7,7 +7,8 @@ namespace age::ui
 	init() noexcept
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
-		// g::current_element_parent_idx = age::get_invalid_id<uint32>();
+		g::current_font_idx	 = 0;
+		g::current_font_size = 0;
 	}
 
 	void
@@ -168,5 +169,12 @@ namespace age::ui
 	deinit() noexcept
 	{
 		g::element_state_map.clear();
+
+		for (auto&& [hash, h_asset_font] : g::font_vec)
+		{
+			asset::unload(h_asset_font);
+		}
+
+		g::font_vec.clear();
 	}
 }	 // namespace age::ui

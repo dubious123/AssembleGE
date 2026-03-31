@@ -891,3 +891,33 @@ namespace age::external::meshopt
 		return std::tuple{ meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_vec, meshlet_vec };
 	}
 }	 // namespace age::external::meshopt
+
+namespace age::external::msdfgen
+{
+	inline bool
+	bake_font(const char*					   font_name,
+			  const char*					   font_bake_temp_bin,
+			  const char*					   font_bake_temp_csv,
+			  const char*					   font_bake_temp_json,
+			  age::asset::e::font_charset_flag charset_flag,
+			  std::span<uint16>				   extra_unicode_span) noexcept
+	{
+		AGE_ASSERT(extra_unicode_span.size() <= std::numeric_limits<uint16>::max());
+		AGE_ASSERT(font_name is_not_nullptr);
+		AGE_ASSERT(font_bake_temp_bin is_not_nullptr);
+		AGE_ASSERT(font_bake_temp_csv is_not_nullptr);
+
+		auto succeed = bake_font(
+			font_name,
+			font_bake_temp_bin,
+			font_bake_temp_csv,
+			font_bake_temp_json,
+			std::to_underlying(charset_flag),
+			extra_unicode_span.data(),
+			static_cast<uint16>(extra_unicode_span.size()),
+			48,
+			2);
+
+		return succeed;
+	}
+}	 // namespace age::external::msdfgen

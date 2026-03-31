@@ -96,7 +96,7 @@ namespace age
 
 #include "age_fwd.hpp"
 
-#include "age_asset_types.hpp"
+#include "age_asset_fwd.hpp"
 
 #include "age_external_adapter.hpp"
 

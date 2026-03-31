@@ -95,6 +95,8 @@ namespace age::ui
 		ui_shape_data shape_data;
 		ui_brush_data body_brush_data;
 		ui_brush_data border_brush_data;
+
+		uint64 extra;
 	};
 }	 // namespace age::ui
 
@@ -121,6 +123,7 @@ namespace age::ui
 
 		float width;
 
+		float width_min;
 		float width_max;
 	};
 
@@ -135,6 +138,7 @@ namespace age::ui
 
 		float height;
 
+		float height_min;
 		float height_max;
 	};
 
@@ -195,6 +199,12 @@ namespace age::ui::g
 
 	inline uint32 layout_h_current_idx;
 	inline uint32 layout_v_current_idx;
+
+	// font
+	inline age::vector<std::pair<t_hash, asset::handle>> font_vec;
+	inline uint32										 current_font_idx;
+	inline float										 current_font_size;
+
 }	 // namespace age::ui::g
 
 namespace age::ui

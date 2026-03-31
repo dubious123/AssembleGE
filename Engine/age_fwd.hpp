@@ -13,4 +13,6 @@ namespace age::graphics
 namespace age::asset
 {
 	struct mesh_editable;
+
+
 }	 // namespace age::asset

@@ -10,6 +10,10 @@ namespace age::asset
 		{
 			switch (asset_kind)
 			{
+			case e::kind::font:
+			{
+				return std::align_val_t{ alignof(font::asset_header) };
+			}
 			default:
 			{
 				return std::align_val_t{ alignof(float32) };
@@ -44,22 +48,28 @@ namespace age::asset
 	handle
 	load_from_file(const std::string_view& file_path) noexcept
 	{
-		AGE_ASSERT(std::filesystem::exists(file_path));
-		AGE_ASSERT(std::filesystem::file_size(file_path) > 0);
+		c_auto full_path = std::format("{}{}", file_path, config::asset_extension);
+		if (std::filesystem::exists(full_path) is_false)
+		{
+			return { age::get_invalid_id<t_asset_id>() };
+		}
 
-		std::ifstream file{ std::filesystem::path{ file_path }, std::ios::in | std::ios::binary };
+		AGE_ASSERT(std::filesystem::exists(full_path));
+		AGE_ASSERT(std::filesystem::file_size(full_path) > 0);
+
+		std::ifstream file{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
 		AGE_ASSERT(file.is_open());
 
-		const auto file_size = std::filesystem::file_size(file_path);
+		c_auto file_size = std::filesystem::file_size(full_path);
 		AGE_ASSERT(sizeof(file_header) <= file_size);
 
 		auto header = asset::file_header{};
 		file.read(reinterpret_cast<char*>(&header), sizeof(file_header));
 
 		AGE_ASSERT(header.file_size == file_size);
-		const auto blob_size = file_size - header.header_size;
-		const auto alignment = detail::get_alignment(header.asset_kind);
-		auto*	   p_blob	 = (std::byte*)::operator new(blob_size, alignment);
+		c_auto blob_size = file_size - header.header_size;
+		c_auto alignment = detail::get_alignment(header.asset_kind);
+		auto*  p_blob	 = (std::byte*)::operator new(blob_size, alignment);
 
 		file.read((char*)p_blob, blob_size);
 
@@ -69,22 +79,43 @@ namespace age::asset
 			.id = g::asset_data_vec.emplace_back(asset::data{
 				.asset_kind = header.asset_kind,
 				.blob		= std::span<std::byte>{ p_blob, blob_size },
-				.alignment	= alignment })
+				.alignment	= alignment,
+				.path		= std::string{ full_path } })
+		};
+	}
+
+	handle
+	load_from_blob(const std::string_view& file_path, const file_header& header, auto& blob) noexcept
+	{
+		c_auto full_path = std::format("{}{}", file_path, config::asset_extension);
+		c_auto blob_size = header.file_size - header.header_size;
+		c_auto alignment = detail::get_alignment(header.asset_kind);
+		return asset::handle{
+			.id = g::asset_data_vec.emplace_back(asset::data{
+				.asset_kind = header.asset_kind,
+				.blob		= std::span<std::byte>{ &blob, blob_size },
+				.alignment	= detail::get_alignment(header.asset_kind),
+				.path		= full_path })
 		};
 	}
 
 	void
 	write_to_file(const std::string_view& file_path, const file_header& header, const auto& asset_data) noexcept
 	{
-		std::ofstream file(std::filesystem::path{ file_path },
+		c_auto		  full_path = std::format("{}{}", file_path, config::asset_extension);
+		std::ofstream file(std::filesystem::path{ full_path },
 						   std::ios::out | std::ios::binary | std::ios::trunc);
-		file.write(&header, header.header_size);
 
-		// todo,
+		AGE_ASSERT(header.file_size > header.header_size);
+
+		file.write(reinterpret_cast<const char*>(&header), header.header_size);
+		file.write(reinterpret_cast<const char*>(&asset_data), header.file_size - header.header_size);
+
+		file.close();
 	}
 
 	void
-	unload(asset::handle h_asset) noexcept
+	unload(asset::handle& h_asset) noexcept
 	{
 		auto& asset_data = g::asset_data_vec[h_asset];
 		::operator delete(asset_data.blob.data(), asset_data.alignment);
@@ -95,6 +126,8 @@ namespace age::asset
 		}
 
 		g::asset_data_vec.remove(h_asset);
+
+		h_asset.id = age::get_invalid_id<t_asset_id>();
 	}
 
 	void
