@@ -109,6 +109,15 @@
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp" />
     <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
     <ClCompile Include="age_input.cpp" />
+    <ClCompile Include="age_ui_widget.cpp" />
+    <ClCompile Include="age_ui_id.cpp" />
+    <ClCompile Include="age_ui_font.cpp" />
+    <ClCompile Include="age_ui.cpp" />
+    <ClCompile Include="age_asset_font.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_command.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_command_signature.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_rt.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

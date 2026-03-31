@@ -1168,6 +1168,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			if (resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>()))
 			{
 				ui_data_buffer.bind(h_mapping_ui_data_buffer, graphics::g::frame_buffer_idx);
+				ui_data_buffer.apply();
 			}
 			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
 		}

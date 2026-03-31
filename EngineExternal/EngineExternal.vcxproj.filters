@@ -27,6 +27,9 @@
     <ClCompile Include="age_engine_external_mikktspace.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="age_engine_external_msdfgen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_engine_external_libs.hpp">

@@ -21,6 +21,20 @@ namespace age::inline math
 	}
 }	 // namespace age::inline math
 
+// 2d
+namespace age::inline math
+{
+	FORCE_INLINE float4
+	intersect_2d(const float4& aabb_l, const float4& aabb_r) noexcept
+	{
+		auto&& [xm_l, xm_r] = simd::load(aabb_l, aabb_r);
+		c_auto xm_select	= fxm_vec{ std::bit_cast<float>(0), std::bit_cast<float>(0), std::bit_cast<float>(0xFFFFFFFF), std::bit_cast<float>(0xFFFFFFFF) };
+		c_auto xm_max		= simd::max(xm_l, xm_r);
+		c_auto xm_min		= simd::min(xm_l, xm_r);
+		return simd::select(xm_max, xm_min, xm_select) | simd::to<float4>();
+	}
+}	 // namespace age::inline math
+
 // quaternoin
 namespace age::inline math
 {

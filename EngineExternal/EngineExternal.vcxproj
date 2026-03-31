@@ -125,6 +125,10 @@ xcopy /Y /D "$(ProjectDir)msdfgen\msdf-atlas-gen.exe*" "$(SolutionDir)\$(Platfor
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="age_engine_external_msdfgen.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_engine_external_unity.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>

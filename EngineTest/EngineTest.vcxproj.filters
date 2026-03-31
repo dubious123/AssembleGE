@@ -21,6 +21,12 @@
     <ClCompile Include="age_test_unity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="age_test_data_structure_unordered_map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="age_test_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_test_pch.hpp">

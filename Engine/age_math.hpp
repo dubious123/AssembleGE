@@ -548,13 +548,12 @@ struct vec4
 	}
 
 	FORCE_INLINE constexpr vec4(vec3<t> other, t w_other) noexcept
-		// requires(
-		//			requires { other.x; other.y; other.z; }
-		//			&& std::convertible_to<decltype(other.x), t>
-		//			&& std::convertible_to<decltype(other.y), t>
-		//			&& std::convertible_to<decltype(other.z), t>
-		//			&& std::convertible_to<decltype(w_other), t>)
 		: xyz{ FWD(other).x, FWD(other).y, FWD(other).z }, w{ static_cast<t>(w_other) }
+	{
+	}
+
+	FORCE_INLINE constexpr vec4(vec2<t> other_l, vec2<t> other_r) noexcept
+		: x{ static_cast<t>(other_l[0]) }, y{ static_cast<t>(other_l[1]) }, z{ static_cast<t>(other_r[0]) }, w{ static_cast<t>(other_r[1]) }
 	{
 	}
 

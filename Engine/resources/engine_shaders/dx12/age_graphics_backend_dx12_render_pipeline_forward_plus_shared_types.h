@@ -169,6 +169,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  rotation;		// z rotation, radian
 		float  border_thickness;
 
+		float4 clip_rect;
+
 		uint32 packed_enums;	// [shape_kind(8bit)][body_brush_kind(8bit)][border_brush_kind(8bit)][extra(8bit)]
 
 		ui_shape_data shape_data;
@@ -417,6 +419,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	// ui
 	inline constexpr auto max_ui_z_count = 128;
 
+	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
 
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
 	static_assert(MAX_SORT_COUNT % SORT_THREAD_COUNT == 0);

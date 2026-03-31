@@ -189,6 +189,12 @@ namespace age::math::simd
 	AGE_SIMD_LOAD(load, float4x4a, XMLoadFloat4x4A);
 	AGE_SIMD_LOAD(load, half2, PackedVector::XMLoadHalf2);
 	AGE_SIMD_LOAD(load, half4, PackedVector::XMLoadHalf4);
+	AGE_SIMD_LOAD(load, uint32_4, XMLoadUInt4);
+	AGE_SIMD_LOAD(load, uint32_3, XMLoadUInt3);
+	AGE_SIMD_LOAD(load, uint32_2, XMLoadUInt2);
+	AGE_SIMD_LOAD(load, int32_4, XMLoadInt4);
+	AGE_SIMD_LOAD(load, int32_3, XMLoadInt3);
+	AGE_SIMD_LOAD(load, int32_2, XMLoadInt2);
 
 #undef AGE_SIMD_LOAD
 
@@ -377,12 +383,12 @@ namespace age::math::simd
 
 	AGE_SIMD_VEC_UNARY_OP(euler_to_quat, XMQuaternionRotationRollPitchYawFromVector);
 
+	AGE_SIMD_MAT_UNARY_OP(mat_transpose, XMMatrixTranspose);
+
 	AGE_SIMD_VEC_GETTER_OP(get_x, XMVectorGetX, XMVectorGetIntX);
 	AGE_SIMD_VEC_GETTER_OP(get_y, XMVectorGetY, XMVectorGetIntY);
 	AGE_SIMD_VEC_GETTER_OP(get_z, XMVectorGetZ, XMVectorGetIntZ);
 	AGE_SIMD_VEC_GETTER_OP(get_w, XMVectorGetW, XMVectorGetIntW);
-
-	AGE_SIMD_MAT_UNARY_OP(mat_transpose, XMMatrixTranspose);
 
 	template <typename t>
 	struct __to__
@@ -515,11 +521,11 @@ namespace age::math::simd
 
 namespace age::math::simd
 {
-
 	AGE_SIMD_VEC_BINARY_OP(mul, XMVectorMultiply, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(add, XMVectorAdd, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(sub, XMVectorSubtract, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(div, XMVectorDivide, fxm_vec);
+
 
 	AGE_SIMD_VEC_BINARY_OP(dot3, XMVector3Dot, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(dot4, XMVector4Dot, fxm_vec);
@@ -536,6 +542,7 @@ namespace age::math::simd
 	AGE_SIMD_VEC_BINARY_OP(bit_xor, XMVectorXorInt, fxm_vec);
 
 	AGE_SIMD_VEC_BINARY_OP(max, XMVectorMax, fxm_vec);
+	AGE_SIMD_VEC_BINARY_OP(min, XMVectorMin, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(cmp_equal, XMVectorEqual, fxm_vec);
 
 	AGE_SIMD_VEC_BINARY_OP(rotate3, XMVector3Rotate, fxm_vec);
@@ -793,6 +800,30 @@ namespace age::math::simd
 	transformation(fxm_vec scaling, fxm_vec rotation_origin, fxm_vec quat, gxm_vec translation) noexcept
 	{
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixAffineTransformation(scaling, rotation_origin, quat, translation));
+	}
+
+	struct __select__
+	{
+		fxm_vec xm_r;
+		fxm_vec xm_control;
+
+		FORCE_INLINE xm_vec AGE_SIMD_CALL
+		operator()(fxm_vec __xm_l__) noexcept
+		{
+			return DirectX::XMVectorSelect(__xm_l__, xm_r, xm_control);
+		}
+	};
+
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+	select(fxm_vec xm_r, fxm_vec xm_control) noexcept
+	{
+		return __select__{ xm_r, xm_control };
+	}
+
+	FORCE_INLINE xm_vec AGE_SIMD_CALL
+	select(fxm_vec xm_l, fxm_vec xm_r, fxm_vec xm_control) noexcept
+	{
+		return DirectX::XMVectorSelect(xm_l, xm_r, xm_control);
 	}
 }	 // namespace age::math::simd
 

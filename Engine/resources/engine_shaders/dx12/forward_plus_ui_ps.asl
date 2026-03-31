@@ -64,5 +64,15 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	float outer_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge);
 	float inner_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge + data.border_thickness);
 
-	return float4(lerp(border_color, body_color, inner_alpha), outer_alpha);
+	if (ps_in.pos.x >= data.clip_rect.x
+		&& ps_in.pos.y >= data.clip_rect.y
+		&& ps_in.pos.x <= data.clip_rect.z
+		&& ps_in.pos.y <= data.clip_rect.w)
+	{
+		return float4(lerp(border_color, body_color, inner_alpha), outer_alpha);
+	}
+	else
+	{
+		return float4(lerp(border_color, body_color, inner_alpha), 0);
+	}
 }

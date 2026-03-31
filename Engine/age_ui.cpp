@@ -40,6 +40,8 @@ namespace age::ui
 				.z_offset		  = 0,
 				.offset			  = { 0.f, 0.f },
 				.padding		  = { 0.f, 0.f, 0.f, 0.f } });
+
+		g::element_layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
 	}
 
 	void
@@ -51,10 +53,8 @@ namespace age::ui
 		AGE_ASSERT(g::element_layout_data_h_stack.size() == 0);
 		AGE_ASSERT(g::element_layout_data_v_stack.size() == 0);
 		AGE_ASSERT(g::element_layout_data_common_stack.size() == 0);
-		AGE_ASSERT(g::element_layout_pos_data_vec.size() == g::element_render_data_vec.size());
-		AGE_ASSERT(g::element_render_data_vec.size() >= 1);
 
-		render_data_vec.resize(g::element_render_data_vec.size() - 1);
+		render_data_vec.resize(g::element_render_data_vec.size());
 
 		for (auto offset = 0u;
 			 auto&& [i, z_count] : g::element_z_order_count_vec | std::views::enumerate)
@@ -127,21 +127,25 @@ namespace age::ui
 				parent.offset.y += child.height + parent.child_gap;
 			}
 
+			c_auto parent_content_rect = parent.clip_rect + float4(parent.padding_left, parent.padding_top, -parent.padding_right, -parent.padding_bottom);
+			c_auto child_rect		   = float4(child.offset, child.offset + float2(child.width, child.height));
+			child.clip_rect			   = math::intersect_2d(parent_content_rect, child_rect);
+
 			AGE_ASSERT(parent.child_count > 0);
 			--parent.child_count;
 			g::element_pos_parent_idx_stack.emplace_back(current_idx);
 
-			if (child.draw)
+			if (auto draw = child.render_data_count > 0)
 			{
-				auto& render_data_current = g::element_render_data_vec[current_idx];
-				{
-					render_data_current.size	  = float2(child.width, child.height);
-					render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
-					c_auto final_idx			  = g::element_z_order_count_vec[child.z_offset]++;
+				auto& render_data_current	  = g::element_render_data_vec[child.render_data_idx];
+				render_data_current.size	  = float2(child.width, child.height);
+				render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
+				render_data_current.clip_rect = child.clip_rect;
 
-					// this is because we skip root element
-					render_data_vec[final_idx] = render_data_current;
-				}
+				c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+
+				// this is because we skip root element
+				render_data_vec[final_idx] = render_data_current;
 			}
 
 			if (child.layout == e::widget_layout::horizontal)

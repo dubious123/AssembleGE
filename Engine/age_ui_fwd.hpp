@@ -45,6 +45,8 @@ namespace age::ui
 		float  rotation			= 0.f;							   // z rotation, radian
 		float  border_thickness = 0.f;
 
+		float4 clip_rect;
+
 		e::shape_kind shape_kind		= e::shape_kind::rect;	   // 1. rect, 2. rounded_rect, 3. circle, 4. star??? ...
 		e::brush_kind body_brush_kind	= e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
 		e::brush_kind border_brush_kind = e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
@@ -80,8 +82,8 @@ namespace age::ui
 
 		float2 offset = float2{ 0, 0 };
 
-		float  child_gap = 2.f;
-		float4 padding	 = { 2.f, 2.f, 2.f, 2.f };
+		float  child_gap = 4.f;
+		float4 padding	 = { 4.f, 4.f, 4.f, 4.f };
 
 		float2 pivot_uv			= float2{ 0.5f, 0.5f };
 		float  rotation			= 0.f;
@@ -147,15 +149,17 @@ namespace age::ui
 		uint32 child_count;
 		uint32 parent_h_idx;
 		uint32 parent_v_idx;
+		float  padding_sum;
 		float  child_gap;
 		uint16 z_offset;
 		bool   child_height_depends_on_width_solved;
+		uint8  _;
 	};
 
 	struct layout_pos_data
 	{
-		bool	draw;
-		uint8_3 _;
+		uint32 render_data_idx;
+		uint32 render_data_count;
 
 		e::widget_layout layout;
 		e::widget_align	 align;
@@ -169,6 +173,7 @@ namespace age::ui
 		float			 padding_right;
 		float			 padding_top;
 		float			 padding_bottom;
+		float4			 clip_rect;	   // rect_min, rect_max
 
 		uint64 extra;
 	};
