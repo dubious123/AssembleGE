@@ -11,6 +11,9 @@ namespace age::graphics::e
 							   (spot, 2),
 							   (area, 3),
 							   (volumn, 4));
+
+	AGE_DEFINE_ENUM_WITH_VALUE(texture_format, uint16,
+							   (rgba8_unorm, 0));
 }	 // namespace age::graphics::e
 
 namespace age::graphics

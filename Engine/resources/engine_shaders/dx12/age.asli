@@ -651,6 +651,12 @@ ddy(auto v)
 	return v;
 }
 
+decltype(auto)
+rsqrt(auto, auto _)
+{
+	return _;
+}
+
 float3
 cross(float3, float3)
 {

@@ -240,11 +240,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(camera_data_vec.size() == 0);
 		AGE_ASSERT(directional_light_vec.size() == 0);
 		AGE_ASSERT(unified_light_vec.size() == 0);
+		AGE_ASSERT(texture_map.size() == 0);
 
 		AGE_ASSERT(shadow_light_header_count == 0);
 		AGE_ASSERT(next_shadow_light_id == 0);
 		AGE_ASSERT(directional_shadow_light_count == 0);
 
+		texture_map.clear();
 		object_data_vec.clear();
 		object_transform_data_vec.clear();
 		directional_light_vec.clear();
@@ -551,6 +553,56 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_light_cull_stage_buffer);
 
 		create_resolution_dependent_buffers();
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+// texture
+namespace age::graphics::render_pipeline::forward_plus
+{
+	t_texture_id
+	pipeline::upload_texture(const void* p_src, age::extent_2d<uint32> extent, graphics::e::texture_format format) noexcept
+	{
+		c_auto dx12_format = graphics::dx12_format(format);
+		c_auto h_resource  = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
+				  extent.width, extent.height,
+				  dx12_format,
+				  D3D12_RESOURCE_FLAG_NONE),
+			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
+
+		c_auto h_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+
+		resource::create_view(h_resource,
+							  h_srv_desc,
+							  defaults::srv_view_desc::tex2d(dx12_format));
+
+		c_auto id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_srv_desc);
+
+		texture_map[id] = {
+			.h_srv_desc = h_srv_desc,
+			.h_resource = h_resource,
+		};
+		command::begin();
+		resource::upload_texture(h_resource, p_src, extent, dx12_format);
+		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_resource->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::execute_and_wait();
+
+		return t_texture_id{ id };
+	}
+
+	void
+	pipeline::release_texture(t_texture_id& id) noexcept
+	{
+		AGE_ASSERT(texture_map.contains(id));
+
+		auto& value = texture_map.find(id)->second;
+		graphics::g::cbv_srv_uav_desc_pool.push(texture_map[id].h_srv_desc);
+		graphics::resource::release_deferred(texture_map[id].h_resource);
+
+		texture_map.erase(id);
+
+		id = age::get_invalid_id<t_texture_id>();
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

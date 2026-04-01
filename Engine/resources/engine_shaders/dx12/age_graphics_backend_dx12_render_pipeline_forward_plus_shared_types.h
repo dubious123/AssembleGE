@@ -121,6 +121,7 @@
 #define UI_SHAPE_KIND_RECT		  0
 #define UI_SHAPE_KIND_CIRCLE	  1
 #define UI_SHAPE_KIND_ARROW_RIGHT 2
+#define UI_SHAPE_KIND_TEXT		  3
 
 #define UI_BRUSH_KIND_COLOR 0
 
@@ -143,6 +144,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
 	using t_shadow_light_id		 = uint16;
+	using t_texture_id			 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -153,7 +155,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	//---[ ui ]------------------------------------------------------------
 	struct ui_shape_data
 	{
-		uint32_4 data;			// TBD, corner radius, circle radius, ...
+		uint32 data[5];			// TBD, corner radius, circle radius, ...
 	};
 
 	struct ui_brush_data

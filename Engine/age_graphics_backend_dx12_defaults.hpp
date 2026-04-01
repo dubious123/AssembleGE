@@ -137,8 +137,65 @@ namespace age::graphics::defaults
 									sample_count,
 									sample_quality);
 		}
+
+		FORCE_INLINE decltype(auto)
+		texture_2d_copy_src(math::extent_2d<uint32> extent, DXGI_FORMAT format) noexcept
+		{
+			c_auto row_pitch  = age::util::align_up(extent.width * format_size(format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+			c_auto total_size = static_cast<uint64>(row_pitch) * extent.height;
+
+			return D3D12_RESOURCE_DESC1{
+				.Dimension				  = D3D12_RESOURCE_DIMENSION_BUFFER,
+				.Alignment				  = 0,
+				.Width					  = total_size,
+				.Height					  = 1,
+				.DepthOrArraySize		  = 1,
+				.MipLevels				  = 1,
+				.Format					  = DXGI_FORMAT_UNKNOWN,
+				.SampleDesc				  = { .Count = 1, .Quality = 0 },
+				.Layout					  = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+				.Flags					  = D3D12_RESOURCE_FLAG_NONE,
+				.SamplerFeedbackMipRegion = D3D12_MIP_REGION{}
+			};
+		}
 	}	 // namespace resource_desc
 
+}	 // namespace age::graphics::defaults
+
+// copy location
+namespace age::graphics::defaults
+{
+	namespace copy_location
+	{
+		FORCE_INLINE decltype(auto)
+		src(ID3D12Resource* p_resource, math::extent_2d<uint32> extent, DXGI_FORMAT format, uint32 row_pitch) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		 = p_resource,
+				.Type			 = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+				.PlacedFootprint = {
+					.Offset	   = 0,
+					.Footprint = {
+						.Format	  = format,
+						.Width	  = extent.width,
+						.Height	  = extent.height,
+						.Depth	  = 1,
+						.RowPitch = row_pitch,
+					},
+				},
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		dst(ID3D12Resource* p_resource, uint32 subresource_index = 0) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		  = p_resource,
+				.Type			  = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				.SubresourceIndex = subresource_index,
+			};
+		}
+	}	 // namespace copy_location
 }	 // namespace age::graphics::defaults
 
 // resource view descs

@@ -1659,6 +1659,24 @@ struct std::formatter<float4x4>
 };
 
 template <>
+struct std::formatter<float2>
+{
+	constexpr auto
+	parse(std::format_parse_context& ctx)
+	{
+		return ctx.begin();
+	}
+
+	auto
+	format(const float2& vec, std::format_context& ctx) const
+	{
+		return std::format_to(ctx.out(),
+							  "[{:.6f}, {:.6f}]",
+							  vec[0], vec[1]);
+	}
+};
+
+template <>
 struct std::formatter<float3>
 {
 	constexpr auto

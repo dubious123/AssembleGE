@@ -354,6 +354,22 @@ namespace age::graphics::barrier
 		};
 	}
 
+	FORCE_INLINE decltype(auto)
+	tex_copy_dest_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
+			.SyncAfter	  = sync_after_srv,
+			.AccessBefore = D3D12_BARRIER_ACCESS_COPY_DEST,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = {},
+		};
+	}
+
 	inline constexpr auto as_frame_start = AGE_LAMBDA((auto&& barrier), {
 		barrier.SyncBefore	 = D3D12_BARRIER_SYNC_NONE;
 		barrier.AccessBefore = D3D12_BARRIER_ACCESS_NO_ACCESS;

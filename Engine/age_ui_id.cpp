@@ -70,4 +70,10 @@ namespace age::ui
 	{
 		return detail::hash_combine(g::id_stack.back(), detail::hash(i));
 	}
+
+	t_hash
+	hash(const char* p_str) noexcept
+	{
+		return detail::hash(p_str);
+	}
 }	 // namespace age::ui

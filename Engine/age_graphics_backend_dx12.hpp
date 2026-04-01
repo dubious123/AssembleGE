@@ -41,6 +41,8 @@ namespace age::graphics::g
 
 	inline auto deferred_release_data_vec = age::vector<deferred_release_data>::gen_reserved(2);
 
+	inline auto h_upload_buffer = mapping_handle{};
+
 	//---[ rt ]---------------------------------------------------------------------
 
 	inline auto h_rt_blas_scratch_buffer = age::graphics::resource_handle{};
@@ -62,6 +64,12 @@ namespace age::graphics
 
 	constexpr std::string_view
 	to_string(DXGI_FORMAT _) noexcept;
+
+	constexpr uint32
+	format_size(DXGI_FORMAT format) noexcept;
+
+	constexpr DXGI_FORMAT
+	dx12_format(e::texture_format _) noexcept;
 }	 // namespace age::graphics
 
 namespace age::graphics::command
@@ -188,6 +196,7 @@ namespace age::graphics::command
 
 	// copy
 	DEF_CMD(copy_buffer, CopyBufferRegion)
+	DEF_CMD(copy_texture, CopyTextureRegion)
 
 	FORCE_INLINE void
 	apply_barriers(auto&&...) noexcept;
@@ -307,6 +316,9 @@ namespace age::graphics::resource
 
 	inline void
 	set_name(std::span<mapping_handle>, const wchar_t* fmt) noexcept;
+
+	void
+	upload_texture(resource_handle h_dst, const void* p_src_cpu, age::extent_2d<uint32> extent, DXGI_FORMAT dx12_format) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier

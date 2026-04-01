@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+	<!-- age::dynamic_array -->
+	<Type Name="age::data_structure::dynamic_array&lt;*,*&gt;">
+		<DisplayString>{{ count={count} }}</DisplayString>
+		<Expand>
+			<Item Name="[count]">count</Item>
+			<ArrayItems>
+				<Size>count</Size>
+				<ValuePointer>p_data</ValuePointer>
+			</ArrayItems>
+		</Expand>
+	</Type>
+
+	<!-- age::vector -->
+	<Type Name="age::data_structure::vector&lt;*,*&gt;">
+		<DisplayString>{{ count={count}, cap={cap} }}</DisplayString>
+		<Expand>
+			<Item Name="[count]">count</Item>
+			<Item Name="[capacity]">cap</Item>
+			<ArrayItems>
+				<Size>count</Size>
+				<ValuePointer>p_data</ValuePointer>
+			</ArrayItems>
+		</Expand>
+	</Type>
+
+	<!-- age::unordered_map -->
+	<Type Name="age::data_structure::unordered_map&lt;*,*,*,*,*&gt;">
+		<DisplayString>{{ count={count}, capacity={capacity} }}</DisplayString>
+		<Expand>
+			<Item Name="[count]">count</Item>
+			<Item Name="[capacity]">capacity</Item>
+			<CustomListItems MaxItemsPerView="100">
+				<Variable Name="bi" InitialValue="0"/>
+				<Variable Name="hi" InitialValue="0"/>
+				<Variable Name="bc" InitialValue="capacity / 32"/>
+				<Loop Condition="bi &lt; bc">
+					<Exec>hi = 0</Exec>
+					<Loop Condition="hi &lt; 32">
+						<If Condition="(p_block[bi].header_arr[hi] &amp; 1) != 0">
+							<Item Name="[{p_block[bi].kv_arr[hi].first}]">p_block[bi].kv_arr[hi]</Item>
+						</If>
+						<Exec>hi++</Exec>
+					</Loop>
+					<Exec>bi++</Exec>
+				</Loop>
+			</CustomListItems>
+		</Expand>
+	</Type>
+
+	<!-- age::data_structure::stable_dense_vector (data first layout: alignof(uint32) <= alignof(T)) -->
+	<Type Name="age::stable_dense_vector&lt;*,*&gt;">
+		<DisplayString>{{ count={count}, cap={cap}, free={free_idx_count} }}</DisplayString>
+		<Expand>
+			<Item Name="[count]">count</Item>
+			<Item Name="[capacity]">cap</Item>
+			<Item Name="[free]">free_idx_count</Item>
+			<Synthetic Name="[data]">
+				<Expand>
+					<ArrayItems>
+						<Size>count</Size>
+						<ValuePointer>($T1*)p_storage</ValuePointer>
+					</ArrayItems>
+				</Expand>
+			</Synthetic>
+			<Synthetic Name="[idx_to_pos]">
+				<Expand>
+					<ArrayItems>
+						<Size>count + free_idx_count</Size>
+						<ValuePointer>(unsigned int*)(p_storage + sizeof($T1) * cap)</ValuePointer>
+					</ArrayItems>
+				</Expand>
+			</Synthetic>
+			<Synthetic Name="[pos_to_idx]">
+				<Expand>
+					<ArrayItems>
+						<Size>count + free_idx_count</Size>
+						<ValuePointer>(unsigned int*)(p_storage + sizeof($T1) * cap) + cap</ValuePointer>
+					</ArrayItems>
+				</Expand>
+			</Synthetic>
+		</Expand>
+	</Type>
+
+</AutoVisualizer>

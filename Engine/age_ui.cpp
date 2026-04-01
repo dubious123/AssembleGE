@@ -20,6 +20,10 @@ namespace age::ui
 		AGE_ASSERT(g::element_layout_data_common_stack.is_empty());
 		AGE_ASSERT(g::element_layout_pos_data_vec.is_empty());
 		AGE_ASSERT(g::element_render_data_vec.is_empty());
+		AGE_ASSERT(g::text_data_vec.is_empty());
+		AGE_ASSERT(g::word_data_vec.is_empty());
+		AGE_ASSERT(g::char_data_vec.is_empty());
+		AGE_ASSERT(g::char_pos_data_vec.is_empty());
 
 		g::id_stack.emplace_back(g::fnv1a_offset_basis);
 
@@ -54,18 +58,20 @@ namespace age::ui
 		AGE_ASSERT(g::element_layout_data_v_stack.size() == 0);
 		AGE_ASSERT(g::element_layout_data_common_stack.size() == 0);
 
-		render_data_vec.resize(g::element_render_data_vec.size());
-
-		for (auto offset = 0u;
-			 auto&& [i, z_count] : g::element_z_order_count_vec | std::views::enumerate)
 		{
-			if (z_count > 0)
+			auto z_count_total = 0u;
+			for (auto&& [i, z_count] : g::element_z_order_count_vec | std::views::enumerate)
 			{
-				render_data_z_range_vec.emplace_back(util::range{ .offset = offset, .count = z_count });
-				c_auto temp	 = offset;
-				offset		+= z_count;
-				z_count		 = temp;
+				if (z_count > 0)
+				{
+					render_data_z_range_vec.emplace_back(util::range{ .offset = z_count_total, .count = z_count });
+					c_auto temp	   = z_count_total;
+					z_count_total += z_count;
+					z_count		   = temp;
+				}
 			}
+
+			render_data_vec.resize(z_count_total);
 		}
 
 		g::element_pos_parent_idx_stack.clear();
@@ -135,17 +141,37 @@ namespace age::ui
 			--parent.child_count;
 			g::element_pos_parent_idx_stack.emplace_back(current_idx);
 
-			if (auto draw = child.render_data_count > 0)
+			if (auto is_normal = child.render_data_count > 0)
 			{
-				auto& render_data_current	  = g::element_render_data_vec[child.render_data_idx];
-				render_data_current.size	  = float2(child.width, child.height);
-				render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
-				render_data_current.clip_rect = child.clip_rect;
+				auto& render_data_current = g::element_render_data_vec[child.render_data_idx];
 
-				c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+				if (render_data_current.shape_kind == e::shape_kind::text)
+				{
+					render_data_current.clip_rect				 = child.clip_rect;
+					render_data_current.shape_data.text.atlas_id = child.text.atlas_id;
 
-				// this is because we skip root element
-				render_data_vec[final_idx] = render_data_current;
+					for (c_auto& char_pos_data : std::span(g::char_pos_data_vec.data() + child.text.offset, child.render_data_count))
+					{
+						render_data_current.size						 = char_pos_data.size;
+						render_data_current.pivot_pos					 = child.offset + char_pos_data.offset + render_data_current.pivot_uv * char_pos_data.size;
+						render_data_current.shape_data.text.atlas_uv_min = char_pos_data.atlas_uv_min;
+						render_data_current.shape_data.text.atlas_uv_max = char_pos_data.atlas_uv_max;
+
+						c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+
+						render_data_vec[final_idx] = render_data_current;
+					}
+				}
+				else
+				{
+					render_data_current.size	  = float2(child.width, child.height);
+					render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
+					render_data_current.clip_rect = child.clip_rect;
+
+					c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+
+					render_data_vec[final_idx] = render_data_current;
+				}
 			}
 
 			if (child.layout == e::widget_layout::horizontal)
@@ -167,18 +193,10 @@ namespace age::ui
 		g::element_layout_data_v_stack.clear();
 		g::element_layout_pos_data_vec.clear();
 		g::element_render_data_vec.clear();
-	}
 
-	void
-	deinit() noexcept
-	{
-		g::element_state_map.clear();
-
-		for (auto&& [hash, h_asset_font] : g::font_vec)
-		{
-			asset::unload(h_asset_font);
-		}
-
-		g::font_vec.clear();
+		g::text_data_vec.clear();
+		g::word_data_vec.clear();
+		g::char_data_vec.clear();
+		g::char_pos_data_vec.clear();
 	}
 }	 // namespace age::ui

@@ -243,4 +243,10 @@ namespace age::graphics::render_pipeline::forward_plus
 			} color;
 		};
 	};
+
+	struct texture_data
+	{
+		srv_desc_handle h_srv_desc;
+		resource_handle h_resource;
+	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

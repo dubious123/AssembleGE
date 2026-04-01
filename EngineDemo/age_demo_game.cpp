@@ -34,7 +34,7 @@ namespace age_demo::game
 				i_init.set_scene_id_next = g::first_scene_idx;
 			}),
 
-			AGE_FUNC(i_init.get_render_pipeline().init),
+			AGE_FUNC(i_init.get_render_pipeline->init),
 			
 			identity{ age::platform::window_desc{ 1080 * 2, 920 * 2, "test_render_surface" } } 
 				| age::platform::create_window 
@@ -45,8 +45,10 @@ namespace age_demo::game
 			AGE_FUNC(age::input::create_context) 
 				| AGE_LAMBDA((auto h_ctx), { i_init.set_h_input_ctx(h_ctx); return h_ctx; })
 				| AGE_LAMBDA((auto&& h_ctx), { age::platform::register_input_context(i_init.get_h_window(), h_ctx); }),
+			
+			age::ui::init,
 
-			AGE_LAMBDA((), { age::ui::font::load("resources\\font\\NotoSansKR-Regular"); }),
+			AGE_LAMBDA((), { age::ui::font::load("resources\\font\\NotoSansKR-Regular", i_init.get_render_pipeline()); }),
 			AGE_LAMBDA((), { age::ui::font::set_default("resources\\font\\NotoSansKR-Regular"); }),
 			AGE_LAMBDA((), { age::ui::font::set_default_size(12.f); }),
 			
@@ -177,6 +179,8 @@ namespace age_demo::game
 				   on<1> = AGE_FUNC(scene_1::deinit),
 				   on<2> = AGE_FUNC(scene_2::deinit),
 				   /* default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) */ },
+
+			AGE_LAMBDA((), { age::ui::deinit(i_deinit.get_render_pipeline()); }),
 
 			AGE_FUNC(i_deinit.get_render_pipeline().deinit),
 			age::ecs::system::exec_inline{}

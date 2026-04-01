@@ -264,15 +264,20 @@ namespace age::graphics::render_pipeline::forward_plus
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
-		// camera
-		age::sparse_vector<camera_desc> camera_desc_vec;
-		age::sparse_vector<camera_data> camera_data_vec;
+		// external textures
+		age::data_structure::unordered_map<t_texture_id, texture_data> texture_map;
 
 		// mesh
 		age::sparse_vector<mesh_data> mesh_data_vec;
 		uint32						  mesh_byte_offset = 0;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
+
+
+		// camera
+		age::sparse_vector<camera_desc> camera_desc_vec;
+		age::sparse_vector<camera_data> camera_data_vec;
+
 
 		// row vector version
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
@@ -316,6 +321,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		end_render(render_surface_handle h_rs) noexcept;
+
+		// texture
+		t_texture_id
+		upload_texture(const void*, age::extent_2d<uint32>, graphics::e::texture_format) noexcept;
+
+		void
+		release_texture(t_texture_id& _) noexcept;
 
 		// mesh
 		t_mesh_id

@@ -75,12 +75,15 @@ namespace age::graphics::resource
 	void
 	init() noexcept
 	{
+		g::h_upload_buffer = resource::create_buffer_committed(1024);
 		// todo create heap
 	}
 
 	void
 	deinit() noexcept
 	{
+		unmap_and_release(g::h_upload_buffer);
+
 		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_vec.size()) | std::views::reverse)
 		{
 			auto& data = g::deferred_release_data_vec[i];
@@ -531,6 +534,31 @@ namespace age::graphics::resource
 			auto str = std::vformat(fmt, std::make_wformat_args(i));
 			h_mapping->h_resource->set_name(str.c_str());
 		}
+	}
+}	 // namespace age::graphics::resource
+
+namespace age::graphics::resource
+{
+	void
+	upload_texture(resource_handle h_dst, const void* p_src_cpu, age::extent_2d<uint32> extent, DXGI_FORMAT dx12_format) noexcept
+	{
+		c_auto format_byte_size = format_size(dx12_format);
+		c_auto row_pitch		= age::util::align_up<uint32>(extent.width * format_byte_size, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+		c_auto total_size		= static_cast<uint32>(row_pitch) * extent.height;
+
+		resize_buffer(g::h_upload_buffer, total_size);
+
+		for (auto y : std::views::iota(0u, extent.height))
+		{
+			g::h_upload_buffer->upload(static_cast<const std::byte*>(p_src_cpu) + y * extent.width * format_byte_size,
+									   extent.width * format_byte_size,
+									   y * row_pitch);
+		}
+
+		c_auto src = defaults::copy_location::src(g::h_upload_buffer->h_resource->p_resource, extent, dx12_format, row_pitch);
+		c_auto dst = defaults::copy_location::dst(h_dst->p_resource);
+
+		command::copy_texture(&dst, 0, 0, 0, &src, nullptr);
 	}
 }	 // namespace age::graphics::resource
 

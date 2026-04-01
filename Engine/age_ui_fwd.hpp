@@ -6,7 +6,8 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(shape_kind, uint8,
 					rect,
 					circle,
-					arrow_right);
+					arrow_right,
+					text);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
@@ -29,7 +30,19 @@ namespace age::ui
 {
 	struct ui_shape_data
 	{
-		uint32_4 data;											   // TBD, corner radius, circle radius, ...
+		union
+		{
+			struct
+			{
+				float2 atlas_uv_min;
+				float2 atlas_uv_max;
+				uint32 atlas_id;
+			} text;
+
+			uint32 data[5];
+		};
+
+		// TBD, corner radius, circle radius, ...
 	};
 
 	struct ui_brush_data
@@ -98,7 +111,16 @@ namespace age::ui
 		ui_brush_data body_brush_data;
 		ui_brush_data border_brush_data;
 
-		uint64 extra;
+		union
+		{
+			struct
+			{
+				uint32 offset;
+				uint32 atlas_id;
+			} text;
+
+			uint64 extra;
+		};
 	};
 }	 // namespace age::ui
 
@@ -120,7 +142,7 @@ namespace age::ui
 		e::size_mode_kind mode;
 
 		uint8_2 _;
-		uint32	global_idx;
+		uint32	pos_data_idx;
 		uint32	grow_child_count;
 
 		float width;
@@ -135,7 +157,7 @@ namespace age::ui
 		e::size_mode_kind mode;
 
 		uint8_2 _;
-		uint32	global_idx;
+		uint32	pos_data_idx;
 		uint32	grow_child_count;
 
 		float height;
@@ -175,7 +197,63 @@ namespace age::ui
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
 
-		uint64 extra;
+		union
+		{
+			struct
+			{
+				uint32 offset;
+				uint32 atlas_id;
+			} text;
+
+			uint64 extra;
+		};
+	};
+}	 // namespace age::ui
+
+// text
+namespace age::ui
+{
+	struct text_data
+	{
+		uint32 font_idx;
+		uint32 char_data_offset;
+		uint32 char_data_count;
+		uint32 word_data_offset;
+		uint32 word_data_count;
+
+		float line_height;
+		float space_advance;
+	};
+
+	struct word_data
+	{
+		uint32 char_count;
+		float  width;
+		float  leading_space;
+		uint32 line_offset;
+	};
+
+	struct char_data
+	{
+		float  advance;
+		float2 offset;
+		float2 size;
+		float2 atlas_uv_min;
+		float2 atlas_uv_max;
+	};
+
+	struct char_pos_data
+	{
+		float2 offset;
+		float2 size;
+		float2 atlas_uv_min;
+		float2 atlas_uv_max;
+	};
+
+	struct font_data
+	{
+		uint32		  atlas_id;
+		asset::handle h_font;
 	};
 }	 // namespace age::ui
 
@@ -198,6 +276,12 @@ namespace age::ui::g
 	inline age::vector<render_data>		element_render_data_vec;
 	inline age::vector<uint32>			element_z_order_count_vec;
 
+	// layout text
+	inline age::vector<text_data>	  text_data_vec;
+	inline age::vector<word_data>	  word_data_vec;
+	inline age::vector<char_data>	  char_data_vec;
+	inline age::vector<char_pos_data> char_pos_data_vec;
+
 	// scratch
 	inline age::vector<uint64> element_layout_grow_event_vec;
 	inline age::vector<uint32> element_pos_parent_idx_stack;
@@ -206,9 +290,9 @@ namespace age::ui::g
 	inline uint32 layout_v_current_idx;
 
 	// font
-	inline age::vector<std::pair<t_hash, asset::handle>> font_vec;
-	inline uint32										 current_font_idx;
-	inline float										 current_font_size;
+	inline age::vector<std::pair<t_hash, font_data>> font_data_vec;
+	inline uint32									 current_font_idx;
+	inline float									 current_font_size;
 
 }	 // namespace age::ui::g
 

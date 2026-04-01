@@ -17,10 +17,10 @@ namespace age::asset::font
 		return { ptr, glyph_count };
 	}
 
-	std::span<uint8>
-	asset_header::get_atlas() noexcept
+	std::span<const uint8>
+	asset_header::get_atlas() const noexcept
 	{
-		auto* ptr = reinterpret_cast<uint8*>(this) + atlas_offset;
+		auto* ptr = reinterpret_cast<const uint8*>(this) + atlas_offset;
 		return { ptr, atlas_width * atlas_height * atlas_channel_count };
 	}
 
@@ -163,27 +163,31 @@ namespace age::asset::font
 				auto line = std::string();
 				std::getline(file, line);	 // header skip
 
-				for (auto* ptr = reinterpret_cast<glyph_data*>(p_blob + glyph_data_offset);
+				// reserve index 0 for space (not in CSV, outline-less glyph)
+				for (auto* ptr = reinterpret_cast<glyph_data*>(p_blob + glyph_data_offset) + 1;
 					 std::getline(file, line);
 					 ++ptr)
 				{
-					uint32 codepoint;
-					float  advance, pl, pb, pr, pt, al, ab, ar, at;
+					uint32 unicode;
+					float  advance, plane_l, plane_b, plane_r, plane_t, atlas_rect_l, atlas_rect_b, atlas_rect_r, atlas_rect_t;
 
 					sscanf_s(line.c_str(), "%u,%f,%f,%f,%f,%f,%f,%f,%f,%f",
-							 &codepoint, &advance,
-							 &pl, &pb, &pr, &pt,
-							 &al, &ab, &ar, &at);
+							 &unicode, &advance,
+							 &plane_l, &plane_b, &plane_r, &plane_t,
+							 &atlas_rect_l, &atlas_rect_b, &atlas_rect_r, &atlas_rect_t);
 
-					c_auto fw = static_cast<float>(atlas_width);
-					c_auto fh = static_cast<float>(atlas_height);
+					c_auto width  = static_cast<float>(atlas_width);
+					c_auto height = static_cast<float>(atlas_height);
 
 					auto data = glyph_data{
 						.advance	  = advance,
-						.offset		  = { pl, line_height - pt },
-						.size		  = { pr - pl, pt - pb },
-						.atlas_uv_min = { al / fw, 1.0f - (at / fh) },
-						.atlas_uv_max = { ar / fw, 1.0f - (ab / fh) },
+						.offset		  = { plane_l, ascent - plane_t },
+						.size		  = { plane_r - plane_l, plane_t - plane_b },
+						.atlas_uv_min = { atlas_rect_l / width, atlas_rect_b / height },
+						.atlas_uv_max = { atlas_rect_r / width, atlas_rect_t / height },
+
+						//.atlas_uv_min = { atlas_uv_l / width, 1.0f - (atlas_uv_t / height) },
+						//.atlas_uv_max = { atlas_uv_r / width, 1.0f - (atlas_uv_b / height) },
 					};
 
 					std::memcpy(ptr, &data, sizeof(glyph_data));

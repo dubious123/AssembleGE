@@ -8,7 +8,7 @@ namespace age::ui::font
 		FORCE_INLINE uint32
 		find_idx(t_hash h) noexcept
 		{
-			for (auto&& [idx, key] : g::font_vec | std::views::keys | std::views::enumerate)
+			for (auto&& [idx, key] : g::font_data_vec | std::views::keys | std::views::enumerate)
 			{
 				if (key == h)
 				{
@@ -27,7 +27,9 @@ namespace age::ui::font
 		c_auto idx = detail::find_idx(h);
 		if (idx == age::get_invalid_id<uint32>())
 		{
-			g::font_vec.emplace_back(h, asset::font::load(p_font_name, flag, extra_unicode));
+			g::font_data_vec.emplace_back(std::pair{
+				h,
+				font_data{ .h_font = asset::font::load(p_font_name, flag, extra_unicode) } });
 		}
 	}
 
@@ -56,28 +58,51 @@ namespace age::ui::font
 
 		AGE_ASSERT(idx != age::get_invalid_id<uint32>());
 
-		g::font_vec[idx] = g::font_vec.back();
-		g::font_vec.pop_back();
+		asset::unload(g::font_data_vec[idx].second.h_font);
 
-		g::current_font_idx = std::min(g::current_font_idx, g::font_vec.size<uint32>() - 1);
+		g::font_data_vec[idx] = g::font_data_vec.back();
+		g::font_data_vec.pop_back();
+
+		g::current_font_idx = std::min(g::current_font_idx, g::font_data_vec.size<uint32>() - 1);
 	}
 
 	float
 	get_height(float font_size) noexcept
 	{
-		auto  h_font = g::font_vec[g::current_font_idx].second;
+		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 		return header.line_height * font_size;
 	}
 
 	float
-	get_advance(const uint16& unicode, float font_size) noexcept
+	get_advance(uint16 unicode, float font_size) noexcept
 	{
-		auto  h_font = g::font_vec[g::current_font_idx].second;
+		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 
 		auto& data = header.get_glyph_data(unicode);
 
 		return data.advance * font_size;
+	}
+
+	const asset::font::glyph_data&
+	get_glyph_data(uint16 unicode, uint32 font_idx) noexcept
+	{
+		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto& header = h_font->get_asset_header<asset::e::kind::font>();
+
+		return header.get_glyph_data(unicode);
+	}
+
+	const asset::font::glyph_data&
+	get_glyph_data(uint16 unicode, t_hash font_hash) noexcept
+	{
+		return get_glyph_data(unicode, detail::find_idx(font_hash));
+	}
+
+	const asset::font::glyph_data&
+	get_glyph_data(uint16 unicode) noexcept
+	{
+		return get_glyph_data(unicode, g::current_font_idx);
 	}
 }	 // namespace age::ui::font

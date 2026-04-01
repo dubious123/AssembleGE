@@ -46,5 +46,17 @@ main_ps(float4 pos sv_position) sv_target_0
 	//	return float4(depth, depth, depth, 1.0) * float4(10.f, 0, 0, 1);
 	//}
 
+
+	// texture_2d<float4> font_atlas = global_resource_buffer[1017];
+	// float2			   debug_uv	  = pos.xy * inv_backbuffer_size;
+	// if (debug_uv.x < 0.25 && debug_uv.y < 0.25)
+	//{
+	//	float2 font_uv = debug_uv * 4;
+	//	// font_uv.y	   = 1.f - font_uv.y;
+	//	float4 rgba = sample(font_atlas, linear_clamp_sampler, font_uv);
+	//	float  sd	= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
+	//	return float4(sd, sd, sd, 1.0);
+	// }
+
 	return float4(color, 1.f);
 }

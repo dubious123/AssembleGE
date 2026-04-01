@@ -252,8 +252,8 @@ namespace age::asset::font
 		std::span<glyph_data>
 		get_glyph() noexcept;
 
-		std::span<uint8>
-		get_atlas() noexcept;
+		std::span<const uint8>
+		get_atlas() const noexcept;
 
 		const glyph_data&
 		get_glyph_data(uint16 unicode) noexcept;
