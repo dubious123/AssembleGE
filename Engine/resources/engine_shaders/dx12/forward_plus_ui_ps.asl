@@ -48,20 +48,15 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	}
 	case UI_SHAPE_KIND_TEXT:
 	{
-		const float2 atlas_uv_min = float2(as_float(data.shape_data.data[0]), as_float(data.shape_data.data[1]));
-		const float2 atlas_uv_max = float2(as_float(data.shape_data.data[2]), as_float(data.shape_data.data[3]));
-		const uint32 atlas_id	  = data.shape_data.data[4];
-		// const float2 atlas_uv	  = lerp(atlas_uv_min, atlas_uv_max, ps_in.rect_uv);
-		const float2 atlas_uv = lerp(atlas_uv_min, atlas_uv_max, float2(ps_in.rect_uv.x, 1.0f - ps_in.rect_uv.y));
-		//  const float2	   atlas_uv = float2(ps_in.rect_uv.x, 1.0f - ps_in.rect_uv.y);
-		texture_2d<float4> atlas = global_resource_buffer[atlas_id];
-		float2			   atlas_size;
-		atlas.GetDimensions(atlas_size.x, atlas_size.y);
-		const float4 rgba = sample(atlas, linear_clamp_sampler, atlas_uv);
-		// const float4 rgba = sample(atlas, linear_clamp_sampler, ps_in.rect_uv);
-
-		sd				= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
-		delta_from_edge = (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 2.f);
+		const float2	   atlas_uv_min = float2(as_float(data.shape_data.data[0]), as_float(data.shape_data.data[1]));
+		const float2	   atlas_uv_max = float2(as_float(data.shape_data.data[2]), as_float(data.shape_data.data[3]));
+		const uint32	   atlas_id		= data.shape_data.data[4];
+		const float2	   atlas_uv		= lerp(atlas_uv_min, atlas_uv_max, ps_in.rect_uv);
+		texture_2d<float4> atlas		= global_resource_buffer[atlas_id];
+		const float2	   atlas_size	= get_dimensions(atlas);
+		const float4	   rgba			= sample(atlas, linear_clamp_sampler, atlas_uv);
+		sd								= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
+		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 2.f);
 		break;
 	}
 	}

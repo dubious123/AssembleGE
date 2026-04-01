@@ -1021,6 +1021,15 @@ load(texture_2d<t> tex, float x, float y, uint32 mip = 0)
 	return tex.Load(int32_3(x, y, mip));
 }
 
+template <typename t>
+float2
+get_dimensions(texture_2d<t> tex)
+{
+	float2 size;
+	tex.GetDimensions(size.x, size.y);
+	return size;
+}
+
 // rt
 // ── lifecycle ──
 

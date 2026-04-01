@@ -86,7 +86,8 @@ namespace age::external::msdfgen
 				" -csv \"{}\""
 				" -json \"{}\""
 				" -size {}"
-				" -pxrange {}",
+				" -pxrange {}"
+				" -yorigin top",
 				font_path, output_image_path, output_csv_path, output_json_path, em_size, px_range);
 
 			auto result = std::system(cmd.c_str());

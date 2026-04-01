@@ -185,9 +185,6 @@ namespace age::asset::font
 						.size		  = { plane_r - plane_l, plane_t - plane_b },
 						.atlas_uv_min = { atlas_rect_l / width, atlas_rect_b / height },
 						.atlas_uv_max = { atlas_rect_r / width, atlas_rect_t / height },
-
-						//.atlas_uv_min = { atlas_uv_l / width, 1.0f - (atlas_uv_t / height) },
-						//.atlas_uv_max = { atlas_uv_r / width, 1.0f - (atlas_uv_b / height) },
 					};
 
 					std::memcpy(ptr, &data, sizeof(glyph_data));
@@ -202,7 +199,10 @@ namespace age::asset::font
 
 				AGE_ASSERT(file_size == atlas_size);
 
-				file.read(reinterpret_cast<char*>(p_blob + atlas_offset), atlas_size);
+				for (auto* p_dst : std::views::iota(p_blob + atlas_offset) | std::views::stride(sizeof(uint8_4) * atlas_width) | std::views::take(atlas_height) | std::views::reverse)
+				{
+					file.read(reinterpret_cast<char*>(p_dst), sizeof(uint8_4) * atlas_width);
+				}
 			}
 
 			{
