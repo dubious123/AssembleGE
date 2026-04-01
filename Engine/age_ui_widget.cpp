@@ -191,24 +191,24 @@ namespace age::ui::detail
 		g::layout_h_current_idx = static_cast<uint32>(g::element_layout_data_h_stack.size());
 		g::layout_v_current_idx = static_cast<uint32>(g::element_layout_data_v_stack.size());
 
-		g::element_layout_data_h_stack.emplace_back(layout_data_h{
+		g::element_layout_data_h_stack.emplace_back(layout_data{
 			.layout			  = desc.layout,
 			.mode			  = desc.size_mode_width.size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
-			.width			  = desc.padding.x + desc.padding.y,
-			.width_min		  = desc.size_mode_width.min,
-			.width_max		  = desc.size_mode_width.max,
+			.size			  = desc.padding.x + desc.padding.y,
+			.size_min		  = desc.size_mode_width.min,
+			.size_max		  = desc.size_mode_width.max,
 		});
 
-		g::element_layout_data_v_stack.emplace_back(layout_data_v{
+		g::element_layout_data_v_stack.emplace_back(layout_data{
 			.layout			  = desc.layout,
 			.mode			  = desc.size_mode_height.size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
-			.height			  = desc.padding.z + desc.padding.w,
-			.height_min		  = desc.size_mode_height.min,
-			.height_max		  = desc.size_mode_height.max,
+			.size			  = desc.padding.z + desc.padding.w,
+			.size_min		  = desc.size_mode_height.min,
+			.size_max		  = desc.size_mode_height.max,
 		});
 
 		g::element_layout_pos_data_vec.emplace_back(layout_pos_data{
@@ -244,51 +244,107 @@ namespace age::ui::detail
 		return hash_id;
 	}
 
-	FORCE_INLINE void
-	finalize_width(layout_data_h& layout_data, uint32 layout_h_idx) noexcept
+	template <bool is_width>
+	FORCE_INLINE decltype(auto)
+	get_grow_child(uint32 grow_idx) noexcept
 	{
-		auto& pos_data	  = g::element_layout_pos_data_vec[layout_data.pos_data_idx];
-		auto  available	  = layout_data.width_max - std::min(layout_data.width, layout_data.width_max);
-		layout_data.width = std::clamp(layout_data.width, layout_data.width_min, layout_data.width_max);
-		pos_data.width	  = layout_data.width;
-
-		if (layout_data.grow_child_count == 0) { return; }
-
-		c_auto padding_sum = pos_data.padding_left + pos_data.padding_right;
-		if (layout_data.layout == e::widget_layout::vertical)
+		if constexpr (is_width)
 		{
-			for (auto grow_idx = layout_h_idx + 1;
+			return g::element_layout_data_h_stack[grow_idx];
+		}
+		else
+		{
+			return g::element_layout_data_v_stack[grow_idx];
+		}
+	}
+
+	template <bool is_width>
+	FORCE_INLINE void
+	finalize(layout_data& layout_data, uint32 layout_idx) noexcept
+	{
+		auto& pos_data	= g::element_layout_pos_data_vec[layout_data.pos_data_idx];
+		auto  available = layout_data.size_max - std::min(layout_data.size, layout_data.size_max);
+
+		auto is_cross	 = false;
+		auto padding_sum = 0.f;
+
+		if constexpr (is_width)
+		{
+			is_cross	= layout_data.layout == e::widget_layout::vertical;
+			padding_sum = pos_data.padding_left + pos_data.padding_right;
+		}
+		else
+		{
+			is_cross	= layout_data.layout == e::widget_layout::horizontal;
+			padding_sum = pos_data.padding_top + pos_data.padding_bottom;
+		}
+
+		if (is_cross)
+		{
+			auto value_final = layout_data.size;
+			for (auto grow_idx = layout_idx + 1;
 				 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 			{
-				auto& grow_child		  = g::element_layout_data_h_stack[grow_idx];
+				auto& grow_child		  = get_grow_child<is_width>(grow_idx);
 				auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
 
-				grow_child.width = std::clamp(layout_data.width - padding_sum, grow_child.width_min, grow_child.width_max);
 
-				grow_child_pos_data.width = grow_child.width;
-
-				if (height_depends_on_width(grow_child.mode))
+				if constexpr (is_width)
 				{
-					grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
+					grow_child.size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
+					if (height_depends_on_width(grow_child.mode))
+					{
+						grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
+					}
+				}
+				else
+				{
+					if (height_depends_on_width(grow_child.mode))
+					{
+						grow_child.size = std::clamp(grow_child_pos_data.height, grow_child.size_min, grow_child.size_max);
+					}
+					else
+					{
+						grow_child.size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
+					}
 				}
 
-				finalize_width(grow_child, grow_idx);
+				value_final = std::max(grow_child.size + padding_sum, value_final);
+
+				grow_child_pos_data.set_size<is_width>(grow_child.size);
+
+				finalize<is_width>(grow_child, grow_idx);
 
 				grow_idx += grow_child.grow_child_count + 1;
 			}
 
+			layout_data.size = std::clamp(value_final, layout_data.size_min, layout_data.size_max);
+
+			pos_data.set_size<is_width>(layout_data.size);
+			return;
+		}
+
+		if (pos_data.child_count > 1)
+		{
+			layout_data.size += (pos_data.child_count - 1) * pos_data.child_gap;
+		}
+
+		if (layout_data.grow_child_count == 0)
+		{
+			layout_data.size = std::clamp(layout_data.size, layout_data.size_min, layout_data.size_max);
+			pos_data.set_size<is_width>(layout_data.size);
 			return;
 		}
 
 		g::element_layout_grow_event_vec.clear();
 		g::element_layout_grow_event_vec.reserve(layout_data.grow_child_count * 2);
 
-		for (auto grow_idx = layout_h_idx + 1;
+		for (auto grow_idx = layout_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
-			auto& grow_child = g::element_layout_data_h_stack[grow_idx];
-			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.width, false, grow_idx));
-			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.width_max, true, grow_idx));
+			auto& grow_child = get_grow_child<is_width>(grow_idx);
+			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size, false, grow_idx));
+			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size_max, true, grow_idx));
 			grow_idx += grow_child.grow_child_count + 1;
 		}
 
@@ -314,142 +370,33 @@ namespace age::ui::detail
 			level		  = value;
 		}
 
-
-		for (auto grow_idx = layout_h_idx + 1;
+		auto value_final = layout_data.size;
+		for (auto grow_idx = layout_idx + 1;
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
-			auto& grow_child		  = g::element_layout_data_h_stack[grow_idx];
+			auto& grow_child		  = get_grow_child<is_width>(grow_idx);
 			auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
 
-			grow_child.width		  = std::clamp(level, grow_child.width_min, grow_child.width_max);
-			grow_child_pos_data.width = grow_child.width;
+			grow_child.size = std::clamp(level, grow_child.size_min, grow_child.size_max);
+			grow_child_pos_data.set_size<is_width>(grow_child.size);
 
-			if (height_depends_on_width(grow_child.mode))
+			value_final += grow_child.size;
+
+			if constexpr (is_width)
 			{
-				grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
-			}
-
-			finalize_width(grow_child, grow_idx);
-
-			grow_idx += grow_child.grow_child_count + 1;
-		}
-	}
-
-	FORCE_INLINE void
-	finalize_height(layout_data_v& layout_data, uint32 layout_v_idx) noexcept
-	{
-		auto& pos_data = g::element_layout_pos_data_vec[layout_data.pos_data_idx];
-
-		if (layout_data.grow_child_count == 0)
-		{
-			layout_data.height = std::clamp(layout_data.height, layout_data.height_min, layout_data.height_max);
-			pos_data.height	   = layout_data.height;
-			return;
-		}
-
-		if (layout_data.layout == e::widget_layout::horizontal)
-		{
-			auto padding_sum = pos_data.padding_top + pos_data.padding_bottom;
-			for (auto grow_idx = layout_v_idx + 1;
-				 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
-			{
-				auto& grow_child		  = g::element_layout_data_v_stack[grow_idx];
-				auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
-
 				if (height_depends_on_width(grow_child.mode))
 				{
-					grow_child.height = grow_child_pos_data.height;
-
-					layout_data.height = std::max(layout_data.height, grow_child.height + padding_sum);
+					grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
 				}
-				else
-				{
-					grow_child.height		   = std::clamp(layout_data.height, grow_child.height, grow_child.height_max);
-					grow_child_pos_data.height = grow_child.height;
-				}
-
-				finalize_height(grow_child, grow_idx);
-
-				grow_idx += grow_child.grow_child_count + 1;
 			}
 
-			layout_data.height = std::clamp(layout_data.height, layout_data.height_min, layout_data.height_max);
-			pos_data.height	   = layout_data.height;
-			return;
-		}
-
-		g::element_layout_grow_event_vec.clear();
-		g::element_layout_grow_event_vec.reserve(layout_data.grow_child_count * 2);
-
-		for (auto grow_idx = layout_v_idx + 1;
-			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
-		{
-			auto& grow_child = g::element_layout_data_v_stack[grow_idx];
-
-			auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
-
-			if (height_depends_on_width(grow_child.mode))
-			{
-				grow_child.height = grow_child_pos_data.height;
-
-				layout_data.height += grow_child.height;
-			}
-			else
-			{
-				grow_child.height		   = std::clamp(layout_data.height, grow_child.height, grow_child.height_max);
-				grow_child_pos_data.height = grow_child.height;
-
-				g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.height, false, grow_idx));
-				g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.height_max, true, grow_idx));
-
-				grow_idx += grow_child.grow_child_count + 1;
-			}
-		}
-
-		auto available	   = layout_data.height_max - std::min(layout_data.height, layout_data.height_max);
-		layout_data.height = std::clamp(layout_data.height, layout_data.height_min, layout_data.height_max);
-		pos_data.height	   = layout_data.height;
-
-		std::ranges::sort(g::element_layout_grow_event_vec);
-
-		auto active_count = 0;
-		auto level		  = detail::grow_sort_event_value(g::element_layout_grow_event_vec[0]);
-
-		for (auto e : g::element_layout_grow_event_vec)
-		{
-			c_auto value	= detail::grow_sort_event_value(e);
-			c_auto is_leave = detail::grow_sort_event_is_leave(e);
-			c_auto idx		= detail::grow_sort_event_idx(e);
-
-			c_auto cost = (value - level) * active_count;
-			if (cost > available)
-			{
-				level += available / static_cast<float>(active_count);
-				break;
-			}
-
-			available	 -= cost;
-			active_count += 1 - 2 * is_leave;
-			level		  = value;
-		}
-
-		for (auto grow_idx = layout_v_idx + 1;
-			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
-		{
-			auto& grow_child		  = g::element_layout_data_v_stack[grow_idx];
-			auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
-
-			if (height_depends_on_width(grow_child.mode) is_false)
-			{
-				grow_child.height = std::clamp(level, grow_child.height, grow_child.height_max);
-
-				g::element_layout_pos_data_vec[grow_child.pos_data_idx].height = grow_child.height;
-			}
-
-			finalize_height(grow_child, grow_idx);
+			finalize<is_width>(grow_child, grow_idx);
 
 			grow_idx += grow_child.grow_child_count + 1;
 		}
+
+		layout_data.size = std::clamp(value_final, layout_data.size_min, layout_data.size_max);
+		pos_data.set_size<is_width>(layout_data.size);
 	}
 
 	template <bool is_root = false>
@@ -486,9 +433,22 @@ namespace age::ui::detail
 
 		if (can_finalize_width)
 		{
-			detail::finalize_width(layout_h_current, g::layout_h_current_idx);
+			detail::finalize<true>(layout_h_current, g::layout_h_current_idx);
 
 			layout_common_current.child_height_depends_on_width_solved = true;
+
+			if (layout_h_parent.layout == e::widget_layout::horizontal)
+			{
+				layout_h_parent.size += layout_h_current.size;
+			}
+			else if (layout_h_parent.layout == e::widget_layout::vertical)
+			{
+				layout_h_parent.size = std::max(layout_h_parent.size, layout_h_current.size + layout_common_parent.padding_sum);
+			}
+			else
+			{
+				AGE_UNREACHABLE();
+			}
 		}
 		else
 		{
@@ -513,31 +473,25 @@ namespace age::ui::detail
 
 			// g::element_layout_pos_data_vec[layout_v_current.pos_data_idx].height = layout_v_current.height;
 
-			detail::finalize_height(layout_v_current, g::layout_v_current_idx);
+			detail::finalize<false>(layout_v_current, g::layout_v_current_idx);
+
+			if (layout_v_parent.layout == e::widget_layout::horizontal)
+			{
+				layout_v_parent.size = std::max(layout_v_parent.size, layout_v_current.size + layout_common_parent.padding_sum);
+			}
+			else if (layout_v_parent.layout == e::widget_layout::vertical)
+			{
+				layout_v_parent.size += layout_v_current.size;
+			}
+			else
+			{
+				AGE_UNREACHABLE();
+			}
 		}
 		else
 		{
 			++layout_v_parent.grow_child_count;
 		}
-
-		AGE_ASSERT(layout_h_current.layout == layout_v_current.layout);
-		AGE_ASSERT(layout_h_parent.layout == layout_v_parent.layout);
-
-		if (layout_h_parent.layout == e::widget_layout::horizontal)
-		{
-			layout_h_parent.width  += layout_h_current.width + layout_common_parent.child_gap * (layout_common_parent.child_count > 1);
-			layout_v_parent.height	= std::max(layout_v_parent.height, layout_v_current.height + layout_common_parent.padding_sum);
-		}
-		else if (layout_h_parent.layout == e::widget_layout::vertical)
-		{
-			layout_h_parent.width	= std::max(layout_h_parent.width, layout_h_current.width + layout_common_parent.padding_sum);
-			layout_v_parent.height += layout_v_current.height + layout_common_parent.child_gap * (layout_common_parent.child_count > 1);
-		}
-		else
-		{
-			AGE_UNREACHABLE();
-		}
-
 
 		// handle z_order
 		{
@@ -650,7 +604,7 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	widget_ctx
-	text(const char* p_str, float font_size) noexcept
+	text(const char* p_str, float font_size, float4 padding) noexcept
 	{
 		c_auto text_data_idx = g::text_data_vec.size<uint32>();
 
@@ -662,7 +616,8 @@ namespace age::ui::widget
 		};
 
 		auto word_width_min		= 0.0f;
-		auto line_width			= 0.0f;
+		auto max_width			= 0.f;
+		auto line_width			= 0.f;
 		auto word_count			= 0u;
 		auto char_count			= 0u;
 		auto word_char_count	= 0u;
@@ -682,7 +637,7 @@ namespace age::ui::widget
 						.leading_space = word_leading_space,
 						.line_offset   = line_offset });
 
-					word_width_min	= std::max(word_width_min, word_width);
+					word_width_min	= std::max(word_width_min, word_width + word_leading_space);
 					line_width	   += word_width + word_leading_space;
 
 					word_width		   = 0.0f;
@@ -700,12 +655,15 @@ namespace age::ui::widget
 			if (c == '\n')
 			{
 				word_leading_space = 0.f;
+				max_width		   = std::max(line_width, max_width);
+				line_width		   = 0.f;
 				++line_offset;
 				++p_str;
 				continue;
 			}
 			if (c == '\0')
 			{
+				max_width = std::max(line_width, max_width);
 				break;
 			}
 
@@ -731,9 +689,12 @@ namespace age::ui::widget
 		text_data.word_data_count = word_count;
 		text_data.char_data_count = char_count;
 
-		c_auto height_min = (line_offset + 1u) * font::get_height(font_size);
-
 		g::text_data_vec.emplace_back(std::move(text_data));
+
+		c_auto height_min	 = (line_offset + 1u) * font::get_height(font_size);
+		c_auto padding_sum_h = padding.x + padding.y;
+		c_auto padding_sum_v = padding.z + padding.w;
+
 
 		return begin(
 			p_str,
@@ -741,12 +702,12 @@ namespace age::ui::widget
 				.draw			  = true,
 				.layout			  = e::widget_layout::horizontal,
 				.align			  = e::widget_align::center,
-				.size_mode_width  = size_mode::text(word_width_min, line_width),
-				.size_mode_height = size_mode::text(height_min, std::numeric_limits<float>::max()),
+				.size_mode_width  = size_mode::text(word_width_min + padding_sum_h, max_width + padding_sum_h),
+				.size_mode_height = size_mode::text(height_min + padding_sum_v, std::numeric_limits<float>::max()),
 				.z_offset		  = 0,
 				//.offset			   = offset,
-				.child_gap = 10.f,
-				//.padding		   = padding,
+				.child_gap		   = 10.f,
+				.padding		   = padding,
 				.border_thickness  = 0.f,
 				.shape_kind		   = e::shape_kind::text,
 				.body_brush_kind   = e::brush_kind::color,

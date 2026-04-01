@@ -94,7 +94,7 @@ namespace age::ui::widget
 					float2			 offset	 = float2{ 0.f, 0.f }) noexcept;
 
 	widget_ctx
-	text(const char* p_str, float font_size = g::current_font_size) noexcept;
+	text(const char* p_str, float font_size = g::current_font_size, float4 padding = float4{ 0, 0, 0, 0 }) noexcept;
 }	 // namespace age::ui::widget
 
 // defaults

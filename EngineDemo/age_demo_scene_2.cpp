@@ -304,7 +304,7 @@ namespace age_demo::scene_2
 				{
 					if (auto _ = age::ui::widget::begin(
 							{ .layout			= age::ui::e::widget_layout::horizontal,
-							  .size_mode_width	= age::ui::size_mode::fixed(150),
+							  .size_mode_width	= age::ui::size_mode::fit(),
 							  .size_mode_height = age::ui::size_mode::fit(),
 							  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.15f, 0.15f) }))
 					{
@@ -318,12 +318,15 @@ namespace age_demo::scene_2
 							  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
 
 						// text
-						age::ui::widget::text("hello text\n    hello text    \n"
+						age::ui::widget::text("hello text\n    hello       text    \n\n"
 											  "hello text",
 											  22);
 
-						// age::ui::widget::text("hello text\n    hello text    \n"
-						//					  "hello text");
+						age::ui::widget::text("hello text", 22, float4{ 2, 100, 2, 2 });
+
+						age::ui::widget::text("hello text", 22);
+						age::ui::widget::text("hello text\n    hello text    \n"
+											  "hello text");
 
 						// age::ui::widget::text("ABCDEFG\n1234567",
 						//					  22);

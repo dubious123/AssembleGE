@@ -135,8 +135,7 @@ namespace age::ui
 		float  rotation;
 	};
 
-	// data for calculating element_size
-	struct layout_data_h
+	struct layout_data
 	{
 		e::widget_layout  layout;
 		e::size_mode_kind mode;
@@ -145,25 +144,10 @@ namespace age::ui
 		uint32	pos_data_idx;
 		uint32	grow_child_count;
 
-		float width;
+		float size;
 
-		float width_min;
-		float width_max;
-	};
-
-	struct layout_data_v
-	{
-		e::widget_layout  layout;
-		e::size_mode_kind mode;
-
-		uint8_2 _;
-		uint32	pos_data_idx;
-		uint32	grow_child_count;
-
-		float height;
-
-		float height_min;
-		float height_max;
+		float size_min;
+		float size_max;
 	};
 
 	struct layout_data_common
@@ -207,6 +191,20 @@ namespace age::ui
 
 			uint64 extra;
 		};
+
+		template <bool is_width>
+		FORCE_INLINE void
+		set_size(float size) noexcept
+		{
+			if constexpr (is_width)
+			{
+				width = size;
+			}
+			else
+			{
+				height = size;
+			}
+		}
 	};
 }	 // namespace age::ui
 
@@ -267,8 +265,8 @@ namespace age::ui::g
 	inline age::unordered_map<uint64, element_state> element_state_map;
 
 	// layout stack
-	inline age::vector<layout_data_h>	   element_layout_data_h_stack;
-	inline age::vector<layout_data_v>	   element_layout_data_v_stack;
+	inline age::vector<layout_data>		   element_layout_data_h_stack;
+	inline age::vector<layout_data>		   element_layout_data_v_stack;
 	inline age::vector<layout_data_common> element_layout_data_common_stack;
 
 	// layout vec
