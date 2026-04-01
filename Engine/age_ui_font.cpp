@@ -77,12 +77,23 @@ namespace age::ui::font
 	float
 	get_advance(uint16 unicode, float font_size) noexcept
 	{
+		AGE_ASSERT(unicode != ' ');
+
 		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 
 		auto& data = header.get_glyph_data(unicode);
 
 		return data.advance * font_size;
+	}
+
+	float
+	get_space_advance(float font_size) noexcept
+	{
+		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto& header = h_font->get_asset_header<asset::e::kind::font>();
+
+		return header.space_advance * font_size;
 	}
 
 	const asset::font::glyph_data&

@@ -318,12 +318,15 @@ namespace age_demo::scene_2
 							  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
 
 						// text
-						// age::ui::widget::text("hello text\n    hello text    \n"
-						//					  "hello text",
-						//					  22);
-
-						age::ui::widget::text("ABCDEFG\n1234567",
+						age::ui::widget::text("hello text\n    hello text    \n"
+											  "hello text",
 											  22);
+
+						// age::ui::widget::text("hello text\n    hello text    \n"
+						//					  "hello text");
+
+						// age::ui::widget::text("ABCDEFG\n1234567",
+						//					  22);
 
 						// age::ui::widget::begin(
 						//	{ .layout			= age::ui::e::widget_layout::horizontal,

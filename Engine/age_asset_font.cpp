@@ -1,6 +1,73 @@
 #include "age_pch.hpp"
 #include "age.hpp"
 
+namespace age::asset::font::detail
+{
+	float
+	read_space_advance_ttf(const char* p_path) noexcept
+	{
+		auto file		 = std::ifstream(p_path, std::ios::binary);
+		auto buf		 = std::vector<uint8>(std::istreambuf_iterator<char>(file), {});
+		auto read_uint16 = [&](uint32 offset) { return uint16(buf[offset] << 8 | buf[offset + 1]); };
+		auto read_uint32 = [&](uint32 offset) { return uint32(buf[offset]) << 24 | uint32(buf[offset + 1]) << 16 | uint32(buf[offset + 2]) << 8 | buf[offset + 3]; };
+
+		// find table offsets
+		uint32 head = 0, cmap = 0, hmtx = 0, hhea = 0;
+		for (uint16 i = 0; i < read_uint16(4); ++i)
+		{
+			c_auto table_idx = 12 + i * 16;
+			c_auto offset	 = read_uint32(table_idx + 8);
+			if (std::memcmp(&buf[table_idx], "head", 4) == 0) { head = offset; };
+			if (std::memcmp(&buf[table_idx], "cmap", 4) == 0) { cmap = offset; };
+			if (std::memcmp(&buf[table_idx], "hmtx", 4) == 0) { hmtx = offset; };
+			if (std::memcmp(&buf[table_idx], "hhea", 4) == 0) { hhea = offset; };
+		}
+
+		c_auto upm		 = read_uint16(head + 18);
+		c_auto h_metrics = read_uint16(hhea + 34);
+
+		// find format 4 subtable
+		uint32 f4 = 0;
+		for (uint16 i = 0; i < read_uint16(cmap + 2); ++i)
+		{
+			c_auto e = cmap + 4 + i * 8;
+			if (read_uint16(e) == 3 && read_uint16(e + 2) == 1)
+			{
+				f4 = cmap + read_uint32(e + 4);
+				break;
+			}
+		}
+
+		// walk segments for U+0020
+		c_auto seg_count = read_uint16(f4 + 6) / 2;
+		c_auto ends		 = f4 + 14;
+		c_auto starts	 = ends + seg_count * 2 + 2;
+		c_auto deltas	 = starts + seg_count * 2;
+		c_auto ranges	 = deltas + seg_count * 2;
+
+		uint16 gid = 0;
+		for (uint16 i = 0; i < seg_count; ++i)
+		{
+			if (0x20 > read_uint16(ends + i * 2)) { continue; }
+			if (0x20 < read_uint16(starts + i * 2)) { break; }
+
+			c_auto ro = read_uint16(ranges + i * 2);
+			if (ro == 0)
+			{
+				gid = uint16((0x20 + int16(read_uint16(deltas + i * 2))) & 0xFFFF);
+			}
+			else
+			{
+				gid = read_uint16(ranges + i * 2 + ro + (0x20 - read_uint16(starts + i * 2)) * 2);
+				break;
+			}
+		}
+
+		c_auto adv = read_uint16(hmtx + std::min(gid, uint16(h_metrics - 1)) * 4);
+		return float(adv) / float(upm);
+	}
+}	 // namespace age::asset::font::detail
+
 namespace age::asset::font
 {
 	std::span<uint16>
@@ -100,7 +167,7 @@ namespace age::asset::font
 		}
 
 
-		for (auto font_extension : { ".ttf", ".otf" })
+		for (auto font_extension : { ".ttf" /*, ".otf"*/ })
 		{
 			auto font_path = std::format("{}{}", font_name, font_extension);
 			auto res	   = external::msdfgen::bake_font(font_path.c_str(),
@@ -110,7 +177,6 @@ namespace age::asset::font
 														  flag,
 														  extra_unicode_span);
 
-
 			if (res is_false)
 			{
 				std::remove("font_bake_temp.bin");
@@ -118,6 +184,8 @@ namespace age::asset::font
 				std::remove("font_bake_temp.json");
 				continue;
 			}
+
+			c_auto space_advance = detail::read_space_advance_ttf(font_path.c_str());
 
 			float  ascent, descent, line_height, line_gap, em_size;
 			uint32 atlas_width, atlas_height;
@@ -169,22 +237,22 @@ namespace age::asset::font
 					 ++ptr)
 				{
 					uint32 unicode;
-					float  advance, plane_l, plane_b, plane_r, plane_t, atlas_rect_l, atlas_rect_b, atlas_rect_r, atlas_rect_t;
+					float  advance, plane_l, plane_t, plane_r, plane_b, atlas_rect_l, atlas_rect_t, atlas_rect_r, atlas_rect_b;
 
 					sscanf_s(line.c_str(), "%u,%f,%f,%f,%f,%f,%f,%f,%f,%f",
 							 &unicode, &advance,
-							 &plane_l, &plane_b, &plane_r, &plane_t,
-							 &atlas_rect_l, &atlas_rect_b, &atlas_rect_r, &atlas_rect_t);
+							 &plane_l, &plane_t, &plane_r, &plane_b,
+							 &atlas_rect_l, &atlas_rect_t, &atlas_rect_r, &atlas_rect_b);
 
 					c_auto width  = static_cast<float>(atlas_width);
 					c_auto height = static_cast<float>(atlas_height);
 
 					auto data = glyph_data{
 						.advance	  = advance,
-						.offset		  = { plane_l, ascent - plane_t },
-						.size		  = { plane_r - plane_l, plane_t - plane_b },
-						.atlas_uv_min = { atlas_rect_l / width, atlas_rect_b / height },
-						.atlas_uv_max = { atlas_rect_r / width, atlas_rect_t / height },
+						.offset		  = { plane_l, plane_t - ascent },
+						.size		  = { plane_r - plane_l, plane_b - plane_t },
+						.atlas_uv_min = { atlas_rect_l / width, atlas_rect_t / height },
+						.atlas_uv_max = { atlas_rect_r / width, atlas_rect_b / height },
 					};
 
 					std::memcpy(ptr, &data, sizeof(glyph_data));
@@ -199,10 +267,7 @@ namespace age::asset::font
 
 				AGE_ASSERT(file_size == atlas_size);
 
-				for (auto* p_dst : std::views::iota(p_blob + atlas_offset) | std::views::stride(sizeof(uint8_4) * atlas_width) | std::views::take(atlas_height) | std::views::reverse)
-				{
-					file.read(reinterpret_cast<char*>(p_dst), sizeof(uint8_4) * atlas_width);
-				}
+				file.read(reinterpret_cast<char*>(p_blob + atlas_offset), sizeof(uint8_4) * atlas_width * atlas_height);
 			}
 
 			{
@@ -212,6 +277,7 @@ namespace age::asset::font
 					.atlas_offset		 = atlas_offset,
 					.ascent				 = ascent,
 					.descent			 = descent,
+					.space_advance		 = space_advance,
 					.line_height		 = line_height,
 					.em_size			 = em_size,
 					.px_range			 = 2.0f,

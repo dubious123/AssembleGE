@@ -57,6 +57,9 @@ namespace age::ui::font
 	float
 	get_advance(uint16 unicode, float font_size = g::current_font_size) noexcept;
 
+	float
+	get_space_advance(float font_size) noexcept;
+
 	const asset::font::glyph_data&
 	get_glyph_data(uint16 unicode, uint32 font_idx) noexcept;
 

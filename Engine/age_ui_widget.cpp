@@ -658,7 +658,7 @@ namespace age::ui::widget
 			.char_data_offset = g::char_data_vec.size<uint32>(),
 			.word_data_offset = g::word_data_vec.size<uint32>(),
 			.line_height	  = ui::font::get_height(font_size),
-			.space_advance	  = ui::font::get_advance(' ', font_size)
+			.space_advance	  = ui::font::get_space_advance(font_size)
 		};
 
 		auto word_width_min		= 0.0f;

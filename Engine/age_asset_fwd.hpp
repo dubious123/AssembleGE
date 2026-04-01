@@ -230,6 +230,7 @@ namespace age::asset::font
 
 		float ascent;
 		float descent;
+		float space_advance;
 		float line_height;
 		float em_size;
 		float px_range;
