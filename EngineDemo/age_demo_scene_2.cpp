@@ -286,80 +286,61 @@ namespace age_demo::scene_2
 		}
 
 		age::ui::begin_frame(i_update.get_h_window);
+		// syntax
 
 		// ui
-		if (auto _ = age::ui::widget::begin(
-				{ .draw				= false,
-				  .layout			= age::ui::e::widget_layout::horizontal,
-				  .size_mode_width	= age::ui::size_mode::fit(),
-				  .size_mode_height = age::ui::size_mode::grow() }))
+		// if (auto _ = age::ui::widget::begin(
+		//		{ .draw				= false,
+		//		  .layout			= age::ui::e::widget_layout::horizontal,
+		//		  .size_mode_width	= age::ui::size_mode::fit(),
+		//		  .size_mode_height = age::ui::size_mode::grow() }))
+		//	;
 		{
-			if (auto _ = age::ui::widget::begin(
-					{ .draw				= false,
-					  .layout			= age::ui::e::widget_layout::vertical,
-					  .size_mode_width	= age::ui::size_mode::fit(),
-					  .size_mode_height = age::ui::size_mode::grow() }))
+			using namespace age::ui;
+
+			if (auto _ = widget::begin(set_draw(false)
+									   | set_layout(e::widget_layout::horizontal)
+									   | set_size(size_mode::fit(), size_mode::grow())))
 			{
-				for (auto i = 0; i < 5; ++i)
+				if (auto _ = widget::begin(set_draw(true)
+										   | set_layout(e::widget_layout::vertical)
+										   | set_size(size_mode::fit(), size_mode::grow())
+										   | set_body_brush_data(brush_data::color(1.f, 1.f, 1.f, 0.7f))))
 				{
-					if (auto _ = age::ui::widget::begin(
-							{ .layout			= age::ui::e::widget_layout::horizontal,
-							  .size_mode_width	= age::ui::size_mode::fit(),
-							  .size_mode_height = age::ui::size_mode::fit(),
-							  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.15f, 0.15f) }))
+					for (auto i = 0; i < 5; ++i)
 					{
-						// arrow
-						age::ui::widget::begin(
-							{ .align			= age::ui::e::widget_align::center,
-							  .size_mode_width	= age::ui::size_mode::fixed(22),
-							  .size_mode_height = age::ui::size_mode::fixed(22),
-							  .border_thickness = 0.f,
-							  .shape_kind		= age::ui::e::shape_kind::arrow_right,
-							  .body_brush_data	= age::ui::brush_data::color(0.75f, 0.75f, 0.75f) });
+						if (auto _ = widget::begin(set_layout(e::widget_layout::horizontal)
+												   | set_size(size_mode::fit(), size_mode::fit())
+												   | set_body_brush_data(brush_data::color(0.15f, 0.15f, 0.15f, 0.7f))))
+						{
+							// arrow
+							widget::begin(set_align(e::widget_align::center)
+										  | set_size(size_mode::fixed(22), size_mode::fixed(22))
+										  | set_border_thickness(0.f)
+										  | set_shape_kind(e::shape_kind::arrow_right)
+										  | set_body_brush_data(brush_data::color(0.75, 0.75, 0.75)));
 
-						// text
-						age::ui::widget::text("hello text\n    hello       text    \n\n"
-											  "hello text",
-											  22);
 
-						age::ui::widget::text("hello text", 22, float4{ 2, 100, 2, 2 });
+							widget::begin(set_text("hello text\n    hello       text    \n\n"
+												   "hello text")
+										  | set_font_size(22)
+										  | set_body_brush_data(brush_data::color(1.0, 0, 0)));
 
-						age::ui::widget::text("hello text", 22);
-						age::ui::widget::text("hello text\n    hello text    \n"
-											  "hello text");
+							widget::begin(set_text("hello text\n    hello       text    \n\n"
+												   "hello text")
+										  | set_font_size(22));
 
-						// age::ui::widget::text("ABCDEFG\n1234567",
-						//					  22);
+							widget::begin(set_text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
 
-						// age::ui::widget::begin(
-						//	{ .layout			= age::ui::e::widget_layout::horizontal,
-						//	  .align			= age::ui::e::widget_align::center,
-						//	  .size_mode_width	= age::ui::size_mode::fixed(300),
-						//	  .size_mode_height = age::ui::size_mode::grow(),
-						//	  .body_brush_data	= age::ui::brush_data::color(0.15f, 0.0f, 0.15f) });
+							widget::begin(set_text("hello text") | set_font_size(22));
+
+							widget::text("hello text\n    hello text    \n"
+										 "hello text");
+
+							widget::text("ABCDEFG\n1234567");
+						}
 					}
 				}
-
-
-				//  if (auto h = age::ui::widget::begin(
-				//		age::ui::widget_desc{
-				//			.size_mode_width   = age::ui::size_mode::fixed(300),
-				//			.size_mode_height  = age::ui::size_mode::fixed(200),
-				//			.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-				//			.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-				//		}))
-				//{
-				//  }
-
-				// if (auto h = age::ui::widget::begin(
-				//		age::ui::widget_desc{
-				//			.size_mode_width   = age::ui::size_mode::fixed(300),
-				//			.size_mode_height  = age::ui::size_mode::fixed(200),
-				//			.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-				//			.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-				//		}))
-				//{
-				// }
 			}
 		}
 

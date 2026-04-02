@@ -67,19 +67,19 @@ namespace age::ui::font
 	}
 
 	float
-	get_height(float font_size) noexcept
+	get_line_height(float font_size, uint32 font_idx) noexcept
 	{
-		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto  h_font = g::font_data_vec[font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 		return header.line_height * font_size;
 	}
 
 	float
-	get_advance(uint16 unicode, float font_size) noexcept
+	get_advance(uint16 unicode, float font_size, uint32 font_idx) noexcept
 	{
 		AGE_ASSERT(unicode != ' ');
 
-		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto  h_font = g::font_data_vec[font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 
 		auto& data = header.get_glyph_data(unicode);
@@ -88,9 +88,9 @@ namespace age::ui::font
 	}
 
 	float
-	get_space_advance(float font_size) noexcept
+	get_space_advance(float font_size, uint32 font_idx) noexcept
 	{
-		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto  h_font = g::font_data_vec[font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 
 		return header.space_advance * font_size;
@@ -99,7 +99,7 @@ namespace age::ui::font
 	const asset::font::glyph_data&
 	get_glyph_data(uint16 unicode, uint32 font_idx) noexcept
 	{
-		auto  h_font = g::font_data_vec[g::current_font_idx].second.h_font;
+		auto  h_font = g::font_data_vec[font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 
 		return header.get_glyph_data(unicode);
@@ -109,11 +109,5 @@ namespace age::ui::font
 	get_glyph_data(uint16 unicode, t_hash font_hash) noexcept
 	{
 		return get_glyph_data(unicode, detail::find_idx(font_hash));
-	}
-
-	const asset::font::glyph_data&
-	get_glyph_data(uint16 unicode) noexcept
-	{
-		return get_glyph_data(unicode, g::current_font_idx);
 	}
 }	 // namespace age::ui::font

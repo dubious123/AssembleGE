@@ -46,46 +46,29 @@ namespace age::ui::font
 	unload(const char* p_font_name) noexcept;
 
 	float
-	get_height(float font_size = g::current_font_size) noexcept;
+	get_line_height(float font_size = g::current_font_size, uint32 font_idx = g::current_font_idx) noexcept;
 
 	float
-	get_advance(uint16 unicode, float font_size = g::current_font_size) noexcept;
+	get_advance(uint16 unicode, float font_size = g::current_font_size, uint32 font_idx = g::current_font_idx) noexcept;
 
 	float
-	get_space_advance(float font_size) noexcept;
+	get_space_advance(float font_size, uint32 font_idx = g::current_font_idx) noexcept;
 
 	const asset::font::glyph_data&
-	get_glyph_data(uint16 unicode, uint32 font_idx) noexcept;
+	get_glyph_data(uint16 unicode, uint32 font_idx = g::current_font_idx) noexcept;
 
 	const asset::font::glyph_data&
 	get_glyph_data(uint16 unicode, t_hash font_hash) noexcept;
-
-	const asset::font::glyph_data&
-	get_glyph_data(uint16 unicode) noexcept;
 }	 // namespace age::ui::font
 
 // widgets
 namespace age::ui::widget
 {
 	widget_ctx
-	begin(const widget_desc& desc) noexcept;
+	begin(widget_desc&& desc) noexcept;
 
 	widget_ctx
-	layout_horizontal(widget_size_mode width,
-					  widget_size_mode height,
-					  float4		   padding = float4{ 10.f, 10.f, 10.f, 10.f },
-					  e::widget_align  align   = e::widget_align::begin,
-					  float2		   offset  = float2{ 0.f, 0.f }) noexcept;
-
-	widget_ctx
-	layout_vertical(widget_size_mode width,
-					widget_size_mode height,
-					float4			 padding = float4{ 10.f, 10.f, 10.f, 10.f },
-					e::widget_align	 align	 = e::widget_align::begin,
-					float2			 offset	 = float2{ 0.f, 0.f }) noexcept;
-
-	widget_ctx
-	text(const char* p_str, float font_size = g::current_font_size, float4 padding = float4{ 0, 0, 0, 0 }) noexcept;
+	text(const char* p_str) noexcept;
 }	 // namespace age::ui::widget
 
 // defaults

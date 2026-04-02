@@ -916,7 +916,7 @@ namespace age::external::msdfgen
 			extra_unicode_span.data(),
 			static_cast<uint16>(extra_unicode_span.size()),
 			48,
-			2);
+			4);
 
 		return succeed;
 	}

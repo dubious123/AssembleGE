@@ -43,9 +43,9 @@ namespace age
 
 	namespace platform {}
 
-	namespace ui {}
-
 	namespace graphics {}
+
+	namespace ui {}
 
 	namespace graphics::render_pipeline::forward_plus {}
 
@@ -142,6 +142,7 @@ namespace age
 #include "age_ui_fwd.hpp"
 #include "age_ui.hpp"
 #include "age_ui_defaults.hpp"
+#include "age_ui_style.hpp"
 
 #include "age_runtime.hpp"
 

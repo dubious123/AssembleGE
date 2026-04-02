@@ -90,6 +90,7 @@
     <ClInclude Include="age_ui.hpp" />
     <ClInclude Include="age_ui_defaults.hpp" />
     <ClInclude Include="age_ui_fwd.hpp" />
+    <ClInclude Include="age_ui_style.hpp" />
     <ClInclude Include="age_util.hpp" />
     <ClInclude Include="age_util_container.hpp" />
     <ClInclude Include="age_util_layout.hpp" />

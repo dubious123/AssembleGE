@@ -102,8 +102,12 @@ namespace age::ui
 
 		float2 offset = float2{ 0, 0 };
 
-		float  child_gap = 4.f;
-		float4 padding	 = { 4.f, 4.f, 4.f, 4.f };
+		float child_gap = 4.f;
+
+		float padding_left	 = 4.f;
+		float padding_right	 = 4.f;
+		float padding_top	 = 4.f;
+		float padding_bottom = 4.f;
 
 		float2 pivot_uv			= float2{ 0.5f, 0.5f };
 		float  rotation			= 0.f;
@@ -122,8 +126,11 @@ namespace age::ui
 		{
 			struct
 			{
-				uint32 offset;
-				uint32 atlas_id;
+				uint32 text_data_idx;
+				uint32 font_idx;
+
+				const char* p_str;
+				float		font_size;
 			} text;
 
 			uint64 extra;
@@ -192,7 +199,7 @@ namespace age::ui
 		{
 			struct
 			{
-				uint32 offset;
+				uint32 idx;	   // 1. text_data_idx 2. char_pos_data_idx
 				uint32 atlas_id;
 			} text;
 

@@ -93,8 +93,8 @@ ui_calc_shape_arrow_right(float2 center_offset, float2 size, ui_shape_data data)
 }
 
 // brush
-float3
+float4
 ui_calc_brush_color(float2 rect_uv, ui_brush_data data)
 {
-	return float3(as_float(data.data.x), as_float(data.data.y), as_float(data.data.z));
+	return float4(as_float(data.data.x), as_float(data.data.y), as_float(data.data.z), as_float(data.data.w));
 }

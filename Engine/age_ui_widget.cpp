@@ -50,9 +50,9 @@ namespace age::ui::detail
 	{
 		if (mode_kind == e::size_mode_kind::text)
 		{
-			c_auto& text_data		  = g::text_data_vec[pos_data.text.offset];
+			c_auto& text_data		  = g::text_data_vec[pos_data.text.idx];
 			c_auto	char_pos_data_idx = g::char_pos_data_vec.size<uint32>();
-			pos_data.text.offset	  = char_pos_data_idx;
+			pos_data.text.idx		  = char_pos_data_idx;
 
 			auto line_offset = 0u;
 			auto cursor		 = float2{ 0.f, 0.f };
@@ -162,7 +162,7 @@ namespace age::ui::detail
 
 				if (desc.shape_kind == e::shape_kind::text)
 				{
-					auto& text_data	  = g::text_data_vec[desc.text.offset];
+					auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
 					render_data_count = text_data.char_data_count;
 				}
 				else
@@ -172,8 +172,8 @@ namespace age::ui::detail
 			}
 
 			auto padding_sum = desc.layout == e::widget_layout::vertical
-								 ? desc.padding.x + desc.padding.y
-								 : desc.padding.z + desc.padding.w;
+								 ? desc.padding_left + desc.padding_right
+								 : desc.padding_top + desc.padding_bottom;
 
 			g::element_layout_data_common_stack.emplace_back(layout_data_common{
 				.child_count						  = 0,
@@ -194,7 +194,7 @@ namespace age::ui::detail
 			.mode			  = desc.size_mode_width.size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
-			.size			  = desc.padding.x + desc.padding.y,
+			.size			  = desc.padding_left + desc.padding_right,
 			.size_min		  = desc.size_mode_width.min,
 			.size_max		  = desc.size_mode_width.max,
 		});
@@ -204,7 +204,7 @@ namespace age::ui::detail
 			.mode			  = desc.size_mode_height.size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
-			.size			  = desc.padding.z + desc.padding.w,
+			.size			  = desc.padding_top + desc.padding_bottom,
 			.size_min		  = desc.size_mode_height.min,
 			.size_max		  = desc.size_mode_height.max,
 		});
@@ -217,11 +217,11 @@ namespace age::ui::detail
 			.z_offset		   = static_cast<uint16>(z_offset),
 			.offset			   = desc.offset,
 			.child_gap		   = desc.child_gap,
-			.padding_left	   = desc.padding.x,
-			.padding_right	   = desc.padding.y,
-			.padding_top	   = desc.padding.z,
-			.padding_bottom	   = desc.padding.w,
-			.text			   = { .offset = desc.text.offset, .atlas_id = desc.text.atlas_id },
+			.padding_left	   = desc.padding_left,
+			.padding_right	   = desc.padding_right,
+			.padding_top	   = desc.padding_top,
+			.padding_bottom	   = desc.padding_bottom,
+			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id },
 		});
 
 		if (desc.draw)
@@ -516,93 +516,21 @@ namespace age::ui::detail
 	}
 };	  // namespace age::ui::detail
 
-namespace age::ui::widget
+namespace age::ui::detail
 {
-	widget_ctx
-	begin(const widget_desc& desc) noexcept
+	FORCE_INLINE void
+	handle_text(widget_desc& desc) noexcept
 	{
-		detail::widget_begin(desc);
-		return widget_ctx{ .hash_id = new_id() };
-	}
-}	 // namespace age::ui::widget
-
-namespace age::ui
-{
-	widget_ctx::~widget_ctx() noexcept
-	{
-		detail::widget_end();
-		g::id_stack.pop_back();
-	}
-}	 // namespace age::ui
-
-// primitives
-namespace age::ui::widget
-{
-	widget_ctx
-	layout_horizontal(widget_size_mode width,
-					  widget_size_mode height,
-					  float4		   padding,
-					  e::widget_align  align,
-					  float2		   offset) noexcept
-	{
-		return begin(
-			age::ui::widget_desc{
-				.draw			   = false,
-				.layout			   = age::ui::e::widget_layout::horizontal,
-				.align			   = align,
-				.size_mode_width   = width,
-				.size_mode_height  = height,
-				.z_offset		   = 0,
-				.offset			   = offset,
-				.child_gap		   = 10.f,
-				.padding		   = padding,
-				.shape_kind		   = age::ui::e::shape_kind::rect,
-				.body_brush_kind   = age::ui::e::brush_kind::color,
-				.border_brush_kind = age::ui::e::brush_kind::color,
-				.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-				.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-			});
-	}
-
-	widget_ctx
-	layout_vertical(widget_size_mode width,
-					widget_size_mode height,
-					float4			 padding,
-					e::widget_align	 align,
-					float2			 offset) noexcept
-	{
-		return begin(
-			age::ui::widget_desc{
-				.draw			   = false,
-				.layout			   = age::ui::e::widget_layout::vertical,
-				.align			   = align,
-				.size_mode_width   = width,
-				.size_mode_height  = height,
-				.z_offset		   = 0,
-				.offset			   = offset,
-				.child_gap		   = 10.f,
-				.padding		   = padding,
-				.shape_kind		   = age::ui::e::shape_kind::rect,
-				.body_brush_kind   = age::ui::e::brush_kind::color,
-				.border_brush_kind = age::ui::e::brush_kind::color,
-				.body_brush_data   = age::ui::brush_data::color(0.15f, 0.15f, 0.15f),
-				.border_brush_data = age::ui::brush_data::color(1.0f, 1.0f, 1.0f),
-			});
-	}
-}	 // namespace age::ui::widget
-
-namespace age::ui::widget
-{
-	widget_ctx
-	text(const char* p_str, float font_size, float4 padding) noexcept
-	{
-		c_auto text_data_idx = g::text_data_vec.size<uint32>();
+		c_auto* p_str		  = desc.text.p_str;
+		c_auto	font_size	  = desc.text.font_size;
+		c_auto	font_idx	  = desc.text.font_idx;
+		c_auto	text_data_idx = g::text_data_vec.size<uint32>();
 
 		auto text_data = ui::text_data{
 			.char_data_offset = g::char_data_vec.size<uint32>(),
 			.word_data_offset = g::word_data_vec.size<uint32>(),
-			.line_height	  = ui::font::get_height(font_size),
-			.space_advance	  = ui::font::get_space_advance(font_size)
+			.line_height	  = ui::font::get_line_height(font_size, font_idx),
+			.space_advance	  = ui::font::get_space_advance(font_size, font_idx)
 		};
 
 		auto word_width_min		= 0.0f;
@@ -663,7 +591,7 @@ namespace age::ui::widget
 			auto&& [byte_count, unicode]  = ui::detail::decode_utf8(p_str);
 			p_str						 += byte_count;
 
-			c_auto& glyph_data = ui::font::get_glyph_data(unicode);
+			c_auto& glyph_data = ui::font::get_glyph_data(unicode, font_idx);
 
 			word_width += glyph_data.advance * font_size;
 
@@ -681,29 +609,44 @@ namespace age::ui::widget
 
 		g::text_data_vec.emplace_back(std::move(text_data));
 
-		c_auto height_min	 = (line_offset + 1u) * font::get_height(font_size);
-		c_auto padding_sum_h = padding.x + padding.y;
-		c_auto padding_sum_v = padding.z + padding.w;
+		c_auto height_min	 = (line_offset + 1u) * text_data.line_height;
+		c_auto padding_sum_h = desc.padding_left + desc.padding_right;
+		c_auto padding_sum_v = desc.padding_top + desc.padding_bottom;
 
+		desc.size_mode_width	= size_mode::text(word_width_min + padding_sum_h, max_width + padding_sum_h);
+		desc.size_mode_height	= size_mode::text(height_min + padding_sum_v, std::numeric_limits<float>::max());
+		desc.text.text_data_idx = text_data_idx;
+	}
+}	 // namespace age::ui::detail
 
-		return begin(
-			age::ui::widget_desc{
-				.draw			  = true,
-				.layout			  = e::widget_layout::horizontal,
-				.align			  = e::widget_align::center,
-				.size_mode_width  = size_mode::text(word_width_min + padding_sum_h, max_width + padding_sum_h),
-				.size_mode_height = size_mode::text(height_min + padding_sum_v, std::numeric_limits<float>::max()),
-				.z_offset		  = 0,
-				//.offset			   = offset,
-				.child_gap		   = 10.f,
-				.padding		   = padding,
-				.border_thickness  = 0.f,
-				.shape_kind		   = e::shape_kind::text,
-				.body_brush_kind   = e::brush_kind::color,
-				.border_brush_kind = e::brush_kind::color,
-				.body_brush_data   = brush_data::color(0.15f, 0.15f, 0.15f),
-				.border_brush_data = brush_data::color(1.0f, 1.0f, 1.0f, 0.f),
-				.text			   = { .offset = text_data_idx, .atlas_id = g::font_data_vec[g::current_font_idx].second.atlas_id },
-			});
+namespace age::ui::widget
+{
+	widget_ctx
+	begin(widget_desc&& desc) noexcept
+	{
+		if (desc.shape_kind == e::shape_kind::text)
+		{
+			detail::handle_text(desc);
+		}
+		detail::widget_begin(std::move(desc));
+		return widget_ctx{ .hash_id = new_id() };
+	}
+}	 // namespace age::ui::widget
+
+namespace age::ui
+{
+	widget_ctx::~widget_ctx() noexcept
+	{
+		detail::widget_end();
+		g::id_stack.pop_back();
+	}
+}	 // namespace age::ui
+
+namespace age::ui::widget
+{
+	widget_ctx
+	text(const char* p_str) noexcept
+	{
+		return widget::begin(set_text(p_str));
 	}
 }	 // namespace age::ui::widget

@@ -20,8 +20,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	const float2 center_offset = px_rotated - (float2(0.5f, 0.5f) - data.pivot_uv) * data.size;
 
 	float  delta_from_edge = 0.f;
-	float3 body_color	   = float3(1, 1, 1);
-	float3 border_color	   = float3(1, 1, 1);
+	float4 body_color	   = float4(1, 1, 1, 1);
+	float4 border_color	   = float4(1, 1, 1, 1);
 
 	const uint32 shape_kind		   = (data.packed_enums >> 0) & 0xff;
 	const uint32 body_brush_kind   = (data.packed_enums >> 8) & 0xff;
@@ -56,7 +56,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		const float2	   atlas_size	= get_dimensions(atlas);
 		const float4	   rgba			= sample(atlas, linear_clamp_sampler, atlas_uv);
 		sd								= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
-		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 2.f);
+		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 4.f);
 		break;
 	}
 	}
@@ -89,6 +89,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	float outer_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge);
 	float inner_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge + data.border_thickness);
 
+	float4 final_color = lerp(border_color, body_color, inner_alpha);
+
 	if (ps_in.pos.x >= data.clip_rect.x
 		&& ps_in.pos.y >= data.clip_rect.y
 		&& ps_in.pos.x <= data.clip_rect.z
@@ -96,13 +98,19 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	{
 		if (shape_kind == UI_SHAPE_KIND_TEXT)
 		{
-			return float4(1, 1, 1, sd);
+			return float4(body_color.rgb, sd);
+			return float4(body_color.rgb, body_color.a * saturate(0.5f - delta_from_edge));
 		}
 
-		return float4(lerp(border_color, body_color, inner_alpha), outer_alpha);
+		final_color.a = final_color.a * outer_alpha;
+		return final_color;
+
+		// return float4(lerp(border_color.rgb, body_color.rgb, inner_alpha), outer_alpha);
 	}
 	else
 	{
-		return float4(lerp(border_color, body_color, inner_alpha), 0);
+		final_color.a = final_color.a * 0;
+		return final_color;
+		// return float4(lerp(border_color.rgb, body_color.rgb, inner_alpha), 0);
 	}
 }

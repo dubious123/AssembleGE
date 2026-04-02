@@ -42,7 +42,10 @@ namespace age::ui
 				.size_mode_height = size_mode::fixed(platform::get_client_height(h_window)),
 				.z_offset		  = 0,
 				.offset			  = { 0.f, 0.f },
-				.padding		  = { 0.f, 0.f, 0.f, 0.f } });
+				.padding_left	  = 0.f,
+				.padding_right	  = 0.f,
+				.padding_top	  = 0.f,
+				.padding_bottom	  = 0.f });
 
 		g::element_layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
 	}
@@ -149,7 +152,7 @@ namespace age::ui
 					render_data_current.clip_rect				 = child.clip_rect;
 					render_data_current.shape_data.text.atlas_id = child.text.atlas_id;
 
-					for (c_auto& char_pos_data : std::span(g::char_pos_data_vec.data() + child.text.offset, child.render_data_count))
+					for (c_auto& char_pos_data : std::span(g::char_pos_data_vec.data() + child.text.idx, child.render_data_count))
 					{
 						render_data_current.size						 = char_pos_data.size;
 						render_data_current.pivot_pos					 = child.offset + char_pos_data.offset + render_data_current.pivot_uv * char_pos_data.size;
