@@ -25,7 +25,7 @@ namespace age::ui
 		AGE_ASSERT(g::char_data_vec.is_empty());
 		AGE_ASSERT(g::char_pos_data_vec.is_empty());
 
-		g::id_stack.emplace_back(g::fnv1a_offset_basis);
+		g::id_stack.emplace_back(id_scope{ .hash_id = g::fnv1a_offset_basis, .counter = 0 });
 
 		g::layout_h_current_idx = 0;
 		g::layout_v_current_idx = 0;
@@ -35,7 +35,6 @@ namespace age::ui
 		std::ranges::fill(g::element_z_order_count_vec, 0u);
 
 		detail::widget_begin<true>(
-			"__age_ui_root__",
 			widget_desc{
 				.draw			  = false,
 				.layout			  = e::widget_layout::vertical,

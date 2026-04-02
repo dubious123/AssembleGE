@@ -3,17 +3,11 @@
 
 namespace age::ui
 {
-	FORCE_INLINE id_ctx
-	push_id(const char*) noexcept;
-
-	FORCE_INLINE id_ctx
-	push_id(uint64 _) noexcept;
-
 	FORCE_INLINE t_hash
-	new_id(const char*) noexcept;
+	new_id() noexcept;
 
-	FORCE_INLINE t_hash
-	new_id(uint64 _) noexcept;
+	FORCE_INLINE id_ctx
+	id_begin() noexcept;
 
 	t_hash
 	hash(const char*) noexcept;
@@ -73,9 +67,6 @@ namespace age::ui::font
 // widgets
 namespace age::ui::widget
 {
-	widget_ctx
-	begin(const char* p_str, const widget_desc& desc) noexcept;
-
 	widget_ctx
 	begin(const widget_desc& desc) noexcept;
 

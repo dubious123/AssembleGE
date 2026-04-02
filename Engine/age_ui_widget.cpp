@@ -135,11 +135,9 @@ namespace age::ui::detail
 namespace age::ui::detail
 {
 	template <bool is_root = false>
-	FORCE_INLINE t_hash
-	widget_begin(const char* p_str, const widget_desc& desc) noexcept
+	FORCE_INLINE void
+	widget_begin(const widget_desc& desc) noexcept
 	{
-		c_auto hash_id = age::ui::new_id(p_str);
-
 		auto z_offset		   = 0u;
 		auto render_data_count = 0u;
 
@@ -240,8 +238,6 @@ namespace age::ui::detail
 				.border_brush_data = desc.border_brush_data,
 			});
 		}
-
-		return hash_id;
 	}
 
 	template <bool is_width>
@@ -523,15 +519,10 @@ namespace age::ui::detail
 namespace age::ui::widget
 {
 	widget_ctx
-	begin(const char* p_str, const widget_desc& desc) noexcept
-	{
-		return widget_ctx{ .hash_id = detail::widget_begin(p_str, desc) };
-	}
-
-	widget_ctx
 	begin(const widget_desc& desc) noexcept
 	{
-		return widget_ctx{ .hash_id = detail::widget_begin(nullptr, desc) };
+		detail::widget_begin(desc);
+		return widget_ctx{ .hash_id = new_id() };
 	}
 }	 // namespace age::ui::widget
 
@@ -540,6 +531,7 @@ namespace age::ui
 	widget_ctx::~widget_ctx() noexcept
 	{
 		detail::widget_end();
+		g::id_stack.pop_back();
 	}
 }	 // namespace age::ui
 
@@ -554,7 +546,6 @@ namespace age::ui::widget
 					  float2		   offset) noexcept
 	{
 		return begin(
-			nullptr,
 			age::ui::widget_desc{
 				.draw			   = false,
 				.layout			   = age::ui::e::widget_layout::horizontal,
@@ -581,7 +572,6 @@ namespace age::ui::widget
 					float2			 offset) noexcept
 	{
 		return begin(
-			nullptr,
 			age::ui::widget_desc{
 				.draw			   = false,
 				.layout			   = age::ui::e::widget_layout::vertical,
@@ -697,7 +687,6 @@ namespace age::ui::widget
 
 
 		return begin(
-			p_str,
 			age::ui::widget_desc{
 				.draw			  = true,
 				.layout			  = e::widget_layout::horizontal,

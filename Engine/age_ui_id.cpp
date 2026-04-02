@@ -32,43 +32,28 @@ namespace age::ui::detail
 	FORCE_INLINE constexpr uint64
 	hash_combine(uint64 parent, uint64 child) noexcept
 	{
-		return parent ^ (child * g::fnv1a_prime);
+		return (parent ^ child) * g::fnv1a_prime;
 	}
 }	 // namespace age::ui::detail
 
 namespace age::ui
 {
-	FORCE_INLINE id_ctx
-	push_id(const char* p_str) noexcept
+	FORCE_INLINE t_hash
+	new_id() noexcept
 	{
-		auto val = detail::hash_combine(g::id_stack.back(), detail::hash(p_str));
-		g::id_stack.emplace_back(val);
-		return id_ctx{};
+		auto&  scope   = g::id_stack.back();
+		c_auto hash_id = detail::hash_combine(scope.hash_id, detail::hash(++scope.counter));
+
+		g::id_stack.emplace_back(id_scope{ .hash_id = hash_id, .counter = 0 });
+
+		return hash_id;
 	}
 
 	FORCE_INLINE id_ctx
-	push_id(uint64 i) noexcept
+	id_begin() noexcept
 	{
-		auto val = detail::hash_combine(g::id_stack.back(), detail::hash(i));
-		g::id_stack.emplace_back(val);
+		new_id();
 		return id_ctx{};
-	}
-
-	FORCE_INLINE uint64
-	new_id(const char* p_str) noexcept
-	{
-		if (p_str is_nullptr)
-		{
-			return 0;
-		}
-
-		return detail::hash_combine(g::id_stack.back(), detail::hash(p_str));
-	}
-
-	FORCE_INLINE uint64
-	new_id(uint64 i) noexcept
-	{
-		return detail::hash_combine(g::id_stack.back(), detail::hash(i));
 	}
 
 	t_hash

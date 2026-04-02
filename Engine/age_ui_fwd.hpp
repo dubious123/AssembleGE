@@ -24,7 +24,14 @@ namespace age::ui::e
 namespace age::ui
 {
 	using t_hash = uint64;
-}
+
+	struct id_scope
+	{
+		t_hash hash_id;
+		uint32 counter;
+		uint32 _;
+	};
+}	 // namespace age::ui
 
 namespace age::ui
 {
@@ -260,7 +267,7 @@ namespace age::ui::g
 	inline constexpr uint64 fnv1a_offset_basis = 0xcbf29ce484222325ull;
 	inline constexpr uint64 fnv1a_prime		   = 0x100000001b3ull;
 
-	inline age::vector<uint64> id_stack;
+	inline age::vector<id_scope> id_stack;
 
 	inline age::unordered_map<uint64, element_state> element_state_map;
 
@@ -298,6 +305,8 @@ namespace age::ui
 {
 	struct id_ctx
 	{
+		t_hash hash_id;
+
 		FORCE_INLINE constexpr explicit
 		operator bool() const
 		{

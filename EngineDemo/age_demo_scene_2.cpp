@@ -300,7 +300,7 @@ namespace age_demo::scene_2
 					  .size_mode_width	= age::ui::size_mode::fit(),
 					  .size_mode_height = age::ui::size_mode::grow() }))
 			{
-				// for (auto i = 0; i < 5; ++i)
+				for (auto i = 0; i < 5; ++i)
 				{
 					if (auto _ = age::ui::widget::begin(
 							{ .layout			= age::ui::e::widget_layout::horizontal,
