@@ -598,6 +598,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="age_ui_widget.inl" />
     <None Include="cpp.hint" />
     <None Include="todo.md">
       <SubType>

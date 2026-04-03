@@ -123,6 +123,7 @@
   <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="todo.md" />
+    <None Include="age_ui_widget.inl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

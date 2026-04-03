@@ -191,22 +191,22 @@ namespace age::ui::detail
 
 		g::element_layout_data_h_stack.emplace_back(layout_data{
 			.layout			  = desc.layout,
-			.mode			  = desc.size_mode_width.size_mode,
+			.mode			  = desc.width_size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
 			.size			  = desc.padding_left + desc.padding_right,
-			.size_min		  = desc.size_mode_width.min,
-			.size_max		  = desc.size_mode_width.max,
+			.size_min		  = desc.width_min,
+			.size_max		  = desc.width_max,
 		});
 
 		g::element_layout_data_v_stack.emplace_back(layout_data{
 			.layout			  = desc.layout,
-			.mode			  = desc.size_mode_height.size_mode,
+			.mode			  = desc.height_size_mode,
 			.pos_data_idx	  = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
 			.grow_child_count = 0,
 			.size			  = desc.padding_top + desc.padding_bottom,
-			.size_min		  = desc.size_mode_height.min,
-			.size_max		  = desc.size_mode_height.max,
+			.size_min		  = desc.height_min,
+			.size_max		  = desc.height_max,
 		});
 
 		g::element_layout_pos_data_vec.emplace_back(layout_pos_data{
@@ -309,6 +309,7 @@ namespace age::ui::detail
 
 				grow_child_pos_data.set_size<is_width>(grow_child.size);
 
+				grow_child.size_max = grow_child.size;
 				finalize<is_width>(grow_child, grow_idx);
 
 				grow_idx += grow_child.grow_child_count + 1;
@@ -373,7 +374,8 @@ namespace age::ui::detail
 			auto& grow_child		  = get_grow_child<is_width>(grow_idx);
 			auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
 
-			grow_child.size = std::clamp(level, grow_child.size_min, grow_child.size_max);
+			grow_child.size		= std::clamp(level, grow_child.size_min, grow_child.size_max);
+			grow_child.size_max = grow_child.size;
 			grow_child_pos_data.set_size<is_width>(grow_child.size);
 
 			value_final += grow_child.size;
@@ -613,8 +615,13 @@ namespace age::ui::detail
 		c_auto padding_sum_h = desc.padding_left + desc.padding_right;
 		c_auto padding_sum_v = desc.padding_top + desc.padding_bottom;
 
-		desc.size_mode_width	= size_mode::text(word_width_min + padding_sum_h, max_width + padding_sum_h);
-		desc.size_mode_height	= size_mode::text(height_min + padding_sum_v, std::numeric_limits<float>::max());
+		desc.width_size_mode  = e::size_mode_kind::text;
+		desc.height_size_mode = e::size_mode_kind::text;
+		desc.width_min		  = word_width_min + padding_sum_h;
+		desc.width_max		  = max_width + padding_sum_h;
+		desc.height_min		  = height_min + padding_sum_v;
+		desc.height_max		  = std::numeric_limits<float>::max();
+
 		desc.text.text_data_idx = text_data_idx;
 	}
 }	 // namespace age::ui::detail
@@ -641,12 +648,3 @@ namespace age::ui
 		g::id_stack.pop_back();
 	}
 }	 // namespace age::ui
-
-namespace age::ui::widget
-{
-	widget_ctx
-	text(const char* p_str) noexcept
-	{
-		return widget::begin(set_text(p_str));
-	}
-}	 // namespace age::ui::widget

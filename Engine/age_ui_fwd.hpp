@@ -19,6 +19,10 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(widget_align, uint8, begin, center, end)
 
 	AGE_DEFINE_ENUM(size_mode_kind, uint8, fixed, fit, grow, grow_weight, text, aspect_ratio)
+
+	AGE_DEFINE_ENUM(style_state, uint8, idle, hover, active)
+
+	AGE_DEFINE_ENUM(font_size_kind, uint8, small, normal, big)
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -95,10 +99,16 @@ namespace age::ui
 		e::widget_overflow overflow = e::widget_overflow::draw_all;
 		e::widget_align	   align	= e::widget_align::begin;
 
+		float width_min = 0.f;
+		float width_max = std::numeric_limits<float>::max();
 
-		widget_size_mode size_mode_width  = {};
-		widget_size_mode size_mode_height = {};
-		uint16			 z_offset		  = 1;
+		float height_min = 0.f;
+		float height_max = std::numeric_limits<float>::max();
+
+		e::size_mode_kind width_size_mode  = e::size_mode_kind::grow;
+		e::size_mode_kind height_size_mode = e::size_mode_kind::grow;
+
+		uint16 z_offset = 1;
 
 		float2 offset = float2{ 0, 0 };
 
@@ -113,14 +123,15 @@ namespace age::ui
 		float  rotation			= 0.f;
 		float  border_thickness = 1.f;
 
-		e::shape_kind shape_kind		= e::shape_kind::rect;
-		e::brush_kind body_brush_kind	= e::brush_kind::color;
-		e::brush_kind border_brush_kind = e::brush_kind::color;
-		uint8		  _;
 
 		ui_shape_data shape_data;
 		ui_brush_data body_brush_data;
 		ui_brush_data border_brush_data;
+
+		e::shape_kind shape_kind		= e::shape_kind::rect;
+		e::brush_kind body_brush_kind	= e::brush_kind::color;
+		e::brush_kind border_brush_kind = e::brush_kind::color;
+		uint8		  _[5];
 
 		union
 		{
@@ -304,8 +315,104 @@ namespace age::ui::g
 	// font
 	inline age::vector<std::pair<t_hash, font_data>> font_data_vec;
 	inline uint32									 current_font_idx;
-	inline float									 current_font_size;
 
+	// theme
+	inline float  theme_opacity[9];
+	inline float3 theme_color[5];
+
+	inline float theme_font_size_base[e::size<e::font_size_kind>()];	// unscaled, don't use
+	inline float theme_font_size[e::size<e::font_size_kind>()];			// scaled
+	inline float theme_font_scale;
+
+	// theme configs
+	inline constexpr float theme_opacity_default[9] = {
+		0.00f,						   // 0
+		0.05f,						   // 1
+		0.12f,						   // 2
+		0.22f,						   // 3
+		0.35f,						   // 4
+		0.50f,						   // 5
+		0.68f,						   // 6
+		0.82f,						   // 7
+		1.00f,						   // 8 (opaque)
+	};
+
+	inline constexpr float3 theme_color_default[5] = {
+		{ 1.0f, 1.0f, 1.0f },		   // 0: white
+		{ 0.0f, 0.0f, 0.0f },		   // 1: black
+		{ 0.29f, 0.565f, 0.851f },	   // 2: accent   // #4A90D9
+		{ 0.314f, 0.784f, 0.471f },	   // 3: positive // #50C878
+		{ 0.878f, 0.314f, 0.314f },	   // 4: negative // #E05050
+	};
+
+	inline constexpr float theme_font_size_defaults[e::size<e::font_size_kind>()] = {
+		11.f,						   // 0: small, hint, label, info
+		13.f,						   // 1: normal
+		16.f,						   // 2: big, header, panel title
+	};
+
+	inline constexpr float theme_font_scale_default = 1.f;
+
+	inline constexpr uint8 opacity_0	  = 0;
+	inline constexpr uint8 opacity_1	  = 1;
+	inline constexpr uint8 opacity_2	  = 2;
+	inline constexpr uint8 opacity_3	  = 3;
+	inline constexpr uint8 opacity_4	  = 4;
+	inline constexpr uint8 opacity_5	  = 5;
+	inline constexpr uint8 opacity_6	  = 6;
+	inline constexpr uint8 opacity_7	  = 7;
+	inline constexpr uint8 opacity_opaque = 8;
+
+	inline constexpr uint8 white	= 0;
+	inline constexpr uint8 black	= 1;
+	inline constexpr uint8 accent	= 2;
+	inline constexpr uint8 positive = 3;
+	inline constexpr uint8 negative = 4;
+
+	struct style_color
+	{
+		uint8 color;
+		uint8 opacity[3];
+	};
+
+	struct theme_text
+	{
+		uint8			  color;
+		uint8			  opacity[3];
+		e::font_size_kind font_size;
+	};
+
+	// shared
+	inline constexpr style_color bg_panel		= { black, { opacity_5, opacity_6, opacity_6 } };									// panel background
+	inline constexpr style_color bg_surface		= { white, { opacity_1, opacity_1, opacity_1 } };									// input field, dropdown bg
+	inline constexpr style_color bg_interactive = { white, { opacity_0, opacity_1, opacity_1 } };									// button, list item bg
+	inline constexpr style_color bg_accent		= { accent, { opacity_0, opacity_2, opacity_3 } };									// active button, selected item bg
+	inline constexpr style_color bg_popup		= { black, { opacity_7, opacity_7, opacity_7 } };									// dropdown menu, tooltip, context menu
+
+	inline constexpr style_color border_default = { white, { opacity_1, opacity_2, opacity_2 } };									// panel, input border
+	inline constexpr style_color border_accent	= { accent, { opacity_0, opacity_0, opacity_5 } };									// focused input, focused panel border
+
+	inline constexpr theme_text text_primary	 = { white, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::big };			// heading, selected item text
+	inline constexpr theme_text text_secondary	 = { white, { opacity_5, opacity_5, opacity_5 }, e::font_size_kind::normal };		// input value, normal body
+	inline constexpr theme_text text_tertiary	 = { white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };		// section header, label
+	inline constexpr theme_text text_hint		 = { white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };		// input label, placeholder
+	inline constexpr theme_text text_disabled	 = { white, { opacity_2, opacity_2, opacity_2 }, e::font_size_kind::normal };		// disabled widget text
+	inline constexpr theme_text text_accent		 = { accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };		// link, asset reference, clickable path
+	inline constexpr theme_text text_positive	 = { positive, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };	// success msg, y axis, fps ok
+	inline constexpr theme_text text_negative	 = { negative, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };	// error msg, x axis, warning
+	inline constexpr theme_text text_interactive = { white, { opacity_4, opacity_5, opacity_7 }, e::font_size_kind::normal };		// button text, list item text
+
+	inline constexpr style_color separator = { white, { opacity_1, opacity_1, opacity_1 } };										// section separator
+
+	// widget_specific
+	inline constexpr style_color toggle_off = { white, { opacity_2, opacity_2, opacity_2 } };		 // toggle track (off)
+	inline constexpr style_color toggle_on	= { accent, { opacity_5, opacity_6, opacity_6 } };		 // toggle track (on)
+
+	inline constexpr style_color slider_fill = { accent, { opacity_5, opacity_6, opacity_7 } };		 // slider filled portion
+
+	inline constexpr style_color scroll_thumb = { white, { opacity_2, opacity_2, opacity_3 } };		 // scrollbar thumb
+
+	inline constexpr style_color select_accent = { accent, { opacity_0, opacity_0, opacity_7 } };	 // selected item left border
 }	 // namespace age::ui::g
 
 namespace age::ui
@@ -331,12 +438,12 @@ namespace age::ui
 {
 	struct widget_ctx
 	{
-		t_hash hash_id;
+		t_hash hash_id = age::get_invalid_id<t_hash>();
 
 		FORCE_INLINE constexpr explicit
 		operator bool() const
 		{
-			return true;
+			return hash_id != age::get_invalid_id<t_hash>();
 		}
 
 		~widget_ctx() noexcept;

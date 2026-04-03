@@ -45,9 +45,14 @@ namespace age::ui::font
 	}
 
 	void
-	set_default_size(float size) noexcept
+	set_scale(float scale) noexcept
 	{
-		g::current_font_size = size;
+		for (auto&& [i, font_size] : g::theme_font_size | std::views::enumerate)
+		{
+			font_size = g::theme_font_size_base[i] * scale;
+		}
+
+		g::theme_font_scale = scale;
 	}
 
 	void

@@ -1,6 +1,141 @@
 #pragma once
 #include "age.hpp"
 
+namespace age::ui::theme
+{
+	FORCE_INLINE constexpr float4
+	bg_panel(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::bg_panel.color], g::theme_opacity[g::bg_panel.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	bg_surface(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::bg_surface.color], g::theme_opacity[g::bg_surface.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	bg_interactive(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::bg_interactive.color], g::theme_opacity[g::bg_interactive.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	bg_accent(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::bg_accent.color], g::theme_opacity[g::bg_accent.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	bg_popup(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::bg_popup.color], g::theme_opacity[g::bg_popup.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	border_default(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::border_default.color], g::theme_opacity[g::border_default.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	border_accent(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::border_accent.color], g::theme_opacity[g::border_accent.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_primary(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_primary.color], g::theme_opacity[g::text_primary.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_secondary(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_secondary.color], g::theme_opacity[g::text_secondary.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_tertiary(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_tertiary.color], g::theme_opacity[g::text_tertiary.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_hint(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_hint.color], g::theme_opacity[g::text_hint.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_disabled(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_disabled.color], g::theme_opacity[g::text_disabled.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_accent(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_accent.color], g::theme_opacity[g::text_accent.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_positive(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_positive.color], g::theme_opacity[g::text_positive.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_negative(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_negative.color], g::theme_opacity[g::text_negative.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	text_interactive(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_interactive.color], g::theme_opacity[g::text_interactive.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	separator(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::separator.color], g::theme_opacity[g::separator.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	toggle_off(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::toggle_off.color], g::theme_opacity[g::toggle_off.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	toggle_on(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::toggle_on.color], g::theme_opacity[g::toggle_on.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	slider_fill(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::slider_fill.color], g::theme_opacity[g::slider_fill.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::scroll_thumb.color], g::theme_opacity[g::scroll_thumb.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE constexpr float4
+	select_accent(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::select_accent.color], g::theme_opacity[g::select_accent.opacity[std::to_underlying(state)]] };
+	}
+}	 // namespace age::ui::theme
+
 namespace age::ui::detail
 {
 	template <typename t>
@@ -63,9 +198,7 @@ namespace age::ui
 	DEF(layout, layout)
 	DEF(overflow, overflow)
 	DEF(align, align)
-	DEF(size, size_mode_width, size_mode_height)
-	DEF(width, size_mode_width)
-	DEF(height, size_mode_height)
+
 	DEF(z_offset, z_offset)
 	DEF(offset, offset)
 	DEF(child_gap, child_gap)
@@ -88,25 +221,82 @@ namespace age::ui
 	DEF(border_brush_data, border_brush_data)
 	DEF(border, border_thickness, border_brush_kind, border_brush_data)
 
-#undef X
-#undef Y
+	FORCE_INLINE constexpr decltype(auto)
+	set_body_brush_data(float4 color) noexcept
+	{
+		return detail::mod_body_brush_data{ brush_data::color(color) };
+	}
 
-#define X(name) decltype(widget_desc::text.name) name
-#define Y(name) desc.text.name = name
-
-	DEF(font_size, font_size)
-	DEF(font_idx, font_idx)
+	FORCE_INLINE constexpr decltype(auto)
+	set_body_brush_data(float r, float g, float b, float a) noexcept
+	{
+		return detail::mod_body_brush_data{ brush_data::color(r, g, b, a) };
+	}
 
 	namespace detail
 	{
-		struct mod_text
+		struct mod_size
 		{
-			decltype(widget_desc::text.p_str) p_str;
+			float width_min;
+			float width_max;
+
+			float height_min;
+			float height_max;
+
+			e::size_mode_kind width_size_mode;
+			e::size_mode_kind height_size_mode;
 
 			FORCE_INLINE constexpr void
 			apply(widget_desc& desc) const noexcept
 			{
-				desc.text.p_str = p_str;
+				desc.width_min		  = width_min;
+				desc.width_max		  = width_max;
+				desc.height_min		  = height_min;
+				desc.height_max		  = height_max;
+				desc.width_size_mode  = width_size_mode;
+				desc.height_size_mode = height_size_mode;
+			}
+
+			FORCE_INLINE constexpr
+			operator widget_desc() const noexcept
+			{
+				widget_desc desc{};
+				apply(desc);
+				return desc;
+			}
+		};
+
+		struct mod_width
+		{
+			widget_size_mode size_mode;
+
+			FORCE_INLINE constexpr void
+			apply(widget_desc& desc) const noexcept
+			{
+				desc.width_min		 = size_mode.min;
+				desc.width_max		 = size_mode.max;
+				desc.width_size_mode = size_mode.size_mode;
+			}
+
+			FORCE_INLINE constexpr
+			operator widget_desc() const noexcept
+			{
+				widget_desc desc{};
+				apply(desc);
+				return desc;
+			}
+		};
+
+		struct mod_height
+		{
+			widget_size_mode size_mode;
+
+			FORCE_INLINE constexpr void
+			apply(widget_desc& desc) const noexcept
+			{
+				desc.height_min		  = size_mode.min;
+				desc.height_max		  = size_mode.max;
+				desc.height_size_mode = size_mode.size_mode;
 			}
 
 			FORCE_INLINE constexpr
@@ -119,20 +309,154 @@ namespace age::ui
 		};
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
-	set_text(decltype(widget_desc::text.p_str) p_text) noexcept
+	FORCE_INLINE constexpr decltype(auto)
+	set_size(widget_size_mode size_width, widget_size_mode size_height) noexcept
 	{
-		return detail::mod_text{ p_text }
-			 | set_align(e::widget_align::center)
-			 | set_shape_kind(e::shape_kind::text)
-			 | set_font_idx(g::current_font_idx)
-			 | set_font_size(g::current_font_size)
-			 | set_body_brush_data(brush_data::color(1.f, 1.f, 1.f, 1.f))
-			 | set_border_thickness(0.f)
-			 | set_z_offset(0);
+		return detail::mod_size{ size_width.min,
+								 size_width.max,
+								 size_height.min,
+								 size_height.max,
+								 size_width.size_mode,
+								 size_height.size_mode };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_width(widget_size_mode size_width) noexcept
+	{
+		return detail::mod_width{ size_width };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_height(widget_size_mode size_height) noexcept
+	{
+		return detail::mod_height{ size_height };
+	}
+
+#undef X
+#undef Y
+
+
+#define X(name) decltype(widget_desc::text.name) name
+#define Y(name) desc.text.name = name
+
+	DEF(font_size, font_size)
+	DEF(font_idx, font_idx)
+	DEF(text, p_str)
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_font_size(e::font_size_kind e_font_size) noexcept
+	{
+		return detail::mod_font_size{ g::theme_font_size[std::to_underlying(e_font_size)] };
 	}
 
 #undef X
 #undef Y
 #undef DEF
 }	 // namespace age::ui
+
+// wrappers
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		text_base() noexcept
+		{
+			return set_align(e::widget_align::center)
+				 | set_shape_kind(e::shape_kind::text)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_border_thickness(0.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	text(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(e::font_size_kind::normal)
+			 | set_body_brush_data(theme::text_secondary(e::style_state::idle));
+	}
+
+	// heading, selected item text
+	FORCE_INLINE constexpr widget_desc
+	text_primary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_primary.font_size)
+			 | set_body_brush_data(theme::text_primary(state));
+	}
+
+	// input value, normal body
+	FORCE_INLINE constexpr widget_desc
+	text_secondary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_secondary.font_size)
+			 | set_body_brush_data(theme::text_secondary(state));
+	}
+
+	// section header, label
+	FORCE_INLINE constexpr widget_desc
+	text_tertiary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_tertiary.font_size)
+			 | set_body_brush_data(theme::text_tertiary(state));
+	}
+
+	// input label, placeholder
+	FORCE_INLINE constexpr widget_desc
+	text_hint(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_hint.font_size)
+			 | set_body_brush_data(theme::text_hint(state));
+	}
+
+	// disabled widget text
+	FORCE_INLINE constexpr widget_desc
+	text_disabled(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_disabled.font_size)
+			 | set_body_brush_data(theme::text_disabled(state));
+	}
+
+	// link, asset reference, clickable path
+	FORCE_INLINE constexpr widget_desc
+	text_accent(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_accent.font_size)
+			 | set_body_brush_data(theme::text_accent(state));
+	}
+
+	// success msg, y axis, fps ok
+	FORCE_INLINE constexpr widget_desc
+	text_positive(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_positive.font_size)
+			 | set_body_brush_data(theme::text_positive(state));
+	}
+
+	// error msg, x axis, warning
+	FORCE_INLINE constexpr widget_desc
+	text_negative(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_negative.font_size)
+			 | set_body_brush_data(theme::text_negative(state));
+	}
+
+	// button text, list item text
+	FORCE_INLINE constexpr widget_desc
+	text_interactive(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	{
+		return text(p_text)
+			 | set_font_size(g::text_interactive.font_size)
+			 | set_body_brush_data(theme::text_interactive(state));
+	}
+}	 // namespace age::ui::style

@@ -40,16 +40,16 @@ namespace age::ui::font
 	set_default(const char* p_font_name) noexcept;
 
 	void
-	set_default_size(float size) noexcept;
+	set_scale(float scale) noexcept;
 
 	void
 	unload(const char* p_font_name) noexcept;
 
 	float
-	get_line_height(float font_size = g::current_font_size, uint32 font_idx = g::current_font_idx) noexcept;
+	get_line_height(float font_size, uint32 font_idx = g::current_font_idx) noexcept;
 
 	float
-	get_advance(uint16 unicode, float font_size = g::current_font_size, uint32 font_idx = g::current_font_idx) noexcept;
+	get_advance(uint16 unicode, float font_size, uint32 font_idx = g::current_font_idx) noexcept;
 
 	float
 	get_space_advance(float font_size, uint32 font_idx = g::current_font_idx) noexcept;
@@ -66,9 +66,6 @@ namespace age::ui::widget
 {
 	widget_ctx
 	begin(widget_desc&& desc) noexcept;
-
-	widget_ctx
-	text(const char* p_str) noexcept;
 }	 // namespace age::ui::widget
 
 // defaults

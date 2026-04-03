@@ -7,8 +7,14 @@ namespace age::ui
 	init() noexcept
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
-		g::current_font_idx	 = 0;
-		g::current_font_size = 0;
+		g::current_font_idx = 0;
+
+		std::ranges::copy(g::theme_opacity_default, g::theme_opacity);
+		std::ranges::copy(g::theme_color_default, g::theme_color);
+		std::ranges::copy(g::theme_font_size_defaults, g::theme_font_size_base);
+
+		g::theme_font_scale = g::theme_font_scale_default;
+		font::set_scale(g::theme_font_scale_default);
 	}
 
 	void
@@ -35,17 +41,24 @@ namespace age::ui
 		std::ranges::fill(g::element_z_order_count_vec, 0u);
 
 		detail::widget_begin<true>(
-			widget_desc{
-				.draw			  = false,
-				.layout			  = e::widget_layout::vertical,
-				.size_mode_width  = size_mode::fixed(platform::get_client_width(h_window)),
-				.size_mode_height = size_mode::fixed(platform::get_client_height(h_window)),
-				.z_offset		  = 0,
-				.offset			  = { 0.f, 0.f },
-				.padding_left	  = 0.f,
-				.padding_right	  = 0.f,
-				.padding_top	  = 0.f,
-				.padding_bottom	  = 0.f });
+			set_draw(false)
+			| set_layout(e::widget_layout::vertical)
+			| set_size(size_mode::fixed(platform::get_client_width(h_window)), size_mode::fixed(platform::get_client_height(h_window)))
+			| set_z_offset(0)
+			| set_offset(float2(0.f, 0.f))
+			| set_padding(0.f, 0.f, 0.f, 0.f)
+			/*			widget_desc{
+							.draw			  = false,
+							.layout			  = e::widget_layout::vertical,
+							.size_mode_width  = size_mode::fixed(platform::get_client_width(h_window)),
+							.size_mode_height = size_mode::fixed(platform::get_client_height(h_window)),
+							.z_offset		  = 0,
+							.offset			  = { 0.f, 0.f },
+							.padding_left	  = 0.f,
+							.padding_right	  = 0.f,
+							.padding_top	  = 0.f,
+							.padding_bottom	  = 0.f }*/
+		);
 
 		g::element_layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
 	}

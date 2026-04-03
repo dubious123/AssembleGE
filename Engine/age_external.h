@@ -110,3 +110,9 @@
 #if defined(memcpy)
 	#undef memcpy
 #endif
+#if defined(small)
+	#undef small
+#endif
+#if defined(big)
+	#undef big
+#endif

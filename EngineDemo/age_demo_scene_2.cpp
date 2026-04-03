@@ -304,14 +304,15 @@ namespace age_demo::scene_2
 			{
 				if (auto _ = widget::begin(set_draw(true)
 										   | set_layout(e::widget_layout::vertical)
-										   | set_size(size_mode::fit(), size_mode::grow())
-										   | set_body_brush_data(brush_data::color(1.f, 1.f, 1.f, 0.7f))))
+										   | set_size(size_mode::fit(), size_mode::fit())
+										   | set_body_brush_data(theme::bg_panel())))
 				{
 					for (auto i = 0; i < 5; ++i)
 					{
-						if (auto _ = widget::begin(set_layout(e::widget_layout::horizontal)
+						if (auto _ = widget::begin(set_draw(true)
+												   | set_layout(e::widget_layout::horizontal)
 												   | set_size(size_mode::fit(), size_mode::fit())
-												   | set_body_brush_data(brush_data::color(0.15f, 0.15f, 0.15f, 0.7f))))
+												   | set_body_brush_data(theme::bg_panel())))
 						{
 							// arrow
 							widget::begin(set_align(e::widget_align::center)
@@ -321,23 +322,26 @@ namespace age_demo::scene_2
 										  | set_body_brush_data(brush_data::color(0.75, 0.75, 0.75)));
 
 
-							widget::begin(set_text("hello text\n    hello       text    \n\n"
-												   "hello text")
+							widget::begin(style::text("hello text\n    hello       text    \n\n"
+													  "hello text")
 										  | set_font_size(22)
-										  | set_body_brush_data(brush_data::color(1.0, 0, 0)));
+										  | set_body_brush_data(theme::text_negative(e::style_state::idle)));
 
-							widget::begin(set_text("hello text\n    hello       text    \n\n"
-												   "hello text")
-										  | set_font_size(22));
+							widget::begin(style::text("hello text\n    hello       text    \n\n"
+													  "hello text")
+										  | set_font_size(22)
+										  | set_body_brush_data(theme::text_positive(e::style_state::idle)));
 
-							widget::begin(set_text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
+							widget::begin(style::text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
 
-							widget::begin(set_text("hello text") | set_font_size(22));
+							widget::begin(style::text("hello text") | set_font_size(22));
 
-							widget::text("hello text\n    hello text    \n"
-										 "hello text");
+							widget::text_primary("hello text\n    hello text    \n"
+												 "hello text");
 
-							widget::text("ABCDEFG\n1234567");
+							widget::text_accent("...");
+							widget::begin(style::text_accent("..."));
+							widget::begin(style::text("...") | set_body_brush_data(theme::text_accent(e::style_state::idle)));	  // internally
 						}
 					}
 				}
