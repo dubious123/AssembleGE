@@ -116,3 +116,53 @@ namespace age::ui::widget
 		}
 	}
 }	 // namespace age::ui::widget
+
+// collapsible
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	collapsible_header(const char* p_str) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
+									 | set_size(size_mode::fit(), size_mode::fit())))
+		{
+			auto is_open = false;
+
+			if (auto header = widget::begin(style::frame()
+											| set_layout(e::widget_layout::horizontal)
+											| set_align(e::widget_align::center)
+											| set_interact(true)
+											| set_border_thickness(0.f)))
+			{
+				if (header.clicked<mouse_left>())
+				{
+					header.toggle();
+				}
+
+				is_open = header.is_toggled();
+
+				c_auto rotation = is_open
+									? 90 * math::g::degree_to_radian
+									: 0.f;
+
+				widget::begin(set_align(e::widget_align::center)
+							  | set_size(size_mode::fixed(22), size_mode::fixed(22))
+							  | set_border_thickness(0.f)
+							  | set_rotation(rotation)
+							  | set_shape_kind(e::shape_kind::arrow_right)
+							  | set_body_brush_data(theme::text_primary()));
+
+				widget::text_primary(p_str);
+			}
+
+			if (is_open)
+			{
+				return res;
+			}
+		}
+
+		return {};
+	}
+}	 // namespace age::ui::widget

@@ -299,11 +299,6 @@ namespace age_demo::scene_2
 			using namespace age::ui;
 			using enum age::input::e::key_kind;
 
-			// if (auto _ = widget::begin(set_draw(false)
-			//						   | set_layout(e::widget_layout::horizontal)
-			//						   | set_size(size_mode::fit(), size_mode::grow())))
-			//	;
-
 			if (auto _ = widget::horizontal())
 			{
 				if (auto _ = widget::begin(set_draw(true)
@@ -311,14 +306,16 @@ namespace age_demo::scene_2
 										   | set_size(size_mode::fit(), size_mode::fit())
 										   | set_body_brush_data(theme::bg_panel())))
 				{
-					if (auto btn = widget::button("button2"))
+					if (auto header = widget::collapsible_header("collapsible header"))
 					{
-						if (btn.clicked<mouse_left>())
+						if (auto btn = widget::button("button2"))
 						{
-							std::println("button2 clicked");
+							if (btn.clicked<mouse_left>())
+							{
+								std::println("button2 clicked");
+							}
 						}
 					}
-
 
 					for (auto i = 0; i < 5; ++i)
 					{

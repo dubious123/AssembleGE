@@ -128,7 +128,7 @@ namespace age::ui
 	void
 	deinit(auto& renderer) noexcept
 	{
-		g::element_state_map.clear();
+		g::widget_state_map.clear();
 
 		for (auto&& [hash, font_data] : g::font_data_vec)
 		{

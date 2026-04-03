@@ -154,12 +154,18 @@ namespace age::ui
 namespace age::ui
 {
 	// data that needs to preserve between frames
-	struct element_state
+	struct widget_state
 	{
 		float2 size;
 		float2 pivot_pos;
 		float2 pivot_uv;
 		float  rotation;
+
+		uint16 frame_count;
+
+		bool toggled;
+
+		uint8_3 _;
 	};
 
 	struct layout_data
@@ -302,7 +308,7 @@ namespace age::ui::g
 
 	inline age::vector<id_scope> id_stack;
 
-	inline age::unordered_map<uint64, element_state> element_state_map;
+	inline age::unordered_map<uint64, widget_state> widget_state_map;
 
 	// layout stack
 	inline age::vector<layout_data>		   element_layout_data_h_stack;
@@ -407,7 +413,7 @@ namespace age::ui::g
 	inline constexpr style_color border_default = { white, { opacity_1, opacity_2, opacity_2 } };										   // panel, input border
 	inline constexpr style_color border_accent	= { accent, { opacity_0, opacity_5, opacity_5 } };										   // focused input, focused panel border
 
-	inline constexpr theme_text text_primary	 = { white, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::big };				   // heading, selected item text
+	inline constexpr theme_text text_primary	 = { white, { opacity_opaque, opacity_opaque, opacity_7 }, e::font_size_kind::big };	   // heading, selected item text
 	inline constexpr theme_text text_secondary	 = { white, { opacity_5, opacity_5, opacity_5 }, e::font_size_kind::normal };			   // input value, normal body
 	inline constexpr theme_text text_tertiary	 = { white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };			   // section header, label
 	inline constexpr theme_text text_hint		 = { white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };			   // input label, placeholder
@@ -468,41 +474,47 @@ namespace age::ui
 			other.hash_id = get_invalid_id<t_hash>();
 		}
 
+		~widget_ctx() noexcept;
+
 		FORCE_INLINE constexpr explicit
 		operator bool() const
 		{
 			return hash_id != age::get_invalid_id<t_hash>();
 		}
 
-		~widget_ctx() noexcept;
+		FORCE_INLINE widget_state&
+		get_state() const noexcept
+		{
+			return g::widget_state_map[hash_id];
+		}
 
 		FORCE_INLINE bool
-		hovered() noexcept
+		hovered() const noexcept
 		{
 			return hash_id == g::hover_id;
 		}
 
 		FORCE_INLINE bool
-		mouse_l_pressed() noexcept
+		mouse_l_pressed() const noexcept
 		{
 			return hash_id == g::mouse_l_pressed_id;
 		}
 
 		FORCE_INLINE bool
-		mouse_l_clicked() noexcept
+		mouse_l_clicked() const noexcept
 		{
 			return hash_id == g::mouse_l_clicked_id;
 		}
 
 		FORCE_INLINE bool
-		mouse_r_clicked() noexcept
+		mouse_r_clicked() const noexcept
 		{
 			return hash_id == g::mouse_r_clicked_id;
 		}
 
 		template <input::e::key_kind e_key>
 		FORCE_INLINE bool
-		clicked() noexcept
+		clicked() const noexcept
 		{
 			if constexpr (e_key == input::e::key_kind::mouse_left)
 			{
@@ -520,7 +532,7 @@ namespace age::ui
 
 		template <input::e::key_kind e_key>
 		FORCE_INLINE bool
-		pressed() noexcept
+		pressed() const noexcept
 		{
 			if constexpr (e_key == input::e::key_kind::mouse_left)
 			{
@@ -530,6 +542,26 @@ namespace age::ui
 			{
 				static_assert(false, "invalid key kind");
 			}
+		}
+
+		FORCE_INLINE bool
+		is_toggled() const noexcept
+		{
+			return get_state().toggled;
+		}
+
+		FORCE_INLINE void
+		toggle() const noexcept
+		{
+			auto& state	  = get_state();
+			state.toggled = !state.toggled;
+		}
+
+		FORCE_INLINE void
+		set_toggled(bool value) const noexcept
+		{
+			auto& state	  = get_state();
+			state.toggled = value;
 		}
 	};
 }	 // namespace age::ui
