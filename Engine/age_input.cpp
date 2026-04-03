@@ -3,8 +3,6 @@
 
 namespace age::input
 {
-
-
 	context_handle
 	create_context() noexcept
 	{

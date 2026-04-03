@@ -261,7 +261,7 @@ namespace age::ui::detail
 	}
 
 	template <bool is_width>
-	FORCE_INLINE void
+	void
 	finalize(layout_data& layout_data, uint32 layout_idx) noexcept
 	{
 		auto& pos_data	= g::element_layout_pos_data_vec[layout_data.pos_data_idx];
@@ -653,7 +653,7 @@ namespace age::ui::widget
 		{
 			detail::handle_text(desc);
 		}
-		return widget_ctx{ .hash_id = detail::widget_begin(std::move(desc)) };
+		return widget_ctx{ detail::widget_begin(std::move(desc)) };
 	}
 }	 // namespace age::ui::widget
 
@@ -661,7 +661,10 @@ namespace age::ui
 {
 	widget_ctx::~widget_ctx() noexcept
 	{
-		detail::widget_end();
-		g::id_stack.pop_back();
+		if (hash_id != age::get_invalid_id<t_hash>())
+		{
+			detail::widget_end();
+			g::id_stack.pop_back();
+		}
 	}
 }	 // namespace age::ui

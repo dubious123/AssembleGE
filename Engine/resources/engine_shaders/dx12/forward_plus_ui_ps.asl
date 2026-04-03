@@ -98,7 +98,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	{
 		if (shape_kind == UI_SHAPE_KIND_TEXT)
 		{
-			return float4(body_color.rgb, sd);
+			// return float4(body_color.rgb, sd);
 			return float4(body_color.rgb, body_color.a * saturate(0.5f - delta_from_edge));
 		}
 

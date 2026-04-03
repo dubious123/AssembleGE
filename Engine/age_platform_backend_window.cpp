@@ -228,7 +228,7 @@ namespace age::platform
 
 		const auto window_class = WNDCLASSEX{
 			.cbSize		   = sizeof(WNDCLASSEX),
-			.style		   = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
+			.style		   = CS_HREDRAW | CS_VREDRAW /*| CS_DBLCLKS*/,
 			.lpfnWndProc   = detail::window_proc,
 			.cbClsExtra	   = 0,
 			.cbWndExtra	   = 0,

@@ -52,6 +52,7 @@ namespace age_demo::game
 	{
 		AGE_SET(scene_id, scene_id)
 		AGE_SET(scene_id_next, scene_id_next)
+		AGE_SET(frame_count, frame_count)
 		AGE_GETSET(h_window, h_window)
 		AGE_SET(h_render_surface, h_render_surface)
 		AGE_SET(h_input_ctx, h_input_ctx)
@@ -68,6 +69,7 @@ namespace age_demo::game
 	{
 		AGE_GETSET(scene_id, scene_id)
 		AGE_GETSET(scene_id_next, scene_id_next)
+		AGE_GETSET(frame_count, frame_count)
 		AGE_GET(h_input_ctx, h_input_ctx)
 		AGE_GET(h_window, h_window)
 	} i_loop;

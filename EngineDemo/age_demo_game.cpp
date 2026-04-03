@@ -32,6 +32,7 @@ namespace age_demo::game
 			AGE_LAMBDA((), {
 				i_init.set_scene_id = invalid_id_uint32;
 				i_init.set_scene_id_next = g::first_scene_idx;
+				i_init.set_frame_count = 0;
 			}),
 
 			AGE_FUNC(i_init.get_render_pipeline->init),
@@ -68,8 +69,8 @@ namespace age_demo::game
 		static double accumulated_time_s = 0.0;
 
 		c_auto dt = age::runtime::i_time.get_delta_time_s();
-
 		++frame_count;
+
 		accumulated_time_s += dt;
 
 		if (accumulated_time_s >= 1.0)
@@ -87,6 +88,8 @@ namespace age_demo::game
 		//	   age::global::get<age::runtime::interface>().delta_time_ns().count(),
 		//	   age::global::get<age::runtime::interface>().delta_time_s());
 		// std::this_thread::sleep_for(std::chrono::seconds(1));
+
+		i_loop.set_frame_count = i_loop.get_frame_count + 1;
 	}
 
 	FORCE_INLINE bool

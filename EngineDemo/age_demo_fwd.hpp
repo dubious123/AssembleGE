@@ -169,6 +169,8 @@ namespace age_demo::global
 		uint32 scene_id;
 		uint32 scene_id_next;
 
+		uint64 frame_count;
+
 		// input
 		float2 move;
 		float2 look;

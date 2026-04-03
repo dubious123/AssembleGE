@@ -398,26 +398,26 @@ namespace age::ui::g
 	};
 
 	// shared
-	inline constexpr style_color bg_panel		= { black, { opacity_5, opacity_6, opacity_6 } };									// panel background
-	inline constexpr style_color bg_surface		= { white, { opacity_1, opacity_1, opacity_1 } };									// input field, dropdown bg
-	inline constexpr style_color bg_interactive = { white, { opacity_0, opacity_1, opacity_1 } };									// button, list item bg
-	inline constexpr style_color bg_accent		= { accent, { opacity_0, opacity_2, opacity_3 } };									// active button, selected item bg
-	inline constexpr style_color bg_popup		= { black, { opacity_7, opacity_7, opacity_7 } };									// dropdown menu, tooltip, context menu
+	inline constexpr style_color bg_panel		= { black, { opacity_5, opacity_6, opacity_6 } };										   // panel background
+	inline constexpr style_color bg_surface		= { white, { opacity_1, opacity_1, opacity_1 } };										   // input field, dropdown bg
+	inline constexpr style_color bg_interactive = { white, { opacity_0, opacity_1, opacity_1 } };										   // button, list item bg
+	inline constexpr style_color bg_accent		= { accent, { opacity_0, opacity_2, opacity_3 } };										   // active button, selected item bg
+	inline constexpr style_color bg_popup		= { black, { opacity_7, opacity_7, opacity_7 } };										   // dropdown menu, tooltip, context menu
 
-	inline constexpr style_color border_default = { white, { opacity_1, opacity_2, opacity_2 } };									// panel, input border
-	inline constexpr style_color border_accent	= { accent, { opacity_0, opacity_0, opacity_5 } };									// focused input, focused panel border
+	inline constexpr style_color border_default = { white, { opacity_1, opacity_2, opacity_2 } };										   // panel, input border
+	inline constexpr style_color border_accent	= { accent, { opacity_0, opacity_5, opacity_5 } };										   // focused input, focused panel border
 
-	inline constexpr theme_text text_primary	 = { white, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::big };			// heading, selected item text
-	inline constexpr theme_text text_secondary	 = { white, { opacity_5, opacity_5, opacity_5 }, e::font_size_kind::normal };		// input value, normal body
-	inline constexpr theme_text text_tertiary	 = { white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };		// section header, label
-	inline constexpr theme_text text_hint		 = { white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };		// input label, placeholder
-	inline constexpr theme_text text_disabled	 = { white, { opacity_2, opacity_2, opacity_2 }, e::font_size_kind::normal };		// disabled widget text
-	inline constexpr theme_text text_accent		 = { accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };		// link, asset reference, clickable path
-	inline constexpr theme_text text_positive	 = { positive, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };	// success msg, y axis, fps ok
-	inline constexpr theme_text text_negative	 = { negative, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };	// error msg, x axis, warning
-	inline constexpr theme_text text_interactive = { white, { opacity_4, opacity_5, opacity_7 }, e::font_size_kind::normal };		// button text, list item text
+	inline constexpr theme_text text_primary	 = { white, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::big };				   // heading, selected item text
+	inline constexpr theme_text text_secondary	 = { white, { opacity_5, opacity_5, opacity_5 }, e::font_size_kind::normal };			   // input value, normal body
+	inline constexpr theme_text text_tertiary	 = { white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };			   // section header, label
+	inline constexpr theme_text text_hint		 = { white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };			   // input label, placeholder
+	inline constexpr theme_text text_disabled	 = { white, { opacity_2, opacity_2, opacity_2 }, e::font_size_kind::normal };			   // disabled widget text
+	inline constexpr theme_text text_accent		 = { accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };			   // link, asset reference, clickable path
+	inline constexpr theme_text text_positive	 = { positive, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };		   // success msg, y axis, fps ok
+	inline constexpr theme_text text_negative	 = { negative, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };		   // error msg, x axis, warning
+	inline constexpr theme_text text_interactive = { white, { opacity_opaque, opacity_opaque, opacity_7 }, e::font_size_kind::normal };	   // button text, list item text
 
-	inline constexpr style_color separator = { white, { opacity_1, opacity_1, opacity_1 } };										// section separator
+	inline constexpr style_color separator = { white, { opacity_1, opacity_1, opacity_1 } };											   // section separator
 
 	// widget_specific
 	inline constexpr style_color toggle_off = { white, { opacity_2, opacity_2, opacity_2 } };		 // toggle track (off)
@@ -454,6 +454,19 @@ namespace age::ui
 	struct widget_ctx
 	{
 		t_hash hash_id = age::get_invalid_id<t_hash>();
+
+		AGE_DISABLE_COPY(widget_ctx);
+
+		FORCE_INLINE constexpr widget_ctx() noexcept = default;
+
+		FORCE_INLINE constexpr widget_ctx(t_hash id) noexcept
+			: hash_id(id){};
+
+		FORCE_INLINE constexpr widget_ctx(widget_ctx&& other) noexcept
+			: hash_id(other.hash_id)
+		{
+			other.hash_id = get_invalid_id<t_hash>();
+		}
 
 		FORCE_INLINE constexpr explicit
 		operator bool() const

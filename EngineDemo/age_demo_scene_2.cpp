@@ -311,30 +311,11 @@ namespace age_demo::scene_2
 										   | set_size(size_mode::fit(), size_mode::fit())
 										   | set_body_brush_data(theme::bg_panel())))
 				{
-					// if (auto _ = widget::collapsible("some_header"))
-					//{
-					// }
-
-					// if (auto h_widget = widget::collapsible())
-					//{
-					//	if(h_widget->)
-					// }
-
-					if (auto btn = widget::begin(style::text_interactive("button") | set_interact(true)))
+					if (auto btn = widget::button("button2"))
 					{
 						if (btn.clicked<mouse_left>())
 						{
-							std::println("button clicked");
-						}
-
-						if (btn.hovered())
-						{
-							std::println("button hovered");
-						}
-
-						if (btn.pressed<mouse_left>())
-						{
-							std::println("button pressed");
+							std::println("button2 clicked");
 						}
 					}
 

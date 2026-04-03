@@ -46,6 +46,19 @@ namespace age::ui::theme
 	}
 
 	FORCE_INLINE constexpr float4
+	border_interactive(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle)
+		{
+			return border_default(e::style_state::idle);
+		}
+		else
+		{
+			return border_accent(state);
+		}
+	}
+
+	FORCE_INLINE constexpr float4
 	text_primary(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_primary.color], g::theme_opacity[g::text_primary.opacity[std::to_underlying(state)]] };
@@ -235,6 +248,18 @@ namespace age::ui
 		return detail::mod_body_brush_data{ brush_data::color(r, g, b, a) };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	set_border_brush_data(float4 color) noexcept
+	{
+		return detail::mod_border_brush_data{ brush_data::color(color) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_border_brush_data(float r, float g, float b, float a) noexcept
+	{
+		return detail::mod_border_brush_data{ brush_data::color(r, g, b, a) };
+	}
+
 	namespace detail
 	{
 		struct mod_size
@@ -366,6 +391,7 @@ namespace age::ui::style
 		{
 			return set_draw(false)
 				 | set_align(e::widget_align::begin)
+				 | set_z_offset(0)
 				 | set_padding(0.f, 0.f, 0.f, 0.f)
 				 | set_border_thickness(0.f);
 		}
@@ -402,6 +428,42 @@ namespace age::ui::style
 		{
 			AGE_UNREACHABLE();
 		}
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		frame_base() noexcept
+		{
+			return set_draw(true)
+				 | set_layout(e::widget_layout::vertical)
+				 | set_align(e::widget_align::begin)
+				 | set_size(size_mode::fit(), size_mode::fit())
+				 | set_z_offset(1)
+				 | set_padding(8.f, 8.f, 3.f, 3.f)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color)
+				 | set_border_thickness(1.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	frame(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::frame_base()
+			 | set_body_brush_data(theme::bg_panel(state))
+			 | set_border_brush_data(theme::border_default(state));
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	frame_interactive(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::frame_base()
+			 | set_body_brush_data(theme::bg_interactive(state))
+			 | set_border_brush_data(theme::border_interactive(state));
 	}
 }	 // namespace age::ui::style
 
