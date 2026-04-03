@@ -38,6 +38,9 @@ namespace age::ui
 
 		g::element_z_order_count_vec.clear();
 
+		g::window_width	 = static_cast<float>(platform::get_client_width(h_window));
+		g::window_height = static_cast<float>(platform::get_client_height(h_window));
+
 		std::ranges::fill(g::element_z_order_count_vec, 0u);
 
 		detail::widget_begin<true>(
@@ -61,6 +64,9 @@ namespace age::ui
 		);
 
 		g::element_layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
+
+		// handle input
+		g::p_input_ctx = std::addressof(*h_window->h_input);
 	}
 
 	void
@@ -91,6 +97,9 @@ namespace age::ui
 
 		g::element_pos_parent_idx_stack.clear();
 		g::element_pos_parent_idx_stack.emplace_back(0);	// root
+
+		auto current_hover_z_offset = 0u;
+		g::hover_id					= get_invalid_id<t_hash>();
 
 		for (auto current_idx : std::views::iota(1u, g::element_layout_pos_data_vec.size<uint32>()))
 		{
@@ -156,7 +165,7 @@ namespace age::ui
 			--parent.child_count;
 			g::element_pos_parent_idx_stack.emplace_back(current_idx);
 
-			if (auto is_normal = child.render_data_count > 0)
+			if (auto draw = child.render_data_count > 0)
 			{
 				auto& render_data_current = g::element_render_data_vec[child.render_data_idx];
 
@@ -200,6 +209,44 @@ namespace age::ui
 			else
 			{
 				AGE_UNREACHABLE();
+			}
+
+			// handle interaction
+			if (child.interact and child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, g::p_input_ctx->mouse_pos))
+			{
+				current_hover_z_offset = child.z_offset;
+				g::hover_id			   = child.id;
+			}
+		}
+
+		// finalize interaction
+		{
+			if (g::p_input_ctx->is_pressed(input::e::key_kind::mouse_left))
+			{
+				g::mouse_l_pressed_id = g::hover_id;
+			}
+			else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
+			{
+				// AGE_ASSERT(g::mouse_l_clicked_id == get_invalid_id<t_hash>());
+				if (g::mouse_l_pressed_id == g::hover_id)
+				{
+					g::mouse_l_clicked_id = g::mouse_l_pressed_id;
+				}
+
+				g::mouse_l_pressed_id = age::get_invalid_id<t_hash>();
+			}
+			else
+			{
+				g::mouse_l_clicked_id = age::get_invalid_id<t_hash>();
+			}
+
+			if (g::p_input_ctx->is_released(input::e::key_kind::mouse_right))
+			{
+				g::mouse_r_clicked_id = g::hover_id;
+			}
+			else
+			{
+				g::mouse_r_clicked_id = age::get_invalid_id<t_hash>();
 			}
 		}
 

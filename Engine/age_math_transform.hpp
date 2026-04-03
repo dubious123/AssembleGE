@@ -33,6 +33,13 @@ namespace age::inline math
 		c_auto xm_min		= simd::min(xm_l, xm_r);
 		return simd::select(xm_max, xm_min, xm_select) | simd::to<float4>();
 	}
+
+	FORCE_INLINE bool
+	contains_2d(const float4& rect, const float2& point)
+	{
+		return point.x >= rect.x and point.x <= rect.z
+		   and point.y >= rect.y and point.y <= rect.w;
+	}
 }	 // namespace age::inline math
 
 // quaternoin

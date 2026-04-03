@@ -135,9 +135,11 @@ namespace age::ui::detail
 namespace age::ui::detail
 {
 	template <bool is_root = false>
-	FORCE_INLINE void
+	FORCE_INLINE t_hash
 	widget_begin(const widget_desc& desc) noexcept
 	{
+		c_auto id = new_id();
+
 		auto z_offset		   = 0u;
 		auto render_data_count = 0u;
 
@@ -196,7 +198,7 @@ namespace age::ui::detail
 			.grow_child_count = 0,
 			.size			  = desc.padding_left + desc.padding_right,
 			.size_min		  = desc.width_min,
-			.size_max		  = desc.width_max,
+			.size_max		  = desc.width_size_mode == e::size_mode_kind::grow ? std::min(g::window_width, desc.width_max) : desc.width_max,
 		});
 
 		g::element_layout_data_v_stack.emplace_back(layout_data{
@@ -206,10 +208,11 @@ namespace age::ui::detail
 			.grow_child_count = 0,
 			.size			  = desc.padding_top + desc.padding_bottom,
 			.size_min		  = desc.height_min,
-			.size_max		  = desc.height_max,
+			.size_max		  = desc.height_size_mode == e::size_mode_kind::grow ? std::min(g::window_height, desc.height_max) : desc.height_max,
 		});
 
 		g::element_layout_pos_data_vec.emplace_back(layout_pos_data{
+			.id				   = id,
 			.render_data_idx   = g::element_render_data_vec.size<uint32>(),
 			.render_data_count = render_data_count,
 			.layout			   = desc.layout,
@@ -221,6 +224,7 @@ namespace age::ui::detail
 			.padding_right	   = desc.padding_right,
 			.padding_top	   = desc.padding_top,
 			.padding_bottom	   = desc.padding_bottom,
+			.interact		   = desc.interact,
 			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id },
 		});
 
@@ -238,6 +242,8 @@ namespace age::ui::detail
 				.border_brush_data = desc.border_brush_data,
 			});
 		}
+
+		return id;
 	}
 
 	template <bool is_width>
@@ -340,6 +346,17 @@ namespace age::ui::detail
 			 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 		{
 			auto& grow_child = get_grow_child<is_width>(grow_idx);
+
+			if constexpr (is_width is_false)
+			{
+				if (height_depends_on_width(grow_child.mode))
+				{
+					auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
+					grow_child.size			  = grow_child_pos_data.height;
+					grow_child.size_max		  = grow_child.size;
+				}
+			}
+
 			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size, false, grow_idx));
 			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size_max, true, grow_idx));
 			grow_idx += grow_child.grow_child_count + 1;
@@ -406,6 +423,7 @@ namespace age::ui::detail
 		auto& layout_common_parent = AGE_LAMBDA((), {
 			if constexpr (is_root)
 			{
+				g::id_stack.pop_back();
 				return layout_common_current;
 			}
 			else
@@ -635,8 +653,7 @@ namespace age::ui::widget
 		{
 			detail::handle_text(desc);
 		}
-		detail::widget_begin(std::move(desc));
-		return widget_ctx{ .hash_id = new_id() };
+		return widget_ctx{ .hash_id = detail::widget_begin(std::move(desc)) };
 	}
 }	 // namespace age::ui::widget
 

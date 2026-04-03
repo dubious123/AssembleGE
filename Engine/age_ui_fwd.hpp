@@ -131,7 +131,9 @@ namespace age::ui
 		e::shape_kind shape_kind		= e::shape_kind::rect;
 		e::brush_kind body_brush_kind	= e::brush_kind::color;
 		e::brush_kind border_brush_kind = e::brush_kind::color;
-		uint8		  _[5];
+
+		bool  interact = false;
+		uint8 _[4];
 
 		union
 		{
@@ -189,6 +191,7 @@ namespace age::ui
 
 	struct layout_pos_data
 	{
+		t_hash id;
 		uint32 render_data_idx;
 		uint32 render_data_count;
 
@@ -205,6 +208,9 @@ namespace age::ui
 		float			 padding_top;
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
+
+		bool	interact;
+		uint8_3 _;
 
 		union
 		{
@@ -284,6 +290,15 @@ namespace age::ui::g
 {
 	inline constexpr uint64 fnv1a_offset_basis = 0xcbf29ce484222325ull;
 	inline constexpr uint64 fnv1a_prime		   = 0x100000001b3ull;
+
+	inline float window_width;
+	inline float window_height;
+
+	inline const age::input::input_context* p_input_ctx;
+	inline t_hash							hover_id;
+	inline t_hash							mouse_l_pressed_id;
+	inline t_hash							mouse_l_clicked_id;
+	inline t_hash							mouse_r_clicked_id;
 
 	inline age::vector<id_scope> id_stack;
 
@@ -447,5 +462,61 @@ namespace age::ui
 		}
 
 		~widget_ctx() noexcept;
+
+		FORCE_INLINE bool
+		hovered() noexcept
+		{
+			return hash_id == g::hover_id;
+		}
+
+		FORCE_INLINE bool
+		mouse_l_pressed() noexcept
+		{
+			return hash_id == g::mouse_l_pressed_id;
+		}
+
+		FORCE_INLINE bool
+		mouse_l_clicked() noexcept
+		{
+			return hash_id == g::mouse_l_clicked_id;
+		}
+
+		FORCE_INLINE bool
+		mouse_r_clicked() noexcept
+		{
+			return hash_id == g::mouse_r_clicked_id;
+		}
+
+		template <input::e::key_kind e_key>
+		FORCE_INLINE bool
+		clicked() noexcept
+		{
+			if constexpr (e_key == input::e::key_kind::mouse_left)
+			{
+				return mouse_l_clicked();
+			}
+			else if constexpr (e_key == input::e::key_kind::mouse_right)
+			{
+				return mouse_r_clicked();
+			}
+			else
+			{
+				static_assert(false, "invalid key kind");
+			}
+		}
+
+		template <input::e::key_kind e_key>
+		FORCE_INLINE bool
+		pressed() noexcept
+		{
+			if constexpr (e_key == input::e::key_kind::mouse_left)
+			{
+				return mouse_l_pressed();
+			}
+			else
+			{
+				static_assert(false, "invalid key kind");
+			}
+		}
 	};
 }	 // namespace age::ui

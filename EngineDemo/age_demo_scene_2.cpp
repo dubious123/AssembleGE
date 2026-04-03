@@ -297,16 +297,48 @@ namespace age_demo::scene_2
 		//	;
 		{
 			using namespace age::ui;
+			using enum age::input::e::key_kind;
 
-			if (auto _ = widget::begin(set_draw(false)
-									   | set_layout(e::widget_layout::horizontal)
-									   | set_size(size_mode::fit(), size_mode::grow())))
+			// if (auto _ = widget::begin(set_draw(false)
+			//						   | set_layout(e::widget_layout::horizontal)
+			//						   | set_size(size_mode::fit(), size_mode::grow())))
+			//	;
+
+			if (auto _ = widget::horizontal())
 			{
 				if (auto _ = widget::begin(set_draw(true)
 										   | set_layout(e::widget_layout::vertical)
 										   | set_size(size_mode::fit(), size_mode::fit())
 										   | set_body_brush_data(theme::bg_panel())))
 				{
+					// if (auto _ = widget::collapsible("some_header"))
+					//{
+					// }
+
+					// if (auto h_widget = widget::collapsible())
+					//{
+					//	if(h_widget->)
+					// }
+
+					if (auto btn = widget::begin(style::text_interactive("button") | set_interact(true)))
+					{
+						if (btn.clicked<mouse_left>())
+						{
+							std::println("button clicked");
+						}
+
+						if (btn.hovered())
+						{
+							std::println("button hovered");
+						}
+
+						if (btn.pressed<mouse_left>())
+						{
+							std::println("button pressed");
+						}
+					}
+
+
 					for (auto i = 0; i < 5; ++i)
 					{
 						if (auto _ = widget::begin(set_draw(true)

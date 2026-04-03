@@ -221,6 +221,8 @@ namespace age::ui
 	DEF(border_brush_data, border_brush_data)
 	DEF(border, border_thickness, border_brush_kind, border_brush_data)
 
+	DEF(interact, interact)
+
 	FORCE_INLINE constexpr decltype(auto)
 	set_body_brush_data(float4 color) noexcept
 	{
@@ -355,6 +357,54 @@ namespace age::ui
 }	 // namespace age::ui
 
 // wrappers
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		layout_base() noexcept
+		{
+			return set_draw(false)
+				 | set_align(e::widget_align::begin)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_border_thickness(0.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	vertical() noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::vertical)
+			 | set_size(size_mode::grow(), size_mode::fit());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	horizontal() noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::horizontal)
+			 | set_size(size_mode::fit(), size_mode::grow());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	layout(e::widget_layout e_layout) noexcept
+	{
+		if (e_layout == e::widget_layout::vertical)
+		{
+			return vertical();
+		}
+		else if (e_layout == e::widget_layout::horizontal)
+		{
+			return horizontal();
+		}
+		else
+		{
+			AGE_UNREACHABLE();
+		}
+	}
+}	 // namespace age::ui::style
+
 namespace age::ui::style
 {
 	namespace detail

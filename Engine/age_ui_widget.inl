@@ -1,6 +1,28 @@
 #pragma once
 #include "age.hpp"
 
+// layout
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	layout(e::widget_layout e_layout) noexcept
+	{
+		return widget::begin(style::layout(e_layout));
+	}
+
+	FORCE_INLINE widget_ctx
+	vertical() noexcept
+	{
+		return widget::begin(style::vertical());
+	}
+
+	FORCE_INLINE widget_ctx
+	horizontal() noexcept
+	{
+		return widget::begin(style::horizontal());
+	}
+}	 // namespace age::ui::widget
+
 // text
 namespace age::ui::widget
 {
