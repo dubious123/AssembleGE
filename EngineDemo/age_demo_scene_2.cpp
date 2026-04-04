@@ -308,13 +308,27 @@ namespace age_demo::scene_2
 				{
 					if (auto header = widget::collapsible_header("collapsible header"))
 					{
-						if (auto btn = widget::button("button2"))
+						if (auto btn = widget::button("button2", set_align(e::widget_align::center)))
 						{
 							if (btn.clicked<mouse_left>())
 							{
 								std::println("button2 clicked");
 							}
 						}
+					}
+
+					if (auto tree_node_0 = widget::tree_node("node_0"))
+					{
+						if (auto tree_node_1 = widget::tree_node("node_1"))
+						{
+							if (auto tree_node_1 = widget::tree_node("node_2"))
+							{
+							}
+						}
+					}
+					static float v = 35.f;
+					if (auto h_slider = widget::slider(v, 0.f, 100.f))
+					{
 					}
 
 					for (auto i = 0; i < 5; ++i)

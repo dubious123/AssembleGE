@@ -3,49 +3,49 @@
 
 namespace age::ui::theme
 {
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	bg_panel(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::bg_panel.color], g::theme_opacity[g::bg_panel.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	bg_surface(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::bg_surface.color], g::theme_opacity[g::bg_surface.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	bg_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::bg_interactive.color], g::theme_opacity[g::bg_interactive.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	bg_accent(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::bg_accent.color], g::theme_opacity[g::bg_accent.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	bg_popup(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::bg_popup.color], g::theme_opacity[g::bg_popup.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	border_default(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::border_default.color], g::theme_opacity[g::border_default.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	border_accent(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::border_accent.color], g::theme_opacity[g::border_accent.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	border_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle)
@@ -58,94 +58,190 @@ namespace age::ui::theme
 		}
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_primary(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_primary.color], g::theme_opacity[g::text_primary.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_secondary(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_secondary.color], g::theme_opacity[g::text_secondary.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_tertiary(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_tertiary.color], g::theme_opacity[g::text_tertiary.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_hint(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_hint.color], g::theme_opacity[g::text_hint.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_disabled(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_disabled.color], g::theme_opacity[g::text_disabled.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_accent(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_accent.color], g::theme_opacity[g::text_accent.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_positive(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_positive.color], g::theme_opacity[g::text_positive.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_negative(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_negative.color], g::theme_opacity[g::text_negative.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	text_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_interactive.color], g::theme_opacity[g::text_interactive.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	separator(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::separator.color], g::theme_opacity[g::separator.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	toggle_off(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::toggle_off.color], g::theme_opacity[g::toggle_off.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	toggle_on(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::toggle_on.color], g::theme_opacity[g::toggle_on.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	slider_fill(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::slider_fill.color], g::theme_opacity[g::slider_fill.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
+	slider_track(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::slider_track.color], g::theme_opacity[g::slider_track.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE float4
+	slider_thumb(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::slider_thumb.color], g::theme_opacity[g::slider_thumb.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE float4
+	slider_thumb_ring(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::slider_thumb_ring.color], g::theme_opacity[g::slider_thumb_ring.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE float4
 	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::scroll_thumb.color], g::theme_opacity[g::scroll_thumb.opacity[std::to_underlying(state)]] };
 	}
 
-	FORCE_INLINE constexpr float4
+	FORCE_INLINE float4
 	select_accent(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::select_accent.color], g::theme_opacity[g::select_accent.opacity[std::to_underlying(state)]] };
+	}
+}	 // namespace age::ui::theme
+
+namespace age::ui::theme
+{
+	FORCE_INLINE float
+	text_primary_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_primary.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_secondary_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_secondary.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_tertiary_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_tertiary.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_hint_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_hint.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_disabled_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_disabled.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_accent_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_accent.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_positive_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_positive.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_negative_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_negative.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_interactive_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_interactive.font_size)];
+	}
+}	 // namespace age::ui::theme
+
+namespace age::ui::theme
+{
+	FORCE_INLINE float
+	slider_track_height() noexcept
+	{
+		return g::theme_slider_track_height;
+	}
+
+	FORCE_INLINE float
+	slider_thumb_size(e::style_state e_state = e::style_state::idle) noexcept
+	{
+		return g::theme_slider_thumb_size[std::to_underlying(e_state)];
+	}
+
+	FORCE_INLINE float
+	slider_thumb_border_thickness(e::style_state e_state = e::style_state::idle) noexcept
+	{
+		return g::theme_slider_thumb_border_thickness[std::to_underlying(e_state)];
 	}
 }	 // namespace age::ui::theme
 
@@ -235,6 +331,13 @@ namespace age::ui
 	DEF(border, border_thickness, border_brush_kind, border_brush_data)
 
 	DEF(interact, interact)
+	DEF(save_state, save_state)
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_offset(float x, float y) noexcept
+	{
+		return detail::mod_offset{ float2{ x, y } };
+	}
 
 	FORCE_INLINE constexpr decltype(auto)
 	set_body_brush_data(float4 color) noexcept
@@ -465,6 +568,20 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::bg_interactive(state))
 			 | set_border_brush_data(theme::border_interactive(state));
 	}
+
+	FORCE_INLINE constexpr widget_desc
+	seperator() noexcept
+	{
+		return set_draw(true)
+			 | set_layout(e::widget_layout::vertical)
+			 | set_align(e::widget_align::center)
+			 | set_size(size_mode::grow(), size_mode::fixed(1.f))
+			 | set_z_offset(1)
+			 | set_padding(0.f, 0.f, 0.f, 0.f)
+			 | set_body_brush_kind(e::brush_kind::color)
+			 | set_body_brush_data(theme::text_primary())
+			 | set_border_thickness(0.f);
+	}
 }	 // namespace age::ui::style
 
 namespace age::ui::style
@@ -570,5 +687,58 @@ namespace age::ui::style
 		return text(p_text)
 			 | set_font_size(g::text_interactive.font_size)
 			 | set_body_brush_data(theme::text_interactive(state));
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		slider_track_base() noexcept
+		{
+			return set_align(e::widget_align::center)
+				 | set_height(size_mode::fixed(theme::slider_track_height()))
+				 | set_shape_kind(e::shape_kind::rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_border_thickness(0.f)
+				 | set_z_offset(1);
+		}
+
+		FORCE_INLINE constexpr widget_desc
+		slider_thumb_base() noexcept
+		{
+			return set_align(e::widget_align::center)
+				 | set_shape_kind(e::shape_kind::circle)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_z_offset(2);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::slider_track_base()
+			 | set_body_brush_data(theme::slider_track(state));
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_fill(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::slider_track_base()
+			 | set_body_brush_data(theme::slider_fill(state));
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_thumb(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::slider_thumb_base()
+			 | set_size(size_mode::fixed(theme::slider_thumb_size(state)), size_mode::fixed(theme::slider_thumb_size(state)))
+			 | set_border_thickness(theme::slider_thumb_border_thickness(state))
+			 | set_body_brush_data(theme::slider_thumb(state))
+			 | set_border_brush_data(theme::slider_thumb_ring(state));
 	}
 }	 // namespace age::ui::style

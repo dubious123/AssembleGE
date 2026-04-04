@@ -23,6 +23,28 @@ namespace age::ui::widget
 	}
 }	 // namespace age::ui::widget
 
+// frame
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	frame(e::style_state state = e::style_state::idle) noexcept
+	{
+		return widget::begin(style::frame(state));
+	}
+
+	FORCE_INLINE widget_ctx
+	frame_interactive(e::style_state state = e::style_state::idle) noexcept
+	{
+		return widget::begin(style::frame_interactive(state));
+	}
+
+	FORCE_INLINE widget_ctx
+	seperator() noexcept
+	{
+		return widget::begin(style::seperator());
+	}
+}	 // namespace age::ui::widget
+
 // text
 namespace age::ui::widget
 {
@@ -85,13 +107,14 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	FORCE_INLINE widget_ctx
-	button(const char* p_str) noexcept
+	button(const char* p_str, auto&&... modifier) noexcept
 	{
 		using enum input::e::key_kind;
 
-		if (auto btn = widget::begin(style::layout(e::widget_layout::vertical)
-									 | set_interact(true)
-									 | set_width(size_mode::fit())))
+		if (auto btn = widget::begin(((style::layout(e::widget_layout::vertical)
+									   | set_interact(true)
+									   | set_width(size_mode::fit()))
+									  | ... | modifier)))
 		{
 			auto state = e::style_state::idle;
 			if (btn.pressed<mouse_left>())
@@ -103,7 +126,7 @@ namespace age::ui::widget
 				state = e::style_state::hover;
 			}
 
-			if (auto _ = widget::begin(style::frame_interactive(state)))
+			if (auto _ = widget::begin(style::frame_interactive(state) | set_layout(e::widget_layout::horizontal)))
 			{
 				widget::text_interactive(p_str, state);
 			}
@@ -126,7 +149,7 @@ namespace age::ui::widget
 		using enum input::e::key_kind;
 
 		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
-									 | set_size(size_mode::fit(), size_mode::fit())))
+									 | set_size(size_mode::grow(), size_mode::fit())))
 		{
 			auto is_open = false;
 
@@ -147,8 +170,10 @@ namespace age::ui::widget
 									? 90 * math::g::degree_to_radian
 									: 0.f;
 
+				c_auto chevelon_size = font::get_line_height(theme::text_primary_font_size());
+
 				widget::begin(set_align(e::widget_align::center)
-							  | set_size(size_mode::fixed(22), size_mode::fixed(22))
+							  | set_size(size_mode::fixed(chevelon_size), size_mode::fixed(chevelon_size))
 							  | set_border_thickness(0.f)
 							  | set_rotation(rotation)
 							  | set_shape_kind(e::shape_kind::arrow_right)
@@ -159,8 +184,114 @@ namespace age::ui::widget
 
 			if (is_open)
 			{
+				widget::seperator();
 				return res;
 			}
+		}
+
+		return {};
+	}
+
+	FORCE_INLINE widget_ctx
+	tree_node(const char* p_str) noexcept
+	{
+		using enum input::e::key_kind;
+
+		c_auto chevelon_size = font::get_line_height(theme::text_secondary_font_size());
+
+		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
+									 | set_padding_left(chevelon_size)
+									 | set_size(size_mode::fit(), size_mode::fit())))
+		{
+			auto is_open = false;
+
+			if (auto header = widget::begin(style::frame_interactive()
+											| set_interact(true)
+											| set_layout(e::widget_layout::horizontal)
+											| set_align(e::widget_align::begin)))
+			{
+				if (header.clicked<mouse_left>())
+				{
+					header.toggle();
+				}
+
+				is_open = header.is_toggled();
+
+				c_auto rotation = is_open
+									? 90 * math::g::degree_to_radian
+									: 0.f;
+
+				widget::begin(set_align(e::widget_align::center)
+							  | set_size(size_mode::fixed(chevelon_size), size_mode::fixed(chevelon_size))
+							  | set_border_thickness(0.f)
+							  | set_rotation(rotation)
+							  | set_shape_kind(e::shape_kind::arrow_right)
+							  | set_body_brush_data(theme::text_secondary()));
+
+				widget::text_secondary(p_str);
+			}
+
+			if (is_open)
+			{
+				return res;
+			}
+		}
+
+		return {};
+	}
+}	 // namespace age::ui::widget
+
+// slider
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	slider(float& value, float min, float max) noexcept
+	{
+		using enum input::e::key_kind;
+
+		c_auto max_thumb_size = theme::slider_thumb_size(e::style_state::active);
+
+		if (auto h_slider = widget::begin(style::layout(e::widget_layout::horizontal)
+										  | set_interact(true)
+										  | set_save_state(true)
+										  | set_child_gap(0)
+										  | set_size(size_mode::grow(), size_mode::fixed(max_thumb_size))))
+		{
+			c_auto& slider_widget_state = h_slider.get_state();
+			c_auto	width				= std::max(slider_widget_state.width, max_thumb_size) - max_thumb_size;
+			c_auto	padding				= max_thumb_size * 0.5f;
+
+			auto slider_style_state = e::style_state::idle;
+			if (h_slider.pressed<mouse_left>())
+			{
+				slider_style_state = e::style_state::active;
+
+				c_auto x_min = slider_widget_state.pos.x + padding;
+				c_auto x_max = x_min + width;
+
+				c_auto new_ratio = (std::clamp(g::p_input_ctx->mouse_pos.x, x_min, x_max) - x_min) / width;
+
+				value = (max - min) * new_ratio;
+			}
+			else if (h_slider.hovered())
+			{
+				slider_style_state = e::style_state::hover;
+			}
+
+			c_auto ratio = std::clamp(value, min, max) / (max - min);
+
+			c_auto thumb_offset = float2{ padding - theme::slider_thumb_size(slider_style_state) * 0.5f, 0 };
+
+			widget::begin(style::slider_fill(slider_style_state) | set_width(size_mode::fixed(width * ratio)) | set_offset(padding, 0.f));
+
+			widget::begin(style::slider_thumb(slider_style_state) | set_offset(thumb_offset));
+
+			c_auto track_offset = float2{ padding - theme::slider_thumb_size(slider_style_state), 0 };
+
+			widget::begin(style::slider_track(slider_style_state) | set_width(size_mode::fixed(width * (1.f - ratio))) | set_offset(track_offset));
+
+
+			return h_slider;
 		}
 
 		return {};

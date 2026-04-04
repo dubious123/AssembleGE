@@ -15,6 +15,10 @@ namespace age::ui
 
 		g::theme_font_scale = g::theme_font_scale_default;
 		font::set_scale(g::theme_font_scale_default);
+
+		g::theme_slider_track_height = g::theme_slider_track_height_default;
+		std::ranges::copy(g::theme_slider_thumb_size_default, g::theme_slider_thumb_size);
+		std::ranges::copy(g::theme_slider_thumb_border_thickness_default, g::theme_slider_thumb_border_thickness);
 	}
 
 	void
@@ -209,6 +213,14 @@ namespace age::ui
 			else
 			{
 				AGE_UNREACHABLE();
+			}
+
+			if (child.save_state)
+			{
+				auto& state	 = g::widget_state_map[child.id];
+				state.pos	 = child.offset;
+				state.width	 = child.width;
+				state.height = child.height;
 			}
 
 			// handle interaction

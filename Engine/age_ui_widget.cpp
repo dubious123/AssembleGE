@@ -225,6 +225,7 @@ namespace age::ui::detail
 			.padding_top	   = desc.padding_top,
 			.padding_bottom	   = desc.padding_bottom,
 			.interact		   = desc.interact,
+			.save_state		   = desc.save_state,
 			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id },
 		});
 
@@ -284,6 +285,7 @@ namespace age::ui::detail
 		if (is_cross)
 		{
 			auto value_final = layout_data.size;
+
 			for (auto grow_idx = layout_idx + 1;
 				 auto i : std::views::iota(0) | std::views::take(layout_data.grow_child_count))
 			{
@@ -402,6 +404,9 @@ namespace age::ui::detail
 				if (height_depends_on_width(grow_child.mode))
 				{
 					grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
+
+					// layout is horizontal
+					pos_data.height = std::max(pos_data.height, grow_child_pos_data.height);
 				}
 			}
 
@@ -449,6 +454,11 @@ namespace age::ui::detail
 
 		if (can_finalize_width)
 		{
+			if (layout_h_current.layout == e::widget_layout::vertical and layout_h_current.mode == e::size_mode_kind::fit)
+			{
+				layout_h_current.size_max = layout_h_current.size;
+			}
+
 			detail::finalize<true>(layout_h_current, g::layout_h_current_idx);
 
 			layout_common_current.child_height_depends_on_width_solved = true;
@@ -485,9 +495,11 @@ namespace age::ui::detail
 
 		if (can_finalize_height)
 		{
-			// layout_v_current.height = std::clamp(layout_v_current.height, layout_v_current.height_min, layout_v_current.height_max);
-
-			// g::element_layout_pos_data_vec[layout_v_current.pos_data_idx].height = layout_v_current.height;
+			if (layout_v_current.layout == e::widget_layout::horizontal and layout_v_current.mode == e::size_mode_kind::fit)
+			{
+				layout_v_current.size	  = std::max(layout_v_current.size, pos_data.height);
+				layout_v_current.size_max = layout_v_current.size;
+			}
 
 			detail::finalize<false>(layout_v_current, g::layout_v_current_idx);
 
