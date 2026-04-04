@@ -323,9 +323,17 @@ namespace age_demo::scene_2
 						{
 							if (auto tree_node_1 = widget::tree_node("node_2"))
 							{
+								static float v = 10.f;
+								widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
 							}
 						}
 					}
+
+					{
+						static float v = 10.f;
+						widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
+					}
+
 					static float v = 35.f;
 					if (auto h_slider = widget::slider(v, 0.f, 100.f))
 					{
@@ -365,7 +373,7 @@ namespace age_demo::scene_2
 
 							widget::text_accent("...");
 							widget::begin(style::text_accent("..."));
-							widget::begin(style::text("...") | set_body_brush_data(theme::text_accent(e::style_state::idle)));	  // internally
+							widget::begin(style::text("...") | set_body_brush_data(theme::text_accent(e::style_state::idle)));
 						}
 					}
 				}

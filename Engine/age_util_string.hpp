@@ -1,5 +1,6 @@
 #pragma once
 
+// string -> value
 namespace age::util
 {
 	consteval std::size_t
@@ -25,7 +26,56 @@ namespace age::util
 
 		return res;
 	}
+}	 // namespace age::util
 
+// value -> string
+namespace age::util
+{
+	namespace detail
+	{
+		template <std::size_t n, std::size_t overhead>
+		consteval float
+		threshold() noexcept
+		{
+			auto v = 1.f;
+			for (std::size_t i = 0; i < n - overhead; ++i)
+			{
+				v *= 10.f;
+			}
+			return v;
+		}
+	}	 // namespace detail
+
+	template <std::size_t n, int32 precision = 2>
+	constexpr void
+	float_to_str(char (&buf)[n], float value)
+	{
+		static_assert(n >= 12, "buffer too small for scientific notation");
+
+		constexpr auto fixed_overhead = 1 + 1 + precision + 1;	  // sign + dot + decimals + null
+
+		c_auto fmt = (std::abs(value) < detail::threshold<n, fixed_overhead>())
+					   ? std::chars_format::fixed
+					   : std::chars_format::scientific;
+
+		auto [p_char, ec] = std::to_chars(buf, buf + n, value, fmt, precision);
+		AGE_ASSERT(ec == std::errc{});
+
+		while (p_char > buf + 2 and *(p_char - 1) == '0')
+		{
+			--p_char;
+		}
+		if (*(p_char - 1) == '.')
+		{
+			++p_char;
+		}
+
+		*p_char = '\0';
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
 	template <std::size_t n>
 	struct nttp_string_holder
 	{

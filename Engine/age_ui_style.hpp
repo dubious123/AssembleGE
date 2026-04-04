@@ -107,6 +107,12 @@ namespace age::ui::theme
 	}
 
 	FORCE_INLINE float4
+	text_amber(e::style_state state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[g::text_amber.color], g::theme_opacity[g::text_amber.opacity[std::to_underlying(state)]] };
+	}
+
+	FORCE_INLINE float4
 	text_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[g::text_interactive.color], g::theme_opacity[g::text_interactive.opacity[std::to_underlying(state)]] };
@@ -215,6 +221,12 @@ namespace age::ui::theme
 	text_negative_font_size() noexcept
 	{
 		return g::theme_font_size[std::to_underlying(g::text_negative.font_size)];
+	}
+
+	FORCE_INLINE float
+	text_amber_font_size() noexcept
+	{
+		return g::theme_font_size[std::to_underlying(g::text_amber.font_size)];
 	}
 
 	FORCE_INLINE float
@@ -363,6 +375,18 @@ namespace age::ui
 		return detail::mod_border_brush_data{ brush_data::color(r, g, b, a) };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	set_horizontal() noexcept
+	{
+		return set_layout(e::widget_layout::horizontal);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_vertical() noexcept
+	{
+		return set_layout(e::widget_layout::vertical);
+	}
+
 	namespace detail
 	{
 		struct mod_size
@@ -509,11 +533,27 @@ namespace age::ui::style
 	}
 
 	FORCE_INLINE constexpr widget_desc
+	vertical(widget_size_mode width, widget_size_mode height) noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::vertical)
+			 | set_size(width, height);
+	}
+
+	FORCE_INLINE constexpr widget_desc
 	horizontal() noexcept
 	{
 		return detail::layout_base()
 			 | set_layout(e::widget_layout::horizontal)
 			 | set_size(size_mode::fit(), size_mode::grow());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	horizontal(widget_size_mode width, widget_size_mode height) noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::horizontal)
+			 | set_size(width, height);
 	}
 
 	FORCE_INLINE constexpr widget_desc

@@ -297,3 +297,45 @@ namespace age::ui::widget
 		return {};
 	}
 }	 // namespace age::ui::widget
+
+// numeric field
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	numeric_field(float& value, float min, float max) noexcept
+	{
+		using enum input::e::key_kind;
+		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
+											| set_interact(true)))
+		{
+			auto state = e::style_state::idle;
+			if (h_interact.pressed<mouse_left>())
+			{
+				state  = e::style_state::active;
+				value += g::p_input_ctx->mouse_delta.x * 0.01f;
+			}
+			else if (h_interact.hovered())
+			{
+				state = e::style_state::hover;
+			}
+
+			if (auto _ = widget::begin(style::frame_interactive(state)
+									   | set_horizontal()
+									   | set_width(size_mode::grow())))
+			{
+				char char_buf[16];
+
+				util::float_to_str(char_buf, value);
+
+				widget::text_hint("X", state);
+				widget::text_secondary(char_buf, state);
+			}
+
+			return h_interact;
+		}
+		else
+		{
+			return {};
+		}
+	}
+}	 // namespace age::ui::widget

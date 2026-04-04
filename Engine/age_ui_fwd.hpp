@@ -175,7 +175,7 @@ namespace age::ui
 
 		uint8_2 _;
 		uint32	pos_data_idx;
-		uint32	grow_child_count;
+		uint32	grow_subtree_size;
 
 		float size;
 
@@ -340,7 +340,7 @@ namespace age::ui::g
 
 	// theme
 	inline float  theme_opacity[9];
-	inline float3 theme_color[5];
+	inline float3 theme_color[6];
 
 	inline float theme_font_size_base[e::size<e::font_size_kind>()];	// unscaled, don't use
 	inline float theme_font_size[e::size<e::font_size_kind>()];			// scaled
@@ -363,12 +363,13 @@ namespace age::ui::g
 		1.00f,						   // 8 (opaque)
 	};
 
-	inline constexpr float3 theme_color_default[5] = {
+	inline constexpr float3 theme_color_default[6] = {
 		{ 1.0f, 1.0f, 1.0f },		   // 0: white
 		{ 0.0f, 0.0f, 0.0f },		   // 1: black
 		{ 0.29f, 0.565f, 0.851f },	   // 2: accent   // #4A90D9
 		{ 0.314f, 0.784f, 0.471f },	   // 3: positive // #50C878
 		{ 0.878f, 0.314f, 0.314f },	   // 4: negative // #E05050
+		{ 0.886f, 0.680f, 0.216f }	   // 5: amber    // #E2AD37
 	};
 
 	inline constexpr float theme_font_size_defaults[e::size<e::font_size_kind>()] = {
@@ -398,6 +399,7 @@ namespace age::ui::g
 	inline constexpr uint8 accent	= 2;
 	inline constexpr uint8 positive = 3;
 	inline constexpr uint8 negative = 4;
+	inline constexpr uint8 amber	= 5;
 
 	struct style_color
 	{
@@ -427,9 +429,10 @@ namespace age::ui::g
 	inline constexpr theme_text text_tertiary	 = { white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };					// section header, label
 	inline constexpr theme_text text_hint		 = { white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };					// input label, placeholder
 	inline constexpr theme_text text_disabled	 = { white, { opacity_2, opacity_2, opacity_2 }, e::font_size_kind::normal };					// disabled widget text
-	inline constexpr theme_text text_accent		 = { accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };					// link, asset reference, clickable path
+	inline constexpr theme_text text_accent		 = { accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };					// link, z axis asset reference, clickable path
 	inline constexpr theme_text text_positive	 = { positive, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };				// success msg, y axis, fps ok
 	inline constexpr theme_text text_negative	 = { negative, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };				// error msg, x axis, warning
+	inline constexpr theme_text text_amber		 = { amber, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };					// w axis
 	inline constexpr theme_text text_interactive = { white, { opacity_opaque, opacity_opaque, opacity_7 }, e::font_size_kind::normal };			// button text, list item text
 
 	inline constexpr style_color separator = { white, { opacity_1, opacity_1, opacity_1 } };													// section separator
@@ -555,6 +558,30 @@ namespace age::ui
 			else
 			{
 				static_assert(false, "invalid key kind");
+			}
+		}
+
+		template <input::e::key_kind e_key = input::e::key_kind::mouse_left>
+		FORCE_INLINE e::style_state
+		get_style_state() const noexcept
+		{
+			if constexpr (e_key == input::e::key_kind::mouse_left)
+			{
+				auto state = e::style_state::idle;
+				if (pressed<e_key>())
+				{
+					state = e::style_state::active;
+				}
+				else if (hovered())
+				{
+					state = e::style_state::hover;
+				}
+
+				return state;
+			}
+			else
+			{
+				static_assert(false, "not implemented yet");
 			}
 		}
 
