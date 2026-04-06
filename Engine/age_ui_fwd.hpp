@@ -168,6 +168,121 @@ namespace age::ui
 		uint8 _;
 	};
 
+	struct layout_size_data
+	{
+		e::widget_layout  layout;
+		e::size_mode_kind width_mode;
+		e::size_mode_kind height_mode;
+
+		uint8 _0;
+
+		uint32 child_subtree_size;
+
+		uint32 parent_idx;
+
+		uint32 pos_data_idx;
+
+		float child_gap;
+
+		float padding_sum;	  // if layout is horizontal, padding top + padding bottom, if layout is vertical, padding left + paddint right
+
+		float width_min;
+		float width_max;
+		float width_content_min;
+		float width_content_max;
+		float width_final;
+
+		float height_min;
+		float height_max;
+		float height_content_min;
+		float height_content_max;
+		float height_final;
+
+		template <bool is_width>
+		FORCE_INLINE e::size_mode_kind
+		size_mode() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_mode;
+			}
+			else
+			{
+				return height_mode;
+			}
+		}
+
+		template <bool is_width>
+		FORCE_INLINE float&
+		size_min() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_min;
+			}
+			else
+			{
+				return height_min;
+			}
+		}
+
+		template <bool is_width>
+		FORCE_INLINE float&
+		size_max() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_max;
+			}
+			else
+			{
+				return height_max;
+			}
+		}
+
+		template <bool is_width>
+		FORCE_INLINE float&
+		size_content_min() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_content_min;
+			}
+			else
+			{
+				return height_content_min;
+			}
+		}
+
+		template <bool is_width>
+		FORCE_INLINE float&
+		size_content_max() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_content_max;
+			}
+			else
+			{
+				return height_content_max;
+			}
+		}
+
+		template <bool is_width>
+		FORCE_INLINE float&
+		size_final() noexcept
+		{
+			if constexpr (is_width)
+			{
+				return width_final;
+			}
+			else
+			{
+				return height_final;
+			}
+		}
+	};
+
 	struct layout_data
 	{
 		e::widget_layout  layout;
@@ -204,7 +319,7 @@ namespace age::ui
 		e::widget_layout layout;
 		e::widget_align	 align;
 		uint16			 z_offset;
-		uint32			 child_count;
+		int32			 child_count;
 		float2			 offset;
 		float			 width;
 		float			 height;
@@ -312,9 +427,8 @@ namespace age::ui::g
 	inline age::unordered_map<uint64, widget_state> widget_state_map;
 
 	// layout stack
-	inline age::vector<layout_data>		   element_layout_data_h_stack;
-	inline age::vector<layout_data>		   element_layout_data_v_stack;
-	inline age::vector<layout_data_common> element_layout_data_common_stack;
+	inline age::vector<layout_size_data> layout_size_data_stack;
+	inline uint32						 layout_size_data_current_idx;
 
 	// layout vec
 	inline age::vector<layout_pos_data> element_layout_pos_data_vec;
@@ -331,8 +445,6 @@ namespace age::ui::g
 	inline age::vector<uint64> element_layout_grow_event_vec;
 	inline age::vector<uint32> element_pos_parent_idx_stack;
 
-	inline uint32 layout_h_current_idx;
-	inline uint32 layout_v_current_idx;
 
 	// font
 	inline age::vector<std::pair<t_hash, font_data>> font_data_vec;

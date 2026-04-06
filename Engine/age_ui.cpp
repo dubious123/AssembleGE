@@ -25,9 +25,7 @@ namespace age::ui
 	begin_frame(platform::window_handle h_window) noexcept
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
-		AGE_ASSERT(g::element_layout_data_h_stack.is_empty());
-		AGE_ASSERT(g::element_layout_data_v_stack.is_empty());
-		AGE_ASSERT(g::element_layout_data_common_stack.is_empty());
+		AGE_ASSERT(g::layout_size_data_stack.is_empty());
 		AGE_ASSERT(g::element_layout_pos_data_vec.is_empty());
 		AGE_ASSERT(g::element_render_data_vec.is_empty());
 		AGE_ASSERT(g::text_data_vec.is_empty());
@@ -36,9 +34,6 @@ namespace age::ui
 		AGE_ASSERT(g::char_pos_data_vec.is_empty());
 
 		g::id_stack.emplace_back(id_scope{ .hash_id = g::fnv1a_offset_basis, .counter = 0 });
-
-		g::layout_h_current_idx = 0;
-		g::layout_v_current_idx = 0;
 
 		g::element_z_order_count_vec.clear();
 
@@ -76,12 +71,10 @@ namespace age::ui
 	void
 	end_frame(age::vector<render_data>& render_data_vec, age::vector<util::range>& render_data_z_range_vec) noexcept
 	{
-		detail::widget_end<true>();
+		detail::widget_end();
 
-		AGE_ASSERT(g::id_stack.size() == 1);
-		AGE_ASSERT(g::element_layout_data_h_stack.size() == 0);
-		AGE_ASSERT(g::element_layout_data_v_stack.size() == 0);
-		AGE_ASSERT(g::element_layout_data_common_stack.size() == 0);
+		AGE_ASSERT(g::id_stack.size() == 2);
+		AGE_ASSERT(g::layout_size_data_stack.size() == 1);
 
 		{
 			auto z_count_total = 0u;
@@ -263,8 +256,7 @@ namespace age::ui
 		}
 
 		g::id_stack.clear();
-		g::element_layout_data_h_stack.clear();
-		g::element_layout_data_v_stack.clear();
+		g::layout_size_data_stack.clear();
 		g::element_layout_pos_data_vec.clear();
 		g::element_render_data_vec.clear();
 

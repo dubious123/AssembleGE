@@ -142,25 +142,20 @@ namespace age::ui::detail
 
 		auto z_offset		   = 0u;
 		auto render_data_count = 0u;
+		auto padding_sum	   = 0.f;
 
-		if constexpr (is_root)
+		auto width_max	= desc.width_max;
+		auto height_max = desc.height_max;
+
+		if constexpr (is_root is_false)
 		{
-			g::element_layout_data_common_stack.emplace_back(layout_data_common{
-				.child_count						  = 0,
-				.parent_h_idx						  = g::layout_h_current_idx,
-				.parent_v_idx						  = g::layout_v_current_idx,
-				.child_gap							  = desc.child_gap,
-				.z_offset							  = static_cast<uint16>(z_offset),
-				.child_height_depends_on_width_solved = true,
-			});
-		}
-		else
-		{
-			++g::element_layout_data_common_stack.back().child_count;
+			auto& size_data_parent = g::layout_size_data_stack[g::layout_size_data_current_idx];
+			auto& pos_data_parent  = g::element_layout_pos_data_vec[size_data_parent.pos_data_idx];
+			++pos_data_parent.child_count;
 
 			if (desc.draw)
 			{
-				z_offset = g::element_layout_data_common_stack.back().z_offset + 1;
+				z_offset = pos_data_parent.z_offset + desc.z_offset;
 
 				if (desc.shape_kind == e::shape_kind::text)
 				{
@@ -173,42 +168,31 @@ namespace age::ui::detail
 				}
 			}
 
-			auto padding_sum = desc.layout == e::widget_layout::vertical
-								 ? desc.padding_left + desc.padding_right
-								 : desc.padding_top + desc.padding_bottom;
-
-			g::element_layout_data_common_stack.emplace_back(layout_data_common{
-				.child_count						  = 0,
-				.parent_h_idx						  = g::layout_h_current_idx,
-				.parent_v_idx						  = g::layout_v_current_idx,
-				.padding_sum						  = padding_sum,
-				.child_gap							  = desc.child_gap,
-				.z_offset							  = static_cast<uint16>(z_offset),
-				.child_height_depends_on_width_solved = true,
-			});
+			padding_sum = desc.layout == e::widget_layout::vertical
+							? desc.padding_left + desc.padding_right
+							: desc.padding_top + desc.padding_bottom;
 		}
 
-		g::layout_h_current_idx = static_cast<uint32>(g::element_layout_data_h_stack.size());
-		g::layout_v_current_idx = static_cast<uint32>(g::element_layout_data_v_stack.size());
 
-		g::element_layout_data_h_stack.emplace_back(layout_data{
-			.layout			   = desc.layout,
-			.mode			   = desc.width_size_mode,
-			.pos_data_idx	   = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
-			.grow_subtree_size = 0,
-			.size			   = desc.padding_left + desc.padding_right,
-			.size_min		   = desc.width_min,
-			.size_max		   = desc.width_size_mode == e::size_mode_kind::grow ? std::min(g::window_width, desc.width_max) : desc.width_max,
-		});
-
-		g::element_layout_data_v_stack.emplace_back(layout_data{
-			.layout			   = desc.layout,
-			.mode			   = desc.height_size_mode,
-			.pos_data_idx	   = static_cast<uint32>(g::element_layout_pos_data_vec.size()),
-			.grow_subtree_size = 0,
-			.size			   = desc.padding_top + desc.padding_bottom,
-			.size_min		   = desc.height_min,
-			.size_max		   = desc.height_size_mode == e::size_mode_kind::grow ? std::min(g::window_height, desc.height_max) : desc.height_max,
+		g::layout_size_data_stack.emplace_back(layout_size_data{
+			.layout				= desc.layout,
+			.width_mode			= desc.width_size_mode,
+			.height_mode		= desc.height_size_mode,
+			.child_subtree_size = 0,
+			.parent_idx			= g::layout_size_data_current_idx,
+			.pos_data_idx		= g::element_layout_pos_data_vec.size<uint32>(),
+			.child_gap			= desc.child_gap,
+			.padding_sum		= padding_sum,
+			.width_min			= desc.width_min,
+			.width_max			= width_max,
+			.width_content_min	= desc.padding_left + desc.padding_right,
+			.width_content_max	= desc.padding_left + desc.padding_right,
+			.width_final		= 0.f,
+			.height_min			= desc.height_min,
+			.height_max			= height_max,
+			.height_content_min = desc.padding_top + desc.padding_bottom,
+			.height_content_max = desc.padding_top + desc.padding_bottom,
+			.height_final		= 0.f,
 		});
 
 		g::element_layout_pos_data_vec.emplace_back(layout_pos_data{
@@ -244,316 +228,354 @@ namespace age::ui::detail
 			});
 		}
 
+		// handle z_order
+		{
+			if (z_offset >= g::element_z_order_count_vec.size())
+			{
+				c_auto before_size = g::element_z_order_count_vec.size();
+				g::element_z_order_count_vec.resize(z_offset + 1);
+				std::ranges::fill(g::element_z_order_count_vec.begin() + before_size, g::element_z_order_count_vec.end(), 0u);
+			}
+
+			g::element_z_order_count_vec[z_offset] += render_data_count;
+		}
+
+		g::layout_size_data_current_idx = g::layout_size_data_stack.size<uint32>() - 1;
+
 		return id;
 	}
 
 	template <bool is_width>
-	FORCE_INLINE decltype(auto)
-	get_grow_child(uint32 grow_idx) noexcept
+	FORCE_INLINE bool
+	is_cross(e::widget_layout e_layout) noexcept
 	{
 		if constexpr (is_width)
 		{
-			return g::element_layout_data_h_stack[grow_idx];
+			return e_layout == e::widget_layout::vertical;
 		}
 		else
 		{
-			return g::element_layout_data_v_stack[grow_idx];
+			return e_layout == e::widget_layout::horizontal;
 		}
 	}
 
 	template <bool is_width>
 	void
-	finalize(layout_data& layout_data, uint32 layout_idx) noexcept
-	{
-		auto& pos_data	= g::element_layout_pos_data_vec[layout_data.pos_data_idx];
-		auto  available = layout_data.size_max - std::min(layout_data.size, layout_data.size_max);
+	finalize_fixed(layout_size_data& size_data, uint32 idx, float final_size) noexcept;
 
-		auto is_cross	 = false;
-		auto padding_sum = 0.f;
+	template <bool is_width>
+	void
+	submit_size(layout_size_data& size_data, uint32 idx, float final_size) noexcept
+	{
+		auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
+
+		size_data.size_final<is_width>() = final_size;
+
+		pos_data.set_size<is_width>(final_size);
 
 		if constexpr (is_width)
 		{
-			is_cross	= layout_data.layout == e::widget_layout::vertical;
-			padding_sum = pos_data.padding_left + pos_data.padding_right;
+			if (height_depends_on_width(size_data.height_mode))
+			{
+				AGE_ASSERT(size_data.height_final < 0.f);
+				c_auto height = calc_height_depends_on_width(size_data.height_mode, pos_data);
+				finalize_fixed<false>(size_data, idx, std::clamp(height, size_data.height_min, size_data.height_max));
+			}
+		}
+	}
+
+	template <bool is_width>
+	void
+	finalize_fixed(layout_size_data& size_data, uint32 idx, float final_size) noexcept
+	{
+		if (is_cross<is_width>(size_data.layout))
+		{
+			c_auto child_size = final_size - size_data.padding_sum;
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_final<is_width>() < 0.f)
+				{
+					finalize_fixed<is_width>(child, child_idx, std::clamp(child_size, child.size_min<is_width>(), child.size_max<is_width>()));
+				}
+
+				child_idx += child.child_subtree_size + 1;
+			}
+
+			submit_size<is_width>(size_data, idx, final_size);
 		}
 		else
 		{
-			is_cross	= layout_data.layout == e::widget_layout::horizontal;
-			padding_sum = pos_data.padding_top + pos_data.padding_bottom;
-		}
-
-		if (is_cross)
-		{
-			auto value_final = layout_data.size;
-
-			for (auto grow_idx = layout_idx + 1;
-				 grow_idx <= layout_idx + layout_data.grow_subtree_size;)
+			auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
+			auto  fixed	   = size_data.child_gap * std::max(pos_data.child_count - 1, 0);
+			// auto  grow_size = 0.f;
+			if constexpr (is_width)
 			{
-				auto& grow_child		  = get_grow_child<is_width>(grow_idx);
-				auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
+				fixed += pos_data.padding_left + pos_data.padding_right;
+			}
+			else
+			{
+				fixed += pos_data.padding_top + pos_data.padding_bottom;
+			}
 
-				// auto size = 0.f;
+			auto begin_size = g::element_layout_grow_event_vec.size();
 
-				if constexpr (is_width)
+			g::element_layout_grow_event_vec.reserve(begin_size + size_data.child_subtree_size * 2);
+
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_final<is_width>() >= 0.f)
 				{
-					grow_child.size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
-
-					// size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
-
-					if (height_depends_on_width(grow_child.mode))
-					{
-						grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
-					}
+					fixed += child.size_final<is_width>();
+				}
+				else if (child.size_mode<is_width>() != e::size_mode_kind::grow)
+				{
+					finalize_fit<is_width>(child, child_idx);
+					fixed += child.size_final<is_width>();
 				}
 				else
 				{
-					if (height_depends_on_width(grow_child.mode))
-					{
-						grow_child.size = std::clamp(grow_child_pos_data.height, grow_child.size_min, grow_child.size_max);
+					// grow_size += child.size_max<is_width>();
 
-						// size = std::clamp(grow_child_pos_data.height, grow_child.size_min, grow_child.size_max);
-					}
-					else
-					{
-						grow_child.size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
-
-						// size = std::clamp(layout_data.size_max - padding_sum, grow_child.size_min, grow_child.size_max);
-					}
+					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_min<is_width>(), false, child_idx));
+					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_max<is_width>(), true, child_idx));
 				}
 
-				value_final = std::max(grow_child.size + padding_sum, value_final);
-
-				grow_child_pos_data.set_size<is_width>(grow_child.size);
-
-				grow_child.size_max = grow_child.size;
-
-				finalize<is_width>(grow_child, grow_idx);
-
-				grow_idx += grow_child.grow_subtree_size + 1;
+				child_idx += child.child_subtree_size + 1;
 			}
 
-			layout_data.size = std::clamp(value_final, layout_data.size_min, layout_data.size_max);
+			// auto final_size = std::clamp(fixed + grow_size, size_data.size_min<is_width>(), size_data.size_max<is_width>());
+			auto available = final_size - fixed;
 
-			pos_data.set_size<is_width>(layout_data.size);
-			return;
-		}
+			auto level = 0.f;
 
-		if (pos_data.child_count > 1)
-		{
-			layout_data.size += (pos_data.child_count - 1) * pos_data.child_gap;
-		}
-
-		if (layout_data.grow_subtree_size == 0)
-		{
-			layout_data.size = std::clamp(layout_data.size, layout_data.size_min, layout_data.size_max);
-			pos_data.set_size<is_width>(layout_data.size);
-			return;
-		}
-
-		g::element_layout_grow_event_vec.clear();
-		g::element_layout_grow_event_vec.reserve(layout_data.grow_subtree_size * 2);
-
-		for (auto grow_idx = layout_idx + 1;
-			 grow_idx <= layout_idx + layout_data.grow_subtree_size;)
-		{
-			auto& grow_child = get_grow_child<is_width>(grow_idx);
-
-			if constexpr (is_width is_false)
+			if (g::element_layout_grow_event_vec.size() > begin_size)
 			{
-				if (height_depends_on_width(grow_child.mode))
+				std::ranges::sort(g::element_layout_grow_event_vec);
+
+				auto active_count = 0;
+				level			  = detail::grow_sort_event_value(g::element_layout_grow_event_vec[begin_size]);
+
+				for (auto e : g::element_layout_grow_event_vec | std::views::drop(begin_size))
 				{
-					auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
-					grow_child.size			  = grow_child_pos_data.height;
-					grow_child.size_max		  = grow_child.size;
+					c_auto value	 = detail::grow_sort_event_value(e);
+					c_auto is_leave	 = detail::grow_sort_event_is_leave(e);
+					c_auto child_idx = detail::grow_sort_event_idx(e);
+					c_auto cost		 = (value - level) * active_count;
+					if (cost > available)
+					{
+						level += available / static_cast<float>(active_count);
+						break;
+					}
+
+					available	 -= cost;
+					active_count += 1 - 2 * is_leave;
+					level		  = value;
 				}
 			}
 
-			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size, false, grow_idx));
-			g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(grow_child.size_max, true, grow_idx));
-			grow_idx += grow_child.grow_subtree_size + 1;
-		}
-
-		std::ranges::sort(g::element_layout_grow_event_vec);
-
-		auto active_count = 0;
-		auto level		  = detail::grow_sort_event_value(g::element_layout_grow_event_vec[0]);
-
-		for (auto e : g::element_layout_grow_event_vec)
-		{
-			c_auto value	= detail::grow_sort_event_value(e);
-			c_auto is_leave = detail::grow_sort_event_is_leave(e);
-			c_auto idx		= detail::grow_sort_event_idx(e);
-			c_auto cost		= (value - level) * active_count;
-			if (cost > available)
+			g::element_layout_grow_event_vec.resize(begin_size);
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
 			{
-				level += available / static_cast<float>(active_count);
-				break;
-			}
+				auto& child = g::layout_size_data_stack[child_idx];
 
-			available	 -= cost;
-			active_count += 1 - 2 * is_leave;
-			level		  = value;
-		}
-
-		auto value_final = layout_data.size;
-		for (auto grow_idx = layout_idx + 1;
-			 grow_idx <= layout_idx + layout_data.grow_subtree_size;)
-		{
-			auto& grow_child		  = get_grow_child<is_width>(grow_idx);
-			auto& grow_child_pos_data = g::element_layout_pos_data_vec[grow_child.pos_data_idx];
-
-			grow_child.size		= std::clamp(level, grow_child.size_min, grow_child.size_max);
-			grow_child.size_max = grow_child.size;
-			grow_child_pos_data.set_size<is_width>(grow_child.size);
-
-			value_final += grow_child.size;
-
-			if constexpr (is_width)
-			{
-				if (height_depends_on_width(grow_child.mode))
+				if (child.size_mode<is_width>() == e::size_mode_kind::grow)
 				{
-					grow_child_pos_data.height = calc_height_depends_on_width(grow_child.mode, grow_child_pos_data);
-
-					// layout is horizontal
-					pos_data.height = std::max(pos_data.height, grow_child_pos_data.height);
+					finalize_fixed<is_width>(child, child_idx, std::clamp(level, child.size_min<is_width>(), child.size_max<is_width>()));
 				}
+
+				child_idx += child.child_subtree_size + 1;
 			}
 
-			finalize<is_width>(grow_child, grow_idx);
-
-			grow_idx += grow_child.grow_subtree_size + 1;
+			submit_size<is_width>(size_data, idx, final_size);
 		}
-
-		layout_data.size = std::clamp(value_final, layout_data.size_min, layout_data.size_max);
-		pos_data.set_size<is_width>(layout_data.size);
 	}
 
-	template <bool is_root = false>
+	template <bool is_width>
+	void
+	finalize_fit(layout_size_data& size_data, uint32 idx) noexcept
+	{
+		auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
+
+		c_auto size_mode = size_data.size_mode<is_width>();
+
+		if (size_mode == e::size_mode_kind::fixed)
+		{
+			finalize_fixed<is_width>(size_data, idx, size_data.size_min<is_width>());
+		}
+		else if (is_cross<is_width>(size_data.layout))
+		{
+			auto final_size = 0.f;
+
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_final<is_width>() >= 0.f)
+				{
+					final_size = std::max(child.size_final<is_width>(), final_size);
+				}
+				else if (child.size_mode<is_width>() != e::size_mode_kind::grow)
+				{
+					finalize_fit<is_width>(child, child_idx);
+					final_size = std::max(child.size_final<is_width>(), final_size);
+				}
+				else
+				{
+					final_size = std::max(child.size_max<is_width>(), final_size);
+				}
+
+				child_idx += child.child_subtree_size + 1;
+			}
+
+			final_size = std::clamp(final_size + size_data.padding_sum, size_data.size_min<is_width>(), size_data.size_max<is_width>());
+
+			c_auto child_size = final_size - size_data.padding_sum;
+
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_final<is_width>() < 0.f)
+				{
+					finalize_fixed<is_width>(child, child_idx, std::clamp(child_size, child.size_min<is_width>(), child.size_max<is_width>()));
+				}
+
+				child_idx += child.child_subtree_size + 1;
+			}
+
+			submit_size<is_width>(size_data, idx, final_size);
+		}
+		else
+		{
+			auto fixed	   = size_data.child_gap * std::max(pos_data.child_count - 1, 0);
+			auto grow_size = 0.f;
+			if constexpr (is_width)
+			{
+				fixed += pos_data.padding_left + pos_data.padding_right;
+			}
+			else
+			{
+				fixed += pos_data.padding_top + pos_data.padding_bottom;
+			}
+
+			auto begin_size = g::element_layout_grow_event_vec.size();
+
+			// g::element_layout_grow_event_vec.clear();
+			g::element_layout_grow_event_vec.reserve(begin_size + size_data.child_subtree_size * 2);
+
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_final<is_width>() >= 0.f)
+				{
+					fixed += child.size_final<is_width>();
+				}
+				else if (child.size_mode<is_width>() != e::size_mode_kind::grow)
+				{
+					finalize_fit<is_width>(child, child_idx);
+					fixed += child.size_final<is_width>();
+				}
+				else
+				{
+					grow_size += child.size_max<is_width>();
+
+					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_min<is_width>(), false, child_idx));
+					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_max<is_width>(), true, child_idx));
+				}
+
+				child_idx += child.child_subtree_size + 1;
+			}
+
+			auto final_size = std::clamp(fixed + grow_size, size_data.size_min<is_width>(), size_data.size_max<is_width>());
+			auto available	= final_size - fixed;
+
+			auto level = 0.f;
+
+			if (g::element_layout_grow_event_vec.size() > begin_size)
+			{
+				std::ranges::sort(g::element_layout_grow_event_vec);
+
+				auto active_count = 0;
+				level			  = detail::grow_sort_event_value(g::element_layout_grow_event_vec[begin_size]);
+
+				for (auto e : g::element_layout_grow_event_vec | std::views::drop(begin_size))
+				{
+					c_auto value	 = detail::grow_sort_event_value(e);
+					c_auto is_leave	 = detail::grow_sort_event_is_leave(e);
+					c_auto child_idx = detail::grow_sort_event_idx(e);
+					c_auto cost		 = (value - level) * active_count;
+					if (cost > available)
+					{
+						level += available / static_cast<float>(active_count);
+						break;
+					}
+
+					available	 -= cost;
+					active_count += 1 - 2 * is_leave;
+					level		  = value;
+				}
+			}
+
+			g::element_layout_grow_event_vec.resize(begin_size);
+			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
+			{
+				auto& child = g::layout_size_data_stack[child_idx];
+
+				if (child.size_mode<is_width>() == e::size_mode_kind::grow)
+				{
+					finalize_fixed<is_width>(child, child_idx, std::clamp(level, child.size_min<is_width>(), child.size_max<is_width>()));
+				}
+
+				child_idx += child.child_subtree_size + 1;
+			}
+
+			submit_size<is_width>(size_data, idx, final_size);
+		}
+	}
+
 	FORCE_INLINE void
 	widget_end() noexcept
 	{
-		auto& layout_common_current = g::element_layout_data_common_stack.back();
+		auto&  size_data		= g::layout_size_data_stack[g::layout_size_data_current_idx];
+		c_auto parent_idx		= size_data.parent_idx;
+		auto&  size_data_parent = g::layout_size_data_stack[parent_idx];
 
-		auto& layout_common_parent = AGE_LAMBDA((), {
-			if constexpr (is_root)
-			{
-				g::id_stack.pop_back();
-				return layout_common_current;
-			}
-			else
-			{
-				return g::element_layout_data_common_stack[g::element_layout_data_common_stack.size() - 2];
-			}
-		})();
+		c_auto can_finalize_width = size_data.width_mode == e::size_mode_kind::fixed
+								 or size_data.width_mode == e::size_mode_kind::fit;
 
-		c_auto& layout_h_parent_idx = layout_common_current.parent_h_idx;
-		c_auto& layout_v_parent_idx = layout_common_current.parent_v_idx;
+		c_auto can_finalize_height = size_data.height_mode == e::size_mode_kind::fixed
+								  or size_data.height_mode == e::size_mode_kind::fit;
 
-		auto& layout_h_current = g::element_layout_data_h_stack[g::layout_h_current_idx];
-		auto& layout_v_current = g::element_layout_data_v_stack[g::layout_v_current_idx];
-
-		auto& layout_h_parent = g::element_layout_data_h_stack[layout_h_parent_idx];
-		auto& layout_v_parent = g::element_layout_data_v_stack[layout_v_parent_idx];
-
-		auto& pos_data		 = g::element_layout_pos_data_vec[layout_v_current.pos_data_idx];
-		pos_data.child_count = layout_common_current.child_count;
-
-		c_auto can_finalize_width = layout_h_current.mode == e::size_mode_kind::fixed
-								 or layout_h_current.mode == e::size_mode_kind::fit;
 
 		if (can_finalize_width)
 		{
-			if (layout_h_current.layout == e::widget_layout::vertical and layout_h_current.mode == e::size_mode_kind::fit)
-			{
-				layout_h_current.size_max = layout_h_current.size;
-			}
-
-			detail::finalize<true>(layout_h_current, g::layout_h_current_idx);
-
-			layout_common_current.child_height_depends_on_width_solved = true;
-
-			if (layout_h_parent.layout == e::widget_layout::horizontal)
-			{
-				layout_h_parent.size += layout_h_current.size;
-			}
-			else if (layout_h_parent.layout == e::widget_layout::vertical)
-			{
-				layout_h_parent.size = std::max(layout_h_parent.size, layout_h_current.size + layout_common_parent.padding_sum);
-			}
-			else
-			{
-				AGE_UNREACHABLE();
-			}
+			finalize_fit<true>(size_data, g::layout_size_data_current_idx);
 		}
 		else
 		{
-			layout_h_parent.grow_subtree_size += layout_h_current.grow_subtree_size + 1;
+			size_data.width_final = -1.f;
 		}
 
-		if (detail::height_depends_on_width(layout_v_current.mode))
+		if (can_finalize_width and can_finalize_height)
 		{
-			AGE_ASSERT(can_finalize_width is_false);
+			finalize_fit<false>(size_data, g::layout_size_data_current_idx);
 
-			layout_common_parent.child_height_depends_on_width_solved = false;
-		}
-
-
-		c_auto can_finalize_height = (layout_v_current.mode == e::size_mode_kind::fixed
-									  or layout_v_current.mode == e::size_mode_kind::fit)
-								 and layout_common_current.child_height_depends_on_width_solved;
-
-		if (can_finalize_height)
-		{
-			if (layout_v_current.layout == e::widget_layout::horizontal and layout_v_current.mode == e::size_mode_kind::fit)
-			{
-				layout_v_current.size	  = std::max(layout_v_current.size, pos_data.height);
-				layout_v_current.size_max = layout_v_current.size;
-			}
-
-			detail::finalize<false>(layout_v_current, g::layout_v_current_idx);
-
-			if (layout_v_parent.layout == e::widget_layout::horizontal)
-			{
-				layout_v_parent.size = std::max(layout_v_parent.size, layout_v_current.size + layout_common_parent.padding_sum);
-			}
-			else if (layout_v_parent.layout == e::widget_layout::vertical)
-			{
-				layout_v_parent.size += layout_v_current.size;
-			}
-			else
-			{
-				AGE_UNREACHABLE();
-			}
+			g::layout_size_data_stack.resize(g::layout_size_data_current_idx + 1);
+			size_data.child_subtree_size		 = 0;
+			size_data_parent.child_subtree_size += 1;
 		}
 		else
 		{
-			layout_v_parent.grow_subtree_size += layout_v_current.grow_subtree_size + 1;
+			size_data.height_final				 = -1.f;
+			size_data_parent.child_subtree_size += size_data.child_subtree_size + 1;
 		}
 
-		// handle z_order
-		{
-			if (layout_common_current.z_offset >= g::element_z_order_count_vec.size())
-			{
-				c_auto before_size = g::element_z_order_count_vec.size();
-				g::element_z_order_count_vec.resize(layout_common_current.z_offset + 1);
-				std::ranges::fill(g::element_z_order_count_vec.begin() + before_size, g::element_z_order_count_vec.end(), 0u);
-			}
-
-			g::element_z_order_count_vec[layout_common_current.z_offset] += pos_data.render_data_count;
-		}
-
-		if (can_finalize_width)
-		{
-			g::element_layout_data_h_stack.resize(g::layout_h_current_idx);
-		}
-		if (can_finalize_height)
-		{
-			g::element_layout_data_v_stack.resize(g::layout_v_current_idx);
-		}
-
-		g::layout_h_current_idx = layout_common_current.parent_h_idx;
-		g::layout_v_current_idx = layout_common_current.parent_v_idx;
-		g::element_layout_data_common_stack.pop_back();
+		g::layout_size_data_current_idx = parent_idx;
 	}
 };	  // namespace age::ui::detail
 
@@ -655,7 +677,7 @@ namespace age::ui::detail
 		c_auto padding_sum_h = desc.padding_left + desc.padding_right;
 		c_auto padding_sum_v = desc.padding_top + desc.padding_bottom;
 
-		desc.width_size_mode  = e::size_mode_kind::text;
+		desc.width_size_mode  = e::size_mode_kind::grow;
 		desc.height_size_mode = e::size_mode_kind::text;
 		desc.width_min		  = word_width_min + padding_sum_h;
 		desc.width_max		  = max_width + padding_sum_h;

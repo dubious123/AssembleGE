@@ -201,7 +201,7 @@ namespace age::ui::widget
 
 		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
 									 | set_padding_left(chevelon_size)
-									 | set_size(size_mode::fit(), size_mode::fit())))
+									 | set_size(size_mode::grow(), size_mode::fit())))
 		{
 			auto is_open = false;
 
@@ -306,6 +306,9 @@ namespace age::ui::widget
 	{
 		using enum input::e::key_kind;
 		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
+											//| set_draw(true)
+											//| set_border_thickness(1.f)
+											//| set_border_brush_data(1.f, 0.f, 0.f, 1.f)
 											| set_interact(true)))
 		{
 			auto state = e::style_state::idle;

@@ -299,11 +299,12 @@ namespace age_demo::scene_2
 			using namespace age::ui;
 			using enum age::input::e::key_kind;
 
+
 			if (auto _ = widget::horizontal())
 			{
 				if (auto _ = widget::begin(set_draw(true)
 										   | set_layout(e::widget_layout::vertical)
-										   | set_size(size_mode::fit(), size_mode::fit())
+										   | set_size(size_mode::fixed(500), size_mode::fit())
 										   | set_body_brush_data(theme::bg_panel())))
 				{
 					if (auto header = widget::collapsible_header("collapsible header"))
