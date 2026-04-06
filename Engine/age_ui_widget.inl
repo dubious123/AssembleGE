@@ -21,6 +21,18 @@ namespace age::ui::widget
 	{
 		return widget::begin((style::horizontal() | ... | FWD(modifier)));
 	}
+
+	FORCE_INLINE widget_ctx
+	vertical_inv(auto&&... modifier) noexcept
+	{
+		return widget::begin((style::vertical_inv() | ... | FWD(modifier)));
+	}
+
+	FORCE_INLINE widget_ctx
+	horizontal_inv(auto&&... modifier) noexcept
+	{
+		return widget::begin((style::horizontal_inv() | ... | FWD(modifier)));
+	}
 }	 // namespace age::ui::widget
 
 // frame
@@ -42,6 +54,120 @@ namespace age::ui::widget
 	seperator(auto&&... modifier) noexcept
 	{
 		return widget::begin((style::seperator() | ... | FWD(modifier)));
+	}
+}	 // namespace age::ui::widget
+
+// panel
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx
+	panel(auto&&... modifier) noexcept
+	{
+		return widget::begin((style::panel() | ... | FWD(modifier)));
+	}
+
+	FORCE_INLINE widget_ctx_impl<3>
+	panel_resizable_h(float min, float max, auto&&... modifier) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto h_panel = widget::begin(style::panel()
+										 | set_padding(0, 0, 0, 0)
+										 | set_horizontal_inv()
+										 | set_size(size_mode::fit(min, max), size_mode::grow())
+										 | set_child_gap(0)))
+		{
+			auto width = 0.f;
+
+			if (auto h_handle = widget::begin(style::vertical()
+											  | set_size(size_mode::fit(), size_mode::grow())
+											  | set_padding(0, 0, 0, 0)
+											  | set_interact(true)))
+			{
+				auto  style_state  = e::style_state::idle;
+				auto& widget_state = h_handle.get_state();
+
+				if (h_handle.pressed<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					widget_state.drag_x += g::p_input_ctx->mouse_delta.x;
+				}
+
+				else if (h_handle.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
+
+				widget_state.drag_x = std::clamp(widget_state.drag_x, min, max - 8.f);
+
+				width = widget_state.drag_x;
+
+				widget::begin(style::vertical()
+							  | set_draw(true)
+							  | set_body_brush_kind(e::brush_kind::color)
+							  | set_body_brush_data(theme::color<e::theme_token_kind::resize_handle>(style_state))
+							  | set_size(size_mode::fixed(8.f), size_mode::grow()));
+			}
+
+			return widget_ctx_impl{ std::move(h_panel),
+									widget::begin(style::vertical() | set_size(size_mode::fixed(width), size_mode::grow())),
+									widget::begin((style::vertical() | ... | FWD(modifier))) };
+		}
+
+		return {};
+	}
+
+	FORCE_INLINE widget_ctx_impl<3>
+	panel_resizable_v(float min, float max, auto&&... modifier) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto h_panel = widget::begin(style::panel()
+										 | set_padding(0, 0, 0, 0)
+										 | set_vertical_inv()
+										 | set_size(size_mode::grow(), size_mode::fit(min, max))
+										 | set_child_gap(0)))
+		{
+			auto height = 0.f;
+
+			if (auto h_handle = widget::begin(style::vertical()
+											  | set_size(size_mode::grow(), size_mode::fit())
+											  | set_padding(0, 0, 0, 0)
+											  | set_interact(true)))
+			{
+				auto  style_state  = e::style_state::idle;
+				auto& widget_state = h_handle.get_state();
+
+				if (h_handle.pressed<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					widget_state.drag_y += g::p_input_ctx->mouse_delta.y;
+				}
+
+				else if (h_handle.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
+
+				widget_state.drag_y = std::clamp(widget_state.drag_y, min, max - 8.f);
+
+				height = widget_state.drag_y;
+
+				widget::begin(style::vertical()
+							  | set_draw(true)
+							  | set_body_brush_kind(e::brush_kind::color)
+							  | set_body_brush_data(theme::color<e::theme_token_kind::resize_handle>(style_state))
+							  | set_size(size_mode::grow(), size_mode::fixed(8.f)));
+			}
+
+			return widget_ctx_impl{ std::move(h_panel),
+									widget::begin(style::vertical() | set_size(size_mode::grow(), size_mode::fixed(height))),
+									widget::begin((style::vertical() | ... | FWD(modifier))) };
+		}
+
+		return {};
 	}
 }	 // namespace age::ui::widget
 
@@ -112,6 +238,7 @@ namespace age::ui::widget
 		using enum input::e::key_kind;
 
 		if (auto btn = widget::begin(((style::layout(e::widget_layout::vertical)
+									   | set_z_offset(1)
 									   | set_interact(true)
 									   | set_width(size_mode::fit()))
 									  | ... | modifier)))

@@ -109,9 +109,8 @@ namespace age::ui
 			auto&  parent	  = g::layout_pos_data_vec[parent_idx];
 			auto&  child	  = g::layout_pos_data_vec[current_idx];
 
-			if (parent.layout == e::widget_layout::horizontal)
+			if (parent.layout == e::widget_layout::horizontal or parent.layout == e::widget_layout::horizontal_inv)
 			{
-				child.offset.x += parent.offset.x;
 				if (child.align == e::widget_align::begin)
 				{
 					child.offset.y += parent.offset.y + parent.padding_top;
@@ -129,11 +128,20 @@ namespace age::ui
 					AGE_UNREACHABLE();
 				}
 
-				parent.offset.x += child.width + parent.child_gap;
+				if (parent.layout == e::widget_layout::horizontal)
+				{
+					child.offset.x	+= parent.offset.x;
+					parent.offset.x += child.width + parent.child_gap;
+				}
+				else
+				{
+					parent.offset.x -= child.width;
+					child.offset.x	+= parent.offset.x;
+					parent.offset.x -= parent.child_gap;
+				}
 			}
-			else if (parent.layout == e::widget_layout::vertical)
+			else if (parent.layout == e::widget_layout::vertical or parent.layout == e::widget_layout::vertical_inv)
 			{
-				child.offset.y += parent.offset.y;
 				if (child.align == e::widget_align::begin)
 				{
 					child.offset.x += parent.offset.x + parent.padding_left;
@@ -151,7 +159,17 @@ namespace age::ui
 					AGE_UNREACHABLE();
 				}
 
-				parent.offset.y += child.height + parent.child_gap;
+				if (parent.layout == e::widget_layout::vertical)
+				{
+					child.offset.y	+= parent.offset.y;
+					parent.offset.y += child.height + parent.child_gap;
+				}
+				else
+				{
+					parent.offset.y -= child.height;
+					child.offset.y	+= parent.offset.y;
+					parent.offset.y -= parent.child_gap;
+				}
 			}
 
 			c_auto parent_content_rect = parent.clip_rect + float4(parent.padding_left, parent.padding_top, -parent.padding_right, -parent.padding_bottom);
@@ -200,25 +218,15 @@ namespace age::ui
 				}
 			}
 
-			if (child.layout == e::widget_layout::horizontal)
-			{
-				child.offset.x += child.padding_left;
-			}
-			else if (child.layout == e::widget_layout::vertical)
-			{
-				child.offset.y += child.padding_top;
-			}
-			else
-			{
-				AGE_UNREACHABLE();
-			}
-
 			if (child.save_state)
 			{
 				auto& state	 = g::widget_state_map[child.id];
 				state.pos	 = child.offset;
 				state.width	 = child.width;
 				state.height = child.height;
+
+				state.clip_width  = child.clip_rect.z - child.clip_rect.x;
+				state.clip_height = child.clip_rect.w - child.clip_rect.y;
 			}
 
 			// handle interaction
@@ -226,6 +234,27 @@ namespace age::ui
 			{
 				current_hover_z_offset = child.z_offset;
 				g::hover_id			   = child.id;
+			}
+
+			if (child.layout == e::widget_layout::horizontal)
+			{
+				child.offset.x += child.padding_left;
+			}
+			else if (child.layout == e::widget_layout::horizontal_inv)
+			{
+				child.offset.x += child.width - child.padding_right;
+			}
+			else if (child.layout == e::widget_layout::vertical)
+			{
+				child.offset.y += child.padding_top;
+			}
+			else if (child.layout == e::widget_layout::vertical_inv)
+			{
+				child.offset.y += child.height - child.padding_bottom;
+			}
+			else
+			{
+				AGE_UNREACHABLE();
 			}
 		}
 

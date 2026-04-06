@@ -153,10 +153,13 @@ namespace age::ui::detail
 			auto& pos_data_parent  = g::layout_pos_data_vec[size_data_parent.pos_data_idx];
 			++pos_data_parent.child_count;
 
-			if (desc.draw)
+			if (desc.interact or desc.draw)
 			{
 				z_offset = pos_data_parent.z_offset + desc.z_offset;
+			}
 
+			if (desc.draw)
+			{
 				if (desc.shape_kind == e::shape_kind::text)
 				{
 					auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
@@ -168,7 +171,7 @@ namespace age::ui::detail
 				}
 			}
 
-			padding_sum = desc.layout == e::widget_layout::vertical
+			padding_sum = desc.layout == e::widget_layout::vertical or desc.layout == e::widget_layout::vertical_inv
 							? desc.padding_left + desc.padding_right
 							: desc.padding_top + desc.padding_bottom;
 		}
@@ -246,11 +249,11 @@ namespace age::ui::detail
 	{
 		if constexpr (is_width)
 		{
-			return e_layout == e::widget_layout::vertical;
+			return e_layout == e::widget_layout::vertical or e_layout == e::widget_layout::vertical_inv;
 		}
 		else
 		{
-			return e_layout == e::widget_layout::horizontal;
+			return e_layout == e::widget_layout::horizontal or e_layout == e::widget_layout::horizontal_inv;
 		}
 	}
 

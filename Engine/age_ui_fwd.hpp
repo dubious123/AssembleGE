@@ -12,7 +12,7 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
 
-	AGE_DEFINE_ENUM(widget_layout, uint8, horizontal, vertical)
+	AGE_DEFINE_ENUM(widget_layout, uint8, horizontal, horizontal_inv, vertical, vertical_inv)
 
 	AGE_DEFINE_ENUM(widget_overflow, uint8, draw_all, discard, clip, scroll)
 
@@ -52,7 +52,8 @@ namespace age::ui::e
 					slider_thumb,
 					slider_thumb_ring,
 					scroll_thumb,
-					select_accent);
+					select_accent,
+					resize_handle);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -189,8 +190,11 @@ namespace age::ui
 	{
 		float2 pos;	   // final pos, (layout pos + offset)
 
-		float  width  = 0.f;
-		float  height = 0.f;
+		float width	 = 0.f;
+		float height = 0.f;
+
+		float  clip_width  = 0.f;
+		float  clip_height = 0.f;
 		uint16 frame_count;
 
 		bool toggled;
@@ -563,6 +567,8 @@ namespace age::ui::g
 
 	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_0, opacity_0, opacity_7 } };	  // selected item left border
 
+	inline constexpr style_color resize_handle = { e::theme_color_kind::accent, { opacity_2, opacity_4, opacity_5 } };	  // panel resizable handle
+
 
 }	 // namespace age::ui::g
 
@@ -720,22 +726,34 @@ namespace age::ui
 			state.toggled = value;
 		}
 
-		FORCE_INLINE float2
+		FORCE_INLINE float2&
 		get_pos() const noexcept
 		{
 			return get_state().pos;
 		}
 
-		FORCE_INLINE float
+		FORCE_INLINE float&
 		get_width() const noexcept
 		{
 			return get_state().width;
 		}
 
-		FORCE_INLINE float
+		FORCE_INLINE float&
 		get_height() const noexcept
 		{
 			return get_state().height;
+		}
+
+		FORCE_INLINE float&
+		get_drag_x() const noexcept
+		{
+			return get_state().drag_x;
+		}
+
+		FORCE_INLINE float&
+		get_drag_y() const noexcept
+		{
+			return get_state().drag_y;
 		}
 	};
 

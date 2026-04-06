@@ -111,6 +111,10 @@ namespace age::ui::theme
 		{
 			return g::select_accent;
 		}
+		else if constexpr (e_theme_token == e::theme_token_kind::resize_handle)
+		{
+			return g::resize_handle;
+		}
 		else
 		{
 			AGE_UNREACHABLE();
@@ -321,6 +325,12 @@ namespace age::ui::theme::colors
 	select_accent(e::style_state state = e::style_state::idle) noexcept
 	{
 		return color<e::theme_token_kind::select_accent>(state);
+	}
+
+	FORCE_INLINE float4
+	resize_handle(e::style_state state = e::style_state::idle) noexcept
+	{
+		return color<e::theme_token_kind::resize_handle>(state);
 	}
 }	 // namespace age::ui::theme::colors
 
@@ -550,6 +560,18 @@ namespace age::ui
 		return set_layout(e::widget_layout::vertical);
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	set_horizontal_inv() noexcept
+	{
+		return set_layout(e::widget_layout::horizontal_inv);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_vertical_inv() noexcept
+	{
+		return set_layout(e::widget_layout::vertical_inv);
+	}
+
 	namespace detail
 	{
 		struct mod_size
@@ -704,6 +726,22 @@ namespace age::ui::style
 	}
 
 	FORCE_INLINE constexpr widget_desc
+	vertical_inv() noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::vertical_inv)
+			 | set_size(size_mode::grow(), size_mode::fit());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	vertical_inv(widget_size_mode width, widget_size_mode height) noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::vertical_inv)
+			 | set_size(width, height);
+	}
+
+	FORCE_INLINE constexpr widget_desc
 	horizontal() noexcept
 	{
 		return detail::layout_base()
@@ -720,6 +758,22 @@ namespace age::ui::style
 	}
 
 	FORCE_INLINE constexpr widget_desc
+	horizontal_inv() noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::horizontal_inv)
+			 | set_size(size_mode::fit(), size_mode::grow());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	horizontal_inv(widget_size_mode width, widget_size_mode height) noexcept
+	{
+		return detail::layout_base()
+			 | set_layout(e::widget_layout::horizontal_inv)
+			 | set_size(width, height);
+	}
+
+	FORCE_INLINE constexpr widget_desc
 	layout(e::widget_layout e_layout) noexcept
 	{
 		if (e_layout == e::widget_layout::vertical)
@@ -730,11 +784,48 @@ namespace age::ui::style
 		{
 			return horizontal();
 		}
+		else if (e_layout == e::widget_layout::vertical_inv)
+		{
+			return vertical_inv();
+		}
+		else if (e_layout == e::widget_layout::horizontal_inv)
+		{
+			return horizontal_inv();
+		}
 		else
 		{
 			AGE_UNREACHABLE();
 		}
 	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		panel_base() noexcept
+		{
+			return set_draw(true)
+				 | set_layout(e::widget_layout::vertical)
+				 | set_align(e::widget_align::begin)
+				 | set_z_offset(1)
+				 | set_padding(2.f, 2.f, 2.f, 2.f)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color)
+				 | set_border_thickness(1.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	panel() noexcept
+	{
+		return detail::panel_base()
+			 | set_body_brush_data(theme::colors::bg_panel())
+			 | set_border_brush_data(theme::colors::border_default());
+	}
+
+
 }	 // namespace age::ui::style
 
 namespace age::ui::style

@@ -291,134 +291,169 @@ namespace age_demo::scene_2
 			using namespace age::ui;
 			using enum age::input::e::key_kind;
 
+			// if (auto _ = widget::frame(e::style_state::active, set_body_brush_data(0, 0, 0, 0), set_size(size_mode::fixed(1000), size_mode::fixed(1000))))
+			//{
+			//	if (auto _ = widget::panel_resizable(set_size(size_mode::fit(), size_mode::grow())))
+			//	{
+			//		if (auto btn = widget::button("hi"))
+			//		{
+			//			if (btn.clicked<age::input::e::key_kind::mouse_left>())
+			//			{
+			//				std::println("hi");
+			//			}
+			//		}
+			//	}
+			// }
 
-			if (auto _ = widget::horizontal())
+
+			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow())))
 			{
-				if (auto _ = widget::begin(set_draw(true)
-										   | set_layout(e::widget_layout::vertical)
-										   | set_size(size_mode::fixed(500), size_mode::fit())
-										   | set_body_brush_data(theme::colors::bg_panel())))
+				if (auto _ = widget::panel_resizable_h(700, 1000,
+													   set_layout(e::widget_layout::vertical),
+													   set_size(size_mode::grow(), size_mode::grow())))
 				{
-					if (auto header = widget::collapsible_header("collapsible header"))
+					// if (auto _ = widget::begin(set_draw(true)
+					//						   | set_layout(e::widget_layout::vertical_inv)
+					//						   | set_size(size_mode::grow(), size_mode::fit())
+					//						   | set_body_brush_data(theme::colors::bg_panel())))
+					if (auto _ = widget::panel_resizable_v(100, 500,
+														   set_size(size_mode::grow(), size_mode::grow())))
 					{
-						if (auto btn = widget::button("button2", set_align(e::widget_align::center)))
+						for (auto i = 0; i < 10; ++i)
 						{
-							if (btn.clicked<mouse_left>())
+							if (auto btn = widget::button("button2", set_align(e::widget_align::center)))
 							{
-								std::println("button2 clicked");
-							}
-						}
-					}
-
-					if (auto tree_node_0 = widget::tree_node("node_0"))
-					{
-						if (auto tree_node_1 = widget::tree_node("node_1"))
-						{
-							if (auto tree_node_1 = widget::tree_node("node_2"))
-							{
-								// if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
-								if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+								if (btn.clicked<mouse_left>())
 								{
-									static float v0 = 10.f;
-									widget::numeric_field(v0, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-														  "X", e::theme_color_kind::negative);
-
-									static float v1 = 10.f;
-									widget::numeric_field(v1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-														  "Y", e::theme_color_kind::positive);
-
-									static float v2 = 10.f;
-									widget::numeric_field(v2, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-														  "Z", e::theme_color_kind::accent);
-
-									static float v3 = 10.f;
-									widget::numeric_field(v3, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-														  "W", e::theme_color_kind::amber);
+									std::println("button2 clicked");
 								}
 							}
-
-							if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
-							{
-								static uint64 v0 = 100;
-								widget::numeric_field(v0, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-													  "X", e::theme_color_kind::negative);
-
-								static uint64 v1 = 100;
-								widget::numeric_field(v1, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-													  "Y", e::theme_color_kind::positive);
-
-								static uint64 v2 = 100;
-								widget::numeric_field(v2, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-													  "Z", e::theme_color_kind::accent);
-
-								static uint64 v3 = 100;
-								widget::numeric_field(v3, std::numeric_limits<uint64>::min(), 200ull,
-													  "W", e::theme_color_kind::amber);
-							}
-
-							static float4 quat;
-							widget::numeric_field(quat, "position");
-
-							{
-								static float2x2 mat;
-								widget::numeric_field(mat);
-							}
-							{
-								static float3x3 mat;
-								widget::numeric_field(mat);
-							}
-							{
-								static mat44<int32> mat;
-								widget::numeric_field(mat);
-							}
 						}
 					}
 
-					{
-						static float v = 10.f;
-						widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
-					}
 
-					static float v = 35.f;
-					if (auto h_slider = widget::slider(v, 0.f, 100.f))
 					{
-					}
-
-					for (auto i = 0; i < 5; ++i)
-					{
-						if (auto _ = widget::begin(set_draw(true)
-												   | set_layout(e::widget_layout::horizontal)
-												   | set_size(size_mode::fit(), size_mode::fit())
-												   | set_body_brush_data(theme::colors::bg_panel())))
+						if (auto header = widget::collapsible_header("collapsible header"))
 						{
-							// arrow
-							widget::begin(set_align(e::widget_align::center)
-										  | set_size(size_mode::fixed(22), size_mode::fixed(22))
-										  | set_border_thickness(0.f)
-										  | set_shape_kind(e::shape_kind::arrow_right)
-										  | set_body_brush_data(brush_data::color(0.75, 0.75, 0.75)));
+							if (auto btn = widget::button("button2", set_align(e::widget_align::center)))
+							{
+								if (btn.clicked<mouse_left>())
+								{
+									std::println("button2 clicked");
+								}
+							}
+						}
+
+						if (auto tree_node_0 = widget::tree_node("node_0"))
+						{
+							if (auto tree_node_1 = widget::tree_node("node_1"))
+							{
+								if (auto tree_node_1 = widget::tree_node("node_2"))
+								{
+									// if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
+									if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+									{
+										static float v0 = 10.f;
+										widget::numeric_field(v0, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  "X", e::theme_color_kind::negative);
+
+										static float v1 = 10.f;
+										widget::numeric_field(v1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  "Y", e::theme_color_kind::positive);
+
+										static float v2 = 10.f;
+										widget::numeric_field(v2, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  "Z", e::theme_color_kind::accent);
+
+										static float v3 = 10.f;
+										widget::numeric_field(v3, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  "W", e::theme_color_kind::amber);
+									}
+								}
+
+								if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+								{
+									static uint64 v0 = 100;
+									widget::numeric_field(v0, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  "X", e::theme_color_kind::negative);
+
+									static uint64 v1 = 100;
+									widget::numeric_field(v1, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  "Y", e::theme_color_kind::positive);
+
+									static uint64 v2 = 100;
+									widget::numeric_field(v2, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  "Z", e::theme_color_kind::accent);
+
+									static uint64 v3 = 100;
+									widget::numeric_field(v3, std::numeric_limits<uint64>::min(), 200ull,
+														  "W", e::theme_color_kind::amber);
+								}
+
+								static float4 quat;
+								widget::numeric_field(quat, "position");
+
+								{
+									static float2x2 mat;
+									widget::numeric_field(mat);
+								}
+								{
+									static float3x3 mat;
+									widget::numeric_field(mat);
+								}
+								{
+									static mat44<int32> mat;
+									widget::numeric_field(mat);
+								}
+							}
+						}
+
+						{
+							static float v = 10.f;
+							widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
+						}
+
+						static float v = 35.f;
+						if (auto h_slider = widget::slider(v, 0.f, 100.f))
+						{
+						}
+
+						for (auto i = 0; i < 5; ++i)
+						{
+							if (auto _ = widget::begin(set_draw(true)
+													   | set_layout(e::widget_layout::horizontal)
+													   | set_size(size_mode::fit(), size_mode::fit())
+													   | set_body_brush_data(theme::colors::bg_panel())))
+							{
+								// arrow
+								widget::begin(set_align(e::widget_align::center)
+											  | set_size(size_mode::fixed(22), size_mode::fixed(22))
+											  | set_border_thickness(0.f)
+											  | set_shape_kind(e::shape_kind::arrow_right)
+											  | set_body_brush_data(brush_data::color(0.75, 0.75, 0.75)));
 
 
-							widget::begin(style::text("hello text\n    hello       text    \n\n"
-													  "hello text")
-										  | set_font_size(22)
-										  | set_body_brush_data(theme::colors::text_negative(e::style_state::idle)));
+								widget::begin(style::text("hello text\n    hello       text    \n\n"
+														  "hello text")
+											  | set_font_size(22)
+											  | set_body_brush_data(theme::colors::text_negative(e::style_state::idle)));
 
-							widget::begin(style::text("hello text\n    hello       text    \n\n"
-													  "hello text")
-										  | set_font_size(22)
-										  | set_body_brush_data(theme::colors::text_positive(e::style_state::idle)));
+								widget::begin(style::text("hello text\n    hello       text    \n\n"
+														  "hello text")
+											  | set_font_size(22)
+											  | set_body_brush_data(theme::colors::text_positive(e::style_state::idle)));
 
-							widget::begin(style::text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
+								widget::begin(style::text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
 
-							widget::begin(style::text("hello text") | set_font_size(22));
+								widget::begin(style::text("hello text") | set_font_size(22));
 
-							widget::text_primary("hello text\n    hello text    \n"
-												 "hello text");
+								widget::text_primary("hello text\n    hello text    \n"
+													 "hello text");
 
-							widget::text_accent("...");
-							widget::begin(style::text_accent("..."));
-							widget::begin(style::text("...") | set_body_brush_data(theme::colors::text_accent(e::style_state::idle)));
+								widget::text_accent("...");
+								widget::begin(style::text_accent("..."));
+								widget::begin(style::text("...") | set_body_brush_data(theme::colors::text_accent(e::style_state::idle)));
+							}
 						}
 					}
 				}
