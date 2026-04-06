@@ -55,4 +55,7 @@ namespace age::meta::inline traits
 	concept cx_has_arrow = requires(t v) {
 		v.operator->();
 	};
+
+	template <typename t>
+	concept cx_arithmetic = std::is_arithmetic_v<t>;
 }	 // namespace age::meta::inline traits

@@ -299,26 +299,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::set_graphics_root_sig(p_root_sig);
 		command::set_compute_root_sig(p_root_sig);
 
-		{
-			frame_data_buffer.apply();
-			frame_data_buffer.apply_compute();
-
-			static_ring_buffer.apply();
-			static_ring_buffer.apply_compute();
-
-			mesh_data_buffer.apply();
-			mesh_data_buffer.apply_compute();
-
-			scratch_buffer_uav.apply_compute();
-
-			shadow_stage_shadow_light_buffer_uav.apply_compute();
-			light_cull_stage_sorted_light_buffer_uav.apply_compute();
-
-			rt_instance_render_data_buffer_srv.apply_compute();
-			rt_index_buffer_srv.apply_compute();
-
-			ui_data_buffer.apply();
-		}
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -408,6 +388,26 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		c_auto opaque_meshlet_render_data_count = upload_data();
 
+		{
+			frame_data_buffer.apply();
+			frame_data_buffer.apply_compute();
+
+			static_ring_buffer.apply();
+			static_ring_buffer.apply_compute();
+
+			mesh_data_buffer.apply();
+			mesh_data_buffer.apply_compute();
+
+			scratch_buffer_uav.apply_compute();
+
+			shadow_stage_shadow_light_buffer_uav.apply_compute();
+			light_cull_stage_sorted_light_buffer_uav.apply_compute();
+
+			rt_instance_render_data_buffer_srv.apply_compute();
+			rt_index_buffer_srv.apply_compute();
+
+			ui_data_buffer.apply();
+		}
 
 		root_constants.apply();
 		root_constants.apply_compute();

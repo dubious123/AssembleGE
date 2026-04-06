@@ -915,7 +915,7 @@ namespace age::external::msdfgen
 			std::to_underlying(charset_flag),
 			extra_unicode_span.data(),
 			static_cast<uint16>(extra_unicode_span.size()),
-			48,
+			72,
 			4);
 
 		return succeed;

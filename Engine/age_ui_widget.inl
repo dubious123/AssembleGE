@@ -304,8 +304,9 @@ namespace age::ui::widget
 // numeric field
 namespace age::ui::widget
 {
+	template <meta::cx_arithmetic t>
 	FORCE_INLINE widget_ctx
-	numeric_field(float& value, float min, float max,
+	numeric_field(t& value, t min = std::numeric_limits<t>::min(), t max = std::numeric_limits<t>::max(),
 				  const char*		  p_hint	 = nullptr,
 				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
 				  float				  step		 = 0.1f) noexcept
@@ -316,33 +317,69 @@ namespace age::ui::widget
 		{
 			step *= g::step_scale_table[g::p_input_ctx->is_ctrl_down()][g::p_input_ctx->is_shift_down()];
 
-			auto state = e::style_state::idle;
-			if (h_interact.pressed<mouse_left>())
+			auto style_state = e::style_state::idle;
+
+			if constexpr (std::is_floating_point_v<t>)
 			{
-				state  = e::style_state::active;
-				value += g::p_input_ctx->mouse_delta.x * step;
+				if (h_interact.pressed<mouse_left>())
+				{
+					style_state	 = e::style_state::active;
+					value		+= g::p_input_ctx->mouse_delta.x * step;
+					value		 = std::clamp(value, min, max);
+				}
+				else if (h_interact.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
 			}
-			else if (h_interact.hovered())
+			else
 			{
-				state = e::style_state::hover;
+				if (h_interact.clicked<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					auto& state	 = h_interact.get_state();
+					state.drag_x = 0.f;
+				}
+				else if (h_interact.pressed<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					auto& state = h_interact.get_state();
+
+					state.drag_x += g::p_input_ctx->mouse_delta.x * step;
+
+					auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
+
+					value = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
+
+					value += delta;
+
+					state.drag_x -= static_cast<float>(delta);
+				}
+				else if (h_interact.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
 			}
+
 
 			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
 			{
 				if (p_hint is_not_nullptr)
 				{
 					widget::begin(style::text_secondary(p_hint)
-								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(state)));
+								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(style_state)));
 				}
 
-				if (auto _ = widget::begin(style::frame_interactive(state)
+				if (auto _ = widget::begin(style::frame_interactive(style_state)
 										   | set_horizontal()
 										   | set_width(size_mode::grow())))
 				{
-					char char_buf[16];
+					char char_buf[21];
 
-					util::float_to_str(char_buf, value);
-					widget::text_secondary(char_buf, state);
+					util::to_str(char_buf, value);
+					widget::text_secondary(char_buf, style_state);
 				}
 			}
 
@@ -352,5 +389,103 @@ namespace age::ui::widget
 		{
 			return {};
 		}
+	}
+
+	template <template <typename> typename t_vec, meta::cx_arithmetic t>
+	requires(not requires(t_vec<t> m) { m[0][0]; })
+	FORCE_INLINE widget_ctx
+	numeric_field(t_vec<t>&			  value,
+				  const char*		  p_hint	 = nullptr,
+				  const t_vec<t>&	  min		 = t_vec<t>{ std::numeric_limits<t>::min() },
+				  const t_vec<t>&	  max		 = t_vec<t>{ std::numeric_limits<t>::max() },
+				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
+				  float				  step		 = 0.1f) noexcept
+	{
+		using enum e::theme_color_kind;
+		constexpr e::theme_color_kind colors[4] = { negative, positive, accent, amber };
+		constexpr const char*		  labels[4] = { "X", "Y", "Z", "W" };
+
+		if (auto row = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
+		{
+			if (p_hint is_not_nullptr)
+			{
+				if (auto _ = widget::vertical(set_size(size_mode::grow(), size_mode::fit())))
+				{
+					widget::begin(style::text_secondary(p_hint)
+								  | set_align(e::widget_align::begin)
+								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>()));
+				}
+			}
+
+			if constexpr (requires { value.x; })
+			{
+				numeric_field(value.x, min.x, max.x, labels[0], colors[0], step);
+			}
+
+			if constexpr (requires { value.y; })
+			{
+				numeric_field(value.y, min.y, max.y, labels[1], colors[1], step);
+			}
+
+			if constexpr (requires { value.z; })
+			{
+				numeric_field(value.z, min.z, max.z, labels[2], colors[2], step);
+			}
+
+			if constexpr (requires { value.w; })
+			{
+				numeric_field(value.w, min.w, max.w, labels[3], colors[3], step);
+			}
+		}
+		return {};
+	}
+
+	template <template <typename> typename t_mat, meta::cx_arithmetic t>
+	requires requires(t_mat<t> m) { m[0][0]; }
+	FORCE_INLINE widget_ctx
+	numeric_field(t_mat<t>&			  value,
+				  const char*		  p_hint	 = nullptr,
+				  const t			  min		 = std::numeric_limits<t>::min(),
+				  const t			  max		 = std::numeric_limits<t>::max(),
+				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
+				  float				  step		 = 0.1f) noexcept
+	{
+		constexpr const char* row_labels[4] = { "Row 0", "Row 1", "Row 2", "Row 3" };
+
+		if (auto col = widget::begin(style::vertical(size_mode::grow(), size_mode::fit())))
+		{
+			if (p_hint is_not_nullptr)
+			{
+				widget::begin(style::text_secondary(p_hint)
+							  | set_align(e::widget_align::begin)
+							  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>()));
+			}
+			if constexpr (requires { value.r0; })
+			{
+				using row_t = BARE_OF(value.r0);
+				numeric_field(value.r0, row_labels[0], row_t{ min }, row_t{ max }, e::theme_color_kind::white, step);
+			}
+
+			if constexpr (requires { value.r1; })
+			{
+				using row_t = BARE_OF(value.r1);
+				numeric_field(value.r1, row_labels[1], row_t{ min }, row_t{ max }, e::theme_color_kind::white, step);
+			}
+
+			if constexpr (requires { value.r2; })
+			{
+				using row_t = BARE_OF(value.r2);
+				numeric_field(value.r2, row_labels[2], row_t{ min }, row_t{ max }, e::theme_color_kind::white, step);
+			}
+
+			if constexpr (requires { value.r3; })
+			{
+				using row_t = BARE_OF(value.r3);
+				numeric_field(value.r3, row_labels[3], row_t{ min }, row_t{ max }, e::theme_color_kind::white, step);
+			}
+
+			return col;
+		}
+		return {};
 	}
 }	 // namespace age::ui::widget

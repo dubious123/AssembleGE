@@ -681,8 +681,8 @@ namespace age::ui::widget
 	{
 		if (desc.shape_kind == e::shape_kind::text)
 		{
-			detail::handle_text(desc);
+			ui::detail::handle_text(desc);
 		}
-		return widget_ctx{ detail::widget_begin(std::move(desc)) };
+		return widget_ctx{ ui::detail::widget_begin(std::move(desc)) };
 	}
 }	 // namespace age::ui::widget

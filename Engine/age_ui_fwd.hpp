@@ -196,6 +196,9 @@ namespace age::ui
 		bool toggled;
 
 		uint8 _;
+
+		float drag_x;
+		float drag_y;
 	};
 
 	struct layout_size_data

@@ -49,8 +49,8 @@ namespace age_demo::game
 			
 			age::ui::init,
 
-			AGE_LAMBDA((), { age::ui::font::load("resources\\font\\NotoSansKR-Regular", i_init.get_render_pipeline()); }),
-			AGE_LAMBDA((), { age::ui::font::set_default("resources\\font\\NotoSansKR-Regular"); }),
+			AGE_LAMBDA((), { age::ui::font::load("resources\\font\\NotoSansKR-Medium", i_init.get_render_pipeline()); }),
+			AGE_LAMBDA((), { age::ui::font::set_default("resources\\font\\NotoSansKR-Medium"); }),
 			
 			loop{ [warm_up_frame = 10] mutable { return --warm_up_frame > 0; },
 				  age::platform::update,	// pump platform msg
