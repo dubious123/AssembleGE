@@ -286,15 +286,7 @@ namespace age_demo::scene_2
 		}
 
 		age::ui::begin_frame(i_update.get_h_window);
-		// syntax
 
-		// ui
-		// if (auto _ = age::ui::widget::begin(
-		//		{ .draw				= false,
-		//		  .layout			= age::ui::e::widget_layout::horizontal,
-		//		  .size_mode_width	= age::ui::size_mode::fit(),
-		//		  .size_mode_height = age::ui::size_mode::grow() }))
-		//	;
 		{
 			using namespace age::ui;
 			using enum age::input::e::key_kind;
@@ -305,7 +297,7 @@ namespace age_demo::scene_2
 				if (auto _ = widget::begin(set_draw(true)
 										   | set_layout(e::widget_layout::vertical)
 										   | set_size(size_mode::fixed(500), size_mode::fit())
-										   | set_body_brush_data(theme::bg_panel())))
+										   | set_body_brush_data(theme::colors::bg_panel())))
 				{
 					if (auto header = widget::collapsible_header("collapsible header"))
 					{
@@ -324,8 +316,44 @@ namespace age_demo::scene_2
 						{
 							if (auto tree_node_1 = widget::tree_node("node_2"))
 							{
-								static float v = 10.f;
-								widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
+								// if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
+								if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+								{
+									static float v0 = 10.f;
+									widget::numeric_field(v0, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+														  "X", e::theme_color_kind::negative);
+
+									static float v1 = 10.f;
+									widget::numeric_field(v1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+														  "Y", e::theme_color_kind::positive);
+
+									static float v2 = 10.f;
+									widget::numeric_field(v2, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+														  "Z", e::theme_color_kind::accent);
+
+									static float v3 = 10.f;
+									widget::numeric_field(v3, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+														  "W", e::theme_color_kind::amber);
+								}
+							}
+
+							if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+							{
+								static float v0 = 10.f;
+								widget::numeric_field(v0, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+													  "X", e::theme_color_kind::negative);
+
+								static float v1 = 10.f;
+								widget::numeric_field(v1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+													  "Y", e::theme_color_kind::positive);
+
+								static float v2 = 10.f;
+								widget::numeric_field(v2, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+													  "Z", e::theme_color_kind::accent);
+
+								static float v3 = 10.f;
+								widget::numeric_field(v3, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+													  "W", e::theme_color_kind::amber);
 							}
 						}
 					}
@@ -345,7 +373,7 @@ namespace age_demo::scene_2
 						if (auto _ = widget::begin(set_draw(true)
 												   | set_layout(e::widget_layout::horizontal)
 												   | set_size(size_mode::fit(), size_mode::fit())
-												   | set_body_brush_data(theme::bg_panel())))
+												   | set_body_brush_data(theme::colors::bg_panel())))
 						{
 							// arrow
 							widget::begin(set_align(e::widget_align::center)
@@ -358,12 +386,12 @@ namespace age_demo::scene_2
 							widget::begin(style::text("hello text\n    hello       text    \n\n"
 													  "hello text")
 										  | set_font_size(22)
-										  | set_body_brush_data(theme::text_negative(e::style_state::idle)));
+										  | set_body_brush_data(theme::colors::text_negative(e::style_state::idle)));
 
 							widget::begin(style::text("hello text\n    hello       text    \n\n"
 													  "hello text")
 										  | set_font_size(22)
-										  | set_body_brush_data(theme::text_positive(e::style_state::idle)));
+										  | set_body_brush_data(theme::colors::text_positive(e::style_state::idle)));
 
 							widget::begin(style::text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
 
@@ -374,7 +402,7 @@ namespace age_demo::scene_2
 
 							widget::text_accent("...");
 							widget::begin(style::text_accent("..."));
-							widget::begin(style::text("...") | set_body_brush_data(theme::text_accent(e::style_state::idle)));
+							widget::begin(style::text("...") | set_body_brush_data(theme::colors::text_accent(e::style_state::idle)));
 						}
 					}
 				}

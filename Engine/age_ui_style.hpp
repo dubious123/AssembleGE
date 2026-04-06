@@ -3,46 +3,197 @@
 
 namespace age::ui::theme
 {
+	template <e::theme_token_kind e_theme_token>
+	consteval FORCE_INLINE auto
+	get_theme_token_data() noexcept
+	{
+		if constexpr (e_theme_token == e::theme_token_kind::bg_panel)
+		{
+			return g::bg_panel;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::bg_surface)
+		{
+			return g::bg_surface;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::bg_interactive)
+		{
+			return g::bg_interactive;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::bg_accent)
+		{
+			return g::bg_accent;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::bg_popup)
+		{
+			return g::bg_popup;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::border_default)
+		{
+			return g::border_default;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::border_accent)
+		{
+			return g::border_accent;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_primary)
+		{
+			return g::text_primary;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_secondary)
+		{
+			return g::text_secondary;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_tertiary)
+		{
+			return g::text_tertiary;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_hint)
+		{
+			return g::text_hint;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_disabled)
+		{
+			return g::text_disabled;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_accent)
+		{
+			return g::text_accent;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_positive)
+		{
+			return g::text_positive;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_negative)
+		{
+			return g::text_negative;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_amber)
+		{
+			return g::text_amber;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::text_interactive)
+		{
+			return g::text_interactive;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::separator)
+		{
+			return g::separator;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::toggle_off)
+		{
+			return g::toggle_off;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::toggle_on)
+		{
+			return g::toggle_on;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::slider_fill)
+		{
+			return g::slider_fill;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::slider_track)
+		{
+			return g::slider_track;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::slider_thumb)
+		{
+			return g::slider_thumb;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::slider_thumb_ring)
+		{
+			return g::slider_thumb_ring;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::scroll_thumb)
+		{
+			return g::scroll_thumb;
+		}
+		else if constexpr (e_theme_token == e::theme_token_kind::select_accent)
+		{
+			return g::select_accent;
+		}
+		else
+		{
+			AGE_UNREACHABLE();
+		}
+	}
+
+	template <e::theme_token_kind e_theme_token>
+	constexpr FORCE_INLINE float4
+	color(e::style_state e_state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[e::to_idx(get_theme_token_data<e_theme_token>().color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
+	}
+
+	template <e::theme_token_kind e_theme_token>
+	constexpr FORCE_INLINE float4
+	color(e::theme_color_kind e_color, e::style_state e_state = e::style_state::idle) noexcept
+	{
+		return float4{ g::theme_color[e::to_idx(e_color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
+	}
+
+	constexpr FORCE_INLINE float3
+	color(e::theme_color_kind e_color) noexcept
+	{
+		return g::theme_color[e::to_idx(e_color)];
+	}
+
+	template <e::theme_token_kind e_theme_token>
+	constexpr FORCE_INLINE float
+	opacity(e::style_state e_state = e::style_state::idle) noexcept
+	{
+		return g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]];
+	}
+
+	template <e::theme_token_kind e_theme_token>
+	constexpr FORCE_INLINE float4
+	font_size() noexcept
+	{
+		return g::theme_font_size[e::to_idx(get_theme_token_data<e_theme_token>().font_size)];
+	}
+}	 // namespace age::ui::theme
+
+namespace age::ui::theme::colors
+{
 	FORCE_INLINE float4
 	bg_panel(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::bg_panel.color], g::theme_opacity[g::bg_panel.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::bg_panel>(state);
 	}
 
 	FORCE_INLINE float4
 	bg_surface(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::bg_surface.color], g::theme_opacity[g::bg_surface.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::bg_surface>(state);
 	}
 
 	FORCE_INLINE float4
 	bg_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::bg_interactive.color], g::theme_opacity[g::bg_interactive.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::bg_interactive>(state);
 	}
 
 	FORCE_INLINE float4
 	bg_accent(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::bg_accent.color], g::theme_opacity[g::bg_accent.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::bg_accent>(state);
 	}
 
 	FORCE_INLINE float4
 	bg_popup(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::bg_popup.color], g::theme_opacity[g::bg_popup.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::bg_popup>(state);
 	}
 
 	FORCE_INLINE float4
 	border_default(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::border_default.color], g::theme_opacity[g::border_default.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::border_default>(state);
 	}
 
 	FORCE_INLINE float4
 	border_accent(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::border_accent.color], g::theme_opacity[g::border_accent.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::border_accent>(state);
 	}
 
 	FORCE_INLINE float4
@@ -50,191 +201,191 @@ namespace age::ui::theme
 	{
 		if (state == e::style_state::idle)
 		{
-			return border_default(e::style_state::idle);
+			return color<e::theme_token_kind::border_default>(e::style_state::idle);
 		}
 		else
 		{
-			return border_accent(state);
+			return color<e::theme_token_kind::border_accent>(state);
 		}
 	}
 
 	FORCE_INLINE float4
 	text_primary(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_primary.color], g::theme_opacity[g::text_primary.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_primary>(state);
 	}
 
 	FORCE_INLINE float4
 	text_secondary(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_secondary.color], g::theme_opacity[g::text_secondary.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_secondary>(state);
 	}
 
 	FORCE_INLINE float4
 	text_tertiary(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_tertiary.color], g::theme_opacity[g::text_tertiary.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_tertiary>(state);
 	}
 
 	FORCE_INLINE float4
 	text_hint(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_hint.color], g::theme_opacity[g::text_hint.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_hint>(state);
 	}
 
 	FORCE_INLINE float4
 	text_disabled(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_disabled.color], g::theme_opacity[g::text_disabled.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_disabled>(state);
 	}
 
 	FORCE_INLINE float4
 	text_accent(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_accent.color], g::theme_opacity[g::text_accent.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_accent>(state);
 	}
 
 	FORCE_INLINE float4
 	text_positive(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_positive.color], g::theme_opacity[g::text_positive.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_positive>(state);
 	}
 
 	FORCE_INLINE float4
 	text_negative(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_negative.color], g::theme_opacity[g::text_negative.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_negative>(state);
 	}
 
 	FORCE_INLINE float4
 	text_amber(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_amber.color], g::theme_opacity[g::text_amber.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_amber>(state);
 	}
 
 	FORCE_INLINE float4
 	text_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::text_interactive.color], g::theme_opacity[g::text_interactive.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::text_interactive>(state);
 	}
 
 	FORCE_INLINE float4
 	separator(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::separator.color], g::theme_opacity[g::separator.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::separator>(state);
 	}
 
 	FORCE_INLINE float4
 	toggle_off(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::toggle_off.color], g::theme_opacity[g::toggle_off.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::toggle_off>(state);
 	}
 
 	FORCE_INLINE float4
 	toggle_on(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::toggle_on.color], g::theme_opacity[g::toggle_on.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::toggle_on>(state);
 	}
 
 	FORCE_INLINE float4
 	slider_fill(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::slider_fill.color], g::theme_opacity[g::slider_fill.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::slider_fill>(state);
 	}
 
 	FORCE_INLINE float4
 	slider_track(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::slider_track.color], g::theme_opacity[g::slider_track.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::slider_track>(state);
 	}
 
 	FORCE_INLINE float4
 	slider_thumb(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::slider_thumb.color], g::theme_opacity[g::slider_thumb.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::slider_thumb>(state);
 	}
 
 	FORCE_INLINE float4
 	slider_thumb_ring(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::slider_thumb_ring.color], g::theme_opacity[g::slider_thumb_ring.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::slider_thumb_ring>(state);
 	}
 
 	FORCE_INLINE float4
 	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::scroll_thumb.color], g::theme_opacity[g::scroll_thumb.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::scroll_thumb>(state);
 	}
 
 	FORCE_INLINE float4
 	select_accent(e::style_state state = e::style_state::idle) noexcept
 	{
-		return float4{ g::theme_color[g::select_accent.color], g::theme_opacity[g::select_accent.opacity[std::to_underlying(state)]] };
+		return color<e::theme_token_kind::select_accent>(state);
 	}
-}	 // namespace age::ui::theme
+}	 // namespace age::ui::theme::colors
 
-namespace age::ui::theme
+namespace age::ui::theme::size
 {
 	FORCE_INLINE float
-	text_primary_font_size() noexcept
+	text_primary() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_primary.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_primary.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_secondary_font_size() noexcept
+	text_secondary() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_secondary.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_secondary.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_tertiary_font_size() noexcept
+	text_tertiary() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_tertiary.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_tertiary.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_hint_font_size() noexcept
+	text_hint() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_hint.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_hint.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_disabled_font_size() noexcept
+	text_disabled() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_disabled.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_disabled.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_accent_font_size() noexcept
+	text_accent() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_accent.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_accent.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_positive_font_size() noexcept
+	text_positive() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_positive.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_positive.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_negative_font_size() noexcept
+	text_negative() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_negative.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_negative.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_amber_font_size() noexcept
+	text_amber() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_amber.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_amber.font_size)];
 	}
 
 	FORCE_INLINE float
-	text_interactive_font_size() noexcept
+	text_interactive() noexcept
 	{
-		return g::theme_font_size[std::to_underlying(g::text_interactive.font_size)];
+		return g::theme_font_size[e::to_idx(g::text_interactive.font_size)];
 	}
-}	 // namespace age::ui::theme
+}	 // namespace age::ui::theme::size
 
 namespace age::ui::theme
 {
@@ -247,13 +398,13 @@ namespace age::ui::theme
 	FORCE_INLINE float
 	slider_thumb_size(e::style_state e_state = e::style_state::idle) noexcept
 	{
-		return g::theme_slider_thumb_size[std::to_underlying(e_state)];
+		return g::theme_slider_thumb_size[e::to_idx(e_state)];
 	}
 
 	FORCE_INLINE float
 	slider_thumb_border_thickness(e::style_state e_state = e::style_state::idle) noexcept
 	{
-		return g::theme_slider_thumb_border_thickness[std::to_underlying(e_state)];
+		return g::theme_slider_thumb_border_thickness[e::to_idx(e_state)];
 	}
 }	 // namespace age::ui::theme
 
@@ -364,6 +515,12 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_body_brush_data(float3 rgb, float a) noexcept
+	{
+		return detail::mod_body_brush_data{ brush_data::color(rgb.x, rgb.y, rgb.z, a) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_border_brush_data(float4 color) noexcept
 	{
 		return detail::mod_border_brush_data{ brush_data::color(color) };
@@ -373,6 +530,12 @@ namespace age::ui
 	set_border_brush_data(float r, float g, float b, float a) noexcept
 	{
 		return detail::mod_border_brush_data{ brush_data::color(r, g, b, a) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_border_brush_data(float3 rgb, float a) noexcept
+	{
+		return detail::mod_border_brush_data{ brush_data::color(rgb.x, rgb.y, rgb.z, a) };
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -500,7 +663,7 @@ namespace age::ui
 	FORCE_INLINE constexpr decltype(auto)
 	set_font_size(e::font_size_kind e_font_size) noexcept
 	{
-		return detail::mod_font_size{ g::theme_font_size[std::to_underlying(e_font_size)] };
+		return detail::mod_font_size{ g::theme_font_size[e::to_idx(e_font_size)] };
 	}
 
 #undef X
@@ -597,16 +760,16 @@ namespace age::ui::style
 	frame(e::style_state state = e::style_state::idle) noexcept
 	{
 		return detail::frame_base()
-			 | set_body_brush_data(theme::bg_panel(state))
-			 | set_border_brush_data(theme::border_default(state));
+			 | set_body_brush_data(theme::colors::bg_panel(state))
+			 | set_border_brush_data(theme::colors::border_default(state));
 	}
 
 	FORCE_INLINE constexpr widget_desc
 	frame_interactive(e::style_state state = e::style_state::idle) noexcept
 	{
 		return detail::frame_base()
-			 | set_body_brush_data(theme::bg_interactive(state))
-			 | set_border_brush_data(theme::border_interactive(state));
+			 | set_body_brush_data(theme::colors::bg_interactive(state))
+			 | set_border_brush_data(theme::colors::border_interactive(state));
 	}
 
 	FORCE_INLINE constexpr widget_desc
@@ -619,7 +782,7 @@ namespace age::ui::style
 			 | set_z_offset(1)
 			 | set_padding(0.f, 0.f, 0.f, 0.f)
 			 | set_body_brush_kind(e::brush_kind::color)
-			 | set_body_brush_data(theme::text_primary())
+			 | set_body_brush_data(theme::colors::text_primary())
 			 | set_border_thickness(0.f);
 	}
 }	 // namespace age::ui::style
@@ -645,7 +808,7 @@ namespace age::ui::style
 			 | set_text(p_text)
 			 | set_font_idx(g::current_font_idx)
 			 | set_font_size(e::font_size_kind::normal)
-			 | set_body_brush_data(theme::text_secondary(e::style_state::idle));
+			 | set_body_brush_data(theme::colors::text_secondary(e::style_state::idle));
 	}
 
 	// heading, selected item text
@@ -654,7 +817,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_primary.font_size)
-			 | set_body_brush_data(theme::text_primary(state));
+			 | set_body_brush_data(theme::colors::text_primary(state));
 	}
 
 	// input value, normal body
@@ -663,7 +826,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_secondary.font_size)
-			 | set_body_brush_data(theme::text_secondary(state));
+			 | set_body_brush_data(theme::colors::text_secondary(state));
 	}
 
 	// section header, label
@@ -672,7 +835,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_tertiary.font_size)
-			 | set_body_brush_data(theme::text_tertiary(state));
+			 | set_body_brush_data(theme::colors::text_tertiary(state));
 	}
 
 	// input label, placeholder
@@ -681,7 +844,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_hint.font_size)
-			 | set_body_brush_data(theme::text_hint(state));
+			 | set_body_brush_data(theme::colors::text_hint(state));
 	}
 
 	// disabled widget text
@@ -690,7 +853,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_disabled.font_size)
-			 | set_body_brush_data(theme::text_disabled(state));
+			 | set_body_brush_data(theme::colors::text_disabled(state));
 	}
 
 	// link, asset reference, clickable path
@@ -699,7 +862,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_accent.font_size)
-			 | set_body_brush_data(theme::text_accent(state));
+			 | set_body_brush_data(theme::colors::text_accent(state));
 	}
 
 	// success msg, y axis, fps ok
@@ -708,7 +871,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_positive.font_size)
-			 | set_body_brush_data(theme::text_positive(state));
+			 | set_body_brush_data(theme::colors::text_positive(state));
 	}
 
 	// error msg, x axis, warning
@@ -717,7 +880,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_negative.font_size)
-			 | set_body_brush_data(theme::text_negative(state));
+			 | set_body_brush_data(theme::colors::text_negative(state));
 	}
 
 	// button text, list item text
@@ -726,7 +889,7 @@ namespace age::ui::style
 	{
 		return text(p_text)
 			 | set_font_size(g::text_interactive.font_size)
-			 | set_body_brush_data(theme::text_interactive(state));
+			 | set_body_brush_data(theme::colors::text_interactive(state));
 	}
 }	 // namespace age::ui::style
 
@@ -762,14 +925,14 @@ namespace age::ui::style
 	slider_track(e::style_state state = e::style_state::idle) noexcept
 	{
 		return detail::slider_track_base()
-			 | set_body_brush_data(theme::slider_track(state));
+			 | set_body_brush_data(theme::colors::slider_track(state));
 	}
 
 	FORCE_INLINE constexpr widget_desc
 	slider_fill(e::style_state state = e::style_state::idle) noexcept
 	{
 		return detail::slider_track_base()
-			 | set_body_brush_data(theme::slider_fill(state));
+			 | set_body_brush_data(theme::colors::slider_fill(state));
 	}
 
 	FORCE_INLINE constexpr widget_desc
@@ -778,7 +941,7 @@ namespace age::ui::style
 		return detail::slider_thumb_base()
 			 | set_size(size_mode::fixed(theme::slider_thumb_size(state)), size_mode::fixed(theme::slider_thumb_size(state)))
 			 | set_border_thickness(theme::slider_thumb_border_thickness(state))
-			 | set_body_brush_data(theme::slider_thumb(state))
-			 | set_border_brush_data(theme::slider_thumb_ring(state));
+			 | set_body_brush_data(theme::colors::slider_thumb(state))
+			 | set_border_brush_data(theme::colors::slider_thumb_ring(state));
 	}
 }	 // namespace age::ui::style

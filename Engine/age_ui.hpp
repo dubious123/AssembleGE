@@ -149,3 +149,25 @@ namespace age::ui
 		g::char_pos_data_vec.clear();
 	}
 }	 // namespace age::ui
+
+namespace age::ui
+{
+	namespace detail
+	{
+		void
+		widget_end() noexcept;
+	}
+
+	template <std::size_t n>
+	FORCE_INLINE constexpr widget_ctx_impl<n>::~widget_ctx_impl() noexcept
+	{
+		if (hash_id != age::get_invalid_id<t_hash>())
+		{
+			for (auto _ : std::views::iota(0u, n))
+			{
+				detail::widget_end();
+				g::id_stack.pop_back();
+			}
+		}
+	}
+}	 // namespace age::ui

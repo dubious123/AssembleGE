@@ -193,6 +193,11 @@ namespace age::ui
 
 					render_data_vec[final_idx] = render_data_current;
 				}
+
+				// debug
+				{
+					// std::println("pos : {} size : {}, clip_rect : {}", child.offset, float2{ child.width, child.height }, child.clip_rect);
+				}
 			}
 
 			if (child.layout == e::widget_layout::horizontal)

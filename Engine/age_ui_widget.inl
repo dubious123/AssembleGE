@@ -5,21 +5,21 @@
 namespace age::ui::widget
 {
 	FORCE_INLINE widget_ctx
-	layout(e::widget_layout e_layout) noexcept
+	layout(e::widget_layout e_layout, auto&&... modifier) noexcept
 	{
-		return widget::begin(style::layout(e_layout));
+		return widget::begin((style::layout(e_layout) | ... | FWD(modifier)));
 	}
 
 	FORCE_INLINE widget_ctx
-	vertical() noexcept
+	vertical(auto&&... modifier) noexcept
 	{
-		return widget::begin(style::vertical());
+		return widget::begin((style::vertical() | ... | FWD(modifier)));
 	}
 
 	FORCE_INLINE widget_ctx
-	horizontal() noexcept
+	horizontal(auto&&... modifier) noexcept
 	{
-		return widget::begin(style::horizontal());
+		return widget::begin((style::horizontal() | ... | FWD(modifier)));
 	}
 }	 // namespace age::ui::widget
 
@@ -27,21 +27,21 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	FORCE_INLINE widget_ctx
-	frame(e::style_state state = e::style_state::idle) noexcept
+	frame(e::style_state state = e::style_state::idle, auto&&... modifier) noexcept
 	{
-		return widget::begin(style::frame(state));
+		return widget::begin((style::frame(state) | ... | FWD(modifier)));
 	}
 
 	FORCE_INLINE widget_ctx
-	frame_interactive(e::style_state state = e::style_state::idle) noexcept
+	frame_interactive(e::style_state state = e::style_state::idle, auto&&... modifier) noexcept
 	{
-		return widget::begin(style::frame_interactive(state));
+		return widget::begin((style::frame_interactive(state) | ... | FWD(modifier)));
 	}
 
 	FORCE_INLINE widget_ctx
-	seperator() noexcept
+	seperator(auto&&... modifier) noexcept
 	{
-		return widget::begin(style::seperator());
+		return widget::begin((style::seperator() | ... | FWD(modifier)));
 	}
 }	 // namespace age::ui::widget
 
@@ -170,14 +170,14 @@ namespace age::ui::widget
 									? 90 * math::g::degree_to_radian
 									: 0.f;
 
-				c_auto chevelon_size = font::get_line_height(theme::text_primary_font_size());
+				c_auto chevelon_size = font::get_line_height(theme::size::text_primary());
 
 				widget::begin(set_align(e::widget_align::center)
 							  | set_size(size_mode::fixed(chevelon_size), size_mode::fixed(chevelon_size))
 							  | set_border_thickness(0.f)
 							  | set_rotation(rotation)
 							  | set_shape_kind(e::shape_kind::arrow_right)
-							  | set_body_brush_data(theme::text_primary()));
+							  | set_body_brush_data(theme::colors::text_primary()));
 
 				widget::text_primary(p_str);
 			}
@@ -192,21 +192,22 @@ namespace age::ui::widget
 		return {};
 	}
 
-	FORCE_INLINE widget_ctx
+	FORCE_INLINE widget_ctx_impl<2>
 	tree_node(const char* p_str) noexcept
 	{
 		using enum input::e::key_kind;
 
-		c_auto chevelon_size = font::get_line_height(theme::text_secondary_font_size());
+		c_auto chevelon_size = font::get_line_height(theme::size::text_secondary());
+		c_auto child_padding = chevelon_size + 12.f;
 
 		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
-									 | set_padding_left(chevelon_size)
 									 | set_size(size_mode::grow(), size_mode::fit())))
 		{
 			auto is_open = false;
 
 			if (auto header = widget::begin(style::frame_interactive()
 											| set_interact(true)
+											| set_width(size_mode::grow())
 											| set_layout(e::widget_layout::horizontal)
 											| set_align(e::widget_align::begin)))
 			{
@@ -226,14 +227,16 @@ namespace age::ui::widget
 							  | set_border_thickness(0.f)
 							  | set_rotation(rotation)
 							  | set_shape_kind(e::shape_kind::arrow_right)
-							  | set_body_brush_data(theme::text_secondary()));
+							  | set_body_brush_data(theme::colors::text_secondary()));
 
 				widget::text_secondary(p_str);
 			}
 
 			if (is_open)
 			{
-				return res;
+				return widget_ctx_impl{ std::move(res), widget::begin(style::layout(e::widget_layout::vertical)
+																	  | set_padding_left(child_padding)
+																	  | set_size(size_mode::grow(), size_mode::fit())) };
 			}
 		}
 
@@ -302,36 +305,45 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	FORCE_INLINE widget_ctx
-	numeric_field(float& value, float min, float max) noexcept
+	numeric_field(float& value, float min, float max,
+				  const char*		  p_hint	 = nullptr,
+				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
+				  float				  step		 = 0.1f) noexcept
 	{
 		using enum input::e::key_kind;
 		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
-											//| set_draw(true)
-											//| set_border_thickness(1.f)
-											//| set_border_brush_data(1.f, 0.f, 0.f, 1.f)
 											| set_interact(true)))
 		{
+			step *= g::step_scale_table[g::p_input_ctx->is_ctrl_down()][g::p_input_ctx->is_shift_down()];
+
 			auto state = e::style_state::idle;
 			if (h_interact.pressed<mouse_left>())
 			{
 				state  = e::style_state::active;
-				value += g::p_input_ctx->mouse_delta.x * 0.01f;
+				value += g::p_input_ctx->mouse_delta.x * step;
 			}
 			else if (h_interact.hovered())
 			{
 				state = e::style_state::hover;
 			}
 
-			if (auto _ = widget::begin(style::frame_interactive(state)
-									   | set_horizontal()
-									   | set_width(size_mode::grow())))
+			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
 			{
-				char char_buf[16];
+				if (p_hint is_not_nullptr)
+				{
+					widget::begin(style::text_secondary(p_hint)
+								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(state)));
+				}
 
-				util::float_to_str(char_buf, value);
+				if (auto _ = widget::begin(style::frame_interactive(state)
+										   | set_horizontal()
+										   | set_width(size_mode::grow())))
+				{
+					char char_buf[16];
 
-				widget::text_hint("X", state);
-				widget::text_secondary(char_buf, state);
+					util::float_to_str(char_buf, value);
+					widget::text_secondary(char_buf, state);
+				}
 			}
 
 			return h_interact;

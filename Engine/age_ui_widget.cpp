@@ -338,6 +338,7 @@ namespace age::ui::detail
 				}
 				else
 				{
+					fixed += child.size_min<is_width>();
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_min<is_width>(), false, child_idx));
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_max<is_width>(), true, child_idx));
 				}
@@ -469,7 +470,7 @@ namespace age::ui::detail
 				else
 				{
 					grow_size += child.size_max<is_width>();
-
+					// fixed	  += child.size_min<is_width>();
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_min<is_width>(), false, child_idx));
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_max<is_width>(), true, child_idx));
 				}
@@ -523,7 +524,7 @@ namespace age::ui::detail
 		}
 	}
 
-	FORCE_INLINE void
+	void
 	widget_end() noexcept
 	{
 		auto&  size_data		= g::layout_size_data_stack[g::layout_size_data_current_idx];
@@ -685,15 +686,3 @@ namespace age::ui::widget
 		return widget_ctx{ detail::widget_begin(std::move(desc)) };
 	}
 }	 // namespace age::ui::widget
-
-namespace age::ui
-{
-	widget_ctx::~widget_ctx() noexcept
-	{
-		if (hash_id != age::get_invalid_id<t_hash>())
-		{
-			detail::widget_end();
-			g::id_stack.pop_back();
-		}
-	}
-}	 // namespace age::ui

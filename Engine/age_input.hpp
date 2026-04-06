@@ -228,19 +228,19 @@ namespace age::input
 		bool
 		is_ctrl_down() const
 		{
-			return is_down(age::input::e::key_kind::key_left_ctrl) or is_down(age::input::e::key_kind::key_right_ctrl);
+			return is_down(age::input::e::key_kind::key_ctrl);	  // is_down(age::input::e::key_kind::key_left_ctrl) or is_down(age::input::e::key_kind::key_right_ctrl);
 		}
 
 		bool
 		is_shift_down() const
 		{
-			return is_down(age::input::e::key_kind::key_left_shift) or is_down(age::input::e::key_kind::key_right_shift);
+			return is_down(age::input::e::key_kind::key_shift);	   // is_down(age::input::e::key_kind::key_left_shift) or is_down(age::input::e::key_kind::key_right_shift);
 		}
 
 		bool
 		is_alt_down() const
 		{
-			return is_down(age::input::e::key_kind::key_left_alt) or is_down(age::input::e::key_kind::key_right_alt);
+			return is_down(age::input::e::key_kind::key_alt);	 // is_down(age::input::e::key_kind::key_left_alt) or is_down(age::input::e::key_kind::key_right_alt);
 		}
 	};
 

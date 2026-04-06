@@ -72,6 +72,41 @@ namespace age::util
 
 		*p_char = '\0';
 	}
+
+	template <std::size_t n, int32 base = 10>
+	constexpr void
+	integral_to_str(char (&buf)[n], std::integral auto value)
+	{
+		if constexpr (sizeof(value) <= sizeof(uint32))
+		{
+			static_assert(n >= 12, "buffer too small");
+		}
+		else if constexpr (sizeof(value) <= sizeof(uint64))
+		{
+			static_assert(n >= 21, "buffer too small");
+		}
+
+		auto [ptr, ec] = std::to_chars(buf, buf + n - 1, value, base);
+		AGE_ASSERT(ec == std::errc{});
+		*ptr = '\0';
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
+	template <typename t, std::size_t n>
+	constexpr void
+	to_str(char (&buf)[n], t value)
+	{
+		if constexpr (std::is_floating_point_v<t>)
+		{
+			float_to_str(buf, value);
+		}
+		else
+		{
+			integral_to_str(buf, value);
+		}
+	}
 }	 // namespace age::util
 
 namespace age::util

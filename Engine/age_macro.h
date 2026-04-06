@@ -299,41 +299,44 @@
 		return L## #enum_name;              \
 	}
 
-#define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                  \
-	enum class enum_class_name : underlying_type                                \
-	{                                                                           \
-		__VA_ARGS__                                                             \
-	};                                                                          \
-	constexpr inline std::string_view to_string(enum_class_name e) noexcept     \
-	{                                                                           \
-		using __t_enum__ = enum_class_name;                                     \
-		switch (e)                                                              \
-		{                                                                       \
-			FOR_EACH (AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                     \
-				;                                                               \
-		default:                                                                \
-		{                                                                       \
-			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
-		}                                                                       \
-		}                                                                       \
-	}                                                                           \
-	constexpr inline std::wstring_view to_wstring(enum_class_name e) noexcept   \
-	{                                                                           \
-		using __t_enum__ = enum_class_name;                                     \
-		switch (e)                                                              \
-		{                                                                       \
-			FOR_EACH (AGE_ENUM_TO_WSTRING_CASE, __VA_ARGS__)                    \
-				;                                                               \
-		default:                                                                \
-		{                                                                       \
-			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e)); \
-		}                                                                       \
-		}                                                                       \
-	}                                                                           \
-	template <typename t>                                                       \
-	requires std::is_same_v<t, enum_class_name>                                 \
-	consteval std::size_t size() noexcept                                       \
-	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }
+#define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                           \
+	enum class enum_class_name : underlying_type                                         \
+	{                                                                                    \
+		__VA_ARGS__                                                                      \
+	};                                                                                   \
+	constexpr inline std::string_view to_string(enum_class_name e) noexcept              \
+	{                                                                                    \
+		using __t_enum__ = enum_class_name;                                              \
+		switch (e)                                                                       \
+		{                                                                                \
+			FOR_EACH (AGE_ENUM_TO_STRING_CASE, __VA_ARGS__)                              \
+				;                                                                        \
+		default:                                                                         \
+		{                                                                                \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e));          \
+		}                                                                                \
+		}                                                                                \
+	}                                                                                    \
+	constexpr inline std::wstring_view to_wstring(enum_class_name e) noexcept            \
+	{                                                                                    \
+		using __t_enum__ = enum_class_name;                                              \
+		switch (e)                                                                       \
+		{                                                                                \
+			FOR_EACH (AGE_ENUM_TO_WSTRING_CASE, __VA_ARGS__)                             \
+				;                                                                        \
+		default:                                                                         \
+		{                                                                                \
+			AGE_UNREACHABLE("invalid enum, value : {}", std::to_underlying(e));          \
+		}                                                                                \
+		}                                                                                \
+	}                                                                                    \
+	template <typename t>                                                                \
+	requires std::is_same_v<t, enum_class_name>                                          \
+	consteval std::size_t size() noexcept                                                \
+	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); } \
+	constexpr FORCE_INLINE auto to_idx(enum_class_name e) noexcept                       \
+	{ return std::to_underlying(e); }                                                    \
+	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();
 
 
 #define AGE_ENUM_DECL_VAL(tpl) AGE_PP_TUPLE_GET_0_I(tpl) = AGE_PP_TUPLE_GET_1_I(tpl)
