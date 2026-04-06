@@ -184,18 +184,12 @@ namespace age::ui
 
 		float child_gap;
 
-		float padding_sum;	  // if layout is horizontal, padding top + padding bottom, if layout is vertical, padding left + paddint right
-
 		float width_min;
 		float width_max;
-		float width_content_min;
-		float width_content_max;
 		float width_final;
 
 		float height_min;
 		float height_max;
-		float height_content_min;
-		float height_content_max;
 		float height_final;
 
 		template <bool is_width>
@@ -237,34 +231,6 @@ namespace age::ui
 			else
 			{
 				return height_max;
-			}
-		}
-
-		template <bool is_width>
-		FORCE_INLINE float&
-		size_content_min() noexcept
-		{
-			if constexpr (is_width)
-			{
-				return width_content_min;
-			}
-			else
-			{
-				return height_content_min;
-			}
-		}
-
-		template <bool is_width>
-		FORCE_INLINE float&
-		size_content_max() noexcept
-		{
-			if constexpr (is_width)
-			{
-				return width_content_max;
-			}
-			else
-			{
-				return height_content_max;
 			}
 		}
 
@@ -431,9 +397,9 @@ namespace age::ui::g
 	inline uint32						 layout_size_data_current_idx;
 
 	// layout vec
-	inline age::vector<layout_pos_data> element_layout_pos_data_vec;
-	inline age::vector<render_data>		element_render_data_vec;
-	inline age::vector<uint32>			element_z_order_count_vec;
+	inline age::vector<layout_pos_data> layout_pos_data_vec;
+	inline age::vector<render_data>		render_data_vec;
+	inline age::vector<uint32>			z_order_count_vec;
 
 	// layout text
 	inline age::vector<text_data>	  text_data_vec;

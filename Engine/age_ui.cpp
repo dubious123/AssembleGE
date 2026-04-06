@@ -26,8 +26,8 @@ namespace age::ui
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
 		AGE_ASSERT(g::layout_size_data_stack.is_empty());
-		AGE_ASSERT(g::element_layout_pos_data_vec.is_empty());
-		AGE_ASSERT(g::element_render_data_vec.is_empty());
+		AGE_ASSERT(g::layout_pos_data_vec.is_empty());
+		AGE_ASSERT(g::render_data_vec.is_empty());
 		AGE_ASSERT(g::text_data_vec.is_empty());
 		AGE_ASSERT(g::word_data_vec.is_empty());
 		AGE_ASSERT(g::char_data_vec.is_empty());
@@ -35,12 +35,12 @@ namespace age::ui
 
 		g::id_stack.emplace_back(id_scope{ .hash_id = g::fnv1a_offset_basis, .counter = 0 });
 
-		g::element_z_order_count_vec.clear();
+		g::z_order_count_vec.clear();
 
 		g::window_width	 = static_cast<float>(platform::get_client_width(h_window));
 		g::window_height = static_cast<float>(platform::get_client_height(h_window));
 
-		std::ranges::fill(g::element_z_order_count_vec, 0u);
+		std::ranges::fill(g::z_order_count_vec, 0u);
 
 		detail::widget_begin<true>(
 			set_draw(false)
@@ -62,7 +62,7 @@ namespace age::ui
 							.padding_bottom	  = 0.f }*/
 		);
 
-		g::element_layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
+		g::layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
 
 		// handle input
 		g::p_input_ctx = std::addressof(*h_window->h_input);
@@ -78,7 +78,7 @@ namespace age::ui
 
 		{
 			auto z_count_total = 0u;
-			for (auto&& [i, z_count] : g::element_z_order_count_vec | std::views::enumerate)
+			for (auto&& [i, z_count] : g::z_order_count_vec | std::views::enumerate)
 			{
 				if (z_count > 0)
 				{
@@ -98,16 +98,16 @@ namespace age::ui
 		auto current_hover_z_offset = 0u;
 		g::hover_id					= get_invalid_id<t_hash>();
 
-		for (auto current_idx : std::views::iota(1u, g::element_layout_pos_data_vec.size<uint32>()))
+		for (auto current_idx : std::views::iota(1u, g::layout_pos_data_vec.size<uint32>()))
 		{
-			while (g::element_layout_pos_data_vec[g::element_pos_parent_idx_stack.back()].child_count == 0)
+			while (g::layout_pos_data_vec[g::element_pos_parent_idx_stack.back()].child_count == 0)
 			{
 				g::element_pos_parent_idx_stack.pop_back();
 			}
 
 			c_auto parent_idx = g::element_pos_parent_idx_stack.back();
-			auto&  parent	  = g::element_layout_pos_data_vec[parent_idx];
-			auto&  child	  = g::element_layout_pos_data_vec[current_idx];
+			auto&  parent	  = g::layout_pos_data_vec[parent_idx];
+			auto&  child	  = g::layout_pos_data_vec[current_idx];
 
 			if (parent.layout == e::widget_layout::horizontal)
 			{
@@ -164,7 +164,7 @@ namespace age::ui
 
 			if (auto draw = child.render_data_count > 0)
 			{
-				auto& render_data_current = g::element_render_data_vec[child.render_data_idx];
+				auto& render_data_current = g::render_data_vec[child.render_data_idx];
 
 				if (render_data_current.shape_kind == e::shape_kind::text)
 				{
@@ -178,7 +178,7 @@ namespace age::ui
 						render_data_current.shape_data.text.atlas_uv_min = char_pos_data.atlas_uv_min;
 						render_data_current.shape_data.text.atlas_uv_max = char_pos_data.atlas_uv_max;
 
-						c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+						c_auto final_idx = g::z_order_count_vec[child.z_offset]++;
 
 						render_data_vec[final_idx] = render_data_current;
 					}
@@ -189,7 +189,7 @@ namespace age::ui
 					render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
 					render_data_current.clip_rect = child.clip_rect;
 
-					c_auto final_idx = g::element_z_order_count_vec[child.z_offset]++;
+					c_auto final_idx = g::z_order_count_vec[child.z_offset]++;
 
 					render_data_vec[final_idx] = render_data_current;
 				}
@@ -257,8 +257,8 @@ namespace age::ui
 
 		g::id_stack.clear();
 		g::layout_size_data_stack.clear();
-		g::element_layout_pos_data_vec.clear();
-		g::element_render_data_vec.clear();
+		g::layout_pos_data_vec.clear();
+		g::render_data_vec.clear();
 
 		g::text_data_vec.clear();
 		g::word_data_vec.clear();

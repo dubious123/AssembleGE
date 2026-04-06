@@ -150,7 +150,7 @@ namespace age::ui::detail
 		if constexpr (is_root is_false)
 		{
 			auto& size_data_parent = g::layout_size_data_stack[g::layout_size_data_current_idx];
-			auto& pos_data_parent  = g::element_layout_pos_data_vec[size_data_parent.pos_data_idx];
+			auto& pos_data_parent  = g::layout_pos_data_vec[size_data_parent.pos_data_idx];
 			++pos_data_parent.child_count;
 
 			if (desc.draw)
@@ -180,24 +180,19 @@ namespace age::ui::detail
 			.height_mode		= desc.height_size_mode,
 			.child_subtree_size = 0,
 			.parent_idx			= g::layout_size_data_current_idx,
-			.pos_data_idx		= g::element_layout_pos_data_vec.size<uint32>(),
+			.pos_data_idx		= g::layout_pos_data_vec.size<uint32>(),
 			.child_gap			= desc.child_gap,
-			.padding_sum		= padding_sum,
 			.width_min			= desc.width_min,
 			.width_max			= width_max,
-			.width_content_min	= desc.padding_left + desc.padding_right,
-			.width_content_max	= desc.padding_left + desc.padding_right,
 			.width_final		= 0.f,
 			.height_min			= desc.height_min,
 			.height_max			= height_max,
-			.height_content_min = desc.padding_top + desc.padding_bottom,
-			.height_content_max = desc.padding_top + desc.padding_bottom,
 			.height_final		= 0.f,
 		});
 
-		g::element_layout_pos_data_vec.emplace_back(layout_pos_data{
+		g::layout_pos_data_vec.emplace_back(layout_pos_data{
 			.id				   = id,
-			.render_data_idx   = g::element_render_data_vec.size<uint32>(),
+			.render_data_idx   = g::render_data_vec.size<uint32>(),
 			.render_data_count = render_data_count,
 			.layout			   = desc.layout,
 			.align			   = desc.align,
@@ -215,7 +210,7 @@ namespace age::ui::detail
 
 		if (desc.draw)
 		{
-			g::element_render_data_vec.emplace_back(render_data{
+			g::render_data_vec.emplace_back(render_data{
 				.pivot_uv		   = desc.pivot_uv,
 				.rotation		   = desc.rotation,
 				.border_thickness  = desc.border_thickness,
@@ -230,14 +225,14 @@ namespace age::ui::detail
 
 		// handle z_order
 		{
-			if (z_offset >= g::element_z_order_count_vec.size())
+			if (z_offset >= g::z_order_count_vec.size())
 			{
-				c_auto before_size = g::element_z_order_count_vec.size();
-				g::element_z_order_count_vec.resize(z_offset + 1);
-				std::ranges::fill(g::element_z_order_count_vec.begin() + before_size, g::element_z_order_count_vec.end(), 0u);
+				c_auto before_size = g::z_order_count_vec.size();
+				g::z_order_count_vec.resize(z_offset + 1);
+				std::ranges::fill(g::z_order_count_vec.begin() + before_size, g::z_order_count_vec.end(), 0u);
 			}
 
-			g::element_z_order_count_vec[z_offset] += render_data_count;
+			g::z_order_count_vec[z_offset] += render_data_count;
 		}
 
 		g::layout_size_data_current_idx = g::layout_size_data_stack.size<uint32>() - 1;
@@ -260,6 +255,20 @@ namespace age::ui::detail
 	}
 
 	template <bool is_width>
+	FORCE_INLINE float
+	padding_sum(const layout_pos_data& pos_data) noexcept
+	{
+		if constexpr (is_width)
+		{
+			return pos_data.padding_left + pos_data.padding_right;
+		}
+		else
+		{
+			return pos_data.padding_top + pos_data.padding_bottom;
+		}
+	}
+
+	template <bool is_width>
 	void
 	finalize_fixed(layout_size_data& size_data, uint32 idx, float final_size) noexcept;
 
@@ -267,7 +276,7 @@ namespace age::ui::detail
 	void
 	submit_size(layout_size_data& size_data, uint32 idx, float final_size) noexcept
 	{
-		auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
+		auto& pos_data = g::layout_pos_data_vec[size_data.pos_data_idx];
 
 		size_data.size_final<is_width>() = final_size;
 
@@ -288,9 +297,11 @@ namespace age::ui::detail
 	void
 	finalize_fixed(layout_size_data& size_data, uint32 idx, float final_size) noexcept
 	{
+		auto& pos_data = g::layout_pos_data_vec[size_data.pos_data_idx];
+
 		if (is_cross<is_width>(size_data.layout))
 		{
-			c_auto child_size = final_size - size_data.padding_sum;
+			c_auto child_size = final_size - padding_sum<is_width>(pos_data);
 			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
 			{
 				auto& child = g::layout_size_data_stack[child_idx];
@@ -307,18 +318,7 @@ namespace age::ui::detail
 		}
 		else
 		{
-			auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
-			auto  fixed	   = size_data.child_gap * std::max(pos_data.child_count - 1, 0);
-			// auto  grow_size = 0.f;
-			if constexpr (is_width)
-			{
-				fixed += pos_data.padding_left + pos_data.padding_right;
-			}
-			else
-			{
-				fixed += pos_data.padding_top + pos_data.padding_bottom;
-			}
-
+			auto fixed		= size_data.child_gap * std::max(pos_data.child_count - 1, 0) + padding_sum<is_width>(pos_data);
 			auto begin_size = g::element_layout_grow_event_vec.size();
 
 			g::element_layout_grow_event_vec.reserve(begin_size + size_data.child_subtree_size * 2);
@@ -338,8 +338,6 @@ namespace age::ui::detail
 				}
 				else
 				{
-					// grow_size += child.size_max<is_width>();
-
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_min<is_width>(), false, child_idx));
 					g::element_layout_grow_event_vec.emplace_back(detail::grow_sort_event(child.size_max<is_width>(), true, child_idx));
 				}
@@ -347,10 +345,8 @@ namespace age::ui::detail
 				child_idx += child.child_subtree_size + 1;
 			}
 
-			// auto final_size = std::clamp(fixed + grow_size, size_data.size_min<is_width>(), size_data.size_max<is_width>());
 			auto available = final_size - fixed;
-
-			auto level = 0.f;
+			auto level	   = 0.f;
 
 			if (g::element_layout_grow_event_vec.size() > begin_size)
 			{
@@ -398,7 +394,7 @@ namespace age::ui::detail
 	void
 	finalize_fit(layout_size_data& size_data, uint32 idx) noexcept
 	{
-		auto& pos_data = g::element_layout_pos_data_vec[size_data.pos_data_idx];
+		auto& pos_data = g::layout_pos_data_vec[size_data.pos_data_idx];
 
 		c_auto size_mode = size_data.size_mode<is_width>();
 
@@ -431,9 +427,9 @@ namespace age::ui::detail
 				child_idx += child.child_subtree_size + 1;
 			}
 
-			final_size = std::clamp(final_size + size_data.padding_sum, size_data.size_min<is_width>(), size_data.size_max<is_width>());
+			final_size = std::clamp(final_size + padding_sum<is_width>(pos_data), size_data.size_min<is_width>(), size_data.size_max<is_width>());
 
-			c_auto child_size = final_size - size_data.padding_sum;
+			c_auto child_size = final_size - padding_sum<is_width>(pos_data);
 
 			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
 			{
@@ -451,20 +447,10 @@ namespace age::ui::detail
 		}
 		else
 		{
-			auto fixed	   = size_data.child_gap * std::max(pos_data.child_count - 1, 0);
-			auto grow_size = 0.f;
-			if constexpr (is_width)
-			{
-				fixed += pos_data.padding_left + pos_data.padding_right;
-			}
-			else
-			{
-				fixed += pos_data.padding_top + pos_data.padding_bottom;
-			}
-
+			auto fixed		= size_data.child_gap * std::max(pos_data.child_count - 1, 0) + padding_sum<is_width>(pos_data);
+			auto grow_size	= 0.f;
 			auto begin_size = g::element_layout_grow_event_vec.size();
 
-			// g::element_layout_grow_event_vec.clear();
 			g::element_layout_grow_event_vec.reserve(begin_size + size_data.child_subtree_size * 2);
 
 			for (auto child_idx = idx + 1; child_idx <= idx + size_data.child_subtree_size;)
@@ -493,8 +479,7 @@ namespace age::ui::detail
 
 			auto final_size = std::clamp(fixed + grow_size, size_data.size_min<is_width>(), size_data.size_max<is_width>());
 			auto available	= final_size - fixed;
-
-			auto level = 0.f;
+			auto level		= 0.f;
 
 			if (g::element_layout_grow_event_vec.size() > begin_size)
 			{

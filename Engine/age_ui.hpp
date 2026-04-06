@@ -140,8 +140,8 @@ namespace age::ui
 
 		g::id_stack.clear();
 		g::layout_size_data_stack.clear();
-		g::element_layout_pos_data_vec.clear();
-		g::element_render_data_vec.clear();
+		g::layout_pos_data_vec.clear();
+		g::render_data_vec.clear();
 
 		g::text_data_vec.clear();
 		g::word_data_vec.clear();
