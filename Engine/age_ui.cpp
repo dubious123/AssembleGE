@@ -16,7 +16,10 @@ namespace age::ui
 		g::theme_font_scale = g::theme_font_scale_default;
 		font::set_scale(g::theme_font_scale_default);
 
-		g::theme_slider_track_height = g::theme_slider_track_height_default;
+		g::theme_slider_track_height	 = g::theme_slider_track_height_default;
+		g::theme_resize_handle_thickness = g::theme_resize_handle_thickness_default;
+		g::theme_scroll_thumb_thickness	 = g::theme_scroll_thumb_thickness_default;
+
 		std::ranges::copy(g::theme_slider_thumb_size_default, g::theme_slider_thumb_size);
 		std::ranges::copy(g::theme_slider_thumb_border_thickness_default, g::theme_slider_thumb_border_thickness);
 	}

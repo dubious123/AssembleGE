@@ -671,6 +671,42 @@ namespace age::ui
 		return detail::mod_height{ size_height };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	set_width_fixed(float width) noexcept
+	{
+		return detail::mod_width{ size_mode::fixed(width) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_height_fixed(float height) noexcept
+	{
+		return detail::mod_height{ size_mode::fixed(height) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_width_grow() noexcept
+	{
+		return detail::mod_width{ size_mode::grow() };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_height_grow() noexcept
+	{
+		return detail::mod_height{ size_mode::grow() };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_width_fit() noexcept
+	{
+		return detail::mod_width{ size_mode::fit() };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_height_fit() noexcept
+	{
+		return detail::mod_height{ size_mode::fit() };
+	}
+
 #undef X
 #undef Y
 
@@ -1034,5 +1070,29 @@ namespace age::ui::style
 			 | set_border_thickness(theme::slider_thumb_border_thickness(state))
 			 | set_body_brush_data(theme::colors::slider_thumb(state))
 			 | set_border_brush_data(theme::colors::slider_thumb_ring(state));
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		scroll_thumb_base() noexcept
+		{
+			return set_align(e::widget_align::begin)
+				 | set_shape_kind(e::shape_kind::rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_z_offset(1);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_body_brush_data(theme::colors::scroll_thumb(state));
 	}
 }	 // namespace age::ui::style

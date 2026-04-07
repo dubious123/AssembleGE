@@ -291,22 +291,29 @@ namespace age_demo::scene_2
 			using namespace age::ui;
 			using enum age::input::e::key_kind;
 
-			// if (auto _ = widget::frame(e::style_state::active, set_body_brush_data(0, 0, 0, 0), set_size(size_mode::fixed(1000), size_mode::fixed(1000))))
+			// if (auto h_panel = widget::begin(style::horizontal() | set_size(size_mode::fixed(500), size_mode::grow())))
 			//{
-			//	if (auto _ = widget::panel_resizable(set_size(size_mode::fit(), size_mode::grow())))
+			//	if (auto h_scroll_panel = widget::vertical(set_draw(true),
+			//											   set_border_brush_data(0, 1, 0, 1),
+			//											   set_border_thickness(2.f),
+			//											   set_save_state(true),
+			//											   set_size(size_mode::grow(), size_mode::fit())))
 			//	{
-			//		if (auto btn = widget::button("hi"))
-			//		{
-			//			if (btn.clicked<age::input::e::key_kind::mouse_left>())
-			//			{
-			//				std::println("hi");
-			//			}
-			//		}
+			//		// auto&  widget_state = h_scroll_panel.get_state();
+			//		// c_auto need_scroll	= widget_state.height > widget_state.clip_height + math::g::epsilon_1e4;
+
+			//		// std::println("{}, {}, {}", widget_state.height, widget_state.clip_height, need_scroll);
+
+			//		// if (need_scroll)
+			//		//{
+			//		// }
+
+			//		widget::panel(set_size(size_mode::fixed(100), size_mode::fixed(100)));
 			//	}
-			// }
+			//}
 
 
-			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow())))
+			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 			{
 				if (auto _ = widget::panel_resizable_h(700, 1000,
 													   set_layout(e::widget_layout::vertical),
@@ -453,6 +460,57 @@ namespace age_demo::scene_2
 								widget::text_accent("...");
 								widget::begin(style::text_accent("..."));
 								widget::begin(style::text("...") | set_body_brush_data(theme::colors::text_accent(e::style_state::idle)));
+							}
+						}
+					}
+
+					if (auto _ = widget::panel(set_size(size_mode::grow(), size_mode::grow())))
+					{
+						static auto item_count = 5;
+						if (auto btn = widget::button("add item", set_align(e::widget_align::center)))
+						{
+							if (btn.clicked<mouse_left>())
+							{
+								item_count += 5;
+							}
+						}
+
+						if (auto btn = widget::button("remove item", set_align(e::widget_align::center)))
+						{
+							if (btn.clicked<mouse_left>())
+							{
+								item_count -= 5;
+							}
+						}
+
+						item_count = std::max(0, item_count);
+						if (auto _ = widget::scroll_area_v())
+						{
+							for (auto _ : age::views::loop(item_count))
+							{
+								auto str = std::format("button {}", _);
+								if (auto btn = widget::button(str.c_str(), set_align(e::widget_align::center)))
+								{
+									if (btn.clicked<mouse_left>())
+									{
+										std::println("{} clicked!", str);
+									}
+								}
+							}
+						}
+
+						if (auto _ = widget::scroll_area_h())
+						{
+							for (auto _ : age::views::loop(item_count))
+							{
+								auto str = std::format("button {}", _);
+								if (auto btn = widget::button(str.c_str(), set_align(e::widget_align::center)))
+								{
+									if (btn.clicked<mouse_left>())
+									{
+										std::println("{} clicked!", str);
+									}
+								}
 							}
 						}
 					}

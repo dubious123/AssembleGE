@@ -99,7 +99,7 @@ namespace age::ui::widget
 					style_state = e::style_state::hover;
 				}
 
-				widget_state.drag_x = std::clamp(widget_state.drag_x, min, max - 8.f);
+				widget_state.drag_x = std::clamp(widget_state.drag_x, min, max - g::theme_resize_handle_thickness);
 
 				width = widget_state.drag_x;
 
@@ -107,7 +107,7 @@ namespace age::ui::widget
 							  | set_draw(true)
 							  | set_body_brush_kind(e::brush_kind::color)
 							  | set_body_brush_data(theme::color<e::theme_token_kind::resize_handle>(style_state))
-							  | set_size(size_mode::fixed(8.f), size_mode::grow()));
+							  | set_size(size_mode::fixed(g::theme_resize_handle_thickness), size_mode::grow()));
 			}
 
 			return widget_ctx_impl{ std::move(h_panel),
@@ -151,7 +151,7 @@ namespace age::ui::widget
 					style_state = e::style_state::hover;
 				}
 
-				widget_state.drag_y = std::clamp(widget_state.drag_y, min, max - 8.f);
+				widget_state.drag_y = std::clamp(widget_state.drag_y, min, max - g::theme_resize_handle_thickness);
 
 				height = widget_state.drag_y;
 
@@ -159,12 +159,182 @@ namespace age::ui::widget
 							  | set_draw(true)
 							  | set_body_brush_kind(e::brush_kind::color)
 							  | set_body_brush_data(theme::color<e::theme_token_kind::resize_handle>(style_state))
-							  | set_size(size_mode::grow(), size_mode::fixed(8.f)));
+							  | set_size(size_mode::grow(), size_mode::fixed(g::theme_resize_handle_thickness)));
 			}
 
 			return widget_ctx_impl{ std::move(h_panel),
 									widget::begin(style::vertical() | set_size(size_mode::grow(), size_mode::fixed(height))),
 									widget::begin((style::vertical() | ... | FWD(modifier))) };
+		}
+
+		return {};
+	}
+}	 // namespace age::ui::widget
+
+// scroll
+namespace age::ui::widget
+{
+	FORCE_INLINE widget_ctx_impl<3>
+	scroll_area_v() noexcept
+	{
+		using enum input::e::key_kind;
+		if (auto h_panel = widget::begin(style::horizontal_inv() | set_size(size_mode::grow(), size_mode::grow())))
+		{
+			auto track_id	   = t_hash{};
+			auto scroll_offset = 0.f;
+			if (auto h_track = widget::begin(style::vertical() | set_save_state(true) | set_interact(true) | set_width_fit() | set_height_grow()))
+			{
+				track_id = h_track.hash_id;
+
+				auto& track_state	 = h_track.get_state();
+				auto& thumb_offset_y = track_state.drag_y;
+
+				c_auto thumb_height		  = track_state.drag_x;
+				c_auto thumb_width		  = thumb_height > 0.f ? g::theme_scroll_thumb_thickness : 0.f;
+				c_auto thumb_y_offset_max = std::max(track_state.height - thumb_height, 0.f);
+
+				auto style_state = e::style_state::idle;
+
+				if (h_track.pressed<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					c_auto thumb_y_min = track_state.pos.y + thumb_offset_y;
+					c_auto thumb_y_max = thumb_y_min + thumb_height;
+
+					if (g::p_input_ctx->mouse_pos.y < thumb_y_min or g::p_input_ctx->mouse_pos.y > thumb_y_max)
+					{
+						thumb_offset_y = g::p_input_ctx->mouse_pos.y - track_state.pos.y - thumb_height * 0.5f;
+					}
+					else
+					{
+						track_state.drag_y += g::p_input_ctx->mouse_delta.y;
+					}
+
+					track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_y_offset_max);
+				}
+				else if (h_track.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
+
+				widget::begin(style::scroll_thumb(style_state) | set_offset(0, thumb_offset_y) | set_width_fixed(thumb_width) | set_height_fixed(thumb_height));
+
+				scroll_offset = (thumb_offset_y / (thumb_y_offset_max)) * track_state.drag_z;
+			}
+
+			if (auto h_content = widget::panel(set_width_grow(), set_height_grow()))
+			{
+				if (auto h_scroll_panel = widget::begin(style::vertical()
+														| set_draw(true)
+														| set_align(e::widget_align::begin)
+														| set_offset(0, -scroll_offset)
+														| set_save_state(true)
+														| set_size(size_mode::grow(), size_mode::fit())))
+				{
+					auto& widget_state = h_scroll_panel.get_state();
+
+					auto& track_state = g::widget_state_map[track_id];
+
+					if (c_auto need_scroll = widget_state.height > widget_state.clip_height + math::g::epsilon_1e4)
+					{
+						track_state.drag_x = std::max((widget_state.clip_height / widget_state.height) * widget_state.clip_height, 20.f);
+						track_state.drag_z = widget_state.height - widget_state.clip_height;
+					}
+					else
+					{
+						track_state.drag_x = 0;
+						track_state.drag_z = 0;
+					}
+
+					return widget_ctx_impl{ FWD(h_panel), FWD(h_content), FWD(h_scroll_panel) };
+				}
+			}
+
+
+			AGE_UNREACHABLE();
+		}
+
+		return {};
+	}
+
+	FORCE_INLINE widget_ctx_impl<3>
+	scroll_area_h() noexcept
+	{
+		using enum input::e::key_kind;
+		if (auto h_panel = widget::begin(style::vertical_inv() | set_size(size_mode::grow(), size_mode::grow())))
+		{
+			auto track_id	   = t_hash{};
+			auto scroll_offset = 0.f;
+			if (auto h_track = widget::begin(style::horizontal() | set_save_state(true) | set_interact(true) | set_height_fit() | set_width_grow()))
+			{
+				track_id = h_track.hash_id;
+
+				auto& track_state	 = h_track.get_state();
+				auto& thumb_offset_x = track_state.drag_y;
+
+				c_auto thumb_width		  = track_state.drag_x;
+				c_auto thumb_height		  = thumb_width > 0.f ? g::theme_scroll_thumb_thickness : 0.f;
+				c_auto thumb_x_offset_max = std::max(track_state.width - thumb_width, 0.f);
+
+				auto style_state = e::style_state::idle;
+
+				if (h_track.pressed<mouse_left>())
+				{
+					style_state = e::style_state::active;
+
+					c_auto thumb_x_min = track_state.pos.x + thumb_offset_x;
+					c_auto thumb_x_max = thumb_x_min + thumb_width;
+
+					if (g::p_input_ctx->mouse_pos.x < thumb_x_min or g::p_input_ctx->mouse_pos.x > thumb_x_max)
+					{
+						thumb_offset_x = g::p_input_ctx->mouse_pos.x - track_state.pos.x - thumb_width * 0.5f;
+					}
+					else
+					{
+						track_state.drag_y += g::p_input_ctx->mouse_delta.x;
+					}
+
+					track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_x_offset_max);
+				}
+				else if (h_track.hovered())
+				{
+					style_state = e::style_state::hover;
+				}
+
+				widget::begin(style::scroll_thumb(style_state) | set_offset(thumb_offset_x, 0) | set_width_fixed(thumb_width) | set_height_fixed(thumb_height));
+
+				scroll_offset = (thumb_offset_x / (thumb_x_offset_max)) * track_state.drag_z;
+			}
+
+			if (auto h_content = widget::panel(set_width_grow(), set_height_grow()))
+			{
+				if (auto h_scroll_panel = widget::begin(style::horizontal()
+														| set_draw(true)
+														| set_align(e::widget_align::begin)
+														| set_offset(-scroll_offset, 0)
+														| set_save_state(true)
+														| set_size(size_mode::fit(), size_mode::grow())))
+				{
+					auto& widget_state = h_scroll_panel.get_state();
+
+					auto& track_state = g::widget_state_map[track_id];
+
+					if (c_auto need_scroll = widget_state.width > widget_state.clip_width + math::g::epsilon_1e4)
+					{
+						track_state.drag_x = std::max((widget_state.clip_width / widget_state.width) * widget_state.clip_width, 20.f);
+						track_state.drag_z = widget_state.width - widget_state.clip_width;
+					}
+					else
+					{
+						track_state.drag_x = 0;
+						track_state.drag_z = 0;
+					}
+
+					return widget_ctx_impl{ FWD(h_panel), FWD(h_content), FWD(h_scroll_panel) };
+				}
+			}
+			AGE_UNREACHABLE();
 		}
 
 		return {};

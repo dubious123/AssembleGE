@@ -1,5 +1,16 @@
 #pragma once
 
+// loop
+namespace age::views
+{
+	FORCE_INLINE [[nodiscard]]
+	constexpr decltype(auto)
+	loop(std::integral auto n) noexcept
+	{
+		return std::views::iota(BARE_OF(n){ 0 }, n);
+	}
+}	 // namespace age::views
+
 // each_set_bit
 namespace age::views
 {
@@ -149,8 +160,7 @@ namespace age::views
 	namespace detail
 	{
 		template <std::size_t n, typename t_v>
-		class circular_adjacent_view : public std::ranges::view_interface<circular_adjacent_view<n, t_v>>
-		{
+		class circular_adjacent_view : public std::ranges::view_interface<circular_adjacent_view<n, t_v>> {
 			static_assert(n > 0);
 
 		  private:
@@ -195,8 +205,7 @@ namespace age::views
 			{
 			}
 
-			class iterator
-			{
+			class iterator {
 			  private:
 				const circular_adjacent_view* parent{};
 				t_size						  i{};

@@ -277,6 +277,10 @@ namespace age::ui::detail
 
 	template <bool is_width>
 	void
+	finalize_fit(layout_size_data& size_data, uint32 idx) noexcept;
+
+	template <bool is_width>
+	void
 	submit_size(layout_size_data& size_data, uint32 idx, float final_size) noexcept
 	{
 		auto& pos_data = g::layout_pos_data_vec[size_data.pos_data_idx];
@@ -311,7 +315,21 @@ namespace age::ui::detail
 
 				if (child.size_final<is_width>() < 0.f)
 				{
-					finalize_fixed<is_width>(child, child_idx, std::clamp(child_size, child.size_min<is_width>(), child.size_max<is_width>()));
+					if constexpr (is_width)
+					{
+						finalize_fixed<is_width>(child, child_idx, std::clamp(child_size, child.size_min<is_width>(), child.size_max<is_width>()));
+					}
+					else
+					{
+						if (child.height_mode == e::size_mode_kind::fit)
+						{
+							finalize_fit<false>(child, child_idx);
+						}
+						else
+						{
+							finalize_fixed<false>(child, child_idx, final_size);
+						}
+					}
 				}
 
 				child_idx += child.child_subtree_size + 1;

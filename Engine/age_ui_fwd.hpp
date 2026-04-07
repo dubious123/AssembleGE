@@ -203,6 +203,7 @@ namespace age::ui
 
 		float drag_x;
 		float drag_y;
+		float drag_z;
 	};
 
 	struct layout_size_data
@@ -467,6 +468,9 @@ namespace age::ui::g
 	inline float theme_slider_thumb_size[e::size<e::style_state>()];
 	inline float theme_slider_thumb_border_thickness[e::size<e::style_state>()];
 
+	inline float theme_resize_handle_thickness;
+	inline float theme_scroll_thumb_thickness;
+
 	// theme configs
 	inline constexpr float theme_opacity_default[9] = {
 		0.00f,						   // 0
@@ -500,6 +504,10 @@ namespace age::ui::g
 	inline constexpr float theme_slider_track_height_default									  = 4.f;
 	inline constexpr float theme_slider_thumb_size_default[e::size<e::style_state>()]			  = { 12.f, 16.f, 18.f };
 	inline constexpr float theme_slider_thumb_border_thickness_default[e::size<e::style_state>()] = { 0.f, 2.f, 3.f };
+
+	inline constexpr float theme_resize_handle_thickness_default = 6.f;
+
+	inline constexpr float theme_scroll_thumb_thickness_default = 8.f;
 
 	inline constexpr uint8 opacity_0	  = 0;
 	inline constexpr uint8 opacity_1	  = 1;
@@ -563,7 +571,7 @@ namespace age::ui::g
 	inline constexpr style_color slider_thumb	   = { e::theme_color_kind::accent, { opacity_7, opacity_7, opacity_opaque } };
 	inline constexpr style_color slider_thumb_ring = { e::theme_color_kind::accent, { opacity_0, opacity_2, opacity_3 } };
 
-	inline constexpr style_color scroll_thumb = { e::theme_color_kind::white, { opacity_2, opacity_2, opacity_3 } };	  // scrollbar thumb
+	inline constexpr style_color scroll_thumb = { e::theme_color_kind::white, { opacity_2, opacity_3, opacity_3 } };	  // scrollbar thumb
 
 	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_0, opacity_0, opacity_7 } };	  // selected item left border
 
