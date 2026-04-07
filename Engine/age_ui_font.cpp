@@ -82,8 +82,6 @@ namespace age::ui::font
 	float
 	get_advance(uint16 unicode, float font_size, uint32 font_idx) noexcept
 	{
-		AGE_ASSERT(unicode != ' ');
-
 		auto  h_font = g::font_data_vec[font_idx].second.h_font;
 		auto& header = h_font->get_asset_header<asset::e::kind::font>();
 

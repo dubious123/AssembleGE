@@ -422,6 +422,7 @@ namespace age::ui::g
 
 	inline const age::input::input_context* p_input_ctx;
 	inline t_hash							hover_id;
+	inline t_hash							focus_id;
 	inline t_hash							mouse_l_pressed_id;
 	inline t_hash							mouse_l_clicked_id;
 	inline t_hash							mouse_r_clicked_id;
@@ -452,6 +453,9 @@ namespace age::ui::g
 	// font
 	inline age::vector<std::pair<t_hash, font_data>> font_data_vec;
 	inline uint32									 current_font_idx;
+
+	inline char	  utf8_buf[16 * 4 + 1];
+	inline uint32 utf8_buf_len = 0;
 
 	// numeric step scale
 	inline constexpr float step_scale_table[2][2] = { { 1.0f, 0.1f },
@@ -638,6 +642,12 @@ namespace age::ui
 		hovered() const noexcept
 		{
 			return hash_id == g::hover_id;
+		}
+
+		FORCE_INLINE bool
+		focused() const noexcept
+		{
+			return hash_id == g::focus_id;
 		}
 
 		FORCE_INLINE bool

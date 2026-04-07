@@ -111,6 +111,91 @@ namespace age::util
 
 namespace age::util
 {
+	FORCE_INLINE constexpr uint32
+	encode_utf8(char* p_dst, uint32 unicode)
+	{
+		if (unicode < 0x80)
+		{
+			p_dst[0] = static_cast<char>(unicode);
+			return 1;
+		}
+		else if (unicode < 0x800)
+		{
+			p_dst[0] = static_cast<char>(0xC0 | (unicode >> 6));
+			p_dst[1] = static_cast<char>(0x80 | (unicode & 0x3F));
+			return 2;
+		}
+		else if (unicode < 0x10000)
+		{
+			p_dst[0] = static_cast<char>(0xE0 | (unicode >> 12));
+			p_dst[1] = static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+			p_dst[2] = static_cast<char>(0x80 | (unicode & 0x3F));
+			return 3;
+		}
+		else
+		{
+			p_dst[0] = static_cast<char>(0xF0 | (unicode >> 18));
+			p_dst[1] = static_cast<char>(0x80 | ((unicode >> 12) & 0x3F));
+			p_dst[2] = static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+			p_dst[3] = static_cast<char>(0x80 | (unicode & 0x3F));
+			return 4;
+		}
+	}
+
+	template <std::size_t n_dst, std::size_t n_src>
+	FORCE_INLINE constexpr uint32
+	encode_utf8(char (&dst)[n_dst], const uint32 (&src)[n_src], uint32 count)
+	{
+		static_assert(n_dst >= n_src * 4 + 1, "dst too small for worst case");
+		AGE_ASSERT(count <= n_src);
+
+		auto written = 0u;
+		for (auto i : std::views::iota(0u) | std::views::take(count))
+		{
+			written += encode_utf8(dst + written, src[i]);
+		}
+		dst[written] = '\0';
+		return written;
+	}
+
+	FORCE_INLINE constexpr std::tuple<uint16, uint16>
+	decode_utf8(const char* p)
+	{
+		auto c = static_cast<uint8>(p[0]);
+
+		if (c < 0x80)			   // 1 byte (ASCII)
+		{
+			return { 1, c };
+		}
+		if ((c & 0xE0) == 0xC0)	   // 2 bytes
+		{
+			uint16 unicode	= (c & 0x1F) << 6;
+			unicode		   |= (static_cast<uint8>(p[1]) & 0x3F);
+			return { 2, unicode };
+		}
+		if ((c & 0xF0) == 0xE0)	   // 3 bytes
+		{
+			uint16 unicode	= (c & 0x0F) << 12;
+			unicode		   |= (static_cast<uint8>(p[1]) & 0x3F) << 6;
+			unicode		   |= (static_cast<uint8>(p[2]) & 0x3F);
+			return { 3, unicode };
+		}
+		// if ((c & 0xF8) == 0xF0)	   // 4 bytes
+		//{
+		//	uint32 cp  = (c & 0x07) << 18;
+		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F) << 12;
+		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F) << 6;
+		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F);
+		//	++p;
+		//	return cp;
+		// }
+
+		return { 1, 0xFFFD };	 // replacement character
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
 	template <std::size_t n>
 	struct nttp_string_holder
 	{

@@ -486,6 +486,16 @@ namespace age_demo::scene_2
 						item_count = std::max(0, item_count);
 						if (auto _ = widget::scroll_area_v())
 						{
+							static char buf[256] = "this is text input\0";
+
+
+							widget::text_input(buf, 256);
+
+							if (auto _ = widget::frame())
+							{
+								widget::text_primary("thisistext                 ");
+							}
+
 							for (auto _ : age::views::loop(item_count))
 							{
 								auto str = std::format("button {}", _);

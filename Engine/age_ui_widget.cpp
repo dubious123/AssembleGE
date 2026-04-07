@@ -3,41 +3,6 @@
 
 namespace age::ui::detail
 {
-	FORCE_INLINE constexpr std::tuple<uint16, uint16>
-	decode_utf8(const char* p)
-	{
-		auto c = static_cast<uint8>(p[0]);
-
-		if (c < 0x80)			   // 1 byte (ASCII)
-		{
-			return { 1, c };
-		}
-		if ((c & 0xE0) == 0xC0)	   // 2 bytes
-		{
-			uint16 unicode	= (c & 0x1F) << 6;
-			unicode		   |= (static_cast<uint8>(p[1]) & 0x3F);
-			return { 2, unicode };
-		}
-		if ((c & 0xF0) == 0xE0)	   // 3 bytes
-		{
-			uint16 unicode	= (c & 0x0F) << 12;
-			unicode		   |= (static_cast<uint8>(p[1]) & 0x3F) << 6;
-			unicode		   |= (static_cast<uint8>(p[2]) & 0x3F);
-			return { 3, unicode };
-		}
-		// if ((c & 0xF8) == 0xF0)	   // 4 bytes
-		//{
-		//	uint32 cp  = (c & 0x07) << 18;
-		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F) << 12;
-		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F) << 6;
-		//	cp		  |= (static_cast<uint8>(*++p) & 0x3F);
-		//	++p;
-		//	return cp;
-		// }
-
-		return { 1, 0xFFFD };	 // replacement character
-	}
-
 	FORCE_INLINE constexpr bool
 	height_depends_on_width(e::size_mode_kind kind) noexcept
 	{
@@ -67,7 +32,7 @@ namespace age::ui::detail
 					line_offset = word_data.line_offset;
 					cursor.x	= 0.f;
 				}
-				else if (cursor.x > 0.f and cursor.x + word_data.leading_space + word_data.width > pos_data.width)
+				else if (cursor.x > 0.f and cursor.x + word_data.leading_space + word_data.width > pos_data.width + math::g::epsilon_1e4)
 				{
 					++line_offset;
 					cursor.x = 0.f;
@@ -642,8 +607,8 @@ namespace age::ui::detail
 			}
 			if (c == '\n')
 			{
+				max_width		   = std::max(line_width + word_leading_space, max_width);
 				word_leading_space = 0.f;
-				max_width		   = std::max(line_width, max_width);
 				line_width		   = 0.f;
 				++line_offset;
 				++p_str;
@@ -651,14 +616,14 @@ namespace age::ui::detail
 			}
 			if (c == '\0')
 			{
-				max_width = std::max(line_width, max_width);
+				max_width = std::max(line_width + word_leading_space, max_width);
 				break;
 			}
 
 			++char_count;
 			++word_char_count;
 
-			auto&& [byte_count, unicode]  = ui::detail::decode_utf8(p_str);
+			auto&& [byte_count, unicode]  = age::util::decode_utf8(p_str);
 			p_str						 += byte_count;
 
 			c_auto& glyph_data = ui::font::get_glyph_data(unicode, font_idx);

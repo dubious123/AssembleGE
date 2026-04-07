@@ -17,15 +17,28 @@ namespace age::input
 	}
 
 	FORCE_INLINE void
+	push_char(context_handle h_input, uint32 c) noexcept
+	{
+		h_input->char_buf[h_input->char_count++] = c;
+		AGE_ASSERT(h_input->char_count < 16);
+	}
+
+	FORCE_INLINE void
 	set_key_down(context_handle h_input, e::key_kind key) noexcept
 	{
-		h_input->key_down_curr[std::to_underlying(key)] = 1;
+		h_input->key_down_curr[e::to_idx(key)] = 1;
+	}
+
+	FORCE_INLINE void
+	set_key_repeat(context_handle h_input, e::key_kind key) noexcept
+	{
+		h_input->key_repeat[e::to_idx(key)] = 1;
 	}
 
 	FORCE_INLINE void
 	set_key_up(context_handle h_input, e::key_kind key) noexcept
 	{
-		h_input->key_down_curr[std::to_underlying(key)] = 0;
+		h_input->key_down_curr[e::to_idx(key)] = 0;
 	}
 
 	FORCE_INLINE void
@@ -39,18 +52,18 @@ namespace age::input
 	set_mouse_down(context_handle h_input, e::key_kind key, float2 client_coord) noexcept
 	{
 		AGE_ASSERT(key >= e::key_kind::mouse_left and key <= e::key_kind::mouse_middle);
-		static_assert(std::to_underlying(e::key_kind::mouse_right) == std::to_underlying(e::key_kind::mouse_left) + 1);
-		static_assert(std::to_underlying(e::key_kind::mouse_middle) == std::to_underlying(e::key_kind::mouse_right) + 1);
+		static_assert(e::to_idx(e::key_kind::mouse_right) == e::to_idx(e::key_kind::mouse_left) + 1);
+		static_assert(e::to_idx(e::key_kind::mouse_middle) == e::to_idx(e::key_kind::mouse_right) + 1);
 
-		h_input->mouse_down_pos_arr[std::to_underlying(key) - std::to_underlying(e::key_kind::mouse_left)] = client_coord;
-		h_input->key_down_curr[std::to_underlying(key)]													   = 1;
+		h_input->mouse_down_pos_arr[e::to_idx(key) - e::to_idx(e::key_kind::mouse_left)] = client_coord;
+		h_input->key_down_curr[e::to_idx(key)]											 = 1;
 	}
 
 	FORCE_INLINE void
 	set_mouse_up(context_handle h_input, e::key_kind key, float2 client_coord) noexcept
 	{
-		h_input->mouse_pos								= client_coord;
-		h_input->key_down_curr[std::to_underlying(key)] = 0;
+		h_input->mouse_pos					   = client_coord;
+		h_input->key_down_curr[e::to_idx(key)] = 0;
 	}
 
 	FORCE_INLINE void
@@ -62,8 +75,12 @@ namespace age::input
 	FORCE_INLINE void
 	on_focus_kill(context_handle h_input) noexcept
 	{
+		h_input->key_down_prev.reset();
 		h_input->key_down_curr.reset();
+		h_input->key_repeat.reset();
+
 		h_input->mouse_delta = float2::zero();
 		h_input->wheel_delta = 0.f;
+		h_input->char_count	 = 0;
 	}
 }	 // namespace age::input

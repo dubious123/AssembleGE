@@ -51,24 +51,14 @@ namespace age::ui
 			| set_size(size_mode::fixed(platform::get_client_width(h_window)), size_mode::fixed(platform::get_client_height(h_window)))
 			| set_z_offset(0)
 			| set_offset(float2(0.f, 0.f))
-			| set_padding(0.f, 0.f, 0.f, 0.f)
-			/*			widget_desc{
-							.draw			  = false,
-							.layout			  = e::widget_layout::vertical,
-							.size_mode_width  = size_mode::fixed(platform::get_client_width(h_window)),
-							.size_mode_height = size_mode::fixed(platform::get_client_height(h_window)),
-							.z_offset		  = 0,
-							.offset			  = { 0.f, 0.f },
-							.padding_left	  = 0.f,
-							.padding_right	  = 0.f,
-							.padding_top	  = 0.f,
-							.padding_bottom	  = 0.f }*/
-		);
+			| set_padding(0.f, 0.f, 0.f, 0.f));
 
 		g::layout_pos_data_vec[0].clip_rect = float4{ 0, 0, platform::get_client_width(h_window), platform::get_client_height(h_window) };
 
 		// handle input
 		g::p_input_ctx = std::addressof(*h_window->h_input);
+
+		g::utf8_buf_len = util::encode_utf8(g::utf8_buf, g::p_input_ctx->char_buf, g::p_input_ctx->char_count);
 	}
 
 	void
@@ -266,6 +256,7 @@ namespace age::ui
 			if (g::p_input_ctx->is_pressed(input::e::key_kind::mouse_left))
 			{
 				g::mouse_l_pressed_id = g::hover_id;
+				g::focus_id			  = g::hover_id;
 			}
 			else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
 			{
@@ -274,6 +265,7 @@ namespace age::ui
 				{
 					g::mouse_l_clicked_id = g::mouse_l_pressed_id;
 				}
+
 
 				g::mouse_l_pressed_id = age::get_invalid_id<t_hash>();
 			}

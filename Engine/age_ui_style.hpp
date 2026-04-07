@@ -149,7 +149,7 @@ namespace age::ui::theme
 	}
 
 	template <e::theme_token_kind e_theme_token>
-	constexpr FORCE_INLINE float4
+	constexpr FORCE_INLINE float
 	font_size() noexcept
 	{
 		return g::theme_font_size[e::to_idx(get_theme_token_data<e_theme_token>().font_size)];

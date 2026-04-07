@@ -598,6 +598,106 @@ namespace age::ui::widget
 	}
 }	 // namespace age::ui::widget
 
+// text input
+namespace age::ui::widget
+{
+	namespace detail
+	{
+		FORCE_INLINE void
+		update_text_buf(char* p_buf, uint32 buf_byte_size, uint32& cursor_byte_pos) noexcept
+		{
+			using enum input::e::key_kind;
+			auto str_len = std::strlen(p_buf);
+
+			// cursor left
+			if (g::p_input_ctx->is_pressed_or_repeat(key_left) and cursor_byte_pos > 0)
+			{
+				--cursor_byte_pos;
+				while (cursor_byte_pos > 0 and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
+				{
+					--cursor_byte_pos;
+				}
+			}
+
+			// cursor right
+			if (g::p_input_ctx->is_pressed_or_repeat(key_right) and cursor_byte_pos < str_len)
+			{
+				++cursor_byte_pos;
+				while (cursor_byte_pos < str_len and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
+				{
+					++cursor_byte_pos;
+				}
+			}
+
+			if (g::p_input_ctx->is_pressed_or_repeat(key_backspace) and cursor_byte_pos > 0)
+			{
+				auto pos = cursor_byte_pos;
+				--cursor_byte_pos;
+				while (cursor_byte_pos > 0 and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
+				{
+					--cursor_byte_pos;
+				}
+
+				auto remove_count = pos - cursor_byte_pos;
+
+				std::memmove(p_buf + cursor_byte_pos, p_buf + pos, str_len - pos + 1);
+				str_len -= (pos - cursor_byte_pos);
+			}
+			if (g::utf8_buf_len > 0 and str_len + 1 + g::utf8_buf_len < buf_byte_size)
+			{
+				std::memmove(p_buf + cursor_byte_pos + g::utf8_buf_len, p_buf + cursor_byte_pos, str_len - cursor_byte_pos + 1);
+				std::memcpy(p_buf + cursor_byte_pos, g::utf8_buf, g::utf8_buf_len);
+
+				cursor_byte_pos += g::utf8_buf_len;
+			}
+		}
+
+		FORCE_INLINE float
+		calc_cursor_offset_x(char* p_buf, uint32 cursor_byte_pos, uint32 font_idx, float font_size) noexcept
+		{
+			auto pos_offset = 0.f;
+			for (auto* ptr = p_buf; ptr < p_buf + cursor_byte_pos;)
+			{
+				auto&& [byte_count, unicode]  = age::util::decode_utf8(ptr);
+				ptr							 += byte_count;
+
+				pos_offset += ui::font::get_advance(unicode, font_size, font_idx);
+			}
+
+			return pos_offset;
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE widget_ctx
+	text_input(char* p_buf, uint32 buf_size) noexcept
+	{
+		if (auto h = widget::begin(style::frame() | set_horizontal() | set_padding(6.f, 8.f, 3.f, 3.f) | set_child_gap(0) | set_interact(true) | set_width_fit() | set_height_fit()))
+		{
+			c_auto is_focused = h.focused();
+			auto   cursor_x	  = 0.f;
+			if (is_focused)
+			{
+				auto& state		 = h.get_state();
+				auto& cursor_pos = reinterpret_cast<uint32&>(state.drag_x);
+				detail::update_text_buf(p_buf, buf_size, cursor_pos);
+				cursor_x = detail::calc_cursor_offset_x(p_buf, cursor_pos, g::current_font_idx, theme::font_size<e::theme_token_kind::text_interactive>());
+			}
+
+			widget::begin(style::vertical()
+						  | set_align(e::widget_align::center)
+						  | set_size(size_mode::fixed(2), size_mode::fixed(font::get_line_height(theme::font_size<e::theme_token_kind::text_interactive>(), g::current_font_idx)))
+						  | set_draw(is_focused)
+						  | set_offset(cursor_x, 0)
+						  | set_body_brush_data(theme::colors::text_interactive()));
+
+			widget::text_interactive(p_buf);
+			return h;
+		}
+
+		return {};
+	}
+}	 // namespace age::ui::widget
+
 // numeric field
 namespace age::ui::widget
 {

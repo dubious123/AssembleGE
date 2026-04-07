@@ -257,6 +257,11 @@ namespace age::asset::font
 
 					std::memcpy(ptr, &data, sizeof(glyph_data));
 				}
+
+				auto space_glyph_data = glyph_data{
+					.advance = space_advance,
+				};
+				std::memcpy(reinterpret_cast<glyph_data*>(p_blob + glyph_data_offset), &space_glyph_data, sizeof(glyph_data));
 			}
 
 			{

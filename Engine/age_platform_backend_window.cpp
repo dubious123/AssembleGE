@@ -125,14 +125,30 @@ namespace age::platform::detail
 
 
 				//---[ inputs ]------------------------------------------------------------
+			case WM_CHAR:
+			{
+				if (age::runtime::is_handle_valid(h_window->h_input))
+				{
+					c_auto c = static_cast<uint32>(w_param);
+					if (c >= 32)
+					{
+						age::input::push_char(h_window->h_input, c);
+					}
+				}
 
-
+				break;
+			}
 			case WM_KEYDOWN:
 			case WM_SYSKEYDOWN:
 			{
 				if (age::runtime::is_handle_valid(h_window->h_input))
 				{
 					age::input::set_key_down(h_window->h_input, g::vk_lut[w_param & 0xff]);
+
+					if ((l_param >> 30) & 1)
+					{
+						age::input::set_key_repeat(h_window->h_input, g::vk_lut[w_param & 0xff]);
+					}
 				}
 
 				break;
@@ -144,7 +160,6 @@ namespace age::platform::detail
 				{
 					age::input::set_key_up(h_window->h_input, g::vk_lut[w_param & 0xff]);
 				}
-
 
 				break;
 			}

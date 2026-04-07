@@ -199,6 +199,7 @@ namespace age::input
 	{
 		std::bitset<e::size<e::key_kind>()> key_down_prev;
 		std::bitset<e::size<e::key_kind>()> key_down_curr;
+		std::bitset<e::size<e::key_kind>()> key_repeat;
 
 		float2 mouse_pos;
 		float2 mouse_delta;
@@ -207,22 +208,32 @@ namespace age::input
 
 		float wheel_delta = 0;
 
+		uint32	char_buf[16];
+		uint8	char_count = 0;
+		uint8_3 _;
+
 		bool
 		is_down(age::input::e::key_kind key) const
 		{
-			return key_down_curr[std::to_underlying(key)];
+			return key_down_curr[e::to_idx(key)];
 		}
 
 		bool
 		is_pressed(age::input::e::key_kind key) const
 		{
-			return not key_down_prev[std::to_underlying(key)] and key_down_curr[std::to_underlying(key)];
+			return not key_down_prev[e::to_idx(key)] and key_down_curr[e::to_idx(key)];
+		}
+
+		bool
+		is_pressed_or_repeat(age::input::e::key_kind key) const
+		{
+			return is_pressed(key) or key_repeat[e::to_idx(key)];
 		}
 
 		bool
 		is_released(age::input::e::key_kind key) const
 		{
-			return key_down_prev[std::to_underlying(key)] and not key_down_curr[std::to_underlying(key)];
+			return key_down_prev[e::to_idx(key)] and not key_down_curr[e::to_idx(key)];
 		}
 
 		bool
@@ -297,10 +308,16 @@ namespace age::input
 		ctx.key_down_prev = h_input->key_down_curr;
 		ctx.mouse_delta	  = float2::zero();
 		ctx.wheel_delta	  = 0.f;
+		ctx.char_count	  = 0;
+
+		ctx.key_repeat.reset();
 	}
 
 	FORCE_INLINE void
 	set_key_down(context_handle, e::key_kind _) noexcept;
+
+	FORCE_INLINE void
+	set_key_repeat(context_handle h_input, e::key_kind key) noexcept;
 
 	FORCE_INLINE void
 	set_key_up(context_handle, e::key_kind _) noexcept;
