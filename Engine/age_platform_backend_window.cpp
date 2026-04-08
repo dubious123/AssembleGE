@@ -130,7 +130,7 @@ namespace age::platform::detail
 				if (age::runtime::is_handle_valid(h_window->h_input))
 				{
 					c_auto c = static_cast<uint32>(w_param);
-					if (c >= 32)
+					if (c >= 32 and c != 127)
 					{
 						age::input::push_char(h_window->h_input, c);
 					}

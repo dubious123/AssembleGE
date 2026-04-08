@@ -410,7 +410,7 @@ namespace age::ui::widget
 		if (auto btn = widget::begin(((style::layout(e::widget_layout::vertical)
 									   | set_z_offset(1)
 									   | set_interact(true)
-									   | set_width(size_mode::fit()))
+									   | set_size(size_mode::fit(), size_mode::fit()))
 									  | ... | modifier)))
 		{
 			auto state = e::style_state::idle;
@@ -601,96 +601,144 @@ namespace age::ui::widget
 // text input
 namespace age::ui::widget
 {
-	namespace detail
-	{
-		FORCE_INLINE void
-		update_text_buf(char* p_buf, uint32 buf_byte_size, uint32& cursor_byte_pos) noexcept
-		{
-			using enum input::e::key_kind;
-			auto str_len = std::strlen(p_buf);
-
-			// cursor left
-			if (g::p_input_ctx->is_pressed_or_repeat(key_left) and cursor_byte_pos > 0)
-			{
-				--cursor_byte_pos;
-				while (cursor_byte_pos > 0 and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
-				{
-					--cursor_byte_pos;
-				}
-			}
-
-			// cursor right
-			if (g::p_input_ctx->is_pressed_or_repeat(key_right) and cursor_byte_pos < str_len)
-			{
-				++cursor_byte_pos;
-				while (cursor_byte_pos < str_len and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
-				{
-					++cursor_byte_pos;
-				}
-			}
-
-			if (g::p_input_ctx->is_pressed_or_repeat(key_backspace) and cursor_byte_pos > 0)
-			{
-				auto pos = cursor_byte_pos;
-				--cursor_byte_pos;
-				while (cursor_byte_pos > 0 and (p_buf[cursor_byte_pos] & 0xC0) == 0x80)
-				{
-					--cursor_byte_pos;
-				}
-
-				auto remove_count = pos - cursor_byte_pos;
-
-				std::memmove(p_buf + cursor_byte_pos, p_buf + pos, str_len - pos + 1);
-				str_len -= (pos - cursor_byte_pos);
-			}
-			if (g::utf8_buf_len > 0 and str_len + 1 + g::utf8_buf_len < buf_byte_size)
-			{
-				std::memmove(p_buf + cursor_byte_pos + g::utf8_buf_len, p_buf + cursor_byte_pos, str_len - cursor_byte_pos + 1);
-				std::memcpy(p_buf + cursor_byte_pos, g::utf8_buf, g::utf8_buf_len);
-
-				cursor_byte_pos += g::utf8_buf_len;
-			}
-		}
-
-		FORCE_INLINE float
-		calc_cursor_offset_x(char* p_buf, uint32 cursor_byte_pos, uint32 font_idx, float font_size) noexcept
-		{
-			auto pos_offset = 0.f;
-			for (auto* ptr = p_buf; ptr < p_buf + cursor_byte_pos;)
-			{
-				auto&& [byte_count, unicode]  = age::util::decode_utf8(ptr);
-				ptr							 += byte_count;
-
-				pos_offset += ui::font::get_advance(unicode, font_size, font_idx);
-			}
-
-			return pos_offset;
-		}
-	}	 // namespace detail
-
 	FORCE_INLINE widget_ctx
 	text_input(char* p_buf, uint32 buf_size) noexcept
 	{
-		if (auto h = widget::begin(style::frame() | set_horizontal() | set_padding(6.f, 8.f, 3.f, 3.f) | set_child_gap(0) | set_interact(true) | set_width_fit() | set_height_fit()))
+		if (auto h = widget::begin(style::frame()
+								   | set_horizontal()
+								   | set_padding_left(g::theme_frame_padding_left - g::theme_cursor_thickness)
+								   | set_child_gap(0)
+								   | set_interact(true)
+								   | set_save_state(true)
+								   | set_width_grow()
+								   | set_height_fit()))
 		{
-			c_auto is_focused = h.focused();
-			auto   cursor_x	  = 0.f;
-			if (is_focused)
+			using enum input::e::key_kind;
+
+			// c_auto font_size = theme::font_size<e::theme_token_kind::text_interactive>();
+			c_auto font_size = 22.f;
+
+			auto text_desc = style::text_secondary(p_buf) | set_align(e::widget_align::begin) | set_font_size(font_size);
+
+			auto& state = h.get_state();
+
+			c_auto draw_cursor = h.focused() and not h.pressed();
+
+			if (h.clicked())
 			{
-				auto& state		 = h.get_state();
-				auto& cursor_pos = reinterpret_cast<uint32&>(state.drag_x);
-				detail::update_text_buf(p_buf, buf_size, cursor_pos);
-				cursor_x = detail::calc_cursor_offset_x(p_buf, cursor_pos, g::current_font_idx, theme::font_size<e::theme_token_kind::text_interactive>());
+				ui::detail::gen_text_data(text_desc);
+
+				auto screen_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ g::theme_frame_padding_left, g::theme_frame_padding_top };
+
+				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, screen_offset, state.width);
+
+
+				// std::println(
+				//	"offset = {},                      \n"
+				//	"word_min_x = {},				   \n"
+				//	"word_max_x = {},				   \n"
+				//	"line_width = {},				   \n"
+				//	"byte_offset = {},				   \n"
+				//	"word_byte_offset = {},			   \n"
+				//	"word_byte_size = {},			   \n"
+				//	"line_byte_offset = {},			   \n"
+				//	"line_byte_size = {},			   \n"
+				//	"screen_offset = {}",
+				//	res.offset,
+				//	res.word_min_x,
+				//	res.word_max_x,
+				//	res.line_width,
+				//	res.byte_offset,
+				//	res.word_byte_offset,
+				//	res.word_byte_size,
+				//	res.line_byte_offset,
+				//	res.line_byte_size,
+				//	screen_offset);
+
+				state.cursor.offset_x		 = res.offset.x;
+				state.cursor.offset_y		 = res.offset.y;
+				state.cursor.byte_pos		 = res.byte_offset;
+				state.cursor.anchor_byte_pos = res.byte_offset;
+
+
+				// reinterpret_cast<uint32&>(state.drag_x) = cursor_x_byte_idx;
+				// state.cursor.offset_x							= cursor_x_screen_offset;
+			}
+			else if (draw_cursor)
+			{
+				auto regen_cursor = false;
+				// cursor up
+				if (g::p_input_ctx->is_pressed_or_repeat(key_up))
+				{
+					state.cursor.offset_y -= font::get_line_height(font_size, g::current_font_idx) - math::g::epsilon_1e4;
+					regen_cursor		   = !regen_cursor;
+				}
+
+				// cursor down
+				if (g::p_input_ctx->is_pressed_or_repeat(key_down))
+				{
+					state.cursor.offset_y += font::get_line_height(font_size, g::current_font_idx) + math::g::epsilon_1e4;
+					regen_cursor		   = !regen_cursor;
+				}
+
+				if (regen_cursor)
+				{
+					ui::detail::gen_text_data(text_desc);
+					auto res			  = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, float2{ state.cursor.offset_x, state.cursor.offset_y }, state.width);
+					state.cursor.offset_x = res.offset.x;
+					state.cursor.offset_y = res.offset.y;
+					state.cursor.byte_pos = res.byte_offset;
+				}
+
+				ui::detail::gen_text_data(text_desc);
+
+				auto res = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, state.width);
+
+
+				ui::detail::update_text_buf(p_buf, buf_size, res);
+
+				// std::println("{}", cursor_byte_idx);
+
+
+				std::println(
+					"offset = {},                      \n"
+					"word_min_x = {},				   \n"
+					"word_max_x = {},				   \n"
+					"line_width = {},				   \n"
+					"byte_offset = {},				   \n"
+					"word_byte_offset = {},			   \n"
+					"word_byte_size = {},			   \n"
+					"line_byte_offset = {},			   \n"
+					"line_byte_size = {},			   \n",
+					res.offset,
+					res.word_min_x,
+					res.word_max_x,
+					res.line_width,
+					res.byte_offset,
+					res.word_byte_offset,
+					res.word_byte_size,
+					res.line_byte_offset,
+					res.line_byte_size);
+
+				state.cursor.offset_x		 = res.offset.x;
+				state.cursor.offset_y		 = res.offset.y;
+				state.cursor.byte_pos		 = res.byte_offset;
+				state.cursor.anchor_byte_pos = res.anchor_byte_offset;
+			}
+
+			if (state.cursor.anchor_byte_pos != state.cursor.byte_pos)
+			{
 			}
 
 			widget::begin(style::vertical()
-						  | set_align(e::widget_align::center)
-						  | set_size(size_mode::fixed(2), size_mode::fixed(font::get_line_height(theme::font_size<e::theme_token_kind::text_interactive>(), g::current_font_idx)))
-						  | set_draw(is_focused)
-						  | set_offset(cursor_x, 0)
+						  | set_align(e::widget_align::begin)
+						  | set_size(size_mode::fixed(g::theme_cursor_thickness), size_mode::fixed(font::get_line_height(font_size, g::current_font_idx)))
+						  | set_draw(draw_cursor)
+						  | set_offset(state.cursor.offset_x, state.cursor.offset_y)
 						  | set_body_brush_data(theme::colors::text_interactive()));
 
-			widget::text_interactive(p_buf);
+
+			widget::begin(std::move(text_desc));
 			return h;
 		}
 

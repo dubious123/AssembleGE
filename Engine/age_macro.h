@@ -73,6 +73,9 @@
 	return overloaded_func_name(FWD(arg)...);                                                                                        \
 }
 
+#define AGE_IS_INVALID_ID(expr)	 (expr == age::get_invalid_id<BARE_OF(expr)>())
+#define AGE_IS_INVALID_IDX(expr) (expr == age::get_invalid_id<BARE_OF(expr)>())
+
 #define __AGE_GET_IMPL__(name, path)                                                  \
 	struct                                                                            \
 	{                                                                                 \

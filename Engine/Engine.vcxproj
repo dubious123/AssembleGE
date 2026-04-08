@@ -328,6 +328,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="age_ui_text.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_ui_widget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -598,7 +606,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="age_ui_widget.inl" />
+    <ClInclude Include="age_ui_widget.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
     <None Include="cpp.hint" />
     <None Include="todo.md">
       <SubType>

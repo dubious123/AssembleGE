@@ -308,14 +308,39 @@ namespace age_demo::scene_2
 			//		//{
 			//		// }
 
-			//		widget::panel(set_size(size_mode::fixed(100), size_mode::fixed(100)));
+			//		// if (auto _ = widget::begin(style::frame_interactive() | set_layout(e::widget_layout::horizontal)))
+			//		//{
+			//		//	widget::text_interactive("button2");
+			//		// }
+
+			//		if (auto btn = widget::button("button2"))
+			//		{
+			//			if (btn.clicked<mouse_left>())
+			//			{
+			//				std::println("button2 clicked");
+			//			}
+			//		}
+			//		// widget::text_primary("collapsible header");
+
+			//		// if (auto header = widget::collapsible_header("collapsible header"))
+			//		//{
+			//		//	if (auto btn = widget::button("button2", set_align(e::widget_align::center)))
+			//		//	{
+			//		//		if (btn.clicked<mouse_left>())
+			//		//		{
+			//		//			std::println("button2 clicked");
+			//		//		}
+			//		//	}
+			//		// }
+
+			//		// widget::panel(set_size(size_mode::fixed(100), size_mode::fixed(100)));
 			//	}
 			//}
 
 
 			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 			{
-				if (auto _ = widget::panel_resizable_h(700, 1000,
+				if (auto _ = widget::panel_resizable_h(300, 1000,
 													   set_layout(e::widget_layout::vertical),
 													   set_size(size_mode::grow(), size_mode::grow())))
 				{
@@ -429,7 +454,7 @@ namespace age_demo::scene_2
 						{
 							if (auto _ = widget::begin(set_draw(true)
 													   | set_layout(e::widget_layout::horizontal)
-													   | set_size(size_mode::fit(), size_mode::fit())
+													   | set_size(size_mode::grow(), size_mode::fit())
 													   | set_body_brush_data(theme::colors::bg_panel())))
 							{
 								// arrow
@@ -438,7 +463,6 @@ namespace age_demo::scene_2
 											  | set_border_thickness(0.f)
 											  | set_shape_kind(e::shape_kind::arrow_right)
 											  | set_body_brush_data(brush_data::color(0.75, 0.75, 0.75)));
-
 
 								widget::begin(style::text("hello text\n    hello       text    \n\n"
 														  "hello text")
@@ -486,14 +510,15 @@ namespace age_demo::scene_2
 						item_count = std::max(0, item_count);
 						if (auto _ = widget::scroll_area_v())
 						{
-							static char buf[256] = "this is text input\0";
+							// static char buf[256] = "this is te                     \nxt inpu\nasfdasfdt      \0";
+							static char buf[256] = "A\nB\nC\n\0";
 
 
 							widget::text_input(buf, 256);
 
 							if (auto _ = widget::frame())
 							{
-								widget::text_primary("thisistext                 ");
+								widget::text_primary("t \nh");
 							}
 
 							for (auto _ : age::views::loop(item_count))

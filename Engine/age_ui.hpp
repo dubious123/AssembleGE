@@ -150,14 +150,26 @@ namespace age::ui
 	}
 }	 // namespace age::ui
 
+namespace age::ui::detail
+{
+	void
+	widget_end() noexcept;
+
+	void
+	gen_text_data(widget_desc& desc) noexcept;
+
+	cursor_data
+	screen_offset_to_cursor(uint32 text_data_idx, float2 screen_offset, float width) noexcept;
+
+	cursor_data
+	byte_offset_to_cursor(uint32 text_data_idx, uint32 byte_offset, float width) noexcept;
+
+	void
+	update_text_buf(char* p_buf, uint32 buf_byte_size, cursor_data& cursor) noexcept;
+}	 // namespace age::ui::detail
+
 namespace age::ui
 {
-	namespace detail
-	{
-		void
-		widget_end() noexcept;
-	}
-
 	template <std::size_t n>
 	FORCE_INLINE constexpr widget_ctx_impl<n>::~widget_ctx_impl() noexcept
 	{

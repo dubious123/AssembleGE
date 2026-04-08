@@ -171,7 +171,7 @@ namespace age::ui
 		{
 			struct
 			{
-				uint32 text_data_idx;
+				uint32 text_data_idx = age::get_invalid_id<uint32>();
 				uint32 font_idx;
 
 				const char* p_str;
@@ -204,6 +204,18 @@ namespace age::ui
 		float drag_x;
 		float drag_y;
 		float drag_z;
+
+		union
+		{
+			struct
+			{
+				float offset_x;
+				float offset_y;
+
+				uint32 byte_pos;
+				uint32 anchor_byte_pos;
+			} cursor;
+		};
 	};
 
 	struct layout_size_data
@@ -384,8 +396,10 @@ namespace age::ui
 	{
 		uint32 char_count;
 		float  width;
-		float  leading_space;
+		uint32 leading_space_count;
 		uint32 line_offset;
+		uint32 byte_offset;
+		uint32 byte_size;
 	};
 
 	struct char_data
@@ -395,6 +409,7 @@ namespace age::ui
 		float2 size;
 		float2 atlas_uv_min;
 		float2 atlas_uv_max;
+		uint8  byte_size;	 // 1,2,3,4
 	};
 
 	struct char_pos_data
@@ -409,6 +424,22 @@ namespace age::ui
 	{
 		uint32		  atlas_id;
 		asset::handle h_font;
+	};
+
+	struct cursor_data
+	{
+		float2 offset;
+		float  word_min_x;
+		float  word_max_x;
+		float  line_width;
+
+		uint32 byte_offset;
+		uint32 word_byte_offset;
+		uint32 word_byte_size;
+		uint32 line_byte_offset;
+		uint32 line_byte_size;
+
+		uint32 anchor_byte_offset;
 	};
 }	 // namespace age::ui
 
@@ -474,6 +505,12 @@ namespace age::ui::g
 
 	inline float theme_resize_handle_thickness;
 	inline float theme_scroll_thumb_thickness;
+	inline float theme_cursor_thickness;
+
+	inline float theme_frame_padding_left;
+	inline float theme_frame_padding_right;
+	inline float theme_frame_padding_top;
+	inline float theme_frame_padding_bottom;
 
 	// theme configs
 	inline constexpr float theme_opacity_default[9] = {
@@ -512,6 +549,13 @@ namespace age::ui::g
 	inline constexpr float theme_resize_handle_thickness_default = 6.f;
 
 	inline constexpr float theme_scroll_thumb_thickness_default = 8.f;
+
+	inline constexpr float theme_cursor_thickness_default = 2.f;
+
+	inline constexpr float theme_frame_padding_left_default	  = 3.f;
+	inline constexpr float theme_frame_padding_right_default  = 3.f;
+	inline constexpr float theme_frame_padding_top_default	  = 8.f;
+	inline constexpr float theme_frame_padding_bottom_default = 8.f;
 
 	inline constexpr uint8 opacity_0	  = 0;
 	inline constexpr uint8 opacity_1	  = 1;
@@ -668,7 +712,7 @@ namespace age::ui
 			return hash_id == g::mouse_r_clicked_id;
 		}
 
-		template <input::e::key_kind e_key>
+		template <input::e::key_kind e_key = input::e::key_kind::mouse_left>
 		FORCE_INLINE bool
 		clicked() const noexcept
 		{
@@ -686,7 +730,7 @@ namespace age::ui
 			}
 		}
 
-		template <input::e::key_kind e_key>
+		template <input::e::key_kind e_key = input::e::key_kind::mouse_left>
 		FORCE_INLINE bool
 		pressed() const noexcept
 		{

@@ -481,6 +481,9 @@ namespace age::ui
 	DEF(overflow, overflow)
 	DEF(align, align)
 
+	DEF(width_size_mode, width_size_mode)
+	DEF(height_size_mode, height_size_mode)
+
 	DEF(z_offset, z_offset)
 	DEF(offset, offset)
 	DEF(child_gap, child_gap)
@@ -876,7 +879,7 @@ namespace age::ui::style
 				 | set_align(e::widget_align::begin)
 				 | set_size(size_mode::fit(), size_mode::fit())
 				 | set_z_offset(1)
-				 | set_padding(8.f, 8.f, 3.f, 3.f)
+				 | set_padding(g::theme_frame_padding_left, g::theme_frame_padding_right, g::theme_frame_padding_top, g::theme_frame_padding_bottom)
 				 | set_body_brush_kind(e::brush_kind::color)
 				 | set_border_brush_kind(e::brush_kind::color)
 				 | set_border_thickness(1.f);
@@ -923,6 +926,8 @@ namespace age::ui::style
 		{
 			return set_align(e::widget_align::center)
 				 | set_shape_kind(e::shape_kind::text)
+				 | set_width_size_mode(e::size_mode_kind::grow)
+				 | set_height_size_mode(e::size_mode_kind::text)
 				 | set_padding(0.f, 0.f, 0.f, 0.f)
 				 | set_border_thickness(0.f);
 		}

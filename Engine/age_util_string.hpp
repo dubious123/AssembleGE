@@ -158,7 +158,7 @@ namespace age::util
 		return written;
 	}
 
-	FORCE_INLINE constexpr std::tuple<uint16, uint16>
+	FORCE_INLINE constexpr std::tuple<uint8, uint16>
 	decode_utf8(const char* p)
 	{
 		auto c = static_cast<uint8>(p[0]);

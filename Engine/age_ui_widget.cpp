@@ -20,6 +20,7 @@ namespace age::ui::detail
 			pos_data.text.idx		  = char_pos_data_idx;
 
 			auto line_offset = 0u;
+			auto wrap_count	 = 0u;
 			auto cursor		 = float2{ 0.f, 0.f };
 
 			g::char_pos_data_vec.reserve(g::char_pos_data_vec.size() + text_data.char_data_count);
@@ -27,18 +28,21 @@ namespace age::ui::detail
 			for (auto char_offset = text_data.char_data_offset;
 				 c_auto& word_data : std::span(g::word_data_vec.data() + text_data.word_data_offset, text_data.word_data_count))
 			{
-				if (word_data.line_offset > line_offset)
+				c_auto leading_space = word_data.leading_space_count * text_data.space_advance;
+
+				if (word_data.line_offset + wrap_count > line_offset)
 				{
-					line_offset = word_data.line_offset;
+					line_offset = word_data.line_offset + wrap_count;
 					cursor.x	= 0.f;
 				}
-				else if (cursor.x > 0.f and cursor.x + word_data.leading_space + word_data.width > pos_data.width + math::g::epsilon_1e4)
+				else if (cursor.x > 0.f and cursor.x + leading_space + word_data.width > pos_data.width + math::g::epsilon_1e4)
 				{
 					++line_offset;
+					++wrap_count;
 					cursor.x = 0.f;
 				}
 
-				cursor.x += word_data.leading_space;
+				cursor.x += leading_space;
 
 				cursor.y = line_offset * text_data.line_height;
 				for (c_auto& char_data : std::span(g::char_data_vec.data() + char_offset, word_data.char_count))
@@ -101,16 +105,13 @@ namespace age::ui::detail
 {
 	template <bool is_root = false>
 	FORCE_INLINE t_hash
-	widget_begin(const widget_desc& desc) noexcept
+	widget_begin(widget_desc&& desc) noexcept
 	{
 		c_auto id = new_id();
 
 		auto z_offset		   = 0u;
 		auto render_data_count = 0u;
 		auto padding_sum	   = 0.f;
-
-		auto width_max	= desc.width_max;
-		auto height_max = desc.height_max;
 
 		if constexpr (is_root is_false)
 		{
@@ -127,6 +128,11 @@ namespace age::ui::detail
 			{
 				if (desc.shape_kind == e::shape_kind::text)
 				{
+					if (AGE_IS_INVALID_IDX(desc.text.text_data_idx))
+					{
+						detail::gen_text_data(desc);
+					}
+
 					auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
 					render_data_count = text_data.char_data_count;
 				}
@@ -151,10 +157,10 @@ namespace age::ui::detail
 			.pos_data_idx		= g::layout_pos_data_vec.size<uint32>(),
 			.child_gap			= desc.child_gap,
 			.width_min			= desc.width_min,
-			.width_max			= width_max,
+			.width_max			= desc.width_max,
 			.width_final		= 0.f,
 			.height_min			= desc.height_min,
-			.height_max			= height_max,
+			.height_max			= desc.height_max,
 			.height_final		= 0.f,
 		});
 
@@ -551,124 +557,11 @@ namespace age::ui::detail
 	}
 };	  // namespace age::ui::detail
 
-namespace age::ui::detail
-{
-	FORCE_INLINE void
-	handle_text(widget_desc& desc) noexcept
-	{
-		c_auto* p_str		  = desc.text.p_str;
-		c_auto	font_size	  = desc.text.font_size;
-		c_auto	font_idx	  = desc.text.font_idx;
-		c_auto	text_data_idx = g::text_data_vec.size<uint32>();
-
-		auto text_data = ui::text_data{
-			.char_data_offset = g::char_data_vec.size<uint32>(),
-			.word_data_offset = g::word_data_vec.size<uint32>(),
-			.line_height	  = ui::font::get_line_height(font_size, font_idx),
-			.space_advance	  = ui::font::get_space_advance(font_size, font_idx)
-		};
-
-		auto word_width_min		= 0.0f;
-		auto max_width			= 0.f;
-		auto line_width			= 0.f;
-		auto word_count			= 0u;
-		auto char_count			= 0u;
-		auto word_char_count	= 0u;
-		auto word_leading_space = 0.f;
-		auto line_offset		= 0u;
-		auto word_width			= 0.0f;
-
-		for (auto c = *p_str;; c = *p_str)
-		{
-			if (c == ' ' or c == '\n' or c == '\0')
-			{
-				if (word_char_count > 0)
-				{
-					g::word_data_vec.emplace_back(word_data{
-						.char_count	   = word_char_count,
-						.width		   = word_width,
-						.leading_space = word_leading_space,
-						.line_offset   = line_offset });
-
-					word_width_min	= std::max(word_width_min, word_width + word_leading_space);
-					line_width	   += word_width + word_leading_space;
-
-					word_width		   = 0.0f;
-					word_char_count	   = 0;
-					word_leading_space = 0.0f;
-					++word_count;
-				}
-			}
-			if (c == ' ')
-			{
-				word_leading_space += text_data.space_advance;
-				++p_str;
-				continue;
-			}
-			if (c == '\n')
-			{
-				max_width		   = std::max(line_width + word_leading_space, max_width);
-				word_leading_space = 0.f;
-				line_width		   = 0.f;
-				++line_offset;
-				++p_str;
-				continue;
-			}
-			if (c == '\0')
-			{
-				max_width = std::max(line_width + word_leading_space, max_width);
-				break;
-			}
-
-			++char_count;
-			++word_char_count;
-
-			auto&& [byte_count, unicode]  = age::util::decode_utf8(p_str);
-			p_str						 += byte_count;
-
-			c_auto& glyph_data = ui::font::get_glyph_data(unicode, font_idx);
-
-			word_width += glyph_data.advance * font_size;
-
-			g::char_data_vec.emplace_back(ui::char_data{
-				.advance	  = glyph_data.advance * font_size,
-				.offset		  = glyph_data.offset * font_size,
-				.size		  = glyph_data.size * font_size,
-				.atlas_uv_min = glyph_data.atlas_uv_min,
-				.atlas_uv_max = glyph_data.atlas_uv_max,
-			});
-		}
-
-		text_data.word_data_count = word_count;
-		text_data.char_data_count = char_count;
-
-		g::text_data_vec.emplace_back(std::move(text_data));
-
-		c_auto height_min	 = (line_offset + 1u) * text_data.line_height;
-		c_auto height_max	 = (line_offset + 1u + word_count) * text_data.line_height;
-		c_auto padding_sum_h = desc.padding_left + desc.padding_right;
-		c_auto padding_sum_v = desc.padding_top + desc.padding_bottom;
-
-		desc.width_size_mode  = e::size_mode_kind::grow;
-		desc.height_size_mode = e::size_mode_kind::text;
-		desc.width_min		  = word_width_min + padding_sum_h;
-		desc.width_max		  = max_width + padding_sum_h;
-		desc.height_min		  = height_min + padding_sum_v;
-		desc.height_max		  = height_max + padding_sum_v;
-
-		desc.text.text_data_idx = text_data_idx;
-	}
-}	 // namespace age::ui::detail
-
 namespace age::ui::widget
 {
 	widget_ctx
 	begin(widget_desc&& desc) noexcept
 	{
-		if (desc.shape_kind == e::shape_kind::text)
-		{
-			ui::detail::handle_text(desc);
-		}
 		return widget_ctx{ ui::detail::widget_begin(std::move(desc)) };
 	}
 }	 // namespace age::ui::widget
