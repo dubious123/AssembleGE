@@ -121,6 +121,7 @@
     <ClCompile Include="age_graphics_backend_dx12_rt.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp" />
     <ClCompile Include="age_ui_text.cpp" />
+    <ClCompile Include="age_ui_draw.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

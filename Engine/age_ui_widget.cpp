@@ -112,6 +112,7 @@ namespace age::ui::detail
 		auto z_offset		   = 0u;
 		auto render_data_count = 0u;
 		auto padding_sum	   = 0.f;
+		auto atlas_id		   = 0u;
 
 		if constexpr (is_root is_false)
 		{
@@ -135,6 +136,8 @@ namespace age::ui::detail
 
 					auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
 					render_data_count = text_data.char_data_count;
+
+					atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id;
 				}
 				else
 				{
@@ -179,7 +182,8 @@ namespace age::ui::detail
 			.padding_bottom	   = desc.padding_bottom,
 			.interact		   = desc.interact,
 			.save_state		   = desc.save_state,
-			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id },
+			.direct_draw	   = false,
+			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = atlas_id },
 		});
 
 		if (desc.draw)
@@ -528,7 +532,6 @@ namespace age::ui::detail
 
 		c_auto can_finalize_height = size_data.height_mode == e::size_mode_kind::fixed
 								  or size_data.height_mode == e::size_mode_kind::fit;
-
 
 		if (can_finalize_width)
 		{

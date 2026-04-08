@@ -346,9 +346,10 @@ namespace age::ui
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
 
-		bool	interact;
-		bool	save_state;
-		uint8_2 _;
+		bool  interact;
+		bool  save_state;
+		bool  direct_draw;
+		uint8 _;
 
 		union
 		{

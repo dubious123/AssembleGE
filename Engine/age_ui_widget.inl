@@ -730,13 +730,17 @@ namespace age::ui::widget
 			{
 			}
 
-			widget::begin(style::vertical()
-						  | set_align(e::widget_align::begin)
-						  | set_size(size_mode::fixed(g::theme_cursor_thickness), size_mode::fixed(font::get_line_height(font_size, g::current_font_idx)))
-						  | set_draw(draw_cursor)
-						  | set_offset(state.cursor.offset_x, state.cursor.offset_y)
-						  | set_body_brush_data(theme::colors::text_interactive()));
-
+			if (draw_cursor)
+			{
+				draw_direct(style::vertical()
+							| set_align(e::widget_align::begin)
+							| set_size(size_mode::fixed(g::theme_cursor_thickness * 10), size_mode::fixed(font::get_line_height(font_size, g::current_font_idx)))
+							| set_draw(draw_cursor)
+							| set_z_offset(0)
+							| set_offset(state.cursor.offset_x, state.cursor.offset_y)
+							//| set_body_brush_data(theme::colors::text_interactive()));
+							| set_body_brush_data(theme::color<e::theme_token_kind::text_hint>(e::theme_color_kind::accent, e::style_state::idle)));
+			}
 
 			widget::begin(std::move(text_desc));
 			return h;

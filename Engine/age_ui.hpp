@@ -68,6 +68,12 @@ namespace age::ui::widget
 	begin(widget_desc&& desc) noexcept;
 }	 // namespace age::ui::widget
 
+namespace age::ui
+{
+	void
+	draw_direct(widget_desc&& desc) noexcept;
+}
+
 // defaults
 namespace age::ui::size_mode
 {

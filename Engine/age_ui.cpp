@@ -108,6 +108,8 @@ namespace age::ui
 			auto&  parent	  = g::layout_pos_data_vec[parent_idx];
 			auto&  child	  = g::layout_pos_data_vec[current_idx];
 
+			auto parnet_offset_backup = parent.offset;
+
 			if (parent.layout == e::widget_layout::horizontal or parent.layout == e::widget_layout::horizontal_inv)
 			{
 				if (child.align == e::widget_align::begin)
@@ -169,6 +171,11 @@ namespace age::ui
 					child.offset.y	+= parent.offset.y;
 					parent.offset.y -= parent.child_gap;
 				}
+			}
+
+			if (child.direct_draw)
+			{
+				parent.offset = parnet_offset_backup;
 			}
 
 			c_auto parent_content_rect = parent.clip_rect + float4(parent.padding_left, parent.padding_top, -parent.padding_right, -parent.padding_bottom);
