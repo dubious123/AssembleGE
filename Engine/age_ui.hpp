@@ -172,6 +172,9 @@ namespace age::ui::detail
 
 	void
 	update_text_buf(char* p_buf, uint32 buf_byte_size, cursor_data& cursor) noexcept;
+
+	float
+	calc_line_width(const char*& p_buf, float font_size, uint32 font_idx) noexcept;
 }	 // namespace age::ui::detail
 
 namespace age::ui

@@ -450,7 +450,7 @@ namespace age_demo::scene_2
 						{
 						}
 
-						for (auto i = 0; i < 5; ++i)
+						for (auto i = 0; i < 0; ++i)
 						{
 							if (auto _ = widget::begin(set_draw(true)
 													   | set_layout(e::widget_layout::horizontal)

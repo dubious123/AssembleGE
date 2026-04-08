@@ -606,7 +606,7 @@ namespace age::ui::widget
 	{
 		if (auto h = widget::begin(style::frame()
 								   | set_horizontal()
-								   | set_padding_left(g::theme_frame_padding_left - g::theme_cursor_thickness)
+								   | set_padding_left(g::theme_frame_padding_left)
 								   | set_child_gap(0)
 								   | set_interact(true)
 								   | set_save_state(true)
@@ -633,31 +633,33 @@ namespace age::ui::widget
 				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, screen_offset, state.width);
 
 
-				// std::println(
-				//	"offset = {},                      \n"
-				//	"word_min_x = {},				   \n"
-				//	"word_max_x = {},				   \n"
-				//	"line_width = {},				   \n"
-				//	"byte_offset = {},				   \n"
-				//	"word_byte_offset = {},			   \n"
-				//	"word_byte_size = {},			   \n"
-				//	"line_byte_offset = {},			   \n"
-				//	"line_byte_size = {},			   \n"
-				//	"screen_offset = {}",
-				//	res.offset,
-				//	res.word_min_x,
-				//	res.word_max_x,
-				//	res.line_width,
-				//	res.byte_offset,
-				//	res.word_byte_offset,
-				//	res.word_byte_size,
-				//	res.line_byte_offset,
-				//	res.line_byte_size,
-				//	screen_offset);
+				std::println(
+					"offset = {},                      \n"
+					"word_min_x = {},				   \n"
+					"word_max_x = {},				   \n"
+					"line_width = {},				   \n"
+					"byte_offset = {},				   \n"
+					"word_byte_offset = {},			   \n"
+					"word_byte_size = {},			   \n"
+					"line_byte_offset = {},			   \n"
+					"line_byte_size = {},			   \n"
+					"screen_offset = {}\n",
+					res.offset,
+					res.word_min_x,
+					res.word_max_x,
+					res.line_width,
+					res.byte_offset,
+					res.word_byte_offset,
+					res.word_byte_size,
+					res.line_byte_offset,
+					res.line_byte_size,
+					screen_offset);
 
-				state.cursor.offset_x		 = res.offset.x;
-				state.cursor.offset_y		 = res.offset.y;
-				state.cursor.byte_pos		 = res.byte_offset;
+				state.cursor.offset_x = res.offset.x;
+				state.cursor.offset_y = res.offset.y;
+				state.cursor.byte_pos = res.byte_offset;
+
+
 				state.cursor.anchor_byte_pos = res.byte_offset;
 
 
@@ -688,14 +690,25 @@ namespace age::ui::widget
 					state.cursor.offset_x = res.offset.x;
 					state.cursor.offset_y = res.offset.y;
 					state.cursor.byte_pos = res.byte_offset;
+
+					if (g::p_input_ctx->is_shift_down() is_false)
+					{
+						state.cursor.anchor_offset_x = res.offset.x;
+						state.cursor.anchor_offset_y = res.offset.y;
+						state.cursor.anchor_byte_pos = res.byte_offset;
+					}
 				}
 
 				ui::detail::gen_text_data(text_desc);
 
-				auto res = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, state.width);
+				auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, state.width);
 
+				auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, state.width);
 
-				ui::detail::update_text_buf(p_buf, buf_size, res);
+				cursor.anchor_byte_offset = anchor.byte_offset;
+				ui::detail::update_text_buf(p_buf, buf_size, cursor);
+
+				anchor.byte_offset = cursor.anchor_byte_offset;
 
 				// std::println("{}", cursor_byte_idx);
 
@@ -710,20 +723,23 @@ namespace age::ui::widget
 					"word_byte_size = {},			   \n"
 					"line_byte_offset = {},			   \n"
 					"line_byte_size = {},			   \n",
-					res.offset,
-					res.word_min_x,
-					res.word_max_x,
-					res.line_width,
-					res.byte_offset,
-					res.word_byte_offset,
-					res.word_byte_size,
-					res.line_byte_offset,
-					res.line_byte_size);
+					cursor.offset,
+					cursor.word_min_x,
+					cursor.word_max_x,
+					cursor.line_width,
+					cursor.byte_offset,
+					cursor.word_byte_offset,
+					cursor.word_byte_size,
+					cursor.line_byte_offset,
+					cursor.line_byte_size);
 
-				state.cursor.offset_x		 = res.offset.x;
-				state.cursor.offset_y		 = res.offset.y;
-				state.cursor.byte_pos		 = res.byte_offset;
-				state.cursor.anchor_byte_pos = res.anchor_byte_offset;
+				state.cursor.offset_x = cursor.offset.x;
+				state.cursor.offset_y = cursor.offset.y;
+				state.cursor.byte_pos = cursor.byte_offset;
+
+				state.cursor.anchor_offset_x = anchor.offset.x;
+				state.cursor.anchor_offset_y = anchor.offset.y;
+				state.cursor.anchor_byte_pos = anchor.byte_offset;
 			}
 
 			if (state.cursor.anchor_byte_pos != state.cursor.byte_pos)
@@ -732,14 +748,84 @@ namespace age::ui::widget
 
 			if (draw_cursor)
 			{
+				c_auto line_h		 = font::get_line_height(font_size, g::current_font_idx);
+				c_auto has_selection = state.cursor.byte_pos != state.cursor.anchor_byte_pos;
+
+				// selection highlight
+				if (has_selection)
+				{
+					c_auto min_x = std::min(state.cursor.offset_x, state.cursor.anchor_offset_x);
+					c_auto max_x = std::max(state.cursor.offset_x, state.cursor.anchor_offset_x);
+					c_auto min_y = std::min(state.cursor.offset_y, state.cursor.anchor_offset_y);
+					c_auto max_y = std::max(state.cursor.offset_y, state.cursor.anchor_offset_y);
+
+
+					if (state.cursor.offset_y == state.cursor.anchor_offset_y)
+					{
+						// same line
+
+						draw_direct(style::vertical()
+									| set_draw(true)
+									| set_align(e::widget_align::begin)
+									| set_size(size_mode::fixed(max_x - min_x), size_mode::fixed(line_h))
+									| set_z_offset(0)
+									| set_offset(min_x, min_y)
+									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
+					}
+					else
+					{
+						c_auto first_is_cursor = (state.cursor.offset_y < state.cursor.anchor_offset_y);
+						c_auto first_x		   = first_is_cursor ? state.cursor.offset_x : state.cursor.anchor_offset_x;
+						c_auto last_x		   = first_is_cursor ? state.cursor.anchor_offset_x : state.cursor.offset_x;
+
+						// todo
+
+						c_auto* ptr		   = p_buf + std::min(state.cursor.byte_pos, state.cursor.anchor_byte_pos);
+						auto	line_width = detail::calc_line_width(ptr, font_size, text_desc.text.font_idx);
+
+						// first line
+						draw_direct(style::vertical()
+									| set_draw(true)
+									| set_align(e::widget_align::begin)
+									| set_size(size_mode::fixed(line_width), size_mode::fixed(line_h))
+									| set_z_offset(0)
+									| set_offset(first_x, min_y)
+									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
+
+						// middle lines (full width)
+						c_auto line_count = static_cast<uint32>((max_y - min_y) / line_h);
+						for (uint32 i = 1; i < line_count; ++i)
+						{
+							line_width = detail::calc_line_width(++ptr, font_size, text_desc.text.font_idx);
+
+							draw_direct(style::vertical()
+										| set_draw(true)
+										| set_align(e::widget_align::begin)
+										| set_size(size_mode::fixed(line_width), size_mode::fixed(line_h))
+										| set_z_offset(0)
+										| set_offset(0.f, min_y + i * line_h)
+										| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
+						}
+
+						// last line
+						draw_direct(style::vertical()
+									| set_draw(true)
+									| set_align(e::widget_align::begin)
+									| set_size(size_mode::fixed(last_x), size_mode::fixed(line_h))
+									| set_z_offset(0)
+									| set_offset(0.f, max_y)
+									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
+					}
+				}
+
+				// cursor bar
 				draw_direct(style::vertical()
+							| set_draw(true)
 							| set_align(e::widget_align::begin)
-							| set_size(size_mode::fixed(g::theme_cursor_thickness * 10), size_mode::fixed(font::get_line_height(font_size, g::current_font_idx)))
-							| set_draw(draw_cursor)
+							| set_size(size_mode::fixed(g::theme_cursor_thickness), size_mode::fixed(line_h))
 							| set_z_offset(0)
 							| set_offset(state.cursor.offset_x, state.cursor.offset_y)
-							//| set_body_brush_data(theme::colors::text_interactive()));
-							| set_body_brush_data(theme::color<e::theme_token_kind::text_hint>(e::theme_color_kind::accent, e::style_state::idle)));
+							| set_body_brush_data(theme::colors::text_interactive()));
 			}
 
 			widget::begin(std::move(text_desc));

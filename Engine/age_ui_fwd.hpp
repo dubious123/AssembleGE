@@ -213,6 +213,9 @@ namespace age::ui
 				float offset_y;
 
 				uint32 byte_pos;
+
+				float  anchor_offset_x;
+				float  anchor_offset_y;
 				uint32 anchor_byte_pos;
 			} cursor;
 		};

@@ -258,10 +258,13 @@ namespace age::ui::detail
 
 			if (word_data.line_offset + wrap_count > line_offset)
 			{
+				// line_offset = word_data.line_offset + wrap_count;
 				new_line = true;
 			}
-			else if (res.offset.x > 0.f and res.offset.x + leading_space + word_data.width > width + math::g::epsilon_1e4)
+			else if (cursor_x > 0.f and cursor_x + leading_space + word_data.width > width + math::g::epsilon_1e4)
 			{
+				++wrap_count;
+				//++line_offset;
 				new_line = true;
 			}
 
@@ -421,6 +424,7 @@ namespace age::ui::detail
 		auto& anchor_byte_idx = cursor.anchor_byte_offset;
 
 		// cursor movement (will be applied on the next frame)
+		c_auto prev_cursor = cursor_byte_idx;
 
 		if (g::p_input_ctx->is_pressed_or_repeat(key_home))
 		{
@@ -478,7 +482,36 @@ namespace age::ui::detail
 			}
 		}
 
-		if (g::p_input_ctx->is_pressed_or_repeat(key_backspace) and cursor_byte_idx > 0)
+		if (cursor_byte_idx != prev_cursor and not g::p_input_ctx->is_shift_down())
+		{
+			anchor_byte_idx = cursor_byte_idx;
+		}
+
+		// edit
+		auto selection_consumed = false;
+
+		if (c_auto has_selection = anchor_byte_idx != cursor_byte_idx)
+		{
+			if (g::p_input_ctx->is_pressed_or_repeat(key_backspace)
+				or g::p_input_ctx->is_pressed_or_repeat(key_delete)
+				or g::p_input_ctx->is_pressed_or_repeat(key_enter)
+				or g::utf8_buf_len)
+			{
+				// delete selection
+				c_auto sel_min = std::min(cursor_byte_idx, anchor_byte_idx);
+				c_auto sel_max = std::max(cursor_byte_idx, anchor_byte_idx);
+				std::memmove(p_buf + sel_min, p_buf + sel_max, str_len - sel_max + 1);
+				str_len			-= (sel_max - sel_min);
+				cursor_byte_idx	 = sel_min;
+				anchor_byte_idx	 = sel_min;
+
+				selection_consumed = true;
+			}
+		}
+
+		auto anchor_fixed = anchor_byte_idx != cursor_byte_idx;
+
+		if (not selection_consumed and g::p_input_ctx->is_pressed_or_repeat(key_backspace) and cursor_byte_idx > 0)
 		{
 			c_auto prev_pos = cursor_byte_idx;
 
@@ -500,7 +533,7 @@ namespace age::ui::detail
 			str_len -= remove_count;
 		}
 
-		if (g::p_input_ctx->is_pressed_or_repeat(key_delete) and cursor_byte_idx < str_len)
+		if (not selection_consumed and g::p_input_ctx->is_pressed_or_repeat(key_delete) and cursor_byte_idx < str_len)
 		{
 			auto end_pos = cursor_byte_idx;
 
@@ -543,5 +576,25 @@ namespace age::ui::detail
 				ptr					   += byte_count;
 			}
 		}
+
+		if (anchor_fixed is_false)
+		{
+			anchor_byte_idx = cursor_byte_idx;
+		}
+	}
+
+	float
+	calc_line_width(const char*& p_buf, float font_size, uint32 font_idx) noexcept
+	{
+		auto width = 0.f;
+
+		for (auto c = *p_buf; c != '\n' and c != '\0'; c = *p_buf)
+		{
+			c_auto[byte_count, unicode]	 = age::util::decode_utf8(p_buf);
+			width						+= ui::font::get_advance(unicode, font_size, font_idx);
+			p_buf						+= byte_count;
+		}
+
+		return width;
 	}
 }	 // namespace age::ui::detail
