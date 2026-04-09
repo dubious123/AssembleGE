@@ -115,6 +115,10 @@ namespace age::ui::theme
 		{
 			return g::resize_handle;
 		}
+		else if constexpr (e_theme_token == e::theme_token_kind::selection_rect)
+		{
+			return g::selection_rect;
+		}
 		else
 		{
 			AGE_UNREACHABLE();
@@ -122,34 +126,34 @@ namespace age::ui::theme
 	}
 
 	template <e::theme_token_kind e_theme_token>
-	constexpr FORCE_INLINE float4
+	FORCE_INLINE float4
 	color(e::style_state e_state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[e::to_idx(get_theme_token_data<e_theme_token>().color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
 	}
 
 	template <e::theme_token_kind e_theme_token>
-	constexpr FORCE_INLINE float4
+	FORCE_INLINE float4
 	color(e::theme_color_kind e_color, e::style_state e_state = e::style_state::idle) noexcept
 	{
 		return float4{ g::theme_color[e::to_idx(e_color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
 	}
 
-	constexpr FORCE_INLINE float3
+	FORCE_INLINE float3
 	color(e::theme_color_kind e_color) noexcept
 	{
 		return g::theme_color[e::to_idx(e_color)];
 	}
 
 	template <e::theme_token_kind e_theme_token>
-	constexpr FORCE_INLINE float
+	FORCE_INLINE float
 	opacity(e::style_state e_state = e::style_state::idle) noexcept
 	{
 		return g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]];
 	}
 
 	template <e::theme_token_kind e_theme_token>
-	constexpr FORCE_INLINE float
+	FORCE_INLINE float
 	font_size() noexcept
 	{
 		return g::theme_font_size[e::to_idx(get_theme_token_data<e_theme_token>().font_size)];

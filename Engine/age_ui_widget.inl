@@ -601,8 +601,169 @@ namespace age::ui::widget
 // text input
 namespace age::ui::widget
 {
+	namespace detail
+	{
+		FORCE_INLINE void
+		handle_text_click(widget_state& state, const char* p_buf, widget_desc& text_desc,
+						  float width, float2 mouse_offset, uint8 click_count) noexcept
+		{
+			ui::detail::gen_text_data(text_desc);
+
+			auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, mouse_offset, width);
+
+			state.cursor.offset_x = res.offset.x;
+			state.cursor.offset_y = res.offset.y;
+
+			if (click_count == 3)
+			{
+				state.cursor.anchor_byte_pos = res.line_byte_offset;
+				state.cursor.byte_pos		 = res.line_byte_offset + res.line_byte_size;
+			}
+			else if (click_count == 2)
+			{
+				state.cursor.anchor_byte_pos = res.word_byte_offset;
+				state.cursor.byte_pos		 = res.word_byte_offset + res.word_byte_size;
+			}
+			else
+			{
+				state.cursor.byte_pos		 = res.byte_offset;
+				state.cursor.anchor_byte_pos = g::p_input_ctx->is_shift_down()
+												 ? state.cursor.anchor_byte_pos
+												 : res.byte_offset;
+			}
+		}
+
+		FORCE_INLINE void
+		handle_text_edit(widget_state& state, char* p_buf, uint32 buf_size,
+						 widget_desc& text_desc, float width) noexcept
+		{
+			using enum input::e::key_kind;
+
+			c_auto font_size		= text_desc.text.font_size;
+			c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
+
+			auto regen_cursor = false;
+
+			if (g::p_input_ctx->is_pressed_or_repeat(key_up))
+			{
+				state.cursor.offset_y -= text_line_height - math::g::epsilon_1e4;
+				regen_cursor		   = !regen_cursor;
+			}
+
+			if (g::p_input_ctx->is_pressed_or_repeat(key_down))
+			{
+				state.cursor.offset_y += text_line_height + math::g::epsilon_1e4;
+				regen_cursor		   = !regen_cursor;
+			}
+
+			if (regen_cursor)
+			{
+				ui::detail::gen_text_data(text_desc);
+				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx,
+															   float2{ state.cursor.offset_x, state.cursor.offset_y }, width);
+
+				state.cursor.offset_x = res.offset.x;
+				state.cursor.offset_y = res.offset.y;
+				state.cursor.byte_pos = res.byte_offset;
+
+				if (g::p_input_ctx->is_shift_down() is_false)
+				{
+					state.cursor.anchor_offset_x = res.offset.x;
+					state.cursor.anchor_offset_y = res.offset.y;
+					state.cursor.anchor_byte_pos = res.byte_offset;
+				}
+			}
+
+			ui::detail::gen_text_data(text_desc);
+
+			auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+			auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
+
+			cursor.anchor_byte_offset = anchor.byte_offset;
+			ui::detail::update_text_buf(p_buf, buf_size, cursor);
+			anchor.byte_offset = cursor.anchor_byte_offset;
+
+			state.cursor.offset_x		 = cursor.offset.x;
+			state.cursor.offset_y		 = cursor.offset.y;
+			state.cursor.byte_pos		 = cursor.byte_offset;
+			state.cursor.anchor_offset_x = anchor.offset.x;
+			state.cursor.anchor_offset_y = anchor.offset.y;
+			state.cursor.anchor_byte_pos = anchor.byte_offset;
+		}
+
+		FORCE_INLINE void
+		draw_text_cursor_and_selection(const widget_state& state, const cursor_data& cursor,
+									   const cursor_data& anchor, widget_desc& text_desc,
+									   float width, float text_line_height) noexcept
+		{
+			if (c_auto has_selection = state.cursor.byte_pos != state.cursor.anchor_byte_pos)
+			{
+				c_auto min_x = std::min(state.cursor.offset_x, state.cursor.anchor_offset_x);
+				c_auto max_x = std::max(state.cursor.offset_x, state.cursor.anchor_offset_x);
+				c_auto min_y = std::min(state.cursor.offset_y, state.cursor.anchor_offset_y);
+				c_auto max_y = std::max(state.cursor.offset_y, state.cursor.anchor_offset_y);
+
+				if (state.cursor.offset_y == state.cursor.anchor_offset_y)
+				{
+					draw_direct(style::vertical()
+								| set_draw(true)
+								| set_align(e::widget_align::begin)
+								| set_size(size_mode::fixed(max_x - min_x), size_mode::fixed(text_line_height))
+								| set_z_offset(0)
+								| set_offset(min_x, min_y)
+								| set_body_brush_data(theme::color<e::theme_token_kind::selection_rect>()));
+				}
+				else
+				{
+					auto&& [first_x, last_x, first_line_width] =
+						state.cursor.offset_y < state.cursor.anchor_offset_y
+							? std::tuple{ state.cursor.offset_x, state.cursor.anchor_offset_x, cursor.line_width }
+							: std::tuple{ state.cursor.anchor_offset_x, state.cursor.offset_x, anchor.line_width };
+
+					draw_direct(style::vertical()
+								| set_draw(true)
+								| set_align(e::widget_align::begin)
+								| set_size(size_mode::fixed(first_line_width - first_x), size_mode::fixed(text_line_height))
+								| set_z_offset(0)
+								| set_offset(first_x, min_y)
+								| set_body_brush_data(theme::color<e::theme_token_kind::selection_rect>()));
+
+					for (auto i : views::loop(static_cast<uint32>((max_y - min_y - math::g::epsilon_1e4) / text_line_height)))
+					{
+						c_auto offset	 = float2{ 0.f, min_y + (i + 1) * text_line_height };
+						auto   line_info = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, offset, width);
+
+						draw_direct(style::vertical()
+									| set_draw(true)
+									| set_align(e::widget_align::begin)
+									| set_size(size_mode::fixed(line_info.line_width), size_mode::fixed(text_line_height))
+									| set_z_offset(0)
+									| set_offset(offset)
+									| set_body_brush_data(theme::color<e::theme_token_kind::selection_rect>()));
+					}
+
+					draw_direct(style::vertical()
+								| set_draw(true)
+								| set_align(e::widget_align::begin)
+								| set_size(size_mode::fixed(last_x), size_mode::fixed(text_line_height))
+								| set_z_offset(0)
+								| set_offset(0, max_y)
+								| set_body_brush_data(theme::color<e::theme_token_kind::selection_rect>()));
+				}
+			}
+
+			draw_direct(style::vertical()
+						| set_draw(true)
+						| set_align(e::widget_align::begin)
+						| set_size(size_mode::fixed(g::theme_cursor_thickness), size_mode::fixed(text_line_height))
+						| set_z_offset(0)
+						| set_offset(state.cursor.offset_x, state.cursor.offset_y)
+						| set_body_brush_data(theme::colors::text_interactive()));
+		}
+	}	 // namespace detail
+
 	FORCE_INLINE widget_ctx
-	text_input(char* p_buf, uint32 buf_size) noexcept
+	text_input(char* p_buf, uint32 buf_size, auto&&... modifier) noexcept
 	{
 		if (auto h = widget::begin(style::frame()
 								   | set_horizontal()
@@ -614,188 +775,40 @@ namespace age::ui::widget
 								   | set_width_grow()
 								   | set_height_fit()))
 		{
-			using enum input::e::key_kind;
+			c_auto font_size		= theme::font_size<e::theme_token_kind::text_interactive>();
+			c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
 
-			// c_auto font_size = theme::font_size<e::theme_token_kind::text_interactive>();
-			c_auto font_size = 22.f;
-
-			auto text_desc = style::text_secondary(p_buf) | set_align(e::widget_align::begin) | set_font_size(font_size);
+			auto text_desc = ((style::text_secondary(p_buf)
+							   | set_align(e::widget_align::begin)
+							   | set_font_size(font_size))
+							  | ... | FWD(modifier));
 
 			auto& state = h.get_state();
 
-			c_auto draw_cursor = h.focused() and not h.pressed();
-
-			c_auto text_field_width = state.width - (g::theme_frame_padding_left + g::theme_frame_padding_right);
-
-			c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
+			c_auto width		= state.width - (g::theme_frame_padding_left + g::theme_frame_padding_right);
+			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ g::theme_frame_padding_left, g::theme_frame_padding_top };
 
 			if (h.triple_clicked())
 			{
-				ui::detail::gen_text_data(text_desc);
-
-				auto screen_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ g::theme_frame_padding_left, g::theme_frame_padding_top };
-
-				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, screen_offset, text_field_width);
-
-				state.cursor.offset_x = res.offset.x;
-				state.cursor.offset_y = res.offset.y;
-
-				state.cursor.anchor_byte_pos = res.line_byte_offset;
-				state.cursor.byte_pos		 = res.line_byte_offset + res.line_byte_size;
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 3);
 			}
 			else if (h.double_clicked())
 			{
-				ui::detail::gen_text_data(text_desc);
-
-				auto screen_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ g::theme_frame_padding_left, g::theme_frame_padding_top };
-
-				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, screen_offset, text_field_width);
-
-				state.cursor.anchor_byte_pos = res.word_byte_offset;
-				state.cursor.byte_pos		 = res.word_byte_offset + res.word_byte_size;
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 2);
 			}
 			else if (h.clicked())
 			{
-				ui::detail::gen_text_data(text_desc);
-
-				auto screen_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ g::theme_frame_padding_left, g::theme_frame_padding_top };
-
-				auto res = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, screen_offset, text_field_width);
-
-				state.cursor.offset_x = res.offset.x;
-				state.cursor.offset_y = res.offset.y;
-				state.cursor.byte_pos = res.byte_offset;
-
-				state.cursor.anchor_byte_pos = res.byte_offset;
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 1);
 			}
-			else if (draw_cursor)
+			else if (h.focused() and not h.pressed())
 			{
-				auto regen_cursor = false;
-				// cursor up
-				if (g::p_input_ctx->is_pressed_or_repeat(key_up))
-				{
-					state.cursor.offset_y -= text_line_height - math::g::epsilon_1e4;
-					regen_cursor		   = !regen_cursor;
-				}
+				detail::handle_text_edit(state, p_buf, buf_size, text_desc, width);
 
-				// cursor down
-				if (g::p_input_ctx->is_pressed_or_repeat(key_down))
-				{
-					state.cursor.offset_y += text_line_height + math::g::epsilon_1e4;
-					regen_cursor		   = !regen_cursor;
-				}
+				auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+				auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
 
-				if (regen_cursor)
-				{
-					ui::detail::gen_text_data(text_desc);
-					auto res			  = ui::detail::screen_offset_to_cursor(text_desc.text.text_data_idx, float2{ state.cursor.offset_x, state.cursor.offset_y }, text_field_width);
-					state.cursor.offset_x = res.offset.x;
-					state.cursor.offset_y = res.offset.y;
-					state.cursor.byte_pos = res.byte_offset;
-
-					if (g::p_input_ctx->is_shift_down() is_false)
-					{
-						state.cursor.anchor_offset_x = res.offset.x;
-						state.cursor.anchor_offset_y = res.offset.y;
-						state.cursor.anchor_byte_pos = res.byte_offset;
-					}
-				}
-
-				ui::detail::gen_text_data(text_desc);
-
-				auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, text_field_width);
-
-				auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, text_field_width);
-
-				cursor.anchor_byte_offset = anchor.byte_offset;
-				ui::detail::update_text_buf(p_buf, buf_size, cursor);
-
-				anchor.byte_offset = cursor.anchor_byte_offset;
-
-				state.cursor.offset_x = cursor.offset.x;
-				state.cursor.offset_y = cursor.offset.y;
-				state.cursor.byte_pos = cursor.byte_offset;
-
-				state.cursor.anchor_offset_x = anchor.offset.x;
-				state.cursor.anchor_offset_y = anchor.offset.y;
-				state.cursor.anchor_byte_pos = anchor.byte_offset;
-
-
-				// selection highlight
-				if (c_auto has_selection = state.cursor.byte_pos != state.cursor.anchor_byte_pos)
-				{
-					c_auto min_x = std::min(state.cursor.offset_x, state.cursor.anchor_offset_x);
-					c_auto max_x = std::max(state.cursor.offset_x, state.cursor.anchor_offset_x);
-					c_auto min_y = std::min(state.cursor.offset_y, state.cursor.anchor_offset_y);
-					c_auto max_y = std::max(state.cursor.offset_y, state.cursor.anchor_offset_y);
-
-
-					if (state.cursor.offset_y == state.cursor.anchor_offset_y)
-					{
-						// same line
-
-						draw_direct(style::vertical()
-									| set_draw(true)
-									| set_align(e::widget_align::begin)
-									| set_size(size_mode::fixed(max_x - min_x), size_mode::fixed(text_line_height))
-									| set_z_offset(0)
-									| set_offset(min_x, min_y)
-									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
-					}
-					else
-					{
-						auto&& [first_x, last_x, first_line_width] = state.cursor.offset_y < state.cursor.anchor_offset_y
-																	   ? std::tuple{ state.cursor.offset_x, state.cursor.anchor_offset_x, cursor.line_width }
-																	   : std::tuple{ state.cursor.anchor_offset_x, state.cursor.offset_x, anchor.line_width };
-
-						// todo
-
-						// first line
-						draw_direct(style::vertical()
-									| set_draw(true)
-									| set_align(e::widget_align::begin)
-									| set_size(size_mode::fixed(first_line_width - first_x), size_mode::fixed(text_line_height))
-									| set_z_offset(0)
-									| set_offset(first_x, min_y)
-									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
-
-						// middle lines (full width)
-						for (auto i : views::loop(static_cast<uint32>((max_y - min_y - math::g::epsilon_1e4) / text_line_height)))
-						{
-							c_auto offset = float2{ 0.f, min_y + (i + 1) * text_line_height };
-
-							auto line_info = detail::screen_offset_to_cursor(text_desc.text.text_data_idx, offset, text_field_width);
-
-							draw_direct(style::vertical()
-										| set_draw(true)
-										| set_align(e::widget_align::begin)
-										| set_size(size_mode::fixed(line_info.line_width), size_mode::fixed(text_line_height))
-										| set_z_offset(0)
-										| set_offset(offset)
-										| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
-						}
-
-						// last line
-						draw_direct(style::vertical()
-									| set_draw(true)
-									| set_align(e::widget_align::begin)
-									| set_size(size_mode::fixed(last_x), size_mode::fixed(text_line_height))
-									| set_z_offset(0)
-									| set_offset(0, max_y)
-									| set_body_brush_data(theme::colors::bg_accent(e::style_state::active)));
-					}
-				}
-
-				// cursor bar
-				draw_direct(style::vertical()
-							| set_draw(true)
-							| set_align(e::widget_align::begin)
-							| set_size(size_mode::fixed(g::theme_cursor_thickness), size_mode::fixed(text_line_height))
-							| set_z_offset(0)
-							| set_offset(state.cursor.offset_x, state.cursor.offset_y)
-							| set_body_brush_data(theme::colors::text_interactive()));
+				detail::draw_text_cursor_and_selection(state, cursor, anchor, text_desc, width, text_line_height);
 			}
-
 
 			widget::begin(std::move(text_desc));
 			return h;
@@ -817,56 +830,84 @@ namespace age::ui::widget
 	{
 		using enum input::e::key_kind;
 		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
-											| set_interact(true)))
+											| set_interact(true)
+											| set_save_state(true)))
 		{
+			auto& state		 = h_interact.get_state();
+			auto& is_editing = state.toggled;
+
 			step *= g::step_scale_table[g::p_input_ctx->is_ctrl_down()][g::p_input_ctx->is_shift_down()];
 
 			auto style_state = e::style_state::idle;
 
-			if constexpr (std::is_floating_point_v<t>)
+			if (h_interact.double_clicked())
 			{
-				if (h_interact.pressed<mouse_left>())
+				is_editing = true;
+				util::to_str(g::numeric_field_text_edit_buf, value);
+
+				// select all
+				state.cursor.anchor_byte_pos = 0;
+				state.cursor.byte_pos		 = static_cast<uint32>(std::strlen(g::numeric_field_text_edit_buf));
+			}
+
+			if (is_editing)
+			{
+				style_state = e::style_state::active;
+
+				if (g::p_input_ctx->is_pressed(key_enter))
 				{
-					style_state	 = e::style_state::active;
-					value		+= g::p_input_ctx->mouse_delta.x * step;
-					value		 = std::clamp(value, min, max);
+					is_editing = false;
+					if (util::from_str(g::numeric_field_text_edit_buf, value))
+					{
+						value = std::clamp(value, min, max);
+					}
 				}
-				else if (h_interact.hovered())
+				else if (g::p_input_ctx->is_pressed(key_escape))
 				{
-					style_state = e::style_state::hover;
+					is_editing = false;
 				}
 			}
 			else
 			{
-				if (h_interact.clicked<mouse_left>())
+				if constexpr (std::is_floating_point_v<t>)
 				{
-					style_state = e::style_state::active;
-
-					auto& state	 = h_interact.get_state();
-					state.drag_x = 0.f;
+					if (h_interact.pressed<mouse_left>())
+					{
+						style_state	 = e::style_state::active;
+						value		+= g::p_input_ctx->mouse_delta.x * step;
+						value		 = std::clamp(value, min, max);
+					}
+					else if (h_interact.hovered())
+					{
+						style_state = e::style_state::hover;
+					}
 				}
-				else if (h_interact.pressed<mouse_left>())
+				else
 				{
-					style_state = e::style_state::active;
+					if (h_interact.clicked<mouse_left>())
+					{
+						style_state	 = e::style_state::active;
+						state.drag_x = 0.f;
+					}
+					else if (h_interact.pressed<mouse_left>())
+					{
+						style_state = e::style_state::active;
 
-					auto& state = h_interact.get_state();
+						state.drag_x += g::p_input_ctx->mouse_delta.x * step;
 
-					state.drag_x += g::p_input_ctx->mouse_delta.x * step;
+						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
 
-					auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
+						value  = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
+						value += delta;
 
-					value = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
-
-					value += delta;
-
-					state.drag_x -= static_cast<float>(delta);
-				}
-				else if (h_interact.hovered())
-				{
-					style_state = e::style_state::hover;
+						state.drag_x -= static_cast<float>(delta);
+					}
+					else if (h_interact.hovered())
+					{
+						style_state = e::style_state::hover;
+					}
 				}
 			}
-
 
 			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
 			{
@@ -876,14 +917,164 @@ namespace age::ui::widget
 								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(style_state)));
 				}
 
-				if (auto _ = widget::begin(style::frame_interactive(style_state)
-										   | set_horizontal()
-										   | set_width(size_mode::grow())))
+				if (is_editing)
 				{
-					char char_buf[21];
+					if (auto _ = widget::begin(style::frame_interactive(e::style_state::active)
+											   | set_horizontal()
+											   | set_width(size_mode::grow())))
+					{
+						c_auto font_size		= theme::font_size<e::theme_token_kind::text_interactive>();
+						c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
 
-					util::to_str(char_buf, value);
-					widget::text_secondary(char_buf, style_state);
+						auto text_desc = style::text_secondary(g::numeric_field_text_edit_buf)
+									   | set_align(e::widget_align::begin)
+									   | set_font_size(font_size);
+
+						c_auto width = state.width - (g::theme_frame_padding_left + g::theme_frame_padding_right);
+
+						detail::handle_text_edit(state, g::numeric_field_text_edit_buf, 65, text_desc, width);
+
+						auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+						auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
+
+						detail::draw_text_cursor_and_selection(state, cursor, anchor, text_desc, width, text_line_height);
+
+						widget::begin(std::move(text_desc));
+					}
+				}
+				else
+				{
+					if (auto _ = widget::begin(style::frame_interactive(style_state)
+											   | set_horizontal()
+											   | set_width(size_mode::grow())))
+					{
+						char char_buf[21];
+						util::to_str(char_buf, value);
+						widget::text_secondary(char_buf, style_state);
+					}
+				}
+			}
+
+			return h_interact;
+		}
+
+		return {};
+	}
+
+	template <meta::cx_arithmetic t>
+	FORCE_INLINE widget_ctx
+	numeric_field2(t& value, t min = std::numeric_limits<t>::min(), t max = std::numeric_limits<t>::max(),
+				   const char*		   p_hint	  = nullptr,
+				   e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
+				   float			   step		  = 0.1f) noexcept
+	{
+		using enum input::e::key_kind;
+		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
+											| set_interact(true)))
+		{
+			auto& state		 = h_interact.get_state();
+			auto& is_editing = state.toggled;
+
+
+			step *= g::step_scale_table[g::p_input_ctx->is_ctrl_down()][g::p_input_ctx->is_shift_down()];
+
+			auto style_state = e::style_state::idle;
+
+			if (h_interact.double_clicked())
+			{
+				is_editing = true;
+				util::to_str(g::numeric_field_text_edit_buf, value);
+			}
+			else if (h_interact.focused() is_false)
+			{
+				// is_editing = false;
+			}
+
+			if (is_editing)
+			{
+				if (g::p_input_ctx->is_pressed(input::e::key_kind::key_enter))
+				{
+					is_editing = false;
+
+					if (util::from_str(g::numeric_field_text_edit_buf, value))
+					{
+						value = std::clamp(value, min, max);
+					}
+				}
+				else if (g::p_input_ctx->is_pressed(input::e::key_kind::key_escape))
+				{
+					is_editing = false;
+				}
+			}
+			else
+			{
+				if constexpr (std::is_floating_point_v<t>)
+				{
+					if (h_interact.pressed<mouse_left>())
+					{
+						style_state	 = e::style_state::active;
+						value		+= g::p_input_ctx->mouse_delta.x * step;
+						value		 = std::clamp(value, min, max);
+					}
+					else if (h_interact.hovered())
+					{
+						style_state = e::style_state::hover;
+					}
+				}
+				else
+				{
+					if (h_interact.clicked<mouse_left>())
+					{
+						style_state = e::style_state::active;
+
+						auto& state	 = h_interact.get_state();
+						state.drag_x = 0.f;
+					}
+					else if (h_interact.pressed<mouse_left>())
+					{
+						style_state = e::style_state::active;
+
+						auto& state = h_interact.get_state();
+
+						state.drag_x += g::p_input_ctx->mouse_delta.x * step;
+
+						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
+
+						value = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
+
+						value += delta;
+
+						state.drag_x -= static_cast<float>(delta);
+					}
+					else if (h_interact.hovered())
+					{
+						style_state = e::style_state::hover;
+					}
+				}
+			}
+
+			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
+			{
+				if (p_hint is_not_nullptr)
+				{
+					widget::begin(style::text_secondary(p_hint)
+								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(style_state)));
+				}
+
+				if (is_editing)
+				{
+					widget::text_input(g::numeric_field_text_edit_buf, 65);
+				}
+				else
+				{
+					if (auto _ = widget::begin(style::frame_interactive(style_state)
+											   | set_horizontal()
+											   | set_width(size_mode::grow())))
+					{
+						char char_buf[21];
+						util::to_str(char_buf, value);
+						widget::text_secondary(char_buf, style_state);
+					}
 				}
 			}
 

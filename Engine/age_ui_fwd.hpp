@@ -53,7 +53,8 @@ namespace age::ui::e
 					slider_thumb_ring,
 					scroll_thumb,
 					select_accent,
-					resize_handle);
+					resize_handle,
+					selection_rect);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -495,9 +496,12 @@ namespace age::ui::g
 	inline char	  utf8_buf[16 * 4 + 1];
 	inline uint32 utf8_buf_len = 0;
 
+	inline char numeric_field_text_edit_buf[16 * 4 + 1];
+
 	// numeric step scale
 	inline constexpr float step_scale_table[2][2] = { { 1.0f, 0.1f },
 													  { 10.f, 0.01f } };
+
 	// theme
 	inline float  theme_opacity[9];
 	inline float3 theme_color[e::size<e::theme_color_kind>()];
@@ -631,6 +635,8 @@ namespace age::ui::g
 	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_0, opacity_0, opacity_7 } };	  // selected item left border
 
 	inline constexpr style_color resize_handle = { e::theme_color_kind::accent, { opacity_2, opacity_4, opacity_5 } };	  // panel resizable handle
+
+	inline constexpr style_color selection_rect = { e::theme_color_kind::accent, { opacity_5, opacity_5, opacity_5 } };
 
 
 }	 // namespace age::ui::g

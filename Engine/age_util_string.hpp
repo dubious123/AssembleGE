@@ -37,18 +37,25 @@ namespace age::util
 		consteval float
 		threshold() noexcept
 		{
-			auto v = 1.f;
-			for (std::size_t i = 0; i < n - overhead; ++i)
+			if constexpr (n - overhead >= 38)
 			{
-				v *= 10.f;
+				return std::numeric_limits<float>::max();
 			}
-			return v;
+			else
+			{
+				auto v = 1.f;
+				for (std::size_t i = 0; i < n - overhead; ++i)
+				{
+					v *= 10.f;
+				}
+				return v;
+			}
 		}
 	}	 // namespace detail
 
 	template <std::size_t n, int32 precision = 2>
 	constexpr void
-	float_to_str(char (&buf)[n], float value)
+	float_to_str(char (&buf)[n], float value) noexcept
 	{
 		static_assert(n >= 12, "buffer too small for scientific notation");
 
@@ -75,7 +82,7 @@ namespace age::util
 
 	template <std::size_t n, int32 base = 10>
 	constexpr void
-	integral_to_str(char (&buf)[n], std::integral auto value)
+	integral_to_str(char (&buf)[n], std::integral auto value) noexcept
 	{
 		if constexpr (sizeof(value) <= sizeof(uint32))
 		{
@@ -96,7 +103,7 @@ namespace age::util
 {
 	template <typename t, std::size_t n>
 	constexpr void
-	to_str(char (&buf)[n], t value)
+	to_str(char (&buf)[n], t value) noexcept
 	{
 		if constexpr (std::is_floating_point_v<t>)
 		{
@@ -106,6 +113,22 @@ namespace age::util
 		{
 			integral_to_str(buf, value);
 		}
+	}
+
+	template <typename t, std::size_t n>
+	constexpr bool
+	from_str(char (&buf)[n], t& value) noexcept
+	{
+		auto result		= t{};
+		c_auto[ptr, ec] = std::from_chars(buf, buf + std::strlen(buf), result);
+
+		if (ec == std::errc{})
+		{
+			value = result;
+			return true;
+		}
+
+		return false;
 	}
 }	 // namespace age::util
 
