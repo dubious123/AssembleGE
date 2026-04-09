@@ -30,6 +30,8 @@ namespace age::ui::detail
 			{
 				c_auto leading_space = word_data.leading_space_count * text_data.space_advance;
 
+				auto wrapped = false;
+
 				if (word_data.line_offset + wrap_count > line_offset)
 				{
 					line_offset = word_data.line_offset + wrap_count;
@@ -40,9 +42,14 @@ namespace age::ui::detail
 					++line_offset;
 					++wrap_count;
 					cursor.x = 0.f;
+
+					wrapped = true;
 				}
 
-				cursor.x += leading_space;
+				if (wrapped is_false)
+				{
+					cursor.x += leading_space;
+				}
 
 				cursor.y = line_offset * text_data.line_height;
 				for (c_auto& char_data : std::span(g::char_data_vec.data() + char_offset, word_data.char_count))

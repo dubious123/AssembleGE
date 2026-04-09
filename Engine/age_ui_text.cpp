@@ -127,13 +127,20 @@ namespace age::ui::detail
 	{
 		c_auto& text_data		   = g::text_data_vec[text_data_idx];
 		c_auto	target_line_offset = static_cast<uint32>(std::max(screen_offset.y, 0.f) / text_data.line_height);
+		auto	res				   = cursor_data{};
 
-		auto res = cursor_data{};
+		auto cursor_x_prev = 0.f;
+		auto cursor_x	   = 0.f;
+		auto wrap_count	   = 0u;
+		auto line_offset   = 0u;
+		auto word_found	   = false;
 
-		auto line_offset = 0u;
-		auto wrap_count	 = 0u;
-		auto cursor_x	 = 0.f;
-		auto word_found	 = false;
+		auto line_byte_offset_prev = 0u;
+		auto line_byte_size_prev   = 0u;
+		auto line_width_prev	   = 0.f;
+		auto line_byte_offset	   = 0u;
+		auto line_byte_size		   = 0u;
+		auto line_width			   = 0.f;
 
 		for (auto char_offset = text_data.char_data_offset;
 			 c_auto& word_data : std::span(g::word_data_vec.data() + text_data.word_data_offset, text_data.word_data_count))
@@ -142,62 +149,99 @@ namespace age::ui::detail
 
 			if (word_data.line_offset + wrap_count > line_offset)
 			{
-				line_offset = word_data.line_offset + wrap_count;
+				line_offset	  = word_data.line_offset + wrap_count;
+				cursor_x_prev = cursor_x;
+				cursor_x	  = 0.f;
 
-				if (target_line_offset < line_offset)
-				{
-					break;
-				}
+				line_byte_offset_prev = line_byte_offset;
+				line_byte_size_prev	  = line_byte_size;
+				line_width_prev		  = line_width;
 
-				cursor_x			 = 0.f;
-				res.line_byte_offset = word_data.byte_offset;
-				res.line_byte_size	 = 0;
+				line_byte_offset = word_data.byte_offset;
+				line_byte_size	 = 0u;
+				line_width		 = 0.f;
 			}
-			else if (cursor_x > 0.f and cursor_x + leading_space + word_data.width > width + math::g::epsilon_1e4)
+
+			if (target_line_offset < line_offset)
+			{
+				break;
+			}
+
+			cursor_x_prev  = cursor_x;
+			cursor_x	  += leading_space;
+
+			line_byte_size_prev = line_byte_size;
+			line_width_prev		= line_width;
+
+			line_byte_size += word_data.leading_space_count;
+			line_width	   += leading_space;
+
+			if (line_offset == target_line_offset and word_found is_false)
+			{
+				if (screen_offset.x >= cursor_x_prev and screen_offset.x <= cursor_x)
+				{
+					word_found = true;
+
+					res.word_byte_offset = word_data.byte_offset;
+					res.word_byte_size	 = word_data.leading_space_count;
+
+					res.word_min_x = cursor_x_prev;
+					res.word_max_x = cursor_x;
+
+					c_auto space_count = static_cast<uint32>((screen_offset.x - cursor_x_prev + text_data.space_advance * 0.5f) / text_data.space_advance);
+
+					res.byte_offset = res.word_byte_offset + space_count;
+					res.offset.x	= cursor_x_prev + space_count * text_data.space_advance;
+				}
+			}
+
+			// wrap
+			if (cursor_x + word_data.width > width + math::g::epsilon_1e4 and leading_space > 0.f)
 			{
 				++line_offset;
 				++wrap_count;
 
-				if (target_line_offset < line_offset)
-				{
-					break;
-				}
+				cursor_x_prev = cursor_x;
+				cursor_x	  = 0.f;
 
-				cursor_x			 = 0.f;
-				res.line_byte_offset = word_data.byte_offset;
-				res.line_byte_size	 = 0;
+				line_byte_offset_prev = line_byte_offset;
+				line_byte_size_prev	  = line_byte_size;
+				line_width_prev		  = line_width;
+
+				line_byte_offset = word_data.byte_offset + word_data.leading_space_count;
+				line_byte_size	 = 0u;
+				line_width		 = 0.f;
 			}
 
-			if (word_found is_false and target_line_offset == line_offset)
+			if (target_line_offset < line_offset)
 			{
-				c_auto leading_space_byte_size = word_data.leading_space_count;
-				if (screen_offset.x < cursor_x + leading_space)
+				break;
+			}
+
+			cursor_x_prev  = cursor_x;
+			cursor_x	  += word_data.width;
+
+			line_byte_size_prev = line_byte_size;
+			line_width_prev		= line_width;
+
+			line_byte_size += word_data.byte_size - word_data.leading_space_count;
+			line_width	   += word_data.width;
+
+
+			if (line_offset == target_line_offset and word_found is_false)
+			{
+				if (screen_offset.x >= cursor_x_prev and screen_offset.x <= cursor_x)
 				{
-					// clicked leading space
-					res.word_byte_offset = word_data.byte_offset;
-					res.word_byte_size	 = word_data.leading_space_count;
-
-					res.word_min_x = cursor_x;
-					res.word_max_x = cursor_x + leading_space;
-
-					c_auto space_count = static_cast<uint32>((screen_offset.x - cursor_x + text_data.space_advance * 0.5f) / text_data.space_advance);
-
-					res.byte_offset = res.word_byte_offset + space_count;
-					res.offset.x	= cursor_x + space_count * text_data.space_advance;
-
 					word_found = true;
-				}
-				else if (screen_offset.x < cursor_x + leading_space + word_data.width)
-				{
-					// clicked word
+
 					res.word_byte_offset = word_data.byte_offset + word_data.leading_space_count;
 					res.word_byte_size	 = word_data.byte_size - word_data.leading_space_count;
 
-					res.word_min_x = cursor_x + leading_space;
-					res.word_max_x = res.word_min_x + word_data.width;
+					res.word_min_x = cursor_x_prev;
+					res.word_max_x = cursor_x;
 
 					res.byte_offset = res.word_byte_offset;
-					res.offset.x	= cursor_x + leading_space;
+					res.offset.x	= cursor_x_prev;
 
 					for (c_auto& char_data : std::span(g::char_data_vec.data() + char_offset, word_data.char_count))
 					{
@@ -209,24 +253,31 @@ namespace age::ui::detail
 						res.offset.x	+= char_data.advance;
 						res.byte_offset += char_data.byte_size;
 					}
-
-					word_found = true;
 				}
 			}
 
-			cursor_x	+= leading_space + word_data.width;
 			char_offset += word_data.char_count;
-
-			res.line_byte_size += word_data.byte_size;
-			res.line_width	   += leading_space + word_data.width;
 		}
 
-		res.offset.y = target_line_offset * text_data.line_height;
+		res.offset.y = std::min(target_line_offset, line_offset) * text_data.line_height;
+
+		if (target_line_offset < line_offset)
+		{
+			res.line_byte_offset = line_byte_offset_prev;
+			res.line_byte_size	 = line_byte_size_prev;
+			res.line_width		 = line_width_prev;
+		}
+		else
+		{
+			res.line_byte_offset = line_byte_offset;
+			res.line_byte_size	 = line_byte_size;
+			res.line_width		 = line_width;
+		}
 
 		if (word_found is_false)
 		{
 			res.byte_offset = res.line_byte_offset + res.line_byte_size;
-			res.offset.x	= cursor_x;
+			res.offset.x	= cursor_x_prev;
 		}
 
 		return res;
@@ -236,125 +287,187 @@ namespace age::ui::detail
 	byte_offset_to_cursor(uint32 text_data_idx, uint32 byte_offset, float width) noexcept
 	{
 		c_auto& text_data = g::text_data_vec[text_data_idx];
+		auto	res		  = cursor_data{};
 
-		auto res		= cursor_data{};
-		res.byte_offset = byte_offset;
+		auto cursor_x_prev	  = 0.f;
+		auto cursor_x		  = 0.f;
+		auto wrap_count		  = 0u;
+		auto line_offset_prev = 0u;
+		auto line_offset	  = 0u;
+		auto word_found		  = false;
 
-		auto cursor_x	 = 0.f;
-		auto line_offset = 0u;
-		auto wrap_count	 = 0u;
+		auto line_byte_offset_prev = 0u;
+		auto line_byte_size_prev   = 0u;
+		auto line_width_prev	   = 0.f;
+		auto line_byte_offset	   = 0u;
+		auto line_byte_size		   = 0u;
+		auto line_width			   = 0.f;
 
-		auto word_found = false;
+		auto end_of_text = true;
 
-		auto char_offset = text_data.char_data_offset;
-		auto word_idx	 = 0u;
-		for (auto i : views::loop(text_data.word_data_count))
+		for (auto char_offset = text_data.char_data_offset;
+			 c_auto& word_data : std::span(g::word_data_vec.data() + text_data.word_data_offset, text_data.word_data_count))
 		{
-			word_idx			 = i;
-			c_auto word_data	 = g::word_data_vec[text_data.word_data_offset + word_idx];
 			c_auto leading_space = word_data.leading_space_count * text_data.space_advance;
-
-			auto new_line = word_idx == 0;
 
 			if (word_data.line_offset + wrap_count > line_offset)
 			{
-				// line_offset = word_data.line_offset + wrap_count;
-				new_line = true;
-			}
-			else if (cursor_x > 0.f and cursor_x + leading_space + word_data.width > width + math::g::epsilon_1e4)
-			{
-				++wrap_count;
-				//++line_offset;
-				new_line = true;
-			}
+				line_offset_prev = line_offset;
+				line_offset		 = word_data.line_offset + wrap_count;
+				cursor_x_prev	 = cursor_x;
+				cursor_x		 = 0.f;
 
-			if (new_line and byte_offset < word_data.byte_offset)
-			{
-				break;
-			}
+				line_byte_offset_prev = line_byte_offset;
+				line_byte_size_prev	  = line_byte_size;
+				line_width_prev		  = line_width;
 
-			if (new_line)
-			{
-				cursor_x			 = 0.f;
-				res.line_byte_offset = word_data.byte_offset;
-				res.line_byte_size	 = 0;
-				line_offset			 = word_data.line_offset + wrap_count;
-			}
+				line_byte_offset = word_data.byte_offset;
+				line_byte_size	 = 0u;
+				line_width		 = 0.f;
 
-			if (word_found is_false and byte_offset >= word_data.byte_offset)
-			{
-				c_auto leading_space_byte_size = word_data.leading_space_count;
-				if (byte_offset < word_data.byte_offset + word_data.leading_space_count)
+				if (byte_offset < word_data.byte_offset)
 				{
-					// handle leading space
+					end_of_text = false;
+					break;
+				}
+			}
+
+			cursor_x_prev  = cursor_x;
+			cursor_x	  += leading_space;
+
+			line_byte_size_prev = line_byte_size;
+			line_width_prev		= line_width;
+
+			line_byte_size += word_data.leading_space_count;
+			line_width	   += leading_space;
+
+			if (word_found is_false)
+			{
+				if (byte_offset >= word_data.byte_offset and byte_offset < word_data.byte_offset + word_data.leading_space_count)
+				{
+					word_found	 = true;
+					res.offset.y = line_offset * text_data.line_height;
+
 					res.word_byte_offset = word_data.byte_offset;
 					res.word_byte_size	 = word_data.leading_space_count;
 
-					res.word_min_x = cursor_x;
-					res.word_max_x = cursor_x + leading_space;
+					res.word_min_x = cursor_x_prev;
+					res.word_max_x = cursor_x;
 
 					c_auto space_count = byte_offset - word_data.byte_offset;
 
-					res.offset.x = cursor_x + space_count * text_data.space_advance;
-
-					word_found = true;
+					res.byte_offset = byte_offset;
+					res.offset.x	= cursor_x_prev + space_count * text_data.space_advance;
 				}
-				else if (byte_offset < word_data.byte_offset + word_data.char_count + word_data.leading_space_count)
+			}
+
+			// wrap
+			if (cursor_x + word_data.width > width + math::g::epsilon_1e4 and leading_space > 0.f)
+			{
+				line_offset_prev = line_offset;
+				++line_offset;
+				++wrap_count;
+
+				cursor_x_prev = cursor_x;
+				cursor_x	  = 0.f;
+
+				line_byte_offset_prev = line_byte_offset;
+				line_byte_size_prev	  = line_byte_size;
+				line_width_prev		  = line_width;
+
+				line_byte_offset = word_data.byte_offset + word_data.leading_space_count;
+				line_byte_size	 = 0u;
+				line_width		 = 0.f;
+
+				if (byte_offset < word_data.byte_offset)
 				{
-					// handle word
+					end_of_text = false;
+					break;
+				}
+			}
+
+
+			cursor_x_prev  = cursor_x;
+			cursor_x	  += word_data.width;
+
+			line_byte_size_prev = line_byte_size;
+			line_width_prev		= line_width;
+
+			line_byte_size += word_data.byte_size - word_data.leading_space_count;
+			line_width	   += word_data.width;
+
+
+			if (word_found is_false)
+			{
+				if (byte_offset >= word_data.byte_offset + word_data.leading_space_count and byte_offset < word_data.byte_offset + word_data.byte_size)
+				{
+					word_found	 = true;
+					res.offset.y = line_offset * text_data.line_height;
+
 					res.word_byte_offset = word_data.byte_offset + word_data.leading_space_count;
 					res.word_byte_size	 = word_data.byte_size - word_data.leading_space_count;
 
-					res.word_min_x = cursor_x + leading_space;
-					res.word_max_x = res.word_min_x + word_data.width;
+					res.word_min_x = cursor_x_prev;
+					res.word_max_x = cursor_x;
 
-					res.offset.x = cursor_x + leading_space;
+					res.byte_offset = byte_offset;
+					res.offset.x	= cursor_x_prev;
 
-					c_auto char_count = byte_offset - (word_data.byte_offset + word_data.leading_space_count);
-
-					for (auto byte_idx = word_data.byte_offset;
-						 c_auto& char_data : std::span(g::char_data_vec.data() + char_offset, char_count))
+					for (auto byte_idx = res.word_byte_offset;
+						 c_auto& char_data : std::span(g::char_data_vec.data() + char_offset, word_data.char_count))
 					{
+						if (byte_idx >= byte_offset)
+						{
+							break;
+						}
+
 						res.offset.x += char_data.advance;
 						byte_idx	 += char_data.byte_size;
 					}
-
-					word_found = true;
 				}
 			}
 
-			cursor_x	+= leading_space + word_data.width;
 			char_offset += word_data.char_count;
-
-			res.line_byte_size += word_data.byte_size;
-			res.line_width	   += leading_space + word_data.width;
 		}
 
-		if (word_found is_false)
+		if (word_found)
 		{
-			res.offset.x = cursor_x;
+			res.line_byte_offset = line_byte_offset_prev;
+			res.line_byte_size	 = line_byte_size_prev;
+			res.line_width		 = line_width_prev;
+		}
+		else if (end_of_text)
+		{
+			res.offset.y		 = line_offset * text_data.line_height;
+			res.byte_offset		 = byte_offset;
+			res.line_byte_offset = line_byte_offset;
+			res.line_byte_size	 = line_byte_size;
+			res.line_width		 = line_width;
+			res.offset.x		 = line_width;
+		}
+		else
+		{
+			c_auto new_line_count = byte_offset - (line_byte_offset_prev + line_byte_size_prev);
 
-			AGE_ASSERT(text_data.word_data_count > 0);
-			AGE_ASSERT(text_data.word_data_offset + word_idx > 1);
+			res.offset.y	= (line_offset_prev + new_line_count) * text_data.line_height;
+			res.byte_offset = byte_offset;
 
-			c_auto& word_data = g::word_data_vec[text_data.word_data_offset + word_idx - 1];
-
-			if (word_data.char_count > 0)
+			if (new_line_count > 1)
 			{
-				res.word_byte_offset = word_data.byte_offset + word_data.leading_space_count;
-				res.word_byte_size	 = word_data.byte_size - word_data.leading_space_count;
+				res.line_byte_offset = byte_offset;
+				res.line_byte_size	 = 0;
+				res.line_width		 = 0.f;
+				res.offset.x		 = 0.f;
 			}
 			else
 			{
-				res.word_byte_offset = word_data.byte_offset;
-				res.word_byte_size	 = word_data.leading_space_count;
+				res.line_byte_offset = line_byte_offset_prev;
+				res.line_byte_size	 = line_byte_size_prev;
+				res.line_width		 = line_width_prev;
+				res.offset.x		 = line_width_prev;
 			}
 		}
 
-		// AGE_ASSERT(word_found);
-
-
-		res.offset.y = line_offset * text_data.line_height;
 
 		return res;
 	}

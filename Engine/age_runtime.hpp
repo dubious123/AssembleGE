@@ -15,6 +15,12 @@ namespace age::runtime
 		AGE_GET(frame_count, frame_count)
 
 		FORCE_INLINE constexpr float
+		get_now_s() noexcept
+		{
+			return std::chrono::duration<float>(get_now().time_since_epoch()).count();
+		}
+
+		FORCE_INLINE constexpr float
 		get_delta_time_s() noexcept
 		{
 			return std::chrono::duration<float>(get_delta_time_ns()).count();

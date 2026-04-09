@@ -273,12 +273,23 @@ namespace age::ui
 			}
 			else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
 			{
-				// AGE_ASSERT(g::mouse_l_clicked_id == get_invalid_id<t_hash>());
 				if (g::mouse_l_pressed_id == g::hover_id)
 				{
 					g::mouse_l_clicked_id = g::mouse_l_pressed_id;
-				}
 
+					// click count
+					c_auto elapsed = runtime::i_time.get_now_s() - g::mouse_l_clicked_time;
+					if (elapsed < 0.5f)
+					{
+						g::mouse_l_clicked_count = std::min<uint8>(g::mouse_l_clicked_count + 1, uint8{ 3 });
+					}
+					else
+					{
+						g::mouse_l_clicked_count = 1;
+					}
+
+					g::mouse_l_clicked_time = runtime::i_time.get_now_s();
+				}
 
 				g::mouse_l_pressed_id = age::get_invalid_id<t_hash>();
 			}

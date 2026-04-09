@@ -462,6 +462,9 @@ namespace age::ui::g
 	inline t_hash							mouse_l_clicked_id;
 	inline t_hash							mouse_r_clicked_id;
 
+	inline float mouse_l_clicked_time;
+	inline uint8 mouse_l_clicked_count;
+
 	inline age::vector<id_scope> id_stack;
 
 	inline age::unordered_map<uint64, widget_state> widget_state_map;
@@ -732,6 +735,18 @@ namespace age::ui
 			{
 				static_assert(false, "invalid key kind");
 			}
+		}
+
+		FORCE_INLINE bool
+		double_clicked() const noexcept
+		{
+			return mouse_l_clicked() and g::mouse_l_clicked_count == 2;
+		}
+
+		FORCE_INLINE bool
+		triple_clicked() const noexcept
+		{
+			return mouse_l_clicked() and g::mouse_l_clicked_count == 3;
 		}
 
 		template <input::e::key_kind e_key = input::e::key_kind::mouse_left>
