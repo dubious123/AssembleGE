@@ -82,6 +82,28 @@ namespace age::inline data_structure
 			return container.size() - hole_count;
 		}
 
+		FORCE_INLINE void
+		clear() noexcept
+		{
+			if constexpr (is_static)
+			{
+				hole_count = static_count;
+
+				for (auto&& [idx, elem] : container | std::views::enumerate)
+				{
+					elem.next_hole_idx() = idx + 1;
+				}
+			}
+			else
+			{
+				hole_idx = 0;
+
+				hole_count = 0;
+
+				container.clear();
+			}
+		}
+
 		template <typename... t>
 		std::size_t
 		emplace_back(t&&... arg) noexcept

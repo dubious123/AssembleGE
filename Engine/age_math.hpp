@@ -137,9 +137,20 @@ struct vec2
 	}
 
 	FORCE_INLINE constexpr bool
-	operator==(const t_this&) const noexcept = default;
+	operator==(const t_this& other) const noexcept
+	{
+		return x == other.x and y == other.y;
+	}
+
 	FORCE_INLINE constexpr auto
-	operator<=>(const t_this&) const noexcept = default;
+	operator<=>(const t_this& other) const noexcept
+		-> std::partial_ordering
+	{
+		if (*this == other) return std::partial_ordering::equivalent;
+		if (x <= other.x and y <= other.y) return std::partial_ordering::less;
+		if (x >= other.x and y >= other.y) return std::partial_ordering::greater;
+		return std::partial_ordering::unordered;
+	}
 
 	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept
@@ -346,9 +357,20 @@ struct vec3
 	}
 
 	FORCE_INLINE constexpr bool
-	operator==(const t_this&) const noexcept = default;
+	operator==(const t_this& other) const noexcept
+	{
+		return x == other.x and y == other.y and z == other.z;
+	}
+
 	FORCE_INLINE constexpr auto
-	operator<=>(const t_this&) const noexcept = default;
+	operator<=>(const t_this& other) const noexcept
+		-> std::partial_ordering
+	{
+		if (*this == other) return std::partial_ordering::equivalent;
+		if (x <= other.x and y <= other.y and z <= other.z) return std::partial_ordering::less;
+		if (x >= other.x and y >= other.y and z >= other.z) return std::partial_ordering::greater;
+		return std::partial_ordering::unordered;
+	}
 
 	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept
@@ -591,10 +613,20 @@ struct vec4
 	}
 
 	FORCE_INLINE constexpr bool
-	operator==(const t_this&) const noexcept = default;
+	operator==(const t_this& other) const noexcept
+	{
+		return x == other.x and y == other.y and z == other.z and w == other.w;
+	}
 
 	FORCE_INLINE constexpr auto
-	operator<=>(const t_this&) const noexcept = default;
+	operator<=>(const t_this& other) const noexcept
+		-> std::partial_ordering
+	{
+		if (*this == other) return std::partial_ordering::equivalent;
+		if (x <= other.x and y <= other.y and z <= other.z and w <= other.w) return std::partial_ordering::less;
+		if (x >= other.x and y >= other.y and z >= other.z and w >= other.w) return std::partial_ordering::greater;
+		return std::partial_ordering::unordered;
+	}
 
 	FORCE_INLINE constexpr t_this
 	operator+(const t_this& other_r) const noexcept

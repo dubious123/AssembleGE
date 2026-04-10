@@ -122,17 +122,21 @@ namespace age_demo::game
 				| AGE_LAMBDA(
 					(),
 					{
-						if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_0))
+						if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_0) and i_loop.get_h_input_ctx->is_ctrl_down())
 						{
 							i_loop.set_scene_id_next = 0;
 						}
-						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_1))
+						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_1) and i_loop.get_h_input_ctx->is_ctrl_down())
 						{
 							i_loop.set_scene_id_next = 1;
 						}
-						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_2))
+						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_2) and i_loop.get_h_input_ctx->is_ctrl_down())
 						{
 							i_loop.set_scene_id_next = 2;
+						}
+						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_3) and i_loop.get_h_input_ctx->is_ctrl_down())
+						{
+							i_loop.set_scene_id_next = 3;
 						}
 					})
 
@@ -144,6 +148,7 @@ namespace age_demo::game
 							on<0>				  = scene_0::deinit,
 							on<1>				  = scene_1::deinit,
 							on<2>				  = scene_2::deinit,
+							on<3>				  = scene_3::deinit,
 							on<invalid_id_uint32> = AGE_LAMBDA((), {}),
 							default_to			  = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) },
 						match{
@@ -151,6 +156,7 @@ namespace age_demo::game
 							on<0>	   = scene_0::init,
 							on<1>	   = scene_1::init,
 							on<2>	   = scene_2::init,
+							on<3>	   = scene_3::init,
 							default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) },
 
 						AGE_LAMBDA((), { i_loop.set_scene_id = i_loop.get_scene_id_next(); }),
@@ -161,6 +167,7 @@ namespace age_demo::game
 					on<0>	   = scene_0::update,
 					on<1>	   = scene_1::update,
 					on<2>	   = scene_2::update,
+					on<3>	   = scene_3::update,
 					default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }),
 				},
 			// age::runtime::when_window_alive(h_window_test_app_1),
@@ -180,6 +187,7 @@ namespace age_demo::game
 				   on<0> = AGE_FUNC(scene_0::deinit),
 				   on<1> = AGE_FUNC(scene_1::deinit),
 				   on<2> = AGE_FUNC(scene_2::deinit),
+				   on<3> = AGE_FUNC(scene_3::deinit),
 				   /* default_to = AGE_LAMBDA((), { AGE_UNREACHABLE(); }) */ },
 
 			AGE_LAMBDA((), { age::ui::deinit(i_deinit.get_render_pipeline()); }),

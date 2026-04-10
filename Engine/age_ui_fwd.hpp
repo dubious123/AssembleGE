@@ -7,7 +7,8 @@ namespace age::ui::e
 					rect,
 					circle,
 					arrow_right,
-					text);
+					text,
+					check);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
@@ -219,6 +220,12 @@ namespace age::ui
 				float  anchor_offset_y;
 				uint32 anchor_byte_pos;
 			} cursor;
+
+			struct
+			{
+				float3 euler;
+				float4 quat;
+			} rotation_field;
 		};
 	};
 
@@ -688,6 +695,9 @@ namespace age::ui
 		{
 			return hash_id != age::get_invalid_id<t_hash>();
 		}
+
+		// WARNING: returned reference is invalidated when any new widget_state entry is inserted into the map.
+		// Do NOT hold this reference across widget::begin() or get_state() calls that may create new entries.
 
 		FORCE_INLINE widget_state&
 		get_state() const noexcept

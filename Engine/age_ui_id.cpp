@@ -38,7 +38,7 @@ namespace age::ui::detail
 
 namespace age::ui
 {
-	FORCE_INLINE t_hash
+	t_hash
 	new_id() noexcept
 	{
 		auto&  scope   = g::id_stack.back();
@@ -49,7 +49,7 @@ namespace age::ui
 		return hash_id;
 	}
 
-	FORCE_INLINE id_ctx
+	id_ctx
 	id_begin() noexcept
 	{
 		new_id();

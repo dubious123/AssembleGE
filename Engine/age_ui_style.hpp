@@ -514,6 +514,24 @@ namespace age::ui
 	DEF(save_state, save_state)
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_align_begin() noexcept
+	{
+		return detail::mod_align{ e::widget_align::begin };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_align_center() noexcept
+	{
+		return detail::mod_align{ e::widget_align::center };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_align_end() noexcept
+	{
+		return detail::mod_align{ e::widget_align::end };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_offset(float x, float y) noexcept
 	{
 		return detail::mod_offset{ float2{ x, y } };
@@ -577,6 +595,12 @@ namespace age::ui
 	set_vertical_inv() noexcept
 	{
 		return set_layout(e::widget_layout::vertical_inv);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_padding(float4 padding) noexcept
+	{
+		return set_padding(padding.x, padding.y, padding.z, padding.w);
 	}
 
 	namespace detail

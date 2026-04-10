@@ -19,6 +19,12 @@ namespace age::inline math
 	{
 		return v | simd::load() | simd::normalize3() | simd::to<float3>();
 	}
+
+	FORCE_INLINE float4
+	normalize(float4 v) noexcept
+	{
+		return v | simd::load() | simd::normalize4() | simd::to<float4>();
+	}
 }	 // namespace age::inline math
 
 // 2d
@@ -45,6 +51,49 @@ namespace age::inline math
 // quaternoin
 namespace age::inline math
 {
+	FORCE_INLINE float4
+	euler_rad_to_quat(float3 euler_radian) noexcept
+	{
+		return euler_radian | simd::load() | simd::euler_to_quat() | simd::to<float4>();
+	}
+
+	FORCE_INLINE float4
+	euler_deg_to_quat(float3 euler_deg) noexcept
+	{
+		return euler_deg | simd::load() | simd::mul(simd::replicate(g::degree_to_radian)) | simd::euler_to_quat() | simd::to<float4>();
+	}
+
+	FORCE_INLINE float3
+	quat_to_euler_rad(float4 quat) noexcept
+	{
+		c_auto x = quat.x, y = quat.y, z = quat.z, w = quat.w;
+
+		// pitch (X)
+		c_auto sinp	 = 2.0f * (w * x + y * z);
+		c_auto cosp	 = 1.0f - 2.0f * (x * x + y * y);
+		c_auto pitch = std::atan2(sinp, cosp);
+
+		// yaw (Y)
+		c_auto siny = 2.0f * (w * y - z * x);
+		c_auto yaw	= std::abs(siny) >= 1.0f
+						? std::copysign(g::pi_div_2, siny)	  // gimbal lock
+						: std::asin(siny);
+
+		// roll (Z)
+		c_auto sinr = 2.0f * (w * z + x * y);
+		c_auto cosr = 1.0f - 2.0f * (z * z + y * y);
+		c_auto roll = std::atan2(sinr, cosr);
+
+
+		return float3(pitch, yaw, roll);
+	}
+
+	FORCE_INLINE float3
+	quat_to_euler_deg(float4 quat) noexcept
+	{
+		return quat_to_euler_rad(quat) * float3{ g::radian_to_degree };
+	}
+
 	FORCE_INLINE float3x4
 	trs(float3 pos, float4 quat, float3 scale) noexcept
 	{

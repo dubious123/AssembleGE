@@ -92,6 +92,21 @@ ui_calc_shape_arrow_right(float2 center_offset, float2 size, ui_shape_data data)
 		 - 1.3f;
 }
 
+float
+ui_calc_shape_check(float2 center_offset, float2 size, ui_shape_data data)
+{
+	float2 box = size * 0.5f * 0.35f;
+
+	float2 start  = float2(-box.x * 0.8f, -box.y * 0.1f);
+	float2 corner = float2(-box.x * 0.15f, box.y * 0.7f);
+	float2 tip	  = float2(box.x * 0.85f, -box.y * 0.75f);
+
+	return sdf_union(
+			   sdf_line(center_offset, start, corner),
+			   sdf_line(center_offset, corner, tip))
+		 - 1.3f;
+}
+
 // brush
 float4
 ui_calc_brush_color(float2 rect_uv, ui_brush_data data)

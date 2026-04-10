@@ -17,6 +17,11 @@ namespace age_demo
 
 	}
 
+	namespace scene_3
+	{
+
+	}
+
 	namespace game
 	{
 
@@ -29,4 +34,5 @@ namespace age_demo
 #include "age_demo_scene_0.hpp"
 #include "age_demo_scene_1.hpp"
 #include "age_demo_scene_2.hpp"
+#include "age_demo_scene_3.hpp"
 #include "age_demo_game.hpp"

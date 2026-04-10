@@ -435,15 +435,83 @@ namespace age::ui::widget
 			return {};
 		}
 	}
+
+	FORCE_INLINE widget_ctx
+	checkbox(const char* p_label, bool& value, auto&&... modifier) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto btn = widget::begin(((style::layout(e::widget_layout::horizontal)
+									   | set_align_center()
+									   | set_z_offset(1)
+									   | set_interact(true)
+									   | set_size(size_mode::fit(), size_mode::fit()))
+									  | ... | modifier)))
+		{
+			auto state = e::style_state::idle;
+
+			if (btn.clicked())
+			{
+				value = !value;
+			}
+
+			if (btn.pressed<mouse_left>())
+			{
+				state = e::style_state::active;
+			}
+			else if (btn.hovered())
+			{
+				state = e::style_state::hover;
+			}
+
+			c_auto bg = value
+						  ? theme::color<e::theme_token_kind::toggle_on>(state)
+						  : theme::color<e::theme_token_kind::toggle_off>(state);
+
+			c_auto box_size = font::get_line_height(theme::font_size<e::theme_token_kind::text_interactive>());
+
+			if (auto _ = widget::begin(style::frame_interactive(state)
+									   | set_padding(float4::zero())
+									   | set_width_fixed(box_size)
+									   | set_height_fixed(box_size)
+									   | set_body_brush_data(bg)))
+			{
+				if (value)
+				{
+					widget::begin(set_align(e::widget_align::center)
+								  | set_border_thickness(0.f)
+								  | set_body_brush_data(theme::colors::text_interactive(state))
+								  | set_width_grow()
+								  | set_height_grow()
+								  | set_shape_kind(e::shape_kind::check));
+				}
+			}
+
+
+			widget::text_interactive(p_label, state);
+
+
+			return btn;
+		}
+		else
+		{
+			return {};
+		}
+	}
 }	 // namespace age::ui::widget
 
 // collapsible
 namespace age::ui::widget
 {
 	FORCE_INLINE widget_ctx
-	collapsible_header(const char* p_str) noexcept
+	collapsible_header(const char* p_str, auto&&... modifier) noexcept
 	{
 		using enum input::e::key_kind;
+
+		// if (auto res = widget::begin(((style::layout(e::widget_layout::vertical)
+		//							   | set_align_center()
+		//							   | set_size(size_mode::grow(), size_mode::fit()))
+		//							  | ... | FWD(modifier))))
 
 		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
 									 | set_size(size_mode::grow(), size_mode::fit())))
@@ -823,8 +891,10 @@ namespace age::ui::widget
 {
 	template <meta::cx_arithmetic t>
 	FORCE_INLINE widget_ctx
-	numeric_field(t& value, t min = std::numeric_limits<t>::min(), t max = std::numeric_limits<t>::max(),
+	numeric_field(t&				  value,
 				  const char*		  p_hint	 = nullptr,
+				  t					  min		 = std::numeric_limits<t>::lowest(),
+				  t					  max		 = std::numeric_limits<t>::max(),
 				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
 				  float				  step		 = 0.1f) noexcept
 	{
@@ -961,137 +1031,12 @@ namespace age::ui::widget
 		return {};
 	}
 
-	template <meta::cx_arithmetic t>
-	FORCE_INLINE widget_ctx
-	numeric_field2(t& value, t min = std::numeric_limits<t>::min(), t max = std::numeric_limits<t>::max(),
-				   const char*		   p_hint	  = nullptr,
-				   e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
-				   float			   step		  = 0.1f) noexcept
-	{
-		using enum input::e::key_kind;
-		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
-											| set_interact(true)))
-		{
-			auto& state		 = h_interact.get_state();
-			auto& is_editing = state.toggled;
-
-
-			step *= g::step_scale_table[g::p_input_ctx->is_ctrl_down()][g::p_input_ctx->is_shift_down()];
-
-			auto style_state = e::style_state::idle;
-
-			if (h_interact.double_clicked())
-			{
-				is_editing = true;
-				util::to_str(g::numeric_field_text_edit_buf, value);
-			}
-			else if (h_interact.focused() is_false)
-			{
-				// is_editing = false;
-			}
-
-			if (is_editing)
-			{
-				if (g::p_input_ctx->is_pressed(input::e::key_kind::key_enter))
-				{
-					is_editing = false;
-
-					if (util::from_str(g::numeric_field_text_edit_buf, value))
-					{
-						value = std::clamp(value, min, max);
-					}
-				}
-				else if (g::p_input_ctx->is_pressed(input::e::key_kind::key_escape))
-				{
-					is_editing = false;
-				}
-			}
-			else
-			{
-				if constexpr (std::is_floating_point_v<t>)
-				{
-					if (h_interact.pressed<mouse_left>())
-					{
-						style_state	 = e::style_state::active;
-						value		+= g::p_input_ctx->mouse_delta.x * step;
-						value		 = std::clamp(value, min, max);
-					}
-					else if (h_interact.hovered())
-					{
-						style_state = e::style_state::hover;
-					}
-				}
-				else
-				{
-					if (h_interact.clicked<mouse_left>())
-					{
-						style_state = e::style_state::active;
-
-						auto& state	 = h_interact.get_state();
-						state.drag_x = 0.f;
-					}
-					else if (h_interact.pressed<mouse_left>())
-					{
-						style_state = e::style_state::active;
-
-						auto& state = h_interact.get_state();
-
-						state.drag_x += g::p_input_ctx->mouse_delta.x * step;
-
-						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
-
-						value = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
-
-						value += delta;
-
-						state.drag_x -= static_cast<float>(delta);
-					}
-					else if (h_interact.hovered())
-					{
-						style_state = e::style_state::hover;
-					}
-				}
-			}
-
-			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
-			{
-				if (p_hint is_not_nullptr)
-				{
-					widget::begin(style::text_secondary(p_hint)
-								  | set_body_brush_data(theme::color(hint_color), theme::opacity<e::theme_token_kind::text_secondary>(style_state)));
-				}
-
-				if (is_editing)
-				{
-					widget::text_input(g::numeric_field_text_edit_buf, 65);
-				}
-				else
-				{
-					if (auto _ = widget::begin(style::frame_interactive(style_state)
-											   | set_horizontal()
-											   | set_width(size_mode::grow())))
-					{
-						char char_buf[21];
-						util::to_str(char_buf, value);
-						widget::text_secondary(char_buf, style_state);
-					}
-				}
-			}
-
-			return h_interact;
-		}
-		else
-		{
-			return {};
-		}
-	}
-
 	template <template <typename> typename t_vec, meta::cx_arithmetic t>
 	requires(not requires(t_vec<t> m) { m[0][0]; })
 	FORCE_INLINE widget_ctx
 	numeric_field(t_vec<t>&			  value,
 				  const char*		  p_hint	 = nullptr,
-				  const t_vec<t>&	  min		 = t_vec<t>{ std::numeric_limits<t>::min() },
+				  const t_vec<t>&	  min		 = t_vec<t>{ std::numeric_limits<t>::lowest() },
 				  const t_vec<t>&	  max		 = t_vec<t>{ std::numeric_limits<t>::max() },
 				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
 				  float				  step		 = 0.1f) noexcept
@@ -1104,7 +1049,7 @@ namespace age::ui::widget
 		{
 			if (p_hint is_not_nullptr)
 			{
-				if (auto _ = widget::vertical(set_size(size_mode::grow(), size_mode::fit())))
+				if (auto _ = widget::vertical(set_align_center(), set_size(size_mode::grow(), size_mode::fit())))
 				{
 					widget::begin(style::text_secondary(p_hint)
 								  | set_align(e::widget_align::begin)
@@ -1114,22 +1059,22 @@ namespace age::ui::widget
 
 			if constexpr (requires { value.x; })
 			{
-				numeric_field(value.x, min.x, max.x, labels[0], colors[0], step);
+				numeric_field(value.x, labels[0], min.x, max.x, colors[0], step);
 			}
 
 			if constexpr (requires { value.y; })
 			{
-				numeric_field(value.y, min.y, max.y, labels[1], colors[1], step);
+				numeric_field(value.y, labels[1], min.y, max.y, colors[1], step);
 			}
 
 			if constexpr (requires { value.z; })
 			{
-				numeric_field(value.z, min.z, max.z, labels[2], colors[2], step);
+				numeric_field(value.z, labels[2], min.z, max.z, colors[2], step);
 			}
 
 			if constexpr (requires { value.w; })
 			{
-				numeric_field(value.w, min.w, max.w, labels[3], colors[3], step);
+				numeric_field(value.w, labels[3], min.w, max.w, colors[3], step);
 			}
 		}
 		return {};
@@ -1140,7 +1085,7 @@ namespace age::ui::widget
 	FORCE_INLINE widget_ctx
 	numeric_field(t_mat<t>&			  value,
 				  const char*		  p_hint	 = nullptr,
-				  const t			  min		 = std::numeric_limits<t>::min(),
+				  const t			  min		 = std::numeric_limits<t>::lowest(),
 				  const t			  max		 = std::numeric_limits<t>::max(),
 				  e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
 				  float				  step		 = 0.1f) noexcept
@@ -1180,6 +1125,44 @@ namespace age::ui::widget
 			}
 
 			return col;
+		}
+		return {};
+	}
+
+	FORCE_INLINE widget_ctx
+	rotation_field(float4&			   value,
+				   const char*		   p_hint	  = nullptr,
+				   e::theme_color_kind hint_color = (e::theme_color_kind)g::text_hint.color,
+				   float			   step		  = 0.1f) noexcept
+	{
+		if (auto h = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
+								   | set_save_state(true)))
+		{
+			auto& state = h.get_state();
+
+			c_auto quat_now = float4(value);
+
+			if (not state.toggled or state.rotation_field.quat != quat_now)
+			{
+				state.rotation_field.euler = age::math::quat_to_euler_deg(value);
+				state.rotation_field.quat  = quat_now;
+				state.toggled			   = true;
+			}
+
+			c_auto euler_prev = state.rotation_field.euler;
+			auto   euler	  = state.rotation_field.euler;
+
+			numeric_field(euler, p_hint, float3{ -180.f }, float3{ 180.f }, hint_color, step);
+
+			if (euler != euler_prev)
+			{
+				value				   = age::math::normalize(age::math::euler_deg_to_quat(euler));
+				auto& s				   = h.get_state();
+				s.rotation_field.euler = euler;
+				s.rotation_field.quat  = float4(value);
+			}
+
+			return h;
 		}
 		return {};
 	}

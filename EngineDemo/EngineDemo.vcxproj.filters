@@ -8,6 +8,7 @@
     <ClCompile Include="age_demo_scene_0.cpp" />
     <ClCompile Include="age_demo_main.cpp" />
     <ClCompile Include="age_demo_game.cpp" />
+    <ClCompile Include="age_demo_scene_3.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_demo_pch.hpp" />
@@ -17,5 +18,6 @@
     <ClInclude Include="age_demo_game.hpp" />
     <ClInclude Include="age_demo_scene_2.hpp" />
     <ClInclude Include="age_demo_fwd.hpp" />
+    <ClInclude Include="age_demo_scene_3.hpp" />
   </ItemGroup>
 </Project>

@@ -156,6 +156,58 @@ namespace age_demo::scene_2
 	};
 }	 // namespace age_demo::scene_2
 
+namespace age_demo::scene_3
+{
+	namespace input::g
+	{
+		inline constexpr auto move_speed	= 2.f;
+		inline constexpr auto sprint_mult	= 4.f;
+		inline constexpr auto sensitivity	= 0.17f;
+		inline constexpr auto zoom_speed	= 2.f;
+		inline constexpr auto zoom_distance = 4.f;
+		inline constexpr auto pan_speed		= 0.6f;
+
+		inline constexpr auto move_smoothing = 15.f / 2.f;
+		inline constexpr auto look_smoothing = 25.f / 2.f;
+		inline constexpr auto zoom_smoothing = 12.f / 2.f;
+	}	 // namespace input::g
+
+	struct ctx
+	{
+		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
+			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(3);
+
+		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
+			directional_light_id_vec;
+
+		age::ecs::entity_storage::basic<uint32,
+										age::ecs::position,
+										age::ecs::rotation,
+										age::ecs::scale,
+										age::ecs::camera,
+										age::ecs::directional_light,
+										age::ecs::point_light,
+										age::ecs::spot_light,
+										age::ecs::render_object,
+										age::ecs::mesh,
+										age::ecs::material>
+			entities;
+
+		uint32 ent_main_cam;
+
+		bool game_focused;
+
+		// input
+		struct
+		{
+			float2 smoothed_move = float2{ 0.f, 0.f };
+			float2 smoothed_look = float2{ 0.f, 0.f };
+			float  smoothed_zoom = 0.f;
+			float2 smoothed_pan	 = float2{ 0.f, 0.f };
+		} input;
+	};
+}	 // namespace age_demo::scene_3
+
 namespace age_demo::global
 {
 	struct ctx
@@ -184,6 +236,8 @@ namespace age_demo::global
 		age_demo::scene_1::ctx scene_1_ctx;
 
 		age_demo::scene_2::ctx scene_2_ctx;
+
+		age_demo::scene_3::ctx scene_3_ctx;
 	};
 
 	namespace detail

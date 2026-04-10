@@ -59,6 +59,11 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 4.f);
 		break;
 	}
+	case UI_SHAPE_KIND_CHECK:
+	{
+		delta_from_edge = ui_calc_shape_check(center_offset, data.size, data.shape_data);
+		break;
+	}
 	}
 
 	switch (body_brush_kind)

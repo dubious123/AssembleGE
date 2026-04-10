@@ -361,6 +361,7 @@ namespace age::math::simd
 {
 	AGE_SIMD_VEC_UNARY_OP(abs, XMVectorAbs);
 	AGE_SIMD_VEC_UNARY_OP(normalize3, XMVector3Normalize);
+	AGE_SIMD_VEC_UNARY_OP(normalize4, XMVector4Normalize);
 	AGE_SIMD_VEC_UNARY_OP(length_inv3, XMVector3ReciprocalLength);
 	AGE_SIMD_VEC_UNARY_OP(length_inv_est3, XMVector3ReciprocalLengthEst);
 

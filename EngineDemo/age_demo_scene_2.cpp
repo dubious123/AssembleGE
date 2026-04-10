@@ -1,7 +1,5 @@
 #include "age_demo_pch.hpp"
 #include "age_demo.hpp"
-#include "age_demo_pch.hpp"
-#include "age_demo.hpp"
 
 namespace age_demo::scene_2
 {
@@ -396,40 +394,56 @@ namespace age_demo::scene_2
 									if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
 									{
 										static float v0 = 10.f;
-										widget::numeric_field(v0, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  "X", e::theme_color_kind::negative);
+										widget::numeric_field(v0,
+															  "X",
+															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  e::theme_color_kind::negative);
 
 										static float v1 = 10.f;
-										widget::numeric_field(v1, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  "Y", e::theme_color_kind::positive);
+										widget::numeric_field(v1,
+															  "Y",
+															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  e::theme_color_kind::positive);
 
 										static float v2 = 10.f;
-										widget::numeric_field(v2, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  "Z", e::theme_color_kind::accent);
+										widget::numeric_field(v2,
+															  "Z",
+															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  e::theme_color_kind::accent);
 
 										static float v3 = 10.f;
-										widget::numeric_field(v3, std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  "W", e::theme_color_kind::amber);
+										widget::numeric_field(v3,
+															  "W",
+															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
+															  e::theme_color_kind::amber);
 									}
 								}
 
 								if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
 								{
 									static uint64 v0 = 100;
-									widget::numeric_field(v0, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  "X", e::theme_color_kind::negative);
+									widget::numeric_field(v0,
+														  "X",
+														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  e::theme_color_kind::negative);
 
 									static uint64 v1 = 100;
-									widget::numeric_field(v1, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  "Y", e::theme_color_kind::positive);
+									widget::numeric_field(v1,
+														  "Y",
+														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  e::theme_color_kind::positive);
 
 									static uint64 v2 = 100;
-									widget::numeric_field(v2, std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  "Z", e::theme_color_kind::accent);
+									widget::numeric_field(v2,
+														  "Z",
+														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  e::theme_color_kind::accent);
 
 									static uint64 v3 = 100;
-									widget::numeric_field(v3, std::numeric_limits<uint64>::min(), 200ull,
-														  "W", e::theme_color_kind::amber);
+									widget::numeric_field(v3,
+														  "W",
+														  std::numeric_limits<uint64>::min(), 200ull,
+														  e::theme_color_kind::amber);
 								}
 
 								static float4 quat;
@@ -452,7 +466,7 @@ namespace age_demo::scene_2
 
 						{
 							static float v = 10.f;
-							widget::numeric_field(v, std::numeric_limits<float>::min(), std::numeric_limits<float>::max());
+							widget::numeric_field(v);
 						}
 
 						static float v = 35.f;

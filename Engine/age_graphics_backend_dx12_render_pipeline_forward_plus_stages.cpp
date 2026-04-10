@@ -131,7 +131,7 @@ namespace age::graphics::render_pipeline::forward_plus
 						  resource_handle h_shadow_stage_shadow_light_buffer,
 						  auto&			  shadow_stage_shadow_light_buffer_srv) noexcept
 	{
-		if (opaque_meshlet_count == 0) [[unlikely]]
+		if (opaque_meshlet_count == 0 or shadow_light_count == 0) [[unlikely]]
 		{
 			return;
 		}

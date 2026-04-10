@@ -421,8 +421,11 @@ namespace age::ecs::entity_block
 		FORCE_INLINE void
 		foreach_entity(t_sys&& sys)
 		{
-			using t_arg_tpl		 = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::argument_types;
-			constexpr auto arity = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::arity;
+			// using t_arg_tpl		 = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::args_tuple;
+			// constexpr auto arity = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::arity;
+
+			using t_arg_tpl		 = age::meta::function_traits<t_sys>::args_tuple;
+			constexpr auto arity = age::meta::function_traits<t_sys>::arity;
 
 			for (t_local_entity_idx local_ent_idx : std::views::iota(0) | std::views::take(entity_count()))
 			{

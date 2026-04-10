@@ -329,7 +329,6 @@ namespace age::ecs::entity_storage
 		void
 		remove_component(const t_ent_id id) noexcept
 		{
-
 			static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
@@ -449,6 +448,9 @@ namespace age::ecs::entity_storage
 			{
 				entity_info_vec.debug_validate();
 			}
+
+			entity_info_vec.clear();
+			entity_blocks_map.clear();
 		}
 	};
 }	 // namespace age::ecs::entity_storage

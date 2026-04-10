@@ -3,10 +3,10 @@
 
 namespace age::ui
 {
-	FORCE_INLINE t_hash
+	t_hash
 	new_id() noexcept;
 
-	FORCE_INLINE id_ctx
+	id_ctx
 	id_begin() noexcept;
 
 	t_hash

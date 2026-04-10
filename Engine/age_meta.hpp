@@ -724,8 +724,8 @@ namespace age::meta
 	consteval auto
 	filter_indices()
 	{
-		c_auto flags   = std::array{ pred<t>::value... };
-		auto   indices = std::array<std::size_t, filter_count<pred, t...>()>{};
+		c_auto flags = std::array{ pred<t>::value... };
+		auto indices = std::array<std::size_t, filter_count<pred, t...>()>{};
 
 		std::size_t idx = 0;
 		for (auto i = 0; i < sizeof...(t); ++i)
@@ -743,8 +743,8 @@ namespace age::meta
 	consteval auto
 	filter_indices()
 	{
-		c_auto flags   = std::array{ std::is_same_v<t_target, t>... };
-		auto   indices = std::array<std::size_t, variadic_count<t_target, t...>()>{};
+		c_auto flags = std::array{ std::is_same_v<t_target, t>... };
+		auto indices = std::array<std::size_t, variadic_count<t_target, t...>()>{};
 
 		std::size_t idx = 0;
 		for (auto i = 0; i < sizeof...(t); ++i)
@@ -1221,6 +1221,13 @@ namespace age::meta
 		struct callable_signature<t&&>
 		{
 			using type = callable_signature_t<t>;
+		};
+
+		template <typename t>
+		requires requires { &t::operator(); }
+		struct callable_signature<t>
+		{
+			using type = callable_signature_t<decltype(&t::operator())>;
 		};
 
 		template <typename t>
