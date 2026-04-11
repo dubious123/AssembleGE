@@ -45,6 +45,7 @@
     <ClInclude Include="age_ecs_entity_block_basic.hpp" />
     <ClInclude Include="age_ecs_entity_storage_basic.hpp" />
     <ClInclude Include="age_ecs_interface.hpp" />
+    <ClInclude Include="age_ecs_query.hpp" />
     <ClInclude Include="age_ecs_system.hpp" />
     <ClInclude Include="age_ecs_system_adaptor.hpp" />
     <ClInclude Include="age_ecs_system_cond.hpp" />
@@ -53,6 +54,7 @@
     <ClInclude Include="age_ecs_system_loop.hpp" />
     <ClInclude Include="age_ecs_system_match.hpp" />
     <ClInclude Include="age_ecs_system_pipe.hpp" />
+    <ClInclude Include="age_editor.hpp" />
     <ClInclude Include="age_external_adapter.hpp" />
     <ClInclude Include="age_extern_templates.hpp" />
     <ClInclude Include="age_fwd.hpp" />
@@ -81,6 +83,7 @@
     <ClInclude Include="age_meta_hash.hpp" />
     <ClInclude Include="age_external.h" />
     <ClInclude Include="age_meta_traits.hpp" />
+    <ClInclude Include="age_meta_type_pack.hpp" />
     <ClInclude Include="age_pch.hpp" />
     <ClInclude Include="age_platform.hpp" />
     <ClInclude Include="age_platform_backend_window.hpp" />

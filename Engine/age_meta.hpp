@@ -938,39 +938,6 @@ namespace age::meta
 	template <auto... v>
 	concept variadic_auto_unique = variadic_unique_v<auto_wrapper<v>...>;
 
-	template <typename... t>
-	struct type_pack
-	{
-		template <std::size_t i>
-		using t_nth = variadic_at_t<i, t...>;
-
-		static constexpr auto size = sizeof...(t);
-	};
-
-	template <typename... t_pack>
-	struct type_pack_cat;
-
-	template <typename... t>
-	struct type_pack_cat<type_pack<t...>>
-	{
-		using type = type_pack<t...>;
-	};
-
-	template <typename... t1, typename... t2, typename... t_pack>
-	struct type_pack_cat<type_pack<t1...>, type_pack<t2...>, t_pack...>
-	{
-		using type = typename type_pack_cat<type_pack<t1..., t2...>, t_pack...>::type;
-	};
-
-	template <typename... t>
-	using type_pack_cat_t = type_pack_cat<t...>::type;
-
-	template <template <typename...> typename t_tpl, typename... t>
-	auto tpl_to_type_pack_helper(t_tpl<t...>) -> type_pack<t...>;
-
-	template <meta::tuple_like t_tpl_like>
-	using tpl_to_type_pack = decltype(tpl_to_type_pack_helper(std::declval<t_tpl_like>()));
-
 	template <unsigned int n>
 	struct string_wrapper
 	{
@@ -1349,6 +1316,15 @@ namespace age::meta
 			std::conditional_t<
 				n <= std::numeric_limits<uint32>::max(), uint32,
 				uint64>>>;
+
+	template <std::size_t n>
+	using smallest_signed_t = std::conditional_t<
+		n <= std::numeric_limits<int8>::max(), int8,
+		std::conditional_t<
+			n <= std::numeric_limits<int16>::max(), int16,
+			std::conditional_t<
+				n <= std::numeric_limits<int32>::max(), int32,
+				int64>>>;
 
 	template <typename t_func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>

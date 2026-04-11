@@ -85,11 +85,12 @@ namespace age_demo::scene_3
 		}();
 	}
 
-	template <typename... t_with>
+	template <typename... t>
 	struct query
 	{
-		using with	  = age::meta::type_pack<t_with...>;
-		using without = age::meta::type_pack<>;
+		using t_with	 = age::meta::type_pack<t...>;
+		using t_without	 = age::meta::type_pack<>;
+		using t_any_list = age::meta::type_pack<>;
 	};
 
 	FORCE_INLINE decltype(auto)
@@ -124,47 +125,10 @@ namespace age_demo::scene_3
 
 					if (auto _ = widget::collapsible_header("camera"))
 					{
-						i_update.get_entities->foreach_entity(
-							query<age::ecs::position, age::ecs::rotation, age::ecs::camera>{},
-							AGE_LAMBDA((age::ecs::position & pos, age::ecs::camera & cam), {
-								if (auto h = widget::vertical())
-								{
-									widget::text_secondary(age::graphics::e::to_string(cam.kind).data());
-
-									widget::numeric_field(pos, "pos");
-
-									widget::numeric_field(cam.euler_deg, "rotation", float3{ -90.f, -180.f, -180.f }, float3{ 90.f, 180.f, 180.f });
-
-									widget::numeric_field(cam.near_z, "near_z", cam.far_z);
-									widget::numeric_field(cam.far_z, "far_z", 0.f);
-
-									if (cam.kind == age::graphics::e::camera_kind::perspective)
-									{
-										widget::numeric_field(cam.fov_y, "fov_y");
-										widget::numeric_field(cam.aspect_ratio, "aspect_ratio");
-									}
-									else
-									{
-										widget::numeric_field(cam.view_width, "view_width");
-										widget::numeric_field(cam.view_height, "view_height");
-									}
-								}
-
-								i_update.get_render_pipeline->update_camera(
-									cam.render_id,
-									{
-										.kind		 = cam.kind,
-										.pos		 = pos,
-										.quaternion	 = age::math::euler_deg_to_quat(cam.euler_deg),
-										.near_z		 = cam.near_z,
-										.far_z		 = cam.far_z,
-										.perspective = {
-											.fov_y		  = cam.fov_y,
-											.aspect_ratio = cam.aspect_ratio,
-
-										},
-									});
-							}));
+						for (auto&& [pos, cam] : i_update.get_entities() | each_entity(age::ecs::query<age::ecs::position, age::ecs::camera>()))
+						{
+							age::editor::ui_camera(pos, cam, i_update.get_render_pipeline());
+						}
 					}
 
 					if (auto _ = widget::collapsible_header("light"))
@@ -193,36 +157,10 @@ namespace age_demo::scene_3
 								}
 							}
 
-							i_update.get_entities->foreach_entity(
-								query<age::ecs::directional_light>{},
-								AGE_LAMBDA((age::ecs::directional_light & light), {
-									char c_buf[12];
-									age::util::to_str(c_buf, light.render_id);
-									widget::text_secondary(c_buf);
-
-									if (auto h = widget::checkbox("cast shadow", light.cast_shadow))
-									{
-										if (h.clicked())
-										{
-											i_update.get_render_pipeline->remove_directional_light(light.render_id);
-
-											light.render_id = i_update.get_render_pipeline->add_directional_light(age::graphics::render_pipeline::forward_plus::directional_light_desc{}, light.cast_shadow);
-										}
-									}
-
-									widget::numeric_field(light.direction, "direction");
-									widget::numeric_field(light.intensity, "intensity");
-									widget::numeric_field(light.color, "color");
-
-
-									i_update.get_render_pipeline->update_directional_light(
-										light.render_id,
-										age::graphics::render_pipeline::forward_plus::directional_light_desc{
-											.direction = age::math::normalize(light.direction),
-											.intensity = light.intensity,
-											.color	   = light.color,
-										});
-								}));
+							for (auto&& [light] : i_update.get_entities() | each_entity(age::ecs::query<age::ecs::directional_light>()))
+							{
+								age::editor::ui_directional_light(light, i_update.get_render_pipeline());
+							}
 						}
 
 						if (auto _ = widget::collapsible_header("point light"))
@@ -238,37 +176,10 @@ namespace age_demo::scene_3
 								}
 							}
 
-							i_update.get_entities->foreach_entity(
-								query<age::ecs::point_light, age::ecs::position>{},
-								AGE_LAMBDA((age::ecs::position & pos, age::ecs::point_light & light), {
-									char c_buf[12];
-									age::util::to_str(c_buf, light.render_id);
-									widget::text_secondary(c_buf);
-
-									if (auto h = widget::checkbox("cast shadow", light.cast_shadow))
-									{
-										if (h.clicked())
-										{
-											i_update.get_render_pipeline->remove_point_light(light.render_id);
-
-											light.render_id = i_update.get_render_pipeline->add_point_light(age::graphics::render_pipeline::forward_plus::point_light_desc{}, light.cast_shadow);
-										}
-									}
-
-									widget::numeric_field(pos, "pos");
-									widget::numeric_field(light.range, "range");
-									widget::numeric_field(light.color, "color");
-									widget::numeric_field(light.intensity, "intensity");
-
-									i_update.get_render_pipeline->update_point_light(
-										light.render_id,
-										age::graphics::render_pipeline::forward_plus::point_light_desc{
-											.position  = pos,
-											.range	   = light.range,
-											.color	   = light.color,
-											.intensity = light.intensity,
-										});
-								}));
+							for (auto&& [pos, light] : i_update.get_entities() | each_entity(age::ecs::query<age::ecs::position, age::ecs::point_light>()))
+							{
+								age::editor::ui_point_light(pos, light, i_update.get_render_pipeline());
+							}
 						}
 
 
@@ -283,43 +194,11 @@ namespace age_demo::scene_3
 									cmp_light.render_id = i_update.get_render_pipeline->add_spot_light(age::graphics::render_pipeline::forward_plus::spot_light_desc{}, cmp_light.cast_shadow);
 								}
 							}
-							i_update.get_entities->foreach_entity(
-								query<age::ecs::spot_light, age::ecs::position>{},
-								AGE_LAMBDA((age::ecs::position & pos, age::ecs::spot_light & light), {
-									char c_buf[12];
-									age::util::to_str(c_buf, light.render_id);
-									widget::text_secondary(c_buf);
 
-									if (auto h = widget::checkbox("cast shadow", light.cast_shadow))
-									{
-										if (h.clicked())
-										{
-											i_update.get_render_pipeline->remove_spot_light(light.render_id);
-
-											light.render_id = i_update.get_render_pipeline->add_spot_light(age::graphics::render_pipeline::forward_plus::spot_light_desc{}, light.cast_shadow);
-										}
-									}
-
-									widget::numeric_field(pos, "pos");
-									widget::numeric_field(light.range, "range");
-									widget::numeric_field(light.direction, "direction");
-									widget::numeric_field(light.intensity, "intensity");
-									widget::numeric_field(light.color, "color");
-									widget::numeric_field(light.cos_inner, "cos_inner", 0.f, 1.f);
-									widget::numeric_field(light.cos_outer, "cos_outer", light.cos_inner, 1.f);
-
-									i_update.get_render_pipeline->update_spot_light(
-										light.render_id,
-										age::graphics::render_pipeline::forward_plus::spot_light_desc{
-											.position  = pos,
-											.range	   = light.range,
-											.direction = age::math::normalize(light.direction),
-											.intensity = light.intensity,
-											.color	   = light.color,
-											.cos_inner = light.cos_inner,
-											.cos_outer = light.cos_outer,
-										});
-								}));
+							for (auto&& [light, pos] : i_update.get_entities() | each_entity(age::ecs::query<age::ecs::spot_light, age::ecs::position>()))
+							{
+								age::editor::ui_spot_light(pos, light, i_update.get_render_pipeline());
+							}
 						}
 					}
 
@@ -338,22 +217,12 @@ namespace age_demo::scene_3
 								cmp_mat.is_opaque														= true;
 							}
 						}
-						i_update.get_entities->foreach_entity(
-							query<age::ecs::render_object, age::ecs::position, age::ecs::material>{},
-							AGE_LAMBDA((age::ecs::render_object render_obj, age::ecs::position & pos, age::ecs::rotation & rot, age::ecs::scale & scale, age::ecs::mesh & mesh, age::ecs::material & mat), {
-								char c_buf[12];
-								age::util::to_str(c_buf, render_obj.render_id);
-								widget::text_secondary(c_buf);
 
-								widget::numeric_field(pos, "pos");
-								widget::rotation_field(rot, "rotation");
-								widget::numeric_field(scale, "scale");
-								widget::numeric_field(mesh.render_id, "mesh", 0u, i_update.get_mesh_id_vec->size<uint32>() - 1);
-
-								widget::checkbox("is_opaque", mat.is_opaque);
-
-								i_update.get_render_pipeline->update_object(render_obj.render_id, pos, rot, scale);
-							}));
+						for (auto&& [render_obj, pos, rot, scale, mesh, mat] : i_update.get_entities()
+																				   | age::ecs::each_entity<age::ecs::render_object, age::ecs::position, age::ecs::rotation, age::ecs::scale, age::ecs::mesh, age::ecs::material>())
+						{
+							age::editor::ui_render_object(render_obj, pos, rot, scale, mesh, mat, i_update.get_render_pipeline());
+						}
 					}
 				}
 			}
@@ -366,7 +235,6 @@ namespace age_demo::scene_3
 			if (auto h_game_scene = widget::vertical(set_width_grow(), set_height_grow(), set_interact(true)))
 			{
 				i_update.set_game_focused = h_game_scene.focused();
-				std::println("i_update.set_game_focused  : {}", i_update.get_game_focused());
 
 				if (i_update.get_game_focused)
 				{

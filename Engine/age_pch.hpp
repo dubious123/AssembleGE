@@ -9,6 +9,7 @@
 #include "age_math.hpp"
 
 #include "age_meta.hpp"
+#include "age_meta_type_pack.hpp"
 #include "age_meta_compressed_pack.hpp"
 #include "age_meta_hash.hpp"
 #include "age_meta_traits.hpp"

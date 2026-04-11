@@ -1,4 +1,6 @@
 #pragma once
+#define AGE_EDITOR
+
 #if defined(_WIN32) || defined(_WIN64)
 	#define AGE_PLATFORM_WINDOW
 #endif
@@ -108,6 +110,7 @@
 		#define AGE_API
 	#endif
 #endif
+
 
 // #define USE_STL_VECTOR
 #define USE_STL_SET

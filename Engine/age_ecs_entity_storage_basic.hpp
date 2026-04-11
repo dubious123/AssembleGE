@@ -7,6 +7,8 @@ namespace age::ecs::entity_storage
 	template <typename t_entity_id, age::ecs::cx_component... t_cmp>
 	struct basic
 	{
+		using ecs_tag = entity_storage_tag;
+
 		using t_ent_id			 = t_entity_id;
 		using t_archetype_traits = age::ecs::archetype_traits<t_cmp...>;
 		using t_archetype		 = t_archetype_traits::t_archetype;
@@ -34,6 +36,18 @@ namespace age::ecs::entity_storage
 			//[ full ... | free ... ]
 			age::data_structure::vector<t_entity_block*> ent_block_vec;
 			std::size_t									 free_block_count = 0;
+
+			FORCE_INLINE auto
+			begin() noexcept
+			{
+				return ent_block_vec.begin();
+			}
+
+			FORCE_INLINE auto
+			end() noexcept
+			{
+				return ent_block_vec.end();
+			}
 
 			FORCE_INLINE void
 			deinit() noexcept
@@ -117,8 +131,8 @@ namespace age::ecs::entity_storage
 			}
 		};
 
-		age::data_structure::sparse_vector<entity_info>				   entity_info_vec;
-		age::data_structure::map<t_archetype, entity_block_collection> entity_blocks_map;
+		age::data_structure::sparse_vector<entity_info>							 entity_info_vec;
+		age::data_structure::unordered_map<t_archetype, entity_block_collection> entity_blocks_map;
 
 	  private:
 		template <cx_component... t>
@@ -371,27 +385,61 @@ namespace age::ecs::entity_storage
 		// bool
 		// matches(t_archetype arch);
 
+		// template <typename t_query>
+		// FORCE_INLINE bool
+		// matches(t_query, t_archetype arch) noexcept
+		//{
+		//	constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
+		//	constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
+
+		//	static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
+
+
+		//	//  without_mask , arch  (1, 1) -> false, (1, 0) -> true
+		//	//
+		//	// without_mask & arch == 0
+		//	//
+		//	//
+		//	//  with_mask , arch          (1, 1) -> true, (1, 0) -> false  // (0, ?)
+		//	//
+		//	// with_mask & arch == with_mask
+		//	//
+		//	//
+		//	return ((arch & with_mask) | (arch & without_mask)) == with_mask;
+		//}
+
 		template <typename t_query>
-		FORCE_INLINE bool
+		FORCE_INLINE static constexpr bool
 		matches(t_query, t_archetype arch) noexcept
 		{
-			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::with>();
-			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::without>();
+			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::t_with>();
+			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::t_without>();
+			constexpr auto any_mask		= t_archetype_traits::template calc_mask<typename t_query::t_any_list>();
 
 			static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
 
+			if (((arch & with_mask) | (arch & without_mask)) != with_mask)
+			{
+				return false;
+			}
 
-			//  without_mask , arch  (1, 1) -> false, (1, 0) -> true
-			//
-			// without_mask & arch == 0
-			//
-			//
-			//  with_mask , arch          (1, 1) -> true, (1, 0) -> false  // (0, ?)
-			//
-			// with_mask & arch == with_mask
-			//
-			//
-			return ((arch & with_mask) | (arch & without_mask)) == with_mask;
+			if constexpr (any_mask != 0)
+			{
+				return (arch & any_mask) != 0;
+			}
+
+			return true;
+		}
+
+		template <typename t_query>
+		FORCE_INLINE decltype(auto)
+		each_block(t_query) noexcept
+		{
+			return entity_blocks_map
+				 | std::views::filter(AGE_LAMBDA((auto& kv), { return matches(t_query{}, kv.first); }))
+				 | std::views::values
+				 | std::views::join
+				 | age::meta::deref_view;
 		}
 
 		template <typename t_query, typename t_sys>

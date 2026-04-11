@@ -52,6 +52,8 @@ namespace age
 	namespace runtime {}
 
 	namespace request {}
+
+	namespace editor{}
 }	 // namespace age
 
 // clang-format on
@@ -71,6 +73,7 @@ namespace age
 	#include "age_math.hpp"
 
 	#include "age_meta.hpp"
+	#include "age_meta_type_pack.hpp"
 	#include "age_meta_compressed_pack.hpp"
 	#include "age_meta_hash.hpp"
 	#include "age_meta_traits.hpp"
@@ -123,6 +126,7 @@ namespace age
 #include "age_ecs_system_loop.hpp"
 #include "age_ecs_system_match.hpp"
 
+#include "age_ecs_query.hpp"
 #include "age_ecs_entity_block_basic.hpp"
 #include "age_ecs_entity_storage_basic.hpp"
 
@@ -161,4 +165,8 @@ namespace age
 
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp"
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
+#endif
+
+#if defined AGE_EDITOR
+	#include "age_editor.hpp"
 #endif

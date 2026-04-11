@@ -72,6 +72,9 @@
     <ClInclude Include="age_ui_defaults.hpp" />
     <ClInclude Include="age_ui_style.hpp" />
     <ClInclude Include="age_ui_widget.inl" />
+    <ClInclude Include="age_editor.hpp" />
+    <ClInclude Include="age_ecs_query.hpp" />
+    <ClInclude Include="age_meta_type_pack.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

@@ -28,7 +28,7 @@ namespace age::ecs::system
 		template <std::size_t arr_size, std::size_t idx_head, std::size_t idx_next, std::size_t... idx_tail>
 		struct index_ranges_seq<arr_size, std::index_sequence<idx_head, idx_next, idx_tail...>>
 		{
-			using type = age::meta::type_pack_cat_t<
+			using type = age::meta::cat_t<
 				age::meta::type_pack<index_range_t<idx_head, idx_next>>,
 				typename index_ranges_seq<arr_size, std::index_sequence<idx_next + 1, idx_tail...>>::type>;
 		};

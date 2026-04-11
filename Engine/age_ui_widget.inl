@@ -210,13 +210,22 @@ namespace age::ui::widget
 					{
 						track_state.drag_y += g::p_input_ctx->mouse_delta.y;
 					}
-
-					track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_y_offset_max);
 				}
 				else if (h_track.hovered())
 				{
 					style_state = e::style_state::hover;
 				}
+
+				if (g::p_input_ctx->is_alt_down())
+				{
+					track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
+				}
+				else
+				{
+					track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+				}
+
+				track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_y_offset_max);
 
 				widget::begin(style::scroll_thumb(style_state) | set_offset(0, thumb_offset_y) | set_width_fixed(thumb_width) | set_height_fixed(thumb_height));
 
@@ -294,13 +303,22 @@ namespace age::ui::widget
 					{
 						track_state.drag_y += g::p_input_ctx->mouse_delta.x;
 					}
-
-					track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_x_offset_max);
 				}
 				else if (h_track.hovered())
 				{
 					style_state = e::style_state::hover;
 				}
+
+				if (g::p_input_ctx->is_alt_down())
+				{
+					track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
+				}
+				else
+				{
+					track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+				}
+
+				track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_x_offset_max);
 
 				widget::begin(style::scroll_thumb(style_state) | set_offset(thumb_offset_x, 0) | set_width_fixed(thumb_width) | set_height_fixed(thumb_height));
 

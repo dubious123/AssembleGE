@@ -5,6 +5,8 @@ namespace age::ecs::entity_block
 	template <std::size_t mem_size, typename t_entity_id, typename t_entity_block_idx, age::ecs::cx_component... t_cmp>
 	struct basic
 	{
+		using ecs_tag = entity_block_tag;
+
 		using t_self			 = basic<mem_size, t_entity_id, t_entity_block_idx, t_cmp...>;
 		using t_ent_id			 = t_entity_id;
 		using t_ent_block_idx	 = t_entity_block_idx;
@@ -443,6 +445,13 @@ namespace age::ecs::entity_block
 		is_empty()
 		{
 			return entity_count() == 0;
+		}
+
+		template <typename t_query>
+		FORCE_INLINE decltype(auto)
+		query_entity(t_query, t_local_entity_idx local_ent_idx) noexcept
+		{
+			return detail::query_entity_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
 		}
 	};
 }	 // namespace age::ecs::entity_block
