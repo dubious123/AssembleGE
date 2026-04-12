@@ -177,9 +177,6 @@ namespace age_demo::scene_3
 		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
 			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(3);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
-			directional_light_id_vec;
-
 		age::ecs::entity_storage::basic<uint32,
 										age::ecs::position,
 										age::ecs::rotation,

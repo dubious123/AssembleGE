@@ -77,6 +77,7 @@
     <ClInclude Include="age_meta_type_pack.hpp" />
     <ClInclude Include="age_ecs_command.hpp" />
     <ClInclude Include="age_data_structure_byte_buffer.hpp" />
+    <ClInclude Include="age_editor_ui.inl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -127,6 +128,7 @@
     <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp" />
     <ClCompile Include="age_ui_text.cpp" />
     <ClCompile Include="age_ui_draw.cpp" />
+    <ClCompile Include="age_editor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

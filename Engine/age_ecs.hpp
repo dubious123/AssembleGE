@@ -14,12 +14,12 @@ namespace age::ecs
 	};
 
 	template <typename t>
-	concept cx_entity_storage = requires { typename t::ecs_tag; }
-							and std::is_same_v<typename t::ecs_tag, entity_storage_tag>;
+	concept cx_entity_storage = requires { typename std::remove_cvref_t<t>::ecs_tag; }
+							and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_storage_tag>;
 
 	template <typename t>
-	concept cx_entity_block = requires { typename t::ecs_tag; }
-						  and std::is_same_v<typename t::ecs_tag, entity_block_tag>;
+	concept cx_entity_block = requires { typename std::remove_cvref_t<t>::ecs_tag; }
+						  and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_block_tag>;
 }	 // namespace age::ecs
 
 namespace age::ecs
@@ -181,5 +181,33 @@ namespace age::ecs
 		// matches()
 		//{
 		// }
+
+		FORCE_INLINE static constexpr decltype(auto)
+		visit_component(cx_entity_storage auto&& storage, auto ent_id, auto cmp_idx, auto&& func) noexcept
+		{
+			switch (cmp_idx)
+			{
+#define __VISIT_CMP_IMPL(N)                                                                                                \
+	case N:                                                                                                                \
+	{                                                                                                                      \
+		if constexpr (N < cmp_count())                                                                                     \
+		{                                                                                                                  \
+			return FWD(func)(std::get<0>(storage.template get_component<age::meta::variadic_at_t<N, t_cmp...>&>(ent_id))); \
+		}                                                                                                                  \
+		else                                                                                                               \
+		{                                                                                                                  \
+			AGE_UNREACHABLE();                                                                                             \
+		}                                                                                                                  \
+	}
+#define X(N) __VISIT_CMP_IMPL(N)
+				__X_REPEAT_LIST_512
+#undef X
+#undef __VISIT_CMP_IMPL
+			default:
+			{
+				AGE_UNREACHABLE();
+			}
+			}
+		}
 	};
 }	 // namespace age::ecs

@@ -639,7 +639,7 @@ namespace age::ui::g
 
 	inline constexpr style_color scroll_thumb = { e::theme_color_kind::white, { opacity_2, opacity_3, opacity_3 } };	  // scrollbar thumb
 
-	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_0, opacity_0, opacity_7 } };	  // selected item left border
+	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_5, opacity_6, opacity_7 } };	  // selected item left border
 
 	inline constexpr style_color resize_handle = { e::theme_color_kind::accent, { opacity_2, opacity_4, opacity_5 } };	  // panel resizable handle
 

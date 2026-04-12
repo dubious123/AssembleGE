@@ -6,9 +6,9 @@ namespace age_demo::scene_3
 	struct
 	{
 		AGE_GET(render_pipeline, render_pipeline)
+		AGE_GET(h_window, h_window)
 
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
-		AGE_GET(directional_light_id_vec, scene_3_ctx.directional_light_id_vec)
 
 		AGE_GET(entities, scene_3_ctx.entities)
 		AGE_GETSET(ent_main_cam, scene_3_ctx.ent_main_cam)
@@ -24,10 +24,10 @@ namespace age_demo::scene_3
 		AGE_GET(render_pipeline, render_pipeline)
 		AGE_GET(h_render_surface, h_render_surface)
 		AGE_GET(h_window, h_window)
+		AGE_GET(h_input_ctx, h_input_ctx)
 
 		AGE_GET(entities, scene_3_ctx.entities)
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
-		AGE_GET(directional_light_id_vec, scene_3_ctx.directional_light_id_vec)
 
 		AGE_GET(sprint, sprint)
 		AGE_GET(move, move)
@@ -49,7 +49,6 @@ namespace age_demo::scene_3
 		AGE_GET(render_pipeline, render_pipeline)
 
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
-		AGE_GET(directional_light_id_vec, scene_3_ctx.directional_light_id_vec)
 
 		AGE_GET(entities, scene_3_ctx.entities)
 	} i_deinit;

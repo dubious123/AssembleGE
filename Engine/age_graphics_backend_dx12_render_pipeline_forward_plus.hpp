@@ -362,6 +362,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept;
 
+		void
+		update_directional_light(t_directional_light_id id, const directional_light_desc& desc, bool cast_shadow) noexcept;
+
 		t_directional_light_id
 		add_directional_light(const directional_light_desc& desc, bool cast_shadow = true) noexcept;
 
@@ -371,11 +374,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept;
 
+		void
+		update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow) noexcept;
+
 		t_unified_light_id
 		add_point_light(const point_light_desc& desc, bool cast_shadow = false) noexcept;
 
 		void
 		update_spot_light(t_unified_light_id id, const spot_light_desc& desc) noexcept;
+
+		void
+		update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow) noexcept;
 
 		t_unified_light_id
 		add_spot_light(const spot_light_desc& desc, bool cast_shadow = false) noexcept;

@@ -275,6 +275,13 @@ namespace age::ecs::entity_storage
 			return entity_info_vec.capacity() > id and entity_info_vec[id].p_block == nullptr;
 		}
 
+		FORCE_INLINE
+		t_archetype
+		get_archetype(t_ent_id ent_id) const noexcept
+		{
+			return entity_info_vec[ent_id].archetype;
+		}
+
 		template <cx_component... t, typename... t_arg>
 		t_ent_id
 		new_entity(t_arg&&... arg) noexcept

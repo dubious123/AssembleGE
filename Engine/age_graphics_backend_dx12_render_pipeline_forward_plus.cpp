@@ -978,6 +978,26 @@ namespace age::graphics::render_pipeline::forward_plus
 	}	 // namespace detail
 
 	void
+	pipeline::update_directional_light(t_directional_light_id id, const directional_light_desc& desc, bool cast_shadow) noexcept
+	{
+		auto& light = directional_light_vec[id];
+
+		update_directional_light(id, desc);
+
+		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
+		if (cast_shadow_prev and not cast_shadow)
+		{
+			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::directional, shadow_id);
+			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
+		}
+		else if (not cast_shadow_prev and cast_shadow)
+		{
+			detail::handle_shadow_light_add(*this, graphics::e::light_kind::directional, id, true);
+		}
+	}
+
+	void
 	pipeline::update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept
 	{
 		auto& light		= directional_light_vec[id];
@@ -1014,10 +1034,29 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	void
-	pipeline::update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept
+	pipeline::update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow) noexcept
 	{
 		auto& light = unified_light_vec[id];
 
+		update_point_light(id, desc);
+
+		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
+		if (cast_shadow_prev and not cast_shadow)
+		{
+			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::point, shadow_id);
+			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
+		}
+		else if (not cast_shadow_prev and cast_shadow)
+		{
+			detail::handle_shadow_light_add(*this, graphics::e::light_kind::point, id, true);
+		}
+	}
+
+	void
+	pipeline::update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept
+	{
+		auto& light = unified_light_vec[id];
 
 		light.position	= desc.position;
 		light.range		= desc.range;
@@ -1038,6 +1077,26 @@ namespace age::graphics::render_pipeline::forward_plus
 		update_point_light(id, desc);
 
 		return id;
+	}
+
+	void
+	pipeline::update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow) noexcept
+	{
+		auto& light = unified_light_vec[id];
+
+		update_spot_light(id, desc);
+
+		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
+		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
+		if (cast_shadow_prev and not cast_shadow)
+		{
+			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::spot, shadow_id);
+			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
+		}
+		else if (not cast_shadow_prev and cast_shadow)
+		{
+			detail::handle_shadow_light_add(*this, graphics::e::light_kind::spot, id, true);
+		}
 	}
 
 	void

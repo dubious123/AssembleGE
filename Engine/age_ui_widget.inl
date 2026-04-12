@@ -429,7 +429,7 @@ namespace age::ui::widget
 									   | set_z_offset(1)
 									   | set_interact(true)
 									   | set_size(size_mode::fit(), size_mode::fit()))
-									  | ... | modifier)))
+									  | ... | FWD(modifier))))
 		{
 			auto state = e::style_state::idle;
 			if (btn.pressed<mouse_left>())
@@ -464,7 +464,7 @@ namespace age::ui::widget
 									   | set_z_offset(1)
 									   | set_interact(true)
 									   | set_size(size_mode::fit(), size_mode::fit()))
-									  | ... | modifier)))
+									  | ... | FWD(modifier))))
 		{
 			auto state = e::style_state::idle;
 
@@ -508,6 +508,49 @@ namespace age::ui::widget
 
 			widget::text_interactive(p_label, state);
 
+
+			return btn;
+		}
+		else
+		{
+			return {};
+		}
+	}
+
+	FORCE_INLINE widget_ctx
+	selectable(const char* p_label, const bool& selected, auto&&... mod) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto btn = widget::begin(((style::layout(e::widget_layout::vertical)
+									   | set_z_offset(1)
+									   | set_draw(true)
+									   | set_interact(true)
+									   | set_size(size_mode::grow(), size_mode::fit()))
+									  | ... | FWD(mod))))
+		{
+			auto state = e::style_state::idle;
+			if (btn.pressed<mouse_left>())
+			{
+				state = e::style_state::active;
+			}
+			else if (btn.hovered())
+			{
+				state = e::style_state::hover;
+			}
+
+			c_auto bg_color = selected
+								? theme::color<e::theme_token_kind::select_accent>(state)
+								: theme::color<e::theme_token_kind::bg_interactive>(state);
+
+			if (auto _ = widget::begin(style::frame_interactive(state)
+									   | set_body_brush_data(bg_color)
+									   | set_width_grow()
+									   | set_height_fit()
+									   | set_layout(e::widget_layout::horizontal)))
+			{
+				widget::text_interactive(p_label, state);
+			}
 
 			return btn;
 		}
@@ -985,7 +1028,12 @@ namespace age::ui::widget
 
 						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
 
-						value  = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
+						delta = std::clamp(delta,
+										   static_cast<std::make_signed_t<t>>(min) - static_cast<std::make_signed_t<t>>(value),
+										   static_cast<std::make_signed_t<t>>(max) - static_cast<std::make_signed_t<t>>(value));
+
+
+						// value  = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
 						value += delta;
 
 						state.drag_x -= static_cast<float>(delta);
