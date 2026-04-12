@@ -351,4 +351,6 @@ namespace age::inline data_structure
 			std::allocator_traits<allocator_type>::deallocate(alloc, p_data, cap);
 		}
 	};
+
+	using byte_buf = byte_buffer<>;
 }	 // namespace age::inline data_structure

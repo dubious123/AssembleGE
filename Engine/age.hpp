@@ -127,6 +127,7 @@ namespace age
 #include "age_ecs_system_match.hpp"
 
 #include "age_ecs_query.hpp"
+#include "age_ecs_command.hpp"
 #include "age_ecs_entity_block_basic.hpp"
 #include "age_ecs_entity_storage_basic.hpp"
 
