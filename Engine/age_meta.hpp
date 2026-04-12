@@ -1336,6 +1336,36 @@ namespace age::meta
 		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl), FWD(arg)...);
 	}
 
+	template <auto func, typename t_tpl>
+	requires meta::tuple_like<t_tpl>
+	FORCE_INLINE constexpr decltype(auto)
+	tuple_unpack(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(FWD(tpl), std::tuple{ FWD(arg)... }))))
+	{
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(FWD(tpl))..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+			return func(std::get<i>(FWD(tpl))..., FWD(arg)...);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(tpl), FWD(arg)...);
+	}
+
+	template <typename t_func, typename t_tpl>
+	requires meta::tuple_like<t_tpl>
+	FORCE_INLINE constexpr decltype(auto)
+	tuple_unpack_prefix(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(std::tuple{ FWD(arg)... }, FWD(tpl)))))
+	{
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(FWD(arg)..., std::get<i>(FWD(tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+			return FWD(func)(FWD(arg)..., std::get<i>(FWD(tpl))...);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(func), FWD(tpl), FWD(arg)...);
+	}
+
+	template <auto func, typename t_tpl>
+	requires meta::tuple_like<t_tpl>
+	FORCE_INLINE constexpr decltype(auto)
+	tuple_unpack_prefix(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(std::tuple{ FWD(arg)... }, FWD(tpl)))))
+	{
+		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& tpl, auto&&... arg) noexcept(noexcept(func(FWD(arg)..., std::get<i>(FWD(tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
+			return func(FWD(arg)..., std::get<i>(FWD(tpl))...);
+		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(tpl), FWD(arg)...);
+	}
+
 	template <typename... t>
 	constexpr void
 	print_type()

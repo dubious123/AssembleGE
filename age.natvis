@@ -84,4 +84,18 @@
 		</Expand>
 	</Type>
 
+	<!-- age::byte_buffer -->
+	<Type Name="age::data_structure::byte_buffer&lt;*&gt;">
+		<DisplayString>{{ size={write_pos}, cap={cap}, read={read_pos} }}</DisplayString>
+		<Expand>
+			<Item Name="[size]">write_pos</Item>
+			<Item Name="[capacity]">cap</Item>
+			<Item Name="[read_pos]">read_pos</Item>
+			<Item Name="[remaining]">write_pos - read_pos</Item>
+			<ArrayItems>
+				<Size>write_pos</Size>
+				<ValuePointer>(unsigned char*)p_data</ValuePointer>
+			</ArrayItems>
+		</Expand>
+	</Type>
 </AutoVisualizer>

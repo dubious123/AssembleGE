@@ -250,3 +250,5 @@ namespace age::inline data_structure
 #else
 	#include "age_data_structure_unordered_map.hpp"
 #endif
+
+#include "age_data_structure_byte_buffer.hpp"
