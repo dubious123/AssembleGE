@@ -129,6 +129,7 @@
     <ClCompile Include="age_ui_text.cpp" />
     <ClCompile Include="age_ui_draw.cpp" />
     <ClCompile Include="age_editor.cpp" />
+    <ClCompile Include="age_editor_ui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
