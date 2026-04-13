@@ -38,7 +38,29 @@ namespace age::editor
 	void
 	ui_component(auto&& cmp) noexcept
 	{
-		ui::widget::text_primary("ui for component ?? not implemented yet");
+		ui::widget::text_heading("ui for component ?? not implemented yet");
+	}
+
+	void
+	ui_component_section(auto&& cmp, uint32 cmp_idx) noexcept
+	{
+		using namespace age::ui;
+		if (auto _ = widget::begin(style::section() | set_horizontal() | set_height_fit() | set_width_grow()))
+		{
+			widget::separator_h(set_body_brush_data(theme::color_red()), set_width_fixed(theme::thickness_thick()));
+
+			if (auto _ = widget::collapsible_header2("component_name"))
+			{
+				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
+				c_auto gap			   = theme::header_bar_child_gap();
+				c_auto padding_l	   = theme::header_bar_padding().x;
+
+				if (auto _ = widget::vertical(set_padding_left(disclosure_size + padding_l + gap)))
+				{
+					ui_component(FWD(cmp));
+				}
+			}
+		}
 	}
 
 	void
@@ -59,7 +81,7 @@ namespace age::editor
 
 		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
 		{
-			t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component));
+			t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component_section));
 		}
 	}
 }	 // namespace age::editor

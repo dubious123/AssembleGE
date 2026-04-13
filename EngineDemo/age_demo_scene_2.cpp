@@ -352,12 +352,16 @@ namespace age_demo::scene_2
 
 			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 			{
-				if (auto _ = widget::panel_resizable_h(300, 1000,
-													   set_layout(e::widget_layout::vertical),
-													   set_size(size_mode::grow(), size_mode::grow())))
+				// if (auto _ = widget::panel_resizable_h(300, 1000,
+				//									   set_layout(e::widget_layout::vertical),
+				//									   set_size(size_mode::grow(), size_mode::grow())))
+
+				if (auto _ = widget::panel_resizable_h(300, 1000))
 				{
-					if (auto _ = widget::panel_resizable_v(100, 500,
-														   set_size(size_mode::grow(), size_mode::grow())))
+					// if (auto _ = widget::panel_resizable_v(100, 500,
+					//									   set_size(size_mode::grow(), size_mode::grow())))
+
+					if (auto _ = widget::panel_resizable_v(100, 500))
 					{
 						for (auto i = 0; i < 10; ++i)
 						{
@@ -391,59 +395,59 @@ namespace age_demo::scene_2
 								if (auto tree_node_1 = widget::tree_node("node_2"))
 								{
 									// if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::fit())))
-									if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+									if (auto _ = widget::frame(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
 									{
 										static float v0 = 10.f;
 										widget::numeric_field(v0,
 															  "X",
 															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  e::theme_color_kind::negative);
+															  theme::color_text_red());
 
 										static float v1 = 10.f;
 										widget::numeric_field(v1,
 															  "Y",
 															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  e::theme_color_kind::positive);
+															  theme::color_text_green());
 
 										static float v2 = 10.f;
 										widget::numeric_field(v2,
 															  "Z",
 															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  e::theme_color_kind::accent);
+															  theme::color_text_blue());
 
 										static float v3 = 10.f;
 										widget::numeric_field(v3,
 															  "W",
 															  std::numeric_limits<float>::min(), std::numeric_limits<float>::max(),
-															  e::theme_color_kind::amber);
+															  theme::color_text_amber());
 									}
 								}
 
-								if (auto _ = widget::frame_interactive(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
+								if (auto _ = widget::frame(e::style_state::active, set_horizontal(), set_size(size_mode::grow(), size_mode::fit())))
 								{
 									static uint64 v0 = 100;
 									widget::numeric_field(v0,
 														  "X",
 														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  e::theme_color_kind::negative);
+														  theme::color_text_red());
 
 									static uint64 v1 = 100;
 									widget::numeric_field(v1,
 														  "Y",
 														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  e::theme_color_kind::positive);
+														  theme::color_text_green());
 
 									static uint64 v2 = 100;
 									widget::numeric_field(v2,
 														  "Z",
 														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
-														  e::theme_color_kind::accent);
+														  theme::color_text_blue());
 
 									static uint64 v3 = 100;
 									widget::numeric_field(v3,
 														  "W",
 														  std::numeric_limits<uint64>::min(), 200ull,
-														  e::theme_color_kind::amber);
+														  theme::color_text_amber());
 								}
 
 								static float4 quat;
@@ -476,10 +480,9 @@ namespace age_demo::scene_2
 
 						for (auto i = 0; i < 0; ++i)
 						{
-							if (auto _ = widget::begin(set_draw(true)
+							if (auto _ = widget::begin(style::panel()
 													   | set_layout(e::widget_layout::horizontal)
-													   | set_size(size_mode::grow(), size_mode::fit())
-													   | set_body_brush_data(theme::colors::bg_panel())))
+													   | set_size(size_mode::grow(), size_mode::fit())))
 							{
 								// arrow
 								widget::begin(set_align(e::widget_align::center)
@@ -491,23 +494,23 @@ namespace age_demo::scene_2
 								widget::begin(style::text("hello text\n    hello       text    \n\n"
 														  "hello text")
 											  | set_font_size(22)
-											  | set_body_brush_data(theme::colors::text_negative(e::style_state::idle)));
+											  | set_body_brush_data(theme::color_text_red()));
 
 								widget::begin(style::text("hello text\n    hello       text    \n\n"
 														  "hello text")
 											  | set_font_size(22)
-											  | set_body_brush_data(theme::colors::text_positive(e::style_state::idle)));
+											  | set_body_brush_data(theme::color_text_green()));
 
 								widget::begin(style::text("hello text") | set_font_size(22) | set_padding(2, 100, 2, 2));
 
 								widget::begin(style::text("hello text") | set_font_size(22));
 
-								widget::text_primary("hello text\n    hello text    \n"
-													 "hello text");
+								widget::text_title("hello text\n    hello text    \n"
+												   "hello text");
 
-								widget::text_accent("...");
-								widget::begin(style::text_accent("..."));
-								widget::begin(style::text("...") | set_body_brush_data(theme::colors::text_accent(e::style_state::idle)));
+								widget::text("...");
+								widget::begin(style::text("...") | set_body_brush_data(theme::color_text_blue()));
+								widget::begin(style::text("...") | set_body_brush_data(theme::color_text_amber()));
 							}
 						}
 					}
@@ -542,7 +545,7 @@ namespace age_demo::scene_2
 
 							if (auto _ = widget::frame())
 							{
-								widget::text_primary("t \nh");
+								widget::text_title("t \nh");
 							}
 
 							for (auto _ : age::views::loop(item_count))

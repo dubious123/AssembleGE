@@ -1,427 +1,6 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::ui::theme
-{
-	template <e::theme_token_kind e_theme_token>
-	consteval FORCE_INLINE auto
-	get_theme_token_data() noexcept
-	{
-		if constexpr (e_theme_token == e::theme_token_kind::bg_panel)
-		{
-			return g::bg_panel;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::bg_surface)
-		{
-			return g::bg_surface;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::bg_interactive)
-		{
-			return g::bg_interactive;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::bg_accent)
-		{
-			return g::bg_accent;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::bg_popup)
-		{
-			return g::bg_popup;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::border_default)
-		{
-			return g::border_default;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::border_accent)
-		{
-			return g::border_accent;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_primary)
-		{
-			return g::text_primary;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_secondary)
-		{
-			return g::text_secondary;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_tertiary)
-		{
-			return g::text_tertiary;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_hint)
-		{
-			return g::text_hint;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_disabled)
-		{
-			return g::text_disabled;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_accent)
-		{
-			return g::text_accent;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_positive)
-		{
-			return g::text_positive;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_negative)
-		{
-			return g::text_negative;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_amber)
-		{
-			return g::text_amber;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::text_interactive)
-		{
-			return g::text_interactive;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::separator)
-		{
-			return g::separator;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::toggle_off)
-		{
-			return g::toggle_off;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::toggle_on)
-		{
-			return g::toggle_on;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::slider_fill)
-		{
-			return g::slider_fill;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::slider_track)
-		{
-			return g::slider_track;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::slider_thumb)
-		{
-			return g::slider_thumb;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::slider_thumb_ring)
-		{
-			return g::slider_thumb_ring;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::scroll_thumb)
-		{
-			return g::scroll_thumb;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::select_accent)
-		{
-			return g::select_accent;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::resize_handle)
-		{
-			return g::resize_handle;
-		}
-		else if constexpr (e_theme_token == e::theme_token_kind::selection_rect)
-		{
-			return g::selection_rect;
-		}
-		else
-		{
-			AGE_UNREACHABLE();
-		}
-	}
-
-	template <e::theme_token_kind e_theme_token>
-	FORCE_INLINE float4
-	color(e::style_state e_state = e::style_state::idle) noexcept
-	{
-		return float4{ g::theme_color[e::to_idx(get_theme_token_data<e_theme_token>().color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
-	}
-
-	template <e::theme_token_kind e_theme_token>
-	FORCE_INLINE float4
-	color(e::theme_color_kind e_color, e::style_state e_state = e::style_state::idle) noexcept
-	{
-		return float4{ g::theme_color[e::to_idx(e_color)], g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]] };
-	}
-
-	FORCE_INLINE float3
-	color(e::theme_color_kind e_color) noexcept
-	{
-		return g::theme_color[e::to_idx(e_color)];
-	}
-
-	template <e::theme_token_kind e_theme_token>
-	FORCE_INLINE float
-	opacity(e::style_state e_state = e::style_state::idle) noexcept
-	{
-		return g::theme_opacity[get_theme_token_data<e_theme_token>().opacity[e::to_idx(e_state)]];
-	}
-
-	template <e::theme_token_kind e_theme_token>
-	FORCE_INLINE float
-	font_size() noexcept
-	{
-		return g::theme_font_size[e::to_idx(get_theme_token_data<e_theme_token>().font_size)];
-	}
-}	 // namespace age::ui::theme
-
-namespace age::ui::theme::colors
-{
-	FORCE_INLINE float4
-	bg_panel(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::bg_panel>(state);
-	}
-
-	FORCE_INLINE float4
-	bg_surface(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::bg_surface>(state);
-	}
-
-	FORCE_INLINE float4
-	bg_interactive(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::bg_interactive>(state);
-	}
-
-	FORCE_INLINE float4
-	bg_accent(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::bg_accent>(state);
-	}
-
-	FORCE_INLINE float4
-	bg_popup(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::bg_popup>(state);
-	}
-
-	FORCE_INLINE float4
-	border_default(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::border_default>(state);
-	}
-
-	FORCE_INLINE float4
-	border_accent(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::border_accent>(state);
-	}
-
-	FORCE_INLINE float4
-	border_interactive(e::style_state state = e::style_state::idle) noexcept
-	{
-		if (state == e::style_state::idle)
-		{
-			return color<e::theme_token_kind::border_default>(e::style_state::idle);
-		}
-		else
-		{
-			return color<e::theme_token_kind::border_accent>(state);
-		}
-	}
-
-	FORCE_INLINE float4
-	text_primary(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_primary>(state);
-	}
-
-	FORCE_INLINE float4
-	text_secondary(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_secondary>(state);
-	}
-
-	FORCE_INLINE float4
-	text_tertiary(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_tertiary>(state);
-	}
-
-	FORCE_INLINE float4
-	text_hint(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_hint>(state);
-	}
-
-	FORCE_INLINE float4
-	text_disabled(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_disabled>(state);
-	}
-
-	FORCE_INLINE float4
-	text_accent(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_accent>(state);
-	}
-
-	FORCE_INLINE float4
-	text_positive(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_positive>(state);
-	}
-
-	FORCE_INLINE float4
-	text_negative(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_negative>(state);
-	}
-
-	FORCE_INLINE float4
-	text_amber(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_amber>(state);
-	}
-
-	FORCE_INLINE float4
-	text_interactive(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::text_interactive>(state);
-	}
-
-	FORCE_INLINE float4
-	separator(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::separator>(state);
-	}
-
-	FORCE_INLINE float4
-	toggle_off(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::toggle_off>(state);
-	}
-
-	FORCE_INLINE float4
-	toggle_on(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::toggle_on>(state);
-	}
-
-	FORCE_INLINE float4
-	slider_fill(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::slider_fill>(state);
-	}
-
-	FORCE_INLINE float4
-	slider_track(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::slider_track>(state);
-	}
-
-	FORCE_INLINE float4
-	slider_thumb(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::slider_thumb>(state);
-	}
-
-	FORCE_INLINE float4
-	slider_thumb_ring(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::slider_thumb_ring>(state);
-	}
-
-	FORCE_INLINE float4
-	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::scroll_thumb>(state);
-	}
-
-	FORCE_INLINE float4
-	select_accent(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::select_accent>(state);
-	}
-
-	FORCE_INLINE float4
-	resize_handle(e::style_state state = e::style_state::idle) noexcept
-	{
-		return color<e::theme_token_kind::resize_handle>(state);
-	}
-}	 // namespace age::ui::theme::colors
-
-namespace age::ui::theme::size
-{
-	FORCE_INLINE float
-	text_primary() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_primary.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_secondary() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_secondary.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_tertiary() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_tertiary.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_hint() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_hint.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_disabled() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_disabled.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_accent() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_accent.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_positive() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_positive.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_negative() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_negative.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_amber() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_amber.font_size)];
-	}
-
-	FORCE_INLINE float
-	text_interactive() noexcept
-	{
-		return g::theme_font_size[e::to_idx(g::text_interactive.font_size)];
-	}
-}	 // namespace age::ui::theme::size
-
-namespace age::ui::theme
-{
-	FORCE_INLINE float
-	slider_track_height() noexcept
-	{
-		return g::theme_slider_track_height;
-	}
-
-	FORCE_INLINE float
-	slider_thumb_size(e::style_state e_state = e::style_state::idle) noexcept
-	{
-		return g::theme_slider_thumb_size[e::to_idx(e_state)];
-	}
-
-	FORCE_INLINE float
-	slider_thumb_border_thickness(e::style_state e_state = e::style_state::idle) noexcept
-	{
-		return g::theme_slider_thumb_border_thickness[e::to_idx(e_state)];
-	}
-}	 // namespace age::ui::theme
-
 namespace age::ui::detail
 {
 	template <typename t>
@@ -550,7 +129,7 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_body_brush_data(float3 rgb, float a) noexcept
+	set_body_brush_data(float3 rgb, float a = 1.f) noexcept
 	{
 		return detail::mod_body_brush_data{ brush_data::color(rgb.x, rgb.y, rgb.z, a) };
 	}
@@ -568,9 +147,15 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_border_brush_data(float3 rgb, float a) noexcept
+	set_border_brush_data(float3 rgb, float a = 1.f) noexcept
 	{
 		return detail::mod_border_brush_data{ brush_data::color(rgb.x, rgb.y, rgb.z, a) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_data(float r) noexcept
+	{
+		return detail::mod_shape_data{ shape_data::roundness(r) };
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -601,6 +186,12 @@ namespace age::ui
 	set_padding(float4 padding) noexcept
 	{
 		return set_padding(padding.x, padding.y, padding.z, padding.w);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_padding(float padding) noexcept
+	{
+		return set_padding(padding, padding, padding, padding);
 	}
 
 	namespace detail
@@ -749,12 +340,6 @@ namespace age::ui
 	DEF(font_idx, font_idx)
 	DEF(text, p_str)
 
-	FORCE_INLINE constexpr decltype(auto)
-	set_font_size(e::font_size_kind e_font_size) noexcept
-	{
-		return detail::mod_font_size{ g::theme_font_size[e::to_idx(e_font_size)] };
-	}
-
 #undef X
 #undef Y
 #undef DEF
@@ -771,7 +356,7 @@ namespace age::ui::style
 			return set_draw(false)
 				 | set_align(e::widget_align::begin)
 				 | set_z_offset(0)
-				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_padding(0.f)
 				 | set_border_thickness(0.f);
 		}
 	}	 // namespace detail
@@ -875,12 +460,11 @@ namespace age::ui::style
 		{
 			return set_draw(true)
 				 | set_layout(e::widget_layout::vertical)
+				 | set_height_grow()
 				 | set_align(e::widget_align::begin)
 				 | set_z_offset(1)
-				 | set_padding(2.f, 2.f, 2.f, 2.f)
 				 | set_body_brush_kind(e::brush_kind::color)
-				 | set_border_brush_kind(e::brush_kind::color)
-				 | set_border_thickness(1.f);
+				 | set_border_brush_kind(e::brush_kind::color);
 		}
 	}	 // namespace detail
 
@@ -888,11 +472,64 @@ namespace age::ui::style
 	panel() noexcept
 	{
 		return detail::panel_base()
-			 | set_body_brush_data(theme::colors::bg_panel())
-			 | set_border_brush_data(theme::colors::border_default());
+			 | set_padding(theme::panel_padding())
+			 | set_child_gap(theme::panel_child_gap())
+			 | set_border_thickness(theme::panel_border_thickness())
+			 | set_body_brush_data(theme::panel_color_bg())
+			 | set_border_brush_data(theme::panel_color_border_idle());
 	}
 
+	FORCE_INLINE constexpr widget_desc
+	panel_focus() noexcept
+	{
+		return detail::panel_base()
+			 | set_padding(theme::panel_padding())
+			 | set_child_gap(theme::panel_child_gap())
+			 | set_border_thickness(theme::panel_border_thickness())
+			 | set_body_brush_data(theme::panel_color_bg())
+			 | set_border_brush_data(theme::panel_color_border_focus());
+	}
+}	 // namespace age::ui::style
 
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		section_base() noexcept
+		{
+			return set_draw(true)
+				 | set_layout(e::widget_layout::vertical)
+				 | set_align(e::widget_align::begin)
+				 | set_height_fit()
+				 | set_width_grow()
+				 | set_z_offset(1)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	section() noexcept
+	{
+		return detail::section_base()
+			 | set_padding(theme::section_padding())
+			 | set_child_gap(theme::section_child_gap())
+			 | set_border_thickness(theme::section_border_thickness())
+			 | set_body_brush_data(theme::section_color_bg())
+			 | set_border_brush_data(theme::section_color_border());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	section_focus() noexcept
+	{
+		return detail::section_base()
+			 | set_padding(theme::section_padding())
+			 | set_child_gap(theme::section_child_gap())
+			 | set_border_thickness(theme::section_border_thickness())
+			 | set_body_brush_data(theme::section_color_bg())
+			 | set_border_brush_data(theme::section_color_border_focus());
+	}
 }	 // namespace age::ui::style
 
 namespace age::ui::style
@@ -905,43 +542,337 @@ namespace age::ui::style
 			return set_draw(true)
 				 | set_layout(e::widget_layout::vertical)
 				 | set_align(e::widget_align::begin)
-				 | set_size(size_mode::fit(), size_mode::fit())
+				 | set_size(size_mode::grow(), size_mode::fit())
 				 | set_z_offset(1)
-				 | set_padding(g::theme_frame_padding_left, g::theme_frame_padding_right, g::theme_frame_padding_top, g::theme_frame_padding_bottom)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
 				 | set_body_brush_kind(e::brush_kind::color)
-				 | set_border_brush_kind(e::brush_kind::color)
-				 | set_border_thickness(1.f);
+				 | set_border_brush_kind(e::brush_kind::color);
 		}
 	}	 // namespace detail
 
 	FORCE_INLINE constexpr widget_desc
+	frame_idle() noexcept
+	{
+		return detail::frame_base()
+			 | set_padding(theme::frame_padding())
+			 | set_child_gap(theme::frame_child_gap())
+			 | set_border_thickness(theme::frame_border_thickness())
+			 | set_shape_data(theme::frame_roundness())
+			 | set_body_brush_data(theme::frame_color_bg())
+			 | set_border_brush_data(theme::frame_color_border());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	frame_hover() noexcept
+	{
+		return detail::frame_base()
+			 | set_padding(theme::frame_padding())
+			 | set_child_gap(theme::frame_child_gap())
+			 | set_border_thickness(theme::frame_border_thickness())
+			 | set_shape_data(theme::frame_roundness())
+			 | set_body_brush_data(theme::frame_color_bg_hover())
+			 | set_border_brush_data(theme::frame_color_border_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	frame_focus() noexcept
+	{
+		return detail::frame_base()
+			 | set_padding(theme::frame_padding())
+			 | set_child_gap(theme::frame_child_gap())
+			 | set_border_thickness(theme::frame_border_thickness())
+			 | set_shape_data(theme::frame_roundness())
+			 | set_body_brush_data(theme::frame_color_bg_focus())
+			 | set_border_brush_data(theme::frame_color_border_focus());
+	}
+
+	FORCE_INLINE constexpr widget_desc
 	frame(e::style_state state = e::style_state::idle) noexcept
 	{
-		return detail::frame_base()
-			 | set_body_brush_data(theme::colors::bg_panel(state))
-			 | set_border_brush_data(theme::colors::border_default(state));
+		if (state == e::style_state::idle) { return frame_idle(); }
+		if (state == e::style_state::hover) { return frame_hover(); }
+		if (state == e::style_state::active) { return frame_focus(); }
+
+		AGE_UNREACHABLE();
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		header_bar_base() noexcept
+		{
+			return set_draw(true)
+				 | set_layout(e::widget_layout::horizontal)
+				 | set_align(e::widget_align::center)
+				 | set_size(size_mode::grow(), size_mode::fit())
+				 | set_z_offset(1)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	header_bar_idle() noexcept
+	{
+		return detail::header_bar_base()
+			 | set_padding(theme::header_bar_padding())
+			 | set_child_gap(theme::header_bar_child_gap())
+			 | set_border_thickness(theme::header_bar_border_thickness())
+			 | set_shape_data(theme::header_bar_roundness())
+			 | set_body_brush_data(theme::header_bar_color_bg());
 	}
 
 	FORCE_INLINE constexpr widget_desc
-	frame_interactive(e::style_state state = e::style_state::idle) noexcept
+	header_bar_hover() noexcept
 	{
-		return detail::frame_base()
-			 | set_body_brush_data(theme::colors::bg_interactive(state))
-			 | set_border_brush_data(theme::colors::border_interactive(state));
+		return detail::header_bar_base()
+			 | set_padding(theme::header_bar_padding())
+			 | set_child_gap(theme::header_bar_child_gap())
+			 | set_border_thickness(theme::header_bar_border_thickness())
+			 | set_shape_data(theme::header_bar_roundness())
+			 | set_body_brush_data(theme::header_bar_color_bg_hover());
 	}
 
 	FORCE_INLINE constexpr widget_desc
-	seperator() noexcept
+	header_bar_focus() noexcept
 	{
-		return set_draw(true)
-			 | set_layout(e::widget_layout::vertical)
-			 | set_align(e::widget_align::center)
-			 | set_size(size_mode::grow(), size_mode::fixed(1.f))
-			 | set_z_offset(1)
-			 | set_padding(0.f, 0.f, 0.f, 0.f)
-			 | set_body_brush_kind(e::brush_kind::color)
-			 | set_body_brush_data(theme::colors::text_primary())
-			 | set_border_thickness(0.f);
+		return detail::header_bar_base()
+			 | set_padding(theme::header_bar_padding())
+			 | set_child_gap(theme::header_bar_child_gap())
+			 | set_border_thickness(theme::header_bar_border_thickness())
+			 | set_shape_data(theme::header_bar_roundness())
+			 | set_body_brush_data(theme::header_bar_color_bg_active());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	header_bar(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return header_bar_idle(); }
+		if (state == e::style_state::hover) { return header_bar_hover(); }
+		if (state == e::style_state::active) { return header_bar_focus(); }
+		AGE_UNREACHABLE();
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		item_base() noexcept
+		{
+			return set_draw(true)
+				 | set_layout(e::widget_layout::horizontal)
+				 | set_align(e::widget_align::center)
+				 | set_size(size_mode::grow(), size_mode::fit())
+				 | set_z_offset(1)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	item_selected_idle() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg_selected())
+			 | set_border_brush_data(theme::item_color_border_selected())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_selected_hover() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg_selected_hover())
+			 | set_border_brush_data(theme::item_color_border_selected_hover())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_selected_active() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg_selected_active())
+			 | set_border_brush_data(theme::item_color_border_selected_active())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_idle() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg())
+			 | set_border_brush_data(theme::item_color_border())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_hover() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg_hover())
+			 | set_border_brush_data(theme::item_color_border_hover())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_active() noexcept
+	{
+		return detail::item_base()
+			 | set_border_thickness(theme::item_border_thickness())
+			 | set_body_brush_data(theme::item_color_bg_active())
+			 | set_border_brush_data(theme::item_color_border_active())
+			 | set_shape_data(theme::item_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_selected(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return item_selected_idle(); }
+		if (state == e::style_state::hover) { return item_selected_hover(); }
+		if (state == e::style_state::active) { return item_selected_active(); }
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item_not_selected(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return item_idle(); }
+		if (state == e::style_state::hover) { return item_hover(); }
+		if (state == e::style_state::active) { return item_active(); }
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	item(bool is_selected, e::style_state state = e::style_state::idle) noexcept
+	{
+		if (is_selected)
+		{
+			return item_selected();
+		}
+		else
+		{
+			return item_not_selected();
+		}
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		toggle_box_base() noexcept
+		{
+			return set_align(e::widget_align::center)
+				 | set_draw(true)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_brush_kind(e::brush_kind::color)
+				 | set_padding(0.f, 0.f, 0.f, 0.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_on_idle() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_on())
+			 | set_border_brush_data(theme::toggle_box_color_border_on())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_on_hover() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_on_hover())
+			 | set_border_brush_data(theme::toggle_box_color_border_on_hover())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_on_active() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_on_active())
+			 | set_border_brush_data(theme::toggle_box_color_border_on_active())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_off_idle() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_off())
+			 | set_border_brush_data(theme::toggle_box_color_border_off())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_off_hover() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_off_hover())
+			 | set_border_brush_data(theme::toggle_box_color_border_off_hover())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_off_active() noexcept
+	{
+		return detail::toggle_box_base()
+			 | set_border_thickness(theme::toggle_box_border_thickness())
+			 | set_body_brush_data(theme::toggle_box_color_bg_off_active())
+			 | set_border_brush_data(theme::toggle_box_color_border_off_active())
+			 | set_shape_data(theme::toggle_box_roundness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_on(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return toggle_box_on_idle(); }
+		if (state == e::style_state::hover) { return toggle_box_on_hover(); }
+		if (state == e::style_state::active) { return toggle_box_on_active(); }
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box_off(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return toggle_box_off_idle(); }
+		if (state == e::style_state::hover) { return toggle_box_off_hover(); }
+		if (state == e::style_state::active) { return toggle_box_off_active(); }
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	toggle_box(bool is_on, e::style_state state = e::style_state::idle) noexcept
+	{
+		if (is_on)
+		{
+			return toggle_box_on();
+		}
+		else
+		{
+			return toggle_box_off();
+		}
 	}
 }	 // namespace age::ui::style
 
@@ -962,94 +893,163 @@ namespace age::ui::style
 	}	 // namespace detail
 
 	FORCE_INLINE constexpr widget_desc
+	text_title(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_title_font_size())
+			 | set_body_brush_data(theme::text_title_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	text_title_disabled(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_title_font_size())
+			 | set_body_brush_data(theme::text_title_color_disabled());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	text_heading(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_heading_font_size())
+			 | set_body_brush_data(theme::text_heading_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	text_heading_disabled(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_heading_font_size())
+			 | set_body_brush_data(theme::text_heading_color_disabled());
+	}
+
+	FORCE_INLINE constexpr widget_desc
 	text(const char* p_text) noexcept
 	{
 		return detail::text_base()
 			 | set_text(p_text)
 			 | set_font_idx(g::current_font_idx)
-			 | set_font_size(e::font_size_kind::normal)
-			 | set_body_brush_data(theme::colors::text_secondary(e::style_state::idle));
+			 | set_font_size(theme::text_font_size())
+			 | set_body_brush_data(theme::text_color());
 	}
 
-	// heading, selected item text
 	FORCE_INLINE constexpr widget_desc
-	text_primary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_hover(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_primary.font_size)
-			 | set_body_brush_data(theme::colors::text_primary(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_font_size())
+			 | set_body_brush_data(theme::text_color_hover());
 	}
 
-	// input value, normal body
 	FORCE_INLINE constexpr widget_desc
-	text_secondary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_active(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_secondary.font_size)
-			 | set_body_brush_data(theme::colors::text_secondary(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_font_size())
+			 | set_body_brush_data(theme::text_color_active());
 	}
 
-	// section header, label
 	FORCE_INLINE constexpr widget_desc
-	text_tertiary(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_disabled(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_tertiary.font_size)
-			 | set_body_brush_data(theme::colors::text_tertiary(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_font_size())
+			 | set_body_brush_data(theme::text_color_disabled());
 	}
 
-	// input label, placeholder
 	FORCE_INLINE constexpr widget_desc
-	text_hint(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_label(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_hint.font_size)
-			 | set_body_brush_data(theme::colors::text_hint(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_label_font_size())
+			 | set_body_brush_data(theme::text_label_color());
 	}
 
-	// disabled widget text
 	FORCE_INLINE constexpr widget_desc
-	text_disabled(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_label_hover(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_disabled.font_size)
-			 | set_body_brush_data(theme::colors::text_disabled(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_label_font_size())
+			 | set_body_brush_data(theme::text_label_color_hover());
 	}
 
-	// link, asset reference, clickable path
 	FORCE_INLINE constexpr widget_desc
-	text_accent(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_label_active(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_accent.font_size)
-			 | set_body_brush_data(theme::colors::text_accent(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_label_font_size())
+			 | set_body_brush_data(theme::text_label_color_active());
 	}
 
-	// success msg, y axis, fps ok
 	FORCE_INLINE constexpr widget_desc
-	text_positive(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_label_disabled(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_positive.font_size)
-			 | set_body_brush_data(theme::colors::text_positive(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_label_font_size())
+			 | set_body_brush_data(theme::text_label_color_disabled());
 	}
 
-	// error msg, x axis, warning
 	FORCE_INLINE constexpr widget_desc
-	text_negative(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_hint(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_negative.font_size)
-			 | set_body_brush_data(theme::colors::text_negative(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_hint_font_size())
+			 | set_body_brush_data(theme::text_hint_color());
 	}
 
-	// button text, list item text
 	FORCE_INLINE constexpr widget_desc
-	text_interactive(const char* p_text, e::style_state state = e::style_state::idle) noexcept
+	text_hint_disabled(const char* p_text) noexcept
 	{
-		return text(p_text)
-			 | set_font_size(g::text_interactive.font_size)
-			 | set_body_brush_data(theme::colors::text_interactive(state));
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_hint_font_size())
+			 | set_body_brush_data(theme::text_hint_color_disabled());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	text_button(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_button_font_size())
+			 | set_body_brush_data(theme::text_button_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	text_button_disabled(const char* p_text) noexcept
+	{
+		return detail::text_base()
+			 | set_text(p_text)
+			 | set_font_idx(g::current_font_idx)
+			 | set_font_size(theme::text_button_font_size())
+			 | set_body_brush_data(theme::text_button_color_disabled());
 	}
 }	 // namespace age::ui::style
 
@@ -1058,12 +1058,24 @@ namespace age::ui::style
 	namespace detail
 	{
 		FORCE_INLINE constexpr widget_desc
-		slider_track_base() noexcept
+		slider_track_base_h() noexcept
 		{
 			return set_align(e::widget_align::center)
-				 | set_height(size_mode::fixed(theme::slider_track_height()))
-				 | set_shape_kind(e::shape_kind::rect)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
 				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_width_grow()
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_border_thickness(0.f)
+				 | set_z_offset(1);
+		}
+
+		FORCE_INLINE constexpr widget_desc
+		slider_track_base_v() noexcept
+		{
+			return set_align(e::widget_align::center)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_height_grow()
 				 | set_padding(0.f, 0.f, 0.f, 0.f)
 				 | set_border_thickness(0.f)
 				 | set_z_offset(1);
@@ -1082,28 +1094,123 @@ namespace age::ui::style
 	}	 // namespace detail
 
 	FORCE_INLINE constexpr widget_desc
-	slider_track(e::style_state state = e::style_state::idle) noexcept
+	slider_track_h() noexcept
 	{
-		return detail::slider_track_base()
-			 | set_body_brush_data(theme::colors::slider_track(state));
+		return detail::slider_track_base_h()
+			 | set_height_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_bg());
 	}
 
 	FORCE_INLINE constexpr widget_desc
-	slider_fill(e::style_state state = e::style_state::idle) noexcept
+	slider_track_fill_h_idle() noexcept
 	{
-		return detail::slider_track_base()
-			 | set_body_brush_data(theme::colors::slider_fill(state));
+		return detail::slider_track_base_h()
+			 | set_height_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_h_hover() noexcept
+	{
+		return detail::slider_track_base_h()
+			 | set_height_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_h_active() noexcept
+	{
+		return detail::slider_track_base_h()
+			 | set_height_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill_active());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_v() noexcept
+	{
+		return detail::slider_track_base_v()
+			 | set_width_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_bg());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_v_idle() noexcept
+	{
+		return detail::slider_track_base_v()
+			 | set_width_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_v_hover() noexcept
+	{
+		return detail::slider_track_base_v()
+			 | set_width_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_v_active() noexcept
+	{
+		return detail::slider_track_base_v()
+			 | set_width_fixed(theme::slider_track_size())
+			 | set_body_brush_data(theme::slider_track_color_fill_active());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_thumb_idle() noexcept
+	{
+		return detail::slider_thumb_base()
+			 | set_size(size_mode::fixed(theme::slider_thumb_size()), size_mode::fixed(theme::slider_thumb_size()))
+			 | set_body_brush_data(theme::slider_thumb_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_thumb_hover() noexcept
+	{
+		return detail::slider_thumb_base()
+			 | set_size(size_mode::fixed(theme::slider_thumb_size_hover()), size_mode::fixed(theme::slider_thumb_size_hover()))
+			 | set_body_brush_data(theme::slider_thumb_color_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_thumb_active() noexcept
+	{
+		return detail::slider_thumb_base()
+			 | set_size(size_mode::fixed(theme::slider_thumb_size_active()), size_mode::fixed(theme::slider_thumb_size_active()))
+			 | set_body_brush_data(theme::slider_thumb_color_active());
 	}
 
 	FORCE_INLINE constexpr widget_desc
 	slider_thumb(e::style_state state = e::style_state::idle) noexcept
 	{
-		return detail::slider_thumb_base()
-			 | set_size(size_mode::fixed(theme::slider_thumb_size(state)), size_mode::fixed(theme::slider_thumb_size(state)))
-			 | set_border_thickness(theme::slider_thumb_border_thickness(state))
-			 | set_body_brush_data(theme::colors::slider_thumb(state))
-			 | set_border_brush_data(theme::colors::slider_thumb_ring(state));
+		if (state == e::style_state::idle) { return slider_thumb_idle(); }
+		if (state == e::style_state::hover) { return slider_thumb_hover(); }
+		if (state == e::style_state::active) { return slider_thumb_active(); }
+
+		AGE_UNREACHABLE();
 	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_track_fill_h(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return slider_track_fill_h_idle(); }
+		if (state == e::style_state::hover) { return slider_track_fill_h_hover(); }
+		if (state == e::style_state::active) { return slider_track_fill_h_active(); }
+
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	slider_tack_fill_v(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return slider_track_fill_v_idle(); }
+		if (state == e::style_state::hover) { return slider_track_fill_v_hover(); }
+		if (state == e::style_state::active) { return slider_track_fill_v_active(); }
+
+		AGE_UNREACHABLE();
+	}
+
 }	 // namespace age::ui::style
 
 namespace age::ui::style
@@ -1114,7 +1221,7 @@ namespace age::ui::style
 		scroll_thumb_base() noexcept
 		{
 			return set_align(e::widget_align::begin)
-				 | set_shape_kind(e::shape_kind::rect)
+				 | set_shape_kind(e::shape_kind::rounded_rect)
 				 | set_body_brush_kind(e::brush_kind::color)
 				 | set_border_brush_kind(e::brush_kind::color)
 				 | set_padding(0.f, 0.f, 0.f, 0.f)
@@ -1123,9 +1230,199 @@ namespace age::ui::style
 	}	 // namespace detail
 
 	FORCE_INLINE constexpr widget_desc
-	scroll_thumb(e::style_state state = e::style_state::idle) noexcept
+	scroll_thumb_h_idle() noexcept
 	{
 		return detail::scroll_thumb_base()
-			 | set_body_brush_data(theme::colors::scroll_thumb(state));
+			 | set_height_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_h_hover() noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_height_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_h_active() noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_height_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color_active());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_v_idle() noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_width_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_v_hover() noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_width_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color_hover());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_v_active() noexcept
+	{
+		return detail::scroll_thumb_base()
+			 | set_width_fixed(theme::scroll_thumb_size())
+			 | set_shape_data(theme::scroll_thumb_roundness())
+			 | set_body_brush_data(theme::scroll_thumb_color_active());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_h(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return scroll_thumb_h_idle(); }
+		if (state == e::style_state::hover) { return scroll_thumb_h_hover(); }
+		if (state == e::style_state::active) { return scroll_thumb_h_active(); }
+
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	scroll_thumb_v(e::style_state state = e::style_state::idle) noexcept
+	{
+		if (state == e::style_state::idle) { return scroll_thumb_v_idle(); }
+		if (state == e::style_state::hover) { return scroll_thumb_v_hover(); }
+		if (state == e::style_state::active) { return scroll_thumb_v_active(); }
+
+		AGE_UNREACHABLE();
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		separator_base() noexcept
+		{
+			return set_draw(true)
+				 | set_z_offset(1)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_thickness(0.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	separator_v() noexcept
+	{
+		return detail::separator_base()
+			 | set_width_grow()
+			 | set_height_fixed(theme::separator_thickness());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	separator_h() noexcept
+	{
+		return detail::separator_base()
+			 | set_height_grow()
+			 | set_width_fixed(theme::separator_thickness());
+	}
+}	 // namespace age::ui::style
+
+namespace age::ui::style
+{
+	namespace detail
+	{
+		FORCE_INLINE constexpr widget_desc
+		resize_handle_base() noexcept
+		{
+			return set_draw(true)
+				 | set_z_offset(1)
+				 | set_padding(0.f, 0.f, 0.f, 0.f)
+				 | set_shape_kind(e::shape_kind::rect)
+				 | set_body_brush_kind(e::brush_kind::color)
+				 | set_border_thickness(0.f);
+		}
+	}	 // namespace detail
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_h_idle() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_height_grow()
+			 | set_body_brush_data(theme::resize_handle_color())
+			 | set_width_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_h_hover() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_height_grow()
+			 | set_body_brush_data(theme::resize_handle_color_hover())
+			 | set_width_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_h_active() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_height_grow()
+			 | set_body_brush_data(theme::resize_handle_color_active())
+			 | set_width_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_v_idle() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_width_grow()
+			 | set_body_brush_data(theme::resize_handle_color())
+			 | set_height_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_v_hover() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_width_grow()
+			 | set_body_brush_data(theme::resize_handle_color_hover())
+			 | set_height_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_v_active() noexcept
+	{
+		return detail::resize_handle_base()
+			 | set_width_grow()
+			 | set_body_brush_data(theme::resize_handle_color_active())
+			 | set_height_fixed(theme::resize_handle_size());
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_h(e::style_state state) noexcept
+	{
+		if (state == e::style_state::idle) { return resize_handle_h_idle(); }
+		if (state == e::style_state::hover) { return resize_handle_h_hover(); }
+		if (state == e::style_state::active) { return resize_handle_h_active(); }
+
+		AGE_UNREACHABLE();
+	}
+
+	FORCE_INLINE constexpr widget_desc
+	resize_handle_v(e::style_state state) noexcept
+	{
+		if (state == e::style_state::idle) { return resize_handle_v_idle(); }
+		if (state == e::style_state::hover) { return resize_handle_v_hover(); }
+		if (state == e::style_state::active) { return resize_handle_v_active(); }
+
+		AGE_UNREACHABLE();
 	}
 }	 // namespace age::ui::style

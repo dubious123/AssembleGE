@@ -107,10 +107,13 @@ namespace age_demo::scene_3
 
 		if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 		{
-			if (auto _ = widget::panel_resizable_h(300, 1000,
-												   set_layout(e::widget_layout::vertical),
-												   set_align(e::widget_align::center),
-												   set_size(size_mode::grow(), size_mode::grow())))
+			// if (auto _ = widget::panel_resizable_h(300, 1000,
+			//									   set_layout(e::widget_layout::vertical),
+			//									   set_align(e::widget_align::center),
+			//									   set_size(size_mode::grow(), size_mode::grow())))
+
+
+			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
@@ -205,11 +208,16 @@ namespace age_demo::scene_3
 					}
 				}
 			}
-			if (auto _ = widget::panel_resizable_h(300, 1000,
-												   set_layout(e::widget_layout::vertical),
-												   set_size(size_mode::grow(), size_mode::grow())))
+			// if (auto _ = widget::panel_resizable_h(300, 1000,
+			//									   set_layout(e::widget_layout::vertical),
+			//									   set_size(size_mode::grow(), size_mode::grow())))
+
+			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
-				age::editor::ui_inspector(i_update.get_entities());
+				if (auto _ = widget::scroll_area_v())
+				{
+					age::editor::ui_inspector(i_update.get_entities());
+				}
 			}
 
 

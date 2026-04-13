@@ -78,6 +78,7 @@
     <ClInclude Include="age_ecs_command.hpp" />
     <ClInclude Include="age_data_structure_byte_buffer.hpp" />
     <ClInclude Include="age_editor_ui.inl" />
+    <ClInclude Include="age_graphics_backend_dx12_resource_barrier.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -86,7 +87,6 @@
     <ClCompile Include="age_pch.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_resource.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_shader.cpp" />
-    <ClCompile Include="age_graphics_backend_dx12_resource_barrier.hpp" />
     <ClCompile Include="age_unity.cpp" />
     <ClCompile Include="age_request.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_render_surface.cpp" />

@@ -117,6 +117,14 @@ namespace age::ui::detail
 		desc.height_max = height_max + padding_sum_v;
 
 		desc.text.text_data_idx = text_data_idx;
+
+		{
+			// todo: per-charset visual center offset (current: Latin only, CJK needs different correction)
+			auto  h_font = g::font_data_vec[font_idx].second.h_font;
+			auto& header = h_font->get_asset_header<asset::e::kind::font>();
+
+			desc.offset.y -= header.descent * 0.5f * font_size;
+		}
 	}
 }	 // namespace age::ui::detail
 

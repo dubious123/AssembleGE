@@ -56,12 +56,22 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		const float2	   atlas_size	= get_dimensions(atlas);
 		const float4	   rgba			= sample(atlas, linear_clamp_sampler, atlas_uv);
 		sd								= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
-		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 4.f);
+		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 8.f);
 		break;
 	}
 	case UI_SHAPE_KIND_CHECK:
 	{
 		delta_from_edge = ui_calc_shape_check(center_offset, data.size, data.shape_data);
+		break;
+	}
+	case UI_SHAPE_KIND_ROUNDED_RECT:
+	{
+		delta_from_edge = ui_calc_shape_rounded_rect(center_offset, data.size, data.shape_data);
+		break;
+	}
+	case UI_SHAPE_KIND_TRIANGLE:
+	{
+		delta_from_edge = ui_calc_shape_triangle(center_offset, data.size, data.shape_data);
 		break;
 	}
 	}
@@ -89,7 +99,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	// -border + 1 ~ -border - 1 : lerp
 	// -border - 1 ~ 0 : body
 
-	float aa = fwidth(delta_from_edge);
+	// float aa = fwidth(delta_from_edge);
+	float aa = 1.f;
 
 	float outer_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge);
 	float inner_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge + data.border_thickness);

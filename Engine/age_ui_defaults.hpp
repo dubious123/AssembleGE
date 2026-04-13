@@ -90,3 +90,14 @@ namespace age::ui::brush_data
 		};
 	}
 }	 // namespace age::ui::brush_data
+
+namespace age::ui::shape_data
+{
+	FORCE_INLINE constexpr ui_shape_data
+	roundness(float r) noexcept
+	{
+		return ui_shape_data{
+			.roundness = { .value = r }
+		};
+	}
+}	 // namespace age::ui::shape_data

@@ -8,7 +8,9 @@ namespace age::ui::e
 					circle,
 					arrow_right,
 					text,
-					check);
+					check,
+					rounded_rect,
+					triangle);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
@@ -22,40 +24,6 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(size_mode_kind, uint8, fixed, fit, grow, grow_weight, text, aspect_ratio)
 
 	AGE_DEFINE_ENUM(style_state, uint8, idle, hover, active)
-
-	AGE_DEFINE_ENUM(font_size_kind, uint8, small, normal, big)
-
-	AGE_DEFINE_ENUM(theme_color_kind, uint8, white, black, accent, positive, negative, amber)
-
-	AGE_DEFINE_ENUM(theme_token_kind, uint32,
-					bg_panel,
-					bg_surface,
-					bg_interactive,
-					bg_accent,
-					bg_popup,
-					border_default,
-					border_accent,
-					text_primary,
-					text_secondary,
-					text_tertiary,
-					text_hint,
-					text_disabled,
-					text_accent,
-					text_positive,
-					text_negative,
-					text_amber,
-					text_interactive,
-					separator,
-					toggle_off,
-					toggle_on,
-					slider_fill,
-					slider_track,
-					slider_thumb,
-					slider_thumb_ring,
-					scroll_thumb,
-					select_accent,
-					resize_handle,
-					selection_rect);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -82,6 +50,11 @@ namespace age::ui
 				float2 atlas_uv_max;
 				uint32 atlas_id;
 			} text;
+
+			struct
+			{
+				float value;
+			} roundness;
 
 			uint32 data[5];
 		};
@@ -145,12 +118,12 @@ namespace age::ui
 
 		float2 offset = float2{ 0, 0 };
 
-		float child_gap = 4.f;
+		float child_gap = 3.f;
 
-		float padding_left	 = 4.f;
-		float padding_right	 = 4.f;
-		float padding_top	 = 4.f;
-		float padding_bottom = 4.f;
+		float padding_left	 = 3.f;
+		float padding_right	 = 3.f;
+		float padding_top	 = 3.f;
+		float padding_bottom = 3.f;
 
 		float2 pivot_uv			= float2{ 0.5f, 0.5f };
 		float  rotation			= 0.f;
@@ -508,145 +481,329 @@ namespace age::ui::g
 	// numeric step scale
 	inline constexpr float step_scale_table[2][2] = { { 1.0f, 0.1f },
 													  { 10.f, 0.01f } };
-
-	// theme
-	inline float  theme_opacity[9];
-	inline float3 theme_color[e::size<e::theme_color_kind>()];
-
-	inline float theme_font_size_base[e::size<e::font_size_kind>()];	// unscaled, don't use
-	inline float theme_font_size[e::size<e::font_size_kind>()];			// scaled
-	inline float theme_font_scale;
-
-	inline float theme_slider_track_height;
-	inline float theme_slider_thumb_size[e::size<e::style_state>()];
-	inline float theme_slider_thumb_border_thickness[e::size<e::style_state>()];
-
-	inline float theme_resize_handle_thickness;
-	inline float theme_scroll_thumb_thickness;
-	inline float theme_cursor_thickness;
-
-	inline float theme_frame_padding_left;
-	inline float theme_frame_padding_right;
-	inline float theme_frame_padding_top;
-	inline float theme_frame_padding_bottom;
-
-	// theme configs
-	inline constexpr float theme_opacity_default[9] = {
-		0.00f,						   // 0
-		0.05f,						   // 1
-		0.12f,						   // 2
-		0.22f,						   // 3
-		0.35f,						   // 4
-		0.50f,						   // 5
-		0.68f,						   // 6
-		0.82f,						   // 7
-		1.00f,						   // 8 (opaque)
-	};
-
-	inline constexpr float3 theme_color_default[e::size<e::theme_color_kind>()] = {
-		{ 1.0f, 1.0f, 1.0f },		   // 0: white
-		{ 0.0f, 0.0f, 0.0f },		   // 1: black
-		{ 0.29f, 0.565f, 0.851f },	   // 2: accent   // #4A90D9
-		{ 0.314f, 0.784f, 0.471f },	   // 3: positive // #50C878
-		{ 0.878f, 0.314f, 0.314f },	   // 4: negative // #E05050
-		{ 0.886f, 0.680f, 0.216f }	   // 5: amber    // #E2AD37
-	};
-
-	inline constexpr float theme_font_size_defaults[e::size<e::font_size_kind>()] = {
-		11.f,						   // 0: small, hint, label, info
-		13.f,						   // 1: normal
-		16.f,						   // 2: big, header, panel title
-	};
-
-	inline constexpr float theme_font_scale_default = 1.f;
-
-	inline constexpr float theme_slider_track_height_default									  = 4.f;
-	inline constexpr float theme_slider_thumb_size_default[e::size<e::style_state>()]			  = { 12.f, 16.f, 18.f };
-	inline constexpr float theme_slider_thumb_border_thickness_default[e::size<e::style_state>()] = { 0.f, 2.f, 3.f };
-
-	inline constexpr float theme_resize_handle_thickness_default = 6.f;
-
-	inline constexpr float theme_scroll_thumb_thickness_default = 8.f;
-
-	inline constexpr float theme_cursor_thickness_default = 2.f;
-
-	inline constexpr float theme_frame_padding_left_default	  = 3.f;
-	inline constexpr float theme_frame_padding_right_default  = 3.f;
-	inline constexpr float theme_frame_padding_top_default	  = 8.f;
-	inline constexpr float theme_frame_padding_bottom_default = 8.f;
-
-	inline constexpr uint8 opacity_0	  = 0;
-	inline constexpr uint8 opacity_1	  = 1;
-	inline constexpr uint8 opacity_2	  = 2;
-	inline constexpr uint8 opacity_3	  = 3;
-	inline constexpr uint8 opacity_4	  = 4;
-	inline constexpr uint8 opacity_5	  = 5;
-	inline constexpr uint8 opacity_6	  = 6;
-	inline constexpr uint8 opacity_7	  = 7;
-	inline constexpr uint8 opacity_opaque = 8;
-
-	inline constexpr uint8 white	= 0;
-	inline constexpr uint8 black	= 1;
-	inline constexpr uint8 accent	= 2;
-	inline constexpr uint8 positive = 3;
-	inline constexpr uint8 negative = 4;
-	inline constexpr uint8 amber	= 5;
-
-	struct style_color
-	{
-		e::theme_color_kind color;
-		uint8				opacity[3];
-	};
-
-	struct theme_text
-	{
-		e::theme_color_kind color;
-		uint8				opacity[3];
-		e::font_size_kind	font_size;
-	};
-
-	// shared
-	inline constexpr style_color bg_panel		= { e::theme_color_kind::black, { opacity_5, opacity_6, opacity_6 } };												 // panel background
-	inline constexpr style_color bg_surface		= { e::theme_color_kind::white, { opacity_1, opacity_1, opacity_1 } };												 // input field, dropdown bg
-	inline constexpr style_color bg_interactive = { e::theme_color_kind::white, { opacity_0, opacity_1, opacity_1 } };												 // button, list item bg
-	inline constexpr style_color bg_accent		= { e::theme_color_kind::accent, { opacity_0, opacity_2, opacity_3 } };												 // active button, selected item bg
-	inline constexpr style_color bg_popup		= { e::theme_color_kind::black, { opacity_7, opacity_7, opacity_7 } };												 // dropdown menu, tooltip, context menu
-
-	inline constexpr style_color border_default = { e::theme_color_kind::white, { opacity_1, opacity_2, opacity_2 } };												 // panel, input border
-	inline constexpr style_color border_accent	= { e::theme_color_kind::accent, { opacity_0, opacity_5, opacity_5 } };												 // focused input, focused panel border
-
-	inline constexpr theme_text text_primary	 = { e::theme_color_kind::white, { opacity_opaque, opacity_opaque, opacity_7 }, e::font_size_kind::big };			 // heading, selected item text
-	inline constexpr theme_text text_secondary	 = { e::theme_color_kind::white, { opacity_opaque, opacity_opaque, opacity_opaque }, e::font_size_kind::normal };	 // input value, normal body
-	inline constexpr theme_text text_tertiary	 = { e::theme_color_kind::white, { opacity_4, opacity_4, opacity_4 }, e::font_size_kind::normal };					 // section header, label
-	inline constexpr theme_text text_hint		 = { e::theme_color_kind::white, { opacity_3, opacity_3, opacity_3 }, e::font_size_kind::small };					 // input label, placeholder
-	inline constexpr theme_text text_disabled	 = { e::theme_color_kind::white, { opacity_2, opacity_2, opacity_2 }, e::font_size_kind::normal };					 // disabled widget text
-	inline constexpr theme_text text_accent		 = { e::theme_color_kind::accent, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };					 // link, z axis asset reference, clickable path
-	inline constexpr theme_text text_positive	 = { e::theme_color_kind::positive, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };				 // success msg, y axis, fps ok
-	inline constexpr theme_text text_negative	 = { e::theme_color_kind::negative, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };				 // error msg, x axis, warning
-	inline constexpr theme_text text_amber		 = { e::theme_color_kind::amber, { opacity_7, opacity_7, opacity_7 }, e::font_size_kind::normal };					 // w axis
-	inline constexpr theme_text text_interactive = { e::theme_color_kind::white, { opacity_opaque, opacity_opaque, opacity_7 }, e::font_size_kind::normal };		 // button text, list item text
-
-	inline constexpr style_color separator = { e::theme_color_kind::white, { opacity_1, opacity_1, opacity_1 } };													 // section separator
-
-	// widget_specific
-	inline constexpr style_color toggle_off = { e::theme_color_kind::white, { opacity_2, opacity_2, opacity_2 } };	   // toggle track (off)
-	inline constexpr style_color toggle_on	= { e::theme_color_kind::accent, { opacity_5, opacity_6, opacity_6 } };	   // toggle track (on)
-
-	inline constexpr style_color slider_fill	   = { e::theme_color_kind::accent, { opacity_5, opacity_6, opacity_7 } };
-	inline constexpr style_color slider_track	   = { e::theme_color_kind::white, { opacity_1, opacity_1, opacity_1 } };
-	inline constexpr style_color slider_thumb	   = { e::theme_color_kind::accent, { opacity_7, opacity_7, opacity_opaque } };
-	inline constexpr style_color slider_thumb_ring = { e::theme_color_kind::accent, { opacity_0, opacity_2, opacity_3 } };
-
-	inline constexpr style_color scroll_thumb = { e::theme_color_kind::white, { opacity_2, opacity_3, opacity_3 } };	  // scrollbar thumb
-
-	inline constexpr style_color select_accent = { e::theme_color_kind::accent, { opacity_5, opacity_6, opacity_7 } };	  // selected item left border
-
-	inline constexpr style_color resize_handle = { e::theme_color_kind::accent, { opacity_2, opacity_4, opacity_5 } };	  // panel resizable handle
-
-	inline constexpr style_color selection_rect = { e::theme_color_kind::accent, { opacity_5, opacity_5, opacity_5 } };
-
-
 }	 // namespace age::ui::g
+
+namespace age::ui
+{
+#define AGE_THEME_FOREACH_FUNC(tpl) \
+	AGE_THEME_PRIMITIVE_MEMBER tpl  \
+		AGE_THEME_PREIMTIVE_FUNC tpl
+
+#define AGE_THEME_PRIMITIVE_MEMBER(type, name, value) \
+	namespace g                                       \
+	{                                                 \
+		inline type theme_##name = type value;        \
+	}
+
+#define AGE_THEME_PREIMTIVE_FUNC(type, name, value) \
+	namespace theme                                 \
+	{                                               \
+		FORCE_INLINE constexpr type                 \
+		name() noexcept                             \
+		{                                           \
+			return ui::g::theme_##name;             \
+		}                                           \
+	}
+
+#define AGE_THEME_WIDGET(widget_name, semantic, value_expr) \
+	namespace theme                                         \
+	{                                                       \
+		FORCE_INLINE decltype(auto)                         \
+		widget_name##_##semantic() noexcept                 \
+		{                                                   \
+			return value_expr;                              \
+		}                                                   \
+	}
+
+	FOR_EACH (AGE_THEME_FOREACH_FUNC,
+			  // main colors
+			  (float3, color_white, (1.000f, 1.000f, 1.000f)),	  // #FFFFFF
+			  (float3, color_black, (0.000f, 0.000f, 0.000f)),	  // #000000
+			  (float3, color_red, (0.878f, 0.314f, 0.314f)),	  // #E05050 x-axis, negative
+			  (float3, color_green, (0.314f, 0.784f, 0.471f)),	  // #50C878 y-axis, positive
+			  //(float3, color_blue_dark, (0.227f, 0.502f, 0.788f)),	   // #3A80C9
+			  (float3, color_blue, (0.290f, 0.565f, 0.851f)),	 // #4A90D9 z-axis, accent
+			  //(float3, color_blue_light, (0.353f, 0.624f, 0.910f)),	   // #5A9FE8
+
+			  (float3, color_blue_dark, (0.102f, 0.282f, 0.471f)),	  // #1A4878
+			  //(float3, color_blue, (0.157f, 0.369f, 0.596f)),		   // #285E98 z-axis, accent
+			  (float3, color_blue_light, (0.220f, 0.471f, 0.722f)),	   // #3878B8
+
+			  //(float3, color_blue, (0.290f, 0.565f, 0.851f)),			 // #4A90D9 z-axis, accent
+
+
+			  (float3, color_amber, (0.886f, 0.680f, 0.216f)),			 // #E2AD37 w-axis, warning
+			  (float3, color_gray_darkest, (0.067f, 0.067f, 0.075f)),	 // #111114 field bg
+			  (float3, color_gray_darker, (0.102f, 0.102f, 0.118f)),	 // #1A1A1E	panel bg
+			  (float3, color_gray_dark, (0.118f, 0.118f, 0.133f)),		 // #1E1E22  header idle
+			  (float3, color_gray, (0.145f, 0.145f, 0.161f)),			 // #252529  header hover
+			  (float3, color_gray_light, (0.165f, 0.165f, 0.180f)),		 // #2A2A2E  header active
+
+																		 // text colors
+			  (float3, color_text_white, (1.000f, 1.000f, 1.000f)),			// heading,
+			  (float3, color_text_gray_light, (0.667f, 0.667f, 0.667f)),	// body text
+			  (float3, color_text_gray, (0.467f, 0.467f, 0.467f)),			// label
+			  (float3, color_text_gray_dark, (0.333f, 0.333f, 0.333f)),		// hint, placeholder
+			  (float3, color_text_red, (0.878f, 0.314f, 0.314f)),			// x-axis, negative
+			  (float3, color_text_green, (0.314f, 0.784f, 0.471f)),			// y-axis, positive
+			  (float3, color_text_blue, (0.290f, 0.565f, 0.851f)),			// z-axis, accent
+			  (float3, color_text_amber, (0.886f, 0.680f, 0.216f)),			// w-axis, warning
+
+			  // mid band - sat ~65%, lightness ~52%
+			  (float3, palette_red, (0.832f, 0.208f, 0.208f)),			  // #D43535
+			  (float3, palette_vermilion, (0.832f, 0.325f, 0.208f)),	  // #D45235
+			  (float3, palette_orange, (0.832f, 0.442f, 0.208f)),		  // #D47035
+			  (float3, palette_tangerine, (0.832f, 0.559f, 0.208f)),	  // #D48E35
+			  (float3, palette_amber, (0.832f, 0.676f, 0.208f)),		  // #D4AC35
+			  (float3, palette_gold, (0.832f, 0.793f, 0.208f)),			  // #D4CA35
+			  (float3, palette_yellow, (0.754f, 0.832f, 0.208f)),		  // #C0D435
+			  (float3, palette_pear, (0.637f, 0.832f, 0.208f)),			  // #A2D435
+			  (float3, palette_chartreuse, (0.520f, 0.832f, 0.208f)),	  // #84D435
+			  (float3, palette_lime, (0.403f, 0.832f, 0.208f)),			  // #66D435
+			  (float3, palette_harlequin, (0.286f, 0.832f, 0.208f)),	  // #48D435
+			  (float3, palette_green, (0.208f, 0.832f, 0.247f)),		  // #35D43E
+			  (float3, palette_emerald, (0.208f, 0.832f, 0.364f)),		  // #35D45C
+			  (float3, palette_spring, (0.208f, 0.832f, 0.481f)),		  // #35D47A
+			  (float3, palette_jade, (0.208f, 0.832f, 0.598f)),			  // #35D498
+			  (float3, palette_mint, (0.208f, 0.832f, 0.715f)),			  // #35D4B6
+			  (float3, palette_cyan, (0.208f, 0.832f, 0.832f)),			  // #35D4D4
+			  (float3, palette_sky, (0.208f, 0.715f, 0.832f)),			  // #35B6D4
+			  (float3, palette_cerulean, (0.208f, 0.598f, 0.832f)),		  // #3598D4
+			  (float3, palette_azure, (0.208f, 0.481f, 0.832f)),		  // #357AD4
+			  (float3, palette_blue, (0.208f, 0.364f, 0.832f)),			  // #355CD4
+			  (float3, palette_cobalt, (0.208f, 0.247f, 0.832f)),		  // #353ED4
+			  (float3, palette_ultramarine, (0.286f, 0.208f, 0.832f)),	  // #4835D4
+			  (float3, palette_indigo, (0.403f, 0.208f, 0.832f)),		  // #6635D4
+			  (float3, palette_violet, (0.520f, 0.208f, 0.832f)),		  // #8435D4
+			  (float3, palette_purple, (0.637f, 0.208f, 0.832f)),		  // #A235D4
+			  (float3, palette_amethyst, (0.754f, 0.208f, 0.832f)),		  // #C035D4
+			  (float3, palette_magenta, (0.832f, 0.208f, 0.793f)),		  // #D435CA
+			  (float3, palette_fuchsia, (0.832f, 0.208f, 0.676f)),		  // #D435AC
+			  (float3, palette_cerise, (0.832f, 0.208f, 0.559f)),		  // #D4358E
+			  (float3, palette_rose, (0.832f, 0.208f, 0.442f)),			  // #D43570
+			  (float3, palette_crimson, (0.832f, 0.208f, 0.325f)),		  // #D43552
+			  // light band (32) - sat ~55%, lightness ~72%
+			  (float3, palette_light_red, (0.874f, 0.595f, 0.566f)),			// #DE9790
+			  (float3, palette_light_vermilion, (0.874f, 0.652f, 0.566f)),		// #DEA690
+			  (float3, palette_light_orange, (0.874f, 0.710f, 0.566f)),			// #DEB590
+			  (float3, palette_light_tangerine, (0.874f, 0.768f, 0.566f)),		// #DEC390
+			  (float3, palette_light_gold, (0.874f, 0.826f, 0.566f)),			// #DED290
+			  (float3, palette_light_yellow, (0.865f, 0.874f, 0.566f)),			// #DCDE90
+			  (float3, palette_light_pear, (0.807f, 0.874f, 0.566f)),			// #CDDE90
+			  (float3, palette_light_chartreuse, (0.749f, 0.874f, 0.566f)),		// #BEDE90
+			  (float3, palette_light_lime, (0.691f, 0.874f, 0.566f)),			// #B0DE90
+			  (float3, palette_light_harlequin, (0.634f, 0.874f, 0.566f)),		// #A1DE90
+			  (float3, palette_light_green, (0.576f, 0.874f, 0.566f)),			// #92DE90
+			  (float3, palette_light_emerald, (0.566f, 0.874f, 0.614f)),		// #90DE9C
+			  (float3, palette_light_spring, (0.566f, 0.874f, 0.672f)),			// #90DEAB
+			  (float3, palette_light_jade, (0.566f, 0.874f, 0.729f)),			// #90DEBA
+			  (float3, palette_light_mint, (0.566f, 0.874f, 0.787f)),			// #90DEC8
+			  (float3, palette_light_cyan, (0.566f, 0.874f, 0.845f)),			// #90DED7
+			  (float3, palette_light_sky, (0.566f, 0.845f, 0.874f)),			// #90D7DE
+			  (float3, palette_light_cerulean, (0.566f, 0.788f, 0.874f)),		// #90C8DE
+			  (float3, palette_light_azure, (0.566f, 0.730f, 0.874f)),			// #90BADE
+			  (float3, palette_light_blue, (0.566f, 0.672f, 0.874f)),			// #90ABDE
+			  (float3, palette_light_cobalt, (0.566f, 0.614f, 0.874f)),			// #909CDE
+			  (float3, palette_light_ultramarine, (0.575f, 0.566f, 0.874f)),	// #9290DE
+			  (float3, palette_light_indigo, (0.633f, 0.566f, 0.874f)),			// #A190DE
+			  (float3, palette_light_violet, (0.691f, 0.566f, 0.874f)),			// #B090DE
+			  (float3, palette_light_purple, (0.749f, 0.566f, 0.874f)),			// #BE90DE
+			  (float3, palette_light_amethyst, (0.806f, 0.566f, 0.874f)),		// #CD90DE
+			  (float3, palette_light_magenta, (0.864f, 0.566f, 0.874f)),		// #DC90DE
+			  (float3, palette_light_fuchsia, (0.874f, 0.566f, 0.826f)),		// #DE90D2
+			  (float3, palette_light_cerise, (0.874f, 0.566f, 0.768f)),			// #DE90C3
+			  (float3, palette_light_rose, (0.874f, 0.566f, 0.711f)),			// #DE90B5
+			  (float3, palette_light_crimson, (0.874f, 0.566f, 0.653f)),		// #DE90A6
+			  (float3, palette_light_coral, (0.874f, 0.566f, 0.595f)),			// #DE9097
+			  (float, padding_small, (3.f)),
+			  (float, padding_medium, (8.f)),
+			  (float, padding_large, (12.f)),
+
+			  (float, gap_small, (3.f)),
+			  (float, gap_medium, (6.f)),
+			  (float, gap_large, (10.f)),
+
+			  (float, thickness_thin, (1.f)),
+			  (float, thickness_medium, (2.f)),
+			  (float, thickness_thick, (3.f)),
+
+			  (float, opacity_faint, (0.05f)),
+			  (float, opacity_light, (0.10f)),
+			  (float, opacity_mild, (0.20f)),
+			  (float, opacity_medium, (0.50f)),
+			  (float, opacity_heavy, (0.82f)),
+
+			  (float, font_size_small, (11.f)),
+			  (float, font_size_medium, (13.f)),
+			  (float, font_size_large, (16.f)),
+			  (float, font_size_scale, (1.f)),
+
+			  (float, track_height, (4.f)),
+
+			  (float, thumb_xs, (6.f)),			// resize handle
+			  (float, thumb_small, (8.f)),		// scroll thumb
+			  (float, thumb_medium, (12.f)),	// slider thumb idle
+			  (float, thumb_large, (16.f)),		// slider thumb hover
+			  (float, thumb_xl, (18.f)),		// slider thumb active
+
+			  (float, roundness_small, (3.f)),
+			  (float, roundness_medium, (6.f)),
+			  (float, roundness_large, (12.f)))
+		;
+
+
+	AGE_THEME_WIDGET(panel, color_bg, float4(color_gray_darker(), opacity_medium()))
+	AGE_THEME_WIDGET(panel, color_border_idle, float4(color_gray_darker(), opacity_medium()))
+	AGE_THEME_WIDGET(panel, color_border_focus, float4(color_blue(), opacity_medium()))
+	AGE_THEME_WIDGET(panel, padding, float4(padding_small()))
+	AGE_THEME_WIDGET(panel, child_gap, gap_small())
+	AGE_THEME_WIDGET(panel, border_thickness, thickness_thin())
+
+	AGE_THEME_WIDGET(section, color_bg, float4(color_gray_darker(), 1.f))
+	AGE_THEME_WIDGET(section, color_border, float4(color_gray_darker(), 1.f))
+	AGE_THEME_WIDGET(section, color_border_focus, float4(color_blue(), opacity_medium()))
+	AGE_THEME_WIDGET(section, padding, float4::zero())
+	AGE_THEME_WIDGET(section, child_gap, gap_medium())
+	AGE_THEME_WIDGET(section, border_thickness, thickness_thin())
+
+	AGE_THEME_WIDGET(header_bar, color_bg, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(header_bar, color_bg_hover, float4(color_gray(), 1.f))
+	AGE_THEME_WIDGET(header_bar, color_bg_active, float4(color_gray_light(), 1.f))
+	AGE_THEME_WIDGET(header_bar, padding, float4(padding_medium(), padding_medium(), padding_small(), padding_small()))
+	AGE_THEME_WIDGET(header_bar, child_gap, gap_medium())
+	AGE_THEME_WIDGET(header_bar, border_thickness, 0.f)
+	AGE_THEME_WIDGET(header_bar, roundness, 0.f)
+
+	AGE_THEME_WIDGET(frame, color_bg, float4(color_gray_darkest(), 1.f))
+	AGE_THEME_WIDGET(frame, color_bg_hover, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(frame, color_bg_focus, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(frame, color_border, float4(color_white(), opacity_light()))
+	AGE_THEME_WIDGET(frame, color_border_hover, float4(color_white(), opacity_mild()))
+	// AGE_THEME_WIDGET(frame, color_border_focus, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(frame, color_border_focus, float4(color_blue(), opacity_heavy()))
+	AGE_THEME_WIDGET(frame, padding, float4(padding_medium(), padding_medium(), padding_small(), padding_small()))
+	AGE_THEME_WIDGET(frame, child_gap, gap_small())
+	AGE_THEME_WIDGET(frame, border_thickness, thickness_thin())
+	AGE_THEME_WIDGET(frame, roundness, roundness_small())
+
+	AGE_THEME_WIDGET(item, color_bg, float4(color_gray_darker(), 1.f))
+	AGE_THEME_WIDGET(item, color_bg_hover, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(item, color_bg_active, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(item, color_bg_selected, float4(color_blue(), opacity_light()))
+	AGE_THEME_WIDGET(item, color_bg_selected_hover, float4(color_blue(), opacity_mild()))
+	AGE_THEME_WIDGET(item, color_bg_selected_active, float4(color_blue(), opacity_mild()))
+	AGE_THEME_WIDGET(item, color_border, float4(color_gray_darker(), 1.f))
+	AGE_THEME_WIDGET(item, color_border_hover, float4(color_gray_darker(), 1.f))
+	AGE_THEME_WIDGET(item, color_border_active, float4(color_gray_darker(), 1.f))
+	// AGE_THEME_WIDGET(item, color_border_selected, float4(color_blue(), 1.f))
+	// AGE_THEME_WIDGET(item, color_border_selected_hover, float4(color_blue(), 1.f))
+	// AGE_THEME_WIDGET(item, color_border_selected_active, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(item, color_border_selected, float4(color_blue(), opacity_medium()))
+	AGE_THEME_WIDGET(item, color_border_selected_hover, float4(color_blue(), opacity_heavy()))
+	AGE_THEME_WIDGET(item, color_border_selected_active, float4(color_blue(), opacity_heavy()))
+
+	AGE_THEME_WIDGET(item, border_thickness, thickness_medium())
+	AGE_THEME_WIDGET(item, padding, float4(padding_medium(), padding_medium(), padding_small(), padding_small()))
+	AGE_THEME_WIDGET(item, child_gap, gap_medium())
+	AGE_THEME_WIDGET(item, roundness, 0.f)
+
+	AGE_THEME_WIDGET(toggle_box, color_bg_off, float4(color_gray_darkest(), 1.f))
+	AGE_THEME_WIDGET(toggle_box, color_bg_off_hover, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(toggle_box, color_bg_off_active, float4(color_gray_dark(), 1.f))
+	// AGE_THEME_WIDGET(toggle_box, color_bg_on, float4(color_blue(), 1.f))
+	// AGE_THEME_WIDGET(toggle_box, color_bg_on_hover, float4(color_blue(), 1.f))
+	// AGE_THEME_WIDGET(toggle_box, color_bg_on_active, float4(color_blue(), 1.f))
+
+	AGE_THEME_WIDGET(toggle_box, color_bg_on, float4(color_blue(), opacity_medium()))
+	AGE_THEME_WIDGET(toggle_box, color_bg_on_hover, float4(color_blue_light(), opacity_medium()))
+	AGE_THEME_WIDGET(toggle_box, color_bg_on_active, float4(color_blue_dark(), opacity_medium()))
+
+	AGE_THEME_WIDGET(toggle_box, color_border_off, float4(color_white(), opacity_light()))
+	AGE_THEME_WIDGET(toggle_box, color_border_off_hover, float4(color_white(), opacity_mild()))
+	AGE_THEME_WIDGET(toggle_box, color_border_off_active, float4(color_white(), opacity_mild()))
+	// AGE_THEME_WIDGET(toggle_box, color_border_on, float4(color_blue(), 1.f))
+
+	AGE_THEME_WIDGET(toggle_box, color_border_on, float4(color_blue(), opacity_heavy()))
+	AGE_THEME_WIDGET(toggle_box, color_border_on_hover, float4(color_white(), opacity_medium()))
+	AGE_THEME_WIDGET(toggle_box, color_border_on_active, float4(color_white(), opacity_heavy()))
+	AGE_THEME_WIDGET(toggle_box, color_mark, float4(color_white(), 1.f))
+	AGE_THEME_WIDGET(toggle_box, border_thickness, thickness_thin())
+	AGE_THEME_WIDGET(toggle_box, roundness, roundness_small())
+
+	AGE_THEME_WIDGET(text_title, color, float4(color_text_white(), 1.f))
+	AGE_THEME_WIDGET(text_title, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_title, font_size, font_size_large())
+
+	AGE_THEME_WIDGET(text_heading, color, float4(color_text_white(), 1.f))
+	AGE_THEME_WIDGET(text_heading, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_heading, font_size, font_size_medium())
+
+
+	// body, field value
+	AGE_THEME_WIDGET(text, color, float4(color_text_gray_light(), 1.f))
+	AGE_THEME_WIDGET(text, color_hover, float4(color_text_white(), 1.f))
+	AGE_THEME_WIDGET(text, color_active, float4(color_text_white(), 1.f))
+	AGE_THEME_WIDGET(text, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text, font_size, font_size_small())
+
+	// property label, secondary info
+	AGE_THEME_WIDGET(text_label, color, float4(color_text_gray(), 1.f))
+	AGE_THEME_WIDGET(text_label, color_hover, float4(color_text_gray_light(), 1.f))
+	AGE_THEME_WIDGET(text_label, color_active, float4(color_text_gray_light(), 1.f))
+	AGE_THEME_WIDGET(text_label, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_label, font_size, font_size_small())
+
+	// placeholder, disabled, dash indicator
+	AGE_THEME_WIDGET(text_hint, color, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_hint, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_hint, font_size, font_size_small())
+
+	// button
+	AGE_THEME_WIDGET(text_button, color, float4(color_text_white(), 1.f))
+	AGE_THEME_WIDGET(text_button, color_disabled, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(text_button, font_size, font_size_medium())
+
+
+	AGE_THEME_WIDGET(slider_track, color_bg, float4(color_gray_darkest(), 1.f))
+	AGE_THEME_WIDGET(slider_track, color_fill, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_track, color_fill_hover, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_track, color_fill_active, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_track, size, track_height())
+	AGE_THEME_WIDGET(slider_track, roundness, roundness_large())
+
+
+	AGE_THEME_WIDGET(slider_thumb, color, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_thumb, color_hover, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_thumb, color_active, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(slider_thumb, size, thumb_medium())
+	AGE_THEME_WIDGET(slider_thumb, size_hover, thumb_large())
+	AGE_THEME_WIDGET(slider_thumb, size_active, thumb_xl())
+
+
+	AGE_THEME_WIDGET(scroll_thumb, color, float4(color_gray(), 1.f))
+	AGE_THEME_WIDGET(scroll_thumb, color_hover, float4(color_gray_light(), 1.f))
+	AGE_THEME_WIDGET(scroll_thumb, color_active, float4(color_text_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(scroll_thumb, size, thumb_small())
+	AGE_THEME_WIDGET(scroll_thumb, roundness, roundness_medium())
+
+	AGE_THEME_WIDGET(separator, color, float4(color_gray(), 1.f))
+	AGE_THEME_WIDGET(separator, thickness, thickness_thin())
+
+	AGE_THEME_WIDGET(resize_handle, color, float4(color_gray(), 1.f))
+	AGE_THEME_WIDGET(resize_handle, color_hover, float4(color_gray_light(), 1.f))
+	// AGE_THEME_WIDGET(resize_handle, color_active, float4(color_blue(), 1.f))
+	AGE_THEME_WIDGET(resize_handle, color_active, float4(color_blue(), opacity_medium()))
+	AGE_THEME_WIDGET(resize_handle, size, thumb_xs())
+
+	AGE_THEME_WIDGET(cursor, thickness, thickness_medium())	   // 2
+
+#undef AGE_THEME_FOREACH_FUNC
+#undef AGE_THEME_PRIMITIVE_MEMBER
+#undef AGE_THEME_PREIMTIVE_FUNC
+#undef AGE_THEME_WIDGET
+
+
+}	 // namespace age::ui
 
 namespace age::ui
 {

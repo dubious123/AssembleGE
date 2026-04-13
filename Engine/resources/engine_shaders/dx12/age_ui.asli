@@ -26,6 +26,15 @@ sdf_rect(float2 pos, float2 size)
 }
 
 float
+sdf_rounded_rect(float2 pos, float2 size, float radius)
+{
+	const float2 delta_from_corner = abs(pos) - size * 0.5 + radius;
+	const float	 delta_from_edge   = length(max(delta_from_corner, 0.0)) + min(max(delta_from_corner.x, delta_from_corner.y), 0.0);
+
+	return delta_from_edge - radius;
+}
+
+float
 sdf_circle(float2 pos, float radius)
 {
 	return length(pos) - radius;
@@ -38,6 +47,20 @@ sdf_line(float2 p, float2 a, float2 b)
 	const float2 ba = b - a;
 	const float	 h	= clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
 	return length(pa - ba * h);
+}
+
+float
+sdf_triangle(float2 pos, float size)
+{
+	const float k = sqrt(3.0f);
+	pos.x		  = abs(pos.x) - size;
+	pos.y		  = pos.y + size / k;
+	if (pos.x + k * pos.y > 0.0f)
+	{
+		pos = float2(pos.x - k * pos.y, -k * pos.x - pos.y) * 0.5f;
+	}
+	pos.x -= clamp(pos.x, -2.0f * size, 0.0f);
+	return -length(pos) * sign(pos.y);
 }
 
 float
@@ -105,6 +128,20 @@ ui_calc_shape_check(float2 center_offset, float2 size, ui_shape_data data)
 			   sdf_line(center_offset, start, corner),
 			   sdf_line(center_offset, corner, tip))
 		 - 1.3f;
+}
+
+float
+ui_calc_shape_rounded_rect(float2 center_offset, float2 size, ui_shape_data data)
+{
+	float roundness = min(as_float(data.data[0]), min(size.x, size.y) * 0.5f);
+	return sdf_rounded_rect(center_offset, size, roundness);
+}
+
+float
+ui_calc_shape_triangle(float2 center_offset, float2 size, ui_shape_data data)
+{
+	float s = min(size.x, size.y) * 0.5f;
+	return sdf_triangle(center_offset, s);
 }
 
 // brush

@@ -49,7 +49,7 @@ namespace age::editor
 	{
 		char c_buf[12];
 		age::util::to_str(c_buf, obj.render_id);
-		ui::widget::text_secondary(c_buf);
+		ui::widget::text_heading(c_buf);
 	}
 
 	void
@@ -81,7 +81,7 @@ namespace age::editor
 	{
 		char c_buf[12];
 		age::util::to_str(c_buf, light.render_id);
-		ui::widget::text_secondary(c_buf);
+		ui::widget::text_heading(c_buf);
 
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.direction, "direction");
@@ -94,7 +94,7 @@ namespace age::editor
 	{
 		char c_buf[12];
 		age::util::to_str(c_buf, light.render_id);
-		ui::widget::text_secondary(c_buf);
+		ui::widget::text_heading(c_buf);
 
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.range, "range");
@@ -107,7 +107,7 @@ namespace age::editor
 	{
 		char c_buf[12];
 		age::util::to_str(c_buf, light.render_id);
-		ui::widget::text_secondary(c_buf);
+		ui::widget::text_heading(c_buf);
 
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.range, "range");
@@ -121,7 +121,7 @@ namespace age::editor
 	void
 	ui_component(age::ecs::camera& cam) noexcept
 	{
-		ui::widget::text_secondary(age::graphics::e::to_string(cam.kind).data());
+		ui::widget::text_heading(age::graphics::e::to_string(cam.kind).data());
 
 		ui::widget::numeric_field(cam.euler_deg, "rotation", float3{ -90.f, -180.f, -180.f }, float3{ 90.f, 180.f, 180.f });
 

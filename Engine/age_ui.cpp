@@ -8,26 +8,6 @@ namespace age::ui
 	{
 		AGE_ASSERT(g::id_stack.is_empty());
 		g::current_font_idx = 0;
-
-		std::ranges::copy(g::theme_opacity_default, g::theme_opacity);
-		std::ranges::copy(g::theme_color_default, g::theme_color);
-		std::ranges::copy(g::theme_font_size_defaults, g::theme_font_size_base);
-
-		g::theme_font_scale = g::theme_font_scale_default;
-		font::set_scale(g::theme_font_scale_default);
-
-		g::theme_slider_track_height	 = g::theme_slider_track_height_default;
-		g::theme_resize_handle_thickness = g::theme_resize_handle_thickness_default;
-		g::theme_scroll_thumb_thickness	 = g::theme_scroll_thumb_thickness_default;
-		g::theme_cursor_thickness		 = g::theme_cursor_thickness_default;
-
-		g::theme_frame_padding_left	  = g::theme_frame_padding_left_default;
-		g::theme_frame_padding_right  = g::theme_frame_padding_right_default;
-		g::theme_frame_padding_top	  = g::theme_frame_padding_top_default;
-		g::theme_frame_padding_bottom = g::theme_frame_padding_bottom_default;
-
-		std::ranges::copy(g::theme_slider_thumb_size_default, g::theme_slider_thumb_size);
-		std::ranges::copy(g::theme_slider_thumb_border_thickness_default, g::theme_slider_thumb_border_thickness);
 	}
 
 	void

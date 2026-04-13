@@ -127,10 +127,7 @@ namespace age::ui::detail
 			auto& pos_data_parent  = g::layout_pos_data_vec[size_data_parent.pos_data_idx];
 			++pos_data_parent.child_count;
 
-			if (desc.interact or desc.draw)
-			{
-				z_offset = pos_data_parent.z_offset + desc.z_offset;
-			}
+			z_offset = pos_data_parent.z_offset + desc.z_offset;
 
 			if (desc.draw)
 			{
@@ -309,7 +306,7 @@ namespace age::ui::detail
 						}
 						else
 						{
-							finalize_fixed<false>(child, child_idx, final_size);
+							finalize_fixed<false>(child, child_idx, std::clamp(child_size, child.size_min<is_width>(), child.size_max<is_width>()));
 						}
 					}
 				}
@@ -425,7 +422,14 @@ namespace age::ui::detail
 				}
 				else
 				{
-					final_size = std::max(child.size_max<is_width>(), final_size);
+					if (child.size_max<is_width>() == std::numeric_limits<float>::max())
+					{
+						final_size = std::max(child.size_min<is_width>(), final_size);
+					}
+					else
+					{
+						final_size = std::max(child.size_max<is_width>(), final_size);
+					}
 				}
 
 				child_idx += child.child_subtree_size + 1;

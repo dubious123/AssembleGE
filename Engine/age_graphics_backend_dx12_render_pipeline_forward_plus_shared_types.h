@@ -118,11 +118,13 @@
 #define RT_MASK_ALL			0xff
 
 // ui
-#define UI_SHAPE_KIND_RECT		  0
-#define UI_SHAPE_KIND_CIRCLE	  1
-#define UI_SHAPE_KIND_ARROW_RIGHT 2
-#define UI_SHAPE_KIND_TEXT		  3
-#define UI_SHAPE_KIND_CHECK		  4
+#define UI_SHAPE_KIND_RECT		   0
+#define UI_SHAPE_KIND_CIRCLE	   1
+#define UI_SHAPE_KIND_ARROW_RIGHT  2
+#define UI_SHAPE_KIND_TEXT		   3
+#define UI_SHAPE_KIND_CHECK		   4
+#define UI_SHAPE_KIND_ROUNDED_RECT 5
+#define UI_SHAPE_KIND_TRIANGLE	   6
 
 #define UI_BRUSH_KIND_COLOR 0
 

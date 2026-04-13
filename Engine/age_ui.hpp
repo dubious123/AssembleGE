@@ -40,9 +40,6 @@ namespace age::ui::font
 	set_default(const char* p_font_name) noexcept;
 
 	void
-	set_scale(float scale) noexcept;
-
-	void
 	unload(const char* p_font_name) noexcept;
 
 	float
@@ -95,6 +92,12 @@ namespace age::ui::brush_data
 	FORCE_INLINE constexpr ui_brush_data
 	color(float r, float g, float b, float a = 1.f) noexcept;
 }	 // namespace age::ui::brush_data
+
+namespace age::ui::shape_data
+{
+	FORCE_INLINE constexpr ui_shape_data
+	roundness(float r) noexcept;
+}
 
 namespace age::ui::font
 {

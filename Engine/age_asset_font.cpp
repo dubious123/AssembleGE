@@ -285,7 +285,7 @@ namespace age::asset::font
 					.space_advance		 = space_advance,
 					.line_height		 = line_height,
 					.em_size			 = em_size,
-					.px_range			 = 2.0f,
+					.px_range			 = 8.0f,
 					.atlas_width		 = atlas_width,
 					.atlas_height		 = atlas_height,
 					.glyph_count		 = static_cast<uint16>(calc_unicode_count(flag) + extra_unicode_span.size()),
