@@ -2,8 +2,20 @@
 
 namespace age::editor
 {
-	void
-	ui_select(uint64 ent_id) noexcept;
+	ui::widget_ctx
+	ui_entity_tree_node(const char* p_name, uint64 ent_id, uint64 archetype) noexcept;
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	float3
+	get_component_color(uint32 cmp_idx) noexcept;
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	ui::widget_ctx
+	ui_component_header(const char* p_name, bool& close_out) noexcept;
 
 	void
 	ui_component(ecs::position& pos) noexcept;
@@ -42,14 +54,18 @@ namespace age::editor
 	}
 
 	void
-	ui_component_section(auto&& cmp, uint32 cmp_idx) noexcept
+	ui_component_section(ecs::cx_entity_storage auto&& storage, auto&& ent_id, auto&& cmp, uint32 cmp_idx) noexcept
 	{
 		using namespace age::ui;
+
+		using t_cmp = BARE_OF(cmp);
+
 		if (auto _ = widget::begin(style::section() | set_horizontal() | set_height_fit() | set_width_grow()))
 		{
-			widget::separator_h(set_body_brush_data(theme::color_red()), set_width_fixed(theme::thickness_thick()));
+			widget::separator_h(set_body_brush_data(get_component_color(cmp_idx), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
 
-			if (auto _ = widget::collapsible_header2("component_name"))
+			auto remove_cmp = false;
+			if (auto _ = ui_component_header(ecs::get_component_name<t_cmp>(), remove_cmp))
 			{
 				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
 				c_auto gap			   = theme::header_bar_child_gap();
@@ -59,6 +75,11 @@ namespace age::editor
 				{
 					ui_component(FWD(cmp));
 				}
+			}
+
+			if (remove_cmp)
+			{
+				g::command_buf.remove_component<t_cmp>(storage, ent_id);
 			}
 		}
 	}
@@ -82,6 +103,23 @@ namespace age::editor
 		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
 		{
 			t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component_section));
+		}
+
+		g::command_buf.flush(entities);
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	void
+	ui_entity_hierarchy(auto& entities) noexcept
+	{
+		if (auto _ = ui::widget::collapsible_header2("entity hierarchy", true))
+		{
+			for (auto&& [ent_id, ent_arch] : entities | each_entity(ecs::query<ecs::sv_entity_id, ecs::sv_archetype>()))
+			{
+				ui_entity_tree_node("entity", ent_id, ent_arch);
+			}
 		}
 	}
 }	 // namespace age::editor

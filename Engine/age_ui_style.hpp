@@ -759,11 +759,11 @@ namespace age::ui::style
 	{
 		if (is_selected)
 		{
-			return item_selected();
+			return item_selected(state);
 		}
 		else
 		{
-			return item_not_selected();
+			return item_not_selected(state);
 		}
 	}
 }	 // namespace age::ui::style

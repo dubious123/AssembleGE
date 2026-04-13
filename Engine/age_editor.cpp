@@ -6,12 +6,20 @@ namespace age::editor
 	void
 	init() noexcept
 	{
+		g::command_buf.clear();
 	}
 
 	void
 	deinit() noexcept
 	{
 		g::select_vec.clear();
+
+		if constexpr (age::config::debug_mode)
+		{
+			g::command_buf.validate();
+		}
+
+		g::command_buf.clear();
 	}
 
 	void

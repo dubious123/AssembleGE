@@ -187,17 +187,17 @@ namespace age::ecs
 		{
 			switch (cmp_idx)
 			{
-#define __VISIT_CMP_IMPL(N)                                                                                                         \
-	case N:                                                                                                                         \
-	{                                                                                                                               \
-		if constexpr (N < cmp_count())                                                                                              \
-		{                                                                                                                           \
-			return FWD(func)(std::get<0>(storage.template get_component<age::meta::variadic_at_t<N, t_cmp...>&>(ent_id)), cmp_idx); \
-		}                                                                                                                           \
-		else                                                                                                                        \
-		{                                                                                                                           \
-			AGE_UNREACHABLE();                                                                                                      \
-		}                                                                                                                           \
+#define __VISIT_CMP_IMPL(N)                                                                                                                               \
+	case N:                                                                                                                                               \
+	{                                                                                                                                                     \
+		if constexpr (N < cmp_count())                                                                                                                    \
+		{                                                                                                                                                 \
+			return FWD(func)(FWD(storage), ent_id, std::get<0>(storage.template get_component<age::meta::variadic_at_t<N, t_cmp...>&>(ent_id)), cmp_idx); \
+		}                                                                                                                                                 \
+		else                                                                                                                                              \
+		{                                                                                                                                                 \
+			AGE_UNREACHABLE();                                                                                                                            \
+		}                                                                                                                                                 \
 	}
 #define X(N) __VISIT_CMP_IMPL(N)
 				__X_REPEAT_LIST_512

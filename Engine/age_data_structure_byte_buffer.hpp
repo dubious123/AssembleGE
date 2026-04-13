@@ -172,6 +172,7 @@ namespace age::inline data_structure
 		FORCE_INLINE constexpr bool
 		has_remaining() const noexcept
 		{
+			AGE_ASSERT(read_pos <= write_pos);
 			return read_pos < write_pos;
 		}
 

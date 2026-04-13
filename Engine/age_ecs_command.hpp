@@ -1,7 +1,7 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::ecs::command
+namespace age::ecs
 {
 	namespace detail
 	{
@@ -55,56 +55,48 @@ namespace age::ecs::command
 		}
 	}	 // namespace detail
 
-	template <cx_entity_storage t_storage>
 	struct command_buffer
 	{
-		using t_ent_id			 = typename t_storage::t_ent_id;
-		using t_archetype_traits = typename t_storage::t_archetype_traits;
-		using t_archetype		 = typename t_storage::t_archetype;
-		using t_storage_cmp_idx	 = typename t_storage::t_storage_cmp_idx;
-		using t_local_cmp_idx	 = typename t_storage::t_local_cmp_idx;
-		using t_entity_block_idx = typename t_storage::t_entity_block_idx;
-		using t_entity_block	 = typename t_storage::t_entity_block;
-		using t_local_entity_idx = typename t_storage::t_local_entity_idx;
+		using t_fn_erased = void (*)();
 
 		struct new_entity_cmd
 		{
-			void (*fn)(t_storage&, age::byte_buf&);
+			t_fn_erased fn_ptr;
 		};
 
 		struct add_component_cmd
 		{
-			void (*fn)(t_storage&, age::byte_buf&);
+			t_fn_erased fn_ptr;
 		};
 
 		struct remove_component_cmd
 		{
-			t_ent_id id;
-			void	 (*fn)(t_storage&, t_ent_id);
+			uint64		id;
+			t_fn_erased fn_ptr;
 		};
 
 		age::vector<new_entity_cmd> new_entity_cmd_vec;
 		age::byte_buf				new_entity_cmp_buffer;
 
-		age::vector<t_ent_id> remove_entity_cmd_vec;
+		age::byte_buf remove_entity_cmd_vec;
 
 		age::vector<add_component_cmd> add_component_cmd_vec;
 		age::byte_buf				   add_component_cmp_buffer;
 
 		age::vector<remove_component_cmd> remove_component_cmd_vec;
 
-		template <typename... t_cmp>
+		template <typename t_storage, typename... t_cmp>
 		void
-		new_entity(auto&&... arg) noexcept
+		new_entity(t_storage&, auto&&... arg) noexcept
 		{
 			if constexpr (sizeof...(arg) == 0)
 			{
-				new_entity_cmd_vec.emplace_back(&detail::fn_new_entity_no_arg<t_storage, t_cmp...>);
+				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_new_entity_no_arg<t_storage, t_cmp...>));
 			}
 			else if constexpr (sizeof...(arg) == sizeof...(t_cmp))
 			{
 				new_entity_cmp_buffer.write(t_cmp{ FWD(arg) }...);
-				new_entity_cmd_vec.emplace_back(&detail::fn_new_entity_with_arg<t_storage, t_cmp...>);
+				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_new_entity_with_arg<t_storage, t_cmp...>));
 			}
 			else
 			{
@@ -112,25 +104,26 @@ namespace age::ecs::command
 			}
 		}
 
+		template <typename t_storage>
 		void
-		remove_entity(t_ent_id id) noexcept
+		remove_entity(t_storage&, typename t_storage::t_ent_id id) noexcept
 		{
-			remove_entity_cmd_vec.emplace_back(id);
+			remove_entity_cmd_vec.write(id);
 		}
 
-		template <typename... t_cmp>
+		template <typename t_storage, typename... t_cmp>
 		void
-		add_component(t_ent_id id, auto&&... arg) noexcept
+		add_component(t_storage&, typename t_storage::t_ent_id id, auto&&... arg) noexcept
 		{
 			if constexpr (sizeof...(arg) == 0)
 			{
 				add_component_cmp_buffer.write(id);
-				add_component_cmd_vec.emplace_back(&detail::fn_add_component_no_arg<t_storage, t_ent_id, t_cmp...>);
+				add_component_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_add_component_no_arg<t_storage, typename t_storage::t_ent_id, t_cmp...>));
 			}
 			else if constexpr (sizeof...(arg) == sizeof...(t_cmp))
 			{
 				add_component_cmp_buffer.write(id, t_cmp{ FWD(arg) }...);
-				add_component_cmd_vec.emplace_back(&detail::fn_add_component_with_arg<t_storage, t_ent_id, t_cmp...>);
+				add_component_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_add_component_with_arg<t_storage, typename t_storage::t_ent_id, t_cmp...>));
 			}
 			else
 			{
@@ -138,40 +131,47 @@ namespace age::ecs::command
 			}
 		}
 
-		template <typename... t_cmp>
+		template <typename... t_cmp, typename t_storage>
 		void
-		remove_component(t_ent_id id) noexcept
+		remove_component(t_storage&, typename t_storage::t_ent_id id) noexcept
 		{
-			remove_component_cmd_vec.emplace_back({ id, &detail::fn_remove_component<t_storage, t_ent_id, t_cmp...> });
+			remove_component_cmd_vec.emplace_back(static_cast<uint64>(id), reinterpret_cast<t_fn_erased>(&detail::fn_remove_component<t_storage, typename t_storage::t_ent_id, t_cmp...>));
 		}
 
+		template <typename t_storage>
 		void
 		flush(t_storage& storage) noexcept
 		{
-			for (auto ent_id : remove_entity_cmd_vec)
-			{
-				storage.remove_entity(ent_id);
-			}
-
 			for (auto rem_cmd : remove_component_cmd_vec)
 			{
-				rem_cmd.fn(storage, rem_cmd.id);
+				reinterpret_cast<void (*)(t_storage&, typename t_storage::t_ent_id)>(rem_cmd.fn_ptr)(storage, static_cast<typename t_storage::t_ent_id>(rem_cmd.id));
+			}
+
+			while (remove_entity_cmd_vec.has_remaining())
+			{
+				storage.remove_entity(remove_entity_cmd_vec.read<typename t_storage::t_ent_id>());
 			}
 
 			for (auto cmd : new_entity_cmd_vec)
 			{
-				cmd.fn(storage, new_entity_cmp_buffer);
+				reinterpret_cast<void (*)(t_storage&, age::byte_buf&)>(cmd.fn_ptr)(storage, new_entity_cmp_buffer);
 			}
 
 			AGE_ASSERT(new_entity_cmp_buffer.has_remaining() is_false);
 
 			for (auto cmd : add_component_cmd_vec)
 			{
-				cmd.fn(storage, add_component_cmp_buffer);
+				reinterpret_cast<void (*)(t_storage&, age::byte_buf&)>(cmd.fn_ptr)(storage, add_component_cmp_buffer);
 			}
 
 			AGE_ASSERT(add_component_cmp_buffer.has_remaining() is_false);
 
+			clear();
+		}
+
+		void
+		clear() noexcept
+		{
 			new_entity_cmd_vec.clear();
 			new_entity_cmp_buffer.clear();
 			remove_entity_cmd_vec.clear();
@@ -179,5 +179,19 @@ namespace age::ecs::command
 			add_component_cmp_buffer.clear();
 			remove_component_cmd_vec.clear();
 		}
+
+		void
+		validate() noexcept
+		{
+			if constexpr (age::config::debug_mode)
+			{
+				AGE_ASSERT(new_entity_cmd_vec.is_empty());
+				AGE_ASSERT(new_entity_cmp_buffer.has_remaining() is_false);
+				AGE_ASSERT(remove_entity_cmd_vec.has_remaining() is_false);
+				AGE_ASSERT(add_component_cmd_vec.is_empty());
+				AGE_ASSERT(add_component_cmp_buffer.has_remaining() is_false);
+				AGE_ASSERT(remove_component_cmd_vec.is_empty());
+			}
+		}
 	};
-}	 // namespace age::ecs::command
+}	 // namespace age::ecs

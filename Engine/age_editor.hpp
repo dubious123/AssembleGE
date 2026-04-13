@@ -3,8 +3,9 @@
 
 namespace age::editor::g
 {
-	inline auto select_vec = age::vector<uint64>{};
-}
+	inline auto select_vec	= age::vector<uint64>{};
+	inline auto command_buf = ecs::command_buffer{};
+}	 // namespace age::editor::g
 
 namespace age::editor
 {

@@ -74,6 +74,11 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		delta_from_edge = ui_calc_shape_triangle(center_offset, data.size, data.shape_data);
 		break;
 	}
+	case UI_SHAPE_KIND_CROSS:
+	{
+		delta_from_edge = ui_calc_shape_cross(center_offset, data.size, data.shape_data);
+		break;
+	}
 	}
 
 	switch (body_brush_kind)

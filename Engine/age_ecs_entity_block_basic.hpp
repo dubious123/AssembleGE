@@ -293,7 +293,7 @@ namespace age::ecs::entity_block
 
 			total_align_info.build(align_info::total_size(), mem_size);
 
-			total_align_info.print();
+			// total_align_info.print();
 
 			entity_block_idx()			= block_idx;
 			capacity()					= static_cast<t_capacity>(total_align_info.count_of<entity_id_tag>());
@@ -309,9 +309,17 @@ namespace age::ecs::entity_block
 												   | filter([archetype](auto idx) { return (archetype >> idx) & 1; })
 												   | enumerate)
 			{
-				auto local_cmp_idx		  = static_cast<t_local_cmp_idx>(idx);
-				cmp_offset(local_cmp_idx) = static_cast<t_component_offset>(total_align_info.offset_of(local_cmp_idx));
-				cmp_size(local_cmp_idx)	  = t_archetype_traits::cmp_size(storage_cmp_idx);
+				auto local_cmp_idx = static_cast<t_local_cmp_idx>(idx);
+
+				buffer::write_bytes(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + local_cmp_idx,
+									static_cast<t_component_offset>(total_align_info.offset_of(local_cmp_idx)));
+
+				buffer::write_bytes(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + local_cmp_idx,
+									t_archetype_traits::cmp_size(storage_cmp_idx));
+
+
+				// cmp_offset(local_cmp_idx) = static_cast<t_component_offset>(total_align_info.offset_of(local_cmp_idx));
+				// cmp_size(local_cmp_idx)	  = t_archetype_traits::cmp_size(storage_cmp_idx);
 			}
 		}
 

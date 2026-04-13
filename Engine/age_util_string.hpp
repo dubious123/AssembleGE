@@ -115,6 +115,54 @@ namespace age::util
 		}
 	}
 
+	// template <int32 base = 10, typename t, std::size_t n, std::size_t p>
+	// constexpr void
+	// to_str(char (&buf)[n], t value, const char (&prefix)[p]) noexcept
+	//{
+	//	constexpr auto len = p - 1;
+	//	std::memcpy(buf, prefix, len);
+
+	//	if constexpr (std::is_floating_point_v<t>)
+	//	{
+	//		auto [ptr, ec] = std::to_chars(buf + len, buf + n - 1, value);
+	//		AGE_ASSERT(ec == std::errc{});
+	//		*ptr = '\0';
+	//	}
+	//	else
+	//	{
+	//		auto [ptr, ec] = std::to_chars(buf + len, buf + n - 1, value, base);
+	//		AGE_ASSERT(ec == std::errc{});
+	//		*ptr = '\0';
+	//	}
+	//}
+
+	template <int32 base = 10, std::size_t digits = 0, typename t, std::size_t n, std::size_t p>
+	constexpr void
+	to_str(char (&buf)[n], t value, const char (&prefix)[p]) noexcept
+	{
+		constexpr auto len = p - 1;
+		std::memcpy(buf, prefix, len);
+
+		char tmp[24];
+		auto [ptr, ec] = std::to_chars(tmp, tmp + sizeof(tmp), value, base);
+		AGE_ASSERT(ec == std::errc{});
+
+		if constexpr (digits > 0)
+		{
+			c_auto written = static_cast<std::size_t>(ptr - tmp);
+			c_auto pad	   = (digits > written) ? digits - written : 0;
+			std::memset(buf + len, '0', pad);
+			std::memcpy(buf + len + pad, tmp, written);
+			buf[len + pad + written] = '\0';
+		}
+		else
+		{
+			c_auto written = static_cast<std::size_t>(ptr - tmp);
+			std::memcpy(buf + len, tmp, written);
+			buf[len + written] = '\0';
+		}
+	}
+
 	template <typename t, std::size_t n>
 	constexpr bool
 	from_str(char (&buf)[n], t& value) noexcept

@@ -35,6 +35,36 @@ namespace age::ui::widget
 	}
 }	 // namespace age::ui::widget
 
+// indicators
+namespace age::ui::widget
+{
+	FORCE_INLINE void
+	disclosure_indicator(bool is_open, float size = font::get_line_height(theme::text_heading_font_size())) noexcept
+	{
+		if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(size), size_mode::fixed(size)) | set_padding(theme::padding_indicator()) | set_align_center()))
+		{
+			if (is_open)
+			{
+				widget::begin(set_align(e::widget_align::center)
+							  | set_size(size_mode::grow(), size_mode::grow())
+							  | set_z_offset(1)
+							  | set_border_thickness(0.f)
+							  | set_shape_kind(e::shape_kind::triangle)
+							  | set_body_brush_data(theme::color_text_gray_dark()));
+			}
+			else
+			{
+				widget::begin(set_align(e::widget_align::center)
+							  | set_size(size_mode::grow(), size_mode::fixed(theme::thickness_thick()))
+							  | set_z_offset(1)
+							  | set_border_thickness(0.f)
+							  | set_shape_kind(e::shape_kind::rect)
+							  | set_body_brush_data(theme::color_text_gray_dark()));
+			}
+		}
+	}
+}	 // namespace age::ui::widget
+
 // frame
 namespace age::ui::widget
 {
@@ -621,7 +651,7 @@ namespace age::ui::widget
 	}
 
 	FORCE_INLINE widget_ctx
-	collapsible_header2(const char* p_str, auto&&... modifier) noexcept
+	collapsible_header2(const char* p_str, bool default_open = true, auto&&... modifier) noexcept
 	{
 		using enum input::e::key_kind;
 
@@ -637,11 +667,11 @@ namespace age::ui::widget
 					header.toggle();
 				}
 
-				is_open = header.is_toggled();
+				is_open = header.is_toggled() != default_open;
 
 				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
 
-				if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size)) | set_padding(theme::padding_small()) | set_align_center()))
+				if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size)) | set_padding(theme::padding_small() + 1.f) | set_align_center()))
 				{
 					if (is_open)
 					{
@@ -651,7 +681,7 @@ namespace age::ui::widget
 									  // | set_rotation(180 * math::g::degree_to_radian)
 									  | set_padding(theme::padding_medium())
 									  | set_shape_kind(e::shape_kind::triangle)
-									  | set_body_brush_data(theme::color_text_gray()));
+									  | set_body_brush_data(theme::color_text_gray_dark()));
 					}
 					else
 					{

@@ -144,6 +144,17 @@ ui_calc_shape_triangle(float2 center_offset, float2 size, ui_shape_data data)
 	return sdf_triangle(center_offset, s);
 }
 
+float
+ui_calc_shape_cross(float2 center_offset, float2 size, ui_shape_data data)
+{
+	float2 half = size * 0.5f;
+
+	return sdf_union(
+			   sdf_line(center_offset, float2(-half.x, -half.y), float2(half.x, half.y)),
+			   sdf_line(center_offset, float2(-half.x, half.y), float2(half.x, -half.y)))
+		 - 1.3f;
+}
+
 // brush
 float4
 ui_calc_brush_color(float2 rect_uv, ui_brush_data data)

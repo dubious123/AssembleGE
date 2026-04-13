@@ -10,7 +10,8 @@ namespace age::ui::e
 					text,
 					check,
 					rounded_rect,
-					triangle);
+					triangle,
+					cross);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8,
 					color);
@@ -615,9 +616,12 @@ namespace age::ui
 			  (float3, palette_light_rose, (0.874f, 0.566f, 0.711f)),			// #DE90B5
 			  (float3, palette_light_crimson, (0.874f, 0.566f, 0.653f)),		// #DE90A6
 			  (float3, palette_light_coral, (0.874f, 0.566f, 0.595f)),			// #DE9097
+
 			  (float, padding_small, (3.f)),
 			  (float, padding_medium, (8.f)),
 			  (float, padding_large, (12.f)),
+
+			  (float, padding_indicator, (4.f)),
 
 			  (float, gap_small, (3.f)),
 			  (float, gap_medium, (6.f)),
@@ -689,9 +693,14 @@ namespace age::ui
 	AGE_THEME_WIDGET(item, color_bg, float4(color_gray_darker(), 1.f))
 	AGE_THEME_WIDGET(item, color_bg_hover, float4(color_gray_dark(), 1.f))
 	AGE_THEME_WIDGET(item, color_bg_active, float4(color_gray_dark(), 1.f))
-	AGE_THEME_WIDGET(item, color_bg_selected, float4(color_blue(), opacity_light()))
-	AGE_THEME_WIDGET(item, color_bg_selected_hover, float4(color_blue(), opacity_mild()))
-	AGE_THEME_WIDGET(item, color_bg_selected_active, float4(color_blue(), opacity_mild()))
+	// AGE_THEME_WIDGET(item, color_bg_selected, float4(color_blue(), opacity_mild()))
+	// AGE_THEME_WIDGET(item, color_bg_selected_hover, float4(color_blue_dark(), opacity_mild()))
+	// AGE_THEME_WIDGET(item, color_bg_selected_active, float4(color_blue_dark(), opacity_mild()))
+
+	AGE_THEME_WIDGET(item, color_bg_selected, float4(color_blue(), opacity_mild()))
+	AGE_THEME_WIDGET(item, color_bg_selected_hover, float4(color_blue_light(), opacity_mild()))
+	AGE_THEME_WIDGET(item, color_bg_selected_active, float4(color_blue_dark(), opacity_mild()))
+
 	AGE_THEME_WIDGET(item, color_border, float4(color_gray_darker(), 1.f))
 	AGE_THEME_WIDGET(item, color_border_hover, float4(color_gray_darker(), 1.f))
 	AGE_THEME_WIDGET(item, color_border_active, float4(color_gray_darker(), 1.f))
@@ -866,6 +875,13 @@ namespace age::ui
 		hovered() const noexcept
 		{
 			return hash_id == g::hover_id;
+		}
+
+		FORCE_INLINE bool
+		contains_mouse() const noexcept
+		{
+			c_auto& state = get_state();
+			return math::contains_2d(float4{ state.pos.x, state.pos.y, state.pos.x + state.clip_width, state.pos.y + state.clip_height }, g::p_input_ctx->mouse_pos);
 		}
 
 		FORCE_INLINE bool

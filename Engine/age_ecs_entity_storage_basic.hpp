@@ -235,10 +235,11 @@ namespace age::ecs::entity_storage
 			auto& dst_block					= dest_ent_block_collection.free_block(new_archetype);
 			auto  need_src_update			= src_block.is_full();
 
+
 			for (auto [idx, storage_cmp_idx] : age::views::each_set_bit_idx(new_archetype) | enumerate)
 			{
 				auto dest_local_cmp_idx = static_cast<t_local_cmp_idx>(idx);
-				auto src_local_cmp_idx	= t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, storage_cmp_idx);
+				auto src_local_cmp_idx	= t_archetype_traits::calc_local_cmp_idx(ent_info.archetype, static_cast<t_storage_cmp_idx>(storage_cmp_idx));
 				src_block.evict_component(ent_info.local_idx, src_local_cmp_idx, dst_block.get_component_write_ptr(dest_local_cmp_idx));
 			}
 
@@ -446,7 +447,8 @@ namespace age::ecs::entity_storage
 				 | std::views::filter(AGE_LAMBDA((auto& kv), { return matches(t_query{}, kv.first); }))
 				 | std::views::values
 				 | std::views::join
-				 | age::meta::deref_view;
+				 | age::meta::deref_view
+				 | std::views::filter(AGE_LAMBDA((auto& block), { return block.is_empty() is_false; }));
 		}
 
 		template <typename t_query, typename t_sys>

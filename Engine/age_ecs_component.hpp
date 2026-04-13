@@ -8,31 +8,39 @@ namespace age::ecs
 	// 4. material : 1.opaque 2.transform, render_object_id (draw is true)
 	// 5. camera : 1. perspective, orthographics, camera_id
 
-	struct transform_3d
+	template <typename t>
+	consteval auto
+	get_component_name()
+	{
+		return "unnamed component";
+	}
+
+#define AGE_COMPONENT(name)                   \
+	struct name;                              \
+	template <>                               \
+	consteval auto get_component_name<name>() \
+	{ return #name; }                         \
+	struct name
+
+	AGE_COMPONENT(transform_3d)
 	{
 		float3 position;
 		float4 quaternion;
 		float3 scale;
 	};
 
-	struct position : public float3
-	{
-	};
+	AGE_COMPONENT(position) : public float3{};
 
-	struct rotation : public float4
-	{
-	};
+	AGE_COMPONENT(rotation) : public float4{};
 
-	struct scale : public float3
-	{
-	};
+	AGE_COMPONENT(scale) : public float3{};
 
-	struct render_object
+	AGE_COMPONENT(render_object)
 	{
 		uint32 render_id;
 	};
 
-	struct camera
+	AGE_COMPONENT(camera)
 	{
 		uint32 render_id;
 
@@ -51,7 +59,7 @@ namespace age::ecs
 		float view_height;
 	};
 
-	struct directional_light
+	AGE_COMPONENT(directional_light)
 	{
 		uint16 render_id;
 		bool   cast_shadow = false;
@@ -63,7 +71,7 @@ namespace age::ecs
 		uint8 _;
 	};
 
-	struct point_light
+	AGE_COMPONENT(point_light)
 	{
 		uint32 render_id;
 
@@ -75,7 +83,7 @@ namespace age::ecs
 		uint8_3 _;
 	};
 
-	struct spot_light
+	AGE_COMPONENT(spot_light)
 	{
 		uint32 render_id;
 
@@ -90,14 +98,16 @@ namespace age::ecs
 		uint8_3 _;
 	};
 
-	struct mesh
+	AGE_COMPONENT(mesh)
 	{
 		uint32 render_id;
 	};
 
-	struct material
+	AGE_COMPONENT(material)
 	{
 		uint32 render_id;	 // object_id
 		bool   is_opaque;
 	};
+
+#undef AGE_COMPONENT
 }	 // namespace age::ecs

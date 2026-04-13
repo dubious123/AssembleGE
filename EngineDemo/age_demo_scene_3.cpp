@@ -117,14 +117,9 @@ namespace age_demo::scene_3
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
-					auto& entites = i_update.get_entities();
-					if (auto _ = widget::collapsible_header("entity hierarchy"))
-					{
-						for (auto&& [ent_id, ent_arch] : entites | each_entity(query<sv_entity_id, sv_archetype>()))
-						{
-							age::editor::ui_select(ent_id);
-						}
-					}
+					auto& entities = i_update.get_entities();
+
+					age::editor::ui_entity_hierarchy(i_update.get_entities());
 
 					if (auto _ = widget::collapsible_header("mesh"))
 					{
