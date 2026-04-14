@@ -187,7 +187,7 @@ namespace age::ecs::entity_storage
 			for (auto [idx, storage_cmp_idx] : age::views::each_set_bit_idx(ent_info.archetype) | enumerate)
 			{
 				auto src_local_cmp_idx	= static_cast<t_local_cmp_idx>(idx);
-				auto dest_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(new_archetype, storage_cmp_idx);
+				auto dest_local_cmp_idx = t_archetype_traits::calc_local_cmp_idx(new_archetype, static_cast<t_storage_cmp_idx>(storage_cmp_idx));
 				src_block.evict_component(ent_info.local_idx, src_local_cmp_idx, dst_block.get_component_write_ptr(dest_local_cmp_idx));
 			}
 
@@ -296,7 +296,7 @@ namespace age::ecs::entity_storage
 			else
 			{
 				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
-				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
+				static_assert((std::is_constructible_v<std::remove_cvref_t<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
@@ -324,6 +324,25 @@ namespace age::ecs::entity_storage
 			entity_info_vec.remove(id);
 		}
 
+		void
+		remove_entity(const t_ent_id id, auto& renderer) noexcept
+		{
+			auto& ent_info = entity_info_vec[id];
+
+			auto need_update = ent_info.p_block->is_full();
+
+			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx, renderer);
+			entity_info_vec[entity_id_last].local_idx = ent_info.local_idx;
+
+			if (need_update)
+			{
+				entity_blocks_map[ent_info.archetype].update_free(ent_info.p_block->entity_block_idx());
+			}
+
+			entity_info_vec[id].p_block = nullptr;
+			entity_info_vec.remove(id);
+		}
+
 		// if dup cmp => UB
 		template <typename... t, typename... t_arg>
 		void
@@ -338,11 +357,11 @@ namespace age::ecs::entity_storage
 			else
 			{
 				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
-				static_assert((std::is_constructible_v<std::remove_cvref<t>, t_arg> and ...), "invalid template parameter");
+				static_assert((std::is_constructible_v<std::remove_cvref_t<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
 				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(id, FWD(arg)...)...);
+					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id, age::meta::variadic_get<i>(FWD(arg)...)...);
 				}(get_sorted_arg_index_sequence<t...>(), id, FWD(arg)...);
 			}
 		}

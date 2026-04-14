@@ -1324,6 +1324,7 @@ namespace age::ui::style
 	{
 		return detail::separator_base()
 			 | set_width_grow()
+			 | set_body_brush_data(theme::separator_color())
 			 | set_height_fixed(theme::separator_thickness());
 	}
 
@@ -1332,6 +1333,7 @@ namespace age::ui::style
 	{
 		return detail::separator_base()
 			 | set_height_grow()
+			 | set_body_brush_data(theme::separator_color())
 			 | set_width_fixed(theme::separator_thickness());
 	}
 }	 // namespace age::ui::style

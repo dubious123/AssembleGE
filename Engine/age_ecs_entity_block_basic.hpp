@@ -369,6 +369,7 @@ namespace age::ecs::entity_block
 		t_ent_id&
 		remove_entity(t_local_entity_idx local_ent_idx)
 		{
+			static_assert((cx_renderable<t_cmp> || ...) is_false);
 			AGE_ASSERT(is_empty() is_false);
 
 			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
@@ -383,8 +384,59 @@ namespace age::ecs::entity_block
 			return ent_id(local_ent_idx);
 		}
 
+		t_ent_id&
+		remove_entity(t_local_entity_idx local_ent_idx, auto& renderer)
+		{
+			static_assert((cx_renderable<t_cmp> || ...));
+			AGE_ASSERT(is_empty() is_false);
+
+			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
+
+
+			auto bits = local_archetype();
+			for (t_local_cmp_idx local_cmp_idx = 0; local_cmp_idx < component_count(); ++local_cmp_idx)
+			{
+				c_auto storage_cmp_idx	= static_cast<t_storage_cmp_idx>(std::countr_zero(bits));
+				bits				   &= bits - 1;
+
+				switch (storage_cmp_idx)
+				{
+#define X(N)                                                                    \
+	case N:                                                                     \
+	{                                                                           \
+		if constexpr (N < sizeof...(t_cmp))                                     \
+		{                                                                       \
+			using t_c = meta::variadic_at_t<N, t_cmp...>;                       \
+			if constexpr (cx_renderable<t_c>)                                   \
+			{                                                                   \
+				t_c::remove_renderable(renderer, *cmp_ptr<t_c>(local_ent_idx)); \
+			}                                                                   \
+			break;                                                              \
+		}                                                                       \
+		else                                                                    \
+		{                                                                       \
+			AGE_UNREACHABLE();                                                  \
+		}                                                                       \
+	}
+					__X_REPEAT_LIST_512
+#undef X
+				default:
+				{
+					AGE_UNREACHABLE();
+				}
+				}
+
+				std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
+			}
+
+			ent_id(local_ent_idx) = ent_id(local_ent_idx_back);
+
+			return ent_id(local_ent_idx);
+		}
+
 		FORCE_INLINE void
 		evict_component(const t_local_entity_idx local_ent_idx, const t_local_cmp_idx local_cmp_idx, void* p_dest)
+
 		{
 			AGE_ASSERT(is_empty() is_false);
 			auto		local_ent_idx_back = static_cast<t_local_cmp_idx>(entity_count() - 1);
@@ -417,7 +469,7 @@ namespace age::ecs::entity_block
 		{
 			static_assert((true && ... && !std::is_rvalue_reference_v<t>), "no rvalue reference type component");
 
-			return std::tuple<t...>{ (*cmp_ptr<std::remove_reference_t<t>>(local_ent_idx))... };
+			return std::tie((*cmp_ptr<std::remove_reference_t<t>>(local_ent_idx))...);
 		}
 
 		template <typename t_sys, template <typename...> typename t_cmp_pack, age::ecs::cx_component... t>

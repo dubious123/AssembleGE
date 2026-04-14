@@ -45,6 +45,9 @@ namespace age::ecs
 
 		using t_local_cmp_idx = t_storage_cmp_idx;
 
+		template <auto n>
+		using t_component = meta::variadic_at_t<n, t_cmp...>;
+
 		static_assert(std::is_same_v<t_storage_cmp_idx, uint8>);
 
 		template <typename... t>
@@ -183,21 +186,49 @@ namespace age::ecs
 		// }
 
 		FORCE_INLINE static constexpr decltype(auto)
-		visit_component(cx_entity_storage auto&& storage, auto ent_id, auto cmp_idx, auto&& func) noexcept
+		visit_component(cx_entity_storage auto&& storage, auto ent_id, auto cmp_idx, auto&& func, auto&&... arg) noexcept
 		{
 			switch (cmp_idx)
 			{
-#define __VISIT_CMP_IMPL(N)                                                                                                                               \
-	case N:                                                                                                                                               \
-	{                                                                                                                                                     \
-		if constexpr (N < cmp_count())                                                                                                                    \
-		{                                                                                                                                                 \
-			return FWD(func)(FWD(storage), ent_id, std::get<0>(storage.template get_component<age::meta::variadic_at_t<N, t_cmp...>&>(ent_id)), cmp_idx); \
-		}                                                                                                                                                 \
-		else                                                                                                                                              \
-		{                                                                                                                                                 \
-			AGE_UNREACHABLE();                                                                                                                            \
-		}                                                                                                                                                 \
+#define __VISIT_CMP_IMPL(N)                                                                                                                                            \
+	case N:                                                                                                                                                            \
+	{                                                                                                                                                                  \
+		if constexpr (N < cmp_count())                                                                                                                                 \
+		{                                                                                                                                                              \
+			return FWD(func)(FWD(storage), ent_id, std::get<0>(storage.template get_component<age::meta::variadic_at_t<N, t_cmp...>&>(ent_id)), cmp_idx, FWD(arg)...); \
+		}                                                                                                                                                              \
+		else                                                                                                                                                           \
+		{                                                                                                                                                              \
+			AGE_UNREACHABLE();                                                                                                                                         \
+		}                                                                                                                                                              \
+	}
+#define X(N) __VISIT_CMP_IMPL(N)
+				__X_REPEAT_LIST_512
+#undef X
+#undef __VISIT_CMP_IMPL
+			default:
+			{
+				AGE_UNREACHABLE();
+			}
+			}
+		}
+
+		FORCE_INLINE static constexpr decltype(auto)
+		get_component_name(auto cmp_idx) noexcept
+		{
+			switch (cmp_idx)
+			{
+#define __VISIT_CMP_IMPL(N)                                                     \
+	case N:                                                                     \
+	{                                                                           \
+		if constexpr (N < cmp_count())                                          \
+		{                                                                       \
+			return ecs::get_component_name<meta::variadic_at_t<N, t_cmp...>>(); \
+		}                                                                       \
+		else                                                                    \
+		{                                                                       \
+			AGE_UNREACHABLE();                                                  \
+		}                                                                       \
 	}
 #define X(N) __VISIT_CMP_IMPL(N)
 				__X_REPEAT_LIST_512

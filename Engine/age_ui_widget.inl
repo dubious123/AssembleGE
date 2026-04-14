@@ -39,6 +39,20 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	FORCE_INLINE void
+	indicator(e::shape_kind e_shape, float size = font::get_line_height(theme::text_heading_font_size()), auto color = theme::indicator_color()) noexcept
+	{
+		if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(size), size_mode::fixed(size)) | set_padding(theme::padding_indicator()) | set_align_center()))
+		{
+			widget::begin(set_align(e::widget_align::center)
+						  | set_size(size_mode::grow(), size_mode::grow())
+						  | set_z_offset(1)
+						  | set_border_thickness(0.f)
+						  | set_shape_kind(e_shape)
+						  | set_body_brush_data(color));
+		}
+	}
+
+	FORCE_INLINE void
 	disclosure_indicator(bool is_open, float size = font::get_line_height(theme::text_heading_font_size())) noexcept
 	{
 		if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(size), size_mode::fixed(size)) | set_padding(theme::padding_indicator()) | set_align_center()))

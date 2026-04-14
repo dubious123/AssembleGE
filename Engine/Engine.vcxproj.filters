@@ -79,6 +79,7 @@
     <ClInclude Include="age_data_structure_byte_buffer.hpp" />
     <ClInclude Include="age_editor_ui.inl" />
     <ClInclude Include="age_graphics_backend_dx12_resource_barrier.hpp" />
+    <ClInclude Include="age_util_bitset.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

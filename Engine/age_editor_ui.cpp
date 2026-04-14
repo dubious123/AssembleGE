@@ -4,12 +4,11 @@
 namespace age::editor
 {
 	ui::widget_ctx
-	ui_entity_tree_node(const char* p_name, uint64 ent_id, uint64 archetype) noexcept
+	ui_entity_tree_node(const char* p_name, uint64 ent_id, uint64 archetype, bool selected) noexcept
 	{
 		using namespace age::ui;
 		using enum input::e::key_kind;
 
-		c_auto selected			  = is_selected(ent_id);
 		c_auto child_padidng_left = theme::thickness_thick() + theme::item_child_gap() + theme::thickness_thick() + theme::item_child_gap();
 		auto   is_opened		  = false;
 
@@ -55,7 +54,7 @@ namespace age::editor
 
 				c_auto disclosure_indicator_size = font::get_line_height(theme::text_font_size());
 
-				if (auto btn = widget::begin(style::horizontal() | set_interact(true) | set_width_fit() | set_height_fit()))
+				if (auto btn = widget::begin(style::horizontal() | set_interact(true) | set_width_fit() | set_height_fit() | set_align_center()))
 				{
 					auto& btn_state = btn.get_state();
 					if (btn.clicked())
@@ -257,7 +256,7 @@ namespace age::editor
 					header.toggle();
 				}
 
-				is_open = header.is_toggled();
+				is_open = header.is_toggled() is_false;
 
 				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
 				widget::disclosure_indicator(is_open, disclosure_indicator_size);

@@ -200,6 +200,11 @@ namespace age::ui
 				float3 euler;
 				float4 quat;
 			} rotation_field;
+
+			struct
+			{
+				age::util::bitset<32 * 6> selected;
+			} drop_down_data;
 		};
 	};
 
@@ -795,7 +800,7 @@ namespace age::ui
 	AGE_THEME_WIDGET(scroll_thumb, size, thumb_small())
 	AGE_THEME_WIDGET(scroll_thumb, roundness, roundness_medium())
 
-	AGE_THEME_WIDGET(separator, color, float4(color_gray(), 1.f))
+	AGE_THEME_WIDGET(separator, color, float4(color_text_gray_light(), 1.f))
 	AGE_THEME_WIDGET(separator, thickness, thickness_thin())
 
 	AGE_THEME_WIDGET(resize_handle, color, float4(color_gray(), 1.f))
@@ -805,6 +810,8 @@ namespace age::ui
 	AGE_THEME_WIDGET(resize_handle, size, thumb_xs())
 
 	AGE_THEME_WIDGET(cursor, thickness, thickness_medium())	   // 2
+
+	AGE_THEME_WIDGET(indicator, color, float4(color_text_gray_dark(), 1.f))
 
 #undef AGE_THEME_FOREACH_FUNC
 #undef AGE_THEME_PRIMITIVE_MEMBER

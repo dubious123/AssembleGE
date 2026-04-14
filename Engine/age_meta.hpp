@@ -1329,7 +1329,7 @@ namespace age::meta
 	template <typename t_func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(FWD(tpl), std::tuple{ FWD(arg)... }))))
+	tuple_unpack(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(FWD(tpl), std::forward_as_tuple(FWD(arg)...)))))
 	{
 		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(FWD(tpl))..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 			return FWD(func)(std::get<i>(FWD(tpl))..., FWD(arg)...);
@@ -1339,7 +1339,7 @@ namespace age::meta
 	template <auto func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(FWD(tpl), std::tuple{ FWD(arg)... }))))
+	tuple_unpack(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(FWD(tpl), std::forward_as_tuple(FWD(arg)...)))))
 	{
 		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& tpl, auto&&... arg) noexcept(noexcept(func(std::get<i>(FWD(tpl))..., FWD(arg)...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 			return func(std::get<i>(FWD(tpl))..., FWD(arg)...);
@@ -1349,7 +1349,7 @@ namespace age::meta
 	template <typename t_func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack_prefix(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(std::tuple{ FWD(arg)... }, FWD(tpl)))))
+	tuple_unpack_prefix(t_func&& func, t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(FWD(func), std::tuple_cat(std::forward_as_tuple(FWD(arg)...), FWD(tpl)))))
 	{
 		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& func, auto&& tpl, auto&&... arg) noexcept(noexcept(func(FWD(arg)..., std::get<i>(FWD(tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 			return FWD(func)(FWD(arg)..., std::get<i>(FWD(tpl))...);
@@ -1359,7 +1359,7 @@ namespace age::meta
 	template <auto func, typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	tuple_unpack_prefix(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(std::tuple{ FWD(arg)... }, FWD(tpl)))))
+	tuple_unpack_prefix(t_tpl&& tpl, auto&&... arg) noexcept(noexcept(std::apply(func, std::tuple_cat(std::forward_as_tuple(FWD(arg)...), FWD(tpl)))))
 	{
 		return []<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& tpl, auto&&... arg) noexcept(noexcept(func(FWD(arg)..., std::get<i>(FWD(tpl))...))) INLINE_LAMBDA_BACK -> decltype(auto) {
 			return func(FWD(arg)..., std::get<i>(FWD(tpl))...);

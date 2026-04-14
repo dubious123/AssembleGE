@@ -87,6 +87,7 @@ namespace age
 	#include "age_util_string.hpp"
 	#include "age_util_views.hpp"
 	#include "age_util_container.hpp"
+	#include "age_util_bitset.hpp"
 
 	#include "age_data_structure.hpp"
 #endif
@@ -109,11 +110,11 @@ namespace age
 #include "age_asset_mesh_editable.hpp"
 #include "age_asset_mesh_baked.hpp"
 
+#include "age_ecs_component.hpp"
 #include "age_ecs.hpp"
 
 #include "age_ecs_interface.hpp"
 
-#include "age_ecs_component.hpp"
 
 #include "age_ecs_system.hpp"
 #include "age_ecs_system_exec_inline.hpp"

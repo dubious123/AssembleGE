@@ -23,5 +23,6 @@
 #include "age_util_string.hpp"
 #include "age_util_views.hpp"
 #include "age_util_container.hpp"
+#include "age_util_bitset.hpp"
 
 #include "age_data_structure.hpp"

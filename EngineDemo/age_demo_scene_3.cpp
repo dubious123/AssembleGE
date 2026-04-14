@@ -16,7 +16,7 @@ namespace age_demo::scene_3
 
 		auto&& [pos, cam] = i_init.get_entities->get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
 		{
-			pos = age::ecs::position{ float3::zero() };
+			pos = age::ecs::position{};
 
 			cam.kind = age::graphics::e::camera_kind::perspective;
 
@@ -119,99 +119,15 @@ namespace age_demo::scene_3
 				{
 					auto& entities = i_update.get_entities();
 
-					age::editor::ui_entity_hierarchy(i_update.get_entities());
-
-					if (auto _ = widget::collapsible_header("mesh"))
-					{
-						for (auto i : i_update.get_mesh_id_vec())
-						{
-							widget::button("this is mesh");
-						}
-					}
-
-					if (auto _ = widget::collapsible_header("light"))
-					{
-						if (auto _ = widget::collapsible_header("directional light"))
-						{
-							if (auto btn = widget::button("new", set_align_center()))
-							{
-								if (btn.clicked())
-								{
-									auto ent_light		= i_update.get_entities->new_entity<age::ecs::directional_light>();
-									auto&& [cmp_light]	= i_update.get_entities->get_component<age::ecs::directional_light&>(ent_light);
-									cmp_light.direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f });
-									cmp_light.intensity = 0.15f;
-									cmp_light.color		= float3{ 1.0f, 0.9f, 0.9f };
-
-									cmp_light.cast_shadow = true;
-
-									cmp_light.render_id = i_update.get_render_pipeline->add_directional_light(
-										age::graphics::render_pipeline::forward_plus::directional_light_desc{
-											.direction = cmp_light.direction,
-											.intensity = cmp_light.intensity,
-											.color	   = cmp_light.color,
-										},
-										cmp_light.cast_shadow);
-								}
-							}
-						}
-
-						if (auto _ = widget::collapsible_header("point light"))
-						{
-							if (auto btn = widget::button("new", set_align_center()))
-							{
-								if (btn.clicked())
-								{
-									auto ent_light	   = i_update.get_entities->new_entity<age::ecs::position, age::ecs::point_light>();
-									auto&& [cmp_light] = i_update.get_entities->get_component<age::ecs::point_light&>(ent_light);
-
-									cmp_light.render_id = i_update.get_render_pipeline->add_point_light(age::graphics::render_pipeline::forward_plus::point_light_desc{}, cmp_light.cast_shadow);
-								}
-							}
-						}
-
-
-						if (auto _ = widget::collapsible_header("spot light"))
-						{
-							if (auto btn = widget::button("new", set_align_center()))
-							{
-								if (btn.clicked())
-								{
-									auto ent_light		= i_update.get_entities->new_entity<age::ecs::position, age::ecs::spot_light>();
-									auto&& [cmp_light]	= i_update.get_entities->get_component<age::ecs::spot_light&>(ent_light);
-									cmp_light.render_id = i_update.get_render_pipeline->add_spot_light(age::graphics::render_pipeline::forward_plus::spot_light_desc{}, cmp_light.cast_shadow);
-								}
-							}
-						}
-					}
-
-					if (auto _ = widget::collapsible_header("render objects"))
-					{
-						if (auto btn = widget::button("new", set_align_center()))
-						{
-							if (btn.clicked())
-							{
-								auto ent_obj															= i_update.get_entities->new_entity<age::ecs::position, age::ecs::rotation, age::ecs::scale, age::ecs::render_object, age::ecs::mesh, age::ecs::material>();
-								auto&& [cmp_pos, cmp_rot, cmp_scale, cmp_rebder_obj, cmp_mesh, cmp_mat] = i_update.get_entities->get_component<age::ecs::position&, age::ecs::rotation&, age::ecs::scale&, age::ecs::render_object&, age::ecs::mesh&, age::ecs::material&>(ent_obj);
-								cmp_rot																	= age::ecs::rotation{ age::math::g::quaternion_identity };
-								cmp_scale																= age::ecs::scale{ float3::one() };
-								cmp_rebder_obj.render_id												= i_update.get_render_pipeline->add_object(cmp_pos, cmp_rot, cmp_scale);
-								cmp_mesh.render_id														= 0;
-								cmp_mat.is_opaque														= true;
-							}
-						}
-					}
+					age::editor::ui_entity_hierarchy(i_update.get_entities(), i_update.get_render_pipeline());
 				}
 			}
-			// if (auto _ = widget::panel_resizable_h(300, 1000,
-			//									   set_layout(e::widget_layout::vertical),
-			//									   set_size(size_mode::grow(), size_mode::grow())))
 
 			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
-					age::editor::ui_inspector(i_update.get_entities());
+					age::editor::ui_inspector(i_update.get_entities(), i_update.get_render_pipeline());
 				}
 			}
 
@@ -285,7 +201,7 @@ namespace age_demo::scene_3
 																   light.cast_shadow);
 		}
 
-		for (auto&& [pos, light] : i_update.get_entities() | each_entity<position, point_light>())
+		for (auto&& [light, pos] : i_update.get_entities() | each_entity<point_light, position>())
 		{
 			i_update.get_render_pipeline->update_point_light(
 				light.render_id,
@@ -298,7 +214,7 @@ namespace age_demo::scene_3
 				light.cast_shadow);
 		}
 
-		for (auto&& [pos, light] : i_update.get_entities() | each_entity<position, spot_light>())
+		for (auto&& [light, pos] : i_update.get_entities() | each_entity<spot_light, position>())
 		{
 			i_update.get_render_pipeline->update_spot_light(
 				light.render_id,
@@ -314,8 +230,8 @@ namespace age_demo::scene_3
 				light.cast_shadow);
 		}
 
-		for (auto&& [obj, pos, rot, scale, mesh, mat] : i_update.get_entities()
-															| each_entity<const render_object, const position, const rotation, const scale, const mesh, const material>())
+		for (auto&& [pos, rot, scale, obj, mesh, mat] : i_update.get_entities()
+															| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
 		{
 			i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
 
