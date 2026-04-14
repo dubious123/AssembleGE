@@ -7,6 +7,7 @@ namespace age::editor
 	init() noexcept
 	{
 		g::command_buf.clear();
+		g::entity_name_map.clear();
 	}
 
 	void
@@ -20,6 +21,7 @@ namespace age::editor
 		}
 
 		g::command_buf.clear();
+		g::entity_name_map.clear();
 	}
 
 	void

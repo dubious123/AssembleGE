@@ -44,7 +44,11 @@ namespace age::editor
 				if (interact.clicked())
 				{
 					age::editor::clear_select();
-					age::editor::add_select(ent_id);
+
+					if (selected is_false)
+					{
+						age::editor::add_select(ent_id);
+					}
 				}
 			}
 
@@ -67,7 +71,17 @@ namespace age::editor
 					widget::disclosure_indicator(btn_state.toggled, disclosure_indicator_size);
 				}
 
-				widget::text(p_name);
+				if (g::entity_name_map.contains(ent_id) is_false)
+				{
+					auto& name	= g::entity_name_map[ent_id];
+					name		= {};
+					auto result = std::format_to_n(name.data(), name.size() - 1, "entity_{}", g::entity_name_map.size() - 1);
+					*result.out = '\0';
+				}
+
+				widget::text_input(g::entity_name_map[ent_id].data(), 64);
+
+				// widget::text(p_name);
 
 				if (auto _ = widget::begin(set_horizontal_inv() | set_width_grow() | set_height_fit() | set_child_gap(theme::gap_large())))
 				{

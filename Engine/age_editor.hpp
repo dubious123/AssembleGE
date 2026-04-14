@@ -5,6 +5,8 @@ namespace age::editor::g
 {
 	inline auto select_vec	= age::vector<uint64>{};
 	inline auto command_buf = ecs::command_buffer{};
+
+	inline auto entity_name_map = age::unordered_map<uint64, std::array<char, 64>>{};
 }	 // namespace age::editor::g
 
 namespace age::editor
