@@ -140,16 +140,6 @@ namespace age::util
 
 namespace age::util
 {
-	template <meta::cx_implicit_lifetime t>
-	FORCE_INLINE constexpr t*
-	start_lifetime_as(void* ptr) noexcept
-	{
-		return std::launder(static_cast<t*>(std::memmove(ptr, ptr, sizeof(t))));
-	}
-}	 // namespace age::util
-
-namespace age::util
-{
 	template <std::integral t_idx, std::size_t size>
 	struct idx_pool
 	{

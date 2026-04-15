@@ -41,7 +41,6 @@ namespace age_demo::scene_3
 					.aspect_ratio = cam.aspect_ratio } });
 		}
 
-
 		on_ctx{
 			AGE_LAMBDA(
 				(),

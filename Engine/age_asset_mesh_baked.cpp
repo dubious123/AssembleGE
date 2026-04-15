@@ -43,9 +43,8 @@ namespace age::asset
 	std::span<const meshlet>
 	mesh_baked::get_meshlet_buffer() const noexcept
 	{
-		// todo, start_lifetime_as_array
 		c_auto	header = get_header();
-		c_auto* ptr	   = reinterpret_cast<const meshlet*>(buffer.data() + header.meshlet_buffer_offset);
+		c_auto* ptr	   = std::start_lifetime_as_array<const meshlet>(buffer.data() + header.meshlet_buffer_offset, header.meshlet_count);
 
 		return std::span{ ptr, header.meshlet_count };
 	}

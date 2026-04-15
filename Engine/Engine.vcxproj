@@ -714,21 +714,25 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
     <EnableUnitySupport>true</EnableUnitySupport>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
     <PlatformToolset>v145</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <EnableUnitySupport>true</EnableUnitySupport>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <PlatformToolset>v145</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <EnableUnitySupport>true</EnableUnitySupport>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'" Label="Configuration">
     <PlatformToolset>v145</PlatformToolset>
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <EnableUnitySupport>true</EnableUnitySupport>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

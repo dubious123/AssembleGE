@@ -111,7 +111,7 @@ namespace age::ecs::entity_block
 
 			static_assert((alignment + offset) % alignof(typename t_tag::type) == 0);
 
-			return *age::util::start_lifetime_as<typename t_tag::type>(&storage[offset]);
+			return *std::launder(reinterpret_cast<typename t_tag::type*>(&storage[offset]));
 		}
 
 		FORCE_INLINE t_entity_block_idx&
@@ -165,7 +165,7 @@ namespace age::ecs::entity_block
 		FORCE_INLINE t_ent_id&
 		ent_id(t_local_entity_idx ent_idx)
 		{
-			return *age::util::start_lifetime_as<t_ent_id>(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]) + ent_idx);
+			return std::launder(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]))[ent_idx];
 		}
 
 		template <typename t>
@@ -178,8 +178,8 @@ namespace age::ecs::entity_block
 		FORCE_INLINE t_component_size&
 		cmp_size(t_local_cmp_idx cmp_idx)
 		{
-			AGE_ASSERT(*age::util::start_lifetime_as<t_component_size>(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx) > 0);
-			return *age::util::start_lifetime_as<t_component_size>(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]) + cmp_idx);
+			AGE_ASSERT(std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx] > 0);
+			return std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx];
 		}
 
 		template <typename t>
@@ -193,21 +193,21 @@ namespace age::ecs::entity_block
 		FORCE_INLINE t_component_offset&
 		cmp_offset(t_local_cmp_idx cmp_idx)
 		{
-			return *age::util::start_lifetime_as<t_component_offset>(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + cmp_idx);
+			return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[cmp_idx];
 		}
 
 		template <typename t>
 		FORCE_INLINE t_component_offset&
 		cmp_offset()
 		{
-			return *age::util::start_lifetime_as<t_component_offset>(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]) + calc_cmp_idx<t>());
+			return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[calc_cmp_idx<t>()];
 		}
 
 		template <typename t>
 		FORCE_INLINE t*
 		cmp_ptr(t_local_entity_idx local_ent_idx)
 		{
-			return reinterpret_cast<t*>(&storage[cmp_offset<t>()]) + local_ent_idx;
+			return std::launder(reinterpret_cast<t*>(&storage[cmp_offset<t>()])) + local_ent_idx;
 		}
 
 		FORCE_INLINE

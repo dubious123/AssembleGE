@@ -147,6 +147,7 @@
     <CharacterSet>Unicode</CharacterSet>
     <EnableUnitySupport>true</EnableUnitySupport>
     <VCToolsVersion />
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
     <PlatformToolset>v145</PlatformToolset>
@@ -154,6 +155,7 @@
     <EnableUnitySupport>true</EnableUnitySupport>
     <VCToolsVersion>
     </VCToolsVersion>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <PlatformToolset>v145</PlatformToolset>
@@ -163,6 +165,7 @@
     <EnableUnitySupport>true</EnableUnitySupport>
     <VCToolsVersion>
     </VCToolsVersion>
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'" Label="Configuration">
     <PlatformToolset>v145</PlatformToolset>
@@ -171,6 +174,7 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <EnableUnitySupport>true</EnableUnitySupport>
     <VCToolsVersion />
+    <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -225,7 +229,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
@@ -257,7 +261,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
@@ -274,8 +278,8 @@
       <AdditionalLibraryDirectories>$(SolutionDir)Engine\external\lib\$(Platform)\age_external\;$(OutDir);$(SolutionDir)\Engine\external\lib\$(Platform)\</AdditionalLibraryDirectories>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalOptions>/VERBOSE:LIB /VERBOSE:UNUSEDLIBS %(AdditionalOptions)</AdditionalOptions>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>/VERBOSE:LIB /VERBOSE:UNUSEDLIBS /TIME %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">
@@ -294,7 +298,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
@@ -308,7 +312,8 @@
       <AdditionalLibraryDirectories>$(SolutionDir)Engine\external\lib\$(Platform)\age_external\;$(OutDir);</AdditionalLibraryDirectories>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>/VERBOSE:LIB /VERBOSE:UNUSEDLIBS /TIME %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
@@ -334,7 +339,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
@@ -348,7 +353,9 @@
       <SubSystem>Console</SubSystem>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalOptions>/VERBOSE:LIB /VERBOSE:UNUSEDLIBS /TIME %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ClCompile>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -364,7 +371,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 %(AdditionalOptions)</AdditionalOptions>
@@ -379,7 +386,9 @@
       <SubSystem>Console</SubSystem>
       <ShowProgress>NotSet</ShowProgress>
       <LinkStatus>true</LinkStatus>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalOptions>/VERBOSE:LIB /VERBOSE:UNUSEDLIBS /TIME %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ClCompile>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -395,7 +404,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <IncludeInUnityFile>false</IncludeInUnityFile>
       <PrecompiledHeader>Create</PrecompiledHeader>
-      <PrecompiledHeaderFile>pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile>age_demo_pch.hpp</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>pch\$(Configuration).pch</PrecompiledHeaderOutputFile>
       <AdditionalIncludeDirectories>$(SolutionDir)Engine\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>

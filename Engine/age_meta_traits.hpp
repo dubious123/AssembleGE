@@ -47,11 +47,6 @@ namespace age::meta::inline traits
 		and std::is_trivially_copyable_v<std::ranges::range_value_t<t>>;
 
 	template <typename t>
-	concept cx_implicit_lifetime =
-		std::is_trivially_copyable_v<std::remove_cvref_t<t>>
-		and std::is_trivially_destructible_v<std::remove_cvref_t<t>>;
-
-	template <typename t>
 	concept cx_has_arrow = requires(t v) {
 		v.operator->();
 	};
