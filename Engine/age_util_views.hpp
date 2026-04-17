@@ -9,6 +9,14 @@ namespace age::views
 	{
 		return std::views::iota(BARE_OF(n){ 0 }, n);
 	}
+
+	FORCE_INLINE [[nodiscard]]
+	constexpr decltype(auto)
+	loop(auto* ptr, auto count, auto stride) noexcept
+		requires(sizeof(BARE_OF(*ptr)) == sizeof(std::byte))
+	{
+		return std::views::iota(ptr) | std::views::stride(stride) | std::views::take(count);
+	}
 }	 // namespace age::views
 
 // each_set_bit

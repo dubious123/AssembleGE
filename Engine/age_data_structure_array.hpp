@@ -180,21 +180,21 @@ namespace age::inline data_structure
 		FORCE_INLINE constexpr dynamic_array(t* ptr, size_type size) noexcept
 			: p_data{ ptr }, count{ size }, alloc{ allocator_type{} }
 		{
-			if constexpr (meta::is_zero_initializable<t>)
-			{
-				std::uninitialized_default_construct_n(p_data, count);
-			}
-			else if constexpr (std::is_nothrow_constructible_v<t>)
-			{
-				for (auto i = 0; i < count; ++i)
-				{
-					_construct(alloc, p_data + i);
-				}
-			}
-			else
-			{
-				static_assert(false, "throwable element not supported yet");
-			}
+			// if constexpr (meta::is_zero_initializable<t>)
+			//{
+			//	std::uninitialized_default_construct_n(p_data, count);
+			// }
+			// else if constexpr (std::is_nothrow_constructible_v<t>)
+			//{
+			//	for (auto i = 0; i < count; ++i)
+			//	{
+			//		_construct(alloc, p_data + i);
+			//	}
+			// }
+			// else
+			//{
+			//	static_assert(false, "throwable element not supported yet");
+			// }
 		}
 
 		FORCE_INLINE constexpr dynamic_array(size_type size, void* p_hint = nullptr) noexcept
@@ -432,4 +432,7 @@ namespace age::inline data_structure
 			std::allocator_traits<allocator_type>::construct(alloc, p_data, FWD(arg)...);
 		}
 	};
+
+	template <std::ranges::input_range r>
+	dynamic_array(std::from_range_t, r&&) -> dynamic_array<std::ranges::range_value_t<r>>;
 }	 // namespace age::inline data_structure

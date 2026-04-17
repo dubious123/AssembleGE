@@ -2,28 +2,6 @@
 
 namespace age::ecs
 {
-	class entity_storage_tag { };
-
-	class entity_block_tag { };
-
-	template <typename t_cmp>
-	concept cx_component = requires {
-		requires std::is_trivially_copyable_v<std::decay_t<t_cmp>>;
-		requires std::is_trivially_destructible_v<std::decay_t<t_cmp>>;
-		requires std::is_standard_layout_v<std::decay_t<t_cmp>>;
-	};
-
-	template <typename t>
-	concept cx_entity_storage = requires { typename std::remove_cvref_t<t>::ecs_tag; }
-							and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_storage_tag>;
-
-	template <typename t>
-	concept cx_entity_block = requires { typename std::remove_cvref_t<t>::ecs_tag; }
-						  and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_block_tag>;
-}	 // namespace age::ecs
-
-namespace age::ecs
-{
 	template <typename... t_cmp>
 	struct archetype_traits
 	{
@@ -151,6 +129,13 @@ namespace age::ecs
 			return static_cast<t_storage_cmp_idx>(age::meta::get_variadic_index<std::decay_t<t>, std::decay_t<t_cmp>...>());
 		}
 
+		static t_storage_cmp_idx
+		calc_storage_cmp_idx(t_archetype local_archetype, t_local_cmp_idx cmp_idx) noexcept
+		{
+			AGE_ASSERT(cmp_idx < 64);
+			return static_cast<t_storage_cmp_idx>(_tzcnt_u64(_pdep_u64(1ull << cmp_idx, local_archetype)));
+		}
+
 		template <typename t>
 		FORCE_INLINE static constexpr t_local_cmp_idx
 		calc_local_cmp_idx(t_archetype local_archetype)
@@ -201,6 +186,34 @@ namespace age::ecs
 		{                                                                                                                                                              \
 			AGE_UNREACHABLE();                                                                                                                                         \
 		}                                                                                                                                                              \
+	}
+#define X(N) __VISIT_CMP_IMPL(N)
+				__X_REPEAT_LIST_512
+#undef X
+#undef __VISIT_CMP_IMPL
+			default:
+			{
+				AGE_UNREACHABLE();
+			}
+			}
+		}
+
+		FORCE_INLINE static constexpr decltype(auto)
+		visit_component(auto cmp_idx, auto&& func, auto&&... arg) noexcept
+		{
+			switch (cmp_idx)
+			{
+#define __VISIT_CMP_IMPL(N)                                                                 \
+	case N:                                                                                 \
+	{                                                                                       \
+		if constexpr (N < cmp_count())                                                      \
+		{                                                                                   \
+			return func.template operator()<meta::variadic_at_t<N, t_cmp...>>(FWD(arg)...); \
+		}                                                                                   \
+		else                                                                                \
+		{                                                                                   \
+			AGE_UNREACHABLE();                                                              \
+		}                                                                                   \
 	}
 #define X(N) __VISIT_CMP_IMPL(N)
 				__X_REPEAT_LIST_512

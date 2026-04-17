@@ -134,6 +134,12 @@ namespace age::config
 		false;
 #endif
 
+#if defined(AGE_EDITOR)
+	inline constexpr bool is_editor_build = true;
+#else
+	inline constexpr bool is_editor_build = false;
+#endif
+
 	inline constexpr unsigned short version_major = 0;
 	inline constexpr unsigned short version_minor = 0;
 
@@ -142,4 +148,22 @@ namespace age::config
 	inline constexpr const char* shader_extension		  = ".asl";
 	inline constexpr const char* shader_include_extension = ".asli";
 	inline constexpr const char* asset_extension		  = ".age_asset";
+	inline constexpr const char* game_asset_tag			  = ".age_game";
+
+	inline constexpr const char* editor_ent_storage_asset_tag	= ".editor_ent_storage";
+	inline constexpr const char* shipping_ent_storage_asset_tag = ".ent_storage";
+
+	inline constexpr auto max_game_name_len			  = 256u;
+	inline constexpr auto max_entity_name_len		  = 64u;
+	inline constexpr auto max_scene_name_len		  = 256u;
+	inline constexpr auto max_entity_storage_name_len = 128u;
+	inline constexpr auto max_archetype_name_len	  = 128u;
+	inline constexpr auto max_component_name_len	  = 64u;
+	inline constexpr auto max_asset_path_len		  = 256u;
+
+#if defined(AGE_EDITOR)
+
+	inline constexpr auto editor_game_proj_version = 1u;
+
+#endif
 }	 // namespace age::config

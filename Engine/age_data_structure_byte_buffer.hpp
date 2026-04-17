@@ -10,15 +10,26 @@ namespace age::inline data_structure
 			and std::is_standard_layout_v<std::remove_cvref_t<t>>
 			and std::is_trivially_copyable_v<std::remove_cvref_t<t>>;
 
+		// template <typename t>
+		// concept custom = requires(t arg, void* p_base, std::size_t& offset) {
+		//	requires std::remove_cvref_t<t>::age_custom_read_write;
+		//	{ arg.byte_size() } -> std::convertible_to<std::size_t>;
+		//	{ arg.write_to(p_base, offset) };
+		//	{ std::remove_cvref_t<t>::read_from(p_base, offset) } -> std::same_as<std::remove_cvref_t<t>>;
+		// };
+
 		template <typename t>
-		concept custom = requires(t arg, void* p_base, std::size_t& offset) {
-			{ arg.byte_size() } -> std::convertible_to<std::size_t>;
-			{ arg.write_to(p_base, offset) };
-			{ std::remove_cvref_t<t>::read_from(p_base, offset) } -> std::same_as<std::remove_cvref_t<t>>;
+		concept custom = requires {
+			requires std::remove_cvref_t<t>::age_custom_read_write;
 		};
 
 		template <typename t>
-		concept value = trivial<t> or custom<t>;
+		concept custom_with_ctx = requires {
+			requires std::remove_cvref_t<t>::age_custom_read_write_with_ctx;
+		};
+
+		template <typename t>
+		concept value = trivial<t> or custom<t> or custom_with_ctx<t>;
 	}	 // namespace byte_buffer_cx
 
 	template <typename t_allocator = std::allocator<std::byte>>
@@ -224,26 +235,14 @@ namespace age::inline data_structure
 		FORCE_INLINE constexpr size_type
 		calc_write_size() const noexcept
 		{
-			return calc_write_size_at<t...>(write_pos);
-		}
-
-		template <byte_buffer_cx::trivial... t>
-		FORCE_INLINE constexpr size_type
-		calc_write_size_at(size_type offset) const noexcept
-		{
-			c_auto start = offset;
-			((offset = age::util::align_up(offset, alignof(t)) + sizeof(t)), ...);
-			return offset - start;
+			return (sizeof(t) + ...);
 		}
 
 		template <byte_buffer_cx::value... t>
 		FORCE_INLINE constexpr size_type
 		calc_write_size(const t&... arg) const noexcept
 		{
-			auto   offset = write_pos;
-			c_auto start  = offset;
-			((offset = age::util::align_up(offset, byte_buffer_cx::trivial<t> ? alignof(t) : 1) + calc_one_size(arg)), ...);
-			return offset - start;
+			return (calc_one_size(arg) + ...);
 		}
 
 		FORCE_INLINE constexpr bool
@@ -280,11 +279,12 @@ namespace age::inline data_structure
 
 			if constexpr (byte_buffer_cx::custom<raw_t>)
 			{
-				val.write_to(p_data, write_pos);
+				val.write_to(*this);
 			}
 			else
 			{
-				write_pos = age::util::align_up(write_pos, alignof(raw_t));
+				if (cap < write_pos + sizeof(raw_t)) { resize(std::max(write_pos + sizeof(raw_t), cap * 2)); }
+
 				std::memcpy(p_data + write_pos, &val, sizeof(raw_t));
 				write_pos += sizeof(raw_t);
 			}
@@ -294,13 +294,26 @@ namespace age::inline data_structure
 		FORCE_INLINE constexpr void
 		write(byte_buffer_cx::value auto&&... arg) noexcept
 		{
-			c_auto cap_required = write_pos + calc_write_size(arg...);
+			(write_one(FWD(arg)), ...);
+		}
+
+		FORCE_INLINE constexpr void
+		write_with_ctx(auto&& ctx, byte_buffer_cx::custom_with_ctx auto&&... arg) noexcept
+		{
+			(FWD(arg).write_to(*this, ctx), ...);	 // will call write internally
+		}
+
+		FORCE_INLINE constexpr void
+		write_bytes(const void* ptr, std::unsigned_integral auto byte_size) noexcept
+		{
+			c_auto cap_required = write_pos + byte_size;
 			if (cap < cap_required)
 			{
 				resize(std::max(cap_required, cap * 2));
 			}
 
-			(write_one(FWD(arg)), ...);
+			std::memcpy(p_data + write_pos, ptr, byte_size);
+			write_pos += byte_size;
 		}
 
 	  private:
@@ -310,16 +323,22 @@ namespace age::inline data_structure
 		{
 			if constexpr (byte_buffer_cx::custom<t>)
 			{
-				return t::read_from(p_data, read_pos);
+				return t::read_from(*this);
 			}
 			else
 			{
-				read_pos = age::util::align_up<size_type>(read_pos, alignof(t));
 				t val;
 				std::memcpy(&val, p_data + read_pos, sizeof(t));
 				read_pos += sizeof(t);
 				return val;
 			}
+		}
+
+		template <byte_buffer_cx::custom_with_ctx t>
+		FORCE_INLINE constexpr t
+		read_one_with_ctx(auto&& ctx) noexcept
+		{
+			return t::read_from(*this, FWD(ctx));
 		}
 
 	  public:
@@ -335,6 +354,46 @@ namespace age::inline data_structure
 			else
 			{
 				return std::tuple<t...>{ read_one<t>()... };
+			}
+		}
+
+		FORCE_INLINE constexpr void
+		read(byte_buffer_cx::value auto&&... arg) noexcept
+		{
+			((arg = read_one<BARE_OF(arg)>()), ...);
+		}
+
+		template <byte_buffer_cx::value t, std::size_t n>
+		FORCE_INLINE constexpr void
+		read(t (&arr)[n]) noexcept
+		{
+			if constexpr (byte_buffer_cx::trivial<t>)
+			{
+				std::memcpy(arr, p_data + read_pos, sizeof(arr));
+
+				read_pos += sizeof(arr);
+			}
+			else
+			{
+				for (auto i = 0; i < n; ++i)
+				{
+					read(arr[i]);
+				}
+			}
+		}
+
+		template <byte_buffer_cx::custom_with_ctx... t>
+		requires(sizeof...(t) > 0)
+		FORCE_INLINE constexpr decltype(auto)
+		read_with_ctx(auto&& ctx) noexcept
+		{
+			if constexpr (sizeof...(t) == 1)
+			{
+				return read_one_with_ctx<t...>(FWD(ctx));
+			}
+			else
+			{
+				return std::tuple<t...>{ read_one_with_ctx<t>(ctx)... };
 			}
 		}
 
@@ -354,4 +413,172 @@ namespace age::inline data_structure
 	};
 
 	using byte_buf = byte_buffer<>;
+}	 // namespace age::inline data_structure
+
+namespace age::inline data_structure
+{
+	struct read_byte_buffer
+	{
+		using value_type = std::byte;
+		using size_type	 = std::size_t;
+
+	  private:
+		const value_type* p_data   = nullptr;
+		size_type		  cap	   = {};
+		size_type		  read_pos = {};
+
+	  public:
+		constexpr read_byte_buffer() noexcept = default;
+
+		FORCE_INLINE constexpr read_byte_buffer(const void* p, size_type n) noexcept
+			: p_data{ static_cast<const value_type*>(p) },
+			  cap{ n },
+			  read_pos{ 0 }
+		{
+		}
+
+		template <typename t_allocator>
+		FORCE_INLINE constexpr read_byte_buffer(const byte_buffer<t_allocator>& src) noexcept
+			: p_data{ src.data() },
+			  cap{ src.size() },
+			  read_pos{ 0 }
+		{
+		}
+
+		// access
+		template <typename t_ret = size_type>
+		FORCE_INLINE constexpr decltype(auto)
+		size() const noexcept
+		{
+			return static_cast<t_ret>(cap);
+		}
+
+		template <typename t_ret = size_type>
+		FORCE_INLINE constexpr decltype(auto)
+		read_amount() const noexcept
+		{
+			return read_pos;
+		}
+
+		FORCE_INLINE constexpr const value_type&
+		operator[](size_type i) const noexcept
+		{
+			AGE_ASSERT(i < cap);
+			return p_data[i];
+		}
+
+		FORCE_INLINE constexpr const value_type*
+		data() const noexcept
+		{
+			return p_data;
+		}
+
+		FORCE_INLINE constexpr bool
+		has_remaining() const noexcept
+		{
+			AGE_ASSERT(read_pos <= cap);
+			return read_pos < cap;
+		}
+
+		FORCE_INLINE constexpr bool
+		is_empty() const noexcept
+		{
+			return cap == 0;
+		}
+
+		FORCE_INLINE constexpr bool
+		empty() const noexcept
+		{
+			return cap == 0;
+		}
+
+		// modifiers
+		FORCE_INLINE constexpr void
+		reset_read() noexcept
+		{
+			read_pos = 0;
+		}
+
+	  private:
+		template <byte_buffer_cx::value t>
+		FORCE_INLINE constexpr t
+		read_one() noexcept
+		{
+			if constexpr (byte_buffer_cx::custom<t>)
+			{
+				return t::read_from(*this);
+			}
+			else
+			{
+				t val;
+				std::memcpy(&val, p_data + read_pos, sizeof(t));
+				read_pos += sizeof(t);
+				return val;
+			}
+		}
+
+		template <byte_buffer_cx::custom_with_ctx t>
+		FORCE_INLINE constexpr t
+		read_one_with_ctx(auto&& ctx) noexcept
+		{
+			return t::read_from(*this, FWD(ctx));
+		}
+
+	  public:
+		template <byte_buffer_cx::value... t>
+		requires(sizeof...(t) > 0)
+		FORCE_INLINE constexpr decltype(auto)
+		read() noexcept
+		{
+			if constexpr (sizeof...(t) == 1)
+			{
+				return read_one<t...>();
+			}
+			else
+			{
+				return std::tuple<t...>{ read_one<t>()... };
+			}
+		}
+
+		FORCE_INLINE constexpr void
+		read(byte_buffer_cx::value auto&&... arg) noexcept
+		{
+			((arg = read_one<BARE_OF(arg)>()), ...);
+		}
+
+		template <byte_buffer_cx::value t, std::size_t n>
+		FORCE_INLINE constexpr void
+		read(t (&arr)[n]) noexcept
+		{
+			if constexpr (byte_buffer_cx::trivial<t>)
+			{
+				std::memcpy(arr, p_data + read_pos, sizeof(arr));
+				read_pos += sizeof(arr);
+			}
+			else
+			{
+				for (auto i = 0; i < n; ++i)
+				{
+					read(arr[i]);
+				}
+			}
+		}
+
+		template <byte_buffer_cx::custom_with_ctx... t>
+		requires(sizeof...(t) > 0)
+		FORCE_INLINE constexpr decltype(auto)
+		read_with_ctx(auto&& ctx) noexcept
+		{
+			if constexpr (sizeof...(t) == 1)
+			{
+				return read_one_with_ctx<t...>(FWD(ctx));
+			}
+			else
+			{
+				return std::tuple<t...>{ read_one_with_ctx<t>(ctx)... };
+			}
+		}
+	};
+
+	using read_buf = read_byte_buffer;
 }	 // namespace age::inline data_structure

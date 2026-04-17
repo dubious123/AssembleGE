@@ -172,23 +172,60 @@ namespace age_demo::scene_3
 		inline constexpr auto zoom_smoothing = 12.f / 2.f;
 	}	 // namespace input::g
 
+	using t_ent_storage_main = age::ecs::entity_storage::basic<uint32,
+															   age::ecs::position,
+															   age::ecs::rotation,
+															   age::ecs::scale,
+															   age::ecs::camera,
+															   age::ecs::directional_light,
+															   age::ecs::point_light,
+															   age::ecs::spot_light,
+															   age::ecs::render_object,
+															   age::ecs::mesh,
+															   age::ecs::material>;
+
+	using t_ent_storage_sub = age::ecs::entity_storage::basic<uint32,
+															  age::ecs::position,
+															  age::ecs::rotation,
+															  age::ecs::scale,
+															  age::ecs::camera,
+															  age::ecs::directional_light,
+															  age::ecs::point_light,
+															  age::ecs::spot_light,
+															  age::ecs::render_object,
+															  age::ecs::mesh,
+															  age::ecs::material>;
+
+	struct editor_demo_scene_0
+	{
+		// init, deinit, visit_storage_at, storages, storages_names, storage_count
+
+		AGE_EDITOR_SCENE_ENTITY_STORAGES((t_ent_storage_main, ent_storage_main, "storage_main"),
+										 (t_ent_storage_sub, ent_storage_sub, "storage_sub"));
+	};
+
+	struct editor_demo_scene_1
+	{
+		AGE_EDITOR_SCENE_ENTITY_STORAGES((t_ent_storage_main, ent_storage_main, "storage_main"),
+										 (t_ent_storage_sub, ent_storage_sub, "storage_sub"));
+	};
+
+	struct editor_demo_game
+	{
+		// scenes, scene_names, scene_count, init, deinit, visit_scene_at, visit_storage_at
+
+		AGE_EDITOR_GAME_NAME("editor_demo_game", "demo", "first game", "test");
+
+		AGE_EDITOR_GAME_SCENES((editor_demo_scene_0, editor_scene_0, "scene_0", "scene_zero"),
+							   (editor_demo_scene_1, editor_scene_1, "scene_1", "scene_one"));
+	};
+
 	struct ctx
 	{
 		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
 			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(3);
 
-		age::ecs::entity_storage::basic<uint32,
-										age::ecs::position,
-										age::ecs::rotation,
-										age::ecs::scale,
-										age::ecs::camera,
-										age::ecs::directional_light,
-										age::ecs::point_light,
-										age::ecs::spot_light,
-										age::ecs::render_object,
-										age::ecs::mesh,
-										age::ecs::material>
-			entities;
+		editor_demo_game editor_game;
 
 		uint32 ent_main_cam;
 

@@ -3,6 +3,29 @@
 
 namespace age::asset
 {
+	std::byte*
+	data::get_payload() noexcept
+	{
+		auto header = asset::file_header{};
+
+		std::memcpy(&header, blob.data(), sizeof(asset::file_header));
+
+		return blob.data() + header.header_size;
+	}
+
+	read_buf
+	data::get_payload_read_buf() const noexcept
+	{
+		auto header = asset::file_header{};
+
+		std::memcpy(&header, blob.data(), sizeof(asset::file_header));
+
+		return read_buf{ blob.data() + header.header_size, blob.size_bytes() - header.header_size };
+	}
+}	 // namespace age::asset
+
+namespace age::asset
+{
 	namespace detail
 	{
 		constexpr std::align_val_t
@@ -46,9 +69,14 @@ namespace age::asset
 	}
 
 	handle
-	load_from_file(const std::string_view& file_path) noexcept
+	load_from_file(std::string_view file_path) noexcept
 	{
-		c_auto full_path = std::format("{}{}", file_path, config::asset_extension);
+		return load_from_path(std::format("{}{}", file_path, config::asset_extension));
+	}
+
+	handle
+	load_from_path(std::string_view full_path) noexcept
+	{
 		if (std::filesystem::exists(full_path) is_false)
 		{
 			return { age::get_invalid_id<t_asset_id>() };
@@ -57,7 +85,7 @@ namespace age::asset
 		AGE_ASSERT(std::filesystem::exists(full_path));
 		AGE_ASSERT(std::filesystem::file_size(full_path) > 0);
 
-		std::ifstream file{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
+		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
 		AGE_ASSERT(file.is_open());
 
 		c_auto file_size = std::filesystem::file_size(full_path);
@@ -85,7 +113,7 @@ namespace age::asset
 	}
 
 	handle
-	load_from_blob(const std::string_view& file_path, const file_header& header, auto& blob) noexcept
+	load_from_blob(std::string_view file_path, const file_header& header, auto& blob) noexcept
 	{
 		c_auto full_path = std::format("{}{}", file_path, config::asset_extension);
 		c_auto blob_size = header.file_size - header.header_size;
@@ -100,7 +128,7 @@ namespace age::asset
 	}
 
 	void
-	write_to_file(const std::string_view& file_path, const file_header& header, const auto& asset_data) noexcept
+	write_to_file(std::string_view file_path, const file_header& header, const auto& asset_data) noexcept
 	{
 		c_auto		  full_path = std::format("{}{}", file_path, config::asset_extension);
 		std::ofstream file(std::filesystem::path{ full_path },

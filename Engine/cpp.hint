@@ -430,4 +430,75 @@
 		static_assert(false, "invalid request type"); \
 	}                                                 \
 	}
+
+//---[ age_editor.hpp ]------------------------------------------------------------------
+#define AGE_EDITOR_SCENE_ENTITY_STORAGES(...)                                                                                                        \
+	FOR_EACH_SEP(AGE_EDITOR_SCENE_ENTITY_STORAGES_MAP_DECL, AGE_PP_EMPTY_I, __VA_ARGS__)                                                             \
+	decltype(auto) storages() noexcept { return std::tie(FOR_EACH_ARG(AGE_PP_TUPLE_GET_1_I, __VA_ARGS__)); }                                         \
+	decltype(auto) storages() const noexcept { return std::tie(FOR_EACH_ARG(AGE_PP_TUPLE_GET_1_I, __VA_ARGS__)); }                                   \
+	static consteval decltype(auto) storage_names() noexcept { return std::tuple{ FOR_EACH_ARG(AGE_EDITOR_ENTITY_STORAGE_NAME_MAP, __VA_ARGS__) }; } \
+	static consteval uint32 storage_count() { return static_cast<uint32>(std::tuple_size_v<BARE_OF(storage_names())>); }                             \
+	void init() noexcept                                                                                                                             \
+	{                                                                                                                                                \
+		FOR_EACH (AGE_EDITOR_INIT_MAP, __VA_ARGS__)                                                                                                  \
+			;                                                                                                                                        \
+	}                                                                                                                                                \
+	void deinit() noexcept                                                                                                                           \
+	{                                                                                                                                                \
+		FOR_EACH (AGE_EDITOR_DEINIT_MAP, __VA_ARGS__)                                                                                                \
+			;                                                                                                                                        \
+	}                                                                                                                                                \
+	FORCE_INLINE decltype(auto) visit_storage_at(auto storage_idx, auto&& func, auto&&... arg) noexcept                                              \
+	{                                                                                                                                                \
+		return age::meta::visit_at(storages(), storage_idx, FWD(func), FWD(arg)...);                                                                 \
+	}
+
+
+#define AGE_EDITOR_SCENE_ENTITY_STORAGES_MAP_DECL(tpl)					AGE_EDITOR_SCENE_ENTITY_STORAGES_MAP_DECL_IMPL tpl
+#define AGE_EDITOR_SCENE_ENTITY_STORAGES_MAP_DECL_IMPL(type, name, ...) type name;
+
+#define AGE_EDITOR_ENTITY_STORAGE_NAME_MAP(tpl)					 AGE_EDITOR_ENTITY_STORAGE_NAME_MAP_IMPL tpl
+#define AGE_EDITOR_ENTITY_STORAGE_NAME_MAP_IMPL(type, name, ...) age::util::to_fixed_str_arr<age::config::max_entity_storage_name_len>(#name, __VA_ARGS__)
+
+
+#define AGE_EDITOR_GAME_NAME(...) \
+	static consteval decltype(auto) age_editor_name() { return age::util::to_fixed_str_arr<age::config::max_game_name_len>(__VA_ARGS__); }
+
+#define AGE_EDITOR_GAME_SCENES(...)                                                                                                                                                                               \
+	FOR_EACH_SEP(AGE_EDITOR_GAME_SCENES_MAP_DECL, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                                                                                    \
+	decltype(auto) scenes() noexcept { return std::tie(FOR_EACH_ARG(AGE_PP_TUPLE_GET_1_I, __VA_ARGS__)); }                                                                                                        \
+	decltype(auto) scenes() const noexcept { return std::tie(FOR_EACH_ARG(AGE_PP_TUPLE_GET_1_I, __VA_ARGS__)); }                                                                                                  \
+	static consteval decltype(auto) scene_names() noexcept { return std::tuple{ FOR_EACH_ARG(AGE_EDITOR_SCENE_NAME_MAP, __VA_ARGS__) }; }                                                                         \
+	static consteval uint32 scene_count() { return static_cast<uint32>(std::tuple_size_v<BARE_OF(scene_names())>); }                                                                                              \
+	void init() noexcept                                                                                                                                                                                          \
+	{                                                                                                                                                                                                             \
+		FOR_EACH (AGE_EDITOR_INIT_MAP, __VA_ARGS__)                                                                                                                                                               \
+			;                                                                                                                                                                                                     \
+	}                                                                                                                                                                                                             \
+	void deinit() noexcept                                                                                                                                                                                        \
+	{                                                                                                                                                                                                             \
+		FOR_EACH (AGE_EDITOR_DEINIT_MAP, __VA_ARGS__)                                                                                                                                                             \
+			;                                                                                                                                                                                                     \
+	}                                                                                                                                                                                                             \
+	FORCE_INLINE decltype(auto) visit_scene_at(auto scene_idx, auto&& func, auto&&... arg) noexcept                                                                                                               \
+	{                                                                                                                                                                                                             \
+		return age::meta::visit_at(scenes(), scene_idx, FWD(func), FWD(arg)...);                                                                                                                                  \
+	}                                                                                                                                                                                                             \
+	FORCE_INLINE decltype(auto) visit_storage_at(auto scene_idx, auto storage_idx, auto&& func, auto&&... arg) noexcept                                                                                           \
+	{                                                                                                                                                                                                             \
+		return visit_scene_at(scene_idx, AGE_LAMBDA((auto&& scene, auto idx, auto&& func, auto&&... arg), { return scene.visit_storage_at(idx, FWD(func), FWD(arg)...); }), storage_idx, FWD(func), FWD(arg)...); \
+	}
+
+
+#define AGE_EDITOR_GAME_SCENES_MAP_DECL(tpl)				  AGE_EDITOR_GAME_SCENES_MAP_DECL_IMPL tpl
+#define AGE_EDITOR_GAME_SCENES_MAP_DECL_IMPL(type, name, ...) type name;
+
+#define AGE_EDITOR_SCENE_NAME_MAP(tpl)					AGE_EDITOR_SCENE_NAME_MAP_IMPL tpl
+#define AGE_EDITOR_SCENE_NAME_MAP_IMPL(type, name, ...) age::util::to_fixed_str_arr<age::config::max_scene_name_len>(#name, __VA_ARGS__)
+
+#define AGE_EDITOR_INIT_MAP(tpl)				  AGE_EDITOR_INIT_MAP_IMPL tpl
+#define AGE_EDITOR_INIT_MAP_IMPL(type, name, ...) name.init()
+
+#define AGE_EDITOR_DEINIT_MAP(tpl)					AGE_EDITOR_DEINIT_MAP_IMPL tpl
+#define AGE_EDITOR_DEINIT_MAP_IMPL(type, name, ...) name.deinit()
 //---------------------------------------------------------------------------------------

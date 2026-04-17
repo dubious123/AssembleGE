@@ -33,8 +33,21 @@ namespace age::ecs
 	{ return #name; }                         \
 	struct name
 
+#define AGE_COMPONENT_VERSION(version) \
+	static consteval auto age_component_version() { return version; }
+
+#define AGE_COMPONENT_ALIAS(...) \
+	static consteval auto age_component_alias() { return age::util::to_fixed_str_arr<age::config::max_component_name_len>(__VA_ARGS__); }
+
+#define AGE_COMPONENT_CUSTOM_RW(boolean) static constexpr bool age_custom_read_write = boolean;
+
+#define AGE_COMPONENT_CUSTOM_RW_WITH_CTX(boolean) static constexpr bool age_custom_read_write_with_ctx = boolean;
+
 	AGE_COMPONENT(transform_3d)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("transform");
+		AGE_COMPONENT_CUSTOM_RW(false);
 		float3 position;
 		float4 quaternion;
 		float3 scale;
@@ -42,24 +55,40 @@ namespace age::ecs
 
 	AGE_COMPONENT(position) : public float3
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("pos", "position_3d");
+		AGE_COMPONENT_CUSTOM_RW(false);
+
 		using float3::float3;
 		constexpr position() noexcept : float3(0.f, 0.f, 0.f) { }
 	};
 
 	AGE_COMPONENT(rotation) : public float4
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("rot", "quat", "quaternion");
+		AGE_COMPONENT_CUSTOM_RW(false);
+
 		using float4::float4;
 		constexpr rotation() noexcept : float4{ 0, 0, 0, 1.f } { }
 	};
 
 	AGE_COMPONENT(scale) : public float3
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("sc", "scale_3d");
+		AGE_COMPONENT_CUSTOM_RW(false);
+
 		using float3::float3;
 		constexpr scale() noexcept : float3{ 1.f, 1.f, 1.f } { }
 	};
 
 	AGE_COMPONENT(render_object)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("render_obj", "renderable_instance");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		using renderable_tag = age::ecs::renderable_tag;
 
 		uint32 render_id = age::get_invalid_id<uint32>();
@@ -77,10 +106,40 @@ namespace age::ecs
 		{
 			renderer.remove_object(self.render_id);
 		}
+
+		std::size_t
+		byte_size() noexcept
+		{
+			return 0;
+		}
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			return;
+		}
+
+		static render_object
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != render_object::age_component_version)
+			{
+				// handle migrate
+				AGE_ASSERT(false);
+			}
+
+			return render_object{
+				.render_id = rw_ctx.renderer.add_object(float3::zero(), age::math::g::quaternion_identity, float3::one())
+			};
+		}
 	};
 
 	AGE_COMPONENT(camera)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("cam", "camera_3d");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		using renderable_tag = age::ecs::renderable_tag;
 
 		uint32 render_id = age::get_invalid_id<uint32>();
@@ -88,16 +147,16 @@ namespace age::ecs
 		graphics::e::camera_kind kind;
 		uint8_3					 _;
 
-		float3 euler_deg;
+		float3 euler_deg = float3::zero();
 
-		float near_z;
-		float far_z;
+		float near_z = 0.1f;
+		float far_z	 = 1000.f;
 
-		float fov_y;
-		float aspect_ratio;
+		float fov_y		   = age::cvt_to_radian(75.f);
+		float aspect_ratio = (16.f / 9.f);
 
-		float view_width;
-		float view_height;
+		float view_width  = 1.f;
+		float view_height = 1.f;
 
 		FORCE_INLINE static void
 		add_renderable(auto& renderer, auto&& self) noexcept
@@ -131,10 +190,38 @@ namespace age::ecs
 		{
 			renderer.remove_camera(self.render_id);
 		}
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			buf.write(kind, euler_deg, near_z, far_z, fov_y, aspect_ratio, view_width, view_height);
+			return;
+		}
+
+		static camera
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != camera::age_component_version)
+			{
+				// handle migrate
+				AGE_ASSERT(false);
+			}
+
+			auto res = camera{};
+			buf.read(res.kind, res.euler_deg, res.near_z, res.far_z, res.fov_y, res.aspect_ratio, res.view_width, res.view_height);
+
+			add_renderable(rw_ctx.renderer, res);
+
+			return res;
+		}
 	};
 
 	AGE_COMPONENT(directional_light)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("dir_light");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		using renderable_tag = age::ecs::renderable_tag;
 
 		uint16 render_id   = age::get_invalid_id<uint16>();
@@ -164,10 +251,36 @@ namespace age::ecs
 		{
 			renderer.remove_directional_light(self.render_id);
 		}
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			buf.write(cast_shadow, direction, intensity, color);
+		}
+
+		static directional_light
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != directional_light::age_component_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto res = directional_light{};
+			buf.read(res.cast_shadow, res.direction, res.intensity, res.color);
+
+			add_renderable(rw_ctx.renderer, res);
+
+			return res;
+		}
 	};
 
 	AGE_COMPONENT(point_light)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("pt_light");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		using renderable_tag = age::ecs::renderable_tag;
 
 		uint32 render_id = age::get_invalid_id<uint32>();
@@ -197,20 +310,46 @@ namespace age::ecs
 		{
 			renderer.remove_point_light(self.render_id);
 		}
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			buf.write(range, color, intensity, cast_shadow);
+		}
+
+		static point_light
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != point_light::age_component_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto res = point_light{};
+			buf.read(res.range, res.color, res.intensity, res.cast_shadow);
+
+			add_renderable(rw_ctx.renderer, res);
+
+			return res;
+		}
 	};
 
 	AGE_COMPONENT(spot_light)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("sp_light");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		using renderable_tag = age::ecs::renderable_tag;
 
 		uint32 render_id = age::get_invalid_id<uint32>();
 
-		float  range	 = 1.f;					 // 4
-		float3 direction = float3::one();		 // 12
-		float  intensity = 1.f;					 // 4
-		float3 color	 = float3{ 1, 0, 0 };	 // 12
-		float  cos_inner = 0.1f;				 // 4  (falloff begin, cosine)
-		float  cos_outer = 0.5f;				 // 4  (cosine)
+		float  range	 = 1.f;
+		float3 direction = float3::one();
+		float  intensity = 1.f;
+		float3 color	 = float3{ 1, 0, 0 };
+		float  cos_inner = 0.1f;
+		float  cos_outer = 0.5f;
 
 		bool	cast_shadow = false;
 		uint8_3 _;
@@ -236,18 +375,131 @@ namespace age::ecs
 		{
 			renderer.remove_spot_light(self.render_id);
 		}
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			buf.write(range, direction, intensity, color, cos_inner, cos_outer, cast_shadow);
+		}
+
+		static spot_light
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != spot_light::age_component_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto res = spot_light{};
+			buf.read(res.range, res.direction, res.intensity, res.color, res.cos_inner, res.cos_outer, res.cast_shadow);
+
+			add_renderable(rw_ctx.renderer, res);
+
+			return res;
+		}
 	};
 
 	AGE_COMPONENT(mesh)
 	{
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("msh", "meshlet mesh");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
 		uint32 render_id = 0;
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			// todo, asset binding
+
+			// auto info = rw_ctx.renderer.get_mesh_asset_info(render_id);
+			// auto mesh_name = asset::get_header(info.h_asset).name;
+
+			char mesh_name[config::max_asset_path_len] = { "mesh_cube" };
+			buf.write(mesh_name);
+		}
+
+		static mesh
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != mesh::age_component_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			// todo, asset binding
+			char mesh_name[config::max_asset_path_len];
+			buf.read(mesh_name);
+
+			// auto h_mesh	   = asset::mesh::load(mesh_name);
+			// auto render_id = rw_ctx.renderer.upload_mesh(h_mesh);
+
+			return mesh{ .render_id = 0 };
+		}
 	};
 
 	AGE_COMPONENT(material)
 	{
-		uint32 render_id = 0;	 // object_id
+		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_ALIAS("mat", "pbr_mat", "material_3d");
+		AGE_COMPONENT_CUSTOM_RW_WITH_CTX(true);
+
+		uint32 render_id = 0;
 		bool   is_opaque = true;
+
+		void
+		write_to(byte_buf & buf, auto&& rw_ctx) const noexcept
+		{
+			// todo
+			buf.write(is_opaque);
+		}
+
+		static material
+		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != material::age_component_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto res = material{};
+			buf.read(res.is_opaque);
+			return res;
+		}
 	};
 
 #undef AGE_COMPONENT
+}	 // namespace age::ecs
+
+namespace age::ecs
+{
+	template <typename t_component>
+	void
+	serialize_component(age::byte_buf& buf, const void* p_cmp, auto&& rw_ctx) noexcept
+	{
+		c_auto& cmp = *std::launder(static_cast<std::add_const_t<t_component>*>(p_cmp));
+
+		if constexpr (byte_buffer_cx::custom_with_ctx<t_component>)
+		{
+			buf.write_with_ctx(FWD(rw_ctx), cmp);
+		}
+		else
+		{
+			buf.write(cmp);
+		}
+	}
+
+	template <typename t_component>
+	t_component
+	deserialize_component(age::byte_buf& buf, auto&& rw_ctx) noexcept
+	{
+		if constexpr (byte_buffer_cx::custom_with_ctx<t_component>)
+		{
+			return buf.read_with_ctx<t_component>(FWD(rw_ctx));
+		}
+		else
+		{
+			return buf.read<t_component>();
+		}
+	}
 }	 // namespace age::ecs

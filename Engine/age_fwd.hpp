@@ -5,6 +5,28 @@ namespace age::data_structure
 
 }
 
+namespace age::ecs
+{
+	class entity_storage_tag { };
+
+	class entity_block_tag { };
+
+	template <typename t_cmp>
+	concept cx_component = requires {
+		requires std::is_trivially_copyable_v<std::decay_t<t_cmp>>;
+		requires std::is_trivially_destructible_v<std::decay_t<t_cmp>>;
+		requires std::is_standard_layout_v<std::decay_t<t_cmp>>;
+	};
+
+	template <typename t>
+	concept cx_entity_storage = requires { typename std::remove_cvref_t<t>::ecs_tag; }
+							and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_storage_tag>;
+
+	template <typename t>
+	concept cx_entity_block = requires { typename std::remove_cvref_t<t>::ecs_tag; }
+						  and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_block_tag>;
+}	 // namespace age::ecs
+
 namespace age::graphics
 {
 	AGE_DEFINE_ENUM(color_space, uint8, srgb, hdr);

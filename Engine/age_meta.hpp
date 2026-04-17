@@ -1366,6 +1366,35 @@ namespace age::meta
 		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(tpl), FWD(arg)...);
 	}
 
+	template <typename t_tpl>
+	requires meta::tuple_like<t_tpl>
+	FORCE_INLINE constexpr decltype(auto)
+	visit_at(t_tpl&& tpl, auto idx, auto&& func, auto&&... arg) noexcept
+	{
+		switch (idx)
+		{
+#define X(N)                                                      \
+	case N:                                                       \
+	{                                                             \
+		if constexpr (N < std::tuple_size_v<BARE_OF(tpl)>)        \
+		{                                                         \
+			return FWD(func)(std::get<N>(FWD(tpl)), FWD(arg)...); \
+			break;                                                \
+		}                                                         \
+		else                                                      \
+		{                                                         \
+			AGE_UNREACHABLE();                                    \
+		}                                                         \
+	}
+			__X_REPEAT_LIST_512
+#undef X
+		default:
+		{
+			AGE_UNREACHABLE();
+		}
+		}
+	}	 // namespace age::meta
+
 	template <typename... t>
 	constexpr void
 	print_type()

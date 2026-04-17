@@ -142,173 +142,191 @@ namespace age::editor
 		}
 	}
 
-	void
-	ui_inspector(auto& entities, auto& renderer) noexcept
+	namespace detail
 	{
-		using namespace ui;
-		using enum input::e::key_kind;
-
-		if (g::select_vec.is_empty()) { return; }
-
-		using t_storage			 = BARE_OF(entities);
-		using t_ent_id			 = typename t_storage::t_ent_id;
-		using t_archetype		 = typename t_storage::t_archetype;
-		using t_archetype_traits = typename t_storage::t_archetype_traits;
-
-		// todo : implement multiselection
-		if (g::select_vec.size() > 1) { return; }
-
-		c_auto ent_id = static_cast<t_ent_id>(g::select_vec[0]);
-
-		c_auto archetype = entities.get_archetype(ent_id);
-
-		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
+		void
+		ui_inspector_impl(auto& entities, auto& renderer) noexcept
 		{
-			t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component_section), renderer);
-		}
+			using namespace ui;
+			using enum input::e::key_kind;
 
-		widget::separator_v();
+			if (g::select_vec.is_empty()) { return; }
 
-		if (auto drop_down = widget::begin(style::panel() | set_height_fit() | set_save_state(true)))
-		{
-			auto drop_down_state = drop_down.get_state();
+			using t_storage			 = BARE_OF(entities);
+			using t_ent_id			 = typename t_storage::t_ent_id;
+			using t_archetype		 = typename t_storage::t_archetype;
+			using t_archetype_traits = typename t_storage::t_archetype_traits;
 
-			if (auto add_cmp_btn = widget::button("+ add component", set_align_center(), set_width_grow()))
+			// todo : implement multiselection
+			if (g::select_vec.size() > 1) { return; }
+
+			c_auto ent_id = static_cast<t_ent_id>(g::select_vec[0]);
+
+			c_auto archetype = entities.get_archetype(ent_id);
+
+			for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
 			{
-				auto& state = add_cmp_btn.get_state();
-				if (add_cmp_btn.clicked())
-				{
-					drop_down_state.toggled = !drop_down_state.toggled;
-				}
+				t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component_section), renderer);
 			}
 
-			if (drop_down_state.toggled)
+			widget::separator_v();
+
+			if (auto drop_down = widget::begin(style::panel() | set_height_fit() | set_save_state(true)))
 			{
-				widget::separator_v();
+				auto drop_down_state = drop_down.get_state();
 
-				auto drop_down_selected = drop_down_state.drop_down_data.selected;
-
-				for (auto storage_cmp_idx : views::loop(t_archetype_traits::cmp_count()))
+				if (auto add_cmp_btn = widget::button("+ add component", set_align_center(), set_width_grow()))
 				{
-					c_auto already_has = archetype & (1ull << storage_cmp_idx);
-
-					if (auto interact = widget::begin(style::horizontal() | set_interact(already_has is_false) | set_save_state(already_has is_false) | set_width_grow() | set_height_fit()))
+					auto& state = add_cmp_btn.get_state();
+					if (add_cmp_btn.clicked())
 					{
-						auto style_state = e::style_state::idle;
-						if (interact.pressed<mouse_left>())
-						{
-							style_state = e::style_state::active;
-						}
-						else if (interact.contains_mouse())
-						{
-							style_state = e::style_state::hover;
-						}
+						drop_down_state.toggled = !drop_down_state.toggled;
+					}
+				}
 
-						if (ui::g::p_input_ctx->is_shift_down())
+				if (drop_down_state.toggled)
+				{
+					widget::separator_v();
+
+					auto drop_down_selected = drop_down_state.drop_down_data.selected;
+
+					for (auto storage_cmp_idx : views::loop(t_archetype_traits::cmp_count()))
+					{
+						c_auto already_has = archetype & (1ull << storage_cmp_idx);
+
+						if (auto interact = widget::begin(style::horizontal() | set_interact(already_has is_false) | set_save_state(already_has is_false) | set_width_grow() | set_height_fit()))
 						{
-							if (interact.clicked())
+							auto style_state = e::style_state::idle;
+							if (interact.pressed<mouse_left>())
 							{
-								drop_down_selected.flip(storage_cmp_idx);
+								style_state = e::style_state::active;
+							}
+							else if (interact.contains_mouse())
+							{
+								style_state = e::style_state::hover;
+							}
+
+							if (ui::g::p_input_ctx->is_shift_down())
+							{
+								if (interact.clicked())
+								{
+									drop_down_selected.flip(storage_cmp_idx);
+								}
+							}
+							else
+							{
+								if (interact.clicked())
+								{
+									drop_down_selected.reset();
+									drop_down_selected.set(storage_cmp_idx);
+								}
+							}
+
+							auto selected = drop_down_selected.test(storage_cmp_idx);
+
+							if (auto _ = widget::begin(style::item(selected, style_state) | set_border_thickness(0.f) | set_width_grow() | set_height_fit() | set_padding_left(0)))
+							{
+								widget::separator_h(set_draw(selected), set_body_brush_data(theme::color_blue(), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
+
+								widget::indicator(ui::e::shape_kind::circle, font::get_line_height(theme::text_font_size()), float4{ get_component_color(storage_cmp_idx), already_has ? theme::opacity_medium() : 1.0f });
+
+								widget::text(t_archetype_traits::get_component_name(storage_cmp_idx), e::style_state::idle, already_has is_false);
 							}
 						}
-						else
+					}
+
+					drop_down_state.drop_down_data.selected = drop_down_selected;
+
+					widget::separator_v();
+					if (auto _ = widget::horizontal_inv(set_height_fit()))
+					{
+						if (auto btn_add = widget::button("add"))
 						{
-							if (interact.clicked())
+							if (btn_add.clicked())
 							{
-								drop_down_selected.reset();
-								drop_down_selected.set(storage_cmp_idx);
+								add_components(entities, renderer, ent_id, drop_down_state.drop_down_data.selected.extract<t_archetype>());
+
+								drop_down_state.drop_down_data.selected.reset();
+								drop_down_state.toggled = false;
 							}
 						}
 
-						auto selected = drop_down_selected.test(storage_cmp_idx);
 
-						if (auto _ = widget::begin(style::item(selected, style_state) | set_border_thickness(0.f) | set_width_grow() | set_height_fit() | set_padding_left(0)))
+						if (auto btn_cancel = widget::button("cancel"))
 						{
-							widget::separator_h(set_draw(selected), set_body_brush_data(theme::color_blue(), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
-
-							widget::indicator(ui::e::shape_kind::circle, font::get_line_height(theme::text_font_size()), float4{ get_component_color(storage_cmp_idx), already_has ? theme::opacity_medium() : 1.0f });
-
-							widget::text(t_archetype_traits::get_component_name(storage_cmp_idx), e::style_state::idle, already_has is_false);
+							if (btn_cancel.clicked())
+							{
+								drop_down_state.drop_down_data.selected.reset();
+								drop_down_state.toggled = false;
+							}
 						}
 					}
 				}
 
-				drop_down_state.drop_down_data.selected = drop_down_selected;
 
-				widget::separator_v();
-				if (auto _ = widget::horizontal_inv(set_height_fit()))
-				{
-					if (auto btn_add = widget::button("add"))
-					{
-						if (btn_add.clicked())
-						{
-							add_components(entities, renderer, ent_id, drop_down_state.drop_down_data.selected.extract<t_archetype>());
-
-							drop_down_state.drop_down_data.selected.reset();
-							drop_down_state.toggled = false;
-						}
-					}
-
-
-					if (auto btn_cancel = widget::button("cancel"))
-					{
-						if (btn_cancel.clicked())
-						{
-							drop_down_state.drop_down_data.selected.reset();
-							drop_down_state.toggled = false;
-						}
-					}
-				}
+				drop_down.get_state() = drop_down_state;
 			}
 
 
-			drop_down.get_state() = drop_down_state;
+			g::command_buf.flush(entities, renderer);
 		}
+	}	 // namespace detail
 
-
-		g::command_buf.flush(entities, renderer);
+	void
+	ui_inspector(auto& editor_game, auto& renderer) noexcept
+	{
+		editor_game.visit_storage_at(g::current_scene_idx, g::current_storage_idx, AGE_FUNC(detail::ui_inspector_impl), renderer);
 	}
 }	 // namespace age::editor
 
 namespace age::editor
 {
-	void
-	ui_entity_hierarchy(auto& entities, auto& renderer) noexcept
+	namespace detail
 	{
-		using namespace ui;
-		if (auto _ = widget::vertical())
+		void
+		ui_entity_hierarchy_impl(auto& entities, auto& renderer) noexcept
 		{
-			if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
+			using namespace ui;
+			if (auto _ = widget::vertical())
 			{
-				if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
+				if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
 				{
-					widget::begin(style::text_heading("hierarchy") | set_align_begin());
+					if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
+					{
+						widget::begin(style::text_heading("hierarchy") | set_align_begin());
+					}
+
+					if (auto new_ent_btn = widget::button("+ entity"))
+					{
+						if (new_ent_btn.clicked())
+						{
+							g::command_buf.new_entity(entities, renderer);
+						}
+					}
 				}
 
-				if (auto new_ent_btn = widget::button("+ entity"))
+				widget::separator_v();
+
+				for (auto&& [ent_id, ent_arch] : entities | each_entity(ecs::query<ecs::sv_entity_id, ecs::sv_archetype>()))
 				{
-					if (new_ent_btn.clicked())
+					c_auto selected = is_selected(ent_id);
+					ui_entity_tree_node("entity", ent_id, ent_arch, selected);
+
+					if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
 					{
-						g::command_buf.new_entity(entities, renderer);
+						g::command_buf.remove_entity(entities, renderer, ent_id);
+						remove_select(ent_id);
 					}
 				}
 			}
 
-			widget::separator_v();
-
-			for (auto&& [ent_id, ent_arch] : entities | each_entity(ecs::query<ecs::sv_entity_id, ecs::sv_archetype>()))
-			{
-				c_auto selected = is_selected(ent_id);
-				ui_entity_tree_node("entity", ent_id, ent_arch, selected);
-
-				if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
-				{
-					g::command_buf.remove_entity(entities, renderer, ent_id);
-					remove_select(ent_id);
-				}
-			}
+			g::command_buf.flush(entities, renderer);
 		}
+	}	 // namespace detail
 
-		g::command_buf.flush(entities, renderer);
+	void
+	ui_entity_hierarchy(auto& editor_game, auto& renderer) noexcept
+	{
+		editor_game.visit_storage_at(g::current_scene_idx, g::current_storage_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer);
 	}
 }	 // namespace age::editor

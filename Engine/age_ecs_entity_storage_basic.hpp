@@ -46,6 +46,7 @@ namespace age::ecs::entity_storage
 			FORCE_INLINE auto
 			end() noexcept
 			{
+				// return ent_block_vec.begin() + (ent_block_vec.size() - free_block_count);
 				return ent_block_vec.end();
 			}
 
@@ -467,6 +468,7 @@ namespace age::ecs::entity_storage
 				 | std::views::values
 				 | std::views::join
 				 | age::meta::deref_view
+				 // todo, remove is_empty
 				 | std::views::filter(AGE_LAMBDA((auto& block), { return block.is_empty() is_false; }));
 		}
 

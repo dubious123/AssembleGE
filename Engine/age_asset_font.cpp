@@ -80,7 +80,7 @@ namespace age::asset::font
 	std::span<glyph_data>
 	asset_header::get_glyph() noexcept
 	{
-		auto* ptr = reinterpret_cast<glyph_data*>(reinterpret_cast<uint8*>(this) + glyph_data_offset);
+		auto* ptr = std::start_lifetime_as_array<glyph_data>(reinterpret_cast<uint8*>(this) + glyph_data_offset, glyph_count);
 		return { ptr, glyph_count };
 	}
 

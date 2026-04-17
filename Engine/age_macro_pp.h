@@ -81,7 +81,7 @@
 #define AGE_PP_SEMICOLON_I() AGE_PP_SEMICOLON_R
 
 #define AGE_PP_EMPTY_R
-#define AGE_PP_EMPTY_I() AGE_PP_COMMA_R
+#define AGE_PP_EMPTY_I() AGE_PP_EMPTY_R
 
 #define AGE_PP_IDENTITY_I(...) __VA_ARGS__
 
@@ -123,10 +123,10 @@
 
 
 #define AGE_PP_CARTESIAN_PRODUCT(tpl_l, tpl_r)                     \
-	FOR_EACH_SEP(AGE_TUPLE_UNPACK_RIGHT_I, AGE_PP_EMPTY_I,         \
-				 FOR_EACH_SEP(AGE_PP_SWAP_TUPLE_I, AGE_PP_EMPTY_I, \
+	FOR_EACH_SEP(AGE_TUPLE_UNPACK_RIGHT_I, AGE_PP_COMMA_I,         \
+				 FOR_EACH_SEP(AGE_PP_SWAP_TUPLE_I, AGE_PP_COMMA_I, \
 							  FOR_EACH_CTX(                        \
-								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
+								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_COMMA_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
 
 
 #define FOR_EACH_CTX_DEFER_ID()			   FOR_EACH_CTX2
@@ -134,21 +134,28 @@
 #define __AGE_PP_DISTRIBUTE_impl__(x, tpl) (AGE_PP_DEFER(FOR_EACH_CTX_DEFER_ID)((AGE_PP_MAKE_TUPLE_I, x), AGE_PP_COMMA_I, tpl))
 
 #define AGE_PP_CARTESIAN_PRODUCT2(tpl_l, tpl_r)                      \
-	FOR_EACH_CTX((AGE_PP_DISTRIBUTE), AGE_PP_EMPTY_I,                \
-				 FOR_EACH_CTX((AGE_PP_SWAP_TUPLE_I), AGE_PP_EMPTY_I, \
+	FOR_EACH_CTX((AGE_PP_DISTRIBUTE), AGE_PP_COMMA_I,                \
+				 FOR_EACH_CTX((AGE_PP_SWAP_TUPLE_I), AGE_PP_COMMA_I, \
 							  FOR_EACH_CTX(                          \
-								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_EMPTY_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
+								  (AGE_PP_MAKE_TUPLE_I, tpl_r), AGE_PP_COMMA_I, AGE_PP_REMOVE_PARENS_I(tpl_l))))
 
 // pp_tuple
 #define AGE_PP_MAKE_TUPLE_I(l, r) (l, r)
 #define AGE_PP_SWAP_TUPLE_I(tpl)  AGE_PP_SWAP_TUPLE_R tpl
 #define AGE_PP_SWAP_TUPLE_R(l, r) (r, l)
 
-#define AGE_PP_TUPLE_GET_0_R(a, b) a
-#define AGE_PP_TUPLE_GET_0_I(tpl)  AGE_PP_TUPLE_GET_0_R tpl
+// #define AGE_PP_TUPLE_GET_0_R(a, b) a
+// #define AGE_PP_TUPLE_GET_1_R(a, b) b
 
-#define AGE_PP_TUPLE_GET_1_R(a, b) b
-#define AGE_PP_TUPLE_GET_1_I(tpl)  AGE_PP_TUPLE_GET_1_R tpl
+#define AGE_PP_TUPLE_GET_0_R(a, ...)		  a
+#define AGE_PP_TUPLE_GET_1_R(a, b, ...)		  b
+#define AGE_PP_TUPLE_GET_2_R(a, b, c, ...)	  c
+#define AGE_PP_TUPLE_GET_3_R(a, b, c, d, ...) d
+
+#define AGE_PP_TUPLE_GET_0_I(tpl) AGE_PP_TUPLE_GET_0_R tpl
+#define AGE_PP_TUPLE_GET_1_I(tpl) AGE_PP_TUPLE_GET_1_R tpl
+#define AGE_PP_TUPLE_GET_2_I(tpl) AGE_PP_TUPLE_GET_2_R tpl
+#define AGE_PP_TUPLE_GET_3_I(tpl) AGE_PP_TUPLE_GET_3_R tpl
 
 
 #define AGE_PP_SEQ_END_()

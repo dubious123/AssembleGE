@@ -10,7 +10,8 @@ namespace age_demo::scene_3
 
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
 
-		AGE_GET(entities, scene_3_ctx.entities)
+		AGE_GET(editor_game, scene_3_ctx.editor_game)
+
 		AGE_GETSET(ent_main_cam, scene_3_ctx.ent_main_cam)
 
 		AGE_SET(smoothed_move, scene_3_ctx.input.smoothed_move)
@@ -26,7 +27,7 @@ namespace age_demo::scene_3
 		AGE_GET(h_window, h_window)
 		AGE_GET(h_input_ctx, h_input_ctx)
 
-		AGE_GET(entities, scene_3_ctx.entities)
+		AGE_GET(editor_game, scene_3_ctx.editor_game)
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
 
 		AGE_GET(sprint, sprint)
@@ -50,7 +51,7 @@ namespace age_demo::scene_3
 
 		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
 
-		AGE_GET(entities, scene_3_ctx.entities)
+		AGE_GET(editor_game, scene_3_ctx.editor_game)
 	} i_deinit;
 }	 // namespace age_demo::scene_3
 

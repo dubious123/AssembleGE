@@ -267,6 +267,39 @@ namespace age::util
 
 namespace age::util
 {
+	template <std::size_t len, std::size_t n>
+	consteval auto
+	to_fixed_str(const char (&str)[n])
+	{
+		static_assert(n <= len, "string exceeds max length");
+
+		auto res = std::array<char, len>{};
+
+		for (std::size_t i = 0; i < n; ++i)
+		{
+			res[i] = str[i];
+		}
+
+		return res;
+	}
+
+	template <std::size_t len, std::size_t... n>
+	consteval auto
+	to_fixed_str_arr(const char (&... strs)[n])
+	{
+		return std::array{ to_fixed_str<len>(strs)... };
+	}
+
+	template <std::size_t len>
+	consteval auto
+	to_fixed_str_arr()
+	{
+		return std::array<std::array<char, len>, 0>{};
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
 	template <std::size_t n>
 	struct nttp_string_holder
 	{

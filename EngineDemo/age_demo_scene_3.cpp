@@ -10,11 +10,13 @@ namespace age_demo::scene_3
 
 		age::editor::init();
 
-		i_init.get_entities->init();
+		i_init.get_editor_game->init();
 
-		i_init.set_ent_main_cam = i_init.get_entities->new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
+		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/");
 
-		auto&& [pos, cam] = i_init.get_entities->get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
+		i_init.set_ent_main_cam = i_init.get_editor_game->editor_scene_0.ent_storage_main.new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
+
+		auto&& [pos, cam] = i_init.get_editor_game->editor_scene_0.ent_storage_main.get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
 		{
 			pos = age::ecs::position{};
 
@@ -96,6 +98,9 @@ namespace age_demo::scene_3
 
 		using enum age::input::e::key_kind;
 
+		// age::editor::get_entity_storage_data(i_update.get_entities(), i_update.get_render_pipeline());
+
+
 		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface) is_false)
 		{
 			return;
@@ -106,19 +111,11 @@ namespace age_demo::scene_3
 
 		if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 		{
-			// if (auto _ = widget::panel_resizable_h(300, 1000,
-			//									   set_layout(e::widget_layout::vertical),
-			//									   set_align(e::widget_align::center),
-			//									   set_size(size_mode::grow(), size_mode::grow())))
-
-
 			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
-					auto& entities = i_update.get_entities();
-
-					age::editor::ui_entity_hierarchy(i_update.get_entities(), i_update.get_render_pipeline());
+					age::editor::ui_entity_hierarchy(i_update.get_editor_game(), i_update.get_render_pipeline());
 				}
 			}
 
@@ -126,17 +123,19 @@ namespace age_demo::scene_3
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
-					age::editor::ui_inspector(i_update.get_entities(), i_update.get_render_pipeline());
+					age::editor::ui_inspector(i_update.get_editor_game(), i_update.get_render_pipeline());
 				}
 			}
 
+
+			auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
 
 			if (auto h_game_scene = widget::vertical(set_width_grow(), set_height_grow(), set_interact(true)))
 			{
 				i_update.set_game_focused = h_game_scene.focused();
 				c_auto focused			  = i_update.get_game_focused();
 
-				for (auto&& [pos, cam] : i_update.get_entities() | age::ecs::each_entity<age::ecs::position, age::ecs::camera>())
+				for (auto&& [pos, cam] : entities | age::ecs::each_entity<age::ecs::position, age::ecs::camera>())
 				{
 					if (focused)
 					{
@@ -189,7 +188,9 @@ namespace age_demo::scene_3
 						   i_update.get_render_pipeline->get_ui_render_data_z_range_vec());
 
 
-		for (auto&& [light] : i_update.get_entities() | each_entity<directional_light>())
+		auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
+
+		for (auto&& [light] : entities | each_entity<directional_light>())
 		{
 			i_update.get_render_pipeline->update_directional_light(light.render_id,
 																   {
@@ -200,7 +201,7 @@ namespace age_demo::scene_3
 																   light.cast_shadow);
 		}
 
-		for (auto&& [light, pos] : i_update.get_entities() | each_entity<point_light, position>())
+		for (auto&& [light, pos] : entities | each_entity<point_light, position>())
 		{
 			i_update.get_render_pipeline->update_point_light(
 				light.render_id,
@@ -213,7 +214,7 @@ namespace age_demo::scene_3
 				light.cast_shadow);
 		}
 
-		for (auto&& [light, pos] : i_update.get_entities() | each_entity<spot_light, position>())
+		for (auto&& [light, pos] : entities | each_entity<spot_light, position>())
 		{
 			i_update.get_render_pipeline->update_spot_light(
 				light.render_id,
@@ -229,7 +230,7 @@ namespace age_demo::scene_3
 				light.cast_shadow);
 		}
 
-		for (auto&& [pos, rot, scale, obj, mesh, mat] : i_update.get_entities()
+		for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
 															| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
 		{
 			i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
@@ -250,6 +251,8 @@ namespace age_demo::scene_3
 	FORCE_INLINE decltype(auto)
 	deinit() noexcept
 	{
+		auto& entities = i_deinit.get_editor_game->editor_scene_0.ent_storage_main;
+
 		age::editor::deinit();
 
 		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
@@ -259,31 +262,31 @@ namespace age_demo::scene_3
 
 		i_deinit.get_mesh_id_vec->clear();
 
-		for (auto&& [cam] : i_deinit.get_entities() | age::ecs::each_entity<age::ecs::camera>())
+		for (auto&& [cam] : entities | age::ecs::each_entity<age::ecs::camera>())
 		{
 			i_deinit.get_render_pipeline->remove_camera(cam.render_id);
 		}
 
-		for (auto&& [l] : i_deinit.get_entities() | age::ecs::each_entity<age::ecs::directional_light>())
+		for (auto&& [l] : entities | age::ecs::each_entity<age::ecs::directional_light>())
 		{
 			i_deinit.get_render_pipeline->remove_directional_light(l.render_id);
 		}
 
-		for (auto&& [l] : i_deinit.get_entities() | age::ecs::each_entity<age::ecs::point_light>())
+		for (auto&& [l] : entities | age::ecs::each_entity<age::ecs::point_light>())
 		{
 			i_deinit.get_render_pipeline->remove_point_light(l.render_id);
 		}
 
-		for (auto&& [l] : i_deinit.get_entities() | age::ecs::each_entity<age::ecs::spot_light>())
+		for (auto&& [l] : entities | age::ecs::each_entity<age::ecs::spot_light>())
 		{
 			i_deinit.get_render_pipeline->remove_spot_light(l.render_id);
 		}
 
-		for (auto&& [obj] : i_deinit.get_entities() | age::ecs::each_entity<age::ecs::render_object>())
+		for (auto&& [obj] : entities | age::ecs::each_entity<age::ecs::render_object>())
 		{
 			i_deinit.get_render_pipeline->remove_object(obj.render_id);
 		}
 
-		i_deinit.get_entities->deinit();
+		i_deinit.get_editor_game->deinit();
 	}
 }	 // namespace age_demo::scene_3
