@@ -35,6 +35,9 @@ namespace age::asset
 	write_to_file(std::string_view file_path, const file_header&, const auto& asset_data) noexcept;
 
 	void
+	write_to_file(const std::filesystem::path& file_path, const file_header& header, const auto& asset_data) noexcept;
+
+	void
 	unload(asset::handle& h) noexcept;
 
 	void
@@ -93,6 +96,23 @@ namespace age::asset::editor
 
 namespace age::asset
 {
+	template <e::kind e_asset_kind>
+	constexpr file_header
+	get_default_file_header(uint64 payload_size) noexcept
+	{
+		return file_header{
+			.magic		   = g::asset_header_magic,
+			.header_size   = sizeof(file_header),
+			.file_size	   = payload_size + sizeof(file_header),
+			.version_major = config::version_major,
+			.version_minor = config::version_minor,
+			.asset_kind	   = e_asset_kind,
+		};
+	}
+}	 // namespace age::asset
+
+namespace age::asset
+{
 	FORCE_INLINE data*
 	handle::operator->() const noexcept
 	{
@@ -123,3 +143,10 @@ namespace age::asset
 		}
 	}
 }	 // namespace age::asset
+
+namespace age::asset::detail
+{
+
+	constexpr std::align_val_t
+	get_alignment(asset::e::kind asset_kind);
+}

@@ -125,19 +125,6 @@ namespace age::asset::font
 		AGE_UNREACHABLE();	  // glyph not found
 		return glyphs[0];
 	}
-
-	file_header
-	get_file_header(uint64 file_size) noexcept
-	{
-		return file_header{
-			.magic		   = g::asset_header_magic,
-			.header_size   = sizeof(file_header),
-			.file_size	   = file_size + sizeof(file_header),
-			.version_major = config::version_major,
-			.version_minor = config::version_minor,
-			.asset_kind	   = e::kind::font,
-		};
-	}
 }	 // namespace age::asset::font
 
 namespace age::asset::font
@@ -299,7 +286,7 @@ namespace age::asset::font
 			std::remove("font_bake_temp.csv");
 			std::remove("font_bake_temp.json");
 
-			c_auto f_header = get_file_header(blob_size);
+			c_auto f_header = get_default_file_header<e::kind::font>(blob_size);
 
 			write_to_file(font_name, f_header, *p_blob);
 

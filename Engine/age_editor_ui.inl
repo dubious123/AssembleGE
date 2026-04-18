@@ -123,7 +123,7 @@ namespace age::editor
 			widget::separator_h(set_body_brush_data(get_component_color(cmp_idx), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
 
 			auto remove_cmp = false;
-			if (auto _ = ui_component_header(ecs::get_component_name<t_cmp>(), remove_cmp))
+			if (auto _ = ui_component_header(ecs::get_component_name_at<t_cmp, 0>().data(), remove_cmp))
 			{
 				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
 				c_auto gap			   = theme::header_bar_child_gap();
@@ -230,7 +230,7 @@ namespace age::editor
 
 								widget::indicator(ui::e::shape_kind::circle, font::get_line_height(theme::text_font_size()), float4{ get_component_color(storage_cmp_idx), already_has ? theme::opacity_medium() : 1.0f });
 
-								widget::text(t_archetype_traits::get_component_name(storage_cmp_idx), e::style_state::idle, already_has is_false);
+								widget::text(t_archetype_traits::get_component_name(storage_cmp_idx).data(), e::style_state::idle, already_has is_false);
 							}
 						}
 					}

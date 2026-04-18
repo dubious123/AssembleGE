@@ -12,7 +12,7 @@ namespace age_demo::scene_3
 
 		i_init.get_editor_game->init();
 
-		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/");
+		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
 
 		i_init.set_ent_main_cam = i_init.get_editor_game->editor_scene_0.ent_storage_main.new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
 

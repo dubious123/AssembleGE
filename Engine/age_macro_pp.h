@@ -83,6 +83,9 @@
 #define AGE_PP_EMPTY_R
 #define AGE_PP_EMPTY_I() AGE_PP_EMPTY_R
 
+#define AGE_PP_PLUS_R	+
+#define AGE_PP_PLUS_I() AGE_PP_PLUS_R
+
 #define AGE_PP_IDENTITY_I(...) __VA_ARGS__
 
 

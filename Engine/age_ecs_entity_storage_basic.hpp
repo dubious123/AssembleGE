@@ -38,16 +38,16 @@ namespace age::ecs::entity_storage
 			std::size_t									 free_block_count = 0;
 
 			FORCE_INLINE auto
-			begin() noexcept
+			begin(this auto&& self) noexcept
 			{
-				return ent_block_vec.begin();
+				return self.ent_block_vec.begin();
 			}
 
 			FORCE_INLINE auto
-			end() noexcept
+			end(this auto&& self) noexcept
 			{
 				// return ent_block_vec.begin() + (ent_block_vec.size() - free_block_count);
-				return ent_block_vec.end();
+				return self.ent_block_vec.end();
 			}
 
 			FORCE_INLINE void
@@ -378,17 +378,42 @@ namespace age::ecs::entity_storage
 			}(get_sorted_arg_index_sequence<t...>(), id);
 		}
 
+		// template <typename... t>
+		// FORCE_INLINE decltype(auto)
+		// get_component(const t_ent_id id) noexcept
+		//{
+		//	auto& ent_info = entity_info_vec[id];
+		//	return ent_info.p_block->template get_component<t...>(ent_info.local_idx);
+		// }
+
 		template <typename... t>
 		FORCE_INLINE decltype(auto)
-		get_component(const t_ent_id id) noexcept
+		get_component(this auto&& self, const t_ent_id id) noexcept
 		{
-			auto& ent_info = entity_info_vec[id];
-			return ent_info.p_block->template get_component<t...>(ent_info.local_idx);
+			auto&& ent_info = self.entity_info_vec[id];
+
+			if constexpr (std::is_const_v<std::remove_reference_t<decltype(self)>>)
+			{
+				return std::as_const(*ent_info.p_block)
+					.template get_component<t...>(ent_info.local_idx);
+			}
+			else
+			{
+				return ent_info.p_block->template get_component<t...>(ent_info.local_idx);
+			}
 		}
+
+		// template <typename... t>
+		// FORCE_INLINE bool
+		// has_component(const t_ent_id id) noexcept
+		//{
+		//	constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
+		//	return (entity_info_vec[id].archetype & archetype) == archetype;
+		// }
 
 		template <typename... t>
 		FORCE_INLINE bool
-		has_component(const t_ent_id id) noexcept
+		has_component(const t_ent_id id) const noexcept
 		{
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 			return (entity_info_vec[id].archetype & archetype) == archetype;
@@ -470,6 +495,19 @@ namespace age::ecs::entity_storage
 				 | age::meta::deref_view
 				 // todo, remove is_empty
 				 | std::views::filter(AGE_LAMBDA((auto& block), { return block.is_empty() is_false; }));
+		}
+
+		FORCE_INLINE decltype(auto)
+		each_block(this auto&& self, t_archetype archetype) noexcept
+		{
+			c_auto it = self.entity_blocks_map.find(archetype);
+			if (it != self.entity_blocks_map.end())
+			{
+				return std::ranges::subrange(it->second.begin(), it->second.end()) | age::meta::deref_view;
+			}
+
+			using iter_t = decltype(it->second.begin());
+			return std::ranges::subrange(iter_t{ nullptr }, iter_t{ nullptr }) | age::meta::deref_view;
 		}
 
 		template <typename t_query, typename t_sys>

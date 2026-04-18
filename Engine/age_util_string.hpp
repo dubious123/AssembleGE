@@ -294,7 +294,7 @@ namespace age::util
 	consteval auto
 	to_fixed_str_arr()
 	{
-		return std::array<std::array<char, len>, 0>{};
+		return std::array<std::array<const char, len>, 0>{};
 	}
 }	 // namespace age::util
 

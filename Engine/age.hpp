@@ -90,6 +90,7 @@ namespace age
 	#include "age_util_bitset.hpp"
 
 	#include "age_data_structure.hpp"
+	#include "age_util_ranges.hpp"
 #endif
 //------------------------------------------------------------------------------
 #include "age_math_transform.hpp"			//todo, move to pch.hpp
@@ -107,6 +108,7 @@ namespace age
 #include "age_buffer.hpp"
 
 #include "age_asset.hpp"
+#include "age_asset.inl"
 #include "age_asset_mesh_editable.hpp"
 #include "age_asset_mesh_baked.hpp"
 

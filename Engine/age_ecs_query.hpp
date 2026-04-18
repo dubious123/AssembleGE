@@ -436,6 +436,19 @@ namespace age::ecs::detail
 	{
 		return storage.each_block(t_query{});
 	}
+
+	struct each_block_archetype_adaptor
+	{
+		uint64 archetype;
+	};
+
+	FORCE_INLINE auto
+	operator|(cx_entity_storage auto&& storage, each_block_archetype_adaptor adaptor)
+	{
+		using t_storage	  = BARE_OF(storage);
+		using t_archetype = typename t_storage::t_archetype;
+		return storage.each_block(static_cast<t_archetype>(adaptor.archetype));
+	}
 }	 // namespace age::ecs::detail
 
 namespace age::ecs
@@ -460,6 +473,12 @@ namespace age::ecs
 	each_block(t_query)
 	{
 		return detail::each_block_adaptor<t_query>{};
+	}
+
+	constexpr decltype(auto)
+	each_block(uint64 archetype)
+	{
+		return detail::each_block_archetype_adaptor{ archetype };
 	}
 }	 // namespace age::ecs
 

@@ -316,6 +316,14 @@ namespace age::inline data_structure
 			write_pos += byte_size;
 		}
 
+		FORCE_INLINE constexpr void
+		move_write_pos(size_type new_pos) noexcept
+		{
+			AGE_ASSERT(new_pos <= cap);
+			AGE_ASSERT(read_pos <= new_pos);
+			write_pos = new_pos;
+		}
+
 	  private:
 		template <byte_buffer_cx::value t>
 		FORCE_INLINE constexpr t

@@ -227,21 +227,49 @@ namespace age::ecs
 		}
 
 		FORCE_INLINE static constexpr decltype(auto)
+		visit_component_at(auto cmp_idx, auto&& func, auto&&... arg) noexcept
+		{
+			switch (cmp_idx)
+			{
+#define __VISIT_CMP_IMPL(N)                                                                 \
+	case N:                                                                                 \
+	{                                                                                       \
+		if constexpr (N < cmp_count())                                                      \
+		{                                                                                   \
+			return func.template operator()<meta::variadic_at_t<N, t_cmp...>>(FWD(arg)...); \
+		}                                                                                   \
+		else                                                                                \
+		{                                                                                   \
+			AGE_UNREACHABLE();                                                              \
+		}                                                                                   \
+	}
+#define X(N) __VISIT_CMP_IMPL(N)
+				__X_REPEAT_LIST_512
+#undef X
+#undef __VISIT_CMP_IMPL
+			default:
+			{
+				AGE_UNREACHABLE();
+			}
+			}
+		}
+
+		FORCE_INLINE static constexpr decltype(auto)
 		get_component_name(auto cmp_idx) noexcept
 		{
 			switch (cmp_idx)
 			{
-#define __VISIT_CMP_IMPL(N)                                                     \
-	case N:                                                                     \
-	{                                                                           \
-		if constexpr (N < cmp_count())                                          \
-		{                                                                       \
-			return ecs::get_component_name<meta::variadic_at_t<N, t_cmp...>>(); \
-		}                                                                       \
-		else                                                                    \
-		{                                                                       \
-			AGE_UNREACHABLE();                                                  \
-		}                                                                       \
+#define __VISIT_CMP_IMPL(N)                                                           \
+	case N:                                                                           \
+	{                                                                                 \
+		if constexpr (N < cmp_count())                                                \
+		{                                                                             \
+			return ecs::get_component_name_at<meta::variadic_at_t<N, t_cmp...>, 0>(); \
+		}                                                                             \
+		else                                                                          \
+		{                                                                             \
+			AGE_UNREACHABLE();                                                        \
+		}                                                                             \
 	}
 #define X(N) __VISIT_CMP_IMPL(N)
 				__X_REPEAT_LIST_512

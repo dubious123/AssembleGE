@@ -103,118 +103,246 @@ namespace age::ecs::entity_block
 		alignas(alignment)
 			std::byte storage[mem_size];
 
+		// template <typename t_tag>
+		// FORCE_INLINE t_tag::type&
+		// access_as()
+		//{
+		//	constexpr auto offset = align_info::template offset_of<t_tag>();
+
+		//	static_assert((alignment + offset) % alignof(typename t_tag::type) == 0);
+
+		//	return *std::launder(reinterpret_cast<typename t_tag::type*>(&storage[offset]));
+		//}
+
+		// FORCE_INLINE t_entity_block_idx&
+		// entity_block_idx()
+		//{
+		//	return access_as<entity_block_idx_tag>();
+		// }
+
+		// FORCE_INLINE t_entity_count&
+		// entity_count()
+		//{
+		//	return access_as<entity_count_tag>();
+		// }
+
+		// FORCE_INLINE t_capacity&
+		// capacity()
+		//{
+		//	return access_as<capacity_tag>();
+		// }
+
+		// FORCE_INLINE t_component_count&
+		// component_count()
+		//{
+		//	return access_as<component_count_tag>();
+		// }
+
+		// FORCE_INLINE t_archetype&
+		// local_archetype()
+		//{
+		//	return access_as<archetype_tag>();
+		// }
+
+		// FORCE_INLINE t_cmp_size_arr_base&
+		// component_size_arr_base()
+		//{
+		//	return access_as<cmp_size_arr_base_tag>();
+		// }
+
+		// FORCE_INLINE t_cmp_offset_arr_base&
+		// component_offset_arr_base()
+		//{
+		//	return access_as<cmp_offset_arr_base_tag>();
+		// }
+
+		// FORCE_INLINE t_entity_id_arr_base&
+		// entity_id_arr_base()
+		//{
+		//	return access_as<entity_id_arr_base_tag>();
+		// }
+
+		// FORCE_INLINE t_ent_id&
+		// ent_id(t_local_entity_idx ent_idx)
+		//{
+		//	return std::launder(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]))[ent_idx];
+		// }
+
+		// template <typename t>
+		// FORCE_INLINE t_local_cmp_idx
+		// calc_cmp_idx()
+		//{
+		//	return t_archetype_traits::template calc_local_cmp_idx<t>(local_archetype());
+		// }
+
+		// FORCE_INLINE t_component_size&
+		// cmp_size(t_local_cmp_idx cmp_idx)
+		//{
+		//	AGE_ASSERT(std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx] > 0);
+		//	return std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx];
+		// }
+
+		// template <typename t>
+		// FORCE_INLINE t_component_size
+		// cmp_size()
+		//{
+		//	AGE_ASSERT(cmp_size(calc_cmp_idx<t>()) == sizeof(t));
+		//	return static_cast<t_component_size>(sizeof(t));
+		// }
+
+		// FORCE_INLINE t_component_offset&
+		// cmp_offset(t_local_cmp_idx cmp_idx)
+		//{
+		//	return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[cmp_idx];
+		// }
+
+		// template <typename t>
+		// FORCE_INLINE t_component_offset&
+		// cmp_offset()
+		//{
+		//	return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[calc_cmp_idx<t>()];
+		// }
+
+		// template <typename t>
+		// FORCE_INLINE t*
+		// cmp_ptr(t_local_entity_idx local_ent_idx)
+		//{
+		//	return std::launder(reinterpret_cast<t*>(&storage[cmp_offset<t>()])) + local_ent_idx;
+		// }
+
+		// FORCE_INLINE
+		// std::byte*
+		// cmp_ptr(t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx)
+		//{
+		//	return &storage[cmp_offset(local_cmp_idx)] + local_ent_idx * cmp_size(local_cmp_idx);
+		// }
+
 		template <typename t_tag>
-		FORCE_INLINE t_tag::type&
-		access_as()
+		FORCE_INLINE decltype(auto)
+		access_as(this auto&& self) noexcept
 		{
 			constexpr auto offset = align_info::template offset_of<t_tag>();
 
 			static_assert((alignment + offset) % alignof(typename t_tag::type) == 0);
 
-			return *std::launder(reinterpret_cast<typename t_tag::type*>(&storage[offset]));
+			using value_t = typename t_tag::type;
+			using ptr_t	  = std::conditional_t<IS_CONST(self), const value_t*, value_t*>;
+
+			return *std::launder(reinterpret_cast<ptr_t>(&self.storage[offset]));
 		}
 
-		FORCE_INLINE t_entity_block_idx&
-		entity_block_idx()
+		FORCE_INLINE decltype(auto)
+		entity_block_idx(this auto&& self) noexcept
 		{
-			return access_as<entity_block_idx_tag>();
+			return self.template access_as<entity_block_idx_tag>();
 		}
 
-		FORCE_INLINE t_entity_count&
-		entity_count()
+		FORCE_INLINE decltype(auto)
+		entity_count(this auto&& self) noexcept
 		{
-			return access_as<entity_count_tag>();
+			return self.template access_as<entity_count_tag>();
 		}
 
-		FORCE_INLINE t_capacity&
-		capacity()
+		FORCE_INLINE decltype(auto)
+		capacity(this auto&& self) noexcept
 		{
-			return access_as<capacity_tag>();
+			return self.template access_as<capacity_tag>();
 		}
 
-		FORCE_INLINE t_component_count&
-		component_count()
+		FORCE_INLINE decltype(auto)
+		component_count(this auto&& self) noexcept
 		{
-			return access_as<component_count_tag>();
+			return self.template access_as<component_count_tag>();
 		}
 
-		FORCE_INLINE t_archetype&
-		local_archetype()
+		FORCE_INLINE decltype(auto)
+		local_archetype(this auto&& self) noexcept
 		{
-			return access_as<archetype_tag>();
+			return self.template access_as<archetype_tag>();
 		}
 
-		FORCE_INLINE t_cmp_size_arr_base&
-		component_size_arr_base()
+		FORCE_INLINE decltype(auto)
+		component_size_arr_base(this auto&& self) noexcept
 		{
-			return access_as<cmp_size_arr_base_tag>();
+			return self.template access_as<cmp_size_arr_base_tag>();
 		}
 
-		FORCE_INLINE t_cmp_offset_arr_base&
-		component_offset_arr_base()
+		FORCE_INLINE decltype(auto)
+		component_offset_arr_base(this auto&& self) noexcept
 		{
-			return access_as<cmp_offset_arr_base_tag>();
+			return self.template access_as<cmp_offset_arr_base_tag>();
 		}
 
-		FORCE_INLINE t_entity_id_arr_base&
-		entity_id_arr_base()
+		FORCE_INLINE decltype(auto)
+		entity_id_arr_base(this auto&& self) noexcept
 		{
-			return access_as<entity_id_arr_base_tag>();
+			return self.template access_as<entity_id_arr_base_tag>();
 		}
 
-		FORCE_INLINE t_ent_id&
-		ent_id(t_local_entity_idx ent_idx)
+		FORCE_INLINE decltype(auto)
+		ent_id(this auto&& self, t_local_entity_idx ent_idx) noexcept
 		{
-			return std::launder(reinterpret_cast<t_entity_id*>(&storage[entity_id_arr_base()]))[ent_idx];
+			using ptr_t = std::conditional_t<IS_CONST(self), const t_entity_id*, t_entity_id*>;
+
+			return std::launder(reinterpret_cast<ptr_t>(&self.storage[self.entity_id_arr_base()]))[ent_idx];
 		}
 
 		template <typename t>
 		FORCE_INLINE t_local_cmp_idx
-		calc_cmp_idx()
+		calc_cmp_idx(this auto&& self) noexcept
 		{
-			return t_archetype_traits::template calc_local_cmp_idx<t>(local_archetype());
+			return t_archetype_traits::template calc_local_cmp_idx<t>(self.local_archetype());
 		}
 
-		FORCE_INLINE t_component_size&
-		cmp_size(t_local_cmp_idx cmp_idx)
+		FORCE_INLINE decltype(auto)
+		cmp_size(this auto&& self, t_local_cmp_idx cmp_idx) noexcept
 		{
-			AGE_ASSERT(std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx] > 0);
-			return std::launder(reinterpret_cast<t_component_size*>(&storage[component_size_arr_base()]))[cmp_idx];
+			using ptr_t = std::conditional_t<IS_CONST(self), const t_component_size*, t_component_size*>;
+
+			AGE_ASSERT(std::launder(reinterpret_cast<ptr_t>(&self.storage[self.component_size_arr_base()]))[cmp_idx] > 0);
+			return std::launder(reinterpret_cast<ptr_t>(&self.storage[self.component_size_arr_base()]))[cmp_idx];
 		}
 
 		template <typename t>
 		FORCE_INLINE t_component_size
-		cmp_size()
+		cmp_size(this auto&& self) noexcept
 		{
-			AGE_ASSERT(cmp_size(calc_cmp_idx<t>()) == sizeof(t));
+			AGE_ASSERT(self.cmp_size(self.template calc_cmp_idx<t>()) == sizeof(t));
 			return static_cast<t_component_size>(sizeof(t));
 		}
 
-		FORCE_INLINE t_component_offset&
-		cmp_offset(t_local_cmp_idx cmp_idx)
+		FORCE_INLINE decltype(auto)
+		cmp_offset(this auto&& self, t_local_cmp_idx cmp_idx) noexcept
 		{
-			return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[cmp_idx];
+			using ptr_t = std::conditional_t<IS_CONST(self), const t_component_offset*, t_component_offset*>;
+
+			return std::launder(reinterpret_cast<ptr_t>(&self.storage[self.component_offset_arr_base()]))[cmp_idx];
 		}
 
 		template <typename t>
-		FORCE_INLINE t_component_offset&
-		cmp_offset()
+		FORCE_INLINE decltype(auto)
+		cmp_offset(this auto&& self) noexcept
 		{
-			return std::launder(reinterpret_cast<t_component_offset*>(&storage[component_offset_arr_base()]))[calc_cmp_idx<t>()];
+			using ptr_t = std::conditional_t<IS_CONST(self), const t_component_offset*, t_component_offset*>;
+
+			return std::launder(reinterpret_cast<ptr_t>(&self.storage[self.component_offset_arr_base()]))[self.template calc_cmp_idx<t>()];
 		}
 
 		template <typename t>
-		FORCE_INLINE t*
-		cmp_ptr(t_local_entity_idx local_ent_idx)
+		FORCE_INLINE auto*
+		cmp_ptr(this auto&& self, t_local_entity_idx local_ent_idx) noexcept
 		{
-			return std::launder(reinterpret_cast<t*>(&storage[cmp_offset<t>()])) + local_ent_idx;
+			using ptr_t = std::conditional_t<IS_CONST(self), const t*, t*>;
+
+			return std::launder(reinterpret_cast<ptr_t>(&self.storage[self.template cmp_offset<t>()])) + local_ent_idx;
 		}
 
-		FORCE_INLINE
-		std::byte*
-		cmp_ptr(t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx)
+		FORCE_INLINE auto*
+		cmp_ptr(this auto&& self, t_local_cmp_idx local_cmp_idx, t_local_entity_idx local_ent_idx) noexcept
 		{
-			return &storage[cmp_offset(local_cmp_idx)] + local_ent_idx * cmp_size(local_cmp_idx);
+			using byte_ptr_t = std::conditional_t<IS_CONST(self), const std::byte*, std::byte*>;
+
+			return static_cast<byte_ptr_t>(&self.storage[self.cmp_offset(local_cmp_idx)]) + local_ent_idx * self.cmp_size(local_cmp_idx);
 		}
 
 		template <typename... t>
@@ -465,12 +593,23 @@ namespace age::ecs::entity_block
 
 		template <age::ecs::cx_component... t>
 		FORCE_INLINE decltype(auto)
-		get_component(const t_local_entity_idx local_ent_idx)
+		get_component(this auto&& self, const t_local_entity_idx local_ent_idx) noexcept
 		{
-			static_assert((true && ... && !std::is_rvalue_reference_v<t>), "no rvalue reference type component");
+			static_assert((true && ... && !std::is_rvalue_reference_v<t>),
+						  "no rvalue reference type component");
 
-			return std::tie((*cmp_ptr<std::remove_reference_t<t>>(local_ent_idx))...);
+			return std::tie(
+				*self.template cmp_ptr<std::remove_reference_t<t>>(local_ent_idx)...);
 		}
+
+		// template <age::ecs::cx_component... t>
+		// FORCE_INLINE decltype(auto)
+		// get_component(const t_local_entity_idx local_ent_idx)
+		//{
+		//	static_assert((true && ... && !std::is_rvalue_reference_v<t>), "no rvalue reference type component");
+
+		//	return std::tie((*cmp_ptr<std::remove_reference_t<t>>(local_ent_idx))...);
+		//}
 
 		template <typename t_sys, template <typename...> typename t_cmp_pack, age::ecs::cx_component... t>
 		FORCE_INLINE void

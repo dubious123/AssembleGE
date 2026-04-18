@@ -98,27 +98,6 @@ namespace age::asset::editor
 		// return res;
 	}
 
-	template <asset::e::kind e_kind>
-	file_header
-	get_file_header(uint64 file_size) noexcept
-	{
-		if constexpr (e_kind == asset::e::kind::editor_scene)
-		{
-			return file_header{
-				.magic		   = g::asset_header_magic,
-				.header_size   = sizeof(file_header),
-				.file_size	   = file_size + sizeof(file_header),
-				.version_major = config::version_major,
-				.version_minor = config::version_minor,
-				.asset_kind	   = e::kind::editor_scene,
-			};
-		}
-		else
-		{
-			AGE_UNREACHABLE();
-		}
-	}
-
 	void
 	save_scene(const char (&scene_name)[config::max_scene_name_len], std::filesystem::path directory_path, ecs::cx_entity_storage auto&&... storage) noexcept
 	{

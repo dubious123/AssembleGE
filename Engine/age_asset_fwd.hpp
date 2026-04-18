@@ -12,6 +12,7 @@ namespace age::asset::e
 		mesh_baked,
 		lod_group_baked,
 		editor_scene,
+		editor_entity_storage,
 		count);
 
 	// mesh editable

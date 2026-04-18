@@ -15,6 +15,8 @@
 // reference will be removed in most cases anyway so perfect forwarding is not necessary
 #define BARE_OF(expr) std::remove_cvref_t<decltype((expr))>
 
+#define IS_CONST(expr) std::is_const_v<std::remove_reference_t<decltype((expr))>>
+
 #define STR_HASH(x) (age::meta::MM<sizeof(x) - 1>::crc32(x))
 
 #define AGE_DO_WHILE(...)       \
