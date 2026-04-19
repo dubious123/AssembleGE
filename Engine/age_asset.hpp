@@ -20,7 +20,7 @@ namespace age::asset::g
 namespace age::asset
 {
 	bool
-	validate(const file_header&, const std::ifstream&) noexcept;
+	validate(const file_header&) noexcept;
 
 	asset::handle
 	load_from_file(std::string_view file_name) noexcept;
@@ -29,10 +29,13 @@ namespace age::asset
 	load_from_path(std::string_view file_path) noexcept;
 
 	handle
+	load_from_path(const std::filesystem::path& full_path) noexcept;
+
+	handle
 	load_from_blob(std::string_view file_path, const file_header& header, auto& blob) noexcept;
 
 	void
-	write_to_file(std::string_view file_path, const file_header&, const auto& asset_data) noexcept;
+	write_to_file(std::string_view file_name, const file_header&, const auto& asset_data) noexcept;
 
 	void
 	write_to_file(const std::filesystem::path& file_path, const file_header& header, const auto& asset_data) noexcept;
@@ -80,20 +83,6 @@ namespace age::asset::font
 	}
 }	 // namespace age::asset::font
 
-#if defined(AGE_EDITOR)
-namespace age::asset::editor
-{
-	scene_data
-	load_scene(std::string_view scene_name) noexcept;
-
-	void
-	save_scene(const char (&scene_name)[config::max_scene_name_len], std::filesystem::path directory_path, ecs::cx_entity_storage auto&&... ecs_storage) noexcept;
-
-	bool
-	validate(const scene_asset_header&) noexcept;
-}	 // namespace age::asset::editor
-#endif
-
 namespace age::asset
 {
 	template <e::kind e_asset_kind>
@@ -127,16 +116,6 @@ namespace age::asset
 		{
 			return *std::start_lifetime_as<font::asset_header>(blob.data());
 		}
-		else if constexpr (e_kind == e::kind::editor_scene and age::config::is_editor_build)
-		{
-			AGE_ASSERT(blob.size_bytes() < sizeof(editor::scene_asset_header));
-
-			c_auto& header = *std::start_lifetime_as<const editor::scene_asset_header>(blob.data());
-
-			AGE_ASSERT(editor::validate(header));
-
-			return header;
-		}
 		else
 		{
 			AGE_UNREACHABLE();
@@ -146,7 +125,6 @@ namespace age::asset
 
 namespace age::asset::detail
 {
-
 	constexpr std::align_val_t
 	get_alignment(asset::e::kind asset_kind);
 }

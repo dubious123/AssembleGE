@@ -172,6 +172,9 @@ namespace age
 #endif
 
 #if defined AGE_EDITOR
+	#include "age_editor_fwd.hpp"
 	#include "age_editor.hpp"
+	#include "age_editor.inl"
 	#include "age_editor_ui.inl"
+	#include "age_editor_save_load.inl"
 #endif

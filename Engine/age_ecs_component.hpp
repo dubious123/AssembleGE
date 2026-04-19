@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"
 
 namespace age::ecs
 {
@@ -19,22 +20,12 @@ namespace age::ecs
 	// 4. material : 1.opaque 2.transform, render_object_id (draw is true)
 	// 5. camera : 1. perspective, orthographics, camera_id
 
-	template <typename t>
-	consteval auto
-	get_component_name()
-	{
-		return "unnamed component";
-	}
-
-	template <typename t, std::size_t i>
-	consteval auto
-	get_component_name_at()
-	{
-		return "unnamed component";
-	}
 
 #define AGE_COMPONENT(name, ...)                                                                                   \
 	struct name;                                                                                                   \
+	template <>                                                                                                    \
+	consteval bool is_ecs_component<name>()                                                                        \
+	{ return true; }                                                                                               \
 	template <>                                                                                                    \
 	consteval auto get_component_name<name>()                                                                      \
 	{ return age::util::to_fixed_str_arr<age::config::max_component_name_len>(#name __VA_OPT__(, ) __VA_ARGS__); } \
@@ -126,9 +117,9 @@ namespace age::ecs
 		}
 
 		static render_object
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != render_object::age_component_version)
+			if (rw_ctx.version != render_object::age_component_version())
 			{
 				// handle migrate
 				AGE_ASSERT(false);
@@ -206,9 +197,9 @@ namespace age::ecs
 		}
 
 		static camera
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != camera::age_component_version)
+			if (rw_ctx.version != camera::age_component_version())
 			{
 				// handle migrate
 				AGE_ASSERT(false);
@@ -267,9 +258,9 @@ namespace age::ecs
 		}
 
 		static directional_light
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != directional_light::age_component_version)
+			if (rw_ctx.version != directional_light::age_component_version())
 			{
 				AGE_ASSERT(false);
 			}
@@ -327,9 +318,9 @@ namespace age::ecs
 		}
 
 		static point_light
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != point_light::age_component_version)
+			if (rw_ctx.version != point_light::age_component_version())
 			{
 				AGE_ASSERT(false);
 			}
@@ -393,9 +384,9 @@ namespace age::ecs
 		}
 
 		static spot_light
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != spot_light::age_component_version)
+			if (rw_ctx.version != spot_light::age_component_version())
 			{
 				AGE_ASSERT(false);
 			}
@@ -435,9 +426,9 @@ namespace age::ecs
 		}
 
 		static mesh
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != mesh::age_component_version)
+			if (rw_ctx.version != mesh::age_component_version())
 			{
 				AGE_ASSERT(false);
 			}
@@ -471,9 +462,9 @@ namespace age::ecs
 		}
 
 		static material
-		read_from(byte_buf & buf, auto&& rw_ctx) noexcept
+		read_from(auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != material::age_component_version)
+			if (rw_ctx.version != material::age_component_version())
 			{
 				AGE_ASSERT(false);
 			}
@@ -529,7 +520,7 @@ namespace age::ecs
 
 	template <typename t_component>
 	t_component
-	deserialize_component(age::byte_buf& buf, auto&& rw_ctx) noexcept
+	deserialize_component(auto& buf, auto&& rw_ctx) noexcept
 	{
 		if constexpr (byte_buffer_cx::custom_with_ctx<t_component>)
 		{

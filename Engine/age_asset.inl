@@ -19,11 +19,17 @@ namespace age::asset
 	}
 
 	void
-	write_to_file(std::string_view file_path, const file_header& header, const auto& asset_data) noexcept
+	write_to_file(std::string_view file_name, const file_header& header, const auto& asset_data) noexcept
 	{
-		c_auto		  full_path = std::format("{}{}", file_path, config::asset_extension);
-		std::ofstream file(std::filesystem::path{ full_path },
-						   std::ios::out | std::ios::binary | std::ios::trunc);
+		auto path  = std::filesystem::path{ file_name };
+		path	  += config::asset_extension;
+		write_to_file(path, header, asset_data);
+	}
+
+	void
+	write_to_file(const std::filesystem::path& file_path, const file_header& header, const auto& asset_data) noexcept
+	{
+		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
 
 		AGE_ASSERT(header.file_size > header.header_size);
 
@@ -31,13 +37,6 @@ namespace age::asset
 		file.write(reinterpret_cast<const char*>(&asset_data), header.file_size - header.header_size);
 
 		file.close();
-	}
-
-	void
-	write_to_file(const std::filesystem::path& file_path, const file_header& header, const auto& asset_data) noexcept
-	{
-		c_auto str = file_path.string();
-		return write_to_file(std::string_view{ str }, header, asset_data);
 	}
 
 }	 // namespace age::asset

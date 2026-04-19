@@ -283,6 +283,17 @@ namespace age::util
 		return res;
 	}
 
+	template <std::size_t len>
+	constexpr auto
+	to_fixed_str(std::string_view sv) noexcept
+	{
+		AGE_ASSERT(sv.size() < len);
+		auto res = std::array<char, len>{};
+		std::ranges::copy_n(sv.data(), sv.size(), res.begin());
+		res[sv.size()] = '\0';
+		return res;
+	}
+
 	template <std::size_t len, std::size_t... n>
 	consteval auto
 	to_fixed_str_arr(const char (&... strs)[n])

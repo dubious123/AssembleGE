@@ -32,4 +32,10 @@ namespace age::ranges
 			static_assert(false, "not implemented yet");
 		}
 	}
+
+	constexpr auto
+	erase(auto&& container, auto&& value) noexcept
+	{
+		return erase_if(FWD(container), AGE_LAMBDA((c_auto & elem), { return value == elem; }));
+	}
 }	 // namespace age::ranges

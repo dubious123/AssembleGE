@@ -6,21 +6,13 @@ namespace age::asset
 	std::byte*
 	data::get_payload() noexcept
 	{
-		auto header = asset::file_header{};
-
-		std::memcpy(&header, blob.data(), sizeof(asset::file_header));
-
-		return blob.data() + header.header_size;
+		return blob.data();
 	}
 
 	read_buf
 	data::get_payload_read_buf() const noexcept
 	{
-		auto header = asset::file_header{};
-
-		std::memcpy(&header, blob.data(), sizeof(asset::file_header));
-
-		return read_buf{ blob.data() + header.header_size, blob.size_bytes() - header.header_size };
+		return read_buf{ blob.data(), blob.size_bytes() };
 	}
 }	 // namespace age::asset
 
@@ -71,7 +63,13 @@ namespace age::asset
 	handle
 	load_from_file(std::string_view file_path) noexcept
 	{
-		return load_from_path(std::format("{}{}", file_path, config::asset_extension));
+		return load_from_path(std::string_view{ std::format("{}{}", file_path, config::asset_extension) });
+	}
+
+	handle
+	load_from_path(const std::filesystem::path& full_path) noexcept
+	{
+		return load_from_path(std::string_view{ full_path.string() });
 	}
 
 	handle
@@ -94,7 +92,9 @@ namespace age::asset
 		auto header = asset::file_header{};
 		file.read(reinterpret_cast<char*>(&header), sizeof(file_header));
 
+		validate(header, file);
 		AGE_ASSERT(header.file_size == file_size);
+
 		c_auto blob_size = file_size - header.header_size;
 		c_auto alignment = detail::get_alignment(header.asset_kind);
 		auto*  p_blob	 = (std::byte*)::operator new(blob_size, alignment);

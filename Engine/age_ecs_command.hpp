@@ -35,24 +35,24 @@ namespace age::ecs
 		}
 
 		template <typename t_storage, typename t_renderer, typename... t_cmp>
-		FORCE_INLINE void
+		FORCE_INLINE uint64
 		fn_new_entity_impl(t_storage& storage, t_renderer& renderer, t_cmp&&... cmp) noexcept
 		{
-			storage.new_entity(handle_add_renderable(renderer, FWD(cmp))...);
+			return storage.new_entity(handle_add_renderable(renderer, FWD(cmp))...);
 		}
 
 		template <typename t_storage, typename t_renderer, typename... t_cmp>
-		void
+		uint64
 		fn_new_entity_with_arg(t_storage& storage, t_renderer& renderer, age::byte_buf& buffer) noexcept
 		{
-			meta::tuple_unpack_prefix<fn_new_entity_impl<t_storage, t_renderer, t_cmp...>>(buffer.read<t_cmp...>(), storage, renderer);
+			return meta::tuple_unpack_prefix<fn_new_entity_impl<t_storage, t_renderer, t_cmp...>>(buffer.read<t_cmp...>(), storage, renderer);
 		}
 
 		template <typename t_storage, typename t_renderer, typename... t_cmp>
-		void
+		uint64
 		fn_new_entity_no_arg(t_storage& storage, t_renderer& renderer, age::byte_buf&) noexcept
 		{
-			storage.new_entity<t_cmp...>(handle_add_renderable(renderer, t_cmp{})...);
+			return storage.new_entity<t_cmp...>(handle_add_renderable(renderer, t_cmp{})...);
 		}
 
 		template <typename t_storage, typename t_renderer, typename t_ent_id, typename... t_cmp>
@@ -88,11 +88,12 @@ namespace age::ecs
 
 	struct command_buffer
 	{
-		using t_fn_erased = void (*)();
+		using t_fn_erased  = void	 (*)();
+		using t_fn_new_ent = uint64 (*)();
 
 		struct new_entity_cmd
 		{
-			t_fn_erased fn_ptr;
+			t_fn_new_ent fn_ptr;
 		};
 
 		struct add_component_cmd
@@ -122,12 +123,12 @@ namespace age::ecs
 		{
 			if constexpr (sizeof...(arg) == 0)
 			{
-				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_new_entity_no_arg<t_storage, t_renderer, t_cmp...>));
+				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_new_ent>(&detail::fn_new_entity_no_arg<t_storage, t_renderer, t_cmp...>));
 			}
 			else if constexpr (sizeof...(arg) == sizeof...(t_cmp))
 			{
 				new_entity_cmp_buffer.write(t_cmp{ FWD(arg) }...);
-				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_erased>(&detail::fn_new_entity_with_arg<t_storage, t_renderer, t_cmp...>));
+				new_entity_cmd_vec.emplace_back(reinterpret_cast<t_fn_new_ent>(&detail::fn_new_entity_with_arg<t_storage, t_renderer, t_cmp...>));
 			}
 			else
 			{
@@ -171,7 +172,7 @@ namespace age::ecs
 
 		template <typename t_storage, typename t_renderer>
 		void
-		flush(t_storage& storage, t_renderer& renderer) noexcept
+		flush(t_storage& storage, t_renderer& renderer, age::vector<uint64>& new_ent_vec) noexcept
 		{
 			for (auto rem_cmd : remove_component_cmd_vec)
 			{
@@ -185,7 +186,7 @@ namespace age::ecs
 
 			for (auto cmd : new_entity_cmd_vec)
 			{
-				reinterpret_cast<void (*)(t_storage&, t_renderer&, age::byte_buf&)>(cmd.fn_ptr)(storage, renderer, new_entity_cmp_buffer);
+				new_ent_vec.emplace_back(reinterpret_cast<uint64 (*)(t_storage&, t_renderer&, age::byte_buf&)>(cmd.fn_ptr)(storage, renderer, new_entity_cmp_buffer));
 			}
 
 			AGE_ASSERT(new_entity_cmp_buffer.has_remaining() is_false);

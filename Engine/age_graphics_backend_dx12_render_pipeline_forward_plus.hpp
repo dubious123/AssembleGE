@@ -277,6 +277,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		// camera
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
+		t_camera_id						main_camera_id;
 
 
 		// row vector version
@@ -349,6 +350,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		// camera
 		t_camera_id
 		add_camera(const camera_desc& desc) noexcept;
+
+		void
+		set_main_camera(t_camera_id id) noexcept;
 
 		camera_desc
 		get_camera_desc(t_camera_id id) noexcept;

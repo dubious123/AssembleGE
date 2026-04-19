@@ -11,7 +11,7 @@ namespace age::asset::e
 		scene_editable,
 		mesh_baked,
 		lod_group_baked,
-		editor_scene,
+		editor_game,
 		editor_entity_storage,
 		count);
 
@@ -268,89 +268,3 @@ namespace age::asset::font
 		get_glyph_data(uint16 unicode) noexcept;
 	};
 }	 // namespace age::asset::font
-
-namespace age::asset::editor
-{
-	struct scene_data;
-
-	struct component_data
-	{
-		uint32 type_id;
-		uint32 version;
-		uint32 byte_size;
-	};
-
-	struct entity_data
-	{
-		char   name[config::max_entity_name_len];
-		uint64 id;
-		uint64 parent_id;
-		uint64 child_count;
-	};
-
-	struct archetype_data
-	{
-		char name[config::max_archetype_name_len];
-
-		uint32 component_count;
-		uint32 component_data_idx_buffer_offset;
-		uint64 entity_count;
-		uint64 entity_blob_byte_offset;
-		uint64 byte_size_per_entity;	// entity_data + components
-
-		const std::byte*
-		get_entity_blob_ptr(const scene_data&) const noexcept;
-
-		std::span<const uint32>
-		get_component_data_idx_buffer(const scene_data&) const noexcept;
-	};
-
-	struct entity_storage_data
-	{
-		char   name[config::max_entity_storage_name_len];
-		uint64 entity_count;
-		uint64 archetype_data_buffer_offset;
-		uint64 archetype_count;
-
-		std::span<const archetype_data>
-		get_archetype_buffer(const scene_data&) const noexcept;
-	};
-
-	struct scene_asset_header
-	{
-		uint32 version;
-
-		char   name[config::max_scene_name_len];
-		uint32 entity_storage_count;
-		uint32 component_count;
-		uint32 archetype_count;
-
-		uint64 entity_storage_buffer_byte_offset;
-
-		uint64 component_data_idx_buffer_byte_offset;
-		uint64 component_data_buffer_byte_offset;
-
-		uint64 archetype_data_buffer_byte_offset;
-	};
-
-	struct scene_data
-	{
-		uint32 version;
-
-		char name[config::max_scene_name_len];
-
-		std::span<const std::byte> scene_blob;
-
-		age::dynamic_array<std::byte> blob;
-
-		std::span<const component_data> component_data_buffer;
-
-		std::span<const uint32> component_data_idx_buffer;
-
-		std::span<const entity_storage_data> entity_storage_data_buffer;
-
-		std::span<const archetype_data> archetype_data_buffer;
-
-		scene_data(std::span<const std::byte> blob, const scene_asset_header& header) noexcept;
-	};
-}	 // namespace age::asset::editor

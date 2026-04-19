@@ -57,6 +57,7 @@
     <ClInclude Include="age_ecs_system_match.hpp" />
     <ClInclude Include="age_ecs_system_pipe.hpp" />
     <ClInclude Include="age_editor.hpp" />
+    <ClInclude Include="age_editor_fwd.hpp" />
     <ClInclude Include="age_external_adapter.hpp" />
     <ClInclude Include="age_extern_templates.hpp" />
     <ClInclude Include="age_fwd.hpp" />
@@ -114,14 +115,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="age_asset_editor_scene.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="age_asset_font.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -157,6 +150,14 @@
     <ClInclude Include="age_editor_ui.inl">
       <FileType>Document</FileType>
     </ClInclude>
+    <ClCompile Include="age_editor_save_load.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_editor_ui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -652,6 +653,8 @@
       <FileType>Document</FileType>
     </ClInclude>
     <None Include="age_asset.inl" />
+    <None Include="age_editor.inl" />
+    <None Include="age_editor_save_load.inl" />
     <None Include="cpp.hint" />
     <None Include="todo.md">
       <SubType>

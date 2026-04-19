@@ -4,7 +4,7 @@
 namespace age::editor
 {
 	ui::widget_ctx
-	ui_entity_tree_node(const char* p_name, uint64 ent_id, uint64 archetype, bool selected) noexcept
+	ui_entity_tree_node(storage_editor_data& editor_storage, uint64 ent_id, uint64 archetype, bool selected) noexcept
 	{
 		using namespace age::ui;
 		using enum input::e::key_kind;
@@ -15,14 +15,14 @@ namespace age::editor
 
 		if (auto interact = widget::begin(style::vertical() | set_interact(true) | set_save_state(true)))
 		{
-			auto style_state = e::style_state::idle;
+			auto style_state = ui::e::style_state::idle;
 			if (interact.pressed<mouse_left>())
 			{
-				style_state = e::style_state::active;
+				style_state = ui::e::style_state::active;
 			}
 			else if (interact.contains_mouse())
 			{
-				style_state = e::style_state::hover;
+				style_state = ui::e::style_state::hover;
 			}
 
 			if (ui::g::p_input_ctx->is_shift_down())
@@ -31,11 +31,11 @@ namespace age::editor
 				{
 					if (selected)
 					{
-						age::editor::remove_select(ent_id);
+						age::editor::remove_select(editor_storage.code_idx, ent_id);
 					}
 					else
 					{
-						age::editor::add_select(ent_id);
+						age::editor::add_select(editor_storage.code_idx, ent_id);
 					}
 				}
 			}
@@ -47,7 +47,7 @@ namespace age::editor
 
 					if (selected is_false)
 					{
-						age::editor::add_select(ent_id);
+						age::editor::add_select(editor_storage.code_idx, ent_id);
 					}
 				}
 			}
@@ -71,15 +71,9 @@ namespace age::editor
 					widget::disclosure_indicator(btn_state.toggled, disclosure_indicator_size);
 				}
 
-				if (g::entity_name_map.contains(ent_id) is_false)
-				{
-					auto& name	= g::entity_name_map[ent_id];
-					name		= {};
-					auto result = std::format_to_n(name.data(), name.size() - 1, "entity_{}", g::entity_name_map.size() - 1);
-					*result.out = '\0';
-				}
+				auto&& [arch_idx, ent_idx] = editor_storage.id_to_editor_location_map[ent_id];
 
-				widget::text_input(g::entity_name_map[ent_id].data(), 64);
+				widget::text_input(editor_storage.archetype_data_vec[arch_idx].entity_data_vec[ent_idx].name.data(), config::max_entity_name_len);
 
 				// widget::text(p_name);
 
@@ -258,7 +252,7 @@ namespace age::editor
 		using enum input::e::key_kind;
 		using namespace ui;
 
-		if (auto res = widget::begin(style::layout(e::widget_layout::vertical)
+		if (auto res = widget::begin(style::layout(ui::e::widget_layout::vertical)
 									 | set_size(size_mode::grow(), size_mode::fit())))
 		{
 			auto is_open = false;
@@ -287,11 +281,11 @@ namespace age::editor
 					{
 						close_out = close_btn.clicked();
 
-						widget::begin(set_align(e::widget_align::center)
+						widget::begin(set_align(ui::e::widget_align::center)
 									  | set_draw(header.contains_mouse())
 									  | set_size(size_mode::grow(), size_mode::grow())
 									  | set_border_thickness(0.f)
-									  | set_shape_kind(e::shape_kind::cross)
+									  | set_shape_kind(ui::e::shape_kind::cross)
 									  | set_body_brush_data(theme::color_text_gray_dark()));
 					}
 				}

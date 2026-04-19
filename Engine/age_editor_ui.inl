@@ -3,7 +3,7 @@
 namespace age::editor
 {
 	void
-	add_components(auto& storage, auto& renderer, auto ent_id, auto archetype) noexcept
+	add_components(auto& storage, auto& renderer, auto& editor_storage, auto ent_id, auto archetype) noexcept
 	{
 		using t_storage			 = BARE_OF(storage);
 		using t_ent_id			 = typename t_storage::t_ent_id;
@@ -44,7 +44,7 @@ namespace age::editor
 namespace age::editor
 {
 	ui::widget_ctx
-	ui_entity_tree_node(const char* p_name, uint64 ent_id, uint64 archetype, bool selected) noexcept;
+	ui_entity_tree_node(storage_editor_data&, uint64 ent_id, uint64 archetype, bool selected) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor
@@ -145,12 +145,12 @@ namespace age::editor
 	namespace detail
 	{
 		void
-		ui_inspector_impl(auto& entities, auto& renderer) noexcept
+		ui_inspector_impl(auto& entities, auto& renderer, storage_editor_data& editor_storage) noexcept
 		{
-			using namespace ui;
+			using namespace age::ui;
 			using enum input::e::key_kind;
 
-			if (g::select_vec.is_empty()) { return; }
+			if (g::select_vec[editor_storage.code_idx].is_empty()) { return; }
 
 			using t_storage			 = BARE_OF(entities);
 			using t_ent_id			 = typename t_storage::t_ent_id;
@@ -158,9 +158,9 @@ namespace age::editor
 			using t_archetype_traits = typename t_storage::t_archetype_traits;
 
 			// todo : implement multiselection
-			if (g::select_vec.size() > 1) { return; }
+			if (g::select_vec[editor_storage.code_idx].size() > 1) { return; }
 
-			c_auto ent_id = static_cast<t_ent_id>(g::select_vec[0]);
+			c_auto ent_id = static_cast<t_ent_id>(g::select_vec[editor_storage.code_idx][0]);
 
 			c_auto archetype = entities.get_archetype(ent_id);
 
@@ -196,14 +196,14 @@ namespace age::editor
 
 						if (auto interact = widget::begin(style::horizontal() | set_interact(already_has is_false) | set_save_state(already_has is_false) | set_width_grow() | set_height_fit()))
 						{
-							auto style_state = e::style_state::idle;
+							auto style_state = ui::e::style_state::idle;
 							if (interact.pressed<mouse_left>())
 							{
-								style_state = e::style_state::active;
+								style_state = ui::e::style_state::active;
 							}
 							else if (interact.contains_mouse())
 							{
-								style_state = e::style_state::hover;
+								style_state = ui::e::style_state::hover;
 							}
 
 							if (ui::g::p_input_ctx->is_shift_down())
@@ -230,7 +230,7 @@ namespace age::editor
 
 								widget::indicator(ui::e::shape_kind::circle, font::get_line_height(theme::text_font_size()), float4{ get_component_color(storage_cmp_idx), already_has ? theme::opacity_medium() : 1.0f });
 
-								widget::text(t_archetype_traits::get_component_name(storage_cmp_idx).data(), e::style_state::idle, already_has is_false);
+								widget::text(t_archetype_traits::get_component_name(storage_cmp_idx).data(), ui::e::style_state::idle, already_has is_false);
 							}
 						}
 					}
@@ -244,7 +244,7 @@ namespace age::editor
 						{
 							if (btn_add.clicked())
 							{
-								add_components(entities, renderer, ent_id, drop_down_state.drop_down_data.selected.extract<t_archetype>());
+								add_components(entities, renderer, editor_storage, ent_id, drop_down_state.drop_down_data.selected.extract<t_archetype>());
 
 								drop_down_state.drop_down_data.selected.reset();
 								drop_down_state.toggled = false;
@@ -268,14 +268,23 @@ namespace age::editor
 			}
 
 
-			g::command_buf.flush(entities, renderer);
+			g::command_buf.flush(entities, renderer, g::ui_new_entity_buffer);
+
+			c_auto new_archetype = entities.get_archetype(ent_id);
+
+			detail::re_register_entity(editor_storage, ent_id, new_archetype);
 		}
 	}	 // namespace detail
 
 	void
 	ui_inspector(auto& editor_game, auto& renderer) noexcept
 	{
-		editor_game.visit_storage_at(g::current_scene_idx, g::current_storage_idx, AGE_FUNC(detail::ui_inspector_impl), renderer);
+		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+		for (auto& storage_data : current_scene.storage_data_vec)
+		{
+			editor_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_inspector_impl), renderer, storage_data);
+		}
 	}
 }	 // namespace age::editor
 
@@ -284,9 +293,9 @@ namespace age::editor
 	namespace detail
 	{
 		void
-		ui_entity_hierarchy_impl(auto& entities, auto& renderer) noexcept
+		ui_entity_hierarchy_impl(auto& entities, auto& renderer, storage_editor_data& editor_storage) noexcept
 		{
-			using namespace ui;
+			using namespace age::ui;
 			if (auto _ = widget::vertical())
 			{
 				if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
@@ -309,24 +318,78 @@ namespace age::editor
 
 				for (auto&& [ent_id, ent_arch] : entities | each_entity(ecs::query<ecs::sv_entity_id, ecs::sv_archetype>()))
 				{
-					c_auto selected = is_selected(ent_id);
-					ui_entity_tree_node("entity", ent_id, ent_arch, selected);
+					c_auto selected = is_selected(editor_storage.code_idx, ent_id);
+					ui_entity_tree_node(editor_storage, ent_id, ent_arch, selected);
 
 					if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
 					{
 						g::command_buf.remove_entity(entities, renderer, ent_id);
-						remove_select(ent_id);
+						remove_select(editor_storage.code_idx, ent_id);
+						auto&& [archetype_idx, ent_idx] = editor_storage.id_to_editor_location_map[ent_id];
+
+						detail::unregister_entity(editor_storage, archetype_idx, ent_id, ent_idx);
 					}
 				}
 			}
 
-			g::command_buf.flush(entities, renderer);
+			AGE_ASSERT(g::ui_new_entity_buffer.is_empty());
+
+			g::command_buf.flush(entities, renderer, g::ui_new_entity_buffer);
+
+			for (auto new_ent_id : g::ui_new_entity_buffer)
+			{
+				auto archetype = entities.get_archetype(static_cast<typename BARE_OF(entities)::t_ent_id>(new_ent_id));
+				auto found	   = false;
+
+				auto new_ent_data = entity_editor_data{
+					.id	  = new_ent_id,
+					.name = util::to_fixed_str<config::max_entity_name_len>(std::format("new_entity_{}", editor_storage.entity_count++))
+				};
+
+				for (auto&& [arch_idx, arch_data] : editor_storage.archetype_data_vec | std::views::enumerate)
+				{
+					if (arch_data.archetype == archetype)
+					{
+						editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ static_cast<uint32>(arch_idx), arch_data.entity_data_vec.size<uint64>() };
+						arch_data.entity_data_vec.emplace_back(std::move(new_ent_data));
+						found = true;
+						break;
+					}
+				}
+
+				if (found is_false)
+				{
+					editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ editor_storage.archetype_data_vec.size<uint32>(), 0 };
+					auto& arch_data										 = editor_storage.archetype_data_vec.emplace_back();
+					arch_data.archetype									 = archetype;
+					arch_data.entity_data_vec.emplace_back(std::move(new_ent_data));
+				}
+			}
+
+			g::ui_new_entity_buffer.clear();
 		}
 	}	 // namespace detail
 
 	void
 	ui_entity_hierarchy(auto& editor_game, auto& renderer) noexcept
 	{
-		editor_game.visit_storage_at(g::current_scene_idx, g::current_storage_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer);
+		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+		g::select_vec.resize(current_scene.storage_data_vec.size());
+
+		for (auto& storage_data : current_scene.storage_data_vec)
+		{
+			editor_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer, storage_data);
+		}
+	}
+
+	void
+	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept
+	{
+		using namespace ui;
+		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_interact(true)))
+		{
+			age::editor::update_camera(renderer, h_game_scene.focused(), h_window);
+		}
 	}
 }	 // namespace age::editor

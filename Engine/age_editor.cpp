@@ -7,7 +7,11 @@ namespace age::editor
 	init() noexcept
 	{
 		g::command_buf.clear();
-		g::entity_name_map.clear();
+
+		g::cam = camera_data{};
+
+		g::current_mode = e::mode_kind::edit;
+		g::current_game = game_editor_data{};
 	}
 
 	void
@@ -21,36 +25,51 @@ namespace age::editor
 		}
 
 		g::command_buf.clear();
-		g::entity_name_map.clear();
 	}
 
-	void
-	add_select(uint64 ent_id) noexcept
+	bool
+	is_edit_mode() noexcept
 	{
-		if (is_selected(ent_id) is_false)
+		return g::current_mode == e::mode_kind::edit;
+	}
+
+	bool
+	is_play_mode() noexcept
+	{
+		return g::current_mode == e::mode_kind::play;
+	}
+}	 // namespace age::editor
+
+// selete
+namespace age::editor
+{
+	void
+	add_select(uint32 storage_code_idx, uint64 ent_id) noexcept
+	{
+		if (is_selected(storage_code_idx, ent_id) is_false)
 		{
-			g::select_vec.emplace_back(ent_id);
+			g::select_vec[storage_code_idx].emplace_back(ent_id);
 		}
 	}
 
 	void
-	remove_select(uint64 ent_id) noexcept
+	remove_select(uint32 storage_code_idx, uint64 ent_id) noexcept
 	{
-		for (auto&& [idx, id] : g::select_vec | std::views::enumerate)
+		for (auto&& [idx, id] : g::select_vec[storage_code_idx] | std::views::enumerate)
 		{
 			if (ent_id == id)
 			{
-				g::select_vec[idx] = g::select_vec.back();
-				g::select_vec.pop_back();
+				g::select_vec[storage_code_idx][idx] = g::select_vec[storage_code_idx].back();
+				g::select_vec[storage_code_idx].pop_back();
 				break;
 			}
 		}
 	}
 
 	bool
-	is_selected(uint64 ent_id) noexcept
+	is_selected(uint32 storage_code_idx, uint64 ent_id) noexcept
 	{
-		for (auto id : g::select_vec)
+		for (auto id : g::select_vec[storage_code_idx])
 		{
 			if (ent_id == id) { return true; }
 		}
@@ -60,6 +79,9 @@ namespace age::editor
 	void
 	clear_select() noexcept
 	{
-		g::select_vec.clear();
+		for (auto& vec : g::select_vec)
+		{
+			vec.clear();
+		}
 	}
 }	 // namespace age::editor

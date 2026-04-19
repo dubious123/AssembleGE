@@ -164,6 +164,19 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
 		resource::set_name(h_mapping_rt_instance_render_data_buffer_arr, L"mapping_rt_instance_render_data_buffer_arr[{}]");
 		resource::set_name(h_mapping_ui_data_buffer_arr, L"mapping_ui_data_buffer_arr[{}]");
+
+		// default camera
+		main_camera_id = add_camera(age::graphics::render_pipeline::forward_plus::camera_desc{
+			.kind		= age::graphics::e::camera_kind::perspective,
+			.pos		= float3::zero(),
+			.quaternion = age::math::g::quaternion_identity,
+			.near_z		= 0.1f,
+			.far_z		= 1000.f,
+			.perspective{
+				.fov_y		  = age::cvt_to_radian(75.f),
+				.aspect_ratio = 16.f / 9.f } });
+
+		AGE_ASSERT(main_camera_id == 0);
 	}
 
 	void
@@ -233,11 +246,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
 		resource::unmap_and_release(h_mapping_rt_instance_render_data_buffer_arr);
 
+		AGE_ASSERT(camera_data_vec.size() == 1);
+		AGE_ASSERT(camera_desc_vec.size() == 1);
+
+		AGE_ASSERT(main_camera_id == 0);
+		remove_camera(main_camera_id);
 
 		AGE_ASSERT(object_data_vec.size() == 0);
 		AGE_ASSERT(object_transform_data_vec.size() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
+		AGE_ASSERT(camera_desc_vec.size() == 0);
 		AGE_ASSERT(directional_light_vec.size() == 0);
 		AGE_ASSERT(unified_light_vec.size() == 0);
 		AGE_ASSERT(texture_map.size() == 0);
@@ -824,12 +843,19 @@ namespace age::graphics::render_pipeline::forward_plus
 	t_camera_id
 	pipeline::add_camera(const camera_desc& desc) noexcept
 	{
+		// init
 		c_auto desc_id = camera_desc_vec.emplace_back(desc);
 		c_auto data_id = camera_data_vec.emplace_back(detail::calc_camera_data<true>(desc));
 
 		AGE_ASSERT(desc_id == data_id);
 
 		return static_cast<t_camera_id>(data_id);
+	}
+
+	void
+	pipeline::set_main_camera(t_camera_id id) noexcept
+	{
+		main_camera_id = id;
 	}
 
 	camera_desc
@@ -848,6 +874,11 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::remove_camera(t_camera_id& id) noexcept
 	{
+		if (id == main_camera_id)
+		{
+			main_camera_id = 0;
+		}
+
 		camera_desc_vec.remove(id);
 		camera_data_vec.remove(id);
 		id = invalid_id_uint32;
@@ -1284,8 +1315,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
 		}
 
-
-		c_auto& cam_desc = camera_desc_vec[0];
+		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 		root_constants.bind(shared_type::root_constants{
 			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
 			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()),
@@ -1294,27 +1324,27 @@ namespace age::graphics::render_pipeline::forward_plus
 			.light_tile_count_y				   = light_tile_count_y,
 			//.cluster_near_z					   = cam_desc.near_z,
 			//.cluster_far_z					   = cam_desc.far_z,
-			.cam_near_z				= cam_desc.near_z,
-			.cam_far_z				= cam_desc.far_z,
-			.cam_log_far_near_ratio = std::log2(cam_desc.far_z / cam_desc.near_z),
+			.cam_near_z				= main_cam_desc.near_z,
+			.cam_far_z				= main_cam_desc.far_z,
+			.cam_log_far_near_ratio = std::log2(main_cam_desc.far_z / main_cam_desc.near_z),
 			.shadow_atlas_id		= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
 		});
 
 		// todo multiple camera
-		c_auto& cam_data = camera_data_vec[0];
-		c_auto	dt_ns	 = runtime::i_time.get_delta_time_ns();
-		c_auto	dt_ms	 = std::chrono::duration<float, std::milli>(dt_ns).count();
+		c_auto& main_cam_data = camera_data_vec[main_camera_id];
+		c_auto	dt_ns		  = runtime::i_time.get_delta_time_ns();
+		c_auto	dt_ms		  = std::chrono::duration<float, std::milli>(dt_ns).count();
 
 		auto frame_d = shared_type::frame_data{
-			.view_proj							  = cam_data.view_proj,
-			.view_proj_inv						  = cam_data.view_proj_inv,
-			.camera_pos							  = cam_data.pos,
+			.view_proj							  = main_cam_data.view_proj,
+			.view_proj_inv						  = main_cam_data.view_proj_inv,
+			.camera_pos							  = main_cam_data.pos,
 			.time								  = dt_ms,
 			.inv_backbuffer_size				  = float2{ 1.f / extent.width, 1.f / extent.height },
 			.backbuffer_size					  = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
-			.camera_forward						  = cam_data.forward,
+			.camera_forward						  = main_cam_data.forward,
 			.frame_index						  = runtime::i_time.get_frame_count(),
-			.camera_right						  = cam_data.right,
+			.camera_right						  = main_cam_data.right,
 			.main_buffer_texture_id				  = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_main_buffer_srv_desc),
 			.depth_buffer_texture_id			  = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_depth_buffer_srv_desc),
 			.rt_tlas_buffer_id					  = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_rt_tlas_buffer_srv_desc),
@@ -1323,7 +1353,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		};
 
 
-		std::ranges::copy(cam_data.frustum_plane_arr, frame_d.frustum_planes);
+		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);
 
 		h_mapping_frame_data->upload(&frame_d, sizeof(shared_type::frame_data), sizeof(shared_type::frame_data) * graphics::g::frame_buffer_idx);
 

@@ -285,6 +285,7 @@ namespace age::ecs::entity_storage
 		}
 
 		template <cx_component... t, typename... t_arg>
+		requires(sizeof...(t) == sizeof...(t_arg) or sizeof...(t_arg) == 0)
 		t_ent_id
 		new_entity(t_arg&&... arg) noexcept
 		{
@@ -296,7 +297,6 @@ namespace age::ecs::entity_storage
 			}
 			else
 			{
-				static_assert((sizeof...(t) == sizeof...(t_arg)), "invalid template parameter");
 				static_assert((std::is_constructible_v<std::remove_cvref_t<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
@@ -304,6 +304,23 @@ namespace age::ecs::entity_storage
 					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(FWD(arg)...)...);
 				}(get_sorted_arg_index_sequence<t...>(), FWD(arg)...);
 			}
+		}
+
+		t_ent_id
+		new_entity(t_archetype archetype) noexcept
+		{
+			auto& ent_block_collection = entity_blocks_map[archetype];
+			auto& entity_block		   = ent_block_collection.free_block(archetype);
+			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
+
+			entity_info_vec[entity_id].local_idx = entity_block.new_entity(entity_id);
+
+			if (entity_block.is_full())
+			{
+				ent_block_collection.update_full(entity_block.entity_block_idx());
+			}
+
+			return entity_id;
 		}
 
 		void

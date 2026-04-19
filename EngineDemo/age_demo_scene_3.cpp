@@ -14,34 +14,34 @@ namespace age_demo::scene_3
 
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
 
-		i_init.set_ent_main_cam = i_init.get_editor_game->editor_scene_0.ent_storage_main.new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
+		// i_init.set_ent_main_cam = i_init.get_editor_game->editor_scene_0.ent_storage_main.new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
 
-		auto&& [pos, cam] = i_init.get_editor_game->editor_scene_0.ent_storage_main.get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
-		{
-			pos = age::ecs::position{};
+		// auto&& [pos, cam] = i_init.get_editor_game->editor_scene_0.ent_storage_main.get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
+		//{
+		//	pos = age::ecs::position{};
 
-			cam.kind = age::graphics::e::camera_kind::perspective;
+		//	cam.kind = age::graphics::e::camera_kind::perspective;
 
-			cam.euler_deg = age::math::quat_to_euler_deg(age::math::g::quaternion_identity);
+		//	cam.euler_deg = age::math::quat_to_euler_deg(age::math::g::quaternion_identity);
 
-			cam.near_z = 0.1f;
-			cam.far_z  = 1000.f;
+		//	cam.near_z = 0.1f;
+		//	cam.far_z  = 1000.f;
 
-			cam.fov_y = age::cvt_to_radian(75.f);
+		//	cam.fov_y = age::cvt_to_radian(75.f);
 
-			cam.aspect_ratio = age::platform::get_client_width(i_init.get_h_window)
-							 / static_cast<float>(age::platform::get_client_height(i_init.get_h_window));
+		//	cam.aspect_ratio = age::platform::get_client_width(i_init.get_h_window)
+		//					 / static_cast<float>(age::platform::get_client_height(i_init.get_h_window));
 
-			cam.render_id = i_init.get_render_pipeline->add_camera(age::graphics::render_pipeline::forward_plus::camera_desc{
-				.kind		= age::graphics::e::camera_kind::perspective,
-				.pos		= pos,
-				.quaternion = age::math::g::quaternion_identity,
-				.near_z		= cam.near_z,
-				.far_z		= cam.far_z,
-				.perspective{
-					.fov_y		  = cam.fov_y,
-					.aspect_ratio = cam.aspect_ratio } });
-		}
+		//	cam.render_id = i_init.get_render_pipeline->add_camera(age::graphics::render_pipeline::forward_plus::camera_desc{
+		//		.kind		= age::graphics::e::camera_kind::perspective,
+		//		.pos		= pos,
+		//		.quaternion = age::math::g::quaternion_identity,
+		//		.near_z		= cam.near_z,
+		//		.far_z		= cam.far_z,
+		//		.perspective{
+		//			.fov_y		  = cam.fov_y,
+		//			.aspect_ratio = cam.aspect_ratio } });
+		//}
 
 		on_ctx{
 			AGE_LAMBDA(
@@ -98,16 +98,12 @@ namespace age_demo::scene_3
 
 		using enum age::input::e::key_kind;
 
-		// age::editor::get_entity_storage_data(i_update.get_entities(), i_update.get_render_pipeline());
-
-
 		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface) is_false)
 		{
 			return;
 		}
 
 		age::ui::begin_frame(i_update.get_h_window);
-
 
 		if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 		{
@@ -127,60 +123,18 @@ namespace age_demo::scene_3
 				}
 			}
 
-
-			auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
-
-			if (auto h_game_scene = widget::vertical(set_width_grow(), set_height_grow(), set_interact(true)))
+			if (auto _ = widget::begin(style::vertical() | set_width_grow() | set_height_grow()))
 			{
-				i_update.set_game_focused = h_game_scene.focused();
-				c_auto focused			  = i_update.get_game_focused();
+				age::editor::ui_scene_view(i_update.get_render_pipeline(), i_init.get_h_window());
+			}
 
-				for (auto&& [pos, cam] : entities | age::ecs::each_entity<age::ecs::position, age::ecs::camera>())
-				{
-					if (focused)
-					{
-						c_auto dt_s = std::max(age::runtime::i_time.get_delta_time_s(), 1.f / 160);
-
-						c_auto speed = i_update.get_sprint() ? input::g::move_speed * input::g::sprint_mult : input::g::move_speed;
-
-						c_auto move_smoothing_factor = 1.f - std::exp(-input::g::move_smoothing * dt_s);
-						c_auto look_smoothing_factor = 1.f - std::exp(-input::g::look_smoothing * dt_s);
-						c_auto zoom_smoothing_factor = 1.f - std::exp(-input::g::zoom_smoothing * dt_s);
-
-						i_update.set_smoothed_move = age::math::lerp(i_update.get_smoothed_move(), i_update.get_move(), move_smoothing_factor);
-						i_update.set_smoothed_zoom = age::math::lerp(i_update.get_smoothed_zoom(), i_update.get_zoom(), zoom_smoothing_factor);
-
-						auto look_target		   = i_update.get_right_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
-						i_update.set_smoothed_look = age::math::lerp(i_update.get_smoothed_look(), look_target, look_smoothing_factor);
-
-						auto pan_target			  = i_update.get_middle_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
-						i_update.set_smoothed_pan = age::math::lerp(i_update.get_smoothed_pan(), pan_target, look_smoothing_factor);
-
-						cam.euler_deg.y += i_update.get_smoothed_look->x * input::g::sensitivity;
-						cam.euler_deg.x += i_update.get_smoothed_look->y * input::g::sensitivity;
-						cam.euler_deg.x	 = std::clamp(cam.euler_deg.x, -89.f, 89.f);
-
-						c_auto xm_look_quat = cam.euler_deg * age::g::degree_to_radian
-											| age::simd::load()
-											| age::simd::euler_to_quat();
-
-						c_auto forward = age::simd::g::xm_forward_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
-						c_auto right   = age::simd::g::xm_right_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
-						c_auto up	   = age::simd::g::xm_up_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
-
-						pos -= right * i_update.get_smoothed_pan->x * input::g::pan_speed * dt_s;
-						pos += up * i_update.get_smoothed_pan->y * input::g::pan_speed * dt_s;
-						pos += forward * i_update.get_smoothed_zoom() * input::g::zoom_speed;
-						pos += (right * i_update.get_smoothed_move->x + forward * i_update.get_smoothed_move->y) * speed * dt_s;
-					}
-
-
-					auto cam_desc					  = i_update.get_render_pipeline->get_camera_desc(cam.render_id);
-					cam_desc.pos					  = pos;
-					cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
-					cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
-					i_update.get_render_pipeline->update_camera(cam.render_id, cam_desc);
-				}
+			if (age::editor::is_edit_mode())
+			{
+				age::editor::update_game(i_update.get_editor_game(), i_update.get_render_pipeline());
+			}
+			else if (age::editor::is_play_mode())
+			{
+				// play mode
 			}
 		}
 
@@ -245,16 +199,63 @@ namespace age_demo::scene_3
 			}
 		}
 
+		// for (auto&& [pos, cam] : entities | age::ecs::each_entity<age::ecs::position, age::ecs::camera>())
+		//{
+		//	if (focused)
+		//	{
+		//		c_auto dt_s = std::max(age::runtime::i_time.get_delta_time_s(), 1.f / 160);
+
+		//		c_auto speed = i_update.get_sprint() ? input::g::move_speed * input::g::sprint_mult : input::g::move_speed;
+
+		//		c_auto move_smoothing_factor = 1.f - std::exp(-input::g::move_smoothing * dt_s);
+		//		c_auto look_smoothing_factor = 1.f - std::exp(-input::g::look_smoothing * dt_s);
+		//		c_auto zoom_smoothing_factor = 1.f - std::exp(-input::g::zoom_smoothing * dt_s);
+
+		//		i_update.set_smoothed_move = age::math::lerp(i_update.get_smoothed_move(), i_update.get_move(), move_smoothing_factor);
+		//		i_update.set_smoothed_zoom = age::math::lerp(i_update.get_smoothed_zoom(), i_update.get_zoom(), zoom_smoothing_factor);
+
+		//		auto look_target		   = i_update.get_right_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
+		//		i_update.set_smoothed_look = age::math::lerp(i_update.get_smoothed_look(), look_target, look_smoothing_factor);
+
+		//		auto pan_target			  = i_update.get_middle_mouse_down() ? i_update.get_look() : float2{ 0.f, 0.f };
+		//		i_update.set_smoothed_pan = age::math::lerp(i_update.get_smoothed_pan(), pan_target, look_smoothing_factor);
+
+		//		cam.euler_deg.y += i_update.get_smoothed_look->x * input::g::sensitivity;
+		//		cam.euler_deg.x += i_update.get_smoothed_look->y * input::g::sensitivity;
+		//		cam.euler_deg.x	 = std::clamp(cam.euler_deg.x, -89.f, 89.f);
+
+		//		c_auto xm_look_quat = cam.euler_deg * age::g::degree_to_radian
+		//							| age::simd::load()
+		//							| age::simd::euler_to_quat();
+
+		//		c_auto forward = age::simd::g::xm_forward_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
+		//		c_auto right   = age::simd::g::xm_right_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
+		//		c_auto up	   = age::simd::g::xm_up_f4 | age::simd::rotate3(xm_look_quat) | age::simd::to<float3>();
+
+		//		pos -= right * i_update.get_smoothed_pan->x * input::g::pan_speed * dt_s;
+		//		pos += up * i_update.get_smoothed_pan->y * input::g::pan_speed * dt_s;
+		//		pos += forward * i_update.get_smoothed_zoom() * input::g::zoom_speed;
+		//		pos += (right * i_update.get_smoothed_move->x + forward * i_update.get_smoothed_move->y) * speed * dt_s;
+		//	}
+
+
+		//	auto cam_desc					  = i_update.get_render_pipeline->get_camera_desc(cam.render_id);
+		//	cam_desc.pos					  = pos;
+		//	cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
+		//	cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
+		//	i_update.get_render_pipeline->update_camera(cam.render_id, cam_desc);
+		//}
+
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 	}
 
 	FORCE_INLINE decltype(auto)
 	deinit() noexcept
 	{
-		auto& entities = i_deinit.get_editor_game->editor_scene_0.ent_storage_main;
-
+		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
 		age::editor::deinit();
 
+		auto& entities = i_deinit.get_editor_game->editor_scene_0.ent_storage_main;
 		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
 		{
 			i_deinit.get_render_pipeline().release_mesh(m_id);

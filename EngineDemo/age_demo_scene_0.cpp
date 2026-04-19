@@ -31,6 +31,8 @@ namespace age_demo::scene_0
 				| AGE_FUNC(i_init.get_render_pipeline->add_camera)
 				| AGE_FUNC(i_init.get_camera_id_vec->emplace_back),
 
+			AGE_LAMBDA((), { i_init.get_render_pipeline->set_main_camera(i_init.get_camera_id_vec[0]); }),
+
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
 				.intensity = 0.3f,

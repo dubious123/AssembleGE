@@ -21,6 +21,27 @@ namespace age::data_structure
 
 namespace age::ecs
 {
+	template <typename t>
+	consteval auto
+	get_component_name()
+	{
+		return "unnamed component";
+	}
+
+	template <typename t, std::size_t i>
+	consteval auto
+	get_component_name_at()
+	{
+		return "unnamed component";
+	}
+
+	template <typename t>
+	consteval bool
+	is_ecs_component()
+	{
+		return false;
+	}
+
 	class entity_storage_tag { };
 
 	class entity_block_tag { };
@@ -30,7 +51,7 @@ namespace age::ecs
 		requires std::is_trivially_copyable_v<std::decay_t<t_cmp>>;
 		requires std::is_trivially_destructible_v<std::decay_t<t_cmp>>;
 		requires std::is_standard_layout_v<std::decay_t<t_cmp>>;
-	};
+	} and ecs::is_ecs_component<std::decay_t<t_cmp>>();
 
 	template <typename t>
 	concept cx_entity_storage = requires { typename std::remove_cvref_t<t>::ecs_tag; }

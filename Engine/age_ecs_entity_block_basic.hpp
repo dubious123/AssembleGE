@@ -467,7 +467,7 @@ namespace age::ecs::entity_block
 			entity_count()	   = 0;
 		}
 
-		template <typename... t>
+		template <cx_component... t>
 		t_local_entity_idx
 		new_entity(t_ent_id entity_id)
 		{
@@ -480,16 +480,34 @@ namespace age::ecs::entity_block
 			return local_ent_idx;
 		}
 
-		template <typename... t>
+		template <cx_component... t>
 		t_local_entity_idx
-		new_entity(t_ent_id entity_id, t&&... arg)
+		new_entity(t_ent_id entity_id, auto&&... arg)
+			requires(sizeof...(t) == sizeof...(arg) and sizeof...(t) > 0)
 		{
 			AGE_ASSERT(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
 
-			((std::construct_at<t>(cmp_ptr<t>(local_ent_idx), std::forward<t>(arg))), ...);
+			((std::construct_at<t>(cmp_ptr<t>(local_ent_idx), FWD(arg))), ...);
+			return local_ent_idx;
+		}
+
+		t_local_entity_idx
+		new_entity(t_ent_id entity_id, t_archetype archetype) noexcept
+		{
+			AGE_ASSERT(is_full() is_false);
+			AGE_ASSERT(archetype == local_archetype());
+
+			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
+			ent_id(local_ent_idx) = entity_id;
+
+			for (auto storage_cmp_idx : views::each_set_bit_idx(archetype))
+			{
+				t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto* p_self, t_local_entity_idx local_ent_idx), { std::construct_at<t_cmp>(p_self->cmp_ptr<t_cmp>(local_ent_idx)); }), this, local_ent_idx);
+			}
+
 			return local_ent_idx;
 		}
 

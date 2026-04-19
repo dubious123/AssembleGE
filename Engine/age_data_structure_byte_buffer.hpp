@@ -390,6 +390,13 @@ namespace age::inline data_structure
 			}
 		}
 
+		FORCE_INLINE constexpr void
+		skip_read(size_type n_byte) noexcept
+		{
+			AGE_ASSERT(read_pos + n_byte <= write_pos);
+			read_pos += n_byte;
+		}
+
 		template <byte_buffer_cx::custom_with_ctx... t>
 		requires(sizeof...(t) > 0)
 		FORCE_INLINE constexpr decltype(auto)
@@ -570,6 +577,13 @@ namespace age::inline data_structure
 					read(arr[i]);
 				}
 			}
+		}
+
+		FORCE_INLINE constexpr void
+		skip_read(size_type n_byte) noexcept
+		{
+			AGE_ASSERT(read_pos + n_byte <= cap);
+			read_pos += n_byte;
 		}
 
 		template <byte_buffer_cx::custom_with_ctx... t>
