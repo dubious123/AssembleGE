@@ -410,7 +410,7 @@ namespace age::ecs
 		static consteval uint32
 		byte_size() noexcept
 		{
-			return 0ul;
+			return config::max_asset_path_len;
 		}
 
 		void

@@ -35,7 +35,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
-	ray_query<RAY_FLAG_NONE> query;
+	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
 	ray_desc desc;
 	desc.Origin	   = camera_pos;

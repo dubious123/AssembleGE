@@ -548,7 +548,7 @@ namespace age::editor
 					asset::write_to_file(storage_path, asset_file_header, *buf.data());
 				}
 
-				if (g::current_game.default_active_scene_idx == 0)
+				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
 					auto h_storage_asset = asset::load_from_path(storage_path);
 

@@ -3,7 +3,7 @@
 
 namespace age_demo::scene_3
 {
-	FORCE_INLINE decltype(auto)
+	void
 	init() noexcept
 	{
 		using namespace age::ecs::system;
@@ -13,35 +13,6 @@ namespace age_demo::scene_3
 		i_init.get_editor_game->init();
 
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
-
-		// i_init.set_ent_main_cam = i_init.get_editor_game->editor_scene_0.ent_storage_main.new_entity<age::ecs::position, age::ecs::rotation, age::ecs::camera>();
-
-		// auto&& [pos, cam] = i_init.get_editor_game->editor_scene_0.ent_storage_main.get_component<age::ecs::position&, age::ecs::camera&>(i_init.get_ent_main_cam);
-		//{
-		//	pos = age::ecs::position{};
-
-		//	cam.kind = age::graphics::e::camera_kind::perspective;
-
-		//	cam.euler_deg = age::math::quat_to_euler_deg(age::math::g::quaternion_identity);
-
-		//	cam.near_z = 0.1f;
-		//	cam.far_z  = 1000.f;
-
-		//	cam.fov_y = age::cvt_to_radian(75.f);
-
-		//	cam.aspect_ratio = age::platform::get_client_width(i_init.get_h_window)
-		//					 / static_cast<float>(age::platform::get_client_height(i_init.get_h_window));
-
-		//	cam.render_id = i_init.get_render_pipeline->add_camera(age::graphics::render_pipeline::forward_plus::camera_desc{
-		//		.kind		= age::graphics::e::camera_kind::perspective,
-		//		.pos		= pos,
-		//		.quaternion = age::math::g::quaternion_identity,
-		//		.near_z		= cam.near_z,
-		//		.far_z		= cam.far_z,
-		//		.perspective{
-		//			.fov_y		  = cam.fov_y,
-		//			.aspect_ratio = cam.aspect_ratio } });
-		//}
 
 		on_ctx{
 			AGE_LAMBDA(
@@ -56,8 +27,8 @@ namespace age_demo::scene_3
 			// [0] cube
 			identity{ age::asset::primitive_desc{
 				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 1,
-				.seg_v	   = 1,
+				.seg_u	   = 30,
+				.seg_v	   = 30,
 				.mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
 				| age::asset::create_primitive_mesh
 				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
@@ -249,20 +220,9 @@ namespace age_demo::scene_3
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 	}
 
-	FORCE_INLINE decltype(auto)
-	deinit() noexcept
+	void
+	deinit_storage(auto& entities) noexcept
 	{
-		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
-		age::editor::deinit();
-
-		auto& entities = i_deinit.get_editor_game->editor_scene_0.ent_storage_main;
-		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
-		{
-			i_deinit.get_render_pipeline().release_mesh(m_id);
-		}
-
-		i_deinit.get_mesh_id_vec->clear();
-
 		for (auto&& [cam] : entities | age::ecs::each_entity<age::ecs::camera>())
 		{
 			i_deinit.get_render_pipeline->remove_camera(cam.render_id);
@@ -287,6 +247,23 @@ namespace age_demo::scene_3
 		{
 			i_deinit.get_render_pipeline->remove_object(obj.render_id);
 		}
+	}
+
+	void
+	deinit() noexcept
+	{
+		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
+		age::editor::deinit();
+
+		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
+
+		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
+		{
+			i_deinit.get_render_pipeline().release_mesh(m_id);
+		}
+
+		i_deinit.get_mesh_id_vec->clear();
+
 
 		i_deinit.get_editor_game->deinit();
 	}

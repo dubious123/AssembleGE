@@ -14,6 +14,10 @@
 #include <type_traits>
 #include <tuple>
 
+#ifdef AGE_EDITOR
+	#include <iostream>
+#endif
+
 #ifdef AGE_DEBUG
 	#include <iostream>
 	#include <format>

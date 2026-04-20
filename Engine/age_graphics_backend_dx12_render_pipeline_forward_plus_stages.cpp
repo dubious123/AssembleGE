@@ -4,7 +4,7 @@
 // stage depth
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	depth_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -30,7 +30,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
 	}
 
-	inline void
+	void
 	depth_stage::bind_dsv(graphics::resource_handle h_depth_buffer) noexcept
 	{
 		resource::create_view(h_depth_buffer,
@@ -41,6 +41,17 @@ namespace age::graphics::render_pipeline::forward_plus
 	inline void
 	depth_stage::execute(uint32 opaque_meshlet_count) noexcept
 	{
+		if (opaque_meshlet_count == 0) [[unlikely]]
+		{
+			command::clear_dsv(h_depth_buffer_dsv_desc.h_cpu,
+							   D3D12_CLEAR_FLAG_DEPTH,
+							   0.0f,
+							   0,
+							   0,
+							   nullptr);
+			return;
+		}
+
 		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
 
 		command::begin_render_pass(
@@ -49,19 +60,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			&render_pass_ds_desc,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		{
-			command::set_pso(p_pso);
+		command::set_pso(p_pso);
 
-			if (opaque_meshlet_count > 0) [[likely]]
-			{
-				command::dispatch_mesh((opaque_meshlet_count + 31u) / 32u, 1, 1);
-			}
-		}
+		command::dispatch_mesh((opaque_meshlet_count + 31u) / 32u, 1, 1);
 
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	depth_stage::deinit() noexcept
 	{
 		graphics::g::dsv_desc_pool.push(h_depth_buffer_dsv_desc);
@@ -72,7 +78,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage shadow
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	shadow_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -112,7 +118,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_shadow_atlas_dsv_desc = graphics::g::dsv_desc_pool.pop();
 	}
 
-	inline void
+	void
 	shadow_stage::bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept
 	{
 		resource::create_view(h_shadow_atlas,
@@ -131,8 +137,14 @@ namespace age::graphics::render_pipeline::forward_plus
 						  resource_handle h_shadow_stage_shadow_light_buffer,
 						  auto&			  shadow_stage_shadow_light_buffer_srv) noexcept
 	{
-		if (opaque_meshlet_count == 0 or shadow_light_count == 0) [[unlikely]]
+		if (/*opaque_meshlet_count == 0 or*/ shadow_light_count == 0) [[unlikely]]
 		{
+			command::clear_dsv(h_shadow_atlas_dsv_desc.h_cpu,
+							   D3D12_CLEAR_FLAG_DEPTH,
+							   0.0f,
+							   0,
+							   0,
+							   nullptr);
 			return;
 		}
 
@@ -158,6 +170,17 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		shadow_stage_buffer_srv.apply();
 		shadow_stage_shadow_light_buffer_srv.apply();
+
+		if (opaque_meshlet_count == 0) [[unlikely]]
+		{
+			command::clear_dsv(h_shadow_atlas_dsv_desc.h_cpu,
+							   D3D12_CLEAR_FLAG_DEPTH,
+							   0.0f,
+							   0,
+							   0,
+							   nullptr);
+			return;
+		}
 
 		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_shadow_atlas_dsv_desc, 0.f);
 
@@ -203,7 +226,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	shadow_stage::deinit() noexcept
 	{
 		pso::destroy(h_init_pso);
@@ -218,7 +241,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage light cull
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	light_culling_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -315,7 +338,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::dispatch(light_tile_count_x, light_tile_count_y, 1);
 	}
 
-	inline void
+	void
 	light_culling_stage::deinit() noexcept
 	{
 		pso::destroy(h_pso_init);
@@ -333,7 +356,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage opaque
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	opaque_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -358,7 +381,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
 	}
 
-	inline void
+	void
 	opaque_stage::bind_rtv_dsv(graphics::resource_handle h_main_buffer,
 							   graphics::resource_handle h_depth_buffer) noexcept
 	{
@@ -395,7 +418,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	opaque_stage::deinit() noexcept
 	{
 		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
@@ -408,7 +431,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage transparent
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	transparent_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -436,7 +459,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
 
-	inline void
+	void
 	transparent_stage::bind_rtv(graphics::resource_handle h_main_buffer) noexcept
 	{
 		resource::create_view(h_main_buffer,
@@ -469,7 +492,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	transparent_stage::deinit() noexcept
 	{
 		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
@@ -482,7 +505,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage opaque
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	ui_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -503,7 +526,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
 
-	inline void
+	void
 	ui_stage::bind_rtv(graphics::resource_handle h_main_buffer) noexcept
 	{
 		resource::create_view(h_main_buffer,
@@ -540,7 +563,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	ui_stage::deinit() noexcept
 	{
 		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
@@ -552,7 +575,7 @@ namespace age::graphics::render_pipeline::forward_plus
 // stage presentation
 namespace age::graphics::render_pipeline::forward_plus
 {
-	inline void
+	void
 	presentation_stage::init(root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
@@ -610,7 +633,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::end_render_pass();
 	}
 
-	inline void
+	void
 	presentation_stage::deinit() noexcept
 	{
 		pso::destroy(h_pso);

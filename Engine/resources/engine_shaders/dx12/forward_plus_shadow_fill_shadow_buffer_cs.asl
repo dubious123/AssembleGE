@@ -3,15 +3,22 @@
 void
 handle_directional_light_shadow(uint32 directional_light_id, uint32 cascade_idx, uint32 shadow_id)
 {
-	const directional_light light	  = load_directional_light(directional_light_id);
-	float					depth_min = as_float(load_z_min_uav());
-	float					depth_max = as_float(load_z_max_uav());
+	const directional_light light	= load_directional_light(directional_light_id);
+	uint32					z_min_u = load_z_min_uav();
+	uint32					z_max_u = load_z_max_uav();
 
-	// fallback
-	if (depth_min >= depth_max)
+	float depth_min;
+	float depth_max;
+
+	if (z_min_u == 0xffffffff || z_max_u == 0 || z_min_u > z_max_u)
 	{
 		depth_min = cam_near_z;
 		depth_max = cam_far_z;
+	}
+	else
+	{
+		depth_min = as_float(z_min_u);
+		depth_max = as_float(z_max_u);
 	}
 
 	const float t_near = (float)cascade_idx / (float)SHADOW_CASCADE_COUNT;
@@ -206,7 +213,7 @@ handle_spot_light_shadow(uint32 id, uint32 shadow_id)
 
 [numthreads(6, 1, 1)] void
 main_cs(uint32 shadow_light_header_id sv_group_id,
-		uint32 thread_id sv_group_thread_id) {
+		uint32 thread_id			  sv_group_thread_id) {
 	const shadow_light_header header = load_shadow_light_header(shadow_light_header_id);
 
 	if (header.light_kind == LIGHT_KIND_DIRECTIONAL)

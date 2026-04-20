@@ -10,15 +10,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso = {};
 		ID3D12PipelineState*  p_pso = nullptr;
 
-		inline void
+		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		inline void
+		void
 		bind_dsv(graphics::resource_handle h_depth_buffer) noexcept;
+
 		inline void
 		execute(uint32 opaque_meshlet_count) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -38,9 +39,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		dsv_desc_handle h_shadow_atlas_dsv_desc;
 
-		inline void
+		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
-		inline void
+
+		void
 		bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept;
 
 		inline void
@@ -54,7 +56,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				resource_handle h_shadow_stage_shadow_light_buffer,
 				auto&			shadow_stage_shadow_light_buffer_srv) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -81,7 +83,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_tile;
 		ID3D12PipelineState*  p_pso_tile;
 
-		inline void
+		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
@@ -89,7 +91,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				uint32			light_tile_count_y,
 				resource_handle h_scratch_buffer) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -101,17 +103,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso;
 		ID3D12PipelineState*  p_pso;
 
-		inline void
+		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		inline void
+		void
 		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
 					 graphics::resource_handle h_depth_buffer) noexcept;
 
 		inline void
 		execute(uint32 meshlet_count) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -126,16 +128,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		rtv_desc_handle h_main_buffer_rtv_desc;
 
 
-		inline void
+		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		inline void
+		void
 		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
 
 		inline void
 		execute(resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -146,16 +148,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		rtv_desc_handle h_main_buffer_rtv_desc;
 
-		inline void
+		void
 		init(root_signature::handle h_root_sig) noexcept;
 
-		inline void
+		void
 		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
 
 		inline void
 		execute(const age::vector<util::range>&) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 
@@ -164,13 +166,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::handle			 h_pso = {};
 		ID3D12PipelineState* p_pso = nullptr;
 
-		inline void
+		void
 		init(root_signature::handle h_root_sig) noexcept;
 
 		inline void
 		execute(render_surface& rs) noexcept;
 
-		inline void
+		void
 		deinit() noexcept;
 	};
 

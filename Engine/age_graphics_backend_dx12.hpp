@@ -198,6 +198,9 @@ namespace age::graphics::command
 	DEF_CMD(copy_buffer, CopyBufferRegion)
 	DEF_CMD(copy_texture, CopyTextureRegion)
 
+	// clear
+	DEF_CMD(clear_dsv, ClearDepthStencilView)
+
 	FORCE_INLINE void
 	apply_barriers(auto&&...) noexcept;
 

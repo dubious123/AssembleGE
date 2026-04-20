@@ -42,7 +42,6 @@ namespace age_demo::scene_3
 		AGE_GETSET(smoothed_zoom, scene_3_ctx.input.smoothed_zoom)
 		AGE_GETSET(smoothed_pan, scene_3_ctx.input.smoothed_pan)
 
-		AGE_GETSET(game_focused, scene_3_ctx.game_focused)
 	} i_update;
 
 	struct
@@ -57,12 +56,12 @@ namespace age_demo::scene_3
 
 namespace age_demo::scene_3
 {
-	FORCE_INLINE decltype(auto)
+	void
 	init() noexcept;
 
 	FORCE_INLINE decltype(auto)
 	update() noexcept;
 
-	FORCE_INLINE decltype(auto)
+	void
 	deinit() noexcept;
 }	 // namespace age_demo::scene_3

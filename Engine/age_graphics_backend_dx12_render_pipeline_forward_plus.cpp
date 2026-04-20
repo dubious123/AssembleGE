@@ -942,6 +942,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 					++ctx.shadow_light_header_count;
 					++ctx.directional_shadow_light_count;
+
+					ctx.directional_light_vec[id].shadow_id_and_extra = 0;
 				}
 				else
 				{

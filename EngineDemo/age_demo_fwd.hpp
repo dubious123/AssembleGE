@@ -229,8 +229,6 @@ namespace age_demo::scene_3
 
 		uint32 ent_main_cam;
 
-		bool game_focused;
-
 		// input
 		struct
 		{

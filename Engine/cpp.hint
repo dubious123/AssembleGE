@@ -489,6 +489,26 @@
 	FORCE_INLINE decltype(auto) visit_storage_at(auto scene_idx, auto storage_idx, auto&& func, auto&&... arg) noexcept                                                                                           \
 	{                                                                                                                                                                                                             \
 		return visit_scene_at(scene_idx, AGE_LAMBDA((auto&& scene, auto idx, auto&& func, auto&&... arg), { return scene.visit_storage_at(idx, FWD(func), FWD(arg)...); }), storage_idx, FWD(func), FWD(arg)...); \
+	}                                                                                                                                                                                                             \
+	FORCE_INLINE void visit_all_scenes(auto&& func, auto&&... arg) noexcept                                                                                                                                       \
+	{                                                                                                                                                                                                             \
+		for (auto i = 0u; i < scene_count(); ++i)                                                                                                                                                                 \
+		{                                                                                                                                                                                                         \
+			visit_scene_at(i, FWD(func), FWD(arg)...);                                                                                                                                                            \
+		}                                                                                                                                                                                                         \
+	}                                                                                                                                                                                                             \
+	FORCE_INLINE void visit_all_storages(auto&& func, auto&&... arg) noexcept                                                                                                                                     \
+	{                                                                                                                                                                                                             \
+		for (auto i = 0u; i < scene_count(); ++i)                                                                                                                                                                 \
+		{                                                                                                                                                                                                         \
+			visit_scene_at(i, AGE_LAMBDA((auto&& scene, auto&& func, auto&&... arg), {                                                                                                                            \
+							   for (auto j = 0u; j < scene.storage_count(); ++j)                                                                                                                                  \
+							   {                                                                                                                                                                                  \
+								   scene.visit_storage_at(j, FWD(func), FWD(arg)...);                                                                                                                             \
+							   }                                                                                                                                                                                  \
+						   }),                                                                                                                                                                                    \
+						   FWD(func), FWD(arg)...);                                                                                                                                                               \
+		}                                                                                                                                                                                                         \
 	}
 
 

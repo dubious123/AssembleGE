@@ -79,6 +79,8 @@ calc_blinn_phong_light_color(unified_light light, float3 surface_pos, float3 sur
 float
 sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id)
 {
+	static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
+
 	uint32 cascade_index = SHADOW_CASCADE_COUNT - 1;
 	for (uint32 c = 0; c < SHADOW_CASCADE_COUNT; ++c)
 	{
@@ -106,8 +108,6 @@ sample_directional_shadow(float3 world_pos, float linear_depth, uint32 shadow_id
 	atlas_uv.y = row * (1.f / SHADOW_ATLAS_SEG_V) + shadow_uv.y / SHADOW_ATLAS_SEG_V;
 
 	texture_2d<float> shadow_atlas = global_resource_buffer[shadow_atlas_id];
-
-	static const float texel_size = 1.f / (float)(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U);
 
 	float shadow = 0;
 	for (int32 y = -1; y <= 1; ++y)
@@ -211,13 +211,15 @@ calc_directional_shadow(directional_light light, float3 world_pos, float3 face_n
 		{
 			rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
-			ray_query<RAY_FLAG_NONE> query;
+			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
 			ray_desc desc;
 			desc.Origin	   = world_pos;
 			desc.Direction = -light.direction;
 			desc.TMin	   = 0.001;
-			desc.TMax	   = linear_depth;
+
+			// todo, add ray_tmax config
+			desc.TMax = 1e5f;
 
 			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
 
@@ -268,7 +270,7 @@ calc_unified_shadow(unified_light light, float3 world_pos, float3 face_normal)
 		{
 			rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
-			ray_query<RAY_FLAG_NONE> query;
+			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
 			ray_desc desc;
 			desc.Origin	   = world_pos;
