@@ -156,7 +156,74 @@ namespace age::ui
 
 			uint64 extra;
 		};
+
+		FORCE_INLINE static widget_desc
+		apply(auto&& mod) noexcept
+		{
+			auto res = widget_desc{};
+			FWD(mod).apply(res);
+			return res;
+		}
 	};
+
+	// struct widget_desc
+	//{
+	//	bool			   draw;			   //= true;
+	//	e::widget_layout   layout;			   //= e::widget_layout::horizontal;
+	//	e::widget_overflow overflow;		   //= e::widget_overflow::draw_all;
+	//	e::widget_align	   align;			   //= e::widget_align::begin;
+
+	//	float width_min;					   //= 0.f;
+	//	float width_max;					   //= std::numeric_limits<float>::max();
+
+	//	float height_min;					   //= 0.f;
+	//	float height_max;					   //= std::numeric_limits<float>::max();
+
+	//	e::size_mode_kind width_size_mode;	   //= e::size_mode_kind::grow;
+	//	e::size_mode_kind height_size_mode;	   //= e::size_mode_kind::grow;
+
+	//	uint16 z_offset;					   // = 1;
+
+	//	float2 offset;						   // = float2{ 0, 0 };
+
+	//	float child_gap;					   //= 3.f;
+
+	//	float padding_left;					   //= 3.f;
+	//	float padding_right;				   //= 3.f;
+	//	float padding_top;					   //= 3.f;
+	//	float padding_bottom;				   //= 3.f;
+
+	//	float2 pivot_uv;					   //= float2{ 0.5f, 0.5f };
+	//	float  rotation;					   //= 0.f;
+	//	float  border_thickness;			   //= 1.f;
+
+
+	//	ui_shape_data shape_data;
+	//	ui_brush_data body_brush_data;
+	//	ui_brush_data border_brush_data;
+
+	//	e::shape_kind shape_kind;			//= e::shape_kind::rect;
+	//	e::brush_kind body_brush_kind;		//= e::brush_kind::color;
+	//	e::brush_kind border_brush_kind;	//= e::brush_kind::color;
+
+	//	bool	interact;					//= false;
+	//	bool	save_state;					//= false;
+	//	uint8_3 _;
+
+	//										// union
+	//	//{
+	//	struct
+	//	{
+	//		uint32 text_data_idx;	 // = age::get_invalid_id<uint32>();
+	//		uint32 font_idx;
+
+	//		const char* p_str;
+	//		float		font_size;
+	//	} text;
+
+	//	uint64 extra;
+	//	//};
+	//};
 }	 // namespace age::ui
 
 namespace age::ui

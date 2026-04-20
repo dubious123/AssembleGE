@@ -1,54 +1,125 @@
 #pragma once
 #include "age.hpp"
 
+// namespace age::ui::detail
+//{
+//	template <typename... mods_t>
+//	struct mod_chain
+//	{
+//		no_unique_addr std::tuple<mods_t...> mods;
+//
+//		FORCE_INLINE constexpr void
+//		apply(widget_desc& desc) const noexcept
+//		{
+//			meta::tuple_unpack_prefix(AGE_LAMBDA((auto& desc, auto&&... mod), { (FWD(mod).apply(desc), ...); }), mods, desc);
+//		}
+//	};
+//
+//	template <typename t>
+//	concept cx_modifier = requires(const t& mod, widget_desc& desc) {
+//		{ mod.apply(desc) } -> std::same_as<void>;
+//	};
+//
+//	template <typename t>
+//	inline constexpr bool is_mod_chain_v = meta::is_specialization_of_v<t, mod_chain>;
+//
+//	template <detail::cx_modifier t_lhs, detail::cx_modifier t_rhs>
+//	requires(detail::is_mod_chain_v<t_lhs> is_false and detail::is_mod_chain_v<t_rhs> is_false)
+//	FORCE_INLINE constexpr auto
+//	operator|(t_lhs&& l, t_rhs&& r) noexcept
+//	{
+//		return detail::mod_chain<BARE_OF(l), BARE_OF(r)>{ std::tuple{ FWD(l), FWD(r) } };
+//	}
+//
+//	// mod_chain + mod
+//	template <typename... t_mod, detail::cx_modifier t_rhs>
+//	requires(detail::is_mod_chain_v<t_rhs> is_false)
+//	FORCE_INLINE constexpr auto
+//	operator|(detail::mod_chain<t_mod...>&& l, t_rhs&& r) noexcept
+//	{
+//		return detail::mod_chain<t_mod..., BARE_OF(r)>{ std::tuple_cat(std::move(l.mods), std::tuple{ FWD(r) }) };
+//	}
+//
+//	// mod + mod_chain
+//	template <detail::cx_modifier t_lhs, typename... t_mod>
+//	requires(detail::is_mod_chain_v<t_lhs> is_false)
+//	FORCE_INLINE constexpr auto
+//	operator|(t_lhs&& l, detail::mod_chain<t_mod...>&& r) noexcept
+//	{
+//		return detail::mod_chain<BARE_OF(l), t_mod...>{ std::tuple_cat(std::tuple{ FWD(l) }, std::move(r.mods)) };
+//	}
+//
+//	// mod_chain + mod_chain
+//	template <typename... t_l, typename... t_r>
+//	FORCE_INLINE constexpr auto
+//	operator|(detail::mod_chain<t_l...>&& a, detail::mod_chain<t_r...>&& b) noexcept
+//	{
+//		return detail::mod_chain<t_l..., t_r...>{ std::tuple_cat(std::move(a.mods), std::move(b.mods)) };
+//	}
+//
+//	// FORCE_INLINE widget_desc
+//	// operator|(detail::cx_modifier auto&& mod_l, detail::cx_modifier auto&& mod_r) noexcept
+//	//{
+//	//	return FWD(mod_r).apply(FWD(mod_l).operator widget_desc());
+//	// }
+//
+//	// FORCE_INLINE decltype(auto)
+//	// operator|(auto&& desc, detail::cx_modifier auto&& mod) noexcept
+//	//{
+//	//	return FWD(mod).apply(FWD(desc));
+//	// }
+// }	 // namespace age::ui::detail
+
 namespace age::ui::detail
 {
+	template <typename t_l, typename t_r>
+	struct mod_chain
+	{
+		no_unique_addr t_l l;
+		no_unique_addr t_r r;
+
+		FORCE_INLINE constexpr void
+		apply(widget_desc& desc) const noexcept
+		{
+			l.apply(desc);
+			r.apply(desc);
+		}
+	};
+
 	template <typename t>
-	concept cx_modifier = requires(t mod, widget_desc& desc) {{ mod.apply(desc) } -> std::same_as<void>; };
-}	 // namespace age::ui::detail
+	concept cx_modifier = requires(const t& mod, widget_desc& desc) {
+		{ mod.apply(desc) } -> std::same_as<void>;
+	};
 
-namespace age::ui::detail
-{
-	FORCE_INLINE widget_desc
-	operator|(detail::cx_modifier auto&& mod_l, detail::cx_modifier auto&& mod_r) noexcept
-	{
-		auto desc = widget_desc{};
-		mod_l.apply(desc);
-		mod_r.apply(desc);
-		return desc;
-	}
+	// template <typename t>
+	// inline constexpr bool is_mod_chain_v = meta::is_specialization_of_v<t, mod_chain>;
 
-	FORCE_INLINE widget_desc&&
-	operator|(widget_desc&& desc, detail::cx_modifier auto&& mod) noexcept
+	template <detail::cx_modifier t_lhs, detail::cx_modifier t_rhs>
+	FORCE_INLINE constexpr auto
+	operator|(t_lhs&& l, t_rhs&& r) noexcept
 	{
-		mod.apply(desc);
-		return std::move(desc);
+		return detail::mod_chain<BARE_OF(l), BARE_OF(r)>{ FWD(l), FWD(r) };
 	}
 }	 // namespace age::ui::detail
 
 namespace age::ui
 {
-	// clang-format off
 #define X(name) decltype(widget_desc::name) name
 #define Y(name) desc.name = name
+#define Z(name) .name = name
 #define DEF(name, ...)                                \
 	namespace detail                                  \
 	{                                                 \
 		struct mod_##name                             \
 		{                                             \
-			FOR_EACH (X, __VA_ARGS__);                \
+			FOR_EACH (X, __VA_ARGS__)                 \
+				;                                     \
                                                       \
 			FORCE_INLINE constexpr void               \
-			apply(widget_desc& desc) const noexcept   \
+			apply(auto&& desc) const noexcept         \
 			{                                         \
-				FOR_EACH (Y, __VA_ARGS__);            \
-			}                                         \
-			FORCE_INLINE constexpr                    \
-			operator widget_desc() const noexcept     \
-			{                                         \
-				widget_desc desc{};                   \
-				apply(desc);                          \
-				return desc;                          \
+				FOR_EACH (Y, __VA_ARGS__)             \
+					;                                 \
 			}                                         \
 		};                                            \
 	}                                                 \
@@ -57,7 +128,6 @@ namespace age::ui
 	{                                                 \
 		return detail::mod_##name{ __VA_ARGS__ };     \
 	}
-	// clang-format on
 
 	DEF(draw, draw)
 	DEF(layout, layout)
@@ -77,17 +147,17 @@ namespace age::ui
 	DEF(padding_bottom, padding_bottom)
 	DEF(pivot_uv, pivot_uv)
 	DEF(rotation, rotation)
-	DEF(shape, shape_kind, shape_data)
+	DEF(shape, shape_data, shape_kind)
 	DEF(shape_kind, shape_kind)
 	DEF(shape_data, shape_data)
-	DEF(body_brush, body_brush_kind, body_brush_data)
+	DEF(body_brush, body_brush_data, body_brush_kind)
 	DEF(body_brush_kind, body_brush_kind)
 	DEF(body_brush_data, body_brush_data)
 	DEF(border_thickness, border_thickness)
-	DEF(border_brush, border_brush_kind, border_brush_data)
+	DEF(border_brush, border_brush_data, border_brush_kind)
 	DEF(border_brush_kind, border_brush_kind)
 	DEF(border_brush_data, border_brush_data)
-	DEF(border, border_thickness, border_brush_kind, border_brush_data)
+	DEF(border, border_thickness, border_brush_data, border_brush_kind)
 
 	DEF(interact, interact)
 	DEF(save_state, save_state)
@@ -208,7 +278,7 @@ namespace age::ui
 			e::size_mode_kind height_size_mode;
 
 			FORCE_INLINE constexpr void
-			apply(widget_desc& desc) const noexcept
+			apply(auto&& desc) const noexcept
 			{
 				desc.width_min		  = width_min;
 				desc.width_max		  = width_max;
@@ -217,14 +287,6 @@ namespace age::ui
 				desc.width_size_mode  = width_size_mode;
 				desc.height_size_mode = height_size_mode;
 			}
-
-			FORCE_INLINE constexpr
-			operator widget_desc() const noexcept
-			{
-				widget_desc desc{};
-				apply(desc);
-				return desc;
-			}
 		};
 
 		struct mod_width
@@ -232,19 +294,11 @@ namespace age::ui
 			widget_size_mode size_mode;
 
 			FORCE_INLINE constexpr void
-			apply(widget_desc& desc) const noexcept
+			apply(auto&& desc) const noexcept
 			{
 				desc.width_min		 = size_mode.min;
 				desc.width_max		 = size_mode.max;
 				desc.width_size_mode = size_mode.size_mode;
-			}
-
-			FORCE_INLINE constexpr
-			operator widget_desc() const noexcept
-			{
-				widget_desc desc{};
-				apply(desc);
-				return desc;
 			}
 		};
 
@@ -253,19 +307,11 @@ namespace age::ui
 			widget_size_mode size_mode;
 
 			FORCE_INLINE constexpr void
-			apply(widget_desc& desc) const noexcept
+			apply(auto&& desc) const noexcept
 			{
 				desc.height_min		  = size_mode.min;
 				desc.height_max		  = size_mode.max;
 				desc.height_size_mode = size_mode.size_mode;
-			}
-
-			FORCE_INLINE constexpr
-			operator widget_desc() const noexcept
-			{
-				widget_desc desc{};
-				apply(desc);
-				return desc;
 			}
 		};
 	}	 // namespace detail
@@ -331,10 +377,12 @@ namespace age::ui
 
 #undef X
 #undef Y
+#undef Z
 
 
 #define X(name) decltype(widget_desc::text.name) name
 #define Y(name) desc.text.name = name
+#define Z(name) .text = { .name = name }
 
 	DEF(font_size, font_size)
 	DEF(font_idx, font_idx)
@@ -342,6 +390,7 @@ namespace age::ui
 
 #undef X
 #undef Y
+#undef Z
 #undef DEF
 }	 // namespace age::ui
 
@@ -350,7 +399,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		layout_base() noexcept
 		{
 			return set_draw(false)
@@ -361,7 +410,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	vertical() noexcept
 	{
 		return detail::layout_base()
@@ -369,7 +418,7 @@ namespace age::ui::style
 			 | set_size(size_mode::grow(), size_mode::fit());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	vertical(widget_size_mode width, widget_size_mode height) noexcept
 	{
 		return detail::layout_base()
@@ -377,7 +426,7 @@ namespace age::ui::style
 			 | set_size(width, height);
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	vertical_inv() noexcept
 	{
 		return detail::layout_base()
@@ -385,7 +434,7 @@ namespace age::ui::style
 			 | set_size(size_mode::grow(), size_mode::fit());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	vertical_inv(widget_size_mode width, widget_size_mode height) noexcept
 	{
 		return detail::layout_base()
@@ -393,7 +442,7 @@ namespace age::ui::style
 			 | set_size(width, height);
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	horizontal() noexcept
 	{
 		return detail::layout_base()
@@ -401,7 +450,7 @@ namespace age::ui::style
 			 | set_size(size_mode::fit(), size_mode::grow());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	horizontal(widget_size_mode width, widget_size_mode height) noexcept
 	{
 		return detail::layout_base()
@@ -409,7 +458,7 @@ namespace age::ui::style
 			 | set_size(width, height);
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	horizontal_inv() noexcept
 	{
 		return detail::layout_base()
@@ -417,7 +466,7 @@ namespace age::ui::style
 			 | set_size(size_mode::fit(), size_mode::grow());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	horizontal_inv(widget_size_mode width, widget_size_mode height) noexcept
 	{
 		return detail::layout_base()
@@ -425,7 +474,7 @@ namespace age::ui::style
 			 | set_size(width, height);
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	layout(e::widget_layout e_layout) noexcept
 	{
 		if (e_layout == e::widget_layout::vertical)
@@ -455,7 +504,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		panel_base() noexcept
 		{
 			return set_draw(true)
@@ -468,7 +517,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	panel() noexcept
 	{
 		return detail::panel_base()
@@ -479,7 +528,7 @@ namespace age::ui::style
 			 | set_border_brush_data(theme::panel_color_border_idle());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	panel_focus() noexcept
 	{
 		return detail::panel_base()
@@ -495,7 +544,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		section_base() noexcept
 		{
 			return set_draw(true)
@@ -509,7 +558,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	section() noexcept
 	{
 		return detail::section_base()
@@ -520,7 +569,7 @@ namespace age::ui::style
 			 | set_border_brush_data(theme::section_color_border());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	section_focus() noexcept
 	{
 		return detail::section_base()
@@ -536,7 +585,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		frame_base() noexcept
 		{
 			return set_draw(true)
@@ -550,7 +599,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	frame_idle() noexcept
 	{
 		return detail::frame_base()
@@ -562,7 +611,7 @@ namespace age::ui::style
 			 | set_border_brush_data(theme::frame_color_border());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	frame_hover() noexcept
 	{
 		return detail::frame_base()
@@ -574,7 +623,7 @@ namespace age::ui::style
 			 | set_border_brush_data(theme::frame_color_border_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	frame_focus() noexcept
 	{
 		return detail::frame_base()
@@ -586,7 +635,7 @@ namespace age::ui::style
 			 | set_border_brush_data(theme::frame_color_border_focus());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	frame(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return frame_idle(); }
@@ -601,7 +650,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		header_bar_base() noexcept
 		{
 			return set_draw(true)
@@ -615,7 +664,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	header_bar_idle() noexcept
 	{
 		return detail::header_bar_base()
@@ -626,7 +675,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::header_bar_color_bg());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	header_bar_hover() noexcept
 	{
 		return detail::header_bar_base()
@@ -637,7 +686,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::header_bar_color_bg_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	header_bar_focus() noexcept
 	{
 		return detail::header_bar_base()
@@ -648,7 +697,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::header_bar_color_bg_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	header_bar(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return header_bar_idle(); }
@@ -662,7 +711,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		item_base() noexcept
 		{
 			return set_draw(true)
@@ -676,7 +725,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_selected_idle() noexcept
 	{
 		return detail::item_base()
@@ -686,7 +735,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_selected_hover() noexcept
 	{
 		return detail::item_base()
@@ -696,7 +745,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_selected_active() noexcept
 	{
 		return detail::item_base()
@@ -706,7 +755,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_idle() noexcept
 	{
 		return detail::item_base()
@@ -716,7 +765,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_hover() noexcept
 	{
 		return detail::item_base()
@@ -726,7 +775,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_active() noexcept
 	{
 		return detail::item_base()
@@ -736,7 +785,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::item_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_selected(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return item_selected_idle(); }
@@ -745,7 +794,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item_not_selected(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return item_idle(); }
@@ -754,7 +803,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	item(bool is_selected, e::style_state state = e::style_state::idle) noexcept
 	{
 		if (is_selected)
@@ -772,7 +821,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		toggle_box_base() noexcept
 		{
 			return set_align(e::widget_align::center)
@@ -784,7 +833,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_on_idle() noexcept
 	{
 		return detail::toggle_box_base()
@@ -794,7 +843,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_on_hover() noexcept
 	{
 		return detail::toggle_box_base()
@@ -804,7 +853,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_on_active() noexcept
 	{
 		return detail::toggle_box_base()
@@ -814,7 +863,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_off_idle() noexcept
 	{
 		return detail::toggle_box_base()
@@ -824,7 +873,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_off_hover() noexcept
 	{
 		return detail::toggle_box_base()
@@ -834,7 +883,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_off_active() noexcept
 	{
 		return detail::toggle_box_base()
@@ -844,7 +893,7 @@ namespace age::ui::style
 			 | set_shape_data(theme::toggle_box_roundness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_on(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return toggle_box_on_idle(); }
@@ -853,7 +902,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box_off(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return toggle_box_off_idle(); }
@@ -862,7 +911,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	toggle_box(bool is_on, e::style_state state = e::style_state::idle) noexcept
 	{
 		if (is_on)
@@ -880,7 +929,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		text_base() noexcept
 		{
 			return set_align(e::widget_align::center)
@@ -892,7 +941,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_title(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -902,7 +951,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_title_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_title_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -912,7 +961,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_title_color_disabled());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_heading(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -922,7 +971,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_heading_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_heading_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -932,7 +981,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_heading_color_disabled());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -942,7 +991,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_hover(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -952,7 +1001,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_color_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_active(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -962,7 +1011,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_color_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -972,7 +1021,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_color_disabled());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_label(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -982,7 +1031,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_label_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_label_hover(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -992,7 +1041,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_label_color_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_label_active(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1002,7 +1051,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_label_color_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_label_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1012,7 +1061,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_label_color_disabled());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_hint(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1022,7 +1071,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_hint_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_hint_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1032,7 +1081,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_hint_color_disabled());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_button(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1042,7 +1091,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::text_button_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	text_button_disabled(const char* p_text) noexcept
 	{
 		return detail::text_base()
@@ -1057,7 +1106,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		slider_track_base_h() noexcept
 		{
 			return set_align(e::widget_align::center)
@@ -1069,7 +1118,7 @@ namespace age::ui::style
 				 | set_z_offset(1);
 		}
 
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		slider_track_base_v() noexcept
 		{
 			return set_align(e::widget_align::center)
@@ -1081,7 +1130,7 @@ namespace age::ui::style
 				 | set_z_offset(1);
 		}
 
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		slider_thumb_base() noexcept
 		{
 			return set_align(e::widget_align::center)
@@ -1093,7 +1142,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_h() noexcept
 	{
 		return detail::slider_track_base_h()
@@ -1101,7 +1150,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_bg());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_h_idle() noexcept
 	{
 		return detail::slider_track_base_h()
@@ -1109,7 +1158,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_h_hover() noexcept
 	{
 		return detail::slider_track_base_h()
@@ -1117,7 +1166,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_h_active() noexcept
 	{
 		return detail::slider_track_base_h()
@@ -1125,7 +1174,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_v() noexcept
 	{
 		return detail::slider_track_base_v()
@@ -1133,7 +1182,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_bg());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_v_idle() noexcept
 	{
 		return detail::slider_track_base_v()
@@ -1141,7 +1190,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_v_hover() noexcept
 	{
 		return detail::slider_track_base_v()
@@ -1149,7 +1198,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_v_active() noexcept
 	{
 		return detail::slider_track_base_v()
@@ -1157,7 +1206,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_track_color_fill_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_thumb_idle() noexcept
 	{
 		return detail::slider_thumb_base()
@@ -1165,7 +1214,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_thumb_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_thumb_hover() noexcept
 	{
 		return detail::slider_thumb_base()
@@ -1173,7 +1222,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_thumb_color_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_thumb_active() noexcept
 	{
 		return detail::slider_thumb_base()
@@ -1181,7 +1230,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::slider_thumb_color_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_thumb(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return slider_thumb_idle(); }
@@ -1191,7 +1240,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_track_fill_h(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return slider_track_fill_h_idle(); }
@@ -1201,7 +1250,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	slider_tack_fill_v(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return slider_track_fill_v_idle(); }
@@ -1217,7 +1266,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		scroll_thumb_base() noexcept
 		{
 			return set_align(e::widget_align::begin)
@@ -1229,7 +1278,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_h_idle() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1238,7 +1287,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_h_hover() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1247,7 +1296,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_h_active() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1256,7 +1305,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_v_idle() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1265,7 +1314,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_v_hover() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1274,7 +1323,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color_hover());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_v_active() noexcept
 	{
 		return detail::scroll_thumb_base()
@@ -1283,7 +1332,7 @@ namespace age::ui::style
 			 | set_body_brush_data(theme::scroll_thumb_color_active());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_h(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return scroll_thumb_h_idle(); }
@@ -1293,7 +1342,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	scroll_thumb_v(e::style_state state = e::style_state::idle) noexcept
 	{
 		if (state == e::style_state::idle) { return scroll_thumb_v_idle(); }
@@ -1308,7 +1357,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		separator_base() noexcept
 		{
 			return set_draw(true)
@@ -1319,7 +1368,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	separator_v() noexcept
 	{
 		return detail::separator_base()
@@ -1328,7 +1377,7 @@ namespace age::ui::style
 			 | set_height_fixed(theme::separator_thickness());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	separator_h() noexcept
 	{
 		return detail::separator_base()
@@ -1342,7 +1391,7 @@ namespace age::ui::style
 {
 	namespace detail
 	{
-		FORCE_INLINE constexpr widget_desc
+		FORCE_INLINE constexpr decltype(auto)
 		resize_handle_base() noexcept
 		{
 			return set_draw(true)
@@ -1354,7 +1403,7 @@ namespace age::ui::style
 		}
 	}	 // namespace detail
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_h_idle() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1363,7 +1412,7 @@ namespace age::ui::style
 			 | set_width_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_h_hover() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1372,7 +1421,7 @@ namespace age::ui::style
 			 | set_width_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_h_active() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1381,7 +1430,7 @@ namespace age::ui::style
 			 | set_width_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_v_idle() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1390,7 +1439,7 @@ namespace age::ui::style
 			 | set_height_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_v_hover() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1399,7 +1448,7 @@ namespace age::ui::style
 			 | set_height_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_v_active() noexcept
 	{
 		return detail::resize_handle_base()
@@ -1408,7 +1457,7 @@ namespace age::ui::style
 			 | set_height_fixed(theme::resize_handle_size());
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_h(e::style_state state) noexcept
 	{
 		if (state == e::style_state::idle) { return resize_handle_h_idle(); }
@@ -1418,7 +1467,7 @@ namespace age::ui::style
 		AGE_UNREACHABLE();
 	}
 
-	FORCE_INLINE constexpr widget_desc
+	FORCE_INLINE constexpr decltype(auto)
 	resize_handle_v(e::style_state state) noexcept
 	{
 		if (state == e::style_state::idle) { return resize_handle_v_idle(); }

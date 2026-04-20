@@ -77,7 +77,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 		const directional_light light = load_directional_light(d);
 
 		lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
-				  * calc_directional_shadow(light, fragment.world_pos, face_normal, linear_depth);
+				  //* calc_directional_shadow(light, fragment.world_pos, face_normal, linear_depth);
+				  * calc_directional_shadow_rt(light, fragment.world_pos, face_normal, linear_depth);
 	}
 
 
@@ -113,7 +114,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 				const unified_light light = load_sorted_light(sorted_id);
 
 				lighting += calc_unified_light(light, fragment.world_pos, vertex_normal, world_to_cam_dir)
-						  * calc_unified_shadow(light, fragment.world_pos, face_normal);
+						  // * calc_unified_shadow(light, fragment.world_pos, face_normal);
+						  * calc_unified_shadow_rt(light, fragment.world_pos, face_normal);
 			}
 		}
 	}

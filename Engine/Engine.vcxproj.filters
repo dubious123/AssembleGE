@@ -141,6 +141,7 @@
     <None Include="age_asset.inl" />
     <None Include="age_editor_save_load.inl" />
     <None Include="age_editor.inl" />
+    <None Include="age_ui.inl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

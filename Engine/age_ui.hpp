@@ -61,14 +61,14 @@ namespace age::ui::font
 // widgets
 namespace age::ui::widget
 {
-	widget_ctx
-	begin(widget_desc&& desc) noexcept;
+	FORCE_INLINE widget_ctx
+	begin(auto&& desc) noexcept;
 }	 // namespace age::ui::widget
 
 namespace age::ui
 {
-	void
-	draw_direct(widget_desc&& desc) noexcept;
+	__declspec(noinline) void
+	draw_direct(auto&& mod) noexcept;
 }
 
 // defaults

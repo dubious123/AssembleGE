@@ -3,9 +3,12 @@
 
 namespace age::ui
 {
-	void
-	draw_direct(widget_desc&& desc) noexcept
+	__declspec(noinline) void
+	draw_direct(auto&& mod) noexcept
 	{
+		auto desc = widget_desc{};
+		FWD(mod).apply(desc);
+
 		AGE_ASSERT(desc.draw);
 		AGE_ASSERT(desc.interact is_false);
 		AGE_ASSERT(desc.save_state is_false);

@@ -253,6 +253,12 @@ struct vec2
 		return t{ ax + ay };
 	}
 
+	FORCE_INLINE static consteval uint32
+	size() noexcept
+	{
+		return 2u;
+	}
+
 	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
@@ -483,6 +489,12 @@ struct vec3
 		auto ay = (y < 0) ? -y : y;
 		auto az = (z < 0) ? -z : z;
 		return t{ ax + ay + az };
+	}
+
+	FORCE_INLINE static consteval uint32
+	size() noexcept
+	{
+		return 3u;
 	}
 
 	FORCE_INLINE static constexpr decltype(auto)
@@ -732,6 +744,12 @@ struct vec4
 		return t{ ax + ay + az + aw };
 	}
 
+	FORCE_INLINE static consteval uint32
+	size() noexcept
+	{
+		return 4u;
+	}
+
 	FORCE_INLINE static constexpr decltype(auto)
 	zero() noexcept
 	{
@@ -885,19 +903,19 @@ struct mat22
 					   t_row{ t{ 0 }, t{ v } } };
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	dim() noexcept
 	{
 		return 2;
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	rows() noexcept
 	{
 		return dim();
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	cols() noexcept
 	{
 		return dim();
@@ -1011,19 +1029,19 @@ struct mat33
 		};
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	dim() noexcept
 	{
 		return 3;
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	rows() noexcept
 	{
 		return dim();
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	cols() noexcept
 	{
 		return dim();
@@ -1153,19 +1171,19 @@ struct mat44
 		};
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	dim() noexcept
 	{
 		return 4;
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	rows() noexcept
 	{
 		return dim();
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	cols() noexcept
 	{
 		return dim();
@@ -1257,13 +1275,13 @@ struct mat34
 		return t_this{ t{ 0 } };
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	rows() noexcept
 	{
 		return 3;
 	}
 
-	FORCE_INLINE static constexpr std::size_t
+	FORCE_INLINE static consteval std::size_t
 	cols() noexcept
 	{
 		return 4;
