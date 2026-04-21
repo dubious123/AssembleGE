@@ -163,7 +163,8 @@ namespace age::config
 
 #if defined(AGE_EDITOR)
 
-	inline constexpr auto editor_game_proj_version = 1u;
+	// 2 : add per scene camera
+	inline constexpr auto editor_game_proj_version = 2u;
 
 #endif
 }	 // namespace age::config

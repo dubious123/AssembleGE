@@ -230,6 +230,22 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
+	dsv_write_to_dsv_read(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
+			.AccessBefore = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{

@@ -563,6 +563,15 @@ namespace age::editor
 			}
 		}
 
+		{
+			auto& cam						  = g::current_game.get_current_scene().cam;
+			auto  cam_desc					  = renderer.get_camera_desc(0);
+			cam_desc.pos					  = cam.pos;
+			cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
+			cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
+			renderer.update_camera(0, cam_desc);
+			renderer.set_main_camera(0);
+		}
 		// std::filesystem::remove_all(root_dir);
 	}
 }	 // namespace age::editor

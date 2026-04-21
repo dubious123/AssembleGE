@@ -392,7 +392,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		stage_depth.execute(opaque_meshlet_render_data_count);
 
-		// command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::dsv_write_to_dsv_read(h_depth_buffer->p_resource));
 
 		// stage_shadow.execute(
 		//	extent.width,

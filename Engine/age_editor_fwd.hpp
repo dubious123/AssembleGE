@@ -78,6 +78,8 @@ namespace age::editor
 		age::vector<storage_editor_data>						  storage_data_vec;
 
 		std::filesystem::path dir_path;
+
+		camera_data cam;
 	};
 
 	struct game_editor_data
@@ -88,6 +90,12 @@ namespace age::editor
 		age::vector<scene_editor_data>							 scene_data_vec;
 
 		std::filesystem::path dir_path;
+
+		auto&
+		get_current_scene(this auto&& self) noexcept
+		{
+			return self.scene_data_vec[self.current_active_scene_idx];
+		}
 	};
 
 	template <typename t_renderer>
@@ -111,8 +119,6 @@ namespace age::editor::g
 	inline auto command_buf			 = ecs::command_buffer{};
 
 	inline auto current_game = game_editor_data{};
-
-	inline auto cam = camera_data{};
 
 	inline auto current_mode = e::mode_kind::edit;
 }	 // namespace age::editor::g

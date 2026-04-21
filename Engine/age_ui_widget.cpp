@@ -1297,6 +1297,6 @@ namespace age::ui::widget
 				   float3	   text_label_color,
 				   float	   step) noexcept
 	{
-		return rotation_field(value, p_label, text_label_color, step);
+		return rotation_field(value, p_label, float4{ text_label_color, 1.f }, step);
 	}
 }	 // namespace age::ui::widget

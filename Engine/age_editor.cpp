@@ -8,8 +8,6 @@ namespace age::editor
 	{
 		g::command_buf.clear();
 
-		g::cam = camera_data{};
-
 		g::current_mode = e::mode_kind::edit;
 		g::current_game = game_editor_data{};
 	}

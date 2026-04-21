@@ -6,13 +6,15 @@ namespace age::editor
 	void
 	update_camera(auto& renderer, bool focused, platform::window_handle h_window) noexcept
 	{
-		g::cam.aspect_ratio = age::platform::get_client_width(h_window)
+		auto& current_scene = g::current_game.get_current_scene();
+		auto& cam			= current_scene.cam;
+		cam.aspect_ratio	= age::platform::get_client_width(h_window)
 							/ static_cast<float>(age::platform::get_client_height(h_window));
 
 		if (focused is_false)
 		{
 			auto cam_desc					  = renderer.get_camera_desc(0);
-			cam_desc.perspective.aspect_ratio = g::cam.aspect_ratio;
+			cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
 			renderer.update_camera(0, cam_desc);
 			renderer.set_main_camera(0);
 			return;
@@ -21,37 +23,37 @@ namespace age::editor
 		using enum age::input::e::key_kind;
 		c_auto& editor_input_ctx = *ui::g::p_input_ctx;
 
-		g::cam.move = float2{
+		cam.move = float2{
 			editor_input_ctx.is_down(key_d) - editor_input_ctx.is_down(key_a),
 			editor_input_ctx.is_down(key_w) - editor_input_ctx.is_down(key_s),
 		};
 
-		g::cam.look	  = editor_input_ctx.mouse_delta;
-		g::cam.zoom	  = editor_input_ctx.wheel_delta;
-		g::cam.sprint = editor_input_ctx.is_down(key_shift);
+		cam.look   = editor_input_ctx.mouse_delta;
+		cam.zoom   = editor_input_ctx.wheel_delta;
+		cam.sprint = editor_input_ctx.is_down(key_shift);
 
 		c_auto dt_s = std::max(runtime::i_time.get_delta_time_s(), 1.f / 160);
 
-		c_auto speed = g::cam.sprint ? g::cam.move_speed * g::cam.sprint_mult : g::cam.move_speed;
+		c_auto speed = cam.sprint ? cam.move_speed * cam.sprint_mult : cam.move_speed;
 
-		c_auto move_smoothing_factor = 1.f - std::exp(-g::cam.move_smoothing * dt_s);
-		c_auto look_smoothing_factor = 1.f - std::exp(-g::cam.look_smoothing * dt_s);
-		c_auto zoom_smoothing_factor = 1.f - std::exp(-g::cam.zoom_smoothing * dt_s);
+		c_auto move_smoothing_factor = 1.f - std::exp(-cam.move_smoothing * dt_s);
+		c_auto look_smoothing_factor = 1.f - std::exp(-cam.look_smoothing * dt_s);
+		c_auto zoom_smoothing_factor = 1.f - std::exp(-cam.zoom_smoothing * dt_s);
 
-		g::cam.smoothed_move = math::lerp(g::cam.smoothed_move, g::cam.move, move_smoothing_factor);
-		g::cam.smoothed_zoom = math::lerp(g::cam.smoothed_zoom, g::cam.zoom, zoom_smoothing_factor);
+		cam.smoothed_move = math::lerp(cam.smoothed_move, cam.move, move_smoothing_factor);
+		cam.smoothed_zoom = math::lerp(cam.smoothed_zoom, cam.zoom, zoom_smoothing_factor);
 
-		auto look_target	 = editor_input_ctx.is_down(mouse_right) ? g::cam.look : float2::zero();
-		g::cam.smoothed_look = math::lerp(g::cam.smoothed_look, look_target, look_smoothing_factor);
+		auto look_target  = editor_input_ctx.is_down(mouse_right) ? cam.look : float2::zero();
+		cam.smoothed_look = math::lerp(cam.smoothed_look, look_target, look_smoothing_factor);
 
-		auto pan_target		= editor_input_ctx.is_down(mouse_middle) ? g::cam.look : float2::zero();
-		g::cam.smoothed_pan = math::lerp(g::cam.smoothed_pan, pan_target, look_smoothing_factor);
+		auto pan_target	 = editor_input_ctx.is_down(mouse_middle) ? cam.look : float2::zero();
+		cam.smoothed_pan = math::lerp(cam.smoothed_pan, pan_target, look_smoothing_factor);
 
-		g::cam.euler_deg.y += g::cam.smoothed_look.x * g::cam.sensitivity;
-		g::cam.euler_deg.x += g::cam.smoothed_look.y * g::cam.sensitivity;
-		g::cam.euler_deg.x	= std::clamp(g::cam.euler_deg.x, -89.f, 89.f);
+		cam.euler_deg.y += cam.smoothed_look.x * cam.sensitivity;
+		cam.euler_deg.x += cam.smoothed_look.y * cam.sensitivity;
+		cam.euler_deg.x	 = std::clamp(cam.euler_deg.x, -89.f, 89.f);
 
-		c_auto xm_look_quat = g::cam.euler_deg * age::g::degree_to_radian
+		c_auto xm_look_quat = cam.euler_deg * age::g::degree_to_radian
 							| simd::load()
 							| simd::euler_to_quat();
 
@@ -59,15 +61,15 @@ namespace age::editor
 		c_auto right   = simd::g::xm_right_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
 		c_auto up	   = simd::g::xm_up_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
 
-		g::cam.pos -= right * g::cam.smoothed_pan.x * g::cam.pan_speed * dt_s;
-		g::cam.pos += up * g::cam.smoothed_pan.y * g::cam.pan_speed * dt_s;
-		g::cam.pos += forward * g::cam.smoothed_zoom * g::cam.zoom_speed;
-		g::cam.pos += (right * g::cam.smoothed_move.x + forward * g::cam.smoothed_move.y) * speed * dt_s;
+		cam.pos -= right * cam.smoothed_pan.x * cam.pan_speed * dt_s;
+		cam.pos += up * cam.smoothed_pan.y * cam.pan_speed * dt_s;
+		cam.pos += forward * cam.smoothed_zoom * cam.zoom_speed;
+		cam.pos += (right * cam.smoothed_move.x + forward * cam.smoothed_move.y) * speed * dt_s;
 
 		auto cam_desc					  = renderer.get_camera_desc(0);
-		cam_desc.pos					  = g::cam.pos;
-		cam_desc.quaternion				  = age::euler_deg_to_quat(g::cam.euler_deg);
-		cam_desc.perspective.aspect_ratio = g::cam.aspect_ratio;
+		cam_desc.pos					  = cam.pos;
+		cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
+		cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
 		renderer.update_camera(0, cam_desc);
 		renderer.set_main_camera(0);
 	}

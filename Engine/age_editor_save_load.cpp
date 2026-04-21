@@ -16,8 +16,8 @@ namespace age::editor::detail
 
 		if (game_proj_version != config::editor_game_proj_version)
 		{
-			AGE_ASSERT(false);
-			// todo, handle game_proj_migrate
+			// AGE_ASSERT(false);
+			//  todo, handle game_proj_migrate
 		}
 
 		res.default_active_scene_idx = game_default_active_scene_idx;
@@ -32,6 +32,12 @@ namespace age::editor::detail
 		for (auto i : views::loop(game_scene_count))
 		{
 			auto& scene = res.scene_data_vec.emplace_back();
+
+			// todo, handle game_proj_migrate
+			if (game_proj_version >= 2)
+			{
+				scene.cam = read_buf.read<camera_data>();
+			}
 
 			auto&& [scene_name_count, scene_ent_storage_count] = read_buf.read<uint32, uint32>();
 
@@ -116,6 +122,11 @@ namespace age::editor::detail
 
 		for (c_auto& scene : game.scene_data_vec)
 		{
+			if constexpr (config::editor_game_proj_version >= 2)
+			{
+				buf.write(scene.cam);
+			}
+
 			buf.write(scene.names.size<uint32>(), scene.storage_data_vec.size<uint32>());
 
 			for (c_auto& name : scene.names)
@@ -382,6 +393,8 @@ namespace age::editor::detail
 		res.code_idx = code_scene.code_idx;
 
 		res.names.reserve(res.names.size() + code_scene.names.size());
+
+		res.cam = file_scene.cam;
 
 		for (auto i : views::loop(code_scene.names.size<uint32>()))
 		{
