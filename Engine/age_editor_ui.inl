@@ -296,45 +296,130 @@ namespace age::editor
 		ui_entity_hierarchy_impl(auto& entities, auto& renderer, storage_editor_data& editor_storage) noexcept
 		{
 			using namespace age::ui;
-			if (auto _ = widget::vertical())
+			using enum age::ui::e::style_state;
+			using enum input::e::key_kind;
+
+			using t_ent_id = typename BARE_OF(entities)::t_ent_id;
+
+			if (auto _ = widget::vertical(set_child_gap(0)))
 			{
-				if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
+				auto is_open = false;
+
+				if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
 				{
-					if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
+					if (header.clicked<mouse_left>())
 					{
-						widget::begin(style::text_heading("hierarchy") | set_align_begin());
+						header.toggle();
 					}
 
-					if (auto new_ent_btn = widget::button("+ entity"))
+					// is_open = header.is_toggled() != editor_storage.default_open;
+					is_open = header.is_toggled() is_false;
+
+					widget::disclosure_indicator(is_open);
+
+					if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
 					{
-						if (new_ent_btn.clicked())
+						widget::text_input2(editor_storage.names[0]);
+					}
+
+					// if (auto _ = widget::begin(set_padding(theme::frame_padding())))
+					//{
+					//	widget::text_heading(editor_storage.names[0].data());
+					// }
+
+					if (header.contains_mouse())
+					{
+						if (auto _ = widget::horizontal_inv())
 						{
-							g::command_buf.new_entity(entities, renderer);
+							if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
+							{
+								widget::text_button("+");
+								if (new_ent_btn.clicked())
+								{
+									// g::ui_new_entity_with_archetype_buffer.emplace_back(0);
+									g::command_buf.new_entity(entities, renderer);
+								}
+							}
 						}
 					}
 				}
 
-				widget::separator_v();
-
-				for (auto&& [ent_id, ent_arch] : entities | each_entity(ecs::query<ecs::sv_entity_id, ecs::sv_archetype>()))
+				if (is_open)
 				{
-					c_auto selected = is_selected(editor_storage.code_idx, ent_id);
-					ui_entity_tree_node(editor_storage, ent_id, ent_arch, selected);
-
-					if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
+					if (auto _ = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x)))
 					{
-						g::command_buf.remove_entity(entities, renderer, ent_id);
-						remove_select(editor_storage.code_idx, ent_id);
-						auto&& [archetype_idx, ent_idx] = editor_storage.id_to_editor_location_map[ent_id];
+						for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
+						{
+							auto arch_open = false;
 
-						detail::unregister_entity(editor_storage, archetype_idx, ent_id, ent_idx);
+							if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
+							{
+								if (header.clicked<mouse_left>())
+								{
+									header.toggle();
+								}
+
+								// is_open = header.is_toggled() != arch.default_open;
+								arch_open = header.is_toggled() is_false;
+
+								widget::disclosure_indicator(arch_open);
+
+								if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
+								{
+									widget::text_input2(arch.name);
+								}
+
+								if (auto _ = widget::horizontal_inv())
+								{
+									if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
+									{
+										// widget::text_button("+");
+										widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
+										if (new_ent_btn.clicked())
+										{
+											// g::command_buf.new_entity(entities, renderer);
+											g::ui_new_entity_with_archetype_buffer.emplace_back(arch.archetype);
+										}
+									}
+								}
+							}
+
+							if (arch_open is_false) { continue; }
+
+							if (auto _ = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x)))
+							{
+								for (const auto&& [ent_idx, ent] : arch.entity_data_vec | std::views::enumerate)
+								{
+									c_auto selected = is_selected(editor_storage.code_idx, ent.id);
+									ui_entity_tree_node(editor_storage, ent.id, arch.archetype, selected);
+
+									if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
+									{
+										g::command_buf.remove_entity(entities, renderer, static_cast<t_ent_id>(ent.id));
+										remove_select(editor_storage.code_idx, ent.id);
+
+										detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent.id, ent_idx);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
 
 			AGE_ASSERT(g::ui_new_entity_buffer.is_empty());
 
+
+			for (auto& arch : g::ui_new_entity_with_archetype_buffer)
+			{
+				c_auto ent_id = entities.new_entity();
+				g::ui_new_entity_buffer.emplace_back(ent_id);
+				add_components(entities, renderer, editor_storage, ent_id, static_cast<typename BARE_OF(entities)::t_archetype>(arch));
+			}
+
 			g::command_buf.flush(entities, renderer, g::ui_new_entity_buffer);
+
+			g::ui_new_entity_with_archetype_buffer.clear();
 
 			for (auto new_ent_id : g::ui_new_entity_buffer)
 			{
@@ -373,9 +458,20 @@ namespace age::editor
 	void
 	ui_entity_hierarchy(auto& editor_game, auto& renderer) noexcept
 	{
+		using namespace age::ui;
 		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
 		g::select_vec.resize(current_scene.storage_data_vec.size());
+
+		if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
+		{
+			if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
+			{
+				widget::begin(style::text_title("hierarchy") | set_align_begin());
+			}
+		}
+
+		// widget::separator_v();
 
 		for (auto& storage_data : current_scene.storage_data_vec)
 		{

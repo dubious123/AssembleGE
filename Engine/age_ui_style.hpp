@@ -314,6 +314,14 @@ namespace age::ui
 				desc.height_size_mode = size_mode.size_mode;
 			}
 		};
+
+		struct mod_empty
+		{
+			FORCE_INLINE constexpr void
+			apply(auto&& desc) const noexcept
+			{
+			}
+		};
 	}	 // namespace detail
 
 	FORCE_INLINE constexpr decltype(auto)

@@ -23,24 +23,26 @@ namespace age::ui::detail
 
 			z_offset = pos_data_parent.z_offset + desc.z_offset;
 
-			if (desc.draw)
+			if (desc.shape_kind == e::shape_kind::text)
 			{
-				if (desc.shape_kind == e::shape_kind::text)
+				if (AGE_IS_INVALID_IDX(desc.text.text_data_idx))
 				{
-					if (AGE_IS_INVALID_IDX(desc.text.text_data_idx))
-					{
-						detail::gen_text_data(desc);
-					}
-
-					auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
-					render_data_count = text_data.char_data_count;
-
-					atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id;
+					detail::gen_text_data(desc);
 				}
-				else
-				{
-					render_data_count = 1;
-				}
+
+				auto& text_data	  = g::text_data_vec[desc.text.text_data_idx];
+				render_data_count = text_data.char_data_count;
+
+				atlas_id = g::font_data_vec[desc.text.font_idx].second.atlas_id;
+			}
+			else
+			{
+				render_data_count = 1;
+			}
+
+			if (desc.draw is_false)
+			{
+				render_data_count = 0;
 			}
 
 			padding_sum = desc.layout == e::widget_layout::vertical or desc.layout == e::widget_layout::vertical_inv

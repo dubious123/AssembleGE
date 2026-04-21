@@ -446,6 +446,88 @@ namespace age::ui::widget
 
 		return {};
 	}
+
+	template <auto n>
+	widget_ctx
+	text_input(std::array<char, n>& arr, auto&&... mod) noexcept
+	{
+		return text_input(arr.data(), n, FWD(mod)...);
+	}
+
+	widget_ctx
+	text_input2(char* p_buf, uint32 buf_size, auto&& frame_mod, auto&& text_mod) noexcept
+	{
+		if (auto h = widget::begin(style::horizontal()
+								   | set_horizontal()
+								   | set_child_gap(0)
+								   | set_interact(true)
+								   | set_save_state(true)
+								   | set_width_fit()
+								   | set_height_fit()))
+		{
+			if (auto _ = widget::begin(style::frame()
+									   | set_draw(h.focused())
+									   | set_horizontal()
+									   | set_child_gap(0)
+									   | set_width_fit()
+									   | set_height_fit()
+									   | FWD(frame_mod)))
+			{
+				auto text_desc = widget_desc::apply(style::text(p_buf)
+													| set_align(e::widget_align::begin)
+													| FWD(text_mod));
+
+				c_auto font_size		= text_desc.text.font_size;
+				c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
+
+				auto& state = h.get_state();
+
+				c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
+				c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+
+				if (h.triple_clicked())
+				{
+					detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 3);
+				}
+				else if (h.double_clicked())
+				{
+					detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 2);
+				}
+				else if (h.clicked())
+				{
+					detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 1);
+				}
+				else if (h.focused() and not h.pressed())
+				{
+					detail::handle_text_edit(state, p_buf, buf_size, text_desc, width);
+
+					auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+					auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
+
+					detail::draw_text_cursor_and_selection(state, cursor, anchor, text_desc, width, text_line_height);
+				}
+
+				widget::begin(std::move(text_desc));
+			}
+
+			return h;
+		}
+
+		return {};
+	}
+
+	inline widget_ctx
+	text_input2(char* p_buf, uint32 buf_size) noexcept
+	{
+		return text_input2(p_buf, buf_size, ui::detail::mod_empty{}, ui::detail::mod_empty{});
+	}
+
+	template <auto n>
+	widget_ctx
+	text_input2(std::array<char, n>& arr) noexcept
+	{
+		return text_input2(arr.data(), n);
+	}
 }	 // namespace age::ui::widget
 
 // numeric field

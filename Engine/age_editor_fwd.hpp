@@ -114,9 +114,10 @@ namespace age::editor
 
 namespace age::editor::g
 {
-	inline auto select_vec			 = age::vector<age::vector<uint64>>{};
-	inline auto ui_new_entity_buffer = age::vector<uint64>{};
-	inline auto command_buf			 = ecs::command_buffer{};
+	inline auto select_vec							= age::vector<age::vector<uint64>>{};
+	inline auto ui_new_entity_buffer				= age::vector<uint64>{};
+	inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
+	inline auto command_buf							= ecs::command_buffer{};
 
 	inline auto current_game = game_editor_data{};
 
