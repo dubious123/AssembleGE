@@ -34,12 +34,6 @@ load_unified_light(uint32 idx)
 	return load<unified_light>(static_buffer, UNIFIED_LIGHT_OFFSET + idx * sizeof(unified_light));
 }
 
-shadow_light_header
-load_shadow_light_header(uint32 idx)
-{
-	return load<shadow_light_header>(static_buffer, SHADOW_LIGHT_HEADER_OFFSET + idx * sizeof(shadow_light_header));
-}
-
 byte_address_buffer mesh_data_buffer reg(t1, space0);
 
 // uav only
@@ -203,80 +197,6 @@ load_tile_mask(uint32 tile_idx, uint32 word_idx)
 	return load<uint32>(light_cull_stage_buffer_srv, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
 }
 
-// shadow buffer
-byte_address_buffer	   shadow_stage_buffer_srv reg(t0, space2);
-rw_byte_address_buffer shadow_stage_buffer_uav reg(u0, space2);
-
-structured_buffer<shadow_light>	   shadow_light_buffer_srv reg(t1, space2);
-rw_structured_buffer<shadow_light> shadow_light_buffer_uav reg(u1, space2);
-
-void
-store_z_min_max(uint32 z_min, uint32 z_max)
-{
-	store<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET, z_min);
-	store<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET, z_max);
-}
-
-void
-store_z_min_interlocked_min(uint32 z_min)
-{
-	buf_interlocked_min(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET, z_min);
-}
-
-void
-store_z_max_interlocked_max(uint32 z_max)
-{
-	buf_interlocked_max(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET, z_max);
-}
-
-uint32
-load_z_min_uav()
-{
-	return load<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET);
-}
-
-uint32
-load_z_max_uav()
-{
-	return load<uint32>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET);
-}
-
-uint32
-load_z_min()
-{
-	return load<uint32>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_Z_MIN_OFFSET);
-}
-
-uint32
-load_z_max()
-{
-	return load<uint32>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_Z_MAX_OFFSET);
-}
-
-void
-store_shadow_light(uint32 idx, shadow_light data)
-{
-	shadow_light_buffer_uav[idx] = data;
-}
-
-shadow_light
-load_shadow_light(uint32 idx)
-{
-	return shadow_light_buffer_srv[idx];
-}
-
-void
-store_cascade_split(uint32 idx, float split)
-{
-	store<float>(shadow_stage_buffer_uav, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float), split);
-}
-
-float
-load_cascade_split(uint32 idx)
-{
-	return load<float>(shadow_stage_buffer_srv, SHADOW_STAGE_BUFFER_CASCADE_OFFSET + idx * sizeof(float));
-}
-
 // rt
 structured_buffer<rt_instance_render_data> rt_instance_render_data_buffer_srv reg(t0, space3);
 structured_buffer<uint32>				   rt_index_buffer_srv reg(t1, space3);
@@ -340,9 +260,7 @@ uint32 light_tile_count_y;
 float  cam_near_z;
 float  cam_far_z;
 float  cam_log_far_near_ratio;
-uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 uint32 radix_sort_pass;
-uint32 shadow_light_index;	  // shadow mapping
 
 uint32 ui_data_id_offset;
 uint32 ui_data_count;

@@ -45,21 +45,23 @@ namespace age_demo::scene_2
 
 			// warm point light - left side, illuminates transparent objects from behind
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ -5.0f, 5.0f, 4.0f },
-				.range	   = 50.0f,
-				.color	   = float3{ 1.0f, 0.7f, 0.3f },
-				.intensity = 8.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
+				.position	 = float3{ -5.0f, 5.0f, 4.0f },
+				.range		 = 50.0f,
+				.color		 = float3{ 1.0f, 0.7f, 0.3f },
+				.intensity	 = 8.0f,
+				.cast_shadow = true } }
+				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
 			// cool point light - right side, color mixing through transparent surfaces
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ 5.0f, 3.0f, -2.0f },
-				.range	   = 50.0f,
-				.color	   = float3{ 0.3f, 0.5f, 1.0f },
-				.intensity = 8.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
+				.position	 = float3{ 5.0f, 3.0f, -2.0f },
+				.range		 = 50.0f,
+				.color		 = float3{ 0.3f, 0.5f, 1.0f },
+				.intensity	 = 8.0f,
+				.cast_shadow = true } }
+				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
+				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			// === meshes ===
 

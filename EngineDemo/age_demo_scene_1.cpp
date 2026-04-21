@@ -73,21 +73,24 @@ namespace age_demo::scene_1
 
 			// red light - left side, low
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ -3.0f, 2.0f, 0.0f },
-				.range	   = 15.0f,
-				.color	   = float3{ 1.0f, 0.2f, 0.2f },
-				.intensity = 3.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
+				.position	 = float3{ -3.0f, 2.0f, 0.0f },
+				.range		 = 15.0f,
+				.color		 = float3{ 1.0f, 0.2f, 0.2f },
+				.intensity	 = 3.0f,
+				.cast_shadow = true,
+			} }
+				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
+				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			// green light - right side, mid height
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
-				.position  = float3{ 3.0f, 4.0f, 0.0f },
-				.range	   = 15.0f,
-				.color	   = float3{ 0.2f, 1.0f, 0.2f },
-				.intensity = 3.0f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_point_light(FWD(desc), true); })
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
+				.position	 = float3{ 3.0f, 4.0f, 0.0f },
+				.range		 = 15.0f,
+				.color		 = float3{ 0.2f, 1.0f, 0.2f },
+				.intensity	 = 3.0f,
+				.cast_shadow = true } }
+				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
+				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			// blue light - center, high above
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
@@ -95,8 +98,8 @@ namespace age_demo::scene_1
 				.range	   = 15.0f,
 				.color	   = float3{ 0.3f, 0.3f, 1.0f },
 				.intensity = 3.0f } }
-				| AGE_FUNC(i_init.get_render_pipeline().add_point_light)
-				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
+				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
+				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
 				.position  = float3{ -4.0f, 4.0f, 0.0f },
@@ -106,7 +109,7 @@ namespace age_demo::scene_1
 				.color	   = float3{ 1.0f, 0.9f, 0.6f },
 				.cos_inner = 0.96f,
 				.cos_outer = 0.87f } }
-				| AGE_LAMBDA((auto&& desc), { return i_init.get_render_pipeline().add_spot_light(FWD(desc), false); })
+				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)
 				| AGE_FUNC(i_init.get_spot_light_id_vec().emplace_back),
 
 			// === meshes ===

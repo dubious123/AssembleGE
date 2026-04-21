@@ -23,43 +23,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
-	struct shadow_stage
-	{
-		graphics::pso::handle h_init_pso;
-		ID3D12PipelineState*  p_init_pso;
-
-		graphics::pso::handle h_depth_reduce_pso;
-		ID3D12PipelineState*  p_depth_reduce_pso;
-
-		graphics::pso::handle h_fill_shadow_buffer_pso;
-		ID3D12PipelineState*  p_fill_shadow_buffer_pso;
-
-		graphics::pso::handle h_shadow_map_pso;
-		ID3D12PipelineState*  p_shadow_map_pso;
-
-		dsv_desc_handle h_shadow_atlas_dsv_desc;
-
-		void
-		init(graphics::root_signature::handle h_root_sig) noexcept;
-
-		void
-		bind_dsv(graphics::resource_handle h_shadow_atlas) noexcept;
-
-		inline void
-		execute(uint32			width,
-				uint32			height,
-				uint32			shadow_light_count,
-				uint32			shadow_light_header_count,
-				uint32			opaque_meshlet_count,
-				resource_handle h_shadow_stage_buffer,
-				auto&			shadow_stage_buffer_srv,
-				resource_handle h_shadow_stage_shadow_light_buffer,
-				auto&			shadow_stage_shadow_light_buffer_srv) noexcept;
-
-		void
-		deinit() noexcept;
-	};
-
 	struct light_culling_stage
 	{
 		graphics::pso::handle h_pso_init;
@@ -182,7 +145,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12RootSignature*			 p_root_sig;
 
 		depth_stage			stage_depth;
-		shadow_stage		stage_shadow;
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
 		transparent_stage	stage_transparent;
@@ -192,11 +154,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_main_buffer;
 		resource_handle h_depth_buffer;
 		resource_handle h_rt_transparent_texture_buffer;
-		resource_handle h_shadow_atlas;
 
 		resource_handle h_scratch_buffer;
-		resource_handle h_shadow_stage_buffer;
-		resource_handle h_shadow_stage_shadow_light_buffer;
 		resource_handle h_light_cull_stage_buffer;
 		resource_handle h_light_cull_stage_sorted_light_buffer;
 
@@ -237,12 +196,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<1, 1> light_cull_stage_sorted_light_buffer_srv;
 		binding_config_t::reg_u<1, 1> light_cull_stage_sorted_light_buffer_uav;
 
-		// shadow
-		binding_config_t::reg_t<0, 2> shadow_stage_buffer_srv;
-		binding_config_t::reg_u<0, 2> shadow_stage_buffer_uav;
-		binding_config_t::reg_t<1, 2> shadow_stage_shadow_light_buffer_srv;
-		binding_config_t::reg_u<1, 2> shadow_stage_shadow_light_buffer_uav;
-
 		// ui
 		binding_config_t::reg_t<0, 4>								ui_data_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
@@ -258,7 +211,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_depth_buffer_srv_desc;
-		srv_desc_handle h_shadow_atlas_srv_desc;
 		srv_desc_handle h_rt_tlas_buffer_srv_desc;
 		srv_desc_handle h_rt_transparent_tex_buffer_srv_desc;
 		uav_desc_handle h_rt_transparent_tex_buffer_uav_desc;
@@ -298,13 +250,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
 		age::stable_dense_vector<shared_type::unified_light> unified_light_vec;
-
-		// shadow
-		std::array<shadow_light_header, g::max_shadow_light_count> shadow_light_header_arr;
-
-		t_shadow_light_id shadow_light_header_count		 = 0u;
-		t_shadow_light_id next_shadow_light_id			 = 0u;
-		t_shadow_light_id directional_shadow_light_count = 0u;
 
 		// main
 		void
@@ -368,32 +313,23 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept;
 
-		void
-		update_directional_light(t_directional_light_id id, const directional_light_desc& desc, bool cast_shadow) noexcept;
-
 		t_directional_light_id
-		add_directional_light(const directional_light_desc& desc, bool cast_shadow = true) noexcept;
+		add_directional_light(const directional_light_desc& desc) noexcept;
 
 		void
 		remove_directional_light(t_directional_light_id& id) noexcept;
 
+		t_unified_light_id
+		add_point_light(const point_light_desc& desc) noexcept;
+
 		void
 		update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept;
 
-		void
-		update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow) noexcept;
-
 		t_unified_light_id
-		add_point_light(const point_light_desc& desc, bool cast_shadow = false) noexcept;
+		add_spot_light(const spot_light_desc& desc) noexcept;
 
 		void
 		update_spot_light(t_unified_light_id id, const spot_light_desc& desc) noexcept;
-
-		void
-		update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow) noexcept;
-
-		t_unified_light_id
-		add_spot_light(const spot_light_desc& desc, bool cast_shadow = false) noexcept;
 
 		void
 		remove_point_light(t_unified_light_id& id) noexcept;

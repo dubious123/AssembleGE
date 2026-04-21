@@ -34,9 +34,10 @@ namespace age_demo::scene_0
 			AGE_LAMBDA((), { i_init.get_render_pipeline->set_main_camera(i_init.get_camera_id_vec[0]); }),
 
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
-				.direction = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
-				.intensity = 0.3f,
-				.color	   = float3{ 1.0f, 0.95f, 0.85f } } }
+				.direction	 = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
+				.intensity	 = 0.3f,
+				.color		 = float3{ 1.0f, 0.95f, 0.85f },
+				.cast_shadow = true } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec->emplace_back),
 

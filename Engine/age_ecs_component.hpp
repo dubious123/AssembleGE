@@ -234,12 +234,10 @@ namespace age::ecs
 		add_renderable(auto& renderer, auto&& self) noexcept
 			requires(std::is_same_v<directional_light, BARE_OF(self)>)
 		{
-			self.render_id = renderer.add_directional_light({
-																.direction = self.direction,
-																.intensity = self.intensity,
-																.color	   = self.color,
-															},
-															self.cast_shadow);
+			self.render_id = renderer.add_directional_light({ .direction   = self.direction,
+															  .intensity   = self.intensity,
+															  .color	   = self.color,
+															  .cast_shadow = self.cast_shadow });
 		}
 
 		FORCE_INLINE static void
@@ -294,12 +292,10 @@ namespace age::ecs
 		add_renderable(auto& renderer, auto&& self) noexcept
 			requires(std::is_same_v<point_light, BARE_OF(self)>)
 		{
-			self.render_id = renderer.add_point_light({
-														  .range	 = self.range,
-														  .color	 = self.color,
-														  .intensity = self.intensity,
-													  },
-													  self.cast_shadow);
+			self.render_id = renderer.add_point_light({ .range		 = self.range,
+														.color		 = self.color,
+														.intensity	 = self.intensity,
+														.cast_shadow = self.cast_shadow });
 		}
 
 		FORCE_INLINE static void
@@ -357,15 +353,13 @@ namespace age::ecs
 		add_renderable(auto& renderer, auto&& self) noexcept
 			requires(std::is_same_v<spot_light, BARE_OF(self)>)
 		{
-			self.render_id = renderer.add_spot_light({
-														 .range		= self.range,
-														 .direction = self.direction,
-														 .intensity = self.intensity,
-														 .color		= self.color,
-														 .cos_inner = self.cos_inner,
-														 .cos_outer = self.cos_outer,
-													 },
-													 self.cast_shadow);
+			self.render_id = renderer.add_spot_light({ .range		= self.range,
+													   .direction	= self.direction,
+													   .intensity	= self.intensity,
+													   .color		= self.color,
+													   .cos_inner	= self.cos_inner,
+													   .cos_outer	= self.cos_outer,
+													   .cast_shadow = self.cast_shadow });
 		}
 
 		FORCE_INLINE static void

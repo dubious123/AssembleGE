@@ -82,6 +82,7 @@
     <ClInclude Include="age_util_bitset.hpp" />
     <ClInclude Include="age_util_ranges.hpp" />
     <ClInclude Include="age_editor_fwd.hpp" />
+    <ClInclude Include="age_util_bits.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

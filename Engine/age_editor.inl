@@ -83,41 +83,35 @@ namespace age::editor::detail
 		for (auto&& [light] : ecs_storage | each_entity<directional_light>())
 		{
 			renderer.update_directional_light(light.render_id,
-											  {
-												  .direction = age::math::normalize(light.direction),
-												  .intensity = light.intensity,
-												  .color	 = light.color,
-											  },
-											  light.cast_shadow);
+											  { .direction	 = age::math::normalize(light.direction),
+												.intensity	 = light.intensity,
+												.color		 = light.color,
+												.cast_shadow = light.cast_shadow });
 		}
 
 		for (auto&& [light, pos] : ecs_storage | each_entity<point_light, position>())
 		{
 			renderer.update_point_light(
 				light.render_id,
-				{
-					.position  = pos,
-					.range	   = light.range,
-					.color	   = light.color,
-					.intensity = light.intensity,
-				},
-				light.cast_shadow);
+				{ .position	   = pos,
+				  .range	   = light.range,
+				  .color	   = light.color,
+				  .intensity   = light.intensity,
+				  .cast_shadow = light.cast_shadow });
 		}
 
 		for (auto&& [light, pos] : ecs_storage | each_entity<spot_light, position>())
 		{
 			renderer.update_spot_light(
 				light.render_id,
-				{
-					.position  = pos,
-					.range	   = light.range,
-					.direction = age::math::normalize(light.direction),
-					.intensity = light.intensity,
-					.color	   = light.color,
-					.cos_inner = light.cos_inner,
-					.cos_outer = light.cos_outer,
-				},
-				light.cast_shadow);
+				{ .position	   = pos,
+				  .range	   = light.range,
+				  .direction   = age::math::normalize(light.direction),
+				  .intensity   = light.intensity,
+				  .color	   = light.color,
+				  .cos_inner   = light.cos_inner,
+				  .cos_outer   = light.cos_outer,
+				  .cast_shadow = light.cast_shadow });
 		}
 
 		for (auto&& [pos, rot, scale, obj, mesh, mat] : ecs_storage

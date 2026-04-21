@@ -11,6 +11,18 @@ static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+bool
+get_bit(uint32 value, uint32 bit_idx)
+{
+	return (value >> bit_idx) & 1u;
+}
+
+uint32
+get_bits(uint32 value, uint32 bit_idx, uint32 bit_count)
+{
+	return (value >> bit_idx) & ((1u << bit_count) - 1u);
+}
+
 float
 int8_to_float(uint32 raw)
 {

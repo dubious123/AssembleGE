@@ -19,7 +19,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_main_buffer_srv_desc				 = graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_depth_buffer_srv_desc				 = graphics::g::cbv_srv_uav_desc_pool.pop();
-		h_shadow_atlas_srv_desc				 = graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_rt_tlas_buffer_srv_desc			 = graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_rt_transparent_tex_buffer_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
 		h_rt_transparent_tex_buffer_uav_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
@@ -34,30 +33,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_ui_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(1024);
 
-
-			h_shadow_atlas = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(g::shadow_atlas_width, g::shadow_atlas_height),
-				  .clear_value{
-					  .Format		= DXGI_FORMAT_D32_FLOAT,
-					  .DepthStencil = { .Depth = 0.f, .Stencil = 0 } },
-				  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-				  .heap_memory_kind = e::memory_kind::gpu_only,
-				  .has_clear_value	= true });
-
 			h_scratch_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::scratch_buffer_total_size),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-			h_shadow_stage_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::shadow_stage_buffer_size),
-				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-				  .heap_memory_kind	   = e::memory_kind::gpu_only,
-				  .has_clear_value	   = false });
-
-			h_shadow_stage_shadow_light_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::shadow_light) * g::max_shadow_light_count),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
@@ -93,12 +70,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			scratch_buffer_uav.bind(h_scratch_buffer);
 
-			shadow_stage_buffer_srv.bind(h_shadow_stage_buffer);
-			shadow_stage_buffer_uav.bind(h_shadow_stage_buffer);
-
-			shadow_stage_shadow_light_buffer_srv.bind(h_shadow_stage_shadow_light_buffer);
-			shadow_stage_shadow_light_buffer_uav.bind(h_shadow_stage_shadow_light_buffer);
-
 			light_cull_stage_sorted_light_buffer_srv.bind(h_light_cull_stage_sorted_light_buffer);
 			light_cull_stage_sorted_light_buffer_uav.bind(h_light_cull_stage_sorted_light_buffer);
 
@@ -109,22 +80,13 @@ namespace age::graphics::render_pipeline::forward_plus
 			ui_data_buffer.bind_array(h_mapping_ui_data_buffer_arr);
 		}
 
-		{
-			resource::create_view(h_shadow_atlas,
-								  h_shadow_atlas_srv_desc,
-								  defaults::srv_view_desc::tex2d(DXGI_FORMAT_R32_FLOAT));
-
-			resource::create_view(h_rt_tlas_buffer_srv_desc, defaults::srv_view_desc::rt_acceleration_structure(h_rt_tlas_buffer));
-		}
+		resource::create_view(h_rt_tlas_buffer_srv_desc, defaults::srv_view_desc::rt_acceleration_structure(h_rt_tlas_buffer));
 
 		create_resolution_dependent_buffers();
 
 		{
 			stage_depth.init(h_root_sig);
 			stage_depth.bind_dsv(h_depth_buffer);
-
-			stage_shadow.init(h_root_sig);
-			stage_shadow.bind_dsv(h_shadow_atlas);
 
 			stage_light_culling.init(h_root_sig);
 
@@ -145,14 +107,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_main_buffer->set_name(L"main_buffer");
 		h_depth_buffer->set_name(L"depth_buffer");
-		h_shadow_atlas->set_name(L"shadow_atlas");
 
 		h_mapping_frame_data->h_resource->set_name(L"mapping_frame_data");
 		h_mapping_mesh_buffer->h_resource->set_name(L"mapping_mesh_buffer");
 
 		h_scratch_buffer->set_name(L"scratch_buffer");
-		h_shadow_stage_buffer->set_name(L"shadow_stage_buffer");
-		h_shadow_stage_shadow_light_buffer->set_name(L"shadow_stage_shadow_light_buffer");
 
 		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
@@ -205,14 +164,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_transparent.deinit();
 		stage_opaque.deinit();
 		stage_light_culling.deinit();
-		stage_shadow.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
 
 		graphics::g::cbv_srv_uav_desc_pool.push(h_main_buffer_srv_desc);
 		graphics::g::cbv_srv_uav_desc_pool.push(h_depth_buffer_srv_desc);
-		graphics::g::cbv_srv_uav_desc_pool.push(h_shadow_atlas_srv_desc);
 		graphics::g::cbv_srv_uav_desc_pool.push(h_rt_tlas_buffer_srv_desc);
 		graphics::g::cbv_srv_uav_desc_pool.push(h_rt_transparent_tex_buffer_srv_desc);
 		graphics::g::cbv_srv_uav_desc_pool.push(h_rt_transparent_tex_buffer_uav_desc);
@@ -230,12 +187,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_depth_buffer);
 		resource::release(h_scratch_buffer);
 		resource::release(h_light_cull_stage_buffer);
-
-
-		// shadow
-		resource::release(h_shadow_atlas);
-		resource::release(h_shadow_stage_buffer);
-		resource::release(h_shadow_stage_shadow_light_buffer);
 		resource::release(h_light_cull_stage_sorted_light_buffer);
 
 		// rt
@@ -260,10 +211,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(directional_light_vec.size() == 0);
 		AGE_ASSERT(unified_light_vec.size() == 0);
 		AGE_ASSERT(texture_map.size() == 0);
-
-		AGE_ASSERT(shadow_light_header_count == 0);
-		AGE_ASSERT(next_shadow_light_id == 0);
-		AGE_ASSERT(directional_shadow_light_count == 0);
 
 		texture_map.clear();
 		object_data_vec.clear();
@@ -321,7 +268,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-								barrier::undefined_to_dsv_write(h_shadow_atlas->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
 		return true;
@@ -358,7 +304,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = std::to_underlying(e::rt_mask::opaque),
+			.InstanceMask						 = to_idx(e::rt_mask::opaque),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -389,7 +335,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = std::to_underlying(e::rt_mask::transparent),
+			.InstanceMask						 = to_idx(e::rt_mask::transparent),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -419,7 +365,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			scratch_buffer_uav.apply_compute();
 
-			shadow_stage_shadow_light_buffer_uav.apply_compute();
 			light_cull_stage_sorted_light_buffer_uav.apply_compute();
 
 			rt_instance_render_data_buffer_srv.apply_compute();
@@ -428,10 +373,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			ui_data_buffer.apply();
 		}
 
+		command::set_view_ports(1, &rs.default_viewport);
+		command::set_scissor_rects(1, &rs.default_scissor_rect);
+
 		root_constants.apply();
 		root_constants.apply_compute();
 		light_cull_stage_buffer_uav.apply_compute();
-		shadow_stage_buffer_uav.apply_compute();
 
 		stage_light_culling.execute(light_tile_count_x,
 									light_tile_count_y,
@@ -443,31 +390,27 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_cull_stage_sorted_light_buffer_srv.apply();
 		light_cull_stage_buffer_srv.apply();
 
-		command::set_view_ports(1, &rs.default_viewport);
-		command::set_scissor_rects(1, &rs.default_scissor_rect);
-
 		stage_depth.execute(opaque_meshlet_render_data_count);
 
+		// command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		command::apply_barriers(barrier::dsv_write_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		// stage_shadow.execute(
+		//	extent.width,
+		//	extent.height,
+		//	next_shadow_light_id,
+		//	shadow_light_header_count,
+		//	opaque_meshlet_render_data_count,
+		//	h_shadow_stage_buffer,
+		//	shadow_stage_buffer_srv,
+		//	h_shadow_stage_shadow_light_buffer,
+		//	shadow_stage_shadow_light_buffer_srv);
 
-		stage_shadow.execute(
-			extent.width,
-			extent.height,
-			next_shadow_light_id,
-			shadow_light_header_count,
-			opaque_meshlet_render_data_count,
-			h_shadow_stage_buffer,
-			shadow_stage_buffer_srv,
-			h_shadow_stage_shadow_light_buffer,
-			shadow_stage_shadow_light_buffer_srv);
+		// command::set_view_ports(1, &rs.default_viewport);
+		// command::set_scissor_rects(1, &rs.default_scissor_rect);
 
-		command::set_view_ports(1, &rs.default_viewport);
-		command::set_scissor_rects(1, &rs.default_scissor_rect);
-
-		command::apply_barriers(
-			barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		// command::apply_barriers(
+		//	barrier::srv_to_dsv_read(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+		//	barrier::dsv_write_to_srv(h_shadow_atlas->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
@@ -478,8 +421,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		light_cull_stage_sorted_light_buffer_srv.apply_compute();
 		light_cull_stage_buffer_srv.apply_compute();
-		shadow_stage_shadow_light_buffer_srv.apply_compute();
-		shadow_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_rt_transparent_texture_buffer, extent);
 
 		stage_ui.execute(ui_render_data_z_range_vec);
@@ -725,7 +666,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				.offset						 = mesh_byte_offset,
 				.byte_size					 = baked.buffer.byte_size<uint32>(),
 				.meshlet_count				 = baked.get_header().meshlet_count,
-				.rt_index_buffer_elem_offset = rt_index_buffer_byte_offset / sizeof(uint32),
+				.rt_index_buffer_elem_offset = rt_index_buffer_byte_offset / static_cast<uint32>(sizeof(uint32)),
 				.h_blas						 = h_blas }));
 
 		mesh_byte_offset			+= baked.buffer.byte_size<uint32>();
@@ -889,162 +830,20 @@ namespace age::graphics::render_pipeline::forward_plus
 // light
 namespace age::graphics::render_pipeline::forward_plus
 {
-	namespace detail
-	{
-		constexpr FORCE_INLINE t_shadow_light_id
-		get_shadow_light_count(graphics::e::light_kind kind) noexcept
-		{
-			switch (kind)
-			{
-			case graphics::e::light_kind::directional:
-				return static_cast<t_shadow_light_id>(g::directional_shadow_cascade_count);
-			case graphics::e::light_kind::point:
-				return static_cast<t_shadow_light_id>(6);
-			case graphics::e::light_kind::spot:
-				return static_cast<t_shadow_light_id>(1);
-			default:
-				AGE_UNREACHABLE();
-			}
-		}
-
-		constexpr FORCE_INLINE void
-		handle_shadow_light_add(pipeline& ctx, graphics::e::light_kind kind, uint32 id, bool cast_shadow) noexcept
-		{
-			if (kind == graphics::e::light_kind::directional)
-			{
-				if (cast_shadow)
-				{
-					std::move_backward(ctx.shadow_light_header_arr.begin(),
-									   ctx.shadow_light_header_arr.begin() + ctx.shadow_light_header_count,
-									   ctx.shadow_light_header_arr.begin() + ctx.shadow_light_header_count + 1);
-					for (auto& header : ctx.shadow_light_header_arr | std::views::drop(1) | std::views::take(ctx.shadow_light_header_count))
-					{
-						header.shadow_id += g::directional_shadow_cascade_count;
-						if (header.light_kind == graphics::e::light_kind::directional)
-						{
-							ctx.directional_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
-						}
-						else
-						{
-							ctx.unified_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
-						}
-
-						AGE_ASSERT(header.shadow_id < g::max_shadow_light_count);
-					}
-
-					ctx.shadow_light_header_arr[0] = shadow_light_header{
-						.light_id	= id,
-						.light_kind = kind,
-						.shadow_id	= 0
-					};
-
-					ctx.next_shadow_light_id += get_shadow_light_count(kind);
-
-					++ctx.shadow_light_header_count;
-					++ctx.directional_shadow_light_count;
-
-					ctx.directional_light_vec[id].shadow_id_and_extra = 0;
-				}
-				else
-				{
-					ctx.directional_light_vec[id].shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
-				}
-			}
-			else
-			{
-				if (cast_shadow)
-				{
-					ctx.shadow_light_header_arr[ctx.shadow_light_header_count++] = shadow_light_header{
-						.light_id	= id,
-						.light_kind = kind,
-						.shadow_id	= ctx.next_shadow_light_id,
-					};
-
-					ctx.unified_light_vec[id].shadow_id_and_extra = ctx.next_shadow_light_id;
-
-					ctx.next_shadow_light_id += get_shadow_light_count(kind);
-				}
-				else
-				{
-					ctx.unified_light_vec[id].shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
-				}
-			}
-
-			AGE_ASSERT(ctx.shadow_light_header_count <= g::max_shadow_light_count);
-		}
-
-		constexpr FORCE_INLINE void
-		handle_shadow_light_remove(pipeline& ctx, graphics::e::light_kind kind, t_shadow_light_id shadow_id) noexcept
-		{
-			auto it = std::ranges::find_if(
-				ctx.shadow_light_header_arr,
-				[shadow_id](const auto& h) { return h.shadow_id == shadow_id; });
-
-			AGE_ASSERT(it->light_kind == kind);
-
-			for (auto idx = std::distance(ctx.shadow_light_header_arr.begin(), it), idx_next = idx + 1;
-				 idx_next < ctx.shadow_light_header_count;
-				 ++idx, ++idx_next)
-			{
-				auto& header	  = ctx.shadow_light_header_arr[idx];
-				header			  = ctx.shadow_light_header_arr[idx_next];
-				header.shadow_id -= get_shadow_light_count(kind);
-				if (header.light_kind == graphics::e::light_kind::directional)
-				{
-					ctx.directional_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
-				}
-				else
-				{
-					ctx.unified_light_vec[header.light_id].shadow_id_and_extra = header.shadow_id;
-				}
-
-				AGE_ASSERT(ctx.shadow_light_header_arr[idx].shadow_id < g::max_shadow_light_count);
-			}
-
-			if (kind == graphics::e::light_kind::directional)
-			{
-				--ctx.directional_shadow_light_count;
-			}
-			--ctx.shadow_light_header_count;
-			ctx.next_shadow_light_id -= get_shadow_light_count(kind);
-		}
-	}	 // namespace detail
-
-	void
-	pipeline::update_directional_light(t_directional_light_id id, const directional_light_desc& desc, bool cast_shadow) noexcept
-	{
-		auto& light = directional_light_vec[id];
-
-		update_directional_light(id, desc);
-
-		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
-		if (cast_shadow_prev and not cast_shadow)
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::directional, shadow_id);
-			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
-		}
-		else if (not cast_shadow_prev and cast_shadow)
-		{
-			detail::handle_shadow_light_add(*this, graphics::e::light_kind::directional, id, true);
-		}
-	}
-
 	void
 	pipeline::update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept
 	{
-		auto& light		= directional_light_vec[id];
-		light.direction = desc.direction;
-		light.intensity = desc.intensity;
-		light.color		= desc.color;
+		auto& light					= directional_light_vec[id];
+		light.direction				= desc.direction;
+		light.intensity				= desc.intensity;
+		light.color					= desc.color;
+		light.cast_shadow_and_extra = util::set_bit(light.cast_shadow_and_extra, 0, desc.cast_shadow);
 	}
 
 	t_directional_light_id
-	pipeline::add_directional_light(const directional_light_desc& desc, bool cast_shadow) noexcept
+	pipeline::add_directional_light(const directional_light_desc& desc) noexcept
 	{
 		t_directional_light_id id = static_cast<t_directional_light_id>(directional_light_vec.emplace_back());
-
-		detail::handle_shadow_light_add(*this, graphics::e::light_kind::directional, id, cast_shadow);
 
 		update_directional_light(id, desc);
 
@@ -1054,12 +853,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::remove_directional_light(t_directional_light_id& id) noexcept
 	{
-		c_auto&			  light		= directional_light_vec[id];
-		t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::directional, shadow_id);
-		}
+		c_auto& light = directional_light_vec[id];
 
 		directional_light_vec.remove(id);
 
@@ -1067,69 +861,38 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	void
-	pipeline::update_point_light(t_unified_light_id id, const point_light_desc& desc, bool cast_shadow) noexcept
-	{
-		auto& light = unified_light_vec[id];
-
-		update_point_light(id, desc);
-
-		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
-		if (cast_shadow_prev and not cast_shadow)
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::point, shadow_id);
-			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
-		}
-		else if (not cast_shadow_prev and cast_shadow)
-		{
-			detail::handle_shadow_light_add(*this, graphics::e::light_kind::point, id, true);
-		}
-	}
-
-	void
 	pipeline::update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept
 	{
 		auto& light = unified_light_vec[id];
 
-		light.position	= desc.position;
-		light.range		= desc.range;
-		light.color		= math::cvt_to<half3>(desc.color);
-		light.intensity = math::cvt_to<half>(desc.intensity);
-		light.direction = math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f });
-		light.cos_inner = math::cvt_to<half>(-1.f);
-		light.cos_outer = math::cvt_to<half>(-2.f);
+		light.position				= desc.position;
+		light.range					= desc.range;
+		light.color					= math::cvt_to<half3>(desc.color);
+		light.intensity				= math::cvt_to<half>(desc.intensity);
+		light.direction				= math::cvt_to<half3>(float3{ 1.f, 0.f, 0.f });
+		light.cos_inner				= math::cvt_to<half>(-1.f);
+		light.cos_outer				= math::cvt_to<half>(-2.f);
+		light.cast_shadow_and_extra = util::set_bit(light.cast_shadow_and_extra, 0, desc.cast_shadow);
 	}
 
 	t_unified_light_id
-	pipeline::add_point_light(const point_light_desc& desc, bool cast_shadow) noexcept
+	pipeline::add_point_light(const point_light_desc& desc) noexcept
 	{
 		t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
-
-		detail::handle_shadow_light_add(*this, graphics::e::light_kind::point, id, cast_shadow);
 
 		update_point_light(id, desc);
 
 		return id;
 	}
 
-	void
-	pipeline::update_spot_light(t_unified_light_id id, const spot_light_desc& desc, bool cast_shadow) noexcept
+	t_unified_light_id
+	pipeline::add_spot_light(const spot_light_desc& desc) noexcept
 	{
-		auto& light = unified_light_vec[id];
+		t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
 
 		update_spot_light(id, desc);
 
-		t_shadow_light_id shadow_id		   = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		c_auto			  cast_shadow_prev = AGE_IS_INVALID_ID(shadow_id) is_false;
-		if (cast_shadow_prev and not cast_shadow)
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::spot, shadow_id);
-			light.shadow_id_and_extra = age::get_invalid_id<t_shadow_light_id>();
-		}
-		else if (not cast_shadow_prev and cast_shadow)
-		{
-			detail::handle_shadow_light_add(*this, graphics::e::light_kind::spot, id, true);
-		}
+		return id;
 	}
 
 	void
@@ -1137,37 +900,19 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		auto& light = unified_light_vec[id];
 
-		light.position	= desc.position;
-		light.range		= desc.range;
-		light.color		= math::cvt_to<half3>(desc.color);
-		light.intensity = math::cvt_to<half>(desc.intensity);
-		light.direction = math::cvt_to<half3>(desc.direction);
-		light.cos_inner = math::cvt_to<half>(desc.cos_inner);
-		light.cos_outer = math::cvt_to<half>(desc.cos_outer);
-	}
-
-	t_unified_light_id
-	pipeline::add_spot_light(const spot_light_desc& desc, bool cast_shadow) noexcept
-	{
-		t_unified_light_id id = static_cast<t_unified_light_id>(unified_light_vec.emplace_back());
-
-		detail::handle_shadow_light_add(*this, graphics::e::light_kind::spot, id, cast_shadow);
-
-		update_spot_light(id, desc);
-
-		return id;
+		light.position				= desc.position;
+		light.range					= desc.range;
+		light.color					= math::cvt_to<half3>(desc.color);
+		light.intensity				= math::cvt_to<half>(desc.intensity);
+		light.direction				= math::cvt_to<half3>(desc.direction);
+		light.cos_inner				= math::cvt_to<half>(desc.cos_inner);
+		light.cos_outer				= math::cvt_to<half>(desc.cos_outer);
+		light.cast_shadow_and_extra = util::set_bit(light.cast_shadow_and_extra, 0, desc.cast_shadow);
 	}
 
 	void
 	pipeline::remove_point_light(t_unified_light_id& id) noexcept
 	{
-		c_auto&			  light		= unified_light_vec[id];
-		t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::point, shadow_id);
-		}
-
 		unified_light_vec.remove(id);
 
 		id = age::get_invalid_id<t_unified_light_id>();
@@ -1176,13 +921,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::remove_spot_light(t_unified_light_id& id) noexcept
 	{
-		c_auto&			  light		= unified_light_vec[id];
-		t_shadow_light_id shadow_id = light.shadow_id_and_extra & std::numeric_limits<t_shadow_light_id>::max();
-		if (shadow_id != age::get_invalid_id<t_shadow_light_id>())
-		{
-			detail::handle_shadow_light_remove(*this, graphics::e::light_kind::spot, shadow_id);
-		}
-
 		unified_light_vec.remove(id);
 
 		id = age::get_invalid_id<t_unified_light_id>();
@@ -1285,25 +1023,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
-		{
-			auto src_arr = std::array<shared_type::shadow_light_header, g::max_shadow_light_count>{};
-
-			for (auto&& [i, header] : shadow_light_header_arr | std::views::take(shadow_light_header_count) | std::views::enumerate)
-			{
-				if (header.light_kind == graphics::e::light_kind::directional)
-				{
-					src_arr[i].light_id = directional_light_vec.get_pos(header.light_id);
-				}
-				else
-				{
-					src_arr[i].light_id = unified_light_vec.get_pos(header.light_id);
-				}
-				src_arr[i].light_kind = std::to_underlying(header.light_kind);
-				src_arr[i].shadow_id  = header.shadow_id;
-			}
-
-			h_mapping_static_buffer->upload(src_arr.data(), sizeof(shared_type::shadow_light_header) * shadow_light_header_count, g::shadow_light_header_offset);
-		}
 
 		// ui
 		{
@@ -1329,7 +1048,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.cam_near_z				= main_cam_desc.near_z,
 			.cam_far_z				= main_cam_desc.far_z,
 			.cam_log_far_near_ratio = std::log2(main_cam_desc.far_z / main_cam_desc.near_z),
-			.shadow_atlas_id		= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
+			//.shadow_atlas_id		= graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_shadow_atlas_srv_desc),
 		});
 
 		// todo multiple camera
@@ -1353,7 +1072,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			.rt_transparent_buffer_srv_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_rt_transparent_tex_buffer_srv_desc),
 			.rt_transparent_buffer_uav_texture_id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_rt_transparent_tex_buffer_uav_desc),
 		};
-
 
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);
 

@@ -9,26 +9,8 @@
 #define MAX_LIGHT_COUNT						 (512 * 512)
 
 // shadow
-#define SHADOW_DEPTH_REDUCE_THREAD_COUNT 16
-
-#define SHADOW_MAP_WIDTH  (2048 * 2)
-#define SHADOW_MAP_HEIGHT (2048 * 2)
-
-#define SHADOW_ATLAS_WIDTH	(SHADOW_MAP_WIDTH * SHADOW_ATLAS_SEG_U)
-#define SHADOW_ATLAS_HEIGHT (SHADOW_MAP_HEIGHT * SHADOW_ATLAS_SEG_V)
-
-#define SHADOW_DEPTH_BIAS 1000
-#define SHADOW_SLOPE_BIAS 5.f
-
-#define SHADOW_CASCADE_SPLIT_FACTOR 0.5f
-#define DIRECTIONAL_SHADOW_BACKOFF	50.f
-
-#define SHADOW_ATLAS_SEG_U 4
-#define SHADOW_ATLAS_SEG_V 4
-
-#define MAX_SHADOW_LIGHT_COUNT (SHADOW_ATLAS_SEG_U * SHADOW_ATLAS_SEG_V)
-
-#define SHADOW_CASCADE_COUNT 4
+// todo, measure shadow rt performance
+#define MAX_SHADOW_LIGHT_COUNT 100
 
 // light cull
 #define LIGHT_CULL_THREAD_COUNT 256
@@ -85,8 +67,7 @@
 #define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
 #define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
 #define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-#define SHADOW_LIGHT_HEADER_OFFSET		(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
-#define STATIC_BUFFER_SIZE				(SHADOW_LIGHT_HEADER_OFFSET + sizeof(SHARED_TYPE shadow_light_header) * MAX_SHADOW_LIGHT_COUNT)
+#define STATIC_BUFFER_SIZE				(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
 
 // scratch
 #define SCRATCH_SORT_BUFFER_OFFSET (0)
@@ -101,12 +82,6 @@
 #define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
 #define VISIBLE_LIGHT_COUNT_OFFSET	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT * sizeof(uint32))
 #define SCRATCH_BUFFER_TOTAL_SIZE	  (VISIBLE_LIGHT_COUNT_OFFSET + sizeof(uint32))
-
-// shadow
-#define SHADOW_STAGE_BUFFER_Z_MIN_OFFSET   (0)
-#define SHADOW_STAGE_BUFFER_Z_MAX_OFFSET   (SHADOW_STAGE_BUFFER_Z_MIN_OFFSET + sizeof(uint32))
-#define SHADOW_STAGE_BUFFER_CASCADE_OFFSET (SHADOW_STAGE_BUFFER_Z_MAX_OFFSET + sizeof(uint32))
-#define SHADOW_STAGE_BUFFER_SIZE		   (SHADOW_STAGE_BUFFER_CASCADE_OFFSET + sizeof(float) * SHADOW_CASCADE_COUNT)
 
 // light cull
 #define LIGHT_CULL_ZBIN_OFFSET		(0)
@@ -147,7 +122,6 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_camera_id			 = uint32;
 	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
-	using t_shadow_light_id		 = uint16;
 	using t_texture_id			 = uint32;
 #if !defined(AGE_SHADER)
 
@@ -196,37 +170,24 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	};
 
 	//---[ lights ]------------------------------------------------------------
-	struct shadow_light
-	{
-		row_major float4x4 view_proj;			 // 64
-		float4			   frustum_planes[6];	 // 96
-	};	  // 160 bytes
-
-	struct shadow_light_header
-	{
-		uint32 light_id;
-		uint16 light_kind;
-		uint16 shadow_id;
-	};
-
 	struct directional_light
 	{
-		float3 direction;			   // 12
-		float  intensity;			   // 4
-		float3 color;				   // 12
-		uint32 shadow_id_and_extra;	   // 4
+		float3 direction;				 // 12
+		float  intensity;				 // 4
+		float3 color;					 // 12
+		uint32 cast_shadow_and_extra;	 // 4
 	};	  // 32 bytes
 
 	struct unified_light
 	{
-		float3 position;			   // 12
-		float  range;				   // 4
-		half3  color;				   // 6
-		half   intensity;			   // 2
-		half3  direction;			   // 6
-		half   cos_inner;			   // 2
-		half   cos_outer;			   // 2
-		uint16 shadow_id_and_extra;	   // 2
+		float3 position;				 // 12
+		float  range;					 // 4
+		half3  color;					 // 6
+		half   intensity;				 // 2
+		half3  direction;				 // 6
+		half   cos_inner;				 // 2
+		half   cos_outer;				 // 2
+		uint16 cast_shadow_and_extra;	 // 2
 	};	  // total: 36 bytes
 
 	// data only used by amplification shader
@@ -355,9 +316,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_near_z;
 		float  cam_far_z;
 		float  cam_log_far_near_ratio;
-		uint32 shadow_atlas_id;		  // bindless index for shadow atlas
+		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
-		uint32 shadow_light_index;	  // shadow mapping
+		// uint32 shadow_light_index;	  // shadow mapping
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
 	};
@@ -382,28 +343,17 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
 	inline constexpr uint32 light_tile_size			= LIGHT_TILE_SIZE;
 
-	inline constexpr auto directional_shadow_cascade_count = SHADOW_CASCADE_COUNT;
-	inline constexpr auto shadow_map_width				   = SHADOW_MAP_WIDTH;
-	inline constexpr auto shadow_map_height				   = SHADOW_MAP_HEIGHT;
-	inline constexpr auto shadow_atlas_seg_u			   = SHADOW_ATLAS_SEG_U;
-	inline constexpr auto shadow_atlas_seg_v			   = SHADOW_ATLAS_SEG_V;
-	inline constexpr auto max_shadow_light_count		   = MAX_SHADOW_LIGHT_COUNT;
-
-	inline constexpr auto shadow_depth_bias = SHADOW_DEPTH_BIAS;
-	inline constexpr auto shadow_slope_bias = SHADOW_SLOPE_BIAS;
-
+	inline constexpr auto max_shadow_light_count = MAX_SHADOW_LIGHT_COUNT;
 
 	// buffer offsets and size, texture size
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
 	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
 	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
-	inline constexpr auto shadow_light_header_offset	  = SHADOW_LIGHT_HEADER_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 
 	inline constexpr uint32 scratch_buffer_total_size	= SCRATCH_BUFFER_TOTAL_SIZE;
 	inline constexpr uint32 light_cull_tile_mask_offset = LIGHT_CULL_TILE_MASK_OFFSET;
-	inline constexpr uint32 shadow_stage_buffer_size	= SHADOW_STAGE_BUFFER_SIZE;
 
 
 	// sort
@@ -416,11 +366,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 light_cull_thread_count	   = LIGHT_CULL_THREAD_COUNT;
 	inline constexpr uint32 light_bitmask_uint32_count = LIGHT_BITMASK_UINT32_COUNT;
 	inline constexpr uint32 zbin_thread_count		   = LIGHT_ZBIN_THREAD_COUNT;
-
-	// shadow
-	inline constexpr auto	shadow_depth_reduce_thread_count = SHADOW_DEPTH_REDUCE_THREAD_COUNT;
-	inline constexpr uint32 shadow_atlas_width				 = SHADOW_ATLAS_WIDTH;
-	inline constexpr uint32 shadow_atlas_height				 = SHADOW_ATLAS_HEIGHT;
 
 	// ui
 	inline constexpr auto max_ui_z_count = 128;
@@ -449,27 +394,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MAX_DIRECTIONAL_LIGHT_COUNT
 	#undef MAX_LIGHT_COUNT
 
-	// shadow
-	#undef SHADOW_DEPTH_REDUCE_THREAD_COUNT
-
-	#undef SHADOW_MAP_WIDTH
-	#undef SHADOW_MAP_HEIGHT
-
-	#undef SHADOW_ATLAS_WIDTH
-	#undef SHADOW_ATLAS_HEIGHT
-
-	#undef SHADOW_DEPTH_BIAS
-	#undef SHADOW_SLOPE_BIAS
-
-	#undef SHADOW_CASCADE_SPLIT_FACTOR
-	#undef DIRECTIONAL_SHADOW_BACKOFF
-
-	#undef SHADOW_ATLAS_SEG_U
-	#undef SHADOW_ATLAS_SEG_V
-
 	#undef MAX_SHADOW_LIGHT_COUNT
-
-	#undef SHADOW_CASCADE_COUNT
 
 	// light cull
 	#undef LIGHT_CULL_THREAD_COUNT
@@ -542,12 +467,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef LIGHT_CULL_PACKED_AABB_OFFSET
 	#undef VISIBLE_LIGHT_COUNT_OFFSET
 	#undef SCRATCH_BUFFER_TOTAL_SIZE
-
-	// shadow
-	#undef SHADOW_STAGE_BUFFER_Z_MIN_OFFSET
-	#undef SHADOW_STAGE_BUFFER_Z_MAX_OFFSET
-	#undef SHADOW_STAGE_BUFFER_CASCADE_OFFSET
-	#undef SHADOW_STAGE_BUFFER_SIZE
 
 	// light cull
 	#undef LIGHT_CULL_ZBIN_OFFSET
