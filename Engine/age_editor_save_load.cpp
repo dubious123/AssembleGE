@@ -52,8 +52,7 @@ namespace age::editor::detail
 			{
 				auto& storage = scene.storage_data_vec.emplace_back();
 
-				auto&& [storage_name_count, component_count, storage_entity_count, archetype_count] = read_buf.read<uint32, uint32, uint64, uint64>();
-				storage.entity_count																= storage_entity_count;
+				auto&& [storage_name_count, component_count, archetype_count] = read_buf.read<uint32, uint32, uint64>();
 
 				storage.names.reserve(storage_name_count);
 				for (auto _ : views::loop(storage_name_count))
@@ -79,10 +78,13 @@ namespace age::editor::detail
 
 				storage.archetype_data_vec.reserve(archetype_count);
 
+				auto arch_entity_sum = 0ull;
 				for (auto _ : views::loop(archetype_count))
 				{
 					auto&& [archetype_bits, arch_entity_count, archetype_name] =
 						read_buf.read<uint64, uint64, std::array<char, config::max_archetype_name_len>>();
+
+					arch_entity_sum += arch_entity_count;
 
 					auto& arch = storage.archetype_data_vec.emplace_back(archetype_editor_data{
 						.name			 = archetype_name,
@@ -138,7 +140,6 @@ namespace age::editor::detail
 			{
 				buf.write(storage.names.size<uint32>(),
 						  storage.component_data_vec.size<uint32>(),
-						  storage.entity_count,
 						  storage.archetype_data_vec.size<uint64>());
 
 				for (c_auto& name : storage.names)
@@ -156,15 +157,20 @@ namespace age::editor::detail
 					}
 				}
 
+				auto arch_entity_sum = 0ull;
 				for (c_auto& archetype : storage.archetype_data_vec)
 				{
 					buf.write(archetype.archetype, archetype.entity_data_vec.size<uint64>(), archetype.name);
+
+					arch_entity_sum += archetype.entity_data_vec.size<uint64>();
 
 					for (c_auto& entity : archetype.entity_data_vec)
 					{
 						buf.write(entity.name);
 					}
 				}
+
+				AGE_ASSERT(storage.entity_count == arch_entity_sum);
 			}
 		}
 
@@ -278,7 +284,7 @@ namespace age::editor::detail
 			if (found is_false) { res.names.emplace_back(std::move(code_storage.names[i])); }
 		}
 
-		res.entity_count = file_storage.entity_count;
+		// res.entity_count = file_storage.entity_count;
 
 		auto&& [file_to_code, unmatched_code, unmatched_file] = match_editor_names(code_storage.component_data_vec, file_storage.component_data_vec);
 		resolve_unmatched_via_console(code_storage.component_data_vec, file_storage.component_data_vec,
