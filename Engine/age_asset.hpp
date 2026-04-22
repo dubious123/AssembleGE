@@ -64,6 +64,9 @@ namespace age::asset::font
 	handle
 	load(const std::string_view& font_name, e::font_charset_flag flag, std::span<uint16> extra_unicode_span) noexcept;
 
+	asset_header&
+	get_asset_header(handle _) noexcept;
+
 	FORCE_INLINE uint16
 	calc_unicode_count(e::font_charset_flag flag) noexcept
 	{
@@ -106,20 +109,6 @@ namespace age::asset
 	handle::operator->() const noexcept
 	{
 		return &g::asset_data_vec[id];
-	}
-
-	template <e::kind e_kind>
-	decltype(auto)
-	data::get_asset_header() noexcept
-	{
-		if constexpr (e_kind == e::kind::font)
-		{
-			return *std::start_lifetime_as<font::asset_header>(blob.data());
-		}
-		else
-		{
-			AGE_UNREACHABLE();
-		}
 	}
 }	 // namespace age::asset
 

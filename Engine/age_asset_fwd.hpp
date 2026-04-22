@@ -104,10 +104,6 @@ namespace age::asset
 		std::align_val_t	 alignment{};
 		std::string			 path;
 
-		template <e::kind>
-		decltype(auto)
-		get_asset_header() noexcept;
-
 		std::byte*
 		get_payload() noexcept;
 

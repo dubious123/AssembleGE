@@ -54,7 +54,7 @@ namespace age::graphics
 
 	struct resource_handle
 	{
-		t_resource_id id = invalid_id_uint32;
+		t_resource_id id = age::get_invalid_id<t_resource_id>();
 
 		FORCE_INLINE auto*
 		operator->() noexcept;

@@ -120,7 +120,7 @@ namespace age::ui::font
 		{
 			auto h_font = asset::font::load(p_font_name, flag, extra_unicode);
 
-			c_auto& font_header = h_font->get_asset_header<asset::e::kind::font>();
+			c_auto& font_header = asset::font::get_asset_header(h_font);
 
 			c_auto atlas_id = renderer.upload_texture(font_header.get_atlas().data(), { .width = font_header.atlas_width, .height = font_header.atlas_height }, age::graphics::e::texture_format::rgba8_unorm);
 

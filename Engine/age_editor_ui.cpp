@@ -31,11 +31,11 @@ namespace age::editor
 				{
 					if (selected)
 					{
-						age::editor::remove_select(editor_storage.code_idx, ent_id);
+						age::editor::remove_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
 					}
 					else
 					{
-						age::editor::add_select(editor_storage.code_idx, ent_id);
+						age::editor::add_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
 					}
 				}
 			}
@@ -47,7 +47,7 @@ namespace age::editor
 
 					if (selected is_false)
 					{
-						age::editor::add_select(editor_storage.code_idx, ent_id);
+						age::editor::add_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
 					}
 				}
 			}

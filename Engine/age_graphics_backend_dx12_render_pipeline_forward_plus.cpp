@@ -45,8 +45,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
-			h_rt_blas_buffer = rt::create_blas_buffer(1024);
-
 			h_rt_tlas_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_rt(1024),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
@@ -115,7 +113,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
 
-		h_rt_blas_buffer->set_name(L"rt_blas_buffer");
 		h_rt_tlas_buffer->set_name(L"rt_tlas_buffer");
 		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
 		h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
@@ -190,7 +187,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_light_cull_stage_sorted_light_buffer);
 
 		// rt
-		rt::release_blas_buffer(h_rt_blas_buffer);
 		resource::release(h_rt_tlas_buffer);
 		resource::release(h_rt_tlas_scratch_buffer);
 		resource::release(h_rt_transparent_texture_buffer);
@@ -653,7 +649,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_mapping_mesh_buffer->upload(baked.buffer.data(), baked.buffer.byte_size(), mesh_byte_offset);
 
 		auto h_blas = graphics::rt::build_blas(
-			h_rt_blas_buffer,
 			defaults::rt::geo_desc::triangles(
 				static_cast<uint32>(flat_index_arr.size()),
 				static_cast<uint32>(vertex_pos_arr.size()),
@@ -677,7 +672,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::release_mesh(t_mesh_id id) noexcept
 	{
-		rt::release_blas(mesh_data_vec[id].h_blas);
+		resource::release(mesh_data_vec[id].h_blas);
 
 		mesh_data_vec.remove(id);
 	}

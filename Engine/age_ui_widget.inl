@@ -164,6 +164,106 @@ namespace age::ui::widget
 	}
 
 	widget_ctx
+	button(e::shape_kind e_shape,
+		   float		 size		  = font::get_line_height(theme::text_heading_font_size()),
+		   float3		 color_idle	  = theme::color_text_gray_dark(),
+		   float3		 color_hover  = theme::color_text_gray_dark(),
+		   float3		 color_active = theme::color_text_gray_dark(),
+		   auto&&... mod) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto btn = widget::begin(style::layout(e::widget_layout::vertical)
+									 | set_z_offset(1)
+									 | set_interact(true)
+									 | set_size(size_mode::fit(), size_mode::fit())))
+		{
+			auto state = e::style_state::idle;
+			auto color = color_idle;
+			if (btn.pressed<mouse_left>())
+			{
+				state = e::style_state::active;
+				color = color_active;
+			}
+			else if (btn.hovered())
+			{
+				state = e::style_state::hover;
+				color = color_hover;
+			}
+
+			if (auto _ = widget::frame(state, set_size(size_mode::fixed(size), size_mode::fixed(size))))
+			{
+				widget::begin(((set_align(e::widget_align::center)
+								| set_size(size_mode::grow(), size_mode::grow())
+								| set_z_offset(1)
+								| set_border_thickness(0.f)
+								| set_shape_kind(e_shape)
+								| set_body_brush_data(color))
+							   | ... | FWD(mod)));
+			}
+
+			return btn;
+		}
+		else
+		{
+			return {};
+		}
+	}
+
+	widget_ctx
+	toggle_button(e::shape_kind e_shape,
+				  float			size		 = font::get_line_height(theme::text_heading_font_size()),
+				  float3		color_idle	 = theme::color_text_gray_dark(),
+				  float3		color_hover	 = theme::color_text_gray_dark(),
+				  float3		color_active = theme::color_text_gray_dark(),
+				  auto&&... mod) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto btn = widget::begin(style::layout(e::widget_layout::vertical)
+									 | set_z_offset(1)
+									 | set_interact(true)
+									 | set_size(size_mode::fit(), size_mode::fit())))
+		{
+			auto state = e::style_state::idle;
+			auto color = color_idle;
+
+			if (btn.pressed<mouse_left>())
+			{
+				state = e::style_state::active;
+				color = color_active;
+			}
+			else if (btn.hovered())
+			{
+				state = e::style_state::hover;
+				color = color_hover;
+			}
+
+			if (btn.clicked())
+			{
+				btn.toggle();
+			}
+
+			c_auto is_toggled = btn.is_toggled();
+
+			if (auto _ = widget::begin(style::frame(state) | set_padding(theme::frame_padding().x) | set_width_fixed(size) | set_height_fixed(size) | set_border_brush_data(is_toggled ? theme::frame_color_border_focus() : float4::zero())))
+			{
+				widget::begin(((set_align(e::widget_align::center)
+								| set_size(size_mode::grow(), size_mode::grow())
+								| set_z_offset(1)
+								| set_border_thickness(0.f)
+								| set_shape_kind(e_shape)
+								| set_body_brush_data(color))
+							   | ... | FWD(mod)));
+			}
+
+			return btn;
+		}
+
+		return {};
+	}
+
+	widget_ctx
 	checkbox(const char* p_label, bool& value, auto&&... modifier) noexcept
 	{
 		using enum input::e::key_kind;

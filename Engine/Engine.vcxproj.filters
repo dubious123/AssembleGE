@@ -83,6 +83,8 @@
     <ClInclude Include="age_util_ranges.hpp" />
     <ClInclude Include="age_editor_fwd.hpp" />
     <ClInclude Include="age_util_bits.hpp" />
+    <ClInclude Include="age_asset_registry.hpp" />
+    <ClInclude Include="age_util_hash.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

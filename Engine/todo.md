@@ -35,8 +35,6 @@
 
 ## do pgo
 
-## do execute indirect
-
 ## offset allocator
 
 ## material system ( programmable render pipeline stage )
@@ -59,3 +57,5 @@
         histogram_sum_arr[wave_id] = wave_histogram_sum;
     }
 - wave 수가 bin_count보다 많다고 가정함
+
+### fix ui bug (scroll + resizeable panel)

@@ -280,7 +280,6 @@ namespace age::editor
 	ui_inspector(auto& editor_game, auto& renderer) noexcept
 	{
 		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
-
 		for (auto& storage_data : current_scene.storage_data_vec)
 		{
 			editor_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_inspector_impl), renderer, storage_data);
@@ -348,6 +347,7 @@ namespace age::editor
 				{
 					if (auto _ = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x)))
 					{
+						// todo, we don't need cmd buffer for this.
 						for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
 						{
 							auto arch_open = false;
@@ -390,13 +390,13 @@ namespace age::editor
 							{
 								for (const auto&& [ent_idx, ent] : arch.entity_data_vec | std::views::enumerate)
 								{
-									c_auto selected = is_selected(editor_storage.code_idx, ent.id);
+									c_auto selected = is_selected(e::select_kind::entity, editor_storage.code_idx, ent.id);
 									ui_entity_tree_node(editor_storage, ent.id, arch.archetype, selected);
 
 									if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
 									{
 										g::command_buf.remove_entity(entities, renderer, static_cast<t_ent_id>(ent.id));
-										remove_select(editor_storage.code_idx, ent.id);
+										remove_select(e::select_kind::entity, editor_storage.code_idx, ent.id);
 
 										detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent.id, ent_idx);
 									}
@@ -408,7 +408,6 @@ namespace age::editor
 			}
 
 			AGE_ASSERT(g::ui_new_entity_buffer.is_empty());
-
 
 			for (auto& arch : g::ui_new_entity_with_archetype_buffer)
 			{
@@ -483,9 +482,27 @@ namespace age::editor
 	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept
 	{
 		using namespace ui;
-		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_interact(true)))
+		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large()) | set_interact(true)))
 		{
 			age::editor::update_camera(renderer, h_game_scene.focused(), h_window);
+
+			if (auto h_play_pause_stop = widget::begin(style::horizontal() | set_align_center() | set_width_fit() | set_height_fit()))
+			{
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::triangle, 30, theme::color_text_green(), theme::palette_light_green(), theme::palette_green(), set_rotation(age::cvt_to_radian(30.f))))
+				{
+				}
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::circle, 30, theme::color_text_amber(), theme::palette_light_gold(), theme::palette_amber()))
+				{
+				}
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::rounded_rect, 30, theme::color_text_red(), theme::palette_light_red(), theme::palette_red(), set_shape_data(theme::roundness_small())))
+				{
+				}
+			}
 		}
+	}
+
+	inline void
+	ui_asset() noexcept
+	{
 	}
 }	 // namespace age::editor

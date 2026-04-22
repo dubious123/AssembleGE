@@ -121,7 +121,7 @@ namespace age::ui::detail
 		{
 			// todo: per-charset visual center offset (current: Latin only, CJK needs different correction)
 			auto  h_font = g::font_data_vec[font_idx].second.h_font;
-			auto& header = h_font->get_asset_header<asset::e::kind::font>();
+			auto& header = asset::font::get_asset_header(h_font);
 
 			desc.offset.y -= header.descent * 0.5f * font_size;
 		}

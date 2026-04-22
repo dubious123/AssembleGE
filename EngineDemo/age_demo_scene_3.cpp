@@ -88,9 +88,17 @@ namespace age_demo::scene_3
 
 			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
-				if (auto _ = widget::scroll_area_v())
+				if (auto _ = widget::panel_resizable_v(150.f, (float)age::platform::get_client_height(i_update.get_h_window)))
 				{
-					age::editor::ui_inspector(i_update.get_editor_game(), i_update.get_render_pipeline());
+					if (auto _ = widget::scroll_area_v())
+					{
+						age::editor::ui_inspector(i_update.get_editor_game(), i_update.get_render_pipeline());
+					}
+				}
+
+				if (auto _ = widget::begin(style::panel() | set_width_grow() | set_height_grow()))
+				{
+					age::editor::ui_asset();
 				}
 			}
 

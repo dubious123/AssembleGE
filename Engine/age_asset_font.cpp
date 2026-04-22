@@ -70,6 +70,12 @@ namespace age::asset::font::detail
 
 namespace age::asset::font
 {
+	asset_header&
+	get_asset_header(handle h_asset) noexcept
+	{
+		return *std::start_lifetime_as<asset_header>(h_asset->get_payload());
+	}
+
 	std::span<uint16>
 	asset_header::get_extra_unicode() noexcept
 	{
@@ -135,7 +141,7 @@ namespace age::asset::font
 		auto h_asset = load_from_file(font_name);
 		if (age::runtime::is_handle_valid(h_asset))
 		{
-			auto& font_header = h_asset->get_asset_header<e::kind::font>();
+			auto& font_header = get_asset_header(h_asset);
 
 			auto no_rebuild = true;
 

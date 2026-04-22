@@ -174,7 +174,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 
-		rt::blas_buffer_handle										h_rt_blas_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
 

@@ -4,7 +4,9 @@
 namespace age::editor::e
 {
 	AGE_DEFINE_ENUM(mode_kind, uint8, edit, play);
-}
+
+	AGE_DEFINE_ENUM(select_kind, uint8, none, entity, asset);
+}	 // namespace age::editor::e
 
 namespace age::editor
 {
@@ -114,6 +116,7 @@ namespace age::editor
 
 namespace age::editor::g
 {
+	inline auto current_select_kind					= editor::e::select_kind::none;
 	inline auto select_vec							= age::vector<age::vector<uint64>>{};
 	inline auto ui_new_entity_buffer				= age::vector<uint64>{};
 	inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
@@ -122,4 +125,5 @@ namespace age::editor::g
 	inline auto current_game = game_editor_data{};
 
 	inline auto current_mode = e::mode_kind::edit;
+
 }	 // namespace age::editor::g

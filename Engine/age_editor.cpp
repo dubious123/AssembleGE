@@ -41,35 +41,96 @@ namespace age::editor
 // selete
 namespace age::editor
 {
+	// void
+	// add_select(uint32 storage_code_idx, uint64 ent_id) noexcept
+	//{
+	//	if (is_selected(storage_code_idx, ent_id) is_false)
+	//	{
+	//		g::select_vec[storage_code_idx].emplace_back(ent_id);
+	//	}
+	// }
+
+	// void
+	// remove_select(uint32 storage_code_idx, uint64 ent_id) noexcept
+	//{
+	//	for (auto&& [idx, id] : g::select_vec[storage_code_idx] | std::views::enumerate)
+	//	{
+	//		if (ent_id == id)
+	//		{
+	//			g::select_vec[storage_code_idx][idx] = g::select_vec[storage_code_idx].back();
+	//			g::select_vec[storage_code_idx].pop_back();
+	//			break;
+	//		}
+	//	}
+	// }
+
+	// bool
+	// is_selected(uint32 storage_code_idx, uint64 ent_id) noexcept
+	//{
+	//	for (auto id : g::select_vec[storage_code_idx])
+	//	{
+	//		if (ent_id == id) { return true; }
+	//	}
+	//	return false;
+	// }
+
+	// void
+	// clear_select() noexcept
+	//{
+	//	for (auto& vec : g::select_vec)
+	//	{
+	//		vec.clear();
+	//	}
+	// }
+
 	void
-	add_select(uint32 storage_code_idx, uint64 ent_id) noexcept
+	set_select_kind(e::select_kind new_kind) noexcept
 	{
-		if (is_selected(storage_code_idx, ent_id) is_false)
+		if (g::current_select_kind != new_kind)
 		{
-			g::select_vec[storage_code_idx].emplace_back(ent_id);
+			for (auto& vec : g::select_vec)
+			{
+				vec.clear();
+			}
+			g::current_select_kind = new_kind;
 		}
 	}
 
 	void
-	remove_select(uint32 storage_code_idx, uint64 ent_id) noexcept
+	add_select(e::select_kind kind, uint32 group_idx, uint64 id) noexcept
 	{
-		for (auto&& [idx, id] : g::select_vec[storage_code_idx] | std::views::enumerate)
+		set_select_kind(kind);
+
+		if (is_selected(kind, group_idx, id) is_false)
 		{
-			if (ent_id == id)
+			g::select_vec[group_idx].emplace_back(id);
+		}
+	}
+
+	void
+	remove_select(e::select_kind kind, uint32 group_idx, uint64 id) noexcept
+	{
+		if (g::current_select_kind != kind) { return; }
+
+		for (auto&& [idx, stored_id] : g::select_vec[group_idx] | std::views::enumerate)
+		{
+			if (id == stored_id)
 			{
-				g::select_vec[storage_code_idx][idx] = g::select_vec[storage_code_idx].back();
-				g::select_vec[storage_code_idx].pop_back();
+				g::select_vec[group_idx][idx] = g::select_vec[group_idx].back();
+				g::select_vec[group_idx].pop_back();
 				break;
 			}
 		}
 	}
 
 	bool
-	is_selected(uint32 storage_code_idx, uint64 ent_id) noexcept
+	is_selected(e::select_kind kind, uint32 group_idx, uint64 id) noexcept
 	{
-		for (auto id : g::select_vec[storage_code_idx])
+		if (g::current_select_kind != kind) { return false; }
+
+		for (auto stored_id : g::select_vec[group_idx])
 		{
-			if (ent_id == id) { return true; }
+			if (id == stored_id) { return true; }
 		}
 		return false;
 	}
@@ -81,5 +142,6 @@ namespace age::editor
 		{
 			vec.clear();
 		}
+		g::current_select_kind = e::select_kind::none;
 	}
 }	 // namespace age::editor

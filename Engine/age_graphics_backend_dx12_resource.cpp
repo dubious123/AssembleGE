@@ -24,7 +24,7 @@ namespace age::graphics
 	FORCE_INLINE std::size_t
 	d3d12_resource::buffer_size() const noexcept
 	{
-		return p_resource->GetDesc().Width;
+		return desc.d3d12_resource_desc.Width;
 	}
 
 	FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS

@@ -132,63 +132,6 @@ namespace age::graphics
 	};
 }	 // namespace age::graphics
 
-// rt
-namespace age::graphics::rt
-{
-	using t_blas_buffer_handle_id = uint8;
-
-	struct blas_buffer_handle
-	{
-		t_blas_buffer_handle_id id = age::get_invalid_id<t_blas_buffer_handle_id>();
-
-		FORCE_INLINE auto*
-		operator->() noexcept;
-
-
-		FORCE_INLINE c_auto*
-		operator->() const noexcept;
-	};
-
-	using t_blas_handle_id = uint8;
-
-	struct blas_handle
-	{
-		t_blas_handle_id id = age::get_invalid_id<t_blas_handle_id>();
-
-		FORCE_INLINE auto*
-		operator->() noexcept;
-
-		FORCE_INLINE c_auto*
-		operator->() const noexcept;
-	};
-
-	struct blas_data
-	{
-		blas_buffer_handle h_blas_buffer;
-		uint32			   blas_entry_id;
-
-		FORCE_INLINE auto
-		get_va() const noexcept;
-	};
-
-	struct blas_buffer_data
-	{
-		struct blas_entry
-		{
-			uint32 offset;
-			uint32 size;
-		};
-
-		resource_handle						 h_resource;
-		uint32								 next_offset;
-		uint32								 size;
-		age::stable_dense_vector<blas_entry> blas_entry_vec;
-
-		FORCE_INLINE void
-		set_name(const wchar_t* ptr) noexcept;
-	};
-}	 // namespace age::graphics::rt
-
 // root_signature
 namespace age::graphics::root_signature
 {

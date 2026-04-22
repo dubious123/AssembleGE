@@ -47,9 +47,6 @@ namespace age::graphics::g
 
 	inline auto h_rt_blas_scratch_buffer = age::graphics::resource_handle{};
 
-	inline auto blas_buffer_data_vec = age::stable_dense_vector<rt::blas_buffer_data>::gen_reserved(2);
-	inline auto blas_data_vec		 = age::stable_dense_vector<rt::blas_data>::gen_reserved(2);
-
 	//------------------------------------------------------------------------------
 }	 // namespace age::graphics::g
 
@@ -390,17 +387,11 @@ namespace age::graphics::rt
 	void
 	init() noexcept;
 
-	blas_buffer_handle
+	resource_handle
 	create_blas_buffer(std::size_t initial_size) noexcept;
 
-	void
-	release_blas_buffer(blas_buffer_handle&) noexcept;
-
-	blas_handle
-	build_blas(blas_buffer_handle, auto&&... rt_geo_desc) noexcept;
-
-	void
-	release_blas(blas_handle& h_blas) noexcept;
+	resource_handle
+	build_blas(auto&&... rt_geo_desc) noexcept;
 
 	FORCE_INLINE
 	std::tuple<uint64, uint64>

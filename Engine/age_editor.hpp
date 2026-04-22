@@ -16,14 +16,13 @@ namespace age::editor
 	is_play_mode() noexcept;
 
 	void
-	add_select(uint32 storage_idx, uint64 ent_id) noexcept;
+	add_select(e::select_kind, uint32 group_idx, uint64 id) noexcept;
 
 	void
-	remove_select(uint32 storage_idx, uint64 ent_id) noexcept;
+	remove_select(e::select_kind, uint32 group_idx, uint64 id) noexcept;
 
 	bool
-	is_selected(uint32 storage_idx, uint64 ent_id) noexcept;
-
+	is_selected(e::select_kind, uint32 group_idx, uint64 id) noexcept;
 	void
 	clear_select() noexcept;
 

@@ -159,7 +159,7 @@ namespace age::config
 	inline constexpr auto max_entity_storage_name_len = 128u;
 	inline constexpr auto max_archetype_name_len	  = 128u;
 	inline constexpr auto max_component_name_len	  = 64u;
-	inline constexpr auto max_asset_path_len		  = 256u;
+	inline constexpr auto max_asset_path_len		  = 108u;
 
 #if defined(AGE_EDITOR)
 
