@@ -6,7 +6,7 @@ namespace age::editor
 	void
 	init() noexcept
 	{
-		g::command_buf.clear();
+		// g::command_buf.clear();
 
 		g::current_mode = e::mode_kind::edit;
 		g::current_game = game_editor_data{};
@@ -19,10 +19,10 @@ namespace age::editor
 
 		if constexpr (age::config::debug_mode)
 		{
-			g::command_buf.validate();
+			// g::command_buf.validate();
 		}
 
-		g::command_buf.clear();
+		// g::command_buf.clear();
 	}
 
 	bool

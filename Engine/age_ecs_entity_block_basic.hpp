@@ -467,22 +467,23 @@ namespace age::ecs::entity_block
 			entity_count()	   = 0;
 		}
 
+	  public:
 		template <cx_component... t>
 		t_local_entity_idx
-		new_entity(t_ent_id entity_id)
+		new_entity(t_ent_id entity_id, auto&& ctx)
 		{
 			AGE_ASSERT(is_full() is_false);
 
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
 
-			(std::construct_at<t>(cmp_ptr<t>(local_ent_idx)), ...);
+			(ecs::on_create_component(*std::construct_at<t>(cmp_ptr<t>(local_ent_idx)), ctx), ...);
 			return local_ent_idx;
 		}
 
 		template <cx_component... t>
 		t_local_entity_idx
-		new_entity(t_ent_id entity_id, auto&&... arg)
+		new_entity(t_ent_id entity_id, auto&& ctx, auto&&... arg)
 			requires(sizeof...(t) == sizeof...(arg) and sizeof...(t) > 0)
 		{
 			AGE_ASSERT(is_full() is_false);
@@ -490,12 +491,12 @@ namespace age::ecs::entity_block
 			auto local_ent_idx	  = static_cast<t_local_entity_idx>(entity_count()++);
 			ent_id(local_ent_idx) = entity_id;
 
-			((std::construct_at<t>(cmp_ptr<t>(local_ent_idx), FWD(arg))), ...);
+			(ecs::on_create_component(*std::construct_at<t>(cmp_ptr<t>(local_ent_idx), FWD(arg)), ctx), ...);
 			return local_ent_idx;
 		}
 
 		t_local_entity_idx
-		new_entity(t_ent_id entity_id, t_archetype archetype) noexcept
+		new_entity(t_ent_id entity_id, t_archetype archetype, auto&& ctx) noexcept
 		{
 			AGE_ASSERT(is_full() is_false);
 			AGE_ASSERT(archetype == local_archetype());
@@ -505,7 +506,13 @@ namespace age::ecs::entity_block
 
 			for (auto storage_cmp_idx : views::each_set_bit_idx(archetype))
 			{
-				t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto* p_self, t_local_entity_idx local_ent_idx), { std::construct_at<t_cmp>(p_self->cmp_ptr<t_cmp>(local_ent_idx)); }), this, local_ent_idx);
+				t_archetype_traits::visit_component(storage_cmp_idx,
+													AGE_LAMBDA(
+														<typename t_cmp>(auto* p_self, t_local_entity_idx local_ent_idx, auto&& ctx),
+														{
+															ecs::on_create_component(*std::construct_at<t_cmp>(p_self->cmp_ptr<t_cmp>(local_ent_idx)), ctx);
+														}),
+													this, local_ent_idx, FWD(ctx));
 			}
 
 			return local_ent_idx;
@@ -513,66 +520,30 @@ namespace age::ecs::entity_block
 
 		// Removes the entity at the given index. Returns the id of the entity that was moved to fill the hole, if any, for handle updates.
 		t_ent_id&
-		remove_entity(t_local_entity_idx local_ent_idx)
+		remove_entity(t_local_entity_idx local_ent_idx, auto&& ctx)
 		{
-			static_assert((cx_renderable<t_cmp> || ...) is_false);
 			AGE_ASSERT(is_empty() is_false);
 
 			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
 
-			for (t_local_cmp_idx local_cmp_idx : std::views::iota(0, (int)component_count()))
+			c_auto archetype = local_archetype();
+
+			for (auto storage_cmp_idx : views::each_set_bit_idx(archetype))
 			{
-				std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
-			}
+				t_archetype_traits::visit_component(storage_cmp_idx,
+													AGE_LAMBDA(
+														<typename t_cmp>(auto* p_self, t_local_entity_idx local_ent_idx, t_local_entity_idx local_ent_idx_back, auto&& ctx),
+														{
+															auto* p_cmp = p_self->cmp_ptr<t_cmp>(local_ent_idx);
+															ecs::on_destroy_component(*p_cmp, ctx);
 
-			ent_id(local_ent_idx) = ent_id(local_ent_idx_back);
-
-			return ent_id(local_ent_idx);
-		}
-
-		t_ent_id&
-		remove_entity(t_local_entity_idx local_ent_idx, auto& renderer)
-		{
-			static_assert((cx_renderable<t_cmp> || ...));
-			AGE_ASSERT(is_empty() is_false);
-
-			auto local_ent_idx_back = static_cast<t_local_entity_idx>(--entity_count());
-
-
-			auto bits = local_archetype();
-			for (t_local_cmp_idx local_cmp_idx = 0; local_cmp_idx < component_count(); ++local_cmp_idx)
-			{
-				c_auto storage_cmp_idx	= static_cast<t_storage_cmp_idx>(std::countr_zero(bits));
-				bits				   &= bits - 1;
-
-				switch (storage_cmp_idx)
-				{
-#define X(N)                                                                    \
-	case N:                                                                     \
-	{                                                                           \
-		if constexpr (N < sizeof...(t_cmp))                                     \
-		{                                                                       \
-			using t_c = meta::variadic_at_t<N, t_cmp...>;                       \
-			if constexpr (cx_renderable<t_c>)                                   \
-			{                                                                   \
-				t_c::remove_renderable(renderer, *cmp_ptr<t_c>(local_ent_idx)); \
-			}                                                                   \
-			break;                                                              \
-		}                                                                       \
-		else                                                                    \
-		{                                                                       \
-			AGE_UNREACHABLE();                                                  \
-		}                                                                       \
-	}
-					__X_REPEAT_LIST_512
-#undef X
-				default:
-				{
-					AGE_UNREACHABLE();
-				}
-				}
-
-				std::memcpy(cmp_ptr(local_cmp_idx, local_ent_idx), cmp_ptr(local_cmp_idx, local_ent_idx_back), cmp_size(local_cmp_idx));
+															// todo. will compiler optimize this branch?
+															if (local_ent_idx != local_ent_idx_back) [[likely]]
+															{
+																std::memcpy(p_cmp, p_self->cmp_ptr<t_cmp>(local_ent_idx_back), p_self->cmp_size<t_cmp>());
+															}
+														}),
+													this, local_ent_idx, local_ent_idx_back, FWD(ctx));
 			}
 
 			ent_id(local_ent_idx) = ent_id(local_ent_idx_back);

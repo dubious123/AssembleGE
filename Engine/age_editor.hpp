@@ -23,6 +23,7 @@ namespace age::editor
 
 	bool
 	is_selected(e::select_kind, uint32 group_idx, uint64 id) noexcept;
+
 	void
 	clear_select() noexcept;
 

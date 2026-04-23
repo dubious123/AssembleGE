@@ -22,10 +22,10 @@ namespace age::asset
 	bool
 	validate(const file_header&) noexcept;
 
-	asset::handle
+	handle
 	load_from_file(std::string_view file_name) noexcept;
 
-	asset::handle
+	handle
 	load_from_path(std::string_view file_path) noexcept;
 
 	handle

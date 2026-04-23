@@ -351,7 +351,7 @@ namespace age::editor::detail
 					for (auto [local_cmp_idx, storage_cmp_idx] : views::each_set_bit_idx(arch.archetype) | std::views::enumerate)
 					{
 						c_auto* p_cmp = block.cmp_ptr(static_cast<t_local_cmp_idx>(local_cmp_idx), local_ent_id);
-						t_archetype_traits::visit_component(storage_cmp_idx, []<typename t_cmp>(auto&&... arg) { ecs::serialize_component<t_cmp>(FWD(arg)...); }, buf, p_cmp, get_rw_context(storage.component_data_vec[storage_cmp_idx].version, renderer));
+						t_archetype_traits::visit_component(storage_cmp_idx, []<typename t_cmp>(auto&&... arg) { ecs::serialize_component_from_ptr<t_cmp>(FWD(arg)...); }, p_cmp, buf, get_rw_context(storage.component_data_vec[storage_cmp_idx].version, renderer));
 					}
 				}
 			}
@@ -427,7 +427,7 @@ namespace age::editor::detail
 
 			for (auto editor_ent_idx : views::loop(entity_count))
 			{
-				c_auto ent_id = ecs_entity_storage.new_entity(static_cast<t_archetype>(code_archetype));
+				c_auto ent_id = ecs_entity_storage.new_entity(static_cast<t_archetype>(code_archetype), get_ecs_context(renderer));
 
 				for (auto file_cmp_idx : views::each_set_bit_idx(file_archetype))
 				{
@@ -438,10 +438,10 @@ namespace age::editor::detail
 					{
 						t_archetype_traits::visit_component(
 							code_cmp_idx,
-							AGE_LAMBDA(<typename t_cmp>(auto& buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
+							AGE_LAMBDA(<typename t_cmp>(read_buf & buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
 									   {
 										   auto&& [cmp] = storage.get_component<t_cmp>(ent_id);
-										   cmp			= ecs::deserialize_component<t_cmp>(buf, FWD(rw_ctx));
+										   ecs::deserialize_component<t_cmp>(cmp, buf, FWD(rw_ctx));
 									   }),
 							buf, ecs_entity_storage, ent_id, get_rw_context(file_cmp_data.version, renderer));
 					}

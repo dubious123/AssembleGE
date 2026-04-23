@@ -153,7 +153,7 @@ namespace age::ecs::entity_storage
 
 		template <cx_component... t, typename... t_arg>
 		t_ent_id
-		new_entity_impl(t_arg&&... arg) noexcept
+		new_entity_impl(auto&& ctx, t_arg&&... arg) noexcept
 		{
 			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
 
@@ -161,7 +161,7 @@ namespace age::ecs::entity_storage
 			auto& entity_block		   = ent_block_collection.free_block<t...>();
 			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
 
-			entity_info_vec[entity_id].local_idx = entity_block.new_entity<t...>(entity_id, std::forward<t_arg>(arg)...);
+			entity_info_vec[entity_id].local_idx = entity_block.new_entity<t...>(entity_id, FWD(ctx), FWD(arg)...);
 
 			if (entity_block.is_full())
 			{
@@ -171,9 +171,18 @@ namespace age::ecs::entity_storage
 			return entity_id;
 		}
 
+		template <typename t>
+		FORCE_INLINE void
+		add_component_impl_helper(t_entity_block& dst_block, t_archetype new_archetype, auto& ctx, auto&&... arg) noexcept
+		{
+			auto* p_dst = reinterpret_cast<t*>(dst_block.get_component_write_ptr(t_archetype_traits::template calc_local_cmp_idx<t>(new_archetype)));
+			auto& ref	= *std::construct_at(p_dst, FWD(arg)...);
+			ecs::on_create_component(ref, ctx);
+		}
+
 		template <typename... t, typename... t_arg>
 		void
-		add_component_impl(const t_ent_id id, t_arg&&... arg) noexcept
+		add_component_impl(const t_ent_id id, auto&& ctx, t_arg&&... arg) noexcept
 		{
 			using namespace std::ranges::views;
 
@@ -194,11 +203,11 @@ namespace age::ecs::entity_storage
 
 			if constexpr (sizeof...(t_arg) == 0)
 			{
-				(std::construct_at(reinterpret_cast<t*>(dst_block.get_component_write_ptr(t_archetype_traits::template calc_local_cmp_idx<t>(new_archetype)))), ...);
+				(add_component_impl_helper<t>(dst_block, new_archetype, ctx), ...);
 			}
 			else if constexpr (sizeof...(t_arg) == sizeof...(t))
 			{
-				(std::construct_at(reinterpret_cast<t*>(dst_block.get_component_write_ptr(t_archetype_traits::template calc_local_cmp_idx<t>(new_archetype))), std::forward<t_arg>(arg)), ...);
+				(add_component_impl_helper<t>(dst_block, new_archetype, ctx, FWD(arg)), ...);
 			}
 			else
 			{
@@ -224,7 +233,7 @@ namespace age::ecs::entity_storage
 
 		template <typename... t>
 		void
-		remove_component_impl(const t_ent_id id) noexcept
+		remove_component_impl(const t_ent_id id, auto&& ctx) noexcept
 		{
 			using namespace std::ranges::views;
 
@@ -244,6 +253,7 @@ namespace age::ecs::entity_storage
 				src_block.evict_component(ent_info.local_idx, src_local_cmp_idx, dst_block.get_component_write_ptr(dest_local_cmp_idx));
 			}
 
+			(ecs::on_destroy_component(*src_block.cmp_ptr<t>(ent_info.local_idx), ctx), ...);
 			(src_block.evict_component(ent_info.local_idx, t_archetype_traits::template calc_local_cmp_idx<t>(ent_info.archetype)), ...);
 
 			src_block.ent_id(ent_info.local_idx)	   = src_block.ent_id(--src_block.entity_count());
@@ -287,33 +297,33 @@ namespace age::ecs::entity_storage
 		template <cx_component... t, typename... t_arg>
 		requires(sizeof...(t) == sizeof...(t_arg) or sizeof...(t_arg) == 0)
 		t_ent_id
-		new_entity(t_arg&&... arg) noexcept
+		new_entity(auto&& ctx, t_arg&&... arg) noexcept
 		{
 			if constexpr (sizeof...(t_arg) == 0)
 			{
 				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>();
-				}(get_sorted_arg_index_sequence<t...>());
+					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(FWD(ctx));
+				}(get_sorted_arg_index_sequence<t...>(), FWD(ctx));
 			}
 			else
 			{
 				static_assert((std::is_constructible_v<std::remove_cvref_t<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(age::meta::variadic_get<i>(FWD(arg)...)...);
-				}(get_sorted_arg_index_sequence<t...>(), FWD(arg)...);
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& ctx, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(FWD(ctx), age::meta::variadic_get<i>(FWD(arg)...)...);
+				}(get_sorted_arg_index_sequence<t...>(), FWD(ctx), FWD(arg)...);
 			}
 		}
 
 		t_ent_id
-		new_entity(t_archetype archetype) noexcept
+		new_entity(t_archetype archetype, auto&& ctx) noexcept
 		{
 			auto& ent_block_collection = entity_blocks_map[archetype];
 			auto& entity_block		   = ent_block_collection.free_block(archetype);
 			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
 
-			entity_info_vec[entity_id].local_idx = entity_block.new_entity(entity_id);
+			entity_info_vec[entity_id].local_idx = entity_block.new_entity(entity_id, archetype, FWD(ctx));
 
 			if (entity_block.is_full())
 			{
@@ -324,32 +334,13 @@ namespace age::ecs::entity_storage
 		}
 
 		void
-		remove_entity(const t_ent_id id) noexcept
+		remove_entity(const t_ent_id id, auto&& ctx) noexcept
 		{
 			auto& ent_info = entity_info_vec[id];
 
 			auto need_update = ent_info.p_block->is_full();
 
-			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx);
-			entity_info_vec[entity_id_last].local_idx = ent_info.local_idx;
-
-			if (need_update)
-			{
-				entity_blocks_map[ent_info.archetype].update_free(ent_info.p_block->entity_block_idx());
-			}
-
-			entity_info_vec[id].p_block = nullptr;
-			entity_info_vec.remove(id);
-		}
-
-		void
-		remove_entity(const t_ent_id id, auto& renderer) noexcept
-		{
-			auto& ent_info = entity_info_vec[id];
-
-			auto need_update = ent_info.p_block->is_full();
-
-			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx, renderer);
+			auto& entity_id_last					  = ent_info.p_block->remove_entity(ent_info.local_idx, FWD(ctx));
 			entity_info_vec[entity_id_last].local_idx = ent_info.local_idx;
 
 			if (need_update)
@@ -364,13 +355,13 @@ namespace age::ecs::entity_storage
 		// if dup cmp => UB
 		template <typename... t, typename... t_arg>
 		void
-		add_component(const t_ent_id id, t_arg&&... arg) noexcept
+		add_component(const t_ent_id id, auto&& ctx, t_arg&&... arg) noexcept
 		{
 			if constexpr (sizeof...(t_arg) == 0)
 			{
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id);
-				}(get_sorted_arg_index_sequence<t...>(), id);
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&& ctx) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id, FWD(ctx));
+				}(get_sorted_arg_index_sequence<t...>(), id, FWD(ctx));
 			}
 			else
 			{
@@ -378,21 +369,21 @@ namespace age::ecs::entity_storage
 				static_assert((std::is_constructible_v<std::remove_cvref_t<t>, t_arg> and ...), "invalid template parameter");
 				static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id, age::meta::variadic_get<i>(FWD(arg)...)...);
-				}(get_sorted_arg_index_sequence<t...>(), id, FWD(arg)...);
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&& ctx, auto&&... arg) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+					return this->add_component_impl<meta::variadic_at_t<i, t...>...>(id, FWD(ctx), age::meta::variadic_get<i>(FWD(arg)...)...);
+				}(get_sorted_arg_index_sequence<t...>(), id, FWD(ctx), FWD(arg)...);
 			}
 		}
 
 		template <typename... t>
 		void
-		remove_component(const t_ent_id id) noexcept
+		remove_component(const t_ent_id id, auto&& ctx) noexcept
 		{
 			static_assert((age::meta::variadic_contains_v<std::remove_cv_t<t>, t_cmp...> and ...), "invalid component type, reference type is not allowed");
 
-			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
-				return this->remove_component_impl<meta::variadic_at_t<i, t...>...>(id);
-			}(get_sorted_arg_index_sequence<t...>(), id);
+			return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, const t_ent_id id, auto&& ctx) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+				return this->remove_component_impl<meta::variadic_at_t<i, t...>...>(id, FWD(ctx));
+			}(get_sorted_arg_index_sequence<t...>(), id, FWD(ctx));
 		}
 
 		// template <typename... t>

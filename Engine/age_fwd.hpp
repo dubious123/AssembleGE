@@ -79,6 +79,22 @@ namespace age::graphics::e
 							   (volumn, 4));
 }	 // namespace age::graphics::e
 
+namespace age::graphics
+{
+	using t_resource_id = uint32;
+
+	struct resource_handle
+	{
+		t_resource_id id = age::get_invalid_id<t_resource_id>();
+
+		FORCE_INLINE auto*
+		operator->() noexcept;
+
+		FORCE_INLINE c_auto*
+		operator->() const noexcept;
+	};
+}	 // namespace age::graphics
+
 namespace age::asset
 {
 	struct mesh_editable;

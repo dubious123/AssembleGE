@@ -11,58 +11,13 @@ namespace age::graphics
 {
 	struct
 	{
-		struct
-		{
-			__forceinline decltype(auto)
-			operator->() noexcept
-			{
-				if constexpr (age::meta::cx_has_arrow<std::remove_cvref_t<decltype((global::detail::ctx.display_color_space))>>)
-				{
-					return global::detail::ctx.display_color_space;
-				}
-				else
-				{
-					return &global::detail::ctx.display_color_space;
-				}
-			}
-
-			__forceinline auto&
-			operator()() noexcept
-			{
-				return global::detail::ctx.display_color_space;
-			}
-
-			__forceinline
-			operator auto&() noexcept
-			{
-				return global::detail::ctx.display_color_space;
-			}
-
-			__forceinline decltype(auto)
-			operator[](auto&&... i) noexcept
-			{
-				return global::detail::ctx.display_color_space[std::forward<decltype(i)>((i))...];
-			}
-		} get_display_color_space;
+		AGE_GET(display_color_space, display_color_space);
 	} i_color;
 }	 // namespace age::graphics
 
 // handle
 namespace age::graphics
 {
-	using t_resource_id = uint32;
-
-	struct resource_handle
-	{
-		t_resource_id id = age::get_invalid_id<t_resource_id>();
-
-		FORCE_INLINE auto*
-		operator->() noexcept;
-
-		FORCE_INLINE c_auto*
-		operator->() const noexcept;
-	};
-
 	using t_render_surface_id = uint32;
 
 	struct render_surface_handle

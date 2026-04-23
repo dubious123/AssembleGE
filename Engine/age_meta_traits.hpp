@@ -53,4 +53,7 @@ namespace age::meta::inline traits
 
 	template <typename t>
 	concept cx_arithmetic = std::is_arithmetic_v<t>;
+
+	template <typename t, typename t_target>
+	concept cx_bare_same = std::is_same_v<std::remove_cvref<t>, t_target>;
 }	 // namespace age::meta::inline traits

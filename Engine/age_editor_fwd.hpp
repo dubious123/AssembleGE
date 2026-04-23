@@ -101,6 +101,18 @@ namespace age::editor
 	};
 
 	template <typename t_renderer>
+	struct ecs_context
+	{
+		t_renderer& renderer;
+	};
+
+	FORCE_INLINE constexpr auto
+	get_ecs_context(auto&& renderer) noexcept
+	{
+		return ecs_context<BARE_OF(renderer)>{ .renderer = FWD(renderer) };
+	}
+
+	template <typename t_renderer>
 	struct rw_context
 	{
 		uint32		version;
@@ -116,11 +128,11 @@ namespace age::editor
 
 namespace age::editor::g
 {
-	inline auto current_select_kind					= editor::e::select_kind::none;
-	inline auto select_vec							= age::vector<age::vector<uint64>>{};
-	inline auto ui_new_entity_buffer				= age::vector<uint64>{};
-	inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
-	inline auto command_buf							= ecs::command_buffer{};
+	inline auto current_select_kind = editor::e::select_kind::none;
+	inline auto select_vec			= age::vector<age::vector<uint64>>{};
+	// inline auto ui_new_entity_buffer				= age::vector<uint64>{};
+	// inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
+	// inline auto command_buf							= ecs::command_buffer{};
 
 	inline auto current_game = game_editor_data{};
 
