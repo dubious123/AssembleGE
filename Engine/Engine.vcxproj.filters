@@ -137,6 +137,7 @@
     <ClCompile Include="age_editor.cpp" />
     <ClCompile Include="age_editor_ui.cpp" />
     <ClCompile Include="age_editor_save_load.cpp" />
+    <ClCompile Include="age_asset_registry.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

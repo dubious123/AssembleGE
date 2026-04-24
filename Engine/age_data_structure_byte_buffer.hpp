@@ -264,6 +264,15 @@ namespace age::inline data_structure
 			write_pos = new_pos;
 		}
 
+		FORCE_INLINE constexpr void
+		write_at(size_type pos, byte_buffer_cx::trivial auto&&... arg) noexcept
+		{
+			auto pos_cache = write_pos;
+			write_pos	   = pos;
+			write(FWD(arg)...);
+			write_pos = pos_cache;
+		}
+
 	  private:
 		template <byte_buffer_cx::trivial t>
 		FORCE_INLINE constexpr t

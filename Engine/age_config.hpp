@@ -150,6 +150,7 @@ namespace age::config
 	inline constexpr const char* asset_extension		  = ".age_asset";
 	inline constexpr const char* game_asset_tag			  = ".age_game";
 
+	inline constexpr const char* asset_registry_asset_tag		= ".asset_registry";
 	inline constexpr const char* editor_ent_storage_asset_tag	= ".editor_ent_storage";
 	inline constexpr const char* shipping_ent_storage_asset_tag = ".ent_storage";
 
@@ -160,6 +161,8 @@ namespace age::config
 	inline constexpr auto max_archetype_name_len	  = 128u;
 	inline constexpr auto max_component_name_len	  = 64u;
 	inline constexpr auto max_asset_path_len		  = 108u;
+
+	inline constexpr auto max_enum_name_len = 64u;
 
 #if defined(AGE_EDITOR)
 

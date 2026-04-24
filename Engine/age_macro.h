@@ -304,6 +304,8 @@
 		return L## #enum_name;              \
 	}
 
+#define AGE_ENUM_STR_MAP_INSERT(name) m[#name] = __t_enum__::name;
+
 #define AGE_DEFINE_ENUM(enum_class_name, underlying_type, ...)                           \
 	enum class enum_class_name : underlying_type                                         \
 	{                                                                                    \
@@ -341,7 +343,31 @@
 	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); } \
 	constexpr FORCE_INLINE auto to_idx(enum_class_name e) noexcept                       \
 	{ return std::to_underlying(e); }                                                    \
-	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();
+	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();       \
+	template <typename t>                                                                \
+	requires std::is_same_v<t, enum_class_name>                                          \
+	constexpr inline enum_class_name                                                     \
+	str_to_enum(std::string_view sv) noexcept                                            \
+	{                                                                                    \
+		static const auto enum_class_name##_str_map = [] constexpr {                     \
+			using __t_enum__ = enum_class_name;                                          \
+			age::unordered_map<std::string_view, enum_class_name> m;                     \
+			FOR_EACH (AGE_ENUM_STR_MAP_INSERT, __VA_ARGS__)                              \
+				;                                                                        \
+			return m;                                                                    \
+		}();                                                                             \
+		auto it = enum_class_name##_str_map.find(sv);                                    \
+		AGE_ASSERT(it != enum_class_name##_str_map.end());                               \
+		return it->second;                                                               \
+	}                                                                                    \
+                                                                                         \
+	template <typename t, std::size_t n>                                                 \
+	requires std::is_same_v<t, enum_class_name>                                          \
+	constexpr enum_class_name                                                            \
+	str_to_enum(const std::array<char, n>& arr) noexcept                                 \
+	{                                                                                    \
+		return str_to_enum<t>(std::string_view{ arr.data(), strnlen(arr.data(), n) });   \
+	}
 
 
 #define AGE_ENUM_DECL_VAL(tpl) AGE_PP_TUPLE_GET_0_I(tpl) = AGE_PP_TUPLE_GET_1_I(tpl)
@@ -351,6 +377,9 @@
 
 #define AGE_ENUM_TO_WSTRING_CASE_VAL(tpl)			 AGE_ENUM_TO_WSTRING_CASE_VAL_IMPL tpl
 #define AGE_ENUM_TO_WSTRING_CASE_VAL_IMPL(name, val) AGE_ENUM_TO_WSTRING_CASE(name)
+
+#define AGE_ENUM_STR_MAP_INSERT_VAL(tpl)			AGE_ENUM_STR_MAP_INSERT_VAL_IMPL tpl
+#define AGE_ENUM_STR_MAP_INSERT_VAL_IMPL(name, val) m[#name] = __t_enum__::name;
 
 #define AGE_DEFINE_ENUM_WITH_VALUE(enum_class_name, underlying_type, ...)                \
 	enum class enum_class_name : underlying_type                                         \
@@ -387,7 +416,32 @@
 	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); } \
 	constexpr FORCE_INLINE auto to_idx(enum_class_name e) noexcept                       \
 	{ return std::to_underlying(e); }                                                    \
-	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();
+	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();       \
+                                                                                         \
+	template <typename t>                                                                \
+	requires std::is_same_v<t, enum_class_name>                                          \
+	constexpr inline enum_class_name                                                     \
+	str_to_enum(std::string_view sv) noexcept                                            \
+	{                                                                                    \
+		constexpr static const auto enum_class_name##_str_map = [] constexpr {           \
+			using __t_enum__ = enum_class_name;                                          \
+			age::unordered_map<std::string_view, enum_class_name> m;                     \
+			FOR_EACH (AGE_ENUM_STR_MAP_INSERT_VAL, __VA_ARGS__)                          \
+				;                                                                        \
+			return m;                                                                    \
+		}();                                                                             \
+		auto it = enum_class_name##_str_map.find(sv);                                    \
+		AGE_ASSERT(it != enum_class_name##_str_map.end());                               \
+		return it->second;                                                               \
+	}                                                                                    \
+                                                                                         \
+	template <typename t, std::size_t n>                                                 \
+	requires std::is_same_v<t, enum_class_name>                                          \
+	constexpr enum_class_name                                                            \
+	str_to_enum(const std::array<char, n>& arr) noexcept                                 \
+	{                                                                                    \
+		return str_to_enum<t>(std::string_view{ arr.data(), strnlen(arr.data(), n) });   \
+	}
 
 
 #define AGE_DEFINE_ENUM_MEMBER(enum_class_name, underlying_type, ...)           \

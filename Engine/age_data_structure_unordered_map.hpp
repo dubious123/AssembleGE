@@ -4,7 +4,7 @@ namespace age::inline data_structure
 {
 	template <typename t_key,
 			  typename t_value,
-			  typename t_hash	   = std::hash<t_key>,
+			  typename t_hash	   = age::hash<t_key>,
 			  typename t_key_equal = std::equal_to<t_key>,
 			  typename t_allocator = std::allocator<std::pair<const t_key, t_value>>>
 	struct unordered_map

@@ -1,5 +1,47 @@
-// #pragma once
-// #include "age.hpp"
+#pragma once
+#include "age.hpp"
+
+namespace age::asset::g
+{
+	// inline std::tuple
+	//	age::sparse_vector<entry<t_mesh>>,
+	//	age::sparse_vector<entry<t_material>>,
+	//	age::sparse_vector<entry<t_texture>>,
+	//	age::sparse_vector<entry<t_font>> > asset_entry_map;
+
+	inline std::filesystem::path						 registry_path;
+	inline std::array<age::vector<handle>, e::kind_size> registry_map;
+	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
+		registry_path_to_handle_map;
+}	 // namespace age::asset::g
+
+namespace age::asset::registry
+{
+	void
+	load(const char* root_dir) noexcept;
+
+	void
+	save() noexcept;
+
+	void
+	register_asset(asset::handle _) noexcept;
+
+	void
+	register_asset(e::kind, const char* path) noexcept;
+
+	void
+	unregister_asset(asset::handle _) noexcept;
+
+	void
+	unregister_asset(e::kind, const char* path) noexcept;
+
+	asset::handle
+	find(const char* path) noexcept;	// invalid if not found
+
+	std::span<const asset::handle>
+	by_kind(e::kind k) noexcept;
+}	 // namespace age::asset::registry
+
 //
 // namespace age::asset::registry::g
 //{

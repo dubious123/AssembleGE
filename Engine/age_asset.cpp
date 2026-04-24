@@ -38,7 +38,7 @@ namespace age::asset
 	}	 // namespace detail
 
 	bool
-	validate(const file_header& header, const std::ifstream& file) noexcept
+	validate(const file_header& header) noexcept
 	{
 		static_assert(sizeof(file_header) == 24);
 
@@ -92,7 +92,7 @@ namespace age::asset
 		auto header = asset::file_header{};
 		file.read(reinterpret_cast<char*>(&header), sizeof(file_header));
 
-		validate(header, file);
+		validate(header);
 		AGE_ASSERT(header.file_size == file_size);
 
 		c_auto blob_size = file_size - header.header_size;
