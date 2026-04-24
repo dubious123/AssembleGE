@@ -3,6 +3,41 @@
 
 namespace age::ui::detail
 {
+	// FNV-1a
+	FORCE_INLINE constexpr uint64
+	hash(const char* p_str) noexcept
+	{
+		uint64 res = g::fnv1a_offset_basis;
+		while (*p_str != 0)
+		{
+			res ^= static_cast<uint64>(*p_str++);
+			res *= g::fnv1a_prime;
+		}
+		return res;
+	}
+
+	FORCE_INLINE constexpr uint64
+	hash(uint64 val) noexcept
+	{
+		uint64 res = g::fnv1a_offset_basis;
+		for (int i = 0; i < 8; ++i)
+		{
+			res	 ^= val & 0xff;
+			res	 *= g::fnv1a_prime;
+			val >>= 8;
+		}
+		return res;
+	}
+
+	FORCE_INLINE constexpr uint64
+	hash_combine(uint64 parent, uint64 child) noexcept
+	{
+		return (parent ^ child) * g::fnv1a_prime;
+	}
+}	 // namespace age::ui::detail
+
+namespace age::ui::detail
+{
 	template <bool is_root = false>
 	FORCE_INLINE t_hash
 	widget_begin(auto&& desc) noexcept
@@ -137,3 +172,77 @@ namespace age::ui::widget
 		return widget_ctx{ ui::detail::widget_begin(FWD(mod)) };
 	}
 }	 // namespace age::ui::widget
+
+namespace age::ui::font
+{
+	namespace detail
+	{
+		uint32
+		find_idx(t_hash h) noexcept;
+	}
+
+	void
+	load(const char* p_font_name, auto& renderer, asset::e::font_charset_flag flag, std::span<uint16> extra_unicode) noexcept
+	{
+		c_auto h   = ui::hash(p_font_name);
+		c_auto idx = detail::find_idx(h);
+
+		if (idx == age::get_invalid_id<uint32>())
+		{
+			auto h_font = asset::font::load(p_font_name, flag, extra_unicode);
+
+			c_auto& font_header = asset::font::get_asset_header(h_font);
+
+			c_auto atlas_id = renderer.upload_texture(font_header.get_atlas().data(), { .width = font_header.atlas_width, .height = font_header.atlas_height }, age::graphics::e::texture_format::rgba8_unorm);
+
+			g::font_data_vec.emplace_back(std::pair{
+				h,
+				font_data{ .atlas_id = atlas_id, .h_font = h_font } });
+		}
+	}
+
+	void
+	unload(const char* p_font_name, auto& renderer) noexcept
+	{
+		c_auto h = ui::detail::hash(p_font_name);
+
+		c_auto idx = detail::find_idx(h);
+
+		AGE_ASSERT(idx != age::get_invalid_id<uint32>());
+
+		renderer.release_texture(g::font_data_vec[idx].second.atlas_id);
+		asset::unload(g::font_data_vec[idx].second.h_font);
+
+		g::font_data_vec[idx] = g::font_data_vec.back();
+		g::font_data_vec.pop_back();
+
+		g::current_font_idx = std::min(g::current_font_idx, g::font_data_vec.size<uint32>() - 1);
+	}
+}	 // namespace age::ui::font
+
+namespace age::ui
+{
+	void
+	deinit(auto& renderer) noexcept
+	{
+		g::widget_state_map.clear();
+
+		for (auto&& [hash, font_data] : g::font_data_vec)
+		{
+			asset::unload(font_data.h_font);
+			renderer.release_texture(font_data.atlas_id);
+		}
+
+		g::font_data_vec.clear();
+
+		g::id_stack.clear();
+		g::layout_size_data_stack.clear();
+		g::layout_pos_data_vec.clear();
+		g::render_data_vec.clear();
+
+		g::text_data_vec.clear();
+		g::word_data_vec.clear();
+		g::char_data_vec.clear();
+		g::char_pos_data_vec.clear();
+	}
+}	 // namespace age::ui

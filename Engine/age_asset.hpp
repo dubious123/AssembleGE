@@ -5,7 +5,6 @@ namespace age::asset::g
 {
 	inline constexpr uint32 uv_set_max = 4;
 
-	inline constexpr auto mashlet_thread_count		  = 32ul;
 	inline constexpr auto mashlet_max_vertex_count	  = 64ul;
 	inline constexpr auto mashlet_max_primitive_count = 126ul;
 
@@ -16,6 +15,19 @@ namespace age::asset::g
 {
 	inline auto asset_data_vec = age::stable_dense_vector<asset::data>::gen_reserved(2);
 }
+
+// version 2
+namespace age::asset
+{
+	inline handle
+	create_entry(e::kind asset_kind, std::string_view asset_path) noexcept;
+
+	template <e::kind e_kind>
+	handle
+	create_entry(std::string_view asset_path) noexcept;
+
+	AGE_DEFINE_ASSET_KIND(font);
+}	 // namespace age::asset
 
 namespace age::asset
 {
@@ -67,23 +79,8 @@ namespace age::asset::font
 	asset_header&
 	get_asset_header(handle _) noexcept;
 
-	FORCE_INLINE uint16
-	calc_unicode_count(e::font_charset_flag flag) noexcept
-	{
-		auto res = 0;
-
-		if (e::has_all(flag, e::font_charset_flag::ascii))	   // ascii
-		{
-			res += ('~' - ' ' + 1);
-		}
-
-		if (e::has_all(flag, e::font_charset_flag::hangul))	   // hangul
-		{
-			res += (0xD7A3 - 0xAC00 + 1);
-		}
-
-		return static_cast<uint16>(res);
-	}
+	uint16
+	calc_unicode_count(e::font_charset_flag flag) noexcept;
 }	 // namespace age::asset::font
 
 namespace age::asset

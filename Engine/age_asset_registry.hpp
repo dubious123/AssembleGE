@@ -1,20 +1,6 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::asset::g
-{
-	// inline std::tuple
-	//	age::sparse_vector<entry<t_mesh>>,
-	//	age::sparse_vector<entry<t_material>>,
-	//	age::sparse_vector<entry<t_texture>>,
-	//	age::sparse_vector<entry<t_font>> > asset_entry_map;
-
-	inline std::filesystem::path						 registry_path;
-	inline std::array<age::vector<handle>, e::kind_size> registry_map;
-	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
-		registry_path_to_handle_map;
-}	 // namespace age::asset::g
-
 namespace age::asset::registry
 {
 	void

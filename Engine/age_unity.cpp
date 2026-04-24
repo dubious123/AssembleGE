@@ -27,6 +27,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_asset_font.cpp"
 #include "age_asset_font.cpp"
 
+#line 1 "age_asset_registry.cpp"
+#include "age_asset_registry.cpp"
+
 #line 1 "age_request.cpp"
 #include "age_request.cpp"
 

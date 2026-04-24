@@ -5,6 +5,7 @@ namespace age::asset::e
 	AGE_DEFINE_ENUM(
 		kind,
 		uint8,
+		asset_registry,
 		font,
 		mesh_editable,
 		lod_group_editable,
@@ -12,8 +13,7 @@ namespace age::asset::e
 		mesh_baked,
 		lod_group_baked,
 		editor_game,
-		editor_entity_storage,
-		count);
+		editor_entity_storage);
 
 	// mesh editable
 	AGE_DEFINE_ENUM(
@@ -25,22 +25,19 @@ namespace age::asset::e
 		cylinder,
 		ico_sphere,
 		uv_sphere,
-		cube_sphere,
-		count);
+		cube_sphere);
 
 	AGE_DEFINE_ENUM(
 		winding_kind,
 		uint8,
 		clockwise,
-		counter_clockwise,
-		count);
+		counter_clockwise);
 
 	AGE_DEFINE_ENUM(
 		handedness_kind,
 		uint8,
 		right,
-		left,
-		count);
+		left);
 
 	AGE_DEFINE_ENUM(
 		vertex_kind,
@@ -59,9 +56,7 @@ namespace age::asset::e
 
 		p_uv3,
 		pn_uv3,
-		pnt_uv3,
-
-		count);
+		pnt_uv3);
 
 	AGE_DEFINE_ENUM_WITH_VALUE(
 		mesh_bake_flags, uint8,
@@ -92,6 +87,13 @@ namespace age::asset::e
 
 	AGE_ENUM_FLAG_OPERATORS(font_charset_flag);
 }	 // namespace age::asset::e
+
+// version 2
+namespace age::asset
+{
+	template <e::kind>
+	struct entry;
+}	 // namespace age::asset
 
 namespace age::asset
 {
@@ -130,6 +132,34 @@ namespace age::asset
 
 		FORCE_INLINE data*
 		operator->() const noexcept;
+
+		template <e::kind e_kind>
+		FORCE_INLINE static handle
+		make(std::unsigned_integral auto idx) noexcept
+		{
+			AGE_ASSERT(idx < 0x00ff'ffff);
+
+			return handle{ .id = (to_idx(e_kind) << 24) | (static_cast<uint32>(idx) & 0x00ff'ffff) };
+		}
+
+		FORCE_INLINE e::kind
+		get_kind() const noexcept
+		{
+			return static_cast<e::kind>(id >> 24);
+		}
+
+		FORCE_INLINE uint32
+		get_idx() const noexcept
+		{
+			return id & 0x00ff'ffff;
+		}
+
+		template <e::kind>
+		auto&
+		get_entry() const noexcept;
+
+		inline std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
 	};
 }	 // namespace age::asset
 
@@ -264,3 +294,77 @@ namespace age::asset::font
 		get_glyph_data(uint16 unicode) noexcept;
 	};
 }	 // namespace age::asset::font
+
+namespace age::asset
+{
+	template <>
+	struct entry<e::kind::font>
+	{
+		void* p_blob;	 // glyph + extra unicode
+
+		e::font_charset_flag charset_flag;
+		uint64				 glyph_data_offset;
+		uint64				 atlas_offset;
+
+		float ascent;
+		float descent;
+		float space_advance;
+		float line_height;
+		float em_size;
+		float px_range;
+
+		uint32 atlas_width;
+		uint32 atlas_height;
+
+		uint32 extra_unicode_offset;
+
+		uint16 glyph_count;
+		uint16 extra_unicode_count;
+
+		uint8	atlas_channel_count;
+		uint8_3 _;
+
+		uint32 atlas_id = age::get_invalid_id<uint32>();
+		uint32 path_id;
+
+
+		std::span<uint16>
+		get_extra_unicode() noexcept;
+
+		std::span<font::glyph_data>
+		get_glyph() noexcept;
+
+		const font::glyph_data&
+		get_glyph_data(uint16 unicode) noexcept;
+
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		// bool
+		// loaded() noexcept
+		//{ return AGE_IS_INVALID_ID(atlas_id); }
+	};
+}	 // namespace age::asset
+
+namespace age::asset::g
+{
+	inline auto path_vec = age::sparse_vector<std::array<char, config::max_asset_path_len>>{};
+
+	template <e::kind e_kind>
+	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
+
+	inline std::filesystem::path						 registry_path;
+	inline std::array<age::vector<handle>, e::kind_size> registry_map;
+	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
+		registry_path_to_handle_map;
+}	 // namespace age::asset::g
+
+namespace age::asset
+{
+	template <e::kind e_kind>
+	FORCE_INLINE auto&
+	pool_of() noexcept
+	{
+		return g::entry_pool<e_kind>;
+	}
+}	 // namespace age::asset

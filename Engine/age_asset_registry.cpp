@@ -33,10 +33,10 @@ namespace age::asset::registry
 			{
 				auto asset_path = buf.read<std::array<char, config::max_asset_path_len>>();
 
-				// auto h_asset = asset::load_entry(asset_kind, asset_path);
+				auto h_asset = asset::create_entry(asset_kind, asset_path.data());
 
-				// path_to_handle[asset_path] = h_asset;
-				// registry_vec.emplace_back(h_asset);
+				registry_vec.emplace_back(h_asset);
+				path_to_handle[asset_path] = h_asset;
 			}
 		}
 
@@ -49,7 +49,7 @@ namespace age::asset::registry
 	save() noexcept
 	{
 		AGE_ASSERT(g::registry_path.empty() is_false);
-		AGE_ASSERT(std::filesystem::exists(registry_path));
+		AGE_ASSERT(std::filesystem::exists(g::registry_path));
 
 		// todo,
 
@@ -69,12 +69,12 @@ namespace age::asset::registry
 
 			for (auto& h_asset : vec)
 			{
-				// buf.write(h_asset->get_path());
+				buf.write(h_asset.get_path());
 			}
 		}
 
 		buf.write_at(0, asset_kind_count);
 
-		// write_to_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf);
+		write_to_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf);
 	}
 }	 // namespace age::asset::registry

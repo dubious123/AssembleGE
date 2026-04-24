@@ -68,8 +68,58 @@ namespace age::asset::font::detail
 	}
 }	 // namespace age::asset::font::detail
 
+// version 2
+namespace age::asset
+{
+	template <>
+	handle
+	create_entry<e::kind::font>(std::string_view asset_path) noexcept
+	{
+		AGE_ASSERT(asset_path.size() < config::max_asset_path_len);
+		// auto& path_to_handle = g::registry_path_to_handle_map[to_idx(e::kind::font)];
+		// if (auto it = path_to_handle.find(asset_path); it != path_to_handle.end())
+		//{
+		//	AGE_ASSERT(false);
+		//	return it->second;
+		// }
+
+		auto& pool = pool_of<e::kind::font>();
+
+		auto idx = pool.emplace_back(entry<e::kind::font>{
+			.path_id = static_cast<uint32>(
+				g::path_vec.emplace_back(util::to_fixed_str<config::max_asset_path_len>(asset_path))),
+		});
+
+		return handle::make<e::kind::font>(idx);
+	}
+
+	std::array<char, config::max_asset_path_len>&
+	entry<e::kind::font>::get_path() const noexcept
+	{
+		return g::path_vec[path_id];
+	}
+}	 // namespace age::asset
+
 namespace age::asset::font
 {
+	uint16
+	calc_unicode_count(e::font_charset_flag flag) noexcept
+	{
+		auto res = 0;
+
+		if (e::has_all(flag, e::font_charset_flag::ascii))	   // ascii
+		{
+			res += ('~' - ' ' + 1);
+		}
+
+		if (e::has_all(flag, e::font_charset_flag::hangul))	   // hangul
+		{
+			res += (0xD7A3 - 0xAC00 + 1);
+		}
+
+		return static_cast<uint16>(res);
+	}
+
 	asset_header&
 	get_asset_header(handle h_asset) noexcept
 	{

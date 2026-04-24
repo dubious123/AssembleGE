@@ -40,7 +40,7 @@ namespace age::ui::font
 	set_default(const char* p_font_name) noexcept;
 
 	void
-	unload(const char* p_font_name) noexcept;
+	unload(const char* p_font_name, auto& renderer) noexcept;
 
 	float
 	get_line_height(float font_size, uint32 font_idx = g::current_font_idx) noexcept;
@@ -67,9 +67,10 @@ namespace age::ui::widget
 
 namespace age::ui
 {
+	// todo.
 	__declspec(noinline) void
 	draw_direct(auto&& mod) noexcept;
-}
+}	 // namespace age::ui
 
 // defaults
 namespace age::ui::size_mode
@@ -98,66 +99,6 @@ namespace age::ui::shape_data
 	FORCE_INLINE constexpr ui_shape_data
 	roundness(float r) noexcept;
 }
-
-namespace age::ui::font
-{
-	void
-	load(const char* p_font_name, auto& renderer, asset::e::font_charset_flag flag, std::span<uint16> extra_unicode) noexcept
-	{
-		c_auto h   = ui::hash(p_font_name);
-		auto   idx = age::get_invalid_id<uint32>();
-
-		for (auto&& [i, key] : g::font_data_vec | std::views::keys | std::views::enumerate)
-		{
-			if (key == h)
-			{
-				idx = static_cast<uint32>(i);
-				break;
-			}
-		}
-
-		if (idx == age::get_invalid_id<uint32>())
-		{
-			auto h_font = asset::font::load(p_font_name, flag, extra_unicode);
-
-			c_auto& font_header = asset::font::get_asset_header(h_font);
-
-			c_auto atlas_id = renderer.upload_texture(font_header.get_atlas().data(), { .width = font_header.atlas_width, .height = font_header.atlas_height }, age::graphics::e::texture_format::rgba8_unorm);
-
-			g::font_data_vec.emplace_back(std::pair{
-				h,
-				font_data{ .atlas_id = atlas_id, .h_font = h_font } });
-		}
-	}
-
-}	 // namespace age::ui::font
-
-namespace age::ui
-{
-	void
-	deinit(auto& renderer) noexcept
-	{
-		g::widget_state_map.clear();
-
-		for (auto&& [hash, font_data] : g::font_data_vec)
-		{
-			renderer.release_texture(font_data.atlas_id);
-			asset::unload(font_data.h_font);
-		}
-
-		g::font_data_vec.clear();
-
-		g::id_stack.clear();
-		g::layout_size_data_stack.clear();
-		g::layout_pos_data_vec.clear();
-		g::render_data_vec.clear();
-
-		g::text_data_vec.clear();
-		g::word_data_vec.clear();
-		g::char_data_vec.clear();
-		g::char_pos_data_vec.clear();
-	}
-}	 // namespace age::ui
 
 namespace age::ui::detail
 {
