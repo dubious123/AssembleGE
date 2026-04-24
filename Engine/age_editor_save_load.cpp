@@ -7,8 +7,7 @@ namespace age::editor::detail
 	game_editor_data
 	read_game_proj(std::filesystem::path proj_path) noexcept
 	{
-		auto h_proj_file = asset::load_from_path(proj_path);
-		auto read_buf	 = h_proj_file->get_payload_read_buf();
+		auto read_buf = asset::read_asset_file(proj_path.string());
 
 		auto res = game_editor_data{};
 
@@ -101,8 +100,6 @@ namespace age::editor::detail
 			}
 		}
 
-		asset::unload(h_proj_file);
-
 		return res;
 	}
 
@@ -174,9 +171,9 @@ namespace age::editor::detail
 			}
 		}
 
-		asset::write_to_file(game.dir_path / std::format("{}{}", config::game_asset_tag, config::asset_extension),
-							 asset::get_default_file_header<asset::e::kind::editor_game>(buf.size()),
-							 *buf.data());
+		asset::write_asset_file(game.dir_path / std::format("{}{}", config::game_asset_tag, config::asset_extension),
+								asset::get_default_file_header<asset::e::kind::editor_game>(buf.size()),
+								buf.data());
 	}
 }	 // namespace age::editor::detail
 

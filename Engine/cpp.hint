@@ -596,13 +596,25 @@
 			}                                                                                \
 			}                                                                                \
 		}                                                                                    \
+	FOR_EACH (AGE_DEFINE_DESTROY_ENTRY_MAP0, __VA_ARGS__)                                    \
+		inline void destroy_entry(handle h_asset) noexcept                                   \
+		{                                                                                    \
+			switch (h_asset.get_kind())                                                      \
+			{                                                                                \
+				FOR_EACH_SEP(AGE_DEFINE_DESTROY_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)     \
+			default:                                                                         \
+			{                                                                                \
+				AGE_UNREACHABLE();                                                           \
+			}                                                                                \
+			}                                                                                \
+		}                                                                                    \
 	template <e::kind e_kind>                                                                \
 	auto&                                                                                    \
 	handle::get_entry() const noexcept                                                       \
 	{                                                                                        \
 		switch (get_kind())                                                                  \
 		{                                                                                    \
-			FOR_EACH_SEP(AGE_DEFINE_CREATE_ENTRY_MAP2, AGE_PP_EMPTY_I, __VA_ARGS__)          \
+			FOR_EACH_SEP(AGE_DEFINE_GET_ENTRY_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)              \
 		default:                                                                             \
 		{                                                                                    \
 			AGE_UNREACHABLE();                                                               \
@@ -615,17 +627,31 @@
 	{                                                                                        \
 		switch (get_kind())                                                                  \
 		{                                                                                    \
-			FOR_EACH_SEP(AGE_DEFINE_CREATE_ENTRY_MAP3, AGE_PP_EMPTY_I, __VA_ARGS__)          \
+			FOR_EACH_SEP(AGE_DEFINE_GET_KIND_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)               \
 		default:                                                                             \
 		{                                                                                    \
 			AGE_UNREACHABLE();                                                               \
 		}                                                                                    \
 		}                                                                                    \
-	}
+	}                                                                                        \
+	void for_each_kind(auto&& f) noexcept                                                    \
+	{ (FOR_EACH_ARG(AGE_ASSET_FOR_EACH_KIND_MAP, __VA_ARGS__), void()); }
+
+#define AGE_ASSET_FOR_EACH_KIND_MAP(name) f.template operator()<e::kind::name>()
 
 
 #define AGE_DEFINE_CREATE_ENTRY_MAP0(name) template <> \
 handle create_entry<e::kind::name>(std::string_view) noexcept;
+
+#define AGE_DEFINE_DESTROY_ENTRY_MAP0(name) template <> \
+void destroy_entry<e::kind::name>(handle&) noexcept;
+
+#define AGE_DEFINE_DESTROY_ENTRY_MAP1(name)           \
+	case e::kind::name:                               \
+	{                                                 \
+		asset::destroy_entry<e::kind::name>(h_asset); \
+	}
+
 
 #define AGE_DEFINE_CREATE_ENTRY_MAP1(name)                     \
 	case e::kind::name:                                        \
@@ -633,13 +659,13 @@ handle create_entry<e::kind::name>(std::string_view) noexcept;
 		return asset::create_entry<e::kind::name>(asset_path); \
 	}
 
-#define AGE_DEFINE_CREATE_ENTRY_MAP2(name)              \
+#define AGE_DEFINE_GET_ENTRY_MAP(name)                  \
 	case e::kind::name:                                 \
 	{                                                   \
 		return g::entry_pool<e::kind::name>[get_idx()]; \
 	}
 
-#define AGE_DEFINE_CREATE_ENTRY_MAP3(name)            \
+#define AGE_DEFINE_GET_KIND_MAP(name)                 \
 	case e::kind::name:                               \
 	{                                                 \
 		return get_entry<e::kind::font>().get_path(); \

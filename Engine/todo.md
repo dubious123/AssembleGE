@@ -59,3 +59,7 @@
 - wave 수가 bin_count보다 많다고 가정함
 
 ### fix ui bug (scroll + resizeable panel)
+
+### Global error handler 
+
+### allocator aware container 

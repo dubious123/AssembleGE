@@ -21,19 +21,6 @@ namespace age::ui::font
 	}	 // namespace detail
 
 	void
-	load(const char* p_font_name, asset::e::font_charset_flag flag, std::span<uint16> extra_unicode) noexcept
-	{
-		c_auto h   = ui::detail::hash(p_font_name);
-		c_auto idx = detail::find_idx(h);
-		if (idx == age::get_invalid_id<uint32>())
-		{
-			g::font_data_vec.emplace_back(std::pair{
-				h,
-				font_data{ .h_font = asset::font::load(p_font_name, flag, extra_unicode) } });
-		}
-	}
-
-	void
 	set_default(const char* p_font_name) noexcept
 	{
 		c_auto h   = ui::detail::hash(p_font_name);
@@ -48,17 +35,17 @@ namespace age::ui::font
 	get_line_height(float font_size, uint32 font_idx) noexcept
 	{
 		auto  h_font = g::font_data_vec[font_idx].second.h_font;
-		auto& header = asset::font::get_asset_header(h_font);
-		return header.line_height * font_size;
+		auto& entry	 = h_font.get_entry<asset::e::kind::font>();
+		return entry.line_height * font_size;
 	}
 
 	float
 	get_advance(uint16 unicode, float font_size, uint32 font_idx) noexcept
 	{
 		auto  h_font = g::font_data_vec[font_idx].second.h_font;
-		auto& header = asset::font::get_asset_header(h_font);
+		auto& entry	 = h_font.get_entry<asset::e::kind::font>();
 
-		auto& data = header.get_glyph_data(unicode);
+		auto& data = entry.get_glyph_data(unicode);
 
 		return data.advance * font_size;
 	}
@@ -67,18 +54,18 @@ namespace age::ui::font
 	get_space_advance(float font_size, uint32 font_idx) noexcept
 	{
 		auto  h_font = g::font_data_vec[font_idx].second.h_font;
-		auto& header = asset::font::get_asset_header(h_font);
+		auto& entry	 = h_font.get_entry<asset::e::kind::font>();
 
-		return header.space_advance * font_size;
+		return entry.space_advance * font_size;
 	}
 
 	const asset::font::glyph_data&
 	get_glyph_data(uint16 unicode, uint32 font_idx) noexcept
 	{
 		auto  h_font = g::font_data_vec[font_idx].second.h_font;
-		auto& header = asset::font::get_asset_header(h_font);
+		auto& entry	 = h_font.get_entry<asset::e::kind::font>();
 
-		return header.get_glyph_data(unicode);
+		return entry.get_glyph_data(unicode);
 	}
 
 	const asset::font::glyph_data&

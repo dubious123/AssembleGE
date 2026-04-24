@@ -315,6 +315,24 @@ namespace age::inline data_structure
 			read_pos += sizeof(arr);
 		}
 
+		template <byte_buffer_cx::trivial t>
+		FORCE_INLINE constexpr t*
+		read(void* ptr) noexcept
+		{
+			std::memcpy(ptr, p_data + read_pos, sizeof(t));
+			read_pos += sizeof(t);
+			return std::start_lifetime_as<t>(ptr);
+		}
+
+		template <byte_buffer_cx::trivial t>
+		FORCE_INLINE constexpr t*
+		read(void* ptr, std::unsigned_integral auto n) noexcept
+		{
+			std::memcpy(ptr, p_data + read_pos, sizeof(t) * n);
+			read_pos += sizeof(t) * n;
+			return std::start_lifetime_as_array<t>(ptr, n);
+		}
+
 		FORCE_INLINE constexpr void
 		skip_read(size_type n_byte) noexcept
 		{
@@ -456,6 +474,7 @@ namespace age::inline data_structure
 
 		FORCE_INLINE constexpr void
 		read(byte_buffer_cx::trivial auto&&... arg) noexcept
+			requires((std::is_pointer_v<BARE_OF(arg)> is_false) and ...)
 		{
 			((arg = read_one<BARE_OF(arg)>()), ...);
 		}
@@ -466,6 +485,24 @@ namespace age::inline data_structure
 		{
 			std::memcpy(arr, p_data + read_pos, sizeof(arr));
 			read_pos += sizeof(arr);
+		}
+
+		template <byte_buffer_cx::trivial t>
+		FORCE_INLINE constexpr t*
+		read(void* ptr) noexcept
+		{
+			std::memcpy(ptr, p_data + read_pos, sizeof(t));
+			read_pos += sizeof(t);
+			return std::start_lifetime_as<t>(ptr);
+		}
+
+		template <byte_buffer_cx::trivial t>
+		FORCE_INLINE constexpr t*
+		read(void* ptr, std::unsigned_integral auto n) noexcept
+		{
+			std::memcpy(ptr, p_data + read_pos, sizeof(t) * n);
+			read_pos += sizeof(t) * n;
+			return std::start_lifetime_as_array<t>(ptr, n);
 		}
 
 		FORCE_INLINE constexpr void

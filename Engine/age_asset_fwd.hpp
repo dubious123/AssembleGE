@@ -97,22 +97,6 @@ namespace age::asset
 
 namespace age::asset
 {
-	struct data
-	{
-		e::kind				 asset_kind{};
-		uint8_3				 extra_1;
-		uint8_4				 extra_2;
-		std::span<std::byte> blob{};
-		std::align_val_t	 alignment{};
-		std::string			 path;
-
-		std::byte*
-		get_payload() noexcept;
-
-		read_buf
-		get_payload_read_buf() const noexcept;
-	};
-
 	struct file_header
 	{
 		uint32	  magic;
@@ -129,9 +113,6 @@ namespace age::asset
 	struct handle
 	{
 		t_asset_id id;
-
-		FORCE_INLINE data*
-		operator->() const noexcept;
 
 		template <e::kind e_kind>
 		FORCE_INLINE static handle
@@ -255,44 +236,6 @@ namespace age::asset::font
 		float2 atlas_uv_min;
 		float2 atlas_uv_max;
 	};
-
-	struct asset_header
-	{
-		e::font_charset_flag charset_flag;
-		uint64				 glyph_data_offset;
-		uint64				 atlas_offset;
-
-		float ascent;
-		float descent;
-		float space_advance;
-		float line_height;
-		float em_size;
-		float px_range;
-
-		uint32 atlas_width;
-		uint32 atlas_height;
-
-		uint32 extra_unicode_offset;
-
-		uint16 glyph_count;
-		uint16 extra_unicode_count;
-
-		uint8	atlas_channel_count;
-		uint8_3 _;
-
-
-		std::span<uint16>
-		get_extra_unicode() noexcept;
-
-		std::span<glyph_data>
-		get_glyph() noexcept;
-
-		std::span<const uint8>
-		get_atlas() const noexcept;
-
-		const glyph_data&
-		get_glyph_data(uint16 unicode) noexcept;
-	};
 }	 // namespace age::asset::font
 
 namespace age::asset
@@ -300,11 +243,9 @@ namespace age::asset
 	template <>
 	struct entry<e::kind::font>
 	{
-		void* p_blob;	 // glyph + extra unicode
+		std::byte* p_blob;	  // glyph + extra unicode
 
 		e::font_charset_flag charset_flag;
-		uint64				 glyph_data_offset;
-		uint64				 atlas_offset;
 
 		float ascent;
 		float descent;
@@ -315,8 +256,6 @@ namespace age::asset
 
 		uint32 atlas_width;
 		uint32 atlas_height;
-
-		uint32 extra_unicode_offset;
 
 		uint16 glyph_count;
 		uint16 extra_unicode_count;
@@ -327,31 +266,41 @@ namespace age::asset
 		uint32 atlas_id = age::get_invalid_id<uint32>();
 		uint32 path_id;
 
+		std::span<const font::glyph_data>
+		get_glyph() const noexcept;
 
-		std::span<uint16>
-		get_extra_unicode() noexcept;
-
-		std::span<font::glyph_data>
-		get_glyph() noexcept;
+		std::span<const uint16>
+		get_extra_unicode() const noexcept;
 
 		const font::glyph_data&
-		get_glyph_data(uint16 unicode) noexcept;
+		get_glyph_data(uint16 unicode) const noexcept;
 
 		std::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
-		// bool
-		// loaded() noexcept
-		//{ return AGE_IS_INVALID_ID(atlas_id); }
+		bool
+		is_loaded() const noexcept;
 	};
 }	 // namespace age::asset
 
 namespace age::asset::g
 {
+	inline constexpr auto uv_set_max = 4u;
+
+	inline constexpr auto mashlet_max_vertex_count	  = 64ul;
+	inline constexpr auto mashlet_max_primitive_count = 126ul;
+
+	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
+
 	inline auto path_vec = age::sparse_vector<std::array<char, config::max_asset_path_len>>{};
 
+
+	// todo
+	// template <e::kind e_kind>
+	// inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
+
 	template <e::kind e_kind>
-	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
+	inline auto entry_pool = age::stable_dense_vector<entry<e_kind>>{};
 
 	inline std::filesystem::path						 registry_path;
 	inline std::array<age::vector<handle>, e::kind_size> registry_map;

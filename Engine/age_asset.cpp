@@ -3,144 +3,110 @@
 
 namespace age::asset
 {
-	std::byte*
-	data::get_payload() noexcept
-	{
-		return blob.data();
-	}
-
-	read_buf
-	data::get_payload_read_buf() const noexcept
-	{
-		return read_buf{ blob.data(), blob.size_bytes() };
-	}
-}	 // namespace age::asset
-
-namespace age::asset
-{
 	namespace detail
 	{
-		constexpr std::align_val_t
-		get_alignment(asset::e::kind asset_kind)
+		bool
+		validate(const file_header& header) noexcept
 		{
-			switch (asset_kind)
-			{
-			case e::kind::font:
-			{
-				return std::align_val_t{ alignof(font::asset_header) };
-			}
-			default:
-			{
-				return std::align_val_t{ alignof(float32) };
-			}
-			}
+			static_assert(sizeof(file_header) == 24);
+
+			auto res = true;
+
+			res &= (header.magic == g::asset_header_magic);
+			AGE_ASSERT(res);
+
+			res &= (header.header_size >= sizeof(file_header));
+			AGE_ASSERT(res);
+
+			res &= (header.file_size >= sizeof(file_header));
+			AGE_ASSERT(res);
+
+			res &= (header.version_major == age::config::version_major);
+			res &= (header.version_minor == age::config::version_minor);
+			AGE_ASSERT(res);
+
+			return res;
 		}
 	}	 // namespace detail
 
-	bool
-	validate(const file_header& header) noexcept
+	byte_buf
+	read_asset_file(std::string_view full_path) noexcept
 	{
-		static_assert(sizeof(file_header) == 24);
-
-		auto res = true;
-
-		res &= (header.magic == g::asset_header_magic);
-		AGE_ASSERT(res);
-
-		res &= (header.header_size >= sizeof(file_header));
-		AGE_ASSERT(res);
-
-		res &= (header.file_size >= sizeof(file_header));
-		AGE_ASSERT(res);
-
-		res &= (header.version_major == age::config::version_major);
-		res &= (header.version_minor == age::config::version_minor);
-		AGE_ASSERT(res);
-
-		return res;
-	}
-
-	handle
-	load_from_file(std::string_view file_path) noexcept
-	{
-		return load_from_path(std::string_view{ std::format("{}{}", file_path, config::asset_extension) });
-	}
-
-	handle
-	load_from_path(const std::filesystem::path& full_path) noexcept
-	{
-		return load_from_path(std::string_view{ full_path.string() });
-	}
-
-	handle
-	load_from_path(std::string_view full_path) noexcept
-	{
-		if (std::filesystem::exists(full_path) is_false)
+		auto   ec		 = std::error_code{};
+		c_auto file_size = std::filesystem::file_size(full_path, ec);
+		if (ec || file_size == 0)
 		{
-			return { age::get_invalid_id<t_asset_id>() };
+			return {};
 		}
 
-		AGE_ASSERT(std::filesystem::exists(full_path));
-		AGE_ASSERT(std::filesystem::file_size(full_path) > 0);
-
 		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
-		AGE_ASSERT(file.is_open());
+		if (file.is_open() is_false)
+		{
+			return {};
+		}
 
-		c_auto file_size = std::filesystem::file_size(full_path);
 		AGE_ASSERT(sizeof(file_header) <= file_size);
 
 		auto header = asset::file_header{};
 		file.read(reinterpret_cast<char*>(&header), sizeof(file_header));
 
-		validate(header);
+		detail::validate(header);
 		AGE_ASSERT(header.file_size == file_size);
+		AGE_ASSERT(header.header_size <= file_size);
 
 		c_auto blob_size = file_size - header.header_size;
-		c_auto alignment = detail::get_alignment(header.asset_kind);
-		auto*  p_blob	 = (std::byte*)::operator new(blob_size, alignment);
 
-		file.read((char*)p_blob, blob_size);
+		auto buf = byte_buf::gen_reserved(blob_size);
 
-		file.close();
+		file.read(reinterpret_cast<char*>(buf.data()), blob_size);
 
-		return asset::handle{
-			.id = g::asset_data_vec.emplace_back(asset::data{
-				.asset_kind = header.asset_kind,
-				.blob		= std::span<std::byte>{ p_blob, blob_size },
-				.alignment	= alignment,
-				.path		= std::string{ full_path } })
-		};
+		buf.move_write_pos(blob_size);
+
+		return buf;
 	}
 
 	void
-	unload(asset::handle& h_asset) noexcept
+	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept
 	{
-		auto& asset_data = g::asset_data_vec[h_asset];
-		::operator delete(asset_data.blob.data(), asset_data.alignment);
+		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
 
-		if constexpr (age::config::debug_mode)
-		{
-			asset_data.blob = std::span<std::byte>{ (std::byte*)nullptr, 0 };
-		}
+		AGE_ASSERT(header.file_size > header.header_size);
 
-		g::asset_data_vec.remove(h_asset);
+		file.write(reinterpret_cast<const char*>(&header), header.header_size);
+		file.write(reinterpret_cast<const char*>(p_src), header.file_size - header.header_size);
 
-		h_asset.id = age::get_invalid_id<t_asset_id>();
+		file.close();
 	}
+}	 // namespace age::asset
 
+namespace age::asset
+{
 	void
 	deinit() noexcept
 	{
-		for (auto& asset_data : g::asset_data_vec)
+		for_each_kind(AGE_LAMBDA(
+			<e::kind e_kind>(),
+			{
+				auto& pool = pool_of<e_kind>();
+				for (auto&& [idx, entry] : pool | std::views::enumerate)
+				{
+					auto h_asset = handle::make<e_kind>(pool.nth_id(static_cast<uint32>(idx)));
+					destroy_entry<e_kind>(h_asset);
+				}
+			}
+
+			));
+
+		AGE_ASSERT(g::path_vec.is_empty());
+
+		for (auto& vec : g::registry_map)
 		{
-			::operator delete(asset_data.blob.data(), detail::get_alignment(asset_data.asset_kind));
+			vec.clear();
 		}
 
-		if constexpr (age::config::debug_mode)
+		for (auto& map : g::registry_path_to_handle_map)
 		{
-			g::asset_data_vec.debug_validate();
+			map.clear();
 		}
-
-		g::asset_data_vec.clear();
 	}
 }	 // namespace age::asset

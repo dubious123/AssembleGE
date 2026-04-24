@@ -1,24 +1,15 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::asset::g
-{
-	inline constexpr uint32 uv_set_max = 4;
-
-	inline constexpr auto mashlet_max_vertex_count	  = 64ul;
-	inline constexpr auto mashlet_max_primitive_count = 126ul;
-
-	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
-}	 // namespace age::asset::g
-
-namespace age::asset::g
-{
-	inline auto asset_data_vec = age::stable_dense_vector<asset::data>::gen_reserved(2);
-}
-
 // version 2
 namespace age::asset
 {
+	byte_buf
+	read_asset_file(std::string_view file_path) noexcept;
+
+	void
+	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept;
+
 	inline handle
 	create_entry(e::kind asset_kind, std::string_view asset_path) noexcept;
 
@@ -26,35 +17,18 @@ namespace age::asset
 	handle
 	create_entry(std::string_view asset_path) noexcept;
 
+	inline void
+	destroy_entry(handle&) noexcept;
+
+	template <e::kind e_kind>
+	void
+	destroy_entry(handle&) noexcept;
+
 	AGE_DEFINE_ASSET_KIND(font);
 }	 // namespace age::asset
 
 namespace age::asset
 {
-	bool
-	validate(const file_header&) noexcept;
-
-	handle
-	load_from_file(std::string_view file_name) noexcept;
-
-	handle
-	load_from_path(std::string_view file_path) noexcept;
-
-	handle
-	load_from_path(const std::filesystem::path& full_path) noexcept;
-
-	handle
-	load_from_blob(std::string_view file_path, const file_header& header, auto& blob) noexcept;
-
-	void
-	write_to_file(std::string_view file_name, const file_header&, const auto& asset_data) noexcept;
-
-	void
-	write_to_file(const std::filesystem::path& file_path, const file_header& header, const auto& asset_data) noexcept;
-
-	void
-	unload(asset::handle& h) noexcept;
-
 	void
 	deinit() noexcept;
 }	 // namespace age::asset
@@ -73,14 +47,14 @@ namespace age::asset
 
 namespace age::asset::font
 {
+	void
+	load(handle h_font, auto& renderer, e::font_charset_flag flag = e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
+
 	handle
-	load(const std::string_view& font_name, e::font_charset_flag flag, std::span<uint16> extra_unicode_span) noexcept;
+	load(std::string_view font_name, auto& renderer, e::font_charset_flag flag = e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
 
-	asset_header&
-	get_asset_header(handle _) noexcept;
-
-	uint16
-	calc_unicode_count(e::font_charset_flag flag) noexcept;
+	void
+	unload(handle, auto& renderer) noexcept;
 }	 // namespace age::asset::font
 
 namespace age::asset
@@ -99,18 +73,3 @@ namespace age::asset
 		};
 	}
 }	 // namespace age::asset
-
-namespace age::asset
-{
-	FORCE_INLINE data*
-	handle::operator->() const noexcept
-	{
-		return &g::asset_data_vec[id];
-	}
-}	 // namespace age::asset
-
-namespace age::asset::detail
-{
-	constexpr std::align_val_t
-	get_alignment(asset::e::kind asset_kind);
-}

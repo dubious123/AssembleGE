@@ -14,9 +14,7 @@ namespace age::asset::registry
 			return;
 		}
 
-		auto h_registry = load_from_path(g::registry_path);
-
-		auto buf = h_registry->get_payload_read_buf();
+		auto buf = read_asset_file(g::registry_path.string());
 
 		auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
 
@@ -41,8 +39,6 @@ namespace age::asset::registry
 		}
 
 		AGE_ASSERT(buf.has_remaining() is_false);
-
-		asset::unload(h_registry);
 	}
 
 	void
@@ -75,6 +71,6 @@ namespace age::asset::registry
 
 		buf.write_at(0, asset_kind_count);
 
-		write_to_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf);
+		write_asset_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf.data());
 	}
 }	 // namespace age::asset::registry

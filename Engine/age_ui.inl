@@ -189,15 +189,16 @@ namespace age::ui::font
 
 		if (idx == age::get_invalid_id<uint32>())
 		{
-			auto h_font = asset::font::load(p_font_name, flag, extra_unicode);
-
-			c_auto& font_header = asset::font::get_asset_header(h_font);
-
-			c_auto atlas_id = renderer.upload_texture(font_header.get_atlas().data(), { .width = font_header.atlas_width, .height = font_header.atlas_height }, age::graphics::e::texture_format::rgba8_unorm);
-
+			auto h_font	  = asset::font::load(p_font_name, renderer, flag, extra_unicode);
+			auto atlas_id = h_font.get_entry<asset::e::kind::font>().atlas_id;
 			g::font_data_vec.emplace_back(std::pair{
-				h,
-				font_data{ .atlas_id = atlas_id, .h_font = h_font } });
+				h, font_data{ .h_font = h_font, .atlas_id = atlas_id } });
+
+			// auto h_font = asset::font::load(p_font_name, flag, extra_unicode);
+
+			// c_auto& font_header = asset::font::get_asset_header(h_font);
+
+			// c_auto atlas_id = renderer.upload_texture(font_header.get_atlas().data(), { .width = font_header.atlas_width, .height = font_header.atlas_height }, age::graphics::e::texture_format::rgba8_unorm);
 		}
 	}
 
@@ -210,8 +211,11 @@ namespace age::ui::font
 
 		AGE_ASSERT(idx != age::get_invalid_id<uint32>());
 
-		renderer.release_texture(g::font_data_vec[idx].second.atlas_id);
-		asset::unload(g::font_data_vec[idx].second.h_font);
+		auto font_data = g::font_data_vec[idx].second;
+		asset::font::unload(font_data.h_font, renderer);
+
+		// renderer.release_texture(g::font_data_vec[idx].second.atlas_id);
+		// asset::unload(g::font_data_vec[idx].second.h_font);
 
 		g::font_data_vec[idx] = g::font_data_vec.back();
 		g::font_data_vec.pop_back();
@@ -229,8 +233,7 @@ namespace age::ui
 
 		for (auto&& [hash, font_data] : g::font_data_vec)
 		{
-			asset::unload(font_data.h_font);
-			renderer.release_texture(font_data.atlas_id);
+			asset::font::unload(font_data.h_font, renderer);
 		}
 
 		g::font_data_vec.clear();

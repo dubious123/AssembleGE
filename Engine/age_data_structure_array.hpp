@@ -50,7 +50,7 @@ namespace age::inline data_structure
 		constexpr dynamic_array(dynamic_array&& other) noexcept
 			: count{ std::exchange(other.count, 0) },
 			  p_data{ std::exchange(other.p_data, nullptr) },
-			  alloc{ other.get_allocator() }
+			  alloc{ std::move(other.alloc) }
 		{
 		}
 
@@ -174,6 +174,39 @@ namespace age::inline data_structure
 				}
 			}
 			_dealloc(alloc, p_data, count);
+		}
+
+		constexpr dynamic_array&
+		operator=(dynamic_array&& other) noexcept
+		{
+			if (this == &other) { return *this; }
+
+			if consteval
+			{
+				for (auto i = 0; i < count; ++i)
+				{
+					std::allocator_traits<allocator_type>::destroy(alloc, p_data + i);
+				}
+			}
+			else
+			{
+				if constexpr (not std::is_trivially_destructible_v<t>)
+				{
+					for (auto i = 0; i < count; ++i)
+					{
+						std::allocator_traits<allocator_type>::destroy(alloc, p_data + i);
+					}
+				}
+			}
+			_dealloc(alloc, p_data, count);
+
+			count  = std::exchange(other.count, 0);
+			p_data = std::exchange(other.p_data, nullptr);
+			if constexpr (std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value)
+			{
+				alloc = std::move(other.alloc);
+			}
+			return *this;
 		}
 
 	  private:
@@ -308,10 +341,11 @@ namespace age::inline data_structure
 			return p_data;
 		}
 
-		FORCE_INLINE constexpr size_type
+		template <typename t_ret = std::size_t>
+		FORCE_INLINE constexpr t_ret
 		size() const noexcept
 		{
-			return count;
+			return static_cast<t_ret>(count);
 		}
 
 		template <typename t_ret = std::size_t>

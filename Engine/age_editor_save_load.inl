@@ -363,7 +363,7 @@ namespace age::editor::detail
 	}
 
 	void
-	deserialize_storage_data(auto& ecs_entity_storage, read_buf& buf, storage_editor_data& editor_storage, auto& renderer) noexcept
+	deserialize_storage_data(auto& ecs_entity_storage, byte_buf& buf, storage_editor_data& editor_storage, auto& renderer) noexcept
 	{
 		using t_storage			 = BARE_OF(ecs_entity_storage);
 		using t_archetype		 = typename t_storage::t_archetype;
@@ -438,7 +438,7 @@ namespace age::editor::detail
 					{
 						t_archetype_traits::visit_component(
 							code_cmp_idx,
-							AGE_LAMBDA(<typename t_cmp>(read_buf & buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
+							AGE_LAMBDA(<typename t_cmp>(byte_buf & buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
 									   {
 										   auto&& [cmp] = storage.get_component<t_cmp>(ent_id);
 										   ecs::deserialize_component<t_cmp>(cmp, buf, FWD(rw_ctx));
@@ -545,18 +545,14 @@ namespace age::editor
 				{
 					c_auto buf				 = game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::serialize_storage_data), storage, renderer);
 					c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-					asset::write_to_file(storage_path, asset_file_header, *buf.data());
+					asset::write_asset_file(storage_path, asset_file_header, buf.data());
 				}
 
 				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
-					auto h_storage_asset = asset::load_from_path(storage_path);
-
-					auto read_buf = h_storage_asset->get_payload_read_buf();
+					auto read_buf = asset::read_asset_file(storage_path.string());
 
 					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), read_buf, storage, renderer);
-
-					asset::unload(h_storage_asset);
 
 					scene.loaded = true;
 				}
@@ -596,7 +592,7 @@ namespace age::editor
 			c_auto storage_path		 = detail::resolve_path_by_names<false>(active_scene.dir_path, editor_storage.names, std::format("{}{}", config::editor_ent_storage_asset_tag, config::asset_extension));
 			c_auto buf				 = game.visit_storage_at(active_scene.code_idx, editor_storage.code_idx, AGE_FUNC(detail::serialize_storage_data), editor_storage, renderer);
 			c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-			asset::write_to_file(storage_path, asset_file_header, *buf.data());
+			asset::write_asset_file(storage_path, asset_file_header, buf.data());
 		}
 	}
 }	 // namespace age::editor

@@ -82,6 +82,12 @@ namespace age::inline data_structure
 			return container.size() - hole_count;
 		}
 
+		FORCE_INLINE bool
+		is_empty() const noexcept
+		{
+			return (container.size() - hole_count) == 0;
+		}
+
 		FORCE_INLINE void
 		clear() noexcept
 		{
@@ -153,6 +159,14 @@ namespace age::inline data_structure
 			container[idx].next_hole_idx() = hole_idx;
 			hole_idx					   = idx;
 			++hole_count;
+		}
+
+		template <typename t_handle>
+		requires requires(t_handle t) { t.id; }
+		void
+		remove(t_handle handle) noexcept
+		{
+			return remove(handle.id);
 		}
 
 		FORCE_INLINE t_data&

@@ -21,8 +21,18 @@ namespace age::asset::registry
 	void
 	unregister_asset(e::kind, const char* path) noexcept;
 
+	template <e::kind e_kind>
 	asset::handle
-	find(const char* path) noexcept;	// invalid if not found
+	find(const char* path) noexcept
+	{
+		auto& map = g::registry_path_to_handle_map[to_idx(e_kind)];
+		if (auto it = map.find(util::to_fixed_str<config::max_asset_path_len>(path)); it != map.end())
+		{
+			return it->second;
+		}
+
+		return handle{ age::get_invalid_id<t_asset_id>() };
+	}
 
 	std::span<const asset::handle>
 	by_kind(e::kind k) noexcept;

@@ -31,9 +31,6 @@ namespace age::ui
 namespace age::ui::font
 {
 	void
-	load(const char* p_font_name, uint32 atlas_id, asset::e::font_charset_flag flag = asset::e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
-
-	void
 	load(const char* p_font_name, auto& renderer, asset::e::font_charset_flag flag = asset::e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
 
 	void

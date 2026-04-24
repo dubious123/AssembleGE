@@ -478,12 +478,6 @@ namespace age::ui
 		float2 atlas_uv_max;
 	};
 
-	struct font_data
-	{
-		uint32		  atlas_id;
-		asset::handle h_font;
-	};
-
 	struct cursor_data
 	{
 		float2 offset;
@@ -498,6 +492,12 @@ namespace age::ui
 		uint32 line_byte_size;
 
 		uint32 anchor_byte_offset;
+	};
+
+	struct font_data
+	{
+		asset::handle h_font;
+		uint32		  atlas_id;
 	};
 }	 // namespace age::ui
 

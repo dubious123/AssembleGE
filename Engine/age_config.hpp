@@ -145,14 +145,17 @@ namespace age::config
 
 	inline constexpr auto min_fps = 60u;
 
-	inline constexpr const char* shader_extension		  = ".asl";
-	inline constexpr const char* shader_include_extension = ".asli";
-	inline constexpr const char* asset_extension		  = ".age_asset";
-	inline constexpr const char* game_asset_tag			  = ".age_game";
+	inline constexpr const char shader_extension[]		   = ".asl";
+	inline constexpr const char shader_include_extension[] = ".asli";
+	inline constexpr const char asset_extension[]		   = ".age_asset";
+	inline constexpr const char game_asset_tag[]		   = ".age_game";
 
-	inline constexpr const char* asset_registry_asset_tag		= ".asset_registry";
-	inline constexpr const char* editor_ent_storage_asset_tag	= ".editor_ent_storage";
-	inline constexpr const char* shipping_ent_storage_asset_tag = ".ent_storage";
+
+	inline constexpr const char asset_registry_asset_tag[]		 = ".asset_registry";
+	inline constexpr const char editor_ent_storage_asset_tag[]	 = ".editor_ent_storage";
+	inline constexpr const char shipping_ent_storage_asset_tag[] = ".ent_storage";
+
+	inline constexpr const char font_asset_tag[] = ".font";
 
 	inline constexpr auto max_game_name_len			  = 256u;
 	inline constexpr auto max_entity_name_len		  = 64u;
