@@ -6,4 +6,5 @@ main()
 {
 	age_test::data_structure::unordered_map::run_test();
 	age_test::data_structure::byte_buffer::run_test();
+	age_test::data_structure::sparse_vector::run_test();
 }

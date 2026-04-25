@@ -564,7 +564,7 @@ namespace age::inline data_structure
 			{
 				reserve(new_size);
 
-				for (auto i = 0; i < count - new_size; ++i)
+				for (auto i = count; i < new_size; ++i)
 				{
 					std::allocator_traits<allocator_type>::construct(alloc, p_data + i, value);
 				}

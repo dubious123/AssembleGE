@@ -296,11 +296,8 @@ namespace age::asset::g
 
 
 	// todo
-	// template <e::kind e_kind>
-	// inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
-
 	template <e::kind e_kind>
-	inline auto entry_pool = age::stable_dense_vector<entry<e_kind>>{};
+	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
 
 	inline std::filesystem::path						 registry_path;
 	inline std::array<age::vector<handle>, e::kind_size> registry_map;

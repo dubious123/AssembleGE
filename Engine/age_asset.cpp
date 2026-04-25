@@ -88,10 +88,10 @@ namespace age::asset
 			<e::kind e_kind>(),
 			{
 				auto& pool = pool_of<e_kind>();
-				for (auto&& [idx, entry] : pool | std::views::enumerate)
+				for (auto it = pool.begin(); it != pool.end(); ++it)
 				{
-					auto h_asset = handle::make<e_kind>(pool.nth_id(static_cast<uint32>(idx)));
-					destroy_entry<e_kind>(h_asset);
+					auto h = handle::make<e_kind>(it.idx<uint32>());
+					destroy_entry<e_kind>(h);
 				}
 			}
 

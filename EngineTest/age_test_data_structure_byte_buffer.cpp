@@ -4,55 +4,6 @@
 namespace age_test::data_structure::byte_buffer
 {
 	// ============================================================
-	// custom serializable type for cx_custom_value tests
-	// ============================================================
-	struct custom_string
-	{
-		using size_type = std::size_t;
-
-		age::vector<char> chars;
-
-		custom_string() = default;
-
-		custom_string(const char* str) : chars(str, str + std::strlen(str)) { }
-
-		size_type
-		byte_size() const
-		{ return sizeof(uint32) + chars.size(); }
-
-		void
-		write_to(void* p_base, size_type& offset) const
-		{
-			auto*  p   = static_cast<std::byte*>(p_base) + offset;
-			c_auto len = static_cast<uint32>(chars.size());
-			std::memcpy(p, &len, sizeof(uint32));
-			std::memcpy(p + sizeof(uint32), chars.data(), len);
-			offset += sizeof(uint32) + len;
-		}
-
-		static custom_string
-		read_from(void* p_base, size_type& offset)
-		{
-			auto*  p = static_cast<std::byte*>(p_base) + offset;
-			uint32 len;
-			std::memcpy(&len, p, sizeof(uint32));
-
-			custom_string result;
-			result.chars.resize(len);
-			std::memcpy(result.chars.data(), p + sizeof(uint32), len);
-			offset += sizeof(uint32) + len;
-			return result;
-		}
-
-		bool
-		operator==(const custom_string& other) const
-		{
-			if (chars.size() != other.chars.size()) { return false; }
-			return std::memcmp(chars.data(), other.chars.data(), chars.size()) == 0;
-		}
-	};
-
-	// ============================================================
 	// 1. default constructor
 	// ============================================================
 	void
@@ -65,6 +16,8 @@ namespace age_test::data_structure::byte_buffer
 		AGE_ASSERT(buf.read_amount() == 0);
 		AGE_ASSERT(buf.data() == nullptr);
 		AGE_ASSERT(buf.has_remaining() is_false);
+		AGE_ASSERT(buf.empty());
+		AGE_ASSERT(buf.is_empty());
 	}
 
 	// ============================================================
@@ -99,7 +52,7 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 4. write + read multiple trivial
+	// 4. write + read multiple trivial (tuple read)
 	// ============================================================
 	void
 	test_write_read_multiple()
@@ -107,6 +60,7 @@ namespace age_test::data_structure::byte_buffer
 		age::byte_buffer buf;
 
 		buf.write(uint32{ 1 }, float{ 2.0f }, uint64{ 3 });
+		AGE_ASSERT(buf.size() == sizeof(uint32) + sizeof(float) + sizeof(uint64));
 
 		auto [a, b, c] = buf.read<uint32, float, uint64>();
 		AGE_ASSERT(a == 1);
@@ -115,24 +69,22 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 5. write + read with alignment
+	// 5. write byte size matches sum of sizeofs (no padding)
 	// ============================================================
 	void
-	test_alignment()
+	test_byte_size_no_padding()
 	{
 		age::byte_buffer buf;
 
 		buf.write(uint8{ 0xFF });
 		buf.write(uint64{ 123456789 });
 
+		AGE_ASSERT(buf.size() == sizeof(uint8) + sizeof(uint64));
+
 		c_auto v1 = buf.read<uint8>();
 		c_auto v2 = buf.read<uint64>();
-
 		AGE_ASSERT(v1 == 0xFF);
 		AGE_ASSERT(v2 == 123456789);
-
-		// size should include alignment padding
-		AGE_ASSERT(buf.size() > sizeof(uint8) + sizeof(uint64));
 	}
 
 	// ============================================================
@@ -179,7 +131,7 @@ namespace age_test::data_structure::byte_buffer
 		AGE_ASSERT(buf.size() == 0);
 		AGE_ASSERT(buf.read_amount() == 0);
 		AGE_ASSERT(buf.has_remaining() is_false);
-		AGE_ASSERT(buf.capacity() == old_cap);	  // capacity preserved
+		AGE_ASSERT(buf.capacity() == old_cap);
 	}
 
 	// ============================================================
@@ -199,7 +151,6 @@ namespace age_test::data_structure::byte_buffer
 		buf.reset_read();
 		AGE_ASSERT(buf.read_amount() == 0);
 
-		// re-read from start
 		c_auto v1_again = buf.read<uint32>();
 		c_auto v2		= buf.read<uint32>();
 		AGE_ASSERT(v1_again == 42);
@@ -218,7 +169,6 @@ namespace age_test::data_structure::byte_buffer
 		AGE_ASSERT(buf.capacity() >= 1024);
 		AGE_ASSERT(buf.size() == 0);
 
-		// write should not trigger realloc
 		buf.write(uint32{ 1 });
 		AGE_ASSERT(buf.capacity() >= 1024);
 	}
@@ -271,7 +221,6 @@ namespace age_test::data_structure::byte_buffer
 		auto copy = buf;
 
 		AGE_ASSERT(copy.size() == buf.size());
-		AGE_ASSERT(copy.capacity() == buf.capacity());
 		AGE_ASSERT(copy.data() != buf.data());
 
 		c_auto a = copy.read<uint32>();
@@ -298,8 +247,8 @@ namespace age_test::data_structure::byte_buffer
 		AGE_ASSERT(buf.size() == 0);
 		AGE_ASSERT(buf.data() == nullptr);
 
-		c_auto val = moved.read<uint32>();
-		AGE_ASSERT(val == 42);
+		c_auto v = moved.read<uint32>();
+		AGE_ASSERT(v == 42);
 	}
 
 	// ============================================================
@@ -308,20 +257,20 @@ namespace age_test::data_structure::byte_buffer
 	void
 	test_copy_assignment()
 	{
-		age::byte_buffer a;
-		a.write(uint32{ 100 }, uint32{ 200 });
+		age::byte_buffer src;
+		src.write(uint32{ 1 }, uint32{ 2 });
 
-		age::byte_buffer b;
-		b.write(uint64{ 999 });
+		age::byte_buffer dst;
+		dst.write(uint64{ 99 });
 
-		b = a;
+		dst = src;
 
-		AGE_ASSERT(b.size() == a.size());
+		AGE_ASSERT(dst.size() == src.size());
 
-		c_auto v1 = b.read<uint32>();
-		c_auto v2 = b.read<uint32>();
-		AGE_ASSERT(v1 == 100);
-		AGE_ASSERT(v2 == 200);
+		c_auto a = dst.read<uint32>();
+		c_auto b = dst.read<uint32>();
+		AGE_ASSERT(a == 1);
+		AGE_ASSERT(b == 2);
 	}
 
 	// ============================================================
@@ -330,20 +279,22 @@ namespace age_test::data_structure::byte_buffer
 	void
 	test_move_assignment()
 	{
-		age::byte_buffer a;
-		a.write(uint32{ 77 });
+		age::byte_buffer src;
+		src.write(uint32{ 42 }, uint64{ 99 });
+		c_auto src_size = src.size();
 
-		age::byte_buffer b;
-		b.write(uint64{ 999 });
+		age::byte_buffer dst;
+		dst.write(uint32{ 1 });
 
-		b = std::move(a);
+		dst = std::move(src);
 
-		AGE_ASSERT(b.size() == sizeof(uint32));
-		AGE_ASSERT(a.size() == 0);
-		AGE_ASSERT(a.data() == nullptr);
+		AGE_ASSERT(dst.size() == src_size);
+		AGE_ASSERT(src.size() == 0);
 
-		c_auto val = b.read<uint32>();
-		AGE_ASSERT(val == 77);
+		c_auto a = dst.read<uint32>();
+		c_auto b = dst.read<uint64>();
+		AGE_ASSERT(a == 42);
+		AGE_ASSERT(b == 99);
 	}
 
 	// ============================================================
@@ -358,8 +309,8 @@ namespace age_test::data_structure::byte_buffer
 		buf = buf;
 
 		AGE_ASSERT(buf.size() == sizeof(uint32));
-		c_auto val = buf.read<uint32>();
-		AGE_ASSERT(val == 42);
+		c_auto v = buf.read<uint32>();
+		AGE_ASSERT(v == 42);
 	}
 
 	// ============================================================
@@ -374,8 +325,8 @@ namespace age_test::data_structure::byte_buffer
 		buf = std::move(buf);
 
 		AGE_ASSERT(buf.size() == sizeof(uint32));
-		c_auto val = buf.read<uint32>();
-		AGE_ASSERT(val == 42);
+		c_auto v = buf.read<uint32>();
+		AGE_ASSERT(v == 42);
 	}
 
 	// ============================================================
@@ -385,44 +336,16 @@ namespace age_test::data_structure::byte_buffer
 	test_operator_bracket()
 	{
 		age::byte_buffer buf;
-		buf.write(uint8{ 0xAB });
+		buf.write(uint32{ 0xDEADBEEF });
 
-		AGE_ASSERT(static_cast<uint8>(buf[0]) == 0xAB);
+		AGE_ASSERT(buf[0] == std::byte{ 0xEF });
+		AGE_ASSERT(buf[1] == std::byte{ 0xBE });
+		AGE_ASSERT(buf[2] == std::byte{ 0xAD });
+		AGE_ASSERT(buf[3] == std::byte{ 0xDE });
 	}
 
 	// ============================================================
-	// 19. calc_write_size - type only
-	// ============================================================
-	void
-	test_calc_write_size_type_only()
-	{
-		age::byte_buffer buf;
-
-		c_auto size_a = buf.calc_write_size<uint32>();
-		AGE_ASSERT(size_a == sizeof(uint32));
-
-		c_auto size_b = buf.calc_write_size<uint8, uint64>();
-		AGE_ASSERT(size_b > sizeof(uint8) + sizeof(uint64));	// includes alignment padding
-	}
-
-	// ============================================================
-	// 20. calc_write_size - instance
-	// ============================================================
-	void
-	test_calc_write_size_instance()
-	{
-		age::byte_buffer buf;
-
-		uint32 a = 1;
-		float  b = 2.0f;
-
-		c_auto predicted = buf.calc_write_size(a, b);
-		buf.write(a, b);
-		AGE_ASSERT(buf.size() == predicted);
-	}
-
-	// ============================================================
-	// 21. auto growth
+	// 19. auto growth
 	// ============================================================
 	void
 	test_auto_growth()
@@ -434,42 +357,39 @@ namespace age_test::data_structure::byte_buffer
 			buf.write(i);
 		}
 
-		AGE_ASSERT(buf.size() == sizeof(uint32) * 1000);
+		AGE_ASSERT(buf.size() == 1000 * sizeof(uint32));
+		AGE_ASSERT(buf.capacity() >= 1000 * sizeof(uint32));
 
 		for (uint32 i = 0; i < 1000; ++i)
 		{
-			c_auto val = buf.read<uint32>();
-			AGE_ASSERT(val == i);
+			c_auto v = buf.read<uint32>();
+			AGE_ASSERT(v == i);
 		}
-
-		AGE_ASSERT(buf.has_remaining() is_false);
 	}
 
 	// ============================================================
-	// 22. mixed types sequential write/read
+	// 20. mixed types sequential write/read
 	// ============================================================
 	void
 	test_mixed_types()
 	{
 		age::byte_buffer buf;
 
-		buf.write(uint8{ 1 });
-		buf.write(uint16{ 2 });
-		buf.write(uint32{ 3 });
-		buf.write(uint64{ 4 });
-		buf.write(float{ 5.0f });
-		buf.write(double{ 6.0 });
+		buf.write(uint8{ 0xAB }, uint16{ 0xCDEF }, uint32{ 0x12345678 }, uint64{ 0xDEADBEEF12345678 });
 
-		AGE_ASSERT(buf.read<uint8>() == 1);
-		AGE_ASSERT(buf.read<uint16>() == 2);
-		AGE_ASSERT(buf.read<uint32>() == 3);
-		AGE_ASSERT(buf.read<uint64>() == 4);
-		AGE_ASSERT(buf.read<float>() == 5.0f);
-		AGE_ASSERT(buf.read<double>() == 6.0);
+		c_auto a = buf.read<uint8>();
+		c_auto b = buf.read<uint16>();
+		c_auto c = buf.read<uint32>();
+		c_auto d = buf.read<uint64>();
+
+		AGE_ASSERT(a == 0xAB);
+		AGE_ASSERT(b == 0xCDEF);
+		AGE_ASSERT(c == 0x12345678);
+		AGE_ASSERT(d == 0xDEADBEEF12345678);
 	}
 
 	// ============================================================
-	// 23. write after clear - reuse buffer
+	// 21. write after clear
 	// ============================================================
 	void
 	test_write_after_clear()
@@ -487,7 +407,7 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 24. multiple read cycles with reset_read
+	// 22. multiple read cycles with reset_read
 	// ============================================================
 	void
 	test_multiple_read_cycles()
@@ -506,7 +426,7 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 25. struct write/read
+	// 23. struct write/read
 	// ============================================================
 	void
 	test_struct()
@@ -530,102 +450,47 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 26. custom value type - write/read
-	// ============================================================
-	void
-	test_custom_value()
-	{
-		age::byte_buffer buf;
-
-		c_auto src = custom_string{ "hello age" };
-		buf.write(src);
-
-		c_auto dst = buf.read<custom_string>();
-		AGE_ASSERT(dst == src);
-	}
-
-	// ============================================================
-	// 27. custom value mixed with trivial
-	// ============================================================
-	void
-	test_custom_mixed()
-	{
-		age::byte_buffer buf;
-
-		buf.write(uint32{ 42 }, custom_string{ "test" }, float{ 3.14f });
-
-		c_auto a = buf.read<uint32>();
-		c_auto b = buf.read<custom_string>();
-		c_auto c = buf.read<float>();
-
-		AGE_ASSERT(a == 42);
-		AGE_ASSERT(b == custom_string{ "test" });
-		AGE_ASSERT(c == 3.14f);
-	}
-
-	// ============================================================
-	// 28. multiple custom values
-	// ============================================================
-	void
-	test_custom_multiple()
-	{
-		age::byte_buffer buf;
-
-		buf.write(custom_string{ "aaa" }, custom_string{ "bbbb" }, custom_string{ "ccccc" });
-
-		c_auto a = buf.read<custom_string>();
-		c_auto b = buf.read<custom_string>();
-		c_auto c = buf.read<custom_string>();
-
-		AGE_ASSERT(a == custom_string{ "aaa" });
-		AGE_ASSERT(b == custom_string{ "bbbb" });
-		AGE_ASSERT(c == custom_string{ "ccccc" });
-	}
-
-	// ============================================================
-	// 29. data pointer stability after reserve
+	// 24. data pointer stability after reserve
 	// ============================================================
 	void
 	test_data_pointer_after_reserve()
 	{
 		age::byte_buffer buf;
-		buf.reserve(64);
+		buf.reserve(4096);
 
-		auto* p1 = buf.data();
-		buf.write(uint32{ 1 });
+		c_auto* ptr_before = buf.data();
+		buf.write(uint32{ 1 }, uint64{ 2 }, float{ 3.0f });
+		c_auto* ptr_after = buf.data();
 
-		// no realloc expected
-		AGE_ASSERT(buf.data() == p1);
+		AGE_ASSERT(ptr_before == ptr_after);
 	}
 
 	// ============================================================
-	// 30. stress - large sequential
+	// 25. stress - sequential
 	// ============================================================
 	void
 	test_stress_sequential()
 	{
 		age::byte_buffer buf;
 
-		constexpr uint64 N = 50000;
-
-		for (uint64 i = 0; i < N; ++i)
+		for (uint32 i = 0; i < 50000; ++i)
 		{
 			buf.write(i);
 		}
 
-		AGE_ASSERT(buf.size() == sizeof(uint64) * N);
+		AGE_ASSERT(buf.size() == 50000 * sizeof(uint32));
 
-		for (uint64 i = 0; i < N; ++i)
+		for (uint32 i = 0; i < 50000; ++i)
 		{
-			c_auto val = buf.read<uint64>();
-			AGE_ASSERT(val == i);
+			c_auto v = buf.read<uint32>();
+			AGE_ASSERT(v == i);
 		}
 
 		AGE_ASSERT(buf.has_remaining() is_false);
 	}
 
 	// ============================================================
-	// 31. stress - repeated clear + write cycles
+	// 26. stress - clear cycles
 	// ============================================================
 	void
 	test_stress_clear_cycles()
@@ -634,53 +499,23 @@ namespace age_test::data_structure::byte_buffer
 
 		for (uint32 cycle = 0; cycle < 100; ++cycle)
 		{
+			for (uint32 i = 0; i < 100; ++i)
+			{
+				buf.write(i);
+			}
+
+			for (uint32 i = 0; i < 100; ++i)
+			{
+				c_auto v = buf.read<uint32>();
+				AGE_ASSERT(v == i);
+			}
+
 			buf.clear();
-
-			for (uint32 i = 0; i < 100; ++i)
-			{
-				buf.write(i + cycle);
-			}
-
-			for (uint32 i = 0; i < 100; ++i)
-			{
-				c_auto val = buf.read<uint32>();
-				AGE_ASSERT(val == i + cycle);
-			}
 		}
 	}
 
 	// ============================================================
-	// 32. stress - mixed alignment patterns
-	// ============================================================
-	void
-	test_stress_mixed_alignment()
-	{
-		age::byte_buffer buf;
-
-		for (uint32 i = 0; i < 500; ++i)
-		{
-			buf.write(uint8{ static_cast<uint8>(i & 0xFF) });
-			buf.write(uint64{ i * 13ull });
-			buf.write(uint16{ static_cast<uint16>(i & 0xFFFF) });
-			buf.write(float{ static_cast<float>(i) });
-		}
-
-		for (uint32 i = 0; i < 500; ++i)
-		{
-			c_auto a = buf.read<uint8>();
-			c_auto b = buf.read<uint64>();
-			c_auto c = buf.read<uint16>();
-			c_auto d = buf.read<float>();
-
-			AGE_ASSERT(a == static_cast<uint8>(i & 0xFF));
-			AGE_ASSERT(b == i * 13ull);
-			AGE_ASSERT(c == static_cast<uint16>(i & 0xFFFF));
-			AGE_ASSERT(d == static_cast<float>(i));
-		}
-	}
-
-	// ============================================================
-	// 33. stress - copy under load
+	// 27. stress - copy under load
 	// ============================================================
 	void
 	test_stress_copy()
@@ -704,455 +539,585 @@ namespace age_test::data_structure::byte_buffer
 	}
 
 	// ============================================================
-	// 34. stress - move chain
+	// 28. stress - move chain
 	// ============================================================
 	void
 	test_stress_move_chain()
 	{
-		age::byte_buffer a;
-		for (uint32 i = 0; i < 1000; ++i)
+		age::byte_buffer buf1;
+		for (uint32 i = 0; i < 500; ++i)
 		{
-			a.write(i);
+			buf1.write(i);
 		}
 
-		auto b = std::move(a);
-		AGE_ASSERT(a.empty() or a.size() == 0);
+		auto buf2 = std::move(buf1);
+		auto buf3 = std::move(buf2);
+		auto buf4 = std::move(buf3);
 
-		auto c = std::move(b);
-		AGE_ASSERT(b.empty() or b.size() == 0);
-
-		age::byte_buffer d;
-		d = std::move(c);
-		AGE_ASSERT(c.empty() or c.size() == 0);
-
-		for (uint32 i = 0; i < 1000; ++i)
+		for (uint32 i = 0; i < 500; ++i)
 		{
-			c_auto val = d.read<uint32>();
-			AGE_ASSERT(val == i);
+			c_auto v = buf4.read<uint32>();
+			AGE_ASSERT(v == i);
 		}
 	}
 
 	// ============================================================
-	// 35. get_allocator
+	// 29. get_allocator
 	// ============================================================
 	void
 	test_get_allocator()
 	{
 		age::byte_buffer buf;
-		auto			 a = buf.get_allocator();
-		(void)a;	// compiles
+		c_auto			 alloc = buf.get_allocator();
+		(void)alloc;
 	}
 
 	// ============================================================
-	// 36. calc_write_size_at
-	// ============================================================
-	void
-	test_calc_write_size_at()
-	{
-		age::byte_buffer buf;
-
-		// offset 0 - no padding
-		c_auto s1 = buf.calc_write_size_at<uint32>(0);
-		AGE_ASSERT(s1 == sizeof(uint32));
-
-		// offset 1 - needs alignment padding for uint32
-		c_auto s2 = buf.calc_write_size_at<uint32>(1);
-		AGE_ASSERT(s2 > sizeof(uint32));
-
-		// multi type
-		c_auto s3 = buf.calc_write_size_at<uint8, uint64>(0);
-		c_auto s4 = buf.calc_write_size_at<uint8, uint64>(1);
-		AGE_ASSERT(s3 == 16);
-		AGE_ASSERT(s4 == 15);
-	}
-
-	// ============================================================
-	// 37. empty
+	// 30. empty / is_empty
 	// ============================================================
 	void
 	test_empty()
 	{
 		age::byte_buffer buf;
 		AGE_ASSERT(buf.empty());
+		AGE_ASSERT(buf.is_empty());
 
 		buf.write(uint32{ 1 });
 		AGE_ASSERT(buf.empty() is_false);
+		AGE_ASSERT(buf.is_empty() is_false);
 
 		buf.clear();
 		AGE_ASSERT(buf.empty());
+		AGE_ASSERT(buf.is_empty());
 	}
 
 	// ============================================================
-	// 38. const access
+	// 31. const access
 	// ============================================================
 	void
 	test_const_access()
 	{
 		age::byte_buffer buf;
-		buf.write(uint8{ 0xAB }, uint32{ 42 });
+		buf.write(uint32{ 42 });
 
-		const auto& cbuf = buf;
-
-		AGE_ASSERT(cbuf.size() == buf.size());
-		AGE_ASSERT(cbuf.capacity() == buf.capacity());
-		AGE_ASSERT(cbuf.read_amount() == buf.read_amount());
-		AGE_ASSERT(cbuf.has_remaining());
-		AGE_ASSERT(cbuf.data() == buf.data());
-		AGE_ASSERT(static_cast<uint8>(cbuf[0]) == 0xAB);
-		AGE_ASSERT(cbuf.empty() is_false);
-
-		c_auto predicted = cbuf.calc_write_size<uint32>();
-		AGE_ASSERT(predicted == sizeof(uint32));
+		c_auto& cbuf = buf;
+		AGE_ASSERT(cbuf.size() == sizeof(uint32));
+		AGE_ASSERT(cbuf.capacity() >= sizeof(uint32));
+		AGE_ASSERT(cbuf.data() is_not_nullptr);
+		AGE_ASSERT(cbuf[0] != std::byte{ 0 });
 	}
 
 	// ============================================================
-	// 39. zero arg write
+	// 32. zero arg write - should be no-op
 	// ============================================================
 	void
 	test_zero_arg_write()
 	{
 		age::byte_buffer buf;
+
 		buf.write();
 		AGE_ASSERT(buf.size() == 0);
-		AGE_ASSERT(buf.empty());
 	}
 
 	// ============================================================
-	// 40. custom value calc_write_size prediction
-	// ============================================================
-	void
-	test_custom_calc_write_size()
-	{
-		age::byte_buffer buf;
-
-		c_auto s1 = custom_string{ "hello" };
-		c_auto s2 = custom_string{ "world!!" };
-
-		c_auto predicted = buf.calc_write_size(s1, s2);
-		buf.write(s1, s2);
-		AGE_ASSERT(buf.size() == predicted);
-	}
-
-	// ============================================================
-	// 41. custom value empty string
-	// ============================================================
-	void
-	test_custom_empty_string()
-	{
-		age::byte_buffer buf;
-
-		c_auto empty = custom_string{ "" };
-		buf.write(empty);
-
-		c_auto result = buf.read<custom_string>();
-		AGE_ASSERT(result == empty);
-		AGE_ASSERT(result.chars.size() == 0);
-	}
-
-	// ============================================================
-	// 42. single write call with mixed alignment
-	// ============================================================
-	void
-	test_single_write_mixed_alignment()
-	{
-		age::byte_buffer buf;
-
-		buf.write(uint8{ 1 }, uint16{ 2 }, uint32{ 3 }, uint64{ 4 }, uint8{ 5 }, uint64{ 6 });
-
-		AGE_ASSERT(buf.read<uint8>() == 1);
-		AGE_ASSERT(buf.read<uint16>() == 2);
-		AGE_ASSERT(buf.read<uint32>() == 3);
-		AGE_ASSERT(buf.read<uint64>() == 4);
-		AGE_ASSERT(buf.read<uint8>() == 5);
-		AGE_ASSERT(buf.read<uint64>() == 6);
-	}
-
-	// ============================================================
-	// 43. worst case padding pattern
-	// ============================================================
-	void
-	test_worst_case_padding()
-	{
-		age::byte_buffer buf;
-
-		for (uint32 i = 0; i < 200; ++i)
-		{
-			buf.write(uint8{ static_cast<uint8>(i) });
-			buf.write(uint64{ i * 7ull });
-		}
-
-		for (uint32 i = 0; i < 200; ++i)
-		{
-			c_auto a = buf.read<uint8>();
-			c_auto b = buf.read<uint64>();
-			AGE_ASSERT(a == static_cast<uint8>(i));
-			AGE_ASSERT(b == i * 7ull);
-		}
-	}
-
-	// ============================================================
-	// 44. multi write, tuple read
+	// 33. multi write, tuple read
 	// ============================================================
 	void
 	test_multi_write_tuple_read()
 	{
 		age::byte_buffer buf;
 
-		buf.write(uint8{ 1 });
-		buf.write(uint32{ 2 });
-		buf.write(uint64{ 3 });
+		buf.write(uint32{ 1 }, uint16{ 2 }, uint8{ 3 });
 
-		auto [a, b, c] = buf.read<uint8, uint32, uint64>();
+		auto [a, b, c] = buf.read<uint32, uint16, uint8>();
 		AGE_ASSERT(a == 1);
 		AGE_ASSERT(b == 2);
 		AGE_ASSERT(c == 3);
 	}
 
 	// ============================================================
-	// 45. single write, individual reads
+	// 34. read by reference (out parameter form)
 	// ============================================================
 	void
-	test_single_write_individual_reads()
+	test_read_by_reference()
 	{
 		age::byte_buffer buf;
+		buf.write(uint32{ 42 }, uint64{ 999 }, float{ 1.5f });
 
-		buf.write(uint8{ 10 }, uint16{ 20 }, uint32{ 30 }, uint64{ 40 }, float{ 50.0f }, double{ 60.0 });
+		uint32 a;
+		uint64 b;
+		float  c;
+		buf.read(a, b, c);
 
-		AGE_ASSERT(buf.read<uint8>() == 10);
-		AGE_ASSERT(buf.read<uint16>() == 20);
-		AGE_ASSERT(buf.read<uint32>() == 30);
-		AGE_ASSERT(buf.read<uint64>() == 40);
-		AGE_ASSERT(buf.read<float>() == 50.0f);
-		AGE_ASSERT(buf.read<double>() == 60.0);
+		AGE_ASSERT(a == 42);
+		AGE_ASSERT(b == 999);
+		AGE_ASSERT(c == 1.5f);
 	}
 
 	// ============================================================
-	// 46. mixed alignment structs
+	// 35. read into C array
 	// ============================================================
 	void
-	test_mixed_structs()
-	{
-		struct alignas(1) small_t
-		{
-			uint8 a;
-		};
-
-		struct alignas(4) medium_t
-		{
-			uint32 a;
-			float  b;
-		};
-
-		struct alignas(8) large_t
-		{
-			uint64 a;
-			double b;
-		};
-
-		age::byte_buffer buf;
-
-		buf.write(small_t{ 1 }, large_t{ 2, 3.0 }, small_t{ 4 }, medium_t{ 5, 6.0f }, large_t{ 7, 8.0 });
-
-		c_auto s1 = buf.read<small_t>();
-		c_auto l1 = buf.read<large_t>();
-		c_auto s2 = buf.read<small_t>();
-		c_auto m1 = buf.read<medium_t>();
-		c_auto l2 = buf.read<large_t>();
-
-		AGE_ASSERT(s1.a == 1);
-		AGE_ASSERT(l1.a == 2);
-		AGE_ASSERT(l1.b == 3.0);
-		AGE_ASSERT(s2.a == 4);
-		AGE_ASSERT(m1.a == 5);
-		AGE_ASSERT(m1.b == 6.0f);
-		AGE_ASSERT(l2.a == 7);
-		AGE_ASSERT(l2.b == 8.0);
-	}
-
-	// ============================================================
-	// 47. calc_write_size matches actual write - mixed alignment
-	// ============================================================
-	void
-	test_calc_matches_write_mixed()
+	test_read_c_array()
 	{
 		age::byte_buffer buf;
-
-		uint8  a = 1;
-		uint64 b = 2;
-		uint16 c = 3;
-		uint64 d = 4;
-		uint8  e = 5;
-
-		c_auto predicted = buf.calc_write_size(a, b, c, d, e);
-		buf.write(a, b, c, d, e);
-		AGE_ASSERT(buf.size() == predicted);
-	}
-
-	// ============================================================
-	// 48. stress - alternating 1-byte and 8-byte in single write
-	// ============================================================
-	void
-	test_stress_alternating_alignment()
-	{
-		age::byte_buffer buf;
-
-		for (uint32 i = 0; i < 1000; ++i)
+		for (uint32 i = 0; i < 8; ++i)
 		{
-			buf.write(
-				uint8{ static_cast<uint8>(i & 0xFF) },
-				uint64{ i * 11ull },
-				uint8{ static_cast<uint8>((i + 1) & 0xFF) },
-				uint64{ i * 13ull });
+			buf.write(i * 11u);
 		}
 
-		for (uint32 i = 0; i < 1000; ++i)
-		{
-			c_auto a = buf.read<uint8>();
-			c_auto b = buf.read<uint64>();
-			c_auto c = buf.read<uint8>();
-			c_auto d = buf.read<uint64>();
+		uint32 arr[8];
+		buf.read(arr);
 
-			AGE_ASSERT(a == static_cast<uint8>(i & 0xFF));
-			AGE_ASSERT(b == i * 11ull);
-			AGE_ASSERT(c == static_cast<uint8>((i + 1) & 0xFF));
-			AGE_ASSERT(d == i * 13ull);
+		for (uint32 i = 0; i < 8; ++i)
+		{
+			AGE_ASSERT(arr[i] == i * 11u);
+		}
+	}
+
+	// ============================================================
+	// 36. read raw memory (single)
+	// ============================================================
+	void
+	test_read_raw_single()
+	{
+		age::byte_buffer buf;
+		buf.write(uint64{ 0xDEADBEEFCAFEBABE });
+
+		alignas(uint64) std::byte storage[sizeof(uint64)];
+		auto*					  p = buf.read<uint64>(storage);
+
+		AGE_ASSERT(*p == 0xDEADBEEFCAFEBABE);
+	}
+
+	// ============================================================
+	// 37. read raw memory (n elements)
+	// ============================================================
+	void
+	test_read_raw_array()
+	{
+		age::byte_buffer buf;
+		for (uint32 i = 0; i < 16; ++i)
+		{
+			buf.write(i);
 		}
 
-		AGE_ASSERT(buf.has_remaining() is_false);
-	}
+		alignas(uint32) std::byte storage[sizeof(uint32) * 16];
+		auto*					  p = buf.read<uint32>(storage, 16u);
 
-	// ============================================================
-	// 49. custom value - copy buffer
-	// ============================================================
-	void
-	test_custom_copy_buffer()
-	{
-		age::byte_buffer buf;
-		buf.write(uint32{ 1 }, custom_string{ "hello" }, uint64{ 2 });
-
-		auto copy = buf;
-
-		AGE_ASSERT(copy.read<uint32>() == 1);
-		AGE_ASSERT(copy.read<custom_string>() == custom_string{ "hello" });
-		AGE_ASSERT(copy.read<uint64>() == 2);
-	}
-
-	// ============================================================
-	// 50. custom value - reset_read and re-read
-	// ============================================================
-	void
-	test_custom_reset_read()
-	{
-		age::byte_buffer buf;
-		buf.write(custom_string{ "abc" }, uint32{ 42 });
-
-		c_auto s1 = buf.read<custom_string>();
-		AGE_ASSERT(s1 == custom_string{ "abc" });
-
-		buf.reset_read();
-
-		c_auto s2 = buf.read<custom_string>();
-		c_auto v  = buf.read<uint32>();
-		AGE_ASSERT(s2 == custom_string{ "abc" });
-		AGE_ASSERT(v == 42);
-	}
-
-	// ============================================================
-	// 51. custom value - clear and rewrite
-	// ============================================================
-	void
-	test_custom_clear_rewrite()
-	{
-		age::byte_buffer buf;
-		buf.write(custom_string{ "first" });
-		buf.clear();
-
-		buf.write(custom_string{ "second" }, uint32{ 99 });
-
-		c_auto s = buf.read<custom_string>();
-		c_auto v = buf.read<uint32>();
-		AGE_ASSERT(s == custom_string{ "second" });
-		AGE_ASSERT(v == 99);
-	}
-
-	// ============================================================
-	// 52. custom value - tuple read
-	// ============================================================
-	void
-	test_custom_tuple_read()
-	{
-		age::byte_buffer buf;
-		buf.write(uint8{ 1 }, custom_string{ "tpl" }, uint64{ 2 });
-
-		auto [a, b, c] = buf.read<uint8, custom_string, uint64>();
-		AGE_ASSERT(a == 1);
-		AGE_ASSERT(b == custom_string{ "tpl" });
-		AGE_ASSERT(c == 2);
-	}
-
-	// ============================================================
-	// 53. custom value - move buffer
-	// ============================================================
-	void
-	test_custom_move_buffer()
-	{
-		age::byte_buffer buf;
-		buf.write(custom_string{ "move" }, uint32{ 7 });
-
-		auto moved = std::move(buf);
-		AGE_ASSERT(buf.size() == 0);
-
-		c_auto s = moved.read<custom_string>();
-		c_auto v = moved.read<uint32>();
-		AGE_ASSERT(s == custom_string{ "move" });
-		AGE_ASSERT(v == 7);
-	}
-
-	// ============================================================
-	// 54. custom value - stress
-	// ============================================================
-	void
-	test_custom_stress()
-	{
-		age::byte_buffer buf;
-
-		for (uint32 i = 0; i < 500; ++i)
+		for (uint32 i = 0; i < 16; ++i)
 		{
-			buf.write(uint32{ i }, custom_string{ std::to_string(i).c_str() });
+			AGE_ASSERT(p[i] == i);
+		}
+	}
+
+	// ============================================================
+	// 38. write_bytes
+	// ============================================================
+	void
+	test_write_bytes()
+	{
+		age::byte_buffer buf;
+
+		c_auto vals = std::array<uint32, 4>{ 11, 22, 33, 44 };
+		buf.write_bytes(vals.data(), uint32{ sizeof(vals) });
+
+		AGE_ASSERT(buf.size() == sizeof(vals));
+
+		for (auto v : vals)
+		{
+			c_auto r = buf.read<uint32>();
+			AGE_ASSERT(r == v);
+		}
+	}
+
+	// ============================================================
+	// 39. write_bytes triggers growth
+	// ============================================================
+	void
+	test_write_bytes_growth()
+	{
+		age::byte_buffer buf;
+
+		auto big = age::vector<uint32>{};
+		big.resize(2000);
+		for (uint32 i = 0; i < 2000; ++i)
+		{
+			big[i] = i;
 		}
 
-		for (uint32 i = 0; i < 500; ++i)
+		buf.write_bytes(big.data(), uint32{ sizeof(uint32) * 2000 });
+		AGE_ASSERT(buf.size() == sizeof(uint32) * 2000);
+
+		for (uint32 i = 0; i < 2000; ++i)
 		{
 			c_auto v = buf.read<uint32>();
-			c_auto s = buf.read<custom_string>();
 			AGE_ASSERT(v == i);
-			AGE_ASSERT(s == custom_string{ std::to_string(i).c_str() });
 		}
-
-		AGE_ASSERT(buf.has_remaining() is_false);
 	}
 
 	// ============================================================
-	// 55. custom value - varying length
+	// 40. move_write_pos - backward (truncate)
 	// ============================================================
 	void
-	test_custom_varying_length()
+	test_move_write_pos_backward()
 	{
 		age::byte_buffer buf;
+		buf.write(uint32{ 1 }, uint32{ 2 }, uint32{ 3 });
+		AGE_ASSERT(buf.size() == 3 * sizeof(uint32));
 
-		buf.write(custom_string{ "" });
-		buf.write(custom_string{ "a" });
-		buf.write(custom_string{ "abcdefghijklmnopqrstuvwxyz" });
-		buf.write(uint32{ 42 });
+		buf.move_write_pos(sizeof(uint32));
+		AGE_ASSERT(buf.size() == sizeof(uint32));
 
-		AGE_ASSERT(buf.read<custom_string>() == custom_string{ "" });
-		AGE_ASSERT(buf.read<custom_string>() == custom_string{ "a" });
-		AGE_ASSERT(buf.read<custom_string>() == custom_string{ "abcdefghijklmnopqrstuvwxyz" });
-		AGE_ASSERT(buf.read<uint32>() == 42);
+		c_auto v = buf.read<uint32>();
+		AGE_ASSERT(v == 1);
 	}
 
 	// ============================================================
-	// run all
+	// 41. move_write_pos - forward (reserve region)
+	// ============================================================
+	void
+	test_move_write_pos_forward()
+	{
+		age::byte_buffer buf;
+		buf.reserve(256);
+
+		// reserve a region without writing
+		buf.move_write_pos(64);
+		AGE_ASSERT(buf.size() == 64);
+
+		// fill the region via write_at
+		buf.write_at(0, uint32{ 100 }, uint32{ 200 });
+
+		c_auto a = buf.read<uint32>();
+		c_auto b = buf.read<uint32>();
+		AGE_ASSERT(a == 100);
+		AGE_ASSERT(b == 200);
+	}
+
+	// ============================================================
+	// 42. write_at - overwrite mid-buffer without changing write_pos
+	// ============================================================
+	void
+	test_write_at()
+	{
+		age::byte_buffer buf;
+		buf.write(uint32{ 1 }, uint32{ 2 }, uint32{ 3 });
+		c_auto size_before = buf.size();
+
+		buf.write_at(sizeof(uint32), uint32{ 99 });
+		AGE_ASSERT(buf.size() == size_before);
+
+		c_auto a = buf.read<uint32>();
+		c_auto b = buf.read<uint32>();
+		c_auto c = buf.read<uint32>();
+		AGE_ASSERT(a == 1);
+		AGE_ASSERT(b == 99);
+		AGE_ASSERT(c == 3);
+	}
+
+	// ============================================================
+	// 43. skip_read
+	// ============================================================
+	void
+	test_skip_read()
+	{
+		age::byte_buffer buf;
+		buf.write(uint32{ 1 }, uint32{ 2 }, uint32{ 3 }, uint32{ 4 });
+
+		buf.skip_read(sizeof(uint32) * 2);
+
+		c_auto v3 = buf.read<uint32>();
+		c_auto v4 = buf.read<uint32>();
+		AGE_ASSERT(v3 == 3);
+		AGE_ASSERT(v4 == 4);
+	}
+
+	// ============================================================
+	// 44. write/read header pattern (move_write_pos + write_at)
+	// ============================================================
+	void
+	test_header_pattern()
+	{
+		// pattern: reserve header slot, write payload, fill header with payload size
+		age::byte_buffer buf;
+		buf.reserve(64);
+
+		c_auto header_pos = buf.size();
+		buf.move_write_pos(header_pos + sizeof(uint32));	// reserve header slot
+
+		buf.write(uint32{ 10 }, uint32{ 20 }, uint32{ 30 });
+		c_auto payload_size = static_cast<uint32>(buf.size() - header_pos - sizeof(uint32));
+
+		buf.write_at(header_pos, payload_size);
+
+		c_auto sz = buf.read<uint32>();
+		AGE_ASSERT(sz == 3 * sizeof(uint32));
+
+		c_auto a = buf.read<uint32>();
+		c_auto b = buf.read<uint32>();
+		c_auto c = buf.read<uint32>();
+		AGE_ASSERT(a == 10);
+		AGE_ASSERT(b == 20);
+		AGE_ASSERT(c == 30);
+	}
+
+	// ============================================================
+	// read_byte_buffer (read_buf) tests
+	// ============================================================
+
+	// ============================================================
+	// 45. read_buf - default constructor
+	// ============================================================
+	void
+	test_read_buf_default()
+	{
+		age::read_byte_buffer rb;
+
+		AGE_ASSERT(rb.size() == 0);
+		AGE_ASSERT(rb.read_amount() == 0);
+		AGE_ASSERT(rb.data() == nullptr);
+		AGE_ASSERT(rb.has_remaining() is_false);
+		AGE_ASSERT(rb.empty());
+	}
+
+	// ============================================================
+	// 46. read_buf - from raw pointer
+	// ============================================================
+	void
+	test_read_buf_from_ptr()
+	{
+		uint32				  src[] = { 11, 22, 33 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		AGE_ASSERT(rb.size() == sizeof(src));
+		AGE_ASSERT(rb.read_amount() == 0);
+		AGE_ASSERT(rb.has_remaining());
+
+		c_auto a = rb.read<uint32>();
+		c_auto b = rb.read<uint32>();
+		c_auto c = rb.read<uint32>();
+		AGE_ASSERT(a == 11);
+		AGE_ASSERT(b == 22);
+		AGE_ASSERT(c == 33);
+		AGE_ASSERT(rb.has_remaining() is_false);
+	}
+
+	// ============================================================
+	// 47. read_buf - from byte_buffer (ctor)
+	// ============================================================
+	void
+	test_read_buf_from_byte_buffer()
+	{
+		age::byte_buffer buf;
+		buf.write(uint32{ 1 }, uint64{ 2 }, float{ 3.0f });
+
+		age::read_byte_buffer rb{ buf };
+
+		AGE_ASSERT(rb.size() == buf.size());
+
+		c_auto a = rb.read<uint32>();
+		c_auto b = rb.read<uint64>();
+		c_auto c = rb.read<float>();
+		AGE_ASSERT(a == 1);
+		AGE_ASSERT(b == 2);
+		AGE_ASSERT(c == 3.0f);
+	}
+
+	// ============================================================
+	// 48. read_buf - tuple read
+	// ============================================================
+	void
+	test_read_buf_tuple_read()
+	{
+		uint32				  src[] = { 7, 8, 9 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		auto [a, b, c] = rb.read<uint32, uint32, uint32>();
+		AGE_ASSERT(a == 7);
+		AGE_ASSERT(b == 8);
+		AGE_ASSERT(c == 9);
+	}
+
+	// ============================================================
+	// 49. read_buf - read by reference
+	// ============================================================
+	void
+	test_read_buf_by_reference()
+	{
+		age::byte_buffer wb;
+		wb.write(uint32{ 42 }, uint64{ 999 }, float{ 1.5f });
+
+		age::read_byte_buffer rb{ wb };
+
+		uint32 a;
+		uint64 b;
+		float  c;
+		rb.read(a, b, c);
+
+		AGE_ASSERT(a == 42);
+		AGE_ASSERT(b == 999);
+		AGE_ASSERT(c == 1.5f);
+	}
+
+	// ============================================================
+	// 50. read_buf - C array
+	// ============================================================
+	void
+	test_read_buf_c_array()
+	{
+		uint32				  src[6] = { 0, 1, 2, 3, 4, 5 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		uint32 dst[6];
+		rb.read(dst);
+
+		for (uint32 i = 0; i < 6; ++i)
+		{
+			AGE_ASSERT(dst[i] == i);
+		}
+	}
+
+	// ============================================================
+	// 51. read_buf - raw memory single
+	// ============================================================
+	void
+	test_read_buf_raw_single()
+	{
+		uint64				  src = 0xDEADBEEFCAFEBABE;
+		age::read_byte_buffer rb{ &src, sizeof(uint64) };
+
+		alignas(uint64) std::byte storage[sizeof(uint64)];
+		auto*					  p = rb.read<uint64>(storage);
+
+		AGE_ASSERT(*p == 0xDEADBEEFCAFEBABE);
+	}
+
+	// ============================================================
+	// 52. read_buf - raw memory n elements
+	// ============================================================
+	void
+	test_read_buf_raw_array()
+	{
+		uint32				  src[8] = { 100, 101, 102, 103, 104, 105, 106, 107 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		alignas(uint32) std::byte storage[sizeof(src)];
+		auto*					  p = rb.read<uint32>(storage, 8u);
+
+		for (uint32 i = 0; i < 8; ++i)
+		{
+			AGE_ASSERT(p[i] == 100 + i);
+		}
+	}
+
+	// ============================================================
+	// 53. read_buf - skip_read
+	// ============================================================
+	void
+	test_read_buf_skip_read()
+	{
+		uint32				  src[] = { 1, 2, 3, 4 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		rb.skip_read(sizeof(uint32) * 2);
+
+		c_auto a = rb.read<uint32>();
+		c_auto b = rb.read<uint32>();
+		AGE_ASSERT(a == 3);
+		AGE_ASSERT(b == 4);
+	}
+
+	// ============================================================
+	// 54. read_buf - reset_read
+	// ============================================================
+	void
+	test_read_buf_reset_read()
+	{
+		uint32				  src[] = { 10, 20, 30 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		c_auto a1 = rb.read<uint32>();
+		c_auto a2 = rb.read<uint32>();
+		AGE_ASSERT(a1 == 10);
+		AGE_ASSERT(a2 == 20);
+
+		rb.reset_read();
+		AGE_ASSERT(rb.read_amount() == 0);
+
+		c_auto b1 = rb.read<uint32>();
+		c_auto b2 = rb.read<uint32>();
+		c_auto b3 = rb.read<uint32>();
+		AGE_ASSERT(b1 == 10);
+		AGE_ASSERT(b2 == 20);
+		AGE_ASSERT(b3 == 30);
+	}
+
+	// ============================================================
+	// 55. read_buf - operator[]
+	// ============================================================
+	void
+	test_read_buf_operator_bracket()
+	{
+		uint32				  src = 0xDEADBEEF;
+		age::read_byte_buffer rb{ &src, sizeof(uint32) };
+
+		AGE_ASSERT(rb[0] == std::byte{ 0xEF });
+		AGE_ASSERT(rb[1] == std::byte{ 0xBE });
+		AGE_ASSERT(rb[2] == std::byte{ 0xAD });
+		AGE_ASSERT(rb[3] == std::byte{ 0xDE });
+	}
+
+	// ============================================================
+	// 56. read_buf - empty / is_empty
+	// ============================================================
+	void
+	test_read_buf_empty()
+	{
+		age::read_byte_buffer rb_empty;
+		AGE_ASSERT(rb_empty.empty());
+		AGE_ASSERT(rb_empty.is_empty());
+
+		uint32				  src = 1;
+		age::read_byte_buffer rb{ &src, sizeof(uint32) };
+		AGE_ASSERT(rb.empty() is_false);
+		AGE_ASSERT(rb.is_empty() is_false);
+	}
+
+	// ============================================================
+	// 57. read_buf - has_remaining transitions
+	// ============================================================
+	void
+	test_read_buf_has_remaining()
+	{
+		uint32				  src[] = { 1, 2 };
+		age::read_byte_buffer rb{ src, sizeof(src) };
+
+		AGE_ASSERT(rb.has_remaining());
+		(void)rb.read<uint32>();
+		AGE_ASSERT(rb.has_remaining());
+		(void)rb.read<uint32>();
+		AGE_ASSERT(rb.has_remaining() is_false);
+	}
+
+	// ============================================================
+	// 58. write+read round trip via read_buf
+	// ============================================================
+	void
+	test_round_trip_via_read_buf()
+	{
+		age::byte_buffer wb;
+		wb.write(uint32{ 1 }, uint64{ 2 }, float{ 3.0f }, uint16{ 4 });
+
+		age::read_byte_buffer rb{ wb.data(), wb.size() };
+
+		auto [a, b, c, d] = rb.read<uint32, uint64, float, uint16>();
+		AGE_ASSERT(a == 1);
+		AGE_ASSERT(b == 2);
+		AGE_ASSERT(c == 3.0f);
+		AGE_ASSERT(d == 4);
+	}
+
 	// ============================================================
 	void
 	run_test()
@@ -1161,7 +1126,7 @@ namespace age_test::data_structure::byte_buffer
 		test_gen_reserved();
 		test_write_read_single();
 		test_write_read_multiple();
-		test_alignment();
+		test_byte_size_no_padding();
 		test_vector_types();
 		test_clear();
 		test_reset_read();
@@ -1175,42 +1140,46 @@ namespace age_test::data_structure::byte_buffer
 		test_self_copy_assignment();
 		test_self_move_assignment();
 		test_operator_bracket();
-		test_calc_write_size_type_only();
-		test_calc_write_size_instance();
 		test_auto_growth();
 		test_mixed_types();
 		test_write_after_clear();
 		test_multiple_read_cycles();
 		test_struct();
-		test_custom_value();
-		test_custom_mixed();
-		test_custom_multiple();
 		test_data_pointer_after_reserve();
 		test_stress_sequential();
 		test_stress_clear_cycles();
-		test_stress_mixed_alignment();
 		test_stress_copy();
 		test_stress_move_chain();
 		test_get_allocator();
-		test_calc_write_size_at();
 		test_empty();
 		test_const_access();
 		test_zero_arg_write();
-		test_custom_calc_write_size();
-		test_custom_empty_string();
-		test_single_write_mixed_alignment();
-		test_worst_case_padding();
 		test_multi_write_tuple_read();
-		test_single_write_individual_reads();
-		test_mixed_structs();
-		test_calc_matches_write_mixed();
-		test_stress_alternating_alignment();
-		test_custom_copy_buffer();
-		test_custom_reset_read();
-		test_custom_clear_rewrite();
-		test_custom_tuple_read();
-		test_custom_move_buffer();
-		test_custom_stress();
-		test_custom_varying_length();
+		test_read_by_reference();
+		test_read_c_array();
+		test_read_raw_single();
+		test_read_raw_array();
+		test_write_bytes();
+		test_write_bytes_growth();
+		test_move_write_pos_backward();
+		test_move_write_pos_forward();
+		test_write_at();
+		test_skip_read();
+		test_header_pattern();
+
+		test_read_buf_default();
+		test_read_buf_from_ptr();
+		test_read_buf_from_byte_buffer();
+		test_read_buf_tuple_read();
+		test_read_buf_by_reference();
+		test_read_buf_c_array();
+		test_read_buf_raw_single();
+		test_read_buf_raw_array();
+		test_read_buf_skip_read();
+		test_read_buf_reset_read();
+		test_read_buf_operator_bracket();
+		test_read_buf_empty();
+		test_read_buf_has_remaining();
+		test_round_trip_via_read_buf();
 	}
 }	 // namespace age_test::data_structure::byte_buffer

@@ -30,6 +30,9 @@
     <ClCompile Include="age_test_data_structure_byte_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="age_test_data_structure_sparse_vector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_test_pch.hpp">

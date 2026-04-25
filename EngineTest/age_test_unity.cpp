@@ -7,5 +7,8 @@
 #line 1 "age_test_data_structure_byte_buffer.cpp"
 #include "age_test_data_structure_byte_buffer.cpp"
 
+#line 1 "age_test_data_structure_sparse_vector.cpp"
+#include "age_test_data_structure_sparse_vector.cpp"
+
 #line 1 "age_test_main.cpp"
 #include "age_test_main.cpp"
