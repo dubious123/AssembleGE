@@ -1,11 +1,13 @@
 #pragma once
 #include "age.hpp"
 
-// version 2
 namespace age::asset
 {
 	byte_buf
 	read_asset_file(std::string_view file_path) noexcept;
+
+	byte_buf
+	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept;
 
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept;
@@ -56,6 +58,18 @@ namespace age::asset::font
 	void
 	unload(handle, auto& renderer) noexcept;
 }	 // namespace age::asset::font
+
+namespace age::asset::mesh_test
+{
+	void
+	load(handle, auto& renderer, const primitive_desc&, e::vertex_kind) noexcept;
+
+	handle
+	load(std::string_view mesh_name, auto& renderer) noexcept;
+
+	void
+	unload(handle, auto& renderer) noexcept;
+}	 // namespace age::asset::mesh_test
 
 namespace age::asset
 {

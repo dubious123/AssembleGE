@@ -155,7 +155,8 @@ namespace age::config
 	inline constexpr const char editor_ent_storage_asset_tag[]	 = ".editor_ent_storage";
 	inline constexpr const char shipping_ent_storage_asset_tag[] = ".ent_storage";
 
-	inline constexpr const char font_asset_tag[] = ".font";
+	inline constexpr const char font_asset_tag[]	   = ".font";
+	inline constexpr const char mesh_baked_asset_tag[] = ".mesh_baked";
 
 	inline constexpr auto max_game_name_len			  = 256u;
 	inline constexpr auto max_entity_name_len		  = 64u;

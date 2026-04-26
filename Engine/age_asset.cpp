@@ -65,6 +65,12 @@ namespace age::asset
 		return buf;
 	}
 
+	byte_buf
+	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept
+	{
+		return read_asset_file(full_path.data());
+	}
+
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept
 	{

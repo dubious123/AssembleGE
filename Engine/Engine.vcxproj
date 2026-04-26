@@ -665,6 +665,7 @@
     </ClInclude>
     <None Include="age_asset.inl" />
     <None Include="age_asset_font.inl" />
+    <None Include="age_asset_mesh_baked.inl" />
     <None Include="age_editor.inl" />
     <None Include="age_editor_save_load.inl" />
     <None Include="age_ui.inl" />

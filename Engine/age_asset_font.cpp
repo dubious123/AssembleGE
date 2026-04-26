@@ -170,21 +170,6 @@ namespace age::asset::font::detail
 
 namespace age::asset::font::detail
 {
-	std::string_view
-	extract_asset_name(std::string_view full_name) noexcept
-	{
-		// "font_name.xxx.age_asset" -> "font_name"
-		if (full_name.ends_with(config::asset_extension))
-		{
-			full_name.remove_suffix(std::size(config::asset_extension) - 1);
-		}
-		if (full_name.ends_with(config::font_asset_tag))
-		{
-			full_name.remove_suffix(std::size(config::font_asset_tag) - 1);
-		}
-		return full_name;
-	}
-
 	void
 	read_entry(asset::entry<e::kind::font>& ntry, byte_buf& buf) noexcept
 	{

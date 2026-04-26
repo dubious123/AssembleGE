@@ -3,9 +3,6 @@
 
 namespace age::asset::font::detail
 {
-	std::string_view
-	extract_asset_name(std::string_view full_name) noexcept;
-
 	void
 	read_entry(asset::entry<e::kind::font>&, byte_buf&) noexcept;
 
@@ -33,6 +30,8 @@ namespace age::asset::font
 			::operator delete(entry.p_blob, std::align_val_t{ alignof(glyph_data) });
 			renderer.release_texture(entry.atlas_id);
 		}
+
+		AGE_ASSERT(entry.is_loaded() is_false);
 	}
 
 	void
@@ -67,7 +66,7 @@ namespace age::asset::font
 			}
 		}
 
-		detail::rebuild_font(detail::extract_asset_name(entry.get_path().data()), flag, extra_unicode);
+		detail::rebuild_font(detail::extract_asset_name<e::kind::font>(entry.get_path()), flag, extra_unicode);
 
 		if (auto buf = asset::read_asset_file(entry.get_path().data());
 			buf.empty() is_false)

@@ -12,7 +12,26 @@ namespace age_demo::scene_3
 
 		i_init.get_editor_game->init();
 
+
+		{
+			auto h_mesh = age::asset::mesh_test::load("./resources/demo_game/assets/mesh/primitive_cube", i_init.get_render_pipeline());
+
+			if (auto& entry = h_mesh.get_entry<age::asset::e::mesh_baked>();
+				entry.is_loaded() is_false)
+			{
+				age::asset::mesh_test::load(h_mesh,
+											i_init.get_render_pipeline(),
+											age::asset::primitive_desc{
+												.size	   = { 0.5, 0.5, 0.5 },
+												.seg_u	   = 30,
+												.seg_v	   = 30,
+												.mesh_kind = age::asset::e::primitive_mesh_kind::cube },
+											age::asset::e::vertex_kind::pnt_uv1, );
+			}
+		}
+
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
+
 
 		on_ctx{
 			AGE_LAMBDA(

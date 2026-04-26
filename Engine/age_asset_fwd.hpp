@@ -88,7 +88,6 @@ namespace age::asset::e
 	AGE_ENUM_FLAG_OPERATORS(font_charset_flag);
 }	 // namespace age::asset::e
 
-// version 2
 namespace age::asset
 {
 	template <e::kind>
@@ -280,6 +279,14 @@ namespace age::asset
 
 		bool
 		is_loaded() const noexcept;
+	};
+
+	template <>
+	struct entry<e::kind::mesh_baked>
+	{
+		e::vertex_kind vertex_kind;
+		uint8_3		   _;
+		uint32		   renderer_id;
 	};
 }	 // namespace age::asset
 

@@ -108,3 +108,12 @@ namespace age::asset
 		return res;
 	}
 }	 // namespace age::asset
+
+namespace age::asset::mesh_test::detail
+{
+	void
+	rebuild_mesh_baked(std::string_view path, const primitive_desc& desc, e::vertex_kind e_kind) noexcept
+	{
+		AGE_ASSERT(false);
+	}
+}	 // namespace age::asset::mesh_test::detail
