@@ -3,10 +3,17 @@
 
 namespace age::asset
 {
-	byte_buf
+	inline bool
+	validate_header(const e::kind, file_header& header) noexcept;
+
+	template <e::kind>
+	bool
+	validate_header(const file_header& header) noexcept;
+
+	aligned_byte_buf
 	read_asset_file(std::string_view file_path) noexcept;
 
-	byte_buf
+	aligned_byte_buf
 	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept;
 
 	void
@@ -26,7 +33,7 @@ namespace age::asset
 	void
 	destroy_entry(handle&) noexcept;
 
-	AGE_DEFINE_ASSET_KIND(font);
+	AGE_DEFINE_ASSET_KIND(font, mesh_baked);
 }	 // namespace age::asset
 
 namespace age::asset
@@ -59,31 +66,63 @@ namespace age::asset::font
 	unload(handle, auto& renderer) noexcept;
 }	 // namespace age::asset::font
 
-namespace age::asset::mesh_test
+namespace age::asset::mesh_baked
 {
 	void
-	load(handle, auto& renderer, const primitive_desc&, e::vertex_kind) noexcept;
-
-	handle
-	load(std::string_view mesh_name, auto& renderer) noexcept;
+	cpu_unload(handle h_mesh) noexcept;
 
 	void
-	unload(handle, auto& renderer) noexcept;
-}	 // namespace age::asset::mesh_test
+	cpu_load(handle h_mesh, const primitive_desc& desc, e::vertex_kind v_kind) noexcept;
+
+	void
+	cpu_load(handle h_mesh) noexcept;
+
+	handle
+	cpu_load(std::string_view mesh_name) noexcept;
+
+	void
+	gpu_unload(handle h_mesh, auto& renderer) noexcept;
+
+	void
+	gpu_load(handle, auto& renderer, const primitive_desc&, e::vertex_kind) noexcept;
+
+	handle
+	gpu_load(std::string_view mesh_name, auto& renderer, const primitive_desc&, e::vertex_kind) noexcept;
+
+	void
+	gpu_load(handle& h_mesh, auto& renderer) noexcept;
+
+	handle
+	gpu_load(std::string_view mesh_name, auto& renderer) noexcept;
+
+	void
+	full_unload(handle h_mesh, auto& renderer) noexcept;
+
+	void
+	full_unload(std::string_view mesh_name, auto& renderer) noexcept;
+
+	void
+	full_load(handle h_mesh, auto& renderer) noexcept;
+
+	handle
+	full_load(std::string_view mesh_name, auto& renderer) noexcept;
+
+}	 // namespace age::asset::mesh_baked
 
 namespace age::asset
 {
 	template <e::kind e_asset_kind>
 	constexpr file_header
-	get_default_file_header(uint64 payload_size) noexcept
+	get_default_file_header(uint64 payload_size, uint8 blob_alignment_log2 = 4) noexcept
 	{
 		return file_header{
-			.magic		   = g::asset_header_magic,
-			.header_size   = sizeof(file_header),
-			.file_size	   = payload_size + sizeof(file_header),
-			.version_major = config::version_major,
-			.version_minor = config::version_minor,
-			.asset_kind	   = e_asset_kind,
+			.magic				 = g::asset_header_magic,
+			.header_size		 = sizeof(file_header),
+			.file_size			 = payload_size + sizeof(file_header),
+			.version_major		 = config::version_major,
+			.version_minor		 = config::version_minor,
+			.asset_kind			 = e_asset_kind,
+			.blob_alignment_log2 = blob_alignment_log2,
 		};
 	}
 }	 // namespace age::asset

@@ -104,7 +104,8 @@ namespace age::asset
 		uint8	  version_major;
 		uint8	  version_minor;
 		e::kind	  asset_kind;
-		std::byte reserve[5];
+		uint8	  blob_alignment_log2;
+		std::byte reserve[4];
 	};
 
 	using t_asset_id = uint32;
@@ -206,6 +207,18 @@ namespace age::asset
 		uint8  primitive_count{};
 		uint16 padding{};
 	};
+
+	struct mesh_baked_header
+	{
+		// uint32 vertex_offset = sizeof(mesh_baked_header)
+		uint32 global_vertex_index_buffer_offset;
+		uint32 local_vertex_index_buffer_offset;
+		uint32 meshlet_header_buffer_offset;
+		uint32 meshlet_buffer_offset;
+		uint32 meshlet_count;
+		float3 aabb_min;
+		float3 aabb_size;
+	};
 }	 // namespace age::asset
 
 namespace age::asset
@@ -284,9 +297,58 @@ namespace age::asset
 	template <>
 	struct entry<e::kind::mesh_baked>
 	{
-		e::vertex_kind vertex_kind;
-		uint8_3		   _;
-		uint32		   renderer_id;
+		// asset_header - meshlet - index buffer (uint32) - pos buffer (float3)
+		struct header
+		{
+			uint64 meshlet_buffer_byte_size;
+			uint32 index_count;
+			uint32 pos_count;
+		};
+
+		static_assert(std::is_implicit_lifetime_v<header>);
+		static_assert(std::is_trivially_copyable_v<header>);
+		static_assert(sizeof(header) == 16);
+
+		static_assert(std::is_implicit_lifetime_v<mesh_baked_header>);
+		static_assert(std::is_trivially_copyable_v<mesh_baked_header>);
+
+
+		using allocator_type = aligned_byte_allocator;
+
+		uint32 path_id;
+		uint32 render_id = age::get_invalid_id<uint32>();
+
+		std::byte* p_blob = nullptr;
+
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		bool
+		is_cpu_loaded() const noexcept;
+
+		bool
+		is_gpu_loaded() const noexcept;
+
+		const header&
+		get_header() const noexcept;
+
+		const mesh_baked_header&
+		get_mesh_header() const noexcept;
+
+		const void*
+		meshlet_buffer_data() const noexcept;
+
+		uint64
+		index_buffer_byte_offset() const noexcept;
+
+		uint64
+		pos_buffer_byte_offset() const noexcept;
+
+		const void*
+		index_buffer_data() const noexcept;
+
+		const void*
+		pos_buffer_data() const noexcept;
 	};
 }	 // namespace age::asset
 

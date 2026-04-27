@@ -146,6 +146,37 @@ namespace age::asset
 		}
 	}
 
+	namespace detail
+	{
+		template <e::vertex_kind e_kind>
+		consteval auto
+		get_vetex_type_helper() noexcept
+		{
+			if constexpr (e_kind == e::vertex_kind::p_uv0) { return vertex_p_uv0{}; }
+			else if constexpr (e_kind == e::vertex_kind::pn_uv0) { return vertex_pn_uv0{}; }
+			else if constexpr (e_kind == e::vertex_kind::pnt_uv0) { return vertex_pnt_uv0{}; }
+
+			else if constexpr (e_kind == e::vertex_kind::p_uv1) { return vertex_p_uv1{}; }
+			else if constexpr (e_kind == e::vertex_kind::pn_uv1) { return vertex_pn_uv1{}; }
+			else if constexpr (e_kind == e::vertex_kind::pnt_uv1) { return vertex_pnt_uv1{}; }
+
+			else if constexpr (e_kind == e::vertex_kind::p_uv2) { return vertex_p_uv2{}; }
+			else if constexpr (e_kind == e::vertex_kind::pn_uv2) { return vertex_pn_uv2{}; }
+			else if constexpr (e_kind == e::vertex_kind::pnt_uv2) { return vertex_pnt_uv2{}; }
+
+			else if constexpr (e_kind == e::vertex_kind::p_uv3) { return vertex_p_uv3{}; }
+			else if constexpr (e_kind == e::vertex_kind::pn_uv3) { return vertex_pn_uv3{}; }
+			else if constexpr (e_kind == e::vertex_kind::pnt_uv3) { return vertex_pnt_uv3{}; }
+			else
+			{
+				static_assert(false);
+			}
+		}
+	}	 // namespace detail
+
+	template <e::vertex_kind e_kind>
+	using t_vertex_kind = BARE_OF(detail::get_vetex_type_helper<e_kind>());
+
 	template <typename t>
 	concept cx_baked_vertex = meta::is_specialization_of_nttp_v<t, detail::vertex_p_uv>
 						   or meta::is_specialization_of_nttp_v<t, detail::vertex_pn_uv>
@@ -156,7 +187,7 @@ namespace age::asset
 {
 	template <typename t_vertex_to>
 	FORCE_INLINE t_vertex_to
-	cvt_vertex_to(const vertex_fat& v_fat, float3 aabb_min, float3 aabb_size) noexcept
+	cvt_vertex_to(const vertex_fat& v_fat, const float3& aabb_min, const float3& aabb_size) noexcept
 	{
 		constexpr auto uv_count = detail::uv_count_v<t_vertex_to>;
 
@@ -192,6 +223,13 @@ namespace age::asset
 		return res;
 	}
 
+	template <e::vertex_kind e_kind>
+	FORCE_INLINE decltype(auto)
+	cvt_vertex_to(const vertex_fat& v_fat, const float3& aabb_min, const float3& aabb_size) noexcept
+	{
+		return cvt_vertex_to<t_vertex_kind<e_kind>>(v_fat, aabb_min, aabb_size);
+	}
+
 	template <typename t_vertex_to>
 	requires std::is_same_v<t_vertex_to, vertex_fat>
 	FORCE_INLINE vertex_fat
@@ -208,7 +246,7 @@ namespace age::asset
 	template <typename t_vertex_to, cx_baked_vertex t_vertex_baked>
 	requires std::is_same_v<t_vertex_to, vertex_fat>
 	FORCE_INLINE vertex_fat
-	cvt_vertex_to(const t_vertex_baked& v, float3 aabb_min, float3 aabb_size) noexcept
+	cvt_vertex_to(const t_vertex_baked& v, const float3& aabb_min, const float3& aabb_size) noexcept
 	{
 		constexpr auto uv_count = detail::uv_count_v<t_vertex_baked>;
 
@@ -258,25 +296,13 @@ namespace age::asset
 
 namespace age::asset
 {
-	struct mesh_baked_header
-	{
-		// uint32 vertex_offset = sizeof(mesh_baked_header)
-		uint32 global_vertex_index_buffer_offset;
-		uint32 local_vertex_index_buffer_offset;
-		uint32 meshlet_header_buffer_offset;
-		uint32 meshlet_buffer_offset;
-		uint32 meshlet_count;
-		float3 aabb_min;
-		float3 aabb_size;
-	};
-
 	// [mesh_baked_header]
 	// [vertex_buffer]
 	// [global_vertex_index_buffer]
 	// [local_vertex_index_buffer]
 	// [meshlet_header_buffer]
 	// [meshlet_buffer]
-	struct mesh_baked
+	struct mesh_baked2
 	{
 		age::dynamic_array<std::byte> buffer{};
 
@@ -340,7 +366,7 @@ namespace age::asset
 namespace age::asset
 {
 	template <typename t_vertex>
-	mesh_baked
+	mesh_baked2
 	bake_mesh(const asset::mesh_editable& mesh_edit) noexcept
 	{
 		auto m = asset::triangulate<vertex_fat>(mesh_edit);

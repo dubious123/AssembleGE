@@ -1,20 +1,5 @@
 #pragma once
-#define _CRTDBG_MAP_ALLOC
-
-#ifdef _DEBUG
-	#define DBG_NEW new (_NORMAL_BLOCK, __FILE__, __LINE__)
-// Replace _NORMAL_BLOCK with _CLIENT_BLOCK if you want the
-// allocations to be of _CLIENT_BLOCK type
-#else
-	#define DBG_NEW new
-#endif
-//
-// #define WIN32_LEAN_AND_MEAN
-// #define NOMINMAX
-// #include <Windows.h>
-//
 // #include <libloaderapi.h>
-#include <crtdbg.h>
 // #include <Sysinfoapi.h>
 
 #define Find(Type, Id) Model::Type::Find(Id)
@@ -34,6 +19,10 @@ typedef int (*import_func)();
 		auto func	   = (lib_func)GetProcAddress(library, func_name); \
 		return func();                                                 \
 	}()
+
+#if defined _DEBUG
+	#include <crtdbg.h>
+#endif
 
 #include "age.hpp"
 #include <random>

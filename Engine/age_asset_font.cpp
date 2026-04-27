@@ -4,6 +4,20 @@
 namespace age::asset
 {
 	template <>
+	bool
+	validate_header<e::kind::font>(const file_header& header) noexcept
+	{
+		auto res = true;
+		{
+			c_auto tmp = header.asset_kind == e::kind::font;
+			AGE_ASSERT(tmp);
+			res &= tmp;
+		}
+
+		return res;
+	}
+
+	template <>
 	handle
 	create_entry<e::kind::font>(std::string_view asset_path) noexcept
 	{
@@ -171,7 +185,7 @@ namespace age::asset::font::detail
 namespace age::asset::font::detail
 {
 	void
-	read_entry(asset::entry<e::kind::font>& ntry, byte_buf& buf) noexcept
+	read_entry(asset::entry<e::kind::font>& ntry, aligned_byte_buf& buf) noexcept
 	{
 		static_assert(alignof(glyph_data) >= alignof(uint16));
 		buf.read(

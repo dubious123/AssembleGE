@@ -363,7 +363,7 @@ namespace age::editor::detail
 	}
 
 	void
-	deserialize_storage_data(auto& ecs_entity_storage, byte_buf& buf, storage_editor_data& editor_storage, auto& renderer) noexcept
+	deserialize_storage_data(auto& ecs_entity_storage, auto& buf, storage_editor_data& editor_storage, auto& renderer) noexcept
 	{
 		using t_storage			 = BARE_OF(ecs_entity_storage);
 		using t_archetype		 = typename t_storage::t_archetype;
@@ -438,7 +438,7 @@ namespace age::editor::detail
 					{
 						t_archetype_traits::visit_component(
 							code_cmp_idx,
-							AGE_LAMBDA(<typename t_cmp>(byte_buf & buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
+							AGE_LAMBDA(<typename t_cmp>(auto& buf, auto& storage, c_auto ent_id, auto&& rw_ctx),
 									   {
 										   auto&& [cmp] = storage.get_component<t_cmp>(ent_id);
 										   ecs::deserialize_component<t_cmp>(cmp, buf, FWD(rw_ctx));
@@ -550,9 +550,9 @@ namespace age::editor
 
 				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
-					auto read_buf = asset::read_asset_file(storage_path.string());
+					auto buf = asset::read_asset_file(storage_path.string());
 
-					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), read_buf, storage, renderer);
+					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), buf, storage, renderer);
 
 					scene.loaded = true;
 				}

@@ -19,6 +19,7 @@
 #include "age_literal.hpp"
 
 #include "age_util.hpp"
+#include "age_util_allocator.hpp"
 #include "age_util_layout.hpp"
 #include "age_util_string.hpp"
 #include "age_util_views.hpp"

@@ -6,7 +6,7 @@ namespace age::asset
 	namespace detail
 	{
 		bool
-		validate(const file_header& header) noexcept
+		validate_header_common(const file_header& header) noexcept
 		{
 			static_assert(sizeof(file_header) == 24);
 
@@ -25,24 +25,28 @@ namespace age::asset
 			res &= (header.version_minor == age::config::version_minor);
 			AGE_ASSERT(res);
 
+			res &= validate_header(header.asset_kind, header);
+
 			return res;
 		}
 	}	 // namespace detail
 
-	byte_buf
+	aligned_byte_buf
 	read_asset_file(std::string_view full_path) noexcept
 	{
+		auto buf = aligned_byte_buf{ aligned_byte_allocator{} };
+
 		auto   ec		 = std::error_code{};
 		c_auto file_size = std::filesystem::file_size(full_path, ec);
 		if (ec || file_size == 0)
 		{
-			return {};
+			return buf;
 		}
 
 		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
 		if (file.is_open() is_false)
 		{
-			return {};
+			return buf;
 		}
 
 		AGE_ASSERT(sizeof(file_header) <= file_size);
@@ -50,22 +54,26 @@ namespace age::asset
 		auto header = asset::file_header{};
 		file.read(reinterpret_cast<char*>(&header), sizeof(file_header));
 
-		detail::validate(header);
+
 		AGE_ASSERT(header.file_size == file_size);
 		AGE_ASSERT(header.header_size <= file_size);
+		if (detail::validate_header_common(header) is_false)
+		{
+			return buf;
+		}
 
 		c_auto blob_size = file_size - header.header_size;
-
-		auto buf = byte_buf::gen_reserved(blob_size);
+		c_auto align	 = 1ull << header.blob_alignment_log2;
+		buf				 = aligned_byte_buf::gen_reserved(blob_size, aligned_byte_allocator(align));
 
 		file.read(reinterpret_cast<char*>(buf.data()), blob_size);
 
 		buf.move_write_pos(blob_size);
 
-		return buf;
+		return buf;	   // nrvo
 	}
 
-	byte_buf
+	aligned_byte_buf
 	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept
 	{
 		return read_asset_file(full_path.data());
@@ -74,8 +82,16 @@ namespace age::asset
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept
 	{
-		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
+		auto   ec	  = std::error_code{};
+		c_auto parent = file_path.parent_path();
+		if (parent.empty() is_false)
+		{
+			std::filesystem::create_directories(parent, ec);
+			AGE_ASSERT(!ec);
+		}
 
+		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
+		AGE_ASSERT(file.is_open());
 		AGE_ASSERT(header.file_size > header.header_size);
 
 		file.write(reinterpret_cast<const char*>(&header), header.header_size);

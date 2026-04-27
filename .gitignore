@@ -234,6 +234,10 @@ obj
 
 !Engine/external/**
 
+# Ignore age_external libs
+Engine/external/lib/x64/age_external/*
+Engine/external/lib/arm64/age_external/*
+
 # Ignore .vs folder
 .vs/
 

@@ -30,14 +30,20 @@ namespace age::inline data_structure
 
 	  public:
 		constexpr byte_buffer() noexcept
-			: alloc{ allocator_type{} } { };
+			requires std::default_initializable<allocator_type>
+			: alloc{}
+		{
+		}
+
+		constexpr explicit byte_buffer(allocator_type a) noexcept
+			: alloc{ std::move(a) } { }
 
 		constexpr byte_buffer(const byte_buffer& other) noexcept
 			: cap{ other.capacity() },
 			  write_pos{ other.size() },
 			  read_pos{ 0 },
 			  p_data{ allocate(other.get_allocator(), other.cap) },
-			  alloc{ other.get_allocator() }
+			  alloc{ std::allocator_traits<allocator_type>::select_on_container_copy_construction(other.alloc) }
 
 		{
 			std::memcpy(p_data, other.data(), other.size());
@@ -48,7 +54,7 @@ namespace age::inline data_structure
 			  write_pos{ std::exchange(other.write_pos, 0) },
 			  read_pos{ std::exchange(other.read_pos, 0) },
 			  p_data{ std::exchange(other.p_data, nullptr) },
-			  alloc{ other.get_allocator() }
+			  alloc{ std::move(other.alloc) }
 		{
 		}
 
@@ -56,12 +62,41 @@ namespace age::inline data_structure
 		operator=(const byte_buffer& other) noexcept
 		{
 			if (this == &other) { return *this; }
+			using t_allocator_traits = std::allocator_traits<t_allocator>;
 
-			if (cap < other.size())
+			if constexpr (t_allocator_traits::is_always_equal::value)
+			{
+				if (cap < other.size())
+				{
+					deallocate(alloc, p_data, cap);
+					p_data = allocate(alloc, other.size());
+					cap	   = other.size();
+				}
+			}
+			else if (alloc == other.alloc)
+			{
+				if (cap < other.size())
+				{
+					deallocate(alloc, p_data, cap);
+					p_data = allocate(alloc, other.size());
+					cap	   = other.size();
+				}
+			}
+			else if constexpr (t_allocator_traits::propagate_on_container_copy_assignment::value)
 			{
 				deallocate(alloc, p_data, cap);
+				alloc  = other.alloc;
 				p_data = allocate(alloc, other.size());
 				cap	   = other.size();
+			}
+			else
+			{
+				if (cap < other.size())
+				{
+					deallocate(alloc, p_data, cap);
+					p_data = allocate(alloc, other.size());
+					cap	   = other.size();
+				}
 			}
 
 			std::memcpy(p_data, other.data(), other.size());
@@ -76,28 +111,68 @@ namespace age::inline data_structure
 		operator=(byte_buffer&& other) noexcept
 		{
 			if (this == &other) { return *this; }
+			using t_allocator_traits = std::allocator_traits<t_allocator>;
 
-			clear();
-			deallocate(alloc, p_data, cap);
-
-			cap		  = std::exchange(other.cap, 0);
-			write_pos = std::exchange(other.write_pos, 0);
-			read_pos  = std::exchange(other.read_pos, 0);
-			p_data	  = std::exchange(other.p_data, nullptr);
-			alloc	  = other.get_allocator();
-
+			if constexpr (t_allocator_traits::is_always_equal::value)
+			{
+				clear();
+				deallocate(alloc, p_data, cap);
+				cap		  = std::exchange(other.cap, 0);
+				write_pos = std::exchange(other.write_pos, 0);
+				read_pos  = std::exchange(other.read_pos, 0);
+				p_data	  = std::exchange(other.p_data, nullptr);
+			}
+			else if (alloc == other.alloc)
+			{
+				clear();
+				deallocate(alloc, p_data, cap);
+				cap		  = std::exchange(other.cap, 0);
+				write_pos = std::exchange(other.write_pos, 0);
+				read_pos  = std::exchange(other.read_pos, 0);
+				p_data	  = std::exchange(other.p_data, nullptr);
+			}
+			else if constexpr (t_allocator_traits::propagate_on_container_move_assignment::value)
+			{
+				clear();
+				deallocate(alloc, p_data, cap);
+				alloc	  = std::move(other.alloc);
+				cap		  = std::exchange(other.cap, 0);
+				write_pos = std::exchange(other.write_pos, 0);
+				read_pos  = std::exchange(other.read_pos, 0);
+				p_data	  = std::exchange(other.p_data, nullptr);
+			}
+			else
+			{
+				if (cap < other.size())
+				{
+					deallocate(alloc, p_data, cap);
+					p_data = allocate(alloc, other.size());
+					cap	   = other.size();
+				}
+				std::memcpy(p_data, other.data(), other.size());
+				write_pos = other.write_pos;
+				read_pos  = other.read_pos;
+			}
 			return *this;
 		}
 
-		FORCE_INLINE constexpr ~byte_buffer() noexcept
+		constexpr ~byte_buffer() noexcept
 		{
-			deallocate(alloc, p_data, cap);
+			if (p_data is_not_nullptr)
+			{
+				deallocate(alloc, p_data, cap);
+			}
 		}
 
 		FORCE_INLINE static constexpr byte_buffer
 		gen_reserved(size_type n, void* p_hint = nullptr) noexcept
+			requires std::default_initializable<allocator_type>
+		{ return gen_reserved(n, allocator_type{}, p_hint); }
+
+		FORCE_INLINE static constexpr byte_buffer
+		gen_reserved(size_type n, allocator_type a, void* p_hint = nullptr) noexcept
 		{
-			auto buf	  = byte_buffer{};
+			auto buf	  = byte_buffer{ std::move(a) };
 			buf.cap		  = n;
 			buf.read_pos  = 0;
 			buf.write_pos = 0;
@@ -340,6 +415,18 @@ namespace age::inline data_structure
 			read_pos += n_byte;
 		}
 
+		// Transfers ownership. Caller must dealloc with matching allocator + align.
+		std::byte*
+		release() noexcept
+		{
+			auto* p	  = p_data;
+			p_data	  = nullptr;
+			cap		  = 0;
+			read_pos  = 0;
+			write_pos = 0;
+			return p;
+		}
+
 	  private:
 		FORCE_INLINE static constexpr value_type*
 		allocate(allocator_type alloc, size_type cap, void* p_hint = nullptr) noexcept
@@ -355,6 +442,8 @@ namespace age::inline data_structure
 	};
 
 	using byte_buf = byte_buffer<>;
+
+	using aligned_byte_buf = byte_buffer<aligned_byte_allocator>;
 }	 // namespace age::inline data_structure
 
 namespace age::inline data_structure

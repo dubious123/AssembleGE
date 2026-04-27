@@ -278,10 +278,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// mesh
 		t_mesh_id
-		upload_mesh(const asset::mesh_baked& baked) noexcept;
+		upload_mesh(const asset::mesh_baked2& baked) noexcept;
+
+		t_mesh_id
+		upload_mesh(asset::handle _) noexcept;
 
 		void
-		release_mesh(t_mesh_id id) noexcept;
+		release_mesh(t_mesh_id&) noexcept;
 
 		// object
 		t_object_id

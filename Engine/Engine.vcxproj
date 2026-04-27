@@ -99,6 +99,7 @@
     <ClInclude Include="age_ui_fwd.hpp" />
     <ClInclude Include="age_ui_style.hpp" />
     <ClInclude Include="age_util.hpp" />
+    <ClInclude Include="age_util_allocator.hpp" />
     <ClInclude Include="age_util_bits.hpp" />
     <ClInclude Include="age_util_bitset.hpp" />
     <ClInclude Include="age_util_container.hpp" />
@@ -663,12 +664,24 @@
     <ClInclude Include="age_ui_widget.inl">
       <FileType>Document</FileType>
     </ClInclude>
-    <None Include="age_asset.inl" />
-    <None Include="age_asset_font.inl" />
-    <None Include="age_asset_mesh_baked.inl" />
-    <None Include="age_editor.inl" />
-    <None Include="age_editor_save_load.inl" />
-    <None Include="age_ui.inl" />
+    <ClInclude Include="age_asset.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <ClInclude Include="age_asset_font.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <ClInclude Include="age_asset_mesh_baked.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <ClInclude Include="age_editor.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <ClInclude Include="age_editor_save_load.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
+    <ClInclude Include="age_ui.inl">
+      <FileType>Document</FileType>
+    </ClInclude>
     <None Include="cpp.hint" />
     <None Include="todo.md">
       <SubType>
