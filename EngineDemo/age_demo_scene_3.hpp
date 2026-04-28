@@ -8,8 +8,6 @@ namespace age_demo::scene_3
 		AGE_GET(render_pipeline, render_pipeline)
 		AGE_GET(h_window, h_window)
 
-		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
-
 		AGE_GET(editor_game, scene_3_ctx.editor_game)
 
 		AGE_GETSET(ent_main_cam, scene_3_ctx.ent_main_cam)
@@ -28,7 +26,6 @@ namespace age_demo::scene_3
 		AGE_GET(h_input_ctx, h_input_ctx)
 
 		AGE_GET(editor_game, scene_3_ctx.editor_game)
-		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
 
 		AGE_GET(sprint, sprint)
 		AGE_GET(move, move)
@@ -47,8 +44,6 @@ namespace age_demo::scene_3
 	struct
 	{
 		AGE_GET(render_pipeline, render_pipeline)
-
-		AGE_GET(mesh_id_vec, scene_3_ctx.mesh_id_vec)
 
 		AGE_GET(editor_game, scene_3_ctx.editor_game)
 	} i_deinit;

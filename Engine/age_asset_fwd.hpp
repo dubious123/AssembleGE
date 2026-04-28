@@ -141,6 +141,9 @@ namespace age::asset
 
 		inline std::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		bool
+		operator==(const handle&) const noexcept = default;
 	};
 }	 // namespace age::asset
 

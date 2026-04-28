@@ -261,7 +261,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		begin_render(render_surface_handle h_rs) noexcept;
 
 		void
+		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept;
+
+		void
 		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
+
+		void
+		render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept;
 
 		void
 		render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
@@ -277,9 +283,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		release_texture(t_texture_id& _) noexcept;
 
 		// mesh
-		t_mesh_id
-		upload_mesh(const asset::mesh_baked2& baked) noexcept;
-
 		t_mesh_id
 		upload_mesh(asset::handle _) noexcept;
 

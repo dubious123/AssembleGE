@@ -662,7 +662,31 @@
 		}                                                                                    \
 	}                                                                                        \
 	void for_each_kind(auto&& f) noexcept                                                    \
-	{ (FOR_EACH_ARG(AGE_ASSET_FOR_EACH_KIND_MAP, __VA_ARGS__), void()); }
+	{ (FOR_EACH_ARG(AGE_ASSET_FOR_EACH_KIND_MAP, __VA_ARGS__), void()); }                    \
+                                                                                             \
+	template <e::kind e_kind>                                                                \
+	consteval c_auto&                                                                        \
+	get_asset_tag() noexcept                                                                 \
+	{                                                                                        \
+		if constexpr (false) { }                                                             \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_TAG_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)              \
+		else                                                                                 \
+		{                                                                                    \
+			AGE_UNREACHABLE();                                                               \
+		}                                                                                    \
+	}                                                                                        \
+	template <e::kind e_kind>                                                                \
+	constexpr decltype(auto)                                                                 \
+	get_asset_full_path(std::string_view asset_name) noexcept                                \
+	{                                                                                        \
+		if constexpr (false) { }                                                             \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_FULL_PATH_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)        \
+		else                                                                                 \
+		{                                                                                    \
+			AGE_UNREACHABLE();                                                               \
+		}                                                                                    \
+	}
+
 
 #define AGE_ASSET_FOR_EACH_KIND_MAP(name) f.template operator()<e::kind::name>()
 
@@ -696,13 +720,23 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 #define AGE_DEFINE_GET_KIND_MAP(name)                 \
 	case e::kind::name:                               \
 	{                                                 \
-		return get_entry<e::kind::font>().get_path(); \
+		return get_entry<e::kind::name>().get_path(); \
 	}
 
 #define AGE_DEFINE_VALIDATE_HEADER_MAP1(name)          \
 	case e::kind::name:                                \
 	{                                                  \
 		return validate_header<e::kind::name>(header); \
+	}
+#define AGE_DEFINE_GET_ASSET_TAG_MAP(name)      \
+	else if constexpr (e_kind == e::kind::name) \
+	{                                           \
+		return config::name##_asset_tag;        \
+	}
+#define AGE_DEFINE_GET_ASSET_FULL_PATH_MAP(name)                                                                                                            \
+	else if constexpr (e_kind == e::kind::name)                                                                                                             \
+	{                                                                                                                                                       \
+		return util::to_fixed_str<config::max_asset_path_len>(std::format("{}{}{}", asset_name, config::name##_asset_tag, config::asset_extension).data()); \
 	}
 
 //---------------------------------------------------------------------------------------

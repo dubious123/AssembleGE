@@ -6,6 +6,40 @@ namespace age_demo::scene_0
 	FORCE_INLINE decltype(auto)
 	init() noexcept
 	{
+		age::asset::registry::register_asset(
+			i_init.get_mesh_id_vec->emplace_back(
+				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
+												 i_init.get_render_pipeline(),
+												 age::asset::primitive_desc{
+													 .size		= { 0.5, 0.5, 0.5 },
+													 .seg_u		= 30,
+													 .seg_v		= 30,
+													 .mesh_kind = age::asset::e::primitive_mesh_kind::cube },
+												 age::asset::e::vertex_kind::pnt_uv1)));
+
+		age::asset::registry::register_asset(
+			i_init.get_mesh_id_vec->emplace_back(
+				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
+												 i_init.get_render_pipeline(),
+												 age::asset::primitive_desc{
+													 .size		= { 0.5, 0.5, 0.5 },
+													 .seg_u		= 30,
+													 .seg_v		= 30,
+													 .mesh_kind = age::asset::e::primitive_mesh_kind::plane },
+												 age::asset::e::vertex_kind::pnt_uv1)));
+
+		age::asset::registry::register_asset(
+			i_init.get_mesh_id_vec->emplace_back(
+				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
+												 i_init.get_render_pipeline(),
+												 age::asset::primitive_desc{
+													 .size		= { 0.5, 0.5, 0.5 },
+													 .seg_u		= 30,
+													 .seg_v		= 30,
+													 .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere },
+												 age::asset::e::vertex_kind::pnt_uv1)));
+
+
 		using namespace age::ecs::system;
 		on_ctx{
 			AGE_LAMBDA(
@@ -78,37 +112,6 @@ namespace age_demo::scene_0
 				.cos_outer = 0.87f } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)
 				| AGE_FUNC(i_init.get_spot_light_id_vec->emplace_back),
-
-			identity{ age::asset::primitive_desc{
-				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 30,
-				.seg_v	   = 30,
-				.mesh_kind = age::asset::e::primitive_mesh_kind::cube } }
-				| age::asset::create_primitive_mesh
-				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
-				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
-
-			identity{ age::asset::primitive_desc{
-				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 30,
-				.seg_v	   = 30,
-				.mesh_kind = age::asset::e::primitive_mesh_kind::plane } }
-				| age::asset::create_primitive_mesh
-				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
-				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
-
-
-			identity{ age::asset::primitive_desc{
-				.size	   = { 0.5, 0.5, 0.5 },
-				.seg_u	   = 30,
-				.seg_v	   = 30,
-				.mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere } }
-				| age::asset::create_primitive_mesh
-				| age::asset::bake_mesh<age::asset::vertex_pnt_uv1>
-				| AGE_FUNC(i_init.get_render_pipeline->upload_mesh)
-				| AGE_FUNC(i_init.get_mesh_id_vec->emplace_back),
 
 
 			AGE_LAMBDA(
@@ -203,7 +206,7 @@ namespace age_demo::scene_0
 
 		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
 		{
-			i_deinit.get_render_pipeline->release_mesh(m_id);
+			age::asset::mesh_baked::full_unload(m_id, i_deinit.get_render_pipeline());
 		}
 
 		for (auto c_id : i_deinit.get_camera_id_vec())

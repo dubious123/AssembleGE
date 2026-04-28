@@ -57,8 +57,8 @@ namespace age::asset::mesh_baked
 	void
 	full_unload(std::string_view mesh_name, auto& renderer) noexcept
 	{
-		auto full_path = std::format("{}{}{}", mesh_name, config::mesh_baked_asset_tag, config::asset_extension);
-		auto h_mesh	   = registry::find<e::kind::mesh_baked>(mesh_name.data());
+		c_auto full_path = get_asset_full_path<e::kind::mesh_baked>(mesh_name);
+		c_auto h_mesh	 = registry::find(e::kind::mesh_baked, mesh_name.data());
 
 		if (AGE_IS_INVALID_ID(h_mesh.id))
 		{

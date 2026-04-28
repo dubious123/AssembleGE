@@ -73,4 +73,51 @@ namespace age::asset::registry
 
 		write_asset_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf.data());
 	}
+
+	void
+	register_asset(asset::handle h) noexcept
+	{
+		c_auto asset_kind = h.get_kind();
+
+		g::registry_path_to_handle_map[to_idx(asset_kind)][h.get_path()] = h;
+		g::registry_map[to_idx(asset_kind)].emplace_back(h);
+	}
+
+	void
+	register_asset(e::kind e_kind, const char* path) noexcept
+	{
+		register_asset(create_entry(e_kind, path));
+	}
+
+	void
+	unregister_asset(asset::handle h) noexcept
+	{
+		c_auto asset_kind = h.get_kind();
+
+		g::registry_path_to_handle_map[to_idx(asset_kind)].erase(h.get_path());
+		ranges::erase(g::registry_map[to_idx(asset_kind)], h);
+	}
+
+	void
+	unregister_asset(e::kind asset_kind, const char* path) noexcept
+	{
+		c_auto h = find(asset_kind, path);
+
+		if (runtime::is_handle_invalid(h)) { return; }
+
+		g::registry_path_to_handle_map[to_idx(asset_kind)].erase(h.get_path());
+		ranges::erase(g::registry_map[to_idx(asset_kind)], h);
+	}
+
+	asset::handle
+	find(e::kind e_kind, const char* path) noexcept
+	{
+		auto& map = g::registry_path_to_handle_map[to_idx(e_kind)];
+		if (auto it = map.find(util::to_fixed_str<config::max_asset_path_len>(path)); it != map.end())
+		{
+			return it->second;
+		}
+
+		return handle{ age::get_invalid_id<t_asset_id>() };
+	}
 }	 // namespace age::asset::registry

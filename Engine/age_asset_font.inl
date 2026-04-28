@@ -52,7 +52,7 @@ namespace age::asset::font
 				unload(h_font, renderer);
 			}
 		}
-		else if (auto buf = asset::read_asset_file(entry.get_path().data());
+		else if (auto buf = asset::read_asset_file(entry.get_path());
 				 buf.empty() is_false)
 		{
 			detail::read_entry(entry, buf);
@@ -68,7 +68,7 @@ namespace age::asset::font
 
 		detail::rebuild_font(asset::detail::extract_asset_name<e::kind::font>(entry.get_path()), flag, extra_unicode);
 
-		if (auto buf = asset::read_asset_file(entry.get_path().data());
+		if (auto buf = asset::read_asset_file(entry.get_path());
 			buf.empty() is_false)
 		{
 			detail::read_entry(entry, buf);
@@ -86,12 +86,12 @@ namespace age::asset::font
 	handle
 	load(std::string_view font_name, auto& renderer, e::font_charset_flag flag, std::span<uint16> extra_unicode) noexcept
 	{
-		auto full_path = std::format("{}{}{}", font_name, config::font_asset_tag, config::asset_extension);
-		auto h_asset   = registry::find<e::kind::font>(font_name.data());
+		auto full_path = get_asset_full_path<e::kind::font>(font_name);
+		auto h_asset   = registry::find(e::kind::font, full_path.data());
 
 		if (AGE_IS_INVALID_ID(h_asset.id))
 		{
-			h_asset = asset::create_entry<e::kind::font>(full_path);
+			h_asset = asset::create_entry<e::kind::font>(full_path.data());
 		}
 
 		load(h_asset, renderer, flag, extra_unicode);

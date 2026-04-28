@@ -270,6 +270,13 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	void
+	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept
+	{
+		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+		render_mesh(thread_id, object_id, entry.render_id);
+	}
+
+	void
 	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
 	{
 		auto& render_data_vec		  = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
@@ -309,6 +316,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		std::memcpy(desc.Transform, &transform, sizeof(float3x4));
 
 		rt_instance_vec.emplace_back(desc);
+	}
+
+	void
+	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept
+	{
+		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+		render_transparent_mesh(thread_id, object_id, entry.render_id);
 	}
 
 	void
@@ -565,110 +579,6 @@ namespace age::graphics::render_pipeline::forward_plus
 // mesh
 namespace age::graphics::render_pipeline::forward_plus
 {
-	t_mesh_id
-	pipeline::upload_mesh(const asset::mesh_baked2& baked) noexcept
-	{
-		AGE_ASSERT(baked.buffer.byte_size() < std::numeric_limits<uint32>::max() - mesh_byte_offset);
-		AGE_ASSERT(baked.buffer.byte_size() % 4 == 0);
-
-		c_auto flat_index_arr = baked.gen_flat_index_arr();
-		c_auto vertex_pos_arr = baked.gen_vertex_pos_arr<asset::vertex_pnt_uv1>();
-
-		c_auto mesh_required_size = mesh_byte_offset + baked.buffer.byte_size();
-		c_auto mesh_need_resize	  = h_mapping_mesh_buffer->h_resource->buffer_size() < mesh_required_size;
-		c_auto mesh_new_size	  = std::max(mesh_required_size, h_mapping_mesh_buffer->h_resource->buffer_size() * 2);
-
-		c_auto index_required_size = rt_index_buffer_byte_offset + flat_index_arr.byte_size();
-		c_auto index_need_resize   = h_mapping_rt_index_buffer->h_resource->buffer_size() < index_required_size;
-		c_auto index_new_size	   = std::max(index_required_size, h_mapping_rt_index_buffer->h_resource->buffer_size() * 2);
-
-		c_auto vertex_required_size = 0 + vertex_pos_arr.byte_size();
-		c_auto vertex_need_resize	= h_mapping_rt_vertex_scratch_buffer->h_resource->buffer_size() < vertex_required_size;
-		c_auto vertex_new_size		= std::max(vertex_required_size, h_mapping_rt_vertex_scratch_buffer->h_resource->buffer_size() * 2);
-
-		c_auto need_copy = mesh_need_resize or index_need_resize;
-
-		auto h_new_mesh_buffer	= mapping_handle{};
-		auto h_new_index_buffer = mapping_handle{};
-
-		if (need_copy)
-		{
-			command::begin(e::queue_kind::copy);
-		}
-
-		if (mesh_need_resize)
-		{
-			h_new_mesh_buffer = resource::create_buffer_committed(static_cast<uint32>(mesh_new_size));
-
-			command::copy_buffer(e::queue_kind::copy, 0,
-								 h_new_mesh_buffer->h_resource->p_resource, 0,
-								 h_mapping_mesh_buffer->h_resource->p_resource, 0,
-								 mesh_byte_offset);
-		}
-		if (index_need_resize)
-		{
-			h_new_index_buffer = resource::create_buffer_committed(static_cast<uint32>(index_new_size));
-
-			command::copy_buffer(e::queue_kind::copy, 0,
-								 h_new_index_buffer->h_resource->p_resource, 0,
-								 h_mapping_rt_index_buffer->h_resource->p_resource, 0,
-								 rt_index_buffer_byte_offset);
-		}
-
-		if (vertex_need_resize)
-		{
-			resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
-			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(static_cast<uint32>(vertex_new_size));
-		}
-
-		if (need_copy)
-		{
-			command::execute_and_wait(e::queue_kind::copy);
-
-			if (mesh_need_resize)
-			{
-				resource::unmap_and_release(h_mapping_mesh_buffer);
-				h_mapping_mesh_buffer = h_new_mesh_buffer;
-
-				mesh_data_buffer.bind(h_mapping_mesh_buffer);
-			}
-
-			if (index_need_resize)
-			{
-				resource::unmap_and_release(h_mapping_rt_index_buffer);
-				h_mapping_rt_index_buffer = h_new_index_buffer;
-
-				h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
-
-				rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
-			}
-		}
-
-		h_mapping_rt_index_buffer->upload(flat_index_arr.data(), flat_index_arr.byte_size(), rt_index_buffer_byte_offset);
-		h_mapping_rt_vertex_scratch_buffer->upload(vertex_pos_arr.data(), vertex_pos_arr.byte_size());
-		h_mapping_mesh_buffer->upload(baked.buffer.data(), baked.buffer.byte_size(), mesh_byte_offset);
-
-		auto h_blas = graphics::rt::build_blas(
-			defaults::rt::geo_desc::triangles(
-				flat_index_arr.size<uint32>(),
-				vertex_pos_arr.size<uint32>(),
-				h_mapping_rt_index_buffer->h_resource->get_va() + rt_index_buffer_byte_offset,
-				h_mapping_rt_vertex_scratch_buffer->h_resource->get_va()));
-
-		auto id = static_cast<t_mesh_id>(mesh_data_vec.emplace_back(
-			mesh_data{
-				.id							 = static_cast<t_mesh_id>(mesh_data_vec.size()),
-				.offset						 = mesh_byte_offset,
-				.byte_size					 = baked.buffer.byte_size<uint32>(),
-				.meshlet_count				 = baked.get_header().meshlet_count,
-				.rt_index_buffer_elem_offset = rt_index_buffer_byte_offset / static_cast<uint32>(sizeof(uint32)),
-				.h_blas						 = h_blas }));
-
-		mesh_byte_offset			+= baked.buffer.byte_size<uint32>();
-		rt_index_buffer_byte_offset += flat_index_arr.byte_size<uint32>();
-		return id;
-	}
-
 	t_mesh_id
 	pipeline::upload_mesh(asset::handle h_mesh) noexcept
 	{

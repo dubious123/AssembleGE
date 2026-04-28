@@ -3,10 +3,6 @@
 
 namespace age_demo::scene_3
 {
-	age::asset::handle h_mesh_cube;
-	age::asset::handle h_mesh_plane;
-	age::asset::handle h_mesh_cube_sphere;
-
 	void
 	init() noexcept
 	{
@@ -17,38 +13,34 @@ namespace age_demo::scene_3
 		i_init.get_editor_game->init();
 
 
-		{
-			h_mesh_cube = age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
-														   i_init.get_render_pipeline(),
-														   age::asset::primitive_desc{
-															   .size	  = { 0.5, 0.5, 0.5 },
-															   .seg_u	  = 30,
-															   .seg_v	  = 30,
-															   .mesh_kind = age::asset::e::primitive_mesh_kind::cube },
-														   age::asset::e::vertex_kind::pnt_uv1);
-		}
+		age::asset::registry::register_asset(
+			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
+											 i_init.get_render_pipeline(),
+											 age::asset::primitive_desc{
+												 .size		= { 0.5, 0.5, 0.5 },
+												 .seg_u		= 30,
+												 .seg_v		= 30,
+												 .mesh_kind = age::asset::e::primitive_mesh_kind::cube },
+											 age::asset::e::vertex_kind::pnt_uv1));
 
-		{
-			h_mesh_plane = age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
-															i_init.get_render_pipeline(),
-															age::asset::primitive_desc{
-																.size	   = { 0.5, 0.5, 0.5 },
-																.seg_u	   = 30,
-																.seg_v	   = 30,
-																.mesh_kind = age::asset::e::primitive_mesh_kind::plane },
-															age::asset::e::vertex_kind::pnt_uv1);
-		}
-
-		{
-			h_mesh_cube_sphere = age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
-																  i_init.get_render_pipeline(),
-																  age::asset::primitive_desc{
-																	  .size		 = { 0.5, 0.5, 0.5 },
-																	  .seg_u	 = 30,
-																	  .seg_v	 = 30,
-																	  .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere },
-																  age::asset::e::vertex_kind::pnt_uv1);
-		}
+		age::asset::registry::register_asset(
+			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
+											 i_init.get_render_pipeline(),
+											 age::asset::primitive_desc{
+												 .size		= { 0.5, 0.5, 0.5 },
+												 .seg_u		= 30,
+												 .seg_v		= 30,
+												 .mesh_kind = age::asset::e::primitive_mesh_kind::plane },
+											 age::asset::e::vertex_kind::pnt_uv1));
+		age::asset::registry::register_asset(
+			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
+											 i_init.get_render_pipeline(),
+											 age::asset::primitive_desc{
+												 .size		= { 0.5, 0.5, 0.5 },
+												 .seg_u		= 30,
+												 .seg_v		= 30,
+												 .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere },
+											 age::asset::e::vertex_kind::pnt_uv1));
 
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
 
@@ -209,16 +201,13 @@ namespace age_demo::scene_3
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
 
-		for (auto m_id : i_deinit.get_mesh_id_vec() | std::views::reverse)
-		{
-			i_deinit.get_render_pipeline().release_mesh(m_id);
-		}
+		auto h_cube		   = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_cube").data());
+		auto h_cube_sphere = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_plane").data());
+		auto h_plane	   = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_cube_sphere").data());
 
-		i_deinit.get_mesh_id_vec->clear();
-
-		age::asset::mesh_baked::full_unload(h_mesh_cube, i_deinit.get_render_pipeline());
-		age::asset::mesh_baked::full_unload(h_mesh_cube_sphere, i_deinit.get_render_pipeline());
-		age::asset::mesh_baked::full_unload(h_mesh_plane, i_deinit.get_render_pipeline());
+		age::asset::mesh_baked::full_unload(h_cube, i_deinit.get_render_pipeline());
+		age::asset::mesh_baked::full_unload(h_cube_sphere, i_deinit.get_render_pipeline());
+		age::asset::mesh_baked::full_unload(h_plane, i_deinit.get_render_pipeline());
 
 		i_deinit.get_editor_game->deinit();
 	}

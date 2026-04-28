@@ -19,8 +19,8 @@ namespace age_demo::scene_0
 
 	struct ctx
 	{
-		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
-			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(1);
+		age::vector<age::asset::handle>
+			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
 		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
 			obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
@@ -69,8 +69,8 @@ namespace age_demo::scene_1
 
 	struct ctx
 	{
-		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
-			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(1);
+		age::vector<age::asset::handle>
+			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
 		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
 			obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
@@ -121,8 +121,8 @@ namespace age_demo::scene_2
 
 	struct ctx
 	{
-		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
-			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(1);
+		age::vector<age::asset::handle>
+			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
 		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
 			opaque_obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
@@ -222,9 +222,6 @@ namespace age_demo::scene_3
 
 	struct ctx
 	{
-		age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>
-			mesh_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_mesh_id>::gen_reserved(3);
-
 		editor_demo_game editor_game;
 
 		uint32 ent_main_cam;
