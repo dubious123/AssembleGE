@@ -533,6 +533,8 @@ namespace age::editor
 
 		g::current_game.dir_path = std::move(game_dir);
 
+		age::asset::registry::load(g::current_game.dir_path.string().data());
+
 		for (auto&& [scene_idx, scene] : g::current_game.scene_data_vec | std::views::enumerate)
 		{
 			scene.dir_path = detail::resolve_path_by_names(g::current_game.dir_path, scene.names);
@@ -583,6 +585,7 @@ namespace age::editor
 	void
 	save_game(auto& game, auto& renderer) noexcept
 	{
+		asset::registry::save();
 		detail::save_game_proj(g::current_game);
 
 		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];

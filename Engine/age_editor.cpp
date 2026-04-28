@@ -10,6 +10,8 @@ namespace age::editor
 
 		g::current_mode = e::mode_kind::edit;
 		g::current_game = game_editor_data{};
+
+		g::show_modal = false;
 	}
 
 	void

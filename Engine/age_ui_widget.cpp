@@ -853,7 +853,7 @@ namespace age::ui::widget
 
 			return widget_ctx_impl{ std::move(h_panel),
 									widget::begin(style::vertical() | set_size(size_mode::grow(), size_mode::fixed(height))),
-									widget::vertical() };
+									widget::vertical(set_height_grow()) };
 		}
 
 		return {};

@@ -6,6 +6,8 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(mode_kind, uint8, edit, play);
 
 	AGE_DEFINE_ENUM(select_kind, uint8, none, entity, asset);
+
+	AGE_DEFINE_ENUM(modal_kind, uint8, new_asset);
 }	 // namespace age::editor::e
 
 namespace age::editor
@@ -138,4 +140,6 @@ namespace age::editor::g
 
 	inline auto current_mode = e::mode_kind::edit;
 
+	inline auto modal_kind = e::modal_kind::new_asset;
+	inline auto show_modal = false;
 }	 // namespace age::editor::g

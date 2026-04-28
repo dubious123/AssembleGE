@@ -115,21 +115,6 @@ namespace age::editor::detail
 				  .cos_outer   = light.cos_outer,
 				  .cast_shadow = light.cast_shadow });
 		}
-
-		for (auto&& [pos, rot, scale, obj, mesh, mat] : ecs_storage
-															| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
-		{
-			renderer.update_object(obj.render_id, pos, rot, scale);
-
-			if (mat.is_opaque)
-			{
-				renderer.render_mesh(0, obj.render_id, mesh.render_id);
-			}
-			else
-			{
-				renderer.render_transparent_mesh(0, obj.render_id, mesh.render_id);
-			}
-		}
 	}
 }	 // namespace age::editor::detail
 
@@ -139,6 +124,20 @@ namespace age::editor
 	update_game(auto& ecs_game, auto& renderer) noexcept
 	{
 		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+		for (auto h_mesh : asset::registry::all(asset::e::kind::mesh_baked))
+		{
+			c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+			if (entry.ref_counter == 0)
+			{
+				asset::mesh_baked::full_unload(h_mesh, renderer);
+			}
+
+			if (entry.ref_counter > 0)
+			{
+				asset::mesh_baked::gpu_load(h_mesh, renderer);
+			}
+		}
 
 		for (c_auto& editor_storage : active_scene.storage_data_vec)
 		{

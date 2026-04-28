@@ -45,9 +45,6 @@ namespace age::asset::registry
 	save() noexcept
 	{
 		AGE_ASSERT(g::registry_path.empty() is_false);
-		AGE_ASSERT(std::filesystem::exists(g::registry_path));
-
-		// todo,
 
 		auto buf = byte_buf{};
 
@@ -119,5 +116,11 @@ namespace age::asset::registry
 		}
 
 		return handle{ age::get_invalid_id<t_asset_id>() };
+	}
+
+	std::span<const asset::handle>
+	all(e::kind e_kind) noexcept
+	{
+		return g::registry_map[to_idx(e_kind)];
 	}
 }	 // namespace age::asset::registry

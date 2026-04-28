@@ -12,36 +12,6 @@ namespace age_demo::scene_3
 
 		i_init.get_editor_game->init();
 
-
-		age::asset::registry::register_asset(
-			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
-											 i_init.get_render_pipeline(),
-											 age::asset::primitive_desc{
-												 .size		= { 0.5, 0.5, 0.5 },
-												 .seg_u		= 30,
-												 .seg_v		= 30,
-												 .mesh_kind = age::asset::e::primitive_mesh_kind::cube },
-											 age::asset::e::vertex_kind::pnt_uv1));
-
-		age::asset::registry::register_asset(
-			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
-											 i_init.get_render_pipeline(),
-											 age::asset::primitive_desc{
-												 .size		= { 0.5, 0.5, 0.5 },
-												 .seg_u		= 30,
-												 .seg_v		= 30,
-												 .mesh_kind = age::asset::e::primitive_mesh_kind::plane },
-											 age::asset::e::vertex_kind::pnt_uv1));
-		age::asset::registry::register_asset(
-			age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
-											 i_init.get_render_pipeline(),
-											 age::asset::primitive_desc{
-												 .size		= { 0.5, 0.5, 0.5 },
-												 .seg_u		= 30,
-												 .seg_v		= 30,
-												 .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere },
-											 age::asset::e::vertex_kind::pnt_uv1));
-
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
@@ -58,10 +28,6 @@ namespace age_demo::scene_3
 
 		using enum age::input::e::key_kind;
 
-		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface) is_false)
-		{
-			return;
-		}
 
 		age::ui::begin_frame(i_update.get_h_window);
 
@@ -87,13 +53,48 @@ namespace age_demo::scene_3
 
 				if (auto _ = widget::begin(style::panel() | set_width_grow() | set_height_grow()))
 				{
-					age::editor::ui_asset();
+					if (auto _ = widget::panel())
+					{
+						age::editor::ui_asset();
+
+						if (auto _ = widget::begin(style::horizontal() | set_width_grow() | set_height_fit()))
+						{
+							if (auto _ = widget::begin(style::panel() | set_vertical() | set_width_grow() | set_height_fit()))
+							{
+								widget::begin(style::text_title("assets") | set_align_begin());
+							}
+
+							if (auto h_btn = widget::button("+ new", set_align_center()))
+							{
+								if (h_btn.clicked())
+								{
+									age::editor::g::modal_kind = age::editor::e::modal_kind::new_asset;
+									age::editor::g::show_modal = !age::editor::g::show_modal;
+								}
+							}
+						}
+
+						widget::separator_v();
+
+						for (c_auto h : age::asset::registry::all(age::asset::e::kind::mesh_baked))
+						{
+							c_auto& path = h.get_path();
+							widget::text(path.data());
+						}
+					}
 				}
 			}
 
 			if (auto _ = widget::begin(style::vertical() | set_width_grow() | set_height_grow()))
 			{
-				age::editor::ui_scene_view(i_update.get_render_pipeline(), i_init.get_h_window());
+				if (age::editor::g::show_modal)
+				{
+					age::editor::ui_modal();
+				}
+				else
+				{
+					age::editor::ui_scene_view(i_update.get_render_pipeline(), i_init.get_h_window());
+				}
 			}
 
 			if (age::editor::is_edit_mode())
@@ -102,64 +103,111 @@ namespace age_demo::scene_3
 			}
 			else if (age::editor::is_play_mode())
 			{
+				for (auto h_mesh : age::asset::registry::all(age::asset::e::kind::mesh_baked))
+				{
+					c_auto& entry = h_mesh.get_entry<age::asset::e::kind::mesh_baked>();
+					if (entry.ref_counter == 0)
+					{
+						age::asset::mesh_baked::full_unload(h_mesh, i_update.get_render_pipeline());
+					}
+
+					if (entry.ref_counter > 0)
+					{
+						age::asset::mesh_baked::gpu_load(h_mesh, i_update.get_render_pipeline());
+					}
+				}
 				// play mode
 			}
+		}
+
+		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface) is_false)
+		{
+			age::ui::clear();
+			return;
 		}
 
 		age::ui::end_frame(i_update.get_render_pipeline->get_ui_render_data_vec(),
 						   i_update.get_render_pipeline->get_ui_render_data_z_range_vec());
 
 
-		auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
+		i_update.get_editor_game->visit_all_storages(
+			AGE_LAMBDA(
+				(auto& entities),
+				{
+					for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
+																		| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
+					{
+						i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
 
-		for (auto&& [light] : entities | each_entity<directional_light>())
-		{
-			i_update.get_render_pipeline->update_directional_light(light.render_id,
-																   { .direction	  = age::math::normalize(light.direction),
-																	 .intensity	  = light.intensity,
-																	 .color		  = light.color,
-																	 .cast_shadow = light.cast_shadow });
-		}
+						if (age::runtime::is_handle_invalid(mesh.h_mesh))
+						{
+							continue;
+						}
 
-		for (auto&& [light, pos] : entities | each_entity<point_light, position>())
-		{
-			i_update.get_render_pipeline->update_point_light(
-				light.render_id,
-				{ .position	   = pos,
-				  .range	   = light.range,
-				  .color	   = light.color,
-				  .intensity   = light.intensity,
-				  .cast_shadow = light.cast_shadow });
-		}
+						if (mat.is_opaque)
+						{
+							i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh);
+						}
+						else
+						{
+							i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.h_mesh);
+						}
+					}
+				}));
+		// auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
+		// for (auto&& [light] : entities | each_entity<directional_light>())
+		//{
+		//	i_update.get_render_pipeline->update_directional_light(light.render_id,
+		//														   { .direction	  = age::math::normalize(light.direction),
+		//															 .intensity	  = light.intensity,
+		//															 .color		  = light.color,
+		//															 .cast_shadow = light.cast_shadow });
+		//}
 
-		for (auto&& [light, pos] : entities | each_entity<spot_light, position>())
-		{
-			i_update.get_render_pipeline->update_spot_light(
-				light.render_id,
-				{ .position	   = pos,
-				  .range	   = light.range,
-				  .direction   = age::math::normalize(light.direction),
-				  .intensity   = light.intensity,
-				  .color	   = light.color,
-				  .cos_inner   = light.cos_inner,
-				  .cos_outer   = light.cos_outer,
-				  .cast_shadow = light.cast_shadow });
-		}
+		// for (auto&& [light, pos] : entities | each_entity<point_light, position>())
+		//{
+		//	i_update.get_render_pipeline->update_point_light(
+		//		light.render_id,
+		//		{ .position	   = pos,
+		//		  .range	   = light.range,
+		//		  .color	   = light.color,
+		//		  .intensity   = light.intensity,
+		//		  .cast_shadow = light.cast_shadow });
+		// }
 
-		for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
-															| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
-		{
-			i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
+		// for (auto&& [light, pos] : entities | each_entity<spot_light, position>())
+		//{
+		//	i_update.get_render_pipeline->update_spot_light(
+		//		light.render_id,
+		//		{ .position	   = pos,
+		//		  .range	   = light.range,
+		//		  .direction   = age::math::normalize(light.direction),
+		//		  .intensity   = light.intensity,
+		//		  .color	   = light.color,
+		//		  .cos_inner   = light.cos_inner,
+		//		  .cos_outer   = light.cos_outer,
+		//		  .cast_shadow = light.cast_shadow });
+		// }
 
-			if (mat.is_opaque)
-			{
-				i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.render_id);
-			}
-			else
-			{
-				i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.render_id);
-			}
-		}
+		// for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
+		//													| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
+		//{
+		//	i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
+
+		//	if (age::runtime::is_handle_invalid(mesh.h_mesh))
+		//	{
+		//		continue;
+		//	}
+
+		//	if (mat.is_opaque)
+		//	{
+		//		i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh);
+		//	}
+		//	else
+		//	{
+		//		i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.h_mesh);
+		//	}
+		//}
 
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 	}
@@ -201,13 +249,10 @@ namespace age_demo::scene_3
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
 
-		auto h_cube		   = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_cube").data());
-		auto h_cube_sphere = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_plane").data());
-		auto h_plane	   = age::asset::registry::find(age::asset::e::kind::mesh_baked, age::asset::get_asset_full_path<age::asset::e::kind::mesh_baked>("./resources/demo_game/assets/mesh/primitive_cube_sphere").data());
-
-		age::asset::mesh_baked::full_unload(h_cube, i_deinit.get_render_pipeline());
-		age::asset::mesh_baked::full_unload(h_cube_sphere, i_deinit.get_render_pipeline());
-		age::asset::mesh_baked::full_unload(h_plane, i_deinit.get_render_pipeline());
+		for (auto h_mesh : age::asset::registry::all(age::asset::e::kind::mesh_baked))
+		{
+			age::asset::mesh_baked::full_unload(h_mesh, i_deinit.get_render_pipeline());
+		}
 
 		i_deinit.get_editor_game->deinit();
 	}

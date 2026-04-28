@@ -42,32 +42,6 @@ namespace age::runtime
 	{
 		AGE_GETSET(now, now)
 	} i_deinit;
-
-	FORCE_INLINE bool
-	is_handle_invalid(auto&& any_handle) noexcept
-	{
-		if constexpr (std::is_same_v<uint32, BARE_OF(any_handle.id)>)
-		{
-			return any_handle.id == invalid_id_uint32;
-		}
-		else
-		{
-			static_assert(false);
-		}
-	}
-
-	FORCE_INLINE bool
-	is_handle_valid(auto&& any_handle) noexcept
-	{
-		if constexpr (std::is_same_v<uint32, BARE_OF(any_handle.id)>)
-		{
-			return any_handle.id != invalid_id_uint32;
-		}
-		else
-		{
-			static_assert(false);
-		}
-	}
 }	 // namespace age::runtime
 
 namespace age::runtime

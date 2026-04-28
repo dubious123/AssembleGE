@@ -427,7 +427,41 @@ namespace age::ecs
 	{
 		AGE_COMPONENT_VERSION(1);
 
-		uint32 render_id = 0;
+		asset::handle h_mesh = {};
+
+		FORCE_INLINE void
+		update_h_mesh(asset::handle h_mesh_new) noexcept
+		{
+			if (runtime::is_handle_invalid(h_mesh) is_false)
+			{
+				asset::mesh_baked::remove_ref(h_mesh);
+			}
+			if (runtime::is_handle_invalid(h_mesh_new) is_false)
+			{
+				asset::mesh_baked::add_ref(h_mesh_new);
+			}
+
+			h_mesh = h_mesh_new;
+		}
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, mesh & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_mesh) is_false)
+			{
+				asset::mesh_baked::add_ref(cmp.h_mesh);
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, mesh & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_mesh) is_false)
+			{
+				asset::mesh_baked::remove_ref(cmp.h_mesh);
+			}
+		}
 
 		static consteval uint32
 		byte_size() noexcept
@@ -438,8 +472,15 @@ namespace age::ecs
 		static void
 		write_to(cmp_dispatch_key, const mesh& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
 		{
-			char mesh_name[config::max_asset_path_len] = { "mesh_cube" };
-			buf.write(mesh_name);
+			if (runtime::is_handle_invalid(cmp.h_mesh))
+			{
+				char mesh_name[config::max_asset_path_len] = { "invalid_mesh" };
+				buf.write(mesh_name);
+			}
+			else
+			{
+				buf.write(cmp.h_mesh.get_path());
+			}
 
 			return;
 		}
@@ -455,6 +496,8 @@ namespace age::ecs
 
 			char mesh_name[config::max_asset_path_len];
 			buf.read(mesh_name);
+
+			cmp.update_h_mesh(asset::registry::find(age::asset::e::kind::mesh_baked, mesh_name));
 		}
 	};
 

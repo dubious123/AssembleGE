@@ -66,6 +66,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			frame_data_buffer.bind_array(h_mapping_frame_data, sizeof(shared_type::frame_data));
 
+			mesh_data_buffer.bind(h_mapping_mesh_buffer);
+
 			scratch_buffer_uav.bind(h_scratch_buffer);
 
 			light_cull_stage_sorted_light_buffer_srv.bind(h_light_cull_stage_sorted_light_buffer);

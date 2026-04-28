@@ -25,5 +25,5 @@ namespace age::asset::registry
 	find(e::kind, const char* path) noexcept;
 
 	std::span<const asset::handle>
-	by_kind(e::kind k) noexcept;
+	all(e::kind k) noexcept;
 }	 // namespace age::asset::registry

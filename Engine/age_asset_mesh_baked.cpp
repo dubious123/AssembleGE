@@ -170,6 +170,16 @@ namespace age::asset::mesh_baked
 		}
 	}
 
+	handle
+	cpu_load(std::string_view mesh_name, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
+	{
+		c_auto h_mesh = detail::load_common(mesh_name);
+
+		cpu_load(h_mesh, desc, v_kind);
+
+		return h_mesh;
+	}
+
 	void
 	cpu_load(handle h_mesh) noexcept
 	{
@@ -196,6 +206,22 @@ namespace age::asset::mesh_baked
 		cpu_load(h_mesh);
 
 		return h_mesh;
+	}
+
+	void
+	add_ref(handle h) noexcept
+	{
+		auto& entry = h.get_entry<e::kind::mesh_baked>();
+		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
+		++entry.ref_counter;
+	}
+
+	void
+	remove_ref(handle h) noexcept
+	{
+		auto& entry = h.get_entry<e::kind::mesh_baked>();
+		AGE_ASSERT(entry.ref_counter > 0);
+		--entry.ref_counter;
 	}
 }	 // namespace age::asset::mesh_baked
 

@@ -727,9 +727,13 @@ namespace age::ui
 			  (float, roundness_large, (12.f)))
 		;
 
+#if defined(AGE_DEBUG)
+	AGE_THEME_WIDGET(panel, color_border_idle, float4(palette_red(), opacity_medium()))
 
-	AGE_THEME_WIDGET(panel, color_bg, float4(color_gray_darker(), opacity_medium()))
+#else
 	AGE_THEME_WIDGET(panel, color_border_idle, float4(color_gray_darker(), opacity_medium()))
+#endif
+	AGE_THEME_WIDGET(panel, color_bg, float4(color_gray_darker(), opacity_medium()))
 	AGE_THEME_WIDGET(panel, color_border_focus, float4(color_blue(), opacity_medium()))
 	AGE_THEME_WIDGET(panel, padding, float4(padding_small()))
 	AGE_THEME_WIDGET(panel, child_gap, gap_small())

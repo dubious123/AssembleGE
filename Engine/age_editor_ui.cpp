@@ -330,7 +330,65 @@ namespace age::editor
 	void
 	ui_component(ecs::mesh& mesh) noexcept
 	{
-		ui::widget::numeric_field(mesh.render_id, "mesh", 0u, 2u);
+		using namespace ui;
+		using enum input::e::key_kind;
+		using enum ui::e::style_state;
+
+		c_auto* p_text = "invalid mesh";
+		if (runtime::is_handle_invalid(mesh.h_mesh) is_false)
+		{
+			p_text = mesh.h_mesh.get_path().data();
+		}
+
+		auto open	= false;
+		auto btn_id = age::get_invalid_id<ui::t_hash>();
+
+		if (auto btn = widget::begin(set_width_fit() | set_height_fit() | set_vertical() | set_interact(true) | set_save_state(true)))
+		{
+			btn_id			 = btn.hash_id;
+			auto style_state = idle;
+			if (btn.pressed<mouse_left>())
+			{
+				style_state = active;
+			}
+			else if (btn.hovered())
+			{
+				style_state = hover;
+			}
+
+			if (auto _ = widget::frame(style_state, set_width_fit(), set_height_fit()))
+			{
+				widget::text_button(p_text);
+			}
+
+			auto& state = btn.get_state();
+
+			if (btn.clicked())
+			{
+				state.toggled = !state.toggled;
+			}
+
+			open = state.toggled;
+		}
+
+		if (open)
+		{
+			for (auto h : asset::registry::all(asset::e::kind::mesh_baked))
+			{
+				auto id = id_begin();
+
+				if (auto sel = widget::button(h.get_path().data()))
+				{
+					if (sel.clicked())
+					{
+						auto& state	  = ui::g::widget_state_map[btn_id];
+						state.toggled = false;	  // close this context
+						mesh.update_h_mesh(h);
+						break;
+					}
+				}
+			}
+		}
 	}
 
 	void
@@ -400,6 +458,235 @@ namespace age::editor
 		{
 			ui::widget::numeric_field(cam.view_width, "view_width");
 			ui::widget::numeric_field(cam.view_height, "view_height");
+		}
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	namespace detail
+	{
+		auto&
+		ui_modal_asset_name() noexcept
+		{
+			static auto name = std::array<char, config::max_asset_path_len>{ "sample name" };
+
+			return name;
+		}
+	}	 // namespace detail
+
+	void
+	ui_modal_new_asset_font() noexcept
+	{
+		using namespace age::ui;
+		widget::text_heading("ui_modal_new_asset_font");
+	}
+
+	void
+	ui_modal_new_asset_mesh_baked() noexcept
+	{
+		using namespace age::ui;
+		static auto size		= float3::one();
+		static auto seg_uv		= vec2<uint32>{ 30, 30 };
+		static auto mesh_kind	= age::asset::e::primitive_mesh_kind::cube;
+		static auto vertex_kind = age::asset::e::vertex_kind::pnt_uv1;
+
+		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
+		{
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				{
+					widget::text("size");
+				}
+
+
+				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					widget::numeric_field(size);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				{
+					widget::text("seg_uv");
+				}
+
+				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					widget::numeric_field(seg_uv);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				{
+					widget::text("mesh_kind");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					static auto is_open = false;
+					if (auto btn = widget::button(asset::e::to_string(mesh_kind).data()))
+					{
+						if (btn.clicked())
+						{
+							is_open = !is_open;
+						}
+					}
+					if (is_open)
+					{
+						using enum age::asset::e::primitive_mesh_kind;
+						for (auto e_mesh_kind : std::array{ cube, plane, cube_sphere })
+						{
+							if (auto select = widget::button(asset::e::to_string(e_mesh_kind).data()))
+							{
+								if (select.clicked())
+								{
+									mesh_kind = e_mesh_kind;
+									is_open	  = false;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				{
+					widget::text("vertex layout");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					static auto is_open = false;
+					if (auto btn = widget::button(asset::e::to_string(vertex_kind).data()))
+					{
+						if (btn.clicked())
+						{
+							is_open = !is_open;
+						}
+					}
+					if (is_open)
+					{
+						using enum age::asset::e::vertex_kind;
+						for (auto e_vertex_kind : std::array{ p_uv1, pn_uv1, pnt_uv1 })
+						{
+							if (auto select = widget::button(asset::e::to_string(e_vertex_kind).data()))
+							{
+								if (select.clicked())
+								{
+									vertex_kind = e_vertex_kind;
+									is_open		= false;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_align_center()))
+			{
+				widget::text_input2(detail::ui_modal_asset_name());
+
+				if (auto h_cancel = widget::button("cancel"))
+				{
+					if (h_cancel.clicked())
+					{
+						g::show_modal = false;
+					}
+				}
+
+				if (auto h_create = widget::button("create"))
+				{
+					if (h_create.clicked())
+					{
+						g::show_modal = false;
+
+						c_auto mesh_name = g::current_game.dir_path / "asset" / "mesh" / detail::ui_modal_asset_name().data();
+
+						auto h_mesh = asset::mesh_baked::cpu_load(mesh_name.string(),
+																  age::asset::primitive_desc{
+																	  .size		 = size,
+																	  .seg_u	 = seg_uv.x,
+																	  .seg_v	 = seg_uv.y,
+																	  .mesh_kind = mesh_kind },
+																  age::asset::e::vertex_kind::pnt_uv1);
+						asset::mesh_baked::cpu_unload(h_mesh);
+						asset::registry::register_asset(h_mesh);
+					}
+				}
+			}
+		}
+	}
+
+	void
+	ui_modal_new_asset() noexcept
+	{
+		using namespace age::ui;
+
+		static auto selected = age::asset::e::kind::mesh_baked;
+		if (auto _ = widget::begin(style::panel() | set_horizontal() | set_width_grow() | set_height_grow()))
+		{
+			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_fit() | set_height_grow()))
+			{
+				for (auto e_asset_kind : std::array{ age::asset::e::kind::font, age::asset::e::kind::mesh_baked })
+				{
+					if (auto _ = id_begin())
+					{
+						if (auto asset_btn = widget::button(asset::e::to_string(e_asset_kind).data()))
+						{
+							if (asset_btn.clicked())
+							{
+								selected = e_asset_kind;
+							}
+						}
+					}
+				}
+			}
+
+			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_grow()))
+			{
+				switch (selected)
+				{
+				case age::asset::e::kind::font:
+				{
+					ui_modal_new_asset_font();
+					break;
+				}
+				case age::asset::e::kind::mesh_baked:
+				{
+					ui_modal_new_asset_mesh_baked();
+					break;
+				}
+				default:
+				{
+					AGE_UNREACHABLE();
+				}
+				}
+			}
+		}
+	}
+
+	void
+	ui_modal() noexcept
+	{
+		switch (g::modal_kind)
+		{
+		case e::modal_kind::new_asset:
+		{
+			ui_modal_new_asset();
+			break;
+		}
+		default:
+		{
+			AGE_UNREACHABLE();
+		}
 		}
 	}
 }	 // namespace age::editor

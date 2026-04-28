@@ -25,6 +25,9 @@ namespace age::ui
 	end_frame(age::vector<render_data>&, age::vector<util::range>&) noexcept;
 
 	void
+	clear() noexcept;	 // cancel render
+
+	void
 	deinit(auto& renderer) noexcept;
 }	 // namespace age::ui
 

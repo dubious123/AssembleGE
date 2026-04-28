@@ -63,7 +63,7 @@ namespace age::asset::font
 	load(std::string_view font_name, auto& renderer, e::font_charset_flag flag = e::font_charset_flag::ascii, std::span<uint16> extra_unicode = {}) noexcept;
 
 	void
-	unload(handle, auto& renderer) noexcept;
+	full_unload(handle, auto& renderer) noexcept;
 }	 // namespace age::asset::font
 
 namespace age::asset::mesh_baked
@@ -76,6 +76,9 @@ namespace age::asset::mesh_baked
 
 	void
 	cpu_load(handle h_mesh) noexcept;
+
+	handle
+	cpu_load(std::string_view mesh_name, const primitive_desc& desc, e::vertex_kind v_kind) noexcept;
 
 	handle
 	cpu_load(std::string_view mesh_name) noexcept;
@@ -106,6 +109,12 @@ namespace age::asset::mesh_baked
 
 	handle
 	full_load(std::string_view mesh_name, auto& renderer) noexcept;
+
+	void
+	add_ref(handle _) noexcept;
+
+	void
+	remove_ref(handle _) noexcept;
 
 }	 // namespace age::asset::mesh_baked
 

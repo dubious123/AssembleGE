@@ -633,15 +633,47 @@ namespace age::ui::widget
 // numeric field
 namespace age::ui::widget
 {
+	namespace detail
+	{
+		template <typename t>
+		consteval decltype(auto)
+		default_max() noexcept
+		{
+			using value_type = std::remove_cvref_t<t>;
+			if constexpr (std::is_integral_v<value_type>)
+			{
+				if constexpr (std::is_unsigned_v<value_type>)
+				{
+					return std::numeric_limits<std::make_signed_t<value_type>>::max();
+				}
+				else
+				{
+					return std::numeric_limits<value_type>::max();
+				}
+			}
+			else
+			{
+				return std::numeric_limits<value_type>::max();
+			}
+		}
+	}	 // namespace detail
+
 	template <meta::cx_arithmetic t>
 	widget_ctx
 	numeric_field(t&		  value,
 				  const char* p_label		   = nullptr,
 				  t			  min			   = std::numeric_limits<t>::lowest(),
-				  t			  max			   = std::numeric_limits<t>::max(),
+				  t			  max			   = detail::default_max<t>(),
 				  float4	  text_label_color = theme::text_label_color(),
 				  float		  step			   = 0.1f) noexcept
 	{
+		if constexpr (std::is_integral_v<t>)
+		{
+			if constexpr (std::is_unsigned_v<t>)
+			{
+				AGE_ASSERT(max <= static_cast<t>(detail::default_max<t>()));
+			}
+		}
 		using enum input::e::key_kind;
 		if (auto h_interact = widget::begin(style::horizontal(size_mode::grow(), size_mode::fit())
 											| set_interact(true)
@@ -798,7 +830,7 @@ namespace age::ui::widget
 	numeric_field(t_vec<t>&		  value,
 				  const char*	  p_label		   = nullptr,
 				  const t_vec<t>& min			   = t_vec<t>{ std::numeric_limits<t>::lowest() },
-				  const t_vec<t>& max			   = t_vec<t>{ std::numeric_limits<t>::max() },
+				  const t_vec<t>& max			   = t_vec<t>{ detail::default_max<t>() },
 				  float4		  text_label_color = theme::text_label_color(),
 				  float			  step			   = 0.1f) noexcept
 	{
@@ -850,7 +882,7 @@ namespace age::ui::widget
 	numeric_field(t_mat<t>&	  value,
 				  const char* p_label		   = nullptr,
 				  const t	  min			   = std::numeric_limits<t>::lowest(),
-				  const t	  max			   = std::numeric_limits<t>::max(),
+				  const t	  max			   = detail::default_max<t>(),
 				  float4	  text_label_color = theme::text_label_color(),
 				  float		  step			   = 0.1f) noexcept
 	{

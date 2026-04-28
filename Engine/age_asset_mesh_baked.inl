@@ -22,6 +22,9 @@ namespace age::asset::mesh_baked
 	cpu_load(handle h_mesh) noexcept;
 
 	handle
+	cpu_load(std::string_view mesh_name, const primitive_desc& desc, e::vertex_kind v_kind) noexcept;
+
+	handle
 	cpu_load(std::string_view mesh_name) noexcept;
 
 	void

@@ -212,7 +212,7 @@ namespace age::ui::font
 		AGE_ASSERT(idx != age::get_invalid_id<uint32>());
 
 		auto font_data = g::font_data_vec[idx].second;
-		asset::font::unload(font_data.h_font, renderer);
+		asset::font::full_unload(font_data.h_font, renderer);
 
 		// renderer.release_texture(g::font_data_vec[idx].second.atlas_id);
 		// asset::unload(g::font_data_vec[idx].second.h_font);
@@ -233,7 +233,7 @@ namespace age::ui
 
 		for (auto&& [hash, font_data] : g::font_data_vec)
 		{
-			asset::font::unload(font_data.h_font, renderer);
+			asset::font::full_unload(font_data.h_font, renderer);
 		}
 
 		g::font_data_vec.clear();

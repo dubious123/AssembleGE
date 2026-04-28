@@ -288,6 +288,12 @@ namespace age::ui
 			}
 		}
 
+		clear();
+	}
+
+	void
+	clear() noexcept
+	{
 		g::id_stack.clear();
 		g::layout_size_data_stack.clear();
 		g::layout_pos_data_vec.clear();

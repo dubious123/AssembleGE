@@ -21,11 +21,11 @@ namespace age::asset::e
 		uint8,
 		plane,
 		cube,
+		cube_sphere,
 		capsule,
 		cylinder,
 		ico_sphere,
-		uv_sphere,
-		cube_sphere);
+		uv_sphere);
 
 	AGE_DEFINE_ENUM(
 		winding_kind,
@@ -112,7 +112,7 @@ namespace age::asset
 
 	struct handle
 	{
-		t_asset_id id;
+		t_asset_id id = age::get_invalid_id<t_asset_id>();
 
 		template <e::kind e_kind>
 		FORCE_INLINE static handle
@@ -322,6 +322,9 @@ namespace age::asset
 		uint32 render_id = age::get_invalid_id<uint32>();
 
 		std::byte* p_blob = nullptr;
+
+		uint32 ref_counter = 0u;
+		uint32 _;
 
 		std::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;

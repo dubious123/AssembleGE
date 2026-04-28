@@ -703,6 +703,7 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 	case e::kind::name:                               \
 	{                                                 \
 		asset::destroy_entry<e::kind::name>(h_asset); \
+		return;                                       \
 	}
 
 #define AGE_DEFINE_CREATE_ENTRY_MAP1(name)                     \

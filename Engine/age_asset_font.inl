@@ -22,7 +22,7 @@ namespace age::asset::font::detail
 namespace age::asset::font
 {
 	void
-	unload(handle h_font, auto& renderer) noexcept
+	full_unload(handle h_font, auto& renderer) noexcept
 	{
 		auto& entry = h_font.get_entry<e::kind::font>();
 		if (entry.is_loaded())
@@ -49,7 +49,7 @@ namespace age::asset::font
 			}
 			else
 			{
-				unload(h_font, renderer);
+				full_unload(h_font, renderer);
 			}
 		}
 		else if (auto buf = asset::read_asset_file(entry.get_path());
