@@ -294,15 +294,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			render_data_vec.emplace_back(
 				shared_type::opaque_meshlet_render_data{
-					.object_id		  = object_data_vec.get_pos(object_id),
-					.mesh_byte_offset = msh_data.offset,
-					.meshlet_id		  = meshlet_id++ });
+					.object_id		   = object_data_vec.get_pos(object_id),
+					.mesh_byte_offset  = msh_data.offset,
+					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
+					.meshlet_id		   = meshlet_id++ });
 		}
 
 		rt_inst_render_data_vec.emplace_back(
 			shared_type::rt_instance_render_data{
 				.object_id				= object_data_vec.get_pos(object_id),
 				.mesh_byte_offset		= msh_data.offset,
+				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_index_buffer_elem_offset });
 
 		c_auto& transform = object_transform_data_vec[object_id];
@@ -341,6 +343,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			shared_type::rt_instance_render_data{
 				.object_id				= object_data_vec.get_pos(object_id),
 				.mesh_byte_offset		= msh_data.offset,
+				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_index_buffer_elem_offset });
 
 		c_auto& transform = object_transform_data_vec[object_id];
@@ -680,6 +683,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			mesh_data{
 				.id							 = static_cast<t_mesh_id>(mesh_data_vec.size()),
 				.offset						 = mesh_byte_offset,
+				.chunk_srv_id				 = 0,
 				.byte_size					 = static_cast<uint32>(header.meshlet_buffer_byte_size),
 				.meshlet_count				 = entry.get_mesh_header().meshlet_count,
 				.rt_index_buffer_elem_offset = rt_index_buffer_byte_offset / static_cast<uint32>(sizeof(uint32)),

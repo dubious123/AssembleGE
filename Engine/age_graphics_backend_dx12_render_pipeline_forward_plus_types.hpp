@@ -195,6 +195,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		t_mesh_id		id;
 		uint32			offset;
+		uint32			chunk_srv_id;
 		uint32			byte_size;
 		uint32			meshlet_count;
 		uint32			rt_index_buffer_elem_offset;

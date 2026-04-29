@@ -18,7 +18,7 @@ main_ms(in payload opaque_as_to_ms ms_in,
 	const uint32 meshlet_render_data_id				= ms_in.meshlet_32_group_idx * meshlet_count_per_group + not_culled_render_data_local_index;
 
 	const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(meshlet_render_data_id);
-	const mesh_header				 mesh_header = read_mesh_header(render_data.mesh_byte_offset);
+	const mesh_header				 mesh_header = read_mesh_header<opaque_meshlet_render_data>(render_data);
 	const meshlet					 mshlt		 = read_meshlet(mesh_header, render_data.meshlet_id);
 	const object_data				 obj_data	 = load_object_data(render_data.object_id);
 

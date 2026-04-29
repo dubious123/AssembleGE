@@ -97,7 +97,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		const rt_instance_render_data render_data = load_rt_instance_render_data(hit.rt_instance_render_data_id);
 		const object_data			  obj_data	  = load_object_data(render_data.object_id);
-		const mesh_header			  msh_header  = read_mesh_header(render_data.mesh_byte_offset);
+		const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
 		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
 
 		const vertex_encoded v_encoded_0 = read_vertex_encoded(msh_header, prim_index.x);

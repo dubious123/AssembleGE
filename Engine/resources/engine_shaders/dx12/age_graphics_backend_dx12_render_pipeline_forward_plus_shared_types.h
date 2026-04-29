@@ -254,6 +254,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint32 object_id;
 		uint32 mesh_byte_offset;
+		uint32 mesh_chunk_srv_id;
 		uint32 meshlet_id;
 	};
 
@@ -261,6 +262,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint32 object_id;
 		uint32 mesh_byte_offset;
+		uint32 mesh_chunk_srv_id;
 		uint32 rt_index_buffer_offset;
 		// todo mat_id
 	};
@@ -268,9 +270,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct mesh_header
 	{
 		// uint32 vertex_offset = sizeof(mesh_baked_header), sizeof(mesh_baked_header) == 20
-#if !defined(AGE_SHADER)
-#else
-	uint32 vertex_buffer_offset;	// not from gpu, calculated from read_mesh_header function
+#if defined(AGE_SHADER)
+		uint32				vertex_buffer_offset;	 // not from gpu, calculated from read_mesh_header function
+		byte_address_buffer mesh_chunk_srv;
 #endif
 
 		uint32 global_vertex_index_buffer_offset;
