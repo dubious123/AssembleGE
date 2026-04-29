@@ -139,8 +139,19 @@ namespace age::asset
 		auto&
 		get_entry() const noexcept;
 
+		template <e::kind>
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
 		inline std::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		template <e::kind>
+		std::array<char, config::max_asset_display_name_len>
+		get_display_name() const noexcept;
+
+		inline std::array<char, config::max_asset_display_name_len>
+		get_display_name() const noexcept;
 
 		bool
 		operator==(const handle&) const noexcept = default;

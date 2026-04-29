@@ -334,10 +334,10 @@ namespace age::editor
 		using enum input::e::key_kind;
 		using enum ui::e::style_state;
 
-		c_auto* p_text = "invalid mesh";
+		auto display_name = std::array<char, config::max_asset_display_name_len>{ "invalid mesh" };
 		if (runtime::is_handle_invalid(mesh.h_mesh) is_false)
 		{
-			p_text = mesh.h_mesh.get_path().data();
+			display_name = mesh.h_mesh.get_display_name<asset::e::kind::mesh_baked>();
 		}
 
 		auto open	= false;
@@ -358,7 +358,7 @@ namespace age::editor
 
 			if (auto _ = widget::frame(style_state, set_width_fit(), set_height_fit()))
 			{
-				widget::text_button(p_text);
+				widget::text_button(display_name.data());
 			}
 
 			auto& state = btn.get_state();
@@ -377,7 +377,7 @@ namespace age::editor
 			{
 				auto id = id_begin();
 
-				if (auto sel = widget::button(h.get_path().data()))
+				if (auto sel = widget::button(h.get_display_name<asset::e::kind::mesh_baked>().data()))
 				{
 					if (sel.clicked())
 					{
@@ -687,6 +687,74 @@ namespace age::editor
 		{
 			AGE_UNREACHABLE();
 		}
+		}
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	void
+	ui_asset() noexcept
+	{
+		using namespace ui;
+		if (auto _ = widget::panel())
+		{
+			if (auto _ = widget::begin(style::horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(style::panel() | set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::begin(style::text_title("assets") | set_align_begin());
+				}
+
+				if (auto h_btn = widget::button("+ new", set_align_center()))
+				{
+					if (h_btn.clicked())
+					{
+						g::modal_kind = e::modal_kind::new_asset;
+						g::show_modal = !g::show_modal;
+					}
+				}
+			}
+
+			widget::separator_v();
+
+
+			asset::for_each_kind(
+				AGE_LAMBDA(
+					<asset::e::kind e_kind>(),
+					{
+						auto id_0 = id_begin();
+						if (asset::registry::all(e_kind).size() > 0)
+						{
+							widget::text_heading(asset::e::to_string(e_kind).data());
+						}
+
+						auto h_asset_remove = asset::handle{};
+
+						for (c_auto h : asset::registry::all(e_kind))
+						{
+							auto id_0 = id_begin();
+							// c_auto& display_name = h.get_display_name();
+							auto _0 = widget::begin(style::section() | set_horizontal() | set_width_grow() | set_height_fit());
+
+							c_auto display_name = h.get_display_name();
+							widget::begin(style::text(display_name.data()));
+
+							auto _1 = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_fit());
+							auto _2 = widget::begin(set_align_end() | set_width_fit() | set_height_fit());
+
+							auto btn_remove_asset = widget::button("X");
+							if (btn_remove_asset.clicked())
+							{
+								h_asset_remove = h;
+							}
+						}
+
+						if (runtime::is_handle_invalid(h_asset_remove) is_false)
+						{
+							asset::registry::unregister_asset(h_asset_remove);
+						}
+					}));
 		}
 	}
 }	 // namespace age::editor

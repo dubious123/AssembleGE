@@ -53,35 +53,7 @@ namespace age_demo::scene_3
 
 				if (auto _ = widget::begin(style::panel() | set_width_grow() | set_height_grow()))
 				{
-					if (auto _ = widget::panel())
-					{
-						age::editor::ui_asset();
-
-						if (auto _ = widget::begin(style::horizontal() | set_width_grow() | set_height_fit()))
-						{
-							if (auto _ = widget::begin(style::panel() | set_vertical() | set_width_grow() | set_height_fit()))
-							{
-								widget::begin(style::text_title("assets") | set_align_begin());
-							}
-
-							if (auto h_btn = widget::button("+ new", set_align_center()))
-							{
-								if (h_btn.clicked())
-								{
-									age::editor::g::modal_kind = age::editor::e::modal_kind::new_asset;
-									age::editor::g::show_modal = !age::editor::g::show_modal;
-								}
-							}
-						}
-
-						widget::separator_v();
-
-						for (c_auto h : age::asset::registry::all(age::asset::e::kind::mesh_baked))
-						{
-							c_auto& path = h.get_path();
-							widget::text(path.data());
-						}
-					}
+					age::editor::ui_asset();
 				}
 			}
 

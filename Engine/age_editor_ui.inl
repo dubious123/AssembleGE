@@ -472,10 +472,8 @@ namespace age::editor
 		}
 	}
 
-	inline void
-	ui_asset() noexcept
-	{
-	}
+	void
+	ui_asset() noexcept;
 
 	void
 	ui_modal() noexcept;

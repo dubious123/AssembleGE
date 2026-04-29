@@ -33,6 +33,14 @@ namespace age::asset
 	void
 	destroy_entry(handle&) noexcept;
 
+	template <e::kind e_kind>
+	std::array<char, config::max_asset_display_name_len>
+	get_display_name(const std::array<char, config::max_asset_path_len>&) noexcept;
+
+	template <e::kind e_kind>
+	consteval const auto&
+	get_asset_tag() noexcept;
+
 	AGE_DEFINE_ASSET_KIND(font, mesh_baked);
 }	 // namespace age::asset
 

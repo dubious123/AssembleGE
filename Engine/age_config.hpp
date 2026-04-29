@@ -165,6 +165,7 @@ namespace age::config
 	inline constexpr auto max_archetype_name_len	  = 128u;
 	inline constexpr auto max_component_name_len	  = 64u;
 	inline constexpr auto max_asset_path_len		  = 108u;
+	inline constexpr auto max_asset_display_name_len  = 64u;
 
 	inline constexpr auto max_enum_name_len = 64u;
 
