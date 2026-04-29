@@ -718,7 +718,6 @@ namespace age::editor
 
 			widget::separator_v();
 
-
 			asset::for_each_kind(
 				AGE_LAMBDA(
 					<asset::e::kind e_kind>(),

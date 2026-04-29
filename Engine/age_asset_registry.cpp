@@ -106,6 +106,13 @@ namespace age::asset::registry
 		ranges::erase(g::registry_map[to_idx(asset_kind)], h);
 	}
 
+	bool
+	is_registered(asset::handle h) noexcept
+	{
+		auto& map = g::registry_path_to_handle_map[to_idx(h.get_kind())];
+		return map.find(h.get_path()) != map.end();
+	}
+
 	asset::handle
 	find(e::kind e_kind, const char* path) noexcept
 	{

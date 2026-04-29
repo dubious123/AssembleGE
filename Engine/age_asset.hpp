@@ -101,7 +101,7 @@ namespace age::asset::mesh_baked
 	gpu_load(std::string_view mesh_name, auto& renderer, const primitive_desc&, e::vertex_kind) noexcept;
 
 	void
-	gpu_load(handle& h_mesh, auto& renderer) noexcept;
+	gpu_load(handle h_mesh, auto& renderer) noexcept;
 
 	handle
 	gpu_load(std::string_view mesh_name, auto& renderer) noexcept;

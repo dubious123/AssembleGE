@@ -118,7 +118,7 @@ namespace age::asset::mesh_baked
 	}
 
 	void
-	gpu_load(handle& h_mesh, auto& renderer) noexcept
+	gpu_load(handle h_mesh, auto& renderer) noexcept
 	{
 		auto& entry = h_mesh.get_entry<e::kind::mesh_baked>();
 		if (entry.is_gpu_loaded())

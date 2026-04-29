@@ -82,6 +82,16 @@ namespace age::editor::detail
 	{
 		using namespace ecs;
 		// todo
+		for (auto&& [mesh] : ecs_storage | each_entity<mesh>())
+		{
+			if (runtime::is_handle_invalid(mesh.h_mesh)) { continue; }
+
+			if (asset::registry::is_registered<asset::e::kind::mesh_baked>(mesh.h_mesh) is_false)
+			{
+				mesh.update_h_mesh(asset::handle{});
+			}
+		}
+
 		for (auto&& [light] : ecs_storage | each_entity<directional_light>())
 		{
 			renderer.update_directional_light(light.render_id,
@@ -125,12 +135,22 @@ namespace age::editor
 	{
 		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-		for (auto h_mesh : asset::registry::all(asset::e::kind::mesh_baked))
+		using enum age::asset::e::kind;
+
+		auto& pool = asset::pool_of<mesh_baked>();
+		for (auto it = pool.begin(); it != pool.end(); ++it)
 		{
-			c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+			auto  h_mesh = asset::handle::make<mesh_baked>(it.idx<uint32>());
+			auto& entry	 = h_mesh.get_entry<mesh_baked>();
+
 			if (entry.ref_counter == 0)
 			{
 				asset::mesh_baked::full_unload(h_mesh, renderer);
+
+				if (asset::registry::is_registered<mesh_baked>(h_mesh) is_false)
+				{
+					asset::destroy_entry<mesh_baked>(h_mesh);
+				}
 			}
 
 			if (entry.ref_counter > 0)
