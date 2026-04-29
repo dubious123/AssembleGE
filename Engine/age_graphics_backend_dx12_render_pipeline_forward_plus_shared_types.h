@@ -1,6 +1,5 @@
 #pragma once
-
-#define UV_COUNT 2
+#define MAX_UV_COUNT 2
 
 // static buffer offset
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
@@ -103,6 +102,34 @@
 #define UI_SHAPE_KIND_CROSS		   7
 
 #define UI_BRUSH_KIND_COLOR 0
+
+// mesh enum
+
+#define VERTEX_KIND_P_UV0	0
+#define VERTEX_KIND_PN_UV0	1
+#define VERTEX_KIND_PNT_UV0 2
+#define VERTEX_KIND_P_UV1	3
+#define VERTEX_KIND_PN_UV1	4
+#define VERTEX_KIND_PNT_UV1 5
+#define VERTEX_KIND_P_UV2	6
+#define VERTEX_KIND_PN_UV2	7
+#define VERTEX_KIND_PNT_UV2 8
+#define VERTEX_KIND_P_UV3	9
+#define VERTEX_KIND_PN_UV3	10
+#define VERTEX_KIND_PNT_UV3 11
+
+#define VERTEX_SIZE_P_UV0	12
+#define VERTEX_SIZE_PN_UV0	12
+#define VERTEX_SIZE_PNT_UV0 16
+#define VERTEX_SIZE_P_UV1	16
+#define VERTEX_SIZE_PN_UV1	16
+#define VERTEX_SIZE_PNT_UV1 20
+#define VERTEX_SIZE_P_UV2	20
+#define VERTEX_SIZE_PN_UV2	20
+#define VERTEX_SIZE_PNT_UV2 24
+#define VERTEX_SIZE_P_UV3	24
+#define VERTEX_SIZE_PN_UV3	24
+#define VERTEX_SIZE_PNT_UV3 28
 
 
 #if !defined(AGE_SHADER)
@@ -209,45 +236,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 vertex_count_prim_count_extra;	 // [vertex_count(8bit)][primitive_count(8bit)][extra(16bit)]
 	};
 
-	struct vertex_encoded
-	{
-		uint16_3 pos;
-		uint16	 normal_oct;
-		uint16	 tangent_oct;
-		uint16	 extra;
-#if UV_COUNT > 0
-		half2 uv_set[UV_COUNT];
-#endif
-	};
-
-	struct vertex_decoded
-	{
-		float4 pos	   semantics(SV_Position);
-		float3 normal  semantics(NORMAL);
-		float4 tangent semantics(TANGENT);
-
-		// clang-format off
-#if UV_COUNT >= 1
-		half2 uv0 semantics(TEXCOORD0);
-#endif
-#if UV_COUNT >= 2
-		half2 uv1 semantics(TEXCOORD1);
-#endif
-#if UV_COUNT >= 3
-		half2 uv2 semantics(TEXCOORD2);
-#endif
-#if UV_COUNT >= 4
-		half2 uv3 semantics(TEXCOORD3);
-#endif
-		// clang-format on
-	};
-
 	struct object_data
 	{
-		float3	 pos;			// 12
-		uint32	 quaternion;	// 4 | 10 10 10 2
-		half3	 scale;			// 6
-		uint16_t extra;			// 2
+		float3	 pos;							 // 12
+		uint32	 quaternion;					 // 4 | 10 10 10 2
+		half3	 scale;							 // 6
+		uint16_t extra;							 // 2
 	};	  // total: 24 bytes
 
 	struct opaque_meshlet_render_data
@@ -275,6 +269,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		byte_address_buffer mesh_chunk_srv;
 #endif
 
+		uint32 vertex_kind_and_extra;
 		uint32 global_vertex_index_buffer_offset;
 		uint32 local_vertex_index_buffer_offset;
 		uint32 meshlet_header_buffer_offset;
@@ -383,12 +378,49 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(SORT_THREAD_COUNT > 0);
 	static_assert(std::popcount<uint32>(SORT_THREAD_COUNT) == 1);
 
+	static_assert(UI_SHAPE_KIND_RECT == to_idx(age::ui::e::shape_kind::rect));
+	static_assert(UI_SHAPE_KIND_CIRCLE == to_idx(age::ui::e::shape_kind::circle));
+	static_assert(UI_SHAPE_KIND_ARROW_RIGHT == to_idx(age::ui::e::shape_kind::arrow_right));
+	static_assert(UI_SHAPE_KIND_TEXT == to_idx(age::ui::e::shape_kind::text));
+	static_assert(UI_SHAPE_KIND_CHECK == to_idx(age::ui::e::shape_kind::check));
+	static_assert(UI_SHAPE_KIND_ROUNDED_RECT == to_idx(age::ui::e::shape_kind::rounded_rect));
+	static_assert(UI_SHAPE_KIND_TRIANGLE == to_idx(age::ui::e::shape_kind::triangle));
+	static_assert(UI_SHAPE_KIND_CROSS == to_idx(age::ui::e::shape_kind::cross));
+	static_assert(UI_BRUSH_KIND_COLOR == to_idx(age::ui::e::brush_kind::color));
+
+	static_assert(VERTEX_KIND_P_UV0 == to_idx(age::asset::e::vertex_kind::p_uv0));
+	static_assert(VERTEX_KIND_PN_UV0 == to_idx(age::asset::e::vertex_kind::pn_uv0));
+	static_assert(VERTEX_KIND_PNT_UV0 == to_idx(age::asset::e::vertex_kind::pnt_uv0));
+	static_assert(VERTEX_KIND_P_UV1 == to_idx(age::asset::e::vertex_kind::p_uv1));
+	static_assert(VERTEX_KIND_PN_UV1 == to_idx(age::asset::e::vertex_kind::pn_uv1));
+	static_assert(VERTEX_KIND_PNT_UV1 == to_idx(age::asset::e::vertex_kind::pnt_uv1));
+	static_assert(VERTEX_KIND_P_UV2 == to_idx(age::asset::e::vertex_kind::p_uv2));
+	static_assert(VERTEX_KIND_PN_UV2 == to_idx(age::asset::e::vertex_kind::pn_uv2));
+	static_assert(VERTEX_KIND_PNT_UV2 == to_idx(age::asset::e::vertex_kind::pnt_uv2));
+	static_assert(VERTEX_KIND_P_UV3 == to_idx(age::asset::e::vertex_kind::p_uv3));
+	static_assert(VERTEX_KIND_PN_UV3 == to_idx(age::asset::e::vertex_kind::pn_uv3));
+	static_assert(VERTEX_KIND_PNT_UV3 == to_idx(age::asset::e::vertex_kind::pnt_uv3));
+
+	static_assert(VERTEX_SIZE_P_UV0 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv0>));
+	static_assert(VERTEX_SIZE_PN_UV0 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv0>));
+	static_assert(VERTEX_SIZE_PNT_UV0 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv0>));
+	static_assert(VERTEX_SIZE_P_UV1 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv1>));
+	static_assert(VERTEX_SIZE_PN_UV1 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv1>));
+	static_assert(VERTEX_SIZE_PNT_UV1 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv1>));
+	static_assert(VERTEX_SIZE_P_UV2 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv2>));
+	static_assert(VERTEX_SIZE_PN_UV2 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv2>));
+	static_assert(VERTEX_SIZE_PNT_UV2 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv2>));
+	static_assert(VERTEX_SIZE_P_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv3>));
+	static_assert(VERTEX_SIZE_PN_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv3>));
+	static_assert(VERTEX_SIZE_PNT_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv3>));
+
+
 	#undef reg
 	#undef cbuffer
 	#undef row_major
 	#undef semantics
 
-	#undef UV_COUNT
+	#undef MAX_UV_COUNT
 
 	// static buffer offset
 	#undef MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT
@@ -453,7 +485,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef OBJECT_DATA_OFFSET
 	#undef DIRECTIONAL_LIGHT_OFFSET
 	#undef UNIFIED_LIGHT_OFFSET
-	#undef SHADOW_LIGHT_HEADER_OFFSET
 	#undef STATIC_BUFFER_SIZE
 
 	// scratch
@@ -483,6 +514,33 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef UI_SHAPE_KIND_CIRCLE
 
 	#undef UI_BRUSH_KIND_COLOR
+
+	#undef VERTEX_KIND_P_UV0
+	#undef VERTEX_KIND_PN_UV0
+	#undef VERTEX_KIND_PNT_UV0
+	#undef VERTEX_KIND_P_UV1
+	#undef VERTEX_KIND_PN_UV1
+	#undef VERTEX_KIND_PNT_UV1
+	#undef VERTEX_KIND_P_UV2
+	#undef VERTEX_KIND_PN_UV2
+	#undef VERTEX_KIND_PNT_UV2
+	#undef VERTEX_KIND_P_UV3
+	#undef VERTEX_KIND_PN_UV3
+	#undef VERTEX_KIND_PNT_UV3
+
+
+	#undef VERTEX_SIZE_P_UV0
+	#undef VERTEX_SIZE_PN_UV0
+	#undef VERTEX_SIZE_PNT_UV0
+	#undef VERTEX_SIZE_P_UV1
+	#undef VERTEX_SIZE_PN_UV1
+	#undef VERTEX_SIZE_PNT_UV1
+	#undef VERTEX_SIZE_P_UV2
+	#undef VERTEX_SIZE_PN_UV2
+	#undef VERTEX_SIZE_PNT_UV2
+	#undef VERTEX_SIZE_P_UV3
+	#undef VERTEX_SIZE_PN_UV3
+	#undef VERTEX_SIZE_PNT_UV3
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

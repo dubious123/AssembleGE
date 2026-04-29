@@ -35,16 +35,11 @@ main_ms(in payload opaque_as_to_ms ms_in,
 
 	for (uint32 nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += 32)
 	{
-		const uint32		 global_vertex_index = read_global_vertex_index(mesh_header, mshlt, nth_vertex);
-		const vertex_encoded v_encoded			 = read_vertex_encoded(mesh_header, global_vertex_index);
+		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
 
-		const float3 pos_local = (cast<float3>(v_encoded.pos)) / 65535.f
-								   * mesh_header.aabb_size
-							   + mesh_header.aabb_min;
+		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
 
-		const float3 pos_world = rotate(pos_local * scale, quaternion) + pos;
-
-		ms_out_vertex_arr[nth_vertex].pos = mul(view_proj, float4(pos_world, 1.0f));
+		ms_out_vertex_arr[nth_vertex].pos = mul(view_proj, v.pos);
 	}
 
 	expand(4)

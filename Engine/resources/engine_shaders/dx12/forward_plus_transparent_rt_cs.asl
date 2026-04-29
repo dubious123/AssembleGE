@@ -100,13 +100,9 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
 		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
 
-		const vertex_encoded v_encoded_0 = read_vertex_encoded(msh_header, prim_index.x);
-		const vertex_encoded v_encoded_1 = read_vertex_encoded(msh_header, prim_index.y);
-		const vertex_encoded v_encoded_2 = read_vertex_encoded(msh_header, prim_index.z);
-
-		const vertex_decoded v_decoded_0 = decode_vertex<vertex_decoded>(v_encoded_0, msh_header.aabb_min, msh_header.aabb_size);
-		const vertex_decoded v_decoded_1 = decode_vertex<vertex_decoded>(v_encoded_1, msh_header.aabb_min, msh_header.aabb_size);
-		const vertex_decoded v_decoded_2 = decode_vertex<vertex_decoded>(v_encoded_2, msh_header.aabb_min, msh_header.aabb_size);
+		const vertex_fat v_decoded_0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v_decoded_1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v_decoded_2 = decode_vertex(msh_header, prim_index.z);
 
 		const float3 bary_weights = float3(1.f - hit.barycentrics.x - hit.barycentrics.y,
 										   hit.barycentrics.x,

@@ -681,11 +681,9 @@ cross(float3, float3)
 	#define sv_thread_id
 	#define sv_group_id
 	#define sv_group_thread_id
-	#define sv_position
 	#define sv_target_0
-	#define tex_coord_0
-	#define tex_coord_1
 	#define sv_is_front_face
+	#define sv_position
 	#define numthreads(x, y, z) [force_inline]
 
 
@@ -701,7 +699,8 @@ cross(float3, float3)
 	#define indices
 	#define payload
 	#define set_mesh_output_counts(x, y)
-	#define expand(...) [[assume(true)]]
+	#define expand(...)	 [[assume(true)]]
+	#define expand_all() [[assume(true)]]
 	#define groupshared
 
 	#define group_memory_barrier_with_sync()
@@ -752,13 +751,10 @@ cross(float3, float3)
 	#define sv_dispatch_thread_id : SV_DispatchThreadID
 	#define sv_thread_id : SV_ThreadID
 	#define sv_group_id : SV_GroupID
-	#define sv_position : SV_Position
-	#define sv_target_0 : SV_Target0
 	#define sv_group_thread_id : SV_GroupThreadID
+	#define sv_target_0 : SV_Target0
 	#define sv_is_front_face : SV_IsFrontFace
-
-	#define tex_coord_0 : tex_coord_0
-	#define tex_coord_1 : tex_coord_1
+	#define sv_position : SV_Position
 
 
 	#define reg(...) : register(__VA_ARGS__)
@@ -766,6 +762,7 @@ cross(float3, float3)
 	#define output_topology(x)				 outputtopology(x)
 	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
 	#define expand(x)						 [unroll(x)]
+	#define expand_all()					 [unroll]
 	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
 
 	#define interlocked_add(...)		  InterlockedAdd(__VA_ARGS__)

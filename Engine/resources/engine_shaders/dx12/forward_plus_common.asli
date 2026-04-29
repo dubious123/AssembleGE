@@ -286,40 +286,18 @@ struct opaque_as_to_ms
 	uint32 meshlet_alive_mask;
 };
 
-struct opaque_ms_to_ps
-{
-	float4 pos		 sv_position;
-	float3 world_pos semantics(WORLD_POS);
-	float3 normal	 semantics(NORMAL);
-	// nointerpolation uint32 meshlet_render_data_id  : MESHLET_INDEX;
-	float4 tangent semantics(TANGENT);
-
-#if UV_COUNT >= 1
-	half2 uv0 semantics(TEXCOORD0);
-#endif
-#if UV_COUNT >= 2
-	half2 uv1 semantics(TEXCOORD1);
-#endif
-#if UV_COUNT >= 3
-	half2 uv2 semantics(TEXCOORD2);
-#endif
-#if UV_COUNT >= 4
-	half2 uv3 semantics(TEXCOORD3);
-#endif
-};
-
 // light culling tile mask
 struct tile_mask_ms_to_ps
 {
 	float4 pos						 sv_position;
-	nointerpolation uint32 sorted_id semantics(SORTED_ID);
+	nointerpolation uint32 sorted_id semantics(sorted_id);
 };
 
 // presentation
 
 struct presentation_ps_out
 {
-	float4 color sv_target_0;
+	float4 color semantics(color);
 };
 
 #line 1 "age_light.asli"

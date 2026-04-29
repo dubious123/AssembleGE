@@ -3,11 +3,11 @@
 
 [numthreads(32, 1, 1)][output_topology("triangle")] void
 main_ms(
-	in payload opaque_as_to_ms	 ms_in,
-	uint32_3 group_id			 sv_group_id,
-	uint32_3 group_thread_id	 sv_group_thread_id,
-	out vertices opaque_ms_to_ps ms_out_vertex_arr[64],
-	out indices uint32_3		 ms_out_triangle_arr[126])
+	in payload opaque_as_to_ms ms_in,
+	uint32_3 group_id		   sv_group_id,
+	uint32_3 group_thread_id   sv_group_thread_id,
+	out vertices vertex_fat	   ms_out_vertex_arr[64],
+	out indices uint32_3	   ms_out_triangle_arr[126])
 
 {
 	const uint32 meshlet_count_per_group			= 32;
@@ -32,13 +32,7 @@ main_ms(
 
 	for (uint32 nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += 32)
 	{
-		const uint32		 global_vertex_index = read_global_vertex_index(mesh_header, mshlt, nth_vertex);
-		const vertex_encoded v_encoded			 = read_vertex_encoded(mesh_header, global_vertex_index);
-
-		const float3 aabb_min  = mesh_header.aabb_min;
-		const float3 aabb_size = mesh_header.aabb_size;
-
-		opaque_ms_to_ps v = decode_vertex<opaque_ms_to_ps>(v_encoded, aabb_min, aabb_size);
+		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
 
 		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
 
@@ -51,8 +45,6 @@ main_ms(
 		const float3 t = normalize(rotate(v.tangent.xyz * scale, quaternion));
 
 		v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
-
-		// v.meshlet_render_data_id = meshlet_render_data_id;
 
 		ms_out_vertex_arr[nth_vertex] = v;
 	}

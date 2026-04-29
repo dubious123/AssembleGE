@@ -52,7 +52,7 @@ sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_norm
 }
 
 float4
-main_ps(opaque_ms_to_ps fragment) sv_target_0
+main_ps(vertex_fat fragment) sv_target_0
 {
 	const float3 ambient_light = float3(0.03, 0.03, 0.03);
 	const float3 albedo		   = float3(0.8, 0.8, 0.8);

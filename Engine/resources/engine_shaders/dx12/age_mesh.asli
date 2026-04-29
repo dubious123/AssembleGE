@@ -14,6 +14,16 @@ struct mesh_header_raw
 	uint32 reserved[4];							 // 16
 };	  // total : 64
 
+struct vertex_fat
+{
+	float4 pos		 sv_position;
+	float3 world_pos semantics(world_pos);
+	float3 normal	 semantics(normal);
+	float4 tangent	 semantics(tangent);
+
+	float2 uv_set[MAX_UV_COUNT] semantics(uv_set);
+};
+
 byte_address_buffer
 get_mesh_chunk_srv(uint32 mesh_chunk_srv_id)
 {
@@ -43,7 +53,8 @@ read_mesh_header_impl(uint32 mesh_chunk_srv_id, uint32 mesh_byte_offset)
 	res.aabb_min						  = raw.aabb_min;
 	res.aabb_size						  = raw.aabb_size;
 
-	res.mesh_chunk_srv = mesh_chunk_srv;
+	res.mesh_chunk_srv		  = mesh_chunk_srv;
+	res.vertex_kind_and_extra = raw.vertex_kind_and_extra;
 	return res;
 }
 
@@ -90,87 +101,69 @@ read_global_vertex_index(mesh_header header, meshlet mshlt, uint32 vertex_idx)
 	return load<uint32>(header.mesh_chunk_srv, header.global_vertex_index_buffer_offset + (mshlt.global_index_offset + vertex_idx) * sizeof(uint32));
 }
 
-vertex_encoded
-read_vertex_encoded(mesh_header header, uint32 global_vertex_idx)
+template <uint32 uv_count, uint32 vertex_size>
+void
+decode_vertex_pnt(mesh_header header, uint32 global_vertex_idx, out vertex_fat res)
 {
-	vertex_encoded res;
-	uint32		   offset = header.vertex_buffer_offset + global_vertex_idx * sizeof(vertex_encoded);
+	uint32 offset = header.vertex_buffer_offset + global_vertex_idx * vertex_size;
 
-	uint32_3 raw3 = load<uint32_3>(header.mesh_chunk_srv, offset);
+	const uint32_3 raw3 = load<uint32_3>(header.mesh_chunk_srv, offset);
 
-	res.pos = uint16_3(
+	const uint16_3 pos_encoded = uint16_3(
 		uint32_lower_to_uint16(raw3.x),
 		uint32_upper_to_uint16(raw3.x),
 		uint32_lower_to_uint16(raw3.y));
 
-	res.normal_oct	= uint32_upper_to_uint16(raw3.y);
-	res.tangent_oct = uint32_lower_to_uint16(raw3.z);
-	res.extra		= uint32_upper_to_uint16(raw3.z);
+
+	const uint16 normal_oct	 = uint32_upper_to_uint16(raw3.y);
+	const uint16 tangent_oct = uint32_lower_to_uint16(raw3.z);
+	const uint16 extra		 = uint32_upper_to_uint16(raw3.z);
 
 	offset += sizeof(raw3);
-#if UV_COUNT >= 1
+
+	res.pos.xyz = cast<float3>(pos_encoded)
+					/ 65535.f
+					* header.aabb_size
+				+ header.aabb_min;
+	res.pos.w	= 1.f;
+	res.normal	= decode_oct_snorm(normal_oct);
+
+	res.tangent = float4(decode_oct_snorm(tangent_oct),
+						 2.0f * float(extra & 1u) - 1.f);
+
+	expand_all()
+
+	for (uint32 i = 0; i < uv_count; ++i)
 	{
 		uint32 raw	   = load<uint32>(header.mesh_chunk_srv, offset);
-		res.uv_set[0]  = uint32_to_half2(raw);
+		res.uv_set[i]  = uint32_to_half2(raw);
 		offset		  += sizeof(half2);
 	}
-#endif
-#if UV_COUNT >= 2
-	{
-		uint32 raw	   = load<uint32>(header.mesh_chunk_srv, offset);
-		res.uv_set[1]  = uint32_to_half2(raw);
-		offset		  += sizeof(half2);
-	}
-#endif
-#if UV_COUNT >= 3
-	{
-		uint32 raw	   = load<uint32>(header.mesh_chunk_srv, offset);
-		res.uv_set[2]  = uint32_to_half2(raw);
-		offset		  += sizeof(half2);
-	}
-#endif
-#if UV_COUNT >= 4
-	{
-		uint32 raw	   = load<uint32>(header.mesh_chunk_srv, offset);
-		res.uv_set[3]  = uint32_to_half2(raw);
-		offset		  += sizeof(half2);
-	}
-#endif
-	return res;
 }
 
-template <typename t_res>
-t_res
-decode_vertex(const vertex_encoded v_encoded, const float3 aabb_min, const float3 aabb_size)
+vertex_fat
+decode_vertex(mesh_header header, uint32 global_vertex_idx)
 {
-	float3 pos_decoded = cast<float3>(v_encoded.pos)
-						   / 65535.f
-						   * aabb_size
-					   + aabb_min;
+	vertex_fat res = (vertex_fat)0;
 
-	float3 normal_decoded = decode_oct_snorm(v_encoded.normal_oct);
-
-	float4 tangent_decoded = float4(
-		decode_oct_snorm(v_encoded.tangent_oct),
-		2.0f * float(v_encoded.extra & 1u) - 1.f);
-
-	t_res res;
-
-	res.pos		= float4(pos_decoded, 1.f);
-	res.normal	= normal_decoded;
-	res.tangent = tangent_decoded;
-#if UV_COUNT >= 1
-	res.uv0 = v_encoded.uv_set[0];
-#endif
-#if UV_COUNT >= 2
-	res.uv1 = v_encoded.uv_set[1];
-#endif
-#if UV_COUNT >= 3
-	res.uv2 = v_encoded.uv_set[2];
-#endif
-#if UV_COUNT >= 4
-	res.uv3 = v_encoded.uv_set[3];
-#endif
+	switch (header.vertex_kind_and_extra & 0xff)
+	{
+	case VERTEX_KIND_PNT_UV0:
+	{
+		decode_vertex_pnt<1u, VERTEX_SIZE_PNT_UV0>(header, global_vertex_idx, res);
+		break;
+	}
+	case VERTEX_KIND_PNT_UV1:
+	{
+		decode_vertex_pnt<2u, VERTEX_SIZE_PNT_UV1>(header, global_vertex_idx, res);
+		break;
+	}
+	default:
+	{
+		// todo shader assert
+		break;
+	}
+	}
 
 	return res;
 }
