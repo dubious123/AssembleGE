@@ -225,6 +225,8 @@ namespace age::asset
 	struct mesh_baked_header
 	{
 		// uint32 vertex_offset = sizeof(mesh_baked_header)
+		uint32 vertex_kind_and_extra;	 // [0:7] kind, [8:31] flags
+
 		uint32 global_vertex_index_buffer_offset;
 		uint32 local_vertex_index_buffer_offset;
 		uint32 meshlet_header_buffer_offset;
@@ -232,6 +234,8 @@ namespace age::asset
 		uint32 meshlet_count;
 		float3 aabb_min;
 		float3 aabb_size;
+
+		uint32 reserved[4];
 	};
 }	 // namespace age::asset
 

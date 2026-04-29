@@ -116,6 +116,12 @@ namespace age_demo::scene_3
 							continue;
 						}
 
+						if (auto& entry = mesh.h_mesh.get_entry<age::asset::e::kind::mesh_baked>();
+							entry.is_gpu_loaded() is_false)
+						{
+							continue;
+						}
+
 						if (mat.is_opaque)
 						{
 							i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh);

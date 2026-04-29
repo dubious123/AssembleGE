@@ -3,14 +3,16 @@
 
 struct mesh_header_raw
 {
-	uint32 global_vertex_index_buffer_offset;
-	uint32 local_vertex_index_buffer_offset;
-	uint32 meshlet_header_buffer_offset;
-	uint32 meshlet_buffer_offset;
-	uint32 meshlet_count;
-	float3 aabb_min;
-	float3 aabb_size;
-};
+	uint32 vertex_kind_and_extra;				 // 4
+	uint32 global_vertex_index_buffer_offset;	 // 4
+	uint32 local_vertex_index_buffer_offset;	 // 4
+	uint32 meshlet_header_buffer_offset;		 // 4
+	uint32 meshlet_buffer_offset;				 // 4
+	uint32 meshlet_count;						 // 4
+	float3 aabb_min;							 // 12
+	float3 aabb_size;							 // 12
+	uint32 reserved[4];							 // 16
+};	  // total : 64
 
 byte_address_buffer
 get_mesh_chunk_srv(uint32 mesh_chunk_srv_id)
@@ -36,7 +38,7 @@ read_mesh_header_impl(uint32 mesh_chunk_srv_id, uint32 mesh_byte_offset)
 	res.local_vertex_index_buffer_offset  = mesh_byte_offset + raw.local_vertex_index_buffer_offset;
 	res.meshlet_header_buffer_offset	  = mesh_byte_offset + raw.meshlet_header_buffer_offset;
 	res.meshlet_buffer_offset			  = mesh_byte_offset + raw.meshlet_buffer_offset;
-	res.vertex_buffer_offset			  = 44 + mesh_byte_offset;
+	res.vertex_buffer_offset			  = sizeof(mesh_header_raw) + mesh_byte_offset;
 	res.meshlet_count					  = raw.meshlet_count;
 	res.aabb_min						  = raw.aabb_min;
 	res.aabb_size						  = raw.aabb_size;

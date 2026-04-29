@@ -314,9 +314,10 @@ namespace age::asset::mesh_baked::detail
 			AGE_ASSERT(mesh_header.local_vertex_index_buffer_offset % 4 == 0);
 			buf.write_bytes(meshlet_local_index_buffer.data(), meshlet_local_index_buffer.byte_size());
 
-			mesh_header.meshlet_count = meshlet_vec.size<uint32>();
-			mesh_header.aabb_min	  = aabb_min;
-			mesh_header.aabb_size	  = aabb_size;
+			mesh_header.meshlet_count		  = meshlet_vec.size<uint32>();
+			mesh_header.aabb_min			  = aabb_min;
+			mesh_header.aabb_size			  = aabb_size;
+			mesh_header.vertex_kind_and_extra = to_idx(e_kind);
 
 			asset_header.meshlet_buffer_byte_size = buf.size() - base;
 			asset_header.index_count			  = meshlet_local_index_buffer.size<uint32>();
