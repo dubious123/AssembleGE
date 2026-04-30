@@ -64,6 +64,13 @@ namespace age
 			static_assert(false, "invalid id type");
 		}
 	}
+
+	template <typename t>
+	consteval t
+	get_invalid_idx() noexcept
+	{
+		return get_invalid_id<t>();
+	}
 }	 // namespace age
 
 static_assert(sizeof(float32) == 4);

@@ -252,3 +252,4 @@ namespace age::inline data_structure
 #endif
 
 #include "age_data_structure_byte_buffer.hpp"
+#include "age_data_structure_offset_pool.hpp"

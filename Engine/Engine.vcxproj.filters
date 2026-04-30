@@ -92,6 +92,7 @@
     <ClInclude Include="age_editor_save_load.inl" />
     <ClInclude Include="age_ui.inl" />
     <ClInclude Include="age_util_allocator.hpp" />
+    <ClInclude Include="age_data_structure_offset_pool.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
