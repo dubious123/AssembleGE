@@ -140,7 +140,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::deinit() noexcept
 	{
-		mesh_byte_offset			= 0;
+		mesh_persistant_offset_pool.clear();
 		rt_index_buffer_byte_offset = 0;
 
 		for (auto& vec : opaque_meshlet_render_data_vec | std::views::join)
@@ -591,16 +591,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto& entry  = h_mesh.get_entry<mesh_baked>();
 		c_auto& header = entry.get_header();
 
-		AGE_ASSERT(header.meshlet_buffer_byte_size < std::numeric_limits<uint32>::max() - mesh_byte_offset);
+		AGE_ASSERT(mesh_persistant_offset_pool.capacity() < std::numeric_limits<uint32>::max() - header.meshlet_buffer_byte_size);
 		AGE_ASSERT(header.meshlet_buffer_byte_size % 4 == 0);
 
 		c_auto flat_index_arr = std::span<const uint32>{ reinterpret_cast<const uint32*>(entry.index_buffer_data()), header.index_count };
 		auto&  i			  = flat_index_arr[header.index_count - 1];
 		c_auto vertex_pos_arr = std::span<const float3>{ reinterpret_cast<const float3*>(entry.pos_buffer_data()), header.pos_count };
 
-		c_auto mesh_required_size = mesh_byte_offset + header.meshlet_buffer_byte_size;
-		c_auto mesh_need_resize	  = h_mapping_mesh_buffer->h_resource->buffer_size() < mesh_required_size;
-		c_auto mesh_new_size	  = std::max(mesh_required_size, h_mapping_mesh_buffer->h_resource->buffer_size() * 2);
+		auto   mesh_byte_offset = mesh_persistant_offset_pool.allocate(header.meshlet_buffer_byte_size);
+		c_auto mesh_need_resize = AGE_IS_INVALID_IDX(mesh_byte_offset);
+		c_auto mesh_new_size	= std::max<uint32>(mesh_persistant_offset_pool.capacity() + static_cast<uint32>(header.meshlet_buffer_byte_size), mesh_persistant_offset_pool.capacity() * 2);
 
 		c_auto index_required_size = rt_index_buffer_byte_offset + flat_index_arr.size_bytes();
 		c_auto index_need_resize   = h_mapping_rt_index_buffer->h_resource->buffer_size() < index_required_size;
@@ -623,11 +623,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		if (mesh_need_resize)
 		{
 			h_new_mesh_buffer = resource::create_buffer_committed(static_cast<uint32>(mesh_new_size));
+			auto offset		  = uint32{ 0 };
+			for (auto& persistant_mesh_data : mesh_data_vec)
+			{
+				command::copy_buffer(e::queue_kind::copy, 0,
+									 h_new_mesh_buffer->h_resource->p_resource, offset,
+									 h_mapping_mesh_buffer->h_resource->p_resource, persistant_mesh_data.offset,
+									 persistant_mesh_data.byte_size);
+				persistant_mesh_data.offset	 = offset;
+				offset						+= persistant_mesh_data.byte_size;
+			}
 
-			command::copy_buffer(e::queue_kind::copy, 0,
-								 h_new_mesh_buffer->h_resource->p_resource, 0,
-								 h_mapping_mesh_buffer->h_resource->p_resource, 0,
-								 mesh_byte_offset);
+			mesh_byte_offset = offset;
+			mesh_persistant_offset_pool.clear();
+			mesh_persistant_offset_pool.set_capacity(mesh_new_size);
+			mesh_persistant_offset_pool.set_size(static_cast<uint32>(offset + header.meshlet_buffer_byte_size));
 		}
 		if (index_need_resize)
 		{
@@ -651,7 +661,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if (mesh_need_resize)
 			{
-				resource::unmap_and_release(h_mapping_mesh_buffer);
+				resource::unmap_and_release_deferred(h_mapping_mesh_buffer);
 				h_mapping_mesh_buffer = h_new_mesh_buffer;
 
 				mesh_data_buffer.bind(h_mapping_mesh_buffer);
@@ -659,7 +669,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if (index_need_resize)
 			{
-				resource::unmap_and_release(h_mapping_rt_index_buffer);
+				resource::unmap_and_release_deferred(h_mapping_rt_index_buffer);
 				h_mapping_rt_index_buffer = h_new_index_buffer;
 
 				h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
@@ -697,7 +707,17 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::release_mesh(t_mesh_id& id) noexcept
 	{
-		resource::release(mesh_data_vec[id].h_blas);
+		auto& mesh_data = mesh_data_vec[id];
+		if (mesh_data.chunk_srv_id == 0)
+		{
+			mesh_persistant_offset_pool.free(mesh_data.offset, mesh_data.byte_size);
+		}
+		else
+		{
+			AGE_UNREACHABLE("not implemented yet");
+		}
+
+		resource::release_deferred(mesh_data.h_blas);
 
 		mesh_data_vec.remove(id);
 

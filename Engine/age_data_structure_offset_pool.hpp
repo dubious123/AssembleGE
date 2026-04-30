@@ -24,6 +24,14 @@ namespace age::inline data_structure
 			cap = new_cap;
 		}
 
+		void
+		set_size(t_size new_size) noexcept
+		{
+			AGE_ASSERT(cap >= new_size);
+
+			size = new_size;
+		}
+
 		t_size
 		allocate(t_size alloc_size) noexcept
 		{
@@ -81,7 +89,7 @@ namespace age::inline data_structure
 				{
 					hole.size += free_size;
 
-					if (idx + 1 < hole_vec.size())
+					if (idx + 1 < hole_vec.size<int64>())
 					{
 						if (auto& hole_next = hole_vec[idx + 1]; hole_next.offset == hole.offset + hole.size)
 						{

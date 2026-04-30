@@ -130,4 +130,29 @@ namespace age::asset::registry
 	{
 		return g::registry_map[to_idx(e_kind)];
 	}
+
+	void
+	clear() noexcept
+	{
+		for_each_kind(AGE_LAMBDA(
+			<e::kind e_kind>(),
+			{
+				for (auto h : g::registry_map[to_idx(e_kind)])
+				{
+					destroy_entry<e_kind>(h);
+				}
+			}
+
+			));
+
+		for (auto& vec : g::registry_map)
+		{
+			vec.clear();
+		}
+
+		for (auto& map : g::registry_path_to_handle_map)
+		{
+			map.clear();
+		}
+	}
 }	 // namespace age::asset::registry

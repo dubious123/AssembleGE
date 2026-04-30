@@ -90,13 +90,11 @@ namespace age::graphics::rt
 			.Inputs							  = inputs,
 			.ScratchAccelerationStructureData = g::h_rt_blas_scratch_buffer->get_va(),
 		};
-
+		// command::signal();
+		// command::cpu_wait();
 		command::begin();
-
 		command::build_rt_acceleration_structure(&build_desc, 0, nullptr);
-
 		command::execute_and_wait();
-
 		return h_blas;
 	}
 

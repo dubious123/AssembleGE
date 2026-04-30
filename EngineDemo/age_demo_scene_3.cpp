@@ -7,9 +7,7 @@ namespace age_demo::scene_3
 	init() noexcept
 	{
 		using namespace age::ecs::system;
-
 		age::editor::init();
-
 		i_init.get_editor_game->init();
 
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
@@ -27,7 +25,6 @@ namespace age_demo::scene_3
 		using namespace age::ecs;
 
 		using enum age::input::e::key_kind;
-
 
 		age::ui::begin_frame(i_update.get_h_window);
 
@@ -222,6 +219,8 @@ namespace age_demo::scene_3
 	void
 	deinit() noexcept
 	{
+		age::graphics::command::signal();
+		age::graphics::command::cpu_wait();
 		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
 		age::editor::deinit();
 
@@ -233,5 +232,6 @@ namespace age_demo::scene_3
 		}
 
 		i_deinit.get_editor_game->deinit();
+		age::asset::registry::clear();
 	}
 }	 // namespace age_demo::scene_3

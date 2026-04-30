@@ -254,6 +254,8 @@ namespace age_demo::scene_1
 	FORCE_INLINE decltype(auto)
 	deinit() noexcept
 	{
+		age::graphics::command::signal();
+		age::graphics::command::cpu_wait();
 		for (auto o_id : i_deinit.get_obj_id_vec())
 		{
 			i_deinit.get_render_pipeline->remove_object(o_id);
@@ -290,5 +292,7 @@ namespace age_demo::scene_1
 		i_deinit.get_point_light_id_vec->clear();
 		i_deinit.get_spot_light_id_vec->clear();
 		i_deinit.get_directional_light_id_vec->clear();
+
+		age::asset::registry::clear();
 	}
 }	 // namespace age_demo::scene_1

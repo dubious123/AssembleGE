@@ -290,6 +290,20 @@ namespace age::graphics::resource
 	}
 
 	void
+	unmap_and_release_deferred(mapping_handle& h_map) noexcept
+	{
+		h_map->h_resource->p_resource->Unmap(0, nullptr);
+
+		AGE_ASSERT(h_map->h_resource->map_count == 0);
+
+		release_deferred(h_map->h_resource);
+
+		g::resource_mapping_vec.remove(h_map);
+
+		h_map = {};
+	}
+
+	void
 	unmap_and_release(std::span<mapping_handle> h_mappings) noexcept
 	{
 		for (auto& h : h_mappings)

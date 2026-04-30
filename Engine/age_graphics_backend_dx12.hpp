@@ -300,6 +300,9 @@ namespace age::graphics::resource
 	unmap_and_release(mapping_handle& _) noexcept;
 
 	void
+	unmap_and_release_deferred(mapping_handle& _) noexcept;
+
+	void
 	unmap_and_release(std::span<mapping_handle> _) noexcept;
 
 	FORCE_INLINE void

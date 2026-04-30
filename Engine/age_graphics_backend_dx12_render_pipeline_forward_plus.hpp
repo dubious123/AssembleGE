@@ -218,11 +218,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
 
 		// external textures
-		age::data_structure::unordered_map<t_texture_id, texture_data> texture_map;
+		age::unordered_map<t_texture_id, texture_data> texture_map;
 
 		// mesh
 		age::sparse_vector<mesh_data> mesh_data_vec;
-		uint32						  mesh_byte_offset = 0;
+		// uint32						  mesh_byte_offset = 0;
+
+		age::offset_pool<> mesh_persistant_offset_pool;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 

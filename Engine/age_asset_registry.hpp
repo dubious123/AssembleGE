@@ -33,6 +33,9 @@ namespace age::asset::registry
 
 	std::span<const asset::handle>
 	all(e::kind k) noexcept;
+
+	void
+	clear() noexcept;
 }	 // namespace age::asset::registry
 
 namespace age::asset::registry
