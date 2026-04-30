@@ -193,12 +193,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct mesh_data
 	{
-		t_mesh_id		id;
-		uint32			offset;
-		uint32			chunk_srv_id;
-		uint32			byte_size;
-		uint32			meshlet_count;
-		uint32			rt_index_buffer_elem_offset;
+		t_mesh_id id;
+		uint32	  offset;
+		uint32	  chunk_srv_id;
+		uint32	  byte_size;
+		uint32	  meshlet_count;
+		// uint32			rt_index_buffer_elem_offset;
+		uint32			rt_idx_chunk_srv_id;
+		uint32			rt_idx_offset;
+		uint32			rt_idx_size;
 		resource_handle h_blas;
 	};
 

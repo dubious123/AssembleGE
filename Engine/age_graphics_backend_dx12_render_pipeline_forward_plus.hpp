@@ -222,9 +222,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// mesh
 		age::sparse_vector<mesh_data> mesh_data_vec;
-		// uint32						  mesh_byte_offset = 0;
 
-		age::offset_pool<> mesh_persistant_offset_pool;
+		age::offset_pool<> mesh_persistant_buffer_offset_pool;
+		age::offset_pool<> mesh_rt_index_buffer_offset_pool;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 
@@ -241,7 +241,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
 
 		// mesh-rt
-		uint32 rt_index_buffer_byte_offset = 0;
+		// uint32 rt_index_buffer_byte_offset = 0;
 
 
 		// light
