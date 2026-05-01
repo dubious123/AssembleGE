@@ -292,12 +292,16 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   frame_index;								// 4
 		float3			   camera_right;							// 12
 		uint32			   main_buffer_texture_id;					// 4
+		uint32			   post_buffer_texture_id;
 		uint32			   depth_buffer_texture_id;					// 4
 		uint32			   rt_tlas_buffer_id;						// 4
 		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
 		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
+		uint32			   _0;
+		uint32			   _1;
+		uint32			   _2;
 
-		uint32_4 extra[13];
+		uint32_4 extra[12];
 		// total: 256 * 2 bytes
 	};
 

@@ -72,7 +72,7 @@ namespace age_demo::scene_1
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction = age::normalize(float3{ 0.0f, -1.0f, 0.0f }),
 				.intensity = 0.05f,
-				.color	   = float3{ 1.0f, 1.0f, 1.0f } } }
+				.color	   = age::srgb_to_linear(float3{ 1.0f, 1.0f, 1.0f }) } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec().emplace_back),
 
@@ -108,7 +108,7 @@ namespace age_demo::scene_1
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
 				.position	 = float3{ -3.0f, 2.0f, 0.0f },
 				.range		 = 15.0f,
-				.color		 = float3{ 1.0f, 0.2f, 0.2f },
+				.color		 = age::srgb_to_linear(float3{ 1.0f, 0.2f, 0.2f }),
 				.intensity	 = 3.0f,
 				.cast_shadow = true,
 			} }
@@ -119,7 +119,7 @@ namespace age_demo::scene_1
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
 				.position	 = float3{ 3.0f, 4.0f, 0.0f },
 				.range		 = 15.0f,
-				.color		 = float3{ 0.2f, 1.0f, 0.2f },
+				.color		 = age::srgb_to_linear(float3{ 0.2f, 1.0f, 0.2f }),
 				.intensity	 = 3.0f,
 				.cast_shadow = true } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
@@ -129,7 +129,7 @@ namespace age_demo::scene_1
 			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
 				.position  = float3{ 0.0f, 6.0f, 2.0f },
 				.range	   = 15.0f,
-				.color	   = float3{ 0.3f, 0.3f, 1.0f },
+				.color	   = age::srgb_to_linear(float3{ 0.3f, 0.3f, 1.0f }),
 				.intensity = 3.0f } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
@@ -139,7 +139,7 @@ namespace age_demo::scene_1
 				.range	   = 30.0f,
 				.direction = age::normalize(float3{ 2.0f, -1.0f, 0.0f }),
 				.intensity = 30.0f,
-				.color	   = float3{ 1.0f, 0.9f, 0.6f },
+				.color	   = age::srgb_to_linear(float3{ 1.0f, 0.9f, 0.6f }),
 				.cos_inner = 0.96f,
 				.cos_outer = 0.87f } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)

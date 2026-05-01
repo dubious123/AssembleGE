@@ -128,7 +128,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		const float3 world_to_cam_dir = normalize(camera_pos - world_pos);
 
-		const float3 ambient_light = float3(0.03, 0.03, 0.03);
+		const float3 ambient_light = srgb_to_linear(float3(0.03, 0.03, 0.03));
 		float3		 lighting	   = ambient_light;
 
 		const float linear_depth = dot(world_pos - camera_pos, camera_forward);
@@ -140,7 +140,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			const directional_light light = load_directional_light(d);
 
 			lighting += calc_directional_light(light, world_vertex_normal, world_to_cam_dir)
-					  //* calc_directional_shadow(light, world_pos, world_face_normal, linear_depth);
 					  * calc_directional_shadow_rt(light, world_pos, world_face_normal, linear_depth);
 		}
 
@@ -177,7 +176,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 						const unified_light light = load_sorted_light(sorted_id);
 
 						lighting += calc_unified_light(light, world_pos, world_vertex_normal, world_to_cam_dir)
-								  //* calc_unified_shadow(light, world_pos, world_face_normal);
 								  * calc_unified_shadow_rt(light, world_pos, world_face_normal);
 					}
 				}

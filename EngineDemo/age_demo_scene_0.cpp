@@ -70,7 +70,7 @@ namespace age_demo::scene_0
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction	 = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
 				.intensity	 = 0.3f,
-				.color		 = float3{ 1.0f, 0.95f, 0.85f },
+				.color		 = age::srgb_to_linear(float3{ 1.0f, 0.95f, 0.85f }),
 				.cast_shadow = true } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec->emplace_back),
@@ -95,7 +95,7 @@ namespace age_demo::scene_0
 								age::graphics::render_pipeline::forward_plus::point_light_desc{
 									.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
 									.range	  = range,
-									.color	  = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
+									.color	  = age::srgb_to_linear(float3{ dist_color(rng), dist_color(rng), dist_color(rng) }),
 									//.color	   = float3{ 1, 1, 1 },
 									.intensity = intensity }));
 					}
@@ -107,7 +107,7 @@ namespace age_demo::scene_0
 				.range	   = 6.0f,
 				.direction = float3{ 0.0f, -1.0f, 0.0f },
 				.intensity = 10.0f,
-				.color	   = float3{ 1.0f, 0.9f, 0.6f },
+				.color	   = age::srgb_to_linear(float3{ 1.0f, 0.9f, 0.6f }),
 				.cos_inner = 0.96f,
 				.cos_outer = 0.87f } }
 				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)

@@ -5,7 +5,7 @@ main_ps(float4 pos sv_position) sv_target_0
 {
 	float2 uv = (pos.xy + 0.5) * inv_backbuffer_size;
 
-	texture_2d<float4> main_buffer_tex = global_resource_buffer[main_buffer_texture_id];
+	texture_2d<float4> main_buffer_tex = global_resource_buffer[post_buffer_texture_id];
 
 	float3 color = sample(main_buffer_tex, linear_clamp_sampler, uv).rgb;
 

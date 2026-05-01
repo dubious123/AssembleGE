@@ -193,3 +193,55 @@ namespace age::inline math
 		}
 	}
 }	 // namespace age::inline math
+
+// color
+namespace age::inline math
+{
+	FORCE_INLINE constexpr float
+	srgb_to_linear_channel(float c) noexcept
+	{
+		return c <= 0.04045f
+				 ? c / 12.92f
+				 : std::pow((c + 0.055f) / 1.055f, 2.4f);
+	}
+
+	FORCE_INLINE constexpr float3
+	srgb_to_linear(float3 c) noexcept
+	{
+		return {
+			srgb_to_linear_channel(c.x),
+			srgb_to_linear_channel(c.y),
+			srgb_to_linear_channel(c.z),
+		};
+	}
+
+	FORCE_INLINE constexpr float
+	linear_to_srgb_channel(float c) noexcept
+	{
+		return c <= 0.0031308f
+				 ? 12.92f * c
+				 : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+	}
+
+	FORCE_INLINE constexpr float3
+	linear_to_srgb(float3 c) noexcept
+	{
+		return {
+			linear_to_srgb_channel(c.x),
+			linear_to_srgb_channel(c.y),
+			linear_to_srgb_channel(c.z),
+		};
+	}
+
+	FORCE_INLINE constexpr float3
+	srgb_to_linear_approx(float3 c) noexcept
+	{
+		return { std::pow(c.x, 2.2f), std::pow(c.y, 2.2f), std::pow(c.z, 2.2f) };
+	}
+
+	FORCE_INLINE constexpr float3
+	linear_to_srgb_approx(float3 c) noexcept
+	{
+		return { std::pow(c.x, 1.0f / 2.2f), std::pow(c.y, 1.0f / 2.2f), std::pow(c.z, 1.0f / 2.2f) };
+	}
+}	 // namespace age::inline math

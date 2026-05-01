@@ -54,8 +54,9 @@ sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_norm
 float4
 main_ps(vertex_fat fragment) sv_target_0
 {
-	const float3 ambient_light = float3(0.03, 0.03, 0.03);
-	const float3 albedo		   = float3(0.8, 0.8, 0.8);
+	// const float3 ambient_light = float3(0.03, 0.03, 0.03);
+	const float3 ambient_light = srgb_to_linear(float3(0., 0., 0.));
+	const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
 	// const float3 albedo = get_random_color(fragment.meshlet_render_data_id);
 
 	const float3 vertex_normal = normalize(fragment.normal);
@@ -77,7 +78,6 @@ main_ps(vertex_fat fragment) sv_target_0
 		const directional_light light = load_directional_light(d);
 
 		lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
-				  //* calc_directional_shadow(light, fragment.world_pos, face_normal, linear_depth);
 				  * calc_directional_shadow_rt(light, fragment.world_pos, face_normal, linear_depth);
 	}
 
@@ -114,7 +114,6 @@ main_ps(vertex_fat fragment) sv_target_0
 				const unified_light light = load_sorted_light(sorted_id);
 
 				lighting += calc_unified_light(light, fragment.world_pos, vertex_normal, world_to_cam_dir)
-						  // * calc_unified_shadow(light, fragment.world_pos, face_normal);
 						  * calc_unified_shadow_rt(light, fragment.world_pos, face_normal);
 			}
 		}

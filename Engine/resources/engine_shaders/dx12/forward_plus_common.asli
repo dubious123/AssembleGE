@@ -243,6 +243,7 @@ uint32	 frame_index;
 float3	 camera_right;
 
 uint32 main_buffer_texture_id;
+uint32 post_buffer_texture_id;
 uint32 depth_buffer_texture_id;
 uint32 rt_tlas_buffer_id;
 uint32 rt_transparent_buffer_srv_texture_id;
@@ -300,9 +301,13 @@ struct presentation_ps_out
 	float4 color semantics(color);
 };
 
+#line 1 "age_color_space.asli"
+#include "age_color_space.asli"
 #line 1 "age_light.asli"
 #include "age_light.asli"
 #line 1 "age_ui.asli"
 #include "age_ui.asli"
 #line 1 "age_mesh.asli"
 #include "age_mesh.asli"
+#line 1 "age_tonemap.asli"
+#include "age_tonemap.asli"

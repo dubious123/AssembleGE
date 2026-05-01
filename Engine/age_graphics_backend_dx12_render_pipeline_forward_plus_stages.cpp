@@ -339,7 +339,64 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
-// stage opaque
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
+	post_process_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_presentation_ms) }) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_post_process_ps) }) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso = graphics::g::pso_ptr_vec[h_pso];
+
+		h_post_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
+	}
+
+	void
+	post_process_stage::bind_rtv(graphics::resource_handle h_post_buffer) noexcept
+	{
+		resource::create_view(h_post_buffer,
+							  h_post_buffer_rtv_desc,
+							  defaults::rtv_view_desc::hdr_rgba16_2d);
+	}
+
+	inline void
+	post_process_stage::execute() noexcept
+	{
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(h_post_buffer_rtv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		command::set_pso(p_pso);
+		command::dispatch_mesh(1, 1, 1);
+
+		command::end_render_pass();
+	}
+
+	void
+	post_process_stage::deinit() noexcept
+	{
+		graphics::g::rtv_desc_pool.push(h_post_buffer_rtv_desc);
+
+		pso::destroy(h_pso);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+// stage ui
 namespace age::graphics::render_pipeline::forward_plus
 {
 	void
@@ -360,21 +417,21 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
 
-		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
+		h_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
 
 	void
-	ui_stage::bind_rtv(graphics::resource_handle h_main_buffer) noexcept
+	ui_stage::bind_rtv(graphics::resource_handle h_rtv) noexcept
 	{
-		resource::create_view(h_main_buffer,
-							  h_main_buffer_rtv_desc,
+		resource::create_view(h_rtv,
+							  h_rtv_desc,
 							  defaults::rtv_view_desc::hdr_rgba16_2d);
 	}
 
 	inline void
 	ui_stage::execute(const age::vector<util::range>& ui_render_data_z_range_vec) noexcept
 	{
-		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_rtv_desc);
 
 		command::begin_render_pass(
 			1,
@@ -403,7 +460,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	ui_stage::deinit() noexcept
 	{
-		graphics::g::rtv_desc_pool.push(h_main_buffer_rtv_desc);
+		graphics::g::rtv_desc_pool.push(h_rtv_desc);
 
 		pso::destroy(h_pso);
 	}

@@ -565,7 +565,7 @@ namespace age::ui
 #define AGE_THEME_PRIMITIVE_MEMBER(type, name, value) \
 	namespace g                                       \
 	{                                                 \
-		inline type theme_##name = type value;        \
+		inline type theme_##name = value;             \
 	}
 
 #define AGE_THEME_PREIMTIVE_FUNC(type, name, value) \
@@ -590,104 +590,104 @@ namespace age::ui
 
 	FOR_EACH (AGE_THEME_FOREACH_FUNC,
 			  // main colors
-			  (float3, color_white, (1.000f, 1.000f, 1.000f)),	  // #FFFFFF
-			  (float3, color_black, (0.000f, 0.000f, 0.000f)),	  // #000000
-			  (float3, color_red, (0.878f, 0.314f, 0.314f)),	  // #E05050 x-axis, negative
-			  (float3, color_green, (0.314f, 0.784f, 0.471f)),	  // #50C878 y-axis, positive
-			  //(float3, color_blue_dark, (0.227f, 0.502f, 0.788f)),	   // #3A80C9
-			  (float3, color_blue, (0.290f, 0.565f, 0.851f)),	 // #4A90D9 z-axis, accent
-			  //(float3, color_blue_light, (0.353f, 0.624f, 0.910f)),	   // #5A9FE8
+			  (float3, color_white, age::math::srgb_to_linear(float3{ 1.000f, 1.000f, 1.000f })),	 // #FFFFFF
+			  (float3, color_black, age::math::srgb_to_linear(float3{ 0.000f, 0.000f, 0.000f })),	 // #000000
+			  (float3, color_red, age::math::srgb_to_linear(float3{ 0.878f, 0.314f, 0.314f })),		 // #E05050 x-axis, negative
+			  (float3, color_green, age::math::srgb_to_linear(float3{ 0.314f, 0.784f, 0.471f })),	 // #50C878 y-axis, positive
+			  //(float3, color_blue_dark, age::math::srgb_to_linear( float3{0.227f, 0.502f, 0.788f})),	   // #3A80C9
+			  (float3, color_blue, age::math::srgb_to_linear(float3{ 0.290f, 0.565f, 0.851f })),	// #4A90D9 z-axis, accent
+			  //(float3, color_blue_light, age::math::srgb_to_linear( float3{0.353f, 0.624f, 0.910f})),	   // #5A9FE8
 
-			  (float3, color_blue_dark, (0.102f, 0.282f, 0.471f)),	  // #1A4878
-			  //(float3, color_blue, (0.157f, 0.369f, 0.596f)),		   // #285E98 z-axis, accent
-			  (float3, color_blue_light, (0.220f, 0.471f, 0.722f)),	   // #3878B8
+			  (float3, color_blue_dark, age::math::srgb_to_linear(float3{ 0.102f, 0.282f, 0.471f })),	 // #1A4878
+			  //(float3, color_blue, age::math::srgb_to_linear(float3{0.157f, 0.369f, 0.596f})),		   // #285E98 z-axis, accent
+			  (float3, color_blue_light, age::math::srgb_to_linear(float3{ 0.220f, 0.471f, 0.722f })),	  // #3878B8
 
-			  //(float3, color_blue, (0.290f, 0.565f, 0.851f)),			 // #4A90D9 z-axis, accent
+			  //(float3, color_blue, age::math::srgb_to_linear(float3{0.290f, 0.565f, 0.851f})),			 // #4A90D9 z-axis, accent
 
 
-			  (float3, color_amber, (0.886f, 0.680f, 0.216f)),			 // #E2AD37 w-axis, warning
-			  (float3, color_gray_darkest, (0.067f, 0.067f, 0.075f)),	 // #111114 field bg
-			  (float3, color_gray_darker, (0.102f, 0.102f, 0.118f)),	 // #1A1A1E	panel bg
-			  (float3, color_gray_dark, (0.118f, 0.118f, 0.133f)),		 // #1E1E22  header idle
-			  (float3, color_gray, (0.145f, 0.145f, 0.161f)),			 // #252529  header hover
-			  (float3, color_gray_light, (0.165f, 0.165f, 0.180f)),		 // #2A2A2E  header active
+			  (float3, color_amber, age::math::srgb_to_linear(float3{ 0.886f, 0.680f, 0.216f })),			// #E2AD37 w-axis, warning
+			  (float3, color_gray_darkest, age::math::srgb_to_linear(float3{ 0.067f, 0.067f, 0.075f })),	// #111114 field bg
+			  (float3, color_gray_darker, age::math::srgb_to_linear(float3{ 0.102f, 0.102f, 0.118f })),		// #1A1A1E	panel bg
+			  (float3, color_gray_dark, age::math::srgb_to_linear(float3{ 0.118f, 0.118f, 0.133f })),		// #1E1E22  header idle
+			  (float3, color_gray, age::math::srgb_to_linear(float3{ 0.145f, 0.145f, 0.161f })),			// #252529  header hover
+			  (float3, color_gray_light, age::math::srgb_to_linear(float3{ 0.165f, 0.165f, 0.180f })),		// #2A2A2E  header active
 
-																		 // text colors
-			  (float3, color_text_white, (1.000f, 1.000f, 1.000f)),			// heading,
-			  (float3, color_text_gray_light, (0.667f, 0.667f, 0.667f)),	// body text
-			  (float3, color_text_gray, (0.467f, 0.467f, 0.467f)),			// label
-			  (float3, color_text_gray_dark, (0.333f, 0.333f, 0.333f)),		// hint, placeholder
-			  (float3, color_text_red, (0.878f, 0.314f, 0.314f)),			// x-axis, negative
-			  (float3, color_text_green, (0.314f, 0.784f, 0.471f)),			// y-axis, positive
-			  (float3, color_text_blue, (0.290f, 0.565f, 0.851f)),			// z-axis, accent
-			  (float3, color_text_amber, (0.886f, 0.680f, 0.216f)),			// w-axis, warning
+																											// text colors
+			  (float3, color_text_white, age::math::srgb_to_linear(float3{ 1.000f, 1.000f, 1.000f })),		   // heading,
+			  (float3, color_text_gray_light, age::math::srgb_to_linear(float3{ 0.667f, 0.667f, 0.667f })),	   // body text
+			  (float3, color_text_gray, age::math::srgb_to_linear(float3{ 0.467f, 0.467f, 0.467f })),		   // label
+			  (float3, color_text_gray_dark, age::math::srgb_to_linear(float3{ 0.333f, 0.333f, 0.333f })),	   // hint, placeholder
+			  (float3, color_text_red, age::math::srgb_to_linear(float3{ 0.878f, 0.314f, 0.314f })),		   // x-axis, negative
+			  (float3, color_text_green, age::math::srgb_to_linear(float3{ 0.314f, 0.784f, 0.471f })),		   // y-axis, positive
+			  (float3, color_text_blue, age::math::srgb_to_linear(float3{ 0.290f, 0.565f, 0.851f })),		   // z-axis, accent
+			  (float3, color_text_amber, age::math::srgb_to_linear(float3{ 0.886f, 0.680f, 0.216f })),		   // w-axis, warning
 
 			  // mid band - sat ~65%, lightness ~52%
-			  (float3, palette_red, (0.832f, 0.208f, 0.208f)),			  // #D43535
-			  (float3, palette_vermilion, (0.832f, 0.325f, 0.208f)),	  // #D45235
-			  (float3, palette_orange, (0.832f, 0.442f, 0.208f)),		  // #D47035
-			  (float3, palette_tangerine, (0.832f, 0.559f, 0.208f)),	  // #D48E35
-			  (float3, palette_amber, (0.832f, 0.676f, 0.208f)),		  // #D4AC35
-			  (float3, palette_gold, (0.832f, 0.793f, 0.208f)),			  // #D4CA35
-			  (float3, palette_yellow, (0.754f, 0.832f, 0.208f)),		  // #C0D435
-			  (float3, palette_pear, (0.637f, 0.832f, 0.208f)),			  // #A2D435
-			  (float3, palette_chartreuse, (0.520f, 0.832f, 0.208f)),	  // #84D435
-			  (float3, palette_lime, (0.403f, 0.832f, 0.208f)),			  // #66D435
-			  (float3, palette_harlequin, (0.286f, 0.832f, 0.208f)),	  // #48D435
-			  (float3, palette_green, (0.208f, 0.832f, 0.247f)),		  // #35D43E
-			  (float3, palette_emerald, (0.208f, 0.832f, 0.364f)),		  // #35D45C
-			  (float3, palette_spring, (0.208f, 0.832f, 0.481f)),		  // #35D47A
-			  (float3, palette_jade, (0.208f, 0.832f, 0.598f)),			  // #35D498
-			  (float3, palette_mint, (0.208f, 0.832f, 0.715f)),			  // #35D4B6
-			  (float3, palette_cyan, (0.208f, 0.832f, 0.832f)),			  // #35D4D4
-			  (float3, palette_sky, (0.208f, 0.715f, 0.832f)),			  // #35B6D4
-			  (float3, palette_cerulean, (0.208f, 0.598f, 0.832f)),		  // #3598D4
-			  (float3, palette_azure, (0.208f, 0.481f, 0.832f)),		  // #357AD4
-			  (float3, palette_blue, (0.208f, 0.364f, 0.832f)),			  // #355CD4
-			  (float3, palette_cobalt, (0.208f, 0.247f, 0.832f)),		  // #353ED4
-			  (float3, palette_ultramarine, (0.286f, 0.208f, 0.832f)),	  // #4835D4
-			  (float3, palette_indigo, (0.403f, 0.208f, 0.832f)),		  // #6635D4
-			  (float3, palette_violet, (0.520f, 0.208f, 0.832f)),		  // #8435D4
-			  (float3, palette_purple, (0.637f, 0.208f, 0.832f)),		  // #A235D4
-			  (float3, palette_amethyst, (0.754f, 0.208f, 0.832f)),		  // #C035D4
-			  (float3, palette_magenta, (0.832f, 0.208f, 0.793f)),		  // #D435CA
-			  (float3, palette_fuchsia, (0.832f, 0.208f, 0.676f)),		  // #D435AC
-			  (float3, palette_cerise, (0.832f, 0.208f, 0.559f)),		  // #D4358E
-			  (float3, palette_rose, (0.832f, 0.208f, 0.442f)),			  // #D43570
-			  (float3, palette_crimson, (0.832f, 0.208f, 0.325f)),		  // #D43552
+			  (float3, palette_red, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.208f })),			 // #D43535
+			  (float3, palette_vermilion, age::math::srgb_to_linear(float3{ 0.832f, 0.325f, 0.208f })),		 // #D45235
+			  (float3, palette_orange, age::math::srgb_to_linear(float3{ 0.832f, 0.442f, 0.208f })),		 // #D47035
+			  (float3, palette_tangerine, age::math::srgb_to_linear(float3{ 0.832f, 0.559f, 0.208f })),		 // #D48E35
+			  (float3, palette_amber, age::math::srgb_to_linear(float3{ 0.832f, 0.676f, 0.208f })),			 // #D4AC35
+			  (float3, palette_gold, age::math::srgb_to_linear(float3{ 0.832f, 0.793f, 0.208f })),			 // #D4CA35
+			  (float3, palette_yellow, age::math::srgb_to_linear(float3{ 0.754f, 0.832f, 0.208f })),		 // #C0D435
+			  (float3, palette_pear, age::math::srgb_to_linear(float3{ 0.637f, 0.832f, 0.208f })),			 // #A2D435
+			  (float3, palette_chartreuse, age::math::srgb_to_linear(float3{ 0.520f, 0.832f, 0.208f })),	 // #84D435
+			  (float3, palette_lime, age::math::srgb_to_linear(float3{ 0.403f, 0.832f, 0.208f })),			 // #66D435
+			  (float3, palette_harlequin, age::math::srgb_to_linear(float3{ 0.286f, 0.832f, 0.208f })),		 // #48D435
+			  (float3, palette_green, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.247f })),			 // #35D43E
+			  (float3, palette_emerald, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.364f })),		 // #35D45C
+			  (float3, palette_spring, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.481f })),		 // #35D47A
+			  (float3, palette_jade, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.598f })),			 // #35D498
+			  (float3, palette_mint, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.715f })),			 // #35D4B6
+			  (float3, palette_cyan, age::math::srgb_to_linear(float3{ 0.208f, 0.832f, 0.832f })),			 // #35D4D4
+			  (float3, palette_sky, age::math::srgb_to_linear(float3{ 0.208f, 0.715f, 0.832f })),			 // #35B6D4
+			  (float3, palette_cerulean, age::math::srgb_to_linear(float3{ 0.208f, 0.598f, 0.832f })),		 // #3598D4
+			  (float3, palette_azure, age::math::srgb_to_linear(float3{ 0.208f, 0.481f, 0.832f })),			 // #357AD4
+			  (float3, palette_blue, age::math::srgb_to_linear(float3{ 0.208f, 0.364f, 0.832f })),			 // #355CD4
+			  (float3, palette_cobalt, age::math::srgb_to_linear(float3{ 0.208f, 0.247f, 0.832f })),		 // #353ED4
+			  (float3, palette_ultramarine, age::math::srgb_to_linear(float3{ 0.286f, 0.208f, 0.832f })),	 // #4835D4
+			  (float3, palette_indigo, age::math::srgb_to_linear(float3{ 0.403f, 0.208f, 0.832f })),		 // #6635D4
+			  (float3, palette_violet, age::math::srgb_to_linear(float3{ 0.520f, 0.208f, 0.832f })),		 // #8435D4
+			  (float3, palette_purple, age::math::srgb_to_linear(float3{ 0.637f, 0.208f, 0.832f })),		 // #A235D4
+			  (float3, palette_amethyst, age::math::srgb_to_linear(float3{ 0.754f, 0.208f, 0.832f })),		 // #C035D4
+			  (float3, palette_magenta, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.793f })),		 // #D435CA
+			  (float3, palette_fuchsia, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.676f })),		 // #D435AC
+			  (float3, palette_cerise, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.559f })),		 // #D4358E
+			  (float3, palette_rose, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.442f })),			 // #D43570
+			  (float3, palette_crimson, age::math::srgb_to_linear(float3{ 0.832f, 0.208f, 0.325f })),		 // #D43552
 			  // light band (32) - sat ~55%, lightness ~72%
-			  (float3, palette_light_red, (0.874f, 0.595f, 0.566f)),			// #DE9790
-			  (float3, palette_light_vermilion, (0.874f, 0.652f, 0.566f)),		// #DEA690
-			  (float3, palette_light_orange, (0.874f, 0.710f, 0.566f)),			// #DEB590
-			  (float3, palette_light_tangerine, (0.874f, 0.768f, 0.566f)),		// #DEC390
-			  (float3, palette_light_gold, (0.874f, 0.826f, 0.566f)),			// #DED290
-			  (float3, palette_light_yellow, (0.865f, 0.874f, 0.566f)),			// #DCDE90
-			  (float3, palette_light_pear, (0.807f, 0.874f, 0.566f)),			// #CDDE90
-			  (float3, palette_light_chartreuse, (0.749f, 0.874f, 0.566f)),		// #BEDE90
-			  (float3, palette_light_lime, (0.691f, 0.874f, 0.566f)),			// #B0DE90
-			  (float3, palette_light_harlequin, (0.634f, 0.874f, 0.566f)),		// #A1DE90
-			  (float3, palette_light_green, (0.576f, 0.874f, 0.566f)),			// #92DE90
-			  (float3, palette_light_emerald, (0.566f, 0.874f, 0.614f)),		// #90DE9C
-			  (float3, palette_light_spring, (0.566f, 0.874f, 0.672f)),			// #90DEAB
-			  (float3, palette_light_jade, (0.566f, 0.874f, 0.729f)),			// #90DEBA
-			  (float3, palette_light_mint, (0.566f, 0.874f, 0.787f)),			// #90DEC8
-			  (float3, palette_light_cyan, (0.566f, 0.874f, 0.845f)),			// #90DED7
-			  (float3, palette_light_sky, (0.566f, 0.845f, 0.874f)),			// #90D7DE
-			  (float3, palette_light_cerulean, (0.566f, 0.788f, 0.874f)),		// #90C8DE
-			  (float3, palette_light_azure, (0.566f, 0.730f, 0.874f)),			// #90BADE
-			  (float3, palette_light_blue, (0.566f, 0.672f, 0.874f)),			// #90ABDE
-			  (float3, palette_light_cobalt, (0.566f, 0.614f, 0.874f)),			// #909CDE
-			  (float3, palette_light_ultramarine, (0.575f, 0.566f, 0.874f)),	// #9290DE
-			  (float3, palette_light_indigo, (0.633f, 0.566f, 0.874f)),			// #A190DE
-			  (float3, palette_light_violet, (0.691f, 0.566f, 0.874f)),			// #B090DE
-			  (float3, palette_light_purple, (0.749f, 0.566f, 0.874f)),			// #BE90DE
-			  (float3, palette_light_amethyst, (0.806f, 0.566f, 0.874f)),		// #CD90DE
-			  (float3, palette_light_magenta, (0.864f, 0.566f, 0.874f)),		// #DC90DE
-			  (float3, palette_light_fuchsia, (0.874f, 0.566f, 0.826f)),		// #DE90D2
-			  (float3, palette_light_cerise, (0.874f, 0.566f, 0.768f)),			// #DE90C3
-			  (float3, palette_light_rose, (0.874f, 0.566f, 0.711f)),			// #DE90B5
-			  (float3, palette_light_crimson, (0.874f, 0.566f, 0.653f)),		// #DE90A6
-			  (float3, palette_light_coral, (0.874f, 0.566f, 0.595f)),			// #DE9097
+			  (float3, palette_light_red, age::math::srgb_to_linear(float3{ 0.874f, 0.595f, 0.566f })),			   // #DE9790
+			  (float3, palette_light_vermilion, age::math::srgb_to_linear(float3{ 0.874f, 0.652f, 0.566f })),	   // #DEA690
+			  (float3, palette_light_orange, age::math::srgb_to_linear(float3{ 0.874f, 0.710f, 0.566f })),		   // #DEB590
+			  (float3, palette_light_tangerine, age::math::srgb_to_linear(float3{ 0.874f, 0.768f, 0.566f })),	   // #DEC390
+			  (float3, palette_light_gold, age::math::srgb_to_linear(float3{ 0.874f, 0.826f, 0.566f })),		   // #DED290
+			  (float3, palette_light_yellow, age::math::srgb_to_linear(float3{ 0.865f, 0.874f, 0.566f })),		   // #DCDE90
+			  (float3, palette_light_pear, age::math::srgb_to_linear(float3{ 0.807f, 0.874f, 0.566f })),		   // #CDDE90
+			  (float3, palette_light_chartreuse, age::math::srgb_to_linear(float3{ 0.749f, 0.874f, 0.566f })),	   // #BEDE90
+			  (float3, palette_light_lime, age::math::srgb_to_linear(float3{ 0.691f, 0.874f, 0.566f })),		   // #B0DE90
+			  (float3, palette_light_harlequin, age::math::srgb_to_linear(float3{ 0.634f, 0.874f, 0.566f })),	   // #A1DE90
+			  (float3, palette_light_green, age::math::srgb_to_linear(float3{ 0.576f, 0.874f, 0.566f })),		   // #92DE90
+			  (float3, palette_light_emerald, age::math::srgb_to_linear(float3{ 0.566f, 0.874f, 0.614f })),		   // #90DE9C
+			  (float3, palette_light_spring, age::math::srgb_to_linear(float3{ 0.566f, 0.874f, 0.672f })),		   // #90DEAB
+			  (float3, palette_light_jade, age::math::srgb_to_linear(float3{ 0.566f, 0.874f, 0.729f })),		   // #90DEBA
+			  (float3, palette_light_mint, age::math::srgb_to_linear(float3{ 0.566f, 0.874f, 0.787f })),		   // #90DEC8
+			  (float3, palette_light_cyan, age::math::srgb_to_linear(float3{ 0.566f, 0.874f, 0.845f })),		   // #90DED7
+			  (float3, palette_light_sky, age::math::srgb_to_linear(float3{ 0.566f, 0.845f, 0.874f })),			   // #90D7DE
+			  (float3, palette_light_cerulean, age::math::srgb_to_linear(float3{ 0.566f, 0.788f, 0.874f })),	   // #90C8DE
+			  (float3, palette_light_azure, age::math::srgb_to_linear(float3{ 0.566f, 0.730f, 0.874f })),		   // #90BADE
+			  (float3, palette_light_blue, age::math::srgb_to_linear(float3{ 0.566f, 0.672f, 0.874f })),		   // #90ABDE
+			  (float3, palette_light_cobalt, age::math::srgb_to_linear(float3{ 0.566f, 0.614f, 0.874f })),		   // #909CDE
+			  (float3, palette_light_ultramarine, age::math::srgb_to_linear(float3{ 0.575f, 0.566f, 0.874f })),	   // #9290DE
+			  (float3, palette_light_indigo, age::math::srgb_to_linear(float3{ 0.633f, 0.566f, 0.874f })),		   // #A190DE
+			  (float3, palette_light_violet, age::math::srgb_to_linear(float3{ 0.691f, 0.566f, 0.874f })),		   // #B090DE
+			  (float3, palette_light_purple, age::math::srgb_to_linear(float3{ 0.749f, 0.566f, 0.874f })),		   // #BE90DE
+			  (float3, palette_light_amethyst, age::math::srgb_to_linear(float3{ 0.806f, 0.566f, 0.874f })),	   // #CD90DE
+			  (float3, palette_light_magenta, age::math::srgb_to_linear(float3{ 0.864f, 0.566f, 0.874f })),		   // #DC90DE
+			  (float3, palette_light_fuchsia, age::math::srgb_to_linear(float3{ 0.874f, 0.566f, 0.826f })),		   // #DE90D2
+			  (float3, palette_light_cerise, age::math::srgb_to_linear(float3{ 0.874f, 0.566f, 0.768f })),		   // #DE90C3
+			  (float3, palette_light_rose, age::math::srgb_to_linear(float3{ 0.874f, 0.566f, 0.711f })),		   // #DE90B5
+			  (float3, palette_light_crimson, age::math::srgb_to_linear(float3{ 0.874f, 0.566f, 0.653f })),		   // #DE90A6
+			  (float3, palette_light_coral, age::math::srgb_to_linear(float3{ 0.874f, 0.566f, 0.595f })),		   // #DE9097
 
 			  (float, padding_small, (3.f)),
 			  (float, padding_medium, (8.f)),

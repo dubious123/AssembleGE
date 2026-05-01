@@ -45,6 +45,8 @@ namespace age::graphics::e
 					forward_plus_transparent_rt_cs,
 					forward_plus_transparent_blend_ps,
 
+					forward_plus_post_process_ps,
+
 					forward_plus_ui_ms,
 					forward_plus_ui_ps,
 

@@ -104,18 +104,38 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct post_process_stage
+	{
+		pso::handle			 h_pso = {};
+		ID3D12PipelineState* p_pso = nullptr;
+
+		rtv_desc_handle h_post_buffer_rtv_desc;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		void
+		bind_rtv(graphics::resource_handle h_post_buffer) noexcept;
+
+		void
+		execute() noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct ui_stage
 	{
 		pso::handle			 h_pso = {};
 		ID3D12PipelineState* p_pso = nullptr;
 
-		rtv_desc_handle h_main_buffer_rtv_desc;
+		rtv_desc_handle h_rtv_desc;
 
 		void
 		init(root_signature::handle h_root_sig) noexcept;
 
 		void
-		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
+		bind_rtv(graphics::resource_handle h_rtv) noexcept;
 
 		inline void
 		execute(const age::vector<util::range>&) noexcept;
@@ -148,10 +168,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
 		transparent_stage	stage_transparent;
+		post_process_stage	stage_post_process;
 		ui_stage			stage_ui;
 		presentation_stage	stage_presentation;
 
 		resource_handle h_main_buffer;
+		resource_handle h_post_buffer;
 		resource_handle h_depth_buffer;
 		resource_handle h_rt_transparent_texture_buffer;
 
@@ -209,6 +231,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
+		srv_desc_handle h_post_buffer_srv_desc;
 		srv_desc_handle h_depth_buffer_srv_desc;
 		srv_desc_handle h_rt_tlas_buffer_srv_desc;
 		srv_desc_handle h_rt_transparent_tex_buffer_srv_desc;
