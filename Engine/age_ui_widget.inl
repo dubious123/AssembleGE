@@ -38,8 +38,8 @@ namespace age::ui::widget
 // indicators
 namespace age::ui::widget
 {
-	void
-	indicator(e::shape_kind e_shape, float size = font::get_line_height(theme::text_heading_font_size()), auto color = theme::indicator_color()) noexcept
+	inline void
+	indicator(e::shape_kind e_shape, float size = font::get_line_height(theme::text_heading_font_size()), float4 color = theme::indicator_color()) noexcept
 	{
 		if (auto _ = widget::begin(style::horizontal() | set_size(size_mode::fixed(size), size_mode::fixed(size)) | set_padding(theme::padding_indicator()) | set_align_center()))
 		{
@@ -343,7 +343,7 @@ namespace age::ui::widget
 				state = e::style_state::hover;
 			}
 
-			if (auto _ = widget::begin(style::item(selected, state)))
+			if (auto _ = widget::begin((style::item(selected, state) | ... | FWD(mod))))
 			{
 				widget::text(p_label, state);
 			}
@@ -932,4 +932,153 @@ namespace age::ui::widget
 				   const char* p_label,
 				   float3	   text_label_color,
 				   float	   step = 0.1f) noexcept;
+}	 // namespace age::ui::widget
+
+namespace age::ui::widget
+{
+	template <typename t_value>
+	struct dropdown_option
+	{
+		t_value			 value;
+		std::string_view label;
+	};
+
+	struct dropdown_style
+	{
+		std::string_view empty_label = "(none)";
+		uint16			 max_row	 = 8;
+		bool			 searchable	 = false;
+		uint8			 _;
+	};
+
+	template <auto... enums>
+	consteval auto
+	make_dropdown_option()
+	{
+		using t_type = BARE_OF(meta::variadic_auto_front_v<enums...>);
+		static_assert(std::is_enum_v<t_type>);
+		return std::array{ dropdown_option<t_type>{ .value = enums, .label = to_string(enums) }... };
+	}
+
+	template <typename t_value>
+	bool
+	dropdown(t_value& value, std::span<const dropdown_option<t_value>> options, dropdown_style style_option = {}) noexcept
+	{
+		using enum input::e::key_kind;
+		using enum e::style_state;
+		bool res_value_changed = false;
+
+		auto idx = get_invalid_idx<uint32>();
+		for (auto&& [i, opt] : options | std::views::enumerate)
+		{
+			if (opt.value == value)
+			{
+				idx = static_cast<uint32>(i);
+				break;
+			}
+		}
+
+		c_auto label = AGE_IS_INVALID_IDX(idx) ? style_option.empty_label : options[idx].label;
+
+		auto is_open	= false;
+		auto heading_id = age::get_invalid_id<ui::t_hash>();
+
+		auto _0 = widget::begin(style::frame() | set_vertical() | set_padding(theme::frame_border_thickness() + 1.f) | set_child_gap(0) | set_width_grow() | set_height_fit());
+
+		if (auto h_heading = widget::begin(style::horizontal() | set_width_grow() | set_height_fit() | set_interact(true)))
+		{
+			heading_id			= h_heading.hash_id;
+			auto& heading_state = h_heading.get_state();
+
+			auto state = idle;
+			if (h_heading.pressed<mouse_left>())
+			{
+				state = active;
+			}
+			else if (h_heading.hovered())
+			{
+				state = hover;
+			}
+
+			if (h_heading.clicked())
+			{
+				heading_state.toggled = !heading_state.toggled;
+			}
+
+			is_open = heading_state.toggled;
+
+			if (auto _ = widget::begin(style::frame(state) | set_border_thickness(0.f) | set_border_brush_data(float4::zero()) | set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(style::horizontal() | set_width_grow() | set_height_fit()))
+				{
+					widget::begin(style::text_heading(label.data()) | set_align_center());
+				}
+
+				c_auto size = font::get_line_height(theme::text_heading_font_size()) - theme::padding_indicator() * 2;
+				widget::begin(set_align_center()
+							  | set_size(size_mode::fixed(size), size_mode::fixed(size))
+							  | set_z_offset(1)
+							  | set_border_thickness(0.f)
+							  | set_shape_kind(e::shape_kind::triangle)
+							  | set_body_brush_data(theme::indicator_color()));
+
+				// widget::indicator(is_open ? e::shape_kind::triangle : e::shape_kind::rect);
+			}
+		}
+
+		if (is_open is_false)
+		{
+			return false;
+		}
+
+		widget::separator_v();
+
+		if (style_option.searchable)
+		{
+			// todo
+			// how to handle char array
+		}
+
+		for (c_auto& opt : options)
+		{
+			id_begin();
+
+			if (auto btn = widget::begin(set_interact(true) | set_padding(0) | set_width_grow() | set_height_fit()))
+			{
+				auto state = idle;
+				if (btn.pressed<mouse_left>())
+				{
+					state = active;
+				}
+				else if (btn.hovered())
+				{
+					state = hover;
+				}
+
+				if (btn.clicked() and opt.value != value)
+				{
+					auto& heading_state = g::widget_state_map[heading_id];
+
+					heading_state.toggled = false;	  // close child
+
+					value = opt.value;
+
+					res_value_changed = true;
+				}
+
+				if (opt.value != value)
+				{
+					auto _ = widget::begin(style::item(false, state) | set_border_thickness(0.f) | set_padding(theme::frame_padding()));
+					widget::text(opt.label.data(), state);
+				}
+				else
+				{
+					auto _ = widget::begin(style::item(true, hover) | set_border_thickness(0.f) | set_padding(theme::frame_padding()));
+					widget::text(opt.label.data(), hover);
+				}
+			}
+		}
+
+		return res_value_changed;
+	}
 }	 // namespace age::ui::widget

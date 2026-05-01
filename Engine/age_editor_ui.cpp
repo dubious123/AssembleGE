@@ -529,29 +529,8 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
-					static auto is_open = false;
-					if (auto btn = widget::button(asset::e::to_string(mesh_kind).data()))
-					{
-						if (btn.clicked())
-						{
-							is_open = !is_open;
-						}
-					}
-					if (is_open)
-					{
-						using enum age::asset::e::primitive_mesh_kind;
-						for (auto e_mesh_kind : std::array{ cube, plane, cube_sphere })
-						{
-							if (auto select = widget::button(asset::e::to_string(e_mesh_kind).data()))
-							{
-								if (select.clicked())
-								{
-									mesh_kind = e_mesh_kind;
-									is_open	  = false;
-								}
-							}
-						}
-					}
+					using enum age::asset::e::primitive_mesh_kind;
+					widget::dropdown<asset::e::primitive_mesh_kind>(mesh_kind, widget::make_dropdown_option<cube, plane, cube_sphere>());
 				}
 			}
 
@@ -564,29 +543,8 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
-					static auto is_open = false;
-					if (auto btn = widget::button(asset::e::to_string(vertex_kind).data()))
-					{
-						if (btn.clicked())
-						{
-							is_open = !is_open;
-						}
-					}
-					if (is_open)
-					{
-						using enum age::asset::e::vertex_kind;
-						for (auto e_vertex_kind : std::array{ p_uv1, pn_uv1, pnt_uv1 })
-						{
-							if (auto select = widget::button(asset::e::to_string(e_vertex_kind).data()))
-							{
-								if (select.clicked())
-								{
-									vertex_kind = e_vertex_kind;
-									is_open		= false;
-								}
-							}
-						}
-					}
+					using enum age::asset::e::vertex_kind;
+					widget::dropdown<asset::e::vertex_kind>(vertex_kind, widget::make_dropdown_option<p_uv1, pn_uv1, pnt_uv1>());
 				}
 			}
 

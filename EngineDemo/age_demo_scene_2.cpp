@@ -155,79 +155,12 @@ namespace age_demo::scene_2
 
 					// floating sphere high up - overlaps skybox
 					add_opaque_obj(float3{ 0.0f, 8.0f, 6.0f }, float3{ 2.0f, 2.0f, 2.0f });
-
-
-					// ui
-					// background panel
-
-					// i_init.get_ui_id_vec->emplace_back(
-					//	i_init.get_render_pipeline->add_ui(age::graphics::render_pipeline::forward_plus::ui_desc{
-					//		.pivot_pos		   = { 400.f, 300.f },
-					//		.pivot_uv		   = { 0.5f, 0.5f },
-					//		.size			   = { 300.f, 200.f },
-					//		.rotation		   = 0.f,
-					//		.border_thickness  = 2.f,
-					//		.z_order		   = 0,
-					//		.shape_kind		   = age::ui::e::shape_kind::rect,
-					//		.body_brush_kind   = age::ui::e::brush_kind::color,
-					//		.body_brush_data   = { .color = { .value = { 0.15f, 0.15f, 0.15f } } },
-					//		.border_brush_kind = age::ui::e::brush_kind::color,
-					//		.border_brush_data = { .color = { .value = { 1.0f, 1.0f, 1.0f } } },
-					//	}));
-
-					//// small rect on top
-					// i_init.get_ui_id_vec->emplace_back(
-					//	i_init.get_render_pipeline->add_ui(age::graphics::render_pipeline::forward_plus::ui_desc{
-					//		.pivot_pos		   = { 400.f, 280.f },
-					//		.pivot_uv		   = { 0.5f, 0.5f },
-					//		.size			   = { 120.f, 40.f },
-					//		.rotation		   = 0.f,
-					//		.border_thickness  = 0.f,
-					//		.z_order		   = 1,
-					//		.shape_kind		   = age::ui::e::shape_kind::rect,
-					//		.body_brush_kind   = age::ui::e::brush_kind::color,
-					//		.body_brush_data   = { .color = { .value = { 0.2f, 0.4f, 0.9f } } },
-					//		.border_brush_kind = age::ui::e::brush_kind::color,
-					//		.border_brush_data = { .color = { .value = { 0.0f, 0.0f, 0.0f } } },
-					//	}));
-
-					//// rotated rect
-					// i_init.get_ui_id_vec->emplace_back(
-					//	i_init.get_render_pipeline->add_ui(age::graphics::render_pipeline::forward_plus::ui_desc{
-					//		.pivot_pos		   = { 700.f, 400.f },
-					//		.pivot_uv		   = { 0.5f, 0.5f },
-					//		.size			   = { 100.f, 100.f },
-					//		.rotation		   = 0.785f,	// 45 degrees
-					//		.border_thickness  = 3.f,
-					//		.z_order		   = 0,
-					//		.shape_kind		   = age::ui::e::shape_kind::rect,
-					//		.body_brush_kind   = age::ui::e::brush_kind::color,
-					//		.body_brush_data   = { .color = { .value = { 0.9f, 0.5f, 0.1f } } },
-					//		.border_brush_kind = age::ui::e::brush_kind::color,
-					//		.border_brush_data = { .color = { .value = { 1.0f, 0.9f, 0.2f } } },
-					//	}));
-
-					//// circle
-					// i_init.get_ui_id_vec->emplace_back(
-					//	i_init.get_render_pipeline->add_ui(age::graphics::render_pipeline::forward_plus::ui_desc{
-					//		.pivot_pos		   = { 200.f, 400.f },
-					//		.pivot_uv		   = { 0.5f, 0.5f },
-					//		.size			   = { 80.f, 80.f },
-					//		.rotation		   = 0.f,
-					//		.border_thickness  = 0.f,
-					//		.z_order		   = 1,
-					//		.shape_kind		   = age::ui::e::shape_kind::circle,
-					//		.body_brush_kind   = age::ui::e::brush_kind::color,
-					//		.body_brush_data   = { .color = { .value = { 0.2f, 0.8f, 0.3f } } },
-					//		.border_brush_kind = age::ui::e::brush_kind::color,
-					//		.border_brush_data = { .color = { .value = { 0.0f, 0.0f, 0.0f } } },
-					//	}));
 				}),
 			exec_inline{}
 		}();
 	}
 
-	__declspec(noinline) decltype(auto)
+	decltype(auto)
 	update() noexcept
 	{
 		c_auto dt_s = std::max(
@@ -347,6 +280,15 @@ namespace age_demo::scene_2
 
 				if (auto _ = widget::panel_resizable_h(300, 1000))
 				{
+					c_auto opt = std::array{
+						widget::dropdown_option{ .value = 0u, .label = "A" },
+						widget::dropdown_option{ .value = 1u, .label = "B" },
+						widget::dropdown_option{ .value = 2u, .label = "C" },
+					};
+
+					static auto val = 0u;
+
+					widget::dropdown<uint32>(val, opt);
 					// if (auto _ = widget::panel_resizable_v(100, 500,
 					//									   set_size(size_mode::grow(), size_mode::grow())))
 
