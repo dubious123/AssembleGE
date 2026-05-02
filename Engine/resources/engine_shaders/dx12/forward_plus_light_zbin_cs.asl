@@ -4,7 +4,7 @@ groupshared uint32 local_min_idx[Z_SLICE_COUNT];
 groupshared uint32 local_max_idx[Z_SLICE_COUNT];
 
 [numthreads(LIGHT_ZBIN_THREAD_COUNT, 1, 1)] void
-main_cs(uint32 sorted_id sv_dispatch_thread_id,
+main_cs(uint32 sorted_id	   sv_dispatch_thread_id,
 		uint32 group_thread_id sv_group_thread_id)
 
 {
@@ -65,9 +65,12 @@ main_cs(uint32 sorted_id sv_dispatch_thread_id,
 			const float2 light_right_ndc  = light_right_clip.xy / light_right_clip.w;
 
 			const float light_radius_ndc = length(light_right_ndc - light_pos_ndc);
+			const float aspect			 = float(backbuffer_size.x) / float(backbuffer_size.y);
+			const float radius_ndc_x	 = light_radius_ndc;
+			const float radius_ndc_y	 = light_radius_ndc * aspect;
 
-			const float2 ndc_min = light_pos_ndc - float2(light_radius_ndc, light_radius_ndc);
-			const float2 ndc_max = light_pos_ndc + float2(light_radius_ndc, light_radius_ndc);
+			const float2 ndc_min = light_pos_ndc - float2(radius_ndc_x, radius_ndc_y);
+			const float2 ndc_max = light_pos_ndc + float2(radius_ndc_x, radius_ndc_y);
 
 			const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
 			const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);

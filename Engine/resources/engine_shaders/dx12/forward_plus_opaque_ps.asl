@@ -97,7 +97,6 @@ main_ps(vertex_fat fragment) sv_target_0
 	const uint32 word_begin = wave_z_min / 32;
 	const uint32 word_end	= wave_z_max / 32;
 
-
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
 		uint32 bit_mask		 = load_tile_mask(tile_id, w);
