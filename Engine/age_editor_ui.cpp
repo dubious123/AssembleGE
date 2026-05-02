@@ -419,8 +419,8 @@ namespace age::editor
 
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.range, "range");
-		ui::widget::numeric_field(light.color, "color");
-		ui::widget::numeric_field(light.intensity, "intensity");
+		ui::widget::text("color");
+		ui::widget::color_field(light.color, light.intensity);
 	}
 
 	void
@@ -433,8 +433,8 @@ namespace age::editor
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.range, "range");
 		ui::widget::numeric_field(light.direction, "direction");
-		ui::widget::numeric_field(light.intensity, "intensity");
-		ui::widget::numeric_field(light.color, "color");
+		ui::widget::text("color");
+		ui::widget::color_field(light.color, light.intensity);
 		ui::widget::numeric_field(light.cos_inner, "cos_inner", 0.f, 1.f);
 		ui::widget::numeric_field(light.cos_outer, "cos_outer", light.cos_inner, 1.f);
 	}
@@ -692,7 +692,7 @@ namespace age::editor
 						{
 							auto id_0 = id_begin();
 							// c_auto& display_name = h.get_display_name();
-							auto _0 = widget::begin(style::section() | set_horizontal() | set_width_grow() | set_height_fit());
+							auto _0 = widget::begin(style::section() | set_padding_left(theme::padding_medium()) | set_horizontal() | set_width_grow() | set_height_fit());
 
 							c_auto display_name = h.get_display_name();
 							widget::begin(style::text(display_name.data()));

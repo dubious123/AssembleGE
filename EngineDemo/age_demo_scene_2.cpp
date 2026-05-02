@@ -291,6 +291,25 @@ namespace age_demo::scene_2
 					widget::dropdown<uint32>(val, opt);
 					// if (auto _ = widget::panel_resizable_v(100, 500,
 					//									   set_size(size_mode::grow(), size_mode::grow())))
+					{
+						static auto color = float3{ 1, 0, 0 };
+
+						widget::color_field(color);
+					}
+
+					{
+						static auto color = float4{ 1, 0, 0, 1.f };
+
+						widget::color_field(color);
+					}
+
+					{
+						static auto	 color	   = float4{ 1, 0, 0, 1.f };
+						static float intensity = 1.f;
+
+						widget::color_field(color, intensity);
+					}
+
 
 					if (auto _ = widget::panel_resizable_v(100, 500))
 					{

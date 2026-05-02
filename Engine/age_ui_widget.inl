@@ -1082,3 +1082,165 @@ namespace age::ui::widget
 		return res_value_changed;
 	}
 }	 // namespace age::ui::widget
+
+namespace age::ui::widget
+{
+	namespace detail
+	{
+		inline bool
+		color_field_impl(auto& color, float* p_intensity) noexcept
+		{
+			using enum input::e::key_kind;
+			using enum e::style_state;
+			bool res_value_changed = false;
+
+			auto is_open	= false;
+			auto heading_id = age::get_invalid_id<ui::t_hash>();
+			auto _0			= widget::begin(style::frame() | set_vertical() | set_padding(theme::frame_border_thickness() + 1.f) | set_width_grow() | set_height_fit());
+
+			if (auto h_heading = widget::begin(style::horizontal() | set_width_grow() | set_height_fit() | set_interact(true) | set_save_state(true)))
+			{
+				heading_id			= h_heading.hash_id;
+				auto& heading_state = h_heading.get_state();
+
+				auto state = idle;
+				if (h_heading.pressed<mouse_left>())
+				{
+					state = active;
+				}
+				else if (h_heading.hovered())
+				{
+					state = hover;
+				}
+
+				if (h_heading.clicked())
+				{
+					heading_state.toggled = !heading_state.toggled;
+				}
+
+				is_open = heading_state.toggled;
+
+				auto heading_color = float4::one();
+
+				if constexpr (std::is_same_v<BARE_OF(color), float3>)
+				{
+					heading_color = float4{ color, 1.f };
+				}
+				else
+				{
+					heading_color = color;
+				}
+
+				if (p_intensity is_not_nullptr)
+				{
+					heading_color *= *p_intensity;
+				}
+
+				if (state == hover)
+				{
+					heading_color *= 1.1f;
+				}
+
+
+				if (auto _ = widget::begin(set_body_brush_data(heading_color) | set_horizontal_inv() | set_border_thickness(0.f) | set_border_brush_data(float4::zero()) | set_horizontal() | set_width_grow() | set_height_fit()))
+				{
+					widget::begin(style::horizontal() | set_width_grow() | set_height_fit());
+
+					c_auto size = font::get_line_height(theme::text_heading_font_size()) - theme::padding_indicator() * 2;
+					widget::begin(set_align_center()
+								  | set_size(size_mode::fixed(size), size_mode::fixed(size))
+								  | set_z_offset(1)
+								  | set_border_thickness(0.f)
+								  | set_shape_kind(e::shape_kind::triangle)
+								  | set_body_brush_data(theme::indicator_color()));
+
+					// widget::indicator(is_open ? e::shape_kind::triangle : e::shape_kind::rect);
+				}
+			}
+
+			if (is_open is_false)
+			{
+				return false;
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_height_fit() | set_padding(theme::frame_padding())))
+			{
+				auto srgb = age::linear_to_srgb(float3{ color.x, color.y, color.z });
+				widget::numeric_field(srgb, "sRGB");
+
+				if (srgb != age::linear_to_srgb(float3{ color.x, color.y, color.z }))
+				{
+					res_value_changed = true;
+					auto res		  = srgb_to_linear(srgb);
+					(color.x = res.x, color.y = res.y, color.z = res.z);
+				}
+			}
+
+			if (auto _ = widget::begin(set_height_fit() | set_padding(theme::frame_padding())))
+			{
+				auto linear = float3{ color.x, color.y, color.z };
+				widget::numeric_field(linear, "linear");
+				res_value_changed = linear != float3{ color.x, color.y, color.z };
+				(color.x = linear.x, color.y = linear.y, color.z = linear.z);
+			}
+
+			if constexpr (std::is_same_v<BARE_OF(color), float4>)
+			{
+				if (auto _ = widget::begin(set_horizontal() | set_padding(theme::frame_padding()) | set_width_grow() | set_height_fit()))
+				{
+					auto& heading_state = g::widget_state_map[heading_id];
+					auto  label_width	= (heading_state.width - (theme::frame_padding().x + theme::frame_padding().y)) * 0.25f;
+
+					if (auto h_text = widget::begin(set_width_fixed(label_width) | set_height_fit()))
+					{
+						widget::text("alpha");
+					}
+
+					auto w = color.w;
+					widget::numeric_field(w, nullptr, 0.f, 1.f);
+					res_value_changed = w != color.w;
+					color.w			  = w;
+				}
+			}
+
+			if (p_intensity is_nullptr)
+			{
+				return res_value_changed;
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_padding(theme::frame_padding()) | set_width_grow() | set_height_fit()))
+			{
+				auto& heading_state = g::widget_state_map[heading_id];
+				auto  label_width	= (heading_state.width - (theme::frame_padding().x + theme::frame_padding().y)) * 0.25f;
+
+				if (auto h_text = widget::begin(set_width_fixed(label_width) | set_height_fit()))
+				{
+					widget::text("intensity");
+				}
+
+				auto i = *p_intensity;
+				widget::numeric_field(i);
+				res_value_changed = i != *p_intensity;
+				*p_intensity	  = i;
+			}
+
+			return res_value_changed;
+		}
+	}	 // namespace detail
+
+	bool
+	color_field(auto& color) noexcept
+		requires(meta::variadic_contains_v<BARE_OF(color), float3, float4>)
+	{
+		return detail::color_field_impl(color, nullptr);
+	}
+
+	bool
+	color_field(auto& color, float& intensity) noexcept
+		requires(meta::variadic_contains_v<BARE_OF(color), float3, float4>)
+	{
+		return detail::color_field_impl(color, &intensity);
+	}
+}	 // namespace age::ui::widget
