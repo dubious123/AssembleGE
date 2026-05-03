@@ -259,8 +259,20 @@ load_ui_data(uint32 ui_data_id)
 }
 
 // sampler
-sampler_state	  linear_clamp_sampler reg(s0);
-sampler_cmp_state shadow_sampler reg(s1);
+sampler_state linear_clamp_sampler reg(s0);
+sampler_state linear_wrap_sampler reg(s1);
+
+sampler_state
+get_linear_clamp_sampler()
+{
+	return linear_clamp_sampler;
+}
+
+sampler_state
+get_linear_wrap_sampler()
+{
+	return linear_wrap_sampler;
+}
 
 #ifdef __INTELLISENSE__
 // cbuffer frame_data reg(b0)
@@ -313,14 +325,14 @@ safe_dot_camera_forward(float3 dir)
 	return max(dot(dir, camera_forward), epsilon_1e4);
 }
 
+#line 1 "age_mesh.asli"
+#include "age_mesh.asli"
 #line 1 "age_color_space.asli"
 #include "age_color_space.asli"
 #line 1 "age_light.asli"
 #include "age_light.asli"
 #line 1 "age_ui.asli"
 #include "age_ui.asli"
-#line 1 "age_mesh.asli"
-#include "age_mesh.asli"
 #line 1 "age_tonemap.asli"
 #include "age_tonemap.asli"
 

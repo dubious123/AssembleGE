@@ -442,6 +442,8 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 			{
+				widget::numeric_field(entry.roughness_factor, nullptr, 0.f, 1.f);
+				widget::slider(entry.roughness_factor, 0.f, 1.f);
 				widget::dropdown<asset::handle>(entry.h_tex_metallic_roughness, tex_vec);
 			}
 		}
@@ -795,6 +797,8 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
+					widget::numeric_field(mat_desc.roughness_factor, nullptr, 0.f, 1.f);
+					widget::slider(mat_desc.roughness_factor, 0.f, 1.f);
 					widget::dropdown<asset::handle>(mat_desc.h_tex_metallic_roughness, tex_vec);
 				}
 			}

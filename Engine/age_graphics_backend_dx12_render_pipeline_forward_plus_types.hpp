@@ -151,12 +151,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::static_sampler,
 			where::s<0>>,
 
-		// todo remove shadow sampler
 		binding_slot<
-			"shadow_sampler",
+			"linear_wrap_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::sampler<defaults::static_sampler_desc::shadow_cmp>,
+			what::sampler<defaults::static_sampler_desc::linear_wrap>,
 			how::static_sampler,
 			where::s<1>>>;
 }	 // namespace age::graphics::render_pipeline::forward_plus

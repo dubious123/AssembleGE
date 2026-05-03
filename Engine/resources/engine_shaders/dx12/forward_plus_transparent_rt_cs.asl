@@ -96,38 +96,27 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
 		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
 
-		const vertex_fat v_decoded_0 = decode_vertex(msh_header, prim_index.x);
-		const vertex_fat v_decoded_1 = decode_vertex(msh_header, prim_index.y);
-		const vertex_fat v_decoded_2 = decode_vertex(msh_header, prim_index.z);
+		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
 
-		const float3 bary_weights = float3(1.f - hit.barycentrics.x - hit.barycentrics.y,
-										   hit.barycentrics.x,
-										   hit.barycentrics.y);
+		const float3 bary_weights = float3(1.f - hit.barycentrics.x - hit.barycentrics.y, hit.barycentrics.x, hit.barycentrics.y);
 
-		const float3 local_pos = v_decoded_0.pos.xyz * bary_weights.x
-							   + v_decoded_1.pos.xyz * bary_weights.y
-							   + v_decoded_2.pos.xyz * bary_weights.z;
+		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
 
-		const float3 local_vertex_normal = v_decoded_0.normal * bary_weights.x
-										 + v_decoded_1.normal * bary_weights.y
-										 + v_decoded_2.normal * bary_weights.z;
+		const pbr_surface_data surface_data = calc_pbr_surface(mat, v);
 
-		const float3 local_face_normal = normalize(cross(v_decoded_1.pos.xyz - v_decoded_0.pos.xyz, v_decoded_2.pos.xyz - v_decoded_0.pos.xyz));
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
 
-		const float4 quaternion = decode_quaternion(obj_data.quaternion);
-		const float3 scale		= cast<float3>(obj_data.scale);
-		const float3 pos		= obj_data.pos;
+		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
 
-		const float3 world_vertex_normal = normalize(rotate(local_vertex_normal / scale, quaternion));
-		const float3 world_face_normal	 = normalize(rotate(local_face_normal / scale, quaternion));
-		const float3 world_pos			 = rotate(local_pos * scale, quaternion) + pos;
+		const float3 ambient_light = srgb_to_linear(float3(0.03, 0.03, 0.03)) * surface_data.c_diffuse * surface_data.occlusion;
 
-		const float3 world_to_cam_dir = normalize(camera_pos - world_pos);
+		float3 lighting = ambient_light;
 
-		const float3 ambient_light = srgb_to_linear(float3(0.03, 0.03, 0.03));
-		float3		 lighting	   = ambient_light;
+		lighting += surface_data.emissive;
 
-		const float linear_depth = dot(world_pos - camera_pos, camera_forward);
+		const float linear_depth = dot(v.world_pos - camera_pos, camera_forward);
 
 		const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
@@ -135,8 +124,11 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		{
 			const directional_light light = load_directional_light(d);
 
-			lighting += calc_directional_light(light, world_vertex_normal, world_to_cam_dir)
-					  * calc_directional_shadow_rt(light, world_pos, world_face_normal, linear_depth);
+			// lighting += calc_directional_light(light, v.normal, world_to_cam_dir)
+			//		  * calc_directional_shadow_rt(light, world_pos, world_face_normal, linear_depth);
+
+			lighting += calc_pbr_light(surface_data, light)
+					  * calc_directional_shadow_rt(light, v.world_pos, world_face_normal, linear_depth);
 		}
 
 		{
@@ -171,16 +163,29 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 					{
 						const unified_light light = load_sorted_light(sorted_id);
 
-						lighting += calc_unified_light(light, world_pos, world_vertex_normal, world_to_cam_dir)
-								  * calc_unified_shadow_rt(light, world_pos, world_face_normal);
+						// lighting += calc_unified_light(light, world_pos, world_vertex_normal, world_to_cam_dir)
+						//		  * calc_unified_shadow_rt(light, world_pos, world_face_normal);
+
+						lighting += calc_pbr_light(surface_data, light)
+								  * calc_unified_shadow_rt(light, v.world_pos, world_face_normal);
 					}
 				}
 			}
 		}
 
-		float4 color  = mat.base_color_factor * float4(lighting.rgb, 1.f);
-		result.rgb	 += color.rgb * color.a * (1.f - result.a);
-		result.a	 += color.a * (1.f - result.a);
+		// float4 color  = mat.base_color_factor * float4(lighting.rgb, 1.f);
+		// result.rgb	 += color.rgb * color.a * (1.f - result.a);
+		// result.a	 += color.a * (1.f - result.a);
+
+		// if (result.a >= 1.f)
+		//{
+		//	break;
+		// }
+
+		const float alpha = surface_data.base_color.a;
+
+		result.rgb += lighting * alpha * (1.f - result.a);
+		result.a   += alpha * (1.f - result.a);
 
 		if (result.a >= 1.f)
 		{

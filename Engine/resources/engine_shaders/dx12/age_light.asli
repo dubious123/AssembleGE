@@ -135,6 +135,26 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 
 				float4 obj_color = mat.base_color_factor;
 
+				if (mat.base_color_texture_id != invalid_id_uint32)
+				{
+					const mesh_header msh_header = read_mesh_header<rt_instance_render_data>(render_data);
+					const uint32_3	  prim_index = load_rt_triangle_index(render_data, rt_candidate_primitive_index(query));
+
+					const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+					const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+					const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
+					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
+
+					const float2 uv = v0.uv_set[0] * bary.x
+									+ v1.uv_set[0] * bary.y
+									+ v2.uv_set[0] * bary.z;
+
+					texture_2d<float4> tex	= global_resource_buffer[mat.base_color_texture_id];
+					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
+				}
+
 				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
 			}
 		}
@@ -202,13 +222,196 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 
 				float4 obj_color = mat.base_color_factor;	 // todo material
 
+				if (mat.base_color_texture_id != invalid_id_uint32)
+				{
+					const mesh_header msh_header = read_mesh_header<rt_instance_render_data>(render_data);
+					const uint32_3	  prim_index = load_rt_triangle_index(render_data, rt_candidate_primitive_index(query));
+
+					const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+					const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+					const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
+					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
+
+					const float2 uv = v0.uv_set[0] * bary.x
+									+ v1.uv_set[0] * bary.y
+									+ v2.uv_set[0] * bary.z;
+
+					texture_2d<float4> tex	= global_resource_buffer[mat.base_color_texture_id];
+					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
+				}
+
 				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
 
-															 // float4 obj_color	= float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	 // todo material
+				// float4 obj_color	= float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	 // todo material
 				// transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
 			}
 		}
 	}
 
 	return transparent_shadow * opaque_shadow * contact;
+}
+
+// surface
+
+struct pbr_surface_data
+{
+	float3 world_pos;
+	float3 normal;			  // normal map applied, world space
+	float3 view;			  // world to camera, normalized
+	float  n_dot_v;			  // saturate(dot(N, V)), reused in D/G/F
+
+	float4 base_color;		  // base_color_factor * tex.rgb
+	float  metallic;
+	float  roughness;		  // perceptual roughness, clamped to floor
+	float  roughness_sqr;	  // roughness * roughness, GGX 'a'
+	float  roughness_quad;	  // alpha * alpha
+
+	float3 f0;				  // lerp(0.04, base_color, metallic)
+	float3 c_diffuse;		  // base_color * (1 - metallic)
+
+	float3 emissive;		  // emissive_factor * tex.rgb
+	float  occlusion;		  // applied to indirect only
+};
+
+pbr_surface_data
+calc_pbr_surface(const material mat, const vertex_fat vertex)
+{
+	pbr_surface_data res;
+
+	res.world_pos = vertex.world_pos;
+	res.normal	  = normalize(vertex.normal);
+
+	if (mat.normal_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> normal_tex = global_resource_buffer[mat.normal_texture_id];
+
+		float3 n_ts	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb * 2.f - 1.f;
+		n_ts.xy		*= mat.normal_scale;
+
+		float3 t = normalize(vertex.tangent.xyz);
+		t		 = normalize(t - res.normal * dot(t, res.normal));
+		float3 b = cross(res.normal, t) * vertex.tangent.w;
+
+		float3x3 tbn = transpose(float3x3(t, b, res.normal));
+		res.normal	 = normalize(mul(tbn, n_ts));
+	}
+
+
+	res.view = normalize(camera_pos - vertex.world_pos);
+
+	res.n_dot_v = saturate(dot(res.normal, res.view));
+
+	res.base_color = mat.base_color_factor;
+	if (mat.base_color_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> base_color_tex  = global_resource_buffer[mat.base_color_texture_id];
+		res.base_color					  *= sample(base_color_tex, get_linear_wrap_sampler(), vertex.uv_set[0]);
+	}
+
+	// metallic-roughness
+	res.metallic  = mat.metallic_factor;
+	res.roughness = mat.roughness_factor;
+	if (mat.metallic_roughness_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> mr_tex	  = global_resource_buffer[mat.metallic_roughness_texture_id];
+		float3			   mr_sample  = sample(mr_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
+		res.metallic				 *= mr_sample.b;	// glTF spec, metallic in b, roughness in g
+		res.roughness				 *= mr_sample.g;
+	}
+
+	res.roughness	   = max(res.roughness, 0.02f);
+	res.roughness_sqr  = res.roughness * res.roughness;
+	res.roughness_quad = res.roughness_sqr * res.roughness_sqr;
+
+	res.f0		  = lerp(float3(0.04f, 0.04f, 0.04f), res.base_color.rgb, res.metallic);
+	res.c_diffuse = res.base_color.rgb * (1.f - res.metallic);
+
+	res.emissive = mat.emissive_factor;
+	if (mat.emissive_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> emissive_tex	 = global_resource_buffer[mat.emissive_texture_id];
+		res.emissive					*= sample(emissive_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
+	}
+
+	res.occlusion = 1.f;
+	if (mat.occlusion_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> occlusion_tex = global_resource_buffer[mat.occlusion_texture_id];
+		float			   occ_sample	 = sample(occlusion_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).r;
+		res.occlusion					 = lerp(1.0, occ_sample, mat.occlusion_strength);
+	}
+
+	return res;
+}
+
+float3
+calc_brdf(pbr_surface_data surface_data, float3 world_to_light /* world to light */, float n_dot_l)
+{
+	const float3 h		 = normalize(surface_data.view + world_to_light);
+	const float	 n_dot_v = surface_data.n_dot_v;
+	const float	 n_dot_h = saturate(dot(surface_data.normal, h));
+	const float	 v_dot_h = saturate(dot(surface_data.view, h));
+
+	// D
+	const float d_denom = n_dot_h * n_dot_h * (surface_data.roughness_quad - 1.f) + 1.f;
+	const float d		= surface_data.roughness_quad / (pi * d_denom * d_denom);
+
+	// G
+	const float k = (surface_data.roughness_sqr + surface_data.roughness * 2.f + 1.f) / 8.f;
+	// const float g = (n_dot_v / (n_dot_v * (1.f - k) + k)) * (n_dot_l / (n_dot_l * (1.f - k) + k));
+	const float v = 0.25f / max((n_dot_v * (1.f - k) + k) * (n_dot_l * (1.f - k) + k), epsilon_1e4);
+
+	// F
+	const float3 f = surface_data.f0 + (1.f - surface_data.f0) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h);
+
+	// const float3 specular = (d * g * f) / max(4.f * n_dot_v * n_dot_l, epsilon_1e4);
+	const float3 specular = (d * v * f);
+	const float3 diffuse  = (1.f - f) * (1.f - surface_data.metallic) * surface_data.c_diffuse / pi;
+	return (diffuse + specular) * n_dot_l;
+}
+
+float3
+calc_pbr_light(pbr_surface_data surface_data, unified_light light)
+{
+	const float3 surface_to_light = light.position - surface_data.world_pos;
+	const float	 distance		  = length(surface_to_light);
+	const float3 world_to_light	  = surface_to_light / distance;
+
+	float n_dot_l = dot(surface_data.normal, world_to_light);
+	if (n_dot_l <= 0.f)
+	{
+		return float3(0.f, 0.f, 0.f);
+	}
+	n_dot_l = saturate(n_dot_l);
+
+	const float distance_ratio = distance / light.range;
+	const float window		   = saturate(1.f - distance_ratio * distance_ratio);
+	const float attenuation	   = window * window / max(distance * distance, epsilon_1e4);
+
+	const float cos_angle	 = dot(-world_to_light, cast<float3>(light.direction));
+	const float cone_falloff = saturate((cos_angle - light.cos_outer) / (light.cos_inner - light.cos_outer));
+
+	const float3 light_radiance = cast<float3>(light.color) * light.intensity
+								* attenuation * cone_falloff * cone_falloff;
+
+	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance;
+}
+
+float3
+calc_pbr_light(pbr_surface_data surface_data, directional_light light)
+{
+	const float3 world_to_light = -light.direction;
+
+	float n_dot_l = dot(surface_data.normal, world_to_light);
+	if (n_dot_l <= 0.f)
+	{
+		return float3(0.f, 0.f, 0.f);
+	}
+	n_dot_l = saturate(n_dot_l);
+
+	const float3 light_radiance = light.color * light.intensity;
+
+	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance;
 }

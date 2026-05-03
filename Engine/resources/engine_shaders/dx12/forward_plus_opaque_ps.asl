@@ -59,8 +59,11 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	const material mat = load_material(mat_id);
 
-	// const float3 ambient_light = float3(0.03, 0.03, 0.03);
-	const float3 ambient_light = srgb_to_linear(float3(0., 0., 0.));
+	const pbr_surface_data surface_data = calc_pbr_surface(mat, v);
+
+	const float3 ambient_light	= srgb_to_linear(float3(0.03, 0.03, 0.03)) * surface_data.c_diffuse * surface_data.occlusion;
+	float3		 lighting		= ambient_light;
+	lighting				   += surface_data.emissive;
 	// const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
 
 	const float3 albedo = mat.base_color_factor.rgb;
@@ -69,7 +72,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	const float3 world_to_cam_dir = normalize(camera_pos - v.world_pos);
 
-	float3 lighting = ambient_light;
 
 	const float linear_depth = dot(v.world_pos - camera_pos, camera_forward);
 
@@ -83,7 +85,10 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	{
 		const directional_light light = load_directional_light(d);
 
-		lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
+		// lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
+		//		  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
+
+		lighting += calc_pbr_light(surface_data, light)
 				  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
 
@@ -118,7 +123,10 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			{
 				const unified_light light = load_sorted_light(sorted_id);
 
-				lighting += calc_unified_light(light, v.world_pos, vertex_normal, world_to_cam_dir)
+				// lighting += calc_unified_light(light, v.world_pos, vertex_normal, world_to_cam_dir)
+				//		  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
+
+				lighting += calc_pbr_light(surface_data, light)
 						  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
 			}
 		}
@@ -132,5 +140,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// return float4(vertex_normal, 1.f);
 
 	// return float4(v.uv0, 0, 1.f);
-	return float4(lighting * albedo, 1.0f);
+	// return float4(lighting * albedo, 1.0f);
+	return float4(lighting, 1.0f);
 }

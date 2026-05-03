@@ -24,6 +24,40 @@ struct vertex_fat
 	float2 uv_set[MAX_UV_COUNT] semantics(uv_set);
 };
 
+vertex_fat
+interpolate_vertex_fat(vertex_fat v0, vertex_fat v1, vertex_fat v2, float3 bary)
+{
+	vertex_fat v;
+	v.pos.xyz = v0.pos.xyz * bary.x + v1.pos.xyz * bary.y + v2.pos.xyz * bary.z;
+	v.normal  = v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z;
+	v.tangent = v0.tangent * bary.x + v1.tangent * bary.y + v2.tangent * bary.z;
+
+	expand_all()
+
+	for (uint32 i = 0; i < MAX_UV_COUNT; ++i)
+	{
+		v.uv_set[i] = v0.uv_set[i] * bary.x + v1.uv_set[i] * bary.y + v2.uv_set[i] * bary.z;
+	}
+
+	return v;
+}
+
+vertex_fat
+transform_vertex_to_world(vertex_fat v, object_data obj)
+{
+	const float4 quat  = decode_quaternion(obj.quaternion);
+	const float3 scale = cast<float3>(obj.scale);
+
+	v.world_pos = rotate(v.pos.xyz * scale, quat) + obj.pos;
+	v.normal	= normalize(rotate(v.normal / scale, quat));
+
+	const float3 t_world = normalize(rotate(v.tangent.xyz * scale, quat));
+	const float3 t_ortho = normalize(t_world - v.normal * dot(t_world, v.normal));
+	v.tangent			 = float4(t_ortho, v.tangent.w * sign(scale.x * scale.y * scale.z));
+
+	return v;
+}
+
 byte_address_buffer
 get_mesh_chunk_srv(uint32 mesh_chunk_srv_id)
 {

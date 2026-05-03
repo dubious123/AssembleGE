@@ -387,6 +387,12 @@ struct texture_2d
 		return float4{};
 	}
 
+	float4
+	SampleLevel(auto, auto _, auto)
+	{
+		return float4{};
+	}
+
 	t
 	Load(int32 x, int32 y, int32 mip)
 	{
@@ -988,6 +994,13 @@ float4
 sample(texture_2d<t> tex, t_sample s, float2 location)
 {
 	return tex.Sample(s, location);
+}
+
+template <typename t, typename t_sample>
+float4
+sample_level(texture_2d<t> tex, t_sample s, float2 location, uint32 mip)
+{
+	return tex.SampleLevel(s, location, mip);
 }
 
 template <typename t>

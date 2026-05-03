@@ -782,6 +782,27 @@ namespace age::graphics::defaults::static_sampler_desc
 	}
 
 	FORCE_INLINE decltype(auto)
+	linear_wrap(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER                  */ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*FLOAT                         */ .MipLODBias		 = 0.0f,
+			/*UINT                          */ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR     */ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT                         */ .MinLOD			 = 0.f,
+			/*FLOAT                         */ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT                          */ .ShaderRegister	 = register_index,
+			/*UINT                          */ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY       */ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS           */ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	shadow_cmp(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
 	{
 		return D3D12_STATIC_SAMPLER_DESC1{
