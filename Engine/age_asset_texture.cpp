@@ -56,13 +56,13 @@ namespace age::asset
 	bool
 	entry<e::kind::texture>::is_cube_map() const noexcept
 	{
-		return get_header().extra & (1u << 0);
+		return get_header().flags & (1u << 0);
 	}
 
 	bool
 	entry<e::kind::texture>::is_tex3d() const noexcept
 	{
-		return get_header().extra & (1u << 1);
+		return get_header().flags & (1u << 1);
 	}
 }	 // namespace age::asset
 

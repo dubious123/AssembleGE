@@ -413,11 +413,11 @@ namespace age::asset
 		struct header
 		{
 			extent_2d<uint32>			extent;
+			uint16						tex_depth_or_array_size;
 			graphics::e::texture_format format;
-			uint8						tex_array_size;
 			uint8						mip_count;
-
-			uint32 extra;	 // [0] is_cubemap, [1] is_3d,
+			uint8						flags;	  // [0] is_cubemap, [1] is_3d,
+			uint16						extra;
 		};
 
 		static_assert(std::is_implicit_lifetime_v<header>);

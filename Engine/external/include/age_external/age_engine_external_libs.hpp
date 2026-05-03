@@ -699,3 +699,15 @@ namespace age::external::msdfgen
 			  unsigned int		 em_size  = 48,
 			  unsigned int		 px_range = 2) noexcept;
 }
+
+namespace age::external::texconv
+{
+	bool
+	bake_texture(const char** pp_src_arr,
+				 unsigned int src_count,
+				 const char*  p_output_dir,
+				 const char*  dxgi_format_name,		 // e.g. "BC7_UNORM_SRGB", "BC5_UNORM"
+				 const char*  texture_kind_flags,	 // "", "-array", "-cube", "-array -cube", "-volume"
+				 unsigned int mip_count,			 // 0 = full chain
+				 bool		  is_srgb_input) noexcept;
+}

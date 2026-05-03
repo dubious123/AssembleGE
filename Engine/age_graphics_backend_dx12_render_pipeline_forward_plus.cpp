@@ -582,7 +582,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d_array(
 				  extent.width, extent.height,
 				  dx12_format,
-				  header.tex_array_size,
+				  header.tex_depth_or_array_size,
 				  D3D12_RESOURCE_FLAG_NONE,
 				  header.mip_count),
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
@@ -592,7 +592,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		if (entry.is_cube_map())
 		{
-			if (header.tex_array_size == 1)
+			if (header.tex_depth_or_array_size == 1)
 			{
 				resource::create_view(h_resource,
 									  h_srv_desc,
@@ -602,19 +602,19 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				resource::create_view(h_resource,
 									  h_srv_desc,
-									  defaults::srv_view_desc::tex_cube_array(dx12_format, header.tex_array_size, header.mip_count));
+									  defaults::srv_view_desc::tex_cube_array(dx12_format, header.tex_depth_or_array_size, header.mip_count));
 			}
 		}
 		else if (entry.is_tex3d())
 		{
-			AGE_ASSERT(header.tex_array_size == 1);
+			AGE_ASSERT(header.tex_depth_or_array_size == 1);
 			resource::create_view(h_resource,
 								  h_srv_desc,
 								  defaults::srv_view_desc::tex3d(dx12_format, header.mip_count));
 		}
 		else
 		{
-			if (header.tex_array_size == 1)
+			if (header.tex_depth_or_array_size == 1)
 			{
 				resource::create_view(h_resource,
 									  h_srv_desc,
@@ -624,7 +624,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				resource::create_view(h_resource,
 									  h_srv_desc,
-									  defaults::srv_view_desc::tex2d_array(dx12_format, header.tex_array_size, header.mip_count));
+									  defaults::srv_view_desc::tex2d_array(dx12_format, header.tex_depth_or_array_size, header.mip_count));
 			}
 		}
 
