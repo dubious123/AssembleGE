@@ -4,7 +4,7 @@
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 namespace age::graphics::command
 {
-	FORCE_INLINE void
+	void
 	cpu_wait(e::queue_kind kind) noexcept
 	{
 		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
@@ -84,7 +84,7 @@ namespace age::graphics::command
 		begin_frame(kind, 0);
 	}
 
-	FORCE_INLINE uint64
+	uint64
 	signal(e::queue_kind kind) noexcept
 	{
 		auto& ctx = g::queue_ctx[std::to_underlying(kind)];

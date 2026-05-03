@@ -519,14 +519,14 @@ namespace age::platform
 
 namespace age::platform
 {
-	FORCE_INLINE uint32
+	uint32
 	get_client_width(window_handle h_window) noexcept
 	{
 		auto cr = g::window_info_vec[h_window.id].client_rect;
 		return cr.right - cr.left;
 	}
 
-	FORCE_INLINE uint32
+	uint32
 	get_client_height(window_handle h_window) noexcept
 	{
 		auto cr = g::window_info_vec[h_window.id].client_rect;

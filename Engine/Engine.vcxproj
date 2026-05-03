@@ -821,8 +821,11 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -866,8 +869,9 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <OmitFramePointers>true</OmitFramePointers>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <Optimization>MaxSpeed</Optimization>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -912,7 +916,8 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -942,7 +947,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <Optimization>Disabled</Optimization>
-      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -957,8 +962,9 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxcompiler.dll $(OutDir)
@@ -995,7 +1001,8 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <OmitFramePointers>true</OmitFramePointers>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxcompiler.dll $(OutDir)
@@ -1032,7 +1039,8 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
       <AdditionalOptions>/Ob3 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ForcedIncludeFiles>age_pch.hpp</ForcedIncludeFiles>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxcompiler.dll $(OutDir)

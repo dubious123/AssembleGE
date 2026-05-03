@@ -100,11 +100,11 @@ namespace age::platform
 
 namespace age::platform
 {
-	FORCE_INLINE uint32
-		get_client_width(window_handle) noexcept;
+	uint32
+	get_client_width(window_handle _) noexcept;
 
-	FORCE_INLINE uint32
-		get_client_height(window_handle) noexcept;
+	uint32
+	get_client_height(window_handle _) noexcept;
 
 	FORCE_INLINE window_state
 		get_window_state(window_handle) noexcept;

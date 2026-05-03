@@ -75,7 +75,7 @@ namespace age::graphics
 
 namespace age::graphics::command
 {
-	FORCE_INLINE void
+	void
 	cpu_wait(e::queue_kind _ = e::queue_kind::direct) noexcept;
 
 	FORCE_INLINE void
@@ -111,7 +111,7 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	begin_frame(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
 
-	FORCE_INLINE uint64
+	uint64
 	signal(e::queue_kind _ = e::queue_kind::direct) noexcept;
 
 	FORCE_INLINE void
