@@ -333,68 +333,186 @@ namespace age::editor
 		using namespace ui;
 		using enum input::e::key_kind;
 		using enum ui::e::style_state;
+		using enum asset::e::kind;
 
-		auto display_name = std::array<char, config::max_asset_display_name_len>{ "invalid mesh" };
-		if (runtime::is_handle_invalid(mesh.h_mesh) is_false)
+		static auto mesh_vec  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
+		static auto label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		mesh_vec.reserve(asset::registry::all(mesh_baked).size());
+		label_vec.reserve(asset::registry::all(mesh_baked).size());
+		mesh_vec.clear();
+		label_vec.clear();
+		for (auto h_mesh : asset::registry::all(mesh_baked))
 		{
-			display_name = mesh.h_mesh.get_display_name<asset::e::kind::mesh_baked>();
+			label_vec.emplace_back(h_mesh.get_display_name<mesh_baked>());
+			mesh_vec.emplace_back(
+				ui::widget::dropdown_option<asset::handle>{ .value = h_mesh, .label = label_vec.back().data() });
 		}
 
-		auto open	= false;
-		auto btn_id = age::get_invalid_id<ui::t_hash>();
-
-		if (auto btn = widget::begin(set_width_fit() | set_height_fit() | set_vertical() | set_interact(true) | set_save_state(true)))
+		auto h_mesh = mesh.h_mesh;
+		if (widget::dropdown<asset::handle>(h_mesh, mesh_vec))
 		{
-			btn_id			 = btn.hash_id;
-			auto style_state = idle;
-			if (btn.pressed<mouse_left>())
-			{
-				style_state = active;
-			}
-			else if (btn.hovered())
-			{
-				style_state = hover;
-			}
-
-			if (auto _ = widget::frame(style_state, set_width_fit(), set_height_fit()))
-			{
-				widget::text_button(display_name.data());
-			}
-
-			auto& state = btn.get_state();
-
-			if (btn.clicked())
-			{
-				state.toggled = !state.toggled;
-			}
-
-			open = state.toggled;
-		}
-
-		if (open)
-		{
-			for (auto h : asset::registry::all(asset::e::kind::mesh_baked))
-			{
-				auto id = id_begin();
-
-				if (auto sel = widget::button(h.get_display_name<asset::e::kind::mesh_baked>().data()))
-				{
-					if (sel.clicked())
-					{
-						auto& state	  = ui::g::widget_state_map[btn_id];
-						state.toggled = false;	  // close this context
-						mesh.update_h_mesh(h);
-						break;
-					}
-				}
-			}
+			mesh.update_h_mesh(h_mesh);
 		}
 	}
 
 	void
 	ui_component(ecs::material& mat) noexcept
 	{
-		ui::widget::checkbox("is_opaque", mat.is_opaque);
+		using namespace ui;
+		using enum input::e::key_kind;
+		using enum ui::e::style_state;
+		using enum asset::e::kind;
+
+		static auto mat_vec		  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
+		static auto mat_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		mat_vec.reserve(asset::registry::all(material).size());
+		mat_label_vec.reserve(asset::registry::all(material).size());
+		mat_vec.clear();
+		mat_label_vec.clear();
+		for (auto h_mat : asset::registry::all(material))
+		{
+			mat_label_vec.emplace_back(h_mat.get_display_name<material>());
+			mat_vec.emplace_back(
+				ui::widget::dropdown_option<asset::handle>{ .value = h_mat, .label = mat_label_vec.back().data() });
+		}
+
+
+		auto h_mat = mat.h_mat;
+		if (widget::dropdown<asset::handle>(h_mat, mat_vec))
+		{
+			mat.update_h_mat(h_mat);
+		}
+
+		widget::separator_v();
+
+		static auto tex_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		static auto tex_vec		  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
+		tex_vec.reserve(asset::registry::all(texture).size());
+		tex_label_vec.reserve(asset::registry::all(texture).size());
+		tex_vec.clear();
+		tex_label_vec.clear();
+		for (auto h_tex : asset::registry::all(texture))
+		{
+			tex_label_vec.emplace_back(h_tex.get_display_name<texture>());
+			tex_vec.emplace_back(
+				ui::widget::dropdown_option<asset::handle>{ .value = h_tex, .label = tex_label_vec.back().data() });
+		}
+
+		auto& entry = h_mat.get_entry<material>();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Base color");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::color_field(entry.base_color_factor);
+				widget::dropdown<asset::handle>(entry.h_tex_base_color, tex_vec);
+			}
+		}
+
+		widget::separator_v();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Matallic");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::numeric_field(entry.metallic_factor, nullptr, 0.f, 1.f);
+				widget::slider(entry.metallic_factor, 0.f, 1.f);
+			}
+		}
+
+		widget::separator_v();
+
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Metalillic - Roughness tex");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::dropdown<asset::handle>(entry.h_tex_metallic_roughness, tex_vec);
+			}
+		}
+
+		widget::separator_v();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Occlusion");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::numeric_field(entry.occlusion_strength, nullptr, 0.f, 1.f);
+				widget::slider(entry.occlusion_strength, 0.f, 1.f);
+				widget::dropdown<asset::handle>(entry.h_tex_occlusion, tex_vec);
+			}
+		}
+
+		widget::separator_v();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Normal");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::numeric_field(entry.normal_scale, nullptr, 0.f, 2.f);
+				widget::slider(entry.normal_scale, 0.f, 2.f);
+				widget::dropdown<asset::handle>(entry.h_tex_normal, tex_vec);
+			}
+		}
+
+		widget::separator_v();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Emissive");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::color_field(entry.emissive_factor);
+				widget::dropdown<asset::handle>(entry.h_tex_emissive, tex_vec);
+			}
+		}
+
+		widget::separator_v();
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("Alpha");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				using enum asset::e::alpha_mode_kind;
+				widget::dropdown<asset::e::alpha_mode_kind>(entry.alpha_mode, widget::make_dropdown_option<opaque, mask, blend>());
+			}
+		}
+
+		widget::separator_v();
 	}
 
 	void
@@ -406,8 +524,8 @@ namespace age::editor
 
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.direction, "direction");
-		ui::widget::numeric_field(light.intensity, "intensity");
-		ui::widget::numeric_field(light.color, "color");
+		ui::widget::text("color");
+		ui::widget::color_field(light.color, light.intensity);
 	}
 
 	void
@@ -495,11 +613,10 @@ namespace age::editor
 		{
 			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 			{
-				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 				{
 					widget::text("size");
 				}
-
 
 				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
@@ -509,7 +626,7 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 			{
-				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 				{
 					widget::text("seg_uv");
 				}
@@ -522,7 +639,7 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 			{
-				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 				{
 					widget::text("mesh_kind");
 				}
@@ -536,7 +653,7 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 			{
-				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit()))
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 				{
 					widget::text("vertex layout");
 				}
@@ -550,7 +667,10 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_horizontal() | set_align_center()))
 			{
-				widget::text_input2(detail::ui_modal_asset_name());
+				if (auto _ = widget::begin(set_width_fixed(100 + 100) | set_height_fit()))
+				{
+					widget::text_input(detail::ui_modal_asset_name());
+				}
 
 				if (auto h_cancel = widget::button("cancel"))
 				{
@@ -568,15 +688,210 @@ namespace age::editor
 
 						c_auto mesh_name = g::current_game.dir_path / "asset" / "mesh" / detail::ui_modal_asset_name().data();
 
-						auto h_mesh = asset::mesh_baked::cpu_load(mesh_name.string(),
-																  age::asset::primitive_desc{
-																	  .size		 = size,
-																	  .seg_u	 = seg_uv.x,
-																	  .seg_v	 = seg_uv.y,
-																	  .mesh_kind = mesh_kind },
-																  age::asset::e::vertex_kind::pnt_uv1);
-						asset::mesh_baked::cpu_unload(h_mesh);
-						asset::registry::register_asset(h_mesh);
+						auto h_mat = asset::mesh_baked::cpu_load(mesh_name.string(),
+																 age::asset::primitive_desc{
+																	 .size		= size,
+																	 .seg_u		= seg_uv.x,
+																	 .seg_v		= seg_uv.y,
+																	 .mesh_kind = mesh_kind },
+																 age::asset::e::vertex_kind::pnt_uv1);
+						asset::mesh_baked::cpu_unload(h_mat);
+						asset::registry::register_asset(h_mat);
+					}
+				}
+			}
+		}
+	}
+
+	void
+	ui_modal_new_asset_texture() noexcept
+	{
+		using namespace age::ui;
+		widget::text_heading("ui_modal_new_asset_texture");
+	}
+
+	void
+	ui_modal_new_asset_material() noexcept
+	{
+		using namespace age::ui;
+		using enum age::asset::e::kind;
+
+		static auto mat_desc  = asset::material_desc{};
+		static auto label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		static auto tex_vec	  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
+		tex_vec.reserve(asset::registry::all(texture).size());
+		label_vec.reserve(asset::registry::all(texture).size());
+		tex_vec.clear();
+		label_vec.clear();
+		for (auto h_tex : asset::registry::all(texture))
+		{
+			label_vec.emplace_back(h_tex.get_display_name<texture>());
+			tex_vec.emplace_back(
+				ui::widget::dropdown_option<asset::handle>{ .value = h_tex, .label = label_vec.back().data() });
+		}
+
+		if (asset::registry::is_registered(mat_desc.h_tex_base_color) is_false)
+		{
+			mat_desc.h_tex_base_color = {};
+		}
+		if (asset::registry::is_registered(mat_desc.h_tex_metallic_roughness) is_false)
+		{
+			mat_desc.h_tex_metallic_roughness = {};
+		}
+		if (asset::registry::is_registered(mat_desc.h_tex_normal) is_false)
+		{
+			mat_desc.h_tex_normal = {};
+		}
+		if (asset::registry::is_registered(mat_desc.h_tex_occlusion) is_false)
+		{
+			mat_desc.h_tex_occlusion = {};
+		}
+		if (asset::registry::is_registered(mat_desc.h_tex_emissive) is_false)
+		{
+			mat_desc.h_tex_emissive = {};
+		}
+
+		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
+		{
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Base color");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::color_field(mat_desc.base_color_factor);
+					widget::dropdown<asset::handle>(mat_desc.h_tex_base_color, tex_vec);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Matallic");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(mat_desc.metallic_factor, nullptr, 0.f, 1.f);
+					widget::slider(mat_desc.metallic_factor, 0.f, 1.f);
+				}
+			}
+
+			widget::separator_v();
+
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Metalillic - Roughness tex");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::dropdown<asset::handle>(mat_desc.h_tex_metallic_roughness, tex_vec);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Occlusion");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(mat_desc.occlusion_strength, nullptr, 0.f, 1.f);
+					widget::slider(mat_desc.occlusion_strength, 0.f, 1.f);
+					widget::dropdown<asset::handle>(mat_desc.h_tex_occlusion, tex_vec);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Normal");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(mat_desc.normal_scale, nullptr, 0.f, 2.f);
+					widget::slider(mat_desc.normal_scale, 0.f, 2.f);
+					widget::dropdown<asset::handle>(mat_desc.h_tex_normal, tex_vec);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Emissive");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::color_field(mat_desc.emissive_factor);
+					widget::dropdown<asset::handle>(mat_desc.h_tex_emissive, tex_vec);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Alpha");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					using enum asset::e::alpha_mode_kind;
+					widget::dropdown<asset::e::alpha_mode_kind>(mat_desc.alpha_mode, widget::make_dropdown_option<opaque, mask, blend>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_align_center()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100 + 100) | set_height_fit()))
+				{
+					widget::text_input(detail::ui_modal_asset_name());
+				}
+
+				if (auto h_cancel = widget::button("cancel"))
+				{
+					if (h_cancel.clicked())
+					{
+						g::show_modal = false;
+					}
+				}
+
+				if (auto h_create = widget::button("create"))
+				{
+					if (h_create.clicked())
+					{
+						g::show_modal	 = false;
+						auto   name		 = g::current_game.dir_path / "asset" / "material" / detail::ui_modal_asset_name().data();
+						c_auto mesh_path = asset::get_asset_full_path<material>(name.string());
+
+						asset::material::build(asset::get_asset_full_path<material>(name.string()).data(), mat_desc);
+						asset::registry::register_asset(material, mesh_path.data());
 					}
 				}
 			}
@@ -587,39 +902,46 @@ namespace age::editor
 	ui_modal_new_asset() noexcept
 	{
 		using namespace age::ui;
+		using enum age::asset::e::kind;
 
-		static auto selected = age::asset::e::kind::mesh_baked;
+		static auto selected = mesh_baked;
 		if (auto _ = widget::begin(style::panel() | set_horizontal() | set_width_grow() | set_height_grow()))
 		{
 			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_fit() | set_height_grow()))
 			{
-				for (auto e_asset_kind : std::array{ age::asset::e::kind::font, age::asset::e::kind::mesh_baked })
-				{
-					if (auto _ = id_begin())
+				asset::for_each_kind(AGE_LAMBDA(
+					<asset::e::kind e_kind>,
 					{
-						if (auto asset_btn = widget::button(asset::e::to_string(e_asset_kind).data()))
+						auto asset_btn = widget::button(asset::e::to_string(e_kind).data());
+						if (asset_btn.clicked())
 						{
-							if (asset_btn.clicked())
-							{
-								selected = e_asset_kind;
-							}
+							selected = e_kind;
 						}
-					}
-				}
+					}));
 			}
 
 			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_grow()))
 			{
 				switch (selected)
 				{
-				case age::asset::e::kind::font:
+				case font:
 				{
 					ui_modal_new_asset_font();
 					break;
 				}
-				case age::asset::e::kind::mesh_baked:
+				case mesh_baked:
 				{
 					ui_modal_new_asset_mesh_baked();
+					break;
+				}
+				case texture:
+				{
+					ui_modal_new_asset_texture();
+					break;
+				}
+				case material:
+				{
+					ui_modal_new_asset_material();
 					break;
 				}
 				default:

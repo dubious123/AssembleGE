@@ -187,12 +187,52 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
+		src_placed(ID3D12Resource* p_resource, const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		 = p_resource,
+				.Type			 = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+				.PlacedFootprint = footprint,
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		src_subresource(ID3D12Resource* p_resource, uint32 subresource_index = 0) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		  = p_resource,
+				.Type			  = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				.SubresourceIndex = subresource_index,
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
 		dst(ID3D12Resource* p_resource, uint32 subresource_index = 0) noexcept
 		{
 			return D3D12_TEXTURE_COPY_LOCATION{
 				.pResource		  = p_resource,
 				.Type			  = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
 				.SubresourceIndex = subresource_index,
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		dst_subresource(ID3D12Resource* p_resource, uint32 subresource_index) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		  = p_resource,
+				.Type			  = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				.SubresourceIndex = subresource_index,
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		dst_placed(ID3D12Resource* p_resource, const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint) noexcept
+		{
+			return D3D12_TEXTURE_COPY_LOCATION{
+				.pResource		 = p_resource,
+				.Type			 = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+				.PlacedFootprint = footprint,
 			};
 		}
 	}	 // namespace copy_location
@@ -274,6 +314,54 @@ namespace age::graphics::defaults
 					.FirstArraySlice	 = 0,
 					.ArraySize			 = array_size,
 					.PlaneSlice			 = 0,
+					.ResourceMinLODClamp = 0.0f }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex_cube(DXGI_FORMAT format, uint32 mip_levels = 1) noexcept
+		{
+			AGE_ASSERT(mip_levels > 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = format,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURECUBE,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.TextureCube			 = D3D12_TEXCUBE_SRV{
+					.MostDetailedMip	 = 0,
+					.MipLevels			 = mip_levels,
+					.ResourceMinLODClamp = 0.0f }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex_cube_array(DXGI_FORMAT format, uint32 num_cubes, uint32 mip_levels = 1) noexcept
+		{
+			AGE_ASSERT(mip_levels > 0);
+			AGE_ASSERT(num_cubes > 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = format,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.TextureCubeArray		 = D3D12_TEXCUBE_ARRAY_SRV{
+					.MostDetailedMip	 = 0,
+					.MipLevels			 = mip_levels,
+					.First2DArrayFace	 = 0,
+					.NumCubes			 = num_cubes,
+					.ResourceMinLODClamp = 0.0f }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex3d(DXGI_FORMAT format, uint32 mip_levels = 1) noexcept
+		{
+			AGE_ASSERT(mip_levels > 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = format,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_TEXTURE3D,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Texture3D				 = D3D12_TEX3D_SRV{
+					.MostDetailedMip	 = 0,
+					.MipLevels			 = mip_levels,
 					.ResourceMinLODClamp = 0.0f }
 			};
 		}

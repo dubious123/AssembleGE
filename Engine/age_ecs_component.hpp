@@ -474,8 +474,8 @@ namespace age::ecs
 		{
 			if (runtime::is_handle_invalid(cmp.h_mesh))
 			{
-				char mesh_name[config::max_asset_path_len] = { "invalid_mesh" };
-				buf.write(mesh_name);
+				char mesh_path[config::max_asset_path_len] = { "invalid_mesh" };
+				buf.write(mesh_path);
 			}
 			else
 			{
@@ -494,26 +494,74 @@ namespace age::ecs
 				AGE_ASSERT(false);
 			}
 
-			char mesh_name[config::max_asset_path_len];
-			buf.read(mesh_name);
+			char mesh_path[config::max_asset_path_len] = {};
+			buf.read(mesh_path);
 
-			cmp.update_h_mesh(asset::registry::find(age::asset::e::kind::mesh_baked, mesh_name));
+			cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked, mesh_path));
 		}
 	};
 
 	AGE_COMPONENT(material, "mat", "pbr_mat", "material_3d")
 	{
-		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_VERSION(2);
 
 		uint32 render_id = 0;
-		bool   is_opaque = true;
 
-		AGE_CUSTOM_BYTE_SIZE(is_opaque)
+		asset::handle h_mat = {};
+
+		FORCE_INLINE void
+		update_h_mat(asset::handle h_mat_new) noexcept
+		{
+			if (runtime::is_handle_invalid(h_mat) is_false)
+			{
+				asset::material::remove_ref(h_mat);
+			}
+			if (runtime::is_handle_invalid(h_mat_new) is_false)
+			{
+				asset::material::add_ref(h_mat_new);
+			}
+
+			h_mat = h_mat_new;
+		}
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, material & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_mat) is_false)
+			{
+				asset::material::add_ref(cmp.h_mat);
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, material & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_mat) is_false)
+			{
+				asset::material::remove_ref(cmp.h_mat);
+			}
+		}
+
+		static consteval uint32
+		byte_size() noexcept
+		{
+			return config::max_asset_path_len;
+		}
 
 		static void
 		write_to(cmp_dispatch_key, const material& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
 		{
-			buf.write(cmp.is_opaque);
+			if (runtime::is_handle_invalid(cmp.h_mat))
+			{
+				char mesh_path[config::max_asset_path_len] = { "invalid mat" };
+				buf.write(mesh_path);
+			}
+			else
+			{
+				buf.write(cmp.h_mat.get_path());
+			}
+
 			return;
 		}
 
@@ -522,11 +570,22 @@ namespace age::ecs
 		{
 			if (rw_ctx.version != material::age_component_version())
 			{
-				// handle migrate
-				AGE_ASSERT(false);
+				if (rw_ctx.version == 1)
+				{
+					buf.read<bool>();
+				}
+				else
+				{
+					AGE_ASSERT(false);
+				}
+
+				return;
 			}
 
-			buf.read(cmp.is_opaque);
+			char mat_path[config::max_asset_path_len] = {};
+			buf.read(mat_path);
+
+			cmp.update_h_mat(asset::find(age::asset::e::kind::material, mat_path));
 		}
 	};
 

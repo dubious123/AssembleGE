@@ -89,6 +89,7 @@
 
 #define RT_MASK_OPAQUE		0x01
 #define RT_MASK_TRANSPARENT 0x02
+#define RT_MASK_MASK		0x04
 #define RT_MASK_ALL			0xff
 
 // ui
@@ -131,6 +132,11 @@
 #define VERTEX_SIZE_PN_UV3	24
 #define VERTEX_SIZE_PNT_UV3 28
 
+// material enum
+#define MATERIAL_ALPHA_BLEND_OPAQUE 0
+#define MATERIAL_ALPHA_BLEND_MASK	1
+#define MATERIAL_ALPHA_BLEND_BLEND	2
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -150,6 +156,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_directional_light_id = uint16;
 	using t_unified_light_id	 = uint32;
 	using t_texture_id			 = uint32;
+	using t_material_id			 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -217,6 +224,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint16 cast_shadow_and_extra;	 // 2
 	};	  // total: 36 bytes
 
+	//---[ mesh ]------------------------------------------------------------
 	// data only used by amplification shader
 	struct meshlet_header
 	{
@@ -250,6 +258,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 mesh_byte_offset;
 		uint32 mesh_chunk_srv_id;
 		uint32 meshlet_id;
+		uint32 material_id;
 	};
 
 	struct rt_instance_render_data
@@ -258,6 +267,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 mesh_byte_offset;
 		uint32 mesh_chunk_srv_id;
 		uint32 rt_index_buffer_offset;
+		uint32 material_id;
 		// todo mat_id
 	};
 
@@ -277,6 +287,25 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 meshlet_count;
 		float3 aabb_min;
 		float3 aabb_size;
+	};
+
+	struct material
+	{
+		float4	 base_color_factor;
+		float	 metallic_factor;
+		float	 roughness_factor;
+		float3	 emissive_factor;
+		float	 normal_scale;
+		float	 occlusion_strength;
+		float	 alpha_cutoff;
+		uint32	 alpha_mode_and_extra;
+		uint32_2 _;
+
+		uint32 base_color_texture_id;
+		uint32 metallic_roughness_texture_id;
+		uint32 normal_texture_id;
+		uint32 occlusion_texture_id;
+		uint32 emissive_texture_id;
 	};
 
 	cbuffer frame_data reg(b0)
@@ -333,6 +362,7 @@ namespace age::graphics::e
 	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask, uint32,
 							   (opaque, RT_MASK_OPAQUE),
 							   (transparent, RT_MASK_TRANSPARENT),
+							   (mask, RT_MASK_MASK),
 							   (all, RT_MASK_ALL));
 }
 
@@ -417,6 +447,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(VERTEX_SIZE_P_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv3>));
 	static_assert(VERTEX_SIZE_PN_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv3>));
 	static_assert(VERTEX_SIZE_PNT_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv3>));
+
+	static_assert(MATERIAL_ALPHA_BLEND_OPAQUE == to_idx(age::asset::e::alpha_mode_kind::opaque));
+	static_assert(MATERIAL_ALPHA_BLEND_MASK == to_idx(age::asset::e::alpha_mode_kind::mask));
+	static_assert(MATERIAL_ALPHA_BLEND_BLEND == to_idx(age::asset::e::alpha_mode_kind::blend));
 
 
 	#undef reg
@@ -545,6 +579,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef VERTEX_SIZE_P_UV3
 	#undef VERTEX_SIZE_PN_UV3
 	#undef VERTEX_SIZE_PNT_UV3
+
+	#undef MATERIAL_ALPHA_BLEND_OPAQUE
+	#undef MATERIAL_ALPHA_BLEND_MASK
+	#undef MATERIAL_ALPHA_BLEND_BLEND
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

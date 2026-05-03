@@ -52,23 +52,29 @@ sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_norm
 }
 
 float4
-main_ps(vertex_fat fragment) sv_target_0
+main_ps(opaque_ms_to_ps fragment) sv_target_0
 {
+	const uint32	 mat_id = fragment.mat_id;
+	const vertex_fat v		= fragment.v;
+
+	const material mat = load_material(mat_id);
+
 	// const float3 ambient_light = float3(0.03, 0.03, 0.03);
 	const float3 ambient_light = srgb_to_linear(float3(0., 0., 0.));
-	const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
-	// const float3 albedo = get_random_color(fragment.meshlet_render_data_id);
+	// const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
 
-	const float3 vertex_normal = normalize(fragment.normal);
+	const float3 albedo = mat.base_color_factor.rgb;
 
-	const float3 world_to_cam_dir = normalize(camera_pos - fragment.world_pos);
+	const float3 vertex_normal = normalize(v.normal);
+
+	const float3 world_to_cam_dir = normalize(camera_pos - v.world_pos);
 
 	float3 lighting = ambient_light;
 
-	const float linear_depth = dot(fragment.world_pos - camera_pos, camera_forward);
+	const float linear_depth = dot(v.world_pos - camera_pos, camera_forward);
 
-	const float3 ddx_pos	 = ddx(fragment.world_pos);
-	const float3 ddy_pos	 = ddy(fragment.world_pos);
+	const float3 ddx_pos	 = ddx(v.world_pos);
+	const float3 ddy_pos	 = ddy(v.world_pos);
 	const float3 face_normal = normalize(cross(ddx_pos, ddy_pos));
 
 	const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
@@ -78,12 +84,12 @@ main_ps(vertex_fat fragment) sv_target_0
 		const directional_light light = load_directional_light(d);
 
 		lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
-				  * calc_directional_shadow_rt(light, fragment.world_pos, face_normal, linear_depth);
+				  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
 
 
-	const uint32 tile_x	 = uint32(fragment.pos.x) / LIGHT_TILE_SIZE;
-	const uint32 tile_y	 = uint32(fragment.pos.y) / LIGHT_TILE_SIZE;
+	const uint32 tile_x	 = uint32(v.pos.x) / LIGHT_TILE_SIZE;
+	const uint32 tile_y	 = uint32(v.pos.y) / LIGHT_TILE_SIZE;
 	const uint32 tile_id = tile_x + tile_y * light_tile_count_x;
 
 	const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
@@ -112,8 +118,8 @@ main_ps(vertex_fat fragment) sv_target_0
 			{
 				const unified_light light = load_sorted_light(sorted_id);
 
-				lighting += calc_unified_light(light, fragment.world_pos, vertex_normal, world_to_cam_dir)
-						  * calc_unified_shadow_rt(light, fragment.world_pos, face_normal);
+				lighting += calc_unified_light(light, v.world_pos, vertex_normal, world_to_cam_dir)
+						  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
 			}
 		}
 	}
@@ -125,6 +131,6 @@ main_ps(vertex_fat fragment) sv_target_0
 	// return float4(face_normal, 1.f);
 	// return float4(vertex_normal, 1.f);
 
-	// return float4(fragment.uv0, 0, 1.f);
+	// return float4(v.uv0, 0, 1.f);
 	return float4(lighting * albedo, 1.0f);
 }

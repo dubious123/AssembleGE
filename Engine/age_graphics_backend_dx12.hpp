@@ -43,6 +43,10 @@ namespace age::graphics::g
 
 	inline auto h_upload_buffer = mapping_handle{};
 
+	inline auto upload_footprint_vec	  = age::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT>::gen_reserved(1);
+	inline auto upload_num_rows_vec		  = age::vector<uint32>::gen_reserved(1);
+	inline auto upload_row_size_bytes_vec = age::vector<uint64>::gen_reserved(1);
+
 	//---[ rt ]---------------------------------------------------------------------
 
 	inline auto h_rt_blas_scratch_buffer = age::graphics::resource_handle{};
@@ -321,7 +325,10 @@ namespace age::graphics::resource
 	set_name(std::span<mapping_handle>, const wchar_t* fmt) noexcept;
 
 	void
-	upload_texture(resource_handle h_dst, const void* p_src_cpu, age::extent_2d<uint32> extent, DXGI_FORMAT dx12_format) noexcept;
+	upload_texture(resource_handle h_dst, const void* p_src_cpu, age::extent_2d<uint32>, DXGI_FORMAT) noexcept;
+
+	void
+	upload_texture(resource_handle h_dst, const void* p_src_cpu) noexcept;
 }	 // namespace age::graphics::resource
 
 // resource_barrier

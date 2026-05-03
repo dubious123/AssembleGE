@@ -5,9 +5,6 @@ namespace age::asset::mesh_baked::detail
 {
 	void
 	build_mesh_baked(const std::array<char, config::max_asset_path_len>& path, const primitive_desc&, e::vertex_kind) noexcept;
-
-	handle
-	load_common(std::string_view mesh_name) noexcept;
 }	 // namespace age::asset::mesh_baked::detail
 
 namespace age::asset::mesh_baked
@@ -34,7 +31,6 @@ namespace age::asset::mesh_baked
 		AGE_ASSERT(entry.is_gpu_loaded());
 
 		renderer.release_mesh(entry.render_id);
-		AGE_SET_INVALID_ID(entry.render_id);
 
 		AGE_ASSERT(entry.is_gpu_loaded() is_false);
 	}
@@ -61,7 +57,7 @@ namespace age::asset::mesh_baked
 	full_unload(std::string_view mesh_name, auto& renderer) noexcept
 	{
 		c_auto full_path = get_asset_full_path<e::kind::mesh_baked>(mesh_name);
-		c_auto h_mesh	 = registry::find(e::kind::mesh_baked, mesh_name.data());
+		c_auto h_mesh	 = find(e::kind::mesh_baked, full_path);
 
 		if (AGE_IS_INVALID_ID(h_mesh.id))
 		{
@@ -112,7 +108,7 @@ namespace age::asset::mesh_baked
 	handle
 	gpu_load(std::string_view mesh_name, auto& renderer, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
 	{
-		c_auto h_mesh = detail::load_common(mesh_name);
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
 		gpu_load(h_mesh, renderer, desc, v_kind);
 		return h_mesh;
 	}
@@ -144,7 +140,7 @@ namespace age::asset::mesh_baked
 	handle
 	gpu_load(std::string_view mesh_name, auto& renderer) noexcept
 	{
-		c_auto h_mesh = detail::load_common(mesh_name);
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
 
 		gpu_load(h_mesh, renderer);
 
@@ -170,7 +166,7 @@ namespace age::asset::mesh_baked
 	handle
 	full_load(std::string_view mesh_name, auto& renderer) noexcept
 	{
-		c_auto h_mesh = detail::load_common(mesh_name);
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
 
 		full_load(h_mesh, renderer);
 	}

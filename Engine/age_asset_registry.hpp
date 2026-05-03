@@ -28,9 +28,6 @@ namespace age::asset::registry
 	bool
 	is_registered(asset::handle _) noexcept;
 
-	asset::handle
-	find(e::kind, const char* path) noexcept;
-
 	std::span<const asset::handle>
 	all(e::kind k) noexcept;
 
@@ -44,7 +41,8 @@ namespace age::asset::registry
 	bool
 	is_registered(asset::handle h) noexcept
 	{
-		auto& map = g::registry_path_to_handle_map[to_idx(e_kind)];
-		return map.find(h.get_path<e_kind>()) != map.end();
+		auto& vec = g::registry_map[to_idx(e_kind)];
+		auto  it  = std::ranges::find(vec, h);
+		return it != vec.end();
 	}
 }	 // namespace age::asset::registry

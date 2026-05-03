@@ -32,6 +32,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
 			h_mapping_rt_vertex_scratch_buffer = resource::create_buffer_committed(1024);
 
+			h_mapping_material_buffer = resource::create_buffer_committed(sizeof(shared_type::material) * 5);
+
 			h_mapping_ui_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(1024);
 
 			h_scratch_buffer = resource::create_committed(
@@ -79,6 +81,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
 
 			ui_data_buffer.bind_array(h_mapping_ui_data_buffer_arr);
+
+			material_buffer.bind(h_mapping_material_buffer);
 		}
 
 		resource::create_view(h_rt_tlas_buffer_srv_desc, defaults::srv_view_desc::rt_acceleration_structure(h_rt_tlas_buffer));
@@ -123,6 +127,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_rt_tlas_buffer->set_name(L"rt_tlas_buffer");
 		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
 		h_mapping_rt_index_buffer->h_resource->set_name(L"rt_index_buffer");
+		h_mapping_material_buffer->h_resource->set_name(L"mapping_material_buffer");
 
 		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
 		resource::set_name(h_mapping_rt_instance_render_data_buffer_arr, L"mapping_rt_instance_render_data_buffer_arr[{}]");
@@ -187,6 +192,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
 		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
 		resource::unmap_and_release(h_mapping_ui_data_buffer_arr);
+		resource::unmap_and_release(h_mapping_material_buffer);
 
 
 		resource::release(h_main_buffer);
@@ -272,7 +278,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::set_graphics_root_sig(p_root_sig);
 		command::set_compute_root_sig(p_root_sig);
 
-
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(h_post_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -282,14 +287,31 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	void
-	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept
+	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, asset::handle h_mat) noexcept
 	{
-		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-		render_mesh(thread_id, object_id, entry.render_id);
+		c_auto& mesh_entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+		c_auto& mat_entry  = h_mat.get_entry<asset::e::kind::material>();
+
+		// todo
+		if (mat_entry.alpha_mode == asset::e::alpha_mode_kind::opaque)
+		{
+			render_mesh(thread_id, object_id, mesh_entry.render_id, mat_entry.render_id);
+		}
+		else
+		{
+			render_transparent_mesh(thread_id, object_id, mesh_entry.render_id, mat_entry.render_id);
+		}
 	}
 
 	void
-	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
+	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id) noexcept
+	{
+		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+		render_mesh(thread_id, object_id, entry.render_id, mat_id);
+	}
+
+	void
+	pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id) noexcept
 	{
 		auto& render_data_vec		  = opaque_meshlet_render_data_vec[graphics::g::frame_buffer_idx][thread_id];
 		auto& rt_instance_vec		  = rt_instance_data_vec[graphics::g::frame_buffer_idx][thread_id];
@@ -307,7 +329,8 @@ namespace age::graphics::render_pipeline::forward_plus
 					.object_id		   = object_data_vec.get_pos(object_id),
 					.mesh_byte_offset  = msh_data.offset,
 					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
-					.meshlet_id		   = meshlet_id++ });
+					.meshlet_id		   = meshlet_id++,
+					.material_id	   = mat_id });
 		}
 
 		rt_inst_render_data_vec.emplace_back(
@@ -315,7 +338,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				.object_id				= object_data_vec.get_pos(object_id),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4 });
+				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
+				.material_id			= mat_id });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
@@ -333,14 +357,14 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	void
-	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept
+	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id) noexcept
 	{
 		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-		render_transparent_mesh(thread_id, object_id, entry.render_id);
+		render_transparent_mesh(thread_id, object_id, entry.render_id, mat_id);
 	}
 
 	void
-	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept
+	pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id) noexcept
 	{
 		c_auto& msh_data = mesh_data_vec[mesh_id];
 
@@ -354,7 +378,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				.object_id				= object_data_vec.get_pos(object_id),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4 });
+				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
+				.material_id			= mat_id });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
@@ -393,9 +418,13 @@ namespace age::graphics::render_pipeline::forward_plus
 			light_cull_stage_sorted_light_buffer_uav.apply_compute();
 
 			rt_instance_render_data_buffer_srv.apply_compute();
+			rt_instance_render_data_buffer_srv.apply();
 			rt_index_buffer_srv.apply_compute();
 
 			ui_data_buffer.apply();
+
+			material_buffer.apply();
+			material_buffer.apply_compute();
 		}
 
 		command::set_view_ports(1, &rs.default_viewport);
@@ -530,6 +559,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(light_tile_count_y <= 0xff);
 
 		resource::release(h_main_buffer);
+		resource::release(h_post_buffer);
 		resource::release(h_depth_buffer);
 		resource::release(h_rt_transparent_texture_buffer);
 
@@ -542,6 +572,78 @@ namespace age::graphics::render_pipeline::forward_plus
 // texture
 namespace age::graphics::render_pipeline::forward_plus
 {
+	t_texture_id
+	pipeline::upload_texture(asset::handle h_tex) noexcept
+	{
+		c_auto& entry		= h_tex.get_entry<asset::e::kind::texture>();
+		c_auto& header		= entry.get_header();
+		c_auto	dx12_format = graphics::dx12_format(header.format);
+		c_auto	h_resource	= resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d_array(
+				  extent.width, extent.height,
+				  dx12_format,
+				  header.tex_array_size,
+				  D3D12_RESOURCE_FLAG_NONE,
+				  header.mip_count),
+			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
+
+		c_auto h_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+
+		if (entry.is_cube_map())
+		{
+			if (header.tex_array_size == 1)
+			{
+				resource::create_view(h_resource,
+									  h_srv_desc,
+									  defaults::srv_view_desc::tex_cube(dx12_format, header.mip_count));
+			}
+			else
+			{
+				resource::create_view(h_resource,
+									  h_srv_desc,
+									  defaults::srv_view_desc::tex_cube_array(dx12_format, header.tex_array_size, header.mip_count));
+			}
+		}
+		else if (entry.is_tex3d())
+		{
+			AGE_ASSERT(header.tex_array_size == 1);
+			resource::create_view(h_resource,
+								  h_srv_desc,
+								  defaults::srv_view_desc::tex3d(dx12_format, header.mip_count));
+		}
+		else
+		{
+			if (header.tex_array_size == 1)
+			{
+				resource::create_view(h_resource,
+									  h_srv_desc,
+									  defaults::srv_view_desc::tex2d(dx12_format, header.mip_count));
+			}
+			else
+			{
+				resource::create_view(h_resource,
+									  h_srv_desc,
+									  defaults::srv_view_desc::tex2d_array(dx12_format, header.tex_array_size, header.mip_count));
+			}
+		}
+
+
+		c_auto id = graphics::g::cbv_srv_uav_desc_pool.calc_idx(h_srv_desc);
+
+		texture_map[id] = {
+			.h_srv_desc = h_srv_desc,
+			.h_resource = h_resource,
+		};
+
+		command::begin();
+		resource::upload_texture(h_resource, entry.get_texture_buffer());
+		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_resource->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::execute_and_wait();
+
+		return t_texture_id{ id };
+	}
+
 	t_texture_id
 	pipeline::upload_texture(const void* p_src, age::extent_2d<uint32> extent, graphics::e::texture_format format) noexcept
 	{
@@ -585,7 +687,88 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		texture_map.erase(id);
 
-		id = age::get_invalid_id<t_texture_id>();
+		AGE_SET_INVALID_ID(id);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+// material
+namespace age::graphics::render_pipeline::forward_plus
+{
+	namespace detail
+	{
+		void
+		update_material_impl(pipeline& renderer, t_material_id id, asset::handle h_mat) noexcept
+		{
+			c_auto& entry = h_mat.get_entry<asset::e::kind::material>();
+
+			auto mat = shared_type::material{
+				.base_color_factor			   = entry.base_color_factor,
+				.metallic_factor			   = entry.metallic_factor,
+				.roughness_factor			   = entry.roughness_factor,
+				.emissive_factor			   = entry.emissive_factor,
+				.normal_scale				   = entry.normal_scale,
+				.occlusion_strength			   = entry.occlusion_strength,
+				.alpha_cutoff				   = entry.alpha_cutoff,
+				.alpha_mode_and_extra		   = to_idx(entry.alpha_mode),
+				.base_color_texture_id		   = age::get_invalid_id<uint32>(),
+				.metallic_roughness_texture_id = age::get_invalid_id<uint32>(),
+				.normal_texture_id			   = age::get_invalid_id<uint32>(),
+				.occlusion_texture_id		   = age::get_invalid_id<uint32>(),
+				.emissive_texture_id		   = age::get_invalid_id<uint32>(),
+			};
+
+			if (age::runtime::is_handle_invalid(entry.h_tex_base_color) is_false)
+			{
+				mat.base_color_texture_id = entry.h_tex_base_color.get_entry<asset::e::kind::texture>().render_id;
+			}
+			if (age::runtime::is_handle_invalid(entry.h_tex_metallic_roughness) is_false)
+			{
+				mat.metallic_roughness_texture_id = entry.h_tex_metallic_roughness.get_entry<asset::e::kind::texture>().render_id;
+			}
+			if (age::runtime::is_handle_invalid(entry.h_tex_normal) is_false)
+			{
+				mat.normal_texture_id = entry.h_tex_normal.get_entry<asset::e::kind::texture>().render_id;
+			}
+			if (age::runtime::is_handle_invalid(entry.h_tex_occlusion) is_false)
+			{
+				mat.occlusion_texture_id = entry.h_tex_occlusion.get_entry<asset::e::kind::texture>().render_id;
+			}
+			if (age::runtime::is_handle_invalid(entry.h_tex_emissive) is_false)
+			{
+				mat.emissive_texture_id = entry.h_tex_emissive.get_entry<asset::e::kind::texture>().render_id;
+			}
+
+			if (resource::resize_buffer(renderer.h_mapping_material_buffer, sizeof(mat) * (id + 1)))
+			{
+				renderer.material_buffer.bind(renderer.h_mapping_material_buffer);
+			}
+
+			renderer.h_mapping_material_buffer->upload(&mat, sizeof(mat), sizeof(mat) * id);
+		}
+	}	 // namespace detail
+
+	t_material_id
+	pipeline::upload_material(asset::handle h_mat) noexcept
+	{
+		auto id = static_cast<t_material_id>(material_vec.emplace_back(h_mat));
+
+		detail::update_material_impl(*this, id, h_mat);
+
+		return id;
+	}
+
+	void
+	pipeline::update_material(asset::handle h_mat) noexcept
+	{
+		detail::update_material_impl(*this, h_mat.get_entry<asset::e::kind::material>().render_id, h_mat);
+	}
+
+	void
+	pipeline::release_material(t_material_id& id) noexcept
+	{
+		material_vec.remove(id);
+
+		AGE_SET_INVALID_ID(id);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -1058,6 +1241,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
 			{
 				rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, graphics::g::frame_buffer_idx);
+				rt_instance_render_data_buffer_srv.apply();
 				rt_instance_render_data_buffer_srv.apply_compute();
 			}
 

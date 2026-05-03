@@ -13,7 +13,9 @@ namespace age::asset::e
 		mesh_baked,
 		lod_group_baked,
 		editor_game,
-		editor_entity_storage);
+		editor_entity_storage,
+		material,
+		texture);
 
 	// mesh editable
 	AGE_DEFINE_ENUM(
@@ -86,6 +88,8 @@ namespace age::asset::e
 		(hangul, 1 << 1));
 
 	AGE_ENUM_FLAG_OPERATORS(font_charset_flag);
+
+	AGE_DEFINE_ENUM(alpha_mode_kind, uint8, opaque, mask, blend);
 }	 // namespace age::asset::e
 
 namespace age::asset
@@ -371,6 +375,107 @@ namespace age::asset
 		const void*
 		pos_buffer_data() const noexcept;
 	};
+
+	template <>
+	struct entry<e::kind::material>
+	{
+		uint32 path_id;
+		uint32 render_id = age::get_invalid_id<uint32>();
+
+		float4			   base_color_factor;
+		float			   metallic_factor;
+		float			   roughness_factor;
+		float3			   emissive_factor;
+		float			   normal_scale;
+		float			   occlusion_strength;
+		float			   alpha_cutoff;
+		e::alpha_mode_kind alpha_mode;
+		uint8_3			   _;
+
+		handle h_tex_base_color;
+		handle h_tex_metallic_roughness;
+		handle h_tex_normal;
+		handle h_tex_occlusion;
+		handle h_tex_emissive;
+
+		uint32 ref_counter = 0u;
+
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		bool
+		is_loaded() const noexcept;
+	};
+
+	template <>
+	struct entry<e::kind::texture>
+	{
+		struct header
+		{
+			extent_2d<uint32>			extent;
+			graphics::e::texture_format format;
+			uint8						tex_array_size;
+			uint8						mip_count;
+
+			uint32 extra;	 // [0] is_cubemap, [1] is_3d,
+		};
+
+		static_assert(std::is_implicit_lifetime_v<header>);
+		static_assert(std::is_trivially_copyable_v<header>);
+		static_assert(sizeof(header) == 16);
+
+		using allocator_type = aligned_byte_allocator;
+
+		uint32 path_id;
+		uint32 render_id = age::get_invalid_id<uint32>();
+
+
+		std::byte* p_blob;
+
+		uint32 ref_counter = 0u;
+
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		bool
+		is_cpu_loaded() const noexcept;
+
+		bool
+		is_gpu_loaded() const noexcept;
+
+		const header&
+		get_header() const noexcept;
+
+		const void*
+		get_texture_buffer() const noexcept;
+
+		bool
+		is_cube_map() const noexcept;
+
+		bool
+		is_tex3d() const noexcept;
+	};
+}	 // namespace age::asset
+
+namespace age::asset
+{
+	struct material_desc
+	{
+		float4			   base_color_factor  = float4::one();
+		float			   metallic_factor	  = 1.f;
+		float			   roughness_factor	  = 1.f;
+		float3			   emissive_factor	  = float3::zero();
+		float			   normal_scale		  = 1.f;
+		float			   occlusion_strength = 1.f;
+		float			   alpha_cutoff		  = 0.f;
+		e::alpha_mode_kind alpha_mode		  = e::alpha_mode_kind::opaque;
+
+		handle h_tex_base_color;
+		handle h_tex_metallic_roughness;
+		handle h_tex_normal;
+		handle h_tex_occlusion;
+		handle h_tex_emissive;
+	};
 }	 // namespace age::asset
 
 namespace age::asset::g
@@ -388,11 +493,11 @@ namespace age::asset::g
 	// todo
 	template <e::kind e_kind>
 	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
+	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
+		path_to_handle_map;
 
 	inline std::filesystem::path						 registry_path;
 	inline std::array<age::vector<handle>, e::kind_size> registry_map;
-	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
-		registry_path_to_handle_map;
 }	 // namespace age::asset::g
 
 namespace age::asset

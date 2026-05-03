@@ -104,7 +104,7 @@ namespace age::graphics::resource
 		// }
 
 		AGE_ASSERT(g::resource_mapping_vec.is_empty(), "all mapping should be unmapped");
-		AGE_ASSERT(g::resource_vec.is_empty(), "all resource should be released");
+
 		for (auto& m : g::resource_mapping_vec)
 		{
 			m.h_resource->p_resource->Unmap(0, nullptr);
@@ -113,9 +113,17 @@ namespace age::graphics::resource
 
 		for (auto& resource : g::resource_vec)
 		{
+			if constexpr (age::config::debug_mode)
+			{
+				std::wprintf(resource.get_name().data());
+				std::wprintf(L"\n");
+			}
+
 			AGE_ASSERT(resource.map_count == 0, "all mapping should be unmapped");
 			resource.p_resource->Release();
 		}
+
+		AGE_ASSERT(g::resource_vec.is_empty(), "all resource should be released");
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -553,6 +561,82 @@ namespace age::graphics::resource
 
 namespace age::graphics::resource
 {
+	void
+	upload_texture(resource_handle h_dst, const void* p_src_cpu) noexcept
+	{
+		c_auto& resource_desc = h_dst->desc.d3d12_resource_desc;
+
+		c_auto sub_count = resource_desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D
+							 ? static_cast<uint32>(resource_desc.MipLevels)
+							 : static_cast<uint32>(resource_desc.MipLevels) * static_cast<uint32>(resource_desc.DepthOrArraySize);
+
+		AGE_ASSERT(sub_count <= D3D12_REQ_SUBRESOURCES);
+		AGE_ASSERT(sub_count > 0);
+
+		g::upload_footprint_vec.resize(sub_count);
+		g::upload_num_rows_vec.resize(sub_count);
+		g::upload_row_size_bytes_vec.resize(sub_count);
+		uint64 total_size = 0;
+
+		g::p_main_device->GetCopyableFootprints1(
+			&resource_desc,
+			0,
+			sub_count,
+			0,
+			g::upload_footprint_vec.data(),
+			g::upload_num_rows_vec.data(),
+			g::upload_row_size_bytes_vec.data(),
+			&total_size);
+
+		resize_buffer(g::h_upload_buffer, total_size);
+
+		c_auto* p_src_cursor = static_cast<const std::byte*>(p_src_cpu);
+
+		for (auto sub : views::loop(sub_count))
+		{
+			c_auto& fp			  = g::upload_footprint_vec[sub];
+			c_auto	src_row_pitch = static_cast<uint32>(g::upload_row_size_bytes_vec[sub]);
+			c_auto	rows		  = g::upload_num_rows_vec[sub];
+
+			for (auto z : views::loop<uint64>(fp.Footprint.Depth))
+			{
+				for (auto y : views::loop<uint64>(rows))
+				{
+					c_auto dst_offset = fp.Offset
+									  + z * fp.Footprint.RowPitch * rows
+									  + y * fp.Footprint.RowPitch;
+
+					c_auto src_offset = z * rows * src_row_pitch
+									  + y * src_row_pitch;
+
+					g::h_upload_buffer->upload(
+						p_src_cursor + src_offset,
+						src_row_pitch,
+						dst_offset);
+				}
+			}
+
+			p_src_cursor += rows * src_row_pitch * fp.Footprint.Depth;
+		}
+
+		for (auto sub : views::loop(sub_count))
+		{
+			c_auto src = defaults::copy_location::src_placed(
+				g::h_upload_buffer->h_resource->p_resource,
+				g::upload_footprint_vec[sub]);
+
+			c_auto dst = defaults::copy_location::dst_subresource(
+				h_dst->p_resource,
+				sub);
+
+			command::copy_texture(&dst, 0, 0, 0, &src, nullptr);
+		}
+
+		g::upload_footprint_vec.clear();
+		g::upload_num_rows_vec.clear();
+		g::upload_row_size_bytes_vec.clear();
+	}
+
 	void
 	upload_texture(resource_handle h_dst, const void* p_src_cpu, age::extent_2d<uint32> extent, DXGI_FORMAT dx12_format) noexcept
 	{

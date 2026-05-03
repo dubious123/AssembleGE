@@ -21,8 +21,15 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 
 #line 1 "age_asset_mesh_editable.cpp"
 #include "age_asset_mesh_editable.cpp"
+
 #line 1 "age_asset_mesh_baked.cpp"
 #include "age_asset_mesh_baked.cpp"
+
+#line 1 "age_asset_texture.cpp"
+#include "age_asset_texture.cpp"
+
+#line 1 "age_asset_material.cpp"
+#include "age_asset_material.cpp"
 
 #line 1 "age_asset_font.cpp"
 #include "age_asset_font.cpp"

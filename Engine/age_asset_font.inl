@@ -86,13 +86,7 @@ namespace age::asset::font
 	handle
 	load(std::string_view font_name, auto& renderer, e::font_charset_flag flag, std::span<uint16> extra_unicode) noexcept
 	{
-		auto full_path = get_asset_full_path<e::kind::font>(font_name);
-		auto h_asset   = registry::find(e::kind::font, full_path.data());
-
-		if (AGE_IS_INVALID_ID(h_asset.id))
-		{
-			h_asset = asset::create_entry<e::kind::font>(full_path.data());
-		}
+		c_auto h_asset = asset::detail::load_common<e::kind::font>(font_name);
 
 		load(h_asset, renderer, flag, extra_unicode);
 

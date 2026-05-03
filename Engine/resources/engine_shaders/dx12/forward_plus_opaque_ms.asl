@@ -3,11 +3,11 @@
 
 [numthreads(32, 1, 1)][output_topology("triangle")] void
 main_ms(
-	in payload opaque_as_to_ms ms_in,
-	uint32_3 group_id		   sv_group_id,
-	uint32_3 group_thread_id   sv_group_thread_id,
-	out vertices vertex_fat	   ms_out_vertex_arr[64],
-	out indices uint32_3	   ms_out_triangle_arr[126])
+	in payload opaque_as_to_ms	 ms_in,
+	uint32_3 group_id			 sv_group_id,
+	uint32_3 group_thread_id	 sv_group_thread_id,
+	out vertices opaque_ms_to_ps ms_out_vertex_arr[64],
+	out indices uint32_3		 ms_out_triangle_arr[126])
 
 {
 	const uint32 meshlet_count_per_group			= 32;
@@ -46,7 +46,8 @@ main_ms(
 
 		v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
 
-		ms_out_vertex_arr[nth_vertex] = v;
+		ms_out_vertex_arr[nth_vertex].v		 = v;
+		ms_out_vertex_arr[nth_vertex].mat_id = render_data.material_id;
 	}
 
 	expand(4)

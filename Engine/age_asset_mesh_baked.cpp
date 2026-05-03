@@ -23,45 +23,6 @@ namespace age::asset
 		return res;
 	}
 
-	template <>
-	handle
-	create_entry<e::kind::mesh_baked>(std::string_view asset_path) noexcept
-	{
-		AGE_ASSERT(asset_path.size() < config::max_asset_path_len);
-		// auto& path_to_handle = g::registry_path_to_handle_map[to_idx(e::kind::mesh_baked)];
-		// if (auto it = path_to_handle.find(asset_path); it != path_to_handle.end())
-		//{
-		//	AGE_ASSERT(false);
-		//	return it->second;
-		// }
-
-		auto& pool = pool_of<e::kind::mesh_baked>();
-
-		auto idx = pool.emplace_back(entry<e::kind::mesh_baked>{
-			.path_id = static_cast<uint32>(
-				g::path_vec.emplace_back(util::to_fixed_str<config::max_asset_path_len>(asset_path))),
-		});
-
-		return handle::make<e::kind::mesh_baked>(idx);
-	}
-
-	template <>
-	void
-	destroy_entry<e::kind::mesh_baked>(handle& h_mesh_baked) noexcept
-	{
-		auto& entry = h_mesh_baked.get_entry<e::kind::mesh_baked>();
-		AGE_ASSERT(entry.is_cpu_loaded() is_false);
-		AGE_ASSERT(entry.is_gpu_loaded() is_false);
-
-		g::path_vec.remove(entry.path_id);
-
-		auto& pool = pool_of<e::kind::mesh_baked>();
-
-		pool.remove(h_mesh_baked.get_idx());
-
-		h_mesh_baked.id = age::get_invalid_id<t_asset_id>();
-	}
-
 	std::array<char, config::max_asset_path_len>&
 	entry<e::kind::mesh_baked>::get_path() const noexcept
 	{
@@ -173,7 +134,7 @@ namespace age::asset::mesh_baked
 	handle
 	cpu_load(std::string_view mesh_name, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
 	{
-		c_auto h_mesh = detail::load_common(mesh_name);
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
 
 		cpu_load(h_mesh, desc, v_kind);
 
@@ -201,7 +162,7 @@ namespace age::asset::mesh_baked
 	handle
 	cpu_load(std::string_view mesh_name) noexcept
 	{
-		c_auto h_mesh = detail::load_common(mesh_name);
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
 
 		cpu_load(h_mesh);
 
@@ -227,20 +188,6 @@ namespace age::asset::mesh_baked
 
 namespace age::asset::mesh_baked::detail
 {
-	handle
-	load_common(std::string_view mesh_name) noexcept
-	{
-		auto full_path = get_asset_full_path<e::kind::mesh_baked>(mesh_name);
-		auto h_mesh	   = registry::find(e::kind::mesh_baked, full_path.data());
-
-		if (AGE_IS_INVALID_ID(h_mesh.id))
-		{
-			h_mesh = asset::create_entry<e::kind::mesh_baked>(full_path.data());
-		}
-
-		return h_mesh;
-	}
-
 	void
 	build_mesh_baked(const std::array<char, config::max_asset_path_len>& mesh_path, const primitive_desc& desc, e::vertex_kind e_kind) noexcept
 	{

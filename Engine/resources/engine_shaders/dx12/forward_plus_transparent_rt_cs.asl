@@ -4,7 +4,6 @@ static const uint32 MAX_RAY_HIT = 8;
 
 struct hit_data
 {
-	float4 color;
 	uint32 rt_instance_render_data_id;
 	uint32 triangle_index;
 	float2 barycentrics;
@@ -46,14 +45,11 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	hit_data hit_data_arr[MAX_RAY_HIT];
 	uint32	 hit_count = 0;
 
-	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
+	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT | RT_MASK_MASK, desc);
 
 	while (rt_proceed(query))
 	{
-		float  t	 = rt_candidate_triangle_ray_t(query);
-		float4 color = float4(0.8, 0.8, 0.8, 0.3);	  // todo material
-
-		if (color.a <= 0.01) continue;
+		float t = rt_candidate_triangle_ray_t(query);
 
 		if (hit_count >= MAX_RAY_HIT && t >= hit_data_arr[hit_count - 1].t)
 		{
@@ -79,7 +75,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 
 		hit_data_arr[pos].t							 = t;
-		hit_data_arr[pos].color						 = color;
 		hit_data_arr[pos].rt_instance_render_data_id = rt_candidate_instance_id(query);
 		hit_data_arr[pos].triangle_index			 = rt_candidate_primitive_index(query);
 		hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
@@ -96,6 +91,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		const hit_data hit = hit_data_arr[i];
 
 		const rt_instance_render_data render_data = load_rt_instance_render_data(hit.rt_instance_render_data_id);
+		const material				  mat		  = load_material(render_data.material_id);
 		const object_data			  obj_data	  = load_object_data(render_data.object_id);
 		const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
 		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
@@ -182,7 +178,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			}
 		}
 
-		float4 color  = hit_data_arr[i].color * float4(lighting.rgb, 1.f);
+		float4 color  = mat.base_color_factor * float4(lighting.rgb, 1.f);
 		result.rgb	 += color.rgb * color.a * (1.f - result.a);
 		result.a	 += color.a * (1.f - result.a);
 

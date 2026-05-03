@@ -22,6 +22,13 @@ namespace age::asset
 	inline handle
 	create_entry(e::kind asset_kind, std::string_view asset_path) noexcept;
 
+	inline handle
+	create_entry(e::kind asset_kind, const std::array<char, config::max_asset_path_len>& asset_path) noexcept;
+
+	template <e::kind e_kind>
+	handle
+	create_entry(const std::array<char, config::max_asset_path_len>& asset_path) noexcept;
+
 	template <e::kind e_kind>
 	handle
 	create_entry(std::string_view asset_path) noexcept;
@@ -41,7 +48,17 @@ namespace age::asset
 	consteval const auto&
 	get_asset_tag() noexcept;
 
-	AGE_DEFINE_ASSET_KIND(font, mesh_baked);
+	handle
+	find(e::kind, std::string_view full_path) noexcept;
+
+	handle
+	find(e::kind, const std::array<char, config::max_asset_path_len>&) noexcept;
+
+	template <e::kind e_kind>
+	constexpr decltype(auto)
+	get_asset_full_path(std::string_view asset_name) noexcept;
+
+	AGE_DEFINE_ASSET_KIND(font, mesh_baked, material, texture);
 }	 // namespace age::asset
 
 namespace age::asset
@@ -123,8 +140,67 @@ namespace age::asset::mesh_baked
 
 	void
 	remove_ref(handle _) noexcept;
-
 }	 // namespace age::asset::mesh_baked
+
+namespace age::asset::texture
+{
+	void
+	full_unload(handle, auto& renderer) noexcept;
+
+	void
+	cpu_unload(handle _) noexcept;
+
+	void
+	gpu_unload(handle, auto& renderer) noexcept;
+
+	void
+	gpu_load(handle, auto& renderer) noexcept;
+
+	handle
+	gpu_load(std::string_view tex_name, auto& renderer) noexcept;
+
+	void
+	cpu_load(handle _) noexcept;
+
+	handle
+	cpu_load(std::string_view tex_name) noexcept;
+
+	void
+	full_load(handle, auto& renderer) noexcept;
+
+	handle
+	full_load(std::string_view tex_name, auto& renderer) noexcept;
+
+	void
+	add_ref(handle _) noexcept;
+
+	void
+	remove_ref(handle _) noexcept;
+}	 // namespace age::asset::texture
+
+namespace age::asset::material
+{
+	void
+	full_unload(handle, auto& renderer) noexcept;
+
+	void
+	load(handle, auto& renderer) noexcept;
+
+	handle
+	load(std::string_view mat_name, auto& renderer) noexcept;
+
+	void
+	add_ref(handle _) noexcept;
+
+	void
+	remove_ref(handle _) noexcept;
+
+	void
+	build(std::string_view mat_path, const material_desc&) noexcept;
+
+	void
+	save(handle _) noexcept;
+};	  // namespace age::asset::material
 
 namespace age::asset
 {
@@ -143,3 +219,14 @@ namespace age::asset
 		};
 	}
 }	 // namespace age::asset
+
+namespace age::asset::detail
+{
+	template <e::kind e_kind>
+	handle
+	load_common_from_path(const std::array<char, config::max_asset_path_len>& full_path) noexcept;
+
+	template <e::kind>
+	handle
+	load_common(std::string_view asset_name) noexcept;
+}	 // namespace age::asset::detail

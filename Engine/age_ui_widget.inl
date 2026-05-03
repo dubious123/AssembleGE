@@ -982,6 +982,7 @@ namespace age::ui::widget
 
 		auto is_open	= false;
 		auto heading_id = age::get_invalid_id<ui::t_hash>();
+		auto focused	= false;
 
 		auto _0 = widget::begin(style::frame() | set_vertical() | set_padding(theme::frame_border_thickness() + 1.f) | set_child_gap(0) | set_width_grow() | set_height_fit());
 
@@ -1004,6 +1005,8 @@ namespace age::ui::widget
 			{
 				heading_state.toggled = !heading_state.toggled;
 			}
+
+			focused = h_heading.focused();
 
 			is_open = heading_state.toggled;
 
@@ -1077,6 +1080,13 @@ namespace age::ui::widget
 					widget::text(opt.label.data(), hover);
 				}
 			}
+		}
+
+		if (focused is_false)
+		{
+			// todo - close after few frame
+			// auto& heading_state	  = g::widget_state_map[heading_id];
+			// heading_state.toggled = false;
 		}
 
 		return res_value_changed;

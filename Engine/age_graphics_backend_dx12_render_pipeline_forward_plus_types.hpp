@@ -78,6 +78,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::u<1, 1>>,
 
+		binding_slot<
+			"material_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::material>,
+			how::root_descriptor,
+			where::t<0, 2>>,
+
 		/*binding_slot<
 			"shadow_stage_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
@@ -252,5 +260,10 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		srv_desc_handle h_srv_desc;
 		resource_handle h_resource;
+	};
+
+	struct material_data
+	{
+		asset::handle h_mat;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

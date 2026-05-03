@@ -17,44 +17,6 @@ namespace age::asset
 		return res;
 	}
 
-	template <>
-	handle
-	create_entry<e::kind::font>(std::string_view asset_path) noexcept
-	{
-		AGE_ASSERT(asset_path.size() < config::max_asset_path_len);
-		// auto& path_to_handle = g::registry_path_to_handle_map[to_idx(e::kind::font)];
-		// if (auto it = path_to_handle.find(asset_path); it != path_to_handle.end())
-		//{
-		//	AGE_ASSERT(false);
-		//	return it->second;
-		// }
-
-		auto& pool = pool_of<e::kind::font>();
-
-		auto idx = pool.emplace_back(entry<e::kind::font>{
-			.path_id = static_cast<uint32>(
-				g::path_vec.emplace_back(util::to_fixed_str<config::max_asset_path_len>(asset_path))),
-		});
-
-		return handle::make<e::kind::font>(idx);
-	}
-
-	template <>
-	void
-	destroy_entry<e::kind::font>(handle& h_font) noexcept
-	{
-		auto& entry = h_font.get_entry<e::kind::font>();
-		AGE_ASSERT(entry.is_loaded() is_false);
-
-		g::path_vec.remove(entry.path_id);
-
-		auto& pool = pool_of<e::kind::font>();
-
-		pool.remove(h_font.get_idx());
-
-		h_font.id = age::get_invalid_id<t_asset_id>();
-	}
-
 	std::array<char, config::max_asset_path_len>&
 	entry<e::kind::font>::get_path() const noexcept
 	{

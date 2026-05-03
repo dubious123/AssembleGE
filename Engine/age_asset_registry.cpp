@@ -23,18 +23,19 @@ namespace age::asset::registry
 			auto&& [asset_kind_name, asset_count] = buf.read<std::array<char, config::max_enum_name_len>, uint32>();
 			auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
 
-			auto& registry_vec	 = g::registry_map[e::to_idx(asset_kind)];
-			auto& path_to_handle = g::registry_path_to_handle_map[e::to_idx(asset_kind)];
+			auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
 			registry_vec.reserve(asset_count);
-			path_to_handle.reserve(asset_count);
 			for (auto _ : views::loop(asset_count))
 			{
 				auto asset_path = buf.read<std::array<char, config::max_asset_path_len>>();
 
-				auto h_asset = asset::create_entry(asset_kind, asset_path.data());
+				auto h_asset = asset::find(asset_kind, asset_path);
+				if (runtime::is_handle_invalid(h_asset))
+				{
+					h_asset = create_entry(asset_kind, asset_path);
+				}
 
 				registry_vec.emplace_back(h_asset);
-				path_to_handle[asset_path] = h_asset;
 			}
 		}
 
@@ -76,7 +77,6 @@ namespace age::asset::registry
 	{
 		c_auto asset_kind = h.get_kind();
 
-		g::registry_path_to_handle_map[to_idx(asset_kind)][h.get_path()] = h;
 		g::registry_map[to_idx(asset_kind)].emplace_back(h);
 	}
 
@@ -91,7 +91,6 @@ namespace age::asset::registry
 	{
 		c_auto asset_kind = h.get_kind();
 
-		g::registry_path_to_handle_map[to_idx(asset_kind)].erase(h.get_path());
 		ranges::erase(g::registry_map[to_idx(asset_kind)], h);
 	}
 
@@ -102,27 +101,19 @@ namespace age::asset::registry
 
 		if (runtime::is_handle_invalid(h)) { return; }
 
-		g::registry_path_to_handle_map[to_idx(asset_kind)].erase(h.get_path());
 		ranges::erase(g::registry_map[to_idx(asset_kind)], h);
 	}
 
 	bool
 	is_registered(asset::handle h) noexcept
 	{
-		auto& map = g::registry_path_to_handle_map[to_idx(h.get_kind())];
-		return map.find(h.get_path()) != map.end();
-	}
-
-	asset::handle
-	find(e::kind e_kind, const char* path) noexcept
-	{
-		auto& map = g::registry_path_to_handle_map[to_idx(e_kind)];
-		if (auto it = map.find(util::to_fixed_str<config::max_asset_path_len>(path)); it != map.end())
+		if (runtime::is_handle_invalid(h))
 		{
-			return it->second;
+			return false;
 		}
-
-		return handle{ age::get_invalid_id<t_asset_id>() };
+		auto& vec = g::registry_map[to_idx(h.get_kind())];
+		auto  it  = std::ranges::find(vec, h);
+		return it != vec.end();
 	}
 
 	std::span<const asset::handle>
@@ -148,11 +139,6 @@ namespace age::asset::registry
 		for (auto& vec : g::registry_map)
 		{
 			vec.clear();
-		}
-
-		for (auto& map : g::registry_path_to_handle_map)
-		{
-			map.clear();
 		}
 	}
 }	 // namespace age::asset::registry

@@ -99,6 +99,25 @@ namespace age::asset
 
 		file.close();
 	}
+
+	handle
+	find(e::kind e_kind, std::string_view full_path) noexcept
+	{
+		return find(e_kind, util::to_fixed_str<config::max_asset_path_len>(full_path));
+	}
+
+	handle
+	find(e::kind e_kind, const std::array<char, config::max_asset_path_len>& full_path) noexcept
+	{
+		auto it = g::path_to_handle_map[to_idx(e_kind)].find(full_path);
+
+		if (it == g::path_to_handle_map[to_idx(e_kind)].end())
+		{
+			return handle{};
+		}
+
+		return it->second;
+	}
 }	 // namespace age::asset
 
 namespace age::asset
@@ -126,7 +145,7 @@ namespace age::asset
 			vec.clear();
 		}
 
-		for (auto& map : g::registry_path_to_handle_map)
+		for (auto& map : g::path_to_handle_map)
 		{
 			map.clear();
 		}

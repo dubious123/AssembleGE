@@ -197,6 +197,39 @@ load_tile_mask(uint32 tile_idx, uint32 word_idx)
 	return load<uint32>(light_cull_stage_buffer_srv, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
 }
 
+// material
+structured_buffer<material> material_buffer reg(t0, space2);
+
+material
+load_material(uint32 idx)
+{
+	if (idx == invalid_id_uint32)
+	{
+		material m;
+		m.base_color_factor	   = float4(1.0, 1.0, 1.0, 1.0);
+		m.metallic_factor	   = 0.0;
+		m.roughness_factor	   = 0.5;
+		m.emissive_factor	   = float3(0.0, 0.0, 0.0);
+		m.normal_scale		   = 1.0;
+		m.occlusion_strength   = 1.0;
+		m.alpha_cutoff		   = 0.5;
+		m.alpha_mode_and_extra = 0;	   // alpha_mode = opaque(0), extra = 0
+		m._					   = uint2(0, 0);
+
+		m.base_color_texture_id			= invalid_id_uint32;
+		m.metallic_roughness_texture_id = invalid_id_uint32;
+		m.normal_texture_id				= invalid_id_uint32;
+		m.occlusion_texture_id			= invalid_id_uint32;
+		m.emissive_texture_id			= invalid_id_uint32;
+
+		return m;
+	}
+	else
+	{
+		return material_buffer[idx];
+	}
+}
+
 // rt
 structured_buffer<rt_instance_render_data> rt_instance_render_data_buffer_srv reg(t0, space3);
 structured_buffer<uint32>				   rt_index_buffer_srv reg(t1, space3);
@@ -280,11 +313,28 @@ safe_dot_camera_forward(float3 dir)
 	return max(dot(dir, camera_forward), epsilon_1e4);
 }
 
+#line 1 "age_color_space.asli"
+#include "age_color_space.asli"
+#line 1 "age_light.asli"
+#include "age_light.asli"
+#line 1 "age_ui.asli"
+#include "age_ui.asli"
+#line 1 "age_mesh.asli"
+#include "age_mesh.asli"
+#line 1 "age_tonemap.asli"
+#include "age_tonemap.asli"
+
 // opaque
 struct opaque_as_to_ms
 {
 	uint32 meshlet_32_group_idx;
 	uint32 meshlet_alive_mask;
+};
+
+struct opaque_ms_to_ps
+{
+	vertex_fat					  v;
+	nointerpolation uint32 mat_id semantics(material);
 };
 
 // light culling tile mask
@@ -300,14 +350,3 @@ struct presentation_ps_out
 {
 	float4 color semantics(color);
 };
-
-#line 1 "age_color_space.asli"
-#include "age_color_space.asli"
-#line 1 "age_light.asli"
-#include "age_light.asli"
-#line 1 "age_ui.asli"
-#include "age_ui.asli"
-#line 1 "age_mesh.asli"
-#include "age_mesh.asli"
-#line 1 "age_tonemap.asli"
-#include "age_tonemap.asli"

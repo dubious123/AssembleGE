@@ -129,8 +129,13 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 
 			while (rt_proceed(query))
 			{
-				float4 obj_color	= float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	 // todo material
-				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
+				const uint32				  rt_render_data_id = rt_candidate_instance_id(query);
+				const rt_instance_render_data render_data		= load_rt_instance_render_data(rt_render_data_id);
+				const material				  mat				= load_material(render_data.material_id);
+
+				float4 obj_color = mat.base_color_factor;
+
+				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
 			}
 		}
 	}
@@ -191,11 +196,16 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 
 			while (rt_proceed(query))
 			{
-				uint32 rt_render_data_id = rt_candidate_instance_id(query);
+				const uint32				  rt_render_data_id = rt_candidate_instance_id(query);
+				const rt_instance_render_data render_data		= load_rt_instance_render_data(rt_render_data_id);
+				const material				  mat				= load_material(render_data.material_id);
 
-				float4 obj_color = float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	  // todo material
+				float4 obj_color = mat.base_color_factor;	 // todo material
 
-				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
+				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
+
+															 // float4 obj_color	= float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	 // todo material
+				// transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
 			}
 		}
 	}

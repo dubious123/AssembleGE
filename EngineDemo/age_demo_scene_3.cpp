@@ -40,7 +40,7 @@ namespace age_demo::scene_3
 
 			if (auto _ = widget::panel_resizable_h(300, 1000))
 			{
-				if (auto _ = widget::panel_resizable_v(150.f, (float)age::platform::get_client_height(i_update.get_h_window)))
+				if (auto _ = widget::panel_resizable_v(500.f, (float)age::platform::get_client_height(i_update.get_h_window)))
 				{
 					if (auto _ = widget::scroll_area_v())
 					{
@@ -108,7 +108,7 @@ namespace age_demo::scene_3
 					{
 						i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
 
-						if (age::runtime::is_handle_invalid(mesh.h_mesh))
+						if (age::runtime::is_handle_invalid(mesh.h_mesh) or age::runtime::is_handle_invalid(mat.h_mat))
 						{
 							continue;
 						}
@@ -119,14 +119,13 @@ namespace age_demo::scene_3
 							continue;
 						}
 
-						if (mat.is_opaque)
-						{
-							i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh);
-						}
-						else
-						{
-							i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.h_mesh);
-						}
+						// if (auto& entry = mat.h_mat.get_entry<age::asset::e::kind::material>();
+						//	entry.is_gpu_loaded() is_false)
+						//{
+						//	continue;
+						// }
+
+						i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh, mat.h_mat);
 					}
 				}));
 		// auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
@@ -228,7 +227,20 @@ namespace age_demo::scene_3
 
 		for (auto h_mesh : age::asset::registry::all(age::asset::e::kind::mesh_baked))
 		{
+			if (age::runtime::is_handle_invalid(h_mesh))
+			{
+				continue;
+			}
 			age::asset::mesh_baked::full_unload(h_mesh, i_deinit.get_render_pipeline());
+		}
+
+		for (auto h_mat : age::asset::registry::all(age::asset::e::kind::material))
+		{
+			if (age::runtime::is_handle_invalid(h_mat))
+			{
+				continue;
+			}
+			age::asset::material::full_unload(h_mat, i_deinit.get_render_pipeline());
 		}
 
 		i_deinit.get_editor_game->deinit();

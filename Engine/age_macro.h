@@ -598,126 +598,137 @@
 #define AGE_EDITOR_DEINIT_MAP(tpl)					AGE_EDITOR_DEINIT_MAP_IMPL tpl
 #define AGE_EDITOR_DEINIT_MAP_IMPL(type, name, ...) name.deinit()
 //---[ age_asset.hpp ]------------------------------------------------------------------
-
-#define AGE_DEFINE_ASSET_KIND(...)                                                            \
-	FOR_EACH (AGE_DEFINE_VALIDATE_HEADER_MAP0, __VA_ARGS__)                                   \
-		inline bool validate_header(e::kind asset_kind, const file_header& header) noexcept   \
-		{                                                                                     \
-			switch (asset_kind)                                                               \
-			{                                                                                 \
-				FOR_EACH_SEP(AGE_DEFINE_VALIDATE_HEADER_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)    \
-			default:                                                                          \
-			{                                                                                 \
-				return true;                                                                  \
-			}                                                                                 \
-			}                                                                                 \
-		}                                                                                     \
-	FOR_EACH (AGE_DEFINE_CREATE_ENTRY_MAP0, __VA_ARGS__)                                      \
-		inline handle create_entry(e::kind asset_kind, std::string_view asset_path) noexcept  \
-		{                                                                                     \
-			switch (asset_kind)                                                               \
-			{                                                                                 \
-				FOR_EACH_SEP(AGE_DEFINE_CREATE_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)       \
-			default:                                                                          \
-			{                                                                                 \
-				AGE_UNREACHABLE();                                                            \
-				return { age::get_invalid_id<t_asset_id>() };                                 \
-			}                                                                                 \
-			}                                                                                 \
-		}                                                                                     \
-	FOR_EACH (AGE_DEFINE_DESTROY_ENTRY_MAP0, __VA_ARGS__)                                     \
-		inline void destroy_entry(handle h_asset) noexcept                                    \
-		{                                                                                     \
-			switch (h_asset.get_kind())                                                       \
-			{                                                                                 \
-				FOR_EACH_SEP(AGE_DEFINE_DESTROY_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)      \
-			default:                                                                          \
-			{                                                                                 \
-				AGE_UNREACHABLE();                                                            \
-			}                                                                                 \
-			}                                                                                 \
-		}                                                                                     \
-	template <e::kind e_kind>                                                                 \
-	auto&                                                                                     \
-	handle::get_entry() const noexcept                                                        \
-	{                                                                                         \
-		if constexpr (false) { }                                                              \
-		FOR_EACH_SEP(AGE_DEFINE_GET_ENTRY_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                   \
-		else                                                                                  \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-	}                                                                                         \
-	template <e::kind e_kind>                                                                 \
-	std::array<char, config::max_asset_path_len>&                                             \
-	handle::get_path() const noexcept                                                         \
-	{                                                                                         \
-		if constexpr (false) { }                                                              \
-		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_PATH_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)         \
-		else                                                                                  \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-	}                                                                                         \
-	inline std::array<char, config::max_asset_path_len>&                                      \
-	handle::get_path() const noexcept                                                         \
-	{                                                                                         \
-		switch (get_kind())                                                                   \
-		{                                                                                     \
-			FOR_EACH_SEP(AGE_DEFINE_GET_KIND_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                \
-		default:                                                                              \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-		}                                                                                     \
-	}                                                                                         \
-	template <e::kind e_kind>                                                                 \
-	std::array<char, config::max_asset_display_name_len>                                      \
-	handle::get_display_name() const noexcept                                                 \
-	{                                                                                         \
-		if constexpr (false) { }                                                              \
-		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_DISPLAY_NAME_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__) \
-		else                                                                                  \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-	}                                                                                         \
-	inline std::array<char, config::max_asset_display_name_len>                               \
-	handle::get_display_name() const noexcept                                                 \
-	{                                                                                         \
-		switch (get_kind())                                                                   \
-		{                                                                                     \
-			FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_DISPLAY_NAME_CASE, AGE_PP_EMPTY_I, __VA_ARGS__) \
-		default:                                                                              \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-		}                                                                                     \
-	}                                                                                         \
-	void for_each_kind(auto&& f) noexcept                                                     \
-	{ (FOR_EACH_ARG(AGE_ASSET_FOR_EACH_KIND_MAP, __VA_ARGS__), void()); }                     \
-                                                                                              \
-	template <e::kind e_kind>                                                                 \
-	consteval c_auto&                                                                         \
-	get_asset_tag() noexcept                                                                  \
-	{                                                                                         \
-		if constexpr (false) { }                                                              \
-		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_TAG_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)               \
-		else                                                                                  \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
-	}                                                                                         \
-	template <e::kind e_kind>                                                                 \
-	constexpr decltype(auto)                                                                  \
-	get_asset_full_path(std::string_view asset_name) noexcept                                 \
-	{                                                                                         \
-		if constexpr (false) { }                                                              \
-		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_FULL_PATH_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)         \
-		else                                                                                  \
-		{                                                                                     \
-			AGE_UNREACHABLE();                                                                \
-		}                                                                                     \
+// FOR_EACH (AGE_DEFINE_CREATE_ENTRY_MAP0, __VA_ARGS__)
+// FOR_EACH (AGE_DEFINE_DESTROY_ENTRY_MAP0, __VA_ARGS__)
+#define AGE_DEFINE_ASSET_KIND(...)                                                                                          \
+	FOR_EACH (AGE_DEFINE_VALIDATE_HEADER_MAP0, __VA_ARGS__)                                                                 \
+		inline bool validate_header(e::kind asset_kind, const file_header& header) noexcept                                 \
+		{                                                                                                                   \
+			switch (asset_kind)                                                                                             \
+			{                                                                                                               \
+				FOR_EACH_SEP(AGE_DEFINE_VALIDATE_HEADER_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)                                  \
+			default:                                                                                                        \
+			{                                                                                                               \
+				return true;                                                                                                \
+			}                                                                                                               \
+			}                                                                                                               \
+		}                                                                                                                   \
+	inline handle create_entry(e::kind asset_kind, std::string_view asset_path) noexcept                                    \
+	{                                                                                                                       \
+		switch (asset_kind)                                                                                                 \
+		{                                                                                                                   \
+			FOR_EACH_SEP(AGE_DEFINE_CREATE_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)                                         \
+		default:                                                                                                            \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+			return { age::get_invalid_id<t_asset_id>() };                                                                   \
+		}                                                                                                                   \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	inline handle create_entry(e::kind asset_kind, const std::array<char, config::max_asset_path_len>& asset_path) noexcept \
+	{                                                                                                                       \
+		switch (asset_kind)                                                                                                 \
+		{                                                                                                                   \
+			FOR_EACH_SEP(AGE_DEFINE_CREATE_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)                                         \
+		default:                                                                                                            \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+			return { age::get_invalid_id<t_asset_id>() };                                                                   \
+		}                                                                                                                   \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	inline void destroy_entry(handle h_asset) noexcept                                                                      \
+	{                                                                                                                       \
+		switch (h_asset.get_kind())                                                                                         \
+		{                                                                                                                   \
+			FOR_EACH_SEP(AGE_DEFINE_DESTROY_ENTRY_MAP1, AGE_PP_EMPTY_I, __VA_ARGS__)                                        \
+		default:                                                                                                            \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	template <e::kind e_kind>                                                                                               \
+	auto&                                                                                                                   \
+	handle::get_entry() const noexcept                                                                                      \
+	{                                                                                                                       \
+		if constexpr (false) { }                                                                                            \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ENTRY_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                 \
+		else                                                                                                                \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	template <e::kind e_kind>                                                                                               \
+	std::array<char, config::max_asset_path_len>&                                                                           \
+	handle::get_path() const noexcept                                                                                       \
+	{                                                                                                                       \
+		if constexpr (false) { }                                                                                            \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_PATH_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                       \
+		else                                                                                                                \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	inline std::array<char, config::max_asset_path_len>&                                                                    \
+	handle::get_path() const noexcept                                                                                       \
+	{                                                                                                                       \
+		switch (get_kind())                                                                                                 \
+		{                                                                                                                   \
+			FOR_EACH_SEP(AGE_DEFINE_GET_KIND_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                              \
+		default:                                                                                                            \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	template <e::kind e_kind>                                                                                               \
+	std::array<char, config::max_asset_display_name_len>                                                                    \
+	handle::get_display_name() const noexcept                                                                               \
+	{                                                                                                                       \
+		if constexpr (false) { }                                                                                            \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_DISPLAY_NAME_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                               \
+		else                                                                                                                \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	inline std::array<char, config::max_asset_display_name_len>                                                             \
+	handle::get_display_name() const noexcept                                                                               \
+	{                                                                                                                       \
+		switch (get_kind())                                                                                                 \
+		{                                                                                                                   \
+			FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_DISPLAY_NAME_CASE, AGE_PP_EMPTY_I, __VA_ARGS__)                               \
+		default:                                                                                                            \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	void for_each_kind(auto&& f) noexcept                                                                                   \
+	{ (FOR_EACH_ARG(AGE_ASSET_FOR_EACH_KIND_MAP, __VA_ARGS__), void()); }                                                   \
+                                                                                                                            \
+	template <e::kind e_kind>                                                                                               \
+	consteval c_auto&                                                                                                       \
+	get_asset_tag() noexcept                                                                                                \
+	{                                                                                                                       \
+		if constexpr (false) { }                                                                                            \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_TAG_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                             \
+		else                                                                                                                \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+	}                                                                                                                       \
+	template <e::kind e_kind>                                                                                               \
+	constexpr decltype(auto)                                                                                                \
+	get_asset_full_path(std::string_view asset_name) noexcept                                                               \
+	{                                                                                                                       \
+		if constexpr (false) { }                                                                                            \
+		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_FULL_PATH_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                       \
+		else                                                                                                                \
+		{                                                                                                                   \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
 	}
 
 

@@ -189,6 +189,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		mapping_handle h_mapping_mesh_buffer;
 		mapping_handle h_mapping_rt_index_buffer;
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
+		mapping_handle h_mapping_material_buffer;
 
 
 		// rt, not for binding
@@ -216,6 +217,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<0, 1> light_cull_stage_buffer_uav;
 		binding_config_t::reg_t<1, 1> light_cull_stage_sorted_light_buffer_srv;
 		binding_config_t::reg_u<1, 1> light_cull_stage_sorted_light_buffer_uav;
+
+		// material
+		binding_config_t::reg_t<0, 2> material_buffer;
 
 		// ui
 		binding_config_t::reg_t<0, 4>								ui_data_buffer;
@@ -251,6 +255,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 
+		// material
+		age::sparse_vector<asset::handle> material_vec;
 
 		// camera
 		age::sparse_vector<camera_desc> camera_desc_vec;
@@ -286,26 +292,46 @@ namespace age::graphics::render_pipeline::forward_plus
 		begin_render(render_surface_handle h_rs) noexcept;
 
 		void
-		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept;
+		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, asset::handle h_mat) noexcept;
 
+		// legacy
 		void
-		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
+		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
 
+		// legacy
 		void
-		render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh) noexcept;
+		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
 
+		// legacy
 		void
-		render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id) noexcept;
+		render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
+
+		// legacy
+		void
+		render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
 
 		void
 		end_render(render_surface_handle h_rs) noexcept;
 
 		// texture
 		t_texture_id
+		upload_texture(asset::handle _) noexcept;
+
+		t_texture_id
 		upload_texture(const void*, age::extent_2d<uint32>, graphics::e::texture_format) noexcept;
 
 		void
 		release_texture(t_texture_id& _) noexcept;
+
+		// material
+		t_material_id
+		upload_material(asset::handle _) noexcept;
+
+		void
+		update_material(asset::handle _) noexcept;
+
+		void
+		release_material(t_material_id&) noexcept;
 
 		// mesh
 		t_mesh_id

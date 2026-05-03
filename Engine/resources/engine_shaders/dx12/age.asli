@@ -175,7 +175,7 @@ struct rw_byte_address_buffer
 	}
 };
 
-// ── enums ──
+// == enums ==
 
 static const uint32 CANDIDATE_NON_OPAQUE_TRIANGLE  = 0;
 static const uint32 CANDIDATE_PROCEDURAL_PRIMITIVE = 1;
@@ -196,7 +196,7 @@ static const uint32 RAY_FLAG_CULL_NON_OPAQUE				 = 0x80;
 static const uint32 RAY_FLAG_SKIP_TRIANGLES					 = 0x100;
 static const uint32 RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES		 = 0x200;
 
-// ── types ──
+// == types ==
 
 struct rt_acceleration_structure
 { };
@@ -209,7 +209,7 @@ struct ray_desc
 	float  TMax;
 };
 
-// ── ray_query ──
+// == ray_query ==
 
 template <uint32 rt_flags>
 struct ray_query
@@ -231,7 +231,7 @@ struct ray_query
 	Abort()
 	{ return; }
 
-	// ── candidate (valid inside Proceed loop) ──
+	// == candidate (valid inside Proceed loop) ==
 
 	uint32
 	CandidateType()
@@ -293,7 +293,7 @@ struct ray_query
 	CandidateWorldToObject3x4()
 	{ return (float3x4)0; }
 
-	// ── committed (valid after Proceed returns false) ──
+	// == committed (valid after Proceed returns false) ==
 
 	uint32
 	CommittedStatus()
@@ -347,7 +347,7 @@ struct ray_query
 	CommittedWorldToObject3x4()
 	{ return (float3x4)0; }
 
-	// ── common ray intrinsics ──
+	// == common ray intrinsics ==
 
 	uint32
 	RayFlags()
@@ -853,7 +853,7 @@ store(rw_byte_address_buffer buffer, uint32 offset, t value)
 	return buffer.Store<t>(offset, value);
 }
 
-// ── InterlockedAdd ──
+// == InterlockedAdd ==
 
 void
 buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
@@ -879,7 +879,7 @@ buf_interlocked_add(rw_byte_address_buffer buffer, uint32 offset, int32 value, o
 	buffer.InterlockedAdd(offset, value, original);
 }
 
-// ── InterlockedMin ──
+// == InterlockedMin ==
 
 void
 buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
@@ -905,7 +905,7 @@ buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, int32 value, o
 	buffer.InterlockedMin(offset, value, original);
 }
 
-// ── InterlockedMax ──
+// == InterlockedMax ==
 
 void
 buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
@@ -931,7 +931,7 @@ buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int32 value, o
 	buffer.InterlockedMax(offset, value, original);
 }
 
-// ── InterlockedAnd ──
+// == InterlockedAnd ==
 
 void
 buf_interlocked_and(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
@@ -945,7 +945,7 @@ buf_interlocked_and(rw_byte_address_buffer buffer, uint32 offset, uint32 value, 
 	buffer.InterlockedAnd(offset, value, original);
 }
 
-// ── InterlockedOr ──
+// == InterlockedOr ==
 
 void
 buf_interlocked_or(rw_byte_address_buffer buffer, uint32 offset, uint32 value)
@@ -959,7 +959,7 @@ buf_interlocked_or(rw_byte_address_buffer buffer, uint32 offset, uint32 value, o
 	buffer.InterlockedOr(offset, value, original);
 }
 
-// ── InterlockedExchange ──
+// == InterlockedExchange ==
 
 void
 buf_interlocked_exchange(rw_byte_address_buffer buffer, uint32 offset, uint32 value, out uint32 original)
@@ -967,7 +967,7 @@ buf_interlocked_exchange(rw_byte_address_buffer buffer, uint32 offset, uint32 va
 	buffer.InterlockedExchange(offset, value, original);
 }
 
-// ── InterlockedCompareStore ──
+// == InterlockedCompareStore ==
 
 void
 buf_interlocked_compare_store(rw_byte_address_buffer buffer, uint32 offset, uint32 compare, uint32 value)
@@ -975,7 +975,7 @@ buf_interlocked_compare_store(rw_byte_address_buffer buffer, uint32 offset, uint
 	buffer.InterlockedCompareStore(offset, compare, value);
 }
 
-// ── InterlockedCompareExchange ──
+// == InterlockedCompareExchange ==
 
 void
 buf_interlocked_compare_exchange(rw_byte_address_buffer buffer, uint32 offset, uint32 compare, uint32 value, out uint32 original)
@@ -1028,7 +1028,7 @@ get_dimensions(texture_2d<t> tex)
 }
 
 // rt
-// ── lifecycle ──
+// == lifecycle ==
 
 template <uint32 rt_flags>
 void
@@ -1050,7 +1050,7 @@ void
 rt_abort(ray_query<rt_flags> q)
 { q.Abort(); }
 
-// ── candidate judgment ──
+// == candidate judgment ==
 
 template <uint32 rt_flags>
 uint32
@@ -1067,7 +1067,7 @@ void
 rt_commit_procedural_primitive_hit(ray_query<rt_flags> q, float t_hit)
 { q.CommitProceduralPrimitiveHit(t_hit); }
 
-// ── candidate intrinsics ──
+// == candidate intrinsics ==
 
 template <uint32 rt_flags>
 float2
@@ -1129,7 +1129,7 @@ float3x4
 rt_candidate_world_to_object_3x4(ray_query<rt_flags> q)
 { return q.CandidateWorldToObject3x4(); }
 
-// ── committed intrinsics ──
+// == committed intrinsics ==
 
 template <uint32 rt_flags>
 uint32
@@ -1196,7 +1196,7 @@ float3x4
 rt_committed_world_to_object_3x4(ray_query<rt_flags> q)
 { return q.CommittedWorldToObject3x4(); }
 
-// ── common ray intrinsics ──
+// == common ray intrinsics ==
 
 template <uint32 rt_flags>
 uint32

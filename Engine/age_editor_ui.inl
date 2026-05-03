@@ -96,6 +96,28 @@ namespace age::editor
 	ui_component(ecs::material& mat) noexcept;
 
 	void
+	ui_component(ecs::material& mat, auto& renderer) noexcept
+	{
+		ui_component(mat);
+
+		if (runtime::is_handle_invalid(mat.h_mat) is_false)
+		{
+			auto& entry = mat.h_mat.get_entry<asset::e::kind::material>();
+			if (entry.is_loaded())
+			{
+				renderer.update_material(mat.h_mat);
+
+				auto btn = ui::widget::button("save");
+
+				if (btn.clicked())
+				{
+					asset::material::save(mat.h_mat);
+				}
+			}
+		}
+	}
+
+	void
 	ui_component(ecs::directional_light& light) noexcept;
 
 	void
@@ -150,7 +172,14 @@ namespace age::editor
 
 				if (auto _ = widget::vertical(set_padding_left(disclosure_size + padding_l + gap)))
 				{
-					ui_component(FWD(cmp));
+					if constexpr (requires { ui_component(FWD(cmp), renderer); })
+					{
+						ui_component(FWD(cmp), renderer);
+					}
+					else
+					{
+						ui_component(FWD(cmp));
+					}
 				}
 			}
 
