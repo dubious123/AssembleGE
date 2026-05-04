@@ -243,6 +243,15 @@ namespace age_demo::scene_3
 			age::asset::material::full_unload(h_mat, i_deinit.get_render_pipeline());
 		}
 
+		for (auto h : age::asset::registry::all(age::asset::e::kind::texture))
+		{
+			if (age::runtime::is_handle_invalid(h))
+			{
+				continue;
+			}
+			age::asset::texture::full_unload(h, i_deinit.get_render_pipeline());
+		}
+
 		i_deinit.get_editor_game->deinit();
 		age::asset::registry::clear();
 	}

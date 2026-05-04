@@ -126,3 +126,216 @@ namespace age::asset::texture
 		--entry.ref_counter;
 	}
 }	 // namespace age::asset::texture
+
+namespace age::asset::texture::detail
+{
+
+	struct dds_legacy_header
+	{
+		uint32 size;
+		uint32 flags;
+		uint32 height;
+		uint32 width;
+		uint32 pitch_or_linear_size;
+		uint32 depth;
+		uint32 mip_map_count;
+		uint32 reserved1[11];
+
+		struct
+		{
+			uint32 size;
+			uint32 flags;
+			uint32 four_cc;
+			uint32 rgb_bit_count;
+			uint32 r_bit_mask;
+			uint32 g_bit_mask;
+			uint32 b_bit_mask;
+			uint32 a_bit_mask;
+		} pixel_format;
+
+		uint32 caps;
+		uint32 caps2;
+		uint32 caps3;
+		uint32 caps4;
+		uint32 reserved2;
+	};
+
+	static_assert(sizeof(dds_legacy_header) == 124);
+
+	struct dds_dx10_header
+	{
+		uint32 dxgi_format;
+		uint32 resource_dimension;
+		uint32 misc_flag;
+		uint32 array_size;
+		uint32 misc_flags2;
+	};
+
+	static_assert(sizeof(dds_dx10_header) == 20);
+
+	graphics::e::texture_format
+	dxgi_to_engine_format(uint32 dxgi) noexcept
+	{
+		switch (dxgi)
+		{
+		case 28:
+		{
+			return graphics::e::texture_format::rgba8_unorm;
+		}
+		case 29:
+		{
+			return graphics::e::texture_format::rgba8_unorm_srgb;
+		}
+		case 10:
+		{
+			return graphics::e::texture_format::rgba16_float;
+		}
+		case 11:
+		{
+			return graphics::e::texture_format::rgba16_unorm;
+		}
+		case 2:
+		{
+			return graphics::e::texture_format::rgba32_float;
+		}
+		case 61:
+		{
+			return graphics::e::texture_format::r8_unorm;
+		}
+		case 49:
+		{
+			return graphics::e::texture_format::r8g8_unorm;
+		}
+		case 54:
+		{
+			return graphics::e::texture_format::r16_float;
+		}
+		case 34:
+		{
+			return graphics::e::texture_format::r16g16_float;
+		}
+		case 71:
+		{
+			return graphics::e::texture_format::bc1_unorm;
+		}
+		case 72:
+		{
+			return graphics::e::texture_format::bc1_unorm_srgb;
+		}
+		case 77:
+		{
+			return graphics::e::texture_format::bc3_unorm;
+		}
+		case 78:
+		{
+			return graphics::e::texture_format::bc3_unorm_srgb;
+		}
+		case 80:
+		{
+			return graphics::e::texture_format::bc4_unorm;
+		}
+		case 81:
+		{
+			return graphics::e::texture_format::bc4_snorm;
+		}
+		case 83:
+		{
+			return graphics::e::texture_format::bc5_unorm;
+		}
+		case 84:
+		{
+			return graphics::e::texture_format::bc5_snorm;
+		}
+		case 95:
+		{
+			return graphics::e::texture_format::bc6h_uf16;
+		}
+		case 96:
+		{
+			return graphics::e::texture_format::bc6h_sf16;
+		}
+		case 98:
+		{
+			return graphics::e::texture_format::bc7_unorm;
+		}
+		case 99:
+		{
+			return graphics::e::texture_format::bc7_unorm_srgb;
+		}
+		}
+		AGE_UNREACHABLE();
+	}
+}	 // namespace age::asset::texture::detail
+
+namespace age::asset::texture
+{
+	bool
+	bake(std::span<const char* const> src,
+		 std::string_view			  dst,
+		 texture_bake_option		  opt) noexcept
+	{
+		AGE_ASSERT(opt.output_filename is_nullptr);
+		opt.output_filename = "tmp.dds";
+
+		constexpr const char* tmp_dir = "__texture_temp__";
+
+		if (external::texconv::bake_texture(src, tmp_dir, opt) is_false)
+		{
+			std::filesystem::remove_all(tmp_dir);
+			return false;
+		}
+
+		c_auto dds_path = std::filesystem::path{ tmp_dir } / opt.output_filename;
+
+		auto buf = asset::read_raw_file(dds_path.string());
+
+		constexpr auto dds_header_size = sizeof(uint32) + sizeof(detail::dds_legacy_header) + sizeof(detail::dds_dx10_header);
+		static_assert(dds_header_size == 148);
+		if (buf.size() < dds_header_size)						 // sizeof(magic) + sizeof(dds_legacy_header) + sizeof(dds_dx10_header)
+		{
+			std::filesystem::remove_all(tmp_dir);
+			return false;
+		}
+		c_auto magic_test = buf.read<uint32>() == 0x20534444;	 // 'DDS '
+		AGE_ASSERT(magic_test);
+
+		auto dds_legacy = buf.read<detail::dds_legacy_header>();
+		auto dds_dx10	= buf.read<detail::dds_dx10_header>();
+
+		auto h			= entry<e::kind::texture>::header{};
+		h.extent.width	= dds_legacy.width;
+		h.extent.height = dds_legacy.height;
+
+		h.format	= detail::dxgi_to_engine_format(dds_dx10.dxgi_format);
+		h.mip_count = static_cast<uint8>(dds_legacy.mip_map_count == 0 ? 1 : dds_legacy.mip_map_count);
+
+		c_auto is_cubemap = (dds_dx10.misc_flag & 4) != 0;
+		c_auto is_3d	  = dds_dx10.resource_dimension == 4;
+
+		h.flags = 0;
+		if (is_cubemap) { h.flags |= 0x1; }
+		if (is_3d) { h.flags |= 0x2; }
+
+		if (is_3d)
+		{
+			h.tex_depth_or_array_size = static_cast<uint16>(dds_legacy.depth);
+		}
+		else
+		{
+			h.tex_depth_or_array_size = static_cast<uint16>(dds_dx10.array_size);
+		}
+
+		h.extra = 0;
+
+		auto new_buf = byte_buf::gen_reserved(sizeof(h) + buf.size() - dds_header_size);
+		new_buf.write(h);
+		new_buf.write_bytes(buf.data() + dds_header_size, buf.size() - dds_header_size);
+
+		c_auto f_header = get_default_file_header<e::kind::texture>(new_buf.size(), static_cast<uint8>(std::countr_zero(alignof(decltype(h)))));
+
+		write_asset_file(dst, f_header, new_buf.data());
+
+		std::filesystem::remove_all(tmp_dir);
+		return true;
+	}
+}	 // namespace age::asset::texture

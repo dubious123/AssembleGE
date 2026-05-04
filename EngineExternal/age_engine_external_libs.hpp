@@ -702,12 +702,69 @@ namespace age::external::msdfgen
 
 namespace age::external::texconv
 {
+	namespace detail
+	{
+		struct bake_options
+		{
+			const char* dxgi_format_name = "BC7_UNORM_SRGB";	// final -f
+			const char* output_dir		 = nullptr;
+
+			const char* assemble_kind			 = "";
+			const char* assemble_output_filename = nullptr;
+			bool		assemble_gif_bg_color	 = false;
+			const char* assemble_swizzle		 = nullptr;	   // merge mode
+
+			const char* intermediate_format = nullptr;
+
+			// resize, mip
+			unsigned int width	   = 0;
+			unsigned int height	   = 0;
+			unsigned int mip_count = 0;	   // 0 = full, 1 = no mip
+			bool		 fit_pow2  = false;
+
+			// filtering
+			const char* image_filter = nullptr;
+			bool		wrap		 = false;
+			bool		mirror		 = false;
+
+			// srgb
+			bool		srgb_both		 = false;
+			bool		srgb_in			 = false;
+			bool		srgb_out		 = false;
+			bool		ignore_srgb		 = false;
+			const char* rotate_color	 = nullptr;
+			float		paper_white_nits = 0.0f;
+			bool		tonemap			 = false;
+
+			// alpha
+			bool		premultiply_alpha = false;
+			bool		straight_alpha	  = false;
+			bool		separate_alpha	  = false;
+			float		alpha_threshold	  = -1.0f;
+			float		keep_coverage	  = -1.0f;
+			const char* color_key_hex	  = nullptr;
+
+			// bc
+			int			gpu_index	 = -1;
+			const char* bc_flags	 = nullptr;
+			float		alpha_weight = -1.0f;
+
+			// normal
+			const char* nmap_flags	   = nullptr;
+			float		nmap_amplitude = -1.0f;
+			bool		invert_y	   = false;
+			bool		reconstruct_z  = false;
+			bool		x2_bias		   = false;
+
+			// transform
+			bool		hflip	= false;
+			bool		vflip	= false;
+			const char* swizzle = nullptr;	  // texconv
+		};
+	}	 // namespace detail
+
 	bool
-	bake_texture(const char** pp_src_arr,
-				 unsigned int src_count,
-				 const char*  p_output_dir,
-				 const char*  dxgi_format_name,		 // e.g. "BC7_UNORM_SRGB", "BC5_UNORM"
-				 const char*  texture_kind_flags,	 // "", "-array", "-cube", "-array -cube", "-volume"
-				 unsigned int mip_count,			 // 0 = full chain
-				 bool		  is_srgb_input) noexcept;
-}
+	bake_texture(const char* const*			 pp_src_arr,
+				 unsigned int				 src_count,
+				 const detail::bake_options& opt) noexcept;
+}	 // namespace age::external::texconv

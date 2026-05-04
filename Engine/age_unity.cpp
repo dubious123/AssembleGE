@@ -98,6 +98,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_runtime.cpp"
 #include "age_runtime.cpp"
 
+#line 1 "age_external_wrapper_texconv.cpp"
+#include "age_external_wrapper_texconv.cpp"
+
 #if defined(AGE_EDITOR)
 	#line 1 "age_editor.cpp"
 	#include "age_editor.cpp"

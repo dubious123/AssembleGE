@@ -342,6 +342,11 @@ namespace age::asset
 						 });
 		calculate_tangent(res, tangent_calc_desc{});
 
+		for (auto& v_attr : res.vertex_attr_vec)
+		{
+			v_attr.tangent = float4{ u_basis, 1 };
+		}
+
 		if constexpr (age::config::debug_mode)
 		{
 			res.debug_validate();

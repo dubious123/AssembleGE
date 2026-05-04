@@ -90,6 +90,9 @@ namespace age::asset::e
 	AGE_ENUM_FLAG_OPERATORS(font_charset_flag);
 
 	AGE_DEFINE_ENUM(alpha_mode_kind, uint8, opaque, mask, blend);
+
+	AGE_DEFINE_ENUM(mip_filter_kind, uint8, point, linear, cubic, box, triangle);
+	AGE_DEFINE_ENUM(wrap_mode_kind, uint8, wrap, mirror, clamp);
 }	 // namespace age::asset::e
 
 namespace age::asset
@@ -405,6 +408,12 @@ namespace age::asset
 
 		bool
 		is_loaded() const noexcept;
+
+		std::array<const handle*, 5>
+		all_textures() const noexcept;
+
+		std::array<handle*, 5>
+		all_textures() noexcept;
 	};
 
 	template <>
@@ -475,6 +484,34 @@ namespace age::asset
 		handle h_tex_normal;
 		handle h_tex_occlusion;
 		handle h_tex_emissive;
+	};
+
+	struct texture_bake_option
+	{
+		graphics::e::texture_format format = graphics::e::texture_format::bc7_unorm_srgb;
+
+		bool   is_cube				= false;
+		bool   is_3d				= false;
+		uint32 array_or_depth_count = 1;
+
+		const char* output_filename = nullptr;
+
+		uint32 width	= 0;				 // 0 = source
+		uint32 height	= 0;				 // 0 = source
+		bool   fit_pow2 = false;
+
+		uint32			   mip_count = 0;	 // 0 = full chain, 1 = none
+		e::mip_filter_kind filter	 = e::mip_filter_kind::linear;
+		e::wrap_mode_kind  wrap		 = e::wrap_mode_kind::clamp;
+
+		bool hflip = false;
+		bool vflip = false;
+
+		bool invert_y = false;
+
+		bool  separate_alpha  = false;
+		float alpha_threshold = -1.0f;	  // -1 = unset
+		float keep_coverage	  = -1.0f;
 	};
 }	 // namespace age::asset
 

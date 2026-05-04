@@ -1,6 +1,42 @@
 #pragma once
 #include "age.hpp"
 
+namespace age::asset::detail
+{
+	void
+	handle_texture_unload(handle h_tex, auto& renderer) noexcept
+	{
+		if (runtime::is_handle_invalid(h_tex) is_false)
+		{
+			texture::remove_ref(h_tex);
+
+			if (registry::is_registered(h_tex)) { return; }
+
+			auto& entry = h_tex.get_entry<e::kind::texture>();
+
+			if (entry.ref_counter == 0)
+			{
+				texture::full_unload(h_tex, renderer);
+			}
+		}
+	}
+
+	handle
+	handle_texture_load(const std::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
+	{
+		c_auto h_tex = asset::find(e::kind::texture, full_path);
+
+		if (runtime::is_handle_invalid(h_tex)) { return {}; }
+
+		if (registry::is_registered<e::kind::texture>(h_tex) is_false) { return {}; }
+
+		texture::add_ref(h_tex);
+		texture::gpu_load(h_tex, renderer);
+
+		return h_tex;
+	}
+}	 // namespace age::asset::detail
+
 namespace age::asset::material
 {
 	void
@@ -9,25 +45,9 @@ namespace age::asset::material
 		auto& entry = h_mat.get_entry<e::kind::material>();
 		if (entry.is_loaded())
 		{
-			if (runtime::is_handle_invalid(entry.h_tex_base_color) is_false)
+			for (auto& h_tex : entry.all_textures() | views::deref)
 			{
-				texture::remove_ref(entry.h_tex_base_color);
-			}
-			if (runtime::is_handle_invalid(entry.h_tex_metallic_roughness) is_false)
-			{
-				texture::remove_ref(entry.h_tex_metallic_roughness);
-			}
-			if (runtime::is_handle_invalid(entry.h_tex_normal) is_false)
-			{
-				texture::remove_ref(entry.h_tex_normal);
-			}
-			if (runtime::is_handle_invalid(entry.h_tex_occlusion) is_false)
-			{
-				texture::remove_ref(entry.h_tex_occlusion);
-			}
-			if (runtime::is_handle_invalid(entry.h_tex_emissive) is_false)
-			{
-				texture::remove_ref(entry.h_tex_emissive);
+				detail::handle_texture_unload(h_tex, renderer);
 			}
 
 			renderer.release_material(entry.render_id);
@@ -59,37 +79,10 @@ namespace age::asset::material
 				entry.alpha_cutoff,
 				entry.alpha_mode);
 
-			entry.h_tex_base_color		   = detail::load_common_from_path<e::kind::texture>(buf.read<std::array<char, config::max_asset_path_len>>());
-			entry.h_tex_metallic_roughness = detail::load_common_from_path<e::kind::texture>(buf.read<std::array<char, config::max_asset_path_len>>());
-			entry.h_tex_normal			   = detail::load_common_from_path<e::kind::texture>(buf.read<std::array<char, config::max_asset_path_len>>());
-			entry.h_tex_occlusion		   = detail::load_common_from_path<e::kind::texture>(buf.read<std::array<char, config::max_asset_path_len>>());
-			entry.h_tex_emissive		   = detail::load_common_from_path<e::kind::texture>(buf.read<std::array<char, config::max_asset_path_len>>());
-		}
-
-		if (runtime::is_handle_invalid(entry.h_tex_base_color) is_false)
-		{
-			texture::add_ref(entry.h_tex_base_color);
-			texture::gpu_load(entry.h_tex_base_color, renderer);
-		}
-		if (runtime::is_handle_invalid(entry.h_tex_metallic_roughness) is_false)
-		{
-			texture::add_ref(entry.h_tex_metallic_roughness);
-			texture::gpu_load(entry.h_tex_metallic_roughness, renderer);
-		}
-		if (runtime::is_handle_invalid(entry.h_tex_normal) is_false)
-		{
-			texture::add_ref(entry.h_tex_normal);
-			texture::gpu_load(entry.h_tex_normal, renderer);
-		}
-		if (runtime::is_handle_invalid(entry.h_tex_occlusion) is_false)
-		{
-			texture::add_ref(entry.h_tex_occlusion);
-			texture::gpu_load(entry.h_tex_occlusion, renderer);
-		}
-		if (runtime::is_handle_invalid(entry.h_tex_emissive) is_false)
-		{
-			texture::add_ref(entry.h_tex_emissive);
-			texture::gpu_load(entry.h_tex_emissive, renderer);
+			for (auto& h_tex : entry.all_textures() | views::deref)
+			{
+				h_tex = detail::handle_texture_load(buf.read<std::array<char, config::max_asset_path_len>>(), renderer);
+			}
 		}
 
 		entry.render_id = renderer.upload_material(h_mat);

@@ -309,8 +309,10 @@ namespace age::ui::widget
 				}
 			}
 
-
-			widget::text_button(p_label);
+			if (p_label is_not_nullptr)
+			{
+				widget::text_button(p_label);
+			}
 
 
 			return btn;
@@ -950,6 +952,19 @@ namespace age::ui::widget
 		bool			 searchable	 = false;
 		uint8			 _;
 	};
+
+	template <typename t_enum>
+	requires(std::is_enum_v<t_enum>)
+	consteval auto
+	make_dropdown_option_all()
+	{
+		auto res = std::array<dropdown_option<t_enum>, e_size(t_enum{})>{};
+		auto i	 = 0;
+
+		e_visit_all(t_enum{}, [&]<t_enum e_kind> { res[i++] = dropdown_option<t_enum>{ .value = e_kind, .label = to_string(e_kind) }; });
+
+		return res;
+	}
 
 	template <auto... enums>
 	consteval auto

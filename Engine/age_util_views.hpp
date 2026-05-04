@@ -17,6 +17,8 @@ namespace age::views
 	{
 		return std::views::iota(ptr) | std::views::stride(stride) | std::views::take(count);
 	}
+
+	inline constexpr auto deref = meta::deref_view;
 }	 // namespace age::views
 
 // each_set_bit

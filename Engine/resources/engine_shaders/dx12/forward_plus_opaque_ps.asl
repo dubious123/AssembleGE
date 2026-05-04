@@ -128,6 +128,9 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 				lighting += calc_pbr_light(surface_data, light)
 						  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
+
+
+				// lighting += calc_pbr_light(surface_data, light);
 			}
 		}
 	}
@@ -141,5 +144,32 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	// return float4(v.uv0, 0, 1.f);
 	// return float4(lighting * albedo, 1.0f);
+	// return float4(fragment.v.tangent.w * 0.5 + 0.5, 0, 0, 1);
+
+	// if (mat.normal_texture_id != invalid_id_uint32)
+	//{
+	//	texture_2d<float4> normal_tex  = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
+	//	float2			   normal_xy   = sample(normal_tex, get_linear_wrap_sampler(), v.uv_set[0]).xy * 2.f - 1.f;
+	//	normal_xy					  *= mat.normal_scale;
+	//	float  normal_z				   = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
+	//	float3 normal_local			   = float3(normal_xy, normal_z);
+	//	return float4(normal_local, 1);
+	//	return float4(normal_local.xy * 2, 0, 1);
+	// }
+
+	// return float4(b, 1);
+	// return float4(fragment.v.tangent.xyz, 1);
+	// return float4(fragment.v.tangent.xyz * 0.5 + 0.5, 1);
+	// return float4(v.tangent.xyz * 0.5 + 0.5, 1);
+
+	// return float4(surface_data.normal, 1.0f);
+	//   return float4(surface_data.normal.z, 0, 0, 1.0f);
+	//   return float4(surface_data.normal.y, 0, 0, 1.0f);
+	//   return float4(surface_data.normal.x, 0, 0, 1.0f);
+	//   return float4(surface_data.normal, 1.0f) * 0.5 + 0.5;
+	//     return float4(surface_data.normal.x, -surface_data.normal.x, 0, 1.0f);
+	//    return float4(surface_data.normal.y, -surface_data.normal.y, 0, 1.0f);
+	//     return float4(surface_data.base_color.xyz, 1.0f);
+	//     return float4(v.uv_set[0], 0, 1.f);
 	return float4(lighting, 1.0f);
 }

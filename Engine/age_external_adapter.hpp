@@ -921,3 +921,9 @@ namespace age::external::msdfgen
 		return succeed;
 	}
 }	 // namespace age::external::msdfgen
+
+namespace age::external::texconv
+{
+	bool
+	bake_texture(std::span<const char* const> src, const char* output_dir, const asset::texture_bake_option& opt) noexcept;
+}	 // namespace age::external::texconv

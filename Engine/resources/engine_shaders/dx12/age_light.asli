@@ -98,7 +98,8 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
 		ray_desc desc;
-		desc.Origin	   = world_pos;
+		desc.Origin = world_pos;
+		// desc.Origin = world_pos + face_normal * 0.001f;
 		desc.Direction = -light.direction;
 		desc.TMin	   = 0.001;
 
@@ -151,7 +152,7 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 									+ v1.uv_set[0] * bary.y
 									+ v2.uv_set[0] * bary.z;
 
-					texture_2d<float4> tex	= global_resource_buffer[mat.base_color_texture_id];
+					texture_2d<float4> tex	= global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
 					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
 				}
 
@@ -238,7 +239,7 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 									+ v1.uv_set[0] * bary.y
 									+ v2.uv_set[0] * bary.z;
 
-					texture_2d<float4> tex	= global_resource_buffer[mat.base_color_texture_id];
+					texture_2d<float4> tex	= global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
 					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
 				}
 
@@ -285,17 +286,25 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 
 	if (mat.normal_texture_id != invalid_id_uint32)
 	{
-		texture_2d<float4> normal_tex = global_resource_buffer[mat.normal_texture_id];
+		texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
 
-		float3 n_ts	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb * 2.f - 1.f;
-		n_ts.xy		*= mat.normal_scale;
+		// float3 n_ts	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb * 2.f - 1.f;
+		// n_ts.xy		*= mat.normal_scale;
+
+		float2 normal_xy	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rg * 2.f - 1.f;
+		normal_xy			*= mat.normal_scale;
+		float  normal_z		 = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
+		float3 normal_local	 = float3(normal_xy, normal_z);
 
 		float3 t = normalize(vertex.tangent.xyz);
 		t		 = normalize(t - res.normal * dot(t, res.normal));
 		float3 b = cross(res.normal, t) * vertex.tangent.w;
 
-		float3x3 tbn = transpose(float3x3(t, b, res.normal));
-		res.normal	 = normalize(mul(tbn, n_ts));
+		float3x3 tbn  = transpose(float3x3(t, b, res.normal));	  // inv(world to local)
+		float3	 temp = mul(tbn, normal_local);
+		// float3	 temp = mul(float3x3(t, b, res.normal), normal_local);
+		res.normal = normalize(temp);
+		// res.normal = normalize(mul(normal_local, float3x3(t, b, res.normal)));
 	}
 
 
@@ -306,7 +315,7 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 	res.base_color = mat.base_color_factor;
 	if (mat.base_color_texture_id != invalid_id_uint32)
 	{
-		texture_2d<float4> base_color_tex  = global_resource_buffer[mat.base_color_texture_id];
+		texture_2d<float4> base_color_tex  = global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
 		res.base_color					  *= sample(base_color_tex, get_linear_wrap_sampler(), vertex.uv_set[0]);
 	}
 
@@ -315,7 +324,7 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 	res.roughness = mat.roughness_factor;
 	if (mat.metallic_roughness_texture_id != invalid_id_uint32)
 	{
-		texture_2d<float4> mr_tex	  = global_resource_buffer[mat.metallic_roughness_texture_id];
+		texture_2d<float4> mr_tex	  = global_resource_buffer[non_uniform_resource_idx(mat.metallic_roughness_texture_id)];
 		float3			   mr_sample  = sample(mr_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
 		res.metallic				 *= mr_sample.b;	// glTF spec, metallic in b, roughness in g
 		res.roughness				 *= mr_sample.g;
@@ -331,14 +340,14 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 	res.emissive = mat.emissive_factor;
 	if (mat.emissive_texture_id != invalid_id_uint32)
 	{
-		texture_2d<float4> emissive_tex	 = global_resource_buffer[mat.emissive_texture_id];
+		texture_2d<float4> emissive_tex	 = global_resource_buffer[non_uniform_resource_idx(mat.emissive_texture_id)];
 		res.emissive					*= sample(emissive_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
 	}
 
 	res.occlusion = 1.f;
 	if (mat.occlusion_texture_id != invalid_id_uint32)
 	{
-		texture_2d<float4> occlusion_tex = global_resource_buffer[mat.occlusion_texture_id];
+		texture_2d<float4> occlusion_tex = global_resource_buffer[non_uniform_resource_idx(mat.occlusion_texture_id)];
 		float			   occ_sample	 = sample(occlusion_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).r;
 		res.occlusion					 = lerp(1.0, occ_sample, mat.occlusion_strength);
 	}
@@ -402,7 +411,7 @@ calc_pbr_light(pbr_surface_data surface_data, unified_light light)
 float3
 calc_pbr_light(pbr_surface_data surface_data, directional_light light)
 {
-	const float3 world_to_light = -light.direction;
+	const float3 world_to_light = -normalize(light.direction);
 
 	float n_dot_l = dot(surface_data.normal, world_to_light);
 	if (n_dot_l <= 0.f)

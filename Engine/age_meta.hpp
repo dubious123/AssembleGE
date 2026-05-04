@@ -1306,7 +1306,9 @@ namespace age::meta
 	template <typename t1, template <auto...> typename... t2>
 	inline constexpr auto is_specialization_of_nttp_v = (is_specialization_of_nttp<t1, t2>::value or ...);
 
-	inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
+	// inline constexpr auto deref_view = std::views::transform([](auto ptr) -> decltype(*ptr) { return *ptr; });
+
+	inline constexpr auto deref_view = std::views::transform(AGE_LAMBDA((auto* ptr), { return *ptr; }));
 
 	template <std::size_t n>
 	using smallest_unsigned_t = std::conditional_t<

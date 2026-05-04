@@ -580,7 +580,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto	dx12_format = graphics::dx12_format(header.format);
 		c_auto	h_resource	= resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d_array(
-				  extent.width, extent.height,
+				  header.extent.width, header.extent.height,
 				  dx12_format,
 				  header.tex_depth_or_array_size,
 				  D3D12_RESOURCE_FLAG_NONE,
@@ -645,12 +645,12 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	t_texture_id
-	pipeline::upload_texture(const void* p_src, age::extent_2d<uint32> extent, graphics::e::texture_format format) noexcept
+	pipeline::upload_texture(const void* p_src, age::extent_2d<uint32> tex_extent, graphics::e::texture_format format) noexcept
 	{
 		c_auto dx12_format = graphics::dx12_format(format);
 		c_auto h_resource  = resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
-				  extent.width, extent.height,
+				  tex_extent.width, tex_extent.height,
 				  dx12_format,
 				  D3D12_RESOURCE_FLAG_NONE),
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
@@ -669,7 +669,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.h_resource = h_resource,
 		};
 		command::begin();
-		resource::upload_texture(h_resource, p_src, extent, dx12_format);
+		resource::upload_texture(h_resource, p_src, tex_extent, dx12_format);
 		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_resource->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 		command::execute_and_wait();
 

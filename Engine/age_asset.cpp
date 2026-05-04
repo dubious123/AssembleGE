@@ -38,7 +38,7 @@ namespace age::asset
 
 		auto   ec		 = std::error_code{};
 		c_auto file_size = std::filesystem::file_size(full_path, ec);
-		if (ec || file_size == 0)
+		if (ec or file_size == 0)
 		{
 			return buf;
 		}
@@ -77,6 +77,33 @@ namespace age::asset
 	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept
 	{
 		return read_asset_file(full_path.data());
+	}
+
+	byte_buf
+	read_raw_file(std::string_view full_path) noexcept
+	{
+		auto buf = byte_buf{};
+
+		auto   ec		 = std::error_code{};
+		c_auto file_size = std::filesystem::file_size(full_path, ec);
+		if (ec or file_size == 0)
+		{
+			return buf;
+		}
+
+		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
+		if (file.is_open() is_false)
+		{
+			return buf;
+		}
+
+		buf.resize(file_size);
+
+		file.read(reinterpret_cast<char*>(buf.data()), file_size);
+
+		buf.move_write_pos(file_size);
+
+		return buf;	   // nrvo
 	}
 
 	void

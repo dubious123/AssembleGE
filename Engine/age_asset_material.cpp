@@ -28,6 +28,30 @@ namespace age::asset
 	{
 		return AGE_IS_INVALID_ID(render_id) is_false;
 	}
+
+	std::array<const handle*, 5>
+	entry<e::kind::material>::all_textures() const noexcept
+	{
+		return std::array<const handle*, 5>{
+			&h_tex_base_color,
+			&h_tex_metallic_roughness,
+			&h_tex_normal,
+			&h_tex_occlusion,
+			&h_tex_emissive,
+		};
+	}
+
+	std::array<handle*, 5>
+	entry<e::kind::material>::all_textures() noexcept
+	{
+		return std::array<handle*, 5>{
+			&h_tex_base_color,
+			&h_tex_metallic_roughness,
+			&h_tex_normal,
+			&h_tex_occlusion,
+			&h_tex_emissive,
+		};
+	}
 }	 // namespace age::asset
 
 namespace age::asset::material

@@ -408,6 +408,86 @@ namespace age::graphics
 		{
 			return DXGI_FORMAT_R8G8B8A8_UNORM;
 		}
+		case e::texture_format::rgba8_unorm_srgb:
+		{
+			return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		}
+		case e::texture_format::rgba16_float:
+		{
+			return DXGI_FORMAT_R16G16B16A16_FLOAT;
+		}
+		case e::texture_format::rgba16_unorm:
+		{
+			return DXGI_FORMAT_R16G16B16A16_UNORM;
+		}
+		case e::texture_format::rgba32_float:
+		{
+			return DXGI_FORMAT_R32G32B32A32_FLOAT;
+		}
+		case e::texture_format::r8_unorm:
+		{
+			return DXGI_FORMAT_R8_UNORM;
+		}
+		case e::texture_format::r8g8_unorm:
+		{
+			return DXGI_FORMAT_R8G8_UNORM;
+		}
+		case e::texture_format::r16_float:
+		{
+			return DXGI_FORMAT_R16_FLOAT;
+		}
+		case e::texture_format::r16g16_float:
+		{
+			return DXGI_FORMAT_R16G16_FLOAT;
+		}
+		case e::texture_format::bc1_unorm:
+		{
+			return DXGI_FORMAT_BC1_UNORM;
+		}
+		case e::texture_format::bc1_unorm_srgb:
+		{
+			return DXGI_FORMAT_BC1_UNORM_SRGB;
+		}
+		case e::texture_format::bc3_unorm:
+		{
+			return DXGI_FORMAT_BC3_UNORM;
+		}
+		case e::texture_format::bc3_unorm_srgb:
+		{
+			return DXGI_FORMAT_BC3_UNORM_SRGB;
+		}
+		case e::texture_format::bc4_unorm:
+		{
+			return DXGI_FORMAT_BC4_UNORM;
+		}
+		case e::texture_format::bc4_snorm:
+		{
+			return DXGI_FORMAT_BC4_SNORM;
+		}
+		case e::texture_format::bc5_unorm:
+		{
+			return DXGI_FORMAT_BC5_UNORM;
+		}
+		case e::texture_format::bc5_snorm:
+		{
+			return DXGI_FORMAT_BC5_SNORM;
+		}
+		case e::texture_format::bc6h_uf16:
+		{
+			return DXGI_FORMAT_BC6H_UF16;
+		}
+		case e::texture_format::bc6h_sf16:
+		{
+			return DXGI_FORMAT_BC6H_SF16;
+		}
+		case e::texture_format::bc7_unorm:
+		{
+			return DXGI_FORMAT_BC7_UNORM;
+		}
+		case e::texture_format::bc7_unorm_srgb:
+		{
+			return DXGI_FORMAT_BC7_UNORM_SRGB;
+		}
 		default:
 		{
 			AGE_UNREACHABLE();

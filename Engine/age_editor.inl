@@ -171,6 +171,30 @@ namespace age::editor
 		}
 
 		{
+			auto& pool = asset::pool_of<texture>();
+			for (auto it = pool.begin(); it != pool.end(); ++it)
+			{
+				auto  h		= asset::handle::make<texture>(it.idx<uint32>());
+				auto& entry = h.get_entry<texture>();
+
+				if (entry.ref_counter == 0)
+				{
+					asset::texture::full_unload(h, renderer);
+
+					if (asset::registry::is_registered<texture>(h) is_false)
+					{
+						asset::destroy_entry<texture>(h);
+					}
+				}
+
+				if (entry.ref_counter > 0)
+				{
+					asset::texture::gpu_load(h, renderer);
+				}
+			}
+		}
+
+		{
 			auto& pool = asset::pool_of<material>();
 			for (auto it = pool.begin(); it != pool.end(); ++it)
 			{
@@ -191,29 +215,25 @@ namespace age::editor
 				{
 					asset::material::load(h, renderer);
 				}
-			}
-		}
 
-		{
-			auto& pool = asset::pool_of<texture>();
-			for (auto it = pool.begin(); it != pool.end(); ++it)
-			{
-				auto  h		= asset::handle::make<texture>(it.idx<uint32>());
-				auto& entry = h.get_entry<texture>();
+				auto need_update = false;
 
-				if (entry.ref_counter == 0)
+				for (auto& h_tex : entry.all_textures() | views::deref)
 				{
-					asset::texture::full_unload(h, renderer);
+					if (runtime::is_handle_invalid(h_tex)) { continue; }
 
-					if (asset::registry::is_registered<texture>(h) is_false)
+					if (asset::registry::is_registered<texture>(h_tex) is_false)
 					{
-						asset::destroy_entry<texture>(h);
+						asset::texture::full_unload(h_tex, renderer);
+						h_tex = {};
+
+						need_update = true;
 					}
 				}
 
-				if (entry.ref_counter > 0)
+				if (entry.ref_counter > 0 and need_update)
 				{
-					asset::texture::gpu_load(h, renderer);
+					renderer.update_material(h);
 				}
 			}
 		}

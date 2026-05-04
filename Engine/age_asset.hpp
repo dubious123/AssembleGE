@@ -16,6 +16,9 @@ namespace age::asset
 	aligned_byte_buf
 	read_asset_file(const std::array<char, config::max_asset_path_len>& full_path) noexcept;
 
+	byte_buf
+	read_raw_file(std::string_view full_path) noexcept;
+
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept;
 
@@ -176,6 +179,9 @@ namespace age::asset::texture
 
 	void
 	remove_ref(handle _) noexcept;
+
+	bool
+	bake(std::span<const char* const> src, std::string_view dst, texture_bake_option) noexcept;
 }	 // namespace age::asset::texture
 
 namespace age::asset::material

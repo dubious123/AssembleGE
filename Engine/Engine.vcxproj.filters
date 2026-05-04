@@ -148,6 +148,7 @@
     <ClCompile Include="age_asset_registry.cpp" />
     <ClCompile Include="age_asset_material.cpp" />
     <ClCompile Include="age_asset_texture.cpp" />
+    <ClCompile Include="age_external_wrapper_texconv.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

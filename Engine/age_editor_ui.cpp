@@ -387,10 +387,14 @@ namespace age::editor
 
 		static auto tex_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
 		static auto tex_vec		  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
-		tex_vec.reserve(asset::registry::all(texture).size());
-		tex_label_vec.reserve(asset::registry::all(texture).size());
+		tex_vec.reserve(asset::registry::all(texture).size() + 1);
+		tex_label_vec.reserve(asset::registry::all(texture).size() + 1);
 		tex_vec.clear();
 		tex_label_vec.clear();
+
+		tex_label_vec.emplace_back(util::to_fixed_str<config::max_asset_display_name_len>("(none)"));
+		tex_vec.emplace_back(ui::widget::dropdown_option<asset::handle>{ .value = {}, .label = tex_label_vec.back().data() });
+
 		for (auto h_tex : asset::registry::all(texture))
 		{
 			tex_label_vec.emplace_back(h_tex.get_display_name<texture>());
@@ -399,6 +403,24 @@ namespace age::editor
 		}
 
 		auto& entry = h_mat.get_entry<material>();
+
+		auto tex_dropdown = [&entry](asset::handle& h_tex) {
+			auto h_tex_prev = h_tex;
+			if (widget::dropdown<asset::handle>(h_tex, tex_vec))
+			{
+				if (entry.is_loaded())
+				{
+					if (runtime::is_handle_invalid(h_tex_prev) is_false)
+					{
+						asset::texture::remove_ref(h_tex_prev);
+					}
+					if (runtime::is_handle_invalid(h_tex) is_false)
+					{
+						asset::texture::add_ref(h_tex);
+					}
+				}
+			}
+		};
 
 		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 		{
@@ -410,7 +432,7 @@ namespace age::editor
 			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 			{
 				widget::color_field(entry.base_color_factor);
-				widget::dropdown<asset::handle>(entry.h_tex_base_color, tex_vec);
+				tex_dropdown(entry.h_tex_base_color);
 			}
 		}
 
@@ -444,7 +466,7 @@ namespace age::editor
 			{
 				widget::numeric_field(entry.roughness_factor, nullptr, 0.f, 1.f);
 				widget::slider(entry.roughness_factor, 0.f, 1.f);
-				widget::dropdown<asset::handle>(entry.h_tex_metallic_roughness, tex_vec);
+				tex_dropdown(entry.h_tex_metallic_roughness);
 			}
 		}
 
@@ -461,7 +483,7 @@ namespace age::editor
 			{
 				widget::numeric_field(entry.occlusion_strength, nullptr, 0.f, 1.f);
 				widget::slider(entry.occlusion_strength, 0.f, 1.f);
-				widget::dropdown<asset::handle>(entry.h_tex_occlusion, tex_vec);
+				tex_dropdown(entry.h_tex_occlusion);
 			}
 		}
 
@@ -478,7 +500,7 @@ namespace age::editor
 			{
 				widget::numeric_field(entry.normal_scale, nullptr, 0.f, 2.f);
 				widget::slider(entry.normal_scale, 0.f, 2.f);
-				widget::dropdown<asset::handle>(entry.h_tex_normal, tex_vec);
+				tex_dropdown(entry.h_tex_normal);
 			}
 		}
 
@@ -494,7 +516,7 @@ namespace age::editor
 			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 			{
 				widget::color_field(entry.emissive_factor);
-				widget::dropdown<asset::handle>(entry.h_tex_emissive, tex_vec);
+				tex_dropdown(entry.h_tex_emissive);
 			}
 		}
 
@@ -709,7 +731,344 @@ namespace age::editor
 	ui_modal_new_asset_texture() noexcept
 	{
 		using namespace age::ui;
-		widget::text_heading("ui_modal_new_asset_texture");
+		using enum age::asset::e::kind;
+
+		static auto tex_desc = asset::texture_bake_option{};
+		static auto src_vec	 = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+
+		auto		is_valid	 = true;
+		static auto bake_success = true;
+
+		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
+		{
+			auto scoll = widget::scroll_area_v();
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("format");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::dropdown<graphics::e::texture_format>(tex_desc.format, widget::make_dropdown_option_all<graphics::e::texture_format>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("is_cube");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.is_cube);
+					if (tex_desc.is_cube) { tex_desc.is_3d = false; }
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("is_3d");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.is_3d);
+					if (tex_desc.is_3d) { tex_desc.is_cube = false; }
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					if (tex_desc.is_3d)
+					{
+						widget::text("depth count");
+					}
+					else
+					{
+						widget::text("array count");
+					}
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(tex_desc.array_or_depth_count);
+				}
+			}
+
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("extent");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					auto extent = vec2<uint32>{ tex_desc.width, tex_desc.height };
+					widget::numeric_field(extent);
+					tex_desc.width = extent.x, tex_desc.height = extent.y;
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("fit pow2 (0=source)");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.fit_pow2);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("mip count (0=full)");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(tex_desc.mip_count);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("mip filter");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::dropdown<asset::e::mip_filter_kind>(tex_desc.filter, widget::make_dropdown_option_all<asset::e::mip_filter_kind>());
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("wrap mode");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::dropdown<asset::e::wrap_mode_kind>(tex_desc.wrap, widget::make_dropdown_option_all<asset::e::wrap_mode_kind>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("h flip");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.hflip);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("v flip");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.vflip);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("invert y");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.invert_y);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("separate alpha");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, tex_desc.separate_alpha);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("alpha threshold (-1 = unset, used for bc1)");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(tex_desc.alpha_threshold);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("keep_coverage, -1 = unset");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(tex_desc.keep_coverage);
+				}
+			}
+
+			widget::separator_v();
+
+
+			if (auto _ = widget::begin(set_width_fit() | set_height_fit() | set_align_center()))
+			{
+				widget::text_heading("src images");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				if (c_auto new_size = tex_desc.array_or_depth_count * (tex_desc.is_cube ? 6 : 1);
+					src_vec.size() < new_size)
+				{
+					src_vec.reserve(new_size);
+					for (auto i : views::loop(new_size))
+					{
+						src_vec.emplace_back();
+					}
+				}
+
+				src_vec.resize(tex_desc.array_or_depth_count * (tex_desc.is_cube ? 6 : 1));
+
+				if (tex_desc.is_cube)
+				{
+					for (auto i : views::loop(tex_desc.array_or_depth_count))
+					{
+						auto panel = widget::begin(style::panel() | set_height_fit());
+						for (auto j : views::loop(6))
+						{
+							auto id = ui::id_begin();
+							auto _	= widget::begin(set_horizontal() | set_height_fit() | set_width_grow());
+							widget::text_input(src_vec[i * 6 + j]);
+							if (std::filesystem::is_regular_file(src_vec[i * 6 + j].data()) is_false)
+							{
+								is_valid = false;
+
+								widget::begin(style::text("path does not exists") | set_body_brush_data(theme::color_text_red()));
+							}
+						}
+					}
+				}
+				else
+				{
+					for (auto i : views::loop(tex_desc.array_or_depth_count))
+					{
+						auto id = ui::id_begin();
+						auto _	= widget::begin(set_horizontal() | set_height_fit() | set_width_grow());
+						widget::text_input(src_vec[i]);
+						if (std::filesystem::is_regular_file(src_vec[i].data()) is_false)
+						{
+							is_valid = false;
+
+							widget::begin(style::text("path does not exists") | set_body_brush_data(theme::color_text_red()));
+						}
+					}
+				}
+			}
+
+			widget::separator_v();
+
+			if (is_valid is_false)
+			{
+				widget::begin(style::text("invalid option") | set_body_brush_data(theme::color_text_red()));
+				return;
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_height_fit() | set_align_center()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100 + 100) | set_height_fit()))
+				{
+					widget::text_input(detail::ui_modal_asset_name());
+				}
+
+				if (auto h_cancel = widget::button("cancel"))
+				{
+					if (h_cancel.clicked())
+					{
+						g::show_modal = false;
+					}
+				}
+
+				if (auto h_create = widget::button("create"))
+				{
+					if (h_create.clicked())
+					{
+						// g::show_modal	 = false;
+						auto   name		 = g::current_game.dir_path / "asset" / "texture" / detail::ui_modal_asset_name().data();
+						c_auto full_path = asset::get_asset_full_path<texture>(name.string());
+
+						auto src = age::vector<const char*>::gen_reserved(src_vec.size());
+
+						for (auto& s : src_vec)
+						{
+							src.emplace_back(s.data());
+						}
+
+						bake_success = asset::texture::bake(std::span<const char* const>(src), full_path.data(), tex_desc);
+						if (bake_success)
+						{
+							asset::registry::register_asset(texture, full_path.data());
+						}
+					}
+				}
+			}
+		}
+
+		if (bake_success is_false)
+		{
+			widget::begin(style::text("texture bake failed") | set_body_brush_data(theme::color_text_red()));
+		}
 	}
 
 	void
@@ -892,10 +1251,10 @@ namespace age::editor
 					{
 						g::show_modal	 = false;
 						auto   name		 = g::current_game.dir_path / "asset" / "material" / detail::ui_modal_asset_name().data();
-						c_auto mesh_path = asset::get_asset_full_path<material>(name.string());
+						c_auto full_path = asset::get_asset_full_path<material>(name.string());
 
-						asset::material::build(asset::get_asset_full_path<material>(name.string()).data(), mat_desc);
-						asset::registry::register_asset(material, mesh_path.data());
+						asset::material::build(full_path.data(), mat_desc);
+						asset::registry::register_asset(material, full_path.data());
 					}
 				}
 			}

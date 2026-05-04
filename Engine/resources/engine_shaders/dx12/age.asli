@@ -721,6 +721,8 @@ cross(float3, float3)
 	#define interlocked_cmp_store(...)
 	#define interlocked_cmp_exchange(...)
 
+	#define non_uniform_resource_idx(x) x
+
 #else
 	#define uint64 uint64_t
 	#define uint32 uint
@@ -806,6 +808,8 @@ cross(float3, float3)
 	#define sampler_state SamplerState
 
 	#define sampler_cmp_state SamplerComparisonState
+
+	#define non_uniform_resource_idx(x) NonUniformResourceIndex(x)
 
 template <typename t>
 using structured_buffer = StructuredBuffer<t>;

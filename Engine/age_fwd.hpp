@@ -79,7 +79,36 @@ namespace age::graphics::e
 							   (volumn, 4));
 
 	AGE_DEFINE_ENUM_WITH_VALUE(texture_format, uint16,
-							   (rgba8_unorm, 0));
+							   (rgba8_unorm, 0),
+							   (rgba8_unorm_srgb, 1),
+
+							   (rgba16_float, 2),
+							   (rgba16_unorm, 3),
+
+							   (rgba32_float, 4),
+
+							   (r8_unorm, 5),
+							   (r8g8_unorm, 6),
+							   (r16_float, 7),
+							   (r16g16_float, 8),
+
+							   (bc1_unorm, 9),	   // 4 bpp, RGB(+1bit alpha)
+							   (bc1_unorm_srgb, 10),
+
+							   (bc3_unorm, 11),	   // 8 bpp, RGBA legacy
+							   (bc3_unorm_srgb, 12),
+
+							   (bc4_unorm, 13),	   // 4 bpp, single channel - occlusion
+							   (bc4_snorm, 14),
+
+							   (bc5_unorm, 15),	   // 8 bpp, two channel (RG) - normal
+							   (bc5_snorm, 16),
+
+							   (bc6h_uf16, 17),	   // 8 bpp, RGB float - HDR
+							   (bc6h_sf16, 18),
+
+							   (bc7_unorm, 19),	   // 8 bpp, high quality LDR
+							   (bc7_unorm_srgb, 20));
 }	 // namespace age::graphics::e
 
 namespace age::graphics
