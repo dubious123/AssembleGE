@@ -95,26 +95,63 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 	{
 		// float n_dot_l = saturate(dot(face_normal, -light.direction));
 
+		float n_dot_l = dot(face_normal, -light.direction);
+		if (n_dot_l <= 0.0f)
+		{
+			return float3(0, 0, 0);
+		}
+
+
 		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
 		ray_desc desc;
-		desc.Origin = world_pos;
-		// desc.Origin = world_pos + face_normal * 0.001f;
+		float	 slope			= sqrt(1.0 - n_dot_l * n_dot_l) / max(n_dot_l, 0.05);
+		float	 self_threshold = 0.01 + 0.05 * slope;
+		desc.Origin				= world_pos;
+
+		// desc.Origin = world_pos + face_normal * 0.1f;
+		//  desc.Origin	   = world_pos + light.direction * 0.01f;
 		desc.Direction = -light.direction;
 		desc.TMin	   = 0.001;
+		desc.TMax	   = 1e5f;
 
-		// todo, add ray_tmax config
-		desc.TMax = 1e5f;
+		//{
+		//	ray_query</*RAY_FLAG_CULL_BACK_FACING_TRIANGLES |*/ RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
 
+		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
+		//	rt_proceed(query);
+
+		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
+		//	{
+		//		opaque_shadow = 0.f;
+		//	}
+		//}
+
+
+		expand(2)
+
+		for (uint32 i = 0; i < 2; ++i)
 		{
 			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-
 			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
 			rt_proceed(query);
 
 			if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
 			{
-				opaque_shadow = 0.f;
+				float t = rt_committed_ray_t(query);
+
+				if (t > self_threshold)
+				{
+					opaque_shadow = 0.f;
+					break;
+				}
+
+				desc.TMin = t + 0.001f;
+			}
+			else
+			{
+				// miss = lit
+				break;
 			}
 		}
 
@@ -205,6 +242,34 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 				opaque_shadow = 0.f;
 			}
 		}
+
+
+		// expand(2)
+
+		// for (uint32 i = 0; i < 2; ++i)
+		//{
+		//	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
+		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
+		//	rt_proceed(query);
+
+		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
+		//	{
+		//		float t = rt_committed_ray_t(query);
+
+		//		if (t > 0.01)
+		//		{
+		//			opaque_shadow = 0.f;
+		//			break;
+		//		}
+
+		//		desc.TMin = t + 0.001f;
+		//	}
+		//	else
+		//	{
+		//		// miss = lit
+		//		break;
+		//	}
+		//}
 
 		// contact = sample_contact_shadow(world_pos, -light.direction, surface_normal);
 		// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));

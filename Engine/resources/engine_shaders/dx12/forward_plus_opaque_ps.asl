@@ -88,8 +88,11 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 		// lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
 		//		  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 
+
 		lighting += calc_pbr_light(surface_data, light)
 				  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
+
+		// lighting = calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
 
 

@@ -1086,7 +1086,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept
 	{
 		auto& light					= directional_light_vec[id];
-		light.direction				= desc.direction;
+		light.direction				= age::normalize(desc.direction);
 		light.intensity				= desc.intensity;
 		light.color					= desc.color;
 		light.cast_shadow_and_extra = util::set_bit(light.cast_shadow_and_extra, 0, desc.cast_shadow);
@@ -1156,7 +1156,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		light.range					= desc.range;
 		light.color					= math::cvt_to<half3>(desc.color);
 		light.intensity				= math::cvt_to<half>(desc.intensity);
-		light.direction				= math::cvt_to<half3>(desc.direction);
+		light.direction				= math::cvt_to<half3>(age::normalize(desc.direction));
 		light.cos_inner				= math::cvt_to<half>(desc.cos_inner);
 		light.cos_outer				= math::cvt_to<half>(desc.cos_outer);
 		light.cast_shadow_and_extra = util::set_bit(light.cast_shadow_and_extra, 0, desc.cast_shadow);
