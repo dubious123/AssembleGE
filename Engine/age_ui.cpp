@@ -76,6 +76,7 @@ namespace age::ui
 
 		auto current_hover_z_offset = 0u;
 		g::hover_id					= get_invalid_id<t_hash>();
+		g::hover_id_stack.clear();
 
 		for (auto current_idx : std::views::iota(1u, g::layout_pos_data_vec.size<uint32>()))
 		{
@@ -219,7 +220,9 @@ namespace age::ui
 			if (child.interact and child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, g::p_input_ctx->mouse_pos))
 			{
 				current_hover_z_offset = child.z_offset;
-				g::hover_id			   = child.id;
+				// todo replace hover_id -> g::hover_id_stack.back();
+				g::hover_id = child.id;
+				g::hover_id_stack.emplace_back(child.id);
 			}
 
 			if (child.layout == e::widget_layout::horizontal)
@@ -250,6 +253,7 @@ namespace age::ui
 			{
 				g::mouse_l_pressed_id = g::hover_id;
 				g::focus_id			  = g::hover_id;
+				g::focus_id_stack	  = g::hover_id_stack;
 			}
 			else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
 			{

@@ -50,6 +50,7 @@ namespace age_demo::scene_3
 
 				if (auto _ = widget::begin(style::panel() | set_width_grow() | set_height_grow()))
 				{
+					auto h_scroll = widget::scroll_area_v();
 					age::editor::ui_asset();
 				}
 			}

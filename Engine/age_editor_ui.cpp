@@ -383,6 +383,8 @@ namespace age::editor
 			mat.update_h_mat(h_mat);
 		}
 
+		if (runtime::is_handle_invalid(h_mat)) { return; }
+
 		widget::separator_v();
 
 		static auto tex_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
@@ -1340,7 +1342,7 @@ namespace age::editor
 	ui_asset() noexcept
 	{
 		using namespace ui;
-		if (auto _ = widget::panel())
+		if (auto _ = widget::panel(set_height_fit()))
 		{
 			if (auto _ = widget::begin(style::horizontal() | set_width_grow() | set_height_fit()))
 			{

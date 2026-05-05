@@ -161,11 +161,12 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// }
 
 	// return float4(b, 1);
+	// return float4(-cross(fragment.v.normal, fragment.v.tangent.xyz) * fragment.v.tangent.w, 1.f);
 	// return float4(fragment.v.tangent.xyz, 1);
 	// return float4(fragment.v.tangent.xyz * 0.5 + 0.5, 1);
 	// return float4(v.tangent.xyz * 0.5 + 0.5, 1);
-
-	// return float4(surface_data.normal, 1.0f);
+	
+	return float4(surface_data.normal, 1.0f);
 	//   return float4(surface_data.normal.z, 0, 0, 1.0f);
 	//   return float4(surface_data.normal.y, 0, 0, 1.0f);
 	//   return float4(surface_data.normal.x, 0, 0, 1.0f);

@@ -300,7 +300,7 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
 					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
 
-					const float2 uv = v0.uv_set[0] * bary.x
+					const float2 uv = v0.uv_set[0] * bary.x 
 									+ v1.uv_set[0] * bary.y
 									+ v2.uv_set[0] * bary.z;
 
@@ -361,6 +361,8 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 		float  normal_z		 = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
 		float3 normal_local	 = float3(normal_xy, normal_z);
 
+		//normal_local = normalize(float3(0.1,0.1,1)) ;
+		normal_local = normalize(float3(0.5, 0, 1));
 		float3 t = normalize(vertex.tangent.xyz);
 		t		 = normalize(t - res.normal * dot(t, res.normal));
 		float3 b = cross(res.normal, t) * vertex.tangent.w;

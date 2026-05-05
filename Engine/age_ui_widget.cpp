@@ -866,7 +866,7 @@ namespace age::ui::widget
 	scroll_area_v() noexcept
 	{
 		using enum input::e::key_kind;
-		if (auto h_panel = widget::begin(style::horizontal_inv() | set_size(size_mode::grow(), size_mode::grow())))
+		if (auto h_panel = widget::begin(style::horizontal_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact(true)))
 		{
 			auto track_id	   = t_hash{};
 			auto scroll_offset = 0.f;
@@ -904,13 +904,16 @@ namespace age::ui::widget
 					style_state = e::style_state::hover;
 				}
 
-				if (g::p_input_ctx->is_alt_down())
+				if (h_panel.hovered_all())
 				{
-					track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
-				}
-				else
-				{
-					track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+					if (g::p_input_ctx->is_alt_down())
+					{
+						track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
+					}
+					else
+					{
+						track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+					}
 				}
 
 				track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_y_offset_max);
@@ -959,7 +962,7 @@ namespace age::ui::widget
 	scroll_area_h() noexcept
 	{
 		using enum input::e::key_kind;
-		if (auto h_panel = widget::begin(style::vertical_inv() | set_size(size_mode::grow(), size_mode::grow())))
+		if (auto h_panel = widget::begin(style::vertical_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact(true)))
 		{
 			auto track_id	   = t_hash{};
 			auto scroll_offset = 0.f;
@@ -997,13 +1000,16 @@ namespace age::ui::widget
 					style_state = e::style_state::hover;
 				}
 
-				if (g::p_input_ctx->is_alt_down())
+				if (h_panel.hovered_all())
 				{
-					track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
-				}
-				else
-				{
-					track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+					if (g::p_input_ctx->is_alt_down())
+					{
+						track_state.drag_y -= g::p_input_ctx->wheel_delta * 40.f;
+					}
+					else
+					{
+						track_state.drag_y -= g::p_input_ctx->wheel_delta * 20.f;
+					}
 				}
 
 				track_state.drag_y = std::clamp(track_state.drag_y, 0.f, thumb_x_offset_max);

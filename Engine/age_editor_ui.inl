@@ -484,7 +484,7 @@ namespace age::editor
 		using namespace ui;
 		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large()) | set_interact(true)))
 		{
-			age::editor::update_camera(renderer, h_game_scene.focused(), h_window);
+			age::editor::update_camera(renderer, h_game_scene.hovered_all(), h_window);
 
 			if (auto h_play_pause_stop = widget::begin(style::horizontal() | set_align_center() | set_width_fit() | set_height_fit()))
 			{
