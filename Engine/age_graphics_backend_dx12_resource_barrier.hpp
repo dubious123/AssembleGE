@@ -48,7 +48,7 @@ namespace age::graphics::barrier
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_UNDEFINED,
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS
-							  : D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_UNORDERED_ACCESS,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
@@ -246,15 +246,15 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
 			.SyncAfter	  = sync_after,
-			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
-			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
-			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
-			.LayoutAfter  = D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+			.AccessBefore = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
@@ -270,7 +270,23 @@ namespace age::graphics::barrier
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
-			.LayoutAfter  = D3D12_BARRIER_LAYOUT_SHADER_RESOURCE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	tex_uav_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = sync_before,
+			.SyncAfter	  = sync_after,
+			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.pResource	  = p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag

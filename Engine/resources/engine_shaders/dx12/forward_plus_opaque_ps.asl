@@ -87,8 +87,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 		// lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
 		//		  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
-
-
 		lighting += calc_pbr_light(surface_data, light)
 				  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 
@@ -165,15 +163,47 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// return float4(fragment.v.tangent.xyz, 1);
 	// return float4(fragment.v.tangent.xyz * 0.5 + 0.5, 1);
 	// return float4(v.tangent.xyz * 0.5 + 0.5, 1);
-	
-	return float4(surface_data.normal, 1.0f);
-	//   return float4(surface_data.normal.z, 0, 0, 1.0f);
-	//   return float4(surface_data.normal.y, 0, 0, 1.0f);
-	//   return float4(surface_data.normal.x, 0, 0, 1.0f);
-	//   return float4(surface_data.normal, 1.0f) * 0.5 + 0.5;
-	//     return float4(surface_data.normal.x, -surface_data.normal.x, 0, 1.0f);
-	//    return float4(surface_data.normal.y, -surface_data.normal.y, 0, 1.0f);
-	//     return float4(surface_data.base_color.xyz, 1.0f);
-	//     return float4(v.uv_set[0], 0, 1.f);
+	// return float4(surface_data.normal * 0.5 + 0.5, 1);
+	//{
+	//	texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
+	//	float2			   normal_xy  = sample(normal_tex, get_linear_wrap_sampler(), fragment.v.uv_set[0]).rg * 2.f - 1.f;
+	//	if (normal_xy.x > 0.f)
+	//	{
+	//		return float4(1, 0, 0, 1.f);
+	//	}
+	//	else
+	//	{
+	//		return float4(normal_xy, 0, 1);
+	//	}
+	//}
+	// if (surface_data.normal.x < 0.f)
+	//{
+	//	return float4(1, 0, 0, 1.f);
+	//}
+	// return float4(surface_data.normal.x, surface_data.normal.y, surface_data.normal.z, 1.0f);
+	// float x = max(max(surface_data.normal.x, surface_data.normal.y), surface_data.normal.z);
+
+	// if (x == surface_data.normal.x)
+	//{
+	//	return float4(x, 0, 0, 1.f);
+	// }
+	// if (x == surface_data.normal.y)
+	//{
+	//	return float4(0, x, 0, 1.f);
+	// }
+	// if (x == surface_data.normal.z)
+	//{
+	//	return float4(0, 0, x, 1.f);
+	// }
+
+	// return float4(surface_data.normal, 1.0f);
+	//      return float4(surface_data.normal.z, 0, 0, 1.0f);
+	//      return float4(surface_data.normal.y, 0, 0, 1.0f);
+	//      return float4(surface_data.normal.x, 0, 0, 1.0f);
+	//      return float4(surface_data.normal, 1.0f) * 0.5 + 0.5;
+	//        return float4(surface_data.normal.x, -surface_data.normal.x, 0, 1.0f);
+	//       return float4(surface_data.normal.y, -surface_data.normal.y, 0, 1.0f);
+	//        return float4(surface_data.base_color.xyz, 1.0f);
+	//   return float4(v.uv_set[0], 0, 1.f);
 	return float4(lighting, 1.0f);
 }

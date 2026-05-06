@@ -201,6 +201,7 @@ namespace age::graphics::command
 
 	// clear
 	DEF_CMD(clear_dsv, ClearDepthStencilView)
+	DEF_CMD(clear_uav_float, ClearUnorderedAccessViewFloat)
 
 	FORCE_INLINE void
 	apply_barriers(auto&&...) noexcept;

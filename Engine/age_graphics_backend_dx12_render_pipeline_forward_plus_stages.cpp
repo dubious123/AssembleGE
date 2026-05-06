@@ -325,7 +325,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::dispatch_mesh(1, 1, 1);
 
-
 		command::end_render_pass();
 	}
 

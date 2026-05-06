@@ -278,11 +278,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::set_graphics_root_sig(p_root_sig);
 		command::set_compute_root_sig(p_root_sig);
 
+		// command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+		//						barrier::undefined_to_rtv(h_post_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+		//						barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+		//						barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+		//						barrier::undefined_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
+
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(h_post_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-								barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-								barrier::undefined_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
+								barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
 		return true;
 	}
 
@@ -453,6 +458,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::apply_barriers(
 			barrier::dsv_read_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
+		command::apply_barriers(barrier::tex_srv_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		light_cull_stage_sorted_light_buffer_srv.apply_compute();
 		light_cull_stage_buffer_srv.apply_compute();
@@ -1270,7 +1276,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			graphics::rt::build_tlas(h_rt_tlas_buffer, h_rt_tlas_scratch_buffer, h_mapping_rt_instance_buffer->h_resource, rt_instance_count);
 
-			command::apply_barriers(barrier::rt_write_to_rt_read(h_rt_tlas_buffer->p_resource, D3D12_BARRIER_SYNC_RAYTRACING));
+			command::apply_barriers(barrier::rt_write_to_rt_read(h_rt_tlas_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 		}
 
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);

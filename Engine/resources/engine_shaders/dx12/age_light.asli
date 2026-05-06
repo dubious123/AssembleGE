@@ -300,7 +300,7 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
 					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
 
-					const float2 uv = v0.uv_set[0] * bary.x 
+					const float2 uv = v0.uv_set[0] * bary.x
 									+ v1.uv_set[0] * bary.y
 									+ v2.uv_set[0] * bary.z;
 
@@ -325,6 +325,7 @@ struct pbr_surface_data
 {
 	float3 world_pos;
 	float3 normal;			  // normal map applied, world space
+	float3 vertex_normal;	  // visibility
 	float3 view;			  // world to camera, normalized
 	float  n_dot_v;			  // saturate(dot(N, V)), reused in D/G/F
 
@@ -346,32 +347,36 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 {
 	pbr_surface_data res;
 
-	res.world_pos = vertex.world_pos;
-	res.normal	  = normalize(vertex.normal);
+	res.world_pos	  = vertex.world_pos;
+	res.normal		  = normalize(vertex.normal);
+	res.vertex_normal = vertex.normal;
 
 	if (mat.normal_texture_id != invalid_id_uint32)
 	{
 		texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
 
-		// float3 n_ts	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb * 2.f - 1.f;
-		// n_ts.xy		*= mat.normal_scale;
-
 		float2 normal_xy	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rg * 2.f - 1.f;
-		normal_xy			*= mat.normal_scale;
 		float  normal_z		 = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
-		float3 normal_local	 = float3(normal_xy, normal_z);
+		normal_xy			*= mat.normal_scale;
+		float3 normal_local	 = normalize(float3(normal_xy, normal_z));
 
-		//normal_local = normalize(float3(0.1,0.1,1)) ;
-		normal_local = normalize(float3(0.5, 0, 1));
 		float3 t = normalize(vertex.tangent.xyz);
 		t		 = normalize(t - res.normal * dot(t, res.normal));
 		float3 b = cross(res.normal, t) * vertex.tangent.w;
 
-		float3x3 tbn  = transpose(float3x3(t, b, res.normal));	  // inv(world to local)
-		float3	 temp = mul(tbn, normal_local);
-		// float3	 temp = mul(float3x3(t, b, res.normal), normal_local);
-		res.normal = normalize(temp);
-		// res.normal = normalize(mul(normal_local, float3x3(t, b, res.normal)));
+		res.normal = normalize(mul(transpose(float3x3(t, b, res.normal)), normal_local));
+
+		// res.normal = normal_local;
+		//  res.normal = t;
+
+		// res.normal = normalize(
+		//	normal_local.x * t + normal_local.y * b + normal_local.z * res.normal	 // 이 시점엔 vertex normal
+		//);
+
+		// res.normal = normal_local;
+		//   res.normal = -b;
+		//   res.normal = b;
+		//   res.normal = t;
 	}
 
 
@@ -423,7 +428,7 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 }
 
 float3
-calc_brdf(pbr_surface_data surface_data, float3 world_to_light /* world to light */, float n_dot_l)
+calc_brdf(const pbr_surface_data surface_data, float3 world_to_light /* world to light */, float n_dot_l)
 {
 	const float3 h		 = normalize(surface_data.view + world_to_light);
 	const float	 n_dot_v = surface_data.n_dot_v;
@@ -449,7 +454,7 @@ calc_brdf(pbr_surface_data surface_data, float3 world_to_light /* world to light
 }
 
 float3
-calc_pbr_light(pbr_surface_data surface_data, unified_light light)
+calc_pbr_light(const pbr_surface_data surface_data, unified_light light)
 {
 	const float3 surface_to_light = light.position - surface_data.world_pos;
 	const float	 distance		  = length(surface_to_light);
@@ -472,11 +477,12 @@ calc_pbr_light(pbr_surface_data surface_data, unified_light light)
 	const float3 light_radiance = cast<float3>(light.color) * light.intensity
 								* attenuation * cone_falloff * cone_falloff;
 
-	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance;
+	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
+	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
 }
 
 float3
-calc_pbr_light(pbr_surface_data surface_data, directional_light light)
+calc_pbr_light(const pbr_surface_data surface_data, directional_light light)
 {
 	const float3 world_to_light = -normalize(light.direction);
 
@@ -489,5 +495,6 @@ calc_pbr_light(pbr_surface_data surface_data, directional_light light)
 
 	const float3 light_radiance = light.color * light.intensity;
 
-	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance;
+	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
+	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
 }
