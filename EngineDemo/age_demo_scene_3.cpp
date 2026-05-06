@@ -99,7 +99,6 @@ namespace age_demo::scene_3
 		age::ui::end_frame(i_update.get_render_pipeline->get_ui_render_data_vec(),
 						   i_update.get_render_pipeline->get_ui_render_data_z_range_vec());
 
-
 		i_update.get_editor_game->visit_all_storages(
 			AGE_LAMBDA(
 				(auto& entities),

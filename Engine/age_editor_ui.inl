@@ -386,68 +386,69 @@ namespace age::editor
 
 				if (is_open is_false) { return; }
 
-				if (auto _ = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x)))
+				auto h_panel = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x));
+
+				for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
 				{
-					for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
+					auto arch_open = false;
+
+					if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
 					{
-						auto arch_open = false;
-
-						if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
+						if (header.clicked<mouse_left>())
 						{
-							if (header.clicked<mouse_left>())
+							header.toggle();
+						}
+
+						// is_open = header.is_toggled() != arch.default_open;
+						arch_open = header.is_toggled() is_false;
+
+						widget::disclosure_indicator(arch_open);
+
+						if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
+						{
+							widget::text_input2(arch.name);
+						}
+
+						if (auto _ = widget::horizontal_inv())
+						{
+							if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
 							{
-								header.toggle();
-							}
-
-							// is_open = header.is_toggled() != arch.default_open;
-							arch_open = header.is_toggled() is_false;
-
-							widget::disclosure_indicator(arch_open);
-
-							if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
-							{
-								widget::text_input2(arch.name);
-							}
-
-							if (auto _ = widget::horizontal_inv())
-							{
-								if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
+								widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
+								if (new_ent_btn.clicked())
 								{
-									widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
-									if (new_ent_btn.clicked())
-									{
-										new_entity(entities, renderer, editor_storage, static_cast<uint32>(arch_idx), arch.archetype);
-									}
+									new_entity(entities, renderer, editor_storage, static_cast<uint32>(arch_idx), arch.archetype);
 								}
 							}
 						}
+					}
 
-						if (arch_open is_false) { continue; }
+					if (arch_open is_false) { continue; }
 
-						if (auto _ = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x)))
+					auto h_inner_panel = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x));
+
+					auto remove_vec = age::vector<uint64>{};
+					auto add_vec	= age::vector<uint64>{};
+					for (const auto&& [ent_idx, ent] : arch.entity_data_vec | std::views::enumerate)
+					{
+						c_auto selected = is_selected(e::select_kind::entity, editor_storage.code_idx, ent.id);
+						ui_entity_tree_node(editor_storage, ent.id, arch.archetype, selected);
+
+						if (selected is_false) { continue; }
+
+						if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
 						{
-							auto remove_vec = age::vector<uint64>{};
-							for (const auto&& [ent_idx, ent] : arch.entity_data_vec | std::views::enumerate)
-							{
-								c_auto selected = is_selected(e::select_kind::entity, editor_storage.code_idx, ent.id);
-								ui_entity_tree_node(editor_storage, ent.id, arch.archetype, selected);
+							entities.remove_entity(static_cast<t_ent_id>(ent.id), get_ecs_context(renderer));
 
-								if (selected and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
-								{
-									entities.remove_entity(static_cast<t_ent_id>(ent.id), get_ecs_context(renderer));
+							remove_select(e::select_kind::entity, editor_storage.code_idx, ent.id);
 
-									remove_select(e::select_kind::entity, editor_storage.code_idx, ent.id);
-
-									remove_vec.emplace_back(ent_idx);
-								}
-							}
-
-							for (auto ent_idx : remove_vec)
-							{
-								auto& ent = arch.entity_data_vec[ent_idx];
-								detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent_idx, ent.id);
-							}
+							remove_vec.emplace_back(ent_idx);
 						}
+					}
+
+					for (auto ent_idx : remove_vec)
+					{
+						auto& ent = arch.entity_data_vec[ent_idx];
+						detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent_idx, ent.id);
 					}
 				}
 			}

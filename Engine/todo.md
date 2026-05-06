@@ -6,9 +6,6 @@
 ### 2. variadic indexing
 - re-impl meta::variadic_at, index, ...
 
-## Compressed pack
-### 1. impl std::get
-
 ## mikktspace 
 ### remove external and move to test
 
@@ -27,17 +24,11 @@
 
 ## rewrite mikk tspace
 
-## handle pdb
-
-## clean up data_structure, write data_structure benchmark and test
+## data_structure benchmark
 
 ## better macro, (a,b,c) -> (a)(b)(c) to reduce macro parameter size
 
 ## do pgo
-
-## offset allocator
-
-## material system ( programmable render pipeline stage )
 
 ## imple raw input
 
@@ -60,11 +51,15 @@
 
 ### Global error handler 
 
-### allocator aware container 
-
 ### visibility buffer
 
 ### mesh rt index buffer 크기 최적화 
 full primitive대신 meshlet id map 저장
 
-### implement mesh chunk allocator
+### todo - better editor 
+- copy, paste
+- rename assets 
+- undo, redo 
+- gizmo 
+- save scene
+- logger

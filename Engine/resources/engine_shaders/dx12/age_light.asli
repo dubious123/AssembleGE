@@ -449,7 +449,8 @@ calc_brdf(const pbr_surface_data surface_data, float3 world_to_light /* world to
 
 	// const float3 specular = (d * g * f) / max(4.f * n_dot_v * n_dot_l, epsilon_1e4);
 	const float3 specular = (d * v * f);
-	const float3 diffuse  = (1.f - f) * (1.f - surface_data.metallic) * surface_data.c_diffuse / pi;
+	const float3 diffuse  = (1.f - f) /** (1.f - surface_data.metallic)*/ * surface_data.c_diffuse / pi;
+
 	return (diffuse + specular) * n_dot_l;
 }
 

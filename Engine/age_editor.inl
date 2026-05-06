@@ -238,10 +238,14 @@ namespace age::editor
 			}
 		}
 
-
 		for (c_auto& editor_storage : active_scene.storage_data_vec)
 		{
 			ecs_game.visit_storage_at(active_scene.code_idx, editor_storage.code_idx, AGE_FUNC(detail::update_storage), renderer);
+		}
+
+		if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_ctrl) and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_c))
+		{
+			editor::save_game(ecs_game, renderer);
 		}
 	}
 }	 // namespace age::editor
