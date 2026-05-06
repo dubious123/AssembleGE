@@ -27,6 +27,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
 
+		h_pso.set_name(L"pso_depth");
+
 		h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
 	}
 
@@ -88,43 +90,49 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_light_init_cs) }) });
 
 		p_pso_init = graphics::g::pso_ptr_vec[h_pso_init];
-
+		h_pso_init.set_name(L"p_pso_init");
 
 		h_pso_cull = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_light_cull_cs) }) });
 
 		p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
+		h_pso_cull.set_name(L"p_pso_cull");
 
 		h_pso_sort_histogram = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_histogram_cs) }) });
 
 		p_pso_sort_histogram = graphics::g::pso_ptr_vec[h_pso_sort_histogram];
+		h_pso_sort_histogram.set_name(L"p_pso_sort_histogram");
 
 		h_pso_sort_prefix = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_prefix_cs) }) });
 
 		p_pso_sort_prefix = graphics::g::pso_ptr_vec[h_pso_sort_prefix];
+		h_pso_sort_prefix.set_name(L"p_pso_sort_prefix");
 
 		h_pso_sort_scatter = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_sort_scatter_cs) }) });
 
 		p_pso_sort_scatter = graphics::g::pso_ptr_vec[h_pso_sort_scatter];
+		h_pso_sort_scatter.set_name(L"p_pso_sort_scatter");
 
 		h_pso_zbin = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_light_zbin_cs) }) });
 
 		p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
+		h_pso_zbin.set_name(L"p_pso_zbin");
 
 		h_pso_tile = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_light_tile_cs) }) });
 
 		p_pso_tile = graphics::g::pso_ptr_vec[h_pso_tile];
+		h_pso_tile.set_name(L"p_pso_tile");
 	}
 
 	inline void
@@ -213,6 +221,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		h_pso.set_name(L"pso_opaque");
 
 		h_main_buffer_rtv_desc	= graphics::g::rtv_desc_pool.pop();
 		h_depth_buffer_dsv_desc = graphics::g::dsv_desc_pool.pop();
@@ -278,6 +287,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ std::to_underlying(e::engine_shader_kind::forward_plus_transparent_rt_cs) }) });
 
 		p_pso_rt = graphics::g::pso_ptr_vec[h_pso_rt];
+		h_pso_rt.set_name(L"pso_transparent_rt");
 
 		h_pso_draw = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -292,6 +302,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_draw = graphics::g::pso_ptr_vec[h_pso_draw];
+		h_pso_draw.set_name(L"pso_transparent_blen");
 
 		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
@@ -357,6 +368,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		h_pso.set_name(L"pso_post_process");
 
 		h_post_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
@@ -415,6 +427,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		h_pso.set_name(L"pso_ui");
 
 		h_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
@@ -507,6 +520,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		h_pso.set_name(L"pso_presentation");
 	}
 
 	inline void

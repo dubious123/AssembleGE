@@ -374,6 +374,79 @@ namespace age::graphics::resource
 
 		return true;
 	}
+
+	FORCE_INLINE bool
+	resize_buffer_preserve(resource_handle& h_resource, uint64 required_size) noexcept
+	{
+		if (h_resource->buffer_size() >= required_size)
+		{
+			return false;
+		}
+
+		c_auto new_size = std::max(h_resource->buffer_size() * 2, required_size);
+
+		auto desc					   = h_resource->desc;
+		desc.d3d12_resource_desc.Width = new_size;
+
+		auto h_new = resource::create_committed(desc);
+
+		wchar_t name[256]{};
+		auto	size = static_cast<UINT>(sizeof(name));
+		h_resource->p_resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+		h_new->set_name(name);
+
+		command::begin(e::queue_kind::copy);
+
+		command::copy_buffer(e::queue_kind::copy, 0,
+							 h_new->p_resource, 0,
+							 h_resource->p_resource, 0,
+							 h_resource->buffer_size());
+
+		command::execute_and_wait(e::queue_kind::copy);
+
+		release_deferred(h_resource);
+		h_resource = h_new;
+
+		return true;
+	}
+
+	FORCE_INLINE bool
+	resize_buffer_preserve(mapping_handle& h_mapping, uint64 required_size) noexcept
+	{
+		if (h_mapping->h_resource->buffer_size() >= required_size)
+		{
+			return false;
+		}
+
+		auto h_resource = h_mapping->h_resource;
+
+		unmap(h_mapping);
+
+		c_auto new_size = std::max(h_resource->buffer_size() * 2, required_size);
+
+		auto desc					   = h_resource->desc;
+		desc.d3d12_resource_desc.Width = new_size;
+
+		auto h_new = resource::create_committed(desc);
+
+		h_new->set_name(h_resource->get_name().c_str());
+
+		command::begin(e::queue_kind::copy);
+
+		command::copy_buffer(e::queue_kind::copy, 0,
+							 h_new->p_resource, 0,
+							 h_resource->p_resource, 0,
+							 h_resource->buffer_size());
+
+		command::execute_and_wait(e::queue_kind::copy);
+
+		release_deferred(h_resource);
+		h_resource = h_new;
+
+		h_mapping = map_all(h_resource);
+
+		return true;
+	}
 }	 // namespace age::graphics::resource
 
 namespace age::graphics::resource

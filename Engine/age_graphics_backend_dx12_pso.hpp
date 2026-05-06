@@ -8,6 +8,9 @@ namespace age::graphics::pso
 	struct handle
 	{
 		t_pso_id id;
+
+		void
+		set_name(auto* p_name) const noexcept;
 	};
 
 	template <D3D12_PIPELINE_STATE_SUBOBJECT_TYPE pss_type_v, typename t_subobj>
@@ -108,6 +111,12 @@ namespace age::graphics::pso
 
 namespace age::graphics::pso
 {
+	void
+	handle::set_name(auto* p_name) const noexcept
+	{
+		g::pso_ptr_vec[id]->SetName(p_name);
+	}
+
 	inline void
 	destroy(handle h_pso) noexcept
 	{

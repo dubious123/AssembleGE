@@ -93,7 +93,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 		// lighting = calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
 
-
 	const uint32 tile_x	 = uint32(v.pos.x) / LIGHT_TILE_SIZE;
 	const uint32 tile_y	 = uint32(v.pos.y) / LIGHT_TILE_SIZE;
 	const uint32 tile_id = tile_x + tile_y * light_tile_count_x;

@@ -744,7 +744,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				mat.emissive_texture_id = entry.h_tex_emissive.get_entry<asset::e::kind::texture>().render_id;
 			}
 
-			if (resource::resize_buffer(renderer.h_mapping_material_buffer, sizeof(mat) * (id + 1)))
+			if (resource::resize_buffer_preserve(renderer.h_mapping_material_buffer, sizeof(mat) * (id + 1)))
 			{
 				renderer.material_buffer.bind(renderer.h_mapping_material_buffer);
 			}

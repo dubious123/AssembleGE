@@ -454,20 +454,29 @@ namespace age::editor
 			}
 		}
 
-		widget::separator_v();
-
-
 		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 		{
 			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 			{
-				widget::text("Metalillic - Roughness tex");
+				widget::text("Roughness");
 			}
 
 			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 			{
 				widget::numeric_field(entry.roughness_factor, nullptr, 0.f, 1.f);
 				widget::slider(entry.roughness_factor, 0.f, 1.f);
+			}
+		}
+
+		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				widget::text("texture");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
 				tex_dropdown(entry.h_tex_metallic_roughness);
 			}
 		}
