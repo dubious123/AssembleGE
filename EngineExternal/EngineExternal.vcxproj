@@ -84,7 +84,7 @@
     <PostBuildEvent>
       <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"
 xcopy /Y /D "$(ProjectDir)msdfgen\msdf-atlas-gen.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\msdfgen\msdf-atlas-gen.exe*"
-xcopy /Y /D "$(ProjectDir)texconv\Texconv.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\texconv\Texconv.exe*"</Command>
+xcopy /Y /E /I "$(ProjectDir)texconv\*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\texconv\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -120,7 +120,7 @@ xcopy /Y /D "$(ProjectDir)texconv\Texconv.exe*" "$(SolutionDir)\$(Platform)\$(Co
     <PostBuildEvent>
       <Command>xcopy /Y /D "$(ProjectDir)age_engine_external_libs.hpp*" "$(SolutionDir)Engine\external\include\age_external\age_engine_external_libs.hpp*"
 xcopy /Y /D "$(ProjectDir)msdfgen\msdf-atlas-gen.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\msdfgen\msdf-atlas-gen.exe*"
-xcopy /Y /D "$(ProjectDir)texconv\Texconv.exe*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\texconv\Texconv.exe*"</Command>
+xcopy /Y /E /I "$(ProjectDir)texconv\*" "$(SolutionDir)\$(Platform)\$(Configuration)\tools\texconv\"</Command>
     </PostBuildEvent>
     <Lib>
       <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>

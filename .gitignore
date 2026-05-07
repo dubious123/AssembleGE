@@ -233,6 +233,7 @@ obj
 !Editor/external/lib/*
 
 !Engine/external/**
+!EngineExternal/texconv/*
 
 # Ignore age_external libs
 Engine/external/lib/x64/age_external/*

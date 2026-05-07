@@ -584,7 +584,7 @@ namespace age::asset
 		bool hflip = false;
 		bool vflip = false;
 
-		bool invert_y = false;
+		bool invert_y = false;			  // for gltf normal map
 
 		bool  separate_alpha  = false;
 		float alpha_threshold = -1.0f;	  // -1 = unset

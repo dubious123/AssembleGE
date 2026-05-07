@@ -128,6 +128,32 @@ namespace age::asset::env_light
 		 const std::array<char, config::max_asset_path_len>& dst,
 		 const env_light_desc&								 desc) noexcept
 	{
-		return false;
+		constexpr decltype(auto) tmp_dir = "__env_light_temp__";
+		constexpr decltype(auto) tmp_tex = "__tmp__";
+
+		auto temp_dir	  = std::filesystem::create_directories(tmp_dir);
+		auto tex_bake_res = texture::bake(std::array{ src.data() },
+										  asset::get_asset_full_path<e::kind::texture>(std::format("__env_light_temp__\\{}", tmp_tex).data()).data(),
+										  texture_bake_option{
+											  .format				= graphics::e::texture_format::rgba16_float,
+											  .is_cube				= false,
+											  .is_3d				= false,
+											  .array_or_depth_count = false,
+											  .output_filename		= nullptr,
+											  .fit_pow2				= false,
+											  .mip_count			= 1 });
+
+		if (tex_bake_res is_false)
+		{
+			std::filesystem::remove_all(tmp_dir);
+			return false;
+		}
+		else
+		{
+			std::filesystem::remove_all(tmp_dir);
+		}
+
+
+		return true;
 	}
 }	 // namespace age::asset::env_light
