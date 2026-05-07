@@ -15,7 +15,8 @@ namespace age::asset::e
 		editor_game,
 		editor_entity_storage,
 		material,
-		texture);
+		texture,
+		env_light);
 
 	// mesh editable
 	AGE_DEFINE_ENUM(
@@ -464,10 +465,86 @@ namespace age::asset
 		bool
 		is_tex3d() const noexcept;
 	};
+
+	template <>
+	struct entry<e::kind::env_light>
+	{
+		struct info_bake
+		{
+			uint32						cubemap_size;
+			uint16						prefilter_size;
+			uint16						prefilter_mip_count;
+			uint16						irradiance_size;
+			graphics::e::texture_format format;
+			float						max_luminance;
+			float						min_luminance;
+			float						mean_luminance;
+			float3						dominant_light_direction;
+			float3						dominant_light_color;
+			uint32_4					reserved;
+		};
+
+		struct info_runtime
+		{
+			float	 intensity;
+			float3	 tint;
+			float3	 rotation_deg;	  // look_at, normalized
+			uint32_4 reserved;
+		};
+
+		struct header
+		{
+			info_bake	 bake_info;
+			info_runtime runtime_info;
+		};
+
+		static_assert(std::is_implicit_lifetime_v<header>);
+		static_assert(std::is_trivially_copyable_v<header>);
+		static_assert(sizeof(header) == 108);
+
+		using allocator_type = aligned_byte_allocator;
+
+		uint32 path_id;
+		uint32 render_id = age::get_invalid_id<uint32>();
+
+
+		std::byte* p_blob;
+
+		uint32 ref_counter = 0u;
+
+		std::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		bool
+		is_cpu_loaded() const noexcept;
+
+		bool
+		is_gpu_loaded() const noexcept;
+
+		const header&
+		get_header() const noexcept;
+
+		header&
+		get_header() noexcept;
+
+		const void*
+		get_texture_buffer() const noexcept;
+	};
 }	 // namespace age::asset
 
 namespace age::asset
 {
+	struct env_light_desc
+	{
+		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_uf16;
+		uint32						cubemap_size		= 1024;
+		uint16						prefilter_size		= 256;
+		uint16						prefilter_mip_count = 7;
+		uint16						irradiance_size		= 32;
+
+		bool invert_y = false;
+	};
+
 	struct material_desc
 	{
 		float4			   base_color_factor  = float4::one();
@@ -526,8 +603,6 @@ namespace age::asset::g
 
 	inline auto path_vec = age::sparse_vector<std::array<char, config::max_asset_path_len>>{};
 
-
-	// todo
 	template <e::kind e_kind>
 	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
 	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>

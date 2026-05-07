@@ -1001,7 +1001,7 @@ namespace age::editor
 						{
 							auto id = ui::id_begin();
 							auto _	= widget::begin(set_horizontal() | set_height_fit() | set_width_grow());
-							widget::text_input(src_vec[i * 6 + j]);
+							widget::path_picker(src_vec[i * 6 + j]);
 							if (std::filesystem::is_regular_file(src_vec[i * 6 + j].data()) is_false)
 							{
 								is_valid = false;
@@ -1017,7 +1017,7 @@ namespace age::editor
 					{
 						auto id = ui::id_begin();
 						auto _	= widget::begin(set_horizontal() | set_height_fit() | set_width_grow());
-						widget::text_input(src_vec[i]);
+						widget::path_picker(src_vec[i]);
 						if (std::filesystem::is_regular_file(src_vec[i].data()) is_false)
 						{
 							is_valid = false;
@@ -1283,6 +1283,163 @@ namespace age::editor
 	}
 
 	void
+	ui_modal_new_asset_env_light() noexcept
+	{
+		using namespace age::ui;
+		using enum age::asset::e::kind;
+
+		static auto asset_desc = asset::env_light_desc{};
+		static auto src_path   = std::array<char, config::max_asset_path_len>{};
+
+		auto		is_valid	 = true;
+		static auto bake_success = true;
+
+		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
+		{
+			auto h_scoll = widget::scroll_area_v();
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("cubemap format");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::dropdown<graphics::e::texture_format>(asset_desc.format, widget::make_dropdown_option_all<graphics::e::texture_format>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("cubemap size");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(asset_desc.prefilter_size, nullptr);
+					if (util::popcount(asset_desc.prefilter_size) != 1)
+					{
+						widget::begin(style::text("prefilter size must be power of 2") | set_body_brush_data(theme::color_text_red()));
+					}
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("prefilter mip count");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(asset_desc.prefilter_mip_count, nullptr, uint16{}, static_cast<uint16>(util::popcount(asset_desc.prefilter_size) - 1));
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("irradiance size");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(asset_desc.irradiance_size);
+					if (util::popcount(asset_desc.irradiance_size) != 1)
+					{
+						widget::begin(style::text("irradiance_size size must be power of 2") | set_body_brush_data(theme::color_text_red()));
+					}
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("invert y");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, asset_desc.invert_y);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_width_fit() | set_height_fit() | set_align_center()))
+			{
+				widget::text_heading("src image");
+			}
+
+			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				widget::path_picker(src_path);
+
+				if (std::filesystem::is_regular_file(src_path.data()) is_false)
+				{
+					is_valid = false;
+
+					widget::begin(style::text("path does not exists") | set_body_brush_data(theme::color_text_red()));
+				}
+			}
+
+			widget::separator_v();
+
+			if (is_valid is_false)
+			{
+				widget::begin(style::text("invalid option") | set_body_brush_data(theme::color_text_red()));
+				return;
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_height_fit() | set_align_center()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100 + 100) | set_height_fit()))
+				{
+					widget::text_input(detail::ui_modal_asset_name());
+				}
+
+				if (auto h_cancel = widget::button("cancel"))
+				{
+					if (h_cancel.clicked())
+					{
+						g::show_modal = false;
+					}
+				}
+
+				if (auto h_create = widget::button("create"))
+				{
+					if (h_create.clicked())
+					{
+						auto   name		 = g::current_game.dir_path / "asset" / "texture" / detail::ui_modal_asset_name().data();
+						c_auto full_path = asset::get_asset_full_path<env_light>(name.string());
+
+						if (bake_success = asset::env_light::bake(src_path, full_path, asset_desc))
+						{
+							asset::registry::register_asset(env_light, full_path.data());
+							g::show_modal = false;
+						}
+					}
+				}
+			}
+		}
+
+		if (bake_success is_false)
+		{
+			widget::begin(style::text("env light bake failed") | set_body_brush_data(theme::color_text_red()));
+		}
+	}
+
+	void
 	ui_modal_new_asset() noexcept
 	{
 		using namespace age::ui;
@@ -1326,6 +1483,11 @@ namespace age::editor
 				case material:
 				{
 					ui_modal_new_asset_material();
+					break;
+				}
+				case env_light:
+				{
+					ui_modal_new_asset_env_light();
 					break;
 				}
 				default:

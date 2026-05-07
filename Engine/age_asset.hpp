@@ -61,7 +61,7 @@ namespace age::asset
 	constexpr decltype(auto)
 	get_asset_full_path(std::string_view asset_name) noexcept;
 
-	AGE_DEFINE_ASSET_KIND(font, mesh_baked, material, texture);
+	AGE_DEFINE_ASSET_KIND(font, mesh_baked, material, texture, env_light);
 }	 // namespace age::asset
 
 namespace age::asset
@@ -207,6 +207,47 @@ namespace age::asset::material
 	void
 	save(handle _) noexcept;
 };	  // namespace age::asset::material
+
+namespace age::asset::env_light
+{
+	void
+	full_unload(handle, auto& renderer) noexcept;
+
+	void
+	cpu_unload(handle _) noexcept;
+
+	void
+	gpu_unload(handle, auto& renderer) noexcept;
+
+	void
+	gpu_load(handle, auto& renderer) noexcept;
+
+	handle
+	gpu_load(std::string_view name, auto& renderer) noexcept;
+
+	void
+	cpu_load(handle _) noexcept;
+
+	handle
+	cpu_load(std::string_view name) noexcept;
+
+	void
+	full_load(handle, auto& renderer) noexcept;
+
+	handle
+	full_load(std::string_view name, auto& renderer) noexcept;
+
+	void
+	add_ref(handle _) noexcept;
+
+	void
+	remove_ref(handle _) noexcept;
+
+	bool
+	bake(const std::array<char, config::max_asset_path_len>& src,
+		 const std::array<char, config::max_asset_path_len>& dst,
+		 const env_light_desc&								 desc) noexcept;
+}	 // namespace age::asset::env_light
 
 namespace age::asset
 {

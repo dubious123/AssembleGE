@@ -723,8 +723,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				.emissive_texture_id		   = age::get_invalid_id<uint32>(),
 			};
 
-			std::println("{}", entry.occlusion_strength);
-
 			if (age::runtime::is_handle_invalid(entry.h_tex_base_color) is_false)
 			{
 				mat.base_color_texture_id = entry.h_tex_base_color.get_entry<asset::e::kind::texture>().render_id;

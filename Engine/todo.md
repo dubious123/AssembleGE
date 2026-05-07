@@ -63,3 +63,4 @@ full primitive대신 meshlet id map 저장
 - gizmo 
 - save scene
 - logger
+- enable, disable entity

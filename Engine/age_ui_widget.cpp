@@ -1306,3 +1306,75 @@ namespace age::ui::widget
 		return rotation_field(value, p_label, float4{ text_label_color, 1.f }, step);
 	}
 }	 // namespace age::ui::widget
+
+namespace age::ui::widget
+{
+	bool
+	path_picker(std::span<char> path) noexcept
+	{
+		AGE_ASSERT(path.size() > 0);
+		auto _0		 = widget::begin(style::frame() | set_vertical() | set_padding(theme::frame_border_thickness()) | set_child_gap(0) | set_width_grow() | set_height_fit());
+		auto text_id = widget::text_input4(path.data(), static_cast<uint32>(path.size())).hash_id;
+
+		using enum input::e::key_kind;
+		using enum e::style_state;
+		bool res_value_changed = false;
+
+		auto idx = get_invalid_idx<uint32>();
+
+		{
+			auto ec			= std::error_code{};
+			auto input_path = /*std::filesystem::current_path(ec) / */ std::filesystem::path(path.data());
+			auto parent		= input_path.parent_path();
+			if (parent.empty()) { parent = std::filesystem::current_path(ec); }
+			if (ec) { return false; }
+
+			auto stem_prefix = input_path.filename().u8string();
+
+			for (ec = std::error_code{};
+				 c_auto& entry : std::filesystem::directory_iterator(input_path.parent_path(), ec))
+			{
+				if (ec) break;
+				// if (entry.is_regular_file(ec) is_false) { continue; }
+
+				c_auto filename = entry.path().filename().u8string();
+
+				if (filename.size() <= stem_prefix.size()) { continue; }
+				if (filename.compare(0, stem_prefix.size(), stem_prefix) != 0) { continue; }
+
+				auto _id = id_begin();
+
+				if (auto btn = widget::begin(set_interact(true) | set_padding(0) | set_width_grow() | set_height_fit()))
+				{
+					auto state = idle;
+					if (btn.pressed<mouse_left>())
+					{
+						state = active;
+					}
+					else if (btn.hovered())
+					{
+						state = hover;
+					}
+
+					if (btn.clicked() or g::p_input_ctx->is_pressed(key_tab))
+					{
+						res_value_changed = true;
+						std::memcpy(path.data(), entry.path().u8string().data(), std::min(entry.path().u8string().size(), path.size() - 1));
+
+						auto& text_state				  = g::widget_state_map[text_id];
+						text_state.cursor.byte_pos		  = static_cast<uint32>(std::min(entry.path().u8string().size(), path.size() - 1));
+						text_state.cursor.anchor_byte_pos = text_state.cursor.byte_pos;
+
+						break;
+					}
+
+
+					auto _ = widget::begin(style::item(false, state) | set_border_thickness(0.f) | set_padding(theme::frame_padding()));
+					widget::text(reinterpret_cast<const char*>(filename.data()), state);
+				}
+			}
+		}
+
+		return res_value_changed;
+	}
+}	 // namespace age::ui::widget

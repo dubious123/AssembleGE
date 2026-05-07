@@ -119,6 +119,7 @@ namespace age
 #include "age_asset_mesh_baked.inl"
 #include "age_asset_texture.inl"
 #include "age_asset_material.inl"
+#include "age_asset_env_light.inl"
 
 #include "age_ecs_component.hpp"
 #include "age_ecs.hpp"

@@ -630,6 +630,131 @@ namespace age::ui::widget
 	{
 		return text_input2(arr.data(), n);
 	}
+
+	bool
+	text_input3(char* p_buf, uint32 buf_size, auto&&... modifier) noexcept
+	{
+		auto editiing = false;
+
+		if (auto h = widget::begin(style::frame()
+								   | set_horizontal()
+								   | set_child_gap(0)
+								   | set_interact(true)
+								   | set_save_state(true)
+								   | set_width_grow()
+								   | set_height_fit()))
+		{
+			c_auto font_size		= theme::text_font_size();
+			c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
+
+			auto text_desc = widget_desc::apply(
+				((style::text(p_buf)
+				  | set_align(e::widget_align::begin)
+				  | set_font_size(font_size))
+				 | ... | FWD(modifier)));
+
+			auto& state = h.get_state();
+
+			c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
+			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+
+			if (h.triple_clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 3);
+			}
+			else if (h.double_clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 2);
+			}
+			else if (h.clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 1);
+			}
+			else if (h.focused() and not h.pressed())
+			{
+				detail::handle_text_edit(state, p_buf, buf_size, text_desc, width);
+
+				auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+				auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
+
+				detail::draw_text_cursor_and_selection(state, cursor, anchor, text_desc, width, text_line_height);
+
+				editiing = true;
+			}
+
+			widget::begin(std::move(text_desc));
+		}
+
+		return editiing;
+	}
+
+	template <auto n>
+	bool
+	text_input3(std::array<char, n>& arr, auto&&... mod) noexcept
+	{
+		return text_input(arr.data(), n, FWD(mod)...);
+	}
+
+	widget_ctx
+	text_input4(char* p_buf, uint32 buf_size, auto&&... modifier) noexcept
+	{
+		if (auto h = widget::begin(style::frame()
+								   | set_horizontal()
+								   | set_child_gap(0)
+								   | set_interact(true)
+								   | set_save_state(true)
+								   | set_width_grow()
+								   | set_height_fit()))
+		{
+			c_auto font_size		= theme::text_font_size();
+			c_auto text_line_height = font::get_line_height(font_size, g::current_font_idx);
+
+			auto text_desc = widget_desc::apply(
+				((style::text(p_buf)
+				  | set_align(e::widget_align::begin)
+				  | set_font_size(font_size))
+				 | ... | FWD(modifier)));
+
+			auto& state = h.get_state();
+
+			c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
+			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+
+			if (h.triple_clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 3);
+			}
+			else if (h.double_clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 2);
+			}
+			else if (h.clicked())
+			{
+				detail::handle_text_click(state, p_buf, text_desc, width, mouse_offset, 1);
+			}
+			else if (h.focused() and not h.pressed())
+			{
+				detail::handle_text_edit(state, p_buf, buf_size, text_desc, width);
+
+				auto cursor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.byte_pos, width);
+				auto anchor = ui::detail::byte_offset_to_cursor(text_desc.text.text_data_idx, state.cursor.anchor_byte_pos, width);
+
+				detail::draw_text_cursor_and_selection(state, cursor, anchor, text_desc, width, text_line_height);
+			}
+
+			widget::begin(std::move(text_desc));
+			return h;
+		}
+
+		AGE_UNREACHABLE();
+	}
+
+	template <auto n>
+	widget_ctx
+	text_input4(std::array<char, n>& arr, auto&&... mod) noexcept
+	{
+		return text_input(arr.data(), n, FWD(mod)...);
+	}
 }	 // namespace age::ui::widget
 
 // numeric field
@@ -746,8 +871,8 @@ namespace age::ui::widget
 						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
 
 						delta = std::clamp(delta,
-										   static_cast<std::make_signed_t<t>>(min) - static_cast<std::make_signed_t<t>>(value),
-										   static_cast<std::make_signed_t<t>>(max) - static_cast<std::make_signed_t<t>>(value));
+										   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(min) - static_cast<std::make_signed_t<t>>(value)),
+										   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(max) - static_cast<std::make_signed_t<t>>(value)));
 
 
 						// value  = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
@@ -1059,7 +1184,7 @@ namespace age::ui::widget
 
 		for (c_auto& opt : options)
 		{
-			id_begin();
+			auto _id = id_begin();
 
 			if (auto btn = widget::begin(set_interact(true) | set_padding(0) | set_width_grow() | set_height_fit()))
 			{
@@ -1106,6 +1231,12 @@ namespace age::ui::widget
 
 		return res_value_changed;
 	}
+}	 // namespace age::ui::widget
+
+namespace age::ui::widget
+{
+	bool
+	path_picker(std::span<char> path) noexcept;
 }	 // namespace age::ui::widget
 
 namespace age::ui::widget
