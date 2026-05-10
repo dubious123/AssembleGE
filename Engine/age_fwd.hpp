@@ -46,6 +46,8 @@ namespace age::ecs
 
 	class entity_block_tag { };
 
+	class query_tag { };
+
 	template <typename t_cmp>
 	concept cx_component = requires {
 		requires std::is_trivially_copyable_v<std::decay_t<t_cmp>>;
@@ -60,6 +62,10 @@ namespace age::ecs
 	template <typename t>
 	concept cx_entity_block = requires { typename std::remove_cvref_t<t>::ecs_tag; }
 						  and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, entity_block_tag>;
+
+	template <typename t>
+	concept cx_query = requires { typename std::remove_cvref_t<t>::ecs_tag; }
+				   and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, query_tag>;
 }	 // namespace age::ecs
 
 namespace age::graphics

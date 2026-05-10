@@ -38,6 +38,32 @@ namespace age::ecs::detail
 		 and meta::is_specialization_of_v<t_any, meta::type_pack>
 	struct query_desc
 	{
+		using ecs_tag = ecs::query_tag;
+
+		using t_select_list	 = t_select;
+		using t_include_list = t_include;
+		using t_exclude_list = t_exclude;
+		using t_any_list	 = t_any;
+
+		// static_assert
+
+		using t_with = meta::make_unique_t<
+			meta::combine_t<
+				meta::transform_t<std::remove_const, meta::filter_not_t<is_query_sv, t_select>>,
+				t_include>>;
+
+		using t_without = meta::make_unique_t<t_exclude>;
+	};
+
+	template <typename t_select, typename t_include, typename t_exclude, typename t_any>
+	requires meta::is_specialization_of_v<t_select, meta::type_pack>
+		 and meta::is_specialization_of_v<t_include, meta::type_pack>
+		 and meta::is_specialization_of_v<t_exclude, meta::type_pack>
+		 and meta::is_specialization_of_v<t_any, meta::type_pack>
+	struct soft_query_desc
+	{
+		using ecs_tag = ecs::query_tag;
+
 		using t_select_list	 = t_select;
 		using t_include_list = t_include;
 		using t_exclude_list = t_exclude;
@@ -64,6 +90,16 @@ namespace age::ecs
 								  meta::type_pack<>,
 								  meta::type_pack<>,
 								  meta::type_pack<>>{};
+	}
+
+	template <typename... t_select>
+	consteval auto
+	soft_query()
+	{
+		return detail::soft_query_desc<meta::type_pack<t_select...>,
+									   meta::type_pack<>,
+									   meta::type_pack<>,
+									   meta::type_pack<>>{};
 	}
 
 	template <typename t_sel, typename t_inc, typename t_exc, typename t_any, typename... t>
@@ -480,11 +516,19 @@ namespace age::ecs
 	{
 		return detail::each_block_archetype_adaptor{ archetype };
 	}
+
+	template <typename... t_select>
+	requires(sizeof...(t_select) > 0)
+	constexpr decltype(auto)
+	each_entity_soft()
+	{
+		return each_entity(soft_query<t_select...>());
+	}
 }	 // namespace age::ecs
 
 namespace age::ecs::detail
 {
-	template <typename t_cmp, typename t_block>
+	template <bool soft, typename t_cmp, typename t_block>
 	FORCE_INLINE decltype(auto)
 	resolve_select(t_block& block, typename t_block::t_local_entity_idx local_ent_idx) noexcept
 	{
@@ -508,9 +552,14 @@ namespace age::ecs::detail
 		{
 			return std::as_const(*block.template cmp_ptr<std::remove_const_t<t_cmp>>(local_ent_idx));
 		}
-		else
+		else if constexpr (soft is_false or t_block::t_archetype_traits::template contains_cmp<t_cmp>())
 		{
 			return *block.template cmp_ptr<t_cmp>(local_ent_idx);
+		}
+		else
+		{
+			AGE_UNREACHABLE();
+			return t_cmp{};
 		}
 	}
 
@@ -518,6 +567,13 @@ namespace age::ecs::detail
 	FORCE_INLINE decltype(auto)
 	query_entity_impl(auto&& block, auto local_ent_idx, meta::type_pack<t_cmp...>) noexcept
 	{
-		return std::forward_as_tuple(resolve_select<t_cmp>(block, local_ent_idx)...);
+		return std::forward_as_tuple(resolve_select<false, t_cmp>(block, local_ent_idx)...);
+	}
+
+	template <typename t_query, typename... t_cmp>
+	FORCE_INLINE decltype(auto)
+	query_entity_soft_impl(auto&& block, auto local_ent_idx, meta::type_pack<t_cmp...>) noexcept
+	{
+		return std::forward_as_tuple(resolve_select<true, t_cmp>(block, local_ent_idx)...);
 	}
 }	 // namespace age::ecs::detail

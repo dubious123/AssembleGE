@@ -593,6 +593,69 @@ namespace age::editor
 	}
 
 	void
+	ui_component(ecs::env_light& cmp) noexcept
+	{
+		using namespace ui;
+		using enum input::e::key_kind;
+		using enum ui::e::style_state;
+		using enum asset::e::kind;
+
+		static auto env_light_vec = age::vector<widget::dropdown_option<asset::handle>>{};
+		static auto label_vec	  = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		env_light_vec.reserve(asset::registry::all(env_light).size() + 1);
+		label_vec.reserve(asset::registry::all(env_light).size() + 1);
+		env_light_vec.clear();
+		label_vec.clear();
+
+		label_vec.emplace_back(util::to_fixed_str<config::max_asset_display_name_len>("(none)"));
+		env_light_vec.emplace_back(ui::widget::dropdown_option<asset::handle>{ .value = {}, .label = label_vec.back().data() });
+		for (auto h_env_light : asset::registry::all(env_light))
+		{
+			label_vec.emplace_back(h_env_light.get_display_name<env_light>());
+			env_light_vec.emplace_back(
+				widget::dropdown_option<asset::handle>{ .value = h_env_light, .label = label_vec.back().data() });
+		}
+
+		if (auto h_env_light = cmp.h_env_light;
+			widget::dropdown<asset::handle>(h_env_light, env_light_vec))
+		{
+			cmp.update_h_env_light(h_env_light);
+		}
+
+		if (runtime::is_handle_invalid(cmp.h_env_light)) { return; }
+
+		auto& entry = cmp.h_env_light.get_entry<env_light>();
+
+		auto cpu_loaded = entry.is_cpu_loaded();
+
+		if (entry.is_cpu_loaded() is_false)
+		{
+			if (widget::button2("cpu load"))
+			{
+				asset::env_light::cpu_load(cmp.h_env_light);
+			}
+			return;
+		}
+		else
+		{
+			if (widget::button2("cpu unload"))
+			{
+				asset::env_light::cpu_unload(cmp.h_env_light);
+				return;
+			}
+		}
+
+		auto& runtime_info = entry.get_runtime_info();
+
+		widget::numeric_field(runtime_info.intensity, "intensity", 0.f, 1.f);
+
+		widget::text("tint");
+		widget::color_field(runtime_info.tint);
+
+		widget::numeric_field(runtime_info.euler_deg, "rotation", float3{ -180.f, -180.f, -180.f }, float3{ 180.f, 180.f, 180.f });
+	}
+
+	void
 	ui_component(age::ecs::camera& cam) noexcept
 	{
 		ui::widget::text_heading(age::graphics::e::to_string(cam.kind).data());

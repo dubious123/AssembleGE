@@ -94,6 +94,12 @@ namespace age::inline math
 		return quat_to_euler_rad(quat) * float3{ g::radian_to_degree };
 	}
 
+	FORCE_INLINE float3x3
+	euler_deg_to_mat3x3(float3 euler_deg) noexcept
+	{
+		return euler_deg | simd::load() | simd::mul(simd::replicate(g::degree_to_radian)) | simd::euler_to_mat4x4() | simd::to<float3x3>();
+	}
+
 	FORCE_INLINE float3x4
 	trs(float3 pos, float4 quat, float3 scale) noexcept
 	{

@@ -111,6 +111,7 @@ namespace age::editor::detail
 												.cast_shadow = light.cast_shadow });
 		}
 
+
 		for (auto&& [light, pos] : ecs_storage | each_entity<point_light, position>())
 		{
 			renderer.update_point_light(
@@ -134,6 +135,16 @@ namespace age::editor::detail
 				  .cos_inner   = light.cos_inner,
 				  .cos_outer   = light.cos_outer,
 				  .cast_shadow = light.cast_shadow });
+		}
+
+		for (auto&& [env_light] : ecs_storage | each_entity_soft<env_light>())
+		{
+			if (runtime::is_handle_invalid(env_light.h_env_light)) { continue; }
+
+			if (asset::registry::is_registered<asset::e::kind::env_light>(env_light.h_env_light) is_false)
+			{
+				env_light.update_h_env_light(asset::handle{});
+			}
 		}
 	}
 }	 // namespace age::editor::detail
@@ -234,6 +245,30 @@ namespace age::editor
 				if (entry.ref_counter > 0 and need_update)
 				{
 					renderer.update_material(h);
+				}
+			}
+		}
+
+		{
+			auto& pool = asset::pool_of<env_light>();
+			for (auto it = pool.begin(); it != pool.end(); ++it)
+			{
+				auto  h		= asset::handle::make<env_light>(it.idx<uint32>());
+				auto& entry = h.get_entry<env_light>();
+
+				if (entry.ref_counter == 0)
+				{
+					asset::env_light::full_unload(h, renderer);
+
+					if (asset::registry::is_registered<env_light>(h) is_false)
+					{
+						asset::destroy_entry<env_light>(h);
+					}
+				}
+
+				if (entry.ref_counter > 0)
+				{
+					asset::env_light::gpu_load(h, renderer);
 				}
 			}
 		}

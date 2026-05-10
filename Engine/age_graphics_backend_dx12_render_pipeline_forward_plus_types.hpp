@@ -85,6 +85,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::t<0, 2>>,
 
+		binding_slot<
+			"env_light_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::env_light>,
+			how::root_descriptor,
+			where::t<1, 2>>,
+
 		/*binding_slot<
 			"shadow_stage_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
@@ -262,5 +270,16 @@ namespace age::graphics::render_pipeline::forward_plus
 	struct material_data
 	{
 		asset::handle h_mat;
+	};
+
+	struct env_light_data
+	{
+		uint32			gpu_id;
+		resource_handle h_radiance;
+		resource_handle h_prefilter;
+		resource_handle h_irradiance;
+		srv_desc_handle h_radiance_srv_desc;
+		srv_desc_handle h_prefilter_srv_desc;
+		srv_desc_handle h_irradiance_srv_desc;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

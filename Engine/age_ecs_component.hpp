@@ -554,8 +554,8 @@ namespace age::ecs
 		{
 			if (runtime::is_handle_invalid(cmp.h_mat))
 			{
-				char mesh_path[config::max_asset_path_len] = { "invalid mat" };
-				buf.write(mesh_path);
+				char mat_path[config::max_asset_path_len] = { "invalid mat" };
+				buf.write(mat_path);
 			}
 			else
 			{
@@ -586,6 +586,86 @@ namespace age::ecs
 			buf.read(mat_path);
 
 			cmp.update_h_mat(asset::find(age::asset::e::kind::material, mat_path));
+		}
+	};
+
+	AGE_COMPONENT(env_light, "ibl")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		uint32 render_id = 0;
+
+		asset::handle h_env_light = {};
+
+		FORCE_INLINE void
+		update_h_env_light(asset::handle h_env_light_new) noexcept
+		{
+			if (runtime::is_handle_invalid(h_env_light) is_false)
+			{
+				asset::env_light::remove_ref(h_env_light);
+			}
+			if (runtime::is_handle_invalid(h_env_light_new) is_false)
+			{
+				asset::env_light::add_ref(h_env_light_new);
+			}
+
+			h_env_light = h_env_light_new;
+		}
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, env_light & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_env_light) is_false)
+			{
+				asset::env_light::add_ref(cmp.h_env_light);
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, env_light & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_env_light) is_false)
+			{
+				asset::env_light::remove_ref(cmp.h_env_light);
+			}
+		}
+
+		static consteval uint32
+		byte_size() noexcept
+		{
+			return config::max_asset_path_len;
+		}
+
+		static void
+		write_to(cmp_dispatch_key, const env_light& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_env_light))
+			{
+				char env_light_path[config::max_asset_path_len] = { "invalid env_light" };
+				buf.write(env_light_path);
+			}
+			else
+			{
+				buf.write(cmp.h_env_light.get_path());
+			}
+
+			return;
+		}
+
+		static void
+		read_from(cmp_dispatch_key, env_light & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != env_light::age_component_version())
+			{
+				AGE_ASSERT(false);
+				return;
+			}
+
+			char env_light_path[config::max_asset_path_len] = {};
+			buf.read(env_light_path);
+
+			cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light, env_light_path));
 		}
 	};
 

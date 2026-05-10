@@ -163,6 +163,40 @@ namespace age::ui::widget
 		}
 	}
 
+	bool
+	button2(const char* p_str, auto&&... mod) noexcept
+	{
+		using enum input::e::key_kind;
+
+		if (auto btn = widget::begin(((style::layout(e::widget_layout::vertical)
+									   | set_z_offset(1)
+									   | set_interact(true)
+									   | set_size(size_mode::fit(), size_mode::fit()))
+									  | ... | FWD(mod))))
+		{
+			auto state = e::style_state::idle;
+			if (btn.pressed<mouse_left>())
+			{
+				state = e::style_state::active;
+			}
+			else if (btn.hovered())
+			{
+				state = e::style_state::hover;
+			}
+
+			if (auto _ = widget::frame(state, set_size(size_mode::fit(), size_mode::fit()), FWD(mod)...))
+			{
+				widget::text_button(p_str);
+			}
+
+			return btn.clicked();
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	widget_ctx
 	button(e::shape_kind e_shape,
 		   float		 size		  = font::get_line_height(theme::text_heading_font_size()),

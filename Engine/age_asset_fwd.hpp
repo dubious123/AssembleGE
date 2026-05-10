@@ -471,6 +471,9 @@ namespace age::asset
 	{
 		struct info_bake
 		{
+			uint64						prefilter_texture_buffer_offset;
+			uint64						irradiance_texture_buffer_offset;
+			uint64						total_size;
 			uint32						cubemap_size;
 			uint16						prefilter_size;
 			uint16						prefilter_mip_count;
@@ -486,9 +489,9 @@ namespace age::asset
 
 		struct info_runtime
 		{
-			float	 intensity	  = 1.f;
-			float3	 tint		  = float3::one();
-			float3x3 rotation_mat = float3x3::identity();
+			float	 intensity = 1.f;
+			float3	 tint	   = float3::one();
+			float3	 euler_deg = float3::zero();
 			uint32_4 reserved;
 		};
 
@@ -500,7 +503,7 @@ namespace age::asset
 
 		static_assert(std::is_implicit_lifetime_v<header>);
 		static_assert(std::is_trivially_copyable_v<header>);
-		static_assert(sizeof(header) == 132);
+		static_assert(sizeof(header) == 136);
 
 		using allocator_type = aligned_byte_allocator;
 
@@ -527,8 +530,26 @@ namespace age::asset
 		header&
 		get_header() noexcept;
 
+		const info_bake&
+		get_bake_info() const noexcept;
+
+		info_bake&
+		get_bake_info() noexcept;
+
+		const info_runtime&
+		get_runtime_info() const noexcept;
+
+		info_runtime&
+		get_runtime_info() noexcept;
+
 		const void*
-		get_texture_buffer() const noexcept;
+		get_radiance_texture_buffer() const noexcept;
+
+		const void*
+		get_prefilter_texture_buffer() const noexcept;
+
+		const void*
+		get_irradiance_texture_buffer() const noexcept;
 	};
 }	 // namespace age::asset
 

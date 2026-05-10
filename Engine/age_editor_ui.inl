@@ -127,6 +127,35 @@ namespace age::editor
 	ui_component(ecs::spot_light& light) noexcept;
 
 	void
+	ui_component(age::ecs::env_light& env_light) noexcept;
+
+	void
+	ui_component(age::ecs::env_light& env_light, auto& renderer) noexcept
+	{
+		ui_component(env_light);
+
+		if (runtime::is_handle_invalid(env_light.h_env_light) is_false)
+		{
+			auto& entry = env_light.h_env_light.get_entry<asset::e::kind::env_light>();
+
+			if (entry.is_cpu_loaded())
+			{
+				auto btn = ui::widget::button("save");
+
+				if (btn.clicked())
+				{
+					asset::env_light::save(env_light.h_env_light);
+				}
+
+				if (entry.is_gpu_loaded())
+				{
+					renderer.update_env_light_runtime(env_light.h_env_light);
+				}
+			}
+		}
+	}
+
+	void
 	ui_component(age::ecs::camera& cam) noexcept;
 
 	void

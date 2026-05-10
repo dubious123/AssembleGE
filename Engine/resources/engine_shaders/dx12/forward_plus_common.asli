@@ -230,6 +230,15 @@ load_material(uint32 idx)
 	}
 }
 
+// env_light
+structured_buffer<env_light> env_light_buffer reg(t1, space2);
+
+env_light
+load_env_light(uint32 idx)
+{
+	return env_light_buffer[idx];
+}
+
 // rt
 structured_buffer<rt_instance_render_data> rt_instance_render_data_buffer_srv reg(t0, space3);
 structured_buffer<uint32>				   rt_index_buffer_srv reg(t1, space3);
@@ -306,6 +315,8 @@ uint32 light_tile_count_y;
 float  cam_near_z;
 float  cam_far_z;
 float  cam_log_far_near_ratio;
+uint32 env_light_brdf_lut_id;
+uint32 env_light_count;
 uint32 radix_sort_pass;
 
 uint32 ui_data_id_offset;

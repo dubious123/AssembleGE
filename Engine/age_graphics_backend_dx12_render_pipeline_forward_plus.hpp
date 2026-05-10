@@ -191,6 +191,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 		mapping_handle h_mapping_material_buffer;
 
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_env_light_buffer_arr;
+
 
 		// rt, not for binding
 		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
@@ -221,6 +223,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		// material
 		binding_config_t::reg_t<0, 2> material_buffer;
 
+		// env_light
+		binding_config_t::reg_t<1, 2> env_light_buffer;
+
 		// ui
 		binding_config_t::reg_t<0, 4>								ui_data_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
@@ -240,6 +245,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		srv_desc_handle h_rt_tlas_buffer_srv_desc;
 		srv_desc_handle h_rt_transparent_tex_buffer_srv_desc;
 		uav_desc_handle h_rt_transparent_tex_buffer_uav_desc;
+
+		srv_desc_handle h_env_light_brdf_lut;
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
@@ -280,6 +287,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 
 		age::stable_dense_vector<shared_type::unified_light> unified_light_vec;
+
+		// env_light
+		age::stable_dense_vector<shared_type::env_light> env_light_gpu_data_vec;
+		age::sparse_vector<env_light_data>				 env_light_cpu_data_vec;
 
 		// main
 		void
@@ -392,6 +403,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		remove_spot_light(t_unified_light_id& id) noexcept;
+
+		// env_light
+		t_env_light_id
+		upload_env_light(asset::handle _) noexcept;
+
+		void
+		update_env_light_runtime(asset::handle _) noexcept;
+
+		void
+		release_env_light(t_env_light_id&) noexcept;
 
 		// ui
 		age::vector<ui::render_data>&

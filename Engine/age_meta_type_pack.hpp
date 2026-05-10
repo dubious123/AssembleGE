@@ -11,6 +11,8 @@ namespace age::meta
 		template <std::size_t i>
 		using t_nth = variadic_at_t<i, t...>;
 
+		using t_tpl_ref = std::tuple<std::add_lvalue_reference_t<t>...>;
+
 		static constexpr auto size = sizeof...(t);
 
 		template <typename t_r>

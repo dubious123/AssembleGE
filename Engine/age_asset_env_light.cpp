@@ -53,10 +53,46 @@ namespace age::asset
 		return *reinterpret_cast<header*>(p_blob);
 	}
 
+	const entry<e::kind::env_light>::info_bake&
+	entry<e::kind::env_light>::get_bake_info() const noexcept
+	{
+		return get_header().bake_info;
+	}
+
+	entry<e::kind::env_light>::info_bake&
+	entry<e::kind::env_light>::get_bake_info() noexcept
+	{
+		return get_header().bake_info;
+	}
+
+	const entry<e::kind::env_light>::info_runtime&
+	entry<e::kind::env_light>::get_runtime_info() const noexcept
+	{
+		return get_header().runtime_info;
+	}
+
+	entry<e::kind::env_light>::info_runtime&
+	entry<e::kind::env_light>::get_runtime_info() noexcept
+	{
+		return get_header().runtime_info;
+	}
+
 	const void*
-	entry<e::kind::env_light>::get_texture_buffer() const noexcept
+	entry<e::kind::env_light>::get_radiance_texture_buffer() const noexcept
 	{
 		return p_blob + sizeof(header);
+	}
+
+	const void*
+	entry<e::kind::env_light>::get_prefilter_texture_buffer() const noexcept
+	{
+		return p_blob + sizeof(header) + get_header().bake_info.prefilter_texture_buffer_offset;
+	}
+
+	const void*
+	entry<e::kind::env_light>::get_irradiance_texture_buffer() const noexcept
+	{
+		return p_blob + sizeof(header) + get_header().bake_info.irradiance_texture_buffer_offset;
 	}
 }	 // namespace age::asset
 
@@ -163,16 +199,7 @@ namespace age::asset::env_light
 
 		auto buf = byte_buf::gen_reserved(sizeof(entry<e::kind::env_light>::header) + radiance_tex_size + prefilter_tex_size + irradiance_tex_size);
 
-		buf.write(entry<e::kind::env_light>::header{
-			.bake_info = {
-
-				.cubemap_size		 = desc.cubemap_size,
-				.prefilter_size		 = desc.prefilter_size,
-				.prefilter_mip_count = desc.prefilter_mip_count,
-				.irradiance_size	 = desc.irradiance_size,
-				.format				 = desc.format,
-			},
-			.runtime_info = {} });
+		buf.move_write_pos(sizeof(entry<e::kind::env_light>::header));
 
 		c_auto radiance_tex_offset	 = buf.size();
 		c_auto prefilter_tex_offset	 = radiance_tex_offset + radiance_tex_size;
@@ -212,6 +239,17 @@ namespace age::asset::env_light
 									 true,
 									 false);
 		{
+			auto env_light_entry = entry<e::kind::env_light>::header{
+				.bake_info = {
+					.cubemap_size		 = desc.cubemap_size,
+					.prefilter_size		 = desc.prefilter_size,
+					.prefilter_mip_count = desc.prefilter_mip_count,
+					.irradiance_size	 = desc.irradiance_size,
+					.format				 = desc.format,
+				},
+				.runtime_info = {}
+			};
+
 			auto tex_conv_res = true;
 			{
 				tex_conv_res &= external::texconv::bake_texture(tmp_tex_radiance_dds, tmp_dir, texture_bake_option{
@@ -249,6 +287,7 @@ namespace age::asset::env_light
 
 				if (tex_conv_res)
 				{
+					env_light_entry.bake_info.prefilter_texture_buffer_offset = buf.size();
 					buf.write_bytes(temp.data() + texture::detail::dds_header_size(), temp.size() - texture::detail::dds_header_size());
 				}
 			}
@@ -269,7 +308,11 @@ namespace age::asset::env_light
 
 				if (tex_conv_res)
 				{
+					env_light_entry.bake_info.irradiance_texture_buffer_offset = buf.size();
+
 					buf.write_bytes(temp.data() + texture::detail::dds_header_size(), temp.size() - texture::detail::dds_header_size());
+
+					env_light_entry.bake_info.total_size = buf.size();
 				}
 			}
 
@@ -279,9 +322,11 @@ namespace age::asset::env_light
 				std::filesystem::remove_all(tmp_dir);
 				return false;
 			}
+
+			buf.write_at(0, std::move(env_light_entry));
 		}
 
-		c_auto f_header = get_default_file_header<e::kind::env_light>(buf.size());
+		c_auto f_header = get_default_file_header<e::kind::env_light>(buf.size(), static_cast<uint8>(std::countr_zero(alignof(entry<e::kind::env_light>::header))));
 		write_asset_file(dst.data(), f_header, buf.data());
 
 		std::filesystem::remove_all(tmp_dir);
@@ -289,4 +334,22 @@ namespace age::asset::env_light
 		return true;
 	}
 
+	void
+	save(handle h_env_light) noexcept
+	{
+		if (runtime::is_handle_invalid(h_env_light))
+		{
+			AGE_ASSERT(false);
+			return;
+		}
+
+		auto& env_light_entry = h_env_light.get_entry<e::kind::env_light>();
+		if (env_light_entry.is_cpu_loaded() is_false)
+		{
+			AGE_ASSERT(false);
+			return;
+		}
+		c_auto f_header = get_default_file_header<e::kind::env_light>(env_light_entry.get_bake_info().total_size, static_cast<uint8>(std::countr_zero(alignof(entry<e::kind::env_light>::header))));
+		write_asset_file(h_env_light.get_path<e::kind::env_light>().data(), f_header, env_light_entry.p_blob);
+	}
 }	 // namespace age::asset::env_light

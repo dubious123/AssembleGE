@@ -159,6 +159,12 @@ namespace age::math::simd
 		DirectX::XMStoreFloat3x4(reinterpret_cast<DirectX::XMFLOAT3X4*>(& out), m);
 	}
 
+	FORCE_INLINE void AGE_SIMD_CALL
+	store(float3x3& out, fxm_mat m) noexcept
+	{
+		DirectX::XMStoreFloat3x3(reinterpret_cast<DirectX::XMFLOAT3X3*>(& out), m);
+	}
+
 #define AGE_SIMD_LOAD(name, input_type, func)                                \
 	struct __##name##input_type##__                                          \
 	{                                                                        \
@@ -383,6 +389,7 @@ namespace age::math::simd
 	AGE_SIMD_VEC_UNARY_OP(round, XMVectorRound);
 
 	AGE_SIMD_VEC_UNARY_OP(euler_to_quat, XMQuaternionRotationRollPitchYawFromVector);
+	AGE_SIMD_VEC_UNARY_OP(euler_to_mat4x4, XMMatrixRotationRollPitchYawFromVector);
 
 	AGE_SIMD_MAT_UNARY_OP(mat_transpose, XMMatrixTranspose);
 

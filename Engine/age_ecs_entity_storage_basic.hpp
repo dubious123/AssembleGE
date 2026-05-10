@@ -473,23 +473,30 @@ namespace age::ecs::entity_storage
 		FORCE_INLINE static constexpr bool
 		matches(t_query, t_archetype arch) noexcept
 		{
-			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::t_with>();
-			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::t_without>();
-			constexpr auto any_mask		= t_archetype_traits::template calc_mask<typename t_query::t_any_list>();
-
-			static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
-
-			if (((arch & with_mask) | (arch & without_mask)) != with_mask)
+			if constexpr (meta::is_specialization_of_v<t_query, ecs::detail::soft_query_desc> and t_archetype_traits::template is_valid_query<t_query>() is_false)
 			{
 				return false;
 			}
-
-			if constexpr (any_mask != 0)
+			else
 			{
-				return (arch & any_mask) != 0;
-			}
+				constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::t_with>();
+				constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::t_without>();
+				constexpr auto any_mask		= t_archetype_traits::template calc_mask<typename t_query::t_any_list>();
 
-			return true;
+				static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
+
+				if (((arch & with_mask) | (arch & without_mask)) != with_mask)
+				{
+					return false;
+				}
+
+				if constexpr (any_mask != 0)
+				{
+					return (arch & any_mask) != 0;
+				}
+
+				return true;
+			}
 		}
 
 		template <typename t_query>

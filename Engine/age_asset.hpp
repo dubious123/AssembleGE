@@ -250,6 +250,9 @@ namespace age::asset::env_light
 	bake(const std::array<char, config::max_asset_path_len>& src,
 		 const std::array<char, config::max_asset_path_len>& dst,
 		 const env_light_desc&								 desc) noexcept;
+
+	void
+	save(handle _) noexcept;
 }	 // namespace age::asset::env_light
 
 namespace age::asset

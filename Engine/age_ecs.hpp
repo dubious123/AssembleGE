@@ -28,6 +28,13 @@ namespace age::ecs
 
 		static_assert(std::is_same_v<t_storage_cmp_idx, uint8>);
 
+		template <typename t>
+		static consteval bool
+		contains_cmp()
+		{
+			return meta::variadic_contains_v<t, t_cmp...>;
+		}
+
 		template <typename... t>
 		static consteval t_archetype
 		calc_archetype()
@@ -252,6 +259,24 @@ namespace age::ecs
 				AGE_UNREACHABLE();
 			}
 			}
+		}
+
+		template <typename... t_query_cmp>
+		static consteval bool
+		is_valid_query(meta::type_pack<t_query_cmp...>)
+		{
+			return (meta::variadic_contains_v<t_query_cmp, t_cmp...> and ...);
+		}
+
+		template <typename t_query>
+		requires ecs::cx_query<std::remove_cvref_t<t_query>>
+		static consteval bool
+		is_valid_query()
+		{
+			return is_valid_query(typename t_query::t_select_list{})
+			   and is_valid_query(typename t_query::t_include_list{})
+			   and is_valid_query(typename t_query::t_exclude_list{})
+			   and is_valid_query(typename t_query::t_any_list{});
 		}
 	};
 }	 // namespace age::ecs

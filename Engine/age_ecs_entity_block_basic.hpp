@@ -639,7 +639,14 @@ namespace age::ecs::entity_block
 		FORCE_INLINE decltype(auto)
 		query_entity(t_query, t_local_entity_idx local_ent_idx) noexcept
 		{
-			return detail::query_entity_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
+			if constexpr (meta::is_specialization_of_v<t_query, ecs::detail::query_desc>)
+			{
+				return detail::query_entity_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
+			}
+			else
+			{
+				return detail::query_entity_soft_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
+			}
 		}
 	};
 }	 // namespace age::ecs::entity_block

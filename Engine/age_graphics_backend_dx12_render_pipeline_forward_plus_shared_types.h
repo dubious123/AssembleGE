@@ -155,6 +155,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_unified_light_id	 = uint32;
 	using t_texture_id			 = uint32;
 	using t_material_id			 = uint32;
+	using t_env_light_id		 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -221,6 +222,17 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		half   cos_outer;				 // 2
 		uint16 cast_shadow_and_extra;	 // 2
 	};	  // total: 36 bytes
+
+	//---[ ibl ]------------------------------------------------------------
+	struct env_light
+	{
+		uint32	 radiance_tex_id;	   // 4
+		uint32	 prefilter_tex_id;	   // 4
+		uint32	 irradiance_tex_id;	   // 4
+		float	 intensity;			   // 4
+		float3	 tint;				   // 12
+		float3x3 rotation_mat;		   // 36
+	};	  // total: 64 bytes
 
 	//---[ mesh ]------------------------------------------------------------
 	// data only used by amplification shader
@@ -344,6 +356,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_near_z;
 		float  cam_far_z;
 		float  cam_log_far_near_ratio;
+		uint32 env_light_brdf_lut_id;
+		uint32 env_light_count;
 		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
 		// uint32 shadow_light_index;	  // shadow mapping
