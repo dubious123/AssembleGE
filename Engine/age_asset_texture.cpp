@@ -265,6 +265,14 @@ namespace age::asset::texture::detail
 		}
 		AGE_UNREACHABLE();
 	}
+
+	consteval uint32
+	dds_header_size() noexcept
+	{
+		return static_cast<uint32>(sizeof(uint32) + sizeof(dds_legacy_header) + sizeof(dds_dx10_header));
+	}
+
+	static_assert(dds_header_size() == 148);
 }	 // namespace age::asset::texture::detail
 
 namespace age::asset::texture
@@ -289,9 +297,7 @@ namespace age::asset::texture
 
 		auto buf = asset::read_raw_file(dds_path.string());
 
-		constexpr auto dds_header_size = sizeof(uint32) + sizeof(detail::dds_legacy_header) + sizeof(detail::dds_dx10_header);
-		static_assert(dds_header_size == 148);
-		if (buf.size() < dds_header_size)						 // sizeof(magic) + sizeof(dds_legacy_header) + sizeof(dds_dx10_header)
+		if (buf.size() < detail::dds_header_size())				 // sizeof(magic) + sizeof(dds_legacy_header) + sizeof(dds_dx10_header)
 		{
 			std::filesystem::remove_all(tmp_dir);
 			return false;
@@ -327,9 +333,9 @@ namespace age::asset::texture
 
 		h.extra = 0;
 
-		auto new_buf = byte_buf::gen_reserved(sizeof(h) + buf.size() - dds_header_size);
+		auto new_buf = byte_buf::gen_reserved(sizeof(h) + buf.size() - detail::dds_header_size());
 		new_buf.write(h);
-		new_buf.write_bytes(buf.data() + dds_header_size, buf.size() - dds_header_size);
+		new_buf.write_bytes(buf.data() + detail::dds_header_size(), buf.size() - detail::dds_header_size());
 
 		c_auto f_header = get_default_file_header<e::kind::texture>(new_buf.size(), static_cast<uint8>(std::countr_zero(alignof(decltype(h)))));
 
@@ -337,5 +343,104 @@ namespace age::asset::texture
 
 		std::filesystem::remove_all(tmp_dir);
 		return true;
+	}
+
+	bool
+	bake_dds_texture_2d(std::span<std::byte>		src,
+						std::string_view			dst,
+						extent_2d<uint32>			extent,
+						graphics::e::texture_format format,
+						uint32						mip_count,
+						uint32						array_or_depth_count,
+						bool						is_cube,
+						bool						is_3d) noexcept
+	{
+		constexpr uint32 DDSD_CAPS		  = 0x1;
+		constexpr uint32 DDSD_HEIGHT	  = 0x2;
+		constexpr uint32 DDSD_WIDTH		  = 0x4;
+		constexpr uint32 DDSD_PIXELFORMAT = 0x1000;
+		constexpr uint32 DDSD_MIPMAPCOUNT = 0x20000;
+		constexpr uint32 DDSD_PITCH		  = 0x8;
+		constexpr uint32 DDSD_LINEARSIZE  = 0x80000;
+		constexpr uint32 DDSD_DEPTH		  = 0x800000;
+
+		constexpr uint32 DDPF_FOURCC = 0x4;
+		constexpr uint32 FOURCC_DX10 = 0x30315844;
+
+		constexpr uint32 DDSCAPS_TEXTURE = 0x1000;
+		constexpr uint32 DDSCAPS_MIPMAP	 = 0x400000;
+		constexpr uint32 DDSCAPS_COMPLEX = 0x8;
+
+		constexpr uint32 DDSCAPS2_CUBEMAP			= 0x200;
+		constexpr uint32 DDSCAPS2_CUBEMAP_ALL_FACES = 0xFC00;
+		constexpr uint32 DDSCAPS2_VOLUME			= 0x200000;
+
+		constexpr uint32 D3D10_RESOURCE_DIMENSION_TEXTURE2D = 3;
+		constexpr uint32 D3D10_RESOURCE_DIMENSION_TEXTURE3D = 4;
+		constexpr uint32 D3D10_RESOURCE_MISC_TEXTURECUBE	= 0x4;
+
+		c_auto dxgi_format = graphics::dx12_format(format);
+		c_auto texel_size  = graphics::format_size(format);
+
+
+		auto flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_PITCH;
+		if (mip_count > 1) { flags |= DDSD_MIPMAPCOUNT; }
+		if (is_3d) { flags |= DDSD_DEPTH; }
+
+		auto caps = DDSCAPS_TEXTURE;
+		if (mip_count > 1) { caps |= DDSCAPS_MIPMAP | DDSCAPS_COMPLEX; }
+		if (is_cube) { caps |= DDSCAPS_COMPLEX; }
+
+		auto caps2 = 0u;
+		if (is_cube) { caps2 |= DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_ALL_FACES; }
+		if (is_3d) { caps2 |= DDSCAPS2_VOLUME; }
+
+		c_auto depth = is_3d ? array_or_depth_count : 0;
+
+		c_auto resource_dim = is_3d ? D3D10_RESOURCE_DIMENSION_TEXTURE3D
+									: D3D10_RESOURCE_DIMENSION_TEXTURE2D;
+
+		c_auto misc_flag = is_cube ? D3D10_RESOURCE_MISC_TEXTURECUBE : 0;
+
+		c_auto array_size = is_3d ? 1 : array_or_depth_count;
+
+		auto buf = byte_buf::gen_reserved(detail::dds_header_size() + src.size_bytes());
+
+		buf.write(0x20534444,
+				  detail::dds_legacy_header{
+					  .size					= 124,
+					  .flags				= flags,
+					  .height				= extent.height,
+					  .width				= extent.width,
+					  .pitch_or_linear_size = extent.width * texel_size,
+					  .depth				= depth,
+					  .mip_map_count		= mip_count,
+					  .reserved1			= {},
+					  .pixel_format			= {
+						  .size			 = 32,
+						  .flags		 = DDPF_FOURCC,
+						  .four_cc		 = FOURCC_DX10,
+						  .rgb_bit_count = 0,
+						  .r_bit_mask	 = 0,
+						  .g_bit_mask	 = 0,
+						  .b_bit_mask	 = 0,
+						  .a_bit_mask	 = 0,
+					  },
+					  .caps		 = caps,
+					  .caps2	 = caps2,
+					  .caps3	 = 0,
+					  .caps4	 = 0,
+					  .reserved2 = 0,
+				  },
+				  detail::dds_dx10_header{
+					  .dxgi_format		  = static_cast<uint32>(dxgi_format),
+					  .resource_dimension = resource_dim,
+					  .misc_flag		  = misc_flag,
+					  .array_size		  = array_size,
+					  .misc_flags2		  = 0,
+				  });
+		buf.write_bytes(src.data(), src.size_bytes());
+
+		return write_raw_file(dst, buf);
 	}
 }	 // namespace age::asset::texture

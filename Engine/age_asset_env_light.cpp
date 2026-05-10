@@ -32,7 +32,7 @@ namespace age::asset
 	bool
 	entry<e::kind::env_light>::is_cpu_loaded() const noexcept
 	{
-		return p_blob is_nullptr;
+		return p_blob is_not_nullptr;
 	}
 
 	bool
@@ -131,29 +131,162 @@ namespace age::asset::env_light
 		constexpr decltype(auto) tmp_dir = "__env_light_temp__";
 		constexpr decltype(auto) tmp_tex = "__tmp__";
 
+		constexpr decltype(auto) tmp_tex_radiance_dds	= ".\\__env_light_temp__\\tmp_radiance_tex.dds";
+		constexpr decltype(auto) tmp_tex_prefilter_dds	= ".\\__env_light_temp__\\tmp_prefilter_tex.dds";
+		constexpr decltype(auto) tmp_tex_irradiance_dds = ".\\__env_light_temp__\\tmp_irradiance_tex.dds";
+
 		auto temp_dir	  = std::filesystem::create_directories(tmp_dir);
 		auto tex_bake_res = texture::bake(std::array{ src.data() },
 										  asset::get_asset_full_path<e::kind::texture>(std::format("__env_light_temp__\\{}", tmp_tex).data()).data(),
 										  texture_bake_option{
-											  .format				= graphics::e::texture_format::rgba16_float,
-											  .is_cube				= false,
-											  .is_3d				= false,
-											  .array_or_depth_count = false,
-											  .output_filename		= nullptr,
-											  .fit_pow2				= false,
-											  .mip_count			= 1 });
+											  .format		   = graphics::e::texture_format::rgba16_float,
+											  .is_cube		   = false,
+											  .is_3d		   = false,
+											  .output_filename = nullptr,
+											  .fit_pow2		   = false,
+											  .mip_count	   = 1 });
 
 		if (tex_bake_res is_false)
 		{
 			std::filesystem::remove_all(tmp_dir);
 			return false;
 		}
-		else
+
+		auto h_tex = texture::cpu_load(std::format("__env_light_temp__\\{}", tmp_tex));
+
+		auto env_light_bake_res = graphics::bake::env_light(h_tex, desc);
+
+		c_auto radiance_tex_size   = graphics::resource::calc_readback_size(env_light_bake_res.h_radiance);
+		c_auto prefilter_tex_size  = graphics::resource::calc_readback_size(env_light_bake_res.h_prefilter);
+		c_auto irradiance_tex_size = graphics::resource::calc_readback_size(env_light_bake_res.h_irradiance);
+
+
+		auto buf = byte_buf::gen_reserved(sizeof(entry<e::kind::env_light>::header) + radiance_tex_size + prefilter_tex_size + irradiance_tex_size);
+
+		buf.write(entry<e::kind::env_light>::header{
+			.bake_info = {
+
+				.cubemap_size		 = desc.cubemap_size,
+				.prefilter_size		 = desc.prefilter_size,
+				.prefilter_mip_count = desc.prefilter_mip_count,
+				.irradiance_size	 = desc.irradiance_size,
+				.format				 = desc.format,
+			},
+			.runtime_info = {} });
+
+		c_auto radiance_tex_offset	 = buf.size();
+		c_auto prefilter_tex_offset	 = radiance_tex_offset + radiance_tex_size;
+		c_auto irradiance_tex_offset = prefilter_tex_offset + prefilter_tex_size;
+
+		graphics::resource::readback_texture(std::span{ buf.data() + radiance_tex_offset, radiance_tex_size }, env_light_bake_res.h_radiance);
+		graphics::resource::readback_texture(std::span{ buf.data() + prefilter_tex_offset, prefilter_tex_size }, env_light_bake_res.h_prefilter);
+		graphics::resource::readback_texture(std::span{ buf.data() + irradiance_tex_offset, irradiance_tex_size }, env_light_bake_res.h_irradiance);
+		graphics::resource::release(env_light_bake_res.h_radiance);
+		graphics::resource::release(env_light_bake_res.h_prefilter);
+		graphics::resource::release(env_light_bake_res.h_irradiance);
+
+		texture::bake_dds_texture_2d(std::span{ buf.data() + radiance_tex_offset, radiance_tex_size },
+									 tmp_tex_radiance_dds,
+									 extent_2d<uint32>{ desc.cubemap_size, desc.cubemap_size },
+									 graphics::e::texture_format::rgba16_float,
+									 static_cast<uint32>(std::bit_width(desc.cubemap_size)),
+									 1,
+									 true,
+									 false);
+
+		texture::bake_dds_texture_2d(std::span{ buf.data() + prefilter_tex_offset, prefilter_tex_size },
+									 tmp_tex_prefilter_dds,
+									 extent_2d<uint32>{ desc.prefilter_size, desc.prefilter_size },
+									 graphics::e::texture_format::rgba16_float,
+									 desc.prefilter_mip_count,
+									 1,
+									 true,
+									 false);
+
+		texture::bake_dds_texture_2d(std::span{ buf.data() + irradiance_tex_offset, irradiance_tex_size },
+									 tmp_tex_irradiance_dds,
+									 extent_2d<uint32>{ desc.irradiance_size, desc.irradiance_size },
+									 graphics::e::texture_format::rgba16_float,
+									 1,
+									 1,
+									 true,
+									 false);
 		{
-			std::filesystem::remove_all(tmp_dir);
+			auto tex_conv_res = true;
+			{
+				tex_conv_res &= external::texconv::bake_texture(tmp_tex_radiance_dds, tmp_dir, texture_bake_option{
+																								   .format			= desc.format,
+																								   .is_cube			= false,	// don't assemble
+																								   .is_3d			= false,
+																								   .output_filename = "tex_radiance_reformat.dds",
+																								   .fit_pow2		= false,
+																								   .mip_count		= static_cast<uint32>(std::bit_width(desc.cubemap_size)),
+																							   });
+
+				auto temp = read_raw_file(".\\__env_light_temp__\\tex_radiance_reformat.dds");
+
+				tex_conv_res &= temp.size() > texture::detail::dds_header_size();
+
+				if (tex_conv_res)
+				{
+					buf.write_bytes(temp.data() + texture::detail::dds_header_size(), temp.size() - texture::detail::dds_header_size());
+				}
+			}
+
+			{
+				tex_conv_res &= external::texconv::bake_texture(tmp_tex_prefilter_dds, tmp_dir, texture_bake_option{
+																									.format			 = desc.format,
+																									.is_cube		 = false,	 // don't assemble
+																									.is_3d			 = false,
+																									.output_filename = "tex_prefilter_reformat.dds",
+																									.fit_pow2		 = false,
+																									.mip_count		 = desc.prefilter_mip_count,
+																								});
+
+				auto temp = read_raw_file(".\\__env_light_temp__\\tex_prefilter_reformat.dds");
+
+				tex_conv_res &= temp.size() > texture::detail::dds_header_size();
+
+				if (tex_conv_res)
+				{
+					buf.write_bytes(temp.data() + texture::detail::dds_header_size(), temp.size() - texture::detail::dds_header_size());
+				}
+			}
+
+			{
+				tex_conv_res &= external::texconv::bake_texture(tmp_tex_irradiance_dds, tmp_dir, texture_bake_option{
+																									 .format		  = desc.format,
+																									 .is_cube		  = false,	  // don't assemble
+																									 .is_3d			  = false,
+																									 .output_filename = "tex_irradiance_reformat.dds",
+																									 .fit_pow2		  = false,
+																									 .mip_count		  = 1,
+																								 });
+
+				auto temp = read_raw_file(".\\__env_light_temp__\\tex_irradiance_reformat.dds");
+
+				tex_conv_res &= temp.size() > texture::detail::dds_header_size();
+
+				if (tex_conv_res)
+				{
+					buf.write_bytes(temp.data() + texture::detail::dds_header_size(), temp.size() - texture::detail::dds_header_size());
+				}
+			}
+
+
+			if (tex_conv_res is_false)
+			{
+				std::filesystem::remove_all(tmp_dir);
+				return false;
+			}
 		}
 
+		c_auto f_header = get_default_file_header<e::kind::env_light>(buf.size());
+		write_asset_file(dst.data(), f_header, buf.data());
+
+		std::filesystem::remove_all(tmp_dir);
 
 		return true;
 	}
+
 }	 // namespace age::asset::env_light

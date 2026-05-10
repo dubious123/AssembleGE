@@ -66,14 +66,18 @@
     <ClInclude Include="age_global.hpp" />
     <ClInclude Include="age_graphics.hpp" />
     <ClInclude Include="age_graphics_backend_dx12.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_bake.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_bake_shared_types.h" />
     <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_defaults.inl" />
     <ClInclude Include="age_graphics_backend_dx12_fwd.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_global.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.inl" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
     <ClInclude Include="age_input.hpp" />
     <ClInclude Include="age_literal.hpp" />
@@ -249,6 +253,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="age_graphics_backend_dx12_bake.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12_command.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -298,6 +310,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="age_graphics_backend_dx12_resource_barrier.hpp" />
+    <ClCompile Include="age_graphics_backend_dx12_root_signature.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_graphics_backend_dx12_rt.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -711,6 +731,8 @@
     <None Include="age_asset_env_light.inl" />
     <None Include="age_asset_material.inl" />
     <None Include="age_asset_texture.inl" />
+    <None Include="age_graphics_backend_dx12_pso.inl" />
+    <None Include="age_graphics_backend_dx12_root_signature.inl" />
     <None Include="cpp.hint" />
     <None Include="todo.md">
       <SubType>
@@ -854,6 +876,7 @@
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -902,6 +925,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -948,6 +972,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -988,6 +1013,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1026,6 +1052,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1064,6 +1091,7 @@ xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(
 xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>

@@ -1,58 +1,11 @@
 #pragma once
 #include "age.hpp"
 
-// internal globals
-namespace age::graphics::g
+namespace age::graphics
 {
-	inline auto frame_buffer_idx = uint8{ 0 };	  // [0, 1 ... ,frame_buffer_count - 1]
-
-	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
-	inline auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
-	inline auto* p_main_device	= (ID3D12Device11*)nullptr;
-
-	//---[ command ]------------------------------------------------------------
-	inline queue_context queue_ctx[e::size<e::queue_kind>()];
-
-	//---[ shader ]------------------------------------------------------------
-	inline auto* p_dxc_compiler		   = (IDxcCompiler3*)nullptr;
-	inline auto* p_dxc_utils		   = (IDxcUtils*)nullptr;
-	inline auto* p_dxc_include_handler = (IDxcIncludeHandler*)nullptr;
-
-	//------------------------------------------------------------------------------
-	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128>{};
-	inline auto dsv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128>{};
-	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024>{};
-	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128>{};
-
-	inline auto render_surface_vec = age::stable_dense_vector<render_surface>::gen_reserved(2);
-
-	inline auto root_signature_ptr_vec = age::stable_dense_vector<ID3D12RootSignature*>::gen_reserved(2);
-
-	inline auto pso_ptr_vec = age::stable_dense_vector<ID3D12PipelineState*>::gen_reserved(2);
-
-	inline auto shader_blob_vec = age::stable_dense_vector<shader::shader_blob>::gen_reserved(16);
-
-	inline auto command_signature_ptr_vec = age::stable_dense_vector<ID3D12CommandSignature*>::gen_reserved(2);
-
-	//---[ resource ]--------------------------------------------------------------
-	inline auto resource_vec = age::stable_dense_vector<d3d12_resource>::gen_reserved(2);
-
-	inline auto resource_mapping_vec = age::stable_dense_vector<resource_mapping>::gen_reserved(2);
-
-	inline auto deferred_release_data_vec = age::vector<deferred_release_data>::gen_reserved(2);
-
-	inline auto h_upload_buffer = mapping_handle{};
-
-	inline auto upload_footprint_vec	  = age::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT>::gen_reserved(1);
-	inline auto upload_num_rows_vec		  = age::vector<uint32>::gen_reserved(1);
-	inline auto upload_row_size_bytes_vec = age::vector<uint64>::gen_reserved(1);
-
-	//---[ rt ]---------------------------------------------------------------------
-
-	inline auto h_rt_blas_scratch_buffer = age::graphics::resource_handle{};
-
-	//------------------------------------------------------------------------------
-}	 // namespace age::graphics::g
+	uint8
+	get_frame_buffer_idx() noexcept;
+}
 
 // util
 namespace age::graphics
@@ -71,10 +24,16 @@ namespace age::graphics
 
 	constexpr DXGI_FORMAT
 	dx12_format(e::texture_format _) noexcept;
+
+	constexpr uint32
+	format_size(e::texture_format format) noexcept;
 }	 // namespace age::graphics
 
 namespace age::graphics::command
 {
+	queue_context&
+	get_queue_ctx(e::queue_kind kind) noexcept;
+
 	void
 	cpu_wait(e::queue_kind _ = e::queue_kind::direct) noexcept;
 
@@ -130,9 +89,7 @@ namespace age::graphics::command
 	FORCE_INLINE void                                                                              \
 	my_name(e::queue_kind kind, uint8 thread_idx, auto&&... arg)                                   \
 	{                                                                                              \
-		auto& cmd_list = *g::queue_ctx[std::to_underlying(kind)].p_cmd_list[thread_idx];           \
-                                                                                                   \
-		cmd_list.dx12_name(FWD(arg)...);                                                           \
+		get_queue_ctx(kind).p_cmd_list[thread_idx]->dx12_name(FWD(arg)...);                        \
 	}                                                                                              \
                                                                                                    \
 	FORCE_INLINE void                                                                              \
@@ -232,6 +189,9 @@ namespace age::graphics
 
 	void
 	push_descriptor(const auto&) noexcept;
+
+	uint32
+	calc_desc_idx(auto handle) noexcept;
 }	 // namespace age::graphics
 
 // resource
@@ -277,11 +237,6 @@ namespace age::graphics::resource
 						 D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
 						 D3D12_RESOURCE_FLAGS flags			 = D3D12_RESOURCE_FLAG_NONE) noexcept;
 
-	void
-	release(resource_handle& _) noexcept;
-
-	void
-	release(std::span<resource_handle> _) noexcept;
 
 	FORCE_INLINE void
 	release_deferred(resource_handle&, e::queue_kind = e::queue_kind::direct) noexcept;
@@ -294,6 +249,12 @@ namespace age::graphics::resource
 
 	FORCE_INLINE bool
 	resize_buffer(mapping_handle& h_mapping, uint64 required_size) noexcept;
+
+	FORCE_INLINE bool
+	resize_texture_2d(resource_handle& h_resource, extent_2d<uint32> required_size, DXGI_FORMAT format) noexcept;
+
+	FORCE_INLINE bool
+	resize_texture_2d(resource_handle& h_resource, extent_2d<uint32> required_size) noexcept;
 
 	FORCE_INLINE bool
 	resize_buffer_preserve(resource_handle&, uint64 required_size) noexcept;
@@ -420,3 +381,12 @@ namespace age::graphics::rt
 	void
 	deinit() noexcept;
 }	 // namespace age::graphics::rt
+
+namespace age::graphics::bake
+{
+	void
+	init() noexcept;
+
+	void
+	deinit() noexcept;
+}	 // namespace age::graphics::bake

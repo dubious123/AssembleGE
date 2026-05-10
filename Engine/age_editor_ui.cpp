@@ -1420,7 +1420,7 @@ namespace age::editor
 				{
 					if (h_create.clicked())
 					{
-						auto   name		 = g::current_game.dir_path / "asset" / "texture" / detail::ui_modal_asset_name().data();
+						auto   name		 = g::current_game.dir_path / "asset" / "env_light" / detail::ui_modal_asset_name().data();
 						c_auto full_path = asset::get_asset_full_path<env_light>(name.string());
 
 						if (bake_success = asset::env_light::bake(src_path, full_path, asset_desc))

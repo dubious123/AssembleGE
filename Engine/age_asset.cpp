@@ -127,6 +127,29 @@ namespace age::asset
 		file.close();
 	}
 
+	bool
+	write_raw_file(std::string_view full_path, const byte_buf& buf) noexcept
+	{
+		auto file_path = std::filesystem::path{ full_path };
+		auto ec		   = std::error_code{};
+
+		if (c_auto parent = file_path.parent_path();
+			parent.empty() is_false)
+		{
+			std::filesystem::create_directories(parent, ec);
+			if (ec) { return false; }
+		}
+
+
+		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
+
+		if (file.is_open() is_false) { return false; }
+
+		file.write(reinterpret_cast<const char*>(buf.data()), buf.size());
+
+		return file.good();
+	}
+
 	handle
 	find(e::kind e_kind, std::string_view full_path) noexcept
 	{

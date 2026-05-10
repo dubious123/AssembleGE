@@ -1,4 +1,5 @@
 #pragma once
+#include "age.hpp"
 
 // descriptor_pool member func
 namespace age::graphics
@@ -126,7 +127,6 @@ namespace age::graphics
 		AGE_ASSERT((diff % descriptor_size) == 0);
 		AGE_ASSERT(idx == h.idx);
 
-
 		return idx;
 	}
 }	 // namespace age::graphics
@@ -190,5 +190,33 @@ namespace age::graphics
 		{
 			static_assert(false, "invalid descriptor handle type");
 		}
+	}
+
+	uint32
+	calc_desc_idx(auto handle) noexcept
+		requires(meta::is_specialization_of_nttp_v<BARE_OF(handle), descriptor_handle>)
+	{
+		using t_handle = BARE_OF(handle);
+		if constexpr (std::is_same_v<t_handle, rtv_desc_handle>)
+		{
+			return g::rtv_desc_pool.calc_idx(handle);
+		}
+		else if constexpr (std::is_same_v<t_handle, dsv_desc_handle>)
+		{
+			return g::dsv_desc_pool.calc_idx(handle);
+		}
+		else if constexpr (std::is_same_v<t_handle, descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>>)
+		{
+			return g::cbv_srv_uav_desc_pool.calc_idx(handle);
+		}
+		else if constexpr (std::is_same_v<t_handle, sampler_desc_handle>)
+		{
+			return g::sampler_desc_pool.calc_idx(handle);
+		}
+		else
+		{
+			static_assert(false);
+		}
+		AGE_UNREACHABLE();
 	}
 }	 // namespace age::graphics

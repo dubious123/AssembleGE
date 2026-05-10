@@ -507,4 +507,5 @@ namespace age::editor
 
 	void
 	ui_modal() noexcept;
+
 }	 // namespace age::editor

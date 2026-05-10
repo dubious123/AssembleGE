@@ -1,0 +1,151 @@
+#pragma once
+// #line 1 "age.asli"
+#include "age.asli"
+// #line 1 "age_math.asli"
+#include "age_math.asli"
+// #line 1 "age_random.asli"
+#include "age_random.asli"
+
+#include "age_tonemap.asli"
+
+// #line 1 "age_graphics_backend_dx12_bake_shared_types.h"
+#include "age_graphics_backend_dx12_bake_shared_types.h"
+
+
+// #line 9 "common.asli"
+
+#ifdef __INTELLISENSE__
+uint32 brdf_lut_width;
+uint32 brdf_lut_height;
+uint32 brdf_lut_uav_id;
+
+uint32 env_light_input_texture_width;
+uint32 env_light_input_texture_height;
+uint32 env_light_input_texture_srv_id;
+uint32 env_light_radiance_texture_srv_id;
+uint32 env_light_radiance_texture_uav_id;
+uint32 env_light_irradiance_texture_uav_id;
+uint32 env_light_prefilter_texture_uav_id;	  // do not change member order
+uint32 env_light_prefilter_mip_count;		  // do not change member order
+uint32 env_light_prefilter_mip_max_count;
+
+uint32 env_light_radiance_size;
+uint32 env_light_irradiance_size;
+uint32 env_light_prefilter_size;
+
+uint32 down_sample_input_texture_srv_id;
+uint32 down_sample_output_texture_uav_id;	 // do not change member order
+uint32 down_sample_mip_count;				 // do not change member order
+uint32 down_sample_cube_output_size;		 // do not change member order
+#endif
+
+structured_buffer<float>	env_light_radiance_luminance_srv reg(t0);
+rw_structured_buffer<float> env_light_radiance_luminance_uav reg(u0);
+structured_buffer<float>	env_light_marginal_cdf_srv reg(t1);
+rw_structured_buffer<float> env_light_marginal_cdf_uav reg(u1);
+structured_buffer<float>	env_light_conditional_cdf_srv reg(t2);
+rw_structured_buffer<float> env_light_conditional_cdf_uav reg(u2);
+
+float
+load_luminance(uint32 row, uint32 col)
+{
+	return env_light_radiance_luminance_srv[row * env_light_input_texture_width + col];
+}
+
+void
+store_conditional_cdf(uint32 row, uint32 col, float val)
+{
+	env_light_conditional_cdf_uav[row * env_light_input_texture_width + col] = val;
+}
+
+float
+load_conditional_cdf(uint32 row, uint32 col)
+{
+	return env_light_conditional_cdf_srv[row * env_light_input_texture_width + col];
+}
+
+float
+load_conditional_pdf(uint32 row, uint32 col)
+{
+	return load_conditional_cdf(row, col) - (col > 0 ? load_conditional_cdf(row, col - 1) : 0);
+}
+
+float
+load_marginal_pdf(uint32 row)
+{
+	return env_light_marginal_cdf_srv[row] - (row > 0 ? env_light_marginal_cdf_srv[row - 1] : 0);
+}
+
+void
+store_luminance_row_sum(uint32 row, float sum)
+{
+	env_light_conditional_cdf_uav[env_light_input_texture_height * env_light_input_texture_width + row] = sum;
+}
+
+float
+load_luminance_row_sum(uint32 row)
+{
+	return env_light_conditional_cdf_srv[env_light_input_texture_height * env_light_input_texture_width + row];
+}
+
+sampler_state equirect_sampler reg(s0);
+sampler_state linear_clamp_sampler reg(s1);
+sampler_state linear_wrap_sampler reg(s2);
+
+sampler_state
+get_equirect_sampler()
+{
+	return equirect_sampler;
+}
+
+sampler_state
+get_linear_clamp_sampler()
+{
+	return linear_clamp_sampler;
+}
+
+sampler_state
+get_linear_wrap_sampler()
+{
+	return linear_wrap_sampler;
+}
+
+uint32
+inverse_cdf_marginal(float xi)
+{
+	uint32 lo = 0;
+	uint32 hi = env_light_input_texture_height - 1;
+	while (lo < hi)
+	{
+		uint32 mid = (lo + hi) / 2;
+		if (env_light_marginal_cdf_srv[mid] < xi)
+		{
+			lo = mid + 1;
+		}
+		else
+		{
+			hi = mid;
+		}
+	}
+	return min(lo, env_light_input_texture_height - 1u);
+}
+
+uint32
+inverse_cdf_conditional(uint32 row, float xi)
+{
+	uint32 lo = 0;
+	uint32 hi = env_light_input_texture_width - 1;
+	while (lo < hi)
+	{
+		uint32 mid = (lo + hi) / 2;
+		if (load_conditional_cdf(row, mid) < xi)
+		{
+			lo = mid + 1;
+		}
+		else
+		{
+			hi = mid;
+		}
+	}
+	return min(lo, env_light_input_texture_width - 1u);
+}

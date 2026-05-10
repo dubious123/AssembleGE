@@ -93,9 +93,9 @@ namespace age::graphics::root_signature
 {
 	struct constants
 	{
-		detail::shader_register<detail::tag_b> reg		  = b{ .idx = 0, .space = 0 };
-		uint32								   num_32bit  = 0;
-		D3D12_SHADER_VISIBILITY				   visibility = D3D12_SHADER_VISIBILITY_ALL;
+		detail::shader_register<detail::tag_b> reg = b{ .idx = 0, .space = 0 };
+		uint32					num_32bit		   = 0;
+		D3D12_SHADER_VISIBILITY visibility		   = D3D12_SHADER_VISIBILITY_ALL;
 
 		constexpr D3D12_ROOT_PARAMETER1
 		build_d3d12_root_parameter() const noexcept
@@ -123,7 +123,7 @@ namespace age::graphics::root_signature
 		static_assert(std::is_same_v<t_reg, b> or std::is_same_v<t_reg, t> or std::is_same_v<t_reg, u>,
 					  "invalid t_reg");
 
-		t_reg						reg;
+		t_reg reg;
 		D3D12_ROOT_DESCRIPTOR_FLAGS flags	   = D3D12_ROOT_DESCRIPTOR_FLAG_NONE;
 		D3D12_SHADER_VISIBILITY		visibility = D3D12_SHADER_VISIBILITY_ALL;
 
@@ -171,7 +171,7 @@ namespace age::graphics::root_signature
 
 		using t_shader_register = t_reg;
 
-		t_reg  reg;
+		t_reg reg;
 		uint32 count;
 
 		D3D12_DESCRIPTOR_RANGE_FLAGS flags	= D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
@@ -266,50 +266,11 @@ namespace age::graphics::root_signature::detail
 
 namespace age::graphics::root_signature
 {
-	FORCE_INLINE decltype(auto)
-	handle::operator->() noexcept
-	{
-		return g::root_signature_ptr_vec[id];
-	}
+	void
+	init() noexcept;
 
-	FORCE_INLINE decltype(auto)
-	handle::ptr() const noexcept
-	{
-		return g::root_signature_ptr_vec[id];
-	}
-}	 // namespace age::graphics::root_signature
-
-namespace age::graphics::root_signature
-{
-	inline void
-	init() noexcept
-	{
-		auto feature = D3D12_FEATURE_DATA_ROOT_SIGNATURE{
-			.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_2
-		};
-
-		AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(
-			D3D12_FEATURE_ROOT_SIGNATURE,
-			&feature,
-			sizeof(feature)));
-	}
-
-	inline void
-	deinit() noexcept
-	{
-		AGE_ASSERT(g::root_signature_ptr_vec.is_empty());
-		for (auto* p_root_signature : g::root_signature_ptr_vec)
-		{
-			p_root_signature->Release();
-		}
-
-		if constexpr (age::config::debug_mode)
-		{
-			g::root_signature_ptr_vec.debug_validate();
-		}
-
-		g::root_signature_ptr_vec.clear();
-	}
+	void
+	deinit() noexcept;
 }	 // namespace age::graphics::root_signature
 
 namespace age::graphics::root_signature
@@ -318,66 +279,12 @@ namespace age::graphics::root_signature
 	handle
 	create(D3D12_ROOT_SIGNATURE_FLAGS										 flags,
 		   const std::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
-		   const std::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept
-	{
-		auto root_signature_desc = D3D12_VERSIONED_ROOT_SIGNATURE_DESC{
-			.Version  = D3D_ROOT_SIGNATURE_VERSION_1_2,
-			.Desc_1_2 = {
-				.NumParameters	   = static_cast<UINT>(root_param_arr.size()),
-				.pParameters	   = root_param_arr.data(),
-				.NumStaticSamplers = static_cast<UINT>(sampler_arr.size()),
-				.pStaticSamplers   = sampler_arr.data(),
-				.Flags			   = flags }
-		};
-
-		auto* p_serialized_root_signature = (ID3DBlob*)nullptr;
-		{
-			auto* p_error_blob = (ID3DBlob*)nullptr;
-
-			auto hr = ::D3D12SerializeVersionedRootSignature(
-				&root_signature_desc,
-				&p_serialized_root_signature,
-				&p_error_blob);
-
-			if (p_error_blob is_not_nullptr)
-			{
-				std::println("{}", static_cast<const char*>(p_error_blob->GetBufferPointer()));
-				p_error_blob->Release();
-			}
-
-			AGE_HR_CHECK(hr);
-		}
-
-		auto* p_signature = (ID3D12RootSignature*)nullptr;
-
-		AGE_HR_CHECK(
-			g::p_main_device->CreateRootSignature(
-				0,
-				p_serialized_root_signature->GetBufferPointer(),
-				p_serialized_root_signature->GetBufferSize(),
-				IID_PPV_ARGS(&p_signature)));
-
-		p_serialized_root_signature->Release();
-
-		return handle{ .id = g::root_signature_ptr_vec.emplace_back(p_signature) };
-	}
+		   const std::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept;
 
 	handle
 	create(D3D12_ROOT_SIGNATURE_FLAGS flags, auto&&... root_parameter) noexcept
-		requires(detail::cx_root_parameter<BARE_OF(root_parameter)> and ...)
-	{
-		static_assert((detail::cx_root_parameter<decltype(root_parameter)> and ...),
-					  "invalid root parameter: expected constants/descriptor/descriptor_table");
+		requires(detail::cx_root_parameter<BARE_OF(root_parameter)> and ...);
 
-		return root_signature::create(flags,
-									  std::array<D3D12_ROOT_PARAMETER1, sizeof...(root_parameter)>{ root_parameter.build_d3d12_root_parameter()... },
-									  std::array<D3D12_STATIC_SAMPLER_DESC1, 0>{});
-	}
-
-	inline void
-	destroy(handle h) noexcept
-	{
-		g::root_signature_ptr_vec[h.id]->Release();
-		g::root_signature_ptr_vec.remove(h.id);
-	}
+	void
+	destroy(handle h) noexcept;
 }	 // namespace age::graphics::root_signature

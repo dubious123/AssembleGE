@@ -2,6 +2,16 @@
 #include "age.hpp"
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
+
+namespace age::graphics
+{
+	uint8
+	get_frame_buffer_idx() noexcept
+	{
+		return g::frame_buffer_idx;
+	}
+}	 // namespace age::graphics
+
 // main
 namespace age::graphics
 {
@@ -72,12 +82,28 @@ namespace age::graphics
 		{
 			g::p_main_device->SetName(L"age graphics main device");
 
-			auto* p_info_queue = (ID3D12InfoQueue*)nullptr;
+			auto* p_info_queue = (ID3D12InfoQueue1*)nullptr;
 			AGE_HR_CHECK(g::p_main_device->QueryInterface(IID_PPV_ARGS(&p_info_queue)));
 
 			p_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
 			p_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 			p_info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+
+			DWORD cookie;
+			p_info_queue->RegisterMessageCallback(
+				[](D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY sev,
+				   D3D12_MESSAGE_ID, LPCSTR						  desc, void*) {
+					const char* sev_str = sev == D3D12_MESSAGE_SEVERITY_ERROR
+											? "ERR"
+										: sev == D3D12_MESSAGE_SEVERITY_WARNING
+											? "WARN"
+											: "INFO";
+
+					printf("[D3D12 %s] %s\n", sev_str, desc);
+				},
+				D3D12_MESSAGE_CALLBACK_FLAG_NONE,
+				nullptr,
+				&cookie);
 
 			p_info_queue->Release();
 		}
@@ -113,6 +139,9 @@ namespace age::graphics
 		shader::init();
 
 		rt::init();
+
+		bake::init();
+		g::h_brdf_lut = bake::bake_brdf_lut({ 512, 512 });
 	}
 
 	void
@@ -143,6 +172,9 @@ namespace age::graphics
 			}
 		}
 
+		resource::release(g::h_brdf_lut);
+
+		bake::deinit();
 		rt::deinit();
 		shader::deinit();
 		root_signature::deinit();

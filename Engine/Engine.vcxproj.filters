@@ -34,7 +34,7 @@
     <ClInclude Include="age_pch.hpp" />
     <ClInclude Include="age_graphics_backend_dx12.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.inl" />
     <ClInclude Include="age_subsystem.hpp" />
     <ClInclude Include="age_request.hpp" />
     <ClInclude Include="age_asset.hpp" />
@@ -55,7 +55,7 @@
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_util_string.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_defaults.inl" />
     <ClInclude Include="age_util_container.hpp" />
     <ClInclude Include="age_util_offset_allocator.hpp" />
     <ClInclude Include="age_math_transform.hpp" />
@@ -93,6 +93,10 @@
     <ClInclude Include="age_ui.inl" />
     <ClInclude Include="age_util_allocator.hpp" />
     <ClInclude Include="age_data_structure_offset_pool.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_bake.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_global.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_bake_shared_types.h" />
+    <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -150,6 +154,8 @@
     <ClCompile Include="age_asset_texture.cpp" />
     <ClCompile Include="age_external_wrapper_texconv.cpp" />
     <ClCompile Include="age_asset_env_light.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_bake.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_root_signature.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -157,6 +163,8 @@
     <None Include="age_asset_material.inl" />
     <None Include="age_asset_texture.inl" />
     <None Include="age_asset_env_light.inl" />
+    <None Include="age_graphics_backend_dx12_root_signature.inl" />
+    <None Include="age_graphics_backend_dx12_pso.inl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

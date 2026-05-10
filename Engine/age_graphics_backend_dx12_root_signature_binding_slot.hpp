@@ -243,7 +243,7 @@ namespace age::graphics
 		std::array<t_data, t_what::array_size> constant_arr;
 
 		void
-		bind(const t_data& data, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		bind(const t_data& data, uint8 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			constant_arr[ring_idx] = data;
@@ -257,7 +257,7 @@ namespace age::graphics
 		}
 
 		void
-		apply(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		apply(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -269,15 +269,15 @@ namespace age::graphics
 			requires(constant_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			command::set_graphics_root_constants(kind, 0, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
+			command::set_graphics_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
 		}
 
 		void
-		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			command::set_compute_root_constants(kind, 0, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[ring_idx], 0);
+			command::set_compute_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[ring_idx], 0);
 		}
 
 		void
@@ -285,7 +285,34 @@ namespace age::graphics
 			requires(constant_arr.size() == 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
-			command::set_compute_root_constants(kind, 0, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
+			command::set_compute_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(sizeof(t_data) / 4), &constant_arr[0], 0);
+		}
+
+		template <auto member_ptr>
+		void
+		apply_compute_member(c_auto& member, e::queue_kind kind = e::queue_kind::direct) noexcept
+			requires(constant_arr.size() == 1)
+		{
+			using t_member				= BARE_OF(constant_arr[0].*member_ptr);
+			constant_arr[0].*member_ptr = static_cast<t_member>(member);
+			c_auto offset				= static_cast<uint32>(reinterpret_cast<std::byte*>(&(constant_arr[0].*member_ptr)) - reinterpret_cast<std::byte*>(&constant_arr[0])) / 4;
+
+			command::set_compute_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(sizeof(t_member) / 4), &(constant_arr[0].*member_ptr), offset);
+		}
+
+		template <auto member_ptr, std::unsigned_integral auto size>
+		void
+		apply_compute_member(c_auto& member, e::queue_kind kind = e::queue_kind::direct) noexcept
+			requires(constant_arr.size() == 1)
+		{
+			static_assert(sizeof(member) >= size);
+			static_assert(size % 4 == 0);
+
+			std::memcpy(&(constant_arr[0].*member_ptr), &member, size);
+
+			c_auto offset = static_cast<uint32>(reinterpret_cast<std::byte*>(&(constant_arr[0].*member_ptr)) - reinterpret_cast<std::byte*>(&constant_arr[0])) / 4;
+
+			command::set_compute_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(size / 4), &(constant_arr[0].*member_ptr), offset);
 		}
 	};
 
@@ -313,7 +340,7 @@ namespace age::graphics
 		}
 
 		void
-		bind(resource_handle h_resource, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		bind(resource_handle h_resource, uint8 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			bind_impl(h_resource->get_va(), ring_idx);
@@ -327,7 +354,7 @@ namespace age::graphics
 		}
 
 		void
-		bind(auto h_mapping, uint8 ring_idx = g::frame_buffer_idx) noexcept
+		bind(auto h_mapping, uint8 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			bind_impl(h_mapping->h_resource->get_va(), ring_idx);
@@ -382,7 +409,7 @@ namespace age::graphics
 		}
 
 		void
-		apply(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = g::frame_buffer_idx) noexcept
+		apply(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -420,7 +447,7 @@ namespace age::graphics
 		}
 
 		void
-		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = g::frame_buffer_idx) noexcept
+		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = get_frame_buffer_idx()) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -439,7 +466,7 @@ namespace age::graphics
 		}
 
 		D3D12_GPU_VIRTUAL_ADDRESS
-		get_va(uint32 ring_idx = g::frame_buffer_idx) const noexcept
+		get_va(uint32 ring_idx = get_frame_buffer_idx()) const noexcept
 		{
 			return gpu_va_arr[ring_idx];
 		}

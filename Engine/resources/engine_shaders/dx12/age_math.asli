@@ -6,11 +6,18 @@ static const float epsilon_1e6 = 0.000001f;
 static const float sqrt_2	   = 1.41421356f;
 static const float sqrt_2_inv  = 0.70710678f;
 static const float pi		   = 3.141592654f;
+static const float pi_2		   = 6.283185307f;
 static const float pi_half	   = 1.570796327f;
 
 static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
+
+float
+pow_5(float x)
+{
+	return x * x * x * x * x;
+}
 
 bool
 get_bit(uint32 value, uint32 bit_idx)
@@ -392,4 +399,132 @@ gen_frustum_planes(float4x4 view_proj_mat, out float4 planes[6])
 	planes[3] = normalize_plane(r3 + r1);	 // bottom
 	planes[4] = normalize_plane(r2);		 // near
 	planes[5] = normalize_plane(r3 - r2);	 // far
+}
+
+float3
+cube_face_uv_to_world_dir(float2 uv, uint face)
+{
+	float2 ndc = uv * 2.0 - 1.0;
+
+	float3 dir;
+
+	attr_branch()
+
+	switch (face)
+	{
+	case 0:
+	{
+		dir = float3(1.0, -ndc.y, -ndc.x);	   // +x
+		break;
+	}
+	case 1:
+	{
+		dir = float3(-1.0, -ndc.y, ndc.x);	   // -x
+		break;
+	}
+	case 2:
+	{
+		dir = float3(ndc.x, 1.0, ndc.y);	   // +y
+		break;
+	}
+	case 3:
+	{
+		dir = float3(ndc.x, -1.0, -ndc.y);	   // -y
+		break;
+	}
+	case 4:
+	{
+		dir = float3(ndc.x, -ndc.y, 1.0);	   // +z
+		break;
+	}
+	case 5:
+	{
+		dir = float3(-ndc.x, -ndc.y, -1.0);	   // -z
+		break;
+	}
+	}
+
+	return normalize(dir);
+}
+
+void
+world_dir_to_cube_face_uv(float3 dir, out float2 uv, out uint32 face)
+{
+	float3 abs_dir = abs(dir);
+
+	float max_axis;
+
+	if (abs_dir.x >= abs_dir.y && abs_dir.x >= abs_dir.z)	 // x
+	{
+		max_axis = abs_dir.x;
+		if (dir.x > 0)
+		{
+			face = 0;										 // +x
+			uv	 = float2(-dir.z, -dir.y);
+		}
+		else
+		{
+			face = 1;										 // -x
+			uv	 = float2(dir.z, -dir.y);
+		}
+	}
+	else if (abs_dir.y >= abs_dir.z)						 // y
+	{
+		max_axis = abs_dir.y;
+		if (dir.y > 0)
+		{
+			face = 2;										 // +y
+			uv	 = float2(dir.x, dir.z);
+		}
+		else
+		{
+			face = 3;										 // -y
+			uv	 = float2(dir.x, -dir.z);
+		}
+	}
+	else													 // z
+	{
+		max_axis = abs_dir.z;
+		if (dir.z > 0)
+		{
+			face = 4;										 // +z
+			uv	 = float2(dir.x, -dir.y);
+		}
+		else
+		{
+			face = 5;										 // -z
+			uv	 = float2(-dir.x, -dir.y);
+		}
+	}
+
+	uv = uv / max_axis * 0.5 + 0.5;
+}
+
+float3
+equirect_uv_to_world_dir(float2 uv)
+{
+	const float phi	  = (uv.x - 0.5) * 2.0 * pi;
+	const float theta = (0.5 - uv.y) * pi;
+
+	const float cos_theta = cos(theta);
+	return float3(cos_theta * cos(phi),
+				  sin(theta),
+				  cos_theta * sin(phi));
+}
+
+float2
+world_dir_to_equirect_uv(float3 dir)
+{
+	return float2(atan2(dir.z, dir.x) / pi_2 + 0.5,
+				  -asin(dir.y) / pi + 0.5);
+}
+
+float3x3
+gen_normal_transform(float3 normal)
+{
+	float3 some_dir	 = abs(normal.x) > 0.9 ? float3(0, 1, 0) : float3(1, 0, 0);
+	float3 tangent	 = normalize(cross(some_dir, normal));
+	float3 bitangent = cross(normal, tangent);
+
+	return transpose(float3x3(tangent, bitangent, normal));
 }

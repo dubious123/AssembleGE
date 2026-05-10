@@ -217,7 +217,7 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
-		dst_subresource(ID3D12Resource* p_resource, uint32 subresource_index) noexcept
+		dst_subresource(ID3D12Resource* p_resource, uint32 subresource_index = 0) noexcept
 		{
 			return D3D12_TEXTURE_COPY_LOCATION{
 				.pResource		  = p_resource,
@@ -367,15 +367,7 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
-		rt_acceleration_structure(resource_handle h_resource) noexcept
-		{
-			return D3D12_SHADER_RESOURCE_VIEW_DESC{
-				.Format							 = DXGI_FORMAT_UNKNOWN,
-				.ViewDimension					 = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE,
-				.Shader4ComponentMapping		 = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-				.RaytracingAccelerationStructure = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV{ .Location = g::resource_vec[h_resource].p_resource->GetGPUVirtualAddress() }
-			};
-		}
+		rt_acceleration_structure(resource_handle h_resource) noexcept;
 	}	 // namespace srv_view_desc
 
 	namespace uav_view_desc
@@ -419,6 +411,21 @@ namespace age::graphics::defaults
 				.Texture2D	   = D3D12_TEX2D_UAV{
 					.MipSlice	= mip_slice,
 					.PlaneSlice = plane_slice }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex_cube(DXGI_FORMAT format, uint32 mip_slice = 0, uint32 plane_slice = 0) noexcept
+		{
+			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
+				.Format			= format,
+				.ViewDimension	= D3D12_UAV_DIMENSION_TEXTURE2DARRAY,
+				.Texture2DArray = D3D12_TEX2D_ARRAY_UAV{
+					.MipSlice		 = mip_slice,
+					.FirstArraySlice = 0,
+					.ArraySize		 = 6,
+					.PlaneSlice		 = plane_slice,
+				},
 			};
 		}
 	}	 // namespace uav_view_desc
@@ -789,6 +796,27 @@ namespace age::graphics::defaults::static_sampler_desc
 			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
 			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
 			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*FLOAT                         */ .MipLODBias		 = 0.0f,
+			/*UINT                          */ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR     */ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT                         */ .MinLOD			 = 0.f,
+			/*FLOAT                         */ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT                          */ .ShaderRegister	 = register_index,
+			/*UINT                          */ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY       */ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS           */ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	equirect(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER                  */ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 			/*FLOAT                         */ .MipLODBias		 = 0.0f,
 			/*UINT                          */ .MaxAnisotropy	 = 1,
 			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,

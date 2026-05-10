@@ -52,6 +52,13 @@ namespace age::util
 		// (offset + align - 1) / align * align
 		return static_cast<t_ret>((offset + align - 1) & ~(align - 1));
 	}
+
+	template <std::integral t>
+	FORCE_INLINE constexpr t
+	ceil(t i, std::integral auto d) noexcept
+	{
+		return static_cast<t>((i + static_cast<t>(d - 1)) / static_cast<t>(d));
+	}
 }	 // namespace age::util
 
 namespace age::util

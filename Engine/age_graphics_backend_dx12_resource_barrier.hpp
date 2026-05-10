@@ -2,6 +2,42 @@
 
 namespace age::graphics::barrier
 {
+	// subresource
+	FORCE_INLINE decltype(auto)
+	cube_mip(uint32 mip) noexcept
+	{
+		return D3D12_BARRIER_SUBRESOURCE_RANGE{
+			.IndexOrFirstMipLevel = mip,
+			.NumMipLevels		  = 1,
+			.FirstArraySlice	  = 0,
+			.NumArraySlices		  = 6,
+			.FirstPlane			  = 0,
+			.NumPlanes			  = 1,
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	cube_mip_range(uint32 first_mip, uint32 mip_count) noexcept
+	{
+		return D3D12_BARRIER_SUBRESOURCE_RANGE{
+			.IndexOrFirstMipLevel = first_mip,
+			.NumMipLevels		  = mip_count,
+			.FirstArraySlice	  = 0,
+			.NumArraySlices		  = 6,
+			.FirstPlane			  = 0,
+			.NumPlanes			  = 1,
+		};
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	mip_all() noexcept
+	{
+		return D3D12_BARRIER_SUBRESOURCE_RANGE{
+			.IndexOrFirstMipLevel = 0xFFFFFFFF,
+		};
+	}
+
+	// barriers
 	FORCE_INLINE decltype(auto)
 	undefined_to_rtv(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
@@ -262,7 +298,7 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_uav_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	tex_uav_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
@@ -272,7 +308,7 @@ namespace age::graphics::barrier
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.pResource	  = p_resource,
-			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Subresources = subresources,
 			.Flags		  = flag
 		};
 	}
@@ -387,7 +423,7 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_copy_dest_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv) noexcept
+	tex_copy_dest_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
@@ -397,7 +433,71 @@ namespace age::graphics::barrier
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.pResource	  = p_resource,
-			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Subresources = subresources,
+			.Flags		  = {},
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	tex_copy_dest_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_uav, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
+			.SyncAfter	  = sync_after_uav,
+			.AccessBefore = D3D12_BARRIER_ACCESS_COPY_DEST,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+			.pResource	  = p_resource,
+			.Subresources = subresources,
+			.Flags		  = {},
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	tex_srv_to_copy_dst(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = sync_before_srv,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_COPY,
+			.AccessBefore = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_DEST,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
+			.pResource	  = p_resource,
+			.Subresources = subresources,
+			.Flags		  = {},
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	tex_srv_to_copy_src(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = sync_before_srv,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_COPY,
+			.AccessBefore = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
+			.pResource	  = p_resource,
+			.Subresources = subresources,
+			.Flags		  = {},
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	tex_uav_to_copy_src(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = sync_before_srv,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_COPY,
+			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
+			.pResource	  = p_resource,
+			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}

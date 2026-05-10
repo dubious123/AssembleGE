@@ -68,35 +68,43 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #include "age_ui.cpp"
 
 // graphics
-#line 1 "age_graphics_backend_dx12.cpp"
-#include "age_graphics_backend_dx12.cpp"
+#if defined(AGE_GRAPHICS_BACKEND_DX12)
+	#line 1 "age_graphics_backend_dx12.cpp"
+	#include "age_graphics_backend_dx12.cpp"
 
-#line 1 "age_graphics_backend_dx12_command.cpp"
-#include "age_graphics_backend_dx12_command.cpp"
+	#line 1 "age_graphics_backend_dx12_root_signature.cpp"
+	#include "age_graphics_backend_dx12_root_signature.cpp"
 
-#line 1 "age_graphics_backend_dx12_util.cpp"
-#include "age_graphics_backend_dx12_util.cpp"
+	#line 1 "age_graphics_backend_dx12_command.cpp"
+	#include "age_graphics_backend_dx12_command.cpp"
 
-#line 1 "age_graphics_backend_dx12_command_signature.cpp"
-#include "age_graphics_backend_dx12_command_signature.cpp"
+	#line 1 "age_graphics_backend_dx12_util.cpp"
+	#include "age_graphics_backend_dx12_util.cpp"
 
-#line 1 "age_graphics_backend_dx12_render_surface.cpp"
-#include "age_graphics_backend_dx12_render_surface.cpp"
+	#line 1 "age_graphics_backend_dx12_command_signature.cpp"
+	#include "age_graphics_backend_dx12_command_signature.cpp"
 
-#line 1 "age_graphics_backend_dx12_resource.cpp"
-#include "age_graphics_backend_dx12_resource.cpp"
+	#line 1 "age_graphics_backend_dx12_render_surface.cpp"
+	#include "age_graphics_backend_dx12_render_surface.cpp"
 
-#line 1 "age_graphics_backend_dx12_shader.cpp"
-#include "age_graphics_backend_dx12_shader.cpp"
+	#line 1 "age_graphics_backend_dx12_resource.cpp"
+	#include "age_graphics_backend_dx12_resource.cpp"
 
-#line 1 "age_graphics_backend_dx12_rt.cpp"
-#include "age_graphics_backend_dx12_rt.cpp"
+	#line 1 "age_graphics_backend_dx12_shader.cpp"
+	#include "age_graphics_backend_dx12_shader.cpp"
 
-#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
-#include "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
+	#line 1 "age_graphics_backend_dx12_rt.cpp"
+	#include "age_graphics_backend_dx12_rt.cpp"
 
-#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
-#include "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
+	#line 1 "age_graphics_backend_dx12_bake.cpp"
+	#include "age_graphics_backend_dx12_bake.cpp"
+
+	#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
+	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
+
+	#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
+	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
+#endif
 
 #line 1 "age_runtime.cpp"
 #include "age_runtime.cpp"

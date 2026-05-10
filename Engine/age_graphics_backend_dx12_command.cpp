@@ -4,6 +4,12 @@
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 namespace age::graphics::command
 {
+	queue_context&
+	get_queue_ctx(e::queue_kind kind) noexcept
+	{
+		return g::queue_ctx[to_idx(kind)];
+	}
+
 	void
 	cpu_wait(e::queue_kind kind) noexcept
 	{

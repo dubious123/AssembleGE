@@ -494,5 +494,11 @@ namespace age::graphics
 		}
 		}
 	}
+
+	constexpr uint32
+	format_size(e::texture_format format) noexcept
+	{
+		return format_size(dx12_format(format));
+	}
 }	 // namespace age::graphics
 #endif

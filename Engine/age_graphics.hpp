@@ -43,3 +43,34 @@ namespace age::graphics
 	void
 	end_frame() noexcept;
 }	 // namespace age::graphics
+
+namespace age::graphics::resource
+{
+	void
+	release(resource_handle& _) noexcept;
+
+	void
+	release(std::span<resource_handle> _) noexcept;
+
+	uint64
+	calc_readback_size(resource_handle _) noexcept;
+
+	void
+	readback_texture(std::span<std::byte> dst, resource_handle h_src) noexcept;
+};	  // namespace age::graphics::resource
+
+namespace age::graphics::bake
+{
+	struct env_light_result
+	{
+		resource_handle h_radiance;		 // last layout is copy src (direct_queue)
+		resource_handle h_irradiance;	 // last layout is copy src (direct_queue)
+		resource_handle h_prefilter;	 // last layout is copy src (direct_queue)
+	};
+
+	env_light_result
+	env_light(asset::handle h_tex, const asset::env_light_desc& desc) noexcept;
+
+	resource_handle
+	bake_brdf_lut(extent_2d<uint32> _) noexcept;
+}	 // namespace age::graphics::bake

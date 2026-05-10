@@ -444,6 +444,154 @@ struct rw_texture_2d
 	}
 };
 
+template <typename t>
+struct texture_2d_array
+{
+	t data;
+
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
+	template <typename v>
+	t&
+	operator[](v pos)
+	{
+		return data;
+	}
+};
+
+template <typename t>
+struct rw_texture_2d_array
+{
+	t data;
+
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
+	template <typename v>
+	t&
+	operator[](v pos)
+	{
+		return data;
+	}
+};
+
+template <typename t>
+struct texture_cube
+{
+	t data;
+
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
+	template <typename v>
+	t&
+	operator[](v pos)
+	{
+		return data;
+	}
+};
+
+template <typename t>
+struct texture_cube_array
+{
+	t data;
+
+	float
+	SampleCmp(auto, auto, auto _)
+	{
+		return 0.f;
+	}
+
+	float
+	SampleCmpLevelZero()
+	{
+		return 0.f;
+	}
+
+	float4
+	Sample(auto, auto _)
+	{
+		return float4{};
+	}
+
+	t
+	Load(int32 x, int32 y, int32 mip)
+	{
+		return t{};
+	}
+
+	template <typename v>
+	t&
+	operator[](v pos)
+	{
+		return data;
+	}
+};
+
 struct sampler_state
 { };
 
@@ -534,6 +682,12 @@ template <typename t>
 t cast(auto)
 {
 	return t{};
+}
+
+float3
+reflect(auto _, auto _)
+{
+	return float3{};
 }
 
 uint32
@@ -705,8 +859,9 @@ cross(float3, float3)
 	#define indices
 	#define payload
 	#define set_mesh_output_counts(x, y)
-	#define expand(...)	 [[assume(true)]]
-	#define expand_all() [[assume(true)]]
+	#define expand(...)	  [[assume(true)]]
+	#define expand_all()  [[assume(true)]]
+	#define attr_branch() [[assume(true)]]
 	#define groupshared
 
 	#define group_memory_barrier_with_sync()
@@ -771,6 +926,7 @@ cross(float3, float3)
 	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
 	#define expand(x)						 [unroll(x)]
 	#define expand_all()					 [unroll]
+	#define attr_branch()					 [branch]
 	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
 
 	#define interlocked_add(...)		  InterlockedAdd(__VA_ARGS__)
@@ -832,7 +988,19 @@ template <typename t>
 using texture_2d = Texture2D<t>;
 
 template <typename t>
+using texture_2d_array = Texture2DArray<t>;
+
+template <typename t>
+using texture_cube = TextureCube<t>;
+
+template <typename t>
+using texture_cube_array = TextureCubeArray<t>;
+
+template <typename t>
 using rw_texture_2d = RWTexture2D<t>;
+
+template <typename t>
+using rw_texture_2d_array = RWTexture2DArray<t>;
 
 template <typename t, typename t_src>
 t
@@ -993,16 +1161,16 @@ buf_interlocked_compare_exchange(rw_byte_address_buffer buffer, uint32 offset, u
 	buffer.InterlockedCompareExchange(offset, compare, value, original);
 }
 
-template <typename t, typename t_sample>
+template <typename t_tex, typename t_sample>
 float4
-sample(texture_2d<t> tex, t_sample s, float2 location)
+sample(t_tex tex, t_sample s, float2 location)
 {
 	return tex.Sample(s, location);
 }
 
-template <typename t, typename t_sample>
+template <typename t_tex, typename t_sample, typename t_location>
 float4
-sample_level(texture_2d<t> tex, t_sample s, float2 location, uint32 mip)
+sample_level(t_tex tex, t_sample s, t_location location, uint32 mip)
 {
 	return tex.SampleLevel(s, location, mip);
 }
@@ -1252,6 +1420,25 @@ rt_ray_t_min(ray_query<rt_flags> q)
 		}                                                                                                     \
 		group_memory_barrier_with_sync();                                                                     \
 		return __age_hlsl_prefix_sum_arr__[wave_id] + wave_prefix;                                            \
+	}
+
+#define DECLARE_CALC_THREAD_GROUP_PREFIX_SUM_FLOAT(thread_count)                                                  \
+	groupshared float __age_hlsl_prefix_sum_arr_f__[thread_count];                                                \
+	float calc_thread_group_prefix_sum_float(float _thread_local, uint32 thread_id)                               \
+	{                                                                                                             \
+		float		 wave_prefix = wave_prefix_sum(_thread_local);                                                \
+		const uint32 wave_id	 = thread_id / wave_lane_count();                                                 \
+		if (wave_lane_index() == wave_lane_count() - 1)                                                           \
+		{                                                                                                         \
+			__age_hlsl_prefix_sum_arr_f__[wave_id] = wave_prefix + _thread_local;                                 \
+		}                                                                                                         \
+		group_memory_barrier_with_sync();                                                                         \
+		if (wave_id == 0)                                                                                         \
+		{                                                                                                         \
+			__age_hlsl_prefix_sum_arr_f__[thread_id] = wave_prefix_sum(__age_hlsl_prefix_sum_arr_f__[thread_id]); \
+		}                                                                                                         \
+		group_memory_barrier_with_sync();                                                                         \
+		return __age_hlsl_prefix_sum_arr_f__[wave_id] + wave_prefix;                                              \
 	}
 
 #define DECLARE_CALC_THREAD_GROUP_SUM(thread_count)                                             \

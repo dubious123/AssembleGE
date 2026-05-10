@@ -1,6 +1,5 @@
 #pragma once
 #include "age.hpp"
-#include "age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h"
 
 // root signatures
 namespace age::graphics::render_pipeline::forward_plus
@@ -141,7 +140,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			what::structured_buffer_array<shared_type::ui_data>,
 			how::root_descriptor,
 			where::t<0, 4>>,
-
 
 		binding_slot<
 			"linear_clamp_sampler",

@@ -476,19 +476,19 @@ namespace age::asset
 			uint16						prefilter_mip_count;
 			uint16						irradiance_size;
 			graphics::e::texture_format format;
-			float						max_luminance;
-			float						min_luminance;
-			float						mean_luminance;
-			float3						dominant_light_direction;
-			float3						dominant_light_color;
+			float						max_luminance;				 // todo
+			float						min_luminance;				 // todo
+			float						mean_luminance;				 // todo
+			float3						dominant_light_direction;	 // todo
+			float3						dominant_light_color;		 // todo
 			uint32_4					reserved;
 		};
 
 		struct info_runtime
 		{
-			float	 intensity;
-			float3	 tint;
-			float3	 rotation_deg;	  // look_at, normalized
+			float	 intensity	  = 1.f;
+			float3	 tint		  = float3::one();
+			float3x3 rotation_mat = float3x3::identity();
 			uint32_4 reserved;
 		};
 
@@ -500,7 +500,7 @@ namespace age::asset
 
 		static_assert(std::is_implicit_lifetime_v<header>);
 		static_assert(std::is_trivially_copyable_v<header>);
-		static_assert(sizeof(header) == 108);
+		static_assert(sizeof(header) == 132);
 
 		using allocator_type = aligned_byte_allocator;
 
@@ -536,7 +536,7 @@ namespace age::asset
 {
 	struct env_light_desc
 	{
-		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_uf16;
+		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_uf16;	 // all format
 		uint32						cubemap_size		= 1024;
 		uint16						prefilter_size		= 256;
 		uint16						prefilter_mip_count = 7;

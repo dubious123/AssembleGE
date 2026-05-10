@@ -258,4 +258,10 @@ namespace age::external::texconv
 			static_cast<uint32>(src.size()),
 			detail::to_bake_options(opt, output_dir));
 	}
+
+	bool
+	bake_texture(const char* const p_src, const char* output_dir, const asset::texture_bake_option& opt) noexcept
+	{
+		return bake_texture(std::span<const char* const>{ std::addressof(p_src), 1u }, output_dir, opt);
+	}
 }	 // namespace age::external::texconv

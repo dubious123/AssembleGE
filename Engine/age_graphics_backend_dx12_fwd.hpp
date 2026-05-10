@@ -52,7 +52,19 @@ namespace age::graphics::e
 
 					forward_plus_presentation_ms,
 					forward_plus_presentation_hdr10_ps,
-					forward_plus_presentation_sdr_ps);
+					forward_plus_presentation_sdr_ps,
+
+					bake_brdf_lut_cs,
+
+					bake_env_light_radiance_cs,
+					bake_env_light_irradiance_cs,
+					bake_env_light_prefilter_cs,
+					bake_env_light_build_marginal_cdf_cs,
+					bake_env_light_build_conditional_cdf_cs,
+					bake_down_sample_cube_cs
+
+
+	);
 }	 // namespace age::graphics::e
 
 // command
@@ -111,6 +123,9 @@ namespace age::graphics
 
 		FORCE_INLINE void
 		upload(const void* p_src, std::size_t size, std::size_t offset = 0u) noexcept;
+
+		FORCE_INLINE void
+		readback(void* p_dst, std::size_t size, std::size_t offset = 0u) noexcept;
 	};
 
 	using t_mapping_handle_id = uint32;

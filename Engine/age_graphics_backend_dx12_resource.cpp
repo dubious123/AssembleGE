@@ -68,6 +68,12 @@ namespace age::graphics
 	{
 		std::memcpy(ptr + offset, p_src, size);
 	}
+
+	FORCE_INLINE void
+	resource_mapping::readback(void* p_dst, std::size_t size, std::size_t offset /* = 0u */) noexcept
+	{
+		std::memcpy(p_dst, ptr + offset, size);
+	}
 }	 // namespace age::graphics
 
 namespace age::graphics::resource
@@ -76,6 +82,8 @@ namespace age::graphics::resource
 	init() noexcept
 	{
 		g::h_upload_buffer = resource::create_buffer_committed(1024);
+
+		g::h_readback_buffer = resource::create_buffer_committed(1024, nullptr, e::memory_kind::gpu_to_cpu);
 		// todo create heap
 	}
 
@@ -83,6 +91,7 @@ namespace age::graphics::resource
 	deinit() noexcept
 	{
 		unmap_and_release(g::h_upload_buffer);
+		unmap_and_release(g::h_readback_buffer);
 
 		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_vec.size()) | std::views::reverse)
 		{
@@ -376,6 +385,38 @@ namespace age::graphics::resource
 	}
 
 	FORCE_INLINE bool
+	resize_texture_2d(resource_handle& h_resource, extent_2d<uint32> required_size, DXGI_FORMAT format) noexcept
+	{
+		auto& curr_desc = h_resource->desc.d3d12_resource_desc;
+
+		if (curr_desc.Width >= required_size.width and curr_desc.Height >= required_size.height and curr_desc.Format == format) { return false; }
+
+		auto desc						= h_resource->desc;
+		desc.d3d12_resource_desc.Width	= required_size.width;
+		desc.d3d12_resource_desc.Height = required_size.height;
+		desc.d3d12_resource_desc.Format = format;
+
+		auto h_new = resource::create_committed(desc);
+
+		wchar_t name[256]{};
+		auto	size = static_cast<UINT>(sizeof(name));
+		h_resource->p_resource->GetPrivateData(WKPDID_D3DDebugObjectNameW, &size, name);
+		h_new->set_name(name);
+
+		release_deferred(h_resource);
+		h_resource = h_new;
+
+		return true;
+	}
+
+	FORCE_INLINE bool
+	resize_texture_2d(resource_handle& h_resource, extent_2d<uint32> required_size) noexcept
+	{
+		auto& curr_desc = h_resource->desc.d3d12_resource_desc;
+		return resize_texture_2d(h_resource, required_size, curr_desc.Format);
+	}
+
+	FORCE_INLINE bool
 	resize_buffer_preserve(resource_handle& h_resource, uint64 required_size) noexcept
 	{
 		if (h_resource->buffer_size() >= required_size)
@@ -634,6 +675,126 @@ namespace age::graphics::resource
 
 namespace age::graphics::resource
 {
+	uint64
+	calc_readback_size(resource_handle h_src) noexcept
+	{
+		c_auto& resource_desc = h_src->desc.d3d12_resource_desc;
+
+		c_auto sub_count = resource_desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D
+							 ? static_cast<uint32>(resource_desc.MipLevels)
+							 : static_cast<uint32>(resource_desc.MipLevels) * static_cast<uint32>(resource_desc.DepthOrArraySize);
+
+		AGE_ASSERT(sub_count <= D3D12_REQ_SUBRESOURCES);
+
+		g::calc_readback_size_footprint_vec.resize(sub_count);
+		g::calc_readback_size_num_rows_vec.resize(sub_count);
+		g::calc_readback_size_row_size_bytes_vec.resize(sub_count);
+
+		g::p_main_device->GetCopyableFootprints1(
+			&resource_desc,
+			0, sub_count, 0,
+			g::calc_readback_size_footprint_vec.data(),
+			g::calc_readback_size_num_rows_vec.data(),
+			g::calc_readback_size_row_size_bytes_vec.data(),
+			nullptr);
+
+		uint64 total = 0;
+		for (auto sub : views::loop(sub_count))
+		{
+			total += g::calc_readback_size_row_size_bytes_vec[sub] * g::calc_readback_size_num_rows_vec[sub] * g::calc_readback_size_footprint_vec[sub].Footprint.Depth;
+		}
+
+		g::calc_readback_size_footprint_vec.clear();
+		g::calc_readback_size_num_rows_vec.clear();
+		g::calc_readback_size_row_size_bytes_vec.clear();
+
+		return total;
+	}
+
+	void
+	readback_texture(std::span<std::byte> dst, resource_handle h_src) noexcept
+	{
+		c_auto& resource_desc = h_src->desc.d3d12_resource_desc;
+
+		c_auto sub_count = resource_desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D
+							 ? static_cast<uint32>(resource_desc.MipLevels)
+							 : static_cast<uint32>(resource_desc.MipLevels) * static_cast<uint32>(resource_desc.DepthOrArraySize);
+
+		AGE_ASSERT(sub_count <= D3D12_REQ_SUBRESOURCES);
+		AGE_ASSERT(sub_count > 0);
+
+		g::readback_footprint_vec.resize(sub_count);
+		g::readback_num_rows_vec.resize(sub_count);
+		g::readback_row_size_bytes_vec.resize(sub_count);
+		uint64 total_size = 0;
+
+		g::p_main_device->GetCopyableFootprints1(
+			&resource_desc,
+			0,
+			sub_count,
+			0,
+			g::readback_footprint_vec.data(),
+			g::readback_num_rows_vec.data(),
+			g::readback_row_size_bytes_vec.data(),
+			&total_size);
+
+		resize_buffer(g::h_readback_buffer, total_size);
+
+		command::begin();
+
+
+		for (auto sub : views::loop(sub_count))
+		{
+			c_auto src = defaults::copy_location::src_subresource(
+				h_src->p_resource,
+				sub);
+
+			c_auto dst = defaults::copy_location::dst_placed(
+				g::h_readback_buffer->h_resource->p_resource,
+				g::readback_footprint_vec[sub]);
+
+			command::copy_texture(&dst, 0, 0, 0, &src, nullptr);
+		}
+
+		command::execute_and_wait();
+
+
+		auto* p_dst_cursor = dst.data();
+
+		for (auto sub : views::loop(sub_count))
+		{
+			c_auto& fp			  = g::readback_footprint_vec[sub];
+			c_auto	dst_row_pitch = static_cast<uint32>(g::readback_row_size_bytes_vec[sub]);
+			c_auto	rows		  = g::readback_num_rows_vec[sub];
+
+			for (auto z : views::loop<uint64>(fp.Footprint.Depth))
+			{
+				for (auto y : views::loop<uint64>(rows))
+				{
+					c_auto src_offset = fp.Offset
+									  + z * fp.Footprint.RowPitch * rows
+									  + y * fp.Footprint.RowPitch;
+
+					c_auto dst_offset = z * rows * dst_row_pitch
+									  + y * dst_row_pitch;
+
+					g::h_readback_buffer->readback(
+						p_dst_cursor + dst_offset,
+						dst_row_pitch,
+						src_offset);
+				}
+			}
+
+			p_dst_cursor += rows * dst_row_pitch * fp.Footprint.Depth;
+
+			AGE_ASSERT(p_dst_cursor <= dst.data() + dst.size_bytes());
+		}
+
+		g::readback_footprint_vec.clear();
+		g::readback_num_rows_vec.clear();
+		g::readback_row_size_bytes_vec.clear();
+	}
+
 	void
 	upload_texture(resource_handle h_dst, const void* p_src_cpu) noexcept
 	{

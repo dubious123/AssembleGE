@@ -22,6 +22,9 @@ namespace age::asset
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept;
 
+	bool
+	write_raw_file(std::string_view full_path, const byte_buf& buf) noexcept;
+
 	inline handle
 	create_entry(e::kind asset_kind, std::string_view asset_path) noexcept;
 
