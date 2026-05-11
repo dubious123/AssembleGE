@@ -1161,16 +1161,16 @@ buf_interlocked_compare_exchange(rw_byte_address_buffer buffer, uint32 offset, u
 	buffer.InterlockedCompareExchange(offset, compare, value, original);
 }
 
-template <typename t_tex, typename t_sample>
-float4
-sample(t_tex tex, t_sample s, float2 location)
+template <typename t, template <typename> class t_tex, typename t_sample, typename t_location>
+t
+sample(t_tex<t> tex, t_sample s, t_location location)
 {
 	return tex.Sample(s, location);
 }
 
-template <typename t_tex, typename t_sample, typename t_location>
-float4
-sample_level(t_tex tex, t_sample s, t_location location, uint32 mip)
+template <typename t, template <typename> class t_tex, typename t_sample, typename t_location>
+t
+sample_level(t_tex<t> tex, t_sample s, t_location location, uint32 mip)
 {
 	return tex.SampleLevel(s, location, mip);
 }

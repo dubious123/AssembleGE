@@ -86,13 +86,13 @@ namespace age::asset
 	const void*
 	entry<e::kind::env_light>::get_prefilter_texture_buffer() const noexcept
 	{
-		return p_blob + sizeof(header) + get_header().bake_info.prefilter_texture_buffer_offset;
+		return p_blob + get_bake_info().prefilter_texture_buffer_offset;
 	}
 
 	const void*
 	entry<e::kind::env_light>::get_irradiance_texture_buffer() const noexcept
 	{
-		return p_blob + sizeof(header) + get_header().bake_info.irradiance_texture_buffer_offset;
+		return p_blob + get_bake_info().irradiance_texture_buffer_offset;
 	}
 }	 // namespace age::asset
 
@@ -195,7 +195,6 @@ namespace age::asset::env_light
 		c_auto radiance_tex_size   = graphics::resource::calc_readback_size(env_light_bake_res.h_radiance);
 		c_auto prefilter_tex_size  = graphics::resource::calc_readback_size(env_light_bake_res.h_prefilter);
 		c_auto irradiance_tex_size = graphics::resource::calc_readback_size(env_light_bake_res.h_irradiance);
-
 
 		auto buf = byte_buf::gen_reserved(sizeof(entry<e::kind::env_light>::header) + radiance_tex_size + prefilter_tex_size + irradiance_tex_size);
 

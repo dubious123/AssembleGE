@@ -558,10 +558,10 @@ namespace age::asset
 	struct env_light_desc
 	{
 		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_uf16;	 // all format
-		uint32						cubemap_size		= 1024;
-		uint16						prefilter_size		= 256;
+		uint32						cubemap_size		= 4096;
+		uint16						prefilter_size		= 512;
 		uint16						prefilter_mip_count = 7;
-		uint16						irradiance_size		= 32;
+		uint16						irradiance_size		= 64;
 
 		bool invert_y = false;
 	};

@@ -455,6 +455,22 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
+	tex_copy_src_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
+			.SyncAfter	  = sync_after_srv,
+			.AccessBefore = D3D12_BARRIER_ACCESS_COPY_SOURCE,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			.pResource	  = p_resource,
+			.Subresources = subresources,
+			.Flags		  = {},
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	tex_srv_to_copy_dst(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{

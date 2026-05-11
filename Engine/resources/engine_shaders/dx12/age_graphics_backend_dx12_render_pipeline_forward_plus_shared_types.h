@@ -7,6 +7,8 @@
 #define MAX_DIRECTIONAL_LIGHT_COUNT			 2
 #define MAX_LIGHT_COUNT						 (512 * 512)
 
+#define MAX_ENV_LIGHT 8
+
 // shadow
 // todo, measure shadow rt performance
 #define MAX_SHADOW_LIGHT_COUNT 100
@@ -226,12 +228,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	//---[ ibl ]------------------------------------------------------------
 	struct env_light
 	{
-		uint32	 radiance_tex_id;	   // 4
-		uint32	 prefilter_tex_id;	   // 4
-		uint32	 irradiance_tex_id;	   // 4
-		float	 intensity;			   // 4
-		float3	 tint;				   // 12
-		float3x3 rotation_mat;		   // 36
+		uint32	 radiance_tex_id;		 // 4
+		uint32	 prefilter_tex_id;		 // 4
+		uint32	 irradiance_tex_id;		 // 4
+		uint16	 prefilter_mip_count;	 // 2
+		half	 intensity;				 // 2
+		float3	 tint;					 // 12
+		float3x3 rotation_mat;			 // 36
 	};	  // total: 64 bytes
 
 	//---[ mesh ]------------------------------------------------------------
@@ -479,6 +482,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MAX_LIGHT_COUNT
 
 	#undef MAX_SHADOW_LIGHT_COUNT
+
+	#undef MAX_ENV_LIGHT
 
 	// light cull
 	#undef LIGHT_CULL_THREAD_COUNT

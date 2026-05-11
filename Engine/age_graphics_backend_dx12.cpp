@@ -160,6 +160,8 @@ namespace age::graphics
 		command::cpu_wait(e::queue_kind::compute);
 		command::cpu_wait(e::queue_kind::copy);
 
+		resource::process_deferred_releases();
+
 		{
 			for (auto& rs : g::render_surface_vec)
 			{

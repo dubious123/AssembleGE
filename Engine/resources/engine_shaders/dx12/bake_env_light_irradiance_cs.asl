@@ -32,5 +32,5 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id) {
 		res += sample_level(radiance, get_linear_clamp_sampler(), l, mip_lod).rgb;
 	}
 
-	irradiance[thread_id] = float4(res / float(ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT) * pi, 1.0);
+	irradiance[thread_id] = float4(res / float(ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT), 1.0);
 }

@@ -61,9 +61,17 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	const pbr_surface_data surface_data = calc_pbr_surface(mat, v);
 
-	const float3 ambient_light	= srgb_to_linear(float3(0.03, 0.03, 0.03)) * surface_data.c_diffuse * surface_data.occlusion;
-	float3		 lighting		= ambient_light;
-	lighting				   += surface_data.emissive;
+	float3 ambient_light = float3(0, 0, 0);
+
+	expand(MAX_ENV_LIGHT)
+
+	for (uint32 i = 0; i < env_light_count; ++i)
+	{
+		ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
+	}
+
+	float3 lighting	 = ambient_light;
+	lighting		+= surface_data.emissive;
 	// const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
 
 	const float3 albedo = mat.base_color_factor.rgb;

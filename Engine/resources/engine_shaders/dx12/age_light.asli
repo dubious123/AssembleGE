@@ -499,3 +499,36 @@ calc_pbr_light(const pbr_surface_data surface_data, directional_light light)
 	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
 	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
 }
+
+float3
+calc_pbr_ibl(const pbr_surface_data surface_data, env_light env)
+{
+	const float3 n = mul(env.rotation_mat, surface_data.normal);
+	const float3 r = mul(env.rotation_mat, reflect(-surface_data.view, surface_data.normal));
+
+	const float n_dot_v = surface_data.n_dot_v;
+
+	const float3 fr				   = max(to_float3(1.f - surface_data.roughness), surface_data.f0);
+	const float	 one_minus_n_dot_v = 1.f - n_dot_v;
+	const float	 pow5_term		   = one_minus_n_dot_v * one_minus_n_dot_v
+								   * one_minus_n_dot_v * one_minus_n_dot_v * one_minus_n_dot_v;
+	const float3 f				   = surface_data.f0 + (fr - surface_data.f0) * pow5_term;
+
+	texture_2d<float2>	 brdf_lut_tex	= global_resource_buffer[env_light_brdf_lut_id];
+	texture_cube<float4> prefilter_tex	= global_resource_buffer[env.prefilter_tex_id];
+	texture_cube<float4> irradiance_tex = global_resource_buffer[env.irradiance_tex_id];
+
+	const float3 irradiance = sample_level(irradiance_tex, get_linear_clamp_sampler(), n, 0).rgb;
+
+	const float3 diffuse = (1.f - f) * surface_data.c_diffuse * irradiance;
+
+	const float mip = surface_data.roughness * (float(env.prefilter_mip_count) - 1);
+
+	const float3 prefilter = sample_level(prefilter_tex, get_linear_clamp_sampler(), r, mip).rgb;
+
+	const float2 brdf_lut_val = sample_level(brdf_lut_tex, get_linear_clamp_sampler(), float2(n_dot_v, surface_data.roughness), 0);
+
+	const float3 specular = prefilter * (surface_data.f0 * brdf_lut_val.x + brdf_lut_val.y);
+
+	return (diffuse + specular) * env.intensity * env.tint * surface_data.occlusion;
+}

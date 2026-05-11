@@ -24,6 +24,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pop_descriptor(h_rt_transparent_tex_buffer_srv_desc);
 		graphics::pop_descriptor(h_rt_transparent_tex_buffer_uav_desc);
 		graphics::pop_descriptor(h_env_light_brdf_lut);
+
+		graphics::resource::create_view(graphics::g::h_brdf_lut, h_env_light_brdf_lut, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
+
 		{
 			h_mapping_static_ring_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(g::static_buffer_size);
 
@@ -97,6 +100,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			stage_depth.init(h_root_sig);
 			stage_depth.bind_dsv(h_depth_buffer);
+
+			stage_skybox.init(h_root_sig);
+			stage_skybox.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 
 			stage_light_culling.init(h_root_sig);
 
@@ -181,6 +187,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_post_process.deinit();
 		stage_opaque.deinit();
 		stage_light_culling.deinit();
+		stage_skybox.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
@@ -277,6 +284,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			resize_resolution_dependent_buffers(new_extent);
 
 			stage_depth.bind_dsv(h_depth_buffer);
+			stage_skybox.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 			stage_opaque.bind_rtv_dsv(h_main_buffer, h_depth_buffer);
 			stage_transparent.bind_rtv(h_main_buffer);
 			stage_post_process.bind_rtv(h_post_buffer);
@@ -466,6 +474,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_depth.execute(opaque_meshlet_render_data_count);
 
 		command::apply_barriers(barrier::dsv_write_to_dsv_read(h_depth_buffer->p_resource));
+
+		stage_skybox.execute(env_light_gpu_data_vec.size<uint32>());
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
 
@@ -1256,7 +1266,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::begin();
 		resource::upload_texture(h_radiance, entry.get_radiance_texture_buffer());
+		command::execute_and_wait();
+		command::begin();
 		resource::upload_texture(h_prefilter, entry.get_prefilter_texture_buffer());
+		command::execute_and_wait();
+		command::begin();
 		resource::upload_texture(h_irradiance, entry.get_irradiance_texture_buffer());
 		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_radiance->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
 								barrier::tex_copy_dest_to_srv(h_prefilter->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING),
@@ -1264,12 +1278,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::execute_and_wait();
 		c_auto gpu_id = env_light_gpu_data_vec.emplace_back(
 			shared_type::env_light{
-				.radiance_tex_id   = graphics::calc_desc_idx(h_radiance_srv_desc),
-				.prefilter_tex_id  = graphics::calc_desc_idx(h_prefilter_srv_desc),
-				.irradiance_tex_id = graphics::calc_desc_idx(h_irradiance_srv_desc),
-				.intensity		   = runtime_info.intensity,
-				.tint			   = runtime_info.tint,
-				.rotation_mat	   = math::euler_deg_to_mat3x3(runtime_info.euler_deg),
+				.radiance_tex_id	 = graphics::calc_desc_idx(h_radiance_srv_desc),
+				.prefilter_tex_id	 = graphics::calc_desc_idx(h_prefilter_srv_desc),
+				.irradiance_tex_id	 = graphics::calc_desc_idx(h_irradiance_srv_desc),
+				.prefilter_mip_count = bake_info.prefilter_mip_count,
+				.intensity			 = cvt_to<half>(runtime_info.intensity),
+				.tint				 = runtime_info.tint,
+				.rotation_mat		 = math::euler_deg_to_mat3x3(runtime_info.euler_deg),
 			});
 
 		auto id = static_cast<t_env_light_id>(env_light_cpu_data_vec.emplace_back(
@@ -1295,7 +1310,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto& gpu_data = env_light_gpu_data_vec[gpu_id];
 
-		gpu_data.intensity	  = runtime_info.intensity;
+		gpu_data.intensity	  = cvt_to<half>(runtime_info.intensity);
 		gpu_data.tint		  = runtime_info.tint;
 		gpu_data.rotation_mat = math::euler_deg_to_mat3x3(runtime_info.euler_deg);
 	}
@@ -1307,13 +1322,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		env_light_gpu_data_vec.remove(data.gpu_id);
 
-		resource::release(data.h_radiance);
-		resource::release(data.h_prefilter);
-		resource::release(data.h_irradiance);
-
-		push_descriptor(data.h_radiance_srv_desc);
-		push_descriptor(data.h_prefilter_srv_desc);
-		push_descriptor(data.h_irradiance_srv_desc);
+		resource::release_deferred(data.h_radiance, data.h_radiance_srv_desc);
+		resource::release_deferred(data.h_prefilter, data.h_prefilter_srv_desc);
+		resource::release_deferred(data.h_irradiance, data.h_irradiance_srv_desc);
 
 		env_light_cpu_data_vec.remove(id);
 

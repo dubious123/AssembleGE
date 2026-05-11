@@ -38,7 +38,8 @@ namespace age::graphics::g
 
 	inline auto resource_mapping_vec = age::stable_dense_vector<resource_mapping>::gen_reserved(2);
 
-	inline auto deferred_release_data_vec = age::vector<deferred_release_data>::gen_reserved(2);
+	inline auto deferred_release_data_vec	  = age::vector<deferred_release_data>::gen_reserved(2);
+	inline auto deferred_release_data_srv_vec = age::vector<deferred_release_data_srv>::gen_reserved(2);
 
 	inline auto h_upload_buffer	  = mapping_handle{};
 	inline auto h_readback_buffer = mapping_handle{};

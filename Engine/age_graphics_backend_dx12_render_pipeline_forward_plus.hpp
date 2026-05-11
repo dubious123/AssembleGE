@@ -23,6 +23,28 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct skybox_stage
+	{
+		rtv_desc_handle h_main_buffer_rtv_desc;
+		dsv_desc_handle h_depth_buffer_dsv_desc;
+
+		graphics::pso::handle h_pso;
+		ID3D12PipelineState*  p_pso;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		void
+		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
+					 graphics::resource_handle h_depth_buffer) noexcept;
+
+		inline void
+		execute(uint32 meshlet_count) noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct light_culling_stage
 	{
 		graphics::pso::handle h_pso_init;
@@ -165,6 +187,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		ID3D12RootSignature*			 p_root_sig;
 
 		depth_stage			stage_depth;
+		skybox_stage		stage_skybox;
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
 		transparent_stage	stage_transparent;

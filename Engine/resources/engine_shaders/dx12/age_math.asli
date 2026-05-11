@@ -13,10 +13,40 @@ static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+bool
+is_nan(float v)
+{
+	return isnan(v);
+}
+
+bool
+is_nan(float2 v)
+{
+	return isnan(v.x) || isnan(v.y);
+}
+
+bool
+is_nan(float3 v)
+{
+	return isnan(v.x) || isnan(v.y) || isnan(v.z);
+}
+
+bool
+is_nan(float4 v)
+{
+	return isnan(v.x) || isnan(v.y) || isnan(v.z) || isnan(v.w);
+}
+
 float
 pow_5(float x)
 {
 	return x * x * x * x * x;
+}
+
+float3
+to_float3(float x)
+{
+	return float3(x, x, x);
 }
 
 bool
@@ -256,6 +286,13 @@ float_to_sortable(float f)
 	uint32 bits = as_uint(f);
 	uint32 mask = (bits & 0x80000000) ? 0xFFFFFFFF : 0x80000000;
 	return bits ^ mask;
+}
+
+float3
+ndc_to_world(float4x4 view_proj_inv, float3 ndc)
+{
+	float4 temp = mul(view_proj_inv, float4(ndc, 1.f));
+	return temp.xyz / temp.w;
 }
 
 float2
@@ -516,7 +553,7 @@ float2
 world_dir_to_equirect_uv(float3 dir)
 {
 	return float2(atan2(dir.z, dir.x) / pi_2 + 0.5,
-				  -asin(dir.y) / pi + 0.5);
+				  -asin(clamp(dir.y, -1.0, 1.0)) / pi + 0.5);
 }
 
 float3x3

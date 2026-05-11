@@ -27,8 +27,12 @@ namespace age::graphics::e
 	);
 
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
+					fullscreen_ms,
+
 					forward_plus_depth_ms,
 
+					forward_plus_skybox_ps,
+					forward_plus_skybox_ms,
 					forward_plus_light_init_cs,
 					forward_plus_light_cull_cs,
 					forward_plus_sort_histogram_cs,
@@ -83,133 +87,6 @@ namespace age::graphics
 		HANDLE h_fence_event;
 	};
 }	 // namespace age::graphics
-
-// resource
-namespace age::graphics
-{
-	struct resource_create_desc
-	{
-		D3D12_RESOURCE_DESC1 d3d12_resource_desc;
-		D3D12_CLEAR_VALUE	 clear_value;
-		D3D12_BARRIER_LAYOUT initial_layout;
-		e::memory_kind		 heap_memory_kind;
-		bool				 has_clear_value;
-	};
-
-	struct d3d12_resource
-	{
-		ID3D12Resource*		 p_resource = nullptr;
-		resource_create_desc desc;
-
-		uint32 map_count = {};
-
-		FORCE_INLINE std::size_t
-		buffer_size() const noexcept;
-
-		FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
-		get_va() const noexcept;
-
-		void
-		set_name(const wchar_t* name) noexcept;
-
-		std::wstring
-		get_name() const noexcept;
-	};
-
-	struct resource_mapping
-	{
-		std::byte*		ptr;
-		resource_handle h_resource;
-
-		FORCE_INLINE void
-		upload(const void* p_src, std::size_t size, std::size_t offset = 0u) noexcept;
-
-		FORCE_INLINE void
-		readback(void* p_dst, std::size_t size, std::size_t offset = 0u) noexcept;
-	};
-
-	using t_mapping_handle_id = uint32;
-
-	struct mapping_handle
-	{
-		t_mapping_handle_id id = age::get_invalid_id<t_mapping_handle_id>();
-
-		FORCE_INLINE resource_mapping*
-		operator->() noexcept;
-
-		FORCE_INLINE const resource_mapping*
-		operator->() const noexcept;
-	};
-
-	struct deferred_release_data
-	{
-		resource_handle h_resource;
-		e::queue_kind	kind;
-		uint64			fence_value;
-	};
-}	 // namespace age::graphics
-
-// root_signature
-namespace age::graphics::root_signature
-{
-	using t_root_signature_id = uint32;
-
-	struct handle
-	{
-		t_root_signature_id id = get_invalid_id<t_root_signature_id>();
-
-		FORCE_INLINE decltype(auto)
-		operator->() noexcept;
-
-		FORCE_INLINE decltype(auto)
-		ptr() const noexcept;
-	};
-
-	struct constants;
-
-	template <typename t_reg>
-	struct descriptor;
-
-	template <typename t_reg>
-	struct descriptor_range;
-
-	template <typename... t_desc_range>
-	struct descriptor_table;
-
-	template <typename... t_arg>
-	descriptor_table(D3D12_SHADER_VISIBILITY, t_arg&&...) -> descriptor_table<t_arg...>;
-}	 // namespace age::graphics::root_signature
-
-// command_signature
-namespace age::graphics::command_signature
-{
-	using t_command_signature_id = uint32;
-
-	struct handle
-	{
-		t_command_signature_id id = get_invalid_id<t_command_signature_id>();
-
-		FORCE_INLINE decltype(auto)
-		ptr() const noexcept;
-	};
-}	 // namespace age::graphics::command_signature
-
-// shader
-namespace age::graphics::shader
-{
-	using t_shader_id = uint32;
-
-	struct shader_handle
-	{
-		t_shader_id id = get_invalid_id<t_shader_id>();
-	};
-
-	struct shader_blob
-	{
-		const void* p_blob;
-		std::size_t size;
-	};
-}	 // namespace age::graphics::shader
 
 // descriptor_pool
 namespace age::graphics
@@ -303,6 +180,141 @@ namespace age::graphics
 	void
 	push_descriptor(const auto&) noexcept;
 }	 // namespace age::graphics
+
+// resource
+namespace age::graphics
+{
+	struct resource_create_desc
+	{
+		D3D12_RESOURCE_DESC1 d3d12_resource_desc;
+		D3D12_CLEAR_VALUE	 clear_value;
+		D3D12_BARRIER_LAYOUT initial_layout;
+		e::memory_kind		 heap_memory_kind;
+		bool				 has_clear_value;
+	};
+
+	struct d3d12_resource
+	{
+		ID3D12Resource*		 p_resource = nullptr;
+		resource_create_desc desc;
+
+		uint32 map_count = {};
+
+		FORCE_INLINE std::size_t
+		buffer_size() const noexcept;
+
+		FORCE_INLINE D3D12_GPU_VIRTUAL_ADDRESS
+		get_va() const noexcept;
+
+		void
+		set_name(const wchar_t* name) noexcept;
+
+		std::wstring
+		get_name() const noexcept;
+	};
+
+	struct resource_mapping
+	{
+		std::byte*		ptr;
+		resource_handle h_resource;
+
+		FORCE_INLINE void
+		upload(const void* p_src, std::size_t size, std::size_t offset = 0u) noexcept;
+
+		FORCE_INLINE void
+		readback(void* p_dst, std::size_t size, std::size_t offset = 0u) noexcept;
+	};
+
+	using t_mapping_handle_id = uint32;
+
+	struct mapping_handle
+	{
+		t_mapping_handle_id id = age::get_invalid_id<t_mapping_handle_id>();
+
+		FORCE_INLINE resource_mapping*
+		operator->() noexcept;
+
+		FORCE_INLINE const resource_mapping*
+		operator->() const noexcept;
+	};
+
+	struct deferred_release_data
+	{
+		resource_handle h_resource;
+		e::queue_kind	kind;
+		uint64			fence_value;
+	};
+
+	struct deferred_release_data_srv
+	{
+		resource_handle h_resource;
+		e::queue_kind	kind;
+		uint64			fence_value;
+		srv_desc_handle h_srv;
+	};
+}	 // namespace age::graphics
+
+// root_signature
+namespace age::graphics::root_signature
+{
+	using t_root_signature_id = uint32;
+
+	struct handle
+	{
+		t_root_signature_id id = get_invalid_id<t_root_signature_id>();
+
+		FORCE_INLINE decltype(auto)
+		operator->() noexcept;
+
+		FORCE_INLINE decltype(auto)
+		ptr() const noexcept;
+	};
+
+	struct constants;
+
+	template <typename t_reg>
+	struct descriptor;
+
+	template <typename t_reg>
+	struct descriptor_range;
+
+	template <typename... t_desc_range>
+	struct descriptor_table;
+
+	template <typename... t_arg>
+	descriptor_table(D3D12_SHADER_VISIBILITY, t_arg&&...) -> descriptor_table<t_arg...>;
+}	 // namespace age::graphics::root_signature
+
+// command_signature
+namespace age::graphics::command_signature
+{
+	using t_command_signature_id = uint32;
+
+	struct handle
+	{
+		t_command_signature_id id = get_invalid_id<t_command_signature_id>();
+
+		FORCE_INLINE decltype(auto)
+		ptr() const noexcept;
+	};
+}	 // namespace age::graphics::command_signature
+
+// shader
+namespace age::graphics::shader
+{
+	using t_shader_id = uint32;
+
+	struct shader_handle
+	{
+		t_shader_id id = get_invalid_id<t_shader_id>();
+	};
+
+	struct shader_blob
+	{
+		const void* p_blob;
+		std::size_t size;
+	};
+}	 // namespace age::graphics::shader
 
 // render_surface, swap chain
 namespace age::graphics

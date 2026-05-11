@@ -86,6 +86,8 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	}
 
 	float4 result = float4(0, 0, 0, 0);
+
+
 	for (int32 i = 0; i < hit_count; ++i)
 	{
 		const hit_data hit = hit_data_arr[i];
@@ -110,7 +112,14 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
 
-		const float3 ambient_light = srgb_to_linear(float3(0.03, 0.03, 0.03)) * surface_data.c_diffuse * surface_data.occlusion;
+		float3 ambient_light = float3(0, 0, 0);
+
+		expand(MAX_ENV_LIGHT)
+
+		for (uint32 i = 0; i < env_light_count; ++i)
+		{
+			ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
+		}
 
 		float3 lighting = ambient_light;
 

@@ -1384,11 +1384,24 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
-					widget::numeric_field(asset_desc.prefilter_size, nullptr);
-					if (util::popcount(asset_desc.prefilter_size) != 1)
+					widget::numeric_field(asset_desc.cubemap_size, nullptr);
+					if (util::popcount(asset_desc.cubemap_size) != 1)
 					{
-						widget::begin(style::text("prefilter size must be power of 2") | set_body_brush_data(theme::color_text_red()));
+						widget::begin(style::text("cubemap size must be power of 2") | set_body_brush_data(theme::color_text_red()));
 					}
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("prefilter size");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(asset_desc.prefilter_size);
 				}
 			}
 

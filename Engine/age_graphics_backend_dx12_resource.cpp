@@ -103,6 +103,17 @@ namespace age::graphics::resource
 			g::deferred_release_data_vec.pop_back();
 		}
 
+		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_srv_vec.size()) | std::views::reverse)
+		{
+			auto& data = g::deferred_release_data_srv_vec[i];
+
+			AGE_ASSERT(command::is_complete(data.kind, data.fence_value));
+
+			resource::release(data.h_resource);
+			push_descriptor(data.h_srv);
+			g::deferred_release_data_srv_vec.pop_back();
+		}
+
 		// if (g::resource_vec.is_empty() is_false)
 		//{
 		//	for (auto& r : g::resource_vec)
@@ -252,6 +263,19 @@ namespace age::graphics::resource
 		h_resource = {};
 	}
 
+	FORCE_INLINE void
+	release_deferred(resource_handle& h_resource, srv_desc_handle h_srv, e::queue_kind kind) noexcept
+	{
+		g::deferred_release_data_srv_vec.emplace_back(
+			deferred_release_data_srv{
+				.h_resource	 = h_resource,
+				.kind		 = kind,
+				.fence_value = command::current_fence_value(kind),
+				.h_srv		 = h_srv });
+
+		h_resource = {};
+	}
+
 	void
 	process_deferred_releases() noexcept
 	{
@@ -267,6 +291,22 @@ namespace age::graphics::resource
 					g::deferred_release_data_vec[i] = std::move(g::deferred_release_data_vec.back());
 				}
 				g::deferred_release_data_vec.pop_back();
+			}
+		}
+
+		for (auto i : std::views::iota(0u) | std::views::take(g::deferred_release_data_srv_vec.size()) | std::views::reverse)
+		{
+			auto& data = g::deferred_release_data_srv_vec[i];
+
+			if (command::is_complete(data.kind, data.fence_value))
+			{
+				resource::release(data.h_resource);
+				push_descriptor(data.h_srv);
+				if (i != g::deferred_release_data_srv_vec.size() - 1)
+				{
+					g::deferred_release_data_srv_vec[i] = std::move(g::deferred_release_data_srv_vec.back());
+				}
+				g::deferred_release_data_srv_vec.pop_back();
 			}
 		}
 	}
@@ -698,7 +738,7 @@ namespace age::graphics::resource
 			g::calc_readback_size_row_size_bytes_vec.data(),
 			nullptr);
 
-		uint64 total = 0;
+		auto total = uint64{};
 		for (auto sub : views::loop(sub_count))
 		{
 			total += g::calc_readback_size_row_size_bytes_vec[sub] * g::calc_readback_size_num_rows_vec[sub] * g::calc_readback_size_footprint_vec[sub].Footprint.Depth;

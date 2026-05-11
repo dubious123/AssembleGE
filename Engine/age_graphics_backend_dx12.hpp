@@ -241,6 +241,9 @@ namespace age::graphics::resource
 	FORCE_INLINE void
 	release_deferred(resource_handle&, e::queue_kind = e::queue_kind::direct) noexcept;
 
+	FORCE_INLINE void
+	release_deferred(resource_handle& h_resource, srv_desc_handle h_srv, e::queue_kind kind = e::queue_kind::direct) noexcept;
+
 	void
 	process_deferred_releases() noexcept;
 
