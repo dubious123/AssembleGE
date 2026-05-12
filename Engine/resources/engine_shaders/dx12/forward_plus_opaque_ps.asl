@@ -57,6 +57,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	const uint32	 mat_id = fragment.mat_id;
 	const vertex_fat v		= fragment.v;
 
+	// v.world_pos = ndc_to_world(view_proj_inv, float3(screen_to_ndc(v.pos.xy, inv_backbuffer_size), v.pos.z));
+
 	const material mat = load_material(mat_id);
 
 	const pbr_surface_data surface_data = calc_pbr_surface(mat, v);
@@ -96,7 +98,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 		// lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
 		//		  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 		lighting += calc_pbr_light(surface_data, light)
-				  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
+				  * calc_directional_shadow_rt(light, v, face_normal, linear_depth);
 
 		// lighting = calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
@@ -135,7 +137,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 				//		  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
 
 				lighting += calc_pbr_light(surface_data, light)
-						  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
+						  * calc_unified_shadow_rt(light, v, face_normal);
 
 
 				// lighting += calc_pbr_light(surface_data, light);
@@ -212,5 +214,10 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	//       return float4(surface_data.normal.y, -surface_data.normal.y, 0, 1.0f);
 	//        return float4(surface_data.base_color.xyz, 1.0f);
 	//   return float4(v.uv_set[0], 0, 1.f);
+	// return float4(abs(fragment.debug_y) * 1000, 0, 0, 1);
+	// return float4(abs(v.world_pos.y) * 1000, 0, 0, 1);
+	// return float4(v.world_pos * 0.1 + 0.5, 1.0);
+	// return float4(frac(v.world_pos * 10), 1.f);
+
 	return float4(lighting, 1.0f);
 }

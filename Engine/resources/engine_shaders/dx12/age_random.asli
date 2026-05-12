@@ -52,3 +52,13 @@ hammersley(uint32 i, uint32 n)
 {
 	return float2(float(i) / float(n), radical_inverse_vdc(i));
 }
+
+// Interleaved Gradient Noise
+// Jimenez, "Next Generation Post Processing in Call of Duty: Advanced Warfare", SIGGRAPH 2014, slide 120
+// https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+
+float
+interleaved_gradient_noise(float2 pixel_xy)
+{
+	return frac(52.9829189f * frac(dot(pixel_xy, float2(0.06711056f, 0.00583715f))));
+}

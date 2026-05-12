@@ -179,8 +179,8 @@ namespace age::inline math
 		auto c	   = float3{
 			(float)((encoded_q >> 0) & 0x3ff),	   // x
 			(float)((encoded_q >> 10) & 0x3ff),	   // y
-			(float)((encoded_q >> 20) & 0x3ff)
-		};	  // z
+			(float)((encoded_q >> 20) & 0x3ff)	   // z
+		};
 
 		c = c / 1023.f * g::sqrt_2 - g::sqrt_2_inv;
 

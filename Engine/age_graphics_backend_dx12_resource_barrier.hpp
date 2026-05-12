@@ -282,6 +282,47 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
+	dsv_write_to_generic_read(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after, D3D12_BARRIER_ACCESS access_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
+			.SyncAfter	  = sync_after,
+			.AccessBefore = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,
+			.AccessAfter  = access_after,
+			.LayoutBefore = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
+			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_GENERIC_READ,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	dsv_generic_read_to_srv(ID3D12Resource*				p_resource,
+							D3D12_BARRIER_SYNC			sync_defore,
+							D3D12_BARRIER_ACCESS		access_before,
+							D3D12_BARRIER_SYNC			sync_after_srv,
+							D3D12_TEXTURE_BARRIER_FLAGS flag			= {},
+							bool						is_direct_queue = true) noexcept
+	{
+		return D3D12_TEXTURE_BARRIER{
+			.SyncBefore	  = sync_defore,
+			.SyncAfter	  = sync_after_srv,
+			.AccessBefore = access_before,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+			.LayoutBefore = is_direct_queue
+							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_GENERIC_READ
+							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_GENERIC_READ,
+			.LayoutAfter  = is_direct_queue
+							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
+							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
+			.pResource	  = p_resource,
+			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Flags		  = flag
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{

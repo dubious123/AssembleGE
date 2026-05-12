@@ -137,7 +137,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			//		  * calc_directional_shadow_rt(light, world_pos, world_face_normal, linear_depth);
 
 			lighting += calc_pbr_light(surface_data, light)
-					  * calc_directional_shadow_rt(light, v.world_pos, world_face_normal, linear_depth);
+					  * calc_directional_shadow_rt(light, v, world_face_normal, linear_depth);
 		}
 
 		{
@@ -176,7 +176,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 						//		  * calc_unified_shadow_rt(light, world_pos, world_face_normal);
 
 						lighting += calc_pbr_light(surface_data, light)
-								  * calc_unified_shadow_rt(light, v.world_pos, world_face_normal);
+								  * calc_unified_shadow_rt(light, v, world_face_normal);
 					}
 				}
 			}

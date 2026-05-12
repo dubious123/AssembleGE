@@ -195,6 +195,7 @@ static const uint32 RAY_FLAG_CULL_OPAQUE					 = 0x40;
 static const uint32 RAY_FLAG_CULL_NON_OPAQUE				 = 0x80;
 static const uint32 RAY_FLAG_SKIP_TRIANGLES					 = 0x100;
 static const uint32 RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES		 = 0x200;
+static const uint32 RAY_FLAG_FORCE_OMM_2_STATE				 = 0x400;
 
 // == types ==
 
@@ -621,6 +622,12 @@ float
 min(float a, float b)
 {
 	return std::min(a, b);
+}
+
+auto
+frac(auto v)
+{
+	return v;
 }
 
 float

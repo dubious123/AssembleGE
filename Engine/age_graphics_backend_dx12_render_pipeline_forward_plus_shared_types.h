@@ -259,10 +259,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct object_data
 	{
-		float3	 pos;							 // 12
-		uint32	 quaternion;					 // 4 | 10 10 10 2
-		half3	 scale;							 // 6
-		uint16_t extra;							 // 2
+		float3 pos;								 // 12
+		uint32 quaternion;						 // 4 | 10 10 10 2
+		half3  scale;							 // 6
+		uint16 extra;
+		// float3 scale;
+		// float4 quaternion_debug;
+		//  uint16_t extra;	   // 2
 	};	  // total: 24 bytes
 
 	struct opaque_meshlet_render_data

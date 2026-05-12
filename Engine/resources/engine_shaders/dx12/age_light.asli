@@ -18,6 +18,60 @@ get_random_color(uint32 index)
 	return raw_color * 0.8f + 0.2f;
 }
 
+float
+calc_screen_space_contact_shadow(texture_2d<float> depth_buffer, vertex_fat v, float3 world_pos, float3 world_to_light_dir /*normalized*/)
+{
+	static const uint32 num_steps		 = 32;
+	static const float	max_ray_distance = 1.f;
+	static const float	thickness		 = 0.5f;
+	static const float	step_size		 = max_ray_distance / float(num_steps);
+
+	const float2 pixel_xy = v.pos.xy;
+
+	float3 ray_pos	= world_pos + world_to_light_dir * step_size * interleaved_gradient_noise(pixel_xy);
+	float  occluded = 1.0f;
+
+	expand_all()
+
+	for (uint32 i = 0; i < num_steps; i++)
+	{
+		ray_pos += world_to_light_dir * step_size;
+
+		const float4 clip = mul(view_proj, float4(ray_pos, 1.0f));
+		if (clip.w <= 0.0f)
+		{
+			break;	  // behind camera
+		}
+
+		const float3 ndc = clip.xyz / clip.w;
+
+		if (any(abs(ndc.xy) > 1.0f))
+		{
+			break;
+		}
+
+		const float2 uv = ndc.xy * float2(0.5f, -0.5f) + 0.5f;
+
+		float screen_depth = sample_level(depth_buffer, get_point_clamp_sampler(), uv, 0);
+		float ray_depth	   = ndc.z;
+
+		float depth_diff = screen_depth - ray_depth;
+
+		if (depth_diff > 0.0f)
+		{
+			float linear_diff = calc_linear_depth(screen_depth, cam_near_z) - calc_linear_depth(ray_depth, cam_near_z);
+
+			if (linear_diff < thickness)
+			{
+				occluded = 0.0f;
+				break;
+			}
+		}
+	}
+
+	return occluded;
+}
+
 float3
 calc_blinn_phong_directional_light_color(directional_light light, float3 surface_normal, float3 view_dir)
 {
@@ -83,9 +137,10 @@ calc_directional_light(directional_light light, float3 vertex_normal, float3 wor
 }
 
 float3
-calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 face_normal, float linear_depth)
+calc_directional_shadow_rt(directional_light light, vertex_fat v, float3 face_normal, float linear_depth)
 {
-	bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
+	const float3 world_pos	 = v.world_pos;
+	bool		 cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
 
 	float  opaque_shadow	  = 1.f;
 	float  contact			  = 1.f;
@@ -109,51 +164,57 @@ calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 fac
 		float	 self_threshold = 0.01 + 0.05 * slope;
 		desc.Origin				= world_pos;
 
-		// desc.Origin = world_pos + face_normal * 0.1f;
-		//  desc.Origin	   = world_pos + light.direction * 0.01f;
+		// desc.Origin = world_pos + face_normal * 0.1f - light.direction * 0.01f;
+		desc.Origin = world_pos + face_normal * 0.01f;
+		//    desc.Origin	   = world_pos + light.direction * 0.01f;
 		desc.Direction = -light.direction;
-		desc.TMin	   = 0.001;
+		desc.TMin	   = 0.f;
 		desc.TMax	   = 1e5f;
 
-		//{
-		//	ray_query</*RAY_FLAG_CULL_BACK_FACING_TRIANGLES |*/ RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-
-		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
-		//	rt_proceed(query);
-
-		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
-		//	{
-		//		opaque_shadow = 0.f;
-		//	}
-		//}
-
-
-		expand(2)
-
-		for (uint32 i = 0; i < 2; ++i)
 		{
 			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
+
 			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
 			rt_proceed(query);
 
 			if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
 			{
-				float t = rt_committed_ray_t(query);
-
-				if (t > self_threshold)
-				{
-					opaque_shadow = 0.f;
-					break;
-				}
-
-				desc.TMin = t + 0.001f;
-			}
-			else
-			{
-				// miss = lit
-				break;
+				opaque_shadow = 0.f;
 			}
 		}
+
+		if (opaque_shadow > 0.f)
+		{
+			// opaque_shadow = min(opaque_shadow, calc_screen_space_contact_shadow(global_resource_buffer[depth_buffer_texture_id], v, desc.Origin, -light.direction));
+		}
+
+
+		// expand(2)
+
+		// for (uint32 i = 0; i < 2; ++i)
+		//{
+		//	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
+		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
+		//	rt_proceed(query);
+
+		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
+		//	{
+		//		float t = rt_committed_ray_t(query);
+
+		//		if (t > self_threshold)
+		//		{
+		//			opaque_shadow = 0.f;
+		//			break;
+		//		}
+
+		//		desc.TMin = t + 0.001f;
+		//	}
+		//	else
+		//	{
+		//		// miss = lit
+		//		break;
+		//	}
+		//}
 
 		// opaque_shadow = min(opaque_shadow, smoothstep(0.0, 0.05, n_dot_l));
 
@@ -208,9 +269,10 @@ calc_unified_light(unified_light light, float3 world_pos, float3 vertex_normal, 
 }
 
 float3
-calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal)
+calc_unified_shadow_rt(unified_light light, vertex_fat v, float3 face_normal)
 {
-	bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
+	const float3 world_pos	 = v.world_pos;
+	bool		 cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
 
 	float opaque_shadow = 1.f;
 	float contact		= 1.f;
@@ -226,9 +288,12 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
 		ray_desc desc;
-		desc.Origin	   = world_pos;
+		desc.Origin = world_pos;
+		//  desc.Origin	   = world_pos - (face_normal + world_to_light_dir) * 0.5f;
+		desc.Origin = world_pos + face_normal * 0.01;
+		// desc.Origin	   = world_pos + face_normal * 0.01f - world_to_light_dir * 0.001f;
 		desc.Direction = world_to_light_dir;
-		desc.TMin	   = 0.001;
+		desc.TMin	   = epsilon_1e6;
 		desc.TMax	   = world_to_light_len;
 
 		{
@@ -241,6 +306,11 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 			{
 				opaque_shadow = 0.f;
 			}
+		}
+
+		if (opaque_shadow > 0.f)
+		{
+			// opaque_shadow = min(opaque_shadow, calc_screen_space_contact_shadow(global_resource_buffer[depth_buffer_texture_id], v, desc.Origin, world_to_light_dir));
 		}
 
 

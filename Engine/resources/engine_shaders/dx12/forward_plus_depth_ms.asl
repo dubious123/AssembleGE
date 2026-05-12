@@ -39,6 +39,10 @@ main_ms(in payload opaque_as_to_ms ms_in,
 
 		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
 
+		// v.pos.xyz = rotate(v.pos.xyz * scale, float4(0, 0, 0, 1)) + pos;
+		// v.pos.xyz = rotate(v.pos.xyz * scale, obj_data.quaternion_debug) + pos;
+		// v.pos.xyz = rotate(v.pos.xyz * scale, quaternion_decode(quaternion_encode(float4(0, 0, 0, 1))));
+
 		ms_out_vertex_arr[nth_vertex].pos = mul(view_proj, v.pos);
 	}
 

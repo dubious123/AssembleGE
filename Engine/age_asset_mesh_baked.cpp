@@ -282,10 +282,25 @@ namespace age::asset::mesh_baked::detail
 
 				buf.move_write_pos(idx_buffer_offset + sizeof(uint32) * meshlet_local_index_buffer.size());
 
-				for (c_auto& v : vertex_buffer)
+				for (auto&& [i, v_ref] : vertex_buffer | std::views::enumerate)
 				{
-					buf.write(v.pos);
+					e::visit(e_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto* ptr, auto i, const vertex_fat& v_ref, const float3& aabb_min, const float3& aabb_size), {
+								 using t_vertex = t_vertex_kind<e_kind>;
+								 auto v			= t_vertex{};
+								 std::memcpy(&v, buf.data() + sizeof(asset_header) + sizeof(mesh_header) + sizeof(t_vertex) * i, sizeof(t_vertex));
+
+								 c_auto v_fat = cvt_vertex_to<vertex_fat>(v, aabb_min, aabb_size);
+
+								 std::println("diff v_ref - v_meshlet : {}", v_ref.pos - v_fat.pos);
+								 return buf.write(v_fat.pos);
+							 }),
+							 buf, buf.data() + base, i, v_ref, aabb_min, aabb_size);
 				}
+
+				// for (c_auto& v : vertex_buffer)
+				//{
+				//	buf.write(v.pos);
+				// }
 			}
 		}
 

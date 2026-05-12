@@ -34,7 +34,14 @@ main_ms(
 	{
 		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
 
+		ms_out_vertex_arr[nth_vertex].debug_y = v.pos.y;
+
+
 		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
+
+		//  v.pos.xyz = rotate(v.pos.xyz * scale, float4(0, 0, 0, 1)) + pos;
+		// v.pos.xyz = rotate(v.pos.xyz * scale, obj_data.quaternion_debug) + pos;
+		// v.pos.xyz = rotate(v.pos.xyz * scale, quaternion_decode(quaternion_encode(float4(0, 0, 0, 1))));
 
 		v.world_pos = v.pos.xyz;
 

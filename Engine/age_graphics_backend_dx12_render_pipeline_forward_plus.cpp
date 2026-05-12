@@ -473,14 +473,21 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		stage_depth.execute(opaque_meshlet_render_data_count);
 
-		command::apply_barriers(barrier::dsv_write_to_dsv_read(h_depth_buffer->p_resource));
+		command::apply_barriers(barrier::dsv_write_to_generic_read(h_depth_buffer->p_resource,
+																   D3D12_BARRIER_SYNC_DEPTH_STENCIL | D3D12_BARRIER_SYNC_PIXEL_SHADING,
+																   D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE));
 
 		stage_skybox.execute(env_light_gpu_data_vec.size<uint32>());
 
 		stage_opaque.execute(opaque_meshlet_render_data_count);
 
-		command::apply_barriers(
-			barrier::dsv_read_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::dsv_generic_read_to_srv(h_depth_buffer->p_resource,
+																 D3D12_BARRIER_SYNC_DEPTH_STENCIL | D3D12_BARRIER_SYNC_PIXEL_SHADING,
+																 D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
+																 D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+		// command::apply_barriers(
+		//	barrier::dsv_read_to_srv(h_depth_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::apply_barriers(barrier::tex_srv_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -982,13 +989,18 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::update_object(t_object_id id, const float3 pos, const float4 quat, const float3 scale) noexcept
 	{
+		c_auto quat_encode	= math::quaternion_encode(quat);
+		c_auto scale_encode = age::cvt_to<half3>(scale);
 		object_data_vec[id] = shared_type::object_data{
 			.pos		= pos,
-			.quaternion = math::quaternion_encode(quat),
-			.scale		= age::cvt_to<half3>(scale)
+			.quaternion = quat_encode,
+			.scale		= scale_encode,
+			//			 .scale = scale,
+			// .quaternion_debug = quat,
 		};
 
-		object_transform_data_vec[id] = simd::transformation(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos))
+		// mimic encode/decode error
+		object_transform_data_vec[id] = simd::transformation(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos))
 									  | simd::mat_transpose()
 									  | simd::to<float3x4>();
 	}
