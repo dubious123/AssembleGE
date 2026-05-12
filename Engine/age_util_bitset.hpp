@@ -9,61 +9,123 @@ namespace age::util
 		static constexpr uint32 n_words = n_bits / 32;
 		uint32					words[n_words];
 
+		struct range
+		{
+			uint32 min = get_invalid_idx<uint32>();
+			uint32 max;
+
+			FORCE_INLINE constexpr explicit
+			operator bool() const
+			{
+				return AGE_IS_INVALID_IDX(min) is_false;
+			}
+		};
+
 		FORCE_INLINE bool
 		test(uint32 idx) const noexcept
 		{
 			return (words[idx / 32] >> (idx % 32)) & 1;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
 		set(uint32 idx) noexcept
 		{
 			words[idx / 32] |= (1u << (idx % 32));
-			return *this;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
 		reset(uint32 idx) noexcept
 		{
 			words[idx / 32] &= ~(1u << (idx % 32));
-			return *this;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
 		flip(uint32 idx) noexcept
 		{
 			words[idx / 32] ^= (1u << (idx % 32));
-			return *this;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
 		set() noexcept
 		{
 			for (auto& w : words)
 			{
 				w = ~0u;
 			}
-			return *this;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
+		set_range(int32 min, int32 max) noexcept
+		{
+			AGE_ASSERT(min <= max);
+			AGE_ASSERT(min >= 0 and max >= 0);
+			AGE_ASSERT(max < n_bits);
+
+			if (min / 32 == max / 32)
+			{
+				words[min / 32] |= (0xffff'ffff << (min % 32)) & ((1u << (max % 32 + 1)) - 1);
+				return;
+			}
+
+			words[min / 32] |= (0xffff'ffff << (min % 32));
+
+			for (auto i = min / 32 + 1; i < max / 32; ++i)
+			{
+				words[i] = ~0u;
+			}
+
+			words[max / 32] |= ((1u << (max % 32)) - 1);
+		}
+
+		FORCE_INLINE range
+		calc_set_range() const noexcept
+		{
+			auto res = range{};
+
+			for (auto&& [i, w] : words | std::views::enumerate)
+			{
+				if (w)
+				{
+					res.min = static_cast<uint32>(i) * 32 + std::countr_zero(w);
+					break;
+				}
+			}
+
+			for (auto&& [i, w] : words | std::views::enumerate | std::views::reverse)
+			{
+				if (w)
+				{
+					res.max = static_cast<uint32>(i) * 32 + std::bit_width(w) - 1;
+					break;
+				}
+			}
+
+			return res;
+		}
+
+		FORCE_INLINE void
+		set_range(auto min, auto max) noexcept
+			requires(std::is_same_v<BARE_OF(min), int32> or std::is_same_v<BARE_OF(max), int32>)
+		{
+			return set_range(static_cast<int32>(min), static_cast<int32>(max));
+		}
+
+		FORCE_INLINE void
 		reset() noexcept
 		{
 			for (auto& w : words)
 			{
 				w = 0u;
 			}
-			return *this;
 		}
 
-		FORCE_INLINE bitset&
+		FORCE_INLINE void
 		flip() noexcept
 		{
 			for (auto& w : words)
 			{
 				w = ~w;
 			}
-			return *this;
 		}
 
 		FORCE_INLINE bool

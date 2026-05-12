@@ -75,6 +75,120 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+namespace age::editor
+{
+	namespace detail
+	{
+		inline uint32
+		find_arch_idx(storage_editor_data& editor_storage, uint64 archetype) noexcept
+		{
+			for (auto&& [arch_idx, arch_data] : editor_storage.archetype_data_vec | std::views::enumerate)
+			{
+				if (arch_data.archetype == archetype)
+				{
+					return static_cast<uint32>(arch_idx);
+				}
+			}
+
+			return get_invalid_idx<uint32>();
+		}
+	}	 // namespace detail
+
+	void
+	add_components(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id, auto archetype) noexcept
+	{
+		using t_storage			 = BARE_OF(storage);
+		using t_ent_id			 = typename t_storage::t_ent_id;
+		using t_archetype		 = typename t_storage::t_archetype;
+		using t_archetype_traits = typename t_storage::t_archetype_traits;
+
+		static_assert(std::is_same_v<t_ent_id, BARE_OF(ent_id)>);
+		static_assert(std::is_same_v<t_archetype, BARE_OF(archetype)>);
+
+
+		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
+		{
+			t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ent_id, auto& renderer), { entities.add_component<t_cmp>(ent_id, get_ecs_context(renderer)); }), storage, ent_id, renderer);
+		}
+
+		c_auto new_archetype = storage.get_archetype(ent_id);
+
+		detail::re_register_entity(editor_storage, ent_id, new_archetype);
+	}
+
+	void
+	new_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, uint32 arch_editor_idx, auto archetype) noexcept
+	{
+		using t_storage	  = BARE_OF(storage);
+		using t_archetype = typename t_storage::t_archetype;
+
+		auto new_ent_id = storage.new_entity(static_cast<t_archetype>(archetype), get_ecs_context(renderer));
+
+		auto& arch_data = editor_storage.archetype_data_vec[arch_editor_idx];
+
+		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
+
+		arch_data.entity_data_vec.emplace_back(entity_editor_data{
+			.id	  = new_ent_id,
+			.name = util::to_fixed_str<config::max_entity_name_len>(std::format("new_entity_{}", editor_storage.entity_count++)) });
+	}
+
+	void
+	new_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto archetype) noexcept
+	{
+		if (auto arch_idx = detail::find_arch_idx(editor_storage, archetype);
+			arch_idx != get_invalid_idx<uint32>())
+		{
+			return new_entity(storage, renderer, editor_storage, arch_idx, archetype);
+		}
+
+		auto& arch_data		= editor_storage.archetype_data_vec.emplace_back();
+		arch_data.archetype = archetype;
+		util::integral_to_str<16>(arch_data.name, archetype);
+
+		new_entity(storage, renderer, editor_storage, editor_storage.archetype_data_vec.size<uint32>() - 1, archetype);
+	}
+
+	void
+	copy_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id, uint32 arch_editor_idx) noexcept
+	{
+		using t_storage	  = BARE_OF(storage);
+		using t_archetype = typename t_storage::t_archetype;
+
+		auto new_ent_id = storage.copy_entity(ecs_ent_id, get_ecs_context(renderer));
+
+		auto& arch_data = editor_storage.archetype_data_vec[arch_editor_idx];
+
+		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
+
+
+		arch_data.entity_data_vec.emplace_back(entity_editor_data{
+			.id	  = new_ent_id,
+			.name = util::to_fixed_str<config::max_entity_name_len>(
+				std::format("{}_clone", arch_data.entity_data_vec[editor_storage.id_to_editor_location_map[ecs_ent_id].second].name.data())) });
+
+		// return new_ent_id;
+	}
+
+	void
+	copy_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
+	{
+		using t_storage			 = BARE_OF(storage);
+		using t_ent_id			 = typename t_storage::t_ent_id;
+		using t_archetype		 = typename t_storage::t_archetype;
+		using t_archetype_traits = typename t_storage::t_archetype_traits;
+
+		auto archetype = storage.get_archetype(static_cast<t_ent_id>(ecs_ent_id));
+		if (auto arch_idx = detail::find_arch_idx(editor_storage, archetype);
+			arch_idx != get_invalid_idx<uint32>())
+		{
+			return copy_entity(storage, renderer, editor_storage, static_cast<t_ent_id>(ecs_ent_id), arch_idx);
+		}
+
+		AGE_UNREACHABLE();
+	}
+}	 // namespace age::editor
+
 namespace age::editor::detail
 {
 	void
@@ -154,9 +268,23 @@ namespace age::editor
 	void
 	update_game(auto& ecs_game, auto& renderer) noexcept
 	{
-		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
-
 		using enum age::asset::e::kind;
+		using enum age::input::e::key_kind;
+
+		auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+		if (ui::g::p_input_ctx->is_ctrl_down() and ui::g::p_input_ctx->is_pressed(key_d))
+		{
+			for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
+			{
+				for (auto id : vec)
+				{
+					ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(copy_entity), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), id);
+				}
+				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
+			}
+		}
+
 		{
 			auto& pool = asset::pool_of<mesh_baked>();
 			for (auto it = pool.begin(); it != pool.end(); ++it)

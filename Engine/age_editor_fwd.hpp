@@ -84,6 +84,14 @@ namespace age::editor
 		std::filesystem::path dir_path;
 
 		camera_data cam;
+
+		decltype(auto)
+		find_storage_data(this auto& self, uint32 storage_code_idx) noexcept
+		{
+			auto it = std::ranges::find(self.storage_data_vec, storage_code_idx, &storage_editor_data::code_idx);
+			AGE_ASSERT(it != self.storage_data_vec.end());
+			return *it;
+		}
 	};
 
 	struct game_editor_data

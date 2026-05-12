@@ -2,68 +2,8 @@
 
 namespace age::editor
 {
-	void
-	add_components(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id, auto archetype) noexcept
-	{
-		using t_storage			 = BARE_OF(storage);
-		using t_ent_id			 = typename t_storage::t_ent_id;
-		using t_archetype		 = typename t_storage::t_archetype;
-		using t_archetype_traits = typename t_storage::t_archetype_traits;
-
-		static_assert(std::is_same_v<t_ent_id, BARE_OF(ent_id)>);
-		static_assert(std::is_same_v<t_archetype, BARE_OF(archetype)>);
-
-
-		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
-		{
-			t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ent_id, auto& renderer), { entities.add_component<t_cmp>(ent_id, get_ecs_context(renderer)); }), storage, ent_id, renderer);
-		}
-
-		c_auto new_archetype = storage.get_archetype(ent_id);
-
-		detail::re_register_entity(editor_storage, ent_id, new_archetype);
-	}
-
-	void
-	new_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, uint32 arch_editor_idx, auto archetype) noexcept
-	{
-		using t_storage	  = BARE_OF(storage);
-		using t_archetype = typename t_storage::t_archetype;
-
-		auto new_ent_id = storage.new_entity(static_cast<t_archetype>(archetype), get_ecs_context(renderer));
-
-		auto& arch_data = editor_storage.archetype_data_vec[arch_editor_idx];
-
-		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
-
-		arch_data.entity_data_vec.emplace_back(entity_editor_data{
-			.id	  = new_ent_id,
-			.name = util::to_fixed_str<config::max_entity_name_len>(std::format("new_entity_{}", editor_storage.entity_count++)) });
-	}
-
-	void
-	new_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto archetype) noexcept
-	{
-		for (auto&& [arch_idx, arch_data] : editor_storage.archetype_data_vec | std::views::enumerate)
-		{
-			if (arch_data.archetype == archetype)
-			{
-				return new_entity(storage, renderer, editor_storage, static_cast<uint32>(arch_idx), archetype);
-			}
-		}
-
-		auto& arch_data		= editor_storage.archetype_data_vec.emplace_back();
-		arch_data.archetype = archetype;
-		util::integral_to_str<16>(arch_data.name, archetype);
-
-		new_entity(storage, renderer, editor_storage, editor_storage.archetype_data_vec.size<uint32>() - 1, archetype);
-	}
-}	 // namespace age::editor
-
-namespace age::editor
-{
 	ui::widget_ctx
-	ui_entity_tree_node(storage_editor_data&, uint64 ent_id, uint64 archetype, bool selected) noexcept;
+	ui_entity_tree_node(storage_editor_data&, uint64 ecs_ent_id, uint64 archetype, bool selected) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor
@@ -285,16 +225,35 @@ namespace age::editor
 								style_state = ui::e::style_state::hover;
 							}
 
-							if (ui::g::p_input_ctx->is_shift_down())
+							if (interact.clicked())
 							{
-								if (interact.clicked())
+								if (ui::g::p_input_ctx->is_ctrl_down())
 								{
 									drop_down_selected.flip(storage_cmp_idx);
 								}
-							}
-							else
-							{
-								if (interact.clicked())
+								else if (ui::g::p_input_ctx->is_shift_down())
+								{
+									if (c_auto bit_range = drop_down_selected.calc_set_range())
+									{
+										if (storage_cmp_idx < bit_range.min)
+										{
+											drop_down_selected.set_range(storage_cmp_idx, bit_range.min);
+										}
+										else if (storage_cmp_idx < bit_range.max)
+										{
+											drop_down_selected.set_range(bit_range.min, storage_cmp_idx);
+										}
+										else
+										{
+											drop_down_selected.set_range(bit_range.max, storage_cmp_idx);
+										}
+									}
+									else
+									{
+										drop_down_selected.set(storage_cmp_idx);
+									}
+								}
+								else
 								{
 									drop_down_selected.reset();
 									drop_down_selected.set(storage_cmp_idx);
@@ -399,16 +358,12 @@ namespace age::editor
 
 					if (header.contains_mouse())
 					{
-						if (auto _ = widget::horizontal_inv())
+						auto _			 = widget::horizontal_inv();
+						auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center());
+						widget::text_button("+");
+						if (new_ent_btn.clicked())
 						{
-							if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
-							{
-								widget::text_button("+");
-								if (new_ent_btn.clicked())
-								{
-									new_entity(entities, renderer, editor_storage, 0);
-								}
-							}
+							new_entity(entities, renderer, editor_storage, 0);
 						}
 					}
 				}
@@ -440,13 +395,11 @@ namespace age::editor
 
 						if (auto _ = widget::horizontal_inv())
 						{
-							if (auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center()))
+							auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center());
+							widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
+							if (new_ent_btn.clicked())
 							{
-								widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
-								if (new_ent_btn.clicked())
-								{
-									new_entity(entities, renderer, editor_storage, static_cast<uint32>(arch_idx), arch.archetype);
-								}
+								new_entity(entities, renderer, editor_storage, static_cast<uint32>(arch_idx), arch.archetype);
 							}
 						}
 					}

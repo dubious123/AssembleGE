@@ -333,6 +333,27 @@ namespace age::ecs::entity_storage
 			return entity_id;
 		}
 
+		t_ent_id
+		copy_entity(t_ent_id id, auto&& ctx) noexcept
+		{
+			auto& ent_info = entity_info_vec[id];
+
+			c_auto archetype = ent_info.archetype;
+
+			auto& ent_block_collection = entity_blocks_map[archetype];
+			auto& entity_block		   = ent_block_collection.free_block(archetype);
+			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
+
+			entity_info_vec[entity_id].local_idx = entity_block.copy_entity(*ent_info.p_block, ent_info.local_idx, entity_id, archetype, FWD(ctx));
+
+			if (entity_block.is_full())
+			{
+				ent_block_collection.update_full(entity_block.entity_block_idx());
+			}
+
+			return entity_id;
+		}
+
 		void
 		remove_entity(const t_ent_id id, auto&& ctx) noexcept
 		{

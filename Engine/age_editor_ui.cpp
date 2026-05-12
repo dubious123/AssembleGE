@@ -4,7 +4,7 @@
 namespace age::editor
 {
 	ui::widget_ctx
-	ui_entity_tree_node(storage_editor_data& editor_storage, uint64 ent_id, uint64 archetype, bool selected) noexcept
+	ui_entity_tree_node(storage_editor_data& editor_storage, uint64 ecs_ent_id, uint64 archetype, bool selected) noexcept
 	{
 		using namespace age::ui;
 		using enum input::e::key_kind;
@@ -12,6 +12,7 @@ namespace age::editor
 		c_auto child_padidng_left = theme::thickness_thick() + theme::item_child_gap() + theme::thickness_thick() + theme::item_child_gap();
 		auto   is_opened		  = false;
 
+		auto&& [arch_idx, ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
 
 		if (auto interact = widget::begin(style::vertical() | set_interact(true) | set_save_state(true)))
 		{
@@ -25,32 +26,47 @@ namespace age::editor
 				style_state = ui::e::style_state::hover;
 			}
 
-			if (ui::g::p_input_ctx->is_shift_down())
+			if (interact.clicked())
 			{
-				if (interact.clicked())
+				if (ui::g::p_input_ctx->is_ctrl_down())
 				{
 					if (selected)
 					{
-						age::editor::remove_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
+						editor::remove_select(e::select_kind::entity, editor_storage.code_idx, ecs_ent_id);
 					}
 					else
 					{
-						age::editor::add_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
+						editor::add_select(e::select_kind::entity, editor_storage.code_idx, ecs_ent_id);
 					}
 				}
-			}
-			else
-			{
-				if (interact.clicked())
+				else if (ui::g::p_input_ctx->is_shift_down())
 				{
-					age::editor::clear_select();
-
-					if (selected is_false)
+					if (c_auto p_ecs_ent_id_last = editor::last_selected(e::select_kind::entity, editor_storage.code_idx))
 					{
-						age::editor::add_select(e::select_kind::entity, editor_storage.code_idx, ent_id);
+						auto&& [last_arch_idx, last_ent_idx] = editor_storage.id_to_editor_location_map[*p_ecs_ent_id_last];
+						c_auto& arch_data					 = editor_storage.archetype_data_vec[last_arch_idx];
+
+						if (archetype == arch_data.archetype)
+						{
+							for (auto i = std::min(ent_idx, last_ent_idx); i <= std::max(ent_idx, last_ent_idx); ++i)
+							{
+								editor::add_select(e::select_kind::entity, editor_storage.code_idx, i);
+							}
+						}
+					}
+					else
+					{
+						editor::add_select(e::select_kind::entity, editor_storage.code_idx, ecs_ent_id);
 					}
 				}
+				else
+				{
+					editor::clear_select();
+
+					editor::add_select(e::select_kind::entity, editor_storage.code_idx, ecs_ent_id);
+				}
 			}
+
 
 			if (auto _ = widget::begin(style::item(selected, style_state) | set_border_thickness(0) | set_padding_left(0)))
 			{
@@ -71,7 +87,6 @@ namespace age::editor
 					widget::disclosure_indicator(btn_state.toggled, disclosure_indicator_size);
 				}
 
-				auto&& [arch_idx, ent_idx] = editor_storage.id_to_editor_location_map[ent_id];
 
 				widget::text_input(editor_storage.archetype_data_vec[arch_idx].entity_data_vec[ent_idx].name.data(), config::max_entity_name_len);
 
@@ -86,7 +101,7 @@ namespace age::editor
 					widget::separator_h(set_width_fixed(theme::thickness_thick()), set_body_brush_data(theme::color_gray_light()));
 
 					char id_buf[24];
-					util::to_str(id_buf, ent_id, "#");
+					util::to_str(id_buf, ecs_ent_id, "#");
 					widget::text_hint(id_buf);
 				}
 			}

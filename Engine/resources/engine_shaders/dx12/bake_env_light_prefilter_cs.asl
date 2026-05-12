@@ -7,6 +7,18 @@ ggx_d(float n_dot_h, float alpha)
 	return alpha * alpha / (pi * d * d);
 };
 
+float
+calc_ggx_pdf(float n_dot_h, float v_dot_h, float alpha)
+{
+	return ggx_d(n_dot_h, alpha) * n_dot_h / (4.0 * v_dot_h + epsilon_1e6);
+};
+
+float
+calc_eis_pdf(float2 eq_uv, float pdf_uv)
+{
+	return pdf_uv * float(env_light_input_texture_width * env_light_input_texture_height) / (2.0 * pi * pi * sin(pi * eq_uv.y) + epsilon_1e6);
+};
+
 [numthreads(8, 8, 1)] void
 main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
@@ -53,7 +65,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 		if (n_dot_l <= 0.f) { continue; }
 
-		const float pdf_ggx = ggx_d(n_dot_h, alpha) * n_dot_h / (4.0 * v_dot_h + epsilon_1e6);
+		const float pdf_ggx = calc_ggx_pdf(n_dot_h, v_dot_h, alpha);
 
 		const float2 eq_uv = world_dir_to_equirect_uv(l);
 
@@ -61,18 +73,16 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		const uint32 y		= min(uint32(eq_uv.y * float(env_light_input_texture_height)), env_light_input_texture_height - 1u);
 		const float	 pdf_uv = load_conditional_pdf(y, x) * load_marginal_pdf(y);	// p(x|y) * p(y)
 
-		const float pdf_eis = pdf_uv * float(env_light_input_texture_width * env_light_input_texture_height) / (2.0 * pi * pi * sin(pi * eq_uv.y) + epsilon_1e6);
-
+		const float pdf_eis = calc_eis_pdf(eq_uv, pdf_uv);
 
 		const float w_mis = pdf_ggx / (pdf_ggx + pdf_eis + epsilon_1e6);
-
 
 		const float omega_s = 1.f / (float(ENV_LIGHT_GGX_SAMPLE_COUNT) * pdf_ggx);
 		const float omega_p = 4.f * pi / (6.f * env_light_radiance_size * env_light_radiance_size);
 		const float mip_lod = max(0.5 * log2(omega_s / omega_p), 0);
 
 
-		const float weight = w_mis * n_dot_l;
+		const float weight = w_mis * n_dot_l * 4;	 // w_mis * ggx_d * n_dot_l / (ggx_d * n_dot_h / (4 * v_dot_h)) , n_dot_h == v_dot_h,
 
 		res			 += sample_level(radiance, get_linear_clamp_sampler(), l, mip_lod).rgb * weight;
 		total_weight += weight;
@@ -91,7 +101,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 		const float pdf_uv = load_conditional_pdf(y, x) * load_marginal_pdf(y);	   // p(x|y) * p(y)
 
-		const float pdf_eis = pdf_uv * float(env_light_input_texture_width * env_light_input_texture_height) / (2.0 * pi * pi * sin(pi * eq_uv.y) + epsilon_1e6);
+		const float pdf_eis = calc_eis_pdf(eq_uv, pdf_uv);
 
 		const float3 h		 = normalize(v + l);
 		const float	 n_dot_h = max(dot(normal, h), 0);
@@ -101,45 +111,11 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 		const float w_mis = pdf_eis / (pdf_ggx + pdf_eis + epsilon_1e6);
 
-		const float weight = w_mis * d * n_dot_l / (4.0 * pdf_eis + epsilon_1e6);
+		const float weight = w_mis * d * n_dot_l / (pdf_eis + epsilon_1e6);
 
 		res			 += sample_level(radiance, get_linear_clamp_sampler(), l, 0).rgb * weight;
 		total_weight += weight;
 	}
-
-	// prefilter[thread_id] = float4(normal, 1);
-	// return;
-
-	if (any(isinf(res)))
-	{
-		prefilter[thread_id] = float4(1, 0, 1, 1);	  // 자홍: Inf
-		return;
-	}
-	if (any(isnan(res)))
-	{
-		prefilter[thread_id] = float4(0, 1, 1, 1);	  // 청록: NaN
-		return;
-	}
-	if (length(res / total_weight) < 0.01)
-	{
-		prefilter[thread_id] = float4(1, 0, 0, 1);	  // 빨강
-		return;
-	}
-
-	// if (total_weight < 0.001)
-	//{
-	//	prefilter[thread_id] = float4(1, 0, 0, 1);	  // 빨강
-	// }
-	// else if (length(res) < 0.01)
-	//{												  // ← 더 높게
-	//	prefilter[thread_id] = float4(0, 1, 0, 1);
-	// }
-	// else
-	//{
-	//	prefilter[thread_id] = float4(res / total_weight, 1.0);
-	// }
-
-	// return;
 
 	prefilter[thread_id] = float4(res / max(total_weight, epsilon_1e6), 1.0);
 }

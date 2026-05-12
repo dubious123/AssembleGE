@@ -137,6 +137,27 @@ namespace age::editor
 		return false;
 	}
 
+	bool
+	has_selection(e::select_kind kind, uint32 group_idx) noexcept
+	{
+		if (g::current_select_kind != kind) { return false; }
+
+		return g::select_vec[group_idx].is_empty() is_false;
+	}
+
+	std::optional<uint64>
+	last_selected(e::select_kind kind, uint32 group_idx) noexcept
+	{
+		if (has_selection(kind, group_idx))
+		{
+			return { g::select_vec[group_idx].back() };
+		}
+		else
+		{
+			return {};
+		}
+	}
+
 	void
 	clear_select() noexcept
 	{
