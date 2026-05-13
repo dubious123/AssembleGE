@@ -5,6 +5,9 @@ namespace age::asset::mesh_baked::detail
 {
 	void
 	build_mesh_baked(const std::array<char, config::max_asset_path_len>& path, const primitive_desc&, e::vertex_kind) noexcept;
+
+	bool
+	cpu_load_helper(entry<e::kind::mesh_baked>& entry) noexcept;
 }	 // namespace age::asset::mesh_baked::detail
 
 namespace age::asset::mesh_baked
@@ -80,10 +83,8 @@ namespace age::asset::mesh_baked
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (detail::cpu_load_helper(entry))
 		{
-			entry.p_blob	= buf.release();
 			entry.render_id = renderer.upload_mesh(h_mesh);
 			cpu_unload(h_mesh);
 			return;
@@ -91,10 +92,8 @@ namespace age::asset::mesh_baked
 
 		detail::build_mesh_baked(entry.get_path(), desc, v_kind);
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (detail::cpu_load_helper(entry))
 		{
-			entry.p_blob	= buf.release();
 			entry.render_id = renderer.upload_mesh(h_mesh);
 			cpu_unload(h_mesh);
 			return;
@@ -128,13 +127,13 @@ namespace age::asset::mesh_baked
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (detail::cpu_load_helper(entry))
 		{
-			entry.p_blob	= buf.release();
 			entry.render_id = renderer.upload_mesh(h_mesh);
 			return;
 		}
+
+		AGE_ASSERT(false);
 	}
 
 	handle

@@ -12,6 +12,7 @@ namespace age::editor
 		g::current_game = game_editor_data{};
 
 		g::show_modal = false;
+		g::set_focus  = false;
 	}
 
 	void

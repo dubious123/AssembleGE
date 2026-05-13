@@ -441,11 +441,25 @@ namespace age::ecs::entity_storage
 		// }
 
 		template <typename... t>
+		consteval bool
+		has_component() const noexcept
+		{
+			return (t_archetype_traits::template contains_cmp<t>() and ...);
+		}
+
+		template <typename... t>
 		FORCE_INLINE bool
 		has_component(const t_ent_id id) const noexcept
 		{
-			constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
-			return (entity_info_vec[id].archetype & archetype) == archetype;
+			if constexpr (has_component<t...>())
+			{
+				constexpr auto archetype = t_archetype_traits::template calc_archetype<t...>();
+				return (entity_info_vec[id].archetype & archetype) == archetype;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		void

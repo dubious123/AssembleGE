@@ -12,6 +12,36 @@ namespace age::editor::e
 
 namespace age::editor
 {
+	struct camera_data_old
+	{
+		float move_speed	 = 2.f;
+		float sprint_mult	 = 4.f;
+		float sensitivity	 = 0.17f;
+		float zoom_speed	 = 2.f;
+		float zoom_distance	 = 4.f;
+		float pan_speed		 = 0.6f;
+		float move_smoothing = 15.f / 2.f;
+		float look_smoothing = 25.f / 2.f;
+		float zoom_smoothing = 12.f / 2.f;
+
+		float2 move;
+		float2 look;
+		float  zoom;
+		bool   sprint;
+
+		float euler_x = 0.f;
+		float euler_y = 0.f;
+
+		float2 smoothed_move = float2::zero();
+		float2 smoothed_look = float2::zero();
+		float  smoothed_zoom = 0.f;
+		float2 smoothed_pan	 = float2::zero();
+
+		float3 pos			= float3::zero();
+		float3 euler_deg	= float3::zero();
+		float  aspect_ratio = 16.f / 9.f;
+	};
+
 	struct camera_data
 	{
 		float move_speed	 = 2.f;
@@ -40,6 +70,7 @@ namespace age::editor
 		float3 pos			= float3::zero();
 		float3 euler_deg	= float3::zero();
 		float  aspect_ratio = 16.f / 9.f;
+		float  fov_y		= age::cvt_to_radian(75.f);
 	};
 
 	struct entity_editor_data
@@ -150,4 +181,5 @@ namespace age::editor::g
 
 	inline auto modal_kind = e::modal_kind::new_asset;
 	inline auto show_modal = false;
+	inline auto set_focus  = false;
 }	 // namespace age::editor::g

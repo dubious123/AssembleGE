@@ -26,6 +26,11 @@ namespace age::editor
 				style_state = ui::e::style_state::hover;
 			}
 
+			if (interact.double_clicked())
+			{
+				g::set_focus = true;
+			}
+
 			if (interact.clicked())
 			{
 				if (ui::g::p_input_ctx->is_ctrl_down())

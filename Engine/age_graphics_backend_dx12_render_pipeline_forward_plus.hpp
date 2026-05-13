@@ -381,6 +381,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_object(t_object_id id, const float3 pos, const float4 quat, const float3 scale) noexcept;
 
+		float4x4
+		get_object_transform_matrix(t_object_id id) const noexcept;
+
 		void
 		remove_object(t_object_id& id) noexcept;
 

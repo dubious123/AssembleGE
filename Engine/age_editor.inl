@@ -4,14 +4,14 @@
 namespace age::editor
 {
 	void
-	update_camera(auto& renderer, bool focused, platform::window_handle h_window) noexcept
+	update_camera(auto& renderer, bool update, platform::window_handle h_window) noexcept
 	{
 		auto& current_scene = g::current_game.get_current_scene();
 		auto& cam			= current_scene.cam;
 		cam.aspect_ratio	= age::platform::get_client_width(h_window)
 							/ static_cast<float>(age::platform::get_client_height(h_window));
 
-		if (focused is_false)
+		if (update is_false)
 		{
 			auto cam_desc					  = renderer.get_camera_desc(0);
 			cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
@@ -70,8 +70,46 @@ namespace age::editor
 		cam_desc.pos					  = cam.pos;
 		cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
 		cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
+		cam_desc.perspective.fov_y		  = cam.fov_y;
 		renderer.update_camera(0, cam_desc);
 		renderer.set_main_camera(0);
+	}
+
+	void
+	focus_camera(auto& renderer, const float3& aabb_min, const float3& aabb_max) noexcept
+	{
+		if (aabb_min > aabb_max) { return; }
+
+		c_auto origin = (aabb_min + aabb_max) * 0.5f;
+
+		c_auto radius = (aabb_max - origin) | simd::load() | simd::length_3() | simd::to<float>();
+
+		auto& cam = g::current_game.get_current_scene().cam;
+
+		c_auto xm_look_quat = cam.euler_deg * age::g::degree_to_radian
+							| simd::load()
+							| simd::euler_to_quat();
+
+		c_auto forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
+
+		auto distance = float{};
+
+		if (radius < age::g::epsilon_1e6)
+		{
+			distance = 1.f / std::sin(cam.fov_y * 0.5f);
+		}
+		else
+		{
+			c_auto fov_x_half = std::atan(1.f * std::tan(cam.fov_y * 0.5f) * cam.aspect_ratio);
+
+			distance = radius / std::sin(std::min(cam.fov_y * 0.5f, fov_x_half)) * 1.15f;
+		}
+
+		cam.pos = origin - forward * distance;
+
+		auto cam_desc = renderer.get_camera_desc(0);
+		cam_desc.pos  = cam.pos;
+		renderer.update_camera(0, cam_desc);
 	}
 }	 // namespace age::editor
 
@@ -150,42 +188,65 @@ namespace age::editor
 	}
 
 	void
-	copy_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id, uint32 arch_editor_idx) noexcept
+	copy_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
 	{
-		using t_storage	  = BARE_OF(storage);
-		using t_archetype = typename t_storage::t_archetype;
+		using t_storage = BARE_OF(storage);
+		using t_ent_id	= typename t_storage::t_ent_id;
 
-		auto new_ent_id = storage.copy_entity(ecs_ent_id, get_ecs_context(renderer));
+		auto&& [src_arch_idx, src_ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
 
-		auto& arch_data = editor_storage.archetype_data_vec[arch_editor_idx];
+		auto new_ent_id = storage.copy_entity(static_cast<t_ent_id>(ecs_ent_id), get_ecs_context(renderer));
 
-		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
+		auto& arch_data = editor_storage.archetype_data_vec[src_arch_idx];
 
+		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ src_arch_idx, arch_data.entity_data_vec.size() };
 
 		arch_data.entity_data_vec.emplace_back(entity_editor_data{
 			.id	  = new_ent_id,
 			.name = util::to_fixed_str<config::max_entity_name_len>(
-				std::format("{}_clone", arch_data.entity_data_vec[editor_storage.id_to_editor_location_map[ecs_ent_id].second].name.data())) });
+				std::format("{}_clone", arch_data.entity_data_vec[src_ent_idx].name.data())) });
 
 		// return new_ent_id;
 	}
 
-	void
-	copy_entity(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
+	// return pair { aabb_min, aabb_max }
+	decltype(auto)
+	handle_entity_focus(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
 	{
-		using t_storage			 = BARE_OF(storage);
-		using t_ent_id			 = typename t_storage::t_ent_id;
-		using t_archetype		 = typename t_storage::t_archetype;
-		using t_archetype_traits = typename t_storage::t_archetype_traits;
+		using t_storage = BARE_OF(storage);
+		using t_ent_id	= typename t_storage::t_ent_id;
 
-		auto archetype = storage.get_archetype(static_cast<t_ent_id>(ecs_ent_id));
-		if (auto arch_idx = detail::find_arch_idx(editor_storage, archetype);
-			arch_idx != get_invalid_idx<uint32>())
+		auto&& [src_arch_idx, src_ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
+
+		auto& arch_data = editor_storage.archetype_data_vec[src_arch_idx];
+
+		if (storage.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
 		{
-			return copy_entity(storage, renderer, editor_storage, static_cast<t_ent_id>(ecs_ent_id), arch_idx);
+			auto&& [obj, mesh] = storage.get_component<const ecs::render_object, const ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id));
+
+			if (runtime::is_handle_invalid(mesh.h_mesh) is_false)
+			{
+				c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
+
+				auto&& [xm_aabb_min, xm_aabb_max, xm_trans] = simd::load(entry.aabb_min, entry.aabb_max, renderer.get_object_transform_matrix(obj.render_id));
+				return std::pair{ simd::transform3(xm_trans, xm_aabb_min) | simd::to<float3>(),
+								  simd::transform3(xm_trans, xm_aabb_max) | simd::to<float3>() };
+			}
+			else
+			{
+				c_auto pos = simd::transform3(simd::load(renderer.get_object_transform_matrix(obj.render_id)), simd::load(float3::zero()))
+						   | simd::to<float3>();
+				return std::pair{ pos, pos };
+			}
 		}
 
-		AGE_UNREACHABLE();
+		if (storage.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
+		{
+			auto&& [pos] = storage.get_component<const ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
+			return std::pair{ static_cast<float3>(pos), static_cast<float3>(pos) };
+		}
+
+		return std::pair{ float3{ std::numeric_limits<float>::max() }, float3{ std::numeric_limits<float>::lowest() } };
 	}
 }	 // namespace age::editor
 
@@ -273,17 +334,37 @@ namespace age::editor
 
 		auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-		if (ui::g::p_input_ctx->is_ctrl_down() and ui::g::p_input_ctx->is_pressed(key_d))
+		c_auto need_copy = ui::g::p_input_ctx->is_ctrl_down() and ui::g::p_input_ctx->is_pressed(key_d);
+		if (g::current_select_kind == e::select_kind::entity)
 		{
+			auto   aabb_min	  = float3::max();
+			auto   aabb_max	  = float3::lowest();
+			c_auto need_focus = g::set_focus or ui::g::p_input_ctx->is_pressed(key_f);
 			for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
 			{
-				for (auto id : vec)
+				for (auto ecs_ent_id : vec)
 				{
-					ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(copy_entity), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), id);
+					if (need_copy)
+					{
+						ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(copy_entity), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+					}
+
+					if (need_focus)
+					{
+						auto&& [min, max] = ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(handle_entity_focus), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+
+						aabb_min = float3::min(aabb_min, min);
+						aabb_max = float3::max(aabb_max, max);
+					}
 				}
 				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
 			}
+
+			focus_camera(renderer, aabb_min, aabb_max);
 		}
+
+		g::set_focus = false;
+
 
 		{
 			auto& pool = asset::pool_of<mesh_baked>();

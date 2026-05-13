@@ -289,6 +289,30 @@ struct vec2
 	{
 		return t_this{ 0, 1 };
 	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::max() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	lowest() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::lowest() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	min(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y) };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y) };
+	}
 };
 
 template <typename t>
@@ -532,6 +556,30 @@ struct vec3
 	unit_z() noexcept
 	{
 		return t_this{ 0, 0, 1 };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::max() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	lowest() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::lowest() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	min(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z) };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) };
 	}
 };
 
@@ -791,6 +839,30 @@ struct vec4
 	unit_w() noexcept
 	{
 		return t_this{ 0, 0, 0, 1 };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::max() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	lowest() noexcept
+	{
+		return t_this{ std::numeric_limits<t>::lowest() };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	min(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z), std::min(lhs.w, rhs.w) };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	max(auto&& lhs, auto&& rhs) noexcept
+	{
+		return t_this{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z), std::max(lhs.w, rhs.w) };
 	}
 };
 
@@ -1057,6 +1129,108 @@ struct mat33
 
 template <typename t>
 requires(std::is_arithmetic_v<t>)
+struct mat44;
+
+template <typename t>
+requires(std::is_arithmetic_v<t>)
+struct mat34
+{
+	using t_value = t;
+	using t_this  = mat34<t>;
+	using t_row	  = vec4<t>;
+
+	t_row r0{ t{ 1 }, t{ 0 }, t{ 0 }, t{ 0 } };
+	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 }, t{ 0 } };
+	t_row r2{ t{ 0 }, t{ 0 }, t{ 1 }, t{ 0 } };
+
+	FORCE_INLINE constexpr mat34() noexcept = default;
+
+	FORCE_INLINE constexpr mat34(auto&& other) noexcept
+		requires(std::convertible_to<decltype(other), t_row>)
+		: r0{ FWD(other) }, r1{ FWD(other) }, r2{ FWD(other) }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(auto&& other) noexcept
+		requires(not std::convertible_to<decltype(other), t_row>
+				 and requires { other.r0; other.r1; other.r2; }
+				 and std::convertible_to<decltype(other.r0), t_row>
+				 and std::convertible_to<decltype(other.r1), t_row>
+				 and std::convertible_to<decltype(other.r2), t_row>)
+		: r0{ FWD(other).r0 }, r1{ FWD(other).r1 }, r2{ FWD(other).r2 }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(auto&& other1, auto&& other2, auto&& other3) noexcept
+		requires(std::convertible_to<decltype(other1), t_row>
+				 and std::convertible_to<decltype(other2), t_row>
+				 and std::convertible_to<decltype(other3), t_row>)
+		: r0{ FWD(other1) }, r1{ FWD(other2) }, r2{ FWD(other3) }
+	{
+	}
+
+	FORCE_INLINE constexpr mat34(const mat44<t>& other) noexcept
+		: r0{ other.r0 }, r1{ other.r1 }, r2{ other.r2 }
+	{
+	}
+
+	FORCE_INLINE constexpr t*
+	data() noexcept
+	{
+		return &r0[0];
+	}
+
+	FORCE_INLINE constexpr const t*
+	data() const noexcept
+	{
+		return &r0[0];
+	}
+
+	FORCE_INLINE constexpr t_row&
+	operator[](std::size_t r) noexcept
+	{
+		return (&r0)[r];
+	}
+
+	FORCE_INLINE constexpr const t_row&
+	operator[](std::size_t r) const noexcept
+	{
+		return (&r0)[r];
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	col(std::size_t c) const noexcept
+	{
+		return vec3<t>{ r0[c], r1[c], r2[c] };
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	identity() noexcept
+	{
+		return t_this{};
+	}
+
+	FORCE_INLINE static constexpr decltype(auto)
+	zero() noexcept
+	{
+		return t_this{ t{ 0 } };
+	}
+
+	FORCE_INLINE static consteval std::size_t
+	rows() noexcept
+	{
+		return 3;
+	}
+
+	FORCE_INLINE static consteval std::size_t
+	cols() noexcept
+	{
+		return 4;
+	}
+};
+
+template <typename t>
+requires(std::is_arithmetic_v<t>)
 struct mat44
 {
 	using t_value = t;
@@ -1093,6 +1267,16 @@ struct mat44
 				 and std::convertible_to<decltype(other3), t_row>
 				 and std::convertible_to<decltype(other4), t_row>)
 		: r0{ FWD(other1) }, r1{ FWD(other2) }, r2{ FWD(other3) }, r3{ FWD(other4) }
+	{
+	}
+
+	FORCE_INLINE constexpr mat44(auto&& other_mat3x4, auto&& other_vec4) noexcept
+		requires(std::is_same_v<BARE_OF(other_mat3x4), mat34<t>>
+				 and std::convertible_to<decltype(other_mat3x4.r0), t_row>
+				 and std::convertible_to<decltype(other_mat3x4.r1), t_row>
+				 and std::convertible_to<decltype(other_mat3x4.r2), t_row>
+				 and std::convertible_to<decltype(other_vec4), t_row>)
+		: r0{ FWD(other_mat3x4).r0 }, r1{ FWD(other_mat3x4).r1 }, r2{ FWD(other_mat3x4).r2 }, r3{ FWD(other_vec4) }
 	{
 	}
 
@@ -1194,104 +1378,6 @@ struct mat44
 	cols() noexcept
 	{
 		return dim();
-	}
-};
-
-template <typename t>
-requires(std::is_arithmetic_v<t>)
-struct mat34
-{
-	using t_value = t;
-	using t_this  = mat34<t>;
-	using t_row	  = vec4<t>;
-
-	t_row r0{ t{ 1 }, t{ 0 }, t{ 0 }, t{ 0 } };
-	t_row r1{ t{ 0 }, t{ 1 }, t{ 0 }, t{ 0 } };
-	t_row r2{ t{ 0 }, t{ 0 }, t{ 1 }, t{ 0 } };
-
-	FORCE_INLINE constexpr mat34() noexcept = default;
-
-	FORCE_INLINE constexpr mat34(auto&& other) noexcept
-		requires(std::convertible_to<decltype(other), t_row>)
-		: r0{ FWD(other) }, r1{ FWD(other) }, r2{ FWD(other) }
-	{
-	}
-
-	FORCE_INLINE constexpr mat34(auto&& other) noexcept
-		requires(not std::convertible_to<decltype(other), t_row>
-				 and requires { other.r0; other.r1; other.r2; }
-				 and std::convertible_to<decltype(other.r0), t_row>
-				 and std::convertible_to<decltype(other.r1), t_row>
-				 and std::convertible_to<decltype(other.r2), t_row>)
-		: r0{ FWD(other).r0 }, r1{ FWD(other).r1 }, r2{ FWD(other).r2 }
-	{
-	}
-
-	FORCE_INLINE constexpr mat34(auto&& other1, auto&& other2, auto&& other3) noexcept
-		requires(std::convertible_to<decltype(other1), t_row>
-				 and std::convertible_to<decltype(other2), t_row>
-				 and std::convertible_to<decltype(other3), t_row>)
-		: r0{ FWD(other1) }, r1{ FWD(other2) }, r2{ FWD(other3) }
-	{
-	}
-
-	FORCE_INLINE constexpr mat34(const mat44<t>& other) noexcept
-		: r0{ other.r0 }, r1{ other.r1 }, r2{ other.r2 }
-	{
-	}
-
-	FORCE_INLINE constexpr t*
-	data() noexcept
-	{
-		return &r0[0];
-	}
-
-	FORCE_INLINE constexpr const t*
-	data() const noexcept
-	{
-		return &r0[0];
-	}
-
-	FORCE_INLINE constexpr t_row&
-	operator[](std::size_t r) noexcept
-	{
-		return (&r0)[r];
-	}
-
-	FORCE_INLINE constexpr const t_row&
-	operator[](std::size_t r) const noexcept
-	{
-		return (&r0)[r];
-	}
-
-	FORCE_INLINE constexpr decltype(auto)
-	col(std::size_t c) const noexcept
-	{
-		return vec3<t>{ r0[c], r1[c], r2[c] };
-	}
-
-	FORCE_INLINE static constexpr decltype(auto)
-	identity() noexcept
-	{
-		return t_this{};
-	}
-
-	FORCE_INLINE static constexpr decltype(auto)
-	zero() noexcept
-	{
-		return t_this{ t{ 0 } };
-	}
-
-	FORCE_INLINE static consteval std::size_t
-	rows() noexcept
-	{
-		return 3;
-	}
-
-	FORCE_INLINE static consteval std::size_t
-	cols() noexcept
-	{
-		return 4;
 	}
 };
 

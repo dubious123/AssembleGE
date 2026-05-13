@@ -346,6 +346,8 @@ namespace age::asset
 
 		std::byte* p_blob = nullptr;
 
+		float3 aabb_min;
+		float3 aabb_max;
 		uint32 ref_counter = 0u;
 		uint32 _;
 

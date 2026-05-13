@@ -33,7 +33,36 @@ namespace age::editor::detail
 			auto& scene = res.scene_data_vec.emplace_back();
 
 			// todo, handle game_proj_migrate
-			if (game_proj_version >= 2)
+			if (game_proj_version == 2)
+			{
+				buf.read(
+					scene.cam.move_speed,
+					scene.cam.sprint_mult,
+					scene.cam.sensitivity,
+					scene.cam.zoom_speed,
+					scene.cam.zoom_distance,
+					scene.cam.pan_speed,
+					scene.cam.move_smoothing,
+					scene.cam.look_smoothing,
+					scene.cam.zoom_smoothing,
+					scene.cam.move,
+					scene.cam.look,
+					scene.cam.zoom);
+
+				scene.cam.sprint = buf.read<uint32>() > 0;
+
+				buf.read(
+					scene.cam.euler_x,
+					scene.cam.euler_y,
+					scene.cam.smoothed_move,
+					scene.cam.smoothed_look,
+					scene.cam.smoothed_zoom,
+					scene.cam.smoothed_pan,
+					scene.cam.pos,
+					scene.cam.euler_deg,
+					scene.cam.aspect_ratio);
+			}
+			else if (game_proj_version > 2)
 			{
 				scene.cam = buf.read<camera_data>();
 			}

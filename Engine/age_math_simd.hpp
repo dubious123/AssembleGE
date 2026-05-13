@@ -87,6 +87,12 @@ namespace age::math::simd
 	}
 
 	FORCE_INLINE void AGE_SIMD_CALL
+	store(float& out, fxm_vec v) noexcept
+	{
+		DirectX::XMStoreFloat(& out, v);
+	}
+
+	FORCE_INLINE void AGE_SIMD_CALL
 	store(float2& out, fxm_vec v) noexcept
 	{
 		DirectX::XMStoreFloat2(reinterpret_cast<DirectX::XMFLOAT2*>(& out), v);
@@ -559,6 +565,12 @@ namespace age::math::simd
 
 	AGE_SIMD_VEC_BINARY_OP(transform_coord3, XMVector3TransformCoord, fxm_mat);
 
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
+	mul(fxm_mat lhs, fxm_vec rhs) noexcept
+	{
+		return DirectX::XMVector4Transform(rhs, DirectX::XMMatrixTranspose(lhs));
+	};
+
 	template <typename t>
 	struct __store_to__
 	{
@@ -808,6 +820,12 @@ namespace age::math::simd
 	transformation(fxm_vec scaling, fxm_vec rotation_origin, fxm_vec quat, gxm_vec translation) noexcept
 	{
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixAffineTransformation(scaling, rotation_origin, quat, translation));
+	}
+
+	FORCE_INLINE float3x4 AGE_SIMD_CALL
+	transformation_mat3x4(fxm_vec scaling, fxm_vec rotation_origin, fxm_vec quat, gxm_vec translation) noexcept
+	{
+		return DirectX::XMMatrixAffineTransformation(scaling, rotation_origin, quat, translation) | to<float3x4>();
 	}
 
 	struct __select__

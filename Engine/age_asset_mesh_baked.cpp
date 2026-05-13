@@ -86,6 +86,25 @@ namespace age::asset
 
 namespace age::asset::mesh_baked
 {
+	namespace detail
+	{
+		bool
+		cpu_load_helper(entry<e::kind::mesh_baked>& entry) noexcept
+		{
+			if (auto buf = asset::read_asset_file(entry.get_path());
+				buf.empty() is_false)
+			{
+				entry.p_blob		= buf.release();
+				c_auto& mesh_header = entry.get_mesh_header();
+				entry.aabb_min		= mesh_header.aabb_min;
+				entry.aabb_max		= mesh_header.aabb_min + mesh_header.aabb_size;
+				return true;
+			}
+
+			return false;
+		}
+	}	 // namespace detail
+
 	void
 	cpu_unload(handle h_mesh) noexcept
 	{
@@ -110,10 +129,8 @@ namespace age::asset::mesh_baked
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (detail::cpu_load_helper(entry))
 		{
-			entry.p_blob = buf.release();
 			return;
 		}
 
@@ -151,10 +168,8 @@ namespace age::asset::mesh_baked
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (detail::cpu_load_helper(entry))
 		{
-			entry.p_blob = buf.release();
 			return;
 		}
 	}

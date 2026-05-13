@@ -1000,9 +1000,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		};
 
 		// mimic encode/decode error
-		object_transform_data_vec[id] = simd::transformation(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos))
-									  | simd::mat_transpose()
-									  | simd::to<float3x4>();
+		// object_transform_data_vec[id] = simd::transformation(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos))
+		//							  | simd::mat_transpose()
+		//							  | simd::to<float3x4>();
+
+		object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
+	}
+
+	float4x4
+	pipeline::get_object_transform_matrix(t_object_id id) const noexcept
+	{
+		return float4x4{ object_transform_data_vec[id], float4{ 0, 0, 0, 1 } };
 	}
 
 	void
