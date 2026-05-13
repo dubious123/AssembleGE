@@ -68,6 +68,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_rt_instance_buffer_arr			 = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 			h_mapping_rt_instance_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::rt_instance_render_data));
+
+			h_mapping_rt_raycast_request_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::raycast_request));
+			h_rt_raycast_result_buffer				= resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::raycast_result)),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+			h_readback_rt_raycast_result_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::raycast_request), nullptr, e::memory_kind::gpu_to_cpu);
 		}
 
 		{
@@ -83,8 +91,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			light_cull_stage_sorted_light_buffer_uav.bind(h_light_cull_stage_sorted_light_buffer);
 
 			rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
-
 			rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
+			rt_raycast_request_buffer_srv.bind_array(h_mapping_rt_raycast_request_buffer_arr);
+			rt_raycast_result_buffer_uav.bind(h_rt_raycast_result_buffer);
 
 			ui_data_buffer.bind_array(h_mapping_ui_data_buffer_arr);
 
@@ -111,6 +120,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			stage_transparent.init(h_root_sig);
 			stage_transparent.bind_rtv(h_main_buffer);
+
+			stage_raycast.init(h_root_sig);
 
 			stage_post_process.init(h_root_sig);
 			stage_post_process.bind_rtv(h_post_buffer);
@@ -141,8 +152,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_mapping_material_buffer->h_resource->set_name(L"mapping_material_buffer");
 
 		resource::set_name(h_mapping_env_light_buffer_arr, L"mapping_env_light_buffer[{}]");
+
 		resource::set_name(h_mapping_rt_instance_buffer_arr, L"mapping_rt_instance_buffer_arr[{}]");
 		resource::set_name(h_mapping_rt_instance_render_data_buffer_arr, L"mapping_rt_instance_render_data_buffer_arr[{}]");
+		resource::set_name(h_mapping_rt_raycast_request_buffer_arr, L"mapping_rt_raycast_request_buffer_arr[{}]");
+		h_rt_raycast_result_buffer->set_name(L"rt_raycast_result_buffer_uav");
+		resource::set_name(h_readback_rt_raycast_result_buffer_arr, L"readback_rt_raycast_result_buffer_arr[{}]");
+
 		resource::set_name(h_mapping_ui_data_buffer_arr, L"mapping_ui_data_buffer_arr[{}]");
 
 		// default camera
@@ -183,8 +199,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		stage_presentation.deinit();
 		stage_ui.deinit();
-		stage_transparent.deinit();
 		stage_post_process.deinit();
+		stage_raycast.deinit();
+		stage_transparent.deinit();
 		stage_opaque.deinit();
 		stage_light_culling.deinit();
 		stage_skybox.deinit();
@@ -224,6 +241,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_rt_transparent_texture_buffer);
 		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
 		resource::unmap_and_release(h_mapping_rt_instance_render_data_buffer_arr);
+		resource::unmap_and_release(h_mapping_rt_raycast_request_buffer_arr);
+		resource::release(h_rt_raycast_result_buffer);
+		resource::unmap_and_release(h_readback_rt_raycast_result_buffer_arr);
 
 		AGE_ASSERT(camera_data_vec.size() == 1);
 		AGE_ASSERT(camera_desc_vec.size() == 1);
@@ -246,6 +266,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		object_transform_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
+	}
+
+	void
+	pipeline::begin_frame() noexcept
+	{
+		command::wait_current_frame(e::queue_kind::direct);
+
+		raycast_request_vec[graphics::g::frame_buffer_idx].clear();
+
+		h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx]->readback(raycast_result_vec[graphics::g::frame_buffer_idx].data(), raycast_result_vec[graphics::g::frame_buffer_idx].byte_size());
 	}
 
 	bool
@@ -307,6 +337,7 @@ namespace age::graphics::render_pipeline::forward_plus
 								barrier::undefined_to_rtv(h_post_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_depth_buffer->p_resource, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
+
 		return true;
 	}
 
@@ -369,7 +400,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = to_idx(e::rt_mask::opaque),
+			.InstanceMask						 = to_idx(e::rt_mask_kind::opaque),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -409,7 +440,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = to_idx(e::rt_mask::transparent),
+			.InstanceMask						 = to_idx(e::rt_mask_kind::transparent),
 			.InstanceContributionToHitGroupIndex = 0,
 			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
@@ -444,6 +475,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			rt_instance_render_data_buffer_srv.apply_compute();
 			rt_instance_render_data_buffer_srv.apply();
 			rt_index_buffer_srv.apply_compute();
+
+			rt_raycast_request_buffer_srv.apply_compute();
+			rt_raycast_result_buffer_uav.apply_compute();
 
 			ui_data_buffer.apply();
 
@@ -496,6 +530,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_transparent.execute(h_rt_transparent_texture_buffer, extent);
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
+		if (raycast_request_vec[graphics::g::frame_buffer_idx].is_empty() is_false)
+		{
+			stage_raycast.execute(raycast_request_vec[graphics::g::frame_buffer_idx].size<uint32>());
+
+			command::apply_barriers(barrier::buf_uav_to_copy_src(h_rt_raycast_result_buffer->p_resource));
+
+			command::copy_buffer(h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx]->h_resource->p_resource, 0,
+								 h_rt_raycast_result_buffer->p_resource, 0,
+								 raycast_result_vec[graphics::g::frame_buffer_idx].byte_size());
+		}
 
 		stage_post_process.execute();
 
@@ -1107,6 +1152,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		return camera_desc_vec[id];
 	}
 
+	camera_data
+	pipeline::get_camera_data(t_camera_id id) noexcept
+	{
+		return camera_data_vec[id];
+	}
+
 	void
 	pipeline::update_camera(t_camera_id id, const camera_desc& desc) noexcept
 	{
@@ -1370,6 +1421,46 @@ namespace age::graphics::render_pipeline::forward_plus
 
 namespace age::graphics::render_pipeline::forward_plus
 {
+	t_raycast_id
+	pipeline::request_raycast(const float3& origin, const float3& dir, float t_max, e::rt_mask_kind mask) noexcept
+	{
+		auto& req_vec = raycast_request_vec[graphics::g::frame_buffer_idx];
+		AGE_ASSERT(req_vec.size() < 0x00ff'ffff);
+		static_assert(graphics::g::frame_buffer_count < 0xff);
+
+		auto id = t_raycast_id{ (graphics::g::frame_buffer_idx & 0xff << 24) | (req_vec.size<uint32>() & 0x00ff'ffff) };
+
+		req_vec.emplace_back(shared_type::raycast_request{
+			.origin			= origin,
+			.dir			= dir,
+			.t_max			= t_max,
+			.mask_and_extra = to_idx(mask) });
+
+		return id;
+	}
+
+	shared_type::raycast_result
+	pipeline::get_raycast_result(t_raycast_id id) noexcept
+	{
+		// AGE_ASSERT((id >> 24) % graphics::g::frame_buffer_count == graphics::g::frame_buffer_idx);
+
+		auto idx = id & 0x00ff'ffff;
+
+		if (idx < raycast_result_vec[graphics::g::frame_buffer_idx].size<uint32>())
+		{
+			return raycast_result_vec[graphics::g::frame_buffer_idx][idx];
+		}
+		else
+		{
+			return shared_type::raycast_result{
+				.object_id = get_invalid_idx<uint32>()
+			};
+		}
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus
+{
 	uint32
 	pipeline::upload_data() noexcept
 	{
@@ -1455,6 +1546,32 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_env_light_buffer->upload(env_light_gpu_data_vec.data(), env_light_gpu_data_vec.byte_size());
 		}
 
+		// raycast
+		{
+			auto& h_mapping_rt_raycast_request_buffer = h_mapping_rt_raycast_request_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_readback_rt_raycast_result_buffer = h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx];
+
+			auto& raycast_req_vec = raycast_request_vec[graphics::g::frame_buffer_idx];
+			auto& raycast_res_vec = raycast_result_vec[graphics::g::frame_buffer_idx];
+			if (resource::resize_buffer(h_mapping_rt_raycast_request_buffer, raycast_req_vec.byte_size())) [[unlikely]]
+			{
+				rt_raycast_request_buffer_srv.bind(h_mapping_rt_raycast_request_buffer, graphics::g::frame_buffer_idx);
+			}
+			resource::resize_buffer(h_readback_rt_raycast_result_buffer, raycast_res_vec.byte_size());
+
+			if (resource::resize_buffer(h_rt_raycast_result_buffer, raycast_res_vec.byte_size())) [[unlikely]]
+			{
+				rt_raycast_result_buffer_uav.bind(h_rt_raycast_result_buffer);
+			}
+
+			h_mapping_rt_raycast_request_buffer->upload(raycast_req_vec.data(), raycast_req_vec.byte_size());
+
+			if (raycast_req_vec.size() > raycast_res_vec.size())
+			{
+				raycast_res_vec = age::dynamic_array<shared_type::raycast_result>::gen_sized_default(raycast_req_vec.capacity());
+			}
+		}
+
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
@@ -1510,6 +1627,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.rt_tlas_buffer_id					  = graphics::calc_desc_idx(h_rt_tlas_buffer_srv_desc),
 			.rt_transparent_buffer_srv_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_srv_desc),
 			.rt_transparent_buffer_uav_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
+			.rt_raycast_request_count			  = raycast_request_vec[graphics::g::frame_buffer_idx].size<uint32>(),
 		};
 
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

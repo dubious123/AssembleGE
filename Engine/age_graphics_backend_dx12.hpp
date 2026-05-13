@@ -65,6 +65,9 @@ namespace age::graphics::command
 	execute_and_resume(e::queue_kind _ = e::queue_kind::direct /*thread_idx = 0*/) noexcept;
 
 	FORCE_INLINE void
+	wait_current_frame(e::queue_kind kind) noexcept;
+
+	FORCE_INLINE void
 	begin_frame(e::queue_kind, auto... thread_idx /*[0, thread_count)*/) noexcept;
 
 	FORCE_INLINE void

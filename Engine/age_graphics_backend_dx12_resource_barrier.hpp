@@ -433,6 +433,21 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
+	buf_uav_to_copy_src(ID3D12Resource*	   p_resource,
+						D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
+	{
+		return D3D12_BUFFER_BARRIER{
+			.SyncBefore	  = sync_before,
+			.SyncAfter	  = D3D12_BARRIER_SYNC_COPY,
+			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
+			.pResource	  = p_resource,
+			.Offset		  = 0,
+			.Size		  = UINT64_MAX,
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
 	buf_srv_to_uav(ID3D12Resource*	  p_resource,
 				   D3D12_BARRIER_SYNC sync_before,
 				   D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept

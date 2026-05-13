@@ -78,8 +78,6 @@ namespace age::editor
 	void
 	focus_camera(auto& renderer, const float3& aabb_min, const float3& aabb_max) noexcept
 	{
-		if (aabb_min > aabb_max) { return; }
-
 		c_auto origin = (aabb_min + aabb_max) * 0.5f;
 
 		c_auto radius = (aabb_max - origin) | simd::load() | simd::length_3() | simd::to<float>();
@@ -334,33 +332,95 @@ namespace age::editor
 
 		auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
+		static auto raycast_req_vec = std::array<uint32, graphics::g::frame_buffer_count>{};
+
+
+		c_auto raycast_res		 = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
+		auto   need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left);
+
+		{
+			c_auto uv = ui::g::p_input_ctx->mouse_pos / float2{ ui::g::window_width, ui::g::window_height };
+
+			c_auto ndc = float2{ uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f };
+
+			c_auto& data = renderer.get_camera_data(0);
+
+			auto world_pos	= simd::transform4(data.view_proj_inv | simd::load(), float4(ndc.x, ndc.y, 0.f, 1.f) | simd::load()) | simd::to<float4>();
+			world_pos.xyz  /= world_pos.w;
+
+			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(world_pos.xyz - active_scene.cam.pos), std::numeric_limits<float>::max());
+
+			ecs_game.visit_scene_at(
+				active_scene.code_idx,
+				[&](auto& scene) {
+					for (auto i = 0u; i < scene.storage_count(); ++i)
+					{
+						scene.visit_storage_at(i, [&](auto& entities) {
+							if (need_object_click is_false) { return; }
+
+							if constexpr (entities.has_component<ecs::render_object>())
+							{
+								for (auto&& [obj, ent_id] : entities | ecs::each_entity<ecs::render_object, ecs::sv_entity_id>())
+								{
+									if (obj.render_id != raycast_res.object_id) { continue; }
+
+									if (ui::g::p_input_ctx->is_shift_down())
+									{
+										add_select(e::select_kind::entity, i, ent_id);
+									}
+									else
+									{
+										clear_select();
+										add_select(e::select_kind::entity, i, ent_id);
+									}
+
+									need_object_click = false;
+									return;
+								}
+							}
+						});
+					}
+				});
+		}
+
+
 		c_auto need_copy = ui::g::p_input_ctx->is_ctrl_down() and ui::g::p_input_ctx->is_pressed(key_d);
+
 		if (g::current_select_kind == e::select_kind::entity)
 		{
 			auto   aabb_min	  = float3::max();
 			auto   aabb_max	  = float3::lowest();
 			c_auto need_focus = g::set_focus or ui::g::p_input_ctx->is_pressed(key_f);
+
 			for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
 			{
-				for (auto ecs_ent_id : vec)
-				{
-					if (need_copy)
-					{
-						ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(copy_entity), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
-					}
+				if (storage_code_idx >= ecs_game.scene_count()) { continue; }
 
-					if (need_focus)
-					{
-						auto&& [min, max] = ecs_game.visit_storage_at(active_scene.code_idx, static_cast<uint32>(storage_code_idx), AGE_FUNC(handle_entity_focus), renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+				ecs_game.visit_storage_at(
+					active_scene.code_idx, static_cast<uint32>(storage_code_idx),
+					[&](auto& entities) {
+						for (auto ecs_ent_id : vec)
+						{
+							if (need_copy)
+							{
+								copy_entity(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+							}
+							if (need_focus)
+							{
+								auto&& [min, max] = handle_entity_focus(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+								aabb_min		  = float3::min(aabb_min, min);
+								aabb_max		  = float3::max(aabb_max, max);
+							}
+						}
+					});
 
-						aabb_min = float3::min(aabb_min, min);
-						aabb_max = float3::max(aabb_max, max);
-					}
-				}
 				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
 			}
 
-			focus_camera(renderer, aabb_min, aabb_max);
+			if (aabb_min <= aabb_max)
+			{
+				focus_camera(renderer, aabb_min, aabb_max);
+			}
 		}
 
 		g::set_focus = false;

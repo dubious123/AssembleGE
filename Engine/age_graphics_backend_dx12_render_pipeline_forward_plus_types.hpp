@@ -142,6 +142,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1, 3>>,
 
 		binding_slot<
+			"rt_raycast_request_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::raycast_request>,
+			how::root_descriptor,
+			where::t<2, 3>>,
+
+		binding_slot<
+			"rt_raycast_result_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_structured_buffer<shared_type::raycast_result>,
+			how::root_descriptor,
+			where::u<3, 3>>,
+
+		binding_slot<
 			"ui_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,

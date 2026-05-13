@@ -115,6 +115,12 @@ namespace age::graphics::e
 
 							   (bc7_unorm, 19),	   // 8 bpp, high quality LDR
 							   (bc7_unorm_srgb, 20));
+
+	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask_kind, uint8,
+							   (opaque, 0x01),
+							   (transparent, 0x02),
+							   (mask, 0x04),
+							   (all, 0xff));
 }	 // namespace age::graphics::e
 
 namespace age::graphics

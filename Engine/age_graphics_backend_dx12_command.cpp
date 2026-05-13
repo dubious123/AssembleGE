@@ -68,7 +68,7 @@ namespace age::graphics::command
 	}
 
 	FORCE_INLINE void
-	begin_frame(e::queue_kind kind, auto... thread_idx) noexcept
+	wait_current_frame(e::queue_kind kind) noexcept
 	{
 		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
 
@@ -79,7 +79,12 @@ namespace age::graphics::command
 
 			::WaitForSingleObject(ctx.h_fence_event, INFINITE);
 		}
+	}
 
+	FORCE_INLINE void
+	begin_frame(e::queue_kind kind, auto... thread_idx) noexcept
+	{
+		wait_current_frame(kind);
 
 		(detail::begin(kind, g::frame_buffer_idx, thread_idx), ...);
 	}

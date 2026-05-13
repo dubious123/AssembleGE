@@ -238,6 +238,8 @@ load_env_light(uint32 idx)
 // rt
 structured_buffer<rt_instance_render_data> rt_instance_render_data_buffer_srv reg(t0, space3);
 structured_buffer<uint32>				   rt_index_buffer_srv reg(t1, space3);
+structured_buffer<raycast_request>		   rt_raycast_request_buffer_srv reg(t2, space3);
+rw_structured_buffer<raycast_result>	   rt_raycast_result_buffer_uav reg(u3, space3);
 
 rt_instance_render_data
 load_rt_instance_render_data(uint32 instance_id)
@@ -252,6 +254,18 @@ load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
 		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 0],
 		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 1],
 		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 2]);
+}
+
+raycast_request
+load_rt_raycast_request(uint32 raycast_id)
+{
+	return rt_raycast_request_buffer_srv[raycast_id];
+}
+
+void
+store_rt_raycast_result(uint32 raycast_id, raycast_result res)
+{
+	rt_raycast_result_buffer_uav[raycast_id] = res;
 }
 
 // ui
@@ -305,6 +319,7 @@ uint32 depth_buffer_texture_id;
 uint32 rt_tlas_buffer_id;
 uint32 rt_transparent_buffer_srv_texture_id;
 uint32 rt_transparent_buffer_uav_texture_id;
+uint32 rt_raycast_request_count;
 
 
 // cbuffer root_constants reg(b1)

@@ -158,6 +158,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_texture_id			 = uint32;
 	using t_material_id			 = uint32;
 	using t_env_light_id		 = uint32;
+	using t_env_light_id		 = uint32;
+	using t_raycast_id			 = uint32;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -324,6 +326,22 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 emissive_texture_id;
 	};
 
+	//---[ raycast ]------------------------------------------------------------
+	struct raycast_request
+	{
+		float3 origin;
+		float3 dir;
+		float  t_max;
+		uint32 mask_and_extra;
+	};
+
+	struct raycast_result
+	{
+		uint32 object_id;	 // invalid_id == no hit
+		float  t_hit;
+		float3 world_pos;
+	};
+
 	cbuffer frame_data reg(b0)
 	{
 		row_major float4x4 view_proj;								// 64
@@ -342,7 +360,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   rt_tlas_buffer_id;						// 4
 		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
 		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
-		uint32			   _0;
+		uint32			   rt_raycast_request_count;				// 4
 		uint32			   _1;
 		uint32			   _2;
 
@@ -374,15 +392,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 #if !defined(AGE_SHADER)
 }	 // namespace age::graphics::render_pipeline::forward_plus::shared_type
-
-namespace age::graphics::e
-{
-	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask, uint32,
-							   (opaque, RT_MASK_OPAQUE),
-							   (transparent, RT_MASK_TRANSPARENT),
-							   (mask, RT_MASK_MASK),
-							   (all, RT_MASK_ALL));
-}
 
 namespace age::graphics::render_pipeline::forward_plus::g
 {
@@ -470,6 +479,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(MATERIAL_ALPHA_BLEND_MASK == to_idx(age::asset::e::alpha_mode_kind::mask));
 	static_assert(MATERIAL_ALPHA_BLEND_BLEND == to_idx(age::asset::e::alpha_mode_kind::blend));
 
+	static_assert(RT_MASK_OPAQUE == to_idx(age::graphics::e::rt_mask_kind::opaque));
+	static_assert(RT_MASK_TRANSPARENT == to_idx(age::graphics::e::rt_mask_kind::transparent));
+	static_assert(RT_MASK_MASK == to_idx(age::graphics::e::rt_mask_kind::mask));
+	static_assert(RT_MASK_ALL == to_idx(age::graphics::e::rt_mask_kind::all));
 
 	#undef reg
 	#undef cbuffer
@@ -566,6 +579,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	#undef RT_MASK_OPAQUE
 	#undef RT_MASK_TRANSPARENT
+	#undef RT_MASK_MASK
 	#undef RT_MASK_ALL
 
 	#undef UI_SHAPE_KIND_RECT

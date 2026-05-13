@@ -26,6 +26,7 @@ namespace age_demo::scene_3
 
 		using enum age::input::e::key_kind;
 
+		i_update.get_render_pipeline->begin_frame();
 		age::ui::begin_frame(i_update.get_h_window);
 
 		if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))

@@ -558,6 +558,13 @@
 	FORCE_INLINE decltype(auto) visit_storage_at(auto storage_idx, auto&& func, auto&&... arg) noexcept                                              \
 	{                                                                                                                                                \
 		return age::meta::visit_at(storages(), storage_idx, FWD(func), FWD(arg)...);                                                                 \
+	}                                                                                                                                                \
+	FORCE_INLINE decltype(auto) visit_all_storages(auto&& func, auto&&... arg) noexcept                                                              \
+	{                                                                                                                                                \
+		for (auto i = 0u; i < storage_count(); ++i)                                                                                                  \
+		{                                                                                                                                            \
+			age::meta::visit_at(storages(), i, func, arg...);                                                                                        \
+		}                                                                                                                                            \
 	}
 
 

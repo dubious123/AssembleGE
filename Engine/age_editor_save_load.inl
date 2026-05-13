@@ -570,6 +570,11 @@ namespace age::editor
 			renderer.update_camera(0, cam_desc);
 			renderer.set_main_camera(0);
 		}
+
+		for (c_auto& scene : g::current_game.scene_data_vec)
+		{
+			g::select_vec.resize(scene.storage_data_vec.size());
+		}
 		// std::filesystem::remove_all(root_dir);
 	}
 }	 // namespace age::editor

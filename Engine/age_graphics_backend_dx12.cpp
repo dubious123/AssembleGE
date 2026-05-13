@@ -27,7 +27,7 @@ namespace age::graphics
 				p_debug->EnableDebugLayer();
 				p_debug->SetEnableSynchronizedCommandQueueValidation(TRUE);
 
-				p_debug->SetEnableGPUBasedValidation(true);
+				// p_debug->SetEnableGPUBasedValidation(true);
 
 				p_debug->Release();
 			}

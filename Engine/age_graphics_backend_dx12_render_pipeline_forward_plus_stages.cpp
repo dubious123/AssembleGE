@@ -378,7 +378,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_draw = graphics::g::pso_ptr_vec[h_pso_draw];
-		h_pso_draw.set_name(L"pso_transparent_blen");
+		h_pso_draw.set_name(L"pso_transparent_blend");
 
 		h_main_buffer_rtv_desc = graphics::g::rtv_desc_pool.pop();
 	}
@@ -422,6 +422,35 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		pso::destroy(h_pso_rt);
 		pso::destroy(h_pso_draw);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
+	raycast_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::forward_plus_raycast_cs) }) });
+
+		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		h_pso.set_name(L"pso_raycast");
+	}
+
+	inline void
+	raycast_stage::execute(uint32 raycast_count) noexcept
+	{
+		command::set_pso(p_pso);
+		command::dispatch(util::ceil(raycast_count, 32), 1, 1);
+	}
+
+	void
+	raycast_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

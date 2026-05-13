@@ -126,6 +126,21 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct raycast_stage
+	{
+		graphics::pso::handle h_pso;
+		ID3D12PipelineState*  p_pso;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(uint32 raycast_count) noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct post_process_stage
 	{
 		pso::handle			 h_pso = {};
@@ -191,6 +206,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_culling_stage stage_light_culling;
 		opaque_stage		stage_opaque;
 		transparent_stage	stage_transparent;
+		raycast_stage		stage_raycast;
 		post_process_stage	stage_post_process;
 		ui_stage			stage_ui;
 		presentation_stage	stage_presentation;
@@ -224,6 +240,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_raycast_request_buffer_arr;
+		resource_handle												h_rt_raycast_result_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	// readback
 
 		resource_handle h_rt_tlas_buffer;
 		resource_handle h_rt_tlas_scratch_buffer;
@@ -259,6 +278,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		// rt
 		binding_config_t::reg_t<0, 3> rt_instance_render_data_buffer_srv;
 		binding_config_t::reg_t<1, 3> rt_index_buffer_srv;
+		binding_config_t::reg_t<2, 3> rt_raycast_request_buffer_srv;
+		binding_config_t::reg_u<3, 3> rt_raycast_result_buffer_uav;
 
 
 		// bindless texture
@@ -315,12 +336,19 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::stable_dense_vector<shared_type::env_light> env_light_gpu_data_vec;
 		age::sparse_vector<env_light_data>				 env_light_cpu_data_vec;
 
+		// raycast
+		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[graphics::g::frame_buffer_count];
+		age::vector<shared_type::raycast_request>		raycast_request_vec[graphics::g::frame_buffer_count];
+
 		// main
 		void
 		init() noexcept;
 
 		void
 		deinit() noexcept;
+
+		void
+		begin_frame() noexcept;	   // optional
 
 		bool
 		begin_render(render_surface_handle h_rs) noexcept;
@@ -396,6 +424,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		camera_desc
 		get_camera_desc(t_camera_id id) noexcept;
+
+		camera_data
+		get_camera_data(t_camera_id id) noexcept;
+
 		void
 		update_camera(t_camera_id id, const camera_desc& desc) noexcept;
 
@@ -446,6 +478,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::vector<util::range>&
 		get_ui_render_data_z_range_vec() noexcept;
+
+		// raycast
+		t_raycast_id
+		request_raycast(const float3& origin, const float3& dir, float max_t, e::rt_mask_kind mask = e::rt_mask_kind::all) noexcept;
+
+		shared_type::raycast_result
+		get_raycast_result(t_raycast_id _) noexcept;
 
 	  private:
 		void

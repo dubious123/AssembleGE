@@ -443,8 +443,6 @@ namespace age::editor
 		using namespace age::ui;
 		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-		g::select_vec.resize(current_scene.storage_data_vec.size());
-
 		if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
 		{
 			if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
