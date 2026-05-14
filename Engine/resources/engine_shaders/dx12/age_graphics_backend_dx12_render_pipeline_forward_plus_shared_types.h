@@ -9,6 +9,8 @@
 
 #define MAX_ENV_LIGHT 8
 
+#define MAX_SELECTION_OUTLINE_THICKNESS 2
+
 // shadow
 // todo, measure shadow rt performance
 #define MAX_SHADOW_LIGHT_COUNT 100
@@ -342,6 +344,25 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 world_pos;
 	};
 
+	//---[ selection outline ]------------------------------------------------------------
+	struct selection_outline_meshlet_render_data
+	{
+		uint32 object_id;
+		uint32 mesh_byte_offset;
+		uint32 mesh_chunk_srv_id;
+		uint32 meshlet_id;
+		uint32 selection_outline_id_and_extra;	  // [id(8)][extra(24)]
+	};
+
+	struct selection_outline_data
+	{
+		float4 rgba;
+		uint16 thickness_and_softness;	  // [thickness(2.6 fixed_point, 8bits)][softness(unorm8, 8bits)]
+		uint16 extra;
+	};
+
+	//----------------------------------------------------------------------------
+
 	cbuffer frame_data reg(b0)
 	{
 		row_major float4x4 view_proj;								// 64
@@ -387,6 +408,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		// uint32 shadow_light_index;	  // shadow mapping
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
+
+		uint32 selection_outline_meshlet_render_data_count;
+		uint32 selection_outline_mask_buffer_srv_texture_id;
 	};
 
 
@@ -500,6 +524,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MAX_SHADOW_LIGHT_COUNT
 
 	#undef MAX_ENV_LIGHT
+	#undef MAX_SELECTION_OUTLINE_THICKNESS
 
 	// light cull
 	#undef LIGHT_CULL_THREAD_COUNT

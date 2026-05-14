@@ -2,9 +2,13 @@
 #define AGE_SHADER
 
 #define is_false == false
+#define and		 &&
+#define or		 ||
 
 #ifdef __INTELLISENSE__
 	#include "../../../age.hpp"
+
+	#define discard return
 
 FORCE_INLINE constexpr half
 operator""h(long double val) noexcept

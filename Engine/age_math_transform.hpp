@@ -221,6 +221,17 @@ namespace age::inline math
 		};
 	}
 
+	FORCE_INLINE constexpr float4
+	srgb_to_linear(float4 c) noexcept
+	{
+		return {
+			srgb_to_linear_channel(c.x),
+			srgb_to_linear_channel(c.y),
+			srgb_to_linear_channel(c.z),
+			c.w
+		};
+	}
+
 	FORCE_INLINE constexpr float
 	linear_to_srgb_channel(float c) noexcept
 	{

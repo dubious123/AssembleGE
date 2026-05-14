@@ -97,6 +97,57 @@
     <ClInclude Include="age_graphics_backend_dx12_global.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_bake_shared_types.h" />
     <ClInclude Include="age_graphics_backend_dx12_defaults.hpp" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_graphics_backend_dx12_bake_shared_types.h" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
+    <ClInclude Include="age_asset_env_light.inl" />
+    <ClInclude Include="age_asset_material.inl" />
+    <ClInclude Include="age_asset_texture.inl" />
+    <ClInclude Include="age_graphics_backend_dx12_pso.inl" />
+    <ClInclude Include="age_graphics_backend_dx12_root_signature.inl" />
+    <ClInclude Include="resources\engine_shaders\dx12\age.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_color_space.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_light.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_math.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_mesh.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_random.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_tonemap.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\age_ui.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_brdf_lut_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_common.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_down_sample_cube_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_build_conditional_cdf_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_build_marginal_cdf_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_irradiance_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_prefilter_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_radiance_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_common.asli" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_depth_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_cull_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_init_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_tile_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_zbin_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_opaque_as.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_opaque_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_opaque_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_post_process_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_presentation_hdr10_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_presentation_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_presentation_sdr_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_raycast_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_selection_outline_draw_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_selection_outline_mask_as.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_selection_outline_mask_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_selection_outline_mask_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_skybox_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_skybox_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_sort_histogram_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_sort_prefix_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_sort_scatter_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_transparent_blend_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_transparent_rt_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_ui_ms.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_ui_ps.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\fullscreen_ms.asl" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -160,11 +211,6 @@
   <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="todo.md" />
-    <None Include="age_asset_material.inl" />
-    <None Include="age_asset_texture.inl" />
-    <None Include="age_asset_env_light.inl" />
-    <None Include="age_graphics_backend_dx12_root_signature.inl" />
-    <None Include="age_graphics_backend_dx12_pso.inl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">

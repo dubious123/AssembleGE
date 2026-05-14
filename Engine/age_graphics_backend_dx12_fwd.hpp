@@ -53,6 +53,11 @@ namespace age::graphics::e
 
 					forward_plus_post_process_ps,
 
+					forward_plus_selection_outline_mask_as,
+					forward_plus_selection_outline_mask_ms,
+					forward_plus_selection_outline_mask_ps,
+					forward_plus_selection_outline_draw_ps,
+
 					forward_plus_ui_ms,
 					forward_plus_ui_ps,
 

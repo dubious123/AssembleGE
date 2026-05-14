@@ -362,6 +362,9 @@ namespace age::graphics::shader
 	D3D12_SHADER_BYTECODE
 	get_d3d12_bytecode(shader_handle) noexcept;
 
+	D3D12_SHADER_BYTECODE
+	get_d3d12_bytecode(e::engine_shader_kind) noexcept;
+
 	void
 	unload_shader(shader_handle _) noexcept;
 }	 // namespace age::graphics::shader

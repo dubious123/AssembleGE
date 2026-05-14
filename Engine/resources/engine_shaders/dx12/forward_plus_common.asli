@@ -268,8 +268,24 @@ store_rt_raycast_result(uint32 raycast_id, raycast_result res)
 	rt_raycast_result_buffer_uav[raycast_id] = res;
 }
 
+// screen space stuff
+structured_buffer<selection_outline_meshlet_render_data> selection_outline_meshlet_render_data_buffer reg(t0, space4);
+structured_buffer<selection_outline_data>				 selection_outline_data_buffer reg(t1, space4);
+
+selection_outline_meshlet_render_data
+load_selection_outline_meshlet_render_data(uint32 render_data_id)
+{
+	return selection_outline_meshlet_render_data_buffer[render_data_id];
+}
+
+selection_outline_data
+load_selection_outline_data(uint32 id)
+{
+	return selection_outline_data_buffer[id];
+}
+
 // ui
-structured_buffer<ui_data> ui_data_buffer reg(t0, space4);
+structured_buffer<ui_data> ui_data_buffer reg(t0, space5);
 
 ui_data
 load_ui_data(uint32 ui_data_id)
@@ -339,6 +355,9 @@ uint32 radix_sort_pass;
 
 uint32 ui_data_id_offset;
 uint32 ui_data_count;
+
+uint32 selection_outline_meshlet_render_data_count;
+uint32 selection_outline_mask_buffer_srv_texture_id;
 #endif
 
 uint32
@@ -371,8 +390,13 @@ struct opaque_as_to_ms
 struct opaque_ms_to_ps
 {
 	vertex_fat					  v;
-	float debug_y				  semantics(debug_y);
 	nointerpolation uint32 mat_id semantics(material);
+};
+
+struct selection_outline_ms_to_ps
+{
+	float4 position										  sv_position;
+	nointerpolation uint32 selection_outline_id_and_extra semantics(id_and_extra);
 };
 
 // light culling tile mask

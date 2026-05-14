@@ -149,6 +149,8 @@ namespace age::editor::g
 
 	inline auto current_mode = e::mode_kind::edit;
 
+	inline auto scene_view_focused = false;
+
 	inline auto modal_kind = e::modal_kind::new_asset;
 	inline auto show_modal = false;
 	inline auto set_focus  = false;

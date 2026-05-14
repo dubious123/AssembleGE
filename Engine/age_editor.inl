@@ -334,7 +334,6 @@ namespace age::editor
 
 		static auto raycast_req_vec = std::array<uint32, graphics::g::frame_buffer_count>{};
 
-
 		c_auto raycast_res		 = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
 		auto   need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left);
 
@@ -350,37 +349,40 @@ namespace age::editor
 
 			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(world_pos.xyz - active_scene.cam.pos), std::numeric_limits<float>::max());
 
-			ecs_game.visit_scene_at(
-				active_scene.code_idx,
-				[&](auto& scene) {
-					for (auto i = 0u; i < scene.storage_count(); ++i)
-					{
-						scene.visit_storage_at(i, [&](auto& entities) {
-							if (need_object_click is_false) { return; }
+			if (g::scene_view_focused)
+			{
+				ecs_game.visit_scene_at(
+					active_scene.code_idx,
+					[&](auto& scene) {
+						for (auto i = 0u; i < scene.storage_count(); ++i)
+						{
+							scene.visit_storage_at(i, [&](auto& entities) {
+								if (need_object_click is_false) { return; }
 
-							if constexpr (entities.has_component<ecs::render_object>())
-							{
-								for (auto&& [obj, ent_id] : entities | ecs::each_entity<ecs::render_object, ecs::sv_entity_id>())
+								if constexpr (entities.has_component<ecs::render_object>())
 								{
-									if (obj.render_id != raycast_res.object_id) { continue; }
-
-									if (ui::g::p_input_ctx->is_shift_down())
+									for (auto&& [obj, ent_id] : entities | ecs::each_entity<ecs::render_object, ecs::sv_entity_id>())
 									{
-										add_select(e::select_kind::entity, i, ent_id);
-									}
-									else
-									{
-										clear_select();
-										add_select(e::select_kind::entity, i, ent_id);
-									}
+										if (obj.render_id != raycast_res.object_id) { continue; }
 
-									need_object_click = false;
-									return;
+										if (ui::g::p_input_ctx->is_shift_down())
+										{
+											add_select(e::select_kind::entity, i, ent_id);
+										}
+										else
+										{
+											clear_select();
+											add_select(e::select_kind::entity, i, ent_id);
+										}
+
+										need_object_click = false;
+										return;
+									}
 								}
-							}
-						});
-					}
-				});
+							});
+						}
+					});
+			}
 		}
 
 
@@ -399,6 +401,8 @@ namespace age::editor
 				ecs_game.visit_storage_at(
 					active_scene.code_idx, static_cast<uint32>(storage_code_idx),
 					[&](auto& entities) {
+						using t_storage = BARE_OF(entities);
+						using t_ent_id	= typename t_storage::t_ent_id;
 						for (auto ecs_ent_id : vec)
 						{
 							if (need_copy)
@@ -411,13 +415,25 @@ namespace age::editor
 								aabb_min		  = float3::min(aabb_min, min);
 								aabb_max		  = float3::max(aabb_max, max);
 							}
+
+							if (entities.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
+							{
+								auto&& [obj, mesh] = entities.get_component<const ecs::render_object, const ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id));
+
+								if (c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
+									entry.is_gpu_loaded())
+								{
+									renderer.render_selection_outline(obj.render_id, mesh.h_mesh, math::srgb_to_linear(float4{ 1, 0, 0, 1 }), 2.f, 0.f);
+								}
+							}
 						}
 					});
+
 
 				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
 			}
 
-			if (aabb_min <= aabb_max)
+			if (need_focus and aabb_min <= aabb_max)
 			{
 				focus_camera(renderer, aabb_min, aabb_max);
 			}

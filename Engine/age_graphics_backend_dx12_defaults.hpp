@@ -263,6 +263,12 @@ namespace age::graphics::defaults
 			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
 		};
+
+		inline constexpr auto r8_uint_2d = D3D12_RENDER_TARGET_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_R8_UINT,
+			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 }
+		};
 	}	 // namespace rtv_view_desc
 
 	namespace dsv_view_desc
@@ -278,6 +284,13 @@ namespace age::graphics::defaults
 			.Format		   = DXGI_FORMAT_D32_FLOAT,
 			.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
 			.Flags		   = D3D12_DSV_FLAG_READ_ONLY_DEPTH,
+			.Texture2D	   = { .MipSlice = 0 }
+		};
+
+		inline constexpr auto d16_unorm_2d = D3D12_DEPTH_STENCIL_VIEW_DESC{
+			.Format		   = DXGI_FORMAT_D16_UNORM,
+			.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+			.Flags		   = D3D12_DSV_FLAG_NONE,
 			.Texture2D	   = { .MipSlice = 0 }
 		};
 	}	 // namespace dsv_view_desc
@@ -571,6 +584,18 @@ namespace age::graphics::defaults
 			TRUE,									// DepthEnable
 			D3D12_DEPTH_WRITE_MASK_ALL,				// DepthWriteMask
 			D3D12_COMPARISON_FUNC_GREATER_EQUAL,	// DepthFunc
+			FALSE,									// StencilEnable
+			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
+			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask
+			{},										// FrontFace
+			{},										// BackFace
+			FALSE									// DepthBoundsTestEnable
+		};
+
+		inline constexpr auto depth_only_reversed_far = D3D12_DEPTH_STENCIL_DESC1{
+			TRUE,									// DepthEnable
+			D3D12_DEPTH_WRITE_MASK_ALL,				// DepthWriteMask
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,		// DepthFunc
 			FALSE,									// StencilEnable
 			D3D12_DEFAULT_STENCIL_READ_MASK,		// StencilReadMask
 			D3D12_DEFAULT_STENCIL_WRITE_MASK,		// StencilWriteMask

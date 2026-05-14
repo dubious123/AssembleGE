@@ -69,3 +69,9 @@ full primitive대신 meshlet id map 저장
 
 ### 반사, 굴절 
 ### DDGI
+
+
+### 알려진 증상 
+두 selected object가 screen space에 겹쳐있을때 selected outline이 비 결정적임. 
+depth test를 추가하면 해결되지만... 거의 editor에서만 사용될것 같은 기능에 (rts나 뭐 그런거 아니면) 
+너무 과분한것 같아서 일단은 그냥 둠.

@@ -158,12 +158,28 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<3, 3>>,
 
 		binding_slot<
+			"selection_outline_meshlet_render_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::selection_outline_meshlet_render_data>,
+			how::root_descriptor,
+			where::t<0, 4>>,
+
+		binding_slot<
+			"selection_outline_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_PIXEL,
+			what::structured_buffer_array<shared_type::selection_outline_data>,
+			how::root_descriptor,
+			where::t<1, 4>>,
+
+		binding_slot<
 			"ui_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::structured_buffer_array<shared_type::ui_data>,
 			how::root_descriptor,
-			where::t<0, 4>>,
+			where::t<0, 5>>,
 
 		binding_slot<
 			"linear_clamp_sampler",
@@ -271,17 +287,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		float3	color;		  // 12
 		bool	cast_shadow;
 		uint8_3 _;
-	};
-
-	struct ui_desc_brush_data
-	{
-		union
-		{
-			struct
-			{
-				float3 value;
-			} color;
-		};
 	};
 
 	struct texture_data

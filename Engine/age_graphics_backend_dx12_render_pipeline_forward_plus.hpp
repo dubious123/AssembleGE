@@ -5,19 +5,15 @@ namespace age::graphics::render_pipeline::forward_plus
 {
 	struct depth_stage
 	{
-		dsv_desc_handle h_depth_buffer_dsv_desc;
-
 		graphics::pso::handle h_pso = {};
 		ID3D12PipelineState*  p_pso = nullptr;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_dsv(graphics::resource_handle h_depth_buffer) noexcept;
-
 		inline void
-		execute(uint32 opaque_meshlet_count) noexcept;
+		execute(dsv_desc_handle _,
+				uint32			opaque_meshlet_count) noexcept;
 
 		void
 		deinit() noexcept;
@@ -25,21 +21,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct skybox_stage
 	{
-		rtv_desc_handle h_main_buffer_rtv_desc;
-		dsv_desc_handle h_depth_buffer_dsv_desc;
-
 		graphics::pso::handle h_pso;
 		ID3D12PipelineState*  p_pso;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
-					 graphics::resource_handle h_depth_buffer) noexcept;
-
 		inline void
-		execute(uint32 meshlet_count) noexcept;
+		execute(rtv_desc_handle _,
+				dsv_desc_handle h_dsv_readonly_desc,
+				uint32			env_light_count) noexcept;
 
 		void
 		deinit() noexcept;
@@ -82,21 +73,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct opaque_stage
 	{
-		rtv_desc_handle h_main_buffer_rtv_desc;
-		dsv_desc_handle h_depth_buffer_dsv_desc;
-
 		graphics::pso::handle h_pso;
 		ID3D12PipelineState*  p_pso;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_rtv_dsv(graphics::resource_handle h_main_buffer,
-					 graphics::resource_handle h_depth_buffer) noexcept;
-
 		inline void
-		execute(uint32 meshlet_count) noexcept;
+		execute(rtv_desc_handle _,
+				dsv_desc_handle h_dsv_readonly_desc,
+				uint32			meshlet_count) noexcept;
 
 		void
 		deinit() noexcept;
@@ -110,17 +96,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_draw;
 		ID3D12PipelineState*  p_pso_draw;
 
-		rtv_desc_handle h_main_buffer_rtv_desc;
-
-
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_rtv(graphics::resource_handle h_main_buffer) noexcept;
-
 		inline void
-		execute(resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept;
+		execute(rtv_desc_handle, resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept;
 
 		void
 		deinit() noexcept;
@@ -146,16 +126,32 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::handle			 h_pso = {};
 		ID3D12PipelineState* p_pso = nullptr;
 
-		rtv_desc_handle h_post_buffer_rtv_desc;
-
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_rtv(graphics::resource_handle h_post_buffer) noexcept;
+		inline void
+		execute(rtv_desc_handle _) noexcept;
 
 		void
-		execute() noexcept;
+		deinit() noexcept;
+	};
+
+	struct selection_outline_stage
+	{
+		pso::handle			 h_pso_mask;
+		ID3D12PipelineState* p_pso_mask = nullptr;
+
+		pso::handle			 h_pso_draw;
+		ID3D12PipelineState* p_pso_draw = nullptr;
+
+		void
+		init(root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(uint32			selected_meshlet_count,
+				rtv_desc_handle h_desc_mask_buffer,
+				rtv_desc_handle h_desc_rtv_buffer,
+				resource_handle h_outline_mask) noexcept;
 
 		void
 		deinit() noexcept;
@@ -166,16 +162,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::handle			 h_pso = {};
 		ID3D12PipelineState* p_pso = nullptr;
 
-		rtv_desc_handle h_rtv_desc;
-
 		void
 		init(root_signature::handle h_root_sig) noexcept;
 
-		void
-		bind_rtv(graphics::resource_handle h_rtv) noexcept;
-
 		inline void
-		execute(const age::vector<util::range>&) noexcept;
+		execute(rtv_desc_handle, const age::vector<util::range>&) noexcept;
 
 		void
 		deinit() noexcept;
@@ -201,20 +192,28 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
 
-		depth_stage			stage_depth;
-		skybox_stage		stage_skybox;
-		light_culling_stage stage_light_culling;
-		opaque_stage		stage_opaque;
-		transparent_stage	stage_transparent;
-		raycast_stage		stage_raycast;
-		post_process_stage	stage_post_process;
-		ui_stage			stage_ui;
-		presentation_stage	stage_presentation;
+		depth_stage				stage_depth;
+		skybox_stage			stage_skybox;
+		light_culling_stage		stage_light_culling;
+		opaque_stage			stage_opaque;
+		transparent_stage		stage_transparent;
+		raycast_stage			stage_raycast;
+		post_process_stage		stage_post_process;
+		selection_outline_stage stage_selection_outline;
+		ui_stage				stage_ui;
+		presentation_stage		stage_presentation;
 
 		resource_handle h_main_buffer;
 		resource_handle h_post_buffer;
+		resource_handle h_selection_outline_mask_buffer;
 		resource_handle h_depth_buffer;
 		resource_handle h_rt_transparent_texture_buffer;
+
+		rtv_desc_handle h_main_buffer_rtv_desc;
+		rtv_desc_handle h_post_buffer_rtv_desc;
+		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
+		dsv_desc_handle h_depth_buffer_dsv_readonly_desc;
+		dsv_desc_handle h_depth_buffer_dsv_desc;
 
 		resource_handle h_scratch_buffer;
 		resource_handle h_light_cull_stage_buffer;
@@ -268,8 +267,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		// env_light
 		binding_config_t::reg_t<1, 2> env_light_buffer;
 
+		// selection outline
+		binding_config_t::reg_t<0, 4>								selection_outline_meshlet_render_data_buffer;
+		binding_config_t::reg_t<1, 4>								selection_outline_data_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_selection_outline_meshlet_render_data_buffer_arr;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
+
 		// ui
-		binding_config_t::reg_t<0, 4>								ui_data_buffer;
+		binding_config_t::reg_t<0, 5>								ui_data_buffer;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
 
 		age::vector<ui::render_data> ui_render_data_vec;
@@ -291,6 +296,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		uav_desc_handle h_rt_transparent_tex_buffer_uav_desc;
 
 		srv_desc_handle h_env_light_brdf_lut;
+
+		srv_desc_handle h_selection_outline_mask_buffer_srv_desc;
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
@@ -315,7 +322,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		t_camera_id						main_camera_id;
 
 
-		// row vector version
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
@@ -340,6 +346,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[graphics::g::frame_buffer_count];
 		age::vector<shared_type::raycast_request>		raycast_request_vec[graphics::g::frame_buffer_count];
 
+		// selection_outline
+		age::vector<shared_type::selection_outline_data>				selection_outline_data_vec[graphics::g::frame_buffer_count];
+		age::vector<shared_type::selection_outline_meshlet_render_data> selection_outline_meshlet_render_data_vec[graphics::g::frame_buffer_count];
+
 		// main
 		void
 		init() noexcept;
@@ -355,6 +365,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, asset::handle h_mat) noexcept;
+
+		void
+		render_selection_outline(t_object_id, asset::handle h_mesh, const float4& rgba, float thickness, float softness) noexcept;
 
 		// legacy
 		void

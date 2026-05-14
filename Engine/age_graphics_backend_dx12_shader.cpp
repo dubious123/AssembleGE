@@ -213,6 +213,16 @@ namespace age::graphics::shader
 		};
 	}
 
+	D3D12_SHADER_BYTECODE
+	get_d3d12_bytecode(e::engine_shader_kind e_kind) noexcept
+	{
+		const auto& shader_blob = g::shader_blob_vec[to_idx(e_kind)];
+		return D3D12_SHADER_BYTECODE{
+			.pShaderBytecode = shader_blob.p_blob,
+			.BytecodeLength	 = shader_blob.size,
+		};
+	}
+
 	void
 	unload_shader(shader_handle sh) noexcept
 	{
