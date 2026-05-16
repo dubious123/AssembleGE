@@ -25,6 +25,8 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(size_mode_kind, uint8, fixed, fit, grow, grow_weight, text, aspect_ratio)
 
 	AGE_DEFINE_ENUM(style_state, uint8, idle, hover, active)
+
+	AGE_DEFINE_ENUM(space_mode_kind, uint8, screen, world, world_always_on_top, world_billboard);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -166,64 +168,22 @@ namespace age::ui
 		}
 	};
 
-	// struct widget_desc
-	//{
-	//	bool			   draw;			   //= true;
-	//	e::widget_layout   layout;			   //= e::widget_layout::horizontal;
-	//	e::widget_overflow overflow;		   //= e::widget_overflow::draw_all;
-	//	e::widget_align	   align;			   //= e::widget_align::begin;
+	struct root_desc
+	{
+		e::space_mode_kind space_mode = e::space_mode_kind::screen;
+		e::widget_layout   layout	  = e::widget_layout::vertical;
 
-	//	float width_min;					   //= 0.f;
-	//	float width_max;					   //= std::numeric_limits<float>::max();
+		uint16 _;
 
-	//	float height_min;					   //= 0.f;
-	//	float height_max;					   //= std::numeric_limits<float>::max();
+		float width;
+		float height;
 
-	//	e::size_mode_kind width_size_mode;	   //= e::size_mode_kind::grow;
-	//	e::size_mode_kind height_size_mode;	   //= e::size_mode_kind::grow;
+		float3 world_pos;
+		float4 quaternion;
 
-	//	uint16 z_offset;					   // = 1;
-
-	//	float2 offset;						   // = float2{ 0, 0 };
-
-	//	float child_gap;					   //= 3.f;
-
-	//	float padding_left;					   //= 3.f;
-	//	float padding_right;				   //= 3.f;
-	//	float padding_top;					   //= 3.f;
-	//	float padding_bottom;				   //= 3.f;
-
-	//	float2 pivot_uv;					   //= float2{ 0.5f, 0.5f };
-	//	float  rotation;					   //= 0.f;
-	//	float  border_thickness;			   //= 1.f;
-
-
-	//	ui_shape_data shape_data;
-	//	ui_brush_data body_brush_data;
-	//	ui_brush_data border_brush_data;
-
-	//	e::shape_kind shape_kind;			//= e::shape_kind::rect;
-	//	e::brush_kind body_brush_kind;		//= e::brush_kind::color;
-	//	e::brush_kind border_brush_kind;	//= e::brush_kind::color;
-
-	//	bool	interact;					//= false;
-	//	bool	save_state;					//= false;
-	//	uint8_3 _;
-
-	//										// union
-	//	//{
-	//	struct
-	//	{
-	//		uint32 text_data_idx;	 // = age::get_invalid_id<uint32>();
-	//		uint32 font_idx;
-
-	//		const char* p_str;
-	//		float		font_size;
-	//	} text;
-
-	//	uint64 extra;
-	//	//};
-	//};
+		float world_width;
+		float world_height;
+	};
 }	 // namespace age::ui
 
 namespace age::ui
@@ -356,33 +316,6 @@ namespace age::ui
 		}
 	};
 
-	struct layout_data
-	{
-		e::widget_layout  layout;
-		e::size_mode_kind mode;
-
-		uint8_2 _;
-		uint32	pos_data_idx;
-		uint32	grow_subtree_size;
-
-		float size;
-
-		float size_min;
-		float size_max;
-	};
-
-	struct layout_data_common
-	{
-		uint32 child_count;
-		uint32 parent_h_idx;
-		uint32 parent_v_idx;
-		float  padding_sum;
-		float  child_gap;
-		uint16 z_offset;
-		bool   child_height_depends_on_width_solved;
-		uint8  _;
-	};
-
 	struct layout_pos_data
 	{
 		t_hash id;
@@ -432,6 +365,36 @@ namespace age::ui
 				height = size;
 			}
 		}
+	};
+
+	struct root_data
+	{
+		float3 world_pos;
+		float4 quaternion;
+
+		float width;
+		float height;
+
+		float world_width;
+		float world_height;
+
+		float2 mouse_uv;		  // projected, pixel
+		float2 mouse_delta_uv;	  // projected, pixel
+
+		age::vector<layout_pos_data> layout_pos_data_vec;
+		age::vector<uint32>			 z_order_count_vec;
+	};
+
+	struct root_graphics_data
+	{
+		float3 world_pos;
+		float4 quaternion;
+
+		float width;
+		float height;
+
+		float world_width;
+		float world_height;
 	};
 }	 // namespace age::ui
 
@@ -509,6 +472,11 @@ namespace age::ui::g
 	inline float window_width;
 	inline float window_height;
 
+	inline float3 cam_world_pos_prev;
+	inline float3 mouse_ray_dir_prev;	 // world space
+	inline float3 cam_world_pos;
+	inline float3 mouse_ray_dir;		 // world space
+
 	inline const age::input::input_context* p_input_ctx;
 	inline t_hash							hover_id;
 	inline t_hash							focus_id;
@@ -526,14 +494,16 @@ namespace age::ui::g
 
 	inline age::unordered_map<uint64, widget_state> widget_state_map;
 
+	inline std::array<age::vector<root_data>, e::space_mode_kind_size> root_data_vec_arr;
+	inline std::array<uint32, e::space_mode_kind_size>				   root_data_vec_size_arr;
+	inline age::vector<uint32>										   root_data_idx_stack;	   // [space_mode_kind(8)][idx(24)]
+
 	// layout stack
 	inline age::vector<layout_size_data> layout_size_data_stack;
 	inline uint32						 layout_size_data_current_idx;
 
 	// layout vec
-	inline age::vector<layout_pos_data> layout_pos_data_vec;
-	inline age::vector<render_data>		render_data_vec;
-	inline age::vector<uint32>			z_order_count_vec;
+	inline age::vector<render_data> render_data_vec;
 
 	// layout text
 	inline age::vector<text_data>	  text_data_vec;
@@ -967,8 +937,10 @@ namespace age::ui
 		FORCE_INLINE bool
 		contains_mouse() const noexcept
 		{
-			c_auto& state = get_state();
-			return math::contains_2d(float4{ state.pos.x, state.pos.y, state.pos.x + state.clip_width, state.pos.y + state.clip_height }, g::p_input_ctx->mouse_pos);
+			c_auto	id			 = g::root_data_idx_stack.back();
+			c_auto& current_root = g::root_data_vec_arr[(id >> 24u) & 0xff][id & 0x00ff'ffff];
+			c_auto& state		 = get_state();
+			return math::contains_2d(float4{ state.pos.x, state.pos.y, state.pos.x + state.clip_width, state.pos.y + state.clip_height }, current_root.mouse_uv);
 		}
 
 		FORCE_INLINE bool
@@ -1124,4 +1096,24 @@ namespace age::ui
 	widget_ctx_impl(widget_ctx_impl<n>&&...) -> widget_ctx_impl<(n + ...)>;
 
 	using widget_ctx = widget_ctx_impl<1>;
+
+	struct root_ctx
+	{
+		t_hash hash_id = age::get_invalid_id<t_hash>();
+
+		AGE_DISABLE_COPY(root_ctx);
+
+		FORCE_INLINE constexpr root_ctx() noexcept = default;
+
+		FORCE_INLINE constexpr root_ctx(t_hash id) noexcept
+			: hash_id(id){};
+
+		FORCE_INLINE constexpr ~root_ctx() noexcept;
+
+		FORCE_INLINE constexpr explicit
+		operator bool() const
+		{
+			return hash_id != age::get_invalid_id<t_hash>();
+		}
+	};
 }	 // namespace age::ui

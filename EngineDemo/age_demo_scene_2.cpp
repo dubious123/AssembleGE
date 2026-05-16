@@ -71,7 +71,7 @@ namespace age_demo::scene_2
 			// strong directional light from above-right - good for seeing transparency + shadows
 			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
 				.direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f }),
-				.intensity = 0.15f,
+				.intensity = 1.f,
 				.color	   = age::srgb_to_linear(float3{ 1.0f, 0.9f, 0.9f }) } }
 				| AGE_FUNC(i_init.get_render_pipeline().add_directional_light)
 				| AGE_FUNC(i_init.get_directional_light_id_vec().emplace_back),
@@ -163,6 +163,8 @@ namespace age_demo::scene_2
 	decltype(auto)
 	update() noexcept
 	{
+		i_update.get_render_pipeline->begin_frame();
+
 		c_auto dt_s = std::max(
 			age::runtime::i_time.get_delta_time_s(),
 			1.f / 160);
@@ -220,12 +222,43 @@ namespace age_demo::scene_2
 			return;
 		}
 
-		age::ui::begin_frame(i_update.get_h_window);
+		{
+			c_auto& ui_main_cam = i_update.get_render_pipeline->get_camera_data(0);
+			age::ui::begin_frame(i_update.get_h_window, ui_main_cam.pos, ui_main_cam.view_proj_inv);
+		}
 
 		{
 			using namespace age::ui;
 
 			using enum age::input::e::key_kind;
+
+
+			//{
+			//	auto h_root = age::ui::root_begin({ .space_mode = age::ui::e::space_mode_kind::world,
+			//										.width		= 1920.f,
+			//										.height		= 1080.f,
+
+			//										.world_pos	  = float3(0, 2, 10),
+			//										.quaternion	  = float4(0, 0, 0, 1),
+			//										.world_width  = 190.2f,
+			//										.world_height = 100.8f
+
+			//	});
+
+			//	widget::begin(style::panel() | set_width_grow() | set_height_grow() | set_body_brush_data(float4(1, 0, 0, 1)));
+			//}
+
+			auto h_root = age::ui::root_begin({ .space_mode = age::ui::e::space_mode_kind::world,
+												.width		= 1920.f,
+												.height		= 1080.f,
+
+												.world_pos	  = float3(0, 0, 10),	 //+ float3(-190.2 / 2.f, 100.8 / 2.f, 0),
+												.quaternion	  = float4(0, 0, 0, 1),
+												.world_width  = 190.2f,
+												.world_height = 100.8f
+
+			});
+
 			//{
 			//	age::ui::widget_desc desc = {};
 			//	desc.width_min			  = 0;
@@ -272,7 +305,8 @@ namespace age_demo::scene_2
 			// auto _ = widget::begin(set_width_grow() | set_height_grow() | set_child_gap(0));
 
 
-			if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
+			// if (auto _ = widget::horizontal(set_draw(true), set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
+			if (auto _ = widget::panel(set_width_grow(), set_height_grow(), set_child_gap(0)))
 			{
 				// if (auto _ = widget::panel_resizable_h(300, 1000,
 				//									   set_layout(e::widget_layout::vertical),
@@ -377,19 +411,19 @@ namespace age_demo::scene_2
 									static uint64 v0 = 100;
 									widget::numeric_field(v0,
 														  "X",
-														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  std::numeric_limits<uint64>::min(), 10000ull,
 														  theme::color_text_red());
 
 									static uint64 v1 = 100;
 									widget::numeric_field(v1,
 														  "Y",
-														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  std::numeric_limits<uint64>::min(), 10000ull,
 														  theme::color_text_green());
 
 									static uint64 v2 = 100;
 									widget::numeric_field(v2,
 														  "Z",
-														  std::numeric_limits<uint64>::min(), std::numeric_limits<uint64>::max(),
+														  std::numeric_limits<uint64>::min(), 10000ull,
 														  theme::color_text_blue());
 
 									static uint64 v3 = 100;
@@ -525,10 +559,7 @@ namespace age_demo::scene_2
 			}
 		}
 
-
-		age::ui::end_frame(i_update.get_render_pipeline->get_ui_render_data_vec(),
-						   i_update.get_render_pipeline->get_ui_render_data_z_range_vec());
-
+		age::ui::end_frame(i_update.get_render_pipeline->get_ui_sink());
 
 		for (auto&& [i, obj_id] : i_update.get_opaque_obj_id_vec() | std::views::enumerate)
 		{

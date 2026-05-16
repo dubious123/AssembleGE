@@ -352,6 +352,12 @@ struct vec3
 	{
 	}
 
+	FORCE_INLINE constexpr vec3(auto&& other, t z_other) noexcept
+		requires(std::is_same_v<BARE_OF(other), vec2<t>>)
+		: xy{ FWD(other).x, FWD(other).y }, z{ static_cast<t>(z_other) }
+	{
+	}
+
 	FORCE_INLINE constexpr vec3(auto&& x_other, auto&& y_other, auto&& z_other) noexcept
 		requires(std::convertible_to<decltype(x_other), t>
 				 and std::convertible_to<decltype(y_other), t>
@@ -636,7 +642,8 @@ struct vec4
 	{
 	}
 
-	FORCE_INLINE constexpr vec4(vec3<t> other, t w_other) noexcept
+	FORCE_INLINE constexpr vec4(auto&& other, t w_other) noexcept
+		requires(std::is_same_v<BARE_OF(other), vec3<t>>)
 		: xyz{ FWD(other).x, FWD(other).y, FWD(other).z }, w{ static_cast<t>(w_other) }
 	{
 	}

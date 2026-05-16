@@ -173,6 +173,14 @@ decode_quaternion(uint32 encoded_q)
 }
 
 float3
+rotate(float4 q, float3 v)
+{
+	// v' = v + 2*cross(q.xyz, cross(q.xyz, v) + q.w*v)
+	float3 t = 2.0f * cross(q.xyz, v);
+	return v + q.w * t + cross(q.xyz, t);
+}
+
+float3
 rotate(float3 v, float4 q)
 {
 	// v' = v + 2*cross(q.xyz, cross(q.xyz, v) + q.w*v)

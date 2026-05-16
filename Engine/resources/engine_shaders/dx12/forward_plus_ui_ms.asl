@@ -42,10 +42,36 @@ main_ms(
 
 		v.rect_uv = corner_uv[i];
 
-		v.pos.xy = screen_to_ndc(data.pivot_pos + rotate((corner_uv[i] - data.pivot_uv) * data.size, data.rotation), inv_backbuffer_size);
-		v.pos.z	 = 1;
-		v.pos.w	 = 1;
+		attr_branch()
 
+		switch (ui_space_mode_and_extra & 0xff)
+		{
+		case UI_SPACE_MODE_SCREEN:
+		{
+			v.pos.xy = screen_to_ndc(data.pivot_pos + rotate((corner_uv[i] - data.pivot_uv) * data.size, data.rotation), inv_backbuffer_size);
+			v.pos.z	 = 1;
+			v.pos.w	 = 1;
+			break;
+		}
+		case UI_SPACE_MODE_WORLD:
+		case UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP:
+		{
+			const ui_root_data root = load_ui_root_data();
+
+			const float2 local_uv = data.pivot_pos + rotate((corner_uv[i] - data.pivot_uv) * data.size, data.rotation);
+
+			const float3 world_pos = root.world_pos
+								   + rotate(root.quaternion, float3(1, 0, 0)) * local_uv.x * root.world_width / root.width
+								   + rotate(root.quaternion, float3(0, -1, 0)) * local_uv.y * root.world_height / root.height;
+
+			v.pos = mul(view_proj, float4(world_pos, 1.f));
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
 
 		vertex_arr[group_thread_id * 4 + i] = v;
 	}

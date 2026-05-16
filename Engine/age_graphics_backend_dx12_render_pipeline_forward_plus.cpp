@@ -47,7 +47,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_env_light_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::env_light) * 1);
 
-			h_mapping_ui_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::ui_data));
+			h_mapping_ui_data_buffer_arr	  = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::ui_data));
+			h_mapping_ui_root_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::ui_root_data));
 
 			h_mapping_selection_outline_meshlet_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::selection_outline_meshlet_render_data));
 			h_mapping_selection_outline_data_buffer_arr				   = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::selection_outline_data));
@@ -106,6 +107,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			rt_raycast_result_buffer_uav.bind(h_rt_raycast_result_buffer);
 
 			ui_data_buffer.bind_array(h_mapping_ui_data_buffer_arr);
+			ui_root_data_buffer.bind_array(h_mapping_ui_root_data_buffer_arr);
 			selection_outline_meshlet_render_data_buffer.bind_array(h_mapping_selection_outline_meshlet_render_data_buffer_arr);
 			selection_outline_data_buffer.bind_array(h_mapping_selection_outline_data_buffer_arr);
 
@@ -156,6 +158,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::set_name(h_readback_rt_raycast_result_buffer_arr, L"readback_rt_raycast_result_buffer_arr[{}]");
 
 		resource::set_name(h_mapping_ui_data_buffer_arr, L"mapping_ui_data_buffer_arr[{}]");
+		resource::set_name(h_mapping_ui_root_data_buffer_arr, L"mapping_ui_root_data_buffer_arr[{}]");
 		resource::set_name(h_mapping_selection_outline_meshlet_render_data_buffer_arr, L"mapping_selection_outline_meshlet_render_data_buffer_arr[{}]");
 		resource::set_name(h_mapping_selection_outline_data_buffer_arr, L"mapping_selection_outline_data_buffer_arr[{}]");
 
@@ -194,6 +197,12 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		ui_render_data_vec.clear();
 		ui_render_data_z_range_vec.clear();
+		ui_render_data_z_range_of_range_vec.clear();
+
+		for (auto& v : ui_root_data_vec_arr)
+		{
+			v.clear();
+		}
 
 		stage_presentation.deinit();
 		stage_ui.deinit();
@@ -230,6 +239,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
 		resource::unmap_and_release(h_mapping_rt_vertex_scratch_buffer);
 		resource::unmap_and_release(h_mapping_ui_data_buffer_arr);
+		resource::unmap_and_release(h_mapping_ui_root_data_buffer_arr);
 		resource::unmap_and_release(h_mapping_selection_outline_meshlet_render_data_buffer_arr);
 		resource::unmap_and_release(h_mapping_selection_outline_data_buffer_arr);
 		resource::unmap_and_release(h_mapping_material_buffer);
@@ -288,6 +298,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		selection_outline_data_vec[graphics::g::frame_buffer_idx].clear();
 		selection_outline_meshlet_render_data_vec[graphics::g::frame_buffer_idx].clear();
+
+		ui_render_data_vec.clear();
+		ui_render_data_z_range_vec.clear();
+		ui_render_data_z_range_of_range_vec.clear();
+
+		for (auto& v : ui_root_data_vec_arr)
+		{
+			v.clear();
+		}
 	}
 
 	bool
@@ -315,6 +334,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		ui_render_data_vec.clear();
 		ui_render_data_z_range_vec.clear();
+		for (auto& v : ui_root_data_vec_arr)
+		{
+			v.clear();
+		}
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
@@ -521,6 +544,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			rt_raycast_result_buffer_uav.apply_compute();
 
 			ui_data_buffer.apply();
+			ui_root_data_buffer.apply();
 			selection_outline_meshlet_render_data_buffer.apply();
 			selection_outline_data_buffer.apply();
 
@@ -558,6 +582,15 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		stage_opaque.execute(h_main_buffer_rtv_desc, h_depth_buffer_dsv_readonly_desc, opaque_meshlet_render_data_count);
 
+		stage_ui.execute(root_constants,
+						 h_main_buffer_rtv_desc,
+						 h_depth_buffer_dsv_readonly_desc,
+						 ui::e::space_mode_kind::world,
+						 ui_root_data_idx_arr[to_idx(ui::e::space_mode_kind::world)],
+						 ui_root_data_vec_arr[to_idx(ui::e::space_mode_kind::world)].size<uint32>(),
+						 ui_render_data_z_range_vec,
+						 ui_render_data_z_range_of_range_vec);
+
 		command::apply_barriers(barrier::dsv_generic_read_to_srv(h_depth_buffer->p_resource,
 																 D3D12_BARRIER_SYNC_DEPTH_STENCIL | D3D12_BARRIER_SYNC_PIXEL_SHADING,
 																 D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
@@ -592,7 +625,14 @@ namespace age::graphics::render_pipeline::forward_plus
 										h_post_buffer_rtv_desc,
 										h_selection_outline_mask_buffer);
 
-		stage_ui.execute(h_post_buffer_rtv_desc, ui_render_data_z_range_vec);
+		stage_ui.execute(root_constants,
+						 h_post_buffer_rtv_desc,
+						 h_depth_buffer_dsv_readonly_desc,	  // not used
+						 ui::e::space_mode_kind::screen,
+						 ui_root_data_idx_arr[to_idx(ui::e::space_mode_kind::screen)],
+						 ui_root_data_vec_arr[to_idx(ui::e::space_mode_kind::screen)].size<uint32>(),
+						 ui_render_data_z_range_vec,
+						 ui_render_data_z_range_of_range_vec);
 
 		command::apply_barriers(barrier::rtv_to_srv(h_post_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -1490,16 +1530,14 @@ namespace age::graphics::render_pipeline::forward_plus
 // ui
 namespace age::graphics::render_pipeline::forward_plus
 {
-	age::vector<ui::render_data>&
-	pipeline::get_ui_render_data_vec() noexcept
+	std::tuple<
+		age::vector<ui::render_data>&,
+		age::vector<util::range>&,
+		age::vector<util::range>&,
+		age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
+	pipeline::get_ui_sink() noexcept
 	{
-		return ui_render_data_vec;
-	}
-
-	age::vector<util::range>&
-	pipeline::get_ui_render_data_z_range_vec() noexcept
-	{
-		return ui_render_data_z_range_vec;
+		return std::tie(ui_render_data_vec, ui_render_data_z_range_vec, ui_render_data_z_range_of_range_vec, ui_root_data_vec_arr);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -1688,9 +1726,30 @@ namespace age::graphics::render_pipeline::forward_plus
 			if (resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>()))
 			{
 				ui_data_buffer.bind(h_mapping_ui_data_buffer, graphics::g::frame_buffer_idx);
-				ui_data_buffer.apply();
 			}
 			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
+
+
+			auto& h_mapping_ui_root_data_buffer = h_mapping_ui_root_data_buffer_arr[graphics::g::frame_buffer_idx];
+
+			{
+				auto root_offset = 0u;
+				for (auto&& [space_mode, root_vec] : ui_root_data_vec_arr | std::views::enumerate)
+				{
+					ui_root_data_idx_arr[space_mode]  = root_offset;
+					root_offset						 += root_vec.size<uint32>();
+				}
+
+				if (resource::resize_buffer(h_mapping_ui_root_data_buffer, root_offset * sizeof(shared_type::ui_root_data)))
+				{
+					ui_root_data_buffer.bind(h_mapping_ui_root_data_buffer, graphics::g::frame_buffer_idx);
+				}
+			}
+
+			for (auto&& [space_mode, root_vec] : ui_root_data_vec_arr | std::views::enumerate)
+			{
+				h_mapping_ui_root_data_buffer->upload(root_vec.data(), root_vec.byte_size(), ui_root_data_idx_arr[space_mode] * sizeof(shared_type::ui_root_data));
+			}
 		}
 
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];

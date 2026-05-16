@@ -14,11 +14,6 @@ namespace std
 	};
 }	 // namespace std
 
-namespace age::data_structure
-{
-
-}
-
 namespace age::ecs
 {
 	template <typename t>

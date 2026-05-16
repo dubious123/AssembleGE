@@ -159,14 +159,24 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct ui_stage
 	{
-		pso::handle			 h_pso = {};
-		ID3D12PipelineState* p_pso = nullptr;
+		pso::handle			 h_pso_screen = {};
+		ID3D12PipelineState* p_pso_screen = nullptr;
+
+		pso::handle			 h_pso_world = {};
+		ID3D12PipelineState* p_pso_world = nullptr;
 
 		void
 		init(root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle, const age::vector<util::range>&) noexcept;
+		execute(binding_config_t::reg_b<1>&		constants,
+				rtv_desc_handle					h_rtv_desc,
+				dsv_desc_handle					h_dsv_desc,
+				ui::e::space_mode_kind			space_mode,
+				uint32							root_data_idx,
+				uint32							root_data_count,
+				const age::vector<util::range>& z_range_vec,
+				const age::vector<util::range>& z_range_range_vec) noexcept;
 
 		void
 		deinit() noexcept;
@@ -274,18 +284,24 @@ namespace age::graphics::render_pipeline::forward_plus
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
 
 		// ui
-		binding_config_t::reg_t<0, 5>								ui_data_buffer;
+		binding_config_t::reg_t<0, 5>								ui_root_data_buffer;
+		binding_config_t::reg_t<1, 5>								ui_data_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_root_data_buffer_arr;
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
 
-		age::vector<ui::render_data> ui_render_data_vec;
-		age::vector<util::range>	 ui_render_data_z_range_vec;
+		// ui_root_data_idx_arr : prefix of root_data_vec.size()
+		// ui_root_data_idx_arr -> ui_root_data_vec_arr -> ui_render_data_z_range_of_range_vec -> ui_render_data_z_range_vec -> ui_render_data_vec
+		age::vector<ui::render_data>												 ui_render_data_vec;
+		age::vector<util::range>													 ui_render_data_z_range_vec;
+		age::vector<util::range>													 ui_render_data_z_range_of_range_vec;
+		age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size> ui_root_data_vec_arr;
+		age::array<uint32, ui::e::space_mode_kind_size>								 ui_root_data_idx_arr;
 
 		// rt
 		binding_config_t::reg_t<0, 3> rt_instance_render_data_buffer_srv;
 		binding_config_t::reg_t<1, 3> rt_index_buffer_srv;
 		binding_config_t::reg_t<2, 3> rt_raycast_request_buffer_srv;
 		binding_config_t::reg_u<3, 3> rt_raycast_result_buffer_uav;
-
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
@@ -321,14 +337,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::sparse_vector<camera_data> camera_data_vec;
 		t_camera_id						main_camera_id;
 
-
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
-
-		// mesh-rt
-		// uint32 rt_index_buffer_byte_offset = 0;
-
 
 		// light
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
@@ -486,11 +497,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		release_env_light(t_env_light_id&) noexcept;
 
 		// ui
-		age::vector<ui::render_data>&
-		get_ui_render_data_vec() noexcept;
-
-		age::vector<util::range>&
-		get_ui_render_data_z_range_vec() noexcept;
+		std::tuple<
+			age::vector<ui::render_data>&,
+			age::vector<util::range>&,
+			age::vector<util::range>&,
+			age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
+		get_ui_sink() noexcept;
 
 		// raycast
 		t_raycast_id

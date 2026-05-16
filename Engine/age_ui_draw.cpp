@@ -13,8 +13,10 @@ namespace age::ui
 		AGE_ASSERT(desc.interact is_false);
 		AGE_ASSERT(desc.save_state is_false);
 
+		auto& root = detail::get_current_root();
+
 		auto& size_data_parent = g::layout_size_data_stack[g::layout_size_data_current_idx];
-		auto& pos_data_parent  = g::layout_pos_data_vec[size_data_parent.pos_data_idx];
+		auto& pos_data_parent  = root.layout_pos_data_vec[size_data_parent.pos_data_idx];
 
 		auto render_data_count = 0u;
 		auto z_offset		   = 0u;
@@ -40,7 +42,7 @@ namespace age::ui
 			render_data_count = 1;
 		}
 
-		g::layout_pos_data_vec.emplace_back(layout_pos_data{
+		root.layout_pos_data_vec.emplace_back(layout_pos_data{
 			.id				   = age::get_invalid_id<t_hash>(),
 			.render_data_idx   = g::render_data_vec.size<uint32>(),
 			.render_data_count = render_data_count,
@@ -74,14 +76,14 @@ namespace age::ui
 		});
 
 		{
-			if (z_offset >= g::z_order_count_vec.size())
+			if (z_offset >= root.z_order_count_vec.size())
 			{
-				c_auto before_size = g::z_order_count_vec.size();
-				g::z_order_count_vec.resize(z_offset + 1);
-				std::ranges::fill(g::z_order_count_vec.begin() + before_size, g::z_order_count_vec.end(), 0u);
+				c_auto before_size = root.z_order_count_vec.size();
+				root.z_order_count_vec.resize(z_offset + 1);
+				std::ranges::fill(root.z_order_count_vec.begin() + before_size, root.z_order_count_vec.end(), 0u);
 			}
 
-			g::z_order_count_vec[z_offset] += render_data_count;
+			root.z_order_count_vec[z_offset] += render_data_count;
 		}
 	}
 }	 // namespace age::ui

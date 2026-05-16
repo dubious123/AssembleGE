@@ -38,11 +38,19 @@ namespace age::ui::detail
 
 namespace age::ui::detail
 {
-	template <bool is_root = false>
+	FORCE_INLINE root_data&
+	get_current_root() noexcept
+	{
+		c_auto id = g::root_data_idx_stack.back();
+		return g::root_data_vec_arr[(id >> 24u) & 0xff][id & 0x00ff'ffff];
+	}
+
 	FORCE_INLINE t_hash
 	widget_begin(auto&& desc) noexcept
 		requires std::is_same_v<BARE_OF(desc), widget_desc>
 	{
+		auto& root = get_current_root();
+
 		c_auto id = new_id();
 
 		auto z_offset		   = 0u;
@@ -50,10 +58,9 @@ namespace age::ui::detail
 		auto padding_sum	   = 0.f;
 		auto atlas_id		   = 0u;
 
-		if constexpr (is_root is_false)
 		{
 			auto& size_data_parent = g::layout_size_data_stack[g::layout_size_data_current_idx];
-			auto& pos_data_parent  = g::layout_pos_data_vec[size_data_parent.pos_data_idx];
+			auto& pos_data_parent  = root.layout_pos_data_vec[size_data_parent.pos_data_idx];
 			++pos_data_parent.child_count;
 
 			z_offset = pos_data_parent.z_offset + desc.z_offset;
@@ -92,7 +99,7 @@ namespace age::ui::detail
 			.height_mode		= desc.height_size_mode,
 			.child_subtree_size = 0,
 			.parent_idx			= g::layout_size_data_current_idx,
-			.pos_data_idx		= g::layout_pos_data_vec.size<uint32>(),
+			.pos_data_idx		= root.layout_pos_data_vec.size<uint32>(),
 			.child_gap			= desc.child_gap,
 			.width_min			= desc.width_min,
 			.width_max			= desc.width_max,
@@ -102,7 +109,7 @@ namespace age::ui::detail
 			.height_final		= 0.f,
 		});
 
-		g::layout_pos_data_vec.emplace_back(layout_pos_data{
+		root.layout_pos_data_vec.emplace_back(layout_pos_data{
 			.id				   = id,
 			.render_data_idx   = g::render_data_vec.size<uint32>(),
 			.render_data_count = render_data_count,
@@ -138,14 +145,14 @@ namespace age::ui::detail
 
 		// handle z_order
 		{
-			if (z_offset >= g::z_order_count_vec.size())
+			if (z_offset >= root.z_order_count_vec.size())
 			{
-				c_auto before_size = g::z_order_count_vec.size();
-				g::z_order_count_vec.resize(z_offset + 1);
-				std::ranges::fill(g::z_order_count_vec.begin() + before_size, g::z_order_count_vec.end(), 0u);
+				c_auto before_size = root.z_order_count_vec.size();
+				root.z_order_count_vec.resize(z_offset + 1);
+				std::ranges::fill(root.z_order_count_vec.begin() + before_size, root.z_order_count_vec.end(), 0u);
 			}
 
-			g::z_order_count_vec[z_offset] += render_data_count;
+			root.z_order_count_vec[z_offset] += render_data_count;
 		}
 
 		g::layout_size_data_current_idx = g::layout_size_data_stack.size<uint32>() - 1;
@@ -153,14 +160,13 @@ namespace age::ui::detail
 		return id;
 	}
 
-	template <bool is_root = false>
 	t_hash
 	widget_begin(auto&& mod) noexcept
 		requires meta::is_not_same_v<BARE_OF(mod), widget_desc>
 	{
 		auto desc = widget_desc{};
 		FWD(mod).apply(desc);
-		return widget_begin<is_root>(std::move(desc));
+		return widget_begin(std::move(desc));
 	}
 }	 // namespace age::ui::detail
 
@@ -229,6 +235,23 @@ namespace age::ui
 	void
 	deinit(auto& renderer) noexcept
 	{
+		g::id_stack.clear();
+		g::layout_size_data_stack.clear();
+		g::render_data_vec.clear();
+		g::root_data_idx_stack.clear();
+
+		std::ranges::fill(g::root_data_vec_size_arr, 0u);
+
+		for (auto& v : g::root_data_vec_arr)
+		{
+			v.clear();
+		}
+
+		g::text_data_vec.clear();
+		g::word_data_vec.clear();
+		g::char_data_vec.clear();
+		g::char_pos_data_vec.clear();
+
 		g::widget_state_map.clear();
 
 		for (auto&& [hash, font_data] : g::font_data_vec)
@@ -237,15 +260,5 @@ namespace age::ui
 		}
 
 		g::font_data_vec.clear();
-
-		g::id_stack.clear();
-		g::layout_size_data_stack.clear();
-		g::layout_pos_data_vec.clear();
-		g::render_data_vec.clear();
-
-		g::text_data_vec.clear();
-		g::word_data_vec.clear();
-		g::char_data_vec.clear();
-		g::char_pos_data_vec.clear();
 	}
 }	 // namespace age::ui

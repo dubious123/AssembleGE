@@ -19,10 +19,14 @@ namespace age::ui
 	init() noexcept;
 
 	void
-	begin_frame(platform::window_handle h_window) noexcept;
+	begin_frame(platform::window_handle h_window, const float3& cam_world_pos = {}, const float4x4& cam_view_proj_inv = {}) noexcept;
 
 	void
-	end_frame(age::vector<render_data>&, age::vector<util::range>&) noexcept;
+	end_frame(std::tuple<age::vector<ui::render_data>&,
+						 age::vector<util::range>&,
+						 age::vector<util::range>&,
+						 age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
+				  gpu_sink) noexcept;
 
 	void
 	clear() noexcept;	 // cancel render
@@ -67,6 +71,8 @@ namespace age::ui::widget
 
 namespace age::ui
 {
+	root_ctx
+	root_begin(const root_desc& desc) noexcept;
 	// todo.
 	__declspec(noinline) void
 	draw_direct(auto&& mod) noexcept;
@@ -119,6 +125,9 @@ namespace age::ui::detail
 
 	float
 	calc_line_width(const char*& p_buf, float font_size, uint32 font_idx) noexcept;
+
+	FORCE_INLINE root_data&
+	get_current_root() noexcept;
 }	 // namespace age::ui::detail
 
 namespace age::ui
@@ -135,4 +144,13 @@ namespace age::ui
 			}
 		}
 	}
+
+	FORCE_INLINE constexpr root_ctx::~root_ctx() noexcept
+	{
+		if (hash_id != age::get_invalid_id<t_hash>())
+		{
+			detail::widget_end();
+			g::id_stack.pop_back();
+		}
+	};
 }	 // namespace age::ui

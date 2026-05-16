@@ -559,7 +559,28 @@ namespace age::math::simd
 	AGE_SIMD_VEC_BINARY_OP(min, XMVectorMin, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(cmp_equal, XMVectorEqual, fxm_vec);
 
-	AGE_SIMD_VEC_BINARY_OP(rotate3, XMVector3Rotate, fxm_vec);
+	struct __rotate3__
+	{
+		fxm_vec __rhs__;
+
+		__forceinline decltype(auto) __vectorcall
+		operator()(fxm_vec quat) const noexcept
+		{
+			return DirectX::XMVector3Rotate(quat, __rhs__);
+		}
+	};
+
+	__forceinline decltype(auto) __vectorcall
+	rotate3(fxm_vec v) noexcept
+	{
+		return __rotate3__{ v };
+	}
+
+	__forceinline decltype(auto) __vectorcall
+	rotate3(fxm_vec quat, fxm_vec v) noexcept
+	{
+		return DirectX::XMVector3Rotate(v, quat);
+	};
 
 	AGE_SIMD_VEC_BINARY_OP(quaternion_mul, XMQuaternionMultiply, fxm_vec);
 

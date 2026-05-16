@@ -17,7 +17,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"root_constants",
 			D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::constant_buffer_array<shared_type::root_constants>,
+			what::constant_buffer<shared_type::root_constants>,
 			how::root_constant,
 			where::b<1, 0>>,
 
@@ -174,12 +174,20 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1, 4>>,
 
 		binding_slot<
+			"ui_root_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::ui_root_data>,
+			how::root_descriptor,
+			where::t<0, 5>>,
+
+		binding_slot<
 			"ui_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::structured_buffer_array<shared_type::ui_data>,
 			how::root_descriptor,
-			where::t<0, 5>>,
+			where::t<1, 5>>,
 
 		binding_slot<
 			"linear_clamp_sampler",

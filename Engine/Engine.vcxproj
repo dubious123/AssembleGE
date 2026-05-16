@@ -204,9 +204,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClInclude Include="age_editor_ui.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
+    <ClInclude Include="age_editor_ui.inl" />
     <ClCompile Include="age_editor_save_load.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
@@ -723,42 +721,18 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="age_ui_widget.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset_font.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset_mesh_baked.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_editor.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_editor_save_load.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_ui.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset_env_light.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset_material.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_asset_texture.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_graphics_backend_dx12_pso.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
-    <ClInclude Include="age_graphics_backend_dx12_root_signature.inl">
-      <FileType>Document</FileType>
-    </ClInclude>
+    <ClInclude Include="age_ui_widget.inl" />
+    <ClInclude Include="age_asset.inl" />
+    <ClInclude Include="age_asset_font.inl" />
+    <ClInclude Include="age_asset_mesh_baked.inl" />
+    <ClInclude Include="age_editor.inl" />
+    <ClInclude Include="age_editor_save_load.inl" />
+    <ClInclude Include="age_ui.inl" />
+    <ClInclude Include="age_asset_env_light.inl" />
+    <ClInclude Include="age_asset_material.inl" />
+    <ClInclude Include="age_asset_texture.inl" />
+    <ClInclude Include="age_graphics_backend_dx12_pso.inl" />
+    <ClInclude Include="age_graphics_backend_dx12_root_signature.inl" />
     <None Include="cpp.hint" />
     <ClInclude Include="resources\engine_shaders\dx12\age.asli">
       <FileType>Document</FileType>

@@ -95,6 +95,12 @@
 #define RT_MASK_ALL			0xff
 
 // ui
+
+#define UI_SPACE_MODE_SCREEN			  0
+#define UI_SPACE_MODE_WORLD				  1
+#define UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP 2
+#define UI_SPACE_MODE_WORLD_BILLBOARD	  3
+
 #define UI_SHAPE_KIND_RECT		   0
 #define UI_SHAPE_KIND_CIRCLE	   1
 #define UI_SHAPE_KIND_ARROW_RIGHT  2
@@ -170,6 +176,18 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
 #endif
 	//---[ ui ]------------------------------------------------------------
+	struct ui_root_data
+	{
+		float3 world_pos;
+		float4 quaternion;
+
+		float width;
+		float height;
+
+		float world_width;
+		float world_height;
+	};
+
 	struct ui_shape_data
 	{
 		uint32 data[5];			// TBD, corner radius, circle radius, ...
@@ -197,10 +215,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		ui_brush_data border_brush_data;
 	};
 
-	struct light_cull_data
-	{
-		uint32 not_culled_light_count;
-	};
+	//---[ lights ]------------------------------------------------------------
+	// struct light_cull_data
+	//{
+	//	uint32 not_culled_light_count;
+	//};
 
 	struct zbin_entry
 	{
@@ -208,7 +227,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 max_idx;
 	};
 
-	//---[ lights ]------------------------------------------------------------
 	struct directional_light
 	{
 		float3 direction;				 // 12
@@ -406,6 +424,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
 		// uint32 shadow_light_index;	  // shadow mapping
+		uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][extra(24)]
+		uint32 ui_root_data_idx;
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
 
@@ -462,6 +482,11 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(SORT_THREAD_COUNT <= 0xff);
 	static_assert(SORT_THREAD_COUNT > 0);
 	static_assert(std::popcount<uint32>(SORT_THREAD_COUNT) == 1);
+
+	static_assert(UI_SPACE_MODE_SCREEN == to_idx(age::ui::e::space_mode_kind::screen));
+	static_assert(UI_SPACE_MODE_WORLD == to_idx(age::ui::e::space_mode_kind::world));
+	static_assert(UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP == to_idx(age::ui::e::space_mode_kind::world_always_on_top));
+	static_assert(UI_SPACE_MODE_WORLD_BILLBOARD == to_idx(age::ui::e::space_mode_kind::world_billboard));
 
 	static_assert(UI_SHAPE_KIND_RECT == to_idx(age::ui::e::shape_kind::rect));
 	static_assert(UI_SHAPE_KIND_CIRCLE == to_idx(age::ui::e::shape_kind::circle));
@@ -607,8 +632,19 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef RT_MASK_MASK
 	#undef RT_MASK_ALL
 
+	#undef UI_SPACE_MODE_SCREEN
+	#undef UI_SPACE_MODE_WORLD
+	#undef UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP
+	#undef UI_SPACE_MODE_WORLD_BILLBOARD
+
 	#undef UI_SHAPE_KIND_RECT
 	#undef UI_SHAPE_KIND_CIRCLE
+	#undef UI_SHAPE_KIND_ARROW_RIGHT
+	#undef UI_SHAPE_KIND_TEXT
+	#undef UI_SHAPE_KIND_CHECK
+	#undef UI_SHAPE_KIND_ROUNDED_RECT
+	#undef UI_SHAPE_KIND_TRIANGLE
+	#undef UI_SHAPE_KIND_CROSS
 
 	#undef UI_BRUSH_KIND_COLOR
 

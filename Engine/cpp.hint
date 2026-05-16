@@ -353,8 +353,9 @@
 	consteval std::size_t size() noexcept                                                      \
 	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }       \
 	consteval std::size_t e_size(enum_class_name) { return size<enum_class_name>(); }          \
+	template <typename t_ret = underlying_type>                                                \
 	constexpr FORCE_INLINE auto to_idx(enum_class_name e) noexcept                             \
-	{ return std::to_underlying(e); }                                                          \
+	{ return static_cast<t_ret>(std::to_underlying(e)); }                                      \
 	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();             \
 	template <typename t>                                                                      \
 	requires std::is_same_v<t, enum_class_name>                                                \
@@ -457,8 +458,9 @@
 	consteval std::size_t size() noexcept                                                      \
 	{ return age::util::str_to_uint64(AGE_PP_STRINGIFY(AGE_PP_VA_COUNT(__VA_ARGS__))); }       \
 	consteval std::size_t e_size(enum_class_name) { return size<enum_class_name>(); }          \
+	template <typename t_ret = underlying_type>                                                \
 	constexpr FORCE_INLINE auto to_idx(enum_class_name e) noexcept                             \
-	{ return std::to_underlying(e); }                                                          \
+	{ return static_cast<t_ret>(std::to_underlying(e)); }                                      \
 	constexpr inline std::size_t enum_class_name##_size = size<enum_class_name>();             \
                                                                                                \
 	template <typename t>                                                                      \

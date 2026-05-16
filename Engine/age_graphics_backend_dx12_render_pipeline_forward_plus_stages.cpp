@@ -545,7 +545,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		using namespace graphics::pso;
 
-		h_pso = graphics::pso::create(
+		h_pso_screen = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ui_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ui_ps) },
@@ -556,33 +556,80 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_ui");
+		p_pso_screen = graphics::g::pso_ptr_vec[h_pso_screen];
+		h_pso_screen.set_name(L"pso_ui_screen");
+
+		h_pso_world = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ui_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ui_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_readonly_reversed },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_world = graphics::g::pso_ptr_vec[h_pso_world];
+		h_pso_world.set_name(L"pso_ui_world");
 	}
 
 	inline void
-	ui_stage::execute(rtv_desc_handle				  h_rtv_desc,
-					  const age::vector<util::range>& ui_render_data_z_range_vec) noexcept
+	ui_stage::execute(binding_config_t::reg_b<1>&	  constants,
+					  rtv_desc_handle				  h_rtv_desc,
+					  dsv_desc_handle				  h_dsv_desc,
+					  ui::e::space_mode_kind		  space_mode,
+					  uint32						  root_data_idx,
+					  uint32						  root_data_count,
+					  const age::vector<util::range>& z_range_vec,
+					  const age::vector<util::range>& z_range_range_vec) noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_rtv_desc);
-
-		command::begin_render_pass(
-			1,
-			&render_pass_rt_desc,
-			nullptr,
-			D3D12_RENDER_PASS_FLAG_NONE);
-
+		if (space_mode == ui::e::space_mode_kind::screen
+			or space_mode == ui::e::space_mode_kind::world_always_on_top)
 		{
-			command::set_pso(p_pso);
+			command::begin_render_pass(
+				1,
+				&render_pass_rt_desc,
+				nullptr,
+				D3D12_RENDER_PASS_FLAG_NONE);
 
-			for (auto z_range : ui_render_data_z_range_vec)
+			command::set_pso(p_pso_screen);
+		}
+		else
+		{
+			auto render_pass_dsv_desc = defaults::render_pass_ds_desc::depth_load_preserve(h_dsv_desc);
+			command::begin_render_pass(
+				1,
+				&render_pass_rt_desc,
+				&render_pass_dsv_desc,
+				D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_DEPTH);
+
+			command::set_pso(p_pso_world);
+		}
+
+
+		for (auto i : views::loop(root_data_count))
+		{
+			c_auto root_idx = root_data_idx + i;
+
+			c_auto& z_range_range = z_range_range_vec[root_idx];
+
+			for (auto j : views::loop(z_range_range.count))
 			{
-				command::set_graphics_root_constants(
-					binding_config_t::reg_b<1>::slot_id,
-					static_cast<uint32>(sizeof(z_range) / 4),
-					&z_range,
-					static_cast<uint32>(offsetof(shared_type::root_constants, ui_data_id_offset) / 4));
+				c_auto& z_range = z_range_vec[z_range_range.offset + j];
 
+				struct
+				{
+					uint32 ui_space_mode_and_extra;
+					uint32 ui_root_data_idx;
+					uint32 ui_data_id_offset;
+					uint32 ui_data_id_count;
+				} payload{ to_idx(space_mode), root_idx, z_range.offset, z_range.count };
+
+				constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode_and_extra, sizeof(payload)>(payload);
 				command::dispatch_mesh((z_range.count + 31u) / 32u, 1, 1);
 			}
 		}
@@ -593,7 +640,8 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	ui_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso);
+		pso::destroy(h_pso_screen);
+		pso::destroy(h_pso_world);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

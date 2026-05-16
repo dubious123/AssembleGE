@@ -15,9 +15,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 {
 	const ui_data data = load_ui_data(ps_in.ui_data_id);
 
-	const float2 px_offset	   = ps_in.pos.xy - data.pivot_pos;
-	const float2 px_rotated	   = rotate(px_offset, -data.rotation);
-	const float2 center_offset = px_rotated - (float2(0.5f, 0.5f) - data.pivot_uv) * data.size;
+	const float2 center_offset = (ps_in.rect_uv - 0.5f) * data.size;
 
 	float  delta_from_edge = 0.f;
 	float4 body_color	   = float4(1, 1, 1, 1);
@@ -28,6 +26,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	const uint32 border_brush_kind = (data.packed_enums >> 16) & 0xff;
 
 	float sd;
+
+	attr_branch()
 
 	switch (shape_kind)
 	{
@@ -81,6 +81,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	}
 	}
 
+	attr_branch()
+
 	switch (body_brush_kind)
 	{
 	case UI_BRUSH_KIND_COLOR:
@@ -89,6 +91,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		break;
 	}
 	}
+
+	attr_branch()
 
 	switch (border_brush_kind)
 	{
@@ -112,10 +116,31 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 
 	float4 final_color = lerp(border_color, body_color, inner_alpha);
 
-	if (ps_in.pos.x >= data.clip_rect.x
-		&& ps_in.pos.y >= data.clip_rect.y
-		&& ps_in.pos.x <= data.clip_rect.z
-		&& ps_in.pos.y <= data.clip_rect.w)
+
+	bool draw = false;
+
+	attr_branch()
+
+	if ((ui_space_mode_and_extra & 0xff) == UI_SPACE_MODE_SCREEN)
+	{
+		draw = ps_in.pos.x >= data.clip_rect.x
+		   and ps_in.pos.y >= data.clip_rect.y
+		   and ps_in.pos.x <= data.clip_rect.z
+		   and ps_in.pos.y <= data.clip_rect.w;
+	}
+	else
+	{
+		float2 panel_local_pos = data.pivot_pos + rotate((ps_in.rect_uv - data.pivot_uv) * data.size, data.rotation);
+
+		draw = panel_local_pos.x >= data.clip_rect.x
+		   and panel_local_pos.y >= data.clip_rect.y
+		   and panel_local_pos.x <= data.clip_rect.z
+		   and panel_local_pos.y <= data.clip_rect.w;
+	}
+
+	attr_branch()
+
+	if (draw)
 	{
 		if (shape_kind == UI_SHAPE_KIND_TEXT)
 		{
@@ -130,7 +155,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	}
 	else
 	{
-		final_color.a = final_color.a * 0;
+		discard;
+
 		return final_color;
 		// return float4(lerp(border_color.rgb, body_color.rgb, inner_alpha), 0);
 	}

@@ -314,6 +314,33 @@ namespace age::graphics
 
 			command::set_compute_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(size / 4), &(constant_arr[0].*member_ptr), offset);
 		}
+
+		template <auto member_ptr>
+		void
+		apply_graphics_member(c_auto& member, e::queue_kind kind = e::queue_kind::direct) noexcept
+			requires(constant_arr.size() == 1)
+		{
+			using t_member				= BARE_OF(constant_arr[0].*member_ptr);
+			constant_arr[0].*member_ptr = static_cast<t_member>(member);
+			c_auto offset				= static_cast<uint32>(reinterpret_cast<std::byte*>(&(constant_arr[0].*member_ptr)) - reinterpret_cast<std::byte*>(&constant_arr[0])) / 4;
+
+			command::set_graphics_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(sizeof(t_member) / 4), &(constant_arr[0].*member_ptr), offset);
+		}
+
+		template <auto member_ptr, std::unsigned_integral auto size>
+		void
+		apply_graphics_member(c_auto& member, e::queue_kind kind = e::queue_kind::direct) noexcept
+			requires(constant_arr.size() == 1)
+		{
+			static_assert(sizeof(member) >= size);
+			static_assert(size % 4 == 0);
+
+			std::memcpy(&(constant_arr[0].*member_ptr), &member, size);
+
+			c_auto offset = static_cast<uint32>(reinterpret_cast<std::byte*>(&(constant_arr[0].*member_ptr)) - reinterpret_cast<std::byte*>(&constant_arr[0])) / 4;
+
+			command::set_graphics_root_constants(kind, uint8{ 0 }, slot_id, static_cast<uint32>(size / 4), &(member), offset);
+		}
 	};
 
 	template <util::nttp_string_holder str_nttp, auto flags, D3D12_SHADER_VISIBILITY visibility, typename t_what, typename t_where_, uint32 slot_id_>

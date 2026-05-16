@@ -27,7 +27,12 @@ namespace age_demo::scene_3
 		using enum age::input::e::key_kind;
 
 		i_update.get_render_pipeline->begin_frame();
-		age::ui::begin_frame(i_update.get_h_window);
+
+		{
+			c_auto& ui_main_cam = i_update.get_render_pipeline->get_camera_data(0);
+			age::ui::begin_frame(i_update.get_h_window, ui_main_cam.pos, ui_main_cam.view_proj_inv);
+		}
+
 
 		if (auto _ = widget::horizontal(set_size(size_mode::grow(), size_mode::grow()), set_child_gap(0)))
 		{
@@ -97,8 +102,7 @@ namespace age_demo::scene_3
 			return;
 		}
 
-		age::ui::end_frame(i_update.get_render_pipeline->get_ui_render_data_vec(),
-						   i_update.get_render_pipeline->get_ui_render_data_z_range_vec());
+		age::ui::end_frame(i_update.get_render_pipeline->get_ui_sink());
 
 		i_update.get_editor_game->visit_all_storages(
 			AGE_LAMBDA(

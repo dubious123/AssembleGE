@@ -25,6 +25,24 @@ namespace age::inline math
 	{
 		return v | simd::load() | simd::normalize4() | simd::to<float4>();
 	}
+
+	FORCE_INLINE float4
+	mul(const float4x4& mat, const float4& v) noexcept
+	{
+		return simd::transform4(simd::load(mat), simd::load(v)) | simd::to<float4>();
+	}
+
+	FORCE_INLINE float
+	dot(const float3& lhs, const float3& rhs) noexcept
+	{
+		return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+	}
+
+	FORCE_INLINE float
+	dot(const float4& lhs, const float4& rhs) noexcept
+	{
+		return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
+	}
 }	 // namespace age::inline math
 
 // 2d
@@ -48,9 +66,40 @@ namespace age::inline math
 	}
 }	 // namespace age::inline math
 
+namespace age::inline math
+{
+	FORCE_INLINE float2
+	screen_to_ndc(const float2& screen_size, const float2& screen_pos) noexcept
+	{
+		return float2{ screen_pos.x / screen_size.x * 2.f - 1.f, 1.f - screen_pos.y / screen_size.y * 2.f };
+	}
+
+	FORCE_INLINE float3
+	ndc_to_world(const float4x4& view_proj_inv, const float3& ndc) noexcept
+	{
+		c_auto temp = mul(view_proj_inv, float4(ndc, 1.f));
+
+		return temp.xyz / temp.w;
+	}
+
+	FORCE_INLINE float3
+	ndc_to_world(const float4x4& view_proj_inv, const float4& ndc) noexcept
+	{
+		c_auto temp = mul(view_proj_inv, ndc);
+
+		return temp.xyz / temp.w;
+	}
+}	 // namespace age::inline math
+
 // quaternoin
 namespace age::inline math
 {
+	FORCE_INLINE float3
+	rotate(const float4& quaternion, const float3& v) noexcept
+	{
+		return simd::rotate3(simd::load(quaternion), simd::load(v)) | simd::to<float3>();
+	}
+
 	FORCE_INLINE float4
 	euler_rad_to_quat(float3 euler_radian) noexcept
 	{

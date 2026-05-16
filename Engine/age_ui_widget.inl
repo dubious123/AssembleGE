@@ -552,7 +552,7 @@ namespace age::ui::widget
 			auto& state = h.get_state();
 
 			c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
-			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+			c_auto mouse_offset = ui::detail::get_current_root().mouse_uv - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
 
 			if (h.triple_clicked())
 			{
@@ -619,7 +619,7 @@ namespace age::ui::widget
 				auto& state = h.get_state();
 
 				c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
-				c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+				c_auto mouse_offset = ui::detail::get_current_root().mouse_uv - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
 
 				if (h.triple_clicked())
 				{
@@ -690,7 +690,7 @@ namespace age::ui::widget
 			auto& state = h.get_state();
 
 			c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
-			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+			c_auto mouse_offset = ui::detail::get_current_root().mouse_uv - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
 
 			if (h.triple_clicked())
 			{
@@ -752,7 +752,7 @@ namespace age::ui::widget
 			auto& state = h.get_state();
 
 			c_auto width		= state.width - (theme::frame_padding().x + theme::frame_padding().y);
-			c_auto mouse_offset = g::p_input_ctx->mouse_pos - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
+			c_auto mouse_offset = ui::detail::get_current_root().mouse_uv - state.pos - float2{ theme::frame_padding().x, theme::frame_padding().z };
 
 			if (h.triple_clicked())
 			{
@@ -881,7 +881,7 @@ namespace age::ui::widget
 					if (h_interact.pressed<mouse_left>())
 					{
 						style_state	 = e::style_state::active;
-						value		+= g::p_input_ctx->mouse_delta.x * step;
+						value		+= ui::detail::get_current_root().mouse_delta_uv.x * step;
 						value		 = std::clamp(value, min, max);
 					}
 					else if (h_interact.hovered())
@@ -900,7 +900,7 @@ namespace age::ui::widget
 					{
 						style_state = e::style_state::active;
 
-						state.drag_x += g::p_input_ctx->mouse_delta.x * step;
+						state.drag_x += ui::detail::get_current_root().mouse_delta_uv.x * step;
 
 						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
 
