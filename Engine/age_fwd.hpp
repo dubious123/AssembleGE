@@ -115,6 +115,7 @@ namespace age::graphics::e
 							   (opaque, 0x01),
 							   (transparent, 0x02),
 							   (mask, 0x04),
+							   (debug, 0x08),
 							   (all, 0xff));
 }	 // namespace age::graphics::e
 

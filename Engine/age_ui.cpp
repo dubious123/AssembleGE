@@ -384,7 +384,6 @@ namespace age::ui
 					// handle interaction
 					if (child.interact and child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv))
 					{
-						std::println("{}", child.clip_rect);
 						current_hover_z_offset = child.z_offset;
 						// todo replace hover_id -> g::hover_id_stack.back();
 						g::hover_id = child.id;

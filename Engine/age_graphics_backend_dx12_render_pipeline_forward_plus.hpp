@@ -243,8 +243,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		// rt, not for binding
-		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
-		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[graphics::g::thread_count];
+		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::thread_count];
 
 
 		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
@@ -339,7 +339,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
-		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::frame_buffer_count][graphics::g::thread_count];
+		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::thread_count];
 
 		// light
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
@@ -358,8 +358,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::raycast_request>		raycast_request_vec[graphics::g::frame_buffer_count];
 
 		// selection_outline
-		age::vector<shared_type::selection_outline_data>				selection_outline_data_vec[graphics::g::frame_buffer_count];
-		age::vector<shared_type::selection_outline_meshlet_render_data> selection_outline_meshlet_render_data_vec[graphics::g::frame_buffer_count];
+		age::vector<shared_type::selection_outline_data>				selection_outline_data_vec;
+		age::vector<shared_type::selection_outline_meshlet_render_data> selection_outline_meshlet_render_data_vec;
+
+		// debug & immediate & ui
+		age::vector<t_object_id>							debug_object_id_vec;
+		age::vector<shared_type::debug_meshlet_render_data> debug_meshlet_render_data_vec;
 
 		// main
 		void
@@ -428,10 +432,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// object
 		t_object_id
-		add_object(const float3 pos, const float4 quat, const float3 scale) noexcept;
+		add_object(const float3& pos, const float4& quat, const float3& scale) noexcept;
 
 		void
-		update_object(t_object_id id, const float3 pos, const float4 quat, const float3 scale) noexcept;
+		update_object(t_object_id id, const float3& pos, const float4& quat, const float3& scale) noexcept;
 
 		float4x4
 		get_object_transform_matrix(t_object_id id) const noexcept;
@@ -510,6 +514,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		shared_type::raycast_result
 		get_raycast_result(t_raycast_id _) noexcept;
+
+		// debug
+		void
+		render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
+
+		void
+		render_debug_line() noexcept;
 
 	  private:
 		void
