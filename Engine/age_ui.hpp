@@ -33,6 +33,12 @@ namespace age::ui
 
 	void
 	deinit(auto& renderer) noexcept;
+
+	bool
+	is_any_hovered() noexcept;
+
+	bool
+	is_any_focused() noexcept;
 }	 // namespace age::ui
 
 namespace age::ui::font

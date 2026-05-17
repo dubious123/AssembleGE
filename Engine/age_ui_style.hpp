@@ -94,6 +94,18 @@ namespace age::ui
 	DEF(save_state, save_state)
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_interact() noexcept
+	{
+		return set_interact(true);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_draw() noexcept
+	{
+		return set_draw(true);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_align_begin() noexcept
 	{
 		return detail::mod_align{ e::widget_align::begin };

@@ -307,12 +307,12 @@ namespace age::editor
 	}	 // namespace detail
 
 	void
-	ui_inspector(auto& editor_game, auto& renderer) noexcept
+	ui_inspector(auto& ecs_game, auto& renderer) noexcept
 	{
 		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 		for (auto& storage_data : current_scene.storage_data_vec)
 		{
-			editor_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_inspector_impl), renderer, storage_data);
+			ecs_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_inspector_impl), renderer, storage_data);
 		}
 	}
 }	 // namespace age::editor
@@ -438,7 +438,7 @@ namespace age::editor
 	}	 // namespace detail
 
 	void
-	ui_entity_hierarchy(auto& editor_game, auto& renderer) noexcept
+	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept
 	{
 		using namespace age::ui;
 		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
@@ -455,7 +455,7 @@ namespace age::editor
 
 		for (auto& storage_data : current_scene.storage_data_vec)
 		{
-			editor_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer, storage_data);
+			ecs_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer, storage_data);
 		}
 	}
 
@@ -463,10 +463,11 @@ namespace age::editor
 	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept
 	{
 		using namespace ui;
-		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large()) | set_interact(true)))
+		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large())))
 		{
-			g::scene_view_focused = h_game_scene.hovered_all();
-			age::editor::update_camera(renderer, h_game_scene.hovered_all(), h_window);
+			// g::scene_view_focused = h_game_scene.hovered_all();
+
+			editor::update_camera(renderer, ui::is_any_focused() is_false, h_window);
 
 			if (auto h_play_pause_stop = widget::begin(style::horizontal() | set_align_center() | set_width_fit() | set_height_fit()))
 			{

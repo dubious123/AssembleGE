@@ -209,7 +209,7 @@ namespace age::editor
 
 	// return pair { aabb_min, aabb_max }
 	decltype(auto)
-	handle_entity_focus(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
+	calc_entity_aabb(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ecs_ent_id) noexcept
 	{
 		using t_storage = BARE_OF(storage);
 		using t_ent_id	= typename t_storage::t_ent_id;
@@ -322,6 +322,189 @@ namespace age::editor::detail
 	}
 }	 // namespace age::editor::detail
 
+// widget
+namespace age::editor
+{
+	void
+	widget_transform(auto& ecs_game, const float3& world_pos) noexcept
+	{
+		using namespace ui;
+		using namespace ui::widget;
+		using enum input::e::key_kind;
+
+		constexpr c_auto world_size_base = 1.f;
+		constexpr c_auto screen_size	 = 180.f;
+
+		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+		c_auto& cam			 = active_scene.cam;
+
+		c_auto xm_look_quat = cam.euler_deg * age::g::degree_to_radian
+							| simd::load()
+							| simd::euler_to_quat();
+
+		c_auto forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
+
+		c_auto view_z			= std::max(math::dot(world_pos - cam.pos, forward), 0.5f);
+		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam.fov_y * 0.5f);
+		c_auto world_size		= world_size_scale * view_z;
+
+		auto res_translation = float3::zero();
+
+		// xy, normal = (0,0,-1)
+		{
+			auto h_root_front = root_begin(root_desc{
+				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
+				.layout		  = ui::e::widget_layout::vertical,
+				.width		  = screen_size,
+				.height		  = screen_size,
+				.world_pos	  = world_pos + float3(-world_size * 0.05, world_size - world_size * 0.05, 0),
+				.quaternion	  = float4{ 0, 0, 0, 1 },
+				.world_width  = world_size,
+				.world_height = world_size,
+			});
+
+			auto h_plane_front = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw(true) | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
+
+			// +x translation
+			if (auto h_translation_x = widget::horizontal(set_padding_left(screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
+			{
+				if (h_translation_x.pressed<mouse_left>())
+				{
+					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
+				}
+
+				widget::begin(set_width_fixed(screen_size * 0.8f)
+							  | set_height_fixed(screen_size * 0.025f)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_red()));
+
+				widget::begin(set_width_fixed(screen_size * 0.1f)
+							  | set_height_fixed(screen_size * 0.1f)
+							  | set_offset(-screen_size * 0.05f, 0)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_red())
+							  | set_rotation(age::cvt_to_radian(30.f))
+							  | set_shape_kind(ui::e::shape_kind::triangle));
+			}
+
+			// +y translation
+			if (auto h_translation_y = widget::vertical_inv(set_offset(0, screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_height_fixed(screen_size) | set_width_fit()))
+			{
+				if (h_translation_y.pressed<mouse_left>())
+				{
+					res_translation.y -= ui::detail::get_current_root().mouse_delta_uv.y * world_size / screen_size;
+				}
+
+				widget::begin(set_height_fixed(screen_size * 0.8f)
+							  | set_width_fixed(screen_size * 0.025f)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_green()));
+
+				widget::begin(set_height_fixed(screen_size * 0.1f)
+							  | set_width_fixed(screen_size * 0.1f)
+							  | set_offset(0, screen_size * 0.05f)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_green())
+							  | set_rotation(age::cvt_to_radian(180.f))
+							  | set_shape_kind(ui::e::shape_kind::triangle));
+			}
+		}
+
+		// yz, normal = (1,0,0)
+		{
+			auto h_root_left = root_begin(root_desc{
+				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
+				.layout		  = ui::e::widget_layout::vertical,
+				.width		  = screen_size,
+				.height		  = screen_size,
+				.world_pos	  = world_pos + float3(0, world_size - world_size * 0.05, -world_size * 0.05),
+				.quaternion	  = math::euler_deg_to_quat(float3{ 0, -90, 0 }),
+				.world_width  = world_size,
+				.world_height = world_size,
+			});
+
+			auto h_plane_left = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw(true) | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
+
+			// +z translation
+			if (auto h_translation_z = widget::horizontal(set_padding_left(screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
+			{
+				if (h_translation_z.pressed<mouse_left>())
+				{
+					res_translation.z += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
+				}
+
+				widget::begin(set_width_fixed(screen_size * 0.8f)
+							  | set_height_fixed(screen_size * 0.025f)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_blue()));
+
+				widget::begin(set_width_fixed(screen_size * 0.1f)
+							  | set_height_fixed(screen_size * 0.1f)
+							  | set_offset(-screen_size * 0.05f, 0)
+							  | set_draw(true)
+							  | set_align_center()
+							  | set_border_thickness(0)
+							  //| set_border_brush_data(theme::color_black())
+							  | set_body_brush_data(theme::color_blue())
+							  | set_rotation(age::cvt_to_radian(30.f))
+							  | set_shape_kind(ui::e::shape_kind::triangle));
+			}
+		}
+
+		// xz, normal = (0,1,0)
+		{
+			auto h_root_down = root_begin(root_desc{
+				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
+				.layout		  = ui::e::widget_layout::vertical,
+				.width		  = screen_size,
+				.height		  = screen_size,
+				.world_pos	  = world_pos + float3(0, 0, world_size),
+				.quaternion	  = math::euler_deg_to_quat(float3{ 90, 0, 0 }),
+				.world_width  = world_size,
+				.world_height = world_size,
+			});
+		}
+
+		for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
+		{
+			if (storage_code_idx >= ecs_game.scene_count()) { continue; }
+
+			ecs_game.visit_storage_at(
+				active_scene.code_idx, static_cast<uint32>(storage_code_idx),
+				[&](auto& entities) {
+					using t_storage = BARE_OF(entities);
+					using t_ent_id	= typename t_storage::t_ent_id;
+					for (auto ecs_ent_id : vec)
+					{
+						if (entities.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
+						{
+							auto&& [pos]  = entities.get_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
+							pos			 += res_translation;
+						}
+					}
+				});
+
+
+			// editor::command::copy(g::current_select_kind, ecs_game, renderer);
+		}
+	}
+}	 // namespace age::editor
+
 namespace age::editor
 {
 	void
@@ -334,15 +517,16 @@ namespace age::editor
 
 		static auto raycast_req_vec = std::array<uint32, graphics::g::frame_buffer_count>{};
 
-		c_auto raycast_res		 = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
-		auto   need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left);
+		c_auto raycast_res = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
+
+		auto need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left) and (ui::is_any_focused() is_false);
 
 		{
 			c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
 
 			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(target_world - active_scene.cam.pos), std::numeric_limits<float>::max());
 
-			if (g::scene_view_focused)
+			if (ui::is_any_hovered() is_false)
 			{
 				ecs_game.visit_scene_at(
 					active_scene.code_idx,
@@ -402,12 +586,10 @@ namespace age::editor
 							{
 								copy_entity(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
 							}
-							if (need_focus)
-							{
-								auto&& [min, max] = handle_entity_focus(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
-								aabb_min		  = float3::min(aabb_min, min);
-								aabb_max		  = float3::max(aabb_max, max);
-							}
+
+							auto&& [min, max] = calc_entity_aabb(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+							aabb_min		  = float3::min(aabb_min, min);
+							aabb_max		  = float3::max(aabb_max, max);
 
 							if (entities.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
 							{
@@ -428,9 +610,14 @@ namespace age::editor
 				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
 			}
 
-			if (need_focus and aabb_min <= aabb_max)
+			if (aabb_min <= aabb_max)
 			{
-				focus_camera(renderer, aabb_min, aabb_max);
+				if (need_focus)
+				{
+					focus_camera(renderer, aabb_min, aabb_max);
+				}
+
+				widget_transform(ecs_game, (aabb_min + aabb_max) * 0.5f);
 			}
 		}
 

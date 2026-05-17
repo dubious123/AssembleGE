@@ -108,8 +108,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	// -border + 1 ~ -border - 1 : lerp
 	// -border - 1 ~ 0 : body
 
-	// float aa = fwidth(delta_from_edge);
-	float aa = 1.f;
+	float aa = fwidth(delta_from_edge);
+	// float aa = 1.f;
 
 	float outer_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge);
 	float inner_alpha = 1.0 - smoothstep(-aa, aa, delta_from_edge + data.border_thickness);

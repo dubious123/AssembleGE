@@ -46,32 +46,38 @@ namespace age::ui
 				c_auto normal = math::rotate(root.quaternion, float3{ 0, 0, -1.f });
 				c_auto denorm = math::dot(g::mouse_ray_dir, normal);
 
-				if (denorm >= 0.f or std::abs(denorm) < math::g::epsilon_1e6)
+				if (std::abs(denorm) < math::g::epsilon_1e6)
 				{
-					// back face, no hit
 					root.mouse_uv = float2{ -1.f, -1.f };
 				}
 				else
 				{
 					c_auto t = math::dot(root.world_pos - g::cam_world_pos, normal) / denorm;
 
-					c_auto hit_world = g::cam_world_pos + t * g::mouse_ray_dir;
+					if (t <= 0.f)
+					{
+						root.mouse_uv = float2{ -1.f, -1.f };
+					}
+					else
+					{
+						c_auto hit_world = g::cam_world_pos + t * g::mouse_ray_dir;
 
-					c_auto hit_world_delta = hit_world - root.world_pos;
+						c_auto hit_world_delta = hit_world - root.world_pos;
 
-					root.mouse_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta) }
-								  * float2{ root.width / root.world_width, root.height / root.world_height };
+						root.mouse_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta) }
+									  * float2{ root.width / root.world_width, root.height / root.world_height };
 
 
-					c_auto hit_world_prev = g::cam_world_pos_prev + t * g::mouse_ray_dir_prev;
+						c_auto hit_world_prev = g::cam_world_pos_prev + t * g::mouse_ray_dir_prev;
 
-					// todo: root transform may change between frames; possible drag delta inaccuracy on animated panels.
-					c_auto hit_world_delta_prev = hit_world_prev - root.world_pos;
+						// todo: root transform may change between frames; possible drag delta inaccuracy on animated panels.
+						c_auto hit_world_delta_prev = hit_world_prev - root.world_pos;
 
-					root.mouse_delta_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta_prev), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta_prev) }
-										* float2{ root.width / root.world_width, root.height / root.world_height };
+						root.mouse_delta_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta_prev), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta_prev) }
+											* float2{ root.width / root.world_width, root.height / root.world_height };
 
-					root.mouse_delta_uv = root.mouse_uv - root.mouse_delta_uv;
+						root.mouse_delta_uv = root.mouse_uv - root.mouse_delta_uv;
+					}
 				}
 			}
 
@@ -378,6 +384,7 @@ namespace age::ui
 					// handle interaction
 					if (child.interact and child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv))
 					{
+						std::println("{}", child.clip_rect);
 						current_hover_z_offset = child.z_offset;
 						// todo replace hover_id -> g::hover_id_stack.back();
 						g::hover_id = child.id;
@@ -481,5 +488,17 @@ namespace age::ui
 		g::word_data_vec.clear();
 		g::char_data_vec.clear();
 		g::char_pos_data_vec.clear();
+	}
+
+	bool
+	is_any_hovered() noexcept
+	{
+		return ui::g::hover_id_stack.is_empty() is_false;
+	}
+
+	bool
+	is_any_focused() noexcept
+	{
+		return ui::g::focus_id_stack.is_empty() is_false;
 	}
 }	 // namespace age::ui
