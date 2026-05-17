@@ -48,6 +48,9 @@ uint32 ui_data_count;
 
 uint32 selection_outline_meshlet_render_data_count;
 uint32 selection_outline_mask_buffer_srv_texture_id;
+
+uint32 debug_meshlet_render_data_offset;
+uint32 debug_meshlet_render_data_count;
 #endif
 
 byte_address_buffer static_buffer reg(t0, space0);
@@ -346,6 +349,22 @@ load_ui_data(uint32 ui_data_id)
 	return ui_data_buffer[ui_data_id];
 }
 
+// debug
+structured_buffer<debug_meshlet_render_data> debug_meshlet_render_data_buffer reg(t0, space77);
+structured_buffer<debug_object_data>		 debug_object_data_buffer reg(t1, space77);
+
+debug_meshlet_render_data
+load_debug_meshlet_render_data(uint32 idx)
+{
+	return debug_meshlet_render_data_buffer[debug_meshlet_render_data_offset + idx];
+}
+
+debug_object_data
+load_debug_object_data(uint32 id)
+{
+	return debug_object_data_buffer[id];
+}
+
 // sampler
 sampler_state linear_clamp_sampler reg(s0);
 sampler_state linear_wrap_sampler reg(s1);
@@ -400,6 +419,12 @@ struct opaque_ms_to_ps
 {
 	vertex_fat					  v;
 	nointerpolation uint32 mat_id semantics(material);
+};
+
+struct debug_ms_to_ps
+{
+	vertex_fat							v;
+	nointerpolation uint32 debug_obj_id semantics(debug_obj_id);
 };
 
 struct selection_outline_ms_to_ps

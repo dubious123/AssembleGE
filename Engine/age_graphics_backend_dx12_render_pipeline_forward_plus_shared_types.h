@@ -291,6 +291,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		//  uint16_t extra;	   // 2
 	};	  // total: 24 bytes
 
+	struct debug_object_data
+	{
+		uint32 object_id;
+		float3 color;
+	};
+
 	struct opaque_meshlet_render_data
 	{
 		uint32 object_id;
@@ -312,7 +318,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct debug_meshlet_render_data
 	{
-		uint32 object_id;
+		uint32 debug_object_id;
 		uint32 mesh_byte_offset;
 		uint32 mesh_chunk_srv_id;
 		uint32 meshlet_id;
@@ -440,6 +446,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 selection_outline_meshlet_render_data_count;
 		uint32 selection_outline_mask_buffer_srv_texture_id;
+
+		uint32 debug_meshlet_render_data_offset;
+		uint32 debug_meshlet_render_data_count;
 	};
 
 

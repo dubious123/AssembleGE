@@ -197,6 +197,29 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct debug_stage
+	{
+		pso::handle			 h_pso_mesh;
+		ID3D12PipelineState* p_pso_mesh;
+
+		pso::handle			 h_pso_mesh_always_on_top;
+		ID3D12PipelineState* p_pso_mesh_always_on_top;
+
+		void
+		init(root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(binding_config_t::reg_b<1>& constants,
+				rtv_desc_handle				h_desc_rtv,
+				dsv_desc_handle				h_desc_dsv,
+				bool						is_aot,
+				uint32						render_data_count,
+				uint32						render_data_offset) noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct pipeline
 	{
 		graphics::root_signature::handle h_root_sig;
@@ -212,11 +235,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		selection_outline_stage stage_selection_outline;
 		ui_stage				stage_ui;
 		presentation_stage		stage_presentation;
+		debug_stage				stage_debug;
 
 		resource_handle h_main_buffer;
 		resource_handle h_post_buffer;
 		resource_handle h_selection_outline_mask_buffer;
 		resource_handle h_depth_buffer;
+		resource_handle h_debug_depth_buffer;
 		resource_handle h_rt_transparent_texture_buffer;
 
 		rtv_desc_handle h_main_buffer_rtv_desc;
@@ -224,6 +249,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
 		dsv_desc_handle h_depth_buffer_dsv_readonly_desc;
 		dsv_desc_handle h_depth_buffer_dsv_desc;
+		dsv_desc_handle h_debug_depth_buffer_dsv_desc;
 
 		resource_handle h_scratch_buffer;
 		resource_handle h_light_cull_stage_buffer;
@@ -303,6 +329,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<2, 3> rt_raycast_request_buffer_srv;
 		binding_config_t::reg_u<3, 3> rt_raycast_result_buffer_uav;
 
+		// debug
+		binding_config_t::reg_t<0, 77>								debug_meshlet_render_data_buffer;
+		binding_config_t::reg_t<1, 77>								debug_object_data_buffer;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
+		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
+
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_post_buffer_srv_desc;
@@ -355,15 +387,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// raycast
 		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[graphics::g::frame_buffer_count];
-		age::vector<shared_type::raycast_request>		raycast_request_vec[graphics::g::frame_buffer_count];
+		age::vector<shared_type::raycast_request>		raycast_request_vec;
 
 		// selection_outline
 		age::vector<shared_type::selection_outline_data>				selection_outline_data_vec;
 		age::vector<shared_type::selection_outline_meshlet_render_data> selection_outline_meshlet_render_data_vec;
 
 		// debug & immediate & ui
-		age::vector<t_object_id>							debug_object_id_vec;
+		age::vector<shared_type::debug_object_data>			debug_object_data_vec;
 		age::vector<shared_type::debug_meshlet_render_data> debug_meshlet_render_data_vec;
+		age::vector<shared_type::debug_meshlet_render_data> debug_aot_meshlet_render_data_vec;
 
 		// main
 		void
@@ -518,6 +551,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		// debug
 		void
 		render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
+
+		void
+		render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
 
 		void
 		render_debug_line() noexcept;

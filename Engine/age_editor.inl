@@ -326,7 +326,7 @@ namespace age::editor::detail
 namespace age::editor
 {
 	void
-	widget_transform(auto& ecs_game, const float3& world_pos) noexcept
+	widget_transform(auto& ecs_game, auto& renderer, const float3& world_pos) noexcept
 	{
 		using namespace ui;
 		using namespace ui::widget;
@@ -372,6 +372,8 @@ namespace age::editor
 				{
 					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
 				}
+
+				renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
 
 				widget::begin(set_width_fixed(screen_size * 0.8f)
 							  | set_height_fixed(screen_size * 0.025f)
@@ -617,7 +619,7 @@ namespace age::editor
 					focus_camera(renderer, aabb_min, aabb_max);
 				}
 
-				widget_transform(ecs_game, (aabb_min + aabb_max) * 0.5f);
+				widget_transform(ecs_game, renderer, (aabb_min + aabb_max) * 0.5f);
 			}
 		}
 

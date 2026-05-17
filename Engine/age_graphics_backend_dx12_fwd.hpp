@@ -61,6 +61,11 @@ namespace age::graphics::e
 					forward_plus_ui_ms,
 					forward_plus_ui_ps,
 
+					forward_plus_debug_mesh_as,
+					forward_plus_debug_mesh_ms,
+					forward_plus_debug_mesh_ps,
+					forward_plus_debug_mesh_aot_ps,
+
 					forward_plus_presentation_ms,
 					forward_plus_presentation_hdr10_ps,
 					forward_plus_presentation_sdr_ps,

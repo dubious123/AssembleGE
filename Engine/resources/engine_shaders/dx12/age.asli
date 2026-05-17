@@ -847,6 +847,7 @@ cross(float3, float3)
 	#define space8
 	#define space9
 	#define space10
+	#define space77
 
 	#define sv_dispatch_thread_id
 	#define sv_thread_id
@@ -1212,6 +1213,13 @@ t
 load(texture_2d<t> tex, float x, float y, uint32 mip = 0)
 {
 	return tex.Load(int32_3(x, y, mip));
+}
+
+template <typename t>
+t
+load(texture_2d<t> tex, float2 xy, uint32 mip = 0)
+{
+	return tex.Load(int32_3(xy.x, xy.y, mip));
 }
 
 template <typename t>

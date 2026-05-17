@@ -190,6 +190,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1, 5>>,
 
 		binding_slot<
+			"debug_meshlet_render_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::debug_meshlet_render_data>,
+			how::root_descriptor,
+			where::t<0, 77>>,
+
+		binding_slot<
+			"debug_meshlet_aot_render_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::debug_meshlet_render_data>,
+			how::root_descriptor,
+			where::t<1, 77>>,
+
+		binding_slot<
 			"linear_clamp_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,

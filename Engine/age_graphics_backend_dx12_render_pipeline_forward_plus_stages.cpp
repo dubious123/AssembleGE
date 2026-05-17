@@ -713,4 +713,91 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
+	debug_stage::init(root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_mesh = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D16_UNORM },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+
+		p_pso_mesh = graphics::g::pso_ptr_vec[h_pso_mesh];
+		h_pso_mesh.set_name(L"pso_debug_mesh");
+
+		h_pso_mesh_always_on_top = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_debug_mesh_aot_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D16_UNORM },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_mesh_always_on_top = graphics::g::pso_ptr_vec[h_pso_mesh_always_on_top];
+		h_pso_mesh_always_on_top.set_name(L"pso_mesh_always_on_top");
+	}
+
+	inline void
+	debug_stage::execute(binding_config_t::reg_b<1>& constants,
+						 rtv_desc_handle			 h_desc_rtv,
+						 dsv_desc_handle			 h_desc_dsv,
+						 bool						 is_aot,
+						 uint32						 render_data_count,
+						 uint32						 render_data_offset) noexcept
+	{
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_desc_rtv);
+		auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_discard(h_desc_dsv, 0.f, DXGI_FORMAT_D16_UNORM);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			&render_pass_ds_desc,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		{
+			struct
+			{
+				uint32 offset;
+				uint32 count;
+			} payload{ render_data_offset, render_data_count };
+
+			constants.apply_graphics_member<&shared_type::root_constants::debug_meshlet_render_data_offset, sizeof(payload)>(payload);
+			command::set_pso(is_aot ? p_pso_mesh_always_on_top : p_pso_mesh);
+
+			if (render_data_count > 0)
+			{
+				command::dispatch_mesh((render_data_count + 31u) / 32u, 1, 1);
+			}
+		}
+
+		command::end_render_pass();
+	}
+
+	void
+	debug_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_mesh);
+		pso::destroy(h_pso_mesh_always_on_top);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
 #endif

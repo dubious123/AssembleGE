@@ -742,10 +742,11 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
-		depth_clear_discard(dsv_desc_handle h_dsv_desc, float depth_val = 1.0f) noexcept
+		depth_clear_discard(dsv_desc_handle h_dsv_desc, float depth_val = 1.0f, DXGI_FORMAT format = DXGI_FORMAT_D32_FLOAT) noexcept
 		{
-			auto desc					= depth_clear_preserve(h_dsv_desc, depth_val);
-			desc.DepthEndingAccess.Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+			auto desc										  = depth_clear_preserve(h_dsv_desc, depth_val);
+			desc.DepthEndingAccess.Type						  = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_DISCARD;
+			desc.DepthBeginningAccess.Clear.ClearValue.Format = format;
 			return desc;
 		}
 

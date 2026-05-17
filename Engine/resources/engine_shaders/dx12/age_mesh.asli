@@ -273,7 +273,6 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
 	const float3 pos		= obj_data.pos;
 
 	// 1. frustum culling using meshlet shpere
-
 	const float3 sphere_center =
 		rotate((cast<float3>(m_header.aabb_min) + cast<float3>(m_header.aabb_size) * 0.5f) * scale, quaternion)
 		+ pos;
