@@ -296,6 +296,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx]->readback(raycast_result_vec[graphics::g::frame_buffer_idx].data(), raycast_result_vec[graphics::g::frame_buffer_idx].byte_size());
 
+		for (auto& res : raycast_result_vec[graphics::g::frame_buffer_idx])
+		{
+			if (AGE_IS_INVALID_IDX(res.object_id) is_false)
+			{
+				res.object_id = object_data_vec.nth_id(res.object_id);
+			}
+		}
+
 		selection_outline_data_vec[graphics::g::frame_buffer_idx].clear();
 		selection_outline_meshlet_render_data_vec[graphics::g::frame_buffer_idx].clear();
 
@@ -1547,6 +1555,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::request_raycast(const float3& origin, const float3& dir, float t_max, e::rt_mask_kind mask) noexcept
 	{
 		auto& req_vec = raycast_request_vec[graphics::g::frame_buffer_idx];
+
 		AGE_ASSERT(req_vec.size() < 0x00ff'ffff);
 		static_assert(graphics::g::frame_buffer_count < 0xff);
 

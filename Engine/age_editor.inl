@@ -338,16 +338,9 @@ namespace age::editor
 		auto   need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left);
 
 		{
-			c_auto uv = ui::g::p_input_ctx->mouse_pos / float2{ ui::g::window_width, ui::g::window_height };
+			c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
 
-			c_auto ndc = float2{ uv.x * 2.0f - 1.0f, 1.0f - uv.y * 2.0f };
-
-			c_auto& data = renderer.get_camera_data(0);
-
-			auto world_pos	= simd::transform4(data.view_proj_inv | simd::load(), float4(ndc.x, ndc.y, 0.f, 1.f) | simd::load()) | simd::to<float4>();
-			world_pos.xyz  /= world_pos.w;
-
-			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(world_pos.xyz - active_scene.cam.pos), std::numeric_limits<float>::max());
+			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(target_world - active_scene.cam.pos), std::numeric_limits<float>::max());
 
 			if (g::scene_view_focused)
 			{
@@ -419,6 +412,8 @@ namespace age::editor
 							if (entities.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
 							{
 								auto&& [obj, mesh] = entities.get_component<const ecs::render_object, const ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id));
+
+								if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(mesh.h_mesh)) { continue; }
 
 								if (c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
 									entry.is_gpu_loaded())

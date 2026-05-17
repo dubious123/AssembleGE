@@ -62,13 +62,11 @@ namespace age::ui
 					root.mouse_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta) }
 								  * float2{ root.width / root.world_width, root.height / root.world_height };
 
-					std::println("dot = {} , mouse_uv = {}", math::dot(hit_world_delta, normal), root.mouse_uv);
-
 
 					c_auto hit_world_prev = g::cam_world_pos_prev + t * g::mouse_ray_dir_prev;
 
 					// todo: root transform may change between frames; possible drag delta inaccuracy on animated panels.
-					c_auto hit_world_delta_prev = hit_world - root.world_pos;
+					c_auto hit_world_delta_prev = hit_world_prev - root.world_pos;
 
 					root.mouse_delta_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta_prev), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta_prev) }
 										* float2{ root.width / root.world_width, root.height / root.world_height };
@@ -226,6 +224,9 @@ namespace age::ui
 
 		gpu_render_data_vec.resize(render_data_offset);
 
+		g::hover_id = get_invalid_id<t_hash>();
+		g::hover_id_stack.clear();
+
 		for (auto&& [space_mode, root_vec] : g::root_data_vec_arr | std::views::enumerate)
 		{
 			for (auto&& [root_idx, root] : root_vec | std::views::enumerate)
@@ -234,8 +235,6 @@ namespace age::ui
 				g::element_pos_parent_idx_stack.emplace_back(0);	// root
 
 				auto current_hover_z_offset = 0u;
-				g::hover_id					= get_invalid_id<t_hash>();
-				g::hover_id_stack.clear();
 
 				for (auto current_idx = 1u; current_idx < root.layout_pos_data_vec.size<uint32>(); ++current_idx)
 				// for (auto current_idx : std::views::iota(1u, root.layout_pos_data_vec.size<uint32>()))
@@ -407,51 +406,52 @@ namespace age::ui
 						AGE_UNREACHABLE();
 					}
 				}
+			}
+		}
 
-				// finalize interaction
+
+		// finalize interaction
+		{
+			if (g::p_input_ctx->is_pressed(input::e::key_kind::mouse_left))
+			{
+				g::mouse_l_pressed_id = g::hover_id;
+				g::focus_id			  = g::hover_id;
+				g::focus_id_stack	  = g::hover_id_stack;
+			}
+			else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
+			{
+				if (g::mouse_l_pressed_id == g::hover_id)
 				{
-					if (g::p_input_ctx->is_pressed(input::e::key_kind::mouse_left))
+					g::mouse_l_clicked_id = g::mouse_l_pressed_id;
+
+					// click count
+					c_auto elapsed = runtime::i_time.get_now_s() - g::mouse_l_clicked_time;
+					if (elapsed < 0.5f)
 					{
-						g::mouse_l_pressed_id = g::hover_id;
-						g::focus_id			  = g::hover_id;
-						g::focus_id_stack	  = g::hover_id_stack;
-					}
-					else if (g::p_input_ctx->is_released(input::e::key_kind::mouse_left))
-					{
-						if (g::mouse_l_pressed_id == g::hover_id)
-						{
-							g::mouse_l_clicked_id = g::mouse_l_pressed_id;
-
-							// click count
-							c_auto elapsed = runtime::i_time.get_now_s() - g::mouse_l_clicked_time;
-							if (elapsed < 0.5f)
-							{
-								g::mouse_l_clicked_count = std::min<uint8>(g::mouse_l_clicked_count + 1, uint8{ 3 });
-							}
-							else
-							{
-								g::mouse_l_clicked_count = 1;
-							}
-
-							g::mouse_l_clicked_time = runtime::i_time.get_now_s();
-						}
-
-						g::mouse_l_pressed_id = age::get_invalid_id<t_hash>();
+						g::mouse_l_clicked_count = std::min<uint8>(g::mouse_l_clicked_count + 1, uint8{ 3 });
 					}
 					else
 					{
-						g::mouse_l_clicked_id = age::get_invalid_id<t_hash>();
+						g::mouse_l_clicked_count = 1;
 					}
 
-					if (g::p_input_ctx->is_released(input::e::key_kind::mouse_right))
-					{
-						g::mouse_r_clicked_id = g::hover_id;
-					}
-					else
-					{
-						g::mouse_r_clicked_id = age::get_invalid_id<t_hash>();
-					}
+					g::mouse_l_clicked_time = runtime::i_time.get_now_s();
 				}
+
+				g::mouse_l_pressed_id = age::get_invalid_id<t_hash>();
+			}
+			else
+			{
+				g::mouse_l_clicked_id = age::get_invalid_id<t_hash>();
+			}
+
+			if (g::p_input_ctx->is_released(input::e::key_kind::mouse_right))
+			{
+				g::mouse_r_clicked_id = g::hover_id;
+			}
+			else
+			{
+				g::mouse_r_clicked_id = age::get_invalid_id<t_hash>();
 			}
 		}
 

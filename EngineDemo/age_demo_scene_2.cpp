@@ -13,7 +13,7 @@ namespace age_demo::scene_2
 				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
-													 .size		= { 0.5, 0.5, 0.5 },
+													 .size		= { 1, 1, 1 },
 													 .seg_u		= 30,
 													 .seg_v		= 30,
 													 .mesh_kind = age::asset::e::primitive_mesh_kind::cube },
@@ -24,7 +24,7 @@ namespace age_demo::scene_2
 				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
-													 .size		= { 0.5, 0.5, 0.5 },
+													 .size		= { 1, 1, 1 },
 													 .seg_u		= 30,
 													 .seg_v		= 30,
 													 .mesh_kind = age::asset::e::primitive_mesh_kind::plane },
@@ -35,7 +35,7 @@ namespace age_demo::scene_2
 				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
-													 .size		= { 0.5, 0.5, 0.5 },
+													 .size		= { 1, 1, 1 },
 													 .seg_u		= 30,
 													 .seg_v		= 30,
 													 .mesh_kind = age::asset::e::primitive_mesh_kind::cube_sphere },
@@ -154,6 +154,8 @@ namespace age_demo::scene_2
 					add_opaque_obj(float3{ 8.0f, 3.0f, 8.0f }, float3{ 0.3f, 6.0f, 0.3f });
 
 					// floating sphere high up - overlaps skybox
+					// add_opaque_obj(float3{ +190 * 0.5f, -100 * 0.5f, 10.0f }, float3{ 190.0f, 100.0f, 1.0f });
+					add_opaque_obj(float3{ 95, -50, 12 }, float3{ 190.0f, 100.0f, 1.0f });
 					add_opaque_obj(float3{ 0.0f, 8.0f, 6.0f }, float3{ 2.0f, 2.0f, 2.0f });
 				}),
 			exec_inline{}
@@ -217,14 +219,16 @@ namespace age_demo::scene_2
 
 		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 
+
 		if (i_update.get_render_pipeline->begin_render(i_update.get_h_render_surface) is_false)
 		{
 			return;
 		}
 
 		{
-			c_auto& ui_main_cam = i_update.get_render_pipeline->get_camera_data(0);
-			age::ui::begin_frame(i_update.get_h_window, ui_main_cam.pos, ui_main_cam.view_proj_inv);
+			c_auto& ui_main_cam = i_update.get_render_pipeline->get_camera_data(i_update.get_camera_id_vec[0]);
+
+			age::ui::begin_frame(i_update.get_h_window, cam_desc.pos, ui_main_cam.view_proj_inv);
 		}
 
 		{

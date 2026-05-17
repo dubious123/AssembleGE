@@ -306,7 +306,7 @@ namespace age::asset::mesh_baked::detail
 
 								 c_auto v_fat = cvt_vertex_to<vertex_fat>(v, aabb_min, aabb_size);
 
-								 std::println("diff v_ref - v_meshlet : {}", v_ref.pos - v_fat.pos);
+								 // std::println("diff v_ref - v_meshlet : {}", v_ref.pos - v_fat.pos);
 								 return buf.write(v_fat.pos);
 							 }),
 							 buf, buf.data() + base, i, v_ref, aabb_min, aabb_size);

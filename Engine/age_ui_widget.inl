@@ -904,9 +904,18 @@ namespace age::ui::widget
 
 						auto delta = static_cast<std::make_signed_t<t>>(state.drag_x);
 
-						delta = std::clamp(delta,
-										   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(min) - static_cast<std::make_signed_t<t>>(value)),
-										   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(max) - static_cast<std::make_signed_t<t>>(value)));
+						if (delta > 0)
+						{
+							value = std::min<t>(value, static_cast<std::make_signed_t<t>>(max) - delta);
+						}
+						else
+						{
+							value = std::max<t>(value, static_cast<std::make_signed_t<t>>(min) - delta);
+						}
+
+						// delta = std::clamp(delta,
+						//				   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(min) - static_cast<std::make_signed_t<t>>(value)),
+						//				   static_cast<std::make_signed_t<t>>(static_cast<std::make_signed_t<t>>(max) - static_cast<std::make_signed_t<t>>(value)));
 
 
 						// value  = std::clamp(value, min + std::abs(delta), max - std::abs(delta));
