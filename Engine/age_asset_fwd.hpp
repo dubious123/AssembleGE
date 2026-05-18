@@ -25,6 +25,8 @@ namespace age::asset::e
 		plane,
 		cube,
 		cube_sphere,
+		disk,
+		cone,
 		capsule,
 		cylinder,
 		ico_sphere,

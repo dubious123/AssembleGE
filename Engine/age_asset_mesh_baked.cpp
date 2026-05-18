@@ -245,7 +245,7 @@ namespace age::asset::mesh_baked::detail
 			+ meshlet_header_vec.byte_size()
 			+ meshlet_vec.byte_size()
 			+ meshlet_global_index_buffer.byte_size()
-			+ meshlet_local_index_buffer.byte_size()
+			+ util::align_up(meshlet_local_index_buffer.byte_size(), 4u)
 			+ meshlet_local_index_buffer.size() * sizeof(uint32)	// flat index buffer
 			+ vertex_buffer.size() * sizeof(float3)					// pos buffer
 		);
@@ -282,8 +282,14 @@ namespace age::asset::mesh_baked::detail
 			mesh_header.vertex_kind_and_extra = to_idx(e_kind);
 
 			asset_header.meshlet_buffer_byte_size = buf.size() - base;
-			asset_header.index_count			  = meshlet_local_index_buffer.size<uint32>();
-			asset_header.pos_count				  = vertex_buffer.size<uint32>();
+			for (auto _ : views::loop(asset_header.meshlet_buffer_byte_size % 4))
+			{
+				buf.write<uint8>(uint8{});
+			}
+			asset_header.meshlet_buffer_byte_size = util::align_up(asset_header.meshlet_buffer_byte_size, 4u);
+
+			asset_header.index_count = meshlet_local_index_buffer.size<uint32>();
+			asset_header.pos_count	 = vertex_buffer.size<uint32>();
 
 			{
 				c_auto idx_buffer_offset = buf.size();

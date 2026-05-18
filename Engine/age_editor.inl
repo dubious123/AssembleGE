@@ -227,8 +227,10 @@ namespace age::editor
 				c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
 
 				auto&& [xm_aabb_min, xm_aabb_max, xm_trans] = simd::load(entry.aabb_min, entry.aabb_max, renderer.get_object_transform_matrix(obj.render_id));
-				return std::pair{ simd::transform3(xm_trans, xm_aabb_min) | simd::to<float3>(),
-								  simd::transform3(xm_trans, xm_aabb_max) | simd::to<float3>() };
+
+				c_auto aabb_min = simd::transform3(xm_trans, xm_aabb_min) | simd::to<float3>();
+				c_auto aabb_max = simd::transform3(xm_trans, xm_aabb_max) | simd::to<float3>();
+				return std::pair{ age::min(aabb_min, aabb_max), age::max(aabb_min, aabb_max) };
 			}
 			else
 			{
@@ -373,7 +375,7 @@ namespace age::editor
 					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
 				}
 
-				renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
+				// renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
 
 				widget::begin(set_width_fixed(screen_size * 0.8f)
 							  | set_height_fixed(screen_size * 0.025f)
@@ -590,8 +592,8 @@ namespace age::editor
 							}
 
 							auto&& [min, max] = calc_entity_aabb(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
-							aabb_min		  = float3::min(aabb_min, min);
-							aabb_max		  = float3::max(aabb_max, max);
+							aabb_min		  = age::min(aabb_min, min);
+							aabb_max		  = age::max(aabb_max, max);
 
 							if (entities.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
 							{

@@ -22,12 +22,11 @@ namespace age::asset::detail
 			auto xm_f_normal = detail::face_normal_cw(mesh_edit, f);
 			for (auto& b : mesh_edit.boundary_view(f))
 			{
-				for (const auto [v0, v1, v2] :
-					 mesh_edit.vertex_idx_span(b)
-						 | age::views::circular_adjacent<3>
-						 | age::views::transform_each([&](auto v_idx) -> decltype(auto) {
-							   return mesh_edit.vertex_vec[v_idx];
-						   }))
+				for (const auto [v0, v1, v2] : mesh_edit.vertex_idx_span(b)
+												   | age::views::circular_adjacent<3>
+												   | age::views::transform_each([&](auto v_idx) -> decltype(auto) {
+														 return mesh_edit.vertex_vec[v_idx];
+													 }))
 				{
 					auto&& [p0, p1, p2] = std::tie(mesh_edit.position_vec[v0.pos_idx], mesh_edit.position_vec[v1.pos_idx], mesh_edit.position_vec[v2.pos_idx]);
 
@@ -56,6 +55,11 @@ namespace age::asset
 	void
 	calculate_normal(mesh_editable& mesh_edit, const normal_calc_desc& desc) noexcept
 	{
+		for (auto& adj : mesh_edit.vertex_attr_vec)
+		{
+			adj.normal = float3::zero();
+		}
+
 		switch (desc.calc_mode)
 		{
 		case e::normal_calc_mode_kind::angle:
@@ -340,11 +344,47 @@ namespace age::asset
 						 normal_calc_desc{
 							 .calc_mode = e::normal_calc_mode_kind::angle,
 						 });
-		calculate_tangent(res, tangent_calc_desc{});
+
+		// todo, fix
+		// calculate_tangent(res, tangent_calc_desc{});
 
 		for (auto& v_attr : res.vertex_attr_vec)
 		{
 			v_attr.tangent = float4{ u_basis, 1 };
+		}
+
+		if constexpr (age::config::debug_mode)
+		{
+			res.debug_validate();
+		}
+
+		return res;
+	}
+
+	mesh_editable
+	create_primitive_mesh_disk(const primitive_desc& desc) noexcept
+	{
+		c_auto u_basis = desc.local_basis[0];
+		c_auto v_basis = -desc.local_basis[2];
+
+		auto res = create_primitive_mesh_plane(desc);
+
+		for (auto& v : res.vertex_vec)
+		{
+			auto& attr = res.vertex_attr_vec[v.attribute_idx];
+			auto& pos  = res.position_vec[v.pos_idx];
+
+			c_auto theta = math::g::pi_2 * attr.uv_set[0].x;
+
+			// cw
+			pos = u_basis * desc.size.x * std::cos(theta) * 0.5f * attr.uv_set[0].y
+				- v_basis * desc.size.z * std::sin(theta) * 0.5f * attr.uv_set[0].y;
+
+			attr.tangent.xyz = -u_basis * desc.size.x * (math::g::pi_2 * std::sin(theta))	 //* 0.5f	* attr.uv_set[0].y
+							 - v_basis * desc.size.z * (math::g::pi_2 * std::cos(theta));	 //* 0.5f	* attr.uv_set[0].y;
+
+			attr.tangent.xyz = normalize(attr.tangent.xyz);
+			attr.tangent.w	 = 1.f;
 		}
 
 		if constexpr (age::config::debug_mode)
@@ -439,6 +479,67 @@ namespace age::asset
 		}
 
 		// todo : reduce vertex
+		// todo : calc tangent
+
+		return res;
+	}
+
+	mesh_editable
+	create_primitive_mesh_cone(const primitive_desc& desc) noexcept
+	{
+		c_auto basis_r = desc.local_basis[0];
+		c_auto basis_u = desc.local_basis[1];
+		c_auto basis_f = desc.local_basis[2];
+
+		c_auto size_r = desc.size.x;
+		c_auto size_u = desc.size.y;
+		c_auto size_f = desc.size.z;
+		auto   side	  = create_primitive_mesh_plane(age::asset::primitive_desc{
+			.pos		 = float3::zero(),
+			.size		 = float3{ size_r, size_u, size_f },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = desc.seg_v,
+			.local_basis = float3x3{ basis_r, basis_u, basis_f } });
+
+		for (auto& v : side.vertex_vec)
+		{
+			auto& attr = side.vertex_attr_vec[v.attribute_idx];
+			auto& pos  = side.position_vec[v.pos_idx];
+
+			c_auto theta = math::g::pi_2 * attr.uv_set[0].x;
+
+			pos = basis_r * desc.size.x * std::cos(theta) * 0.5f * attr.uv_set[0].y
+				+ basis_f * desc.size.z * std::sin(theta) * 0.5f * attr.uv_set[0].y
+				+ basis_u * desc.size.y * (1.f - attr.uv_set[0].y);
+
+			// attr.tangent.xyz = d(pos) / d(u)
+			attr.tangent.xyz = basis_r * desc.size.x * (-math::g::pi_2 * std::sin(theta))	 // * 0.5f * attr.uv_set[0].y
+							 + basis_f * desc.size.z * (math::g::pi_2 * std::cos(theta))	 // * 0.5f * attr.uv_set[0].y
+							 + 0;
+			attr.tangent.xyz = normalize(attr.tangent.xyz);
+			attr.tangent.w	 = 1;
+
+
+			attr.normal = attr.uv_set[0].y < math::g::epsilon_1e6
+							? basis_u
+							: normalize(basis_u * size_u + normalize(pos - basis_u * size_u) * dot(normalize(pos - basis_u * size_u), -basis_u * size_u));
+		}
+
+		// calculate_normal(side, normal_calc_desc{ .calc_mode = e::normal_calc_mode_kind::angle });
+
+		auto base = create_primitive_mesh_disk(age::asset::primitive_desc{
+			.pos		 = float3::zero(),
+			.size		 = float3{ size_r, size_u, size_f },
+			.seg_u		 = desc.seg_u,
+			.seg_v		 = 1,
+			.local_basis = float3x3{ basis_r, -basis_u, -basis_f } });
+
+		c_auto res = merge(std::array{ std::move(side), std::move(base) });
+
+		if constexpr (age::config::debug_mode)
+		{
+			res.debug_validate();
+		}
 
 		return res;
 	}
@@ -466,6 +567,14 @@ namespace age::asset
 		case e::primitive_mesh_kind::cube_sphere:
 		{
 			return create_primitive_mesh_cube_sphere(desc);
+		}
+		case e::primitive_mesh_kind::disk:
+		{
+			return create_primitive_mesh_disk(desc);
+		}
+		case e::primitive_mesh_kind::cone:
+		{
+			return create_primitive_mesh_cone(desc);
 		}
 		default:
 			AGE_UNREACHABLE("invalid primitive mesh type {}", std::to_underlying(desc.mesh_kind));

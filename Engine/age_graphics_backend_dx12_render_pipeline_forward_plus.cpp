@@ -1124,6 +1124,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto& header = entry.get_header();
 
 		AGE_ASSERT(mesh_persistant_buffer_offset_pool.capacity() < std::numeric_limits<uint32>::max() - header.meshlet_buffer_byte_size);
+
 		AGE_ASSERT(header.meshlet_buffer_byte_size % 4 == 0);
 
 		c_auto flat_index_arr = std::span<const uint32>{ reinterpret_cast<const uint32*>(entry.index_buffer_data()), header.index_count };
