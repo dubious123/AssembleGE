@@ -1311,6 +1311,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		//							  | simd::to<float3x4>();
 
 		object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
+		// object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
 	}
 
 	float4x4

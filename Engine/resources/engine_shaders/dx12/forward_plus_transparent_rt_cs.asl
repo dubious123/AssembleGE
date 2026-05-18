@@ -1,7 +1,5 @@
 #include "forward_plus_common.asli"
 
-static const uint32 MAX_RAY_HIT = 8;
-
 struct hit_data
 {
 	uint32 rt_instance_render_data_id;
@@ -56,17 +54,28 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			continue;
 		}
 
+		uint32 instance_id	  = rt_candidate_instance_id(query);
+		uint32 triangle_index = rt_candidate_primitive_index(query);
+
 		uint32 end = hit_count < MAX_RAY_HIT ? hit_count : hit_count - 1;
 		uint32 pos = end;
+		bool   dup = false;
 
-		for (uint32 i = 0; i < pos; ++i)
+		for (uint32 i = 0; i < end; ++i)
 		{
-			if (t < hit_data_arr[i].t)
+			if (hit_data_arr[i].rt_instance_render_data_id == instance_id and hit_data_arr[i].triangle_index == triangle_index)
 			{
-				pos = i;
+				dup = true;
 				break;
 			}
+
+			if (pos == end and t < hit_data_arr[i].t)
+			{
+				pos = i;
+			}
 		}
+
+		if (dup) { continue; }
 
 		for (uint32 i = end; i > pos; --i)
 		{
@@ -75,8 +84,8 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 
 		hit_data_arr[pos].t							 = t;
-		hit_data_arr[pos].rt_instance_render_data_id = rt_candidate_instance_id(query);
-		hit_data_arr[pos].triangle_index			 = rt_candidate_primitive_index(query);
+		hit_data_arr[pos].rt_instance_render_data_id = instance_id;
+		hit_data_arr[pos].triangle_index			 = triangle_index;
 		hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
 
 		if (hit_count < MAX_RAY_HIT)
@@ -168,7 +177,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 					const uint32 sorted_id	= w * 32 + bit;
 					wave_bit_mask		   &= ~(1u << bit);
 
-					// if (bit_mask & (1u << bit))
+					if (bit_mask & (1u << bit))
 					{
 						const unified_light light = load_sorted_light(sorted_id);
 
@@ -182,19 +191,28 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			}
 		}
 
-		// float4 color  = mat.base_color_factor * float4(lighting.rgb, 1.f);
-		// result.rgb	 += color.rgb * color.a * (1.f - result.a);
-		// result.a	 += color.a * (1.f - result.a);
-
-		// if (result.a >= 1.f)
-		//{
-		//	break;
-		// }
-
 		const float alpha = surface_data.base_color.a;
 
 		result.rgb += lighting * alpha * (1.f - result.a);
 		result.a   += alpha * (1.f - result.a);
+
+		// if (hit_count == 0)
+		//{
+		//	result.rgb = float3(0, 0, 0);
+		// }
+		// else if (hit_count == 1)
+		//{
+		//	result.rgb = float3(1, 0, 0);
+		// }
+		// else if (hit_count == 2)
+		//{
+		//	result.rgb = float3(0, 1, 0);
+		// }
+		// else if (hit_count >= 3)
+		//{
+		//	result.rgb = float3(0, 1, 1);
+		// }
+		// result.a = 1;
 
 		if (result.a >= 1.f)
 		{

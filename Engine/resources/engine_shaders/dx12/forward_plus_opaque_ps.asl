@@ -129,7 +129,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			const uint32 sorted_id	= w * 32 + bit;
 			wave_bit_mask		   &= ~(1u << bit);
 
-			// if (bit_mask & (1u << bit))
+			if (bit_mask & (1u << bit))
 			{
 				const unified_light light = load_sorted_light(sorted_id);
 

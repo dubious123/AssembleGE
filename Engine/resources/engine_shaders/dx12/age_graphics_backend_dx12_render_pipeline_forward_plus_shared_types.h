@@ -1,5 +1,7 @@
 #pragma once
 #define MAX_UV_COUNT 2
+#define MAX_RAY_HIT	 8
+
 
 // static buffer offset
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
@@ -287,7 +289,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		half3  scale;							 // 6
 		uint16 extra;
 		// float3 scale;
-		// float4 quaternion_debug;
+		// float4 quaternion;
 		//  uint16_t extra;	   // 2
 	};	  // total: 24 bytes
 
@@ -558,6 +560,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef semantics
 
 	#undef MAX_UV_COUNT
+	#undef MAX_RAY_HIT
 
 	// static buffer offset
 	#undef MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT

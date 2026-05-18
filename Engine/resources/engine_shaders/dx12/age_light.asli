@@ -156,7 +156,6 @@ calc_directional_shadow_rt(directional_light light, vertex_fat v, float3 face_no
 			return float3(0, 0, 0);
 		}
 
-
 		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
 		ray_desc desc;
@@ -185,52 +184,39 @@ calc_directional_shadow_rt(directional_light light, vertex_fat v, float3 face_no
 
 		if (opaque_shadow > 0.f)
 		{
-			// opaque_shadow = min(opaque_shadow, calc_screen_space_contact_shadow(global_resource_buffer[depth_buffer_texture_id], v, desc.Origin, -light.direction));
-		}
-
-
-		// expand(2)
-
-		// for (uint32 i = 0; i < 2; ++i)
-		//{
-		//	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
-		//	rt_proceed(query);
-
-		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
-		//	{
-		//		float t = rt_committed_ray_t(query);
-
-		//		if (t > self_threshold)
-		//		{
-		//			opaque_shadow = 0.f;
-		//			break;
-		//		}
-
-		//		desc.TMin = t + 0.001f;
-		//	}
-		//	else
-		//	{
-		//		// miss = lit
-		//		break;
-		//	}
-		//}
-
-		// opaque_shadow = min(opaque_shadow, smoothstep(0.0, 0.05, n_dot_l));
-
-		// contact = sample_contact_shadow(fragment.world_pos, -light.direction, vertex_normal);
-		// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
-
-		if (opaque_shadow > 0.f)
-		{
 			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
 
+			uint32 hit_id_arr[MAX_RAY_HIT];
+			uint32 hit_tri_arr[MAX_RAY_HIT];
+			uint32 hit_count = 0u;
+
 			while (rt_proceed(query))
 			{
-				const uint32				  rt_render_data_id = rt_candidate_instance_id(query);
-				const rt_instance_render_data render_data		= load_rt_instance_render_data(rt_render_data_id);
-				const material				  mat				= load_material(render_data.material_id);
+				if (hit_count >= MAX_RAY_HIT) { continue; }
+				uint32 instance_id	  = rt_candidate_instance_id(query);
+				uint32 triangle_index = rt_candidate_primitive_index(query);
+
+				bool dup = false;
+
+				for (uint32 i = 0; i < hit_count; ++i)
+				{
+					if (hit_id_arr[i] == instance_id and hit_tri_arr[i] == triangle_index)
+					{
+						dup = true;
+						break;
+					}
+				}
+
+				if (dup) { continue; }
+
+				hit_id_arr[hit_count]  = instance_id;
+				hit_tri_arr[hit_count] = triangle_index;
+
+				hit_count++;
+
+				const rt_instance_render_data render_data = load_rt_instance_render_data(instance_id);
+				const material				  mat		  = load_material(render_data.material_id);
 
 				float4 obj_color = mat.base_color_factor;
 
@@ -313,50 +299,43 @@ calc_unified_shadow_rt(unified_light light, vertex_fat v, float3 face_normal)
 			// opaque_shadow = min(opaque_shadow, calc_screen_space_contact_shadow(global_resource_buffer[depth_buffer_texture_id], v, desc.Origin, world_to_light_dir));
 		}
 
-
-		// expand(2)
-
-		// for (uint32 i = 0; i < 2; ++i)
-		//{
-		//	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-		//	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
-		//	rt_proceed(query);
-
-		//	if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
-		//	{
-		//		float t = rt_committed_ray_t(query);
-
-		//		if (t > 0.01)
-		//		{
-		//			opaque_shadow = 0.f;
-		//			break;
-		//		}
-
-		//		desc.TMin = t + 0.001f;
-		//	}
-		//	else
-		//	{
-		//		// miss = lit
-		//		break;
-		//	}
-		//}
-
-		// contact = sample_contact_shadow(world_pos, -light.direction, surface_normal);
-		// contact = lerp(1.0, contact, saturate(n_dot_l * 4.0));
-
 		if (opaque_shadow > 0.f)
 		{
 			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
-
 			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
+
+			uint32 hit_id_arr[MAX_RAY_HIT];
+			uint32 hit_tri_arr[MAX_RAY_HIT];
+			uint32 hit_count = 0u;
 
 			while (rt_proceed(query))
 			{
-				const uint32				  rt_render_data_id = rt_candidate_instance_id(query);
-				const rt_instance_render_data render_data		= load_rt_instance_render_data(rt_render_data_id);
-				const material				  mat				= load_material(render_data.material_id);
+				if (hit_count >= MAX_RAY_HIT) { continue; }
+				uint32 instance_id	  = rt_candidate_instance_id(query);
+				uint32 triangle_index = rt_candidate_primitive_index(query);
 
-				float4 obj_color = mat.base_color_factor;	 // todo material
+				bool dup = false;
+
+				for (uint32 i = 0; i < hit_count; ++i)
+				{
+					if (hit_id_arr[i] == instance_id and hit_tri_arr[i] == triangle_index)
+					{
+						dup = true;
+						break;
+					}
+				}
+
+				if (dup) { continue; }
+
+				hit_id_arr[hit_count]  = instance_id;
+				hit_tri_arr[hit_count] = triangle_index;
+
+				hit_count++;
+
+				const rt_instance_render_data render_data = load_rt_instance_render_data(instance_id);
+				const material				  mat		  = load_material(render_data.material_id);
+
+				float4 obj_color = mat.base_color_factor;
 
 				if (mat.base_color_texture_id != invalid_id_uint32)
 				{
@@ -379,9 +358,6 @@ calc_unified_shadow_rt(unified_light light, vertex_fat v, float3 face_normal)
 				}
 
 				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
-
-				// float4 obj_color	= float4(linear_to_srgb(float3(0.8, 0.8, 0.8)), 0.5);	 // todo material
-				// transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a);
 			}
 		}
 	}
