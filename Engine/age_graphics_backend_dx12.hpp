@@ -1,12 +1,6 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::graphics
-{
-	uint8
-	get_frame_buffer_idx() noexcept;
-}
-
 // util
 namespace age::graphics
 {

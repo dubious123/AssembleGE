@@ -521,14 +521,14 @@ namespace age::editor
 
 		static auto raycast_req_vec = std::array<uint32, global::frame_buffer_count>{};
 
-		c_auto raycast_res = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
+		c_auto raycast_res = renderer.get_raycast_result(raycast_req_vec[global::i_graphics.get_frame_buffer_idx]);
 
 		auto need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left) and (ui::is_any_focused() is_false);
 
 		{
 			c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
 
-			raycast_req_vec[graphics::g::frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(target_world - active_scene.cam.pos), std::numeric_limits<float>::max());
+			raycast_req_vec[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(target_world - active_scene.cam.pos), std::numeric_limits<float>::max());
 
 			if (ui::is_any_hovered() is_false)
 			{

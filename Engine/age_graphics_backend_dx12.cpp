@@ -3,15 +3,6 @@
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 
-namespace age::graphics
-{
-	uint8
-	get_frame_buffer_idx() noexcept
-	{
-		return g::frame_buffer_idx;
-	}
-}	 // namespace age::graphics
-
 // main
 namespace age::graphics
 {
@@ -237,8 +228,7 @@ namespace age::graphics
 			p_dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
 			p_dxgi_debug->Release();
 		}
-
-		g::frame_buffer_idx = 0;
+		global::i_graphics.set_frame_buffer_idx = 0;
 	}
 
 	void
@@ -378,7 +368,7 @@ namespace age::graphics
 
 		resource::process_deferred_releases();
 
-		g::frame_buffer_idx = (g::frame_buffer_idx + 1) % global::frame_buffer_count;
+		global::i_graphics.set_frame_buffer_idx = (global::i_graphics.get_frame_buffer_idx + 1) % global::frame_buffer_count;
 	}
 }	 // namespace age::graphics
 #endif

@@ -243,7 +243,7 @@ namespace age::graphics
 		std::array<t_data, t_what::array_size> constant_arr;
 
 		void
-		bind(const t_data& data, uint8 ring_idx = get_frame_buffer_idx()) noexcept
+		bind(const t_data& data, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			constant_arr[ring_idx] = data;
@@ -257,7 +257,7 @@ namespace age::graphics
 		}
 
 		void
-		apply(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = get_frame_buffer_idx()) noexcept
+		apply(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -273,7 +273,7 @@ namespace age::graphics
 		}
 
 		void
-		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = get_frame_buffer_idx()) noexcept
+		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(constant_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -367,7 +367,7 @@ namespace age::graphics
 		}
 
 		void
-		bind(resource_handle h_resource, uint8 ring_idx = get_frame_buffer_idx()) noexcept
+		bind(resource_handle h_resource, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			bind_impl(h_resource->get_va(), ring_idx);
@@ -381,7 +381,7 @@ namespace age::graphics
 		}
 
 		void
-		bind(auto h_mapping, uint8 ring_idx = get_frame_buffer_idx()) noexcept
+		bind(auto h_mapping, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			bind_impl(h_mapping->h_resource->get_va(), ring_idx);
@@ -436,7 +436,7 @@ namespace age::graphics
 		}
 
 		void
-		apply(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = get_frame_buffer_idx()) noexcept
+		apply(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -474,7 +474,7 @@ namespace age::graphics
 		}
 
 		void
-		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = get_frame_buffer_idx()) noexcept
+		apply_compute(e::queue_kind kind = e::queue_kind::direct, uint32 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
 			requires(gpu_va_arr.size() > 1)
 		{
 			AGE_ASSERT(slot_id != -1, "Invalid slot_id");
@@ -493,7 +493,7 @@ namespace age::graphics
 		}
 
 		D3D12_GPU_VIRTUAL_ADDRESS
-		get_va(uint32 ring_idx = get_frame_buffer_idx()) const noexcept
+		get_va(uint32 ring_idx = global::i_graphics.get_frame_buffer_idx) const noexcept
 		{
 			return gpu_va_arr[ring_idx];
 		}

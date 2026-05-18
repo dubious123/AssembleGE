@@ -3,14 +3,12 @@
 
 namespace age::graphics::g
 {
-	inline auto frame_buffer_idx = uint8{ 0 };	  // [0, 1 ... ,frame_buffer_count - 1]
-
 	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
 	inline auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
 	inline auto* p_main_device	= (ID3D12Device11*)nullptr;
 
 	//---[ command ]------------------------------------------------------------
-	inline queue_context queue_ctx[e::size<e::queue_kind>()];
+	inline queue_context queue_ctx[e::queue_kind_size];
 
 	//---[ shader ]------------------------------------------------------------
 	inline auto* p_dxc_compiler		   = (IDxcCompiler3*)nullptr;

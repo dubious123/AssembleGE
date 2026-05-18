@@ -14,7 +14,7 @@ namespace age::ui
 		g::cam_world_pos	  = {};
 		g::mouse_ray_dir	  = {};
 
-		g::raycast_id_arr = {};
+		g::raycast_id_arr = { get_invalid_idx<uint32>() };
 	}
 
 	namespace detail
@@ -171,11 +171,12 @@ namespace age::ui
 	}
 
 	void
-	end_frame(std::tuple<age::vector<ui::render_data>&,
-						 age::vector<util::range>&,
-						 age::vector<util::range>&,
-						 age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
-				  tpl) noexcept
+	end_frame_impl(uint32 raycast_hit_obj_id,
+				   std::tuple<age::vector<ui::render_data>&,
+							  age::vector<util::range>&,
+							  age::vector<util::range>&,
+							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
+					   tpl) noexcept
 	{
 		detail::widget_end();
 		g::id_stack.pop_back();

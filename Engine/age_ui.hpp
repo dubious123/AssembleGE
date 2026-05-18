@@ -29,6 +29,9 @@ namespace age::ui
 				  gpu_sink) noexcept;
 
 	void
+	end_frame(auto& renderer) noexcept;
+
+	void
 	clear() noexcept;	 // cancel render
 
 	void
@@ -159,4 +162,24 @@ namespace age::ui
 			g::id_stack.pop_back();
 		}
 	};
+
+	void
+	end_frame_impl(uint32 raycast_hit_obj_id,
+				   std::tuple<age::vector<ui::render_data>&,
+							  age::vector<util::range>&,
+							  age::vector<util::range>&,
+							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
+					   tpl) noexcept;
+
+	void
+	end_frame(auto& renderer) noexcept
+	{
+		auto res = renderer.get_raycast_result(g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx]);
+
+		c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
+
+		g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(g::cam_world_pos, g::mouse_ray_dir, std::numeric_limits<float>::max());
+
+		end_frame_impl(res.object_id, renderer.get_ui_sink());
+	}
 }	 // namespace age::ui

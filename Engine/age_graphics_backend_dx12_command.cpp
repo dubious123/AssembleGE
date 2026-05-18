@@ -38,7 +38,7 @@ namespace age::graphics::command
 		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
 		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
 
-		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(g::frame_buffer_idx - 1 + global::frame_buffer_count) % global::frame_buffer_count]));
+		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(global::i_graphics.get_frame_buffer_idx - 1 + global::frame_buffer_count) % global::frame_buffer_count]));
 	}
 }	 // namespace age::graphics::command
 
@@ -58,7 +58,7 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	begin(e::queue_kind kind, auto... thread_idx) noexcept
 	{
-		(detail::begin(kind, g::frame_buffer_idx, thread_idx), ...);
+		(detail::begin(kind, global::i_graphics.get_frame_buffer_idx, thread_idx), ...);
 	}
 
 	FORCE_INLINE void
@@ -72,10 +72,10 @@ namespace age::graphics::command
 	{
 		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
 
-		if (ctx.p_fence->GetCompletedValue() < ctx.frame_fence_value[g::frame_buffer_idx])
+		if (ctx.p_fence->GetCompletedValue() < ctx.frame_fence_value[global::i_graphics.get_frame_buffer_idx])
 		{
 			AGE_HR_CHECK(ctx.p_fence->SetEventOnCompletion(
-				ctx.frame_fence_value[g::frame_buffer_idx], ctx.h_fence_event));
+				ctx.frame_fence_value[global::i_graphics.get_frame_buffer_idx], ctx.h_fence_event));
 
 			::WaitForSingleObject(ctx.h_fence_event, INFINITE);
 		}
@@ -86,7 +86,7 @@ namespace age::graphics::command
 	{
 		wait_current_frame(kind);
 
-		(detail::begin(kind, g::frame_buffer_idx, thread_idx), ...);
+		(detail::begin(kind, global::i_graphics.get_frame_buffer_idx, thread_idx), ...);
 	}
 
 	FORCE_INLINE void
@@ -147,7 +147,7 @@ namespace age::graphics::command
 			auto& ctx = g::queue_ctx[std::to_underlying(kind)];
 
 			AGE_HR_CHECK(ctx.p_cmd_list[thread_idx]->Reset(
-				ctx.p_allocator[g::frame_buffer_idx][thread_idx], nullptr));
+				ctx.p_allocator[global::i_graphics.get_frame_buffer_idx][thread_idx], nullptr));
 		}
 	}	 // namespace detail
 
@@ -172,7 +172,7 @@ namespace age::graphics::command
 
 		execute(kind, thread_idx...);
 
-		ctx.frame_fence_value[g::frame_buffer_idx] = ctx.fence_value;
+		ctx.frame_fence_value[global::i_graphics.get_frame_buffer_idx] = ctx.fence_value;
 	}
 
 	FORCE_INLINE void

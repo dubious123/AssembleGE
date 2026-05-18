@@ -563,7 +563,7 @@ namespace age_demo::scene_2
 			}
 		}
 
-		age::ui::end_frame(i_update.get_render_pipeline->get_ui_sink());
+		age::ui::end_frame(i_update.get_render_pipeline());
 
 		for (auto&& [i, obj_id] : i_update.get_opaque_obj_id_vec() | std::views::enumerate)
 		{

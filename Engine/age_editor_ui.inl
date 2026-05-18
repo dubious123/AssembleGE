@@ -467,7 +467,7 @@ namespace age::editor
 		{
 			// g::scene_view_focused = h_game_scene.hovered_all();
 
-			editor::update_camera(renderer, ui::is_any_focused() is_false, h_window);
+			editor::update_camera(renderer, ui::is_any_focused() is_false or ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right), h_window);
 
 			if (auto h_play_pause_stop = widget::begin(style::horizontal() | set_align_center() | set_width_fit() | set_height_fit()))
 			{

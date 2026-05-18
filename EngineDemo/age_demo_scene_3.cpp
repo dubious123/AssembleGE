@@ -102,7 +102,8 @@ namespace age_demo::scene_3
 			return;
 		}
 
-		age::ui::end_frame(i_update.get_render_pipeline->get_ui_sink());
+		age::ui::end_frame(i_update.get_render_pipeline());
+
 
 		i_update.get_editor_game->visit_all_storages(
 			AGE_LAMBDA(
@@ -187,7 +188,6 @@ namespace age_demo::scene_3
 		//		i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.h_mesh);
 		//	}
 		//}
-
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 	}
 

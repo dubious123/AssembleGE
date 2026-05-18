@@ -313,9 +313,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		raycast_request_vec.clear();
 
-		h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx]->readback(raycast_result_vec[graphics::g::frame_buffer_idx].data(), raycast_result_vec[graphics::g::frame_buffer_idx].byte_size());
+		h_readback_rt_raycast_result_buffer_arr[global::i_graphics.get_frame_buffer_idx]->readback(raycast_result_vec[global::i_graphics.get_frame_buffer_idx].data(), raycast_result_vec[global::i_graphics.get_frame_buffer_idx].byte_size());
 
-		for (auto& res : raycast_result_vec[graphics::g::frame_buffer_idx])
+		for (auto& res : raycast_result_vec[global::i_graphics.get_frame_buffer_idx])
 		{
 			if (AGE_IS_INVALID_IDX(res.object_id) is_false)
 			{
@@ -734,9 +734,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			command::apply_barriers(barrier::buf_uav_to_copy_src(h_rt_raycast_result_buffer->p_resource));
 
-			command::copy_buffer(h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx]->h_resource->p_resource, 0,
+			command::copy_buffer(h_readback_rt_raycast_result_buffer_arr[global::i_graphics.get_frame_buffer_idx]->h_resource->p_resource, 0,
 								 h_rt_raycast_result_buffer->p_resource, 0,
-								 raycast_result_vec[graphics::g::frame_buffer_idx].byte_size());
+								 raycast_request_vec.size() * sizeof(shared_type::raycast_result));
 		}
 
 		stage_post_process.execute(h_post_buffer_rtv_desc);
@@ -1686,7 +1686,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(raycast_request_vec.size() < 0x00ff'ffff);
 		static_assert(global::frame_buffer_count < 0xff);
 
-		auto id = t_raycast_id{ (graphics::g::frame_buffer_idx & 0xff << 24) | (raycast_request_vec.size<uint32>() & 0x00ff'ffff) };
+		auto id = t_raycast_id{ (global::i_graphics.get_frame_buffer_idx & 0xff << 24) | (raycast_request_vec.size<uint32>() & 0x00ff'ffff) };
 
 		raycast_request_vec.emplace_back(shared_type::raycast_request{
 			.origin			= origin,
@@ -1700,13 +1700,13 @@ namespace age::graphics::render_pipeline::forward_plus
 	shared_type::raycast_result
 	pipeline::get_raycast_result(t_raycast_id id) noexcept
 	{
-		// AGE_ASSERT((id >> 24) % global::frame_buffer_count == graphics::g::frame_buffer_idx);
+		// AGE_ASSERT((id >> 24) % global::frame_buffer_count == global::i_graphics.get_frame_buffer_idx);
 
 		auto idx = id & 0x00ff'ffff;
 
-		if (idx < raycast_result_vec[graphics::g::frame_buffer_idx].size<uint32>())
+		if (idx < raycast_result_vec[global::i_graphics.get_frame_buffer_idx].size<uint32>())
 		{
-			return raycast_result_vec[graphics::g::frame_buffer_idx][idx];
+			return raycast_result_vec[global::i_graphics.get_frame_buffer_idx][idx];
 		}
 		else
 		{
@@ -1722,10 +1722,10 @@ namespace age::graphics::render_pipeline::forward_plus
 	uint32
 	pipeline::upload_data() noexcept
 	{
-		auto& h_mapping_static_buffer				   = h_mapping_static_ring_buffer_arr[graphics::g::frame_buffer_idx];
-		auto& h_mapping_rt_instance_buffer			   = h_mapping_rt_instance_buffer_arr[graphics::g::frame_buffer_idx];
-		auto& h_mapping_rt_instance_render_data_buffer = h_mapping_rt_instance_render_data_buffer_arr[graphics::g::frame_buffer_idx];
-		auto& h_mapping_env_light_buffer			   = h_mapping_env_light_buffer_arr[graphics::g::frame_buffer_idx];
+		auto& h_mapping_static_buffer				   = h_mapping_static_ring_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+		auto& h_mapping_rt_instance_buffer			   = h_mapping_rt_instance_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+		auto& h_mapping_rt_instance_render_data_buffer = h_mapping_rt_instance_render_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+		auto& h_mapping_env_light_buffer			   = h_mapping_env_light_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
@@ -1767,7 +1767,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
 			{
-				rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, graphics::g::frame_buffer_idx);
+				rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
 
 			rt_instance_offset			   = 0;
@@ -1802,7 +1802,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			if (resource::resize_buffer(h_mapping_env_light_buffer, env_light_gpu_data_vec.byte_size()))
 			{
-				env_light_buffer.bind(h_mapping_env_light_buffer, graphics::g::frame_buffer_idx);
+				env_light_buffer.bind(h_mapping_env_light_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
 
 			h_mapping_env_light_buffer->upload(env_light_gpu_data_vec.data(), env_light_gpu_data_vec.byte_size());
@@ -1810,17 +1810,17 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// raycast
 		{
-			auto& h_mapping_rt_raycast_request_buffer = h_mapping_rt_raycast_request_buffer_arr[graphics::g::frame_buffer_idx];
-			auto& h_readback_rt_raycast_result_buffer = h_readback_rt_raycast_result_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_mapping_rt_raycast_request_buffer = h_mapping_rt_raycast_request_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+			auto& h_readback_rt_raycast_result_buffer = h_readback_rt_raycast_result_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
-			auto& raycast_res_vec = raycast_result_vec[graphics::g::frame_buffer_idx];
+			auto& raycast_res_vec = raycast_result_vec[global::i_graphics.get_frame_buffer_idx];
 			if (resource::resize_buffer(h_mapping_rt_raycast_request_buffer, raycast_request_vec.byte_size())) [[unlikely]]
 			{
-				rt_raycast_request_buffer_srv.bind(h_mapping_rt_raycast_request_buffer, graphics::g::frame_buffer_idx);
+				rt_raycast_request_buffer_srv.bind(h_mapping_rt_raycast_request_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
-			resource::resize_buffer(h_readback_rt_raycast_result_buffer, raycast_res_vec.byte_size());
+			resource::resize_buffer(h_readback_rt_raycast_result_buffer, raycast_request_vec.size() * sizeof(shared_type::raycast_result));
 
-			if (resource::resize_buffer(h_rt_raycast_result_buffer, raycast_res_vec.byte_size())) [[unlikely]]
+			if (resource::resize_buffer(h_rt_raycast_result_buffer, raycast_request_vec.size() * sizeof(shared_type::raycast_result))) [[unlikely]]
 			{
 				rt_raycast_result_buffer_uav.bind(h_rt_raycast_result_buffer);
 			}
@@ -1835,16 +1835,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// selection outline
 		{
-			auto& h_mapping_render_data_buffer = h_mapping_selection_outline_meshlet_render_data_buffer_arr[graphics::g::frame_buffer_idx];
-			auto& h_mapping_data_buffer		   = h_mapping_selection_outline_data_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_mapping_render_data_buffer = h_mapping_selection_outline_meshlet_render_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+			auto& h_mapping_data_buffer		   = h_mapping_selection_outline_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
 			if (resource::resize_buffer(h_mapping_render_data_buffer, selection_outline_meshlet_render_data_vec.byte_size())) [[unlikely]]
 			{
-				selection_outline_meshlet_render_data_buffer.bind(h_mapping_render_data_buffer, graphics::g::frame_buffer_idx);
+				selection_outline_meshlet_render_data_buffer.bind(h_mapping_render_data_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
 			if (resource::resize_buffer(h_mapping_data_buffer, selection_outline_data_vec.byte_size())) [[unlikely]]
 			{
-				selection_outline_data_buffer.bind(h_mapping_data_buffer, graphics::g::frame_buffer_idx);
+				selection_outline_data_buffer.bind(h_mapping_data_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
 
 			h_mapping_render_data_buffer->upload(selection_outline_meshlet_render_data_vec.data(), selection_outline_meshlet_render_data_vec.byte_size());
@@ -1853,16 +1853,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// ui
 		{
-			auto& h_mapping_ui_data_buffer = h_mapping_ui_data_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_mapping_ui_data_buffer = h_mapping_ui_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
 			if (resource::resize_buffer(h_mapping_ui_data_buffer, ui_render_data_vec.byte_size<uint32>()))
 			{
-				ui_data_buffer.bind(h_mapping_ui_data_buffer, graphics::g::frame_buffer_idx);
+				ui_data_buffer.bind(h_mapping_ui_data_buffer, global::i_graphics.get_frame_buffer_idx);
 			}
 			h_mapping_ui_data_buffer->upload(ui_render_data_vec.data(), ui_render_data_vec.byte_size<uint32>());
 
 
-			auto& h_mapping_ui_root_data_buffer = h_mapping_ui_root_data_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_mapping_ui_root_data_buffer = h_mapping_ui_root_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
 			{
 				auto root_offset = 0u;
@@ -1874,7 +1874,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				if (resource::resize_buffer(h_mapping_ui_root_data_buffer, root_offset * sizeof(shared_type::ui_root_data)))
 				{
-					ui_root_data_buffer.bind(h_mapping_ui_root_data_buffer, graphics::g::frame_buffer_idx);
+					ui_root_data_buffer.bind(h_mapping_ui_root_data_buffer, global::i_graphics.get_frame_buffer_idx);
 				}
 			}
 
@@ -1886,17 +1886,17 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// debug
 		{
-			auto& h_mapping_debug = h_mapping_debug_meshlet_render_data_buffer_arr[graphics::g::frame_buffer_idx];
-			auto& h_mapping_obj	  = h_mapping_debug_object_data_buffer_arr[graphics::g::frame_buffer_idx];
+			auto& h_mapping_debug = h_mapping_debug_meshlet_render_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
+			auto& h_mapping_obj	  = h_mapping_debug_object_data_buffer_arr[global::i_graphics.get_frame_buffer_idx];
 
 			if (resource::resize_buffer(h_mapping_debug, debug_aot_meshlet_render_data_vec.byte_size() + debug_meshlet_render_data_vec.byte_size())) [[unlikely]]
 			{
-				debug_meshlet_render_data_buffer.bind(h_mapping_debug, graphics::g::frame_buffer_idx);
+				debug_meshlet_render_data_buffer.bind(h_mapping_debug, global::i_graphics.get_frame_buffer_idx);
 			}
 
 			if (resource::resize_buffer(h_mapping_obj, debug_object_data_vec.byte_size())) [[unlikely]]
 			{
-				debug_object_data_buffer.bind(h_mapping_obj, graphics::g::frame_buffer_idx);
+				debug_object_data_buffer.bind(h_mapping_obj, global::i_graphics.get_frame_buffer_idx);
 			}
 
 			h_mapping_debug->upload(debug_meshlet_render_data_vec.data(), debug_meshlet_render_data_vec.byte_size());
@@ -1949,7 +1949,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);
 
-		h_mapping_frame_data->upload(&frame_d, sizeof(shared_type::frame_data), sizeof(shared_type::frame_data) * graphics::g::frame_buffer_idx);
+		h_mapping_frame_data->upload(&frame_d, sizeof(shared_type::frame_data), sizeof(shared_type::frame_data) * global::i_graphics.get_frame_buffer_idx);
 
 		return opaque_mshlt_object_data_count;
 	}
