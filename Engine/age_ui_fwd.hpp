@@ -490,6 +490,8 @@ namespace age::ui::g
 	inline float mouse_l_clicked_time;
 	inline uint8 mouse_l_clicked_count;
 
+	inline std::array<uint32, global::frame_buffer_count> raycast_id_arr;
+
 	inline age::vector<id_scope> id_stack;
 
 	inline age::unordered_map<uint64, widget_state> widget_state_map;

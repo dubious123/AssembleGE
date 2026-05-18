@@ -4,10 +4,7 @@
 // constants
 namespace age::graphics::g
 {
-	constexpr auto thread_count = uint8{ 8 };
-
 	constexpr auto minimum_feature_level = D3D_FEATURE_LEVEL_12_1;
-	constexpr auto frame_buffer_count	 = uint8{ 3 };
 
 	inline const auto engine_shaders_dir_path				= std::filesystem::path{ "./resources/engine_shaders/dx12/" };
 	inline const auto engine_shaders_compiled_blob_dir_path = std::filesystem::path{ "./resources/engine_shaders/dx12/bin/" };
@@ -90,11 +87,11 @@ namespace age::graphics
 	{
 		ID3D12CommandQueue*		p_queue;
 		ID3D12Fence1*			p_fence;
-		ID3D12CommandAllocator* p_allocator[graphics::g::frame_buffer_count][graphics::g::thread_count];
-		uint64					frame_fence_value[graphics::g::frame_buffer_count];
+		ID3D12CommandAllocator* p_allocator[global::frame_buffer_count][global::thread_count];
+		uint64					frame_fence_value[global::frame_buffer_count];
 		uint64					fence_value;
 
-		ID3D12GraphicsCommandList9* p_cmd_list[graphics::g::thread_count];
+		ID3D12GraphicsCommandList9* p_cmd_list[global::thread_count];
 
 		HANDLE h_fence_event;
 	};
@@ -333,10 +330,10 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, g::frame_buffer_count>
+		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, global::frame_buffer_count>
 			rtv_desc_handle_arr;
 
-		std::array<ID3D12Resource*, g::frame_buffer_count>
+		std::array<ID3D12Resource*, global::frame_buffer_count>
 			back_buffer_ptr_arr;
 
 		IDXGISwapChain4* p_swap_chain = nullptr;

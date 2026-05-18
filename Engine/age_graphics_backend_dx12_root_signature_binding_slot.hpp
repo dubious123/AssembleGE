@@ -50,7 +50,7 @@ namespace age::graphics
 
 	namespace what
 	{
-		template <typename t_data_, uint32 n = g::frame_buffer_count>
+		template <typename t_data_, uint32 n = global::frame_buffer_count>
 		struct constant_buffer_array
 		{
 			static_assert(n > 0);
@@ -60,7 +60,7 @@ namespace age::graphics
 			static constexpr auto array_size = n;
 		};
 
-		template <uint32 n = g::frame_buffer_count>
+		template <uint32 n = global::frame_buffer_count>
 		struct byte_address_buffer_array
 		{
 			static_assert(n > 0);
@@ -69,7 +69,7 @@ namespace age::graphics
 			using t_data = std::byte;
 		};
 
-		template <typename t_data_, uint32 n = g::frame_buffer_count>
+		template <typename t_data_, uint32 n = global::frame_buffer_count>
 		struct structured_buffer_array
 		{
 			static_assert(n > 0);
@@ -83,14 +83,14 @@ namespace age::graphics
 		template <typename t_data>
 		class constant_buffer : public constant_buffer_array<t_data, 1> { };
 
-		template <uint32 n = g::frame_buffer_count>
+		template <uint32 n = global::frame_buffer_count>
 		class rw_byte_address_buffer_array : public byte_address_buffer_array<n> { };
 
 		class byte_address_buffer : public byte_address_buffer_array<1> { };
 
 		class rw_byte_address_buffer : public byte_address_buffer_array<1> { };
 
-		template <typename t_data, uint32 n = g::frame_buffer_count>
+		template <typename t_data, uint32 n = global::frame_buffer_count>
 		class rw_structured_buffer_array : public structured_buffer_array<t_data, n> { };
 
 		template <typename t_data>

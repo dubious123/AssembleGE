@@ -231,6 +231,13 @@ namespace age::graphics::resource
 							D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
 							D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
+	std::array<mapping_handle, global::frame_buffer_count>
+	create_buffer_committed_arr(uint32				 buffer_byte_size,
+								const void*			 p_data			= nullptr,
+								e::memory_kind		 kind			= e::memory_kind::cpu_to_gpu_direct,
+								D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
+								D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
+
 	mapping_handle
 	create_buffer_placed(uint32				  buffer_byte_size,
 						 ID3D12Heap&		  heap,

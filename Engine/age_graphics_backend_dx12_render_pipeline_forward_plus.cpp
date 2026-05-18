@@ -36,9 +36,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::resource::create_view(graphics::g::h_brdf_lut, h_env_light_brdf_lut, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
 
 		{
-			h_mapping_static_ring_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(g::static_buffer_size);
+			h_mapping_static_ring_buffer_arr = resource::create_buffer_committed_arr(g::static_buffer_size);
 
-			h_mapping_frame_data = resource::create_buffer_committed(sizeof(shared_type::frame_data) * graphics::g::frame_buffer_count);
+			h_mapping_frame_data = resource::create_buffer_committed(sizeof(shared_type::frame_data) * global::frame_buffer_count);
 
 			h_mapping_mesh_buffer			   = resource::create_buffer_committed(1024);
 			h_mapping_rt_index_buffer		   = resource::create_buffer_committed(1024);
@@ -46,16 +46,16 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_material_buffer = resource::create_buffer_committed(sizeof(shared_type::material) * 5);
 
-			h_mapping_env_light_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::env_light) * 1);
+			h_mapping_env_light_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::env_light) * 1);
 
-			h_mapping_ui_data_buffer_arr	  = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::ui_data));
-			h_mapping_ui_root_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::ui_root_data));
+			h_mapping_ui_data_buffer_arr	  = resource::create_buffer_committed_arr(sizeof(shared_type::ui_data));
+			h_mapping_ui_root_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::ui_root_data));
 
-			h_mapping_selection_outline_meshlet_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::selection_outline_meshlet_render_data));
-			h_mapping_selection_outline_data_buffer_arr				   = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::selection_outline_data));
+			h_mapping_selection_outline_meshlet_render_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::selection_outline_meshlet_render_data));
+			h_mapping_selection_outline_data_buffer_arr				   = resource::create_buffer_committed_arr(sizeof(shared_type::selection_outline_data));
 
-			h_mapping_debug_meshlet_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::debug_meshlet_render_data));
-			h_mapping_debug_object_data_buffer_arr		   = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::debug_object_data));
+			h_mapping_debug_meshlet_render_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::debug_meshlet_render_data));
+			h_mapping_debug_object_data_buffer_arr		   = resource::create_buffer_committed_arr(sizeof(shared_type::debug_object_data));
 
 			h_scratch_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::scratch_buffer_total_size),
@@ -81,16 +81,16 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
-			h_mapping_rt_instance_buffer_arr			 = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
-			h_mapping_rt_instance_render_data_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::rt_instance_render_data));
+			h_mapping_rt_instance_buffer_arr			 = resource::create_buffer_committed_arr(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+			h_mapping_rt_instance_render_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::rt_instance_render_data));
 
-			h_mapping_rt_raycast_request_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::raycast_request));
+			h_mapping_rt_raycast_request_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::raycast_request));
 			h_rt_raycast_result_buffer				= resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::raycast_result)),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
-			h_readback_rt_raycast_result_buffer_arr = resource::create_buffer_committed<graphics::g::frame_buffer_count>(sizeof(shared_type::raycast_request), nullptr, e::memory_kind::gpu_to_cpu);
+			h_readback_rt_raycast_result_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::raycast_request), nullptr, e::memory_kind::gpu_to_cpu);
 		}
 
 		{
@@ -555,7 +555,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	namespace detail
 	{
-		void
+		t_object_id
 		render_debug_mesh_impl(pipeline& self, const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool is_aot) noexcept
 		{
 			auto& render_data_vec		  = is_aot ? self.debug_aot_meshlet_render_data_vec : self.debug_meshlet_render_data_vec;
@@ -602,19 +602,20 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			rt_instance_vec.emplace_back(desc);
 			self.debug_object_data_vec.emplace_back(shared_type::debug_object_data{ object_id, color });
+			return object_id;
 		}
 	}	 // namespace detail
 
-	void
+	t_object_id
 	pipeline::render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept
 	{
-		detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, false);
+		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, false);
 	}
 
-	void
+	t_object_id
 	pipeline::render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept
 	{
-		detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, true);
+		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, true);
 	}
 
 	void
@@ -1683,7 +1684,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	pipeline::request_raycast(const float3& origin, const float3& dir, float t_max, e::rt_mask_kind mask) noexcept
 	{
 		AGE_ASSERT(raycast_request_vec.size() < 0x00ff'ffff);
-		static_assert(graphics::g::frame_buffer_count < 0xff);
+		static_assert(global::frame_buffer_count < 0xff);
 
 		auto id = t_raycast_id{ (graphics::g::frame_buffer_idx & 0xff << 24) | (raycast_request_vec.size<uint32>() & 0x00ff'ffff) };
 
@@ -1699,7 +1700,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	shared_type::raycast_result
 	pipeline::get_raycast_result(t_raycast_id id) noexcept
 	{
-		// AGE_ASSERT((id >> 24) % graphics::g::frame_buffer_count == graphics::g::frame_buffer_idx);
+		// AGE_ASSERT((id >> 24) % global::frame_buffer_count == graphics::g::frame_buffer_idx);
 
 		auto idx = id & 0x00ff'ffff;
 
@@ -1738,7 +1739,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			auto rt_instance_count	= 0ul;
 			auto rt_instance_offset = 0ull;
-			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
+			for (auto i : views::loop(global::thread_count))
 			{
 				auto& opaque_mshlt_render_data_vec = opaque_meshlet_render_data_vec[i];
 				auto& rt_inst_render_data_vec	   = rt_instance_render_data_vec[i];
@@ -1771,7 +1772,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			rt_instance_offset			   = 0;
 			rt_instance_render_data_offset = 0;
-			for (auto i : std::views::iota(0u) | std::views::take(graphics::g::thread_count))
+			for (auto i : views::loop(global::thread_count))
 			{
 				auto& rt_instance_vec		  = rt_instance_data_vec[i];
 				auto& rt_inst_render_data_vec = rt_instance_render_data_vec[i];

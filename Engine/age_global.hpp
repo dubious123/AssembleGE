@@ -3,6 +3,9 @@
 
 namespace age::global
 {
+	constexpr c_auto thread_count		= uint8{ 8 };
+	constexpr c_auto frame_buffer_count = uint8{ 3 };
+
 	struct state
 	{
 		std::string name = "age_engine";

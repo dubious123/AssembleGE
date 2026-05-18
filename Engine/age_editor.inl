@@ -519,7 +519,7 @@ namespace age::editor
 
 		auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-		static auto raycast_req_vec = std::array<uint32, graphics::g::frame_buffer_count>{};
+		static auto raycast_req_vec = std::array<uint32, global::frame_buffer_count>{};
 
 		c_auto raycast_res = renderer.get_raycast_result(raycast_req_vec[graphics::g::frame_buffer_idx]);
 

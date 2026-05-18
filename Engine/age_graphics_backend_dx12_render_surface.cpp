@@ -38,7 +38,7 @@ namespace age::graphics
 				/*BOOL					*/ .Stereo		= false,
 				/*DXGI_SAMPLE_DESC		*/ .SampleDesc	= { .Count = 1, .Quality = 0 },
 				/*DXGI_USAGE			*/ .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-				/*UINT					*/ .BufferCount = g::frame_buffer_count,
+				/*UINT					*/ .BufferCount = global::frame_buffer_count,
 				/*DXGI_SCALING			*/ .Scaling		= DXGI_SCALING_STRETCH,
 				/*DXGI_SWAP_EFFECT		*/ .SwapEffect	= DXGI_SWAP_EFFECT_FLIP_DISCARD,
 				/*DXGI_ALPHA_MODE		*/ .AlphaMode	= DXGI_ALPHA_MODE_UNSPECIFIED,
@@ -106,7 +106,7 @@ namespace age::graphics
 			AGE_ASSERT(false, "invalid color space");
 		}
 
-		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
+		for (uint32 idx : std::views::iota(0) | std::views::take(global::frame_buffer_count))
 		{
 			rtv_desc_handle_arr[idx] = g::rtv_desc_pool.pop();
 		}
@@ -127,7 +127,7 @@ namespace age::graphics
 		AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
 
 		p_swap_chain->ResizeBuffers(
-			g::frame_buffer_count,
+			global::frame_buffer_count,
 			0,
 			0,
 			DXGI_FORMAT_UNKNOWN,
@@ -149,7 +149,7 @@ namespace age::graphics
 	void
 	render_surface::deinit() noexcept
 	{
-		for (auto idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
+		for (auto idx : std::views::iota(0) | std::views::take(global::frame_buffer_count))
 		{
 			g::rtv_desc_pool.push(rtv_desc_handle_arr[idx]);
 			back_buffer_ptr_arr[idx]->Release();
@@ -165,7 +165,7 @@ namespace age::graphics
 	{
 		back_buffer_idx = p_swap_chain->GetCurrentBackBufferIndex();
 
-		for (uint32 idx : std::views::iota(0) | std::views::take(g::frame_buffer_count))
+		for (uint32 idx : std::views::iota(0) | std::views::take(global::frame_buffer_count))
 		{
 			AGE_HR_CHECK(p_swap_chain->GetBuffer(idx, IID_PPV_ARGS(&back_buffer_ptr_arr[idx])));
 

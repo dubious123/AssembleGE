@@ -13,6 +13,8 @@ namespace age::ui
 		g::mouse_ray_dir_prev = {};
 		g::cam_world_pos	  = {};
 		g::mouse_ray_dir	  = {};
+
+		g::raycast_id_arr = {};
 	}
 
 	namespace detail

@@ -38,7 +38,7 @@ namespace age::graphics::command
 		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
 		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
 
-		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(g::frame_buffer_idx - 1 + g::frame_buffer_count) % g::frame_buffer_count]));
+		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(g::frame_buffer_idx - 1 + global::frame_buffer_count) % global::frame_buffer_count]));
 	}
 }	 // namespace age::graphics::command
 
@@ -311,8 +311,8 @@ namespace age::graphics::command
 			}
 
 			for (auto&& [i, j] : std::views::cartesian_product(
-					 std::views::iota(0u, g::frame_buffer_count),
-					 std::views::iota(0u, g::thread_count)))
+					 std::views::iota(0u, global::frame_buffer_count),
+					 std::views::iota(0u, global::thread_count)))
 			{
 				AGE_HR_CHECK(g::p_main_device->CreateCommandAllocator(
 					desc.Type, IID_PPV_ARGS(&ctx.p_allocator[i][j])));
@@ -323,7 +323,7 @@ namespace age::graphics::command
 			}
 
 
-			for (auto j : std::views::iota(0u, g::thread_count))
+			for (auto j : std::views::iota(0u, global::thread_count))
 			{
 				AGE_HR_CHECK(g::p_main_device->CreateCommandList(
 					0,

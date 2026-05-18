@@ -256,7 +256,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_light_cull_stage_sorted_light_buffer;
 
 
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_static_ring_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
 
 
 		mapping_handle h_mapping_frame_data;
@@ -265,19 +265,19 @@ namespace age::graphics::render_pipeline::forward_plus
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 		mapping_handle h_mapping_material_buffer;
 
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_env_light_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_env_light_buffer_arr;
 
 
 		// rt, not for binding
-		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[graphics::g::thread_count];
-		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[graphics::g::thread_count];
+		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[global::thread_count];
+		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[global::thread_count];
 
 
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_rt_raycast_request_buffer_arr;
-		resource_handle												h_rt_raycast_result_buffer;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	// readback
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_raycast_request_buffer_arr;
+		resource_handle										   h_rt_raycast_result_buffer;
+		std::array<mapping_handle, global::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	   // readback
 
 		resource_handle h_rt_tlas_buffer;
 		resource_handle h_rt_tlas_scratch_buffer;
@@ -304,16 +304,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_t<1, 2> env_light_buffer;
 
 		// selection outline
-		binding_config_t::reg_t<0, 4>								selection_outline_meshlet_render_data_buffer;
-		binding_config_t::reg_t<1, 4>								selection_outline_data_buffer;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_selection_outline_meshlet_render_data_buffer_arr;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
+		binding_config_t::reg_t<0, 4>						   selection_outline_meshlet_render_data_buffer;
+		binding_config_t::reg_t<1, 4>						   selection_outline_data_buffer;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_meshlet_render_data_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
 
 		// ui
-		binding_config_t::reg_t<0, 5>								ui_root_data_buffer;
-		binding_config_t::reg_t<1, 5>								ui_data_buffer;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_root_data_buffer_arr;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_ui_data_buffer_arr;
+		binding_config_t::reg_t<0, 5>						   ui_root_data_buffer;
+		binding_config_t::reg_t<1, 5>						   ui_data_buffer;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_root_data_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_data_buffer_arr;
 
 		// ui_root_data_idx_arr : prefix of root_data_vec.size()
 		// ui_root_data_idx_arr -> ui_root_data_vec_arr -> ui_render_data_z_range_of_range_vec -> ui_render_data_z_range_vec -> ui_render_data_vec
@@ -330,10 +330,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<3, 3> rt_raycast_result_buffer_uav;
 
 		// debug
-		binding_config_t::reg_t<0, 77>								debug_meshlet_render_data_buffer;
-		binding_config_t::reg_t<1, 77>								debug_object_data_buffer;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
-		std::array<mapping_handle, graphics::g::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
+		binding_config_t::reg_t<0, 77>						   debug_meshlet_render_data_buffer;
+		binding_config_t::reg_t<1, 77>						   debug_object_data_buffer;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
 
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
@@ -371,7 +371,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
-		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[graphics::g::thread_count];
+		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[global::thread_count];
 
 		// light
 		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
@@ -386,7 +386,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::sparse_vector<env_light_data>				 env_light_cpu_data_vec;
 
 		// raycast
-		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[graphics::g::frame_buffer_count];
+		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[global::frame_buffer_count];
 		age::vector<shared_type::raycast_request>		raycast_request_vec;
 
 		// selection_outline
@@ -549,10 +549,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		get_raycast_result(t_raycast_id _) noexcept;
 
 		// debug
-		void
+		t_object_id
 		render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
 
-		void
+		t_object_id
 		render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
 
 		void
