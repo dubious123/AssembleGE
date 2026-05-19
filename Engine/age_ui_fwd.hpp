@@ -11,10 +11,10 @@ namespace age::ui::e
 					check,
 					rounded_rect,
 					triangle,
-					cross);
+					cross,
+					mesh);
 
-	AGE_DEFINE_ENUM(brush_kind, uint8,
-					color);
+	AGE_DEFINE_ENUM(brush_kind, uint8, color);
 
 	AGE_DEFINE_ENUM(widget_layout, uint8, horizontal, horizontal_inv, vertical, vertical_inv)
 
@@ -58,6 +58,11 @@ namespace age::ui
 			{
 				float value;
 			} roundness;
+
+			struct
+			{
+				uint32 h_mesh;
+			} mesh;
 
 			uint32 data[5];
 		};
@@ -372,6 +377,9 @@ namespace age::ui
 		float3 world_pos;
 		float4 quaternion;
 
+		float3 world_basis_u;
+		float3 world_basis_v;
+
 		float width;
 		float height;
 
@@ -383,6 +391,9 @@ namespace age::ui
 
 		age::vector<layout_pos_data> layout_pos_data_vec;
 		age::vector<uint32>			 z_order_count_vec;
+
+		float3
+		screen_to_world(float2 _) const;
 	};
 
 	struct root_graphics_data

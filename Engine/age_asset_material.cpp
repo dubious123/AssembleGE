@@ -71,6 +71,22 @@ namespace age::asset::material
 		AGE_ASSERT(entry.ref_counter > 0);
 		--entry.ref_counter;
 	}
+
+	void
+	update_texture(asset::handle& h_tex_before, asset::handle h_tex_after) noexcept
+	{
+		if (runtime::is_handle_invalid(h_tex_before) is_false)
+		{
+			texture::remove_ref(h_tex_before);
+		}
+
+		if (runtime::is_handle_invalid(h_tex_after) is_false)
+		{
+			texture::add_ref(h_tex_after);
+		}
+
+		h_tex_before = h_tex_after;
+	}
 }	 // namespace age::asset::material
 
 namespace age::asset::material

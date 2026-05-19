@@ -100,6 +100,13 @@ namespace age::inline math
 		return simd::rotate3(simd::load(quaternion), simd::load(v)) | simd::to<float3>();
 	}
 
+	// rotate q1 and q0
+	FORCE_INLINE float4
+	quat_mul(const float4& q0, const float4& q1) noexcept
+	{
+		return simd::quat_mul(simd::load(q0), simd::load(q1)) | simd::normalize4() | simd::to<float4>();
+	}
+
 	FORCE_INLINE float4
 	euler_rad_to_quat(float3 euler_radian) noexcept
 	{

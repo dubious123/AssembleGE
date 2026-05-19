@@ -4,10 +4,10 @@
 namespace age::editor
 {
 	void
-	init() noexcept;
+	init(util::function_ref<asset::handle(std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)> fn_mesh_gpu_load) noexcept;
 
 	void
-	deinit() noexcept;
+	deinit(util::function_ref<void(asset::handle)> fn_mesh_full_unload) noexcept;
 
 	bool
 	is_edit_mode() noexcept;

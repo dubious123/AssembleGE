@@ -137,6 +137,9 @@ namespace age::ui::detail
 
 	FORCE_INLINE root_data&
 	get_current_root() noexcept;
+
+	FORCE_INLINE e::space_mode_kind
+	get_current_space_mode() noexcept;
 }	 // namespace age::ui::detail
 
 namespace age::ui
@@ -169,7 +172,9 @@ namespace age::ui
 							  age::vector<util::range>&,
 							  age::vector<util::range>&,
 							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
-					   tpl) noexcept;
+																														 tpl,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh_aot) noexcept;
 
 	void
 	end_frame(auto& renderer) noexcept
@@ -180,6 +185,11 @@ namespace age::ui
 
 		g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(g::cam_world_pos, g::mouse_ray_dir, std::numeric_limits<float>::max());
 
-		end_frame_impl(res.object_id, renderer.get_ui_sink());
+		using t_func = uint32(const float3&, const float4&, const float3&, asset::handle, const float3&);
+
+		// end_frame_impl(res.object_id, renderer.get_ui_sink(), util::function_ref<t_func>(AGE_FUNC(renderer.render_debug_mesh)), util::function_ref<t_func>(AGE_FUNC(renderer.render_debug_mesh_aot)));
+		end_frame_impl(res.object_id, renderer.get_ui_sink(),
+					   AGE_FUNC(renderer.render_debug_mesh_aot),
+					   AGE_FUNC(renderer.render_debug_mesh_aot));
 	}
 }	 // namespace age::ui

@@ -7,7 +7,8 @@ namespace age_demo::scene_3
 	init() noexcept
 	{
 		using namespace age::ecs::system;
-		age::editor::init();
+		age::editor::init(AGE_LAMBDA((auto&& _1, auto&&... arg), { return age::asset::mesh_baked::gpu_load(FWD(_1), i_init.get_render_pipeline(), FWD(arg)...); }));
+
 		i_init.get_editor_game->init();
 
 		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
@@ -226,7 +227,7 @@ namespace age_demo::scene_3
 		age::graphics::command::signal();
 		age::graphics::command::cpu_wait();
 		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
-		age::editor::deinit();
+		age::editor::deinit(AGE_LAMBDA((age::asset::handle h_mesh), { return age::asset::mesh_baked::full_unload(h_mesh, i_init.get_render_pipeline()); }));
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
 

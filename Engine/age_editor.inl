@@ -627,122 +627,178 @@ namespace age::editor
 
 		g::set_focus = false;
 
-
-		{
-			auto& pool = asset::pool_of<mesh_baked>();
-			for (auto it = pool.begin(); it != pool.end(); ++it)
+		asset::for_each_kind([&renderer]<asset::e::kind e_kind> noexcept {
+			for (auto h : asset::each_handle_of<e_kind>())
 			{
-				auto  h_mesh = asset::handle::make<mesh_baked>(it.idx<uint32>());
-				auto& entry	 = h_mesh.get_entry<mesh_baked>();
-
-				if (entry.ref_counter == 0)
+				if constexpr (e_kind == asset::e::kind::material)
 				{
-					asset::mesh_baked::full_unload(h_mesh, renderer);
+					auto& entry = h.get_entry<material>();
 
-					if (asset::registry::is_registered<mesh_baked>(h_mesh) is_false)
+					if (entry.ref_counter == 0)
 					{
-						asset::destroy_entry<mesh_baked>(h_mesh);
+						asset::material::full_unload(h, renderer);
+					}
+
+					if (entry.ref_counter > 0)
+					{
+						asset::material::load(h, renderer);
+
+						auto need_update = false;
+
+						for (auto& h_tex : entry.all_textures() | views::deref)
+						{
+							if (runtime::is_handle_invalid(h_tex)) { continue; }
+
+							// handle texture delete
+							if (std::ranges::contains(g::asset_to_delete[to_idx(texture)], h_tex))
+							{
+								if (h_tex.get_entry<texture>().ref_counter == 1)
+								{
+									asset::texture::full_unload(h_tex, renderer);
+								}
+
+								asset::material::update_texture(h_tex, asset::handle{});
+
+								need_update = true;
+							}
+						}
+
+						if (need_update)
+						{
+							renderer.update_material(h);
+						}
 					}
 				}
-
-				if (entry.ref_counter > 0)
+				else if constexpr (e_kind == asset::e::kind::font)
 				{
-					asset::mesh_baked::gpu_load(h_mesh, renderer);
+					// skip;
+					AGE_ASSERT(asset::registry::is_registered(h) is_false);
+				}
+				else
+				{
+					auto& entry = h.get_entry<e_kind>();
+
+					if (entry.ref_counter == 0)
+					{
+						if constexpr (e_kind == texture)
+						{
+							if (entry.is_gpu_loaded())
+							{
+								std::println("unload : {}", entry.get_path());
+							}
+						}
+						asset::full_unload<e_kind>(h, renderer);
+					}
+
+					if (entry.ref_counter > 0)
+					{
+						asset::gpu_load<e_kind>(h, renderer);
+					}
 				}
 			}
-		}
 
-		{
-			auto& pool = asset::pool_of<texture>();
-			for (auto it = pool.begin(); it != pool.end(); ++it)
+			for (auto h : g::asset_to_delete[to_idx(e_kind)])
 			{
-				auto  h		= asset::handle::make<texture>(it.idx<uint32>());
-				auto& entry = h.get_entry<texture>();
+				AGE_ASSERT(asset::registry::is_registered(h));
 
-				if (entry.ref_counter == 0)
-				{
-					asset::texture::full_unload(h, renderer);
-
-					if (asset::registry::is_registered<texture>(h) is_false)
-					{
-						asset::destroy_entry<texture>(h);
-					}
-				}
-
-				if (entry.ref_counter > 0)
-				{
-					asset::texture::gpu_load(h, renderer);
-				}
+				asset::registry::unregister_asset(h);
 			}
-		}
 
-		{
-			auto& pool = asset::pool_of<material>();
-			for (auto it = pool.begin(); it != pool.end(); ++it)
-			{
-				auto  h		= asset::handle::make<material>(it.idx<uint32>());
-				auto& entry = h.get_entry<material>();
+			g::asset_to_delete[to_idx(e_kind)].clear();
+		});
 
-				if (entry.ref_counter == 0)
-				{
-					asset::material::full_unload(h, renderer);
 
-					if (asset::registry::is_registered<material>(h) is_false)
-					{
-						asset::destroy_entry<material>(h);
-					}
-				}
+		// for (auto h : asset::each_handle_of<mesh_baked>())
+		//{
+		//	auto& entry = h.get_entry<mesh_baked>();
 
-				if (entry.ref_counter > 0)
-				{
-					asset::material::load(h, renderer);
-				}
+		//	if (entry.ref_counter == 0)
+		//	{
+		//		asset::mesh_baked::full_unload(h, renderer);
+		//	}
 
-				auto need_update = false;
+		//	if (entry.ref_counter > 0)
+		//	{
+		//		asset::mesh_baked::gpu_load(h, renderer);
+		//	}
+		//}
 
-				for (auto& h_tex : entry.all_textures() | views::deref)
-				{
-					if (runtime::is_handle_invalid(h_tex)) { continue; }
+		// for (auto h : asset::each_handle_of<texture>())
+		//{
+		//	auto& entry = h.get_entry<texture>();
 
-					if (asset::registry::is_registered<texture>(h_tex) is_false)
-					{
-						asset::texture::full_unload(h_tex, renderer);
-						h_tex = {};
+		//	if (entry.ref_counter == 0)
+		//	{
+		//		asset::texture::full_unload(h, renderer);
+		//	}
 
-						need_update = true;
-					}
-				}
+		//	if (entry.ref_counter > 0)
+		//	{
+		//		asset::texture::gpu_load(h, renderer);
+		//	}
+		//}
 
-				if (entry.ref_counter > 0 and need_update)
-				{
-					renderer.update_material(h);
-				}
-			}
-		}
+		//{
+		//	for (auto h : asset::registered_of<material>())
+		//	{
+		//		auto& entry = h.get_entry<material>();
 
-		{
-			auto& pool = asset::pool_of<env_light>();
-			for (auto it = pool.begin(); it != pool.end(); ++it)
-			{
-				auto  h		= asset::handle::make<env_light>(it.idx<uint32>());
-				auto& entry = h.get_entry<env_light>();
+		//		if (entry.ref_counter == 0)
+		//		{
+		//			asset::material::full_unload(h, renderer);
+		//		}
 
-				if (entry.ref_counter == 0)
-				{
-					asset::env_light::full_unload(h, renderer);
+		//		if (entry.ref_counter > 0)
+		//		{
+		//			asset::material::load(h, renderer);
+		//		}
 
-					if (asset::registry::is_registered<env_light>(h) is_false)
-					{
-						asset::destroy_entry<env_light>(h);
-					}
-				}
+		//		auto need_update = false;
 
-				if (entry.ref_counter > 0)
-				{
-					asset::env_light::gpu_load(h, renderer);
-				}
-			}
-		}
+		//		for (auto& h_tex : entry.all_textures() | views::deref)
+		//		{
+		//			if (runtime::is_handle_invalid(h_tex)) { continue; }
+
+		//			// handle texture delete
+		//			if (asset::registry::is_registered<texture>(h_tex) is_false)
+		//			{
+		//				asset::texture::full_unload(h_tex, renderer);
+		//				h_tex = {};
+
+		//				need_update = true;
+		//			}
+		//		}
+
+		//		if (entry.ref_counter > 0 and need_update)
+		//		{
+		//			renderer.update_material(h);
+		//		}
+		//	}
+		//}
+
+		//{
+		//	auto& pool = asset::pool_of<env_light>();
+		//	for (auto it = pool.begin(); it != pool.end(); ++it)
+		//	{
+		//		auto  h		= asset::handle::make<env_light>(it.idx<uint32>());
+		//		auto& entry = h.get_entry<env_light>();
+
+		//		if (entry.ref_counter == 0)
+		//		{
+		//			asset::env_light::full_unload(h, renderer);
+
+		//			if (asset::registry::is_registered<env_light>(h) is_false)
+		//			{
+		//				asset::destroy_entry<env_light>(h);
+		//			}
+		//		}
+
+		//		if (entry.ref_counter > 0)
+		//		{
+		//			asset::env_light::gpu_load(h, renderer);
+		//		}
+		//	}
+		//}
 
 		for (c_auto& editor_storage : active_scene.storage_data_vec)
 		{

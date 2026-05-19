@@ -638,8 +638,6 @@
 #define AGE_EDITOR_DEINIT_MAP(tpl)					AGE_EDITOR_DEINIT_MAP_IMPL tpl
 #define AGE_EDITOR_DEINIT_MAP_IMPL(type, name, ...) name.deinit()
 //---[ age_asset.hpp ]------------------------------------------------------------------
-// FOR_EACH (AGE_DEFINE_CREATE_ENTRY_MAP0, __VA_ARGS__)
-// FOR_EACH (AGE_DEFINE_DESTROY_ENTRY_MAP0, __VA_ARGS__)
 #define AGE_DEFINE_ASSET_KIND(...)                                                                                          \
 	FOR_EACH (AGE_DEFINE_VALIDATE_HEADER_MAP0, __VA_ARGS__)                                                                 \
 		inline bool validate_header(e::kind asset_kind, const file_header& header) noexcept                                 \
@@ -769,7 +767,13 @@
 		{                                                                                                                   \
 			AGE_UNREACHABLE();                                                                                              \
 		}                                                                                                                   \
-	}
+	}                                                                                                                       \
+	namespace detail                                                                                                        \
+	{                                                                                                                       \
+		class unsupported_t;                                                                                                \
+	}                                                                                                                       \
+	AGE_DEFINE_ASSET_FUNC(full_unload, __VA_ARGS__)                                                                         \
+	AGE_DEFINE_ASSET_FUNC(gpu_load, __VA_ARGS__)
 
 
 #define AGE_ASSET_FOR_EACH_KIND_MAP(name) f.template operator()<e::kind::name>()
@@ -841,5 +845,40 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 		return age::asset::get_display_name<e::kind::name>(get_entry<e::kind::name>().get_path()); \
 	}
 
+#define AGE_DEFINE_ASSET_FUNC(function_name, ...)                                              \
+	FOR_EACH_CTX((AGE_DEFINE_ASSET_FUNC_MAP0, function_name), AGE_PP_EMPTY_I, __VA_ARGS__)     \
+	template <e::kind e_kind>                                                                  \
+	decltype(auto)                                                                             \
+	function_name(auto&&... arg) noexcept                                                      \
+	{                                                                                          \
+		if constexpr (false) { }                                                               \
+		FOR_EACH_CTX((AGE_DEFINE_ASSET_FUNC_MAP1, function_name), AGE_PP_EMPTY_I, __VA_ARGS__) \
+		else                                                                                   \
+		{                                                                                      \
+			static_assert(false, "invalid function call");                                     \
+			AGE_UNREACHABLE();                                                                 \
+		}                                                                                      \
+	};
+
+#define AGE_DEFINE_ASSET_FUNC_MAP0(function_name, name)                           \
+	namespace name                                                                \
+	{                                                                             \
+		asset::detail::unsupported_t                                              \
+		function_name(asset::detail::unsupported_t, auto&&...) noexcept = delete; \
+	}
+
+#define AGE_DEFINE_ASSET_FUNC_MAP1(function_name, name)                                                                     \
+	else if constexpr (e_kind == e::kind::name and requires { asset::name::function_name(FWD(arg)...); })                   \
+	{                                                                                                                       \
+		if constexpr (meta::is_not_same_v<decltype(asset::name::function_name(FWD(arg)...)), asset::detail::unsupported_t>) \
+		{                                                                                                                   \
+			return asset::name::function_name(FWD(arg)...);                                                                 \
+		}                                                                                                                   \
+		else                                                                                                                \
+		{                                                                                                                   \
+			static_assert(false, "invalid function call");                                                                  \
+			AGE_UNREACHABLE();                                                                                              \
+		}                                                                                                                   \
+	}
 
 //---------------------------------------------------------------------------------------

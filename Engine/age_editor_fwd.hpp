@@ -145,6 +145,8 @@ namespace age::editor::g
 	// inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
 	// inline auto command_buf							= ecs::command_buffer{};
 
+	inline auto asset_to_delete = std::array<age::vector<asset::handle>, asset::e::kind_size>{};
+
 	inline auto current_game = game_editor_data{};
 
 	inline auto current_mode = e::mode_kind::edit;
@@ -155,7 +157,7 @@ namespace age::editor::g
 	inline auto show_modal = false;
 	inline auto set_focus  = false;
 
-	inline auto h_mesh_gizmo_translate = asset::handle{};
-	inline auto h_mesh_gizmo_rotate	   = asset::handle{};
-	inline auto h_mesh_gizmo_scale	   = asset::handle{};
+	// translation gizmo
+	inline auto h_mesh_cone = asset::handle{};
+	inline auto h_mesh_cube = asset::handle{};
 }	 // namespace age::editor::g

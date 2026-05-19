@@ -645,4 +645,12 @@ namespace age::asset
 	{
 		return g::entry_pool<e_kind>;
 	}
+
+	template <e::kind e_kind>
+	FORCE_INLINE decltype(auto)
+	each_handle_of() noexcept
+	{
+		return std::views::iota(g::entry_pool<e_kind>.begin(), g::entry_pool<e_kind>.end())
+			 | std::views::transform(AGE_LAMBDA((auto&& it), { return handle::make<e_kind>(it.template idx<uint32>()); }));
+	}
 }	 // namespace age::asset

@@ -45,6 +45,13 @@ namespace age::ui::detail
 		return g::root_data_vec_arr[(id >> 24u) & 0xff][id & 0x00ff'ffff];
 	}
 
+	FORCE_INLINE e::space_mode_kind
+	get_current_space_mode() noexcept
+	{
+		c_auto id = g::root_data_idx_stack.back();
+		return static_cast<e::space_mode_kind>(id >> 24u);
+	}
+
 	FORCE_INLINE t_hash
 	widget_begin(auto&& desc) noexcept
 		requires std::is_same_v<BARE_OF(desc), widget_desc>
@@ -80,6 +87,12 @@ namespace age::ui::detail
 			else
 			{
 				render_data_count = 1;
+			}
+
+			if (desc.shape_kind == e::shape_kind::mesh)
+			{
+				AGE_ASSERT(get_current_space_mode() != e::space_mode_kind::screen);
+				AGE_ASSERT(desc.body_brush_kind == e::brush_kind::color);
 			}
 
 			if (desc.draw is_false)

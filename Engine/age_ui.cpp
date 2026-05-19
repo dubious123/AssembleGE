@@ -48,6 +48,9 @@ namespace age::ui
 				c_auto normal = math::rotate(root.quaternion, float3{ 0, 0, -1.f });
 				c_auto denorm = math::dot(g::mouse_ray_dir, normal);
 
+				root.world_basis_u = math::rotate(root.quaternion, float3{ 1, 0, 0 });
+				root.world_basis_v = math::rotate(root.quaternion, float3{ 0, -1, 0 });
+
 				if (std::abs(denorm) < math::g::epsilon_1e6)
 				{
 					root.mouse_uv = float2{ -1.f, -1.f };
@@ -66,7 +69,7 @@ namespace age::ui
 
 						c_auto hit_world_delta = hit_world - root.world_pos;
 
-						root.mouse_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta) }
+						root.mouse_uv = float2{ math::dot(root.world_basis_u, hit_world_delta), math::dot(root.world_basis_v, hit_world_delta) }
 									  * float2{ root.width / root.world_width, root.height / root.world_height };
 
 
@@ -75,7 +78,7 @@ namespace age::ui
 						// todo: root transform may change between frames; possible drag delta inaccuracy on animated panels.
 						c_auto hit_world_delta_prev = hit_world_prev - root.world_pos;
 
-						root.mouse_delta_uv = float2{ math::dot(math::rotate(root.quaternion, float3{ 1, 0, 0 }), hit_world_delta_prev), math::dot(math::rotate(root.quaternion, float3{ 0, -1, 0 }), hit_world_delta_prev) }
+						root.mouse_delta_uv = float2{ math::dot(root.world_basis_u, hit_world_delta_prev), math::dot(root.world_basis_v, hit_world_delta_prev) }
 											* float2{ root.width / root.world_width, root.height / root.world_height };
 
 						root.mouse_delta_uv = root.mouse_uv - root.mouse_delta_uv;
@@ -176,7 +179,9 @@ namespace age::ui
 							  age::vector<util::range>&,
 							  age::vector<util::range>&,
 							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
-					   tpl) noexcept
+																														 tpl,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh_aot) noexcept
 	{
 		detail::widget_end();
 		g::id_stack.pop_back();
@@ -356,9 +361,34 @@ namespace age::ui
 								gpu_render_data_vec[final_idx] = render_data_current;
 							}
 						}
+						else if (render_data_current.shape_kind == e::shape_kind::mesh)
+						{
+							c_auto	h_mesh = asset::handle{ render_data_current.shape_data.mesh.h_mesh };
+							c_auto& entry  = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+
+							c_auto rect_aabb_size = float2{ child.width, child.height } * float2{ root.world_width / root.width, root.world_height / root.height };
+							c_auto mesh_aabb_size = entry.aabb_max - entry.aabb_min;
+
+							c_auto world_pos = root.screen_to_world(child.offset + render_data_current.pivot_uv * render_data_current.size);
+							c_auto quat		 = math::quat_mul(math::euler_deg_to_quat(float3{ 0, 0, render_data_current.rotation }), root.quaternion);
+							c_auto scale	 = float3{ std::min(rect_aabb_size.x / mesh_aabb_size.x, rect_aabb_size.y / mesh_aabb_size.y) };
+
+							if (space_mode == to_idx(e::space_mode_kind::world))
+							{
+								fn_render_debug_mesh(world_pos, quat, scale, h_mesh, float4{ render_data_current.body_brush_data.data }.xyz);
+							}
+							else if (space_mode == to_idx(e::space_mode_kind::world_always_on_top))
+							{
+								fn_render_debug_mesh_aot(world_pos, quat, scale, h_mesh, float4{ render_data_current.body_brush_data.data }.xyz);
+							}
+							else
+							{
+								AGE_ASSERT(false, "todo");
+							}
+						}
 						else
 						{
-							render_data_current.size	  = float2(child.width, child.height);
+							render_data_current.size	  = float2{ child.width, child.height };
 							render_data_current.pivot_pos = child.offset + render_data_current.pivot_uv * render_data_current.size;
 							render_data_current.clip_rect = child.clip_rect;
 
@@ -502,5 +532,16 @@ namespace age::ui
 	is_any_focused() noexcept
 	{
 		return ui::g::focus_id_stack.is_empty() is_false;
+	}
+}	 // namespace age::ui
+
+namespace age::ui
+{
+	float3
+	root_data::screen_to_world(float2 pos) const
+	{
+		return world_pos
+			 + pos.x * (world_width / width) * world_basis_u
+			 + pos.y * (world_height / height) * world_basis_v;
 	}
 }	 // namespace age::ui

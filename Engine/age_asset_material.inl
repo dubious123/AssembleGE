@@ -10,8 +10,6 @@ namespace age::asset::detail
 		{
 			texture::remove_ref(h_tex);
 
-			if (registry::is_registered(h_tex)) { return; }
-
 			auto& entry = h_tex.get_entry<e::kind::texture>();
 
 			if (entry.ref_counter == 0)
@@ -21,14 +19,21 @@ namespace age::asset::detail
 		}
 	}
 
+	void
+	handle_texture_load(asset::handle h_tex, auto& renderer) noexcept
+	{
+		if (runtime::is_handle_invalid(h_tex)) { return; }
+
+		texture::add_ref(h_tex);
+		texture::gpu_load(h_tex, renderer);
+	}
+
 	handle
 	handle_texture_load(const std::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
 	{
 		c_auto h_tex = asset::find(e::kind::texture, full_path);
 
 		if (runtime::is_handle_invalid(h_tex)) { return {}; }
-
-		if (registry::is_registered<e::kind::texture>(h_tex) is_false) { return {}; }
 
 		texture::add_ref(h_tex);
 		texture::gpu_load(h_tex, renderer);

@@ -94,6 +94,12 @@ namespace age::ui
 	DEF(save_state, save_state)
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_shape_mesh(asset::handle h_mesh) noexcept
+	{
+		return set_shape(ui_shape_data{ .mesh = { h_mesh.id } }, e::shape_kind::mesh);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_interact() noexcept
 	{
 		return set_interact(true);

@@ -63,8 +63,6 @@ namespace age::asset
 	template <e::kind e_kind>
 	constexpr decltype(auto)
 	get_asset_full_path(std::string_view asset_name) noexcept;
-
-	AGE_DEFINE_ASSET_KIND(font, mesh_baked, material, texture, env_light);
 }	 // namespace age::asset
 
 namespace age::asset
@@ -205,6 +203,9 @@ namespace age::asset::material
 	remove_ref(handle _) noexcept;
 
 	void
+	update_texture(asset::handle& h_tex_before, asset::handle h_tex_after) noexcept;
+
+	void
 	build(std::string_view mat_path, const material_desc&) noexcept;
 
 	void
@@ -283,3 +284,9 @@ namespace age::asset::detail
 	handle
 	load_common(std::string_view asset_name) noexcept;
 }	 // namespace age::asset::detail
+
+namespace age::asset
+{
+	// macro magic
+	AGE_DEFINE_ASSET_KIND(font, mesh_baked, material, texture, env_light);
+}	 // namespace age::asset

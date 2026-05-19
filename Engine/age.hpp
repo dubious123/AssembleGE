@@ -94,6 +94,7 @@ namespace age
 
 	#include "age_data_structure.hpp"
 	#include "age_util_ranges.hpp"
+	#include "age_util_functional.hpp"
 #endif
 //------------------------------------------------------------------------------
 #include "age_math_transform.hpp"			//todo, move to pch.hpp

@@ -426,21 +426,11 @@ namespace age::editor
 
 		auto& entry = h_mat.get_entry<material>();
 
-		auto tex_dropdown = [&entry](asset::handle& h_tex) {
-			auto h_tex_prev = h_tex;
-			if (widget::dropdown<asset::handle>(h_tex, tex_vec))
+		auto tex_dropdown = [](asset::handle& h_tex) {
+			auto h_tex_after = h_tex;
+			if (widget::dropdown<asset::handle>(h_tex_after, tex_vec))
 			{
-				if (entry.is_loaded())
-				{
-					if (runtime::is_handle_invalid(h_tex_prev) is_false)
-					{
-						asset::texture::remove_ref(h_tex_prev);
-					}
-					if (runtime::is_handle_invalid(h_tex) is_false)
-					{
-						asset::texture::add_ref(h_tex);
-					}
-				}
+				asset::material::update_texture(h_tex, h_tex_after);
 			}
 		};
 
@@ -1153,6 +1143,7 @@ namespace age::editor
 						if (bake_success)
 						{
 							asset::registry::register_asset(texture, full_path.data());
+							g::show_modal = false;
 						}
 					}
 				}
@@ -1650,8 +1641,6 @@ namespace age::editor
 							widget::text_heading(asset::e::to_string(e_kind).data());
 						}
 
-						auto h_asset_remove = asset::handle{};
-
 						for (c_auto h : asset::registry::all(e_kind))
 						{
 							auto id_0 = id_begin();
@@ -1667,13 +1656,8 @@ namespace age::editor
 							auto btn_remove_asset = widget::button("X");
 							if (btn_remove_asset.clicked())
 							{
-								h_asset_remove = h;
+								g::asset_to_delete[to_idx(e_kind)].emplace_back(h);
 							}
-						}
-
-						if (runtime::is_handle_invalid(h_asset_remove) is_false)
-						{
-							asset::registry::unregister_asset(h_asset_remove);
 						}
 					}));
 		}

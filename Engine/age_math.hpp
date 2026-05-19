@@ -627,7 +627,7 @@ struct vec4
 		requires(
 					std::convertible_to<t_other, t>
 					&& !requires { other.x; other.y; other.z; other.w; })
-		: xyz{ FWD(other), FWD(other), FWD(other) }, w{ static_cast<t>(FWD(other)) }
+		: xyz{ other, other, other }, w{ static_cast<t>(FWD(other)) }
 	{
 	}
 
