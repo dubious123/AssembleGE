@@ -172,24 +172,22 @@ namespace age::ui
 							  age::vector<util::range>&,
 							  age::vector<util::range>&,
 							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
-																														 tpl,
-				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh,
-				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh_aot) noexcept;
+																																	 tpl,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&, bool, bool)> fn_render_debug_mesh,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&, bool, bool)> fn_render_debug_mesh_aot) noexcept;
 
 	void
 	end_frame(auto& renderer) noexcept
 	{
 		auto res = renderer.get_raycast_result(g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx]);
 
-		c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
+		g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(g::cam_world_pos,
+																							  g::mouse_ray_dir,
+																							  std::numeric_limits<float>::max(),
+																							  graphics::e::rt_mask_kind::debug);
 
-		g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(g::cam_world_pos, g::mouse_ray_dir, std::numeric_limits<float>::max());
-
-		using t_func = uint32(const float3&, const float4&, const float3&, asset::handle, const float3&);
-
-		// end_frame_impl(res.object_id, renderer.get_ui_sink(), util::function_ref<t_func>(AGE_FUNC(renderer.render_debug_mesh)), util::function_ref<t_func>(AGE_FUNC(renderer.render_debug_mesh_aot)));
 		end_frame_impl(res.object_id, renderer.get_ui_sink(),
-					   AGE_FUNC(renderer.render_debug_mesh_aot),
+					   AGE_FUNC(renderer.render_debug_mesh),
 					   AGE_FUNC(renderer.render_debug_mesh_aot));
 	}
 }	 // namespace age::ui

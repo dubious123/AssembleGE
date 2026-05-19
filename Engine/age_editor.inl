@@ -335,7 +335,7 @@ namespace age::editor
 		using enum input::e::key_kind;
 
 		constexpr c_auto world_size_base = 1.f;
-		constexpr c_auto screen_size	 = 180.f;
+		constexpr c_auto screen_size	 = 500.f;
 
 		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 		c_auto& cam			 = active_scene.cam;
@@ -365,36 +365,62 @@ namespace age::editor
 				.world_height = world_size,
 			});
 
-			auto h_plane_front = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw(true) | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
+			auto h_plane_front = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw() | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
 
 			// +x translation
-			if (auto h_translation_x = widget::horizontal(set_padding_left(screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
+			if (auto h_translation_x = widget::horizontal(set_padding_left(screen_size * 0.05f) /* | set_interact()*/ | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
 			{
-				if (h_translation_x.pressed<mouse_left>())
+				// if (h_translation_x.pressed<mouse_left>())
+				//{
+				//	res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
+				// }
+
+				// renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
+				auto is_drag = false;
+				if (auto h_line = widget::begin(set_width_fixed(screen_size * 0.8f)
+												| set_height_fixed(screen_size * 0.025f)
+												| set_draw()
+												| set_interact()
+												| set_align_center()
+												| set_border_thickness(0)
+												//| set_border_brush_data(theme::color_black())
+												| set_shape_mesh(g::h_mesh_cube)
+												| set_body_brush_data(theme::color_red())))
+				{
+					is_drag |= h_line.pressed<mouse_left>();
+				}
+
+				if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
+												| set_height_fixed(screen_size * 0.1f)
+												| set_offset(-screen_size * 0.05f, 0)
+												| set_draw()
+												| set_interact()
+												| set_align_center()
+												| set_border_thickness(0)
+												//| set_border_brush_data(theme::color_black())
+												| set_body_brush_data(theme::color_red())
+												| set_rotation(age::cvt_to_radian(90.f))
+												| set_shape_mesh(g::h_mesh_cone)))
+				{
+					is_drag |= h_cone.pressed<mouse_left>();
+				}
+
+				if (is_drag)
 				{
 					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
 				}
 
-				// renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
 
-				widget::begin(set_width_fixed(screen_size * 0.8f)
-							  | set_height_fixed(screen_size * 0.025f)
-							  | set_draw(true)
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_red()));
-
-				widget::begin(set_width_fixed(screen_size * 0.1f)
-							  | set_height_fixed(screen_size * 0.1f)
-							  | set_offset(-screen_size * 0.05f, 0)
-							  | set_draw(true)
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_red())
-							  | set_rotation(age::cvt_to_radian(30.f))
-							  | set_shape_kind(ui::e::shape_kind::triangle));
+				// widget::begin(set_width_fixed(screen_size * 0.1f)
+				//			  | set_height_fixed(screen_size * 0.1f)
+				//			  | set_offset(-screen_size * 0.05f, 0)
+				//			  | set_draw()
+				//			  | set_align_center()
+				//			  | set_border_thickness(0)
+				//			  //| set_border_brush_data(theme::color_black())
+				//			  | set_body_brush_data(theme::color_red())
+				//			  | set_rotation(age::cvt_to_radian(30.f))
+				//			  | set_shape_kind(ui::e::shape_kind::triangle));
 			}
 
 			// +y translation
@@ -407,7 +433,7 @@ namespace age::editor
 
 				widget::begin(set_height_fixed(screen_size * 0.8f)
 							  | set_width_fixed(screen_size * 0.025f)
-							  | set_draw(true)
+							  | set_draw()
 							  | set_align_center()
 							  | set_border_thickness(0)
 							  //| set_border_brush_data(theme::color_black())
@@ -416,7 +442,7 @@ namespace age::editor
 				widget::begin(set_height_fixed(screen_size * 0.1f)
 							  | set_width_fixed(screen_size * 0.1f)
 							  | set_offset(0, screen_size * 0.05f)
-							  | set_draw(true)
+							  | set_draw()
 							  | set_align_center()
 							  | set_border_thickness(0)
 							  //| set_border_brush_data(theme::color_black())
@@ -439,7 +465,7 @@ namespace age::editor
 				.world_height = world_size,
 			});
 
-			auto h_plane_left = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw(true) | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
+			auto h_plane_left = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw() | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
 
 			// +z translation
 			if (auto h_translation_z = widget::horizontal(set_padding_left(screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
@@ -451,7 +477,7 @@ namespace age::editor
 
 				widget::begin(set_width_fixed(screen_size * 0.8f)
 							  | set_height_fixed(screen_size * 0.025f)
-							  | set_draw(true)
+							  | set_draw()
 							  | set_align_center()
 							  | set_border_thickness(0)
 							  //| set_border_brush_data(theme::color_black())
@@ -460,7 +486,7 @@ namespace age::editor
 				widget::begin(set_width_fixed(screen_size * 0.1f)
 							  | set_height_fixed(screen_size * 0.1f)
 							  | set_offset(-screen_size * 0.05f, 0)
-							  | set_draw(true)
+							  | set_draw()
 							  | set_align_center()
 							  | set_border_thickness(0)
 							  //| set_border_brush_data(theme::color_black())
@@ -706,99 +732,6 @@ namespace age::editor
 
 			g::asset_to_delete[to_idx(e_kind)].clear();
 		});
-
-
-		// for (auto h : asset::each_handle_of<mesh_baked>())
-		//{
-		//	auto& entry = h.get_entry<mesh_baked>();
-
-		//	if (entry.ref_counter == 0)
-		//	{
-		//		asset::mesh_baked::full_unload(h, renderer);
-		//	}
-
-		//	if (entry.ref_counter > 0)
-		//	{
-		//		asset::mesh_baked::gpu_load(h, renderer);
-		//	}
-		//}
-
-		// for (auto h : asset::each_handle_of<texture>())
-		//{
-		//	auto& entry = h.get_entry<texture>();
-
-		//	if (entry.ref_counter == 0)
-		//	{
-		//		asset::texture::full_unload(h, renderer);
-		//	}
-
-		//	if (entry.ref_counter > 0)
-		//	{
-		//		asset::texture::gpu_load(h, renderer);
-		//	}
-		//}
-
-		//{
-		//	for (auto h : asset::registered_of<material>())
-		//	{
-		//		auto& entry = h.get_entry<material>();
-
-		//		if (entry.ref_counter == 0)
-		//		{
-		//			asset::material::full_unload(h, renderer);
-		//		}
-
-		//		if (entry.ref_counter > 0)
-		//		{
-		//			asset::material::load(h, renderer);
-		//		}
-
-		//		auto need_update = false;
-
-		//		for (auto& h_tex : entry.all_textures() | views::deref)
-		//		{
-		//			if (runtime::is_handle_invalid(h_tex)) { continue; }
-
-		//			// handle texture delete
-		//			if (asset::registry::is_registered<texture>(h_tex) is_false)
-		//			{
-		//				asset::texture::full_unload(h_tex, renderer);
-		//				h_tex = {};
-
-		//				need_update = true;
-		//			}
-		//		}
-
-		//		if (entry.ref_counter > 0 and need_update)
-		//		{
-		//			renderer.update_material(h);
-		//		}
-		//	}
-		//}
-
-		//{
-		//	auto& pool = asset::pool_of<env_light>();
-		//	for (auto it = pool.begin(); it != pool.end(); ++it)
-		//	{
-		//		auto  h		= asset::handle::make<env_light>(it.idx<uint32>());
-		//		auto& entry = h.get_entry<env_light>();
-
-		//		if (entry.ref_counter == 0)
-		//		{
-		//			asset::env_light::full_unload(h, renderer);
-
-		//			if (asset::registry::is_registered<env_light>(h) is_false)
-		//			{
-		//				asset::destroy_entry<env_light>(h);
-		//			}
-		//		}
-
-		//		if (entry.ref_counter > 0)
-		//		{
-		//			asset::env_light::gpu_load(h, renderer);
-		//		}
-		//	}
-		//}
 
 		for (c_auto& editor_storage : active_scene.storage_data_vec)
 		{

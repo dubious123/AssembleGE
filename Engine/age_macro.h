@@ -38,6 +38,9 @@
 	#define AGE_DEBUG_ONLY(expression)
 #endif
 
+#define AGE_LOG(...)   std::println(FOR_EACH_SEP(AGE_LOG_MAP, AGE_PP_EMPTY_I, __VA_ARGS__), __VA_ARGS__);
+#define AGE_LOG_MAP(x) AGE_PP_STRINGIFY(x) " : {} "
+
 #if defined(AGE_COMPILER_MSVC)
 	#define AGE_WARNING_PUSH			__pragma(warning(push))
 	#define AGE_WARNING_POP				__pragma(warning(pop))

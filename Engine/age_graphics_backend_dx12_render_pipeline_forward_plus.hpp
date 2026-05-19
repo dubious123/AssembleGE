@@ -360,6 +360,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::offset_pool<> mesh_rt_index_buffer_offset_pool;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
+		age::vector<BARE_OF(object_data_vec)::index_type>  object_pos_to_id_arr[global::frame_buffer_count];
 
 		// material
 		age::sparse_vector<asset::handle> material_vec;
@@ -386,8 +387,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::sparse_vector<env_light_data>				 env_light_cpu_data_vec;
 
 		// raycast
-		age::dynamic_array<shared_type::raycast_result> raycast_result_vec[global::frame_buffer_count];
-		age::vector<shared_type::raycast_request>		raycast_request_vec;
+		age::vector<shared_type::raycast_result>  raycast_result_vec[global::frame_buffer_count];
+		age::vector<shared_type::raycast_request> raycast_request_vec;
 
 		// selection_outline
 		age::vector<shared_type::selection_outline_data>				selection_outline_data_vec;
@@ -395,6 +396,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// debug & immediate & ui
 		age::vector<shared_type::debug_object_data>			debug_object_data_vec;
+		age::vector<t_object_id>							debug_object_id_vec;
 		age::vector<shared_type::debug_meshlet_render_data> debug_meshlet_render_data_vec;
 		age::vector<shared_type::debug_meshlet_render_data> debug_aot_meshlet_render_data_vec;
 
@@ -550,10 +552,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// debug
 		t_object_id
-		render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
+		render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool draw = true, bool enable_raycast = true) noexcept;
 
 		t_object_id
-		render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept;
+		render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool draw = true, bool enable_raycast = true) noexcept;
 
 		void
 		render_debug_line() noexcept;

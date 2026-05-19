@@ -149,6 +149,7 @@
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_ui_ps.asl" />
     <ClInclude Include="resources\engine_shaders\dx12\fullscreen_ms.asl" />
     <ClInclude Include="age_util_functional.hpp" />
+    <ClInclude Include="age_util_format.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

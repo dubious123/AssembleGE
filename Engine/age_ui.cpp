@@ -179,9 +179,9 @@ namespace age::ui
 							  age::vector<util::range>&,
 							  age::vector<util::range>&,
 							  age::array<age::vector<ui::root_graphics_data>, ui::e::space_mode_kind_size>&>
-																														 tpl,
-				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh,
-				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&)> fn_render_debug_mesh_aot) noexcept
+																																	 tpl,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&, bool, bool)> fn_render_debug_mesh,
+				   util::function_ref<uint32(const float3&, const float4&, const float3&, asset::handle, const float3&, bool, bool)> fn_render_debug_mesh_aot) noexcept
 	{
 		detail::widget_end();
 		g::id_stack.pop_back();
@@ -339,8 +339,52 @@ namespace age::ui
 					AGE_ASSERT(parent.child_count > 0);
 					--parent.child_count;
 					g::element_pos_parent_idx_stack.emplace_back(current_idx);
+					// 1. render true / false
+					// 2. interact true / false
 
-					if (auto draw = child.render_data_count > 0)
+					auto mesh_interact_id = uint32{};
+					if (child.mesh_draw)
+					{
+						c_auto draw = child.render_data_count > 0;
+
+						c_auto size		 = float2{ child.width, child.height };
+						c_auto pivot_uv	 = draw ? g::render_data_vec[child.render_data_idx].pivot_uv : float2{ 0.5f, 0.5f };
+						c_auto pivot_pos = child.offset + pivot_uv * size;
+
+						c_auto	h_mesh = asset::handle{ child.mesh.h_mesh };
+						c_auto& entry  = h_mesh.get_entry<asset::e::kind::mesh_baked>();
+
+						c_auto rect_aabb_size = float2{ child.width, child.height } * float2{ root.world_width / root.width, root.world_height / root.height };
+						c_auto mesh_aabb_size = entry.aabb_max - entry.aabb_min;
+
+						c_auto world_pos = root.screen_to_world(child.offset + pivot_uv * size);
+						c_auto quat		 = draw ? math::quat_mul(math::euler_rad_to_quat(float3{ 0, 0, -g::render_data_vec[child.render_data_idx].rotation }), root.quaternion) : root.quaternion;
+						c_auto scale	 = float3{ std::min(rect_aabb_size.x / mesh_aabb_size.x, rect_aabb_size.y / mesh_aabb_size.y) };
+						c_auto color	 = draw ? std::bit_cast<float4>(g::render_data_vec[child.render_data_idx].body_brush_data.data) : float4{};
+
+						auto object_id = uint32{};
+						if (space_mode == to_idx(e::space_mode_kind::world))
+						{
+							object_id = fn_render_debug_mesh(world_pos, quat, scale, h_mesh, color.xyz, draw, child.interact);
+						}
+						else if (space_mode == to_idx(e::space_mode_kind::world_always_on_top))
+						{
+							object_id = fn_render_debug_mesh_aot(world_pos, quat, scale, h_mesh, color.xyz, draw, child.interact);
+						}
+						else
+						{
+							AGE_ASSERT(false, "todo");
+						}
+
+						if (child.interact)
+						{
+							auto& arr		 = g::mesh_object_id_map[child.id];
+							mesh_interact_id = arr[global::i_graphics.get_frame_buffer_idx];
+
+							arr[global::i_graphics.get_frame_buffer_idx] = object_id;
+						}
+					}
+					else if (auto draw = child.render_data_count > 0)
 					{
 						auto& render_data_current = g::render_data_vec[child.render_data_idx];
 
@@ -359,31 +403,6 @@ namespace age::ui
 								c_auto final_idx = root.z_order_count_vec[child.z_offset]++;
 
 								gpu_render_data_vec[final_idx] = render_data_current;
-							}
-						}
-						else if (render_data_current.shape_kind == e::shape_kind::mesh)
-						{
-							c_auto	h_mesh = asset::handle{ render_data_current.shape_data.mesh.h_mesh };
-							c_auto& entry  = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-
-							c_auto rect_aabb_size = float2{ child.width, child.height } * float2{ root.world_width / root.width, root.world_height / root.height };
-							c_auto mesh_aabb_size = entry.aabb_max - entry.aabb_min;
-
-							c_auto world_pos = root.screen_to_world(child.offset + render_data_current.pivot_uv * render_data_current.size);
-							c_auto quat		 = math::quat_mul(math::euler_deg_to_quat(float3{ 0, 0, render_data_current.rotation }), root.quaternion);
-							c_auto scale	 = float3{ std::min(rect_aabb_size.x / mesh_aabb_size.x, rect_aabb_size.y / mesh_aabb_size.y) };
-
-							if (space_mode == to_idx(e::space_mode_kind::world))
-							{
-								fn_render_debug_mesh(world_pos, quat, scale, h_mesh, float4{ render_data_current.body_brush_data.data }.xyz);
-							}
-							else if (space_mode == to_idx(e::space_mode_kind::world_always_on_top))
-							{
-								fn_render_debug_mesh_aot(world_pos, quat, scale, h_mesh, float4{ render_data_current.body_brush_data.data }.xyz);
-							}
-							else
-							{
-								AGE_ASSERT(false, "todo");
 							}
 						}
 						else
@@ -415,12 +434,25 @@ namespace age::ui
 					}
 
 					// handle interaction
-					if (child.interact and child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv))
+					if (child.interact)
 					{
-						current_hover_z_offset = child.z_offset;
-						// todo replace hover_id -> g::hover_id_stack.back();
-						g::hover_id = child.id;
-						g::hover_id_stack.emplace_back(child.id);
+						auto hover = false;
+						if (child.mesh_draw)
+						{
+							hover = mesh_interact_id == raycast_hit_obj_id;
+						}
+						else
+						{
+							hover = child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv);
+						}
+
+						if (hover)
+						{
+							current_hover_z_offset = child.z_offset;
+							// todo replace hover_id -> g::hover_id_stack.back();
+							g::hover_id = child.id;
+							g::hover_id_stack.emplace_back(child.id);
+						}
 					}
 
 

@@ -122,7 +122,7 @@ namespace age::ui::detail
 			.height_final		= 0.f,
 		});
 
-		root.layout_pos_data_vec.emplace_back(layout_pos_data{
+		auto& pos = root.layout_pos_data_vec.emplace_back(layout_pos_data{
 			.id				   = id,
 			.render_data_idx   = g::render_data_vec.size<uint32>(),
 			.render_data_count = render_data_count,
@@ -138,8 +138,17 @@ namespace age::ui::detail
 			.interact		   = desc.interact,
 			.save_state		   = desc.save_state,
 			.direct_draw	   = false,
-			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = atlas_id },
+			.mesh_draw		   = desc.shape_kind == e::shape_kind::mesh,
 		});
+
+		if (desc.shape_kind == e::shape_kind::text)
+		{
+			pos.text = { .idx = desc.text.text_data_idx, .atlas_id = atlas_id };
+		}
+		else if (desc.shape_kind == e::shape_kind::mesh)
+		{
+			pos.mesh = { desc.shape_data.mesh.h_mesh };
+		}
 
 		if (desc.draw)
 		{
@@ -165,7 +174,10 @@ namespace age::ui::detail
 				std::ranges::fill(root.z_order_count_vec.begin() + before_size, root.z_order_count_vec.end(), 0u);
 			}
 
-			root.z_order_count_vec[z_offset] += render_data_count;
+			if (desc.shape_kind != e::shape_kind::mesh)
+			{
+				root.z_order_count_vec[z_offset] += render_data_count;
+			}
 		}
 
 		g::layout_size_data_current_idx = g::layout_size_data_stack.size<uint32>() - 1;

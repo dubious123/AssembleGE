@@ -20,6 +20,8 @@ namespace age::inline data_structure
 		using reverse_iterator		 = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
+		using index_type = uint32;
+
 		static_assert(std::popcount(alignof(value_type)) == 1, "alignment of value_type must be power of 2");
 
 		static_assert(std::is_same_v<typename std::allocator_traits<t_allocator>::value_type, t>);
@@ -28,7 +30,7 @@ namespace age::inline data_structure
 		static_assert(meta::cx_allocator<allocator_type>);
 
 	  private:
-		using t_idx = uint32;
+		using t_idx = index_type;
 
 		static constexpr std::size_t alignment = age::util::max_alignof<t_idx, value_type>();
 
@@ -54,17 +56,8 @@ namespace age::inline data_structure
 			  p_storage{ _alloc_storage(other.cap) },
 			  alloc{ other.alloc }
 		{
-			if constexpr (age::config::debug_mode)
-			{
-				std::memcpy(idx_to_pos_arr().data(), other.idx_to_pos_arr().data(), sizeof(t_idx) * cap);
-				std::memcpy(pos_to_idx_arr().data(), other.pos_to_idx_arr().data(), sizeof(t_idx) * cap);
-			}
-			else
-			{
-				std::memcpy(idx_to_pos_arr(), other.idx_to_pos_arr(), sizeof(t_idx) * cap);
-				std::memcpy(pos_to_idx_arr(), other.pos_to_idx_arr(), sizeof(t_idx) * cap);
-			}
-
+			std::memcpy(idx_to_pos_arr(), other.idx_to_pos_arr(), sizeof(t_idx) * cap);
+			std::memcpy(pos_to_idx_arr(), other.pos_to_idx_arr(), sizeof(t_idx) * cap);
 
 			_copy_construct_n(alloc, data_ptr(0), other.data_ptr(0), count);
 
@@ -386,14 +379,7 @@ namespace age::inline data_structure
 		FORCE_INLINE decltype(auto)
 		data() noexcept
 		{
-			if constexpr (age::config::debug_mode)
-			{
-				return data_arr().data();
-			}
-			else
-			{
-				return data_arr();
-			}
+			return data_arr();
 		}
 
 		void
@@ -419,7 +405,6 @@ namespace age::inline data_structure
 			}
 		}
 
-	  private:
 		FORCE_INLINE decltype(auto)
 		idx_to_pos_arr(this auto& self) noexcept
 		{
@@ -432,25 +417,11 @@ namespace age::inline data_structure
 			// idx first
 			if constexpr (alignof(t_idx) > alignof(value_type))
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage), self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<t_idx_ptr>(self.p_storage);
-				}
+				return reinterpret_cast<t_idx_ptr>(self.p_storage);
 			}
 			else
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap), self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap);
-				}
+				return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap);
 			}
 		}
 
@@ -466,25 +437,11 @@ namespace age::inline data_structure
 			// idx first
 			if constexpr (alignof(t_idx) > alignof(value_type))
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage) + self.cap, self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<t_idx_ptr>(self.p_storage) + self.cap;
-				}
+				return reinterpret_cast<t_idx_ptr>(self.p_storage) + self.cap;
 			}
 			else
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap) + self.cap, self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap) + self.cap;
-				}
+				return reinterpret_cast<t_idx_ptr>(self.p_storage + sizeof(value_type) * self.cap) + self.cap;
 			}
 		}
 
@@ -500,67 +457,33 @@ namespace age::inline data_structure
 			// idx first
 			if constexpr (alignof(t_idx) > alignof(value_type))
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<value_type_ptr>(self.p_storage + 2 * self.cap * sizeof(t_idx)), self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<value_type_ptr>(self.p_storage + 2 * self.cap * sizeof(t_idx));
-				}
+				return reinterpret_cast<value_type_ptr>(self.p_storage + 2 * self.cap * sizeof(t_idx));
 			}
 			else
 			{
-				if constexpr (age::config::debug_mode)
-				{
-					return std::span{ reinterpret_cast<value_type_ptr>(self.p_storage), self.cap };
-				}
-				else
-				{
-					return reinterpret_cast<value_type_ptr>(self.p_storage);
-				}
+				return reinterpret_cast<value_type_ptr>(self.p_storage);
 			}
 		}
 
 		FORCE_INLINE decltype(auto)
 		idx_to_pos_ptr(this auto& self, t_idx idx) noexcept
 		{
-			if constexpr (age::config::debug_mode)
-			{
-				return self.idx_to_pos_arr().data() + idx;
-			}
-			else
-			{
-				return self.idx_to_pos_arr() + idx;
-			}
+			return self.idx_to_pos_arr() + idx;
 		}
 
 		FORCE_INLINE decltype(auto)
 		pos_to_idx_ptr(this auto& self, t_idx idx) noexcept
 		{
-			if constexpr (age::config::debug_mode)
-			{
-				return self.pos_to_idx_arr().data() + idx;
-			}
-			else
-			{
-				return self.pos_to_idx_arr() + idx;
-			}
+			return self.pos_to_idx_arr() + idx;
 		}
 
 		FORCE_INLINE decltype(auto)
 		data_ptr(this auto& self, t_idx idx) noexcept
 		{
-			if constexpr (age::config::debug_mode)
-			{
-				return self.data_arr().data() + idx;
-			}
-			else
-			{
-				return self.data_arr() + idx;
-			}
+			return self.data_arr() + idx;
 		}
 
+	  private:
 		FORCE_INLINE static std::byte*
 		_alloc_storage(t_idx cap) noexcept
 		{

@@ -1,19 +1,5 @@
 #pragma once
 
-namespace std
-{
-	template <std::size_t n_size>
-	struct formatter<std::array<char, n_size>> : formatter<std::string_view>
-	{
-		auto
-		format(const std::array<char, n_size>& arr, auto& ctx) const
-		{
-			return formatter<std::string_view>::format(
-				std::string_view{ arr.data() }, ctx);
-		}
-	};
-}	 // namespace std
-
 namespace age::ecs
 {
 	template <typename t>

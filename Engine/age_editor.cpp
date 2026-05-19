@@ -29,6 +29,12 @@ namespace age::editor
 											  .mesh_kind = asset::e::primitive_mesh_kind::cube,
 										  },
 										  asset::e::vertex_kind::pnt_uv0);
+
+		asset::mesh_baked::add_ref(g::h_mesh_cone);
+		asset::mesh_baked::add_ref(g::h_mesh_cube);
+
+		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
+		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
 	}
 
 	void
@@ -43,8 +49,17 @@ namespace age::editor
 
 		// g::command_buf.clear();
 
+		asset::mesh_baked::remove_ref(g::h_mesh_cone);
+		asset::mesh_baked::remove_ref(g::h_mesh_cube);
+
 		fn_mesh_full_unload(g::h_mesh_cone);
 		fn_mesh_full_unload(g::h_mesh_cube);
+
+		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);
+		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);
+
+		g::h_mesh_cone = {};
+		g::h_mesh_cube = {};
 	}
 
 	bool

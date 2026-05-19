@@ -210,11 +210,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			v.clear();
 		}
 
-		for (auto data : debug_object_data_vec)
+		for (auto& id : debug_object_id_vec)
 		{
-			remove_object(data.object_id);
+			remove_object(id);
 		}
 
+		debug_object_id_vec.clear();
 		debug_object_data_vec.clear();
 		debug_meshlet_render_data_vec.clear();
 		debug_aot_meshlet_render_data_vec.clear();
@@ -319,7 +320,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			if (AGE_IS_INVALID_IDX(res.object_id) is_false)
 			{
-				res.object_id = object_data_vec.nth_id(res.object_id);
+				res.object_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_id];
+				//  res.object_id = object_data_vec.nth_id(res.object_id);
 			}
 		}
 
@@ -335,11 +337,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			v.clear();
 		}
 
-		for (auto& data : debug_object_data_vec)
+		for (auto& id : debug_object_id_vec)
 		{
-			remove_object(data.object_id);
+			remove_object(id);
 		}
 
+		debug_object_id_vec.clear();
 		debug_object_data_vec.clear();
 
 		debug_meshlet_render_data_vec.clear();
@@ -556,8 +559,9 @@ namespace age::graphics::render_pipeline::forward_plus
 	namespace detail
 	{
 		t_object_id
-		render_debug_mesh_impl(pipeline& self, const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool is_aot) noexcept
+		render_debug_mesh_impl(pipeline& self, const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool is_aot, bool draw, bool enable_raycast) noexcept
 		{
+			AGE_ASSERT(draw or enable_raycast);
 			auto& render_data_vec		  = is_aot ? self.debug_aot_meshlet_render_data_vec : self.debug_meshlet_render_data_vec;
 			auto& rt_instance_vec		  = self.rt_instance_data_vec[0];
 			auto& rt_inst_render_data_vec = self.rt_instance_render_data_vec[0];
@@ -569,53 +573,62 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			c_auto object_id = self.add_object(pos, quat, scale);
 
-			for (auto meshlet_id = 0u;
-				 auto _ : views::loop(msh_data.meshlet_count))
+			if (draw)
 			{
-				render_data_vec.emplace_back(
-					shared_type::debug_meshlet_render_data{
-						.debug_object_id   = self.debug_object_data_vec.size<uint32>(),
-						.mesh_byte_offset  = msh_data.offset,
-						.mesh_chunk_srv_id = msh_data.chunk_srv_id,
-						.meshlet_id		   = meshlet_id++ });
+				for (auto meshlet_id = 0u;
+					 auto _ : views::loop(msh_data.meshlet_count))
+				{
+					render_data_vec.emplace_back(
+						shared_type::debug_meshlet_render_data{
+							.debug_object_id   = self.debug_object_data_vec.size<uint32>(),
+							.mesh_byte_offset  = msh_data.offset,
+							.mesh_chunk_srv_id = msh_data.chunk_srv_id,
+							.meshlet_id		   = meshlet_id++ });
+				}
+
+				self.debug_object_data_vec.emplace_back(shared_type::debug_object_data{ self.object_data_vec.get_pos(object_id), color });
+				self.debug_object_id_vec.emplace_back(object_id);
 			}
 
-			rt_inst_render_data_vec.emplace_back(
-				shared_type::rt_instance_render_data{
-					.object_id				= self.object_data_vec.get_pos(object_id),
-					.mesh_byte_offset		= msh_data.offset,
-					.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-					.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-					.material_id			= get_invalid_id<uint32>() });
+			if (enable_raycast)
+			{
+				rt_inst_render_data_vec.emplace_back(
+					shared_type::rt_instance_render_data{
+						.object_id				= self.object_data_vec.get_pos(object_id),
+						.mesh_byte_offset		= msh_data.offset,
+						.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
+						.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
+						.material_id			= get_invalid_id<uint32>() });
 
-			c_auto& transform = self.object_transform_data_vec[object_id];
+				c_auto& transform = self.object_transform_data_vec[object_id];
 
-			auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
-				.InstanceID							 = rt_instance_id_temp,
-				.InstanceMask						 = to_idx(e::rt_mask_kind::debug),
-				.InstanceContributionToHitGroupIndex = 0,
-				.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
-				.AccelerationStructure				 = self.mesh_data_vec[msh_entry.render_id].h_blas->get_va(),
-			};
+				auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
+					.InstanceID							 = rt_instance_id_temp,
+					.InstanceMask						 = to_idx(e::rt_mask_kind::debug),
+					.InstanceContributionToHitGroupIndex = 0,
+					.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
+					.AccelerationStructure				 = self.mesh_data_vec[msh_entry.render_id].h_blas->get_va(),
+				};
 
-			std::memcpy(desc.Transform, &transform, sizeof(float3x4));
+				std::memcpy(desc.Transform, &transform, sizeof(float3x4));
 
-			rt_instance_vec.emplace_back(desc);
-			self.debug_object_data_vec.emplace_back(shared_type::debug_object_data{ object_id, color });
+				rt_instance_vec.emplace_back(desc);
+			}
+
 			return object_id;
 		}
 	}	 // namespace detail
 
 	t_object_id
-	pipeline::render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept
+	pipeline::render_debug_mesh(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool draw, bool enable_raycast) noexcept
 	{
-		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, false);
+		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, false, draw, enable_raycast);
 	}
 
 	t_object_id
-	pipeline::render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color) noexcept
+	pipeline::render_debug_mesh_aot(const float3& pos, const float4& quat, const float3& scale, asset::handle h_mesh, const float3& color, bool draw, bool enable_raycast) noexcept
 	{
-		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, true);
+		return detail::render_debug_mesh_impl(*this, pos, quat, scale, h_mesh, color, true, draw, enable_raycast);
 	}
 
 	void
@@ -624,6 +637,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		auto& rs = graphics::g::render_surface_vec[h_rs];
 
 		c_auto opaque_meshlet_render_data_count = upload_data();
+
+		object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx].resize(object_data_vec.size());
+		std::memcpy(object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx].data(), object_data_vec.pos_to_idx_arr(), object_data_vec.size() * sizeof(uint32));
+
 
 		{
 			frame_data_buffer.apply();
@@ -1687,7 +1704,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(raycast_request_vec.size() < 0x00ff'ffff);
 		static_assert(global::frame_buffer_count < 0xff);
 
-		auto id = t_raycast_id{ (global::i_graphics.get_frame_buffer_idx & 0xff << 24) | (raycast_request_vec.size<uint32>() & 0x00ff'ffff) };
+		auto id = t_raycast_id{ ((global::i_graphics.get_frame_buffer_idx & 0xff) << 24) | (raycast_request_vec.size<uint32>() & 0x00ff'ffff) };
 
 		raycast_request_vec.emplace_back(shared_type::raycast_request{
 			.origin			= origin,
@@ -1703,11 +1720,12 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		// AGE_ASSERT((id >> 24) % global::frame_buffer_count == global::i_graphics.get_frame_buffer_idx);
 
-		auto idx = id & 0x00ff'ffff;
+		c_auto idx		 = id & 0x00ff'ffff;
+		c_auto frame_idx = (id & 0xff00'0000) >> 24u;
 
-		if (idx < raycast_result_vec[global::i_graphics.get_frame_buffer_idx].size<uint32>())
+		if (frame_idx < global::frame_buffer_count and idx < raycast_result_vec[frame_idx].size<uint32>())
 		{
-			return raycast_result_vec[global::i_graphics.get_frame_buffer_idx][idx];
+			return raycast_result_vec[frame_idx][idx];
 		}
 		else
 		{
@@ -1828,10 +1846,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_rt_raycast_request_buffer->upload(raycast_request_vec.data(), raycast_request_vec.byte_size());
 
-			if (raycast_request_vec.size() > raycast_res_vec.size())
-			{
-				raycast_res_vec = age::dynamic_array<shared_type::raycast_result>::gen_sized_default(raycast_request_vec.capacity());
-			}
+			raycast_res_vec.resize(raycast_request_vec.size());
 		}
 
 		// selection outline

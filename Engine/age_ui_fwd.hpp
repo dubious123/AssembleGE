@@ -341,10 +341,10 @@ namespace age::ui
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
 
-		bool  interact;
-		bool  save_state;
-		bool  direct_draw;
-		uint8 _;
+		bool interact;
+		bool save_state;
+		bool direct_draw;
+		bool mesh_draw;
 
 		union
 		{
@@ -353,6 +353,11 @@ namespace age::ui
 				uint32 idx;	   // 1. text_data_idx 2. char_pos_data_idx
 				uint32 atlas_id;
 			} text;
+
+			struct
+			{
+				uint32 h_mesh;
+			} mesh;
 
 			uint64 extra;
 		};
@@ -506,6 +511,8 @@ namespace age::ui::g
 	inline age::vector<id_scope> id_stack;
 
 	inline age::unordered_map<uint64, widget_state> widget_state_map;
+	// use for raycast query
+	inline age::unordered_map<uint64, uint32[global::frame_buffer_count]> mesh_object_id_map;
 
 	inline std::array<age::vector<root_data>, e::space_mode_kind_size> root_data_vec_arr;
 	inline std::array<uint32, e::space_mode_kind_size>				   root_data_vec_size_arr;
