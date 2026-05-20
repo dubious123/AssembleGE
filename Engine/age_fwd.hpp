@@ -102,7 +102,10 @@ namespace age::graphics::e
 							   (transparent, 0x02),
 							   (mask, 0x04),
 							   (debug, 0x08),
+							   (always_on_top, 0x80),
 							   (all, 0xff));
+
+	AGE_ENUM_FLAG_OPERATORS(rt_mask_kind);
 }	 // namespace age::graphics::e
 
 namespace age::graphics

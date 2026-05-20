@@ -43,6 +43,12 @@ namespace age::editor
 	update_game(auto& ecs_game, auto& renderer) noexcept;
 }	 // namespace age::editor
 
+namespace age::editor::gizmo
+{
+	float3
+	translation(const float3& view_forward, const float3& world_pos, const float4& quat, float world_size, float screen_size) noexcept;
+}
+
 namespace age::editor::detail
 {
 	void

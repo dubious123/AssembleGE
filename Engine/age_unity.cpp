@@ -121,4 +121,7 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 
 	#line 1 "age_editor_save_load.cpp"
 	#include "age_editor_save_load.cpp"
+
+	#line 1 "age_editor_gizmo.cpp"
+	#include "age_editor_gizmo.cpp"
 #endif

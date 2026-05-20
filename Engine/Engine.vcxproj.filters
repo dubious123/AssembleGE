@@ -209,6 +209,7 @@
     <ClCompile Include="age_asset_env_light.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_bake.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_root_signature.cpp" />
+    <ClCompile Include="age_editor_gizmo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

@@ -60,6 +60,8 @@ namespace age::ui
 			.interact		   = false,
 			.save_state		   = false,
 			.direct_draw	   = true,
+			.mesh_draw		   = false,
+			.clip			   = desc.clip,
 			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = atlas_id },
 		});
 

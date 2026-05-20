@@ -8,6 +8,8 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(select_kind, uint8, none, entity, asset);
 
 	AGE_DEFINE_ENUM(modal_kind, uint8, new_asset);
+
+	AGE_DEFINE_ENUM(transform_space_kind, uint8, world, local);
 }	 // namespace age::editor::e
 
 namespace age::editor
@@ -160,4 +162,6 @@ namespace age::editor::g
 	// translation gizmo
 	inline auto h_mesh_cone = asset::handle{};
 	inline auto h_mesh_cube = asset::handle{};
+
+	inline auto gizmo_space = e::transform_space_kind::world;
 }	 // namespace age::editor::g

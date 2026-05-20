@@ -464,7 +464,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-				.material_id			= mat_id });
+				.material_id			= mat_id,
+				.rt_mask_and_extra		= to_idx(e::rt_mask_kind::opaque) });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
@@ -504,7 +505,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-				.material_id			= mat_id });
+				.material_id			= mat_id,
+				.rt_mask_and_extra		= to_idx(e::rt_mask_kind::transparent) });
 
 		c_auto& transform = object_transform_data_vec[object_id];
 
@@ -592,19 +594,21 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			if (enable_raycast)
 			{
+				c_auto rt_mask = is_aot ? e::rt_mask_kind::debug | e::rt_mask_kind::always_on_top : e::rt_mask_kind::debug;
 				rt_inst_render_data_vec.emplace_back(
 					shared_type::rt_instance_render_data{
 						.object_id				= self.object_data_vec.get_pos(object_id),
 						.mesh_byte_offset		= msh_data.offset,
 						.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 						.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-						.material_id			= get_invalid_id<uint32>() });
+						.material_id			= get_invalid_id<uint32>(),
+						.rt_mask_and_extra		= to_idx(rt_mask) });
 
 				c_auto& transform = self.object_transform_data_vec[object_id];
 
 				auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 					.InstanceID							 = rt_instance_id_temp,
-					.InstanceMask						 = to_idx(e::rt_mask_kind::debug),
+					.InstanceMask						 = to_idx(rt_mask),
 					.InstanceContributionToHitGroupIndex = 0,
 					.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
 					.AccelerationStructure				 = self.mesh_data_vec[msh_entry.render_id].h_blas->get_va(),

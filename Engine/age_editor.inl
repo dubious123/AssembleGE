@@ -328,7 +328,7 @@ namespace age::editor::detail
 namespace age::editor
 {
 	void
-	widget_transform(auto& ecs_game, auto& renderer, const float3& world_pos) noexcept
+	widget_transform(auto& ecs_game, auto& renderer, const float3& world_pos, const float4& quat) noexcept
 	{
 		using namespace ui;
 		using namespace ui::widget;
@@ -350,165 +350,7 @@ namespace age::editor
 		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam.fov_y * 0.5f);
 		c_auto world_size		= world_size_scale * view_z;
 
-		auto res_translation = float3::zero();
-
-		// xy, normal = (0,0,-1)
-		{
-			auto h_root_front = root_begin(root_desc{
-				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
-				.layout		  = ui::e::widget_layout::vertical,
-				.width		  = screen_size,
-				.height		  = screen_size,
-				.world_pos	  = world_pos + float3(-world_size * 0.05, world_size - world_size * 0.05, 0),
-				.quaternion	  = float4{ 0, 0, 0, 1 },
-				.world_width  = world_size,
-				.world_height = world_size,
-			});
-
-			auto h_plane_front = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw() | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
-
-			// +x translation
-			if (auto h_translation_x = widget::horizontal(set_padding_left(screen_size * 0.05f) /* | set_interact()*/ | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
-			{
-				// if (h_translation_x.pressed<mouse_left>())
-				//{
-				//	res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
-				// }
-
-				// renderer.render_debug_mesh_aot(world_pos, float4{ 0, 0, 0, 1 }, float3::one(), asset::handle::make<asset::e::kind::mesh_baked>(0u), theme::color_red());
-				auto is_drag = false;
-				if (auto h_line = widget::begin(set_width_fixed(screen_size * 0.8f)
-												| set_height_fixed(screen_size * 0.025f)
-												| set_draw()
-												| set_interact()
-												| set_align_center()
-												| set_border_thickness(0)
-												//| set_border_brush_data(theme::color_black())
-												| set_shape_mesh(g::h_mesh_cube)
-												| set_body_brush_data(theme::color_red())))
-				{
-					is_drag |= h_line.pressed<mouse_left>();
-				}
-
-				if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
-												| set_height_fixed(screen_size * 0.1f)
-												| set_offset(-screen_size * 0.05f, 0)
-												| set_draw()
-												| set_interact()
-												| set_align_center()
-												| set_border_thickness(0)
-												//| set_border_brush_data(theme::color_black())
-												| set_body_brush_data(theme::color_red())
-												| set_rotation(age::cvt_to_radian(90.f))
-												| set_shape_mesh(g::h_mesh_cone)))
-				{
-					is_drag |= h_cone.pressed<mouse_left>();
-				}
-
-				if (is_drag)
-				{
-					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
-				}
-
-
-				// widget::begin(set_width_fixed(screen_size * 0.1f)
-				//			  | set_height_fixed(screen_size * 0.1f)
-				//			  | set_offset(-screen_size * 0.05f, 0)
-				//			  | set_draw()
-				//			  | set_align_center()
-				//			  | set_border_thickness(0)
-				//			  //| set_border_brush_data(theme::color_black())
-				//			  | set_body_brush_data(theme::color_red())
-				//			  | set_rotation(age::cvt_to_radian(30.f))
-				//			  | set_shape_kind(ui::e::shape_kind::triangle));
-			}
-
-			// +y translation
-			if (auto h_translation_y = widget::vertical_inv(set_offset(0, screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_height_fixed(screen_size) | set_width_fit()))
-			{
-				if (h_translation_y.pressed<mouse_left>())
-				{
-					res_translation.y -= ui::detail::get_current_root().mouse_delta_uv.y * world_size / screen_size;
-				}
-
-				widget::begin(set_height_fixed(screen_size * 0.8f)
-							  | set_width_fixed(screen_size * 0.025f)
-							  | set_draw()
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_green()));
-
-				widget::begin(set_height_fixed(screen_size * 0.1f)
-							  | set_width_fixed(screen_size * 0.1f)
-							  | set_offset(0, screen_size * 0.05f)
-							  | set_draw()
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_green())
-							  | set_rotation(age::cvt_to_radian(180.f))
-							  | set_shape_kind(ui::e::shape_kind::triangle));
-			}
-		}
-
-		// yz, normal = (1,0,0)
-		{
-			auto h_root_left = root_begin(root_desc{
-				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
-				.layout		  = ui::e::widget_layout::vertical,
-				.width		  = screen_size,
-				.height		  = screen_size,
-				.world_pos	  = world_pos + float3(0, world_size - world_size * 0.05, -world_size * 0.05),
-				.quaternion	  = math::euler_deg_to_quat(float3{ 0, -90, 0 }),
-				.world_width  = world_size,
-				.world_height = world_size,
-			});
-
-			auto h_plane_left = widget::vertical_inv(set_width_grow() | set_height_grow() | set_child_gap(0) | set_draw() | set_border_thickness(1) | set_border_brush_data(theme::color_red()));
-
-			// +z translation
-			if (auto h_translation_z = widget::horizontal(set_padding_left(screen_size * 0.05f) | set_interact() | set_child_gap(0) | set_width_fixed(screen_size) | set_height_fit()))
-			{
-				if (h_translation_z.pressed<mouse_left>())
-				{
-					res_translation.z += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
-				}
-
-				widget::begin(set_width_fixed(screen_size * 0.8f)
-							  | set_height_fixed(screen_size * 0.025f)
-							  | set_draw()
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_blue()));
-
-				widget::begin(set_width_fixed(screen_size * 0.1f)
-							  | set_height_fixed(screen_size * 0.1f)
-							  | set_offset(-screen_size * 0.05f, 0)
-							  | set_draw()
-							  | set_align_center()
-							  | set_border_thickness(0)
-							  //| set_border_brush_data(theme::color_black())
-							  | set_body_brush_data(theme::color_blue())
-							  | set_rotation(age::cvt_to_radian(30.f))
-							  | set_shape_kind(ui::e::shape_kind::triangle));
-			}
-		}
-
-		// xz, normal = (0,1,0)
-		{
-			auto h_root_down = root_begin(root_desc{
-				.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
-				.layout		  = ui::e::widget_layout::vertical,
-				.width		  = screen_size,
-				.height		  = screen_size,
-				.world_pos	  = world_pos + float3(0, 0, world_size),
-				.quaternion	  = math::euler_deg_to_quat(float3{ 90, 0, 0 }),
-				.world_width  = world_size,
-				.world_height = world_size,
-			});
-		}
+		c_auto translation = gizmo::translation(forward, world_pos, quat, world_size, screen_size);
 
 		for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
 		{
@@ -524,7 +366,7 @@ namespace age::editor
 						if (entities.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
 						{
 							auto&& [pos]  = entities.get_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
-							pos			 += res_translation;
+							pos			 += translation;
 						}
 					}
 				});
@@ -599,6 +441,7 @@ namespace age::editor
 		{
 			auto   aabb_min	  = float3::max();
 			auto   aabb_max	  = float3::lowest();
+			auto   quat_sum	  = float4::zero();
 			c_auto need_focus = g::set_focus or ui::g::p_input_ctx->is_pressed(key_f);
 
 			for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
@@ -612,18 +455,19 @@ namespace age::editor
 						using t_ent_id	= typename t_storage::t_ent_id;
 						for (auto ecs_ent_id : vec)
 						{
+							c_auto id = static_cast<t_ent_id>(ecs_ent_id);
 							if (need_copy)
 							{
-								copy_entity(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+								copy_entity(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), id);
 							}
 
-							auto&& [min, max] = calc_entity_aabb(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), ecs_ent_id);
+							auto&& [min, max] = calc_entity_aabb(entities, renderer, active_scene.find_storage_data(static_cast<uint32>(storage_code_idx)), id);
 							aabb_min		  = age::min(aabb_min, min);
 							aabb_max		  = age::max(aabb_max, max);
 
-							if (entities.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
+							if (entities.has_component<ecs::render_object, ecs::mesh>(id))
 							{
-								auto&& [obj, mesh] = entities.get_component<const ecs::render_object, const ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id));
+								auto&& [obj, mesh] = entities.get_component<const ecs::render_object, const ecs::mesh>(id);
 
 								if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(mesh.h_mesh)) { continue; }
 
@@ -631,6 +475,22 @@ namespace age::editor
 									entry.is_gpu_loaded())
 								{
 									renderer.render_selection_outline(obj.render_id, mesh.h_mesh, math::srgb_to_linear(float4{ 1, 0, 0, 1 }), 2.f, 0.f);
+								}
+							}
+
+							if (g::gizmo_space == e::transform_space_kind::local)
+							{
+								if (entities.has_component<ecs::rotation>(id))
+								{
+									auto&& [quat] = entities.get_component<const ecs::rotation>(id);
+									if (math::dot(quat_sum, quat) >= 0.f)
+									{
+										quat_sum += quat;
+									}
+									else
+									{
+										quat_sum += quat;
+									}
 								}
 							}
 						}
@@ -647,7 +507,15 @@ namespace age::editor
 					focus_camera(renderer, aabb_min, aabb_max);
 				}
 
-				widget_transform(ecs_game, renderer, (aabb_min + aabb_max) * 0.5f);
+				auto orientation = math::g::quaternion_identity;
+				if (g::gizmo_space == e::transform_space_kind::local)
+				{
+					AGE_ASSERT(quat_sum.x != 0.f or quat_sum.y != 0.f or quat_sum.z != 0.f or quat_sum.w != 0.f);
+
+					orientation = math::normalize(quat_sum);
+				}
+
+				widget_transform(ecs_game, renderer, (aabb_min + aabb_max) * 0.5f, orientation);
 			}
 		}
 

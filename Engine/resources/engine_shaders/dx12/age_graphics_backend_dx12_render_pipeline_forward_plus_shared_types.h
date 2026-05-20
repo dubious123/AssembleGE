@@ -95,6 +95,7 @@
 #define RT_MASK_TRANSPARENT 0x02
 #define RT_MASK_MASK		0x04
 #define RT_MASK_DEBUG		0x08
+#define RT_MASK_AOT			0x80
 #define RT_MASK_ALL			0xff
 
 // ui
@@ -315,6 +316,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 mesh_chunk_srv_id;
 		uint32 rt_index_buffer_offset;
 		uint32 material_id;
+		uint32 rt_mask_and_extra;
 		// todo mat_id
 	};
 
@@ -552,6 +554,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(RT_MASK_TRANSPARENT == to_idx(age::graphics::e::rt_mask_kind::transparent));
 	static_assert(RT_MASK_MASK == to_idx(age::graphics::e::rt_mask_kind::mask));
 	static_assert(RT_MASK_DEBUG == to_idx(age::graphics::e::rt_mask_kind::debug));
+	static_assert(RT_MASK_AOT == to_idx(age::graphics::e::rt_mask_kind::always_on_top));
 	static_assert(RT_MASK_ALL == to_idx(age::graphics::e::rt_mask_kind::all));
 
 	#undef reg
@@ -653,6 +656,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef RT_MASK_TRANSPARENT
 	#undef RT_MASK_MASK
 	#undef RT_MASK_DEBUG
+	#undef RT_MASK_AOT
 	#undef RT_MASK_ALL
 
 	#undef UI_SPACE_MODE_SCREEN

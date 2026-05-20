@@ -50,6 +50,7 @@ namespace age::ui
 
 				root.world_basis_u = math::rotate(root.quaternion, float3{ 1, 0, 0 });
 				root.world_basis_v = math::rotate(root.quaternion, float3{ 0, -1, 0 });
+				root.world_normal  = math::rotate(root.quaternion, float3{ 0, 0, -1 });
 
 				if (std::abs(denorm) < math::g::epsilon_1e6)
 				{
@@ -332,15 +333,20 @@ namespace age::ui
 						parent.offset = parnet_offset_backup;
 					}
 
-					c_auto parent_content_rect = parent.clip_rect + float4(parent.padding_left, parent.padding_top, -parent.padding_right, -parent.padding_bottom);
-					c_auto child_rect		   = float4(child.offset, child.offset + float2(child.width, child.height));
-					child.clip_rect			   = math::intersect_2d(parent_content_rect, child_rect);
+					if (child.clip)
+					{
+						c_auto parent_content_rect = parent.clip_rect + float4(parent.padding_left, parent.padding_top, -parent.padding_right, -parent.padding_bottom);
+						c_auto child_rect		   = float4(child.offset, child.offset + float2(child.width, child.height));
+						child.clip_rect			   = math::intersect_2d(parent_content_rect, child_rect);
+					}
+					else
+					{
+						child.clip_rect = float4(child.offset, child.offset + float2(child.width, child.height));
+					}
 
 					AGE_ASSERT(parent.child_count > 0);
 					--parent.child_count;
 					g::element_pos_parent_idx_stack.emplace_back(current_idx);
-					// 1. render true / false
-					// 2. interact true / false
 
 					auto mesh_interact_id = uint32{};
 					if (child.mesh_draw)
@@ -357,10 +363,62 @@ namespace age::ui
 						c_auto rect_aabb_size = float2{ child.width, child.height } * float2{ root.world_width / root.width, root.world_height / root.height };
 						c_auto mesh_aabb_size = entry.aabb_max - entry.aabb_min;
 
-						c_auto world_pos = root.screen_to_world(child.offset + pivot_uv * size);
-						c_auto quat		 = draw ? math::quat_mul(math::euler_rad_to_quat(float3{ 0, 0, -g::render_data_vec[child.render_data_idx].rotation }), root.quaternion) : root.quaternion;
-						c_auto scale	 = float3{ std::min(rect_aabb_size.x / mesh_aabb_size.x, rect_aabb_size.y / mesh_aabb_size.y) };
-						c_auto color	 = draw ? std::bit_cast<float4>(g::render_data_vec[child.render_data_idx].body_brush_data.data) : float4{};
+						c_auto world_pos = root.screen_to_world(pivot_pos);
+
+						// todo : move rotation to pos data
+						c_auto quat = draw ? math::quat_mul(root.quaternion, math::euler_rad_to_quat(float3{ 0, 0, -g::render_data_vec[child.render_data_idx].rotation })) : root.quaternion;
+
+						auto scale = float3{};
+						{
+							c_auto scale_x = rect_aabb_size.x / mesh_aabb_size.x;
+							c_auto scale_y = rect_aabb_size.y / mesh_aabb_size.y;
+
+							switch (child.mesh.fit_mode)
+							{
+							case e::fit_mode_kind::contain:
+							{
+								c_auto s = std::min(scale_x, scale_y);
+								scale	 = float3{ s, s, s };
+								break;
+							}
+							case e::fit_mode_kind::cover:
+							{
+								c_auto s = std::max(scale_x, scale_y);
+								scale	 = float3{ s, s, s };
+								break;
+							}
+							case e::fit_mode_kind::fill:
+							{
+								// todo, z scale mode?
+								c_auto scale_z = std::min(scale_x, scale_y);
+
+								// c_auto scale_z = (scale_x + scale_y) * 0.5f;
+
+								// c_auto scale_z = std::max(scale_x, scale_y);
+
+								scale = float3{ scale_x, scale_y, scale_z };
+								break;
+							}
+							case e::fit_mode_kind::none:
+							{
+								scale = float3{ 1, 1, 1 };
+								break;
+							}
+							case e::fit_mode_kind::scale_down:
+							{
+								c_auto s = std::min(std::min(scale_x, scale_y), 1.0f);
+								scale	 = float3{ s, s, s };
+								break;
+							}
+							default:
+							{
+								AGE_UNREACHABLE("invalid fit_mode : {}", to_idx(child.mesh.fit_mode));
+							}
+							}
+						}
+
+
+						c_auto color = draw ? std::bit_cast<float4>(g::render_data_vec[child.render_data_idx].body_brush_data.data) : float4{};
 
 						auto object_id = uint32{};
 						if (space_mode == to_idx(e::space_mode_kind::world))

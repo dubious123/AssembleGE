@@ -139,6 +139,7 @@ namespace age::ui::detail
 			.save_state		   = desc.save_state,
 			.direct_draw	   = false,
 			.mesh_draw		   = desc.shape_kind == e::shape_kind::mesh,
+			.clip			   = desc.clip,
 		});
 
 		if (desc.shape_kind == e::shape_kind::text)
@@ -147,7 +148,7 @@ namespace age::ui::detail
 		}
 		else if (desc.shape_kind == e::shape_kind::mesh)
 		{
-			pos.mesh = { desc.shape_data.mesh.h_mesh };
+			pos.mesh = { desc.shape_data.mesh.h_mesh, desc.shape_data.mesh.fit_mode };
 		}
 
 		if (desc.draw)

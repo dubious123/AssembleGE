@@ -92,11 +92,18 @@ namespace age::ui
 
 	DEF(interact, interact)
 	DEF(save_state, save_state)
+	DEF(clip, clip)
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_shape_mesh(asset::handle h_mesh) noexcept
+	set_pivot_uv(float u, float v) noexcept
 	{
-		return set_shape(ui_shape_data{ .mesh = { h_mesh.id } }, e::shape_kind::mesh);
+		return set_pivot_uv(float2{ u, v });
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_mesh(asset::handle h_mesh, e::fit_mode_kind fit_mode = e::fit_mode_kind::contain) noexcept
+	{
+		return set_shape(ui_shape_data{ .mesh = { h_mesh.id, fit_mode } }, e::shape_kind::mesh);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -309,6 +316,17 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_fixed(float size) noexcept
+	{
+		return detail::mod_size{ size,
+								 size,
+								 size,
+								 size,
+								 e::size_mode_kind::fixed,
+								 e::size_mode_kind::fixed };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_width_grow() noexcept
 	{
 		return detail::mod_width{ size_mode::grow() };
@@ -321,6 +339,12 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_grow() noexcept
+	{
+		return set_size(size_mode::grow(), size_mode::grow());
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_width_fit() noexcept
 	{
 		return detail::mod_width{ size_mode::fit() };
@@ -330,6 +354,12 @@ namespace age::ui
 	set_height_fit() noexcept
 	{
 		return detail::mod_height{ size_mode::fit() };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fit() noexcept
+	{
+		return set_size(size_mode::fit(), size_mode::fit());
 	}
 
 #undef X

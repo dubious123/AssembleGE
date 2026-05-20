@@ -27,6 +27,9 @@ namespace age::ui::e
 	AGE_DEFINE_ENUM(style_state, uint8, idle, hover, active)
 
 	AGE_DEFINE_ENUM(space_mode_kind, uint8, screen, world, world_always_on_top, world_billboard);
+
+	// css object-fit
+	AGE_DEFINE_ENUM(fit_mode_kind, uint8, contain, cover, fill, none, scale_down);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -61,7 +64,8 @@ namespace age::ui
 
 			struct
 			{
-				uint32 h_mesh;
+				uint32			 h_mesh;
+				e::fit_mode_kind fit_mode;
 			} mesh;
 
 			uint32 data[5];
@@ -148,7 +152,8 @@ namespace age::ui
 
 		bool	interact   = false;
 		bool	save_state = false;
-		uint8_3 _;
+		bool	clip	   = true;
+		uint8_2 _;
 
 		union
 		{
@@ -237,6 +242,11 @@ namespace age::ui
 			{
 				age::util::bitset<32 * 6> selected;
 			} drop_down_data;
+
+			struct
+			{
+				uint32 storage[6];
+			};
 		};
 	};
 
@@ -341,10 +351,13 @@ namespace age::ui
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
 
-		bool interact;
-		bool save_state;
-		bool direct_draw;
-		bool mesh_draw;
+		bool	interact;
+		bool	save_state;
+		bool	direct_draw;
+		bool	mesh_draw;
+		bool	clip;
+		uint8_3 _0;
+		uint32	_1;
 
 		union
 		{
@@ -356,7 +369,8 @@ namespace age::ui
 
 			struct
 			{
-				uint32 h_mesh;
+				uint32			 h_mesh;
+				e::fit_mode_kind fit_mode;
 			} mesh;
 
 			uint64 extra;
@@ -384,6 +398,7 @@ namespace age::ui
 
 		float3 world_basis_u;
 		float3 world_basis_v;
+		float3 world_normal;
 
 		float width;
 		float height;
@@ -590,6 +605,7 @@ namespace age::ui
 			  //(float3, color_blue_dark, age::srgb_to_linear( float3{0.227f, 0.502f, 0.788f})),	   // #3A80C9
 			  (float3, color_blue, age::srgb_to_linear(float3{ 0.290f, 0.565f, 0.851f })),	  // #4A90D9 z-axis, accent
 			  //(float3, color_blue_light, age::srgb_to_linear( float3{0.353f, 0.624f, 0.910f})),	   // #5A9FE8
+			  (float3, color_yellow, age::srgb_to_linear(float3{ 0.878f, 0.784f, 0.314f })),	   // #E0C850 highlight, hover
 
 			  (float3, color_blue_dark, age::srgb_to_linear(float3{ 0.102f, 0.282f, 0.471f })),	   // #1A4878
 			  //(float3, color_blue, age::srgb_to_linear(float3{0.157f, 0.369f, 0.596f})),		   // #285E98 z-axis, accent
@@ -616,6 +632,8 @@ namespace age::ui
 			  (float3, color_text_amber, age::srgb_to_linear(float3{ 0.886f, 0.680f, 0.216f })),		 // w-axis, warning
 
 			  // mid band - sat ~65%, lightness ~52%
+			  (float3, palette_gray, age::srgb_to_linear(float3{ 0.520f, 0.520f, 0.520f })),		   // #848484
+			  (float3, palette_cool_gray, age::srgb_to_linear(float3{ 0.520f, 0.520f, 0.520f })),	   // #7E828A
 			  (float3, palette_red, age::srgb_to_linear(float3{ 0.832f, 0.208f, 0.208f })),			   // #D43535
 			  (float3, palette_vermilion, age::srgb_to_linear(float3{ 0.832f, 0.325f, 0.208f })),	   // #D45235
 			  (float3, palette_orange, age::srgb_to_linear(float3{ 0.832f, 0.442f, 0.208f })),		   // #D47035
@@ -649,6 +667,8 @@ namespace age::ui
 			  (float3, palette_rose, age::srgb_to_linear(float3{ 0.832f, 0.208f, 0.442f })),		   // #D43570
 			  (float3, palette_crimson, age::srgb_to_linear(float3{ 0.832f, 0.208f, 0.325f })),		   // #D43552
 			  // light band (32) - sat ~55%, lightness ~72%
+			  (float3, palette_light_gray, age::srgb_to_linear(float3{ 0.720f, 0.720f, 0.720f })),			 // #B7B7B7
+			  (float3, palette_light_cool_gray, age::srgb_to_linear(float3{ 0.706f, 0.715f, 0.734f })),		 // #B4B6BB
 			  (float3, palette_light_red, age::srgb_to_linear(float3{ 0.874f, 0.595f, 0.566f })),			 // #DE9790
 			  (float3, palette_light_vermilion, age::srgb_to_linear(float3{ 0.874f, 0.652f, 0.566f })),		 // #DEA690
 			  (float3, palette_light_orange, age::srgb_to_linear(float3{ 0.874f, 0.710f, 0.566f })),		 // #DEB590
@@ -785,9 +805,9 @@ namespace age::ui
 	AGE_THEME_WIDGET(item, child_gap, gap_medium())
 	AGE_THEME_WIDGET(item, roundness, 0.f)
 
-	AGE_THEME_WIDGET(toggle_box, color_bg_off, float4(color_gray_darkest(), 1.f))
-	AGE_THEME_WIDGET(toggle_box, color_bg_off_hover, float4(color_gray_dark(), 1.f))
-	AGE_THEME_WIDGET(toggle_box, color_bg_off_active, float4(color_gray_dark(), 1.f))
+	AGE_THEME_WIDGET(toggle_box, color_bg_off, float4(color_gray_darkest(), opacity_medium()))
+	AGE_THEME_WIDGET(toggle_box, color_bg_off_hover, float4(color_gray_dark(), opacity_medium()))
+	AGE_THEME_WIDGET(toggle_box, color_bg_off_active, float4(color_gray_dark(), opacity_medium()))
 	// AGE_THEME_WIDGET(toggle_box, color_bg_on, float4(color_blue(), 1.f))
 	// AGE_THEME_WIDGET(toggle_box, color_bg_on_hover, float4(color_blue(), 1.f))
 	// AGE_THEME_WIDGET(toggle_box, color_bg_on_active, float4(color_blue(), 1.f))

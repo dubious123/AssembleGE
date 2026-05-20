@@ -21,7 +21,28 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	ray_query<RAY_FLAG_FORCE_OPAQUE> query;
 
-	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, req.mask_and_extra & RT_MASK_ALL, desc);
+	if ((req.mask_and_extra & RT_MASK_AOT) > 0)
+	{
+		rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_AOT, desc);
+
+		while (rt_proceed(query)) { }
+
+		if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
+		{
+			const uint32 rt_instance_id = rt_committed_instance_id(query);
+
+			const rt_instance_render_data render_data = load_rt_instance_render_data(rt_instance_id);
+
+			res.t_hit	  = rt_committed_ray_t(query);
+			res.object_id = render_data.object_id;
+			res.world_pos = req.origin + res.t_hit * req.dir;
+
+			store_rt_raycast_result(thread_id.x, res);
+			return;
+		}
+	}
+
+	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, req.mask_and_extra & (RT_MASK_ALL ^ RT_MASK_AOT), desc);
 
 	while (rt_proceed(query)) { }
 
@@ -30,9 +51,10 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		const uint32 rt_instance_id = rt_committed_instance_id(query);
 
 		const rt_instance_render_data render_data = load_rt_instance_render_data(rt_instance_id);
-		res.t_hit								  = rt_committed_ray_t(query);
-		res.object_id							  = render_data.object_id;
-		res.world_pos							  = req.origin + res.t_hit * req.dir;
+
+		res.t_hit	  = rt_committed_ray_t(query);
+		res.object_id = render_data.object_id;
+		res.world_pos = req.origin + res.t_hit * req.dir;
 	}
 
 	store_rt_raycast_result(thread_id.x, res);
