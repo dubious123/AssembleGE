@@ -1316,13 +1316,14 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::update_object(t_object_id id, const float3& pos, const float4& quat, const float3& scale) noexcept
 	{
-		c_auto quat_encode	= math::quaternion_encode(quat);
-		c_auto scale_encode = age::cvt_to<half3>(scale);
+		// c_auto quat_encode	= math::quaternion_encode(quat);
+		// c_auto scale_encode = age::cvt_to<half3>(scale);
 		object_data_vec[id] = shared_type::object_data{
-			.pos		= pos,
-			.quaternion = quat_encode,
-			.scale		= scale_encode,
-			//			 .scale = scale,
+			.pos = pos,
+			// .quaternion = quat_encode,
+			.quaternion = quat,
+			//.scale		= scale_encode,
+			.scale = scale,
 			// .quaternion_debug = quat,
 		};
 
@@ -1331,8 +1332,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		//							  | simd::mat_transpose()
 		//							  | simd::to<float3x4>();
 
-		object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
-		// object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
+		object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
+		// object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
+		//  object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
+		//   object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
 	}
 
 	float4x4

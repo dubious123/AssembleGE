@@ -23,10 +23,12 @@ namespace age::editor
 		using enum age::input::e::key_kind;
 		c_auto& editor_input_ctx = *ui::g::p_input_ctx;
 
-		cam.move = float2{
-			editor_input_ctx.is_down(key_d) - editor_input_ctx.is_down(key_a),
-			editor_input_ctx.is_down(key_w) - editor_input_ctx.is_down(key_s),
-		};
+		cam.move = editor_input_ctx.is_down(mouse_right)
+					 ? float2{
+						   editor_input_ctx.is_down(key_d) - editor_input_ctx.is_down(key_a),
+						   editor_input_ctx.is_down(key_w) - editor_input_ctx.is_down(key_s),
+					   }
+					 : float2::zero();
 
 		cam.look   = editor_input_ctx.mouse_delta;
 		cam.zoom   = editor_input_ctx.wheel_delta;
@@ -335,7 +337,7 @@ namespace age::editor
 		using enum input::e::key_kind;
 
 		constexpr c_auto world_size_base = 1.f;
-		constexpr c_auto screen_size	 = 500.f;
+		constexpr c_auto screen_size	 = 180.f;
 
 		c_auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 		c_auto& cam			 = active_scene.cam;
@@ -344,13 +346,48 @@ namespace age::editor
 							| simd::load()
 							| simd::euler_to_quat();
 
-		c_auto forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
+		c_auto cam_forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
 
-		c_auto view_z			= std::max(math::dot(world_pos - cam.pos, forward), 0.5f);
-		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam.fov_y * 0.5f);
-		c_auto world_size		= world_size_scale * view_z;
 
-		c_auto translation = gizmo::translation(forward, world_pos, quat, world_size, screen_size);
+		if (ui::g::p_input_ctx->is_down(mouse_right) is_false)
+		{
+			if (ui::g::p_input_ctx->is_down(key_q))
+			{
+				g::gizmo_transform_mode = e::transform_mode_kind::select;
+			}
+			else if (ui::g::p_input_ctx->is_down(key_w))
+			{
+				g::gizmo_transform_mode = e::transform_mode_kind::translation;
+			}
+			else if (ui::g::p_input_ctx->is_down(key_e))
+			{
+				g::gizmo_transform_mode = e::transform_mode_kind::rotation;
+			}
+			else if (ui::g::p_input_ctx->is_down(key_r))
+			{
+				g::gizmo_transform_mode = e::transform_mode_kind::scale;
+			}
+		}
+
+		c_auto mode		   = g::gizmo_transform_mode;
+		c_auto translation = mode == e::transform_mode_kind::translation
+							   ? gizmo::translation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+							   : float3::zero();
+		c_auto rotation	   = math::g::quaternion_identity;
+
+		c_auto && [ scale_ratio, scale_drag_start, scale_dragging ] = mode == e::transform_mode_kind::scale
+																		? gizmo::scale(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+																		: std::tuple{ float3::one(), false, false };
+
+		if (scale_dragging is_false)
+		{
+			for (auto& map : g::scale_snapshot_vec)
+			{
+				map.clear();
+			}
+		}
+
+		g::scale_snapshot_vec.resize(g::select_vec.size());
 
 		for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
 		{
@@ -363,10 +400,33 @@ namespace age::editor
 					using t_ent_id	= typename t_storage::t_ent_id;
 					for (auto ecs_ent_id : vec)
 					{
-						if (entities.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
+						c_auto id = static_cast<t_ent_id>(ecs_ent_id);
+						if (mode == e::transform_mode_kind::translation)
 						{
-							auto&& [pos]  = entities.get_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
-							pos			 += translation;
+							if (entities.has_component<ecs::position>(id))
+							{
+								auto&& [pos]  = entities.get_component<ecs::position>(id);
+								pos			 += translation;
+							}
+						}
+						else if (mode == e::transform_mode_kind::rotation)
+						{
+						}
+						else if (mode == e::transform_mode_kind::scale)
+						{
+							if (entities.has_component<ecs::scale>(id))
+							{
+								auto&& [scale] = entities.get_component<ecs::scale>(id);
+								if (scale_drag_start)
+								{
+									g::scale_snapshot_vec[active_scene.code_idx][ecs_ent_id] = scale;
+								}
+								else if (scale_dragging)
+								{
+									AGE_ASSERT(g::scale_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
+									scale = g::scale_snapshot_vec[active_scene.code_idx][ecs_ent_id] * scale_ratio;
+								}
+							}
 						}
 					}
 				});

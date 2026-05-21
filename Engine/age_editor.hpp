@@ -46,8 +46,12 @@ namespace age::editor
 namespace age::editor::gizmo
 {
 	float3
-	translation(const float3& view_forward, const float3& world_pos, const float4& quat, float world_size, float screen_size) noexcept;
-}
+	translation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
+
+	// scale ratio , drag_started, dragging
+	std::tuple<float3, bool, bool>
+	scale(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
+}	 // namespace age::editor::gizmo
 
 namespace age::editor::detail
 {

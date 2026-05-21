@@ -43,6 +43,22 @@ namespace age::inline math
 	{
 		return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
 	}
+
+	FORCE_INLINE float3
+	cross(const float3& lhs, const float3& rhs) noexcept
+	{
+		return float3{
+			lhs.y * rhs.z - lhs.z * rhs.y,
+			lhs.z * rhs.x - lhs.x * rhs.z,
+			lhs.x * rhs.y - lhs.y * rhs.x,
+		};
+	}
+
+	FORCE_INLINE float3
+	abs(const float3& v) noexcept
+	{
+		return float3{ std::abs(v.x), std::abs(v.y), std::abs(v.z) };
+	}
 }	 // namespace age::inline math
 
 // 2d
@@ -168,7 +184,7 @@ namespace age::inline math
 	{
 		c_auto len_sq = quaternion | simd::length_square4() | simd::get_x();
 
-		return std::abs(len_sq - 1.0f) <= age::math::g::epsilon_1e4;
+		return std::abs(len_sq - 1.0f) <= age::math::g::epsilon_1e6;
 	}
 
 	FORCE_INLINE bool
@@ -177,7 +193,85 @@ namespace age::inline math
 		return is_quaternoin_normalized(simd::load(quaternion));
 	}
 
-	FORCE_INLINE uint32
+	// FORCE_INLINE uint32
+	// quaternion_encode(float4 q) noexcept
+	//{
+	//	using namespace age::math::simd;
+	//	auto xm_q = simd::load(q);
+
+	//	AGE_ASSERT(is_quaternoin_normalized(xm_q));
+
+	//	auto q_abs = xm_q | simd::abs() | simd::to<float4>();
+
+	//	auto missing_idx = 0u;
+	//	auto missing	 = q_abs.x;
+	//	if (q_abs.y > missing)
+	//	{
+	//		missing		= q_abs.y;
+	//		missing_idx = 1;
+	//	}
+	//	if (q_abs.z > missing)
+	//	{
+	//		missing		= q_abs.z;
+	//		missing_idx = 2;
+	//	}
+	//	if (q_abs.w > missing)
+	//	{
+	//		missing		= q_abs.w;
+	//		missing_idx = 3;
+	//	}
+
+	//	auto xm_q_flipped = simd::sign_mask(q[missing_idx]) | simd::bit_xor(xm_q);
+
+	//	auto quantized_u4 = xm_q_flipped
+	//					  | simd::add(simd::g::xm_sqrt2_inv_f4)
+	//					  | simd::mul(simd::g::xm_sqrt2_inv_f4)
+	//					  | simd::saturate()
+	//					  | simd::mul(simd::g::xm_1023_f4)
+	//					  | simd::round()
+	//					  | simd::to<uint32_4>();
+
+	//	constexpr const uint32 perm_table[4][3] = {
+	//		{ 1, 2, 3 },	// missing=x : c=(y,z,w)
+	//		{ 0, 2, 3 },	// missing=y : c=(x,z,w)
+	//		{ 0, 1, 3 },	// missing=z : c=(x,y,w)
+	//		{ 0, 1, 2 },	// missing=w : c=(x,y,z)
+	//	};
+
+	//	return (missing_idx << 30)
+	//		 | ((quantized_u4[perm_table[missing_idx][2]] & 0x3ffu) << 20)
+	//		 | ((quantized_u4[perm_table[missing_idx][1]] & 0x3ffu) << 10)
+	//		 | ((quantized_u4[perm_table[missing_idx][0]] & 0x3ffu) << 0);
+	//}
+
+	FORCE_INLINE float4
+	quaternion_decode(uint32 encoded_q) noexcept
+	{
+		auto index = (encoded_q >> 30) & 0x3;
+		auto c	   = float3{
+			(float)((encoded_q >> 0) & 0x3ff),	   // x
+			(float)((encoded_q >> 10) & 0x3ff),	   // y
+			(float)((encoded_q >> 20) & 0x3ff)	   // z
+		};
+
+		c = c / 1023.f * g::sqrt_2 - g::sqrt_2_inv;
+
+		float missing = std::sqrtf(std::clamp(1.f - dot(c, c), 0.f, 1.f));
+
+		switch (index)
+		{
+		case 0:
+			return float4(missing, c.x, c.y, c.z);
+		case 1:
+			return float4(c.x, missing, c.y, c.z);
+		case 2:
+			return float4(c.x, c.y, missing, c.z);
+		default:	// case 3
+			return float4(c.x, c.y, c.z, missing);
+		}
+	}
+
+	FORCE_INLINE uint32_2
 	quaternion_encode(float4 q) noexcept
 	{
 		using namespace age::math::simd;
@@ -211,7 +305,7 @@ namespace age::inline math
 						  | simd::add(simd::g::xm_sqrt2_inv_f4)
 						  | simd::mul(simd::g::xm_sqrt2_inv_f4)
 						  | simd::saturate()
-						  | simd::mul(simd::g::xm_1023_f4)
+						  | simd::mul(simd::g::xm_65535_f4)
 						  | simd::round()
 						  | simd::to<uint32_4>();
 
@@ -222,23 +316,27 @@ namespace age::inline math
 			{ 0, 1, 2 },	// missing=w : c=(x,y,z)
 		};
 
-		return (missing_idx << 30)
-			 | ((quantized_u4[perm_table[missing_idx][2]] & 0x3ffu) << 20)
-			 | ((quantized_u4[perm_table[missing_idx][1]] & 0x3ffu) << 10)
-			 | ((quantized_u4[perm_table[missing_idx][0]] & 0x3ffu) << 0);
+		c_auto a = quantized_u4[perm_table[missing_idx][0]] & 0xffffu;
+		c_auto b = quantized_u4[perm_table[missing_idx][1]] & 0xffffu;
+		c_auto c = quantized_u4[perm_table[missing_idx][2]] & 0xffffu;
+
+		return uint32_2{
+			(b << 16) | a,
+			(missing_idx << 16) | c
+		};
 	}
 
 	FORCE_INLINE float4
-	quaternion_decode(uint32 encoded_q) noexcept
+	quaternion_decode(uint32_2 encoded_q) noexcept
 	{
-		auto index = (encoded_q >> 30) & 0x3;
+		auto index = (encoded_q.y >> 16) & 0x3;
 		auto c	   = float3{
-			(float)((encoded_q >> 0) & 0x3ff),	   // x
-			(float)((encoded_q >> 10) & 0x3ff),	   // y
-			(float)((encoded_q >> 20) & 0x3ff)	   // z
+			(float)(encoded_q.x & 0xffff),			  // x
+			(float)((encoded_q.x >> 16) & 0xffff),	  // y
+			(float)(encoded_q.y & 0xffff)			  // z
 		};
 
-		c = c / 1023.f * g::sqrt_2 - g::sqrt_2_inv;
+		c = c / 65535.f * g::sqrt_2 - g::sqrt_2_inv;
 
 		float missing = std::sqrtf(std::clamp(1.f - dot(c, c), 0.f, 1.f));
 

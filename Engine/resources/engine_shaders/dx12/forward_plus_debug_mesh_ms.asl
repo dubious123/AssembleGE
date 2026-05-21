@@ -26,7 +26,7 @@ main_ms(
 
 	set_mesh_output_counts(vertex_count, primitive_count);
 
-	const float4 quaternion = decode_quaternion(obj_data.quaternion);
+	const float4 quaternion = normalize(decode_quaternion(obj_data.quaternion));
 	const float3 scale		= cast<float3>(obj_data.scale);
 	const float3 pos		= obj_data.pos;
 

@@ -10,6 +10,8 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(modal_kind, uint8, new_asset);
 
 	AGE_DEFINE_ENUM(transform_space_kind, uint8, world, local);
+
+	AGE_DEFINE_ENUM(transform_mode_kind, uint8, select, translation, rotation, scale);
 }	 // namespace age::editor::e
 
 namespace age::editor
@@ -163,5 +165,7 @@ namespace age::editor::g
 	inline auto h_mesh_cone = asset::handle{};
 	inline auto h_mesh_cube = asset::handle{};
 
-	inline auto gizmo_space = e::transform_space_kind::world;
+	inline auto gizmo_space			 = e::transform_space_kind::world;
+	inline auto gizmo_transform_mode = e::transform_mode_kind::select;
+	inline auto scale_snapshot_vec	 = age::vector<age::unordered_map<uint64, float3>>{};
 }	 // namespace age::editor::g

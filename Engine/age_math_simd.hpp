@@ -21,6 +21,8 @@ namespace age::math::simd::g
 
 	inline const auto xm_sqrt2_inv_f4 = DirectX::XMVECTORF32{ { { math::g::sqrt_2_inv, math::g::sqrt_2_inv, math::g::sqrt_2_inv, math::g::sqrt_2_inv } } }.v;
 
+	inline const auto xm_65535_f4 = DirectX::XMVECTORF32{ { { 65535.f, 65535.f, 65535.f, 65535.f } } }.v;
+
 	inline const auto xm_sqrt2_f4 = DirectX::XMVECTORF32{ { { math::g::sqrt_2, math::g::sqrt_2, math::g::sqrt_2, math::g::sqrt_2 } } }.v;
 	inline const auto xm_1023_f4  = DirectX::XMVECTORF32{ { { 1023.f, 1023.f, 1023.f, 1023.f } } }.v;
 

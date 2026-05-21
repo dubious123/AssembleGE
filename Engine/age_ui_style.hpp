@@ -95,6 +95,12 @@ namespace age::ui
 	DEF(clip, clip)
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_save_state() noexcept
+	{
+		return set_save_state(true);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_pivot_uv(float u, float v) noexcept
 	{
 		return set_pivot_uv(float2{ u, v });

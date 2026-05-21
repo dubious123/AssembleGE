@@ -286,10 +286,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct object_data
 	{
 		float3 pos;								 // 12
-		uint32 quaternion;						 // 4 | 10 10 10 2
-		half3  scale;							 // 6
-		uint16 extra;
-		// float3 scale;
+												 // uint32 quaternion;						 // 4 | 10 10 10 2
+												 // uint32_2 quaternion;					 // 8 | 16 16 16 2
+		float4 quaternion;
+		//  half3  scale;							 // 6
+		//  uint16 extra;
+		float3 scale;
 		// float4 quaternion;
 		//  uint16_t extra;	   // 2
 	};	  // total: 24 bytes

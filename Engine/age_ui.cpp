@@ -370,8 +370,8 @@ namespace age::ui
 
 						auto scale = float3{};
 						{
-							c_auto scale_x = rect_aabb_size.x / mesh_aabb_size.x;
-							c_auto scale_y = rect_aabb_size.y / mesh_aabb_size.y;
+							c_auto scale_x = std::abs(rect_aabb_size.x) / mesh_aabb_size.x;
+							c_auto scale_y = std::abs(rect_aabb_size.y) / mesh_aabb_size.y;
 
 							switch (child.mesh.fit_mode)
 							{

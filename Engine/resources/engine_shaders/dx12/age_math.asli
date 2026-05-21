@@ -146,16 +146,43 @@ uint32_to_half2(uint32 u)
 }
 
 // 10-10-10-2 Smallest Three Quaternion decoding
-float4
-decode_quaternion(uint32 encoded_q)
-{
-	uint32 index = (encoded_q >> 30) & 0x3;
-	float3 c	 = float3(
-		(float)((encoded_q >> 0) & 0x3ff),		// x
-		(float)((encoded_q >> 10) & 0x3ff),		// y
-		(float)((encoded_q >> 20) & 0x3ff));	// z
+// float4
+// decode_quaternion(uint32 encoded_q)
+//{
+//	uint32 index = (encoded_q >> 30) & 0x3;
+//	float3 c	 = float3(
+//		(float)((encoded_q >> 0) & 0x3ff),		// x
+//		(float)((encoded_q >> 10) & 0x3ff),		// y
+//		(float)((encoded_q >> 20) & 0x3ff));	// z
+//
+//	c = c / 1023.f * sqrt_2 - sqrt_2_inv;
+//
+//	float missing = sqrt(saturate(1.f - dot(c, c)));
+//
+//	switch (index)
+//	{
+//	case 0:
+//		return float4(missing, c.x, c.y, c.z);
+//	case 1:
+//		return float4(c.x, missing, c.y, c.z);
+//	case 2:
+//		return float4(c.x, c.y, missing, c.z);
+//	default:	// case 3
+//		return float4(c.x, c.y, c.z, missing);
+//	}
+//}
 
-	c = c / 1023.f * sqrt_2 - sqrt_2_inv;
+// 16-16-16-2 Smallest Three Quaternion decoding
+float4
+decode_quaternion(uint32_2 encoded_q)
+{
+	uint32 index = (encoded_q.y >> 16) & 0x3;
+	float3 c	 = float3(
+		(float)(encoded_q.x & 0xffff),			  // x
+		(float)((encoded_q.x >> 16) & 0xffff),	  // y
+		(float)(encoded_q.y & 0xffff));			  // z
+
+	c = c / 65535.f * sqrt_2 - sqrt_2_inv;
 
 	float missing = sqrt(saturate(1.f - dot(c, c)));
 
@@ -170,6 +197,12 @@ decode_quaternion(uint32 encoded_q)
 	default:	// case 3
 		return float4(c.x, c.y, c.z, missing);
 	}
+}
+
+float4
+decode_quaternion(float4 encoded_q)
+{
+	return encoded_q;
 }
 
 float3

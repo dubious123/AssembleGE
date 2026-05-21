@@ -135,6 +135,10 @@ namespace age::ecs
 
 		using float3::float3;
 		constexpr position() noexcept : float3(0.f, 0.f, 0.f) { }
+		constexpr position(auto&&... arg) noexcept requires(sizeof...(arg) > 0)
+			: float3{ FWD(arg)... }
+		{
+		}
 	};
 
 	AGE_COMPONENT(rotation, "rot", "quat", "quaternion") : public float4
@@ -143,6 +147,10 @@ namespace age::ecs
 
 		using float4::float4;
 		constexpr rotation() noexcept : float4{ 0, 0, 0, 1.f } { }
+		constexpr rotation(auto&&... arg) noexcept requires(sizeof...(arg) > 0)
+			: float4{ FWD(arg)... }
+		{
+		}
 	};
 
 	AGE_COMPONENT(scale, "sc", "scale_3d") : public float3
@@ -151,6 +159,10 @@ namespace age::ecs
 
 		using float3::float3;
 		constexpr scale() noexcept : float3{ 1.f, 1.f, 1.f } { }
+		constexpr scale(auto&&... arg) noexcept requires(sizeof...(arg) > 0)
+			: float3{ FWD(arg)... }
+		{
+		}
 	};
 
 	AGE_COMPONENT(render_object, "render_obj", "renderable_instance")
