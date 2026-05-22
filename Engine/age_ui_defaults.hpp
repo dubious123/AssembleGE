@@ -89,6 +89,18 @@ namespace age::ui::brush_data
 				std::bit_cast<uint32>(rgba.w) }
 		};
 	}
+
+	FORCE_INLINE constexpr ui_brush_data
+	color(float3 rgb, float a) noexcept
+	{
+		return ui_brush_data{
+			.data = uint32_4{
+				std::bit_cast<uint32>(rgb.x),
+				std::bit_cast<uint32>(rgb.y),
+				std::bit_cast<uint32>(rgb.z),
+				std::bit_cast<uint32>(a) }
+		};
+	}
 }	 // namespace age::ui::brush_data
 
 namespace age::ui::shape_data

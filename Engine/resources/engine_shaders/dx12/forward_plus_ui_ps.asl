@@ -24,8 +24,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	const uint32 shape_kind		   = (data.packed_enums >> 0) & 0xff;
 	const uint32 body_brush_kind   = (data.packed_enums >> 8) & 0xff;
 	const uint32 border_brush_kind = (data.packed_enums >> 16) & 0xff;
-
-	float sd;
+	const uint32 fit_mode		   = (data.packed_enums >> 24) & 0xff;
 
 	attr_branch()
 
@@ -33,17 +32,17 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	{
 	case UI_SHAPE_KIND_RECT:
 	{
-		delta_from_edge = ui_calc_shape_rect(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_rect(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_CIRCLE:
 	{
-		delta_from_edge = ui_calc_shape_circle(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_circle(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_ARROW_RIGHT:
 	{
-		delta_from_edge = ui_calc_shape_arrow_right(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_arrow_right(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_TEXT:
@@ -55,28 +54,33 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		texture_2d<float4> atlas		= global_resource_buffer[atlas_id];
 		const float2	   atlas_size	= get_dimensions(atlas);
 		const float4	   rgba			= sample(atlas, linear_clamp_sampler, atlas_uv);
-		sd								= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
+		const float		   sd			= max(min(rgba.r, rgba.g), min(max(rgba.r, rgba.g), rgba.b));
 		delta_from_edge					= (0.5f - sd) * screen_px_range(atlas_uv, atlas_size, 8.f);
 		break;
 	}
 	case UI_SHAPE_KIND_CHECK:
 	{
-		delta_from_edge = ui_calc_shape_check(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_check(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_ROUNDED_RECT:
 	{
-		delta_from_edge = ui_calc_shape_rounded_rect(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_rounded_rect(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_TRIANGLE:
 	{
-		delta_from_edge = ui_calc_shape_triangle(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_triangle(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	case UI_SHAPE_KIND_CROSS:
 	{
-		delta_from_edge = ui_calc_shape_cross(center_offset, data.size, data.shape_data);
+		delta_from_edge = sdf_cross(center_offset, data.size, fit_mode, data.shape_data.data);
+		break;
+	}
+	case UI_SHAPE_KIND_ARC:
+	{
+		delta_from_edge = sdf_arc(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
 	}

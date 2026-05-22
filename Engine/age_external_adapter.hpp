@@ -1,5 +1,4 @@
 #pragma once
-#include "age.hpp"
 
 namespace age::external::mikk
 {

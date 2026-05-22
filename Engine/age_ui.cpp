@@ -120,7 +120,7 @@ namespace age::ui
 				.padding_top	   = 0,
 				.padding_bottom	   = 0,
 				.clip_rect		   = float4{ 0, 0, desc.width, desc.height },
-				.interact		   = false,
+				.interact		   = e::interact_mode_kind::none,
 				.save_state		   = false,
 				.direct_draw	   = false,
 				.text			   = {},
@@ -349,12 +349,18 @@ namespace age::ui
 					g::element_pos_parent_idx_stack.emplace_back(current_idx);
 
 					auto mesh_interact_id = uint32{};
-					if (child.mesh_draw)
+					if (child.shape == e::shape_kind::mesh)
 					{
+						// always has render_data
+						// if shape is mesh, it's draw or interact or both.
+						c_auto& rd = g::render_data_vec[child.render_data_idx];
+
 						c_auto draw = child.render_data_count > 0;
 
-						c_auto size		 = float2{ child.width, child.height };
-						c_auto pivot_uv	 = draw ? g::render_data_vec[child.render_data_idx].pivot_uv : float2{ 0.5f, 0.5f };
+						c_auto size = float2{ child.width, child.height };
+
+						// todo
+						c_auto pivot_uv	 = rd.pivot_uv;
 						c_auto pivot_pos = child.offset + pivot_uv * size;
 
 						c_auto	h_mesh = asset::handle{ child.mesh.h_mesh };
@@ -365,15 +371,14 @@ namespace age::ui
 
 						c_auto world_pos = root.screen_to_world(pivot_pos);
 
-						// todo : move rotation to pos data
-						c_auto quat = draw ? math::quat_mul(root.quaternion, math::euler_rad_to_quat(float3{ 0, 0, -g::render_data_vec[child.render_data_idx].rotation })) : root.quaternion;
+						c_auto quat = math::quat_mul(root.quaternion, math::euler_rad_to_quat(float3{ 0, 0, -rd.rotation }));
 
 						auto scale = float3{};
 						{
 							c_auto scale_x = std::abs(rect_aabb_size.x) / mesh_aabb_size.x;
 							c_auto scale_y = std::abs(rect_aabb_size.y) / mesh_aabb_size.y;
 
-							switch (child.mesh.fit_mode)
+							switch (rd.fit_mode)
 							{
 							case e::fit_mode_kind::contain:
 							{
@@ -412,29 +417,30 @@ namespace age::ui
 							}
 							default:
 							{
-								AGE_UNREACHABLE("invalid fit_mode : {}", to_idx(child.mesh.fit_mode));
+								AGE_UNREACHABLE("invalid fit_mode : {}", to_idx(rd.fit_mode));
 							}
 							}
 						}
 
 
-						c_auto color = draw ? std::bit_cast<float4>(g::render_data_vec[child.render_data_idx].body_brush_data.data) : float4{};
+						c_auto color = draw ? std::bit_cast<float4>(rd.body_brush_data.data) : float4{};
 
-						auto object_id = uint32{};
+						auto   object_id = uint32{};
+						c_auto interact	 = child.interact == e::interact_mode_kind::mesh;
 						if (space_mode == to_idx(e::space_mode_kind::world))
 						{
-							object_id = fn_render_debug_mesh(world_pos, quat, scale, h_mesh, color.xyz, draw, child.interact);
+							object_id = fn_render_debug_mesh(world_pos, quat, scale, h_mesh, color.xyz, draw, interact);
 						}
 						else if (space_mode == to_idx(e::space_mode_kind::world_always_on_top))
 						{
-							object_id = fn_render_debug_mesh_aot(world_pos, quat, scale, h_mesh, color.xyz, draw, child.interact);
+							object_id = fn_render_debug_mesh_aot(world_pos, quat, scale, h_mesh, color.xyz, draw, interact);
 						}
 						else
 						{
 							AGE_ASSERT(false, "todo");
 						}
 
-						if (child.interact)
+						if (interact)
 						{
 							auto& arr		 = g::mesh_object_id_map[child.id];
 							mesh_interact_id = arr[global::i_graphics.get_frame_buffer_idx];
@@ -492,17 +498,78 @@ namespace age::ui
 					}
 
 					// handle interaction
-					if (child.interact)
+					if (child.interact != e::interact_mode_kind::none)
 					{
 						auto hover = false;
-						if (child.mesh_draw)
+						if (child.interact == e::interact_mode_kind::mesh)
 						{
 							hover = mesh_interact_id == raycast_hit_obj_id;
 						}
-						else
+						else if (child.z_offset >= current_hover_z_offset)
 						{
-							hover = child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv);
+							if (child.interact == e::interact_mode_kind::rect or child.shape == e::shape_kind::rect)
+							{
+								hover = child.z_offset >= current_hover_z_offset and math::contains_2d(child.clip_rect, root.mouse_uv);
+							}
+							else if (child.interact == e::interact_mode_kind::sdf)
+							{
+								AGE_ASSERT(child.shape != e::shape_kind::text, "not supported");
+								// always has render_data
+								c_auto& rd = g::render_data_vec[child.render_data_idx];
+
+								c_auto size = float2{ child.width, child.height };
+
+								c_auto pivot_pos = child.offset + rd.pivot_uv * size;
+
+								c_auto center_offset = rotate(root.mouse_uv - pivot_pos, -rd.rotation) + (rd.pivot_uv - 0.5f) * size;
+
+								switch (child.shape)
+								{
+								case e::shape_kind::circle:
+								{
+									// hover		  = sdf_circle(center_offset, size, rd.shape_data.data) >= 0.f;
+									c_auto radius = min(size.x, size.y) * 0.5f;
+									hover		  = length_sq(center_offset) < radius * radius;
+									break;
+								}
+								case e::shape_kind::arrow_right:
+								{
+									hover = sdf_arrow_right(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								case e::shape_kind::check:
+								{
+									hover = sdf_check(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								case e::shape_kind::rounded_rect:
+								{
+									hover = sdf_rounded_rect(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								case e::shape_kind::triangle:
+								{
+									hover = sdf_triangle(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								case e::shape_kind::cross:
+								{
+									hover = sdf_cross(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								case e::shape_kind::arc:
+								{
+									hover = sdf_arc(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									break;
+								}
+								default:
+								{
+									AGE_UNREACHABLE("invalid shape : {}", to_string(child.shape));
+								}
+								}
+							}
 						}
+
 
 						if (hover)
 						{

@@ -12,6 +12,7 @@ namespace age::ui::e
 					rounded_rect,
 					triangle,
 					cross,
+					arc,
 					mesh);
 
 	AGE_DEFINE_ENUM(brush_kind, uint8, color);
@@ -28,8 +29,7 @@ namespace age::ui::e
 
 	AGE_DEFINE_ENUM(space_mode_kind, uint8, screen, world, world_always_on_top, world_billboard);
 
-	// css object-fit
-	AGE_DEFINE_ENUM(fit_mode_kind, uint8, contain, cover, fill, none, scale_down);
+	AGE_DEFINE_ENUM(interact_mode_kind, uint8, none, rect, mesh, sdf);
 }	 // namespace age::ui::e
 
 namespace age::ui
@@ -64,8 +64,14 @@ namespace age::ui
 
 			struct
 			{
-				uint32			 h_mesh;
-				e::fit_mode_kind fit_mode;
+				float thickness;
+				float aperture_sin;
+				float aperture_cos;
+			} arc;
+
+			struct
+			{
+				uint32 h_mesh;
 			} mesh;
 
 			uint32 data[5];
@@ -93,7 +99,7 @@ namespace age::ui
 		e::brush_kind body_brush_kind	= e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
 		e::brush_kind border_brush_kind = e::brush_kind::color;	   // 1. texture_id, 2. color, 3. generated from uv, ...
 
-		uint8 _;
+		e::fit_mode_kind fit_mode = e::fit_mode_kind::contain;
 
 		ui_shape_data shape_data;
 		ui_brush_data body_brush_data;
@@ -150,10 +156,11 @@ namespace age::ui
 		e::brush_kind body_brush_kind	= e::brush_kind::color;
 		e::brush_kind border_brush_kind = e::brush_kind::color;
 
-		bool	interact   = false;
-		bool	save_state = false;
-		bool	clip	   = true;
-		uint8_2 _;
+		e::interact_mode_kind interact	 = e::interact_mode_kind::none;
+		e::fit_mode_kind	  fit_mode	 = e::fit_mode_kind::contain;
+		bool				  save_state = false;
+		bool				  clip		 = true;
+		uint8_2				  _;
 
 		union
 		{
@@ -351,13 +358,13 @@ namespace age::ui
 		float			 padding_bottom;
 		float4			 clip_rect;	   // rect_min, rect_max
 
-		bool	interact;
-		bool	save_state;
-		bool	direct_draw;
-		bool	mesh_draw;
-		bool	clip;
-		uint8_3 _0;
-		uint32	_1;
+		e::interact_mode_kind interact;
+		e::shape_kind		  shape;
+		bool				  save_state;
+		bool				  direct_draw;
+		bool				  clip;
+		uint8_3				  _0;
+		uint32				  _1;
 
 		union
 		{
@@ -369,9 +376,14 @@ namespace age::ui
 
 			struct
 			{
-				uint32			 h_mesh;
-				e::fit_mode_kind fit_mode;
+				uint32 h_mesh;
 			} mesh;
+
+			struct
+			{
+				float thickness;
+				float angle;
+			} arc;
 
 			uint64 extra;
 		};

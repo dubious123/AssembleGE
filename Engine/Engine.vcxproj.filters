@@ -57,7 +57,6 @@
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_defaults.inl" />
     <ClInclude Include="age_util_container.hpp" />
-    <ClInclude Include="age_util_offset_allocator.hpp" />
     <ClInclude Include="age_math_transform.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
@@ -150,6 +149,7 @@
     <ClInclude Include="resources\engine_shaders\dx12\fullscreen_ms.asl" />
     <ClInclude Include="age_util_functional.hpp" />
     <ClInclude Include="age_util_format.hpp" />
+    <ClInclude Include="age_math_sdf.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

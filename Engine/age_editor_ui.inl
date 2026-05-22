@@ -190,7 +190,7 @@ namespace age::editor
 
 			widget::separator_v();
 
-			if (auto drop_down = widget::begin(style::panel() | set_height_fit() | set_save_state(true)))
+			if (auto drop_down = widget::begin(style::panel() | set_height_fit() | set_save_state()))
 			{
 				auto drop_down_state = drop_down.get_state();
 
@@ -334,7 +334,7 @@ namespace age::editor
 			{
 				auto is_open = false;
 
-				if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
+				if (auto header = widget::begin(style::header_bar() | set_interact() | set_save_state()))
 				{
 					if (header.clicked<mouse_left>())
 					{
@@ -359,7 +359,7 @@ namespace age::editor
 					if (header.contains_mouse())
 					{
 						auto _			 = widget::horizontal_inv();
-						auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center());
+						auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact() | set_align_center());
 						widget::text_button("+");
 						if (new_ent_btn.clicked())
 						{
@@ -376,7 +376,7 @@ namespace age::editor
 				{
 					auto arch_open = false;
 
-					if (auto header = widget::begin(style::header_bar() | set_interact(true) | set_save_state(true)))
+					if (auto header = widget::begin(style::header_bar() | set_interact() | set_save_state()))
 					{
 						if (header.clicked<mouse_left>())
 						{
@@ -395,7 +395,7 @@ namespace age::editor
 
 						if (auto _ = widget::horizontal_inv())
 						{
-							auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact(true) | set_align_center());
+							auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact() | set_align_center());
 							widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
 							if (new_ent_btn.clicked())
 							{

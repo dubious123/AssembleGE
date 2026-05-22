@@ -33,12 +33,14 @@ namespace age::math::simd::g
 	inline const auto xm_right_f4	 = DirectX::XMVECTORF32{ { { 1.f, 0.f, 0.f, 0.f } } }.v;
 	inline const auto xm_left_f4	 = DirectX::XMVECTORF32{ { { -1.f, 0.f, 0.f, 0.f } } }.v;
 
+	inline const auto xm_quat_identity_f4 = DirectX::XMVECTORF32{ { { 0.f, 0.f, 0.f, 1.f } } }.v;
+	inline const auto xm_quat_back_f4	  = DirectX::XMVECTORF32{ { { 0.f, 1.f, 0.f, 0.f } } }.v;
+
 	FORCE_INLINE xm_vec AGE_SIMD_CALL
 	vec_zero() noexcept
 	{
 		DirectX::XMVectorZero();
 	}
-
 }	 // namespace age::math::simd::g
 
 namespace age::math::simd
@@ -399,6 +401,8 @@ namespace age::math::simd
 	AGE_SIMD_VEC_UNARY_OP(euler_to_quat, XMQuaternionRotationRollPitchYawFromVector);
 	AGE_SIMD_VEC_UNARY_OP(euler_to_mat4x4, XMMatrixRotationRollPitchYawFromVector);
 
+	AGE_SIMD_MAT_UNARY_OP(rotation_mat_to_quat, XMQuaternionRotationMatrix);
+
 	AGE_SIMD_MAT_UNARY_OP(mat_transpose, XMMatrixTranspose);
 
 	AGE_SIMD_VEC_GETTER_OP(get_x, XMVectorGetX, XMVectorGetIntX);
@@ -493,47 +497,52 @@ namespace age::math::simd
 	}
 }	 // namespace age::math::simd
 
-#define AGE_SIMD_VEC_BINARY_OP(name, func, rhs_type) \
-	struct __##name##__                              \
-	{                                                \
-		rhs_type __rhs__;                            \
-		FORCE_INLINE decltype(auto) AGE_SIMD_CALL    \
-		operator()(fxm_vec v) const noexcept         \
-		{                                            \
-			return DirectX::func(v, __rhs__);        \
-		}                                            \
-	};                                               \
-	FORCE_INLINE decltype(auto) AGE_SIMD_CALL        \
-	name(rhs_type rhs) noexcept                      \
-	{                                                \
-		return __##name##__{ rhs };                  \
-	}                                                \
-	FORCE_INLINE decltype(auto) AGE_SIMD_CALL        \
-	name(fxm_vec lhs, rhs_type rhs) noexcept         \
-	{                                                \
-		return DirectX::func(lhs, rhs);              \
+#define AGE_SIMD_BINARY_OP(name, func, lhs_type, rhs_type) \
+	struct __##name##__                                    \
+	{                                                      \
+		rhs_type __rhs__;                                  \
+		FORCE_INLINE decltype(auto) AGE_SIMD_CALL          \
+		operator()(lhs_type v) const noexcept              \
+		{                                                  \
+			return DirectX::func(v, __rhs__);              \
+		}                                                  \
+	};                                                     \
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL              \
+	name(rhs_type rhs) noexcept                            \
+	{                                                      \
+		return __##name##__{ rhs };                        \
+	}                                                      \
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL              \
+	name(lhs_type lhs, rhs_type rhs) noexcept              \
+	{                                                      \
+		return DirectX::func(lhs, rhs);                    \
 	}
 
-#define AGE_SIMD_MAT_BINARY_OP(name, func, rhs_type) \
-	struct __##name##__                              \
-	{                                                \
-		rhs_type __rhs__;                            \
-		FORCE_INLINE decltype(auto) AGE_SIMD_CALL    \
-		operator()(fxm_mat m) const noexcept         \
-		{                                            \
-			return DirectX::func(v, __rhs__);        \
-		}                                            \
-	};                                               \
-	FORCE_INLINE decltype(auto) AGE_SIMD_CALL        \
-	name(rhs_type rhs) noexcept                      \
-	{                                                \
-		return __##name##__{ rhs };                  \
-	}                                                \
-	FORCE_INLINE decltype(auto) AGE_SIMD_CALL        \
-	name(fxm_mat lhs, rhs_type rhs) noexcept         \
-	{                                                \
-		return DirectX::func(lhs, rhs);              \
+
+#define AGE_SIMD_BINARY_OP_INV(name, func, lhs_type, rhs_type) \
+	struct __##name##__                                        \
+	{                                                          \
+		rhs_type __rhs__;                                      \
+		FORCE_INLINE decltype(auto) AGE_SIMD_CALL              \
+		operator()(lhs_type v) const noexcept                  \
+		{                                                      \
+			return DirectX::func(__rhs__, v);                  \
+		}                                                      \
+	};                                                         \
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL                  \
+	name(rhs_type rhs) noexcept                                \
+	{                                                          \
+		return __##name##__{ rhs };                            \
+	}                                                          \
+	FORCE_INLINE decltype(auto) AGE_SIMD_CALL                  \
+	name(lhs_type lhs, rhs_type rhs) noexcept                  \
+	{                                                          \
+		return DirectX::func(rhs, lhs);                        \
 	}
+
+#define AGE_SIMD_VEC_BINARY_OP(name, func, rhs_type)	 AGE_SIMD_BINARY_OP(name, func, fxm_vec, rhs_type)
+#define AGE_SIMD_VEC_BINARY_OP_INV(name, func, rhs_type) AGE_SIMD_BINARY_OP_INV(name, func, fxm_vec, rhs_type)
+#define AGE_SIMD_MAT_BINARY_OP(name, func, rhs_type)	 AGE_SIMD_BINARY_OP(name, func, fxm_mat, rhs_type)
 
 namespace age::math::simd
 {
@@ -547,10 +556,13 @@ namespace age::math::simd
 	AGE_SIMD_VEC_BINARY_OP(dot4, XMVector4Dot, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(cross3, XMVector3Cross, fxm_vec);
 
-	AGE_SIMD_VEC_BINARY_OP(setx, XMVectorSetX, float);
-	AGE_SIMD_VEC_BINARY_OP(sety, XMVectorSetY, float);
-	AGE_SIMD_VEC_BINARY_OP(setz, XMVectorSetZ, float);
-	AGE_SIMD_VEC_BINARY_OP(setw, XMVectorSetW, float);
+	AGE_SIMD_VEC_BINARY_OP(set_x, XMVectorSetX, float);
+	AGE_SIMD_VEC_BINARY_OP(set_y, XMVectorSetY, float);
+	AGE_SIMD_VEC_BINARY_OP(set_z, XMVectorSetZ, float);
+	AGE_SIMD_VEC_BINARY_OP(set_w, XMVectorSetW, float);
+
+	AGE_SIMD_VEC_BINARY_OP(scale, XMVectorScale, float);
+
 
 	AGE_SIMD_VEC_BINARY_OP(bit_and, XMVectorAndInt, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(bit_and_not, XMVectorAndCInt, fxm_vec);	  // lhs & (~rhs)
@@ -562,51 +574,10 @@ namespace age::math::simd
 	AGE_SIMD_VEC_BINARY_OP(cmp_equal, XMVectorEqual, fxm_vec);
 	AGE_SIMD_VEC_BINARY_OP(transform_coord3, XMVector3TransformCoord, fxm_mat);
 
-	struct __quat_mul__
-	{
-		fxm_vec __rhs__;
+	AGE_SIMD_VEC_BINARY_OP(quat_rotation_normal, XMQuaternionRotationNormal, float);
 
-		__forceinline decltype(auto) __vectorcall
-		operator()(fxm_vec v) const noexcept
-		{
-			return DirectX::XMQuaternionMultiply(__rhs__, v);
-		}
-	};
-
-	__forceinline decltype(auto) __vectorcall
-	quat_mul(fxm_vec q1) noexcept
-	{
-		return __quat_mul__{ q1 };
-	}
-
-	__forceinline decltype(auto) __vectorcall
-	quat_mul(fxm_vec q0, fxm_vec q1) noexcept
-	{
-		return DirectX::XMQuaternionMultiply(q1, q0);
-	};
-
-	struct __rotate3__
-	{
-		fxm_vec __rhs__;
-
-		__forceinline decltype(auto) __vectorcall
-		operator()(fxm_vec quat) const noexcept
-		{
-			return DirectX::XMVector3Rotate(quat, __rhs__);
-		}
-	};
-
-	__forceinline decltype(auto) __vectorcall
-	rotate3(fxm_vec v) noexcept
-	{
-		return __rotate3__{ v };
-	}
-
-	__forceinline decltype(auto) __vectorcall
-	rotate3(fxm_vec quat, fxm_vec v) noexcept
-	{
-		return DirectX::XMVector3Rotate(v, quat);
-	};
+	AGE_SIMD_VEC_BINARY_OP_INV(quat_mul, XMQuaternionMultiply, fxm_vec);
+	AGE_SIMD_VEC_BINARY_OP_INV(rotate3, XMVector3Rotate, fxm_vec);	  // quat, v
 
 	FORCE_INLINE decltype(auto) AGE_SIMD_CALL
 	mul(fxm_mat lhs, fxm_vec rhs) noexcept
@@ -1302,7 +1273,7 @@ namespace age::math::simd
 	{
 		auto&& [v_old, m_basis_old, m_basis_new] = simd::load(old, old_basis, new_basis);
 		return v_old
-			 | simd::setw(1.f)
+			 | simd::set_w(1.f)
 			 | simd::transform_coord3(m_basis_old)
 			 | simd::transform_coord3(DirectX::XMMatrixInverse(nullptr, m_basis_new))
 			 | simd::to<float3>();

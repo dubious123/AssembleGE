@@ -56,12 +56,13 @@ namespace age::editor::gizmo
 				if (auto h_center = widget::begin(set_width_fixed(0)
 												  | set_height_fixed(screen_size * 0.05f)
 												  | set_draw()
-												  | set_interact()
+												  | set_interact_mesh()
 												  | set_align_end()
 												  | set_border_thickness(0)
 												  | set_pivot_uv(0.f, 1.f)
 												  //| set_border_brush_data(theme::color_black())
-												  | set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::cover)
+												  | set_fit_mode_cover()
+												  | set_shape_mesh(g::h_mesh_cube)
 												  | set_body_brush_data(theme::color_white())))
 				{
 				}
@@ -71,11 +72,12 @@ namespace age::editor::gizmo
 				if (auto h_line = widget::begin(set_width_grow()
 												| set_height_fixed(screen_size * 0.025f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_end()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.5f, 1.f)
-												| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)
+												| set_fit_mode_fill()
+												| set_shape_mesh(g::h_mesh_cube)
 												| set_body_brush_data(color)))
 				{
 					is_drag	 |= h_line.pressed<mouse_left>();
@@ -85,7 +87,7 @@ namespace age::editor::gizmo
 				if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
 												| set_height_fixed(screen_size * 0.1f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_center()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.f, 1.f)
@@ -134,12 +136,13 @@ namespace age::editor::gizmo
 					if (auto h_line = widget::begin(set_width_fixed(screen_size * 0.025f)
 													| set_height_grow()
 													| set_draw()
-													| set_interact(is_disabled is_false)
+													| set_interact_mesh(is_disabled is_false)
 													| set_align_begin()
 													| set_padding(0)
 													| set_pivot_uv(0.f, 0.5f)
 													| set_body_brush_data(color)
-													| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)))
+													| set_fit_mode_fill()
+													| set_shape_mesh(g::h_mesh_cube)))
 					{
 						is_drag	 |= h_line.pressed<mouse_left>();
 						is_hover |= h_line.hovered();
@@ -148,7 +151,7 @@ namespace age::editor::gizmo
 					if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
 													| set_height_fixed(screen_size * 0.1f)
 													| set_draw()
-													| set_interact(is_disabled is_false)
+													| set_interact_mesh(is_disabled is_false)
 													| set_align_center()
 													| set_padding(0)
 													| set_pivot_uv(0.f, 1.f)
@@ -192,7 +195,7 @@ namespace age::editor::gizmo
 
 				auto h_plane_y = widget::begin(set_align(ui::e::widget_align::center)
 											   | set_draw()
-											   | set_interact(is_disabled is_false)
+											   | set_interact_rect(is_disabled is_false)
 											   | set_fixed(screen_size * 0.2f)
 											   | set_z_offset(1)
 											   | set_border_thickness(theme::thickness_thin())
@@ -254,12 +257,12 @@ namespace age::editor::gizmo
 				if (auto h_line = widget::begin(set_width_grow()
 												| set_height_fixed(screen_size * 0.025f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_end()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.5f, 1.f)
-												//| set_border_brush_data(theme::color_black())
-												| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)
+												| set_fit_mode_fill()
+												| set_shape_mesh(g::h_mesh_cube)
 												| set_body_brush_data(color)))
 				{
 					is_drag	 |= h_line.pressed<mouse_left>();
@@ -268,13 +271,11 @@ namespace age::editor::gizmo
 
 				if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
 												| set_height_fixed(screen_size * 0.1f)
-												//| set_offset(-screen_size * 0.05f, 0)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_center()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.f, 1.f)
-												//| set_border_brush_data(theme::color_black())
 												| set_body_brush_data(color)
 												| set_rotation(age::cvt_to_radian(90.f))
 												| set_shape_mesh(g::h_mesh_cone)))
@@ -314,7 +315,7 @@ namespace age::editor::gizmo
 
 				auto h_plane_x = widget::begin(set_align(ui::e::widget_align::center)
 											   | set_draw()
-											   | set_interact(is_disabled is_false)
+											   | set_interact_rect(is_disabled is_false)
 											   | set_fixed(screen_size * 0.2f)
 											   | set_z_offset(1)
 											   | set_border_thickness(theme::thickness_thin())
@@ -373,7 +374,7 @@ namespace age::editor::gizmo
 
 				auto h_plane_y = widget::begin(set_align(ui::e::widget_align::center)
 											   | set_draw()
-											   | set_interact(is_disabled is_false)
+											   | set_interact_rect(is_disabled is_false)
 											   | set_fixed(screen_size * 0.2f)
 											   | set_z_offset(1)
 											   | set_border_thickness(theme::thickness_thin())
@@ -458,12 +459,12 @@ namespace age::editor::gizmo
 													  | set_height_fixed(screen_size * 0.1f)
 													  | set_clip(false)
 													  | set_draw()
-													  | set_interact()
+													  | set_interact_mesh()
 													  | set_align_end()
 													  | set_border_thickness(0)
 													  | set_pivot_uv(0.f, 1.f)
-													  //| set_border_brush_data(theme::color_black())
-													  | set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::cover)
+													  | set_fit_mode_cover()
+													  | set_shape_mesh(g::h_mesh_cube)
 													  | set_body_brush_data(color)))
 					{
 						c_auto is_drag	= h_center.pressed<mouse_left>();
@@ -527,12 +528,13 @@ namespace age::editor::gizmo
 				if (auto h_line = widget::begin(set_width_fixed(screen_size * 0.9f * res_scale_ratio.x)
 												| set_height_fixed(screen_size * 0.025f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_clip(false)
 												| set_align_end()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.5f, 1.f)
-												| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)
+												| set_fit_mode_fill()
+												| set_shape_mesh(g::h_mesh_cube)
 												| set_body_brush_data(color)))
 				{
 					is_drag	 |= h_line.pressed<mouse_left>();
@@ -542,7 +544,7 @@ namespace age::editor::gizmo
 				if (auto h_cone = widget::begin(set_width_fixed(screen_size * 0.1f)
 												| set_height_fixed(screen_size * 0.1f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_clip(false)
 												| set_align_center()
 												| set_border_thickness(0)
@@ -601,12 +603,13 @@ namespace age::editor::gizmo
 													| set_height_fixed(screen_size * 0.9f * res_scale_ratio.y)
 													| set_clip(false)
 													| set_draw()
-													| set_interact(is_disabled is_false)
+													| set_interact_mesh(is_disabled is_false)
 													| set_align_begin()
 													| set_padding(0)
 													| set_pivot_uv(0.f, 0.5f)
 													| set_body_brush_data(color)
-													| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)))
+													| set_fit_mode_fill()
+													| set_shape_mesh(g::h_mesh_cube)))
 					{
 						is_drag	 |= h_line.pressed<mouse_left>();
 						is_hover |= h_line.hovered();
@@ -616,7 +619,7 @@ namespace age::editor::gizmo
 													| set_height_fixed(screen_size * 0.1f)
 													| set_clip(false)
 													| set_draw()
-													| set_interact(is_disabled is_false)
+													| set_interact_mesh(is_disabled is_false)
 													| set_align_center()
 													| set_padding(0)
 													| set_pivot_uv(0.f, 1.f)
@@ -686,12 +689,13 @@ namespace age::editor::gizmo
 												| set_clip(false)
 												| set_height_fixed(screen_size * 0.025f)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_end()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.5f, 1.f)
 												//| set_border_brush_data(theme::color_black())
-												| set_shape_mesh(g::h_mesh_cube, ui::e::fit_mode_kind::fill)
+												| set_fit_mode_fill()
+												| set_shape_mesh(g::h_mesh_cube)
 												| set_body_brush_data(color)))
 				{
 					is_drag	 |= h_line.pressed<mouse_left>();
@@ -702,7 +706,7 @@ namespace age::editor::gizmo
 												| set_height_fixed(screen_size * 0.1f)
 												| set_clip(false)
 												| set_draw()
-												| set_interact(is_disabled is_false)
+												| set_interact_mesh(is_disabled is_false)
 												| set_align_center()
 												| set_border_thickness(0)
 												| set_pivot_uv(0.f, 1.f)
@@ -762,5 +766,89 @@ namespace age::editor::gizmo
 		}
 
 		return std::tuple{ res_scale_ratio, is_drag_start, is_any_pressed };
+	}
+
+	std::tuple<float4, bool, bool>
+	rotation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept
+	{
+		enum class mode_kind : uint8
+		{
+			none,
+			axis_x,
+			axis_y,
+			axis_z,
+			view
+		};
+
+		using namespace ui;
+		using namespace ui::widget;
+		using enum input::e::key_kind;
+
+		static auto res_quat			= math::g::quaternion_identity;
+		static auto is_any_pressed_prev = false;
+
+		static auto current_mode = mode_kind::none;
+
+		auto is_any_pressed = false;
+
+		c_auto obj_x = rotate(quat, math::g::right);
+		c_auto obj_y = rotate(quat, math::g::up);
+		c_auto obj_z = rotate(quat, math::g::forward);
+
+		c_auto view_z			= std::max(math::dot(world_pos - cam_pos, cam_forward), 0.5f);
+		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam_fov_y * 0.5f);
+		c_auto world_size		= world_size_scale * view_z;
+
+		c_auto root_quat = math::quat_look_to(cam_forward);
+
+		c_auto h_root = root_begin(root_desc{
+			.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
+			.layout		  = ui::e::widget_layout::vertical,
+			.width		  = screen_size,
+			.height		  = screen_size,
+			.world_pos	  = world_pos + math::rotate(root_quat, float3(-world_size * 0.5f, world_size * 0.5f, 0)),
+			.quaternion	  = root_quat,
+			.world_width  = world_size,
+			.world_height = world_size,
+		});
+
+		c_auto& root = ui::detail::get_current_root();
+
+		c_auto h_root_div = widget::horizontal(set_grow()
+											   | set_draw()
+											   | set_padding(theme::padding_small())
+											   | set_shape_circle()
+											   | set_border_thickness(theme::thickness_thick())
+											   | set_border_brush_color(theme::color_black()));
+
+		if (c_auto h_xz_plane = widget::vertical(set_fixed(0) | set_align_begin()))
+		{
+			c_auto width  = screen_size - theme::padding_small() * 2;
+			c_auto height = max(width * 0.25f, width * abs(dot(obj_y, cam_forward)));
+			widget::begin(set_height_fixed(height)
+						  | set_width_fixed(width)
+						  | set_offset(0, width * 0.5f - height * 0.5f)
+						  | set_fit_mode_fill()
+						  | set_clip(false)
+						  | set_z_offset(1)
+						  | set_border_thickness(0)
+						  | set_draw()
+						  | set_align_begin()
+						  | set_rotation(cvt_to_radian(180))
+						  | set_shape_arc(theme::thickness_thick() * 2, cvt_to_radian(120.f))
+						  | set_body_brush_color(theme::color_blue()));
+		}
+
+
+		if (is_any_pressed is_false)
+		{
+			res_quat	 = math::g::quaternion_identity;
+			current_mode = mode_kind::none;
+		}
+
+		c_auto is_drag_start = is_any_pressed_prev is_false and is_any_pressed is_true;
+		is_any_pressed_prev	 = is_any_pressed;
+
+		return std::tuple{ res_quat, is_drag_start, is_any_pressed };
 	}
 }	 // namespace age::editor::gizmo

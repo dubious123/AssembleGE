@@ -10,7 +10,7 @@ namespace age::ui
 		FWD(mod).apply(desc);
 
 		AGE_ASSERT(desc.draw);
-		AGE_ASSERT(desc.interact is_false);
+		AGE_ASSERT(desc.interact == e::interact_mode_kind::none);
 		AGE_ASSERT(desc.save_state is_false);
 
 		auto& root = detail::get_current_root();
@@ -57,10 +57,10 @@ namespace age::ui
 			.padding_right	   = desc.padding_right,
 			.padding_top	   = desc.padding_top,
 			.padding_bottom	   = desc.padding_bottom,
-			.interact		   = false,
+			.interact		   = e::interact_mode_kind::none,
+			.shape			   = desc.shape_kind,
 			.save_state		   = false,
 			.direct_draw	   = true,
-			.mesh_draw		   = false,
 			.clip			   = desc.clip,
 			.text			   = { .idx = desc.text.text_data_idx, .atlas_id = atlas_id },
 		});
@@ -72,6 +72,7 @@ namespace age::ui
 			.shape_kind		   = desc.shape_kind,
 			.body_brush_kind   = desc.body_brush_kind,
 			.border_brush_kind = desc.border_brush_kind,
+			.fit_mode		   = desc.fit_mode,
 			.shape_data		   = desc.shape_data,
 			.body_brush_data   = desc.body_brush_data,
 			.border_brush_data = desc.border_brush_data,

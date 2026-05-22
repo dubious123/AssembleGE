@@ -2,6 +2,12 @@
 
 namespace age::inline math
 {
+	FORCE_INLINE float
+	as_float(auto&& x) noexcept
+	{
+		return std::bit_cast<float>(FWD(x));
+	}
+
 	FORCE_INLINE constexpr float
 	cvt_to_radian(float degrees) noexcept
 	{
@@ -15,13 +21,13 @@ namespace age::inline math
 	}
 
 	FORCE_INLINE float3
-	normalize(float3 v) noexcept
+	normalize(const float3& v) noexcept
 	{
 		return v | simd::load() | simd::normalize3() | simd::to<float3>();
 	}
 
 	FORCE_INLINE float4
-	normalize(float4 v) noexcept
+	normalize(const float4& v) noexcept
 	{
 		return v | simd::load() | simd::normalize4() | simd::to<float4>();
 	}
@@ -54,10 +60,266 @@ namespace age::inline math
 		};
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE decltype(auto)
+	abs(float f) noexcept
+	{
+		return std::abs(f);
+	}
+
+	FORCE_INLINE decltype(auto)
+	abs(const float2& v) noexcept
+	{
+		return float2{ std::abs(v.x), std::abs(v.y) };
+	}
+
+	FORCE_INLINE decltype(auto)
 	abs(const float3& v) noexcept
 	{
 		return float3{ std::abs(v.x), std::abs(v.y), std::abs(v.z) };
+	}
+
+	FORCE_INLINE decltype(auto)
+	abs(const float4& v) noexcept
+	{
+		return float4{ std::abs(v.x), std::abs(v.y), std::abs(v.z), std::abs(v.w) };
+	}
+
+	FORCE_INLINE decltype(auto)
+	length_sq(const float2& v) noexcept
+	{
+		return v.x * v.x + v.y * v.y;
+	}
+
+	FORCE_INLINE decltype(auto)
+	length_sq(const float3& v) noexcept
+	{
+		return v.x * v.x + v.y * v.y + v.z * v.z;
+	}
+
+	FORCE_INLINE decltype(auto)
+	length_sq(const float4& v) noexcept
+	{
+		return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;
+	}
+
+	FORCE_INLINE decltype(auto)
+	length(const float2& v) noexcept
+	{
+		return std::sqrt(length_sq(v));
+	}
+
+	FORCE_INLINE decltype(auto)
+	length(const float3& v) noexcept
+	{
+		return std::sqrt(length_sq(v));
+	}
+
+	FORCE_INLINE decltype(auto)
+	length(const float4& v) noexcept
+	{
+		return std::sqrt(length_sq(v));
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	ceil(auto&& vec) noexcept
+	{
+		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		{
+			return float2{ std::ceil(vec.x), std::ceil(vec.y) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float3> or std::is_same_v<BARE_OF(vec), float3a>)
+		{
+			return float3{ std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float4> or std::is_same_v<BARE_OF(vec), float4a>)
+		{
+			return float4{ std::ceil(vec.x), std::ceil(vec.y), std::ceil(vec.z), std::ceil(vec.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for ceil");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	floor(auto&& vec) noexcept
+	{
+		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		{
+			return float2{ std::floor(vec.x), std::floor(vec.y) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float3> or std::is_same_v<BARE_OF(vec), float3a>)
+		{
+			return float3{ std::floor(vec.x), std::floor(vec.y), std::floor(vec.z) };
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float4> or std::is_same_v<BARE_OF(vec), float4a>)
+		{
+			return float4{ std::floor(vec.x), std::floor(vec.y), std::floor(vec.z), std::floor(vec.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for floor");
+		}
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	min(const v<t>& lhs, const v<t>& rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z), std::min(lhs.w, rhs.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for min");
+		}
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	min(const v<t>& lhs, t rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs), std::min(lhs.y, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs), std::min(lhs.y, rhs), std::min(lhs.z, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::min(lhs.x, rhs), std::min(lhs.y, rhs), std::min(lhs.z, rhs), std::min(lhs.w, rhs) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for min");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	min(float l, float r) noexcept
+	{
+		return std::min(l, r);
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	max(const v<t>& lhs, const v<t>& rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z), std::max(lhs.w, rhs.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for max");
+		}
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	max(const v<t>& lhs, t rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs), std::max(lhs.y, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs), std::max(lhs.y, rhs), std::max(lhs.z, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::max(lhs.x, rhs), std::max(lhs.y, rhs), std::max(lhs.z, rhs), std::max(lhs.w, rhs) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for max");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	max(float l, float r) noexcept
+	{
+		return std::max(l, r);
+	}
+
+	template <template <typename> typename v, typename t_>
+	FORCE_INLINE constexpr decltype(auto)
+	lerp(const v<t_>& a, const v<t_>& b, float t) noexcept
+	{
+		if constexpr (std::is_same_v<v<t_>, float2> or std::is_same_v<v<t_>, float2a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t) };
+		}
+		else if constexpr (std::is_same_v<v<t_>, float3> or std::is_same_v<v<t_>, float3a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t), std::lerp(a.z, b.z, t) };
+		}
+		else if constexpr (std::is_same_v<v<t_>, float4> or std::is_same_v<v<t_>, float4a>)
+		{
+			return v<t_>{ std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t), std::lerp(a.z, b.z, t), std::lerp(a.w, b.w, t) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for lerp");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	lerp(float a, float b, float t) noexcept
+	{
+		return a + t * (b - a);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	clamp(auto x, auto min, auto max) noexcept
+	{
+		return std::clamp(x, min, max);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	sqrt(auto f) noexcept
+	{
+		return std::sqrt(f);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	sign(auto f) noexcept
+	{
+		if (f > 0) { return 1.f; }
+		if (f < 0) { return -1.f; }
+		return 0.f;
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	sin(auto f) noexcept
+	{
+		return std::sin(f);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	cos(auto f) noexcept
+	{
+		return std::cos(f);
 	}
 }	 // namespace age::inline math
 
@@ -114,6 +376,56 @@ namespace age::inline math
 	rotate(const float4& quaternion, const float3& v) noexcept
 	{
 		return simd::rotate3(simd::load(quaternion), simd::load(v)) | simd::to<float3>();
+	}
+
+	FORCE_INLINE float2
+	rotate(const float2& v, float radian)
+	{
+		return float2((v.x * cos(radian) - v.y * sin(radian)), v.x * sin(radian) + v.y * cos(radian));
+	}
+
+	FORCE_INLINE float4
+	quat_look_to(const float3& dir /*normalized*/, const float roll_rad) noexcept
+	{
+		c_auto xm_look = simd::load(dir);
+
+		c_auto dot = simd::dot3(xm_look, simd::g::xm_forward_f4) | simd::get_x();
+
+		c_auto w = std::sqrt(2.f * (1.f + dot));
+
+		c_auto base = dot > (1.f - g::epsilon_1e4)
+						? simd::g::xm_quat_identity_f4
+					: dot < (g::epsilon_1e4 - 1.f)
+						? simd::g::xm_quat_back_f4
+						: simd::cross3(simd::g::xm_forward_f4, xm_look)
+							  | simd::scale(1.f / w)
+							  | simd::set_w(w * 0.5f)
+							  | simd::normalize4();
+
+		return roll_rad != 0.f
+				 ? simd::quat_rotation_normal(xm_look, roll_rad)
+					   | simd::quat_mul(base)
+					   | simd::to<float4>()
+				 : base
+					   | simd::to<float4>();
+	}
+
+	FORCE_INLINE float4
+	quat_look_to(const float3& dir /*normalized*/, const float3& up) noexcept
+	{
+		const auto&& [xm_look, xm_up] = simd::load(dir, up);
+
+		return simd::view_look_to(simd::g::xm_zero_f4, xm_look, xm_up)
+			 | simd::rotation_mat_to_quat()
+			 | simd::to<float4>();
+	}
+
+	FORCE_INLINE float4
+	quat_look_to(const float3& dir /*normalized*/) noexcept
+	{
+		return simd::view_look_to(simd::g::xm_zero_f4, simd::load(dir), simd::g::xm_up_f4)
+			 | simd::rotation_mat_to_quat()
+			 | simd::to<float4>();
 	}
 
 	// rotate q1 and q0

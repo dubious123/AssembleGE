@@ -85,6 +85,7 @@
     <ClInclude Include="age_macro_pp_foreach.h" />
     <ClInclude Include="age_macro_pp.h" />
     <ClInclude Include="age_math.hpp" />
+    <ClInclude Include="age_math_sdf.hpp" />
     <ClInclude Include="age_math_simd.hpp" />
     <ClInclude Include="age_math_transform.hpp" />
     <ClInclude Include="age_meta.hpp" />
@@ -112,7 +113,6 @@
     <ClInclude Include="age_util_functional.hpp" />
     <ClInclude Include="age_util_hash.hpp" />
     <ClInclude Include="age_util_layout.hpp" />
-    <ClInclude Include="age_util_offset_allocator.hpp" />
     <ClInclude Include="age_util_ranges.hpp" />
     <ClInclude Include="age_util_string.hpp" />
     <ClInclude Include="age_util_views.hpp" />
@@ -1283,6 +1283,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1332,6 +1333,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1379,6 +1381,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1420,6 +1423,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1459,6 +1463,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>
@@ -1498,6 +1503,7 @@ xcopy /Y /D $(ProjectDir)external\dll\$(Platform)\dxc\dxil.dll $(OutDir)
 xcopy /Y /D "$(ProjectDir)age_macro.h" "$(ProjectDir)cpp.hint"
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
 xcopy /Y /D "$(ProjectDir)age_graphics_backend_dx12_bake_shared_types.h" "$(ProjectDir)resources\engine_shaders\dx12\" 
+echo F | xcopy /Y /D "$(ProjectDir)age_math_sdf.hpp" "$(ProjectDir)resources\engine_shaders\dx12\age_math_sdf.asli" 
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\D3D12Core.dll $(OutDir)\D3D12\
 xcopy /Y /D /I $(ProjectDir)external\dll\$(Platform)\d3d12\d3d12SDKLayers.dll $(OutDir)\D3D12\</Command>
     </PreBuildEvent>

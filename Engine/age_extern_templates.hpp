@@ -1,5 +1,4 @@
 #pragma once
-#include "age_pch.hpp"
 
 namespace age::inline data_structure
 {

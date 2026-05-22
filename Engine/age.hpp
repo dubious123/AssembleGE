@@ -79,6 +79,7 @@ namespace age
 	#include "age_meta_traits.hpp"
 
 	#include "age_math_simd.hpp"
+	#include "age_math_transform.hpp"
 
 	#include "age_literal.hpp"
 
@@ -96,21 +97,17 @@ namespace age
 	#include "age_util_ranges.hpp"
 	#include "age_util_functional.hpp"
 	#include "age_util_format.hpp"
+
+	#include "age_fwd.hpp"
+	#include "age_math_sdf.hpp"	   // shader shared
+
+	#include "age_extern_templates.hpp"
+	#include "age_asset_fwd.hpp"
+	#include "age_external_adapter.hpp"
+	#include "age_buffer.hpp"
 #endif
 //------------------------------------------------------------------------------
-#include "age_math_transform.hpp"			//todo, move to pch.hpp
 
-#include "age_util_offset_allocator.hpp"	//todo
-
-#include "age_extern_templates.hpp"
-
-#include "age_fwd.hpp"
-
-#include "age_asset_fwd.hpp"
-
-#include "age_external_adapter.hpp"
-
-#include "age_buffer.hpp"
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"

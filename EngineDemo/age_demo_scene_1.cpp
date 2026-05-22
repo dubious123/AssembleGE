@@ -219,14 +219,11 @@ namespace age_demo::scene_1
 							| age::simd::load()
 							| age::simd::euler_to_quat();
 
-		c_auto forward = age::simd::g::xm_forward_f4
-					   | age::simd::rotate3(xm_look_quat)
+		c_auto forward = age::simd::rotate3(xm_look_quat, age::simd::g::xm_forward_f4)
 					   | age::simd::to<float3>();
-		c_auto right   = age::simd::g::xm_right_f4
-					   | age::simd::rotate3(xm_look_quat)
+		c_auto right   = age::simd::rotate3(xm_look_quat, age::simd::g::xm_right_f4)
 					   | age::simd::to<float3>();
-		c_auto up	   = age::simd::g::xm_up_f4
-					   | age::simd::rotate3(xm_look_quat)
+		c_auto up	   = age::simd::rotate3(xm_look_quat, age::simd::g::xm_up_f4)
 					   | age::simd::to<float3>();
 
 		cam_desc.pos -= right * i_update.get_smoothed_pan->x * input::g::pan_speed * dt_s;

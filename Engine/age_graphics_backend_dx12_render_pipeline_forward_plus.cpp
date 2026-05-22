@@ -1363,8 +1363,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		calc_camera_data(const camera_desc& desc) noexcept
 		{
 			auto&& [xm_pos, xm_quat] = simd::load(desc.pos, desc.quaternion);
-			c_auto xm_forward		 = simd::g::xm_forward_f4 | simd::rotate3(xm_quat);
-			c_auto xm_up			 = simd::g::xm_up_f4 | simd::rotate3(xm_quat);
+			c_auto xm_forward		 = xm_quat | simd::rotate3(simd::g::xm_forward_f4);
+			c_auto xm_up			 = xm_quat | simd::rotate3(simd::g::xm_up_f4);
 
 			c_auto xm_view = simd::view_look_to(xm_pos, xm_forward, xm_up);
 

@@ -105,6 +105,13 @@ namespace age::ui::detail
 							: desc.padding_top + desc.padding_bottom;
 		}
 
+		{
+			if (desc.shape_kind != e::shape_kind::mesh)
+			{
+				AGE_ASSERT(desc.interact != e::interact_mode_kind::mesh);
+			}
+		}
+
 
 		g::layout_size_data_stack.emplace_back(layout_size_data{
 			.layout				= desc.layout,
@@ -136,9 +143,9 @@ namespace age::ui::detail
 			.padding_top	   = desc.padding_top,
 			.padding_bottom	   = desc.padding_bottom,
 			.interact		   = desc.interact,
+			.shape			   = desc.shape_kind,
 			.save_state		   = desc.save_state,
 			.direct_draw	   = false,
-			.mesh_draw		   = desc.shape_kind == e::shape_kind::mesh,
 			.clip			   = desc.clip,
 		});
 
@@ -148,10 +155,10 @@ namespace age::ui::detail
 		}
 		else if (desc.shape_kind == e::shape_kind::mesh)
 		{
-			pos.mesh = { desc.shape_data.mesh.h_mesh, desc.shape_data.mesh.fit_mode };
+			pos.mesh = { desc.shape_data.mesh.h_mesh };
 		}
 
-		if (desc.draw)
+		if (desc.draw or (desc.interact == e::interact_mode_kind::sdf or desc.shape_kind == e::shape_kind::mesh))
 		{
 			g::render_data_vec.emplace_back(render_data{
 				.pivot_uv		   = desc.pivot_uv,
@@ -160,6 +167,7 @@ namespace age::ui::detail
 				.shape_kind		   = desc.shape_kind,
 				.body_brush_kind   = desc.body_brush_kind,
 				.border_brush_kind = desc.border_brush_kind,
+				.fit_mode		   = desc.fit_mode,
 				.shape_data		   = desc.shape_data,
 				.body_brush_data   = desc.body_brush_data,
 				.border_brush_data = desc.border_brush_data,

@@ -113,6 +113,8 @@
 #define UI_SHAPE_KIND_ROUNDED_RECT 5
 #define UI_SHAPE_KIND_TRIANGLE	   6
 #define UI_SHAPE_KIND_CROSS		   7
+#define UI_SHAPE_KIND_ARC		   8
+#define UI_SHAPE_KIND_MESH		   9
 
 #define UI_BRUSH_KIND_COLOR 0
 
@@ -212,7 +214,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		float4 clip_rect;
 
-		uint32 packed_enums;	// [shape_kind(8bit)][body_brush_kind(8bit)][border_brush_kind(8bit)][extra(8bit)]
+		uint32 packed_enums;	// [shape_kind(8bit)][body_brush_kind(8bit)][border_brush_kind(8bit)][fit_mode_kind(8bit)]
 
 		ui_shape_data shape_data;
 		ui_brush_data body_brush_data;
@@ -520,6 +522,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(UI_SHAPE_KIND_ROUNDED_RECT == to_idx(age::ui::e::shape_kind::rounded_rect));
 	static_assert(UI_SHAPE_KIND_TRIANGLE == to_idx(age::ui::e::shape_kind::triangle));
 	static_assert(UI_SHAPE_KIND_CROSS == to_idx(age::ui::e::shape_kind::cross));
+	static_assert(UI_SHAPE_KIND_ARC == to_idx(age::ui::e::shape_kind::arc));
+	static_assert(UI_SHAPE_KIND_MESH == to_idx(age::ui::e::shape_kind::mesh));
+
 	static_assert(UI_BRUSH_KIND_COLOR == to_idx(age::ui::e::brush_kind::color));
 
 	static_assert(VERTEX_KIND_P_UV0 == to_idx(age::asset::e::vertex_kind::p_uv0));
@@ -674,6 +679,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef UI_SHAPE_KIND_ROUNDED_RECT
 	#undef UI_SHAPE_KIND_TRIANGLE
 	#undef UI_SHAPE_KIND_CROSS
+	#undef UI_SHAPE_KIND_ARC
+	#undef UI_SHAPE_KIND_MESH
 
 	#undef UI_BRUSH_KIND_COLOR
 

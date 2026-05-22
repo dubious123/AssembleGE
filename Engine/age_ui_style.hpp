@@ -93,6 +93,31 @@ namespace age::ui
 	DEF(interact, interact)
 	DEF(save_state, save_state)
 	DEF(clip, clip)
+	DEF(fit_mode, fit_mode)
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fit_mode_cover() noexcept
+	{
+		return set_fit_mode(e::fit_mode_kind::cover);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fit_mode_fill() noexcept
+	{
+		return set_fit_mode(e::fit_mode_kind::fill);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fit_mode_none() noexcept
+	{
+		return set_fit_mode(e::fit_mode_kind::none);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fit_mode_scale_down() noexcept
+	{
+		return set_fit_mode(e::fit_mode_kind::scale_down);
+	}
 
 	FORCE_INLINE constexpr decltype(auto)
 	set_save_state() noexcept
@@ -107,15 +132,45 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_shape_mesh(asset::handle h_mesh, e::fit_mode_kind fit_mode = e::fit_mode_kind::contain) noexcept
+	set_shape_circle() noexcept
 	{
-		return set_shape(ui_shape_data{ .mesh = { h_mesh.id, fit_mode } }, e::shape_kind::mesh);
+		return set_shape_kind(e::shape_kind::circle);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_interact() noexcept
+	set_shape_mesh(asset::handle h_mesh) noexcept
 	{
-		return set_interact(true);
+		return set_shape(ui_shape_data{ .mesh = { h_mesh.id } }, e::shape_kind::mesh);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_arc(float thickness, float angle) noexcept
+	{
+		return set_shape(ui_shape_data{ .arc = { .thickness = thickness, .aperture_sin = std::sin(angle * 0.5f), .aperture_cos = std::cos(angle * 0.5f) } }, e::shape_kind::arc);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_interact(bool enable = true) noexcept
+	{
+		return set_interact(enable ? e::interact_mode_kind::rect : e::interact_mode_kind::none);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_interact_rect(bool enable = true) noexcept
+	{
+		return set_interact(enable ? e::interact_mode_kind::rect : e::interact_mode_kind::none);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_interact_mesh(bool enable = true) noexcept
+	{
+		return set_interact(enable ? e::interact_mode_kind::mesh : e::interact_mode_kind::none);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_interact_sdf(bool enable = true) noexcept
+	{
+		return set_interact(enable ? e::interact_mode_kind::sdf : e::interact_mode_kind::none);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -146,6 +201,18 @@ namespace age::ui
 	set_offset(float x, float y) noexcept
 	{
 		return detail::mod_offset{ float2{ x, y } };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_body_brush_color(float4 color) noexcept
+	{
+		return set_body_brush(brush_data::color(color), e::brush_kind::color);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_body_brush_color(float3 color) noexcept
+	{
+		return set_body_brush(brush_data::color(color, 1.f), e::brush_kind::color);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -182,6 +249,18 @@ namespace age::ui
 	set_border_brush_data(float3 rgb, float a = 1.f) noexcept
 	{
 		return detail::mod_border_brush_data{ brush_data::color(rgb.x, rgb.y, rgb.z, a) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_border_brush_color(float4 color) noexcept
+	{
+		return set_border_brush(brush_data::color(color), e::brush_kind::color);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_border_brush_color(float3 color) noexcept
+	{
+		return set_border_brush(brush_data::color(color, 1.f), e::brush_kind::color);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)

@@ -681,7 +681,7 @@ namespace age::ui::widget
 			if (auto h_handle = widget::begin(style::vertical()
 											  | set_size(size_mode::fit(), size_mode::grow())
 											  | set_padding(0, 0, 0, 0)
-											  | set_interact(true)))
+											  | set_interact()))
 			{
 				auto  style_state  = e::style_state::idle;
 				auto& widget_state = h_handle.get_state();
@@ -729,7 +729,7 @@ namespace age::ui::widget
 			if (auto h_handle = widget::begin(style::vertical()
 											  | set_size(size_mode::grow(), size_mode::fit())
 											  | set_padding(0, 0, 0, 0)
-											  | set_interact(true)))
+											  | set_interact()))
 			{
 				auto  style_state  = e::style_state::idle;
 				auto& widget_state = h_handle.get_state();
@@ -768,11 +768,11 @@ namespace age::ui::widget
 	scroll_area_v() noexcept
 	{
 		using enum input::e::key_kind;
-		if (auto h_panel = widget::begin(style::horizontal_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact(true)))
+		if (auto h_panel = widget::begin(style::horizontal_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact()))
 		{
 			auto track_id	   = t_hash{};
 			auto scroll_offset = 0.f;
-			if (auto h_track = widget::begin(style::vertical() | set_save_state(true) | set_interact(true) | set_width_fit() | set_height_grow()))
+			if (auto h_track = widget::begin(style::vertical() | set_save_state(true) | set_interact() | set_width_fit() | set_height_grow()))
 			{
 				track_id = h_track.hash_id;
 
@@ -864,11 +864,11 @@ namespace age::ui::widget
 	scroll_area_h() noexcept
 	{
 		using enum input::e::key_kind;
-		if (auto h_panel = widget::begin(style::vertical_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact(true)))
+		if (auto h_panel = widget::begin(style::vertical_inv() | set_size(size_mode::grow(), size_mode::grow()) | set_interact()))
 		{
 			auto track_id	   = t_hash{};
 			auto scroll_offset = 0.f;
-			if (auto h_track = widget::begin(style::horizontal() | set_save_state(true) | set_interact(true) | set_height_fit() | set_width_grow()))
+			if (auto h_track = widget::begin(style::horizontal() | set_save_state(true) | set_interact() | set_height_fit() | set_width_grow()))
 			{
 				track_id = h_track.hash_id;
 
@@ -1061,7 +1061,7 @@ namespace age::ui::widget
 			auto is_open = false;
 
 			if (auto header = widget::begin(style::frame()
-											| set_interact(true)
+											| set_interact()
 											| set_width(size_mode::grow())
 											| set_layout(e::widget_layout::horizontal)
 											| set_align(e::widget_align::begin)))
@@ -1110,7 +1110,7 @@ namespace age::ui::widget
 		c_auto max_thumb_size = std::max(std::max(theme::slider_thumb_size(), theme::slider_thumb_size_hover()), theme::slider_thumb_size_active());
 
 		if (auto h_slider = widget::begin(style::layout(e::widget_layout::horizontal)
-										  | set_interact(true)
+										  | set_interact()
 										  | set_save_state(true)
 										  | set_child_gap(0)
 										  | set_size(size_mode::grow(), size_mode::fixed(max_thumb_size))))
@@ -1246,7 +1246,7 @@ namespace age::ui::widget
 
 				auto _id = id_begin();
 
-				if (auto btn = widget::begin(set_interact(true) | set_padding(0) | set_width_grow() | set_height_fit()))
+				if (auto btn = widget::begin(set_interact() | set_padding(0) | set_width_grow() | set_height_fit()))
 				{
 					auto state = idle;
 					if (btn.pressed<mouse_left>())

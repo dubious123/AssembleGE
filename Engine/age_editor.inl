@@ -59,9 +59,9 @@ namespace age::editor
 							| simd::load()
 							| simd::euler_to_quat();
 
-		c_auto forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
-		c_auto right   = simd::g::xm_right_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
-		c_auto up	   = simd::g::xm_up_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
+		c_auto forward = simd::rotate3(xm_look_quat, simd::g::xm_forward_f4) | simd::to<float3>();
+		c_auto right   = simd::rotate3(xm_look_quat, simd::g::xm_right_f4) | simd::to<float3>();
+		c_auto up	   = simd::rotate3(xm_look_quat, simd::g::xm_up_f4) | simd::to<float3>();
 
 		cam.pos -= right * cam.smoothed_pan.x * cam.pan_speed * dt_s;
 		cam.pos += up * cam.smoothed_pan.y * cam.pan_speed * dt_s;
@@ -326,7 +326,7 @@ namespace age::editor::detail
 	}
 }	 // namespace age::editor::detail
 
-// widget
+// gizmo
 namespace age::editor
 {
 	void
@@ -346,7 +346,7 @@ namespace age::editor
 							| simd::load()
 							| simd::euler_to_quat();
 
-		c_auto cam_forward = simd::g::xm_forward_f4 | simd::rotate3(xm_look_quat) | simd::to<float3>();
+		c_auto cam_forward = simd::rotate3(xm_look_quat, simd::g::xm_forward_f4) | simd::to<float3>();
 
 
 		if (ui::g::p_input_ctx->is_down(mouse_right) is_false)
@@ -373,11 +373,22 @@ namespace age::editor
 		c_auto translation = mode == e::transform_mode_kind::translation
 							   ? gizmo::translation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
 							   : float3::zero();
-		c_auto rotation	   = math::g::quaternion_identity;
 
-		c_auto && [ scale_ratio, scale_drag_start, scale_dragging ] = mode == e::transform_mode_kind::scale
-																		? gizmo::scale(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
-																		: std::tuple{ float3::one(), false, false };
+		c_auto && [ rotation_res, rotation_drag_start, rotation_dragging ] = mode == e::transform_mode_kind::rotation
+																			   ? gizmo::rotation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+																			   : std::tuple{ math::g::quaternion_identity, false, false };
+
+		c_auto && [ scale_res, scale_drag_start, scale_dragging ] = mode == e::transform_mode_kind::scale
+																	  ? gizmo::scale(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+																	  : std::tuple{ float3::one(), false, false };
+
+		if (rotation_dragging is_false)
+		{
+			for (auto& map : g::rotation_snapshot_vec)
+			{
+				map.clear();
+			}
+		}
 
 		if (scale_dragging is_false)
 		{
@@ -411,6 +422,19 @@ namespace age::editor
 						}
 						else if (mode == e::transform_mode_kind::rotation)
 						{
+							if (entities.has_component<ecs::rotation>(id))
+							{
+								auto&& [rotation] = entities.get_component<ecs::rotation>(id);
+								if (rotation_drag_start)
+								{
+									g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id] = rotation;
+								}
+								else if (rotation_dragging)
+								{
+									AGE_ASSERT(g::rotation_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
+									rotation = math::quat_mul(rotation_res, g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id]);
+								}
+							}
 						}
 						else if (mode == e::transform_mode_kind::scale)
 						{
@@ -424,7 +448,7 @@ namespace age::editor
 								else if (scale_dragging)
 								{
 									AGE_ASSERT(g::scale_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
-									scale = g::scale_snapshot_vec[active_scene.code_idx][ecs_ent_id] * scale_ratio;
+									scale = g::scale_snapshot_vec[active_scene.code_idx][ecs_ent_id] * scale_res;
 								}
 							}
 						}

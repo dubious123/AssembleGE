@@ -49,6 +49,12 @@ namespace age::ecs
 				   and std::is_same_v<typename std::remove_cvref_t<t>::ecs_tag, query_tag>;
 }	 // namespace age::ecs
 
+namespace age::ui::e
+{
+	// css object-fit
+	AGE_DEFINE_ENUM(fit_mode_kind, uint8, contain, cover, fill, none, scale_down);
+}	 // namespace age::ui::e
+
 namespace age::graphics
 {
 	AGE_DEFINE_ENUM(color_space, uint8, srgb, hdr);
