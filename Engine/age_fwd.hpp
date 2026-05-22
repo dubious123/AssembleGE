@@ -53,6 +53,20 @@ namespace age::ui::e
 {
 	// css object-fit
 	AGE_DEFINE_ENUM(fit_mode_kind, uint8, contain, cover, fill, none, scale_down);
+
+	AGE_DEFINE_ENUM(shape_kind, uint8,
+					rect,
+					circle,
+					arrow_right,
+					text,
+					check,
+					rounded_rect,
+					triangle,
+					cross,
+					arc,
+					pie,
+					pie_range,
+					mesh);
 }	 // namespace age::ui::e
 
 namespace age::graphics

@@ -2,6 +2,29 @@
 
 namespace age::inline math
 {
+#define AGE_VEC_FUNC(func_name)                                                                    \
+	template <template <typename> typename v, typename t>                                          \
+	FORCE_INLINE constexpr decltype(auto)                                                          \
+	func_name(const v<t>& lhs) noexcept                                                            \
+	{                                                                                              \
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)               \
+		{                                                                                          \
+			return v<t>{ func_name(lhs.x), func_name(lhs.y) };                                     \
+		}                                                                                          \
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)          \
+		{                                                                                          \
+			return v<t>{ func_name(lhs.x), func_name(lhs.y), func_name(lhs.z) };                   \
+		}                                                                                          \
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)          \
+		{                                                                                          \
+			return v<t>{ func_name(lhs.x), func_name(lhs.y), func_name(lhs.z), func_name(lhs.w) }; \
+		}                                                                                          \
+		else                                                                                       \
+		{                                                                                          \
+			static_assert(false, "unsupported type for pow");                                      \
+		}                                                                                          \
+	}
+
 	FORCE_INLINE float
 	as_float(auto&& x) noexcept
 	{
@@ -18,6 +41,12 @@ namespace age::inline math
 	cvt_to_degree(float radians) noexcept
 	{
 		return radians * g::radian_to_degree;
+	}
+
+	FORCE_INLINE float2
+	normalize(const float2& v) noexcept
+	{
+		return v | simd::load() | simd::normalize2() | simd::to<float2>();
 	}
 
 	FORCE_INLINE float3
@@ -291,36 +320,108 @@ namespace age::inline math
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	clamp(auto x, auto min, auto max) noexcept
-	{
-		return std::clamp(x, min, max);
-	}
-
-	FORCE_INLINE constexpr decltype(auto)
-	sqrt(auto f) noexcept
+	sqrt(float f) noexcept
 	{
 		return std::sqrt(f);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	sign(auto f) noexcept
+	sign(float f) noexcept
 	{
 		if (f > 0) { return 1.f; }
 		if (f < 0) { return -1.f; }
 		return 0.f;
 	}
 
+	AGE_VEC_FUNC(sign);
+
 	FORCE_INLINE constexpr decltype(auto)
-	sin(auto f) noexcept
+	sin(float f) noexcept
 	{
 		return std::sin(f);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	cos(auto f) noexcept
+	cos(float f) noexcept
 	{
 		return std::cos(f);
 	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	pow(float a, float b)
+	{
+		return std::pow(a, b);
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	pow(const v<t>& lhs, t rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs), std::pow(lhs.y, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs), std::pow(lhs.y, rhs), std::pow(lhs.z, rhs) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs), std::pow(lhs.y, rhs), std::pow(lhs.z, rhs), std::pow(lhs.w, rhs) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for pow");
+		}
+	}
+
+	template <template <typename> typename v, typename t>
+	FORCE_INLINE constexpr decltype(auto)
+	pow(const v<t>& lhs, const v<t>& rhs) noexcept
+	{
+		if constexpr (std::is_same_v<v<t>, float2> or std::is_same_v<v<t>, float2a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs.x), std::pow(lhs.y, rhs.y) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float3> or std::is_same_v<v<t>, float3a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs.x), std::pow(lhs.y, rhs.y), std::pow(lhs.z, rhs.z) };
+		}
+		else if constexpr (std::is_same_v<v<t>, float4> or std::is_same_v<v<t>, float4a>)
+		{
+			return v<t>{ std::pow(lhs.x, rhs.x), std::pow(lhs.y, rhs.y), std::pow(lhs.z, rhs.z), std::pow(lhs.w, rhs.w) };
+		}
+		else
+		{
+			static_assert(false, "unsupported type for max");
+		}
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	clamp(auto x, auto min, auto max) noexcept
+	{
+		return std::clamp(x, min, max);
+	}
+
+	FORCE_INLINE decltype(auto)
+	clamp(const float2& v, auto min, auto max) noexcept
+	{
+		return float2{ std::clamp(v.x, min, max), std::clamp(v.y, min, max) };
+	}
+
+	FORCE_INLINE decltype(auto)
+	clamp(const float3& v, auto min, auto max) noexcept
+	{
+		return float3{ std::clamp(v.x, min, max), std::clamp(v.y, min, max), std::clamp(v.z, min, max) };
+	}
+
+	FORCE_INLINE decltype(auto)
+	clamp(const float4& v, auto min, auto max) noexcept
+	{
+		return float4{ std::clamp(v.x, min, max), std::clamp(v.y, min, max), std::clamp(v.z, min, max), std::clamp(v.w, min, max) };
+	}
+
+#undef AGE_VEC_FUNC
 }	 // namespace age::inline math
 
 // 2d
@@ -382,6 +483,18 @@ namespace age::inline math
 	rotate(const float2& v, float radian)
 	{
 		return float2((v.x * cos(radian) - v.y * sin(radian)), v.x * sin(radian) + v.y * cos(radian));
+	}
+
+	FORCE_INLINE float3
+	rotate_around(const float4& quat, const float3& point, const float3& pivot) noexcept
+	{
+		return pivot + math::rotate(quat, point - pivot);
+	}
+
+	FORCE_INLINE float4
+	quat_rotation_normal(const float3& dir /*normalized*/, const float rad) noexcept
+	{
+		return simd::quat_rotation_normal(simd::load(dir), rad) | simd::to<float4>();
 	}
 
 	FORCE_INLINE float4

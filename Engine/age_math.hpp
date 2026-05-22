@@ -239,6 +239,27 @@ struct vec2
 		return t_this{ -x, -y };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	yx() const noexcept
+
+	{
+		return t_this{ y, x };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	yy() const noexcept
+
+	{
+		return t_this{ y, y };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	xx() const noexcept
+
+	{
+		return t_this{ x, x };
+	}
+
 	FORCE_INLINE constexpr bool
 	is_zero() const noexcept
 	{

@@ -374,9 +374,9 @@ namespace age::editor
 							   ? gizmo::translation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
 							   : float3::zero();
 
-		c_auto && [ rotation_res, rotation_drag_start, rotation_dragging ] = mode == e::transform_mode_kind::rotation
-																			   ? gizmo::rotation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
-																			   : std::tuple{ math::g::quaternion_identity, false, false };
+		c_auto && [ rotation_res, pivot_pos, rotation_drag_start, rotation_dragging ] = mode == e::transform_mode_kind::rotation
+																						  ? gizmo::rotation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+																						  : std::tuple{ math::g::quaternion_identity, float3::zero(), false, false };
 
 		c_auto && [ scale_res, scale_drag_start, scale_dragging ] = mode == e::transform_mode_kind::scale
 																	  ? gizmo::scale(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
@@ -399,6 +399,7 @@ namespace age::editor
 		}
 
 		g::scale_snapshot_vec.resize(g::select_vec.size());
+		g::rotation_snapshot_vec.resize(g::select_vec.size());
 
 		for (auto&& [storage_code_idx, vec] : g::select_vec | std::views::enumerate /*editor::all_selected()*/)
 		{
@@ -422,17 +423,34 @@ namespace age::editor
 						}
 						else if (mode == e::transform_mode_kind::rotation)
 						{
-							if (entities.has_component<ecs::rotation>(id))
+							if (entities.has_component<ecs::rotation, ecs::position>(id))
 							{
-								auto&& [rotation] = entities.get_component<ecs::rotation>(id);
+								AGE_ASSERT(rotation_dragging is_false or g::rotation_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
+
+								auto& snap			   = g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id];
+								auto&& [pos, rotation] = entities.get_component<ecs::position, ecs::rotation>(id);
 								if (rotation_drag_start)
 								{
-									g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id] = rotation;
+									snap.position = pos;
+									snap.rotation = rotation;
 								}
 								else if (rotation_dragging)
 								{
-									AGE_ASSERT(g::rotation_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
-									rotation = math::quat_mul(rotation_res, g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id]);
+									pos		 = math::rotate_around(rotation_res, snap.position, pivot_pos);
+									rotation = math::quat_mul(rotation_res, snap.rotation);
+								}
+							}
+							else if (entities.has_component<ecs::rotation>(id))
+							{
+								auto& snap		  = g::rotation_snapshot_vec[active_scene.code_idx][ecs_ent_id];
+								auto&& [rotation] = entities.get_component<ecs::rotation>(id);
+								if (rotation_drag_start)
+								{
+									snap.rotation = rotation;
+								}
+								else if (rotation_dragging)
+								{
+									rotation = math::quat_mul(rotation_res, snap.rotation);
 								}
 							}
 						}

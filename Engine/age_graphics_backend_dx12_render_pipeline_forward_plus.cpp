@@ -735,17 +735,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_cull_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_main_buffer_rtv_desc, h_rt_transparent_texture_buffer, extent);
 
-		// debug aot mesh
-		stage_debug.execute(root_constants, h_main_buffer_rtv_desc, h_debug_depth_buffer_dsv_desc, true, debug_aot_meshlet_render_data_vec.size<uint32>(), debug_meshlet_render_data_vec.size<uint32>());
-
-		stage_ui.execute(root_constants,
-						 h_main_buffer_rtv_desc,
-						 h_depth_buffer_dsv_readonly_desc,	  // not used
-						 ui::e::space_mode_kind::world_always_on_top,
-						 ui_root_data_idx_arr[to_idx(ui::e::space_mode_kind::world_always_on_top)],
-						 ui_root_data_vec_arr[to_idx(ui::e::space_mode_kind::world_always_on_top)].size<uint32>(),
-						 ui_render_data_z_range_vec,
-						 ui_render_data_z_range_of_range_vec);
 
 		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
@@ -766,6 +755,18 @@ namespace age::graphics::render_pipeline::forward_plus
 										h_selection_outline_mask_buffer_rtv_desc,
 										h_post_buffer_rtv_desc,
 										h_selection_outline_mask_buffer);
+
+		// debug aot mesh
+		stage_debug.execute(root_constants, h_post_buffer_rtv_desc, h_debug_depth_buffer_dsv_desc, true, debug_aot_meshlet_render_data_vec.size<uint32>(), debug_meshlet_render_data_vec.size<uint32>());
+
+		stage_ui.execute(root_constants,
+						 h_post_buffer_rtv_desc,
+						 h_depth_buffer_dsv_readonly_desc,	  // not used
+						 ui::e::space_mode_kind::world_always_on_top,
+						 ui_root_data_idx_arr[to_idx(ui::e::space_mode_kind::world_always_on_top)],
+						 ui_root_data_vec_arr[to_idx(ui::e::space_mode_kind::world_always_on_top)].size<uint32>(),
+						 ui_render_data_z_range_vec,
+						 ui_render_data_z_range_of_range_vec);
 
 		stage_ui.execute(root_constants,
 						 h_post_buffer_rtv_desc,

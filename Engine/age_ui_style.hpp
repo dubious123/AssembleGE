@@ -138,6 +138,12 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	set_shape_rounded_rect(float roundness) noexcept
+	{
+		return set_shape(ui_shape_data{ .roundness = { roundness } }, e::shape_kind::rounded_rect);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	set_shape_mesh(asset::handle h_mesh) noexcept
 	{
 		return set_shape(ui_shape_data{ .mesh = { h_mesh.id } }, e::shape_kind::mesh);
@@ -146,7 +152,35 @@ namespace age::ui
 	FORCE_INLINE constexpr decltype(auto)
 	set_shape_arc(float thickness, float angle) noexcept
 	{
-		return set_shape(ui_shape_data{ .arc = { .thickness = thickness, .aperture_sin = std::sin(angle * 0.5f), .aperture_cos = std::cos(angle * 0.5f) } }, e::shape_kind::arc);
+		return set_shape(ui_shape_data{ .arc = { .thickness = thickness, .aperture_sin = sin(angle * 0.5f), .aperture_cos = cos(angle * 0.5f) } }, e::shape_kind::arc);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_pie(float angle) noexcept
+	{
+		return set_shape(ui_shape_data{ .pie = { .aperture_sin = sin(angle * 0.5f), .aperture_cos = cos(angle * 0.5f) } }, e::shape_kind::pie);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_pie_range(float start_rad /*+y*/, float sweep_rad /*cw*/) noexcept
+	{
+		return set_shape(ui_shape_data{ .pie_range = { .start_sin = sin(start_rad),
+													   .start_cos = cos(start_rad),
+													   .end_sin	  = sin(start_rad + sweep_rad),
+													   .end_cos	  = cos(start_rad + sweep_rad),
+													   .sweep_rad = sweep_rad } },
+						 e::shape_kind::pie_range);
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_shape_pie_range(float2 start_sc, float2 end_sc, float sweep_rad /*cw*/) noexcept
+	{
+		return set_shape(ui_shape_data{ .pie_range = { .start_sin = start_sc.x,
+													   .start_cos = start_sc.y,
+													   .end_sin	  = end_sc.x,
+													   .end_cos	  = end_sc.y,
+													   .sweep_rad = sweep_rad } },
+						 e::shape_kind::pie_range);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -210,9 +244,9 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_body_brush_color(float3 color) noexcept
+	set_body_brush_color(float3 color, float alpha = 1.f) noexcept
 	{
-		return set_body_brush(brush_data::color(color, 1.f), e::brush_kind::color);
+		return set_body_brush(brush_data::color(color, alpha), e::brush_kind::color);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -258,9 +292,9 @@ namespace age::ui
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
-	set_border_brush_color(float3 color) noexcept
+	set_border_brush_color(float3 color, float alpha = 1.f) noexcept
 	{
-		return set_border_brush(brush_data::color(color, 1.f), e::brush_kind::color);
+		return set_border_brush(brush_data::color(color, alpha), e::brush_kind::color);
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
@@ -407,6 +441,17 @@ namespace age::ui
 								 size,
 								 size,
 								 size,
+								 e::size_mode_kind::fixed,
+								 e::size_mode_kind::fixed };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	set_fixed(float width, float height) noexcept
+	{
+		return detail::mod_size{ width,
+								 height,
+								 width,
+								 height,
 								 e::size_mode_kind::fixed,
 								 e::size_mode_kind::fixed };
 	}

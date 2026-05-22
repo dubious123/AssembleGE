@@ -48,8 +48,8 @@ namespace age::editor::gizmo
 	float3
 	translation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
 
-	// quat , drag_started, dragging
-	std::tuple<float4, bool, bool>
+	// quat, pivot world pos, drag_started, dragging
+	std::tuple<float4, float3, bool, bool>
 	rotation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
 
 	// scale ratio , drag_started, dragging

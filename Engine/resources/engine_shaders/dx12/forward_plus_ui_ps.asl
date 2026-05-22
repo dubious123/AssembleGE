@@ -83,6 +83,16 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 		delta_from_edge = sdf_arc(center_offset, data.size, fit_mode, data.shape_data.data);
 		break;
 	}
+	case UI_SHAPE_KIND_PIE:
+	{
+		delta_from_edge = sdf_pie(center_offset, data.size, fit_mode, data.shape_data.data);
+		break;
+	}
+	case UI_SHAPE_KIND_PIE_RANGE:
+	{
+		delta_from_edge = sdf_pie_range(center_offset, data.size, fit_mode, data.shape_data.data);
+		break;
+	}
 	}
 
 	attr_branch()
@@ -136,10 +146,12 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 	{
 		float2 panel_local_pos = data.pivot_pos + rotate((ps_in.rect_uv - data.pivot_uv) * data.size, data.rotation);
 
-		draw = panel_local_pos.x >= data.clip_rect.x
-		   and panel_local_pos.y >= data.clip_rect.y
-		   and panel_local_pos.x <= data.clip_rect.z
-		   and panel_local_pos.y <= data.clip_rect.w;
+		draw = panel_local_pos.x >= data.clip_rect.x + epsilon_1e4
+		   and panel_local_pos.y >= data.clip_rect.y + epsilon_1e4
+		   and panel_local_pos.x <= data.clip_rect.z - epsilon_1e4
+		   and panel_local_pos.y <= data.clip_rect.w - epsilon_1e4;
+
+		draw = true;
 	}
 
 	attr_branch()

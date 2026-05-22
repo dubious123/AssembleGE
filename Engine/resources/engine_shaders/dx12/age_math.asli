@@ -13,6 +13,24 @@ static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+float
+length_sq(float2 v)
+{
+	return dot(v, v);
+}
+
+float
+length_sq(float3 v)
+{
+	return dot(v, v);
+}
+
+float
+length_sq(float4 v)
+{
+	return dot(v, v);
+}
+
 bool
 is_nan(float v)
 {

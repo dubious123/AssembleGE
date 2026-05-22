@@ -141,6 +141,15 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+namespace age::editor
+{
+	struct rotation_snapshot
+	{
+		float3 position;
+		float4 rotation;
+	};
+}	 // namespace age::editor
+
 namespace age::editor::g
 {
 	inline auto current_select_kind = editor::e::select_kind::none;
@@ -168,5 +177,7 @@ namespace age::editor::g
 	inline auto gizmo_space			  = e::transform_space_kind::world;
 	inline auto gizmo_transform_mode  = e::transform_mode_kind::select;
 	inline auto scale_snapshot_vec	  = age::vector<age::unordered_map<uint64, float3>>{};
-	inline auto rotation_snapshot_vec = age::vector<age::unordered_map<uint64, float4>>{};
+	inline auto rotation_snapshot_vec = age::vector<age::unordered_map<uint64, rotation_snapshot>>{};
+
+	inline constexpr c_auto gizmo_rotation_trackball_sensitivity = 0.05f;
 }	 // namespace age::editor::g

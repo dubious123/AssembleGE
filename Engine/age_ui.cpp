@@ -534,32 +534,32 @@ namespace age::ui
 								}
 								case e::shape_kind::arrow_right:
 								{
-									hover = sdf_arrow_right(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_arrow_right(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								case e::shape_kind::check:
 								{
-									hover = sdf_check(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_check(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								case e::shape_kind::rounded_rect:
 								{
-									hover = sdf_rounded_rect(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_rounded_rect(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								case e::shape_kind::triangle:
 								{
-									hover = sdf_triangle(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_triangle(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								case e::shape_kind::cross:
 								{
-									hover = sdf_cross(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_cross(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								case e::shape_kind::arc:
 								{
-									hover = sdf_arc(center_offset, size, rd.fit_mode, rd.shape_data.data) >= 0.f;
+									hover = sdf_arc(center_offset, size, rd.fit_mode, rd.shape_data.data) <= 0.f;
 									break;
 								}
 								default:

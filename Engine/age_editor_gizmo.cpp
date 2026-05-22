@@ -50,7 +50,7 @@ namespace age::editor::gizmo
 							 : is_disabled
 								 ? disabled_color
 							 : is_hovered_prev
-								 ? theme::palette_light_red()
+								 ? theme::palette_red_bright()
 								 : theme::color_red();
 
 				if (auto h_center = widget::begin(set_width_fixed(0)
@@ -128,7 +128,7 @@ namespace age::editor::gizmo
 								 : is_disabled
 									 ? disabled_color
 								 : is_hovered_prev
-									 ? theme::palette_light_green()
+									 ? theme::palette_green_bright()
 									 : theme::color_green();
 
 					auto is_drag  = false;
@@ -188,8 +188,8 @@ namespace age::editor::gizmo
 								   : is_disabled
 									   ? disabled_color
 								   : is_hovered_prev
-									   ? theme::palette_light_blue()
-									   : theme::color_blue();
+									   ? theme::palette_blue_bright()
+									   : theme::palette_blue();
 				c_auto opacity	   = is_drag_prev or is_hovered_prev or is_disabled ? 1.f : theme::opacity_heavy();
 
 
@@ -249,8 +249,8 @@ namespace age::editor::gizmo
 							 : is_disabled
 								 ? disabled_color
 							 : is_hovered_prev
-								 ? theme::palette_light_blue()
-								 : theme::color_blue();
+								 ? theme::palette_blue_bright()
+								 : theme::palette_blue();
 
 				auto is_drag  = false;
 				auto is_hover = false;
@@ -308,7 +308,7 @@ namespace age::editor::gizmo
 								   : is_disabled
 									   ? disabled_color
 								   : is_hovered_prev
-									   ? theme::palette_light_red()
+									   ? theme::palette_red_bright()
 									   : theme::color_red();
 				c_auto opacity	   = is_drag_prev or is_hovered_prev or is_disabled ? 1.f : theme::opacity_heavy();
 
@@ -367,7 +367,7 @@ namespace age::editor::gizmo
 								   : is_disabled
 									   ? disabled_color
 								   : is_hovered_prev
-									   ? theme::palette_light_green()
+									   ? theme::palette_green_bright()
 									   : theme::color_green();
 				c_auto opacity	   = is_drag_prev or is_hovered_prev or is_disabled ? 1.f : theme::opacity_heavy();
 
@@ -452,8 +452,8 @@ namespace age::editor::gizmo
 					c_auto color = is_drag_prev
 									 ? drag_color
 								 : is_hovered_prev
-									 ? theme::palette_light_red()
-									 : theme::color_white();
+									 ? theme::color_white() * 2
+									 : theme::color_white_subtle() * 2;
 
 					if (auto h_center = widget::begin(set_width_fixed(0)
 													  | set_height_fixed(screen_size * 0.1f)
@@ -520,7 +520,7 @@ namespace age::editor::gizmo
 							 : is_disabled
 								 ? disabled_color
 							 : is_hovered_prev
-								 ? theme::palette_light_red()
+								 ? theme::palette_red_bright()
 								 : theme::color_red();
 
 				auto is_drag  = false;
@@ -594,7 +594,7 @@ namespace age::editor::gizmo
 								 : is_disabled
 									 ? disabled_color
 								 : is_hovered_prev
-									 ? theme::palette_light_green()
+									 ? theme::palette_green_bright()
 									 : theme::color_green();
 
 					auto is_drag  = false;
@@ -680,8 +680,8 @@ namespace age::editor::gizmo
 							 : is_disabled
 								 ? disabled_color
 							 : is_hovered_prev
-								 ? theme::palette_light_blue()
-								 : theme::color_blue();
+								 ? theme::palette_azure_bright()
+								 : theme::palette_blue();
 
 				auto is_drag  = false;
 				auto is_hover = false;
@@ -768,45 +768,90 @@ namespace age::editor::gizmo
 		return std::tuple{ res_scale_ratio, is_drag_start, is_any_pressed };
 	}
 
-	std::tuple<float4, bool, bool>
+	std::tuple<float4, float3, bool, bool>
 	rotation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept
 	{
 		enum class mode_kind : uint8
 		{
 			none,
+			outer_circle,
 			axis_x,
 			axis_y,
 			axis_z,
-			view
+			trackball
 		};
 
 		using namespace ui;
 		using namespace ui::widget;
 		using enum input::e::key_kind;
 
-		static auto res_quat			= math::g::quaternion_identity;
-		static auto is_any_pressed_prev = false;
+		static auto prev_hover = mode_kind::none;
+		static auto prev_drag  = mode_kind::none;
 
-		static auto current_mode = mode_kind::none;
+		static auto prev_mouse_sc		= float2{ 1, 0 };
+		static auto drag_start_mouse_sc = float2{ 1, 0 };
 
-		auto is_any_pressed = false;
+		static auto drag_angle = 0.f;
 
-		c_auto obj_x = rotate(quat, math::g::right);
-		c_auto obj_y = rotate(quat, math::g::up);
-		c_auto obj_z = rotate(quat, math::g::forward);
+		static auto gizmo_world_pos_on_drag_start = float3{};
 
-		c_auto view_z			= std::max(math::dot(world_pos - cam_pos, cam_forward), 0.5f);
+		static auto trackball_quat = math::g::quaternion_identity;
+
+		static auto quat_on_drag_start = math::g::quaternion_identity;
+
+		auto res_quat = math::g::quaternion_identity;
+
+		auto current_hover = mode_kind::none;
+		auto current_drag  = mode_kind::none;
+
+
+		c_auto outer_circle_hover = prev_hover == mode_kind::outer_circle;
+		c_auto axis_x_hover		  = prev_hover == mode_kind::axis_x;
+		c_auto axis_y_hover		  = prev_hover == mode_kind::axis_y;
+		c_auto axis_z_hover		  = prev_hover == mode_kind::axis_z;
+
+		c_auto outer_circle_drag = prev_drag == mode_kind::outer_circle;
+		c_auto axis_x_drag		 = prev_drag == mode_kind::axis_x;
+		c_auto axis_y_drag		 = prev_drag == mode_kind::axis_y;
+		c_auto axis_z_drag		 = prev_drag == mode_kind::axis_z;
+
+		c_auto outer_circle_draw = outer_circle_drag or prev_drag == mode_kind::none;
+		c_auto axis_x_draw		 = axis_x_drag or prev_drag == mode_kind::none;
+		c_auto axis_y_draw		 = axis_y_drag or prev_drag == mode_kind::none;
+		c_auto axis_z_draw		 = axis_z_drag or prev_drag == mode_kind::none;
+
+		c_auto outer_circle_interact = outer_circle_draw;
+		c_auto axis_x_interact		 = axis_x_draw;
+		c_auto axis_y_interact		 = axis_y_draw;
+		c_auto axis_z_interact		 = axis_z_draw;
+
+		c_auto outer_circle_bright = outer_circle_hover or outer_circle_drag;
+		c_auto axis_x_bright	   = axis_x_hover or axis_x_drag;
+		c_auto axis_y_bright	   = axis_y_hover or axis_y_drag;
+		c_auto axis_z_bright	   = axis_z_hover or axis_z_drag;
+
+		c_auto quaternion = prev_drag == mode_kind::none ? quat : quat_on_drag_start;
+
+		c_auto obj_x = rotate(quaternion, math::g::right);
+		c_auto obj_y = rotate(quaternion, math::g::up);
+		c_auto obj_z = rotate(quaternion, math::g::forward);
+
+		c_auto is_drag_prev	   = prev_drag != mode_kind::none;
+		c_auto gizmo_world_pos = is_drag_prev ? gizmo_world_pos_on_drag_start : world_pos;
+
+		c_auto view_z			= std::max(math::dot(gizmo_world_pos - cam_pos, cam_forward), 0.5f);
 		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam_fov_y * 0.5f);
 		c_auto world_size		= world_size_scale * view_z;
 
 		c_auto root_quat = math::quat_look_to(cam_forward);
+
 
 		c_auto h_root = root_begin(root_desc{
 			.space_mode	  = ui::e::space_mode_kind::world_always_on_top,
 			.layout		  = ui::e::widget_layout::vertical,
 			.width		  = screen_size,
 			.height		  = screen_size,
-			.world_pos	  = world_pos + math::rotate(root_quat, float3(-world_size * 0.5f, world_size * 0.5f, 0)),
+			.world_pos	  = gizmo_world_pos + math::rotate(root_quat, float3(-world_size * 0.5f, world_size * 0.5f, 0)),
 			.quaternion	  = root_quat,
 			.world_width  = world_size,
 			.world_height = world_size,
@@ -814,41 +859,466 @@ namespace age::editor::gizmo
 
 		c_auto& root = ui::detail::get_current_root();
 
-		c_auto h_root_div = widget::horizontal(set_grow()
-											   | set_draw()
-											   | set_padding(theme::padding_small())
-											   | set_shape_circle()
-											   | set_border_thickness(theme::thickness_thick())
-											   | set_border_brush_color(theme::color_black()));
+		c_auto mouse_center_offset = root.mouse_uv - float2{ screen_size } * 0.5f;
+		c_auto mouse_sc			   = normalize(float2{ mouse_center_offset.x, -mouse_center_offset.y });
 
-		if (c_auto h_xz_plane = widget::vertical(set_fixed(0) | set_align_begin()))
+		c_auto h_outer_circle = widget::horizontal(set_grow()
+												   | set_child_gap(0)
+												   | set_draw(outer_circle_draw)
+												   | set_padding(theme::padding_large())
+												   | set_interact(outer_circle_interact ? ui::e::interact_mode_kind::sdf : ui::e::interact_mode_kind::none)
+												   | set_shape_circle()
+												   | set_shape_arc(theme::thickness_medium() * 2, cvt_to_radian(360))
+												   | set_body_brush_color(float4::zero())
+												   //| set_border_thickness(theme::thickness_thick())
+												   | set_body_brush_color(outer_circle_bright ? theme::color_white() * 3.f : theme::palette_white_mild() * 3.f));
+		if (h_outer_circle.hovered())
 		{
-			c_auto width  = screen_size - theme::padding_small() * 2;
-			c_auto height = max(width * 0.25f, width * abs(dot(obj_y, cam_forward)));
-			widget::begin(set_height_fixed(height)
-						  | set_width_fixed(width)
-						  | set_offset(0, width * 0.5f - height * 0.5f)
-						  | set_fit_mode_fill()
-						  | set_clip(false)
-						  | set_z_offset(1)
-						  | set_border_thickness(0)
-						  | set_draw()
-						  | set_align_begin()
-						  | set_rotation(cvt_to_radian(180))
-						  | set_shape_arc(theme::thickness_thick() * 2, cvt_to_radian(120.f))
-						  | set_body_brush_color(theme::color_blue()));
+			current_hover = mode_kind::outer_circle;
+		}
+		if (h_outer_circle.pressed<mouse_left>())
+		{
+			current_drag = mode_kind::outer_circle;
 		}
 
-
-		if (is_any_pressed is_false)
 		{
-			res_quat	 = math::g::quaternion_identity;
-			current_mode = mode_kind::none;
+			if (c_auto h_outer_circle_pie_circle = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto circle_count = static_cast<uint32>(abs(std::trunc(drag_angle / math::g::pi_2)));
+
+				// after = opacity_mild() + before * ( 1 - opacity_mild() );
+				auto opacity = 0.f;
+				for (auto _ : views::loop(circle_count))
+				{
+					opacity = theme::opacity_mild() + opacity * (1.f - theme::opacity_mild());
+				}
+
+				if (outer_circle_drag)
+				{
+					widget::begin(set_fixed(screen_size)
+								  | set_offset(-theme::padding_large(), -theme::padding_large())
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_shape_circle()
+								  | set_body_brush_color(theme::color_white() * 3.f, opacity));
+				}
+			}
+
+			if (c_auto h_outer_circle_pie = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto width  = screen_size - theme::padding_large() * 2;
+				c_auto height = max(theme::thickness_medium() * 4, (screen_size - theme::padding_large() * 2) * abs(dot(obj_y, cam_forward)));
+				if (outer_circle_drag)
+				{
+					widget::begin(set_fixed(screen_size)
+								  | set_offset(-theme::padding_large(), -theme::padding_large())
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_shape_pie_range(drag_start_mouse_sc, mouse_sc, std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_body_brush_color(theme::color_white() * 3.f, theme::opacity_mild()));
+				}
+			}
 		}
 
-		c_auto is_drag_start = is_any_pressed_prev is_false and is_any_pressed is_true;
-		is_any_pressed_prev	 = is_any_pressed;
+		{
+			c_auto width  = screen_size - theme::padding_large() * 2;
+			c_auto height = max(theme::thickness_medium() * 4, (screen_size - theme::padding_large() * 2) * abs(dot(obj_y, cam_forward)));
 
-		return std::tuple{ res_quat, is_drag_start, is_any_pressed };
+			c_auto axis_dir_uv = normalize(float2{ dot(obj_y, root.world_basis_u), dot(obj_y, -root.world_basis_v) });
+			c_auto perp_dir_uv = float2{ axis_dir_uv.y, -axis_dir_uv.x };
+
+			c_auto rot_cos = axis_dir_uv.y;
+			c_auto rot_sin = axis_dir_uv.x;
+			c_auto rot	   = std::atan2(rot_sin, rot_cos);
+
+			if (c_auto h_xz_plane = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (c_auto h_axis_y = widget::begin(set_height_fixed(height)
+													| set_width_fixed(width)
+													| set_draw(axis_y_draw)
+													| set_interact(axis_y_interact ? ui::e::interact_mode_kind::sdf : ui::e::interact_mode_kind::none)
+													| set_offset(0, width * 0.5f - height * 0.5f)
+													| set_fit_mode_fill()
+													| set_clip(false)
+													| set_z_offset(1)
+													| set_border_thickness(0)
+													| set_align_begin()
+													| set_rotation(rot + (dot(cam_forward, obj_y) > 0.f ? 0.f : cvt_to_radian(180)))
+													| set_shape_arc(theme::thickness_medium() * 2, axis_y_drag ? cvt_to_radian(360.f) : cvt_to_radian(160.f))
+													| set_body_brush_color(axis_y_bright ? theme::palette_green_bright() : theme::palette_green())))
+				{
+					if (h_axis_y.hovered())
+					{
+						current_hover = mode_kind::axis_y;
+					}
+					if (h_axis_y.pressed<mouse_left>())
+					{
+						current_drag = mode_kind::axis_y;
+					}
+				}
+			}
+
+
+			if (c_auto h_xz_pie_circle = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto circle_count = static_cast<uint32>(abs(std::trunc(drag_angle / math::g::pi_2)));
+
+				auto opacity = 0.f;
+				for (auto _ : views::loop(circle_count))
+				{
+					opacity = theme::opacity_mild() + opacity * (1.f - theme::opacity_mild());
+				}
+
+				if (axis_y_drag)
+				{
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_shape_circle()
+								  | set_rotation(rot)
+								  | set_border_brush_color(theme::palette_green_bright())
+								  | set_border_thickness(theme::thickness_medium())
+								  | set_body_brush_color(theme::palette_green_bright(), opacity));
+				}
+			}
+
+			if (c_auto h_xz_pie = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (axis_y_drag)
+				{
+					c_auto rotate_sc = [&](float2 sc) {
+						return float2{ sc.x * rot_cos - sc.y * rot_sin, sc.x * rot_sin + sc.y * rot_cos };
+					};
+
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_rotation(rot)
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_body_brush_color(theme::palette_green_bright(), theme::opacity_mild()));
+				}
+			}
+
+			if (c_auto h_xz_normal_line = widget::vertical(set_fixed(0) | set_align_center()))
+			{
+				c_auto width  = theme::thickness_medium() * 2;
+				c_auto height = 10000.f;
+				widget::begin(set_height_fixed(height)
+							  | set_width_fixed(width)
+							  | set_draw(axis_y_drag)
+							  | set_offset((screen_size - theme::padding_large() * 2) * 0.5f, -height * 0.5f)
+							  | set_clip(false)
+							  | set_align_begin()
+							  | set_rotation(rot)
+							  | set_body_brush_color(theme::palette_green_bright(), theme::opacity_heavy()));
+			}
+		}
+
+		{
+			c_auto width  = screen_size - theme::padding_large() * 2;
+			c_auto height = max(theme::thickness_medium() * 4, (screen_size - theme::padding_large() * 2) * abs(dot(obj_z, cam_forward)));
+
+			c_auto axis_dir_uv = normalize(float2{ dot(obj_z, root.world_basis_u), dot(obj_z, -root.world_basis_v) });
+			c_auto perp_dir_uv = float2{ axis_dir_uv.y, -axis_dir_uv.x };
+
+			c_auto rot_cos = axis_dir_uv.y;
+			c_auto rot_sin = axis_dir_uv.x;
+			c_auto rot	   = std::atan2(rot_sin, rot_cos);
+
+			if (c_auto h_xy_plane = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (c_auto h_axis_z = widget::begin(set_height_fixed(height)
+													| set_width_fixed(width)
+													| set_draw(axis_z_draw)
+													| set_interact(axis_z_interact ? ui::e::interact_mode_kind::sdf : ui::e::interact_mode_kind::none)
+													| set_offset(0, width * 0.5f - height * 0.5f)
+													| set_fit_mode_fill()
+													| set_clip(false)
+													| set_z_offset(1)
+													| set_border_thickness(0)
+													| set_align_begin()
+													| set_rotation(rot + (dot(cam_forward, obj_z) > 0.f ? 0.f : cvt_to_radian(180)))
+													| set_shape_arc(theme::thickness_medium() * 2, axis_z_drag ? cvt_to_radian(360.f) : cvt_to_radian(160.f))
+													| set_body_brush_color(axis_z_bright ? theme::palette_blue_bright() : theme::palette_blue())))
+				{
+					if (h_axis_z.hovered())
+					{
+						current_hover = mode_kind::axis_z;
+					}
+					if (h_axis_z.pressed<mouse_left>())
+					{
+						current_drag = mode_kind::axis_z;
+					}
+				}
+			}
+
+
+			if (c_auto h_xy_pie_circle = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto circle_count = static_cast<uint32>(abs(std::trunc(drag_angle / math::g::pi_2)));
+
+				auto opacity = 0.f;
+				for (auto _ : views::loop(circle_count))
+				{
+					opacity = theme::opacity_mild() + opacity * (1.f - theme::opacity_mild());
+				}
+
+				if (axis_z_drag)
+				{
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_shape_circle()
+								  | set_rotation(rot)
+								  | set_border_brush_color(theme::palette_blue_bright())
+								  | set_border_thickness(theme::thickness_medium())
+								  | set_body_brush_color(theme::palette_blue_bright(), opacity));
+				}
+			}
+
+			if (c_auto h_xy_pie = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (axis_z_drag)
+				{
+					c_auto rotate_sc = [&](float2 sc) {
+						return float2{ sc.x * rot_cos - sc.y * rot_sin, sc.x * rot_sin + sc.y * rot_cos };
+					};
+
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_rotation(rot)
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_body_brush_color(theme::palette_blue_bright(), theme::opacity_mild()));
+				}
+			}
+
+			if (c_auto h_xy_normal_line = widget::vertical(set_fixed(0) | set_align_center()))
+			{
+				c_auto width  = theme::thickness_medium() * 2;
+				c_auto height = 10000.f;
+				widget::begin(set_height_fixed(height)
+							  | set_width_fixed(width)
+							  | set_draw(axis_z_drag)
+							  | set_offset((screen_size - theme::padding_large() * 2) * 0.5f, -height * 0.5f)
+							  | set_clip(false)
+							  | set_align_begin()
+							  | set_rotation(rot)
+							  | set_body_brush_color(theme::palette_blue_bright(), theme::opacity_heavy()));
+			}
+		}
+
+		{
+			c_auto width  = screen_size - theme::padding_large() * 2;
+			c_auto height = max(theme::thickness_medium() * 4, (screen_size - theme::padding_large() * 2) * abs(dot(obj_x, cam_forward)));
+
+			c_auto axis_dir_uv = normalize(float2{ dot(obj_x, root.world_basis_u), dot(obj_x, -root.world_basis_v) });
+			c_auto perp_dir_uv = float2{ axis_dir_uv.y, -axis_dir_uv.x };
+
+			c_auto rot_cos = axis_dir_uv.y;
+			c_auto rot_sin = axis_dir_uv.x;
+			c_auto rot	   = std::atan2(rot_sin, rot_cos);
+
+			if (c_auto h_yz_plane = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (c_auto h_axis_x = widget::begin(set_height_fixed(height)
+													| set_width_fixed(width)
+													| set_draw(axis_x_draw)
+													| set_interact(axis_x_interact ? ui::e::interact_mode_kind::sdf : ui::e::interact_mode_kind::none)
+													| set_offset(0, width * 0.5f - height * 0.5f)
+													| set_fit_mode_fill()
+													| set_clip(false)
+													| set_z_offset(1)
+													| set_border_thickness(0)
+													| set_align_begin()
+													| set_rotation(rot + (dot(cam_forward, obj_x) > 0.f ? 0.f : cvt_to_radian(180)))
+													| set_shape_arc(theme::thickness_medium() * 2, axis_x_drag ? cvt_to_radian(360.f) : cvt_to_radian(160.f))
+													| set_body_brush_color(axis_x_bright ? theme::palette_red_bright() : theme::palette_red())))
+				{
+					if (h_axis_x.hovered())
+					{
+						current_hover = mode_kind::axis_x;
+					}
+					if (h_axis_x.pressed<mouse_left>())
+					{
+						current_drag = mode_kind::axis_x;
+					}
+				}
+			}
+
+
+			if (c_auto h_yz_pie_circle = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto circle_count = static_cast<uint32>(abs(std::trunc(drag_angle / math::g::pi_2)));
+
+				auto opacity = 0.f;
+				for (auto _ : views::loop(circle_count))
+				{
+					opacity = theme::opacity_mild() + opacity * (1.f - theme::opacity_mild());
+				}
+
+				if (axis_x_drag)
+				{
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_shape_circle()
+								  | set_rotation(rot)
+								  | set_border_brush_color(theme::palette_red_bright())
+								  | set_border_thickness(theme::thickness_medium())
+								  | set_body_brush_color(theme::palette_red_bright(), opacity));
+				}
+			}
+
+			if (c_auto h_yz_pie = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				if (axis_x_drag)
+				{
+					c_auto rotate_sc = [&](float2 sc) {
+						return float2{ sc.x * rot_cos - sc.y * rot_sin, sc.x * rot_sin + sc.y * rot_cos };
+					};
+
+					widget::begin(set_height_fixed(height)
+								  | set_width_fixed(width)
+								  | set_offset(0, width * 0.5f - height * 0.5f)
+								  | set_fit_mode_fill()
+								  | set_clip(false)
+								  | set_align_begin()
+								  | set_rotation(rot)
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_body_brush_color(theme::palette_red_bright(), theme::opacity_mild()));
+				}
+			}
+
+			if (c_auto h_yz_normal_line = widget::vertical(set_fixed(0) | set_align_center()))
+			{
+				c_auto width  = theme::thickness_medium() * 2;
+				c_auto height = 10000.f;
+				widget::begin(set_height_fixed(height)
+							  | set_width_fixed(width)
+							  | set_draw(axis_x_drag)
+							  | set_offset((screen_size - theme::padding_large() * 2) * 0.5f, -height * 0.5f)
+							  | set_clip(false)
+							  | set_align_begin()
+							  | set_rotation(rot)
+							  | set_body_brush_color(theme::palette_red_bright(), theme::opacity_heavy()));
+			}
+		}
+
+		{
+			if (c_auto h_trackball_panel = widget::vertical(set_fixed(0) | set_align_begin()))
+			{
+				c_auto radius = screen_size - theme::padding_large() * 2;
+
+				c_auto h_trackball = widget::begin(set_height_fixed(radius)
+												   | set_width_fixed(radius)
+												   | set_draw(prev_hover == mode_kind::trackball or prev_drag == mode_kind::trackball)
+												   | set_z_offset(0)
+												   | set_save_state()
+												   | set_offset(0, radius * 0.5f - radius * 0.5f)
+												   | set_interact_sdf()
+												   | set_clip(false)
+												   | set_align_begin()
+												   | set_shape_circle()
+												   | set_body_brush_color(theme::color_white(), theme::opacity_mild()));
+
+				if (h_trackball.contains_mouse() and (current_hover == mode_kind::none and current_drag == mode_kind::none))
+				{
+					current_hover = mode_kind::trackball;
+				}
+				if (h_trackball.pressed<mouse_left>())
+				{
+					current_drag = mode_kind::trackball;
+				}
+			}
+		}
+
+		c_auto is_drag = current_drag != mode_kind::none;
+
+		if (is_drag is_false)
+		{
+			drag_angle	   = 0.f;
+			trackball_quat = math::g::quaternion_identity;
+		}
+		else
+		{
+			auto axis_world = float3{};
+
+			if (prev_drag != mode_kind::trackball)
+			{
+				c_auto delta_sin = mouse_sc.x * prev_mouse_sc.y - mouse_sc.y * prev_mouse_sc.x;
+				c_auto delta_cos = mouse_sc.y * prev_mouse_sc.y + mouse_sc.x * prev_mouse_sc.x;
+
+				drag_angle += std::atan2(delta_sin, delta_cos);
+
+				if (prev_drag == mode_kind::outer_circle)
+				{
+					axis_world = -cam_forward;
+				}
+				else if (prev_drag == mode_kind::axis_x)
+				{
+					axis_world = obj_x;
+				}
+				else if (prev_drag == mode_kind::axis_y)
+				{
+					axis_world = obj_y;
+				}
+				else if (prev_drag == mode_kind::axis_z)
+				{
+					axis_world = obj_z;
+				}
+
+				res_quat = math::quat_rotation_normal(axis_world, drag_angle);
+			}
+			else
+			{
+				c_auto world_delta = root.world_basis_u * root.mouse_delta_uv.x + root.world_basis_v * root.mouse_delta_uv.y;
+				axis_world		   = normalize(-cross(world_delta, root.world_normal));
+
+				c_auto angle = length(world_delta) / world_size * g::gizmo_rotation_trackball_sensitivity;
+
+				if (angle > math::g::epsilon_1e4)
+				{
+					c_auto delta_quat = math::quat_rotation_normal(axis_world, angle);
+
+					trackball_quat = quat_mul(delta_quat, trackball_quat);
+				}
+
+				res_quat = trackball_quat;
+			}
+		}
+
+		c_auto is_drag_start = is_drag_prev is_false and is_drag is_true;
+
+		if (is_drag_start)
+		{
+			drag_start_mouse_sc			  = mouse_sc;
+			gizmo_world_pos_on_drag_start = world_pos;
+			quat_on_drag_start			  = quat;
+		}
+
+		prev_mouse_sc = mouse_sc;
+
+
+		prev_hover = current_hover;
+		prev_drag  = current_drag;
+
+
+		return std::tuple{ res_quat, gizmo_world_pos_on_drag_start, is_drag_start, is_drag };
 	}
 }	 // namespace age::editor::gizmo

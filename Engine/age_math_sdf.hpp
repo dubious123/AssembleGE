@@ -19,11 +19,37 @@ namespace age::inline math
 	#define UI_FIT_MODE_NONE	   ui::e::fit_mode_kind::none
 	#define UI_FIT_MODE_SCALE_DOWN ui::e::fit_mode_kind::scale_down
 
+	#define UI_SHAPE_KIND_RECT		   ui::e::shape_kind::rect
+	#define UI_SHAPE_KIND_CIRCLE	   ui::e::shape_kind::circle
+	#define UI_SHAPE_KIND_ARROW_RIGHT  ui::e::shape_kind::arrow_right
+	#define UI_SHAPE_KIND_TEXT		   ui::e::shape_kind::text
+	#define UI_SHAPE_KIND_CHECK		   ui::e::shape_kind::check
+	#define UI_SHAPE_KIND_ROUNDED_RECT ui::e::shape_kind::rounded_rect
+	#define UI_SHAPE_KIND_TRIANGLE	   ui::e::shape_kind::triangle
+	#define UI_SHAPE_KIND_CROSS		   ui::e::shape_kind::cross
+	#define UI_SHAPE_KIND_ARC		   ui::e::shape_kind::arc
+	#define UI_SHAPE_KIND_PIE		   ui::e::shape_kind::pie
+	#define UI_SHAPE_KIND_PIE_RANGE	   ui::e::shape_kind::pie_range
+	#define UI_SHAPE_KIND_MESH		   ui::e::shape_kind::mesh
+
 	static_assert(to_idx(UI_FIT_MODE_CONTAIN) == 0);
 	static_assert(to_idx(UI_FIT_MODE_COVER) == 1);
 	static_assert(to_idx(UI_FIT_MODE_FILL) == 2);
 	static_assert(to_idx(UI_FIT_MODE_NONE) == 3);
 	static_assert(to_idx(UI_FIT_MODE_SCALE_DOWN) == 4);
+
+	static_assert(to_idx(UI_SHAPE_KIND_RECT) == 0);
+	static_assert(to_idx(UI_SHAPE_KIND_CIRCLE) == 1);
+	static_assert(to_idx(UI_SHAPE_KIND_ARROW_RIGHT) == 2);
+	static_assert(to_idx(UI_SHAPE_KIND_TEXT) == 3);
+	static_assert(to_idx(UI_SHAPE_KIND_CHECK) == 4);
+	static_assert(to_idx(UI_SHAPE_KIND_ROUNDED_RECT) == 5);
+	static_assert(to_idx(UI_SHAPE_KIND_TRIANGLE) == 6);
+	static_assert(to_idx(UI_SHAPE_KIND_CROSS) == 7);
+	static_assert(to_idx(UI_SHAPE_KIND_ARC) == 8);
+	static_assert(to_idx(UI_SHAPE_KIND_PIE) == 9);
+	static_assert(to_idx(UI_SHAPE_KIND_PIE_RANGE) == 10);
+	static_assert(to_idx(UI_SHAPE_KIND_MESH) == 11);
 #else
 using sdf_shape_data = const uint32[5];
 	#define AGE_SHARED_FUNC(ret, func_name, ...) \
@@ -35,6 +61,19 @@ using sdf_shape_data = const uint32[5];
 	#define UI_FIT_MODE_FILL	   2
 	#define UI_FIT_MODE_NONE	   3
 	#define UI_FIT_MODE_SCALE_DOWN 4
+
+	#define UI_SHAPE_KIND_RECT		   0
+	#define UI_SHAPE_KIND_CIRCLE	   1
+	#define UI_SHAPE_KIND_ARROW_RIGHT  2
+	#define UI_SHAPE_KIND_TEXT		   3
+	#define UI_SHAPE_KIND_CHECK		   4
+	#define UI_SHAPE_KIND_ROUNDED_RECT 5
+	#define UI_SHAPE_KIND_TRIANGLE	   6
+	#define UI_SHAPE_KIND_CROSS		   7
+	#define UI_SHAPE_KIND_ARC		   8
+	#define UI_SHAPE_KIND_PIE		   9
+	#define UI_SHAPE_KIND_PIE_RANGE	   10
+	#define UI_SHAPE_KIND_MESH		   11
 
 #endif
 
@@ -126,6 +165,44 @@ using sdf_shape_data = const uint32[5];
 		return -length(pos) * sign(pos.y);
 	}
 
+	AGE_SHARED_FUNC(float, sdf_bezier, float2 pos, float2 A, float2 B, float2 C)
+	{
+		float2 a   = B - A;
+		float2 b   = A - B * 2.f + C;
+		float2 c   = a * 2.f;
+		float2 d   = A - pos;
+		float  kk  = 1.f / dot(b, b);
+		float  kx  = kk * dot(a, b);
+		float  ky  = kk * (2.f * dot(a, a) + dot(d, b)) / 3.f;
+		float  kz  = kk * dot(d, a);
+		float  res = 0.f;
+		float  p   = ky - kx * kx;
+		float  p3  = p * p * p;
+		float  q   = kx * (2.f * kx * kx - 3.f * ky) + kz;
+		float  h   = q * q + 4.f * p3;
+		if (h >= 0.f)
+		{
+			h		  = sqrt(h);
+			float2 x  = (float2(h, -h) - q) / 2.f;
+			float2 uv = pow(abs(x), float2(1.f / 3.f, 1.f / 3.f)) * sign(x);
+			float  t  = clamp(uv.x + uv.y - kx, 0.f, 1.f);
+			res		  = length_sq(d + (c + b * t) * t);
+		}
+		else
+		{
+			float  z = sqrt(-p);
+			float  v = acos(q / (p * z * 2.f)) / 3.f;
+			float  m = cos(v);
+			float  n = sin(v) * 1.732050808f;
+			float3 t = clamp(float3(m + m, -n - m, n - m) * z - kx, 0.f, 1.f);
+			res		 = min(length_sq(d + (c + b * t.x) * t.x),
+						   length_sq(d + (c + b * t.y) * t.y));
+			// the third root cannot be the closest
+			// res = min(res,dot2(d+(c+b*t.z)*t.z));
+		}
+		return sqrt(res);
+	}
+
 	AGE_SHARED_FUNC(float, sdf_round, float delta_from_edge, float round)
 	{
 		return delta_from_edge - round;
@@ -156,6 +233,10 @@ using sdf_shape_data = const uint32[5];
 
 	AGE_SHARED_FUNC(float, sdf_circle, float2 center_offset, float2 size, e_fit_mode_kind fit_mode, sdf_shape_data data)
 	{
+		if (fit_mode == UI_FIT_MODE_FILL)
+		{
+			return sdf_ellipse(center_offset, float2(size.x * 0.5f, size.y * 0.5f));
+		}
 		return sdf_circle(center_offset, min(size.x, size.y) * 0.5f);
 	}
 
@@ -220,43 +301,35 @@ using sdf_shape_data = const uint32[5];
 
 		if (fit_mode == UI_FIT_MODE_FILL)
 		{
-			const float radius_x = size.x * 0.5f - thickness * 0.5f;
-			const float radius_y = size.y * 0.5f - thickness * 0.5f;
-
-
+			const float	 radius_x	  = size.x * 0.5f - thickness * 0.5f;
+			const float	 radius_y	  = size.y * 0.5f - thickness * 0.5f;
 			const float	 ellipse_dist = sdf_ellipse(p, float2(radius_x, radius_y));
 			const float	 arc_dist	  = abs(ellipse_dist) - thickness * 0.5f;
 			const float2 endpoint	  = float2(radius_x * sc.x, radius_y * sc.y);
-			// const float2 tangent	  = float2(-radius_x * sc.y, radius_y * sc.x);
-			const float2 normal = float2(radius_y * sc.x, radius_x * sc.y);
-			const float2 e_to_p = p - endpoint;
+			const float2 e_to_p		  = p - endpoint;
 
-			const float cos_theta = dot(normal, e_to_p) / (length(normal) * length(e_to_p));
+			// const float2 normal		  = normalize(float2(endpoint.x / (radius_x * radius_x),
+			//											 endpoint.y / (radius_y * radius_y)));
 
-			const float cross_z = normal.x * e_to_p.y - normal.y * e_to_p.x;
+			const float2 normal = normalize(float2(radius_y * sc.x, radius_x * sc.y));
+			// const float2 tangent	  = float2(-normal.y, normal.x);
+			const float2 tangent	  = normalize(float2(-radius_x * sc.y, radius_y * sc.x));
+			const float	 tangent_side = dot(e_to_p, tangent);
 
-			bool inside_arc = false;
-
-			if (sc.y > 0.f)
+			if (sc.y >= 0.f)
 			{
-				inside_arc = p.y > 0 and cross_z > 0.f and (abs(cos_theta) < 1.f - 0.1f);
-				// inside_arc = p.y > 0 and (abs(cos_theta) < 1.f - 0.1f);
+				return max(max(arc_dist, -tangent_side), -p.y);
 			}
 			else
 			{
-				inside_arc = p.y > 0 or (p.y < 0.f and cross_z > 0.f and (abs(cos_theta) < 1.f - 0.1f));
-			}
-
-			if (inside_arc)
-			{
-				return abs(arc_dist) <= thickness ? arc_dist : 2.f;
-			}
-			else
-			{
-				return 2.f;
-
-				const float cap_dist = length(p - endpoint) - thickness * 0.5f;
-				return sdf_union(arc_dist, cap_dist);
+				if (p.y >= 0.f)
+				{
+					return max(arc_dist, -p.y);
+				}
+				else
+				{
+					return max(max(arc_dist, -tangent_side), p.y);
+				}
 			}
 		}
 
@@ -268,6 +341,88 @@ using sdf_shape_data = const uint32[5];
 			 - thickness * 0.5f;
 	}
 
+	AGE_SHARED_FUNC(float, sdf_pie, float2 center_offset, float2 size, e_fit_mode_kind fit_mode, sdf_shape_data data)
+	{
+		const float aperture_sin = as_float(data[0]);
+		const float aperture_cos = as_float(data[1]);
+
+		const float2 p	= float2(abs(center_offset.x), -center_offset.y);
+		const float2 sc = float2(aperture_sin, aperture_cos);
+
+		if (fit_mode == UI_FIT_MODE_FILL)
+		{
+			const float radius_x = size.x * 0.5f;
+			const float radius_y = size.y * 0.5f;
+
+			const float	 ellipse_dist = sdf_ellipse(p, float2(radius_x, radius_y));	   // filled
+			const float2 endpoint	  = float2(radius_x * sc.x, radius_y * sc.y);
+			const float	 proj		  = clamp(dot(p, endpoint) / dot(endpoint, endpoint), 0.f, 1.f);
+			const float	 m			  = length(p - endpoint * proj);
+			return max(ellipse_dist, m * sign(endpoint.y * p.x - endpoint.x * p.y));
+		}
+
+		const float radius = min(size.x, size.y) * 0.5f;
+		const float l	   = length(p) - radius;
+		const float m	   = length(p - sc * clamp(dot(p, sc), 0.f, radius));
+		return max(l, m * sign(sc.y * p.x - sc.x * p.y));
+	}
+
+	AGE_SHARED_FUNC(float, sdf_pie_range, float2 center_offset, float2 size, e_fit_mode_kind fit_mode, sdf_shape_data data)
+	{
+		const float start_sin = as_float(data[0]);
+		const float start_cos = as_float(data[1]);
+		const float end_sin	  = as_float(data[2]);
+		const float end_cos	  = as_float(data[3]);
+		const float sweep	  = as_float(data[4]);
+
+		const float2 p = float2(center_offset.x, -center_offset.y);
+
+		const float radius_x = size.x * 0.5f;
+		const float radius_y = size.y * 0.5f;
+
+		const float ellipse_dist = abs(radius_x - radius_y) < 0.001f
+									 ? sdf_circle(p, radius_x)
+									 : sdf_ellipse(p, float2(radius_x, radius_y));
+		if (abs(sweep) >= 6.283185f)
+		{
+			return ellipse_dist;
+		}
+
+		const float2 e_start = float2(radius_x * start_sin, radius_y * start_cos);
+		const float2 e_end	 = float2(radius_x * end_sin, radius_y * end_cos);
+
+		const float proj_start = clamp(dot(p, e_start) / dot(e_start, e_start), 0.f, 1.f);
+		const float proj_end   = clamp(dot(p, e_end) / dot(e_end, e_end), 0.f, 1.f);
+		const float edge_dist  = min(length(p - e_start * proj_start),
+									 length(p - e_end * proj_end));
+
+		const float cross_start = e_start.x * p.y - e_start.y * p.x;
+		const float cross_end	= e_end.x * p.y - e_end.y * p.x;
+
+		bool inside_wedge;
+		if (sweep >= 0.f)														// cw
+		{
+			inside_wedge = (sweep <= 3.141593f)
+							 ? ((cross_start <= 0.f) and (cross_end >= 0.f))	// <= 180: between edges
+							 : ((cross_start <= 0.f) or (cross_end >= 0.f));	// > 180: not in gap
+		}
+		else																	// ccw
+		{
+			inside_wedge = (sweep >= -3.141593f)
+							 ? ((cross_start >= 0.f) and (cross_end <= 0.f))
+							 : ((cross_start >= 0.f) or (cross_end <= 0.f));
+		}
+
+		if (inside_wedge)
+		{
+			return ellipse_dist;
+		}
+		else
+		{
+			return max(ellipse_dist, edge_dist);
+		}
+	}
+
 #if !defined(AGE_SHADER)
 	#undef AGE_SHARED_FUNC
 	#undef e_fit_mode_kind
@@ -276,5 +431,18 @@ using sdf_shape_data = const uint32[5];
 	#undef UI_FIT_MODE_FILL
 	#undef UI_FIT_MODE_NONE
 	#undef UI_FIT_MODE_SCALE_DOWN
+
+	#undef UI_SHAPE_KIND_RECT
+	#undef UI_SHAPE_KIND_CIRCLE
+	#undef UI_SHAPE_KIND_ARROW_RIGHT
+	#undef UI_SHAPE_KIND_TEXT
+	#undef UI_SHAPE_KIND_CHECK
+	#undef UI_SHAPE_KIND_ROUNDED_RECT
+	#undef UI_SHAPE_KIND_TRIANGLE
+	#undef UI_SHAPE_KIND_CROSS
+	#undef UI_SHAPE_KIND_ARC
+	#undef UI_SHAPE_KIND_PIE
+	#undef UI_SHAPE_KIND_PIE_RANGE
+	#undef UI_SHAPE_KIND_MESH
 }
 #endif
