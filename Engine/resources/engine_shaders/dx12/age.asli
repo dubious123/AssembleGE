@@ -828,6 +828,12 @@ rsqrt(auto, auto _)
 	return _;
 }
 
+decltype(auto)
+rsqrt(auto _)
+{
+	return _;
+}
+
 float3
 cross(float3, float3)
 {
@@ -867,6 +873,7 @@ cross(float3, float3)
 	#define nointerpolation
 	#define in
 	#define out
+	#define inout
 	#define vertices
 	#define indices
 	#define payload

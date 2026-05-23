@@ -41,48 +41,30 @@ main_cs(uint32 sorted_id	   sv_dispatch_thread_id,
 			interlocked_max(local_max_idx[j], sorted_id);
 		}
 
-
-		const float3 pos   = light.position;
-		const float	 range = light.range;
-
-		const float3 cam_to_light = pos - camera_pos;
-		const float	 dist		  = length(cam_to_light);
-
 		const uint32 word_index = sorted_id / 32;
 		const uint32 bit		= 1u << (sorted_id % 32);
 
 		uint32_4 tile_aabb = uint32_4(0, light_tile_count_x - 1, 0, light_tile_count_y - 1);
 
-		const float4 light_pos_clip = mul(view_proj, float4(pos, 1));
+		// view space center
+		const float3 center = mul(view, float4(light.position, 1)).xyz;
 
-		if (dist > range && light_pos_clip.w > 0.1f)
-		{
-			const float2 light_pos_ndc = light_pos_clip.xy / light_pos_clip.w;
+		const float2 bound_x = project_sphere_axis(center.x, center.z, light.range, cam_near_z, proj_00);
+		const float2 bound_y = project_sphere_axis(center.y, center.z, light.range, cam_near_z, proj_11);
 
-			const float projected_radius = range * dist / sqrt(dist * dist - range * range);
+		const float2 ndc_min = float2(bound_x.x, bound_y.x);
+		const float2 ndc_max = float2(bound_x.y, bound_y.y);
 
-			const float4 light_right_clip = mul(view_proj, float4(pos + camera_right * projected_radius, 1));
-			const float2 light_right_ndc  = light_right_clip.xy / light_right_clip.w;
+		const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
+		const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);
 
-			const float light_radius_ndc = length(light_right_ndc - light_pos_ndc);
-			const float aspect			 = float(backbuffer_size.x) / float(backbuffer_size.y);
-			const float radius_ndc_x	 = light_radius_ndc;
-			const float radius_ndc_y	 = light_radius_ndc * aspect;
+		const float2 screen_min = float2(screen_a.x, screen_b.y);
+		const float2 screen_max = float2(screen_b.x, screen_a.y);
 
-			const float2 ndc_min = light_pos_ndc - float2(radius_ndc_x, radius_ndc_y);
-			const float2 ndc_max = light_pos_ndc + float2(radius_ndc_x, radius_ndc_y);
-
-			const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
-			const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);
-
-			const float2 screen_min = float2(screen_a.x, screen_b.y);
-			const float2 screen_max = float2(screen_b.x, screen_a.y);
-
-			tile_aabb.x = clamp(int(screen_min.x) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
-			tile_aabb.y = clamp(int(screen_max.x + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
-			tile_aabb.z = clamp(int(screen_min.y) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
-			tile_aabb.w = clamp(int(screen_max.y + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
-		}
+		tile_aabb.x = clamp(int(screen_min.x) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
+		tile_aabb.y = clamp(int(screen_max.x + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_x - 1));
+		tile_aabb.z = clamp(int(screen_min.y) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
+		tile_aabb.w = clamp(int(screen_max.y + (LIGHT_TILE_SIZE - 1)) / LIGHT_TILE_SIZE, 0, int(light_tile_count_y - 1));
 
 		uint32 packed_aabb = (tile_aabb.x << 24) | (tile_aabb.y << 16) | (tile_aabb.z << 8) | tile_aabb.w;
 

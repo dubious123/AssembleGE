@@ -630,3 +630,47 @@ calc_linear_depth(float ndc_z, float cam_near_z)
 {
 	return cam_near_z / ndc_z;
 }
+
+// based on Mara-McGuire 2013
+// "2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere"
+// https://jcgt.org/published/0002/02/05/paper.pdf
+
+// returns ndc_min, ndc_max
+float2
+project_sphere_axis(float center_axis, float center_z, float radius, float near_z, float p /*proj._m00 for x axis, proj._m11 for y axis*/)
+{
+	const float cam_to_sphere_sq = center_axis * center_axis + center_z * center_z;
+	const float t_sq			 = cam_to_sphere_sq - radius * radius;
+
+	if (t_sq <= 0.f) { return float2(-1.f, 1.f); }
+
+	const float inv_len = rsqrt(cam_to_sphere_sq);
+	const float cos_t	= sqrt(t_sq) * inv_len;
+	float		sin_t	= radius * inv_len;
+
+	const bool clip_sphere = (center_z - radius <= near_z);
+	float	   k		   = sqrt(max(radius * radius - (near_z - center_z) * (near_z - center_z), 0.f));
+
+	float bound[2];
+
+	expand()
+
+	for (uint32 i = 0; i < 2; ++i)
+	{
+		float bound_axis = (cos_t * center_axis - sin_t * center_z) * cos_t;
+		float bound_z	 = (sin_t * center_axis + cos_t * center_z) * cos_t;
+
+		if (clip_sphere and bound_z < near_z)
+		{
+			bound_axis = center_axis + k;
+			bound_z	   = near_z;
+		}
+
+		bound[i] = p * bound_axis / bound_z;
+
+		sin_t = -sin_t;
+		k	  = -k;
+	}
+
+	return float2(min(bound[0], bound[1]), max(bound[0], bound[1]));
+}

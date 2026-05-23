@@ -262,6 +262,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		float3				  pos;
 		float3				  forward;
 		float3				  right;
+		float3				  up;
+		float4x4			  view;
+		float4x4			  proj;
 		float4x4			  view_proj;
 		float4x4			  view_proj_inv;
 		std::array<float4, 6> frustum_plane_arr;

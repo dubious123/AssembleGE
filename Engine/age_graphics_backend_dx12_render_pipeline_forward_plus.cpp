@@ -1401,7 +1401,10 @@ namespace age::graphics::render_pipeline::forward_plus
 				return camera_data{
 					.pos			   = desc.pos,
 					.forward		   = xm_forward | simd::to<float3>(),
-					.right			   = simd::g::xm_right_f4 | simd::rotate3(xm_quat) | simd::to<float3>(),
+					.right			   = xm_quat | simd::rotate3(simd::g::xm_right_f4) | simd::to<float3>(),
+					.up				   = xm_up | simd::to<float3>(),
+					.view			   = xm_view | simd::to<float4x4>(),
+					.proj			   = xm_proj | simd::to<float4x4>(),
 					.view_proj		   = xm_view_proj | simd::to<float4x4>(),
 					.view_proj_inv	   = xm_view_proj_inv | simd::to<float4x4>(),
 					.frustum_plane_arr = frustum_plane_arr
@@ -1953,6 +1956,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto	dt_ms		  = std::chrono::duration<float, std::milli>(dt_ns).count();
 
 		auto frame_d = shared_type::frame_data{
+			.view								  = main_cam_data.view,
 			.view_proj							  = main_cam_data.view_proj,
 			.view_proj_inv						  = main_cam_data.view_proj_inv,
 			.camera_pos							  = main_cam_data.pos,
@@ -1961,7 +1965,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			.backbuffer_size					  = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
 			.camera_forward						  = main_cam_data.forward,
 			.frame_index						  = runtime::i_time.get_frame_count(),
-			.camera_right						  = main_cam_data.right,
 			.main_buffer_texture_id				  = graphics::calc_desc_idx(h_main_buffer_srv_desc),
 			.post_buffer_texture_id				  = graphics::calc_desc_idx(h_post_buffer_srv_desc),
 			.depth_buffer_texture_id			  = graphics::calc_desc_idx(h_depth_buffer_srv_desc),
@@ -1969,6 +1972,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			.rt_transparent_buffer_srv_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_srv_desc),
 			.rt_transparent_buffer_uav_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
 			.rt_raycast_request_count			  = raycast_request_vec.size<uint32>(),
+			.proj_00							  = main_cam_data.proj[0][0],
+			.proj_11							  = main_cam_data.proj[1][1],
 		};
 
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

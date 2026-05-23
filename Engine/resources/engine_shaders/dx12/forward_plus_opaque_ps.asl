@@ -118,6 +118,9 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	const uint32 word_begin = wave_z_min / 32;
 	const uint32 word_end	= wave_z_max / 32;
 
+	// const uint32 word_begin = 0;
+	// const uint32 word_end	= Z_SLICE_COUNT / 32;
+
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
 		uint32 bit_mask		 = load_tile_mask(tile_id, w);
@@ -138,19 +141,26 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 				lighting += calc_pbr_light(surface_data, light)
 						  * calc_unified_shadow_rt(light, v, face_normal);
-
-
-				// lighting += calc_pbr_light(surface_data, light);
 			}
 		}
 	}
 
-	// return float4(color, 1);
-	// return float4(light_count / 4.f, 0, 0, 1);
-	// return float4(0, 0, shadow_count / 8.f, 1);
-	// return float4(float3(surface_data.n_dot_v, surface_data.n_dot_v, surface_data.n_dot_v), 1);
-	// return float4(face_normal, 1.f);
-	// return float4(vertex_normal, 1.f);
+	// uint32 c = 0;
+	// for (uint32 i = 0; i < Z_SLICE_COUNT / 32; ++i)
+	//{
+	//	uint32 bit_mask = load_tile_mask(tile_id, i);
+	//	if (bit_mask != 0)
+	//	{
+	//		++c;
+	//	}
+	// }
+
+	// return float4(c, c, c, 1);
+	//    return float4(light_count / 4.f, 0, 0, 1);
+	//    return float4(0, 0, shadow_count / 8.f, 1);
+	//    return float4(float3(surface_data.n_dot_v, surface_data.n_dot_v, surface_data.n_dot_v), 1);
+	//    return float4(face_normal, 1.f);
+	//    return float4(vertex_normal, 1.f);
 
 	// return float4(v.uv0, 0, 1.f);
 	// return float4(lighting * albedo, 1.0f);

@@ -395,6 +395,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
+		row_major float4x4 view;									// 64
 		row_major float4x4 view_proj;								// 64
 		row_major float4x4 view_proj_inv;							// 64
 		float3			   camera_pos;								// 12
@@ -404,7 +405,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float2			   backbuffer_size;							// 8
 		float3			   camera_forward;							// 12
 		uint32			   frame_index;								// 4
-		float3			   camera_right;							// 12
 		uint32			   main_buffer_texture_id;					// 4
 		uint32			   post_buffer_texture_id;					// 4
 		uint32			   depth_buffer_texture_id;					// 4
@@ -412,10 +412,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
 		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
 		uint32			   rt_raycast_request_count;				// 4
-		uint32			   _1;
-		uint32			   _2;
+		float			   proj_00;
+		float			   proj_11;
+		uint32_3		   _;
 
-		uint32_4 extra[12];
+
+		uint32_4 extra[8];
 		// total: 256 * 2 bytes
 	};
 
