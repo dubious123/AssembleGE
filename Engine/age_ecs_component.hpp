@@ -281,18 +281,72 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(bloom, "post_process_bloom")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		uint16 render_id = age::get_invalid_id<uint16>();
+
+		bool  active;
+		uint8 _;
+
+		float  threshold = 0.04f;
+		float  knee		 = 0.5f;
+		float  intensity = 0.05f;
+		float  radius	 = 1.0f;
+		float3 tint		 = float3::one();
+
+		AGE_CUSTOM_BYTE_SIZE(active, threshold, knee, intensity, radius, tint)
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, bloom & cmp, auto& ctx) noexcept
+		{
+			cmp.render_id = ctx.renderer.add_bloom({ .threshold = cmp.threshold,
+													 .knee		= cmp.knee,
+													 .intensity = cmp.intensity,
+													 .radius	= cmp.radius,
+													 .tint		= cmp.tint });
+
+			ctx.renderer.set_bloom_active(cmp.render_id, cmp.active);
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, bloom & cmp, auto& ctx) noexcept
+		{
+			ctx.renderer.remove_bloom(cmp.render_id);
+		}
+
+		static void
+		write_to(cmp_dispatch_key, const bloom& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			buf.write(cmp.active, cmp.threshold, cmp.knee, cmp.intensity, cmp.radius, cmp.tint);
+		}
+
+		static void
+		read_from(cmp_dispatch_key, bloom & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != bloom::age_component_version())
+			{
+				// handle migrate
+				AGE_ASSERT(false);
+			}
+
+			buf.read(cmp.active, cmp.threshold, cmp.knee, cmp.intensity, cmp.radius, cmp.tint);
+		}
+	};
+
 	AGE_COMPONENT(directional_light, "dir_light")
 	{
 		AGE_COMPONENT_VERSION(1);
 
 		uint16 render_id   = age::get_invalid_id<uint16>();
 		bool   cast_shadow = true;
+		uint8  _;
 
 		float3 direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f });
 		float  intensity = 0.80f;
 		float3 color	 = float3{ 1.0f, 0.9f, 0.9f };
-
-		uint8 _;
 
 		AGE_CUSTOM_BYTE_SIZE(cast_shadow, direction, intensity, color)
 

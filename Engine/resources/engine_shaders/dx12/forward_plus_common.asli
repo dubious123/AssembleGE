@@ -53,6 +53,8 @@ uint32 selection_outline_mask_buffer_srv_texture_id;
 
 uint32 debug_meshlet_render_data_offset;
 uint32 debug_meshlet_render_data_count;
+
+uint32 bloom_mip_level_and_extra;
 #endif
 
 byte_address_buffer static_buffer reg(t0, space0);
@@ -367,6 +369,15 @@ load_debug_object_data(uint32 id)
 	return debug_object_data_buffer[id];
 }
 
+// bloom
+structured_buffer<bloom> bloom_buffer reg(t0, space6);
+
+bloom
+load_bloom()
+{
+	return bloom_buffer[0];
+}
+
 // sampler
 sampler_state linear_clamp_sampler reg(s0);
 sampler_state linear_wrap_sampler reg(s1);
@@ -409,6 +420,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_light.asli"
 #include "age_ui.asli"
 #include "age_tonemap.asli"
+#include "age_bloom.asli"
 
 // opaque
 struct opaque_as_to_ms

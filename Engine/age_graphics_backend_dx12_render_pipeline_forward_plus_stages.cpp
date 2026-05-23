@@ -398,6 +398,89 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus
 {
 	void
+	bloom_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_prefilter = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_bloom_prefilter_cs) });
+
+		p_pso_prefilter = graphics::g::pso_ptr_vec[h_pso_prefilter];
+		h_pso_prefilter.set_name(L"pso_bloom_prefilter");
+
+		h_pso_downsample = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_bloom_downsample_cs) });
+
+		p_pso_downsample = graphics::g::pso_ptr_vec[h_pso_downsample];
+		h_pso_downsample.set_name(L"pso_bloom_down_sample");
+
+		h_pso_upsample = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_bloom_upsample_cs) });
+
+		p_pso_upsample = graphics::g::pso_ptr_vec[h_pso_upsample];
+		h_pso_upsample.set_name(L"pso_bloom_upsample");
+	}
+
+	inline void
+	bloom_stage::execute(binding_config_t::reg_b<1>& constants, resource_handle h_bloom_chain, uint16 mip_count, const shared_type::bloom& bloom_gpu) noexcept
+	{
+		AGE_ASSERT(mip_count > 0);
+
+		command::set_pso(p_pso_prefilter);
+		command::apply_barriers(barrier::tex_srv_to_uav(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::tex2d_mip(0)),
+								barrier::tex_srv_to_uav(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::tex2d_mip_range(1, mip_count - 1)));
+		command::dispatch(util::ceil(bloom_gpu.width, 8), util::ceil(bloom_gpu.height, 8), 1);
+
+		command::set_pso(p_pso_downsample);
+		for (auto mip_dst : views::loop(mip_count) | std::views::drop(1))
+		{
+			// 1, ..., mip_count - 1
+			auto width_dst	= bloom_gpu.width >> mip_dst;
+			auto height_dst = bloom_gpu.height >> mip_dst;
+
+			c_auto mip_src = static_cast<uint16>(mip_dst - 1);
+			constants.apply_compute_member<&shared_type::root_constants::bloom_mip_level_and_extra>(mip_src);
+
+			command::apply_barriers(barrier::tex_uav_to_srv(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::tex2d_mip(mip_src)));
+
+			command::dispatch(util::ceil(width_dst, 8), util::ceil(height_dst, 8), 1);
+		}
+
+
+		command::set_pso(p_pso_upsample);
+		for (auto mip_dst : views::loop(mip_count - 1) | std::views::reverse)
+		{
+			// mip_count - 2, mip_count - 3, ... , 0;
+			auto width_dst	= bloom_gpu.width >> mip_dst;
+			auto height_dst = bloom_gpu.height >> mip_dst;
+
+			c_auto mip_src = static_cast<uint16>(mip_dst + 1);
+			constants.apply_compute_member<&shared_type::root_constants::bloom_mip_level_and_extra>(mip_src);
+
+			command::apply_barriers(barrier::tex_uav_to_srv(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::tex2d_mip(mip_src)),
+									barrier::tex_srv_to_uav(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::tex2d_mip(mip_dst)));
+
+			command::dispatch(util::ceil(width_dst, 8), util::ceil(height_dst, 8), 1);
+		}
+
+		command::apply_barriers(barrier::tex_uav_to_srv(h_bloom_chain->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING, {}, barrier::tex2d_mip(0)));
+	}
+
+	void
+	bloom_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_prefilter);
+		pso::destroy(h_pso_downsample);
+		pso::destroy(h_pso_upsample);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
 	post_process_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;

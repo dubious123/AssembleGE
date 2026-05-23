@@ -686,6 +686,19 @@ namespace age::editor
 			ui::widget::numeric_field(cam.view_height, "view_height");
 		}
 	}
+
+	void
+	ui_component(ecs::bloom& cmp) noexcept
+	{
+		ui::widget::checkbox("active", cmp.active);
+		ui::widget::numeric_field(cmp.threshold, "threshold", 0.f, 10.f, ui::theme::text_label_color(), 0.001f);
+		cmp.knee = clamp(cmp.knee, 0.f, cmp.threshold);
+		ui::widget::numeric_field(cmp.knee, "knee", 0.f, cmp.threshold, ui::theme::text_label_color(), 0.001f);
+		ui::widget::numeric_field(cmp.intensity, "intensity", 0.f, 1.f, ui::theme::text_label_color(), 0.001f);
+		ui::widget::numeric_field(cmp.radius, "radius", 0.f, 10.f);
+		ui::widget::text_label("tint");
+		ui::widget::color_field(cmp.tint);
+	}
 }	 // namespace age::editor
 
 namespace age::editor

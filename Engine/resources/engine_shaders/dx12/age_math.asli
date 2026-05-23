@@ -634,43 +634,29 @@ calc_linear_depth(float ndc_z, float cam_near_z)
 // based on Mara-McGuire 2013
 // "2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere"
 // https://jcgt.org/published/0002/02/05/paper.pdf
-
-// returns ndc_min, ndc_max
-float2
-project_sphere_axis(float center_axis, float center_z, float radius, float near_z, float p /*proj._m00 for x axis, proj._m11 for y axis*/)
+// and Arseny Kapoulkine 2023
+// "Approximate projected bounds"
+// https://zeux.io/2023/01/12/approximate-projected-bounds/
+//
+// returns (min_x, min_y, max_x, max_y).
+float4
+project_sphere(float3 center, float radius, float near_z, float p00, float p11)
 {
-	const float cam_to_sphere_sq = center_axis * center_axis + center_z * center_z;
-	const float t_sq			 = cam_to_sphere_sq - radius * radius;
-
-	if (t_sq <= 0.f) { return float2(-1.f, 1.f); }
-
-	const float inv_len = rsqrt(cam_to_sphere_sq);
-	const float cos_t	= sqrt(t_sq) * inv_len;
-	float		sin_t	= radius * inv_len;
-
-	const bool clip_sphere = (center_z - radius <= near_z);
-	float	   k		   = sqrt(max(radius * radius - (near_z - center_z) * (near_z - center_z), 0.f));
-
-	float bound[2];
-
-	expand()
-
-	for (uint32 i = 0; i < 2; ++i)
+	if (center.z < radius + near_z)
 	{
-		float bound_axis = (cos_t * center_axis - sin_t * center_z) * cos_t;
-		float bound_z	 = (sin_t * center_axis + cos_t * center_z) * cos_t;
-
-		if (clip_sphere and bound_z < near_z)
-		{
-			bound_axis = center_axis + k;
-			bound_z	   = near_z;
-		}
-
-		bound[i] = p * bound_axis / bound_z;
-
-		sin_t = -sin_t;
-		k	  = -k;
+		return float4(-1.f, -1.f, 1.f, 1.f);
 	}
 
-	return float2(min(bound[0], bound[1]), max(bound[0], bound[1]));
+	const float3 cr	   = center * radius;
+	const float	 cz_r2 = center.z * center.z - radius * radius;
+
+	const float vx	  = sqrt(center.x * center.x + cz_r2);
+	const float min_x = (vx * center.x - cr.z) / (vx * center.z + cr.x);
+	const float max_x = (vx * center.x + cr.z) / (vx * center.z - cr.x);
+
+	const float vy	  = sqrt(center.y * center.y + cz_r2);
+	const float min_y = (vy * center.y - cr.z) / (vy * center.z + cr.y);
+	const float max_y = (vy * center.y + cr.z) / (vy * center.z - cr.y);
+
+	return float4(min_x * p00, min_y * p11, max_x * p00, max_y * p11);
 }

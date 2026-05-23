@@ -33,9 +33,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		pop_descriptor(h_rt_transparent_tex_buffer_uav_desc);
 		pop_descriptor(h_env_light_brdf_lut);
 
+		pop_descriptor(h_bloom_srv_desc);
+		for (auto& h : h_bloom_mip_uav_desc_arr)
+		{
+			pop_descriptor(h);
+		}
+
 		graphics::resource::create_view(graphics::g::h_brdf_lut, h_env_light_brdf_lut, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
 
 		{
+			// todo : cleanup
 			h_mapping_static_ring_buffer_arr = resource::create_buffer_committed_arr(g::static_buffer_size);
 
 			h_mapping_frame_data = resource::create_buffer_committed(sizeof(shared_type::frame_data) * global::frame_buffer_count);
@@ -56,6 +63,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			h_mapping_debug_meshlet_render_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::debug_meshlet_render_data));
 			h_mapping_debug_object_data_buffer_arr		   = resource::create_buffer_committed_arr(sizeof(shared_type::debug_object_data));
+
+			h_mapping_bloom_buffer_arr = resource::create_buffer_committed_arr(L"bloom_buffer[{}]", sizeof(shared_type::bloom));
+			bloom_buffer.bind_array(h_mapping_bloom_buffer_arr);
 
 			h_scratch_buffer = resource::create_committed(
 				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::scratch_buffer_total_size),
@@ -133,6 +143,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_opaque.init(h_root_sig);
 		stage_transparent.init(h_root_sig);
 		stage_raycast.init(h_root_sig);
+		stage_bloom.init(h_root_sig);
 		stage_post_process.init(h_root_sig);
 		stage_selection_outline.init(h_root_sig);
 		stage_ui.init(h_root_sig);
@@ -180,6 +191,9 @@ namespace age::graphics::render_pipeline::forward_plus
 				.aspect_ratio = 16.f / 9.f } });
 
 		AGE_ASSERT(main_camera_id == 0);
+
+		active_bloom_id			 = get_invalid_id<t_bloom_id>();
+		bloom_gpu.srv_texture_id = get_invalid_id<uint32>();
 	}
 
 	void
@@ -225,6 +239,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_ui.deinit();
 		stage_selection_outline.deinit();
 		stage_post_process.deinit();
+		stage_bloom.deinit();
 		stage_raycast.deinit();
 		stage_transparent.deinit();
 		stage_opaque.deinit();
@@ -250,6 +265,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		push_descriptor(h_rt_transparent_tex_buffer_uav_desc);
 		push_descriptor(h_env_light_brdf_lut);
 
+		push_descriptor(h_bloom_srv_desc);
+		for (auto h : h_bloom_mip_uav_desc_arr)
+		{
+			push_descriptor(h);
+		}
+
 		// static
 		resource::unmap_and_release(h_mapping_static_ring_buffer_arr);
 		resource::unmap_and_release(h_mapping_frame_data);
@@ -264,6 +285,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::unmap_and_release(h_mapping_env_light_buffer_arr);
 		resource::unmap_and_release(h_mapping_debug_meshlet_render_data_buffer_arr);
 		resource::unmap_and_release(h_mapping_debug_object_data_buffer_arr);
+		resource::unmap_and_release(h_mapping_bloom_buffer_arr);
 
 		resource::release(h_main_buffer);
 		resource::release(h_post_buffer);
@@ -273,6 +295,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_scratch_buffer);
 		resource::release(h_light_cull_stage_buffer);
 		resource::release(h_light_cull_stage_sorted_light_buffer);
+		resource::release(h_bloom_chain);
 
 		// rt
 		resource::release(h_rt_tlas_buffer);
@@ -299,12 +322,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(unified_light_vec.size() == 0);
 		AGE_ASSERT(texture_map.size() == 0);
 		AGE_ASSERT(env_light_cpu_data_vec.size() == 0);
+		AGE_ASSERT(bloom_desc_vec.size() == 0);
 
 		texture_map.clear();
 		object_data_vec.clear();
 		object_transform_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
+		bloom_desc_vec.clear();
 	}
 
 	void
@@ -680,6 +705,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			debug_meshlet_render_data_buffer.apply();
 			debug_object_data_buffer.apply();
+
+			bloom_buffer.apply();
+			bloom_buffer.apply_compute();
 		}
 
 		command::set_view_ports(1, &rs.default_viewport);
@@ -735,8 +763,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		light_cull_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_main_buffer_rtv_desc, h_rt_transparent_texture_buffer, extent);
 
-
-		command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		if (AGE_IS_INVALID_ID(active_bloom_id))
+		{
+			command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		}
+		else
+		{
+			command::apply_barriers(barrier::rtv_to_srv(h_main_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		}
 
 		if (raycast_request_vec.is_empty() is_false)
 		{
@@ -747,6 +781,11 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::copy_buffer(h_readback_rt_raycast_result_buffer_arr[global::i_graphics.get_frame_buffer_idx]->h_resource->p_resource, 0,
 								 h_rt_raycast_result_buffer->p_resource, 0,
 								 raycast_request_vec.size() * sizeof(shared_type::raycast_result));
+		}
+
+		if (AGE_IS_INVALID_ID(active_bloom_id) is_false)
+		{
+			stage_bloom.execute(root_constants, h_bloom_chain, bloom_mip_count, bloom_gpu);
 		}
 
 		stage_post_process.execute(h_post_buffer_rtv_desc);
@@ -842,12 +881,23 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			  .heap_memory_kind = e::memory_kind::gpu_only });
 
+		h_bloom_chain = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
+				  extent.width / 2, extent.height / 2,
+				  DXGI_FORMAT_R11G11B10_FLOAT,
+				  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				  bloom_mip_count),
+			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
+
+
 		h_main_buffer->set_name(L"main_buffer");
 		h_depth_buffer->set_name(L"depth_buffer");
 		h_post_buffer->set_name(L"post_buffer");
 		h_selection_outline_mask_buffer->set_name(L"selection_outline_mask_buffer");
 		h_debug_depth_buffer->set_name(L"debug_depth_buffer");
 		h_rt_transparent_texture_buffer->set_name(L"rt_transparent_buffer");
+		h_bloom_chain->set_name(L"bloom_chain");
 
 		resource::create_view(h_main_buffer,
 							  h_main_buffer_srv_desc,
@@ -897,6 +947,18 @@ namespace age::graphics::render_pipeline::forward_plus
 							  h_rt_transparent_tex_buffer_uav_desc,
 							  defaults::uav_view_desc::tex2d(DXGI_FORMAT_R16G16B16A16_FLOAT));
 
+		resource::create_view(h_bloom_chain, h_bloom_srv_desc, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT, bloom_mip_count));
+
+		bloom_gpu.srv_texture_id = calc_desc_idx(h_bloom_srv_desc);
+		for (auto mip : views::loop(bloom_mip_count))
+		{
+			resource::create_view(h_bloom_chain,
+								  h_bloom_mip_uav_desc_arr[mip],
+								  defaults::uav_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT, mip));
+
+			bloom_gpu.uav_texture_id_arr[mip] = calc_desc_idx(h_bloom_mip_uav_desc_arr[mip]);
+		}
+
 		h_light_cull_stage_buffer = resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::light_cull_tile_mask_offset + sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
 			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
@@ -912,7 +974,22 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept
 	{
-		extent = new_extent;
+		extent				= new_extent;
+		c_auto bloom_extent = extent_2d{ static_cast<uint16>(extent.width / 2u), static_cast<uint16>(extent.height / 2u) };
+		bloom_mip_count		= max(min(calc_mip_count<uint16>(bloom_extent.width, bloom_extent.height), g::max_bloom_mip_count), uint16{ 1 });
+		{
+			auto mip = uint16{ 1 };
+			for (auto w = bloom_extent.width, h = bloom_extent.height; mip < g::max_bloom_mip_count and min<uint16>(w >> 1u, h >> 1u) >= g::min_bloom_mip_pixel; ++mip)
+			{
+				w >>= 1u;
+				h >>= 1u;
+			}
+			bloom_mip_count = mip;
+		}
+
+
+		bloom_gpu.width	 = bloom_extent.width;
+		bloom_gpu.height = bloom_extent.height;
 
 		light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
 		light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
@@ -926,7 +1003,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_depth_buffer);
 		resource::release(h_debug_depth_buffer);
 		resource::release(h_rt_transparent_texture_buffer);
-
+		resource::release(h_bloom_chain);
 		resource::release(h_light_cull_stage_buffer);
 
 		create_resolution_dependent_buffers();
@@ -1747,6 +1824,56 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
+// bloom
+namespace age::graphics::render_pipeline::forward_plus
+{
+	// bloom
+	t_bloom_id
+	pipeline::add_bloom(const bloom_desc& desc, bool set_active) noexcept
+	{
+		AGE_ASSERT(bloom_desc_vec.size() < std::numeric_limits<t_bloom_id>::max());
+		c_auto id = static_cast<t_bloom_id>(bloom_desc_vec.emplace_back());
+
+		update_bloom(id, desc);
+		set_bloom_active(id, set_active);
+
+		return id;
+	}
+
+	void
+	pipeline::update_bloom(t_bloom_id id, const bloom_desc& desc) noexcept
+	{
+		bloom_desc_vec[id] = desc;
+	}
+
+	void
+	pipeline::set_bloom_active(t_bloom_id id, bool active) noexcept
+	{
+		if (active)
+		{
+			bloom_gpu.srv_texture_id = calc_desc_idx(h_bloom_srv_desc);
+			active_bloom_id			 = id;
+		}
+		else
+		{
+			AGE_SET_INVALID_ID(active_bloom_id);
+			AGE_SET_INVALID_ID(bloom_gpu.srv_texture_id);
+		}
+	}
+
+	void
+	pipeline::remove_bloom(t_bloom_id& id) noexcept
+	{
+		bloom_desc_vec.remove(id);
+		if (active_bloom_id == id)
+		{
+			AGE_SET_INVALID_ID(active_bloom_id);
+			AGE_SET_INVALID_ID(bloom_gpu.srv_texture_id);
+		}
+		AGE_SET_INVALID_ID(id);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
 namespace age::graphics::render_pipeline::forward_plus
 {
 	uint32
@@ -1929,6 +2056,22 @@ namespace age::graphics::render_pipeline::forward_plus
 			h_mapping_debug->upload(debug_meshlet_render_data_vec.data(), debug_meshlet_render_data_vec.byte_size());
 			h_mapping_debug->upload(debug_aot_meshlet_render_data_vec.data(), debug_aot_meshlet_render_data_vec.byte_size(), debug_meshlet_render_data_vec.byte_size());
 			h_mapping_obj->upload(debug_object_data_vec.data(), debug_object_data_vec.byte_size());
+		}
+
+		// bloom
+		{
+			if (AGE_IS_INVALID_ID(active_bloom_id) is_false)
+			{
+				c_auto& desc = bloom_desc_vec[active_bloom_id];
+
+				bloom_gpu.threshold = desc.threshold;
+				bloom_gpu.knee		= desc.knee;
+				bloom_gpu.intensity = desc.intensity;
+				bloom_gpu.radius	= desc.radius;
+				bloom_gpu.tint		= desc.tint;
+			}
+
+			h_mapping_bloom_buffer_arr[global::i_graphics.get_frame_buffer_idx]->upload(&bloom_gpu, sizeof(shared_type::bloom));
 		}
 
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];

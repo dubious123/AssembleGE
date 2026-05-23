@@ -48,6 +48,10 @@ namespace age::graphics::e
 
 					forward_plus_raycast_cs,
 
+					forward_plus_bloom_prefilter_cs,
+					forward_plus_bloom_downsample_cs,
+					forward_plus_bloom_upsample_cs,
+
 					forward_plus_post_process_ps,
 
 					forward_plus_selection_outline_mask_as,

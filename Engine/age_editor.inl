@@ -323,6 +323,19 @@ namespace age::editor::detail
 				env_light.update_h_env_light(asset::handle{});
 			}
 		}
+
+		for (auto&& [cmp] : ecs_storage | each_entity_soft<bloom>())
+		{
+			if (AGE_IS_INVALID_ID(cmp.render_id)) { continue; }
+
+			renderer.update_bloom(cmp.render_id, { .threshold = cmp.threshold,
+												   .knee	  = cmp.knee,
+												   .intensity = cmp.intensity,
+												   .radius	  = cmp.radius,
+												   .tint	  = cmp.tint });
+
+			renderer.set_bloom_active(cmp.render_id, cmp.active);
+		}
 	}
 }	 // namespace age::editor::detail
 

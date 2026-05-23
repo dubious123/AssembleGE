@@ -235,10 +235,17 @@ namespace age::inline math
 		}
 	}
 
-	FORCE_INLINE constexpr decltype(auto)
+	FORCE_INLINE constexpr float
 	min(float l, float r) noexcept
 	{
-		return std::min(l, r);
+		return std::min<float>(l, r);
+	}
+
+	template <typename t_ret = void>
+	FORCE_INLINE constexpr auto
+	min(auto l, auto r) noexcept -> std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>
+	{
+		return static_cast<std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>>(std::min(l, r));
 	}
 
 	template <template <typename> typename v, typename t>
@@ -289,6 +296,13 @@ namespace age::inline math
 	max(float l, float r) noexcept
 	{
 		return std::max(l, r);
+	}
+
+	template <typename t_ret = void>
+	FORCE_INLINE constexpr auto
+	max(auto l, auto r) noexcept -> std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>
+	{
+		return static_cast<std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>>(std::max(l, r));
 	}
 
 	template <template <typename> typename v, typename t_>
@@ -470,7 +484,7 @@ namespace age::inline math
 	}
 }	 // namespace age::inline math
 
-// quaternoin
+// quaternion
 namespace age::inline math
 {
 	FORCE_INLINE float3
@@ -839,5 +853,15 @@ namespace age::inline math
 	linear_to_srgb_approx(float3 c) noexcept
 	{
 		return { std::pow(c.x, 1.0f / 2.2f), std::pow(c.y, 1.0f / 2.2f), std::pow(c.z, 1.0f / 2.2f) };
+	}
+}	 // namespace age::inline math
+
+namespace age::inline math
+{
+	template <typename t_ret = uint32>
+	constexpr t_ret
+	calc_mip_count(std::unsigned_integral auto w, std::unsigned_integral auto h) noexcept
+	{
+		return static_cast<t_ret>(std::bit_width(std::max(w, h)));	  // floor(log2(max))+1
 	}
 }	 // namespace age::inline math

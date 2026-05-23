@@ -93,38 +93,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			how::root_descriptor,
 			where::t<1, 2>>,
 
-		/*binding_slot<
-			"shadow_stage_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::byte_address_buffer,
-			how::root_descriptor,
-			where::t<0, 2>>,
-
-		binding_slot<
-			"shadow_stage_buffer_uav",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_byte_address_buffer,
-			how::root_descriptor,
-			where::u<0, 2>>,
-
-		binding_slot<
-			"shadow_light_buffer_srv",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::shadow_light>,
-			how::root_descriptor,
-			where::t<1, 2>>,
-
-		binding_slot<
-			"shadow_light_buffer_uav",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::rw_structured_buffer<shared_type::shadow_light>,
-			how::root_descriptor,
-			where::u<1, 2>>,*/
-
 		binding_slot<
 			"rt_instance_render_data_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
@@ -188,6 +156,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			what::structured_buffer_array<shared_type::ui_data>,
 			how::root_descriptor,
 			where::t<1, 5>>,
+
+		binding_slot<
+			"bloom_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::bloom>,
+			how::root_descriptor,
+			where::t<0, 6>>,
 
 		binding_slot<
 			"debug_meshlet_render_data_buffer",
@@ -336,5 +312,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		srv_desc_handle h_radiance_srv_desc;
 		srv_desc_handle h_prefilter_srv_desc;
 		srv_desc_handle h_irradiance_srv_desc;
+	};
+
+	struct bloom_desc
+	{
+		float  threshold = 1.0f;
+		float  knee		 = 0.5f;
+		float  intensity = 0.05f;
+		float  radius	 = 1.0f;
+		float3 tint		 = float3::one();
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

@@ -970,7 +970,15 @@ namespace age::ui::widget
 											   | set_width(size_mode::grow())))
 					{
 						char char_buf[21];
-						util::to_str(char_buf, value);
+						// util::to_str(char_buf, value);
+						if constexpr (std::is_floating_point_v<t>)
+						{
+							util::float_to_str<6>(char_buf, value);
+						}
+						else
+						{
+							util::integral_to_str(char_buf, value);
+						}
 						widget::text(char_buf, style_state);
 					}
 				}

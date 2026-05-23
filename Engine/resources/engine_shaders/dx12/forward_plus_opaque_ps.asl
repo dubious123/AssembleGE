@@ -144,6 +144,44 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			}
 		}
 	}
+	//{
+	//	const unified_light light	= load_sorted_light(0);
+	//	const float3		center	= mul(view, float4(light.position, 1)).xyz;
+	//	const float2		bound_x = project_sphere_axis(center.x, center.z, light.range, cam_near_z, proj_00);
+	//	const float2		bound_y = project_sphere_axis(center.y, center.z, light.range, cam_near_z, proj_11);
+	//	const float2		ndc_min = float2(bound_x.x, bound_y.x);
+	//	const float2		ndc_max = float2(bound_x.y, bound_y.y);
+
+	//	const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
+	//	const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);
+
+	//	const float x_min = screen_a.x;
+	//	const float x_max = screen_b.x;
+	//	const float y_min = min(screen_a.y, screen_b.y);
+	//	const float y_max = max(screen_a.y, screen_b.y);
+	//	return float4(proj_00, center.z, light.range, cam_near_z);
+	//	return float4(center.x, center.z, light.range, cam_near_z);
+	//	return float4(bound_x.x, bound_x.y, bound_y.x, bound_y.y);
+	//	return float4(cam_near_z, center.z, 0, 1);
+	//	return float4(x_min, x_max, y_min, y_max);
+
+	//	if (is_nan(x_min) or is_nan(x_max) or is_nan(y_min) or is_nan(y_max) or is_nan(screen_a) or is_nan(screen_b) or is_nan(fragment.v.pos))
+	//	{
+	//		return float4(1, 0, 0, 1);
+	//	}
+
+	//	if (x_min < fragment.v.pos.x and x_max > fragment.v.pos.x
+	//		and y_min < fragment.v.pos.y and y_max > fragment.v.pos.y)
+	//	{
+	//		return float4(1, 0, 0, 1);
+	//		return float4(y_max - y_min, y_max - y_min, y_max - y_min, 1);
+	//		return float4(x_max - x_min, x_max - x_min, x_max - x_min, 1);
+	//	}
+	//	else
+	//	{
+	//		return float4(0, 1, 0, 1);
+	//	}
+	//}
 
 	// uint32 c = 0;
 	// for (uint32 i = 0; i < Z_SLICE_COUNT / 32; ++i)
@@ -156,11 +194,11 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	// }
 
 	// return float4(c, c, c, 1);
-	//    return float4(light_count / 4.f, 0, 0, 1);
-	//    return float4(0, 0, shadow_count / 8.f, 1);
-	//    return float4(float3(surface_data.n_dot_v, surface_data.n_dot_v, surface_data.n_dot_v), 1);
-	//    return float4(face_normal, 1.f);
-	//    return float4(vertex_normal, 1.f);
+	//     return float4(light_count / 4.f, 0, 0, 1);
+	//     return float4(0, 0, shadow_count / 8.f, 1);
+	//     return float4(float3(surface_data.n_dot_v, surface_data.n_dot_v, surface_data.n_dot_v), 1);
+	//     return float4(face_normal, 1.f);
+	//     return float4(vertex_normal, 1.f);
 
 	// return float4(v.uv0, 0, 1.f);
 	// return float4(lighting * albedo, 1.0f);

@@ -30,6 +30,32 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	tex2d_mip(uint32 mip) noexcept
+	{
+		return D3D12_BARRIER_SUBRESOURCE_RANGE{
+			.IndexOrFirstMipLevel = mip,
+			.NumMipLevels		  = 1,
+			.FirstArraySlice	  = 0,
+			.NumArraySlices		  = 1,
+			.FirstPlane			  = 0,
+			.NumPlanes			  = 1,
+		};
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	tex2d_mip_range(uint32 first_mip, uint32 mip_count) noexcept
+	{
+		return D3D12_BARRIER_SUBRESOURCE_RANGE{
+			.IndexOrFirstMipLevel = first_mip,
+			.NumMipLevels		  = mip_count,
+			.FirstArraySlice	  = 0,
+			.NumArraySlices		  = 1,
+			.FirstPlane			  = 0,
+			.NumPlanes			  = 1,
+		};
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	mip_all() noexcept
 	{
 		return D3D12_BARRIER_SUBRESOURCE_RANGE{
@@ -323,7 +349,7 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
@@ -333,7 +359,7 @@ namespace age::graphics::barrier
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.pResource	  = p_resource,
-			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
+			.Subresources = subresources,
 			.Flags		  = flag
 		};
 	}

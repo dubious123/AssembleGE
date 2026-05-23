@@ -598,6 +598,19 @@ namespace age::graphics::resource
 		return create_buffer_committed<global::frame_buffer_count>(buffer_byte_size, p_data, kind, initial_layout, flags);
 	}
 
+	std::array<mapping_handle, global::frame_buffer_count>
+	create_buffer_committed_arr(const wchar_t*		 fmt,
+								uint32				 buffer_byte_size,
+								const void*			 p_data,
+								e::memory_kind		 kind,
+								D3D12_BARRIER_LAYOUT initial_layout,
+								D3D12_RESOURCE_FLAGS flags) noexcept
+	{
+		auto res_arr = create_buffer_committed<global::frame_buffer_count>(buffer_byte_size, p_data, kind, initial_layout, flags);
+		resource::set_name(res_arr, fmt);
+		return res_arr;
+	}
+
 	mapping_handle
 	create_buffer_placed(uint32				  buffer_byte_size,
 						 ID3D12Heap&		  heap,

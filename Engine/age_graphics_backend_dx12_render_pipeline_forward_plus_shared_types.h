@@ -140,6 +140,10 @@
 #define MATERIAL_ALPHA_BLEND_MASK	1
 #define MATERIAL_ALPHA_BLEND_BLEND	2
 
+// bloom
+#define MAX_BLOOM_MIP_COUNT 7
+#define MIN_BLOOM_MIP_PIXEL 8
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -163,6 +167,7 @@ namespace age::graphics::render_pipeline::forward_plus
 	using t_env_light_id		 = uint32;
 	using t_env_light_id		 = uint32;
 	using t_raycast_id			 = uint32;
+	using t_bloom_id			 = uint16;
 #if !defined(AGE_SHADER)
 
 }	 // namespace age::graphics::render_pipeline::forward_plus
@@ -170,6 +175,20 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
 #endif
+	//---[ bloom ]------------------------------------------------------------
+	struct bloom
+	{
+		float  threshold;
+		float  knee;
+		float  intensity;
+		float  radius;
+		float3 tint;
+		uint16 width;			  // mip 0
+		uint16 height;			  // mip 0
+		uint32 uav_texture_id_arr[MAX_BLOOM_MIP_COUNT];
+		uint32 srv_texture_id;	  // invalid_id : no bloom
+	};
+
 	//---[ ui ]------------------------------------------------------------
 	struct ui_root_data
 	{
@@ -448,6 +467,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 debug_meshlet_render_data_offset;
 		uint32 debug_meshlet_render_data_count;
+
+		uint32 bloom_mip_level_and_extra;	 // src_mip, target_mip == src_mip + 1 or src_mip - 1
 	};
 
 
@@ -488,6 +509,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	// ui
 	inline constexpr auto max_ui_z_count = 128;
+
+	// bloom
+	inline constexpr auto max_bloom_mip_count = uint16{ MAX_BLOOM_MIP_COUNT };
+	inline constexpr auto min_bloom_mip_pixel = uint16{ MIN_BLOOM_MIP_PIXEL };
 
 	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
 
@@ -683,6 +708,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MATERIAL_ALPHA_BLEND_OPAQUE
 	#undef MATERIAL_ALPHA_BLEND_MASK
 	#undef MATERIAL_ALPHA_BLEND_BLEND
+
+	#undef MAX_BLOOM_MIP_COUNT
+	#undef MIN_BLOOM_MIP_PIXEL
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

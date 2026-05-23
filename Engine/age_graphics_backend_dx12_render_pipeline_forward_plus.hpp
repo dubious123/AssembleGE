@@ -121,6 +121,31 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct bloom_stage
+	{
+		pso::handle			 h_pso_prefilter = {};
+		ID3D12PipelineState* p_pso_prefilter = nullptr;
+
+		pso::handle			 h_pso_downsample = {};
+		ID3D12PipelineState* p_pso_downsample = nullptr;
+
+		pso::handle			 h_pso_upsample = {};
+		ID3D12PipelineState* p_pso_upsample = nullptr;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(binding_config_t::reg_b<1>& constants,
+				resource_handle				h_bloom_chain,
+				uint16						mip_count,
+				const shared_type::bloom&	bloom_gpu) noexcept;
+
+
+		void
+		deinit() noexcept;
+	};
+
 	struct post_process_stage
 	{
 		pso::handle			 h_pso = {};
@@ -231,6 +256,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		opaque_stage			stage_opaque;
 		transparent_stage		stage_transparent;
 		raycast_stage			stage_raycast;
+		bloom_stage				stage_bloom;
 		post_process_stage		stage_post_process;
 		selection_outline_stage stage_selection_outline;
 		ui_stage				stage_ui;
@@ -255,9 +281,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_light_cull_stage_buffer;
 		resource_handle h_light_cull_stage_sorted_light_buffer;
 
-
 		std::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
-
 
 		mapping_handle h_mapping_frame_data;
 		mapping_handle h_mapping_mesh_buffer;
@@ -369,6 +393,22 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
 		t_camera_id						main_camera_id;
+
+		// bloom
+		binding_config_t::reg_t<0, 6>						   bloom_buffer;
+		std::array<mapping_handle, global::frame_buffer_count> h_mapping_bloom_buffer_arr;
+
+		t_bloom_id active_bloom_id;
+
+		age::sparse_vector<bloom_desc> bloom_desc_vec;
+		shared_type::bloom			   bloom_gpu{ .width = static_cast<uint16>(extent.width / 2u), .height = static_cast<uint16>(extent.height / 2u) };
+		uint16						   bloom_mip_count = math::calc_mip_count(bloom_gpu.width, bloom_gpu.height);
+		uint16						   _;
+		resource_handle				   h_bloom_chain;
+		srv_desc_handle				   h_bloom_srv_desc;
+		uav_desc_handle				   h_bloom_mip_uav_desc_arr[g::max_bloom_mip_count];
+
+		// object & render_data
 
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
@@ -559,6 +599,19 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		render_debug_line() noexcept;
+
+		// bloom
+		t_bloom_id
+		add_bloom(const bloom_desc& desc, bool set_active = false) noexcept;
+
+		void
+		update_bloom(t_bloom_id id, const bloom_desc& desc) noexcept;
+
+		void
+		set_bloom_active(t_bloom_id id, bool active) noexcept;
+
+		void
+		remove_bloom(t_bloom_id& id) noexcept;
 
 	  private:
 		void

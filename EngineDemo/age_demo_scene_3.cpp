@@ -219,6 +219,11 @@ namespace age_demo::scene_3
 		{
 			i_deinit.get_render_pipeline->remove_object(obj.render_id);
 		}
+
+		for (auto&& [b] : entities | age::ecs::each_entity_soft<age::ecs::bloom>())
+		{
+			i_deinit.get_render_pipeline->remove_bloom(b.render_id);
+		}
 	}
 
 	void

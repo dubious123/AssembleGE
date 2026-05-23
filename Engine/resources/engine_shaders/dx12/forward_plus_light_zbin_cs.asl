@@ -49,11 +49,13 @@ main_cs(uint32 sorted_id	   sv_dispatch_thread_id,
 		// view space center
 		const float3 center = mul(view, float4(light.position, 1)).xyz;
 
-		const float2 bound_x = project_sphere_axis(center.x, center.z, light.range, cam_near_z, proj_00);
-		const float2 bound_y = project_sphere_axis(center.y, center.z, light.range, cam_near_z, proj_11);
+		const float4 aabb = project_sphere(center, light.range, cam_near_z, proj_00, proj_11);
 
-		const float2 ndc_min = float2(bound_x.x, bound_y.x);
-		const float2 ndc_max = float2(bound_x.y, bound_y.y);
+		//	const float2 bound_x = project_sphere_axis(center.x, center.z, light.range, cam_near_z, proj_00);
+		// const float2	 bound_y = project_sphere_axis(center.y, center.z, light.range, cam_near_z, proj_11);
+
+		const float2 ndc_min = float2(aabb.x, aabb.y);
+		const float2 ndc_max = float2(aabb.z, aabb.w);
 
 		const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
 		const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);

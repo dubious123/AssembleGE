@@ -1,0 +1,25 @@
+#include "age.asli"
+
+// based on Brian Karis SIGGRAPH 2014
+// "High Quality Temporal Supersampling"
+// https://advances.realtimerendering.com/s2014/
+float3
+karis_average(float3 a, float3 b, float3 c, float3 d)
+{
+	const float wa = 1.f / (1.f + luminance_rec709(a));
+	const float wb = 1.f / (1.f + luminance_rec709(b));
+	const float wc = 1.f / (1.f + luminance_rec709(c));
+	const float wd = 1.f / (1.f + luminance_rec709(d));
+	return (a * wa + b * wb + c * wc + d * wd) / (wa + wb + wc + wd);
+}
+
+// knee 0 : step_function
+float
+soft_knee_threshold(float brightness, float threshold, float knee)
+{
+	float soft = brightness - threshold + knee;
+	soft	   = clamp(soft, 0.f, 2.f * knee);
+	soft	   = soft * soft / (4.f * knee + 1e-6f);
+
+	return max(soft, brightness - threshold) / max(brightness, epsilon_1e6);
+}
