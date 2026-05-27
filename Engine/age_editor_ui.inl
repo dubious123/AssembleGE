@@ -101,6 +101,23 @@ namespace age::editor
 	void
 	ui_component(ecs::bloom& cmp) noexcept;
 
+	// return : need update
+	bool
+	ui_component(age::ecs::ddgi_config& _) noexcept;
+
+	void
+	ui_component(age::ecs::ddgi_config& cmp, auto& renderer) noexcept
+	{
+		if (ui_component(cmp))
+		{
+			renderer.update_ddgi({
+				.probe_per_level_axis = cmp.probe_per_level_axis,
+				.base_probe_spacing	  = cmp.base_probe_spacing,
+				.level_count		  = cmp.level_count,
+			});
+		}
+	}
+
 	void
 	ui_component(auto&& cmp) noexcept
 	{

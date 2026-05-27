@@ -187,6 +187,7 @@ namespace age_demo::scene_1
 	FORCE_INLINE decltype(auto)
 	update() noexcept
 	{
+		i_update.get_render_pipeline->begin_frame();
 		c_auto dt_s = std::max(
 			age::runtime::i_time.get_delta_time_s(),
 			1.f / 160);

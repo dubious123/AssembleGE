@@ -97,6 +97,13 @@ unorm8_to_float(uint32 raw)
 	return (raw & 0xffu) / 255.f;
 }
 
+uint16
+float_to_snorm8(float f)
+{
+	int32 v = int32(clamp(f, -1.f, 1.f) * 127.f + (f >= 0.f ? 0.5f : -0.5f));
+	return uint16(v) & 0xff;
+}
+
 int32
 uint32_x_to_int8(uint32 u)
 {
@@ -119,6 +126,30 @@ int32
 uint32_w_to_int8(uint32 u)
 {
 	return (int32)(int32(u) >> 24);
+}
+
+uint32
+uint32_x_to_uint8(uint32 u)
+{
+	return (u >> 0) & 0xff;
+}
+
+uint32
+uint32_y_to_uint8(uint32 u)
+{
+	return (u >> 8) & 0xff;
+}
+
+uint32
+uint32_z_to_uint8(uint32 u)
+{
+	return (u >> 16) & 0xff;
+}
+
+uint32
+uint32_w_to_uint8(uint32 u)
+{
+	return (u >> 24) & 0xff;
 }
 
 int16
@@ -287,6 +318,24 @@ decode_oct_unorm(const uint16 oct)
 	}
 
 	return res;
+}
+
+uint16
+encode_oct_snorm8(const float3 f)
+{
+	const float l1_norm = abs(f.x) + abs(f.y) + abs(f.z);
+	float		x		= f.x / l1_norm;
+	float		y		= f.y / l1_norm;
+	if (f.z < 0.f)
+	{
+		const float old_x = x;
+		const float old_y = y;
+
+		x = (1.f - abs(old_y)) * (old_x >= 0.f ? 1.f : -1.f);
+		y = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
+	}
+
+	return uint16(float_to_snorm8(x) | (float_to_snorm8(y) << 8u));
 }
 
 // precondition:
@@ -615,14 +664,70 @@ world_dir_to_equirect_uv(float3 dir)
 				  -asin(clamp(dir.y, -1.0, 1.0)) / pi + 0.5);
 }
 
+// float3x3
+// gen_normal_transform(float3 normal)
+//{
+//	float3 some_dir	 = abs(normal.x) > 0.9 ? float3(0, 1, 0) : float3(1, 0, 0);
+//	float3 tangent	 = normalize(cross(some_dir, normal));
+//	float3 bitangent = cross(normal, tangent);
+//
+//	return transpose(float3x3(tangent, bitangent, normal));
+// }
+
+// based on Tom Duff et al. Journal of Computer Graphics Techniques 2017
+// "Building an Orthonormal Basis, Revisited"
+// https://jcgt.org/published/0006/01/01/
+float3x3
+gen_normal_transform_t(float3 normal)
+{
+	// copy sign
+	float  sign_z	 = normal.z >= 0.f ? 1.f : -1.f;
+	float  a		 = -1.f / (sign_z + normal.z);
+	float  b		 = normal.x * normal.y * a;
+	float3 tangent	 = float3(1.f + sign_z * normal.x * normal.x * a, sign_z * b, -sign_z * normal.x);
+	float3 bitangent = float3(b, sign_z + normal.y * normal.y * a, -normal.y);
+	return float3x3(tangent, bitangent, normal);
+}
+
 float3x3
 gen_normal_transform(float3 normal)
 {
-	float3 some_dir	 = abs(normal.x) > 0.9 ? float3(0, 1, 0) : float3(1, 0, 0);
-	float3 tangent	 = normalize(cross(some_dir, normal));
-	float3 bitangent = cross(normal, tangent);
+	return transpose(gen_normal_transform_t(normal));
+}
 
-	return transpose(float3x3(tangent, bitangent, normal));
+float3
+sample_hemisphere_cosine(float2 xi, float3 normal)
+{
+	const float phi		  = pi_2 * xi.x;
+	const float cos_theta = sqrt(xi.y);
+	const float sin_theta = sqrt(1.f - xi.y);
+
+	const float3   dir_local		= float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+	const float3x3 local_to_world_t = gen_normal_transform_t(normal);
+	return mul(dir_local, local_to_world_t);
+}
+
+float3
+sample_hemisphere_cosine(float2 xi, float3x3 transform_mat)
+{
+	const float phi		  = pi_2 * xi.x;
+	const float cos_theta = sqrt(xi.y);
+	const float sin_theta = sqrt(1.f - xi.y);
+
+	const float3 dir_local = float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+	return mul(transform_mat, dir_local);
+}
+
+// return (dir , cos), cos for pdf
+float4
+sample_hemisphere_cosine_2(float2 xi, float3x3 transform_mat)
+{
+	const float phi		  = pi_2 * xi.x;
+	const float cos_theta = sqrt(xi.y);
+	const float sin_theta = sqrt(1.f - xi.y);
+
+	const float3 dir_local = float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+	return float4(mul(transform_mat, dir_local), cos_theta);
 }
 
 float

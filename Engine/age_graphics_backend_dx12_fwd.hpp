@@ -39,6 +39,10 @@ namespace age::graphics::e
 					forward_plus_light_zbin_cs,
 					forward_plus_light_tile_cs,
 
+					forward_plus_ddgi_update_probe_state_cs,
+					forward_plus_ddgi_reduce_ray_sum_cs,
+					forward_plus_ddgi_probe_trace_cs,
+
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,
 					forward_plus_opaque_ps,
@@ -236,6 +240,9 @@ namespace age::graphics
 
 		FORCE_INLINE void
 		readback(void* p_dst, std::size_t size, std::size_t offset = 0u) noexcept;
+
+		FORCE_INLINE std::byte*
+		get_ptr() noexcept;
 	};
 
 	using t_mapping_handle_id = uint32;

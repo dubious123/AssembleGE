@@ -158,12 +158,20 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1, 5>>,
 
 		binding_slot<
-			"bloom_buffer",
-			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			"ddgi_probe_buffer_srv",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer_array<shared_type::bloom>,
+			what::structured_buffer<shared_type::ddgi_probe>,
 			how::root_descriptor,
-			where::t<0, 6>>,
+			where::t<1, 7>>,
+
+		binding_slot<
+			"ddgi_probe_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer<shared_type::ddgi_probe>,
+			how::root_descriptor,
+			where::u<1, 7>>,
 
 		binding_slot<
 			"debug_meshlet_render_data_buffer",
@@ -321,5 +329,32 @@ namespace age::graphics::render_pipeline::forward_plus
 		float  intensity = 0.05f;
 		float  radius	 = 1.0f;
 		float3 tint		 = float3::one();
+	};
+
+	struct ddgi_desc
+	{
+		uint32_3 probe_per_level_axis;
+		float3	 base_probe_spacing;
+		uint32	 level_count;
+	};
+
+	struct ddgi_data
+	{
+		shared_type::ddgi_data ddgi_data_gpu;
+		bool				   enabled	= false;
+		uint8				   idx_prev = 0;
+		uint8				   idx_curr = 1;
+		uint8_2				   _;
+
+		extent_2d<uint32> irradiance_atlas_extent;
+		extent_2d<uint32> visibility_atlas_extent;
+
+		resource_handle h_irradiance_atlas[2];
+		resource_handle h_visibility_atlas[2];
+		resource_handle h_probe_buffer;
+		srv_desc_handle h_irradiance_srv_desc[2];
+		srv_desc_handle h_irradiance_uav_desc[2];
+		srv_desc_handle h_visibility_srv_desc[2];
+		srv_desc_handle h_visibility_uav_desc[2];
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

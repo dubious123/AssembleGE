@@ -17,19 +17,16 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id) {
 	{
 		const float2 xi = hammersley(n, ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT);
 
-		const float phi		  = 2.0 * pi * xi.x;
-		const float cos_theta = sqrt(xi.y);
-		const float sin_theta = sqrt(1.0 - xi.y);
-
-		const float3 l_local = float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
-		const float3 l		 = mul(local_to_world, l_local);
+		const float4 dir__cos_theta = sample_hemisphere_cosine_2(xi, local_to_world);
+		const float3 dir			= dir__cos_theta.xyz;
+		const float	 cos_theta		= dir__cos_theta.w;
 
 		const float pdf		= max(cos_theta / pi, epsilon_1e6);
 		const float omega_s = 1.f / (float(ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT) * pdf);
 		const float omega_p = 4.f * pi / (6.f * env_light_radiance_size * env_light_radiance_size);
 		const float mip_lod = max(0.5 * log2(omega_s / omega_p), 0.0);
 
-		res += sample_level(radiance, get_linear_clamp_sampler(), l, mip_lod).rgb;
+		res += sample_level(radiance, get_linear_clamp_sampler(), dir, mip_lod).rgb;
 	}
 
 	irradiance[thread_id] = float4(res / float(ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT), 1.0);

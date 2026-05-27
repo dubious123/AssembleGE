@@ -244,6 +244,86 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
+// stage ddgi
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
+	ddgi_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_update_probe_state = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_update_probe_state_cs) });
+
+		p_pso_update_probe_state = graphics::g::pso_ptr_vec[h_pso_update_probe_state];
+		h_pso_update_probe_state.set_name(L"pso_ddgi_update_probe_state");
+
+		h_pso_reduce_ray_sum = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_reduce_ray_sum_cs) });
+
+		p_pso_reduce_ray_sum = graphics::g::pso_ptr_vec[h_pso_reduce_ray_sum];
+		h_pso_reduce_ray_sum.set_name(L"pso_reduce_ray_sum");
+
+
+		h_pso_probe_trace = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_probe_trace_cs) });
+
+		p_pso_probe_trace = graphics::g::pso_ptr_vec[h_pso_probe_trace];
+		h_pso_probe_trace.set_name(L"pso_probe_trace");
+	}
+
+	inline void
+	ddgi_stage::execute(const ddgi_data& ddgi_data_cpu, resource_handle h_probe_buffer, resource_handle h_scratch_buffer) const noexcept
+	{
+		c_auto& ddgi_data_gpu = ddgi_data_cpu.ddgi_data_gpu;
+
+		c_auto ppl		   = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 24u) & 0xff);
+		c_auto level_count = ddgi_data_gpu.level_count__tile_count_w_log2 & 0xff;
+
+		command::set_pso(p_pso_update_probe_state);
+
+
+		command::dispatch(util::ceil(ppl, g::ddgi_update_probe_state_probe_per_group), 1, level_count);
+
+		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+
+		command::set_pso(p_pso_reduce_ray_sum);
+
+		c_auto sum_count = util::ceil(util::ceil(ppl * level_count, g::ddgi_update_probe_state_probe_per_group),
+									  g::ddgi_update_probe_state_probe_per_group);
+		command::dispatch(sum_count, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_srv(h_scratch_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_uav_to_uav(h_probe_buffer->p_resource));
+
+		command::set_pso(p_pso_probe_trace);
+		{
+			c_auto axis_x = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 0u) & 0xff);
+			c_auto axis_y = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 8u) & 0xff);
+			c_auto axis_z = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 16u) & 0xff);
+
+			AGE_ASSERT(axis_z * level_count <= 0xffff);
+			command::dispatch(axis_x, axis_y, axis_z * level_count);
+		}
+
+
+		// sum_count = x * y * z * level /  g::ddgi_update_probe_state_probe_per_group
+		// example : 32 * 16 * 32 * 8 / 1024
+		//
+		// 32 group reduce
+	}
+
+	void
+	ddgi_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_update_probe_state);
+		pso::destroy(h_pso_reduce_ray_sum);
+		pso::destroy(h_pso_probe_trace);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
 // stage opaque
 namespace age::graphics::render_pipeline::forward_plus
 {

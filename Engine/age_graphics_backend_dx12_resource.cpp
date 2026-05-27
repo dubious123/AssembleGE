@@ -74,6 +74,12 @@ namespace age::graphics
 	{
 		std::memcpy(p_dst, ptr + offset, size);
 	}
+
+	FORCE_INLINE std::byte*
+	resource_mapping::get_ptr() noexcept
+	{
+		return ptr;
+	}
 }	 // namespace age::graphics
 
 namespace age::graphics::resource

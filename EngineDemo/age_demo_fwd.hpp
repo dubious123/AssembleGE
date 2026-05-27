@@ -184,7 +184,8 @@ namespace age_demo::scene_3
 															   age::ecs::mesh,
 															   age::ecs::material,
 															   age::ecs::env_light,
-															   age::ecs::bloom>;
+															   age::ecs::bloom,
+															   age::ecs::ddgi_config>;
 
 	using t_ent_storage_sub = age::ecs::entity_storage::basic<uint32,
 															  age::ecs::position,

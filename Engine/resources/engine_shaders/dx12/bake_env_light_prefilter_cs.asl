@@ -50,14 +50,11 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	float  total_weight = 0.f;
 	for (uint32 n = 0; n < ENV_LIGHT_GGX_SAMPLE_COUNT; ++n)
 	{
-		const float2 xi		   = hammersley(n, ENV_LIGHT_SAMPLE_COUNT);
-		const float	 u		   = xi.x;
-		const float	 phi	   = 2.f * pi * xi.y;
-		const float	 cos_theta = sqrt((1.f - u) / (1.f + (alpha * alpha - 1.f) * u));
-		const float	 sin_theta = sqrt(1.f - cos_theta * cos_theta);
-		const float3 h_local   = float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
-		const float3 h		   = normalize(mul(local_to_world, h_local));
-		const float3 l		   = reflect(-v, h);
+		const float2 xi = hammersley(n, ENV_LIGHT_SAMPLE_COUNT);
+
+		const float3 h = sample_hemisphere_cosine(xi, local_to_world);
+
+		const float3 l = reflect(-v, h);
 
 		const float n_dot_l = dot(normal, l);
 		const float n_dot_h = max(dot(normal, h), 0);

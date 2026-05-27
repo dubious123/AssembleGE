@@ -80,6 +80,25 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
+		texture_2d_array(extent_2d<uint32>	  extent,
+						 DXGI_FORMAT		  format,
+						 uint16				  array_size,
+						 D3D12_RESOURCE_FLAGS flags			 = D3D12_RESOURCE_FLAG_NONE,
+						 uint16				  mip_levels	 = 1,
+						 uint16				  sample_count	 = 1,
+						 uint16				  sample_quality = 0) noexcept
+		{
+			return texture_2d_array(
+				extent.width, extent.height,
+				format,
+				array_size,
+				flags,
+				mip_levels,
+				sample_count,
+				sample_quality);
+		}
+
+		FORCE_INLINE decltype(auto)
 		texture_2d(uint32				width,
 				   uint32				height,
 				   DXGI_FORMAT			format,
@@ -424,6 +443,21 @@ namespace age::graphics::defaults
 				.Texture2D	   = D3D12_TEX2D_UAV{
 					.MipSlice	= mip_slice,
 					.PlaneSlice = plane_slice }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex2d_array(DXGI_FORMAT format, uint32 array_size, uint32 mip_slice = 0, uint32 plane_slice = 0) noexcept
+		{
+			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
+				.Format			= format,
+				.ViewDimension	= D3D12_UAV_DIMENSION_TEXTURE2DARRAY,
+				.Texture2DArray = D3D12_TEX2D_ARRAY_UAV{
+					.MipSlice		 = mip_slice,
+					.FirstArraySlice = 0,
+					.ArraySize		 = array_size,
+					.PlaneSlice		 = plane_slice,
+				}
 			};
 		}
 

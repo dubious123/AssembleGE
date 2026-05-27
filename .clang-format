@@ -90,7 +90,7 @@ IndentWrappedFunctionNames: false
 BreakAfterAttributes: Leave 
 
 AttributeMacros: ['FORCE_INLINE', 'no_unique_addr', 'INLINE_LAMBDA_FRONT', 'INLINE_LAMBDA_BACK', 'reg', 'numthreads', 'in', 'out', 'indices', 'vertices', 'Void', 'expand', 'expand_all', 'attr_branch', 'output_topology', 
-'numthreads']
+'numthreads', 'wave_size']
 ForEachMacros: [FOR_EACH]
 #Macros:
 #   - AGE_LAMBDA(arg_tpl, body)=[&] INLINE_LAMBDA_FRONT arg_tpl noexcept INLINE_LAMBDA_BACK -> decltype(auto) { body }

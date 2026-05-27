@@ -71,6 +71,27 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct ddgi_stage
+	{
+		graphics::pso::handle h_pso_update_probe_state;
+		ID3D12PipelineState*  p_pso_update_probe_state;
+
+		graphics::pso::handle h_pso_reduce_ray_sum;
+		ID3D12PipelineState*  p_pso_reduce_ray_sum;
+
+		graphics::pso::handle h_pso_probe_trace;
+		ID3D12PipelineState*  p_pso_probe_trace;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const ddgi_data&, resource_handle h_probe_buffer, resource_handle h_scratch_buffer) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct opaque_stage
 	{
 		graphics::pso::handle h_pso;
@@ -253,6 +274,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		depth_stage				stage_depth;
 		skybox_stage			stage_skybox;
 		light_culling_stage		stage_light_culling;
+		ddgi_stage				stage_ddgi;
 		opaque_stage			stage_opaque;
 		transparent_stage		stage_transparent;
 		raycast_stage			stage_raycast;
@@ -395,9 +417,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		t_camera_id						main_camera_id;
 
 		// bloom
-		binding_config_t::reg_t<0, 6>						   bloom_buffer;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_bloom_buffer_arr;
-
 		t_bloom_id active_bloom_id;
 
 		age::sparse_vector<bloom_desc> bloom_desc_vec;
@@ -408,8 +427,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		srv_desc_handle				   h_bloom_srv_desc;
 		uav_desc_handle				   h_bloom_mip_uav_desc_arr[g::max_bloom_mip_count];
 
-		// object & render_data
+		// ddgi
+		binding_config_t::reg_t<1, 7> ddgi_probe_buffer_srv;
+		binding_config_t::reg_u<1, 7> ddgi_probe_buffer_uav;
+		ddgi_data					  ddgi_data_cpu;
 
+		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[global::thread_count];
@@ -512,6 +535,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_object(t_object_id id, const float3& pos, const float4& quat, const float3& scale) noexcept;
 
+		shared_type::object_data
+		get_object_data(t_object_id id) noexcept;
+
 		float4x4
 		get_object_transform_matrix(t_object_id id) const noexcept;
 
@@ -585,7 +611,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// raycast
 		t_raycast_id
-		request_raycast(const float3& origin, const float3& dir, float max_t, e::rt_mask_kind mask = e::rt_mask_kind::all) noexcept;
+		request_raycast(const float3& origin, const float3& dir, float max_t, e::rt_mask_kind mask = e::rt_mask_kind::all ^ e::rt_mask_kind::always_on_top) noexcept;
 
 		shared_type::raycast_result
 		get_raycast_result(t_raycast_id _) noexcept;
@@ -612,6 +638,26 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		remove_bloom(t_bloom_id& id) noexcept;
+
+		// ddgi
+		void
+		enable_ddgi(const ddgi_desc& _) noexcept;
+
+		void
+		disable_ddgi() noexcept;
+
+		void
+		update_ddgi(const ddgi_desc& _) noexcept;
+
+		bool
+		ddgi_enabled() const noexcept;
+
+		// ddgi editor
+		void
+		clear_ddgi() noexcept;
+
+		float
+		get_ddgi_convergence() noexcept;
 
 	  private:
 		void

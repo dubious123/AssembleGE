@@ -81,8 +81,8 @@ namespace age_demo::scene_0
 					constexpr uint32 light_count = 5000;
 					constexpr float	 scene_min	 = -15.0f;
 					constexpr float	 scene_max	 = 15.0f;
-					constexpr float	 range		 = 6.0f;
-					constexpr float	 intensity	 = 0.3f;
+					constexpr float	 range		 = 3.0f;
+					constexpr float	 intensity	 = 3.0f;
 
 					auto rng		= std::mt19937{ 42 };
 					auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
@@ -132,6 +132,7 @@ namespace age_demo::scene_0
 	FORCE_INLINE decltype(auto)
 	update() noexcept
 	{
+		i_update.get_render_pipeline->begin_frame();
 		c_auto dt_s = std::max(
 			age::runtime::i_time.get_delta_time_s(),
 			1.f / 160);

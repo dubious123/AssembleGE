@@ -213,6 +213,19 @@ struct vec2
 		return t_this{ x / v.x, y / v.y };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(auto v) const noexcept
+		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v % t{}; })
+	{
+		return t_this{ x % v, y % v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(const t_this& v) const noexcept
+	{
+		return t_this{ x % v.x, y % v.y };
+	}
+
 	FORCE_INLINE constexpr t_this&
 	operator*=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
@@ -500,6 +513,19 @@ struct vec3
 		return t_this{ x / v.x, y / v.y, z / v.z };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(auto v) const noexcept
+		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v % t{}; })
+	{
+		return t_this{ x % v, y % v, z % v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(const t_this& v) const noexcept
+	{
+		return t_this{ x % v.x, y % v.y, z % v.z };
+	}
+
 	FORCE_INLINE constexpr t_this&
 	operator*=(auto v) noexcept
 		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v * t{}; })
@@ -779,6 +805,19 @@ struct vec4
 	operator/(const t_this& v) const noexcept
 	{
 		return t_this{ x / v.x, y / v.y, z / v.z, w / v.w };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(auto v) const noexcept
+		requires(std::is_arithmetic_v<std::decay_t<decltype(v)>> and requires { v % t{}; })
+	{
+		return t_this{ x % v, y % v, z % v, w % v };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	operator%(const t_this& v) const noexcept
+	{
+		return t_this{ x % v.x, y % v.y, z % v.z, w % v.w };
 	}
 
 	FORCE_INLINE constexpr t_this&
@@ -1745,4 +1784,14 @@ namespace age::inline math::g
 	inline const auto right	   = float3{ +1.f, +0.f, +0.f };
 	inline const auto left	   = float3{ -1.f, +0.f, +0.f };
 
+
+	inline const auto uint8_max	 = std::numeric_limits<uint8>::max();
+	inline const auto uint16_max = std::numeric_limits<uint16>::max();
+	inline const auto uint32_max = std::numeric_limits<uint32>::max();
+	inline const auto uint64_max = std::numeric_limits<uint64>::max();
+
+	inline const auto uint8_min	 = std::numeric_limits<uint8>::min();
+	inline const auto uint16_min = std::numeric_limits<uint16>::min();
+	inline const auto uint32_min = std::numeric_limits<uint32>::min();
+	inline const auto uint64_min = std::numeric_limits<uint64>::min();
 }	 // namespace age::inline math::g

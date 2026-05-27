@@ -30,12 +30,14 @@ namespace age::runtime
 	struct
 	{
 		AGE_GETSET(now, now)
+		AGE_SET(frame_count, frame_count)
 	} i_init;
 
 	struct
 	{
 		AGE_GETSET(now, now)
 		AGE_SET(delta_time_ns, delta_time_ns)
+		AGE_GETSET(frame_count, frame_count)
 	} i_update;
 
 	struct

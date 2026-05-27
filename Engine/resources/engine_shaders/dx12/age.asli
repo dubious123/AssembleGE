@@ -2,6 +2,7 @@
 #define AGE_SHADER
 
 #define is_false == false
+#define is_true	 == true
 #define and		 &&
 #define or		 ||
 
@@ -863,6 +864,7 @@ cross(float3, float3)
 	#define sv_is_front_face
 	#define sv_position
 	#define numthreads(x, y, z) [force_inline]
+	#define wave_size(x)		[force_inline]
 
 
 	#define reg(...)
@@ -938,6 +940,7 @@ cross(float3, float3)
 	#define sv_is_front_face : SV_IsFrontFace
 	#define sv_position : SV_Position
 
+	#define wave_size(x) [WaveSize(x)]
 
 	#define reg(...) : register(__VA_ARGS__)
 	#define semantics(x) : x

@@ -25,6 +25,29 @@ namespace age::inline math
 		}                                                                                          \
 	}
 
+	template <typename t_ret = uint32>
+	FORCE_INLINE t_ret
+	log2_pow2(uint32 u) noexcept
+	{
+		AGE_ASSERT(std::has_single_bit(u));
+		return static_cast<t_ret>(std::countr_zero(u));
+	}
+
+	template <typename t_ret = uint32>
+	FORCE_INLINE t_ret
+	log2(uint32 u) noexcept
+	{
+		AGE_ASSERT(u > 0);
+		return static_cast<t_ret>(std::bit_width(u) - 1);
+	}
+
+	template <typename t_to>
+	FORCE_INLINE t_to
+	cast_to(auto&& x) noexcept
+	{
+		return static_cast<t_to>(FWD(x));
+	}
+
 	FORCE_INLINE float
 	as_float(auto&& x) noexcept
 	{
@@ -90,7 +113,7 @@ namespace age::inline math
 	}
 
 	FORCE_INLINE decltype(auto)
-	abs(float f) noexcept
+	abs(auto f) noexcept
 	{
 		return std::abs(f);
 	}
@@ -152,7 +175,11 @@ namespace age::inline math
 	FORCE_INLINE constexpr decltype(auto)
 	ceil(auto&& vec) noexcept
 	{
-		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		if constexpr (std::is_same_v<BARE_OF(vec), float>)
+		{
+			return std::ceil(FWD(vec));
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
 		{
 			return float2{ std::ceil(vec.x), std::ceil(vec.y) };
 		}
@@ -173,7 +200,11 @@ namespace age::inline math
 	FORCE_INLINE constexpr decltype(auto)
 	floor(auto&& vec) noexcept
 	{
-		if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
+		if constexpr (std::is_same_v<BARE_OF(vec), float>)
+		{
+			return std::floor(FWD(vec));
+		}
+		else if constexpr (std::is_same_v<BARE_OF(vec), float2> or std::is_same_v<BARE_OF(vec), float2a>)
 		{
 			return float2{ std::floor(vec.x), std::floor(vec.y) };
 		}
@@ -292,7 +323,7 @@ namespace age::inline math
 		}
 	}
 
-	FORCE_INLINE constexpr decltype(auto)
+	FORCE_INLINE constexpr auto
 	max(float l, float r) noexcept
 	{
 		return std::max(l, r);
@@ -303,6 +334,15 @@ namespace age::inline math
 	max(auto l, auto r) noexcept -> std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>
 	{
 		return static_cast<std::conditional_t<std::is_same_v<t_ret, void>, BARE_OF(l), t_ret>>(std::max(l, r));
+	}
+
+	FORCE_INLINE constexpr auto
+	max(auto&& arg_l, auto&&... arg_r) noexcept
+		requires(sizeof...(arg_r) > 1)
+	{
+		auto result = FWD(arg_l);
+		((result = arg_r > result ? arg_r : result), ...);
+		return result;
 	}
 
 	template <template <typename> typename v, typename t_>
@@ -411,7 +451,7 @@ namespace age::inline math
 		}
 	}
 
-	FORCE_INLINE constexpr decltype(auto)
+	FORCE_INLINE constexpr auto
 	clamp(auto x, auto min, auto max) noexcept
 	{
 		return std::clamp(x, min, max);
@@ -433,6 +473,12 @@ namespace age::inline math
 	clamp(const float4& v, auto min, auto max) noexcept
 	{
 		return float4{ std::clamp(v.x, min, max), std::clamp(v.y, min, max), std::clamp(v.z, min, max), std::clamp(v.w, min, max) };
+	}
+
+	FORCE_INLINE decltype(auto)
+	saturate(auto&& f) noexcept
+	{
+		return clamp(FWD(f), 0.f, 1.f);
 	}
 
 #undef AGE_VEC_FUNC

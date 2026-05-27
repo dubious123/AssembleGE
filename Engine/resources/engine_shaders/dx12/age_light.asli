@@ -416,7 +416,7 @@ calc_pbr_surface(const material mat, const vertex_fat vertex)
 		//  res.normal = t;
 
 		// res.normal = normalize(
-		//	normal_local.x * t + normal_local.y * b + normal_local.z * res.normal	 // 이 시점엔 vertex normal
+		//	normal_local.x * t + normal_local.y * b + normal_local.z * res.normal
 		//);
 
 		// res.normal = normal_local;

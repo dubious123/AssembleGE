@@ -735,6 +735,62 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(ddgi_config, "ddgi")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		bool	 enabled	  = false;
+		bool	 render_probe = false;
+		uint8_2	 _;
+		uint32_3 probe_per_level_axis = uint32_3{ 32, 16, 32 };
+		float3	 base_probe_spacing	  = float3{ 1.f, 2.f, 1.f };
+		uint32	 level_count		  = 6;
+
+		AGE_CUSTOM_BYTE_SIZE(enabled, render_probe, probe_per_level_axis, base_probe_spacing, level_count);
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, ddgi_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled)
+			{
+				ctx.renderer.enable_ddgi({
+					.probe_per_level_axis = cmp.probe_per_level_axis,
+					.base_probe_spacing	  = cmp.base_probe_spacing,
+					.level_count		  = cmp.level_count,
+				});
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, ddgi_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled)
+			{
+				ctx.renderer.disable_ddgi();
+			}
+		}
+
+		static void
+		write_to(cmp_dispatch_key, const ddgi_config& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			buf.write(cmp.enabled, cmp.render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
+			return;
+		}
+
+		static void
+		read_from(cmp_dispatch_key, ddgi_config & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != ddgi_config::age_component_version())
+			{
+				AGE_ASSERT(false);
+				return;
+			}
+
+			buf.read(cmp.enabled, cmp.render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
+		}
+	};
+
 #undef AGE_COMPONENT
 #undef AGE_CUSTOM_BYTE_SIZE
 }	 // namespace age::ecs

@@ -26,6 +26,10 @@ uint32 rt_transparent_buffer_uav_texture_id;
 uint32 rt_raycast_request_count;
 float  proj_00;
 float  proj_11;
+float  cam_near_z;
+float  cam_far_z;
+uint32 light_tile_count_x;
+uint32 light_tile_count_y;
 
 
 // cbuffer root_constants reg(b1)
@@ -34,11 +38,6 @@ uint32			   directional_light_count_and_extra;
 t_unified_light_id unified_light_count;
 uint32			   transparent_object_render_data_count;
 
-uint32 light_tile_count_x;
-uint32 light_tile_count_y;
-float  cam_near_z;
-float  cam_far_z;
-float  cam_log_far_near_ratio;
 uint32 env_light_brdf_lut_id;
 uint32 env_light_count;
 uint32 radix_sort_pass;
@@ -370,12 +369,145 @@ load_debug_object_data(uint32 id)
 }
 
 // bloom
-structured_buffer<bloom> bloom_buffer reg(t0, space6);
-
 bloom
 load_bloom()
 {
-	return bloom_buffer[0];
+	return load<bloom>(static_buffer, BLOOM_OFFSET);
+}
+
+// ddgi
+structured_buffer<ddgi_probe>	 ddgi_probe_buffer_srv reg(t1, space7);
+rw_structured_buffer<ddgi_probe> ddgi_probe_buffer_uav reg(u1, space7);
+
+ddgi_data
+load_ddgi_data()
+{
+	return load<ddgi_data>(static_buffer, DDGI_DATA_OFFSET);
+}
+
+uint32
+load_ddgi_ppl(const ddgi_data data)
+{
+	return 1u << uint32_w_to_uint8(data.ppl_log_2_and_ppl_bitwidth);
+}
+
+uint16_3
+load_ddgi_ppl_log2_axis(const ddgi_data data)
+{
+	return uint16_3(uint32_x_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
+					uint32_y_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
+					uint32_z_to_uint8(data.ppl_log_2_and_ppl_bitwidth));
+}
+
+uint32_3
+load_ddgi_probe_count_axis(const uint16_3 ppl_log2_axis)
+{
+	return uint32_3(
+		1u << ppl_log2_axis.x,
+		1u << ppl_log2_axis.y,
+		1u << ppl_log2_axis.z);
+}
+
+ddgi_probe
+load_ddgi_probe_srv(uint32 probe_id)
+{
+	return ddgi_probe_buffer_srv[probe_id];
+}
+
+ddgi_probe
+load_ddgi_probe_uav(uint32 probe_id)
+{
+	return ddgi_probe_buffer_uav[probe_id];
+}
+
+void
+store_ddgi_probe_uav(uint32 probe_id, ddgi_probe p)
+{
+	ddgi_probe_buffer_uav[probe_id] = p;
+}
+
+float3
+ddgi_level_spacing(const ddgi_data data, uint32 lv)
+{
+	return data.base_probe_spacing * (1u << lv);
+}
+
+float3
+ddgi_level_extent(const ddgi_data data, uint32 lv)
+{
+	return ddgi_level_spacing(data, lv) * data.probe_per_level_axis_float;
+}
+
+float3
+ddgi_level_probe_radius(const ddgi_data data, uint32 lv)
+{
+	return ddgi_level_spacing(data, lv) * (data.probe_per_level_axis_float * 0.5f - 0.5f);
+}
+
+float3
+ddgi_calc_probe_pos(const ddgi_data data, uint32 probe_id, uint32 level)
+{
+	const uint32 li = probe_id & (load_ddgi_ppl(data) - 1);
+
+	const uint16_3 ddgi_ppl_log2_axis = load_ddgi_ppl_log2_axis(data);
+	const uint32_3 probe_count_axis	  = load_ddgi_probe_count_axis(ddgi_ppl_log2_axis);
+	const uint32_3 mask				  = probe_count_axis - 1;
+
+	const int32_3 local = int32_3(
+		li & mask.x,
+		(li >> ddgi_ppl_log2_axis.x) & mask.y,
+		li >> (ddgi_ppl_log2_axis.x + ddgi_ppl_log2_axis.y));
+
+
+	const float3 spacing = ddgi_level_spacing(data, level);
+
+	const int32_3 cam_coord = cast<int32_3>(floor(camera_pos / spacing));
+	const int32_3 half		= int32_3(probe_count_axis.x >> 1, probe_count_axis.y >> 1, probe_count_axis.z >> 1);
+
+	float3 world_coord;
+	world_coord.x = cam_coord.x - half.x + ((local.x - cam_coord.x + half.x) & mask.x);
+	world_coord.y = cam_coord.y - half.y + ((local.y - cam_coord.y + half.y) & mask.y);
+	world_coord.z = cam_coord.z - half.z + ((local.z - cam_coord.z + half.z) & mask.z);
+
+	return (world_coord + 0.5f) * spacing;
+}
+
+bool
+ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level)
+{
+	if (level == 0) { return false; }
+
+	const float3 distance = abs(probe_pos - camera_pos);
+
+	const float3 spacing	 = ddgi_level_spacing(data, level);
+	const float3 prev_radius = ddgi_level_probe_radius(data, level - 1);
+	const float3 hole_extent = prev_radius - spacing;
+
+	return distance.x < hole_extent.x and distance.y < hole_extent.y and distance.z < hole_extent.z;
+}
+
+void
+store_ddgi_ray_sum(uint32 idx, uint32 sum)
+{
+	store<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET + sizeof(uint32) * (idx + 1), sum);
+}
+
+void
+store_ddgi_ray_sum_total(uint32 sum)
+{
+	buf_interlocked_add(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET, sum);
+}
+
+uint32
+load_ddgi_ray_sum(uint32 idx)
+{
+	return load<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET + sizeof(uint32) * (idx + 1));
+}
+
+uint32
+load_ddgi_ray_sum_total()
+{
+	return load<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET);
 }
 
 // sampler

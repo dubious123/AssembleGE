@@ -183,7 +183,8 @@ namespace age::ui
 
 		g::raycast_id_arr[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(g::cam_world_pos,
 																							  g::mouse_ray_dir,
-																							  std::numeric_limits<float>::max());
+																							  std::numeric_limits<float>::max(),
+																							  graphics::e::rt_mask_kind::debug | graphics::e::rt_mask_kind::always_on_top);
 
 		end_frame_impl(res.object_id, renderer.get_ui_sink(),
 					   AGE_FUNC(renderer.render_debug_mesh),

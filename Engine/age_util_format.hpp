@@ -66,6 +66,32 @@ struct std::formatter<float4>
 };
 
 template <typename t>
+requires(age::meta::variadic_contains_v<t, float2, float3, float4> is_false
+		 and (age::meta::is_specialization_of_v<t, vec2>
+			  or age::meta::is_specialization_of_v<t, vec3>
+			  or age::meta::is_specialization_of_v<t, vec4>))
+struct std::formatter<t>
+{
+	constexpr auto
+	parse(std::format_parse_context& ctx)
+	{
+		return ctx.begin();
+	}
+
+	auto
+	format(const t& v, std::format_context& ctx) const
+	{
+		auto out = ctx.out();
+		*out++	 = '[';
+		[&]<size_t... i>(std::index_sequence<i...>) {
+			((out = std::format_to(out, "{}{}", (i == 0 ? "" : ", "), v[i])), ...);
+		}(std::make_index_sequence<t::size()>{});
+		*out++ = ']';
+		return out;
+	}
+};
+
+template <typename t>
 requires requires(t handle) { {handle.id} -> std::convertible_to<uint64>; }
 struct std::formatter<t> : std::formatter<uint64>
 {

@@ -5,7 +5,7 @@
 
 // static buffer offset
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
-#define MAX_OBJECT_DATA_COUNT				 1024u
+#define MAX_OBJECT_DATA_COUNT				 (1u << 20)
 #define MAX_DIRECTIONAL_LIGHT_COUNT			 2
 #define MAX_LIGHT_COUNT						 (512 * 512)
 
@@ -21,8 +21,9 @@
 #define LIGHT_CULL_THREAD_COUNT 256
 #define LIGHT_ZBIN_THREAD_COUNT 256
 
-#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)
-#define Z_SLICE_COUNT			(512)
+#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)	   // (512 * 32)
+// #define MAX_VISIBLE_LIGHT_COUNT (512 * 512)	   // (512 * 32)
+#define Z_SLICE_COUNT (512)
 
 #define LIGHT_TILE_SIZE			   32
 #define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
@@ -70,7 +71,9 @@
 #define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
 #define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
 #define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-#define STATIC_BUFFER_SIZE				(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
+#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
+#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
+#define STATIC_BUFFER_SIZE				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 
 // scratch
 #define SCRATCH_SORT_BUFFER_OFFSET (0)
@@ -85,6 +88,8 @@
 #define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
 #define VISIBLE_LIGHT_COUNT_OFFSET	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT * sizeof(uint32))
 #define SCRATCH_BUFFER_TOTAL_SIZE	  (VISIBLE_LIGHT_COUNT_OFFSET + sizeof(uint32))
+
+#define DDGI_GROUP_RAY_SUM_OFFSET (SCRATCH_SORT_BUFFER_OFFSET)
 
 // light cull
 #define LIGHT_CULL_ZBIN_OFFSET		(0)
@@ -144,6 +149,25 @@
 #define MAX_BLOOM_MIP_COUNT 7
 #define MIN_BLOOM_MIP_PIXEL 8
 
+// ddgi
+#define DDGI_BORDER				   1
+#define DDGI_IRRADIANCE_RESOLUTION 8
+#define DDGI_VISIBILITY_RESOLUTION 16
+#define DDGI_IRRADIANCE_TILE_SIZE  (DDGI_IRRADIANCE_RESOLUTION + DDGI_BORDER * 2)
+#define DDGI_VISIBILITY_TILE_SIZE  (DDGI_VISIBILITY_RESOLUTION + DDGI_BORDER * 2)
+
+#define DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD 32
+#define DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP 32	   // wave_count
+
+#define DDGI_PROBE_STATE_OFF	  0
+#define DDGI_PROBE_STATE_ACTIVE	  1
+#define DDGI_PROBE_STATE_SLEEP	  2
+#define DDGI_PROBE_STATE_NEW_BORN 3
+
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16 * 8)
+
+#define DDGI_RAY_BUDGET (1u << 20u)
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -175,6 +199,40 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
 #endif
+	//---[ ddgi ]------------------------------------------------------------
+	struct ddgi_data
+	{
+		float3 probe_per_level_axis_float;
+		uint32 ppl_log_2_and_ppl_bitwidth;		  // [x_log2(8)][y_log2(8)][z_log2(8)][ bitwidth(x + y + z)(8) ]
+		float3 base_probe_spacing;
+		uint32 level_count__tile_count_w_log2;	  //[level_count(8)][tile_count_w_log2(8)][][]
+		uint32 irradiance_atlas_srv_id;
+		uint32 irradiance_atlas_uav_id;
+		uint32 depth_atlas_srv_id;
+		uint32 depth_atlas_uav_id;
+	};
+
+	struct ddgi_msme
+	{
+		float mean_long;
+		float mean_short;
+		float relative_variance;	// variance / mean_sq
+		float inconsistency;
+		float vbbr;
+	};
+
+	struct ddgi_probe
+	{
+		uint16 normal_oct_snorm8;
+		uint16 _;
+		uint16 state_and_ray_count_ideal;	 // [state(8)][ray_count_ideal(8)]
+		half3  offset;
+		uint32 seen__frame_since_seen;		 // [seen(1)][frame_since_seen(8)];
+
+		ddgi_msme msme_front;
+		ddgi_msme msme_back;
+	};
+
 	//---[ bloom ]------------------------------------------------------------
 	struct bloom
 	{
@@ -433,10 +491,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   rt_raycast_request_count;				// 4
 		float			   proj_00;
 		float			   proj_11;
+		float			   cam_near_z;
+		float			   cam_far_z;
+		uint32			   light_tile_count_x;
+		uint32			   light_tile_count_y;
 		uint32_3		   _;
 
-
-		uint32_4 extra[8];
+		uint32_4 extra[7];
 		// total: 256 * 2 bytes
 	};
 
@@ -447,11 +508,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		t_unified_light_id unified_light_count;					 // 4 btyes
 		// uint32			   transparent_object_render_data_count;
 
-		uint32 light_tile_count_x;
-		uint32 light_tile_count_y;
-		float  cam_near_z;
-		float  cam_far_z;
-		float  cam_log_far_near_ratio;
 		uint32 env_light_brdf_lut_id;
 		uint32 env_light_count;
 		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
@@ -484,12 +540,15 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 light_tile_size			= LIGHT_TILE_SIZE;
 
 	inline constexpr auto max_shadow_light_count = MAX_SHADOW_LIGHT_COUNT;
+	inline constexpr auto max_object_count		 = MAX_OBJECT_DATA_COUNT;
 
 	// buffer offsets and size, texture size
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
 	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
 	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
+	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
+	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 
 	inline constexpr uint32 scratch_buffer_total_size	= SCRATCH_BUFFER_TOTAL_SIZE;
@@ -513,6 +572,12 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	// bloom
 	inline constexpr auto max_bloom_mip_count = uint16{ MAX_BLOOM_MIP_COUNT };
 	inline constexpr auto min_bloom_mip_pixel = uint16{ MIN_BLOOM_MIP_PIXEL };
+
+	// ddgi
+	inline constexpr auto ddgi_irradiance_tile_size = DDGI_IRRADIANCE_TILE_SIZE;
+	inline constexpr auto ddgi_visibility_tile_size = DDGI_VISIBILITY_TILE_SIZE;
+
+	inline constexpr auto ddgi_update_probe_state_probe_per_group = DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP * DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD;
 
 	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
 
@@ -568,6 +633,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(RT_MASK_DEBUG == to_idx(age::graphics::e::rt_mask_kind::debug));
 	static_assert(RT_MASK_AOT == to_idx(age::graphics::e::rt_mask_kind::always_on_top));
 	static_assert(RT_MASK_ALL == to_idx(age::graphics::e::rt_mask_kind::all));
+
+	static_assert(DDGI_VISIBILITY_RESOLUTION >= DDGI_IRRADIANCE_RESOLUTION);
+	static_assert(DDGI_PROBE_RAY_COUNT_NEW_BORN <= 0xff);
+	static_assert(DDGI_VISIBILITY_RESOLUTION * DDGI_VISIBILITY_RESOLUTION >= DDGI_PROBE_RAY_COUNT_NEW_BORN);
 
 	#undef reg
 	#undef cbuffer
@@ -643,7 +712,10 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef OBJECT_DATA_OFFSET
 	#undef DIRECTIONAL_LIGHT_OFFSET
 	#undef UNIFIED_LIGHT_OFFSET
+	#undef BLOOM_OFFSET
+	#undef DDGI_DATA_OFFSET
 	#undef STATIC_BUFFER_SIZE
+
 
 	// scratch
 	#undef SCRATCH_SORT_BUFFER_OFFSET
@@ -711,6 +783,26 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	#undef MAX_BLOOM_MIP_COUNT
 	#undef MIN_BLOOM_MIP_PIXEL
+
+	// ddgi
+	#undef DDGI_BORDER
+	#undef DDGI_IRRADIANCE_RESOLUTION
+	#undef DDGI_VISIBILITY_RESOLUTION
+	#undef DDGI_IRRADIANCE_TILE_SIZE
+	#undef DDGI_VISIBILITY_TILE_SIZE
+	#undef DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP
+	#undef DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD
+
+	#undef DDGI_GROUP_RAY_SUM_OFFSET
+
+	#undef DDGI_PROBE_STATE_OFF
+	#undef DDGI_PROBE_STATE_ACTIVE
+	#undef DDGI_PROBE_STATE_SLEEP
+	#undef DDGI_PROBE_STATE_NEW_BORN
+
+	#undef DDGI_PROBE_RAY_COUNT_NEW_BORN
+
+	#undef DDGI_RAY_BUDGET
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

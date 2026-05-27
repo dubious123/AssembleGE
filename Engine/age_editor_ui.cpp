@@ -699,6 +699,56 @@ namespace age::editor
 		ui::widget::text_label("tint");
 		ui::widget::color_field(cmp.tint);
 	}
+
+	bool
+	ui_component(age::ecs::ddgi_config& cmp) noexcept
+	{
+		auto update = false;
+		{
+			auto _ = ui::id_begin();
+			if (cmp.enabled)
+			{
+				update = ui::widget::button2("update");
+			}
+		}
+
+		ui::widget::checkbox("enabled", cmp.enabled);
+		ui::widget::checkbox("render_probe", cmp.render_probe);
+
+		constexpr c_auto probe_count_option_arr = std::array{
+			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
+			ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
+			ui::widget::dropdown_option<uint32>{ .value = 16, .label = "16" },
+			ui::widget::dropdown_option<uint32>{ .value = 32, .label = "32" },
+			ui::widget::dropdown_option<uint32>{ .value = 64, .label = "64" },
+			ui::widget::dropdown_option<uint32>{ .value = 128, .label = "128" },
+			ui::widget::dropdown_option<uint32>{ .value = 256, .label = "256" },
+		};
+
+		ui::widget::text_label("base_probe_count_x");
+		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.x, probe_count_option_arr);
+		ui::widget::text_label("base_probe_count_y");
+		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.y, probe_count_option_arr);
+		ui::widget::text_label("base_probe_count_z");
+		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.z, probe_count_option_arr);
+
+		ui::widget::numeric_field(cmp.base_probe_spacing, "base_probe_spacing", float3::one(), float3{ 1000.f });
+
+		ui::widget::text_label("level_count");
+		constexpr c_auto level_count_option_arr = std::array{
+			ui::widget::dropdown_option<uint32>{ .value = 1, .label = "1" },
+			ui::widget::dropdown_option<uint32>{ .value = 2, .label = "2" },
+			ui::widget::dropdown_option<uint32>{ .value = 3, .label = "3" },
+			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
+			ui::widget::dropdown_option<uint32>{ .value = 5, .label = "5" },
+			ui::widget::dropdown_option<uint32>{ .value = 6, .label = "6" },
+			ui::widget::dropdown_option<uint32>{ .value = 7, .label = "7" },
+			ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
+		};
+		ui::widget::dropdown<uint32>(cmp.level_count, level_count_option_arr);
+
+		return update;
+	}
 }	 // namespace age::editor
 
 namespace age::editor
