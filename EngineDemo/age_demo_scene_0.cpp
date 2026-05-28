@@ -58,7 +58,7 @@ namespace age_demo::scene_0
 				.pos		= float3{ 0.f, 0.5f, -4.f },
 				.quaternion = age::g::quaternion_identity,
 				.near_z		= 0.01f,
-				.far_z		= 100.f,
+				.far_z		= 1000.f,
 				.perspective{
 					.fov_y		  = age::cvt_to_radian(75.f),
 					.aspect_ratio = 16.f / 9.f } } }
@@ -79,13 +79,14 @@ namespace age_demo::scene_0
 				(),
 				{
 					constexpr uint32 light_count = 5000;
-					constexpr float	 scene_min	 = -15.0f;
-					constexpr float	 scene_max	 = 15.0f;
-					constexpr float	 range		 = 3.0f;
-					constexpr float	 intensity	 = 3.0f;
+					constexpr float	 scene_scale = 10.f;
+					constexpr int32	 scene_min	 = -10;
+					constexpr int32	 scene_max	 = 10;
+					constexpr float	 range		 = 25.0f;
+					constexpr float	 intensity	 = 100.0f;
 
 					auto rng		= std::mt19937{ 42 };
-					auto dist_pos	= std::uniform_real_distribution<float>{ scene_min, scene_max };
+					auto dist_pos	= std::uniform_real_distribution<float>{ static_cast<float>(scene_min) * scene_scale, static_cast<float>(scene_max) * scene_scale };
 					auto dist_color = std::uniform_real_distribution<float>{ 0.2f, 1.0f };
 
 					for (auto i = 0; i < light_count; ++i)
@@ -98,6 +99,14 @@ namespace age_demo::scene_0
 									.color	  = age::srgb_to_linear(float3{ dist_color(rng), dist_color(rng), dist_color(rng) }),
 									//.color	   = float3{ 1, 1, 1 },
 									.intensity = intensity }));
+					}
+
+					for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(scene_min, scene_max), std::views::iota(scene_min, scene_max), std::views::iota(scene_min, scene_max)))
+					{
+						i_init.get_obj_id_vec->emplace_back(i_init.get_render_pipeline->add_object(
+							float3{ pos_x * scene_scale, pos_y * scene_scale, pos_z * scene_scale },
+							age::g::quaternion_identity,
+							float3{ 5.0f, 5.0f, 5.0f }));
 					}
 				}),
 
@@ -113,18 +122,6 @@ namespace age_demo::scene_0
 				| AGE_FUNC(i_init.get_render_pipeline->add_spot_light)
 				| AGE_FUNC(i_init.get_spot_light_id_vec->emplace_back),
 
-
-			AGE_LAMBDA(
-				(),
-				{
-					for (auto&& [pos_x, pos_y, pos_z] : std::views::cartesian_product(std::views::iota(-5, 5), std::views::iota(-5, 5), std::views::iota(-5, 5)))
-					{
-						i_init.get_obj_id_vec->emplace_back(i_init.get_render_pipeline->add_object(
-							float3{ pos_x * 2, pos_y * 2, pos_z * 2 },
-							age::g::quaternion_identity,
-							float3{ 1.0f, 1.0f, 1.0f }));
-					}
-				}),
 			exec_inline{}
 		}();
 	}
@@ -179,7 +176,7 @@ namespace age_demo::scene_0
 
 		cam_desc.quaternion = xm_look_quat | age::simd::to<float4>();
 
-		// cam_desc.perspective.aspect_ratio = age::platform::get_client_width(i_update.get_h_window) / static_cast<float>(age::platform::get_client_height(i_update.get_h_window));
+		cam_desc.perspective.aspect_ratio = age::platform::get_client_width(i_update.get_h_window) / static_cast<float>(age::platform::get_client_height(i_update.get_h_window));
 
 		i_update.get_render_pipeline->update_camera(i_update.get_camera_id_vec()[0], cam_desc);
 

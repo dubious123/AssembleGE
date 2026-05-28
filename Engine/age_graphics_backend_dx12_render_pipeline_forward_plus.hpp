@@ -36,13 +36,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
-	struct light_culling_stage
+	struct light_bin_stage
 	{
 		graphics::pso::handle h_pso_init;
 		ID3D12PipelineState*  p_pso_init;
 
-		graphics::pso::handle h_pso_cull;
-		ID3D12PipelineState*  p_pso_cull;
+		graphics::pso::handle h_pso_light_sort_prepare;
+		ID3D12PipelineState*  p_pso_light_sort_prepare;
 
 		graphics::pso::handle h_pso_sort_histogram;
 		ID3D12PipelineState*  p_pso_sort_histogram;
@@ -56,16 +56,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_zbin;
 		ID3D12PipelineState*  p_pso_zbin;
 
-		graphics::pso::handle h_pso_tile;
-		ID3D12PipelineState*  p_pso_tile;
-
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(uint32			light_tile_count_x,
-				uint32			light_tile_count_y,
-				resource_handle h_scratch_buffer) noexcept;
+		execute(uint32			unified_light_count,
+				resource_handle h_light_bin_stage_buffer,
+				resource_handle h_scratch_buffer) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -273,7 +270,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		depth_stage				stage_depth;
 		skybox_stage			stage_skybox;
-		light_culling_stage		stage_light_culling;
+		light_bin_stage			stage_light_bin;
 		ddgi_stage				stage_ddgi;
 		opaque_stage			stage_opaque;
 		transparent_stage		stage_transparent;
@@ -300,8 +297,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		dsv_desc_handle h_debug_depth_buffer_dsv_desc;
 
 		resource_handle h_scratch_buffer;
-		resource_handle h_light_cull_stage_buffer;
-		resource_handle h_light_cull_stage_sorted_light_buffer;
+		resource_handle h_light_bin_stage_buffer;
+		resource_handle h_sorted_light_buffer;
 
 		std::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
 
@@ -337,11 +334,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		binding_config_t::reg_u<0, 0> scratch_buffer_uav;
 
-		// light cull
-		binding_config_t::reg_t<0, 1> light_cull_stage_buffer_srv;
-		binding_config_t::reg_u<0, 1> light_cull_stage_buffer_uav;
-		binding_config_t::reg_t<1, 1> light_cull_stage_sorted_light_buffer_srv;
-		binding_config_t::reg_u<1, 1> light_cull_stage_sorted_light_buffer_uav;
+		// light bin
+		binding_config_t::reg_t<0, 1> light_bin_stage_buffer_srv;
+		binding_config_t::reg_u<0, 1> light_bin_stage_buffer_uav;
+		binding_config_t::reg_t<1, 1> sorted_light_buffer_srv;
+		binding_config_t::reg_u<1, 1> sorted_light_buffer_uav;
 
 		// material
 		binding_config_t::reg_t<0, 2> material_buffer;
@@ -438,8 +435,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[global::thread_count];
 
 		// light
-		uint32 light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
-		uint32 light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
 
 		age::stable_dense_vector<shared_type::directional_light> directional_light_vec;
 

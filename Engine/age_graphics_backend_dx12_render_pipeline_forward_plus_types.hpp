@@ -46,7 +46,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<0, 0>>,
 
 		binding_slot<
-			"light_cull_stage_buffer_srv",
+			"light_bin_stage_buffer_srv",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::byte_address_buffer,
@@ -54,7 +54,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<0, 1>>,
 
 		binding_slot<
-			"light_cull_stage_buffer_uav",
+			"light_bin_stage_buffer_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::rw_byte_address_buffer,
@@ -169,7 +169,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			"ddgi_probe_buffer_uav",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
-			what::structured_buffer<shared_type::ddgi_probe>,
+			what::rw_structured_buffer<shared_type::ddgi_probe>,
 			how::root_descriptor,
 			where::u<1, 7>>,
 

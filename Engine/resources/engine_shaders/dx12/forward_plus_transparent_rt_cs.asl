@@ -142,33 +142,33 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		{
 			const directional_light light = load_directional_light(d);
 
-			// lighting += calc_directional_light(light, v.normal, world_to_cam_dir)
-			//		  * calc_directional_shadow_rt(light, world_pos, world_face_normal, linear_depth);
-
 			lighting += calc_pbr_light(surface_data, light)
 					  * calc_directional_shadow_rt(light, v, world_face_normal, linear_depth);
 		}
 
 		{
-			const uint32 tile_x	 = uint32(dispatch_thread_id.x) / LIGHT_TILE_SIZE;
-			const uint32 tile_y	 = uint32(dispatch_thread_id.y) / LIGHT_TILE_SIZE;
-			const uint32 tile_id = tile_x + tile_y * light_tile_count_x;
+			const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
 
-			const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
+			const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
+			const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
+			const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
 
-			const uint32 z_min = load_zbin_entry(bin).min_idx;
-			const uint32 z_max = load_zbin_entry(bin).max_idx;
+			const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
+			const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
 
-			const uint32 wave_z_min = wave_active_min(z_min);
-			const uint32 wave_z_max = wave_active_max(z_max);
+			const uint32 wave_min = wave_active_min(min_id);
+			const uint32 wave_max = wave_active_max(max_id);
 
-			const uint32 word_begin = wave_z_min / 32;
-			const uint32 word_end	= wave_z_max / 32;
-
+			const uint32 word_begin = wave_min / 32;
+			const uint32 word_end	= wave_max / 32;
 
 			for (uint32 w = word_begin; w <= word_end; ++w)
 			{
-				uint32 bit_mask		 = load_tile_mask(tile_id, w);
+				uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
+				uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
+				uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
+				uint32 bit_mask = x_mask & y_mask & z_mask;
+
 				uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
 
 				while (wave_bit_mask != 0)
@@ -181,9 +181,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 					{
 						const unified_light light = load_sorted_light(sorted_id);
 
-						// lighting += calc_unified_light(light, world_pos, world_vertex_normal, world_to_cam_dir)
-						//		  * calc_unified_shadow_rt(light, world_pos, world_face_normal);
-
 						lighting += calc_pbr_light(surface_data, light)
 								  * calc_unified_shadow_rt(light, v, world_face_normal);
 					}
@@ -195,24 +192,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		result.rgb += lighting * alpha * (1.f - result.a);
 		result.a   += alpha * (1.f - result.a);
-
-		// if (hit_count == 0)
-		//{
-		//	result.rgb = float3(0, 0, 0);
-		// }
-		// else if (hit_count == 1)
-		//{
-		//	result.rgb = float3(1, 0, 0);
-		// }
-		// else if (hit_count == 2)
-		//{
-		//	result.rgb = float3(0, 1, 0);
-		// }
-		// else if (hit_count >= 3)
-		//{
-		//	result.rgb = float3(0, 1, 1);
-		// }
-		// result.a = 1;
 
 		if (result.a >= 1.f)
 		{

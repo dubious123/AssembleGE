@@ -4,7 +4,7 @@
 
 
 // static buffer offset
-#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 20)
+#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 24)
 #define MAX_OBJECT_DATA_COUNT				 (1u << 20)
 #define MAX_DIRECTIONAL_LIGHT_COUNT			 2
 #define MAX_LIGHT_COUNT						 (512 * 512)
@@ -17,16 +17,28 @@
 // todo, measure shadow rt performance
 #define MAX_SHADOW_LIGHT_COUNT 100
 
-// light cull
-#define LIGHT_CULL_THREAD_COUNT 256
-#define LIGHT_ZBIN_THREAD_COUNT 256
+// light
+#define LIGHT_BIN_INIT_THREAD_COUNT 256
+#define LIGHT_CULL_THREAD_COUNT		256
+#define LIGHT_ZBIN_THREAD_COUNT		256
 
-#define MAX_VISIBLE_LIGHT_COUNT (16 * 1024)	   // (512 * 32)
-// #define MAX_VISIBLE_LIGHT_COUNT (512 * 512)	   // (512 * 32)
-#define Z_SLICE_COUNT (512)
+#define LIGHT_BITMASK_UINT32_COUNT (MAX_LIGHT_COUNT / 32)
 
-#define LIGHT_TILE_SIZE			   32
-#define LIGHT_BITMASK_UINT32_COUNT (MAX_VISIBLE_LIGHT_COUNT / 32)
+#define X_SLICE_COUNT		 (512)
+#define Y_SLICE_COUNT		 (512)
+#define Z_SLICE_COUNT		 (512)
+#define LIGHT_AXIS_SLICE_MAX (512)
+
+#define LIGHT_BIN_ENTRY_X_OFFSET (0)
+#define LIGHT_BIN_ENTRY_Y_OFFSET (LIGHT_BIN_ENTRY_X_OFFSET + X_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+#define LIGHT_BIN_ENTRY_Z_OFFSET (LIGHT_BIN_ENTRY_Y_OFFSET + Y_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+
+#define LIGHT_BIN_MASK_X_OFFSET (LIGHT_BIN_ENTRY_Z_OFFSET + Z_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+#define LIGHT_BIN_MASK_Y_OFFSET (LIGHT_BIN_MASK_X_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * X_SLICE_COUNT)
+#define LIGHT_BIN_MASK_Z_OFFSET (LIGHT_BIN_MASK_Y_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Y_SLICE_COUNT)
+
+#define LIGHT_BIN_BUFFER_SIZE (LIGHT_BIN_MASK_Z_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Z_SLICE_COUNT)
+
 
 #define LIGHT_KIND_DIRECTIONAL 0
 #define LIGHT_KIND_POINT	   1
@@ -86,14 +98,9 @@
 #define SORT_BIN_COUNT_OFFSET  (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE * sizeof(uint32))
 
 #define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
-#define VISIBLE_LIGHT_COUNT_OFFSET	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_VISIBLE_LIGHT_COUNT * sizeof(uint32))
-#define SCRATCH_BUFFER_TOTAL_SIZE	  (VISIBLE_LIGHT_COUNT_OFFSET + sizeof(uint32))
+#define SCRATCH_BUFFER_TOTAL_SIZE	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_LIGHT_COUNT * sizeof(uint32))
 
 #define DDGI_GROUP_RAY_SUM_OFFSET (SCRATCH_SORT_BUFFER_OFFSET)
-
-// light cull
-#define LIGHT_CULL_ZBIN_OFFSET		(0)
-#define LIGHT_CULL_TILE_MASK_OFFSET (LIGHT_CULL_ZBIN_OFFSET + sizeof(SHARED_TYPE zbin_entry) * Z_SLICE_COUNT)
 
 
 #define RT_MASK_OPAQUE		0x01
@@ -317,6 +324,16 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		half   cos_inner;				 // 2
 		half   cos_outer;				 // 2
 		uint16 cast_shadow_and_extra;	 // 2
+#if !defined(AGE_SHADER)
+
+		float
+		min_z() const
+		{
+			return position.z - range;
+		}
+#endif
+
+
 	};	  // total: 36 bytes
 
 	//---[ ibl ]------------------------------------------------------------
@@ -472,32 +489,38 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
-		row_major float4x4 view;									// 64
-		row_major float4x4 view_proj;								// 64
-		row_major float4x4 view_proj_inv;							// 64
-		float3			   camera_pos;								// 12
-		float			   time;									// 4
-		float4			   frustum_planes[6];						// 96
-		float2			   inv_backbuffer_size;						// 8
-		float2			   backbuffer_size;							// 8
-		float3			   camera_forward;							// 12
-		uint32			   frame_index;								// 4
-		uint32			   main_buffer_texture_id;					// 4
-		uint32			   post_buffer_texture_id;					// 4
-		uint32			   depth_buffer_texture_id;					// 4
-		uint32			   rt_tlas_buffer_id;						// 4
-		uint32			   rt_transparent_buffer_srv_texture_id;	// 4
-		uint32			   rt_transparent_buffer_uav_texture_id;	// 4
-		uint32			   rt_raycast_request_count;				// 4
-		float			   proj_00;
-		float			   proj_11;
-		float			   cam_near_z;
-		float			   cam_far_z;
-		uint32			   light_tile_count_x;
-		uint32			   light_tile_count_y;
-		uint32_3		   _;
+		row_major float4x4 view;						// 64
+		row_major float4x4 view_proj;					// 64
+		row_major float4x4 view_proj_inv;				// 64
+		float3			   camera_pos;					// 12
+		float			   time;						// 4
 
-		uint32_4 extra[7];
+		float4 frustum_planes[6];						// 96
+
+		float2 inv_backbuffer_size;						// 8
+		float2 backbuffer_size;							// 8
+
+		float3 camera_forward;							// 12
+		uint32 frame_index;								// 4
+
+		uint32 main_buffer_texture_id;					// 4
+		uint32 post_buffer_texture_id;					// 4
+		uint32 depth_buffer_texture_id;					// 4
+		uint32 rt_tlas_buffer_id;						// 4
+
+		uint32 rt_transparent_buffer_srv_texture_id;	// 4
+		uint32 rt_transparent_buffer_uav_texture_id;	// 4
+		uint32 rt_raycast_request_count;				// 4
+		float  proj_00;
+
+		float3	 light_bin_origin;
+		float	 proj_11;
+		float3	 light_bin_cell_size_inv;
+		float	 cam_near_z;
+		float	 cam_far_z;
+		uint32_3 _;
+
+		uint32_4 extra[6];
 		// total: 256 * 2 bytes
 	};
 
@@ -534,10 +557,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 namespace age::graphics::render_pipeline::forward_plus::g
 {
 	// config
-	inline constexpr uint32 max_sort_count			= MAX_SORT_COUNT;
-	inline constexpr uint32 max_light_count			= MAX_LIGHT_COUNT;
-	inline constexpr uint32 max_visible_light_count = MAX_VISIBLE_LIGHT_COUNT;
-	inline constexpr uint32 light_tile_size			= LIGHT_TILE_SIZE;
+	inline constexpr uint32 max_sort_count	= MAX_SORT_COUNT;
+	inline constexpr uint32 max_light_count = MAX_LIGHT_COUNT;
 
 	inline constexpr auto max_shadow_light_count = MAX_SHADOW_LIGHT_COUNT;
 	inline constexpr auto max_object_count		 = MAX_OBJECT_DATA_COUNT;
@@ -551,8 +572,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 
-	inline constexpr uint32 scratch_buffer_total_size	= SCRATCH_BUFFER_TOTAL_SIZE;
-	inline constexpr uint32 light_cull_tile_mask_offset = LIGHT_CULL_TILE_MASK_OFFSET;
+	inline constexpr uint32 scratch_buffer_total_size = SCRATCH_BUFFER_TOTAL_SIZE;
 
 
 	// sort
@@ -562,6 +582,14 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr uint32 sort_group_count	 = SORT_GROUP_COUNT;
 
 	// light
+	inline constexpr uint32 light_bin_stage_buffer_size = LIGHT_BIN_BUFFER_SIZE;
+
+	inline constexpr float3 light_axis_slice_count_float = float3{ X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT };
+	inline constexpr uint32 light_axis_slice_sum		 = X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT;
+
+	inline constexpr uint32 light_bin_init_thread_count = LIGHT_BIN_INIT_THREAD_COUNT;
+
+
 	inline constexpr uint32 light_cull_thread_count	   = LIGHT_CULL_THREAD_COUNT;
 	inline constexpr uint32 light_bitmask_uint32_count = LIGHT_BITMASK_UINT32_COUNT;
 	inline constexpr uint32 zbin_thread_count		   = LIGHT_ZBIN_THREAD_COUNT;
@@ -589,6 +617,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(SORT_THREAD_COUNT <= 0xff);
 	static_assert(SORT_THREAD_COUNT > 0);
 	static_assert(std::popcount<uint32>(SORT_THREAD_COUNT) == 1);
+	static_assert(LIGHT_AXIS_SLICE_MAX == max(X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT));
 
 	static_assert(UI_SPACE_MODE_SCREEN == to_idx(age::ui::e::space_mode_kind::screen));
 	static_assert(UI_SPACE_MODE_WORLD == to_idx(age::ui::e::space_mode_kind::world));
@@ -638,6 +667,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(DDGI_PROBE_RAY_COUNT_NEW_BORN <= 0xff);
 	static_assert(DDGI_VISIBILITY_RESOLUTION * DDGI_VISIBILITY_RESOLUTION >= DDGI_PROBE_RAY_COUNT_NEW_BORN);
 
+
 	#undef reg
 	#undef cbuffer
 	#undef row_major
@@ -658,11 +688,14 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef MAX_SELECTION_OUTLINE_THICKNESS
 
 	// light cull
+	#undef LIGHT_BIN_INIT_THREAD_COUNT
 	#undef LIGHT_CULL_THREAD_COUNT
 	#undef LIGHT_ZBIN_THREAD_COUNT
 
-	#undef MAX_VISIBLE_LIGHT_COUNT
 	#undef Z_SLICE_COUNT
+	#undef X_SLICE_COUNT
+	#undef Y_SLICE_COUNT
+	#undef LIGHT_AXIS_SLICE_MAX
 
 	#undef LIGHT_TILE_SIZE
 	#undef LIGHT_BITMASK_UINT32_COUNT

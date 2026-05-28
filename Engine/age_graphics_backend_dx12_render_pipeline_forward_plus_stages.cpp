@@ -127,7 +127,7 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus
 {
 	void
-	light_culling_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	light_bin_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
 
@@ -136,14 +136,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_light_init_cs) });
 
 		p_pso_init = graphics::g::pso_ptr_vec[h_pso_init];
-		h_pso_init.set_name(L"p_pso_init");
+		h_pso_init.set_name(L"p_pso_light_init");
 
-		h_pso_cull = graphics::pso::create(
+		h_pso_light_sort_prepare = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_light_cull_cs) });
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_light_sort_prepare_cs) });
 
-		p_pso_cull = graphics::g::pso_ptr_vec[h_pso_cull];
-		h_pso_cull.set_name(L"p_pso_cull");
+		p_pso_light_sort_prepare = graphics::g::pso_ptr_vec[h_pso_light_sort_prepare];
+		h_pso_light_sort_prepare.set_name(L"pso_light_sort_prepare");
 
 		h_pso_sort_histogram = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -171,30 +171,23 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_light_zbin_cs) });
 
 		p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
-		h_pso_zbin.set_name(L"p_pso_zbin");
-
-		h_pso_tile = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_light_tile_cs) });
-
-		p_pso_tile = graphics::g::pso_ptr_vec[h_pso_tile];
-		h_pso_tile.set_name(L"p_pso_tile");
+		h_pso_zbin.set_name(L"p_pso_light_zbin");
 	}
 
 	inline void
-	light_culling_stage::execute(uint32			 light_tile_count_x,
-								 uint32			 light_tile_count_y,
-								 resource_handle h_scratch_buffer) noexcept
+	light_bin_stage::execute(uint32			 unified_light_count,
+							 resource_handle h_light_bin_stage_buffer,
+							 resource_handle h_scratch_buffer) const noexcept
 	{
 		command::set_pso(p_pso_init);
-		command::dispatch((light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count + 255) / 256, 1, 1);
+		command::dispatch(util::ceil(g::light_axis_slice_sum + g::light_axis_slice_sum * g::light_bitmask_uint32_count, g::light_bin_init_thread_count), 1, 1);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+		command::set_pso(p_pso_light_sort_prepare);
+		command::dispatch(util::ceil(g::max_sort_count, g::light_cull_thread_count), 1, 1);
 
-		command::set_pso(p_pso_cull);
-		command::dispatch((g::max_sort_count + g::light_cull_thread_count - 1) / g::light_cull_thread_count, 1, 1);
-
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+		command::apply_barriers(
+			barrier::buf_uav_to_uav(h_light_bin_stage_buffer->p_resource),
+			barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
 
 		for (uint32 pass : std::views::iota(0u) | std::views::take(g::sort_iteration_count))
 		{
@@ -221,26 +214,25 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		command::set_pso(p_pso_zbin);
-		command::dispatch((g::max_visible_light_count + g::zbin_thread_count - 1) / g::zbin_thread_count, 1, 1);
+		command::dispatch(util::ceil(unified_light_count, g::zbin_thread_count), 1, 1);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+		// command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
 
-		command::set_pso(p_pso_tile);
-		command::dispatch(light_tile_count_x, light_tile_count_y, 1);
+		// command::set_pso(p_pso_tile);
+		// command::dispatch(light_tile_count_x, light_tile_count_y, 1);
 	}
 
 	void
-	light_culling_stage::deinit() noexcept
+	light_bin_stage::deinit() noexcept
 	{
 		pso::destroy(h_pso_init);
-		pso::destroy(h_pso_cull);
+		pso::destroy(h_pso_light_sort_prepare);
 
 		pso::destroy(h_pso_sort_histogram);
 		pso::destroy(h_pso_sort_prefix);
 		pso::destroy(h_pso_sort_scatter);
 
 		pso::destroy(h_pso_zbin);
-		pso::destroy(h_pso_tile);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

@@ -83,3 +83,4 @@ Improve Shader Performance and In-Game Frame Rates with Shader Execution Reorder
 NVIDIA RTX Kit
 NVIDIA RTX Mega Geometry
 
+runtime light_bin config : scene에 따라, 현재 상황따라 최적의 light bin center랑 extent등을 계산

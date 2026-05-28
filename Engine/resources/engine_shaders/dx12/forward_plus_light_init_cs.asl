@@ -1,27 +1,31 @@
 #include "forward_plus_common.asli"
 
-[numthreads(256, 1, 1)] void
+[numthreads(LIGHT_BIN_INIT_THREAD_COUNT, 1, 1)] void
 main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 {
-	if (thread_id < Z_SLICE_COUNT)
+	static const uint32 total_thread = (X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT) * (1 + LIGHT_BITMASK_UINT32_COUNT);
+	if (thread_id >= total_thread) { return; }
+
+	const uint32 slice_idx = thread_id;
+	zbin_entry	 zbin;
+	zbin.max_idx = 0;
+	zbin.min_idx = 0xffffffff;
+	if (slice_idx < X_SLICE_COUNT)
 	{
-		zbin_entry zbin;
-		zbin.max_idx = 0;
-		zbin.min_idx = 0xffffffff;
-
-		store_zbin_entry(thread_id, zbin);
+		store_bin_entry_x(slice_idx, zbin);
 	}
-
-	// if (thread_id < light_tile_count_x * light_tile_count_y * LIGHT_BITMASK_UINT32_COUNT)
+	else if (slice_idx < X_SLICE_COUNT + Y_SLICE_COUNT)
 	{
-		store_tile_mask_flat(thread_id, 0);
+		store_bin_entry_y(slice_idx - X_SLICE_COUNT, zbin);
 	}
-
-	if (thread_id == 0)
+	else if (slice_idx < X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT)
 	{
-		store_visible_light_count(0);
+		store_bin_entry_z(slice_idx - (X_SLICE_COUNT + Y_SLICE_COUNT), zbin);
 	}
-
-	// culled_light_buffer[thread_id] = invalid_id_uint32;
+	else
+	{
+		uint32 idx = thread_id - (X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT);
+		store_light_bin_mask_flat(idx, 0);
+	}
 }

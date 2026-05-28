@@ -95,35 +95,33 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	{
 		const directional_light light = load_directional_light(d);
 
-		// lighting += calc_directional_light(light, vertex_normal, world_to_cam_dir)
-		//		  * calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 		lighting += calc_pbr_light(surface_data, light)
 				  * calc_directional_shadow_rt(light, v, face_normal, linear_depth);
-
-		// lighting = calc_directional_shadow_rt(light, v.world_pos, face_normal, linear_depth);
 	}
 
-	const uint32 tile_x	 = uint32(v.pos.x) / LIGHT_TILE_SIZE;
-	const uint32 tile_y	 = uint32(v.pos.y) / LIGHT_TILE_SIZE;
-	const uint32 tile_id = tile_x + tile_y * light_tile_count_x;
+	const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
 
-	const uint32 bin = clamp(depth_to_bin(linear_depth), 0, Z_SLICE_COUNT - 1);
+	const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
+	const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
+	const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
 
-	const uint32 z_min = load_zbin_entry(bin).min_idx;
-	const uint32 z_max = load_zbin_entry(bin).max_idx;
+	const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
+	const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
 
-	const uint32 wave_z_min = wave_active_min(z_min);
-	const uint32 wave_z_max = wave_active_max(z_max);
+	const uint32 wave_min = wave_active_min(min_id);
+	const uint32 wave_max = wave_active_max(max_id);
 
-	const uint32 word_begin = wave_z_min / 32;
-	const uint32 word_end	= wave_z_max / 32;
+	const uint32 word_begin = wave_min / 32;
+	const uint32 word_end	= wave_max / 32;
 
-	// const uint32 word_begin = 0;
-	// const uint32 word_end	= Z_SLICE_COUNT / 32;
-
+	uint32 c = 0u;
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
-		uint32 bit_mask		 = load_tile_mask(tile_id, w);
+		uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
+		uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
+		uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
+		uint32 bit_mask = x_mask & y_mask & z_mask;
+
 		uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
 
 		while (wave_bit_mask != 0)
@@ -136,136 +134,15 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 			{
 				const unified_light light = load_sorted_light(sorted_id);
 
-				// lighting += calc_unified_light(light, v.world_pos, vertex_normal, world_to_cam_dir)
-				//		  * calc_unified_shadow_rt(light, v.world_pos, face_normal);
-
 				lighting += calc_pbr_light(surface_data, light)
 						  * calc_unified_shadow_rt(light, v, face_normal);
+
+				++c;
 			}
 		}
 	}
-	//{
-	//	const unified_light light	= load_sorted_light(0);
-	//	const float3		center	= mul(view, float4(light.position, 1)).xyz;
-	//	const float2		bound_x = project_sphere_axis(center.x, center.z, light.range, cam_near_z, proj_00);
-	//	const float2		bound_y = project_sphere_axis(center.y, center.z, light.range, cam_near_z, proj_11);
-	//	const float2		ndc_min = float2(bound_x.x, bound_y.x);
-	//	const float2		ndc_max = float2(bound_x.y, bound_y.y);
 
-	//	const float2 screen_a = ndc_xy_to_screen(ndc_min, backbuffer_size);
-	//	const float2 screen_b = ndc_xy_to_screen(ndc_max, backbuffer_size);
-
-	//	const float x_min = screen_a.x;
-	//	const float x_max = screen_b.x;
-	//	const float y_min = min(screen_a.y, screen_b.y);
-	//	const float y_max = max(screen_a.y, screen_b.y);
-	//	return float4(proj_00, center.z, light.range, cam_near_z);
-	//	return float4(center.x, center.z, light.range, cam_near_z);
-	//	return float4(bound_x.x, bound_x.y, bound_y.x, bound_y.y);
-	//	return float4(cam_near_z, center.z, 0, 1);
-	//	return float4(x_min, x_max, y_min, y_max);
-
-	//	if (is_nan(x_min) or is_nan(x_max) or is_nan(y_min) or is_nan(y_max) or is_nan(screen_a) or is_nan(screen_b) or is_nan(fragment.v.pos))
-	//	{
-	//		return float4(1, 0, 0, 1);
-	//	}
-
-	//	if (x_min < fragment.v.pos.x and x_max > fragment.v.pos.x
-	//		and y_min < fragment.v.pos.y and y_max > fragment.v.pos.y)
-	//	{
-	//		return float4(1, 0, 0, 1);
-	//		return float4(y_max - y_min, y_max - y_min, y_max - y_min, 1);
-	//		return float4(x_max - x_min, x_max - x_min, x_max - x_min, 1);
-	//	}
-	//	else
-	//	{
-	//		return float4(0, 1, 0, 1);
-	//	}
-	//}
-
-	// uint32 c = 0;
-	// for (uint32 i = 0; i < Z_SLICE_COUNT / 32; ++i)
-	//{
-	//	uint32 bit_mask = load_tile_mask(tile_id, i);
-	//	if (bit_mask != 0)
-	//	{
-	//		++c;
-	//	}
-	// }
-
-	// return float4(c, c, c, 1);
-	//     return float4(light_count / 4.f, 0, 0, 1);
-	//     return float4(0, 0, shadow_count / 8.f, 1);
-	//     return float4(float3(surface_data.n_dot_v, surface_data.n_dot_v, surface_data.n_dot_v), 1);
-	//     return float4(face_normal, 1.f);
-	//     return float4(vertex_normal, 1.f);
-
-	// return float4(v.uv0, 0, 1.f);
-	// return float4(lighting * albedo, 1.0f);
-	// return float4(fragment.v.tangent.w * 0.5 + 0.5, 0, 0, 1);
-
-	// if (mat.normal_texture_id != invalid_id_uint32)
-	//{
-	//	texture_2d<float4> normal_tex  = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
-	//	float2			   normal_xy   = sample(normal_tex, get_linear_wrap_sampler(), v.uv_set[0]).xy * 2.f - 1.f;
-	//	normal_xy					  *= mat.normal_scale;
-	//	float  normal_z				   = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
-	//	float3 normal_local			   = float3(normal_xy, normal_z);
-	//	return float4(normal_local, 1);
-	//	return float4(normal_local.xy * 2, 0, 1);
-	// }
-
-	// return float4(b, 1);
-	// return float4(-cross(fragment.v.normal, fragment.v.tangent.xyz) * fragment.v.tangent.w, 1.f);
-	// return float4(fragment.v.tangent.xyz, 1);
-	// return float4(fragment.v.tangent.xyz * 0.5 + 0.5, 1);
-	// return float4(v.tangent.xyz * 0.5 + 0.5, 1);
-	// return float4(surface_data.normal * 0.5 + 0.5, 1);
-	//{
-	//	texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
-	//	float2			   normal_xy  = sample(normal_tex, get_linear_wrap_sampler(), fragment.v.uv_set[0]).rg * 2.f - 1.f;
-	//	if (normal_xy.x > 0.f)
-	//	{
-	//		return float4(1, 0, 0, 1.f);
-	//	}
-	//	else
-	//	{
-	//		return float4(normal_xy, 0, 1);
-	//	}
-	//}
-	// if (surface_data.normal.x < 0.f)
-	//{
-	//	return float4(1, 0, 0, 1.f);
-	//}
-	// return float4(surface_data.normal.x, surface_data.normal.y, surface_data.normal.z, 1.0f);
-	// float x = max(max(surface_data.normal.x, surface_data.normal.y), surface_data.normal.z);
-
-	// if (x == surface_data.normal.x)
-	//{
-	//	return float4(x, 0, 0, 1.f);
-	// }
-	// if (x == surface_data.normal.y)
-	//{
-	//	return float4(0, x, 0, 1.f);
-	// }
-	// if (x == surface_data.normal.z)
-	//{
-	//	return float4(0, 0, x, 1.f);
-	// }
-
-	// return float4(surface_data.normal, 1.0f);
-	//      return float4(surface_data.normal.z, 0, 0, 1.0f);
-	//      return float4(surface_data.normal.y, 0, 0, 1.0f);
-	//      return float4(surface_data.normal.x, 0, 0, 1.0f);
-	//      return float4(surface_data.normal, 1.0f) * 0.5 + 0.5;
-	//        return float4(surface_data.normal.x, -surface_data.normal.x, 0, 1.0f);
-	//       return float4(surface_data.normal.y, -surface_data.normal.y, 0, 1.0f);
-	//        return float4(surface_data.base_color.xyz, 1.0f);
-	//   return float4(v.uv_set[0], 0, 1.f);
-	// return float4(abs(fragment.debug_y) * 1000, 0, 0, 1);
-	// return float4(abs(v.world_pos.y) * 1000, 0, 0, 1);
-	// return float4(v.world_pos * 0.1 + 0.5, 1.0);
-	// return float4(frac(v.world_pos * 10), 1.f);
+	// return float4(c / 10.f, c / 100.f, c, 1.f);
 
 	return float4(lighting, 1.0f);
 }

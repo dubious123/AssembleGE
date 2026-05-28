@@ -121,7 +121,7 @@
     <ClInclude Include="resources\engine_shaders\dx12\bake_env_light_radiance_cs.asl" />
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_common.asli" />
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_depth_ms.asl" />
-    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_cull_cs.asl" />
+    <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_sort_prepare_cs.asl" />
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_init_cs.asl" />
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_tile_cs.asl" />
     <ClInclude Include="resources\engine_shaders\dx12\forward_plus_light_zbin_cs.asl" />

@@ -25,11 +25,11 @@ uint32 rt_transparent_buffer_srv_texture_id;
 uint32 rt_transparent_buffer_uav_texture_id;
 uint32 rt_raycast_request_count;
 float  proj_00;
+float3 light_bin_origin;
 float  proj_11;
+float3 light_bin_cell_size_inv;
 float  cam_near_z;
 float  cam_far_z;
-uint32 light_tile_count_x;
-uint32 light_tile_count_y;
 
 
 // cbuffer root_constants reg(b1)
@@ -166,27 +166,9 @@ load_packed_aabb(uint32 idx)
 	return load<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32));
 }
 
-void
-store_visible_light_count(uint32 count)
-{
-	store<uint32>(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET, count);
-}
-
-void
-store_visible_light_count_interlocked_add(uint32 value)
-{
-	buf_interlocked_add(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET, value);
-}
-
-uint32
-load_visible_light_count()
-{
-	return load<uint32>(scratch_buffer, VISIBLE_LIGHT_COUNT_OFFSET);
-}
-
 // light buffer
-byte_address_buffer	   light_cull_stage_buffer_srv reg(t0, space1);
-rw_byte_address_buffer light_cull_stage_buffer_uav reg(u0, space1);
+byte_address_buffer	   light_bin_stage_buffer_srv reg(t0, space1);
+rw_byte_address_buffer light_bin_stage_buffer_uav reg(u0, space1);
 
 structured_buffer<unified_light>	sorted_light_buffer_srv reg(t1, space1);
 rw_structured_buffer<unified_light> sorted_light_buffer_uav reg(u1, space1);
@@ -204,45 +186,148 @@ load_sorted_light(uint32 idx)
 }
 
 void
-store_zbin_entry(uint32 idx, zbin_entry data)
+store_bin_entry_x(uint32 idx, zbin_entry data)
 {
-	store<zbin_entry>(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry), data);
+	store<zbin_entry>(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_X_OFFSET + idx * sizeof(zbin_entry), data);
 }
 
 void
-store_zbin_entry_interlocked_min(uint32 idx, uint32 min_idx)
+store_bin_entry_x_atomic(uint32 idx, uint32 min_idx, uint32 max_idx)
 {
-	buf_interlocked_min(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 0, min_idx);
+	buf_interlocked_min(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_X_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 0, min_idx);
+	buf_interlocked_max(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_X_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 1, max_idx);
 }
 
 void
-store_zbin_entry_interlocked_max(uint32 idx, uint32 max_idx)
+store_bin_entry_y(uint32 idx, zbin_entry data)
 {
-	buf_interlocked_max(light_cull_stage_buffer_uav, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 1, max_idx);
+	store<zbin_entry>(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Y_OFFSET + idx * sizeof(zbin_entry), data);
+}
+
+void
+store_bin_entry_y_atomic(uint32 idx, uint32 min_idx, uint32 max_idx)
+{
+	buf_interlocked_min(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Y_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 0, min_idx);
+	buf_interlocked_max(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Y_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 1, max_idx);
+}
+
+void
+store_bin_entry_z(uint32 idx, zbin_entry data)
+{
+	store<zbin_entry>(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Z_OFFSET + idx * sizeof(zbin_entry), data);
+}
+
+void
+store_bin_entry_z_atomic(uint32 idx, uint32 min_idx, uint32 max_idx)
+{
+	buf_interlocked_min(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Z_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 0, min_idx);
+	buf_interlocked_max(light_bin_stage_buffer_uav, LIGHT_BIN_ENTRY_Z_OFFSET + idx * sizeof(zbin_entry) + sizeof(uint32) * 1, max_idx);
 }
 
 zbin_entry
-load_zbin_entry(uint32 idx)
+load_bin_entry_x(uint32 idx)
 {
-	return load<zbin_entry>(light_cull_stage_buffer_srv, LIGHT_CULL_ZBIN_OFFSET + idx * sizeof(zbin_entry));
+	return load<zbin_entry>(light_bin_stage_buffer_srv, LIGHT_BIN_ENTRY_X_OFFSET + idx * sizeof(zbin_entry));
+}
+
+zbin_entry
+load_bin_entry_y(uint32 idx)
+{
+	return load<zbin_entry>(light_bin_stage_buffer_srv, LIGHT_BIN_ENTRY_Y_OFFSET + idx * sizeof(zbin_entry));
+}
+
+zbin_entry
+load_bin_entry_z(uint32 idx)
+{
+	return load<zbin_entry>(light_bin_stage_buffer_srv, LIGHT_BIN_ENTRY_Z_OFFSET + idx * sizeof(zbin_entry));
 }
 
 void
-store_tile_mask(uint32 tile_idx, uint32 word_idx, uint32 mask)
+store_bin_mask_x(uint32 slice_idx, uint32 word_idx, uint32 mask)
 {
-	store<uint32>(light_cull_stage_buffer_uav, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+	store<uint32>(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_X_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
 }
 
 void
-store_tile_mask_flat(uint32 idx, uint32 mask)
+store_bin_mask_y(uint32 slice_idx, uint32 word_idx, uint32 mask)
 {
-	store<uint32>(light_cull_stage_buffer_uav, LIGHT_CULL_TILE_MASK_OFFSET + idx * sizeof(uint32), mask);
+	store<uint32>(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_Y_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+}
+
+void
+store_bin_mask_z(uint32 slice_idx, uint32 word_idx, uint32 mask)
+{
+	store<uint32>(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_Z_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+}
+
+void
+store_bin_mask_x_atomic(uint32 slice_idx, uint32 word_idx, uint32 mask)
+{
+	buf_interlocked_or(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_X_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+}
+
+void
+store_bin_mask_y_atomic(uint32 slice_idx, uint32 word_idx, uint32 mask)
+{
+	buf_interlocked_or(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_Y_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
+}
+
+void
+store_bin_mask_z_atomic(uint32 slice_idx, uint32 word_idx, uint32 mask)
+{
+	buf_interlocked_or(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_Z_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32), mask);
 }
 
 uint32
-load_tile_mask(uint32 tile_idx, uint32 word_idx)
+load_bin_mask_x(uint32 slice_idx, uint32 word_idx)
 {
-	return load<uint32>(light_cull_stage_buffer_srv, LIGHT_CULL_TILE_MASK_OFFSET + (tile_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
+	return load<uint32>(light_bin_stage_buffer_srv, LIGHT_BIN_MASK_X_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
+}
+
+uint32
+load_bin_mask_y(uint32 slice_idx, uint32 word_idx)
+{
+	return load<uint32>(light_bin_stage_buffer_srv, LIGHT_BIN_MASK_Y_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
+}
+
+uint32
+load_bin_mask_z(uint32 slice_idx, uint32 word_idx)
+{
+	return load<uint32>(light_bin_stage_buffer_srv, LIGHT_BIN_MASK_Z_OFFSET + (slice_idx * LIGHT_BITMASK_UINT32_COUNT + word_idx) * sizeof(uint32));
+}
+
+void
+store_light_bin_mask_flat(uint32 idx, uint32 mask)
+{
+	store<uint32>(light_bin_stage_buffer_uav, LIGHT_BIN_MASK_X_OFFSET + idx * sizeof(uint32), mask);
+}
+
+uint32
+world_to_bin_x(float world_x)
+{
+	float bin_f = (world_x - light_bin_origin.x) * light_bin_cell_size_inv.x;
+	return uint32(clamp(bin_f, 0.f, X_SLICE_COUNT - 1.f));
+}
+
+uint32
+world_to_bin_y(float world_y)
+{
+	float bin_f = (world_y - light_bin_origin.y) * light_bin_cell_size_inv.y;
+	return uint32(clamp(bin_f, 0.f, Y_SLICE_COUNT - 1.f));
+}
+
+uint32
+world_to_bin_z(float world_z)
+{
+	float bin_f = (world_z - light_bin_origin.z) * light_bin_cell_size_inv.z;
+	return uint32(clamp(bin_f, 0.f, Z_SLICE_COUNT - 1.f));
+}
+
+uint32_3
+world_to_light_bin_axis(float3 world)
+{
+	const float3 bin_f = (world - light_bin_origin) * light_bin_cell_size_inv;
+	return uint32_3(clamp(bin_f, 0.f, float3(X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT) - 1.f));
 }
 
 // material

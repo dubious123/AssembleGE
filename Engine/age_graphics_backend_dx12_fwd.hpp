@@ -30,14 +30,15 @@ namespace age::graphics::e
 
 					forward_plus_skybox_ps,
 					forward_plus_skybox_ms,
+
 					forward_plus_light_init_cs,
-					forward_plus_light_cull_cs,
+					forward_plus_light_sort_prepare_cs,
+
 					forward_plus_sort_histogram_cs,
 					forward_plus_sort_prefix_cs,
 					forward_plus_sort_scatter_cs,
 
 					forward_plus_light_zbin_cs,
-					forward_plus_light_tile_cs,
 
 					forward_plus_ddgi_update_probe_state_cs,
 					forward_plus_ddgi_reduce_ray_sum_cs,

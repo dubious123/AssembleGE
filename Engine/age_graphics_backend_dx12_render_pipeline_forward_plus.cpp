@@ -1,5 +1,7 @@
 #include "age_pch.hpp"
 #include "age.hpp"
+
+#include <execution>
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 
 // main
@@ -72,8 +74,8 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 
-			h_light_cull_stage_sorted_light_buffer = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::unified_light) * g::max_visible_light_count),
+			h_sorted_light_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::unified_light) * g::max_light_count),
 				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
@@ -100,6 +102,14 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .heap_memory_kind	   = e::memory_kind::gpu_only,
 				  .has_clear_value	   = false });
 			h_readback_rt_raycast_result_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::raycast_request), nullptr, e::memory_kind::gpu_to_cpu);
+
+			h_light_bin_stage_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::light_bin_stage_buffer_size),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_light_bin_stage_buffer->set_name(L"light_bin_stage_buffer");
 		}
 
 		{
@@ -111,8 +121,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			scratch_buffer_uav.bind(h_scratch_buffer);
 
-			light_cull_stage_sorted_light_buffer_srv.bind(h_light_cull_stage_sorted_light_buffer);
-			light_cull_stage_sorted_light_buffer_uav.bind(h_light_cull_stage_sorted_light_buffer);
+			sorted_light_buffer_srv.bind(h_sorted_light_buffer);
+			sorted_light_buffer_uav.bind(h_sorted_light_buffer);
 
 			rt_instance_render_data_buffer_srv.bind_array(h_mapping_rt_instance_render_data_buffer_arr);
 			rt_index_buffer_srv.bind(h_mapping_rt_index_buffer);
@@ -130,6 +140,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			debug_meshlet_render_data_buffer.bind_array(h_mapping_debug_meshlet_render_data_buffer_arr);
 			debug_object_data_buffer.bind_array(h_mapping_debug_object_data_buffer_arr);
+
+			light_bin_stage_buffer_srv.bind(h_light_bin_stage_buffer);
+			light_bin_stage_buffer_uav.bind(h_light_bin_stage_buffer);
 		}
 
 		resource::create_view(h_rt_tlas_buffer_srv_desc, defaults::srv_view_desc::rt_acceleration_structure(h_rt_tlas_buffer));
@@ -138,7 +151,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		stage_depth.init(h_root_sig);
 		stage_skybox.init(h_root_sig);
-		stage_light_culling.init(h_root_sig);
+		stage_light_bin.init(h_root_sig);
 		stage_ddgi.init(h_root_sig);
 		stage_opaque.init(h_root_sig);
 		stage_transparent.init(h_root_sig);
@@ -157,7 +170,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		h_scratch_buffer->set_name(L"scratch_buffer");
 
-		h_light_cull_stage_sorted_light_buffer->set_name(L"light_cull_stage_sorted_light_buffer");
+		h_sorted_light_buffer->set_name(L"sorted_light_buffer");
 
 		h_rt_tlas_buffer->set_name(L"rt_tlas_buffer");
 		h_rt_tlas_scratch_buffer->set_name(L"rt_tlas_scratch_buffer");
@@ -244,7 +257,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_transparent.deinit();
 		stage_opaque.deinit();
 		stage_ddgi.deinit();
-		stage_light_culling.deinit();
+		stage_light_bin.deinit();
 		stage_skybox.deinit();
 		stage_depth.deinit();
 
@@ -293,8 +306,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_depth_buffer);
 		resource::release(h_debug_depth_buffer);
 		resource::release(h_scratch_buffer);
-		resource::release(h_light_cull_stage_buffer);
-		resource::release(h_light_cull_stage_sorted_light_buffer);
+		resource::release(h_light_bin_stage_buffer);
+		resource::release(h_sorted_light_buffer);
 		resource::release(h_bloom_chain);
 		if (ddgi_data_cpu.enabled)
 		{
@@ -688,7 +701,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			scratch_buffer_uav.apply_compute();
 
-			light_cull_stage_sorted_light_buffer_uav.apply_compute();
+			sorted_light_buffer_uav.apply_compute();
 
 			rt_instance_render_data_buffer_srv.apply_compute();
 			rt_instance_render_data_buffer_srv.apply();
@@ -719,17 +732,17 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		root_constants.apply();
 		root_constants.apply_compute();
-		light_cull_stage_buffer_uav.apply_compute();
+		light_bin_stage_buffer_uav.apply_compute();
 
-		stage_light_culling.execute(light_tile_count_x,
-									light_tile_count_y,
-									h_scratch_buffer);
+		stage_light_bin.execute(unified_light_vec.size<uint32>(),
+								h_light_bin_stage_buffer,
+								h_scratch_buffer);
 		command::apply_barriers(
-			barrier::buf_uav_to_srv(h_light_cull_stage_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::buf_uav_to_srv(h_light_cull_stage_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+			barrier::buf_uav_to_srv(h_sorted_light_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::buf_uav_to_srv(h_light_bin_stage_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		light_cull_stage_sorted_light_buffer_srv.apply();
-		light_cull_stage_buffer_srv.apply();
+		sorted_light_buffer_srv.apply();
+		light_bin_stage_buffer_srv.apply();
 
 		stage_depth.execute(h_depth_buffer_dsv_desc, opaque_meshlet_render_data_count);
 
@@ -779,8 +792,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::apply_barriers(barrier::tex_srv_to_uav(h_rt_transparent_texture_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		light_cull_stage_sorted_light_buffer_srv.apply_compute();
-		light_cull_stage_buffer_srv.apply_compute();
+		sorted_light_buffer_srv.apply_compute();
+		light_bin_stage_buffer_srv.apply_compute();
 		stage_transparent.execute(h_main_buffer_rtv_desc, h_rt_transparent_texture_buffer, extent);
 
 		if (AGE_IS_INVALID_ID(active_bloom_id))
@@ -978,17 +991,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			bloom_gpu.uav_texture_id_arr[mip] = calc_desc_idx(h_bloom_mip_uav_desc_arr[mip]);
 		}
-
-		h_light_cull_stage_buffer = resource::create_committed(
-			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(g::light_cull_tile_mask_offset + sizeof(uint32) * light_tile_count_x * light_tile_count_y * g::light_bitmask_uint32_count),
-			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
-			  .heap_memory_kind	   = e::memory_kind::gpu_only,
-			  .has_clear_value	   = false });
-
-		light_cull_stage_buffer_srv.bind(h_light_cull_stage_buffer);
-		light_cull_stage_buffer_uav.bind(h_light_cull_stage_buffer);
-
-		h_light_cull_stage_buffer->set_name(L"light_cull_stage_buffer");
 	}
 
 	void
@@ -1007,15 +1009,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			bloom_mip_count = mip;
 		}
 
-
 		bloom_gpu.width	 = bloom_extent.width;
 		bloom_gpu.height = bloom_extent.height;
-
-		light_tile_count_x = (extent.width + g::light_tile_size - 1) / g::light_tile_size;
-		light_tile_count_y = (extent.height + g::light_tile_size - 1) / g::light_tile_size;
-
-		AGE_ASSERT(light_tile_count_x <= 0xff);
-		AGE_ASSERT(light_tile_count_y <= 0xff);
 
 		resource::release(h_main_buffer);
 		resource::release(h_post_buffer);
@@ -1024,7 +1019,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_debug_depth_buffer);
 		resource::release(h_rt_transparent_texture_buffer);
 		resource::release(h_bloom_chain);
-		resource::release(h_light_cull_stage_buffer);
 
 		create_resolution_dependent_buffers();
 	}
@@ -2089,7 +2083,6 @@ namespace age::graphics::render_pipeline::forward_plus
 				opaque_mshlt_object_data_count += opaque_mshlt_render_data_vec.size<uint32>();
 				rt_instance_count			   += rt_instance_vec.size<uint32>();
 			}
-
 			AGE_ASSERT(opaque_offset < g::object_data_offset);
 
 			resource::resize_buffer(h_mapping_rt_instance_buffer, rt_instance_offset);
@@ -2262,7 +2255,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		root_constants.bind(shared_type::root_constants{
 			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
 			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()),
-			.unified_light_count			   = static_cast<t_unified_light_id>(unified_light_vec.size()),
+			.unified_light_count			   = unified_light_vec.size<t_unified_light_id>(),
 
 			//.cluster_near_z					   = cam_desc.near_z,
 			//.cluster_far_z					   = cam_desc.far_z,
@@ -2298,11 +2291,12 @@ namespace age::graphics::render_pipeline::forward_plus
 			.rt_transparent_buffer_uav_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
 			.rt_raycast_request_count			  = raycast_request_vec.size<uint32>(),
 			.proj_00							  = main_cam_data.proj[0][0],
+			.light_bin_origin					  = main_cam_data.pos - float3{ 50.f },
 			.proj_11							  = main_cam_data.proj[1][1],
+			.light_bin_cell_size_inv			  = float3{ g::light_axis_slice_count_float } / float3{ 100.f },
 			.cam_near_z							  = main_cam_desc.near_z,
 			.cam_far_z							  = main_cam_desc.far_z,
-			.light_tile_count_x					  = light_tile_count_x,
-			.light_tile_count_y					  = light_tile_count_y,
+			// todo, light bin config
 		};
 
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);
