@@ -446,6 +446,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		binding_config_t::reg_u<2, 7> ddgi_probe_weight_sum_buffer_uav;
 		ddgi_data					  ddgi_data_cpu;
 
+		std::mt19937						  ddgi_rng{ std::random_device{}() };
+		std::uniform_real_distribution<float> ddgi_dist{ 0.f, 1.f };
+
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 

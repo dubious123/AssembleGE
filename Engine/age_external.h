@@ -13,6 +13,7 @@
 #include <ranges>
 #include <type_traits>
 #include <tuple>
+#include <random>
 
 #ifdef AGE_EDITOR
 	#include <iostream>

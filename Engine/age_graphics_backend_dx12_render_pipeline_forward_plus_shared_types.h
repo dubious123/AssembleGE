@@ -173,7 +173,7 @@
 #define DDGI_PROBE_STATE_SLEEP	  2
 #define DDGI_PROBE_STATE_NEW_BORN 3
 
-#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16 * 8)
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN 0xff	  //(16 * 8)
 
 #define DDGI_RAY_BUDGET				 (1u << 20u)
 #define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
@@ -181,7 +181,7 @@
 #define DDGI_IRRADIANCE_ENERGY_CONSERVATION 0.95f
 
 #define DDGI_VISIBILITY_SHARPNESS	 50
-#define DDGI_VISIBILITY_BLEND_FACTOR 0.1f
+#define DDGI_VISIBILITY_BLEND_FACTOR 0.05f
 
 #define DDGI_PROBE_WEIGHT_SCALE 100000u
 
@@ -558,8 +558,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_near_z;
 		float  cam_far_z;
 		uint32 ddgi_enabled_and_extra;
-
-		uint32_2 _;
+		float2 ddgi_cranley_patterson_rotation;
 
 		uint32_4 extra[6];
 		// total: 256 * 2 bytes

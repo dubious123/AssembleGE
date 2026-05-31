@@ -78,3 +78,11 @@ interleaved_gradient_noise(float2 pixel_xy)
 {
 	return frac(52.9829189f * frac(dot(pixel_xy, float2(0.06711056f, 0.00583715f))));
 }
+
+float2
+random_spherical_fibonacci(uint32 ray_index, uint32 ray_count)
+{
+	const float golden_frac = 0.6180339887498949f;
+	return float2((float(ray_index) + 0.5f) / float(ray_count),
+				  frac(float(ray_index) * golden_frac));
+}

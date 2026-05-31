@@ -196,6 +196,10 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 		{
 			continue;
 		}
+		if (dot(probe_pos - world_pos, normal) < 0.f)
+		{
+			continue;
+		}
 
 		const uint32 probe_id = local_to_probe_id(ddgi_data,
 												  world_coord.x & mask.x,

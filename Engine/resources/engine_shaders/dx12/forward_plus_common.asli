@@ -31,6 +31,7 @@ float3 light_bin_cell_size_inv;
 float  cam_near_z;
 float  cam_far_z;
 uint32 ddgi_enabled_and_extra;
+float2 ddgi_cranley_patterson_rotation;
 
 
 // cbuffer root_constants reg(b1)

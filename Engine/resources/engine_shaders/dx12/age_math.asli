@@ -829,6 +829,15 @@ sample_hemisphere_cosine(float2 xi, float3 normal)
 }
 
 float3
+sample_sphere_uniform(float2 xi)
+{
+	const float cos_theta = 1.f - 2.f * xi.x;
+	const float sin_theta = sqrt(saturate(1.f - cos_theta * cos_theta));
+	const float phi		  = 2.f * pi * xi.y;
+	return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
+}
+
+float3
 sample_hemisphere_cosine(float2 xi, float3x3 transform_mat)
 {
 	const float phi		  = pi_2 * xi.x;

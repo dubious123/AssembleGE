@@ -2382,6 +2382,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.cam_near_z							  = main_cam_desc.near_z,
 			.cam_far_z							  = main_cam_desc.far_z,
 			.ddgi_enabled_and_extra				  = ddgi_data_cpu.enabled,
+			.ddgi_cranley_patterson_rotation	  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
 			// todo, light bin config
 		};
 

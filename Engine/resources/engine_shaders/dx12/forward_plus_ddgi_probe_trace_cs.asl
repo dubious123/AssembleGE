@@ -40,7 +40,7 @@ pack_trace_res(ddgi_trace_res res)
 // }
 
 ddgi_trace_res
-ddgi_trace_ray(float3 pos, float3 dir /*normalized*/)
+ddgi_trace_ray(float3 pos, float3 dir /*normalized*/, float radius)
 {
 	ddgi_trace_res res = (ddgi_trace_res)0;
 	res.dir			   = dir;
@@ -49,7 +49,7 @@ ddgi_trace_ray(float3 pos, float3 dir /*normalized*/)
 	desc.Origin	   = pos;
 	desc.Direction = dir;
 	desc.TMin	   = 0.001;
-	desc.TMax	   = float_max;
+	desc.TMax	   = radius;
 
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
@@ -63,7 +63,7 @@ ddgi_trace_ray(float3 pos, float3 dir /*normalized*/)
 
 		if (status == COMMITTED_NOTHING)
 		{
-			res.distance = float_max;
+			res.distance = radius;
 		}
 		else if (rt_committed_triangle_front_face(query) is_false)
 		{
@@ -165,7 +165,8 @@ main_cs(uint32_3 group_id  sv_group_id,
 								  | (group_id.z << (ppl_log2_axis.x + ppl_log2_axis.y));
 	ddgi_probe		probe		  = load_ddgi_probe_uav(probe_id);
 
-	const uint32 level = probe_id >> uint32_w_to_uint8(ddgi_data.ppl_log_2_and_ppl_bitwidth);
+	const uint32 level		  = probe_id >> uint32_w_to_uint8(ddgi_data.ppl_log_2_and_ppl_bitwidth);
+	const float	 probe_radius = max(ddgi_data.base_probe_spacing) * (1u << level);
 
 	const float3 probe_pos = ddgi_calc_probe_pos(ddgi_data, probe_id, level) + probe.offset;
 
@@ -207,12 +208,11 @@ main_cs(uint32_3 group_id  sv_group_id,
 
 	if (thread_id_flat < ray_count_front)
 	{
-		const uint32 sample_idx = (thread_id_flat + frame_index) % 29311;
-		const float2 xi			= hammersley(sample_idx, 29311);
-		// const float2 xi			= hammersley(thread_id_flat, ray_count_front);
-		dir = sample_hemisphere_cosine(xi, probe_normal);
+		float2 xi = random_spherical_fibonacci(thread_id_flat, ray_count_front);
+		xi		  = frac(xi + ddgi_cranley_patterson_rotation);
+		dir		  = sample_hemisphere_cosine(xi, probe_normal);
 
-		res = ddgi_trace_ray(probe_pos, dir);
+		res = ddgi_trace_ray(probe_pos, dir, probe_radius);
 
 		ddgi_trace_res_packed packed = pack_trace_res(res);
 
@@ -224,12 +224,11 @@ main_cs(uint32_3 group_id  sv_group_id,
 	}
 	else if (thread_id_flat < ray_count_front + ray_count_back)
 	{
-		const uint32 sample_idx = (thread_id_flat + frame_index) % 29311;
-		const float2 xi			= hammersley(sample_idx, 29311);
-		// const float2 xi			= hammersley(thread_id_flat - ray_count_front, ray_count_back);
-		dir = sample_hemisphere_cosine(xi, -probe_normal);
+		float2 xi = random_spherical_fibonacci(thread_id_flat - ray_count_front, ray_count_back);
+		xi		  = frac(xi + ddgi_cranley_patterson_rotation);
+		dir		  = sample_hemisphere_cosine(xi, -probe_normal);
 
-		res = ddgi_trace_ray(probe_pos, dir);
+		res = ddgi_trace_ray(probe_pos, dir, probe_radius);
 
 		ddgi_trace_res_packed packed = pack_trace_res(res);
 
@@ -272,9 +271,12 @@ main_cs(uint32_3 group_id  sv_group_id,
 			const float	 distance = gs_distance[i];
 
 			// distance < 0.f == inside wall
-			const float weight = distance > 0.f
-								   ? max(0.f, dot(texel_dir, ray_dir))
-								   : 0.f;
+			const float density_ratio = (i < ray_count_front)
+										  ? float(ray_count) / float(max(ray_count_front, 1u))
+										  : float(ray_count) / float(max(ray_count_back, 1u));
+			const float weight		  = (distance > 0.f)
+										  ? max(0.f, dot(texel_dir, ray_dir)) * density_ratio
+										  : 0.f;
 
 			const float3 radiance = decode_r11g11b10(gs_radiance_packed[i]) * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
 
@@ -296,14 +298,14 @@ main_cs(uint32_3 group_id  sv_group_id,
 
 		const float3 src_irradiance = load(irradiance_src, atlas_coord, 0);
 
-		if (weight_sum > 0.f)
+		if (weight_sum == 0.f or probe_state == DDGI_PROBE_STATE_NEW_BORN)
 		{
-			irradiance_dst[atlas_coord] = lerp(src_irradiance, irradiance_sum, blend_factor);
+			irradiance_dst[atlas_coord] = src_irradiance;
 			// irradiance_dst[atlas_coord] = float3(0, 0, 1);
 		}
 		else
 		{
-			irradiance_dst[atlas_coord] = src_irradiance;
+			irradiance_dst[atlas_coord] = lerp(src_irradiance, irradiance_sum, blend_factor);
 			// irradiance_dst[atlas_coord] = float3(1, 0, 0);
 		}
 	}
@@ -325,8 +327,12 @@ main_cs(uint32_3 group_id  sv_group_id,
 			const float3 ray_dir  = decode_oct_snorm(gs_dir_packed[i]);
 			const float	 distance = gs_distance[i];
 
+			const float density_ratio = (i < ray_count_front)
+										  ? float(ray_count) / float(max(ray_count_front, 1u))
+										  : float(ray_count) / float(max(ray_count_back, 1u));
+
 			const float weight = distance > 0.f
-								   ? pow(max(0.f, dot(texel_dir, ray_dir)), DDGI_VISIBILITY_SHARPNESS)
+								   ? pow(max(0.f, dot(texel_dir, ray_dir)), DDGI_VISIBILITY_SHARPNESS) * density_ratio
 								   : 0.f;
 
 			const float dist = clamp(distance, 0.f, max(max(ddgi_data.base_probe_spacing.x, ddgi_data.base_probe_spacing.y), ddgi_data.base_probe_spacing.z) * (1u << level));
@@ -346,13 +352,13 @@ main_cs(uint32_3 group_id  sv_group_id,
 		const float2 src_visibility = load(visibility_src, atlas_coord, 0);
 
 
-		if (weight_sum > 0.f)
+		if (weight_sum == 0.f or probe_state == DDGI_PROBE_STATE_NEW_BORN)
 		{
-			visibility_dst[atlas_coord] = lerp(src_visibility, visibility_sum, DDGI_VISIBILITY_BLEND_FACTOR);
+			visibility_dst[atlas_coord] = src_visibility;
 		}
 		else
 		{
-			visibility_dst[atlas_coord] = src_visibility;
+			visibility_dst[atlas_coord] = lerp(src_visibility, visibility_sum, DDGI_VISIBILITY_BLEND_FACTOR);
 		}
 	}
 
