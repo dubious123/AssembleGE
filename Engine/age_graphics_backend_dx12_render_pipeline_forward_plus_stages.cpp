@@ -256,7 +256,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_reduce_ray_sum_cs) });
 
 		p_pso_reduce_ray_sum = graphics::g::pso_ptr_vec[h_pso_reduce_ray_sum];
-		h_pso_reduce_ray_sum.set_name(L"pso_reduce_ray_sum");
+		h_pso_reduce_ray_sum.set_name(L"pso_ddgi_reduce_ray_sum");
 
 
 		h_pso_probe_trace = graphics::pso::create(
@@ -264,11 +264,43 @@ namespace age::graphics::render_pipeline::forward_plus
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_probe_trace_cs) });
 
 		p_pso_probe_trace = graphics::g::pso_ptr_vec[h_pso_probe_trace];
-		h_pso_probe_trace.set_name(L"pso_probe_trace");
+		h_pso_probe_trace.set_name(L"pso_ddgi_probe_trace");
+
+
+		h_pso_copy_edge = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_copy_edge_cs) });
+
+		p_pso_copy_edge = graphics::g::pso_ptr_vec[h_pso_copy_edge];
+		h_pso_copy_edge.set_name(L"pso_ddgi_copy_edge");
+
+
+		h_pso_render_probes = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_render_probes_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_render_probes_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_render_probes_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D16_UNORM },
+			// pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_blend{ .subobj = defaults::blend_desc::opaque },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_render_probes = graphics::g::pso_ptr_vec[h_pso_render_probes];
+		h_pso_render_probes.set_name(L"pso_ddgi_render_probes");
 	}
 
 	inline void
-	ddgi_stage::execute(const ddgi_data& ddgi_data_cpu, resource_handle h_probe_buffer, resource_handle h_scratch_buffer) const noexcept
+	ddgi_stage::execute(const ddgi_data& ddgi_data_cpu,
+						resource_handle	 h_probe_buffer,
+						resource_handle	 h_probe_weight_sum_buffer,
+						resource_handle	 h_scratch_buffer,
+						resource_handle	 h_irradiance_atlas_uav,
+						resource_handle	 h_visibility_atlas_uav) const noexcept
 	{
 		c_auto& ddgi_data_gpu = ddgi_data_cpu.ddgi_data_gpu;
 
@@ -277,18 +309,18 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::set_pso(p_pso_update_probe_state);
 
-
 		command::dispatch(util::ceil(ppl, g::ddgi_update_probe_state_probe_per_group), 1, level_count);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource));
+		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource),
+								barrier::buf_uav_to_uav(h_probe_weight_sum_buffer->p_resource),
+								barrier::buf_uav_to_uav(h_probe_buffer->p_resource));
 
 		command::set_pso(p_pso_reduce_ray_sum);
 
-		c_auto sum_count = util::ceil(util::ceil(ppl * level_count, g::ddgi_update_probe_state_probe_per_group),
-									  g::ddgi_update_probe_state_probe_per_group);
+		// todo: config wave_count
+		c_auto sum_count = util::ceil(util::ceil(ppl * level_count, g::ddgi_update_probe_state_probe_per_group), 32);
 		command::dispatch(sum_count, 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_srv(h_scratch_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_uav(h_probe_buffer->p_resource));
+		command::apply_barriers(barrier::buf_uav_to_srv(h_scratch_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_probe_trace);
 		{
@@ -300,11 +332,58 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::dispatch(axis_x, axis_y, axis_z * level_count);
 		}
 
+		command::apply_barriers(barrier::tex_uav_to_uav(h_irradiance_atlas_uav->p_resource),
+								barrier::buf_uav_to_uav(h_probe_weight_sum_buffer->p_resource),
+								barrier::tex_uav_to_uav(h_visibility_atlas_uav->p_resource));
 
-		// sum_count = x * y * z * level /  g::ddgi_update_probe_state_probe_per_group
-		// example : 32 * 16 * 32 * 8 / 1024
-		//
-		// 32 group reduce
+		command::set_pso(p_pso_copy_edge);
+		{
+			const uint32 dispatch_x		   = ddgi_data_cpu.irradiance_atlas_extent.width / g::ddgi_irradiance_tile_size;
+			const uint32 dispatch_y		   = ddgi_data_cpu.irradiance_atlas_extent.height / g::ddgi_irradiance_tile_size;
+			const uint32 thread_group_x	   = g::ddgi_irradiance_resolution;
+			const uint32 thread_group_y	   = 4;
+			const uint32 irradiance_edge_z = thread_group_y * (g::ddgi_irradiance_resolution / thread_group_x);
+			const uint32 visibility_edge_z = thread_group_y * (g::ddgi_visibility_resolution / thread_group_x);
+			const uint32 dispatch_z		   = 1 + irradiance_edge_z + visibility_edge_z;
+
+			AGE_ASSERT(is_even(dispatch_x) and is_even(dispatch_y));
+
+			command::dispatch(dispatch_x, dispatch_y, dispatch_z);
+		}
+
+		// command::apply_barriers(barrier::tex_uav_to_uav(h_irradiance_atlas_uav->p_resource),
+		//						barrier::tex_uav_to_uav(h_visibility_atlas_uav->p_resource));
+	}
+
+	void
+	ddgi_stage::execute_render_probes(rtv_desc_handle  h_main_buffer_rtv_desc,
+									  dsv_desc_handle  h_debug_depth_buffer_dsv_desc,
+									  const ddgi_data& ddgi_data_cpu) const noexcept
+	{
+		c_auto& ddgi_data_gpu = ddgi_data_cpu.ddgi_data_gpu;
+
+		c_auto ppl		   = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 24u) & 0xff);
+		c_auto level_count = ddgi_data_gpu.level_count__tile_count_w_log2 & 0xff;
+
+		if (ddgi_data_cpu.render_probes)
+		{
+			auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+			auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_discard(h_debug_depth_buffer_dsv_desc, 0.f, DXGI_FORMAT_D16_UNORM);
+
+			command::begin_render_pass(
+				1,
+				&render_pass_rt_desc,
+				&render_pass_ds_desc,
+				D3D12_RENDER_PASS_FLAG_NONE);
+
+			{
+				command::set_pso(p_pso_render_probes);
+				AGE_ASSERT(ppl % 32 == 0);
+				command::dispatch_mesh(util::ceil(ppl, 32), 1, level_count);
+			}
+
+			command::end_render_pass();
+		}
 	}
 
 	void
@@ -313,6 +392,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso_update_probe_state);
 		pso::destroy(h_pso_reduce_ray_sum);
 		pso::destroy(h_pso_probe_trace);
+		pso::destroy(h_pso_copy_edge);
+		pso::destroy(h_pso_render_probes);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -765,7 +846,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::set_pso(p_pso_world);
 		}
 
-
+		const uint32 cach = constants.constant_arr[0].ui_space_mode__ddgi_updated__extra & 0xffff'ff00;
 		for (auto i : views::loop(root_data_count))
 		{
 			c_auto root_idx = root_data_idx + i;
@@ -778,13 +859,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				struct
 				{
-					uint32 ui_space_mode_and_extra;
+					uint32 ui_space_mode__ddgi_updated__extra;
 					uint32 ui_root_data_idx;
 					uint32 ui_data_id_offset;
 					uint32 ui_data_id_count;
-				} payload{ to_idx(space_mode), root_idx, z_range.offset, z_range.count };
+				} payload{ to_idx(space_mode) | (cach), root_idx, z_range.offset, z_range.count };
 
-				constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode_and_extra, sizeof(payload)>(payload);
+				constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode__ddgi_updated__extra, sizeof(payload)>(payload);
 				command::dispatch_mesh((z_range.count + 31u) / 32u, 1, 1);
 			}
 		}

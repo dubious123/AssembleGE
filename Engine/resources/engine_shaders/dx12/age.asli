@@ -5,6 +5,7 @@
 #define is_true	 == true
 #define and		 &&
 #define or		 ||
+#define not		 !
 
 #ifdef __INTELLISENSE__
 	#include "../../../age.hpp"
@@ -780,6 +781,12 @@ first_bit_low(uint32 val)
 	return val;
 }
 
+uint32
+first_bit_high(uint32 val)
+{
+	return val;
+}
+
 void
 dispatch_mesh(uint32, uint32, uint32, auto)
 {
@@ -972,7 +979,8 @@ cross(float3, float3)
 	#define wave_lane_index()	  WaveGetLaneIndex()
 	#define wave_prefix_sum(x)	  WavePrefixSum(x)
 
-	#define first_bit_low(x) firstbitlow(x)
+	#define first_bit_low(x)  firstbitlow(x)
+	#define first_bit_high(x) firstbithigh(x)
 
 
 	#define dispatch_mesh(x, y, z, w) DispatchMesh(x, y, z, w)
@@ -1470,23 +1478,44 @@ rt_ray_t_min(ray_query<rt_flags> q)
 		return __age_hlsl_prefix_sum_arr_f__[wave_id] + wave_prefix;                                              \
 	}
 
-#define DECLARE_CALC_THREAD_GROUP_SUM(thread_count)                                             \
-	groupshared uint32 __age_hlsl_sum_arr__[thread_count];                                      \
-	uint32 calc_thread_group_sum(uint32 _thread_local, uint32 thread_id)                        \
-	{                                                                                           \
-		uint32		 wave_sum = wave_active_sum(_thread_local);                                 \
-		const uint32 wave_id  = thread_id / wave_lane_count();                                  \
-		if (wave_lane_index() == 0)                                                             \
-		{                                                                                       \
-			__age_hlsl_sum_arr__[wave_id] = wave_sum;                                           \
-		}                                                                                       \
-		group_memory_barrier_with_sync();                                                       \
-		if (wave_id == 0)                                                                       \
-		{                                                                                       \
-			__age_hlsl_sum_arr__[thread_id] = wave_active_sum(__age_hlsl_sum_arr__[thread_id]); \
-		}                                                                                       \
-		group_memory_barrier_with_sync();                                                       \
-		return __age_hlsl_sum_arr__[0];                                                         \
+#define DECLARE_CALC_THREAD_GROUP_SUM(thread_count)                                                                           \
+	groupshared uint32 __age_hlsl_sum_arr__[thread_count];                                                                    \
+	uint32 calc_thread_group_sum(uint32 _thread_local, uint32 thread_id)                                                      \
+	{                                                                                                                         \
+		uint32		 wave_sum = wave_active_sum(_thread_local);                                                               \
+		const uint32 wave_id  = thread_id / wave_lane_count();                                                                \
+		if (wave_lane_index() == 0)                                                                                           \
+		{                                                                                                                     \
+			__age_hlsl_sum_arr__[wave_id] = wave_sum;                                                                         \
+		}                                                                                                                     \
+		group_memory_barrier_with_sync();                                                                                     \
+		if (wave_id == 0)                                                                                                     \
+		{                                                                                                                     \
+			const uint32 wave_count			= (thread_count + wave_lane_count() - 1) / wave_lane_count();                     \
+			__age_hlsl_sum_arr__[thread_id] = wave_active_sum(thread_id < wave_count ? __age_hlsl_sum_arr__[thread_id] : 0u); \
+		}                                                                                                                     \
+		group_memory_barrier_with_sync();                                                                                     \
+		return __age_hlsl_sum_arr__[0];                                                                                       \
+	}
+
+#define DECLARE_CALC_THREAD_GROUP_SUM_FLOAT(thread_count)                                                                          \
+	groupshared float __age_hlsl_sum_arr_f__[thread_count];                                                                        \
+	float calc_thread_group_sum_float(float _thread_local, uint32 thread_id)                                                       \
+	{                                                                                                                              \
+		float		 wave_sum = wave_active_sum(_thread_local);                                                                    \
+		const uint32 wave_id  = thread_id / wave_lane_count();                                                                     \
+		if (wave_lane_index() == 0)                                                                                                \
+		{                                                                                                                          \
+			__age_hlsl_sum_arr_f__[wave_id] = wave_sum;                                                                            \
+		}                                                                                                                          \
+		group_memory_barrier_with_sync();                                                                                          \
+		if (wave_id == 0)                                                                                                          \
+		{                                                                                                                          \
+			const uint32 wave_count			  = (thread_count + wave_lane_count() - 1) / wave_lane_count();                        \
+			__age_hlsl_sum_arr_f__[thread_id] = wave_active_sum(thread_id < wave_count ? __age_hlsl_sum_arr_f__[thread_id] : 0.f); \
+		}                                                                                                                          \
+		group_memory_barrier_with_sync();                                                                                          \
+		return __age_hlsl_sum_arr_f__[0];                                                                                          \
 	}
 
 #define DECLARE_CALC_THREAD_GROUP_MIN_MAX(thread_count)                                                    \
@@ -1517,4 +1546,5 @@ rt_ray_t_min(ray_query<rt_flags> q)
 	}
 
 #include "age_math.asli"
+#include "age_fwd.asli"
 #include "age_math_sdf.asli"

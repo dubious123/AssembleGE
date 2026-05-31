@@ -118,6 +118,24 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
+		texture_2d(extent_2d<uint32>	extent,
+				   DXGI_FORMAT			format,
+				   D3D12_RESOURCE_FLAGS flags		   = D3D12_RESOURCE_FLAG_NONE,
+				   uint16				mip_levels	   = 1,
+				   uint16				sample_count   = 1,
+				   uint16				sample_quality = 0) noexcept
+		{
+			return texture_2d_array(extent.width,
+									extent.height,
+									format,
+									1,
+									flags,
+									mip_levels,
+									sample_count,
+									sample_quality);
+		}
+
+		FORCE_INLINE decltype(auto)
 		texture_rt_2d(uint32			   width,
 					  uint32			   height,
 					  D3D12_RESOURCE_FLAGS extra_flags	  = D3D12_RESOURCE_FLAG_NONE,

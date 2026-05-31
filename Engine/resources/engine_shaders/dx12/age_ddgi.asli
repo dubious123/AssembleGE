@@ -1,0 +1,246 @@
+#pragma once
+#include "age.asli"
+
+struct ddgi_cage
+{
+	uint32 level;
+	uint32 probe_ids[8];
+	float3 weights;
+	float3 base_pos;
+};
+
+uint32
+calc_axis_level(const ddgi_data data, float cam_axis, float pixel_axis, uint32 x_y_z)
+{
+	const uint32   dist				= (uint32)floor(abs(pixel_axis - cam_axis) / data.base_probe_spacing[x_y_z]);
+	const uint16_3 probe_count_log2 = load_ddgi_ppl_log2_axis(data);
+	const uint32   half				= 1u << (probe_count_log2[x_y_z] - 1);
+	if (dist < half)
+	{
+		return 0;
+	}
+	else
+	{
+		const uint32 ratio = dist >> (probe_count_log2[x_y_z] - 1);
+
+		return bit_width(ratio);
+	}
+}
+
+uint32
+ddgi_calc_level(const ddgi_data data, float3 world_pos)
+{
+	return max(calc_axis_level(data, camera_pos.x, world_pos.x, 0),
+			   calc_axis_level(data, camera_pos.y, world_pos.y, 1),
+			   calc_axis_level(data, camera_pos.z, world_pos.z, 2));
+}
+
+float3
+ddgi_calc_probe_pos(const ddgi_data data, uint32 probe_id, uint32 level)
+{
+	const uint32 li = probe_id & (load_ddgi_ppl(data) - 1);
+
+	const uint16_3 ddgi_ppl_log2_axis = load_ddgi_ppl_log2_axis(data);
+	const uint32_3 probe_count_axis	  = load_ddgi_probe_count_axis(ddgi_ppl_log2_axis);
+	const int32_3  mask				  = int32_3(probe_count_axis - 1);
+
+	const int32_3 local = int32_3(
+		li & mask.x,
+		(li >> ddgi_ppl_log2_axis.x) & mask.y,
+		li >> (ddgi_ppl_log2_axis.x + ddgi_ppl_log2_axis.y));
+
+
+	const float3 spacing = ddgi_level_spacing(data, level);
+
+	const int32_3 cam_coord = cast<int32_3>(floor(camera_pos / spacing));
+	const int32_3 half		= int32_3(probe_count_axis.x >> 1, probe_count_axis.y >> 1, probe_count_axis.z >> 1);
+
+	int32_3 world_coord;
+	world_coord.x = cam_coord.x - half.x + ((local.x - cam_coord.x + half.x) & mask.x);
+	world_coord.y = cam_coord.y - half.y + ((local.y - cam_coord.y + half.y) & mask.y);
+	world_coord.z = cam_coord.z - half.z + ((local.z - cam_coord.z + half.z) & mask.z);
+
+	return (float3(world_coord) + 0.5f) * spacing;
+}
+
+bool
+ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level)
+{
+	if (level == 0) { return false; }
+
+	const float3 distance = abs(probe_pos - camera_pos);
+
+	const float3 spacing	 = ddgi_level_spacing(data, level);
+	const float3 prev_radius = ddgi_level_probe_radius(data, level - 1);
+	const float3 hole_extent = prev_radius - spacing;
+
+	return distance.x < hole_extent.x and distance.y < hole_extent.y and distance.z < hole_extent.z;
+}
+
+uint32_2
+calc_probe_atlas_offset(uint32 probe_id, uint32 tile_count_log2, uint32 tile_size)
+{
+	const uint32 tile_idx_u = probe_id & ((1u << tile_count_log2) - 1);
+	const uint32 tile_idx_v = probe_id >> tile_count_log2;
+
+	return uint32_2(tile_idx_u * tile_size, tile_idx_v * tile_size);
+}
+
+float
+ddgi_calc_blend_t(const ddgi_data ddgi_data, float3 world_pos, uint32 level)
+{
+	const float3 spacing = ddgi_data.base_probe_spacing * (1u << level);
+
+	const float3 half = load_ddgi_probe_count_axis(ddgi_data) * 0.5f - 0.5f;
+
+	const float transition = 1.0f;
+
+	return max(saturate(((abs(world_pos - camera_pos) / spacing) - (half - transition)) / transition));
+}
+
+uint32
+local_to_probe_id(const ddgi_data data, uint32 lx, uint32 ly, uint32 lz, uint32 level)
+{
+	const uint16_3 probe_count_log2 = load_ddgi_ppl_log2_axis(data);
+
+	const uint32 li = lx
+					| (ly << probe_count_log2[0])
+					| (lz << (probe_count_log2[0] + probe_count_log2[1]));
+	return (level << load_ddgi_ppl_log2(data)) | li;
+}
+
+// helper function
+
+// uv coord of tile + border
+float2
+calc_probe_atlas_uv(const ddgi_data ddgi_data, const uint32 probe_id, const float2 probe_uv, const uint16 tile_size, const uint16 resolution)
+{
+	const uint16 level_count	   = load_ddgi_level_count(ddgi_data);
+	const uint16 ppl_log2		   = load_ddgi_ppl_log2(ddgi_data);
+	const uint32 probe_count_total = (1u << ppl_log2) * level_count;
+
+	const uint16 tile_count_w_log2 = load_ddgi_tile_count_w_log2(ddgi_data);
+
+	const float2 atlas_extent = float2(float(1u << tile_count_w_log2), ddgi_data.tile_count_h_float) * tile_size;
+
+	const uint32_2 atlas_offset = calc_probe_atlas_offset(probe_id, tile_count_w_log2, tile_size);
+	const float2   atlas_uv		= (float2(atlas_offset + DDGI_BORDER) + probe_uv * resolution) / atlas_extent;
+	return atlas_uv;
+}
+
+float
+ddgi_sample_probe_visibility(const ddgi_data ddgi_data, uint32 probe_id, float3 probe_to_world /*not normalized*/)
+{
+	texture_2d<float2> visibility_atlas = global_resource_buffer[load_ddgi_visibility_atlas_srv_id(ddgi_data)];
+
+	const float	 distance = length(probe_to_world);
+	const float3 dir_norm = probe_to_world / distance;
+
+	const float2 oct_uv	  = encode_octahedral(dir_norm);
+	const float2 probe_uv = oct_uv * 0.5f + 0.5f;
+
+	const float2 atlas_uv = calc_probe_atlas_uv(ddgi_data, probe_id, probe_uv, DDGI_VISIBILITY_TILE_SIZE, DDGI_VISIBILITY_RESOLUTION);
+
+	const float2 visibility = sample_level(visibility_atlas, get_linear_clamp_sampler(), atlas_uv, 0);
+
+	const float mean	 = visibility.x;	// E[d]
+	const float sq_mean	 = visibility.y;	// E[d^2]
+	const float variance = abs(sq_mean - mean * mean);
+
+	// chebyshev test
+	float chebyshev_weight = 1.f;
+	if (distance > mean)
+	{
+		const float k	 = distance - mean;
+		chebyshev_weight = variance / (variance + k * k);	 // p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
+		chebyshev_weight = chebyshev_weight * chebyshev_weight * chebyshev_weight;
+	}
+
+	// avoid zero visibility for fallback value
+	return max(chebyshev_weight, 0.05f);
+}
+
+float3
+ddgi_sample_probe_irradiance(const ddgi_data ddgi_data, uint32 probe_id, float3 normal /*normalized*/)
+{
+	texture_2d<float3> irradiance_atlas = global_resource_buffer[load_ddgi_irradiance_atlas_srv_id(ddgi_data)];
+
+	const float2 oct_uv	  = encode_octahedral(normal);
+	const float2 probe_uv = oct_uv * 0.5f + 0.5f;
+
+	const float2 atlas_uv = calc_probe_atlas_uv(ddgi_data, probe_id, probe_uv, DDGI_IRRADIANCE_TILE_SIZE, DDGI_IRRADIANCE_RESOLUTION);
+
+	const float3 irradiance = sample_level(irradiance_atlas, get_linear_clamp_sampler(), atlas_uv, 0);
+	return irradiance;
+}
+
+float3
+ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos, float3 normal)
+{
+	const float3  spacing	 = ddgi_data.base_probe_spacing * (1u << level);
+	const float3  grid_float = world_pos / spacing - 0.5f;
+	const int32_3 grid_base	 = int32_3(floor(grid_float));
+	const float3  grid_frac	 = frac(grid_float);
+
+	float3 irradiance_sum = float3(0, 0, 0);
+	float  weight_sum	  = 0.f;
+
+	const uint32_3 mask = load_ddgi_ppl_axis(ddgi_data) - 1;
+	for (uint32 i = 0; i < 8; ++i)
+	{
+		const int32_3 grid_offset = int32_3((i >> 0) & 1, (i >> 1) & 1, (i >> 2) & 1);
+		const int32_3 world_coord = grid_base + grid_offset;
+		const float3  probe_pos	  = (world_coord + 0.5f) * spacing;
+
+		if (ddgi_is_probe_in_hole(ddgi_data, probe_pos, level))
+		{
+			continue;
+		}
+
+		const uint32 probe_id = local_to_probe_id(ddgi_data,
+												  world_coord.x & mask.x,
+												  world_coord.y & mask.y,
+												  world_coord.z & mask.z,
+												  level);
+
+		const float weight_x = grid_offset.x ? grid_frac.x : 1.0f - grid_frac.x;
+		const float weight_y = grid_offset.y ? grid_frac.y : 1.0f - grid_frac.y;
+		const float weight_z = grid_offset.z ? grid_frac.z : 1.0f - grid_frac.z;
+		float		weight	 = weight_x * weight_y * weight_z;
+
+		weight *= ddgi_sample_probe_visibility(ddgi_data, probe_id, world_pos - probe_pos);
+		weight	= max(weight, epsilon_1e4);
+
+		const float3 probe_irradiance = ddgi_sample_probe_irradiance(ddgi_data, probe_id, normal);
+
+		ddgi_add_probe_weight(probe_id, weight);
+
+		irradiance_sum += probe_irradiance * weight;
+
+		weight_sum += weight;
+	}
+
+	return irradiance_sum / weight_sum;
+}
+
+float3
+sample_ddgi_irradiance(float3 world_pos, float3 normal)
+{
+	const ddgi_data ddgi_data = load_ddgi_data();
+	const uint32	level	  = ddgi_calc_level(ddgi_data, world_pos);
+
+	float3 irradiance = float3(0, 0, 0);
+
+	const float blend_t = ddgi_calc_blend_t(ddgi_data, world_pos, level);
+	if (blend_t < 1.f - epsilon_1e4)
+	{
+		irradiance += ddgi_sample_probe_cage(ddgi_data, level, world_pos, normal) * (1 - blend_t);
+	}
+
+	if (blend_t > epsilon_1e4)
+	{
+		irradiance += ddgi_sample_probe_cage(ddgi_data, level + 1, world_pos, normal) * blend_t;
+	}
+
+	return irradiance;
+}

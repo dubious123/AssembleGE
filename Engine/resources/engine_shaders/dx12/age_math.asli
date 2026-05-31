@@ -1,17 +1,85 @@
 #pragma once
 #include "age.asli"
 
-static const float epsilon_1e4 = 0.0001f;
-static const float epsilon_1e6 = 0.000001f;
-static const float sqrt_2	   = 1.4142135623730950488f;
-static const float sqrt_2_inv  = 0.7071067811865475244f;
-static const float pi		   = 3.141592654f;
-static const float pi_2		   = 6.283185307f;
-static const float pi_half	   = 1.570796327f;
+static const float epsilon_1e4		= 0.0001f;
+static const float epsilon_1e6		= 0.000001f;
+static const float sqrt_2			= 1.4142135623730950488016887242097f;
+static const float sqrt_2_inv		= 0.70710678118654752440084436210485f;
+static const float pi				= 3.1415926535897932384626433832795f;
+static const float pi_2				= 6.283185307179586476925286766559f;
+static const float pi_inv			= 0.31830988618379067153776752674503f;
+static const float pi_2_inv			= 0.15915494309189533576888376337251f;
+static const float pi_div_2			= 1.5707963267948966192313216916398f;
+static const float pi_half			= pi_div_2;
+static const float pi_div_4			= 0.78539816339744830961566084581988f;
+static const float degree_to_radian = pi / 180.f;
+static const float radian_to_degree = 180.f / pi;
 
 static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
+
+template <typename t>
+t
+max(t x, t y, t z)
+{
+	return max(max(x, y), z);
+}
+
+template <typename t>
+t
+max(t x, t y, t z, t w)
+{
+	return max(max(x, y), max(z, w));
+}
+
+template <typename t>
+t
+max(const in vector<t, 2> v)
+{
+	return max(v.x, v.y);
+}
+
+template <typename t>
+t
+max(const in vector<t, 3> v)
+{
+	return max(max(v.x, v.y), v.z);
+}
+
+template <typename t>
+t
+max(const in vector<t, 4> v)
+{
+	return max(max(v.x, v.y), max(v.z, v.w));
+}
+
+template <typename t>
+t
+min(const in vector<t, 2> v)
+{
+	return min(v.x, v.y);
+}
+
+template <typename t>
+t
+min(const in vector<t, 3> v)
+{
+	return min(min(v.x, v.y), v.z);
+}
+
+template <typename t>
+t
+min(const in vector<t, 4> v)
+{
+	return min(min(v.x, v.y), min(v.z, v.w));
+}
+
+uint32
+bit_width(uint32 u)
+{
+	return u == 0 ? 0 : (first_bit_high(u) + 1);
+}
 
 float
 length_sq(float2 v)
@@ -104,52 +172,60 @@ float_to_snorm8(float f)
 	return uint16(v) & 0xff;
 }
 
-int32
+template <typename t_ret = int32>
+t_ret
 uint32_x_to_int8(uint32 u)
 {
-	return (int32)(int32(u << 24) >> 24);
+	return cast<t_ret>(int32(u << 24) >> 24);
 }
 
-int32
+template <typename t_ret = int32>
+t_ret
 uint32_y_to_int8(uint32 u)
 {
-	return (int32)(int32(u << 16) >> 24);
+	return cast<t_ret>(int32(u << 16) >> 24);
 }
 
-int32
+template <typename t_ret = int32>
+t_ret
 uint32_z_to_int8(uint32 u)
 {
-	return (int32)(int32(u << 8) >> 24);
+	return cast<t_ret>(int32(u << 8) >> 24);
 }
 
-int32
+template <typename t_ret = int32>
+t_ret
 uint32_w_to_int8(uint32 u)
 {
-	return (int32)(int32(u) >> 24);
+	return cast<t_ret>(int32(u) >> 24);
 }
 
-uint32
+template <typename t_ret = uint32>
+t_ret
 uint32_x_to_uint8(uint32 u)
 {
-	return (u >> 0) & 0xff;
+	return cast<t_ret>((u >> 0) & 0xff);
 }
 
-uint32
+template <typename t_ret = uint32>
+t_ret
 uint32_y_to_uint8(uint32 u)
 {
-	return (u >> 8) & 0xff;
+	return cast<t_ret>((u >> 8) & 0xff);
 }
 
-uint32
+template <typename t_ret = uint32>
+t_ret
 uint32_z_to_uint8(uint32 u)
 {
-	return (u >> 16) & 0xff;
+	return cast<t_ret>((u >> 16) & 0xff);
 }
 
-uint32
+template <typename t_ret = uint32>
+t_ret
 uint32_w_to_uint8(uint32 u)
 {
-	return (u >> 24) & 0xff;
+	return cast<t_ret>((u >> 24) & 0xff);
 }
 
 int16
@@ -277,51 +353,39 @@ rotate(float2 v, float radian)
 }
 
 float3
-decode_oct_snorm(const uint16 oct)
+decode_octahedral(float2 uv)
 {
-	const float x = snorm8_to_float(oct & 0xffu);
-	const float y = snorm8_to_float((oct >> 8) & 0xffu);
-
 	float3 res;
-	res.xy = float2(x, y);
-	res.z  = 1.f - abs(res.x) - abs(res.y);
-
+	res.xy = uv;
+	res.z  = 1.f - abs(uv.x) - abs(uv.y);
 	if (res.z < 0.f)
 	{
 		const float old_x = res.x;
 		const float old_y = res.y;
-
-		res.x = (1.f - abs(old_y)) * (old_x >= 0.f ? 1.f : -1.f);
-		res.y = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
+		res.x			  = (1.f - abs(old_y)) * (old_x >= 0.f ? 1.f : -1.f);
+		res.y			  = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
 	}
+	return normalize(res);
+}
 
-	return res;
+float3
+decode_oct_snorm(const uint16 oct)
+{
+	float x = snorm8_to_float(oct & 0xffu);
+	float y = snorm8_to_float((oct >> 8) & 0xffu);
+	return decode_octahedral(float2(x, y));
 }
 
 float3
 decode_oct_unorm(const uint16 oct)
 {
-	const float x = unorm8_to_float(oct & 0xffu);
-	const float y = unorm8_to_float((oct >> 8) & 0xffu);
-
-	float3 res;
-	res.xy = float2(x, y) * 2.f - 1.f;
-	res.z  = 1.f - abs(res.x) - abs(res.y);
-
-	if (res.z < 0.f)
-	{
-		const float old_x = res.x;
-		const float old_y = res.y;
-
-		res.x = (1.f - abs(old_y)) * (old_x >= 0.f ? 1.f : -1.f);
-		res.y = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
-	}
-
-	return res;
+	float x = unorm8_to_float(oct & 0xffu) * 2.f - 1.f;
+	float y = unorm8_to_float((oct >> 8) & 0xffu) * 2.f - 1.f;
+	return decode_octahedral(float2(x, y));
 }
 
-uint16
-encode_oct_snorm8(const float3 f)
+float2
+encode_octahedral(float3 f)
 {
 	const float l1_norm = abs(f.x) + abs(f.y) + abs(f.z);
 	float		x		= f.x / l1_norm;
@@ -335,12 +399,69 @@ encode_oct_snorm8(const float3 f)
 		y = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
 	}
 
-	return uint16(float_to_snorm8(x) | (float_to_snorm8(y) << 8u));
+	return float2(x, y);
+}
+
+uint16
+encode_oct_snorm8(const float3 f)
+{
+	const float2 uv = encode_octahedral(f);
+
+	return uint16(float_to_snorm8(uv.x) | (float_to_snorm8(uv.y) << 8u));
+}
+
+float3
+texel_id_to_octahedral_dir(uint32 texel_id, uint32 resolution)
+{
+	const uint32 tx = texel_id % resolution;
+	const uint32 ty = texel_id / resolution;
+
+	const float2 uv = (float2(tx, ty) + 0.5f) / float(resolution) * 2.0f - 1.0f;
+
+	return decode_octahedral(uv);
+}
+
+// Following R11G11B10 conversions taken from
+// https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Shaders/PixelPacking_R11G11B10.hlsli
+// Original license included:
+//
+// Copyright (c) Microsoft. All rights reserved.
+// This code is licensed under the MIT License (MIT).
+// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
+// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
+// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
+//
+// Developed by Minigraph
+//
+// Author:  James Stanard
+//
+
+// The standard 32-bit HDR color format.  Each float has a 5-bit exponent and no sign bit.
+uint32
+encode_r11g11b10(float3 rgb)
+{
+	// Clamp upper bound so that it doesn't accidentally round up to INF
+	// Exponent=15, Mantissa=1.11111
+	rgb		 = min(rgb, as_float(0x477C0000));
+	uint32 r = ((f32tof16(rgb.x) + 8) >> 4) & 0x000007FF;
+	uint32 g = ((f32tof16(rgb.y) + 8) << 7) & 0x003FF800;
+	uint32 b = ((f32tof16(rgb.z) + 16) << 17) & 0xFFC00000;
+	return r | g | b;
+}
+
+float3
+decode_r11g11b10(uint32 rgb)
+{
+	float r = f16tof32((rgb << 4) & 0x7FF0);
+	float g = f16tof32((rgb >> 7) & 0x7FF0);
+	float b = f16tof32((rgb >> 17) & 0x7FE0);
+	return float3(r, g, b);
 }
 
 // precondition:
 //  - mask != 0
-//  - n < countbits(mask)   (n은 0-based: 0번째 set bit, 1번째 set bit...)
+//  - n < countbits(mask)
 // returns:
 // if mask = 1110, n = 2 => 1000 => 3
 // if mask = 10100, n = 0 => 100 => 2

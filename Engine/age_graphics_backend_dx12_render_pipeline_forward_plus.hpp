@@ -79,11 +79,27 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_probe_trace;
 		ID3D12PipelineState*  p_pso_probe_trace;
 
+		graphics::pso::handle h_pso_copy_edge;
+		ID3D12PipelineState*  p_pso_copy_edge;
+
+		graphics::pso::handle h_pso_render_probes;
+		ID3D12PipelineState*  p_pso_render_probes;
+
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(const ddgi_data&, resource_handle h_probe_buffer, resource_handle h_scratch_buffer) const noexcept;
+		execute(const ddgi_data& ddgi_data_cpu,
+				resource_handle	 h_probe_buffer,
+				resource_handle	 h_probe_weight_sum_buffer,
+				resource_handle	 h_scratch_buffer,
+				resource_handle	 h_irradiance_atlas_uav,
+				resource_handle	 h_visibility_atlas_uav) const noexcept;
+
+		inline void
+		execute_render_probes(rtv_desc_handle  h_main_buffer_rtv_desc,
+							  dsv_desc_handle  h_depth_buffer_dsv_desc,
+							  const ddgi_data& ddgi_data_cpu) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -427,6 +443,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		// ddgi
 		binding_config_t::reg_t<1, 7> ddgi_probe_buffer_srv;
 		binding_config_t::reg_u<1, 7> ddgi_probe_buffer_uav;
+		binding_config_t::reg_u<2, 7> ddgi_probe_weight_sum_buffer_uav;
 		ddgi_data					  ddgi_data_cpu;
 
 		// object & render_data

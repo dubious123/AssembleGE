@@ -713,7 +713,6 @@ namespace age::editor
 		}
 
 		ui::widget::checkbox("enabled", cmp.enabled);
-		ui::widget::checkbox("render_probe", cmp.render_probe);
 
 		constexpr c_auto probe_count_option_arr = std::array{
 			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
@@ -747,8 +746,34 @@ namespace age::editor
 		};
 		ui::widget::dropdown<uint32>(cmp.level_count, level_count_option_arr);
 
-		return update;
+#define ddgi_flag_checkbox(enum_name)                                                \
+	{                                                                                \
+		bool b = has_any(cmp.debug_flags, graphics::e::ddgi_debug_flags::enum_name); \
+		ui::widget::checkbox(#enum_name, b);                                         \
+		if (b)                                                                       \
+		{                                                                            \
+			cmp.debug_flags |= graphics::e::ddgi_debug_flags::enum_name;             \
+		}                                                                            \
+		else                                                                         \
+		{                                                                            \
+			cmp.debug_flags &= ~graphics::e::ddgi_debug_flags::enum_name;            \
+		}                                                                            \
 	}
+
+		ddgi_flag_checkbox(render_probe_in_hole);
+		ddgi_flag_checkbox(render_irradiance);
+		ddgi_flag_checkbox(render_visibility);
+		ddgi_flag_checkbox(render_front_back);
+		ddgi_flag_checkbox(render_level);
+		ddgi_flag_checkbox(render_weight_sum);
+		ddgi_flag_checkbox(render_ray_count);
+		ddgi_flag_checkbox(render_state);
+		ddgi_flag_checkbox(render_probe);
+
+#undef ddgi_flag_checkbox
+
+		return update;
+	}	 // namespace age::editor
 }	 // namespace age::editor
 
 namespace age::editor

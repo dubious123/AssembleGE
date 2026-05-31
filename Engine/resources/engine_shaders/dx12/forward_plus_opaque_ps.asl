@@ -61,15 +61,41 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 
 	const material mat = load_material(mat_id);
 
-	const pbr_surface_data surface_data = calc_pbr_surface(mat, v);
+	const pbr_surface_data surface_data = calc_pbr_surface(camera_pos, mat, v);
+
+
+	const float3 ddx_pos		   = ddx(v.world_pos);
+	const float3 ddy_pos		   = ddy(v.world_pos);
+	const float3 world_face_normal = normalize(cross(ddx_pos, ddy_pos));
 
 	float3 ambient_light = float3(0, 0, 0);
 
-	expand(MAX_ENV_LIGHT)
+	attr_branch()
 
-	for (uint32 i = 0; i < env_light_count; ++i)
+	if (ddgi_enabled())
 	{
-		ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
+		// todo need fresnel?
+		// from https://google.github.io/filament/Filament.md.html
+		const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+		const float3 gi_diffuse	 = calc_pbr_ddgi(surface_data, world_face_normal);
+		ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+		expand(MAX_ENV_LIGHT)
+
+		for (uint32 i = 0; i < env_light_count; ++i)
+		{
+			ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
+		}
+	}
+	else
+	{
+		expand(MAX_ENV_LIGHT)
+
+		for (uint32 i = 0; i < env_light_count; ++i)
+		{
+			ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
+		}
 	}
 
 	float3 lighting	 = ambient_light;
@@ -83,12 +109,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	const float3 world_to_cam_dir = normalize(camera_pos - v.world_pos);
 
 
-	const float linear_depth = dot(v.world_pos - camera_pos, camera_forward);
-
-	const float3 ddx_pos	 = ddx(v.world_pos);
-	const float3 ddy_pos	 = ddy(v.world_pos);
-	const float3 face_normal = normalize(cross(ddx_pos, ddy_pos));
-
 	const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
 	for (uint32 d = 0; d < directional_light_count; ++d)
@@ -96,7 +116,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 		const directional_light light = load_directional_light(d);
 
 		lighting += calc_pbr_light(surface_data, light)
-				  * calc_directional_shadow_rt(light, v, face_normal, linear_depth);
+				  * calc_directional_shadow_rt(light, v, world_face_normal);
 	}
 
 	const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
@@ -135,7 +155,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 				const unified_light light = load_sorted_light(sorted_id);
 
 				lighting += calc_pbr_light(surface_data, light)
-						  * calc_unified_shadow_rt(light, v, face_normal);
+						  * calc_unified_shadow_rt(light, v, world_face_normal);
 
 				++c;
 			}

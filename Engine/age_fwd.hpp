@@ -126,6 +126,20 @@ namespace age::graphics::e
 							   (all, 0xff));
 
 	AGE_ENUM_FLAG_OPERATORS(rt_mask_kind);
+
+	AGE_DEFINE_ENUM_WITH_VALUE(ddgi_debug_flags, uint32,
+							   (none, 0),
+							   (render_probe_in_hole, 0x1),
+							   (render_irradiance, 0x2),
+							   (render_visibility, 0x4),
+							   (render_front_back, 0x8),
+							   (render_level, 0x10),
+							   (render_weight_sum, 0x20),
+							   (render_ray_count, 0x40),
+							   (render_state, 0x80),
+							   (render_probe, (1u << 31u)));
+
+	AGE_ENUM_FLAG_OPERATORS(ddgi_debug_flags);
 }	 // namespace age::graphics::e
 
 namespace age::graphics

@@ -1,0 +1,23 @@
+#pragma once
+#include "age.asli"
+
+struct pbr_surface_data
+{
+	float3 world_pos;
+	float3 normal;			  // normal map applied, world space
+	float3 vertex_normal;	  // visibility
+	float3 view;			  // world to camera (view), normalized
+	float  n_dot_v;			  // saturate(dot(N, V)), reused in D/G/F
+
+	float4 base_color;		  // base_color_factor * tex.rgb
+	float  metallic;
+	float  roughness;		  // perceptual roughness, clamped to floor
+	float  roughness_sqr;	  // roughness * roughness, GGX 'a'
+	float  roughness_quad;	  // alpha * alpha
+
+	float3 f0;				  // lerp(0.04, base_color, metallic)
+	float3 c_diffuse;		  // base_color * (1 - metallic)
+
+	float3 emissive;		  // emissive_factor * tex.rgb
+	float  occlusion;		  // applied to indirect only
+};

@@ -1767,13 +1767,13 @@ namespace age::inline math::g
 	inline constexpr auto epsilon_1e4 = 1e-4f;
 	inline constexpr auto epsilon_1e6 = 1e-6f;
 
-	inline constexpr auto pi			   = 3.141592654f;
-	inline constexpr auto pi_2			   = 6.283185307f;
-	inline constexpr auto pi_inv		   = 0.318309886f;
-	inline constexpr auto pi_2_inv		   = 0.159154943f;
-	inline constexpr auto pi_div_2		   = 1.570796327f;
+	inline constexpr auto pi			   = 3.1415926535897932384626433832795f;
+	inline constexpr auto pi_2			   = 6.283185307179586476925286766559f;
+	inline constexpr auto pi_inv		   = 0.31830988618379067153776752674503f;
+	inline constexpr auto pi_2_inv		   = 0.15915494309189533576888376337251f;
+	inline constexpr auto pi_div_2		   = 1.5707963267948966192313216916398f;
 	inline constexpr auto pi_half		   = pi_div_2;
-	inline constexpr auto pi_div_4		   = 0.785398163f;
+	inline constexpr auto pi_div_4		   = 0.78539816339744830961566084581988;
 	inline constexpr auto degree_to_radian = pi / 180.f;
 	inline constexpr auto radian_to_degree = 180.f / pi;
 

@@ -30,6 +30,7 @@ float  proj_11;
 float3 light_bin_cell_size_inv;
 float  cam_near_z;
 float  cam_far_z;
+uint32 ddgi_enabled_and_extra;
 
 
 // cbuffer root_constants reg(b1)
@@ -42,7 +43,7 @@ uint32 env_light_brdf_lut_id;
 uint32 env_light_count;
 uint32 radix_sort_pass;
 
-uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][extra(24)]
+uint32 ui_space_mode__ddgi_updated__extra;	  // [ui_space_mode(8)][ddgi_updated(8)][extra(16)]
 uint32 ui_root_data_idx;
 uint32 ui_data_id_offset;
 uint32 ui_data_count;
@@ -464,10 +465,56 @@ load_bloom()
 structured_buffer<ddgi_probe>	 ddgi_probe_buffer_srv reg(t1, space7);
 rw_structured_buffer<ddgi_probe> ddgi_probe_buffer_uav reg(u1, space7);
 
+rw_byte_address_buffer ddgi_probe_weight_sum_buffer_uav reg(u2, space7);
+
+void
+ddgi_clear_probe_weight(uint32 probe_id)
+{
+	store<uint32>(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32), 0u);
+}
+
+void
+ddgi_add_probe_weight(uint32 probe_id, float weight)
+{
+	uint32 weight_uint32 = uint32(weight * DDGI_PROBE_WEIGHT_SCALE);
+	buf_interlocked_add(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32), weight_uint32);
+}
+
+float
+ddgi_load_probe_weight_sum(uint32 probe_id)
+{
+	uint32 weight_uint32 = load<uint32>(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32));
+	return float(weight_uint32) / DDGI_PROBE_WEIGHT_SCALE;
+}
+
+bool
+ddgi_enabled()
+{
+	return ddgi_enabled_and_extra & 1;
+}
+
 ddgi_data
 load_ddgi_data()
 {
 	return load<ddgi_data>(static_buffer, DDGI_DATA_OFFSET);
+}
+
+uint16
+load_ddgi_ppl_log2(const ddgi_data data)
+{
+	return uint32_w_to_uint8<uint16>(data.ppl_log_2_and_ppl_bitwidth);
+}
+
+uint16
+load_ddgi_tile_count_w_log2(const ddgi_data data)
+{
+	return uint32_y_to_uint8<uint16>(data.level_count__tile_count_w_log2);
+}
+
+uint16
+load_ddgi_level_count(const ddgi_data data)
+{
+	return uint32_x_to_uint8<uint16>(data.level_count__tile_count_w_log2);
 }
 
 uint32
@@ -476,12 +523,20 @@ load_ddgi_ppl(const ddgi_data data)
 	return 1u << uint32_w_to_uint8(data.ppl_log_2_and_ppl_bitwidth);
 }
 
+uint32_3
+load_ddgi_ppl_axis(const ddgi_data data)
+{
+	return uint32_3(1u << uint32_x_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
+					1u << uint32_y_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
+					1u << uint32_z_to_uint8(data.ppl_log_2_and_ppl_bitwidth));
+}
+
 uint16_3
 load_ddgi_ppl_log2_axis(const ddgi_data data)
 {
-	return uint16_3(uint32_x_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
-					uint32_y_to_uint8(data.ppl_log_2_and_ppl_bitwidth),
-					uint32_z_to_uint8(data.ppl_log_2_and_ppl_bitwidth));
+	return uint16_3(uint32_x_to_uint8<uint16>(data.ppl_log_2_and_ppl_bitwidth),
+					uint32_y_to_uint8<uint16>(data.ppl_log_2_and_ppl_bitwidth),
+					uint32_z_to_uint8<uint16>(data.ppl_log_2_and_ppl_bitwidth));
 }
 
 uint32_3
@@ -491,6 +546,12 @@ load_ddgi_probe_count_axis(const uint16_3 ppl_log2_axis)
 		1u << ppl_log2_axis.x,
 		1u << ppl_log2_axis.y,
 		1u << ppl_log2_axis.z);
+}
+
+uint32_3
+load_ddgi_probe_count_axis(const ddgi_data data)
+{
+	return load_ddgi_probe_count_axis(load_ddgi_ppl_log2_axis(data));
 }
 
 ddgi_probe
@@ -529,48 +590,6 @@ ddgi_level_probe_radius(const ddgi_data data, uint32 lv)
 	return ddgi_level_spacing(data, lv) * (data.probe_per_level_axis_float * 0.5f - 0.5f);
 }
 
-float3
-ddgi_calc_probe_pos(const ddgi_data data, uint32 probe_id, uint32 level)
-{
-	const uint32 li = probe_id & (load_ddgi_ppl(data) - 1);
-
-	const uint16_3 ddgi_ppl_log2_axis = load_ddgi_ppl_log2_axis(data);
-	const uint32_3 probe_count_axis	  = load_ddgi_probe_count_axis(ddgi_ppl_log2_axis);
-	const uint32_3 mask				  = probe_count_axis - 1;
-
-	const int32_3 local = int32_3(
-		li & mask.x,
-		(li >> ddgi_ppl_log2_axis.x) & mask.y,
-		li >> (ddgi_ppl_log2_axis.x + ddgi_ppl_log2_axis.y));
-
-
-	const float3 spacing = ddgi_level_spacing(data, level);
-
-	const int32_3 cam_coord = cast<int32_3>(floor(camera_pos / spacing));
-	const int32_3 half		= int32_3(probe_count_axis.x >> 1, probe_count_axis.y >> 1, probe_count_axis.z >> 1);
-
-	float3 world_coord;
-	world_coord.x = cam_coord.x - half.x + ((local.x - cam_coord.x + half.x) & mask.x);
-	world_coord.y = cam_coord.y - half.y + ((local.y - cam_coord.y + half.y) & mask.y);
-	world_coord.z = cam_coord.z - half.z + ((local.z - cam_coord.z + half.z) & mask.z);
-
-	return (world_coord + 0.5f) * spacing;
-}
-
-bool
-ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level)
-{
-	if (level == 0) { return false; }
-
-	const float3 distance = abs(probe_pos - camera_pos);
-
-	const float3 spacing	 = ddgi_level_spacing(data, level);
-	const float3 prev_radius = ddgi_level_probe_radius(data, level - 1);
-	const float3 hole_extent = prev_radius - spacing;
-
-	return distance.x < hole_extent.x and distance.y < hole_extent.y and distance.z < hole_extent.z;
-}
-
 void
 store_ddgi_ray_sum(uint32 idx, uint32 sum)
 {
@@ -578,7 +597,13 @@ store_ddgi_ray_sum(uint32 idx, uint32 sum)
 }
 
 void
-store_ddgi_ray_sum_total(uint32 sum)
+clear_ddgi_ray_sum_total()
+{
+	store<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET, 0u);
+}
+
+void
+add_ddgi_ray_sum_total(uint32 sum)
 {
 	buf_interlocked_add(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET, sum);
 }
@@ -593,6 +618,113 @@ uint32
 load_ddgi_ray_sum_total()
 {
 	return load<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET);
+}
+
+void
+ddgi_clear_probe_msme(inout ddgi_probe probe)
+{
+	probe.msme_front.mean_long		   = 0.f;
+	probe.msme_front.mean_short		   = 0.f;
+	probe.msme_front.relative_variance = 1.f;
+	probe.msme_front.inconsistency	   = 1.f;
+	probe.msme_front.vbbr			   = 1.f;
+
+	probe.msme_back.mean_long		  = 0.f;
+	probe.msme_back.mean_short		  = 0.f;
+	probe.msme_back.relative_variance = 1.f;
+	probe.msme_back.inconsistency	  = 1.f;
+	probe.msme_back.vbbr			  = 1.f;
+}
+
+bool
+ddgi_updated()
+{
+	return ((ui_space_mode__ddgi_updated__extra >> 8) & 1) > 0;
+}
+
+uint32
+load_ddgi_irradiance_atlas_srv_id(const ddgi_data data)
+{
+	// return data.irradiance_atlas_prev_srv_id;
+
+	attr_branch()
+
+	if (ddgi_updated() is_false)
+	{
+		return data.irradiance_atlas_prev_srv_id;
+	}
+	else
+	{
+		// after ddgi_stage
+		return data.irradiance_atlas_curr_srv_id;
+	}
+}
+
+uint32
+load_ddgi_visibility_atlas_srv_id(const ddgi_data data)
+{
+	// return data.visibility_atlas_prev_srv_id;
+
+	attr_branch()
+
+
+	if (ddgi_updated() is_false)
+	{
+		return data.visibility_atlas_prev_srv_id;
+	}
+	else
+	{
+		// after ddgi_stage
+		return data.visibility_atlas_curr_srv_id;
+	}
+}
+
+bool
+ddgi_debug_flags_render_probe_in_hole(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE;
+}
+
+bool
+ddgi_debug_flags_render_irradiance(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE;
+}
+
+bool
+ddgi_debug_flags_render_visibility(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_VISIBILITY;
+}
+
+bool
+ddgi_debug_flags_render_front_back(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK;
+}
+
+bool
+ddgi_debug_flags_render_level(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_LEVEL;
+}
+
+bool
+ddgi_debug_flags_render_weight_sum(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM;
+}
+
+bool
+ddgi_debug_flags_render_ray_count(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT;
+}
+
+bool
+ddgi_debug_flags_render_state(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_STATE;
 }
 
 // sampler
@@ -634,6 +766,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_mesh.asli"
 #include "age_color_space.asli"
 #include "age_random.asli"
+#include "age_ddgi.asli"
 #include "age_light.asli"
 #include "age_ui.asli"
 #include "age_tonemap.asli"
@@ -676,4 +809,18 @@ struct tile_mask_ms_to_ps
 struct presentation_ps_out
 {
 	float4 color semantics(color);
+};
+
+struct ddgi_as_to_ms
+{
+	uint32 probe_id_begin;
+	uint32 probe_alive_mask;
+};
+
+struct ddgi_ms_to_ps
+{
+	nointerpolation uint32 probe_id semantics(probe_id);
+	float4 pos						sv_position;
+	float3 world_pos				semantics(world_pos);
+	float3 normal					semantics(normal);
 };

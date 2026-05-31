@@ -44,7 +44,7 @@ main_ms(
 
 		attr_branch()
 
-		switch (ui_space_mode_and_extra & 0xff)
+		switch (ui_space_mode__ddgi_updated__extra & 0xff)
 		{
 		case UI_SPACE_MODE_SCREEN:
 		{

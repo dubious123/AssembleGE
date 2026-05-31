@@ -157,7 +157,9 @@
 #define MIN_BLOOM_MIP_PIXEL 8
 
 // ddgi
-#define DDGI_BORDER				   1
+#define DDGI_BORDER 1
+
+// do not change
 #define DDGI_IRRADIANCE_RESOLUTION 8
 #define DDGI_VISIBILITY_RESOLUTION 16
 #define DDGI_IRRADIANCE_TILE_SIZE  (DDGI_IRRADIANCE_RESOLUTION + DDGI_BORDER * 2)
@@ -173,8 +175,25 @@
 
 #define DDGI_PROBE_RAY_COUNT_NEW_BORN (16 * 8)
 
-#define DDGI_RAY_BUDGET (1u << 20u)
+#define DDGI_RAY_BUDGET				 (1u << 20u)
+#define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
 
+#define DDGI_IRRADIANCE_ENERGY_CONSERVATION 0.95f
+
+#define DDGI_VISIBILITY_SHARPNESS	 50
+#define DDGI_VISIBILITY_BLEND_FACTOR 0.1f
+
+#define DDGI_PROBE_WEIGHT_SCALE 100000u
+
+#define DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE (1u << 0u)
+#define DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE	  (1u << 1u)
+#define DDGI_DEBUG_FLAGS_RENDER_VISIBILITY	  (1u << 2u)
+#define DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK	  (1u << 3u)
+#define DDGI_DEBUG_FLAGS_RENDER_LEVEL		  (1u << 4u)
+#define DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM	  (1u << 5u)
+#define DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT	  (1u << 6u)
+#define DDGI_DEBUG_FLAGS_RENDER_STATE		  (1u << 7u)
+#define DDGI_DEBUG_FLAGS_RENDER_PROBE		  (1u << 31u)
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -213,10 +232,31 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 ppl_log_2_and_ppl_bitwidth;		  // [x_log2(8)][y_log2(8)][z_log2(8)][ bitwidth(x + y + z)(8) ]
 		float3 base_probe_spacing;
 		uint32 level_count__tile_count_w_log2;	  //[level_count(8)][tile_count_w_log2(8)][][]
-		uint32 irradiance_atlas_srv_id;
+		// use during ddgi stage
+		uint32 irradiance_atlas_prev_srv_id;
+		// use after ddgi stage
+		uint32 irradiance_atlas_curr_srv_id;
+
 		uint32 irradiance_atlas_uav_id;
-		uint32 depth_atlas_srv_id;
-		uint32 depth_atlas_uav_id;
+
+		// use during ddgi stage
+		uint32 visibility_atlas_prev_srv_id;
+		// use during ddgi stage
+		uint32 visibility_atlas_curr_srv_id;
+		uint32 visibility_atlas_uav_id;
+
+		float tile_count_h_float;
+
+		uint32 debug_flags;
+		// [render probe in hole]
+		// [render irradiance]
+		// [render visibility]
+		// [render front_back]
+		// [render level]
+		// [render weight_sum]
+		// [render ray_count]
+		// [render state]
+		// [render probe]
 	};
 
 	struct ddgi_msme
@@ -231,10 +271,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	struct ddgi_probe
 	{
 		uint16 normal_oct_snorm8;
-		uint16 _;
+		uint16 frame_since_seen;
 		uint16 state_and_ray_count_ideal;	 // [state(8)][ray_count_ideal(8)]
 		half3  offset;
-		uint32 seen__frame_since_seen;		 // [seen(1)][frame_since_seen(8)];
 
 		ddgi_msme msme_front;
 		ddgi_msme msme_back;
@@ -513,12 +552,14 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 rt_raycast_request_count;				// 4
 		float  proj_00;
 
-		float3	 light_bin_origin;
-		float	 proj_11;
-		float3	 light_bin_cell_size_inv;
-		float	 cam_near_z;
-		float	 cam_far_z;
-		uint32_3 _;
+		float3 light_bin_origin;
+		float  proj_11;
+		float3 light_bin_cell_size_inv;
+		float  cam_near_z;
+		float  cam_far_z;
+		uint32 ddgi_enabled_and_extra;
+
+		uint32_2 _;
 
 		uint32_4 extra[6];
 		// total: 256 * 2 bytes
@@ -536,7 +577,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
 		// uint32 shadow_light_index;	  // shadow mapping
-		uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][extra(24)]
+		uint32 ui_space_mode__ddgi_updated__extra;	  // [ui_space_mode(8)][ddgi_updated(1)][extra]
 		uint32 ui_root_data_idx;
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
@@ -605,6 +646,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto ddgi_irradiance_tile_size = DDGI_IRRADIANCE_TILE_SIZE;
 	inline constexpr auto ddgi_visibility_tile_size = DDGI_VISIBILITY_TILE_SIZE;
 
+	inline constexpr auto ddgi_irradiance_resolution = DDGI_IRRADIANCE_RESOLUTION;
+	inline constexpr auto ddgi_visibility_resolution = DDGI_VISIBILITY_RESOLUTION;
+
 	inline constexpr auto ddgi_update_probe_state_probe_per_group = DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP * DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD;
 
 	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
@@ -666,6 +710,17 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(DDGI_VISIBILITY_RESOLUTION >= DDGI_IRRADIANCE_RESOLUTION);
 	static_assert(DDGI_PROBE_RAY_COUNT_NEW_BORN <= 0xff);
 	static_assert(DDGI_VISIBILITY_RESOLUTION * DDGI_VISIBILITY_RESOLUTION >= DDGI_PROBE_RAY_COUNT_NEW_BORN);
+
+
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe_in_hole));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE == to_idx(age::graphics::e::ddgi_debug_flags::render_irradiance));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_VISIBILITY == to_idx(age::graphics::e::ddgi_debug_flags::render_visibility));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK == to_idx(age::graphics::e::ddgi_debug_flags::render_front_back));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_LEVEL == to_idx(age::graphics::e::ddgi_debug_flags::render_level));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM == to_idx(age::graphics::e::ddgi_debug_flags::render_weight_sum));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT == to_idx(age::graphics::e::ddgi_debug_flags::render_ray_count));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_STATE == to_idx(age::graphics::e::ddgi_debug_flags::render_state));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe));
 
 
 	#undef reg
@@ -836,6 +891,22 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef DDGI_PROBE_RAY_COUNT_NEW_BORN
 
 	#undef DDGI_RAY_BUDGET
+	#undef DDGI_MSME_SHORT_WINDOW_BLEND
+	#undef DDGI_IRRADIANCE_ENERGY_CONSERVATION
+	#undef DDGI_VISIBILITY_SHARPNESS
+	#undef DDGI_VISIBILITY_BLEND_FACTOR
+
+	#undef DDGI_PROBE_WEIGHT_SCALE
+
+	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE
+	#undef DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE
+	#undef DDGI_DEBUG_FLAGS_RENDER_VISIBILITY
+	#undef DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK
+	#undef DDGI_DEBUG_FLAGS_RENDER_LEVEL
+	#undef DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM
+	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT
+	#undef DDGI_DEBUG_FLAGS_RENDER_STATE
+	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

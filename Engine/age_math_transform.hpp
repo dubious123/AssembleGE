@@ -25,6 +25,18 @@ namespace age::inline math
 		}                                                                                          \
 	}
 
+	FORCE_INLINE bool
+	is_even(std::integral auto u) noexcept
+	{
+		return (u & 0x1) == 0;
+	}
+
+	FORCE_INLINE bool
+	is_odd(std::integral auto u) noexcept
+	{
+		return (u & 0x1) == 1;
+	}
+
 	template <typename t_ret = uint32>
 	FORCE_INLINE t_ret
 	log2_pow2(uint32 u) noexcept

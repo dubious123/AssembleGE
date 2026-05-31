@@ -43,6 +43,11 @@ namespace age::graphics::e
 					forward_plus_ddgi_update_probe_state_cs,
 					forward_plus_ddgi_reduce_ray_sum_cs,
 					forward_plus_ddgi_probe_trace_cs,
+					forward_plus_ddgi_copy_edge_cs,
+
+					forward_plus_ddgi_render_probes_as,
+					forward_plus_ddgi_render_probes_ms,
+					forward_plus_ddgi_render_probes_ps,
 
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,

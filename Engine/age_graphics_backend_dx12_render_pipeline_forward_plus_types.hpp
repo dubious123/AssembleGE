@@ -174,6 +174,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<1, 7>>,
 
 		binding_slot<
+			"ddgi_probe_weight_sum_buffer_uav",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_byte_address_buffer,
+			how::root_descriptor,
+			where::u<2, 7>>,
+
+		binding_slot<
 			"debug_meshlet_render_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
@@ -333,18 +341,20 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	struct ddgi_desc
 	{
-		uint32_3 probe_per_level_axis;
-		float3	 base_probe_spacing;
-		uint32	 level_count;
+		uint32_3					  probe_per_level_axis;
+		float3						  base_probe_spacing;
+		uint32						  level_count;
+		graphics::e::ddgi_debug_flags debug_flags;
 	};
 
 	struct ddgi_data
 	{
 		shared_type::ddgi_data ddgi_data_gpu;
-		bool				   enabled	= false;
-		uint8				   idx_prev = 0;
-		uint8				   idx_curr = 1;
-		uint8_2				   _;
+		bool				   enabled		 = false;
+		bool				   render_probes = true;
+		uint8				   idx_prev		 = 0;
+		uint8				   idx_curr		 = 1;
+		uint8				   _;
 
 		extent_2d<uint32> irradiance_atlas_extent;
 		extent_2d<uint32> visibility_atlas_extent;
@@ -352,9 +362,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_irradiance_atlas[2];
 		resource_handle h_visibility_atlas[2];
 		resource_handle h_probe_buffer;
+		resource_handle h_probe_weight_sum_buffer;
 		srv_desc_handle h_irradiance_srv_desc[2];
-		srv_desc_handle h_irradiance_uav_desc[2];
+		uav_desc_handle h_irradiance_uav_desc[2];
 		srv_desc_handle h_visibility_srv_desc[2];
-		srv_desc_handle h_visibility_uav_desc[2];
+		uav_desc_handle h_visibility_uav_desc[2];
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

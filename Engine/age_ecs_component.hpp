@@ -737,7 +737,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(ddgi_config, "ddgi")
 	{
-		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_VERSION(3);
 
 		bool	 enabled	  = false;
 		bool	 render_probe = false;
@@ -746,7 +746,9 @@ namespace age::ecs
 		float3	 base_probe_spacing	  = float3{ 1.f, 2.f, 1.f };
 		uint32	 level_count		  = 6;
 
-		AGE_CUSTOM_BYTE_SIZE(enabled, render_probe, probe_per_level_axis, base_probe_spacing, level_count);
+		age::graphics::e::ddgi_debug_flags debug_flags;
+
+		AGE_CUSTOM_BYTE_SIZE(enabled, probe_per_level_axis, base_probe_spacing, level_count, debug_flags);
 
 		FORCE_INLINE static void
 		on_create(cmp_dispatch_key, ddgi_config & cmp, auto& ctx) noexcept
@@ -757,6 +759,7 @@ namespace age::ecs
 					.probe_per_level_axis = cmp.probe_per_level_axis,
 					.base_probe_spacing	  = cmp.base_probe_spacing,
 					.level_count		  = cmp.level_count,
+					.debug_flags		  = cmp.debug_flags,
 				});
 			}
 		}
@@ -774,7 +777,7 @@ namespace age::ecs
 		static void
 		write_to(cmp_dispatch_key, const ddgi_config& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
 		{
-			buf.write(cmp.enabled, cmp.render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
+			buf.write(cmp.enabled, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count, to_idx(cmp.debug_flags));
 			return;
 		}
 
@@ -783,11 +786,22 @@ namespace age::ecs
 		{
 			if (rw_ctx.version != ddgi_config::age_component_version())
 			{
+				if (rw_ctx.version < 2)
+				{
+					bool render_probe;
+					buf.read(cmp.enabled, render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
+					cmp.debug_flags = age::graphics::e::ddgi_debug_flags::none;
+					if (render_probe)
+					{
+						cmp.debug_flags |= age::graphics::e::ddgi_debug_flags::render_probe;
+					}
+					return;
+				}
 				AGE_ASSERT(false);
 				return;
 			}
 
-			buf.read(cmp.enabled, cmp.render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
+			buf.read(cmp.enabled, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count, cmp.debug_flags);
 		}
 	};
 
