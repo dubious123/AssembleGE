@@ -156,9 +156,16 @@ namespace age::graphics::command
 	// clear
 	DEF_CMD(clear_dsv, ClearDepthStencilView)
 	DEF_CMD(clear_uav_float, ClearUnorderedAccessViewFloat)
+	DEF_CMD(clear_uav_uint, ClearUnorderedAccessViewUint)
 
 	FORCE_INLINE void
 	apply_barriers(auto&&...) noexcept;
+
+	void
+	clear_uav(resource_handle h_resource, const clear_uav_desc_handle& h_uav_desc, const float4& clear_value) noexcept;
+
+	void
+	clear_uav(resource_handle h_resource, const clear_uav_desc_handle& h_uav_desc, const uint32_4& clear_value) noexcept;
 
 #undef DEF_CMD
 
@@ -177,19 +184,6 @@ namespace age::graphics::command
 	void
 	deinit() noexcept;
 }	 // namespace age::graphics::command
-
-// descriptor_pool fwd
-namespace age::graphics
-{
-	void
-	pop_descriptor(auto& h_descriptor_out) noexcept;
-
-	void
-	push_descriptor(const auto&) noexcept;
-
-	uint32
-	calc_desc_idx(auto handle) noexcept;
-}	 // namespace age::graphics
 
 // resource
 namespace age::graphics::resource
@@ -339,6 +333,10 @@ namespace age::graphics::command_signature
 	template <typename t_indirect_arg>
 	FORCE_INLINE handle
 	create(root_signature::handle, auto&&... indirect_arg_desc) noexcept;
+
+	template <typename t_indirect_arg>
+	FORCE_INLINE handle
+	create(auto&&... arg) noexcept;
 
 	void
 	destroy(handle& _) noexcept;

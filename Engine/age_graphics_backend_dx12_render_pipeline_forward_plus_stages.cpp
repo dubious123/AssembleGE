@@ -259,6 +259,30 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_pso_reduce_ray_sum.set_name(L"pso_ddgi_reduce_ray_sum");
 
 
+		h_pso_prefix_group = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_prefix_group_cs) });
+
+		p_pso_prefix_group = graphics::g::pso_ptr_vec[h_pso_prefix_group];
+		h_pso_prefix_group.set_name(L"pso_ddgi_prefix_group");
+
+
+		h_pso_prefix_group_sum = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_prefix_group_sum_cs) });
+
+		p_pso_prefix_group_sum = graphics::g::pso_ptr_vec[h_pso_prefix_group_sum];
+		h_pso_prefix_group_sum.set_name(L"pso_ddgi_prefix_group_sum");
+
+
+		h_pso_prefix_add = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_prefix_add_cs) });
+
+
+		p_pso_prefix_add = graphics::g::pso_ptr_vec[h_pso_prefix_add];
+		h_pso_prefix_add.set_name(L"pso_ddgi_prefix_add");
+
 		h_pso_probe_trace = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_probe_trace_cs) });
@@ -266,6 +290,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		p_pso_probe_trace = graphics::g::pso_ptr_vec[h_pso_probe_trace];
 		h_pso_probe_trace.set_name(L"pso_ddgi_probe_trace");
 
+		h_cmd_sig_probe_trace = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
+		p_cmd_sig_probe_trace = h_cmd_sig_probe_trace.ptr();
+
+		h_pso_probe_blend = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_ddgi_probe_blend_cs) });
+
+		p_pso_probe_blend = graphics::g::pso_ptr_vec[h_pso_probe_blend];
+		h_pso_probe_blend.set_name(L"pso_ddgi_probe_blend");
 
 		h_pso_copy_edge = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -295,35 +328,62 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 
 	inline void
-	ddgi_stage::execute(const ddgi_data& ddgi_data_cpu,
-						resource_handle	 h_probe_buffer,
-						resource_handle	 h_probe_weight_sum_buffer,
-						resource_handle	 h_scratch_buffer,
-						resource_handle	 h_irradiance_atlas_uav,
-						resource_handle	 h_visibility_atlas_uav) const noexcept
+	ddgi_stage::execute(const ddgi_data&			   ddgi_data_cpu,
+						binding_config_t::reg_t<1, 7>& probe_buffer_srv,
+						resource_handle				   h_indirect_arg_buffer) const noexcept
 	{
 		c_auto& ddgi_data_gpu = ddgi_data_cpu.ddgi_data_gpu;
 
 		c_auto ppl		   = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 24u) & 0xff);
 		c_auto level_count = ddgi_data_gpu.level_count__tile_count_w_log2 & 0xff;
+		c_auto probe_count = ppl * level_count;
 
 		command::set_pso(p_pso_update_probe_state);
 
 		command::dispatch(util::ceil(ppl, g::ddgi_update_probe_state_probe_per_group), 1, level_count);
 
-		command::apply_barriers(barrier::buf_uav_to_uav(h_scratch_buffer->p_resource),
-								barrier::buf_uav_to_uav(h_probe_weight_sum_buffer->p_resource),
-								barrier::buf_uav_to_uav(h_probe_buffer->p_resource));
+		command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource),
+								barrier::buf_uav_to_srv(ddgi_data_cpu.h_probe_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_reduce_ray_sum);
 
 		// todo: config wave_count
-		c_auto sum_count = util::ceil(util::ceil(ppl * level_count, g::ddgi_update_probe_state_probe_per_group), 32);
+		c_auto group_count_x   = util::ceil(ppl, g::ddgi_update_probe_state_probe_per_group);
+		c_auto group_sum_count = group_count_x * level_count;
+		c_auto sum_count	   = util::ceil(group_sum_count, 32);
 		command::dispatch(sum_count, 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_srv(h_scratch_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
 
+		command::set_pso(p_pso_prefix_group);
+		c_auto group_count = util::ceil(probe_count, g::ddgi_prefix_element_per_group);
+		AGE_ASSERT(group_count <= g::ddgi_prefix_element_per_group);
+
+		command::dispatch(group_count, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
+
+		command::set_pso(p_pso_prefix_group_sum);
+		command::dispatch(1, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
+
+		command::set_pso(p_pso_prefix_add);
+		command::dispatch(group_count, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource),
+								barrier::buf_uav_to_indirect(h_indirect_arg_buffer->p_resource));
+
+		probe_buffer_srv.apply_compute();
 		command::set_pso(p_pso_probe_trace);
+		command::execute_indirect(p_cmd_sig_probe_trace, 1u, h_indirect_arg_buffer->p_resource, 0ull, nullptr, 0ull);
+
+		command::apply_barriers(
+			barrier::tex_srv_to_uav(ddgi_data_cpu.h_irradiance_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			barrier::tex_srv_to_uav(ddgi_data_cpu.h_visibility_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+			barrier::buf_srv_to_uav(ddgi_data_cpu.h_probe_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
+
+		command::set_pso(p_pso_probe_blend);
+
 		{
+			probe_buffer_srv.apply_compute();
 			c_auto axis_x = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 0u) & 0xff);
 			c_auto axis_y = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 8u) & 0xff);
 			c_auto axis_z = 1u << ((ddgi_data_gpu.ppl_log_2_and_ppl_bitwidth >> 16u) & 0xff);
@@ -332,9 +392,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::dispatch(axis_x, axis_y, axis_z * level_count);
 		}
 
-		command::apply_barriers(barrier::tex_uav_to_uav(h_irradiance_atlas_uav->p_resource),
-								barrier::buf_uav_to_uav(h_probe_weight_sum_buffer->p_resource),
-								barrier::tex_uav_to_uav(h_visibility_atlas_uav->p_resource));
+		command::apply_barriers(barrier::tex_uav_to_uav(ddgi_data_cpu.h_irradiance_atlas->p_resource),
+								barrier::tex_uav_to_uav(ddgi_data_cpu.h_visibility_atlas->p_resource));
+
 
 		command::set_pso(p_pso_copy_edge);
 		{
@@ -350,9 +410,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			command::dispatch(dispatch_x, dispatch_y, dispatch_z);
 		}
-
-		// command::apply_barriers(barrier::tex_uav_to_uav(h_irradiance_atlas_uav->p_resource),
-		//						barrier::tex_uav_to_uav(h_visibility_atlas_uav->p_resource));
 	}
 
 	void
@@ -391,9 +448,15 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		pso::destroy(h_pso_update_probe_state);
 		pso::destroy(h_pso_reduce_ray_sum);
+		pso::destroy(h_pso_prefix_group);
+		pso::destroy(h_pso_prefix_group_sum);
+		pso::destroy(h_pso_prefix_add);
 		pso::destroy(h_pso_probe_trace);
+		pso::destroy(h_pso_probe_blend);
 		pso::destroy(h_pso_copy_edge);
 		pso::destroy(h_pso_render_probes);
+
+		command_signature::destroy(h_cmd_sig_probe_trace);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
@@ -846,7 +909,6 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::set_pso(p_pso_world);
 		}
 
-		const uint32 cach = constants.constant_arr[0].ui_space_mode__ddgi_updated__extra & 0xffff'ff00;
 		for (auto i : views::loop(root_data_count))
 		{
 			c_auto root_idx = root_data_idx + i;
@@ -859,13 +921,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 				struct
 				{
-					uint32 ui_space_mode__ddgi_updated__extra;
+					uint32 ui_space_mode_and_extra;
 					uint32 ui_root_data_idx;
 					uint32 ui_data_id_offset;
 					uint32 ui_data_id_count;
-				} payload{ to_idx(space_mode) | (cach), root_idx, z_range.offset, z_range.count };
+				} payload{ to_idx(space_mode), root_idx, z_range.offset, z_range.count };
 
-				constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode__ddgi_updated__extra, sizeof(payload)>(payload);
+				constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode_and_extra, sizeof(payload)>(payload);
 				command::dispatch_mesh((z_range.count + 31u) / 32u, 1, 1);
 			}
 		}

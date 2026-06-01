@@ -272,6 +272,11 @@ namespace age_demo::scene_3
 			age::asset::env_light::full_unload(h, i_deinit.get_render_pipeline());
 		}
 
+		if (i_deinit.get_render_pipeline->ddgi_enabled())
+		{
+			i_deinit.get_render_pipeline->disable_ddgi();
+		}
+
 		i_deinit.get_editor_game->deinit();
 		age::asset::registry::clear();
 	}

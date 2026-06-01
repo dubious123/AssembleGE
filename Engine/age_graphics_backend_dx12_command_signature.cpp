@@ -38,6 +38,31 @@ namespace age::graphics::command_signature
 		return handle{ .id = g::command_signature_ptr_vec.emplace_back(p_res) };
 	}
 
+	template <typename t_indirect_arg>
+	FORCE_INLINE handle
+	create(auto&&... arg) noexcept
+	{
+		auto* p_res = (ID3D12CommandSignature*)(nullptr);
+
+		D3D12_INDIRECT_ARGUMENT_DESC args[]{
+			FWD(arg)...
+		};
+
+		c_auto desc = D3D12_COMMAND_SIGNATURE_DESC{
+			.ByteStride		  = sizeof(t_indirect_arg),
+			.NumArgumentDescs = sizeof...(arg),
+			.pArgumentDescs	  = args
+		};
+
+		AGE_HR_CHECK(
+			g::p_main_device->CreateCommandSignature(
+				&desc,
+				nullptr,
+				IID_PPV_ARGS(&p_res)));
+
+		return handle{ .id = g::command_signature_ptr_vec.emplace_back(p_res) };
+	}
+
 	void
 	destroy(handle& h) noexcept
 	{

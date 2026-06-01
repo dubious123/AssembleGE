@@ -118,10 +118,11 @@ namespace age::graphics
 		resource::init();
 
 		{
-			g::rtv_desc_pool.init();
-			g::dsv_desc_pool.init();
-			g::cbv_srv_uav_desc_pool.init();
-			g::sampler_desc_pool.init();
+			g::rtv_desc_heap.init();
+			g::dsv_desc_heap.init();
+			g::cbv_srv_uav_desc_heap.init();
+			g::sampler_desc_heap.init();
+			g::cbv_srv_uav_desc_heap_non_shader_visible.init();
 		}
 
 		command_signature::init();
@@ -190,15 +191,17 @@ namespace age::graphics
 		}
 
 		{
-			AGE_ASSERT(g::sampler_desc_pool.count() == 0);
-			AGE_ASSERT(g::cbv_srv_uav_desc_pool.count() == 0);
-			AGE_ASSERT(g::dsv_desc_pool.count() == 0);
-			AGE_ASSERT(g::rtv_desc_pool.count() == 0);
+			AGE_ASSERT(g::cbv_srv_uav_desc_heap_non_shader_visible.count() == 0);
+			AGE_ASSERT(g::sampler_desc_heap.count() == 0);
+			AGE_ASSERT(g::cbv_srv_uav_desc_heap.count() == 0);
+			AGE_ASSERT(g::dsv_desc_heap.count() == 0);
+			AGE_ASSERT(g::rtv_desc_heap.count() == 0);
 
-			g::sampler_desc_pool.deinit();
-			g::cbv_srv_uav_desc_pool.deinit();
-			g::dsv_desc_pool.deinit();
-			g::rtv_desc_pool.deinit();
+			g::cbv_srv_uav_desc_heap_non_shader_visible.deinit();
+			g::sampler_desc_heap.deinit();
+			g::cbv_srv_uav_desc_heap.deinit();
+			g::dsv_desc_heap.deinit();
+			g::rtv_desc_heap.deinit();
 		}
 
 		resource::deinit();

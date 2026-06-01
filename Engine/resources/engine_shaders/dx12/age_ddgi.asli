@@ -1,14 +1,6 @@
 #pragma once
 #include "age.asli"
 
-struct ddgi_cage
-{
-	uint32 level;
-	uint32 probe_ids[8];
-	float3 weights;
-	float3 base_pos;
-};
-
 uint32
 calc_axis_level(const ddgi_data data, float cam_axis, float pixel_axis, uint32 x_y_z)
 {
@@ -78,10 +70,10 @@ ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level
 }
 
 uint32_2
-calc_probe_atlas_offset(uint32 probe_id, uint32 tile_count_log2, uint32 tile_size)
+calc_probe_atlas_offset(uint32 probe_id, uint32 tile_count_w_log2, uint32 tile_size)
 {
-	const uint32 tile_idx_u = probe_id & ((1u << tile_count_log2) - 1);
-	const uint32 tile_idx_v = probe_id >> tile_count_log2;
+	const uint32 tile_idx_u = probe_id & ((1u << tile_count_w_log2) - 1);
+	const uint32 tile_idx_v = probe_id >> tile_count_w_log2;
 
 	return uint32_2(tile_idx_u * tile_size, tile_idx_v * tile_size);
 }
@@ -131,7 +123,7 @@ calc_probe_atlas_uv(const ddgi_data ddgi_data, const uint32 probe_id, const floa
 float
 ddgi_sample_probe_visibility(const ddgi_data ddgi_data, uint32 probe_id, float3 probe_to_world /*not normalized*/)
 {
-	texture_2d<float2> visibility_atlas = global_resource_buffer[load_ddgi_visibility_atlas_srv_id(ddgi_data)];
+	texture_2d<float2> visibility_atlas = global_resource_buffer[ddgi_data.visibility_atlas_srv_id];
 
 	const float	 distance = length(probe_to_world);
 	const float3 dir_norm = probe_to_world / distance;
@@ -163,21 +155,28 @@ ddgi_sample_probe_visibility(const ddgi_data ddgi_data, uint32 probe_id, float3 
 float3
 ddgi_sample_probe_irradiance(const ddgi_data ddgi_data, uint32 probe_id, float3 normal /*normalized*/)
 {
-	texture_2d<float3> irradiance_atlas = global_resource_buffer[load_ddgi_irradiance_atlas_srv_id(ddgi_data)];
-
 	const float2 oct_uv	  = encode_octahedral(normal);
 	const float2 probe_uv = oct_uv * 0.5f + 0.5f;
 
 	const float2 atlas_uv = calc_probe_atlas_uv(ddgi_data, probe_id, probe_uv, DDGI_IRRADIANCE_TILE_SIZE, DDGI_IRRADIANCE_RESOLUTION);
 
-	const float3 irradiance = sample_level(irradiance_atlas, get_linear_clamp_sampler(), atlas_uv, 0);
+	texture_2d<float3> irradiance_atlas = global_resource_buffer[ddgi_data.irradiance_atlas_srv_id];
+	const float3	   irradiance		= sample_level(irradiance_atlas, get_linear_clamp_sampler(), atlas_uv, 0);
 	return irradiance;
 }
 
 float3
 ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos, float3 normal)
 {
-	const float3  spacing	 = ddgi_data.base_probe_spacing * (1u << level);
+	const float3 spacing  = ddgi_data.base_probe_spacing * (1u << level);
+	const float3 offset	  = (normal * DDGI_NORMAL_BIAS - normalize(world_pos - camera_pos) * DDGI_VIEW_BIAS) * (max(spacing));
+	world_pos			 += offset;
+
+	const uint32_3 probe_count_axis = load_ddgi_probe_count_axis(load_ddgi_ppl_log2_axis(ddgi_data));
+	const int32_3  mask				= int32_3(probe_count_axis - 1);
+	const int32_3  half				= int32_3(probe_count_axis >> 1);
+	const int32_3  cam_coord		= int32_3(floor(camera_pos / spacing));
+
 	const float3  grid_float = world_pos / spacing - 0.5f;
 	const int32_3 grid_base	 = int32_3(floor(grid_float));
 	const float3  grid_frac	 = frac(grid_float);
@@ -185,12 +184,18 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 	float3 irradiance_sum = float3(0, 0, 0);
 	float  weight_sum	  = 0.f;
 
-	const uint32_3 mask = load_ddgi_ppl_axis(ddgi_data) - 1;
+	const uint32 probe_count = ddgi_calc_probe_count(ddgi_data);
+
 	for (uint32 i = 0; i < 8; ++i)
 	{
 		const int32_3 grid_offset = int32_3((i >> 0) & 1, (i >> 1) & 1, (i >> 2) & 1);
 		const int32_3 world_coord = grid_base + grid_offset;
-		const float3  probe_pos	  = (world_coord + 0.5f) * spacing;
+
+		const int32_3 local = world_coord & mask;
+
+		const uint32 probe_id = local_to_probe_id(ddgi_data, local.x, local.y, local.z, level);
+
+		const float3 probe_pos = (float3(world_coord) + 0.5f) * spacing;
 
 		if (ddgi_is_probe_in_hole(ddgi_data, probe_pos, level))
 		{
@@ -201,11 +206,13 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 			continue;
 		}
 
-		const uint32 probe_id = local_to_probe_id(ddgi_data,
-												  world_coord.x & mask.x,
-												  world_coord.y & mask.y,
-												  world_coord.z & mask.z,
-												  level);
+		// const uint32 probe_id = local_to_probe_id(ddgi_data,
+		//										  world_coord.x & mask.x,
+		//										  world_coord.y & mask.y,
+		//										  world_coord.z & mask.z,
+		//										  level);
+
+		// if (probe_id >= probe_count) { continue; }
 
 		const float weight_x = grid_offset.x ? grid_frac.x : 1.0f - grid_frac.x;
 		const float weight_y = grid_offset.y ? grid_frac.y : 1.0f - grid_frac.y;
@@ -230,8 +237,9 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 float3
 sample_ddgi_irradiance(float3 world_pos, float3 normal)
 {
-	const ddgi_data ddgi_data = load_ddgi_data();
-	const uint32	level	  = ddgi_calc_level(ddgi_data, world_pos);
+	const ddgi_data ddgi_data	= load_ddgi_data();
+	const uint32	level		= ddgi_calc_level(ddgi_data, world_pos);
+	const uint32	level_count = load_ddgi_level_count(ddgi_data);
 
 	float3 irradiance = float3(0, 0, 0);
 
@@ -241,10 +249,91 @@ sample_ddgi_irradiance(float3 world_pos, float3 normal)
 		irradiance += ddgi_sample_probe_cage(ddgi_data, level, world_pos, normal) * (1 - blend_t);
 	}
 
-	if (blend_t > epsilon_1e4)
+	if (blend_t > epsilon_1e4 and (level + 1 < level_count))
 	{
 		irradiance += ddgi_sample_probe_cage(ddgi_data, level + 1, world_pos, normal) * blend_t;
 	}
 
 	return irradiance;
+}
+
+// based on ray-tracing-gems ch25
+// https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
+// returns blend factor (catch_up_blend)
+float
+ddgi_update_msme(inout ddgi_msme data, float y)
+{
+	float mean_long			= data.mean_long;
+	float mean_short		= data.mean_short;
+	float relative_variance = data.relative_variance;
+	float inconsistency		= data.inconsistency;
+	float vbbr				= data.vbbr;
+
+	float variance = relative_variance * mean_long * mean_long;
+
+	// Suppress fireflies.
+	{
+		const float dev				= sqrt(max(1e-5f, variance));
+		const float high_threshold	= 0.1f + mean_short + dev * 8.f;
+		const float overflow		= max(0.f, y - high_threshold);
+		y						   -= overflow;
+	}
+
+	const float delta  = y - mean_short;
+	mean_short		   = lerp(mean_short, y, DDGI_MSME_SHORT_WINDOW_BLEND);
+	const float delta2 = y - mean_short;
+
+	// This should be a longer window than shortWindowBlend to avoid bias
+	// from the variance getting smaller when the short-term mean does.
+	const float variance_blend = DDGI_MSME_SHORT_WINDOW_BLEND * 0.5f;
+	variance				   = lerp(variance, delta * delta2, variance_blend);
+	const float dev			   = sqrt(max(1e-5f, variance));
+
+	const float short_diff	  = mean_long - mean_short;
+	const float relative_diff = abs(short_diff) / max(1e-5f, dev);
+	inconsistency			  = lerp(inconsistency, relative_diff, 0.08f);
+
+	const float variance_based_blend_reduction = clamp(0.5f * mean_short / max(1e-5f, dev), 1.f / 32.f, 1.f);
+
+	float catch_up_blend  = clamp(smoothstep(0.f, 1.f, relative_diff * max(0.02f, inconsistency - 0.2f)), 1.f / 256.f, 1.f);
+	catch_up_blend		 *= vbbr;
+
+	vbbr	  = lerp(vbbr, variance_based_blend_reduction, 0.1f);
+	mean_long = lerp(mean_long, y, saturate(catch_up_blend));
+
+	// Output
+	data.mean_long		   = mean_long;
+	data.mean_short		   = mean_short;
+	data.relative_variance = variance / max(1e-5f, mean_long * mean_long);
+	data.inconsistency	   = inconsistency;
+	data.vbbr			   = vbbr;
+
+	return catch_up_blend;
+}
+
+uint32
+ddgi_binary_search_probe(const ddgi_data data, uint32 ray_id)
+{
+	const uint32 probe_count = ddgi_calc_probe_count(data);
+
+	uint32 l = 0u;
+	uint32 h = probe_count;
+
+	attr_loop()
+
+	while (l < h)
+	{
+		const uint32 m = (l + h) / 2u;
+
+		if (ddgi_load_ray_offset(data, m) <= ray_id)
+		{
+			l = m + 1u;
+		}
+		else
+		{
+			h = m;
+		}
+	}
+
+	return l - 1u;
 }

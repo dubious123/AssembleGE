@@ -700,6 +700,12 @@ namespace age::graphics::resource
 		{
 			static_assert(false, "todo");
 		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, age::graphics::clear_uav_desc_handle>
+						   and std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)
+		{
+			g::p_main_device->CreateUnorderedAccessView(const_cast<ID3D12Resource*>(&res), nullptr, &view_desc, h_desc.h_cpu);
+			g::p_main_device->CreateUnorderedAccessView(const_cast<ID3D12Resource*>(&res), nullptr, &view_desc, h_desc.h_cpu_non_shader_visible);
+		}
 		else
 		{
 			static_assert(false, "invalid descriptor handle type or desc type");

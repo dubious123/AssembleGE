@@ -26,6 +26,7 @@ main_cs(uint32_3 group_id		  sv_group_id,
 		const float probe_weight_sum = ddgi_load_probe_weight_sum(probe_id);
 		ddgi_clear_probe_weight(probe_id);
 
+
 		const bool	 probe_seen = probe_weight_sum > 0.f;
 		const float3 probe_pos	= ddgi_calc_probe_pos(ddgi_data, probe_id, level);
 
@@ -34,6 +35,8 @@ main_cs(uint32_3 group_id		  sv_group_id,
 			probe.state_and_ray_count_ideal = DDGI_PROBE_STATE_OFF;
 			probe.frame_since_seen			= 0xff;
 			store_ddgi_probe_uav(probe_id, probe);
+
+			ddgi_store_ray_count_ideal(ddgi_data, probe_id, 0);
 			continue;
 		}
 
@@ -54,6 +57,8 @@ main_cs(uint32_3 group_id		  sv_group_id,
 			probe.normal_oct_snorm8 = encode_oct_snorm8(random_normal(probe_id, frame_index));
 
 			ddgi_clear_probe_msme(probe);
+
+			ddgi_store_ray_count_ideal(ddgi_data, probe_id, DDGI_PROBE_RAY_COUNT_NEW_BORN);
 		}
 		else
 		{
@@ -98,6 +103,8 @@ main_cs(uint32_3 group_id		  sv_group_id,
 			const uint16 ray_count			 = cast<uint16>(min(probe_weight_sum, 50.f) * min(ray_factor / probe.frame_since_seen, 1.f) * DDGI_PROBE_RAY_COUNT_NEW_BORN);
 			probe.state_and_ray_count_ideal	 = next_state | (ray_count << 8u);
 			ray_count_sum					+= ray_count;
+
+			ddgi_store_ray_count_ideal(ddgi_data, probe_id, ray_count);
 		}
 
 		store_ddgi_probe_uav(probe_id, probe);
@@ -110,8 +117,11 @@ main_cs(uint32_3 group_id		  sv_group_id,
 
 	if (dispatch_thread_id == 0)
 	{
-		clear_ddgi_ray_sum_total();
+		ddgi_clear_ray_sum_total_ideal(ddgi_data);
 	}
 
-	store_ddgi_ray_sum(group_id.x + group_count_x * group_id.z, group_ray_sum);
+	if (thread_id == 0)
+	{
+		ddgi_store_group_ray_sum_ideal(ddgi_data, group_id.x + group_count_x * group_id.z, group_ray_sum);
+	}
 }

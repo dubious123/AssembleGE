@@ -33,7 +33,7 @@ main_as(
 
 	attr_branch()
 
-	if (ddgi_debug_flags_render_probe_in_hole(ddgi_data))
+	if (ddgi_debug_flags_render_probe_in_hole(ddgi_data) is_false)
 	{
 		visible &= not ddgi_is_probe_in_hole(ddgi_data, probe_pos, level);
 	}

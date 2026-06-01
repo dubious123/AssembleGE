@@ -108,7 +108,7 @@ namespace age::graphics
 
 		for (uint32 idx : std::views::iota(0) | std::views::take(global::frame_buffer_count))
 		{
-			rtv_desc_handle_arr[idx] = g::rtv_desc_pool.pop();
+			pop_descriptor(rtv_desc_handle_arr[idx]);
 		}
 
 		rebuild_from_swapchain();
@@ -151,7 +151,7 @@ namespace age::graphics
 	{
 		for (auto idx : std::views::iota(0) | std::views::take(global::frame_buffer_count))
 		{
-			g::rtv_desc_pool.push(rtv_desc_handle_arr[idx]);
+			push_descriptor(rtv_desc_handle_arr[idx]);
 			back_buffer_ptr_arr[idx]->Release();
 		}
 

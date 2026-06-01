@@ -87,6 +87,7 @@
 #define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
 #define STATIC_BUFFER_SIZE				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 
+
 // scratch
 #define SCRATCH_SORT_BUFFER_OFFSET (0)
 
@@ -173,7 +174,7 @@
 #define DDGI_PROBE_STATE_SLEEP	  2
 #define DDGI_PROBE_STATE_NEW_BORN 3
 
-#define DDGI_PROBE_RAY_COUNT_NEW_BORN 0xff	  //(16 * 8)
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16 * 8)
 
 #define DDGI_RAY_BUDGET				 (1u << 20u)
 #define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
@@ -194,6 +195,17 @@
 #define DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT	  (1u << 6u)
 #define DDGI_DEBUG_FLAGS_RENDER_STATE		  (1u << 7u)
 #define DDGI_DEBUG_FLAGS_RENDER_PROBE		  (1u << 31u)
+
+#define DDGI_PREFIX_THREAD_COUNT	   1024u
+#define DDGI_PREFIX_ELEMENT_PER_THREAD 16u
+#define DDGI_PREFIX_ELEMENT_PER_GROUP  (DDGI_PREFIX_THREAD_COUNT * DDGI_PREFIX_ELEMENT_PER_THREAD)
+
+#define DDGI_TRACE_THREAD_PER_GROUP 32u
+
+#define DDGI_PROBE_MAX (DDGI_PREFIX_ELEMENT_PER_GROUP * DDGI_PREFIX_ELEMENT_PER_GROUP)
+
+#define DDGI_NORMAL_BIAS 0.1f
+#define DDGI_VIEW_BIAS	 0.05f
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -225,24 +237,21 @@ namespace age::graphics::render_pipeline::forward_plus
 namespace age::graphics::render_pipeline::forward_plus::shared_type
 {
 #endif
+	struct indirect_arg
+	{
+		uint32_3 dispatch_xyz;
+	};
+
 	//---[ ddgi ]------------------------------------------------------------
 	struct ddgi_data
 	{
-		float3 probe_per_level_axis_float;
 		uint32 ppl_log_2_and_ppl_bitwidth;		  // [x_log2(8)][y_log2(8)][z_log2(8)][ bitwidth(x + y + z)(8) ]
 		float3 base_probe_spacing;
 		uint32 level_count__tile_count_w_log2;	  //[level_count(8)][tile_count_w_log2(8)][][]
-		// use during ddgi stage
-		uint32 irradiance_atlas_prev_srv_id;
-		// use after ddgi stage
-		uint32 irradiance_atlas_curr_srv_id;
-
+		uint32 irradiance_atlas_srv_id;
 		uint32 irradiance_atlas_uav_id;
 
-		// use during ddgi stage
-		uint32 visibility_atlas_prev_srv_id;
-		// use during ddgi stage
-		uint32 visibility_atlas_curr_srv_id;
+		uint32 visibility_atlas_srv_id;
 		uint32 visibility_atlas_uav_id;
 
 		float tile_count_h_float;
@@ -257,6 +266,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		// [render ray_count]
 		// [render state]
 		// [render probe]
+
+		// uint32 weight_sum_offset = 0u;
+		uint32 ray_count_offset;		   // ideal (probe_state_cs) -> real
+		uint32 ray_prefix_offset;		   // ideal group sum (probe_state_cs) -> real prefix (block-local -> global offset)
+		uint32 ray_group_count_offset;	   // real block_sum (prefix p1 -> p2)
+		uint32 ray_group_prefix_offset;	   // ideal_sum (slot 0, probe_state_cs/reduction) -> real ray_count_total (idx 0) + group_prefix (idx 1..)
+		uint32 ray_result_offset;		   // trace result
 	};
 
 	struct ddgi_msme
@@ -277,6 +293,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		ddgi_msme msme_front;
 		ddgi_msme msme_back;
+	};
+
+	struct ddgi_ray_result
+	{
+		uint32 radiance_r11g11b10;		   // 4
+		float  distance;				   // 4
+		uint32 dir_oct_snorm_and_extra;	   // 4
 	};
 
 	//---[ bloom ]------------------------------------------------------------
@@ -569,14 +592,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   opaque_meshlet_render_data_count;	 // 4 bytes
 		uint32			   directional_light_count_and_extra;	 // 4 bytes
 		t_unified_light_id unified_light_count;					 // 4 btyes
-		// uint32			   transparent_object_render_data_count;
 
 		uint32 env_light_brdf_lut_id;
 		uint32 env_light_count;
-		// uint32 shadow_atlas_id;		  // bindless index for shadow atlas
 		uint32 radix_sort_pass;
-		// uint32 shadow_light_index;	  // shadow mapping
-		uint32 ui_space_mode__ddgi_updated__extra;	  // [ui_space_mode(8)][ddgi_updated(1)][extra]
+		uint32 ui_space_mode_and_extra;							 // [ui_space_mode(8)][extra]
 		uint32 ui_root_data_idx;
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
@@ -649,6 +669,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto ddgi_visibility_resolution = DDGI_VISIBILITY_RESOLUTION;
 
 	inline constexpr auto ddgi_update_probe_state_probe_per_group = DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP * DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD;
+
+	inline constexpr auto ddgi_prefix_element_per_group = DDGI_PREFIX_ELEMENT_PER_GROUP;
+	inline constexpr auto ddgi_ray_budget				= DDGI_RAY_BUDGET;
 
 	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
 
@@ -906,6 +929,16 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT
 	#undef DDGI_DEBUG_FLAGS_RENDER_STATE
 	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE
+
+	#undef DDGI_PREFIX_THREAD_COUNT
+	#undef DDGI_PREFIX_ELEMENT_PER_THREAD
+	#undef DDGI_PREFIX_ELEMENT_PER_GROUP
+
+	#undef DDGI_TRACE_THREAD_PER_GROUP
+	#undef DDGI_PROBE_MAX
+
+	#undef DDGI_NORMAL_BIAS
+	#undef DDGI_VIEW_BIAS
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

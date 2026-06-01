@@ -12,6 +12,8 @@ namespace age::graphics::g
 
 namespace age::graphics::e
 {
+	AGE_DEFINE_ENUM(descriptor_kind, uint8, cbv, srv, uav, rtv, dsv, sampler, clear_uav);
+
 	AGE_DEFINE_ENUM(queue_kind, uint8, direct, compute, copy);
 
 	AGE_DEFINE_ENUM_WITH_VALUE(
@@ -42,7 +44,12 @@ namespace age::graphics::e
 
 					forward_plus_ddgi_update_probe_state_cs,
 					forward_plus_ddgi_reduce_ray_sum_cs,
+					forward_plus_ddgi_prefix_group_cs,
+					forward_plus_ddgi_prefix_group_sum_cs,
+					forward_plus_ddgi_prefix_add_cs,
+
 					forward_plus_ddgi_probe_trace_cs,
+					forward_plus_ddgi_probe_blend_cs,
 					forward_plus_ddgi_copy_edge_cs,
 
 					forward_plus_ddgi_render_probes_as,
@@ -114,50 +121,121 @@ namespace age::graphics
 // descriptor_pool
 namespace age::graphics
 {
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type>
-	constexpr inline bool is_shader_visible_v =
-		heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	template <e::descriptor_kind e_kind>
+	consteval bool
+	is_shader_visible()
+	{
+		if constexpr (e_kind == e::descriptor_kind::cbv
+					  or e_kind == e::descriptor_kind::srv
+					  or e_kind == e::descriptor_kind::uav
+					  or e_kind == e::descriptor_kind::sampler)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
 
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type>
+	template <e::descriptor_kind>
 	struct descriptor_handle;
 
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type>
-	requires(is_shader_visible_v<heap_type>)
-	struct descriptor_handle<heap_type>
+	template <e::descriptor_kind desc_kind>
+	requires(is_shader_visible<desc_kind>() is_true)
+	struct descriptor_handle<desc_kind>
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu = {};
-		D3D12_GPU_DESCRIPTOR_HANDLE h_gpu = {};
-
-#ifdef AGE_DEBUG
-		uint32 idx = 0;
-#endif
+		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE h_gpu;
+		AGE_DEBUG_ONLY(uint32 idx);
 	};
 
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type>
-	requires(is_shader_visible_v<heap_type> is_false)
-	struct descriptor_handle<heap_type>
+	template <e::descriptor_kind desc_kind>
+	requires(is_shader_visible<desc_kind>() is_false and desc_kind != e::descriptor_kind::clear_uav)
+	struct descriptor_handle<desc_kind>
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu = {};
-
-#ifdef AGE_DEBUG
-		uint32 idx = 0;
-#endif
+		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu;
+		AGE_DEBUG_ONLY(uint32 idx);
 	};
 
-	using cbv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
-	using srv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
-	using uav_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV>;
-	using rtv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>;
-	using dsv_desc_handle	  = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_DSV>;
-	using sampler_desc_handle = descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER>;
+	template <e::descriptor_kind desc_kind>
+	requires(desc_kind == e::descriptor_kind::clear_uav)
+	struct descriptor_handle<desc_kind>
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu;
+		D3D12_CPU_DESCRIPTOR_HANDLE h_cpu_non_shader_visible;
+		D3D12_GPU_DESCRIPTOR_HANDLE h_gpu;
+		AGE_DEBUG_ONLY(uint32 idx);
+		AGE_DEBUG_ONLY(uint32 idx_non_shader_visible);
+	};
 
-	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, std::size_t capacity>
+	using cbv_desc_handle		= descriptor_handle<e::descriptor_kind::cbv>;
+	using srv_desc_handle		= descriptor_handle<e::descriptor_kind::srv>;
+	using uav_desc_handle		= descriptor_handle<e::descriptor_kind::uav>;
+	using rtv_desc_handle		= descriptor_handle<e::descriptor_kind::rtv>;
+	using dsv_desc_handle		= descriptor_handle<e::descriptor_kind::dsv>;
+	using sampler_desc_handle	= descriptor_handle<e::descriptor_kind::sampler>;
+	using clear_uav_desc_handle = descriptor_handle<e::descriptor_kind::clear_uav>;
+
+	template <D3D12_DESCRIPTOR_HEAP_TYPE heap_type, uint32 capacity, bool shader_visible>
+	struct descriptor_heap
+	{
+		ID3D12DescriptorHeap*				  p_heap;
+		uint32								  descriptor_size;
+		age::util::idx_pool<uint32, capacity> desc_idx_pool{};
+
+		template <bool>
+		struct handle;
+
+		template <>
+		struct handle<true>
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE h_cpu = {};
+			D3D12_GPU_DESCRIPTOR_HANDLE h_gpu = {};
+			AGE_DEBUG_ONLY(uint32 idx);
+		};
+
+		template <>
+		struct handle<false>
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE h_cpu = {};
+			AGE_DEBUG_ONLY(uint32 idx);
+		};
+
+		handle<shader_visible> h_start;
+
+		void
+		init() noexcept;
+
+		void
+		deinit() noexcept;
+
+		handle<shader_visible>
+		pop() noexcept;
+
+		handle<shader_visible>
+		get(uint32 idx) noexcept;
+
+		uint32
+		calc_idx(handle<shader_visible> h) const noexcept;
+
+		void
+		push(handle<shader_visible> h) noexcept;
+
+		uint32
+		count() const noexcept;
+	};
+
+	template <e::descriptor_kind e_kind, std::size_t capacity>
 	struct descriptor_pool
 	{
-		using t_descriptor_handle = descriptor_handle<heap_type>;
+		using t_descriptor_handle = descriptor_handle<e_kind>;
 
-		ID3D12DescriptorHeap*				  p_descriptor_heap = nullptr;
-		uint32								  descriptor_size	= 0;
+		ID3D12DescriptorHeap* p_descriptor_heap_arr[std::conditional_t<e_kind == e::descriptor_kind::clear_uav,
+																	   std::integral_constant<uint32, 2>,
+																	   std::integral_constant<uint32, 1>>::value]{};
+
+		uint32								  descriptor_size = 0;
 		age::util::idx_pool<uint32, capacity> desc_idx_pool{};
 
 		t_descriptor_handle start_handle = {};
@@ -165,12 +243,6 @@ namespace age::graphics
 		constexpr descriptor_pool() noexcept = default;
 
 		AGE_DISABLE_COPY_MOVE(descriptor_pool);
-
-		static consteval bool
-		is_shader_visible()
-		{
-			return is_shader_visible_v<heap_type>;
-		}
 
 		FORCE_INLINE void
 		init() noexcept;
@@ -200,8 +272,15 @@ namespace age::graphics
 	void
 	pop_descriptor(auto& h_descriptor_out) noexcept;
 
+	template <typename t_desc>
+	t_desc
+	pop_descriptor() noexcept;
+
 	void
-	push_descriptor(const auto&) noexcept;
+	push_descriptor(c_auto& handle) noexcept;
+
+	uint32
+	calc_desc_idx(c_auto& handle) noexcept;
 }	 // namespace age::graphics
 
 // resource
@@ -347,7 +426,7 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		std::array<descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>, global::frame_buffer_count>
+		std::array<rtv_desc_handle, global::frame_buffer_count>
 			rtv_desc_handle_arr;
 
 		std::array<ID3D12Resource*, global::frame_buffer_count>
@@ -374,13 +453,13 @@ namespace age::graphics
 		uint32 back_buffer_idx = 0;
 
 		FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE
-		get_h_cpu_desc() noexcept
+		get_h_cpu_desc() const noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx].h_cpu;
 		}
 
-		FORCE_INLINE descriptor_handle<D3D12_DESCRIPTOR_HEAP_TYPE_RTV>
-		h_rtv_desc() noexcept
+		FORCE_INLINE rtv_desc_handle
+		h_rtv_desc() const noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx];
 		}

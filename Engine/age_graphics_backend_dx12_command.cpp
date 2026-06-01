@@ -272,6 +272,21 @@ namespace age::graphics::command
 namespace age::graphics::command
 {
 	void
+	clear_uav(resource_handle h_resource, const clear_uav_desc_handle& h_uav_desc, const float4& clear_value) noexcept
+	{
+		clear_uav_float(h_uav_desc.h_gpu, h_uav_desc.h_cpu_non_shader_visible, g::resource_vec[h_resource].p_resource, reinterpret_cast<const float*>(&clear_value), 0, nullptr);
+	}
+
+	void
+	clear_uav(resource_handle h_resource, const clear_uav_desc_handle& h_uav_desc, const uint32_4& clear_value) noexcept
+	{
+		clear_uav_uint(h_uav_desc.h_gpu, h_uav_desc.h_cpu_non_shader_visible, g::resource_vec[h_resource].p_resource, reinterpret_cast<const uint32*>(&clear_value), 0, nullptr);
+	}
+}	 // namespace age::graphics::command
+
+namespace age::graphics::command
+{
+	void
 	init() noexcept
 	{
 		constexpr auto d3d12_type = std::array{

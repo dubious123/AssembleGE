@@ -16,10 +16,11 @@ namespace age::graphics::g
 	inline auto* p_dxc_include_handler = (IDxcIncludeHandler*)nullptr;
 
 	//------------------------------------------------------------------------------
-	inline auto rtv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128>{};
-	inline auto dsv_desc_pool		  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128>{};
-	inline auto cbv_srv_uav_desc_pool = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024>{};
-	inline auto sampler_desc_pool	  = descriptor_pool<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128>{};
+	inline auto rtv_desc_heap							 = descriptor_heap<D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 128, false>{};
+	inline auto dsv_desc_heap							 = descriptor_heap<D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 128, false>{};
+	inline auto cbv_srv_uav_desc_heap					 = descriptor_heap<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024, true>{};
+	inline auto sampler_desc_heap						 = descriptor_heap<D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128, true>{};
+	inline auto cbv_srv_uav_desc_heap_non_shader_visible = descriptor_heap<D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, false>{};
 
 	inline auto render_surface_vec = age::stable_dense_vector<render_surface>::gen_reserved(2);
 

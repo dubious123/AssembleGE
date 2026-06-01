@@ -76,8 +76,23 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_reduce_ray_sum;
 		ID3D12PipelineState*  p_pso_reduce_ray_sum;
 
+		graphics::pso::handle h_pso_prefix_group;
+		ID3D12PipelineState*  p_pso_prefix_group;
+
+		graphics::pso::handle h_pso_prefix_group_sum;
+		ID3D12PipelineState*  p_pso_prefix_group_sum;
+
+		graphics::pso::handle h_pso_prefix_add;
+		ID3D12PipelineState*  p_pso_prefix_add;
+
 		graphics::pso::handle h_pso_probe_trace;
 		ID3D12PipelineState*  p_pso_probe_trace;
+
+		graphics::command_signature::handle h_cmd_sig_probe_trace;
+		ID3D12CommandSignature*				p_cmd_sig_probe_trace;
+
+		graphics::pso::handle h_pso_probe_blend;
+		ID3D12PipelineState*  p_pso_probe_blend;
 
 		graphics::pso::handle h_pso_copy_edge;
 		ID3D12PipelineState*  p_pso_copy_edge;
@@ -89,13 +104,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(const ddgi_data& ddgi_data_cpu,
-				resource_handle	 h_probe_buffer,
-				resource_handle	 h_probe_weight_sum_buffer,
-				resource_handle	 h_scratch_buffer,
-				resource_handle	 h_irradiance_atlas_uav,
-				resource_handle	 h_visibility_atlas_uav) const noexcept;
-
+		execute(const ddgi_data&			   ddgi_data_cpu,
+				binding_config_t::reg_t<1, 7>& probe_buffer_srv,
+				resource_handle				   h_indirect_arg_buffer) const noexcept;
 		inline void
 		execute_render_probes(rtv_desc_handle  h_main_buffer_rtv_desc,
 							  dsv_desc_handle  h_depth_buffer_dsv_desc,
@@ -315,6 +326,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_scratch_buffer;
 		resource_handle h_light_bin_stage_buffer;
 		resource_handle h_sorted_light_buffer;
+		resource_handle h_indirect_arg_buffer;
 
 		std::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
 
@@ -344,6 +356,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		// global
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
+		binding_config_t::reg_u<2, 0> indirect_arg_buffer_uav;
 
 		binding_config_t::reg_t<0, 0> static_ring_buffer;
 		binding_config_t::reg_t<1, 0> mesh_data_buffer;
@@ -443,7 +456,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		// ddgi
 		binding_config_t::reg_t<1, 7> ddgi_probe_buffer_srv;
 		binding_config_t::reg_u<1, 7> ddgi_probe_buffer_uav;
-		binding_config_t::reg_u<2, 7> ddgi_probe_weight_sum_buffer_uav;
+		binding_config_t::reg_u<2, 7> ddgi_scratch_buffer;
 		ddgi_data					  ddgi_data_cpu;
 
 		std::mt19937						  ddgi_rng{ std::random_device{}() };

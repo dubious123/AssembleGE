@@ -44,7 +44,7 @@ uint32 env_light_brdf_lut_id;
 uint32 env_light_count;
 uint32 radix_sort_pass;
 
-uint32 ui_space_mode__ddgi_updated__extra;	  // [ui_space_mode(8)][ddgi_updated(8)][extra(16)]
+uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][ddgi_updated(8)][extra(16)]
 uint32 ui_root_data_idx;
 uint32 ui_data_id_offset;
 uint32 ui_data_count;
@@ -166,6 +166,17 @@ uint32
 load_packed_aabb(uint32 idx)
 {
 	return load<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32));
+}
+
+// execute indirect arg buffer
+rw_byte_address_buffer indirect_arg_buffer_uav reg(u2, space0);
+
+void
+store_dispatch_compute_indirect_arg(uint32_3 xyz)
+{
+	indirect_arg arg = (indirect_arg)0;
+	arg.dispatch_xyz = xyz;
+	store<indirect_arg>(indirect_arg_buffer_uav, 0, arg);
 }
 
 // light buffer
@@ -466,26 +477,140 @@ load_bloom()
 structured_buffer<ddgi_probe>	 ddgi_probe_buffer_srv reg(t1, space7);
 rw_structured_buffer<ddgi_probe> ddgi_probe_buffer_uav reg(u1, space7);
 
-rw_byte_address_buffer ddgi_probe_weight_sum_buffer_uav reg(u2, space7);
+rw_byte_address_buffer ddgi_scratch_buffer reg(u2, space7);
 
 void
 ddgi_clear_probe_weight(uint32 probe_id)
 {
-	store<uint32>(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32), 0u);
+	store<uint32>(ddgi_scratch_buffer, probe_id * sizeof(uint32), 0u);
 }
 
 void
 ddgi_add_probe_weight(uint32 probe_id, float weight)
 {
-	uint32 weight_uint32 = uint32(weight * DDGI_PROBE_WEIGHT_SCALE);
-	buf_interlocked_add(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32), weight_uint32);
+	const uint32 weight_uint32 = uint32(weight * DDGI_PROBE_WEIGHT_SCALE);
+	buf_interlocked_add(ddgi_scratch_buffer, probe_id * sizeof(uint32), weight_uint32);
 }
 
 float
 ddgi_load_probe_weight_sum(uint32 probe_id)
 {
-	uint32 weight_uint32 = load<uint32>(ddgi_probe_weight_sum_buffer_uav, probe_id * sizeof(uint32));
+	const uint32 weight_uint32 = load<uint32>(ddgi_scratch_buffer, probe_id * sizeof(uint32));
 	return float(weight_uint32) / DDGI_PROBE_WEIGHT_SCALE;
+}
+
+void
+ddgi_store_ray_count(const ddgi_data ddgi_data, uint32 probe_id, uint32 ray_count)
+{
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32), ray_count);
+}
+
+uint32
+ddgi_load_ray_count(const ddgi_data ddgi_data, uint32 probe_id)
+{
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32));
+}
+
+void
+ddgi_store_ray_offset(const ddgi_data ddgi_data, uint32 probe_id, uint32 ray_offset)
+{
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_prefix_offset + probe_id * sizeof(uint32), ray_offset);
+}
+
+uint32
+ddgi_load_ray_offset(const ddgi_data ddgi_data, uint32 probe_id)
+{
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_prefix_offset + probe_id * sizeof(uint32));
+}
+
+void
+ddgi_store_group_sum(const ddgi_data ddgi_data, uint32 group_id, uint32 sum)
+{
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_count_offset + group_id * sizeof(uint32), sum);
+}
+
+uint32
+ddgi_load_group_sum(const ddgi_data ddgi_data, uint32 group_id)
+{
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_count_offset + group_id * sizeof(uint32));
+}
+
+void
+ddgi_store_ray_count_total(const ddgi_data ddgi_data, uint32 total)
+{
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset, total);
+}
+
+uint32
+ddgi_load_ray_count_total(const ddgi_data ddgi_data)
+{
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset);
+}
+
+void
+ddgi_store_group_prefix(const ddgi_data ddgi_data, uint32 group_id, uint32 prefix)
+{
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset + (1u + group_id) * sizeof(uint32), prefix);
+}
+
+uint32
+ddgi_load_group_prefix(const ddgi_data ddgi_data, uint32 group_id)
+{
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset + (1u + group_id) * sizeof(uint32));
+}
+
+void
+ddgi_store_ray_result(const ddgi_data ddgi_data, uint32 ray_id, ddgi_ray_result res)
+{
+	store<ddgi_ray_result>(ddgi_scratch_buffer, ddgi_data.ray_result_offset + ray_id * sizeof(ddgi_ray_result), res);
+}
+
+ddgi_ray_result
+ddgi_load_ray_result(const ddgi_data ddgi_data, uint32 ray_id)
+{
+	return load<ddgi_ray_result>(ddgi_scratch_buffer, ddgi_data.ray_result_offset + ray_id * sizeof(ddgi_ray_result));
+}
+
+void
+ddgi_store_group_ray_sum_ideal(const ddgi_data ddgi_data, uint32 idx, uint32 sum)
+{
+	store<uint32>(scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx, sum);
+}
+
+uint32
+ddgi_load_group_ray_sum_ideal(const ddgi_data ddgi_data, uint32 idx)
+{
+	return load<uint32>(scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx);
+}
+
+void
+ddgi_clear_ray_sum_total_ideal(const ddgi_data ddgi_data)
+{
+	store<uint32>(scratch_buffer, ddgi_data.ray_group_prefix_offset, 0u);
+}
+
+void
+ddgi_add_ray_sum_total_ideal(const ddgi_data ddgi_data, uint32 sum)
+{
+	buf_interlocked_add(scratch_buffer, ddgi_data.ray_group_prefix_offset, sum);
+}
+
+uint32
+ddgi_load_ray_sum_total_ideal(const ddgi_data ddgi_data)
+{
+	return load<uint32>(scratch_buffer, ddgi_data.ray_group_prefix_offset);
+}
+
+void
+ddgi_store_ray_count_ideal(const ddgi_data ddgi_data, uint32 probe_id, uint32 ray_count_ideal)
+{
+	store<uint32>(scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32), ray_count_ideal);
+}
+
+uint32
+ddgi_load_ray_count_ideal(const ddgi_data ddgi_data, uint32 probe_id)
+{
+	return load<uint32>(scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32));
 }
 
 bool
@@ -522,6 +647,12 @@ uint32
 load_ddgi_ppl(const ddgi_data data)
 {
 	return 1u << uint32_w_to_uint8(data.ppl_log_2_and_ppl_bitwidth);
+}
+
+uint32
+ddgi_calc_probe_count(const ddgi_data data)
+{
+	return load_ddgi_ppl(data) * load_ddgi_level_count(data);
 }
 
 uint32_3
@@ -579,46 +710,17 @@ ddgi_level_spacing(const ddgi_data data, uint32 lv)
 	return data.base_probe_spacing * (1u << lv);
 }
 
-float3
-ddgi_level_extent(const ddgi_data data, uint32 lv)
-{
-	return ddgi_level_spacing(data, lv) * data.probe_per_level_axis_float;
-}
+// float3
+// ddgi_level_extent(const ddgi_data data, uint32 lv)
+//{
+//	return ddgi_level_spacing(data, lv) * data.probe_per_level_axis_float;
+// }
 
 float3
 ddgi_level_probe_radius(const ddgi_data data, uint32 lv)
 {
-	return ddgi_level_spacing(data, lv) * (data.probe_per_level_axis_float * 0.5f - 0.5f);
-}
-
-void
-store_ddgi_ray_sum(uint32 idx, uint32 sum)
-{
-	store<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET + sizeof(uint32) * (idx + 1), sum);
-}
-
-void
-clear_ddgi_ray_sum_total()
-{
-	store<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET, 0u);
-}
-
-void
-add_ddgi_ray_sum_total(uint32 sum)
-{
-	buf_interlocked_add(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET, sum);
-}
-
-uint32
-load_ddgi_ray_sum(uint32 idx)
-{
-	return load<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET + sizeof(uint32) * (idx + 1));
-}
-
-uint32
-load_ddgi_ray_sum_total()
-{
-	return load<uint32>(scratch_buffer, DDGI_GROUP_RAY_SUM_OFFSET);
+	float3 probe_per_level_axis_float = float3(load_ddgi_ppl_axis(data));
+	return ddgi_level_spacing(data, lv) * (probe_per_level_axis_float * 0.5f - 0.5f);
 }
 
 void
@@ -635,49 +737,6 @@ ddgi_clear_probe_msme(inout ddgi_probe probe)
 	probe.msme_back.relative_variance = 1.f;
 	probe.msme_back.inconsistency	  = 1.f;
 	probe.msme_back.vbbr			  = 1.f;
-}
-
-bool
-ddgi_updated()
-{
-	return ((ui_space_mode__ddgi_updated__extra >> 8) & 1) > 0;
-}
-
-uint32
-load_ddgi_irradiance_atlas_srv_id(const ddgi_data data)
-{
-	// return data.irradiance_atlas_prev_srv_id;
-
-	attr_branch()
-
-	if (ddgi_updated() is_false)
-	{
-		return data.irradiance_atlas_prev_srv_id;
-	}
-	else
-	{
-		// after ddgi_stage
-		return data.irradiance_atlas_curr_srv_id;
-	}
-}
-
-uint32
-load_ddgi_visibility_atlas_srv_id(const ddgi_data data)
-{
-	// return data.visibility_atlas_prev_srv_id;
-
-	attr_branch()
-
-
-	if (ddgi_updated() is_false)
-	{
-		return data.visibility_atlas_prev_srv_id;
-	}
-	else
-	{
-		// after ddgi_stage
-		return data.visibility_atlas_curr_srv_id;
-	}
 }
 
 bool

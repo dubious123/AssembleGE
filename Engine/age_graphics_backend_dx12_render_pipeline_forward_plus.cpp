@@ -110,6 +110,15 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	   = false });
 
 			h_light_bin_stage_buffer->set_name(L"light_bin_stage_buffer");
+
+
+			h_indirect_arg_buffer = resource::create_committed(
+				{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::indirect_arg)),
+				  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+				  .heap_memory_kind	   = e::memory_kind::gpu_only,
+				  .has_clear_value	   = false });
+
+			h_indirect_arg_buffer->set_name(L"indirect_arg_buffer");
 		}
 
 		{
@@ -143,6 +152,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			light_bin_stage_buffer_srv.bind(h_light_bin_stage_buffer);
 			light_bin_stage_buffer_uav.bind(h_light_bin_stage_buffer);
+
+			indirect_arg_buffer_uav.bind(h_indirect_arg_buffer);
 		}
 
 		resource::create_view(h_rt_tlas_buffer_srv_desc, defaults::srv_view_desc::rt_acceleration_structure(h_rt_tlas_buffer));
@@ -306,6 +317,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_depth_buffer);
 		resource::release(h_debug_depth_buffer);
 		resource::release(h_scratch_buffer);
+		resource::release(h_indirect_arg_buffer);
 		resource::release(h_light_bin_stage_buffer);
 		resource::release(h_sorted_light_buffer);
 		resource::release(h_bloom_chain);
@@ -434,7 +446,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::begin_frame(e::queue_kind::direct);
 
-		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_heap.p_heap);
 		command::set_graphics_root_sig(p_root_sig);
 		command::set_compute_root_sig(p_root_sig);
 
@@ -723,6 +735,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			debug_meshlet_render_data_buffer.apply();
 			debug_object_data_buffer.apply();
+
+			indirect_arg_buffer_uav.apply_compute();
 		}
 
 		command::set_view_ports(1, &rs.default_viewport);
@@ -753,33 +767,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		if (ddgi_enabled())
 		{
 			ddgi_probe_buffer_uav.apply_compute();
-			ddgi_probe_weight_sum_buffer_uav.apply_compute();
-			ddgi_probe_weight_sum_buffer_uav.apply();
+			ddgi_scratch_buffer.apply_compute();
+			ddgi_scratch_buffer.apply();
 			sorted_light_buffer_srv.apply_compute();
 			light_bin_stage_buffer_srv.apply_compute();
 
-			stage_ddgi.execute(ddgi_data_cpu,
-							   ddgi_data_cpu.h_probe_buffer,
-							   ddgi_data_cpu.h_probe_weight_sum_buffer,
-							   h_scratch_buffer,
-							   ddgi_data_cpu.h_irradiance_atlas[ddgi_data_cpu.idx_curr],
-							   ddgi_data_cpu.h_visibility_atlas[ddgi_data_cpu.idx_curr]);
+			stage_ddgi.execute(ddgi_data_cpu, ddgi_probe_buffer_srv, h_indirect_arg_buffer);
 
 			command::apply_barriers(
-				// barrier::tex_srv_to_uav(ddgi_data_cpu.h_irradiance_atlas[ddgi_data_cpu.idx_prev]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
-				// barrier::tex_srv_to_uav(ddgi_data_cpu.h_visibility_atlas[ddgi_data_cpu.idx_prev]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
-
-				barrier::tex_uav_to_srv(ddgi_data_cpu.h_irradiance_atlas[ddgi_data_cpu.idx_curr]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
-				barrier::tex_uav_to_srv(ddgi_data_cpu.h_visibility_atlas[ddgi_data_cpu.idx_curr]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
-
+				barrier::tex_uav_to_srv(ddgi_data_cpu.h_irradiance_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+				barrier::tex_uav_to_srv(ddgi_data_cpu.h_visibility_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 				barrier::buf_uav_to_srv(ddgi_data_cpu.h_probe_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
-
-			auto& payload = root_constants.constant_arr[0].ui_space_mode__ddgi_updated__extra;
-
-			payload |= 0x0000'00100;
-
-			root_constants.apply_compute_member<&shared_type::root_constants::ui_space_mode__ddgi_updated__extra>(payload);
-			root_constants.apply_graphics_member<&shared_type::root_constants::ui_space_mode__ddgi_updated__extra>(payload);
 
 			// std::swap(ddgi_data_cpu.idx_prev, ddgi_data_cpu.idx_curr);
 		}
@@ -788,7 +786,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		if (ddgi_enabled())
 		{
-			command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_probe_weight_sum_buffer->p_resource));
+			command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
 		}
 
 		// debug mesh
@@ -825,7 +823,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		if (ddgi_enabled() and ddgi_data_cpu.render_probes)
 		{
 			ddgi_probe_buffer_srv.apply();
-			command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_probe_weight_sum_buffer->p_resource));
+			command::apply_barriers(barrier::buf_uav_to_uav(ddgi_data_cpu.h_ddgi_scratch_buffer->p_resource));
 
 			stage_ddgi.execute_render_probes(h_main_buffer_rtv_desc,
 											 h_debug_depth_buffer_dsv_desc,
@@ -888,14 +886,6 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::apply_barriers(barrier::rtv_to_srv(h_post_buffer->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		stage_presentation.execute(rs);
-
-		if (ddgi_enabled())
-		{
-			command::apply_barriers(
-				barrier::tex_srv_to_uav(ddgi_data_cpu.h_irradiance_atlas[ddgi_data_cpu.idx_prev]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
-				barrier::tex_srv_to_uav(ddgi_data_cpu.h_visibility_atlas[ddgi_data_cpu.idx_prev]->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
-			std::swap(ddgi_data_cpu.idx_prev, ddgi_data_cpu.idx_curr);
-		}
 
 		command::apply_barriers(barrier::rtv_to_present(&rs.get_back_buffer()));
 
@@ -1087,7 +1077,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			  .heap_memory_kind = e::memory_kind::gpu_only });
 
-		c_auto h_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+		c_auto h_srv_desc = pop_descriptor<srv_desc_handle>();
 
 		if (entry.is_cube_map())
 		{
@@ -1155,7 +1145,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			  .heap_memory_kind = e::memory_kind::gpu_only });
 
-		c_auto h_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+		c_auto h_srv_desc = pop_descriptor<srv_desc_handle>();
 
 		resource::create_view(h_resource,
 							  h_srv_desc,
@@ -1753,9 +1743,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			  .heap_memory_kind = e::memory_kind::gpu_only });
 
-		c_auto h_radiance_srv_desc	 = graphics::g::cbv_srv_uav_desc_pool.pop();
-		c_auto h_prefilter_srv_desc	 = graphics::g::cbv_srv_uav_desc_pool.pop();
-		c_auto h_irradiance_srv_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+		c_auto h_radiance_srv_desc	 = pop_descriptor<srv_desc_handle>();
+		c_auto h_prefilter_srv_desc	 = pop_descriptor<srv_desc_handle>();
+		c_auto h_irradiance_srv_desc = pop_descriptor<srv_desc_handle>();
 
 		resource::create_view(h_radiance,
 							  h_radiance_srv_desc,
@@ -1956,7 +1946,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		AGE_ASSERT(ppl_bitwidth <= age::g::uint8_max);
 
-		c_auto probe_count = (1u << ppl_bitwidth) * desc.level_count;
+		c_auto probe_count		  = (1u << ppl_bitwidth) * desc.level_count;
+		c_auto prefix_group_count = util::ceil(probe_count, g::ddgi_prefix_element_per_group);
 
 		uint32 tile_count_w_log2 = 0u;
 		while (true)
@@ -1973,74 +1964,53 @@ namespace age::graphics::render_pipeline::forward_plus
 		ddgi_data_cpu.irradiance_atlas_extent = extent_2d<uint32>{ .width = tile_count_w * g::ddgi_irradiance_tile_size, .height = tile_count_h * g::ddgi_irradiance_tile_size };
 		ddgi_data_cpu.visibility_atlas_extent = extent_2d<uint32>{ .width = tile_count_w * g::ddgi_visibility_tile_size, .height = tile_count_h * g::ddgi_visibility_tile_size };
 
+
+		c_auto offset_weight_sum	   = uint32{ 0u };
+		c_auto ray_count_offset		   = offset_weight_sum + probe_count * sizeof(uint32);
+		c_auto ray_prefix_offset	   = ray_count_offset + probe_count * sizeof(uint32);
+		c_auto ray_group_count_offset  = ray_prefix_offset + probe_count * sizeof(uint32);
+		c_auto ray_group_prefix_offset = ray_group_count_offset + prefix_group_count * sizeof(uint32);
+		c_auto ray_result_offset	   = ray_group_prefix_offset + (1u + prefix_group_count) * sizeof(uint32);
+		c_auto buffer_byte_size		   = ray_result_offset + g::ddgi_ray_budget * sizeof(shared_type::ddgi_ray_result);
+
 		ddgi_data_gpu = shared_type::ddgi_data{
-			.probe_per_level_axis_float		= float3{ desc.probe_per_level_axis },
 			.ppl_log_2_and_ppl_bitwidth		= cast_to<uint32>((ppl_log2_x << 0u) | (ppl_log2_y << 8u) | (ppl_log2_z << 16u) | (ppl_bitwidth << 24u)),
 			.base_probe_spacing				= desc.base_probe_spacing,
 			.level_count__tile_count_w_log2 = (desc.level_count & 0xff) | (tile_count_w_log2 << 8u),
 			.tile_count_h_float				= cast_to<float>(tile_count_h),
 			.debug_flags					= to_idx(desc.debug_flags),
+
+			.ray_count_offset		 = cast_to<uint32>(ray_count_offset),
+			.ray_prefix_offset		 = cast_to<uint32>(ray_prefix_offset),
+			.ray_group_count_offset	 = cast_to<uint32>(ray_group_count_offset),
+			.ray_group_prefix_offset = cast_to<uint32>(ray_group_prefix_offset),
+			.ray_result_offset		 = cast_to<uint32>(ray_result_offset),
 		};
 
-		pop_descriptor(ddgi_data_cpu.h_irradiance_srv_desc[0]);
-		pop_descriptor(ddgi_data_cpu.h_irradiance_srv_desc[1]);
-		pop_descriptor(ddgi_data_cpu.h_irradiance_uav_desc[0]);
-		pop_descriptor(ddgi_data_cpu.h_irradiance_uav_desc[1]);
-		pop_descriptor(ddgi_data_cpu.h_visibility_srv_desc[0]);
-		pop_descriptor(ddgi_data_cpu.h_visibility_srv_desc[1]);
-		pop_descriptor(ddgi_data_cpu.h_visibility_uav_desc[0]);
-		pop_descriptor(ddgi_data_cpu.h_visibility_uav_desc[1]);
 
-		c_auto initial_layout = std::array{ D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS };
+		pop_descriptor(ddgi_data_cpu.h_irradiance_srv_desc);
+		pop_descriptor(ddgi_data_cpu.h_irradiance_uav_desc);
+		pop_descriptor(ddgi_data_cpu.h_visibility_srv_desc);
+		pop_descriptor(ddgi_data_cpu.h_visibility_uav_desc);
 
-		for (auto i : views::loop(2))
-		{
-			// ddgi_data_cpu.h_irradiance_atlas[i] = resource::create_committed(
-			//	{ .d3d12_resource_desc = defaults::resource_desc::texture_2d_array(
-			//		  ddgi_data_cpu.irradiance_atlas_extent,
-			//		  DXGI_FORMAT_R11G11B10_FLOAT,
-			//		  cast_to<uint16>(desc.level_count),
-			//		  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-			//	  .initial_layout	= initial_layout[i],
-			//	  .heap_memory_kind = e::memory_kind::gpu_only });
+		pop_descriptor(ddgi_data_cpu.h_irradiance_clear_uav_desc);
+		pop_descriptor(ddgi_data_cpu.h_visibility_clear_uav_desc);
+		pop_descriptor(ddgi_data_cpu.h_probe_buffer_clear_uav_desc);
+		ddgi_data_cpu.h_irradiance_atlas = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
+				  ddgi_data_cpu.irradiance_atlas_extent,
+				  DXGI_FORMAT_R11G11B10_FLOAT,
+				  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
 
-			// ddgi_data_cpu.h_visibility_atlas[i] = resource::create_committed(
-			//	{ .d3d12_resource_desc = defaults::resource_desc::texture_2d_array(
-			//		  ddgi_data_cpu.visibility_atlas_extent,
-			//		  DXGI_FORMAT_R16G16_FLOAT,
-			//		  cast_to<uint16>(desc.level_count),
-			//		  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-			//	  .initial_layout	= initial_layout[i],
-			//	  .heap_memory_kind = e::memory_kind::gpu_only });
-
-
-			// resource::create_view(ddgi_data_cpu.h_irradiance_atlas[i], ddgi_data_cpu.h_irradiance_srv_desc[i], defaults::srv_view_desc::tex2d_array(DXGI_FORMAT_R11G11B10_FLOAT, desc.level_count));
-			// resource::create_view(ddgi_data_cpu.h_irradiance_atlas[i], ddgi_data_cpu.h_irradiance_uav_desc[i], defaults::uav_view_desc::tex2d_array(DXGI_FORMAT_R11G11B10_FLOAT, desc.level_count));
-			// resource::create_view(ddgi_data_cpu.h_visibility_atlas[i], ddgi_data_cpu.h_visibility_srv_desc[i], defaults::srv_view_desc::tex2d_array(DXGI_FORMAT_R16G16_FLOAT, desc.level_count));
-			// resource::create_view(ddgi_data_cpu.h_visibility_atlas[i], ddgi_data_cpu.h_visibility_uav_desc[i], defaults::uav_view_desc::tex2d_array(DXGI_FORMAT_R16G16_FLOAT, desc.level_count));
-
-			ddgi_data_cpu.h_irradiance_atlas[i] = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
-					  ddgi_data_cpu.irradiance_atlas_extent,
-					  DXGI_FORMAT_R11G11B10_FLOAT,
-					  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-				  .initial_layout	= initial_layout[i],
-				  .heap_memory_kind = e::memory_kind::gpu_only });
-
-			ddgi_data_cpu.h_visibility_atlas[i] = resource::create_committed(
-				{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
-					  ddgi_data_cpu.visibility_atlas_extent,
-					  DXGI_FORMAT_R16G16_FLOAT,
-					  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-				  .initial_layout	= initial_layout[i],
-				  .heap_memory_kind = e::memory_kind::gpu_only });
-
-
-			resource::create_view(ddgi_data_cpu.h_irradiance_atlas[i], ddgi_data_cpu.h_irradiance_srv_desc[i], defaults::srv_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT));
-			resource::create_view(ddgi_data_cpu.h_irradiance_atlas[i], ddgi_data_cpu.h_irradiance_uav_desc[i], defaults::uav_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT));
-			resource::create_view(ddgi_data_cpu.h_visibility_atlas[i], ddgi_data_cpu.h_visibility_srv_desc[i], defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
-			resource::create_view(ddgi_data_cpu.h_visibility_atlas[i], ddgi_data_cpu.h_visibility_uav_desc[i], defaults::uav_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
-		}
+		ddgi_data_cpu.h_visibility_atlas = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
+				  ddgi_data_cpu.visibility_atlas_extent,
+				  DXGI_FORMAT_R16G16_FLOAT,
+				  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
 
 		ddgi_data_cpu.h_probe_buffer = resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(shared_type::ddgi_probe) * cast_to<uint64>(1u << ppl_bitwidth) * desc.level_count),
@@ -2048,27 +2018,38 @@ namespace age::graphics::render_pipeline::forward_plus
 			  .heap_memory_kind	   = e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });
 
-		ddgi_data_cpu.h_probe_weight_sum_buffer = resource::create_committed(
-			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(sizeof(uint32) * cast_to<uint64>(1u << ppl_bitwidth) * desc.level_count),
+		ddgi_data_cpu.h_ddgi_scratch_buffer = resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(buffer_byte_size),
 			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
 			  .heap_memory_kind	   = e::memory_kind::gpu_only,
 			  .has_clear_value	   = false });
 
-		ddgi_data_cpu.h_irradiance_atlas[0]->set_name(L"ddgi_irradiance_atlas[0]");
-		ddgi_data_cpu.h_visibility_atlas[0]->set_name(L"ddgi_visibility_atlas[0]");
-		ddgi_data_cpu.h_irradiance_atlas[1]->set_name(L"ddgi_irradiance_atlas[1]");
-		ddgi_data_cpu.h_visibility_atlas[1]->set_name(L"ddgi_visibility_atlas[1]");
+		resource::create_view(ddgi_data_cpu.h_irradiance_atlas, ddgi_data_cpu.h_irradiance_srv_desc, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT));
+		resource::create_view(ddgi_data_cpu.h_irradiance_atlas, ddgi_data_cpu.h_irradiance_uav_desc, defaults::uav_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT));
+		resource::create_view(ddgi_data_cpu.h_visibility_atlas, ddgi_data_cpu.h_visibility_srv_desc, defaults::srv_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
+		resource::create_view(ddgi_data_cpu.h_visibility_atlas, ddgi_data_cpu.h_visibility_uav_desc, defaults::uav_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
+
+		resource::create_view(ddgi_data_cpu.h_irradiance_atlas, ddgi_data_cpu.h_irradiance_clear_uav_desc, defaults::uav_view_desc::tex2d(DXGI_FORMAT_R11G11B10_FLOAT));
+		resource::create_view(ddgi_data_cpu.h_visibility_atlas, ddgi_data_cpu.h_visibility_clear_uav_desc, defaults::uav_view_desc::tex2d(DXGI_FORMAT_R16G16_FLOAT));
+		resource::create_view(ddgi_data_cpu.h_probe_buffer, ddgi_data_cpu.h_probe_buffer_clear_uav_desc, defaults::uav_view_desc::byte_address_buffer(probe_count * sizeof(shared_type::ddgi_probe)));
+
+		ddgi_data_cpu.h_irradiance_atlas->set_name(L"ddgi_irradiance_atlas[0]");
+		ddgi_data_cpu.h_visibility_atlas->set_name(L"ddgi_visibility_atlas[0]");
 		ddgi_data_cpu.h_probe_buffer->set_name(L"ddgi_probe_buffer");
-		ddgi_data_cpu.h_probe_weight_sum_buffer->set_name(L"ddgi_probe_weight_sum_buffer");
+		ddgi_data_cpu.h_ddgi_scratch_buffer->set_name(L"ddgi_scratch_buffer");
 		ddgi_probe_buffer_srv.bind(ddgi_data_cpu.h_probe_buffer);
 		ddgi_probe_buffer_uav.bind(ddgi_data_cpu.h_probe_buffer);
-		ddgi_probe_weight_sum_buffer_uav.bind(ddgi_data_cpu.h_probe_weight_sum_buffer);
+		ddgi_scratch_buffer.bind(ddgi_data_cpu.h_ddgi_scratch_buffer);
 
-		ddgi_data_cpu.enabled  = true;
-		ddgi_data_cpu.idx_prev = 0;
-		ddgi_data_cpu.idx_curr = 1;
+		ddgi_data_cpu.enabled	   = true;
+		ddgi_data_cpu.need_cleanup = true;
 
 		ddgi_data_cpu.render_probes = has_all(desc.debug_flags, graphics::e::ddgi_debug_flags::render_probe);
+
+		ddgi_data_gpu.irradiance_atlas_srv_id = calc_desc_idx(ddgi_data_cpu.h_irradiance_srv_desc);
+		ddgi_data_gpu.irradiance_atlas_uav_id = calc_desc_idx(ddgi_data_cpu.h_irradiance_uav_desc);
+		ddgi_data_gpu.visibility_atlas_srv_id = calc_desc_idx(ddgi_data_cpu.h_visibility_srv_desc);
+		ddgi_data_gpu.visibility_atlas_uav_id = calc_desc_idx(ddgi_data_cpu.h_visibility_uav_desc);
 	}
 
 	void
@@ -2076,21 +2057,19 @@ namespace age::graphics::render_pipeline::forward_plus
 	{
 		AGE_ASSERT(ddgi_data_cpu.enabled is_true);
 
-		resource::release_deferred(ddgi_data_cpu.h_irradiance_atlas[0]);
-		resource::release_deferred(ddgi_data_cpu.h_irradiance_atlas[1]);
-		resource::release_deferred(ddgi_data_cpu.h_visibility_atlas[0]);
-		resource::release_deferred(ddgi_data_cpu.h_visibility_atlas[1]);
+		resource::release_deferred(ddgi_data_cpu.h_irradiance_atlas);
+		resource::release_deferred(ddgi_data_cpu.h_visibility_atlas);
 		resource::release_deferred(ddgi_data_cpu.h_probe_buffer);
-		resource::release_deferred(ddgi_data_cpu.h_probe_weight_sum_buffer);
+		resource::release_deferred(ddgi_data_cpu.h_ddgi_scratch_buffer);
 
-		push_descriptor(ddgi_data_cpu.h_irradiance_srv_desc[0]);
-		push_descriptor(ddgi_data_cpu.h_irradiance_srv_desc[1]);
-		push_descriptor(ddgi_data_cpu.h_irradiance_uav_desc[0]);
-		push_descriptor(ddgi_data_cpu.h_irradiance_uav_desc[1]);
-		push_descriptor(ddgi_data_cpu.h_visibility_srv_desc[0]);
-		push_descriptor(ddgi_data_cpu.h_visibility_srv_desc[1]);
-		push_descriptor(ddgi_data_cpu.h_visibility_uav_desc[0]);
-		push_descriptor(ddgi_data_cpu.h_visibility_uav_desc[1]);
+		push_descriptor(ddgi_data_cpu.h_irradiance_srv_desc);
+		push_descriptor(ddgi_data_cpu.h_irradiance_uav_desc);
+		push_descriptor(ddgi_data_cpu.h_visibility_srv_desc);
+		push_descriptor(ddgi_data_cpu.h_visibility_uav_desc);
+
+		push_descriptor(ddgi_data_cpu.h_irradiance_clear_uav_desc);
+		push_descriptor(ddgi_data_cpu.h_visibility_clear_uav_desc);
+		push_descriptor(ddgi_data_cpu.h_probe_buffer_clear_uav_desc);
 
 		ddgi_data_cpu.enabled = false;
 	}
@@ -2330,15 +2309,22 @@ namespace age::graphics::render_pipeline::forward_plus
 		// ddgi
 		if (ddgi_data_cpu.enabled)
 		{
-			auto& ddgi_gpu						  = ddgi_data_cpu.ddgi_data_gpu;
-			ddgi_gpu.irradiance_atlas_prev_srv_id = calc_desc_idx(ddgi_data_cpu.h_irradiance_srv_desc[ddgi_data_cpu.idx_prev]);
-			ddgi_gpu.irradiance_atlas_curr_srv_id = calc_desc_idx(ddgi_data_cpu.h_irradiance_srv_desc[ddgi_data_cpu.idx_curr]);
-			ddgi_gpu.irradiance_atlas_uav_id	  = calc_desc_idx(ddgi_data_cpu.h_irradiance_uav_desc[ddgi_data_cpu.idx_curr]);
-			ddgi_gpu.visibility_atlas_prev_srv_id = calc_desc_idx(ddgi_data_cpu.h_visibility_srv_desc[ddgi_data_cpu.idx_prev]);
-			ddgi_gpu.visibility_atlas_curr_srv_id = calc_desc_idx(ddgi_data_cpu.h_visibility_srv_desc[ddgi_data_cpu.idx_curr]);
-			ddgi_gpu.visibility_atlas_uav_id	  = calc_desc_idx(ddgi_data_cpu.h_visibility_uav_desc[ddgi_data_cpu.idx_curr]);
-
+			auto& ddgi_gpu = ddgi_data_cpu.ddgi_data_gpu;
 			h_mapping_static_buffer->upload(&ddgi_gpu, sizeof(shared_type::ddgi_data), g::ddgi_data_offset);
+
+			if (ddgi_data_cpu.need_cleanup)
+			{
+				command::clear_uav(ddgi_data_cpu.h_irradiance_atlas, ddgi_data_cpu.h_irradiance_clear_uav_desc, float4::zero());
+				command::clear_uav(ddgi_data_cpu.h_visibility_atlas, ddgi_data_cpu.h_visibility_clear_uav_desc, float4::zero());
+				command::clear_uav(ddgi_data_cpu.h_probe_buffer, ddgi_data_cpu.h_probe_buffer_clear_uav_desc, uint32_4::zero());
+
+				command::apply_barriers(
+					barrier::tex_uav_to_srv(ddgi_data_cpu.h_irradiance_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+					barrier::tex_uav_to_srv(ddgi_data_cpu.h_visibility_atlas->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+					barrier::buf_uav_to_uav(ddgi_data_cpu.h_probe_buffer->p_resource));
+
+				ddgi_data_cpu.need_cleanup = false;
+			}
 		}
 
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
@@ -2348,7 +2334,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.unified_light_count						  = unified_light_vec.size<t_unified_light_id>(),
 			.env_light_brdf_lut_id						  = calc_desc_idx(h_env_light_brdf_lut),
 			.env_light_count							  = env_light_gpu_data_vec.size<uint32>(),
-			.ui_space_mode__ddgi_updated__extra			  = 0u,
+			.ui_space_mode_and_extra					  = 0u,
 			.selection_outline_meshlet_render_data_count  = selection_outline_meshlet_render_data_vec.size<uint32>(),
 			.selection_outline_mask_buffer_srv_texture_id = calc_desc_idx(h_selection_outline_mask_buffer_srv_desc),
 		});

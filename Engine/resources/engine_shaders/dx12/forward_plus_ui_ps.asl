@@ -135,7 +135,7 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 
 	attr_branch()
 
-	if ((ui_space_mode__ddgi_updated__extra & 0xff) == UI_SPACE_MODE_SCREEN)
+	if ((ui_space_mode_and_extra & 0xff) == UI_SPACE_MODE_SCREEN)
 	{
 		draw = ps_in.pos.x >= data.clip_rect.x
 		   and ps_in.pos.y >= data.clip_rect.y

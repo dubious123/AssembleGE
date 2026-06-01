@@ -46,9 +46,9 @@ namespace age::graphics::bake
 		g::bake_pipeline.h_pso_env_light_build_conditional_cdf.set_name(L"pso_env_light_build_conditional_cdf");
 		g::bake_pipeline.h_pso_down_sample_cube.set_name(L"pso_down_sample_cube");
 
-		g::bake_pipeline.h_env_light_input_srv_desc		 = graphics::g::cbv_srv_uav_desc_pool.pop();
-		g::bake_pipeline.h_env_light_radiance_srv_desc	 = graphics::g::cbv_srv_uav_desc_pool.pop();
-		g::bake_pipeline.h_env_light_irradiance_uav_desc = graphics::g::cbv_srv_uav_desc_pool.pop();
+		pop_descriptor(g::bake_pipeline.h_env_light_input_srv_desc);
+		pop_descriptor(g::bake_pipeline.h_env_light_radiance_srv_desc);
+		pop_descriptor(g::bake_pipeline.h_env_light_irradiance_uav_desc);
 
 		g::bake_pipeline.h_env_light_input_tex = resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
@@ -106,18 +106,18 @@ namespace age::graphics::bake
 
 		root_signature::destroy(g::bake_pipeline.h_root_sig);
 
-		graphics::g::cbv_srv_uav_desc_pool.push(g::bake_pipeline.h_env_light_input_srv_desc);
-		graphics::g::cbv_srv_uav_desc_pool.push(g::bake_pipeline.h_env_light_radiance_srv_desc);
-		graphics::g::cbv_srv_uav_desc_pool.push(g::bake_pipeline.h_env_light_irradiance_uav_desc);
+		push_descriptor(g::bake_pipeline.h_env_light_input_srv_desc);
+		push_descriptor(g::bake_pipeline.h_env_light_radiance_srv_desc);
+		push_descriptor(g::bake_pipeline.h_env_light_irradiance_uav_desc);
 
 		for (auto h : g::bake_pipeline.h_env_light_radiance_uav_desc_vec)
 		{
-			graphics::g::cbv_srv_uav_desc_pool.push(h);
+			push_descriptor(h);
 		}
 
 		for (auto h : g::bake_pipeline.h_env_light_prefilter_uav_desc_vec)
 		{
-			graphics::g::cbv_srv_uav_desc_pool.push(h);
+			push_descriptor(h);
 		}
 
 		g::bake_pipeline.h_env_light_radiance_uav_desc_vec.clear();
@@ -131,7 +131,7 @@ namespace age::graphics::bake::detail
 	begin() noexcept
 	{
 		command::begin();
-		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_pool.p_descriptor_heap);
+		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_heap.p_heap);
 		command::set_graphics_root_sig(g::bake_pipeline.h_root_sig.ptr());
 		command::set_compute_root_sig(g::bake_pipeline.h_root_sig.ptr());
 
@@ -162,12 +162,12 @@ namespace age::graphics::bake
 
 		for (auto _ : views::loop(std::max<uint64>(g::bake_pipeline.h_env_light_radiance_uav_desc_vec.size(), radiance_mip_count) - g::bake_pipeline.h_env_light_radiance_uav_desc_vec.size()))
 		{
-			g::bake_pipeline.h_env_light_radiance_uav_desc_vec.emplace_back(graphics::g::cbv_srv_uav_desc_pool.pop());
+			pop_descriptor(g::bake_pipeline.h_env_light_radiance_uav_desc_vec.emplace_back());
 		}
 
 		for (auto _ : views::loop(std::max<uint64>(g::bake_pipeline.h_env_light_prefilter_uav_desc_vec.size(), desc.prefilter_mip_count) - g::bake_pipeline.h_env_light_prefilter_uav_desc_vec.size()))
 		{
-			g::bake_pipeline.h_env_light_prefilter_uav_desc_vec.emplace_back(graphics::g::cbv_srv_uav_desc_pool.pop());
+			pop_descriptor(g::bake_pipeline.h_env_light_prefilter_uav_desc_vec.emplace_back());
 		}
 
 		if (resource::resize_buffer(g::bake_pipeline.h_env_light_radiance_luminance_buffer, header.extent.width * header.extent.height * sizeof(float)))
@@ -365,7 +365,7 @@ namespace age::graphics::bake
 			  .initial_layout	= D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			  .heap_memory_kind = e::memory_kind::gpu_only });
 
-		auto h_scratch_uav_desc = g::cbv_srv_uav_desc_pool.pop();
+		auto h_scratch_uav_desc = pop_descriptor<uav_desc_handle>();
 
 		resource::create_view(h_scratch,
 							  h_scratch_uav_desc,
@@ -396,7 +396,8 @@ namespace age::graphics::bake
 
 		command::execute_and_wait();
 
-		g::cbv_srv_uav_desc_pool.push(h_scratch_uav_desc);
+		push_descriptor(h_scratch_uav_desc);
+
 		resource::release(h_scratch);
 
 		pso::destroy(h_pso);

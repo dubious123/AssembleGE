@@ -22,6 +22,14 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::b<1, 0>>,
 
 		binding_slot<
+			"indirect_arg_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_byte_address_buffer,
+			how::root_descriptor,
+			where::u<2, 0>>,
+
+		binding_slot<
 			"static_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
@@ -174,7 +182,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::u<1, 7>>,
 
 		binding_slot<
-			"ddgi_probe_weight_sum_buffer_uav",
+			"ddgi_scratch_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::rw_byte_address_buffer,
@@ -350,22 +358,25 @@ namespace age::graphics::render_pipeline::forward_plus
 	struct ddgi_data
 	{
 		shared_type::ddgi_data ddgi_data_gpu;
-		bool				   enabled		 = false;
+		bool				   enabled = false;
+		bool				   need_cleanup;
 		bool				   render_probes = true;
-		uint8				   idx_prev		 = 0;
-		uint8				   idx_curr		 = 1;
 		uint8				   _;
 
 		extent_2d<uint32> irradiance_atlas_extent;
 		extent_2d<uint32> visibility_atlas_extent;
 
-		resource_handle h_irradiance_atlas[2];
-		resource_handle h_visibility_atlas[2];
+		resource_handle h_irradiance_atlas;
+		resource_handle h_visibility_atlas;
 		resource_handle h_probe_buffer;
-		resource_handle h_probe_weight_sum_buffer;
-		srv_desc_handle h_irradiance_srv_desc[2];
-		uav_desc_handle h_irradiance_uav_desc[2];
-		srv_desc_handle h_visibility_srv_desc[2];
-		uav_desc_handle h_visibility_uav_desc[2];
+		resource_handle h_ddgi_scratch_buffer;
+		srv_desc_handle h_irradiance_srv_desc;
+		uav_desc_handle h_irradiance_uav_desc;
+		srv_desc_handle h_visibility_srv_desc;
+		uav_desc_handle h_visibility_uav_desc;
+
+		clear_uav_desc_handle h_irradiance_clear_uav_desc;
+		clear_uav_desc_handle h_visibility_clear_uav_desc;
+		clear_uav_desc_handle h_probe_buffer_clear_uav_desc;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

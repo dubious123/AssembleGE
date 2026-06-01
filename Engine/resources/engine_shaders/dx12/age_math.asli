@@ -19,6 +19,12 @@ static const float float_max = 3.402823466e+38F;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+uint32
+ceil(uint32 x, uint32 y)
+{
+	return (x + y - 1) / y;
+}
+
 template <typename t>
 t
 max(t x, t y, t z)
@@ -835,6 +841,21 @@ sample_sphere_uniform(float2 xi)
 	const float sin_theta = sqrt(saturate(1.f - cos_theta * cos_theta));
 	const float phi		  = 2.f * pi * xi.y;
 	return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
+}
+
+float3
+sample_hemisphere_uniform(float2 xi)
+{
+	const float cos_theta = xi.x;
+	const float sin_theta = sqrt(saturate(1.f - cos_theta * cos_theta));
+	const float phi		  = 2.f * pi * xi.y;
+	return float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
+}
+
+float3
+sample_hemisphere_uniform(float2 xi, float3 normal)
+{
+	return mul(sample_hemisphere_uniform(xi), gen_normal_transform_t(normal));
 }
 
 float3

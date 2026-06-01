@@ -890,6 +890,7 @@ cross(float3, float3)
 	#define expand(...)	  [[assume(true)]]
 	#define expand_all()  [[assume(true)]]
 	#define attr_branch() [[assume(true)]]
+	#define attr_loop()	  [[assume(true)]]
 	#define groupshared
 
 	#define group_memory_barrier_with_sync()
@@ -956,6 +957,7 @@ cross(float3, float3)
 	#define expand(x)						 [unroll(x)]
 	#define expand_all()					 [unroll]
 	#define attr_branch()					 [branch]
+	#define attr_loop()						 [loop]
 	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
 
 	#define interlocked_add(...)		  InterlockedAdd(__VA_ARGS__)
