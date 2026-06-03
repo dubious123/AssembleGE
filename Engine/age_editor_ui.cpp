@@ -714,6 +714,8 @@ namespace age::editor
 
 		ui::widget::checkbox("enabled", cmp.enabled);
 
+		ui::widget::checkbox("lock origin", cmp.lock_origin);
+
 		constexpr c_auto probe_count_option_arr = std::array{
 			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
 			ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
@@ -768,6 +770,8 @@ namespace age::editor
 		ddgi_flag_checkbox(render_weight_sum);
 		ddgi_flag_checkbox(render_ray_count);
 		ddgi_flag_checkbox(render_state);
+		ddgi_flag_checkbox(render_msme);
+		ddgi_flag_checkbox(render_ray_factor);
 		ddgi_flag_checkbox(render_probe);
 
 #undef ddgi_flag_checkbox

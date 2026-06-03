@@ -32,6 +32,7 @@ float  cam_near_z;
 float  cam_far_z;
 uint32 ddgi_enabled_and_extra;
 float2 ddgi_cranley_patterson_rotation;
+float3 ddgi_origin;
 
 
 // cbuffer root_constants reg(b1)
@@ -726,17 +727,17 @@ ddgi_level_probe_radius(const ddgi_data data, uint32 lv)
 void
 ddgi_clear_probe_msme(inout ddgi_probe probe)
 {
-	probe.msme_front.mean_long		   = 0.f;
-	probe.msme_front.mean_short		   = 0.f;
-	probe.msme_front.relative_variance = 1.f;
-	probe.msme_front.inconsistency	   = 1.f;
-	probe.msme_front.vbbr			   = 1.f;
+	probe.msme_front.mean_long	   = 0.f;
+	probe.msme_front.mean_short	   = 0.f;
+	probe.msme_front.variance	   = 0.f;
+	probe.msme_front.inconsistency = 1.f;
+	probe.msme_front.vbbr		   = 1.f;
 
-	probe.msme_back.mean_long		  = 0.f;
-	probe.msme_back.mean_short		  = 0.f;
-	probe.msme_back.relative_variance = 1.f;
-	probe.msme_back.inconsistency	  = 1.f;
-	probe.msme_back.vbbr			  = 1.f;
+	probe.msme_back.mean_long	  = 0.f;
+	probe.msme_back.mean_short	  = 0.f;
+	probe.msme_back.variance	  = 0.f;
+	probe.msme_back.inconsistency = 1.f;
+	probe.msme_back.vbbr		  = 1.f;
 }
 
 bool
@@ -785,6 +786,38 @@ bool
 ddgi_debug_flags_render_state(const ddgi_data data)
 {
 	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_STATE;
+}
+
+bool
+ddgi_debug_flag_render_msme(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_MSME;
+}
+
+bool
+ddgi_debug_flag_render_ray_factor(const ddgi_data data)
+{
+	return data.debug_flags & DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR;
+}
+
+uint16
+ddgi_load_probe_state_and_extra(const ddgi_data data, uint32 probe_id)
+{
+	uint32 probe_count = ddgi_calc_probe_count(data);
+
+	uint32 ray_state_offset = data.ray_prefix_offset + probe_count * sizeof(uint32);
+
+	return load<uint16>(ddgi_scratch_buffer, ray_state_offset + probe_id * sizeof(uint16));
+}
+
+void
+ddgi_store_probe_state_and_extra(const ddgi_data data, uint32 probe_id, uint16 probe_state)
+{
+	uint32 probe_count = ddgi_calc_probe_count(data);
+
+	uint32 ray_state_offset = data.ray_prefix_offset + probe_count * sizeof(uint32);
+
+	store<uint16>(ddgi_scratch_buffer, ray_state_offset + probe_id * sizeof(uint16), probe_state);
 }
 
 // sampler

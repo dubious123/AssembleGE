@@ -15,43 +15,46 @@ calc_axis_level(const ddgi_data data, float cam_axis, float pixel_axis, uint32 x
 	{
 		const uint32 ratio = dist >> (probe_count_log2[x_y_z] - 1);
 
-		return bit_width(ratio);
+		return min(load_ddgi_level_count(data) - 1u, bit_width(ratio));
 	}
 }
 
 uint32
 ddgi_calc_level(const ddgi_data data, float3 world_pos)
 {
-	return max(calc_axis_level(data, camera_pos.x, world_pos.x, 0),
-			   calc_axis_level(data, camera_pos.y, world_pos.y, 1),
-			   calc_axis_level(data, camera_pos.z, world_pos.z, 2));
+	return max(calc_axis_level(data, ddgi_origin.x, world_pos.x, 0),
+			   calc_axis_level(data, ddgi_origin.y, world_pos.y, 1),
+			   calc_axis_level(data, ddgi_origin.z, world_pos.z, 2));
+}
+
+int32_3
+ddgi_calc_probe_world_coord(const ddgi_data data, uint32 probe_id, uint32 level)
+{
+	const uint32   local_id	 = probe_id & (load_ddgi_ppl(data) - 1);
+	const uint16_3 log2_axis = load_ddgi_ppl_log2_axis(data);
+	const uint32_3 axis		 = load_ddgi_probe_count_axis(log2_axis);
+	const int32_3  mask		 = int32_3(axis - 1);
+	const int32_3  local	 = int32_3(local_id & mask.x, (local_id >> log2_axis.x) & mask.y, local_id >> (log2_axis.x + log2_axis.y));
+
+	const float3  spacing	= ddgi_level_spacing(data, level);
+	const int32_3 cam_coord = int32_3(floor(ddgi_origin / spacing));
+	const int32_3 half		= int32_3(axis >> 1);
+
+	return cam_coord - half + ((local - cam_coord + half) & mask);
 }
 
 float3
 ddgi_calc_probe_pos(const ddgi_data data, uint32 probe_id, uint32 level)
 {
-	const uint32 li = probe_id & (load_ddgi_ppl(data) - 1);
+	const int32_3 world_coord = ddgi_calc_probe_world_coord(data, probe_id, level);
+	const float3  spacing	  = ddgi_level_spacing(data, level);
+	return (float3(world_coord) + 0.5f) * spacing;
+}
 
-	const uint16_3 ddgi_ppl_log2_axis = load_ddgi_ppl_log2_axis(data);
-	const uint32_3 probe_count_axis	  = load_ddgi_probe_count_axis(ddgi_ppl_log2_axis);
-	const int32_3  mask				  = int32_3(probe_count_axis - 1);
-
-	const int32_3 local = int32_3(
-		li & mask.x,
-		(li >> ddgi_ppl_log2_axis.x) & mask.y,
-		li >> (ddgi_ppl_log2_axis.x + ddgi_ppl_log2_axis.y));
-
-
+float3
+ddgi_calc_probe_pos(const ddgi_data data, int32_3 world_coord, uint32 level)
+{
 	const float3 spacing = ddgi_level_spacing(data, level);
-
-	const int32_3 cam_coord = cast<int32_3>(floor(camera_pos / spacing));
-	const int32_3 half		= int32_3(probe_count_axis.x >> 1, probe_count_axis.y >> 1, probe_count_axis.z >> 1);
-
-	int32_3 world_coord;
-	world_coord.x = cam_coord.x - half.x + ((local.x - cam_coord.x + half.x) & mask.x);
-	world_coord.y = cam_coord.y - half.y + ((local.y - cam_coord.y + half.y) & mask.y);
-	world_coord.z = cam_coord.z - half.z + ((local.z - cam_coord.z + half.z) & mask.z);
-
 	return (float3(world_coord) + 0.5f) * spacing;
 }
 
@@ -60,7 +63,7 @@ ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level
 {
 	if (level == 0) { return false; }
 
-	const float3 distance = abs(probe_pos - camera_pos);
+	const float3 distance = abs(probe_pos - ddgi_origin);
 
 	const float3 spacing	 = ddgi_level_spacing(data, level);
 	const float3 prev_radius = ddgi_level_probe_radius(data, level - 1);
@@ -83,11 +86,13 @@ ddgi_calc_blend_t(const ddgi_data ddgi_data, float3 world_pos, uint32 level)
 {
 	const float3 spacing = ddgi_data.base_probe_spacing * (1u << level);
 
-	const float3 half = load_ddgi_probe_count_axis(ddgi_data) * 0.5f - 0.5f;
+	const float3 probe_center = floor(ddgi_origin / spacing) * spacing;
 
-	const float transition = 1.0f;
+	const float3 dist = abs(probe_center - world_pos);
 
-	return max(saturate(((abs(world_pos - camera_pos) / spacing) - (half - transition)) / transition));
+	const float3 half		= (load_ddgi_probe_count_axis(ddgi_data) - 1) * 0.5f * spacing;
+	const float3 transition = spacing;
+	return max(saturate((dist - (half - transition)) / transition));
 }
 
 uint32
@@ -145,11 +150,14 @@ ddgi_sample_probe_visibility(const ddgi_data ddgi_data, uint32 probe_id, float3 
 	{
 		const float k	 = distance - mean;
 		chebyshev_weight = variance / (variance + k * k);	 // p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
-		chebyshev_weight = chebyshev_weight * chebyshev_weight * chebyshev_weight;
+		chebyshev_weight = pow_5(chebyshev_weight);
+
+															 // chebyshev_weight * chebyshev_weight * chebyshev_weight;
 	}
 
+	return chebyshev_weight;
 	// avoid zero visibility for fallback value
-	return max(chebyshev_weight, 0.05f);
+	// return max(chebyshev_weight, 0.05f);
 }
 
 float3
@@ -169,13 +177,11 @@ float3
 ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos, float3 normal)
 {
 	const float3 spacing  = ddgi_data.base_probe_spacing * (1u << level);
-	const float3 offset	  = (normal * DDGI_NORMAL_BIAS - normalize(world_pos - camera_pos) * DDGI_VIEW_BIAS) * (max(spacing));
+	const float3 offset	  = (normal * DDGI_NORMAL_BIAS /*- normalize(world_pos - ddgi_origin) * DDGI_VIEW_BIAS*/) * (max(spacing));
 	world_pos			 += offset;
 
-	const uint32_3 probe_count_axis = load_ddgi_probe_count_axis(load_ddgi_ppl_log2_axis(ddgi_data));
+	const uint32_3 probe_count_axis = load_ddgi_probe_count_axis(ddgi_data);
 	const int32_3  mask				= int32_3(probe_count_axis - 1);
-	const int32_3  half				= int32_3(probe_count_axis >> 1);
-	const int32_3  cam_coord		= int32_3(floor(camera_pos / spacing));
 
 	const float3  grid_float = world_pos / spacing - 0.5f;
 	const int32_3 grid_base	 = int32_3(floor(grid_float));
@@ -191,11 +197,10 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 		const int32_3 grid_offset = int32_3((i >> 0) & 1, (i >> 1) & 1, (i >> 2) & 1);
 		const int32_3 world_coord = grid_base + grid_offset;
 
-		const int32_3 local = world_coord & mask;
+		const int32_3 local	   = world_coord & mask;
+		const uint32  probe_id = local_to_probe_id(ddgi_data, local.x, local.y, local.z, level);
 
-		const uint32 probe_id = local_to_probe_id(ddgi_data, local.x, local.y, local.z, level);
-
-		const float3 probe_pos = (float3(world_coord) + 0.5f) * spacing;
+		const float3 probe_pos = ddgi_calc_probe_pos(ddgi_data, world_coord, level);
 
 		if (ddgi_is_probe_in_hole(ddgi_data, probe_pos, level))
 		{
@@ -205,6 +210,9 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 		{
 			continue;
 		}
+
+		uint16 probe_state = ddgi_load_probe_state_and_extra(ddgi_data, probe_id) & 0xff;
+
 
 		// const uint32 probe_id = local_to_probe_id(ddgi_data,
 		//										  world_coord.x & mask.x,
@@ -219,19 +227,39 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 		const float weight_z = grid_offset.z ? grid_frac.z : 1.0f - grid_frac.z;
 		float		weight	 = weight_x * weight_y * weight_z;
 
-		weight *= ddgi_sample_probe_visibility(ddgi_data, probe_id, world_pos - probe_pos);
-		weight	= max(weight, epsilon_1e4);
+		const float visibility	= ddgi_sample_probe_visibility(ddgi_data, probe_id, world_pos - probe_pos);
+		weight				   *= visibility;
+
+		if (probe_state == DDGI_PROBE_STATE_INSIDE_WALL)
+		{
+			// if (visibility > 0.1f)
+			//{
+			//	ddgi_add_probe_weight(probe_id, epsilon_1e4);
+			// }
+			continue;
+		}
+		else if (probe_state == DDGI_PROBE_STATE_OFF)
+		{
+			// wake probe up
+			ddgi_add_probe_weight(probe_id, epsilon_1e4);
+			continue;
+		}
+
 
 		const float3 probe_irradiance = ddgi_sample_probe_irradiance(ddgi_data, probe_id, normal);
 
 		ddgi_add_probe_weight(probe_id, weight);
 
-		irradiance_sum += probe_irradiance * weight;
+		// weight = max(weight, epsilon_1e4);
+		if (probe_state == DDGI_PROBE_STATE_NEW_BORN is_false)
+		{
+			irradiance_sum += probe_irradiance * weight;
 
-		weight_sum += weight;
+			weight_sum += weight;
+		}
 	}
 
-	return irradiance_sum / weight_sum;
+	return irradiance_sum / max(weight_sum, epsilon_1e4);
 }
 
 float3
@@ -246,11 +274,14 @@ sample_ddgi_irradiance(float3 world_pos, float3 normal)
 	const float blend_t = ddgi_calc_blend_t(ddgi_data, world_pos, level);
 	if (blend_t < 1.f - epsilon_1e4)
 	{
-		irradiance += ddgi_sample_probe_cage(ddgi_data, level, world_pos, normal) * (1 - blend_t);
+		irradiance += ddgi_sample_probe_cage(ddgi_data, level, world_pos, normal);
 	}
 
 	if (blend_t > epsilon_1e4 and (level + 1 < level_count))
 	{
+		// irradiance = float3(0, 10, 0);
+
+		irradiance *= (1 - blend_t);
 		irradiance += ddgi_sample_probe_cage(ddgi_data, level + 1, world_pos, normal) * blend_t;
 	}
 
@@ -260,16 +291,15 @@ sample_ddgi_irradiance(float3 world_pos, float3 normal)
 // based on ray-tracing-gems ch25
 // https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
 // returns blend factor (catch_up_blend)
+
 float
 ddgi_update_msme(inout ddgi_msme data, float y)
 {
-	float mean_long			= data.mean_long;
-	float mean_short		= data.mean_short;
-	float relative_variance = data.relative_variance;
-	float inconsistency		= data.inconsistency;
-	float vbbr				= data.vbbr;
-
-	float variance = relative_variance * mean_long * mean_long;
+	float mean_long		= data.mean_long;
+	float mean_short	= data.mean_short;
+	float variance		= data.variance;
+	float inconsistency = data.inconsistency;
+	float vbbr			= data.vbbr;
 
 	// Suppress fireflies.
 	{
@@ -302,11 +332,11 @@ ddgi_update_msme(inout ddgi_msme data, float y)
 	mean_long = lerp(mean_long, y, saturate(catch_up_blend));
 
 	// Output
-	data.mean_long		   = mean_long;
-	data.mean_short		   = mean_short;
-	data.relative_variance = variance / max(1e-5f, mean_long * mean_long);
-	data.inconsistency	   = inconsistency;
-	data.vbbr			   = vbbr;
+	data.mean_long	   = mean_long;
+	data.mean_short	   = mean_short;
+	data.variance	   = variance;
+	data.inconsistency = inconsistency;
+	data.vbbr		   = vbbr;
 
 	return catch_up_blend;
 }

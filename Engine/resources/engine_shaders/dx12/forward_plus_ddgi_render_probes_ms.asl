@@ -19,11 +19,11 @@ main_ms(
 
 	set_mesh_output_counts(vertex_count, triangle_count);
 
-	const ddgi_data ddgi_data = load_ddgi_data();
-	const uint32	level	  = probe_id >> load_ddgi_ppl_log2(ddgi_data);
-	// const ddgi_probe probe	   = load_ddgi_probe_srv(probe_id);
-	const float3 probe_pos = ddgi_calc_probe_pos(ddgi_data, probe_id, level) /*+ cast<float3>(probe.offset)*/;
-	const float	 radius	   = 0.1f * float(1u << level);
+	const ddgi_data	 ddgi_data = load_ddgi_data();
+	const uint32	 level	   = probe_id >> load_ddgi_ppl_log2(ddgi_data);
+	const ddgi_probe probe	   = load_ddgi_probe_srv(probe_id);
+	const float3	 probe_pos = ddgi_calc_probe_pos(ddgi_data, probe_id, level) + cast<float3>(probe.offset);
+	const float		 radius	   = 0.1f * float(1u << level);
 
 	static const float3 octahedron_vertices[6] = {
 		float3(1.0f, 0.0f, 0.0f),	  // +X

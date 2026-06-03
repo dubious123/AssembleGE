@@ -166,15 +166,16 @@
 #define DDGI_IRRADIANCE_TILE_SIZE  (DDGI_IRRADIANCE_RESOLUTION + DDGI_BORDER * 2)
 #define DDGI_VISIBILITY_TILE_SIZE  (DDGI_VISIBILITY_RESOLUTION + DDGI_BORDER * 2)
 
-#define DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD 32
-#define DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP 32	   // wave_count
+#define DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD 32u
+#define DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP 32u	// wave_count
 
-#define DDGI_PROBE_STATE_OFF	  0
-#define DDGI_PROBE_STATE_ACTIVE	  1
-#define DDGI_PROBE_STATE_SLEEP	  2
-#define DDGI_PROBE_STATE_NEW_BORN 3
+#define DDGI_PROBE_STATE_OFF		 3u
+#define DDGI_PROBE_STATE_ACTIVE		 1u
+#define DDGI_PROBE_STATE_SLEEP		 2u
+#define DDGI_PROBE_STATE_NEW_BORN	 0u
+#define DDGI_PROBE_STATE_INSIDE_WALL 4u
 
-#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16 * 8)
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16u * 8u)
 
 #define DDGI_RAY_BUDGET				 (1u << 20u)
 #define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
@@ -194,6 +195,8 @@
 #define DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM	  (1u << 5u)
 #define DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT	  (1u << 6u)
 #define DDGI_DEBUG_FLAGS_RENDER_STATE		  (1u << 7u)
+#define DDGI_DEBUG_FLAGS_RENDER_MSME		  (1u << 8u)
+#define DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR	  (1u << 9u)
 #define DDGI_DEBUG_FLAGS_RENDER_PROBE		  (1u << 31u)
 
 #define DDGI_PREFIX_THREAD_COUNT	   1024u
@@ -204,8 +207,12 @@
 
 #define DDGI_PROBE_MAX (DDGI_PREFIX_ELEMENT_PER_GROUP * DDGI_PREFIX_ELEMENT_PER_GROUP)
 
-#define DDGI_NORMAL_BIAS 0.1f
-#define DDGI_VIEW_BIAS	 0.05f
+#define DDGI_NORMAL_BIAS 0.02f
+#define DDGI_VIEW_BIAS	 0.00001f
+
+#define DDGI_MEAN_SQ_THRESHOLD 0.01f
+#define DDGI_NORMAL_BLEND	   0.05f
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -279,7 +286,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		float mean_long;
 		float mean_short;
-		float relative_variance;	// variance / mean_sq
+		float variance;	   // relative variance = variance / mean_sq
 		float inconsistency;
 		float vbbr;
 	};
@@ -288,8 +295,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint16 normal_oct_snorm8;
 		uint16 frame_since_seen;
-		uint16 state_and_ray_count_ideal;	 // [state(8)][ray_count_ideal(8)]
 		half3  offset;
+		uint16 state;				  // [state(8)][reallocated(1) ]
+		uint32 world_coord_packed;	  // 10 10 10 2
 
 		ddgi_msme msme_front;
 		ddgi_msme msme_back;
@@ -582,8 +590,10 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_far_z;
 		uint32 ddgi_enabled_and_extra;
 		float2 ddgi_cranley_patterson_rotation;
+		float3 ddgi_origin;
+		uint32 _;
 
-		uint32_4 extra[6];
+		uint32_4 extra[5];
 		// total: 256 * 2 bytes
 	};
 
@@ -742,6 +752,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM == to_idx(age::graphics::e::ddgi_debug_flags::render_weight_sum));
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT == to_idx(age::graphics::e::ddgi_debug_flags::render_ray_count));
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_STATE == to_idx(age::graphics::e::ddgi_debug_flags::render_state));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_MSME == to_idx(age::graphics::e::ddgi_debug_flags::render_msme));
+	static_assert(DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR == to_idx(age::graphics::e::ddgi_debug_flags::render_ray_factor));
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe));
 
 
@@ -928,6 +940,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	#undef DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM
 	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT
 	#undef DDGI_DEBUG_FLAGS_RENDER_STATE
+	#undef DDGI_DEBUG_FLAGS_RENDER_MSME
+	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR
 	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE
 
 	#undef DDGI_PREFIX_THREAD_COUNT
@@ -939,6 +953,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	#undef DDGI_NORMAL_BIAS
 	#undef DDGI_VIEW_BIAS
+	#undef DDGI_MEAN_SQ_THRESHOLD
+	#undef DDGI_NORMAL_BLEND
 }	 // namespace age::graphics::render_pipeline::forward_plus::g
 
 #else

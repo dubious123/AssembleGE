@@ -353,6 +353,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		float3						  base_probe_spacing;
 		uint32						  level_count;
 		graphics::e::ddgi_debug_flags debug_flags;
+		bool						  lock_origin;
+		uint8_3						  _;
 	};
 
 	struct ddgi_data
@@ -361,7 +363,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		bool				   enabled = false;
 		bool				   need_cleanup;
 		bool				   render_probes = true;
-		uint8				   _;
+		bool				   lock_origin;
 
 		extent_2d<uint32> irradiance_atlas_extent;
 		extent_2d<uint32> visibility_atlas_extent;
@@ -378,5 +380,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		clear_uav_desc_handle h_irradiance_clear_uav_desc;
 		clear_uav_desc_handle h_visibility_clear_uav_desc;
 		clear_uav_desc_handle h_probe_buffer_clear_uav_desc;
+
+		float3 origin;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

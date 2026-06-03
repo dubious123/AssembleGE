@@ -115,6 +115,7 @@ namespace age::editor
 				.base_probe_spacing	  = cmp.base_probe_spacing,
 				.level_count		  = cmp.level_count,
 				.debug_flags		  = cmp.debug_flags,
+				.lock_origin		  = cmp.lock_origin,
 			});
 		}
 	}

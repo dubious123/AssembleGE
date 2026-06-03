@@ -1968,10 +1968,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto offset_weight_sum	   = uint32{ 0u };
 		c_auto ray_count_offset		   = offset_weight_sum + probe_count * sizeof(uint32);
 		c_auto ray_prefix_offset	   = ray_count_offset + probe_count * sizeof(uint32);
-		c_auto ray_group_count_offset  = ray_prefix_offset + probe_count * sizeof(uint32);
+		c_auto ray_state_offset		   = ray_prefix_offset + probe_count * sizeof(uint32);
+		c_auto ray_group_count_offset  = ray_state_offset + probe_count * sizeof(uint16);
 		c_auto ray_group_prefix_offset = ray_group_count_offset + prefix_group_count * sizeof(uint32);
 		c_auto ray_result_offset	   = ray_group_prefix_offset + (1u + prefix_group_count) * sizeof(uint32);
 		c_auto buffer_byte_size		   = ray_result_offset + g::ddgi_ray_budget * sizeof(shared_type::ddgi_ray_result);
+
+		AGE_LOG(buffer_byte_size);
 
 		ddgi_data_gpu = shared_type::ddgi_data{
 			.ppl_log_2_and_ppl_bitwidth		= cast_to<uint32>((ppl_log2_x << 0u) | (ppl_log2_y << 8u) | (ppl_log2_z << 16u) | (ppl_bitwidth << 24u)),
@@ -2043,7 +2046,11 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		ddgi_data_cpu.enabled	   = true;
 		ddgi_data_cpu.need_cleanup = true;
-
+		if (desc.lock_origin and (ddgi_data_cpu.lock_origin is_false))
+		{
+			ddgi_data_cpu.origin = camera_data_vec[main_camera_id].pos;
+		}
+		ddgi_data_cpu.lock_origin	= desc.lock_origin;
 		ddgi_data_cpu.render_probes = has_all(desc.debug_flags, graphics::e::ddgi_debug_flags::render_probe);
 
 		ddgi_data_gpu.irradiance_atlas_srv_id = calc_desc_idx(ddgi_data_cpu.h_irradiance_srv_desc);
@@ -2369,6 +2376,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			.cam_far_z							  = main_cam_desc.far_z,
 			.ddgi_enabled_and_extra				  = ddgi_data_cpu.enabled,
 			.ddgi_cranley_patterson_rotation	  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
+			.ddgi_origin						  = ddgi_data_cpu.lock_origin ? ddgi_data_cpu.origin : main_cam_data.pos,
 			// todo, light bin config
 		};
 

@@ -137,6 +137,8 @@ namespace age::graphics::e
 							   (render_weight_sum, 0x20),
 							   (render_ray_count, 0x40),
 							   (render_state, 0x80),
+							   (render_msme, (1u << 8u)),
+							   (render_ray_factor, (1u << 9u)),
 							   (render_probe, (1u << 31u)));
 
 	AGE_ENUM_FLAG_OPERATORS(ddgi_debug_flags);

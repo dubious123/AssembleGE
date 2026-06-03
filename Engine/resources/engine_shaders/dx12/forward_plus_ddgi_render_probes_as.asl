@@ -29,7 +29,7 @@ main_as(
 	bool visible = clip_pos.w > 0.f
 			   and not(any(abs(ndc.xy) > 1.0f) or ndc.z < 0.0f or ndc.z > 1.0f or ndc.z < depth);
 
-	// visible &= level != 0;
+	// visible &= level < 3;
 
 	attr_branch()
 

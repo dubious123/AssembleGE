@@ -50,10 +50,8 @@ sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_norm
 	}
 	return 1.0;
 }
-
-float4
-main_ps(opaque_ms_to_ps fragment) sv_target_0
-{
+[earlydepthstencil] float4
+main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 	const uint32	 mat_id = fragment.mat_id;
 	const vertex_fat v		= fragment.v;
 
@@ -62,7 +60,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0
 	const material mat = load_material(mat_id);
 
 	const pbr_surface_data surface_data = calc_pbr_surface(camera_pos, mat, v);
-
 
 	const float3 ddx_pos		   = ddx(v.world_pos);
 	const float3 ddy_pos		   = ddy(v.world_pos);
