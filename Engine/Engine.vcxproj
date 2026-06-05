@@ -79,6 +79,7 @@
     <ClInclude Include="age_graphics_backend_dx12_root_signature.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_descriptor_pool.inl" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
+    <ClInclude Include="age_graphics_backend_render_pipeline_forward_plus_macro_guard.hpp" />
     <ClInclude Include="age_input.hpp" />
     <ClInclude Include="age_literal.hpp" />
     <ClInclude Include="age_macro.h" />

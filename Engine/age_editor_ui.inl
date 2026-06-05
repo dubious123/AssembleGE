@@ -103,18 +103,18 @@ namespace age::editor
 
 	// return : need update
 	bool
-	ui_component(age::ecs::ddgi_config& _) noexcept;
+	ui_component(age::ecs::gi_config& _) noexcept;
 
 	void
-	ui_component(age::ecs::ddgi_config& cmp, auto& renderer) noexcept
+	ui_component(age::ecs::gi_config& cmp, auto& renderer) noexcept
 	{
 		if (ui_component(cmp))
 		{
 			renderer.update_ddgi({
-				.probe_per_level_axis = cmp.probe_per_level_axis,
-				.base_probe_spacing	  = cmp.base_probe_spacing,
-				.level_count		  = cmp.level_count,
-				.debug_flags		  = cmp.debug_flags,
+				.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
+				.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
+				.level_count		  = cmp.ddgi_level_count,
+				.debug_flags		  = cmp.ddgi_debug_flags,
 				.lock_origin		  = cmp.lock_origin,
 			});
 		}

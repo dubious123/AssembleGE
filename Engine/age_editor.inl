@@ -340,17 +340,17 @@ namespace age::editor::detail
 
 		if (update_storage_ctx.ddgi_active_found is_false)
 		{
-			for (auto&& [cmp] : ecs_storage | each_entity_soft<ddgi_config>())
+			for (auto&& [cmp] : ecs_storage | each_entity_soft<gi_config>())
 			{
-				if (cmp.enabled)
+				if (cmp.enable_ddgi)
 				{
 					update_storage_ctx.ddgi_active_found = true;
 					if (renderer.ddgi_enabled() is_false)
 					{
 						renderer.enable_ddgi({
-							.probe_per_level_axis = cmp.probe_per_level_axis,
-							.base_probe_spacing	  = cmp.base_probe_spacing,
-							.level_count		  = cmp.level_count,
+							.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
+							.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
+							.level_count		  = cmp.ddgi_level_count,
 						});
 					}
 

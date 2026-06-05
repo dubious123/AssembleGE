@@ -1,218 +1,8 @@
 #pragma once
-#define MAX_UV_COUNT 2
-#define MAX_RAY_HIT	 8
-
-
-// static buffer offset
-#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 24)
-#define MAX_OBJECT_DATA_COUNT				 (1u << 20)
-#define MAX_DIRECTIONAL_LIGHT_COUNT			 2
-#define MAX_LIGHT_COUNT						 (512 * 512)
-
-#define MAX_ENV_LIGHT 8
-
-#define MAX_SELECTION_OUTLINE_THICKNESS 2
-
-// shadow
-// todo, measure shadow rt performance
-#define MAX_SHADOW_LIGHT_COUNT 100
-
-// light
-#define LIGHT_BIN_INIT_THREAD_COUNT 256
-#define LIGHT_CULL_THREAD_COUNT		256
-#define LIGHT_ZBIN_THREAD_COUNT		256
-
-#define LIGHT_BITMASK_UINT32_COUNT (MAX_LIGHT_COUNT / 32)
-
-#define X_SLICE_COUNT		 (512)
-#define Y_SLICE_COUNT		 (512)
-#define Z_SLICE_COUNT		 (512)
-#define LIGHT_AXIS_SLICE_MAX (512)
-
-#define LIGHT_BIN_ENTRY_X_OFFSET (0)
-#define LIGHT_BIN_ENTRY_Y_OFFSET (LIGHT_BIN_ENTRY_X_OFFSET + X_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
-#define LIGHT_BIN_ENTRY_Z_OFFSET (LIGHT_BIN_ENTRY_Y_OFFSET + Y_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
-
-#define LIGHT_BIN_MASK_X_OFFSET (LIGHT_BIN_ENTRY_Z_OFFSET + Z_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
-#define LIGHT_BIN_MASK_Y_OFFSET (LIGHT_BIN_MASK_X_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * X_SLICE_COUNT)
-#define LIGHT_BIN_MASK_Z_OFFSET (LIGHT_BIN_MASK_Y_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Y_SLICE_COUNT)
-
-#define LIGHT_BIN_BUFFER_SIZE (LIGHT_BIN_MASK_Z_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Z_SLICE_COUNT)
-
-
-#define LIGHT_KIND_DIRECTIONAL 0
-#define LIGHT_KIND_POINT	   1
-#define LIGHT_KIND_SPOT		   2
-#define LIGHT_KIND_AREA		   3
-#define LIGHT_KIND_VOLUMN	   4
-
-// sort
-#define SORT_THREAD_COUNT			  128
-#define SORT_ELEMENT_COUNT_PER_THREAD 4
-
-#define MAX_SORT_COUNT (512 * 512)
-
-#define SORT_BLOCK_SIZE (SORT_THREAD_COUNT * SORT_ELEMENT_COUNT_PER_THREAD)
-
-#define SORT_BLOCK_COUNT ((MAX_SORT_COUNT + SORT_BLOCK_SIZE - 1) / SORT_BLOCK_SIZE)
-
-#if defined(AGE_SHADER)
-	#define SORT_GROUP_COUNT (min(SORT_BLOCK_SIZE, SORT_BLOCK_COUNT))
-#else
-	#define SORT_GROUP_COUNT (std::min(SORT_BLOCK_SIZE, SORT_BLOCK_COUNT))
-#endif
-
-#define SORT_BLOCK_COUNT_PER_GROUP ((SORT_BLOCK_COUNT + SORT_GROUP_COUNT - 1) / SORT_GROUP_COUNT)
-
-#define SORT_BIN_BIT_WIDTH 4
-#define SORT_BIN_COUNT	   (1 << SORT_BIN_BIT_WIDTH)
-
-#define SORT_HISTOGRAM_TABLE_SIZE (SORT_BIN_COUNT * SORT_GROUP_COUNT)
-
-
-// transparent
-
-#if !defined(AGE_SHADER)
-	#define SHARED_TYPE shared_type::
-#else
-	#define SHARED_TYPE
-#endif
-
-// static
-#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
-#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
-#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
-#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
-#define STATIC_BUFFER_SIZE				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
-
-
-// scratch
-#define SCRATCH_SORT_BUFFER_OFFSET (0)
-
-#define SORT_KEYS_OFFSET	   (SCRATCH_SORT_BUFFER_OFFSET)
-#define SORT_KEYS_ALT_OFFSET   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
-#define SORT_VALUES_OFFSET	   (SORT_KEYS_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
-#define SORT_VALUES_ALT_OFFSET (SORT_VALUES_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
-#define SORT_HISTOGRAM_OFFSET  (SORT_VALUES_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
-#define SORT_BIN_COUNT_OFFSET  (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE * sizeof(uint32))
-
-#define LIGHT_CULL_PACKED_AABB_OFFSET (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
-#define SCRATCH_BUFFER_TOTAL_SIZE	  (LIGHT_CULL_PACKED_AABB_OFFSET + MAX_LIGHT_COUNT * sizeof(uint32))
-
-#define DDGI_GROUP_RAY_SUM_OFFSET (SCRATCH_SORT_BUFFER_OFFSET)
-
-
-#define RT_MASK_OPAQUE		0x01
-#define RT_MASK_TRANSPARENT 0x02
-#define RT_MASK_MASK		0x04
-#define RT_MASK_DEBUG		0x08
-#define RT_MASK_AOT			0x80
-#define RT_MASK_ALL			0xff
-
-// ui
-
-#define UI_SPACE_MODE_SCREEN			  0
-#define UI_SPACE_MODE_WORLD				  1
-#define UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP 2
-#define UI_SPACE_MODE_WORLD_BILLBOARD	  3
-
-#define UI_BRUSH_KIND_COLOR 0
-
-// mesh enum
-
-#define VERTEX_KIND_P_UV0	0
-#define VERTEX_KIND_PN_UV0	1
-#define VERTEX_KIND_PNT_UV0 2
-#define VERTEX_KIND_P_UV1	3
-#define VERTEX_KIND_PN_UV1	4
-#define VERTEX_KIND_PNT_UV1 5
-#define VERTEX_KIND_P_UV2	6
-#define VERTEX_KIND_PN_UV2	7
-#define VERTEX_KIND_PNT_UV2 8
-#define VERTEX_KIND_P_UV3	9
-#define VERTEX_KIND_PN_UV3	10
-#define VERTEX_KIND_PNT_UV3 11
-
-#define VERTEX_SIZE_P_UV0	12
-#define VERTEX_SIZE_PN_UV0	12
-#define VERTEX_SIZE_PNT_UV0 16
-#define VERTEX_SIZE_P_UV1	16
-#define VERTEX_SIZE_PN_UV1	16
-#define VERTEX_SIZE_PNT_UV1 20
-#define VERTEX_SIZE_P_UV2	20
-#define VERTEX_SIZE_PN_UV2	20
-#define VERTEX_SIZE_PNT_UV2 24
-#define VERTEX_SIZE_P_UV3	24
-#define VERTEX_SIZE_PN_UV3	24
-#define VERTEX_SIZE_PNT_UV3 28
-
-// material enum
-#define MATERIAL_ALPHA_BLEND_OPAQUE 0
-#define MATERIAL_ALPHA_BLEND_MASK	1
-#define MATERIAL_ALPHA_BLEND_BLEND	2
 
 // bloom
 #define MAX_BLOOM_MIP_COUNT 7
 #define MIN_BLOOM_MIP_PIXEL 8
-
-// ddgi
-#define DDGI_BORDER 1
-
-// do not change
-#define DDGI_IRRADIANCE_RESOLUTION 8
-#define DDGI_VISIBILITY_RESOLUTION 16
-#define DDGI_IRRADIANCE_TILE_SIZE  (DDGI_IRRADIANCE_RESOLUTION + DDGI_BORDER * 2)
-#define DDGI_VISIBILITY_TILE_SIZE  (DDGI_VISIBILITY_RESOLUTION + DDGI_BORDER * 2)
-
-#define DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD 32u
-#define DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP 32u	// wave_count
-
-#define DDGI_PROBE_STATE_OFF		 3u
-#define DDGI_PROBE_STATE_ACTIVE		 1u
-#define DDGI_PROBE_STATE_SLEEP		 2u
-#define DDGI_PROBE_STATE_NEW_BORN	 0u
-#define DDGI_PROBE_STATE_INSIDE_WALL 4u
-
-#define DDGI_PROBE_RAY_COUNT_NEW_BORN (0xffu)
-
-#define DDGI_RAY_BUDGET				 (1u << 20u)
-#define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
-
-#define DDGI_IRRADIANCE_ENERGY_CONSERVATION 0.95f
-
-#define DDGI_VISIBILITY_SHARPNESS	 50
-#define DDGI_VISIBILITY_BLEND_FACTOR 0.05f
-
-#define DDGI_PROBE_WEIGHT_SCALE 100000u
-
-#define DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE (1u << 0u)
-#define DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE	  (1u << 1u)
-#define DDGI_DEBUG_FLAGS_RENDER_VISIBILITY	  (1u << 2u)
-#define DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK	  (1u << 3u)
-#define DDGI_DEBUG_FLAGS_RENDER_LEVEL		  (1u << 4u)
-#define DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM	  (1u << 5u)
-#define DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT	  (1u << 6u)
-#define DDGI_DEBUG_FLAGS_RENDER_STATE		  (1u << 7u)
-#define DDGI_DEBUG_FLAGS_RENDER_MSME		  (1u << 8u)
-#define DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR	  (1u << 9u)
-#define DDGI_DEBUG_FLAGS_RENDER_PROBE		  (1u << 31u)
-
-#define DDGI_PREFIX_THREAD_COUNT	   1024u
-#define DDGI_PREFIX_ELEMENT_PER_THREAD 16u
-#define DDGI_PREFIX_ELEMENT_PER_GROUP  (DDGI_PREFIX_THREAD_COUNT * DDGI_PREFIX_ELEMENT_PER_THREAD)
-
-#define DDGI_TRACE_THREAD_PER_GROUP 32u
-
-#define DDGI_PROBE_MAX (DDGI_PREFIX_ELEMENT_PER_GROUP * DDGI_PREFIX_ELEMENT_PER_GROUP)
-
-#define DDGI_NORMAL_BIAS 0.02f
-#define DDGI_VIEW_BIAS	 0.00001f
-
-#define DDGI_MEAN_SQ_THRESHOLD 0.01f
-#define DDGI_NORMAL_BLEND	   0.05f
-
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -221,7 +11,12 @@
 	#define cbuffer struct
 	#define row_major
 	#define semantics(...)
+	#define SHARED_TYPE shared_type::
+#else
+	#define SHARED_TYPE
+#endif
 
+#if !defined(AGE_SHADER)
 namespace age::graphics::render_pipeline::forward_plus
 {
 #endif
@@ -618,75 +413,36 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 bloom_mip_level_and_extra;	 // src_mip, target_mip == src_mip + 1 or src_mip - 1
 	};
-
-
 #if !defined(AGE_SHADER)
 }	 // namespace age::graphics::render_pipeline::forward_plus::shared_type
-
 namespace age::graphics::render_pipeline::forward_plus::g
 {
-	// config
-	inline constexpr uint32 max_sort_count	= MAX_SORT_COUNT;
-	inline constexpr uint32 max_light_count = MAX_LIGHT_COUNT;
+#endif
 
-	inline constexpr auto max_shadow_light_count = MAX_SHADOW_LIGHT_COUNT;
-	inline constexpr auto max_object_count		 = MAX_OBJECT_DATA_COUNT;
-
-	// buffer offsets and size, texture size
-	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
-	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
-	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
-	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
-	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
-	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
-	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
-
-	inline constexpr uint32 scratch_buffer_total_size = SCRATCH_BUFFER_TOTAL_SIZE;
-
-
-	// sort
-	inline constexpr uint32 sort_thread_count	 = SORT_THREAD_COUNT;
-	inline constexpr uint32 sort_bin_count		 = SORT_BIN_COUNT;
-	inline constexpr uint32 sort_iteration_count = sizeof(float) * 8 / SORT_BIN_BIT_WIDTH;
-	inline constexpr uint32 sort_group_count	 = SORT_GROUP_COUNT;
-
-	// light
-	inline constexpr uint32 light_bin_stage_buffer_size = LIGHT_BIN_BUFFER_SIZE;
-
-	inline constexpr float3 light_axis_slice_count_float = float3{ X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT };
-	inline constexpr uint32 light_axis_slice_sum		 = X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT;
-
-	inline constexpr uint32 light_bin_init_thread_count = LIGHT_BIN_INIT_THREAD_COUNT;
-
-
-	inline constexpr uint32 light_cull_thread_count	   = LIGHT_CULL_THREAD_COUNT;
-	inline constexpr uint32 light_bitmask_uint32_count = LIGHT_BITMASK_UINT32_COUNT;
-	inline constexpr uint32 zbin_thread_count		   = LIGHT_ZBIN_THREAD_COUNT;
-
-	// ui
-	inline constexpr auto max_ui_z_count = 128;
-
+	//---[ configs, extra ]------------------------------------------------------------------------------------------------------
+#define MAX_SELECTION_OUTLINE_THICKNESS 2
+#define MAX_UV_COUNT					2
+#define MAX_RAY_HIT						8
 	// bloom
+#if !defined(AGE_SHADER)
 	inline constexpr auto max_bloom_mip_count = uint16{ MAX_BLOOM_MIP_COUNT };
 	inline constexpr auto min_bloom_mip_pixel = uint16{ MIN_BLOOM_MIP_PIXEL };
+#endif
 
-	// ddgi
-	inline constexpr auto ddgi_irradiance_tile_size = DDGI_IRRADIANCE_TILE_SIZE;
-	inline constexpr auto ddgi_visibility_tile_size = DDGI_VISIBILITY_TILE_SIZE;
+//---[ sort ]------------------------------------------------------------------------------------------------------
+#define SORT_THREAD_COUNT			  128
+#define SORT_ELEMENT_COUNT_PER_THREAD 4
+#define MAX_SORT_COUNT				  (512 * 512)
+#define SORT_BLOCK_SIZE				  (SORT_THREAD_COUNT * SORT_ELEMENT_COUNT_PER_THREAD)
+#define SORT_BLOCK_COUNT			  ((MAX_SORT_COUNT + SORT_BLOCK_SIZE - 1) / SORT_BLOCK_SIZE)
+#define SORT_GROUP_COUNT			  (min(SORT_BLOCK_SIZE, SORT_BLOCK_COUNT))
 
-	inline constexpr auto ddgi_irradiance_resolution = DDGI_IRRADIANCE_RESOLUTION;
-	inline constexpr auto ddgi_visibility_resolution = DDGI_VISIBILITY_RESOLUTION;
+#define SORT_BLOCK_COUNT_PER_GROUP ((SORT_BLOCK_COUNT + SORT_GROUP_COUNT - 1) / SORT_GROUP_COUNT)
+#define SORT_BIN_BIT_WIDTH		   4
+#define SORT_BIN_COUNT			   (1 << SORT_BIN_BIT_WIDTH)
+#define SORT_HISTOGRAM_TABLE_SIZE  (SORT_BIN_COUNT * SORT_GROUP_COUNT)
 
-	inline constexpr auto ddgi_update_probe_state_probe_per_group = DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP * DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD;
-
-	inline constexpr auto ddgi_prefix_element_per_group = DDGI_PREFIX_ELEMENT_PER_GROUP;
-	inline constexpr auto ddgi_ray_budget				= DDGI_RAY_BUDGET;
-
-	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
-
-	static_assert(MAX_OBJECT_DATA_COUNT < (1u << 28u));
-
-	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
+#if !defined(AGE_SHADER)
 	static_assert(MAX_SORT_COUNT % SORT_THREAD_COUNT == 0);
 	static_assert(MAX_SORT_COUNT <= SORT_GROUP_COUNT * SORT_BLOCK_COUNT_PER_GROUP * SORT_BLOCK_SIZE);
 	static_assert(SORT_GROUP_COUNT <= SORT_BLOCK_SIZE);
@@ -694,14 +450,92 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(SORT_THREAD_COUNT <= 0xff);
 	static_assert(SORT_THREAD_COUNT > 0);
 	static_assert(std::popcount<uint32>(SORT_THREAD_COUNT) == 1);
+
+	inline constexpr uint32 max_sort_count		 = MAX_SORT_COUNT;
+	inline constexpr uint32 sort_thread_count	 = SORT_THREAD_COUNT;
+	inline constexpr uint32 sort_bin_count		 = SORT_BIN_COUNT;
+	inline constexpr uint32 sort_iteration_count = sizeof(float) * 8 / SORT_BIN_BIT_WIDTH;
+	inline constexpr uint32 sort_group_count	 = SORT_GROUP_COUNT;
+#endif
+
+
+	//---[ light ]------------------------------------------------------------------------------------------------------
+#define MAX_LIGHT_COUNT				(512 * 512)
+#define MAX_ENV_LIGHT				8
+#define MAX_DIRECTIONAL_LIGHT_COUNT 2
+#define MAX_SHADOW_LIGHT_COUNT		100
+
+#define LIGHT_BIN_INIT_THREAD_COUNT 256
+#define LIGHT_CULL_THREAD_COUNT		256
+#define LIGHT_ZBIN_THREAD_COUNT		256
+#define LIGHT_BITMASK_UINT32_COUNT	(MAX_LIGHT_COUNT / 32)
+#define X_SLICE_COUNT				(512)
+#define Y_SLICE_COUNT				(512)
+#define Z_SLICE_COUNT				(512)
+#define LIGHT_AXIS_SLICE_MAX		(512)
+#define LIGHT_BIN_ENTRY_X_OFFSET	(0)
+#define LIGHT_BIN_ENTRY_Y_OFFSET	(LIGHT_BIN_ENTRY_X_OFFSET + X_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+#define LIGHT_BIN_ENTRY_Z_OFFSET	(LIGHT_BIN_ENTRY_Y_OFFSET + Y_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+#define LIGHT_BIN_MASK_X_OFFSET		(LIGHT_BIN_ENTRY_Z_OFFSET + Z_SLICE_COUNT * sizeof(SHARED_TYPE zbin_entry))
+#define LIGHT_BIN_MASK_Y_OFFSET		(LIGHT_BIN_MASK_X_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * X_SLICE_COUNT)
+#define LIGHT_BIN_MASK_Z_OFFSET		(LIGHT_BIN_MASK_Y_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Y_SLICE_COUNT)
+#define LIGHT_BIN_BUFFER_SIZE		(LIGHT_BIN_MASK_Z_OFFSET + LIGHT_BITMASK_UINT32_COUNT * sizeof(uint32) * Z_SLICE_COUNT)
+#define LIGHT_KIND_DIRECTIONAL		0
+#define LIGHT_KIND_POINT			1
+#define LIGHT_KIND_SPOT				2
+#define LIGHT_KIND_AREA				3
+#define LIGHT_KIND_VOLUMN			4
+#if !defined(AGE_SHADER)
+	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
 	static_assert(LIGHT_AXIS_SLICE_MAX == max(X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT));
 
-	static_assert(UI_SPACE_MODE_SCREEN == to_idx(age::ui::e::space_mode_kind::screen));
-	static_assert(UI_SPACE_MODE_WORLD == to_idx(age::ui::e::space_mode_kind::world));
-	static_assert(UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP == to_idx(age::ui::e::space_mode_kind::world_always_on_top));
-	static_assert(UI_SPACE_MODE_WORLD_BILLBOARD == to_idx(age::ui::e::space_mode_kind::world_billboard));
+	inline constexpr uint32 max_light_count				= MAX_LIGHT_COUNT;
+	inline constexpr auto	max_env_light				= MAX_ENV_LIGHT;
+	inline constexpr auto	max_directional_light_count = MAX_DIRECTIONAL_LIGHT_COUNT;
+	inline constexpr auto	max_shadow_light_count		= MAX_SHADOW_LIGHT_COUNT;
 
-	static_assert(UI_BRUSH_KIND_COLOR == to_idx(age::ui::e::brush_kind::color));
+	inline constexpr uint32 light_bin_stage_buffer_size	 = LIGHT_BIN_BUFFER_SIZE;
+	inline constexpr float3 light_axis_slice_count_float = float3{ X_SLICE_COUNT, Y_SLICE_COUNT, Z_SLICE_COUNT };
+	inline constexpr uint32 light_axis_slice_sum		 = X_SLICE_COUNT + Y_SLICE_COUNT + Z_SLICE_COUNT;
+	inline constexpr uint32 light_bin_init_thread_count	 = LIGHT_BIN_INIT_THREAD_COUNT;
+	inline constexpr uint32 light_cull_thread_count		 = LIGHT_CULL_THREAD_COUNT;
+	inline constexpr uint32 light_bitmask_uint32_count	 = LIGHT_BITMASK_UINT32_COUNT;
+	inline constexpr uint32 zbin_thread_count			 = LIGHT_ZBIN_THREAD_COUNT;
+#endif
+
+	//---[ object, meshlet ]------------------------------------------------------------------------------------------------------
+#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 24)
+#define MAX_OBJECT_DATA_COUNT				 (1u << 20)
+
+#define VERTEX_KIND_P_UV0	0
+#define VERTEX_KIND_PN_UV0	1
+#define VERTEX_KIND_PNT_UV0 2
+#define VERTEX_KIND_P_UV1	3
+#define VERTEX_KIND_PN_UV1	4
+#define VERTEX_KIND_PNT_UV1 5
+#define VERTEX_KIND_P_UV2	6
+#define VERTEX_KIND_PN_UV2	7
+#define VERTEX_KIND_PNT_UV2 8
+#define VERTEX_KIND_P_UV3	9
+#define VERTEX_KIND_PN_UV3	10
+#define VERTEX_KIND_PNT_UV3 11
+
+#define VERTEX_SIZE_P_UV0	12
+#define VERTEX_SIZE_PN_UV0	12
+#define VERTEX_SIZE_PNT_UV0 16
+#define VERTEX_SIZE_P_UV1	16
+#define VERTEX_SIZE_PN_UV1	16
+#define VERTEX_SIZE_PNT_UV1 20
+#define VERTEX_SIZE_P_UV2	20
+#define VERTEX_SIZE_PN_UV2	20
+#define VERTEX_SIZE_PNT_UV2 24
+#define VERTEX_SIZE_P_UV3	24
+#define VERTEX_SIZE_PN_UV3	24
+#define VERTEX_SIZE_PNT_UV3 28
+#if !defined(AGE_SHADER)
+	inline constexpr auto max_object_count = MAX_OBJECT_DATA_COUNT;
+
+	static_assert(MAX_OBJECT_DATA_COUNT < (1u << 28u));
 
 	static_assert(VERTEX_KIND_P_UV0 == to_idx(age::asset::e::vertex_kind::p_uv0));
 	static_assert(VERTEX_KIND_PN_UV0 == to_idx(age::asset::e::vertex_kind::pn_uv0));
@@ -728,17 +562,151 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(VERTEX_SIZE_P_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::p_uv3>));
 	static_assert(VERTEX_SIZE_PN_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pn_uv3>));
 	static_assert(VERTEX_SIZE_PNT_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv3>));
+#endif
 
-	static_assert(MATERIAL_ALPHA_BLEND_OPAQUE == to_idx(age::asset::e::alpha_mode_kind::opaque));
-	static_assert(MATERIAL_ALPHA_BLEND_MASK == to_idx(age::asset::e::alpha_mode_kind::mask));
-	static_assert(MATERIAL_ALPHA_BLEND_BLEND == to_idx(age::asset::e::alpha_mode_kind::blend));
+	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
+#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
+#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
+#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
+#define STATIC_BUFFER_SIZE				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
+#if !defined(AGE_SHADER)
+	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
+	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
+	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
+	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
+	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
+	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
+#endif
 
+	//---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------
+#define SCRATCH_SORT_BUFFER_OFFSET (0)
+#define SORT_KEYS_OFFSET		   (SCRATCH_SORT_BUFFER_OFFSET)
+#define SORT_KEYS_ALT_OFFSET	   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+#define SORT_VALUES_OFFSET		   (SORT_KEYS_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+#define SORT_VALUES_ALT_OFFSET	   (SORT_VALUES_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+#define SORT_HISTOGRAM_OFFSET	   (SORT_VALUES_ALT_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
+#define SORT_BIN_COUNT_OFFSET	   (SORT_HISTOGRAM_OFFSET + SORT_HISTOGRAM_TABLE_SIZE * sizeof(uint32))
+#define SCRATCH_BUFFER_TOTAL_SIZE  (SORT_BIN_COUNT_OFFSET + SORT_BIN_COUNT * sizeof(uint32))
+#if !defined(AGE_SHADER)
+	inline constexpr uint32 scratch_buffer_total_size = SCRATCH_BUFFER_TOTAL_SIZE;
+#endif
+	//---[ rt ]------------------------------------------------------------------------------------------------------
+#define RT_MASK_OPAQUE		0x01
+#define RT_MASK_TRANSPARENT 0x02
+#define RT_MASK_MASK		0x04
+#define RT_MASK_DEBUG		0x08
+#define RT_MASK_AOT			0x80
+#define RT_MASK_ALL			0xff
+#if !defined(AGE_SHADER)
 	static_assert(RT_MASK_OPAQUE == to_idx(age::graphics::e::rt_mask_kind::opaque));
 	static_assert(RT_MASK_TRANSPARENT == to_idx(age::graphics::e::rt_mask_kind::transparent));
 	static_assert(RT_MASK_MASK == to_idx(age::graphics::e::rt_mask_kind::mask));
 	static_assert(RT_MASK_DEBUG == to_idx(age::graphics::e::rt_mask_kind::debug));
 	static_assert(RT_MASK_AOT == to_idx(age::graphics::e::rt_mask_kind::always_on_top));
 	static_assert(RT_MASK_ALL == to_idx(age::graphics::e::rt_mask_kind::all));
+#endif
+	//---[ ui ]------------------------------------------------------------------------------------------------------
+#define UI_SPACE_MODE_SCREEN			  0
+#define UI_SPACE_MODE_WORLD				  1
+#define UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP 2
+#define UI_SPACE_MODE_WORLD_BILLBOARD	  3
+
+#define UI_BRUSH_KIND_COLOR 0
+#if !defined(AGE_SHADER)
+	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
+
+	static_assert(UI_SPACE_MODE_SCREEN == to_idx(age::ui::e::space_mode_kind::screen));
+	static_assert(UI_SPACE_MODE_WORLD == to_idx(age::ui::e::space_mode_kind::world));
+	static_assert(UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP == to_idx(age::ui::e::space_mode_kind::world_always_on_top));
+	static_assert(UI_SPACE_MODE_WORLD_BILLBOARD == to_idx(age::ui::e::space_mode_kind::world_billboard));
+
+	static_assert(UI_BRUSH_KIND_COLOR == to_idx(age::ui::e::brush_kind::color));
+
+	inline constexpr auto max_ui_z_count = 128;
+#endif
+
+	//---[ material ]------------------------------------------------------------------------------------------------------
+#define MATERIAL_ALPHA_BLEND_OPAQUE 0
+#define MATERIAL_ALPHA_BLEND_MASK	1
+#define MATERIAL_ALPHA_BLEND_BLEND	2
+#if !defined(AGE_SHADER)
+	static_assert(MATERIAL_ALPHA_BLEND_OPAQUE == to_idx(age::asset::e::alpha_mode_kind::opaque));
+	static_assert(MATERIAL_ALPHA_BLEND_MASK == to_idx(age::asset::e::alpha_mode_kind::mask));
+	static_assert(MATERIAL_ALPHA_BLEND_BLEND == to_idx(age::asset::e::alpha_mode_kind::blend));
+#endif
+
+
+	//---[ ddgi ]------------------------------------------------------------------------------------------------------
+#define DDGI_BORDER 1
+
+// do not change
+#define DDGI_IRRADIANCE_RESOLUTION 8
+#define DDGI_VISIBILITY_RESOLUTION 16
+#define DDGI_IRRADIANCE_TILE_SIZE  (DDGI_IRRADIANCE_RESOLUTION + DDGI_BORDER * 2)
+#define DDGI_VISIBILITY_TILE_SIZE  (DDGI_VISIBILITY_RESOLUTION + DDGI_BORDER * 2)
+
+#define DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD 32u
+#define DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP 32u	// wave_count
+
+#define DDGI_PROBE_STATE_OFF		 3u
+#define DDGI_PROBE_STATE_ACTIVE		 1u
+#define DDGI_PROBE_STATE_SLEEP		 2u
+#define DDGI_PROBE_STATE_NEW_BORN	 0u
+#define DDGI_PROBE_STATE_INSIDE_WALL 4u
+
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN (0xffu)
+
+#define DDGI_RAY_BUDGET				 (1u << 20u)
+#define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
+
+#define DDGI_IRRADIANCE_ENERGY_CONSERVATION 0.95f
+
+#define DDGI_VISIBILITY_SHARPNESS	 50
+#define DDGI_VISIBILITY_BLEND_FACTOR 0.05f
+
+#define DDGI_PROBE_WEIGHT_SCALE 100000u
+
+#define DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE (1u << 0u)
+#define DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE	  (1u << 1u)
+#define DDGI_DEBUG_FLAGS_RENDER_VISIBILITY	  (1u << 2u)
+#define DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK	  (1u << 3u)
+#define DDGI_DEBUG_FLAGS_RENDER_LEVEL		  (1u << 4u)
+#define DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM	  (1u << 5u)
+#define DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT	  (1u << 6u)
+#define DDGI_DEBUG_FLAGS_RENDER_STATE		  (1u << 7u)
+#define DDGI_DEBUG_FLAGS_RENDER_MSME		  (1u << 8u)
+#define DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR	  (1u << 9u)
+#define DDGI_DEBUG_FLAGS_RENDER_PROBE		  (1u << 31u)
+
+#define DDGI_PREFIX_THREAD_COUNT	   1024u
+#define DDGI_PREFIX_ELEMENT_PER_THREAD 16u
+#define DDGI_PREFIX_ELEMENT_PER_GROUP  (DDGI_PREFIX_THREAD_COUNT * DDGI_PREFIX_ELEMENT_PER_THREAD)
+
+#define DDGI_TRACE_THREAD_PER_GROUP 32u
+
+#define DDGI_PROBE_MAX (DDGI_PREFIX_ELEMENT_PER_GROUP * DDGI_PREFIX_ELEMENT_PER_GROUP)
+
+#define DDGI_NORMAL_BIAS 0.02f
+#define DDGI_VIEW_BIAS	 0.00001f
+
+#define DDGI_MEAN_SQ_THRESHOLD 0.01f
+#define DDGI_NORMAL_BLEND	   0.05f
+
+#if !defined(AGE_SHADER)
+	inline constexpr auto ddgi_irradiance_tile_size = DDGI_IRRADIANCE_TILE_SIZE;
+	inline constexpr auto ddgi_visibility_tile_size = DDGI_VISIBILITY_TILE_SIZE;
+
+	inline constexpr auto ddgi_irradiance_resolution = DDGI_IRRADIANCE_RESOLUTION;
+	inline constexpr auto ddgi_visibility_resolution = DDGI_VISIBILITY_RESOLUTION;
+
+	inline constexpr auto ddgi_update_probe_state_probe_per_group = DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP * DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD;
+
+	inline constexpr auto ddgi_prefix_element_per_group = DDGI_PREFIX_ELEMENT_PER_GROUP;
+	inline constexpr auto ddgi_ray_budget				= DDGI_RAY_BUDGET;
 
 	static_assert(DDGI_VISIBILITY_RESOLUTION >= DDGI_IRRADIANCE_RESOLUTION);
 	static_assert(DDGI_PROBE_RAY_COUNT_NEW_BORN <= 0xff);
@@ -756,208 +724,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_MSME == to_idx(age::graphics::e::ddgi_debug_flags::render_msme));
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR == to_idx(age::graphics::e::ddgi_debug_flags::render_ray_factor));
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe));
+#endif
 
-
-	#undef reg
-	#undef cbuffer
-	#undef row_major
-	#undef semantics
-
-	#undef MAX_UV_COUNT
-	#undef MAX_RAY_HIT
-
-	// static buffer offset
-	#undef MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT
-	#undef MAX_OBJECT_DATA_COUNT
-	#undef MAX_DIRECTIONAL_LIGHT_COUNT
-	#undef MAX_LIGHT_COUNT
-
-	#undef MAX_SHADOW_LIGHT_COUNT
-
-	#undef MAX_ENV_LIGHT
-	#undef MAX_SELECTION_OUTLINE_THICKNESS
-
-	// light cull
-	#undef LIGHT_BIN_INIT_THREAD_COUNT
-	#undef LIGHT_CULL_THREAD_COUNT
-	#undef LIGHT_ZBIN_THREAD_COUNT
-
-	#undef Z_SLICE_COUNT
-	#undef X_SLICE_COUNT
-	#undef Y_SLICE_COUNT
-	#undef LIGHT_AXIS_SLICE_MAX
-
-	#undef LIGHT_TILE_SIZE
-	#undef LIGHT_BITMASK_UINT32_COUNT
-
-	#undef LIGHT_KIND_DIRECTIONAL
-	#undef LIGHT_KIND_POINT
-	#undef LIGHT_KIND_SPOT
-	#undef LIGHT_KIND_AREA
-	#undef LIGHT_KIND_VOLUMN
-
-	// scratch buffer
-
-	// sort
-	#undef SORT_THREAD_COUNT
-	#undef SORT_ELEMENT_COUNT_PER_THREAD
-
-	#undef MAX_SORT_COUNT
-
-	#undef SORT_BLOCK_SIZE
-
-	#undef SORT_BLOCK_COUNT
-
-	#if defined(AGE_SHADER)
-		#undef SORT_GROUP_COUNT
-	#else
-		#undef SORT_GROUP_COUNT
-	#endif
-
-	#undef SORT_BLOCK_COUNT_PER_GROUP
-
-	#undef SORT_BIN_BIT_WIDTH
-	#undef SORT_BIN_COUNT
-
-	#undef SORT_HISTOGRAM_TABLE_SIZE
-
-
-	// transparent
-
-	#if !defined(AGE_SHADER)
-		#undef SHARED_TYPE
-	#else
-		#undef SHARED_TYPE
-	#endif
-
-	// static
-	#undef OPAQUE_MSHLT_OBJECT_DATA_OFFSET
-	#undef OBJECT_DATA_OFFSET
-	#undef DIRECTIONAL_LIGHT_OFFSET
-	#undef UNIFIED_LIGHT_OFFSET
-	#undef BLOOM_OFFSET
-	#undef DDGI_DATA_OFFSET
-	#undef STATIC_BUFFER_SIZE
-
-
-	// scratch
-	#undef SCRATCH_SORT_BUFFER_OFFSET
-
-	#undef SORT_KEYS_OFFSET
-	#undef SORT_KEYS_ALT_OFFSET
-	#undef SORT_VALUES_OFFSET
-	#undef SORT_VALUES_ALT_OFFSET
-	#undef SORT_HISTOGRAM_OFFSET
-	#undef SORT_BIN_COUNT_OFFSET
-
-	#undef LIGHT_CULL_PACKED_AABB_OFFSET
-	#undef VISIBLE_LIGHT_COUNT_OFFSET
-	#undef SCRATCH_BUFFER_TOTAL_SIZE
-
-	// light cull
-	#undef LIGHT_CULL_ZBIN_OFFSET
-	#undef LIGHT_CULL_TILE_MASK_OFFSET
-
-
-	#undef RT_MASK_OPAQUE
-	#undef RT_MASK_TRANSPARENT
-	#undef RT_MASK_MASK
-	#undef RT_MASK_DEBUG
-	#undef RT_MASK_AOT
-	#undef RT_MASK_ALL
-
-	#undef UI_SPACE_MODE_SCREEN
-	#undef UI_SPACE_MODE_WORLD
-	#undef UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP
-	#undef UI_SPACE_MODE_WORLD_BILLBOARD
-
-	#undef UI_BRUSH_KIND_COLOR
-
-	#undef VERTEX_KIND_P_UV0
-	#undef VERTEX_KIND_PN_UV0
-	#undef VERTEX_KIND_PNT_UV0
-	#undef VERTEX_KIND_P_UV1
-	#undef VERTEX_KIND_PN_UV1
-	#undef VERTEX_KIND_PNT_UV1
-	#undef VERTEX_KIND_P_UV2
-	#undef VERTEX_KIND_PN_UV2
-	#undef VERTEX_KIND_PNT_UV2
-	#undef VERTEX_KIND_P_UV3
-	#undef VERTEX_KIND_PN_UV3
-	#undef VERTEX_KIND_PNT_UV3
-
-
-	#undef VERTEX_SIZE_P_UV0
-	#undef VERTEX_SIZE_PN_UV0
-	#undef VERTEX_SIZE_PNT_UV0
-	#undef VERTEX_SIZE_P_UV1
-	#undef VERTEX_SIZE_PN_UV1
-	#undef VERTEX_SIZE_PNT_UV1
-	#undef VERTEX_SIZE_P_UV2
-	#undef VERTEX_SIZE_PN_UV2
-	#undef VERTEX_SIZE_PNT_UV2
-	#undef VERTEX_SIZE_P_UV3
-	#undef VERTEX_SIZE_PN_UV3
-	#undef VERTEX_SIZE_PNT_UV3
-
-	#undef MATERIAL_ALPHA_BLEND_OPAQUE
-	#undef MATERIAL_ALPHA_BLEND_MASK
-	#undef MATERIAL_ALPHA_BLEND_BLEND
-
-	#undef MAX_BLOOM_MIP_COUNT
-	#undef MIN_BLOOM_MIP_PIXEL
-
-	// ddgi
-	#undef DDGI_BORDER
-	#undef DDGI_IRRADIANCE_RESOLUTION
-	#undef DDGI_VISIBILITY_RESOLUTION
-	#undef DDGI_IRRADIANCE_TILE_SIZE
-	#undef DDGI_VISIBILITY_TILE_SIZE
-	#undef DDGI_UPDATE_PROBE_STATE_THREAD_PER_GROUP
-	#undef DDGI_UPDATE_PROBE_STATE_PROBE_PER_THREAD
-
-	#undef DDGI_GROUP_RAY_SUM_OFFSET
-
-	#undef DDGI_PROBE_STATE_OFF
-	#undef DDGI_PROBE_STATE_ACTIVE
-	#undef DDGI_PROBE_STATE_SLEEP
-	#undef DDGI_PROBE_STATE_NEW_BORN
-
-	#undef DDGI_PROBE_RAY_COUNT_NEW_BORN
-
-	#undef DDGI_RAY_BUDGET
-	#undef DDGI_MSME_SHORT_WINDOW_BLEND
-	#undef DDGI_IRRADIANCE_ENERGY_CONSERVATION
-	#undef DDGI_VISIBILITY_SHARPNESS
-	#undef DDGI_VISIBILITY_BLEND_FACTOR
-
-	#undef DDGI_PROBE_WEIGHT_SCALE
-
-	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE_IN_HOLE
-	#undef DDGI_DEBUG_FLAGS_RENDER_IRRADIANCE
-	#undef DDGI_DEBUG_FLAGS_RENDER_VISIBILITY
-	#undef DDGI_DEBUG_FLAGS_RENDER_FRONT_BACK
-	#undef DDGI_DEBUG_FLAGS_RENDER_LEVEL
-	#undef DDGI_DEBUG_FLAGS_RENDER_WEIGHT_SUM
-	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_COUNT
-	#undef DDGI_DEBUG_FLAGS_RENDER_STATE
-	#undef DDGI_DEBUG_FLAGS_RENDER_MSME
-	#undef DDGI_DEBUG_FLAGS_RENDER_RAY_FACTOR
-	#undef DDGI_DEBUG_FLAGS_RENDER_PROBE
-
-	#undef DDGI_PREFIX_THREAD_COUNT
-	#undef DDGI_PREFIX_ELEMENT_PER_THREAD
-	#undef DDGI_PREFIX_ELEMENT_PER_GROUP
-
-	#undef DDGI_TRACE_THREAD_PER_GROUP
-	#undef DDGI_PROBE_MAX
-
-	#undef DDGI_NORMAL_BIAS
-	#undef DDGI_VIEW_BIAS
-	#undef DDGI_MEAN_SQ_THRESHOLD
-	#undef DDGI_NORMAL_BLEND
-}	 // namespace age::graphics::render_pipeline::forward_plus::g
-
-#else
-
+#if !defined(AGE_SHADER)
+}
+	#include "age_graphics_backend_render_pipeline_forward_plus_macro_guard.hpp"
 #endif

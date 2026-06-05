@@ -158,18 +158,6 @@ load_sort_bin_count(uint32 idx)
 	return load<uint32>(scratch_buffer, SORT_BIN_COUNT_OFFSET + idx * sizeof(uint32));
 }
 
-void
-store_packed_aabb(uint32 idx, uint32 packed)
-{
-	store<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32), packed);
-}
-
-uint32
-load_packed_aabb(uint32 idx)
-{
-	return load<uint32>(scratch_buffer, LIGHT_CULL_PACKED_AABB_OFFSET + idx * sizeof(uint32));
-}
-
 // execute indirect arg buffer
 rw_byte_address_buffer indirect_arg_buffer_uav reg(u2, space0);
 
@@ -576,43 +564,43 @@ ddgi_load_ray_result(const ddgi_data ddgi_data, uint32 ray_id)
 void
 ddgi_store_group_ray_sum_ideal(const ddgi_data ddgi_data, uint32 idx, uint32 sum)
 {
-	store<uint32>(scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx, sum);
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx, sum);
 }
 
 uint32
 ddgi_load_group_ray_sum_ideal(const ddgi_data ddgi_data, uint32 idx)
 {
-	return load<uint32>(scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx);
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_prefix_offset + sizeof(uint32) * idx);
 }
 
 void
 ddgi_clear_ray_sum_total_ideal(const ddgi_data ddgi_data)
 {
-	store<uint32>(scratch_buffer, ddgi_data.ray_group_prefix_offset, 0u);
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset, 0u);
 }
 
 void
 ddgi_add_ray_sum_total_ideal(const ddgi_data ddgi_data, uint32 sum)
 {
-	buf_interlocked_add(scratch_buffer, ddgi_data.ray_group_prefix_offset, sum);
+	buf_interlocked_add(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset, sum);
 }
 
 uint32
 ddgi_load_ray_sum_total_ideal(const ddgi_data ddgi_data)
 {
-	return load<uint32>(scratch_buffer, ddgi_data.ray_group_prefix_offset);
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_group_prefix_offset);
 }
 
 void
 ddgi_store_ray_count_ideal(const ddgi_data ddgi_data, uint32 probe_id, uint32 ray_count_ideal)
 {
-	store<uint32>(scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32), ray_count_ideal);
+	store<uint32>(ddgi_scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32), ray_count_ideal);
 }
 
 uint32
 ddgi_load_ray_count_ideal(const ddgi_data ddgi_data, uint32 probe_id)
 {
-	return load<uint32>(scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32));
+	return load<uint32>(ddgi_scratch_buffer, ddgi_data.ray_count_offset + probe_id * sizeof(uint32));
 }
 
 bool

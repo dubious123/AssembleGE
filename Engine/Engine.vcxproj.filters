@@ -150,6 +150,7 @@
     <ClInclude Include="age_util_functional.hpp" />
     <ClInclude Include="age_util_format.hpp" />
     <ClInclude Include="age_math_sdf.hpp" />
+    <ClInclude Include="age_graphics_backend_render_pipeline_forward_plus_macro_guard.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />

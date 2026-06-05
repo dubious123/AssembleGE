@@ -86,3 +86,18 @@ runtime light_bin config : scene에 따라, 현재 상황따라 최적의 light 
 
 ### bug
 multi select + delete 시 crash
+
+### ddgi
+1차 구현은 얼추 됨. 
+border 구분을 못 감추겠음
+수렴이 잘 안됨 ( 계속 움직임 )
+scene에 따라 grid spacing을 계속 조절해줘야함 ... => full dynamic의 느낌이 안삼
+visibility가 확률 모델이라서 wall이 얇으면 (spacing보다 얇으면) 빛이 샘 
+근데 level에 따라 spacing은 가변임 => 막을수가 없음
+emissive mat이랑 wall이 있고, 그 사이에 probe가 없으면, 망함
+
+결국 격자구조 probe의 한계
+
+=> surfel 시도
+
+### surfel 

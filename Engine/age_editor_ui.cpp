@@ -701,82 +701,97 @@ namespace age::editor
 	}
 
 	bool
-	ui_component(age::ecs::ddgi_config& cmp) noexcept
+	ui_component(age::ecs::gi_config& cmp) noexcept
 	{
 		auto update = false;
 		{
 			auto _ = ui::id_begin();
-			if (cmp.enabled)
+			if (cmp.enable_ddgi or cmp.enable_gibs)
 			{
 				update = ui::widget::button2("update");
 			}
 		}
 
-		ui::widget::checkbox("enabled", cmp.enabled);
+		ui::widget::checkbox("enable ddgi", cmp.enable_ddgi);
+		if (cmp.enable_ddgi)
+		{
+			cmp.enable_gibs = false;
+		}
 
-		ui::widget::checkbox("lock origin", cmp.lock_origin);
+		ui::widget::checkbox("enable gibs", cmp.enable_gibs);
+		if (cmp.enable_gibs)
+		{
+			cmp.enable_ddgi = false;
+		}
 
-		constexpr c_auto probe_count_option_arr = std::array{
-			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
-			ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
-			ui::widget::dropdown_option<uint32>{ .value = 16, .label = "16" },
-			ui::widget::dropdown_option<uint32>{ .value = 32, .label = "32" },
-			ui::widget::dropdown_option<uint32>{ .value = 64, .label = "64" },
-			ui::widget::dropdown_option<uint32>{ .value = 128, .label = "128" },
-			ui::widget::dropdown_option<uint32>{ .value = 256, .label = "256" },
-		};
+		if (auto _ = ui::id_begin();
+			cmp.enable_ddgi)
+		{
+			ui::widget::checkbox("lock origin", cmp.lock_origin);
 
-		ui::widget::text_label("base_probe_count_x");
-		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.x, probe_count_option_arr);
-		ui::widget::text_label("base_probe_count_y");
-		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.y, probe_count_option_arr);
-		ui::widget::text_label("base_probe_count_z");
-		ui::widget::dropdown<uint32>(cmp.probe_per_level_axis.z, probe_count_option_arr);
+			constexpr c_auto probe_count_option_arr = std::array{
+				ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
+				ui::widget::dropdown_option<uint32>{ .value = 16, .label = "16" },
+				ui::widget::dropdown_option<uint32>{ .value = 32, .label = "32" },
+				ui::widget::dropdown_option<uint32>{ .value = 64, .label = "64" },
+				ui::widget::dropdown_option<uint32>{ .value = 128, .label = "128" },
+				ui::widget::dropdown_option<uint32>{ .value = 256, .label = "256" },
+			};
 
-		ui::widget::numeric_field(cmp.base_probe_spacing, "base_probe_spacing", float3::one(), float3{ 1000.f });
+			ui::widget::text_label("base_probe_count_x");
+			ui::widget::dropdown<uint32>(cmp.ddgi_probe_per_level_axis.x, probe_count_option_arr);
+			ui::widget::text_label("base_probe_count_y");
+			ui::widget::dropdown<uint32>(cmp.ddgi_probe_per_level_axis.y, probe_count_option_arr);
+			ui::widget::text_label("base_probe_count_z");
+			ui::widget::dropdown<uint32>(cmp.ddgi_probe_per_level_axis.z, probe_count_option_arr);
 
-		ui::widget::text_label("level_count");
-		constexpr c_auto level_count_option_arr = std::array{
-			ui::widget::dropdown_option<uint32>{ .value = 1, .label = "1" },
-			ui::widget::dropdown_option<uint32>{ .value = 2, .label = "2" },
-			ui::widget::dropdown_option<uint32>{ .value = 3, .label = "3" },
-			ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
-			ui::widget::dropdown_option<uint32>{ .value = 5, .label = "5" },
-			ui::widget::dropdown_option<uint32>{ .value = 6, .label = "6" },
-			ui::widget::dropdown_option<uint32>{ .value = 7, .label = "7" },
-			ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
-		};
-		ui::widget::dropdown<uint32>(cmp.level_count, level_count_option_arr);
+			ui::widget::numeric_field(cmp.ddgi_base_probe_spacing, "base_probe_spacing", float3::one(), float3{ 1000.f });
 
-#define ddgi_flag_checkbox(enum_name)                                                \
-	{                                                                                \
-		bool b = has_any(cmp.debug_flags, graphics::e::ddgi_debug_flags::enum_name); \
-		ui::widget::checkbox(#enum_name, b);                                         \
-		if (b)                                                                       \
-		{                                                                            \
-			cmp.debug_flags |= graphics::e::ddgi_debug_flags::enum_name;             \
-		}                                                                            \
-		else                                                                         \
-		{                                                                            \
-			cmp.debug_flags &= ~graphics::e::ddgi_debug_flags::enum_name;            \
-		}                                                                            \
+			ui::widget::text_label("level_count");
+			constexpr c_auto level_count_option_arr = std::array{
+				ui::widget::dropdown_option<uint32>{ .value = 1, .label = "1" },
+				ui::widget::dropdown_option<uint32>{ .value = 2, .label = "2" },
+				ui::widget::dropdown_option<uint32>{ .value = 3, .label = "3" },
+				ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint32>{ .value = 5, .label = "5" },
+				ui::widget::dropdown_option<uint32>{ .value = 6, .label = "6" },
+				ui::widget::dropdown_option<uint32>{ .value = 7, .label = "7" },
+				ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
+			};
+			ui::widget::dropdown<uint32>(cmp.ddgi_level_count, level_count_option_arr);
+
+#define ddgi_flag_checkbox(enum_name)                                                     \
+	{                                                                                     \
+		bool b = has_any(cmp.ddgi_debug_flags, graphics::e::ddgi_debug_flags::enum_name); \
+		ui::widget::checkbox(#enum_name, b);                                              \
+		if (b)                                                                            \
+		{                                                                                 \
+			cmp.ddgi_debug_flags |= graphics::e::ddgi_debug_flags::enum_name;             \
+		}                                                                                 \
+		else                                                                              \
+		{                                                                                 \
+			cmp.ddgi_debug_flags &= ~graphics::e::ddgi_debug_flags::enum_name;            \
+		}                                                                                 \
 	}
 
-		ddgi_flag_checkbox(render_probe_in_hole);
-		ddgi_flag_checkbox(render_irradiance);
-		ddgi_flag_checkbox(render_visibility);
-		ddgi_flag_checkbox(render_front_back);
-		ddgi_flag_checkbox(render_level);
-		ddgi_flag_checkbox(render_weight_sum);
-		ddgi_flag_checkbox(render_ray_count);
-		ddgi_flag_checkbox(render_state);
-		ddgi_flag_checkbox(render_msme);
-		ddgi_flag_checkbox(render_ray_factor);
-		ddgi_flag_checkbox(render_probe);
+			ddgi_flag_checkbox(render_probe_in_hole);
+			ddgi_flag_checkbox(render_irradiance);
+			ddgi_flag_checkbox(render_visibility);
+			ddgi_flag_checkbox(render_front_back);
+			ddgi_flag_checkbox(render_level);
+			ddgi_flag_checkbox(render_weight_sum);
+			ddgi_flag_checkbox(render_ray_count);
+			ddgi_flag_checkbox(render_state);
+			ddgi_flag_checkbox(render_msme);
+			ddgi_flag_checkbox(render_ray_factor);
+			ddgi_flag_checkbox(render_probe);
 
 #undef ddgi_flag_checkbox
+		}
 
 		return update;
+
 	}	 // namespace age::editor
 }	 // namespace age::editor
 

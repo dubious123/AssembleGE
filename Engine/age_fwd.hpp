@@ -142,6 +142,17 @@ namespace age::graphics::e
 							   (render_probe, (1u << 31u)));
 
 	AGE_ENUM_FLAG_OPERATORS(ddgi_debug_flags);
+
+	AGE_DEFINE_ENUM_WITH_VALUE(gibs_debug_flags, uint32,
+							   (none, 0),
+							   (render_surfel, (1u << 0u)),
+							   (render_irradiance, (1u << 1u)),
+							   (render_visibility, (1u << 2u)),
+							   (render_instability, (1u << 3u)),
+							   (render_ray_count, (1u << 4u)),
+							   (render_msme, (1u << 5u)));
+
+	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
 }	 // namespace age::graphics::e
 
 namespace age::graphics

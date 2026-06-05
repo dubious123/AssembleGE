@@ -735,31 +735,33 @@ namespace age::ecs
 		}
 	};
 
-	AGE_COMPONENT(ddgi_config, "ddgi")
+	AGE_COMPONENT(gi_config, "ddgi", "ddgi_config")
 	{
 		AGE_COMPONENT_VERSION(4);
 
-		bool	 enabled	 = false;
-		bool	 lock_origin = false;
-		uint8	 _;
-		uint32_3 probe_per_level_axis = uint32_3{ 32, 16, 32 };
-		float3	 base_probe_spacing	  = float3{ 1.f, 2.f, 1.f };
-		uint32	 level_count		  = 6;
+		// ddgi
+		bool	 enable_ddgi			   = false;
+		bool	 lock_origin			   = false;
+		bool	 enable_gibs			   = false;
+		uint32_3 ddgi_probe_per_level_axis = uint32_3{ 32, 16, 32 };
+		float3	 ddgi_base_probe_spacing   = float3{ 1.f, 2.f, 1.f };
+		uint32	 ddgi_level_count		   = 6;
 
-		age::graphics::e::ddgi_debug_flags debug_flags;
+		age::graphics::e::ddgi_debug_flags ddgi_debug_flags;
 
-		AGE_CUSTOM_BYTE_SIZE(enabled, lock_origin, probe_per_level_axis, base_probe_spacing, level_count, debug_flags);
+
+		AGE_CUSTOM_BYTE_SIZE(enable_ddgi, lock_origin, ddgi_probe_per_level_axis, ddgi_base_probe_spacing, ddgi_level_count, ddgi_debug_flags);
 
 		FORCE_INLINE static void
-		on_create(cmp_dispatch_key, ddgi_config & cmp, auto& ctx) noexcept
+		on_create(cmp_dispatch_key, gi_config & cmp, auto& ctx) noexcept
 		{
-			if (cmp.enabled)
+			if (cmp.enable_ddgi)
 			{
 				ctx.renderer.enable_ddgi({
-					.probe_per_level_axis = cmp.probe_per_level_axis,
-					.base_probe_spacing	  = cmp.base_probe_spacing,
-					.level_count		  = cmp.level_count,
-					.debug_flags		  = cmp.debug_flags,
+					.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
+					.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
+					.level_count		  = cmp.ddgi_level_count,
+					.debug_flags		  = cmp.ddgi_debug_flags,
 					.lock_origin		  = cmp.lock_origin,
 				});
 			}
@@ -767,48 +769,48 @@ namespace age::ecs
 
 
 		FORCE_INLINE static void
-		on_destroy(cmp_dispatch_key, ddgi_config & cmp, auto& ctx) noexcept
+		on_destroy(cmp_dispatch_key, gi_config & cmp, auto& ctx) noexcept
 		{
-			if (cmp.enabled)
+			if (cmp.enable_ddgi)
 			{
 				ctx.renderer.disable_ddgi();
 			}
 		}
 
 		static void
-		write_to(cmp_dispatch_key, const ddgi_config& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		write_to(cmp_dispatch_key, const gi_config& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
 		{
-			buf.write(cmp.enabled, cmp.lock_origin, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count, to_idx(cmp.debug_flags));
+			buf.write(cmp.enable_ddgi, cmp.lock_origin, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count, to_idx(cmp.ddgi_debug_flags));
 			return;
 		}
 
 		static void
-		read_from(cmp_dispatch_key, ddgi_config & cmp, auto& buf, auto&& rw_ctx) noexcept
+		read_from(cmp_dispatch_key, gi_config & cmp, auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != ddgi_config::age_component_version())
+			if (rw_ctx.version != gi_config::age_component_version())
 			{
 				if (rw_ctx.version <= 2)
 				{
 					bool render_probe;
-					buf.read(cmp.enabled, render_probe, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count);
-					cmp.debug_flags = age::graphics::e::ddgi_debug_flags::none;
+					buf.read(cmp.enable_ddgi, render_probe, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count);
+					cmp.ddgi_debug_flags = age::graphics::e::ddgi_debug_flags::none;
 					if (render_probe)
 					{
-						cmp.debug_flags |= age::graphics::e::ddgi_debug_flags::render_probe;
+						cmp.ddgi_debug_flags |= age::graphics::e::ddgi_debug_flags::render_probe;
 					}
 					return;
 				}
 				else if (rw_ctx.version == 3)
 				{
-					buf.read(cmp.enabled, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count, cmp.debug_flags);
-					cmp.debug_flags = age::graphics::e::ddgi_debug_flags::none;
+					buf.read(cmp.enable_ddgi, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count, cmp.ddgi_debug_flags);
+					cmp.ddgi_debug_flags = age::graphics::e::ddgi_debug_flags::none;
 					return;
 				}
 				AGE_ASSERT(false);
 				return;
 			}
 
-			buf.read(cmp.enabled, cmp.lock_origin, cmp.probe_per_level_axis, cmp.base_probe_spacing, cmp.level_count, cmp.debug_flags);
+			buf.read(cmp.enable_ddgi, cmp.lock_origin, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count, cmp.ddgi_debug_flags);
 		}
 	};
 
