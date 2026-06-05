@@ -73,21 +73,20 @@ main_cs(uint32 ray_id sv_dispatch_thread_id)
 	const float	 probe_radius = max(ddgi_data.base_probe_spacing) * (1u << level);
 
 	// const uint32 ray_count = min(ddgi_load_ray_count(ddgi_data, probe_id), DDGI_PROBE_RAY_COUNT_NEW_BORN);
-	const uint32 ray_count		 = ddgi_load_ray_count(ddgi_data, probe_id);
-	const float	 front_weight	 = probe.msme_front.inconsistency;	  // + probe.msme_front.relative_variance;
-	const float	 back_weight	 = probe.msme_back.inconsistency;	  // + probe.msme_back.relative_variance;
-	const float	 total_weight	 = front_weight + back_weight;
-	const float	 ray_ratio_front = total_weight > epsilon_1e6 ? clamp(front_weight / total_weight, 0.2f, 0.8f) : 0.5f;
-	const uint32 ray_count_front = cast<uint32>(ray_count * ray_ratio_front);
+	const uint32 ray_count = ddgi_load_ray_count(ddgi_data, probe_id);
 
-	const float3 probe_normal = decode_oct_snorm(probe.normal_oct_snorm8);
+	// const float3 probe_normal = decode_oct_snorm(probe.normal_oct_snorm8);
 
-	const bool is_front = ray_local_id < ray_count_front;
+	const uint32 idx = ray_local_id;
+	const float2 xi	 = frac(random_spherical_fibonacci(idx, ray_count) + ddgi_cranley_patterson_rotation);
+	// const float3 dir = normalize(probe_normal + sample_sphere_uniform(xi));
 
-	const uint32 idx = is_front ? ray_local_id : ray_local_id - ray_count_front;
-	const uint32 n	 = max(is_front ? ray_count_front : ray_count - ray_count_front, 1u);
-	const float2 xi	 = frac(random_spherical_fibonacci(idx, n) + ddgi_cranley_patterson_rotation);
-	const float3 dir = sample_hemisphere_uniform(xi, is_front ? probe_normal : -probe_normal);
+	// const float3 dir = xi.x > 0.5f
+	//					 ? sample_hemisphere_cosine(xi, probe_normal)
+	//					 : -sample_hemisphere_cosine(xi, probe_normal);
+
+	const float3 dir = sample_sphere_uniform(xi);
+
 
 	const ddgi_ray_result res = ddgi_trace_ray(probe_pos, dir, probe_radius);
 

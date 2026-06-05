@@ -82,6 +82,23 @@ main_ps(ddgi_ms_to_ps fragment) sv_target_0
 
 		const uint32 probe_ray_count = ddgi_load_ray_count(ddgi_data, probe_id);
 
+		if (probe_ray_count <= DDGI_PROBE_RAY_COUNT_NEW_BORN * 0.25f)
+		{
+			return float4(1, 0, 0, 1);
+		}
+		else if (probe_ray_count <= DDGI_PROBE_RAY_COUNT_NEW_BORN * 0.5f)
+		{
+			return float4(0, 1, 0, 1);
+		}
+		else if (probe_ray_count <= DDGI_PROBE_RAY_COUNT_NEW_BORN * 0.75f)
+		{
+			return float4(0, 0, 1, 1);
+		}
+		else
+		{
+			return float4(1, 1, 1, 1);
+		}
+
 		// if (probe_ray_count > DDGI_PROBE_RAY_COUNT_NEW_BORN)
 		//{
 		//	return float4(0, 0, 1, 1);
@@ -148,16 +165,8 @@ main_ps(ddgi_ms_to_ps fragment) sv_target_0
 	if (ddgi_debug_flag_render_msme(ddgi_data))
 	{
 		const ddgi_probe probe = load_ddgi_probe_srv(probe_id);
-		if (dot(normal, decode_oct_snorm(probe.normal_oct_snorm8)) > 0.f)
-		{
-			// return srgb_to_linear(float4(probe.msme_front.variance, probe.msme_front.inconsistency, 0, 1.f));
-			return srgb_to_linear(float4(0, probe.msme_front.inconsistency, 0, 1.f));
-		}
-		else
-		{
-			// return srgb_to_linear(float4(0, probe.msme_back.variance, probe.msme_back.inconsistency, 1.f));
-			return srgb_to_linear(float4(0, 0, probe.msme_back.inconsistency, 1.f));
-		}
+		return srgb_to_linear(float4(probe.msme.inconsistency, 0, 0, 1.f));
+		// return srgb_to_linear(float4(probe.msme_front.variance, probe.msme_front.inconsistency, 0, 1.f));
 	}
 
 	if (ddgi_debug_flag_render_ray_factor(ddgi_data))
@@ -165,21 +174,16 @@ main_ps(ddgi_ms_to_ps fragment) sv_target_0
 		const ddgi_probe probe			  = load_ddgi_probe_srv(probe_id);
 		const float		 probe_weight_sum = ddgi_load_probe_weight_sum(probe_id);
 
-		const float relative_variance_front = probe.msme_front.variance
-											/ max(DDGI_MEAN_SQ_THRESHOLD, probe.msme_front.mean_long * probe.msme_front.mean_long);
-		const float relative_variance_back	= probe.msme_back.variance
-											/ max(DDGI_MEAN_SQ_THRESHOLD, probe.msme_back.mean_long * probe.msme_back.mean_long);
+		const float relative_variance = probe.msme.variance
+									  / max(DDGI_MEAN_SQ_THRESHOLD, probe.msme.mean_long * probe.msme.mean_long);
 
 
-		const float probe_instability_raw = (relative_variance_front
-											 + probe.msme_front.inconsistency
-											 + relative_variance_back
-											 + probe.msme_back.inconsistency)
-										  * 0.25f;
+		const float probe_instability_raw = (relative_variance + probe.msme.inconsistency) * 0.5f;
 
-		const float	  probe_instability = smoothstep(0.4f, 4.f, probe_instability_raw);
-		const float	  probe_importance	= saturate(probe_weight_sum / 50.f);
-		const float	  probe_recency		= saturate(5.f / probe.frame_since_seen);
+		const float probe_instability = smoothstep(0.4f, 4.f, probe_instability_raw);
+		const float probe_importance  = saturate(probe_weight_sum / 50.f);
+		const float probe_recency	  = saturate(5.f / probe.frame_since_seen);
+
 		const int32_3 probe_world_coord = ddgi_calc_probe_world_coord(ddgi_data, probe_id, level);
 		const float3  probe_pos			= ddgi_calc_probe_pos(ddgi_data, probe_world_coord, level);
 

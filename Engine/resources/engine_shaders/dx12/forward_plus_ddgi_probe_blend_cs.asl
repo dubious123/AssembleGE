@@ -8,9 +8,7 @@
 
 DECLARE_CALC_THREAD_GROUP_SUM_FLOAT(DDGI_PROBE_RAY_COUNT_NEW_BORN)
 
-groupshared float	  gs_blend_factor_front;
-groupshared float	  gs_blend_factor_back;
-groupshared ddgi_msme gs_probe_msme_back;
+groupshared float gs_blend_factor;
 
 [numthreads(DDGI_VISIBILITY_RESOLUTION, DDGI_VISIBILITY_RESOLUTION, 1)] void
 main_cs(uint32_3 group_id  sv_group_id,
@@ -29,8 +27,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 
 	const uint16 level		= cast<uint16>((probe_id >> load_ddgi_ppl_log2(ddgi_data)) & 0xff);
 	const uint32 ray_offset = ddgi_load_ray_offset(ddgi_data, probe_id);
-	// const uint32 ray_count	= min(ddgi_load_ray_count(ddgi_data, probe_id), DDGI_PROBE_RAY_COUNT_NEW_BORN);
-	const uint32 ray_count = ddgi_load_ray_count(ddgi_data, probe_id);
+	const uint32 ray_count	= ddgi_load_ray_count(ddgi_data, probe_id);
 
 	attr_branch()
 
@@ -40,21 +37,13 @@ main_cs(uint32_3 group_id  sv_group_id,
 		return;
 	}
 
-	ddgi_probe	 probe		  = load_ddgi_probe_uav(probe_id);
-	const float3 probe_normal = decode_oct_snorm(probe.normal_oct_snorm8);
-	const uint16 probe_state  = probe.state & 0xff;
+	ddgi_probe probe = load_ddgi_probe_uav(probe_id);
+	// const float3 probe_normal = decode_oct_snorm(probe.normal_oct_snorm8);
+	const uint16 probe_state = probe.state & 0xff;
 
-	const float	 front_weight	 = probe.msme_front.inconsistency;	  //+ probe.msme_front.relative_variance;
-	const float	 back_weight	 = probe.msme_back.inconsistency;	  //+ probe.msme_back.relative_variance;
-	const float	 total_weight	 = front_weight + back_weight;
-	const float	 ray_ratio_front = total_weight > epsilon_1e6 ? clamp(front_weight / total_weight, 0.2f, 0.8f) : 0.5f;
-	const uint32 ray_count_front = cast<uint32>(ray_count * ray_ratio_front);
-	const uint32 ray_count_back	 = ray_count - ray_count_front;
+	float luminance = 0.f;
 
-	float luminance_front = 0.f;
-	float luminance_back  = 0.f;
-
-	float3 lum_weighted_dir = float3(0, 0, 0);
+	// float3 lum_weighted_dir = float3(0, 0, 0);
 
 	float  back_face_dist_min = float_max;
 	float3 back_face_dir	  = float3(0, 0, 0);
@@ -77,37 +66,25 @@ main_cs(uint32_3 group_id  sv_group_id,
 		}
 		else
 		{
-			lum_weighted_dir += ray_dir * lum;
+			// lum_weighted_dir += ray_dir * lum * lum;
 
-			if (i < ray_count_front)
-			{
-				luminance_front += lum;
-			}
-			else
-			{
-				luminance_back += lum;
-			}
+			luminance += lum;
 		}
 	}
 
-	luminance_front = calc_thread_group_sum_float(luminance_front, thread_id_flat) / max(ray_count_front, 1);
-	luminance_back	= calc_thread_group_sum_float(luminance_back, thread_id_flat) / max(ray_count_back, 1);
+	luminance = calc_thread_group_sum_float(luminance, thread_id_flat) / ray_count;
 
-	lum_weighted_dir.x = calc_thread_group_sum_float(lum_weighted_dir.x, thread_id_flat);
-	lum_weighted_dir.y = calc_thread_group_sum_float(lum_weighted_dir.y, thread_id_flat);
-	lum_weighted_dir.z = calc_thread_group_sum_float(lum_weighted_dir.z, thread_id_flat);
+	// lum_weighted_dir.x = calc_thread_group_sum_float(lum_weighted_dir.x, thread_id_flat);
+	// lum_weighted_dir.y = calc_thread_group_sum_float(lum_weighted_dir.y, thread_id_flat);
+	// lum_weighted_dir.z = calc_thread_group_sum_float(lum_weighted_dir.z, thread_id_flat);
 
 	back_face_count = cast<uint32>(calc_thread_group_sum_float(float(back_face_count), thread_id_flat));
 
 	if (thread_id_flat == 0)
 	{
-		gs_blend_factor_front = ddgi_update_msme(probe.msme_front, luminance_front);
+		gs_blend_factor = ddgi_update_msme(probe.msme, luminance);
 	}
-	else if (thread_id_flat == 1)
-	{
-		gs_blend_factor_back = ddgi_update_msme(probe.msme_back, luminance_back);
-		gs_probe_msme_back	 = probe.msme_back;
-	}
+
 	group_memory_barrier_with_sync();
 
 	if (thread_id_flat < DDGI_IRRADIANCE_RESOLUTION * DDGI_IRRADIANCE_RESOLUTION)
@@ -126,27 +103,21 @@ main_cs(uint32_3 group_id  sv_group_id,
 			const float3		  ray_dir  = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 			const float			  distance = ray_res.distance;
 
-			// distance < 0.f == inside wall
-			const float density_ratio = (i < ray_count_front)
-										  ? float(ray_count) / float(max(ray_count_front, 1u))
-										  : float(ray_count) / float(max(ray_count_back, 1u));
-			const float weight		  = (distance > 0.f)
-										  ? max(0.f, dot(texel_dir, ray_dir)) * density_ratio
-										  : 0.f;
+			const float weight = distance > 0.f
+								   ? max(0.f, dot(texel_dir, ray_dir))
+								   : 0.f;
 
 			const float3 radiance = min(decode_r11g11b10(ray_res.radiance_r11g11b10), 100.f) * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
+			// const float3 radiance = decode_r11g11b10(ray_res.radiance_r11g11b10) * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
 
 			irradiance_sum += radiance * weight;
 			weight_sum	   += weight;
 		}
 
 
-		const bool	is_front	 = dot(texel_dir, probe_normal) > 0.f;
 		const float blend_factor = probe_state == DDGI_PROBE_STATE_NEW_BORN
 									 ? 1.f
-								 : is_front
-									 ? gs_blend_factor_front
-									 : gs_blend_factor_back;
+									 : gs_blend_factor;
 
 		rw_texture_2d<float3> irradiance_uav = global_resource_buffer[ddgi_data.irradiance_atlas_uav_id];
 
@@ -162,6 +133,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 			// irradiance_sum / weight_sum : estimation of E[irradiance] / pi
 			irradiance_sum				= irradiance_sum / weight_sum;
 			irradiance_uav[atlas_coord] = lerp(irradiance_uav[atlas_coord], irradiance_sum, blend_factor);
+			// irradiance_uav[atlas_coord] = lerp(irradiance_uav[atlas_coord], irradiance_sum, blend_factor);
 			// irradiance_dst[atlas_coord] = float3(1, 0, 0);
 		}
 
@@ -178,11 +150,11 @@ main_cs(uint32_3 group_id  sv_group_id,
 		//								  ? max(0.f, dot(texel_dir, ray_dir)) * density_ratio
 		//								  : 0.f;
 
-		//	// const float3 radiance = min(decode_r11g11b10(ray_res.radiance_r11g11b10), DDGI_MAX_RADIANCE)
-		//	//					  * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
-
-		//	const float3 radiance = decode_r11g11b10(ray_res.radiance_r11g11b10)
+		//	const float3 radiance = min(decode_r11g11b10(ray_res.radiance_r11g11b10), DDGI_MAX_RADIANCE)
 		//						  * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
+
+		//	// const float3 radiance = decode_r11g11b10(ray_res.radiance_r11g11b10)
+		//	//					  * DDGI_IRRADIANCE_ENERGY_CONSERVATION;
 
 		//	irradiance_sum += radiance * weight;
 		//	weight_sum	   += weight;
@@ -234,19 +206,14 @@ main_cs(uint32_3 group_id  sv_group_id,
 			const float3		  ray_dir  = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 			const float			  distance = ray_res.distance;
 
-			const float density_ratio = (i < ray_count_front)
-										  ? float(ray_count) / float(max(ray_count_front, 1u))
-										  : float(ray_count) / float(max(ray_count_back, 1u));
-
 			const float weight = distance > 0.f
-								   ? pow(max(0.f, dot(texel_dir, ray_dir)), DDGI_VISIBILITY_SHARPNESS) * density_ratio
+								   ? pow(max(0.f, dot(texel_dir, ray_dir)), DDGI_VISIBILITY_SHARPNESS)
 								   : 0.f;
 
 			const float dist = clamp(distance, 0.f, max(ddgi_data.base_probe_spacing * 2) * (1u << level));
 
 			visibility_sum += float2(dist, dist * dist) * weight;
-			// visibility_sum += float2(distance, distance * distance) * weight;
-			weight_sum += weight;
+			weight_sum	   += weight;
 		}
 
 
@@ -255,7 +222,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 		const uint32_2 atlas_coord = calc_probe_atlas_offset(probe_id, load_ddgi_tile_count_w_log2(ddgi_data), DDGI_VISIBILITY_TILE_SIZE)
 								   + uint32_2(tx + DDGI_BORDER, ty + DDGI_BORDER);
 
-		const float blend_factor = probe_state == DDGI_PROBE_STATE_NEW_BORN ? 1.f : DDGI_VISIBILITY_BLEND_FACTOR;
+		const float visibility_blend_factor = probe_state == DDGI_PROBE_STATE_NEW_BORN ? 1.f : DDGI_VISIBILITY_BLEND_FACTOR;
 
 		if (weight_sum == 0.f)
 		{
@@ -263,20 +230,18 @@ main_cs(uint32_3 group_id  sv_group_id,
 		else
 		{
 			visibility_sum				= visibility_sum / weight_sum;
-			visibility_uav[atlas_coord] = lerp(visibility_uav[atlas_coord], visibility_sum, blend_factor);
+			visibility_uav[atlas_coord] = lerp(visibility_uav[atlas_coord], visibility_sum, visibility_blend_factor);
 		}
 	}
 
 	if (thread_id_flat == 0)
 	{
-		probe.msme_back = gs_probe_msme_back;
-
-		if (length(lum_weighted_dir) > epsilon_1e6)
-		{
-			const float3 lum_dir	= normalize(lum_weighted_dir);
-			const float3 new_normal = normalize(lerp(probe_normal, lum_dir, DDGI_NORMAL_BLEND));
-			probe.normal_oct_snorm8 = encode_oct_snorm8(new_normal);
-		}
+		// if (length(lum_weighted_dir) > epsilon_1e6)
+		//{
+		//	const float3 lum_dir	= normalize(lum_weighted_dir);
+		//	const float3 new_normal = normalize(lerp(probe_normal, lum_dir, DDGI_NORMAL_BLEND));
+		//	probe.normal_oct_snorm8 = encode_oct_snorm8(new_normal);
+		// }
 
 		if (probe.state == DDGI_PROBE_STATE_NEW_BORN)
 		{

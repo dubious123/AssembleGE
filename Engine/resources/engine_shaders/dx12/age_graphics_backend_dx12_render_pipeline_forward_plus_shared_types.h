@@ -175,7 +175,7 @@
 #define DDGI_PROBE_STATE_NEW_BORN	 0u
 #define DDGI_PROBE_STATE_INSIDE_WALL 4u
 
-#define DDGI_PROBE_RAY_COUNT_NEW_BORN (16u * 8u)
+#define DDGI_PROBE_RAY_COUNT_NEW_BORN (0xffu)
 
 #define DDGI_RAY_BUDGET				 (1u << 20u)
 #define DDGI_MSME_SHORT_WINDOW_BLEND 0.08f
@@ -293,14 +293,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct ddgi_probe
 	{
-		uint16 normal_oct_snorm8;
+		// uint16 normal_oct_snorm8;
 		uint16 frame_since_seen;
 		half3  offset;
 		uint16 state;				  // [state(8)][reallocated(1) ]
 		uint32 world_coord_packed;	  // 10 10 10 2
 
-		ddgi_msme msme_front;
-		ddgi_msme msme_back;
+		ddgi_msme msme;
 	};
 
 	struct ddgi_ray_result

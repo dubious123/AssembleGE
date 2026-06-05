@@ -4,10 +4,10 @@
 void
 on_new_born(uint32 probe_id, inout ddgi_probe probe, out uint32 ray_count_ideal)
 {
-	probe.state				= DDGI_PROBE_STATE_NEW_BORN;
-	ray_count_ideal			= DDGI_PROBE_RAY_COUNT_NEW_BORN + DDGI_PROBE_RAY_COUNT_NEW_BORN / 2;
-	probe.offset			= half3(0, 0, 0);
-	probe.normal_oct_snorm8 = encode_oct_snorm8(random_normal(probe_id, frame_index));
+	probe.state		= DDGI_PROBE_STATE_NEW_BORN;
+	ray_count_ideal = DDGI_PROBE_RAY_COUNT_NEW_BORN + DDGI_PROBE_RAY_COUNT_NEW_BORN / 2;
+	probe.offset	= half3(0, 0, 0);
+	// probe.normal_oct_snorm8 = encode_oct_snorm8(random_normal(probe_id, frame_index));
 	ddgi_clear_probe_msme(probe);
 }
 
@@ -52,23 +52,17 @@ main_cs(uint32_3 group_id		  sv_group_id,
 
 		uint32 ray_count_ideal = 0u;
 
-		const float relative_variance_front = probe.msme_front.variance
-											/ max(DDGI_MEAN_SQ_THRESHOLD, probe.msme_front.mean_long * probe.msme_front.mean_long);
-		const float relative_variance_back	= probe.msme_back.variance
-											/ max(DDGI_MEAN_SQ_THRESHOLD, probe.msme_back.mean_long * probe.msme_back.mean_long);
+		const float relative_variance = probe.msme.variance
+									  / max(DDGI_MEAN_SQ_THRESHOLD, probe.msme.mean_long * probe.msme.mean_long);
 
 
-		const float probe_instability_raw = (relative_variance_front
-											 + probe.msme_front.inconsistency
-											 + relative_variance_back
-											 + probe.msme_back.inconsistency)
-										  * 0.25f;
+		const float probe_instability_raw = (relative_variance + probe.msme.inconsistency) * 0.5f;
 
 		const float probe_instability = smoothstep(0.4f, 4.f, probe_instability_raw);
 		const float probe_importance  = saturate(probe_weight_sum / 50.f);
 		const float probe_recency	  = saturate(5.f / probe.frame_since_seen);
 
-		const bool probe_not_converged = max(probe.msme_front.inconsistency, probe.msme_back.inconsistency) > 0.2f;
+		const bool probe_not_converged = max(probe.msme.inconsistency, probe.msme.inconsistency) > 0.2f;
 		const bool probe_converged	   = probe_not_converged is_false;
 
 		// todo consider inside wall

@@ -727,17 +727,11 @@ ddgi_level_probe_radius(const ddgi_data data, uint32 lv)
 void
 ddgi_clear_probe_msme(inout ddgi_probe probe)
 {
-	probe.msme_front.mean_long	   = 0.f;
-	probe.msme_front.mean_short	   = 0.f;
-	probe.msme_front.variance	   = 0.f;
-	probe.msme_front.inconsistency = 1.f;
-	probe.msme_front.vbbr		   = 1.f;
-
-	probe.msme_back.mean_long	  = 0.f;
-	probe.msme_back.mean_short	  = 0.f;
-	probe.msme_back.variance	  = 0.f;
-	probe.msme_back.inconsistency = 1.f;
-	probe.msme_back.vbbr		  = 1.f;
+	probe.msme.mean_long	 = 0.f;
+	probe.msme.mean_short	 = 0.f;
+	probe.msme.variance		 = 0.f;
+	probe.msme.inconsistency = 1.f;
+	probe.msme.vbbr			 = 1.f;
 }
 
 bool
