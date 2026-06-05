@@ -66,11 +66,9 @@ full primitive대신 meshlet id map 저장
 
 
 ### 반사, 굴절 
-### DDGI
 soft shadow
 RTAO
 RT specular (reflection)
-DDGI
 
 
 ### 알려진 증상 
@@ -84,3 +82,7 @@ NVIDIA RTX Kit
 NVIDIA RTX Mega Geometry
 
 runtime light_bin config : scene에 따라, 현재 상황따라 최적의 light bin center랑 extent등을 계산
+
+
+### bug
+multi select + delete 시 crash

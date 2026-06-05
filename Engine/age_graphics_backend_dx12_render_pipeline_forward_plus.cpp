@@ -356,6 +356,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		texture_map.clear();
 		object_data_vec.clear();
 		object_transform_data_vec.clear();
+		object_generation_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
 		bloom_desc_vec.clear();
@@ -374,7 +375,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			if (AGE_IS_INVALID_IDX(res.object_id) is_false)
 			{
-				res.object_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_id];
+				res.object_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_id & 0x0fffffff];
 				//  res.object_id = object_data_vec.nth_id(res.object_id);
 			}
 		}
@@ -506,7 +507,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			render_data_vec.emplace_back(
 				shared_type::opaque_meshlet_render_data{
-					.object_id		   = object_data_vec.get_pos(object_id),
+					.object_id		   = object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
 					.mesh_byte_offset  = msh_data.offset,
 					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
 					.meshlet_id		   = meshlet_id++,
@@ -515,7 +516,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		rt_inst_render_data_vec.emplace_back(
 			shared_type::rt_instance_render_data{
-				.object_id				= object_data_vec.get_pos(object_id),
+				.object_id				= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
@@ -556,7 +557,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		rt_inst_render_data_vec.emplace_back(
 			shared_type::rt_instance_render_data{
-				.object_id				= object_data_vec.get_pos(object_id),
+				.object_id				= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
@@ -595,7 +596,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			outline_render_data_vec.emplace_back(
 				shared_type::selection_outline_meshlet_render_data{
-					.object_id						= object_data_vec.get_pos(object_id),
+					.object_id						= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
 					.mesh_byte_offset				= msh_data.offset,
 					.mesh_chunk_srv_id				= msh_data.chunk_srv_id,
 					.meshlet_id						= meshlet_id++,
@@ -652,7 +653,7 @@ namespace age::graphics::render_pipeline::forward_plus
 				c_auto rt_mask = is_aot ? e::rt_mask_kind::debug | e::rt_mask_kind::always_on_top : e::rt_mask_kind::debug;
 				rt_inst_render_data_vec.emplace_back(
 					shared_type::rt_instance_render_data{
-						.object_id				= self.object_data_vec.get_pos(object_id),
+						.object_id				= self.object_data_vec.get_pos(object_id) | (self.object_generation_vec[object_id] << 28u),
 						.mesh_byte_offset		= msh_data.offset,
 						.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 						.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
@@ -1435,7 +1436,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto id = static_cast<t_object_id>(object_data_vec.emplace_back());
 		object_transform_data_vec.emplace_back();
 
-		pipeline::update_object(id, pos, quat, scale);
+		update_object(id, pos, quat, scale);
+
+		object_generation_vec.resize(id + 1);
+		object_generation_vec[id] = (object_generation_vec[id] + 1) & 0xf;
 
 		return id;
 	}

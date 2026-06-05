@@ -684,6 +684,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	static_assert(sizeof(age::ui::render_data) == sizeof(shared_type::ui_data));
 
+	static_assert(MAX_OBJECT_DATA_COUNT < (1u << 28u));
+
 	static_assert(MAX_LIGHT_COUNT <= MAX_SORT_COUNT);
 	static_assert(MAX_SORT_COUNT % SORT_THREAD_COUNT == 0);
 	static_assert(MAX_SORT_COUNT <= SORT_GROUP_COUNT * SORT_BLOCK_COUNT_PER_GROUP * SORT_BLOCK_SIZE);

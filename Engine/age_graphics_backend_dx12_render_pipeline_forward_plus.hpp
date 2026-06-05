@@ -433,6 +433,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 		age::vector<BARE_OF(object_data_vec)::index_type>  object_pos_to_id_arr[global::frame_buffer_count];
+		age::vector<uint8>								   object_generation_vec;
 
 		// material
 		age::sparse_vector<asset::handle> material_vec;

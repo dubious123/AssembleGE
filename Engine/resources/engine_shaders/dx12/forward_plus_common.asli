@@ -68,9 +68,10 @@ load_opaque_meshlet_render_data(uint32 idx)
 }
 
 object_data
-load_object_data(uint32 idx)
+load_object_data(uint32 object_id)
 {
-	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + idx * sizeof(object_data));
+	const uint32 gen = (object_id & 0xf0000000) >> 28u;
+	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
 }
 
 directional_light
