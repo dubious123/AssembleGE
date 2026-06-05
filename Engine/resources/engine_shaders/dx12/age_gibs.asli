@@ -1,0 +1,8 @@
+#pragma once
+#include "age.asli"
+
+gibs_data
+load_gibs_data()
+{
+	return load<gibs_data>(static_buffer, GIBS_DATA_OFFSET);
+}

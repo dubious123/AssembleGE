@@ -460,6 +460,84 @@ namespace age::graphics::render_pipeline::forward_plus
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 
+// stage gibs
+namespace age::graphics::render_pipeline::forward_plus
+{
+	void
+	gibs_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_depth_prepass = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_opaque_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_depth_prepass_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_depth_prepass_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_depth_prepass = graphics::g::pso_ptr_vec[h_pso_depth_prepass];
+
+		h_pso_depth_prepass.set_name(L"pso_gibs_depth_prepass");
+	}
+
+	inline void
+	gibs_stage::execute_depth_prepass(const gibs_data& gibs_data_cpu,
+									  dsv_desc_handle  h_depth_buffer_dsv_desc,
+									  uint32		   opaque_meshlet_count) const noexcept
+	{
+		if (opaque_meshlet_count == 0) [[unlikely]]
+		{
+			command::clear_dsv(h_depth_buffer_dsv_desc.h_cpu,
+							   D3D12_CLEAR_FLAG_DEPTH,
+							   0.0f,
+							   0,
+							   0,
+							   nullptr);
+			return;
+		}
+
+		c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(gibs_data_cpu.h_gbuffer_rtv_desc);
+		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			&render_pass_ds_desc,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		command::set_pso(p_pso_depth_prepass);
+
+		command::dispatch_mesh(util::ceil(opaque_meshlet_count, 32u), 1, 1);
+
+		command::end_render_pass();
+	}
+
+	inline void
+	gibs_stage::execute(const gibs_data& gibs_data_cpu,
+						resource_handle	 h_indirect_arg_buffer) const noexcept
+	{
+	}
+
+	inline void
+	gibs_stage::execute_render_surfels(rtv_desc_handle	h_main_buffer_rtv_desc,
+									   dsv_desc_handle	h_depth_buffer_dsv_desc,
+									   const gibs_data& gibs_data_cpu) const noexcept
+	{
+	}
+
+	void
+	gibs_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_depth_prepass);
+	}
+}	 // namespace age::graphics::render_pipeline::forward_plus
+
 // stage opaque
 namespace age::graphics::render_pipeline::forward_plus
 {

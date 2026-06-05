@@ -338,19 +338,45 @@ namespace age::editor::detail
 		}
 
 
-		if (update_storage_ctx.ddgi_active_found is_false)
+		if (update_storage_ctx.gi_active_found is_false)
 		{
 			for (auto&& [cmp] : ecs_storage | each_entity_soft<gi_config>())
 			{
 				if (cmp.enable_ddgi)
 				{
-					update_storage_ctx.ddgi_active_found = true;
+					update_storage_ctx.gi_active_found = true;
+					if (renderer.gibs_enabled())
+					{
+						renderer.disable_gibs();
+					}
 					if (renderer.ddgi_enabled() is_false)
 					{
 						renderer.enable_ddgi({
 							.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
 							.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
 							.level_count		  = cmp.ddgi_level_count,
+						});
+					}
+
+					break;
+				}
+				else if (cmp.enable_gibs)
+				{
+					update_storage_ctx.gi_active_found = true;
+					if (renderer.ddgi_enabled())
+					{
+						renderer.disable_ddgi();
+					}
+					if (renderer.gibs_enabled() is_false)
+					{
+						renderer.enable_gibs({
+							.max_surfel_count		= cmp.max_surfel_count,
+							.debug_flags			= cmp.gibs_debug_flags,
+							.lock_origin			= cmp.gibs_lock_origin,
+							.cell_count				= cmp.gibs_cell_count,
+							.outer_layer_count		= cmp.gibs_outer_layer_count,
+							.cell_size				= cmp.gibs_cell_size,
+							.outer_cell_size_factor = cmp.outer_cell_size_factor,
 						});
 					}
 
@@ -742,7 +768,7 @@ namespace age::editor
 		{
 			struct
 			{
-				bool ddgi_active_found;
+				bool gi_active_found;
 			} update_storage_ctx{ false };
 
 			for (c_auto& editor_storage : active_scene.storage_data_vec)
@@ -750,9 +776,14 @@ namespace age::editor
 				ecs_game.visit_storage_at(active_scene.code_idx, editor_storage.code_idx, AGE_FUNC(detail::update_storage), renderer, update_storage_ctx);
 			}
 
-			if (renderer.ddgi_enabled() is_true and update_storage_ctx.ddgi_active_found is_false)
+			if (renderer.ddgi_enabled() is_true and update_storage_ctx.gi_active_found is_false)
 			{
 				renderer.disable_ddgi();
+			}
+
+			if (renderer.gibs_enabled() is_true and update_storage_ctx.gi_active_found is_false)
+			{
+				renderer.disable_gibs();
 			}
 		}
 

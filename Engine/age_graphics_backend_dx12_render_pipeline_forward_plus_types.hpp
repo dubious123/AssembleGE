@@ -383,4 +383,55 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		float3 origin;
 	};
+
+	struct gibs_desc
+	{
+		uint32						  max_surfel_count;
+		graphics::e::gibs_debug_flags debug_flags;
+		bool						  lock_origin;
+		uint8						  cell_count;	 // base cell count per axis, pow of 2
+		uint8						  outer_layer_count;
+		uint8						  _;
+		float						  cell_size;	 // meter
+		float						  outer_cell_size_factor;
+
+
+													 // total cell count == cell_count ^ 3 + 6 *(cell_count ^ 2) * outer_layer_count
+		// inner extent == cell_count * cell_size
+		// outer cell size == cell_size * (outer_cell_size_factor ^ k)
+		// outer extent = inner extent + sum(outer cell size per k)
+	};
+
+	struct gibs_data
+	{
+		shared_type::gibs_data	   gibs_data_gpu;
+		shared_type::gibs_lut_data gibs_lut_data_gpu;
+
+		bool enabled;
+		bool need_cleanup;
+		bool render_surfels;
+		bool lock_origin;
+
+		resource_handle h_surfel_buffer;
+		resource_handle h_cell_info_buffer;	   // cell entry (offset, count) + cell coord to surfel
+		resource_handle h_irradiance_atlas;
+		resource_handle h_visibility_atlas;
+		resource_handle h_gbuffer;
+		resource_handle h_scratch_buffer;
+
+		srv_desc_handle h_surfel_buffer_srv_desc;
+		srv_desc_handle h_cell_info_srv_desc;
+		srv_desc_handle h_irradiance_atlas_srv_desc;
+		srv_desc_handle h_visibility_atlas_srv_desc;
+		srv_desc_handle h_gbuffer_srv_desc;
+
+		uav_desc_handle h_surfel_buffer_uav_desc;
+		uav_desc_handle h_cell_info_uav_desc;
+		uav_desc_handle h_scratch_buffer_uav_desc;
+		uav_desc_handle h_irradiance_atlas_uav_desc;
+		uav_desc_handle h_visibility_atlas_uav_desc;
+		rtv_desc_handle h_gbuffer_rtv_desc;
+
+		float3 origin;
+	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

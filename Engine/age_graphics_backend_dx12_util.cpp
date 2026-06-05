@@ -488,6 +488,34 @@ namespace age::graphics
 		{
 			return DXGI_FORMAT_BC7_UNORM_SRGB;
 		}
+		case e::texture_format::r32_float:
+		{
+			return DXGI_FORMAT_R32_FLOAT;
+		}
+		case e::texture_format::r32g32_uint:
+		{
+			return DXGI_FORMAT_R32G32_UINT;
+		}
+		case e::texture_format::r16g16b16a16_float:
+		{
+			return DXGI_FORMAT_R16G16B16A16_FLOAT;
+		}
+		case e::texture_format::r8_uint:
+		{
+			return DXGI_FORMAT_R8_UINT;
+		}
+		case e::texture_format::d32_float:
+		{
+			return DXGI_FORMAT_D32_FLOAT;
+		}
+		case e::texture_format::d16_unorm:
+		{
+			return DXGI_FORMAT_D16_UNORM;
+		}
+		case e::texture_format::r11g11b10_float:
+		{
+			return DXGI_FORMAT_R11G11B10_FLOAT;
+		}
 		default:
 		{
 			AGE_UNREACHABLE();

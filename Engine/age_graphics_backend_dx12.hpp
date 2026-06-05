@@ -155,6 +155,7 @@ namespace age::graphics::command
 
 	// clear
 	DEF_CMD(clear_dsv, ClearDepthStencilView)
+	DEF_CMD(clear_rtv, ClearRenderTargetView)
 	DEF_CMD(clear_uav_float, ClearUnorderedAccessViewFloat)
 	DEF_CMD(clear_uav_uint, ClearUnorderedAccessViewUint)
 
@@ -200,6 +201,42 @@ namespace age::graphics::resource
 	template <auto n>
 	std::array<resource_handle, n>
 	create_committed(const resource_create_desc& desc) noexcept;
+
+	resource_handle
+	create_committed_buf_uav(uint32 byte_size) noexcept;
+
+	resource_handle
+	create_committed_tex2d_uav(extent_2d<uint32> extent, graphics::e::texture_format e_format,
+							   D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+							   uint16				mip_level	   = 1u) noexcept;
+
+	resource_handle
+	create_committed_tex2d_uav(extent_2d<uint16> extent, graphics::e::texture_format e_format,
+							   D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
+							   uint16				mip_level	   = 1u) noexcept;
+
+	resource_handle
+	create_committed_tex2d_rtv(extent_2d<uint16>,
+							   graphics::e::texture_format,
+							   D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE) noexcept;
+
+	resource_handle
+	create_committed_tex2d_rtv(extent_2d<uint16>,
+							   graphics::e::texture_format,
+							   float4				color,
+							   D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE) noexcept;
+
+	resource_handle
+	create_committed_tex2d_dsv(extent_2d<uint16>		   extent,
+							   graphics::e::texture_format e_format,
+							   D3D12_BARRIER_LAYOUT		   initial_layout = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ) noexcept;
+
+	resource_handle
+	create_committed_tex2d_dsv(extent_2d<uint16>		   extent,
+							   graphics::e::texture_format e_format,
+							   float					   clear_value_depth,
+							   uint8					   clear_value_stencil,
+							   D3D12_BARRIER_LAYOUT		   initial_layout = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ) noexcept;
 
 	resource_handle
 	create_placed(const resource_create_desc& desc, ID3D12Heap& heap, uint64 offset) noexcept;
@@ -294,7 +331,11 @@ namespace age::graphics::resource
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
 
 	FORCE_INLINE void
-	create_view(const auto& h_desc, const auto& view_desc) noexcept;
+	create_view(const auto& h_desc, const auto& view_desc) noexcept
+		requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>);
+
+	FORCE_INLINE decltype(auto)
+	create_view(const resource_handle& h_resource, const auto& view_desc) noexcept;
 
 	inline void
 	set_name(std::span<resource_handle>, const wchar_t* fmt) noexcept;

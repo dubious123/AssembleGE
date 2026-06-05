@@ -197,11 +197,11 @@ namespace age::graphics
 			AGE_ASSERT(g::dsv_desc_heap.count() == 0);
 			AGE_ASSERT(g::rtv_desc_heap.count() == 0);
 
-			g::cbv_srv_uav_desc_heap_non_shader_visible.deinit();
 			g::sampler_desc_heap.deinit();
 			g::cbv_srv_uav_desc_heap.deinit();
 			g::dsv_desc_heap.deinit();
 			g::rtv_desc_heap.deinit();
+			g::cbv_srv_uav_desc_heap_non_shader_visible.deinit();
 		}
 
 		resource::deinit();

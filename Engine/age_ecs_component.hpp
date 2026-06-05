@@ -737,12 +737,10 @@ namespace age::ecs
 
 	AGE_COMPONENT(gi_config, "ddgi", "ddgi_config")
 	{
-		AGE_COMPONENT_VERSION(4);
+		AGE_COMPONENT_VERSION(5);
 
-		// ddgi
 		bool	 enable_ddgi			   = false;
-		bool	 lock_origin			   = false;
-		bool	 enable_gibs			   = false;
+		bool	 ddgi_lock_origin		   = false;
 		uint32_3 ddgi_probe_per_level_axis = uint32_3{ 32, 16, 32 };
 		float3	 ddgi_base_probe_spacing   = float3{ 1.f, 2.f, 1.f };
 		uint32	 ddgi_level_count		   = 6;
@@ -750,19 +748,67 @@ namespace age::ecs
 		age::graphics::e::ddgi_debug_flags ddgi_debug_flags;
 
 
-		AGE_CUSTOM_BYTE_SIZE(enable_ddgi, lock_origin, ddgi_probe_per_level_axis, ddgi_base_probe_spacing, ddgi_level_count, ddgi_debug_flags);
+		bool enable_gibs	  = false;
+		bool gibs_lock_origin = false;
+
+		// pow of 2
+		uint8 gibs_cell_count = 64u;
+		// less than 16
+		uint8 gibs_outer_layer_count = 16u;
+
+		float gibs_cell_size = 1.f;
+
+		// greater than 1.f
+		float outer_cell_size_factor = 1.5f;
+
+		// less than gibs_ray_budget
+		uint32 max_surfel_count = age::g::uint32_max;
+
+		age::graphics::e::gibs_debug_flags gibs_debug_flags;
+
+
+		AGE_CUSTOM_BYTE_SIZE(
+			enable_ddgi,
+			ddgi_lock_origin,
+			ddgi_probe_per_level_axis,
+			ddgi_base_probe_spacing,
+			ddgi_level_count,
+			ddgi_debug_flags,
+			enable_gibs,
+			gibs_lock_origin,
+			gibs_cell_count,
+			gibs_outer_layer_count,
+			gibs_cell_size,
+			outer_cell_size_factor,
+			max_surfel_count,
+			gibs_debug_flags);
 
 		FORCE_INLINE static void
 		on_create(cmp_dispatch_key, gi_config & cmp, auto& ctx) noexcept
 		{
+			cmp.max_surfel_count = min(ctx.renderer.gibs_max_surfel_count(), cmp.max_surfel_count);
+
 			if (cmp.enable_ddgi)
 			{
+				cmp.enable_gibs = false;
 				ctx.renderer.enable_ddgi({
 					.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
 					.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
 					.level_count		  = cmp.ddgi_level_count,
 					.debug_flags		  = cmp.ddgi_debug_flags,
-					.lock_origin		  = cmp.lock_origin,
+					.lock_origin		  = cmp.ddgi_lock_origin,
+				});
+			}
+			else if (cmp.enable_gibs)
+			{
+				ctx.renderer.enable_gibs({
+					.max_surfel_count		= cmp.max_surfel_count,
+					.debug_flags			= cmp.gibs_debug_flags,
+					.lock_origin			= cmp.gibs_lock_origin,
+					.cell_count				= cmp.gibs_cell_count,
+					.outer_layer_count		= cmp.gibs_outer_layer_count,
+					.cell_size				= cmp.gibs_cell_size,
+					.outer_cell_size_factor = cmp.outer_cell_size_factor,
 				});
 			}
 		}
@@ -771,16 +817,52 @@ namespace age::ecs
 		FORCE_INLINE static void
 		on_destroy(cmp_dispatch_key, gi_config & cmp, auto& ctx) noexcept
 		{
+			AGE_ASSERT((cmp.enable_ddgi and cmp.enable_gibs) is_false);
 			if (cmp.enable_ddgi)
 			{
 				ctx.renderer.disable_ddgi();
+			}
+
+			if (cmp.enable_gibs)
+			{
+				ctx.renderer.disable_gibs();
 			}
 		}
 
 		static void
 		write_to(cmp_dispatch_key, const gi_config& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
 		{
-			buf.write(cmp.enable_ddgi, cmp.lock_origin, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count, to_idx(cmp.ddgi_debug_flags));
+			bool gibs_lock_origin = false;
+
+			// pow of 2
+			uint8 gibs_cell_count = 64u;
+			// less than 16, pow of 2
+			uint8 gibs_outer_layer_count = 16u;
+
+			float gibs_cell_size = 1.f;
+
+			// greater than 1.f
+			float outer_cell_size_factor = 1.5f;
+
+			// less than gibs_ray_budget
+			uint32 max_surfel_count = age::g::uint32_max;
+
+			age::graphics::e::gibs_debug_flags gibs_debug_flags = age::graphics::e::gibs_debug_flags::none;
+
+			buf.write(cmp.enable_ddgi,
+					  cmp.ddgi_lock_origin,
+					  cmp.ddgi_probe_per_level_axis,
+					  cmp.ddgi_base_probe_spacing,
+					  cmp.ddgi_level_count,
+					  to_idx(cmp.ddgi_debug_flags),
+					  cmp.enable_gibs,
+					  cmp.gibs_lock_origin,
+					  cmp.gibs_cell_count,
+					  cmp.gibs_outer_layer_count,
+					  cmp.gibs_cell_size,
+					  cmp.outer_cell_size_factor,
+					  cmp.max_surfel_count,
+					  to_idx(cmp.gibs_debug_flags));
 			return;
 		}
 
@@ -806,11 +888,36 @@ namespace age::ecs
 					cmp.ddgi_debug_flags = age::graphics::e::ddgi_debug_flags::none;
 					return;
 				}
+				else if (rw_ctx.version == 4)
+				{
+					buf.read(cmp.enable_ddgi,
+							 cmp.ddgi_lock_origin,
+							 cmp.ddgi_probe_per_level_axis,
+							 cmp.ddgi_base_probe_spacing,
+							 cmp.ddgi_level_count,
+							 cmp.ddgi_debug_flags);
+
+
+					return;
+				}
 				AGE_ASSERT(false);
 				return;
 			}
 
-			buf.read(cmp.enable_ddgi, cmp.lock_origin, cmp.ddgi_probe_per_level_axis, cmp.ddgi_base_probe_spacing, cmp.ddgi_level_count, cmp.ddgi_debug_flags);
+			buf.read(cmp.enable_ddgi,
+					 cmp.ddgi_lock_origin,
+					 cmp.ddgi_probe_per_level_axis,
+					 cmp.ddgi_base_probe_spacing,
+					 cmp.ddgi_level_count,
+					 cmp.ddgi_debug_flags,
+					 cmp.enable_gibs,
+					 cmp.gibs_lock_origin,
+					 cmp.gibs_cell_count,
+					 cmp.gibs_outer_layer_count,
+					 cmp.gibs_cell_size,
+					 cmp.outer_cell_size_factor,
+					 cmp.max_surfel_count,
+					 cmp.gibs_debug_flags);
 		}
 	};
 

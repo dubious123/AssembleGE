@@ -701,7 +701,7 @@ namespace age::editor
 	}
 
 	bool
-	ui_component(age::ecs::gi_config& cmp) noexcept
+	ui_component(age::ecs::gi_config& cmp, uint32 gibs_max_surfel_count) noexcept
 	{
 		auto update = false;
 		{
@@ -727,7 +727,7 @@ namespace age::editor
 		if (auto _ = ui::id_begin();
 			cmp.enable_ddgi)
 		{
-			ui::widget::checkbox("lock origin", cmp.lock_origin);
+			ui::widget::checkbox("lock origin", cmp.ddgi_lock_origin);
 
 			constexpr c_auto probe_count_option_arr = std::array{
 				ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
@@ -790,9 +790,81 @@ namespace age::editor
 #undef ddgi_flag_checkbox
 		}
 
-		return update;
+		else if (auto _ = ui::id_begin();
+				 cmp.enable_gibs)
+		{
+			ui::widget::checkbox("lock origin", cmp.gibs_lock_origin);
 
-	}	 // namespace age::editor
+			ui::widget::text_label("max_surfel_count");
+			ui::widget::numeric_field(cmp.max_surfel_count, nullptr, 10000u, gibs_max_surfel_count);
+
+			constexpr c_auto cell_count_option_arr = std::array{
+				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
+				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
+				ui::widget::dropdown_option<uint8>{ .value = 32, .label = "32" },
+				ui::widget::dropdown_option<uint8>{ .value = 64, .label = "64" },
+				ui::widget::dropdown_option<uint8>{ .value = 128, .label = "128" },
+			};
+
+			ui::widget::text_label("cell_count");
+			ui::widget::dropdown<uint8>(cmp.gibs_cell_count, cell_count_option_arr);
+
+
+			constexpr c_auto layer_count_option_arr = std::array{
+				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
+				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint8>{ .value = 6, .label = "6" },
+				ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
+				ui::widget::dropdown_option<uint8>{ .value = 10, .label = "10" },
+				ui::widget::dropdown_option<uint8>{ .value = 12, .label = "12" },
+				ui::widget::dropdown_option<uint8>{ .value = 14, .label = "14" },
+				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
+			};
+
+			ui::widget::text_label("outer_layer_count");
+			ui::widget::dropdown<uint8>(cmp.gibs_outer_layer_count, layer_count_option_arr);
+
+			ui::widget::text_label("gibs_cell_size");
+			ui::widget::numeric_field(cmp.gibs_cell_size, nullptr, 1.f, 10.f);
+
+			ui::widget::text_label("outer_cell_size_factor");
+			ui::widget::numeric_field(cmp.outer_cell_size_factor, nullptr, 1.f + math::g::epsilon_1e4, 2.5f, ui::theme::text_label_color(), 0.01f);
+
+
+#define gibs_flag_checkbox(enum_name)                                                     \
+	{                                                                                     \
+		bool b = has_any(cmp.gibs_debug_flags, graphics::e::gibs_debug_flags::enum_name); \
+		ui::widget::checkbox(#enum_name, b);                                              \
+		if (b)                                                                            \
+		{                                                                                 \
+			cmp.gibs_debug_flags |= graphics::e::gibs_debug_flags::enum_name;             \
+		}                                                                                 \
+		else                                                                              \
+		{                                                                                 \
+			cmp.gibs_debug_flags &= ~graphics::e::gibs_debug_flags::enum_name;            \
+		}                                                                                 \
+	}
+
+			gibs_flag_checkbox(render_surfels);
+			gibs_flag_checkbox(render_radiance);
+			gibs_flag_checkbox(render_irradiance);
+			gibs_flag_checkbox(render_visibility);
+			gibs_flag_checkbox(render_instability);
+			gibs_flag_checkbox(render_ray_count);
+			gibs_flag_checkbox(render_msme);
+			gibs_flag_checkbox(render_id_hash);
+			gibs_flag_checkbox(render_normal);
+			gibs_flag_checkbox(render_cell_occupancy);
+			gibs_flag_checkbox(render_show_irradiance_atlas);
+			gibs_flag_checkbox(render_show_visibility_atlas);
+			gibs_flag_checkbox(freeze_spawn);
+
+#undef gibs_flag_checkbox
+		}
+
+		return update;
+	}
 }	 // namespace age::editor
 
 namespace age::editor

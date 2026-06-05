@@ -183,3 +183,17 @@
 
 #undef DDGI_MEAN_SQ_THRESHOLD
 #undef DDGI_NORMAL_BLEND
+
+
+//---[ gibs ]------------------------------------------------------------------------------------------------------
+#undef GIBS_ATLAS_WIDTH
+#undef GIBS_ATLAS_HEIGHT
+#undef GIBS_TILE_SIZE
+#undef GIBS_ATLAS_TILE_COUNT_U
+#undef GIBS_ATLAS_TILE_COUNT_V
+#undef GIBS_MAX_SURFEL_COUNT
+#undef GIBS_RAY_BUDGET
+#undef GIBS_RAY_COUNT_REDUCE_TPG
+#undef GIBS_RAY_COUNT_REDUCE_EPT
+#undef GIBS_RAY_COUNT_REDUCE_EPG
+#undef GIBS_MAX_OUTER_LAYER_COUNT

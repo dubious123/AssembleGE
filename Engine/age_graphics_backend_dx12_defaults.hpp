@@ -306,6 +306,16 @@ namespace age::graphics::defaults
 			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 }
 		};
+
+		FORCE_INLINE decltype(auto)
+		tex2d(graphics::e::texture_format e_format, uint32 mip_slice = 0, uint32 plane_slice = 0) noexcept
+		{
+			return D3D12_RENDER_TARGET_VIEW_DESC{
+				.Format		   = dx12_format(e_format),
+				.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+				.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 }
+			};
+		}
 	}	 // namespace rtv_view_desc
 
 	namespace dsv_view_desc
@@ -348,6 +358,12 @@ namespace age::graphics::defaults
 					.PlaneSlice			 = 0,
 					.ResourceMinLODClamp = 0.0f }
 			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex2d(graphics::e::texture_format e_format, uint32 mip_levels = 1) noexcept
+		{
+			return tex2d(graphics::dx12_format(e_format), mip_levels);
 		}
 
 		FORCE_INLINE decltype(auto)
@@ -417,6 +433,37 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
+		structured_buffer(uint32 element_count, uint32 byte_stride) noexcept
+		{
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = DXGI_FORMAT_UNKNOWN,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_BUFFER,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Buffer					 = {
+					.FirstElement		 = 0,
+					.NumElements		 = element_count,
+					.StructureByteStride = byte_stride,
+					.Flags				 = D3D12_BUFFER_SRV_FLAG_NONE }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		byte_address_buffer(uint32 byte_size) noexcept
+		{
+			AGE_ASSERT(byte_size % 4 == 0);
+			return D3D12_SHADER_RESOURCE_VIEW_DESC{
+				.Format					 = DXGI_FORMAT_R32_TYPELESS,
+				.ViewDimension			 = D3D12_SRV_DIMENSION_BUFFER,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Buffer					 = {
+					.FirstElement		 = 0,
+					.NumElements		 = static_cast<uint32>(byte_size / 4),
+					.StructureByteStride = 0,
+					.Flags				 = D3D12_BUFFER_SRV_FLAG_RAW }
+			};
+		}
+
+		FORCE_INLINE decltype(auto)
 		rt_acceleration_structure(resource_handle h_resource) noexcept;
 	}	 // namespace srv_view_desc
 
@@ -425,6 +472,7 @@ namespace age::graphics::defaults
 		FORCE_INLINE decltype(auto)
 		byte_address_buffer(uint64 byte_size) noexcept
 		{
+			AGE_ASSERT(byte_size % 4 == 0);
 			return D3D12_UNORDERED_ACCESS_VIEW_DESC{
 				.Format		   = DXGI_FORMAT_R32_TYPELESS,
 				.ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
@@ -462,6 +510,12 @@ namespace age::graphics::defaults
 					.MipSlice	= mip_slice,
 					.PlaneSlice = plane_slice }
 			};
+		}
+
+		FORCE_INLINE decltype(auto)
+		tex2d(graphics::e::texture_format e_format, uint32 mip_slice = 0, uint32 plane_slice = 0) noexcept
+		{
+			return tex2d(graphics::dx12_format(e_format), mip_slice, plane_slice);
 		}
 
 		FORCE_INLINE decltype(auto)

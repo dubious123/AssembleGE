@@ -44,6 +44,92 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32_3 dispatch_xyz;
 	};
 
+	//---[ gibs, surfel ]------------------------------------------------------------
+	struct gibs_data
+	{
+		uint32 debug_flags;
+		uint32 max_surfel_count;
+		uint32 ray_count_reduce_group_count;
+		uint32 cell_count;	  // per axis, level 0
+		uint32 outer_layer_count;
+
+		uint32 h_surfel_buffer_srv_id;
+		uint32 h_cell_info_srv_id;
+		uint32 h_irradiance_atlas_srv_id;
+		uint32 h_visibility_atlas_srv_id;
+		uint32 h_gbuffer_srv_id;
+		uint32 h_surfel_buffer_uav_id;
+		uint32 h_cell_info_uav_id;
+		uint32 h_scratch_buffer_uav_id;
+		uint32 h_irradiance_atlas_uav_id;
+		uint32 h_visibility_atlas_uav_id;
+
+		// todo, optimize
+		// uint32 alive_dead_counter_offset = 0;
+		// uint32 cell_atomic_counter_offset = sizeof(uint32) * 2;
+		// uint32 alive_dead_list_offset = sizeof(uint32) * 3;
+		uint32 surfel_geometry_offset;
+		uint32 surfel_msme_offset;
+		uint32 surfel_recycle_data_offset;
+		uint32 ray_count_ideal_offset;
+		uint32 ray_prefix_offset;
+		uint32 ray_group_sum_offset;
+		uint32 ray_group_prefix_offset;
+		uint32 ray_result_offset;
+	};
+
+	struct gibs_lut_data
+	{
+		float cell_size_arr[16 + 1];
+		float layer_boundary_arr[16 + 1];
+	};
+
+	struct surfel
+	{
+		float3 position;
+		float  radius;
+		float3 radiance;
+		uint32 normal_oct;
+	};
+
+	struct gibs_cell_entry
+	{
+		// cell_entry_buffer[xyz] = cell_entry
+		// cell_to_surfel_buffer[cell_enttry.offset + i] = surfel_id
+
+		uint32 offset;
+		uint32 count;
+	};
+
+	struct surfel_geometry
+	{
+		uint32 object_id;
+		uint32 mesh_id;
+		uint32 triangle_id;
+	};
+
+	struct surfel_msme
+	{
+		float mean_long;
+		float mean_short;
+		float variance;
+		float inconsistency;
+		float vbbr;
+	};
+
+	struct surfel_recycle_data
+	{
+		uint16 frame_since_seen_and_extra;	  // [frame_since_seen(8)][status(8)]
+		uint16 frame_since_born;
+	};
+
+	struct gibs_ray_result
+	{
+		uint32 radiance_r11g11b10;
+		float  distance;
+		uint32 dir_oct_snorm_and_extra;
+	};
+
 	//---[ ddgi ]------------------------------------------------------------
 	struct ddgi_data
 	{
@@ -382,7 +468,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 light_bin_cell_size_inv;
 		float  cam_near_z;
 		float  cam_far_z;
-		uint32 ddgi_enabled_and_extra;
+		uint32 ddgi_enabled_and_extra;	  // [ddgi_enabled(1)][gibs_enabled(1)]
 		float2 ddgi_cranley_patterson_rotation;
 		float3 ddgi_origin;
 		uint32 _;
@@ -564,24 +650,6 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(VERTEX_SIZE_PNT_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv3>));
 #endif
 
-	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
-#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
-#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
-#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
-#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
-#define STATIC_BUFFER_SIZE				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
-#if !defined(AGE_SHADER)
-	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
-	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
-	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
-	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
-	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
-	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
-	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
-#endif
-
 	//---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------
 #define SCRATCH_SORT_BUFFER_OFFSET (0)
 #define SORT_KEYS_OFFSET		   (SCRATCH_SORT_BUFFER_OFFSET)
@@ -726,7 +794,63 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe));
 #endif
 
+	//---[ gibs ]------------------------------------------------------------------------------------------------------
+#define GIBS_ATLAS_WIDTH		   3840u
+#define GIBS_ATLAS_HEIGHT		   2160u
+#define GIBS_TILE_SIZE			   6u
+#define GIBS_ATLAS_TILE_COUNT_U	   (GIBS_ATLAS_WIDTH / GIBS_TILE_SIZE)
+#define GIBS_ATLAS_TILE_COUNT_V	   (GIBS_ATLAS_HEIGHT / GIBS_TILE_SIZE)
+#define GIBS_MAX_SURFEL_COUNT	   (GIBS_ATLAS_TILE_COUNT_U * GIBS_ATLAS_TILE_COUNT_V - 1)
+#define GIBS_RAY_BUDGET			   (GIBS_MAX_SURFEL_COUNT * 4u)
+#define GIBS_RAY_COUNT_REDUCE_TPG  32u
+#define GIBS_RAY_COUNT_REDUCE_EPT  32u
+#define GIBS_RAY_COUNT_REDUCE_EPG  (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
+#define GIBS_MAX_OUTER_LAYER_COUNT 16u
+
+#if !defined(AGE_SHADER)
+
+	inline constexpr auto gibs_atlas_extent		  = extent_2d<uint32>{ GIBS_ATLAS_WIDTH, GIBS_ATLAS_HEIGHT };
+	inline constexpr auto gibs_tile_size		  = GIBS_TILE_SIZE;
+	inline constexpr auto gibs_atlas_tile_count_u = GIBS_ATLAS_TILE_COUNT_U;
+	inline constexpr auto gibs_atlas_tile_count_v = GIBS_ATLAS_TILE_COUNT_V;
+	inline constexpr auto gibs_max_surfel_count	  = GIBS_MAX_SURFEL_COUNT;
+	inline constexpr auto gibs_ray_budget		  = GIBS_RAY_BUDGET;
+
+	inline constexpr auto gibs_ray_count_reduce_epg = GIBS_RAY_COUNT_REDUCE_EPG;
+
+	inline constexpr auto gibs_max_outer_layer_count = GIBS_MAX_OUTER_LAYER_COUNT;
+
+	static_assert(GIBS_ATLAS_WIDTH % gibs_tile_size == 0);
+	static_assert(GIBS_ATLAS_HEIGHT % gibs_tile_size == 0);
+	static_assert(gibs_max_surfel_count <= (1u << 24u));
+
+	static_assert(sizeof(shared_type::gibs_lut_data::cell_size_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
+	static_assert(sizeof(shared_type::gibs_lut_data::layer_boundary_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
+#endif
+
+	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
+#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
+#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
+#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
+#define GIBS_DATA_OFFSET				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
+#define GIBS_LUT_DATA_OFFSET			(GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
+#define STATIC_BUFFER_SIZE				(GIBS_LUT_DATA_OFFSET + sizeof(float) * GIBS_MAX_OUTER_LAYER_COUNT * 2u)
+#if !defined(AGE_SHADER)
+	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
+	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
+	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
+	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
+	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
+	inline constexpr auto gibs_data_offset				  = GIBS_DATA_OFFSET;
+	inline constexpr auto gibs_lut_data_offset			  = GIBS_LUT_DATA_OFFSET;
+	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
+#endif
+
 #if !defined(AGE_SHADER)
 }
-	#include "age_graphics_backend_render_pipeline_forward_plus_macro_guard.hpp"
+	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_macro_guard.hpp"
 #endif

@@ -115,7 +115,14 @@ namespace age::graphics::e
 							   (bc6h_sf16, 18),
 
 							   (bc7_unorm, 19),	   // 8 bpp, high quality LDR
-							   (bc7_unorm_srgb, 20));
+							   (bc7_unorm_srgb, 20),
+							   (r32_float, 21),
+							   (r32g32_uint, 22),
+							   (r16g16b16a16_float, 23),
+							   (r8_uint, 24),
+							   (d32_float, 25),
+							   (d16_unorm, 26),
+							   (r11g11b10_float, 27));
 
 	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask_kind, uint8,
 							   (opaque, 0x01),
@@ -145,12 +152,19 @@ namespace age::graphics::e
 
 	AGE_DEFINE_ENUM_WITH_VALUE(gibs_debug_flags, uint32,
 							   (none, 0),
-							   (render_surfel, (1u << 0u)),
-							   (render_irradiance, (1u << 1u)),
-							   (render_visibility, (1u << 2u)),
-							   (render_instability, (1u << 3u)),
-							   (render_ray_count, (1u << 4u)),
-							   (render_msme, (1u << 5u)));
+							   (render_surfels, (1u << 0u)),
+							   (render_radiance, (1u << 1u)),
+							   (render_irradiance, (1u << 2u)),
+							   (render_visibility, (1u << 3u)),
+							   (render_instability, (1u << 4u)),
+							   (render_ray_count, (1u << 5u)),
+							   (render_msme, (1u << 6u)),
+							   (render_id_hash, (1u << 7u)),
+							   (render_normal, (1u << 8u)),
+							   (render_cell_occupancy, (1u << 9u)),
+							   (render_show_irradiance_atlas, (1u << 10u)),
+							   (render_show_visibility_atlas, (1u << 11u)),
+							   (freeze_spawn, (1u << 12u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
 }	 // namespace age::graphics::e

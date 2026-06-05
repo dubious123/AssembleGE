@@ -97,6 +97,7 @@ namespace age
 	#include "age_util_ranges.hpp"
 	#include "age_util_functional.hpp"
 	#include "age_util_format.hpp"
+	#include "age_util_offset_calculator.hpp"
 
 	#include "age_fwd.hpp"
 	#include "age_math_sdf.hpp"	   // shader shared
@@ -105,6 +106,7 @@ namespace age
 	#include "age_asset_fwd.hpp"
 	#include "age_external_adapter.hpp"
 	#include "age_buffer.hpp"
+
 #endif
 //------------------------------------------------------------------------------
 

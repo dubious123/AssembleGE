@@ -116,6 +116,33 @@ namespace age::graphics::render_pipeline::forward_plus
 		deinit() noexcept;
 	};
 
+	struct gibs_stage
+	{
+		graphics::pso::handle h_pso_depth_prepass;
+		ID3D12PipelineState*  p_pso_depth_prepass;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute_depth_prepass(const gibs_data& gibs_data_cpu,
+							  dsv_desc_handle  _,
+							  uint32		   opaque_meshlet_count) const noexcept;
+
+		inline void
+		execute(const gibs_data& gibs_data_cpu,
+				resource_handle	 h_indirect_arg_buffer) const noexcept;
+
+
+		inline void
+		execute_render_surfels(rtv_desc_handle	h_main_buffer_rtv_desc,
+							   dsv_desc_handle	h_depth_buffer_dsv_desc,
+							   const gibs_data& gibs_data_cpu) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct opaque_stage
 	{
 		graphics::pso::handle h_pso;
@@ -299,6 +326,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		skybox_stage			stage_skybox;
 		light_bin_stage			stage_light_bin;
 		ddgi_stage				stage_ddgi;
+		gibs_stage				stage_gibs;
 		opaque_stage			stage_opaque;
 		transparent_stage		stage_transparent;
 		raycast_stage			stage_raycast;
@@ -462,6 +490,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		std::mt19937						  ddgi_rng{ std::random_device{}() };
 		std::uniform_real_distribution<float> ddgi_dist{ 0.f, 1.f };
+
+		// gibs
+		gibs_data gibs_data_cpu;
 
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
@@ -687,6 +718,22 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		float
 		get_ddgi_convergence() noexcept;
+
+		// gibs
+		void
+		enable_gibs(const gibs_desc& _) noexcept;
+
+		void
+		disable_gibs() noexcept;
+
+		void
+		update_gibs(const gibs_desc& _) noexcept;
+
+		bool
+		gibs_enabled() const noexcept;
+
+		uint32
+		gibs_max_surfel_count() const noexcept;
 
 	  private:
 		void

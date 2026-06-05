@@ -208,6 +208,92 @@ namespace age::graphics::resource
 	}
 
 	resource_handle
+	create_committed_buf_uav(uint32 byte_size) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(byte_size),
+			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+			  .heap_memory_kind	   = e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+	}
+
+	resource_handle
+	create_committed_tex2d_uav(extent_2d<uint32> extent, graphics::e::texture_format e_format, D3D12_BARRIER_LAYOUT initial_layout, uint16 mip_level) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_2d(
+				  extent,
+				  dx12_format(e_format),
+				  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+				  mip_level),
+			  .initial_layout	= initial_layout,
+			  .heap_memory_kind = e::memory_kind::gpu_only });
+	}
+
+	resource_handle
+	create_committed_tex2d_uav(extent_2d<uint16> extent, graphics::e::texture_format e_format, D3D12_BARRIER_LAYOUT initial_layout, uint16 mip_level) noexcept
+	{
+		return create_committed_tex2d_uav(extent_2d<uint32>{ extent.width, extent.height }, e_format, initial_layout, mip_level);
+	}
+
+	resource_handle
+	create_committed_tex2d_rtv(extent_2d<uint16> extent, graphics::e::texture_format e_format, D3D12_BARRIER_LAYOUT initial_layout) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_rt_2d(extent.width, extent.height, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, dx12_format(e_format)),
+			  .clear_value		   = {},
+			  .initial_layout	   = initial_layout,
+			  .heap_memory_kind	   = e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+	}
+
+	resource_handle
+	create_committed_tex2d_rtv(extent_2d<uint16>		   extent,
+							   graphics::e::texture_format e_format,
+							   float4					   color,
+							   D3D12_BARRIER_LAYOUT		   initial_layout) noexcept
+	{
+		auto clear_value = D3D12_CLEAR_VALUE{ .Format = dx12_format(e_format) };
+		std::memcpy(clear_value.Color, &color, sizeof(clear_value.Color));
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_rt_2d(extent.width, extent.height, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, dx12_format(e_format)),
+			  .clear_value		   = clear_value,
+			  .initial_layout	   = initial_layout,
+			  .heap_memory_kind	   = e::memory_kind::gpu_only,
+			  .has_clear_value	   = true });
+	}
+
+	resource_handle
+	create_committed_tex2d_dsv(extent_2d<uint16> extent, graphics::e::texture_format e_format, D3D12_BARRIER_LAYOUT initial_layout) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(extent.width, extent.height, D3D12_RESOURCE_FLAG_NONE, dx12_format(e_format)),
+			  .clear_value{
+				  .Format		= dx12_format(e_format),
+				  .DepthStencil = { .Depth = 0.f, .Stencil = 0 } },
+			  .initial_layout	= initial_layout,
+			  .heap_memory_kind = e::memory_kind::gpu_only,
+			  .has_clear_value	= false });
+	}
+
+	resource_handle
+	create_committed_tex2d_dsv(extent_2d<uint16>		   extent,
+							   graphics::e::texture_format e_format,
+							   float					   clear_value_depth,
+							   uint8					   clear_value_stencil,
+							   D3D12_BARRIER_LAYOUT		   initial_layout) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::texture_ds_2d(extent.width, extent.height, D3D12_RESOURCE_FLAG_NONE, dx12_format(e_format)),
+			  .clear_value{
+				  .Format		= dx12_format(e_format),
+				  .DepthStencil = { .Depth = clear_value_depth, .Stencil = clear_value_stencil } },
+			  .initial_layout	= initial_layout,
+			  .heap_memory_kind = e::memory_kind::gpu_only,
+			  .has_clear_value	= true });
+	}
+
+	resource_handle
 	create_placed(const resource_create_desc& desc, ID3D12Heap& heap, uint64 offset) noexcept
 	{
 		auto* p_resource = (ID3D12Resource*)nullptr;
@@ -720,8 +806,61 @@ namespace age::graphics::resource
 
 	FORCE_INLINE void
 	create_view(const auto& h_desc, const auto& view_desc) noexcept
+		requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>)
 	{
 		g::p_main_device->CreateShaderResourceView(nullptr, &view_desc, h_desc.h_cpu);
+	}
+
+	FORCE_INLINE decltype(auto)
+	create_view(const resource_handle& h_resource, const auto& view_desc) noexcept
+	{
+		using t_view_desc = BARE_OF(view_desc);
+
+		if constexpr (std::is_same_v<t_view_desc, D3D12_CONSTANT_BUFFER_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<cbv_desc_handle>();
+			g::p_main_device->CreateConstantBufferView(g::resource_vec[h_resource].p_resource, &view_desc, h_desc.h_cpu);
+			return h_desc;
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_SHADER_RESOURCE_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<srv_desc_handle>();
+			g::p_main_device->CreateShaderResourceView(g::resource_vec[h_resource].p_resource, &view_desc, h_desc.h_cpu);
+			return h_desc;
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<uav_desc_handle>();
+			g::p_main_device->CreateUnorderedAccessView(g::resource_vec[h_resource].p_resource, nullptr, &view_desc, h_desc.h_cpu);
+			return h_desc;
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_RENDER_TARGET_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<rtv_desc_handle>();
+			g::p_main_device->CreateRenderTargetView(g::resource_vec[h_resource].p_resource, &view_desc, h_desc.h_cpu);
+			return h_desc;
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_DEPTH_STENCIL_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<dsv_desc_handle>();
+			g::p_main_device->CreateDepthStencilView(g::resource_vec[h_resource].p_resource, &view_desc, h_desc.h_cpu);
+			return h_desc;
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_SAMPLER_DESC>)
+		{
+			static_assert(false, "todo");
+		}
+		else if constexpr (std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)
+		{
+			auto h_desc = pop_descriptor<clear_uav_desc_handle>();
+			g::p_main_device->CreateUnorderedAccessView(g::resource_vec[h_resource].p_resource, nullptr, &view_desc, h_desc.h_cpu);
+			g::p_main_device->CreateUnorderedAccessView(g::resource_vec[h_resource].p_resource, nullptr, &view_desc, h_desc.h_cpu_non_shader_visible);
+			return h_desc;
+		}
+		else
+		{
+			static_assert(false, "invalid descriptor handle type or desc type");
+		}
 	}
 }	 // namespace age::graphics::resource
 

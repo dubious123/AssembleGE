@@ -56,6 +56,9 @@ namespace age::graphics::e
 					forward_plus_ddgi_render_probes_ms,
 					forward_plus_ddgi_render_probes_ps,
 
+					forward_plus_gibs_depth_prepass_ms,
+					forward_plus_gibs_depth_prepass_ps,
+
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,
 					forward_plus_opaque_ps,

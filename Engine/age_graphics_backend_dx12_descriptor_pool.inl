@@ -37,7 +37,7 @@ namespace age::graphics
 			}
 		};
 
-		g::p_main_device->SetName(fn_get_name());
+		p_heap->SetName(fn_get_name());
 
 		if constexpr (shader_visible)
 		{
