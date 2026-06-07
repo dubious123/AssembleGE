@@ -22,9 +22,9 @@ calc_axis_level(const ddgi_data data, float cam_axis, float pixel_axis, uint32 x
 uint32
 ddgi_calc_level(const ddgi_data data, float3 world_pos)
 {
-	return max(calc_axis_level(data, ddgi_origin.x, world_pos.x, 0),
-			   calc_axis_level(data, ddgi_origin.y, world_pos.y, 1),
-			   calc_axis_level(data, ddgi_origin.z, world_pos.z, 2));
+	return max(calc_axis_level(data, gi_origin.x, world_pos.x, 0),
+			   calc_axis_level(data, gi_origin.y, world_pos.y, 1),
+			   calc_axis_level(data, gi_origin.z, world_pos.z, 2));
 }
 
 int32_3
@@ -37,7 +37,7 @@ ddgi_calc_probe_world_coord(const ddgi_data data, uint32 probe_id, uint32 level)
 	const int32_3  local	 = int32_3(local_id & mask.x, (local_id >> log2_axis.x) & mask.y, local_id >> (log2_axis.x + log2_axis.y));
 
 	const float3  spacing	= ddgi_level_spacing(data, level);
-	const int32_3 cam_coord = int32_3(floor(ddgi_origin / spacing));
+	const int32_3 cam_coord = int32_3(floor(gi_origin / spacing));
 	const int32_3 half		= int32_3(axis >> 1);
 
 	return cam_coord - half + ((local - cam_coord + half) & mask);
@@ -63,7 +63,7 @@ ddgi_is_probe_in_hole(const ddgi_data data, const float3 probe_pos, uint32 level
 {
 	if (level == 0) { return false; }
 
-	const float3 distance = abs(probe_pos - ddgi_origin);
+	const float3 distance = abs(probe_pos - gi_origin);
 
 	const float3 spacing	 = ddgi_level_spacing(data, level);
 	const float3 prev_radius = ddgi_level_probe_radius(data, level - 1);
@@ -86,7 +86,7 @@ ddgi_calc_blend_t(const ddgi_data ddgi_data, float3 world_pos, uint32 level)
 {
 	const float3 spacing = ddgi_data.base_probe_spacing * (1u << level);
 
-	const float3 probe_center = floor(ddgi_origin / spacing) * spacing;
+	const float3 probe_center = floor(gi_origin / spacing) * spacing;
 
 	const float3 dist = abs(probe_center - world_pos);
 
@@ -177,7 +177,7 @@ float3
 ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos, float3 normal)
 {
 	const float3 spacing  = ddgi_data.base_probe_spacing * (1u << level);
-	const float3 offset	  = (normal * DDGI_NORMAL_BIAS /*- normalize(world_pos - ddgi_origin) * DDGI_VIEW_BIAS*/) * (max(spacing));
+	const float3 offset	  = (normal * DDGI_NORMAL_BIAS /*- normalize(world_pos - gi_origin) * DDGI_VIEW_BIAS*/) * (max(spacing));
 	world_pos			 += offset;
 
 	const uint32_3 probe_count_axis = load_ddgi_probe_count_axis(ddgi_data);

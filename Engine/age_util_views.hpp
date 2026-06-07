@@ -3,15 +3,13 @@
 // loop
 namespace age::views
 {
-	FORCE_INLINE [[nodiscard]]
-	constexpr decltype(auto)
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	loop(std::integral auto n) noexcept
 	{
 		return std::views::iota(BARE_OF(n){ 0 }, n);
 	}
 
-	FORCE_INLINE [[nodiscard]]
-	constexpr decltype(auto)
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	loop(auto* ptr, auto count, auto stride) noexcept
 		requires(sizeof(BARE_OF(*ptr)) == sizeof(std::byte))
 	{
@@ -141,22 +139,19 @@ namespace age::views
 		};
 	}	 // namespace detail
 
-	FORCE_INLINE [[nodiscard]]
-	constexpr decltype(auto)
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	each_set_bit(detail::cx_is_bits_or_flag auto&& arg) noexcept
 	{
 		return detail::set_bit_range<detail::set_bit_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
 	}
 
-	FORCE_INLINE [[nodiscard]]
-	constexpr decltype(auto)
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	each_set_bit_idx(detail::cx_is_bits_or_flag auto&& arg) noexcept
 	{
 		return detail::set_bit_range<detail::set_bit_idx_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
 	}
 
-	FORCE_INLINE [[nodiscard]]
-	constexpr decltype(auto)
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	each_set_bit_pair(detail::cx_is_bits_or_flag auto&& arg) noexcept
 	{
 		// returns std::pair{ bit_idx, bit }

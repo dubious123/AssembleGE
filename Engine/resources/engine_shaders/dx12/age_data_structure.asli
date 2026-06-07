@@ -1,0 +1,243 @@
+#pragma once
+#include "age.asli"
+
+template <typename t>
+struct array
+{
+	structured_buffer<t> buf;
+
+	static array<t>
+	init(structured_buffer<t> b)
+	{
+		array<t> res;
+		res.buf = b;
+		return res;
+	}
+
+	t
+	operator[](uint32 idx)
+	{
+		return buf[idx];
+	}
+};
+
+template <typename t>
+struct byte_array
+{
+	byte_address_buffer buf;
+	uint32				offset;
+
+	static byte_array<t>
+	init(byte_address_buffer b, uint32 o)
+	{
+		byte_array<t> res;
+		res.buf	   = b;
+		res.offset = o;
+		return res;
+	}
+
+	t
+	operator[](uint32 idx)
+	{
+		return load<t>(buf, offset + idx * sizeof(t));
+	}
+};
+
+template <typename t>
+struct rw_array
+{
+	rw_structured_buffer<t> buf;
+
+	static rw_array<t>
+	init(rw_structured_buffer<t> b)
+	{
+		rw_array<t> res;
+		res.buf = b;
+		return res;
+	}
+
+	t
+	operator[](uint32 idx)
+	{
+		return buf[idx];
+	}
+
+	void
+	store(uint32 idx, const t value)
+	{
+		buf[idx] = value;
+	}
+};
+
+template <typename t>
+struct rw_byte_array
+{
+	rw_byte_address_buffer buf;
+	uint32				   offset;
+
+	static rw_byte_array
+	init(rw_byte_address_buffer b, uint32 o)
+	{
+		rw_byte_array res;
+		res.buf	   = b;
+		res.offset = o;
+		return res;
+	}
+
+	t
+	operator[](uint32 idx)
+	{
+		return load<t>(buf, offset + idx * sizeof(t));
+	}
+
+	void
+	store(uint32 idx, const t value)
+	{
+		buf.Store<t>(offset + idx * sizeof(t), value);
+	}
+
+	uint32
+	atomic_inc(uint32 idx, uint32 byte4_offset = 0, const uint32 value = 1)
+	{
+		uint32 original;
+		buf_interlocked_add(buf, offset + idx * sizeof(t) + byte4_offset * 4, value, original);
+		return original;
+	}
+};
+
+struct atomic_counter
+{
+	rw_byte_address_buffer buf;
+	uint32				   counter_offset;
+
+	static atomic_counter
+	init(rw_byte_address_buffer b, uint32 o)
+	{
+		atomic_counter res;
+		res.buf			   = b;
+		res.counter_offset = o;
+		return res;
+	}
+
+	uint32
+	value()
+	{
+		return load<uint32>(buf, counter_offset);
+	}
+
+	uint32
+	inc(uint32 val)
+	{
+		uint32 original;
+		buf_interlocked_add(buf, counter_offset, val, original);
+		return original;
+	}
+
+	uint32
+	dec(uint32 val)
+	{
+		uint32 original;
+		buf_interlocked_add(buf, counter_offset, -val, original);
+		return original;
+	}
+
+	void
+	set(uint32 val)
+	{
+		store<uint32>(buf, counter_offset, val);
+	}
+};
+
+template <typename t>
+struct rw_stack
+{
+	rw_byte_address_buffer buf;
+	uint32				   offset;
+
+	static rw_stack
+	init(rw_byte_address_buffer b, uint32 o)
+	{
+		rw_stack res;
+		res.buf	   = b;
+		res.offset = o;
+		return res;
+	}
+
+	uint32
+	offset_value()
+	{
+		return offset + sizeof(uint32);
+	}
+
+	uint32
+	offset_counter()
+	{
+		return offset;
+	}
+
+	t
+	operator[](uint32 idx)
+	{
+		return load<t>(buf, offset_value() + idx * sizeof(t));
+	}
+
+	uint32
+	inc_size_atomic(uint32 size)
+	{
+		uint32 original;
+		buf_interlocked_add(buf, offset_counter(), size, original);
+		return original;
+	}
+
+	t
+	pop()
+	{
+		uint32 original;
+		buf_interlocked_add(buf, offset_counter(), -1, original);
+		return load<t>(buf, offset_value() + sizeof(t) * (original - 1));
+	}
+
+	bool
+	try_pop(out t elem)
+	{
+		int32 original;
+		buf_interlocked_add(buf, offset_counter(), -1, original);
+
+		if (original <= 0)
+		{
+			inc_size_atomic(1);
+			return false;
+		}
+		else
+		{
+			elem = load<t>(buf, offset_value() + sizeof(t) * (original - 1));
+			return true;
+		}
+	}
+
+	void
+	push(const t value)
+	{
+		uint32 original;
+		buf_interlocked_add(buf, offset_counter(), 1, original);
+		store(buf, offset_value() + sizeof(t) * original, value);
+	}
+
+	uint32
+	size()
+	{
+		return load<uint32>(buf, offset_counter());
+	}
+
+	void
+	resize(uint32 size)
+	{
+		store(buf, offset_counter(), size);
+	}
+
+	void
+	set(uint32 idx, const t value)
+	{
+		store(buf, offset_value() + sizeof(t) * idx, value);
+	}
+};

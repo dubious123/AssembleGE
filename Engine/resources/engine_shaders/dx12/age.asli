@@ -721,59 +721,101 @@ as_float16(auto _)
 	return half{};
 }
 
-bool
+auto
 wave_is_first_lane()
-{
-	return true;
-}
-
-uint32_4
-wave_active_ballot(bool)
-{
-	return uint32_4{};
-}
+{ return true; }
 
 auto
-wave_active_min(auto val)
-{
-	return val;
-}
+wave_active_ballot(auto x)
+{ return uint32_4(0, 0, 0, 0); }
 
 auto
-wave_active_max(auto val)
-{
-	return val;
-}
-
-uint32
-wave_active_bit_or(uint32 val)
-{
-	return val;
-}
+wave_active_min(auto x)
+{ return x; }
 
 auto
-wave_active_sum(auto val)
-{
-	return val;
-}
+wave_active_max(auto x)
+{ return x; }
 
-uint32
+auto
+wave_active_bit_or(auto x)
+{ return x; }
+
+auto
+wave_active_bit_and(auto x)
+{ return x; }
+
+auto
+wave_active_bit_xor(auto x)
+{ return x; }
+
+auto
+wave_active_product(auto x)
+{ return x; }
+
+auto
+wave_active_sum(auto x)
+{ return x; }
+
+auto
+wave_active_count_bits(auto x)
+{ return 0u; }
+
+auto
+wave_active_all_true(auto x)
+{ return true; }
+
+auto
+wave_active_any_true(auto x)
+{ return false; }
+
+auto
+wave_active_all_equal(auto x)
+{ return true; }
+
+auto
 wave_lane_count()
-{
-	return 32;
-}
+{ return 32u; }
 
-uint32
+auto
 wave_lane_index()
-{
-	return 0;
-}
+{ return 0u; }
 
-uint32
-wave_prefix_sum(auto val)
-{
-	return val;
-}
+auto
+wave_is_lane_active()
+{ return true; }
+
+auto
+wave_prefix_sum(auto x)
+{ return x; }
+
+auto
+wave_prefix_product(auto x)
+{ return x; }
+
+auto
+wave_prefix_count_bits(auto x)
+{ return 0u; }
+
+auto
+wave_read_lane_first(auto x)
+{ return x; }
+
+auto
+wave_read_lane_at(auto x, auto i)
+{ return x; }
+
+auto
+wave_match(auto x)
+{ return uint32_4(0, 0, 0, 0); }
+
+auto
+wave_multi_prefix_sum(auto x, auto m)
+{ return x; }
+
+auto
+wave_multi_prefix_count_bits(auto m)
+{ return 0u; }
 
 uint32
 first_bit_low(uint32 val)
@@ -970,16 +1012,31 @@ cross(float3, float3)
 	#define interlocked_cmp_store(...)	  InterlockedCompareStore(__VA_ARGS__)
 	#define interlocked_cmp_exchange(...) InterlockedCompareExchange(__VA_ARGS__)
 
+	#define wave_is_first_lane()			WaveIsFirstLane()
+	#define wave_active_ballot(x)			WaveActiveBallot(x)
+	#define wave_active_min(x)				WaveActiveMin(x)
+	#define wave_active_max(x)				WaveActiveMax(x)
+	#define wave_active_bit_or(x)			WaveActiveBitOr(x)
+	#define wave_active_bit_and(x)			WaveActiveBitAnd(x)
+	#define wave_active_bit_xor(x)			WaveActiveBitXor(x)
+	#define wave_active_product(x)			WaveActiveProduct(x)
+	#define wave_active_sum(x)				WaveActiveSum(x)
+	#define wave_active_count_bits(x)		WaveActiveCountBits(x)
+	#define wave_active_all_true(x)			WaveActiveAllTrue(x)
+	#define wave_active_any_true(x)			WaveActiveAnyTrue(x)
+	#define wave_active_all_equal(x)		WaveActiveAllEqual(x)
+	#define wave_lane_count()				WaveGetLaneCount()
+	#define wave_lane_index()				WaveGetLaneIndex()
+	#define wave_is_lane_active()			WaveIsLaneActive()
+	#define wave_prefix_sum(x)				WavePrefixSum(x)
+	#define wave_prefix_product(x)			WavePrefixProduct(x)
+	#define wave_prefix_count_bits(x)		WavePrefixCountBits(x)
+	#define wave_read_lane_first(x)			WaveReadLaneFirst(x)
+	#define wave_read_lane_at(x, i)			WaveReadLaneAt(x, i)
+	#define wave_match(x)					WaveMatch(x)
+	#define wave_multi_prefix_sum(x, m)		WaveMultiPrefixSum(x, m)
+	#define wave_multi_prefix_count_bits(m) WaveMultiPrefixCountBits(m)
 
-	#define wave_is_first_lane()  WaveIsFirstLane()
-	#define wave_active_ballot(x) WaveActiveBallot(x)
-	#define wave_active_min(x)	  WaveActiveMin(x)
-	#define wave_active_max(x)	  WaveActiveMax(x)
-	#define wave_active_bit_or(x) WaveActiveBitOr(x)
-	#define wave_active_sum(x)	  WaveActiveSum(x)
-	#define wave_lane_count()	  WaveGetLaneCount()
-	#define wave_lane_index()	  WaveGetLaneIndex()
-	#define wave_prefix_sum(x)	  WavePrefixSum(x)
 
 	#define first_bit_low(x)  firstbitlow(x)
 	#define first_bit_high(x) firstbithigh(x)

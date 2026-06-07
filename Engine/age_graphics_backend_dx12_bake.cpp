@@ -267,20 +267,20 @@ namespace age::graphics::bake
 			});
 		g::bake_pipeline.root_constants.apply_compute();
 
-		command::apply_barriers(barrier::tex_copy_dest_to_srv(g::bake_pipeline.h_env_light_input_tex->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::tex_copy_dest_to_srv(g::bake_pipeline.h_env_light_input_tex, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(g::bake_pipeline.h_pso_env_light_build_conditional_cdf.ptr());
 		command::dispatch(1, header.extent.height, 1);
 
-		command::apply_barriers(barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_radiance_luminance_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_conditional_cdf_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_radiance_luminance_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_conditional_cdf_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 		g::bake_pipeline.env_light_radiance_luminance_srv.apply_compute();
 		g::bake_pipeline.env_light_conditional_cdf_srv.apply_compute();
 
 		command::set_pso(g::bake_pipeline.h_pso_env_light_build_marginal_cdf.ptr());
 		command::dispatch(1, 1, 1);
 
-		command::apply_barriers(barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_marginal_cdf_buffer->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_srv(g::bake_pipeline.h_env_light_marginal_cdf_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 		g::bake_pipeline.env_light_marginal_cdf_srv.apply_compute();
 
 		command::set_pso(g::bake_pipeline.h_pso_env_light_radiance.ptr());
@@ -300,11 +300,11 @@ namespace age::graphics::bake
 
 			g::bake_pipeline.root_constants.apply_compute_member<&shared_type::root_constants::down_sample_output_texture_uav_id, 12u>(cube_down_sample_root_constant);
 
-			command::apply_barriers(barrier::tex_uav_to_srv(h_radiance->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::cube_mip(mip - 1)));
+			command::apply_barriers(barrier::tex_uav_to_srv(h_radiance, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::cube_mip(mip - 1)));
 
 			command::dispatch(util::ceil(mip_size, 8), util::ceil(mip_size, 8), 6);
 		}
-		command::apply_barriers(barrier::tex_uav_to_srv(h_radiance->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::cube_mip(radiance_mip_count - 1)));
+		command::apply_barriers(barrier::tex_uav_to_srv(h_radiance, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING, {}, barrier::cube_mip(radiance_mip_count - 1)));
 
 		command::set_pso(g::bake_pipeline.h_pso_env_light_irradiance.ptr());
 		command::dispatch(util::ceil(desc.irradiance_size, 8), util::ceil(desc.irradiance_size, 8), 6);
@@ -324,10 +324,10 @@ namespace age::graphics::bake
 		}
 
 		command::apply_barriers(
-			barrier::tex_srv_to_copy_dst(g::bake_pipeline.h_env_light_input_tex->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::tex_srv_to_copy_src(h_radiance->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::tex_uav_to_copy_src(h_irradiance->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-			barrier::tex_uav_to_copy_src(h_prefilter->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+			barrier::tex_srv_to_copy_dst(g::bake_pipeline.h_env_light_input_tex, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::tex_srv_to_copy_src(h_radiance, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::tex_uav_to_copy_src(h_irradiance, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::tex_uav_to_copy_src(h_prefilter, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 		command::execute_and_wait();
 
 		return env_light_result{
@@ -384,15 +384,15 @@ namespace age::graphics::bake
 		command::set_pso(h_pso.ptr());
 		command::dispatch(util::ceil(extent.width, 8), util::ceil(extent.height, 8), 1);
 
-		command::apply_barriers(barrier::tex_uav_to_copy_src(h_scratch->p_resource, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::apply_barriers(barrier::tex_uav_to_copy_src(h_scratch, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		c_auto src = defaults::copy_location::src_subresource(h_scratch->p_resource);
+		c_auto src = defaults::copy_location::src_subresource(h_scratch);
 
-		c_auto dst = defaults::copy_location::dst_subresource(h_res->p_resource);
+		c_auto dst = defaults::copy_location::dst_subresource(h_res);
 
 		command::copy_texture(&dst, 0, 0, 0, &src, nullptr);
 
-		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_res->p_resource, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::apply_barriers(barrier::tex_copy_dest_to_srv(h_res, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		command::execute_and_wait();
 

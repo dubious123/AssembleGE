@@ -32,7 +32,8 @@ float  cam_near_z;
 float  cam_far_z;
 uint32 ddgi_enabled_and_extra;
 float2 ddgi_cranley_patterson_rotation;
-float3 ddgi_origin;
+float3 gi_origin;
+float  object_count;
 
 
 // cbuffer root_constants reg(b1)
@@ -65,6 +66,34 @@ opaque_meshlet_render_data
 load_opaque_meshlet_render_data(uint32 idx)
 {
 	return load<opaque_meshlet_render_data>(static_buffer, OPAQUE_MSHLT_OBJECT_DATA_OFFSET + idx * sizeof(opaque_meshlet_render_data));
+}
+
+uint16
+calc_object_gen(uint32 object_id)
+{
+	const uint16 gen = uint16((object_id & 0xf0000000) >> 28u);
+	return gen;
+}
+
+bool
+is_object_id_valid(uint32 object_id)
+{
+	const uint32 gen = (object_id & 0xf0000000) >> 28u;
+	const uint32 idx = object_id & 0x0fffffff;
+
+	if (idx >= object_count)
+	{
+		return false;
+	}
+
+	const object_data obj = load<object_data>(static_buffer, OBJECT_DATA_OFFSET + idx * sizeof(object_data));
+
+	if (obj.gen() != uint16(gen))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 object_data
@@ -839,10 +868,12 @@ safe_dot_camera_forward(float3 dir)
 	return max(dot(dir, camera_forward), epsilon_1e4);
 }
 
+#include "age_data_structure.asli"
 #include "age_mesh.asli"
 #include "age_color_space.asli"
 #include "age_random.asli"
 #include "age_ddgi.asli"
+#include "age_gibs.asli"
 #include "age_light.asli"
 #include "age_ui.asli"
 #include "age_tonemap.asli"

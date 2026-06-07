@@ -58,6 +58,17 @@ namespace age::graphics::e
 
 					forward_plus_gibs_depth_prepass_ms,
 					forward_plus_gibs_depth_prepass_ps,
+					forward_plus_gibs_cleanup_cs,
+					forward_plus_gibs_prepare_cs,
+					forward_plus_gibs_update_surfel_cs,
+					forward_plus_gibs_ray_ideal_count_sum_cs,
+					forward_plus_gibs_ray_count_prefix_cs,
+					forward_plus_gibs_ray_entry_cs,
+					forward_plus_gibs_cell_surfel_count_prefix_cs,
+					forward_plus_gibs_cell_to_surfel_scatter_cs,
+					forward_plus_gibs_ray_trace_cs,
+					forward_plus_gibs_ray_integrate_cs,
+					forward_plus_gibs_tile_coverage_cs,
 
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,

@@ -3,6 +3,30 @@
 
 // Hash Functions for GPU Rendering, Mark Jarzynski, Marc Olano
 // https://jcgt.org/published/0009/03/02/paper.pdf
+float
+random_pcg1d(uint32 v)
+{
+	v = v * 747796405u + 2891336453u;
+	v = ((v >> ((v >> 28u) + 4u)) ^ v) * 277803737u;
+	v = (v >> 22u) ^ v;
+
+	return float(v) * (1.f / float(0xffffffff));
+}
+
+float2
+random_pcg2d(uint32_2 v)
+{
+	v	 = v * 1664525u + 1013904223u;
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v	 = v ^ (v >> 16u);
+	v.x += v.y * 1664525u;
+	v.y += v.x * 1664525u;
+	v	 = v ^ (v >> 16u);
+
+	return float2(v) * (1.f / float(0xffffffff));
+}
+
 float3
 random_pcg3d(uint32_3 v)
 {

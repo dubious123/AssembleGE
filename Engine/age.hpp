@@ -172,7 +172,6 @@ namespace age
 	#include "age_graphics_backend_dx12_fwd.hpp"
 	#include "age_graphics_backend_dx12.hpp"
 	#include "age_graphics_backend_dx12_defaults.hpp"
-	#include "age_graphics_backend_dx12_resource_barrier.hpp"
 	#include "age_graphics_backend_dx12_root_signature.hpp"
 	#include "age_graphics_backend_dx12_root_signature_binding_slot.hpp"
 	#include "age_graphics_backend_dx12_pso.hpp"
@@ -185,6 +184,7 @@ namespace age
 	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.hpp"
 
 	#include "age_graphics_backend_dx12_global.hpp"
+	#include "age_graphics_backend_dx12_resource_barrier.hpp"
 
 	#include "age_graphics_backend_dx12_descriptor_pool.inl"
 	#include "age_graphics_backend_dx12_defaults.inl"

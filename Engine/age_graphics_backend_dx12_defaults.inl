@@ -1,6 +1,13 @@
 #pragma once
 #include "age.hpp"
 
+#define helper(name, ...)                                    \
+	FORCE_INLINE decltype(auto)                              \
+	name(resource_handle h_resource, auto&&... arg) noexcept \
+	{                                                        \
+		return name(h_resource->p_resource, FWD(arg)...);    \
+	}
+
 namespace age::graphics::defaults::srv_view_desc
 {
 	FORCE_INLINE decltype(auto)
@@ -14,3 +21,19 @@ namespace age::graphics::defaults::srv_view_desc
 		};
 	}
 }	 // namespace age::graphics::defaults::srv_view_desc
+
+// copy location
+namespace age::graphics::defaults
+{
+	namespace copy_location
+	{
+		helper(src);
+		helper(src_placed);
+		helper(src_subresource);
+		helper(dst);
+		helper(dst_subresource);
+		helper(dst_placed);
+	}	 // namespace copy_location
+}	 // namespace age::graphics::defaults
+
+#undef helper

@@ -804,7 +804,7 @@ namespace age::editor
 				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
 				ui::widget::dropdown_option<uint8>{ .value = 32, .label = "32" },
 				ui::widget::dropdown_option<uint8>{ .value = 64, .label = "64" },
-				ui::widget::dropdown_option<uint8>{ .value = 128, .label = "128" },
+				// ui::widget::dropdown_option<uint8>{ .value = 128, .label = "128" },
 			};
 
 			ui::widget::text_label("cell_count");

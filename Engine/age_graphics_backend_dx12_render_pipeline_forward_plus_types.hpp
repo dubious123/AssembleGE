@@ -412,6 +412,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		bool render_surfels;
 		bool lock_origin;
 
+		float3 origin;
+
 		resource_handle h_surfel_buffer;
 		resource_handle h_cell_info_buffer;	   // cell entry (offset, count) + cell coord to surfel
 		resource_handle h_irradiance_atlas;
@@ -431,7 +433,5 @@ namespace age::graphics::render_pipeline::forward_plus
 		uav_desc_handle h_irradiance_atlas_uav_desc;
 		uav_desc_handle h_visibility_atlas_uav_desc;
 		rtv_desc_handle h_gbuffer_rtv_desc;
-
-		float3 origin;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

@@ -121,6 +121,39 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_depth_prepass;
 		ID3D12PipelineState*  p_pso_depth_prepass;
 
+		graphics::pso::handle h_pso_cleanup;
+		ID3D12PipelineState*  p_pso_cleanup;
+
+		graphics::pso::handle h_pso_prepare;
+		ID3D12PipelineState*  p_pso_prepare;
+
+		graphics::pso::handle h_pso_update_surfel;
+		ID3D12PipelineState*  p_pso_update_surfel;
+
+		graphics::pso::handle h_pso_ray_ideal_count_sum;
+		ID3D12PipelineState*  p_pso_ray_ideal_count_sum;
+
+		graphics::pso::handle h_pso_ray_count_prefix;
+		ID3D12PipelineState*  p_pso_ray_count_prefix;
+
+		graphics::pso::handle h_pso_ray_entry;
+		ID3D12PipelineState*  p_pso_ray_entry;
+
+		graphics::pso::handle h_pso_cell_surfel_count_prefix;
+		ID3D12PipelineState*  p_pso_cell_surfel_count_prefix;
+
+		graphics::pso::handle h_pso_cell_to_surfel_scatter;
+		ID3D12PipelineState*  p_pso_cell_to_surfel_scatter;
+
+		graphics::pso::handle h_pso_ray_trace;
+		ID3D12PipelineState*  p_pso_ray_trace;
+
+		graphics::pso::handle h_pso_ray_integrate;
+		ID3D12PipelineState*  p_pso_ray_integrate;
+
+		graphics::pso::handle h_pso_tile_coverage;
+		ID3D12PipelineState*  p_pso_tile_coverage;
+
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
@@ -130,8 +163,9 @@ namespace age::graphics::render_pipeline::forward_plus
 							  uint32		   opaque_meshlet_count) const noexcept;
 
 		inline void
-		execute(const gibs_data& gibs_data_cpu,
-				resource_handle	 h_indirect_arg_buffer) const noexcept;
+		execute(const gibs_data&  gibs_data_cpu,
+				extent_2d<uint16> main_buffer_extent,
+				resource_handle	  h_indirect_arg_buffer) const noexcept;
 
 
 		inline void

@@ -50,20 +50,24 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 debug_flags;
 		uint32 max_surfel_count;
 		uint32 ray_count_reduce_group_count;
-		uint32 cell_count;	  // per axis, level 0
+		uint32 cell_count;	  // per axis, level 0, power of 2
+		uint32 cell_count_total;
 		uint32 outer_layer_count;
 
 		uint32 h_surfel_buffer_srv_id;
-		uint32 h_cell_info_srv_id;
+		uint32 h_cell_info_buffer_srv_id;
 		uint32 h_irradiance_atlas_srv_id;
 		uint32 h_visibility_atlas_srv_id;
 		uint32 h_gbuffer_srv_id;
+
 		uint32 h_surfel_buffer_uav_id;
-		uint32 h_cell_info_uav_id;
+		uint32 h_cell_info_buffer_uav_id;
 		uint32 h_scratch_buffer_uav_id;
 		uint32 h_irradiance_atlas_uav_id;
 		uint32 h_visibility_atlas_uav_id;
 
+		uint32 alive_surfel_id_stack_prev_offset;
+		uint32 alive_surfel_id_stack_curr_offset;
 		// todo, optimize
 		// uint32 alive_dead_counter_offset = 0;
 		// uint32 cell_atomic_counter_offset = sizeof(uint32) * 2;
@@ -82,6 +86,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		float cell_size_arr[16 + 1];
 		float layer_boundary_arr[16 + 1];
+		float surfel_distance_to_radius;
+	};
+
+	struct gibs_counter
+	{
+		uint32 cell_to_surfel_id;
+		uint32 ray_count_ideal;
 	};
 
 	struct surfel
@@ -89,7 +100,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 position;
 		float  radius;
 		float3 radiance;
-		uint32 normal_oct;
+		uint32 normal_oct_snorm16;
+
+		void
+		kill()
+		{
+			radius = 0.f;
+		}
 	};
 
 	struct gibs_cell_entry
@@ -99,28 +116,69 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 offset;
 		uint32 count;
+
+		static gibs_cell_entry
+		init(uint32 offset, uint32 count)
+		{
+			gibs_cell_entry res;
+			res.offset = offset;
+			res.count  = count;
+			return res;
+		}
 	};
 
 	struct surfel_geometry
 	{
 		uint32 object_id;
-		uint32 mesh_id;
-		uint32 triangle_id;
+		uint32 local_normal_oct_snorm16;
+		float3 local_pos;
 	};
 
 	struct surfel_msme
 	{
-		float mean_long;
-		float mean_short;
-		float variance;
-		float inconsistency;
-		float vbbr;
+		float3 mean_long;
+		float  inconsistency;
+		float3 mean_short;
+		float  vbbr;
+		float3 variance;
 	};
 
 	struct surfel_recycle_data
 	{
-		uint16 frame_since_seen_and_extra;	  // [frame_since_seen(8)][status(8)]
+		uint16 frame_since_seen_and_extra;	  // [frame_since_seen(8)][frame_since_ref(8)]
 		uint16 frame_since_born;
+
+		uint16
+		frame_since_ref()
+		{
+			return uint16((frame_since_seen_and_extra >> 8u) & 0xff);
+		}
+
+		void
+		add_ref()
+		{
+			frame_since_seen_and_extra &= 0x00ff;	 // frame_since_ref = 0
+		}
+
+		uint16
+		frame_since_seen()
+		{
+			return uint16(frame_since_seen_and_extra & 0xff);
+		}
+
+		void
+		next_frame(bool seen)
+		{
+			frame_since_born = uint16(max(frame_since_born, uint16(0xfffe)) + 1u);
+
+			uint16 since_ref  = frame_since_ref();
+			uint16 since_seen = seen ? uint16(0) : frame_since_seen();
+
+			since_ref  = uint16(max(since_ref, uint16(0x00fe)) + 1u);
+			since_seen = uint16(max(since_seen, uint16(0x00fe)) + 1u);
+
+			frame_since_seen_and_extra = uint16(since_seen | (since_ref << 8u));
+		}
 	};
 
 	struct gibs_ray_result
@@ -128,6 +186,12 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 radiance_r11g11b10;
 		float  distance;
 		uint32 dir_oct_snorm_and_extra;
+	};
+
+	struct gibs_ray_entry
+	{
+		uint32 surfel_id;
+		uint32 local_ray_id;
 	};
 
 	//---[ ddgi ]------------------------------------------------------------
@@ -329,6 +393,14 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 scale;
 		// float4 quaternion;
 		//  uint16_t extra;	   // 2
+
+		uint32 gen_and_extra;	 // [gen(4)][extra(28)]
+
+		uint16
+		gen()
+		{
+			return uint16((gen_and_extra & 0xf0000000) >> 28u);
+		}
 	};	  // total: 24 bytes
 
 	struct debug_object_data
@@ -470,8 +542,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float  cam_far_z;
 		uint32 ddgi_enabled_and_extra;	  // [ddgi_enabled(1)][gibs_enabled(1)]
 		float2 ddgi_cranley_patterson_rotation;
-		float3 ddgi_origin;
-		uint32 _;
+		float3 gi_origin;
+		uint32 object_count;
 
 		uint32_4 extra[5];
 		// total: 256 * 2 bytes
@@ -795,37 +867,70 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #endif
 
 	//---[ gibs ]------------------------------------------------------------------------------------------------------
-#define GIBS_ATLAS_WIDTH		   3840u
-#define GIBS_ATLAS_HEIGHT		   2160u
-#define GIBS_TILE_SIZE			   6u
-#define GIBS_ATLAS_TILE_COUNT_U	   (GIBS_ATLAS_WIDTH / GIBS_TILE_SIZE)
-#define GIBS_ATLAS_TILE_COUNT_V	   (GIBS_ATLAS_HEIGHT / GIBS_TILE_SIZE)
-#define GIBS_MAX_SURFEL_COUNT	   (GIBS_ATLAS_TILE_COUNT_U * GIBS_ATLAS_TILE_COUNT_V - 1)
-#define GIBS_RAY_BUDGET			   (GIBS_MAX_SURFEL_COUNT * 4u)
-#define GIBS_RAY_COUNT_REDUCE_TPG  32u
-#define GIBS_RAY_COUNT_REDUCE_EPT  32u
-#define GIBS_RAY_COUNT_REDUCE_EPG  (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
-#define GIBS_MAX_OUTER_LAYER_COUNT 16u
+#define GIBS_ATLAS_WIDTH		3840u
+#define GIBS_ATLAS_HEIGHT		2160u
+#define GIBS_ATLAS_TILE_SIZE	6u
+#define GIBS_ATLAS_TILE_COUNT_U (GIBS_ATLAS_WIDTH / GIBS_ATLAS_TILE_SIZE)
+#define GIBS_ATLAS_TILE_COUNT_V (GIBS_ATLAS_HEIGHT / GIBS_ATLAS_TILE_SIZE)
+#define GIBS_MAX_SURFEL_COUNT	(GIBS_ATLAS_TILE_COUNT_U * GIBS_ATLAS_TILE_COUNT_V - 1)
+#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 4u)
+#define GIBS_MIN_RAY_PER_SURFEL 4	  // ideal
+#define GIBS_MAX_RAY_PER_SURFEL 64	  // ideal
+
+#define GIBS_CELL_SURFEL_COUNT_PREFIX_TPG 32u
+#define GIBS_CELL_SURFEL_COUNT_PREFIX_EPT 32u
+#define GIBS_CELL_SURFEL_COUNT_PREFIX_EPG (GIBS_CELL_SURFEL_COUNT_PREFIX_TPG * GIBS_CELL_SURFEL_COUNT_PREFIX_EPT)
+
+#define GIBS_RAY_REDUCE_TPG 32u
+#define GIBS_RAY_REDUCE_EPT 32u
+#define GIBS_RAY_REDUCE_EPG (GIBS_RAY_REDUCE_TPG * GIBS_RAY_REDUCE_EPT)
+
+#define GIBS_RAY_COUNT_REDUCE_TPG 32u
+#define GIBS_RAY_COUNT_REDUCE_EPT 32u
+#define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
+
+#define GIBS_MAX_OUTER_LAYER_COUNT	  16u
+#define GIBS_SCREEN_TILE_SIZE		  16u
+#define GIBS_SCREEN_GROUP_SHARED_SIZE 8u
+
+#define GIBS_SPAWN_COVERAGE	   2.f
+#define GIBS_KILL_COVERAGE	   4.f
+#define GIBS_SPAWN_PROB_FACTOR 0.3f
+#define GIBS_KILL_PROB_FACTOR  0.2f
+
+#define GIBS_RADIANCE_CACHE_DELAY 10
+
+#define GIBS_MSME_SHORT_WINDOW_BLEND 0.8f
+
 
 #if !defined(AGE_SHADER)
 
 	inline constexpr auto gibs_atlas_extent		  = extent_2d<uint32>{ GIBS_ATLAS_WIDTH, GIBS_ATLAS_HEIGHT };
-	inline constexpr auto gibs_tile_size		  = GIBS_TILE_SIZE;
+	inline constexpr auto gibs_atlas_tile_size	  = GIBS_ATLAS_TILE_SIZE;
 	inline constexpr auto gibs_atlas_tile_count_u = GIBS_ATLAS_TILE_COUNT_U;
 	inline constexpr auto gibs_atlas_tile_count_v = GIBS_ATLAS_TILE_COUNT_V;
 	inline constexpr auto gibs_max_surfel_count	  = GIBS_MAX_SURFEL_COUNT;
 	inline constexpr auto gibs_ray_budget		  = GIBS_RAY_BUDGET;
 
-	inline constexpr auto gibs_ray_count_reduce_epg = GIBS_RAY_COUNT_REDUCE_EPG;
+	inline constexpr auto gibs_cell_surfel_count_reduce_epg = GIBS_CELL_SURFEL_COUNT_PREFIX_EPG;
+	inline constexpr auto gibs_ray_count_reduce_epg			= GIBS_RAY_COUNT_REDUCE_EPG;
+	inline constexpr auto gibs_max_outer_layer_count		= GIBS_MAX_OUTER_LAYER_COUNT;
 
-	inline constexpr auto gibs_max_outer_layer_count = GIBS_MAX_OUTER_LAYER_COUNT;
+	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	static_assert(GIBS_ATLAS_WIDTH % gibs_tile_size == 0);
-	static_assert(GIBS_ATLAS_HEIGHT % gibs_tile_size == 0);
+	inline constexpr auto gibs_surfel_screen_ratio = 0.05f;
+
+	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
+
+	static_assert(GIBS_ATLAS_WIDTH % gibs_atlas_tile_size == 0);
+	static_assert(GIBS_ATLAS_HEIGHT % gibs_atlas_tile_size == 0);
 	static_assert(gibs_max_surfel_count <= (1u << 24u));
 
 	static_assert(sizeof(shared_type::gibs_lut_data::cell_size_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 	static_assert(sizeof(shared_type::gibs_lut_data::layer_boundary_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
+	static_assert(GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE == 32 * GIBS_SCREEN_GROUP_SHARED_SIZE);
+
+	static_assert(sizeof(shared_type::gibs_ray_entry) <= sizeof(shared_type::gibs_ray_result));
 #endif
 
 	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
@@ -837,7 +942,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
 #define GIBS_DATA_OFFSET				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 #define GIBS_LUT_DATA_OFFSET			(GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
-#define STATIC_BUFFER_SIZE				(GIBS_LUT_DATA_OFFSET + sizeof(float) * GIBS_MAX_OUTER_LAYER_COUNT * 2u)
+#define STATIC_BUFFER_SIZE				(GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
 #if !defined(AGE_SHADER)
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;

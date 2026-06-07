@@ -18,6 +18,10 @@ static const float radian_to_degree = 180.f / pi;
 
 static const float float_max = 3.402823466e+38F;
 
+static const uint16 uint8_max  = 0xffu;
+static const uint16 uint16_max = 0xffffu;
+static const uint32 uint32_max = 0xffffffffu;
+
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
 uint32
@@ -170,6 +174,24 @@ float
 unorm8_to_float(uint32 raw)
 {
 	return (raw & 0xffu) / 255.f;
+}
+
+float
+snorm16_to_float(int32 raw)
+{
+	return ((raw << 16) >> 16) / 32767.f;
+}
+
+// float
+// snorm16_to_float(int32 raw)
+//{
+//	return max(((raw << 16) >> 16) / 32767.f, -1.f);
+// }
+
+float
+unorm16_to_float(uint32 raw)
+{
+	return (raw & 0xffffu) / 65535.f;
 }
 
 uint16
@@ -367,6 +389,12 @@ rotate(float2 v, float radian)
 }
 
 float3
+rotate_inv(float4 q, float3 v)
+{
+	return rotate(float4(-q.xyz, q.w), v);
+}
+
+float3
 decode_octahedral(float2 uv)
 {
 	float3 res;
@@ -387,6 +415,14 @@ decode_oct_snorm(const uint16 oct)
 {
 	float x = snorm8_to_float(oct & 0xffu);
 	float y = snorm8_to_float((oct >> 8) & 0xffu);
+	return decode_octahedral(float2(x, y));
+}
+
+float3
+decode_oct_snorm16(const uint32 oct)
+{
+	float x = snorm16_to_float(oct & 0xffffu);
+	float y = snorm16_to_float((oct >> 8) & 0xffffu);
 	return decode_octahedral(float2(x, y));
 }
 

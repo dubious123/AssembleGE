@@ -81,7 +81,13 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	undefined_to_dsv_write(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	undefined_to_rtv(resource_handle h_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	{
+		return undefined_to_rtv(graphics::g::resource_vec[h_resource].p_resource, flag);
+	}
+
+	FORCE_INLINE decltype(auto)
+	undefined_to_dsv_write(resource_handle h_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_NONE,
@@ -90,14 +96,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_UNDEFINED,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	undefined_to_uav(ID3D12Resource*			 p_resource,
+	undefined_to_uav(resource_handle			 h_resource,
 					 D3D12_BARRIER_SYNC			 sync_after		 = D3D12_BARRIER_SYNC_COMPUTE_SHADING,
 					 D3D12_TEXTURE_BARRIER_FLAGS flag			 = {},
 					 bool						 is_direct_queue = true) noexcept
@@ -111,14 +117,14 @@ namespace age::graphics::barrier
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	present_to_rtv(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	present_to_rtv(resource_handle h_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_NONE,
@@ -127,7 +133,7 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_RENDER_TARGET,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_PRESENT,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
@@ -150,7 +156,13 @@ namespace age::graphics::barrier
 	}
 
 	FORCE_INLINE decltype(auto)
-	srv_to_rtv(ID3D12Resource*			   p_resource,
+	rtv_to_present(resource_handle h_resource) noexcept
+	{
+		return rtv_to_present(graphics::g::resource_vec[h_resource].p_resource);
+	}
+
+	FORCE_INLINE decltype(auto)
+	srv_to_rtv(resource_handle			   h_resource,
 			   D3D12_BARRIER_SYNC		   sync_before_srv,
 			   D3D12_TEXTURE_BARRIER_FLAGS flag			   = {},
 			   bool						   is_direct_queue = true) noexcept
@@ -164,14 +176,14 @@ namespace age::graphics::barrier
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	srv_to_dsv_read(ID3D12Resource*				p_resource,
+	srv_to_dsv_read(resource_handle				h_resource,
 					D3D12_BARRIER_SYNC			sync_before_srv,
 					D3D12_TEXTURE_BARRIER_FLAGS flag			= {},
 					bool						is_direct_queue = true) noexcept
@@ -185,14 +197,14 @@ namespace age::graphics::barrier
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	srv_to_dsv_write(ID3D12Resource*			 p_resource,
+	srv_to_dsv_write(resource_handle			 h_resource,
 					 D3D12_BARRIER_SYNC			 sync_before_srv,
 					 D3D12_TEXTURE_BARRIER_FLAGS flag			 = {},
 					 bool						 is_direct_queue = true) noexcept
@@ -206,14 +218,14 @@ namespace age::graphics::barrier
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	rtv_to_srv(ID3D12Resource*			   p_resource,
+	rtv_to_srv(resource_handle			   h_resource,
 			   D3D12_BARRIER_SYNC		   sync_after_srv,
 			   D3D12_TEXTURE_BARRIER_FLAGS flag			   = {},
 			   bool						   is_direct_queue = true) noexcept
@@ -227,14 +239,14 @@ namespace age::graphics::barrier
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_write_to_srv(ID3D12Resource*			 p_resource,
+	dsv_write_to_srv(resource_handle			 h_resource,
 					 D3D12_BARRIER_SYNC			 sync_after_srv,
 					 D3D12_TEXTURE_BARRIER_FLAGS flag			 = {},
 					 bool						 is_direct_queue = true) noexcept
@@ -248,14 +260,14 @@ namespace age::graphics::barrier
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_read_to_srv(ID3D12Resource*				p_resource,
+	dsv_read_to_srv(resource_handle				h_resource,
 					D3D12_BARRIER_SYNC			sync_after_srv,
 					D3D12_TEXTURE_BARRIER_FLAGS flag			= {},
 					bool						is_direct_queue = true) noexcept
@@ -269,14 +281,14 @@ namespace age::graphics::barrier
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_read_to_dsv_write(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	dsv_read_to_dsv_write(resource_handle h_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
@@ -285,14 +297,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_write_to_dsv_read(ID3D12Resource* p_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	dsv_write_to_dsv_read(resource_handle h_resource, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
@@ -301,14 +313,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_write_to_generic_read(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after, D3D12_BARRIER_ACCESS access_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	dsv_write_to_generic_read(resource_handle h_resource, D3D12_BARRIER_SYNC sync_after, D3D12_BARRIER_ACCESS access_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_DEPTH_STENCIL,
@@ -317,14 +329,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = access_after,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_GENERIC_READ,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	dsv_generic_read_to_srv(ID3D12Resource*				p_resource,
+	dsv_generic_read_to_srv(resource_handle				h_resource,
 							D3D12_BARRIER_SYNC			sync_defore,
 							D3D12_BARRIER_ACCESS		access_before,
 							D3D12_BARRIER_SYNC			sync_after_srv,
@@ -342,14 +354,14 @@ namespace age::graphics::barrier
 			.LayoutAfter  = is_direct_queue
 							  ? D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE
 							  : D3D12_BARRIER_LAYOUT_COMPUTE_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_srv_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_srv_to_uav(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
@@ -358,14 +370,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_uav_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_uav_to_srv(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before, D3D12_BARRIER_SYNC sync_after, D3D12_TEXTURE_BARRIER_FLAGS flag = {}, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
@@ -374,14 +386,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_uav_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
+	tex_uav_to_uav(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAGS flag = {}) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before,
@@ -390,14 +402,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = D3D12_BARRIER_SUBRESOURCE_RANGE{ .IndexOrFirstMipLevel = 0xFFFFFFFF },
 			.Flags		  = flag
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_uav_to_srv(ID3D12Resource*	  p_resource,
+	buf_uav_to_srv(resource_handle	  h_resource,
 				   D3D12_BARRIER_SYNC sync_before_uav,
 				   D3D12_BARRIER_SYNC sync_after_srv) noexcept
 	{
@@ -406,14 +418,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = sync_after_srv,
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_uav_to_srv(ID3D12Resource*	  p_resource,
+	buf_uav_to_srv(resource_handle	  h_resource,
 				   D3D12_BARRIER_SYNC sync_after_srv) noexcept
 	{
 		return D3D12_BUFFER_BARRIER{
@@ -421,14 +433,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = sync_after_srv,
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_uav_to_uav(ID3D12Resource*	  p_resource,
+	buf_uav_to_uav(resource_handle	  h_resource,
 				   D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING,
 				   D3D12_BARRIER_SYNC sync_after  = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
 	{
@@ -437,14 +449,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = sync_after,
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_uav_to_indirect(ID3D12Resource*	   p_resource,
+	buf_uav_to_indirect(resource_handle	   h_resource,
 						D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
 	{
 		return D3D12_BUFFER_BARRIER{
@@ -452,14 +464,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = D3D12_BARRIER_SYNC_EXECUTE_INDIRECT,
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_uav_to_copy_src(ID3D12Resource*	   p_resource,
+	buf_uav_to_copy_src(resource_handle	   h_resource,
 						D3D12_BARRIER_SYNC sync_before = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
 	{
 		return D3D12_BUFFER_BARRIER{
@@ -467,14 +479,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = D3D12_BARRIER_SYNC_COPY,
 			.AccessBefore = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	buf_srv_to_uav(ID3D12Resource*	  p_resource,
+	buf_srv_to_uav(resource_handle	  h_resource,
 				   D3D12_BARRIER_SYNC sync_before,
 				   D3D12_BARRIER_SYNC sync_after = D3D12_BARRIER_SYNC_COMPUTE_SHADING) noexcept
 	{
@@ -483,14 +495,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = sync_after,
 			.AccessBefore = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	rt_write_to_rt_read(ID3D12Resource*	   p_resource,
+	rt_write_to_rt_read(resource_handle	   h_resource,
 						D3D12_BARRIER_SYNC sync_after) noexcept
 	{
 		return D3D12_BUFFER_BARRIER{
@@ -498,14 +510,14 @@ namespace age::graphics::barrier
 			.SyncAfter	  = sync_after,
 			.AccessBefore = D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE,
 			.AccessAfter  = D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Offset		  = 0,
 			.Size		  = UINT64_MAX,
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_copy_dest_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_copy_dest_to_srv(resource_handle h_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
@@ -514,14 +526,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_copy_dest_to_uav(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_uav, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_copy_dest_to_uav(resource_handle h_resource, D3D12_BARRIER_SYNC sync_after_uav, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
@@ -530,14 +542,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_copy_src_to_srv(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_copy_src_to_srv(resource_handle h_resource, D3D12_BARRIER_SYNC sync_after_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = D3D12_BARRIER_SYNC_COPY,
@@ -546,14 +558,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_SHADER_RESOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_srv_to_copy_dst(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_srv_to_copy_dst(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before_srv,
@@ -562,14 +574,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_DEST,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_DEST,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_srv_to_copy_src(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_srv_to_copy_src(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before_srv,
@@ -578,14 +590,14 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
 	}
 
 	FORCE_INLINE decltype(auto)
-	tex_uav_to_copy_src(ID3D12Resource* p_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
+	tex_uav_to_copy_src(resource_handle h_resource, D3D12_BARRIER_SYNC sync_before_srv, D3D12_BARRIER_SUBRESOURCE_RANGE subresources = mip_all()) noexcept
 	{
 		return D3D12_TEXTURE_BARRIER{
 			.SyncBefore	  = sync_before_srv,
@@ -594,7 +606,7 @@ namespace age::graphics::barrier
 			.AccessAfter  = D3D12_BARRIER_ACCESS_COPY_SOURCE,
 			.LayoutBefore = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS,
 			.LayoutAfter  = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_COPY_SOURCE,
-			.pResource	  = p_resource,
+			.pResource	  = graphics::g::resource_vec[h_resource].p_resource,
 			.Subresources = subresources,
 			.Flags		  = {},
 		};
