@@ -151,8 +151,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_ray_integrate;
 		ID3D12PipelineState*  p_pso_ray_integrate;
 
+		graphics::pso::handle h_pso_build_cdf;
+		ID3D12PipelineState*  p_pso_build_cdf;
+
 		graphics::pso::handle h_pso_tile_coverage;
 		ID3D12PipelineState*  p_pso_tile_coverage;
+
+		graphics::pso::handle h_pso_debug_draw_surfels;
+		ID3D12PipelineState*  p_pso_debug_draw_surfels;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
@@ -169,10 +175,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 
 		inline void
-		execute_render_surfels(rtv_desc_handle	h_main_buffer_rtv_desc,
-							   dsv_desc_handle	h_depth_buffer_dsv_desc,
-							   const gibs_data& gibs_data_cpu) const noexcept;
-
+		execute_render_surfels(rtv_desc_handle h_main_buffer_rtv_desc,
+							   dsv_desc_handle h_depth_buffer_dsv_desc) const noexcept;
 		void
 		deinit() noexcept;
 	};

@@ -88,7 +88,7 @@ is_object_id_valid(uint32 object_id)
 
 	const object_data obj = load<object_data>(static_buffer, OBJECT_DATA_OFFSET + idx * sizeof(object_data));
 
-	if (obj.gen() != uint16(gen))
+	if (obj.gen() != gen)
 	{
 		return false;
 	}
@@ -869,6 +869,7 @@ safe_dot_camera_forward(float3 dir)
 }
 
 #include "age_data_structure.asli"
+#include "age_algorithm.asli"
 #include "age_mesh.asli"
 #include "age_color_space.asli"
 #include "age_random.asli"

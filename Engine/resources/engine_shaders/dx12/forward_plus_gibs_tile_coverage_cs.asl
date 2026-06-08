@@ -18,6 +18,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	const gibs_lut_data						 lut_data		   = gibs_load_gibs_lut_data();
 	const texture_2d<float>					 depth_tex		   = global_resource_buffer[depth_buffer_texture_id];
 	const texture_2d<uint32_2>				 gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
+	const texture_2d<float2>				 visibility_atlas  = global_resource_buffer[data.h_visibility_atlas_srv_id];
 	const byte_array<gibs_cell_entry>		 cell_entry_arr	   = gibs_load_cell_entry_arr(data);
 	const byte_array<uint32>				 cell_to_surfel_id = gibs_load_cell_to_surfel_id_arr(data);
 	const rw_array<surfel>					 surfel_arr		   = gibs_load_surfel_rw_arr(data);
@@ -66,7 +67,14 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 		coverage							   += contribution;
 
 		// todo, change to msme instability
-		radiance += float4(surfel.radiance, 1.f) * contribution * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born));
+		const float3  rel = world_pos - surfel.position;
+		const int32_2 px  = gibs_calc_atlas_tile_px(gibs_calc_atlas_offset(data, surfel_id), normalize(rel));
+
+		radiance += float4(surfel.radiance, 1.f)
+				  * contribution
+				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
+				  * gibs_clac_visibility(visibility_atlas[px], saturate(length(rel) / surfel.radius));
+
 
 		if (min_contribution > contribution)
 		{
@@ -74,7 +82,6 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 			min_contribution_surfel_id = surfel_id;
 		}
 	}
-
 
 	// min coverage => spawn surfel
 	const uint16 linear_id		 = uint16(group_thread_id.y * GIBS_SCREEN_TILE_SIZE + group_thread_id.x);
@@ -102,7 +109,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 			const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 
 			const float spawn_prob = (GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
-								   * (z_depth)	  // reverse_z, near = 1.f, far = 0.f
+								   * (1.f - calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z))	  // reverse_z, near = 1.f, far = 0.f
 								   * (1.f + dead_stack.size() / float(data.max_surfel_count))
 								   * GIBS_SPAWN_PROB_FACTOR;
 			// spawn surfel

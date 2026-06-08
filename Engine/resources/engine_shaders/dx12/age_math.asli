@@ -208,6 +208,20 @@ float_to_snorm16(float f)
 	return uint16(v) & 0xffff;
 }
 
+uint16
+float_to_unorm8(float f)
+{
+	uint32 v = uint32(saturate(f) * 255.f + 0.5f);
+	return uint16(v) & 0xff;
+}
+
+uint16
+float_to_unorm16(float f)
+{
+	uint32 v = uint32(saturate(f) * 65535.f + 0.5f);
+	return uint16(v) & 0xffff;
+}
+
 template <typename t_ret = int32>
 t_ret
 uint32_x_to_int8(uint32 u)
@@ -395,7 +409,7 @@ rotate_inv(float4 q, float3 v)
 }
 
 float3
-decode_octahedral(float2 uv)
+decode_octahedral(float2 uv)	// oct_uv, [-1 , 1]
 {
 	float3 res;
 	res.xy = uv;
@@ -875,13 +889,19 @@ gen_normal_transform(float3 normal)
 }
 
 float3
-sample_hemisphere_cosine(float2 xi, float3 normal)
+sample_hemisphere_cosine_local(float2 xi)
 {
 	const float phi		  = pi_2 * xi.x;
 	const float cos_theta = sqrt(xi.y);
 	const float sin_theta = sqrt(1.f - xi.y);
 
-	const float3   dir_local		= float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+	return float3(sin_theta * cos(phi), sin_theta * sin(phi), cos_theta);
+}
+
+float3
+sample_hemisphere_cosine(float2 xi, float3 normal)
+{
+	const float3   dir_local		= sample_hemisphere_cosine_local(xi);
 	const float3x3 local_to_world_t = gen_normal_transform_t(normal);
 	return mul(dir_local, local_to_world_t);
 }
@@ -937,6 +957,14 @@ float
 calc_linear_depth(float ndc_z, float cam_near_z)
 {
 	return cam_near_z / ndc_z;
+}
+
+float
+calc_linear_z_reversed(float cam_near_z, float cam_far_z, float z_depth)
+{
+	// near : z_depth = 1, return cam_near_z
+	// far : z_depth = 0, return cam_far_z
+	return cam_near_z * cam_far_z / (cam_near_z + z_depth * (cam_far_z - cam_near_z));
 }
 
 // based on Mara-McGuire 2013

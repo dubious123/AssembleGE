@@ -1,0 +1,30 @@
+#pragma once
+#include "age.asli"
+
+template <typename t_container, typename t>
+uint32
+upper_boundary(t_container container, uint32 begin, uint32 end, const t value)
+{
+	uint32 low	 = begin;
+	uint32 count = end - begin;
+	attr_loop()
+
+	while (count > 0)
+	{
+		const uint32 step = count / 2;
+		uint32		 i	  = low + step;
+
+		if (container[i] <= value)
+		{
+			low	   = i + 1;
+			count -= step + 1;
+		}
+		else
+		{
+			count = step;
+		}
+	}
+
+	// return end if not found
+	return low;
+}

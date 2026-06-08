@@ -175,13 +175,13 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		void
 		next_frame(bool seen)
 		{
-			frame_since_born = uint16(max(frame_since_born, uint16(0xfffe)) + 1u);
+			frame_since_born = uint16(min(frame_since_born, uint16(0xfffe)) + 1u);
 
 			uint16 since_ref  = frame_since_ref();
 			uint16 since_seen = seen ? uint16(0) : frame_since_seen();
 
-			since_ref  = uint16(max(since_ref, uint16(0x00fe)) + 1u);
-			since_seen = uint16(max(since_seen, uint16(0x00fe)) + 1u);
+			since_ref  = uint16(min(since_ref, uint16(0x00fe)) + 1u);
+			since_seen = uint16(min(since_seen, uint16(0x00fe)) + 1u);
 
 			frame_since_seen_and_extra = uint16(since_seen | (since_ref << 8u));
 		}
@@ -191,7 +191,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint32 radiance_r11g11b10;
 		float  distance;
-		uint32 dir_oct_snorm_and_extra;
+		uint32 dir_oct_snorm8;	  // [local_dir_snomr8(16)] [world_dir_snorm8(16)]
+		float  pdf;
 	};
 
 	struct gibs_ray_entry
@@ -405,7 +406,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint16
 		gen()
 		{
-			return uint16((gen_and_extra & 0xf0000000) >> 28u);
+			return uint16(gen_and_extra & 0xf);
 		}
 	};	  // total: 24 bytes
 
@@ -908,6 +909,25 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 #define GIBS_MSME_SHORT_WINDOW_BLEND 0.8f
 
+#define GIBS_MAX_LUMINANCE_FOR_FIREFLY 50.f
+
+#define GIBS_MIN_LUMINANCE					0.001f
+#define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
+
+
+#define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)
+#define GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE			  (1u << 2u)
+#define GIBS_DEBUG_FLAGS_RENDER_VISIBILITY			  (1u << 3u)
+#define GIBS_DEBUG_FLAGS_RENDER_INSTABILITY			  (1u << 4u)
+#define GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT			  (1u << 5u)
+#define GIBS_DEBUG_FLAGS_RENDER_MSME				  (1u << 6u)
+#define GIBS_DEBUG_FLAGS_RENDER_ID_HASH				  (1u << 7u)
+#define GIBS_DEBUG_FLAGS_RENDER_NORMAL				  (1u << 8u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL_OCCUPANCY		  (1u << 9u)
+#define GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS (1u << 10u)
+#define GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS (1u << 11u)
+#define GIBS_DEBUG_FLAGS_FREEZE_SPAWN				  (1u << 12u)
+
 
 #if !defined(AGE_SHADER)
 
@@ -937,6 +957,19 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE == 32 * GIBS_SCREEN_GROUP_SHARED_SIZE);
 
 	static_assert(sizeof(shared_type::gibs_ray_entry) <= sizeof(shared_type::gibs_ray_result));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_RADIANCE == to_idx(graphics::e::gibs_debug_flags::render_radiance));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE == to_idx(graphics::e::gibs_debug_flags::render_irradiance));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_VISIBILITY == to_idx(graphics::e::gibs_debug_flags::render_visibility));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_INSTABILITY == to_idx(graphics::e::gibs_debug_flags::render_instability));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT == to_idx(graphics::e::gibs_debug_flags::render_ray_count));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_MSME == to_idx(graphics::e::gibs_debug_flags::render_msme));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_ID_HASH == to_idx(graphics::e::gibs_debug_flags::render_id_hash));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_NORMAL == to_idx(graphics::e::gibs_debug_flags::render_normal));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_OCCUPANCY == to_idx(graphics::e::gibs_debug_flags::render_cell_occupancy));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_irradiance_atlas));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_visibility_atlas));
+	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN == to_idx(graphics::e::gibs_debug_flags::freeze_spawn));
+
 #endif
 
 	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------

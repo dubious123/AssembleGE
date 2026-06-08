@@ -85,6 +85,20 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 			ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
 		}
 	}
+	else if (gibs_enabled())
+	{
+		const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+		const float3 gi_diffuse	 = calc_pbr_gibs(surface_data, world_face_normal);
+		ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+		expand(MAX_ENV_LIGHT)
+
+		for (uint32 i = 0; i < env_light_count; ++i)
+		{
+			ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
+		}
+	}
 	else
 	{
 		expand(MAX_ENV_LIGHT)

@@ -43,6 +43,46 @@ main_ps(float4 pos sv_position) sv_target_0
 	//	}
 	//}
 
+	if (gibs_enabled())
+	{
+		const gibs_data data	 = gibs_load_gibs_data();
+		float2			debug_uv = pos.xy * inv_backbuffer_size;
+		{
+			texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
+
+			if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+			{
+				float2 uv = (debug_uv - float2(0.75f, 0.f)) * 4;
+				// font_uv.y	   = 1.f - font_uv.y;
+				float2 rg = sample_level(irradiance_atlas, get_linear_clamp_sampler(), uv, 0);
+				return float4(rg, 0.f, 1.f);
+			}
+		}
+
+		{
+			if (debug_uv.x > 0.75 and debug_uv.y < 0.5)
+			{
+				float2 uv = (debug_uv - float2(0.75f, 25.f)) * 4;
+				// font_uv.y	   = 1.f - font_uv.y;
+
+				rw_stack<uint32> prev = gibs_load_alive_surfel_id_stack_prev(data);
+				rw_stack<uint32> curr = gibs_load_alive_surfel_id_stack_curr(data);
+				rw_stack<uint32> dead = gibs_load_dead_surfel_id_stack(data);
+				return float4(curr.size() / float(data.max_surfel_count), prev.size() / float(data.max_surfel_count), dead.size() / float(data.max_surfel_count), 1);
+			}
+		}
+
+		{
+			texture_2d<float2> visibility_atlas = global_resource_buffer[data.h_visibility_atlas_srv_id];
+			if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
+			{
+				float2 uv = (debug_uv - float2(0.5f, 0.f)) * 4;
+				// font_uv.y	   = 1.f - font_uv.y;
+				float2 rg = sample_level(visibility_atlas, get_linear_clamp_sampler(), uv, 0);
+				return float4(rg, 0.f, 1.f);
+			}
+		}
+	}
 
 	return float4(color, 1.0);
 }

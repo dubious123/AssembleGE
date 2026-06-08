@@ -68,7 +68,9 @@ namespace age::graphics::e
 					forward_plus_gibs_cell_to_surfel_scatter_cs,
 					forward_plus_gibs_ray_trace_cs,
 					forward_plus_gibs_ray_integrate_cs,
+					forward_plus_gibs_build_cdf_cs,
 					forward_plus_gibs_tile_coverage_cs,
+					forward_plus_gibs_debug_draw_surfels_ps,
 
 					forward_plus_opaque_as,
 					forward_plus_opaque_ms,

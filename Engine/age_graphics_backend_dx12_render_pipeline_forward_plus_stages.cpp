@@ -563,6 +563,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		p_pso_ray_integrate = graphics::g::pso_ptr_vec[h_pso_ray_integrate];
 		h_pso_ray_integrate.set_name(L"pso_gibs_ray_integrate");
 
+		h_pso_build_cdf = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_build_cdf_cs) });
+
+		p_pso_build_cdf = graphics::g::pso_ptr_vec[h_pso_build_cdf];
+		h_pso_build_cdf.set_name(L"pso_gibs_build_cdf");
+
 
 		h_pso_tile_coverage = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -570,6 +577,23 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		p_pso_tile_coverage = graphics::g::pso_ptr_vec[h_pso_tile_coverage];
 		h_pso_tile_coverage.set_name(L"pso_gibs_tile_coverage");
+
+
+		h_pso_debug_draw_surfels = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_debug_draw_surfels_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_blend{ .subobj = defaults::blend_desc::opaque },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_debug_draw_surfels = graphics::g::pso_ptr_vec[h_pso_debug_draw_surfels];
+		h_pso_debug_draw_surfels.set_name(L"pso_gibs_debug_draw_surfels");
 	}
 
 	inline void
@@ -624,8 +648,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(gpu_data.cell_count_total % 32 == 0u);
 
 		command::set_pso(p_pso_prepare);
-		command::dispatch(util::ceil(gpu_data.cell_count_total, 32), 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer));
+		command::dispatch(util::ceil(max(gpu_data.cell_count_total, gpu_data.max_surfel_count), 32), 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
 
 
 		// todo execute_indirect (active surfel count)
@@ -674,24 +699,44 @@ namespace age::graphics::render_pipeline::forward_plus
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		// todo execute_indirect (ray count)
+		// todo execute_indirect (active surfel)
 		command::set_pso(p_pso_ray_integrate);
 		command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
-								barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
+								barrier::tex_uav_to_uav(gibs_data_cpu.h_irradiance_atlas),
 								barrier::tex_uav_to_srv(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
+		// todo execute_indirect (active surfel)
+		// do radiance sharing
+		command::set_pso(p_pso_build_cdf);
+		command::dispatch(32 * 32, util::ceil(gpu_data.max_surfel_count, 32 * 32), 1);
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
 		command::set_pso(p_pso_tile_coverage);
-		command::dispatch(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), 1);
+		command::dispatch(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 1);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 	}
 
 	inline void
-	gibs_stage::execute_render_surfels(rtv_desc_handle	h_main_buffer_rtv_desc,
-									   dsv_desc_handle	h_depth_buffer_dsv_desc,
-									   const gibs_data& gibs_data_cpu) const noexcept
+	gibs_stage::execute_render_surfels(rtv_desc_handle h_main_buffer_rtv_desc,
+									   dsv_desc_handle h_depth_buffer_dsv_desc) const noexcept
 	{
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+		auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_load_preserve(h_depth_buffer_dsv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			&render_pass_ds_desc,
+			D3D12_RENDER_PASS_FLAG_BIND_READ_ONLY_DEPTH);
+
+		command::set_pso(p_pso_debug_draw_surfels);
+
+		command::dispatch_mesh(1, 1, 1);
+
+		command::end_render_pass();
 	}
 
 	void
@@ -708,7 +753,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso_cell_to_surfel_scatter);
 		pso::destroy(h_pso_ray_trace);
 		pso::destroy(h_pso_ray_integrate);
+		pso::destroy(h_pso_build_cdf);
 		pso::destroy(h_pso_tile_coverage);
+		pso::destroy(h_pso_debug_draw_surfels);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

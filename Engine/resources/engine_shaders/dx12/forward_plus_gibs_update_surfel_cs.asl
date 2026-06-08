@@ -27,15 +27,15 @@ wave_size(32)
 main_cs(
 	uint32 group_id		   sv_group_id,
 	uint32 group_thread_id sv_group_thread_id,
-	uint32 alive_idx	   sv_dispatch_thread_id)
+	uint32 alive_idx_prev  sv_dispatch_thread_id)
 
 {
 	const gibs_data		   data				= gibs_load_gibs_data();
 	const rw_stack<uint32> alive_stack_prev = gibs_load_alive_surfel_id_stack_prev(data);
 
-	if (alive_idx >= alive_stack_prev.size()) { return; }
+	if (alive_idx_prev >= alive_stack_prev.size()) { return; }
 
-	uint32 surfel_id = alive_stack_prev[alive_idx];
+	uint32 surfel_id = alive_stack_prev[alive_idx_prev];
 
 	rw_byte_array<surfel_geometry>	   geo_arr		= gibs_load_surfel_geometry_rw_arr(data);
 	rw_byte_array<surfel_recycle_data> recycle_arr	= gibs_load_surfel_recycle_data_rw_arr(data);
@@ -52,7 +52,7 @@ main_cs(
 
 	if (is_object_id_valid(surfel_geo.object_id) is_false)
 	{
-		handle_kill_surfel(data, alive_idx, surfel_id);
+		handle_kill_surfel(data, alive_idx_prev, surfel_id);
 		return;
 	}
 
@@ -93,7 +93,7 @@ main_cs(
 
 	if (kill_surfel)
 	{
-		handle_kill_surfel(data, alive_idx, surfel_id);
+		handle_kill_surfel(data, alive_idx_prev, surfel_id);
 		return;
 	}
 
@@ -111,22 +111,22 @@ main_cs(
 	surfel_arr.store(surfel_id, surfel);
 
 	// alive stack prev -> alive stack curr
+	const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
+
+	const uint32 alive_count  = wave_active_count_bits(true);
+	const uint32 local_offset = wave_prefix_count_bits(true);
+
+	uint32 target_offset = 0u;
+	if (wave_is_first_lane())
 	{
-		const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
-
-		const uint32 alive_count  = wave_active_count_bits(true);
-		const uint32 local_offset = wave_prefix_count_bits(true);
-
-		uint32 target_offset = 0u;
-		if (wave_is_first_lane())
-		{
-			target_offset = alive_stack_curr.inc_size_atomic(alive_count);
-		}
-
-		target_offset = wave_read_lane_first(target_offset) + local_offset;
-
-		alive_stack_curr.set(target_offset, surfel_id);
+		target_offset = alive_stack_curr.inc_size_atomic(alive_count);
 	}
+
+	target_offset = wave_read_lane_first(target_offset) + local_offset;
+
+	alive_stack_curr.set(target_offset, surfel_id);
+
+	const uint32 alive_idx_curr = target_offset;
 
 	// cell update
 	const fn_cell_update fn;
@@ -151,10 +151,12 @@ main_cs(
 		ray_count_ideal = GIBS_MAX_RAY_PER_SURFEL;
 	}
 
-	ray_count_arr.store(alive_idx, ray_count_ideal);
+	ray_count_arr.store(alive_idx_curr, ray_count_ideal);
 
-	if (group_thread_id == 0)
+	uint32 ray_count_ideal_wave_sum = wave_active_sum(ray_count_ideal);
+
+	if (wave_is_first_lane())
 	{
-		ray_count_group_sum_arr.store(group_id, wave_active_sum(ray_count_ideal));
+		ray_count_group_sum_arr.store(group_id, ray_count_ideal_wave_sum);
 	}
 }

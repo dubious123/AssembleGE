@@ -110,3 +110,20 @@ random_spherical_fibonacci(uint32 ray_index, uint32 ray_count)
 	return float2((float(ray_index) + 0.5f) / float(ray_count),
 				  frac(float(ray_index) * golden_frac));
 }
+
+float3
+random_color(uint32 index)
+{
+	index  = (index ^ 61) ^ (index >> 16);
+	index *= 9;
+	index  = index ^ (index >> 4);
+	index *= 0x27d4eb2d;
+	index  = index ^ (index >> 15);
+
+	float3 raw_color = float3(
+		(float)((index >> 0) & 0xFF) / 255.0f,
+		(float)((index >> 8) & 0xFF) / 255.0f,
+		(float)((index >> 16) & 0xFF) / 255.0f);
+
+	return raw_color * 0.8f + 0.2f;
+}
