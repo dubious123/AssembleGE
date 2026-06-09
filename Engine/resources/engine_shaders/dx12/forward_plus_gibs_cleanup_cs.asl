@@ -17,5 +17,8 @@ main_cs(uint32 surfel_id sv_dispatch_thread_id)
 		dead_stack.resize(data.max_surfel_count);
 		rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 		alive_stack.resize(0u);
+
+		rw_stack<uint32> prev_stack = gibs_load_alive_surfel_id_stack_prev(data);
+		prev_stack.resize(0u);
 	}
 }

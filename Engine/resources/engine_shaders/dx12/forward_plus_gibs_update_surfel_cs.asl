@@ -2,8 +2,18 @@
 
 struct fn_cell_update
 {
+	surfel surfel;
+
+	static fn_cell_update
+	init(const struct surfel surfel)
+	{
+		fn_cell_update res;
+		res.surfel = surfel;
+		return res;
+	}
+
 	void
-	operator()(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel, int32_4 cell_idx)
+	operator()(const gibs_data data, const gibs_lut_data lut_data, int32_4 cell_idx)
 	{
 		if (gibs_surfel_cell_intersect(data, lut_data, surfel, cell_idx) is_false) { return; }
 
@@ -86,7 +96,11 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	else if (surfel_recycle.frame_since_ref() == 0xff)
+	// else if (surfel_recycle.frame_since_ref() > 0xfe)
+	//{
+	//	kill_surfel = true;
+	// }
+	else if (surfel_recycle.frame_since_seen() > 128u)
 	{
 		kill_surfel = true;
 	}
@@ -97,7 +111,7 @@ main_cs(
 		return;
 	}
 
-
+	assert(surfel_recycle.frame_since_seen() <= 0xfff);
 	const bool surfel_seen = in_screen
 						 and z_depth != 0.f
 						 and ndc.z >= (z_depth - epsilon_1e4)
@@ -129,8 +143,7 @@ main_cs(
 	const uint32 alive_idx_curr = target_offset;
 
 	// cell update
-	const fn_cell_update fn;
-	gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel);
+	gibs_foreach_neighbor_cell(fn_cell_update::init(surfel), data, gibs_load_gibs_lut_data(), surfel.position);
 
 	// calc ideal ray count
 

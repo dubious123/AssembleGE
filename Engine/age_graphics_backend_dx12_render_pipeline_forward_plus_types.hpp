@@ -206,12 +206,21 @@ namespace age::graphics::render_pipeline::forward_plus
 			where::t<1, 77>>,
 
 		binding_slot<
+			"crash_assert_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::rw_byte_address_buffer,
+			how::root_descriptor,
+			where::u<666, 666>>,
+
+		binding_slot<
 			"linear_clamp_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::sampler<defaults::static_sampler_desc::linear_clamp>,
 			how::static_sampler,
 			where::s<0>>,
+
 		binding_slot<
 			"linear_wrap_sampler",
 			D3D12_SAMPLER_FLAG_NONE,

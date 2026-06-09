@@ -232,7 +232,18 @@ gibs_calc_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, cons
 
 	const float radius = distance * lut_data.surfel_distance_to_radius;
 
+	// return radius;
 	const float cell_size = gibs_calc_cell_size(data, lut_data, surfel);
+
+	// if (distance < lut_data.layer_boundary_arr[0])
+	//{
+	//	return max(radius, cell_size * 0.15f);
+	// }
+	// else
+	//{
+	//	return radius;
+	// }
+
 
 	return clamp(radius, cell_size * 0.15f, cell_size * 0.85f);
 }
@@ -332,13 +343,15 @@ gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const flo
 
 	const float3 rel = world_pos - gibs_calc_origin(lut_data);
 
+	const int32 half = data.cell_count >> 1u;
+
 	int32 region = 0;
 
 	if (layer == 0)
 	{
 		const float3 cell_idx_float = floor(rel / lut_data.cell_size_arr[0]);
 
-		return int32_4(clamp(int32_3(cell_idx_float), -(data.cell_count >> 1u), (data.cell_count >> 1u) - 1), region);
+		return int32_4(clamp(int32_3(cell_idx_float), -half, half - 1), region);
 	}
 
 	const float3 region_xyz = gibs_calc_region(rel, region);
@@ -346,7 +359,7 @@ gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const flo
 	const float	 cell_size_xy	   = region_xyz.z * 2.f / data.cell_count;
 	const float2 cell_idx_float_xy = floor(region_xyz.xy / cell_size_xy);
 
-	return int32_4(clamp(int32_2(cell_idx_float_xy), -(data.cell_count >> 1u), (data.cell_count >> 1u) - 1), layer, region);
+	return int32_4(clamp(int32_2(cell_idx_float_xy), -half, half - 1), layer, region);
 }
 
 int32_4
@@ -377,71 +390,101 @@ gibs_surfel_cell_intersect(const gibs_data data, const gibs_lut_data lut_data, c
 
 		int32_3 cell_idx_world = cell_idx.xyz;
 
-		const float cell_size_uv = max_z * 2.f / data.cell_count;
+		const float cell_size_near_uv = min_z * 2.f / data.cell_count;
+		const float cell_size_far_uv  = max_z * 2.f / data.cell_count;
 
-		float3 cell_near;
-		float3 cell_far;
+		float3 cell_near_low;
+		float3 cell_near_high;
+		float3 cell_far_low;
+		float3 cell_far_high;
 
+		// maybe there are better ways to do this, but i can't think of one
 		if (region == 1)
 		{
-			cell_near.yz = float2(cell_idx.y, -cell_idx.x - 1) * cell_size_uv;
-			cell_near.x	 = min_z;
+			cell_near_low.yz = float2(cell_idx.y, -cell_idx.x) * cell_size_near_uv;
+			cell_near_low.x	 = min_z;
+			cell_far_low.yz	 = float2(cell_idx.y, -cell_idx.x) * cell_size_far_uv;
+			cell_far_low.x	 = max_z;
 
-			cell_far.yz = cell_near.yz + float2(cell_size_uv, -cell_size_uv);
-			cell_far.x	= max_z;
+			cell_near_high.yz = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_near_uv;
+			cell_near_high.x  = min_z;
+			cell_far_high.yz  = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_far_uv;
+			cell_far_high.x	  = max_z;
 		}
 		else if (region == 2)
 		{
-			cell_near.yz = float2(cell_idx.y, cell_idx.x) * cell_size_uv;
-			cell_near.x	 = -min_z;
+			cell_near_low.yz = float2(cell_idx.y, cell_idx.x) * cell_size_near_uv;
+			cell_near_low.x	 = -min_z;
+			cell_far_low.yz	 = float2(cell_idx.y, cell_idx.x) * cell_size_far_uv;
+			cell_far_low.x	 = -max_z;
 
-			cell_far.yz = cell_near.yz + float2(cell_size_uv, cell_size_uv);
-			cell_far.x	= -max_z;
+			cell_near_high.yz = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_near_uv;
+			cell_near_high.x  = -min_z;
+			cell_far_high.yz  = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_far_uv;
+			cell_far_high.x	  = -max_z;
 		}
 		else if (region == 3)
 		{
-			cell_near.xz = float2(cell_idx.x, -cell_idx.y - 1) * cell_size_uv;
-			cell_near.y	 = min_z;
+			cell_near_low.xz = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_near_uv;
+			cell_near_low.y	 = min_z;
+			cell_far_low.xz	 = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_far_uv;
+			cell_far_low.y	 = max_z;
 
-			cell_far.xz = cell_near.xz + float2(cell_size_uv, -cell_size_uv);
-			cell_far.y	= max_z;
+			cell_near_high.xz = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_near_uv;
+			cell_near_high.y  = min_z;
+			cell_far_high.xz  = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_far_uv;
+			cell_far_high.y	  = max_z;
 		}
 		else if (region == 4)
 		{
-			cell_near.xz = float2(cell_idx.x, cell_idx.y) * cell_size_uv;
-			cell_near.y	 = -min_z;
+			cell_near_low.xz = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+			cell_near_low.y	 = -min_z;
+			cell_far_low.xz	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+			cell_far_low.y	 = -max_z;
 
-			cell_far.xz = cell_near.xz + float2(cell_size_uv, cell_size_uv);
-			cell_far.y	= -max_z;
+			cell_near_high.xz = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+			cell_near_high.y  = -min_z;
+			cell_far_high.xz  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+			cell_far_high.y	  = -max_z;
 		}
 		else if (region == 5)
 		{
-			cell_near.xy = float2(cell_idx.x, cell_idx.y) * cell_size_uv;
-			cell_near.z	 = min_z;
+			cell_near_low.xy = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+			cell_near_low.z	 = min_z;
+			cell_far_low.xy	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+			cell_far_low.z	 = max_z;
 
-			cell_far.xy = cell_near.xy + float2(cell_size_uv, cell_size_uv);
-			cell_far.z	= max_z;
+			cell_near_high.xy = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+			cell_near_high.z  = min_z;
+			cell_far_high.xy  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+			cell_far_high.z	  = max_z;
 		}
 		else
 		{
 			// region == 6
-			cell_near.xy = float2(-cell_idx.x - 1, cell_idx.y) * cell_size_uv;
-			cell_near.z	 = -min_z;
+			cell_near_low.xy = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_near_uv;
+			cell_near_low.z	 = -min_z;
+			cell_far_low.xy	 = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_far_uv;
+			cell_far_low.z	 = -max_z;
 
-			cell_far.xy = cell_near.xy + float2(-cell_size_uv, cell_size_uv);
-			cell_far.z	= -max_z;
+			cell_near_high.xy = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_near_uv;
+			cell_near_high.z  = -min_z;
+			cell_far_high.xy  = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_far_uv;
+			cell_far_high.z	  = -max_z;
 		}
 
 
-		return sphere_aabb_intersect(rel, surfel.radius, min(cell_near, cell_far), max(cell_near, cell_far));
+		return sphere_aabb_intersect(rel, surfel.radius,
+									 min(cell_near_low, cell_near_high, cell_far_low, cell_far_high),
+									 max(cell_near_low, cell_near_high, cell_far_low, cell_far_high));
 	}
 }
 
 template <typename t_func>
 void
-gibs_foreach_neighbor_cell(const t_func fn, const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
+gibs_foreach_neighbor_cell(const t_func fn, const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
 {
-	const int32_4 center_cell_idx = gibs_calc_cell_idx(data, lut_data, surfel);
+	const int32_4 center_cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
 
 	const int32 region = center_cell_idx.w;
 
@@ -481,7 +524,7 @@ gibs_foreach_neighbor_cell(const t_func fn, const gibs_data data, const gibs_lut
 		int32_3(0, 0, -1),
 	};
 
-	fn(data, lut_data, surfel, center_cell_idx);
+	fn(data, lut_data, center_cell_idx);
 	if (region == 0)
 	{
 		expand_all()
@@ -551,7 +594,7 @@ gibs_foreach_neighbor_cell(const t_func fn, const gibs_data data, const gibs_lut
 				res.w	= 0u;
 			}
 
-			fn(data, lut_data, surfel, res);
+			fn(data, lut_data, res);
 		}
 	}
 	else
@@ -815,7 +858,7 @@ gibs_foreach_neighbor_cell(const t_func fn, const gibs_data data, const gibs_lut
 				res.xy = coord.xy;
 			}
 
-			fn(data, lut_data, surfel, res);
+			fn(data, lut_data, res);
 		}
 	}
 }
@@ -943,11 +986,12 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 		const surfel surfel	   = gibs_load_surfel_arr(data)[surfel_id];
 
 		const float contribution = gibs_calc_surfel_contribution(data, surfel, world_pos, normal);
+		if (surfel.radius == 0.f or contribution == 0.f) { continue; }
 
 
 		surfel_recycle_data recycle_data = recycle_arr[surfel_id];
-		recycle_data.add_ref();
-		recycle_arr.store(surfel_id, recycle_data);
+		// recycle_data.add_ref();
+		// recycle_arr.store(surfel_id, recycle_data);
 
 		const float3  rel = world_pos - surfel.position;
 		const int32_2 px  = gibs_calc_atlas_tile_px(gibs_calc_atlas_offset(data, surfel_id), normalize(rel));

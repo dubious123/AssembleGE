@@ -4,16 +4,19 @@ struct fn_fill_cell_to_surfel
 {
 	uint32 surfel_id;
 
+	surfel surfel;
+
 	static fn_fill_cell_to_surfel
-	init(uint32 id)
+	init(uint32 id, const struct surfel surfel)
 	{
 		fn_fill_cell_to_surfel res;
 		res.surfel_id = id;
+		res.surfel	  = surfel;
 		return res;
 	}
 
 	void
-	operator()(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel, int32_4 cell_idx)
+	operator()(const gibs_data data, const gibs_lut_data lut_data, int32_4 cell_idx)
 	{
 		if (gibs_surfel_cell_intersect(data, lut_data, surfel, cell_idx) is_false) { return; }
 
@@ -44,5 +47,5 @@ main_cs(uint32 alive_idx sv_dispatch_thread_id)
 	const surfel surfel = surfel_arr[surfel_id];
 
 	// cell update
-	gibs_foreach_neighbor_cell(fn_fill_cell_to_surfel::init(surfel_id), data, gibs_load_gibs_lut_data(), surfel);
+	gibs_foreach_neighbor_cell(fn_fill_cell_to_surfel::init(surfel_id, surfel), data, gibs_load_gibs_lut_data(), surfel.position);
 }

@@ -181,10 +181,10 @@ struct rw_stack
 		return load<t>(buf, offset_value() + idx * sizeof(t));
 	}
 
-	uint32
-	inc_size_atomic(uint32 size)
+	int32
+	inc_size_atomic(int32 size)
 	{
-		uint32 original;
+		int32 original;
 		buf_interlocked_add(buf, offset_counter(), size, original);
 		return original;
 	}
@@ -223,10 +223,10 @@ struct rw_stack
 		store(buf, offset_value() + sizeof(t) * original, value);
 	}
 
-	uint32
+	int32
 	size()
 	{
-		return load<uint32>(buf, offset_counter());
+		return load<int32>(buf, offset_counter());
 	}
 
 	void

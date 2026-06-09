@@ -42,7 +42,6 @@ main_cs(uint32 thread_id sv_group_thread_id,
 	}
 	const uint32 group_offset = wave_read_lane_at(group_offset_tmp, GIBS_CELL_SURFEL_COUNT_PREFIX_TPG - 1);
 
-
 	expand_all()
 
 	for (uint32 i = 0; i < GIBS_CELL_SURFEL_COUNT_PREFIX_EPT; ++i)
@@ -58,6 +57,7 @@ main_cs(uint32 thread_id sv_group_thread_id,
 		entry.offset = group_offset
 					 + local_offset
 					 + local_prefix_arr[i];
+
 
 		entry.count = 0u;
 

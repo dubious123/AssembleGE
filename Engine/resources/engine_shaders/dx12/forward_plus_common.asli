@@ -868,6 +868,10 @@ safe_dot_camera_forward(float3 dir)
 	return max(dot(dir, camera_forward), epsilon_1e4);
 }
 
+#define include_assert true
+#include "age_assert.asli"
+#undef include_assert
+
 #include "age_data_structure.asli"
 #include "age_algorithm.asli"
 #include "age_mesh.asli"

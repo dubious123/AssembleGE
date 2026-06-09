@@ -855,10 +855,11 @@ namespace age::editor
 			gibs_flag_checkbox(render_msme);
 			gibs_flag_checkbox(render_id_hash);
 			gibs_flag_checkbox(render_normal);
-			gibs_flag_checkbox(render_cell_occupancy);
+			gibs_flag_checkbox(render_coverage);
 			gibs_flag_checkbox(render_show_irradiance_atlas);
 			gibs_flag_checkbox(render_show_visibility_atlas);
 			gibs_flag_checkbox(freeze_spawn);
+			gibs_flag_checkbox(render_age);
 
 #undef gibs_flag_checkbox
 		}

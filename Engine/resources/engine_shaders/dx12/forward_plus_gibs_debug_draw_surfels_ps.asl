@@ -41,14 +41,29 @@ main_ps(float4 pos sv_position) sv_target_0
 
 	const gibs_cell_entry cell_entry = cell_entry_arr[cell_idx_flat];
 
-	float  min_contribution = float_max;
-	uint32 min_contribution_surfel_id;
+	float  min_contribution			  = float_max;
+	uint32 min_contribution_surfel_id = invalid_id_uint32;
 
-	uint32 surfel_id_largest = 0;
+	float  max_contribution			  = 0.f;
+	uint32 max_contribution_surfel_id = invalid_id_uint32;
+
+	uint32 surfel_id_smallest = invalid_id_uint32;
+	uint32 surfel_id_largest  = invalid_id_uint32;
+	float  surfel_radius_max  = 0.f;
+
+	uint32 surfel_id_closest = invalid_id_uint32;
+	float  surfel_dist_min	 = float_max;
+
+	uint32 surfel_id_oldest = invalid_id_uint32;
+	uint32 surfel_age_max	= 0;
 
 	// radiance for new_born, w == weight_sum
 	float4 radiance = (float4)0;
 	float  coverage = 0.f;
+
+	assert(cell_entry.offset + cell_entry.count <= data.max_surfel_count * 27);
+
+	int32 valid_count = 0;
 	for (uint32 i = 0; i < cell_entry.count; ++i)
 	{
 		const uint32			  surfel_id		= cell_to_surfel_id[cell_entry.offset + i];
@@ -56,26 +71,67 @@ main_ps(float4 pos sv_position) sv_target_0
 		const surfel_recycle_data recycle		= recycle_arr[surfel_id];
 		const float				  contribution	= gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 		coverage							   += contribution;
+		const float cell_size					= gibs_calc_cell_size(data, lut_data, surfel);
+		assert(surfel.radius < cell_size);
 
 		// todo, change to msme instability
-		const float3  rel = world_pos - surfel.position;
-		const int32_2 px  = gibs_calc_atlas_tile_px(gibs_calc_atlas_offset(data, surfel_id), normalize(rel));
+		const float3  rel	 = world_pos - surfel.position;
+		const int32_2 offset = gibs_calc_atlas_offset(data, surfel_id);
+		const int32_2 px	 = gibs_calc_atlas_tile_px(offset, normalize(rel));
 
 		radiance += float4(surfel.radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
 				  * gibs_clac_visibility(visibility_atlas[px], saturate(length(rel) / surfel.radius));
 
-		coverage += contribution;
-		if (min_contribution > contribution)
+		if (contribution > 0.f)
 		{
-			min_contribution		   = contribution;
-			min_contribution_surfel_id = surfel_id;
-		}
+			++valid_count;
+			if (min_contribution > contribution)
+			{
+				min_contribution		   = contribution;
+				min_contribution_surfel_id = surfel_id;
+			}
 
-		if (surfel_id > surfel_id_largest)
-		{
-			surfel_id_largest = surfel_id;
+			if (max_contribution < contribution)
+			{
+				max_contribution		   = contribution;
+				max_contribution_surfel_id = surfel_id;
+			}
+
+			if (length(world_pos - surfel.position) < surfel_dist_min)
+			{
+				surfel_dist_min	  = length(world_pos - surfel.position);
+				surfel_id_closest = surfel_id;
+			}
+
+			if (surfel.radius >= surfel_radius_max)
+			{
+				if (surfel.radius == surfel_radius_max)
+				{
+					if (length(world_pos - surfel.position) > length(world_pos - surfel_arr[surfel_id_largest].position))
+					{
+						surfel_radius_max = surfel.radius;
+						surfel_id_largest = surfel_id;
+					}
+				}
+				else
+				{
+					surfel_radius_max = surfel.radius;
+					surfel_id_largest = surfel_id;
+				}
+			}
+
+			if (surfel_id < surfel_id_smallest)
+			{
+				surfel_id_smallest = surfel_id;
+			}
+
+			if (recycle.frame_since_born > surfel_age_max)
+			{
+				surfel_id_oldest = surfel_id;
+				surfel_age_max	 = recycle.frame_since_born;
+			}
 		}
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RADIANCE)
@@ -84,18 +140,14 @@ main_ps(float4 pos sv_position) sv_target_0
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE)
 	{
-		return float4(cell_idx / 64.f);
+		return float4(random_color(cell_idx_flat), 1.f);
+		return float4(random_color(cell_idx.w), 1.f);
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_VISIBILITY)
 	{
-		if (cell_idx.w == 0)
-		{
-			return float4(0, 0, 0, 1);
-		}
-		else
-		{
-			return float4(cell_idx.z / 16.f, 0, 0, 1);
-		}
+		return float4(abs(cell_idx.xyz) / float(data.cell_count), 1.f);
+		return float4(random_color(cell_idx.z + cell_idx.w).xy, abs(cell_idx.y) / float(data.cell_count), 1.f);
+		return float4(random_color(cell_idx.z + cell_idx.w), 1.f);
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_INSTABILITY)
 	{
@@ -105,30 +157,84 @@ main_ps(float4 pos sv_position) sv_target_0
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_MSME)
 	{
+		return float4(random_color(object_id), 1.f);
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_ID_HASH)
 	{
-		return float4(random_color(surfel_id_largest).x, surfel_id_largest, surfel_arr[surfel_id_largest].radius, 1.f);
+		// if (cell_entry.count == 0)
+		//{
+		//	return color_red;
+		// }
+		// else
+		//{
+		//	return float4(cell_entry.count / float(0xff), 0, 0, 1);
+		//	return float4(0, float(valid_count) / cell_entry.count * 2, 1.f - float(valid_count) / cell_entry.count, 1);
+		// }
+		//  if (cell_entry.count == 0)
+		//{
+		//	return color_green;
+		//  }
+		//  if (min_contribution_surfel_id == invalid_id_uint32)
+		//{
+		//	return color_blue;
+		//  }
+		//  if (surfel_arr[min_contribution_surfel_id].radius == 0.f)
+		//{
+		//	return color_red;
+		//  }
+
+		// return float4(random_color(min_contribution_surfel_id).x, min_contribution, surfel_arr[min_contribution_surfel_id].radius, 1.f);
+		// return float4(random_color(min_contribution_surfel_id).xy, surfel_arr[min_contribution_surfel_id].radius, 1.f);
+		// return float4(random_color(min_contribution_surfel_id), 1.f);
+
+
+		// if (cell_entry.count == 0 or max_contribution_surfel_id == invalid_id_uint32)
+		//{
+		//	return color_red;
+		// }
+		// return float4(random_color(max_contribution_surfel_id).x, max_contribution, surfel_arr[max_contribution_surfel_id].radius, 1.f);
+		// return float4(random_color(max_contribution_surfel_id).xy, surfel_arr[max_contribution_surfel_id].radius, 1.f);
+		return float4(random_color(max_contribution_surfel_id), 1.f);
+		// return float4(random_color(surfel_id_smallest).x, surfel_id_smallest, surfel_arr[surfel_id_smallest].radius, 1.f);
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_NORMAL)
 	{
-		return float4(decode_oct_snorm16(surfel_arr[surfel_id_largest].normal_oct_snorm16), 1.f);
+		if (cell_entry.count == 0 or surfel_id_smallest == invalid_id_uint32)
+		{
+			return color_red;
+		}
+		// return float4(px_normal, 1.f);
+		return float4(decode_oct_snorm16(surfel_arr[surfel_id_smallest].normal_oct_snorm16), 1.f);
 	}
-	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_CELL_OCCUPANCY)
+
+	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_COVERAGE)
 	{
-		return float4(cell_entry.count, 0.f, 0.f, 1.f);
-		// return float4(coverage, cell_entry.count / 10.f, 0.f, 1.f);
+		// return float4(coverage, coverage, coverage, 1.f);
+
+		if (coverage < GIBS_SPAWN_COVERAGE)
+		{
+			return float4(0, 0, 1, 1);
+		}
+		else if (coverage > GIBS_KILL_COVERAGE)
+		{
+			return float4(1, 0, 0, 1);
+		}
+		else
+		{
+			return float4(coverage, coverage, coverage, 1.f);
+			// return float4(coverage, cell_entry.count / 10.f, 0.f, 1.f);
+		}
 	}
 
-	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RADIANCE)
+
+	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_AGE)
 	{
+		if (surfel_id_oldest != invalid_id_uint32)
+		{
+			uint32 age = recycle_arr[surfel_id_oldest].frame_since_born;
+			return float4(age / float(0xffff), age / float(0xfff), age / float(0xff), 1.f);
+		}
 	}
-
-
-	// if (data.debug_flags | GIBS_DEBUG_FLAGS_RENDER_ID_HASH)
-	//{
-
-	//}
 	discard;
 
 	return float4(0, 0, 0, 0);

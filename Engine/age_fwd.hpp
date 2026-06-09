@@ -161,10 +161,11 @@ namespace age::graphics::e
 							   (render_msme, (1u << 6u)),
 							   (render_id_hash, (1u << 7u)),
 							   (render_normal, (1u << 8u)),
-							   (render_cell_occupancy, (1u << 9u)),
+							   (render_coverage, (1u << 9u)),
 							   (render_show_irradiance_atlas, (1u << 10u)),
 							   (render_show_visibility_atlas, (1u << 11u)),
-							   (freeze_spawn, (1u << 12u)));
+							   (freeze_spawn, (1u << 12u)),
+							   (render_age, (1u << 13u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
 }	 // namespace age::graphics::e

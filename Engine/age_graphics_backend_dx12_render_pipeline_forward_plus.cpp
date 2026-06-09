@@ -2187,7 +2187,7 @@ namespace age::graphics::render_pipeline::forward_plus
 								+ 6 * (desc.cell_count * desc.cell_count) * desc.outer_layer_count;
 
 		{
-			c_auto cell_info_buffer_size = (sizeof(shared_type::gibs_cell_entry)) * cell_count_total + sizeof(uint32) * desc.max_surfel_count;
+			c_auto cell_info_buffer_size = (sizeof(shared_type::gibs_cell_entry)) * cell_count_total + sizeof(uint32) * desc.max_surfel_count * 27;
 			AGE_ASSERT(cell_info_buffer_size < math::g::uint32_max);
 			gibs_data_cpu.h_cell_info_buffer = resource::create_committed_buf_uav(cast_to<uint32>(cell_info_buffer_size));
 			gibs_data_cpu.h_cell_info_buffer->set_name(L"gibs_cell_info_buffer");
@@ -2324,6 +2324,8 @@ namespace age::graphics::render_pipeline::forward_plus
 					lut.cell_size_arr[i]	  = lut.cell_size_arr[i - 1] * desc.outer_cell_size_factor;
 					lut.layer_boundary_arr[i] = lut.layer_boundary_arr[i - 1] + lut.cell_size_arr[i - 1];
 				}
+
+				AGE_LOG(lut.cell_size_arr[i], lut.layer_boundary_arr[i]);
 			}
 		}
 
@@ -2616,10 +2618,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 
-			// todo, cache tan(fov_y/2)
-			c_auto tan_half_fov = std::tan(main_cam_desc.perspective.fov_y * 0.5f);
+			// todo, cache
+			c_auto angle = min(extent.width, extent.height) * g::gibs_surfel_screen_ratio * main_cam_desc.perspective.fov_y * 2.f / max(extent.width, extent.height);
 
-			gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_radius = 2.f * min(extent.width, extent.height) * g::gibs_surfel_screen_ratio / extent.height * tan_half_fov;
+			gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_radius = std::tan(angle);
+
+			// c_auto tan_half_fov = std::tan(main_cam_desc.perspective.fov_y * 0.5f);
+
+			// gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_radius = 2.f * min(extent.width, extent.height) * g::gibs_surfel_screen_ratio / extent.height * tan_half_fov;
 
 			h_mapping_static_buffer->upload(&gibs_gpu, sizeof(shared_type::gibs_data), g::gibs_data_offset);
 			h_mapping_static_buffer->upload(&gibs_lut_data_gpu, sizeof(shared_type::gibs_lut_data), g::gibs_lut_data_offset);
@@ -2629,14 +2635,13 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 		root_constants.bind(shared_type::root_constants{
-			.opaque_meshlet_render_data_count			  = static_cast<uint32>(opaque_mshlt_object_data_count),
-			.directional_light_count_and_extra			  = static_cast<t_directional_light_id>(directional_light_vec.size()),
-			.unified_light_count						  = unified_light_vec.size<t_unified_light_id>(),
-			.env_light_brdf_lut_id						  = calc_desc_idx(h_env_light_brdf_lut),
-			.env_light_count							  = env_light_gpu_data_vec.size<uint32>(),
-			.ui_space_mode_and_extra					  = 0u,
-			.selection_outline_meshlet_render_data_count  = selection_outline_meshlet_render_data_vec.size<uint32>(),
-			.selection_outline_mask_buffer_srv_texture_id = calc_desc_idx(h_selection_outline_mask_buffer_srv_desc),
+			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
+			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()),
+			.unified_light_count			   = unified_light_vec.size<t_unified_light_id>(),
+			.env_light_brdf_lut_id			   = calc_desc_idx(h_env_light_brdf_lut),
+			.env_light_count				   = env_light_gpu_data_vec.size<uint32>(),
+			.ui_space_mode_and_extra		   = 0u,
+
 		});
 
 		// todo multiple camera
@@ -2655,33 +2660,35 @@ namespace age::graphics::render_pipeline::forward_plus
 							 : float3::zero();
 
 		auto frame_d = shared_type::frame_data{
-			.view								  = main_cam_data.view,
-			.view_proj							  = main_cam_data.view_proj,
-			.view_proj_inv						  = main_cam_data.view_proj_inv,
-			.camera_pos							  = main_cam_data.pos,
-			.time								  = dt_ms,
-			.inv_backbuffer_size				  = float2{ 1.f / extent.width, 1.f / extent.height },
-			.backbuffer_size					  = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
-			.camera_forward						  = main_cam_data.forward,
-			.frame_index						  = runtime::i_time.get_frame_count(),
-			.main_buffer_texture_id				  = graphics::calc_desc_idx(h_main_buffer_srv_desc),
-			.post_buffer_texture_id				  = graphics::calc_desc_idx(h_post_buffer_srv_desc),
-			.depth_buffer_texture_id			  = graphics::calc_desc_idx(h_depth_buffer_srv_desc),
-			.rt_tlas_buffer_id					  = graphics::calc_desc_idx(h_rt_tlas_buffer_srv_desc),
-			.rt_transparent_buffer_srv_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_srv_desc),
-			.rt_transparent_buffer_uav_texture_id = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
-			.rt_raycast_request_count			  = raycast_request_vec.size<uint32>(),
-			.proj_00							  = main_cam_data.proj[0][0],
-			.light_bin_origin					  = /*main_cam_data.pos*/ -float3{ 100.f },
-			.proj_11							  = main_cam_data.proj[1][1],
-			.light_bin_cell_size_inv			  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
-			.cam_near_z							  = main_cam_desc.near_z,
-			.cam_far_z							  = main_cam_desc.far_z,
-			.ddgi_enabled_and_extra				  = ddgi_data_cpu.enabled ? 1u : gibs_data_cpu.enabled ? 2u
-																									   : 0u,
-			.ddgi_cranley_patterson_rotation	  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
-			.gi_origin							  = gi_origin,
-			.object_count						  = object_data_vec.size<uint32>(),
+			.view										  = main_cam_data.view,
+			.view_proj									  = main_cam_data.view_proj,
+			.view_proj_inv								  = main_cam_data.view_proj_inv,
+			.camera_pos									  = main_cam_data.pos,
+			.time										  = dt_ms,
+			.inv_backbuffer_size						  = float2{ 1.f / extent.width, 1.f / extent.height },
+			.backbuffer_size							  = float2{ static_cast<float>(extent.width), static_cast<float>(extent.height) },
+			.camera_forward								  = main_cam_data.forward,
+			.frame_index								  = runtime::i_time.get_frame_count(),
+			.main_buffer_texture_id						  = graphics::calc_desc_idx(h_main_buffer_srv_desc),
+			.post_buffer_texture_id						  = graphics::calc_desc_idx(h_post_buffer_srv_desc),
+			.depth_buffer_texture_id					  = graphics::calc_desc_idx(h_depth_buffer_srv_desc),
+			.rt_tlas_buffer_id							  = graphics::calc_desc_idx(h_rt_tlas_buffer_srv_desc),
+			.rt_transparent_buffer_srv_texture_id		  = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_srv_desc),
+			.rt_transparent_buffer_uav_texture_id		  = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
+			.rt_raycast_request_count					  = raycast_request_vec.size<uint32>(),
+			.proj_00									  = main_cam_data.proj[0][0],
+			.light_bin_origin							  = /*main_cam_data.pos*/ -float3{ 100.f },
+			.proj_11									  = main_cam_data.proj[1][1],
+			.light_bin_cell_size_inv					  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
+			.cam_near_z									  = main_cam_desc.near_z,
+			.cam_far_z									  = main_cam_desc.far_z,
+			.ddgi_enabled_and_extra						  = ddgi_data_cpu.enabled ? 1u : gibs_data_cpu.enabled ? 2u
+																											   : 0u,
+			.ddgi_cranley_patterson_rotation			  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
+			.gi_origin									  = gi_origin,
+			.object_count								  = object_data_vec.size<uint32>(),
+			.selection_outline_meshlet_render_data_count  = selection_outline_meshlet_render_data_vec.size<uint32>(),
+			.selection_outline_mask_buffer_srv_texture_id = calc_desc_idx(h_selection_outline_mask_buffer_srv_desc),
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

@@ -25,7 +25,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	}
 
 	const uint32 alive_id  = thread_id;
-	const uint32 surfel_id = alive_atack[thread_id];
+	const uint32 surfel_id = alive_atack[alive_id];
 
 	const uint32 ray_offset = ray_offset_arr[alive_id];
 	const uint32 ray_count	= ray_count_arr[alive_id];

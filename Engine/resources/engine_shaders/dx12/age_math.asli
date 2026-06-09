@@ -24,6 +24,10 @@ static const uint32 uint32_max = 0xffffffffu;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+static const float4 color_red	= float4(1, 0, 0, 1);
+static const float4 color_green = float4(0, 1, 0, 1);
+static const float4 color_blue	= float4(0, 0, 1, 1);
+
 uint32
 ceil(uint32 x, uint32 y)
 {
@@ -42,6 +46,20 @@ t
 max(t x, t y, t z, t w)
 {
 	return max(max(x, y), max(z, w));
+}
+
+template <typename t>
+t
+min(t x, t y, t z)
+{
+	return min(min(x, y), z);
+}
+
+template <typename t>
+t
+min(t x, t y, t z, t w)
+{
+	return min(min(x, y), min(z, w));
 }
 
 template <typename t>
@@ -85,6 +103,34 @@ min(const in vector<t, 4> v)
 {
 	return min(min(v.x, v.y), min(v.z, v.w));
 }
+
+// template <typename t, int32 n>
+// vector<t, n>
+// min(const in vector<t, n> v0, const in vector<t, n> v1, const in vector<t, n> v2)
+//{
+//	return min(min(v0, v1), v2);
+// }
+//
+// template <typename t, int32 n>
+// vector<t, n>
+// min(const in vector<t, n> v0, const in vector<t, n> v1, const in vector<t, n> v2, const in vector<t, n> v3)
+//{
+//	return min(min(min(v0, v1), v2), v3);
+// }
+//
+// template <typename t, int32 n>
+// vector<t, n>
+// max(const in vector<t, n> v0, const in vector<t, n> v1, const in vector<t, n> v2)
+//{
+//	return max(max(v0, v1), v2);
+// }
+//
+// template <typename t, int32 n>
+// vector<t, n>
+// max(const in vector<t, n> v0, const in vector<t, n> v1, const in vector<t, n> v2, const in vector<t, n> v3)
+//{
+//	return max(max(max(v0, v1), v2), v3);
+// }
 
 uint32
 bit_width(uint32 u)
@@ -436,7 +482,7 @@ float3
 decode_oct_snorm16(const uint32 oct)
 {
 	float x = snorm16_to_float(oct & 0xffffu);
-	float y = snorm16_to_float((oct >> 8) & 0xffffu);
+	float y = snorm16_to_float((oct >> 16) & 0xffffu);
 	return decode_octahedral(float2(x, y));
 }
 
@@ -474,12 +520,12 @@ encode_oct_snorm8(const float3 f)
 	return uint16(float_to_snorm8(uv.x) | (float_to_snorm8(uv.y) << 8u));
 }
 
-uint16
+uint32
 encode_oct_snorm16(const float3 f)
 {
 	const float2 uv = encode_octahedral(f);
 
-	return uint16(float_to_snorm16(uv.x) | (float_to_snorm16(uv.y) << 16u));
+	return uint32(float_to_snorm16(uv.x)) | (uint32(float_to_snorm16(uv.y)) << 16u);
 }
 
 float3

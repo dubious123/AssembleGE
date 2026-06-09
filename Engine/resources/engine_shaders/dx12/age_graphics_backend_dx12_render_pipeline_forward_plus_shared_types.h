@@ -552,7 +552,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 gi_origin;
 		uint32 object_count;
 
-		uint32_4 extra[5];
+		uint32	 selection_outline_meshlet_render_data_count;
+		uint32	 selection_outline_mask_buffer_srv_texture_id;
+		uint32_2 _;
+
+		uint32_4 extra[4];
 		// total: 256 * 2 bytes
 	};
 
@@ -570,8 +574,6 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 ui_data_id_offset;
 		uint32 ui_data_count;
 
-		uint32 selection_outline_meshlet_render_data_count;
-		uint32 selection_outline_mask_buffer_srv_texture_id;
 
 		uint32 debug_meshlet_render_data_offset;
 		uint32 debug_meshlet_render_data_count;
@@ -923,10 +925,11 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_DEBUG_FLAGS_RENDER_MSME				  (1u << 6u)
 #define GIBS_DEBUG_FLAGS_RENDER_ID_HASH				  (1u << 7u)
 #define GIBS_DEBUG_FLAGS_RENDER_NORMAL				  (1u << 8u)
-#define GIBS_DEBUG_FLAGS_RENDER_CELL_OCCUPANCY		  (1u << 9u)
+#define GIBS_DEBUG_FLAGS_RENDER_COVERAGE			  (1u << 9u)
 #define GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS (1u << 10u)
 #define GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS (1u << 11u)
 #define GIBS_DEBUG_FLAGS_FREEZE_SPAWN				  (1u << 12u)
+#define GIBS_DEBUG_FLAGS_RENDER_AGE					  (1u << 13u)
 
 
 #if !defined(AGE_SHADER)
@@ -944,7 +947,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	inline constexpr auto gibs_surfel_screen_ratio = 0.05f;
+	inline constexpr auto gibs_surfel_screen_ratio = 0.005f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
 
@@ -965,10 +968,11 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_MSME == to_idx(graphics::e::gibs_debug_flags::render_msme));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_ID_HASH == to_idx(graphics::e::gibs_debug_flags::render_id_hash));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_NORMAL == to_idx(graphics::e::gibs_debug_flags::render_normal));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_OCCUPANCY == to_idx(graphics::e::gibs_debug_flags::render_cell_occupancy));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_COVERAGE == to_idx(graphics::e::gibs_debug_flags::render_coverage));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_irradiance_atlas));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_visibility_atlas));
 	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN == to_idx(graphics::e::gibs_debug_flags::freeze_spawn));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_AGE == to_idx(graphics::e::gibs_debug_flags::render_age));
 
 #endif
 

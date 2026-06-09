@@ -9,7 +9,7 @@ gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_ra
 	ray_desc desc;
 	desc.Origin	   = pos;
 	desc.Direction = dir;
-	desc.TMin	   = 0.f;
+	desc.TMin	   = 0.001f;
 	desc.TMax	   = float_max;
 
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
@@ -28,7 +28,8 @@ gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_ra
 		}
 		else if (rt_committed_triangle_front_face(query) is_false)
 		{
-			distance = -rt_committed_ray_t(query);
+			// distance = -rt_committed_ray_t(query);
+			distance = rt_committed_ray_t(query);
 		}
 		else
 		{
