@@ -38,7 +38,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 	}
 
 	ddgi_probe probe = load_ddgi_probe_uav(probe_id);
-	// const float3 probe_normal = decode_oct_snorm(probe.normal_oct_snorm8);
+	// const float3 probe_normal = decode_oct_snorm8(probe.normal_oct_snorm8);
 	const uint16 probe_state = probe.state & 0xff;
 
 	float luminance = 0.f;
@@ -52,7 +52,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 	for (uint32 i = thread_id_flat; i < ray_count; i += DDGI_VISIBILITY_RESOLUTION * DDGI_VISIBILITY_RESOLUTION)
 	{
 		const ddgi_ray_result ray_res = ddgi_load_ray_result(ddgi_data, ray_offset + i);
-		const float3		  ray_dir = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
+		const float3		  ray_dir = decode_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 		const float			  lum	  = luminance_rec709(decode_r11g11b10(ray_res.radiance_r11g11b10));
 
 		if (ray_res.distance < 0.f)
@@ -100,7 +100,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 		for (uint32 i = 0; i < ray_count; ++i)
 		{
 			const ddgi_ray_result ray_res  = ddgi_load_ray_result(ddgi_data, ray_offset + i);
-			const float3		  ray_dir  = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
+			const float3		  ray_dir  = decode_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 			const float			  distance = ray_res.distance;
 
 			const float weight = distance > 0.f
@@ -140,7 +140,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 		// for (uint32 i = 0; i < ray_count; ++i)
 		//{
 		//	const ddgi_ray_result ray_res  = ddgi_load_ray_result(ddgi_data, ray_offset + i);
-		//	const float3		  ray_dir  = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
+		//	const float3		  ray_dir  = decode_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 		//	const float			  distance = ray_res.distance;
 
 		//	const float density_ratio = (i < ray_count_front)
@@ -203,7 +203,7 @@ main_cs(uint32_3 group_id  sv_group_id,
 		for (uint32 i = 0; i < ray_count; ++i)
 		{
 			const ddgi_ray_result ray_res  = ddgi_load_ray_result(ddgi_data, ray_offset + i);
-			const float3		  ray_dir  = decode_oct_snorm(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
+			const float3		  ray_dir  = decode_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm_and_extra));
 			const float			  distance = ray_res.distance;
 
 			const float weight = distance > 0.f

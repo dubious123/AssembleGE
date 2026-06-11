@@ -20,7 +20,7 @@ struct fn_cell_update
 		const uint32				   cell_idx_flat = gibs_flatten_cell_idx(data, cell_idx);
 		rw_byte_array<gibs_cell_entry> arr			 = gibs_load_cell_entry_rw_arr(data);
 
-		arr.atomic_inc(cell_idx_flat, 1u);
+		const uint32 count_original = arr.atomic_inc(cell_idx_flat, 1u);
 	}
 };
 
@@ -40,10 +40,10 @@ main_cs(
 	uint32 alive_idx_prev  sv_dispatch_thread_id)
 
 {
-	const gibs_data		   data				= gibs_load_gibs_data();
-	const rw_stack<uint32> alive_stack_prev = gibs_load_alive_surfel_id_stack_prev(data);
-
-	if (alive_idx_prev >= alive_stack_prev.size()) { return; }
+	const gibs_data		   data					  = gibs_load_gibs_data();
+	const rw_stack<uint32> alive_stack_prev		  = gibs_load_alive_surfel_id_stack_prev(data);
+	const uint32		   alive_count_prev_total = alive_stack_prev.size();
+	if (alive_idx_prev >= alive_count_prev_total) { return; }
 
 	uint32 surfel_id = alive_stack_prev[alive_idx_prev];
 
@@ -96,14 +96,14 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	// else if (surfel_recycle.frame_since_ref() > 0xfe)
-	//{
-	//	kill_surfel = true;
-	// }
-	else if (surfel_recycle.frame_since_seen() > 128u)
+	else if (surfel_recycle.frame_since_ref() > 0xfe)
 	{
 		kill_surfel = true;
 	}
+	// else if (alive_count_prev_total > 0.8f * data.max_surfel_count and surfel_recycle.frame_since_seen() > 128u)
+	//{
+	//	kill_surfel = true;
+	// }
 
 	if (kill_surfel)
 	{
@@ -143,7 +143,8 @@ main_cs(
 	const uint32 alive_idx_curr = target_offset;
 
 	// cell update
-	gibs_foreach_neighbor_cell(fn_cell_update::init(surfel), data, gibs_load_gibs_lut_data(), surfel.position);
+	fn_cell_update fn = fn_cell_update::init(surfel);
+	gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
 
 	// calc ideal ray count
 

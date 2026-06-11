@@ -63,20 +63,20 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 	for (uint32 i = 0; is_thread_valid and i < cell_entry.count; ++i)
 	{
-		const uint32			  surfel_id		= cell_to_surfel_id[cell_entry.offset + i];
-		const surfel			  surfel		= surfel_arr[surfel_id];
-		const surfel_recycle_data recycle		= recycle_arr[surfel_id];
-		const float				  contribution	= gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
-		coverage							   += contribution;
+		const uint32			  surfel_id = cell_to_surfel_id[cell_entry.offset + i];
+		const surfel			  surfel	= surfel_arr[surfel_id];
+		const surfel_recycle_data recycle	= recycle_arr[surfel_id];
 
+		if (surfel.radius == 0.f) { continue; }
+
+		const float contribution  = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
+		coverage				 += contribution;
 		// todo, change to msme instability
-		const float3  rel = world_pos - surfel.position;
-		const int32_2 px  = gibs_calc_atlas_tile_px(gibs_calc_atlas_offset(data, surfel_id), normalize(rel));
 
 		radiance += float4(surfel.radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
-				  * gibs_clac_visibility(visibility_atlas[px], saturate(length(rel) / surfel.radius));
+				  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
 		if (contribution > 0.f)
 		{
@@ -115,12 +115,15 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (coverage < GIBS_SPAWN_COVERAGE and linear_id == uint32_lower_to_uint16(coverage_packed_group_min))
 		{
+			assert(is_thread_valid);
+
 			const rw_stack<uint32> dead_stack  = gibs_load_dead_surfel_id_stack(data);
 			const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 
 			const float spawn_prob = (GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
 								   //* (0.01)
-								   * (1.f - calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z))	  // reverse_z, near = 1.f, far = 0.f
+								   * px_world_area(dispatch_thread_id.xy, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)
+								   // * (/*1.f - */ calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z))	   // reverse_z, near = 1.f, far = 0.f
 								   * (1.f + dead_stack.size() / float(data.max_surfel_count))
 								   * GIBS_SPAWN_PROB_FACTOR;
 			// spawn surfel
@@ -185,9 +188,9 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 			const float kill_prob = (coverage - GIBS_KILL_COVERAGE) / float(GIBS_KILL_COVERAGE)
 								  //* (0.01)
-								  * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
-								  * (1.f + alive_stack.size() / float(data.max_surfel_count))
-								  * GIBS_KILL_PROB_FACTOR * 2;
+								  // * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
+								  // * (1.f + alive_stack.size() / float(data.max_surfel_count))
+								  * GIBS_KILL_PROB_FACTOR;
 
 			if (rnd < kill_prob)
 			{

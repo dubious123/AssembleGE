@@ -60,20 +60,23 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 
 		{
-			if (debug_uv.x > 0.9 and debug_uv.y < 0.35)
+			if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
 			{
-				float2 uv = (debug_uv - float2(0.9f, 0.25f)) * 10;
-				// font_uv.y	   = 1.f - font_uv.y;
+				const float ratio = gibs_get_ray_count_total(data) / (float)data.max_surfel_count;
+				float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
-				rw_stack<uint32> prev = gibs_load_alive_surfel_id_stack_prev(data);
-				rw_stack<uint32> curr = gibs_load_alive_surfel_id_stack_curr(data);
-				rw_stack<uint32> dead = gibs_load_dead_surfel_id_stack(data);
-				return float4(curr.size() / float(data.max_surfel_count), prev.size() / float(data.max_surfel_count), dead.size() / float(data.max_surfel_count), 1);
+				if (uv.x < ratio)
+				{
+					return float4(ratio, 1 - ratio, 0, 1);
+				}
+				else
+				{
+				}
 			}
 		}
 
 		{
-			if (debug_uv.x > 0.8 and debug_uv.y < 0.35)
+			if (debug_uv.x > 0.8 and debug_uv.y < 0.26)
 			{
 				rw_stack<uint32> prev  = gibs_load_alive_surfel_id_stack_prev(data);
 				rw_stack<uint32> dead  = gibs_load_dead_surfel_id_stack(data);
@@ -84,7 +87,7 @@ main_ps(float4 pos sv_position) sv_target_0
 
 				if (uv.x < ratio)
 				{
-					return color_red;
+					return float4(ratio, 1 - ratio, 0, 1);
 				}
 				else
 				{

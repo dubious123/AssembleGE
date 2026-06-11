@@ -35,6 +35,13 @@ float2 ddgi_cranley_patterson_rotation;
 float3 gi_origin;
 float  object_count;
 
+uint32 selection_outline_meshlet_render_data_count;
+uint32 selection_outline_mask_buffer_srv_texture_id;
+uint32 env_light_brdf_lut_id;
+uint32 env_light_count;
+
+float tan_fov_y_half;
+
 
 // cbuffer root_constants reg(b1)
 uint32			   opaque_meshlet_render_data_count;
@@ -42,8 +49,7 @@ uint32			   directional_light_count_and_extra;
 t_unified_light_id unified_light_count;
 uint32			   transparent_object_render_data_count;
 
-uint32 env_light_brdf_lut_id;
-uint32 env_light_count;
+
 uint32 radix_sort_pass;
 
 uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][ddgi_updated(8)][extra(16)]
@@ -51,8 +57,6 @@ uint32 ui_root_data_idx;
 uint32 ui_data_id_offset;
 uint32 ui_data_count;
 
-uint32 selection_outline_meshlet_render_data_count;
-uint32 selection_outline_mask_buffer_srv_texture_id;
 
 uint32 debug_meshlet_render_data_offset;
 uint32 debug_meshlet_render_data_count;

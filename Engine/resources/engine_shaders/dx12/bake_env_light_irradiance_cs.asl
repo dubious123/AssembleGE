@@ -9,7 +9,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id) {
 
 	const float2   irradiance_face_uv = (float2(thread_id.xy) + 0.5) / float(env_light_irradiance_size);
 	const float3   normal			  = cube_face_uv_to_world_dir(irradiance_face_uv, thread_id.z);
-	const float3x3 local_to_world	  = gen_normal_transform(normal);
+	const float3x3 local_to_world	  = gen_tbn_normal_transform(normal);
 
 	float3 res = float3(0, 0, 0);
 
@@ -17,7 +17,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id) {
 	{
 		const float2 xi = hammersley(n, ENV_LIGHT_IRRADIANCE_SAMPLE_COUNT);
 
-		const float4 dir__cos_theta = sample_hemisphere_cosine_2(xi, local_to_world);
+		const float4 dir__cos_theta = sample_tbn_hemisphere_cosine_2(xi, local_to_world);
 		const float3 dir			= dir__cos_theta.xyz;
 		const float	 cos_theta		= dir__cos_theta.w;
 

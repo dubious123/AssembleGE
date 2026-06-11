@@ -58,7 +58,6 @@ main_cs(uint32 thread_id sv_group_thread_id,
 					 + local_offset
 					 + local_prefix_arr[i];
 
-
 		entry.count = 0u;
 
 		cell_entry_arr.store(cell_id, entry);

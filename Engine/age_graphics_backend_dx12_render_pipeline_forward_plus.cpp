@@ -820,6 +820,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		{
 			sorted_light_buffer_srv.apply_compute();
 			light_bin_stage_buffer_srv.apply_compute();
+
+
 			stage_gibs.execute(gibs_data_cpu, extent, h_indirect_arg_buffer);
 
 
@@ -2199,23 +2201,31 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		{
-			gibs_data_cpu.h_irradiance_atlas = resource::create_committed_tex2d_uav(g::gibs_atlas_extent, graphics::e::texture_format::r16g16_float);
+			gibs_data_cpu.h_irradiance_atlas = resource::create_committed_tex2d_uav(g::gibs_atlas_extent, graphics::e::texture_format::r16g16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			gibs_data_cpu.h_irradiance_atlas->set_name(L"gibs_irradiance_atlas");
 
 			gibs_data_cpu.h_irradiance_atlas_srv_desc = resource::create_view(gibs_data_cpu.h_irradiance_atlas,
 																			  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
 			gibs_data_cpu.h_irradiance_atlas_uav_desc = resource::create_view(gibs_data_cpu.h_irradiance_atlas,
 																			  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+			// todo, custom view desc
+			pop_descriptor(gibs_data_cpu.h_irradiance_clear_uav_desc);
+			resource::create_view(gibs_data_cpu.h_irradiance_atlas, gibs_data_cpu.h_irradiance_clear_uav_desc,
+								  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
 		}
 
 		{
-			gibs_data_cpu.h_visibility_atlas = resource::create_committed_tex2d_uav(g::gibs_atlas_extent, graphics::e::texture_format::r16g16_float);
+			gibs_data_cpu.h_visibility_atlas = resource::create_committed_tex2d_uav(g::gibs_atlas_extent, graphics::e::texture_format::r16g16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			gibs_data_cpu.h_visibility_atlas->set_name(L"gibs_visibility_atlas");
 
 			gibs_data_cpu.h_visibility_atlas_srv_desc = resource::create_view(gibs_data_cpu.h_visibility_atlas,
 																			  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
 			gibs_data_cpu.h_visibility_atlas_uav_desc = resource::create_view(gibs_data_cpu.h_visibility_atlas,
 																			  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+			// todo, custom view desc
+			pop_descriptor(gibs_data_cpu.h_visibility_clear_uav_desc);
+			resource::create_view(gibs_data_cpu.h_visibility_atlas, gibs_data_cpu.h_visibility_clear_uav_desc,
+								  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
 		}
 
 		{
@@ -2324,8 +2334,12 @@ namespace age::graphics::render_pipeline::forward_plus
 					lut.cell_size_arr[i]	  = lut.cell_size_arr[i - 1] * desc.outer_cell_size_factor;
 					lut.layer_boundary_arr[i] = lut.layer_boundary_arr[i - 1] + lut.cell_size_arr[i - 1];
 				}
-
-				AGE_LOG(lut.cell_size_arr[i], lut.layer_boundary_arr[i]);
+				AGE_LOG(lut.cell_size_arr[i], lut.layer_boundary_arr[i], lut.layer_boundary_arr[max(i, 1u) - 1] * 2 / sqrt(2) / desc.cell_count);
+			}
+			for (auto& lut = gibs_data_cpu.gibs_lut_data_gpu;
+				 auto  i : views::loop(desc.outer_layer_count))
+			{
+				lut.cell_size_arr[i + 1] = lut.layer_boundary_arr[i] * 2.f / desc.cell_count;
 			}
 		}
 
@@ -2355,6 +2369,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		push_descriptor(gibs_data_cpu.h_irradiance_atlas_uav_desc);
 		push_descriptor(gibs_data_cpu.h_visibility_atlas_uav_desc);
 		push_descriptor(gibs_data_cpu.h_gbuffer_rtv_desc);
+
+		push_descriptor(gibs_data_cpu.h_irradiance_clear_uav_desc);
+		push_descriptor(gibs_data_cpu.h_visibility_clear_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_surfel_buffer);
 		resource::release_deferred(gibs_data_cpu.h_cell_info_buffer);
@@ -2638,9 +2655,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
 			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()),
 			.unified_light_count			   = unified_light_vec.size<t_unified_light_id>(),
-			.env_light_brdf_lut_id			   = calc_desc_idx(h_env_light_brdf_lut),
-			.env_light_count				   = env_light_gpu_data_vec.size<uint32>(),
-			.ui_space_mode_and_extra		   = 0u,
+
+			.ui_space_mode_and_extra = 0u,
 
 		});
 
@@ -2689,6 +2705,9 @@ namespace age::graphics::render_pipeline::forward_plus
 			.object_count								  = object_data_vec.size<uint32>(),
 			.selection_outline_meshlet_render_data_count  = selection_outline_meshlet_render_data_vec.size<uint32>(),
 			.selection_outline_mask_buffer_srv_texture_id = calc_desc_idx(h_selection_outline_mask_buffer_srv_desc),
+			.env_light_brdf_lut_id						  = calc_desc_idx(h_env_light_brdf_lut),
+			.env_light_count							  = env_light_gpu_data_vec.size<uint32>(),
+			.tan_fov_y_half								  = tan(main_cam_desc.perspective.fov_y * 0.5f),
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

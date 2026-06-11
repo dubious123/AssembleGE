@@ -33,11 +33,10 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const uint32 ray_offset = ray_offset_arr[alive_id];
 	const uint32 ray_count	= ray_count_arr[alive_id];
 
-	if (ray_count == 0) { return; }
-
 	const bool is_new_born = recycle_data_arr[surfel_id].is_new_born();
 
-	const uint32_2		  atlas_offset	   = gibs_calc_atlas_offset(data, surfel_id);
+	const uint32_2 atlas_offset = gibs_calc_atlas_offset(data, surfel_id);
+
 	rw_texture_2d<float2> luminance_atlas  = global_resource_buffer[data.h_irradiance_atlas_uav_id];
 	rw_texture_2d<float2> visibility_atlas = global_resource_buffer[data.h_visibility_atlas_uav_id];
 
@@ -45,6 +44,11 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	float3		radiance_sum = (float3)0;
 	surfel		surfel		 = surfel_arr[surfel_id];
 	surfel_msme msme		 = msme_arr[surfel_id];
+
+	if (ray_count == 0) { return; }
+	if (surfel.radius == 0.f) { return; }
+
+
 	for (uint32 i = 0; i < ray_count; ++i)
 	{
 		const gibs_ray_result ray_res = ray_res_arr[ray_offset + i];
@@ -53,24 +57,28 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		const float lum_blend_factor = is_new_born ? 1.f : 0.01f;
 
 		const float3  radiance	= decode_r11g11b10(ray_res.radiance_r11g11b10);
-		const float3  dir_local = decode_oct_snorm16(ray_res.dir_oct_snorm8 & 0xffff);
+		const float3  dir_local = decode_world_hemi_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm8 & 0xffffu));
 		const int32_2 px		= gibs_calc_atlas_tile_px(atlas_offset, dir_local);
+		assert(all(px - atlas_offset >= 0) and all(px - atlas_offset < 6));
 
-		const float2 original  = luminance_atlas[px];
-		const float	 luminance = lerp(original.x, max(luminance_rec709(radiance), GIBS_MIN_LUMINANCE), lum_blend_factor);
+		// assert(dir_local.y >= 0.f);
+		const float cos_theta = dir_local.y;
 
-		luminance_atlas[px] = float2(luminance, original.y);
+		const float3 contribution = cos_theta / max(epsilon_1e6, ray_res.pdf);
+		const float	 luminance	  = luminance_rec709(radiance * contribution);
 
-		const float cos_theta = dir_local.z;
+		luminance_atlas[px] = float2(lerp(luminance_atlas[px].x, luminance, lum_blend_factor), luminance_atlas[px].y);
+		// radiance, cos weight
+		radiance_sum += contribution * contribution * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
+
 
 		// visibility
 		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.1f;
 		const float	 dist_norm		  = saturate(ray_res.distance / surfel.radius);
 		const float2 chebyshev		  = float2(dist_norm, dist_norm * dist_norm);
 
-		visibility_atlas[px] = lerp(visibility_atlas[px], chebyshev, vis_blend_factor);
+		visibility_atlas[px] = lerp(max(0.f, visibility_atlas[px]), chebyshev, vis_blend_factor);
 
-		// radiance, cos weight
 		radiance_sum += radiance * cos_theta
 					  / max(epsilon_1e6, ray_res.pdf)
 					  * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / luminance);
@@ -82,6 +90,17 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 			gibs_update_msme(radiance_sum / pack_counter, msme);
 			radiance_sum = (float3)0;
 			pack_counter = 0u;
+		}
+	}
+
+	for (uint32 i = 0; i < 6; ++i)
+	{
+		for (uint32 j = 0; j < 6; ++j)
+		{
+			const uint32_2 px = atlas_offset + uint32_2(i, j);
+
+			assert(all(visibility_atlas[px] >= 0.f));
+			assert(all(luminance_atlas[px] >= 0.f));
 		}
 	}
 
@@ -108,14 +127,10 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 		const float contribution = gibs_calc_surfel_contribution(data, surfel_nbr, surfel.position, normal);
 
-		const float3  rel		= surfel.position - surfel_nbr.position;
-		const int32_2 px		= gibs_calc_atlas_tile_px(gibs_calc_atlas_offset(data, surfel_id_nbr), normalize(rel));
-		const float2  chebyshev = visibility_atlas[px];
-
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
 						 * contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data_arr[surfel_id_nbr].frame_since_born))
-						 * gibs_clac_visibility(chebyshev, saturate(length(rel) / surfel_nbr.radius));
+						 * gibs_calc_visibility(data, surfel_id, surfel_nbr, surfel.position);
 	}
 
 	if (radiance_shared.w > 0)

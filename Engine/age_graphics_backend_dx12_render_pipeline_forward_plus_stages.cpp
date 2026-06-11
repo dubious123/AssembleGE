@@ -641,7 +641,13 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::set_pso(p_pso_cleanup);
 			command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
 
-			command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
+			command::clear_uav(gibs_data_cpu.h_irradiance_atlas, gibs_data_cpu.h_irradiance_clear_uav_desc, float4::zero());
+			command::clear_uav(gibs_data_cpu.h_visibility_atlas, gibs_data_cpu.h_visibility_clear_uav_desc, float4::one());
+
+			command::apply_barriers(
+				barrier::tex_uav_to_srv(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+				barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+				barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
 		}
 
 		// todo uav_cleanup
@@ -697,7 +703,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_srv_to_uav(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::tex_srv_to_uav(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+								barrier::tex_srv_to_uav(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		// todo execute_indirect (active surfel)
 		command::set_pso(p_pso_ray_integrate);
@@ -711,7 +717,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		// do radiance sharing
 		command::set_pso(p_pso_build_cdf);
 		command::dispatch(32 * 32, util::ceil(gpu_data.max_surfel_count, 32 * 32), 1);
-		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_tile_coverage);
 		command::dispatch(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 1);

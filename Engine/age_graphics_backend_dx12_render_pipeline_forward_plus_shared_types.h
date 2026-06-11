@@ -84,6 +84,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 	struct gibs_lut_data
 	{
+		// cell_size_arr[0] : xyz size
+		// cell_size_arr[i > 0] : xy size
+		// z size = boundary[i] - boundary[i-1]
 		float cell_size_arr[16 + 1];
 		float layer_boundary_arr[16 + 1];
 		float surfel_distance_to_radius;
@@ -191,7 +194,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	{
 		uint32 radiance_r11g11b10;
 		float  distance;
-		uint32 dir_oct_snorm8;	  // [local_dir_snomr8(16)] [world_dir_snorm8(16)]
+		uint32 dir_oct_snorm8;	  // [local_dir_world_hemi_oct_snomr8(16)] [world_dir_oct_snorm8(16)]
 		float  pdf;
 	};
 
@@ -552,11 +555,15 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 gi_origin;
 		uint32 object_count;
 
-		uint32	 selection_outline_meshlet_render_data_count;
-		uint32	 selection_outline_mask_buffer_srv_texture_id;
-		uint32_2 _;
+		uint32 selection_outline_meshlet_render_data_count;
+		uint32 selection_outline_mask_buffer_srv_texture_id;
+		uint32 env_light_brdf_lut_id;
+		uint32 env_light_count;
 
-		uint32_4 extra[4];
+		float	 tan_fov_y_half;	// tan(fov_y * 0.5f)
+		uint32_3 _;
+
+		uint32_4 extra[3];
 		// total: 256 * 2 bytes
 	};
 
@@ -566,8 +573,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32			   directional_light_count_and_extra;	 // 4 bytes
 		t_unified_light_id unified_light_count;					 // 4 btyes
 
-		uint32 env_light_brdf_lut_id;
-		uint32 env_light_count;
+
 		uint32 radix_sort_pass;
 		uint32 ui_space_mode_and_extra;							 // [ui_space_mode(8)][extra]
 		uint32 ui_root_data_idx;
@@ -882,7 +888,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_ATLAS_TILE_COUNT_U (GIBS_ATLAS_WIDTH / GIBS_ATLAS_TILE_SIZE)
 #define GIBS_ATLAS_TILE_COUNT_V (GIBS_ATLAS_HEIGHT / GIBS_ATLAS_TILE_SIZE)
 #define GIBS_MAX_SURFEL_COUNT	(GIBS_ATLAS_TILE_COUNT_U * GIBS_ATLAS_TILE_COUNT_V - 1)
-#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 4u)
+#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 8u)
 #define GIBS_MIN_RAY_PER_SURFEL 4	  // ideal
 #define GIBS_MAX_RAY_PER_SURFEL 64	  // ideal
 
@@ -900,20 +906,20 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 #define GIBS_MAX_OUTER_LAYER_COUNT	  16u
 #define GIBS_SCREEN_TILE_SIZE		  16u
-#define GIBS_SCREEN_GROUP_SHARED_SIZE 8u
+#define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
 
-#define GIBS_SPAWN_COVERAGE	   2.f
-#define GIBS_KILL_COVERAGE	   4.f
+#define GIBS_SPAWN_COVERAGE	   1.f
+#define GIBS_KILL_COVERAGE	   3.f
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
 
 #define GIBS_RADIANCE_CACHE_DELAY 10
 
-#define GIBS_MSME_SHORT_WINDOW_BLEND 0.8f
+#define GIBS_MSME_SHORT_WINDOW_BLEND 0.08f
 
 #define GIBS_MAX_LUMINANCE_FOR_FIREFLY 50.f
 
-#define GIBS_MIN_LUMINANCE					0.001f
+#define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
 
 
@@ -930,6 +936,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS (1u << 11u)
 #define GIBS_DEBUG_FLAGS_FREEZE_SPAWN				  (1u << 12u)
 #define GIBS_DEBUG_FLAGS_RENDER_AGE					  (1u << 13u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL				  (1u << 14u)
 
 
 #if !defined(AGE_SHADER)
@@ -947,7 +954,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	inline constexpr auto gibs_surfel_screen_ratio = 0.005f;
+	inline constexpr auto gibs_surfel_screen_ratio = 0.05f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
 
@@ -973,6 +980,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_visibility_atlas));
 	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN == to_idx(graphics::e::gibs_debug_flags::freeze_spawn));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_AGE == to_idx(graphics::e::gibs_debug_flags::render_age));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL == to_idx(graphics::e::gibs_debug_flags::render_cell));
 
 #endif
 

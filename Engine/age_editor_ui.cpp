@@ -860,6 +860,7 @@ namespace age::editor
 			gibs_flag_checkbox(render_show_visibility_atlas);
 			gibs_flag_checkbox(freeze_spawn);
 			gibs_flag_checkbox(render_age);
+			gibs_flag_checkbox(render_cell);
 
 #undef gibs_flag_checkbox
 		}

@@ -24,6 +24,7 @@ static const uint32 uint32_max = 0xffffffffu;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+static const float4 color_black = float4(0, 0, 0, 1);
 static const float4 color_red	= float4(1, 0, 0, 1);
 static const float4 color_green = float4(0, 1, 0, 1);
 static const float4 color_blue	= float4(0, 0, 1, 1);
@@ -454,6 +455,8 @@ rotate_inv(float4 q, float3 v)
 	return rotate(float4(-q.xyz, q.w), v);
 }
 
+//---[ octahedral ]------------------------------------------------------------------------------------------------------
+
 float3
 decode_octahedral(float2 uv)	// oct_uv, [-1 , 1]
 {
@@ -471,7 +474,7 @@ decode_octahedral(float2 uv)	// oct_uv, [-1 , 1]
 }
 
 float3
-decode_oct_snorm(const uint16 oct)
+decode_oct_snorm8(const uint16 oct)
 {
 	float x = snorm8_to_float(oct & 0xffu);
 	float y = snorm8_to_float((oct >> 8) & 0xffu);
@@ -487,7 +490,7 @@ decode_oct_snorm16(const uint32 oct)
 }
 
 float3
-decode_oct_unorm(const uint16 oct)
+decode_oct_unorm8(const uint16 oct)
 {
 	float x = unorm8_to_float(oct & 0xffu) * 2.f - 1.f;
 	float y = unorm8_to_float((oct >> 8) & 0xffu) * 2.f - 1.f;
@@ -537,6 +540,160 @@ texel_id_to_octahedral_dir(uint32 texel_id, uint32 resolution)
 	const float2 uv = (float2(tx, ty) + 0.5f) / float(resolution) * 2.0f - 1.0f;
 
 	return decode_octahedral(uv);
+}
+
+//---[ tbn hemi octahedral, z normal ]------------------------------------------------------------------------------------------------------
+
+float3
+decode_tbn_hemi_octahedral(float2 uv)
+{
+	const float2 r = float2((uv.x + uv.y) * 0.5f, (uv.y - uv.x) * 0.5f);
+
+	float3 res;
+	res.x = r.x;
+	res.y = r.y;
+	res.z = 1.f - abs(r.x) - abs(r.y);
+
+	return normalize(res);
+}
+
+float3
+decode_tbn_hemi_oct_snorm8(const uint16 oct)
+{
+	float x = snorm8_to_float(oct & 0xffu);
+	float y = snorm8_to_float((oct >> 8) & 0xffu);
+	return decode_tbn_hemi_octahedral(float2(x, y));
+}
+
+float3
+decode_tbn_hemi_oct_snorm16(const uint32 oct)
+{
+	float x = snorm16_to_float(oct & 0xffffu);
+	float y = snorm16_to_float((oct >> 16) & 0xffffu);
+	return decode_tbn_hemi_octahedral(float2(x, y));
+}
+
+float3
+decode_tbn_hemi_oct_unorm8(const uint16 oct)
+{
+	float x = unorm8_to_float(oct & 0xffu) * 2.f - 1.f;
+	float y = unorm8_to_float((oct >> 8) & 0xffu) * 2.f - 1.f;
+	return decode_tbn_hemi_octahedral(float2(x, y));
+}
+
+// f.z >= 0.f
+float2
+encode_tbn_hemi_octahedral(float3 f)
+{
+	const float l1_norm = abs(f.x) + abs(f.y) + abs(f.z);
+	const float x		= f.x / l1_norm;
+	const float y		= f.y / l1_norm;
+
+	return float2(x - y, x + y);
+}
+
+uint16
+encode_tbn_hemi_oct_snorm8(const float3 f)
+{
+	const float2 uv = encode_tbn_hemi_octahedral(f);
+
+	return uint16(float_to_snorm8(uv.x) | (float_to_snorm8(uv.y) << 8u));
+}
+
+uint32
+encode_tbn_hemi_oct_snorm16(const float3 f)
+{
+	const float2 uv = encode_tbn_hemi_octahedral(f);
+
+	return uint32(float_to_snorm16(uv.x)) | (uint32(float_to_snorm16(uv.y)) << 16u);
+}
+
+float3
+texel_id_to_tbn_hemi_octahedral_dir(uint32 texel_id, uint32 resolution)
+{
+	const uint32 tx = texel_id % resolution;
+	const uint32 ty = texel_id / resolution;
+
+	const float2 uv = (float2(tx, ty) + 0.5f) / float(resolution) * 2.0f - 1.0f;
+
+	return decode_tbn_hemi_octahedral(uv);
+}
+
+//---[ world hemi octahedral, y normal ]------------------------------------------------------------------------------------------------------
+
+float3
+decode_world_hemi_octahedral(float2 uv)
+{
+	const float2 r = float2((uv.x + uv.y) * 0.5f, (uv.y - uv.x) * 0.5f);
+
+	float3 res;
+	res.x = r.x;
+	res.z = r.y;
+	res.y = max(0.f, 1.f - abs(r.x) - abs(r.y));
+
+	return normalize(res);
+}
+
+float3
+decode_world_hemi_oct_snorm8(const uint16 oct)
+{
+	float x = snorm8_to_float(oct & 0xffu);
+	float y = snorm8_to_float((oct >> 8) & 0xffu);
+	return decode_world_hemi_octahedral(float2(x, y));
+}
+
+float3
+decode_world_hemi_oct_snorm16(const uint32 oct)
+{
+	float x = snorm16_to_float(oct & 0xffffu);
+	float y = snorm16_to_float((oct >> 16) & 0xffffu);
+	return decode_world_hemi_octahedral(float2(x, y));
+}
+
+float3
+decode_world_hemi_oct_unorm8(const uint16 oct)
+{
+	float x = unorm8_to_float(oct & 0xffu) * 2.f - 1.f;
+	float y = unorm8_to_float((oct >> 8) & 0xffu) * 2.f - 1.f;
+	return decode_world_hemi_octahedral(float2(x, y));
+}
+
+// f.y >= 0.f
+float2
+encode_world_hemi_octahedral(float3 f)
+{
+	const float l1_norm = abs(f.x) + abs(f.y) + abs(f.z);
+	const float x		= f.x / l1_norm;
+	const float z		= f.z / l1_norm;
+
+	return float2(x - z, x + z);
+}
+
+uint16
+encode_world_hemi_oct_snorm8(const float3 f)
+{
+	const float2 uv = encode_world_hemi_octahedral(f);
+
+	return uint16(float_to_snorm8(uv.x) | (float_to_snorm8(uv.y) << 8u));
+}
+
+uint32
+encode_world_hemi_oct_snorm16(const float3 f)
+{
+	const float2 uv = encode_world_hemi_octahedral(f);
+
+	return uint32(float_to_snorm16(uv.x)) | (uint32(float_to_snorm16(uv.y)) << 16u);
+}
+
+float3
+texel_id_to_world_hemi_octahedral_dir(uint32 texel_id, uint32 resolution)
+{
+	const uint32 tx = texel_id % resolution;
+	const uint32 ty = texel_id / resolution;
+
+	const float2 uv = (float2(tx, ty) + 0.5f) / float(resolution) * 2.0f - 1.0f;
+
+	return decode_world_hemi_octahedral(uv);
 }
 
 // Following R11G11B10 conversions taken from
@@ -917,7 +1074,7 @@ world_dir_to_equirect_uv(float3 dir)
 // "Building an Orthonormal Basis, Revisited"
 // https://jcgt.org/published/0006/01/01/
 float3x3
-gen_normal_transform_t(float3 normal)
+gen_tbn_normal_transform_t(float3 normal)
 {
 	// copy sign
 	float  sign_z	 = normal.z >= 0.f ? 1.f : -1.f;
@@ -929,13 +1086,30 @@ gen_normal_transform_t(float3 normal)
 }
 
 float3x3
-gen_normal_transform(float3 normal)
+gen_world_normal_transform_t(float3 normal)
 {
-	return transpose(gen_normal_transform_t(normal));
+	float  sign_y	 = normal.y >= 0.f ? 1.f : -1.f;
+	float  a		 = -1.f / (sign_y + normal.y);
+	float  b		 = normal.x * normal.z * a;
+	float3 tangent	 = float3(1.f + sign_y * normal.x * normal.x * a, -sign_y * normal.x, sign_y * b);
+	float3 bitangent = float3(b, -normal.z, sign_y + normal.z * normal.z * a);
+	return float3x3(tangent, normal, bitangent);
+}
+
+float3x3
+gen_tbn_normal_transform(float3 normal)
+{
+	return transpose(gen_tbn_normal_transform_t(normal));
+}
+
+float3x3
+gen_world_normal_transform(float3 normal)
+{
+	return transpose(gen_world_normal_transform_t(normal));
 }
 
 float3
-sample_hemisphere_cosine_local(float2 xi)
+sample_tbn_hemisphere_cosine_local(float2 xi)
 {
 	const float phi		  = pi_2 * xi.x;
 	const float cos_theta = sqrt(xi.y);
@@ -945,10 +1119,10 @@ sample_hemisphere_cosine_local(float2 xi)
 }
 
 float3
-sample_hemisphere_cosine(float2 xi, float3 normal)
+sample_tbn_hemisphere_cosine(float2 xi, float3 normal)
 {
-	const float3   dir_local		= sample_hemisphere_cosine_local(xi);
-	const float3x3 local_to_world_t = gen_normal_transform_t(normal);
+	const float3   dir_local		= sample_tbn_hemisphere_cosine_local(xi);
+	const float3x3 local_to_world_t = gen_tbn_normal_transform_t(normal);
 	return mul(dir_local, local_to_world_t);
 }
 
@@ -962,7 +1136,7 @@ sample_sphere_uniform(float2 xi)
 }
 
 float3
-sample_hemisphere_uniform(float2 xi)
+sample_tbn_hemisphere_uniform(float2 xi)
 {
 	const float cos_theta = xi.x;
 	const float sin_theta = sqrt(saturate(1.f - cos_theta * cos_theta));
@@ -971,13 +1145,13 @@ sample_hemisphere_uniform(float2 xi)
 }
 
 float3
-sample_hemisphere_uniform(float2 xi, float3 normal)
+sample_tbn_hemisphere_uniform(float2 xi, float3 normal)
 {
-	return mul(sample_hemisphere_uniform(xi), gen_normal_transform_t(normal));
+	return mul(sample_tbn_hemisphere_uniform(xi), gen_tbn_normal_transform_t(normal));
 }
 
 float3
-sample_hemisphere_cosine(float2 xi, float3x3 transform_mat)
+sample_tbn_hemisphere_cosine(float2 xi, float3x3 transform_mat)
 {
 	const float phi		  = pi_2 * xi.x;
 	const float cos_theta = sqrt(xi.y);
@@ -989,7 +1163,7 @@ sample_hemisphere_cosine(float2 xi, float3x3 transform_mat)
 
 // return (dir , cos), cos for pdf
 float4
-sample_hemisphere_cosine_2(float2 xi, float3x3 transform_mat)
+sample_tbn_hemisphere_cosine_2(float2 xi, float3x3 transform_mat)
 {
 	const float phi		  = pi_2 * xi.x;
 	const float cos_theta = sqrt(xi.y);
@@ -1041,4 +1215,25 @@ project_sphere(float3 center, float radius, float near_z, float p00, float p11)
 	const float max_y = (vy * center.y + cr.z) / (vy * center.z - cr.y);
 
 	return float4(min_x * p00, min_y * p11, max_x * p00, max_y * p11);
+}
+
+// from 1x1 screen space pixel => world area
+float
+px_world_area(float2 screen_px, float3 cam_to_world, float3 world_normal, float3 cam_forward, float tan_fov_y_half, float screen_height)
+{
+	// length(screen_x, screen_y, cam_to_screen_z_px) : 1 (px_y) = length(view) : px_view_y
+	// length(screen_x, screen_y, cam_to_screen_z_px) : 1 (px_x) = length(view) : px_view_x
+	// approx length(1, 0, cam_to_screen_z_px) to cam_to_screen_z_px
+
+	const float cam_to_screen_px_z		= screen_height * 0.5f / tan_fov_y_half;
+	const float cam_to_screen_px_length = length(float3(screen_px.x, screen_px.y, cam_to_screen_px_z));
+
+	const float view_px_y = length(cam_to_world) / cam_to_screen_px_length;
+	const float view_px_x = length(cam_to_world) / cam_to_screen_px_length;
+	const float area_proj = view_px_x * view_px_y;
+
+	const float cos_theta  = dot(cam_forward, world_normal);
+	const float area_world = area_proj / max(0.1f, abs(cos_theta));
+
+	return area_world;
 }

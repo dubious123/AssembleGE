@@ -5,12 +5,11 @@ wave_size(32)
 main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 {
-	const gibs_data				  data			 = gibs_load_gibs_data();
-	rw_stack<uint32>			  alive_atack	 = gibs_load_alive_surfel_id_stack_curr(data);
-	rw_byte_array<uint32>		  ray_offset_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	rw_byte_array<uint32>		  ray_count_arr	 = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	rw_byte_array<gibs_ray_entry> ray_entry_arr	 = gibs_load_ray_entry_rw_arr(data);
-	const uint32				  alive_count	 = alive_atack.size();
+	const gibs_data		  data			 = gibs_load_gibs_data();
+	rw_stack<uint32>	  alive_atack	 = gibs_load_alive_surfel_id_stack_curr(data);
+	rw_byte_array<uint32> ray_offset_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
+	rw_byte_array<uint32> ray_count_arr	 = gibs_load_surfel_ray_count_ideal_rw_arr(data);
+	const uint32		  alive_count	 = alive_atack.size();
 
 	attr_branch()
 
@@ -35,6 +34,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		gibs_ray_entry entry;
 		entry.local_ray_id = i;
 		entry.surfel_id	   = surfel_id;
-		ray_entry_arr.store(ray_offset + i, entry);
+
+		gibs_store_ray_entry(data, ray_offset + i, entry);
 	}
 }

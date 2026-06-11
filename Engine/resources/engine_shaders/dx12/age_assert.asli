@@ -15,3 +15,5 @@ rw_byte_address_buffer crash_buffer reg(u666, space666);
 #else
 	#define assert(expr)
 #endif
+
+#define static_assert(expr) _Static_assert(expr, #expr)

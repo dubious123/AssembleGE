@@ -47,5 +47,6 @@ main_cs(uint32 alive_idx sv_dispatch_thread_id)
 	const surfel surfel = surfel_arr[surfel_id];
 
 	// cell update
-	gibs_foreach_neighbor_cell(fn_fill_cell_to_surfel::init(surfel_id, surfel), data, gibs_load_gibs_lut_data(), surfel.position);
+	fn_fill_cell_to_surfel fn = fn_fill_cell_to_surfel::init(surfel_id, surfel);
+	gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
 }

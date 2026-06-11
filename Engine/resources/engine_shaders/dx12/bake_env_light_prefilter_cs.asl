@@ -33,7 +33,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const float2   prefilter_face_uv = (float2(thread_id.xy) + 0.5) / float(prefilter_mip_size);
 	const float3   normal			 = cube_face_uv_to_world_dir(prefilter_face_uv, thread_id.z);
-	const float3x3 local_to_world	 = gen_normal_transform(normal);
+	const float3x3 local_to_world	 = gen_tbn_normal_transform(normal);
 
 	if (env_light_prefilter_mip_count == 0)
 	{
@@ -52,7 +52,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	{
 		const float2 xi = hammersley(n, ENV_LIGHT_SAMPLE_COUNT);
 
-		const float3 h = sample_hemisphere_cosine(xi, local_to_world);
+		const float3 h = sample_tbn_hemisphere_cosine(xi, local_to_world);
 
 		const float3 l = reflect(-v, h);
 

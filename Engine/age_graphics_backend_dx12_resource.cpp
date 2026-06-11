@@ -850,6 +850,7 @@ namespace age::graphics::resource
 		{
 			static_assert(false, "todo");
 		}
+		// todo, custom view wrapper
 		else if constexpr (std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>)
 		{
 			auto h_desc = pop_descriptor<clear_uav_desc_handle>();
