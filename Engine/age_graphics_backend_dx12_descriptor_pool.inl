@@ -233,6 +233,90 @@ namespace age::graphics
 		}
 	}
 
+	void
+	push_descriptor_deferred(c_auto& h_descriptor, e::queue_kind kind) noexcept
+	{
+		using t_descriptor_handle  = BARE_OF(h_descriptor);
+		using t_deferred_push_data = deferred_desc_push_data<t_descriptor_handle>;
+
+		if constexpr (std::is_same_v<t_descriptor_handle, cbv_desc_handle>)
+		{
+			g::deferred_push_cbv_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																				  .h_desc	   = h_descriptor,
+																				  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, srv_desc_handle>)
+		{
+			g::deferred_push_srv_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																				  .h_desc	   = h_descriptor,
+																				  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, uav_desc_handle>)
+		{
+			g::deferred_push_uav_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																				  .h_desc	   = h_descriptor,
+																				  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, rtv_desc_handle>)
+		{
+			g::deferred_push_rtv_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																				  .h_desc	   = h_descriptor,
+																				  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, dsv_desc_handle>)
+		{
+			g::deferred_push_dsv_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																				  .h_desc	   = h_descriptor,
+																				  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, sampler_desc_handle>)
+		{
+			g::deferred_push_sampler_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																					  .h_desc	   = h_descriptor,
+																					  .queue_kind  = kind });
+		}
+		else if constexpr (std::is_same_v<t_descriptor_handle, clear_uav_desc_handle>)
+		{
+			g::deferred_push_clear_uav_desc_data_vec.emplace_back(t_deferred_push_data{ .fence_value = command::current_fence_value(kind),
+																						.h_desc		 = h_descriptor,
+																						.queue_kind	 = kind });
+		}
+		else
+		{
+			static_assert(false, "invalid descriptor handle type");
+		}
+	}
+
+	inline void
+	process_deferred_desc_pushes() noexcept
+	{
+#define push_loop(vector_name)                                              \
+	for (auto i : views::loop(g::vector_name.size()) | std::views::reverse) \
+	{                                                                       \
+		auto& data = g::vector_name[i];                                     \
+                                                                            \
+		if (command::is_complete(data.queue_kind, data.fence_value))        \
+		{                                                                   \
+			push_descriptor(data.h_desc);                                   \
+			if (i != g::vector_name.size() - 1)                             \
+			{                                                               \
+				g::vector_name[i] = std::move(g::vector_name.back());       \
+			}                                                               \
+			g::vector_name.pop_back();                                      \
+		}                                                                   \
+	}
+
+
+		push_loop(deferred_push_cbv_desc_data_vec);
+		push_loop(deferred_push_srv_desc_data_vec);
+		push_loop(deferred_push_uav_desc_data_vec);
+		push_loop(deferred_push_rtv_desc_data_vec);
+		push_loop(deferred_push_dsv_desc_data_vec);
+		push_loop(deferred_push_sampler_desc_data_vec);
+		push_loop(deferred_push_clear_uav_desc_data_vec);
+#undef push_loop
+	}
+
 	uint32
 	calc_desc_idx(c_auto& h_descriptor) noexcept
 	{

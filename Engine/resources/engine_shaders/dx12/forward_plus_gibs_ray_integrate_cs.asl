@@ -6,14 +6,14 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 {
 	const gibs_data							 data			  = gibs_load_gibs_data();
-	const rw_stack<uint32>					 alive_atack	  = gibs_load_alive_surfel_id_stack_curr(data);
+	const rw_stack<uint32>					 alive_stack	  = gibs_load_alive_surfel_id_stack_curr(data);
 	const rw_byte_array<uint32>				 ray_offset_arr	  = gibs_load_surfel_ray_count_prefix_rw_arr(data);
 	const rw_byte_array<uint32>				 ray_count_arr	  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
 	const rw_byte_array<gibs_ray_result>	 ray_res_arr	  = gibs_load_ray_result_rw_arr(data);
 	const rw_byte_array<surfel_recycle_data> recycle_data_arr = gibs_load_surfel_recycle_data_rw_arr(data);
 	const rw_array<surfel>					 surfel_arr		  = gibs_load_surfel_rw_arr(data);
 	const rw_byte_array<surfel_msme>		 msme_arr		  = gibs_load_surfel_msme_rw_arr(data);
-	const uint32							 alive_count	  = alive_atack.size();
+	const uint32							 alive_count	  = alive_stack.size();
 
 	attr_branch()
 
@@ -28,7 +28,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	}
 
 	const uint32 alive_id  = thread_id;
-	const uint32 surfel_id = alive_atack[thread_id];
+	const uint32 surfel_id = alive_stack[thread_id];
 
 	const uint32 ray_offset = ray_offset_arr[alive_id];
 	const uint32 ray_count	= ray_count_arr[alive_id];
@@ -64,13 +64,14 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		// assert(dir_local.y >= 0.f);
 		const float cos_theta = dir_local.y;
 
-		const float3 contribution = cos_theta / max(epsilon_1e6, ray_res.pdf);
-		const float	 luminance	  = luminance_rec709(radiance * contribution);
+		const float contribution = cos_theta / max(epsilon_1e6, ray_res.pdf);
+
+		const float luminance = luminance_rec709(radiance) * cos_theta;
 
 		luminance_atlas[px] = float2(lerp(luminance_atlas[px].x, luminance, lum_blend_factor), luminance_atlas[px].y);
-		// radiance, cos weight
-		radiance_sum += contribution * contribution * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
 
+		// radiance, cos weight
+		radiance_sum += radiance * contribution * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
 
 		// visibility
 		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.1f;
@@ -78,10 +79,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		const float2 chebyshev		  = float2(dist_norm, dist_norm * dist_norm);
 
 		visibility_atlas[px] = lerp(max(0.f, visibility_atlas[px]), chebyshev, vis_blend_factor);
-
-		radiance_sum += radiance * cos_theta
-					  / max(epsilon_1e6, ray_res.pdf)
-					  * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / luminance);
 
 		++pack_counter;
 
@@ -93,16 +90,16 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		}
 	}
 
-	for (uint32 i = 0; i < 6; ++i)
-	{
-		for (uint32 j = 0; j < 6; ++j)
-		{
-			const uint32_2 px = atlas_offset + uint32_2(i, j);
+	// for (uint32 i = 0; i < 6; ++i)
+	//{
+	//	for (uint32 j = 0; j < 6; ++j)
+	//	{
+	//		const uint32_2 px = atlas_offset + uint32_2(i, j);
 
-			assert(all(visibility_atlas[px] >= 0.f));
-			assert(all(luminance_atlas[px] >= 0.f));
-		}
-	}
+	//		assert(all(luminance_atlas[px] >= 0.f));
+	//		assert(all(visibility_atlas[px] >= 0.f));
+	//	}
+	//}
 
 	surfel.radiance = msme.mean_long;
 
@@ -130,7 +127,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
 						 * contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data_arr[surfel_id_nbr].frame_since_born))
-						 * gibs_calc_visibility(data, surfel_id, surfel_nbr, surfel.position);
+						 * gibs_calc_visibility<false>(data, surfel_id, surfel_nbr, surfel.position);
 	}
 
 	if (radiance_shared.w > 0)

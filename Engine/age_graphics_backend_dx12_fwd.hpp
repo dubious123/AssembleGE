@@ -295,8 +295,16 @@ namespace age::graphics
 	void
 	push_descriptor(c_auto& handle) noexcept;
 
+	void
+	push_descriptor_deferred(c_auto& h_descriptor, e::queue_kind kind = e::queue_kind::direct) noexcept;
+
+	inline void
+	process_deferred_desc_pushes() noexcept;
+
 	uint32
 	calc_desc_idx(c_auto& handle) noexcept;
+
+
 }	 // namespace age::graphics
 
 // resource
@@ -363,6 +371,7 @@ namespace age::graphics
 	{
 		resource_handle h_resource;
 		e::queue_kind	kind;
+		uint8_3			_;
 		uint64			fence_value;
 	};
 
@@ -370,8 +379,21 @@ namespace age::graphics
 	{
 		resource_handle h_resource;
 		e::queue_kind	kind;
+		uint8_3			_;
 		uint64			fence_value;
 		srv_desc_handle h_srv;
+	};
+
+	template <typename t_desc>
+	struct deferred_desc_push_data
+	{
+		using descriptor_type = t_desc;
+
+		uint64 fence_value;
+		t_desc h_desc;
+
+		e::queue_kind queue_kind;
+		uint8_3		  _;
 	};
 }	 // namespace age::graphics
 

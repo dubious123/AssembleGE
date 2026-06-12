@@ -457,6 +457,31 @@ rotate_inv(float4 q, float3 v)
 
 //---[ octahedral ]------------------------------------------------------------------------------------------------------
 
+float
+octahedral_jacobian(float2 uv)
+{
+	// todo. measure
+	float3 res;
+	res.xy = uv;
+	res.z  = 1.f - abs(uv.x) - abs(uv.y);
+	if (res.z < 0.f)
+	{
+		const float old_x = res.x;
+		const float old_y = res.y;
+		res.x			  = (1.f - abs(old_y)) * (old_x >= 0.f ? 1.f : -1.f);
+		res.y			  = (1.f - abs(old_x)) * (old_y >= 0.f ? 1.f : -1.f);
+	}
+	const float r_inv = rsqrt(dot(res, res));
+
+	// const float2 a		= abs(uv);
+	// const float	 z		= 1.f - a.x - a.y;
+	// const float2 unnorm = a + min(z, 0.f);
+	// const float	 r_sqr	= dot(unnorm, unnorm) + z * z;
+	// const float	 r_inv	= rsqrt(r_sqr);
+
+	return r_inv * r_inv * r_inv;
+}
+
 float3
 decode_octahedral(float2 uv)	// oct_uv, [-1 , 1]
 {
@@ -620,7 +645,7 @@ texel_id_to_tbn_hemi_octahedral_dir(uint32 texel_id, uint32 resolution)
 }
 
 //---[ world hemi octahedral, y normal ]------------------------------------------------------------------------------------------------------
-
+// uv : [-1, 1]
 float3
 decode_world_hemi_octahedral(float2 uv)
 {
@@ -694,6 +719,21 @@ texel_id_to_world_hemi_octahedral_dir(uint32 texel_id, uint32 resolution)
 	const float2 uv = (float2(tx, ty) + 0.5f) / float(resolution) * 2.0f - 1.0f;
 
 	return decode_world_hemi_octahedral(uv);
+}
+
+float
+calc_hemi_oct_jacobian(float2 uv)
+{
+	const float2 r = float2((uv.x + uv.y) * 0.5f, (uv.y - uv.x) * 0.5f);
+
+	float3 dir;
+	dir.x = r.x;
+	dir.z = r.y;
+	dir.y = 1.f - abs(r.x) - abs(r.y);
+
+	const float r_sqr_inv = rsqrt(max(epsilon_1e6, dot(dir, dir)));
+
+	return 0.5f * r_sqr_inv * r_sqr_inv * r_sqr_inv;
 }
 
 // Following R11G11B10 conversions taken from

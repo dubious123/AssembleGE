@@ -2198,6 +2198,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			gibs_data_cpu.h_cell_info_uav_desc = resource::create_view(gibs_data_cpu.h_cell_info_buffer,
 																	   defaults::uav_view_desc::byte_address_buffer(cast_to<uint32>(cell_info_buffer_size)));
+
+			pop_descriptor(gibs_data_cpu.h_cell_info_clear_uav_desc);
+			resource::create_view(gibs_data_cpu.h_cell_info_buffer, gibs_data_cpu.h_cell_info_clear_uav_desc,
+								  defaults::uav_view_desc::byte_address_buffer(cast_to<uint32>(cell_info_buffer_size)));
 		}
 
 		{
@@ -2259,13 +2263,18 @@ namespace age::graphics::render_pipeline::forward_plus
 			c_auto ray_result_offset				  = offset_calculator + sizeof(shared_type::gibs_ray_result) * g::gibs_ray_budget;
 			c_auto buffer_size						  = offset_calculator.size();
 
-
+			AGE_ASSERT(sizeof(shared_type::gibs_ray_result) * g::gibs_ray_budget >= sizeof(shared_type::gibs_ray_entry) * desc.max_surfel_count);
 			AGE_ASSERT(buffer_size / 4 <= cast_to<uint64>(math::g::uint32_max));
 
 			gibs_data_cpu.h_scratch_buffer = resource::create_committed_buf_uav(cast_to<uint32>(buffer_size));
+
 			gibs_data_cpu.h_scratch_buffer->set_name(L"gibs_scratch_buffer");
 			gibs_data_cpu.h_scratch_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_scratch_buffer,
 																			defaults::uav_view_desc::byte_address_buffer(cast_to<uint32>(buffer_size)));
+
+			pop_descriptor(gibs_data_cpu.h_scratch_clear_uav_desc);
+			resource::create_view(gibs_data_cpu.h_scratch_buffer, gibs_data_cpu.h_scratch_clear_uav_desc,
+								  defaults::uav_view_desc::byte_address_buffer(cast_to<uint32>(buffer_size)));
 
 
 			gibs_data_gpu.alive_surfel_id_stack_prev_offset = cast_to<uint32>(alive_surfel_id_stack_prev_offset);
@@ -2358,20 +2367,22 @@ namespace age::graphics::render_pipeline::forward_plus
 	void
 	pipeline::disable_gibs() noexcept
 	{
-		push_descriptor(gibs_data_cpu.h_surfel_buffer_srv_desc);
-		push_descriptor(gibs_data_cpu.h_cell_info_srv_desc);
-		push_descriptor(gibs_data_cpu.h_irradiance_atlas_srv_desc);
-		push_descriptor(gibs_data_cpu.h_visibility_atlas_srv_desc);
-		push_descriptor(gibs_data_cpu.h_gbuffer_srv_desc);
-		push_descriptor(gibs_data_cpu.h_surfel_buffer_uav_desc);
-		push_descriptor(gibs_data_cpu.h_cell_info_uav_desc);
-		push_descriptor(gibs_data_cpu.h_scratch_buffer_uav_desc);
-		push_descriptor(gibs_data_cpu.h_irradiance_atlas_uav_desc);
-		push_descriptor(gibs_data_cpu.h_visibility_atlas_uav_desc);
-		push_descriptor(gibs_data_cpu.h_gbuffer_rtv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_info_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_irradiance_atlas_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_visibility_atlas_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gbuffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_info_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_scratch_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_irradiance_atlas_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_visibility_atlas_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gbuffer_rtv_desc);
 
-		push_descriptor(gibs_data_cpu.h_irradiance_clear_uav_desc);
-		push_descriptor(gibs_data_cpu.h_visibility_clear_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_irradiance_clear_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_visibility_clear_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_info_clear_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_scratch_clear_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_surfel_buffer);
 		resource::release_deferred(gibs_data_cpu.h_cell_info_buffer);

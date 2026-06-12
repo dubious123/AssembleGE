@@ -57,6 +57,7 @@ main_cs(
 	const surfel_geometry surfel_geo	 = geo_arr[surfel_id];
 	surfel_recycle_data	  surfel_recycle = recycle_arr[surfel_id];
 
+	assert(surfel.alive_idx == alive_idx_prev);
 
 	const float3 local_normal = decode_oct_snorm16(surfel_geo.local_normal_oct_snorm16);
 
@@ -96,7 +97,7 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	else if (surfel_recycle.frame_since_ref() > 0xfe)
+	else if (alive_count_prev_total > 0.8f * data.max_surfel_count and surfel_recycle.frame_since_ref() > 0xfe)
 	{
 		kill_surfel = true;
 	}
@@ -122,7 +123,6 @@ main_cs(
 	surfel.position			  = world_pos;
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
 	surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
-	surfel_arr.store(surfel_id, surfel);
 
 	// alive stack prev -> alive stack curr
 	const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
@@ -141,6 +141,9 @@ main_cs(
 	alive_stack_curr.set(target_offset, surfel_id);
 
 	const uint32 alive_idx_curr = target_offset;
+
+	surfel.alive_idx = alive_idx_curr;
+	surfel_arr.store(surfel_id, surfel);
 
 	// cell update
 	fn_cell_update fn = fn_cell_update::init(surfel);

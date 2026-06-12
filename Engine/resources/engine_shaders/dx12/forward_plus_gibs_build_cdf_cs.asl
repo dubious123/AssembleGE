@@ -55,7 +55,7 @@ main_cs(uint32_3 group_id sv_group_id,
 		{
 			lum_total = lum_prefix + lum.x + lum_33.x + lum_34.x + lum_35.x + lum_36.x;
 		}
-		lum_total = wave_read_lane_at(lum_total, wave_lane_count() - 1);
+		lum_total = max(epsilon_1e4, wave_read_lane_at(lum_total, wave_lane_count() - 1));
 
 		luminance_atlas[px] = float2(lum.x, (lum_prefix + lum.x) / lum_total);
 

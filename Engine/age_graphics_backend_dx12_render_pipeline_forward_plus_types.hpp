@@ -446,5 +446,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		clear_uav_desc_handle h_irradiance_clear_uav_desc;
 		clear_uav_desc_handle h_visibility_clear_uav_desc;
+		clear_uav_desc_handle h_cell_info_clear_uav_desc;
+		clear_uav_desc_handle h_scratch_clear_uav_desc;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

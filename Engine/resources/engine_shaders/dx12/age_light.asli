@@ -595,7 +595,7 @@ float3
 calc_pbr_gibs(const in pbr_surface_data surface_data, const in float3 world_face_normal)
 {
 	const float3 irradiance = gibs_sample_irradiance(surface_data.world_pos, world_face_normal);
-	return surface_data.c_diffuse * irradiance;
+	return surface_data.c_diffuse * irradiance * pi_inv;
 }
 
 template <uint32 ray_flag>

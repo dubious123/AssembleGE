@@ -638,16 +638,21 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		if (gibs_data_cpu.need_cleanup) [[unlikely]]
 		{
-			command::set_pso(p_pso_cleanup);
-			command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
-
 			command::clear_uav(gibs_data_cpu.h_irradiance_atlas, gibs_data_cpu.h_irradiance_clear_uav_desc, float4::zero());
 			command::clear_uav(gibs_data_cpu.h_visibility_atlas, gibs_data_cpu.h_visibility_clear_uav_desc, float4::one());
+			command::clear_uav(gibs_data_cpu.h_scratch_buffer, gibs_data_cpu.h_scratch_clear_uav_desc, uint32_4::zero());
+			command::clear_uav(gibs_data_cpu.h_cell_info_buffer, gibs_data_cpu.h_cell_info_clear_uav_desc, uint32_4::zero());
 
 			command::apply_barriers(
 				barrier::tex_uav_to_srv(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 				barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+				barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
 				barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
+
+			command::set_pso(p_pso_cleanup);
+			command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+
+			command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
 		}
 
 		// todo uav_cleanup

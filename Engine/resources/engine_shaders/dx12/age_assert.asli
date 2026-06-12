@@ -2,14 +2,14 @@
 #include "age.asli"
 #if include_assert
 rw_byte_address_buffer crash_buffer reg(u666, space666);
-	#define assert(expr)                   \
-		do                                 \
-		{                                  \
-			if ((expr)is_false)            \
-			{                              \
-				store(crash_buffer, 0, 0); \
-			}                              \
-		}                                  \
+	#define assert(expr)                          \
+		do                                        \
+		{                                         \
+			if ((expr)is_false)                   \
+			{                                     \
+				crash_buffer.Store<uint32>(0, 0); \
+			}                                     \
+		}                                         \
 		while (false);
 
 #else

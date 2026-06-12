@@ -291,6 +291,11 @@ namespace age::graphics::resource
 	void
 	process_deferred_releases() noexcept;
 
+	template <e::queue_kind e_kind = e::queue_kind::direct>
+	FORCE_INLINE void
+	release_deffered(resource_handle&, auto&&... h_desc) noexcept;
+
+
 	FORCE_INLINE bool
 	resize_buffer(resource_handle&, uint64 required_size) noexcept;
 

@@ -6,17 +6,21 @@ struct array
 {
 	structured_buffer<t> buf;
 
+	uint32 capacity;
+
 	static array<t>
-	init(structured_buffer<t> b)
+	init(structured_buffer<t> b, uint32 capacity)
 	{
 		array<t> res;
-		res.buf = b;
+		res.buf		 = b;
+		res.capacity = capacity;
 		return res;
 	}
 
 	t
 	operator[](uint32 idx)
 	{
+		assert(idx < capacity);
 		return buf[idx];
 	}
 };
@@ -27,18 +31,22 @@ struct byte_array
 	byte_address_buffer buf;
 	uint32				offset;
 
+	uint32 capacity;
+
 	static byte_array<t>
-	init(byte_address_buffer b, uint32 o)
+	init(byte_address_buffer b, uint32 o, uint32 capacity)
 	{
 		byte_array<t> res;
-		res.buf	   = b;
-		res.offset = o;
+		res.buf		 = b;
+		res.offset	 = o;
+		res.capacity = capacity;
 		return res;
 	}
 
 	t
 	operator[](uint32 idx)
 	{
+		assert(idx < capacity);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 };
@@ -48,23 +56,28 @@ struct rw_array
 {
 	rw_structured_buffer<t> buf;
 
+	uint32 capacity;
+
 	static rw_array<t>
-	init(rw_structured_buffer<t> b)
+	init(rw_structured_buffer<t> b, uint32 capacity)
 	{
 		rw_array<t> res;
-		res.buf = b;
+		res.buf		 = b;
+		res.capacity = capacity;
 		return res;
 	}
 
 	t
 	operator[](uint32 idx)
 	{
+		assert(idx < capacity);
 		return buf[idx];
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
+		assert(idx < capacity);
 		buf[idx] = value;
 	}
 };
@@ -75,30 +88,36 @@ struct rw_byte_array
 	rw_byte_address_buffer buf;
 	uint32				   offset;
 
+	uint32 capacity;
+
 	static rw_byte_array
-	init(rw_byte_address_buffer b, uint32 o)
+	init(rw_byte_address_buffer b, uint32 o, uint32 capacity)
 	{
 		rw_byte_array res;
-		res.buf	   = b;
-		res.offset = o;
+		res.buf		 = b;
+		res.offset	 = o;
+		res.capacity = capacity;
 		return res;
 	}
 
 	t
 	operator[](uint32 idx)
 	{
+		assert(idx < capacity);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
+		assert(idx < capacity);
 		buf.Store<t>(offset + idx * sizeof(t), value);
 	}
 
 	uint32
 	atomic_inc(uint32 idx, uint32 byte4_offset = 0, const uint32 value = 1)
 	{
+		assert(idx < capacity);
 		uint32 original;
 		buf_interlocked_add(buf, offset + idx * sizeof(t) + byte4_offset * 4, value, original);
 		return original;
@@ -154,12 +173,21 @@ struct rw_stack
 	rw_byte_address_buffer buf;
 	uint32				   offset;
 
+	uint32 capacity;
+
+	int32
+	size()
+	{
+		return load<int32>(buf, offset_counter());
+	}
+
 	static rw_stack
-	init(rw_byte_address_buffer b, uint32 o)
+	init(rw_byte_address_buffer b, uint32 o, uint32 capacity)
 	{
 		rw_stack res;
-		res.buf	   = b;
-		res.offset = o;
+		res.buf		 = b;
+		res.offset	 = o;
+		res.capacity = capacity;
 		return res;
 	}
 
@@ -178,6 +206,7 @@ struct rw_stack
 	t
 	operator[](uint32 idx)
 	{
+		assert(idx < size());
 		return load<t>(buf, offset_value() + idx * sizeof(t));
 	}
 
@@ -186,12 +215,14 @@ struct rw_stack
 	{
 		int32 original;
 		buf_interlocked_add(buf, offset_counter(), size, original);
+		assert(original + size <= capacity);
 		return original;
 	}
 
 	t
 	pop()
 	{
+		assert(size() > 0);
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), -1, original);
 		return load<t>(buf, offset_value() + sizeof(t) * (original - 1));
@@ -215,29 +246,31 @@ struct rw_stack
 		}
 	}
 
-	void
+	uint32
 	push(const t value)
 	{
+		assert(size() < capacity);
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), 1, original);
 		store(buf, offset_value() + sizeof(t) * original, value);
-	}
 
-	int32
-	size()
-	{
-		return load<int32>(buf, offset_counter());
+		assert(original + 1 <= size());
+		assert(original + 1 <= capacity);
+		return original;
 	}
 
 	void
 	resize(uint32 size)
 	{
+		assert(size <= capacity);
 		store(buf, offset_counter(), size);
 	}
 
 	void
 	set(uint32 idx, const t value)
 	{
+		assert(idx < capacity);
+		assert(idx < size());
 		store(buf, offset_value() + sizeof(t) * idx, value);
 	}
 };

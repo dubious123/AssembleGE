@@ -368,6 +368,15 @@ namespace age::graphics::resource
 		h_resource = {};
 	}
 
+	template <e::queue_kind e_kind>
+	FORCE_INLINE void
+	release_deffered(resource_handle& h_resource, auto&&... h_desc) noexcept
+	{
+		release_deffered(h_resource, e_kind);
+
+		(push_descriptor_deferred(FWD(h_desc), e_kind), ...);
+	}
+
 	void
 	process_deferred_releases() noexcept
 	{

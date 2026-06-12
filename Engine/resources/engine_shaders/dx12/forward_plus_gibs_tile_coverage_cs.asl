@@ -69,15 +69,14 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (surfel.radius == 0.f) { continue; }
 
-		const float contribution  = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
-		coverage				 += contribution;
-		// todo, change to msme instability
+		const float contribution = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 
+		coverage += contribution;
+		// todo, change to msme instability
 		radiance += float4(surfel.radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
 				  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
-
 		if (contribution > 0.f)
 		{
 			if (min_contribution > contribution)
@@ -121,18 +120,18 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 			const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 
 			const float spawn_prob = (GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
-								   //* (0.01)
 								   * px_world_area(dispatch_thread_id.xy, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)
-								   // * (/*1.f - */ calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z))	   // reverse_z, near = 1.f, far = 0.f
-								   * (1.f + dead_stack.size() / float(data.max_surfel_count))
+								   // * (1.f + dead_stack.size() / float(data.max_surfel_count))
+								   * (coverage == 0.f ? 100.f : 1.f)
 								   * GIBS_SPAWN_PROB_FACTOR;
 			// spawn surfel
 			uint32 new_surfel_id;
 			if (rnd < spawn_prob and dead_stack.try_pop(new_surfel_id))
 			{
-				alive_stack.push(new_surfel_id);
+				const uint32 alive_idx = alive_stack.push(new_surfel_id);
 
-				surfel surfel = surfel_arr[new_surfel_id];
+				surfel surfel	 = surfel_arr[new_surfel_id];
+				surfel.alive_idx = alive_idx;
 
 				surfel.position			  = world_pos;
 				surfel.normal_oct_snorm16 = px_normal_oct_snorm16;
@@ -156,8 +155,8 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 				surfel_msme msme = msme_arr[new_surfel_id];
 
-				msme.mean_long	   = surfel.radiance.xyz;
-				msme.mean_short	   = surfel.radiance.xyz;
+				msme.mean_long	   = surfel.radiance;
+				msme.mean_short	   = surfel.radiance;
 				msme.vbbr		   = 0.f;
 				msme.variance	   = float3(1.f, 1.f, 1.f);
 				msme.inconsistency = 1.f;

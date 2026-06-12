@@ -40,6 +40,14 @@ namespace age::graphics::g
 	inline auto deferred_release_data_vec	  = age::vector<deferred_release_data>::gen_reserved(2);
 	inline auto deferred_release_data_srv_vec = age::vector<deferred_release_data_srv>::gen_reserved(2);
 
+	inline auto deferred_push_cbv_desc_data_vec		  = age::vector<deferred_desc_push_data<cbv_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_srv_desc_data_vec		  = age::vector<deferred_desc_push_data<srv_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_uav_desc_data_vec		  = age::vector<deferred_desc_push_data<uav_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_rtv_desc_data_vec		  = age::vector<deferred_desc_push_data<rtv_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_dsv_desc_data_vec		  = age::vector<deferred_desc_push_data<dsv_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_sampler_desc_data_vec	  = age::vector<deferred_desc_push_data<sampler_desc_handle>>::gen_reserved(2);
+	inline auto deferred_push_clear_uav_desc_data_vec = age::vector<deferred_desc_push_data<clear_uav_desc_handle>>::gen_reserved(2);
+
 	inline auto h_upload_buffer	  = mapping_handle{};
 	inline auto h_readback_buffer = mapping_handle{};
 

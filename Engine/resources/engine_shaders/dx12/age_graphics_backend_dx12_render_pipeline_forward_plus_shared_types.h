@@ -105,6 +105,9 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		float3 radiance;
 		uint32 normal_oct_snorm16;
 
+		// todo remove
+		uint32 alive_idx;
+
 		void
 		kill()
 		{
@@ -908,8 +911,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_SCREEN_TILE_SIZE		  16u
 #define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
 
-#define GIBS_SPAWN_COVERAGE	   1.f
-#define GIBS_KILL_COVERAGE	   3.f
+#define GIBS_SPAWN_COVERAGE	   2.f
+#define GIBS_KILL_COVERAGE	   4.f
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
 
@@ -954,7 +957,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	inline constexpr auto gibs_surfel_screen_ratio = 0.05f;
+	inline constexpr auto gibs_surfel_screen_ratio = 0.01f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
 

@@ -50,7 +50,11 @@ gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_ra
 		color = color * (1.f - transparent_color.a) + transparent_color.rgb;
 	}
 
-	res_distance		   = distance;
+	res_distance = distance;
+
+	assert(all(color >= 0.f));
+	assert(is_nan(color) is_false);
+
 	res_radiance_r11g11b10 = encode_r11g11b10(color);
 }
 
@@ -99,9 +103,9 @@ main_cs(uint32 group_id sv_group_id,
 
 	const gibs_ray_entry ray_entry = gibs_load_ray_entry_rw(data, ray_id);
 
-	const surfel surfel = gibs_load_surfel_rw_arr(data)[ray_entry.surfel_id];
+	const surfel surfel = gibs_load_surfel_arr(data)[ray_entry.surfel_id];
 
-	const float3 rand_3d = random_pcg3d(uint32_3(ray_id, ray_entry.surfel_id, frame_index));
+	const float4 rand_4d = random_pcg4d(uint32_4(ray_id, ray_entry.surfel_id, frame_index, ray_id + ray_entry.surfel_id + frame_index));
 
 	float3					 dir_local;
 	float					 pdf;
@@ -111,34 +115,78 @@ main_cs(uint32 group_id sv_group_id,
 	assert(ray_entry.surfel_id < data.max_surfel_count);
 
 	const float luminance_sum = irradiance_atlas[atlas_offset + uint32_2(GIBS_ATLAS_TILE_SIZE - 1, GIBS_ATLAS_TILE_SIZE - 1)].y;
+
+	const surfel_recycle_data recycle = gibs_load_surfel_recycle_data_rw_arr(data)[ray_entry.surfel_id];
 	if (luminance_sum > GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE)
 	{
+		float		pdf_guide	   = 0.f;
+		float		pdf_cos		   = 0.f;
+		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.95f;
 		// clang-format off
-		luminance_cdf_arr< texture_2d<float2> > luminance_cdf = luminance_cdf_arr< texture_2d<float2> >::init(global_resource_buffer[data.h_irradiance_atlas_srv_id], atlas_offset);
+		luminance_cdf_arr<texture_2d<float2> > luminance_cdf = luminance_cdf_arr<texture_2d<float2> >::init(global_resource_buffer[data.h_irradiance_atlas_srv_id], atlas_offset);
 		// clang-format on
-		// idx is always less than GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE
-		const uint32 idx = upper_boundary(luminance_cdf, 0, GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1, rand_3d.x);
+		if (rand_4d.w < ray_guide_prob)
+		{
+			// idx is always less than GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE
+			const uint32 idx = upper_boundary(luminance_cdf, 0, GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1, rand_4d.x);
 
-		const float2 jitter = rand_3d.yz;
-		const float2 uv		= saturate((int32_2(idx % GIBS_ATLAS_TILE_SIZE, idx / GIBS_ATLAS_TILE_SIZE) + jitter) / float(GIBS_ATLAS_TILE_SIZE));
-		dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
+			const float2 jitter = rand_4d.yz;
+			const float2 uv		= saturate((int32_2(idx % GIBS_ATLAS_TILE_SIZE, idx / GIBS_ATLAS_TILE_SIZE) + jitter) / float(GIBS_ATLAS_TILE_SIZE));
+			dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
 
-		pdf = idx == 0
-				? luminance_cdf[idx]
-			: idx == GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1
-				? 1.f - luminance_cdf[idx - 1]
-				: luminance_cdf[idx] - luminance_cdf[idx - 1];
+			const float p_texel = idx == 0
+									? luminance_cdf[idx]
+								: idx == GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1
+									? 1.f - luminance_cdf[idx - 1]
+									: luminance_cdf[idx] - luminance_cdf[idx - 1];
+			// pdf_uv = p_texel / (4.f / float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE));
+			const float pdf_uv = max(p_texel, epsilon_1e4) * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
+			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+			pdf_guide		   = pdf_w;
+
+			pdf_cos = max(epsilon_1e4, dir_local.y) * pi_inv;
+		}
+		else
+		{
+			// fall back to cos sampling
+
+			dir_local		 = sample_tbn_hemisphere_cosine_local(rand_4d.xy);
+			const float temp = dir_local.y;
+			dir_local.y		 = dir_local.z;
+			dir_local.z		 = temp;
+
+			pdf_cos = max(epsilon_1e4, dir_local.y) * pi_inv;	 // dir_local.y == cos_theta
+
+
+			const float2  uv	= saturate(encode_world_hemi_octahedral(dir_local) * 0.5f + 0.5f);
+			const int32_2 texel = min(int32_2(uv * float(GIBS_ATLAS_TILE_SIZE)), int32_2(GIBS_ATLAS_TILE_SIZE - 1, GIBS_ATLAS_TILE_SIZE - 1));
+			const uint32  idx	= texel.y * GIBS_ATLAS_TILE_SIZE + texel.x;
+
+			const float p_texel = idx == 0
+									? luminance_cdf[idx]
+								: idx == GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1
+									? 1.f - luminance_cdf[idx - 1]
+									: luminance_cdf[idx] - luminance_cdf[idx - 1];
+
+			const float pdf_uv = p_texel * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
+			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+			pdf_guide		   = pdf_w;
+		}
+
+		pdf = ray_guide_prob * pdf_guide + (1.f - ray_guide_prob) * pdf_cos;
 	}
 	else
 	{
 		// fall back to cos sampling
-		dir_local		 = sample_tbn_hemisphere_cosine_local(rand_3d.xy);
+		dir_local		 = sample_tbn_hemisphere_cosine_local(rand_4d.xy);
 		const float temp = dir_local.y;
 		dir_local.y		 = dir_local.z;
 		dir_local.z		 = temp;
 
-		pdf = dir_local.y * pi_inv;	   // dir_local.y == cos_theta
+		pdf = max(epsilon_1e4, dir_local.y) * pi_inv;	 // dir_local.y == cos_theta
 	}
+
+	assert(pdf > 0.f);
 
 	const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(decode_oct_snorm16(surfel.normal_oct_snorm16)));
 

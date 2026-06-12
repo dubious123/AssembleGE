@@ -276,6 +276,10 @@ namespace age_demo::scene_3
 		{
 			i_deinit.get_render_pipeline->disable_ddgi();
 		}
+		else if (i_deinit.get_render_pipeline->gibs_enabled())
+		{
+			i_deinit.get_render_pipeline->disable_gibs();
+		}
 
 		i_deinit.get_editor_game->deinit();
 		age::asset::registry::clear();

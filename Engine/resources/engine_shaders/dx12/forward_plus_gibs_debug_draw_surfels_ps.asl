@@ -159,12 +159,13 @@ main_ps(float4 pos sv_position) sv_target_0
 		const surfel_recycle_data recycle	= recycle_arr[surfel_id];
 
 		if (surfel.radius == 0.f) { continue; }
+		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id);
+		assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size());
 
 		const float contribution  = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 		coverage				 += contribution;
 		const float cell_size	  = gibs_calc_cell_size(data, lut_data, surfel);
 		// assert(surfel.radius <= cell_size);
-
 		radiance += float4(surfel.radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))

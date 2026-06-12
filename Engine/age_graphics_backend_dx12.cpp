@@ -153,6 +153,7 @@ namespace age::graphics
 		command::cpu_wait(e::queue_kind::copy);
 
 		resource::process_deferred_releases();
+		process_deferred_desc_pushes();
 
 		{
 			for (auto& rs : g::render_surface_vec)
@@ -370,6 +371,7 @@ namespace age::graphics
 		}
 
 		resource::process_deferred_releases();
+		process_deferred_desc_pushes();
 
 		global::i_graphics.set_frame_buffer_idx = (global::i_graphics.get_frame_buffer_idx + 1) % global::frame_buffer_count;
 	}
