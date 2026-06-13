@@ -700,10 +700,11 @@ namespace age::editor
 		ui::widget::color_field(cmp.tint);
 	}
 
-	bool
+	std::tuple<bool, bool>
 	ui_component(age::ecs::gi_config& cmp, uint32 gibs_max_surfel_count) noexcept
 	{
-		auto update = false;
+		auto update				= false;
+		auto update_debug_flags = false;
 		{
 			auto _ = ui::id_begin();
 			if (cmp.enable_ddgi or cmp.enable_gibs)
@@ -761,6 +762,7 @@ namespace age::editor
 			};
 			ui::widget::dropdown<uint32>(cmp.ddgi_level_count, level_count_option_arr);
 
+			c_auto debug_flag_cached = cmp.ddgi_debug_flags;
 #define ddgi_flag_checkbox(enum_name)                                                     \
 	{                                                                                     \
 		bool b = has_any(cmp.ddgi_debug_flags, graphics::e::ddgi_debug_flags::enum_name); \
@@ -787,6 +789,7 @@ namespace age::editor
 			ddgi_flag_checkbox(render_ray_factor);
 			ddgi_flag_checkbox(render_probe);
 
+			update_debug_flags = cmp.ddgi_debug_flags != debug_flag_cached;
 #undef ddgi_flag_checkbox
 		}
 
@@ -832,6 +835,7 @@ namespace age::editor
 			ui::widget::numeric_field(cmp.outer_cell_size_factor, nullptr, 1.f + math::g::epsilon_1e4, 2.5f, ui::theme::text_label_color(), 0.01f);
 
 
+			c_auto debug_flag_cached = cmp.gibs_debug_flags;
 #define gibs_flag_checkbox(enum_name)                                                     \
 	{                                                                                     \
 		bool b = has_any(cmp.gibs_debug_flags, graphics::e::gibs_debug_flags::enum_name); \
@@ -861,11 +865,14 @@ namespace age::editor
 			gibs_flag_checkbox(freeze_spawn);
 			gibs_flag_checkbox(render_age);
 			gibs_flag_checkbox(render_cell);
+			gibs_flag_checkbox(render_variance);
 
 #undef gibs_flag_checkbox
+
+			update_debug_flags = cmp.gibs_debug_flags != debug_flag_cached;
 		}
 
-		return update;
+		return std::tuple{ update, update_debug_flags };
 	}
 }	 // namespace age::editor
 

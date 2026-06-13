@@ -52,8 +52,8 @@ gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_ra
 
 	res_distance = distance;
 
-	assert(all(color >= 0.f));
-	assert(is_nan(color) is_false);
+	assert(all(color >= 0.f), g::fmt_forward_plus_gibs_ray_trace_cs, line, color);
+	assert(is_nan(color) is_false, g::fmt_forward_plus_gibs_ray_trace_cs, line, color);
 
 	res_radiance_r11g11b10 = encode_r11g11b10(color);
 }
@@ -112,7 +112,7 @@ main_cs(uint32 group_id sv_group_id,
 	const texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
 
 	const uint32_2 atlas_offset = gibs_calc_atlas_offset(data, ray_entry.surfel_id);
-	assert(ray_entry.surfel_id < data.max_surfel_count);
+	assert(ray_entry.surfel_id < data.max_surfel_count, g::fmt_forward_plus_gibs_ray_trace_cs, line);
 
 	const float luminance_sum = irradiance_atlas[atlas_offset + uint32_2(GIBS_ATLAS_TILE_SIZE - 1, GIBS_ATLAS_TILE_SIZE - 1)].y;
 
@@ -171,6 +171,8 @@ main_cs(uint32 group_id sv_group_id,
 			const float pdf_uv = p_texel * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
 			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
 			pdf_guide		   = pdf_w;
+
+			assert(pdf_guide >= 0.f, g::fmt_forward_plus_gibs_ray_trace_cs, line, uv, texel, idx, p_texel, pdf_uv, pdf_w);
 		}
 
 		pdf = ray_guide_prob * pdf_guide + (1.f - ray_guide_prob) * pdf_cos;
@@ -186,7 +188,7 @@ main_cs(uint32 group_id sv_group_id,
 		pdf = max(epsilon_1e4, dir_local.y) * pi_inv;	 // dir_local.y == cos_theta
 	}
 
-	assert(pdf > 0.f);
+	assert(pdf > 0.f, g::fmt_forward_plus_gibs_ray_trace_cs, line, pdf);
 
 	const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(decode_oct_snorm16(surfel.normal_oct_snorm16)));
 

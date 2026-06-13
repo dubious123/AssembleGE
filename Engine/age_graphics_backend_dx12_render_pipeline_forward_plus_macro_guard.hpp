@@ -13,6 +13,8 @@
 #undef MIN_BLOOM_MIP_PIXEL
 #undef MAX_UV_COUNT
 #undef MAX_RAY_HIT
+#undef ENABLE_SHADER_DEBUG_ASSERT
+#undef DEBUG_ASSERT_BUFFER_BYTE_SIZE
 
 //---[ sort ]------------------------------------------------------------------------------------------------------
 #undef SORT_THREAD_COUNT
@@ -231,3 +233,41 @@
 #undef GIBS_DEBUG_FLAGS_FREEZE_SPAWN
 #undef GIBS_DEBUG_FLAGS_RENDER_AGE
 #undef GIBS_DEBUG_FLAGS_RENDER_CELL
+#undef GIBS_DEBUG_FLAGS_RENDER_VARIANCE
+
+
+//---[ debug assert ]------------------------------------------------------------------------------------------------------
+
+#undef DEBUG_ARG_TYPE_UINT64
+#undef DEBUG_ARG_TYPE_UINT32
+
+#undef DEBUG_ARG_TYPE_INT64
+#undef DEBUG_ARG_TYPE_INT32
+
+#undef DEBUG_ARG_TYPE_FLOAT
+
+#undef DEBUG_ARG_TYPE_INT32_2
+#undef DEBUG_ARG_TYPE_INT32_3
+#undef DEBUG_ARG_TYPE_INT32_4
+
+#undef DEBUG_ARG_TYPE_UINT32_2
+#undef DEBUG_ARG_TYPE_UINT32_3
+#undef DEBUG_ARG_TYPE_UINT32_4
+
+#undef DEBUG_ARG_TYPE_FLOAT2
+#undef DEBUG_ARG_TYPE_FLOAT3
+#undef DEBUG_ARG_TYPE_FLOAT4
+
+#undef DEBUG_ARG_TYPE_FLOAT2X2
+#undef DEBUG_ARG_TYPE_FLOAT2X3
+#undef DEBUG_ARG_TYPE_FLOAT2X4
+
+#undef DEBUG_ARG_TYPE_FLOAT3X2
+#undef DEBUG_ARG_TYPE_FLOAT3X3
+#undef DEBUG_ARG_TYPE_FLOAT3X4
+
+#undef DEBUG_ARG_TYPE_FLOAT4X2
+#undef DEBUG_ARG_TYPE_FLOAT4X3
+#undef DEBUG_ARG_TYPE_FLOAT4X4
+
+#undef DEBUG_ARG_TYPE_STRING

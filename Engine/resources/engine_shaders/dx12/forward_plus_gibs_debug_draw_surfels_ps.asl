@@ -31,7 +31,7 @@ struct fn_foreach_nbr_cell
 
 		res.valid_count = valid_count;
 
-		assert(valid_count <= max_surfel_per_cell);
+		assert(valid_count <= max_surfel_per_cell, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
 		return res;
 	}
@@ -48,8 +48,8 @@ struct fn_foreach_nbr_cell
 
 		for (uint32 i = 0; i < cell_idx_size; ++i)
 		{
-			assert(all(cell_idx == cell_idx_arr[i]) is_false);
-			assert(cell_idx_flat != gibs_flatten_cell_idx(data, cell_idx_arr[i]));
+			assert(all(cell_idx == cell_idx_arr[i]) is_false, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
+			assert(cell_idx_flat != gibs_flatten_cell_idx(data, cell_idx_arr[i]), g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 		}
 
 		cell_idx_arr[cell_idx_size++] = cell_idx;
@@ -60,7 +60,7 @@ struct fn_foreach_nbr_cell
 			const surfel surfel		  = surfel_arr[surfel_id];
 			const float	 contribution = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 
-			assert(contribution >= 0.f and contribution <= 1.f);
+			assert(contribution >= 0.f and contribution <= 1.f, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
 			if (contribution == 0.f) { continue; }
 
@@ -80,11 +80,11 @@ struct fn_foreach_nbr_cell
 
 				surfel_id_arr[size++] = surfel_id;
 
-				assert(size <= max_surfel_per_cell);
+				assert(size <= max_surfel_per_cell, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 			}
 		}
 
-		assert(size <= valid_count);
+		assert(size <= valid_count, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 	}
 };
 
@@ -149,7 +149,7 @@ main_ps(float4 pos sv_position) sv_target_0
 	float4 radiance = (float4)0;
 	float  coverage = 0.f;
 
-	assert(cell_entry.offset + cell_entry.count <= data.max_surfel_count * 27);
+	assert(cell_entry.offset + cell_entry.count <= data.max_surfel_count * 27, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
 	int32 valid_count = 0;
 	for (uint32 i = 0; i < cell_entry.count; ++i)
@@ -159,13 +159,13 @@ main_ps(float4 pos sv_position) sv_target_0
 		const surfel_recycle_data recycle	= recycle_arr[surfel_id];
 
 		if (surfel.radius == 0.f) { continue; }
-		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id);
-		assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size());
+		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
+		assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size(), g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
 		const float contribution  = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 		coverage				 += contribution;
 		const float cell_size	  = gibs_calc_cell_size(data, lut_data, surfel);
-		// assert(surfel.radius <= cell_size);
+		// assert(surfel.radius <= cell_size, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 		radiance += float4(surfel.radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
@@ -265,14 +265,16 @@ main_ps(float4 pos sv_position) sv_target_0
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT)
 	{
-		// if (max_contribution_surfel_id != invalid_id_uint32)
-		//{
-		//	return float4(visibility_atlas[atlas_offset + uint32_2(5, 5)].y, 0, 0, 1);
-		// }
-		// else
-		//{
-		//	return color_black;
-		// }
+		rw_byte_array<uint32> ray_count_ideal_arr = gibs_load_surfel_ray_count_ideal_rw_arr(data);
+		if (max_contribution_surfel_id != invalid_id_uint32)
+		{
+			const surfel surfel = surfel_arr[max_contribution_surfel_id];
+			return float4(ray_count_ideal_arr[surfel.alive_idx] / float(GIBS_MAX_RAY_PER_SURFEL), 0, 0, 1);
+		}
+		else
+		{
+			return color_black;
+		}
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_MSME)
 	{
@@ -394,6 +396,21 @@ main_ps(float4 pos sv_position) sv_target_0
 		return float4(random_color(cell_idx.z + cell_idx.w), 1.f);
 		return float4(abs(cell_idx.xyz) / float(data.cell_count), 1.f);
 		return float4(random_color(cell_idx.z + cell_idx.w).xy, abs(cell_idx.y) / float(data.cell_count), 1.f);
+	}
+
+	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_VARIANCE)
+	{
+		if (max_contribution_surfel_id != invalid_id_uint32)
+		{
+			const surfel_msme msme = msme_arr[max_contribution_surfel_id];
+
+			return float4(msme.variance, 1.f);
+		}
+		else
+		{
+			discard;
+			return color_black;
+		}
 	}
 
 	return float4(0, 0, 0, 0);

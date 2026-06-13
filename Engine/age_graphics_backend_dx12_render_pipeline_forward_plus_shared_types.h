@@ -44,6 +44,21 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32_3 dispatch_xyz;
 	};
 
+	//---[ debug assert ]------------------------------------------------------------
+
+	struct msg_header
+	{
+		uint32 fmt_char_count;
+		uint32 arg_count;
+		uint32 byte_size_total;
+	};
+
+	struct arg_header
+	{
+		uint32 arg_type;
+		uint32 arg_byte_size;
+	};
+
 	//---[ gibs, surfel ]------------------------------------------------------------
 	struct gibs_data
 	{
@@ -175,7 +190,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		bool
 		is_new_born()
 		{
-			return frame_since_born == 0;
+			return frame_since_born <= 1;
 		}
 
 		void
@@ -599,10 +614,16 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define MAX_SELECTION_OUTLINE_THICKNESS 2
 #define MAX_UV_COUNT					2
 #define MAX_RAY_HIT						8
+#define ENABLE_SHADER_DEBUG_ASSERT		true
+#define DEBUG_ASSERT_BUFFER_BYTE_SIZE	((1u << 20) * sizeof(uint32))
+
+
 	// bloom
 #if !defined(AGE_SHADER)
-	inline constexpr auto max_bloom_mip_count = uint16{ MAX_BLOOM_MIP_COUNT };
-	inline constexpr auto min_bloom_mip_pixel = uint16{ MIN_BLOOM_MIP_PIXEL };
+	inline constexpr auto max_bloom_mip_count			= uint16{ MAX_BLOOM_MIP_COUNT };
+	inline constexpr auto min_bloom_mip_pixel			= uint16{ MIN_BLOOM_MIP_PIXEL };
+	inline constexpr auto enable_shader_debug_assert	= ENABLE_SHADER_DEBUG_ASSERT;
+	inline constexpr auto debug_assert_buffer_byte_size = DEBUG_ASSERT_BUFFER_BYTE_SIZE;
 #endif
 
 //---[ sort ]------------------------------------------------------------------------------------------------------
@@ -891,9 +912,9 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_ATLAS_TILE_COUNT_U (GIBS_ATLAS_WIDTH / GIBS_ATLAS_TILE_SIZE)
 #define GIBS_ATLAS_TILE_COUNT_V (GIBS_ATLAS_HEIGHT / GIBS_ATLAS_TILE_SIZE)
 #define GIBS_MAX_SURFEL_COUNT	(GIBS_ATLAS_TILE_COUNT_U * GIBS_ATLAS_TILE_COUNT_V - 1)
-#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 8u)
 #define GIBS_MIN_RAY_PER_SURFEL 4	  // ideal
 #define GIBS_MAX_RAY_PER_SURFEL 64	  // ideal
+#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 8)
 
 #define GIBS_CELL_SURFEL_COUNT_PREFIX_TPG 32u
 #define GIBS_CELL_SURFEL_COUNT_PREFIX_EPT 32u
@@ -918,7 +939,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 #define GIBS_RADIANCE_CACHE_DELAY 10
 
-#define GIBS_MSME_SHORT_WINDOW_BLEND 0.08f
+#define GIBS_MSME_SHORT_WINDOW_BLEND 0.05f
 
 #define GIBS_MAX_LUMINANCE_FOR_FIREFLY 50.f
 
@@ -940,6 +961,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_DEBUG_FLAGS_FREEZE_SPAWN				  (1u << 12u)
 #define GIBS_DEBUG_FLAGS_RENDER_AGE					  (1u << 13u)
 #define GIBS_DEBUG_FLAGS_RENDER_CELL				  (1u << 14u)
+#define GIBS_DEBUG_FLAGS_RENDER_VARIANCE			  (1u << 15u)
 
 
 #if !defined(AGE_SHADER)
@@ -984,6 +1006,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN == to_idx(graphics::e::gibs_debug_flags::freeze_spawn));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_AGE == to_idx(graphics::e::gibs_debug_flags::render_age));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL == to_idx(graphics::e::gibs_debug_flags::render_cell));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_VARIANCE == to_idx(graphics::e::gibs_debug_flags::render_variance));
 
 #endif
 
@@ -1007,6 +1030,77 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto gibs_data_offset				  = GIBS_DATA_OFFSET;
 	inline constexpr auto gibs_lut_data_offset			  = GIBS_LUT_DATA_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
+#endif
+
+	//---[ debug assert ]------------------------------------------------------------------------------------------------------
+#define DEBUG_ARG_TYPE_UINT64 0u
+#define DEBUG_ARG_TYPE_UINT32 1u
+
+#define DEBUG_ARG_TYPE_INT64 4u
+#define DEBUG_ARG_TYPE_INT32 5u
+
+#define DEBUG_ARG_TYPE_FLOAT 8u
+
+#define DEBUG_ARG_TYPE_INT32_2 9u
+#define DEBUG_ARG_TYPE_INT32_3 10u
+#define DEBUG_ARG_TYPE_INT32_4 11u
+
+#define DEBUG_ARG_TYPE_UINT32_2 12u
+#define DEBUG_ARG_TYPE_UINT32_3 13u
+#define DEBUG_ARG_TYPE_UINT32_4 14u
+
+#define DEBUG_ARG_TYPE_FLOAT2 27u
+#define DEBUG_ARG_TYPE_FLOAT3 28u
+#define DEBUG_ARG_TYPE_FLOAT4 29u
+
+#define DEBUG_ARG_TYPE_FLOAT2X2 30u
+#define DEBUG_ARG_TYPE_FLOAT2X3 31u
+#define DEBUG_ARG_TYPE_FLOAT2X4 32u
+
+#define DEBUG_ARG_TYPE_FLOAT3X2 33u
+#define DEBUG_ARG_TYPE_FLOAT3X3 34u
+#define DEBUG_ARG_TYPE_FLOAT3X4 35u
+
+#define DEBUG_ARG_TYPE_FLOAT4X2 36u
+#define DEBUG_ARG_TYPE_FLOAT4X3 37u
+#define DEBUG_ARG_TYPE_FLOAT4X4 38u
+
+#define DEBUG_ARG_TYPE_STRING 40u
+
+#if !defined(AGE_SHADER)
+	inline constexpr auto debug_arg_type_uint64 = DEBUG_ARG_TYPE_UINT64;
+	inline constexpr auto debug_arg_type_uint32 = DEBUG_ARG_TYPE_UINT32;
+
+	inline constexpr auto debug_arg_type_int64 = DEBUG_ARG_TYPE_INT64;
+	inline constexpr auto debug_arg_type_int32 = DEBUG_ARG_TYPE_INT32;
+
+	inline constexpr auto debug_arg_type_float = DEBUG_ARG_TYPE_FLOAT;
+
+	inline constexpr auto debug_arg_type_int32_2 = DEBUG_ARG_TYPE_INT32_2;
+	inline constexpr auto debug_arg_type_int32_3 = DEBUG_ARG_TYPE_INT32_3;
+	inline constexpr auto debug_arg_type_int32_4 = DEBUG_ARG_TYPE_INT32_4;
+
+	inline constexpr auto debug_arg_type_uint32_2 = DEBUG_ARG_TYPE_UINT32_2;
+	inline constexpr auto debug_arg_type_uint32_3 = DEBUG_ARG_TYPE_UINT32_3;
+	inline constexpr auto debug_arg_type_uint32_4 = DEBUG_ARG_TYPE_UINT32_4;
+
+	inline constexpr auto debug_arg_type_float2 = DEBUG_ARG_TYPE_FLOAT2;
+	inline constexpr auto debug_arg_type_float3 = DEBUG_ARG_TYPE_FLOAT3;
+	inline constexpr auto debug_arg_type_float4 = DEBUG_ARG_TYPE_FLOAT4;
+
+	inline constexpr auto debug_arg_type_float2x2 = DEBUG_ARG_TYPE_FLOAT2X2;
+	inline constexpr auto debug_arg_type_float2x3 = DEBUG_ARG_TYPE_FLOAT2X3;
+	inline constexpr auto debug_arg_type_float2x4 = DEBUG_ARG_TYPE_FLOAT2X4;
+
+	inline constexpr auto debug_arg_type_float3x2 = DEBUG_ARG_TYPE_FLOAT3X2;
+	inline constexpr auto debug_arg_type_float3x3 = DEBUG_ARG_TYPE_FLOAT3X3;
+	inline constexpr auto debug_arg_type_float3x4 = DEBUG_ARG_TYPE_FLOAT3X4;
+
+	inline constexpr auto debug_arg_type_float4x2 = DEBUG_ARG_TYPE_FLOAT4X2;
+	inline constexpr auto debug_arg_type_float4x3 = DEBUG_ARG_TYPE_FLOAT4X3;
+	inline constexpr auto debug_arg_type_float4x4 = DEBUG_ARG_TYPE_FLOAT4X4;
+
+	inline constexpr auto debug_arg_type_string = DEBUG_ARG_TYPE_STRING;
 #endif
 
 #if !defined(AGE_SHADER)

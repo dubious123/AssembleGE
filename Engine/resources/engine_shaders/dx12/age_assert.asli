@@ -1,19 +1,884 @@
 #pragma once
 #include "age.asli"
-#if include_assert
-rw_byte_address_buffer crash_buffer reg(u666, space666);
-	#define assert(expr)                          \
-		do                                        \
-		{                                         \
-			if ((expr)is_false)                   \
-			{                                     \
-				crash_buffer.Store<uint32>(0, 0); \
-			}                                     \
-		}                                         \
-		while (false);
 
-#else
-	#define assert(expr)
-#endif
+namespace g
+{
+	static const uint32 fmt_dispatch_thread_id[] = { 'd', 'i', 's', 'p', 'a', 't', 'c', 'h', '_', 't', 'h', 'r', 'e', 'a', 'd', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_group_id[]			 = { 'g', 'r', 'o', 'u', 'p', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_group_thread_id[]	 = { 'g', 'r', 'o', 'u', 'p', '_', 't', 'h', 'r', 'e', 'a', 'd', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_group_index[]		 = { 'g', 'r', 'o', 'u', 'p', '_', 'i', 'n', 'd', 'e', 'x', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_vertex_id[]	   = { 'v', 'e', 'r', 't', 'e', 'x', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_instance_id[]  = { 'i', 'n', 's', 't', 'a', 'n', 'c', 'e', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_primitive_id[] = { 'p', 'r', 'i', 'm', 'i', 't', 'i', 'v', 'e', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_position[]		= { 'p', 'o', 's', 'i', 't', 'i', 'o', 'n', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_sample_index[]	= { 's', 'a', 'm', 'p', 'l', 'e', '_', 'i', 'n', 'd', 'e', 'x', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_is_front_face[] = { 'i', 's', '_', 'f', 'r', 'o', 'n', 't', '_', 'f', 'a', 'c', 'e', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_ray_index[]		= { 'r', 'a', 'y', '_', 'i', 'n', 'd', 'e', 'x', ' ', ':', ' ', '{', '}' };
+	static const uint32 fmt_ray_dimension[] = { 'r', 'a', 'y', '_', 'd', 'i', 'm', 'e', 'n', 's', 'i', 'o', 'n', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_mesh_group_id[] = { 'm', 'e', 's', 'h', '_', 'g', 'r', 'o', 'u', 'p', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_line[] = { 'l', 'i', 'n', 'e', ' ', ':', ' ', '{', '}' };
+
+	static const uint32 fmt_fullscreen_ms[]									= { 'f', 'u', 'l', 'l', 's', 'c', 'r', 'e', 'e', 'n', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_depth_ms[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_skybox_ps[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'k', 'y', 'b', 'o', 'x', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_skybox_ms[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'k', 'y', 'b', 'o', 'x', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_light_init_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 'i', 'n', 'i', 't', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_light_sort_prepare_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 's', 'o', 'r', 't', '_', 'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_sort_histogram_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 'h', 'i', 's', 't', 'o', 'g', 'r', 'a', 'm', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_sort_prefix_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_sort_scatter_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 's', 'c', 'a', 't', 't', 'e', 'r', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_light_zbin_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 'z', 'b', 'i', 'n', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_update_probe_state_cs[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'u', 'p', 'd', 'a', 't', 'e', '_', 'p', 'r', 'o', 'b', 'e', '_', 's', 't', 'a', 't', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_reduce_ray_sum_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'd', 'u', 'c', 'e', '_', 'r', 'a', 'y', '_', 's', 'u', 'm', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_prefix_group_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'g', 'r', 'o', 'u', 'p', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_prefix_group_sum_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'g', 'r', 'o', 'u', 'p', '_', 's', 'u', 'm', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_prefix_add_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'a', 'd', 'd', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_probe_trace_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'o', 'b', 'e', '_', 't', 'r', 'a', 'c', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_probe_blend_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'o', 'b', 'e', '_', 'b', 'l', 'e', 'n', 'd', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_copy_edge_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'c', 'o', 'p', 'y', '_', 'e', 'd', 'g', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_ddgi_render_probes_as[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'a', 's' };
+	static const uint32 fmt_forward_plus_ddgi_render_probes_ms[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_ddgi_render_probes_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_gibs_depth_prepass_ms[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'p', 'r', 'e', 'p', 'a', 's', 's', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_gibs_depth_prepass_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'p', 'r', 'e', 'p', 'a', 's', 's', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_gibs_cleanup_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'l', 'e', 'a', 'n', 'u', 'p', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_prepare_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_update_surfel_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'u', 'p', 'd', 'a', 't', 'e', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_ray_ideal_count_sum_cs[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'i', 'd', 'e', 'a', 'l', '_', 'c', 'o', 'u', 'n', 't', '_', 's', 'u', 'm', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_ray_count_prefix_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'c', 'o', 'u', 'n', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_ray_entry_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'e', 'n', 't', 'r', 'y', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_cell_surfel_count_prefix_cs[] = { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'e', 'l', 'l', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 'c', 'o', 'u', 'n', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_cell_to_surfel_scatter_cs[]	= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'e', 'l', 'l', '_', 't', 'o', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 's', 'c', 'a', 't', 't', 'e', 'r', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_ray_trace_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 't', 'r', 'a', 'c', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_ray_integrate_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'i', 'n', 't', 'e', 'g', 'r', 'a', 't', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_build_cdf_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'b', 'u', 'i', 'l', 'd', '_', 'c', 'd', 'f', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_tile_coverage_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 't', 'i', 'l', 'e', '_', 'c', 'o', 'v', 'e', 'r', 'a', 'g', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_gibs_debug_draw_surfels_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'd', 'r', 'a', 'w', '_', 's', 'u', 'r', 'f', 'e', 'l', 's', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_opaque_as[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'a', 's' };
+	static const uint32 fmt_forward_plus_opaque_ms[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_opaque_ps[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_transparent_rt_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 't', 'r', 'a', 'n', 's', 'p', 'a', 'r', 'e', 'n', 't', '_', 'r', 't', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_transparent_blend_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 't', 'r', 'a', 'n', 's', 'p', 'a', 'r', 'e', 'n', 't', '_', 'b', 'l', 'e', 'n', 'd', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_raycast_cs[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'r', 'a', 'y', 'c', 'a', 's', 't', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_bloom_prefilter_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'p', 'r', 'e', 'f', 'i', 'l', 't', 'e', 'r', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_bloom_downsample_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'd', 'o', 'w', 'n', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_bloom_upsample_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'u', 'p', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 's' };
+	static const uint32 fmt_forward_plus_post_process_ps[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'o', 's', 't', '_', 'p', 'r', 'o', 'c', 'e', 's', 's', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_selection_outline_mask_as[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'a', 's' };
+	static const uint32 fmt_forward_plus_selection_outline_mask_ms[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_selection_outline_mask_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_selection_outline_draw_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'd', 'r', 'a', 'w', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_ui_ms[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'u', 'i', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_ui_ps[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'u', 'i', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_debug_mesh_as[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'a', 's' };
+	static const uint32 fmt_forward_plus_debug_mesh_ms[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_debug_mesh_ps[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_debug_mesh_aot_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'a', 'o', 't', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_presentation_ms[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 'm', 's' };
+	static const uint32 fmt_forward_plus_presentation_hdr10_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 'h', 'd', 'r', '1', '0', '_', 'p', 's' };
+	static const uint32 fmt_forward_plus_presentation_sdr_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 's', 'd', 'r', '_', 'p', 's' };
+	static const uint32 fmt_bake_brdf_lut_cs[]								= { 'b', 'a', 'k', 'e', '_', 'b', 'r', 'd', 'f', '_', 'l', 'u', 't', '_', 'c', 's' };
+	static const uint32 fmt_bake_env_light_radiance_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'r', 'a', 'd', 'i', 'a', 'n', 'c', 'e', '_', 'c', 's' };
+	static const uint32 fmt_bake_env_light_irradiance_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'i', 'r', 'r', 'a', 'd', 'i', 'a', 'n', 'c', 'e', '_', 'c', 's' };
+	static const uint32 fmt_bake_env_light_prefilter_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'p', 'r', 'e', 'f', 'i', 'l', 't', 'e', 'r', '_', 'c', 's' };
+	static const uint32 fmt_bake_env_light_build_marginal_cdf_cs[]			= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'b', 'u', 'i', 'l', 'd', '_', 'm', 'a', 'r', 'g', 'i', 'n', 'a', 'l', '_', 'c', 'd', 'f', '_', 'c', 's' };
+	static const uint32 fmt_bake_env_light_build_conditional_cdf_cs[]		= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'b', 'u', 'i', 'l', 'd', '_', 'c', 'o', 'n', 'd', 'i', 't', 'i', 'o', 'n', 'a', 'l', '_', 'c', 'd', 'f', '_', 'c', 's' };
+	static const uint32 fmt_bake_down_sample_cube_cs[]						= { 'b', 'a', 'k', 'e', '_', 'd', 'o', 'w', 'n', '_', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 'u', 'b', 'e', '_', 'c', 's' };
+
+	static const uint32 fmt_data_structure[]	  = { 'd', 'a', 't', 'a', '_', 's', 't', 'r', 'u', 'c', 't', 'u', 'r', 'e' };
+	static const uint32 fmt_gibs[]				  = { 'g', 'i', 'b', 's' };
+	static const uint32 fmt_gibs_update_surfels[] = { 'g', 'i', 'b', 's', '_', 'u', 'p', 'd', 'a', 't', '_', 's', 'u', 'r', 'f', 'e', 'l', 's' };
+	static const uint32 fmt_gibs_tile_coverage[]  = { 'g', 'i', 'b', 's', '_', 't', 'i', 'l', 'e', '_', 'c', 'o', 'v', 'e', 'r', 'a', 'g', 'e' };
+
+	// file_only
+	static const uint32 fmt_default_assert_0[] = {
+		'[', 'a', 's', 's', 'e', 'r', 't', ' ', 'f', 'a', 'i', 'l', 'e', 'd', ']', ' ',
+		'{', '}', ' '
+	};
+
+	// file + line
+	static const uint32 fmt_default_assert_1[] = {
+		'[', 'a', 's', 's', 'e', 'r', 't', ' ', 'f', 'a', 'i', 'l', 'e', 'd', ']', ' ',
+		'{', '}', ' ',
+		'(', 'l', 'i', 'n', 'e', ' ', '{', '}', ')'
+	};
+
+	// file + line + args
+	static const uint32 fmt_default_assert_2[] = {
+		'[', 'a', 's', 's', 'e', 'r', 't', ' ', 'f', 'a', 'i', 'l', 'e', 'd', ']', ' ',
+		'{', '}', ' ',
+		'(', 'l', 'i', 'n', 'e', ' ', '{', '}', ')', ' ', ':', ' ', '{', '}'
+	};
+
+	static const uint32 default_shader_file_name[] = { 'a', 's', 'l' };
+}	 // namespace g
+
+rw_byte_address_buffer debug_assert_buffer reg(u666, space666);
 
 #define static_assert(expr) _Static_assert(expr, #expr)
+
+template <uint32 n>
+arg_header
+arg_header_init(uint32 arg[n])
+{
+	arg_header res;
+	res.arg_type	  = DEBUG_ARG_TYPE_STRING;
+	res.arg_byte_size = align_up(n + 1, sizeof(uint32));
+	return res;
+}
+
+#define DEF_ARG_HEADER_INIT(type_name, type_enum)       \
+	arg_header                                          \
+	arg_header_init(type_name arg)                      \
+	{                                                   \
+		arg_header res;                                 \
+		res.arg_type	  = DEBUG_ARG_TYPE_##type_enum; \
+		res.arg_byte_size = sizeof(type_name);          \
+		return res;                                     \
+	}
+
+DEF_ARG_HEADER_INIT(uint64, UINT64)
+DEF_ARG_HEADER_INIT(uint32, UINT32)
+
+DEF_ARG_HEADER_INIT(int64, INT64)
+DEF_ARG_HEADER_INIT(int32, INT32)
+
+DEF_ARG_HEADER_INIT(float, FLOAT)
+
+DEF_ARG_HEADER_INIT(int32_2, INT32_2)
+DEF_ARG_HEADER_INIT(int32_3, INT32_3)
+DEF_ARG_HEADER_INIT(int32_4, INT32_4)
+
+DEF_ARG_HEADER_INIT(uint32_2, UINT32_2)
+DEF_ARG_HEADER_INIT(uint32_3, UINT32_3)
+DEF_ARG_HEADER_INIT(uint32_4, UINT32_4)
+
+DEF_ARG_HEADER_INIT(float2, FLOAT2)
+DEF_ARG_HEADER_INIT(float3, FLOAT3)
+DEF_ARG_HEADER_INIT(float4, FLOAT4)
+
+// DEF_ARG_HEADER_INIT(float2x2, FLOAT2X2)
+// DEF_ARG_HEADER_INIT(float2x3, FLOAT2X3)
+// DEF_ARG_HEADER_INIT(float2x4, FLOAT2X4)
+
+// DEF_ARG_HEADER_INIT(float3x2, FLOAT3X2)
+DEF_ARG_HEADER_INIT(float3x3, FLOAT3X3)
+DEF_ARG_HEADER_INIT(float3x4, FLOAT3X4)
+
+// DEF_ARG_HEADER_INIT(float4x2, FLOAT4X2)
+// DEF_ARG_HEADER_INIT(float4x3, FLOAT4X3)
+DEF_ARG_HEADER_INIT(float4x4, FLOAT4X4)
+
+
+#undef DEF_ARG_HEADER_INIT
+
+struct debug_printer
+{
+	rw_byte_address_buffer buf;
+
+	uint32 offset;
+
+	uint32 i;
+	bool   valid;
+
+	uint32 char_packed;
+
+	static debug_printer
+	init(rw_byte_address_buffer buf, uint32 msg_len, uint32 arg_count, uint32 arg_byte_size_total)
+	{
+		debug_printer res;
+		res.buf = buf;
+
+		const uint32 alloc_byte_size = sizeof(msg_header)
+									 + sizeof(arg_header) * arg_count
+									 + align_up(msg_len, sizeof(uint32))
+									 + align_up(arg_byte_size_total, sizeof(uint32));
+
+		buf_interlocked_add(buf, 0u, 1u);
+		buf_interlocked_add(buf, 4u, alloc_byte_size, res.offset);
+
+		res.offset		+= sizeof(uint32) * 2;
+		res.i			 = 0;
+		res.char_packed	 = 0;
+
+		if (res.offset + alloc_byte_size <= DEBUG_ASSERT_BUFFER_BYTE_SIZE)
+		{
+			res.valid = true;
+
+			msg_header header;
+			header.fmt_char_count  = msg_len;
+			header.arg_count	   = arg_count;
+			header.byte_size_total = alloc_byte_size;
+			store<msg_header>(buf, res.offset, header);
+
+			res.offset += sizeof(msg_header);
+		}
+		else
+		{
+			buf_interlocked_add(buf, 0u, int32(-1));
+			buf_interlocked_add(buf, 4u, int32(-alloc_byte_size));
+			res.valid = false;
+		}
+
+		return res;
+	}
+
+	bool
+	is_valid()
+	{
+		return valid;
+	}
+
+	void
+	flush_char()
+	{
+		if (i == 0) { return; }
+
+		buf.Store<uint32>(offset, char_packed);
+		offset		+= sizeof(uint32);
+		char_packed	 = 0u;
+
+		i = 0;
+	}
+
+	void
+	append_char(uint32 value)
+	{
+		char_packed |= (value & 0xff) << (i * 8);
+
+		if (++i == 4)
+		{
+			flush_char();
+		}
+	}
+
+	void
+	append_arg_header(arg_header header)
+	{
+		store(buf, offset, header);
+		offset += sizeof(header);
+	}
+
+#define def_append_arg(type_name) \
+	void                          \
+	append_arg(type_name arg)     \
+	{                             \
+		store(buf, offset, arg);  \
+		offset += sizeof(arg);    \
+	}
+	def_append_arg(uint64);
+	def_append_arg(uint32);
+	def_append_arg(int64);
+	def_append_arg(int32);
+	def_append_arg(float);
+	def_append_arg(int32_2);
+	def_append_arg(int32_3);
+	def_append_arg(int32_4);
+	def_append_arg(uint32_2);
+	def_append_arg(uint32_3);
+	def_append_arg(uint32_4);
+	def_append_arg(float2);
+	def_append_arg(float3);
+	def_append_arg(float4);
+	def_append_arg(float2x2);
+	def_append_arg(float3x3);
+	def_append_arg(float3x4);
+	def_append_arg(float4x4);
+#undef def_append_arg
+
+	template <uint32 n>
+	void
+	append_arg(uint32 str[n])
+	{
+		for (uint32 i = 0; i < n; ++i)
+		{
+			append_char(str[i]);
+		}
+
+		append_char(0);
+
+		flush_char();
+	}
+};
+
+template <uint32 n>
+void
+debug_assert_impl(const uint32 fmt[n])
+{
+	debug_printer printer = debug_printer::init(debug_assert_buffer, n + 1, 0, 0);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+}
+
+template <uint32 n, typename t0>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+
+	debug_printer printer = debug_printer::init(debug_assert_buffer, n + 1, 1, arg_header_0.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+}
+
+template <uint32 n, typename t0, typename t1>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 2,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 3,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size + arg_header_2.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 4,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 5,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+	arg_header arg_header_5 = arg_header_init(arg5);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 6,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+	arg_header arg_header_5 = arg_header_init(arg5);
+	arg_header arg_header_6 = arg_header_init(arg6);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 7,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+	arg_header arg_header_5 = arg_header_init(arg5);
+	arg_header arg_header_6 = arg_header_init(arg6);
+	arg_header arg_header_7 = arg_header_init(arg7);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 8,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+	arg_header arg_header_5 = arg_header_init(arg5);
+	arg_header arg_header_6 = arg_header_init(arg6);
+	arg_header arg_header_7 = arg_header_init(arg7);
+	arg_header arg_header_8 = arg_header_init(arg8);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 9,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9>
+void
+debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9)
+{
+	arg_header arg_header_0 = arg_header_init(arg0);
+	arg_header arg_header_1 = arg_header_init(arg1);
+	arg_header arg_header_2 = arg_header_init(arg2);
+	arg_header arg_header_3 = arg_header_init(arg3);
+	arg_header arg_header_4 = arg_header_init(arg4);
+	arg_header arg_header_5 = arg_header_init(arg5);
+	arg_header arg_header_6 = arg_header_init(arg6);
+	arg_header arg_header_7 = arg_header_init(arg7);
+	arg_header arg_header_8 = arg_header_init(arg8);
+	arg_header arg_header_9 = arg_header_init(arg9);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 10,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+}
+
+void
+assert(bool test)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_0, g::default_shader_file_name);
+	}
+#endif
+}
+
+template <typename t_file>
+void
+assert(bool test, t_file file)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_1, file);
+	}
+#endif
+}
+
+template <typename t_file>
+void
+assert(bool test, t_file file, uint32 arg_line)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+	}
+#endif
+}
+
+#define line __LINE__

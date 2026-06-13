@@ -102,13 +102,14 @@ namespace age::editor
 	ui_component(ecs::bloom& cmp) noexcept;
 
 	// return : need update
-	bool
+	std::tuple<bool, bool>
 	ui_component(age::ecs::gi_config& _, uint32 gibs_max_surfel_count) noexcept;
 
 	void
 	ui_component(age::ecs::gi_config& cmp, auto& renderer) noexcept
 	{
-		if (ui_component(cmp, renderer.gibs_max_surfel_count()))
+		auto&& [update, update_debug_flags] = ui_component(cmp, renderer.gibs_max_surfel_count());
+		if (update)
 		{
 			if (cmp.enable_ddgi)
 			{
@@ -131,6 +132,17 @@ namespace age::editor
 					.cell_size				= cmp.gibs_cell_size,
 					.outer_cell_size_factor = cmp.outer_cell_size_factor,
 				});
+			}
+		}
+		else if (update_debug_flags)
+		{
+			if (cmp.enable_ddgi)
+			{
+				renderer.update_ddgi_debug_flags(cmp.ddgi_debug_flags);
+			}
+			else if (cmp.enable_gibs)
+			{
+				renderer.update_gibs_debug_flags(cmp.gibs_debug_flags);
 			}
 		}
 	}

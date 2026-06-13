@@ -536,3 +536,75 @@ namespace age::util
 	template <std::size_t n>
 	nttp_string_holder(const char (&)[n]) -> nttp_string_holder<n>;
 }	 // namespace age::util
+
+namespace age::util
+{
+	struct format_cursor
+	{
+		const char* p_str;
+		uint32		count;
+
+		uint32 pos = 0u;
+
+		uint32
+		find_close(uint32 from) const
+		{
+			for (uint32 i = from; i < count; ++i)
+			{
+				if (p_str[i] == '}') { return i; }
+			}
+			return count - 1;
+		}
+
+		bool
+		print()
+		{
+			while (pos < count)
+			{
+				c_auto c = p_str[pos];
+
+				if (c == '{')
+				{
+					// "{{" -> literal '{'
+					if (pos + 1 < count and p_str[pos + 1] == '{')
+					{
+						std::print("{{");
+						pos += 2;
+						continue;
+					}
+
+					// real placeholder "{}" (or "{...}"): consume up to and including '}'
+					c_auto close = find_close(pos + 1);
+					pos			 = close + 1;	 // past '}'
+					return true;				 // caller prints the arg
+				}
+
+				if (c == '}')
+				{
+					// "}}" -> literal '}'
+					if (pos + 1 < count and p_str[pos + 1] == '}')
+					{
+						std::print("}}");
+						pos += 2;
+						continue;
+					}
+
+					// stray '}', emit as-is
+					std::print("}}");	 // print() escapes, prints single '}'
+					pos += 1;
+					continue;
+				}
+
+				// literal run: print until next brace for fewer calls
+				c_auto start = pos;
+				while (pos < count and p_str[pos] != '{' and p_str[pos] != '}')
+				{
+					++pos;
+				}
+				std::print("{}", std::string_view{ p_str + start, pos - start });
+			}
+
+			return false;	 // exhausted, no placeholder
+		}
+	};
+}	 // namespace age::util

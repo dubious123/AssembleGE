@@ -561,6 +561,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		age::vector<shared_type::debug_meshlet_render_data> debug_meshlet_render_data_vec;
 		age::vector<shared_type::debug_meshlet_render_data> debug_aot_meshlet_render_data_vec;
 
+		resource_handle										   h_debug_assert_buffer;
+		clear_uav_desc_handle								   h_debug_assert_buffer_clear_uav_desc;
+		binding_config_t::reg_u<666, 666>					   debug_assert_buffer_uav;
+		std::array<mapping_handle, global::frame_buffer_count> h_readback_debug_assert_buffer_arr;
+
+		byte_buf shader_debug_assert_result_buf_arr[global::frame_buffer_count];
+
 		// main
 		void
 		init() noexcept;
@@ -747,6 +754,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		void
 		update_ddgi(const ddgi_desc& _) noexcept;
 
+		void
+		update_ddgi_debug_flags(graphics::e::ddgi_debug_flags e) noexcept;
+
 		bool
 		ddgi_enabled() const noexcept;
 
@@ -766,6 +776,9 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		void
 		update_gibs(const gibs_desc& _) noexcept;
+
+		void
+		update_gibs_debug_flags(graphics::e::gibs_debug_flags e) noexcept;
 
 		bool
 		gibs_enabled() const noexcept;

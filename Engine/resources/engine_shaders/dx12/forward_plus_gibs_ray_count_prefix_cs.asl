@@ -16,7 +16,7 @@ main_cs(uint32 thread_id sv_group_thread_id,
 	rw_byte_array<uint32> ray_count_ideal_arr  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
 	rw_byte_array<uint32> ray_count_prefix_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
 
-	const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
+	rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 
 	const uint32 alive_count_total = alive_stack.size();
 	// local sum of surfel_count_per_cell

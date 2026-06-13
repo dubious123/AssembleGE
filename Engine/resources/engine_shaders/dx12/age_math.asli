@@ -35,6 +35,14 @@ ceil(uint32 x, uint32 y)
 	return (x + y - 1) / y;
 }
 
+// assume align is power of 2
+uint32
+align_up(uint32 offset, uint32 align)
+{
+	// (offset + align - 1) / align * align
+	return (offset + align - 1) & ~(align - 1);
+}
+
 template <typename t>
 t
 max(t x, t y, t z)

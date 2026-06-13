@@ -20,7 +20,7 @@ struct array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		return buf[idx];
 	}
 };
@@ -46,7 +46,7 @@ struct byte_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 };
@@ -70,14 +70,14 @@ struct rw_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		return buf[idx];
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		buf[idx] = value;
 	}
 };
@@ -103,21 +103,21 @@ struct rw_byte_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		buf.Store<t>(offset + idx * sizeof(t), value);
 	}
 
 	uint32
 	atomic_inc(uint32 idx, uint32 byte4_offset = 0, const uint32 value = 1)
 	{
-		assert(idx < capacity);
+		assert(idx < capacity, g::fmt_data_structure);
 		uint32 original;
 		buf_interlocked_add(buf, offset + idx * sizeof(t) + byte4_offset * 4, value, original);
 		return original;
@@ -206,7 +206,7 @@ struct rw_stack
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < size());
+		assert(idx < size(), g::fmt_data_structure);
 		return load<t>(buf, offset_value() + idx * sizeof(t));
 	}
 
@@ -215,14 +215,14 @@ struct rw_stack
 	{
 		int32 original;
 		buf_interlocked_add(buf, offset_counter(), size, original);
-		assert(original + size <= capacity);
+		assert(original + size <= capacity, g::fmt_data_structure);
 		return original;
 	}
 
 	t
 	pop()
 	{
-		assert(size() > 0);
+		assert(size() > 0, g::fmt_data_structure);
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), -1, original);
 		return load<t>(buf, offset_value() + sizeof(t) * (original - 1));
@@ -249,28 +249,28 @@ struct rw_stack
 	uint32
 	push(const t value)
 	{
-		assert(size() < capacity);
+		assert(size() < capacity, g::fmt_data_structure);
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), 1, original);
 		store(buf, offset_value() + sizeof(t) * original, value);
 
-		assert(original + 1 <= size());
-		assert(original + 1 <= capacity);
+		assert(original + 1 <= size(), g::fmt_data_structure);
+		assert(original + 1 <= capacity, g::fmt_data_structure);
 		return original;
 	}
 
 	void
 	resize(uint32 size)
 	{
-		assert(size <= capacity);
+		assert(size <= capacity, g::fmt_data_structure);
 		store(buf, offset_counter(), size);
 	}
 
 	void
 	set(uint32 idx, const t value)
 	{
-		assert(idx < capacity);
-		assert(idx < size());
+		assert(idx < capacity, g::fmt_data_structure);
+		assert(idx < size(), g::fmt_data_structure);
 		store(buf, offset_value() + sizeof(t) * idx, value);
 	}
 };

@@ -54,24 +54,25 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		const gibs_ray_result ray_res = ray_res_arr[ray_offset + i];
 
 		// luminance
-		const float lum_blend_factor = is_new_born ? 1.f : 0.01f;
+		const float lum_blend_factor = is_new_born ? 1.f : 0.1f;
 
 		const float3  radiance	= decode_r11g11b10(ray_res.radiance_r11g11b10);
 		const float3  dir_local = decode_world_hemi_oct_snorm8(cast<uint16>(ray_res.dir_oct_snorm8 & 0xffffu));
 		const int32_2 px		= gibs_calc_atlas_tile_px(atlas_offset, dir_local);
-		assert(all(px - atlas_offset >= 0) and all(px - atlas_offset < 6));
+		assert(all(px - atlas_offset >= 0) and all(px - atlas_offset < 6), g::fmt_forward_plus_gibs_ray_integrate_cs);
 
-		// assert(dir_local.y >= 0.f);
+		// assert(dir_local.y >= 0.f,g::fmt_forward_plus_gibs_ray_integrate_cs);
 		const float cos_theta = dir_local.y;
 
 		const float contribution = cos_theta / max(epsilon_1e6, ray_res.pdf);
 
-		const float luminance = luminance_rec709(radiance) * cos_theta;
+		const float luminance = luminance_rec709(radiance);
 
-		luminance_atlas[px] = float2(lerp(luminance_atlas[px].x, luminance, lum_blend_factor), luminance_atlas[px].y);
+		luminance_atlas[px] = float2(lerp(luminance_atlas[px].x, luminance * cos_theta, lum_blend_factor), luminance_atlas[px].y);
 
 		// radiance, cos weight
-		radiance_sum += radiance * contribution * min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
+		radiance_sum += radiance * contribution;
+		//*min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
 
 		// visibility
 		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.1f;
@@ -96,12 +97,11 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	//	{
 	//		const uint32_2 px = atlas_offset + uint32_2(i, j);
 
-	//		assert(all(luminance_atlas[px] >= 0.f));
-	//		assert(all(visibility_atlas[px] >= 0.f));
+	//		assert(all(luminance_atlas[px] >= 0.f),g::fmt_forward_plus_gibs_ray_integrate_cs);
+	//		assert(all(visibility_atlas[px] >= 0.f),g::fmt_forward_plus_gibs_ray_integrate_cs);
 	//	}
 	//}
 
-	surfel.radiance = msme.mean_long;
 
 	// radiance sharing
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
@@ -127,13 +127,16 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
 						 * contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data_arr[surfel_id_nbr].frame_since_born))
-						 * gibs_calc_visibility<false>(data, surfel_id, surfel_nbr, surfel.position);
+						 * gibs_calc_visibility<false>(data, surfel_id_nbr, surfel_nbr, surfel.position);
 	}
 
 	if (radiance_shared.w > 0)
 	{
-		surfel.radiance = lerp(surfel.radiance, radiance_shared.xyz / radiance_shared.w, saturate(length(msme.variance)) * 0.5f);
+		gibs_update_msme(radiance_shared.xyz / radiance_shared.w, msme);
+		// surfel.radiance = lerp(surfel.radiance, radiance_shared.xyz / radiance_shared.w, saturate(length(msme.variance)) * 0.5f);
 	}
+
+	surfel.radiance = msme.mean_long;
 
 	surfel_arr.store(surfel_id, surfel);
 	msme_arr.store(surfel_id, msme);

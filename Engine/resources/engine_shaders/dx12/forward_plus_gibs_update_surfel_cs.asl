@@ -57,7 +57,7 @@ main_cs(
 	const surfel_geometry surfel_geo	 = geo_arr[surfel_id];
 	surfel_recycle_data	  surfel_recycle = recycle_arr[surfel_id];
 
-	assert(surfel.alive_idx == alive_idx_prev);
+	assert(surfel.alive_idx == alive_idx_prev, g::fmt_gibs_update_surfels);
 
 	const float3 local_normal = decode_oct_snorm16(surfel_geo.local_normal_oct_snorm16);
 
@@ -112,7 +112,7 @@ main_cs(
 		return;
 	}
 
-	assert(surfel_recycle.frame_since_seen() <= 0xfff);
+	assert(surfel_recycle.frame_since_seen() <= 0xfff, g::fmt_gibs_update_surfels);
 	const bool surfel_seen = in_screen
 						 and z_depth != 0.f
 						 and ndc.z >= (z_depth - epsilon_1e4)

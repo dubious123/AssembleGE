@@ -118,6 +118,23 @@ namespace age::graphics::render_pipeline::forward_plus
 				  .has_clear_value	   = false });
 
 			h_indirect_arg_buffer->set_name(L"indirect_arg_buffer");
+
+			if constexpr (g::enable_shader_debug_assert)
+			{
+				h_debug_assert_buffer = resource::create_committed_buf_uav(g::debug_assert_buffer_byte_size);
+				h_debug_assert_buffer->set_name(L"debug_assert_buffer");
+				debug_assert_buffer_uav.bind(h_debug_assert_buffer);
+				h_readback_debug_assert_buffer_arr = resource::create_buffer_committed_arr(g::debug_assert_buffer_byte_size, nullptr, e::memory_kind::gpu_to_cpu);
+				resource::set_name(h_readback_debug_assert_buffer_arr, L"readback_debug_assert_buffer_arr[{}]");
+				for (auto& buf : shader_debug_assert_result_buf_arr)
+				{
+					buf = byte_buf::gen_reserved(g::debug_assert_buffer_byte_size);
+					buf.move_write_pos(g::debug_assert_buffer_byte_size);
+				}
+
+				pop_descriptor(h_debug_assert_buffer_clear_uav_desc);
+				resource::create_view(h_debug_assert_buffer, h_debug_assert_buffer_clear_uav_desc, defaults::uav_view_desc::byte_address_buffer(g::debug_assert_buffer_byte_size));
+			}
 		}
 
 		{
@@ -342,6 +359,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource::release(h_rt_raycast_result_buffer);
 		resource::unmap_and_release(h_readback_rt_raycast_result_buffer_arr);
 
+		if constexpr (g::enable_shader_debug_assert)
+		{
+			resource::release(h_debug_assert_buffer);
+			resource::unmap_and_release(h_readback_debug_assert_buffer_arr);
+			push_descriptor(h_debug_assert_buffer_clear_uav_desc);
+		}
+
 		AGE_ASSERT(camera_data_vec.size() == 1);
 		AGE_ASSERT(camera_desc_vec.size() == 1);
 
@@ -383,6 +407,184 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				res.object_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_id & 0x0fffffff];
 				//  res.object_id = object_data_vec.nth_id(res.object_id);
+			}
+		}
+
+		if constexpr (g::enable_shader_debug_assert)
+		{
+			auto& res_buf = shader_debug_assert_result_buf_arr[global::i_graphics.get_frame_buffer_idx];
+			h_readback_debug_assert_buffer_arr[global::i_graphics.get_frame_buffer_idx]->readback(res_buf.data(), g::debug_assert_buffer_byte_size);
+			res_buf.reset_read();
+
+			c_auto msg_count  = res_buf.read<uint32>();
+			c_auto total_byte = min(res_buf.read<uint32>(), static_cast<uint32>(g::debug_assert_buffer_byte_size)) + sizeof(uint32) * 2;
+
+			for (auto _ : views::loop(msg_count))
+			{
+				c_auto msg_header = res_buf.read<shared_type::msg_header>();
+
+				AGE_ASSERT(msg_header.byte_size_total >= sizeof(shared_type::msg_header));
+				c_auto target_offset = res_buf.read_amount() + msg_header.byte_size_total - sizeof(shared_type::msg_header);
+				if (target_offset > total_byte) { break; }
+
+
+				c_auto fmt		  = std::string_view{ reinterpret_cast<char*>(res_buf.data() + res_buf.read_amount()), msg_header.fmt_char_count };
+				auto   fmt_cursor = util::format_cursor{ reinterpret_cast<char*>(res_buf.data() + res_buf.read_amount()), msg_header.fmt_char_count };
+
+				res_buf.skip_read(util::align_up(msg_header.fmt_char_count, sizeof(uint32)));
+
+				auto arg_counter = 0u;
+
+				auto print_arg = [&res_buf, &arg_counter] {
+					c_auto arg_header = res_buf.read<shared_type::arg_header>();
+					switch (arg_header.arg_type)
+					{
+					case g::debug_arg_type_uint64:
+					{
+						std::print("{}", res_buf.read<uint64>());
+						break;
+					}
+					case g::debug_arg_type_uint32:
+					{
+						std::print("{}", res_buf.read<uint32>());
+						break;
+					}
+
+					case g::debug_arg_type_int64:
+					{
+						std::print("{}", res_buf.read<int64>());
+						break;
+					}
+					case g::debug_arg_type_int32:
+					{
+						std::print("{}", res_buf.read<int32>());
+						break;
+					}
+
+					case g::debug_arg_type_float:
+					{
+						std::print("{}", res_buf.read<float>());
+						break;
+					}
+
+					case g::debug_arg_type_int32_2:
+					{
+						std::print("{}", res_buf.read<int32_2>());
+						break;
+					}
+					case g::debug_arg_type_int32_3:
+					{
+						std::print("{}", res_buf.read<int32_3>());
+						break;
+					}
+					case g::debug_arg_type_int32_4:
+					{
+						std::print("{}", res_buf.read<int32_4>());
+						break;
+					}
+
+					case g::debug_arg_type_uint32_2:
+					{
+						std::print("{}", res_buf.read<uint32_2>());
+						break;
+					}
+					case g::debug_arg_type_uint32_3:
+					{
+						std::print("{}", res_buf.read<uint32_3>());
+						break;
+					}
+					case g::debug_arg_type_uint32_4:
+					{
+						std::print("{}", res_buf.read<uint32_4>());
+						break;
+					}
+
+					case g::debug_arg_type_float2:
+					{
+						std::print("{}", res_buf.read<float2>());
+						break;
+					}
+					case g::debug_arg_type_float3:
+					{
+						std::print("{}", res_buf.read<float3>());
+						break;
+					}
+					case g::debug_arg_type_float4:
+					{
+						std::print("{}", res_buf.read<float4>());
+						break;
+					}
+
+					case g::debug_arg_type_float2x2:
+					{
+						std::print("{}", res_buf.read<float2x2>());
+						break;
+					}
+					case g::debug_arg_type_float2x3:
+					{
+						AGE_UNREACHABLE();
+						// std::print("{}", res_buf.read<float2x3>());
+						break;
+					}
+					case g::debug_arg_type_float2x4:
+					{
+						AGE_UNREACHABLE();
+						// std::print("{}", res_buf.read<float2x4>());
+						break;
+					}
+
+					case g::debug_arg_type_float3x2:
+					{
+						AGE_UNREACHABLE();
+						// std::print("{}", res_buf.read<float3x2>());
+						break;
+					}
+					case g::debug_arg_type_float3x3:
+					{
+						std::print("{}", res_buf.read<float3x3>());
+						break;
+					}
+					case g::debug_arg_type_float3x4:
+					{
+						std::print("{}", res_buf.read<float3x4>());
+						break;
+					}
+					case g::debug_arg_type_float4x4:
+					{
+						std::print("{}", res_buf.read<float4x4>());
+						break;
+					}
+					case g::debug_arg_type_string:
+					{
+						c_auto fmt = std::string_view{ reinterpret_cast<char*>(res_buf.data() + res_buf.read_amount()), arg_header.arg_byte_size };
+						std::print("{}", fmt);
+						res_buf.skip_read(arg_header.arg_byte_size);
+						break;
+					}
+					default:
+					{
+						AGE_UNREACHABLE();
+						break;
+					}
+					}
+
+					++arg_counter;
+				};
+
+				while (fmt_cursor.print())
+				{
+					print_arg();
+				}
+
+				for (auto i = arg_counter; i < msg_header.arg_count; ++i)
+				{
+					std::print(" ");
+					print_arg();
+				}
+
+				fmt_cursor.print();
+				std::println();
+				res_buf.move_read_pos(target_offset);
 			}
 		}
 
@@ -760,6 +962,15 @@ namespace age::graphics::render_pipeline::forward_plus
 			debug_object_data_buffer.apply();
 
 			indirect_arg_buffer_uav.apply_compute();
+
+			if constexpr (g::enable_shader_debug_assert)
+			{
+				debug_assert_buffer_uav.apply_compute();
+				debug_assert_buffer_uav.apply();
+
+				command::clear_uav(h_debug_assert_buffer, h_debug_assert_buffer_clear_uav_desc, uint32_4::zero());
+				command::apply_barriers(barrier::buf_uav_to_uav(h_debug_assert_buffer));
+			}
 		}
 
 		command::set_view_ports(1, &rs.default_viewport);
@@ -912,6 +1123,7 @@ namespace age::graphics::render_pipeline::forward_plus
 								 raycast_request_vec.size() * sizeof(shared_type::raycast_result));
 		}
 
+
 		if (AGE_IS_INVALID_ID(active_bloom_id) is_false)
 		{
 			stage_bloom.execute(root_constants, h_bloom_chain, bloom_mip_count, bloom_gpu);
@@ -950,6 +1162,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		stage_presentation.execute(rs);
 
 		command::apply_barriers(barrier::rtv_to_present(&rs.get_back_buffer()));
+
+		if constexpr (g::enable_shader_debug_assert)
+		{
+			command::apply_barriers(barrier::buf_uav_to_copy_src(h_debug_assert_buffer));
+
+			command::copy_buffer(h_readback_debug_assert_buffer_arr[global::i_graphics.get_frame_buffer_idx]->h_resource->p_resource, 0,
+								 h_debug_assert_buffer->p_resource, 0,
+								 g::debug_assert_buffer_byte_size);
+		}
 
 		command::end_frame(e::queue_kind::direct);
 	}
@@ -2141,6 +2362,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		enable_ddgi(desc);
 	}
 
+	void
+	pipeline::update_ddgi_debug_flags(graphics::e::ddgi_debug_flags e) noexcept
+	{
+		AGE_ASSERT(ddgi_data_cpu.enabled);
+		ddgi_data_cpu.ddgi_data_gpu.debug_flags = to_idx(e);
+		ddgi_data_cpu.render_probes				= has_all(e, graphics::e::ddgi_debug_flags::render_probe);
+	}
+
 	bool
 	pipeline::ddgi_enabled() const noexcept
 	{
@@ -2402,6 +2631,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		AGE_ASSERT(gibs_data_cpu.enabled);
 		disable_gibs();
 		enable_gibs(desc);
+	}
+
+	void
+	pipeline::update_gibs_debug_flags(graphics::e::gibs_debug_flags e) noexcept
+	{
+		AGE_ASSERT(gibs_enabled());
+		gibs_data_cpu.gibs_data_gpu.debug_flags = to_idx(e);
+		gibs_data_cpu.render_surfels			= has_all(e, graphics::e::gibs_debug_flags::render_surfels);
 	}
 
 	bool

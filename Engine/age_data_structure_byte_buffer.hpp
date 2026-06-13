@@ -415,6 +415,14 @@ namespace age::inline data_structure
 			read_pos += n_byte;
 		}
 
+		FORCE_INLINE constexpr void
+		move_read_pos(size_type new_pos) noexcept
+		{
+			AGE_ASSERT(new_pos <= cap);
+			AGE_ASSERT(new_pos <= write_pos);
+			read_pos = new_pos;
+		}
+
 		// Transfers ownership. Caller must dealloc with matching allocator + align.
 		std::byte*
 		release() noexcept

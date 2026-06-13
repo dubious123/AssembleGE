@@ -62,7 +62,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		{
 			if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
 			{
-				const float ratio = gibs_get_ray_count_total(data) / (float)data.max_surfel_count;
+				const float ratio = gibs_get_ray_count_total(data) / (float)GIBS_RAY_BUDGET;
 				float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
 				if (uv.x < ratio)

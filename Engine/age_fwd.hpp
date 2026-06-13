@@ -166,7 +166,8 @@ namespace age::graphics::e
 							   (render_show_visibility_atlas, (1u << 11u)),
 							   (freeze_spawn, (1u << 12u)),
 							   (render_age, (1u << 13u)),
-							   (render_cell, (1u << 14u)));
+							   (render_cell, (1u << 14u)),
+							   (render_variance, (1u << 15u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
 }	 // namespace age::graphics::e

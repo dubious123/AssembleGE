@@ -14,17 +14,17 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 		is_thread_valid = false;
 	}
 
-	const gibs_data							 data			   = gibs_load_gibs_data();
-	const gibs_lut_data						 lut_data		   = gibs_load_gibs_lut_data();
-	const texture_2d<float>					 depth_tex		   = global_resource_buffer[depth_buffer_texture_id];
-	const texture_2d<uint32_2>				 gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
-	const texture_2d<float2>				 visibility_atlas  = global_resource_buffer[data.h_visibility_atlas_srv_id];
-	const byte_array<gibs_cell_entry>		 cell_entry_arr	   = gibs_load_cell_entry_arr(data);
-	const byte_array<uint32>				 cell_to_surfel_id = gibs_load_cell_to_surfel_id_arr(data);
-	const rw_array<surfel>					 surfel_arr		   = gibs_load_surfel_rw_arr(data);
-	const rw_byte_array<surfel_geometry>	 geo_arr		   = gibs_load_surfel_geometry_rw_arr(data);
-	const rw_byte_array<surfel_recycle_data> recycle_arr	   = gibs_load_surfel_recycle_data_rw_arr(data);
-	const rw_byte_array<surfel_msme>		 msme_arr		   = gibs_load_surfel_msme_rw_arr(data);
+	const gibs_data					   data				 = gibs_load_gibs_data();
+	const gibs_lut_data				   lut_data			 = gibs_load_gibs_lut_data();
+	texture_2d<float>				   depth_tex		 = global_resource_buffer[depth_buffer_texture_id];
+	texture_2d<uint32_2>			   gbuffer			 = global_resource_buffer[data.h_gbuffer_srv_id];
+	texture_2d<float2>				   visibility_atlas	 = global_resource_buffer[data.h_visibility_atlas_srv_id];
+	byte_array<gibs_cell_entry>		   cell_entry_arr	 = gibs_load_cell_entry_arr(data);
+	byte_array<uint32>				   cell_to_surfel_id = gibs_load_cell_to_surfel_id_arr(data);
+	rw_array<surfel>				   surfel_arr		 = gibs_load_surfel_rw_arr(data);
+	rw_byte_array<surfel_geometry>	   geo_arr			 = gibs_load_surfel_geometry_rw_arr(data);
+	rw_byte_array<surfel_recycle_data> recycle_arr		 = gibs_load_surfel_recycle_data_rw_arr(data);
+	rw_byte_array<surfel_msme>		   msme_arr			 = gibs_load_surfel_msme_rw_arr(data);
 
 	const float z_depth = is_thread_valid ? load(depth_tex, dispatch_thread_id.x, dispatch_thread_id.y, 0) : 0.f;
 
@@ -59,7 +59,8 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	uint32 max_contribution_surfel_id = invalid_id_uint32;
 
 	// radiance for new_born, w == weight_sum
-	float4 radiance = (float4)0;
+	// float4 radiance		 = (float4)0;
+	float4 radiance_shared = (float4)0;
 
 	for (uint32 i = 0; is_thread_valid and i < cell_entry.count; ++i)
 	{
@@ -73,10 +74,15 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		coverage += contribution;
 		// todo, change to msme instability
-		radiance += float4(surfel.radiance, 1.f)
-				  * contribution
-				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
-				  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+		// radiance += float4(surfel.radiance, 1.f)
+		//		  * contribution
+		//		  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
+		//		  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		radiance_shared += float4(surfel.radiance, 1.f)
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
+						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
 		if (contribution > 0.f)
 		{
 			if (min_contribution > contribution)
@@ -98,6 +104,10 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	const uint32 coverage_packed = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | linear_id : invalid_id_uint32;
 
 	const float rnd = random_pcg3d(uint32_3(dispatch_thread_id.xy, frame_index)).x;
+
+	attr_branch()
+
+	if ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) is_false)
 	{
 		const uint32 coverage_packed_wave_min = wave_active_min(coverage_packed);
 
@@ -114,10 +124,10 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (coverage < GIBS_SPAWN_COVERAGE and linear_id == uint32_lower_to_uint16(coverage_packed_group_min))
 		{
-			assert(is_thread_valid);
+			assert(is_thread_valid, g::fmt_gibs_tile_coverage);
 
-			const rw_stack<uint32> dead_stack  = gibs_load_dead_surfel_id_stack(data);
-			const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
+			rw_stack<uint32> dead_stack	 = gibs_load_dead_surfel_id_stack(data);
+			rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 
 			const float spawn_prob = (GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
 								   * px_world_area(dispatch_thread_id.xy, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)
@@ -137,7 +147,9 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 				surfel.normal_oct_snorm16 = px_normal_oct_snorm16;
 				surfel.radius			  = gibs_calc_surfel_radius(data, lut_data, surfel);
 
-				surfel.radiance = radiance.w > 0.f ? radiance.xyz / radiance.w : (float3)0;
+				// todo, radiance is too dark
+				surfel.radiance = radiance_shared.w > 0.f ? radiance_shared.xyz / radiance_shared.w : (float3)0;
+				// surfel.radiance = radiance.w > 0.f ? radiance.xyz / radiance.w : (float3)0;
 				surfel_arr.store(new_surfel_id, surfel);
 
 				surfel_geometry	  geo		 = geo_arr[new_surfel_id];
@@ -182,9 +194,6 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (coverage > GIBS_KILL_COVERAGE and linear_id == uint32_lower_to_uint16(coverage_packed_group_max))
 		{
-			const rw_stack<uint32> dead_stack  = gibs_load_dead_surfel_id_stack(data);
-			const rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
-
 			const float kill_prob = (coverage - GIBS_KILL_COVERAGE) / float(GIBS_KILL_COVERAGE)
 								  //* (0.01)
 								  // * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
@@ -193,7 +202,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 			if (rnd < kill_prob)
 			{
-				assert(max_contribution_surfel_id != invalid_id_uint32);
+				assert(max_contribution_surfel_id != invalid_id_uint32, g::fmt_gibs_tile_coverage);
 				surfel surfel = surfel_arr[max_contribution_surfel_id];
 
 				surfel.kill();
