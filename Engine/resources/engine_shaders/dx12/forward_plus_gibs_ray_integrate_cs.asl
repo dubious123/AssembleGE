@@ -96,6 +96,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	//}
 
 	// radiance sharing
+
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
 
 	const uint32 cell_id = gibs_flatten_cell_idx(data, gibs_calc_cell_idx(data, lut_data, surfel.position));
@@ -136,8 +137,11 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		gibs_update_msme(radiance_sum, msme);
 	}
 
+
 	surfel.radiance = msme.mean_long;
 
 	surfel_arr.store(surfel_id, surfel);
 	msme_arr.store(surfel_id, msme);
+
+	// todo try separate radiance sharing pass
 }

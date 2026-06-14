@@ -159,8 +159,8 @@ main_ps(float4 pos sv_position) sv_target_0
 		const surfel_recycle_data recycle	= recycle_arr[surfel_id];
 
 		if (surfel.radius == 0.f) { continue; }
-		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
-		assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size(), g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
+		// assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size(), g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
 		const float contribution  = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
 		coverage				 += contribution;
@@ -279,8 +279,8 @@ main_ps(float4 pos sv_position) sv_target_0
 		rw_byte_array<uint32> ray_count_ideal_arr = gibs_load_surfel_ray_count_ideal_rw_arr(data);
 		if (max_contribution_surfel_id != invalid_id_uint32)
 		{
-			const surfel surfel = surfel_arr[max_contribution_surfel_id];
-			return float4(ray_count_ideal_arr[surfel.alive_idx] / float(GIBS_MAX_RAY_PER_SURFEL), 0, 0, 1);
+			// const surfel surfel = surfel_arr[max_contribution_surfel_id];
+			// return float4(ray_count_ideal_arr[surfel.alive_idx] / float(GIBS_MAX_RAY_PER_SURFEL), 0, 0, 1);
 		}
 		else
 		{

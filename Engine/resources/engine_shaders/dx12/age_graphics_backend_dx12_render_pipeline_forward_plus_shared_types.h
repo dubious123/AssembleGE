@@ -60,6 +60,17 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 	};
 
 	//---[ gibs, surfel ]------------------------------------------------------------
+	struct gibs_indirect_arg
+	{
+		uint32_3 arg_surfel_update;
+		uint32_3 arg_ray_count_prefix;
+		uint32_3 arg_ray_entry;
+		uint32_3 arg_surfel_scatter;
+		uint32_3 arg_ray_trace;
+		uint32_3 arg_ray_integrate;
+		uint32_3 arg_build_cdf;
+	};
+
 	struct gibs_data
 	{
 		uint32 debug_flags;
@@ -80,6 +91,8 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 h_scratch_buffer_uav_id;
 		uint32 h_irradiance_atlas_uav_id;
 		uint32 h_visibility_atlas_uav_id;
+
+		uint32 h_indirect_arg_uav_id;
 
 		uint32 alive_surfel_id_stack_prev_offset;
 		uint32 alive_surfel_id_stack_curr_offset;
@@ -121,7 +134,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32 normal_oct_snorm16;
 
 		// todo remove
-		uint32 alive_idx;
+		//	uint32 alive_idx;
 
 		void
 		kill()

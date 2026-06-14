@@ -98,7 +98,7 @@ namespace g
 	// file_only
 	static const uint32 fmt_default_assert_0[] = {
 		'[', 'a', 's', 's', 'e', 'r', 't', ' ', 'f', 'a', 'i', 'l', 'e', 'd', ']', ' ',
-		'{', '}', ' '
+		'{', '}'
 	};
 
 	// file + line
@@ -745,7 +745,7 @@ assert(bool test, t_file file)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_1, file);
+		debug_log(g::fmt_default_assert_0, file);
 	}
 #endif
 }
@@ -757,7 +757,7 @@ assert(bool test, t_file file, uint32 arg_line)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line);
+		debug_log(g::fmt_default_assert_1, file, arg_line);
 	}
 #endif
 }

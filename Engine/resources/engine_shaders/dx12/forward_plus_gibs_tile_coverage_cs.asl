@@ -75,10 +75,14 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		coverage += contribution;
 
+		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		if (visibility == 0.f) { continue; }
+
 		radiance_shared += float4(surfel.radiance, 1.f)
 						 * fallback_contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
-						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+						 * visibility;
 
 		if (contribution > 0.f)
 		{
@@ -137,8 +141,8 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 			{
 				const uint32 alive_idx = alive_stack.push(new_surfel_id);
 
-				surfel surfel	 = surfel_arr[new_surfel_id];
-				surfel.alive_idx = alive_idx;
+				surfel surfel = surfel_arr[new_surfel_id];
+				// surfel.alive_idx = alive_idx;
 
 				surfel.position			  = world_pos;
 				surfel.normal_oct_snorm16 = px_normal_oct_snorm16;

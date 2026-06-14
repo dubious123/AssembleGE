@@ -2,8 +2,9 @@
 
 wave_size(GIBS_RAY_COUNT_REDUCE_TPG)
 [numthreads(GIBS_RAY_COUNT_REDUCE_TPG, 1, 1)] void
-main_cs(uint32 thread_id sv_group_thread_id,
-		uint32 group_id	 sv_group_id)
+main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
+		uint32 thread_id		  sv_group_thread_id,
+		uint32 group_id			  sv_group_id)
 
 {
 	const uint32 base_offset = group_id * GIBS_RAY_COUNT_REDUCE_EPG;
@@ -33,5 +34,17 @@ main_cs(uint32 thread_id sv_group_thread_id,
 	if (wave_is_first_lane())
 	{
 		gibs_atomic_add_ray_count_ideal(data, wave_sum);
+	}
+
+	if (dispatch_thread_id == 0)
+	{
+		rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
+		gibs_set_indirect_arg_ray_count_prefix(data, uint32_3(ceil(alive_stack.size(), GIBS_RAY_COUNT_REDUCE_EPG), 1, 1));
+		gibs_set_indirect_arg_ray_entry(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+		gibs_set_indirect_arg_cell_to_surfel_scatter(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+
+
+		gibs_set_indirect_arg_ray_integrate(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+		gibs_set_indirect_arg_build_cdf(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
 	}
 }

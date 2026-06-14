@@ -174,8 +174,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		inline void
 		execute(const gibs_data&  gibs_data_cpu,
-				extent_2d<uint16> main_buffer_extent,
-				resource_handle	  h_indirect_arg_buffer) const noexcept;
+				extent_2d<uint16> main_buffer_extent) const noexcept;
 
 
 		inline void

@@ -20,6 +20,56 @@ gibs_enabled()
 	return ddgi_enabled_and_extra & 2;
 }
 
+//---[ gibs indirect arg ]------------------------------------------------------------------------------------------------------
+void
+gibs_set_indirect_arg_surfel_update(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 0, arg);
+}
+
+void
+gibs_set_indirect_arg_ray_count_prefix(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 1, arg);
+}
+
+void
+gibs_set_indirect_arg_ray_entry(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 2, arg);
+}
+
+void
+gibs_set_indirect_arg_cell_to_surfel_scatter(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 3, arg);
+}
+
+void
+gibs_set_indirect_arg_ray_trace(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 4, arg);
+}
+
+void
+gibs_set_indirect_arg_ray_integrate(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 5, arg);
+}
+
+void
+gibs_set_indirect_arg_build_cdf(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 6, arg);
+}
+
 //---[ gibs counter ]------------------------------------------------------------------------------------------------------
 uint32
 gibs_alloc_cell_surfel_offset(const gibs_data data, uint32 surfel_count)
@@ -1072,7 +1122,7 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 
 		if (surfel.radius == 0.f or contribution == 0.f) { continue; }
 
-		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs);
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs);
 
 		surfel_recycle_data recycle_data = recycle_arr[surfel_id];
 		recycle_data.add_ref();

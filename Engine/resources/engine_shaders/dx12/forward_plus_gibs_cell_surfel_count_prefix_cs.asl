@@ -2,8 +2,9 @@
 
 wave_size(GIBS_CELL_SURFEL_COUNT_PREFIX_TPG)
 [numthreads(GIBS_CELL_SURFEL_COUNT_PREFIX_TPG, 1, 1)] void
-main_cs(uint32 thread_id sv_group_thread_id,
-		uint32 group_id	 sv_group_id)
+main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
+		uint32 thread_id		  sv_group_thread_id,
+		uint32 group_id			  sv_group_id)
 
 {
 	const uint32 cell_id_base = group_id * GIBS_CELL_SURFEL_COUNT_PREFIX_EPG;
@@ -61,5 +62,11 @@ main_cs(uint32 thread_id sv_group_thread_id,
 		entry.count = 0u;
 
 		cell_entry_arr.store(cell_id, entry);
+	}
+
+	if (dispatch_thread_id == 0)
+	{
+		const uint32 ray_total = gibs_get_ray_count_total(data);
+		gibs_set_indirect_arg_ray_trace(data, uint32_3(ceil(ray_total, 32), 1, 1));
 	}
 }

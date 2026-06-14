@@ -26,10 +26,9 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
 		alive_stack_curr.resize(0u);
 
+		rw_stack<uint32> alive_stack_prev = gibs_load_alive_surfel_id_stack_prev(data);
 		gibs_reset_counter(data);
 
-		rw_stack<uint32> alive_stack_prev = gibs_load_alive_surfel_id_stack_prev(data);
-
-		store_dispatch_compute_indirect_arg(uint32_3(ceil(alive_stack_prev.size(), 32u), 1, 1));
+		gibs_set_indirect_arg_surfel_update(data, uint32_3(ceil(alive_stack_prev.size(), 32u), 1, 1));
 	}
 }

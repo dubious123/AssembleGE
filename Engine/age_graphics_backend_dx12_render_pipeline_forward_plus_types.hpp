@@ -430,6 +430,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		resource_handle h_gbuffer;
 		resource_handle h_scratch_buffer;
 
+		resource_handle h_indirect_arg_buffer;
+
 		srv_desc_handle h_surfel_buffer_srv_desc;
 		srv_desc_handle h_cell_info_srv_desc;
 		srv_desc_handle h_irradiance_atlas_srv_desc;
@@ -443,6 +445,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		uav_desc_handle h_visibility_atlas_uav_desc;
 		rtv_desc_handle h_gbuffer_rtv_desc;
 
+		uav_desc_handle h_indirect_arg_uav_desc;
 
 		clear_uav_desc_handle h_irradiance_clear_uav_desc;
 		clear_uav_desc_handle h_visibility_clear_uav_desc;

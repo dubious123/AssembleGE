@@ -634,8 +634,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 	inline void
 	gibs_stage::execute(const gibs_data&  gibs_data_cpu,
-						extent_2d<uint16> main_buffer_extent,
-						resource_handle	  h_indirect_arg_buffer) const noexcept
+						extent_2d<uint16> main_buffer_extent) const noexcept
 	{
 		// todo more cell count
 		auto& gpu_data = gibs_data_cpu.gibs_data_gpu;
@@ -666,36 +665,42 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::dispatch(util::ceil(max(gpu_data.cell_count_total, gpu_data.max_surfel_count), 32), 1, 1);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
-								barrier::buf_uav_to_indirect(h_indirect_arg_buffer));
+								barrier::buf_uav_to_indirect(gibs_data_cpu.h_indirect_arg_buffer));
 
 
 		// todo execute_indirect (active surfel count)
 		// todo surfel_geo_buffer should be srv
 		command::set_pso(p_pso_update_surfel);
 		// dispatch( ceil(alive_stack.size() , 32), 1, 1 )
-		command::execute_indirect(p_cmd_sig, h_indirect_arg_buffer);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_surfel_update));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
-								barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer));
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
+								barrier::buf_indirect_to_uav(gibs_data_cpu.h_indirect_arg_buffer));
 
 		command::set_pso(p_pso_ray_ideal_count_sum);
 		command::dispatch(util::ceil(util::ceil(gpu_data.max_surfel_count, 32), g::gibs_ray_reduce_epg), 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
+		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
+								barrier::buf_uav_to_indirect(gibs_data_cpu.h_indirect_arg_buffer));
 
 		// todo execute_indirect (active surfel count)
 		command::set_pso(p_pso_ray_count_prefix);
-		command::dispatch(util::ceil(gpu_data.max_surfel_count, g::gibs_ray_reduce_epg), 1, 1);
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, g::gibs_ray_reduce_epg), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_count_prefix));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
 
 		// todo execute_indirect (active surfel count)
 		command::set_pso(p_pso_ray_entry);
-		command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_entry));
+		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
+								barrier::buf_indirect_to_uav(gibs_data_cpu.h_indirect_arg_buffer));
 
 
 		command::set_pso(p_pso_cell_surfel_count_prefix);
 		command::dispatch(util::ceil(gpu_data.cell_count_total, g::gibs_cell_surfel_count_reduce_epg), 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer));
+		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
+								barrier::buf_uav_to_indirect(gibs_data_cpu.h_indirect_arg_buffer));
 
 
 		// todo, surfel -> srv?
@@ -703,14 +708,16 @@ namespace age::graphics::render_pipeline::forward_plus
 		// todo, alive stack size -> indirect execute?
 		// todo, cache intersaction
 		command::set_pso(p_pso_cell_to_surfel_scatter);
-		command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_surfel_scatter));
 		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_cell_info_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		// todo execute_indierect (ray count)
 		// todo srv surfel buffer ?
 		command::set_pso(p_pso_ray_trace);
-		command::dispatch(util::ceil(g::gibs_ray_budget, 32), 1, 1);
+		// command::dispatch(util::ceil(g::gibs_ray_budget, 32), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_trace));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_srv_to_uav(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
@@ -718,7 +725,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// todo execute_indirect (active surfel)
 		command::set_pso(p_pso_ray_integrate);
-		command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_integrate));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
 								barrier::tex_uav_to_uav(gibs_data_cpu.h_irradiance_atlas),
@@ -727,7 +735,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		// todo execute_indirect (active surfel)
 		// do radiance sharing
 		command::set_pso(p_pso_build_cdf);
-		command::dispatch(32 * 32, util::ceil(gpu_data.max_surfel_count, 32 * 32), 1);
+		// command::dispatch(32 * 32, util::ceil(gpu_data.max_surfel_count, 32 * 32), 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_build_cdf));
 		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_tile_coverage);

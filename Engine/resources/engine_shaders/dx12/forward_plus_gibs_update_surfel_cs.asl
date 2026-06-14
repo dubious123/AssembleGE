@@ -57,7 +57,7 @@ main_cs(
 	const surfel_geometry surfel_geo	 = geo_arr[surfel_id];
 	surfel_recycle_data	  surfel_recycle = recycle_arr[surfel_id];
 
-	assert(surfel.alive_idx == alive_idx_prev, g::fmt_gibs_update_surfels);
+	// assert(surfel.alive_idx == alive_idx_prev, g::fmt_gibs_update_surfels);
 
 	const float3 local_normal = decode_oct_snorm16(surfel_geo.local_normal_oct_snorm16);
 
@@ -142,7 +142,7 @@ main_cs(
 
 	const uint32 alive_idx_curr = target_offset;
 
-	surfel.alive_idx = alive_idx_curr;
+	// surfel.alive_idx = alive_idx_curr;
 	surfel_arr.store(surfel_id, surfel);
 
 	// cell update

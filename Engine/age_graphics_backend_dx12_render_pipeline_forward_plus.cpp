@@ -1033,7 +1033,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			light_bin_stage_buffer_srv.apply_compute();
 
 
-			stage_gibs.execute(gibs_data_cpu, extent, h_indirect_arg_buffer);
+			stage_gibs.execute(gibs_data_cpu, extent);
 
 
 			gibs_data_cpu.need_cleanup = false;
@@ -2472,6 +2472,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		{
+			gibs_data_cpu.h_indirect_arg_buffer = resource::create_committed_buf_uav(sizeof(shared_type::gibs_indirect_arg));
+			gibs_data_cpu.h_indirect_arg_buffer->set_name(L"gibs_indirect_arg_buffer");
+
+			gibs_data_cpu.h_indirect_arg_uav_desc = resource::create_view(gibs_data_cpu.h_indirect_arg_buffer,
+																		  defaults::uav_view_desc::byte_address_buffer(sizeof(shared_type::gibs_indirect_arg)));
+		}
+
+		{
 			c_auto ray_count_reduce_group_count = util::ceil(desc.max_surfel_count, g::gibs_ray_count_reduce_epg);
 
 			auto offset_calculator = util::offset_calculator{};
@@ -2527,7 +2535,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			gibs_data_gpu.h_scratch_buffer_uav_id	= calc_desc_idx(gibs_data_cpu.h_scratch_buffer_uav_desc);
 			gibs_data_gpu.h_irradiance_atlas_uav_id = calc_desc_idx(gibs_data_cpu.h_irradiance_atlas_uav_desc);
 			gibs_data_gpu.h_visibility_atlas_uav_id = calc_desc_idx(gibs_data_cpu.h_visibility_atlas_uav_desc);
-
+			gibs_data_gpu.h_indirect_arg_uav_id		= calc_desc_idx(gibs_data_cpu.h_indirect_arg_uav_desc);
 
 			gibs_data_gpu.debug_flags				   = to_idx(desc.debug_flags);
 			gibs_data_gpu.max_surfel_count			   = desc.max_surfel_count;
@@ -2613,12 +2621,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		push_descriptor_deferred(gibs_data_cpu.h_cell_info_clear_uav_desc);
 		push_descriptor_deferred(gibs_data_cpu.h_scratch_clear_uav_desc);
 
+		push_descriptor_deferred(gibs_data_cpu.h_indirect_arg_uav_desc);
+
 		resource::release_deferred(gibs_data_cpu.h_surfel_buffer);
 		resource::release_deferred(gibs_data_cpu.h_cell_info_buffer);
 		resource::release_deferred(gibs_data_cpu.h_irradiance_atlas);
 		resource::release_deferred(gibs_data_cpu.h_visibility_atlas);
 		resource::release_deferred(gibs_data_cpu.h_gbuffer);
 		resource::release_deferred(gibs_data_cpu.h_scratch_buffer);
+		resource::release_deferred(gibs_data_cpu.h_indirect_arg_buffer);
 
 		gibs_data_cpu.enabled = false;
 	}
