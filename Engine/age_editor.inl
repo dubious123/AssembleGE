@@ -34,7 +34,7 @@ namespace age::editor
 		cam.zoom   = editor_input_ctx.wheel_delta;
 		cam.sprint = editor_input_ctx.is_down(key_shift);
 
-		c_auto dt_s = std::max(runtime::i_time.get_delta_time_s(), 1.f / 160);
+		c_auto dt_s = std::min(runtime::i_time.get_delta_time_s(), 1.f / 160);
 
 		c_auto speed = cam.sprint ? cam.move_speed * cam.sprint_mult : cam.move_speed;
 
@@ -383,6 +383,22 @@ namespace age::editor::detail
 					break;
 				}
 			}
+		}
+
+
+		for (auto&& [cmp] : ecs_storage | each_entity_soft<editor_cam_setting>())
+		{
+			auto& cam = g::current_game.get_current_scene().cam;
+
+			cam.move_speed	   = cmp.move_speed;
+			cam.sprint_mult	   = cmp.sprint_mult;
+			cam.sensitivity	   = cmp.sensitivity;
+			cam.zoom_speed	   = cmp.zoom_speed;
+			cam.zoom_distance  = cmp.zoom_distance;
+			cam.pan_speed	   = cmp.pan_speed;
+			cam.move_smoothing = cmp.move_smoothing;
+			cam.look_smoothing = cmp.look_smoothing;
+			cam.zoom_smoothing = cmp.zoom_smoothing;
 		}
 	}
 }	 // namespace age::editor::detail

@@ -33,21 +33,22 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const uint32 ray_offset = ray_offset_arr[alive_id];
 	const uint32 ray_count	= ray_count_arr[alive_id];
 
-	const bool is_new_born = recycle_data_arr[surfel_id].is_new_born();
 
 	const uint32_2 atlas_offset = gibs_calc_atlas_offset(data, surfel_id);
 
 	rw_texture_2d<float2> luminance_atlas  = global_resource_buffer[data.h_irradiance_atlas_uav_id];
 	rw_texture_2d<float2> visibility_atlas = global_resource_buffer[data.h_visibility_atlas_uav_id];
 
-	uint32		pack_counter = 0u;
-	float3		radiance_sum = (float3)0;
-	surfel		surfel		 = surfel_arr[surfel_id];
-	surfel_msme msme		 = msme_arr[surfel_id];
+	float3				radiance_sum = (float3)0;
+	surfel				surfel		 = surfel_arr[surfel_id];
+	surfel_msme			msme		 = msme_arr[surfel_id];
+	surfel_recycle_data recycle		 = recycle_data_arr[surfel_id];
+
+	const bool is_new_born = recycle.is_new_born();
+
 
 	if (ray_count == 0) { return; }
 	if (surfel.radius == 0.f) { return; }
-
 
 	for (uint32 i = 0; i < ray_count; ++i)
 	{
@@ -76,32 +77,23 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 		// visibility
 		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.1f;
-		const float	 dist_norm		  = saturate(ray_res.distance / surfel.radius);
+		const float	 dist_norm		  = saturate(ray_res.distance / (surfel.radius /** GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
 		const float2 chebyshev		  = float2(dist_norm, dist_norm * dist_norm);
 
 		visibility_atlas[px] = lerp(max(0.f, visibility_atlas[px]), chebyshev, vis_blend_factor);
-
-		++pack_counter;
-
-		if (pack_counter == max(1u, ray_count / 4) or i == ray_count - 1)
-		{
-			gibs_update_msme(radiance_sum / pack_counter, msme);
-			radiance_sum = (float3)0;
-			pack_counter = 0u;
-		}
 	}
 
+	radiance_sum /= ray_count;
 	// for (uint32 i = 0; i < 6; ++i)
 	//{
 	//	for (uint32 j = 0; j < 6; ++j)
 	//	{
 	//		const uint32_2 px = atlas_offset + uint32_2(i, j);
 
-	//		assert(all(luminance_atlas[px] >= 0.f),g::fmt_forward_plus_gibs_ray_integrate_cs);
-	//		assert(all(visibility_atlas[px] >= 0.f),g::fmt_forward_plus_gibs_ray_integrate_cs);
+	//		assert(all(luminance_atlas[px] >= 0.f), g::fmt_forward_plus_gibs_ray_integrate_cs, line);
+	//		assert(all(visibility_atlas[px] >= 0.f), g::fmt_forward_plus_gibs_ray_integrate_cs, line);
 	//	}
 	//}
-
 
 	// radiance sharing
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
@@ -122,18 +114,26 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 		const struct surfel surfel_nbr = surfel_arr[surfel_id_nbr];
 
-		const float contribution = gibs_calc_surfel_contribution(data, surfel_nbr, surfel.position, normal);
+		const float			contribution = gibs_calc_surfel_contribution<true>(data, surfel_nbr, surfel.position, normal);
+		surfel_recycle_data recycle_nbr	 = recycle_data_arr[surfel_id_nbr];
+		if (recycle_nbr.is_new_born()) { continue; }
 
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
 						 * contribution
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data_arr[surfel_id_nbr].frame_since_born))
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_nbr.frame_since_born))
 						 * gibs_calc_visibility<false>(data, surfel_id_nbr, surfel_nbr, surfel.position);
 	}
 
+
 	if (radiance_shared.w > 0)
 	{
-		gibs_update_msme(radiance_shared.xyz / radiance_shared.w, msme);
+		const float blend_factor = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.5f;
+		gibs_update_msme(radiance_sum * blend_factor + radiance_shared.xyz / radiance_shared.w * (1.f - blend_factor), msme);
 		// surfel.radiance = lerp(surfel.radiance, radiance_shared.xyz / radiance_shared.w, saturate(length(msme.variance)) * 0.5f);
+	}
+	else
+	{
+		gibs_update_msme(radiance_sum, msme);
 	}
 
 	surfel.radiance = msme.mean_long;

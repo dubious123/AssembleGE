@@ -281,6 +281,21 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(editor_cam_setting, "editor camera")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		float move_speed	 = 2.f;
+		float sprint_mult	 = 4.f;
+		float sensitivity	 = 0.17f;
+		float zoom_speed	 = 2.f;
+		float zoom_distance	 = 4.f;
+		float pan_speed		 = 0.6f;
+		float move_smoothing = 15.f / 2.f;
+		float look_smoothing = 25.f / 2.f;
+		float zoom_smoothing = 12.f / 2.f;
+	};
+
 	AGE_COMPONENT(bloom, "post_process_bloom")
 	{
 		AGE_COMPONENT_VERSION(1);

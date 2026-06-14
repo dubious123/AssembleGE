@@ -49,7 +49,8 @@ main_cs(uint32_3 group_id sv_group_id,
 
 		const float2 lum		= luminance_atlas[px];
 		const float	 lum_prefix = wave_prefix_sum(lum.x);
-		float		 lum_total	= 0.f;
+
+		float lum_total = 0.f;
 
 		if (thread_id == wave_lane_count() - 1)	   // 0, 1, 2, 3
 		{
@@ -76,4 +77,45 @@ main_cs(uint32_3 group_id sv_group_id,
 			luminance_atlas[atlas_offset + uint32_2(5, GIBS_ATLAS_TILE_SIZE - 1)] = float2(lum_36.x, lum_total);
 		}
 	}
+	//
+	// wave_prefix_sum is not monotonic: lanes accumulate in different orders
+	// (parallel tree) and float add is non-associative, so cdf[i] <= cdf[i+1]
+	// can break -> pdf = cdf[i+1] - cdf[i] can go negative in ray_trace_cs.
+	//
+	// fix: serial scan in build (monotonic but wastes lanes), OR clamp in consumer.
+	// chose clamp: pdf = max(0, cdf[i+1] - cdf[i]).
+	//
+	// commented code below shows wave_prefix_sum breaking monotonicity (kept for ref):
+	//
+	// group_memory_barrier_with_sync();
+	// if (group_id.x == 0 and thread_id == wave_lane_count() - 1)
+	//{
+	//	const uint32_2				atlas_offset	= gibs_calc_atlas_offset(data, surfel_id);
+	//	const rw_texture_2d<float2> luminance_atlas = global_resource_buffer[data.h_irradiance_atlas_uav_id];
+	//	float						prev			= -1.f;
+
+	//	bool invalid = false;
+	//	for (uint32 i = 0; i < 35; ++i)
+	//	{
+	//		float c = luminance_atlas[atlas_offset + uint32_2(i % 6, i / 6)].y;
+	//		if (c < prev)
+	//		{
+	//			invalid = true;
+	//			break;
+	//		}
+	//		prev = c;
+	//	}
+
+	//	if (invalid)
+	//	{
+	//		float ground_truth = 0.f;
+
+	//		for (uint32 i = 0; i < 36; ++i)
+	//		{
+	//			ground_truth += luminance_atlas[atlas_offset + uint32_2(i % 6, i / 6)].x;
+	//			float2 c	  = luminance_atlas[atlas_offset + uint32_2(i % 6, i / 6)];
+	//			debug_log(g::fmt_forward_plus_gibs_build_cdf_cs, surfel_id, i, c, ground_truth);
+	//		}
+	//	}
+	//}
 }

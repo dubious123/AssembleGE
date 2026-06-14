@@ -106,14 +106,14 @@ namespace age::graphics::shader
 				L"-Zi",
 				L"-Qembed_debug",
 				DXC_ARG_WARNINGS_ARE_ERRORS,
-				// #if defined(AGE_DEBUG)
+	#if defined(AGE_DEBUG)
 				L"-Qembed_debug",
 				DXC_ARG_DEBUG,
 				DXC_ARG_SKIP_OPTIMIZATIONS
-				// #elif defined(AGE_RELEASE)
-				//			DXC_ARG_ALL_RESOURCES_BOUND,
-				//			DXC_ARG_OPTIMIZATION_LEVEL3,
-				// #endif
+	#elif defined(AGE_RELEASE)
+				DXC_ARG_ALL_RESOURCES_BOUND,
+				DXC_ARG_OPTIMIZATION_LEVEL3,
+	#endif
 			};
 
 			AGE_HR_CHECK(g::p_dxc_compiler->Compile(

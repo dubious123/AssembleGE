@@ -70,16 +70,13 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (surfel.radius == 0.f) { continue; }
 
-		const float contribution = gibs_calc_surfel_contribution(data, surfel, world_pos, px_normal);
+		const float contribution		  = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
+		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
 
 		coverage += contribution;
-		// todo, change to msme instability
-		// radiance += float4(surfel.radiance, 1.f)
-		//		  * contribution
-		//		  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
-		//		  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
 		radiance_shared += float4(surfel.radiance, 1.f)
+						 * fallback_contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
 						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
@@ -148,8 +145,11 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 				surfel.radius			  = gibs_calc_surfel_radius(data, lut_data, surfel);
 
 				// todo, radiance is too dark
+				// todo, radiance is now too bright
 				surfel.radiance = radiance_shared.w > 0.f ? radiance_shared.xyz / radiance_shared.w : (float3)0;
+				// surfel.radiance = shared_count > 0 ? radiance_shared.xyz / shared_count : (float3)0;
 				// surfel.radiance = radiance.w > 0.f ? radiance.xyz / radiance.w : (float3)0;
+
 				surfel_arr.store(new_surfel_id, surfel);
 
 				surfel_geometry	  geo		 = geo_arr[new_surfel_id];

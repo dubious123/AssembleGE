@@ -874,6 +874,20 @@ namespace age::editor
 
 		return std::tuple{ update, update_debug_flags };
 	}
+
+	void
+	ui_component(age::ecs::editor_cam_setting& cmp) noexcept
+	{
+		ui::widget::numeric_field(cmp.move_speed, "move_speed");
+		ui::widget::numeric_field(cmp.sprint_mult, "sprint_mult");
+		ui::widget::numeric_field(cmp.sensitivity, "sensitivity");
+		ui::widget::numeric_field(cmp.zoom_speed, "zoom_speed");
+		ui::widget::numeric_field(cmp.zoom_distance, "zoom_distance");
+		ui::widget::numeric_field(cmp.pan_speed, "pan_speed");
+		ui::widget::numeric_field(cmp.move_smoothing, "move_smoothing");
+		ui::widget::numeric_field(cmp.look_smoothing, "look_smoothing");
+		ui::widget::numeric_field(cmp.zoom_smoothing, "zoom_smoothing");
+	}
 }	 // namespace age::editor
 
 namespace age::editor

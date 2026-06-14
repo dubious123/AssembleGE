@@ -282,6 +282,12 @@ namespace age::graphics::command
 	{
 		clear_uav_uint(h_uav_desc.h_gpu, h_uav_desc.h_cpu_non_shader_visible, g::resource_vec[h_resource].p_resource, reinterpret_cast<const uint32*>(&clear_value), 0, nullptr);
 	}
+
+	void
+	execute_indirect(ID3D12CommandSignature* p_cmd, resource_handle h_arg_buffer, uint64 arg_buffer_offset) noexcept
+	{
+		execute_indirect(p_cmd, 1, g::resource_vec[h_arg_buffer].p_resource, arg_buffer_offset, nullptr, 0);
+	}
 }	 // namespace age::graphics::command
 
 namespace age::graphics::command

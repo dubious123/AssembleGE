@@ -148,6 +148,9 @@ namespace age::editor
 	}
 
 	void
+	ui_component(age::ecs::editor_cam_setting& cmp) noexcept;
+
+	void
 	ui_component(auto&& cmp) noexcept
 	{
 		ui::widget::text_heading("ui for component ?? not implemented yet");

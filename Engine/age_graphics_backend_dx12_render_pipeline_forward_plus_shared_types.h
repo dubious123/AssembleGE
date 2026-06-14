@@ -916,6 +916,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_MAX_RAY_PER_SURFEL 64	  // ideal
 #define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 8)
 
+#define GIBS_SURFEL_OUTER_RADIUS_FACTOR 1.5f
+
 #define GIBS_CELL_SURFEL_COUNT_PREFIX_TPG 32u
 #define GIBS_CELL_SURFEL_COUNT_PREFIX_EPT 32u
 #define GIBS_CELL_SURFEL_COUNT_PREFIX_EPG (GIBS_CELL_SURFEL_COUNT_PREFIX_TPG * GIBS_CELL_SURFEL_COUNT_PREFIX_EPT)
@@ -932,16 +934,14 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_SCREEN_TILE_SIZE		  16u
 #define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
 
-#define GIBS_SPAWN_COVERAGE	   2.f
+#define GIBS_SPAWN_COVERAGE	   1.5f
 #define GIBS_KILL_COVERAGE	   4.f
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
 
 #define GIBS_RADIANCE_CACHE_DELAY 10
 
-#define GIBS_MSME_SHORT_WINDOW_BLEND 0.05f
-
-#define GIBS_MAX_LUMINANCE_FOR_FIREFLY 50.f
+#define GIBS_MSME_SHORT_WINDOW_BLEND 0.08f
 
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
@@ -979,7 +979,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	inline constexpr auto gibs_surfel_screen_ratio = 0.01f;
+	inline constexpr auto gibs_surfel_screen_ratio = 0.025f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
 

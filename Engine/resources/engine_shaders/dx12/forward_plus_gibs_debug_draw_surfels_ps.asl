@@ -262,6 +262,17 @@ main_ps(float4 pos sv_position) sv_target_0
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_INSTABILITY)
 	{
+		if (max_contribution_surfel_id != invalid_id_uint32)
+		{
+			const surfel	  surfel = surfel_arr[max_contribution_surfel_id];
+			const surfel_msme msme	 = msme_arr[max_contribution_surfel_id];
+			return float4(msme.inconsistency, 0, 0, 1);
+		}
+		else
+		{
+			discard;
+			return color_black;
+		}
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT)
 	{

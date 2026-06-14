@@ -899,12 +899,15 @@ gibs_foreach_neighbor_cell(inout t_func fn, const gibs_data data, const gibs_lut
 	}
 }
 
+template <bool is_fallback = false>
 float
 gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const float3 world_pos, const float3 normal)
 {
-	const float3 rel	 = world_pos - surfel.position;
-	const float	 dist_sq = dot(rel, rel);
-	if (dist_sq > surfel.radius * surfel.radius) { return 0.f; }
+	const float	 effective_radius = is_fallback ? surfel.radius * GIBS_SURFEL_OUTER_RADIUS_FACTOR : surfel.radius;
+	const float3 rel			  = world_pos - surfel.position;
+	const float	 dist_sq		  = dot(rel, rel);
+
+	if (dist_sq > effective_radius * effective_radius) { return 0.f; }
 
 	const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
 
@@ -912,7 +915,7 @@ gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const f
 
 	if (cos_theta < 0.f) { return 0.f; }
 
-	return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / surfel.radius));
+	return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / effective_radius));
 }
 
 // based on ray-tracing-gems ch25
@@ -1063,10 +1066,10 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 
 	for (uint32 i = 0; i < entry.count; ++i)
 	{
-		const uint32 surfel_id = cell_to_surfel_id_arr[entry.offset + i];
-		const surfel surfel	   = gibs_load_surfel_arr(data)[surfel_id];
+		const uint32 surfel_id	  = cell_to_surfel_id_arr[entry.offset + i];
+		surfel		 surfel		  = gibs_load_surfel_arr(data)[surfel_id];
+		const float	 contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
 
-		const float contribution = gibs_calc_surfel_contribution(data, surfel, world_pos, normal);
 		if (surfel.radius == 0.f or contribution == 0.f) { continue; }
 
 		assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs);

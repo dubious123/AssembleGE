@@ -168,6 +168,9 @@ namespace age::graphics::command
 	void
 	clear_uav(resource_handle h_resource, const clear_uav_desc_handle& h_uav_desc, const uint32_4& clear_value) noexcept;
 
+	void
+	execute_indirect(ID3D12CommandSignature* p_cmd, resource_handle h_arg_buffer, uint64 arg_buffer_offset = 0u) noexcept;
+
 #undef DEF_CMD
 
 	uint64

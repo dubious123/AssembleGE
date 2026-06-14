@@ -160,6 +160,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;
 
+		// active surfel curr
+		graphics::command_signature::handle h_cmd_sig;
+		ID3D12CommandSignature*				p_cmd_sig;
+
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 

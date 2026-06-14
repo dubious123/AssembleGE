@@ -936,6 +936,7 @@ cross(float3, float3)
 	#define groupshared
 
 	#define group_memory_barrier_with_sync()
+	#define device_memory_barrier_with_group_sync()
 
 	#define interlocked_add(...)
 	#define interlocked_min(...)
@@ -994,13 +995,14 @@ cross(float3, float3)
 
 	#define reg(...) : register(__VA_ARGS__)
 	#define semantics(x) : x
-	#define output_topology(x)				 outputtopology(x)
-	#define set_mesh_output_counts(x, y)	 SetMeshOutputCounts(x, y)
-	#define expand(x)						 [unroll(x)]
-	#define expand_all()					 [unroll]
-	#define attr_branch()					 [branch]
-	#define attr_loop()						 [loop]
-	#define group_memory_barrier_with_sync() GroupMemoryBarrierWithGroupSync()
+	#define output_topology(x)						outputtopology(x)
+	#define set_mesh_output_counts(x, y)			SetMeshOutputCounts(x, y)
+	#define expand(x)								[unroll(x)]
+	#define expand_all()							[unroll]
+	#define attr_branch()							[branch]
+	#define attr_loop()								[loop]
+	#define group_memory_barrier_with_sync()		GroupMemoryBarrierWithGroupSync()
+	#define device_memory_barrier_with_group_sync() DeviceMemoryBarrierWithGroupSync()
 
 	#define interlocked_add(...)		  InterlockedAdd(__VA_ARGS__)
 	#define interlocked_min(...)		  InterlockedMin(__VA_ARGS__)

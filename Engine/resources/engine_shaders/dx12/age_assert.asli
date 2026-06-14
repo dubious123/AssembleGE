@@ -266,7 +266,7 @@ struct debug_printer
 
 #define def_append_arg(type_name) \
 	void                          \
-	append_arg(type_name arg)     \
+	append_arg(in type_name arg)  \
 	{                             \
 		store(buf, offset, arg);  \
 		offset += sizeof(arg);    \
@@ -289,6 +289,7 @@ struct debug_printer
 	def_append_arg(float3x3);
 	def_append_arg(float3x4);
 	def_append_arg(float4x4);
+
 #undef def_append_arg
 
 	template <uint32 n>
@@ -308,7 +309,7 @@ struct debug_printer
 
 template <uint32 n>
 void
-debug_assert_impl(const uint32 fmt[n])
+debug_log(const uint32 fmt[n])
 {
 	debug_printer printer = debug_printer::init(debug_assert_buffer, n + 1, 0, 0);
 
@@ -326,7 +327,7 @@ debug_assert_impl(const uint32 fmt[n])
 
 template <uint32 n, typename t0>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0)
+debug_log(const uint32 fmt[n], t0 arg0)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 
@@ -349,7 +350,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0)
 
 template <uint32 n, typename t0, typename t1>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -377,7 +378,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1)
 
 template <uint32 n, typename t0, typename t1, typename t2>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -408,7 +409,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2)
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -443,7 +444,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3)
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -482,7 +483,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 ar
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -524,7 +525,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 ar
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -570,7 +571,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 ar
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -619,7 +620,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 ar
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -672,7 +673,7 @@ debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 ar
 
 template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9>
 void
-debug_assert_impl(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9)
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9)
 {
 	arg_header arg_header_0 = arg_header_init(arg0);
 	arg_header arg_header_1 = arg_header_init(arg1);
@@ -732,7 +733,7 @@ assert(bool test)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_0, g::default_shader_file_name);
+		debug_log(g::fmt_default_assert_0, g::default_shader_file_name);
 	}
 #endif
 }
@@ -744,7 +745,7 @@ assert(bool test, t_file file)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_1, file);
+		debug_log(g::fmt_default_assert_1, file);
 	}
 #endif
 }
@@ -756,7 +757,7 @@ assert(bool test, t_file file, uint32 arg_line)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line);
+		debug_log(g::fmt_default_assert_2, file, arg_line);
 	}
 #endif
 }
@@ -768,7 +769,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0);
 	}
 #endif
 }
@@ -780,7 +781,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1)
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1);
 	}
 #endif
 }
@@ -792,7 +793,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2);
 	}
 #endif
 }
@@ -804,7 +805,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3);
 	}
 #endif
 }
@@ -816,7 +817,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4);
 	}
 #endif
 }
@@ -828,7 +829,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5);
 	}
 #endif
 }
@@ -840,7 +841,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 	}
 #endif
 }
@@ -852,7 +853,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 	}
 #endif
 }
@@ -864,7 +865,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 	}
 #endif
 }
@@ -876,7 +877,7 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_assert_impl(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 	}
 #endif
 }

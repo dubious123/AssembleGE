@@ -594,6 +594,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		p_pso_debug_draw_surfels = graphics::g::pso_ptr_vec[h_pso_debug_draw_surfels];
 		h_pso_debug_draw_surfels.set_name(L"pso_gibs_debug_draw_surfels");
+
+
+		h_cmd_sig = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
+		p_cmd_sig = h_cmd_sig.ptr();
 	}
 
 	inline void
@@ -661,13 +665,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::set_pso(p_pso_prepare);
 		command::dispatch(util::ceil(max(gpu_data.cell_count_total, gpu_data.max_surfel_count), 32), 1, 1);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
-								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
+								barrier::buf_uav_to_indirect(h_indirect_arg_buffer));
 
 
 		// todo execute_indirect (active surfel count)
 		// todo surfel_geo_buffer should be srv
 		command::set_pso(p_pso_update_surfel);
-		command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		// dispatch( ceil(alive_stack.size() , 32), 1, 1 )
+		command::execute_indirect(p_cmd_sig, h_indirect_arg_buffer);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer));
@@ -767,6 +773,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso_build_cdf);
 		pso::destroy(h_pso_tile_coverage);
 		pso::destroy(h_pso_debug_draw_surfels);
+
+		command_signature::destroy(h_cmd_sig);
 	}
 }	 // namespace age::graphics::render_pipeline::forward_plus
 

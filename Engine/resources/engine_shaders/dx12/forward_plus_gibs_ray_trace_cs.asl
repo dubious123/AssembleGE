@@ -115,36 +115,59 @@ main_cs(uint32 group_id sv_group_id,
 	assert(ray_entry.surfel_id < data.max_surfel_count, g::fmt_forward_plus_gibs_ray_trace_cs, line);
 
 	const float luminance_sum = irradiance_atlas[atlas_offset + uint32_2(GIBS_ATLAS_TILE_SIZE - 1, GIBS_ATLAS_TILE_SIZE - 1)].y;
+	bool		ray_guided	  = false;
 
 	const surfel_recycle_data recycle = gibs_load_surfel_recycle_data_rw_arr(data)[ray_entry.surfel_id];
+
+	float pdf_guide_test;
+	float pdf_cos_test;
 	if (luminance_sum > GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE)
 	{
 		float		pdf_guide	   = 0.f;
 		float		pdf_cos		   = 0.f;
-		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.95f;
+		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.6f;
 		// clang-format off
 		luminance_cdf_arr<texture_2d<float2> > luminance_cdf = luminance_cdf_arr<texture_2d<float2> >::init(global_resource_buffer[data.h_irradiance_atlas_srv_id], atlas_offset);
 		// clang-format on
 		if (rand_4d.w < ray_guide_prob)
 		{
+			ray_guided = true;
 			// idx is always less than GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE
 			const uint32 idx = upper_boundary(luminance_cdf, 0, GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1, rand_4d.x);
+
 
 			const float2 jitter = rand_4d.yz;
 			const float2 uv		= saturate((int32_2(idx % GIBS_ATLAS_TILE_SIZE, idx / GIBS_ATLAS_TILE_SIZE) + jitter) / float(GIBS_ATLAS_TILE_SIZE));
 			dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
 
+
 			const float p_texel = idx == 0
 									? luminance_cdf[idx]
 								: idx == GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1
 									? 1.f - luminance_cdf[idx - 1]
-									: luminance_cdf[idx] - luminance_cdf[idx - 1];
+									: max(0.f, luminance_cdf[idx] - luminance_cdf[idx - 1]);
 			// pdf_uv = p_texel / (4.f / float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE));
 			const float pdf_uv = max(p_texel, epsilon_1e4) * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
 			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
 			pdf_guide		   = pdf_w;
 
 			pdf_cos = max(epsilon_1e4, dir_local.y) * pi_inv;
+
+
+			pdf_guide_test = pdf_guide;
+			pdf_cos_test   = pdf_cos;
+			// if (ray_id == 0)
+			//{
+			//	for (uint32 i = 0; i < GIBS_ATLAS_TILE_SIZE; ++i)
+			//	{
+			//		for (uint32 j = 0; j < GIBS_ATLAS_TILE_SIZE; ++j)
+			//		{
+			//			const uint32 idx = i * GIBS_ATLAS_TILE_SIZE + j;
+			//			debug_log(g::fmt_forward_plus_gibs_ray_trace_cs, ray_id,
+			//					  uint32_2(i, j), luminance_cdf[idx]);
+			//		}
+			//	}
+			// }
 		}
 		else
 		{
@@ -166,13 +189,30 @@ main_cs(uint32 group_id sv_group_id,
 									? luminance_cdf[idx]
 								: idx == GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1
 									? 1.f - luminance_cdf[idx - 1]
-									: luminance_cdf[idx] - luminance_cdf[idx - 1];
+									: max(0.f, luminance_cdf[idx] - luminance_cdf[idx - 1]);
 
 			const float pdf_uv = p_texel * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
 			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
 			pdf_guide		   = pdf_w;
 
-			assert(pdf_guide >= 0.f, g::fmt_forward_plus_gibs_ray_trace_cs, line, uv, texel, idx, p_texel, pdf_uv, pdf_w);
+
+			// if (pdf_guide < 0.f and wave_is_first_lane())
+			//{
+			//	texture_2d<float2> tex = global_resource_buffer[data.h_irradiance_atlas_srv_id];
+			//	for (uint32 v = 0; v < GIBS_ATLAS_TILE_SIZE; ++v)
+			//	{
+			//		for (uint32 u = 0; u < GIBS_ATLAS_TILE_SIZE; ++u)
+			//		{
+			//			uint32_2 px = atlas_offset + uint32_2(u, v);
+
+			//			const uint32 idx = v * GIBS_ATLAS_TILE_SIZE + u;
+			//			debug_log(g::fmt_forward_plus_gibs_ray_trace_cs, ray_id,
+			//					  v, u, tex[px]);
+			//		}
+			//	}
+			//}
+
+			// assert(pdf_guide >= 0.f, g::fmt_forward_plus_gibs_ray_trace_cs, line, uv, texel, idx, p_texel, pdf_uv, pdf_w);
 		}
 
 		pdf = ray_guide_prob * pdf_guide + (1.f - ray_guide_prob) * pdf_cos;
@@ -198,4 +238,10 @@ main_cs(uint32 group_id sv_group_id,
 	res.pdf			   = pdf;
 
 	gibs_load_ray_result_rw_arr(data).store(ray_id, res);
+
+
+	// if (surfel.alive_idx == 400 and ray_guided)
+	//{
+	//	debug_log(g::fmt_forward_plus_gibs_ray_trace_cs, ray_entry.local_ray_id, dir_world, decode_r11g11b10(res.radiance_r11g11b10), res.pdf, length(camera_pos - surfel.position), pdf_guide_test, pdf_cos_test);
+	// }
 }

@@ -151,14 +151,14 @@ main_cs(
 
 	// calc ideal ray count
 
-	const rw_byte_array<uint32>		 ray_count_arr			 = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	const rw_byte_array<uint32>		 ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	const rw_byte_array<surfel_msme> msme_arr				 = gibs_load_surfel_msme_rw_arr(data);
-	const surfel_msme				 msme					 = msme_arr[surfel_id];
+	rw_byte_array<uint32>	   ray_count_arr		   = gibs_load_surfel_ray_count_ideal_rw_arr(data);
+	rw_byte_array<uint32>	   ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
+	rw_byte_array<surfel_msme> msme_arr				   = gibs_load_surfel_msme_rw_arr(data);
+	const surfel_msme		   msme					   = msme_arr[surfel_id];
 
-	const float variance = length(msme.variance);
+	assert(msme.inconsistency <= 1.f);
+	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(msme.inconsistency)));
 
-	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(variance * 1.2f)));
 	if (surfel_seen is_false)
 	{
 		ray_count_ideal /= 4;
