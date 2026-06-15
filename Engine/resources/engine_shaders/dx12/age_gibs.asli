@@ -70,6 +70,13 @@ gibs_set_indirect_arg_build_cdf(const gibs_data data, uint32_3 arg)
 	store(buf, sizeof(uint32_3) * 6, arg);
 }
 
+void
+gibs_set_indirect_arg_radiance_sharing(const gibs_data data, uint32_3 arg)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+	store(buf, sizeof(uint32_3) * 7, arg);
+}
+
 //---[ gibs counter ]------------------------------------------------------------------------------------------------------
 uint32
 gibs_alloc_cell_surfel_offset(const gibs_data data, uint32 surfel_count)
@@ -240,6 +247,30 @@ gibs_store_ray_entry(const gibs_data data, uint32 idx, const gibs_ray_entry entr
 	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
 	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
 	store<gibs_ray_entry>(buf, data.ray_result_offset + sizeof(gibs_ray_result) * idx, entry);
+}
+
+//---[ surfel spawn kill stack ]------------------------------------------------------------------------------------------------------
+rw_stack<surfel_spawn_data>
+gibs_load_surfel_spawn_kill_stack(const gibs_data data)
+{
+	// float to uint32 conversion has no error within reasonable backbuffer extent
+	const uint32 cap = ceil(cast<uint32>(backbuffer_size.x), GIBS_SCREEN_TILE_SIZE) * ceil(cast<uint32>(backbuffer_size.y), GIBS_SCREEN_TILE_SIZE);
+	return rw_stack<surfel_spawn_data>::init(global_resource_buffer[data.h_surfel_spawn_kill_uav_id], 0u, cap);
+}
+
+byte_array<surfel_spawn_data>
+gibs_load_surfel_spawn_kill_array(const gibs_data data)
+{
+	// float to uint32 conversion has no error within reasonable backbuffer extent
+	const uint32 cap = ceil(cast<uint32>(backbuffer_size.x), GIBS_SCREEN_TILE_SIZE) * ceil(cast<uint32>(backbuffer_size.y), GIBS_SCREEN_TILE_SIZE);
+	return byte_array<surfel_spawn_data>::init(global_resource_buffer[data.h_surfel_spawn_kill_srv_id], sizeof(uint32), cap);
+}
+
+uint32
+gibs_load_surfel_spawn_kill_array_size(const gibs_data data)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_surfel_spawn_kill_srv_id];
+	return load<uint32>(buf, 0);
 }
 
 //---[ logics ]------------------------------------------------------------------------------------------------------
@@ -1067,18 +1098,20 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 	const int32_2 offset = gibs_calc_atlas_offset(data, surfel_id);
 	const int32_2 px	 = gibs_calc_atlas_tile_px(offset, dir_local);
 
-	const texture_2d<float2>	visibility_atlas_srv = global_resource_buffer[data.h_visibility_atlas_srv_id];
-	const rw_texture_2d<float2> visibility_atlas_uav = global_resource_buffer[data.h_visibility_atlas_uav_id];
-	float2						chebyshev;
+	float2 chebyshev;
 
 	attr_branch()
 
 	if (is_srv)
 	{
+		const texture_2d<float2> visibility_atlas_srv = global_resource_buffer[data.h_visibility_atlas_srv_id];
+
 		chebyshev = visibility_atlas_srv[px];
 	}
 	else
 	{
+		const rw_texture_2d<float2> visibility_atlas_uav = global_resource_buffer[data.h_visibility_atlas_uav_id];
+
 		chebyshev = visibility_atlas_uav[px];
 	}
 
@@ -1097,12 +1130,84 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 }
 
 float3
-gibs_sample_irradiance(float3 world_pos, float3 normal)
+gibs_sample_irradiance2(float3 world_pos, float3 normal)
 {
 	world_pos += normal * 0.05f;
 
 	const gibs_data		data	 = gibs_load_gibs_data();
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
+
+	const int32_4 cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
+
+	const uint32			 cell_idx_flat		   = gibs_flatten_cell_idx(data, cell_idx);
+	const gibs_cell_entry	 entry				   = gibs_load_cell_entry_arr(data)[cell_idx_flat];
+	const byte_array<uint32> cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_arr(data);
+
+	const rw_byte_array<surfel_recycle_data> recycle_arr = gibs_load_surfel_recycle_data_rw_arr(data);
+
+	float4 irradiance_sum = (float4)0;	  // w = weight_sum
+
+	for (uint32 i = 0; i < entry.count; ++i)
+	{
+		const uint32 surfel_id	  = cell_to_surfel_id_arr[entry.offset + i];
+		surfel		 surfel		  = gibs_load_surfel_arr(data)[surfel_id];
+		const float	 contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+
+		if (surfel.radius == 0.f or contribution == 0.f) { continue; }
+
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs);
+
+		surfel_recycle_data recycle_data = recycle_arr[surfel_id];
+		recycle_data.add_ref();
+		recycle_arr.store(surfel_id, recycle_data);
+
+		irradiance_sum += float4(surfel.radiance, 1.f)
+						* contribution
+						* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data.frame_since_born))
+						* gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		// irradiance_sum += float4(surfel.radiance, 1.f) * contribution * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born));
+
+		// todo visibility
+	}
+
+	if (irradiance_sum.w > 0.f)
+	{
+		return irradiance_sum.xyz / irradiance_sum.w;
+	}
+
+	// todo fallback
+	return float3(0, 0, 0);
+}
+
+float3
+gibs_sample_irradiance(float3 world_pos, float3 normal)
+{
+	const gibs_data		data	 = gibs_load_gibs_data();
+	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
+
+	// world_pos += normal * 0.05f;
+
+	const float4   clip_pos	  = mul(view_proj, float4(world_pos, 1.f));
+	const float3   ndc		  = clip_pos.xyz / clip_pos.w;
+	const uint32_2 screen_pos = uint32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
+	const bool	   in_screen  = clip_pos.w > 0.f and all(ndc.xy >= -1.f) and all(ndc.xy <= 1.f) and ndc.z >= 0.f and ndc.z <= 1.f;
+
+	if (in_screen)
+	{
+		texture_2d<float>  depth_buffer		 = global_resource_buffer[depth_buffer_texture_id];
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+		const float		   z_depth			 = load(depth_buffer, screen_pos);
+
+		const bool surfel_seen = z_depth != 0.f
+							 and ndc.z >= (z_depth - epsilon_1e4);	  // z_depth + 0.5f - surfel - z_depth - 0.f(far)
+
+		if (surfel_seen)
+		{
+			const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
+			return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
+		}
+	}
 
 	const int32_4 cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
 

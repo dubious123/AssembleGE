@@ -571,13 +571,26 @@ namespace age::graphics::render_pipeline::forward_plus
 		h_pso_build_cdf.set_name(L"pso_gibs_build_cdf");
 
 
-		h_pso_tile_coverage = graphics::pso::create(
+		h_pso_radiance_sharing = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_tile_coverage_cs) });
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_radiance_sharing_cs) });
 
-		p_pso_tile_coverage = graphics::g::pso_ptr_vec[h_pso_tile_coverage];
-		h_pso_tile_coverage.set_name(L"pso_gibs_tile_coverage");
+		p_pso_radiance_sharing = graphics::g::pso_ptr_vec[h_pso_radiance_sharing];
+		h_pso_radiance_sharing.set_name(L"pso_gibs_radiance_sharing");
 
+		h_pso_gi_resolve = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_gi_resolve_cs) });
+
+		p_pso_gi_resolve = graphics::g::pso_ptr_vec[h_pso_gi_resolve];
+		h_pso_gi_resolve.set_name(L"pso_gibs_gi_resolve");
+
+		h_pso_spawn_kill = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_spawn_kill_cs) });
+
+		p_pso_spawn_kill = graphics::g::pso_ptr_vec[h_pso_spawn_kill];
+		h_pso_spawn_kill.set_name(L"pso_gibs_spawn_kill");
 
 		h_pso_debug_draw_surfels = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
@@ -664,11 +677,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::set_pso(p_pso_prepare);
 		command::dispatch(util::ceil(max(gpu_data.cell_count_total, gpu_data.max_surfel_count), 32), 1, 1);
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_info_buffer),
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_spawn_kill_buffer),
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_uav_to_indirect(gibs_data_cpu.h_indirect_arg_buffer));
 
 
-		// todo execute_indirect (active surfel count)
 		// todo surfel_geo_buffer should be srv
 		command::set_pso(p_pso_update_surfel);
 		// dispatch( ceil(alive_stack.size() , 32), 1, 1 )
@@ -683,13 +696,11 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
 								barrier::buf_uav_to_indirect(gibs_data_cpu.h_indirect_arg_buffer));
 
-		// todo execute_indirect (active surfel count)
 		command::set_pso(p_pso_ray_count_prefix);
 		// command::dispatch(util::ceil(gpu_data.max_surfel_count, g::gibs_ray_reduce_epg), 1, 1);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_count_prefix));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer));
 
-		// todo execute_indirect (active surfel count)
 		command::set_pso(p_pso_ray_entry);
 		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_entry));
@@ -705,7 +716,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		// todo, surfel -> srv?
 		// todo, alive stack curr -> srv?
-		// todo, alive stack size -> indirect execute?
 		// todo, cache intersaction
 		command::set_pso(p_pso_cell_to_surfel_scatter);
 		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
@@ -723,7 +733,6 @@ namespace age::graphics::render_pipeline::forward_plus
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		// todo execute_indirect (active surfel)
 		command::set_pso(p_pso_ray_integrate);
 		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_integrate));
@@ -732,17 +741,28 @@ namespace age::graphics::render_pipeline::forward_plus
 								barrier::tex_uav_to_uav(gibs_data_cpu.h_irradiance_atlas),
 								barrier::tex_uav_to_srv(gibs_data_cpu.h_visibility_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
-		// todo execute_indirect (active surfel)
-		// do radiance sharing
+
 		command::set_pso(p_pso_build_cdf);
-		// command::dispatch(32 * 32, util::ceil(gpu_data.max_surfel_count, 32 * 32), 1);
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_build_cdf));
 		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_irradiance_atlas, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
-		command::set_pso(p_pso_tile_coverage);
-		command::dispatch(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 1);
+		command::set_pso(p_pso_radiance_sharing);
+		// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
+		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_radiance_sharing));
 		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
-								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
+		command::set_pso(p_pso_gi_resolve);
+		command::dispatch(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size), util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 1);
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_spawn_kill_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_srv_to_uav(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+
+		command::set_pso(p_pso_spawn_kill);
+		command::dispatch(util::ceil(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size) * util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 32u), 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 	}
 
 	inline void
@@ -779,8 +799,10 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso_cell_to_surfel_scatter);
 		pso::destroy(h_pso_ray_trace);
 		pso::destroy(h_pso_ray_integrate);
+		pso::destroy(h_pso_radiance_sharing);
 		pso::destroy(h_pso_build_cdf);
-		pso::destroy(h_pso_tile_coverage);
+		pso::destroy(h_pso_gi_resolve);
+		pso::destroy(h_pso_spawn_kill);
 		pso::destroy(h_pso_debug_draw_surfels);
 
 		command_signature::destroy(h_cmd_sig);

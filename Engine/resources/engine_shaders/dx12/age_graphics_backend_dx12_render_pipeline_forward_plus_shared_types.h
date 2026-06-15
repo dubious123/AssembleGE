@@ -69,6 +69,7 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		uint32_3 arg_ray_trace;
 		uint32_3 arg_ray_integrate;
 		uint32_3 arg_build_cdf;
+		uint32_3 arg_radiance_sharing;
 	};
 
 	struct gibs_data
@@ -82,15 +83,19 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 h_surfel_buffer_srv_id;
 		uint32 h_cell_info_buffer_srv_id;
+		uint32 h_surfel_spawn_kill_srv_id;
 		uint32 h_irradiance_atlas_srv_id;
 		uint32 h_visibility_atlas_srv_id;
+		uint32 h_gi_resolve_buffer_srv_id;
 		uint32 h_gbuffer_srv_id;
 
 		uint32 h_surfel_buffer_uav_id;
 		uint32 h_cell_info_buffer_uav_id;
+		uint32 h_surfel_spawn_kill_uav_id;
 		uint32 h_scratch_buffer_uav_id;
 		uint32 h_irradiance_atlas_uav_id;
 		uint32 h_visibility_atlas_uav_id;
+		uint32 h_gi_resolve_buffer_uav_id;
 
 		uint32 h_indirect_arg_uav_id;
 
@@ -140,6 +145,42 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 		kill()
 		{
 			radius = 0.f;
+		}
+	};
+
+	struct surfel_spawn_data
+	{
+		uint32 object_id_or_surfel_id;
+		float3 local_pos;	 // if nan, kill
+		uint32 local_normal_oct_snorm16;
+
+		static surfel_spawn_data
+		init_spawn(uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16)
+		{
+			surfel_spawn_data res;
+			res.object_id_or_surfel_id	 = object_id;
+			res.local_pos				 = local_pos;
+			res.local_normal_oct_snorm16 = local_normal_oct_snorm16;
+			return res;
+		}
+
+		static surfel_spawn_data
+		init_kill(uint32 surfel_id)
+		{
+			surfel_spawn_data res;
+			res.object_id_or_surfel_id = surfel_id;
+			res.local_pos.x			   = as_float(0x7F800000);
+			res.local_pos.y			   = as_float(0x7F800000);
+			res.local_pos.z			   = as_float(0x7F800000);
+
+			res.local_normal_oct_snorm16 = 0;
+			return res;
+		}
+
+		bool
+		is_spawn()
+		{
+			return local_pos.x != as_float(0x7F800000);
 		}
 	};
 
@@ -948,7 +989,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
 
 #define GIBS_SPAWN_COVERAGE	   1.5f
-#define GIBS_KILL_COVERAGE	   4.f
+#define GIBS_KILL_COVERAGE	   3.f
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
 

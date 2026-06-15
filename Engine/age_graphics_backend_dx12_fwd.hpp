@@ -69,7 +69,9 @@ namespace age::graphics::e
 					forward_plus_gibs_ray_trace_cs,
 					forward_plus_gibs_ray_integrate_cs,
 					forward_plus_gibs_build_cdf_cs,
-					forward_plus_gibs_tile_coverage_cs,
+					forward_plus_gibs_radiance_sharing_cs,
+					forward_plus_gibs_gi_resolve_cs,
+					forward_plus_gibs_spawn_kill_cs,
 					forward_plus_gibs_debug_draw_surfels_ps,
 
 					forward_plus_opaque_as,

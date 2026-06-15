@@ -52,6 +52,7 @@ main_cs(
 	texture_2d<uint32_2>			   gbuffer		= global_resource_buffer[data.h_gbuffer_srv_id];
 	texture_2d<float>				   depth_buffer = global_resource_buffer[depth_buffer_texture_id];
 	rw_array<surfel>				   surfel_arr	= gibs_load_surfel_rw_arr(data);
+	rw_byte_array<surfel_msme>		   msme_arr		= gibs_load_surfel_msme_rw_arr(data);
 
 	surfel				  surfel		 = surfel_arr[surfel_id];
 	const surfel_geometry surfel_geo	 = geo_arr[surfel_id];
@@ -79,9 +80,14 @@ main_cs(
 
 	const bool in_screen = clip_pos.w > 0.f and all(ndc.xy >= -1.f) and all(ndc.xy <= 1.f) and ndc.z >= 0.f and ndc.z <= 1.f;
 
-	const float z_depth = in_screen
-							? load(depth_buffer, screen_pos)
-							: 0.f;
+
+	const float z_depth		= in_screen
+								? load(depth_buffer, screen_pos)
+								: 0.f;
+	const bool	surfel_seen = in_screen
+						  and z_depth != 0.f
+						  and ndc.z >= (z_depth - epsilon_1e4)
+						  and ndc.z - z_depth < 0.5f;	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
 
 	const uint32 g_object_id = in_screen and z_depth != 0.f
 								 ? load(gbuffer, screen_pos).x
@@ -93,18 +99,23 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	else if (in_screen and z_depth != 0.f and surfel_geo.object_id != g_object_id)
-	{
-		kill_surfel = true;
-	}
-	else if (alive_count_prev_total > 0.8f * data.max_surfel_count and surfel_recycle.frame_since_ref() > 0xfe)
-	{
-		kill_surfel = true;
-	}
-	// else if (alive_count_prev_total > 0.8f * data.max_surfel_count and surfel_recycle.frame_since_seen() > 128u)
+	// else if (surfel_seen and surfel_geo.object_id != g_object_id)
 	//{
 	//	kill_surfel = true;
 	// }
+	else if (surfel_seen is_false and surfel_recycle.frame_since_ref() > 0xfe)
+	{
+		kill_surfel = true;
+	}
+	// else if (/*alive_count_prev_total > 0.8f * data.max_surfel_count and */ surfel_recycle.frame_since_seen() > 128u)
+	//{
+	//	kill_surfel = true;
+	// }
+
+	if (surfel_recycle.frame_since_born == 0u)
+	{
+		kill_surfel = false;
+	}
 
 	if (kill_surfel)
 	{
@@ -113,17 +124,31 @@ main_cs(
 	}
 
 	assert(surfel_recycle.frame_since_seen() <= 0xfff, g::fmt_gibs_update_surfels);
-	const bool surfel_seen = in_screen
-						 and z_depth != 0.f
-						 and ndc.z >= (z_depth - epsilon_1e4)
-						 and ndc.z - z_depth < 0.5f;	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
-	surfel_recycle.next_frame(surfel_seen);
-	recycle_arr.store(surfel_id, surfel_recycle);
+
 
 	surfel.position			  = world_pos;
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
 	surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
+	if (surfel_recycle.frame_since_born == 0u)
+	{
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
 
+		const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
+		surfel.radiance = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
+
+		surfel_msme msme = msme_arr[surfel_id];
+
+		msme.mean_long	   = surfel.radiance;
+		msme.mean_short	   = surfel.radiance;
+		msme.vbbr		   = 0.f;
+		msme.variance	   = float3(1.f, 1.f, 1.f);
+		msme.inconsistency = 1.f;
+
+		msme_arr.store(surfel_id, msme);
+	}
+
+	surfel_recycle.next_frame(surfel_seen);
+	recycle_arr.store(surfel_id, surfel_recycle);
 	// alive stack prev -> alive stack curr
 	const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
 
@@ -151,10 +176,9 @@ main_cs(
 
 	// calc ideal ray count
 
-	rw_byte_array<uint32>	   ray_count_arr		   = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	rw_byte_array<uint32>	   ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	rw_byte_array<surfel_msme> msme_arr				   = gibs_load_surfel_msme_rw_arr(data);
-	const surfel_msme		   msme					   = msme_arr[surfel_id];
+	rw_byte_array<uint32> ray_count_arr			  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
+	rw_byte_array<uint32> ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
+	const surfel_msme	  msme					  = msme_arr[surfel_id];
 
 	assert(msme.inconsistency <= 1.f);
 	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(msme.inconsistency)));

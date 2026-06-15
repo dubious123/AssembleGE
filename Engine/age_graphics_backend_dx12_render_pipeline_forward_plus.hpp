@@ -154,8 +154,14 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_build_cdf;
 		ID3D12PipelineState*  p_pso_build_cdf;
 
-		graphics::pso::handle h_pso_tile_coverage;
-		ID3D12PipelineState*  p_pso_tile_coverage;
+		graphics::pso::handle h_pso_radiance_sharing;
+		ID3D12PipelineState*  p_pso_radiance_sharing;
+
+		graphics::pso::handle h_pso_gi_resolve;
+		ID3D12PipelineState*  p_pso_gi_resolve;
+
+		graphics::pso::handle h_pso_spawn_kill;
+		ID3D12PipelineState*  p_pso_spawn_kill;
 
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;

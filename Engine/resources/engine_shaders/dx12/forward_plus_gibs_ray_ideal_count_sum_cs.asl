@@ -46,5 +46,7 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 		gibs_set_indirect_arg_ray_integrate(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
 		gibs_set_indirect_arg_build_cdf(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+
+		gibs_set_indirect_arg_radiance_sharing(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
 	}
 }

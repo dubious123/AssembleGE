@@ -101,3 +101,12 @@ emissive mat이랑 wall이 있고, 그 사이에 probe가 없으면, 망함
 => surfel 시도
 
 ### surfel 
+1차 완성 
+todo 
+- corner에서 inside wall surfel들이 영향을 너무 크게 줌 
+- 특정 상황에서 fps가 나락을 감. cell 에 surfel 개수가 너무 몰려있는것 같은데 아직 조건을 모르겠음 
+- probe fallback이 있으면 화면 전환등의 상황에서 도움이 될것 같음
+
+- tile당 surfel 수가 너무 많음 256을 넘어감. 
+- 화면에 안보이는 surfel끼리 그냥 계속 add ref로 살아남음. 특히 밀실에 있는 surfel끼리 그냥 난리가 남
+- corner에 surfel들이 계속 생성되는듯? 

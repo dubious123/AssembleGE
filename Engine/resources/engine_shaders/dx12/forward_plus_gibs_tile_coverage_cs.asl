@@ -15,7 +15,6 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	}
 
 	const gibs_data					   data				 = gibs_load_gibs_data();
-	const gibs_lut_data				   lut_data			 = gibs_load_gibs_lut_data();
 	texture_2d<float>				   depth_tex		 = global_resource_buffer[depth_buffer_texture_id];
 	texture_2d<uint32_2>			   gbuffer			 = global_resource_buffer[data.h_gbuffer_srv_id];
 	texture_2d<float2>				   visibility_atlas	 = global_resource_buffer[data.h_visibility_atlas_srv_id];
@@ -44,16 +43,14 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	const float4 clip_pos  = mul(view_proj_inv, float4(ndc, z_depth, 1.0));
 	const float3 world_pos = clip_pos.xyz / clip_pos.w;
 
-	const int32_4 cell_idx		= gibs_calc_cell_idx(data, lut_data, world_pos);
+	const int32_4 cell_idx		= gibs_calc_cell_idx(data, gibs_load_gibs_lut_data(), world_pos);
 	const uint32  cell_idx_flat = gibs_flatten_cell_idx(data, cell_idx);
 
 	gibs_cell_entry cell_tmp = (gibs_cell_entry)0;
 	if (is_thread_valid) { cell_tmp = cell_entry_arr[cell_idx_flat]; }
 	const gibs_cell_entry cell_entry = cell_tmp;
 
-	float  coverage					  = is_thread_valid ? 0.f : float_max;
-	float  min_contribution			  = float_max;
-	uint32 min_contribution_surfel_id = invalid_id_uint32;
+	float coverage = is_thread_valid ? 0.f : float_max;
 
 	float  max_contribution			  = 0.f;
 	uint32 max_contribution_surfel_id = invalid_id_uint32;
@@ -70,33 +67,24 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (surfel.radius == 0.f) { continue; }
 
-		const float contribution		  = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
-		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
+		const float contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
+		// const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
 
 		coverage += contribution;
 
-		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+		// const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
-		if (visibility == 0.f) { continue; }
+		// if (visibility == 0.f) { continue; }
 
-		radiance_shared += float4(surfel.radiance, 1.f)
-						 * fallback_contribution
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
-						 * visibility;
+		// radiance_shared += float4(surfel.radiance, 1.f)
+		//				 * fallback_contribution
+		//				 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
+		//				 * visibility;
 
-		if (contribution > 0.f)
+		if (contribution > 0.f and max_contribution < contribution)
 		{
-			if (min_contribution > contribution)
-			{
-				min_contribution		   = contribution;
-				min_contribution_surfel_id = surfel_id;
-			}
-
-			if (max_contribution < contribution)
-			{
-				max_contribution		   = contribution;
-				max_contribution_surfel_id = surfel_id;
-			}
+			max_contribution		   = contribution;
+			max_contribution_surfel_id = surfel_id;
 		}
 	}
 
@@ -139,6 +127,27 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 			uint32 new_surfel_id;
 			if (rnd < spawn_prob and dead_stack.try_pop(new_surfel_id))
 			{
+				for (uint32 i = 0; i < cell_entry.count; ++i)
+				{
+					const uint32			  surfel_id = cell_to_surfel_id[cell_entry.offset + i];
+					const surfel			  surfel	= surfel_arr[surfel_id];
+					const surfel_recycle_data recycle	= recycle_arr[surfel_id];
+
+					if (surfel.radius == 0.f) { continue; }
+
+					const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
+
+					const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+					if (visibility == 0.f) { continue; }
+
+					radiance_shared += float4(surfel.radiance, 1.f)
+									 * fallback_contribution
+									 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born))
+									 * visibility;
+				}
+
+
 				const uint32 alive_idx = alive_stack.push(new_surfel_id);
 
 				surfel surfel = surfel_arr[new_surfel_id];
@@ -146,7 +155,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 				surfel.position			  = world_pos;
 				surfel.normal_oct_snorm16 = px_normal_oct_snorm16;
-				surfel.radius			  = gibs_calc_surfel_radius(data, lut_data, surfel);
+				surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
 
 				// todo, radiance is too dark
 				// todo, radiance is now too bright

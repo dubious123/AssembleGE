@@ -425,8 +425,10 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		resource_handle h_surfel_buffer;
 		resource_handle h_cell_info_buffer;	   // cell entry (offset, count) + cell coord to surfel
+		resource_handle h_surfel_spawn_kill_buffer;
 		resource_handle h_irradiance_atlas;
 		resource_handle h_visibility_atlas;
+		resource_handle h_gi_resolve_buffer;
 		resource_handle h_gbuffer;
 		resource_handle h_scratch_buffer;
 
@@ -434,15 +436,19 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		srv_desc_handle h_surfel_buffer_srv_desc;
 		srv_desc_handle h_cell_info_srv_desc;
+		srv_desc_handle h_surfel_spawn_kill_srv_desc;
 		srv_desc_handle h_irradiance_atlas_srv_desc;
 		srv_desc_handle h_visibility_atlas_srv_desc;
+		srv_desc_handle h_gi_resolve_buffer_srv_desc;
 		srv_desc_handle h_gbuffer_srv_desc;
 
 		uav_desc_handle h_surfel_buffer_uav_desc;
 		uav_desc_handle h_cell_info_uav_desc;
+		uav_desc_handle h_surfel_spawn_kill_uav_desc;
 		uav_desc_handle h_scratch_buffer_uav_desc;
 		uav_desc_handle h_irradiance_atlas_uav_desc;
 		uav_desc_handle h_visibility_atlas_uav_desc;
+		uav_desc_handle h_gi_resolve_buffer_uav_desc;
 		rtv_desc_handle h_gbuffer_rtv_desc;
 
 		uav_desc_handle h_indirect_arg_uav_desc;

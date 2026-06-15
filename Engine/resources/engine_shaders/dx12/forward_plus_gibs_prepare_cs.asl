@@ -30,5 +30,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		gibs_reset_counter(data);
 
 		gibs_set_indirect_arg_surfel_update(data, uint32_3(ceil(alive_stack_prev.size(), 32u), 1, 1));
+
+		gibs_load_surfel_spawn_kill_stack(data).resize(0);
 	}
 }
