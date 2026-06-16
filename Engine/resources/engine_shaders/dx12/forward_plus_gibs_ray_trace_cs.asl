@@ -1,15 +1,38 @@
 #include "forward_plus_common.asli"
 
+// from RT Gems Ch.6
+// A Fast and Robust Method for Avoiding Self-Intersection
+float3
+offset_ray(float3 p, float3 n)
+{
+	const float origin		= 1.0f / 32.0f;
+	const float float_scale = 1.0f / 65536.0f;
+	const float int_scale	= 256.0f;
+
+	int32_3 of_i = int32_3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+
+	float3 p_i = float3(
+		as_float(as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
+		as_float(as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
+		as_float(as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+
+	return float3(
+		abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
+		abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
+		abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+}
+
 void
-gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_radiance_r11g11b10)
+gibs_trace_ray(float3 pos, float3 normal, float3 dir, out float res_distance, out uint32 res_radiance_r11g11b10)
 {
 	float  distance;
 	float3 color;
 
 	ray_desc desc;
-	desc.Origin	   = pos;
+	// desc.Origin	   = pos;
+	desc.Origin	   = offset_ray(pos, normal);
 	desc.Direction = dir;
-	desc.TMin	   = 0.05f;
+	desc.TMin	   = 0.0f;
 	desc.TMax	   = float_max;
 
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
@@ -38,6 +61,9 @@ gibs_trace_ray(float3 pos, float3 dir, out float res_distance, out uint32 res_ra
 			distance = rt_committed_ray_t(query);
 		}
 	}
+
+	assert(all(color >= 0.f), g::fmt_forward_plus_gibs_ray_trace_cs, line, color);
+	assert(is_nan(color) is_false, g::fmt_forward_plus_gibs_ray_trace_cs, line, color);
 
 	if (distance > 0.f)	   // not inside wall
 	{
@@ -123,7 +149,7 @@ main_cs(uint32 group_id sv_group_id,
 	{
 		float		pdf_guide	   = 0.f;
 		float		pdf_cos		   = 0.f;
-		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.6f;
+		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.5f;
 		// clang-format off
 		luminance_cdf_arr<texture_2d<float2> > luminance_cdf = luminance_cdf_arr<texture_2d<float2> >::init(global_resource_buffer[data.h_irradiance_atlas_srv_id], atlas_offset);
 		// clang-format on
@@ -193,10 +219,11 @@ main_cs(uint32 group_id sv_group_id,
 
 	assert(pdf > 0.f, g::fmt_forward_plus_gibs_ray_trace_cs, line, pdf);
 
-	const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(decode_oct_snorm16(surfel.normal_oct_snorm16)));
+	const float3 normal	   = decode_oct_snorm16(surfel.normal_oct_snorm16);
+	const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(normal));
 
 	gibs_ray_result res;
-	gibs_trace_ray(surfel.position, dir_world, /*out*/ res.distance, /*out*/ res.radiance_r11g11b10);
+	gibs_trace_ray(surfel.position + 0.1f * surfel.radius * normal, normal, dir_world, /*out*/ res.distance, /*out*/ res.radiance_r11g11b10);
 	res.dir_oct_snorm8 = uint32(encode_world_hemi_oct_snorm8(dir_local)) | (uint32(encode_oct_snorm8(dir_world)) << 16u);
 	res.pdf			   = pdf;
 

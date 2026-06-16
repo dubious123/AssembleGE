@@ -1033,7 +1033,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
-	inline constexpr auto gibs_surfel_screen_ratio = 0.025f;
+	inline constexpr auto gibs_surfel_screen_ratio = 0.05f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
 

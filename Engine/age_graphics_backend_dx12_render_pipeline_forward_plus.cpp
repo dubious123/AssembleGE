@@ -1314,7 +1314,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			push_descriptor_deferred(gibs_data_cpu.h_surfel_spawn_kill_uav_desc);
 
 			c_auto screen_tile_count				 = util::ceil(extent.width, g::gibs_screen_tile_size) * util::ceil(extent.height, g::gibs_screen_tile_size);
-			c_auto buffer_size						 = cast_to<uint32>(screen_tile_count * sizeof(shared_type::surfel_spawn_data) + sizeof(uint32));
+			c_auto buffer_size						 = 2 * cast_to<uint32>(screen_tile_count * sizeof(shared_type::surfel_spawn_data) + sizeof(uint32));
 			gibs_data_cpu.h_surfel_spawn_kill_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_surfel_spawn_kill_buffer->set_name(L"gibs_spawn_kill_buffer");
 
@@ -2509,7 +2509,7 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		{
 			c_auto screen_tile_count				 = util::ceil(extent.width, g::gibs_screen_tile_size) * util::ceil(extent.height, g::gibs_screen_tile_size);
-			c_auto buffer_size						 = cast_to<uint32>(screen_tile_count * sizeof(shared_type::surfel_spawn_data) + sizeof(uint32));
+			c_auto buffer_size						 = 2 * cast_to<uint32>(screen_tile_count * sizeof(shared_type::surfel_spawn_data) + sizeof(uint32));
 			gibs_data_cpu.h_surfel_spawn_kill_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_surfel_spawn_kill_buffer->set_name(L"gibs_spawn_kill_buffer");
 

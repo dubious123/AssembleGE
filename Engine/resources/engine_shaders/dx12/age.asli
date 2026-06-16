@@ -715,6 +715,12 @@ as_float(auto _)
 	return 0.f;
 }
 
+int32
+as_int(auto _)
+{
+	return 0;
+}
+
 half
 as_float16(auto _)
 {
@@ -1049,6 +1055,7 @@ cross(float3, float3)
 	#define global_resource_buffer ResourceDescriptorHeap
 
 	#define as_uint	   asuint
+	#define as_int	   asint
 	#define as_float   asfloat
 	#define as_float16 asfloat16
 

@@ -761,7 +761,7 @@ namespace age::graphics::render_pipeline::forward_plus
 								barrier::buf_srv_to_uav(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_spawn_kill);
-		command::dispatch(util::ceil(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size) * util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 32u), 1, 1);
+		command::dispatch(2 * util::ceil(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size) * util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 32u), 1, 1);
 		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 	}
 

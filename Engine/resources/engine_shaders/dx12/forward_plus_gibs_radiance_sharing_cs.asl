@@ -36,6 +36,12 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	// radiance sharing
 
+	if (surfel.radius < epsilon_1e4)
+	{
+		// debug_log(g::fmt_gibs_tile_coverage, surfel_id);
+		return;
+	}
+
 	const gibs_lut_data		 lut_data			   = gibs_load_gibs_lut_data();
 	const uint32			 cell_id			   = gibs_flatten_cell_idx(data, gibs_calc_cell_idx(data, lut_data, surfel.position));
 	const gibs_cell_entry	 cell_entry			   = gibs_load_cell_entry_arr(data)[cell_id];
@@ -47,7 +53,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	attr_loop()
 
-	for (uint32 i = 0; i < cell_entry.count; ++i)
+	for (uint32 i = 0; i < min(0, cell_entry.count); ++i)
 	{
 		const uint32 surfel_id_nbr = cell_to_surfel_id_arr[cell_entry.offset + i];
 
@@ -55,14 +61,16 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 		const struct surfel surfel_nbr = surfel_arr[surfel_id_nbr];
 
+		if (surfel_nbr.radius < epsilon_1e4) { continue; }
+
 		const float contribution = gibs_calc_surfel_contribution<true>(data, surfel_nbr, surfel.position, normal);
 		// surfel_recycle_data recycle_nbr	 = recycle_data_arr[surfel_id_nbr];
 		// if (recycle_nbr.is_new_born()) { continue; }
 
-		// const float cos_theta = dot(normal, decode_oct_snorm16(surfel_nbr.normal_oct_snorm16));
+		const float cos_theta = dot(normal, decode_oct_snorm16(surfel_nbr.normal_oct_snorm16));
 
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
-						 //* max(0.f, cos_theta)
+						 * max(0.f, cos_theta)
 						 * contribution
 						 //* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_nbr.frame_since_born))
 						 * gibs_calc_visibility(data, surfel_id_nbr, surfel_nbr, surfel.position);

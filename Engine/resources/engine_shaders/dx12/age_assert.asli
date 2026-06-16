@@ -94,6 +94,8 @@ namespace g
 	static const uint32 fmt_gibs[]				  = { 'g', 'i', 'b', 's' };
 	static const uint32 fmt_gibs_update_surfels[] = { 'g', 'i', 'b', 's', '_', 'u', 'p', 'd', 'a', 't', '_', 's', 'u', 'r', 'f', 'e', 'l', 's' };
 	static const uint32 fmt_gibs_tile_coverage[]  = { 'g', 'i', 'b', 's', '_', 't', 'i', 'l', 'e', '_', 'c', 'o', 'v', 'e', 'r', 'a', 'g', 'e' };
+	static const uint32 fmt_gibs_gi_resolve[]	  = { 'g', 'i', 'b', 's', '_', 'g', 'i', '_', 'r', 'e', 's', 'o', 'l', 'v', 'e' };
+	static const uint32 fmt_gibs_spawn_kill[]	  = { 'g', 'i', 'b', 's', '_', 's', 'p', 'a', 'w', 'n', '_', 'k', 'i', 'l', 'l' };
 
 	// file_only
 	static const uint32 fmt_default_assert_0[] = {

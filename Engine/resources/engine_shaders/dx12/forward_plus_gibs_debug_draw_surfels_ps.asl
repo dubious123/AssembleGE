@@ -162,7 +162,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 		// assert(surfel.alive_idx < gibs_load_alive_surfel_id_stack_curr(data).size(), g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
 
-		const float contribution  = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
+		const float contribution  = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
 		coverage				 += contribution;
 		const float cell_size	  = gibs_calc_cell_size(data, lut_data, surfel);
 		// assert(surfel.radius <= cell_size, g::fmt_forward_plus_gibs_debug_draw_surfels_ps);
@@ -214,10 +214,17 @@ main_ps(float4 pos sv_position) sv_target_0
 				surfel_id_smallest = surfel_id;
 			}
 
-			if (recycle.frame_since_born > surfel_age_max)
+			if (recycle.frame_since_born >= surfel_age_max)
 			{
-				surfel_id_oldest = surfel_id;
-				surfel_age_max	 = recycle.frame_since_born;
+				if (recycle.frame_since_born == surfel_age_max)
+				{
+					surfel_id_oldest = min(surfel_id, surfel_id_oldest);
+				}
+				else
+				{
+					surfel_id_oldest = surfel_id;
+				}
+				surfel_age_max = recycle.frame_since_born;
 			}
 		}
 	}
@@ -349,8 +356,9 @@ main_ps(float4 pos sv_position) sv_target_0
 		// }
 		// return float4(random_color(max_contribution_surfel_id).x, max_contribution, surfel_arr[max_contribution_surfel_id].radius, 1.f);
 		// return float4(random_color(max_contribution_surfel_id).xy, surfel_arr[max_contribution_surfel_id].radius, 1.f);
-		return float4(random_color(max_contribution_surfel_id) + float3(random_color((px.x / 16) * (px.y / 16)).r, 0, 0), 1.f);
-		// return float4(random_color(surfel_id_smallest).x, surfel_id_smallest, surfel_arr[surfel_id_smallest].radius, 1.f);
+		return float4(random_color(surfel_id_oldest).rgb, 1.f);
+		// return float4(random_color(max_contribution_surfel_id) + float3(random_color((px.x / 16) * (px.y / 16)).r, 0, 0), 1.f);
+		//  return float4(random_color(surfel_id_smallest).x, surfel_id_smallest, surfel_arr[surfel_id_smallest].radius, 1.f);
 	}
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_NORMAL)
 	{
@@ -386,7 +394,8 @@ main_ps(float4 pos sv_position) sv_target_0
 			return color_blue;
 		}
 
-		return float4(ratio, random_color(cell_idx.z).g, 1.f - ratio, 1.f);
+		return float4(0, ratio, 0, 1.f);
+		// return float4(ratio, random_color(cell_idx.z).g, 1.f - ratio, 1.f);
 	}
 
 

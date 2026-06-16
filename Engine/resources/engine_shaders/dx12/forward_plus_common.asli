@@ -872,7 +872,7 @@ safe_dot_camera_forward(float3 dir)
 	return max(dot(dir, camera_forward), epsilon_1e4);
 }
 
-#define enable_debug_assert false
+#define enable_debug_assert true
 #include "age_assert.asli"
 #undef enable_debug_assert
 

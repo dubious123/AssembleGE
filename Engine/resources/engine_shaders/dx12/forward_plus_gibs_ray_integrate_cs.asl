@@ -54,6 +54,13 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	{
 		const gibs_ray_result ray_res = ray_res_arr[ray_offset + i];
 
+		if (ray_res.distance < 0.f)
+		{
+			// debug_log(g::fmt_forward_plus_gibs_ray_integrate_cs, ray_res.distance, surfel_id, decode_oct_snorm16(surfel.normal_oct_snorm16), surfel.position);
+			surfel.kill();
+			break;
+		}
+
 		// luminance
 		const float lum_blend_factor = is_new_born ? 1.f : 0.1f;
 
@@ -83,7 +90,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		visibility_atlas[px] = lerp(max(0.f, visibility_atlas[px]), chebyshev, vis_blend_factor);
 	}
 
-	radiance_sum /= ray_count;
 	// for (uint32 i = 0; i < 6; ++i)
 	//{
 	//	for (uint32 j = 0; j < 6; ++j)
@@ -95,51 +101,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	//	}
 	//}
 
-	// radiance sharing
-
-	// const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
-
-	// const uint32 cell_id = gibs_flatten_cell_idx(data, gibs_calc_cell_idx(data, lut_data, surfel.position));
-
-	// const gibs_cell_entry	 cell_entry			   = gibs_load_cell_entry_arr(data)[cell_id];
-	// const byte_array<uint32> cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_arr(data);
-
-	// float3 normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
-
-	// float4 radiance_shared = (float4)0.f;
-	// for (uint32 i = 0; i < cell_entry.count; ++i)
-	//{
-	//	const uint32 surfel_id_nbr = cell_to_surfel_id_arr[cell_entry.offset + i];
-
-	//	if (surfel_id == surfel_id_nbr) { continue; }
-
-	//	const struct surfel surfel_nbr = surfel_arr[surfel_id_nbr];
-
-	//	const float			contribution = gibs_calc_surfel_contribution<true>(data, surfel_nbr, surfel.position, normal);
-	//	surfel_recycle_data recycle_nbr	 = recycle_data_arr[surfel_id_nbr];
-	//	if (recycle_nbr.is_new_born()) { continue; }
-
-	//	radiance_shared += float4(surfel_nbr.radiance, 1.f)
-	//					 * contribution
-	//					 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_nbr.frame_since_born))
-	//					 * gibs_calc_visibility<false>(data, surfel_id_nbr, surfel_nbr, surfel.position);
-	//}
-
-
-	// if (radiance_shared.w > 0)
-	//{
-	//	const float blend_factor = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.5f;
-	//	gibs_update_msme(radiance_sum * blend_factor + radiance_shared.xyz / radiance_shared.w * (1.f - blend_factor), msme);
-	//	// surfel.radiance = lerp(surfel.radiance, radiance_shared.xyz / radiance_shared.w, saturate(length(msme.variance)) * 0.5f);
-	// }
-	// else
-	//{
-	//	gibs_update_msme(radiance_sum, msme);
-	// }
-
-
-	// surfel.radiance = msme.mean_long;
-	surfel.radiance = radiance_sum;
+	radiance_sum	/= ray_count;
+	surfel.radiance	 = radiance_sum;
 
 	surfel_arr.store(surfel_id, surfel);
 	// msme_arr.store(surfel_id, msme);

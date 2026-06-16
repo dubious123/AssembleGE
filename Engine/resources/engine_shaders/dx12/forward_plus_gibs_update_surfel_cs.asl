@@ -99,10 +99,10 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	// else if (surfel_seen and surfel_geo.object_id != g_object_id)
-	//{
-	//	kill_surfel = true;
-	// }
+	else if (surfel_seen and surfel_geo.object_id != g_object_id)
+	{
+		kill_surfel = true;
+	}
 	else if (surfel_seen is_false and surfel_recycle.frame_since_ref() > 0xfe)
 	{
 		kill_surfel = true;
@@ -126,9 +126,9 @@ main_cs(
 	assert(surfel_recycle.frame_since_seen() <= 0xfff, g::fmt_gibs_update_surfels);
 
 
-	surfel.position			  = world_pos;
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
 	surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
+	surfel.position			  = world_pos /*+ world_normal * surfel.radius * 0.1f*/;
 	if (surfel_recycle.frame_since_born == 0u)
 	{
 		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];

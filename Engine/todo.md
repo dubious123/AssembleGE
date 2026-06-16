@@ -110,3 +110,25 @@ todo
 - tile당 surfel 수가 너무 많음 256을 넘어감. 
 - 화면에 안보이는 surfel끼리 그냥 계속 add ref로 살아남음. 특히 밀실에 있는 surfel끼리 그냥 난리가 남
 - corner에 surfel들이 계속 생성되는듯? 
+
+
+- 성능 하락의 1순위 : cell 당 surfel 개수 폭발 
+- 특히 cam을 뒤로 움직이면서 벽을 통과하면, empty상태에서 surfel들이 폭발적으로 생성이 됨. 
+- 이는 coverage가 0이면 거의 확정적으로 surfel이 생성되기 때문인데... 
+- spawn시에 coverage == 0일때 가중치를 주고 (prob를 1.f 대신 *100 정도만 줘도 어느정도 해결된다)
+- cell loop에 min(128) 정도를 주면 대부분의 상황에서는 해결이 된다. 
+- 다만 light bleeding은 더 심해지고, 
+- corner를 돈다거나 할때마다 빈공간 수렴은 더 어려워진다. 
+- 가장 근본적인 해답은 cell당 surfel을 줄이는건데... 
+- surfel을 screen space와 world space로 나누어서 cell등록은 world space surfel만 하고 
+- screen space surfel의 ray에서 world space 를 spawn하는식으로 가고 (낮은 확율로) 
+- screen space surfel은 screen tile을 기준으로 관리해서 screen마다 32개, 128개 이런식으로 budget을 주면 좀 나아질수도 
+- 근데 이러면 그냥 screen space gi랑 뭐가 다르지
+
+- 생각해보면 screen space surfel들은 gi_resolve_buffer를 생성하고 나면 더이상 쓸모가 없음 
+- 전체 surfel budget중 한 50%를 screen space surfel로 배정해서 따로 stack에 다 복사해오고, 그다음 screen tile마다 alloc해버린다면?
+- 일단 ray trace + radiance sharing pass때 screen space srufel들을 순회하지 않아도 됨 
+
+
+- cell 당 surfel 순회를 128max로 잡아두면 대충 fps는 min 400정도로 잡히는데, 
+- 문제는 cell당 128을 넘어가면 tile 경계가 눈에 보임. 
