@@ -46,6 +46,21 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	const bool is_new_born = recycle.is_new_born();
 
+	// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
+
+	if (is_new_born)
+	{
+		for (uint32 i = 0; i < 6; ++i)
+		{
+			for (uint32 j = 0; j < 6; ++j)
+			{
+				const uint32_2 px	 = atlas_offset + uint32_2(i, j);
+				visibility_atlas[px] = float2(0, 0);
+				luminance_atlas[px]	 = float2(0, 0);
+			}
+		}
+	}
+
 
 	if (ray_count == 0) { return; }
 	if (surfel.radius == 0.f) { return; }
@@ -57,9 +72,10 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		if (ray_res.distance < 0.f)
 		{
 			// debug_log(g::fmt_forward_plus_gibs_ray_integrate_cs, ray_res.distance, surfel_id, decode_oct_snorm16(surfel.normal_oct_snorm16), surfel.position);
-			surfel.kill();
-			break;
+			// surfel.kill();
+			// continue;
 		}
+
 
 		// luminance
 		const float lum_blend_factor = is_new_born ? 1.f : 0.1f;
@@ -83,11 +99,16 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		//*min(1.f, GIBS_MAX_LUMINANCE_FOR_FIREFLY / max(epsilon_1e6, luminance));
 
 		// visibility
-		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.1f;
-		const float	 dist_norm		  = saturate(ray_res.distance / (surfel.radius /** GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
+		const float	 vis_blend_factor = is_new_born ? 1.f : cos_theta * 0.5f;
+		const float	 dist_norm		  = saturate(ray_res.distance / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
 		const float2 chebyshev		  = float2(dist_norm, dist_norm * dist_norm);
 
 		visibility_atlas[px] = lerp(max(0.f, visibility_atlas[px]), chebyshev, vis_blend_factor);
+
+		// if (length(surfel.position - float3(66.71, -6, 34.68)) < 5.f)
+		//{
+		//	debug_log(g::fmt_forward_plus_gibs_ray_integrate_cs, ray_res.distance, decode_r11g11b10(ray_res.radiance_r11g11b10), dir_local);
+		// }
 	}
 
 	// for (uint32 i = 0; i < 6; ++i)

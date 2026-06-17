@@ -999,10 +999,10 @@ gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const f
 
 	// const float cos_weight = cos_theta > 0.f ? 1.f : 1 + cos_theta;
 	// return cos_weight * (1.f - sqrt(dist_sq) / effective_radius);
-	if (cos_theta < -0.2f) { return 0.f; }
+	if (cos_theta < 0.5f) { return 0.f; }
 
-	return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
-	// return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / effective_radius));
+	// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
+	return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / effective_radius));
 }
 
 // based on ray-tracing-gems ch25
@@ -1122,7 +1122,7 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 	}
 
 
-	const float dist_norm = saturate(length(rel) / surfel.radius);
+	const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
 	const float mean	  = chebyshev.x;
 	const float sq_mean	  = chebyshev.y;
 
@@ -1145,20 +1145,28 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 	const float4   clip_pos	  = mul(view_proj, float4(world_pos, 1.f));
 	const float3   ndc		  = clip_pos.xyz / clip_pos.w;
 	const uint32_2 screen_pos = uint32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
-	const bool	   in_screen  = clip_pos.w > 0.f and all(ndc.xy >= -1.f) and all(ndc.xy <= 1.f) and ndc.z >= 0.f and ndc.z <= 1.f;
+	const bool	   in_screen  = clip_pos.w > 0.f
+						   and all(ndc.xy >= -1.f)
+						   and all(ndc.xy <= 1.f)
+						   and ndc.z >= 0.f
+						   and ndc.z <= 1.f;
 
 	if (in_screen)
 	{
-		texture_2d<float>  depth_buffer		 = global_resource_buffer[depth_buffer_texture_id];
-		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
-		const float		   z_depth			 = load(depth_buffer, screen_pos);
+		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
+		texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
+		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+		const float			 z_depth		   = load(depth_buffer, screen_pos);
+		const float3		 px_normal		   = decode_oct_snorm16(load(gbuffer, screen_pos).y);
 
 		const bool surfel_seen = z_depth != 0.f
-							 and ndc.z >= (z_depth - epsilon_1e4);	  // z_depth + 0.5f - surfel - z_depth - 0.f(far)
+							 and ndc.z >= (z_depth - epsilon_1e4)	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
+							 and dot(px_normal, normal) > 0.9f;
 
 		if (surfel_seen)
 		{
 			const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
+
 			return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
 		}
 	}
@@ -1175,7 +1183,7 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 
 	float4 irradiance_sum = (float4)0;	  // w = weight_sum
 
-	for (uint32 i = 0; i < min(128, entry.count); ++i)
+	for (uint32 i = 0; i < entry.count /*min(128, entry.count)*/; ++i)
 	{
 		const uint32 surfel_id	  = cell_to_surfel_id_arr[entry.offset + i];
 		surfel		 surfel		  = gibs_load_surfel_arr(data)[surfel_id];
@@ -1195,7 +1203,7 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 						* gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 	}
 
-	if (irradiance_sum.w > 0.f)
+	if (irradiance_sum.w > 1.f)
 	{
 		return irradiance_sum.xyz / irradiance_sum.w;
 	}

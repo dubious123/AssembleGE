@@ -27,11 +27,21 @@ main_ps(float4 pos sv_position) sv_target_0
 
 		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
 		{
-			texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
-			float2			   uv				= (debug_uv - float2(0.75f, 0.f)) * 4;
-			// font_uv.y	   = 1.f - font_uv.y;
-			float2 rg = sample_level(irradiance_atlas, get_linear_clamp_sampler(), uv, 0);
-			col		  = float3(rg, 0.f);
+			// texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
+			// float2			   uv				= (debug_uv - float2(0.75f, 0.f)) * 4;
+			//// font_uv.y	   = 1.f - font_uv.y;
+			// float2 rg = sample_level(irradiance_atlas, get_linear_clamp_sampler(), uv, 0);
+			// col		  = float3(rg, 0.f);
+			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2 screen_pos = uv * backbuffer_size;
+
+			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
+			texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
+			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+			const float			 z_depth		   = load(depth_buffer, screen_pos);
+			const float3		 px_normal		   = decode_oct_snorm16(load(gbuffer, screen_pos).y);
+
+			col = px_normal;
 		}
 		else if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
 		{

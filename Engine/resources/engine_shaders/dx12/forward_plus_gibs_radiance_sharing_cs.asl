@@ -53,31 +53,33 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	attr_loop()
 
-	for (uint32 i = 0; i < min(0, cell_entry.count); ++i)
+	for (uint32 i = 0; i < cell_entry.count /*min(0, cell_entry.count)*/; ++i)
 	{
 		const uint32 surfel_id_nbr = cell_to_surfel_id_arr[cell_entry.offset + i];
 
 		if (surfel_id == surfel_id_nbr) { continue; }
 
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id_nbr, g::fmt_gibs_gi_resolve, line);
 		const struct surfel surfel_nbr = surfel_arr[surfel_id_nbr];
 
 		if (surfel_nbr.radius < epsilon_1e4) { continue; }
 
 		const float contribution = gibs_calc_surfel_contribution<true>(data, surfel_nbr, surfel.position, normal);
-		// surfel_recycle_data recycle_nbr	 = recycle_data_arr[surfel_id_nbr];
-		// if (recycle_nbr.is_new_born()) { continue; }
+
+		surfel_recycle_data recycle_nbr = recycle_data_arr[surfel_id_nbr];
+		if (recycle_nbr.is_new_born()) { continue; }
 
 		const float cos_theta = dot(normal, decode_oct_snorm16(surfel_nbr.normal_oct_snorm16));
 
 		radiance_shared += float4(surfel_nbr.radiance, 1.f)
-						 * max(0.f, cos_theta)
+						 //* max(0.f, cos_theta)
 						 * contribution
-						 //* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_nbr.frame_since_born))
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_nbr.frame_since_born))
 						 * gibs_calc_visibility(data, surfel_id_nbr, surfel_nbr, surfel.position);
 	}
 
 	surfel_msme msme = gibs_load_surfel_msme_rw_arr(data)[surfel_id];
-	if (radiance_shared.w > 0)
+	if (radiance_shared.w > 0.01f)
 	{
 		surfel_recycle_data recycle		 = recycle_data_arr[surfel_id];
 		const float			blend_factor = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.5f;

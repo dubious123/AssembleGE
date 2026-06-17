@@ -655,7 +655,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		if (gibs_data_cpu.need_cleanup) [[unlikely]]
 		{
 			command::clear_uav(gibs_data_cpu.h_irradiance_atlas, gibs_data_cpu.h_irradiance_clear_uav_desc, float4::zero());
-			command::clear_uav(gibs_data_cpu.h_visibility_atlas, gibs_data_cpu.h_visibility_clear_uav_desc, float4::one());
+			command::clear_uav(gibs_data_cpu.h_visibility_atlas, gibs_data_cpu.h_visibility_clear_uav_desc, float4::zero());
 			command::clear_uav(gibs_data_cpu.h_scratch_buffer, gibs_data_cpu.h_scratch_clear_uav_desc, uint32_4::zero());
 			command::clear_uav(gibs_data_cpu.h_cell_info_buffer, gibs_data_cpu.h_cell_info_clear_uav_desc, uint32_4::zero());
 
@@ -762,7 +762,8 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		command::set_pso(p_pso_spawn_kill);
 		command::dispatch(2 * util::ceil(util::ceil(main_buffer_extent.width, g::gibs_screen_tile_size) * util::ceil(main_buffer_extent.height, g::gibs_screen_tile_size), 32u), 1, 1);
-		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
+								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 	}
 
 	inline void

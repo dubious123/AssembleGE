@@ -2498,7 +2498,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float);
 			gibs_data_cpu.h_gi_resolve_buffer->set_name(L"gibs_gi_resolve_buffer");
 
 			gibs_data_cpu.h_gi_resolve_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,

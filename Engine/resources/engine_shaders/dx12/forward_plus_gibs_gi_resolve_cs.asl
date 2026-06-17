@@ -58,13 +58,16 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 	// float4 radiance		 = (float4)0;
 	float4 radiance_shared = (float4)0;
 
-	for (uint32 i = 0; is_thread_valid and i < min(128, cell_entry.count); ++i)
+	for (uint32 i = 0; is_thread_valid and i < cell_entry.count /*min(128, cell_entry.count)*/; ++i)
 	{
 		const uint32			  surfel_id	   = cell_to_surfel_id[cell_entry.offset + i];
 		const surfel			  surfel	   = surfel_arr[surfel_id];
 		const surfel_recycle_data recycle	   = recycle_arr[surfel_id];
 		const float				  contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
 
+		assert(is_nan(surfel.radiance) is_false, g::fmt_gibs_gi_resolve, line);
+
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
 
 		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
 
@@ -76,6 +79,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 		// float3 dir_local = normalize(rel_local);
 
 		// coverage += contribution * (dir_local.y < -0.2f ? 0.f : 1.f);
+
 		coverage += contribution;
 
 		radiance_shared += float4(surfel.radiance, 1.f)
@@ -90,7 +94,7 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 		}
 	}
 
-	if (radiance_shared.w > 0.f)
+	if (radiance_shared.w > 0.1f)
 	{
 		rw_texture_2d<float3> gi_resolve_buffer	 = global_resource_buffer[data.h_gi_resolve_buffer_uav_id];
 		radiance_shared.xyz						/= radiance_shared.w;
@@ -151,7 +155,8 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 																 : 0u);
 
 	const bool need_kill = (coverage > GIBS_KILL_COVERAGE or cell_entry.count > 128)
-					   and linear_id == (uint32_lower_to_uint16(coverage_packed_group_max) - 1);
+					   and linear_id == (uint32_lower_to_uint16(coverage_packed_group_max) - 1)
+					   and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0);
 
 
 	const float rnd = random_pcg3d(uint32_3(dispatch_thread_id.xy, frame_index)).x;

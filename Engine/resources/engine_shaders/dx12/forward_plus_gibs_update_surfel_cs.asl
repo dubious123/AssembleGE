@@ -117,7 +117,7 @@ main_cs(
 		kill_surfel = false;
 	}
 
-	if (kill_surfel)
+	if (kill_surfel and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0))
 	{
 		handle_kill_surfel(data, alive_idx_prev, surfel_id);
 		return;
@@ -125,16 +125,20 @@ main_cs(
 
 	assert(surfel_recycle.frame_since_seen() <= 0xfff, g::fmt_gibs_update_surfels);
 
+	if ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0)
+	{
+		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
+		surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
+		surfel.position			  = world_pos + world_normal * surfel.radius * 0.1f;
+	}
 
-	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
-	surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
-	surfel.position			  = world_pos /*+ world_normal * surfel.radius * 0.1f*/;
 	if (surfel_recycle.frame_since_born == 0u)
 	{
 		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
 
 		const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
 		surfel.radiance = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
+		// surfel.radiance = gi_resolve_buffer[screen_pos];
 
 		surfel_msme msme = msme_arr[surfel_id];
 

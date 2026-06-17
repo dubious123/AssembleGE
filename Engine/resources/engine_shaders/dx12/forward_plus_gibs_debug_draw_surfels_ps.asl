@@ -237,7 +237,6 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
@@ -250,7 +249,6 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
@@ -258,12 +256,13 @@ main_ps(float4 pos sv_position) sv_target_0
 	{
 		if (max_contribution_surfel_id != invalid_id_uint32)
 		{
-			uint32_2 atlas_offset = gibs_calc_atlas_offset(data, max_contribution_surfel_id);
-			return float4(visibility_atlas[atlas_offset + uint32_2(3, 3)].y, 0, 0, 1);
+			const surfel surfel		= surfel_arr[max_contribution_surfel_id];
+			const float	 visibility = gibs_calc_visibility(data, max_contribution_surfel_id, surfel, world_pos);
+			return float4(random_color(surfel_id_oldest).rgb * visibility, 1.f);
+			return float4(visibility, visibility, visibility, 1);
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
@@ -277,7 +276,6 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
@@ -317,7 +315,6 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
@@ -441,7 +438,6 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else
 		{
-			discard;
 			return color_black;
 		}
 	}
