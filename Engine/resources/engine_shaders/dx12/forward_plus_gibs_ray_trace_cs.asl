@@ -23,7 +23,7 @@ offset_ray(float3 p, float3 n)
 }
 
 void
-gibs_trace_ray(float3 pos, float3 normal, float3 dir, out float res_distance, out uint32 res_radiance_r11g11b10)
+gibs_trace_ray(const rt_arg arg, float3 pos, float3 normal, float3 dir, out float res_distance, out uint32 res_radiance_r11g11b10)
 {
 	float  distance;
 	float3 color;
@@ -42,8 +42,7 @@ gibs_trace_ray(float3 pos, float3 normal, float3 dir, out float res_distance, ou
 		ray_query<RAY_FLAG_NONE> query;
 		// ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
-
-		color = rt_calc_opaque_color(desc, query);
+		color = rt_calc_opaque_color(arg, desc, query);
 
 		const uint32 status = rt_committed_status(query);
 
@@ -71,7 +70,7 @@ gibs_trace_ray(float3 pos, float3 normal, float3 dir, out float res_distance, ou
 
 		ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
-		const float4 transparent_color = rt_calc_transparent_color(desc, query);
+		const float4 transparent_color = rt_calc_transparent_color(arg, desc, query);
 
 		color = color * (1.f - transparent_color.a) + transparent_color.rgb;
 	}
@@ -84,39 +83,6 @@ gibs_trace_ray(float3 pos, float3 normal, float3 dir, out float res_distance, ou
 	res_radiance_r11g11b10 = encode_r11g11b10(color);
 }
 
-// helper
-template <typename t_tex>
-struct luminance_cdf_arr
-{
-	t_tex tex;
-
-	uint32_2 offset;
-
-	static luminance_cdf_arr
-	init(t_tex tex, uint32_2 offset)
-	{
-		luminance_cdf_arr res;
-		res.tex	   = tex;
-		res.offset = offset;
-		return res;
-	}
-
-	float
-	operator[](uint32 idx_flat)
-	{
-		uint32_2 px = offset + uint32_2(idx_flat % GIBS_ATLAS_TILE_SIZE, idx_flat / GIBS_ATLAS_TILE_SIZE);
-		return tex[px].y;
-	}
-
-	void
-	store(uint32 idx_flat, float y)
-	{
-		uint32_2 px		  = offset + uint32_2(idx_flat % GIBS_ATLAS_TILE_SIZE, idx_flat / GIBS_ATLAS_TILE_SIZE);
-		float2	 original = tex[px];
-		tex[px]			  = float2(original.x, y);
-	}
-};
-
 wave_size(32)
 [numthreads(32, 1, 1)] void
 main_cs(uint32 group_id sv_group_id,
@@ -125,7 +91,7 @@ main_cs(uint32 group_id sv_group_id,
 {
 	const gibs_data data = gibs_load_gibs_data();
 
-	if (ray_id >= gibs_get_ray_count_total(data)) { return; }
+	if (ray_id >= gibs_load_ray_count_total(data)) { return; }
 
 	const gibs_ray_entry ray_entry = gibs_load_ray_entry_rw(data, ray_id);
 
@@ -133,29 +99,21 @@ main_cs(uint32 group_id sv_group_id,
 
 	const float4 rand_4d = random_pcg4d(uint32_4(ray_id, ray_entry.surfel_id, frame_index, ray_id + ray_entry.surfel_id + frame_index));
 
-	float3					 dir_local;
-	float					 pdf;
-	const texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
+	float3 dir_local;
+	float  pdf;
 
-	const uint32_2 atlas_offset = gibs_calc_atlas_offset(data, ray_entry.surfel_id);
 	assert(ray_entry.surfel_id < data.max_surfel_count, g::fmt_forward_plus_gibs_ray_trace_cs, line);
-
-	const float luminance_sum = irradiance_atlas[atlas_offset + uint32_2(GIBS_ATLAS_TILE_SIZE - 1, GIBS_ATLAS_TILE_SIZE - 1)].y;
-	bool		ray_guided	  = false;
-
-	const surfel_recycle_data recycle = gibs_load_surfel_recycle_data_rw_arr(data)[ray_entry.surfel_id];
+	const byte_array<half> luminance_cdf = gibs_load_lum_cdf_arr(data, ray_entry.surfel_id);
+	const float			   luminance_sum = luminance_cdf[GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1];
 
 	if (luminance_sum > GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE)
 	{
 		float		pdf_guide	   = 0.f;
 		float		pdf_cos		   = 0.f;
-		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle.frame_since_born)) * 0.5f;
-		// clang-format off
-		luminance_cdf_arr<texture_2d<float2> > luminance_cdf = luminance_cdf_arr<texture_2d<float2> >::init(global_resource_buffer[data.h_irradiance_atlas_srv_id], atlas_offset);
-		// clang-format on
+		const float ray_guide_prob = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born())) * 0.95f;
+
 		if (rand_4d.w < ray_guide_prob)
 		{
-			ray_guided = true;
 			// idx is always less than GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE
 			const uint32 idx = upper_boundary(luminance_cdf, 0, GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE - 1, rand_4d.x);
 
@@ -223,7 +181,8 @@ main_cs(uint32 group_id sv_group_id,
 	const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(normal));
 
 	gibs_ray_result res;
-	gibs_trace_ray(surfel.position + 0.1f * surfel.radius * normal, normal, dir_world, /*out*/ res.distance, /*out*/ res.radiance_r11g11b10);
+	gibs_trace_ray(rt_arg::init_gibs(true), surfel.position /*+ 0.1f * surfel.radius * normal*/, normal, dir_world, /*out*/ res.distance, /*out*/ res.radiance_r11g11b10);
+	// gibs_trace_ray(rt_arg::init_gibs(surfel.surfel_seen()), surfel.position + 0.1f * surfel.radius * normal, normal, dir_world, /*out*/ res.distance, /*out*/ res.radiance_r11g11b10);
 	res.dir_oct_snorm8 = uint32(encode_world_hemi_oct_snorm8(dir_local)) | (uint32(encode_oct_snorm8(dir_world)) << 16u);
 	res.pdf			   = pdf;
 

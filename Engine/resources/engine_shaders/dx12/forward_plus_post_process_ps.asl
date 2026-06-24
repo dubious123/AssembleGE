@@ -39,13 +39,13 @@ main_ps(float4 pos sv_position) sv_target_0
 			texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
 			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
 			const float			 z_depth		   = load(depth_buffer, screen_pos);
-			const float3		 px_normal		   = decode_oct_snorm16(load(gbuffer, screen_pos).y);
+			const float3		 px_normal		   = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
 
 			col = px_normal;
 		}
 		else if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
 		{
-			const float ratio = gibs_get_ray_count_total(data) / (float)GIBS_RAY_BUDGET;
+			const float ratio = gibs_load_ray_count_total(data) / (float)GIBS_RAY_BUDGET;
 			float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
 			if (uv.x < ratio)
@@ -56,14 +56,14 @@ main_ps(float4 pos sv_position) sv_target_0
 			{
 			}
 		}
-		else if (debug_uv.x > 0.8 and debug_uv.y < 0.26)
+
+		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.26)
 		{
 			rw_stack<uint32> prev  = gibs_load_alive_surfel_id_stack_prev(data);
 			rw_stack<uint32> dead  = gibs_load_dead_surfel_id_stack(data);
 			rw_stack<uint32> curr  = gibs_load_alive_surfel_id_stack_curr(data);
 			const float		 ratio = curr.size() / (float)data.max_surfel_count;
 			float2			 uv	   = (debug_uv - float2(0.8f, 0.25f)) * 10;
-
 
 			if (uv.x < ratio)
 			{
@@ -72,28 +72,36 @@ main_ps(float4 pos sv_position) sv_target_0
 			else
 			{
 			}
+		}
+		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.27)
+		{
+			const float ratio = gibs_load_tile_surfel_count(data) / ((float)data.max_surfel_count * 9);
+			float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
 
+			assert(ratio <= 1.f, g::fmt_forward_plus_post_process_ps, line, gibs_load_tile_surfel_count(data));
 
-			// font_uv.y	   = 1.f - font_uv.y;
+			if (uv.x < ratio)
+			{
+				col = float3(ratio, 1 - ratio, 0);
+			}
+			else
+			{
+			}
+		}
+		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.28)
+		{
+			const float ratio = gibs_load_cell_surfel_count(data) / ((float)data.max_surfel_count * 27);
+			float2		uv	  = (debug_uv - float2(0.8f, 0.27f)) * 10;
 
+			assert(ratio <= 1.f, g::fmt_forward_plus_post_process_ps, line, gibs_load_cell_surfel_count(data));
 
-			// if (curr.size() < 0.5 * data.max_surfel_count)
-			//{
-			//	return float4(0, 0, 1, 1);
-			// }
-			// else if (curr.size() < 0.8 * data.max_surfel_count)
-			//{
-			//	return float4(0, 1, 0, 1);
-			// }
-			// else if (curr.size() < 0.99 * data.max_surfel_count)
-			//{
-			// }
-			// else
-			//{
-			//	return float4(1, 1, 1, 1);
-			// }
-
-			// return float4(curr.size() / (float)data.max_surfel_count, dead.size() / (float)data.max_surfel_count, 1, 1);
+			if (uv.x < ratio)
+			{
+				col = float3(ratio, 1 - ratio, 0);
+			}
+			else
+			{
+			}
 		}
 		else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
 		{

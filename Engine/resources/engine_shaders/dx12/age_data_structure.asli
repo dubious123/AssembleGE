@@ -43,6 +43,12 @@ struct byte_array
 		return res;
 	}
 
+	uint32
+	size()
+	{
+		return capacity;
+	}
+
 	t
 	operator[](uint32 idx)
 	{
@@ -236,7 +242,7 @@ struct rw_stack
 
 		if (original <= 0)
 		{
-			inc_size_atomic(1);
+			buf_interlocked_add(buf, offset_counter(), int32(1));
 			return false;
 		}
 		else
@@ -257,6 +263,24 @@ struct rw_stack
 		assert(original + 1 <= size(), g::fmt_data_structure, line);
 		assert(original + 1 <= capacity, g::fmt_data_structure, line);
 		return original;
+	}
+
+	bool
+	try_push(const t data)
+	{
+		int32 original;
+		buf_interlocked_add(buf, offset_counter(), 1, original);
+
+		if (original >= capacity)
+		{
+			buf_interlocked_add(buf, offset_counter(), int32(-1));
+			return false;
+		}
+		else
+		{
+			store<t>(buf, offset_value() + sizeof(t) * original, data);
+			return true;
+		}
 	}
 
 	void

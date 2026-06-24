@@ -207,11 +207,11 @@ main_cs(uint32_3 group_thread_id	sv_group_thread_id,
 
 		if (coverage > GIBS_KILL_COVERAGE and linear_id == uint32_lower_to_uint16(coverage_packed_group_max))
 		{
-			const float kill_prob = (coverage / float(GIBS_KILL_COVERAGE))
-								  //* (0.01)
-								  // * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
-								  // * (1.f + alive_stack.size() / float(data.max_surfel_count))
-								  * GIBS_KILL_PROB_FACTOR;
+			const float kill_prob = /*(coverage / float(GIBS_KILL_COVERAGE))*/
+				//* (0.01)
+				// * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
+				// * (1.f + alive_stack.size() / float(data.max_surfel_count))
+				GIBS_KILL_PROB_FACTOR;
 
 			if (rnd < kill_prob)
 			{

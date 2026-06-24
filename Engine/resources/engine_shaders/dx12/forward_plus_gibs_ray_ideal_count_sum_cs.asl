@@ -11,29 +11,29 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 	const gibs_data data = gibs_load_gibs_data();
 
-	const uint32 ray_sum_total = ceil(data.max_surfel_count, 32u);
-	uint32		 local_sum	   = 0u;
+	const uint32 group_sum_count	 = ceil(gibs_load_alive_count_prev(data), 32u);
+	uint32		 local_ray_count_sum = 0u;
 
-	const rw_byte_array<uint32> ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
+	const rw_byte_array<uint32> ray_count_ideal_wave_sum_arr = gibs_load_surfel_ray_count_ideal_wave_sum_rw_arr(data);
 
 	expand_all()
 
 	for (uint32 i = 0; i < GIBS_RAY_COUNT_REDUCE_EPT; ++i)
 	{
-		const uint32 ray_sum_id = base_offset
-								+ i * GIBS_RAY_COUNT_REDUCE_TPG
-								+ thread_id;
+		const uint32 idx = base_offset
+						 + i * GIBS_RAY_COUNT_REDUCE_TPG
+						 + thread_id;
 
-		if (ray_sum_id >= ray_sum_total) { break; }
+		if (idx >= group_sum_count) { break; }
 
-		local_sum += ray_count_group_sum_arr[ray_sum_id];
+		local_ray_count_sum += ray_count_ideal_wave_sum_arr[idx];
 	}
 
-	const uint32 wave_sum = wave_active_sum(local_sum);
+	const uint32 ray_count_wave_sum = wave_active_sum(local_ray_count_sum);
 
 	if (wave_is_first_lane())
 	{
-		gibs_atomic_add_ray_count_ideal(data, wave_sum);
+		gibs_atomic_add_ray_count_ideal(data, ray_count_wave_sum);
 	}
 
 	if (dispatch_thread_id == 0)
@@ -41,12 +41,17 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 		rw_stack<uint32> alive_stack = gibs_load_alive_surfel_id_stack_curr(data);
 		gibs_set_indirect_arg_ray_count_prefix(data, uint32_3(ceil(alive_stack.size(), GIBS_RAY_COUNT_REDUCE_EPG), 1, 1));
 		gibs_set_indirect_arg_ray_entry(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
-		gibs_set_indirect_arg_cell_to_surfel_scatter(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+		gibs_set_indirect_arg_surfel_scatter(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
 
 
 		gibs_set_indirect_arg_ray_integrate(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
-		gibs_set_indirect_arg_build_cdf(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+		gibs_set_indirect_arg_build_cdf(data, uint32_3(alive_stack.size(), 1, 1));
 
 		gibs_set_indirect_arg_radiance_sharing(data, uint32_3(ceil(alive_stack.size(), 32), 1, 1));
+
+
+		assert(alive_stack.size() + gibs_load_dead_surfel_id_stack(data).size() == data.max_surfel_count,
+			   g::fmt_forward_plus_gibs_ray_ideal_count_sum_cs, line,
+			   frame_index);
 	}
 }

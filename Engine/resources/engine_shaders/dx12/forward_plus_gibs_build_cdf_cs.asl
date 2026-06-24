@@ -7,12 +7,12 @@ main_cs(uint32_3 group_id sv_group_id,
 
 {
 	const gibs_data				data		   = gibs_load_gibs_data();
-	const rw_stack<uint32>		alive_atack	   = gibs_load_alive_surfel_id_stack_curr(data);
+	const byte_array<uint32>	alive_arr	   = gibs_load_alive_arr_curr(data);
 	const rw_byte_array<uint32> ray_offset_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
 	const rw_byte_array<uint32> ray_count_arr  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	const uint32				alive_count	   = alive_atack.size();
+	const uint32				alive_count	   = alive_arr.size();
 
-	uint32 alive_idx = group_id.x + group_id.y * ceil(data.max_surfel_count, 32 * 32);
+	uint32 alive_idx = group_id.x;
 
 	attr_branch()
 
@@ -32,49 +32,46 @@ main_cs(uint32_3 group_id sv_group_id,
 		return;
 	}
 
-	const uint32 surfel_id = alive_atack[alive_idx];
+	const uint32 surfel_id = alive_arr[alive_idx];
 
 	// build cdf
 	{
-		const uint32_2 atlas_offset = gibs_calc_atlas_offset(data, surfel_id);
+		const rw_byte_array<half> lum_arr	  = gibs_load_lum_rw_arr(data, surfel_id);
+		const rw_byte_array<half> lum_cdf_arr = gibs_load_lum_cdf_rw_arr(data, surfel_id);
 
-		const rw_texture_2d<float2> luminance_atlas = global_resource_buffer[data.h_irradiance_atlas_uav_id];
+		const float lum_33 = lum_arr[36 - 4];
+		const float lum_34 = lum_arr[36 - 3];
+		const float lum_35 = lum_arr[36 - 2];
+		const float lum_36 = lum_arr[36 - 1];
 
-		uint32_2 px = atlas_offset + uint32_2(thread_id % GIBS_ATLAS_TILE_SIZE, thread_id / GIBS_ATLAS_TILE_SIZE);
-
-		const float2 lum_33 = luminance_atlas[atlas_offset + uint32_2(2, GIBS_ATLAS_TILE_SIZE - 1)];
-		const float2 lum_34 = luminance_atlas[atlas_offset + uint32_2(3, GIBS_ATLAS_TILE_SIZE - 1)];
-		const float2 lum_35 = luminance_atlas[atlas_offset + uint32_2(4, GIBS_ATLAS_TILE_SIZE - 1)];
-		const float2 lum_36 = luminance_atlas[atlas_offset + uint32_2(5, GIBS_ATLAS_TILE_SIZE - 1)];
-
-		const float2 lum		= luminance_atlas[px];
-		const float	 lum_prefix = wave_prefix_sum(lum.x);
+		const float lum		   = float(lum_arr[thread_id]);
+		const float lum_prefix = wave_prefix_sum(lum);
 
 		float lum_total = 0.f;
 
 		if (thread_id == wave_lane_count() - 1)	   // 0, 1, 2, 3
 		{
-			lum_total = lum_prefix + lum.x + lum_33.x + lum_34.x + lum_35.x + lum_36.x;
+			lum_total = lum_prefix + lum + lum_33 + lum_34 + lum_35 + lum_36;
 		}
 		lum_total = max(epsilon_1e4, wave_read_lane_at(lum_total, wave_lane_count() - 1));
 
-		luminance_atlas[px] = float2(lum.x, (lum_prefix + lum.x) / lum_total);
+		lum_cdf_arr.store(thread_id, half((lum_prefix + lum) / lum_total));
 
 		if (thread_id == 28)
 		{
-			luminance_atlas[atlas_offset + uint32_2(2, GIBS_ATLAS_TILE_SIZE - 1)] = float2(lum_33.x, (lum_total - lum_34.x - lum_35.x - lum_36.x) / lum_total);
+			lum_cdf_arr.store(36 - 4, half((lum_total - lum_34 - lum_35 - lum_36) / lum_total));
 		}
 		else if (thread_id == 29)
 		{
-			luminance_atlas[atlas_offset + uint32_2(3, GIBS_ATLAS_TILE_SIZE - 1)] = float2(lum_34.x, (lum_total - lum_35.x - lum_36.x) / lum_total);
+			lum_cdf_arr.store(36 - 3, half((lum_total - lum_35 - lum_36) / lum_total));
 		}
 		else if (thread_id == 30)
 		{
-			luminance_atlas[atlas_offset + uint32_2(4, GIBS_ATLAS_TILE_SIZE - 1)] = float2(lum_35.x, (lum_total - lum_36.x) / lum_total);
+			lum_cdf_arr.store(36 - 2, half((lum_total - lum_36) / lum_total));
 		}
 		else if (thread_id == 31)
 		{
-			luminance_atlas[atlas_offset + uint32_2(5, GIBS_ATLAS_TILE_SIZE - 1)] = float2(lum_36.x, lum_total);
+			lum_cdf_arr.store(36 - 1, half(lum_total));
 		}
 	}
 	//

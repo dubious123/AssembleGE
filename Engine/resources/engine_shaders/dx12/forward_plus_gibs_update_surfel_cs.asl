@@ -1,13 +1,81 @@
 #include "forward_plus_common.asli"
 
-struct fn_cell_update
+struct fn_tile_alloc
+{
+	uint32_4 screen_aabb;
+
+	static fn_tile_alloc
+	init(const struct surfel surfel, const float3 world_normal)
+	{
+		fn_tile_alloc res;
+
+		const float3x3 transform_t = gen_world_normal_transform_t(world_normal);
+		const float3   surfel_rf   = surfel.position + mul(float3(surfel.radius, 0, surfel.radius), transform_t);
+		const float3   surfel_lf   = surfel.position + mul(float3(-surfel.radius, 0, surfel.radius), transform_t);
+		const float3   surfel_rb   = surfel.position + mul(float3(surfel.radius, 0, -surfel.radius), transform_t);
+		const float3   surfel_lb   = surfel.position + mul(float3(-surfel.radius, 0, -surfel.radius), transform_t);
+
+		const float4 clip_pos_rf = mul(view_proj, float4(surfel_rf, 1.f));
+		const float3 ndc_rf		 = clamp(clip_pos_rf.xyz / clip_pos_rf.w, -1.f, 1.f);
+
+		const int32_2 screen_pos_rf = int32_2(ndc_xy_to_screen(ndc_rf.xy, backbuffer_size));
+
+		const float4 clip_pos_lf = mul(view_proj, float4(surfel_lf, 1.f));
+		const float3 ndc_lf		 = clamp(clip_pos_lf.xyz / clip_pos_lf.w, -1.f, 1.f);
+
+		const int32_2 screen_pos_lf = int32_2(ndc_xy_to_screen(ndc_lf.xy, backbuffer_size));
+
+		const float4 clip_pos_rb = mul(view_proj, float4(surfel_rb, 1.f));
+		const float3 ndc_rb		 = clamp(clip_pos_rb.xyz / clip_pos_rb.w, -1.f, 1.f);
+
+		const int32_2 screen_pos_rb = int32_2(ndc_xy_to_screen(ndc_rb.xy, backbuffer_size));
+
+		const float4 clip_pos_lb = mul(view_proj, float4(surfel_lb, 1.f));
+		const float3 ndc_lb		 = clamp(clip_pos_lb.xyz / clip_pos_lb.w, -1.f, 1.f);
+
+		const int32_2 screen_pos_lb = int32_2(ndc_xy_to_screen(ndc_lb.xy, backbuffer_size));
+
+		if (clip_pos_rf.w <= epsilon_1e4 or clip_pos_lf.w <= epsilon_1e4 or clip_pos_rb.w <= epsilon_1e4 or clip_pos_lb.w <= epsilon_1e4)
+		{
+			res.screen_aabb = uint32_4(0, 0, uint32_2(backbuffer_size));
+		}
+		else
+		{
+			res.screen_aabb = uint32_4(min(screen_pos_rf, screen_pos_lf, screen_pos_rb, screen_pos_lb),
+									   max(screen_pos_rf, screen_pos_lf, screen_pos_rb, screen_pos_lb));
+		}
+
+		return res;
+	}
+
+	void
+	operator()(const gibs_data data, uint32_2 tile_idx)
+	{
+		uint32_2 tile_min = tile_idx * GIBS_SCREEN_TILE_SIZE;
+		uint32_2 tile_max = tile_min + GIBS_SCREEN_TILE_SIZE - 1;
+
+		if (aabb_intersect(screen_aabb, uint32_4(tile_min, tile_max)) is_false) { return; }
+
+		rw_byte_array<gibs_tile_entry> arr = gibs_load_tile_entry_rw_arr(data);
+
+		const uint32 tile_idx_flat = gibs_flatten_tile_idx(data, tile_idx);
+
+		const uint32 count_original = arr.atomic_inc(tile_idx_flat, 1u);
+
+		assert(tile_idx_flat < arr.capacity, g::fmt_forward_plus_gibs_update_surfel_cs, line);
+
+		assert(count_original < 0xffff, g::fmt_forward_plus_gibs_update_surfel_cs, line);
+	}
+};
+
+struct fn_cell_alloc
 {
 	surfel surfel;
 
-	static fn_cell_update
+	static fn_cell_alloc
 	init(const struct surfel surfel)
 	{
-		fn_cell_update res;
+		fn_cell_alloc res;
 		res.surfel = surfel;
 		return res;
 	}
@@ -21,42 +89,44 @@ struct fn_cell_update
 		rw_byte_array<gibs_cell_entry> arr			 = gibs_load_cell_entry_rw_arr(data);
 
 		const uint32 count_original = arr.atomic_inc(cell_idx_flat, 1u);
+
+		assert(cell_idx_flat < arr.capacity, g::fmt_forward_plus_gibs_update_surfel_cs, line);
+
+		assert(count_original < 0xffff, g::fmt_forward_plus_gibs_update_surfel_cs, line);
 	}
 };
 
 void
 handle_kill_surfel(const gibs_data data, uint32 alive_idx, uint32 surfel_id)
 {
-	const rw_stack<uint32> dead_stack = gibs_load_dead_surfel_id_stack(data);
+	rw_stack<uint32> dead_stack = gibs_load_dead_surfel_id_stack(data);
 	dead_stack.push(surfel_id);
 	return;
 };
 
 wave_size(32)
 [numthreads(32, 1, 1)] void
-main_cs(
-	uint32 group_id		   sv_group_id,
-	uint32 group_thread_id sv_group_thread_id,
-	uint32 alive_idx_prev  sv_dispatch_thread_id)
+main_cs(uint32 group_id		   sv_group_id,
+		uint32 group_thread_id sv_group_thread_id,
+		uint32 alive_idx_prev  sv_dispatch_thread_id)
 
 {
-	const gibs_data		   data					  = gibs_load_gibs_data();
-	const rw_stack<uint32> alive_stack_prev		  = gibs_load_alive_surfel_id_stack_prev(data);
-	const uint32		   alive_count_prev_total = alive_stack_prev.size();
+	const gibs_data data = gibs_load_gibs_data();
+
+	rw_stack<uint32> alive_stack_prev		= gibs_load_alive_surfel_id_stack_prev(data);
+	const uint32	 alive_count_prev_total = alive_stack_prev.size();
 	if (alive_idx_prev >= alive_count_prev_total) { return; }
 
 	uint32 surfel_id = alive_stack_prev[alive_idx_prev];
 
-	rw_byte_array<surfel_geometry>	   geo_arr		= gibs_load_surfel_geometry_rw_arr(data);
-	rw_byte_array<surfel_recycle_data> recycle_arr	= gibs_load_surfel_recycle_data_rw_arr(data);
-	texture_2d<uint32_2>			   gbuffer		= global_resource_buffer[data.h_gbuffer_srv_id];
-	texture_2d<float>				   depth_buffer = global_resource_buffer[depth_buffer_texture_id];
-	rw_array<surfel>				   surfel_arr	= gibs_load_surfel_rw_arr(data);
-	rw_byte_array<surfel_msme>		   msme_arr		= gibs_load_surfel_msme_rw_arr(data);
+	texture_2d<uint32_2>		   gbuffer		= global_resource_buffer[data.h_gbuffer_srv_id];
+	texture_2d<float>			   depth_buffer = global_resource_buffer[depth_buffer_texture_id];
+	rw_byte_array<surfel>		   surfel_arr	= gibs_load_surfel_rw_arr(data);
+	rw_byte_array<surfel_geometry> geo_arr		= gibs_load_surfel_geometry_rw_arr(data);
+	rw_byte_array<surfel_msme>	   msme_arr		= gibs_load_surfel_msme_rw_arr(data);
 
-	surfel				  surfel		 = surfel_arr[surfel_id];
-	const surfel_geometry surfel_geo	 = geo_arr[surfel_id];
-	surfel_recycle_data	  surfel_recycle = recycle_arr[surfel_id];
+	surfel				  surfel	 = surfel_arr[surfel_id];
+	const surfel_geometry surfel_geo = geo_arr[surfel_id];
 
 	// assert(surfel.alive_idx == alive_idx_prev, g::fmt_gibs_update_surfels);
 
@@ -78,22 +148,36 @@ main_cs(
 	const uint32_2 screen_pos = uint32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
 
 
-	const bool in_screen = clip_pos.w > 0.f and all(ndc.xy >= -1.f) and all(ndc.xy <= 1.f) and ndc.z >= 0.f and ndc.z <= 1.f;
+	const bool in_screen = clip_pos.w > 0.f
+					   and all(ndc.xy >= -1.f)
+					   and all(ndc.xy <= 1.f)
+					   and ndc.z >= 0.f
+					   and ndc.z <= 1.f;
 
 
-	const float z_depth		= in_screen
-								? load(depth_buffer, screen_pos)
-								: 0.f;
-	const bool	surfel_seen = in_screen
-						  and z_depth != 0.f
-						  and ndc.z >= (z_depth - epsilon_1e4)
-						  and ndc.z - z_depth < 0.5f;	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
+	const float z_depth = in_screen
+							? load(depth_buffer, screen_pos)
+							: 0.f;
+
+	const float3 px_normal = decode_oct_snorm16(load(gbuffer, screen_pos).y);
+
+	const bool was_seen = surfel.surfel_seen();
+
+	const bool surfel_seen = in_screen
+						 and was_seen
+						 and dot(px_normal, world_normal) > 0.9f
+						 and z_depth != 0.f
+						 and ndc.z >= (z_depth - epsilon_1e4)
+						 and ndc.z < (z_depth + epsilon_1e4);	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
 
 	const uint32 g_object_id = in_screen and z_depth != 0.f
 								 ? load(gbuffer, screen_pos).x
 								 : invalid_id_uint32;
 
+
 	bool kill_surfel = false;
+
+	const float2 rnd = random_pcg2d(uint32_2(surfel_id, frame_index)).x;
 
 	if (surfel.radius < epsilon_1e4)
 	{
@@ -103,16 +187,20 @@ main_cs(
 	{
 		kill_surfel = true;
 	}
-	else if (surfel_seen is_false and surfel_recycle.frame_since_ref() > 0xfe)
+	else if (surfel_seen is_false and surfel.frame_since_ref() >= 0x7e)
 	{
 		kill_surfel = true;
 	}
-	// else if (/*alive_count_prev_total > 0.8f * data.max_surfel_count and */ surfel_recycle.frame_since_seen() > 128u)
+	else if (was_seen and (surfel_seen is_false) and (rnd.x < 0.9))
+	{
+		kill_surfel = true;
+	}
+	// else if (was_seen is_false and (surfel_seen))
 	//{
 	//	kill_surfel = true;
 	// }
 
-	if (surfel_recycle.frame_since_born == 0u)
+	if (surfel.frame_since_born() == 0u)
 	{
 		kill_surfel = false;
 	}
@@ -123,85 +211,86 @@ main_cs(
 		return;
 	}
 
-	assert(surfel_recycle.frame_since_seen() <= 0xfff, g::fmt_gibs_update_surfels);
+	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
+	surfel.position			  = world_pos + world_normal * surfel.radius * 0.001f;
+
+	attr_branch()
 
 	if ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0)
 	{
-		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
-		surfel.radius			  = gibs_calc_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
-		surfel.position			  = world_pos + world_normal * surfel.radius * 0.1f;
+		if (surfel_seen)
+		{
+			surfel.radius = gibs_calc_tile_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
+		}
+		else
+		{
+			surfel.radius = gibs_calc_cell_surfel_radius(data, gibs_load_gibs_lut_data(), surfel);
+		}
+
+		surfel.next_frame(surfel_seen);
 	}
 
-	if (surfel_recycle.frame_since_born == 0u)
-	{
-		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
 
-		const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
-		surfel.radiance = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
-		// surfel.radiance = gi_resolve_buffer[screen_pos];
-
-		surfel_msme msme = msme_arr[surfel_id];
-
-		msme.mean_long	   = surfel.radiance;
-		msme.mean_short	   = surfel.radiance;
-		msme.vbbr		   = 0.f;
-		msme.variance	   = float3(1.f, 1.f, 1.f);
-		msme.inconsistency = 1.f;
-
-		msme_arr.store(surfel_id, msme);
-	}
-
-	surfel_recycle.next_frame(surfel_seen);
-	recycle_arr.store(surfel_id, surfel_recycle);
 	// alive stack prev -> alive stack curr
-	const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
+	rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
 
-	const uint32 alive_count  = wave_active_count_bits(true);
-	const uint32 local_offset = wave_prefix_count_bits(true);
+	const bool is_tile = surfel_seen;
+	const bool is_cell = surfel_seen is_false;
 
-	uint32 target_offset = 0u;
+	// todo, optimize this using wave active ballet
+	const uint32 alive_count		= wave_active_count_bits(true);
+	const uint32 alive_local_offset = wave_prefix_count_bits(true);
+
+	uint32 alive_offset = 0u;
 	if (wave_is_first_lane())
 	{
-		target_offset = alive_stack_curr.inc_size_atomic(alive_count);
+		alive_offset = alive_stack_curr.inc_size_atomic(alive_count);
+
+		assert(alive_offset + alive_count <= alive_stack_curr.capacity, g::fmt_gibs_update_surfels, line);
 	}
 
-	target_offset = wave_read_lane_first(target_offset) + local_offset;
+	alive_offset = wave_read_lane_first(alive_offset) + alive_local_offset;
 
-	alive_stack_curr.set(target_offset, surfel_id);
+	alive_stack_curr.set(alive_offset, surfel_id);
 
-	const uint32 alive_idx_curr = target_offset;
+	const uint32 alive_idx_curr = alive_offset;
 
 	// surfel.alive_idx = alive_idx_curr;
 	surfel_arr.store(surfel_id, surfel);
 
-	// cell update
-	fn_cell_update fn = fn_cell_update::init(surfel);
-	gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
+	if (surfel_seen)
+	{
+		fn_tile_alloc fn = fn_tile_alloc::init(surfel, world_normal);
+		gibs_foreach_neighbor_tile(fn, data, screen_pos);
+	}
+	else
+	{
+		fn_cell_alloc fn = fn_cell_alloc::init(surfel);
+		gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
+	}
+
 
 	// calc ideal ray count
 
-	rw_byte_array<uint32> ray_count_arr			  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	rw_byte_array<uint32> ray_count_group_sum_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	const surfel_msme	  msme					  = msme_arr[surfel_id];
+	const surfel_msme msme = msme_arr[surfel_id];
 
-	assert(msme.inconsistency <= 1.f);
-	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(msme.inconsistency)));
+	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency));
 
 	if (surfel_seen is_false)
 	{
-		ray_count_ideal /= 4;
+		/*ray_count_ideal /= 4;*/
 	}
-	if (surfel_recycle.frame_since_born < 32)
+	if (surfel.frame_since_born() < GIBS_RADIANCE_CACHE_DELAY)
 	{
 		ray_count_ideal = GIBS_MAX_RAY_PER_SURFEL;
 	}
 
-	ray_count_arr.store(alive_idx_curr, ray_count_ideal);
+	gibs_load_surfel_ray_count_ideal_rw_arr(data).store(alive_idx_curr, ray_count_ideal);
 
 	uint32 ray_count_ideal_wave_sum = wave_active_sum(ray_count_ideal);
 
 	if (wave_is_first_lane())
 	{
-		ray_count_group_sum_arr.store(group_id, ray_count_ideal_wave_sum);
+		gibs_load_surfel_ray_count_ideal_wave_sum_rw_arr(data).store(group_id, ray_count_ideal_wave_sum);
 	}
 }

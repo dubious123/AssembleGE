@@ -3,15 +3,17 @@
 struct fn_fill_cell_to_surfel
 {
 	uint32 surfel_id;
-
+	uint32 tile_surfel_count;
 	surfel surfel;
 
 	static fn_fill_cell_to_surfel
-	init(uint32 id, const struct surfel surfel)
+	init(const gibs_data data, uint32 id, const struct surfel surfel)
 	{
 		fn_fill_cell_to_surfel res;
 		res.surfel_id = id;
-		res.surfel	  = surfel;
+
+		res.tile_surfel_count = gibs_load_tile_surfel_count(data);
+		res.surfel			  = surfel;
 		return res;
 	}
 
@@ -26,6 +28,7 @@ struct fn_fill_cell_to_surfel
 
 		const uint32		  local_offset			= entry_arr.atomic_inc(cell_idx_flat, 1u, 1u);	  // entry.count++;
 		rw_byte_array<uint32> cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_rw_arr(data);
+
 		cell_to_surfel_id_arr.store(entry.offset + local_offset, surfel_id);
 	}
 };
@@ -35,18 +38,21 @@ wave_size(32)
 main_cs(uint32 alive_idx sv_dispatch_thread_id)
 
 {
-	const gibs_data		   data				= gibs_load_gibs_data();
-	const rw_stack<uint32> alive_stack_curr = gibs_load_alive_surfel_id_stack_curr(data);
+	const gibs_data			 data			= gibs_load_gibs_data();
+	const byte_array<uint32> alive_arr_curr = gibs_load_alive_arr_curr(data);
 
-	if (alive_idx >= alive_stack_curr.size()) { return; }
+	if (alive_idx >= alive_arr_curr.capacity) { return; }
 
-	uint32 surfel_id = alive_stack_curr[alive_idx];
+	const uint32 surfel_id = alive_arr_curr[alive_idx];
 
-	rw_array<surfel> surfel_arr = gibs_load_surfel_rw_arr(data);
+	const surfel surfel = gibs_load_surfel_arr(data)[surfel_id];
 
-	const surfel surfel = surfel_arr[surfel_id];
-
-	// cell update
-	fn_fill_cell_to_surfel fn = fn_fill_cell_to_surfel::init(surfel_id, surfel);
-	gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
+	if (surfel.surfel_seen())
+	{
+	}
+	else
+	{
+		fn_fill_cell_to_surfel fn = fn_fill_cell_to_surfel::init(data, surfel_id, surfel);
+		gibs_foreach_neighbor_cell(fn, data, gibs_load_gibs_lut_data(), surfel.position);
+	}
 }

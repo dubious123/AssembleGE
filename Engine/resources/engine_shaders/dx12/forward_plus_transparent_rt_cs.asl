@@ -30,7 +30,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	desc.TMin	   = 0.001;
 	desc.TMax	   = t_max;
 
-	const float4 res = rt_calc_transparent_color(desc, query);
+	const float4 res = rt_calc_transparent_color(rt_arg::init_gibs(true), desc, query);
 
 	rw_texture_2d<float4> res_tex = global_resource_buffer[rt_transparent_buffer_uav_texture_id];
 

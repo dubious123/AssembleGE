@@ -284,13 +284,13 @@ struct debug_printer
 	def_append_arg(uint32_2);
 	def_append_arg(uint32_3);
 	def_append_arg(uint32_4);
-	def_append_arg(float2);
-	def_append_arg(float3);
-	def_append_arg(float4);
-	def_append_arg(float2x2);
-	def_append_arg(float3x3);
-	def_append_arg(float3x4);
-	def_append_arg(float4x4);
+	def_append_arg(const float2);
+	def_append_arg(const float3);
+	def_append_arg(const float4);
+	def_append_arg(const float2x2);
+	def_append_arg(const float3x3);
+	def_append_arg(const float3x4);
+	def_append_arg(const float4x4);
 
 #undef def_append_arg
 
@@ -729,16 +729,16 @@ debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 a
 	printer.append_arg(arg9);
 }
 
-void
-assert(bool test)
-{
-#if enable_debug_assert
-	if (test is_false)
-	{
-		debug_log(g::fmt_default_assert_0, g::default_shader_file_name);
-	}
-#endif
-}
+// void
+// assert(bool test)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_0, g::default_shader_file_name);
+//	}
+// #endif
+// }
 
 template <typename t_file>
 void

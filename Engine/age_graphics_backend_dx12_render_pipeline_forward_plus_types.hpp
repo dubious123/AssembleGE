@@ -423,39 +423,54 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		float3 origin;
 
-		resource_handle h_surfel_buffer;
-		resource_handle h_cell_info_buffer;	   // cell entry (offset, count) + cell coord to surfel
-		resource_handle h_surfel_spawn_kill_buffer;
-		resource_handle h_irradiance_atlas;
-		resource_handle h_visibility_atlas;
-		resource_handle h_gi_resolve_buffer;
+		resource_handle		  h_surfel_buffer;		 // surfel, geometry, msme, visibility, luminance
+		srv_desc_handle		  h_surfel_buffer_srv_desc;
+		uav_desc_handle		  h_surfel_buffer_uav_desc;
+		clear_uav_desc_handle h_surfel_buffer_clear_uav_desc;
+
+		resource_handle h_surfel_id_stack_buffer;	 // dead, alive prev, alive curr
+		srv_desc_handle h_surfel_id_stack_buffer_srv_desc;
+		uav_desc_handle h_surfel_id_stack_buffer_uav_desc;
+
+		resource_handle		  h_scratch_buffer;		 // prefix, sum, ...
+		uav_desc_handle		  h_scratch_buffer_uav_desc;
+		clear_uav_desc_handle h_scratch_buffer_clear_uav_desc;
+
+		resource_handle h_ray_buffer;				 // ray count, ray entry, ray result
+		srv_desc_handle h_ray_buffer_srv_desc;
+		uav_desc_handle h_ray_buffer_uav_desc;
+
+		resource_handle		  h_tile_buffer;		 // tile -> surfel, surfel_gt_id, cell -> surfel, surfel_gt_id
+		srv_desc_handle		  h_tile_buffer_srv_desc;
+		uav_desc_handle		  h_tile_buffer_uav_desc;
+		clear_uav_desc_handle h_tile_buffer_clear_uav_desc;
+
+		resource_handle		  h_tile_spawn_kill_buffer;
+		srv_desc_handle		  h_tile_spawn_kill_buffer_srv_desc;
+		uav_desc_handle		  h_tile_spawn_kill_buffer_uav_desc;
+		clear_uav_desc_handle h_tile_spawn_kill_buffer_clear_uav_desc;
+
+		resource_handle		  h_cell_buffer;	// cell -> surfel, surfel_gt_id,
+		srv_desc_handle		  h_cell_buffer_srv_desc;
+		uav_desc_handle		  h_cell_buffer_uav_desc;
+		clear_uav_desc_handle h_cell_buffer_clear_uav_desc;
+
+		resource_handle		  h_cell_spawn_kill_buffer;
+		srv_desc_handle		  h_cell_spawn_kill_buffer_srv_desc;
+		uav_desc_handle		  h_cell_spawn_kill_buffer_uav_desc;
+		clear_uav_desc_handle h_cell_spawn_kill_buffer_clear_uav_desc;
+
 		resource_handle h_gbuffer;
-		resource_handle h_scratch_buffer;
-
-		resource_handle h_indirect_arg_buffer;
-
-		srv_desc_handle h_surfel_buffer_srv_desc;
-		srv_desc_handle h_cell_info_srv_desc;
-		srv_desc_handle h_surfel_spawn_kill_srv_desc;
-		srv_desc_handle h_irradiance_atlas_srv_desc;
-		srv_desc_handle h_visibility_atlas_srv_desc;
-		srv_desc_handle h_gi_resolve_buffer_srv_desc;
+		rtv_desc_handle h_gbuffer_rtv_desc;
 		srv_desc_handle h_gbuffer_srv_desc;
 
-		uav_desc_handle h_surfel_buffer_uav_desc;
-		uav_desc_handle h_cell_info_uav_desc;
-		uav_desc_handle h_surfel_spawn_kill_uav_desc;
-		uav_desc_handle h_scratch_buffer_uav_desc;
-		uav_desc_handle h_irradiance_atlas_uav_desc;
-		uav_desc_handle h_visibility_atlas_uav_desc;
-		uav_desc_handle h_gi_resolve_buffer_uav_desc;
-		rtv_desc_handle h_gbuffer_rtv_desc;
+		resource_handle		  h_gi_resolve_buffer;
+		srv_desc_handle		  h_gi_resolve_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_buffer_clear_uav_desc;
 
-		uav_desc_handle h_indirect_arg_uav_desc;
 
-		clear_uav_desc_handle h_irradiance_clear_uav_desc;
-		clear_uav_desc_handle h_visibility_clear_uav_desc;
-		clear_uav_desc_handle h_cell_info_clear_uav_desc;
-		clear_uav_desc_handle h_scratch_clear_uav_desc;
+		resource_handle h_indirect_arg_buffer;
+		uav_desc_handle h_indirect_arg_buffer_uav_desc;
 	};
 }	 // namespace age::graphics::render_pipeline::forward_plus

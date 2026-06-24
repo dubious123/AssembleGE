@@ -208,7 +208,7 @@ namespace age::graphics::resource
 	}
 
 	resource_handle
-	create_committed_buf_uav(uint32 byte_size) noexcept
+	create_committed_buf_uav(uint64 byte_size) noexcept
 	{
 		return resource::create_committed(
 			{ .d3d12_resource_desc = defaults::resource_desc::buffer_uav(byte_size),
@@ -871,6 +871,19 @@ namespace age::graphics::resource
 		{
 			static_assert(false, "invalid descriptor handle type or desc type");
 		}
+	}
+
+	FORCE_INLINE clear_uav_desc_handle
+	create_clear_uav_view(const resource_handle& h_resource, c_auto& view_desc) noexcept
+	{
+		using t_view_desc = BARE_OF(view_desc);
+
+		static_assert(std::is_same_v<t_view_desc, D3D12_UNORDERED_ACCESS_VIEW_DESC>);
+
+		auto h_desc = pop_descriptor<clear_uav_desc_handle>();
+		g::p_main_device->CreateUnorderedAccessView(g::resource_vec[h_resource].p_resource, nullptr, &view_desc, h_desc.h_cpu);
+		g::p_main_device->CreateUnorderedAccessView(g::resource_vec[h_resource].p_resource, nullptr, &view_desc, h_desc.h_cpu_non_shader_visible);
+		return h_desc;
 	}
 }	 // namespace age::graphics::resource
 

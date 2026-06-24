@@ -34,7 +34,7 @@ main_ms(
 	{
 		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
 
-		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
+		v.pos.xyz = rotate(quaternion, v.pos.xyz * scale) + pos;
 
 		//  v.pos.xyz = rotate(v.pos.xyz * scale, float4(0, 0, 0, 1)) + pos;
 		// v.pos.xyz = rotate(v.pos.xyz * scale, obj_data.quaternion_debug) + pos;
@@ -44,9 +44,9 @@ main_ms(
 
 		v.pos = mul(view_proj, v.pos);
 
-		v.normal = normalize(rotate(v.normal / scale, quaternion));
+		v.normal = normalize(rotate(quaternion, v.normal / scale));
 
-		const float3 t = normalize(rotate(v.tangent.xyz * scale, quaternion));
+		const float3 t = normalize(rotate(quaternion, v.tangent.xyz * scale));
 
 		v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
 

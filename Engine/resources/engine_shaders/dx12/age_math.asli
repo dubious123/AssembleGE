@@ -861,12 +861,28 @@ ndc_xy_to_screen(float2 ndc_xy, float2 screen_size)
 	return float2(ndc_xy.x * 0.5 + 0.5, -ndc_xy.y * 0.5 + 0.5) * screen_size;
 }
 
+uint32_2
+world_to_screen(float4x4 view_proj, float3 world_pos, float2 screen_size)
+{
+	const float4 clip_pos = mul(view_proj, float4(world_pos, 1.f));
+	const float3 ndc	  = clip_pos.xyz / clip_pos.w;
+	return ndc_xy_to_screen(ndc.xy, screen_size);
+}
+
 bool
 sphere_aabb_intersect(float3 sphere_position, float sphere_range, float3 aabb_min, float3 aabb_max)
 {
 	const float3 closest = clamp(sphere_position, aabb_min, aabb_max);
 	const float3 diff	 = sphere_position - closest;
 	return dot(diff, diff) <= sphere_range * sphere_range;
+}
+
+// (min_x, min_y, max_x, max_y)
+bool
+aabb_intersect(uint32_4 a, uint32_4 b)
+{
+	return a.x <= b.z and a.z >= b.x
+	   and a.y <= b.w and a.w >= b.y;
 }
 
 bool

@@ -448,7 +448,7 @@ namespace age::graphics::defaults
 		}
 
 		FORCE_INLINE decltype(auto)
-		byte_address_buffer(uint32 byte_size) noexcept
+		byte_address_buffer(uint64 byte_size) noexcept
 		{
 			AGE_ASSERT(byte_size % 4 == 0);
 			return D3D12_SHADER_RESOURCE_VIEW_DESC{

@@ -1,6 +1,35 @@
 #pragma once
 #include "age.asli"
 
+// struct gibs
+//{
+//	vector<surfel>			surfel_vec;
+//	vector<surfel_msme>		surfel_msme_vec;
+//	vector<surfel_geometry> surfel_geo_vec;
+//	vector<surfel_vis>		surfel_vis_vec;
+//	vector<surfel_lum>		surfel_lum_vec;
+//	vector<surfel_lum_cdf>	surfel_lum_cdf_vec;
+//
+//	stack<uint32> surfel_dead_id_stack;
+//	stack<uint32> surfel_alive_id_stack_prev;
+//	stack<uint32> surfel_alive_id_stack_curr;
+//
+//	vector<gibs_ray_entry>	ray_entry_vec;
+//	vector<gibs_ray_result> ray_result_vec;
+//	vector<gibs_tile_entry> tile_entry_vec;
+//	vector<uint32>			tile_to_surfel_id_vec;
+//	vector<gibs_cell_entry> cell_entry_vec;
+//	vector<uint32>			cell_to_surfel_id_vec;
+//
+//	vector<surfel> surfel_copied_vec;
+//
+//	texture_2d<uint32_2> gbuffer;
+//	texture_2d<float3>	 gi_resolve_buffer;
+//	gibs_indirect_arg	 indirect_arg;
+//
+//	gibs_scratch_data gibs_scratch;
+// };
+
 //---[ gibs data ]------------------------------------------------------------------------------------------------------
 gibs_data
 gibs_load_gibs_data()
@@ -21,223 +50,209 @@ gibs_enabled()
 }
 
 //---[ gibs indirect arg ]------------------------------------------------------------------------------------------------------
-void
-gibs_set_indirect_arg_surfel_update(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 0, arg);
-}
+#define gibs_indirect_arg_func(name, nth)                                                       \
+	void                                                                                        \
+	name(const gibs_data data, uint32_3 arg)                                                    \
+	{                                                                                           \
+		rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_buffer_uav_id]; \
+		store(buf, sizeof(uint32_3) * nth, arg);                                                \
+	}
+gibs_indirect_arg_func(gibs_set_indirect_arg_surfel_update, 0);
+gibs_indirect_arg_func(gibs_set_indirect_arg_ray_ideal_count_sum, 1);
+gibs_indirect_arg_func(gibs_set_indirect_arg_ray_count_prefix, 2);
+gibs_indirect_arg_func(gibs_set_indirect_arg_ray_entry, 3);
+gibs_indirect_arg_func(gibs_set_indirect_arg_surfel_scatter, 4);
+gibs_indirect_arg_func(gibs_set_indirect_arg_ray_trace, 5);
+gibs_indirect_arg_func(gibs_set_indirect_arg_ray_integrate, 6);
+gibs_indirect_arg_func(gibs_set_indirect_arg_build_cdf, 7);
+gibs_indirect_arg_func(gibs_set_indirect_arg_radiance_sharing, 8);
 
-void
-gibs_set_indirect_arg_ray_count_prefix(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 1, arg);
-}
-
-void
-gibs_set_indirect_arg_ray_entry(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 2, arg);
-}
-
-void
-gibs_set_indirect_arg_cell_to_surfel_scatter(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 3, arg);
-}
-
-void
-gibs_set_indirect_arg_ray_trace(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 4, arg);
-}
-
-void
-gibs_set_indirect_arg_ray_integrate(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 5, arg);
-}
-
-void
-gibs_set_indirect_arg_build_cdf(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 6, arg);
-}
-
-void
-gibs_set_indirect_arg_radiance_sharing(const gibs_data data, uint32_3 arg)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_uav_id];
-	store(buf, sizeof(uint32_3) * 7, arg);
-}
-
-//---[ gibs counter ]------------------------------------------------------------------------------------------------------
-uint32
-gibs_alloc_cell_surfel_offset(const gibs_data data, uint32 surfel_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (3u + data.max_surfel_count * 3));
-	return counter.inc(surfel_count);
-}
-
-void
-gibs_atomic_add_ray_count_ideal(const gibs_data data, uint32 ray_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (4u + data.max_surfel_count * 3));
-	counter.inc(ray_count);
-}
-
-uint32
-gibs_get_ray_count_ideal_total(const gibs_data data)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
-	return load<uint32>(buf, sizeof(uint32) * (4u + data.max_surfel_count * 3));
-}
-
-uint32
-gibs_alloc_ray(const gibs_data data, uint32 ray_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (5u + data.max_surfel_count * 3));
-	return counter.inc(ray_count);
-}
-
-uint32
-gibs_get_ray_count_total(const gibs_data data)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (5u + data.max_surfel_count * 3));
-	return counter.value();
-}
-
-void
-gibs_reset_counter(const gibs_data data)
-{
-	atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (3u + data.max_surfel_count * 3)).set(0);
-	atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (4u + data.max_surfel_count * 3)).set(0);
-	atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], sizeof(uint32) * (5u + data.max_surfel_count * 3)).set(0);
-}
+#undef gibs_indirect_arg_func
 
 //---[ surfel ]------------------------------------------------------------------------------------------------------
-array<surfel>
+uint32
+gibs_calc_tile_local_idx(const float3 local_dir)
+{
+	assert(local_dir.y >= 0.f, g::fmt_gibs, line);
+	const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
+	int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIBS_ATLAS_TILE_SIZE));	// [0, 6)
+	idx					= min(idx, GIBS_ATLAS_TILE_SIZE - 1);
+	return idx.x + idx.y * GIBS_ATLAS_TILE_SIZE;
+}
+
+byte_array<surfel>
 gibs_load_surfel_arr(const gibs_data data)
 {
-	return array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.max_surfel_count);
+	return byte_array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_offset(), data.max_surfel_count);
 }
 
-rw_array<surfel>
+rw_byte_array<surfel>
 gibs_load_surfel_rw_arr(const gibs_data data)
 {
-	return rw_array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.max_surfel_count);
+	return rw_byte_array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_offset(), data.max_surfel_count);
 }
 
-//---[ cell entry ]------------------------------------------------------------------------------------------------------
-byte_array<gibs_cell_entry>
-gibs_load_cell_entry_arr(const gibs_data data)
+void
+gibs_set_surfel_ref(const gibs_data data, uint32 surfel_id)
 {
-	return byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_info_buffer_srv_id], 0u, data.cell_count_total);
+	rw_byte_address_buffer buf			= global_resource_buffer[data.h_surfel_buffer_uav_id];
+	const uint32		   offset		= data.surfel_offset() + sizeof(surfel) * surfel_id + (sizeof(float3) + sizeof(uint32) + sizeof(uint32) + sizeof(half));
+	const uint16		   recycle_data = load<uint16>(buf, offset) & 0x80ff;
+	store<uint16>(buf, offset, recycle_data);
 }
 
-rw_byte_array<gibs_cell_entry>
-gibs_load_cell_entry_rw_arr(const gibs_data data)
+rw_byte_array<surfel_geometry>
+gibs_load_surfel_geometry_rw_arr(const gibs_data data)
 {
-	return rw_byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_info_buffer_uav_id], 0u, data.cell_count_total);
+	return rw_byte_array<surfel_geometry>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_geo_offset(), data.max_surfel_count);
 }
 
-//---[ cell to surfel ]------------------------------------------------------------------------------------------------------
-byte_array<uint32>
-gibs_load_cell_to_surfel_id_arr(const gibs_data data)
+rw_byte_array<surfel_msme>
+gibs_load_surfel_msme_rw_arr(const gibs_data data)
 {
-	return byte_array<uint32>::init(global_resource_buffer[data.h_cell_info_buffer_srv_id], sizeof(gibs_cell_entry) * data.cell_count_total, data.max_surfel_count * 27);
+	return rw_byte_array<surfel_msme>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_msme_offset(), data.max_surfel_count);
 }
 
-rw_byte_array<uint32>
-gibs_load_cell_to_surfel_id_rw_arr(const gibs_data data)
+byte_array<surfel_geometry>
+gibs_load_surfel_geometry_arr(const gibs_data data)
 {
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_info_buffer_uav_id], sizeof(gibs_cell_entry) * data.cell_count_total, data.max_surfel_count * 27);
+	return byte_array<surfel_geometry>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_geo_offset(), data.max_surfel_count);
+}
+
+byte_array<surfel_msme>
+gibs_load_surfel_msme_arr(const gibs_data data)
+{
+	return byte_array<surfel_msme>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_msme_offset(), data.max_surfel_count);
+}
+
+rw_byte_array<uint16>
+gibs_load_surfel_visibility_rw_arr(const gibs_data data, uint32 surfel_id)
+{
+	return rw_byte_array<uint16>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_vis_offset(surfel_id), data.atlas_texel_count());
+}
+
+byte_array<uint16>
+gibs_load_surfel_visibility_arr(const gibs_data data, uint32 surfel_id)
+{
+	return byte_array<uint16>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_vis_offset(surfel_id), data.atlas_texel_count());
+}
+
+rw_byte_array<half>
+gibs_load_lum_rw_arr(const gibs_data data, uint32 surfel_id)
+{
+	return rw_byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_lum_offset(surfel_id), data.atlas_texel_count());
+}
+
+byte_array<half>
+gibs_load_lum_arr(const gibs_data data, uint32 surfel_id)
+{
+	return byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_lum_offset(surfel_id), data.atlas_texel_count());
+}
+
+rw_byte_array<half>
+gibs_load_lum_cdf_rw_arr(const gibs_data data, uint32 surfel_id)
+{
+	return rw_byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_lum_cdf_offset(surfel_id), data.atlas_texel_count());
+}
+
+byte_array<half>
+gibs_load_lum_cdf_arr(const gibs_data data, uint32 surfel_id)
+{
+	return byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_lum_cdf_offset(surfel_id), data.atlas_texel_count());
 }
 
 //---[ alive dead surfel id stack ]------------------------------------------------------------------------------------------------------
 rw_stack<uint32>
 gibs_load_dead_surfel_id_stack(const gibs_data data)
 {
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], 0u, data.max_surfel_count);
+	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.dead_stack_offset(), data.max_surfel_count);
 }
 
 rw_stack<uint32>
 gibs_load_alive_surfel_id_stack_prev(const gibs_data data)
 {
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.alive_surfel_id_stack_prev_offset, data.max_surfel_count);
+	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.alive_stack_offset_prev(), data.max_surfel_count);
+}
+
+uint32
+gibs_load_alive_count_prev(const gibs_data data)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
+	return load<uint32>(buf, data.alive_stack_offset_prev());
 }
 
 rw_stack<uint32>
 gibs_load_alive_surfel_id_stack_curr(const gibs_data data)
 {
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.alive_surfel_id_stack_curr_offset, data.max_surfel_count);
+	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.alive_stack_offset_curr(), data.max_surfel_count);
 }
 
-//---[ surfel soa ]------------------------------------------------------------------------------------------------------
-
-rw_byte_array<surfel_geometry>
-gibs_load_surfel_geometry_rw_arr(const gibs_data data)
+uint32
+gibs_load_alive_count_curr(const gibs_data data)
 {
-	return rw_byte_array<surfel_geometry>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.surfel_geometry_offset, data.max_surfel_count);
+	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
+	return load<uint32>(buf, data.alive_stack_offset_curr());
 }
 
-rw_byte_array<surfel_msme>
-gibs_load_surfel_msme_rw_arr(const gibs_data data)
+byte_array<uint32>
+gibs_load_alive_arr_curr(const gibs_data data)
 {
-	return rw_byte_array<surfel_msme>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.surfel_msme_offset, data.max_surfel_count);
-}
-
-rw_byte_array<surfel_recycle_data>
-gibs_load_surfel_recycle_data_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<surfel_recycle_data>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.surfel_recycle_data_offset, data.max_surfel_count);
+	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
+	return byte_array<uint32>::init(buf, data.alive_arr_offset_curr(), gibs_load_alive_count_curr(data));
 }
 
 //---[ ray count reduce ]------------------------------------------------------------------------------------------------------
+uint32
+gibs_get_ray_count_ideal_total(const gibs_data data)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
+	return load<uint32>(buf, data.ray_count_ideal_total_offset());
+}
+
+void
+gibs_atomic_add_ray_count_ideal(const gibs_data data, uint32 ray_count)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_total_offset());
+	counter.inc(ray_count);
+}
 
 rw_byte_array<uint32>
 gibs_load_surfel_ray_count_ideal_rw_arr(const gibs_data data)
 {
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_offset, data.max_surfel_count);
+	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_offset(), data.max_surfel_count);
+}
+
+rw_byte_array<uint32>
+gibs_load_surfel_ray_count_ideal_wave_sum_rw_arr(const gibs_data data)
+{
+	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_wave_sum_offset(), ceil(data.max_surfel_count, 32));
+}
+
+void
+gibs_reset_ray_alloc(const gibs_data data)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
+	counter.set(0);
+}
+
+uint32
+gibs_alloc_ray(const gibs_data data, uint32 ray_count)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
+	return counter.inc(ray_count);
+}
+
+uint32
+gibs_load_ray_count_total(const gibs_data data)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
+	return counter.value();
 }
 
 rw_byte_array<uint32>
 gibs_load_surfel_ray_count_prefix_rw_arr(const gibs_data data)
 {
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_prefix_offset, data.max_surfel_count);
-}
-
-rw_byte_array<uint32>
-gibs_load_surfel_ray_group_sum_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_group_sum_offset, ceil(data.max_surfel_count, GIBS_RAY_COUNT_REDUCE_EPG));
-}
-
-rw_byte_array<uint32>
-gibs_load_surfel_ray_group_prefix_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_group_prefix_offset, ceil(data.max_surfel_count, GIBS_RAY_COUNT_REDUCE_EPG));
-}
-
-rw_byte_array<gibs_ray_result>
-gibs_load_ray_result_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<gibs_ray_result>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_result_offset, GIBS_RAY_BUDGET);
-}
-
-gibs_ray_entry
-gibs_load_ray_entry_rw(const gibs_data data, uint32 idx)
-{
-	assert(idx < GIBS_RAY_BUDGET, g::fmt_gibs, line);
-	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
-	return load<gibs_ray_entry>(buf, data.ray_result_offset + sizeof(gibs_ray_result) * idx);
+	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_prefix_offset(), data.max_surfel_count);
 }
 
 void
@@ -245,52 +260,273 @@ gibs_store_ray_entry(const gibs_data data, uint32 idx, const gibs_ray_entry entr
 {
 	assert(idx < GIBS_RAY_BUDGET, g::fmt_gibs, line);
 	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
-	store<gibs_ray_entry>(buf, data.ray_result_offset + sizeof(gibs_ray_result) * idx, entry);
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_buffer_uav_id];
+	store<gibs_ray_entry>(buf, data.ray_entry_offset(idx), entry);
 }
 
-//---[ surfel spawn kill stack ]------------------------------------------------------------------------------------------------------
-rw_stack<surfel_spawn_data>
-gibs_load_surfel_spawn_kill_stack(const gibs_data data)
+gibs_ray_entry
+gibs_load_ray_entry_rw(const gibs_data data, uint32 idx)
 {
-	// float to uint32 conversion has no error within reasonable backbuffer extent
-	const uint32 cap = 2 * ceil(cast<uint32>(backbuffer_size.x), GIBS_SCREEN_TILE_SIZE) * ceil(cast<uint32>(backbuffer_size.y), GIBS_SCREEN_TILE_SIZE);
-	return rw_stack<surfel_spawn_data>::init(global_resource_buffer[data.h_surfel_spawn_kill_uav_id], 0u, cap);
+	assert(idx < GIBS_RAY_BUDGET, g::fmt_gibs, line);
+	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_buffer_uav_id];
+	return load<gibs_ray_entry>(buf, data.ray_entry_offset(idx));
 }
 
-byte_array<surfel_spawn_data>
-gibs_load_surfel_spawn_kill_array(const gibs_data data)
+rw_byte_array<gibs_ray_result>
+gibs_load_ray_result_rw_arr(const gibs_data data)
 {
-	// float to uint32 conversion has no error within reasonable backbuffer extent
-	const uint32 cap = 2 * ceil(cast<uint32>(backbuffer_size.x), GIBS_SCREEN_TILE_SIZE) * ceil(cast<uint32>(backbuffer_size.y), GIBS_SCREEN_TILE_SIZE);
-	return byte_array<surfel_spawn_data>::init(global_resource_buffer[data.h_surfel_spawn_kill_srv_id], sizeof(uint32), cap);
+	return rw_byte_array<gibs_ray_result>::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_data_block_offset(), GIBS_RAY_BUDGET);
+}
+
+byte_array<gibs_ray_result>
+gibs_load_ray_result_arr(const gibs_data data)
+{
+	return byte_array<gibs_ray_result>::init(global_resource_buffer[data.h_ray_buffer_srv_id], data.ray_data_block_offset(), GIBS_RAY_BUDGET);
+}
+
+//---[ cell ]------------------------------------------------------------------------------------------------------
+uint32
+gibs_alloc_cell_surfel(const gibs_data data, uint32 surfel_count)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_count_offset());
+	return counter.inc(surfel_count);
 }
 
 uint32
-gibs_load_surfel_spawn_kill_array_size(const gibs_data data)
+gibs_load_cell_surfel_count(const gibs_data data)
 {
-	byte_address_buffer buf = global_resource_buffer[data.h_surfel_spawn_kill_srv_id];
-	return load<uint32>(buf, 0);
+	byte_address_buffer buf = global_resource_buffer[data.h_cell_buffer_srv_id];
+	return load<uint32>(buf, data.cell_surfel_count_offset());
+}
+
+byte_array<gibs_cell_entry>
+gibs_load_cell_entry_arr(const gibs_data data)
+{
+	return byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_entry_block_offset(), data.cell_count_total);
+}
+
+rw_byte_array<gibs_cell_entry>
+gibs_load_cell_entry_rw_arr(const gibs_data data)
+{
+	return rw_byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_entry_block_offset(), data.cell_count_total);
+}
+
+byte_array<uint32>
+gibs_load_cell_to_surfel_id_arr(const gibs_data data)
+{
+	return byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+}
+
+rw_byte_array<uint32>
+gibs_load_cell_to_surfel_id_rw_arr(const gibs_data data)
+{
+	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+}
+
+//---[ cell spawn kill ]---
+void
+gibs_set_cell_surfel_spawn(const gibs_data data, uint32 cell_idx_flat, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+	const uint32 offset = data.cell_spawn_kill_data_offset(cell_idx_flat);
+
+	uint32 original;
+	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
+
+	if (original == invalid_id_uint32)
+	{
+		store<float3>(buf, offset + sizeof(object_id), local_pos);
+		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos), local_normal_oct_snorm16);
+		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos) + sizeof(local_normal_oct_snorm16), radiance_packed);
+	}
+}
+
+void
+gibs_set_cell_surfel_kill(const gibs_data data, uint32 cell_idx_flat, uint32 surfel_id)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+	const uint32 offset = data.cell_spawn_kill_data_offset(cell_idx_flat) + sizeof(gibs_cell_surfel_spawn_data);
+
+	uint32 original;
+	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
+}
+
+gibs_cell_surfel_spawn_kill_data
+gibs_load_cell_surfel_spawn_kill_data(const gibs_data data, uint32 cell_idx_flat)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+	return load<gibs_cell_surfel_spawn_kill_data>(buf, data.cell_spawn_kill_data_offset(cell_idx_flat));
+}
+
+// cell_to_surfel[slot_idx] = surfel_id
+void
+gibs_set_cell_surfel_ref(const gibs_data data, uint32 slot_idx)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+	const uint32 offset = data.cell_surfel_ref_word_offset(slot_idx);
+	const uint32 flag	= 1u << (slot_idx % 32u);
+
+	buf_interlocked_and(buf, offset, ~flag);
+}
+
+bool
+gibs_get_cell_surfel_ref(const gibs_data data, uint32 slot_idx)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+	const uint32 offset = data.cell_surfel_ref_word_offset(slot_idx);
+	const uint32 flag	= 1u << (slot_idx % 32u);
+
+	return (~load<uint32>(buf, offset)) & flag;
+}
+
+uint32
+gibs_get_cell_surfel_ref_word(const gibs_data data, uint32 world_idx)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+	return load<uint32>(buf, data.cell_surfel_ref_offset() + sizeof(uint32) * world_idx);
+}
+
+//---[ tile ]------------------------------------------------------------------------------------------------------
+uint32
+gibs_alloc_tile_surfel(const gibs_data data, uint32 surfel_count)
+{
+	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_surfel_count_offset());
+	return counter.inc(surfel_count);
+}
+
+uint32
+gibs_load_tile_surfel_count(const gibs_data data)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_tile_buffer_srv_id];
+	return load<uint32>(buf, data.tile_surfel_count_offset());
+}
+
+byte_array<gibs_tile_entry>
+gibs_load_tile_entry_arr(const gibs_data data)
+{
+	return byte_array<gibs_tile_entry>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_entry_block_offset(), data.tile_count_total);
+}
+
+rw_byte_array<gibs_tile_entry>
+gibs_load_tile_entry_rw_arr(const gibs_data data)
+{
+	return rw_byte_array<gibs_tile_entry>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_entry_block_offset(), data.tile_count_total);
+}
+
+byte_array<uint32>
+gibs_load_tile_to_surfel_id_arr(const gibs_data data)
+{
+	return byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
+}
+
+rw_byte_array<uint32>
+gibs_load_tile_to_surfel_id_rw_arr(const gibs_data data)
+{
+	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
+}
+
+//---[ tile spawn kill ]---
+void
+gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_idx_flat, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
+
+	const uint32 offset = data.tile_spawn_kill_data_offset(tile_idx_flat);
+
+	uint32 original;
+	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
+
+	if (original == invalid_id_uint32)
+	{
+		store<float3>(buf, offset + sizeof(object_id), local_pos);
+		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos), local_normal_oct_snorm16);
+		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos) + sizeof(local_normal_oct_snorm16), radiance_packed);
+	}
+}
+
+void
+gibs_set_tile_surfel_kill(const gibs_data data, uint32 tile_idx_flat, uint32 surfel_id)
+{
+	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
+
+	const uint32 offset = data.tile_spawn_kill_data_offset(tile_idx_flat) + sizeof(uint32) + sizeof(float3) + sizeof(uint32) + sizeof(uint32);
+
+	uint32 original;
+	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
+}
+
+gibs_tile_surfel_spawn_kill_data
+gibs_load_tile_surfel_spawn_kill_data(const gibs_data data, uint32 tile_idx_flat)
+{
+	byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_srv_id];
+	return load<gibs_tile_surfel_spawn_kill_data>(buf, data.tile_spawn_kill_data_offset(tile_idx_flat));
 }
 
 //---[ logics ]------------------------------------------------------------------------------------------------------
-
 float3
-gibs_calc_origin(const gibs_lut_data lut_data)
+gibs_calc_cell_origin(const gibs_lut_data lut_data)
 {
 	return round(gi_origin / lut_data.cell_size_arr[0]) * lut_data.cell_size_arr[0];
+}
+
+uint32
+gibs_flatten_tile_idx(const gibs_data data, uint32_2 tile_idx)
+{
+	return tile_idx.y * data.tile_count_w + tile_idx.x;
+}
+
+half
+gibs_calc_tile_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
+{
+	const float3 rel	   = surfel.position - camera_pos;
+	const float	 distance  = length(rel);
+	const float	 cos_theta = dot(rel / distance, camera_forward);
+
+	const float radius = distance * lut_data.surfel_distance_to_tile_radius * cos_theta * cos_theta;
+
+	return cast<half>(radius);
+	// return min(radius, cell_size);
+	// return clamp(radius, cell_size * 0.15f, cell_size);
+	// return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
+}
+
+template <typename t_func>
+void
+gibs_foreach_neighbor_tile(inout t_func fn, const gibs_data data, const uint32_2 screen_pos)
+{
+	const int32_2 tile_center_idx = screen_pos / GIBS_SCREEN_TILE_SIZE;
+	int32		  x_min			  = tile_center_idx.x <= 0 ? 0 : -1;
+	int32		  y_min			  = tile_center_idx.y <= 0 ? 0 : -1;
+	int32		  x_max			  = tile_center_idx.x >= data.tile_count_w - 1 ? 0 : 1;
+	int32		  y_max			  = tile_center_idx.y >= data.tile_count_h - 1 ? 0 : 1;
+
+	for (int32 y = y_min; y <= y_max; ++y)
+	{
+		for (int32 x = x_min; x <= x_max; ++x)
+		{
+			const int32_2 tile_idx = tile_center_idx + int32_2(x, y);
+
+			fn(data, tile_idx);
+		}
+	}
 }
 
 float3
 gibs_calc_cube_min(const gibs_lut_data lut_data, uint32 layer)
 {
-	return gibs_calc_origin(lut_data) - lut_data.layer_boundary_arr[layer];
+	return gibs_calc_cell_origin(lut_data) - lut_data.layer_boundary_arr[layer];
 }
 
 uint32
 gibs_calc_layer(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
 {
-	const float3 rel  = world_pos - gibs_calc_origin(lut_data);
+	const float3 rel  = world_pos - gibs_calc_cell_origin(lut_data);
 	const float	 axis = max(abs(rel));
 
 	expand_all()
@@ -318,49 +554,21 @@ gibs_calc_cell_size(const gibs_data data, const gibs_lut_data lut_data, const su
 	return lut_data.cell_size_arr[gibs_calc_layer(data, lut_data, surfel)];
 }
 
-float
-gibs_calc_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
+half
+gibs_calc_cell_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
 {
-	const float distance = length(surfel.position - gibs_calc_origin(lut_data));
+	const float distance = length(surfel.position - gibs_calc_cell_origin(lut_data));
 
-	const float radius = distance * lut_data.surfel_distance_to_radius;
+	const float radius = distance * lut_data.surfel_distance_to_cell_radius;
 
 	const float cell_size = gibs_calc_cell_size(data, lut_data, surfel);
+	return cast<half>(cell_size);
+	return cast<half>(radius);
 	// return max(radius, cell_size * 0.15f);
 	// return radius;
-	return min(radius, cell_size);
-	return clamp(radius, cell_size * 0.15f, cell_size);
-	return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
-	// if (gibs_calc_layer(data, lut_data, surfel) == 0)
-	//{
-	//	return lut_data.cell_size_arr[0] * 0.1f;
-	// }
-
-	// const uint32 layer = gibs_calc_layer(data, lut_data, surfel);
-	// if (layer == 0)
-	//{
-	//	radius = lut_data.cell_size_arr[0];
-	// }
-	// else
-	//{
-	//	radius = min(max(abs(surfel.position)) / data.cell_count, lut_data.layer_boundary_arr[data.outer_layer_count] / data.cell_count);
-	//	radius = max(abs(surfel.position)) * 2 / sqrt(2) / data.cell_count;
-
-	//	radius = lut_data.cell_size_arr[layer];
-	//}
-	// return radius;
-
-	// if (distance < lut_data.layer_boundary_arr[0])
-	//{
-	//	return max(radius, cell_size * 0.15f);
-	// }
-	// else
-	//{
-	//	return radius;
-	// }
-
-
-	//  return clamp(radius, cell_size * 0.15f, cell_size * 0.5f * 0.7f);
+	// return cast<half>(min(radius, cell_size));
+	// return clamp(radius, cell_size * 0.15f, cell_size);
+	// return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
 }
 
 uint32
@@ -461,7 +669,7 @@ gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const flo
 {
 	const uint32 layer = gibs_calc_layer(data, lut_data, world_pos);
 
-	const float3 rel = world_pos - gibs_calc_origin(lut_data);
+	const float3 rel = world_pos - gibs_calc_cell_origin(lut_data);
 
 	const int32 half = data.cell_count >> 1u;
 
@@ -491,7 +699,7 @@ gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const sur
 bool
 gibs_surfel_cell_intersect(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel, int32_4 cell_idx)
 {
-	const float3 rel	= surfel.position - gibs_calc_origin(lut_data);
+	const float3 rel	= surfel.position - gibs_calc_cell_origin(lut_data);
 	const int32	 region = cell_idx.w;
 
 	if (region == 0)
@@ -1002,6 +1210,10 @@ gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const f
 	if (cos_theta < 0.5f) { return 0.f; }
 
 	// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
+	const float distance = sqrt(dist_sq);
+
+	return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
+	return (1.f - sqrt(dist_sq) / effective_radius);
 	return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / effective_radius));
 }
 
@@ -1009,7 +1221,7 @@ gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const f
 // https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
 // returns blend factor (catch_up_blend)
 float3
-gibs_update_msme(float3 y, inout surfel_msme msme)
+gibs_update_msme(float3 y, inout surfel_msme msme, float blend_factor = GIBS_MSME_SHORT_WINDOW_BLEND)
 {
 	float3 mean_long	 = msme.mean_long;
 	float3 mean_short	 = msme.mean_short;
@@ -1026,12 +1238,12 @@ gibs_update_msme(float3 y, inout surfel_msme msme)
 	}
 
 	const float3 delta	= y - mean_short;
-	mean_short			= lerp(mean_short, y, GIBS_MSME_SHORT_WINDOW_BLEND);
+	mean_short			= lerp(mean_short, y, blend_factor);
 	const float3 delta2 = y - mean_short;
 
 	// This should be a longer window than shortWindowBlend to avoid bias
 	// from the variance getting smaller when the short-term mean does.
-	const float variance_blend = GIBS_MSME_SHORT_WINDOW_BLEND * 0.5f;
+	const float variance_blend = blend_factor * 0.5f;
 	variance				   = lerp(variance, delta * delta2, variance_blend);
 	variance				   = max(1e-3, variance);
 	const float3 dev		   = sqrt(max(1e-5f, variance));
@@ -1058,30 +1270,18 @@ gibs_update_msme(float3 y, inout surfel_msme msme)
 	return mean_long;
 }
 
-uint32_2
-gibs_calc_atlas_offset(const gibs_data data, uint32 surfel_id)
-{
-	const uint32 tile_idx_u = surfel_id % GIBS_ATLAS_TILE_COUNT_U;
-	const uint32 tile_idx_v = surfel_id / GIBS_ATLAS_TILE_COUNT_U;
-
-	const uint32_2 res = uint32_2(tile_idx_u * GIBS_ATLAS_TILE_SIZE, tile_idx_v * GIBS_ATLAS_TILE_SIZE);
-
-	assert(res.x + GIBS_ATLAS_TILE_SIZE <= GIBS_ATLAS_WIDTH, g::fmt_gibs, line);
-	assert(res.y + GIBS_ATLAS_TILE_SIZE <= GIBS_ATLAS_HEIGHT, g::fmt_gibs, line);
-	return res;
-}
-
-int32_2
-gibs_calc_atlas_tile_px(uint32_2 atlas_offset, const float3 local_dir)
+uint32
+gibs_calc_tile_idx(const float3 local_dir)
 {
 	assert(local_dir.y >= 0.f, g::fmt_gibs, line);
+
 	const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
 	int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIBS_ATLAS_TILE_SIZE));	// [0, 6)
 	idx					= min(idx, GIBS_ATLAS_TILE_SIZE - 1);
-	return atlas_offset + idx;
+
+	return idx.y * GIBS_ATLAS_TILE_SIZE + idx.x;
 }
 
-template <bool is_srv = true>
 float
 gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel, float3 world_pos)
 {
@@ -1101,26 +1301,10 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 
 	assert(dir_local.y >= 0.f, g::fmt_gibs, line);
 
-	const int32_2 offset = gibs_calc_atlas_offset(data, surfel_id);
-	const int32_2 px	 = gibs_calc_atlas_tile_px(offset, dir_local);
+	const uint32 idx = gibs_calc_tile_idx(dir_local);
 
-	float2 chebyshev;
-
-	attr_branch()
-
-	if (is_srv)
-	{
-		const texture_2d<float2> visibility_atlas_srv = global_resource_buffer[data.h_visibility_atlas_srv_id];
-
-		chebyshev = visibility_atlas_srv[px];
-	}
-	else
-	{
-		const rw_texture_2d<float2> visibility_atlas_uav = global_resource_buffer[data.h_visibility_atlas_uav_id];
-
-		chebyshev = visibility_atlas_uav[px];
-	}
-
+	const uint16 chebyshev_packed = gibs_load_surfel_visibility_arr(data, surfel_id)[idx];
+	const float2 chebyshev		  = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)));
 
 	const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
 	const float mean	  = chebyshev.x;
@@ -1136,7 +1320,7 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 }
 
 float3
-gibs_sample_irradiance(float3 world_pos, float3 normal)
+gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_pos, float3 normal)
 {
 	const gibs_data		data	 = gibs_load_gibs_data();
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
@@ -1167,6 +1351,8 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 		{
 			const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
 
+			// return gi_resolve_buffer[ndc_xy_to_screen(ndc.xy, backbuffer_size)];
+
 			return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
 		}
 	}
@@ -1175,39 +1361,75 @@ gibs_sample_irradiance(float3 world_pos, float3 normal)
 
 	const int32_4 cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
 
-	const uint32			 cell_idx_flat		   = gibs_flatten_cell_idx(data, cell_idx);
-	const gibs_cell_entry	 entry				   = gibs_load_cell_entry_arr(data)[cell_idx_flat];
-	const byte_array<uint32> cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_arr(data);
-
-	const rw_byte_array<surfel_recycle_data> recycle_arr = gibs_load_surfel_recycle_data_rw_arr(data);
+	const uint32		  cell_idx_flat			= gibs_flatten_cell_idx(data, cell_idx);
+	const gibs_cell_entry entry					= gibs_load_cell_entry_arr(data)[cell_idx_flat];
+	byte_array<surfel>	  surfel_arr			= gibs_load_surfel_arr(data);
+	byte_array<uint32>	  cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_arr(data);
 
 	float4 irradiance_sum = (float4)0;	  // w = weight_sum
 
-	for (uint32 i = 0; i < entry.count /*min(128, entry.count)*/; ++i)
+	const uint32 tile_surfel_count_total = gibs_load_tile_surfel_count(data);
+
+	uint32 max_contribution_surfel_id = invalid_id_uint32;
+	float  max_contribution			  = 0.f;
+
+	float contribution_sum = 0.f;
+	for (uint32 i = 0; i < /*entry.surfel_count()*/ min(128, entry.surfel_count()); ++i)
 	{
 		const uint32 surfel_id	  = cell_to_surfel_id_arr[entry.offset + i];
-		surfel		 surfel		  = gibs_load_surfel_arr(data)[surfel_id];
-		const float	 contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+		surfel		 surfel		  = surfel_arr[surfel_id];
+		const float	 contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
+
+		assert(surfel.surfel_seen() is_false, g::fmt_gibs, line);
 
 		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
 
-		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs);
+		contribution_sum += contribution;
 
-		surfel_recycle_data recycle_data = recycle_arr[surfel_id];
-		recycle_data.add_ref();
-		recycle_arr.store(surfel_id, recycle_data);
+		if (max_contribution < contribution)
+		{
+			max_contribution		   = contribution;
+			max_contribution_surfel_id = surfel_id;
+		}
 
-		irradiance_sum += float4(surfel.radiance, 1.f)
+		gibs_set_cell_surfel_ref(data, entry.offset + i);
+
+		irradiance_sum += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
 						* contribution
-						* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(recycle_data.frame_since_born))
+						* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
 						* gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 	}
 
-	if (irradiance_sum.w > 1.f)
+	// add cell surfel gather pass
+	attr_branch()
+
+	if (enable_spawn_kill and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0))
+	{
+		if (contribution_sum < GIBS_SPAWN_COVERAGE)
+		{
+			assert(object_id != invalid_id_uint32, g::fmt_gibs, line);
+			const object_data obj = load_object_data(object_id);
+
+			gibs_set_cell_surfel_spawn(data,
+									   cell_idx_flat,
+									   object_id,
+									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
+									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
+									   encode_r11g11b10(irradiance_sum.w == 0 ? float3(0, 0, 0) : irradiance_sum.xyz / irradiance_sum.w));
+		}
+		else if (contribution_sum > GIBS_KILL_COVERAGE or entry.surfel_count() > 128)
+		{
+			assert(max_contribution_surfel_id != invalid_id_uint32, g::fmt_gibs, line);
+			gibs_set_cell_surfel_kill(data, cell_idx_flat, max_contribution_surfel_id);
+		}
+	}
+
+	if (irradiance_sum.w > GIBS_SPAWN_COVERAGE * 0.5f)
 	{
 		return irradiance_sum.xyz / irradiance_sum.w;
 	}
-
 	// todo fallback
+
+	// return color_red.xyz;
 	return float3(0, 0, 0);
 }

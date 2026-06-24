@@ -184,6 +184,14 @@ namespace age::inline math
 		return std::sqrt(length_sq(v));
 	}
 
+	// copied from util::ceil
+	template <std::integral t>
+	FORCE_INLINE constexpr t
+	ceil(t i, std::integral auto d) noexcept
+	{
+		return static_cast<t>((i + static_cast<t>(d - 1)) / static_cast<t>(d));
+	}
+
 	FORCE_INLINE constexpr decltype(auto)
 	ceil(auto&& vec) noexcept
 	{

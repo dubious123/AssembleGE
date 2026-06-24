@@ -206,7 +206,7 @@ namespace age::graphics::resource
 	create_committed(const resource_create_desc& desc) noexcept;
 
 	resource_handle
-	create_committed_buf_uav(uint32 byte_size) noexcept;
+	create_committed_buf_uav(uint64 byte_size) noexcept;
 
 	resource_handle
 	create_committed_tex2d_uav(extent_2d<uint32> extent, graphics::e::texture_format e_format,
@@ -344,6 +344,9 @@ namespace age::graphics::resource
 
 	FORCE_INLINE decltype(auto)
 	create_view(const resource_handle& h_resource, const auto& view_desc) noexcept;
+
+	FORCE_INLINE clear_uav_desc_handle
+	create_clear_uav_view(const resource_handle& h_resource, c_auto& view_desc) noexcept;
 
 	inline void
 	set_name(std::span<resource_handle>, const wchar_t* fmt) noexcept;

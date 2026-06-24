@@ -127,6 +127,12 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_prepare;
 		ID3D12PipelineState*  p_pso_prepare;
 
+		graphics::pso::handle h_pso_tile_spawn_kill;
+		ID3D12PipelineState*  p_pso_tile_spawn_kill;
+
+		graphics::pso::handle h_pso_cell_spawn_kill;
+		ID3D12PipelineState*  p_pso_cell_spawn_kill;
+
 		graphics::pso::handle h_pso_update_surfel;
 		ID3D12PipelineState*  p_pso_update_surfel;
 
@@ -139,11 +145,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_ray_entry;
 		ID3D12PipelineState*  p_pso_ray_entry;
 
+		graphics::pso::handle h_pso_tile_surfel_count_prefix;
+		ID3D12PipelineState*  p_pso_tile_surfel_count_prefix;
+
 		graphics::pso::handle h_pso_cell_surfel_count_prefix;
 		ID3D12PipelineState*  p_pso_cell_surfel_count_prefix;
 
-		graphics::pso::handle h_pso_cell_to_surfel_scatter;
-		ID3D12PipelineState*  p_pso_cell_to_surfel_scatter;
+		graphics::pso::handle h_pso_tile_surfel_scatter;
+		ID3D12PipelineState*  p_pso_tile_surfel_scatter;
+
+		graphics::pso::handle h_pso_cell_surfel_scatter;
+		ID3D12PipelineState*  p_pso_cell_surfel_scatter;
 
 		graphics::pso::handle h_pso_ray_trace;
 		ID3D12PipelineState*  p_pso_ray_trace;
@@ -159,9 +171,6 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		graphics::pso::handle h_pso_gi_resolve;
 		ID3D12PipelineState*  p_pso_gi_resolve;
-
-		graphics::pso::handle h_pso_spawn_kill;
-		ID3D12PipelineState*  p_pso_spawn_kill;
 
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;

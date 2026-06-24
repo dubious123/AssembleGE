@@ -14,36 +14,6 @@ main_ps(float4 pos sv_position) sv_target_0
 	color = rec709_to_rec2020(color);
 	color = linear_to_pq(color);
 
-	// if (ddgi_enabled())
-	//{
-	//	const ddgi_data data = load_ddgi_data();
-
-	//	{
-	//		texture_2d<float3> irradiance_atlas = global_resource_buffer[data.irradiance_atlas_srv_id];
-	//		float2			   debug_uv			= pos.xy * inv_backbuffer_size;
-	//		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-	//		{
-	//			float2 uv = (debug_uv - float2(0.75f, 0.f)) * 4;
-	//			// font_uv.y	   = 1.f - font_uv.y;
-	//			float3 rgb = sample_level(irradiance_atlas, get_linear_clamp_sampler(), uv, 0);
-	//			return float4(rgb, 1.f);
-	//		}
-	//	}
-
-	//	{
-	//		texture_2d<float2> visibility_atlas = global_resource_buffer[data.visibility_atlas_srv_id];
-	//		float2			   debug_uv			= pos.xy * inv_backbuffer_size;
-	//		if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
-	//		{
-	//			float2 uv = (debug_uv - float2(0.5f, 0.f)) * 4;
-	//			// font_uv.y	   = 1.f - font_uv.y;
-	//			float2 rg = sample_level(visibility_atlas, get_linear_clamp_sampler(), uv, 0);
-	//			return float4(rg, 0.f, 1.f);
-	//		}
-	//	}
-	//}
-
-
 	return float4(color, 1.0);
 }
 

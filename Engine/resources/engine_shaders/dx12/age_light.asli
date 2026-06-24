@@ -584,6 +584,34 @@ calc_skybox_color(float3 dir /*normalized*/)
 	return res;
 }
 
+struct rt_arg
+{
+	uint32 arg_0;
+
+	static rt_arg
+	init_empty()
+	{
+		rt_arg res;
+		res.arg_0 = 0u;
+		return res;
+	}
+
+	static rt_arg
+	init_gibs(bool add_ref)
+	{
+		rt_arg res;
+		res.arg_0  = 0;
+		res.arg_0 |= add_ref ? 1 : 0;
+		return res;
+	}
+
+	bool
+	gibs_enable_spawn_kill()
+	{
+		return arg_0 & 1;
+	}
+};
+
 float3
 calc_pbr_ddgi(const in pbr_surface_data surface_data, const in float3 world_face_normal)
 {
@@ -592,15 +620,15 @@ calc_pbr_ddgi(const in pbr_surface_data surface_data, const in float3 world_face
 }
 
 float3
-calc_pbr_gibs(const in pbr_surface_data surface_data, const in float3 world_face_normal)
+calc_pbr_gibs(const rt_arg arg, const uint32 object_id, const in pbr_surface_data surface_data, const in float3 world_face_normal)
 {
-	const float3 irradiance = gibs_sample_irradiance(surface_data.world_pos, world_face_normal);
+	const float3 irradiance = gibs_sample_irradiance(arg.gibs_enable_spawn_kill(), object_id, surface_data.world_pos, world_face_normal);
 	return surface_data.c_diffuse * irradiance * pi_inv;
 }
 
 template <uint32 ray_flag>
 float3
-rt_calc_opaque_color(ray_desc desc, inout ray_query<ray_flag> query)
+rt_calc_opaque_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> query)
 {
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
@@ -667,7 +695,7 @@ rt_calc_opaque_color(ray_desc desc, inout ray_query<ray_flag> query)
 		{
 			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
 
-			const float3 gi_diffuse	 = calc_pbr_gibs(surface_data, world_face_normal);
+			const float3 gi_diffuse	 = calc_pbr_gibs(arg, render_data.object_id, surface_data, world_face_normal);
 			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
 
 			expand(MAX_ENV_LIGHT)
@@ -757,7 +785,7 @@ struct rt_hit_data
 
 template <uint32 ray_flag>
 float4
-rt_calc_transparent_color(ray_desc desc, inout ray_query<ray_flag> query)
+rt_calc_transparent_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> query)
 {
 	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
@@ -865,7 +893,7 @@ rt_calc_transparent_color(ray_desc desc, inout ray_query<ray_flag> query)
 		{
 			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
 
-			const float3 gi_diffuse	 = calc_pbr_gibs(surface_data, world_face_normal);
+			const float3 gi_diffuse	 = calc_pbr_gibs(arg, render_data.object_id, surface_data, world_face_normal);
 			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
 
 			expand(MAX_ENV_LIGHT)

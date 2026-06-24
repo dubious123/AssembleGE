@@ -18,7 +18,7 @@ ddgi_trace_ray(float3 pos, float3 dir /*normalized*/, float radius)
 	{
 		ray_query<RAY_FLAG_NONE> query;
 
-		color = rt_calc_opaque_color(desc, query);
+		color = rt_calc_opaque_color(rt_arg::init_empty(), desc, query);
 
 		const uint32 status = rt_committed_status(query);
 
@@ -42,7 +42,7 @@ ddgi_trace_ray(float3 pos, float3 dir /*normalized*/, float radius)
 
 		ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
 
-		const float4 transparent_color = rt_calc_transparent_color(desc, query);
+		const float4 transparent_color = rt_calc_transparent_color(rt_arg::init_empty(), desc, query);
 
 		color = color * (1.f - transparent_color.a) + transparent_color.rgb;
 	}

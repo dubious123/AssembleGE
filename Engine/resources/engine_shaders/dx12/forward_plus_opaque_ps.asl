@@ -1,55 +1,5 @@
 #include "forward_plus_common.asli"
 
-float
-sample_shadow_pcf(texture_2d<float> atlas, sampler_cmp_state samp, float2 atlas_uv, float depth, float texel_size)
-{
-	float shadow = 0;
-	for (int y = -1; y <= 1; ++y)
-	{
-		for (int x = -1; x <= 1; ++x)
-		{
-			shadow += sample_cmp(atlas, samp, atlas_uv + float2(x, y) * texel_size, depth);
-		}
-	}
-	return shadow / 9.0;
-}
-
-float
-sample_contact_shadow(float3 world_pos, float3 light_dir_ws, float3 surface_normal)
-{
-	const uint32 step_count	  = 16;
-	const float	 max_distance = 0.3;
-	const float	 thickness	  = 0.05;
-
-	float3 ray_step = light_dir_ws * (max_distance / step_count);
-	float3 ray_pos	= world_pos + light_dir_ws * 0.01 + surface_normal * 0.02;
-
-	texture_2d<float> depth_tex = global_resource_buffer[depth_buffer_texture_id];
-
-	for (uint32 i = 0; i < step_count; ++i)
-	{
-		ray_pos += ray_step;
-
-		float4 clip = mul(view_proj, float4(ray_pos, 1));
-		float2 uv	= float2(clip.x / clip.w * 0.5 + 0.5, -clip.y / clip.w * 0.5 + 0.5);
-
-		if (any(uv < 0) || any(uv > 1))
-		{
-			return 1.0;
-		}
-
-		float scene_z = linearize_reverse_z(depth_tex[cast<int32_2>(uv * backbuffer_size)], cam_near_z, cam_far_z);
-		float ray_z	  = clip.w;	   // view-space depth = clip.w (perspective projection)
-
-		float depth_diff = ray_z - scene_z;
-
-		if (depth_diff > 0.005 && depth_diff < thickness)
-		{
-			return 0.0;
-		}
-	}
-	return 1.0;
-}
 [earlydepthstencil] float4
 main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 	const uint32	 mat_id = fragment.mat_id;
@@ -89,7 +39,7 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 	{
 		const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
 
-		const float3 gi_diffuse	 = calc_pbr_gibs(surface_data, world_face_normal);
+		const float3 gi_diffuse	 = calc_pbr_gibs(rt_arg::init_gibs(false), invalid_id_uint32, surface_data, world_face_normal);
 		ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
 
 		expand(MAX_ENV_LIGHT)
@@ -111,7 +61,6 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 
 	float3 lighting	 = ambient_light;
 	lighting		+= surface_data.emissive;
-	// const float3 albedo		   = srgb_to_linear(float3(0.8, 0.8, 0.8));
 
 	const float3 albedo = mat.base_color_factor.rgb;
 
@@ -172,6 +121,8 @@ main_ps(opaque_ms_to_ps fragment) sv_target_0 {
 			}
 		}
 	}
+
+	// return float4(vertex_normal, 1.f);
 
 	// return float4(c / 10.f, c / 100.f, c, 1.f);
 
