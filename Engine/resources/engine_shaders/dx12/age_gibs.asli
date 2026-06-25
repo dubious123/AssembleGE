@@ -1212,9 +1212,9 @@ gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const f
 	// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
 	const float distance = sqrt(dist_sq);
 
-	return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
-	return (1.f - sqrt(dist_sq) / effective_radius);
-	return smoothstep(0, 1, cos_theta * (1.f - sqrt(dist_sq) / effective_radius));
+	// return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
+	// return (1.f - sqrt(dist_sq) / effective_radius);
+	return smoothstep(0, 1, (1.f - sqrt(dist_sq) / effective_radius));
 }
 
 // based on ray-tracing-gems ch25
@@ -1285,8 +1285,6 @@ gibs_calc_tile_idx(const float3 local_dir)
 float
 gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel, float3 world_pos)
 {
-	assert(surfel.radius > 0.f, g::fmt_gibs, line);
-
 	const float3 rel		   = world_pos - surfel.position;
 	const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
 	const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
@@ -1339,7 +1337,7 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 	{
 		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
 		texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
-		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 		const float			 z_depth		   = load(depth_buffer, screen_pos);
 		const float3		 px_normal		   = decode_oct_snorm16(load(gbuffer, screen_pos).y);
 
@@ -1349,11 +1347,7 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 		if (surfel_seen)
 		{
-			const float2 uv = ndc.xy * float2(0.5, -0.5) + 0.5;
-
-			// return gi_resolve_buffer[ndc_xy_to_screen(ndc.xy, backbuffer_size)];
-
-			return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), uv, 0);
+			return gi_resolve_buffer[screen_pos];
 		}
 	}
 

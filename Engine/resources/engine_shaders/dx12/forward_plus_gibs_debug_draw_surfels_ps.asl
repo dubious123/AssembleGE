@@ -127,7 +127,14 @@ main_ps(float4 pos sv_position) sv_target_0
 	const int32_4 cell_idx		= gibs_calc_cell_idx(data, lut_data, world_pos);
 	const uint32  cell_idx_flat = gibs_flatten_cell_idx(data, cell_idx);
 
-	const uint32 tile_idx_flat = gibs_flatten_tile_idx(data, px / GIBS_SCREEN_TILE_SIZE);
+	// todo, add round robin ( + add round robin offset to sample irradiance )
+	const float2  low_extent = ceil(backbuffer_size, GIBS_GI_RESOLVE_SCALE);
+	const int32_2 px_low	 = clamp(
+		(int32_2(px) - (GIBS_GI_RESOLVE_SCALE / 2)) / GIBS_GI_RESOLVE_SCALE,
+		zero<int32_2>(),
+		int32_2(low_extent) - 1);
+
+	const uint32 tile_idx_flat = gibs_flatten_tile_idx(data, px_low / GIBS_SCREEN_TILE_SIZE);
 
 	const gibs_tile_entry tile_entry = tile_entry_arr[tile_idx_flat];
 	const gibs_cell_entry cell_entry = cell_entry_arr[cell_idx_flat];

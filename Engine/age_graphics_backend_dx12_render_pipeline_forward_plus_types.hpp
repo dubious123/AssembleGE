@@ -464,10 +464,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		rtv_desc_handle h_gbuffer_rtv_desc;
 		srv_desc_handle h_gbuffer_srv_desc;
 
-		resource_handle		  h_gi_resolve_buffer;
-		srv_desc_handle		  h_gi_resolve_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_buffer_clear_uav_desc;
+		resource_handle		  h_gi_resolve_low_res_buffer;
+		srv_desc_handle		  h_gi_resolve_low_res_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_low_res_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_low_res_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_full_res_buffer;
+		srv_desc_handle		  h_gi_resolve_full_res_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_full_res_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_full_res_buffer_clear_uav_desc;
 
 
 		resource_handle h_indirect_arg_buffer;

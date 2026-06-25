@@ -90,9 +90,10 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	radiance_sum /= ray_count;
 
-	// gibs_update_msme(radiance_sum, msme, (4.f - 3.f * smoothstep(0, GIBS_RADIANCE_CACHE_DELAY, surfel.frame_since_born())) * GIBS_MSME_SHORT_WINDOW_BLEND);
-	gibs_update_msme(radiance_sum, msme, surfel.frame_since_born() < GIBS_RADIANCE_CACHE_DELAY ? GIBS_MSME_SHORT_WINDOW_BLEND * 10 : GIBS_MSME_SHORT_WINDOW_BLEND);
+	const float t = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
+	gibs_update_msme(radiance_sum, msme /*, lerp(GIBS_MSME_SHORT_WINDOW_BLEND * 10, GIBS_MSME_SHORT_WINDOW_BLEND, t)*/);
 	surfel.radiance_r11g11b10 = encode_r11g11b10(msme.mean_long);
+	// surfel.radiance_r11g11b10 = encode_r11g11b10(msme.mean_long);
 
 	// if (is_new_born)
 	//{

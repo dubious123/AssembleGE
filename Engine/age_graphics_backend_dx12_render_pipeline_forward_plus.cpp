@@ -1279,12 +1279,14 @@ namespace age::graphics::render_pipeline::forward_plus
 
 		if (gibs_enabled())
 		{
-			c_auto tile_count_total = util::ceil(extent.width, g::gibs_screen_tile_size) * util::ceil(extent.height, g::gibs_screen_tile_size);
+			c_auto low_res = extent_2d<uint16>{ cast_to<uint16>(ceil(extent.width, g::gibs_gi_resolve_scale)), cast_to<uint16>(ceil(extent.height, g::gibs_gi_resolve_scale)) };
+
+			c_auto tile_count_total = util::ceil(low_res.width, g::gibs_screen_tile_size) * util::ceil(low_res.height, g::gibs_screen_tile_size);
 
 			auto& gibs_data_gpu = gibs_data_cpu.gibs_data_gpu;
 
-			gibs_data_gpu.tile_count_w	   = util::ceil(extent.width, g::gibs_screen_tile_size);
-			gibs_data_gpu.tile_count_h	   = util::ceil(extent.height, g::gibs_screen_tile_size);
+			gibs_data_gpu.tile_count_w	   = util::ceil(low_res.width, g::gibs_screen_tile_size);
+			gibs_data_gpu.tile_count_h	   = util::ceil(low_res.height, g::gibs_screen_tile_size);
 			gibs_data_gpu.tile_count_total = tile_count_total;
 
 			resource::release_deferred(gibs_data_cpu.h_gbuffer);
@@ -1301,24 +1303,46 @@ namespace age::graphics::render_pipeline::forward_plus
 
 			gibs_data_gpu.h_gbuffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gbuffer_srv_desc);
 
+			{
+				resource::release_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc);
 
-			resource::release_deferred(gibs_data_cpu.h_gi_resolve_buffer);
-			push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
-			push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
-			push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc);
+				gibs_data_cpu.h_gi_resolve_low_res_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+				gibs_data_cpu.h_gi_resolve_low_res_buffer->set_name(L"gibs_gi_resolve_low_res_buffer");
 
-			gibs_data_cpu.h_gi_resolve_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
-			gibs_data_cpu.h_gi_resolve_buffer->set_name(L"gibs_gi_resolve_buffer");
+				gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																								 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+				gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																								 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+				gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																										   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
 
-			gibs_data_cpu.h_gi_resolve_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
-																					 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
-																					 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_buffer,
-																							   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+				gibs_data_gpu.h_gi_resolve_low_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
+				gibs_data_gpu.h_gi_resolve_low_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
+			}
 
-			gibs_data_gpu.h_gi_resolve_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
-			gibs_data_gpu.h_gi_resolve_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
+			{
+				resource::release_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
+				push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc);
+
+				gibs_data_cpu.h_gi_resolve_full_res_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+				gibs_data_cpu.h_gi_resolve_full_res_buffer->set_name(L"gibs_gi_resolve_full_res_buffer");
+
+				gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																								  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+				gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																								  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+				gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																											defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+
+				gibs_data_gpu.h_gi_resolve_full_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
+				gibs_data_gpu.h_gi_resolve_full_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
+			}
+
 
 			{
 				resource::release_deferred(gibs_data_cpu.h_tile_buffer);
@@ -2495,7 +2519,8 @@ namespace age::graphics::render_pipeline::forward_plus
 		c_auto cell_count_total = desc.cell_count * desc.cell_count * desc.cell_count
 								+ 6 * (desc.cell_count * desc.cell_count) * desc.outer_layer_count;
 
-		c_auto tile_count_total = util::ceil(extent.width, g::gibs_screen_tile_size) * util::ceil(extent.height, g::gibs_screen_tile_size);
+		c_auto low_res			= extent_2d<uint16>{ cast_to<uint16>(ceil(extent.width, g::gibs_gi_resolve_scale)), cast_to<uint16>(ceil(extent.height, g::gibs_gi_resolve_scale)) };
+		c_auto tile_count_total = util::ceil(low_res.width, g::gibs_screen_tile_size) * util::ceil(low_res.height, g::gibs_screen_tile_size);
 
 		auto& gibs_data_gpu = gibs_data_cpu.gibs_data_gpu;
 
@@ -2507,8 +2532,8 @@ namespace age::graphics::render_pipeline::forward_plus
 			gibs_data_gpu.outer_layer_count = desc.outer_layer_count;
 			gibs_data_gpu.is_alt_and_extra	= 0u;
 
-			gibs_data_gpu.tile_count_w	   = util::ceil(extent.width, g::gibs_screen_tile_size);
-			gibs_data_gpu.tile_count_h	   = util::ceil(extent.height, g::gibs_screen_tile_size);
+			gibs_data_gpu.tile_count_w	   = util::ceil(low_res.width, g::gibs_screen_tile_size);
+			gibs_data_gpu.tile_count_h	   = util::ceil(low_res.height, g::gibs_screen_tile_size);
 			gibs_data_gpu.tile_count_total = tile_count_total;
 
 			AGE_LOG(gibs_data_gpu.debug_flags);
@@ -2734,18 +2759,33 @@ namespace age::graphics::render_pipeline::forward_plus
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
-			gibs_data_cpu.h_gi_resolve_buffer->set_name(L"gibs_gi_resolve_buffer");
+			gibs_data_cpu.h_gi_resolve_low_res_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_low_res_buffer->set_name(L"gibs_gi_resolve_low_res_buffer");
 
-			gibs_data_cpu.h_gi_resolve_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
-																					 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
-																					 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_buffer,
-																							   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																							 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																							 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
+																									   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
 
-			gibs_data_gpu.h_gi_resolve_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
-			gibs_data_gpu.h_gi_resolve_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
+			gibs_data_gpu.h_gi_resolve_low_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
+			gibs_data_gpu.h_gi_resolve_low_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
+		}
+
+		{
+			gibs_data_cpu.h_gi_resolve_full_res_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_full_res_buffer->set_name(L"gibs_gi_resolve_full_res_buffer");
+
+			gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																							  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																							  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
+																										defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+
+			gibs_data_gpu.h_gi_resolve_full_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
+			gibs_data_gpu.h_gi_resolve_full_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
 		}
 
 		{
@@ -2837,10 +2877,15 @@ namespace age::graphics::render_pipeline::forward_plus
 		push_descriptor_deferred(gibs_data_cpu.h_gbuffer_rtv_desc);
 		push_descriptor_deferred(gibs_data_cpu.h_gbuffer_srv_desc);
 
-		resource::release_deferred(gibs_data_cpu.h_gi_resolve_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_indirect_arg_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_indirect_arg_buffer_uav_desc);
@@ -3123,7 +3168,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			{
 				c_auto cam_to_screen_px_z = extent.height * 0.5f / tan(main_cam_desc.perspective.fov_y * 0.5f);
 
-				gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_tile_radius = g::gibs_screen_tile_size * 0.7f / cam_to_screen_px_z;
+				gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_tile_radius = g::gibs_screen_tile_size * 0.7f * g::gibs_gi_resolve_scale / cam_to_screen_px_z;
 			}
 
 

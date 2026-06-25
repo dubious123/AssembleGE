@@ -15,29 +15,31 @@ struct fn_tile_alloc
 		const float3   surfel_rb   = surfel.position + mul(float3(surfel.radius, 0, -surfel.radius), transform_t);
 		const float3   surfel_lb   = surfel.position + mul(float3(-surfel.radius, 0, -surfel.radius), transform_t);
 
+		const float2 low_extent = ceil(backbuffer_size, GIBS_GI_RESOLVE_SCALE);
+
 		const float4 clip_pos_rf = mul(view_proj, float4(surfel_rf, 1.f));
 		const float3 ndc_rf		 = clamp(clip_pos_rf.xyz / clip_pos_rf.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_rf = int32_2(ndc_xy_to_screen(ndc_rf.xy, backbuffer_size));
+		const int32_2 screen_pos_rf = int32_2(ndc_xy_to_screen(ndc_rf.xy, low_extent));
 
 		const float4 clip_pos_lf = mul(view_proj, float4(surfel_lf, 1.f));
 		const float3 ndc_lf		 = clamp(clip_pos_lf.xyz / clip_pos_lf.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_lf = int32_2(ndc_xy_to_screen(ndc_lf.xy, backbuffer_size));
+		const int32_2 screen_pos_lf = int32_2(ndc_xy_to_screen(ndc_lf.xy, low_extent));
 
 		const float4 clip_pos_rb = mul(view_proj, float4(surfel_rb, 1.f));
 		const float3 ndc_rb		 = clamp(clip_pos_rb.xyz / clip_pos_rb.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_rb = int32_2(ndc_xy_to_screen(ndc_rb.xy, backbuffer_size));
+		const int32_2 screen_pos_rb = int32_2(ndc_xy_to_screen(ndc_rb.xy, low_extent));
 
 		const float4 clip_pos_lb = mul(view_proj, float4(surfel_lb, 1.f));
 		const float3 ndc_lb		 = clamp(clip_pos_lb.xyz / clip_pos_lb.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_lb = int32_2(ndc_xy_to_screen(ndc_lb.xy, backbuffer_size));
+		const int32_2 screen_pos_lb = int32_2(ndc_xy_to_screen(ndc_lb.xy, low_extent));
 
 		if (clip_pos_rf.w <= epsilon_1e4 or clip_pos_lf.w <= epsilon_1e4 or clip_pos_rb.w <= epsilon_1e4 or clip_pos_lb.w <= epsilon_1e4)
 		{
-			res.screen_aabb = uint32_4(0, 0, uint32_2(backbuffer_size));
+			res.screen_aabb = uint32_4(0, 0, uint32_2(low_extent));
 		}
 		else
 		{
@@ -260,8 +262,9 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	if (surfel_seen)
 	{
-		fn_tile_alloc fn = fn_tile_alloc::init(surfel, world_normal);
-		gibs_foreach_neighbor_tile(fn, data, screen_pos);
+		fn_tile_alloc fn		 = fn_tile_alloc::init(surfel, world_normal);
+		const float2  low_extent = ceil(backbuffer_size, GIBS_GI_RESOLVE_SCALE);
+		gibs_foreach_neighbor_tile(fn, data, min(uint32_2(ndc_xy_to_screen(ndc.xy, low_extent)), uint32_2(low_extent) - 1));
 	}
 	else
 	{
@@ -274,11 +277,11 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	const surfel_msme msme = msme_arr[surfel_id];
 
-	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency));
+	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
 
 	if (surfel_seen is_false)
 	{
-		/*ray_count_ideal /= 4;*/
+		ray_count_ideal /= 4;
 	}
 	if (surfel.frame_since_born() < GIBS_RADIANCE_CACHE_DELAY)
 	{

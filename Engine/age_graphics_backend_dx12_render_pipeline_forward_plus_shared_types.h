@@ -273,8 +273,11 @@ namespace age::graphics::render_pipeline::forward_plus::shared_type
 
 		uint32 h_gbuffer_srv_id;
 
-		uint32 h_gi_resolve_buffer_srv_id;
-		uint32 h_gi_resolve_buffer_uav_id;
+		uint32 h_gi_resolve_low_res_buffer_srv_id;
+		uint32 h_gi_resolve_low_res_buffer_uav_id;
+
+		uint32 h_gi_resolve_full_res_buffer_srv_id;
+		uint32 h_gi_resolve_full_res_buffer_uav_id;
 
 		uint32 h_indirect_arg_buffer_uav_id;
 
@@ -1244,8 +1247,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 #define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
 
 #define GIBS_MAX_OUTER_LAYER_COUNT	  16u
-#define GIBS_SCREEN_TILE_SIZE		  32u
-#define GIBS_SCREEN_GROUP_SHARED_SIZE 32u	 // (tile_size * tile_size / wave_size)
+#define GIBS_SCREEN_TILE_SIZE		  16u
+#define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
 
 #define GIBS_SPAWN_COVERAGE	   1.f
 #define GIBS_KILL_COVERAGE	   3.f
@@ -1258,6 +1261,8 @@ namespace age::graphics::render_pipeline::forward_plus::g
 
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
+
+#define GIBS_GI_RESOLVE_SCALE 4u
 
 
 #define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)
@@ -1294,6 +1299,7 @@ namespace age::graphics::render_pipeline::forward_plus::g
 	inline constexpr auto gibs_surfel_screen_ratio = 0.1f;
 
 	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
+	inline constexpr auto gibs_gi_resolve_scale = GIBS_GI_RESOLVE_SCALE;
 
 	static_assert(GIBS_ATLAS_WIDTH % gibs_atlas_tile_size == 0);
 	static_assert(GIBS_ATLAS_HEIGHT % gibs_atlas_tile_size == 0);

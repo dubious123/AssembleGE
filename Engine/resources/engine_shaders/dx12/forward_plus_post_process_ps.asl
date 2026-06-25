@@ -37,7 +37,7 @@ main_ps(float4 pos sv_position) sv_target_0
 
 			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
 			texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
-			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 			const float			 z_depth		   = load(depth_buffer, screen_pos);
 			const float3		 px_normal		   = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
 
@@ -105,7 +105,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
 		{
-			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_buffer_srv_id];
+			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 			float2			   uv		  = (debug_uv - float2(0.5f, 0.f)) * 4;
 			// font_uv.y	   = 1.f - font_uv.y;
 			col = sample_level(gi_resolve, get_linear_clamp_sampler(), uv, 0);

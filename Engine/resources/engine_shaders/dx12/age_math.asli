@@ -29,8 +29,22 @@ static const float4 color_red	= float4(1, 0, 0, 1);
 static const float4 color_green = float4(0, 1, 0, 1);
 static const float4 color_blue	= float4(0, 0, 1, 1);
 
+template <typename t>
+t
+zero()
+{
+	return (t)0;
+}
+
 uint32
 ceil(uint32 x, uint32 y)
+{
+	return (x + y - 1) / y;
+}
+
+template <template <typename, int32> class vec, int32 n, typename t_l, typename t_r>
+vec<t_l, n>
+ceil(vec<t_l, n> x, t_r y)
 {
 	return (x + y - 1) / y;
 }

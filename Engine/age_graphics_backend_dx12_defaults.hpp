@@ -815,6 +815,18 @@ namespace age::graphics::defaults
 			}
 			return desc;
 		}
+
+		FORCE_INLINE decltype(auto)
+		clear_preserve(rtv_desc_handle h_rtv_desc, e::texture_format format, float4 clear_color = float4::zero()) noexcept
+		{
+			D3D12_RENDER_PASS_RENDER_TARGET_DESC desc = {
+				.cpuDescriptor	 = h_rtv_desc.h_cpu,
+				.BeginningAccess = { .Type = D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR, .Clear = { .ClearValue = { .Format = dx12_format(format), .Color = { clear_color.x, clear_color.y, clear_color.z, clear_color.w } } } },
+				.EndingAccess	 = { .Type = D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE }
+			};
+
+			return desc;
+		}
 	}	 // namespace render_pass_rtv_desc
 
 	namespace render_pass_ds_desc

@@ -172,6 +172,9 @@ namespace age::graphics::render_pipeline::forward_plus
 		graphics::pso::handle h_pso_gi_resolve;
 		ID3D12PipelineState*  p_pso_gi_resolve;
 
+		graphics::pso::handle h_pso_gi_upscale;
+		ID3D12PipelineState*  p_pso_gi_upscale;
+
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;
 

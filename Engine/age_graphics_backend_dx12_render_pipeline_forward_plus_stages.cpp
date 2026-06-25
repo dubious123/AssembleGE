@@ -608,6 +608,13 @@ namespace age::graphics::render_pipeline::forward_plus
 		p_pso_gi_resolve = graphics::g::pso_ptr_vec[h_pso_gi_resolve];
 		h_pso_gi_resolve.set_name(L"pso_gibs_gi_resolve");
 
+		h_pso_gi_upscale = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::forward_plus_gibs_gi_upscale_cs) });
+
+		p_pso_gi_upscale = graphics::g::pso_ptr_vec[h_pso_gi_upscale];
+		h_pso_gi_upscale.set_name(L"pso_gibs_gi_upscale");
+
 		h_pso_debug_draw_surfels = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::fullscreen_ms) },
@@ -645,7 +652,7 @@ namespace age::graphics::render_pipeline::forward_plus
 			return;
 		}
 
-		c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(gibs_data_cpu.h_gbuffer_rtv_desc);
+		c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(gibs_data_cpu.h_gbuffer_rtv_desc, e::texture_format::r32g32_uint);
 		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
 
 		command::begin_render_pass(
@@ -676,14 +683,16 @@ namespace age::graphics::render_pipeline::forward_plus
 			command::clear_uav(gibs_data_cpu.h_surfel_buffer, gibs_data_cpu.h_surfel_buffer_clear_uav_desc, uint32_4::zero());
 			command::clear_uav(gibs_data_cpu.h_tile_buffer, gibs_data_cpu.h_tile_buffer_clear_uav_desc, uint32_4::zero());
 			command::clear_uav(gibs_data_cpu.h_cell_buffer, gibs_data_cpu.h_cell_buffer_clear_uav_desc, uint32_4::zero());
-			command::clear_uav(gibs_data_cpu.h_gi_resolve_buffer, gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc, float4::zero());
+			command::clear_uav(gibs_data_cpu.h_gi_resolve_low_res_buffer, gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc, float4::zero());
+			command::clear_uav(gibs_data_cpu.h_gi_resolve_full_res_buffer, gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc, float4::zero());
 			command::clear_uav(gibs_data_cpu.h_tile_spawn_kill_buffer, gibs_data_cpu.h_tile_spawn_kill_buffer_clear_uav_desc, uint32_4{ age::get_invalid_id<uint32>() });
 			command::clear_uav(gibs_data_cpu.h_cell_spawn_kill_buffer, gibs_data_cpu.h_cell_spawn_kill_buffer_clear_uav_desc, uint32_4{ age::get_invalid_id<uint32>() });
 
 			command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
 									barrier::buf_uav_to_uav(gibs_data_cpu.h_tile_buffer),
 									barrier::buf_uav_to_uav(gibs_data_cpu.h_cell_buffer),
-									barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+									barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_low_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+									barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 									barrier::buf_uav_to_srv(gibs_data_cpu.h_tile_spawn_kill_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 									barrier::buf_uav_to_srv(gibs_data_cpu.h_cell_spawn_kill_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
@@ -800,19 +809,17 @@ namespace age::graphics::render_pipeline::forward_plus
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_build_cdf));
 		command::apply_barriers(/*barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),*/
 								barrier::buf_uav_to_uav(gibs_data_cpu.h_surfel_buffer),
-								barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
-
-		// command::set_pso(p_pso_radiance_sharing);
-		//// command::dispatch(util::ceil(gpu_data.max_surfel_count, 32), 1, 1);
-		// command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_radiance_sharing));
-		// command::apply_barriers(barrier::buf_uav_to_uav(gibs_data_cpu.h_scratch_buffer),
-		//						barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-		//						barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+								barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_low_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_gi_resolve);
 		command::dispatch(gpu_data.tile_count_w, gpu_data.tile_count_h, 1);
-		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_low_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+								barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
+		command::set_pso(p_pso_gi_upscale);
+		command::dispatch(ceil(main_buffer_extent.width, 16), ceil(main_buffer_extent.height, 16), 1);
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 	}
 
 	inline void
@@ -856,6 +863,7 @@ namespace age::graphics::render_pipeline::forward_plus
 		pso::destroy(h_pso_radiance_sharing);
 		pso::destroy(h_pso_build_cdf);
 		pso::destroy(h_pso_gi_resolve);
+		pso::destroy(h_pso_gi_upscale);
 		pso::destroy(h_pso_debug_draw_surfels);
 
 		command_signature::destroy(h_cmd_sig);
