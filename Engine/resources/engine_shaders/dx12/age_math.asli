@@ -1315,3 +1315,46 @@ px_world_area(float2 screen_px, float3 cam_to_world, float3 world_normal, float3
 
 	return area_world;
 }
+
+// based on Christer Ericson 2004
+// Real-Time Collision Detection Ch-3.4 P.47
+float3
+calc_barycentric(float3 p, float3 a, float3 b, float3 c)
+{
+	const float3 v0	 = b - a;
+	const float3 v1	 = c - a;
+	const float3 v2	 = p - a;
+	const float	 d00 = dot(v0, v0), d01 = dot(v0, v1), d11 = dot(v1, v1);
+	const float	 d20 = dot(v2, v0), d21 = dot(v2, v1);
+	const float	 inv_denom = 1.0 / (d00 * d11 - d01 * d01);
+	const float	 v		   = (d11 * d20 - d01 * d21) * inv_denom;
+	const float	 w		   = (d00 * d21 - d01 * d20) * inv_denom;
+	return float3(1.0 - v - w, v, w);
+}
+
+// based on Jeroen Baert`s libmorton
+// https://github.com/Forceflow/libmorton
+uint32
+morton3d_helper(const uint32 a)
+{
+	uint32 x = a & 0x000003ff;
+	x		 = (x | x << 16) & 0x30000ff;
+	x		 = (x | x << 8) & 0x0300f00f;
+	x		 = (x | x << 4) & 0x30c30c3;
+	x		 = (x | x << 2) & 0x9249249;
+	return x;
+}
+
+uint32
+morton3d_encode(uint32_3 coord)
+{
+	return morton3d_helper(coord.x) | (morton3d_helper(coord.y) << 1u) | (morton3d_helper(coord.z) << 2u);
+}
+
+uint32
+morton_3d(float3 v)
+{
+	const float	  cell_size = 4.0;
+	const int32_3 cell		= int32_3(floor(v / cell_size));
+	return morton3d_encode(uint32_3(cell + 512) & 0x3ff);
+}

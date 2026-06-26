@@ -918,6 +918,7 @@ cross(float3, float3)
 	#define sv_target_0
 	#define sv_is_front_face
 	#define sv_position
+	#define sv_primitive_id
 	#define numthreads(x, y, z) [force_inline]
 	#define wave_size(x)		[force_inline]
 
@@ -932,6 +933,7 @@ cross(float3, float3)
 	#define out
 	#define inout
 	#define vertices
+	#define primitives
 	#define indices
 	#define payload
 	#define set_mesh_output_counts(x, y)
@@ -996,6 +998,7 @@ cross(float3, float3)
 	#define sv_target_0 : SV_Target0
 	#define sv_is_front_face : SV_IsFrontFace
 	#define sv_position : SV_Position
+	#define sv_primitive_id : SV_PrimitiveID
 
 	#define wave_size(x) [WaveSize(x)]
 

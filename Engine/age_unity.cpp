@@ -99,11 +99,11 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 	#line 1 "age_graphics_backend_dx12_bake.cpp"
 	#include "age_graphics_backend_dx12_bake.cpp"
 
-	#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
-	#include "age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp"
+	#line 1 "age_graphics_backend_dx12_render_pipeline_hybrid_stages.cpp"
+	#include "age_graphics_backend_dx12_render_pipeline_hybrid_stages.cpp"
 
-	#line 1 "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
-	#include "age_graphics_backend_dx12_render_pipeline_forward_plus.cpp"
+	#line 1 "age_graphics_backend_dx12_render_pipeline_hybrid.cpp"
+	#include "age_graphics_backend_dx12_render_pipeline_hybrid.cpp"
 #endif
 
 #line 1 "age_runtime.cpp"

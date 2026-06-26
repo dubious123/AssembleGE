@@ -1335,7 +1335,7 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 	if (in_screen)
 	{
-		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[data.h_gbuffer_srv_id];
+		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[gbuffer_srv_id];
 		texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
 		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 		const float			 z_depth		   = load(depth_buffer, screen_pos);
@@ -1387,6 +1387,10 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 		}
 
 		gibs_set_cell_surfel_ref(data, entry.offset + i);
+
+		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		if (visibility < 1.f) { continue; }
 
 		irradiance_sum += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
 						* contribution

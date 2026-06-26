@@ -53,7 +53,7 @@ namespace age_demo::scene_0
 					i_init.set_smoothed_pan(float2{ 0.f, 0.f });
 				}),
 
-			identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
+			identity{ age::graphics::render_pipeline::camera_desc{
 				.kind		= age::graphics::e::camera_kind::perspective,
 				.pos		= float3{ 0.f, 0.5f, -4.f },
 				.quaternion = age::g::quaternion_identity,
@@ -67,7 +67,7 @@ namespace age_demo::scene_0
 
 			AGE_LAMBDA((), { i_init.get_render_pipeline->set_main_camera(i_init.get_camera_id_vec[0]); }),
 
-			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
+			identity{ age::graphics::render_pipeline::directional_light_desc{
 				.direction	 = age::normalize(float3{ 1.0f, -1.0f, 0.5f }),
 				.intensity	 = 0.3f,
 				.color		 = age::srgb_to_linear(float3{ 1.0f, 0.95f, 0.85f }),
@@ -78,7 +78,7 @@ namespace age_demo::scene_0
 			AGE_LAMBDA(
 				(),
 				{
-					constexpr uint32 light_count = 5000;
+					constexpr uint32 light_count = 50000;
 					constexpr float	 scene_scale = 10.f;
 					constexpr int32	 scene_min	 = -10;
 					constexpr int32	 scene_max	 = 10;
@@ -93,7 +93,7 @@ namespace age_demo::scene_0
 					{
 						i_init.get_point_light_id_vec->emplace_back(
 							i_init.get_render_pipeline->add_point_light(
-								age::graphics::render_pipeline::forward_plus::point_light_desc{
+								age::graphics::render_pipeline::point_light_desc{
 									.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
 									.range	  = range,
 									.color	  = age::srgb_to_linear(float3{ dist_color(rng), dist_color(rng), dist_color(rng) }),
@@ -111,7 +111,7 @@ namespace age_demo::scene_0
 				}),
 
 			// yellow spot top down onto scene center
-			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
+			identity{ age::graphics::render_pipeline::spot_light_desc{
 				.position  = float3{ 0.0f, 12.0f, 0.0f },
 				.range	   = 6.0f,
 				.direction = float3{ 0.0f, -1.0f, 0.0f },

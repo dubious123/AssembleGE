@@ -54,7 +54,7 @@ namespace age_demo::scene_2
 				}),
 
 			// camera - pulled back and slightly elevated to see the full scene + skybox
-			identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
+			identity{ age::graphics::render_pipeline::camera_desc{
 				.kind		= age::graphics::e::camera_kind::perspective,
 				.pos		= float3{ 0.f, 4.f, -14.f },
 				.quaternion = age::g::quaternion_identity,
@@ -69,7 +69,7 @@ namespace age_demo::scene_2
 			AGE_LAMBDA((), { i_init.get_render_pipeline->set_main_camera(i_init.get_camera_id_vec[0]); }),
 
 			// strong directional light from above-right - good for seeing transparency + shadows
-			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
+			identity{ age::graphics::render_pipeline::directional_light_desc{
 				.direction = age::normalize(float3{ -0.3f, -1.0f, 0.5f }),
 				.intensity = 1.f,
 				.color	   = age::srgb_to_linear(float3{ 1.0f, 0.9f, 0.9f }) } }
@@ -77,7 +77,7 @@ namespace age_demo::scene_2
 				| AGE_FUNC(i_init.get_directional_light_id_vec().emplace_back),
 
 			// warm point light - left side, illuminates transparent objects from behind
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+			identity{ age::graphics::render_pipeline::point_light_desc{
 				.position	 = float3{ -5.0f, 5.0f, 4.0f },
 				.range		 = 50.0f,
 				.color		 = age::srgb_to_linear(float3{ 1.0f, 0.7f, 0.3f }),
@@ -87,7 +87,7 @@ namespace age_demo::scene_2
 				| AGE_FUNC(i_init.get_point_light_id_vec().emplace_back),
 
 			// cool point light - right side, color mixing through transparent surfaces
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+			identity{ age::graphics::render_pipeline::point_light_desc{
 				.position	 = float3{ 5.0f, 3.0f, -2.0f },
 				.range		 = 50.0f,
 				.color		 = age::srgb_to_linear(float3{ 0.3f, 0.5f, 1.0f }),

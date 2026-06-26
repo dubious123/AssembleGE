@@ -132,3 +132,17 @@ todo
 
 - cell 당 surfel 순회를 128max로 잡아두면 대충 fps는 min 400정도로 잡히는데, 
 - 문제는 cell당 128을 넘어가면 tile 경계가 눈에 보임. 
+
+
+
+# gibs 2.0
+todo
+- cell surfel의 visibility 수정, chebyshev 방식으로는 light bleeding이 너무 큼 
+- 신호 freq 기반 surfel radius? 
+- gtao + taa 
+- visibility buffer
+- unified_light를 pos + others로 분리
+
+# morton -> hilbert 
+morton cell size config 추가, 지금은 4.f 로 고정. 나중에 scene 에 따라서 동적으로 조절 가능
+light pos 와 light 를 분리, 

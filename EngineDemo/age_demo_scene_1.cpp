@@ -54,7 +54,7 @@ namespace age_demo::scene_1
 				}),
 
 
-			identity{ age::graphics::render_pipeline::forward_plus::camera_desc{
+			identity{ age::graphics::render_pipeline::camera_desc{
 				.kind		= age::graphics::e::camera_kind::perspective,
 				.pos		= float3{ 0.f, 6.f, -10.f },
 				.quaternion = age::g::quaternion_identity,
@@ -69,7 +69,7 @@ namespace age_demo::scene_1
 			AGE_LAMBDA((), { i_init.get_render_pipeline->set_main_camera(i_init.get_camera_id_vec[0]); }),
 
 			// dim ambient directional light
-			identity{ age::graphics::render_pipeline::forward_plus::directional_light_desc{
+			identity{ age::graphics::render_pipeline::directional_light_desc{
 				.direction = age::normalize(float3{ 0.0f, -1.0f, 0.0f }),
 				.intensity = 0.05f,
 				.color	   = age::srgb_to_linear(float3{ 1.0f, 1.0f, 1.0f }) } }
@@ -93,7 +93,7 @@ namespace age_demo::scene_1
 			//		{
 			//			i_init.get_point_light_id_vec().emplace_back(
 			//				i_init.get_render_pipeline().add_point_light(
-			//					age::graphics::render_pipeline::forward_plus::point_light_desc{
+			//					age::graphics::render_pipeline::point_light_desc{
 			//						.position = float3{ dist_pos(rng), dist_pos(rng), dist_pos(rng) },
 			//						.range	  = range,
 			//						.color	  = float3{ dist_color(rng), dist_color(rng), dist_color(rng) },
@@ -105,7 +105,7 @@ namespace age_demo::scene_1
 			// === point lights - distinct colors for shadow identification ===
 
 			// red light - left side, low
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+			identity{ age::graphics::render_pipeline::point_light_desc{
 				.position	 = float3{ -3.0f, 2.0f, 0.0f },
 				.range		 = 15.0f,
 				.color		 = age::srgb_to_linear(float3{ 1.0f, 0.2f, 0.2f }),
@@ -116,7 +116,7 @@ namespace age_demo::scene_1
 				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			// green light - right side, mid height
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+			identity{ age::graphics::render_pipeline::point_light_desc{
 				.position	 = float3{ 3.0f, 4.0f, 0.0f },
 				.range		 = 15.0f,
 				.color		 = age::srgb_to_linear(float3{ 0.2f, 1.0f, 0.2f }),
@@ -126,7 +126,7 @@ namespace age_demo::scene_1
 				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
 			// blue light - center, high above
-			identity{ age::graphics::render_pipeline::forward_plus::point_light_desc{
+			identity{ age::graphics::render_pipeline::point_light_desc{
 				.position  = float3{ 0.0f, 6.0f, 2.0f },
 				.range	   = 15.0f,
 				.color	   = age::srgb_to_linear(float3{ 0.3f, 0.3f, 1.0f }),
@@ -134,7 +134,7 @@ namespace age_demo::scene_1
 				| AGE_FUNC(i_init.get_render_pipeline->add_point_light)
 				| AGE_FUNC(i_init.get_point_light_id_vec->emplace_back),
 
-			identity{ age::graphics::render_pipeline::forward_plus::spot_light_desc{
+			identity{ age::graphics::render_pipeline::spot_light_desc{
 				.position  = float3{ -4.0f, 4.0f, 0.0f },
 				.range	   = 30.0f,
 				.direction = age::normalize(float3{ 2.0f, -1.0f, 0.0f }),

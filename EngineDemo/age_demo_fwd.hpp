@@ -22,19 +22,19 @@ namespace age_demo::scene_0
 		age::vector<age::asset::handle>
 			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
-			obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
+		age::vector<age::graphics::render_pipeline::t_object_id>
+			obj_id_vec = age::vector<age::graphics::render_pipeline::t_object_id>::gen_reserved(27);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>
-			camera_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_camera_id>
+			camera_id_vec = age::vector<age::graphics::render_pipeline::t_camera_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			point_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(5000);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			spot_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
+		age::vector<age::graphics::render_pipeline::t_directional_light_id>
 			directional_light_id_vec;
 
 		// input
@@ -72,19 +72,19 @@ namespace age_demo::scene_1
 		age::vector<age::asset::handle>
 			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
-			obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
+		age::vector<age::graphics::render_pipeline::t_object_id>
+			obj_id_vec = age::vector<age::graphics::render_pipeline::t_object_id>::gen_reserved(27);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>
-			camera_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_camera_id>
+			camera_id_vec = age::vector<age::graphics::render_pipeline::t_camera_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			point_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(5000);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			spot_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
+		age::vector<age::graphics::render_pipeline::t_directional_light_id>
 			directional_light_id_vec;
 
 		// input
@@ -124,22 +124,22 @@ namespace age_demo::scene_2
 		age::vector<age::asset::handle>
 			mesh_id_vec = age::vector<age::asset::handle>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
-			opaque_obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
+		age::vector<age::graphics::render_pipeline::t_object_id>
+			opaque_obj_id_vec = age::vector<age::graphics::render_pipeline::t_object_id>::gen_reserved(27);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>
-			transparent_obj_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_object_id>::gen_reserved(27);
+		age::vector<age::graphics::render_pipeline::t_object_id>
+			transparent_obj_id_vec = age::vector<age::graphics::render_pipeline::t_object_id>::gen_reserved(27);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>
-			camera_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_camera_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_camera_id>
+			camera_id_vec = age::vector<age::graphics::render_pipeline::t_camera_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			point_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(5000);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			point_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(5000);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>
-			spot_light_id_vec = age::vector<age::graphics::render_pipeline::forward_plus::t_unified_light_id>::gen_reserved(1);
+		age::vector<age::graphics::render_pipeline::t_unified_light_id>
+			spot_light_id_vec = age::vector<age::graphics::render_pipeline::t_unified_light_id>::gen_reserved(1);
 
-		age::vector<age::graphics::render_pipeline::forward_plus::t_directional_light_id>
+		age::vector<age::graphics::render_pipeline::t_directional_light_id>
 			directional_light_id_vec;
 
 		// input
@@ -249,7 +249,7 @@ namespace age_demo::global
 		age::graphics::render_surface_handle h_render_surface;
 		age::input::context_handle			 h_input_ctx;
 
-		age::graphics::render_pipeline::forward_plus::pipeline render_pipeline;
+		age::graphics::render_pipeline::hybrid_pipeline render_pipeline;
 
 		uint32 scene_id;
 		uint32 scene_id_next;

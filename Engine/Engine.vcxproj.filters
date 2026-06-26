@@ -51,15 +51,15 @@
     <ClInclude Include="age_macro_pp.h" />
     <ClInclude Include="age_buffer.hpp" />
     <ClInclude Include="age_asset_fwd.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_hybrid.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_pso.hpp" />
     <ClInclude Include="age_util_string.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_root_signature_binding_slot.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_defaults.inl" />
     <ClInclude Include="age_util_container.hpp" />
     <ClInclude Include="age_math_transform.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_types.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_shared_types.h" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_hybrid_fwd.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_hybrid_shared_types.h" />
     <ClInclude Include="age_input.hpp" />
     <ClInclude Include="age_platform_backend_window.hpp" />
     <ClInclude Include="age_data_structure_stable_dense_vector.hpp" />
@@ -106,7 +106,7 @@
     <ClInclude Include="age_util_functional.hpp" />
     <ClInclude Include="age_util_format.hpp" />
     <ClInclude Include="age_math_sdf.hpp" />
-    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_forward_plus_macro_guard.hpp" />
+    <ClInclude Include="age_graphics_backend_dx12_render_pipeline_hybrid_macro_guard.hpp" />
     <ClInclude Include="age_util_offset_calculator.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -143,7 +143,7 @@
     <ClCompile Include="age_external_wrapper_earcut.cpp" />
     <ClCompile Include="age_external_wrapper_mikktspace.cpp" />
     <ClCompile Include="age_extern_templates.cpp" />
-    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_hybrid.cpp" />
     <ClCompile Include="external\include\meshoptimizer\allocator.cpp" />
     <ClCompile Include="age_input.cpp" />
     <ClCompile Include="age_ui_widget.cpp" />
@@ -154,7 +154,7 @@
     <ClCompile Include="age_graphics_backend_dx12_command.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_command_signature.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_rt.cpp" />
-    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_forward_plus_stages.cpp" />
+    <ClCompile Include="age_graphics_backend_dx12_render_pipeline_hybrid_stages.cpp" />
     <ClCompile Include="age_ui_text.cpp" />
     <ClCompile Include="age_ui_draw.cpp" />
     <ClCompile Include="age_editor.cpp" />
@@ -172,7 +172,7 @@
   <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="todo.md" />
-    <None Include="resources\engine_shaders\dx12\forward_plus_gibs_ray_integrate_cs.asl" />
+    <None Include="resources\engine_shaders\dx12\hrp_gibs_ray_integrate_cs.asl" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="external">
