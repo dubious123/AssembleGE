@@ -59,6 +59,36 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 arg_byte_size;
 	};
 
+	//---[ gtao ]--------------------------------------------------------------------
+	struct ao_data
+	{
+		uint32 slice__offset__extra;
+		float  radius;			 // world
+		float  max_px_radius;	 // px_radius = min(max_px_radius, world_to_screen(radius))
+		float  intensity;		 // lerp(1.f, ao, intensity);
+		float  power;			 // pow(ao, power);
+		float  thickness;
+		float  fade_distance;	 //
+		float  fade_range;		 // 1 - smoothstep(fade_range - fade_distance, fade_range, d)
+
+		uint32 h_ao_buffer_srv_id;
+		uint32 h_ao_buffer_uav_id;
+
+		uint32 debug_flags;
+
+		uint16
+		slice_count()
+		{
+			return uint16(slice__offset__extra & 0x00ff);
+		}
+
+		uint16
+		offset_count()
+		{
+			return uint16((slice__offset__extra & 0xff00) >> 8u);
+		}
+	};
+
 	//---[ gibs, surfel ]------------------------------------------------------------
 	struct surfel
 	{
@@ -183,6 +213,9 @@ namespace age::graphics::render_pipeline::shared_type
 		float3 mean_short;
 		float  vbbr;
 		float3 variance;
+
+		float incon_mean;	 // running mean of inconsistency
+		float incon_var;	 // running variance of inconsistency = spatial-freq signal
 	};
 
 	struct gibs_ray_result
@@ -851,17 +884,18 @@ namespace age::graphics::render_pipeline::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
-		row_major float4x4 view;						// 64
-		row_major float4x4 view_proj;					// 64
-		row_major float4x4 view_proj_inv;				// 64
-		float3			   camera_pos;					// 12
-		float			   time;						// 4
+		row_major float4x4 view;			 // 64
+		row_major float4x4 view_proj;		 // 64
+		row_major float4x4 view_proj_inv;	 // 64
+		float3			   camera_pos;		 // 12
+		float			   time;			 // 4
 
-		float4 frustum_planes[6];						// 96
+		float4 frustum_planes[6];			 // 96
 
-		float2 inv_backbuffer_size;						// 8
-		float2 backbuffer_size;							// 8
+		float2 inv_backbuffer_size;			 // 8
+		float2 backbuffer_size;				 // 8
 
+		// todo, remove
 		float3 camera_forward;							// 12
 		uint32 frame_index;								// 4
 
@@ -1244,8 +1278,8 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
 
 #define GIBS_MAX_OUTER_LAYER_COUNT	  16u
-#define GIBS_SCREEN_TILE_SIZE		  16u
-#define GIBS_SCREEN_GROUP_SHARED_SIZE 8u	// (tile_size * tile_size / wave_size)
+#define GIBS_SCREEN_TILE_SIZE		  8u
+#define GIBS_SCREEN_GROUP_SHARED_SIZE (GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE / 32)
 
 #define GIBS_SPAWN_COVERAGE	   1.f
 #define GIBS_KILL_COVERAGE	   3.f
@@ -1254,7 +1288,8 @@ namespace age::graphics::render_pipeline::g
 
 #define GIBS_RADIANCE_CACHE_DELAY 32
 
-#define GIBS_MSME_SHORT_WINDOW_BLEND 0.04f
+#define GIBS_MSME_SHORT_WINDOW_BLEND 0.06f
+#define GIBS_MSME_INCON_BLEND		 0.01f
 
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
@@ -1324,6 +1359,12 @@ namespace age::graphics::render_pipeline::g
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_VARIANCE == to_idx(graphics::e::gibs_debug_flags::render_variance));
 
 #endif
+	//---[ ao ]------------------------------------------------------------------------------------------------------
+
+#define AO_DEBUG_FLAGS_RENDER_AO_BUFFER (1u << 0u)
+#if !defined(AGE_SHADER)
+	static_assert(AO_DEBUG_FLAGS_RENDER_AO_BUFFER == to_idx(graphics::e::ao_debug_flags::render_ao_buffer));
+#endif
 
 	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 #define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
@@ -1334,7 +1375,8 @@ namespace age::graphics::render_pipeline::g
 #define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
 #define GIBS_DATA_OFFSET				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 #define GIBS_LUT_DATA_OFFSET			(GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
-#define STATIC_BUFFER_SIZE				(GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
+#define AO_DATA_OFFSET					(GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
+#define STATIC_BUFFER_SIZE				(AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
 #if !defined(AGE_SHADER)
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
@@ -1344,6 +1386,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
 	inline constexpr auto gibs_data_offset				  = GIBS_DATA_OFFSET;
 	inline constexpr auto gibs_lut_data_offset			  = GIBS_LUT_DATA_OFFSET;
+	inline constexpr auto ao_data_offset				  = AO_DATA_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 #endif
 

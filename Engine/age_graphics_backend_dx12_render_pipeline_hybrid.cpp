@@ -177,6 +177,7 @@ namespace age::graphics::render_pipeline
 		create_resolution_dependent_buffers();
 
 		stage_depth.init(h_root_sig);
+		stage_ao.init(h_root_sig);
 		stage_skybox.init(h_root_sig);
 		stage_light_bin.init(h_root_sig);
 		stage_ddgi.init(h_root_sig);
@@ -235,6 +236,8 @@ namespace age::graphics::render_pipeline
 
 		active_bloom_id			 = get_invalid_id<t_bloom_id>();
 		bloom_gpu.srv_texture_id = get_invalid_id<uint32>();
+
+		ao_data_cpu.enabled = false;
 	}
 
 	void
@@ -288,6 +291,7 @@ namespace age::graphics::render_pipeline
 		stage_ddgi.deinit();
 		stage_light_bin.deinit();
 		stage_skybox.deinit();
+		stage_ao.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
@@ -343,14 +347,25 @@ namespace age::graphics::render_pipeline
 		resource::release(h_gbuffer);
 		push_descriptor(h_gbuffer_srv_desc);
 		push_descriptor(h_gbuffer_rtv_desc);
+
+		resource::release(ao_data_cpu.h_ao_buffer);
+		push_descriptor(ao_data_cpu.h_ao_buffer_srv_desc);
+		push_descriptor(ao_data_cpu.h_ao_buffer_uav_desc);
+		push_descriptor(ao_data_cpu.h_ao_buffer_clear_uav_desc);
+
 		if (ddgi_data_cpu.enabled)
 		{
 			disable_ddgi();
 		}
 
-		if (gibs_data_cpu.enabled)
+		if (gibs_enabled())
 		{
 			disable_gibs();
+		}
+
+		if (ao_enabled())
+		{
+			disable_ao();
 		}
 
 		// rt
@@ -990,6 +1005,20 @@ namespace age::graphics::render_pipeline
 																   D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE),
 								barrier::rtv_to_srv(h_gbuffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
+		if (ao_data_cpu.need_cleanup) [[unlikely]]
+		{
+			command::apply_barriers(barrier::undefined_to_uav(ao_data_cpu.h_ao_buffer));
+			command::clear_uav(ao_data_cpu.h_ao_buffer, ao_data_cpu.h_ao_buffer_clear_uav_desc, float4{ 1.f, 0.5f, 0.5f, 0.f });
+			ao_data_cpu.need_cleanup = false;
+			command::apply_barriers(barrier::tex_uav_to_srv(ao_data_cpu.h_ao_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		}
+		if (ao_enabled())
+		{
+			command::apply_barriers(barrier::tex_srv_to_uav(ao_data_cpu.h_ao_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+			stage_ao.execute(ao_data_cpu, extent);
+			command::apply_barriers(barrier::tex_uav_to_srv(ao_data_cpu.h_ao_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		}
+
 		stage_skybox.execute(h_main_buffer_rtv_desc, h_depth_buffer_dsv_readonly_desc, env_light_gpu_data_vec.size<uint32>());
 
 		if (ddgi_enabled())
@@ -1354,6 +1383,27 @@ namespace age::graphics::render_pipeline
 
 			AGE_LOG(gibs_data_gpu.tile_count_w, gibs_data_gpu.tile_count_h);
 		}
+
+		// ao
+		{
+			ao_data_cpu.h_ao_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba8_unorm, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			ao_data_cpu.h_ao_buffer->set_name(L"ao_buffer");
+
+			ao_data_cpu.h_ao_buffer_srv_desc = resource::create_view(ao_data_cpu.h_ao_buffer,
+																	 defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba8_unorm));
+			ao_data_cpu.h_ao_buffer_uav_desc = resource::create_view(ao_data_cpu.h_ao_buffer,
+																	 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba8_unorm));
+
+			ao_data_cpu.h_ao_buffer_clear_uav_desc = resource::create_clear_uav_view(ao_data_cpu.h_ao_buffer,
+																					 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba8_unorm));
+
+			auto& gpu_data = ao_data_cpu.ao_data_gpu;
+
+			gpu_data.h_ao_buffer_srv_id = calc_desc_idx(ao_data_cpu.h_ao_buffer_srv_desc);
+			gpu_data.h_ao_buffer_uav_id = calc_desc_idx(ao_data_cpu.h_ao_buffer_uav_desc);
+
+			ao_data_cpu.need_cleanup = true;
+		}
 	}
 
 	void
@@ -1386,6 +1436,11 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(h_gbuffer);
 		push_descriptor_deferred(h_gbuffer_srv_desc);
 		push_descriptor_deferred(h_gbuffer_rtv_desc);
+
+		resource::release_deferred(ao_data_cpu.h_ao_buffer);
+		push_descriptor_deferred(ao_data_cpu.h_ao_buffer_srv_desc);
+		push_descriptor_deferred(ao_data_cpu.h_ao_buffer_uav_desc);
+		push_descriptor_deferred(ao_data_cpu.h_ao_buffer_clear_uav_desc);
 
 		create_resolution_dependent_buffers();
 	}
@@ -1768,7 +1823,7 @@ namespace age::graphics::render_pipeline
 		c_auto id = static_cast<t_object_id>(object_data_vec.emplace_back());
 		object_transform_data_vec.emplace_back();
 
-		object_generation_vec.resize(id + 1);
+		object_generation_vec.resize(max(object_generation_vec.capacity(), id + 1ull));
 		object_generation_vec[id] = (object_generation_vec[id] + 1) & 0xf;
 
 		update_object(id, pos, quat, scale);
@@ -2861,6 +2916,51 @@ namespace age::graphics::render_pipeline
 	}
 }	 // namespace age::graphics::render_pipeline
 
+// ao
+namespace age::graphics::render_pipeline
+{
+	void
+	hybrid_pipeline::enable_ao(const ao_desc& desc) noexcept
+	{
+		AGE_ASSERT(ao_data_cpu.enabled is_false);
+		ao_data_cpu.enabled		 = true;
+		ao_data_cpu.need_cleanup = true;
+
+		update_ao(desc);
+	}
+
+	void
+	hybrid_pipeline::update_ao(const ao_desc& desc) noexcept
+	{
+		AGE_ASSERT(ao_data_cpu.enabled);
+
+		auto& gpu_data = ao_data_cpu.ao_data_gpu;
+
+		gpu_data.slice__offset__extra = uint32(desc.slice_count | (desc.offset_count << 8u));
+		gpu_data.radius				  = desc.radius;
+		gpu_data.max_px_radius		  = desc.max_px_radius;
+		gpu_data.intensity			  = desc.intensity;
+		gpu_data.power				  = desc.power;
+		gpu_data.thickness			  = desc.thickness;
+		gpu_data.fade_distance		  = desc.fade_distance;
+		gpu_data.fade_range			  = desc.fade_range;
+		gpu_data.debug_flags		  = to_idx(desc.debug_flags);
+	}
+
+	void
+	hybrid_pipeline::disable_ao() noexcept
+	{
+		ao_data_cpu.enabled		 = false;
+		ao_data_cpu.need_cleanup = true;
+	}
+
+	bool
+	hybrid_pipeline::ao_enabled() const noexcept
+	{
+		return ao_data_cpu.enabled;
+	}
+}	 // namespace age::graphics::render_pipeline
+
 namespace age::graphics::render_pipeline
 {
 	uint32
@@ -3119,6 +3219,12 @@ namespace age::graphics::render_pipeline
 			gibs_gpu.is_alt_and_extra ^= 1;
 		}
 
+		// ao
+		if (ao_data_cpu.enabled)
+		{
+			h_mapping_static_buffer->upload(&ao_data_cpu.ao_data_gpu, sizeof(shared_type::ao_data), g::ao_data_offset);
+		}
+
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 		root_constants.bind(shared_type::root_constants{
 			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
@@ -3144,6 +3250,14 @@ namespace age::graphics::render_pipeline
 								 : main_cam_data.pos
 							 : float3::zero();
 
+		uint32 enabled_flag = ddgi_data_cpu.enabled
+								? 1u
+							: gibs_data_cpu.enabled
+								? 2u
+								: 0u;
+
+		enabled_flag |= ((ao_enabled() ? 1 : 0) << 2);
+
 		auto frame_d = shared_type::frame_data{
 			.view										  = main_cam_data.view,
 			.view_proj									  = main_cam_data.view_proj,
@@ -3167,8 +3281,7 @@ namespace age::graphics::render_pipeline
 			.light_bin_cell_size_inv					  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
 			.cam_near_z									  = main_cam_desc.near_z,
 			.cam_far_z									  = main_cam_desc.far_z,
-			.ddgi_enabled_and_extra						  = ddgi_data_cpu.enabled ? 1u : gibs_data_cpu.enabled ? 2u
-																											   : 0u,
+			.ddgi_enabled_and_extra						  = enabled_flag,
 			.ddgi_cranley_patterson_rotation			  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
 			.gi_origin									  = gi_origin,
 			.object_count								  = object_data_vec.size<uint32>(),

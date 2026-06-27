@@ -888,6 +888,40 @@ namespace age::editor
 		ui::widget::numeric_field(cmp.look_smoothing, "look_smoothing");
 		ui::widget::numeric_field(cmp.zoom_smoothing, "zoom_smoothing");
 	}
+
+	void
+	ui_component(age::ecs::ao_config& cmp) noexcept
+	{
+		ui::widget::checkbox("enable", cmp.enabled);
+		ui::widget::numeric_field(cmp.slice_count, "slice_count", uint8{ 1 }, uint8{ 16 });
+		ui::widget::numeric_field(cmp.offset_count, "offset_count", uint8{ 1 }, uint8{ 16 });
+		ui::widget::numeric_field(cmp.radius, "radius", 0.5f, 2.f);
+		ui::widget::numeric_field(cmp.max_px_radius, "max_px_radius", 1.f, 128.f);
+		ui::widget::numeric_field(cmp.intensity, "intensity", 0.f, 5.f);
+		ui::widget::numeric_field(cmp.power, "power", 0.f, 5.f);
+		ui::widget::numeric_field(cmp.thickness, "thickness", 0.f, 5.f);
+		ui::widget::numeric_field(cmp.fade_distance, "fade_distance", 0.f, 10000.f);
+		ui::widget::numeric_field(cmp.fade_range, "fade_range", 0.f, cmp.fade_distance);
+
+		c_auto debug_flag_cached = cmp.debug_flags;
+#define ao_debug_flag_checkbox(enum_name)                                          \
+	{                                                                              \
+		bool b = has_any(cmp.debug_flags, graphics::e::ao_debug_flags::enum_name); \
+		ui::widget::checkbox(#enum_name, b);                                       \
+		if (b)                                                                     \
+		{                                                                          \
+			cmp.debug_flags |= graphics::e::ao_debug_flags::enum_name;             \
+		}                                                                          \
+		else                                                                       \
+		{                                                                          \
+			cmp.debug_flags &= ~graphics::e::ao_debug_flags::enum_name;            \
+		}                                                                          \
+	}
+
+		ao_debug_flag_checkbox(render_ao_buffer);
+
+#undef ao_debug_flag_checkbox
+	}
 }	 // namespace age::editor
 
 namespace age::editor

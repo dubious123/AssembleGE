@@ -139,9 +139,16 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	// [ 2 - 4 - 2 ] / 16
 	// [ 1 - 2 - 1 ]
 
+	float ao_res = 1.f;
+	if (ao::enabled())
+	{
+		texture_2d<float4> ao_buffer = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
+		ao_res						 = ao_buffer[thread_id.xy].x;
+	}
+
 	if (res.w > epsilon_1e4)
 	{
-		dst_buffer[thread_id.xy] = res.xyz / res.w;
+		dst_buffer[thread_id.xy] = res.xyz / res.w * ao_res;
 	}
 	else
 	{

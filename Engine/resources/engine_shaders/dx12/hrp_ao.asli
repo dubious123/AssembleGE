@@ -1,0 +1,17 @@
+#pragma once
+#include "age.asli"
+
+namespace ao
+{
+	bool
+	enabled()
+	{
+		return ddgi_enabled_and_extra & 0x4;
+	}
+
+	ao_data
+	load_data()
+	{
+		return load<ao_data>(static_buffer, AO_DATA_OFFSET);
+	}
+}	 // namespace ao

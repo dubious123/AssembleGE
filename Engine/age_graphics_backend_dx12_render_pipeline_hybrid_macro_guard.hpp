@@ -238,6 +238,8 @@
 #undef GIBS_DEBUG_FLAGS_RENDER_AGE
 #undef GIBS_DEBUG_FLAGS_RENDER_CELL
 #undef GIBS_DEBUG_FLAGS_RENDER_VARIANCE
+//---[ ao ]------------------------------------------------------------------------------------------------------
+#undef AO_DEBUG_FLAGS_RENDER_AO_BUFFER
 
 
 //---[ debug assert ]------------------------------------------------------------------------------------------------------

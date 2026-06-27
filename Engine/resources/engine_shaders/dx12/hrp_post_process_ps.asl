@@ -20,6 +20,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		col							   += bloom_color * bloom.intensity * bloom.tint;
 	}
 
+
 	if (gibs_enabled())
 	{
 		const gibs_data data	 = gibs_load_gibs_data();
@@ -27,11 +28,6 @@ main_ps(float4 pos sv_position) sv_target_0
 
 		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
 		{
-			// texture_2d<float2> irradiance_atlas = global_resource_buffer[data.h_irradiance_atlas_srv_id];
-			// float2			   uv				= (debug_uv - float2(0.75f, 0.f)) * 4;
-			//// font_uv.y	   = 1.f - font_uv.y;
-			// float2 rg = sample_level(irradiance_atlas, get_linear_clamp_sampler(), uv, 0);
-			// col		  = float3(rg, 0.f);
 			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
 			int32_2 screen_pos = uv * backbuffer_size;
 
@@ -109,6 +105,26 @@ main_ps(float4 pos sv_position) sv_target_0
 			float2			   uv		  = (debug_uv - float2(0.5f, 0.f)) * 4;
 			// font_uv.y	   = 1.f - font_uv.y;
 			col = sample_level(gi_resolve, get_linear_clamp_sampler(), uv, 0);
+		}
+	}
+
+	if (ao::enabled())
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2 screen_pos = uv * backbuffer_size;
+
+			texture_2d<float4> ao_buffer = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
+
+			float4 ao_res = ao_buffer[screen_pos];
+
+			ao_res.yz = ao_res.yz * 2.f - 1.f;
+
+			col = ao_res.xyz;
+			col = float3(1.f - ao_res.x, 1.f - ao_res.x, 1.f - ao_res.x) * 10;
+			col = float3(ao_res.x, ao_res.x, ao_res.x);
 		}
 	}
 

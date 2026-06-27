@@ -474,4 +474,34 @@ namespace age::graphics::render_pipeline
 		resource_handle h_indirect_arg_buffer;
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;
 	};
+
+	struct ao_desc
+	{
+		uint8	slice_count;
+		uint8	offset_count;
+		uint8_2 _;
+		float	radius;			  // world
+		float	max_px_radius;	  // px_radius = min(max_px_radius, world_to_screen(radius))
+		float	intensity;		  // lerp(1.f, ao, intensity);
+		float	power;			  // pow(ao, power);
+		float	thickness;
+		float	fade_distance;	  //
+		float	fade_range;		  // 1 - smoothstep(fade_range - fade_distance, fade_range, d)
+
+		graphics::e::ao_debug_flags debug_flags;
+	};
+
+	struct ao_data
+	{
+		shared_type::ao_data ao_data_gpu;
+
+		bool	enabled;
+		bool	need_cleanup;
+		uint8_2 _;
+
+		resource_handle		  h_ao_buffer;
+		srv_desc_handle		  h_ao_buffer_srv_desc;
+		uav_desc_handle		  h_ao_buffer_uav_desc;
+		clear_uav_desc_handle h_ao_buffer_clear_uav_desc;
+	};
 }	 // namespace age::graphics::render_pipeline

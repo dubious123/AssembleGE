@@ -882,6 +882,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_mesh.asli"
 #include "age_color_space.asli"
 #include "age_random.asli"
+#include "hrp_ao.asli"
 #include "age_ddgi.asli"
 #include "age_gibs.asli"
 #include "age_light.asli"

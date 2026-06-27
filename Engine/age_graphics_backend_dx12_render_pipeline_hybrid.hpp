@@ -20,6 +20,21 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct ao_stage
+	{
+		graphics::pso::handle h_pso_resolve = {};
+		ID3D12PipelineState*  p_pso_resolve = nullptr;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const ao_data&, const extent_2d<uint16>&) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct skybox_stage
 	{
 		graphics::pso::handle h_pso;
@@ -31,7 +46,7 @@ namespace age::graphics::render_pipeline
 		inline void
 		execute(rtv_desc_handle _,
 				dsv_desc_handle h_dsv_readonly_desc,
-				uint32			env_light_count) noexcept;
+				uint32			env_light_count) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -204,7 +219,7 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle _) noexcept;
+		execute(rtv_desc_handle _) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -222,7 +237,7 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle, resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept;
+		execute(rtv_desc_handle, resource_handle h_blend_tex, extent_2d<uint16> extent) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -237,7 +252,7 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(uint32 raycast_count) noexcept;
+		execute(uint32 raycast_count) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -261,7 +276,7 @@ namespace age::graphics::render_pipeline
 		execute(binding_config_t::reg_b<1>& constants,
 				resource_handle				h_bloom_chain,
 				uint16						mip_count,
-				const shared_type::bloom&	bloom_gpu) noexcept;
+				const shared_type::bloom&	bloom_gpu) const noexcept;
 
 
 		void
@@ -277,7 +292,7 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle _) noexcept;
+		execute(rtv_desc_handle _) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -298,7 +313,7 @@ namespace age::graphics::render_pipeline
 		execute(uint32			selected_meshlet_count,
 				rtv_desc_handle h_desc_mask_buffer,
 				rtv_desc_handle h_desc_rtv_buffer,
-				resource_handle h_outline_mask) noexcept;
+				resource_handle h_outline_mask) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -323,7 +338,7 @@ namespace age::graphics::render_pipeline
 				uint32							root_data_idx,
 				uint32							root_data_count,
 				const age::vector<util::range>& z_range_vec,
-				const age::vector<util::range>& z_range_range_vec) noexcept;
+				const age::vector<util::range>& z_range_range_vec) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -338,7 +353,7 @@ namespace age::graphics::render_pipeline
 		init(root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(render_surface& rs) noexcept;
+		execute(render_surface& rs) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -361,7 +376,7 @@ namespace age::graphics::render_pipeline
 				dsv_desc_handle				h_desc_dsv,
 				bool						is_aot,
 				uint32						render_data_count,
-				uint32						render_data_offset) noexcept;
+				uint32						render_data_offset) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -373,6 +388,7 @@ namespace age::graphics::render_pipeline
 		ID3D12RootSignature*			 p_root_sig;
 
 		depth_stage				stage_depth;
+		ao_stage				stage_ao;
 		skybox_stage			stage_skybox;
 		light_bin_stage			stage_light_bin;
 		ddgi_stage				stage_ddgi;
@@ -547,6 +563,9 @@ namespace age::graphics::render_pipeline
 
 		// gibs
 		gibs_data gibs_data_cpu;
+
+		// ao
+		ao_data ao_data_cpu;
 
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
@@ -801,6 +820,19 @@ namespace age::graphics::render_pipeline
 
 		uint32
 		gibs_max_surfel_count() const noexcept;
+
+		// ao
+		void
+		enable_ao(const ao_desc&) noexcept;
+
+		void
+		disable_ao() noexcept;
+
+		void
+		update_ao(const ao_desc&) noexcept;
+
+		bool
+		ao_enabled() const noexcept;
 
 	  private:
 		void

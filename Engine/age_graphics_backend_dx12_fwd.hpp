@@ -32,6 +32,8 @@ namespace age::graphics::e
 					hrp_gbuffer_prepass_ms,
 					hrp_gbuffer_prepass_ps,
 
+					hrp_ao_resolve_cs,
+
 					hrp_skybox_ps,
 					hrp_skybox_ms,
 

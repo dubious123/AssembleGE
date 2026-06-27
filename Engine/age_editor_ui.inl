@@ -67,10 +67,10 @@ namespace age::editor
 	ui_component(ecs::spot_light& light) noexcept;
 
 	void
-	ui_component(age::ecs::env_light& env_light) noexcept;
+	ui_component(ecs::env_light& env_light) noexcept;
 
 	void
-	ui_component(age::ecs::env_light& env_light, auto& renderer) noexcept
+	ui_component(ecs::env_light& env_light, auto& renderer) noexcept
 	{
 		ui_component(env_light);
 
@@ -96,17 +96,17 @@ namespace age::editor
 	}
 
 	void
-	ui_component(age::ecs::camera& cam) noexcept;
+	ui_component(ecs::camera& cam) noexcept;
 
 	void
 	ui_component(ecs::bloom& cmp) noexcept;
 
 	// return : need update
 	std::tuple<bool, bool>
-	ui_component(age::ecs::gi_config& _, uint32 gibs_max_surfel_count) noexcept;
+	ui_component(ecs::gi_config& _, uint32 gibs_max_surfel_count) noexcept;
 
 	void
-	ui_component(age::ecs::gi_config& cmp, auto& renderer) noexcept
+	ui_component(ecs::gi_config& cmp, auto& renderer) noexcept
 	{
 		auto&& [update, update_debug_flags] = ui_component(cmp, renderer.gibs_max_surfel_count());
 		if (update)
@@ -149,6 +149,9 @@ namespace age::editor
 
 	void
 	ui_component(age::ecs::editor_cam_setting& cmp) noexcept;
+
+	void
+	ui_component(age::ecs::ao_config& cmp) noexcept;
 
 	void
 	ui_component(auto&& cmp) noexcept

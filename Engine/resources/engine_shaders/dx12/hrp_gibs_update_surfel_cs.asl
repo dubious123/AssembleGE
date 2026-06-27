@@ -216,6 +216,8 @@ main_cs(uint32 group_id		   sv_group_id,
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
 	surfel.position			  = world_pos + world_normal * surfel.radius * 0.001f;
 
+	const surfel_msme msme = msme_arr[surfel_id];
+
 	attr_branch()
 
 	if ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0)
@@ -273,11 +275,10 @@ main_cs(uint32 group_id		   sv_group_id,
 	}
 
 
-	// calc ideal ray count
+	// uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
+	// uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(sqrt(max(0.f, msme.incon_var)) * 10)));
 
-	const surfel_msme msme = msme_arr[surfel_id];
-
-	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
+	uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.incon_var * (1.f / GIBS_MSME_INCON_BLEND)));
 
 	if (surfel_seen is_false)
 	{

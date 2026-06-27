@@ -135,7 +135,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	// float4 radiance		 = (float4)0;
 	float4 radiance_shared = (float4)0;
 
-	for (uint32 i = 0; is_thread_valid and i < tile_entry.surfel_count(); ++i)
+	for (uint32 i = 0; is_thread_valid and i < min(512, tile_entry.surfel_count()); ++i)
 	{
 		const uint32 surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
 		const surfel surfel	   = surfel_arr[surfel_id];

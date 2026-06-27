@@ -276,9 +276,10 @@ main_ps(float4 pos sv_position) sv_target_0
 
 		while (wave_bit_mask != 0)
 		{
-			const uint32 bit		= first_bit_low(wave_bit_mask);
-			const uint32 sorted_id	= w * 32 + bit;
-			wave_bit_mask		   &= ~(1u << bit);
+			const uint32 bit	   = first_bit_low(wave_bit_mask);
+			const uint32 sorted_id = w * 32 + bit;
+			// wave_bit_mask			&= ~(1u << bit);
+			wave_bit_mask &= (wave_bit_mask - 1u);
 
 			if (bit_mask & (1u << bit))
 			{

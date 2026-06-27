@@ -101,6 +101,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		msme.vbbr		   = 0.f;
 		msme.variance	   = float3(1.f, 1.f, 1.f);
 		msme.inconsistency = 1.f;
+		msme.incon_mean	   = 0.f;
+		msme.incon_var	   = 0.f;
 
 		msme_arr.store(surfel_id, msme);
 

@@ -66,6 +66,36 @@ namespace age::graphics::render_pipeline
 	}
 }	 // namespace age::graphics::render_pipeline
 
+// ao stage
+namespace age::graphics::render_pipeline
+{
+	void
+	ao_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_resolve = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ao_resolve_cs) });
+
+		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
+		h_pso_resolve.set_name(L"p_pso_light_init");
+	}
+
+	inline void
+	ao_stage::execute(const ao_data& cpu_data, const extent_2d<uint16>& extent) const noexcept
+	{
+		command::set_pso(p_pso_resolve);
+		command::dispatch(ceil(extent.width, 8u), ceil(extent.height, 8u), 1);
+	}
+
+	void
+	ao_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_resolve);
+	}
+}	 // namespace age::graphics::render_pipeline
+
 // skybox stage
 namespace age::graphics::render_pipeline
 {
@@ -94,7 +124,7 @@ namespace age::graphics::render_pipeline
 	inline void
 	skybox_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc,
 						  dsv_desc_handle h_depth_buffer_dsv_readonly_desc,
-						  uint32		  env_light_count) noexcept
+						  uint32		  env_light_count) const noexcept
 	{
 		constexpr c_auto clear_color		 = float4{ 0, 0, 0, 1 };
 		auto			 render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_main_buffer_rtv_desc, &clear_color);
@@ -848,7 +878,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	opaque_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc) noexcept
+	opaque_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
 
@@ -906,7 +936,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	transparent_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc, resource_handle h_blend_tex, extent_2d<uint16> extent) noexcept
+	transparent_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc, resource_handle h_blend_tex, extent_2d<uint16> extent) const noexcept
 	{
 		command::set_pso(p_pso_rt);
 
@@ -953,7 +983,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	raycast_stage::execute(uint32 raycast_count) noexcept
+	raycast_stage::execute(uint32 raycast_count) const noexcept
 	{
 		command::set_pso(p_pso);
 		command::dispatch(util::ceil(raycast_count, 32), 1, 1);
@@ -996,7 +1026,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	bloom_stage::execute(binding_config_t::reg_b<1>& constants, resource_handle h_bloom_chain, uint16 mip_count, const shared_type::bloom& bloom_gpu) noexcept
+	bloom_stage::execute(binding_config_t::reg_b<1>& constants, resource_handle h_bloom_chain, uint16 mip_count, const shared_type::bloom& bloom_gpu) const noexcept
 	{
 		AGE_ASSERT(mip_count > 0);
 
@@ -1072,7 +1102,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	post_process_stage::execute(rtv_desc_handle h_post_buffer_rtv_desc) noexcept
+	post_process_stage::execute(rtv_desc_handle h_post_buffer_rtv_desc) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(h_post_buffer_rtv_desc);
 
@@ -1139,7 +1169,7 @@ namespace age::graphics::render_pipeline
 	selection_outline_stage::execute(uint32			 selected_meshlet_count,
 									 rtv_desc_handle h_desc_mask_buffer,
 									 rtv_desc_handle h_desc_rtv_buffer,
-									 resource_handle h_outline_mask) noexcept
+									 resource_handle h_outline_mask) const noexcept
 	{
 		if (selected_meshlet_count == 0)
 		{
@@ -1238,7 +1268,7 @@ namespace age::graphics::render_pipeline
 					  uint32						  root_data_idx,
 					  uint32						  root_data_count,
 					  const age::vector<util::range>& z_range_vec,
-					  const age::vector<util::range>& z_range_range_vec) noexcept
+					  const age::vector<util::range>& z_range_range_vec) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_rtv_desc);
 		if (space_mode == ui::e::space_mode_kind::screen
@@ -1344,7 +1374,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	presentation_stage::execute(render_surface& rs) noexcept
+	presentation_stage::execute(render_surface& rs) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(rs.h_rtv_desc());
 
@@ -1416,7 +1446,7 @@ namespace age::graphics::render_pipeline
 						 dsv_desc_handle			 h_desc_dsv,
 						 bool						 is_aot,
 						 uint32						 render_data_count,
-						 uint32						 render_data_offset) noexcept
+						 uint32						 render_data_offset) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_desc_rtv);
 		auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_discard(h_desc_dsv, 0.f, DXGI_FORMAT_D16_UNORM);

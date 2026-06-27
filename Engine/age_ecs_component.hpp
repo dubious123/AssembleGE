@@ -936,6 +936,55 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(ao_config, "ao", "ambient_occlusion", "vbao")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		bool  enabled	   = true;
+		uint8 slice_count  = 4;
+		uint8 offset_count = 6;
+		uint8 _;
+		float radius		= 0.5f;
+		float max_px_radius = 128.f;
+		float intensity		= 1.f;
+		float power			= 1.f;
+		float thickness		= 0.25f;
+		float fade_distance = 50.f;	   // fade_distance > fade_range
+		float fade_range	= 60.f;
+
+		age::graphics::e::ao_debug_flags debug_flags;
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, ao_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled)
+			{
+				ctx.renderer.enable_ao({
+					.slice_count   = cmp.slice_count,
+					.offset_count  = cmp.offset_count,
+					.radius		   = cmp.radius,
+					.max_px_radius = cmp.max_px_radius,
+					.intensity	   = cmp.intensity,
+					.power		   = cmp.power,
+					.thickness	   = cmp.thickness,
+					.fade_distance = cmp.fade_distance,
+					.fade_range	   = cmp.fade_range,
+					.debug_flags   = cmp.debug_flags,
+				});
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, ao_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled)
+			{
+				ctx.renderer.disable_ao();
+			}
+		}
+	};
+
 #undef AGE_COMPONENT
 #undef AGE_CUSTOM_BYTE_SIZE
 }	 // namespace age::ecs

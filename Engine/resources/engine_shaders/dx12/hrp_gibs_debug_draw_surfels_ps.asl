@@ -308,7 +308,12 @@ main_ps(float4 pos sv_position) sv_target_0
 		if (surfel_id_oldest != invalid_id_uint32)
 		{
 			const surfel_msme msme = msme_arr[surfel_id_oldest];
-			return float4(random_color(surfel_id_oldest).rgb * msme.inconsistency, 1);
+			// float			  spatial_freq = smoothstep(0.f, 1.f, sqrt(max(0.f, msme.incon_var)) * 0.5f);
+			// return float4(random_color(surfel_id_oldest).rgb * spatial_freq * (1.f / GIBS_MSME_RD_BLEND), 1);
+			// float t = saturate(sqrt(max(0.f, msme.incon_var)) * 10);
+			float t = msme.incon_var * (1.f / GIBS_MSME_INCON_BLEND);
+			return float4(t, 0.f, 1.f - t, 1.f);
+			// return float4(random_color(surfel_id_oldest).rgb * msme.incon_var * (1.f / GIBS_MSME_RD_BLEND), 1);
 		}
 		else
 		{

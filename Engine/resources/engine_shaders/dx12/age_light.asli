@@ -757,9 +757,10 @@ rt_calc_opaque_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> query)
 
 			while (wave_bit_mask != 0)
 			{
-				const uint32 bit		= first_bit_low(wave_bit_mask);
-				const uint32 sorted_id	= w * 32 + bit;
-				wave_bit_mask		   &= ~(1u << bit);
+				const uint32 bit	   = first_bit_low(wave_bit_mask);
+				const uint32 sorted_id = w * 32 + bit;
+				// wave_bit_mask		   &= ~(1u << bit);
+				wave_bit_mask &= (wave_bit_mask - 1u);
 
 				if (bit_mask & (1u << bit))
 				{
@@ -954,9 +955,10 @@ rt_calc_transparent_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> q
 
 				while (wave_bit_mask != 0)
 				{
-					const uint32 bit		= first_bit_low(wave_bit_mask);
-					const uint32 sorted_id	= w * 32 + bit;
-					wave_bit_mask		   &= ~(1u << bit);
+					const uint32 bit	   = first_bit_low(wave_bit_mask);
+					const uint32 sorted_id = w * 32 + bit;
+					// wave_bit_mask		   &= ~(1u << bit);
+					wave_bit_mask &= (wave_bit_mask - 1u);
 
 					if (bit_mask & (1u << bit))
 					{

@@ -127,3 +127,32 @@ random_color(uint32 index)
 
 	return raw_color * 0.8f + 0.2f;
 }
+
+// Quasirandom Sequences Dr Martin Roberts 2018
+// https://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+float
+random_r1_sequence(uint32 n, float seed = 0.5f)
+{
+	static const float g  = 1.6180339887498948482f;
+	static const float a1 = 1.f / g;
+	return frac(seed + a1 * n);
+}
+
+float2
+random_r2_requence(uint32 n, float seed = 0.5f)
+{
+	static const float g  = 1.32471795724474602596f;
+	static const float a1 = 1.f / g;
+	static const float a2 = 1.f / (g * g);
+	return float2(frac(seed + a1 * n), frac(seed + a2 * n));
+}
+
+float3
+random_r3_requence(uint32 n, float seed = 0.5f)
+{
+	static const float g  = 1.22074408460575947536f;
+	static const float a1 = 1.f / g;
+	static const float a2 = 1.f / (g * g);
+	static const float a3 = 1.f / (g * g * g);
+	return float3(frac(seed + a1 * n), frac(seed + a2 * n), frac(seed + a3 * n));
+}

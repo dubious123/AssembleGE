@@ -1260,6 +1260,18 @@ gibs_update_msme(float3 y, inout surfel_msme msme, float blend_factor = GIBS_MSM
 	vbbr	  = lerp(vbbr, vbbr_target, 0.1f);
 	mean_long = lerp(mean_long, y, saturate(catch_up_blend));
 
+	{
+		const float incon_a	   = GIBS_MSME_INCON_BLEND;	   // tune
+		float		incon_mean = msme.incon_mean;
+		float		incon_var  = msme.incon_var;
+		const float incon_d	   = inconsistency - incon_mean;
+		incon_mean			   = lerp(incon_mean, inconsistency, incon_a);
+		const float incon_d2   = inconsistency - incon_mean;
+		incon_var			   = lerp(incon_var, incon_d * incon_d2, incon_a);
+		msme.incon_mean		   = incon_mean;
+		msme.incon_var		   = incon_var;
+	}
+
 	// output
 	msme.mean_long	   = mean_long;
 	msme.mean_short	   = mean_short;
@@ -1339,7 +1351,7 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 		texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
 		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 		const float			 z_depth		   = load(depth_buffer, screen_pos);
-		const float3		 px_normal		   = decode_oct_snorm16(load(gbuffer, screen_pos).y);
+		const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
 
 		const bool surfel_seen = z_depth != 0.f
 							 and ndc.z >= (z_depth - epsilon_1e4)	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)

@@ -29,6 +29,57 @@ static const float4 color_red	= float4(1, 0, 0, 1);
 static const float4 color_green = float4(0, 1, 0, 1);
 static const float4 color_blue	= float4(0, 0, 1, 1);
 
+// Sebastien Lagarde 2014
+// Inverse Trigonometric functions GPU optimization for AMD GCN architecture
+// https://seblagarde.wordpress.com/2014/12/01/inverse-trigonometric-functions-gpu-optimization-for-amd-gcn-architecture/
+
+// max absolute error 9.0x10^-3
+// Eberly's polynomial degree 1 - respect bounds
+// 4 VGPR, 12 FR (8 FR, 1 QR), 1 scalar
+// input [-1, 1] and output [0, PI]
+float
+fast_acos(float inX)
+{
+	float x	   = abs(inX);
+	float res  = -0.156583f * x + pi_half;
+	res		  *= sqrt(1.0f - x);
+	return (inX >= 0) ? res : pi - res;
+}
+
+// Same cost as Acos + 1 FR
+// Same error
+// input [-1, 1] and output [-PI/2, PI/2]
+float
+fast_asin(float x)
+{
+	return pi_half - fast_acos(x);
+}
+
+// max absolute error 1.3x10^-3
+// Eberly's odd polynomial degree 5 - respect bounds
+// 4 VGPR, 14 FR (10 FR, 1 QR), 2 scalar
+// input [0, infinity] and output [0, PI/2]
+float
+fast_atan_pos(float x)
+{
+	float t0   = (x < 1.0f) ? x : 1.0f / x;
+	float t1   = t0 * t0;
+	float poly = 0.0872929f;
+	poly	   = -0.301895f + poly * t1;
+	poly	   = 1.0f + poly * t1;
+	poly	   = poly * t0;
+	return (x < 1.0f) ? poly : pi_half - poly;
+}
+
+// 4 VGPR, 16 FR (12 FR, 1 QR), 2 scalar
+// input [-infinity, infinity] and output [-PI/2, PI/2]
+float
+fast_atan(float x)
+{
+	float t0 = fast_atan_pos(abs(x));
+	return (x < 0.0f) ? -t0 : t0;
+}
+
 template <typename t>
 t
 zero()
@@ -177,6 +228,18 @@ float
 length_sq(float4 v)
 {
 	return dot(v, v);
+}
+
+float3
+reject(float3 a, float3 b)
+{
+	return a - (dot(a, b) / length_sq(b)) * b;
+}
+
+float3
+reject_norm(float3 a, float3 b_norm)
+{
+	return normalize(a - dot(b_norm, a) * b_norm);
 }
 
 bool
@@ -861,12 +924,29 @@ ndc_to_world(float4x4 view_proj_inv, float3 ndc)
 	return temp.xyz / temp.w;
 }
 
+float3
+ndc_to_view(float4x4 view, float4x4 view_proj_inv, float3 ndc)
+{
+	const float3 world_pos = ndc_to_world(view_proj_inv, ndc);
+	// const float4 view_pos_h = mul(view, float4(world_pos, 1.f));
+	// const float3 view_pos	= view_pos_h.xyz / view_pos_h.w;
+
+	const float4 view_pos = mul(view, float4(world_pos, 1.f));
+	return view_pos.xyz;
+}
+
 float2
 screen_to_ndc(float2 screen_pos, float2 inv_backbuffer_size)
 {
 	float2 ndc = screen_pos * inv_backbuffer_size * 2.0 - 1.0;
 	ndc.y	   = -ndc.y;
 	return ndc;
+}
+
+float3
+screen_px_to_ndc(int32_2 px, float z_depth, float2 inv_backbuffer_size)
+{
+	return float3(screen_to_ndc(float2(px) + 0.5f, inv_backbuffer_size), z_depth);
 }
 
 float2
@@ -1314,6 +1394,14 @@ px_world_area(float2 screen_px, float3 cam_to_world, float3 world_normal, float3
 	const float area_world = area_proj / max(0.1f, abs(cos_theta));
 
 	return area_world;
+}
+
+float
+px_world_size(float z_depth, float tan_fov_y_half, float screen_height)
+{
+	// cam_to_screen_px_length : 1px = z_depth : r (approx)
+	const float cam_to_screen_px_z = screen_height * 0.5f / tan_fov_y_half;
+	return z_depth / cam_to_screen_px_z;
 }
 
 // based on Christer Ericson 2004
