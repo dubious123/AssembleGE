@@ -129,6 +129,35 @@ load_unified_light(uint32 idx)
 	return load<unified_light>(static_buffer, UNIFIED_LIGHT_OFFSET + idx * sizeof(unified_light));
 }
 
+segment_data
+load_segment_data()
+{
+	return load<segment_data>(static_buffer, SEGMENT_DATA_OFFSET);
+}
+
+bool
+segment_is_edge(int32_2 px)
+{
+	segment_data		data		= load_segment_data();
+	byte_address_buffer segment_buf = global_resource_buffer[data.h_segment_buffer_uav_id];
+
+	const int32_2 tile_id  = px / SEGMENT_TILE_SIZE;
+	const int32_2 local_id = px % SEGMENT_TILE_SIZE;
+
+	const int32 tile_count_w = ceil((int32)backbuffer_size.x, SEGMENT_TILE_SIZE);
+	const int32 tile_id_flat = tile_id.x + tile_id.y * tile_count_w;
+
+	const int32 thread_id_in_tile = local_id.y * SEGMENT_TILE_SIZE + local_id.x;
+
+	const int32 wave_id	  = thread_id_in_tile / 32;
+	const int32 local_bit = thread_id_in_tile % 32;
+
+	const int32 waves_per_tile = ceil(SEGMENT_TILE_SIZE * SEGMENT_TILE_SIZE, 32);
+	const int32 slot		   = tile_id_flat * waves_per_tile + wave_id;
+
+	return load<uint32>(segment_buf, slot * sizeof(uint32)) & (1u << local_bit);
+}
+
 byte_address_buffer mesh_data_buffer reg(t1, space0);
 
 // uav only

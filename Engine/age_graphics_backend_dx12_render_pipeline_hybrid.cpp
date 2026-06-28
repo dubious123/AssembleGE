@@ -177,6 +177,7 @@ namespace age::graphics::render_pipeline
 		create_resolution_dependent_buffers();
 
 		stage_depth.init(h_root_sig);
+		stage_segment.init(h_root_sig);
 		stage_ao.init(h_root_sig);
 		stage_skybox.init(h_root_sig);
 		stage_light_bin.init(h_root_sig);
@@ -292,6 +293,7 @@ namespace age::graphics::render_pipeline
 		stage_light_bin.deinit();
 		stage_skybox.deinit();
 		stage_ao.deinit();
+		stage_segment.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
@@ -347,6 +349,10 @@ namespace age::graphics::render_pipeline
 		resource::release(h_gbuffer);
 		push_descriptor(h_gbuffer_srv_desc);
 		push_descriptor(h_gbuffer_rtv_desc);
+
+		resource::release(segment_data_cpu.h_segment_buffer);
+		push_descriptor(segment_data_cpu.h_segment_buffer_srv_desc);
+		push_descriptor(segment_data_cpu.h_segment_buffer_uav_desc);
 
 		resource::release(h_motion_buffer);
 		push_descriptor(h_motion_buffer_srv_desc);
@@ -1022,6 +1028,10 @@ namespace age::graphics::render_pipeline
 																   D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE),
 								barrier::rtv_to_srv(h_gbuffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
+		stage_segment.execute(extent);
+
+		command::apply_barriers(barrier::buf_uav_to_srv(segment_data_cpu.h_segment_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
 		if (ao_data_cpu.need_cleanup) [[unlikely]]
 		{
 			command::apply_barriers(barrier::undefined_to_uav(ao_data_cpu.h_ao_buffer));
@@ -1286,6 +1296,23 @@ namespace age::graphics::render_pipeline
 		h_gbuffer_rtv_desc = resource::create_view(h_gbuffer,
 												   defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
 
+		{
+			c_auto tile_extent = extent_2d<uint16>{ cast_to<uint16>(ceil(extent.width, g::segment_tile_size)), cast_to<uint16>(ceil(extent.height, g::segment_tile_size)) };
+			c_auto buffer_size = tile_extent.width * tile_extent.height * (g::segment_tile_size * g::segment_tile_size * 1u);
+
+			segment_data_cpu.h_segment_buffer = resource::create_committed_buf_uav(buffer_size);
+			segment_data_cpu.h_segment_buffer->set_name(L"segment_buffer");
+
+			segment_data_cpu.h_segment_buffer_srv_desc = resource::create_view(segment_data_cpu.h_segment_buffer,
+																			   defaults::srv_view_desc::byte_address_buffer(buffer_size));
+			segment_data_cpu.h_segment_buffer_uav_desc = resource::create_view(segment_data_cpu.h_segment_buffer,
+																			   defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+			segment_data_cpu.segment_data_gpu.h_segment_buffer_srv_id = calc_desc_idx(segment_data_cpu.h_segment_buffer_srv_desc);
+			segment_data_cpu.segment_data_gpu.h_segment_buffer_uav_id = calc_desc_idx(segment_data_cpu.h_segment_buffer_uav_desc);
+		}
+
+
 		h_motion_buffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r16g16_float);
 		h_motion_buffer->set_name(L"motion buffer");
 
@@ -1466,6 +1493,10 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(h_motion_buffer);
 		push_descriptor_deferred(h_motion_buffer_srv_desc);
 		push_descriptor_deferred(h_motion_buffer_rtv_desc);
+
+		resource::release_deferred(segment_data_cpu.h_segment_buffer);
+		push_descriptor_deferred(segment_data_cpu.h_segment_buffer_srv_desc);
+		push_descriptor_deferred(segment_data_cpu.h_segment_buffer_uav_desc);
 
 		resource::release_deferred(ao_data_cpu.h_ao_buffer);
 		push_descriptor_deferred(ao_data_cpu.h_ao_buffer_srv_desc);
@@ -3026,6 +3057,9 @@ namespace age::graphics::render_pipeline
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
 
+		h_mapping_static_buffer->upload(&segment_data_cpu.segment_data_gpu, sizeof(shared_type::segment_data), g::segment_data_offset);
+
+
 		auto opaque_mshlt_object_data_count = 0u;
 		{
 			auto opaque_offset = g::opaque_mshlt_object_data_offset;
@@ -3283,6 +3317,7 @@ namespace age::graphics::render_pipeline
 			.ui_space_mode_and_extra = 0u,
 
 		});
+
 
 		// todo multiple camera
 		c_auto& main_cam_data = camera_data_vec[main_camera_id];

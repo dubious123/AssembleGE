@@ -20,6 +20,21 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct segment_stage
+	{
+		graphics::pso::handle h_pso_resolve = {};
+		ID3D12PipelineState*  p_pso_resolve = nullptr;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const extent_2d<uint16>& extent) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct ao_stage
 	{
 		graphics::pso::handle h_pso_resolve = {};
@@ -389,6 +404,7 @@ namespace age::graphics::render_pipeline
 		ID3D12RootSignature*			 p_root_sig;
 
 		depth_stage				stage_depth;
+		segment_stage			stage_segment;
 		ao_stage				stage_ao;
 		skybox_stage			stage_skybox;
 		light_bin_stage			stage_light_bin;
@@ -574,6 +590,9 @@ namespace age::graphics::render_pipeline
 
 		// ao
 		ao_data ao_data_cpu;
+
+		// segment
+		segment_data segment_data_cpu;
 
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;

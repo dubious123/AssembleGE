@@ -127,26 +127,41 @@ main_ps(float4 pos sv_position) sv_target_0
 			col = float3(ao_res.x, ao_res.x, ao_res.x);
 		}
 	}
+	// else
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
+
+	//		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+
+	//		float2 motion = motion_buffer[screen_pos];
+
+	//		float2 m = motion * 100;
+	//		col		 = float3(m * 0.5f + 0.5f, 0.5f);
+
+	//		// col = motion.xyz;
+	//		// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
+	//		// col = float3(motion.x, motion.x, motion.x);
+	//	}
+	//}
 	else
 	{
 		float2 debug_uv = pos.xy * inv_backbuffer_size;
 		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
 		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+			const float2 uv = (debug_uv - float2(0.75f, 0.f)) * 4;
 
-			texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+			// const float2 uv = debug_uv;
 
-			float2 motion = motion_buffer[screen_pos];
+			const int32_2 screen_pos = uv * backbuffer_size;
 
-			float2 m = motion * 100;
-			col		 = float3(m * 0.5f + 0.5f, 0.5f);
-
-			// col = motion.xyz;
-			// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
-			// col = float3(motion.x, motion.x, motion.x);
+			col = segment_is_edge(screen_pos) ? color_red.xyz : color_white.xyz;
 		}
 	}
+
 
 	// col = tonemap_reinhard_luminance(col, 4.0);
 	col = tonemap_aces_hill_hdr(col, 4.0);

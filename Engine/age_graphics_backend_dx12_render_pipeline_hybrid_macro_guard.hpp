@@ -87,12 +87,16 @@
 
 //---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 #undef OPAQUE_MSHLT_OBJECT_DATA_OFFSET
-#undef OBJECT_DATA_OFFSET
 #undef OBJECT_PREV_DATA_OFFSET
+#undef OBJECT_DATA_OFFSET
 #undef DIRECTIONAL_LIGHT_OFFSET
 #undef UNIFIED_LIGHT_OFFSET
 #undef BLOOM_OFFSET
 #undef DDGI_DATA_OFFSET
+#undef GIBS_DATA_OFFSET
+#undef GIBS_LUT_DATA_OFFSET
+#undef AO_DATA_OFFSET
+#undef SEGMENT_DATA_OFFSET
 #undef STATIC_BUFFER_SIZE
 
 //---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------
@@ -239,6 +243,10 @@
 #undef GIBS_DEBUG_FLAGS_RENDER_AGE
 #undef GIBS_DEBUG_FLAGS_RENDER_CELL
 #undef GIBS_DEBUG_FLAGS_RENDER_VARIANCE
+
+//---[ segment and transparent ]------------------------------------------------------------------------------------------------------
+#undef SEGMENT_TILE_SIZE
+
 //---[ ao ]------------------------------------------------------------------------------------------------------
 #undef AO_DEBUG_FLAGS_RENDER_AO_BUFFER
 

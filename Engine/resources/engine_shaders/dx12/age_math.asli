@@ -24,6 +24,7 @@ static const uint32 uint32_max = 0xffffffffu;
 
 static const uint32 invalid_id_uint32 = 0xffffffff;
 
+static const float4 color_white = float4(1, 1, 1, 1);
 static const float4 color_black = float4(0, 0, 0, 1);
 static const float4 color_red	= float4(1, 0, 0, 1);
 static const float4 color_green = float4(0, 1, 0, 1);

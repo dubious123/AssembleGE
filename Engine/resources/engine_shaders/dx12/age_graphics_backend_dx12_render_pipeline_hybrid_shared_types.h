@@ -59,7 +59,14 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 arg_byte_size;
 	};
 
-	//---[ gtao ]--------------------------------------------------------------------
+	//---[ aa and transparent ]--------------------------------------------------------------------
+	struct segment_data
+	{
+		uint32 h_segment_buffer_srv_id;
+		uint32 h_segment_buffer_uav_id;
+	};
+
+	//---[ vbao ]--------------------------------------------------------------------
 	struct ao_data
 	{
 		uint32 slice__offset__extra;
@@ -1362,6 +1369,13 @@ namespace age::graphics::render_pipeline::g
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_VARIANCE == to_idx(graphics::e::gibs_debug_flags::render_variance));
 
 #endif
+//---[ segment and transparent ]------------------------------------------------------------------------------------------------------
+#define SEGMENT_TILE_SIZE 8u
+
+#if !defined(AGE_SHADER)
+	inline constexpr auto segment_tile_size = SEGMENT_TILE_SIZE;
+#endif
+
 	//---[ ao ]------------------------------------------------------------------------------------------------------
 
 #define AO_DEBUG_FLAGS_RENDER_AO_BUFFER (1u << 0u)
@@ -1380,7 +1394,8 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_DATA_OFFSET				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 #define GIBS_LUT_DATA_OFFSET			(GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
 #define AO_DATA_OFFSET					(GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
-#define STATIC_BUFFER_SIZE				(AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
+#define SEGMENT_DATA_OFFSET				(AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
+#define STATIC_BUFFER_SIZE				(SEGMENT_DATA_OFFSET + sizeof(SHARED_TYPE segment_data) * 1)
 #if !defined(AGE_SHADER)
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_prev_data_offset		  = OBJECT_PREV_DATA_OFFSET;
@@ -1392,6 +1407,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto gibs_data_offset				  = GIBS_DATA_OFFSET;
 	inline constexpr auto gibs_lut_data_offset			  = GIBS_LUT_DATA_OFFSET;
 	inline constexpr auto ao_data_offset				  = AO_DATA_OFFSET;
+	inline constexpr auto segment_data_offset			  = SEGMENT_DATA_OFFSET;
 	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
 #endif
 

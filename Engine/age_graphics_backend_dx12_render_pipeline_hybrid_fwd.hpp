@@ -505,6 +505,15 @@ namespace age::graphics::render_pipeline
 		clear_uav_desc_handle h_ao_buffer_clear_uav_desc;
 	};
 
+	struct segment_data
+	{
+		shared_type::segment_data segment_data_gpu;
+
+		resource_handle h_segment_buffer;
+		srv_desc_handle h_segment_buffer_srv_desc;
+		uav_desc_handle h_segment_buffer_uav_desc;
+	};
+
 	struct taa_desc
 	{
 		uint8	jitter_count;
