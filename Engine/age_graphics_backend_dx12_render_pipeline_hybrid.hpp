@@ -219,7 +219,8 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle _) const noexcept;
+		execute(rtv_desc_handle h_main_buffer_rtv_desc,
+				rtv_desc_handle h_motion_buffer_rtv_desc) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -414,6 +415,10 @@ namespace age::graphics::render_pipeline
 		rtv_desc_handle h_gbuffer_rtv_desc;
 		srv_desc_handle h_gbuffer_srv_desc;
 
+		resource_handle h_motion_buffer;
+		rtv_desc_handle h_motion_buffer_rtv_desc;
+		srv_desc_handle h_motion_buffer_srv_desc;
+
 		rtv_desc_handle h_main_buffer_rtv_desc;
 		rtv_desc_handle h_post_buffer_rtv_desc;
 		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
@@ -530,6 +535,8 @@ namespace age::graphics::render_pipeline
 		age::offset_pool<> mesh_rt_index_buffer_offset_pool;
 
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
+		// todo, save memory
+		age::stable_dense_vector<shared_type::object_data> object_prev_data_vec;
 		age::vector<BARE_OF(object_data_vec)::index_type>  object_pos_to_id_arr[global::frame_buffer_count];
 		age::vector<uint8>								   object_generation_vec;
 
@@ -539,6 +546,7 @@ namespace age::graphics::render_pipeline
 		// camera
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
+		float4x4						main_cam_view_proj_prev;
 		t_camera_id						main_camera_id;
 
 		// bloom
@@ -833,6 +841,10 @@ namespace age::graphics::render_pipeline
 
 		bool
 		ao_enabled() const noexcept;
+
+		// taa
+		void
+		update_taa(const taa_desc&) noexcept;
 
 	  private:
 		void

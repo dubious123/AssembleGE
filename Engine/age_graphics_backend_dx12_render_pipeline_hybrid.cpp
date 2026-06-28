@@ -348,6 +348,10 @@ namespace age::graphics::render_pipeline
 		push_descriptor(h_gbuffer_srv_desc);
 		push_descriptor(h_gbuffer_rtv_desc);
 
+		resource::release(h_motion_buffer);
+		push_descriptor(h_motion_buffer_srv_desc);
+		push_descriptor(h_motion_buffer_rtv_desc);
+
 		resource::release(ao_data_cpu.h_ao_buffer);
 		push_descriptor(ao_data_cpu.h_ao_buffer_srv_desc);
 		push_descriptor(ao_data_cpu.h_ao_buffer_uav_desc);
@@ -392,6 +396,7 @@ namespace age::graphics::render_pipeline
 		remove_camera(main_camera_id);
 
 		AGE_ASSERT(object_data_vec.size() == 0);
+		AGE_ASSERT(object_prev_data_vec.size() == 0);
 		AGE_ASSERT(object_transform_data_vec.size() == 0);
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
@@ -404,6 +409,7 @@ namespace age::graphics::render_pipeline
 
 		texture_map.clear();
 		object_data_vec.clear();
+		object_prev_data_vec.clear();
 		object_transform_data_vec.clear();
 		object_generation_vec.clear();
 		directional_light_vec.clear();
@@ -415,6 +421,16 @@ namespace age::graphics::render_pipeline
 	hybrid_pipeline::begin_frame() noexcept
 	{
 		command::wait_current_frame(e::queue_kind::direct);
+
+		main_cam_view_proj_prev = camera_data_vec[main_camera_id].view_proj;
+		{
+			static_assert(std::is_trivially_copyable_v<shared_type::object_data>);
+			static_assert(std::is_implicit_lifetime_v<shared_type::object_data>);
+
+			// object_data_prev_vec = object_data_vec;
+			AGE_ASSERT(object_prev_data_vec.size() == object_data_vec.size());
+			std::memcpy(object_prev_data_vec.data(), object_data_vec.data(), object_data_vec.byte_size());
+		}
 
 		raycast_request_vec.clear();
 
@@ -690,6 +706,7 @@ namespace age::graphics::render_pipeline
 								barrier::undefined_to_dsv_write(h_depth_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_dsv_write(h_debug_depth_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(h_gbuffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
+								barrier::undefined_to_rtv(h_motion_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
 
 		return true;
@@ -1044,7 +1061,8 @@ namespace age::graphics::render_pipeline
 			gibs_data_cpu.need_cleanup = false;
 		}
 
-		stage_opaque.execute(h_main_buffer_rtv_desc);
+		stage_opaque.execute(h_main_buffer_rtv_desc, h_motion_buffer_rtv_desc);
+		command::apply_barriers(barrier::rtv_to_srv(h_motion_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		if (ddgi_enabled())
 		{
@@ -1268,6 +1286,14 @@ namespace age::graphics::render_pipeline
 		h_gbuffer_rtv_desc = resource::create_view(h_gbuffer,
 												   defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
 
+		h_motion_buffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r16g16_float);
+		h_motion_buffer->set_name(L"motion buffer");
+
+		h_motion_buffer_srv_desc = resource::create_view(h_motion_buffer,
+														 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+		h_motion_buffer_rtv_desc = resource::create_view(h_motion_buffer,
+														 defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+
 		if (gibs_enabled())
 		{
 			c_auto low_res = extent_2d<uint16>{ cast_to<uint16>(ceil(extent.width, g::gibs_gi_resolve_scale)), cast_to<uint16>(ceil(extent.height, g::gibs_gi_resolve_scale)) };
@@ -1436,6 +1462,10 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(h_gbuffer);
 		push_descriptor_deferred(h_gbuffer_srv_desc);
 		push_descriptor_deferred(h_gbuffer_rtv_desc);
+
+		resource::release_deferred(h_motion_buffer);
+		push_descriptor_deferred(h_motion_buffer_srv_desc);
+		push_descriptor_deferred(h_motion_buffer_rtv_desc);
 
 		resource::release_deferred(ao_data_cpu.h_ao_buffer);
 		push_descriptor_deferred(ao_data_cpu.h_ao_buffer_srv_desc);
@@ -1820,13 +1850,20 @@ namespace age::graphics::render_pipeline
 	hybrid_pipeline::add_object(const float3& pos, const float4& quat, const float3& scale) noexcept
 	{
 		AGE_ASSERT(object_data_vec.size() < g::max_object_count);
-		c_auto id = static_cast<t_object_id>(object_data_vec.emplace_back());
+		AGE_ASSERT(object_data_vec.size() == object_prev_data_vec.size());
+		c_auto id	   = static_cast<t_object_id>(object_data_vec.emplace_back());
+		c_auto id_prev = static_cast<t_object_id>(object_prev_data_vec.emplace_back());
+
+		AGE_ASSERT(id == id_prev);
+
 		object_transform_data_vec.emplace_back();
 
 		object_generation_vec.resize(max(object_generation_vec.capacity(), id + 1ull));
 		object_generation_vec[id] = (object_generation_vec[id] + 1) & 0xf;
 
 		update_object(id, pos, quat, scale);
+
+		object_prev_data_vec[id] = object_data_vec[id];
 
 		return id;
 	}
@@ -1873,7 +1910,9 @@ namespace age::graphics::render_pipeline
 	void
 	hybrid_pipeline::remove_object(t_object_id& id) noexcept
 	{
+		AGE_ASSERT(object_data_vec.size() == object_prev_data_vec.size());
 		object_data_vec.remove(id);
+		object_prev_data_vec.remove(id);
 		object_transform_data_vec.remove(id);
 		id = age::get_invalid_id<t_object_id>();
 	}
@@ -2963,6 +3002,14 @@ namespace age::graphics::render_pipeline
 
 namespace age::graphics::render_pipeline
 {
+	void
+	hybrid_pipeline::update_taa(const taa_desc& desc) noexcept
+	{
+	}
+}	 // namespace age::graphics::render_pipeline
+
+namespace age::graphics::render_pipeline
+{
 	uint32
 	hybrid_pipeline::upload_data() noexcept
 	{
@@ -2973,7 +3020,9 @@ namespace age::graphics::render_pipeline
 		auto& h_mapping_rt_instance_render_data_buffer = h_mapping_rt_instance_render_data_buffer_arr[frame_idx];
 		auto& h_mapping_env_light_buffer			   = h_mapping_env_light_buffer_arr[frame_idx];
 
+		AGE_ASSERT(object_data_vec.size<uint32>() == object_prev_data_vec.size<uint32>());
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
+		h_mapping_static_buffer->upload(object_prev_data_vec.data(), object_prev_data_vec.byte_size<uint32>(), g::object_prev_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
 
@@ -3262,6 +3311,7 @@ namespace age::graphics::render_pipeline
 			.view										  = main_cam_data.view,
 			.view_proj									  = main_cam_data.view_proj,
 			.view_proj_inv								  = main_cam_data.view_proj_inv,
+			.view_proj_prev								  = main_cam_view_proj_prev,
 			.camera_pos									  = main_cam_data.pos,
 			.time										  = dt_ms,
 			.inv_backbuffer_size						  = float2{ 1.f / extent.width, 1.f / extent.height },
@@ -3275,22 +3325,21 @@ namespace age::graphics::render_pipeline
 			.rt_transparent_buffer_srv_texture_id		  = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_srv_desc),
 			.rt_transparent_buffer_uav_texture_id		  = graphics::calc_desc_idx(h_rt_transparent_tex_buffer_uav_desc),
 			.rt_raycast_request_count					  = raycast_request_vec.size<uint32>(),
-			.proj_00									  = main_cam_data.proj[0][0],
-			.light_bin_origin							  = /*main_cam_data.pos*/ -float3{ 100.f },
-			.proj_11									  = main_cam_data.proj[1][1],
-			.light_bin_cell_size_inv					  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
 			.cam_near_z									  = main_cam_desc.near_z,
+			.light_bin_origin							  = /*main_cam_data.pos*/ -float3{ 100.f },
 			.cam_far_z									  = main_cam_desc.far_z,
+			.light_bin_cell_size_inv					  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
 			.ddgi_enabled_and_extra						  = enabled_flag,
-			.ddgi_cranley_patterson_rotation			  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
 			.gi_origin									  = gi_origin,
 			.object_count								  = object_data_vec.size<uint32>(),
+			.ddgi_cranley_patterson_rotation			  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },
 			.selection_outline_meshlet_render_data_count  = selection_outline_meshlet_render_data_vec.size<uint32>(),
 			.selection_outline_mask_buffer_srv_texture_id = calc_desc_idx(h_selection_outline_mask_buffer_srv_desc),
 			.env_light_brdf_lut_id						  = calc_desc_idx(h_env_light_brdf_lut),
 			.env_light_count							  = env_light_gpu_data_vec.size<uint32>(),
 			.tan_fov_y_half								  = tan(main_cam_desc.perspective.fov_y * 0.5f),
 			.gbuffer_srv_id								  = calc_desc_idx(h_gbuffer_srv_desc),
+			.motion_buffer_srv_id						  = calc_desc_idx(h_motion_buffer_srv_desc),
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

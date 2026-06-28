@@ -504,4 +504,19 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle		  h_ao_buffer_uav_desc;
 		clear_uav_desc_handle h_ao_buffer_clear_uav_desc;
 	};
+
+	struct taa_desc
+	{
+		uint8	jitter_count;
+		uint8_3 _;
+		float	history_weight = 0.9f;	  // res = lerp(prev, curr, 1 - history_weight)
+
+		float variance_scale_min = 0.75f;
+		float variance_scale_max = 2.0f;
+
+		float velocity_reject_px = 128.0f;
+		float depth_edge_thresh	 = 0.002f;
+
+		graphics::e::taa_debug_flags debug_flags = e::taa_debug_flags::none;
+	};
 }	 // namespace age::graphics::render_pipeline

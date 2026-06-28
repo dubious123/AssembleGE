@@ -7,6 +7,7 @@ main_cs(uint32 light_id sv_dispatch_thread_id)
 	if (light_id < unified_light_count)
 	{
 		const unified_light light = load_unified_light(light_id);
+		// maybe use light_bin_pos?
 		store_sort_key(light_id, morton_3d(light.position - camera_pos), sort_key_offset(false));
 
 		// const float			min_z = light.position.z - light.range;

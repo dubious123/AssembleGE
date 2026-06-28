@@ -88,6 +88,7 @@
 //---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 #undef OPAQUE_MSHLT_OBJECT_DATA_OFFSET
 #undef OBJECT_DATA_OFFSET
+#undef OBJECT_PREV_DATA_OFFSET
 #undef DIRECTIONAL_LIGHT_OFFSET
 #undef UNIFIED_LIGHT_OFFSET
 #undef BLOOM_OFFSET

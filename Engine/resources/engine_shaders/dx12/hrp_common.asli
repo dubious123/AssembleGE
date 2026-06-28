@@ -9,6 +9,7 @@
 float4x4 view;
 float4x4 view_proj;
 float4x4 view_proj_inv;
+float4x4 view_proj_prev;
 float3	 camera_pos;
 float	 time;
 float4	 frustum_planes[6];
@@ -42,6 +43,7 @@ uint32 env_light_count;
 
 float  tan_fov_y_half;
 uint32 gbuffer_srv_id;
+uint32 motion_buffer_srv_id;
 
 
 // cbuffer root_constants reg(b1)
@@ -106,6 +108,13 @@ load_object_data(uint32 object_id)
 {
 	const uint32 gen = (object_id & 0xf0000000) >> 28u;
 	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
+}
+
+object_data
+load_object_prev_data(uint32 object_id)
+{
+	const uint32 gen = (object_id & 0xf0000000) >> 28u;
+	return load<object_data>(static_buffer, OBJECT_PREV_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
 }
 
 directional_light

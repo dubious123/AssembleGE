@@ -884,16 +884,17 @@ namespace age::graphics::render_pipeline::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
-		row_major float4x4 view;			 // 64
-		row_major float4x4 view_proj;		 // 64
-		row_major float4x4 view_proj_inv;	 // 64
-		float3			   camera_pos;		 // 12
-		float			   time;			 // 4
+		row_major float4x4 view;			  // 64
+		row_major float4x4 view_proj;		  // 64
+		row_major float4x4 view_proj_inv;	  // 64
+		row_major float4x4 view_proj_prev;	  // 64
+		float3			   camera_pos;		  // 12
+		float			   time;			  // 4
 
-		float4 frustum_planes[6];			 // 96
+		float4 frustum_planes[6];			  // 96
 
-		float2 inv_backbuffer_size;			 // 8
-		float2 backbuffer_size;				 // 8
+		float2 inv_backbuffer_size;			  // 8
+		float2 backbuffer_size;				  // 8
 
 		// todo, remove
 		float3 camera_forward;							// 12
@@ -907,29 +908,31 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 rt_transparent_buffer_srv_texture_id;	// 4
 		uint32 rt_transparent_buffer_uav_texture_id;	// 4
 		uint32 rt_raycast_request_count;				// 4
-		float  proj_00;
+		float  cam_near_z;
 
 		float3 light_bin_origin;
-		float  proj_11;
-		float3 light_bin_cell_size_inv;
-		float  cam_near_z;
 		float  cam_far_z;
+
+		float3 light_bin_cell_size_inv;
 		uint32 ddgi_enabled_and_extra;	  // [ddgi_enabled(1)][gibs_enabled(1)]
-		float2 ddgi_cranley_patterson_rotation;
+
 		float3 gi_origin;
 		uint32 object_count;
 
+		float2 ddgi_cranley_patterson_rotation;
 		uint32 selection_outline_meshlet_render_data_count;
 		uint32 selection_outline_mask_buffer_srv_texture_id;
+
 		uint32 env_light_brdf_lut_id;
 		uint32 env_light_count;
+		float  tan_fov_y_half;	  // tan(fov_y * 0.5f)
+		uint32 gbuffer_srv_id;
 
-		float	 tan_fov_y_half;	// tan(fov_y * 0.5f)
-		uint32	 gbuffer_srv_id;
-		uint32_2 _;
+		uint32	 motion_buffer_srv_id;
+		uint32_3 _;
 
-		uint32_4 extra[3];
-		// total: 256 * 2 bytes
+		uint32_4 extra[3 + 12];
+		// total: 256 * 3 bytes
 	};
 
 	cbuffer root_constants reg(b1)
@@ -1368,7 +1371,8 @@ namespace age::graphics::render_pipeline::g
 
 	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 #define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
-#define OBJECT_DATA_OFFSET				(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+#define OBJECT_PREV_DATA_OFFSET			(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+#define OBJECT_DATA_OFFSET				(OBJECT_PREV_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
 #define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
 #define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
 #define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
@@ -1379,6 +1383,7 @@ namespace age::graphics::render_pipeline::g
 #define STATIC_BUFFER_SIZE				(AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
 #if !defined(AGE_SHADER)
 	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto object_prev_data_offset		  = OBJECT_PREV_DATA_OFFSET;
 	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
 	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
 	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;

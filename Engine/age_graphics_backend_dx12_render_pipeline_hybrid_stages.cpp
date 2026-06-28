@@ -79,7 +79,7 @@ namespace age::graphics::render_pipeline
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ao_resolve_cs) });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"p_pso_light_init");
+		h_pso_resolve.set_name(L"p_pso_ao");
 	}
 
 	inline void
@@ -865,7 +865,7 @@ namespace age::graphics::render_pipeline
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_opaque_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
-			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16_FLOAT }, .NumRenderTargets = 2 } },
 			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
 			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
 			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
@@ -878,21 +878,22 @@ namespace age::graphics::render_pipeline
 	}
 
 	inline void
-	opaque_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc) const noexcept
+	opaque_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc, rtv_desc_handle h_motion_buffer_rtv_desc) const noexcept
 	{
-		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+		auto render_pass_rt_desc_arr = std::array{
+			defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc),
+			defaults::render_pass_rtv_desc::clear_preserve(h_motion_buffer_rtv_desc, graphics::e::texture_format::r16g16_float)
+		};
 
 		command::begin_render_pass(
-			1,
-			&render_pass_rt_desc,
+			cast_to<uint32>(render_pass_rt_desc_arr.size()),
+			render_pass_rt_desc_arr.data(),
 			nullptr,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		{
-			command::set_pso(p_pso);
+		command::set_pso(p_pso);
 
-			command::dispatch_mesh(1, 1, 1);
-		}
+		command::dispatch_mesh(1, 1, 1);
 
 		command::end_render_pass();
 	}

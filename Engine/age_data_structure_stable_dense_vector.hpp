@@ -43,8 +43,46 @@ namespace age::inline data_structure
 		allocator_type alloc;
 
 	  public:
-		stable_dense_vector&
-		operator=(const stable_dense_vector&) = delete;
+		constexpr stable_dense_vector&
+		operator=(const stable_dense_vector& other) noexcept
+			requires(std::is_trivially_copyable_v<value_type>
+					 or std::is_nothrow_copy_constructible_v<value_type>)
+		{
+			if (this == &other) { return *this; }
+
+			_destroy_all();
+			if constexpr (std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value)
+			{
+				alloc = other.alloc;
+			}
+
+			if (cap < other.cap)
+			{
+				_dealloc_storage(p_storage);
+				p_storage = _alloc_storage(other.cap);
+			}
+
+			cap			   = other.cap;
+			count		   = other.count;
+			free_idx_count = other.free_idx_count;
+
+			if (cap == 0)
+			{
+				return *this;
+			}
+
+			std::memcpy(idx_to_pos_arr(), other.idx_to_pos_arr(), sizeof(t_idx) * cap);
+			std::memcpy(pos_to_idx_arr(), other.pos_to_idx_arr(), sizeof(t_idx) * cap);
+
+			_copy_construct_n(alloc, data_ptr(0), other.data_ptr(0), count);
+
+			if constexpr (age::config::debug_mode)
+			{
+				std::memset(data_ptr(count), static_cast<uint8>(0xcc), sizeof(value_type) * free_idx_count);
+			}
+
+			return *this;
+		}
 
 		constexpr stable_dense_vector() noexcept
 			: alloc{ allocator_type{} } { };
