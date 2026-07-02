@@ -3,7 +3,7 @@
 float4
 main_ps(debug_ms_to_ps fragment) sv_target_0
 {
-	texture_2d<float> depth_buffer = global_resource_buffer[depth_buffer_texture_id];
+	texture_2d<float> depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
 	const float		  z_depth	   = load(depth_buffer, fragment.v.pos.xy, 0);
 	if (fragment.v.pos.z < z_depth)
 	{

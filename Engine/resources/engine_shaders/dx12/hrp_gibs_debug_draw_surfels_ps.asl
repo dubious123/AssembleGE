@@ -94,8 +94,8 @@ main_ps(float4 pos sv_position) sv_target_0
 {
 	const gibs_data					  data				= gibs_load_gibs_data();
 	const gibs_lut_data				  lut_data			= gibs_load_gibs_lut_data();
-	const texture_2d<float>			  depth_tex			= global_resource_buffer[depth_buffer_texture_id];
-	const texture_2d<uint32_2>		  gbuffer			= global_resource_buffer[gbuffer_srv_id];
+	const texture_2d<float>			  depth_tex			= global_resource_buffer[opaque_depth_buffer_srv_id];
+	const texture_2d<uint32_2>		  gbuffer			= global_resource_buffer[opaque_gbuffer_srv_id];
 	const byte_array<gibs_tile_entry> tile_entry_arr	= gibs_load_tile_entry_arr(data);
 	const byte_array<uint32>		  tile_to_surfel_id = gibs_load_tile_to_surfel_id_arr(data);
 	const byte_array<gibs_cell_entry> cell_entry_arr	= gibs_load_cell_entry_arr(data);

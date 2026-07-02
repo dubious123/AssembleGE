@@ -5,16 +5,22 @@ namespace age::graphics::render_pipeline
 {
 	struct depth_stage
 	{
-		graphics::pso::handle h_pso = {};
-		ID3D12PipelineState*  p_pso = nullptr;
+		graphics::pso::handle h_pso_opaque = {};
+		ID3D12PipelineState*  p_pso_opaque = nullptr;
+
+		graphics::pso::handle h_pso_transparent = {};
+		ID3D12PipelineState*  p_pso_transparent = nullptr;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle h_gbuffer_rtv_desc,
-				dsv_desc_handle h_depth_buffer_dsv_desc,
-				uint32			opaque_meshlet_count) const noexcept;
+		execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
+				dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
+				uint32			opaque_meshlet_count,
+				rtv_desc_handle h_transparent_gbuffer_rtv_desc,
+				dsv_desc_handle h_transparent_depth_buffer_dsv_desc,
+				uint32			transparent_meshlet_count) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -241,19 +247,67 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
-	struct transparent_stage
+	struct aa_stage
 	{
-		graphics::pso::handle h_pso_rt;
-		ID3D12PipelineState*  p_pso_rt;
+		graphics::pso::handle h_pso_opaque_ray_entry;
+		ID3D12PipelineState*  p_pso_opaque_ray_entry;
 
-		graphics::pso::handle h_pso_draw;
-		ID3D12PipelineState*  p_pso_draw;
+		graphics::pso::handle h_pso_transparent_ray_entry;
+		ID3D12PipelineState*  p_pso_transparent_ray_entry;
+
+		graphics::pso::handle h_pso_indirect_arg;
+		ID3D12PipelineState*  p_pso_indirect_arg;
+
+		graphics::pso::handle h_pso_opaque_rt;
+		ID3D12PipelineState*  p_pso_opaque_rt;
+
+		graphics::pso::handle h_pso_transparent_rt;
+		ID3D12PipelineState*  p_pso_transparent_rt;
+
+		graphics::pso::handle h_pso_resolve;
+		ID3D12PipelineState*  p_pso_resolve;
+
+		graphics::command_signature::handle h_cmd_sig;
+		ID3D12CommandSignature*				p_cmd_sig;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle, resource_handle h_blend_tex, extent_2d<uint16> extent) const noexcept;
+		execute_opaque_aa(const aa_data&	aa_data_cpu,
+						  rtv_desc_handle	h_main_buffer_rtv_desc,
+						  resource_handle	h_blend_tex,
+						  extent_2d<uint16> extent) const noexcept;
+
+		inline void
+		execute_transparent_aa(const aa_data&	 aa_data_cpu,
+							   rtv_desc_handle	 h_main_buffer_rtv_desc,
+							   resource_handle	 h_blend_tex,
+							   extent_2d<uint16> extent) const noexcept;
+		void
+		deinit() noexcept;
+	};
+
+	struct transparent_stage
+	{
+		graphics::pso::handle h_pso_rt_with_aa;
+		ID3D12PipelineState*  p_pso_rt_with_aa;
+
+		graphics::pso::handle h_pso_resolve;
+		ID3D12PipelineState*  p_pso_resolve;
+
+		graphics::pso::handle h_pso_no_aa;
+		ID3D12PipelineState*  p_pso_no_aa;
+
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute_with_aa(extent_2d<uint16> extent) const noexcept;
+
+		inline void
+		execute_without_aa(rtv_desc_handle _) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -411,6 +465,7 @@ namespace age::graphics::render_pipeline
 		ddgi_stage				stage_ddgi;
 		gibs_stage				stage_gibs;
 		opaque_stage			stage_opaque;
+		aa_stage				stage_aa;
 		transparent_stage		stage_transparent;
 		raycast_stage			stage_raycast;
 		bloom_stage				stage_bloom;
@@ -423,13 +478,30 @@ namespace age::graphics::render_pipeline
 		resource_handle h_main_buffer;
 		resource_handle h_post_buffer;
 		resource_handle h_selection_outline_mask_buffer;
-		resource_handle h_depth_buffer;
 		resource_handle h_debug_depth_buffer;
-		resource_handle h_rt_transparent_texture_buffer;
 
-		resource_handle h_gbuffer;
-		rtv_desc_handle h_gbuffer_rtv_desc;
-		srv_desc_handle h_gbuffer_srv_desc;
+		resource_handle h_opaque_depth_buffer;
+		dsv_desc_handle h_opaque_depth_buffer_dsv_readonly_desc;
+		dsv_desc_handle h_opaque_depth_buffer_dsv_desc;
+		srv_desc_handle h_opaque_depth_buffer_srv_desc;
+
+		resource_handle h_transparent_depth_buffer;
+		dsv_desc_handle h_transparent_depth_buffer_dsv_readonly_desc;
+		dsv_desc_handle h_transparent_depth_buffer_dsv_desc;
+		srv_desc_handle h_transparent_depth_buffer_srv_desc;
+
+		resource_handle		  h_blend_buffer;
+		srv_desc_handle		  h_blend_buffer_srv_desc;
+		uav_desc_handle		  h_blend_buffer_uav_desc;
+		clear_uav_desc_handle h_blend_buffer_clear_uav_desc;
+
+		resource_handle h_opaque_gbuffer;
+		rtv_desc_handle h_opaque_gbuffer_rtv_desc;
+		srv_desc_handle h_opaque_gbuffer_srv_desc;
+
+		resource_handle h_transparent_gbuffer;
+		rtv_desc_handle h_transparent_gbuffer_rtv_desc;
+		srv_desc_handle h_transparent_gbuffer_srv_desc;
 
 		resource_handle h_motion_buffer;
 		rtv_desc_handle h_motion_buffer_rtv_desc;
@@ -438,8 +510,6 @@ namespace age::graphics::render_pipeline
 		rtv_desc_handle h_main_buffer_rtv_desc;
 		rtv_desc_handle h_post_buffer_rtv_desc;
 		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
-		dsv_desc_handle h_depth_buffer_dsv_readonly_desc;
-		dsv_desc_handle h_depth_buffer_dsv_desc;
 		dsv_desc_handle h_debug_depth_buffer_dsv_desc;
 
 		resource_handle h_scratch_buffer;
@@ -529,10 +599,7 @@ namespace age::graphics::render_pipeline
 		// bindless texture
 		srv_desc_handle h_main_buffer_srv_desc;
 		srv_desc_handle h_post_buffer_srv_desc;
-		srv_desc_handle h_depth_buffer_srv_desc;
 		srv_desc_handle h_rt_tlas_buffer_srv_desc;
-		srv_desc_handle h_rt_transparent_tex_buffer_srv_desc;
-		uav_desc_handle h_rt_transparent_tex_buffer_uav_desc;
 
 		srv_desc_handle h_env_light_brdf_lut;
 
@@ -594,10 +661,14 @@ namespace age::graphics::render_pipeline
 		// segment
 		segment_data segment_data_cpu;
 
+		// aa
+		aa_data aa_data_cpu;
+
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
-		age::vector<shared_type::opaque_meshlet_render_data> opaque_meshlet_render_data_vec[global::thread_count];
+		age::vector<shared_type::opaque_meshlet_render_data>	  opaque_meshlet_render_data_vec[global::thread_count];
+		age::vector<shared_type::transparent_meshlet_render_data> transparent_meshlet_render_data_vec[global::thread_count];
 
 		// light
 
@@ -853,17 +924,26 @@ namespace age::graphics::render_pipeline
 		enable_ao(const ao_desc&) noexcept;
 
 		void
-		disable_ao() noexcept;
+		update_ao(const ao_desc&) noexcept;
 
 		void
-		update_ao(const ao_desc&) noexcept;
+		disable_ao() noexcept;
 
 		bool
 		ao_enabled() const noexcept;
 
-		// taa
+		// aa
 		void
-		update_taa(const taa_desc&) noexcept;
+		enable_aa(const aa_desc&) noexcept;
+
+		void
+		disable_aa() noexcept;
+
+		void
+		update_aa(const aa_desc&) noexcept;
+
+		bool
+		aa_enabled() const noexcept;
 
 	  private:
 		void
@@ -872,7 +952,7 @@ namespace age::graphics::render_pipeline
 		void
 		resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept;
 
-		uint32
+		std::tuple<uint32, uint32>
 		upload_data() noexcept;
 	};
 }	 // namespace age::graphics::render_pipeline

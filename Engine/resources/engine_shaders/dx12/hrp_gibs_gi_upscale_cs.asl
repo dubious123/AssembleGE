@@ -1,54 +1,43 @@
 #include "hrp_common.asli"
 
-float
-calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
-{
-	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
-	const float w_depth	   = exp(-depth_diff * 100);
-	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
-
-	return w_depth * w_normal * ratio.x * ratio.y;
-}
-
 float4
 bilateral_upsample(int32_2 center_px, float center_depth, float3 center_normal)
 {
 	const gibs_data data = gibs_load_gibs_data();
 
 	uint32_2 extent_dst = uint32_2(backbuffer_size.x, backbuffer_size.y);
-	uint32_2 extent_src = uint32_2(ceil(extent_dst.x, 3u), ceil(extent_dst.y, 3u));
+	uint32_2 extent_src = uint32_2(ceil(extent_dst.x, GIBS_GI_RESOLVE_SCALE), ceil(extent_dst.y, GIBS_GI_RESOLVE_SCALE));
 
 	texture_2d<float3> src_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
 
-	texture_2d<float>	 depth_buffer = global_resource_buffer[depth_buffer_texture_id];
-	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[gbuffer_srv_id];
+	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
 
 	float4 res = zero<float4>();
 
 	const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, center_depth);
 
-	const int32_2 src_px_00 = min(center_px / GIBS_GI_RESOLVE_SCALE, extent_src - 1);
-	const int32_2 src_px_01 = min(src_px_00 + int32_2(1, 0), extent_src - 1);
-	const int32_2 src_px_10 = min(src_px_00 + int32_2(0, 1), extent_src - 1);
-	const int32_2 src_px_11 = min(src_px_00 + int32_2(1, 1), extent_src - 1);
-
-	// const int32_2 dst_px_00 = min(src_px_00 * 3 + 1, extent_dst - 1);
-	// const int32_2 dst_px_01 = min(src_px_01 * 3 + 1, extent_dst - 1);
-	// const int32_2 dst_px_10 = min(src_px_10 * 3 + 1, extent_dst - 1);
-	// const int32_2 dst_px_11 = min(src_px_11 * 3 + 1, extent_dst - 1);
-
 	const int32_2 center_offset = int32_2(GIBS_GI_RESOLVE_SCALE / 2, GIBS_GI_RESOLVE_SCALE / 2);
-	const int32_2 dst_px_00		= min(src_px_00 * GIBS_GI_RESOLVE_SCALE + center_offset, extent_dst - 1);
-	const int32_2 dst_px_01		= min(src_px_01 * GIBS_GI_RESOLVE_SCALE + center_offset, extent_dst - 1);
-	const int32_2 dst_px_10		= min(src_px_10 * GIBS_GI_RESOLVE_SCALE + center_offset, extent_dst - 1);
-	const int32_2 dst_px_11		= min(src_px_11 * GIBS_GI_RESOLVE_SCALE + center_offset, extent_dst - 1);
+	const float2  base			= (float2(center_px) - float2(center_offset)) / GIBS_GI_RESOLVE_SCALE;
+	const int32_2 base_i		= int32_2(floor(base));
 
-	// const int32_2 dst_px_00 = ceil(center_px, GIBS_GI_RESOLVE_SCALE) * GIBS_GI_RESOLVE_SCALE;
-	// const int32_2 dst_px_01 = min(dst_px_00 + int32_2(3, 0), extent_dst - 1);
-	// const int32_2 dst_px_10 = min(dst_px_00 + int32_2(0, 3), extent_dst - 1);
-	// const int32_2 dst_px_11 = min(dst_px_00 + int32_2(3, 3), extent_dst - 1);
+	const int32_2 src_px_00 = min(base_i + int32_2(0, 0), extent_src - 1);
+	const int32_2 src_px_01 = min(base_i + int32_2(1, 0), extent_src - 1);
+	const int32_2 src_px_10 = min(base_i + int32_2(0, 1), extent_src - 1);
+	const int32_2 src_px_11 = min(base_i + int32_2(1, 1), extent_src - 1);
 
-	const float2 f		  = frac(float2(center_px) / GIBS_GI_RESOLVE_SCALE);
+	// const int32_2 src_px_00 = min(center_px / GIBS_GI_RESOLVE_SCALE, extent_src - 1);
+	// const int32_2 src_px_01 = min(src_px_00 + int32_2(1, 0), extent_src - 1);
+	// const int32_2 src_px_10 = min(src_px_00 + int32_2(0, 1), extent_src - 1);
+	// const int32_2 src_px_11 = min(src_px_00 + int32_2(1, 1), extent_src - 1);
+
+	const int32_2 dst_px_00 = clamp(src_px_00 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+	const int32_2 dst_px_01 = clamp(src_px_01 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+	const int32_2 dst_px_10 = clamp(src_px_10 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+	const int32_2 dst_px_11 = clamp(src_px_11 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+
+	const float2 f = frac(base);
+	// const float2 f		  = frac(float2(center_px) / GIBS_GI_RESOLVE_SCALE);
 	const float2 ratio_00 = float2(1.f - f.x, 1.f - f.y);
 	const float2 ratio_01 = float2(f.x, 1.f - f.y);
 	const float2 ratio_10 = float2(1.f - f.x, f.y);
@@ -76,8 +65,8 @@ float4
 bilateral_upsample(int32_2 center_px, int32_2 target_px)
 {
 	const gibs_data		 data		  = gibs_load_gibs_data();
-	texture_2d<float>	 depth_buffer = global_resource_buffer[depth_buffer_texture_id];
-	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[gbuffer_srv_id];
+	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
 
 	const int32_2 extent_dst = int32_2(backbuffer_size.x, backbuffer_size.y);
 	target_px				 = clamp(target_px, zero<int32_2>(), extent_dst - 1);
@@ -91,6 +80,7 @@ bilateral_upsample(int32_2 center_px, int32_2 target_px)
 	const float3 target_normal = decode_oct_snorm16(gbuffer[target_px].y);
 
 	return bilateral_upsample(target_px, target_depth, target_normal) * calc_bilateral_weight(center_z_lin, center_normal, target_z_lin, target_normal);
+	// return bilateral_upsample(target_px, center_depth, center_normal);
 }
 
 
@@ -114,14 +104,14 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	// g - h - i
 
 	const int32_2 px_e = thread_id.xy;
-	const int32_2 px_a = px_e + int32_2(-3 * 1, -3 * 1);
-	const int32_2 px_b = px_e + int32_2(-3 * 0, -3 * 1);
-	const int32_2 px_c = px_e + int32_2(+3 * 1, -3 * 1);
-	const int32_2 px_f = px_e + int32_2(+3 * 1, -3 * 0);
-	const int32_2 px_i = px_e + int32_2(+3 * 1, +3 * 1);
-	const int32_2 px_h = px_e + int32_2(+3 * 0, +3 * 1);
-	const int32_2 px_g = px_e + int32_2(-3 * 1, +3 * 1);
-	const int32_2 px_d = px_e + int32_2(-3 * 1, +3 * 0);
+	const int32_2 px_a = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_b = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 0, -GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_c = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_f = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 0);
+	const int32_2 px_i = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_h = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 0, +GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_g = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 1);
+	const int32_2 px_d = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 0);
 
 	const float4 col_e = bilateral_upsample(px_e, px_e);
 	const float4 col_a = bilateral_upsample(px_e, px_a);
@@ -146,11 +136,39 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		ao_res						 = ao_buffer[thread_id.xy].x;
 	}
 
-	if (res.w > epsilon_1e4)
+	if (res.w > 0)
 	{
 		dst_buffer[thread_id.xy] = res.xyz / res.w * ao_res;
 	}
+	// todo, add config
 	else
 	{
+		texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+
+		const float	 px_depth  = depth_buffer[thread_id.xy];
+		const float3 px_normal = decode_oct_snorm16(gbuffer[thread_id.xy].y);
+
+		const float3 ndc	   = screen_px_to_ndc(thread_id.xy, px_depth, inv_backbuffer_size);
+		const float3 world_pos = ndc_to_world(view_proj_inv, ndc);
+
+		const uint32 vis_packed = gbuffer[thread_id.xy].x;
+		const uint32 render_id	= vis_packed & 0x01ffffff;
+		const uint32 prim_id	= (vis_packed & 0xfe000000) >> (32u - 7u);
+
+		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
+
+		// todo, fallback fail => ub (srv read from uav)
+		const float3 fallback_res = gibs_sample_screen_irradiance(thread_id.xy, render_data.object_id, world_pos, px_normal);
+		dst_buffer[thread_id.xy]  = fallback_res * ao_res;
 	}
+	// else
+	//{
+	//	texture_2d<float3> src_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
+
+	//	const int32_2 extent_src = ceil(extent_dst.x, GIBS_GI_RESOLVE_SCALE);
+	//	const int32_2 src_px	 = min(px_e / GIBS_GI_RESOLVE_SCALE, int32_2(extent_src) - 1);
+
+	//	dst_buffer[thread_id.xy] = src_buffer[src_px] * ao_res;
+	//}
 }

@@ -17,7 +17,7 @@ main_as(
 
 	const float3 probe_pos = ddgi_calc_probe_pos(ddgi_data, probe_id, level);
 
-	texture_2d<float> tex_depth = global_resource_buffer[depth_buffer_texture_id];
+	texture_2d<float> tex_depth = global_resource_buffer[opaque_depth_buffer_srv_id];
 
 	const float4 clip_pos = mul(view_proj, float4(probe_pos, 1.f));
 	const float3 ndc	  = clip_pos.xyz / clip_pos.w;

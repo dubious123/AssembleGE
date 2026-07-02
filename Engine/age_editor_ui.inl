@@ -153,6 +153,28 @@ namespace age::editor
 	void
 	ui_component(age::ecs::ao_config& cmp) noexcept;
 
+	bool
+	ui_component(age::ecs::aa_config& cmp) noexcept;
+
+	void
+	ui_component(age::ecs::aa_config& cmp, auto& renderer) noexcept
+	{
+		const bool need_update = ui_component(cmp);
+
+		if (cmp.enabled and need_update)
+		{
+			renderer.update_aa({
+				.fxaa_on_offscreen		   = cmp.fxaa_on_offscreen,
+				.opaque_aa_ray_per_px	   = cmp.opaque_aa_ray_per_px,
+				.transparent_aa_ray_per_px = cmp.transparent_aa_ray_per_px,
+				.aa_px_cap				   = cmp.aa_px_cap,
+				.aa_px_headroom			   = cmp.aa_px_headroom,
+				.edge_plane_dist_threshold = cmp.edge_plane_dist_threshold,
+				.edge_normal_threshold	   = cmp.edge_normal_threshold,
+			});
+		}
+	}
+
 	void
 	ui_component(auto&& cmp) noexcept
 	{
@@ -429,6 +451,8 @@ namespace age::editor
 
 				for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
 				{
+					if (arch.entity_data_vec.empty()) { continue; }
+
 					auto arch_open = false;
 
 					if (auto header = widget::begin(style::header_bar() | set_interact() | set_save_state()))

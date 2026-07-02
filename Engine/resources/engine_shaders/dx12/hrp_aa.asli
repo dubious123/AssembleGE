@@ -1,0 +1,91 @@
+#pragma once
+#include "age.asli"
+
+namespace aa
+{
+	aa_data
+	load_data()
+	{
+		return load<aa_data>(static_buffer, AA_DATA_OFFSET);
+	}
+
+	void
+	execute_ray_entry(bool is_opaque, uint32 group_id, uint32 group_thread_id)
+	{
+		static const uint32 word_per_tile = ceil(SEGMENT_TILE_SIZE * SEGMENT_TILE_SIZE, 32u);
+		static const uint32 ept			  = 32;
+		static const uint32 epg			  = ept * 32;
+
+		const uint32_2 extent		  = cast<uint32_2>(backbuffer_size);
+		const uint32_2 tile_extent	  = ceil(extent, SEGMENT_TILE_SIZE);
+		const uint32   max_word_count = tile_extent.x * tile_extent.y * word_per_tile;
+
+		const uint32		offset		= is_opaque ? 0u : tile_extent.x * tile_extent.y * word_per_tile * sizeof(uint32);
+		byte_address_buffer segment_buf = global_resource_buffer[load_segment_data().h_segment_buffer_srv_id];
+		uint32				segment_tile_word_arr[ept];
+		uint32				edge_px_local_count = 0u;
+		expand_all()
+
+		for (uint32 i = 0; i < ept; ++i)
+		{
+			const uint32 word_idx = group_id * epg
+								  + group_thread_id
+								  + i * 32;
+
+			if (word_idx >= max_word_count) { break; }
+
+			segment_tile_word_arr[i] = load<uint32>(segment_buf, offset + word_idx * sizeof(uint32));
+
+			edge_px_local_count += countbits(segment_tile_word_arr[i]);
+		}
+
+		const aa_data data = load_aa_data();
+
+		const uint32 edge_px_wave_prefix = wave_prefix_sum(edge_px_local_count);
+		uint32		 alloc;
+		if (wave_lane_index() == 32 - 1)
+		{
+			rw_byte_address_buffer indirect_arg_buf = global_resource_buffer[data.h_indirect_arg_uav_id];
+
+			buf_interlocked_add(indirect_arg_buf, is_opaque ? 0 : sizeof(uint32_3), edge_px_wave_prefix + edge_px_local_count, alloc);
+		}
+
+		alloc = wave_read_lane_at(alloc, 32 - 1);
+
+		uint32				   target_offset = alloc + edge_px_wave_prefix;
+		rw_byte_address_buffer ray_entry_buf = global_resource_buffer[data.h_ray_buffer_uav_id];
+
+		expand_all()
+
+		for (uint32 i = 0; i < ept; ++i)
+		{
+			const uint32 word_idx = group_id * epg
+								  + group_thread_id
+								  + i * 32;
+
+			if (word_idx >= max_word_count) { break; }
+
+			const uint32 word_px_idx_flat = (word_idx % word_per_tile) * 32;
+
+			const uint32   tile_idx = word_idx / word_per_tile;
+			const uint16_2 tile_px	= uint16_2(tile_idx % tile_extent.x, tile_idx / tile_extent.x);
+
+			uint32 segment_tile_word = segment_tile_word_arr[i];
+			for (uint32 j = 0; segment_tile_word > 0; segment_tile_word &= (segment_tile_word - 1))
+			{
+				const uint32   nth_bit		 = first_bit_low(segment_tile_word);
+				const uint32   local_px_flat = word_px_idx_flat + nth_bit;
+				const uint16_2 px_offset	 = uint16_2(local_px_flat % SEGMENT_TILE_SIZE, local_px_flat / SEGMENT_TILE_SIZE);
+				const uint16_2 px			 = tile_px * uint16(SEGMENT_TILE_SIZE) + px_offset;
+
+				if (target_offset >= data.px_headroom) { return; }
+
+				aa_ray_entry entry;
+				entry.px = px;
+
+				store(ray_entry_buf, target_offset * sizeof(aa_ray_entry), entry);
+				target_offset++;
+			}
+		}
+	}
+}	 // namespace aa

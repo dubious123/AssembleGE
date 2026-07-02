@@ -444,6 +444,26 @@ namespace age::editor::detail
 				}
 			}
 		}
+
+		for (auto&& [cmp] : ecs_storage | each_entity_soft<aa_config>())
+		{
+			if (cmp.enabled and (renderer.aa_enabled() is_false))
+			{
+				renderer.enable_aa({
+					.fxaa_on_offscreen		   = cmp.fxaa_on_offscreen,
+					.opaque_aa_ray_per_px	   = cmp.opaque_aa_ray_per_px,
+					.transparent_aa_ray_per_px = cmp.transparent_aa_ray_per_px,
+					.aa_px_cap				   = cmp.aa_px_cap,
+					.aa_px_headroom			   = cmp.aa_px_headroom,
+					.edge_plane_dist_threshold = cmp.edge_plane_dist_threshold,
+					.edge_normal_threshold	   = cmp.edge_normal_threshold,
+				});
+			}
+			else if ((cmp.enabled is_false) and renderer.aa_enabled())
+			{
+				renderer.disable_aa();
+			}
+		}
 	}
 }	 // namespace age::editor::detail
 

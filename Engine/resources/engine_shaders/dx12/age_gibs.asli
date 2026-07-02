@@ -1329,6 +1329,16 @@ gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel
 	return pow_5(vis);
 }
 
+float
+calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
+{
+	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
+	const float w_depth	   = exp(-depth_diff * 100);
+	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
+
+	return w_depth * w_normal * ratio.x * ratio.y;
+}
+
 float3
 gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_pos, float3 normal)
 {
@@ -1336,10 +1346,11 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
 
 
-	const float4   clip_pos	  = mul(view_proj, float4(world_pos, 1.f));
-	const float3   ndc		  = clip_pos.xyz / clip_pos.w;
-	const uint32_2 screen_pos = uint32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
-	const bool	   in_screen  = clip_pos.w > 0.f
+	const float4   clip_pos		= mul(view_proj, float4(world_pos, 1.f));
+	const float3   ndc			= clip_pos.xyz / clip_pos.w;
+	const float2   screen_pos_f = ndc_xy_to_screen(ndc.xy, backbuffer_size);
+	const uint32_2 screen_pos	= uint32_2(screen_pos_f);
+	const bool	   in_screen	= clip_pos.w > 0.f
 						   and all(ndc.xy >= -1.f)
 						   and all(ndc.xy <= 1.f)
 						   and ndc.z >= 0.f
@@ -1347,8 +1358,8 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 	if (in_screen)
 	{
-		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[gbuffer_srv_id];
-		texture_2d<float>	 depth_buffer	   = global_resource_buffer[depth_buffer_texture_id];
+		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
 		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
 		const float			 z_depth		   = load(depth_buffer, screen_pos);
 		const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
@@ -1359,8 +1370,51 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 		if (surfel_seen)
 		{
+			// return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), ndc_xy_to_screen(ndc.xy, backbuffer_size), 0);
 			return gi_resolve_buffer[screen_pos];
 		}
+
+		// if (surfel_seen)
+		//{
+		//	const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
+
+		//	const float2  base_f = screen_pos_f - 0.5f;
+		//	const int32_2 px_00	 = clamp(int32_2(floor(base_f)), zero<int32_2>(), extent - 1);
+		//	const int32_2 px_01	 = clamp(px_00 + int32_2(1, 0), zero<int32_2>(), extent - 1);
+		//	const int32_2 px_10	 = clamp(px_00 + int32_2(0, 1), zero<int32_2>(), extent - 1);
+		//	const int32_2 px_11	 = clamp(px_00 + int32_2(1, 1), zero<int32_2>(), extent - 1);
+
+		//	const float2 f		  = frac(base_f);
+		//	const float2 ratio_00 = float2(1.f - f.x, 1.f - f.y);
+		//	const float2 ratio_01 = float2(f.x, 1.f - f.y);
+		//	const float2 ratio_10 = float2(1.f - f.x, f.y);
+		//	const float2 ratio_11 = float2(f.x, f.y);
+
+		//	const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+
+		//	const float z_lin_00 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_00]);
+		//	const float z_lin_01 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_01]);
+		//	const float z_lin_10 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_10]);
+		//	const float z_lin_11 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_11]);
+
+		//	const float3 normal_00 = decode_oct_snorm16(gbuffer[px_00].y);
+		//	const float3 normal_01 = decode_oct_snorm16(gbuffer[px_01].y);
+		//	const float3 normal_10 = decode_oct_snorm16(gbuffer[px_10].y);
+		//	const float3 normal_11 = decode_oct_snorm16(gbuffer[px_11].y);
+
+		//	float4 res	= zero<float4>();
+		//	res		   += float4(gi_resolve_buffer[px_00], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_00, normal_00, ratio_00);
+		//	res		   += float4(gi_resolve_buffer[px_01], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_01, normal_01, ratio_01);
+		//	res		   += float4(gi_resolve_buffer[px_10], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_10, normal_10, ratio_10);
+		//	res		   += float4(gi_resolve_buffer[px_11], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_11, normal_11, ratio_11);
+
+		//	if (res.w > epsilon_1e4)
+		//	{
+		//		return res.xyz / res.w;
+		//	}
+
+		//	return gi_resolve_buffer[screen_pos];
+		//}
 	}
 
 	world_pos += normal * 0.05f;
@@ -1442,4 +1496,66 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 	// return color_red.xyz;
 	return float3(0, 0, 0);
+}
+
+float3
+gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
+{
+	const gibs_data				data				  = gibs_load_gibs_data();
+	byte_array<gibs_tile_entry> tile_entry_arr		  = gibs_load_tile_entry_arr(data);
+	byte_array<uint32>			tile_to_surfel_id_arr = gibs_load_tile_to_surfel_id_arr(data);
+	byte_array<surfel>			surfel_arr			  = gibs_load_surfel_arr(data);
+
+	const float2		  px_low_res = px / GIBS_GI_RESOLVE_SCALE;
+	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px_low_res / GIBS_SCREEN_TILE_SIZE));
+	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
+
+	float  max_contribution			  = 0.f;
+	uint32 max_contribution_surfel_id = invalid_id_uint32;
+	float4 radiance_shared			  = (float4)0;
+
+	for (uint32 i = 0; i < min(512, tile_entry.surfel_count()); ++i)
+	{
+		const uint32 surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
+		const surfel surfel	   = surfel_arr[surfel_id];
+
+		assert(surfel.surfel_seen(), g::fmt_gibs_gi_resolve, line);
+
+		const float contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
+
+		const float3 surfel_radiance = decode_r11g11b10(surfel.radiance_r11g11b10);
+
+		assert(is_nan(surfel_radiance) is_false, g::fmt_gibs_gi_resolve, line);
+
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
+
+		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+
+		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
+
+		// coverage += contribution;
+
+		radiance_shared += float4(surfel_radiance, 1.f)
+						 * fallback_contribution
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
+						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		if (contribution > 0.f and max_contribution < contribution)
+		{
+			max_contribution		   = contribution;
+			max_contribution_surfel_id = surfel_id;
+		}
+	}
+
+	if (radiance_shared.w > 0.f)
+	{
+		radiance_shared.xyz /= radiance_shared.w;
+		return radiance_shared.xyz;
+	}
+	else
+	{
+		texture_2d<float3> gi_tex = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
+
+		return gi_tex[px];
+	}
 }

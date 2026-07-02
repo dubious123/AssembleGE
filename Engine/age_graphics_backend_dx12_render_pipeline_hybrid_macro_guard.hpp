@@ -58,6 +58,7 @@
 
 //---[ object, meshlet ]------------------------------------------------------------------------------------------------------
 #undef MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT
+#undef MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT
 #undef MAX_OBJECT_DATA_COUNT
 #undef VERTEX_KIND_P_UV0
 #undef VERTEX_KIND_PN_UV0
@@ -87,6 +88,7 @@
 
 //---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 #undef OPAQUE_MSHLT_OBJECT_DATA_OFFSET
+#undef TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET
 #undef OBJECT_PREV_DATA_OFFSET
 #undef OBJECT_DATA_OFFSET
 #undef DIRECTIONAL_LIGHT_OFFSET
@@ -97,6 +99,7 @@
 #undef GIBS_LUT_DATA_OFFSET
 #undef AO_DATA_OFFSET
 #undef SEGMENT_DATA_OFFSET
+#undef AA_DATA_OFFSET
 #undef STATIC_BUFFER_SIZE
 
 //---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------

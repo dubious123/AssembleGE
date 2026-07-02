@@ -9,10 +9,10 @@ namespace age::graphics::render_pipeline
 	{
 		using namespace graphics::pso;
 
-		h_pso = graphics::pso::create(
+		h_pso_opaque = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_as) },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_ms) },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_opaque_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_opaque_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT }, .NumRenderTargets = 1 } },
@@ -22,47 +22,97 @@ namespace age::graphics::render_pipeline
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		p_pso_opaque = graphics::g::pso_ptr_vec[h_pso_opaque];
 
-		h_pso.set_name(L"pso_gbuffer_prepass");
+		h_pso_opaque.set_name(L"pso_opaque_gbuffer_prepass");
+
+
+		h_pso_transparent = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_transparent_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_transparent_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_transparent = graphics::g::pso_ptr_vec[h_pso_transparent];
+
+		h_pso_transparent.set_name(L"pso_transparent_gbuffer_prepass");
 	}
 
 	inline void
-	depth_stage::execute(rtv_desc_handle h_gbuffer_rtv_desc,
-						 dsv_desc_handle h_depth_buffer_dsv_desc,
-						 uint32			 opaque_meshlet_count) const noexcept
+	depth_stage::execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
+						 dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
+						 uint32			 opaque_meshlet_count,
+						 rtv_desc_handle h_transparent_gbuffer_rtv_desc,
+						 dsv_desc_handle h_transparent_depth_buffer_dsv_desc,
+						 uint32			 transparent_meshlet_count) const noexcept
 	{
 		if (opaque_meshlet_count == 0) [[unlikely]]
 		{
-			command::clear_dsv(h_depth_buffer_dsv_desc.h_cpu,
+			command::clear_dsv(h_opaque_depth_buffer_dsv_desc.h_cpu,
 							   D3D12_CLEAR_FLAG_DEPTH,
 							   0.0f,
 							   0,
 							   0,
 							   nullptr);
-			return;
+		}
+		else
+		{
+			c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_opaque_gbuffer_rtv_desc, e::texture_format::r32g32_uint);
+			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_opaque_depth_buffer_dsv_desc, 0.f);
+
+			command::begin_render_pass(
+				1,
+				&render_pass_rt_desc,
+				&render_pass_ds_desc,
+				D3D12_RENDER_PASS_FLAG_NONE);
+
+			command::set_pso(p_pso_opaque);
+
+			command::dispatch_mesh(util::ceil(opaque_meshlet_count, 32u), 1, 1);
+
+			command::end_render_pass();
 		}
 
-		c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_gbuffer_rtv_desc, e::texture_format::r32g32_uint);
-		c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_depth_buffer_dsv_desc, 0.f);
+		if (transparent_meshlet_count == 0) [[unlikely]]
+		{
+			command::clear_dsv(h_transparent_depth_buffer_dsv_desc.h_cpu,
+							   D3D12_CLEAR_FLAG_DEPTH,
+							   0.0f,
+							   0,
+							   0,
+							   nullptr);
+		}
+		else
+		{
+			c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_transparent_gbuffer_rtv_desc, e::texture_format::r32g32_uint);
+			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_transparent_depth_buffer_dsv_desc, 0.f);
 
-		command::begin_render_pass(
-			1,
-			&render_pass_rt_desc,
-			&render_pass_ds_desc,
-			D3D12_RENDER_PASS_FLAG_NONE);
+			command::begin_render_pass(
+				1,
+				&render_pass_rt_desc,
+				&render_pass_ds_desc,
+				D3D12_RENDER_PASS_FLAG_NONE);
 
-		command::set_pso(p_pso);
+			command::set_pso(p_pso_transparent);
 
-		command::dispatch_mesh(util::ceil(opaque_meshlet_count, 32u), 1, 1);
+			command::dispatch_mesh(util::ceil(transparent_meshlet_count, 32u), 1, 1);
 
-		command::end_render_pass();
+			command::end_render_pass();
+		}
 	}
 
 	void
 	depth_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso);
+		pso::destroy(h_pso_opaque);
+		pso::destroy(h_pso_transparent);
 	}
 }	 // namespace age::graphics::render_pipeline
 
@@ -935,25 +985,53 @@ namespace age::graphics::render_pipeline
 	}
 }	 // namespace age::graphics::render_pipeline
 
-// stage transparent
+// stage aa
 namespace age::graphics::render_pipeline
 {
 	void
-	transparent_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	aa_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
 
-		h_pso_rt = graphics::pso::create(
+		h_pso_opaque_ray_entry = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_rt_cs) });
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_opaque_ray_entry_cs) });
 
-		p_pso_rt = graphics::g::pso_ptr_vec[h_pso_rt];
-		h_pso_rt.set_name(L"pso_transparent_rt");
+		p_pso_opaque_ray_entry = graphics::g::pso_ptr_vec[h_pso_opaque_ray_entry];
+		h_pso_opaque_ray_entry.set_name(L"pso_aa_opaque_ray_entry");
 
-		h_pso_draw = graphics::pso::create(
+		h_pso_transparent_ray_entry = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_ms) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_blend_ps) },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_transparent_ray_entry_cs) });
+
+		p_pso_transparent_ray_entry = graphics::g::pso_ptr_vec[h_pso_transparent_ray_entry];
+		h_pso_transparent_ray_entry.set_name(L"pso_aa_transparent_ray_entry");
+
+		h_pso_indirect_arg = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_indirect_arg_cs) });
+
+		p_pso_indirect_arg = graphics::g::pso_ptr_vec[h_pso_indirect_arg];
+		h_pso_indirect_arg.set_name(L"pso_aa_indirect_arg");
+
+		h_pso_opaque_rt = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_opaque_rt_cs) });
+
+		p_pso_opaque_rt = graphics::g::pso_ptr_vec[h_pso_opaque_rt];
+		h_pso_opaque_rt.set_name(L"pso_aa_opaque_rt");
+
+		h_pso_transparent_rt = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_transparent_rt_cs) });
+
+		p_pso_transparent_rt = graphics::g::pso_ptr_vec[h_pso_transparent_rt];
+		h_pso_transparent_rt.set_name(L"pso_aa_transparent_rt");
+
+		h_pso_resolve = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_resolve_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
@@ -962,18 +1040,36 @@ namespace age::graphics::render_pipeline
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso_draw = graphics::g::pso_ptr_vec[h_pso_draw];
-		h_pso_draw.set_name(L"pso_transparent_blend");
+		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
+		h_pso_resolve.set_name(L"pso_aa_resolve");
+
+		h_cmd_sig = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
+		p_cmd_sig = h_cmd_sig.ptr();
 	}
 
 	inline void
-	transparent_stage::execute(rtv_desc_handle h_main_buffer_rtv_desc, resource_handle h_blend_tex, extent_2d<uint16> extent) const noexcept
+	aa_stage::execute_opaque_aa(const aa_data&			aa_data_cpu,
+								rtv_desc_handle			h_main_buffer_rtv_desc,
+								resource_handle			h_blend_buffer,
+								math::extent_2d<uint16> extent) const noexcept
 	{
-		command::set_pso(p_pso_rt);
+		c_auto segment_tile_count = ceil(extent.width, g::segment_tile_size) * ceil(extent.height, g::segment_tile_size);
+		c_auto segment_word_count = segment_tile_count * (g::segment_tile_size * g::segment_tile_size / 32);
 
-		command::dispatch((extent.width + 7) / 8, (extent.height + 7) / 8, 1);
+		command::set_pso(p_pso_opaque_ray_entry);
+		command::dispatch(ceil(segment_word_count, 32 * 32), 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(aa_data_cpu.h_ray_buffer),
+								barrier::buf_uav_to_uav(aa_data_cpu.h_indirect_arg_buffer));
 
-		command::apply_barriers(barrier::tex_uav_to_srv(h_blend_tex, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::set_pso(p_pso_indirect_arg);
+		command::dispatch(1, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_srv(aa_data_cpu.h_ray_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_uav_to_indirect(aa_data_cpu.h_indirect_arg_buffer));
+
+		command::set_pso(p_pso_opaque_rt);
+		command::execute_indirect(p_cmd_sig, aa_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::aa_indirect_arg, arg_opaque_aa));
+
+		command::apply_barriers(barrier::tex_uav_to_srv(h_blend_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
 
@@ -983,7 +1079,128 @@ namespace age::graphics::render_pipeline
 			nullptr,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		command::set_pso(p_pso_draw);
+		command::set_pso(p_pso_resolve);
+		command::dispatch_mesh(1, 1, 1);
+
+		command::end_render_pass();
+	}
+
+	inline void
+	aa_stage::execute_transparent_aa(const aa_data&			 aa_data_cpu,
+									 rtv_desc_handle		 h_main_buffer_rtv_desc,
+									 resource_handle		 h_blend_buffer,
+									 math::extent_2d<uint16> extent) const noexcept
+	{
+		c_auto segment_tile_count = ceil(extent.width, g::segment_tile_size) * ceil(extent.height, g::segment_tile_size);
+		c_auto segment_word_count = segment_tile_count * (g::segment_tile_size * g::segment_tile_size / 32);
+
+		command::set_pso(p_pso_transparent_ray_entry);
+		command::dispatch(ceil(segment_word_count, 32 * 32), 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_uav(aa_data_cpu.h_ray_buffer),
+								barrier::buf_uav_to_uav(aa_data_cpu.h_indirect_arg_buffer));
+
+		command::set_pso(p_pso_indirect_arg);
+		command::dispatch(1, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_srv(aa_data_cpu.h_ray_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_uav_to_indirect(aa_data_cpu.h_indirect_arg_buffer));
+
+		command::set_pso(p_pso_transparent_rt);
+		command::execute_indirect(p_cmd_sig, aa_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::aa_indirect_arg, arg_transparent_aa));
+
+		command::apply_barriers(barrier::tex_uav_to_srv(h_blend_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		command::set_pso(p_pso_resolve);
+		command::dispatch_mesh(1, 1, 1);
+
+		command::end_render_pass();
+	}
+
+	void
+	aa_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_opaque_ray_entry);
+		pso::destroy(h_pso_transparent_ray_entry);
+		pso::destroy(h_pso_indirect_arg);
+		pso::destroy(h_pso_opaque_rt);
+		pso::destroy(h_pso_transparent_rt);
+		pso::destroy(h_pso_resolve);
+
+		command_signature::destroy(h_cmd_sig);
+	}
+}	 // namespace age::graphics::render_pipeline
+
+// stage transparent
+namespace age::graphics::render_pipeline
+{
+	void
+	transparent_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+		h_pso_rt_with_aa = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_rt_with_aa_cs) });
+
+		p_pso_rt_with_aa = graphics::g::pso_ptr_vec[h_pso_rt_with_aa];
+		h_pso_rt_with_aa.set_name(L"pso_transparent_rt_with_aa_cs");
+
+		h_pso_resolve = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_resolve_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
+		h_pso_resolve.set_name(L"pso_transparent_resolve");
+
+		h_pso_no_aa = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_no_aa_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_no_aa = graphics::g::pso_ptr_vec[h_pso_no_aa];
+		h_pso_no_aa.set_name(L"pso_transparent_no_aa");
+	}
+
+	inline void
+	transparent_stage::execute_with_aa(extent_2d<uint16> extent) const noexcept
+	{
+		command::set_pso(p_pso_rt_with_aa);
+		command::dispatch(ceil(extent.width, 8u), ceil(extent.width, 8u), 1);
+	}
+
+	inline void
+	transparent_stage::execute_without_aa(rtv_desc_handle h_main_buffer_rtv_desc) const noexcept
+	{
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_ALLOW_UAV_WRITES);
+
+		command::set_pso(p_pso_no_aa);
 
 		command::dispatch_mesh(1, 1, 1);
 
@@ -993,8 +1210,9 @@ namespace age::graphics::render_pipeline
 	void
 	transparent_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso_rt);
-		pso::destroy(h_pso_draw);
+		pso::destroy(h_pso_rt_with_aa);
+		pso::destroy(h_pso_resolve);
+		pso::destroy(h_pso_no_aa);
 	}
 }	 // namespace age::graphics::render_pipeline
 

@@ -985,6 +985,43 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(aa_config, "aa")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		bool enabled		   = true;
+		bool fxaa_on_offscreen = true;
+
+		// 0 (disabled), 2, 4, 8, 16
+		uint8 opaque_aa_ray_per_px = 8;
+
+		// 0 (disabled), 2, 4, 8, 16
+		uint8 transparent_aa_ray_per_px = 8;
+
+		// max_aa_ray_budget = screen_px_count * aa_px_cap * (opaque_aa_rpp + transparent_aa_rpp)
+		// (0,1]
+		float aa_px_cap = 0.05f;
+
+		// max_aa_px_count = screen_px_count * aa_px_cap * aa_px_headroom;
+		// (1, 1/aa_px_cap]
+		float aa_px_headroom = 4.f;
+
+		// world unit
+		float edge_plane_dist_threshold = 0.05f;
+
+		// abs(cos), (0,1]
+		float edge_normal_threshold = 0.9f;
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, aa_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled)
+			{
+				ctx.renderer.disable_aa();
+			}
+		}
+	};
+
 #undef AGE_COMPONENT
 #undef AGE_CUSTOM_BYTE_SIZE
 }	 // namespace age::ecs

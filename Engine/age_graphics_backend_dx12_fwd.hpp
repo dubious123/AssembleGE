@@ -28,8 +28,12 @@ namespace age::graphics::e
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
 					hrp_fullscreen_ms,
 
-					hrp_gbuffer_prepass_as,
-					hrp_gbuffer_prepass_ms,
+					hrp_gbuffer_prepass_opaque_as,
+					hrp_gbuffer_prepass_opaque_ms,
+
+					hrp_gbuffer_prepass_transparent_as,
+					hrp_gbuffer_prepass_transparent_ms,
+
 					hrp_gbuffer_prepass_ps,
 
 					hrp_segment_resolve_cs,
@@ -84,8 +88,16 @@ namespace age::graphics::e
 
 					hrp_opaque_ps,
 
-					hrp_transparent_rt_cs,
-					hrp_transparent_blend_ps,
+					hrp_aa_opaque_ray_entry_cs,
+					hrp_aa_transparent_ray_entry_cs,
+					hrp_aa_indirect_arg_cs,
+					hrp_aa_opaque_rt_cs,
+					hrp_aa_transparent_rt_cs,
+					hrp_aa_resolve_ps,
+
+					hrp_transparent_rt_with_aa_cs,
+					hrp_transparent_resolve_ps,
+					hrp_transparent_no_aa_ps,
 
 					hrp_raycast_cs,
 

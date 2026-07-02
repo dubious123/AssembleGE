@@ -512,6 +512,60 @@ namespace age::graphics::render_pipeline
 		resource_handle h_segment_buffer;
 		srv_desc_handle h_segment_buffer_srv_desc;
 		uav_desc_handle h_segment_buffer_uav_desc;
+
+
+		resource_handle h_transparent_segment_buffer;
+		srv_desc_handle h_transparent_segment_buffer_srv_desc;
+		uav_desc_handle h_transparent_segment_buffer_uav_desc;
+	};
+
+	struct aa_desc
+	{
+		bool fxaa_on_offscreen = true;
+
+		// 0 (disabled), 2, 4, 8, 16
+		uint8 opaque_aa_ray_per_px = 8;
+
+		// 0 (disabled), 2, 4, 8, 16
+		uint8 transparent_aa_ray_per_px = 8;
+
+		// max_aa_ray_budget = screen_px_count * aa_px_cap * (opaque_aa_rpp + transparent_aa_rpp)
+		// (0,1]
+		float aa_px_cap = 0.05f;
+
+		// max_aa_px_count = screen_px_count * aa_px_cap * aa_px_headroom;
+		// (1, 1/aa_px_cap]
+		float aa_px_headroom			= 4.f;
+		float edge_plane_dist_threshold = 0.05f;
+		float edge_normal_threshold		= 0.9f;
+	};
+
+	struct aa_data
+	{
+		shared_type::aa_data aa_data_gpu;
+
+		bool enabled;
+		bool opaque_rtaa_enabled;
+		bool transparent_rtaa_enabled;
+		bool fxaa_on_offscreen;
+
+		uint8 opaque_ray_per_px;
+		uint8 transparent_ray_per_px;
+
+		uint8_2 _;
+
+		float  aa_px_cap;
+		float  aa_px_headroom;
+		uint32 opaque_ray_budget;
+		uint32 transparent_ray_budget;
+
+		resource_handle h_ray_buffer;
+		srv_desc_handle h_ray_buffer_srv_desc;
+		uav_desc_handle h_ray_buffer_uav_desc;
+
+		resource_handle		  h_indirect_arg_buffer;
+		uav_desc_handle		  h_indirect_arg_buffer_uav_desc;
+		clear_uav_desc_handle h_indirect_arg_buffer_clear_uav_desc;
 	};
 
 	struct taa_desc

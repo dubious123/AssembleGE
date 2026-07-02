@@ -121,8 +121,8 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	uint32 surfel_id = alive_stack_prev[alive_idx_prev];
 
-	texture_2d<uint32_2>		   gbuffer		= global_resource_buffer[gbuffer_srv_id];
-	texture_2d<float>			   depth_buffer = global_resource_buffer[depth_buffer_texture_id];
+	texture_2d<uint32_2>		   gbuffer		= global_resource_buffer[opaque_gbuffer_srv_id];
+	texture_2d<float>			   depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
 	rw_byte_array<surfel>		   surfel_arr	= gibs_load_surfel_rw_arr(data);
 	rw_byte_array<surfel_geometry> geo_arr		= gibs_load_surfel_geometry_rw_arr(data);
 	rw_byte_array<surfel_msme>	   msme_arr		= gibs_load_surfel_msme_rw_arr(data);

@@ -139,7 +139,7 @@ random_r1_sequence(uint32 n, float seed = 0.5f)
 }
 
 float2
-random_r2_requence(uint32 n, float seed = 0.5f)
+random_r2_sequence(uint32 n, float seed = 0.5f)
 {
 	static const float g  = 1.32471795724474602596f;
 	static const float a1 = 1.f / g;
@@ -148,7 +148,7 @@ random_r2_requence(uint32 n, float seed = 0.5f)
 }
 
 float3
-random_r3_requence(uint32 n, float seed = 0.5f)
+random_r3_sequence(uint32 n, float seed = 0.5f)
 {
 	static const float g  = 1.22074408460575947536f;
 	static const float a1 = 1.f / g;

@@ -62,8 +62,41 @@ namespace age::graphics::render_pipeline::shared_type
 	//---[ aa and transparent ]--------------------------------------------------------------------
 	struct segment_data
 	{
+		float edge_plane_dist_threshold;
+		float edge_normal_threshold;
+
 		uint32 h_segment_buffer_srv_id;
 		uint32 h_segment_buffer_uav_id;
+
+		uint32 h_transparent_segment_buffer_srv_id;
+		uint32 h_transparent_segment_buffer_uav_id;
+	};
+
+	struct aa_data
+	{
+		uint16 ray_per_px;	  // [opaque_rpp(8)][transparent_rpp(8)], raycount is power of 2
+		uint16 _;
+
+		uint32 px_headroom;
+
+		uint32 opaque_aa_ray_budget;
+		uint32 transparent_aa_ray_budget;
+
+		uint32 h_ray_buffer_srv_id;
+		uint32 h_ray_buffer_uav_id;
+
+		uint32 h_indirect_arg_uav_id;
+	};
+
+	struct aa_ray_entry
+	{
+		uint16_2 px;
+	};
+
+	struct aa_indirect_arg
+	{
+		uint32_3 arg_opaque_aa;
+		uint32_3 arg_transparent_aa;
 	};
 
 	//---[ vbao ]--------------------------------------------------------------------
@@ -798,6 +831,15 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 material_id;
 	};
 
+	struct transparent_meshlet_render_data
+	{
+		uint32 object_id;
+		uint32 mesh_byte_offset;
+		uint32 mesh_chunk_srv_id;
+		uint32 meshlet_id;
+		uint32 material_id;
+	};
+
 	struct rt_instance_render_data
 	{
 		uint32 object_id;
@@ -904,17 +946,17 @@ namespace age::graphics::render_pipeline::shared_type
 		float2 backbuffer_size;				  // 8
 
 		// todo, remove
-		float3 camera_forward;							// 12
-		uint32 frame_index;								// 4
+		float3 camera_forward;				  // 12
+		uint32 frame_index;					  // 4
 
-		uint32 main_buffer_texture_id;					// 4
-		uint32 post_buffer_texture_id;					// 4
-		uint32 depth_buffer_texture_id;					// 4
-		uint32 rt_tlas_buffer_id;						// 4
+		uint32 main_buffer_texture_id;		  // 4
+		uint32 post_buffer_texture_id;		  // 4
+		uint32 opaque_depth_buffer_srv_id;	  // 4
+		uint32 rt_tlas_buffer_id;			  // 4
 
-		uint32 rt_transparent_buffer_srv_texture_id;	// 4
-		uint32 rt_transparent_buffer_uav_texture_id;	// 4
-		uint32 rt_raycast_request_count;				// 4
+		uint32 blend_buffer_srv_id;			  // 4
+		uint32 blend_buffer_uav_id;			  // 4
+		uint32 rt_raycast_request_count;	  // 4
 		float  cam_near_z;
 
 		float3 light_bin_origin;
@@ -933,10 +975,12 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 env_light_brdf_lut_id;
 		uint32 env_light_count;
 		float  tan_fov_y_half;	  // tan(fov_y * 0.5f)
-		uint32 gbuffer_srv_id;
+		uint32 opaque_gbuffer_srv_id;
+		uint32 transparent_gbuffer_srv_id;
 
-		uint32	 motion_buffer_srv_id;
-		uint32_3 _;
+		uint32 transparent_depth_buffer_srv_id;
+		uint32 motion_buffer_srv_id;
+		uint32 _;
 
 		uint32_4 extra[3 + 12];
 		// total: 256 * 3 bytes
@@ -945,7 +989,7 @@ namespace age::graphics::render_pipeline::shared_type
 	cbuffer root_constants reg(b1)
 	{
 		uint32			   opaque_meshlet_render_data_count;	 // 4 bytes
-		uint32			   directional_light_count_and_extra;	 // 4 bytes
+		uint32			   directional_light_count_and_extra;	 // 4 bytes [directional_light(8)][transparent_meshlet_render_data_count(24)]
 		t_unified_light_id unified_light_count;					 // 4 btyes
 
 		uint32 radix_sort_pass;
@@ -1056,8 +1100,9 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 	//---[ object, meshlet ]------------------------------------------------------------------------------------------------------
-#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT (1u << 24)
-#define MAX_OBJECT_DATA_COUNT				 (1u << 20)
+#define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT	  (1u << 24)
+#define MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT (1u << 20)
+#define MAX_OBJECT_DATA_COUNT					  (1u << 20)
 
 #define VERTEX_KIND_P_UV0	0
 #define VERTEX_KIND_PN_UV0	1
@@ -1304,7 +1349,7 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
 
-#define GIBS_GI_RESOLVE_SCALE 4u
+#define GIBS_GI_RESOLVE_SCALE 5u
 
 
 #define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)
@@ -1384,31 +1429,40 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
-#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET (0)
-#define OBJECT_PREV_DATA_OFFSET			(OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
-#define OBJECT_DATA_OFFSET				(OBJECT_PREV_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
-#define DIRECTIONAL_LIGHT_OFFSET		(OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
-#define UNIFIED_LIGHT_OFFSET			(DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
-#define BLOOM_OFFSET					(UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
-#define DDGI_DATA_OFFSET				(BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
-#define GIBS_DATA_OFFSET				(DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
-#define GIBS_LUT_DATA_OFFSET			(GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
-#define AO_DATA_OFFSET					(GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
-#define SEGMENT_DATA_OFFSET				(AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
-#define STATIC_BUFFER_SIZE				(SEGMENT_DATA_OFFSET + sizeof(SHARED_TYPE segment_data) * 1)
+
+// todo, optimize static buffer upload
+#define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		 (0)
+#define TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
+#define OBJECT_PREV_DATA_OFFSET				 (TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE transparent_meshlet_render_data) * MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT)
+#define OBJECT_DATA_OFFSET					 (OBJECT_PREV_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define DIRECTIONAL_LIGHT_OFFSET			 (OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define UNIFIED_LIGHT_OFFSET				 (DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
+#define BLOOM_OFFSET						 (UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
+#define DDGI_DATA_OFFSET					 (BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
+#define GIBS_DATA_OFFSET					 (DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
+#define GIBS_LUT_DATA_OFFSET				 (GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
+#define AO_DATA_OFFSET						 (GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
+#define SEGMENT_DATA_OFFSET					 (AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
+#define AA_DATA_OFFSET						 (SEGMENT_DATA_OFFSET + sizeof(SHARED_TYPE segment_data) * 1)
+#define STATIC_BUFFER_SIZE					 (AA_DATA_OFFSET + sizeof(SHARED_TYPE aa_data) * 1)
+
 #if !defined(AGE_SHADER)
-	inline constexpr auto opaque_mshlt_object_data_offset = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
-	inline constexpr auto object_prev_data_offset		  = OBJECT_PREV_DATA_OFFSET;
-	inline constexpr auto object_data_offset			  = OBJECT_DATA_OFFSET;
-	inline constexpr auto directional_light_offset		  = DIRECTIONAL_LIGHT_OFFSET;
-	inline constexpr auto unified_light_offset			  = UNIFIED_LIGHT_OFFSET;
-	inline constexpr auto bloom_offset					  = BLOOM_OFFSET;
-	inline constexpr auto ddgi_data_offset				  = DDGI_DATA_OFFSET;
-	inline constexpr auto gibs_data_offset				  = GIBS_DATA_OFFSET;
-	inline constexpr auto gibs_lut_data_offset			  = GIBS_LUT_DATA_OFFSET;
-	inline constexpr auto ao_data_offset				  = AO_DATA_OFFSET;
-	inline constexpr auto segment_data_offset			  = SEGMENT_DATA_OFFSET;
-	inline constexpr auto static_buffer_size			  = STATIC_BUFFER_SIZE;
+	inline constexpr auto max_opaque_mshlt_render_data_count	  = MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT;
+	inline constexpr auto max_transparent_mshlt_render_data_count = MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT;
+	inline constexpr auto opaque_mshlt_object_data_offset		  = OPAQUE_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto transparent_mshlt_object_data_offset	  = TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET;
+	inline constexpr auto object_prev_data_offset				  = OBJECT_PREV_DATA_OFFSET;
+	inline constexpr auto object_data_offset					  = OBJECT_DATA_OFFSET;
+	inline constexpr auto directional_light_offset				  = DIRECTIONAL_LIGHT_OFFSET;
+	inline constexpr auto unified_light_offset					  = UNIFIED_LIGHT_OFFSET;
+	inline constexpr auto bloom_offset							  = BLOOM_OFFSET;
+	inline constexpr auto ddgi_data_offset						  = DDGI_DATA_OFFSET;
+	inline constexpr auto gibs_data_offset						  = GIBS_DATA_OFFSET;
+	inline constexpr auto gibs_lut_data_offset					  = GIBS_LUT_DATA_OFFSET;
+	inline constexpr auto ao_data_offset						  = AO_DATA_OFFSET;
+	inline constexpr auto segment_data_offset					  = SEGMENT_DATA_OFFSET;
+	inline constexpr auto aa_data_offset						  = AA_DATA_OFFSET;
+	inline constexpr auto static_buffer_size					  = STATIC_BUFFER_SIZE;
 #endif
 
 	//---[ debug assert ]------------------------------------------------------------------------------------------------------

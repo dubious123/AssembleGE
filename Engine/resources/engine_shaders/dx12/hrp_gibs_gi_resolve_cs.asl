@@ -12,6 +12,12 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	uint32_2 screen_pos_low_res_uint32 = group_id.xy * GIBS_SCREEN_TILE_SIZE + uint32_2(group_thread_id % GIBS_SCREEN_TILE_SIZE, group_thread_id / GIBS_SCREEN_TILE_SIZE);
 
 	// todo, add round robin ( + add round robin offset to sample irradiance )
+
+	// const uint32   rr_phase	 = frame_index % (GIBS_GI_RESOLVE_SCALE * GIBS_GI_RESOLVE_SCALE / 4);
+	// const uint32_2 rr_offset = GIBS_GI_RESOLVE_SCALE / 2 + uint32_2(rr_phase % (GIBS_GI_RESOLVE_SCALE / 2), rr_phase / (GIBS_GI_RESOLVE_SCALE / 2));
+
+	// uint32_2 screen_pos_full_res_uint32 = screen_pos_low_res_uint32 * GIBS_GI_RESOLVE_SCALE + rr_offset;
+
 	uint32_2 screen_pos_full_res_uint32 = screen_pos_low_res_uint32 * GIBS_GI_RESOLVE_SCALE + GIBS_GI_RESOLVE_SCALE / 2;
 
 	if (screen_pos_full_res_uint32.x >= (uint32)backbuffer_size.x or screen_pos_full_res_uint32.y >= (uint32)backbuffer_size.y)
@@ -21,8 +27,8 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	const gibs_data		  data						= gibs_load_gibs_data();
 	const gibs_lut_data	  lut_data					= gibs_load_gibs_lut_data();
-	texture_2d<float>	  depth_tex					= global_resource_buffer[depth_buffer_texture_id];
-	texture_2d<uint32_2>  gbuffer					= global_resource_buffer[gbuffer_srv_id];
+	texture_2d<float>	  depth_tex					= global_resource_buffer[opaque_depth_buffer_srv_id];
+	texture_2d<uint32_2>  gbuffer					= global_resource_buffer[opaque_gbuffer_srv_id];
 	rw_texture_2d<float3> gi_resolve_low_res_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_uav_id];
 
 	byte_array<gibs_tile_entry> tile_entry_arr		  = gibs_load_tile_entry_arr(data);
@@ -66,7 +72,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 		const uint32_2 surfel_screen_pos = world_to_screen(view_proj, surfel.position, backbuffer_size);
 
-		if (any(group_id.xy != (surfel_screen_pos / GIBS_SCREEN_TILE_SIZE))) { continue; }
+		if (any(group_id.xy != (surfel_screen_pos / (GIBS_SCREEN_TILE_SIZE * GIBS_GI_RESOLVE_SCALE)))) { continue; }
 
 		float4 radiance_shared = (float4)0;
 
@@ -242,6 +248,10 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	// todo, apply radiance sharing to max contribution surfel
 
+	if (is_thread_valid)
+	{
+		coverage *= segment_is_opaque_edge(screen_pos_full_res_uint32) ? 0.3f : 1.f;
+	}
 	// min coverage => spawn surfel
 	const uint32 coverage_packed_min = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | linear_id : invalid_id_uint32;
 

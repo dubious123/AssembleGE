@@ -16,8 +16,8 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	if (any(px >= extent)) { return; }
 
-	texture_2d<float>	  depth_buffer = global_resource_buffer[depth_buffer_texture_id];
-	texture_2d<uint32_2>  gbuffer	   = global_resource_buffer[gbuffer_srv_id];
+	texture_2d<float>	  depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+	texture_2d<uint32_2>  gbuffer	   = global_resource_buffer[opaque_gbuffer_srv_id];
 	rw_texture_2d<float4> ao_buffer	   = global_resource_buffer[data.h_ao_buffer_uav_id];
 
 	const float3 px_normal	 = decode_oct_snorm16(gbuffer[px].y);

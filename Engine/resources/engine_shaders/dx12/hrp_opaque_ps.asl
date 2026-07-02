@@ -10,8 +10,8 @@ ps_out
 main_ps(float4 pos sv_position)
 {
 	const gibs_lut_data		   lut_data	 = gibs_load_gibs_lut_data();
-	const texture_2d<float>	   depth_tex = global_resource_buffer[depth_buffer_texture_id];
-	const texture_2d<uint32_2> gbuffer	 = global_resource_buffer[gbuffer_srv_id];
+	const texture_2d<float>	   depth_tex = global_resource_buffer[opaque_depth_buffer_srv_id];
+	const texture_2d<uint32_2> gbuffer	 = global_resource_buffer[opaque_gbuffer_srv_id];
 
 	uint32_2	px		= uint32_2(pos.xy);
 	const float z_depth = depth_tex[px];
@@ -181,7 +181,7 @@ main_ps(float4 pos sv_position)
 	// todo, maybe reconstruct prev_local_pos for skinning or animated object?
 	const float3 world_pos_prev = rotate(obj_data_prev.quaternion, local_pos * obj_data_prev.scale) + obj_data_prev.pos;
 
-	const float3 ndc_prev		= world_to_ndc(view_proj_prev, world_pos_prev, backbuffer_size);
+	const float3 ndc_prev		= world_to_ndc(view_proj_prev, world_pos_prev);
 	const float2 screen_uv_prev = ndc_xy_to_screen_uv(ndc_prev.xy);
 
 	const float2 motion = pos.xy * inv_backbuffer_size - screen_uv_prev;

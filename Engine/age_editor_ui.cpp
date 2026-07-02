@@ -922,6 +922,34 @@ namespace age::editor
 
 #undef ao_debug_flag_checkbox
 	}
+
+	bool
+	ui_component(age::ecs::aa_config& cmp) noexcept
+	{
+		constexpr c_auto rpp_option = std::array{
+			ui::widget::dropdown_option<uint8>{ .value = 0, .label = "disable" },
+			ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
+			ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
+			ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
+			ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
+			ui::widget::dropdown_option<uint8>{ .value = 32, .label = "32" },
+		};
+
+		const bool update = ui::widget::button2("update");
+
+		ui::widget::checkbox("enable", cmp.enabled);
+		ui::widget::checkbox("fxaa_on_offscreen", cmp.fxaa_on_offscreen);
+
+		ui::widget::dropdown<uint8>(cmp.opaque_aa_ray_per_px, rpp_option);
+		ui::widget::dropdown<uint8>(cmp.transparent_aa_ray_per_px, rpp_option);
+
+		ui::widget::numeric_field(cmp.aa_px_cap, "aa_px_cap", math::g::epsilon_1e4, 1.f);
+		ui::widget::numeric_field(cmp.aa_px_headroom, "aa_px_headroom", 1.f, 4.f);
+		ui::widget::numeric_field(cmp.edge_plane_dist_threshold, "edge_plane_dist_threshold", 0.f, 2.f);
+		ui::widget::numeric_field(cmp.edge_normal_threshold, "edge_normal_threshold", 0.f, 1.f);
+
+		return update;
+	}
 }	 // namespace age::editor
 
 namespace age::editor

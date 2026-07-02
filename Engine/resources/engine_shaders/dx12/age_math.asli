@@ -945,6 +945,14 @@ screen_to_ndc(float2 screen_pos, float2 inv_backbuffer_size)
 }
 
 float3
+screen_to_ndc(float2 screen_pos, float z_depth, float2 inv_backbuffer_size)
+{
+	float2 ndc = screen_pos * inv_backbuffer_size * 2.0 - 1.0;
+	ndc.y	   = -ndc.y;
+	return float3(ndc, z_depth);
+}
+
+float3
 screen_px_to_ndc(int32_2 px, float z_depth, float2 inv_backbuffer_size)
 {
 	return float3(screen_to_ndc(float2(px) + 0.5f, inv_backbuffer_size), z_depth);
@@ -963,7 +971,7 @@ ndc_xy_to_screen(float2 ndc_xy, float2 screen_size)
 }
 
 float3
-world_to_ndc(float4x4 view_proj, float3 world_pos, float2 screen_size)
+world_to_ndc(float4x4 view_proj, float3 world_pos)
 {
 	const float4 clip_pos = mul(view_proj, float4(world_pos, 1.f));
 	const float3 ndc	  = clip_pos.xyz / clip_pos.w;

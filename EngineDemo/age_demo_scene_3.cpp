@@ -286,6 +286,11 @@ namespace age_demo::scene_3
 			i_deinit.get_render_pipeline->disable_ao();
 		}
 
+		if (i_deinit.get_render_pipeline->aa_enabled())
+		{
+			i_deinit.get_render_pipeline->disable_aa();
+		}
+
 		i_deinit.get_editor_game->deinit();
 		age::asset::registry::clear();
 	}
