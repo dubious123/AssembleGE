@@ -878,11 +878,13 @@ namespace age::graphics::render_pipeline
 		command::dispatch(gpu_data.tile_count_w, gpu_data.tile_count_h, 1);
 		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_low_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 								barrier::tex_srv_to_uav(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_tile_spawn_kill_buffer));
 
 		command::set_pso(p_pso_gi_upscale);
 		command::dispatch(ceil(main_buffer_extent.width, 16), ceil(main_buffer_extent.height, 16), 1);
-		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::apply_barriers(barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_full_res_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
+								barrier::buf_uav_to_uav(gibs_data_cpu.h_tile_spawn_kill_buffer));
 	}
 
 	inline void

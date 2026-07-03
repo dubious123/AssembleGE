@@ -80,22 +80,34 @@ main_ps(float4 pos sv_position)
 			ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
 		}
 	}
+	// else if (gibs_enabled())
+	//{
+	//	const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+	//	// const float3	   gi_diffuse		 = calc_pbr_gibs(rt_arg::init_gibs(false), invalid_id_uint32, surface_data, px_normal);
+	//	texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_full_res_buffer_srv_id];
+
+	//	const float3 gi_diffuse	 = surface_data.c_diffuse * gi_resolve_buffer[px] * pi_inv;
+	//	ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+	//	expand(MAX_ENV_LIGHT)
+
+	//	for (uint32 i = 0; i < env_light_count; ++i)
+	//	{
+	//		ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
+	//	}
+	//}
+
 	else if (gibs_enabled())
 	{
-		const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-
-		// const float3	   gi_diffuse		 = calc_pbr_gibs(rt_arg::init_gibs(false), invalid_id_uint32, surface_data, px_normal);
 		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_full_res_buffer_srv_id];
 
-		const float3 gi_diffuse	 = surface_data.c_diffuse * gi_resolve_buffer[px] * pi_inv;
+		const float3 f_avg		 = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+		const float3 irradiance	 = gi_resolve_buffer[px];
+		const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
 		ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
 
-		expand(MAX_ENV_LIGHT)
-
-		for (uint32 i = 0; i < env_light_count; ++i)
-		{
-			ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
-		}
+		ambient_light += calc_pbr_gibs_specular(surface_data, irradiance) * surface_data.occlusion;
 	}
 	else
 	{

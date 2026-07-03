@@ -158,7 +158,6 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
 
-		// todo, fallback fail => ub (srv read from uav)
 		const float3 fallback_res = gibs_sample_screen_irradiance(thread_id.xy, render_data.object_id, world_pos, px_normal);
 		dst_buffer[thread_id.xy]  = fallback_res * ao_res;
 	}

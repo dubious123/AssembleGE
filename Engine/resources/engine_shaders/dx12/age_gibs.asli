@@ -1554,8 +1554,25 @@ gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, flo
 	}
 	else
 	{
-		texture_2d<float3> gi_tex = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
+		texture_2d<float3> gi_low_res_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
 
-		return gi_tex[px];
+		const float3 col_res = sample_level(gi_low_res_buffer, get_linear_clamp_sampler(), px_low_res * inv_backbuffer_size, 0);
+
+		attr_branch()
+
+		if (((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0) and false)
+		{
+			assert(object_id != invalid_id_uint32, g::fmt_gibs, line);
+			const object_data obj = load_object_data(object_id);
+
+			gibs_set_tile_surfel_spawn(data,
+									   tile_id,
+									   object_id,
+									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
+									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
+									   encode_r11g11b10(col_res));
+		}
+
+		return col_res;
 	}
 }
