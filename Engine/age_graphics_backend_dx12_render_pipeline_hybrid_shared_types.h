@@ -344,11 +344,18 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_cell_spawn_kill_buffer_srv_id;
 		uint32 h_cell_spawn_kill_buffer_uav_id;
 
-		uint32 h_gi_resolve_low_res_buffer_srv_id;
-		uint32 h_gi_resolve_low_res_buffer_uav_id;
+		uint32 h_gi_resolve_rr_irradiance_prev_buffer_srv_id;
 
-		uint32 h_gi_resolve_full_res_buffer_srv_id;
-		uint32 h_gi_resolve_full_res_buffer_uav_id;
+		uint32 h_gi_resolve_rr_geo_prev_buffer_srv_id;
+
+		uint32 h_gi_resolve_rr_irradiance_curr_buffer_srv_id;
+		uint32 h_gi_resolve_rr_irradiance_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_rr_geo_curr_buffer_srv_id;
+		uint32 h_gi_resolve_rr_geo_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_buffer_srv_id;
+		uint32 h_gi_resolve_buffer_uav_id;
 
 		uint32 h_indirect_arg_buffer_uav_id;
 

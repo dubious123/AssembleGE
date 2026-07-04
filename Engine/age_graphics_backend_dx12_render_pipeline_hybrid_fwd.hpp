@@ -461,15 +461,30 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle		  h_cell_spawn_kill_buffer_uav_desc;
 		clear_uav_desc_handle h_cell_spawn_kill_buffer_clear_uav_desc;
 
-		resource_handle		  h_gi_resolve_low_res_buffer;
-		srv_desc_handle		  h_gi_resolve_low_res_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_low_res_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_low_res_buffer_clear_uav_desc;
+		resource_handle		  h_gi_resolve_rr_irradiance_buffer;
+		srv_desc_handle		  h_gi_resolve_rr_irradiance_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_rr_irradiance_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_rr_irradiance_buffer_clear_uav_desc;
 
-		resource_handle		  h_gi_resolve_full_res_buffer;
-		srv_desc_handle		  h_gi_resolve_full_res_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_full_res_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_full_res_buffer_clear_uav_desc;
+		resource_handle		  h_gi_resolve_rr_irradiance_alt_buffer;
+		srv_desc_handle		  h_gi_resolve_rr_irradiance_alt_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_rr_irradiance_alt_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_rr_irradiance_alt_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_rr_geo_buffer;
+		srv_desc_handle		  h_gi_resolve_rr_geo_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_rr_geo_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_rr_geo_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_rr_geo_alt_buffer;
+		srv_desc_handle		  h_gi_resolve_rr_geo_alt_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_rr_geo_alt_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_rr_geo_alt_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_buffer;
+		srv_desc_handle		  h_gi_resolve_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_buffer_clear_uav_desc;
 
 
 		resource_handle h_indirect_arg_buffer;

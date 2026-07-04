@@ -242,7 +242,6 @@ namespace age::graphics::render_pipeline
 
 		root_signature::destroy(h_root_sig);
 
-		push_descriptor(h_rt_tlas_buffer_srv_desc);
 		push_descriptor(h_env_light_brdf_lut);
 
 
@@ -344,8 +343,9 @@ namespace age::graphics::render_pipeline
 			disable_aa();
 		}
 
-		// rt
 		resource::release(h_rt_tlas_buffer);
+		push_descriptor(h_rt_tlas_buffer_srv_desc);
+
 		resource::release(h_rt_tlas_scratch_buffer);
 		resource::unmap_and_release(h_mapping_rt_instance_buffer_arr);
 		resource::unmap_and_release(h_mapping_rt_instance_render_data_buffer_arr);
@@ -668,12 +668,6 @@ namespace age::graphics::render_pipeline
 		command::set_descriptor_heaps(1, &graphics::g::cbv_srv_uav_desc_heap.p_heap);
 		command::set_graphics_root_sig(p_root_sig);
 		command::set_compute_root_sig(p_root_sig);
-
-		// command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-		//						barrier::undefined_to_rtv(h_post_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-		//						barrier::undefined_to_dsv_write(h_depth_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-		//						barrier::undefined_to_rtv(&rs.get_back_buffer(), D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
-		//						barrier::undefined_to_uav(h_rt_transparent_texture_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_TEXTURE_BARRIER_FLAG_DISCARD));
 
 		command::apply_barriers(barrier::undefined_to_rtv(h_main_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
 								barrier::undefined_to_rtv(h_post_buffer, D3D12_TEXTURE_BARRIER_FLAG_DISCARD),
@@ -2830,33 +2824,78 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_low_res_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
-			gibs_data_cpu.h_gi_resolve_low_res_buffer->set_name(L"gibs_gi_resolve_low_res_buffer");
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer->set_name(L"gibs_gi_resolve_rr_irradiance_buffer");
 
-			gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
-																							 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
-																							 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_low_res_buffer,
-																									   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_srv_desc	   = resource::create_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer,
+																								   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_uav_desc	   = resource::create_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer,
+																								   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer,
+																											 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
 
-			gibs_data_gpu.h_gi_resolve_low_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
-			gibs_data_gpu.h_gi_resolve_low_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_irradiance_buffer_curr_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_srv_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_irradiance_buffer_curr_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_uav_desc);
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_full_res_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
-			gibs_data_cpu.h_gi_resolve_full_res_buffer->set_name(L"gibs_gi_resolve_full_res_buffer");
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer->set_name(L"gibs_gi_resolve_rr_irradiance_alt_buffer");
 
-			gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
-																							  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
-																							  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
-			gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_full_res_buffer,
-																										defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_srv_desc	   = resource::create_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer,
+																									   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_uav_desc	   = resource::create_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer,
+																									   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer,
+																												 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
 
-			gibs_data_gpu.h_gi_resolve_full_res_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
-			gibs_data_gpu.h_gi_resolve_full_res_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_irradiance_buffer_prev_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_srv_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_irradiance_buffer_prev_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_uav_desc);
+		}
+
+		{
+			gibs_data_cpu.h_gi_resolve_rr_geo_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r32g32_uint, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_rr_geo_buffer->set_name(L"gibs_gi_resolve_rr_geo_buffer");
+
+			gibs_data_cpu.h_gi_resolve_rr_geo_buffer_srv_desc		= resource::create_view(gibs_data_cpu.h_gi_resolve_rr_geo_buffer,
+																							defaults::srv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+			gibs_data_cpu.h_gi_resolve_rr_geo_buffer_uav_desc		= resource::create_view(gibs_data_cpu.h_gi_resolve_rr_geo_buffer,
+																							defaults::uav_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+			gibs_data_cpu.h_gi_resolve_rr_geo_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_rr_geo_buffer,
+																									  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+
+			// gibs_data_gpu.h_gi_resolve_rr_geo_buffer_curr_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_srv_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_geo_buffer_curr_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_uav_desc);
+		}
+
+		{
+			gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer = resource::create_committed_tex2d_uav(low_res, graphics::e::texture_format::r32g32_uint, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer->set_name(L"gibs_gi_resolve_rr_geo_alt_buffer");
+
+			gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_srv_desc		= resource::create_view(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer,
+																								defaults::srv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+			gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_uav_desc		= resource::create_view(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer,
+																								defaults::uav_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+			gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer,
+																										  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+
+			// gibs_data_gpu.h_gi_resolve_rr_geo_buffer_prev_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_srv_desc);
+			// gibs_data_gpu.h_gi_resolve_rr_geo_buffer_prev_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_uav_desc);
+		}
+
+		{
+			gibs_data_cpu.h_gi_resolve_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_buffer->set_name(L"gibs_gi_resolve_buffer");
+
+			gibs_data_cpu.h_gi_resolve_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
+																					 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_gi_resolve_buffer,
+																					 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_buffer,
+																							   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+
+			gibs_data_gpu.h_gi_resolve_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
+			gibs_data_gpu.h_gi_resolve_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
 		}
 
 		{
@@ -2946,15 +2985,30 @@ namespace age::graphics::render_pipeline
 		push_descriptor_deferred(gibs_data_cpu.h_cell_spawn_kill_buffer_uav_desc);
 		push_descriptor_deferred(gibs_data_cpu.h_cell_spawn_kill_buffer_clear_uav_desc);
 
-		resource::release_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_uav_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_low_res_buffer_clear_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_clear_uav_desc);
 
-		resource::release_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_uav_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_full_res_buffer_clear_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_clear_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_clear_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_clear_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_gi_resolve_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_uav_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_gi_resolve_buffer_clear_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_indirect_arg_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_indirect_arg_buffer_uav_desc);
@@ -3404,6 +3458,29 @@ namespace age::graphics::render_pipeline
 				gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_tile_radius = g::gibs_screen_tile_size * 0.7f * g::gibs_gi_resolve_scale / cam_to_screen_px_z;
 			}
 
+			if (gibs_gpu.is_alt_and_extra & 1)
+			{
+				gibs_gpu.h_gi_resolve_rr_geo_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_geo_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_geo_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_uav_desc);
+
+
+				gibs_gpu.h_gi_resolve_rr_irradiance_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_irradiance_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_irradiance_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_uav_desc);
+			}
+			else
+			{
+				gibs_gpu.h_gi_resolve_rr_geo_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_geo_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_geo_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_geo_alt_buffer_uav_desc);
+
+
+				gibs_gpu.h_gi_resolve_rr_irradiance_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_irradiance_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_srv_desc);
+				gibs_gpu.h_gi_resolve_rr_irradiance_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_rr_irradiance_alt_buffer_uav_desc);
+			}
+
 
 			// c_auto tan_half_fov = std::tan(main_cam_desc.perspective.fov_y * 0.5f);
 
@@ -3411,6 +3488,7 @@ namespace age::graphics::render_pipeline
 
 			h_mapping_static_buffer->upload(&gibs_gpu, sizeof(shared_type::gibs_data), g::gibs_data_offset);
 			h_mapping_static_buffer->upload(&gibs_lut_data_gpu, sizeof(shared_type::gibs_lut_data), g::gibs_lut_data_offset);
+
 
 			gibs_gpu.is_alt_and_extra ^= 1;
 		}
