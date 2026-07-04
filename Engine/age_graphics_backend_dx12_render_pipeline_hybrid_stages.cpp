@@ -689,13 +689,6 @@ namespace age::graphics::render_pipeline
 		p_pso_build_cdf = graphics::g::pso_ptr_vec[h_pso_build_cdf];
 		h_pso_build_cdf.set_name(L"pso_gibs_build_cdf");
 
-		h_pso_radiance_sharing = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gibs_radiance_sharing_cs) });
-
-		p_pso_radiance_sharing = graphics::g::pso_ptr_vec[h_pso_radiance_sharing];
-		h_pso_radiance_sharing.set_name(L"pso_gibs_radiance_sharing");
-
 		h_pso_gi_resolve = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gibs_gi_resolve_cs) });
@@ -924,7 +917,6 @@ namespace age::graphics::render_pipeline
 		pso::destroy(h_pso_cell_surfel_scatter);
 		pso::destroy(h_pso_ray_trace);
 		pso::destroy(h_pso_ray_integrate);
-		pso::destroy(h_pso_radiance_sharing);
 		pso::destroy(h_pso_build_cdf);
 		pso::destroy(h_pso_gi_resolve);
 		pso::destroy(h_pso_gi_upscale);

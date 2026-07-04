@@ -200,9 +200,6 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_build_cdf;
 		ID3D12PipelineState*  p_pso_build_cdf;
 
-		graphics::pso::handle h_pso_radiance_sharing;
-		ID3D12PipelineState*  p_pso_radiance_sharing;
-
 		graphics::pso::handle h_pso_gi_resolve;
 		ID3D12PipelineState*  p_pso_gi_resolve;
 
@@ -212,7 +209,6 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;
 
-		// active surfel curr
 		graphics::command_signature::handle h_cmd_sig;
 		ID3D12CommandSignature*				p_cmd_sig;
 
@@ -476,9 +472,21 @@ namespace age::graphics::render_pipeline
 		debug_stage				stage_debug;
 
 		resource_handle h_main_buffer;
+		rtv_desc_handle h_main_buffer_rtv_desc;
+		srv_desc_handle h_main_buffer_srv_desc;
+
 		resource_handle h_post_buffer;
+		rtv_desc_handle h_post_buffer_rtv_desc;
+		srv_desc_handle h_post_buffer_srv_desc;
+
 		resource_handle h_selection_outline_mask_buffer;
+		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
+		srv_desc_handle h_selection_outline_mask_buffer_srv_desc;
+
 		resource_handle h_debug_depth_buffer;
+		dsv_desc_handle h_debug_depth_buffer_dsv_desc;
+
+		srv_desc_handle h_env_light_brdf_lut;
 
 		resource_handle h_opaque_depth_buffer;
 		dsv_desc_handle h_opaque_depth_buffer_dsv_readonly_desc;
@@ -506,11 +514,6 @@ namespace age::graphics::render_pipeline
 		resource_handle h_motion_buffer;
 		rtv_desc_handle h_motion_buffer_rtv_desc;
 		srv_desc_handle h_motion_buffer_srv_desc;
-
-		rtv_desc_handle h_main_buffer_rtv_desc;
-		rtv_desc_handle h_post_buffer_rtv_desc;
-		rtv_desc_handle h_selection_outline_mask_buffer_rtv_desc;
-		dsv_desc_handle h_debug_depth_buffer_dsv_desc;
 
 		resource_handle h_scratch_buffer;
 		resource_handle h_light_bin_stage_buffer;
@@ -540,6 +543,8 @@ namespace age::graphics::render_pipeline
 		std::array<mapping_handle, global::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	   // readback
 
 		resource_handle h_rt_tlas_buffer;
+		srv_desc_handle h_rt_tlas_buffer_srv_desc;
+
 		resource_handle h_rt_tlas_scratch_buffer;
 
 		// global
@@ -595,15 +600,6 @@ namespace age::graphics::render_pipeline
 		binding_config_t::reg_t<1, 77>						   debug_object_data_buffer;
 		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
 		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
-
-		// bindless texture
-		srv_desc_handle h_main_buffer_srv_desc;
-		srv_desc_handle h_post_buffer_srv_desc;
-		srv_desc_handle h_rt_tlas_buffer_srv_desc;
-
-		srv_desc_handle h_env_light_brdf_lut;
-
-		srv_desc_handle h_selection_outline_mask_buffer_srv_desc;
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };

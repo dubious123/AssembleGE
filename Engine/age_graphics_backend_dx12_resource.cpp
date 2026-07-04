@@ -218,6 +218,16 @@ namespace age::graphics::resource
 	}
 
 	resource_handle
+	create_committed_buf_rt(uint64 byte_size) noexcept
+	{
+		return resource::create_committed(
+			{ .d3d12_resource_desc = defaults::resource_desc::buffer_rt(byte_size),
+			  .initial_layout	   = D3D12_BARRIER_LAYOUT_UNDEFINED,
+			  .heap_memory_kind	   = e::memory_kind::gpu_only,
+			  .has_clear_value	   = false });
+	}
+
+	resource_handle
 	create_committed_tex2d_uav(extent_2d<uint32> extent, graphics::e::texture_format e_format, D3D12_BARRIER_LAYOUT initial_layout, uint16 mip_level) noexcept
 	{
 		return resource::create_committed(
@@ -813,11 +823,20 @@ namespace age::graphics::resource
 		create_view(*g::resource_vec[h_resource].p_resource, h_desc, view_desc);
 	}
 
-	FORCE_INLINE void
-	create_view(const auto& h_desc, const auto& view_desc) noexcept
-		requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>)
+	// FORCE_INLINE void
+	// create_view(const auto& h_desc, const auto& view_desc) noexcept
+	//	requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>)
+	//{
+	//	g::p_main_device->CreateShaderResourceView(nullptr, &view_desc, h_desc.h_cpu);
+	// }
+
+	FORCE_INLINE decltype(auto)
+	create_view(const auto& view_desc) noexcept
+		requires(std::is_same_v<BARE_OF(view_desc), D3D12_SHADER_RESOURCE_VIEW_DESC>)
 	{
+		auto h_desc = pop_descriptor<srv_desc_handle>();
 		g::p_main_device->CreateShaderResourceView(nullptr, &view_desc, h_desc.h_cpu);
+		return h_desc;
 	}
 
 	FORCE_INLINE decltype(auto)

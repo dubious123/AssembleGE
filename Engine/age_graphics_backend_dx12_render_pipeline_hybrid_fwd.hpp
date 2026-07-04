@@ -422,6 +422,7 @@ namespace age::graphics::render_pipeline
 		bool lock_origin;
 
 		float3 origin;
+		float  outer_cell_size_factor;
 
 		resource_handle		  h_surfel_buffer;		 // surfel, geometry, msme, visibility, luminance
 		srv_desc_handle		  h_surfel_buffer_srv_desc;

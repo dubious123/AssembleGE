@@ -81,7 +81,6 @@ namespace age::graphics::e
 					hrp_gibs_ray_trace_cs,
 					hrp_gibs_ray_integrate_cs,
 					hrp_gibs_build_cdf_cs,
-					hrp_gibs_radiance_sharing_cs,
 					hrp_gibs_gi_resolve_cs,
 					hrp_gibs_gi_upscale_cs,
 					hrp_gibs_debug_draw_surfels_ps,

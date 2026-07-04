@@ -209,6 +209,9 @@ namespace age::graphics::resource
 	create_committed_buf_uav(uint64 byte_size) noexcept;
 
 	resource_handle
+	create_committed_buf_rt(uint64 byte_size) noexcept;
+
+	resource_handle
 	create_committed_tex2d_uav(extent_2d<uint32> extent, graphics::e::texture_format e_format,
 							   D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE,
 							   uint16				mip_level	   = 1u) noexcept;
@@ -338,9 +341,13 @@ namespace age::graphics::resource
 	FORCE_INLINE void
 	create_view(const graphics::resource_handle& h_resource, const auto& h_desc, const auto& view_desc) noexcept;
 
-	FORCE_INLINE void
-	create_view(const auto& h_desc, const auto& view_desc) noexcept
-		requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>);
+	// FORCE_INLINE void
+	// create_view(const auto& h_desc, const auto& view_desc) noexcept
+	//	requires(meta::is_not_same_v<BARE_OF(h_desc), resource_handle>);
+
+	FORCE_INLINE decltype(auto)
+	create_view(const auto& view_desc) noexcept
+		requires(std::is_same_v<BARE_OF(view_desc), D3D12_SHADER_RESOURCE_VIEW_DESC>);
 
 	FORCE_INLINE decltype(auto)
 	create_view(const resource_handle& h_resource, const auto& view_desc) noexcept;
