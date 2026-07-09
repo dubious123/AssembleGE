@@ -7,6 +7,7 @@
 #undef row_major
 #undef semantics
 #undef SHARED_TYPE
+#undef CONST
 
 #undef MAX_SELECTION_OUTLINE_THICKNESS
 #undef MAX_BLOOM_MIP_COUNT

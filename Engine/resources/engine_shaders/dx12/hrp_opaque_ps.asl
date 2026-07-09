@@ -1,13 +1,13 @@
 #include "hrp_common.asli"
 
-struct ps_out
-{
-	float4 color  sv_target_0;
-	float2 motion sv_target_1;
-};
+// struct ps_out
+//{
+//	float4 color  sv_target_0;
+//	float2 motion sv_target_1;
+// };
 
-ps_out
-main_ps(float4 pos sv_position)
+float4
+main_ps(float4 pos sv_position) sv_target_0
 {
 	const gibs_lut_data		   lut_data	 = gibs_load_gibs_lut_data();
 	const texture_2d<float>	   depth_tex = global_resource_buffer[opaque_depth_buffer_srv_id];
@@ -19,7 +19,7 @@ main_ps(float4 pos sv_position)
 	if (z_depth == 0.f)
 	{
 		discard;
-		return zero<ps_out>();
+		return zero<float4>();
 	}
 
 	const uint32 vis_packed = gbuffer[px].x;
@@ -100,7 +100,7 @@ main_ps(float4 pos sv_position)
 
 	else if (gibs_enabled())
 	{
-		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_full_res_buffer_srv_id];
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_curr_buffer_srv_id];
 
 		const float3 f_avg		 = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
 		const float3 irradiance	 = gi_resolve_buffer[px];
@@ -187,19 +187,16 @@ main_ps(float4 pos sv_position)
 
 	// return float4(c / 10.f, c / 100.f, c, 1.f);
 
-	// motion
-	const object_data obj_data_prev = load_object_prev_data(render_data.object_id);
+	//// motion
+	// const object_data obj_data_prev = load_object_prev_data(render_data.object_id);
 
-	// todo, maybe reconstruct prev_local_pos for skinning or animated object?
-	const float3 world_pos_prev = rotate(obj_data_prev.quaternion, local_pos * obj_data_prev.scale) + obj_data_prev.pos;
+	//// todo, maybe reconstruct prev_local_pos for skinning or animated object?
+	// const float3 world_pos_prev = rotate(obj_data_prev.quaternion, local_pos * obj_data_prev.scale) + obj_data_prev.pos;
 
-	const float3 ndc_prev		= world_to_ndc(view_proj_prev, world_pos_prev);
-	const float2 screen_uv_prev = ndc_xy_to_screen_uv(ndc_prev.xy);
+	// const float3 ndc_prev		= world_to_ndc(view_proj_prev, world_pos_prev);
+	// const float2 screen_uv_prev = ndc_xy_to_screen_uv(ndc_prev.xy);
 
-	const float2 motion = pos.xy * inv_backbuffer_size - screen_uv_prev;
+	// const float2 motion = pos.xy * inv_backbuffer_size - screen_uv_prev;
 
-	ps_out res;
-	res.color  = float4(lighting, 1.f);
-	res.motion = motion;
-	return res;
+	return float4(lighting, 1.f);
 }

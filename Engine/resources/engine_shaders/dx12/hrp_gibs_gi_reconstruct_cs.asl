@@ -1,0 +1,301 @@
+#include "hrp_common.asli"
+
+// float4
+// bilateral_upsample(int32_2 center_px, float center_depth, float3 center_normal)
+//{
+//	const gibs_data data = gibs_load_gibs_data();
+//
+//	uint32_2 extent_dst = uint32_2(backbuffer_size.x, backbuffer_size.y);
+//	uint32_2 extent_src = uint32_2(ceil(extent_dst.x, GIBS_GI_RESOLVE_SCALE), ceil(extent_dst.y, GIBS_GI_RESOLVE_SCALE));
+//
+//	texture_2d<float3> src_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
+//
+//	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+//	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+//
+//	float4 res = zero<float4>();
+//
+//	const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, center_depth);
+//
+//	const int32_2 center_offset = int32_2(GIBS_GI_RESOLVE_SCALE / 2, GIBS_GI_RESOLVE_SCALE / 2);
+//	const float2  base			= (float2(center_px) - float2(center_offset)) / GIBS_GI_RESOLVE_SCALE;
+//	const int32_2 base_i		= int32_2(floor(base));
+//
+//	const int32_2 src_px_00 = min(base_i + int32_2(0, 0), extent_src - 1);
+//	const int32_2 src_px_01 = min(base_i + int32_2(1, 0), extent_src - 1);
+//	const int32_2 src_px_10 = min(base_i + int32_2(0, 1), extent_src - 1);
+//	const int32_2 src_px_11 = min(base_i + int32_2(1, 1), extent_src - 1);
+//
+//	const int32_2 dst_px_00 = clamp(src_px_00 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+//	const int32_2 dst_px_01 = clamp(src_px_01 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+//	const int32_2 dst_px_10 = clamp(src_px_10 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+//	const int32_2 dst_px_11 = clamp(src_px_11 * GIBS_GI_RESOLVE_SCALE + center_offset, zero<int32_2>(), extent_dst - 1);
+//
+//	const float2 f = frac(base);
+//	// const float2 f		  = frac(float2(center_px) / GIBS_GI_RESOLVE_SCALE);
+//	const float2 ratio_00 = float2(1.f - f.x, 1.f - f.y);
+//	const float2 ratio_01 = float2(f.x, 1.f - f.y);
+//	const float2 ratio_10 = float2(1.f - f.x, f.y);
+//	const float2 ratio_11 = float2(f.x, f.y);
+//
+//	const float src_z_lin_00 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[dst_px_00]);
+//	const float src_z_lin_01 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[dst_px_01]);
+//	const float src_z_lin_10 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[dst_px_10]);
+//	const float src_z_lin_11 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[dst_px_11]);
+//
+//	const float3 src_normal_00 = decode_oct_snorm16(gbuffer[dst_px_00].y);
+//	const float3 src_normal_01 = decode_oct_snorm16(gbuffer[dst_px_01].y);
+//	const float3 src_normal_10 = decode_oct_snorm16(gbuffer[dst_px_10].y);
+//	const float3 src_normal_11 = decode_oct_snorm16(gbuffer[dst_px_11].y);
+//
+//	res += float4(src_buffer[src_px_00], 1.f) * calc_bilateral_weight(center_z_lin, center_normal, src_z_lin_00, src_normal_00, ratio_00);
+//	res += float4(src_buffer[src_px_01], 1.f) * calc_bilateral_weight(center_z_lin, center_normal, src_z_lin_01, src_normal_01, ratio_01);
+//	res += float4(src_buffer[src_px_10], 1.f) * calc_bilateral_weight(center_z_lin, center_normal, src_z_lin_10, src_normal_10, ratio_10);
+//	res += float4(src_buffer[src_px_11], 1.f) * calc_bilateral_weight(center_z_lin, center_normal, src_z_lin_11, src_normal_11, ratio_11);
+//
+//	return res;
+// }
+//
+// float4
+// bilateral_upsample(int32_2 center_px, int32_2 target_px)
+//{
+//	const gibs_data		 data		  = gibs_load_gibs_data();
+//	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+//	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+//
+//	const int32_2 extent_dst = int32_2(backbuffer_size.x, backbuffer_size.y);
+//	target_px				 = clamp(target_px, zero<int32_2>(), extent_dst - 1);
+//
+//	const float	 center_depth  = depth_buffer[center_px];
+//	const float	 center_z_lin  = calc_linear_z_reversed(cam_near_z, cam_far_z, center_depth);
+//	const float3 center_normal = decode_oct_snorm16(gbuffer[center_px].y);
+//
+//	const float	 target_depth  = depth_buffer[target_px];
+//	const float	 target_z_lin  = calc_linear_z_reversed(cam_near_z, cam_far_z, target_depth);
+//	const float3 target_normal = decode_oct_snorm16(gbuffer[target_px].y);
+//
+//	return bilateral_upsample(target_px, target_depth, target_normal) * calc_bilateral_weight(center_z_lin, center_normal, target_z_lin, target_normal);
+//	// return bilateral_upsample(target_px, center_depth, center_normal);
+// }
+//
+//// based on Jorge Jimenez SIGGRAPH 2014
+//// "Next Generation Post Processing in Call of Duty: Advanced Warfare"
+//// https://advances.realtimerendering.com/s2014/
+//[numthreads(16, 16, 1)] void
+// main_cs(uint32_3 thread_id sv_dispatch_thread_id)
+//
+//{
+//	const gibs_data data = gibs_load_gibs_data();
+//
+//	uint32_2 extent_dst = uint32_2(backbuffer_size.x, backbuffer_size.y);
+//
+//	if (thread_id.x >= extent_dst.x or thread_id.y >= extent_dst.y) { return; }
+//
+//	rw_texture_2d<float3> dst_buffer = global_resource_buffer[data.h_gi_resolve_buffer_uav_id];
+//
+//	texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+//
+//	// a - b - c
+//	// d - e - f
+//	// g - h - i
+//
+//	const int32_2 px_e = thread_id.xy;
+//	const int32_2 px_a = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_b = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 0, -GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_c = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_f = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, -GIBS_GI_RESOLVE_SCALE * 0);
+//	const int32_2 px_i = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_h = px_e + int32_2(+GIBS_GI_RESOLVE_SCALE * 0, +GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_g = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 1);
+//	const int32_2 px_d = px_e + int32_2(-GIBS_GI_RESOLVE_SCALE * 1, +GIBS_GI_RESOLVE_SCALE * 0);
+//
+//	const float4 col_e = bilateral_upsample(px_e, px_e);
+//	const float4 col_a = bilateral_upsample(px_e, px_a);
+//	const float4 col_b = bilateral_upsample(px_e, px_b);
+//	const float4 col_c = bilateral_upsample(px_e, px_c);
+//	const float4 col_f = bilateral_upsample(px_e, px_f);
+//	const float4 col_i = bilateral_upsample(px_e, px_i);
+//	const float4 col_h = bilateral_upsample(px_e, px_h);
+//	const float4 col_g = bilateral_upsample(px_e, px_g);
+//	const float4 col_d = bilateral_upsample(px_e, px_d);
+//
+//	const float4 res = col_e * 0.25 + (col_b + col_f + col_h + col_d) * 0.125 + (col_a + col_c + col_i + col_g) * 0.0625f;
+//
+//	// [ 1 - 2 - 1 ]
+//	// [ 2 - 4 - 2 ] / 16
+//	// [ 1 - 2 - 1 ]
+//
+//	float ao_res = 1.f;
+//	if (ao::enabled())
+//	{
+//		texture_2d<float4> ao_buffer = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
+//		ao_res						 = ao_buffer[thread_id.xy].x;
+//	}
+//
+//	if (res.w > 0)
+//	{
+//		dst_buffer[thread_id.xy] = res.xyz / res.w * ao_res;
+//	}
+//	// todo, add config
+//	else
+//	{
+//		texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+//		texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+//
+//		const float	 px_depth  = depth_buffer[thread_id.xy];
+//		const float3 px_normal = decode_oct_snorm16(gbuffer[thread_id.xy].y);
+//
+//		const float3 ndc	   = screen_px_to_ndc(thread_id.xy, px_depth, inv_backbuffer_size);
+//		const float3 world_pos = ndc_to_world(view_proj_inv, ndc);
+//
+//		const uint32 vis_packed = gbuffer[thread_id.xy].x;
+//		const uint32 render_id	= vis_packed & 0x01ffffff;
+//		const uint32 prim_id	= (vis_packed & 0xfe000000) >> (32u - 7u);
+//
+//		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
+//
+//		const float3 fallback_res = gibs_sample_screen_irradiance(thread_id.xy, render_data.object_id, world_pos, px_normal);
+//		dst_buffer[thread_id.xy]  = fallback_res * ao_res;
+//	}
+//	// else
+//	//{
+//	//	texture_2d<float3> src_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
+//
+//	//	const int32_2 extent_src = ceil(extent_dst.x, GIBS_GI_RESOLVE_SCALE);
+//	//	const int32_2 src_px	 = min(px_e / GIBS_GI_RESOLVE_SCALE, int32_2(extent_src) - 1);
+//
+//	//	dst_buffer[thread_id.xy] = src_buffer[src_px] * ao_res;
+//	//}
+//};
+
+// wave_size(32)
+//[numthreads(16, 16, 1)] void
+// main_cs(uint32_3 thread_id sv_dispatch_thread_id)
+//
+//{
+//	const gibs_data data = gibs_load_gibs_data();
+//
+//	const uint32_2 extent = uint32_2(backbuffer_size.x, backbuffer_size.y);
+//
+//	if (thread_id.x >= extent.x or thread_id.y >= extent.y) { return; }
+//
+//	const int32_2 px = int32_2(thread_id.xy);
+//
+//	rw_texture_2d<float3> dst_buffer	 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
+//	texture_2d<float3>	  irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
+//	texture_2d<uint32_2>  geo_src		 = global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+//
+//	const uint32_2 geo_curr = geo_src[px];
+//
+//	// sky
+//	if (all(geo_curr == uint32_2(0, 0x7fff0000)))
+//	{
+//		dst_buffer[px] = zero<float3>();
+//		return;
+//	}
+//
+//	const float3 px_normal_curr = decode_oct_snorm16(geo_curr.x);
+//
+//	const float px_depth_curr = f16tof32(geo_curr.y & 0xffff);
+//	const float ao_curr		  = f16tof32((geo_curr.y >> 16u) & 0x7fff);
+//	const float px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
+//
+//	float4 irradiance_sum = gibs_gather_neighbor_gi(irradiance_src, geo_src, px, px_z_lin_curr, px_normal_curr, extent);
+//
+//	const float3 irradiance = irradiance_sum.w > epsilon_1e4 ? irradiance_sum.xyz / irradiance_sum.w : irradiance_src[px];
+//
+//	dst_buffer[px] = irradiance * ao_curr;
+// }
+
+#define GS_TILE_SIZE (16 + 2 * GIBS_GI_RESOLVE_SCALE)
+
+groupshared uint32 gs_geo_x[GS_TILE_SIZE * GS_TILE_SIZE];
+groupshared uint32 gs_geo_y[GS_TILE_SIZE * GS_TILE_SIZE];
+groupshared float3 gs_irr[GS_TILE_SIZE * GS_TILE_SIZE];
+
+wave_size(32)
+[numthreads(16, 16, 1)] void
+main_cs(uint32_3 group_id			sv_group_id,
+		uint32_3 group_thread_id	sv_group_thread_id,
+		uint32_3 dispatch_thread_id sv_dispatch_thread_id)
+
+{
+	const gibs_data data = gibs_load_gibs_data();
+
+	const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
+
+	rw_texture_2d<float3> dst_buffer	 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
+	texture_2d<float3>	  irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
+	texture_2d<uint32_2>  geo_src		 = global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+
+	const int32_2 tile_offset = int32_2(group_id.xy) * 16 - int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+
+	const uint32 group_thread_id_flat = group_thread_id.x + group_thread_id.y * 16;
+
+	for (uint32 i = group_thread_id_flat; i < GS_TILE_SIZE * GS_TILE_SIZE; i += 16 * 16)
+	{
+		const int32_2  tap = clamp(tile_offset + int32_2(i % GS_TILE_SIZE, i / GS_TILE_SIZE), zero<int32_2>(), extent - 1);
+		const uint32_2 geo = geo_src[tap];
+
+		gs_geo_x[i] = geo.x;
+		gs_geo_y[i] = geo.y;
+		gs_irr[i]	= irradiance_src[tap];
+	}
+
+	group_memory_barrier_with_sync();
+
+	if (any(dispatch_thread_id.xy >= extent)) { return; }
+
+	const int32_2 px = int32_2(dispatch_thread_id.xy);
+
+	const int32_2 local		= group_thread_id.xy + int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+	const uint32  center_id = uint32(local.y * GS_TILE_SIZE + local.x);
+
+	const uint32 geo_curr_x = gs_geo_x[center_id];
+	const uint32 geo_curr_y = gs_geo_y[center_id];
+
+
+	// sky
+	if (geo_curr_x == 0u and geo_curr_y == 0x7fff0000u)
+	{
+		dst_buffer[px] = zero<float3>();
+		return;
+	}
+
+	const float3 px_normal_curr = decode_oct_snorm16(geo_curr_x);
+	const float	 px_depth_curr	= f16tof32(geo_curr_y & 0xffff);
+	const float	 ao_curr		= f16tof32((geo_curr_y >> 16u) & 0x7fff);
+	const float	 px_z_lin_curr	= calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
+
+	float4 res = zero<float4>();
+
+	for (int32 dy = -GIBS_GI_RESOLVE_SCALE; dy <= GIBS_GI_RESOLVE_SCALE; ++dy)
+	{
+		for (int32 dx = -GIBS_GI_RESOLVE_SCALE; dx <= GIBS_GI_RESOLVE_SCALE; ++dx)
+		{
+			const int32	 tap	   = (local.y + dy) * GS_TILE_SIZE + (local.x + dx);
+			const uint32 geo_tap_y = gs_geo_y[tap];
+
+			if ((geo_tap_y >> 31u) == 0u) { continue; }	   // invalid / sky
+
+			const float3 normal_tap = decode_oct_snorm16(gs_geo_x[tap]);
+			const float	 z_lin_tap	= calc_linear_z_reversed(cam_near_z, cam_far_z, f16tof32(geo_tap_y & 0xffff));
+			const float	 w			= calc_bilateral_weight(px_z_lin_curr, px_normal_curr, z_lin_tap, normal_tap, float2(1.f, 1.f));
+
+			res += float4(gs_irr[tap], 1.f) * w;
+		}
+	}
+
+	if (res.w > epsilon_1e4)
+	{
+		dst_buffer[px] = res.xyz / res.w * ao_curr;
+	}
+	else
+	{
+		dst_buffer[px] = gs_irr[center_id] * ao_curr;
+		// dst_buffer[px] = color_red.xyz;
+	}
+
+
+	// dst_buffer[px] = irradiance_src[px];
+}

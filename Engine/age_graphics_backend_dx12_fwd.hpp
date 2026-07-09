@@ -30,11 +30,11 @@ namespace age::graphics::e
 
 					hrp_gbuffer_prepass_opaque_as,
 					hrp_gbuffer_prepass_opaque_ms,
+					hrp_gbuffer_prepass_opaque_ps,
 
 					hrp_gbuffer_prepass_transparent_as,
 					hrp_gbuffer_prepass_transparent_ms,
-
-					hrp_gbuffer_prepass_ps,
+					hrp_gbuffer_prepass_transparent_ps,
 
 					hrp_segment_resolve_cs,
 
@@ -78,11 +78,14 @@ namespace age::graphics::e
 					hrp_gibs_ray_entry_cs,
 					hrp_gibs_tile_surfel_count_prefix_cs,
 					hrp_gibs_cell_surfel_count_prefix_cs,
+
+					hrp_gibs_gi_reproject_cs,
+
 					hrp_gibs_ray_trace_cs,
 					hrp_gibs_ray_integrate_cs,
 					hrp_gibs_build_cdf_cs,
 					hrp_gibs_gi_resolve_cs,
-					hrp_gibs_gi_upscale_cs,
+					hrp_gibs_gi_reconstruct_cs,
 					hrp_gibs_debug_draw_surfels_ps,
 
 					hrp_opaque_ps,

@@ -16,6 +16,7 @@ namespace age::graphics::render_pipeline
 
 		inline void
 		execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
+				rtv_desc_handle h_motion_buffer_rtv_desc,
 				dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
 				uint32			opaque_meshlet_count,
 				rtv_desc_handle h_transparent_gbuffer_rtv_desc,
@@ -191,6 +192,9 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_cell_surfel_scatter;
 		ID3D12PipelineState*  p_pso_cell_surfel_scatter;
 
+		graphics::pso::handle h_pso_gi_reproject;
+		ID3D12PipelineState*  p_pso_gi_reproject;
+
 		graphics::pso::handle h_pso_ray_trace;
 		ID3D12PipelineState*  p_pso_ray_trace;
 
@@ -203,8 +207,8 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_gi_resolve;
 		ID3D12PipelineState*  p_pso_gi_resolve;
 
-		graphics::pso::handle h_pso_gi_upscale;
-		ID3D12PipelineState*  p_pso_gi_upscale;
+		graphics::pso::handle h_pso_gi_reconstruct;
+		ID3D12PipelineState*  p_pso_gi_reconstruct;
 
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;
@@ -236,8 +240,7 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle h_main_buffer_rtv_desc,
-				rtv_desc_handle h_motion_buffer_rtv_desc) const noexcept;
+		execute(rtv_desc_handle h_main_buffer_rtv_desc) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -626,6 +629,7 @@ namespace age::graphics::render_pipeline
 		age::sparse_vector<camera_desc> camera_desc_vec;
 		age::sparse_vector<camera_data> camera_data_vec;
 		float4x4						main_cam_view_proj_prev;
+		float4x4						main_cam_view_proj_inv_prev;
 		t_camera_id						main_camera_id;
 
 		// bloom

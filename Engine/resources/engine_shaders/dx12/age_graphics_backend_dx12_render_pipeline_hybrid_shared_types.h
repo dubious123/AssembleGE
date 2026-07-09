@@ -12,8 +12,10 @@
 	#define row_major
 	#define semantics(...)
 	#define SHARED_TYPE shared_type::
+	#define CONST		const
 #else
 	#define SHARED_TYPE
+	#define CONST
 #endif
 
 #if !defined(AGE_SHADER)
@@ -344,16 +346,24 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_cell_spawn_kill_buffer_srv_id;
 		uint32 h_cell_spawn_kill_buffer_uav_id;
 
-		uint32 h_gi_resolve_low_res_buffer_srv_id;
-		uint32 h_gi_resolve_low_res_buffer_uav_id;
+		uint32 h_gi_resolve_rr_irradiance_prev_buffer_srv_id;
 
-		uint32 h_gi_resolve_full_res_buffer_srv_id;
-		uint32 h_gi_resolve_full_res_buffer_uav_id;
+		uint32 h_gi_resolve_rr_geo_prev_buffer_srv_id;
+
+		uint32 h_gi_resolve_rr_irradiance_curr_buffer_srv_id;
+		uint32 h_gi_resolve_rr_irradiance_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_rr_geo_curr_buffer_srv_id;
+		uint32 h_gi_resolve_rr_geo_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_prev_buffer_srv_id;
+		uint32 h_gi_resolve_curr_buffer_srv_id;
+		uint32 h_gi_resolve_curr_buffer_uav_id;
 
 		uint32 h_indirect_arg_buffer_uav_id;
 
 		bool
-		is_alt()
+		is_alt() CONST
 		{
 			return is_alt_and_extra & 1;
 		}
@@ -933,17 +943,18 @@ namespace age::graphics::render_pipeline::shared_type
 
 	cbuffer frame_data reg(b0)
 	{
-		row_major float4x4 view;			  // 64
-		row_major float4x4 view_proj;		  // 64
-		row_major float4x4 view_proj_inv;	  // 64
-		row_major float4x4 view_proj_prev;	  // 64
-		float3			   camera_pos;		  // 12
-		float			   time;			  // 4
+		row_major float4x4 view;				  // 64
+		row_major float4x4 view_proj;			  // 64
+		row_major float4x4 view_proj_inv;		  // 64
+		row_major float4x4 view_proj_prev;		  // 64
+		row_major float4x4 view_proj_inv_prev;	  // 64
+		float3			   camera_pos;			  // 12
+		float			   time;				  // 4
 
-		float4 frustum_planes[6];			  // 96
+		float4 frustum_planes[6];				  // 96
 
-		float2 inv_backbuffer_size;			  // 8
-		float2 backbuffer_size;				  // 8
+		float2 inv_backbuffer_size;				  // 8
+		float2 backbuffer_size;					  // 8
 
 		// todo, remove
 		float3 camera_forward;				  // 12
@@ -982,7 +993,7 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 motion_buffer_srv_id;
 		uint32 _;
 
-		uint32_4 extra[3 + 12];
+		uint32_4 extra[11];
 		// total: 256 * 3 bytes
 	};
 
@@ -1349,7 +1360,7 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
 
-#define GIBS_GI_RESOLVE_SCALE 5u
+#define GIBS_GI_RESOLVE_SCALE 5
 
 
 #define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)

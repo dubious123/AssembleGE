@@ -486,9 +486,193 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle		  h_gi_resolve_buffer_uav_desc;
 		clear_uav_desc_handle h_gi_resolve_buffer_clear_uav_desc;
 
+		resource_handle		  h_gi_resolve_alt_buffer;
+		srv_desc_handle		  h_gi_resolve_alt_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_alt_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_alt_buffer_clear_uav_desc;
+
 
 		resource_handle h_indirect_arg_buffer;
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;
+
+		// gi_resolve
+		const resource_handle&
+		h_gi_resolve_prev_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_buffer
+					 : h_gi_resolve_alt_buffer;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_prev_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_buffer_srv_desc
+					 : h_gi_resolve_alt_buffer_srv_desc;
+		}
+
+		// const uav_desc_handle&
+		// h_gi_resolve_prev_buffer_uav_desc() const
+		//{
+		//	return gibs_data_gpu.is_alt()
+		//			 ? h_gi_resolve_buffer_uav_desc
+		//			 : h_gi_resolve_alt_buffer_uav_desc;
+		// }
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_prev_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_buffer_clear_uav_desc
+					 : h_gi_resolve_alt_buffer_clear_uav_desc;
+		}
+
+		const resource_handle&
+		h_gi_resolve_curr_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_alt_buffer
+					 : h_gi_resolve_buffer;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_curr_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_alt_buffer_srv_desc
+					 : h_gi_resolve_buffer_srv_desc;
+		}
+
+		const uav_desc_handle&
+		h_gi_resolve_curr_buffer_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_alt_buffer_uav_desc
+					 : h_gi_resolve_buffer_uav_desc;
+		}
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_curr_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_alt_buffer_clear_uav_desc
+					 : h_gi_resolve_buffer_clear_uav_desc;
+		}
+
+		// gi_resolve_rr
+
+		const resource_handle&
+		h_gi_resolve_rr_geo_prev_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_buffer
+					 : h_gi_resolve_rr_geo_alt_buffer;
+		}
+
+		const resource_handle&
+		h_gi_resolve_rr_irradiance_prev_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_buffer
+					 : h_gi_resolve_rr_irradiance_alt_buffer;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_rr_geo_prev_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_buffer_srv_desc
+					 : h_gi_resolve_rr_geo_alt_buffer_srv_desc;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_rr_irradiance_prev_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_buffer_srv_desc
+					 : h_gi_resolve_rr_irradiance_alt_buffer_srv_desc;
+		}
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_rr_geo_prev_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_buffer_clear_uav_desc
+					 : h_gi_resolve_rr_geo_alt_buffer_clear_uav_desc;
+		}
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_rr_irradiance_prev_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_buffer_clear_uav_desc
+					 : h_gi_resolve_rr_irradiance_alt_buffer_clear_uav_desc;
+		}
+
+		const resource_handle&
+		h_gi_resolve_rr_geo_curr_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_alt_buffer
+					 : h_gi_resolve_rr_geo_buffer;
+		}
+
+		const resource_handle&
+		h_gi_resolve_rr_irradiance_curr_buffer() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_alt_buffer
+					 : h_gi_resolve_rr_irradiance_buffer;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_rr_geo_curr_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_alt_buffer_srv_desc
+					 : h_gi_resolve_rr_geo_buffer_srv_desc;
+		}
+
+		const srv_desc_handle&
+		h_gi_resolve_rr_irradiance_curr_buffer_srv_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_alt_buffer_srv_desc
+					 : h_gi_resolve_rr_irradiance_buffer_srv_desc;
+		}
+
+		const uav_desc_handle&
+		h_gi_resolve_rr_geo_curr_buffer_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_alt_buffer_uav_desc
+					 : h_gi_resolve_rr_geo_buffer_uav_desc;
+		}
+
+		const uav_desc_handle&
+		h_gi_resolve_rr_irradiance_curr_buffer_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_alt_buffer_uav_desc
+					 : h_gi_resolve_rr_irradiance_buffer_uav_desc;
+		}
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_rr_geo_curr_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_geo_alt_buffer_clear_uav_desc
+					 : h_gi_resolve_rr_geo_buffer_clear_uav_desc;
+		}
+
+		const clear_uav_desc_handle&
+		h_gi_resolve_rr_irradiance_curr_buffer_clear_uav_desc() const
+		{
+			return gibs_data_gpu.is_alt()
+					 ? h_gi_resolve_rr_irradiance_alt_buffer_clear_uav_desc
+					 : h_gi_resolve_rr_irradiance_buffer_clear_uav_desc;
+		}
 	};
 
 	struct ao_desc

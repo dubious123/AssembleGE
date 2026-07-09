@@ -144,7 +144,7 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 
 			const float ao = sample_ao(px, surface_data.world_pos, world_face_normal);
 
-			const float3 irradiance	 = ao * gibs_sample_screen_irradiance(px, render_data.object_id, surface_data.world_pos, world_face_normal);
+			const float3 irradiance	 = ao * gibs_sample_screen_irradiance(px, invalid_id_uint32, surface_data.world_pos, world_face_normal);
 			const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
 			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
 

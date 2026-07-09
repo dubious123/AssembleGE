@@ -33,7 +33,7 @@ main_ps(float4 pos sv_position) sv_target_0
 
 			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
 			texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
-			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
+			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 			const float			 z_depth		   = load(depth_buffer, screen_pos);
 			const float3		 px_normal		   = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
 
@@ -101,7 +101,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 		else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
 		{
-			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
+			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 			float2			   uv		  = (debug_uv - float2(0.5f, 0.f)) * 4;
 			// font_uv.y	   = 1.f - font_uv.y;
 			col = sample_level(gi_resolve, get_linear_clamp_sampler(), uv, 0);
@@ -128,25 +128,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 	}
 	// else
-	//{
-	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
-	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-	//	{
-	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-	//		int32_2 screen_pos = uv * backbuffer_size;
 
-	//		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
-
-	//		float2 motion = motion_buffer[screen_pos];
-
-	//		float2 m = motion * 100;
-	//		col		 = float3(m * 0.5f + 0.5f, 0.5f);
-
-	//		// col = motion.xyz;
-	//		// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
-	//		// col = float3(motion.x, motion.x, motion.x);
-	//	}
-	//}
 	// else
 	{
 		float2 debug_uv = pos.xy * inv_backbuffer_size;
@@ -181,6 +163,54 @@ main_ps(float4 pos sv_position) sv_target_0
 		//	col = px_normal;
 		//}
 	}
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2 screen_pos = uv * backbuffer_size;
+
+			const gibs_data		 data			= gibs_load_gibs_data();
+			texture_2d<float3>	 irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
+			texture_2d<uint32_2> geo_src		= global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+
+			// texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
+			// texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+			// const float			 z_depth	  = load(depth_buffer, screen_pos);
+
+			const uint32_2 geo = geo_src[screen_pos];
+
+			const float3 px_normal_curr = decode_oct_snorm16(geo.x);
+			const float	 px_z_lin_curr	= f16tof32(geo.y & 0xffff);
+			const float	 ao_curr		= f16tof32(geo.y >> 16u);
+
+			const float3 px_normal = max(float3(0, 0, 0), px_normal_curr);
+
+			col = px_normal;
+
+			col = irradiance_src[screen_pos];
+		}
+	}
+
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
+
+	//		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+
+	//		float2 motion = motion_buffer[screen_pos];
+
+	//		float2 m = motion * 100;
+	//		col		 = float3(m * 0.5f + 0.5f, 0.5f);
+
+	//		// col = motion.xyz;
+	//		// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
+	//		// col = float3(motion.x, motion.x, motion.x);
+	//	}
+	//}
 
 
 	// col = tonemap_reinhard_luminance(col, 4.0);

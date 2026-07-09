@@ -1,24 +1,24 @@
 #include "hrp_common.asli"
 
-struct gibs_depth_ms_out
+struct hrp_gbuffer_transparent_ms_out
 {
 	float4 pos						 sv_position;
 	float3 normal					 semantics(normal);
-	nointerpolation uint32 object_id semantics(object_id);
+	nointerpolation uint32 render_id semantics(render_id);
 };
 
-struct gibs_prim_ms_out
+struct hrp_gbuffer_transparent_ms_prim_out
 {
 	uint32 prim_id sv_primitive_id;
 };
 
 [numthreads(32, 1, 1)][output_topology("triangle")] void
-main_ms(in payload transparent_as_to_ms ms_in,
-		uint32_3 group_id				sv_group_id,
-		uint32_3 group_thread_id		sv_group_thread_id,
-		out vertices gibs_depth_ms_out	ms_out_vertex_arr[64],
-		out primitives gibs_prim_ms_out ms_out_prim_arr[126],
-		out indices uint32_3			ms_out_triangle_arr[126])
+main_ms(in payload transparent_as_to_ms					   ms_in,
+		uint32_3 group_id								   sv_group_id,
+		uint32_3 group_thread_id						   sv_group_thread_id,
+		out vertices hrp_gbuffer_transparent_ms_out		   ms_out_vertex_arr[64],
+		out primitives hrp_gbuffer_transparent_ms_prim_out ms_out_prim_arr[126],
+		out indices uint32_3							   ms_out_triangle_arr[126])
 
 {
 	const uint32 meshlet_count_per_group			= 32;
@@ -50,7 +50,7 @@ main_ms(in payload transparent_as_to_ms ms_in,
 		ms_out_vertex_arr[nth_vertex].pos	 = mul(view_proj, v.pos);
 		ms_out_vertex_arr[nth_vertex].normal = normalize(rotate(quaternion, v.normal / scale));
 		// ms_out_vertex_arr[nth_vertex].object_id = render_data.object_id;
-		ms_out_vertex_arr[nth_vertex].object_id = meshlet_render_data_id;
+		ms_out_vertex_arr[nth_vertex].render_id = meshlet_render_data_id;
 	}
 
 	expand(4)

@@ -1340,6 +1340,84 @@ calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_l
 }
 
 float3
+gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
+{
+	const gibs_data				data				  = gibs_load_gibs_data();
+	byte_array<gibs_tile_entry> tile_entry_arr		  = gibs_load_tile_entry_arr(data);
+	byte_array<uint32>			tile_to_surfel_id_arr = gibs_load_tile_to_surfel_id_arr(data);
+	byte_array<surfel>			surfel_arr			  = gibs_load_surfel_arr(data);
+
+	const float2		  px_low_res = px / GIBS_GI_RESOLVE_SCALE;
+	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px_low_res / GIBS_SCREEN_TILE_SIZE));
+	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
+
+	float  max_contribution			  = 0.f;
+	uint32 max_contribution_surfel_id = invalid_id_uint32;
+	float4 radiance_shared			  = (float4)0;
+
+	for (uint32 i = 0; i < min(512, tile_entry.surfel_count()); ++i)
+	{
+		const uint32 surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
+		const surfel surfel	   = surfel_arr[surfel_id];
+
+		assert(surfel.surfel_seen(), g::fmt_gibs_gi_resolve, line);
+
+		const float contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
+
+		const float3 surfel_radiance = decode_r11g11b10(surfel.radiance_r11g11b10);
+
+		assert(is_nan(surfel_radiance) is_false, g::fmt_gibs_gi_resolve, line);
+
+		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
+
+		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+
+		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
+
+		// coverage += contribution;
+
+		radiance_shared += float4(surfel_radiance, 1.f)
+						 * fallback_contribution
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
+						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		if (contribution > 0.f and max_contribution < contribution)
+		{
+			max_contribution		   = contribution;
+			max_contribution_surfel_id = surfel_id;
+		}
+	}
+
+	if (radiance_shared.w > 0.f)
+	{
+		radiance_shared.xyz /= radiance_shared.w;
+		return radiance_shared.xyz;
+	}
+	else
+	{
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+
+		// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
+		const float3 col_res = gi_resolve_buffer[px];
+
+		attr_branch()
+
+		if (((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0) and object_id != invalid_id_uint32)
+		{
+			const object_data obj = load_object_data(object_id);
+
+			gibs_set_tile_surfel_spawn(data,
+									   tile_id,
+									   object_id,
+									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
+									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
+									   encode_r11g11b10(col_res));
+		}
+		return col_res;
+	}
+}
+
+float3
 gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_pos, float3 normal)
 {
 	const gibs_data		data	 = gibs_load_gibs_data();
@@ -1360,7 +1438,7 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 	{
 		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
 		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
-		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_full_res_buffer_srv_id];
+		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 		const float			 z_depth		   = load(depth_buffer, screen_pos);
 		const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
 
@@ -1368,9 +1446,9 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 							 and ndc.z >= (z_depth - epsilon_1e4)	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
 							 and dot(px_normal, normal) > 0.9f;
 
+
 		if (surfel_seen)
 		{
-			// return sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), ndc_xy_to_screen(ndc.xy, backbuffer_size), 0);
 			return gi_resolve_buffer[screen_pos];
 		}
 
@@ -1498,81 +1576,43 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 	return float3(0, 0, 0);
 }
 
-float3
-gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
+uint32_2
+gibs_calc_rr_offset(int32_2 block_px, uint32_2 backbuffer_extent, uint32 frame_idx)
 {
-	const gibs_data				data				  = gibs_load_gibs_data();
-	byte_array<gibs_tile_entry> tile_entry_arr		  = gibs_load_tile_entry_arr(data);
-	byte_array<uint32>			tile_to_surfel_id_arr = gibs_load_tile_to_surfel_id_arr(data);
-	byte_array<surfel>			surfel_arr			  = gibs_load_surfel_arr(data);
+	const int32_2 block_extent = min(int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE), int32_2(backbuffer_extent) - block_px);
 
-	const float2		  px_low_res = px / GIBS_GI_RESOLVE_SCALE;
-	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px_low_res / GIBS_SCREEN_TILE_SIZE));
-	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
+	const uint32 rr_phase = frame_idx % uint32(block_extent.x * block_extent.y);
 
-	float  max_contribution			  = 0.f;
-	uint32 max_contribution_surfel_id = invalid_id_uint32;
-	float4 radiance_shared			  = (float4)0;
+	return uint32_2(rr_phase % uint32(block_extent.x), rr_phase / uint32(block_extent.x));
+}
 
-	for (uint32 i = 0; i < min(512, tile_entry.surfel_count()); ++i)
+float4
+gibs_gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float center_z_lin, float3 center_n, int32_2 extent)
+{
+	float4 res = zero<float4>();
+
+	const int32_2 r = int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+
+	for (int32 dy = -r.y; dy <= r.y; ++dy)
 	{
-		const uint32 surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
-		const surfel surfel	   = surfel_arr[surfel_id];
-
-		assert(surfel.surfel_seen(), g::fmt_gibs_gi_resolve, line);
-
-		const float contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
-
-		const float3 surfel_radiance = decode_r11g11b10(surfel.radiance_r11g11b10);
-
-		assert(is_nan(surfel_radiance) is_false, g::fmt_gibs_gi_resolve, line);
-
-		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
-
-		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
-
-		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
-
-		// coverage += contribution;
-
-		radiance_shared += float4(surfel_radiance, 1.f)
-						 * fallback_contribution
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
-
-		if (contribution > 0.f and max_contribution < contribution)
+		for (int32 dx = -r.x; dx <= r.x; ++dx)
 		{
-			max_contribution		   = contribution;
-			max_contribution_surfel_id = surfel_id;
+			const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+			const uint32_2 geo_tap		 = geo_src[tap];
+			const float3   px_normal_tap = decode_oct_snorm16(geo_tap.x);
+			const float	   px_depth_tap	 = f16tof32(geo_tap.y & 0xffff);
+
+			const bool is_valid = (geo_tap.y >> 31u) & 1u;
+
+			if (is_valid is_false) { continue; }
+
+			const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
+
+			const float w = calc_bilateral_weight(center_z_lin, center_n, px_z_lin_tap, px_normal_tap, float2(1.f, 1.f));
+
+			res += float4(irr_src[tap], 1.f) * w;
 		}
 	}
 
-	if (radiance_shared.w > 0.f)
-	{
-		radiance_shared.xyz /= radiance_shared.w;
-		return radiance_shared.xyz;
-	}
-	else
-	{
-		texture_2d<float3> gi_low_res_buffer = global_resource_buffer[data.h_gi_resolve_low_res_buffer_srv_id];
-
-		const float3 col_res = sample_level(gi_low_res_buffer, get_linear_clamp_sampler(), px_low_res * inv_backbuffer_size, 0);
-
-		attr_branch()
-
-		if (((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0) and false)
-		{
-			assert(object_id != invalid_id_uint32, g::fmt_gibs, line);
-			const object_data obj = load_object_data(object_id);
-
-			gibs_set_tile_surfel_spawn(data,
-									   tile_id,
-									   object_id,
-									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
-									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
-									   encode_r11g11b10(col_res));
-		}
-
-		return col_res;
-	}
+	return res;
 }
