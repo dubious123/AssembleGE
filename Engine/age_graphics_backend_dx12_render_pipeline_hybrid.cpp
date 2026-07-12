@@ -2879,42 +2879,42 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_curr_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_curr_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			gibs_data_cpu.h_gi_resolve_curr_buffer->set_name(L"gibs_gi_resolve_curr_buffer");
 
 			gibs_data_cpu.h_gi_resolve_curr_buffer_srv_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_curr_buffer,
-																						  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																						  defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			gibs_data_cpu.h_gi_resolve_curr_buffer_uav_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_curr_buffer,
-																						  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																						  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			gibs_data_cpu.h_gi_resolve_curr_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_curr_buffer,
-																									defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																									defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			gibs_data_gpu.h_gi_resolve_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_curr_buffer_srv_desc);
 			gibs_data_gpu.h_gi_resolve_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_curr_buffer_uav_desc);
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_prev_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_prev_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			gibs_data_cpu.h_gi_resolve_prev_buffer->set_name(L"gibs_gi_resolve_prev_buffer");
 
 			gibs_data_cpu.h_gi_resolve_prev_buffer_srv_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_prev_buffer,
-																						  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																						  defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			gibs_data_cpu.h_gi_resolve_prev_buffer_uav_desc		  = resource::create_view(gibs_data_cpu.h_gi_resolve_prev_buffer,
-																						  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																						  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			gibs_data_cpu.h_gi_resolve_prev_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_gi_resolve_prev_buffer,
-																									defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																									defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			gibs_data_gpu.h_gi_resolve_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_prev_buffer_srv_desc);
 		}
 
 		{
-			gibs_data_cpu.h_gi_resolve_scratch_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			gibs_data_cpu.h_gi_resolve_scratch_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			gibs_data_cpu.h_gi_resolve_scratch_buffer->set_name(L"gibs_gi_resolve_scratch_buffer");
 
 			gibs_data_cpu.h_gi_resolve_scratch_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_gi_resolve_scratch_buffer,
-																					   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																					   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			gibs_data_cpu.h_gi_resolve_scratch_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_gi_resolve_scratch_buffer,
-																					   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+																					   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 		}
 
 		{

@@ -250,14 +250,6 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	}
 
 	dst_buffer[px] = res.xyz;
-
-
-	if (thread_id.x == 0u and thread_id.y == 0u)
-	{
-		const uint32 encoded = encode_r11g11b10(float3(1, 1, 1));
-		const float3 decoded = decode_r11g11b10(encoded);
-		debug_log(g::fmt_gibs, line, decoded);
-	}
 }
 
 // #define GS_TILE_SIZE (16 + 2 * GIBS_GI_RESOLVE_SCALE)

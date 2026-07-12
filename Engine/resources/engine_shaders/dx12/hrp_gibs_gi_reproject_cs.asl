@@ -66,10 +66,10 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	texture_2d<uint32_2> gbuffer	   = global_resource_buffer[opaque_gbuffer_srv_id];
 	texture_2d<float2>	 motion_buffer = global_resource_buffer[motion_buffer_srv_id];
 
-	// const float2 motion = sample_motion(motion_buffer, depth_buffer, px, extent_dst);
+	float2 motion = sample_motion(motion_buffer, depth_buffer, px, extent_dst);
 	// const float2 motion = motion_buffer[px];
 
-	float2 motion = motion_buffer[px];
+	// float2 motion = motion_buffer[px];
 	if (dot(motion, motion) < 0.01f * 0.01f) { motion = float2(0, 0); }
 	// const float2 motion = zero<float2>();
 
