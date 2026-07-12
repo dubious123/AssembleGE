@@ -298,6 +298,21 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 	};
 
+	struct gibs_gi_resolve_cell
+	{
+		uint32 irradiance_r11g11b10;
+		uint16 sample_px;	 // local, full_px = cell_px + sample_px
+		half   coverage;
+		uint32 normal_oct_snorm16;
+		float  z_lin;
+
+		int32_2
+		get_sample_px() CONST
+		{
+			return int32_2(sample_px & 0xff, (sample_px & 0xff00) >> 8u);
+		}
+	};
+
 	struct gibs_indirect_arg
 	{
 		uint32_3 arg_surfel_update;
@@ -346,19 +361,20 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_cell_spawn_kill_buffer_srv_id;
 		uint32 h_cell_spawn_kill_buffer_uav_id;
 
-		uint32 h_gi_resolve_rr_irradiance_prev_buffer_srv_id;
+		uint32 h_gi_resolve_age_prev_buffer_srv_id;
+		uint32 h_gi_resolve_age_curr_buffer_srv_id;
+		uint32 h_gi_resolve_age_curr_buffer_uav_id;
 
-		uint32 h_gi_resolve_rr_geo_prev_buffer_srv_id;
-
-		uint32 h_gi_resolve_rr_irradiance_curr_buffer_srv_id;
-		uint32 h_gi_resolve_rr_irradiance_curr_buffer_uav_id;
-
-		uint32 h_gi_resolve_rr_geo_curr_buffer_srv_id;
-		uint32 h_gi_resolve_rr_geo_curr_buffer_uav_id;
+		uint32 h_gi_resolve_geo_prev_buffer_srv_id;
+		uint32 h_gi_resolve_geo_curr_buffer_srv_id;
+		uint32 h_gi_resolve_geo_curr_buffer_uav_id;
 
 		uint32 h_gi_resolve_prev_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_cell_buffer_srv_id;
+		uint32 h_gi_resolve_cell_buffer_uav_id;
 
 		uint32 h_indirect_arg_buffer_uav_id;
 
@@ -1003,16 +1019,21 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32			   directional_light_count_and_extra;	 // 4 bytes [directional_light(8)][transparent_meshlet_render_data_count(24)]
 		t_unified_light_id unified_light_count;					 // 4 btyes
 
-		uint32 radix_sort_pass;
-		uint32 ui_space_mode_and_extra;							 // [ui_space_mode(8)][extra]
-		uint32 ui_root_data_idx;
-		uint32 ui_data_id_offset;
-		uint32 ui_data_count;
+		uint32 rc_scratch_0;									 // pass_counter  (light, radix sort),
+																 // step_and_is_last  (gibs_reconstruct)
+																 // srv mip level (bloom, target_mip == src_mip + 1 or src_mip - 1)
+																 // ui_space_mode_and_extra, [ui_space_mode(8)][extra] (ui)
+																 // debug_meshlet_render_data_offset (debug)
 
-		uint32 debug_meshlet_render_data_offset;
-		uint32 debug_meshlet_render_data_count;
+		uint32 rc_scratch_1;									 // src_srv_id  (gibs_reconstruct)
+																 // ui_root_data_idx  (ui)
+																 // debug_meshlet_render_data_count  (debug)
 
-		uint32 bloom_mip_level_and_extra;	 // src_mip, target_mip == src_mip + 1 or src_mip - 1
+		uint32 rc_scratch_2;									 // dst_uav_id  (gibs_reconstruct)
+																 // ui_data_id_offset
+
+
+		uint32 rc_scratch_3;									 // ui_data_count
 	};
 #if !defined(AGE_SHADER)
 }	 // namespace age::graphics::render_pipeline::shared_type
@@ -1021,12 +1042,18 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 	//---[ configs, extra ]------------------------------------------------------------------------------------------------------
+#define AGE_WAVE_SIZE 32
+
 #define MAX_SELECTION_OUTLINE_THICKNESS 2
 #define MAX_UV_COUNT					2
 #define MAX_RAY_HIT						8
 #define ENABLE_SHADER_DEBUG_ASSERT		true
 #define DEBUG_ASSERT_BUFFER_BYTE_SIZE	((1u << 20) * sizeof(uint32))
+#if !defined(AGE_SHADER)
+	inline constexpr auto wave_size = AGE_WAVE_SIZE;
 
+	static_assert(wave_size % 16 == 0);
+#endif
 
 	// bloom
 #if !defined(AGE_SHADER)
@@ -1344,7 +1371,7 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
 
 #define GIBS_MAX_OUTER_LAYER_COUNT	  16u
-#define GIBS_SCREEN_TILE_SIZE		  8u
+#define GIBS_SCREEN_TILE_SIZE		  16u
 #define GIBS_SCREEN_GROUP_SHARED_SIZE (GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE / 32)
 
 #define GIBS_SPAWN_COVERAGE	   1.f
@@ -1361,6 +1388,10 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
 
 #define GIBS_GI_RESOLVE_SCALE 5
+
+#define GIBS_GI_RESOLVE_CELL_DIM		 4u
+#define GIBS_GI_RESOLVE_SAMPLES_PER_CELL (AGE_WAVE_SIZE / (GIBS_GI_RESOLVE_CELL_DIM * GIBS_GI_RESOLVE_CELL_DIM))
+#define GIBS_GI_RESOLVE_CELL_SIZE		 (GIBS_SCREEN_TILE_SIZE * GIBS_GI_RESOLVE_SCALE / int32(GIBS_GI_RESOLVE_CELL_DIM))
 
 
 #define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)

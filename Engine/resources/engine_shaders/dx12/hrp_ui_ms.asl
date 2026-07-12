@@ -11,6 +11,10 @@ main_ms(
 	out indices uint32_3	 triangle_arr[64])
 
 {
+	const uint32 ui_space_mode_and_extra = rc_scratch_0;
+	const uint32 ui_data_id_offset		 = rc_scratch_2;
+	const uint32 ui_data_count			 = rc_scratch_3;
+
 	const uint32 ui_data_id = ui_data_id_offset + group_id * 32 + group_thread_id;
 	const uint32 valid		= group_id * 32 + group_thread_id < ui_data_count;
 

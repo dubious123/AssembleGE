@@ -98,9 +98,10 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(uint32			unified_light_count,
-				resource_handle h_light_bin_stage_buffer,
-				resource_handle h_scratch_buffer) const noexcept;
+		execute(binding_config_t::reg_b<1>& constants,
+				uint32						unified_light_count,
+				resource_handle				h_light_bin_stage_buffer,
+				resource_handle				h_scratch_buffer) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -207,6 +208,9 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_gi_resolve;
 		ID3D12PipelineState*  p_pso_gi_resolve;
 
+		graphics::pso::handle h_pso_gi_scatter;
+		ID3D12PipelineState*  p_pso_gi_scatter;
+
 		graphics::pso::handle h_pso_gi_reconstruct;
 		ID3D12PipelineState*  p_pso_gi_reconstruct;
 
@@ -220,8 +224,9 @@ namespace age::graphics::render_pipeline
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(const gibs_data&  gibs_data_cpu,
-				extent_2d<uint16> main_buffer_extent) const noexcept;
+		execute(const gibs_data&			gibs_data_cpu,
+				binding_config_t::reg_b<1>& constants,
+				extent_2d<uint16>			main_buffer_extent) const noexcept;
 
 
 		inline void

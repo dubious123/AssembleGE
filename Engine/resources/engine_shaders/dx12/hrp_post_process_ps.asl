@@ -130,6 +130,8 @@ main_ps(float4 pos sv_position) sv_target_0
 	// else
 
 	// else
+
+	if (gibs_enabled())
 	{
 		float2 debug_uv = pos.xy * inv_backbuffer_size;
 		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
@@ -148,6 +150,7 @@ main_ps(float4 pos sv_position) sv_target_0
 			col += aa_tex[pos.xy].xyz;
 		}
 	}
+	if (gibs_enabled())
 	{
 		// float2 debug_uv = pos.xy * inv_backbuffer_size;
 		// if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
@@ -163,6 +166,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		//	col = px_normal;
 		//}
 	}
+	if (gibs_enabled())
 	{
 		float2 debug_uv = pos.xy * inv_backbuffer_size;
 		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
@@ -170,15 +174,15 @@ main_ps(float4 pos sv_position) sv_target_0
 			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
 			int32_2 screen_pos = uv * backbuffer_size;
 
-			const gibs_data		 data			= gibs_load_gibs_data();
-			texture_2d<float3>	 irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
-			texture_2d<uint32_2> geo_src		= global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+			const gibs_data		 data				   = gibs_load_gibs_data();
+			texture_2d<uint32_2> gi_resolve_geo_buffer = global_resource_buffer[data.h_gi_resolve_geo_curr_buffer_srv_id];
+			texture_2d<uint32>	 gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
 
 			// texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
 			// texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
 			// const float			 z_depth	  = load(depth_buffer, screen_pos);
 
-			const uint32_2 geo = geo_src[screen_pos];
+			const uint32_2 geo = gi_resolve_geo_buffer[screen_pos];
 
 			const float3 px_normal_curr = decode_oct_snorm16(geo.x);
 			const float	 px_z_lin_curr	= f16tof32(geo.y & 0xffff);
@@ -187,8 +191,9 @@ main_ps(float4 pos sv_position) sv_target_0
 			const float3 px_normal = max(float3(0, 0, 0), px_normal_curr);
 
 			col = px_normal;
+			col = color_red.xyz * (gi_resolve_age_buffer[screen_pos] / 16.f);
 
-			col = irradiance_src[screen_pos];
+			// col = ((geo.y >> 31u) & 1u) ? color_green.xyz : color_red.xyz;
 		}
 	}
 
@@ -203,15 +208,19 @@ main_ps(float4 pos sv_position) sv_target_0
 
 	//		float2 motion = motion_buffer[screen_pos];
 
-	//		float2 m = motion * 100;
-	//		col		 = float3(m * 0.5f + 0.5f, 0.5f);
+	//		float2 m = max(motion, 0.f);
+	//		col		 = float3(m * 10000000.f, 0);
 
+	//		// col		 = float3(m * 0.5f + 0.5f, 0.5f);
 	//		// col = motion.xyz;
 	//		// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
 	//		// col = float3(motion.x, motion.x, motion.x);
 	//	}
 	//}
 
+	// texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_age_curr_buffer_srv_id];
+
+	// col = color_red.xyz * gi_resolve_age_buffer[int32_2(pos.xy)] / 16.f;
 
 	// col = tonemap_reinhard_luminance(col, 4.0);
 	col = tonemap_aces_hill_hdr(col, 4.0);

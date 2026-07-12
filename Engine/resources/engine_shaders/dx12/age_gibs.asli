@@ -431,6 +431,18 @@ gibs_load_tile_to_surfel_id_rw_arr(const gibs_data data)
 	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
 }
 
+rw_array<gibs_gi_resolve_cell>
+gibs_load_gi_resolve_cell_rw_arr(const gibs_data data)
+{
+	return rw_array<gibs_gi_resolve_cell>::init(global_resource_buffer[data.h_gi_resolve_cell_buffer_uav_id], data.tile_count_total * AGE_WAVE_SIZE);
+}
+
+array<gibs_gi_resolve_cell>
+gibs_load_gi_resolve_cell_arr(const gibs_data data)
+{
+	return array<gibs_gi_resolve_cell>::init(global_resource_buffer[data.h_gi_resolve_cell_buffer_srv_id], data.tile_count_total * AGE_WAVE_SIZE);
+}
+
 //---[ tile spawn kill ]---
 void
 gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_idx_flat, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
@@ -1600,11 +1612,9 @@ gibs_gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src
 			const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
 			const uint32_2 geo_tap		 = geo_src[tap];
 			const float3   px_normal_tap = decode_oct_snorm16(geo_tap.x);
-			const float	   px_depth_tap	 = f16tof32(geo_tap.y & 0xffff);
+			const float	   px_depth_tap	 = as_float(geo_tap.y);
 
-			const bool is_valid = (geo_tap.y >> 31u) & 1u;
-
-			if (is_valid is_false) { continue; }
+			if (geo_tap.y == 0) { continue; }
 
 			const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
 

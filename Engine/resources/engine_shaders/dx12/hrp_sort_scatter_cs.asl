@@ -9,10 +9,12 @@ groupshared uint32 gs_generic[SORT_THREAD_COUNT];
 groupshared uint32 local_histogram[SORT_BIN_COUNT];
 
 [numthreads(SORT_THREAD_COUNT, 1, 1)] void
-main_cs(uint32 group_id sv_group_id,
+main_cs(uint32 group_id	 sv_group_id,
 		uint32 thread_id sv_group_thread_id)
 
 {
+	const uint32 radix_sort_pass = rc_scratch_0;
+
 	if (thread_id < SORT_BIN_COUNT)
 	{
 		const uint32 group_local_bin_offset = load_sort_histogram(thread_id * SORT_GROUP_COUNT + group_id);

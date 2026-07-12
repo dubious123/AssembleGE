@@ -11,6 +11,8 @@ main_as(
 {
 	const uint32 render_data_id = dispatch_thread_id.x;
 
+	const uint32 debug_meshlet_render_data_count = rc_scratch_1;
+
 	bool visible = false;
 
 	if (render_data_id < debug_meshlet_render_data_count)

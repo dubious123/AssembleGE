@@ -70,6 +70,6 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 		const uint32 ray_total = gibs_load_ray_count_total(data);
 
-		gibs_set_indirect_arg_ray_trace(data, uint32_3(ceil(ray_total, 32), 1, 1));
+		gibs_set_indirect_arg_ray_trace(data, uint32_3(ceil(ray_total, 64), 1, 1));
 	}
 }

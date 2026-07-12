@@ -168,134 +168,187 @@
 //	//}
 //};
 
-// wave_size(32)
-//[numthreads(16, 16, 1)] void
-// main_cs(uint32_3 thread_id sv_dispatch_thread_id)
-//
-//{
-//	const gibs_data data = gibs_load_gibs_data();
-//
-//	const uint32_2 extent = uint32_2(backbuffer_size.x, backbuffer_size.y);
-//
-//	if (thread_id.x >= extent.x or thread_id.y >= extent.y) { return; }
-//
-//	const int32_2 px = int32_2(thread_id.xy);
-//
-//	rw_texture_2d<float3> dst_buffer	 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
-//	texture_2d<float3>	  irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
-//	texture_2d<uint32_2>  geo_src		 = global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
-//
-//	const uint32_2 geo_curr = geo_src[px];
-//
-//	// sky
-//	if (all(geo_curr == uint32_2(0, 0x7fff0000)))
-//	{
-//		dst_buffer[px] = zero<float3>();
-//		return;
-//	}
-//
-//	const float3 px_normal_curr = decode_oct_snorm16(geo_curr.x);
-//
-//	const float px_depth_curr = f16tof32(geo_curr.y & 0xffff);
-//	const float ao_curr		  = f16tof32((geo_curr.y >> 16u) & 0x7fff);
-//	const float px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
-//
-//	float4 irradiance_sum = gibs_gather_neighbor_gi(irradiance_src, geo_src, px, px_z_lin_curr, px_normal_curr, extent);
-//
-//	const float3 irradiance = irradiance_sum.w > epsilon_1e4 ? irradiance_sum.xyz / irradiance_sum.w : irradiance_src[px];
-//
-//	dst_buffer[px] = irradiance * ao_curr;
-// }
-
-#define GS_TILE_SIZE (16 + 2 * GIBS_GI_RESOLVE_SCALE)
-
-groupshared uint32 gs_geo_x[GS_TILE_SIZE * GS_TILE_SIZE];
-groupshared uint32 gs_geo_y[GS_TILE_SIZE * GS_TILE_SIZE];
-groupshared float3 gs_irr[GS_TILE_SIZE * GS_TILE_SIZE];
-
 wave_size(32)
 [numthreads(16, 16, 1)] void
-main_cs(uint32_3 group_id			sv_group_id,
-		uint32_3 group_thread_id	sv_group_thread_id,
-		uint32_3 dispatch_thread_id sv_dispatch_thread_id)
+main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 {
 	const gibs_data data = gibs_load_gibs_data();
 
-	const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
+	const int32_2 extent = int32_2(backbuffer_size);
 
-	rw_texture_2d<float3> dst_buffer	 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
-	texture_2d<float3>	  irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
-	texture_2d<uint32_2>  geo_src		 = global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+	if (any(thread_id.xy > extent)) { return; }
 
-	const int32_2 tile_offset = int32_2(group_id.xy) * 16 - int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+	const int32_2 px = int32_2(thread_id.xy);
 
-	const uint32 group_thread_id_flat = group_thread_id.x + group_thread_id.y * 16;
+	const uint16 step		= uint32_lower_to_uint16(rc_scratch_0);
+	const bool	 is_last	= uint32_upper_to_uint16(rc_scratch_0) == 1;
+	const uint32 src_srv_id = rc_scratch_1;
+	const uint32 dst_uav_id = rc_scratch_2;
 
-	for (uint32 i = group_thread_id_flat; i < GS_TILE_SIZE * GS_TILE_SIZE; i += 16 * 16)
-	{
-		const int32_2  tap = clamp(tile_offset + int32_2(i % GS_TILE_SIZE, i / GS_TILE_SIZE), zero<int32_2>(), extent - 1);
-		const uint32_2 geo = geo_src[tap];
+	texture_2d<float3>	  src_buffer = global_resource_buffer[src_srv_id];
+	texture_2d<uint32_2>  geo_buffer = global_resource_buffer[data.h_gi_resolve_geo_curr_buffer_srv_id];
+	rw_texture_2d<float3> dst_buffer = global_resource_buffer[dst_uav_id];
 
-		gs_geo_x[i] = geo.x;
-		gs_geo_y[i] = geo.y;
-		gs_irr[i]	= irradiance_src[tap];
-	}
-
-	group_memory_barrier_with_sync();
-
-	if (any(dispatch_thread_id.xy >= extent)) { return; }
-
-	const int32_2 px = int32_2(dispatch_thread_id.xy);
-
-	const int32_2 local		= group_thread_id.xy + int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
-	const uint32  center_id = uint32(local.y * GS_TILE_SIZE + local.x);
-
-	const uint32 geo_curr_x = gs_geo_x[center_id];
-	const uint32 geo_curr_y = gs_geo_y[center_id];
-
+	const uint32_2 px_geo = geo_buffer[px];
 
 	// sky
-	if (geo_curr_x == 0u and geo_curr_y == 0x7fff0000u)
+	if (px_geo.y == 0u)
 	{
 		dst_buffer[px] = zero<float3>();
 		return;
 	}
 
-	const float3 px_normal_curr = decode_oct_snorm16(geo_curr_x);
-	const float	 px_depth_curr	= f16tof32(geo_curr_y & 0xffff);
-	const float	 ao_curr		= f16tof32((geo_curr_y >> 16u) & 0x7fff);
-	const float	 px_z_lin_curr	= calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
+	const float3 px_normal = decode_oct_snorm16(px_geo.x);
+	const float	 px_depth  = as_float(px_geo.y);
+	const float	 px_z_lin  = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth);
+
+	const float3 px_world_pos = ndc_to_world(view_proj_inv, screen_to_ndc(float2(px) + 0.5f, px_depth, inv_backbuffer_size));
+
+	const float3 view_dir = normalize(camera_pos - px_world_pos);
+	const float	 n_dot_v  = max(dot(px_normal, view_dir), 0.1f);
+
+	const float plane_threshold = 0.001f * px_z_lin / n_dot_v * float(step);
 
 	float4 res = zero<float4>();
 
-	for (int32 dy = -GIBS_GI_RESOLVE_SCALE; dy <= GIBS_GI_RESOLVE_SCALE; ++dy)
+	static const float k_atrous[3] = { 0.25f, 0.5f, 0.25f };
+
+	for (int32 dy = -1; dy <= 1; ++dy)
 	{
-		for (int32 dx = -GIBS_GI_RESOLVE_SCALE; dx <= GIBS_GI_RESOLVE_SCALE; ++dx)
+		for (int32 dx = -1; dx <= 1; ++dx)
 		{
-			const int32	 tap	   = (local.y + dy) * GS_TILE_SIZE + (local.x + dx);
-			const uint32 geo_tap_y = gs_geo_y[tap];
+			const int32_2  px_tap		 = clamp(px + int32_2(dx, dy) * int32(step), zero<int32_2>(), extent - 1);
+			const uint32_2 px_geo_tap	 = geo_buffer[px_tap];
+			const float3   px_normal_tap = decode_oct_snorm16(px_geo_tap.x);
+			const float	   px_depth_tap	 = as_float(px_geo_tap.y);
 
-			if ((geo_tap_y >> 31u) == 0u) { continue; }	   // invalid / sky
+			if (px_geo_tap.y == 0) { continue; }
 
-			const float3 normal_tap = decode_oct_snorm16(gs_geo_x[tap]);
-			const float	 z_lin_tap	= calc_linear_z_reversed(cam_near_z, cam_far_z, f16tof32(geo_tap_y & 0xffff));
-			const float	 w			= calc_bilateral_weight(px_z_lin_curr, px_normal_curr, z_lin_tap, normal_tap, float2(1.f, 1.f));
+			const float3 px_world_pos_tap = ndc_to_world(view_proj_inv_prev, screen_to_ndc(float2(px_tap) + 0.5f, px_depth_tap, inv_backbuffer_size));
 
-			res += float4(gs_irr[tap], 1.f) * w;
+			const float dist_to_plane = abs(dot(px_world_pos_tap - px_world_pos, px_normal));
+			const float cos_theta	  = dot(px_normal, px_normal_tap);
+
+			const float w = k_atrous[dx + 1]
+						  * k_atrous[dy + 1]
+						  * pow(max(cos_theta, 0.f), 32)
+						  * exp(-dist_to_plane / plane_threshold);
+
+			res += float4(src_buffer[px_tap], 1.f) * w;
 		}
 	}
 
-	if (res.w > epsilon_1e4)
+	res.xyz = res.w > 0.f ? res.xyz / res.w : src_buffer[px];
+
+	attr_branch()
+
+	if (is_last and ao::enabled())
 	{
-		dst_buffer[px] = res.xyz / res.w * ao_curr;
-	}
-	else
-	{
-		dst_buffer[px] = gs_irr[center_id] * ao_curr;
-		// dst_buffer[px] = color_red.xyz;
+		texture_2d<float3> ao_buffer  = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
+		res.xyz						 *= ao_buffer[px].x;
 	}
 
+	dst_buffer[px] = res.xyz;
 
-	// dst_buffer[px] = irradiance_src[px];
+
+	if (thread_id.x == 0u and thread_id.y == 0u)
+	{
+		const uint32 encoded = encode_r11g11b10(float3(1, 1, 1));
+		const float3 decoded = decode_r11g11b10(encoded);
+		debug_log(g::fmt_gibs, line, decoded);
+	}
 }
+
+// #define GS_TILE_SIZE (16 + 2 * GIBS_GI_RESOLVE_SCALE)
+//
+// groupshared uint32 gs_geo_x[GS_TILE_SIZE * GS_TILE_SIZE];
+// groupshared uint32 gs_geo_y[GS_TILE_SIZE * GS_TILE_SIZE];
+// groupshared float3 gs_irr[GS_TILE_SIZE * GS_TILE_SIZE];
+//
+// wave_size(32)
+//[numthreads(16, 16, 1)] void
+// main_cs(uint32_3 group_id			sv_group_id,
+//		uint32_3 group_thread_id	sv_group_thread_id,
+//		uint32_3 dispatch_thread_id sv_dispatch_thread_id)
+//
+//{
+//	const gibs_data data = gibs_load_gibs_data();
+//
+//	const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
+//
+//	rw_texture_2d<float3> dst_buffer	 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
+//	texture_2d<float3>	  irradiance_src = global_resource_buffer[data.h_gi_resolve_rr_irradiance_curr_buffer_srv_id];
+//	texture_2d<uint32_2>  geo_src		 = global_resource_buffer[data.h_gi_resolve_rr_geo_curr_buffer_srv_id];
+//
+//	const int32_2 tile_offset = int32_2(group_id.xy) * 16 - int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+//
+//	const uint32 group_thread_id_flat = group_thread_id.x + group_thread_id.y * 16;
+//
+//	for (uint32 i = group_thread_id_flat; i < GS_TILE_SIZE * GS_TILE_SIZE; i += 16 * 16)
+//	{
+//		const int32_2  tap = clamp(tile_offset + int32_2(i % GS_TILE_SIZE, i / GS_TILE_SIZE), zero<int32_2>(), extent - 1);
+//		const uint32_2 geo = geo_src[tap];
+//
+//		gs_geo_x[i] = geo.x;
+//		gs_geo_y[i] = geo.y;
+//		gs_irr[i]	= irradiance_src[tap];
+//	}
+//
+//	group_memory_barrier_with_sync();
+//
+//	if (any(dispatch_thread_id.xy >= extent)) { return; }
+//
+//	const int32_2 px = int32_2(dispatch_thread_id.xy);
+//
+//	const int32_2 local		= group_thread_id.xy + int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+//	const uint32  center_id = uint32(local.y * GS_TILE_SIZE + local.x);
+//
+//	const uint32 geo_curr_x = gs_geo_x[center_id];
+//	const uint32 geo_curr_y = gs_geo_y[center_id];
+//
+//
+//	// sky
+//	if (geo_curr_x == 0u and geo_curr_y == 0x7fff0000u)
+//	{
+//		dst_buffer[px] = zero<float3>();
+//		return;
+//	}
+//
+//	const float3 px_normal_curr = decode_oct_snorm16(geo_curr_x);
+//	const float	 px_depth_curr	= f16tof32(geo_curr_y & 0xffff);
+//	const float	 ao_curr		= f16tof32((geo_curr_y >> 16u) & 0x7fff);
+//	const float	 px_z_lin_curr	= calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
+//
+//	float4 res = zero<float4>();
+//
+//	for (int32 dy = -GIBS_GI_RESOLVE_SCALE; dy <= GIBS_GI_RESOLVE_SCALE; ++dy)
+//	{
+//		for (int32 dx = -GIBS_GI_RESOLVE_SCALE; dx <= GIBS_GI_RESOLVE_SCALE; ++dx)
+//		{
+//			const int32	 tap	   = (local.y + dy) * GS_TILE_SIZE + (local.x + dx);
+//			const uint32 geo_tap_y = gs_geo_y[tap];
+//
+//			if ((geo_tap_y >> 31u) == 0u) { continue; }	   // invalid / sky
+//
+//			const float3 normal_tap = decode_oct_snorm16(gs_geo_x[tap]);
+//			const float	 z_lin_tap	= calc_linear_z_reversed(cam_near_z, cam_far_z, f16tof32(geo_tap_y & 0xffff));
+//			const float	 w			= calc_bilateral_weight(px_z_lin_curr, px_normal_curr, z_lin_tap, normal_tap, float2(1.f, 1.f));
+//
+//			res += float4(gs_irr[tap], 1.f) * w;
+//		}
+//	}
+//
+//	if (res.w > epsilon_1e4)
+//	{
+//		dst_buffer[px] = res.xyz / res.w * ao_curr;
+//	}
+//	else
+//	{
+//		dst_buffer[px] = gs_irr[center_id] * ao_curr;
+//		// dst_buffer[px] = color_red.xyz;
+//	}
+//
+//
+//	// dst_buffer[px] = irradiance_src[px];
+// }

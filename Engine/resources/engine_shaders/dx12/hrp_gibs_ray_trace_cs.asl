@@ -84,7 +84,7 @@ gibs_trace_ray(const rt_arg arg, float3 pos, float3 normal, float3 dir, out floa
 }
 
 wave_size(32)
-[numthreads(32, 1, 1)] void
+[numthreads(64, 1, 1)] void
 main_cs(uint32 group_id sv_group_id,
 		uint32 ray_id	sv_dispatch_thread_id)
 

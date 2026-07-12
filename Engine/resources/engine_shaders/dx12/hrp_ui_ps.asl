@@ -15,6 +15,8 @@ main_ps(ui_ms_to_ps ps_in) sv_target_0
 {
 	const ui_data data = load_ui_data(ps_in.ui_data_id);
 
+	const uint32 ui_space_mode_and_extra = rc_scratch_0;
+
 	const float2 center_offset = (ps_in.rect_uv - 0.5f) * data.size;
 
 	float  delta_from_edge = 0.f;

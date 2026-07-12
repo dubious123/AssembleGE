@@ -6,10 +6,12 @@ groupshared uint32
 
 [numthreads(SORT_THREAD_COUNT, 1, 1)] void
 main_cs(uint32 visible_light_id sv_dispatch_thread_id,
-		uint32 group_id sv_group_id,
-		uint32 thread_id sv_group_thread_id)
+		uint32 group_id			sv_group_id,
+		uint32 thread_id		sv_group_thread_id)
 
 {
+	const uint32 radix_sort_pass = rc_scratch_0;
+
 	for (uint32 bin = 0; bin < SORT_BIN_COUNT; ++bin)
 	{
 		local_histogram[bin][thread_id] = 0;

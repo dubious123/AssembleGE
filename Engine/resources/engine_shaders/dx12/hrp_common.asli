@@ -54,18 +54,17 @@ uint32			   opaque_meshlet_render_data_count;
 uint32			   directional_light_count_and_extra;
 t_unified_light_id unified_light_count;
 
-uint32 radix_sort_pass;
+uint32 rc_scratch_0;	// pass_counter  (light),
+						// pass_counter  (gibs_reconstruct)
+						// srv mip level (bloom, target_mip == src_mip + 1 or src_mip - 1)
+						// ui_space_mode_and_extra, [ui_space_mode(8)][extra] (ui)
+						// debug_meshlet_render_data_offset (debug)
 
-uint32 ui_space_mode_and_extra;	   // [ui_space_mode(8)][ddgi_updated(8)][extra(16)]
-uint32 ui_root_data_idx;
-uint32 ui_data_id_offset;
-uint32 ui_data_count;
+uint32 rc_scratch_1;	// ui_root_data_idx  (ui)
+						// debug_meshlet_render_data_count  (debug)
 
-
-uint32 debug_meshlet_render_data_offset;
-uint32 debug_meshlet_render_data_count;
-
-uint32 bloom_mip_level_and_extra;
+uint32 rc_scratch_2;	// ui_data_id_offset
+uint32 rc_scratch_3;	// ui_data_count
 #endif
 
 uint32
@@ -542,6 +541,7 @@ structured_buffer<ui_data>		ui_data_buffer reg(t1, space5);
 ui_root_data
 load_ui_root_data()
 {
+	const uint32 ui_root_data_idx = rc_scratch_1;
 	return ui_root_data_buffer[ui_root_data_idx];
 }
 
@@ -558,7 +558,7 @@ structured_buffer<debug_object_data>		 debug_object_data_buffer reg(t1, space77)
 debug_meshlet_render_data
 load_debug_meshlet_render_data(uint32 idx)
 {
-	return debug_meshlet_render_data_buffer[debug_meshlet_render_data_offset + idx];
+	return debug_meshlet_render_data_buffer[rc_scratch_0 + idx];
 }
 
 debug_object_data

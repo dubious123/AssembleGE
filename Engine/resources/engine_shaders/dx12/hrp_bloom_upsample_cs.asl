@@ -6,6 +6,8 @@
 main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 {
+	const uint32 bloom_mip_level_and_extra = rc_scratch_0;
+
 	const uint16 mip_src = uint32_lower_to_uint16(bloom_mip_level_and_extra);
 	const uint16 mip_dst = mip_src - 1;
 
