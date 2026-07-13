@@ -12,14 +12,14 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const rw_stack<uint32>				 dead_stack	 = gibs_load_dead_surfel_id_stack(data);
 	const rw_stack<uint32>				 alive_stack = gibs_load_alive_surfel_id_stack_prev(data);
 
-	const uint32 tile_idx_flat = thread_id;
+	const uint32 tile_sample_id = thread_id;
 
-	if (tile_idx_flat >= data.tile_count_total)
+	if (tile_sample_id >= data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE)
 	{
 		return;
 	}
 
-	const gibs_tile_surfel_spawn_kill_data spawn_kill_data = gibs_load_tile_surfel_spawn_kill_data(data, tile_idx_flat);
+	const gibs_tile_surfel_spawn_kill_data spawn_kill_data = gibs_load_tile_surfel_spawn_kill_data(data, tile_sample_id);
 
 	if (spawn_kill_data.has_kill())
 	{

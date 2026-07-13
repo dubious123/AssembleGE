@@ -495,9 +495,19 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_gi_resolve_scratch_buffer_srv_desc;
 		uav_desc_handle h_gi_resolve_scratch_buffer_uav_desc;
 
-		resource_handle h_gi_resolve_cell_buffer;
-		srv_desc_handle h_gi_resolve_cell_buffer_srv_desc;
-		uav_desc_handle h_gi_resolve_cell_buffer_uav_desc;
+		resource_handle		  h_gi_resolve_weight_buffer;
+		srv_desc_handle		  h_gi_resolve_weight_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_weight_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_weight_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_sample_pos_buffer;
+		srv_desc_handle		  h_gi_resolve_sample_pos_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_sample_pos_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_sample_pos_buffer_clear_uav_desc;
+
+		resource_handle h_gi_resolve_sample_res_buffer;
+		srv_desc_handle h_gi_resolve_sample_res_buffer_srv_desc;
+		uav_desc_handle h_gi_resolve_sample_res_buffer_uav_desc;
 
 
 		resource_handle h_indirect_arg_buffer;

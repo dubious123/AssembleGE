@@ -17,31 +17,29 @@ struct fn_fill_tile_to_surfel
 		const float3   surfel_rb   = surfel.position + mul(float3(surfel.radius, 0, -surfel.radius), transform_t);
 		const float3   surfel_lb   = surfel.position + mul(float3(-surfel.radius, 0, -surfel.radius), transform_t);
 
-		const float2 low_extent = ceil(backbuffer_size, GIBS_GI_RESOLVE_SCALE);
-
 		const float4 clip_pos_rf = mul(view_proj, float4(surfel_rf, 1.f));
 		const float3 ndc_rf		 = clamp(clip_pos_rf.xyz / clip_pos_rf.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_rf = int32_2(ndc_xy_to_screen(ndc_rf.xy, low_extent));
+		const int32_2 screen_pos_rf = int32_2(ndc_xy_to_screen(ndc_rf.xy, backbuffer_size));
 
 		const float4 clip_pos_lf = mul(view_proj, float4(surfel_lf, 1.f));
 		const float3 ndc_lf		 = clamp(clip_pos_lf.xyz / clip_pos_lf.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_lf = int32_2(ndc_xy_to_screen(ndc_lf.xy, low_extent));
+		const int32_2 screen_pos_lf = int32_2(ndc_xy_to_screen(ndc_lf.xy, backbuffer_size));
 
 		const float4 clip_pos_rb = mul(view_proj, float4(surfel_rb, 1.f));
 		const float3 ndc_rb		 = clamp(clip_pos_rb.xyz / clip_pos_rb.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_rb = int32_2(ndc_xy_to_screen(ndc_rb.xy, low_extent));
+		const int32_2 screen_pos_rb = int32_2(ndc_xy_to_screen(ndc_rb.xy, backbuffer_size));
 
 		const float4 clip_pos_lb = mul(view_proj, float4(surfel_lb, 1.f));
 		const float3 ndc_lb		 = clamp(clip_pos_lb.xyz / clip_pos_lb.w, -1.f, 1.f);
 
-		const int32_2 screen_pos_lb = int32_2(ndc_xy_to_screen(ndc_lb.xy, low_extent));
+		const int32_2 screen_pos_lb = int32_2(ndc_xy_to_screen(ndc_lb.xy, backbuffer_size));
 
 		if (clip_pos_rf.w <= epsilon_1e4 or clip_pos_lf.w <= epsilon_1e4 or clip_pos_rb.w <= epsilon_1e4 or clip_pos_lb.w <= epsilon_1e4)
 		{
-			res.screen_aabb = uint32_4(0, 0, uint32_2(low_extent));
+			res.screen_aabb = uint32_4(0, 0, uint32_2(backbuffer_size));
 		}
 		else
 		{
@@ -57,8 +55,8 @@ struct fn_fill_tile_to_surfel
 	void
 	operator()(const gibs_data data, uint32_2 tile_idx)
 	{
-		uint32_2 tile_min = tile_idx * GIBS_SCREEN_TILE_SIZE;
-		uint32_2 tile_max = tile_min + GIBS_SCREEN_TILE_SIZE - 1;
+		uint32_2 tile_min = tile_idx * GIBS_GI_RESOLVE_TILE_SIZE;
+		uint32_2 tile_max = tile_min + GIBS_GI_RESOLVE_TILE_SIZE - 1;
 
 		if (aabb_intersect(screen_aabb, uint32_4(tile_min, tile_max)) is_false) { return; }
 
@@ -99,8 +97,7 @@ main_cs(uint32 alive_idx sv_dispatch_thread_id)
 		const float3		   world_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
 		fn_fill_tile_to_surfel fn			= fn_fill_tile_to_surfel::init(surfel_id, surfel, world_normal);
 
-		const float2 low_extent = ceil(backbuffer_size, GIBS_GI_RESOLVE_SCALE);
-		gibs_foreach_neighbor_tile(fn, data, min(uint32_2(ndc_xy_to_screen(ndc.xy, low_extent)), uint32_2(low_extent) - 1));
+		gibs_foreach_neighbor_tile(fn, data, min(int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size)), int32_2(backbuffer_size) - 1));
 	}
 	else
 	{

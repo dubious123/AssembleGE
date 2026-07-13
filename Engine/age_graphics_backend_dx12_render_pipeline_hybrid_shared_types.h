@@ -298,19 +298,13 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 	};
 
-	struct gibs_gi_resolve_cell
+	struct gibs_gi_resolve_sample_res
 	{
 		uint32 irradiance_r11g11b10;
-		uint16 sample_px;	 // local, full_px = cell_px + sample_px
+		uint16 sample_pos_lin;
 		half   coverage;
 		uint32 normal_oct_snorm16;
 		float  z_lin;
-
-		int32_2
-		get_sample_px() CONST
-		{
-			return int32_2(sample_px & 0xff, (sample_px & 0xff00) >> 8u);
-		}
 	};
 
 	struct gibs_indirect_arg
@@ -373,8 +367,14 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_gi_resolve_curr_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_uav_id;
 
-		uint32 h_gi_resolve_cell_buffer_srv_id;
-		uint32 h_gi_resolve_cell_buffer_uav_id;
+		uint32 h_gi_resolve_weight_buffer_srv_id;
+		uint32 h_gi_resolve_weight_buffer_uav_id;
+
+		uint32 h_gi_resolve_sample_pos_buffer_srv_id;
+		uint32 h_gi_resolve_sample_pos_buffer_uav_id;
+
+		uint32 h_gi_resolve_sample_res_buffer_srv_id;
+		uint32 h_gi_resolve_sample_res_buffer_uav_id;
 
 		uint32 h_indirect_arg_buffer_uav_id;
 
@@ -577,7 +577,7 @@ namespace age::graphics::render_pipeline::shared_type
 			return max_surfel_count * 27;
 		}
 
-		//---[ tile_spawn_kill_buffer : [spawn_data x tile_total] ]---
+		//---[ tile_spawn_kill_buffer : [spawn_data x tile_total x sample_per_tile] ]---
 		uint32
 		tile_spawn_kill_offset()
 		{
@@ -585,9 +585,9 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 
 		uint32
-		tile_spawn_kill_data_offset(uint32 tile_idx)
+		tile_spawn_kill_data_offset(uint32 tile_sample_id)
 		{
-			return tile_spawn_kill_offset() + sizeof(gibs_tile_surfel_spawn_kill_data) * tile_idx;
+			return tile_spawn_kill_offset() + sizeof(gibs_tile_surfel_spawn_kill_data) * tile_sample_id;
 		}
 
 		//---[ cell_spawn_kill_buffer : [cell_spawn_kill x cell_total][cell_surfel_ref x count*27] ]---
@@ -1370,9 +1370,7 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_RAY_COUNT_REDUCE_EPT 32u
 #define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
 
-#define GIBS_MAX_OUTER_LAYER_COUNT	  16u
-#define GIBS_SCREEN_TILE_SIZE		  16u
-#define GIBS_SCREEN_GROUP_SHARED_SIZE (GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE / 32)
+#define GIBS_MAX_OUTER_LAYER_COUNT 16u
 
 #define GIBS_SPAWN_COVERAGE	   1.f
 #define GIBS_KILL_COVERAGE	   3.f
@@ -1387,11 +1385,11 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_MIN_LUMINANCE					0.01f
 #define GIBS_MIN_LUMINANCE_FOR_RAY_GUIDANCE (GIBS_MIN_LUMINANCE * GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE)
 
-#define GIBS_GI_RESOLVE_SCALE 5
-
-#define GIBS_GI_RESOLVE_CELL_DIM		 4u
-#define GIBS_GI_RESOLVE_SAMPLES_PER_CELL (AGE_WAVE_SIZE / (GIBS_GI_RESOLVE_CELL_DIM * GIBS_GI_RESOLVE_CELL_DIM))
-#define GIBS_GI_RESOLVE_CELL_SIZE		 (GIBS_SCREEN_TILE_SIZE * GIBS_GI_RESOLVE_SCALE / int32(GIBS_GI_RESOLVE_CELL_DIM))
+#define GIBS_GI_RESOLVE_BLOCK_SIZE		 16
+#define GIBS_GI_RESOLVE_BLOCK_DIM		 4
+#define GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK 4
+#define GIBS_GI_RESOLVE_TILE_SIZE		 (GIBS_GI_RESOLVE_BLOCK_SIZE * GIBS_GI_RESOLVE_BLOCK_DIM)
+#define GIBS_GI_RESOLVE_SAMPLE_PER_TILE	 (GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK * GIBS_GI_RESOLVE_BLOCK_DIM * GIBS_GI_RESOLVE_BLOCK_DIM)
 
 
 #define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)
@@ -1427,8 +1425,15 @@ namespace age::graphics::render_pipeline::g
 
 	inline constexpr auto gibs_surfel_screen_ratio = 0.1f;
 
-	inline constexpr auto gibs_screen_tile_size = GIBS_SCREEN_TILE_SIZE;
-	inline constexpr auto gibs_gi_resolve_scale = GIBS_GI_RESOLVE_SCALE;
+	inline constexpr auto gibs_gi_resolve_tile_size	 = GIBS_GI_RESOLVE_TILE_SIZE;
+	inline constexpr auto gibs_gi_resolve_block_size = GIBS_GI_RESOLVE_BLOCK_SIZE;
+
+	inline constexpr auto gibs_gi_resolve_sample_per_tile = GIBS_GI_RESOLVE_SAMPLE_PER_TILE;
+
+	static_assert(GIBS_GI_RESOLVE_BLOCK_SIZE < 256);
+
+	static_assert(gibs_gi_resolve_sample_per_tile % wave_size == 0);
+	static_assert(gibs_gi_resolve_sample_per_tile >= wave_size);
 
 	static_assert(GIBS_ATLAS_WIDTH % gibs_atlas_tile_size == 0);
 	static_assert(GIBS_ATLAS_HEIGHT % gibs_atlas_tile_size == 0);
@@ -1436,7 +1441,6 @@ namespace age::graphics::render_pipeline::g
 
 	static_assert(sizeof(shared_type::gibs_lut_data::cell_size_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 	static_assert(sizeof(shared_type::gibs_lut_data::layer_boundary_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
-	static_assert(GIBS_SCREEN_TILE_SIZE * GIBS_SCREEN_TILE_SIZE == 32 * GIBS_SCREEN_GROUP_SHARED_SIZE);
 
 	static_assert(sizeof(shared_type::gibs_ray_entry) <= sizeof(shared_type::gibs_ray_result));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_RADIANCE == to_idx(graphics::e::gibs_debug_flags::render_radiance));

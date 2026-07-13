@@ -355,7 +355,7 @@
 // }
 
 wave_size(AGE_WAVE_SIZE)
-[numthreads(AGE_WAVE_SIZE, 1, 1)] void
+[numthreads(GIBS_GI_RESOLVE_SAMPLE_PER_TILE, 1, 1)] void
 main_cs(uint32_3 group_id	   sv_group_id,
 		uint32 group_thread_id sv_group_thread_id)
 
@@ -370,29 +370,41 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	rw_byte_array<surfel>		surfel_arr			  = gibs_load_surfel_rw_arr(data);
 	rw_byte_array<surfel_msme>	msme_arr			  = gibs_load_surfel_msme_rw_arr(data);
 
-	rw_array<gibs_gi_resolve_cell> gi_resolve_cell_arr = gibs_load_gi_resolve_cell_rw_arr(data);
+	byte_array<uint16>					 gi_resolve_sample_pos_arr	  = gibs_load_gi_resolve_sample_pos_arr(data);
+	rw_array<gibs_gi_resolve_sample_res> gi_resolve_sample_res_rw_arr = gibs_load_gi_resolve_sample_res_rw_arr(data);
 
 	bool is_thread_valid = true;
 
-	const int32_2 tile_px = int32_2(group_id.x * GIBS_SCREEN_TILE_SIZE * GIBS_GI_RESOLVE_SCALE, group_id.y * GIBS_SCREEN_TILE_SIZE * GIBS_GI_RESOLVE_SCALE);
+	const int32_2 tile_idx = group_id.xy;
+	const int32_2 tile_px  = int32_2(tile_idx * GIBS_GI_RESOLVE_TILE_SIZE);
+
+	const int32	  block_id	= group_thread_id / (GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK);
+	const int32_2 block_idx = tile_idx * GIBS_GI_RESOLVE_BLOCK_DIM
+							+ int32_2(block_id % GIBS_GI_RESOLVE_BLOCK_DIM, block_id / GIBS_GI_RESOLVE_BLOCK_DIM);
+
+	const int32_2 block_px = block_idx * GIBS_GI_RESOLVE_BLOCK_SIZE;
+
+	const uint32 sample_id = block_idx.y * data.tile_count_w * GIBS_GI_RESOLVE_BLOCK_DIM * GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK
+						   + block_idx.x * GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK
+						   + group_thread_id % GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK;
+
+	const uint16 sample_pos_lin = gi_resolve_sample_pos_arr[sample_id];
+
+	const int32_2 px = block_px
+					 + int32_2(sample_pos_lin % GIBS_GI_RESOLVE_BLOCK_SIZE, sample_pos_lin / GIBS_GI_RESOLVE_BLOCK_SIZE);
 
 	const int32_2 extent = int32_2(backbuffer_size);
 
-	const int32	  gi_resolve_cell_id		= group_thread_id / GIBS_GI_RESOLVE_SAMPLES_PER_CELL;
-	const int32_2 gi_resolve_local_cell_idx = int32_2(gi_resolve_cell_id % GIBS_GI_RESOLVE_CELL_DIM, gi_resolve_cell_id / GIBS_GI_RESOLVE_CELL_DIM);
+	if (sample_pos_lin == 0xffffu) { is_thread_valid = false; }
 
-	const int32_2 px = tile_px
-					 + gi_resolve_local_cell_idx * GIBS_GI_RESOLVE_CELL_SIZE
-					 + int32_2(random_r2_sequence(group_thread_id + (frame_index & 0x00ffffff) * AGE_WAVE_SIZE) * float(GIBS_GI_RESOLVE_CELL_SIZE));
-
-	if (any(px >= extent)) { is_thread_valid = false; }
+	// if (any(px >= extent)) { is_thread_valid = false; }
 
 	const float z_depth = is_thread_valid ? depth_tex[px] : 0.f;
 
-	if (z_depth == 0.f)
-	{
-		is_thread_valid = false;
-	}
+	// if (z_depth == 0.f)
+	//{
+	//	is_thread_valid = false;
+	// }
 
 	const uint32 vis_packed			   = is_thread_valid ? gbuffer[px].x : invalid_id_uint32;
 	const uint32 object_id			   = is_thread_valid ? load_opaque_meshlet_render_data(vis_packed & 0x01ffffff).object_id : invalid_id_uint32;
@@ -406,8 +418,6 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, group_id.xy);
 	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
-
-	const uint16 linear_id = uint16(group_thread_id);
 
 	float  coverage					  = is_thread_valid ? 0.f : float_max;
 	float  max_contribution			  = 0.f;
@@ -428,14 +438,15 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
 
-		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
+		// const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
 
 		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
 
 		coverage += contribution;
 
 		radiance_shared += float4(surfel_radiance, 1.f)
-						 * fallback_contribution
+						 * contribution
+						 //* fallback_contribution
 						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
 						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
@@ -458,7 +469,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		{
 			const uint32 surfel_id	  = cell_to_surfel_id_arr[cell_entry.offset + i];
 			surfel		 surfel		  = surfel_arr[surfel_id];
-			const float	 contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, px_normal);
+			const float	 contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, px_normal);
 
 			assert(surfel.surfel_seen() is_false, g::fmt_gibs, line);
 
@@ -483,21 +494,14 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	//								   ? radiance_shared.xyz / radiance_shared.w
 	//								   : color_red.xyz;
 
+	gibs_gi_resolve_sample_res sample_res;
+	sample_res.coverage				= cast<half>(is_thread_valid ? coverage : 0.f);
+	sample_res.irradiance_r11g11b10 = encode_r11g11b10(new_born_radiance);
+	sample_res.normal_oct_snorm16	= px_normal_oct_snorm16;
+	sample_res.sample_pos_lin		= sample_pos_lin;
+	sample_res.z_lin				= calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
 
-	const int32_2 gi_resolve_global_cell_idx = int32_2(group_id.xy) * GIBS_GI_RESOLVE_CELL_DIM + int32_2(gi_resolve_local_cell_idx);
-	const uint32  gi_resolve_global_cell_id	 = gi_resolve_global_cell_idx.y * data.tile_count_w * GIBS_GI_RESOLVE_CELL_DIM + gi_resolve_global_cell_idx.x;
-	const uint32  idx						 = gi_resolve_global_cell_id * GIBS_GI_RESOLVE_SAMPLES_PER_CELL + (group_thread_id % GIBS_GI_RESOLVE_SAMPLES_PER_CELL);
-
-	gibs_gi_resolve_cell res;
-	res.coverage			 = cast<half>(is_thread_valid ? coverage : 0.f);
-	res.irradiance_r11g11b10 = encode_r11g11b10(new_born_radiance);
-	res.normal_oct_snorm16	 = px_normal_oct_snorm16;
-
-	const uint32_2 rel = uint32_2(px - gi_resolve_global_cell_idx * GIBS_GI_RESOLVE_CELL_SIZE);
-	res.sample_px	   = uint16((rel.x & 0xff) | ((rel.y & 0xff) << 8u));
-	res.z_lin		   = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
-
-	gi_resolve_cell_arr.store(idx, res);
+	gi_resolve_sample_res_rw_arr.store(sample_id, sample_res);
 
 	if (is_thread_valid)
 	{
@@ -505,26 +509,34 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		coverage *= segment_is_opaque_edge(px) ? 0.1f : 1.f;
 	}
 
-	const uint32 coverage_packed_min = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | linear_id : invalid_id_uint32;
-
-	const uint32 coverage_packed_wave_min = wave_active_min(coverage_packed_min);
-
-	const bool need_spawn = coverage < GIBS_SPAWN_COVERAGE
-						and linear_id == uint32_lower_to_uint16(coverage_packed_wave_min)
-						/*and cell_entry.count < 128*/
+	const bool need_spawn = is_thread_valid
+						and coverage < GIBS_SPAWN_COVERAGE
 						and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0);
 
-	const uint32 coverage_packed_max = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | (linear_id + 1) : 0;
-
-	const uint32 coverage_packed_wave_max = wave_active_max(coverage_packed_max);
-
-	const bool need_kill = (coverage > GIBS_KILL_COVERAGE /*or cell_entry.count > 128*/)
-					   and linear_id == (uint32_lower_to_uint16(coverage_packed_wave_max) - 1)
+	const bool need_kill = is_thread_valid
+					   and coverage > GIBS_KILL_COVERAGE
 					   and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0);
+
+	// const uint32 coverage_packed_min = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | linear_id : invalid_id_uint32;
+
+	// const uint32 coverage_packed_wave_min = wave_active_min(coverage_packed_min);
+
+	// const bool need_spawn = coverage < GIBS_SPAWN_COVERAGE
+	//					and linear_id == uint32_lower_to_uint16(coverage_packed_wave_min)
+	//					/*and cell_entry.count < 128*/
+	//					and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0);
+
+	// const uint32 coverage_packed_max = is_thread_valid ? as_uint(f32tof16(coverage)) << 16u | (linear_id + 1) : 0;
+
+	// const uint32 coverage_packed_wave_max = wave_active_max(coverage_packed_max);
+
+	// const bool need_kill = (coverage > GIBS_KILL_COVERAGE /*or cell_entry.count > 128*/)
+	//				   and linear_id == (uint32_lower_to_uint16(coverage_packed_wave_max) - 1)
+	//				   and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0);
 
 
 	const float prob = random_pcg3d(uint32_3(px, frame_index)).x;
-	if (need_spawn)
+	if (need_spawn /*and group_thread_id == 0*/)
 	{
 		const float spawn_prob = /*coverage == 0.f
 								   ? 1.f
@@ -532,7 +544,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 			(GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
 			/* px_world_area(dispatch_thread_id.xy, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)*/
 			// * (1.f + dead_stack.size() / float(data.max_surfel_count))
-			* (coverage == 0.f ? 1000 : 1)
+			//* (coverage == 0.f ? 10 : 1)
 			* GIBS_SPAWN_PROB_FACTOR;
 
 		if (prob < spawn_prob)
@@ -540,7 +552,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 			const object_data obj = load_object_data(object_id);
 
 			gibs_set_tile_surfel_spawn(data,
-									   tile_id,
+									   sample_id,
 									   object_id,
 									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
 									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, px_normal) * obj.scale)),
@@ -556,7 +568,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 							  * GIBS_KILL_PROB_FACTOR;
 		if (prob < kill_prob)
 		{
-			gibs_set_tile_surfel_kill(data, tile_id, max_contribution_surfel_id);
+			gibs_set_tile_surfel_kill(data, sample_id, max_contribution_surfel_id);
 		}
 	}
 }

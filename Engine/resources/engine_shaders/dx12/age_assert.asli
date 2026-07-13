@@ -729,6 +729,340 @@ debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 a
 	printer.append_arg(arg9);
 }
 
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9, typename t10>
+void
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9, t10 arg10)
+{
+	arg_header arg_header_0	 = arg_header_init(arg0);
+	arg_header arg_header_1	 = arg_header_init(arg1);
+	arg_header arg_header_2	 = arg_header_init(arg2);
+	arg_header arg_header_3	 = arg_header_init(arg3);
+	arg_header arg_header_4	 = arg_header_init(arg4);
+	arg_header arg_header_5	 = arg_header_init(arg5);
+	arg_header arg_header_6	 = arg_header_init(arg6);
+	arg_header arg_header_7	 = arg_header_init(arg7);
+	arg_header arg_header_8	 = arg_header_init(arg8);
+	arg_header arg_header_9	 = arg_header_init(arg9);
+	arg_header arg_header_10 = arg_header_init(arg10);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 11,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size
+			+ arg_header_10.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+	printer.append_arg_header(arg_header_10);
+	printer.append_arg(arg10);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9, typename t10, typename t11>
+void
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9, t10 arg10, t11 arg11)
+{
+	arg_header arg_header_0	 = arg_header_init(arg0);
+	arg_header arg_header_1	 = arg_header_init(arg1);
+	arg_header arg_header_2	 = arg_header_init(arg2);
+	arg_header arg_header_3	 = arg_header_init(arg3);
+	arg_header arg_header_4	 = arg_header_init(arg4);
+	arg_header arg_header_5	 = arg_header_init(arg5);
+	arg_header arg_header_6	 = arg_header_init(arg6);
+	arg_header arg_header_7	 = arg_header_init(arg7);
+	arg_header arg_header_8	 = arg_header_init(arg8);
+	arg_header arg_header_9	 = arg_header_init(arg9);
+	arg_header arg_header_10 = arg_header_init(arg10);
+	arg_header arg_header_11 = arg_header_init(arg11);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 12,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size
+			+ arg_header_10.arg_byte_size + arg_header_11.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+	printer.append_arg_header(arg_header_10);
+	printer.append_arg(arg10);
+	printer.append_arg_header(arg_header_11);
+	printer.append_arg(arg11);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9, typename t10, typename t11, typename t12>
+void
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9, t10 arg10, t11 arg11, t12 arg12)
+{
+	arg_header arg_header_0	 = arg_header_init(arg0);
+	arg_header arg_header_1	 = arg_header_init(arg1);
+	arg_header arg_header_2	 = arg_header_init(arg2);
+	arg_header arg_header_3	 = arg_header_init(arg3);
+	arg_header arg_header_4	 = arg_header_init(arg4);
+	arg_header arg_header_5	 = arg_header_init(arg5);
+	arg_header arg_header_6	 = arg_header_init(arg6);
+	arg_header arg_header_7	 = arg_header_init(arg7);
+	arg_header arg_header_8	 = arg_header_init(arg8);
+	arg_header arg_header_9	 = arg_header_init(arg9);
+	arg_header arg_header_10 = arg_header_init(arg10);
+	arg_header arg_header_11 = arg_header_init(arg11);
+	arg_header arg_header_12 = arg_header_init(arg12);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 13,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size
+			+ arg_header_10.arg_byte_size + arg_header_11.arg_byte_size
+			+ arg_header_12.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+	printer.append_arg_header(arg_header_10);
+	printer.append_arg(arg10);
+	printer.append_arg_header(arg_header_11);
+	printer.append_arg(arg11);
+	printer.append_arg_header(arg_header_12);
+	printer.append_arg(arg12);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9, typename t10, typename t11, typename t12, typename t13>
+void
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9, t10 arg10, t11 arg11, t12 arg12, t13 arg13)
+{
+	arg_header arg_header_0	 = arg_header_init(arg0);
+	arg_header arg_header_1	 = arg_header_init(arg1);
+	arg_header arg_header_2	 = arg_header_init(arg2);
+	arg_header arg_header_3	 = arg_header_init(arg3);
+	arg_header arg_header_4	 = arg_header_init(arg4);
+	arg_header arg_header_5	 = arg_header_init(arg5);
+	arg_header arg_header_6	 = arg_header_init(arg6);
+	arg_header arg_header_7	 = arg_header_init(arg7);
+	arg_header arg_header_8	 = arg_header_init(arg8);
+	arg_header arg_header_9	 = arg_header_init(arg9);
+	arg_header arg_header_10 = arg_header_init(arg10);
+	arg_header arg_header_11 = arg_header_init(arg11);
+	arg_header arg_header_12 = arg_header_init(arg12);
+	arg_header arg_header_13 = arg_header_init(arg13);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 14,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size
+			+ arg_header_10.arg_byte_size + arg_header_11.arg_byte_size
+			+ arg_header_12.arg_byte_size + arg_header_13.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+	printer.append_arg_header(arg_header_10);
+	printer.append_arg(arg10);
+	printer.append_arg_header(arg_header_11);
+	printer.append_arg(arg11);
+	printer.append_arg_header(arg_header_12);
+	printer.append_arg(arg12);
+	printer.append_arg_header(arg_header_13);
+	printer.append_arg(arg13);
+}
+
+template <uint32 n, typename t0, typename t1, typename t2, typename t3, typename t4, typename t5, typename t6, typename t7, typename t8, typename t9, typename t10, typename t11, typename t12, typename t13, typename t14>
+void
+debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 arg5, t6 arg6, t7 arg7, t8 arg8, t9 arg9, t10 arg10, t11 arg11, t12 arg12, t13 arg13, t14 arg14)
+{
+	arg_header arg_header_0	 = arg_header_init(arg0);
+	arg_header arg_header_1	 = arg_header_init(arg1);
+	arg_header arg_header_2	 = arg_header_init(arg2);
+	arg_header arg_header_3	 = arg_header_init(arg3);
+	arg_header arg_header_4	 = arg_header_init(arg4);
+	arg_header arg_header_5	 = arg_header_init(arg5);
+	arg_header arg_header_6	 = arg_header_init(arg6);
+	arg_header arg_header_7	 = arg_header_init(arg7);
+	arg_header arg_header_8	 = arg_header_init(arg8);
+	arg_header arg_header_9	 = arg_header_init(arg9);
+	arg_header arg_header_10 = arg_header_init(arg10);
+	arg_header arg_header_11 = arg_header_init(arg11);
+	arg_header arg_header_12 = arg_header_init(arg12);
+	arg_header arg_header_13 = arg_header_init(arg13);
+	arg_header arg_header_14 = arg_header_init(arg14);
+
+	debug_printer printer = debug_printer::init(
+		debug_assert_buffer, n + 1, 15,
+		arg_header_0.arg_byte_size + arg_header_1.arg_byte_size
+			+ arg_header_2.arg_byte_size + arg_header_3.arg_byte_size
+			+ arg_header_4.arg_byte_size + arg_header_5.arg_byte_size
+			+ arg_header_6.arg_byte_size + arg_header_7.arg_byte_size
+			+ arg_header_8.arg_byte_size + arg_header_9.arg_byte_size
+			+ arg_header_10.arg_byte_size + arg_header_11.arg_byte_size
+			+ arg_header_12.arg_byte_size + arg_header_13.arg_byte_size
+			+ arg_header_14.arg_byte_size);
+
+	if (printer.valid is_false) { return; }
+
+	for (uint32 i = 0; i < n; ++i)
+	{
+		printer.append_char(fmt[i]);
+	}
+
+	printer.append_char(0);
+
+	printer.flush_char();
+
+	printer.append_arg_header(arg_header_0);
+	printer.append_arg(arg0);
+	printer.append_arg_header(arg_header_1);
+	printer.append_arg(arg1);
+	printer.append_arg_header(arg_header_2);
+	printer.append_arg(arg2);
+	printer.append_arg_header(arg_header_3);
+	printer.append_arg(arg3);
+	printer.append_arg_header(arg_header_4);
+	printer.append_arg(arg4);
+	printer.append_arg_header(arg_header_5);
+	printer.append_arg(arg5);
+	printer.append_arg_header(arg_header_6);
+	printer.append_arg(arg6);
+	printer.append_arg_header(arg_header_7);
+	printer.append_arg(arg7);
+	printer.append_arg_header(arg_header_8);
+	printer.append_arg(arg8);
+	printer.append_arg_header(arg_header_9);
+	printer.append_arg(arg9);
+	printer.append_arg_header(arg_header_10);
+	printer.append_arg(arg10);
+	printer.append_arg_header(arg_header_11);
+	printer.append_arg(arg11);
+	printer.append_arg_header(arg_header_12);
+	printer.append_arg(arg12);
+	printer.append_arg_header(arg_header_13);
+	printer.append_arg(arg13);
+	printer.append_arg_header(arg_header_14);
+	printer.append_arg(arg14);
+}
+
 // void
 // assert(bool test)
 //{
@@ -880,6 +1214,66 @@ assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2
 	if (test is_false)
 	{
 		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
+	}
+#endif
+}
+
+template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13, typename t_arg14>
+void
+assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13, t_arg14 arg14)
+{
+#if enable_debug_assert
+	if (test is_false)
+	{
+		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
 	}
 #endif
 }

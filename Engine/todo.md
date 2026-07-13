@@ -146,3 +146,28 @@ todo
 # morton -> hilbert 
 morton cell size config 추가, 지금은 4.f 로 고정. 나중에 scene 에 따라서 동적으로 조절 가능
 light pos 와 light 를 분리, 
+
+
+# surfel 2.0
+- cell surfel과 tile surfel의 구분 
+- 시간누적추가, per pixel 누적 추가 
+- motion buffer, ao추가 
+- transparent support 
+
+- emissive경우 noise는 줄어들었지만, shadow보존이 어려움 
+- geo freq가 surfel freq보다 커질수록 noise가 감당이 안되고, 특히 light bleeding이 커진다. 
+- emissive는 gi_only, as_point_light, as_area_light (need denoisor) 등으로 구분해야하고 
+- raster 단계에서도 lighting은 결국 random sampling + 시간누적이 들어가게될듯 
+- shadow ray를 1spp 로 제한하고 denoise 해야할듯
+
+
+# denoiser 를 main pass에 추가, 1 directinoal light shadow (jitter) + 1 NEE 
+1. gibs surfel placement (spawn/kill 진동 억제, weight 기반)
+2. reflection (+ denoiser 구조를 신호 타입 파라미터화)
+3. gltf scene import
+4. (측정) 실제 씬에서 전체 품질 평가
+5. shadow denoiser + soft shadow
+6. area NEE + emissive_mode
+7. GIBS 재평가 (guide, a-trous iter, conn, density) 
+8. animation / skinning
+9. volumetric / decal / godray

@@ -431,25 +431,37 @@ gibs_load_tile_to_surfel_id_rw_arr(const gibs_data data)
 	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
 }
 
-rw_array<gibs_gi_resolve_cell>
-gibs_load_gi_resolve_cell_rw_arr(const gibs_data data)
+rw_byte_array<uint16>
+gibs_load_gi_resolve_sample_pos_rw_arr(const gibs_data data)
 {
-	return rw_array<gibs_gi_resolve_cell>::init(global_resource_buffer[data.h_gi_resolve_cell_buffer_uav_id], data.tile_count_total * AGE_WAVE_SIZE);
+	return rw_byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_uav_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
 }
 
-array<gibs_gi_resolve_cell>
-gibs_load_gi_resolve_cell_arr(const gibs_data data)
+byte_array<uint16>
+gibs_load_gi_resolve_sample_pos_arr(const gibs_data data)
 {
-	return array<gibs_gi_resolve_cell>::init(global_resource_buffer[data.h_gi_resolve_cell_buffer_srv_id], data.tile_count_total * AGE_WAVE_SIZE);
+	return byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_srv_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+}
+
+rw_array<gibs_gi_resolve_sample_res>
+gibs_load_gi_resolve_sample_res_rw_arr(const gibs_data data)
+{
+	return rw_array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_uav_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+}
+
+array<gibs_gi_resolve_sample_res>
+gibs_load_gi_resolve_sample_res_arr(const gibs_data data)
+{
+	return array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_srv_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
 }
 
 //---[ tile spawn kill ]---
 void
-gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_idx_flat, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
+gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_sample_id, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
 {
 	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
 
-	const uint32 offset = data.tile_spawn_kill_data_offset(tile_idx_flat);
+	const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id);
 
 	uint32 original;
 	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
@@ -463,21 +475,21 @@ gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_idx_flat, uint32 ob
 }
 
 void
-gibs_set_tile_surfel_kill(const gibs_data data, uint32 tile_idx_flat, uint32 surfel_id)
+gibs_set_tile_surfel_kill(const gibs_data data, uint32 tile_sample_id, uint32 surfel_id)
 {
 	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
 
-	const uint32 offset = data.tile_spawn_kill_data_offset(tile_idx_flat) + sizeof(uint32) + sizeof(float3) + sizeof(uint32) + sizeof(uint32);
+	const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id) + sizeof(uint32) + sizeof(float3) + sizeof(uint32) + sizeof(uint32);
 
 	uint32 original;
 	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
 }
 
 gibs_tile_surfel_spawn_kill_data
-gibs_load_tile_surfel_spawn_kill_data(const gibs_data data, uint32 tile_idx_flat)
+gibs_load_tile_surfel_spawn_kill_data(const gibs_data data, uint32 tile_sample_id)
 {
 	byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_srv_id];
-	return load<gibs_tile_surfel_spawn_kill_data>(buf, data.tile_spawn_kill_data_offset(tile_idx_flat));
+	return load<gibs_tile_surfel_spawn_kill_data>(buf, data.tile_spawn_kill_data_offset(tile_sample_id));
 }
 
 //---[ logics ]------------------------------------------------------------------------------------------------------
@@ -512,7 +524,7 @@ template <typename t_func>
 void
 gibs_foreach_neighbor_tile(inout t_func fn, const gibs_data data, const uint32_2 screen_pos)
 {
-	const int32_2 tile_center_idx = screen_pos / GIBS_SCREEN_TILE_SIZE;
+	const int32_2 tile_center_idx = screen_pos / GIBS_GI_RESOLVE_TILE_SIZE;
 	int32		  x_min			  = tile_center_idx.x <= 0 ? 0 : -1;
 	int32		  y_min			  = tile_center_idx.y <= 0 ? 0 : -1;
 	int32		  x_max			  = tile_center_idx.x >= data.tile_count_w - 1 ? 0 : 1;
@@ -1359,8 +1371,7 @@ gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, flo
 	byte_array<uint32>			tile_to_surfel_id_arr = gibs_load_tile_to_surfel_id_arr(data);
 	byte_array<surfel>			surfel_arr			  = gibs_load_surfel_arr(data);
 
-	const float2		  px_low_res = px / GIBS_GI_RESOLVE_SCALE;
-	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px_low_res / GIBS_SCREEN_TILE_SIZE));
+	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px / GIBS_GI_RESOLVE_TILE_SIZE));
 	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
 
 	float  max_contribution			  = 0.f;
@@ -1518,8 +1529,6 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 
 	float4 irradiance_sum = (float4)0;	  // w = weight_sum
 
-	const uint32 tile_surfel_count_total = gibs_load_tile_surfel_count(data);
-
 	uint32 max_contribution_surfel_id = invalid_id_uint32;
 	float  max_contribution			  = 0.f;
 
@@ -1588,22 +1597,12 @@ gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_po
 	return float3(0, 0, 0);
 }
 
-uint32_2
-gibs_calc_rr_offset(int32_2 block_px, uint32_2 backbuffer_extent, uint32 frame_idx)
-{
-	const int32_2 block_extent = min(int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE), int32_2(backbuffer_extent) - block_px);
-
-	const uint32 rr_phase = frame_idx % uint32(block_extent.x * block_extent.y);
-
-	return uint32_2(rr_phase % uint32(block_extent.x), rr_phase / uint32(block_extent.x));
-}
-
 float4
 gibs_gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float center_z_lin, float3 center_n, int32_2 extent)
 {
 	float4 res = zero<float4>();
 
-	const int32_2 r = int32_2(GIBS_GI_RESOLVE_SCALE, GIBS_GI_RESOLVE_SCALE);
+	const int32_2 r = int32_2(1, 1);
 
 	for (int32 dy = -r.y; dy <= r.y; ++dy)
 	{
