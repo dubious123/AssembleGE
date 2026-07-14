@@ -1321,8 +1321,8 @@ gibs_calc_tile_idx(const float3 local_dir)
 float
 gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel, float3 world_pos)
 {
-	const float3 rel		   = world_pos - surfel.position;
 	const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+	const float3 rel		   = world_pos - surfel.position + surfel_normal * 0.01f;
 	const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
 
 	float3 dir_local = normalize(rel_local);
@@ -1393,20 +1393,21 @@ gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, flo
 
 		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
 
-		const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+		// const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
 
 		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
 
 		// coverage += contribution;
+		const float visibility		 = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+		const float contribution_vis = contribution * visibility;
 
 		radiance_shared += float4(surfel_radiance, 1.f)
-						 * fallback_contribution
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+						 * contribution_vis
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
 
-		if (contribution > 0.f and max_contribution < contribution)
+		if (max_contribution < contribution_vis)
 		{
-			max_contribution		   = contribution;
+			max_contribution		   = contribution_vis;
 			max_contribution_surfel_id = surfel_id;
 		}
 	}

@@ -442,17 +442,19 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
 
-		coverage += contribution;
+		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		const float contribution_vis = contribution * visibility;
+
+		coverage += contribution_vis;
 
 		radiance_shared += float4(surfel_radiance, 1.f)
-						 * contribution
-						 //* fallback_contribution
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-						 * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+						 * contribution_vis
+						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
 
-		if (contribution > 0.f and max_contribution < contribution)
+		if (max_contribution < contribution_vis)
 		{
-			max_contribution		   = contribution;
+			max_contribution		   = contribution_vis;
 			max_contribution_surfel_id = surfel_id;
 		}
 	}
@@ -475,12 +477,13 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 			const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
 
+			const float contribution_vis = contribution * visibility;
+
 			if (surfel.radius < epsilon_1e4 or contribution == 0.f /*or visibility != 1.f*/) { continue; }
 
 			radiance_shared += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
-							 * contribution
-							 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-							 * visibility;
+							 * contribution_vis
+							 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
 		}
 	}
 
@@ -503,11 +506,11 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	gi_resolve_sample_res_rw_arr.store(sample_id, sample_res);
 
-	if (is_thread_valid)
-	{
-		// gi_resolve_buffer[px]  = new_born_radiance;
-		coverage *= segment_is_opaque_edge(px) ? 0.1f : 1.f;
-	}
+	// if (is_thread_valid)
+	//{
+	//	// gi_resolve_buffer[px]  = new_born_radiance;
+	//	coverage *= segment_is_opaque_edge(px) ? 0.f : 1.f;
+	// }
 
 	const bool need_spawn = is_thread_valid
 						and coverage < GIBS_SPAWN_COVERAGE
@@ -542,9 +545,9 @@ main_cs(uint32_3 group_id	   sv_group_id,
 								   ? 1.f
 								   : */
 			(GIBS_SPAWN_COVERAGE - coverage) / float(GIBS_SPAWN_COVERAGE)
-			/* px_world_area(dispatch_thread_id.xy, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)*/
+			/** px_world_area(px, world_pos - camera_pos, px_normal, camera_forward, tan_fov_y_half, backbuffer_size.y)*/
 			// * (1.f + dead_stack.size() / float(data.max_surfel_count))
-			//* (coverage == 0.f ? 10 : 1)
+			* (coverage == 0.f ? 1000 : 1)
 			* GIBS_SPAWN_PROB_FACTOR;
 
 		if (prob < spawn_prob)
@@ -565,6 +568,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 							  //* (0.01)
 							  // * calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth) / (cam_far_z - cam_near_z)
 							  // * (1.f + alive_stack.size() / float(data.max_surfel_count))
+							  * (segment_is_opaque_edge(px) ? 0.1f : 1.f)
 							  * GIBS_KILL_PROB_FACTOR;
 		if (prob < kill_prob)
 		{

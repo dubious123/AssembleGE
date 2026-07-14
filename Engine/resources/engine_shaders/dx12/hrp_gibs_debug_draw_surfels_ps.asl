@@ -169,20 +169,24 @@ main_ps(float4 pos sv_position) sv_target_0
 
 		if (surfel.radius < epsilon_1e4 /*or contribution == 0.f*/) { continue; }
 
-		coverage += contribution;
+		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+
+		const float contribution_vis = contribution * visibility;
+
+		coverage += contribution_vis;
 
 		radiance += float4(surfel_radiance, 1.f)
 				  * contribution
 				  * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-				  * gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+				  * visibility;
 
 		if (contribution > 0.f)
 		{
 			++valid_count;
 
-			if (max_contribution < contribution)
+			if (max_contribution < contribution_vis)
 			{
-				max_contribution		   = contribution;
+				max_contribution		   = contribution_vis;
 				max_contribution_surfel_id = surfel_id;
 			}
 
