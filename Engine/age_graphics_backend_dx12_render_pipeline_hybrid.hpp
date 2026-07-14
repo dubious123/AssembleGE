@@ -372,6 +372,21 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct geo_prev_stage
+	{
+		pso::handle			 h_pso = {};
+		ID3D12PipelineState* p_pso = nullptr;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(extent_2d<uint16> main_buffer_extent) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct selection_outline_stage
 	{
 		pso::handle			 h_pso_mask;
@@ -474,6 +489,7 @@ namespace age::graphics::render_pipeline
 		raycast_stage			stage_raycast;
 		bloom_stage				stage_bloom;
 		post_process_stage		stage_post_process;
+		geo_prev_stage			stage_geo_prev;
 		selection_outline_stage stage_selection_outline;
 		ui_stage				stage_ui;
 		presentation_stage		stage_presentation;
@@ -514,6 +530,11 @@ namespace age::graphics::render_pipeline
 		resource_handle h_opaque_gbuffer;
 		rtv_desc_handle h_opaque_gbuffer_rtv_desc;
 		srv_desc_handle h_opaque_gbuffer_srv_desc;
+
+		// x : depth, y : normal_snorm16
+		resource_handle h_opaque_geo_prev_buffer;
+		srv_desc_handle h_opaque_geo_prev_buffer_srv_desc;
+		uav_desc_handle h_opaque_geo_prev_buffer_uav_desc;
 
 		resource_handle h_transparent_gbuffer;
 		rtv_desc_handle h_transparent_gbuffer_rtv_desc;

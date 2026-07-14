@@ -884,4 +884,32 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 		}                                                                                                                   \
 	}
 
-//---------------------------------------------------------------------------------------
+//---[ age_graphics_backend_dx12_hrp_fwd.hpp ]------------------------------------------------------------------
+#define AGE_DECL_PING_PONG_BUFFER(name, is_alt_expr, ...)               \
+	resource_handle h_##name##_buffer;                                  \
+	resource_handle h_##name##_alt_buffer;                              \
+	const resource_handle&                                              \
+	h_##name##_prev_buffer() const                                      \
+	{                                                                   \
+		return is_alt_expr ? h_##name##_buffer : h_##name##_alt_buffer; \
+	}                                                                   \
+	const resource_handle&                                              \
+	h_##name##_curr_buffer() const                                      \
+	{                                                                   \
+		return is_alt_expr ? h_##name##_alt_buffer : h_##name##_buffer; \
+	}                                                                   \
+	FOR_EACH_CTX((AGE_DECL_PING_PONG_BUFFER_MAP_IMPL, name, is_alt_expr), AGE_PP_EMPTY_I, __VA_ARGS__)
+
+#define AGE_DECL_PING_PONG_BUFFER_MAP_IMPL(name, is_alt_expr, desc_type)                                      \
+	desc_type##_desc_handle h_##name##_buffer_##desc_type##_desc;                                             \
+	desc_type##_desc_handle h_##name##_alt_buffer_##desc_type##_desc;                                         \
+	const desc_type##_desc_handle&                                                                            \
+	h_##name##_prev_buffer_##desc_type##_desc() const                                                         \
+	{                                                                                                         \
+		return is_alt_expr ? h_##name##_buffer_##desc_type##_desc : h_##name##_alt_buffer_##desc_type##_desc; \
+	}                                                                                                         \
+	const desc_type##_desc_handle&                                                                            \
+	h_##name##_curr_buffer_##desc_type##_desc() const                                                         \
+	{                                                                                                         \
+		return is_alt_expr ? h_##name##_alt_buffer_##desc_type##_desc : h_##name##_buffer_##desc_type##_desc; \
+	}

@@ -1611,10 +1611,10 @@ gibs_gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src
 		{
 			const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
 			const uint32_2 geo_tap		 = geo_src[tap];
-			const float3   px_normal_tap = decode_oct_snorm16(geo_tap.x);
-			const float	   px_depth_tap	 = as_float(geo_tap.y);
+			const float	   px_depth_tap	 = as_float(geo_tap.x);
+			const float3   px_normal_tap = decode_oct_snorm16(geo_tap.y);
 
-			if (geo_tap.y == 0) { continue; }
+			if (geo_tap.x == 0) { continue; }
 
 			const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
 

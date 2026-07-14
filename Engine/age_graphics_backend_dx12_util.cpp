@@ -516,6 +516,10 @@ namespace age::graphics
 		{
 			return DXGI_FORMAT_R11G11B10_FLOAT;
 		}
+		case e::texture_format::r16g16_snorm:
+		{
+			return DXGI_FORMAT_R16G16_SNORM;
+		}
 		default:
 		{
 			AGE_UNREACHABLE();

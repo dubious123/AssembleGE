@@ -889,9 +889,11 @@ namespace age::editor
 		ui::widget::numeric_field(cmp.zoom_smoothing, "zoom_smoothing");
 	}
 
-	void
+	bool
 	ui_component(age::ecs::ao_config& cmp) noexcept
 	{
+		const bool update = ui::widget::button2("update");
+
 		ui::widget::checkbox("enable", cmp.enabled);
 		ui::widget::numeric_field(cmp.slice_count, "slice_count", uint8{ 1 }, uint8{ 16 });
 		ui::widget::numeric_field(cmp.offset_count, "offset_count", uint8{ 1 }, uint8{ 16 });
@@ -921,6 +923,8 @@ namespace age::editor
 		ao_debug_flag_checkbox(render_ao_buffer);
 
 #undef ao_debug_flag_checkbox
+
+		return update;
 	}
 
 	bool

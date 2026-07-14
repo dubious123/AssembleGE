@@ -1,0 +1,129 @@
+#include "age.asli"
+
+namespace denoise
+{
+	static const float disocclusion_threshold = 0.001f;
+
+	bool
+	check_prev_valid(float3 pos_prev, float3 pos_curr, float3 normal_prev, float3 normal_curr, float px_z_lin)
+	{
+		const float cos_theta	  = dot(normal_prev, normal_curr);
+		const float dist_to_plane = abs(dot(pos_curr - pos_prev, normal_curr));
+
+		const float3 view_dir  = normalize(camera_pos - pos_curr);
+		const float	 n_dot_v   = max(dot(normal_curr, view_dir), 0.1f);
+		const float	 threshold = disocclusion_threshold * px_z_lin / n_dot_v;
+
+		return cos_theta > (1.f - 0.1f) and dist_to_plane < threshold;
+	}
+
+	float2
+	sample_motion(texture_2d<float2> motion_buffer, texture_2d<float> depth_buffer, int32_2 px, int32_2 extent)
+	{
+		// reversed_z
+		float	closest_depth = 0.f;
+		int32_2 closest_px	  = px;
+
+		for (int32 dy = -1; dy <= 1; ++dy)
+		{
+			for (int32 dx = -1; dx <= 1; ++dx)
+			{
+				const int32_2 tap		   = clamp(px + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+				const float	  px_depth_tap = depth_buffer[tap];
+
+				if (px_depth_tap > closest_depth)
+				{
+					closest_depth = px_depth_tap;
+					closest_px	  = tap;
+				}
+			}
+		}
+
+		return motion_buffer[closest_px];
+	}
+
+	struct reproject_taps
+	{
+		int32_2 px[4];
+		float	w[4];
+		float	w_sum;
+		float	quality;
+
+		int32_2 px_prev;
+		bool	is_prev_valid;
+
+		static reproject_taps
+		init(texture_2d<uint32_2> geo_prev_buffer,
+			 int32_2			  px,
+			 int32_2			  extent,
+			 float2				  motion,
+			 float				  px_depth,
+			 float3				  px_normal,
+			 float				  px_z_lin)
+		{
+			reproject_taps res;
+
+			const float2 uv_prev	  = (float2(px) + 0.5f) * inv_backbuffer_size - motion;
+			const float2 screen_pos_f = uv_prev * backbuffer_size;
+
+			res.px_prev = clamp(int32_2(floor(screen_pos_f)), zero<int32_2>(), extent - 1);
+
+			const float3 world_pos_curr = ndc_to_world(view_proj_inv, screen_to_ndc(float2(px) + 0.5f, px_depth, inv_backbuffer_size));
+
+			const uint32_2 geo_nearest		 = geo_prev_buffer[res.px_prev];
+			const float	   depth_nearest	 = as_float(geo_nearest.x);
+			const float3   normal_nearest	 = decode_oct_snorm16(geo_nearest.y);
+			const float3   world_pos_nearest = ndc_to_world(view_proj_inv_prev, screen_to_ndc(float2(res.px_prev) + 0.5f, depth_nearest, inv_backbuffer_size));
+
+			res.is_prev_valid = all(uv_prev >= 0.f)
+							and all(uv_prev < 1.f)
+							and (depth_nearest != 0.f)
+							and check_prev_valid(world_pos_nearest, world_pos_curr, normal_nearest, px_normal, px_z_lin);
+
+			const float2  base_f = screen_pos_f - 0.5f;
+			const int32_2 base_i = int32_2(floor(base_f));
+			const float2  f		 = frac(base_f);
+
+			res.px[0] = clamp(base_i + int32_2(0, 0), zero<int32_2>(), extent - 1);
+			res.px[1] = clamp(base_i + int32_2(1, 0), zero<int32_2>(), extent - 1);
+			res.px[2] = clamp(base_i + int32_2(0, 1), zero<int32_2>(), extent - 1);
+			res.px[3] = clamp(base_i + int32_2(1, 1), zero<int32_2>(), extent - 1);
+
+			const float2 ratio[4] = {
+				float2(1.f - f.x, 1.f - f.y),
+				float2(f.x, 1.f - f.y),
+				float2(1.f - f.x, f.y),
+				float2(f.x, f.y),
+			};
+
+			res.w_sum	= 0.f;
+			res.quality = 0.f;
+
+			expand_all()
+
+			for (uint32 i = 0; i < 4; ++i)
+			{
+				const uint32_2 geo = geo_prev_buffer[res.px[i]];
+
+				if (geo.x == 0u)
+				{
+					res.w[i] = 0.f;
+					continue;
+				}
+
+				const float	 tap_z_lin	= calc_linear_z_reversed(cam_near_z, cam_far_z, as_float(geo.x));
+				const float3 tap_normal = decode_oct_snorm16(geo.y);
+
+				res.w[i] = calc_bilateral_weight(px_z_lin, px_normal, tap_z_lin, tap_normal, ratio[i]);
+
+				if (res.w[i] > 0.f)
+				{
+					res.w_sum	+= res.w[i];
+					res.quality += ratio[i].x * ratio[i].y;
+				}
+			}
+
+			return res;
+		}
+	};
+}	 // namespace denoise

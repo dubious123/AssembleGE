@@ -116,6 +116,18 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_ao_buffer_srv_id;
 		uint32 h_ao_buffer_uav_id;
 
+		uint32 h_ao_raw_prev_buffer_srv_id;
+		uint32 h_ao_raw_curr_buffer_srv_id;
+		uint32 h_ao_raw_curr_buffer_uav_id;
+
+		uint32 h_ao_bent_normal_prev_buffer_srv_id;
+		uint32 h_ao_bent_normal_curr_buffer_srv_id;
+		uint32 h_ao_bent_normal_curr_buffer_uav_id;
+
+		uint32 h_ao_age_prev_buffer_srv_id;
+		uint32 h_ao_age_curr_buffer_srv_id;
+		uint32 h_ao_age_curr_buffer_uav_id;
+
 		uint32 debug_flags;
 
 		uint16
@@ -358,10 +370,6 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_gi_resolve_age_prev_buffer_srv_id;
 		uint32 h_gi_resolve_age_curr_buffer_srv_id;
 		uint32 h_gi_resolve_age_curr_buffer_uav_id;
-
-		uint32 h_gi_resolve_geo_prev_buffer_srv_id;
-		uint32 h_gi_resolve_geo_curr_buffer_srv_id;
-		uint32 h_gi_resolve_geo_curr_buffer_uav_id;
 
 		uint32 h_gi_resolve_prev_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_srv_id;
@@ -1003,13 +1011,15 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 env_light_count;
 		float  tan_fov_y_half;	  // tan(fov_y * 0.5f)
 		uint32 opaque_gbuffer_srv_id;
-		uint32 transparent_gbuffer_srv_id;
 
-		uint32 transparent_depth_buffer_srv_id;
-		uint32 motion_buffer_srv_id;
-		uint32 _;
+		uint32	 transparent_gbuffer_srv_id;
+		uint32	 transparent_depth_buffer_srv_id;
+		uint32	 motion_buffer_srv_id;
+		uint32	 opaque_geo_prev_buffer_srv_id;
+		uint32	 opaque_geo_prev_buffer_uav_id;
+		uint32_3 _;
 
-		uint32_4 extra[11];
+		uint32_4 extra[10];
 		// total: 256 * 3 bytes
 	};
 

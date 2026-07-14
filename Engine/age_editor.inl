@@ -403,45 +403,24 @@ namespace age::editor::detail
 
 		for (auto&& [cmp] : ecs_storage | each_entity_soft<ao_config>())
 		{
-			if (cmp.enabled)
+			if (cmp.enabled and (renderer.ao_enabled() is_false))
 			{
-				if (renderer.ao_enabled() is_false)
-				{
-					renderer.enable_ao({
-						.slice_count   = cmp.slice_count,
-						.offset_count  = cmp.offset_count,
-						.radius		   = cmp.radius,
-						.max_px_radius = cmp.max_px_radius,
-						.intensity	   = cmp.intensity,
-						.power		   = cmp.power,
-						.thickness	   = cmp.thickness,
-						.fade_distance = cmp.fade_distance,
-						.fade_range	   = cmp.fade_range,
-						.debug_flags   = cmp.debug_flags,
-					});
-				}
-				else
-				{
-					renderer.update_ao({
-						.slice_count   = cmp.slice_count,
-						.offset_count  = cmp.offset_count,
-						.radius		   = cmp.radius,
-						.max_px_radius = cmp.max_px_radius,
-						.intensity	   = cmp.intensity,
-						.power		   = cmp.power,
-						.thickness	   = cmp.thickness,
-						.fade_distance = cmp.fade_distance,
-						.fade_range	   = cmp.fade_range,
-						.debug_flags   = cmp.debug_flags,
-					});
-				}
+				renderer.enable_ao({
+					.slice_count   = cmp.slice_count,
+					.offset_count  = cmp.offset_count,
+					.radius		   = cmp.radius,
+					.max_px_radius = cmp.max_px_radius,
+					.intensity	   = cmp.intensity,
+					.power		   = cmp.power,
+					.thickness	   = cmp.thickness,
+					.fade_distance = cmp.fade_distance,
+					.fade_range	   = cmp.fade_range,
+					.debug_flags   = cmp.debug_flags,
+				});
 			}
-			else
+			else if ((cmp.enabled is_false) and renderer.ao_enabled())
 			{
-				if (renderer.ao_enabled())
-				{
-					renderer.disable_ao();
-				}
+				renderer.disable_ao();
 			}
 		}
 

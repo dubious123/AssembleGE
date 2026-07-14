@@ -47,6 +47,8 @@ uint32 opaque_gbuffer_srv_id;
 uint32 transparent_gbuffer_srv_id;
 uint32 transparent_depth_buffer_srv_id;
 uint32 motion_buffer_srv_id;
+uint32 opaque_geo_prev_buffer_srv_id;
+uint32 opaque_geo_prev_buffer_uav_id;
 
 
 // cbuffer root_constants reg(b1)
@@ -967,6 +969,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_ui.asli"
 #include "age_tonemap.asli"
 #include "age_bloom.asli"
+#include "age_denoise.asli"
 
 struct opaque_as_to_ms
 {

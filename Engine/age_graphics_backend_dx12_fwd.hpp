@@ -110,6 +110,8 @@ namespace age::graphics::e
 
 					hrp_post_process_ps,
 
+					hrp_geo_prev_opaque_cs,
+
 					hrp_selection_outline_mask_as,
 					hrp_selection_outline_mask_ms,
 					hrp_selection_outline_mask_ps,

@@ -150,8 +150,30 @@ namespace age::editor
 	void
 	ui_component(age::ecs::editor_cam_setting& cmp) noexcept;
 
-	void
+	bool
 	ui_component(age::ecs::ao_config& cmp) noexcept;
+
+	void
+	ui_component(age::ecs::ao_config& cmp, auto& renderer) noexcept
+	{
+		const bool need_update = ui_component(cmp);
+
+		if (cmp.enabled and need_update)
+		{
+			renderer.update_ao({
+				.slice_count   = cmp.slice_count,
+				.offset_count  = cmp.offset_count,
+				.radius		   = cmp.radius,
+				.max_px_radius = cmp.max_px_radius,
+				.intensity	   = cmp.intensity,
+				.power		   = cmp.power,
+				.thickness	   = cmp.thickness,
+				.fade_distance = cmp.fade_distance,
+				.fade_range	   = cmp.fade_range,
+				.debug_flags   = cmp.debug_flags,
+			});
+		}
+	}
 
 	bool
 	ui_component(age::ecs::aa_config& cmp) noexcept;

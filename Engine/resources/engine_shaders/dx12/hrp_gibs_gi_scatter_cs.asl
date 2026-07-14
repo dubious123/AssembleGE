@@ -15,31 +15,28 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const int32_2 px = int32_2(thread_id.xy);
 
-
 	array<gibs_gi_resolve_sample_res> gi_resolve_sample_res_arr = gibs_load_gi_resolve_sample_res_arr(data);
 
-	rw_texture_2d<float3> gi_resolve_buffer		= global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
-	texture_2d<uint32_2>  gi_resolve_geo_buffer = global_resource_buffer[data.h_gi_resolve_geo_curr_buffer_srv_id];
-	texture_2d<uint32>	  gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
+	rw_texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
+
+	texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
 
 	rw_texture_2d<float> gi_resolve_weight_buffer = global_resource_buffer[data.h_gi_resolve_weight_buffer_uav_id];
 
-	const uint16   age_curr = cast<uint16>(gi_resolve_age_buffer[px]);
-	const uint32_2 geo_curr = gi_resolve_geo_buffer[px];
+	const uint16 age_curr = cast<uint16>(gi_resolve_age_buffer[px]);
 
+	texture_2d<float>	 depth_buffer	= global_resource_buffer[opaque_depth_buffer_srv_id];
+	texture_2d<uint32_2> opaque_gbuffer = global_resource_buffer[opaque_gbuffer_srv_id];
+	const float3		 px_normal_curr = decode_oct_snorm16(opaque_gbuffer[px].y);
+	const float			 z_depth		= depth_buffer[px];
 	// sky
-	if (all(geo_curr == 0u))
+	if (z_depth == 0.f)
 	{
 		gi_resolve_buffer[px] = zero<float3>();
 		return;
 	}
 
-	const float3 px_normal_curr = decode_oct_snorm16(geo_curr.x);
-
-	const float px_depth_curr = as_float(geo_curr.y);
-	// const float ao_curr		  = f16tof32((geo_curr.y >> 16u) & 0x7fff);
-
-	const float px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_curr);
+	const float px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
 
 	const float3 px_irradiance	= gi_resolve_buffer[px];
 	const float	 px_luminance	= luminance_rec709(px_irradiance);

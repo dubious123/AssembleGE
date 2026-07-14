@@ -461,25 +461,7 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle		  h_cell_spawn_kill_buffer_uav_desc;
 		clear_uav_desc_handle h_cell_spawn_kill_buffer_clear_uav_desc;
 
-		resource_handle		  h_gi_resolve_age_buffer;
-		srv_desc_handle		  h_gi_resolve_age_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_age_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_age_buffer_clear_uav_desc;
-
-		resource_handle		  h_gi_resolve_age_alt_buffer;
-		srv_desc_handle		  h_gi_resolve_age_alt_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_age_alt_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_age_alt_buffer_clear_uav_desc;
-
-		resource_handle		  h_gi_resolve_geo_buffer;
-		srv_desc_handle		  h_gi_resolve_geo_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_geo_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_geo_buffer_clear_uav_desc;
-
-		resource_handle		  h_gi_resolve_geo_alt_buffer;
-		srv_desc_handle		  h_gi_resolve_geo_alt_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_geo_alt_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_geo_alt_buffer_clear_uav_desc;
+		AGE_DECL_PING_PONG_BUFFER(gi_resolve_age, gibs_data_gpu.is_alt(), srv, uav, clear_uav)
 
 		resource_handle		  h_gi_resolve_prev_buffer;
 		srv_desc_handle		  h_gi_resolve_prev_buffer_srv_desc;
@@ -514,172 +496,60 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;
 
 		// const resource_handle&
-		// h_gi_resolve_prev_buffer() const
+		// h_gi_resolve_age_prev_buffer() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_buffer
-		//			 : h_gi_resolve_alt_buffer;
+		//			 ? h_gi_resolve_age_buffer
+		//			 : h_gi_resolve_age_alt_buffer;
 		// }
 
 		// const srv_desc_handle&
-		// h_gi_resolve_prev_buffer_srv_desc() const
+		// h_gi_resolve_age_prev_buffer_srv_desc() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_buffer_srv_desc
-		//			 : h_gi_resolve_alt_buffer_srv_desc;
+		//			 ? h_gi_resolve_age_buffer_srv_desc
+		//			 : h_gi_resolve_age_alt_buffer_srv_desc;
 		// }
 
 		// const clear_uav_desc_handle&
-		// h_gi_resolve_prev_buffer_clear_uav_desc() const
+		// h_gi_resolve_age_prev_buffer_clear_uav_desc() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_buffer_clear_uav_desc
-		//			 : h_gi_resolve_alt_buffer_clear_uav_desc;
+		//			 ? h_gi_resolve_age_buffer_clear_uav_desc
+		//			 : h_gi_resolve_age_alt_buffer_clear_uav_desc;
 		// }
 
 		// const resource_handle&
-		// h_gi_resolve_curr_buffer() const
+		// h_gi_resolve_age_curr_buffer() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_alt_buffer
-		//			 : h_gi_resolve_buffer;
+		//			 ? h_gi_resolve_age_alt_buffer
+		//			 : h_gi_resolve_age_buffer;
 		// }
 
 		// const srv_desc_handle&
-		// h_gi_resolve_curr_buffer_srv_desc() const
+		// h_gi_resolve_age_curr_buffer_srv_desc() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_alt_buffer_srv_desc
-		//			 : h_gi_resolve_buffer_srv_desc;
+		//			 ? h_gi_resolve_age_alt_buffer_srv_desc
+		//			 : h_gi_resolve_age_buffer_srv_desc;
 		// }
 
 		// const uav_desc_handle&
-		// h_gi_resolve_curr_buffer_uav_desc() const
+		// h_gi_resolve_age_curr_buffer_uav_desc() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_alt_buffer_uav_desc
-		//			 : h_gi_resolve_buffer_uav_desc;
+		//			 ? h_gi_resolve_age_alt_buffer_uav_desc
+		//			 : h_gi_resolve_age_buffer_uav_desc;
 		// }
 
 		// const clear_uav_desc_handle&
-		// h_gi_resolve_curr_buffer_clear_uav_desc() const
+		// h_gi_resolve_age_curr_buffer_clear_uav_desc() const
 		//{
 		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_alt_buffer_clear_uav_desc
-		//			 : h_gi_resolve_buffer_clear_uav_desc;
+		//			 ? h_gi_resolve_age_alt_buffer_clear_uav_desc
+		//			 : h_gi_resolve_age_buffer_clear_uav_desc;
 		// }
-
-		const resource_handle&
-		h_gi_resolve_geo_prev_buffer() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_buffer
-					 : h_gi_resolve_geo_alt_buffer;
-		}
-
-		const resource_handle&
-		h_gi_resolve_age_prev_buffer() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_buffer
-					 : h_gi_resolve_age_alt_buffer;
-		}
-
-		const srv_desc_handle&
-		h_gi_resolve_geo_prev_buffer_srv_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_buffer_srv_desc
-					 : h_gi_resolve_geo_alt_buffer_srv_desc;
-		}
-
-		const srv_desc_handle&
-		h_gi_resolve_age_prev_buffer_srv_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_buffer_srv_desc
-					 : h_gi_resolve_age_alt_buffer_srv_desc;
-		}
-
-		const clear_uav_desc_handle&
-		h_gi_resolve_geo_prev_buffer_clear_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_buffer_clear_uav_desc
-					 : h_gi_resolve_geo_alt_buffer_clear_uav_desc;
-		}
-
-		const clear_uav_desc_handle&
-		h_gi_resolve_age_prev_buffer_clear_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_buffer_clear_uav_desc
-					 : h_gi_resolve_age_alt_buffer_clear_uav_desc;
-		}
-
-		const resource_handle&
-		h_gi_resolve_geo_curr_buffer() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_alt_buffer
-					 : h_gi_resolve_geo_buffer;
-		}
-
-		const resource_handle&
-		h_gi_resolve_age_curr_buffer() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_alt_buffer
-					 : h_gi_resolve_age_buffer;
-		}
-
-		const srv_desc_handle&
-		h_gi_resolve_geo_curr_buffer_srv_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_alt_buffer_srv_desc
-					 : h_gi_resolve_geo_buffer_srv_desc;
-		}
-
-		const srv_desc_handle&
-		h_gi_resolve_age_curr_buffer_srv_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_alt_buffer_srv_desc
-					 : h_gi_resolve_age_buffer_srv_desc;
-		}
-
-		const uav_desc_handle&
-		h_gi_resolve_geo_curr_buffer_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_alt_buffer_uav_desc
-					 : h_gi_resolve_geo_buffer_uav_desc;
-		}
-
-		const uav_desc_handle&
-		h_gi_resolve_age_curr_buffer_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_alt_buffer_uav_desc
-					 : h_gi_resolve_age_buffer_uav_desc;
-		}
-
-		const clear_uav_desc_handle&
-		h_gi_resolve_geo_curr_buffer_clear_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_geo_alt_buffer_clear_uav_desc
-					 : h_gi_resolve_geo_buffer_clear_uav_desc;
-		}
-
-		const clear_uav_desc_handle&
-		h_gi_resolve_age_curr_buffer_clear_uav_desc() const
-		{
-			return gibs_data_gpu.is_alt()
-					 ? h_gi_resolve_age_alt_buffer_clear_uav_desc
-					 : h_gi_resolve_age_buffer_clear_uav_desc;
-		}
 	};
 
 	struct ao_desc
@@ -702,14 +572,18 @@ namespace age::graphics::render_pipeline
 	{
 		shared_type::ao_data ao_data_gpu;
 
-		bool	enabled;
-		bool	need_cleanup;
-		uint8_2 _;
+		bool  enabled;
+		bool  need_cleanup;
+		bool  is_alt;
+		uint8 _;
 
-		resource_handle		  h_ao_buffer;
-		srv_desc_handle		  h_ao_buffer_srv_desc;
-		uav_desc_handle		  h_ao_buffer_uav_desc;
-		clear_uav_desc_handle h_ao_buffer_clear_uav_desc;
+		resource_handle h_ao_buffer;
+		srv_desc_handle h_ao_buffer_srv_desc;
+		uav_desc_handle h_ao_buffer_uav_desc;
+
+		AGE_DECL_PING_PONG_BUFFER(ao_raw, is_alt, srv, uav, clear_uav)			  // r16_float
+		AGE_DECL_PING_PONG_BUFFER(ao_bent_normal, is_alt, srv, uav, clear_uav)	  // rg16_snorm
+		AGE_DECL_PING_PONG_BUFFER(ao_age, is_alt, srv, uav, clear_uav)			  // r8_uint
 	};
 
 	struct segment_data
