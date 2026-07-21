@@ -48,8 +48,6 @@ namespace age::graphics::e
 
 					hrp_sort_histogram_cs,
 					hrp_sort_prefix_cs,
-					hrp_gibs_tile_surfel_scatter_cs,
-					hrp_gibs_cell_surfel_scatter_cs,
 					hrp_sort_scatter_cs,
 
 					hrp_light_zbin_cs,
@@ -71,23 +69,50 @@ namespace age::graphics::e
 					hrp_gibs_cleanup_cs,
 					hrp_gibs_tile_spawn_kill_cs,
 					hrp_gibs_cell_spawn_kill_cs,
+
 					hrp_gibs_prepare_cs,
-					hrp_gibs_update_surfel_cs,
-					hrp_gibs_ray_ideal_count_sum_cs,
-					hrp_gibs_ray_count_prefix_cs,
+
+					hrp_gibs_update_tile_surfel_id_stack_cs,
+					hrp_gibs_update_cell_surfel_id_stack_cs,
+					hrp_gibs_update_surfel_probe_id_stack_cs,
+
+					hrp_gibs_set_indirect_arg_cs,
+
+					hrp_gibs_update_cell_surfel_cs,
+					hrp_gibs_update_surfel_probe_cs,
+
+					hrp_gibs_alloc_tile_surfel_cs,
+					hrp_gibs_alloc_cell_surfel_cs,
+					hrp_gibs_alloc_surfel_probe_cs,
+
+					hrp_gibs_tile_surfel_ideal_ray_count_reduce_cs,
+					hrp_gibs_cell_surfel_ideal_ray_count_reduce_cs,
+
+					hrp_gibs_tile_surfel_ray_count_prefix_cs,
+					hrp_gibs_cell_surfel_ray_count_prefix_cs,
+
 					hrp_gibs_ray_entry_cs,
-					hrp_gibs_tile_surfel_count_prefix_cs,
-					hrp_gibs_cell_surfel_count_prefix_cs,
+
+					hrp_gibs_tile_prefix_cs,
+					hrp_gibs_cell_prefix_cs,
+
+					hrp_gibs_tile_surfel_scatter_cs,
+					hrp_gibs_cell_surfel_scatter_cs,
+					hrp_gibs_cell_probe_scatter_cs,
+
+					hrp_gibs_surfel_probe_gather_cs,
 
 					hrp_gibs_gi_reproject_cs,
 
 					hrp_gibs_ray_trace_cs,
+					hrp_gibs_ray_resolve_cs,
 					hrp_gibs_ray_integrate_cs,
 					hrp_gibs_build_cdf_cs,
 					hrp_gibs_gi_resolve_cs,
 					hrp_gibs_gi_scatter_cs,
 					hrp_gibs_gi_reconstruct_cs,
-					hrp_gibs_debug_draw_surfels_ps,
+					hrp_gibs_debug_draw_surfels_cs,
+					hrp_gibs_debug_resolve_ps,
 
 					hrp_opaque_ps,
 

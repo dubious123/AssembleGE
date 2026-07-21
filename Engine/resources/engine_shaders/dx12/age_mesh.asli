@@ -302,3 +302,75 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
 
 	return true;
 }
+
+pbr_surface_data
+calc_pbr_surface(float3 view_to_vertex_dir /*normalized*/, const material mat, const vertex_fat vertex)
+{
+	pbr_surface_data res;
+
+	res.world_pos	  = vertex.world_pos;
+	res.normal		  = normalize(vertex.normal);
+	res.vertex_normal = vertex.normal;
+
+	if (mat.normal_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
+
+		float2 normal_xy	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rg * 2.f - 1.f;
+		float  normal_z		 = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
+		normal_xy			*= mat.normal_scale;
+		float3 normal_local	 = normalize(float3(normal_xy, normal_z));
+
+		float3 t = normalize(vertex.tangent.xyz);
+		t		 = normalize(t - res.normal * dot(t, res.normal));
+		float3 b = cross(res.normal, t) * vertex.tangent.w;
+
+		res.normal = normalize(mul(transpose(float3x3(t, b, res.normal)), normal_local));
+	}
+
+	res.view = -view_to_vertex_dir;	   // normalize(view_pos - vertex.world_pos);
+
+	res.n_dot_v = saturate(dot(res.normal, res.view));
+
+	res.base_color = mat.base_color_factor;
+	if (mat.base_color_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> base_color_tex  = global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
+		res.base_color					  *= sample(base_color_tex, get_linear_wrap_sampler(), vertex.uv_set[0]);
+	}
+
+	// metallic-roughness
+	res.metallic  = mat.metallic_factor;
+	res.roughness = mat.roughness_factor;
+	if (mat.metallic_roughness_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> mr_tex	  = global_resource_buffer[non_uniform_resource_idx(mat.metallic_roughness_texture_id)];
+		float3			   mr_sample  = sample(mr_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
+		res.metallic				 *= mr_sample.b;	// glTF spec, metallic in b, roughness in g
+		res.roughness				 *= mr_sample.g;
+	}
+
+	res.roughness	   = max(res.roughness, 0.02f);
+	res.roughness_sqr  = res.roughness * res.roughness;
+	res.roughness_quad = res.roughness_sqr * res.roughness_sqr;
+
+	res.f0		  = lerp(float3(0.04f, 0.04f, 0.04f), res.base_color.rgb, res.metallic);
+	res.c_diffuse = res.base_color.rgb * (1.f - res.metallic);
+
+	res.emissive = mat.emissive_factor;
+	if (mat.emissive_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> emissive_tex	 = global_resource_buffer[non_uniform_resource_idx(mat.emissive_texture_id)];
+		res.emissive					*= sample(emissive_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
+	}
+
+	res.occlusion = 1.f;
+	if (mat.occlusion_texture_id != invalid_id_uint32)
+	{
+		texture_2d<float4> occlusion_tex = global_resource_buffer[non_uniform_resource_idx(mat.occlusion_texture_id)];
+		float			   occ_sample	 = sample(occlusion_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).r;
+		res.occlusion					 = lerp(1.0, occ_sample, mat.occlusion_strength);
+	}
+
+	return res;
+}

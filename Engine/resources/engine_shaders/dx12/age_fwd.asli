@@ -21,3 +21,10 @@ struct pbr_surface_data
 	float3 emissive;		  // emissive_factor * tex.rgb
 	float  occlusion;		  // applied to indirect only
 };
+
+float3
+calc_gi(const pbr_surface_data surface_data, float3 irradiance);
+
+template <bool enable_wave_inst>
+float3
+calc_di(const pbr_surface_data surface_data, const float3 world_face_normal);

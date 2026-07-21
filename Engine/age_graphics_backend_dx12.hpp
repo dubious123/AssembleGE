@@ -418,6 +418,7 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
+		std::wstring_view	  shader_name,
 		std::wstring_view	  hlsl_path,
 		std::wstring_view	  entry_point,
 		std::wstring_view	  target,

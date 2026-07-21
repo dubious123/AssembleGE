@@ -1,33 +1,42 @@
 #include "hrp_common.asli"
 
-wave_size(32)
-[numthreads(32, 1, 1)] void
+wave_size(AGE_WAVE_SIZE)
+[numthreads(AGE_WAVE_SIZE, 1, 1)] void
 main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 {
-	const gibs_data		  data			 = gibs_load_gibs_data();
-	byte_array<uint32>	  alive_arr		 = gibs_load_alive_arr_curr(data);
-	rw_byte_array<uint32> ray_offset_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	rw_byte_array<uint32> ray_count_arr	 = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	const uint32		  alive_count	 = alive_arr.size();
+	const gibs_data data = gibs::load_data();
 
-	attr_branch()
+	byte_array<uint32> tile_alive_arr = gibs::tile::alive_id_arr_curr(data);
+	byte_array<uint32> cell_alive_arr = gibs::cell::alive_id_arr_curr(data);
 
-	if (alive_count == 0)
+	const uint32 tile_surfel_count = tile_alive_arr.size();
+	const uint32 cell_surfel_count = cell_alive_arr.size();
+
+	const uint32 tile_surfel_ray_count_total = gibs::tile::ray_count_total_atomic_counter(data).value();
+
+	uint32 ray_offset;
+	uint32 ray_count;
+	uint32 surfel_id;
+
+	if (thread_id < tile_surfel_count)
+	{
+		uint32 alive_id = thread_id;
+		ray_offset		= gibs::tile::ray_count_prefix_rw_arr(data)[alive_id];
+		ray_count		= gibs::tile::ray_count_rw_arr(data)[alive_id];
+		surfel_id		= tile_alive_arr[alive_id];
+	}
+	else if (thread_id - tile_surfel_count < cell_surfel_count)
+	{
+		uint32 alive_id = thread_id - tile_surfel_count;
+		ray_offset		= gibs::cell::ray_count_prefix_rw_arr(data)[alive_id] + tile_surfel_ray_count_total;
+		ray_count		= gibs::cell::ray_count_rw_arr(data)[alive_id];
+		surfel_id		= cell_alive_arr[alive_id];
+	}
+	else
 	{
 		return;
 	}
-
-	if (thread_id >= alive_count)
-	{
-		return;
-	}
-
-	const uint32 alive_id  = thread_id;
-	const uint32 surfel_id = alive_arr[alive_id];
-
-	const uint32 ray_offset = ray_offset_arr[alive_id];
-	const uint32 ray_count	= ray_count_arr[alive_id];
 
 	for (uint32 i = 0; i < ray_count; ++i)
 	{
@@ -35,6 +44,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		// entry.local_ray_id = i;
 		entry.surfel_id = surfel_id;
 
-		gibs_store_ray_entry(data, ray_offset + i, entry);
+		gibs::ray::store_ray_entry(data, ray_offset + i, entry);
 	}
 }

@@ -7,7 +7,7 @@ wave_size(AGE_WAVE_SIZE)
 main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 {
-	const gibs_data data = gibs_load_gibs_data();
+	const gibs_data data = gibs::load_data();
 
 	const int32_2 extent = int32_2(backbuffer_size);
 
@@ -15,7 +15,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const int32_2 px = int32_2(thread_id.xy);
 
-	array<gibs_gi_resolve_sample_res> gi_resolve_sample_res_arr = gibs_load_gi_resolve_sample_res_arr(data);
+	array<gibs_gi_resolve_sample_res> gi_resolve_sample_res_arr = gibs::gi_resolve_sample_res_arr(data);
 
 	rw_texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
 

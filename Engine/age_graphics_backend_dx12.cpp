@@ -100,16 +100,20 @@ namespace age::graphics
 		}
 
 		{
+			auto options1 = D3D12_FEATURE_DATA_D3D12_OPTIONS1{};
+			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &options1, sizeof(options1)));
+			AGE_ASSERT(options1.Int64ShaderOps);
+
+			auto options11 = D3D12_FEATURE_DATA_D3D12_OPTIONS11{};
+			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS11, &options11, sizeof(options11)));
+			AGE_ASSERT(options11.AtomicInt64OnDescriptorHeapResourceSupported);
+
 			auto options12 = D3D12_FEATURE_DATA_D3D12_OPTIONS12{};
-
 			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12)));
-
 			AGE_ASSERT(options12.EnhancedBarriersSupported);
 
 			auto sm = D3D12_FEATURE_DATA_SHADER_MODEL{ D3D_SHADER_MODEL_6_9 };
-
 			AGE_HR_CHECK(g::p_main_device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &sm, sizeof(sm)));
-
 			AGE_ASSERT(sm.HighestShaderModel == D3D_SHADER_MODEL_6_9);
 		}
 

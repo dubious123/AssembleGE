@@ -1,6 +1,10 @@
 #pragma once
 #include "age.asli"
 
+#ifndef AGE_SHADER_NAME
+	#define AGE_SHADER_NAME '?', '?'
+#endif
+
 namespace g
 {
 	static const uint32 fmt_dispatch_thread_id[] = { 'd', 'i', 's', 'p', 'a', 't', 'c', 'h', '_', 't', 'h', 'r', 'e', 'a', 'd', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
@@ -23,79 +27,7 @@ namespace g
 
 	static const uint32 fmt_line[] = { 'l', 'i', 'n', 'e', ' ', ':', ' ', '{', '}' };
 
-	static const uint32 fmt_fullscreen_ms[]									= { 'f', 'u', 'l', 'l', 's', 'c', 'r', 'e', 'e', 'n', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_depth_ms[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_skybox_ps[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'k', 'y', 'b', 'o', 'x', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_skybox_ms[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'k', 'y', 'b', 'o', 'x', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_light_init_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 'i', 'n', 'i', 't', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_light_sort_prepare_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 's', 'o', 'r', 't', '_', 'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_sort_histogram_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 'h', 'i', 's', 't', 'o', 'g', 'r', 'a', 'm', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_sort_prefix_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_sort_scatter_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'o', 'r', 't', '_', 's', 'c', 'a', 't', 't', 'e', 'r', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_light_zbin_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'l', 'i', 'g', 'h', 't', '_', 'z', 'b', 'i', 'n', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_update_probe_state_cs[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'u', 'p', 'd', 'a', 't', 'e', '_', 'p', 'r', 'o', 'b', 'e', '_', 's', 't', 'a', 't', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_reduce_ray_sum_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'd', 'u', 'c', 'e', '_', 'r', 'a', 'y', '_', 's', 'u', 'm', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_prefix_group_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'g', 'r', 'o', 'u', 'p', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_prefix_group_sum_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'g', 'r', 'o', 'u', 'p', '_', 's', 'u', 'm', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_prefix_add_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'a', 'd', 'd', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_probe_trace_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'o', 'b', 'e', '_', 't', 'r', 'a', 'c', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_probe_blend_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'p', 'r', 'o', 'b', 'e', '_', 'b', 'l', 'e', 'n', 'd', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_copy_edge_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'c', 'o', 'p', 'y', '_', 'e', 'd', 'g', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_ddgi_render_probes_as[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'a', 's' };
-	static const uint32 fmt_forward_plus_ddgi_render_probes_ms[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_ddgi_render_probes_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'd', 'g', 'i', '_', 'r', 'e', 'n', 'd', 'e', 'r', '_', 'p', 'r', 'o', 'b', 'e', 's', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_gibs_depth_prepass_ms[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'p', 'r', 'e', 'p', 'a', 's', 's', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_gibs_depth_prepass_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'p', 't', 'h', '_', 'p', 'r', 'e', 'p', 'a', 's', 's', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_gibs_cleanup_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'l', 'e', 'a', 'n', 'u', 'p', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_prepare_cs[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_update_surfel_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'u', 'p', 'd', 'a', 't', 'e', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_ray_ideal_count_sum_cs[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'i', 'd', 'e', 'a', 'l', '_', 'c', 'o', 'u', 'n', 't', '_', 's', 'u', 'm', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_ray_count_prefix_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'c', 'o', 'u', 'n', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_ray_entry_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'e', 'n', 't', 'r', 'y', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_cell_surfel_count_prefix_cs[] = { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'e', 'l', 'l', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 'c', 'o', 'u', 'n', 't', '_', 'p', 'r', 'e', 'f', 'i', 'x', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_cell_to_surfel_scatter_cs[]	= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'c', 'e', 'l', 'l', '_', 't', 'o', '_', 's', 'u', 'r', 'f', 'e', 'l', '_', 's', 'c', 'a', 't', 't', 'e', 'r', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_ray_trace_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 't', 'r', 'a', 'c', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_ray_integrate_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'r', 'a', 'y', '_', 'i', 'n', 't', 'e', 'g', 'r', 'a', 't', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_build_cdf_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'b', 'u', 'i', 'l', 'd', '_', 'c', 'd', 'f', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_tile_coverage_cs[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 't', 'i', 'l', 'e', '_', 'c', 'o', 'v', 'e', 'r', 'a', 'g', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_gibs_debug_draw_surfels_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'g', 'i', 'b', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'd', 'r', 'a', 'w', '_', 's', 'u', 'r', 'f', 'e', 'l', 's', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_opaque_as[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'a', 's' };
-	static const uint32 fmt_forward_plus_opaque_ms[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_opaque_ps[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'o', 'p', 'a', 'q', 'u', 'e', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_transparent_rt_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 't', 'r', 'a', 'n', 's', 'p', 'a', 'r', 'e', 'n', 't', '_', 'r', 't', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_transparent_blend_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 't', 'r', 'a', 'n', 's', 'p', 'a', 'r', 'e', 'n', 't', '_', 'b', 'l', 'e', 'n', 'd', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_raycast_cs[]						= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'r', 'a', 'y', 'c', 'a', 's', 't', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_bloom_prefilter_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'p', 'r', 'e', 'f', 'i', 'l', 't', 'e', 'r', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_bloom_downsample_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'd', 'o', 'w', 'n', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_bloom_upsample_cs[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'b', 'l', 'o', 'o', 'm', '_', 'u', 'p', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 's' };
-	static const uint32 fmt_forward_plus_post_process_ps[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'o', 's', 't', '_', 'p', 'r', 'o', 'c', 'e', 's', 's', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_selection_outline_mask_as[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'a', 's' };
-	static const uint32 fmt_forward_plus_selection_outline_mask_ms[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_selection_outline_mask_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'm', 'a', 's', 'k', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_selection_outline_draw_ps[]		= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 's', 'e', 'l', 'e', 'c', 't', 'i', 'o', 'n', '_', 'o', 'u', 't', 'l', 'i', 'n', 'e', '_', 'd', 'r', 'a', 'w', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_ui_ms[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'u', 'i', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_ui_ps[]							= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'u', 'i', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_debug_mesh_as[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'a', 's' };
-	static const uint32 fmt_forward_plus_debug_mesh_ms[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_debug_mesh_ps[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_debug_mesh_aot_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'd', 'e', 'b', 'u', 'g', '_', 'm', 'e', 's', 'h', '_', 'a', 'o', 't', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_presentation_ms[]					= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 'm', 's' };
-	static const uint32 fmt_forward_plus_presentation_hdr10_ps[]			= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 'h', 'd', 'r', '1', '0', '_', 'p', 's' };
-	static const uint32 fmt_forward_plus_presentation_sdr_ps[]				= { 'f', 'o', 'r', 'w', 'a', 'r', 'd', '_', 'p', 'l', 'u', 's', '_', 'p', 'r', 'e', 's', 'e', 'n', 't', 'a', 't', 'i', 'o', 'n', '_', 's', 'd', 'r', '_', 'p', 's' };
-	static const uint32 fmt_bake_brdf_lut_cs[]								= { 'b', 'a', 'k', 'e', '_', 'b', 'r', 'd', 'f', '_', 'l', 'u', 't', '_', 'c', 's' };
-	static const uint32 fmt_bake_env_light_radiance_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'r', 'a', 'd', 'i', 'a', 'n', 'c', 'e', '_', 'c', 's' };
-	static const uint32 fmt_bake_env_light_irradiance_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'i', 'r', 'r', 'a', 'd', 'i', 'a', 'n', 'c', 'e', '_', 'c', 's' };
-	static const uint32 fmt_bake_env_light_prefilter_cs[]					= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'p', 'r', 'e', 'f', 'i', 'l', 't', 'e', 'r', '_', 'c', 's' };
-	static const uint32 fmt_bake_env_light_build_marginal_cdf_cs[]			= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'b', 'u', 'i', 'l', 'd', '_', 'm', 'a', 'r', 'g', 'i', 'n', 'a', 'l', '_', 'c', 'd', 'f', '_', 'c', 's' };
-	static const uint32 fmt_bake_env_light_build_conditional_cdf_cs[]		= { 'b', 'a', 'k', 'e', '_', 'e', 'n', 'v', '_', 'l', 'i', 'g', 'h', 't', '_', 'b', 'u', 'i', 'l', 'd', '_', 'c', 'o', 'n', 'd', 'i', 't', 'i', 'o', 'n', 'a', 'l', '_', 'c', 'd', 'f', '_', 'c', 's' };
-	static const uint32 fmt_bake_down_sample_cube_cs[]						= { 'b', 'a', 'k', 'e', '_', 'd', 'o', 'w', 'n', '_', 's', 'a', 'm', 'p', 'l', 'e', '_', 'c', 'u', 'b', 'e', '_', 'c', 's' };
-
-	static const uint32 fmt_data_structure[]	  = { 'd', 'a', 't', 'a', '_', 's', 't', 'r', 'u', 'c', 't', 'u', 'r', 'e' };
-	static const uint32 fmt_gibs[]				  = { 'g', 'i', 'b', 's' };
-	static const uint32 fmt_gibs_update_surfels[] = { 'g', 'i', 'b', 's', '_', 'u', 'p', 'd', 'a', 't', '_', 's', 'u', 'r', 'f', 'e', 'l', 's' };
-	static const uint32 fmt_gibs_tile_coverage[]  = { 'g', 'i', 'b', 's', '_', 't', 'i', 'l', 'e', '_', 'c', 'o', 'v', 'e', 'r', 'a', 'g', 'e' };
-	static const uint32 fmt_gibs_gi_resolve[]	  = { 'g', 'i', 'b', 's', '_', 'g', 'i', '_', 'r', 'e', 's', 'o', 'l', 'v', 'e' };
-	static const uint32 fmt_gibs_spawn_kill[]	  = { 'g', 'i', 'b', 's', '_', 's', 'p', 'a', 'w', 'n', '_', 'k', 'i', 'l', 'l' };
+	static const uint32 str_shader_name[] = { AGE_SHADER_NAME };
 
 	// file_only
 	static const uint32 fmt_default_assert_0[] = {
@@ -117,12 +49,31 @@ namespace g
 		'(', 'l', 'i', 'n', 'e', ' ', '{', '}', ')', ' ', ':', ' ', '{', '}'
 	};
 
-	static const uint32 default_shader_file_name[] = { 'a', 's', 'l' };
+	// file + args
+	static const uint32 fmt_default_assert_3[] = {
+		'[', 'a', 's', 's', 'e', 'r', 't', ' ', 'f', 'a', 'i', 'l', 'e', 'd', ']', ' ',
+		'{', '}', ' ', ':', ' ', '{', '}'
+	};
 }	 // namespace g
 
 rw_byte_address_buffer debug_assert_buffer reg(u666, space666);
 
 #define static_assert(expr) _Static_assert(expr, #expr)
+
+struct src_line
+{
+	uint32 value;
+};
+
+src_line
+make_src_line(uint32 v)
+{
+	src_line res;
+	res.value = v;
+	return res;
+}
+
+#define line make_src_line(__LINE__)
 
 template <uint32 n>
 arg_header
@@ -131,6 +82,15 @@ arg_header_init(uint32 arg[n])
 	arg_header res;
 	res.arg_type	  = DEBUG_ARG_TYPE_STRING;
 	res.arg_byte_size = align_up(n + 1, sizeof(uint32));
+	return res;
+}
+
+arg_header
+arg_header_init(src_line src)
+{
+	arg_header res;
+	res.arg_type	  = DEBUG_ARG_TYPE_SRC_LINE;
+	res.arg_byte_size = sizeof(uint32);
 	return res;
 }
 
@@ -306,6 +266,13 @@ struct debug_printer
 		append_char(0);
 
 		flush_char();
+	}
+
+	void
+	append_arg(in src_line arg)
+	{
+		store(buf, offset, arg.value);
+		offset += sizeof(arg.value);
 	}
 };
 
@@ -1074,208 +1041,384 @@ debug_log(const uint32 fmt[n], t0 arg0, t1 arg1, t2 arg2, t3 arg3, t4 arg4, t5 a
 // #endif
 // }
 
-template <typename t_file>
 void
-assert(bool test, t_file file)
+assert(bool test)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_0, file);
+		debug_log(g::fmt_default_assert_0, g::str_shader_name);
 	}
 #endif
 }
 
-template <typename t_file>
+// void
+// assert(bool test, src_line arg_line)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_1, g::str_shader_name, arg_line.value);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
+//	}
+// #endif
+// }
+//
+// template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13, typename t_arg14>
+// void
+// assert(bool test, src_line arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13, t_arg14 arg14)
+//{
+// #if enable_debug_assert
+//	if (test is_false)
+//	{
+//		debug_log(g::fmt_default_assert_2, g::str_shader_name, arg_line.value, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
+//	}
+// #endif
+// }
+
+template <typename t_arg0>
 void
-assert(bool test, t_file file, uint32 arg_line)
+assert(bool test, t_arg0 arg0)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_1, file, arg_line);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0>
+template <typename t_arg0, typename t_arg1>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0)
+assert(bool test, t_arg0 arg0, t_arg1 arg1)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1>
+template <typename t_arg0, typename t_arg1, typename t_arg2>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
 	}
 #endif
 }
 
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13>
+template <typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13, typename t_arg14>
 void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13)
+assert(bool test, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13, t_arg14 arg14)
 {
 #if enable_debug_assert
 	if (test is_false)
 	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
+		debug_log(g::fmt_default_assert_3, g::str_shader_name, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
 	}
 #endif
 }
-
-template <typename t_file, typename t_arg0, typename t_arg1, typename t_arg2, typename t_arg3, typename t_arg4, typename t_arg5, typename t_arg6, typename t_arg7, typename t_arg8, typename t_arg9, typename t_arg10, typename t_arg11, typename t_arg12, typename t_arg13, typename t_arg14>
-void
-assert(bool test, t_file file, uint32 arg_line, t_arg0 arg0, t_arg1 arg1, t_arg2 arg2, t_arg3 arg3, t_arg4 arg4, t_arg5 arg5, t_arg6 arg6, t_arg7 arg7, t_arg8 arg8, t_arg9 arg9, t_arg10 arg10, t_arg11 arg11, t_arg12 arg12, t_arg13 arg13, t_arg14 arg14)
-{
-#if enable_debug_assert
-	if (test is_false)
-	{
-		debug_log(g::fmt_default_assert_2, file, arg_line, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
-	}
-#endif
-}
-
-#define line __LINE__

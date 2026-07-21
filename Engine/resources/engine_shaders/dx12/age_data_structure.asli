@@ -1,6 +1,20 @@
 #pragma once
 #include "age.asli"
 
+namespace g
+{
+	static const uint32 str_array[]			= { '[', 'a', 'r', 'r', 'a', 'y', ']', ' ' };
+	static const uint32 str_byte_array[]	= { '[', 'b', 'y', 't', 'e', '_', 'a', 'r', 'r', 'a', 'y', ']', ' ' };
+	static const uint32 str_rw_array[]		= { '[', 'r', 'w', '_', 'a', 'r', 'r', 'a', 'y', ']', ' ' };
+	static const uint32 str_rw_byte_array[] = { '[', 'r', 'w', '_', 'b', 'y', 't', 'e', '_', 'a', 'r', 'r', 'a', 'y', ']', ' ' };
+	static const uint32 str_rw_stack[]		= { '[', 'r', 'w', '_', 's', 't', 'a', 'c', 'k', ']', ' ' };
+
+	static const uint32 str_assert_fail_reason_oob[]	   = { 'i', 'd', 'x', '>', '=', 'c', 'a', 'p' };
+	static const uint32 str_assert_fail_reason_size_oob[]  = { 'i', 'd', 'x', '>', '=', 's', 'i', 'z', 'e' };
+	static const uint32 str_assert_fail_reason_overflow[]  = { 'o', 'v', 'e', 'r', 'f', 'l', 'o', 'w' };
+	static const uint32 str_assert_fail_reason_underflow[] = { 'u', 'n', 'd', 'e', 'r', 'f', 'l', 'o', 'w' };
+}	 // namespace g
+
 template <typename t>
 struct array
 {
@@ -20,7 +34,7 @@ struct array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		return buf[idx];
 	}
 };
@@ -52,7 +66,7 @@ struct byte_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_byte_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 };
@@ -76,14 +90,14 @@ struct rw_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		return buf[idx];
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		buf[idx] = value;
 	}
 };
@@ -109,21 +123,21 @@ struct rw_byte_array
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_byte_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		return load<t>(buf, offset + idx * sizeof(t));
 	}
 
 	void
 	store(uint32 idx, const t value)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_byte_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		buf.Store<t>(offset + idx * sizeof(t), value);
 	}
 
 	uint32
 	atomic_inc(uint32 idx, uint32 byte4_offset = 0, const uint32 value = 1)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_byte_array, g::str_assert_fail_reason_oob, line, idx, capacity);
 		uint32 original;
 		buf_interlocked_add(buf, offset + idx * sizeof(t) + byte4_offset * 4, value, original);
 		return original;
@@ -212,7 +226,7 @@ struct rw_stack
 	t
 	operator[](uint32 idx)
 	{
-		assert(idx < size(), g::fmt_data_structure, line);
+		assert(idx < uint32(size()), g::str_rw_stack, g::str_assert_fail_reason_size_oob, line, idx, uint32(size()));
 		return load<t>(buf, offset_value() + idx * sizeof(t));
 	}
 
@@ -221,14 +235,14 @@ struct rw_stack
 	{
 		int32 original;
 		buf_interlocked_add(buf, offset_counter(), size, original);
-		assert(original + size <= capacity, g::fmt_data_structure, line);
+		assert(original + size <= int32(capacity), g::str_rw_stack, g::str_assert_fail_reason_overflow, line, uint32(original + size), capacity);
 		return original;
 	}
 
 	t
 	pop()
 	{
-		assert(size() > 0, g::fmt_data_structure, line);
+		assert(size() > 0, g::str_rw_stack, g::str_assert_fail_reason_underflow, line, uint32(size()));
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), -1, original);
 		return load<t>(buf, offset_value() + sizeof(t) * (original - 1));
@@ -255,13 +269,11 @@ struct rw_stack
 	uint32
 	push(const t value)
 	{
-		assert(size() < capacity, g::fmt_data_structure, line);
 		uint32 original;
 		buf_interlocked_add(buf, offset_counter(), 1, original);
+		assert(original + 1 <= capacity, g::str_rw_stack, g::str_assert_fail_reason_overflow, line, original + 1, capacity);
 		store(buf, offset_value() + sizeof(t) * original, value);
 
-		assert(original + 1 <= size(), g::fmt_data_structure, line);
-		assert(original + 1 <= capacity, g::fmt_data_structure, line);
 		return original;
 	}
 
@@ -286,15 +298,14 @@ struct rw_stack
 	void
 	resize(uint32 size)
 	{
-		assert(size <= capacity, g::fmt_data_structure, line);
+		assert(size <= capacity, g::str_rw_stack, g::str_assert_fail_reason_overflow, line, size, capacity);
 		store(buf, offset_counter(), size);
 	}
 
 	void
 	set(uint32 idx, const t value)
 	{
-		assert(idx < capacity, g::fmt_data_structure, line);
-		assert(idx < size(), g::fmt_data_structure, line);
+		assert(idx < capacity, g::str_rw_stack, g::str_assert_fail_reason_oob, line, idx, capacity);
 		store(buf, offset_value() + sizeof(t) * idx, value);
 	}
 };

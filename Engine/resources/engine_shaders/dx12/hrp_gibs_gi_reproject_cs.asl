@@ -12,7 +12,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		uint32 group_thread_id sv_group_thread_id)
 
 {
-	const gibs_data data = gibs_load_gibs_data();
+	const gibs_data data = gibs::load_data();
 
 	const int32_2 extent = int32_2(backbuffer_size);
 
@@ -104,7 +104,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		{
 			gi_resolve_age_curr_buffer[px] = 0u;
 
-			const float4 gi_irradiance_sum = gibs_gather_neighbor_gi(gi_resolve_prev_buffer, opaque_geo_prev_buffer, px, px_z_lin, px_normal, extent);
+			const float4 gi_irradiance_sum = gibs::gather_neighbor_gi(gi_resolve_prev_buffer, opaque_geo_prev_buffer, px, px_z_lin, px_normal, extent);
 
 			gi_resolve_curr_buffer[px] = gi_irradiance_sum.w > 0.f
 										   ? gi_irradiance_sum.xyz / gi_irradiance_sum.w
@@ -173,7 +173,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		const uint32 sample_id = block_id * GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK
 							   + wave_lane_index();
 
-		rw_byte_array<uint16> sample_pos_arr = gibs_load_gi_resolve_sample_pos_rw_arr(data);
+		rw_byte_array<uint16> sample_pos_arr = gibs::gi_resolve_sample_pos_rw_arr(data);
 
 		const uint16 sample_local_pos_lin = uint32_lower_to_uint16(gi_weight_packed_group_min_k);
 

@@ -93,7 +93,7 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 
 		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
 
-		const pbr_surface_data surface_data = calc_pbr_surface(desc.Origin, desc.Direction, mat, v);
+		const pbr_surface_data surface_data = calc_pbr_surface(desc.Direction, mat, v);
 
 		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
 
@@ -138,17 +138,13 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 		//		ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
 		//	}
 		//}
-		else if (gibs_enabled())
+		else if (gibs::enabled())
 		{
-			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-
 			const float ao = sample_ao(px, surface_data.world_pos, world_face_normal);
 
-			const float3 irradiance	 = ao * gibs_sample_screen_irradiance(px, invalid_id_uint32, surface_data.world_pos, world_face_normal);
-			const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
-			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+			const float3 irradiance = ao * gibs::sample_screen_irradiance(px, invalid_id_uint32, surface_data.world_pos, world_face_normal);
 
-			ambient_light += calc_pbr_gibs_specular(surface_data, irradiance) * surface_data.occlusion;
+			ambient_light += calc_gi(surface_data, irradiance);
 		}
 		else
 		{
@@ -172,7 +168,7 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 			const directional_light light = load_directional_light(d);
 
 			lighting += calc_pbr_light(surface_data, light)
-					  * calc_directional_shadow_rt(light, v, world_face_normal);
+					  * calc_directional_shadow_rt(light, v.world_pos, world_face_normal);
 		}
 
 
@@ -212,7 +208,7 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 					const unified_light light = load_sorted_light(sorted_id);
 
 					lighting += calc_pbr_light(surface_data, light)
-							  * calc_unified_shadow_rt(light, v, world_face_normal);
+							  * calc_unified_shadow_rt(light, v.world_pos, world_face_normal);
 				}
 			}
 		}
@@ -221,7 +217,7 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 	}
 }
 
-[numthreads(32, 1, 1)] void
+[numthreads(AGE_WAVE_SIZE, 1, 1)] void
 main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 		uint32 group_thread_id	  sv_group_thread_id)
 

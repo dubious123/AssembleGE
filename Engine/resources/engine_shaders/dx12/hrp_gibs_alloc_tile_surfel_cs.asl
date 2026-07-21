@@ -1,15 +1,13 @@
 #include "hrp_common.asli"
 
-struct fn_fill_tile_to_surfel
+struct fn_tile_alloc
 {
-	uint32 surfel_id;
-
 	uint32_4 screen_aabb;
 
-	static fn_fill_tile_to_surfel
-	init(uint32 surfel_id, const gibs_tile_surfel surfel)
+	static fn_tile_alloc
+	init(const gibs_tile_surfel surfel)
 	{
-		fn_fill_tile_to_surfel res;
+		fn_tile_alloc res;
 
 		const float3 world_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
 
@@ -49,8 +47,6 @@ struct fn_fill_tile_to_surfel
 									   max(screen_pos_rf, screen_pos_lf, screen_pos_rb, screen_pos_lb));
 		}
 
-		res.surfel_id = surfel_id;
-
 		return res;
 	}
 
@@ -63,31 +59,52 @@ struct fn_fill_tile_to_surfel
 		if (aabb_intersect(screen_aabb, uint32_4(tile_min, tile_max)) is_false) { return; }
 
 		const uint32 tile_id = gibs::tile::calc_id(data, tile_idx);
+		const bool	 succeed = gibs::tile::add_surfel(data, tile_id);
 
-		gibs::tile::set_tile_to_surfel_id(data, tile_id, surfel_id);
+		assert(tile_id < data.tile_count_total, line);
+		assert(succeed, line);
 	}
 };
 
 wave_size(AGE_WAVE_SIZE)
 [numthreads(AGE_WAVE_SIZE, 1, 1)] void
-main_cs(uint32 alive_id sv_dispatch_thread_id)
+main_cs(uint32 group_id		   sv_group_id,
+		uint32 group_thread_id sv_group_thread_id,
+		uint32 alive_id		   sv_dispatch_thread_id)
 
 {
-	const gibs_data			 data			= gibs::load_data();
-	const byte_array<uint32> alive_arr_curr = gibs::tile::alive_id_arr_curr(data);
+	const gibs_data data = gibs::load_data();
 
-	structured_buffer<gibs_tile_surfel> surfel_arr = global_resource_buffer[data.h_tile_surfel_buffer_srv_id];
+	byte_array<uint32> alive_stack_curr = gibs::tile::alive_id_arr_curr(data);
+	if (alive_id >= alive_stack_curr.size()) { return; }
 
-	if (alive_id >= alive_arr_curr.size()) { return; }
+	const uint32 surfel_id = alive_stack_curr[alive_id];
 
-	const uint32 surfel_id = alive_arr_curr[alive_id];
+	structured_buffer<gibs_tile_surfel>	   surfel_arr = global_resource_buffer[data.h_tile_surfel_buffer_srv_id];
+	rw_structured_buffer<gibs_surfel_msme> msme_arr	  = global_resource_buffer[data.h_tile_surfel_msme_buffer_uav_id];
 
 	const gibs_tile_surfel surfel = surfel_arr[surfel_id];
+	const gibs_surfel_msme msme	  = msme_arr[surfel_id];
 
-	const float4 clip_pos = mul(view_proj, float4(surfel.position, 1.f));
-	const float3 ndc	  = clip_pos.xyz / clip_pos.w;
+	fn_tile_alloc fn = fn_tile_alloc::init(surfel);
+	gibs::foreach_neighbor_tile(fn, data, min(int32_2(ndc_xy_to_screen(world_to_ndc(view_proj, surfel.position).xy, backbuffer_size)), int32_2(backbuffer_size) - 1));
 
-	fn_fill_tile_to_surfel fn = fn_fill_tile_to_surfel::init(surfel_id, surfel);
+	// uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
+	// uint32 ray_count_ideal = uint32(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, saturate(sqrt(max(0.f, msme.incon_var)) * 10)));
 
-	gibs::foreach_neighbor_tile(fn, data, min(int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size)), int32_2(backbuffer_size) - 1));
+	uint16 ideal_ray_count = uint16(lerp(GIBS_MIN_RAY_PER_SURFEL, GIBS_MAX_RAY_PER_SURFEL, msme.incon_var * (1.f / GIBS_MSME_INCON_BLEND)));
+
+	if (surfel.recycle_data.frame_since_born() < GIBS_RADIANCE_CACHE_DELAY)
+	{
+		ideal_ray_count = GIBS_MAX_RAY_PER_SURFEL;
+	}
+
+	gibs::tile::set_ideal_ray_count(data, alive_id, ideal_ray_count);
+
+	const uint16 ideal_ray_count_wave_sum = wave_active_sum(ideal_ray_count);
+
+	if (wave_is_first_lane())
+	{
+		gibs::tile::set_ideal_ray_count_wave_sum(data, group_id, ideal_ray_count_wave_sum);
+	}
 }

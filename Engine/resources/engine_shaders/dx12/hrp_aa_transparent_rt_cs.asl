@@ -1,6 +1,6 @@
 #include "hrp_common.asli"
 
-[numthreads(32, 1, 1)] void
+[numthreads(AGE_WAVE_SIZE, 1, 1)] void
 main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 		uint32 group_thread_id	  sv_group_thread_id)
 

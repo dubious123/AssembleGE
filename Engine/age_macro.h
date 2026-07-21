@@ -913,3 +913,10 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 	{                                                                                                         \
 		return is_alt_expr ? h_##name##_alt_buffer_##desc_type##_desc : h_##name##_buffer_##desc_type##_desc; \
 	}
+
+#define AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(name)                                                     \
+	h_pso_##name = graphics::pso::create(                                                             \
+		pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },              \
+		pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gibs_##name##_cs) }); \
+	p_pso_##name = graphics::g::pso_ptr_vec[h_pso_##name];                                            \
+	h_pso_##name.set_name(L"pso_gibs_" #name);

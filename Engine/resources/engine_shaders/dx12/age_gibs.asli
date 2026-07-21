@@ -30,26 +30,477 @@
 //	gibs_scratch_data gibs_scratch;
 // };
 
-//---[ gibs data ]------------------------------------------------------------------------------------------------------
-gibs_data
-gibs_load_gibs_data()
-{
-	return load<gibs_data>(static_buffer, GIBS_DATA_OFFSET);
-}
 
-gibs_lut_data
-gibs_load_gibs_lut_data()
+namespace gibs
 {
-	return load<gibs_lut_data>(static_buffer, GIBS_LUT_DATA_OFFSET);
-}
+	gibs_data
+	load_data()
+	{
+		return load<gibs_data>(static_buffer, GIBS_DATA_OFFSET);
+	}
 
-bool
-gibs_enabled()
+	gibs_lut_data
+	load_lut_data()
+	{
+		return load<gibs_lut_data>(static_buffer, GIBS_LUT_DATA_OFFSET);
+	}
+
+	bool
+	enabled()
+	{
+		return ddgi_enabled_and_extra & 2;
+	}
+
+	uint32
+	ray_budget(const gibs_data data)
+	{
+		return (data.max_tile_surfel_count + data.max_cell_surfel_count) * GIBS_MAX_RAY_PER_SURFEL;
+	}
+
+	float3
+	calc_cell_origin(const gibs_lut_data lut_data)
+	{
+		return round(gi_origin / lut_data.cell_size_arr[0]) * lut_data.cell_size_arr[0];
+	}
+
+	template <typename t_func>
+	void
+	foreach_neighbor_tile(inout t_func fn, const gibs_data data, const uint32_2 screen_pos)
+	{
+		const int32_2 tile_center_idx = screen_pos / GIBS_GI_RESOLVE_TILE_SIZE;
+		int32		  x_min			  = tile_center_idx.x <= 0 ? 0 : -1;
+		int32		  y_min			  = tile_center_idx.y <= 0 ? 0 : -1;
+		int32		  x_max			  = tile_center_idx.x >= data.tile_count_w - 1 ? 0 : 1;
+		int32		  y_max			  = tile_center_idx.y >= data.tile_count_h - 1 ? 0 : 1;
+
+		for (int32 y = y_min; y <= y_max; ++y)
+		{
+			for (int32 x = x_min; x <= x_max; ++x)
+			{
+				const int32_2 tile_idx = tile_center_idx + int32_2(x, y);
+
+				fn(data, tile_idx);
+			}
+		}
+	}
+
+	float3
+	calc_cube_min(const gibs_lut_data lut_data, uint32 layer)
+	{
+		return calc_cell_origin(lut_data) - lut_data.layer_boundary_arr[layer];
+	}
+
+	uint32
+	calc_layer(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
+	{
+		const float3 rel  = world_pos - calc_cell_origin(lut_data);
+		const float	 axis = max(abs(rel));
+
+		expand_all()
+
+		for (uint32 i = 0; i < GIBS_MAX_OUTER_LAYER_COUNT; ++i)
+		{
+			if (axis <= lut_data.layer_boundary_arr[i])
+			{
+				return i;
+			}
+		}
+
+		return data.outer_layer_count;
+	}
+
+	float
+	calc_cell_size(const gibs_data data, const gibs_lut_data lut_data, const float3 position)
+	{
+		return lut_data.cell_size_arr[calc_layer(data, lut_data, position)];
+	}
+
+	half
+	calc_cell_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const float3 position)
+	{
+		const float distance = length(position - calc_cell_origin(lut_data));
+
+		const float radius = distance * lut_data.surfel_distance_to_cell_radius;
+
+		return cast<half>(radius);
+	}
+
+	float3
+	calc_region(float3 xyz, out int32 region)
+	{
+		const float3 xyz_abs = abs(xyz);
+		float3		 xyz_res = (float3)0;
+
+		if (xyz_abs.x >= xyz_abs.y and xyz_abs.x >= xyz_abs.z)
+		{
+			if (xyz.x > 0)
+			{
+				xyz_res.x = -xyz.z;
+				xyz_res.y = xyz.y;
+				xyz_res.z = xyz.x;
+				region	  = 1;
+			}
+			else
+			{
+				xyz_res.x = xyz.z;
+				xyz_res.y = xyz.y;
+				xyz_res.z = -xyz.x;
+				region	  = 2;
+			}
+		}
+		else if (xyz_abs.y >= xyz_abs.x and xyz_abs.y >= xyz_abs.z)
+		{
+			if (xyz.y > 0)
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = -xyz.z;
+				xyz_res.z = xyz.y;
+				region	  = 3;
+			}
+			else
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = xyz.z;
+				xyz_res.z = -xyz.y;
+				region	  = 4;
+			}
+		}
+		else
+		{
+			if (xyz.z > 0)
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = xyz.y;
+				xyz_res.z = xyz.z;
+				region	  = 5;
+			}
+			else
+			{
+				xyz_res.x = -xyz.x;
+				xyz_res.y = xyz.y;
+				xyz_res.z = -xyz.z;
+				region	  = 6;
+			}
+		}
+
+		return xyz_res;
+	}
+
+	bool
+	calc_sphere_cell_intersect(const gibs_data data, const gibs_lut_data lut_data, float3 position, float radius, int32_4 cell_idx)
+	{
+		const float3 rel	= position - calc_cell_origin(lut_data);
+		const int32	 region = cell_idx.w;
+
+		if (region == 0)
+		{
+			const float	 cell_size = lut_data.cell_size_arr[0];
+			const float3 cell_min  = cell_idx.xyz * cell_size;
+			const float3 cell_max  = cell_min + cell_size;
+
+			return sphere_aabb_intersect(rel, radius, cell_min, cell_max);
+		}
+		else
+		{
+			const int32 layer = cell_idx.z;
+			const float min_z = lut_data.layer_boundary_arr[layer - 1];
+			const float max_z = lut_data.layer_boundary_arr[layer];
+
+			int32_3 cell_idx_world = cell_idx.xyz;
+
+			const float cell_size_near_uv = min_z * 2.f / data.cell_count;
+			const float cell_size_far_uv  = max_z * 2.f / data.cell_count;
+
+			float3 cell_near_low;
+			float3 cell_near_high;
+			float3 cell_far_low;
+			float3 cell_far_high;
+
+			// maybe there are better ways to do this, but i can't think of one
+			if (region == 1)
+			{
+				cell_near_low.yz = float2(cell_idx.y, -cell_idx.x) * cell_size_near_uv;
+				cell_near_low.x	 = min_z;
+				cell_far_low.yz	 = float2(cell_idx.y, -cell_idx.x) * cell_size_far_uv;
+				cell_far_low.x	 = max_z;
+
+				cell_near_high.yz = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_near_uv;
+				cell_near_high.x  = min_z;
+				cell_far_high.yz  = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_far_uv;
+				cell_far_high.x	  = max_z;
+			}
+			else if (region == 2)
+			{
+				cell_near_low.yz = float2(cell_idx.y, cell_idx.x) * cell_size_near_uv;
+				cell_near_low.x	 = -min_z;
+				cell_far_low.yz	 = float2(cell_idx.y, cell_idx.x) * cell_size_far_uv;
+				cell_far_low.x	 = -max_z;
+
+				cell_near_high.yz = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_near_uv;
+				cell_near_high.x  = -min_z;
+				cell_far_high.yz  = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_far_uv;
+				cell_far_high.x	  = -max_z;
+			}
+			else if (region == 3)
+			{
+				cell_near_low.xz = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_near_uv;
+				cell_near_low.y	 = min_z;
+				cell_far_low.xz	 = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_far_uv;
+				cell_far_low.y	 = max_z;
+
+				cell_near_high.xz = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_near_uv;
+				cell_near_high.y  = min_z;
+				cell_far_high.xz  = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_far_uv;
+				cell_far_high.y	  = max_z;
+			}
+			else if (region == 4)
+			{
+				cell_near_low.xz = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.y	 = -min_z;
+				cell_far_low.xz	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.y	 = -max_z;
+
+				cell_near_high.xz = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.y  = -min_z;
+				cell_far_high.xz  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.y	  = -max_z;
+			}
+			else if (region == 5)
+			{
+				cell_near_low.xy = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.z	 = min_z;
+				cell_far_low.xy	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.z	 = max_z;
+
+				cell_near_high.xy = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.z  = min_z;
+				cell_far_high.xy  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.z	  = max_z;
+			}
+			else
+			{
+				// region == 6
+				cell_near_low.xy = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.z	 = -min_z;
+				cell_far_low.xy	 = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.z	 = -max_z;
+
+				cell_near_high.xy = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.z  = -min_z;
+				cell_far_high.xy  = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.z	  = -max_z;
+			}
+
+
+			return sphere_aabb_intersect(rel, radius,
+										 min(cell_near_low, cell_near_high, cell_far_low, cell_far_high),
+										 max(cell_near_low, cell_near_high, cell_far_low, cell_far_high));
+		}
+	}
+
+	bool
+	calc_surfel_cell_intersect(const gibs_data data, const gibs_lut_data lut_data, const gibs_cell_surfel surfel, int32_4 cell_idx)
+	{
+		return calc_sphere_cell_intersect(data, lut_data, surfel.position, surfel.radius, cell_idx);
+	}
+
+	uint32
+	calc_atlas_tile_local_idx(const float3 local_dir)
+	{
+		assert(local_dir.y >= 0.f, line, local_dir);
+		const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
+		int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIBS_ATLAS_TILE_SIZE));	// [0, 6)
+		idx					= min(idx, GIBS_ATLAS_TILE_SIZE - 1);
+		return idx.x + idx.y * GIBS_ATLAS_TILE_SIZE;
+	}
+}	 // namespace gibs
+
+// id_stack
+namespace gibs
 {
-	return ddgi_enabled_and_extra & 2;
-}
+	namespace tile
+	{
+		rw_stack<uint32>
+		dead_id_stack(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_tile_surfel_id_stack_buffer_uav_id], data.tile_surfel_dead_id_stack_offset(), data.max_tile_surfel_count);
+		}
 
-//---[ gibs indirect arg ]------------------------------------------------------------------------------------------------------
+		rw_stack<uint32>
+		alive_id_stack_prev(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_tile_surfel_id_stack_buffer_uav_id], data.tile_surfel_alive_id_stack_offset_prev(), data.max_tile_surfel_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_curr(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_tile_surfel_id_stack_buffer_uav_id], data.tile_surfel_alive_id_stack_offset_curr(), data.max_tile_surfel_count);
+		}
+
+		uint32
+		dead_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.tile_surfel_dead_id_stack_offset());
+		}
+
+		uint32
+		alive_count_prev(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.tile_surfel_alive_id_stack_offset_prev());
+		}
+
+		uint32
+		alive_count_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.tile_surfel_alive_id_stack_offset_curr());
+		}
+
+		byte_array<uint32>
+		alive_id_arr_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_surfel_id_stack_buffer_srv_id];
+			return byte_array<uint32>::init(buf, data.tile_surfel_alive_id_arr_offset_curr(), tile::alive_count_curr(data));
+		}
+
+		half
+		calc_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const float3 position)
+		{
+			const float3 rel	   = position - camera_pos;
+			const float	 distance  = length(rel);
+			const float	 cos_theta = dot(rel / distance, camera_forward);
+
+			const float radius = distance * lut_data.surfel_distance_to_tile_radius * cos_theta * cos_theta;
+
+			return cast<half>(radius);
+			// return min(radius, cell_size);
+			// return clamp(radius, cell_size * 0.15f, cell_size);
+			// return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
+		}
+	}	 // namespace tile
+
+	namespace cell
+	{
+		rw_stack<uint32>
+		dead_id_stack(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_id_stack_buffer_uav_id], data.cell_surfel_dead_id_stack_offset(), data.max_cell_surfel_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_prev(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_id_stack_buffer_uav_id], data.cell_surfel_alive_id_stack_offset_prev(), data.max_cell_surfel_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_curr(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_id_stack_buffer_uav_id], data.cell_surfel_alive_id_stack_offset_curr(), data.max_cell_surfel_count);
+		}
+
+		uint32
+		dead_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_dead_id_stack_offset());
+		}
+
+		uint32
+		alive_count_prev(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_alive_id_stack_offset_prev());
+		}
+
+		uint32
+		alive_count_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_alive_id_stack_offset_curr());
+		}
+
+		byte_array<uint32>
+		alive_id_arr_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_id_stack_buffer_srv_id];
+			return byte_array<uint32>::init(buf, data.cell_surfel_alive_id_arr_offset_curr(), cell::alive_count_curr(data));
+		}
+	}	 // namespace cell
+
+	namespace probe
+	{
+		rw_stack<uint32>
+		dead_id_stack(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_probe_id_stack_buffer_uav_id], data.probe_dead_id_stack_offset(), data.max_surfel_probe_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_prev(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_probe_id_stack_buffer_uav_id], data.probe_alive_id_stack_offset_prev(), data.max_surfel_probe_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_curr(const gibs_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_probe_id_stack_buffer_uav_id], data.probe_alive_id_stack_offset_curr(), data.max_surfel_probe_count);
+		}
+
+		uint32
+		dead_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_surfel_probe_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.probe_dead_id_stack_offset());
+		}
+
+		uint32
+		alive_count_prev(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_surfel_probe_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.probe_alive_id_stack_offset_prev());
+		}
+
+		uint32
+		alive_count_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_surfel_probe_id_stack_buffer_srv_id];
+			return load<uint32>(buf, data.probe_alive_id_stack_offset_curr());
+		}
+
+		byte_array<uint32>
+		alive_id_arr_curr(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_surfel_probe_id_stack_buffer_srv_id];
+			return byte_array<uint32>::init(buf, data.probe_alive_id_arr_offset_curr(), probe::alive_count_curr(data));
+		}
+	}	 // namespace probe
+}	 // namespace gibs
+
+// debug
+namespace gibs
+{
+	namespace debug
+	{
+		bool
+		freeze_spawn_kill(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN;
+		}
+	}	 // namespace debug
+
+
+}	 // namespace gibs
+
+// indirect arg
+namespace gibs
+{
+	namespace indirect_arg
+	{
 #define gibs_indirect_arg_func(name, nth)                                                       \
 	void                                                                                        \
 	name(const gibs_data data, uint32_3 arg)                                                    \
@@ -57,1572 +508,1794 @@ gibs_enabled()
 		rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_buffer_uav_id]; \
 		store(buf, sizeof(uint32_3) * nth, arg);                                                \
 	}
-gibs_indirect_arg_func(gibs_set_indirect_arg_surfel_update, 0);
-gibs_indirect_arg_func(gibs_set_indirect_arg_ray_ideal_count_sum, 1);
-gibs_indirect_arg_func(gibs_set_indirect_arg_ray_count_prefix, 2);
-gibs_indirect_arg_func(gibs_set_indirect_arg_ray_entry, 3);
-gibs_indirect_arg_func(gibs_set_indirect_arg_surfel_scatter, 4);
-gibs_indirect_arg_func(gibs_set_indirect_arg_ray_trace, 5);
-gibs_indirect_arg_func(gibs_set_indirect_arg_ray_integrate, 6);
-gibs_indirect_arg_func(gibs_set_indirect_arg_build_cdf, 7);
-gibs_indirect_arg_func(gibs_set_indirect_arg_radiance_sharing, 8);
+		gibs_indirect_arg_func(set_update_tile_surfel_id_stack, 0);
+		gibs_indirect_arg_func(set_update_cell_surfel_id_stack, 1);
+		gibs_indirect_arg_func(set_update_surfel_probe_id_stack, 2);
+		gibs_indirect_arg_func(set_update_cell_surfel, 3);
+		gibs_indirect_arg_func(set_update_surfel_probe, 4);
+		gibs_indirect_arg_func(set_alloc_tile_surfel, 5);
+		gibs_indirect_arg_func(set_alloc_cell_surfel, 6);
+		gibs_indirect_arg_func(set_alloc_surfel_probe, 7);
+		gibs_indirect_arg_func(set_tile_surfel_ideal_ray_count_reduce, 8);
+		gibs_indirect_arg_func(set_cell_surfel_ideal_ray_count_reduce, 9);
+		gibs_indirect_arg_func(set_tile_surfel_ray_count_prefix, 10);
+		gibs_indirect_arg_func(set_cell_surfel_ray_count_prefix, 11);
+		gibs_indirect_arg_func(set_ray_entry, 12);
+		gibs_indirect_arg_func(set_tile_surfel_scatter, 13);
+		gibs_indirect_arg_func(set_cell_surfel_scatter, 14);
+		gibs_indirect_arg_func(set_surfel_probe_scatter, 15);
+		gibs_indirect_arg_func(set_surfel_probe_gather, 16);
+		gibs_indirect_arg_func(set_ray_trace, 17);
+		gibs_indirect_arg_func(set_ray_resolve, 18);
+		gibs_indirect_arg_func(set_ray_integrate, 19);
+		gibs_indirect_arg_func(set_build_cdf, 20);
 
 #undef gibs_indirect_arg_func
+	}	 // namespace indirect_arg
+
+
+}	 // namespace gibs
 
 //---[ surfel ]------------------------------------------------------------------------------------------------------
-uint32
-gibs_calc_tile_local_idx(const float3 local_dir)
+
+namespace gibs
 {
-	assert(local_dir.y >= 0.f, g::fmt_gibs, line);
-	const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
-	int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIBS_ATLAS_TILE_SIZE));	// [0, 6)
-	idx					= min(idx, GIBS_ATLAS_TILE_SIZE - 1);
-	return idx.x + idx.y * GIBS_ATLAS_TILE_SIZE;
-}
-
-byte_array<surfel>
-gibs_load_surfel_arr(const gibs_data data)
-{
-	return byte_array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_offset(), data.max_surfel_count);
-}
-
-rw_byte_array<surfel>
-gibs_load_surfel_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<surfel>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_offset(), data.max_surfel_count);
-}
-
-void
-gibs_set_surfel_ref(const gibs_data data, uint32 surfel_id)
-{
-	rw_byte_address_buffer buf			= global_resource_buffer[data.h_surfel_buffer_uav_id];
-	const uint32		   offset		= data.surfel_offset() + sizeof(surfel) * surfel_id + (sizeof(float3) + sizeof(uint32) + sizeof(uint32) + sizeof(half));
-	const uint16		   recycle_data = load<uint16>(buf, offset) & 0x80ff;
-	store<uint16>(buf, offset, recycle_data);
-}
-
-rw_byte_array<surfel_geometry>
-gibs_load_surfel_geometry_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<surfel_geometry>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_geo_offset(), data.max_surfel_count);
-}
-
-rw_byte_array<surfel_msme>
-gibs_load_surfel_msme_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<surfel_msme>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_msme_offset(), data.max_surfel_count);
-}
-
-byte_array<surfel_geometry>
-gibs_load_surfel_geometry_arr(const gibs_data data)
-{
-	return byte_array<surfel_geometry>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_geo_offset(), data.max_surfel_count);
-}
-
-byte_array<surfel_msme>
-gibs_load_surfel_msme_arr(const gibs_data data)
-{
-	return byte_array<surfel_msme>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_msme_offset(), data.max_surfel_count);
-}
-
-rw_byte_array<uint16>
-gibs_load_surfel_visibility_rw_arr(const gibs_data data, uint32 surfel_id)
-{
-	return rw_byte_array<uint16>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_vis_offset(surfel_id), data.atlas_texel_count());
-}
-
-byte_array<uint16>
-gibs_load_surfel_visibility_arr(const gibs_data data, uint32 surfel_id)
-{
-	return byte_array<uint16>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_vis_offset(surfel_id), data.atlas_texel_count());
-}
-
-rw_byte_array<half>
-gibs_load_lum_rw_arr(const gibs_data data, uint32 surfel_id)
-{
-	return rw_byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_lum_offset(surfel_id), data.atlas_texel_count());
-}
-
-byte_array<half>
-gibs_load_lum_arr(const gibs_data data, uint32 surfel_id)
-{
-	return byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_lum_offset(surfel_id), data.atlas_texel_count());
-}
-
-rw_byte_array<half>
-gibs_load_lum_cdf_rw_arr(const gibs_data data, uint32 surfel_id)
-{
-	return rw_byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_uav_id], data.surfel_lum_cdf_offset(surfel_id), data.atlas_texel_count());
-}
-
-byte_array<half>
-gibs_load_lum_cdf_arr(const gibs_data data, uint32 surfel_id)
-{
-	return byte_array<half>::init(global_resource_buffer[data.h_surfel_buffer_srv_id], data.surfel_lum_cdf_offset(surfel_id), data.atlas_texel_count());
-}
-
-//---[ alive dead surfel id stack ]------------------------------------------------------------------------------------------------------
-rw_stack<uint32>
-gibs_load_dead_surfel_id_stack(const gibs_data data)
-{
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.dead_stack_offset(), data.max_surfel_count);
-}
-
-rw_stack<uint32>
-gibs_load_alive_surfel_id_stack_prev(const gibs_data data)
-{
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.alive_stack_offset_prev(), data.max_surfel_count);
-}
-
-uint32
-gibs_load_alive_count_prev(const gibs_data data)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
-	return load<uint32>(buf, data.alive_stack_offset_prev());
-}
-
-rw_stack<uint32>
-gibs_load_alive_surfel_id_stack_curr(const gibs_data data)
-{
-	return rw_stack<uint32>::init(global_resource_buffer[data.h_surfel_id_stack_buffer_uav_id], data.alive_stack_offset_curr(), data.max_surfel_count);
-}
-
-uint32
-gibs_load_alive_count_curr(const gibs_data data)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
-	return load<uint32>(buf, data.alive_stack_offset_curr());
-}
-
-byte_array<uint32>
-gibs_load_alive_arr_curr(const gibs_data data)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_surfel_id_stack_buffer_srv_id];
-	return byte_array<uint32>::init(buf, data.alive_arr_offset_curr(), gibs_load_alive_count_curr(data));
-}
-
-//---[ ray count reduce ]------------------------------------------------------------------------------------------------------
-uint32
-gibs_get_ray_count_ideal_total(const gibs_data data)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_scratch_buffer_uav_id];
-	return load<uint32>(buf, data.ray_count_ideal_total_offset());
-}
-
-void
-gibs_atomic_add_ray_count_ideal(const gibs_data data, uint32 ray_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_total_offset());
-	counter.inc(ray_count);
-}
-
-rw_byte_array<uint32>
-gibs_load_surfel_ray_count_ideal_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_offset(), data.max_surfel_count);
-}
-
-rw_byte_array<uint32>
-gibs_load_surfel_ray_count_ideal_wave_sum_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_ideal_wave_sum_offset(), ceil(data.max_surfel_count, 32));
-}
-
-void
-gibs_reset_ray_alloc(const gibs_data data)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
-	counter.set(0);
-}
-
-uint32
-gibs_alloc_ray(const gibs_data data, uint32 ray_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
-	return counter.inc(ray_count);
-}
-
-uint32
-gibs_load_ray_count_total(const gibs_data data)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_count_total_offset());
-	return counter.value();
-}
-
-rw_byte_array<uint32>
-gibs_load_surfel_ray_count_prefix_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.ray_count_prefix_offset(), data.max_surfel_count);
-}
-
-void
-gibs_store_ray_entry(const gibs_data data, uint32 idx, const gibs_ray_entry entry)
-{
-	assert(idx < GIBS_RAY_BUDGET, g::fmt_gibs, line);
-	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_buffer_uav_id];
-	store<gibs_ray_entry>(buf, data.ray_entry_offset(idx), entry);
-}
-
-gibs_ray_entry
-gibs_load_ray_entry_rw(const gibs_data data, uint32 idx)
-{
-	assert(idx < GIBS_RAY_BUDGET, g::fmt_gibs, line);
-	static_assert(sizeof(gibs_ray_entry) <= sizeof(gibs_ray_result));
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_buffer_uav_id];
-	return load<gibs_ray_entry>(buf, data.ray_entry_offset(idx));
-}
-
-rw_byte_array<gibs_ray_result>
-gibs_load_ray_result_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<gibs_ray_result>::init(global_resource_buffer[data.h_ray_buffer_uav_id], data.ray_data_block_offset(), GIBS_RAY_BUDGET);
-}
-
-byte_array<gibs_ray_result>
-gibs_load_ray_result_arr(const gibs_data data)
-{
-	return byte_array<gibs_ray_result>::init(global_resource_buffer[data.h_ray_buffer_srv_id], data.ray_data_block_offset(), GIBS_RAY_BUDGET);
-}
-
-//---[ cell ]------------------------------------------------------------------------------------------------------
-uint32
-gibs_alloc_cell_surfel(const gibs_data data, uint32 surfel_count)
-{
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_count_offset());
-	return counter.inc(surfel_count);
-}
-
-uint32
-gibs_load_cell_surfel_count(const gibs_data data)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_cell_buffer_srv_id];
-	return load<uint32>(buf, data.cell_surfel_count_offset());
-}
-
-byte_array<gibs_cell_entry>
-gibs_load_cell_entry_arr(const gibs_data data)
-{
-	return byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_entry_block_offset(), data.cell_count_total);
-}
-
-rw_byte_array<gibs_cell_entry>
-gibs_load_cell_entry_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<gibs_cell_entry>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_entry_block_offset(), data.cell_count_total);
-}
-
-byte_array<uint32>
-gibs_load_cell_to_surfel_id_arr(const gibs_data data)
-{
-	return byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
-}
-
-rw_byte_array<uint32>
-gibs_load_cell_to_surfel_id_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
-}
-
-//---[ cell spawn kill ]---
-void
-gibs_set_cell_surfel_spawn(const gibs_data data, uint32 cell_idx_flat, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
-
-	const uint32 offset = data.cell_spawn_kill_data_offset(cell_idx_flat);
-
-	uint32 original;
-	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
-
-	if (original == invalid_id_uint32)
+	void
+	set_cell_surfel_ref(const gibs_data data, uint32 surfel_id)
 	{
-		store<float3>(buf, offset + sizeof(object_id), local_pos);
-		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos), local_normal_oct_snorm16);
-		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos) + sizeof(local_normal_oct_snorm16), radiance_packed);
+		rw_structured_buffer<gibs_cell_surfel> buf = global_resource_buffer[data.h_cell_surfel_buffer_uav_id];
+
+		gibs_cell_surfel surfel = buf[surfel_id];
+		surfel.recycle_data.set_ref();
+		buf[surfel_id] = surfel;
 	}
-}
 
-void
-gibs_set_cell_surfel_kill(const gibs_data data, uint32 cell_idx_flat, uint32 surfel_id)
+	void
+	set_probe_ref(const gibs_data data, uint32 probe_id)
+	{
+		rw_structured_buffer<gibs_recycle_data> probe_recycle_buffer = global_resource_buffer[data.h_surfel_probe_recycle_buffer_uav_id];
+
+		gibs_recycle_data recycle_data = probe_recycle_buffer[probe_id];
+		recycle_data.set_ref();
+		probe_recycle_buffer[probe_id] = recycle_data;
+	}
+}	 // namespace gibs
+
+// cell
+namespace gibs
 {
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+	namespace cell
+	{
+		uint32
+		allocated_surfel_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_count_offset());
+		}
 
-	const uint32 offset = data.cell_spawn_kill_data_offset(cell_idx_flat) + sizeof(gibs_cell_surfel_spawn_data);
+		uint32
+		allocated_probe_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_buffer_srv_id];
+			return load<uint32>(buf, data.cell_probe_count_offset());
+		}
 
-	uint32 original;
-	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
-}
+		byte_array<gibs_cell_probe_entry>
+		probe_entry_arr(const gibs_data data)
+		{
+			return byte_array<gibs_cell_probe_entry>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_probe_entry_block_offset(), data.cell_count_total);
+		}
 
-gibs_cell_surfel_spawn_kill_data
-gibs_load_cell_surfel_spawn_kill_data(const gibs_data data, uint32 cell_idx_flat)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
-	return load<gibs_cell_surfel_spawn_kill_data>(buf, data.cell_spawn_kill_data_offset(cell_idx_flat));
-}
+		rw_byte_array<gibs_cell_probe_entry>
+		probe_entry_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<gibs_cell_probe_entry>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_probe_entry_block_offset(), data.cell_count_total);
+		}
 
-// cell_to_surfel[slot_idx] = surfel_id
-void
-gibs_set_cell_surfel_ref(const gibs_data data, uint32 slot_idx)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+		byte_array<gibs_cell_surfel_entry>
+		surfel_entry_arr(const gibs_data data)
+		{
+			return byte_array<gibs_cell_surfel_entry>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_surfel_entry_block_offset(), data.cell_count_total);
+		}
 
-	const uint32 offset = data.cell_surfel_ref_word_offset(slot_idx);
-	const uint32 flag	= 1u << (slot_idx % 32u);
+		rw_byte_array<gibs_cell_surfel_entry>
+		surfel_entry_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<gibs_cell_surfel_entry>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_entry_block_offset(), data.cell_count_total);
+		}
 
-	buf_interlocked_and(buf, offset, ~flag);
-}
+		byte_array<uint32>
+		cell_to_probe_id_arr(const gibs_data data)
+		{
+			return byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_to_probe_id_block_offset(), data.cell_to_probe_id_capacity());
+		}
 
-bool
-gibs_get_cell_surfel_ref(const gibs_data data, uint32 slot_idx)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+		rw_byte_array<uint32>
+		cell_to_probe_id_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_to_probe_id_block_offset(), data.cell_to_probe_id_capacity());
+		}
 
-	const uint32 offset = data.cell_surfel_ref_word_offset(slot_idx);
-	const uint32 flag	= 1u << (slot_idx % 32u);
+		byte_array<uint32>
+		cell_to_surfel_id_arr(const gibs_data data)
+		{
+			return byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+		}
 
-	return (~load<uint32>(buf, offset)) & flag;
-}
+		rw_byte_array<uint32>
+		cell_to_surfel_id_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+		}
 
-uint32
-gibs_get_cell_surfel_ref_word(const gibs_data data, uint32 world_idx)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+		bool
+		add_surfel(const gibs_data data, uint32 cell_id)
+		{
+			rw_byte_array<gibs_cell_surfel_entry> arr = gibs::cell::surfel_entry_rw_arr(data);
 
-	return load<uint32>(buf, data.cell_surfel_ref_offset() + sizeof(uint32) * world_idx);
-}
+			const uint32 count_original = arr.atomic_inc(cell_id, 1u, 1u);
+
+			return count_original < data.cell_to_surfel_id_capacity();
+		}
+
+		bool
+		add_probe(const gibs_data data, uint32 cell_id)
+		{
+			rw_byte_array<gibs_cell_probe_entry> arr = gibs::cell::probe_entry_rw_arr(data);
+
+			const uint32 count_original = arr.atomic_inc(cell_id, 1u, 1u);
+
+			return count_original < data.cell_to_probe_id_capacity();
+		}
+
+		uint32
+		alloc_surfel(const gibs_data data, uint32 surfel_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_count_offset());
+			return counter.inc(surfel_count);
+		}
+
+		uint32
+		alloc_probe(const gibs_data data, uint32 probe_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_probe_count_offset());
+			return counter.inc(probe_count);
+		}
+
+		void
+		set_cell_to_surfel_id(const gibs_data data, uint32 cell_id, uint32 surfel_id)
+		{
+			rw_byte_array<gibs_cell_surfel_entry> entry_arr = gibs::cell::surfel_entry_rw_arr(data);
+			const gibs_cell_surfel_entry		  entry		= entry_arr[cell_id];
+
+			const uint32 local_offset = entry_arr.atomic_inc(cell_id, 1u, 1u);
+
+			cell_to_surfel_id_rw_arr(data).store(entry.offset + local_offset, surfel_id);
+		}
+
+		void
+		set_cell_to_probe_id(const gibs_data data, uint32 cell_id, uint32 probe_id)
+		{
+			rw_byte_array<gibs_cell_probe_entry> entry_arr = gibs::cell::probe_entry_rw_arr(data);
+			const gibs_cell_probe_entry			 entry	   = entry_arr[cell_id];
+
+			const uint32 local_offset = entry_arr.atomic_inc(cell_id, 1u, 1u);
+
+			cell_to_probe_id_rw_arr(data).store(entry.offset + local_offset, probe_id);
+		}
+
+		int32_4
+		calc_idx(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
+		{
+			const uint32 layer = calc_layer(data, lut_data, world_pos);
+
+			const float3 rel = world_pos - calc_cell_origin(lut_data);
+
+			const int32 half = data.cell_count >> 1u;
+
+			int32 region = 0;
+
+			if (layer == 0)
+			{
+				const float3 cell_idx_float = floor(rel / lut_data.cell_size_arr[0]);
+
+				return int32_4(clamp(int32_3(cell_idx_float), -half, half - 1), region);
+			}
+
+			const float3 region_xyz = calc_region(rel, region);
+
+			const float	 cell_size_xy	   = region_xyz.z * 2.f / data.cell_count;
+			const float2 cell_idx_float_xy = floor(region_xyz.xy / cell_size_xy);
+
+			return int32_4(clamp(int32_2(cell_idx_float_xy), -half, half - 1), layer, region);
+		}
+
+		uint32
+		calc_id(const gibs_data data, int32_4 cell_idx)
+		{
+			const int32 region = cell_idx.w;
+			if (region == 0)
+			{
+				uint32_3 cell_idx_uint32 = cell_idx.xyz + (data.cell_count >> 1);
+
+				return cell_idx_uint32.x
+					 + cell_idx_uint32.y * data.cell_count
+					 + cell_idx_uint32.z * data.cell_count * data.cell_count;
+			}
+
+			// layer >= 1
+			const uint32 layer = cell_idx.z;
+
+			const uint32 base_offset = data.cell_count * data.cell_count * data.cell_count
+									 + 6 * data.cell_count * data.cell_count * (layer - 1)
+									 + (region - 1) * data.cell_count * data.cell_count;
+
+			const int32_2 cell_idx_xy = cell_idx.xy + int32(data.cell_count >> 1);
+			assert(all(cell_idx_xy >= 0), line);
+
+
+			const uint32 res = base_offset
+							 + cell_idx_xy.x
+							 + cell_idx_xy.y * data.cell_count;
+
+			assert(res < data.cell_count_total, line);
+			return res;
+		}
+
+		uint32
+		calc_id(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
+		{
+			return calc_id(data, calc_idx(data, lut_data, world_pos));
+		}
+
+		// cell_to_surfel[local_offset] = surfel_id
+
+
+		void
+		set_probe_ref(const gibs_data data, uint32 local_offset)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			const uint32 offset = data.cell_probe_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			buf_interlocked_and(buf, offset, ~flag);
+		}
+
+		bool
+		get_probe_ref(const gibs_data data, uint32 local_offset)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			const uint32 offset = data.cell_probe_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			return (~load<uint32>(buf, offset)) & flag;
+		}
+
+		uint32
+		get_probe_ref_word(const gibs_data data, uint32 word_idx)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return load<uint32>(buf, data.cell_probe_ref_offset() + sizeof(uint32) * word_idx);
+		}
+
+		void
+		set_surfel_ref(const gibs_data data, uint32 local_offset)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			const uint32 offset = data.cell_surfel_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			buf_interlocked_and(buf, offset, ~flag);
+		}
+
+		bool
+		get_surfel_ref(const gibs_data data, uint32 local_offset)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			const uint32 offset = data.cell_surfel_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			return (~load<uint32>(buf, offset)) & flag;
+		}
+
+		uint32
+		get_surfel_ref_word(const gibs_data data, uint32 word_idx)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return load<uint32>(buf, data.cell_surfel_ref_offset() + sizeof(uint32) * word_idx);
+		}
+
+		void
+		set_probe_spawn(const gibs_data data, uint32 cell_id, float spawn_prob, uint32 ray_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_probe_spawn_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(spawn_prob)) << 32u) | ray_id);
+		}
+
+		void
+		set_probe_kill(const gibs_data data, uint32 cell_id, float kill_prob, uint32 probe_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_probe_kill_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(kill_prob)) << 32u) | probe_id);
+		}
+
+		void
+		set_surfel_spawn(const gibs_data data, uint32 cell_id, float spawn_prob, uint32 ray_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(spawn_prob)) << 32u) | ray_id);
+		}
+
+		void
+		set_surfel_kill(const gibs_data data, uint32 cell_id, float kill_prob, uint32 surfel_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_surfel_kill_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(kill_prob)) << 32u) | surfel_id);
+		}
+
+		uint32
+		load_probe_spawn_data(const gibs_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return uint32(load<uint64>(buf, data.cell_probe_spawn_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		uint32
+		load_surfel_spawn_data(const gibs_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return uint32(load<uint64>(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		uint32
+		load_probe_kill_data(const gibs_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+			return uint32(load<uint64>(buf, data.cell_probe_kill_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		uint32
+		load_surfel_kill_data(const gibs_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+			return uint32(load<uint64>(buf, data.cell_surfel_kill_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		rw_byte_array<uint16>
+		visibility_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_cell_surfel_visibility_buffer_uav_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<uint16>
+		visibility_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<uint16>::init(global_resource_buffer[data.h_cell_surfel_visibility_buffer_srv_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_cdf_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_cdf_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+	}	 // namespace cell
+
+
+}	 // namespace gibs
 
 //---[ tile ]------------------------------------------------------------------------------------------------------
-uint32
-gibs_alloc_tile_surfel(const gibs_data data, uint32 surfel_count)
+namespace gibs
 {
-	atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_surfel_count_offset());
-	return counter.inc(surfel_count);
-}
-
-uint32
-gibs_load_tile_surfel_count(const gibs_data data)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_tile_buffer_srv_id];
-	return load<uint32>(buf, data.tile_surfel_count_offset());
-}
-
-byte_array<gibs_tile_entry>
-gibs_load_tile_entry_arr(const gibs_data data)
-{
-	return byte_array<gibs_tile_entry>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_entry_block_offset(), data.tile_count_total);
-}
-
-rw_byte_array<gibs_tile_entry>
-gibs_load_tile_entry_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<gibs_tile_entry>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_entry_block_offset(), data.tile_count_total);
-}
-
-byte_array<uint32>
-gibs_load_tile_to_surfel_id_arr(const gibs_data data)
-{
-	return byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
-}
-
-rw_byte_array<uint32>
-gibs_load_tile_to_surfel_id_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
-}
-
-rw_byte_array<uint16>
-gibs_load_gi_resolve_sample_pos_rw_arr(const gibs_data data)
-{
-	return rw_byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_uav_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
-}
-
-byte_array<uint16>
-gibs_load_gi_resolve_sample_pos_arr(const gibs_data data)
-{
-	return byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_srv_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
-}
-
-rw_array<gibs_gi_resolve_sample_res>
-gibs_load_gi_resolve_sample_res_rw_arr(const gibs_data data)
-{
-	return rw_array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_uav_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
-}
-
-array<gibs_gi_resolve_sample_res>
-gibs_load_gi_resolve_sample_res_arr(const gibs_data data)
-{
-	return array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_srv_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
-}
-
-//---[ tile spawn kill ]---
-void
-gibs_set_tile_surfel_spawn(const gibs_data data, uint32 tile_sample_id, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 radiance_packed)
-{
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
-
-	const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id);
-
-	uint32 original;
-	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
-
-	if (original == invalid_id_uint32)
+	namespace tile
 	{
-		store<float3>(buf, offset + sizeof(object_id), local_pos);
-		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos), local_normal_oct_snorm16);
-		store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos) + sizeof(local_normal_oct_snorm16), radiance_packed);
+		uint32
+		alloc_surfel(const gibs_data data, uint32 surfel_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_surfel_count_offset());
+			return counter.inc(surfel_count);
+		}
+
+		uint32
+		allocated_surfel_count(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_buffer_srv_id];
+			return load<uint32>(buf, data.tile_surfel_count_offset());
+		}
+
+		byte_array<gibs_tile_surfel_entry>
+		surfel_entry_arr(const gibs_data data)
+		{
+			return byte_array<gibs_tile_surfel_entry>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_entry_block_offset(), data.tile_count_total);
+		}
+
+		rw_byte_array<gibs_tile_surfel_entry>
+		surfel_entry_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<gibs_tile_surfel_entry>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_entry_block_offset(), data.tile_count_total);
+		}
+
+		byte_array<uint32>
+		tile_to_surfel_id_arr(const gibs_data data)
+		{
+			return byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_srv_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
+		}
+
+		rw_byte_array<uint32>
+		tile_to_surfel_id_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_tile_buffer_uav_id], data.tile_to_surfel_id_block_offset(), data.tile_to_surfel_id_capacity());
+		}
+
+		bool
+		add_surfel(const gibs_data data, uint32 tile_id)
+		{
+			rw_byte_array<gibs_tile_surfel_entry> arr = gibs::tile::surfel_entry_rw_arr(data);
+
+			const uint32 count_original = arr.atomic_inc(tile_id, 1u, 1u);
+
+			return count_original < data.tile_to_surfel_id_capacity();
+		}
+
+		void
+		set_tile_to_surfel_id(const gibs_data data, uint32 tile_id, uint32 surfel_id)
+		{
+			rw_byte_array<gibs_tile_surfel_entry> entry_arr = gibs::tile::surfel_entry_rw_arr(data);
+			const gibs_tile_surfel_entry		  entry		= entry_arr[tile_id];
+
+			const uint32 local_offset = entry_arr.atomic_inc(tile_id, 1u, 1u);
+
+			tile_to_surfel_id_rw_arr(data).store(entry.offset + local_offset, surfel_id);
+		}
+
+		uint32
+		calc_id(const gibs_data data, uint32_2 tile_idx)
+		{
+			return tile_idx.y * data.tile_count_w + tile_idx.x;
+		}
+
+		void
+		set_surfel_spawn(const gibs_data data, uint32 tile_sample_id, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 irradiance_packed)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
+
+			const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id);
+
+			uint32 original;
+			buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
+
+			if (original == invalid_id_uint32)
+			{
+				store<float3>(buf, offset + sizeof(object_id), local_pos);
+				store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos), local_normal_oct_snorm16);
+				store<uint32>(buf, offset + sizeof(object_id) + sizeof(local_pos) + sizeof(local_normal_oct_snorm16), irradiance_packed);
+			}
+		}
+
+		void
+		set_surfel_kill(const gibs_data data, uint32 tile_sample_id, uint32 surfel_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
+
+			const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id) + sizeof(uint32) + sizeof(float3) + sizeof(uint32) + sizeof(uint32);
+
+			uint32 original;
+			buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
+		}
+
+		gibs_tile_surfel_spawn_kill_data
+		load_surfel_spawn_kill_data(const gibs_data data, uint32 tile_sample_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_srv_id];
+			return load<gibs_tile_surfel_spawn_kill_data>(buf, data.tile_spawn_kill_data_offset(tile_sample_id));
+		}
+
+		rw_byte_array<uint16>
+		visibility_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_tile_surfel_visibility_buffer_uav_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<uint16>
+		visibility_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<uint16>::init(global_resource_buffer[data.h_tile_surfel_visibility_buffer_srv_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_tile_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_tile_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_cdf_rw_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_tile_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * (data.max_tile_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_cdf_arr(const gibs_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_tile_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * (data.max_tile_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+	}	 // namespace tile
+}	 // namespace gibs
+
+// scratch, ray_count reduce, alloc
+namespace gibs
+{
+	namespace tile
+	{
+		rw_byte_array<uint16>
+		ray_count_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.tile_surfel_ray_count_offset(), data.max_tile_surfel_count);
+		}
+
+		rw_byte_array<uint32>
+		ray_count_prefix_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.tile_surfel_ray_count_prefix_offset(), data.max_tile_surfel_count);
+		}
+
+		atomic_counter
+		ray_count_total_atomic_counter(const gibs_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.tile_surfel_ray_count_total_offset());
+		}
+
+		void
+		set_ideal_ray_count(const gibs_data data, uint32 alive_id, uint16 ideal_ray_count)
+		{
+			ray_count_rw_arr(data).store(alive_id, ideal_ray_count);
+		}
+
+		rw_byte_array<uint16>
+		ideal_ray_count_wave_sum_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.tile_surfel_ideal_ray_count_wave_sum_offset(), data.max_tile_surfel_count);
+		}
+
+		void
+		set_ideal_ray_count_wave_sum(const gibs_data data, uint32 group_id, uint16 ideal_ray_count)
+		{
+			ideal_ray_count_wave_sum_rw_arr(data).store(group_id, ideal_ray_count);
+		}
+
+		void
+		atomic_add_ideal_ray_count(const gibs_data data, uint32 ray_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.tile_surfel_ideal_ray_count_total_offset());
+			counter.inc(ray_count);
+		}
+
+		uint32
+		ideal_ray_count_total(const gibs_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.tile_surfel_ideal_ray_count_total_offset()).value();
+		}
+
+		uint32
+		alloc_ray(const gibs_data data, uint32 ray_count)
+		{
+			return ray_count_total_atomic_counter(data).inc(ray_count);
+		}
+
+		uint32
+		ray_count_total(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+			return load<uint32>(buf, data.tile_surfel_ray_count_total_offset());
+		}
+	}	 // namespace tile
+
+	namespace cell
+	{
+		rw_byte_array<uint16>
+		ray_count_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ray_count_offset(), data.max_cell_surfel_count);
+		}
+
+		rw_byte_array<uint32>
+		ray_count_prefix_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ray_count_prefix_offset(), data.max_cell_surfel_count);
+		}
+
+		atomic_counter
+		ray_count_total_atomic_counter(const gibs_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.cell_surfel_ray_count_total_offset());
+		}
+
+		void
+		set_ideal_ray_count(const gibs_data data, uint32 alive_id, uint16 ideal_ray_count)
+		{
+			ray_count_rw_arr(data).store(alive_id, ideal_ray_count);
+		}
+
+		rw_byte_array<uint16>
+		ideal_ray_count_wave_sum_rw_arr(const gibs_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_wave_sum_offset(), data.max_cell_surfel_count);
+		}
+
+		void
+		set_ideal_ray_count_wave_sum(const gibs_data data, uint32 group_id, uint16 ideal_ray_count)
+		{
+			ideal_ray_count_wave_sum_rw_arr(data).store(group_id, ideal_ray_count);
+		}
+
+		void
+		atomic_add_ideal_ray_count(const gibs_data data, uint32 ray_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_total_offset());
+			counter.inc(ray_count);
+		}
+
+		uint32
+		ideal_ray_count_total(const gibs_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_total_offset()).value();
+		}
+
+		uint32
+		alloc_ray(const gibs_data data, uint32 ray_count)
+		{
+			return ray_count_total_atomic_counter(data).inc(ray_count);
+		}
+
+		uint32
+		ray_count_total(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_ray_count_total_offset());
+		}
+	}	 // namespace cell
+
+	namespace ray
+	{
+		void
+		reset_alloc(const gibs_data data)
+		{
+			atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.tile_surfel_ray_count_total_offset()).set(0u);
+			atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.cell_surfel_ray_count_total_offset()).set(0u);
+		}
+
+		uint32_2
+		count_total(const gibs_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+
+			return load<uint32_2>(buf, 0u);
+		}
+
+		void
+		store_ray_entry(const gibs_data data, uint32 id, gibs_ray_entry entry)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_uav_id];
+
+			store<gibs_ray_entry>(buf, data.ray_entry_buffer_offset() + sizeof(gibs_ray_entry) * id, entry);
+		}
+
+		gibs_ray_entry
+		load_ray_entry(const gibs_data data, uint32 id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+
+			return load<gibs_ray_entry>(buf, data.ray_entry_buffer_offset() + sizeof(gibs_ray_entry) * id);
+		}
+	}	 // namespace ray
+}	 // namespace gibs
+
+namespace gibs
+{
+	rw_byte_array<half>
+	load_lum_rw_arr(const gibs_data data, uint32 surfel_id, bool is_tile)
+	{
+		const uint32 uav_id = is_tile ? data.h_tile_surfel_luminance_buffer_uav_id
+									  : data.h_cell_surfel_luminance_buffer_uav_id;
+		const uint32 offset = is_tile ? sizeof(half) * data.atlas_texel_count() * surfel_id
+									  : sizeof(half) * data.atlas_texel_count() * surfel_id;
+
+		return rw_byte_array<half>::init(global_resource_buffer[non_uniform_resource_idx(uav_id)], offset, data.atlas_texel_count());
 	}
-}
 
-void
-gibs_set_tile_surfel_kill(const gibs_data data, uint32 tile_sample_id, uint32 surfel_id)
+	rw_byte_array<half>
+	load_lum_cdf_rw_arr(const gibs_data data, uint32 surfel_id, bool is_tile)
+	{
+		const uint32 uav_id = is_tile ? data.h_tile_surfel_luminance_buffer_uav_id
+									  : data.h_cell_surfel_luminance_buffer_uav_id;
+		const uint32 offset = is_tile ? sizeof(half) * data.atlas_texel_count() * (data.max_tile_surfel_count + surfel_id)
+									  : sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id);
+
+
+		return rw_byte_array<half>::init(global_resource_buffer[non_uniform_resource_idx(uav_id)], offset, data.atlas_texel_count());
+	}
+
+	byte_array<half>
+	load_lum_cdf_arr(const gibs_data data, uint32 surfel_id, bool is_tile)
+	{
+		const uint32 srv_id = is_tile ? data.h_tile_surfel_luminance_buffer_srv_id
+									  : data.h_cell_surfel_luminance_buffer_srv_id;
+		const uint32 offset = is_tile ? sizeof(half) * data.atlas_texel_count() * (data.max_tile_surfel_count + surfel_id)
+									  : sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id);
+
+
+		return byte_array<half>::init(global_resource_buffer[non_uniform_resource_idx(srv_id)], offset, data.atlas_texel_count());
+	}
+
+	rw_byte_array<uint16>
+	load_vis_rw_arr(const gibs_data data, uint32 surfel_id, bool is_tile)
+	{
+		const uint32 uav_id = is_tile ? data.h_tile_surfel_visibility_buffer_uav_id
+									  : data.h_cell_surfel_visibility_buffer_uav_id;
+		const uint32 offset = is_tile ? sizeof(uint16) * data.atlas_texel_count() * surfel_id
+									  : sizeof(uint16) * data.atlas_texel_count() * surfel_id;
+
+
+		return rw_byte_array<uint16>::init(global_resource_buffer[non_uniform_resource_idx(uav_id)], offset, data.atlas_texel_count());
+	}
+}	 // namespace gibs
+
+// gi_resolve
+namespace gibs
 {
-	rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
+	rw_byte_array<uint16>
+	gi_resolve_sample_pos_rw_arr(const gibs_data data)
+	{
+		return rw_byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_uav_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+	}
 
-	const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id) + sizeof(uint32) + sizeof(float3) + sizeof(uint32) + sizeof(uint32);
+	byte_array<uint16>
+	gi_resolve_sample_pos_arr(const gibs_data data)
+	{
+		return byte_array<uint16>::init(global_resource_buffer[data.h_gi_resolve_sample_pos_buffer_srv_id], 0u, data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+	}
 
-	uint32 original;
-	buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, surfel_id, original);
-}
+	rw_array<gibs_gi_resolve_sample_res>
+	gi_resolve_sample_res_rw_arr(const gibs_data data)
+	{
+		return rw_array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_uav_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+	}
 
-gibs_tile_surfel_spawn_kill_data
-gibs_load_tile_surfel_spawn_kill_data(const gibs_data data, uint32 tile_sample_id)
-{
-	byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_srv_id];
-	return load<gibs_tile_surfel_spawn_kill_data>(buf, data.tile_spawn_kill_data_offset(tile_sample_id));
-}
+	array<gibs_gi_resolve_sample_res>
+	gi_resolve_sample_res_arr(const gibs_data data)
+	{
+		return array<gibs_gi_resolve_sample_res>::init(global_resource_buffer[data.h_gi_resolve_sample_res_buffer_srv_id], data.tile_count_total * GIBS_GI_RESOLVE_SAMPLE_PER_TILE);
+	}
+}	 // namespace gibs
 
 //---[ logics ]------------------------------------------------------------------------------------------------------
-float3
-gibs_calc_cell_origin(const gibs_lut_data lut_data)
+
+namespace gibs
 {
-	return round(gi_origin / lut_data.cell_size_arr[0]) * lut_data.cell_size_arr[0];
-}
-
-uint32
-gibs_flatten_tile_idx(const gibs_data data, uint32_2 tile_idx)
-{
-	return tile_idx.y * data.tile_count_w + tile_idx.x;
-}
-
-half
-gibs_calc_tile_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
-{
-	const float3 rel	   = surfel.position - camera_pos;
-	const float	 distance  = length(rel);
-	const float	 cos_theta = dot(rel / distance, camera_forward);
-
-	const float radius = distance * lut_data.surfel_distance_to_tile_radius * cos_theta * cos_theta;
-
-	return cast<half>(radius);
-	// return min(radius, cell_size);
-	// return clamp(radius, cell_size * 0.15f, cell_size);
-	// return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
-}
-
-template <typename t_func>
-void
-gibs_foreach_neighbor_tile(inout t_func fn, const gibs_data data, const uint32_2 screen_pos)
-{
-	const int32_2 tile_center_idx = screen_pos / GIBS_GI_RESOLVE_TILE_SIZE;
-	int32		  x_min			  = tile_center_idx.x <= 0 ? 0 : -1;
-	int32		  y_min			  = tile_center_idx.y <= 0 ? 0 : -1;
-	int32		  x_max			  = tile_center_idx.x >= data.tile_count_w - 1 ? 0 : 1;
-	int32		  y_max			  = tile_center_idx.y >= data.tile_count_h - 1 ? 0 : 1;
-
-	for (int32 y = y_min; y <= y_max; ++y)
+	template <typename t_geo, typename t_surfel>
+	void
+	update_world_space_surfel(const in t_geo geo, inout t_surfel surfel)
 	{
-		for (int32 x = x_min; x <= x_max; ++x)
-		{
-			const int32_2 tile_idx = tile_center_idx + int32_2(x, y);
+		const object_data		 obj		 = load_object_data(geo.object_id);
+		const object_render_data render_data = load_object_render_data(geo.object_id);
+		const material			 mat		 = load_material(render_data.material_id);
+		const mesh_header		 msh_header	 = read_mesh_header<object_render_data>(render_data);
 
-			fn(data, tile_idx);
-		}
-	}
-}
+		const uint32_3 primitive_idx = load_rt_triangle_index(render_data.rt_index_buffer_offset, geo.primitive_id);
+		const float2   barycentrics	 = float2(unorm16_to_float(geo.barycentric_unorm16 & 0xffff), unorm16_to_float((geo.barycentric_unorm16 >> 16u) & 0xffff));
+		const float3   bary_weights	 = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
 
-float3
-gibs_calc_cube_min(const gibs_lut_data lut_data, uint32 layer)
-{
-	return gibs_calc_cell_origin(lut_data) - lut_data.layer_boundary_arr[layer];
-}
+		const vertex_fat v0 = decode_vertex(msh_header, primitive_idx.x);
+		const vertex_fat v1 = decode_vertex(msh_header, primitive_idx.y);
+		const vertex_fat v2 = decode_vertex(msh_header, primitive_idx.z);
 
-uint32
-gibs_calc_layer(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
-{
-	const float3 rel  = world_pos - gibs_calc_cell_origin(lut_data);
-	const float	 axis = max(abs(rel));
+		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj);
 
-	expand_all()
+		const pbr_surface_data surface_data = calc_pbr_surface(-v.normal, mat, v);
 
-	for (uint32 i = 0; i < GIBS_MAX_OUTER_LAYER_COUNT; ++i)
-	{
-		if (axis <= lut_data.layer_boundary_arr[i])
-		{
-			return i;
-		}
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
+		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj.scale), decode_quaternion(obj.quaternion)));
+
+		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_face_normal);
+		surfel.position			  = surface_offset(v.world_pos, v.normal);
+		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(surface_data, world_face_normal) + calc_gi(surface_data, decode_r11g11b10(surfel.irradiance_r11g11b10)));
 	}
 
-	return data.outer_layer_count;
-}
+}	 // namespace gibs
 
-uint32
-gibs_calc_layer(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
+namespace gibs
 {
-	return gibs_calc_layer(data, lut_data, surfel.position);
-}
-
-float
-gibs_calc_cell_size(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
-{
-	return lut_data.cell_size_arr[gibs_calc_layer(data, lut_data, surfel)];
-}
-
-half
-gibs_calc_cell_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
-{
-	const float distance = length(surfel.position - gibs_calc_cell_origin(lut_data));
-
-	const float radius = distance * lut_data.surfel_distance_to_cell_radius;
-
-	const float cell_size = gibs_calc_cell_size(data, lut_data, surfel);
-	return cast<half>(cell_size);
-	return cast<half>(radius);
-	// return max(radius, cell_size * 0.15f);
-	// return radius;
-	// return cast<half>(min(radius, cell_size));
-	// return clamp(radius, cell_size * 0.15f, cell_size);
-	// return clamp(radius, cell_size * 0.15f, cell_size * 0.7);
-}
-
-uint32
-gibs_flatten_cell_idx(const gibs_data data, int32_4 cell_idx)
-{
-	const int32 region = cell_idx.w;
-	if (region == 0)
+	template <typename t_func>
+	void
+	foreach_neighbor_cell(inout t_func fn, const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
 	{
-		uint32_3 cell_idx_uint32 = cell_idx.xyz + (data.cell_count >> 1);
+		const int32_4 center_cell_idx = cell::calc_idx(data, lut_data, world_pos);
 
-		return cell_idx_uint32.x
-			 + cell_idx_uint32.y * data.cell_count
-			 + cell_idx_uint32.z * data.cell_count * data.cell_count;
-	}
+		const int32 region = center_cell_idx.w;
 
-	// layer >= 1
-	const uint32 layer = cell_idx.z;
+		const int32 half = data.cell_count >> 1u;
 
-	const uint32 base_offset = data.cell_count * data.cell_count * data.cell_count
-							 + 6 * data.cell_count * data.cell_count * (layer - 1)
-							 + (region - 1) * data.cell_count * data.cell_count;
+		static const int32_3 offset_arr[26] = {
+			int32_3(1, 1, 1),
+			int32_3(1, 1, -1),
+			int32_3(1, -1, 1),
+			int32_3(1, -1, -1),
+			int32_3(-1, 1, 1),
+			int32_3(-1, 1, -1),
+			int32_3(-1, -1, 1),
+			int32_3(-1, -1, -1),
 
-	const int32_2 cell_idx_xy = cell_idx.xy + int32(data.cell_count >> 1);
-	assert(all(cell_idx_xy >= 0), g::fmt_gibs, line);
+			int32_3(1, 1, 0),
+			int32_3(1, -1, 0),
+			int32_3(-1, 1, 0),
+			int32_3(-1, -1, 0),
+
+			int32_3(1, 0, 1),
+			int32_3(1, 0, -1),
+			int32_3(-1, 0, 1),
+			int32_3(-1, 0, -1),
+
+			int32_3(0, 1, 1),
+			int32_3(0, 1, -1),
+			int32_3(0, -1, 1),
+			int32_3(0, -1, -1),
 
 
-	const uint32 res = base_offset
-					 + cell_idx_xy.x
-					 + cell_idx_xy.y * data.cell_count;
+			int32_3(1, 0, 0),
+			int32_3(-1, 0, 0),
+			int32_3(0, 1, 0),
+			int32_3(0, -1, 0),
+			int32_3(0, 0, 1),
+			int32_3(0, 0, -1),
+		};
 
-	assert(res < data.cell_count_total, g::fmt_gibs, line);
-	return res;
-}
-
-float3
-gibs_calc_region(float3 xyz, out int32 region)
-{
-	const float3 xyz_abs = abs(xyz);
-	float3		 xyz_res = (float3)0;
-
-	if (xyz_abs.x >= xyz_abs.y and xyz_abs.x >= xyz_abs.z)
-	{
-		if (xyz.x > 0)
+		fn(data, lut_data, center_cell_idx);
+		if (region == 0)
 		{
-			xyz_res.x = -xyz.z;
-			xyz_res.y = xyz.y;
-			xyz_res.z = xyz.x;
-			region	  = 1;
+			expand_all()
+
+			for (uint32 i = 0; i < 26; ++i)
+			{
+				const int32_3 offset = offset_arr[i];
+				const int32_3 coord	 = center_cell_idx.xyz + offset;
+
+				const bool x_warp_neg = coord.x < -half;
+				const bool x_warp_pos = coord.x >= half;
+
+				const bool y_warp_neg = coord.y < -half;
+				const bool y_warp_pos = coord.y >= half;
+
+				const bool z_warp_neg = coord.z < -half;
+				const bool z_warp_pos = coord.z >= half;
+
+				if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (z_warp_neg or z_warp_pos) > 1) { continue; }
+
+				int32_4 res;
+				if (x_warp_pos)
+				{
+					res.x = -coord.z - 1;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 1;
+				}
+				else if (x_warp_neg)
+				{
+					res.x = coord.z;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 2;
+				}
+				else if (y_warp_pos)
+				{
+					res.x = coord.x;
+					res.y = -coord.z - 1;
+					res.z = 1;
+					res.w = 3;
+				}
+				else if (y_warp_neg)
+				{
+					res.x = coord.x;
+					res.y = coord.z;
+					res.z = 1;
+					res.w = 4;
+				}
+				else if (z_warp_pos)
+				{
+					res.x = coord.x;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 5;
+				}
+				else if (z_warp_neg)
+				{
+					res.x = -coord.x - 1;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 6;
+				}
+				else
+				{
+					res.xyz = coord;
+					res.w	= 0u;
+				}
+
+				fn(data, lut_data, res);
+			}
 		}
 		else
 		{
-			xyz_res.x = xyz.z;
-			xyz_res.y = xyz.y;
-			xyz_res.z = -xyz.x;
-			region	  = 2;
+			expand_all()
+
+			for (uint32 i = 0; i < 26; ++i)
+			{
+				const int32	  layer	 = center_cell_idx.z;
+				const int32_3 offset = offset_arr[i];
+				const int32_3 coord	 = center_cell_idx.xyz + offset;
+
+				const bool x_warp_neg = coord.x < -half;
+				const bool x_warp_pos = coord.x >= half;
+
+				const bool y_warp_neg = coord.y < -half;
+				const bool y_warp_pos = coord.y >= half;
+
+				const bool z_warp_neg = offset.z == -1;
+				const bool z_warp_pos = offset.z == 1;
+
+				if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (layer == 1 and z_warp_neg) > 1) { continue; }
+				if (layer == data.outer_layer_count and z_warp_pos) { continue; }
+
+				int32_4 res;
+
+				res.z = coord.z;
+				res.w = center_cell_idx.w;	  // region
+
+				// axis flip => -x-1
+				// y = -half -> x = half - 1, y = half - 1 => x = - half
+				// y = -x-1
+				if (x_warp_pos)
+				{
+					if (region == 1)
+					{
+						// x_pos -> z_neg
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 6;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> z_pos
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 5;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> x_pos
+						res.x = coord.y;
+						res.y = half - 1;
+						res.w = 1;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> x_pos
+						res.x = -coord.y - 1;
+						res.y = -half;
+						res.w = 1;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> x_pos
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 1;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> x_neg
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 2;
+					}
+				}
+				else if (x_warp_neg)
+				{
+					if (region == 1)
+					{
+						// x_pos -> z_pos
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 5;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> z_neg
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 6;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> x_neg
+						res.x = -coord.y - 1;
+						res.y = half - 1;
+						res.w = 2;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> x_neg
+						res.x = coord.y;
+						res.y = -half;
+						res.w = 2;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> x_neg
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 2;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> x_pos
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 1;
+					}
+				}
+				else if (y_warp_pos)
+				{
+					if (region == 1)
+					{
+						// x_pos -> y_pos
+						res.x = half - 1;
+						res.y = coord.x;
+						res.w = 3;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> y_pos
+						res.x = -half;
+						res.y = -coord.x - 1;
+						res.w = 3;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> z_neg
+						res.x = -coord.x - 1;
+						res.y = half - 1;
+						res.w = 6;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> z_pos
+						res.x = coord.x;
+						res.y = -half;
+						res.w = 5;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> y_pos
+						res.x = coord.x;
+						res.y = -half;
+						res.w = 3;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> y_pos
+						res.x = -coord.x - 1;
+						res.y = half - 1;
+						res.w = 3;
+					}
+				}
+				else if (y_warp_neg)
+				{
+					if (region == 1)
+					{
+						// x_pos -> y_neg
+						res.x = half - 1;
+						res.y = -coord.x - 1;
+						res.w = 4;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> y_neg
+						res.x = -half;
+						res.y = coord.x;
+						res.w = 4;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> z_pos
+						res.x = coord.x;
+						res.y = half - 1;
+						res.w = 5;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> z_neg
+						res.x = -coord.x - 1;
+						res.y = -half;
+						res.w = 6;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> y_neg
+						res.x = coord.x;
+						res.y = half - 1;
+						res.w = 4;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> y_neg
+						res.x = -coord.x - 1;
+						res.y = -half;
+						res.w = 4;
+					}
+				}
+				else if (layer == 1 and z_warp_neg)
+				{
+					if (region == 1)
+					{
+						res.x = half - 1;
+						res.y = coord.y;
+						res.z = -coord.x - 1;
+					}
+					else if (region == 2)
+					{
+						res.x = -half;
+						res.y = coord.y;
+						res.z = coord.x;
+					}
+					else if (region == 3)
+					{
+						res.x = coord.x;
+						res.y = half - 1;
+						res.z = -coord.y - 1;
+					}
+					else if (region == 4)
+					{
+						res.x = coord.x;
+						res.y = -half;
+						res.z = coord.y;
+					}
+					else if (region == 5)
+					{
+						res.x = coord.x;
+						res.y = coord.y;
+						res.z = half - 1;
+					}
+					else
+					{
+						// region == 6
+						res.x = -coord.x - 1;
+						res.y = coord.y;
+						res.z = -half;
+					}
+
+					res.w = 0;
+				}
+				else
+				{
+					res.xy = coord.xy;
+				}
+
+				fn(data, lut_data, res);
+			}
 		}
 	}
-	else if (xyz_abs.y >= xyz_abs.x and xyz_abs.y >= xyz_abs.z)
+
+	template <bool is_fallback = false>
+	float
+	calc_tile_surfel_contribution(const gibs_data data, const gibs_tile_surfel surfel, const float3 world_pos, const float3 normal)
 	{
-		if (xyz.y > 0)
+		const float	 effective_radius = is_fallback ? surfel.radius * GIBS_SURFEL_OUTER_RADIUS_FACTOR : surfel.radius;
+		const float3 rel			  = world_pos - surfel.position;
+		const float	 dist_sq		  = dot(rel, rel);
+
+		if (dist_sq > effective_radius * effective_radius) { return 0.f; }
+
+		const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+
+		const float cos_theta = dot(normal, surfel_normal);
+
+		// const float cos_weight = cos_theta > 0.f ? 1.f : 1 + cos_theta;
+		// return cos_weight * (1.f - sqrt(dist_sq) / effective_radius);
+		if (cos_theta < 0.5f) { return 0.f; }
+
+		// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
+		const float distance = sqrt(dist_sq);
+
+		// return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
+		// return (1.f - sqrt(dist_sq) / effective_radius);
+		return smoothstep(0, 1, (1.f - sqrt(dist_sq) / effective_radius));
+	}
+
+	// based on ray-tracing-gems ch25
+	// https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
+	// returns blend factor (catch_up_blend)
+	float3
+	update_msme(float3 y, inout gibs_surfel_msme msme, float blend_factor = GIBS_MSME_SHORT_WINDOW_BLEND)
+	{
+		float3 mean_long	 = msme.mean_long;
+		float3 mean_short	 = msme.mean_short;
+		float3 variance		 = msme.variance;
+		float  inconsistency = msme.inconsistency;
+		float  vbbr			 = msme.vbbr;
+
+		// Suppress fireflies.
 		{
-			xyz_res.x = xyz.x;
-			xyz_res.y = -xyz.z;
-			xyz_res.z = xyz.y;
-			region	  = 3;
+			const float3 dev			 = sqrt(max(1e-5f, variance));
+			const float3 high_threshold	 = 0.1f + mean_short + dev * 8.f;
+			const float3 overflow		 = max(0.f, y - high_threshold);
+			y							-= overflow;
+		}
+
+		const float3 delta	= y - mean_short;
+		mean_short			= lerp(mean_short, y, blend_factor);
+		const float3 delta2 = y - mean_short;
+
+		// This should be a longer window than shortWindowBlend to avoid bias
+		// from the variance getting smaller when the short-term mean does.
+		const float variance_blend = blend_factor * 0.5f;
+		variance				   = lerp(variance, delta * delta2, variance_blend);
+		variance				   = max(1e-3, variance);
+		const float3 dev		   = sqrt(max(1e-5f, variance));
+
+		const float3 short_diff	   = mean_long - mean_short;
+		const float	 relative_diff = dot(float3(0.299f, 0.587f, 0.114f), abs(short_diff) / max(1e-5f, dev));
+		inconsistency			   = lerp(inconsistency, relative_diff, 0.08f);
+
+		const float vbbr_target = clamp(dot(float3(0.299f, 0.587f, 0.114f), 0.5f * mean_short / max(1e-5f, dev)), 1.f / 32.f, 1.f);
+
+		float catch_up_blend  = clamp(smoothstep(0.f, 1.f, relative_diff * max(0.02f, inconsistency - 0.2f)), 1.f / 256.f, 1.f);
+		catch_up_blend		 *= vbbr;
+
+		vbbr	  = lerp(vbbr, vbbr_target, 0.1f);
+		mean_long = lerp(mean_long, y, saturate(catch_up_blend));
+
+		{
+			const float incon_a	   = GIBS_MSME_INCON_BLEND;	   // tune
+			float		incon_mean = msme.incon_mean;
+			float		incon_var  = msme.incon_var;
+			const float incon_d	   = inconsistency - incon_mean;
+			incon_mean			   = lerp(incon_mean, inconsistency, incon_a);
+			const float incon_d2   = inconsistency - incon_mean;
+			incon_var			   = lerp(incon_var, incon_d * incon_d2, incon_a);
+			msme.incon_mean		   = incon_mean;
+			msme.incon_var		   = incon_var;
+		}
+
+		// output
+		msme.mean_long	   = mean_long;
+		msme.mean_short	   = mean_short;
+		msme.vbbr		   = vbbr;
+		msme.variance	   = variance;
+		msme.inconsistency = inconsistency;
+
+		return mean_long;
+	}
+
+	float3
+	update_msme(float3 y, inout gibs_surfel_probe_msme msme, float blend_factor = GIBS_MSME_SHORT_WINDOW_BLEND)
+	{
+		float3 mean_long	 = msme.mean_long;
+		float3 mean_short	 = msme.mean_short;
+		float3 variance		 = msme.variance;
+		float  inconsistency = msme.inconsistency;
+		float  vbbr			 = msme.vbbr;
+
+		// Suppress fireflies.
+		{
+			const float3 dev			 = sqrt(max(1e-5f, variance));
+			const float3 high_threshold	 = 0.1f + mean_short + dev * 8.f;
+			const float3 overflow		 = max(0.f, y - high_threshold);
+			y							-= overflow;
+		}
+
+		const float3 delta	= y - mean_short;
+		mean_short			= lerp(mean_short, y, blend_factor);
+		const float3 delta2 = y - mean_short;
+
+		// This should be a longer window than shortWindowBlend to avoid bias
+		// from the variance getting smaller when the short-term mean does.
+		const float variance_blend = blend_factor * 0.5f;
+		variance				   = lerp(variance, delta * delta2, variance_blend);
+		variance				   = max(1e-3, variance);
+		const float3 dev		   = sqrt(max(1e-5f, variance));
+
+		const float3 short_diff	   = mean_long - mean_short;
+		const float	 relative_diff = dot(float3(0.299f, 0.587f, 0.114f), abs(short_diff) / max(1e-5f, dev));
+		inconsistency			   = lerp(inconsistency, relative_diff, 0.08f);
+
+		const float vbbr_target = clamp(dot(float3(0.299f, 0.587f, 0.114f), 0.5f * mean_short / max(1e-5f, dev)), 1.f / 32.f, 1.f);
+
+		float catch_up_blend  = clamp(smoothstep(0.f, 1.f, relative_diff * max(0.02f, inconsistency - 0.2f)), 1.f / 256.f, 1.f);
+		catch_up_blend		 *= vbbr;
+
+		vbbr	  = lerp(vbbr, vbbr_target, 0.1f);
+		mean_long = lerp(mean_long, y, saturate(catch_up_blend));
+
+		// output
+		msme.mean_long	   = mean_long;
+		msme.mean_short	   = mean_short;
+		msme.vbbr		   = vbbr;
+		msme.variance	   = variance;
+		msme.inconsistency = inconsistency;
+
+		return mean_long;
+	}
+
+	template <bool is_tile, typename t_surfel>
+	float
+	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, const t_surfel surfel, float3 world_pos, out float2 chebyshev)
+	{
+		const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+		const float3 rel		   = world_pos - surfel.position + surfel_normal * 0.01f;
+		const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
+
+		float3 dir_local = normalize(rel_local);
+
+		// if (dir_local.y < -0.2f) { return 0.f; }
+		if (all(world_pos == surfel.position)) { return 1.f; }
+
+		dir_local.y = max(dir_local.y, epsilon_1e4);
+		dir_local	= normalize(dir_local);
+
+		assert(dir_local.y >= 0.f, line);
+
+		const uint32 idx = gibs::calc_atlas_tile_local_idx(dir_local);
+
+		uint16 chebyshev_packed = is_tile ? gibs::tile::visibility_arr(data, surfel_id)[idx] : gibs::cell::visibility_arr(data, surfel_id)[idx];
+
+		chebyshev = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)));
+
+		const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
+		const float mean	  = chebyshev.x;
+		const float sq_mean	  = chebyshev.y;
+
+		const float variance = abs(sq_mean - mean * mean);
+
+		if (dist_norm <= mean) { return 1.f; }
+
+		const float k	= dist_norm - mean;
+		const float vis = variance / (variance + k * k);	// p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
+		return pow_5(vis);
+	}
+
+	template <bool is_tile, typename t_surfel>
+	float
+	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, const t_surfel surfel, float3 world_pos)
+	{
+		float2 chebyshev;
+		return calc_surfel_visibility<is_tile, t_surfel>(data, surfel_id, surfel, world_pos, chebyshev);
+	}
+
+	float3
+	sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
+	{
+		const gibs_data						data				  = load_data();
+		byte_array<gibs_tile_surfel_entry>	tile_entry_arr		  = tile::surfel_entry_arr(data);
+		byte_array<uint32>					tile_to_surfel_id_arr = tile::tile_to_surfel_id_arr(data);
+		structured_buffer<gibs_tile_surfel> surfel_buffer		  = global_resource_buffer[data.h_tile_surfel_buffer_srv_id];
+
+		const uint32				 tile_id	= tile::calc_id(data, uint32_2(px / GIBS_GI_RESOLVE_TILE_SIZE));
+		const gibs_tile_surfel_entry tile_entry = tile_entry_arr[tile_id];
+
+		float  max_contribution			  = 0.f;
+		uint32 max_contribution_surfel_id = invalid_id_uint32;
+		float4 irradiance_sum			  = (float4)0;
+
+		for (uint32 i = 0; i < min(512, tile_entry.surfel_count); ++i)
+		{
+			const uint32		   surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
+			const gibs_tile_surfel surfel	 = surfel_buffer[surfel_id];
+
+			const float contribution = gibs::calc_tile_surfel_contribution<false>(data, surfel, world_pos, normal);
+
+			const float3 surfel_irradiance = decode_r11g11b10(surfel.irradiance_r11g11b10);
+
+			assert(is_nan(surfel_irradiance) is_false, line);
+
+			// const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
+
+			if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
+
+			// coverage += contribution;
+			const float visibility		 = gibs::calc_surfel_visibility<true, gibs_tile_surfel>(data, surfel_id, surfel, world_pos);
+			const float contribution_vis = contribution * visibility;
+
+			irradiance_sum += float4(surfel_irradiance, 1.f)
+							* contribution_vis
+							* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.recycle_data.frame_since_born()));
+
+			if (max_contribution < contribution_vis)
+			{
+				max_contribution		   = contribution_vis;
+				max_contribution_surfel_id = surfel_id;
+			}
+		}
+
+		if (irradiance_sum.w > 0.f)
+		{
+			irradiance_sum.xyz /= irradiance_sum.w;
+			return irradiance_sum.xyz;
 		}
 		else
 		{
-			xyz_res.x = xyz.x;
-			xyz_res.y = xyz.z;
-			xyz_res.z = -xyz.y;
-			region	  = 4;
-		}
-	}
-	else
-	{
-		if (xyz.z > 0)
-		{
-			xyz_res.x = xyz.x;
-			xyz_res.y = xyz.y;
-			xyz_res.z = xyz.z;
-			region	  = 5;
-		}
-		else
-		{
-			xyz_res.x = -xyz.x;
-			xyz_res.y = xyz.y;
-			xyz_res.z = -xyz.z;
-			region	  = 6;
-		}
-	}
+			texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 
-	return xyz_res;
-}
+			// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
+			const float3 col_res = gi_resolve_buffer[px];
 
-int32_4
-gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
-{
-	const uint32 layer = gibs_calc_layer(data, lut_data, world_pos);
+			attr_branch()
 
-	const float3 rel = world_pos - gibs_calc_cell_origin(lut_data);
-
-	const int32 half = data.cell_count >> 1u;
-
-	int32 region = 0;
-
-	if (layer == 0)
-	{
-		const float3 cell_idx_float = floor(rel / lut_data.cell_size_arr[0]);
-
-		return int32_4(clamp(int32_3(cell_idx_float), -half, half - 1), region);
-	}
-
-	const float3 region_xyz = gibs_calc_region(rel, region);
-
-	const float	 cell_size_xy	   = region_xyz.z * 2.f / data.cell_count;
-	const float2 cell_idx_float_xy = floor(region_xyz.xy / cell_size_xy);
-
-	return int32_4(clamp(int32_2(cell_idx_float_xy), -half, half - 1), layer, region);
-}
-
-int32_4
-gibs_calc_cell_idx(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel)
-{
-	return gibs_calc_cell_idx(data, lut_data, surfel.position);
-}
-
-bool
-gibs_surfel_cell_intersect(const gibs_data data, const gibs_lut_data lut_data, const surfel surfel, int32_4 cell_idx)
-{
-	const float3 rel	= surfel.position - gibs_calc_cell_origin(lut_data);
-	const int32	 region = cell_idx.w;
-
-	if (region == 0)
-	{
-		const float	 cell_size = lut_data.cell_size_arr[0];
-		const float3 cell_min  = cell_idx.xyz * cell_size;
-		const float3 cell_max  = cell_min + cell_size;
-
-		return sphere_aabb_intersect(rel, surfel.radius, cell_min, cell_max);
-	}
-	else
-	{
-		const int32 layer = cell_idx.z;
-		const float min_z = lut_data.layer_boundary_arr[layer - 1];
-		const float max_z = lut_data.layer_boundary_arr[layer];
-
-		int32_3 cell_idx_world = cell_idx.xyz;
-
-		const float cell_size_near_uv = min_z * 2.f / data.cell_count;
-		const float cell_size_far_uv  = max_z * 2.f / data.cell_count;
-
-		float3 cell_near_low;
-		float3 cell_near_high;
-		float3 cell_far_low;
-		float3 cell_far_high;
-
-		// maybe there are better ways to do this, but i can't think of one
-		if (region == 1)
-		{
-			cell_near_low.yz = float2(cell_idx.y, -cell_idx.x) * cell_size_near_uv;
-			cell_near_low.x	 = min_z;
-			cell_far_low.yz	 = float2(cell_idx.y, -cell_idx.x) * cell_size_far_uv;
-			cell_far_low.x	 = max_z;
-
-			cell_near_high.yz = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_near_uv;
-			cell_near_high.x  = min_z;
-			cell_far_high.yz  = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_far_uv;
-			cell_far_high.x	  = max_z;
-		}
-		else if (region == 2)
-		{
-			cell_near_low.yz = float2(cell_idx.y, cell_idx.x) * cell_size_near_uv;
-			cell_near_low.x	 = -min_z;
-			cell_far_low.yz	 = float2(cell_idx.y, cell_idx.x) * cell_size_far_uv;
-			cell_far_low.x	 = -max_z;
-
-			cell_near_high.yz = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_near_uv;
-			cell_near_high.x  = -min_z;
-			cell_far_high.yz  = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_far_uv;
-			cell_far_high.x	  = -max_z;
-		}
-		else if (region == 3)
-		{
-			cell_near_low.xz = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_near_uv;
-			cell_near_low.y	 = min_z;
-			cell_far_low.xz	 = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_far_uv;
-			cell_far_low.y	 = max_z;
-
-			cell_near_high.xz = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_near_uv;
-			cell_near_high.y  = min_z;
-			cell_far_high.xz  = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_far_uv;
-			cell_far_high.y	  = max_z;
-		}
-		else if (region == 4)
-		{
-			cell_near_low.xz = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
-			cell_near_low.y	 = -min_z;
-			cell_far_low.xz	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
-			cell_far_low.y	 = -max_z;
-
-			cell_near_high.xz = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
-			cell_near_high.y  = -min_z;
-			cell_far_high.xz  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
-			cell_far_high.y	  = -max_z;
-		}
-		else if (region == 5)
-		{
-			cell_near_low.xy = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
-			cell_near_low.z	 = min_z;
-			cell_far_low.xy	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
-			cell_far_low.z	 = max_z;
-
-			cell_near_high.xy = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
-			cell_near_high.z  = min_z;
-			cell_far_high.xy  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
-			cell_far_high.z	  = max_z;
-		}
-		else
-		{
-			// region == 6
-			cell_near_low.xy = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_near_uv;
-			cell_near_low.z	 = -min_z;
-			cell_far_low.xy	 = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_far_uv;
-			cell_far_low.z	 = -max_z;
-
-			cell_near_high.xy = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_near_uv;
-			cell_near_high.z  = -min_z;
-			cell_far_high.xy  = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_far_uv;
-			cell_far_high.z	  = -max_z;
-		}
-
-
-		return sphere_aabb_intersect(rel, surfel.radius,
-									 min(cell_near_low, cell_near_high, cell_far_low, cell_far_high),
-									 max(cell_near_low, cell_near_high, cell_far_low, cell_far_high));
-	}
-}
-
-template <typename t_func>
-void
-gibs_foreach_neighbor_cell(inout t_func fn, const gibs_data data, const gibs_lut_data lut_data, const float3 world_pos)
-{
-	const int32_4 center_cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
-
-	const int32 region = center_cell_idx.w;
-
-	const int32 half = data.cell_count >> 1u;
-
-	static const int32_3 offset_arr[26] = {
-		int32_3(1, 1, 1),
-		int32_3(1, 1, -1),
-		int32_3(1, -1, 1),
-		int32_3(1, -1, -1),
-		int32_3(-1, 1, 1),
-		int32_3(-1, 1, -1),
-		int32_3(-1, -1, 1),
-		int32_3(-1, -1, -1),
-
-		int32_3(1, 1, 0),
-		int32_3(1, -1, 0),
-		int32_3(-1, 1, 0),
-		int32_3(-1, -1, 0),
-
-		int32_3(1, 0, 1),
-		int32_3(1, 0, -1),
-		int32_3(-1, 0, 1),
-		int32_3(-1, 0, -1),
-
-		int32_3(0, 1, 1),
-		int32_3(0, 1, -1),
-		int32_3(0, -1, 1),
-		int32_3(0, -1, -1),
-
-
-		int32_3(1, 0, 0),
-		int32_3(-1, 0, 0),
-		int32_3(0, 1, 0),
-		int32_3(0, -1, 0),
-		int32_3(0, 0, 1),
-		int32_3(0, 0, -1),
-	};
-
-	fn(data, lut_data, center_cell_idx);
-	if (region == 0)
-	{
-		expand_all()
-
-		for (uint32 i = 0; i < 26; ++i)
-		{
-			const int32_3 offset = offset_arr[i];
-			const int32_3 coord	 = center_cell_idx.xyz + offset;
-
-			const bool x_warp_neg = coord.x < -half;
-			const bool x_warp_pos = coord.x >= half;
-
-			const bool y_warp_neg = coord.y < -half;
-			const bool y_warp_pos = coord.y >= half;
-
-			const bool z_warp_neg = coord.z < -half;
-			const bool z_warp_pos = coord.z >= half;
-
-			if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (z_warp_neg or z_warp_pos) > 1) { continue; }
-
-			int32_4 res;
-			if (x_warp_pos)
+			if ((debug::freeze_spawn_kill(data) is_false) and object_id != invalid_id_uint32)
 			{
-				res.x = -coord.z - 1;
-				res.y = coord.y;
-				res.z = 1;
-				res.w = 1;
-			}
-			else if (x_warp_neg)
-			{
-				res.x = coord.z;
-				res.y = coord.y;
-				res.z = 1;
-				res.w = 2;
-			}
-			else if (y_warp_pos)
-			{
-				res.x = coord.x;
-				res.y = -coord.z - 1;
-				res.z = 1;
-				res.w = 3;
-			}
-			else if (y_warp_neg)
-			{
-				res.x = coord.x;
-				res.y = coord.z;
-				res.z = 1;
-				res.w = 4;
-			}
-			else if (z_warp_pos)
-			{
-				res.x = coord.x;
-				res.y = coord.y;
-				res.z = 1;
-				res.w = 5;
-			}
-			else if (z_warp_neg)
-			{
-				res.x = -coord.x - 1;
-				res.y = coord.y;
-				res.z = 1;
-				res.w = 6;
-			}
-			else
-			{
-				res.xyz = coord;
-				res.w	= 0u;
-			}
+				const object_data obj = load_object_data(object_id);
 
-			fn(data, lut_data, res);
-		}
-	}
-	else
-	{
-		expand_all()
-
-		for (uint32 i = 0; i < 26; ++i)
-		{
-			const int32	  layer	 = center_cell_idx.z;
-			const int32_3 offset = offset_arr[i];
-			const int32_3 coord	 = center_cell_idx.xyz + offset;
-
-			const bool x_warp_neg = coord.x < -half;
-			const bool x_warp_pos = coord.x >= half;
-
-			const bool y_warp_neg = coord.y < -half;
-			const bool y_warp_pos = coord.y >= half;
-
-			const bool z_warp_neg = offset.z == -1;
-			const bool z_warp_pos = offset.z == 1;
-
-			if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (layer == 1 and z_warp_neg) > 1) { continue; }
-			if (layer == data.outer_layer_count and z_warp_pos) { continue; }
-
-			int32_4 res;
-
-			res.z = coord.z;
-			res.w = center_cell_idx.w;	  // region
-
-			// axis flip => -x-1
-			// y = -half -> x = half - 1, y = half - 1 => x = - half
-			// y = -x-1
-			if (x_warp_pos)
-			{
-				if (region == 1)
-				{
-					// x_pos -> z_neg
-					res.x = -half;
-					res.y = coord.y;
-					res.w = 6;
-				}
-				else if (region == 2)
-				{
-					// x_neg -> z_pos
-					res.x = -half;
-					res.y = coord.y;
-					res.w = 5;
-				}
-				else if (region == 3)
-				{
-					// y_pos -> x_pos
-					res.x = coord.y;
-					res.y = half - 1;
-					res.w = 1;
-				}
-				else if (region == 4)
-				{
-					// y_neg -> x_pos
-					res.x = -coord.y - 1;
-					res.y = -half;
-					res.w = 1;
-				}
-				else if (region == 5)
-				{
-					// z_pos -> x_pos
-					res.x = -half;
-					res.y = coord.y;
-					res.w = 1;
-				}
-				else
-				{
-					// region == 6
-					// z_neg -> x_neg
-					res.x = -half;
-					res.y = coord.y;
-					res.w = 2;
-				}
-			}
-			else if (x_warp_neg)
-			{
-				if (region == 1)
-				{
-					// x_pos -> z_pos
-					res.x = half - 1;
-					res.y = coord.y;
-					res.w = 5;
-				}
-				else if (region == 2)
-				{
-					// x_neg -> z_neg
-					res.x = half - 1;
-					res.y = coord.y;
-					res.w = 6;
-				}
-				else if (region == 3)
-				{
-					// y_pos -> x_neg
-					res.x = -coord.y - 1;
-					res.y = half - 1;
-					res.w = 2;
-				}
-				else if (region == 4)
-				{
-					// y_neg -> x_neg
-					res.x = coord.y;
-					res.y = -half;
-					res.w = 2;
-				}
-				else if (region == 5)
-				{
-					// z_pos -> x_neg
-					res.x = half - 1;
-					res.y = coord.y;
-					res.w = 2;
-				}
-				else
-				{
-					// region == 6
-					// z_neg -> x_pos
-					res.x = half - 1;
-					res.y = coord.y;
-					res.w = 1;
-				}
-			}
-			else if (y_warp_pos)
-			{
-				if (region == 1)
-				{
-					// x_pos -> y_pos
-					res.x = half - 1;
-					res.y = coord.x;
-					res.w = 3;
-				}
-				else if (region == 2)
-				{
-					// x_neg -> y_pos
-					res.x = -half;
-					res.y = -coord.x - 1;
-					res.w = 3;
-				}
-				else if (region == 3)
-				{
-					// y_pos -> z_neg
-					res.x = -coord.x - 1;
-					res.y = half - 1;
-					res.w = 6;
-				}
-				else if (region == 4)
-				{
-					// y_neg -> z_pos
-					res.x = coord.x;
-					res.y = -half;
-					res.w = 5;
-				}
-				else if (region == 5)
-				{
-					// z_pos -> y_pos
-					res.x = coord.x;
-					res.y = -half;
-					res.w = 3;
-				}
-				else
-				{
-					// region == 6
-					// z_neg -> y_pos
-					res.x = -coord.x - 1;
-					res.y = half - 1;
-					res.w = 3;
-				}
-			}
-			else if (y_warp_neg)
-			{
-				if (region == 1)
-				{
-					// x_pos -> y_neg
-					res.x = half - 1;
-					res.y = -coord.x - 1;
-					res.w = 4;
-				}
-				else if (region == 2)
-				{
-					// x_neg -> y_neg
-					res.x = -half;
-					res.y = coord.x;
-					res.w = 4;
-				}
-				else if (region == 3)
-				{
-					// y_pos -> z_pos
-					res.x = coord.x;
-					res.y = half - 1;
-					res.w = 5;
-				}
-				else if (region == 4)
-				{
-					// y_neg -> z_neg
-					res.x = -coord.x - 1;
-					res.y = -half;
-					res.w = 6;
-				}
-				else if (region == 5)
-				{
-					// z_pos -> y_neg
-					res.x = coord.x;
-					res.y = half - 1;
-					res.w = 4;
-				}
-				else
-				{
-					// region == 6
-					// z_neg -> y_neg
-					res.x = -coord.x - 1;
-					res.y = -half;
-					res.w = 4;
-				}
-			}
-			else if (layer == 1 and z_warp_neg)
-			{
-				if (region == 1)
-				{
-					res.x = half - 1;
-					res.y = coord.y;
-					res.z = -coord.x - 1;
-				}
-				else if (region == 2)
-				{
-					res.x = -half;
-					res.y = coord.y;
-					res.z = coord.x;
-				}
-				else if (region == 3)
-				{
-					res.x = coord.x;
-					res.y = half - 1;
-					res.z = -coord.y - 1;
-				}
-				else if (region == 4)
-				{
-					res.x = coord.x;
-					res.y = -half;
-					res.z = coord.y;
-				}
-				else if (region == 5)
-				{
-					res.x = coord.x;
-					res.y = coord.y;
-					res.z = half - 1;
-				}
-				else
-				{
-					// region == 6
-					res.x = -coord.x - 1;
-					res.y = coord.y;
-					res.z = -half;
-				}
-
-				res.w = 0;
-			}
-			else
-			{
-				res.xy = coord.xy;
-			}
-
-			fn(data, lut_data, res);
-		}
-	}
-}
-
-template <bool is_fallback = false>
-float
-gibs_calc_surfel_contribution(const gibs_data data, const surfel surfel, const float3 world_pos, const float3 normal)
-{
-	const float	 effective_radius = is_fallback ? surfel.radius * GIBS_SURFEL_OUTER_RADIUS_FACTOR : surfel.radius;
-	const float3 rel			  = world_pos - surfel.position;
-	const float	 dist_sq		  = dot(rel, rel);
-
-	if (dist_sq > effective_radius * effective_radius) { return 0.f; }
-
-	const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
-
-	const float cos_theta = dot(normal, surfel_normal);
-
-	// const float cos_weight = cos_theta > 0.f ? 1.f : 1 + cos_theta;
-	// return cos_weight * (1.f - sqrt(dist_sq) / effective_radius);
-	if (cos_theta < 0.5f) { return 0.f; }
-
-	// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
-	const float distance = sqrt(dist_sq);
-
-	// return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
-	// return (1.f - sqrt(dist_sq) / effective_radius);
-	return smoothstep(0, 1, (1.f - sqrt(dist_sq) / effective_radius));
-}
-
-// based on ray-tracing-gems ch25
-// https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
-// returns blend factor (catch_up_blend)
-float3
-gibs_update_msme(float3 y, inout surfel_msme msme, float blend_factor = GIBS_MSME_SHORT_WINDOW_BLEND)
-{
-	float3 mean_long	 = msme.mean_long;
-	float3 mean_short	 = msme.mean_short;
-	float3 variance		 = msme.variance;
-	float  inconsistency = msme.inconsistency;
-	float  vbbr			 = msme.vbbr;
-
-	// Suppress fireflies.
-	{
-		const float3 dev			 = sqrt(max(1e-5f, variance));
-		const float3 high_threshold	 = 0.1f + mean_short + dev * 8.f;
-		const float3 overflow		 = max(0.f, y - high_threshold);
-		y							-= overflow;
-	}
-
-	const float3 delta	= y - mean_short;
-	mean_short			= lerp(mean_short, y, blend_factor);
-	const float3 delta2 = y - mean_short;
-
-	// This should be a longer window than shortWindowBlend to avoid bias
-	// from the variance getting smaller when the short-term mean does.
-	const float variance_blend = blend_factor * 0.5f;
-	variance				   = lerp(variance, delta * delta2, variance_blend);
-	variance				   = max(1e-3, variance);
-	const float3 dev		   = sqrt(max(1e-5f, variance));
-
-	const float3 short_diff	   = mean_long - mean_short;
-	const float	 relative_diff = dot(float3(0.299f, 0.587f, 0.114f), abs(short_diff) / max(1e-5f, dev));
-	inconsistency			   = lerp(inconsistency, relative_diff, 0.08f);
-
-	const float vbbr_target = clamp(dot(float3(0.299f, 0.587f, 0.114f), 0.5f * mean_short / max(1e-5f, dev)), 1.f / 32.f, 1.f);
-
-	float catch_up_blend  = clamp(smoothstep(0.f, 1.f, relative_diff * max(0.02f, inconsistency - 0.2f)), 1.f / 256.f, 1.f);
-	catch_up_blend		 *= vbbr;
-
-	vbbr	  = lerp(vbbr, vbbr_target, 0.1f);
-	mean_long = lerp(mean_long, y, saturate(catch_up_blend));
-
-	{
-		const float incon_a	   = GIBS_MSME_INCON_BLEND;	   // tune
-		float		incon_mean = msme.incon_mean;
-		float		incon_var  = msme.incon_var;
-		const float incon_d	   = inconsistency - incon_mean;
-		incon_mean			   = lerp(incon_mean, inconsistency, incon_a);
-		const float incon_d2   = inconsistency - incon_mean;
-		incon_var			   = lerp(incon_var, incon_d * incon_d2, incon_a);
-		msme.incon_mean		   = incon_mean;
-		msme.incon_var		   = incon_var;
-	}
-
-	// output
-	msme.mean_long	   = mean_long;
-	msme.mean_short	   = mean_short;
-	msme.vbbr		   = vbbr;
-	msme.variance	   = variance;
-	msme.inconsistency = inconsistency;
-
-	return mean_long;
-}
-
-uint32
-gibs_calc_tile_idx(const float3 local_dir)
-{
-	assert(local_dir.y >= 0.f, g::fmt_gibs, line);
-
-	const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
-	int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIBS_ATLAS_TILE_SIZE));	// [0, 6)
-	idx					= min(idx, GIBS_ATLAS_TILE_SIZE - 1);
-
-	return idx.y * GIBS_ATLAS_TILE_SIZE + idx.x;
-}
-
-float
-gibs_calc_visibility(const gibs_data data, uint32 surfel_id, const surfel surfel, float3 world_pos)
-{
-	const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
-	const float3 rel		   = world_pos - surfel.position + surfel_normal * 0.01f;
-	const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
-
-	float3 dir_local = normalize(rel_local);
-
-	// if (dir_local.y < -0.2f) { return 0.f; }
-	if (all(world_pos == surfel.position)) { return 1.f; }
-
-	dir_local.y = max(dir_local.y, epsilon_1e4);
-	dir_local	= normalize(dir_local);
-
-	assert(dir_local.y >= 0.f, g::fmt_gibs, line);
-
-	const uint32 idx = gibs_calc_tile_idx(dir_local);
-
-	const uint16 chebyshev_packed = gibs_load_surfel_visibility_arr(data, surfel_id)[idx];
-	const float2 chebyshev		  = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)));
-
-	const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
-	const float mean	  = chebyshev.x;
-	const float sq_mean	  = chebyshev.y;
-
-	const float variance = abs(sq_mean - mean * mean);
-
-	if (dist_norm <= mean) { return 1.f; }
-
-	const float k	= dist_norm - mean;
-	const float vis = variance / (variance + k * k);	// p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
-	return pow_5(vis);
-}
-
-float
-calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
-{
-	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
-	const float w_depth	   = exp(-depth_diff * 100);
-	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
-
-	return w_depth * w_normal * ratio.x * ratio.y;
-}
-
-float3
-gibs_sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
-{
-	const gibs_data				data				  = gibs_load_gibs_data();
-	byte_array<gibs_tile_entry> tile_entry_arr		  = gibs_load_tile_entry_arr(data);
-	byte_array<uint32>			tile_to_surfel_id_arr = gibs_load_tile_to_surfel_id_arr(data);
-	byte_array<surfel>			surfel_arr			  = gibs_load_surfel_arr(data);
-
-	const uint32		  tile_id	 = gibs_flatten_tile_idx(data, uint32_2(px / GIBS_GI_RESOLVE_TILE_SIZE));
-	const gibs_tile_entry tile_entry = tile_entry_arr[tile_id];
-
-	float  max_contribution			  = 0.f;
-	uint32 max_contribution_surfel_id = invalid_id_uint32;
-	float4 radiance_shared			  = (float4)0;
-
-	for (uint32 i = 0; i < min(512, tile_entry.surfel_count()); ++i)
-	{
-		const uint32 surfel_id = tile_to_surfel_id_arr[tile_entry.offset + i];
-		const surfel surfel	   = surfel_arr[surfel_id];
-
-		assert(surfel.surfel_seen(), g::fmt_gibs_gi_resolve, line);
-
-		const float contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
-
-		const float3 surfel_radiance = decode_r11g11b10(surfel.radiance_r11g11b10);
-
-		assert(is_nan(surfel_radiance) is_false, g::fmt_gibs_gi_resolve, line);
-
-		// assert(gibs_load_alive_surfel_id_stack_curr(data)[surfel.alive_idx] == surfel_id, g::fmt_gibs_gi_resolve, line);
-
-		// const float fallback_contribution = gibs_calc_surfel_contribution<true>(data, surfel, world_pos, normal);
-
-		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
-
-		// coverage += contribution;
-		const float visibility		 = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
-		const float contribution_vis = contribution * visibility;
-
-		radiance_shared += float4(surfel_radiance, 1.f)
-						 * contribution_vis
-						 * smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
-
-		if (max_contribution < contribution_vis)
-		{
-			max_contribution		   = contribution_vis;
-			max_contribution_surfel_id = surfel_id;
-		}
-	}
-
-	if (radiance_shared.w > 0.f)
-	{
-		radiance_shared.xyz /= radiance_shared.w;
-		return radiance_shared.xyz;
-	}
-	else
-	{
-		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-
-		// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
-		const float3 col_res = gi_resolve_buffer[px];
-
-		attr_branch()
-
-		if (((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0) and object_id != invalid_id_uint32)
-		{
-			const object_data obj = load_object_data(object_id);
-
-			gibs_set_tile_surfel_spawn(data,
-									   tile_id,
+				tile::set_surfel_spawn(data,
+									   tile_id * GIBS_GI_RESOLVE_SAMPLE_PER_TILE + (GIBS_GI_RESOLVE_SAMPLE_PER_TILE - 1),
 									   object_id,
 									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
 									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
 									   encode_r11g11b10(col_res));
+			}
+			return col_res;
 		}
-		return col_res;
 	}
-}
 
-float3
-gibs_sample_irradiance(bool enable_spawn_kill, uint32 object_id, float3 world_pos, float3 normal)
+	float4
+	gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float center_z_lin, float3 center_n, int32_2 extent)
+	{
+		float4 res = zero<float4>();
+
+		const int32_2 r = int32_2(1, 1);
+
+		for (int32 dy = -r.y; dy <= r.y; ++dy)
+		{
+			for (int32 dx = -r.x; dx <= r.x; ++dx)
+			{
+				const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+				const uint32_2 geo_tap		 = geo_src[tap];
+				const float	   px_depth_tap	 = as_float(geo_tap.x);
+				const float3   px_normal_tap = decode_oct_snorm16(geo_tap.y);
+
+				if (geo_tap.x == 0) { continue; }
+
+				const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
+
+				const float w = calc_bilateral_weight(center_z_lin, center_n, px_z_lin_tap, px_normal_tap, float2(1.f, 1.f));
+
+				res += float4(irr_src[tap], 1.f) * w;
+			}
+		}
+
+		return res;
+	}
+}	 // namespace gibs
+
+namespace gibs
 {
-	const gibs_data		data	 = gibs_load_gibs_data();
-	const gibs_lut_data lut_data = gibs_load_gibs_lut_data();
-
-
-	const float4   clip_pos		= mul(view_proj, float4(world_pos, 1.f));
-	const float3   ndc			= clip_pos.xyz / clip_pos.w;
-	const float2   screen_pos_f = ndc_xy_to_screen(ndc.xy, backbuffer_size);
-	const uint32_2 screen_pos	= uint32_2(screen_pos_f);
-	const bool	   in_screen	= clip_pos.w > 0.f
-						   and all(ndc.xy >= -1.f)
-						   and all(ndc.xy <= 1.f)
-						   and ndc.z >= 0.f
-						   and ndc.z <= 1.f;
-
-	if (in_screen)
+	bool
+	sample_screen_irradiance(const gibs_data data, const float3 world_pos, const float3 face_normal, out float3 irradiance)
 	{
-		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
-		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
-		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-		const float			 z_depth		   = load(depth_buffer, screen_pos);
-		const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
+		const float4   clip_pos		= mul(view_proj, float4(world_pos, 1.f));
+		const float3   ndc			= clip_pos.xyz / clip_pos.w;
+		const float2   screen_pos_f = ndc_xy_to_screen(ndc.xy, backbuffer_size);
+		const uint32_2 screen_pos	= uint32_2(screen_pos_f);
+		bool		   in_screen	= clip_pos.w > 0.f
+							   and all(ndc.xy >= -1.f)
+							   and all(ndc.xy <= 1.f)
+							   and ndc.z >= 0.f
+							   and ndc.z <= 1.f;
 
-		const bool surfel_seen = z_depth != 0.f
-							 and ndc.z >= (z_depth - epsilon_1e4)	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
-							 and dot(px_normal, normal) > 0.9f;
-
-
-		if (surfel_seen)
+		if (in_screen)
 		{
-			return gi_resolve_buffer[screen_pos];
+			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
+			texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+			const float			 z_depth		   = load(depth_buffer, screen_pos);
+			const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
+
+			in_screen = z_depth != 0.f
+					and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
+					and dot(px_normal, face_normal) > 0.9f;
+
+
+			if (in_screen)
+			{
+				// todo, if in screen, skip di
+				irradiance = gi_resolve_buffer[screen_pos];
+
+				return true;
+			}
 		}
 
-		// if (surfel_seen)
-		//{
-		//	const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
-
-		//	const float2  base_f = screen_pos_f - 0.5f;
-		//	const int32_2 px_00	 = clamp(int32_2(floor(base_f)), zero<int32_2>(), extent - 1);
-		//	const int32_2 px_01	 = clamp(px_00 + int32_2(1, 0), zero<int32_2>(), extent - 1);
-		//	const int32_2 px_10	 = clamp(px_00 + int32_2(0, 1), zero<int32_2>(), extent - 1);
-		//	const int32_2 px_11	 = clamp(px_00 + int32_2(1, 1), zero<int32_2>(), extent - 1);
-
-		//	const float2 f		  = frac(base_f);
-		//	const float2 ratio_00 = float2(1.f - f.x, 1.f - f.y);
-		//	const float2 ratio_01 = float2(f.x, 1.f - f.y);
-		//	const float2 ratio_10 = float2(1.f - f.x, f.y);
-		//	const float2 ratio_11 = float2(f.x, f.y);
-
-		//	const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
-
-		//	const float z_lin_00 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_00]);
-		//	const float z_lin_01 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_01]);
-		//	const float z_lin_10 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_10]);
-		//	const float z_lin_11 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_11]);
-
-		//	const float3 normal_00 = decode_oct_snorm16(gbuffer[px_00].y);
-		//	const float3 normal_01 = decode_oct_snorm16(gbuffer[px_01].y);
-		//	const float3 normal_10 = decode_oct_snorm16(gbuffer[px_10].y);
-		//	const float3 normal_11 = decode_oct_snorm16(gbuffer[px_11].y);
-
-		//	float4 res	= zero<float4>();
-		//	res		   += float4(gi_resolve_buffer[px_00], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_00, normal_00, ratio_00);
-		//	res		   += float4(gi_resolve_buffer[px_01], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_01, normal_01, ratio_01);
-		//	res		   += float4(gi_resolve_buffer[px_10], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_10, normal_10, ratio_10);
-		//	res		   += float4(gi_resolve_buffer[px_11], 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_11, normal_11, ratio_11);
-
-		//	if (res.w > epsilon_1e4)
-		//	{
-		//		return res.xyz / res.w;
-		//	}
-
-		//	return gi_resolve_buffer[screen_pos];
-		//}
+		return false;
 	}
 
-	world_pos += normal * 0.05f;
-
-	const int32_4 cell_idx = gibs_calc_cell_idx(data, lut_data, world_pos);
-
-	const uint32		  cell_idx_flat			= gibs_flatten_cell_idx(data, cell_idx);
-	const gibs_cell_entry entry					= gibs_load_cell_entry_arr(data)[cell_idx_flat];
-	byte_array<surfel>	  surfel_arr			= gibs_load_surfel_arr(data);
-	byte_array<uint32>	  cell_to_surfel_id_arr = gibs_load_cell_to_surfel_id_arr(data);
-
-	float4 irradiance_sum = (float4)0;	  // w = weight_sum
-
-	uint32 max_contribution_surfel_id = invalid_id_uint32;
-	float  max_contribution			  = 0.f;
-
-	float contribution_sum = 0.f;
-	for (uint32 i = 0; i < /*entry.surfel_count()*/ min(128, entry.surfel_count()); ++i)
+	float
+	calc_near_contribution(float dist, float radius, float3 surfel_normal, float3 normal)
 	{
-		const uint32 surfel_id	  = cell_to_surfel_id_arr[entry.offset + i];
-		surfel		 surfel		  = surfel_arr[surfel_id];
-		const float	 contribution = gibs_calc_surfel_contribution<false>(data, surfel, world_pos, normal);
+		const float cos_theta = dot(normal, surfel_normal);
+		if (cos_theta <= 0.f) { return 0.f; }
 
-		assert(surfel.surfel_seen() is_false, g::fmt_gibs, line);
+		return cos_theta * smoothstep(0, 1, (1.f - dist / radius));
+	}
 
-		if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
+	float
+	calc_far_contribution(float3 rel, float3 dir, float3 surfel_normal, float radius, float range, float3 normal)
+	{
+		const float n_dot_l = dot(normal, dir);
 
-		contribution_sum += contribution;
+		if (n_dot_l <= 0.f) { return 0.f; }
 
-		if (max_contribution < contribution)
+		const float s_dot_l = dot(surfel_normal, -dir);
+
+		if (s_dot_l <= 0.f) { return 0.f; }
+
+		const float dist_sq = dot(rel, rel);
+		const float r_sq	= radius * radius;
+
+		const float range_fade = (1.f - smoothstep(range * 0.75f * range * 0.75f, range * range, dist_sq));
+
+		return n_dot_l * s_dot_l * r_sq / max(dist_sq, r_sq) * range_fade;
+	}
+
+	float3
+	sample_irradiance(const gibs_data data, const uint32 ray_id, float3 world_pos, float3 normal, uint32 seed)
+	{
+		const gibs_lut_data lut_data = gibs::load_lut_data();
+
+		float3 irradiance = zero<float3>();
+
+		if (sample_screen_irradiance(data, world_pos, normal, irradiance))
 		{
-			max_contribution		   = contribution;
-			max_contribution_surfel_id = surfel_id;
+			return irradiance;
 		}
 
-		gibs_set_cell_surfel_ref(data, entry.offset + i);
+		const uint32				cell_id		= gibs::cell::calc_id(data, lut_data, world_pos);
+		const gibs_cell_probe_entry probe_entry = gibs::cell::probe_entry_arr(data)[cell_id];
 
-		const float visibility = gibs_calc_visibility(data, surfel_id, surfel, world_pos);
+		byte_array<uint32>					 probe_id_arr = gibs::cell::cell_to_probe_id_arr(data);
+		structured_buffer<gibs_surfel_probe> probe_buffer = global_resource_buffer[data.h_surfel_probe_buffer_srv_id];
 
-		if (visibility < 1.f) { continue; }
+		float4 irradiance_sum = zero<float4>();
+		float4 radiance_sum	  = zero<float4>();
 
-		irradiance_sum += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
-						* contribution
-						* smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()))
-						* gibs_calc_visibility(data, surfel_id, surfel, world_pos);
-	}
+		float  max_contribution_near		  = 0.f;
+		uint32 max_contribution_near_probe_id = invalid_id_uint32;
+		float  max_contribution_far			  = 0.f;
+		uint32 max_contribution_far_probe_id  = invalid_id_uint32;
 
-	// add cell surfel gather pass
-	attr_branch()
+		float surfel_near_coverage_sum = 0.f;
+		float surfel_far_coverage_sum  = 0.f;
 
-	if (enable_spawn_kill and ((data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN) == 0))
-	{
-		if (contribution_sum < GIBS_SPAWN_COVERAGE)
+		for (uint32 i = 0; i < probe_entry.probe_count; ++i)
 		{
-			assert(object_id != invalid_id_uint32, g::fmt_gibs, line);
-			const object_data obj = load_object_data(object_id);
+			const uint32			probe_id	 = probe_id_arr[probe_entry.offset + i];
+			const gibs_surfel_probe probe		 = probe_buffer[probe_id];
+			const float3			probe_normal = decode_oct_snorm16(probe.normal_oct_snorm16);
+			const float				probe_radius = gibs::calc_cell_size(data, lut_data, probe.position);
 
-			gibs_set_cell_surfel_spawn(data,
-									   cell_idx_flat,
-									   object_id,
-									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
-									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
-									   encode_r11g11b10(irradiance_sum.w == 0 ? float3(0, 0, 0) : irradiance_sum.xyz / irradiance_sum.w));
+			const float3 rel	 = probe.position - world_pos;
+			const float3 dir	 = normalize(rel);
+			const float	 dist_sq = dot(rel, rel);
+			const float	 dist	 = sqrt(dist_sq);
+
+			const float sh_depth		= max(0.f, sh1_eval_scalar(probe.depth_sh, -dir));
+			const float sh_coverage_far = max(0.f, sh1_eval_scalar(probe.coverage_far_sh, -dir));
+
+			const float visibility = probe_radius * sh_depth > epsilon_1e4
+									   ? 1.f - smoothstep(probe_radius * sh_depth, probe_radius * sh_depth * GIBS_PROBE_VIS_FADE_RATIO, dist)
+									   : 1.f;
+
+			const float near_contribution = gibs::calc_near_contribution(dist, probe.surfel_radius, probe_normal, normal)
+										  * visibility;
+
+			if (near_contribution > 0.f)
+			{
+				irradiance_sum += float4(decode_r11g11b10(probe.irradiance_r11g11b10), 1.f) * near_contribution;
+
+				surfel_near_coverage_sum += probe.coverage_near * near_contribution;
+			}
+
+			const float far_contribution = gibs::calc_far_contribution(rel, dir, probe_normal, probe.surfel_radius, probe_radius, normal)
+										 * visibility;
+
+			if (far_contribution > 0.f)
+			{
+				radiance_sum += float4(decode_r11g11b10(probe.radiance_r11g11b10), 1.f) * far_contribution;
+
+				surfel_far_coverage_sum += sh_coverage_far * far_contribution;
+			}
+
+
+			if (max_contribution_near < near_contribution)
+			{
+				max_contribution_near_probe_id = probe_id;
+				max_contribution_near		   = near_contribution;
+			}
+
+			if (max_contribution_far < far_contribution)
+			{
+				max_contribution_far_probe_id = probe_id;
+				max_contribution_far		  = far_contribution;
+			}
+
+			if (near_contribution > 0.f or far_contribution > 0.f)
+			{
+				gibs::cell::set_probe_ref(data, probe_entry.offset + i);
+			}
 		}
-		else if (contribution_sum > GIBS_KILL_COVERAGE or entry.surfel_count() > 128)
+
+		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
+		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
+
+		const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float far_conf  = radiance_sum.w / 1.f;
+
+		irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+		const float probe_near_coverage	 = irradiance_sum.w;
+		const float probe_far_coverage	 = radiance_sum.w;
+		const float surfel_near_coverage = irradiance_sum.w > 0.f ? surfel_near_coverage_sum / irradiance_sum.w : 0.f;
+		const float surfel_far_coverage	 = radiance_sum.w > 0.f ? surfel_far_coverage_sum / radiance_sum.w : 0.f;
+
+		const float3 rng = random_pcg3d(uint32_3(ray_id, seed, frame_index));
+
+		attr_branch()
+
+		if (gibs::debug::freeze_spawn_kill(data) is_false)
 		{
-			assert(max_contribution_surfel_id != invalid_id_uint32, g::fmt_gibs, line);
-			gibs_set_cell_surfel_kill(data, cell_idx_flat, max_contribution_surfel_id);
+			const bool probe_need_spawn = probe_near_coverage < GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR and probe_far_coverage < GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR;
+
+			if (probe_need_spawn)
+			{
+				const float spawn_prob_near = (GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR - probe_near_coverage) / float(GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR);
+				const float spawn_prob_far	= (GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR - probe_far_coverage) / float(GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR);
+				const float spawn_prob		= min(spawn_prob_near, spawn_prob_far) * GIBS_SPAWN_PROB_FACTOR;
+
+				if (rng.x < spawn_prob)
+				{
+					gibs::cell::set_probe_spawn(data, cell_id, spawn_prob, ray_id);
+				}
+			}
+			else if (probe_near_coverage > GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR or probe_far_coverage > GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR)
+			{
+				const float kill_prob_near = (probe_near_coverage - GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR) / float(GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR);
+				const float kill_prob_far  = (probe_far_coverage - GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR) / float(GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR);
+				const float kill_prob	   = max(kill_prob_near, kill_prob_far) * GIBS_KILL_PROB_FACTOR;
+
+				const uint32 kill_probe_id = kill_prob_near > kill_prob_far ? max_contribution_near_probe_id : max_contribution_far_probe_id;
+
+				if (rng.y < kill_prob)
+				{
+					gibs::cell::set_probe_kill(data, cell_id, kill_prob, kill_probe_id);
+				}
+			}
+
+			if (probe_need_spawn is_false and surfel_near_coverage < GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR and surfel_far_coverage < GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR)
+			{
+				const float spawn_prob_near = (GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR - surfel_near_coverage) / float(GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR);
+				const float spawn_prob_far	= (GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR - surfel_far_coverage) / float(GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR);
+				const float spawn_prob		= min(spawn_prob_near, spawn_prob_far) * GIBS_SPAWN_PROB_FACTOR;
+
+				if (rng.z < spawn_prob)
+				{
+					gibs::cell::set_surfel_spawn(data, cell_id, spawn_prob, ray_id);
+				}
+			}
 		}
+
+
+		return irradiance;
 	}
 
-	if (irradiance_sum.w > GIBS_SPAWN_COVERAGE * 0.5f)
+	float4
+	sample_irradiance(const gibs_data data, float3 world_pos, float3 normal)
 	{
-		return irradiance_sum.xyz / irradiance_sum.w;
-	}
-	// todo fallback
+		const gibs_lut_data lut_data = gibs::load_lut_data();
 
-	// return color_red.xyz;
-	return float3(0, 0, 0);
-}
+		const uint32				cell_id		= gibs::cell::calc_id(data, lut_data, world_pos);
+		const gibs_cell_probe_entry probe_entry = gibs::cell::probe_entry_arr(data)[cell_id];
 
-float4
-gibs_gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float center_z_lin, float3 center_n, int32_2 extent)
-{
-	float4 res = zero<float4>();
+		byte_array<uint32>					 probe_id_arr = gibs::cell::cell_to_probe_id_arr(data);
+		structured_buffer<gibs_surfel_probe> probe_buffer = global_resource_buffer[data.h_surfel_probe_buffer_srv_id];
 
-	const int32_2 r = int32_2(1, 1);
+		float4 irradiance_sum = zero<float4>();
+		float4 radiance_sum	  = zero<float4>();
 
-	for (int32 dy = -r.y; dy <= r.y; ++dy)
-	{
-		for (int32 dx = -r.x; dx <= r.x; ++dx)
+		float surfel_near_coverage_sum = 0.f;
+		float surfel_far_coverage_sum  = 0.f;
+
+		for (uint32 i = 0; i < probe_entry.probe_count; ++i)
 		{
-			const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
-			const uint32_2 geo_tap		 = geo_src[tap];
-			const float	   px_depth_tap	 = as_float(geo_tap.x);
-			const float3   px_normal_tap = decode_oct_snorm16(geo_tap.y);
+			const uint32			probe_id	 = probe_id_arr[probe_entry.offset + i];
+			const gibs_surfel_probe probe		 = probe_buffer[probe_id];
+			const float3			probe_normal = decode_oct_snorm16(probe.normal_oct_snorm16);
+			const float				probe_radius = gibs::calc_cell_size(data, lut_data, probe.position);
 
-			if (geo_tap.x == 0) { continue; }
+			const float3 rel	 = probe.position - world_pos;
+			const float3 dir	 = normalize(rel);
+			const float	 dist_sq = dot(rel, rel);
+			const float	 dist	 = sqrt(dist_sq);
 
-			const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
+			const float sh_depth		= max(0.f, sh1_eval_scalar(probe.depth_sh, -dir));
+			const float sh_coverage_far = max(0.f, sh1_eval_scalar(probe.coverage_far_sh, -dir));
 
-			const float w = calc_bilateral_weight(center_z_lin, center_n, px_z_lin_tap, px_normal_tap, float2(1.f, 1.f));
+			const float visibility = probe_radius * sh_depth > epsilon_1e4
+									   ? 1.f - smoothstep(probe_radius * sh_depth, probe_radius * sh_depth * GIBS_PROBE_VIS_FADE_RATIO, dist)
+									   : 1.f;
 
-			res += float4(irr_src[tap], 1.f) * w;
+			const float near_contribution = gibs::calc_near_contribution(dist, probe.surfel_radius, probe_normal, normal)
+										  * visibility;
+
+			if (near_contribution > 0.f)
+			{
+				irradiance_sum += float4(decode_r11g11b10(probe.irradiance_r11g11b10), 1.f) * near_contribution;
+
+				surfel_near_coverage_sum += probe.coverage_near * near_contribution;
+			}
+
+			const float far_contribution = gibs::calc_far_contribution(rel, dir, probe_normal, probe.surfel_radius, probe_radius, normal)
+										 * visibility;
+
+			if (far_contribution > 0.f)
+			{
+				radiance_sum += float4(decode_r11g11b10(probe.radiance_r11g11b10), 1.f) * far_contribution;
+
+				surfel_far_coverage_sum += sh_coverage_far * far_contribution;
+			}
 		}
-	}
 
-	return res;
-}
+		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
+		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
+
+		const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float far_conf  = radiance_sum.w / 1.f;
+
+		const float3 irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+		return float4(irradiance, near_conf + far_conf);
+	}
+}	 // namespace gibs

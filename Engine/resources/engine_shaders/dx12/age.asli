@@ -709,6 +709,12 @@ as_uint(auto _)
 	return 0;
 }
 
+uint16
+as_uint16(auto _)
+{
+	return 0;
+}
+
 float
 as_float(auto _)
 {
@@ -1060,6 +1066,7 @@ cross(float3, float3)
 	#define global_resource_buffer ResourceDescriptorHeap
 
 	#define as_uint	   asuint
+	#define as_uint16  asuint16
 	#define as_int	   asint
 	#define as_float   asfloat
 	#define as_float16 asfloat16
@@ -1210,6 +1217,58 @@ void
 buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int32 value, out int32 original)
 {
 	buffer.InterlockedMax(offset, value, original);
+}
+
+// == InterlockedMin (64-bit) ==
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, uint64 value)
+{
+	buffer.InterlockedMin64(offset, value);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, uint64 value, out uint64 original)
+{
+	buffer.InterlockedMin64(offset, value, original);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, int64 value)
+{
+	buffer.InterlockedMin64(offset, value);
+}
+
+void
+buf_interlocked_min(rw_byte_address_buffer buffer, uint32 offset, int64 value, out int64 original)
+{
+	buffer.InterlockedMin64(offset, value, original);
+}
+
+// == InterlockedMax (64-bit) ==
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, uint64 value)
+{
+	buffer.InterlockedMax64(offset, value);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, uint64 value, out uint64 original)
+{
+	buffer.InterlockedMax64(offset, value, original);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int64 value)
+{
+	buffer.InterlockedMax64(offset, value);
+}
+
+void
+buf_interlocked_max(rw_byte_address_buffer buffer, uint32 offset, int64 value, out int64 original)
+{
+	buffer.InterlockedMax64(offset, value, original);
 }
 
 // == InterlockedAnd ==

@@ -171,3 +171,80 @@ light pos 와 light 를 분리,
 7. GIBS 재평가 (guide, a-trous iter, conn, density) 
 8. animation / skinning
 9. volumetric / decal / godray
+
+
+
+
+
+# surfel_probe
+ray를 안쏜다. 
+gather point, 그이상 그 이하도 아님 
+다만 irradiance가 방향정보를 가짐
+
+probe는 ddgi probe가 아님. 각각이 radiance의 역할을 한다. (irradiance가 아님) 
+방향별 radiance와 
+방향별 surfel coverage를 저장한다 
+
+
+cell surfel과 surfel_probe가 irradiance와 radiance의 역할을 둘다한다. 
+같은 표면에서 query할때는 radius를 고려한 irradiance를 얻지만, 
+다른 표면에서 query할때는 facing surfel, probe의 radiance를 얻는다. 
+이때 해당 지점에서의 radiance값이 필요하기 때문에 모든 cell surfel과 surfel_probe는 매 프레임 di를 계산해야한다. 
+(tile surfel은 기존 구조 유지) 
+
+따라서 tile surfel과 cell surfel은 서로 다른 구조를 유지하게됨. 
+di계산시 specular 는 적당히 계산하거나 생략한다. 
+
+
+따라서 기존의 sh방식의 radiance는 폐기, 
+다만 sh정보를 활용한 depth와 coverage는 유지.
+
+
+
+## spawn
+
+소비자(RT hit / transparent PS)가 셀의 probe 순회 시 coverage 부족 
+
+## kill
+
+ref 타임아웃 (소비자가 안 읽음, 16~32 프레임 — 짧게)
+과밀 확률 kill 
+hit 지점에 max contribution + probe_id push, 
+atomic으로 contribution이 가장 큰 개체 1개만 
+
+cell당 surfel_probe_min_coverage랑 surfel_probe_max_coverage 필요 
+
+## update
+
+자기 cell에 등록된 surfel들을 순회하면서 누적한다. 
+시간누적필요? denoise 필요? 
+
+# cell_surfel
+## spawn
+
+probe 의 gather coverage 가 0일 때 probe 자기 위치 아래 (starvation 방지, 레이 불필요, seed surfel)
+ray hit 지점에서 probe 순회시, 방향별 coverage가 부족하면 해당 위치에 spawn
+
+## kill
+
+cell surfel당 probe를 순회하면서 자신의 contribution을 계산함, cell 에 cas로 kill submit
+contribution이 0면 (아무런 probe에 영향을 못줌) frame_since_ref 증가, 추후 update surfel에서 죽음
+
+즉 cell당 cell_surfel_min_coverage 랑 cell_surfel_max_coverage 둘다 필요 
+
+## update 
+
+ray trace한후 각 hit pos에 probe들을 순회해서 누적한다. di는 직접계산
+
+### cell spawn kill buffer 
+1. ref array (per cell)
+cell surfel ref array랑 
+surfel probe ref array 
+2. 
+
+cell 에 surfel, probe intersect를 좀더 촘촘하게 하면 최적화가 될듯
+
+
+
+object_id -> object_render_data 조회시, mesh 가 있다가 없으면 오류날거임. 
+invalid id로 초기화 필요 

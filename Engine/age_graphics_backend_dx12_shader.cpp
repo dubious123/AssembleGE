@@ -45,7 +45,7 @@ namespace age::graphics::shader
 					or newest_include_time > std::filesystem::last_write_time(compiled_blob_path)
 					or std::filesystem::file_size(compiled_blob_path) == 0)
 			{
-				compile_shader(hlsl_path.c_str(), entry_point, target, compiled_blob_path);
+				compile_shader(shader_name, hlsl_path.c_str(), entry_point, target, compiled_blob_path);
 			}
 
 			load_shader(compiled_blob_path);
@@ -74,6 +74,7 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
+		std::wstring_view	  shader_name,
 		std::wstring_view	  hlsl_path,
 		std::wstring_view	  entry_point,
 		std::wstring_view	  target,
@@ -86,6 +87,20 @@ namespace age::graphics::shader
 		auto dir_path = std::filesystem::path{ hlsl_path }.parent_path();
 
 		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(hlsl_path.data(), nullptr, &p_file));
+
+		// ex) full_screen_ms => #define AGE_SHADER_NAME 'f', 'u', 'l', 'l', 's', 'c', 'r', 'e', 'e', 'n', '_', 'm', 's'
+		auto wchar_buffer = dynamic_array<wchar_t>::gen_sized_default(shader_name.size() * 4);
+
+		for (auto&& [i, c] : shader_name | std::views::enumerate)
+		{
+			const wchar_t sep		= cast_to<uint64>(i) < (shader_name.size() - 1) ? L',' : L'\0';
+			wchar_buffer[i * 4 + 0] = L'\'';
+			wchar_buffer[i * 4 + 1] = c;
+			wchar_buffer[i * 4 + 2] = L'\'';
+			wchar_buffer[i * 4 + 3] = sep;
+		}
+
+		c_auto shader_name_def = std::wstring{ L"AGE_SHADER_NAME=" } + std::wstring{ wchar_buffer.data() };
 
 		{
 			auto buffer = DxcBuffer{
@@ -102,6 +117,7 @@ namespace age::graphics::shader
 				L"-HV", L"2021",
 				// L"-Qstrip_reflect",
 				// L"-Qstrip_debug",
+				L"-D", shader_name_def.c_str(),
 				L"-enable-16bit-types",
 				L"-Zi",
 				L"-Qembed_debug",

@@ -178,13 +178,6 @@ namespace age::graphics::e
 							   (render_ao_buffer, (1u << 0u)));
 
 	AGE_ENUM_FLAG_OPERATORS(ao_debug_flags);
-
-
-	AGE_DEFINE_ENUM_WITH_VALUE(taa_debug_flags, uint32,
-							   (none, 0),
-							   (render_taa_buffer, (1u << 0u)));
-
-	AGE_ENUM_FLAG_OPERATORS(taa_debug_flags);
 }	 // namespace age::graphics::e
 
 namespace age::graphics

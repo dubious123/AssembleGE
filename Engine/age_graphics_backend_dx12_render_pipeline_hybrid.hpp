@@ -165,27 +165,49 @@ namespace age::graphics::render_pipeline
 
 		graphics::pso::handle h_pso_tile_spawn_kill;
 		ID3D12PipelineState*  p_pso_tile_spawn_kill;
-
 		graphics::pso::handle h_pso_cell_spawn_kill;
 		ID3D12PipelineState*  p_pso_cell_spawn_kill;
 
-		graphics::pso::handle h_pso_update_surfel;
-		ID3D12PipelineState*  p_pso_update_surfel;
+		graphics::pso::handle h_pso_update_tile_surfel_id_stack;
+		ID3D12PipelineState*  p_pso_update_tile_surfel_id_stack;
+		graphics::pso::handle h_pso_update_cell_surfel_id_stack;
+		ID3D12PipelineState*  p_pso_update_cell_surfel_id_stack;
+		graphics::pso::handle h_pso_update_surfel_probe_id_stack;
+		ID3D12PipelineState*  p_pso_update_surfel_probe_id_stack;
 
-		graphics::pso::handle h_pso_ray_ideal_count_sum;
-		ID3D12PipelineState*  p_pso_ray_ideal_count_sum;
+		graphics::pso::handle h_pso_set_indirect_arg;
+		ID3D12PipelineState*  p_pso_set_indirect_arg;
 
-		graphics::pso::handle h_pso_ray_count_prefix;
-		ID3D12PipelineState*  p_pso_ray_count_prefix;
+		graphics::pso::handle h_pso_update_cell_surfel;
+		ID3D12PipelineState*  p_pso_update_cell_surfel;
+		graphics::pso::handle h_pso_update_surfel_probe;
+		ID3D12PipelineState*  p_pso_update_surfel_probe;
+
+		graphics::pso::handle h_pso_alloc_tile_surfel;
+		ID3D12PipelineState*  p_pso_alloc_tile_surfel;
+		graphics::pso::handle h_pso_alloc_cell_surfel;
+		ID3D12PipelineState*  p_pso_alloc_cell_surfel;
+		graphics::pso::handle h_pso_alloc_surfel_probe;
+		ID3D12PipelineState*  p_pso_alloc_surfel_probe;
+
+		graphics::pso::handle h_pso_tile_surfel_ideal_ray_count_reduce;
+		ID3D12PipelineState*  p_pso_tile_surfel_ideal_ray_count_reduce;
+		graphics::pso::handle h_pso_cell_surfel_ideal_ray_count_reduce;
+		ID3D12PipelineState*  p_pso_cell_surfel_ideal_ray_count_reduce;
+
+		graphics::pso::handle h_pso_tile_surfel_ray_count_prefix;
+		ID3D12PipelineState*  p_pso_tile_surfel_ray_count_prefix;
+		graphics::pso::handle h_pso_cell_surfel_ray_count_prefix;
+		ID3D12PipelineState*  p_pso_cell_surfel_ray_count_prefix;
 
 		graphics::pso::handle h_pso_ray_entry;
 		ID3D12PipelineState*  p_pso_ray_entry;
 
-		graphics::pso::handle h_pso_tile_surfel_count_prefix;
-		ID3D12PipelineState*  p_pso_tile_surfel_count_prefix;
+		graphics::pso::handle h_pso_tile_prefix;
+		ID3D12PipelineState*  p_pso_tile_prefix;
 
-		graphics::pso::handle h_pso_cell_surfel_count_prefix;
-		ID3D12PipelineState*  p_pso_cell_surfel_count_prefix;
+		graphics::pso::handle h_pso_cell_prefix;
+		ID3D12PipelineState*  p_pso_cell_prefix;
 
 		graphics::pso::handle h_pso_tile_surfel_scatter;
 		ID3D12PipelineState*  p_pso_tile_surfel_scatter;
@@ -193,11 +215,20 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_cell_surfel_scatter;
 		ID3D12PipelineState*  p_pso_cell_surfel_scatter;
 
+		graphics::pso::handle h_pso_cell_probe_scatter;
+		ID3D12PipelineState*  p_pso_cell_probe_scatter;
+
+		graphics::pso::handle h_pso_surfel_probe_gather;
+		ID3D12PipelineState*  p_pso_surfel_probe_gather;
+
 		graphics::pso::handle h_pso_gi_reproject;
 		ID3D12PipelineState*  p_pso_gi_reproject;
 
 		graphics::pso::handle h_pso_ray_trace;
 		ID3D12PipelineState*  p_pso_ray_trace;
+
+		graphics::pso::handle h_pso_ray_resolve;
+		ID3D12PipelineState*  p_pso_ray_resolve;
 
 		graphics::pso::handle h_pso_ray_integrate;
 		ID3D12PipelineState*  p_pso_ray_integrate;
@@ -217,6 +248,9 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_debug_draw_surfels;
 		ID3D12PipelineState*  p_pso_debug_draw_surfels;
 
+		graphics::pso::handle h_pso_debug_resolve;
+		ID3D12PipelineState*  p_pso_debug_resolve;
+
 		graphics::command_signature::handle h_cmd_sig;
 		ID3D12CommandSignature*				p_cmd_sig;
 
@@ -230,8 +264,10 @@ namespace age::graphics::render_pipeline
 
 
 		inline void
-		execute_render_surfels(rtv_desc_handle h_main_buffer_rtv_desc,
-							   dsv_desc_handle h_depth_buffer_dsv_desc) const noexcept;
+		execute_render_surfels(const gibs_data&	 gibs_data_cpu,
+							   rtv_desc_handle	 h_main_buffer_rtv_desc,
+							   resource_handle	 h_blend_buffer,
+							   extent_2d<uint16> main_buffer_extent) const noexcept;
 		void
 		deinit() noexcept;
 	};
@@ -647,6 +683,7 @@ namespace age::graphics::render_pipeline
 		age::stable_dense_vector<shared_type::object_data> object_prev_data_vec;
 		age::vector<BARE_OF(object_data_vec)::index_type>  object_pos_to_id_arr[global::frame_buffer_count];
 		age::vector<uint8>								   object_generation_vec;
+		age::vector<shared_type::object_render_data>	   object_render_data_vec;
 
 		// material
 		age::sparse_vector<asset::handle> material_vec;

@@ -1,8 +1,11 @@
 #pragma once
 
+#define AGE_WAVE_SIZE 32
+
 // bloom
 #define MAX_BLOOM_MIP_COUNT 7
 #define MIN_BLOOM_MIP_PIXEL 8
+
 
 #if !defined(AGE_SHADER)
 	#include "age.hpp"
@@ -144,123 +147,173 @@ namespace age::graphics::render_pipeline::shared_type
 	};
 
 	//---[ gibs, surfel ]------------------------------------------------------------
-	struct surfel
+
+	struct gibs_recycle_data
 	{
-		float3 position;
-		uint32 radiance_r11g11b10;
-		uint32 normal_oct_snorm16;
-		half   radius;
-		uint16 recycle_data;
+		uint16 value;
 
 		void
 		kill()
 		{
-			radius		 = 0;
-			recycle_data = 0xffff;
+			value = 0xffff;
 		}
 
 		uint16
 		frame_since_born()
 		{
-			return recycle_data & 0xff;
+			return value & 0xff;
 		}
 
 		uint16
 		frame_since_ref()
 		{
-			return (recycle_data & 0x7f00) >> 8u;
-		}
-
-		bool
-		surfel_seen()
-		{
-			return (recycle_data & 0x8000) == 0x8000;
-		}
-
-		bool
-		is_new_born()
-		{
-			return frame_since_born() <= 1;
+			return (value & 0xff00) >> 8u;
 		}
 
 		void
-		next_frame(bool seen)
+		set_ref()
+		{
+			value = uint16(frame_since_born());
+		}
+
+		void
+		next_frame()
 		{
 			uint16 since_born = frame_since_born();
 			uint16 since_ref  = frame_since_ref();
 
 			since_born = uint16(min(since_born, uint16(0x00fe)) + 1u);
-			since_ref  = uint16(min(since_ref, uint16(0x007e)) + 1u);
+			since_ref  = uint16(min(since_ref, uint16(0x00fe)) + 1u);
 
-			recycle_data = uint16((seen ? 0x8000 : 0) | since_born | (since_ref << 8));
+			value = uint16(since_born | (since_ref << 8));
 		}
 	};
 
-	struct gibs_cell_surfel_spawn_data
+	struct gibs_tile_surfel
 	{
-		// spawn
-		uint32 object_id;
-		float3 local_pos;
-		uint32 local_normal_oct_snorm16;
+		float3			  position;
+		uint32			  normal_oct_snorm16;
+		uint32			  irradiance_r11g11b10;
+		half			  radius;
+		gibs_recycle_data recycle_data;
+
+		void
+		kill()
+		{
+			radius = 0;
+			recycle_data.kill();
+		}
+
+		bool
+		is_new_born()
+		{
+			return recycle_data.frame_since_born() <= 1;
+		}
+	};
+
+	struct gibs_cell_surfel
+	{
+		float3 position;
+		uint32 normal_oct_snorm16;
+
 		uint32 radiance_r11g11b10;
+		uint32 irradiance_r11g11b10;
+
+		half			  radius;
+		gibs_recycle_data recycle_data;
+
+		bool
+		is_new_born()
+		{
+			return recycle_data.frame_since_born() <= 1;
+		}
 	};
 
-	struct gibs_cell_surfel_spawn_kill_data
+	struct gibs_surfel_probe
 	{
-		// spawn
-		uint32 object_id;
-		float3 local_pos;
-		uint32 local_normal_oct_snorm16;
+		float3 position;
+		uint32 normal_oct_snorm16;
+
 		uint32 radiance_r11g11b10;
+		uint32 irradiance_r11g11b10;
 
-		// kill
-		uint32 surfel_id;
+		// probe_radius : cell_size
+		half  surfel_radius;
+		half  coverage_near;
+		half4 coverage_far_sh;
+		half4 depth_sh;
 
-		bool
-		has_spawn()
+
+		// todo, radius?
+		// todo, prev_pos, normal?
+#if defined(AGE_SHADER)
+
+		void
+		set_new_born()
 		{
-			return object_id != invalid_id_uint32;
+			coverage_far_sh = half4(asfloat16(0xffff), asfloat16(0xffff), asfloat16(0xffff), asfloat16(0xffff));
 		}
 
 		bool
-		has_kill()
+		is_new_born()
 		{
-			return surfel_id != invalid_id_uint32;
+			return as_uint16(coverage_far_sh.x) == 0xffff;
 		}
+
+#endif
 	};
 
-	struct gibs_tile_surfel_spawn_kill_data
+	struct gibs_surfel_probe_geometry
 	{
-		// spawn
-		uint32 object_id;
-		float3 local_pos;
-		uint32 local_normal_oct_snorm16;
-		uint32 radiance_r11g11b10;
+		// object_id -> object_render_data -> mesh_header            |
+		// primitive_id                    -> load_rt_triangle_index |-> prim_index -> decode_vertex
+		uint32 object_id;	 // with generation
+		uint32 primitive_id;
+		uint32 barycentric_unorm16;
 
-		// kill
-		uint32 surfel_id;
-
-		bool
-		has_spawn()
+		void
+		kill()
 		{
-			return object_id != invalid_id_uint32;
-		}
-
-		bool
-		has_kill()
-		{
-			return surfel_id != invalid_id_uint32;
+			object_id = 0xffffffffu;
 		}
 	};
 
-	struct surfel_geometry
+	struct gibs_cell_surfel_geometry
+	{
+		uint32 object_id;	 // with generation
+		uint32 primitive_id;
+		uint32 barycentric_unorm16;
+
+		void
+		kill()
+		{
+			object_id = 0xffffffffu;
+		}
+	};
+
+	struct gibs_tile_surfel_geometry
 	{
 		uint32 object_id;
 		uint32 local_normal_oct_snorm16;
 		float3 local_pos;
+
+		void
+		kill()
+		{
+			object_id = 0xffffffffu;
+		}
 	};
 
-	struct surfel_msme
+	struct gibs_surfel_probe_msme
+	{
+		float3 mean_long;
+		float  inconsistency;
+		float3 mean_short;
+		float  vbbr;
+		float3 variance;
+	};
+
+	struct gibs_surfel_msme
 	{
 		float3 mean_long;
 		float  inconsistency;
@@ -272,42 +325,67 @@ namespace age::graphics::render_pipeline::shared_type
 		float incon_var;	 // running variance of inconsistency = spatial-freq signal
 	};
 
-	struct gibs_ray_result
+	struct gibs_tile_surfel_spawn_kill_data
 	{
-		uint32 radiance_r11g11b10;
-		float  distance;
-		uint32 dir_oct_snorm8;	  // [local_dir_world_hemi_oct_snomr8(16)] [world_dir_oct_snorm8(16)]
-		float  pdf;
+		// spawn
+		uint32 object_id;
+		float3 local_pos;
+		uint32 local_normal_oct_snorm16;
+		uint32 irradiance_r11g11b10;
+
+		// kill
+		uint32 surfel_id;
+
+		bool
+		has_spawn()
+		{
+			return object_id != invalid_id_uint32;
+		}
+
+		bool
+		has_kill()
+		{
+			return surfel_id != invalid_id_uint32;
+		}
 	};
 
 	struct gibs_ray_entry
 	{
 		uint32 surfel_id;
-		// uint32 local_ray_id;
 	};
 
-	struct gibs_tile_entry
+	struct gibs_ray_hit_result
 	{
-		uint32 offset;
-		uint32 surfel_count_and_extra;
+		float  pdf;
+		float  distance;		  // float_max : no hit, <0 : backface
+		uint32 dir_oct_snorm8;	  // [local_dir_world_hemi_oct_snomr8(16)] [world_dir_oct_snorm8(16)]
 
-		uint32
-		surfel_count()
-		{
-			return surfel_count_and_extra & 0x0000ffff;
-		}
+		uint32 object_id;
+		uint32 primitive_id;
+		uint32 barycentric_unorm16;
 	};
 
-	struct gibs_cell_entry
+	struct gibs_ray_lighting_result
+	{
+		uint32 radiance_r11g11b10;
+	};
+
+	struct gibs_tile_surfel_entry
 	{
 		uint32 offset;
-		uint32 surfel_count_and_extra;
+		uint32 surfel_count;
+	};
 
-		uint32
-		surfel_count()
-		{
-			return surfel_count_and_extra & 0x0000ffff;
-		}
+	struct gibs_cell_surfel_entry
+	{
+		uint32 offset;
+		uint32 surfel_count;
+	};
+
+	struct gibs_cell_probe_entry
+	{
+		uint32 offset;
+		uint32 probe_count;
 	};
 
 	struct gibs_gi_resolve_sample_res
@@ -321,21 +399,43 @@ namespace age::graphics::render_pipeline::shared_type
 
 	struct gibs_indirect_arg
 	{
-		uint32_3 arg_surfel_update;
-		uint32_3 arg_ray_ideal_count_sum;
-		uint32_3 arg_ray_count_prefix;
+		uint32_3 arg_update_tile_surfel_id_stack;
+		uint32_3 arg_update_cell_surfel_id_stack;
+		uint32_3 arg_update_surfel_probe_id_stack;
+
+		uint32_3 arg_update_cell_surfel;
+		uint32_3 arg_update_surfel_probe;
+
+		uint32_3 arg_alloc_tile_surfel;
+		uint32_3 arg_alloc_cell_surfel;
+		uint32_3 arg_alloc_surfel_probe;
+
+		uint32_3 arg_tile_surfel_ideal_ray_count_reduce;
+		uint32_3 arg_cell_surfel_ideal_ray_count_reduce;
+
+		uint32_3 arg_tile_surfel_ray_count_prefix;
+		uint32_3 arg_cell_surfel_ray_count_prefix;
+
 		uint32_3 arg_ray_entry;
-		uint32_3 arg_surfel_scatter;
+
+		uint32_3 arg_tile_surfel_scatter;
+		uint32_3 arg_cell_surfel_scatter;
+		uint32_3 arg_surfel_probe_scatter;
+
+		uint32_3 arg_surfel_probe_gather;
+
 		uint32_3 arg_ray_trace;
+		uint32_3 arg_ray_resolve;
 		uint32_3 arg_ray_integrate;
 		uint32_3 arg_build_cdf;
-		uint32_3 arg_radiance_sharing;
 	};
 
 	struct gibs_data
 	{
 		uint32 debug_flags;
-		uint32 max_surfel_count;
+		uint32 max_tile_surfel_count;
+		uint32 max_cell_surfel_count;
+		uint32 max_surfel_probe_count;
 		uint32 cell_count;	  // per axis, level 0, power of 2
 		uint32 cell_count_total;
 		uint32 outer_layer_count;
@@ -343,17 +443,58 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 tile_count_w;
 		uint32 tile_count_h;
 
-		uint32 h_surfel_buffer_srv_id;
-		uint32 h_surfel_buffer_uav_id;
+		uint32 h_tile_surfel_buffer_srv_id;
+		uint32 h_tile_surfel_buffer_uav_id;
+		uint32 h_tile_surfel_geo_buffer_srv_id;
+		uint32 h_tile_surfel_geo_buffer_uav_id;
+		uint32 h_tile_surfel_msme_buffer_srv_id;
+		uint32 h_tile_surfel_msme_buffer_uav_id;
+		uint32 h_tile_surfel_visibility_buffer_srv_id;
+		uint32 h_tile_surfel_visibility_buffer_uav_id;
+		uint32 h_tile_surfel_luminance_buffer_srv_id;
+		uint32 h_tile_surfel_luminance_buffer_uav_id;
 
-		uint32 h_surfel_id_stack_buffer_srv_id;	   // no more swap, but do copy region instead
-		uint32 h_surfel_id_stack_buffer_uav_id;
-		uint32 is_alt_and_extra;				   // 0 => dead - prev - curr,  1 => dead - curr - prev
+		uint32 h_cell_surfel_buffer_srv_id;
+		uint32 h_cell_surfel_buffer_uav_id;
+		uint32 h_cell_surfel_geo_buffer_srv_id;
+		uint32 h_cell_surfel_geo_buffer_uav_id;
+		uint32 h_cell_surfel_msme_buffer_srv_id;
+		uint32 h_cell_surfel_msme_buffer_uav_id;
+		uint32 h_cell_surfel_visibility_buffer_srv_id;
+		uint32 h_cell_surfel_visibility_buffer_uav_id;
+		uint32 h_cell_surfel_luminance_buffer_srv_id;
+		uint32 h_cell_surfel_luminance_buffer_uav_id;
+
+		uint32 h_surfel_probe_buffer_srv_id;
+		uint32 h_surfel_probe_buffer_uav_id;
+		uint32 h_surfel_probe_geo_buffer_srv_id;
+		uint32 h_surfel_probe_geo_buffer_uav_id;
+		uint32 h_surfel_probe_recycle_buffer_srv_id;
+		uint32 h_surfel_probe_recycle_buffer_uav_id;
+		uint32 h_surfel_probe_msme_buffer_srv_id;
+		uint32 h_surfel_probe_msme_buffer_uav_id;
+
+		uint32 h_tile_surfel_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
+		uint32 h_tile_surfel_id_stack_buffer_uav_id;
+
+		uint32 h_cell_surfel_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
+		uint32 h_cell_surfel_id_stack_buffer_uav_id;
+
+		uint32 h_surfel_probe_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
+		uint32 h_surfel_probe_id_stack_buffer_uav_id;
+
+		uint32 is_alt_and_extra;						 // 0 => dead - prev - curr,  1 => dead - curr - prev
 
 		uint32 h_scratch_buffer_uav_id;
 
-		uint32 h_ray_buffer_srv_id;
-		uint32 h_ray_buffer_uav_id;
+		uint32 h_ray_entry_buffer_srv_id;
+		uint32 h_ray_entry_buffer_uav_id;
+
+		uint32 h_ray_hit_buffer_srv_id;
+		uint32 h_ray_hit_buffer_uav_id;
+
+		uint32 h_ray_lighting_buffer_srv_id;
+		uint32 h_ray_lighting_buffer_uav_id;
 
 		uint32 h_tile_buffer_srv_id;
 		uint32 h_tile_buffer_uav_id;
@@ -394,145 +535,151 @@ namespace age::graphics::render_pipeline::shared_type
 
 		//---[ atlas helper ]---
 		uint32
-		atlas_texel_count()
+		atlas_texel_count() CONST
 		{
 			return 6 * 6;
 		}
 
-		//---[ surfel_gt_buffer : [surfel][geo][msme][vis][lum][cdf] ]---
+		//---[ id_stack : [dead][prev|curr][curr|prev], each (1 + count) ]---
 		uint32
-		surfel_offset()
+		tile_surfel_dead_id_stack_offset()
 		{
 			return 0u;
 		}
 
 		uint32
-		surfel_geo_offset()
+		tile_surfel_alive_id_stack_offset_prev()
 		{
-			return sizeof(surfel) * max_surfel_count;
+			return sizeof(uint32) * (1 + max_tile_surfel_count) * (is_alt() ? 2u : 1u);
 		}
 
 		uint32
-		surfel_msme_offset()
+		tile_surfel_alive_id_stack_offset_curr()
 		{
-			return (sizeof(surfel) + sizeof(surfel_geometry)) * max_surfel_count;
+			return sizeof(uint32) * (1 + max_tile_surfel_count) * (is_alt() ? 1u : 2u);
 		}
 
 		uint32
-		surfel_vis_block_offset()
+		tile_surfel_alive_id_arr_offset_curr()
 		{
-			return (sizeof(surfel) + sizeof(surfel_geometry) + sizeof(surfel_msme)) * max_surfel_count;
+			return tile_surfel_alive_id_stack_offset_curr() + sizeof(uint32);
 		}
 
 		uint32
-		surfel_vis_offset(uint32 surfel_id)
-		{
-			return surfel_vis_block_offset() + sizeof(uint16) * atlas_texel_count() * surfel_id;
-		}
-
-		uint32
-		surfel_lum_block_offset()
-		{
-			return surfel_vis_block_offset() + sizeof(uint16) * atlas_texel_count() * max_surfel_count;
-		}
-
-		uint32
-		surfel_lum_offset(uint32 surfel_id)
-		{
-			return surfel_lum_block_offset() + sizeof(half) * atlas_texel_count() * surfel_id;
-		}
-
-		uint32
-		surfel_lum_cdf_block_offset()
-		{
-			return surfel_lum_block_offset() + sizeof(half) * atlas_texel_count() * max_surfel_count;
-		}
-
-		uint32
-		surfel_lum_cdf_offset(uint32 surfel_id)
-		{
-			return surfel_lum_cdf_block_offset() + sizeof(half) * atlas_texel_count() * surfel_id;
-		}
-
-		//---[ surfel_id_stack : [dead][prev|curr][curr|prev], each (1 + count) ]---
-		uint32
-		dead_stack_offset()
+		cell_surfel_dead_id_stack_offset()
 		{
 			return 0u;
 		}
 
 		uint32
-		alive_stack_offset_prev()
+		cell_surfel_alive_id_stack_offset_prev()
 		{
-			// is_alt 0 => dead-prev-curr (prev = slot 1)
-			// is_alt 1 => dead-curr-prev (prev = slot 2)
-			const uint32 slot = is_alt() ? 2u : 1u;
-			return sizeof(uint32) * (1 + max_surfel_count) * slot;
+			return sizeof(uint32) * (1 + max_cell_surfel_count) * (is_alt() ? 2u : 1u);
 		}
 
 		uint32
-		alive_stack_offset_curr()
+		cell_surfel_alive_id_stack_offset_curr()
 		{
-			// is_alt 0 => dead-prev-curr (curr = slot 2)
-			// is_alt 1 => dead-curr-prev (curr = slot 1)
-			const uint32 slot = is_alt() ? 1u : 2u;
-			return sizeof(uint32) * (1 + max_surfel_count) * slot;
+			return sizeof(uint32) * (1 + max_cell_surfel_count) * (is_alt() ? 1u : 2u);
 		}
 
 		uint32
-		alive_arr_offset_curr()
+		cell_surfel_alive_id_arr_offset_curr()
 		{
-			return alive_stack_offset_curr() + sizeof(uint32);
+			return cell_surfel_alive_id_stack_offset_curr() + sizeof(uint32);
 		}
 
-		//---[ scratch : [total(1)][ideal(count)][ideal_wave(ceil)][prefix(count)][ref(count*27)] ]---
 		uint32
-		ray_count_ideal_total_offset()
+		probe_dead_id_stack_offset()
 		{
 			return 0u;
 		}
 
 		uint32
-		ray_count_ideal_offset()
+		probe_alive_id_stack_offset_prev()
+		{
+			return sizeof(uint32) * (1 + max_surfel_probe_count) * (is_alt() ? 2u : 1u);
+		}
+
+		uint32
+		probe_alive_id_stack_offset_curr()
+		{
+			return sizeof(uint32) * (1 + max_surfel_probe_count) * (is_alt() ? 1u : 2u);
+		}
+
+		uint32
+		probe_alive_id_arr_offset_curr()
+		{
+			return probe_alive_id_stack_offset_curr() + sizeof(uint32);
+		}
+
+		//---[ scratch ]---
+
+		uint32
+		tile_surfel_ideal_ray_count_total_offset()
+		{
+			return 0u;
+		}
+
+		uint32
+		tile_surfel_ray_count_offset()
+		{
+			return tile_surfel_ideal_ray_count_total_offset() + sizeof(uint32);
+		}
+
+		uint32
+		tile_surfel_ray_count_prefix_offset()
+		{
+			return tile_surfel_ray_count_offset() + sizeof(uint16) * max_tile_surfel_count;
+		}
+
+		uint32
+		cell_surfel_ideal_ray_count_total_offset()
+		{
+			return tile_surfel_ray_count_prefix_offset() + sizeof(uint32) * max_tile_surfel_count;
+		}
+
+		uint32
+		cell_surfel_ray_count_offset()
+		{
+			return cell_surfel_ideal_ray_count_total_offset() + sizeof(uint32);
+		}
+
+		uint32
+		cell_surfel_ray_count_prefix_offset()
+		{
+			return cell_surfel_ray_count_offset() + sizeof(uint16) * max_cell_surfel_count;
+		}
+
+		uint32
+		tile_surfel_ideal_ray_count_wave_sum_offset()
+		{
+			return cell_surfel_ray_count_prefix_offset() + sizeof(uint32) * max_cell_surfel_count;
+		}
+
+		uint32
+		cell_surfel_ideal_ray_count_wave_sum_offset()
+		{
+			return tile_surfel_ideal_ray_count_wave_sum_offset() + sizeof(uint16) * ceil(max_tile_surfel_count, AGE_WAVE_SIZE);
+		}
+
+		//---[ ray_entry_buffer : [tile_surfel_ray_count_total][cell_surfel_ray_count_total][ray_entry] ]---
+		uint32
+		tile_surfel_ray_count_total_offset()
+		{
+			return 0u;
+		}
+
+		uint32
+		cell_surfel_ray_count_total_offset()
 		{
 			return sizeof(uint32);
 		}
 
 		uint32
-		ray_count_ideal_wave_sum_offset()
+		ray_entry_buffer_offset()
 		{
-			return sizeof(uint32) * (1 + max_surfel_count);
-		}
-
-		uint32
-		ray_count_prefix_offset()
-		{
-			return sizeof(uint32) * (1 + max_surfel_count + ceil(max_surfel_count, 32u));
-		}
-
-		//---[ ray_buffer : [count(1)][ray_result/entry x budget] ]---
-		uint32
-		ray_count_total_offset()
-		{
-			return 0u;
-		}
-
-		uint32
-		ray_data_block_offset()
-		{
-			return sizeof(uint32);
-		}
-
-		uint32
-		ray_entry_offset(uint32 idx)
-		{
-			return ray_data_block_offset() + sizeof(gibs_ray_result) * idx;
-		}
-
-		uint32
-		ray_result_offset(uint32 idx)
-		{
-			return ray_data_block_offset() + sizeof(gibs_ray_result) * idx;
+			return cell_surfel_ray_count_total_offset() + sizeof(uint32);
 		}
 
 		//---[ tile_buffer : [count(1)][entry x tile_total][to_surfel x count*9] ]---
@@ -551,16 +698,16 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32
 		tile_to_surfel_id_block_offset()
 		{
-			return sizeof(uint32) + sizeof(gibs_tile_entry) * tile_count_total;
+			return sizeof(uint32) + sizeof(gibs_tile_surfel_entry) * tile_count_total;
 		}
 
 		uint32
 		tile_to_surfel_id_capacity()
 		{
-			return max_surfel_count * 9;
+			return max_tile_surfel_count * 9;
 		}
 
-		//---[ cell_buffer : [count(1)][entry x cell_total][to_surfel x count*27] ]---
+		//---[ cell_buffer : [surfel_count][probe_count][surfel_entry x cell_total][to_surfel x count*27][probe_entry x cell_total][to_probe x count*27] ]---
 		uint32
 		cell_surfel_count_offset()
 		{
@@ -568,21 +715,45 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 
 		uint32
-		cell_entry_block_offset()
+		cell_probe_count_offset()
 		{
 			return sizeof(uint32);
 		}
 
 		uint32
+		cell_surfel_entry_block_offset()
+		{
+			return sizeof(uint32) * 2;
+		}
+
+		uint32
 		cell_to_surfel_id_block_offset()
 		{
-			return sizeof(uint32) + sizeof(gibs_cell_entry) * cell_count_total;
+			return sizeof(uint32) * 2 + sizeof(gibs_cell_surfel_entry) * cell_count_total;
 		}
 
 		uint32
 		cell_to_surfel_id_capacity()
 		{
-			return max_surfel_count * 27;
+			return max_cell_surfel_count * 27;
+		}
+
+		uint32
+		cell_probe_entry_block_offset()
+		{
+			return cell_to_surfel_id_block_offset() + sizeof(uint32) * max_cell_surfel_count * 27;
+		}
+
+		uint32
+		cell_to_probe_id_block_offset()
+		{
+			return cell_probe_entry_block_offset() + sizeof(gibs_cell_probe_entry) * cell_count_total;
+		}
+
+		uint32
+		cell_to_probe_id_capacity()
+		{
+			return max_surfel_probe_count * 27;
 		}
 
 		//---[ tile_spawn_kill_buffer : [spawn_data x tile_total x sample_per_tile] ]---
@@ -598,35 +769,65 @@ namespace age::graphics::render_pipeline::shared_type
 			return tile_spawn_kill_offset() + sizeof(gibs_tile_surfel_spawn_kill_data) * tile_sample_id;
 		}
 
-		//---[ cell_spawn_kill_buffer : [cell_spawn_kill x cell_total][cell_surfel_ref x count*27] ]---
+		//---[ cell_spawn_kill_buffer ]---
+
 		uint32
-		cell_spawn_kill_offset()
+		cell_probe_spawn_data_offset()
 		{
 			return 0u;
 		}
 
 		uint32
-		cell_spawn_kill_data_offset(uint32 cell_idx)
+		cell_surfel_spawn_data_offset()
 		{
-			return cell_spawn_kill_offset() + sizeof(gibs_cell_surfel_spawn_kill_data) * cell_idx;
+			return cell_probe_spawn_data_offset()
+				 + sizeof(uint64) * cell_count_total;
+		}
+
+		uint32
+		cell_probe_kill_data_offset()
+		{
+			return cell_surfel_spawn_data_offset()
+				 + sizeof(uint64) * cell_count_total;
+		}
+
+		uint32
+		cell_surfel_kill_data_offset()
+		{
+			return cell_probe_kill_data_offset()
+				 + (sizeof(uint64)) * cell_count_total;
+		}
+
+		uint32
+		cell_probe_ref_offset()
+		{
+			return cell_surfel_kill_data_offset()
+				 + sizeof(uint64) * cell_count_total;
+		}
+
+		uint32
+		cell_probe_ref_word_offset(uint32 local_id)
+		{
+			return cell_probe_ref_offset() + sizeof(uint32) * (local_id / 32u);
+		}
+
+		uint32
+		cell_probe_ref_capacity()
+		{
+			return max_surfel_probe_count * 27u;
 		}
 
 		uint32
 		cell_surfel_ref_offset()
 		{
-			return sizeof(gibs_cell_surfel_spawn_kill_data) * cell_count_total;
+			return cell_probe_ref_offset()
+				 + sizeof(uint32) * ((max_surfel_probe_count * 27 + 31) / 32);
 		}
 
 		uint32
-		cell_surfel_ref_word_offset(uint32 slot_idx)
+		cell_surfel_ref_word_offset(uint32 local_id)
 		{
-			return cell_surfel_ref_offset() + sizeof(uint32) * (slot_idx / 32u);
-		}
-
-		uint32
-		cell_surfel_ref_capacity()
-		{
-			return max_surfel_count * 27u;
+			return cell_surfel_ref_offset() + sizeof(uint32) * (local_id / 32u);
 		}
 	};
 
@@ -850,6 +1051,17 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 	};	  // total: 24 bytes
 
+	// todo, pack material_id and generation
+	struct object_render_data
+	{
+		uint32 mesh_byte_offset;
+		uint32 mesh_chunk_srv_id;
+		uint32 rt_index_buffer_offset;
+		// oob check
+		uint32 rt_index_buffer_size;
+		uint32 material_id;
+	};
+
 	struct debug_object_data
 	{
 		uint32 object_id;
@@ -1052,7 +1264,6 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 	//---[ configs, extra ]------------------------------------------------------------------------------------------------------
-#define AGE_WAVE_SIZE 32
 
 #define MAX_SELECTION_OUTLINE_THICKNESS 2
 #define MAX_UV_COUNT					2
@@ -1065,7 +1276,7 @@ namespace age::graphics::render_pipeline::g
 	static_assert(wave_size % 16 == 0);
 #endif
 
-	// bloom
+// bloom
 #if !defined(AGE_SHADER)
 	inline constexpr auto max_bloom_mip_count			= uint16{ MAX_BLOOM_MIP_COUNT };
 	inline constexpr auto min_bloom_mip_pixel			= uint16{ MIN_BLOOM_MIP_PIXEL };
@@ -1103,7 +1314,7 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 
-	//---[ light ]------------------------------------------------------------------------------------------------------
+//---[ light ]------------------------------------------------------------------------------------------------------
 #define MAX_LIGHT_COUNT				(512 * 512)
 #define MAX_ENV_LIGHT				8
 #define MAX_DIRECTIONAL_LIGHT_COUNT 2
@@ -1147,7 +1358,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr uint32 zbin_thread_count			 = LIGHT_ZBIN_THREAD_COUNT;
 #endif
 
-	//---[ object, meshlet ]------------------------------------------------------------------------------------------------------
+//---[ object, meshlet ]------------------------------------------------------------------------------------------------------
 #define MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT	  (1u << 24)
 #define MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT (1u << 20)
 #define MAX_OBJECT_DATA_COUNT					  (1u << 20)
@@ -1209,7 +1420,7 @@ namespace age::graphics::render_pipeline::g
 	static_assert(VERTEX_SIZE_PNT_UV3 == sizeof(age::asset::t_vertex_kind<age::asset::e::vertex_kind::pnt_uv3>));
 #endif
 
-	//---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------
+//---[ scratch buffer offset ]------------------------------------------------------------------------------------------------------
 #define SCRATCH_SORT_BUFFER_OFFSET (0)
 #define SORT_KEYS_OFFSET		   (SCRATCH_SORT_BUFFER_OFFSET)
 #define SORT_KEYS_ALT_OFFSET	   (SORT_KEYS_OFFSET + MAX_SORT_COUNT * sizeof(uint32))
@@ -1221,7 +1432,7 @@ namespace age::graphics::render_pipeline::g
 #if !defined(AGE_SHADER)
 	inline constexpr uint32 scratch_buffer_total_size = SCRATCH_BUFFER_TOTAL_SIZE;
 #endif
-	//---[ rt ]------------------------------------------------------------------------------------------------------
+//---[ rt ]------------------------------------------------------------------------------------------------------
 #define RT_MASK_OPAQUE		0x01
 #define RT_MASK_TRANSPARENT 0x02
 #define RT_MASK_MASK		0x04
@@ -1236,7 +1447,7 @@ namespace age::graphics::render_pipeline::g
 	static_assert(RT_MASK_AOT == to_idx(age::graphics::e::rt_mask_kind::always_on_top));
 	static_assert(RT_MASK_ALL == to_idx(age::graphics::e::rt_mask_kind::all));
 #endif
-	//---[ ui ]------------------------------------------------------------------------------------------------------
+//---[ ui ]------------------------------------------------------------------------------------------------------
 #define UI_SPACE_MODE_SCREEN			  0
 #define UI_SPACE_MODE_WORLD				  1
 #define UI_SPACE_MODE_WORLD_ALWAYS_ON_TOP 2
@@ -1256,7 +1467,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto max_ui_z_count = 128;
 #endif
 
-	//---[ material ]------------------------------------------------------------------------------------------------------
+//---[ material ]------------------------------------------------------------------------------------------------------
 #define MATERIAL_ALPHA_BLEND_OPAQUE 0
 #define MATERIAL_ALPHA_BLEND_MASK	1
 #define MATERIAL_ALPHA_BLEND_BLEND	2
@@ -1267,7 +1478,7 @@ namespace age::graphics::render_pipeline::g
 #endif
 
 
-	//---[ ddgi ]------------------------------------------------------------------------------------------------------
+//---[ ddgi ]------------------------------------------------------------------------------------------------------
 #define DDGI_BORDER 1
 
 // do not change
@@ -1353,39 +1564,58 @@ namespace age::graphics::render_pipeline::g
 	static_assert(DDGI_DEBUG_FLAGS_RENDER_PROBE == to_idx(age::graphics::e::ddgi_debug_flags::render_probe));
 #endif
 
-	//---[ gibs ]------------------------------------------------------------------------------------------------------
-#define GIBS_ATLAS_WIDTH		3840u
-#define GIBS_ATLAS_HEIGHT		2160u
+//---[ gibs ]------------------------------------------------------------------------------------------------------
 #define GIBS_ATLAS_TILE_SIZE	6u
-#define GIBS_MAX_SURFEL_COUNT	((GIBS_ATLAS_WIDTH / GIBS_ATLAS_TILE_SIZE) * (GIBS_ATLAS_HEIGHT / GIBS_ATLAS_TILE_SIZE) - 1)
+#define GIBS_MAX_SURFEL_COUNT	((3840u / 6u) * (2160u / 6u) - 1)
 #define GIBS_MIN_RAY_PER_SURFEL 4	  // ideal
 #define GIBS_MAX_RAY_PER_SURFEL 64	  // ideal
-#define GIBS_RAY_BUDGET			(GIBS_MAX_SURFEL_COUNT * 8)
 
 #define GIBS_SURFEL_OUTER_RADIUS_FACTOR 1.5f
 
-#define GIBS_TILE_SURFEL_COUNT_PREFIX_TPG 32u
-#define GIBS_TILE_SURFEL_COUNT_PREFIX_EPT 32u
-#define GIBS_TILE_SURFEL_COUNT_PREFIX_EPG (GIBS_TILE_SURFEL_COUNT_PREFIX_TPG * GIBS_TILE_SURFEL_COUNT_PREFIX_EPT)
+#define GIBS_TILE_PREFIX_TPG AGE_WAVE_SIZE
+#define GIBS_TILE_PREFIX_EPT AGE_WAVE_SIZE
+#define GIBS_TILE_PREFIX_EPG (GIBS_TILE_PREFIX_TPG * GIBS_TILE_PREFIX_EPT)
 
-#define GIBS_CELL_SURFEL_COUNT_PREFIX_TPG 32u
-#define GIBS_CELL_SURFEL_COUNT_PREFIX_EPT 32u
-#define GIBS_CELL_SURFEL_COUNT_PREFIX_EPG (GIBS_CELL_SURFEL_COUNT_PREFIX_TPG * GIBS_CELL_SURFEL_COUNT_PREFIX_EPT)
+#define GIBS_CELL_PREFIX_TPG AGE_WAVE_SIZE
+#define GIBS_CELL_PREFIX_EPT AGE_WAVE_SIZE
+#define GIBS_CELL_PREFIX_EPG (GIBS_CELL_PREFIX_TPG * GIBS_CELL_PREFIX_EPT)
 
-#define GIBS_RAY_REDUCE_TPG 32u
-#define GIBS_RAY_REDUCE_EPT 32u
+#define GIBS_RAY_REDUCE_TPG AGE_WAVE_SIZE
+#define GIBS_RAY_REDUCE_EPT AGE_WAVE_SIZE
 #define GIBS_RAY_REDUCE_EPG (GIBS_RAY_REDUCE_TPG * GIBS_RAY_REDUCE_EPT)
 
-#define GIBS_RAY_COUNT_REDUCE_TPG 32u
-#define GIBS_RAY_COUNT_REDUCE_EPT 32u
+#define GIBS_RAY_COUNT_REDUCE_TPG AGE_WAVE_SIZE
+#define GIBS_RAY_COUNT_REDUCE_EPT AGE_WAVE_SIZE
 #define GIBS_RAY_COUNT_REDUCE_EPG (GIBS_RAY_COUNT_REDUCE_TPG * GIBS_RAY_COUNT_REDUCE_EPT)
 
 #define GIBS_MAX_OUTER_LAYER_COUNT 16u
 
-#define GIBS_SPAWN_COVERAGE	   1.f
-#define GIBS_KILL_COVERAGE	   3.f
+#define GIBS_TILE_SURFEL_SPAWN_COVERAGE 1.f
+#define GIBS_TILE_SURFEL_KILL_COVERAGE	3.f
+
+#define GIBS_PROBE_VIS_FADE_RATIO 1.2f
+
+// integral( calc_near_contribution ) when cos == 1.f
+#define GIBS_NEAR_CONTRIBUTION_FULL_COVER 0.3f
+
+// trust near 50% more than far
+#define GIBS_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
+
+#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR (0.5f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
+#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  (2.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  (1.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	  (3.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
+
+// 1.f : full hemisphere cover
+#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR 0.33f
+#define GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR	 2.f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR	 0.66f
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_FAR	 3.f
+
+
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
+
 
 #define GIBS_RADIANCE_CACHE_DELAY 32
 
@@ -1421,15 +1651,16 @@ namespace age::graphics::render_pipeline::g
 
 #if !defined(AGE_SHADER)
 
-	inline constexpr auto gibs_atlas_extent		= extent_2d<uint32>{ GIBS_ATLAS_WIDTH, GIBS_ATLAS_HEIGHT };
 	inline constexpr auto gibs_atlas_tile_size	= GIBS_ATLAS_TILE_SIZE;
 	inline constexpr auto gibs_max_surfel_count = GIBS_MAX_SURFEL_COUNT;
-	inline constexpr auto gibs_ray_budget		= GIBS_RAY_BUDGET;
 
-	inline constexpr auto gibs_tile_surfel_count_reduce_epg = GIBS_TILE_SURFEL_COUNT_PREFIX_EPG;
-	inline constexpr auto gibs_cell_surfel_count_reduce_epg = GIBS_CELL_SURFEL_COUNT_PREFIX_EPG;
-	inline constexpr auto gibs_ray_count_reduce_epg			= GIBS_RAY_COUNT_REDUCE_EPG;
-	inline constexpr auto gibs_max_outer_layer_count		= GIBS_MAX_OUTER_LAYER_COUNT;
+	inline constexpr auto gibs_max_ray_per_tile_surfel = GIBS_MAX_RAY_PER_SURFEL;
+	inline constexpr auto gibs_max_ray_per_cell_surfel = GIBS_MAX_RAY_PER_SURFEL;
+
+	inline constexpr auto gibs_tile_prefix_epg		 = GIBS_TILE_PREFIX_EPG;
+	inline constexpr auto gibs_cell_prefix_epg		 = GIBS_CELL_PREFIX_EPG;
+	inline constexpr auto gibs_ray_count_reduce_epg	 = GIBS_RAY_COUNT_REDUCE_EPG;
+	inline constexpr auto gibs_max_outer_layer_count = GIBS_MAX_OUTER_LAYER_COUNT;
 
 	inline constexpr auto gibs_ray_reduce_epg = GIBS_RAY_REDUCE_EPG;
 
@@ -1440,19 +1671,18 @@ namespace age::graphics::render_pipeline::g
 
 	inline constexpr auto gibs_gi_resolve_sample_per_tile = GIBS_GI_RESOLVE_SAMPLE_PER_TILE;
 
+	inline constexpr auto gibs_tile_kill_coverage = GIBS_TILE_SURFEL_KILL_COVERAGE;
+
 	static_assert(GIBS_GI_RESOLVE_BLOCK_SIZE < 256);
 
 	static_assert(gibs_gi_resolve_sample_per_tile % wave_size == 0);
 	static_assert(gibs_gi_resolve_sample_per_tile >= wave_size);
 
-	static_assert(GIBS_ATLAS_WIDTH % gibs_atlas_tile_size == 0);
-	static_assert(GIBS_ATLAS_HEIGHT % gibs_atlas_tile_size == 0);
 	static_assert(gibs_max_surfel_count <= (1u << 24u));
 
 	static_assert(sizeof(shared_type::gibs_lut_data::cell_size_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 	static_assert(sizeof(shared_type::gibs_lut_data::layer_boundary_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 
-	static_assert(sizeof(shared_type::gibs_ray_entry) <= sizeof(shared_type::gibs_ray_result));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_RADIANCE == to_idx(graphics::e::gibs_debug_flags::render_radiance));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE == to_idx(graphics::e::gibs_debug_flags::render_irradiance));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_VISIBILITY == to_idx(graphics::e::gibs_debug_flags::render_visibility));
@@ -1484,14 +1714,15 @@ namespace age::graphics::render_pipeline::g
 	static_assert(AO_DEBUG_FLAGS_RENDER_AO_BUFFER == to_idx(graphics::e::ao_debug_flags::render_ao_buffer));
 #endif
 
-	//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
+//---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 
 // todo, optimize static buffer upload
 #define OPAQUE_MSHLT_OBJECT_DATA_OFFSET		 (0)
 #define TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET (OPAQUE_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE opaque_meshlet_render_data) * MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT)
 #define OBJECT_PREV_DATA_OFFSET				 (TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE transparent_meshlet_render_data) * MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT)
 #define OBJECT_DATA_OFFSET					 (OBJECT_PREV_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
-#define DIRECTIONAL_LIGHT_OFFSET			 (OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define OBJECT_RENDER_DATA_OFFSET			 (OBJECT_DATA_OFFSET + sizeof(SHARED_TYPE object_data) * MAX_OBJECT_DATA_COUNT)
+#define DIRECTIONAL_LIGHT_OFFSET			 (OBJECT_RENDER_DATA_OFFSET + sizeof(SHARED_TYPE object_render_data) * MAX_OBJECT_DATA_COUNT)
 #define UNIFIED_LIGHT_OFFSET				 (DIRECTIONAL_LIGHT_OFFSET + sizeof(SHARED_TYPE directional_light) * MAX_DIRECTIONAL_LIGHT_COUNT)
 #define BLOOM_OFFSET						 (UNIFIED_LIGHT_OFFSET + sizeof(SHARED_TYPE unified_light) * MAX_LIGHT_COUNT)
 #define DDGI_DATA_OFFSET					 (BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
@@ -1509,6 +1740,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto transparent_mshlt_object_data_offset	  = TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET;
 	inline constexpr auto object_prev_data_offset				  = OBJECT_PREV_DATA_OFFSET;
 	inline constexpr auto object_data_offset					  = OBJECT_DATA_OFFSET;
+	inline constexpr auto object_render_data_offset				  = OBJECT_RENDER_DATA_OFFSET;
 	inline constexpr auto directional_light_offset				  = DIRECTIONAL_LIGHT_OFFSET;
 	inline constexpr auto unified_light_offset					  = UNIFIED_LIGHT_OFFSET;
 	inline constexpr auto bloom_offset							  = BLOOM_OFFSET;
@@ -1521,7 +1753,7 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto static_buffer_size					  = STATIC_BUFFER_SIZE;
 #endif
 
-	//---[ debug assert ]------------------------------------------------------------------------------------------------------
+//---[ debug assert ]------------------------------------------------------------------------------------------------------
 #define DEBUG_ARG_TYPE_UINT64 0u
 #define DEBUG_ARG_TYPE_UINT32 1u
 
@@ -1554,7 +1786,8 @@ namespace age::graphics::render_pipeline::g
 #define DEBUG_ARG_TYPE_FLOAT4X3 37u
 #define DEBUG_ARG_TYPE_FLOAT4X4 38u
 
-#define DEBUG_ARG_TYPE_STRING 40u
+#define DEBUG_ARG_TYPE_STRING	40u
+#define DEBUG_ARG_TYPE_SRC_LINE 41u
 
 #if !defined(AGE_SHADER)
 	inline constexpr auto debug_arg_type_uint64 = DEBUG_ARG_TYPE_UINT64;
@@ -1589,7 +1822,8 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto debug_arg_type_float4x3 = DEBUG_ARG_TYPE_FLOAT4X3;
 	inline constexpr auto debug_arg_type_float4x4 = DEBUG_ARG_TYPE_FLOAT4X4;
 
-	inline constexpr auto debug_arg_type_string = DEBUG_ARG_TYPE_STRING;
+	inline constexpr auto debug_arg_type_string	  = DEBUG_ARG_TYPE_STRING;
+	inline constexpr auto debug_arg_type_src_line = DEBUG_ARG_TYPE_SRC_LINE;
 #endif
 
 #if !defined(AGE_SHADER)

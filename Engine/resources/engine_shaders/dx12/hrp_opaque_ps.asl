@@ -9,7 +9,7 @@
 float4
 main_ps(float4 pos sv_position) sv_target_0
 {
-	const gibs_lut_data		   lut_data	 = gibs_load_gibs_lut_data();
+	const gibs_lut_data		   lut_data	 = gibs::load_lut_data();
 	const texture_2d<float>	   depth_tex = global_resource_buffer[opaque_depth_buffer_srv_id];
 	const texture_2d<uint32_2> gbuffer	 = global_resource_buffer[opaque_gbuffer_srv_id];
 
@@ -53,7 +53,7 @@ main_ps(float4 pos sv_position) sv_target_0
 	const vertex_fat v_local = interpolate_vertex_fat(v0, v1, v2, barycentrics);
 	const vertex_fat v		 = transform_vertex_to_world(v_local, obj_data);
 
-	const pbr_surface_data surface_data = calc_pbr_surface(camera_pos, mat, v);
+	const pbr_surface_data surface_data = calc_pbr_surface(normalize(v.world_pos - camera_pos), mat, v);
 
 	const float3 px_normal = decode_oct_snorm16(gbuffer[px].y);
 
@@ -98,16 +98,11 @@ main_ps(float4 pos sv_position) sv_target_0
 	//	}
 	//}
 
-	else if (gibs_enabled())
+	else if (gibs::enabled())
 	{
-		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_curr_buffer_srv_id];
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gibs::load_data().h_gi_resolve_curr_buffer_srv_id];
 
-		const float3 f_avg		 = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-		const float3 irradiance	 = gi_resolve_buffer[px];
-		const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
-		ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
-
-		ambient_light += calc_pbr_gibs_specular(surface_data, irradiance) * surface_data.occlusion;
+		ambient_light += calc_gi(surface_data, gi_resolve_buffer[px]);
 	}
 	else
 	{
@@ -135,7 +130,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		const directional_light light = load_directional_light(d);
 
 		lighting += calc_pbr_light(surface_data, light)
-				  * calc_directional_shadow_rt(light, v, px_normal);
+				  * calc_directional_shadow_rt(light, v.world_pos, px_normal);
 	}
 
 	const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
@@ -175,7 +170,7 @@ main_ps(float4 pos sv_position) sv_target_0
 				const unified_light light = load_sorted_light(sorted_id);
 
 				lighting += calc_pbr_light(surface_data, light)
-						  * calc_unified_shadow_rt(light, v, px_normal);
+						  * calc_unified_shadow_rt(light, v.world_pos, px_normal);
 
 				++c;
 			}

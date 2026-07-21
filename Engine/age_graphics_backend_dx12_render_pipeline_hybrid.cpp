@@ -384,6 +384,7 @@ namespace age::graphics::render_pipeline
 		object_prev_data_vec.clear();
 		object_transform_data_vec.clear();
 		object_generation_vec.clear();
+		object_render_data_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
 		bloom_desc_vec.clear();
@@ -569,6 +570,11 @@ namespace age::graphics::render_pipeline
 						res_buf.skip_read(arg_header.arg_byte_size);
 						break;
 					}
+					case g::debug_arg_type_src_line:
+					{
+						std::print("line({})", res_buf.read<uint32>());
+						break;
+					}
 					default:
 					{
 						AGE_UNREACHABLE();
@@ -720,12 +726,21 @@ namespace age::graphics::render_pipeline
 
 		c_auto& msh_data = mesh_data_vec[mesh_id];
 
+		c_auto object_id_gpu				  = object_data_vec.get_pos(object_id);
+		object_render_data_vec[object_id_gpu] = shared_type::object_render_data{
+			.mesh_byte_offset		= msh_data.offset,
+			.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
+			.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
+			.rt_index_buffer_size	= msh_data.rt_idx_size / 4,
+			.material_id			= mat_id
+		};
+
 		for (auto meshlet_id = 0u;
 			 auto _ : views::loop(msh_data.meshlet_count))
 		{
 			render_data_vec.emplace_back(
 				shared_type::opaque_meshlet_render_data{
-					.object_id		   = object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
+					.object_id		   = object_id_gpu | (object_generation_vec[object_id] << 28u),
 					.mesh_byte_offset  = msh_data.offset,
 					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
 					.meshlet_id		   = meshlet_id++,
@@ -734,7 +749,7 @@ namespace age::graphics::render_pipeline
 
 		rt_inst_render_data_vec.emplace_back(
 			shared_type::rt_instance_render_data{
-				.object_id				= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
+				.object_id				= object_id_gpu | (object_generation_vec[object_id] << 28u),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
@@ -774,12 +789,21 @@ namespace age::graphics::render_pipeline
 
 		c_auto rt_instance_id_temp = rt_inst_render_data_vec.size<uint32>();
 
+		c_auto object_id_gpu				  = object_data_vec.get_pos(object_id);
+		object_render_data_vec[object_id_gpu] = shared_type::object_render_data{
+			.mesh_byte_offset		= msh_data.offset,
+			.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
+			.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
+			.rt_index_buffer_size	= msh_data.rt_idx_size / 4,
+			.material_id			= mat_id
+		};
+
 		for (auto meshlet_id = 0u;
 			 auto _ : views::loop(msh_data.meshlet_count))
 		{
 			render_data_vec.emplace_back(
 				shared_type::transparent_meshlet_render_data{
-					.object_id		   = object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
+					.object_id		   = object_id_gpu | (object_generation_vec[object_id] << 28u),
 					.mesh_byte_offset  = msh_data.offset,
 					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
 					.meshlet_id		   = meshlet_id++,
@@ -788,7 +812,7 @@ namespace age::graphics::render_pipeline
 
 		rt_inst_render_data_vec.emplace_back(
 			shared_type::rt_instance_render_data{
-				.object_id				= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
+				.object_id				= object_id_gpu | (object_generation_vec[object_id] << 28u),
 				.mesh_byte_offset		= msh_data.offset,
 				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
@@ -1087,12 +1111,6 @@ namespace age::graphics::render_pipeline
 						 ui_render_data_z_range_vec,
 						 ui_render_data_z_range_of_range_vec);
 
-		if (gibs_enabled() and gibs_data_cpu.render_surfels)
-		{
-			stage_gibs.execute_render_surfels(h_main_buffer_rtv_desc, h_opaque_depth_buffer_dsv_readonly_desc);
-		}
-
-
 		if (aa_enabled() and aa_data_cpu.transparent_rtaa_enabled)
 		{
 			command::apply_barriers(barrier::tex_srv_to_uav(h_blend_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING));
@@ -1122,6 +1140,13 @@ namespace age::graphics::render_pipeline
 			stage_ddgi.execute_render_probes(h_main_buffer_rtv_desc,
 											 h_debug_depth_buffer_dsv_desc,
 											 ddgi_data_cpu);
+		}
+		else if (gibs_enabled() and gibs_data_cpu.render_surfels)
+		{
+			command::apply_barriers(barrier::tex_srv_to_uav(h_blend_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+			command::clear_uav(h_blend_buffer, h_blend_buffer_clear_uav_desc, float4::zero());
+			command::apply_barriers(barrier::tex_uav_to_uav(h_blend_buffer));
+			stage_gibs.execute_render_surfels(gibs_data_cpu, h_main_buffer_rtv_desc, h_blend_buffer, extent);
 		}
 
 		if (AGE_IS_INVALID_ID(active_bloom_id))
@@ -1398,7 +1423,8 @@ namespace age::graphics::render_pipeline
 			c_auto& gpu_data	 = gibs_data_cpu.gibs_data_gpu;
 			c_auto& gpu_lut_data = gibs_data_cpu.gibs_lut_data_gpu;
 			update_gibs(gibs_desc{
-				.max_surfel_count		= gpu_data.max_surfel_count,
+				// todo
+				.max_surfel_count		= invalid_id_uint32,
 				.debug_flags			= graphics::e::gibs_debug_flags{ gpu_data.debug_flags },
 				.lock_origin			= gibs_data_cpu.lock_origin,
 				.cell_count				= cast_to<uint8>(gpu_data.cell_count),
@@ -1907,6 +1933,8 @@ namespace age::graphics::render_pipeline
 
 		object_generation_vec.resize(max(object_generation_vec.capacity(), id + 1ull));
 		object_generation_vec[id] = (object_generation_vec[id] + 1) & 0xf;
+
+		object_render_data_vec.resize(max(object_render_data_vec.capacity(), id + 1ull));
 
 		update_object(id, pos, quat, scale);
 
@@ -2606,7 +2634,8 @@ namespace age::graphics::render_pipeline
 	{
 		AGE_ASSERT(gibs_data_cpu.enabled is_false);
 
-		AGE_ASSERT(desc.max_surfel_count <= g::gibs_max_surfel_count);
+		// todo
+		// AGE_ASSERT(desc.max_surfel_count <= g::gibs_max_surfel_count);
 		AGE_ASSERT(desc.outer_layer_count <= g::gibs_max_outer_layer_count);
 		AGE_ASSERT(desc.outer_cell_size_factor > 1.f);
 
@@ -2619,8 +2648,17 @@ namespace age::graphics::render_pipeline
 		auto& gibs_data_gpu = gibs_data_cpu.gibs_data_gpu;
 
 		{
-			gibs_data_gpu.debug_flags		= to_idx(desc.debug_flags);
-			gibs_data_gpu.max_surfel_count	= desc.max_surfel_count;
+			gibs_data_gpu.debug_flags = to_idx(desc.debug_flags);
+
+			// todo, add config
+			gibs_data_gpu.max_tile_surfel_count	 = uint32(tile_count_total * g::gibs_gi_resolve_sample_per_tile /*g::gibs_tile_kill_coverage * 2.f*/);
+			gibs_data_gpu.max_cell_surfel_count	 = uint32(cell_count_total * 0.1f);
+			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count * 0.1f);
+
+			gibs_data_gpu.max_tile_surfel_count	 += is_odd(gibs_data_gpu.max_tile_surfel_count) ? 1u : 0u;
+			gibs_data_gpu.max_cell_surfel_count	 += is_odd(gibs_data_gpu.max_cell_surfel_count) ? 1u : 0u;
+			gibs_data_gpu.max_surfel_probe_count += is_odd(gibs_data_gpu.max_surfel_probe_count) ? 1u : 0u;
+
 			gibs_data_gpu.cell_count		= desc.cell_count;
 			gibs_data_gpu.cell_count_total	= cell_count_total;
 			gibs_data_gpu.outer_layer_count = desc.outer_layer_count;
@@ -2631,82 +2669,329 @@ namespace age::graphics::render_pipeline
 			gibs_data_gpu.tile_count_total = tile_count_total;
 
 			AGE_LOG(gibs_data_gpu.debug_flags);
-			AGE_LOG(gibs_data_gpu.max_surfel_count);
+			AGE_LOG(gibs_data_gpu.max_tile_surfel_count);
+			AGE_LOG(gibs_data_gpu.max_cell_surfel_count);
+			AGE_LOG(gibs_data_gpu.max_surfel_probe_count);
 			AGE_LOG(gibs_data_gpu.cell_count);
 			AGE_LOG(gibs_data_gpu.cell_count_total);
 			AGE_LOG(gibs_data_gpu.outer_layer_count);
 			AGE_LOG(gibs_data_gpu.tile_count_w, gibs_data_gpu.tile_count_h);
+
+			c_auto tile_surfel_ray_count_total = gibs_data_gpu.max_tile_surfel_count * g::gibs_max_ray_per_tile_surfel * 0.5f;
+			c_auto cell_surfel_ray_count_total = gibs_data_gpu.max_cell_surfel_count * g::gibs_max_ray_per_cell_surfel * 0.5f;
+			c_auto max_ray_count_total		   = tile_surfel_ray_count_total + cell_surfel_ray_count_total;
+
+			AGE_LOG(gibs_data_gpu.max_tile_surfel_count, gibs_data_gpu.max_cell_surfel_count, gibs_data_gpu.max_surfel_probe_count);
+			AGE_LOG(tile_surfel_ray_count_total, cell_surfel_ray_count_total, max_ray_count_total);
 		}
 
-
+		// tile_surfel
 		{
-			auto   offset_calculator  = util::offset_calculator{};
-			c_auto surfel_offset	  = offset_calculator + sizeof(shared_type::surfel) * desc.max_surfel_count;
-			c_auto surfel_geo_offset  = offset_calculator + sizeof(shared_type::surfel_geometry) * desc.max_surfel_count;
-			c_auto surfel_msme_offset = offset_calculator + sizeof(shared_type::surfel_msme) * desc.max_surfel_count;
-			c_auto surfel_vis_offset  = offset_calculator + sizeof(uint16) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * desc.max_surfel_count;
-			c_auto surfel_lum_offset  = offset_calculator + sizeof(half2) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * desc.max_surfel_count;
-			c_auto buffer_size		  = offset_calculator.size();
+			{
+				c_auto buffer_size				   = sizeof(shared_type::gibs_tile_surfel) * gibs_data_gpu.max_tile_surfel_count;
+				gibs_data_cpu.h_tile_surfel_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_buffer->set_name(L"gibs_tile_surfel_buffer");
 
-			static_assert(g::gibs_atlas_tile_size % 2 == 0);
+				gibs_data_cpu.h_tile_surfel_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_buffer,
+																					defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_tile_surfel)));
+				gibs_data_cpu.h_tile_surfel_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_buffer,
+																					defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_tile_surfel)));
 
-			AGE_ASSERT(surfel_offset == gibs_data_gpu.surfel_offset());
-			AGE_ASSERT(surfel_geo_offset == gibs_data_gpu.surfel_geo_offset());
-			AGE_ASSERT(surfel_msme_offset == gibs_data_gpu.surfel_msme_offset());
-			AGE_ASSERT(surfel_vis_offset == gibs_data_gpu.surfel_vis_offset(0));
-			AGE_ASSERT(surfel_lum_offset == gibs_data_gpu.surfel_lum_offset(0));
+				gibs_data_gpu.h_tile_surfel_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_buffer_uav_desc);
+			}
 
-			gibs_data_cpu.h_surfel_buffer = resource::create_committed_buf_uav(buffer_size);
-			gibs_data_cpu.h_surfel_buffer->set_name(L"gibs_surfel_buffer");
+			{
+				c_auto buffer_size					   = sizeof(shared_type::gibs_tile_surfel_geometry) * gibs_data_gpu.max_tile_surfel_count;
+				gibs_data_cpu.h_tile_surfel_geo_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_geo_buffer->set_name(L"gibs_tile_surfel_geo_buffer");
 
-			gibs_data_cpu.h_surfel_buffer_srv_desc		 = resource::create_view(gibs_data_cpu.h_surfel_buffer,
-																				 defaults::srv_view_desc::byte_address_buffer(buffer_size));
-			gibs_data_cpu.h_surfel_buffer_uav_desc		 = resource::create_view(gibs_data_cpu.h_surfel_buffer,
-																				 defaults::uav_view_desc::byte_address_buffer(buffer_size));
-			gibs_data_cpu.h_surfel_buffer_clear_uav_desc = resource::create_clear_uav_view(gibs_data_cpu.h_surfel_buffer,
-																						   defaults::uav_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_tile_surfel_geo_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_geo_buffer,
+																						defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_tile_surfel_geometry)));
+				gibs_data_cpu.h_tile_surfel_geo_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_geo_buffer,
+																						defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_tile_surfel_geometry)));
 
-			gibs_data_gpu.h_surfel_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_buffer_srv_desc);
-			gibs_data_gpu.h_surfel_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_buffer_uav_desc);
+				gibs_data_gpu.h_tile_surfel_geo_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_geo_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_geo_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_geo_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size						= sizeof(shared_type::gibs_surfel_msme) * gibs_data_gpu.max_tile_surfel_count;
+				gibs_data_cpu.h_tile_surfel_msme_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_msme_buffer->set_name(L"gibs_tile_surfel_msme_buffer");
+
+				gibs_data_cpu.h_tile_surfel_msme_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_msme_buffer,
+																						 defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_surfel_msme)));
+				gibs_data_cpu.h_tile_surfel_msme_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_msme_buffer,
+																						 defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_tile_surfel_count, sizeof(shared_type::gibs_surfel_msme)));
+
+				gibs_data_gpu.h_tile_surfel_msme_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_msme_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_msme_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_msme_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							  = sizeof(uint16) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * gibs_data_gpu.max_tile_surfel_count;
+				gibs_data_cpu.h_tile_surfel_visibility_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_visibility_buffer->set_name(L"gibs_tile_surfel_visibility_buffer");
+
+				gibs_data_cpu.h_tile_surfel_visibility_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_visibility_buffer,
+																							   defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_tile_surfel_visibility_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_visibility_buffer,
+																							   defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_tile_surfel_visibility_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_visibility_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_visibility_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_visibility_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							 = sizeof(half2) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * gibs_data_gpu.max_tile_surfel_count;
+				gibs_data_cpu.h_tile_surfel_luminance_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_luminance_buffer->set_name(L"gibs_tile_surfel_luminance_buffer");
+
+				gibs_data_cpu.h_tile_surfel_luminance_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_luminance_buffer,
+																							  defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_tile_surfel_luminance_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_luminance_buffer,
+																							  defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_tile_surfel_luminance_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_luminance_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_luminance_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_luminance_buffer_uav_desc);
+			}
+		}
+
+		// cell_surfel
+		{
+			{
+				c_auto buffer_size				   = sizeof(shared_type::gibs_cell_surfel) * gibs_data_gpu.max_cell_surfel_count;
+				gibs_data_cpu.h_cell_surfel_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_buffer->set_name(L"gibs_cell_surfel_buffer");
+
+				gibs_data_cpu.h_cell_surfel_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_buffer,
+																					defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_cell_surfel)));
+				gibs_data_cpu.h_cell_surfel_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_buffer,
+																					defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_cell_surfel)));
+
+				gibs_data_gpu.h_cell_surfel_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size					   = sizeof(shared_type::gibs_cell_surfel_geometry) * gibs_data_gpu.max_cell_surfel_count;
+				gibs_data_cpu.h_cell_surfel_geo_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_geo_buffer->set_name(L"gibs_cell_surfel_geo_buffer");
+
+				gibs_data_cpu.h_cell_surfel_geo_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_geo_buffer,
+																						defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_cell_surfel_geometry)));
+				gibs_data_cpu.h_cell_surfel_geo_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_geo_buffer,
+																						defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_cell_surfel_geometry)));
+
+				gibs_data_gpu.h_cell_surfel_geo_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_geo_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_geo_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_geo_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size						= sizeof(shared_type::gibs_surfel_msme) * gibs_data_gpu.max_cell_surfel_count;
+				gibs_data_cpu.h_cell_surfel_msme_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_msme_buffer->set_name(L"gibs_cell_surfel_msme_buffer");
+
+				gibs_data_cpu.h_cell_surfel_msme_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_msme_buffer,
+																						 defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_surfel_msme)));
+				gibs_data_cpu.h_cell_surfel_msme_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_msme_buffer,
+																						 defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_cell_surfel_count, sizeof(shared_type::gibs_surfel_msme)));
+
+				gibs_data_gpu.h_cell_surfel_msme_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_msme_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_msme_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_msme_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							  = sizeof(uint16) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * gibs_data_gpu.max_cell_surfel_count;
+				gibs_data_cpu.h_cell_surfel_visibility_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_visibility_buffer->set_name(L"gibs_cell_surfel_visibility_buffer");
+
+				gibs_data_cpu.h_cell_surfel_visibility_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_visibility_buffer,
+																							   defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_cell_surfel_visibility_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_visibility_buffer,
+																							   defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_cell_surfel_visibility_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_visibility_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_visibility_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_visibility_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							 = sizeof(half2) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * gibs_data_gpu.max_cell_surfel_count;
+				gibs_data_cpu.h_cell_surfel_luminance_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_luminance_buffer->set_name(L"gibs_cell_surfel_luminance_buffer");
+
+				gibs_data_cpu.h_cell_surfel_luminance_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_luminance_buffer,
+																							  defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_cell_surfel_luminance_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_luminance_buffer,
+																							  defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_cell_surfel_luminance_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_luminance_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_luminance_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_luminance_buffer_uav_desc);
+			}
+		}
+
+		// surfel_probe
+		{
+			{
+				c_auto buffer_size					= sizeof(shared_type::gibs_surfel_probe) * gibs_data_gpu.max_surfel_probe_count;
+				gibs_data_cpu.h_surfel_probe_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_buffer->set_name(L"gibs_surfel_probe_buffer");
+
+				gibs_data_cpu.h_surfel_probe_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_buffer,
+																					 defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe)));
+				gibs_data_cpu.h_surfel_probe_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_buffer,
+																					 defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe)));
+
+				gibs_data_gpu.h_surfel_probe_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size						= sizeof(shared_type::gibs_surfel_probe_geometry) * gibs_data_gpu.max_surfel_probe_count;
+				gibs_data_cpu.h_surfel_probe_geo_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_geo_buffer->set_name(L"gibs_surfel_probe_geo_buffer");
+
+				gibs_data_cpu.h_surfel_probe_geo_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_geo_buffer,
+																						 defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe_geometry)));
+				gibs_data_cpu.h_surfel_probe_geo_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_geo_buffer,
+																						 defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe_geometry)));
+
+				gibs_data_gpu.h_surfel_probe_geo_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_geo_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_geo_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_geo_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							= sizeof(shared_type::gibs_recycle_data) * gibs_data_gpu.max_surfel_probe_count;
+				gibs_data_cpu.h_surfel_probe_recycle_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_recycle_buffer->set_name(L"gibs_surfel_probe_recycle_buffer");
+
+				gibs_data_cpu.h_surfel_probe_recycle_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_recycle_buffer,
+																							 defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_recycle_data)));
+				gibs_data_cpu.h_surfel_probe_recycle_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_recycle_buffer,
+																							 defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_recycle_data)));
+
+				gibs_data_gpu.h_surfel_probe_recycle_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_recycle_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_recycle_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_recycle_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size						 = sizeof(shared_type::gibs_surfel_probe_msme) * gibs_data_gpu.max_surfel_probe_count;
+				gibs_data_cpu.h_surfel_probe_msme_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_msme_buffer->set_name(L"gibs_surfel_probe_msme_buffer");
+
+				gibs_data_cpu.h_surfel_probe_msme_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_msme_buffer,
+																						  defaults::srv_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe_msme)));
+				gibs_data_cpu.h_surfel_probe_msme_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_msme_buffer,
+																						  defaults::uav_view_desc::structured_buffer(gibs_data_gpu.max_surfel_probe_count, sizeof(shared_type::gibs_surfel_probe_msme)));
+
+				gibs_data_gpu.h_surfel_probe_msme_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_msme_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_msme_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_msme_buffer_uav_desc);
+			}
+		}
+
+		// id stack
+		{
+			{
+				auto   offset_calculator   = util::offset_calculator{};
+				c_auto dead_stack_offset   = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_cell_surfel_count + 1);
+				c_auto alive_stack_offset0 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_cell_surfel_count + 1);
+				c_auto alive_stack_offset1 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_cell_surfel_count + 1);
+				c_auto buffer_size		   = offset_calculator.size();
+
+				AGE_ASSERT(dead_stack_offset == gibs_data_gpu.cell_surfel_dead_id_stack_offset());
+				AGE_ASSERT(alive_stack_offset0 == gibs_data_gpu.cell_surfel_alive_id_stack_offset_prev() or alive_stack_offset0 == gibs_data_gpu.cell_surfel_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset1 == gibs_data_gpu.cell_surfel_alive_id_stack_offset_prev() or alive_stack_offset1 == gibs_data_gpu.cell_surfel_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset0 != alive_stack_offset1);
+
+				gibs_data_cpu.h_cell_surfel_id_stack_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_cell_surfel_id_stack_buffer->set_name(L"gibs_cell_surfel_id_stack_buffer");
+
+				gibs_data_cpu.h_cell_surfel_id_stack_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_id_stack_buffer,
+																							 defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_cell_surfel_id_stack_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_cell_surfel_id_stack_buffer,
+																							 defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_cell_surfel_id_stack_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_id_stack_buffer_srv_desc);
+				gibs_data_gpu.h_cell_surfel_id_stack_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_cell_surfel_id_stack_buffer_uav_desc);
+			}
+
+			{
+				auto   offset_calculator   = util::offset_calculator{};
+				c_auto dead_stack_offset   = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_tile_surfel_count + 1);
+				c_auto alive_stack_offset0 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_tile_surfel_count + 1);
+				c_auto alive_stack_offset1 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_tile_surfel_count + 1);
+				c_auto buffer_size		   = offset_calculator.size();
+
+				AGE_ASSERT(dead_stack_offset == gibs_data_gpu.tile_surfel_dead_id_stack_offset());
+				AGE_ASSERT(alive_stack_offset0 == gibs_data_gpu.tile_surfel_alive_id_stack_offset_prev() or alive_stack_offset0 == gibs_data_gpu.tile_surfel_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset1 == gibs_data_gpu.tile_surfel_alive_id_stack_offset_prev() or alive_stack_offset1 == gibs_data_gpu.tile_surfel_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset0 != alive_stack_offset1);
+
+				gibs_data_cpu.h_tile_surfel_id_stack_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_tile_surfel_id_stack_buffer->set_name(L"gibs_tile_surfel_id_stack_buffer");
+
+				gibs_data_cpu.h_tile_surfel_id_stack_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_id_stack_buffer,
+																							 defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_tile_surfel_id_stack_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_tile_surfel_id_stack_buffer,
+																							 defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_tile_surfel_id_stack_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_id_stack_buffer_srv_desc);
+				gibs_data_gpu.h_tile_surfel_id_stack_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_tile_surfel_id_stack_buffer_uav_desc);
+			}
+
+			{
+				auto   offset_calculator   = util::offset_calculator{};
+				c_auto dead_stack_offset   = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_surfel_probe_count + 1);
+				c_auto alive_stack_offset0 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_surfel_probe_count + 1);
+				c_auto alive_stack_offset1 = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_surfel_probe_count + 1);
+				c_auto buffer_size		   = offset_calculator.size();
+
+				AGE_ASSERT(dead_stack_offset == gibs_data_gpu.probe_dead_id_stack_offset());
+				AGE_ASSERT(alive_stack_offset0 == gibs_data_gpu.probe_alive_id_stack_offset_prev() or alive_stack_offset0 == gibs_data_gpu.probe_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset1 == gibs_data_gpu.probe_alive_id_stack_offset_prev() or alive_stack_offset1 == gibs_data_gpu.probe_alive_id_stack_offset_curr());
+				AGE_ASSERT(alive_stack_offset0 != alive_stack_offset1);
+
+				gibs_data_cpu.h_surfel_probe_id_stack_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_id_stack_buffer->set_name(L"gibs_surfel_probe_id_stack_buffer");
+
+				gibs_data_cpu.h_surfel_probe_id_stack_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_id_stack_buffer,
+																							  defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_surfel_probe_id_stack_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_id_stack_buffer,
+																							  defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_surfel_probe_id_stack_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_id_stack_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_id_stack_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_id_stack_buffer_uav_desc);
+			}
 		}
 
 		{
-			auto   offset_calculator   = util::offset_calculator{};
-			c_auto dead_stack_offset   = offset_calculator + sizeof(uint32) * (desc.max_surfel_count + 1);
-			c_auto alive_stack_offset0 = offset_calculator + sizeof(uint32) * (desc.max_surfel_count + 1);
-			c_auto alive_stack_offset1 = offset_calculator + sizeof(uint32) * (desc.max_surfel_count + 1);
-			c_auto buffer_size		   = offset_calculator.size();
+			AGE_ASSERT(is_even(gibs_data_gpu.max_tile_surfel_count) and is_even(gibs_data_gpu.max_cell_surfel_count));
+			AGE_ASSERT(g::gibs_max_ray_per_tile_surfel * g::wave_size < std::numeric_limits<uint16>::max());
+			AGE_ASSERT(g::gibs_max_ray_per_cell_surfel * g::wave_size < std::numeric_limits<uint16>::max());
 
-			AGE_ASSERT(dead_stack_offset == gibs_data_gpu.dead_stack_offset());
-			AGE_ASSERT(alive_stack_offset0 == gibs_data_gpu.alive_stack_offset_prev() or alive_stack_offset0 == gibs_data_gpu.alive_stack_offset_curr());
-			AGE_ASSERT(alive_stack_offset1 == gibs_data_gpu.alive_stack_offset_curr() or alive_stack_offset0 == gibs_data_gpu.alive_stack_offset_curr());
-			AGE_ASSERT(alive_stack_offset0 != alive_stack_offset1);
+			auto   offset_calculator						= util::offset_calculator{};
+			c_auto tile_surfel_ideal_ray_count_total_offset = offset_calculator + sizeof(uint32);
+			c_auto tile_surfel_ray_count_offset				= offset_calculator + sizeof(uint16) * gibs_data_gpu.max_tile_surfel_count;
+			c_auto tile_surfel_ray_count_prefix_offset		= offset_calculator + sizeof(uint32) * gibs_data_gpu.max_tile_surfel_count;
 
-			gibs_data_cpu.h_surfel_id_stack_buffer = resource::create_committed_buf_uav(buffer_size);
-			gibs_data_cpu.h_surfel_id_stack_buffer->set_name(L"gibs_surfel_id_stack_buffer");
+			c_auto cell_surfel_ideal_ray_count_total_offset = offset_calculator + sizeof(uint32);
+			c_auto cell_surfel_ray_count_offset				= offset_calculator + sizeof(uint16) * gibs_data_gpu.max_cell_surfel_count;
+			c_auto cell_surfel_ray_count_prefix_offset		= offset_calculator + sizeof(uint32) * gibs_data_gpu.max_cell_surfel_count;
 
-			gibs_data_cpu.h_surfel_id_stack_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_id_stack_buffer,
-																					defaults::srv_view_desc::byte_address_buffer(buffer_size));
-			gibs_data_cpu.h_surfel_id_stack_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_id_stack_buffer,
-																					defaults::uav_view_desc::byte_address_buffer(buffer_size));
+			c_auto tile_surfel_ideal_ray_count_wave_sum_offset = offset_calculator + sizeof(uint16) * ceil(gibs_data_gpu.max_tile_surfel_count, g::wave_size);
+			c_auto cell_surfel_ideal_ray_count_wave_sum_offset = offset_calculator + sizeof(uint16) * ceil(gibs_data_gpu.max_cell_surfel_count, g::wave_size);
 
-			gibs_data_gpu.h_surfel_id_stack_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_id_stack_buffer_srv_desc);
-			gibs_data_gpu.h_surfel_id_stack_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_id_stack_buffer_uav_desc);
-		}
+			AGE_ASSERT(tile_surfel_ideal_ray_count_total_offset == gibs_data_gpu.tile_surfel_ideal_ray_count_total_offset());
+			AGE_ASSERT(tile_surfel_ray_count_offset == gibs_data_gpu.tile_surfel_ray_count_offset());
+			AGE_ASSERT(tile_surfel_ray_count_prefix_offset == gibs_data_gpu.tile_surfel_ray_count_prefix_offset());
+			AGE_ASSERT(cell_surfel_ideal_ray_count_total_offset == gibs_data_gpu.cell_surfel_ideal_ray_count_total_offset());
+			AGE_ASSERT(cell_surfel_ray_count_offset == gibs_data_gpu.cell_surfel_ray_count_offset());
+			AGE_ASSERT(cell_surfel_ray_count_prefix_offset == gibs_data_gpu.cell_surfel_ray_count_prefix_offset());
+			AGE_ASSERT(tile_surfel_ideal_ray_count_wave_sum_offset == gibs_data_gpu.tile_surfel_ideal_ray_count_wave_sum_offset());
+			AGE_ASSERT(cell_surfel_ideal_ray_count_wave_sum_offset == gibs_data_gpu.cell_surfel_ideal_ray_count_wave_sum_offset());
 
-		{
-			auto   offset_calculator			   = util::offset_calculator{};
-			c_auto ray_count_ideal_total_offset	   = offset_calculator + sizeof(uint32);
-			c_auto ray_count_ideal_offset		   = offset_calculator + sizeof(uint32) * desc.max_surfel_count;
-			c_auto ray_count_ideal_wave_sum_offset = offset_calculator + sizeof(uint32) * util::ceil(desc.max_surfel_count, 32);
-			c_auto ray_count_prefix_offset		   = offset_calculator + sizeof(uint32) * desc.max_surfel_count;
-
-			c_auto buffer_size = offset_calculator.size();
-
-			AGE_ASSERT(ray_count_ideal_total_offset == gibs_data_gpu.ray_count_ideal_total_offset());
-			AGE_ASSERT(ray_count_ideal_offset == gibs_data_gpu.ray_count_ideal_offset());
-			AGE_ASSERT(ray_count_ideal_wave_sum_offset == gibs_data_gpu.ray_count_ideal_wave_sum_offset());
-			AGE_ASSERT(ray_count_prefix_offset == gibs_data_gpu.ray_count_prefix_offset());
+			c_auto buffer_size = util::align_up(offset_calculator.size(), alignof(uint32));
 
 			gibs_data_cpu.h_scratch_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_scratch_buffer->set_name(L"gibs_scratch_buffer");
@@ -2721,38 +3006,71 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			auto   offset_calculator	  = util::offset_calculator{};
-			c_auto ray_count_total_offset = offset_calculator + sizeof(uint32);
-			c_auto ray_data_block_offset  = offset_calculator + sizeof(shared_type::gibs_ray_result) * g::gibs_ray_budget;
-			c_auto buffer_size			  = offset_calculator.size();
+			auto   offset_calculator				  = util::offset_calculator{};
+			c_auto tile_surfel_ray_count_total_offset = offset_calculator + sizeof(uint32);
+			c_auto cell_surfel_ray_count_total_offset = offset_calculator + sizeof(uint32);
+			c_auto ray_entry_buffer_offset			  = offset_calculator + sizeof(uint32) * (gibs_data_gpu.max_tile_surfel_count * g::gibs_max_ray_per_tile_surfel + gibs_data_gpu.max_cell_surfel_count * g::gibs_max_ray_per_cell_surfel);
+			c_auto buffer_size						  = offset_calculator.size();
 
-			AGE_ASSERT(ray_count_total_offset == gibs_data_gpu.ray_count_total_offset());
-			AGE_ASSERT(ray_data_block_offset == gibs_data_gpu.ray_data_block_offset());
+			AGE_ASSERT(tile_surfel_ray_count_total_offset == gibs_data_gpu.tile_surfel_ray_count_total_offset());
+			AGE_ASSERT(cell_surfel_ray_count_total_offset == gibs_data_gpu.cell_surfel_ray_count_total_offset());
+			AGE_ASSERT(ray_entry_buffer_offset == gibs_data_gpu.ray_entry_buffer_offset());
 
+			gibs_data_cpu.h_ray_entry_buffer = resource::create_committed_buf_uav(buffer_size);
+			gibs_data_cpu.h_ray_entry_buffer->set_name(L"gibs_ray_entry_buffer");
 
-			gibs_data_cpu.h_ray_buffer = resource::create_committed_buf_uav(buffer_size);
-			gibs_data_cpu.h_ray_buffer->set_name(L"gibs_ray_buffer");
+			gibs_data_cpu.h_ray_entry_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_ray_entry_buffer,
+																			  defaults::srv_view_desc::byte_address_buffer(buffer_size));
+			gibs_data_cpu.h_ray_entry_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_ray_entry_buffer,
+																			  defaults::uav_view_desc::byte_address_buffer(buffer_size));
 
-			gibs_data_cpu.h_ray_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_ray_buffer,
-																		defaults::srv_view_desc::byte_address_buffer(buffer_size));
-			gibs_data_cpu.h_ray_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_ray_buffer,
-																		defaults::uav_view_desc::byte_address_buffer(buffer_size));
+			gibs_data_gpu.h_ray_entry_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_ray_entry_buffer_srv_desc);
+			gibs_data_gpu.h_ray_entry_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_ray_entry_buffer_uav_desc);
+		}
 
-			gibs_data_gpu.h_ray_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_ray_buffer_srv_desc);
-			gibs_data_gpu.h_ray_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_ray_buffer_uav_desc);
+		{
+			c_auto element_count = gibs_data_gpu.max_tile_surfel_count * g::gibs_max_ray_per_tile_surfel + gibs_data_gpu.max_cell_surfel_count * g::gibs_max_ray_per_cell_surfel;
+			c_auto buffer_size	 = sizeof(shared_type::gibs_ray_hit_result) * element_count;
+
+			gibs_data_cpu.h_ray_hit_buffer = resource::create_committed_buf_uav(buffer_size);
+			gibs_data_cpu.h_ray_hit_buffer->set_name(L"gibs_ray_hit_buffer");
+
+			gibs_data_cpu.h_ray_hit_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_ray_hit_buffer,
+																			defaults::srv_view_desc::structured_buffer(element_count, sizeof(shared_type::gibs_ray_hit_result)));
+			gibs_data_cpu.h_ray_hit_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_ray_hit_buffer,
+																			defaults::uav_view_desc::structured_buffer(element_count, sizeof(shared_type::gibs_ray_hit_result)));
+
+			gibs_data_gpu.h_ray_hit_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_ray_hit_buffer_srv_desc);
+			gibs_data_gpu.h_ray_hit_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_ray_hit_buffer_uav_desc);
+		}
+
+		{
+			c_auto element_count = gibs_data_gpu.max_tile_surfel_count * g::gibs_max_ray_per_tile_surfel + gibs_data_gpu.max_cell_surfel_count * g::gibs_max_ray_per_cell_surfel;
+			c_auto buffer_size	 = sizeof(shared_type::gibs_ray_lighting_result) * element_count;
+
+			gibs_data_cpu.h_ray_lighting_buffer = resource::create_committed_buf_uav(buffer_size);
+			gibs_data_cpu.h_ray_lighting_buffer->set_name(L"gibs_ray_lighting_buffer");
+
+			gibs_data_cpu.h_ray_lighting_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_ray_lighting_buffer,
+																				 defaults::srv_view_desc::structured_buffer(element_count, sizeof(shared_type::gibs_ray_lighting_result)));
+			gibs_data_cpu.h_ray_lighting_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_ray_lighting_buffer,
+																				 defaults::uav_view_desc::structured_buffer(element_count, sizeof(shared_type::gibs_ray_lighting_result)));
+
+			gibs_data_gpu.h_ray_lighting_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_ray_lighting_buffer_srv_desc);
+			gibs_data_gpu.h_ray_lighting_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_ray_lighting_buffer_uav_desc);
 		}
 
 		{
 			auto   offset_calculator			  = util::offset_calculator{};
 			c_auto tile_surfel_count_offset		  = offset_calculator + sizeof(uint32);
-			c_auto tile_entry_block_offset		  = offset_calculator + sizeof(shared_type::gibs_tile_entry) * tile_count_total;
-			c_auto tile_to_surfel_id_block_offset = offset_calculator + sizeof(uint32) * desc.max_surfel_count * 9;
+			c_auto tile_entry_block_offset		  = offset_calculator + sizeof(shared_type::gibs_tile_surfel_entry) * tile_count_total;
+			c_auto tile_to_surfel_id_block_offset = offset_calculator + sizeof(uint32) * gibs_data_gpu.max_tile_surfel_count * 9;
 			c_auto buffer_size					  = offset_calculator.size();
 
 			AGE_ASSERT(tile_surfel_count_offset == gibs_data_gpu.tile_surfel_count_offset());
 			AGE_ASSERT(tile_entry_block_offset == gibs_data_gpu.tile_entry_block_offset());
 			AGE_ASSERT(tile_to_surfel_id_block_offset == gibs_data_gpu.tile_to_surfel_id_block_offset());
-			AGE_ASSERT(desc.max_surfel_count * 9 == gibs_data_gpu.tile_to_surfel_id_capacity());
+			AGE_ASSERT(gibs_data_gpu.max_tile_surfel_count * 9 == gibs_data_gpu.tile_to_surfel_id_capacity());
 
 
 			gibs_data_cpu.h_tile_buffer = resource::create_committed_buf_uav(buffer_size);
@@ -2793,14 +3111,21 @@ namespace age::graphics::render_pipeline
 		{
 			auto   offset_calculator			  = util::offset_calculator{};
 			c_auto cell_surfel_count_offset		  = offset_calculator + sizeof(uint32);
-			c_auto cell_entry_block_offset		  = offset_calculator + sizeof(shared_type::gibs_cell_entry) * cell_count_total;
-			c_auto cell_to_surfel_id_block_offset = offset_calculator + sizeof(uint32) * desc.max_surfel_count * 27;
+			c_auto cell_probe_count_offset		  = offset_calculator + sizeof(uint32);
+			c_auto cell_surfel_entry_block_offset = offset_calculator + sizeof(shared_type::gibs_cell_surfel_entry) * cell_count_total;
+			c_auto cell_to_surfel_id_block_offset = offset_calculator + sizeof(uint32) * gibs_data_gpu.max_cell_surfel_count * 27;
+			c_auto cell_probe_entry_block_offset  = offset_calculator + sizeof(shared_type::gibs_cell_probe_entry) * cell_count_total;
+			c_auto cell_to_probe_id_block_offset  = offset_calculator + sizeof(uint32) * gibs_data_gpu.max_surfel_probe_count * 27;
 			c_auto buffer_size					  = offset_calculator.size();
 
 			AGE_ASSERT(cell_surfel_count_offset == gibs_data_gpu.cell_surfel_count_offset());
-			AGE_ASSERT(cell_entry_block_offset == gibs_data_gpu.cell_entry_block_offset());
+			AGE_ASSERT(cell_probe_count_offset == gibs_data_gpu.cell_probe_count_offset());
+			AGE_ASSERT(cell_surfel_entry_block_offset == gibs_data_gpu.cell_surfel_entry_block_offset());
 			AGE_ASSERT(cell_to_surfel_id_block_offset == gibs_data_gpu.cell_to_surfel_id_block_offset());
-			AGE_ASSERT(desc.max_surfel_count * 27 == gibs_data_gpu.cell_to_surfel_id_capacity());
+			AGE_ASSERT(cell_probe_entry_block_offset == gibs_data_gpu.cell_probe_entry_block_offset());
+			AGE_ASSERT(cell_to_probe_id_block_offset == gibs_data_gpu.cell_to_probe_id_block_offset());
+			AGE_ASSERT(gibs_data_gpu.max_cell_surfel_count * 27 == gibs_data_gpu.cell_to_surfel_id_capacity());
+			AGE_ASSERT(gibs_data_gpu.max_surfel_probe_count * 27 == gibs_data_gpu.cell_to_probe_id_capacity());
 
 			gibs_data_cpu.h_cell_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_cell_buffer->set_name(L"gibs_cell_buffer");
@@ -2817,14 +3142,21 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			auto   offset_calculator	  = util::offset_calculator{};
-			c_auto cell_spawn_kill_offset = offset_calculator + (sizeof(shared_type::gibs_cell_surfel_spawn_data) + sizeof(uint32)) * cell_count_total;
-			c_auto cell_surfel_ref_offset = offset_calculator + sizeof(uint32) * util::ceil(desc.max_surfel_count * 27, 32);
-			c_auto buffer_size			  = offset_calculator.size();
+			auto   offset_calculator			 = util::offset_calculator{};
+			c_auto cell_probe_spawn_data_offset	 = offset_calculator + sizeof(uint64 /*coverage + probe_id*/) * cell_count_total;
+			c_auto cell_surfel_spawn_data_offset = offset_calculator + sizeof(uint64 /*coverage + surfel_id*/) * cell_count_total;
+			c_auto cell_probe_kill_data_offset	 = offset_calculator + (sizeof(uint64 /*coverage + probe_id*/)) * cell_count_total;
+			c_auto cell_surfel_kill_data_offset	 = offset_calculator + (sizeof(uint64 /*coverage + surfel_id*/)) * cell_count_total;
+			c_auto cell_probe_ref_offset		 = offset_calculator + sizeof(uint32) * util::ceil(gibs_data_gpu.max_surfel_probe_count * 27, 32);
+			c_auto cell_surfel_ref_offset		 = offset_calculator + sizeof(uint32) * util::ceil(gibs_data_gpu.max_cell_surfel_count * 27, 32);
+			c_auto buffer_size					 = offset_calculator.size();
 
-			AGE_ASSERT(cell_spawn_kill_offset == gibs_data_gpu.cell_spawn_kill_offset());
+			AGE_ASSERT(cell_probe_spawn_data_offset == gibs_data_gpu.cell_probe_spawn_data_offset());
+			AGE_ASSERT(cell_surfel_spawn_data_offset == gibs_data_gpu.cell_surfel_spawn_data_offset());
+			AGE_ASSERT(cell_probe_kill_data_offset == gibs_data_gpu.cell_probe_kill_data_offset());
+			AGE_ASSERT(cell_surfel_kill_data_offset == gibs_data_gpu.cell_surfel_kill_data_offset());
+			AGE_ASSERT(cell_probe_ref_offset == gibs_data_gpu.cell_probe_ref_offset());
 			AGE_ASSERT(cell_surfel_ref_offset == gibs_data_gpu.cell_surfel_ref_offset());
-			AGE_ASSERT(desc.max_surfel_count * 27u == gibs_data_gpu.cell_surfel_ref_capacity());
 
 			gibs_data_cpu.h_cell_spawn_kill_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_cell_spawn_kill_buffer->set_name(L"gibs_cell_spawn_kill_buffer");
@@ -3000,22 +3332,89 @@ namespace age::graphics::render_pipeline
 	void
 	hybrid_pipeline::disable_gibs() noexcept
 	{
-		resource::release_deferred(gibs_data_cpu.h_surfel_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_surfel_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_surfel_buffer_uav_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_surfel_buffer_clear_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_buffer_uav_desc);
 
-		resource::release_deferred(gibs_data_cpu.h_surfel_id_stack_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_surfel_id_stack_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_surfel_id_stack_buffer_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_geo_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_geo_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_geo_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_msme_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_msme_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_msme_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_visibility_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_visibility_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_visibility_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_luminance_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_luminance_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_luminance_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_geo_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_geo_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_geo_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_msme_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_msme_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_msme_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_visibility_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_visibility_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_visibility_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_luminance_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_luminance_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_luminance_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_geo_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_geo_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_geo_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_recycle_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_recycle_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_recycle_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_tile_surfel_id_stack_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_id_stack_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_id_stack_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_cell_surfel_id_stack_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_id_stack_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_cell_surfel_id_stack_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_id_stack_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_id_stack_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_id_stack_buffer_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_scratch_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_scratch_buffer_uav_desc);
 		push_descriptor_deferred(gibs_data_cpu.h_scratch_buffer_clear_uav_desc);
 
-		resource::release_deferred(gibs_data_cpu.h_ray_buffer);
-		push_descriptor_deferred(gibs_data_cpu.h_ray_buffer_srv_desc);
-		push_descriptor_deferred(gibs_data_cpu.h_ray_buffer_uav_desc);
+		resource::release_deferred(gibs_data_cpu.h_ray_entry_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_entry_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_entry_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_ray_hit_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_hit_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_hit_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_ray_lighting_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_lighting_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_ray_lighting_buffer_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_tile_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_tile_buffer_srv_desc);
@@ -3386,6 +3785,7 @@ namespace age::graphics::render_pipeline
 		AGE_ASSERT(object_data_vec.size<uint32>() == object_prev_data_vec.size<uint32>());
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
 		h_mapping_static_buffer->upload(object_prev_data_vec.data(), object_prev_data_vec.byte_size<uint32>(), g::object_prev_data_offset);
+		h_mapping_static_buffer->upload(object_render_data_vec.data(), object_render_data_vec.byte_size<uint32>(), g::object_render_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
 

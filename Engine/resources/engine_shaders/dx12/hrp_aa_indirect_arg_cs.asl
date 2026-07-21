@@ -25,7 +25,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		rw_byte_address_buffer ray_entry_buf = global_resource_buffer[data.h_ray_buffer_uav_id];
 
 		store(ray_entry_buf, sizeof(uint16_2) * data.px_headroom + 0 * sizeof(uint32_2), uint32_2(opaque_rpp, opaque_ray_count));
-		store(indirect_arg_buf, 0, uint32_3(ceil(opaque_ray_count, 32u), 1, 1));
+		store(indirect_arg_buf, 0, uint32_3(ceil(opaque_ray_count, AGE_WAVE_SIZE), 1, 1));
 	}
 
 	{
@@ -45,6 +45,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		rw_byte_address_buffer ray_entry_buf = global_resource_buffer[data.h_ray_buffer_uav_id];
 
 		store(ray_entry_buf, sizeof(uint16_2) * data.px_headroom + 1 * sizeof(uint32_2), uint32_2(transparent_rpp, transparent_ray_count));
-		store(indirect_arg_buf, sizeof(uint32_3), uint32_3(ceil(transparent_ray_count, 32u), 1, 1));
+		store(indirect_arg_buf, sizeof(uint32_3), uint32_3(ceil(transparent_ray_count, AGE_WAVE_SIZE), 1, 1));
 	}
 }

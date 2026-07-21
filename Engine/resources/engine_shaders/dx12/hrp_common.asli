@@ -130,11 +130,19 @@ load_object_data(uint32 object_id)
 	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
 }
 
+// if curr object_id is_valid, prev_object always exists
 object_data
 load_object_prev_data(uint32 object_id)
 {
 	const uint32 gen = (object_id & 0xf0000000) >> 28u;
 	return load<object_data>(static_buffer, OBJECT_PREV_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
+}
+
+object_render_data
+load_object_render_data(uint32 object_id)
+{
+	const uint32 gen = (object_id & 0xf0000000) >> 28u;
+	return load<object_render_data>(static_buffer, OBJECT_RENDER_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_render_data));
 }
 
 directional_light
@@ -500,12 +508,18 @@ load_rt_instance_render_data(uint32 instance_id)
 }
 
 uint32_3
-load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
+load_rt_triangle_index(uint32 rt_index_buffer_offset, uint32 triangle_idx)
 {
 	return uint32_3(
-		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 0],
-		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 1],
-		rt_index_buffer_srv[data.rt_index_buffer_offset + triangle_idx * 3 + 2]);
+		rt_index_buffer_srv[rt_index_buffer_offset + triangle_idx * 3 + 0],
+		rt_index_buffer_srv[rt_index_buffer_offset + triangle_idx * 3 + 1],
+		rt_index_buffer_srv[rt_index_buffer_offset + triangle_idx * 3 + 2]);
+}
+
+uint32_3
+load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
+{
+	return load_rt_triangle_index(data.rt_index_buffer_offset, triangle_idx);
 }
 
 raycast_request

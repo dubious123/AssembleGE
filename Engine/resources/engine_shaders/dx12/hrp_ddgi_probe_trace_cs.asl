@@ -1,5 +1,129 @@
 #include "hrp_common.asli"
 
+template <uint32 ray_flag>
+float3
+rt_calc_opaque_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> query)
+{
+	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
+	rt_proceed(query);
+
+	const uint32 status = rt_committed_status(query);
+
+	if (status == COMMITTED_NOTHING)
+	{
+		return calc_skybox_color(desc.Direction);
+	}
+	else if (rt_committed_triangle_front_face(query) is_false)
+	{
+		return float3(0, 0, 0);
+	}
+	else
+	{
+		const uint32				  rt_instance_render_data_id = rt_committed_instance_id(query);
+		const uint32				  triangle_index			 = rt_committed_primitive_index(query);
+		const rt_instance_render_data render_data				 = load_rt_instance_render_data(rt_instance_render_data_id);
+		const material				  mat						 = load_material(render_data.material_id);
+		const object_data			  obj_data					 = load_object_data(render_data.object_id);
+		const mesh_header			  msh_header				 = read_mesh_header<rt_instance_render_data>(render_data);
+		const uint32_3				  prim_index				 = load_rt_triangle_index(render_data, triangle_index);
+		const float2				  barycentrics				 = rt_committed_triangle_barycentrics(query);
+
+		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+		const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+
+		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
+
+		const pbr_surface_data surface_data = calc_pbr_surface(desc.Direction, mat, v);
+
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
+
+		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
+
+
+		float3 ambient_light = float3(0, 0, 0);
+
+		{
+			// todo need fresnel?
+			// from https://google.github.io/filament/Filament.md.html
+			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+			const float3 gi_diffuse	 = calc_pbr_ddgi(surface_data, world_face_normal);
+			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+			expand(MAX_ENV_LIGHT)
+
+			for (uint32 i = 0; i < env_light_count; ++i)
+			{
+				ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
+			}
+		}
+
+		float3 lighting = ambient_light;
+
+		lighting += surface_data.emissive;
+
+		const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
+
+
+		for (uint32 d = 0; d < directional_light_count; ++d)
+		{
+			const directional_light light = load_directional_light(d);
+
+			lighting += calc_pbr_light(surface_data, light)
+					  * calc_directional_shadow_rt(light, v.world_pos, world_face_normal);
+		}
+
+
+		const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
+
+		const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
+		const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
+		const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
+
+		const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
+		const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
+
+		const uint32 wave_min = wave_active_min(min_id);
+		const uint32 wave_max = wave_active_max(max_id);
+
+		const uint32 word_begin = wave_min / 32;
+		const uint32 word_end	= wave_max / 32;
+
+		for (uint32 w = word_begin; w <= word_end; ++w)
+		{
+			uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
+			uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
+			uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
+			uint32 bit_mask = x_mask & y_mask & z_mask;
+
+			uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
+
+			while (wave_bit_mask != 0)
+			{
+				const uint32 bit	   = first_bit_low(wave_bit_mask);
+				const uint32 sorted_id = w * 32 + bit;
+				// wave_bit_mask		   &= ~(1u << bit);
+				wave_bit_mask &= (wave_bit_mask - 1u);
+
+				if (bit_mask & (1u << bit))
+				{
+					const unified_light light = load_sorted_light(sorted_id);
+
+					lighting += calc_pbr_light(surface_data, light)
+							  * calc_unified_shadow_rt(light, v.world_pos, world_face_normal);
+				}
+			}
+		}
+
+		return lighting;
+	}
+}
+
 ddgi_ray_result
 ddgi_trace_ray(float3 pos, float3 dir /*normalized*/, float radius)
 {

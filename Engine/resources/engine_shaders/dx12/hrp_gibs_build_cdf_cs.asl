@@ -1,44 +1,48 @@
 #include "hrp_common.asli"
 
-wave_size(32)
-[numthreads(32, 1, 1)] void
-main_cs(uint32_3 group_id sv_group_id,
-		uint32 thread_id  sv_group_thread_id)
+wave_size(AGE_WAVE_SIZE)
+[numthreads(AGE_WAVE_SIZE, 1, 1)] void
+main_cs(uint32 group_id	 sv_group_id,
+		uint32 thread_id sv_group_thread_id)
 
 {
-	const gibs_data				data		   = gibs_load_gibs_data();
-	const byte_array<uint32>	alive_arr	   = gibs_load_alive_arr_curr(data);
-	const rw_byte_array<uint32> ray_offset_arr = gibs_load_surfel_ray_count_prefix_rw_arr(data);
-	const rw_byte_array<uint32> ray_count_arr  = gibs_load_surfel_ray_count_ideal_rw_arr(data);
-	const uint32				alive_count	   = alive_arr.size();
+	const gibs_data data = gibs::load_data();
 
-	uint32 alive_idx = group_id.x;
+	byte_array<uint32> tile_alive_arr = gibs::tile::alive_id_arr_curr(data);
+	byte_array<uint32> cell_alive_arr = gibs::cell::alive_id_arr_curr(data);
 
-	attr_branch()
+	const uint32 tile_surfel_count = tile_alive_arr.size();
+	const uint32 cell_surfel_count = cell_alive_arr.size();
 
-	if (alive_count == 0 or alive_idx >= alive_count)
+	const bool is_tile = group_id < tile_surfel_count;
+
+	uint32 ray_count;
+	uint32 surfel_id;
+
+	if (is_tile)
+	{
+		const uint32 alive_id = group_id;
+		ray_count			  = gibs::tile::ray_count_rw_arr(data)[alive_id];
+		surfel_id			  = tile_alive_arr[alive_id];
+	}
+	else if (group_id - tile_surfel_count < cell_surfel_count)
+	{
+		const uint32 alive_id = group_id - tile_surfel_count;
+		ray_count			  = gibs::cell::ray_count_rw_arr(data)[alive_id];
+		surfel_id			  = cell_alive_arr[alive_id];
+	}
+	else
 	{
 		return;
 	}
 
+	if (ray_count == 0) { return; }
 
-	const uint32 ray_offset = ray_offset_arr[alive_idx];
-	const uint32 ray_count	= ray_count_arr[alive_idx];
-
-	attr_branch()
-
-	if (ray_count == 0)
-	{
-		return;
-	}
-
-	const uint32 surfel_id = alive_arr[alive_idx];
+	rw_byte_array<half> lum_arr		= gibs::load_lum_rw_arr(data, surfel_id, is_tile);
+	rw_byte_array<half> lum_cdf_arr = gibs::load_lum_cdf_rw_arr(data, surfel_id, is_tile);
 
 	// build cdf
 	{
-		const rw_byte_array<half> lum_arr	  = gibs_load_lum_rw_arr(data, surfel_id);
-		const rw_byte_array<half> lum_cdf_arr = gibs_load_lum_cdf_rw_arr(data, surfel_id);
-
 		const float lum_33 = lum_arr[36 - 4];
 		const float lum_34 = lum_arr[36 - 3];
 		const float lum_35 = lum_arr[36 - 2];
@@ -74,6 +78,7 @@ main_cs(uint32_3 group_id sv_group_id,
 			lum_cdf_arr.store(36 - 1, half(lum_total));
 		}
 	}
+
 	//
 	// wave_prefix_sum is not monotonic: lanes accumulate in different orders
 	// (parallel tree) and float add is non-associative, so cdf[i] <= cdf[i+1]

@@ -424,24 +424,91 @@ namespace age::graphics::render_pipeline
 		float3 origin;
 		float  outer_cell_size_factor;
 
-		resource_handle		  h_surfel_buffer;		 // surfel, geometry, msme, visibility, luminance
-		srv_desc_handle		  h_surfel_buffer_srv_desc;
-		uav_desc_handle		  h_surfel_buffer_uav_desc;
-		clear_uav_desc_handle h_surfel_buffer_clear_uav_desc;
+		resource_handle h_tile_surfel_buffer;
+		srv_desc_handle h_tile_surfel_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_buffer_uav_desc;
 
-		resource_handle h_surfel_id_stack_buffer;	 // dead, alive prev, alive curr
-		srv_desc_handle h_surfel_id_stack_buffer_srv_desc;
-		uav_desc_handle h_surfel_id_stack_buffer_uav_desc;
+		resource_handle h_tile_surfel_geo_buffer;
+		srv_desc_handle h_tile_surfel_geo_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_geo_buffer_uav_desc;
 
-		resource_handle		  h_scratch_buffer;		 // prefix, sum, ...
+		resource_handle h_tile_surfel_msme_buffer;
+		srv_desc_handle h_tile_surfel_msme_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_msme_buffer_uav_desc;
+
+		resource_handle h_tile_surfel_visibility_buffer;
+		srv_desc_handle h_tile_surfel_visibility_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_visibility_buffer_uav_desc;
+
+		resource_handle h_tile_surfel_luminance_buffer;
+		srv_desc_handle h_tile_surfel_luminance_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_luminance_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_buffer;
+		srv_desc_handle h_cell_surfel_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_geo_buffer;
+		srv_desc_handle h_cell_surfel_geo_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_geo_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_msme_buffer;
+		srv_desc_handle h_cell_surfel_msme_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_msme_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_visibility_buffer;
+		srv_desc_handle h_cell_surfel_visibility_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_visibility_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_luminance_buffer;
+		srv_desc_handle h_cell_surfel_luminance_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_luminance_buffer_uav_desc;
+
+		resource_handle h_surfel_probe_buffer;
+		srv_desc_handle h_surfel_probe_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_buffer_uav_desc;
+
+		resource_handle h_surfel_probe_geo_buffer;
+		srv_desc_handle h_surfel_probe_geo_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_geo_buffer_uav_desc;
+
+		resource_handle h_surfel_probe_recycle_buffer;
+		srv_desc_handle h_surfel_probe_recycle_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_recycle_buffer_uav_desc;
+
+		resource_handle h_surfel_probe_msme_buffer;
+		srv_desc_handle h_surfel_probe_msme_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_msme_buffer_uav_desc;
+
+		resource_handle h_tile_surfel_id_stack_buffer;	   // dead, alive prev, alive curr
+		srv_desc_handle h_tile_surfel_id_stack_buffer_srv_desc;
+		uav_desc_handle h_tile_surfel_id_stack_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_id_stack_buffer;	   // dead, alive prev, alive curr
+		srv_desc_handle h_cell_surfel_id_stack_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_id_stack_buffer_uav_desc;
+
+		resource_handle h_surfel_probe_id_stack_buffer;	   // dead, alive prev, alive curr
+		srv_desc_handle h_surfel_probe_id_stack_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_id_stack_buffer_uav_desc;
+
+		resource_handle		  h_scratch_buffer;			   // prefix, sum, ...
 		uav_desc_handle		  h_scratch_buffer_uav_desc;
 		clear_uav_desc_handle h_scratch_buffer_clear_uav_desc;
 
-		resource_handle h_ray_buffer;				 // ray count, ray entry, ray result
-		srv_desc_handle h_ray_buffer_srv_desc;
-		uav_desc_handle h_ray_buffer_uav_desc;
+		resource_handle h_ray_entry_buffer;				   // ray count, ray entry
+		srv_desc_handle h_ray_entry_buffer_srv_desc;
+		uav_desc_handle h_ray_entry_buffer_uav_desc;
 
-		resource_handle		  h_tile_buffer;		 // tile -> surfel, surfel_gt_id, cell -> surfel, surfel_gt_id
+		resource_handle h_ray_hit_buffer;
+		srv_desc_handle h_ray_hit_buffer_srv_desc;
+		uav_desc_handle h_ray_hit_buffer_uav_desc;
+
+		resource_handle h_ray_lighting_buffer;
+		srv_desc_handle h_ray_lighting_buffer_srv_desc;
+		uav_desc_handle h_ray_lighting_buffer_uav_desc;
+
+		resource_handle		  h_tile_buffer;	// tile -> surfel, surfel_gt_id, cell -> surfel, surfel_gt_id
 		srv_desc_handle		  h_tile_buffer_srv_desc;
 		uav_desc_handle		  h_tile_buffer_uav_desc;
 		clear_uav_desc_handle h_tile_buffer_clear_uav_desc;
@@ -494,62 +561,6 @@ namespace age::graphics::render_pipeline
 
 		resource_handle h_indirect_arg_buffer;
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;
-
-		// const resource_handle&
-		// h_gi_resolve_age_prev_buffer() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_buffer
-		//			 : h_gi_resolve_age_alt_buffer;
-		// }
-
-		// const srv_desc_handle&
-		// h_gi_resolve_age_prev_buffer_srv_desc() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_buffer_srv_desc
-		//			 : h_gi_resolve_age_alt_buffer_srv_desc;
-		// }
-
-		// const clear_uav_desc_handle&
-		// h_gi_resolve_age_prev_buffer_clear_uav_desc() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_buffer_clear_uav_desc
-		//			 : h_gi_resolve_age_alt_buffer_clear_uav_desc;
-		// }
-
-		// const resource_handle&
-		// h_gi_resolve_age_curr_buffer() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_alt_buffer
-		//			 : h_gi_resolve_age_buffer;
-		// }
-
-		// const srv_desc_handle&
-		// h_gi_resolve_age_curr_buffer_srv_desc() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_alt_buffer_srv_desc
-		//			 : h_gi_resolve_age_buffer_srv_desc;
-		// }
-
-		// const uav_desc_handle&
-		// h_gi_resolve_age_curr_buffer_uav_desc() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_alt_buffer_uav_desc
-		//			 : h_gi_resolve_age_buffer_uav_desc;
-		// }
-
-		// const clear_uav_desc_handle&
-		// h_gi_resolve_age_curr_buffer_clear_uav_desc() const
-		//{
-		//	return gibs_data_gpu.is_alt()
-		//			 ? h_gi_resolve_age_alt_buffer_clear_uav_desc
-		//			 : h_gi_resolve_age_buffer_clear_uav_desc;
-		// }
 	};
 
 	struct ao_desc
@@ -647,20 +658,5 @@ namespace age::graphics::render_pipeline
 		resource_handle		  h_indirect_arg_buffer;
 		uav_desc_handle		  h_indirect_arg_buffer_uav_desc;
 		clear_uav_desc_handle h_indirect_arg_buffer_clear_uav_desc;
-	};
-
-	struct taa_desc
-	{
-		uint8	jitter_count;
-		uint8_3 _;
-		float	history_weight = 0.9f;	  // res = lerp(prev, curr, 1 - history_weight)
-
-		float variance_scale_min = 0.75f;
-		float variance_scale_max = 2.0f;
-
-		float velocity_reject_px = 128.0f;
-		float depth_edge_thresh	 = 0.002f;
-
-		graphics::e::taa_debug_flags debug_flags = e::taa_debug_flags::none;
 	};
 }	 // namespace age::graphics::render_pipeline

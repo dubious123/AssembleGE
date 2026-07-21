@@ -535,10 +535,33 @@ rotate(float2 v, float radian)
 	return float2((v.x * cos(radian) - v.y * sin(radian)), v.x * sin(radian) + v.y * cos(radian));
 }
 
+float4
+quat_conj(float4 q)
+{
+	return float4(-q.xyz, q.w);
+}
+
 float3
 rotate_inv(float4 q, float3 v)
 {
-	return rotate(float4(-q.xyz, q.w), v);
+	return rotate(quat_conj(q), v);
+}
+
+// rotate q1 and q0
+float4
+quat_mul(float4 q0, float4 q1)
+{
+	return float4(
+		q0.w * q1.xyz + q1.w * q0.xyz + cross(q0.xyz, q1.xyz),
+		q0.w * q1.w - dot(q0.xyz, q1.xyz));
+}
+
+float4
+rotate_sh1(float4 q, float4 sh)
+{
+	const float3 r = rotate(q, float3(sh.w, sh.y, sh.z));
+
+	return float4(sh.x, r.y, r.z, r.x);
 }
 
 //---[ octahedral ]------------------------------------------------------------------------------------------------------
@@ -917,6 +940,30 @@ float_to_sortable(float f)
 	uint32 mask = (bits & 0x80000000) ? 0xFFFFFFFF : 0x80000000;
 	return bits ^ mask;
 }
+
+// sh
+// based on Peter-Pike Sloan 2008
+// "Stupid Spherical Harmonics Tricks"
+// https://www.ppsloan.org/publications/StupidSH36.pdf
+float
+sh1_eval_scalar(half4 sh, float3 dir)
+{
+	float4 f = float4(sh);
+
+	return 0.28209479177387814347403972578039f * f.x
+		 + 0.48860251190291992158638462283835f * (f.y * dir.y + f.z * dir.z + f.w * dir.x);
+}
+
+void
+sh1_project_add_scalar(inout float4 sh, float3 dir, float value)
+{
+	sh.x += 0.28209479177387814347403972578039f * value;
+	sh.y += 0.48860251190291992158638462283835f * (dir.y * value);
+	sh.z += 0.48860251190291992158638462283835f * (dir.z * value);
+	sh.w += 0.48860251190291992158638462283835f * (dir.x * value);
+}
+
+// transform
 
 float3
 ndc_to_world(float4x4 view_proj_inv, float3 ndc)
@@ -1468,4 +1515,36 @@ morton_3d(float3 v)
 	const float	  cell_size = 4.0;
 	const int32_3 cell		= int32_3(floor(v / cell_size));
 	return morton3d_encode(uint32_3(cell + 512) & 0x3ff);
+}
+
+// from RT Gems Ch.6
+// A Fast and Robust Method for Avoiding Self-Intersection
+float3
+surface_offset(float3 p, float3 n)
+{
+	const float origin		= 1.0f / 32.0f;
+	const float float_scale = 1.0f / 65536.0f;
+	const float int_scale	= 256.0f;
+
+	int32_3 of_i = int32_3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+
+	float3 p_i = float3(
+		as_float(as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
+		as_float(as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
+		as_float(as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+
+	return float3(
+		abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
+		abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
+		abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+}
+
+float
+calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
+{
+	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
+	const float w_depth	   = exp(-depth_diff * 100);
+	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
+
+	return w_depth * w_normal * ratio.x * ratio.y;
 }
