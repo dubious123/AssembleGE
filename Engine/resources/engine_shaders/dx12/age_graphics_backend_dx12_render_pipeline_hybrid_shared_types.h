@@ -1594,7 +1594,7 @@ namespace age::graphics::render_pipeline::g
 
 #define GIBS_PROBE_VIS_FADE_RATIO 1.2f
 
-#define GIBS_CELL_SURFEL_RADIUS_RATIO 0.8f
+#define GIBS_CELL_SURFEL_RADIUS_RATIO 0.1f
 
 // trust near 50% more than far
 #define GIBS_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f

@@ -146,6 +146,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		rw_structured_buffer<gibs_surfel_msme> msme_buffer	 = global_resource_buffer[data.h_cell_surfel_msme_buffer_uav_id];
 		rw_structured_buffer<gibs_cell_surfel> surfel_buffer = global_resource_buffer[data.h_cell_surfel_buffer_uav_id];
 
+		msme_buffer[surfel_id] = msme;
+
 		gibs_cell_surfel surfel		= surfel_buffer[surfel_id];
 		surfel.irradiance_r11g11b10 = encode_r11g11b10(msme.mean_long);
 		surfel_buffer[surfel_id]	= surfel;

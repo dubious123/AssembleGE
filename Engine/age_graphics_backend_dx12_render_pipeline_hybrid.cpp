@@ -2652,7 +2652,7 @@ namespace age::graphics::render_pipeline
 
 			// todo, add config
 			gibs_data_gpu.max_tile_surfel_count	 = uint32(tile_count_total * g::gibs_gi_resolve_sample_per_tile /*g::gibs_tile_kill_coverage * 2.f*/);
-			gibs_data_gpu.max_cell_surfel_count	 = uint32(cell_count_total * 0.1f);
+			gibs_data_gpu.max_cell_surfel_count	 = uint32(gibs_data_gpu.max_tile_surfel_count * 0.3f);
 			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count * 0.5f);
 
 			gibs_data_gpu.max_tile_surfel_count	 += is_odd(gibs_data_gpu.max_tile_surfel_count) ? 1u : 0u;

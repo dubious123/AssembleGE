@@ -2038,9 +2038,13 @@ namespace gibs
 			const float			 z_depth		   = load(depth_buffer, screen_pos);
 			const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
 
+			const float lin_hit = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+			const float lin_px	= calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+
 			in_screen = z_depth != 0.f
-					and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
-				/*and dot(px_normal, face_normal) > 0.9f*/;
+					and lin_hit < lin_px * 1.02f
+					// and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
+					and dot(px_normal, face_normal) > 0.9f;
 
 
 			if (in_screen)

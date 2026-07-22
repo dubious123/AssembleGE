@@ -435,21 +435,34 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	{
 		if (debug_data.oldest_tile_surfel_id != invalid_id_uint32)
 		{
-			col += float4(decode_r11g11b10(tile_surfel_oldest.irradiance_r11g11b10), 1.f);
+			// col = float4(decode_r11g11b10(tile_surfel_oldest.irradiance_r11g11b10), 1.f);
 		}
 		if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
 		{
-			col += float4(decode_r11g11b10(cell_surfel_oldest.irradiance_r11g11b10), 1.f);
+			// col = float4(decode_r11g11b10(cell_surfel_oldest.irradiance_r11g11b10), 1.f);
 		}
 		if (debug_data.oldest_probe_id != invalid_id_uint32)
 		{
-			col += float4(decode_r11g11b10(probe_oldest.irradiance_r11g11b10), 1.f);
+			col = float4(decode_r11g11b10(probe_oldest.irradiance_r11g11b10), 1.f);
 		}
 	}
 	else if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE)
 	{
 		// col = debug_data.cell_irradiance;
-		col = float4(debug_data.tile_irradiance, 1.f);
+		// col = float4(debug_data.tile_irradiance, 1.f);
+
+		if (debug_data.oldest_tile_surfel_id != invalid_id_uint32)
+		{
+			// col = float4(decode_r11g11b10(tile_surfel_oldest.irradiance_r11g11b10), 1.f);
+		}
+		if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
+		{
+			// col = float4(decode_r11g11b10(cell_surfel_oldest.radiance_r11g11b10), 1.f);
+		}
+		if (debug_data.oldest_probe_id != invalid_id_uint32)
+		{
+			col = float4(decode_r11g11b10(probe_oldest.radiance_r11g11b10), 1.f);
+		}
 	}
 	else if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_VISIBILITY)
 	{
@@ -457,13 +470,13 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		{
 			const float visibility = gibs::calc_surfel_visibility<true, gibs_tile_surfel>(data, debug_data.oldest_tile_surfel_id, tile_surfel_buffer[debug_data.oldest_tile_surfel_id], world_pos);
 
-			col += float4(random_color(debug_data.oldest_tile_surfel_id).rgb * visibility, 1.f);
+			// col += float4(random_color(debug_data.oldest_tile_surfel_id).rgb * visibility, 1.f);
 		}
 		if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
 		{
 			const float visibility = gibs::calc_surfel_visibility<false, gibs_cell_surfel>(data, debug_data.oldest_cell_surfel_id, cell_surfel_buffer[debug_data.oldest_cell_surfel_id], world_pos);
 
-			col += float4(random_color(debug_data.oldest_cell_surfel_id).rgb * visibility, 1.f);
+			// col += float4(random_color(debug_data.oldest_cell_surfel_id).rgb * visibility, 1.f);
 		}
 		if (debug_data.oldest_probe_id != invalid_id_uint32)
 		{
