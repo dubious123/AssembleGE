@@ -1,7 +1,7 @@
 #include "hrp_common.asli"
 
 wave_size(AGE_WAVE_SIZE)
-[numthreads(AGE_WAVE_SIZE, 1, 1)] void
+[numthreads(32, 1, 1)] void
 main_cs(uint32 group_id	 sv_group_id,
 		uint32 thread_id sv_group_thread_id)
 

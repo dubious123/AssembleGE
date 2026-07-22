@@ -866,15 +866,16 @@ namespace age::graphics::render_pipeline
 
 		command::set_pso(p_pso_surfel_probe_gather);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_surfel_probe_gather));
-
+		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_msme_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 		command::set_pso(p_pso_gi_reproject);
 		command::dispatch(ceil(main_buffer_extent.width, g::gibs_gi_resolve_block_size), ceil(main_buffer_extent.height, g::gibs_gi_resolve_block_size), 1);
-		command::apply_barriers(barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_msme_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+		command::apply_barriers(	// barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+									// barrier::buf_uav_to_srv(gibs_data_cpu.h_surfel_probe_msme_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 
-								barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_curr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_srv(gibs_data_cpu.h_gi_resolve_sample_pos_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+			barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_curr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::tex_uav_to_srv(gibs_data_cpu.h_gi_resolve_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+			barrier::buf_uav_to_srv(gibs_data_cpu.h_gi_resolve_sample_pos_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_ray_trace);
 		command::execute_indirect(p_cmd_sig, gibs_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gibs_indirect_arg, arg_ray_trace));

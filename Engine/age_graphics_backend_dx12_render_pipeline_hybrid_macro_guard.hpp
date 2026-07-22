@@ -224,8 +224,6 @@
 #undef GIBS_TILE_SURFEL_KILL_COVERAGE
 
 #undef GIBS_PROBE_VIS_FADE_RATIO
-// integral( calc_near_contribution ) when cos == 1.f
-#undef GIBS_NEAR_CONTRIBUTION_FULL_COVER
 
 #undef GIBS_NEAR_CONTRIBUTION_TRUST_BIAS
 

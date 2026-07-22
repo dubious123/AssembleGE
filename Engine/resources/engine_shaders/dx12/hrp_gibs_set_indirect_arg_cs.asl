@@ -32,5 +32,5 @@ main_cs()
 	gibs::indirect_arg::set_surfel_probe_gather(data, uint32_3(ceil(probe_alive_id_arr_curr.size(), AGE_WAVE_SIZE), 1, 1));
 
 	gibs::indirect_arg::set_ray_integrate(data, uint32_3(ceil(tile_surfel_alive_id_arr_curr.size() + cell_surfel_alive_id_arr_curr.size(), AGE_WAVE_SIZE), 1, 1));
-	gibs::indirect_arg::set_build_cdf(data, uint32_3(ceil(tile_surfel_alive_id_arr_curr.size() + cell_surfel_alive_id_arr_curr.size(), AGE_WAVE_SIZE), 1, 1));
+	gibs::indirect_arg::set_build_cdf(data, uint32_3(tile_surfel_alive_id_arr_curr.size() + cell_surfel_alive_id_arr_curr.size(), 1, 1));
 }

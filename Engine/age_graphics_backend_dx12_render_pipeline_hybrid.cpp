@@ -2653,7 +2653,7 @@ namespace age::graphics::render_pipeline
 			// todo, add config
 			gibs_data_gpu.max_tile_surfel_count	 = uint32(tile_count_total * g::gibs_gi_resolve_sample_per_tile /*g::gibs_tile_kill_coverage * 2.f*/);
 			gibs_data_gpu.max_cell_surfel_count	 = uint32(cell_count_total * 0.1f);
-			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count * 0.1f);
+			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count * 0.5f);
 
 			gibs_data_gpu.max_tile_surfel_count	 += is_odd(gibs_data_gpu.max_tile_surfel_count) ? 1u : 0u;
 			gibs_data_gpu.max_cell_surfel_count	 += is_odd(gibs_data_gpu.max_cell_surfel_count) ? 1u : 0u;
@@ -4009,7 +4009,7 @@ namespace age::graphics::render_pipeline
 			}
 		}
 		// gibs
-		else if (gibs_data_cpu.enabled)
+		else if (gibs_enabled())
 		{
 			auto& gibs_gpu			= gibs_data_cpu.gibs_data_gpu;
 			auto& gibs_lut_data_gpu = gibs_data_cpu.gibs_lut_data_gpu;
@@ -4017,15 +4017,6 @@ namespace age::graphics::render_pipeline
 			c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 
 			// todo, cache
-			{
-				// c_auto angle_cell = min(extent.width, extent.height) * g::gibs_surfel_screen_ratio * main_cam_desc.perspective.fov_y * 2.f / max(extent.width, extent.height);
-				// gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_cell_radius = std::tan(angle_cell);
-
-				c_auto cam_to_screen_px_z = extent.height * 0.5f / tan(main_cam_desc.perspective.fov_y * 0.5f);
-
-				gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_cell_radius = min(extent.width, extent.height) * g::gibs_surfel_screen_ratio / cam_to_screen_px_z;
-			}
-
 
 			// 0.7f < inv_sqrt2
 			{
@@ -4037,11 +4028,6 @@ namespace age::graphics::render_pipeline
 			gibs_gpu.h_gi_resolve_age_prev_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_age_prev_buffer_srv_desc());
 			gibs_gpu.h_gi_resolve_age_curr_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_age_curr_buffer_srv_desc());
 			gibs_gpu.h_gi_resolve_age_curr_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_gi_resolve_age_curr_buffer_uav_desc());
-
-
-			// c_auto tan_half_fov = std::tan(main_cam_desc.perspective.fov_y * 0.5f);
-
-			// gibs_data_cpu.gibs_lut_data_gpu.surfel_distance_to_radius = 2.f * min(extent.width, extent.height) * g::gibs_surfel_screen_ratio / extent.height * tan_half_fov;
 
 			h_mapping_static_buffer->upload(&gibs_gpu, sizeof(shared_type::gibs_data), g::gibs_data_offset);
 			h_mapping_static_buffer->upload(&gibs_lut_data_gpu, sizeof(shared_type::gibs_lut_data), g::gibs_lut_data_offset);

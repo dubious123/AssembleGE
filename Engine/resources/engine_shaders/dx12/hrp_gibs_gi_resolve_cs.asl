@@ -105,7 +105,8 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	if (irradiance_sum.w < 0.1f)
 	{
-		irradiance_sum += gibs::sample_irradiance(data, world_pos, px_normal);
+		const float4 fallback  = gibs::sample_irradiance(data, world_pos, px_normal);
+		irradiance_sum		  += float4(fallback.xyz * fallback.w, fallback.w);
 	}
 
 	const float3 new_born_irradiance = irradiance_sum.w > 0.f

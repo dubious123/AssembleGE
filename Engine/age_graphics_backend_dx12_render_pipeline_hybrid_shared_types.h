@@ -838,7 +838,6 @@ namespace age::graphics::render_pipeline::shared_type
 		// z size = boundary[i] - boundary[i-1]
 		float cell_size_arr[16 + 1];
 		float layer_boundary_arr[16 + 1];
-		float surfel_distance_to_cell_radius;
 		float surfel_distance_to_tile_radius;
 	};
 
@@ -1595,16 +1594,15 @@ namespace age::graphics::render_pipeline::g
 
 #define GIBS_PROBE_VIS_FADE_RATIO 1.2f
 
-// integral( calc_near_contribution ) when cos == 1.f
-#define GIBS_NEAR_CONTRIBUTION_FULL_COVER 0.3f
+#define GIBS_CELL_SURFEL_RADIUS_RATIO 0.8f
 
 // trust near 50% more than far
 #define GIBS_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
 
-#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR (0.5f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
-#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  (2.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
-#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  (1.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
-#define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	  (3.f * GIBS_NEAR_CONTRIBUTION_FULL_COVER)
+#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR 1.f
+#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  3.f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  1.f
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	  3.f
 
 // 1.f : full hemisphere cover
 #define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR 0.33f

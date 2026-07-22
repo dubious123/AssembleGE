@@ -96,9 +96,9 @@ namespace gibs
 		const float3 rel  = world_pos - calc_cell_origin(lut_data);
 		const float	 axis = max(abs(rel));
 
-		expand_all()
+		// expand_all()
 
-		for (uint32 i = 0; i < GIBS_MAX_OUTER_LAYER_COUNT; ++i)
+		for (uint32 i = 0; i < data.outer_layer_count; ++i)
 		{
 			if (axis <= lut_data.layer_boundary_arr[i])
 			{
@@ -118,11 +118,7 @@ namespace gibs
 	half
 	calc_cell_surfel_radius(const gibs_data data, const gibs_lut_data lut_data, const float3 position)
 	{
-		const float distance = length(position - calc_cell_origin(lut_data));
-
-		const float radius = distance * lut_data.surfel_distance_to_cell_radius;
-
-		return cast<half>(radius);
+		return cast<half>(calc_cell_size(data, lut_data, position) * GIBS_CELL_SURFEL_RADIUS_RATIO);
 	}
 
 	float3
@@ -1350,49 +1346,52 @@ namespace gibs
 
 		const int32 half = data.cell_count >> 1u;
 
-		static const int32_3 offset_arr[26] = {
-			int32_3(1, 1, 1),
-			int32_3(1, 1, -1),
-			int32_3(1, -1, 1),
-			int32_3(1, -1, -1),
-			int32_3(-1, 1, 1),
-			int32_3(-1, 1, -1),
-			int32_3(-1, -1, 1),
-			int32_3(-1, -1, -1),
+		// static const int32_3 offset_arr[26] = {
+		//	int32_3(1, 1, 1),
+		//	int32_3(1, 1, -1),
+		//	int32_3(1, -1, 1),
+		//	int32_3(1, -1, -1),
+		//	int32_3(-1, 1, 1),
+		//	int32_3(-1, 1, -1),
+		//	int32_3(-1, -1, 1),
+		//	int32_3(-1, -1, -1),
 
-			int32_3(1, 1, 0),
-			int32_3(1, -1, 0),
-			int32_3(-1, 1, 0),
-			int32_3(-1, -1, 0),
+		//	int32_3(1, 1, 0),
+		//	int32_3(1, -1, 0),
+		//	int32_3(-1, 1, 0),
+		//	int32_3(-1, -1, 0),
 
-			int32_3(1, 0, 1),
-			int32_3(1, 0, -1),
-			int32_3(-1, 0, 1),
-			int32_3(-1, 0, -1),
+		//	int32_3(1, 0, 1),
+		//	int32_3(1, 0, -1),
+		//	int32_3(-1, 0, 1),
+		//	int32_3(-1, 0, -1),
 
-			int32_3(0, 1, 1),
-			int32_3(0, 1, -1),
-			int32_3(0, -1, 1),
-			int32_3(0, -1, -1),
+		//	int32_3(0, 1, 1),
+		//	int32_3(0, 1, -1),
+		//	int32_3(0, -1, 1),
+		//	int32_3(0, -1, -1),
 
 
-			int32_3(1, 0, 0),
-			int32_3(-1, 0, 0),
-			int32_3(0, 1, 0),
-			int32_3(0, -1, 0),
-			int32_3(0, 0, 1),
-			int32_3(0, 0, -1),
-		};
+		//	int32_3(1, 0, 0),
+		//	int32_3(-1, 0, 0),
+		//	int32_3(0, 1, 0),
+		//	int32_3(0, -1, 0),
+		//	int32_3(0, 0, 1),
+		//	int32_3(0, 0, -1),
+		//};
 
 		fn(data, lut_data, center_cell_idx);
 		if (region == 0)
 		{
-			expand_all()
+			// expand_all()
 
 			for (uint32 i = 0; i < 26; ++i)
 			{
-				const int32_3 offset = offset_arr[i];
-				const int32_3 coord	 = center_cell_idx.xyz + offset;
+				const uint32  idx	 = i < 13u ? i : i + 1u;
+				const int32_3 offset = int32_3(int32(idx / 9u), int32((idx / 3u) % 3u), int32(idx % 3u)) - 1;
+
+				// const int32_3 offset = offset_arr[i];
+				const int32_3 coord = center_cell_idx.xyz + offset;
 
 				const bool x_warp_neg = coord.x < -half;
 				const bool x_warp_pos = coord.x >= half;
@@ -1459,13 +1458,16 @@ namespace gibs
 		}
 		else
 		{
-			expand_all()
+			// expand_all()
 
 			for (uint32 i = 0; i < 26; ++i)
 			{
-				const int32	  layer	 = center_cell_idx.z;
-				const int32_3 offset = offset_arr[i];
-				const int32_3 coord	 = center_cell_idx.xyz + offset;
+				const uint32  idx	 = i < 13u ? i : i + 1u;
+				const int32_3 offset = int32_3(int32(idx / 9u), int32((idx / 3u) % 3u), int32(idx % 3u)) - 1;
+
+				const int32 layer = center_cell_idx.z;
+				// const int32_3 offset = offset_arr[i];
+				const int32_3 coord = center_cell_idx.xyz + offset;
 
 				const bool x_warp_neg = coord.x < -half;
 				const bool x_warp_pos = coord.x >= half;
@@ -2038,7 +2040,7 @@ namespace gibs
 
 			in_screen = z_depth != 0.f
 					and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
-					and dot(px_normal, face_normal) > 0.9f;
+				/*and dot(px_normal, face_normal) > 0.9f*/;
 
 
 			if (in_screen)
@@ -2171,7 +2173,7 @@ namespace gibs
 		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
 		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
 
-		const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float near_conf = irradiance_sum.w / 1.f * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
 		const float far_conf  = radiance_sum.w / 1.f;
 
 		irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
@@ -2291,7 +2293,7 @@ namespace gibs
 		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
 		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
 
-		const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float near_conf = irradiance_sum.w / 1.f * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
 		const float far_conf  = radiance_sum.w / 1.f;
 
 		const float3 irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));

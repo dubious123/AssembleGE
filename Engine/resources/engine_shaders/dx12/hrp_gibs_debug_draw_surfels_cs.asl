@@ -31,6 +31,19 @@ struct debug_query_data
 	float3 tile_irradiance;
 	float  tile_surfel_coverage;
 	uint32 tile_surfel_count;
+
+	static debug_query_data
+	init()
+	{
+		debug_query_data res				= zero<debug_query_data>();
+		res.max_contribution_cell_surfel_id = invalid_id_uint32;
+		res.oldest_cell_surfel_id			= invalid_id_uint32;
+		res.max_contribution_probe_id		= invalid_id_uint32;
+		res.oldest_probe_id					= invalid_id_uint32;
+		res.max_contribution_tile_surfel_id = invalid_id_uint32;
+		res.oldest_tile_surfel_id			= invalid_id_uint32;
+		return res;
+	}
 };
 
 void
@@ -99,7 +112,8 @@ get_tile_surfel(const gibs_data data, const gibs_lut_data lut_data, int32_2 px, 
 
 	if (irradiance_sum.w < 0.1f)
 	{
-		irradiance_sum += gibs::sample_irradiance(data, world_pos, normal);
+		const float4 fallback  = gibs::sample_irradiance(data, world_pos, normal);
+		irradiance_sum		  += float4(fallback.xyz * fallback.w, fallback.w);
 	}
 
 	res.max_contribution_tile_surfel_id = max_contribution_surfel_id;
@@ -272,7 +286,7 @@ get_surfel_probe(const gibs_data data, const gibs_lut_data lut_data, float3 worl
 	const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
 	const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
 
-	const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+	const float near_conf = irradiance_sum.w / 1.f * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
 	const float far_conf  = radiance_sum.w / 1.f;
 
 	irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
@@ -320,7 +334,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 	float3 normal;
 	float3 world_pos;
 
-	debug_query_data debug_data;
+	debug_query_data debug_data = debug_query_data::init();
 
 	const gibs_data		data	 = gibs::load_data();
 	const gibs_lut_data lut_data = gibs::load_lut_data();
@@ -382,17 +396,36 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		get_surfel_probe(data, lut_data, world_pos, normal, debug_data);
 		get_cell_surfel(data, lut_data, world_pos, normal, debug_data);
 	}
-	if (opaque_z_depth != 0.f)
+	else if (opaque_z_depth != 0.f)
 	{
 		world_pos = ndc_to_world(view_proj_inv, screen_px_to_ndc(px, opaque_z_depth, inv_backbuffer_size));
 		normal	  = decode_oct_snorm16(gbuffer[px].y);
 
 		get_tile_surfel(data, lut_data, px, world_pos, normal, debug_data);
+		get_surfel_probe(data, lut_data, world_pos, normal, debug_data);
+		get_cell_surfel(data, lut_data, world_pos, normal, debug_data);
 	}
 
 	structured_buffer<gibs_tile_surfel>	 tile_surfel_buffer = global_resource_buffer[data.h_tile_surfel_buffer_srv_id];
 	structured_buffer<gibs_cell_surfel>	 cell_surfel_buffer = global_resource_buffer[data.h_cell_surfel_buffer_srv_id];
 	structured_buffer<gibs_surfel_probe> probe_buffer		= global_resource_buffer[data.h_surfel_probe_buffer_srv_id];
+
+	gibs_tile_surfel  tile_surfel_oldest;
+	gibs_cell_surfel  cell_surfel_oldest;
+	gibs_surfel_probe probe_oldest;
+
+	if (debug_data.oldest_tile_surfel_id != invalid_id_uint32)
+	{
+		tile_surfel_oldest = tile_surfel_buffer[debug_data.oldest_tile_surfel_id];
+	}
+	if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
+	{
+		cell_surfel_oldest = cell_surfel_buffer[debug_data.oldest_cell_surfel_id];
+	}
+	if (debug_data.oldest_probe_id != invalid_id_uint32)
+	{
+		probe_oldest = probe_buffer[debug_data.oldest_probe_id];
+	}
 
 	float4 col = zero<float4>();
 
@@ -400,6 +433,18 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 	if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RADIANCE)
 	{
+		if (debug_data.oldest_tile_surfel_id != invalid_id_uint32)
+		{
+			col += float4(decode_r11g11b10(tile_surfel_oldest.irradiance_r11g11b10), 1.f);
+		}
+		if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
+		{
+			col += float4(decode_r11g11b10(cell_surfel_oldest.irradiance_r11g11b10), 1.f);
+		}
+		if (debug_data.oldest_probe_id != invalid_id_uint32)
+		{
+			col += float4(decode_r11g11b10(probe_oldest.irradiance_r11g11b10), 1.f);
+		}
 	}
 	else if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE)
 	{
@@ -454,11 +499,11 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		}
 		if (debug_data.oldest_cell_surfel_id != invalid_id_uint32)
 		{
-			// col += float4(random_color(debug_data.oldest_cell_surfel_id).rgb, 1.f);
+			col += float4(random_color(debug_data.oldest_cell_surfel_id).rgb, 1.f);
 		}
 		if (debug_data.oldest_probe_id != invalid_id_uint32)
 		{
-			col += float4(random_color(debug_data.oldest_probe_id).rgb, 1.f);
+			// col += float4(random_color(debug_data.oldest_probe_id).rgb, 1.f);
 		}
 	}
 	else if (data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_NORMAL)

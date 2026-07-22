@@ -52,7 +52,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	float4 sh_coverage_far = zero<float4>();
 
-	for (uint32 i = 0; i < surfel_entry.surfel_count; ++i)
+	for (uint32 i = 0; i < /*min(surfel_entry.surfel_count, 128),*/ surfel_entry.surfel_count; ++i)
 	{
 		const uint32	 surfel_id = surfel_id_arr[surfel_entry.offset + i];
 		gibs_cell_surfel surfel	   = surfel_buffer[surfel_id];
@@ -161,7 +161,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
 	const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
 
-	const float near_conf = irradiance_sum.w / GIBS_NEAR_CONTRIBUTION_FULL_COVER * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
+	const float near_conf = irradiance_sum.w / 1.f * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
 	const float far_conf  = radiance_sum.w / 1.f;
 
 	const float3 irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
