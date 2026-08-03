@@ -14,6 +14,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	structured_buffer<gibs_cell_surfel>			 surfel_buffer = global_resource_buffer[data.h_cell_surfel_buffer_srv_id];
 	byte_array<uint32>							 surfel_id_arr = gibs::cell::cell_to_surfel_id_arr(data);
 
+
 	if (thread_id >= alive_id_arr.size())
 	{
 		return;
@@ -28,12 +29,11 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const uint32				 cell_id	  = gibs::cell::calc_id(data, lut_data, probe.position);
 	const gibs_cell_surfel_entry surfel_entry = gibs::cell::surfel_entry_arr(data)[cell_id];
 
-
 	half depth_min[GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE];
 
 	for (uint32 i = 0; i < GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE; ++i)
 	{
-		depth_min[i] = 1.h;
+		depth_min[i] = -1.h;
 	}
 
 	const float3 probe_normal = decode_oct_snorm16(probe.normal_oct_snorm16);
@@ -60,21 +60,14 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		const float3 surfel_normal	  = decode_oct_snorm16(surfel.normal_oct_snorm16);
 		const float	 surfel_far_range = gibs::calc_cell_size(data, lut_data, surfel.position);
 
-		const float3 rel	 = surfel.position - probe.position;
-		const float3 dir	 = normalize(rel);
-		const float	 dist_sq = dot(rel, rel);
-		const float	 dist	 = sqrt(dist_sq);
+		const float3 probe_to_surfel	 = surfel.position - probe.position;
+		const float3 probe_to_surfel_dir = normalize(probe_to_surfel);
+		const float	 dist_sq			 = dot(probe_to_surfel, probe_to_surfel);
+		const float	 dist				 = sqrt(dist_sq);
 
-		const float sh_depth = is_new_born ? 1.f : max(0.f, sh1_eval_scalar(probe.depth_sh, -dir));
+		float visibility = is_new_born ? 1.f : gibs::calc_surfel_visibility<false, false, true>(data, probe_id, probe_radius, probe.position, probe_normal, surfel.position);
 
-		float visibility = probe_radius * sh_depth > epsilon_1e4
-							 ? 1.f - smoothstep(probe_radius * sh_depth, probe_radius * sh_depth * GIBS_PROBE_VIS_FADE_RATIO, dist)
-							 : 1.f;
-
-		const bool same_face = dot(probe_normal, surfel_normal) > 0.9f
-						   and dot(probe_normal, dir) < 0.1f;
-
-		if (dot(probe_normal, rel) < 0.f)
+		if (dot(probe_normal, probe_to_surfel) < 0.f)
 		{
 			// surfel at back
 			// no depth update
@@ -84,24 +77,9 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 			// to far
 			// no depth update
 		}
-		else if (same_face)
-		{
-			// no depth update
-		}
 		else
 		{
-			float depth = dist;
-			if (dist < surfel.radius and (dot(surfel_normal, -rel) >= 0.f))
-			{
-				float2		chebyshev;
-				const float surfel_visibility = gibs::calc_surfel_visibility<false, gibs_cell_surfel>(data, surfel_id, surfel, probe.position, chebyshev);
-
-				visibility = min(visibility, surfel_visibility);
-
-				depth = dist - (1.f - surfel_visibility) * chebyshev.x * surfel.radius;
-			}
-
-			const float3 rel_local = mul(rel, gen_world_normal_transform(probe_normal));	// mul (rel, inv(gen_world_normal_transform_t) )
+			const float3 rel_local = mul(probe_to_surfel, gen_world_normal_transform(probe_normal));	// mul (rel, inv(gen_world_normal_transform_t) )
 
 			float3 dir_local = normalize(rel_local);
 			dir_local.y		 = max(dir_local.y, epsilon_1e4);
@@ -109,8 +87,29 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 			const uint32 idx = gibs::calc_atlas_tile_local_idx(dir_local);
 
-			depth_min[idx] = min(depth_min[idx], half(min(depth / probe_radius, 1.f)));
+			const bool same_face = dot(probe_normal, surfel_normal) > 0.9f
+							   and dot(probe_normal, probe_to_surfel_dir) < 0.1f;
+
+			float depth_norm = same_face ? -1.f : dist / probe_radius;
+
+			if (dist < surfel.radius and (dot(surfel_normal, -probe_to_surfel) >= 0.f))
+			{
+				float2		chebyshev;
+				const float surfel_visibility = gibs::calc_surfel_visibility<false, true>(data, surfel_id, surfel.radius, surfel.position, surfel_normal, probe.position, chebyshev);
+
+				visibility = min(visibility, surfel_visibility);
+
+				const float depth = surfel.radius - (1.f - surfel_visibility) * chebyshev.x * surfel.radius;
+
+				depth_norm = min(depth / surfel.radius, 1.f);
+			}
+
+			if (depth_norm > 0.f)
+			{
+				depth_min[idx] = depth_min[idx] == -1.h ? half(depth_norm) : min(depth_min[idx], half(depth_norm));
+			}
 		}
+
 
 		const float near_contribution = gibs::calc_near_contribution(dist, surfel.radius, surfel_normal, probe_normal)
 									  * visibility;
@@ -125,7 +124,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 			surfel_near_coverage += near_contribution;
 		}
 
-		const float far_contribution = gibs::calc_far_contribution(rel, dir, surfel_normal, surfel.radius, surfel_far_range, probe_normal)
+		const float far_contribution = gibs::calc_far_contribution(probe_to_surfel, probe_to_surfel_dir, surfel_normal, surfel.radius, surfel_far_range, probe_normal)
 									 * visibility;
 
 		if (far_contribution > 0.f)
@@ -136,7 +135,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 			surfel_far_coverage += far_contribution;
 
-			sh1_project_add_scalar(sh_coverage_far, dir, far_contribution);
+			sh1_project_add_scalar(sh_coverage_far, probe_to_surfel_dir, far_contribution);
 		}
 
 		if (max_contribution_near < near_contribution)
@@ -157,7 +156,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		}
 	}
 
-
 	const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
 	const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
 
@@ -174,33 +172,28 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	probe.coverage_far_sh = half4(sh_coverage_far);
 
 	{
-		float4			   depth_sh = zero<float4>();
-		static const float d_omega	= pi_2 / float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE);
+		rw_byte_array<uint16> vis_arr = gibs::probe::visibility_rw_arr(data, probe_id);
 
-		const float3x3 world_to_local = gen_world_normal_transform_t(probe_normal);
-		for (uint32 i = 0; i < GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE; ++i)
+		for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
 		{
+			// if (depth_min[i] == -1.h) { continue; }
+
 			const float2 uv = saturate((float2(i % GIBS_ATLAS_TILE_SIZE, i / GIBS_ATLAS_TILE_SIZE) + 0.5f) / float(GIBS_ATLAS_TILE_SIZE));
 
 			const float3 dir_local = decode_world_hemi_octahedral(uv * 2.f - 1.f);
 
-			const float3 dir_world = mul(dir_local, world_to_local);	// mul(inv(world_to_local), dir_local) == mul(dir_local, world_to_local)
-			sh1_project_add_scalar(depth_sh, dir_world, float(depth_min[i]) * d_omega);
+			const float cos_theta = dir_local.y;
+
+			const float	 vis_blend_factor = is_new_born ? 1.f : max(cos_theta * 0.5f, 0.1f);
+			const half	 dist_norm		  = depth_min[i] == -1.f ? 0 : depth_min[i];
+			const float2 chebyshev		  = float2(dist_norm, dist_norm * dist_norm);
+
+			const uint16 chebyshev_prev_packed = vis_arr[i];
+			const float2 chebyshev_prev		   = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_prev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_prev_packed)));
+
+			const float2 chebyshev_res = lerp(chebyshev_prev, chebyshev, vis_blend_factor);
+			vis_arr.store(i, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 		}
-
-		// add 1.f for all hemi_lower
-
-		// integral_hemi_lower(c)
-		depth_sh.x += pi_2 * 0.28209479177387814347403972578039f;
-
-		// integral_hemi_lower(c * dot(dir, basis))
-		// c * dot(integral_hemi_lower(dir), basis)
-		// c * dot(pi * (-normal), basis)
-		depth_sh.y += pi * 0.48860251190291992158638462283835f * (-probe_normal.y);
-		depth_sh.z += pi * 0.48860251190291992158638462283835f * (-probe_normal.z);
-		depth_sh.w += pi * 0.48860251190291992158638462283835f * (-probe_normal.x);
-
-		probe.depth_sh = half4(depth_sh);
 	}
 
 	probe_buffer[probe_id] = probe;

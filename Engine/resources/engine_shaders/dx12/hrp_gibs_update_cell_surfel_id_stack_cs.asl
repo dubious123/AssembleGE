@@ -38,7 +38,7 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	bool kill_surfel = false;
 
-	if (surfel.recycle_data.frame_since_ref() >= 0xff)
+	if (surfel.recycle_data.frame_since_ref() >= 30)
 	{
 		kill_surfel = true;
 	}

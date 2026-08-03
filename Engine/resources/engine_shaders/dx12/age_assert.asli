@@ -244,13 +244,13 @@ struct debug_printer
 	def_append_arg(uint32_2);
 	def_append_arg(uint32_3);
 	def_append_arg(uint32_4);
-	def_append_arg(const float2);
-	def_append_arg(const float3);
-	def_append_arg(const float4);
-	def_append_arg(const float2x2);
-	def_append_arg(const float3x3);
-	def_append_arg(const float3x4);
-	def_append_arg(const float4x4);
+	def_append_arg(float2);
+	def_append_arg(float3);
+	def_append_arg(float4);
+	// def_append_arg(float2x2);
+	def_append_arg(float3x3);
+	def_append_arg(float3x4);
+	def_append_arg(float4x4);
 
 #undef def_append_arg
 

@@ -114,68 +114,73 @@ main_ps(float4 pos sv_position) sv_target_0
 		}
 	}
 
-	float3 lighting	 = ambient_light;
-	lighting		+= surface_data.emissive;
+	float3 lighting = ambient_light;
 
-	const float3 albedo = mat.base_color_factor.rgb;
+	lighting += calc_di<true>(surface_data, px_normal);
 
-	const float3 vertex_normal = normalize(v.normal);
+	// lighting += surface_data.emissive;
 
-	const float3 world_to_cam_dir = normalize(camera_pos - v.world_pos);
+	// const float3 albedo = mat.base_color_factor.rgb;
 
-	const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
+	// const float3 vertex_normal = normalize(v.normal);
 
-	for (uint32 d = 0; d < directional_light_count; ++d)
-	{
-		const directional_light light = load_directional_light(d);
+	// const float3 world_to_cam_dir = normalize(camera_pos - v.world_pos);
 
-		lighting += calc_pbr_light(surface_data, light)
-				  * calc_directional_shadow_rt(light, v.world_pos, px_normal);
-	}
+	// const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
-	const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
+	// for (uint32 d = 0; d < directional_light_count; ++d)
+	//{
+	//	const directional_light light = load_directional_light(d);
 
-	const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
-	const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
-	const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
+	//	lighting += calc_pbr_light(surface_data, light)
+	//			  * calc_directional_shadow_rt(light, v.world_pos, px_normal);
+	//}
 
-	const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
-	const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
+	// const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
 
-	const uint32 wave_min = wave_active_min(min_id);
-	const uint32 wave_max = wave_active_max(max_id);
+	// const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
+	// const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
+	// const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
 
-	const uint32 word_begin = wave_min / 32;
-	const uint32 word_end	= wave_max / 32;
+	// const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
+	// const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
 
-	uint32 c = 0u;
-	for (uint32 w = word_begin; w <= word_end; ++w)
-	{
-		uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
-		uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
-		uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
-		uint32 bit_mask = x_mask & y_mask & z_mask;
+	// const uint32 wave_min = wave_active_min(min_id);
+	// const uint32 wave_max = wave_active_max(max_id);
 
-		uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
+	// const uint32 word_begin = wave_min / 32;
+	// const uint32 word_end	= wave_max / 32;
 
-		while (wave_bit_mask != 0)
-		{
-			const uint32 bit	   = first_bit_low(wave_bit_mask);
-			const uint32 sorted_id = w * 32 + bit;
-			// wave_bit_mask			&= ~(1u << bit);
-			wave_bit_mask &= (wave_bit_mask - 1u);
+	// uint32 c = 0u;
+	// for (uint32 w = word_begin; w <= word_end; ++w)
+	//{
+	//	uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
+	//	uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
+	//	uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
+	//	uint32 bit_mask = x_mask & y_mask & z_mask;
 
-			if (bit_mask & (1u << bit))
-			{
-				const unified_light light = load_sorted_light(sorted_id);
+	//	uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
 
-				lighting += calc_pbr_light(surface_data, light)
-						  * calc_unified_shadow_rt(light, v.world_pos, px_normal);
+	//	while (wave_bit_mask != 0)
+	//	{
+	//		const uint32 bit	   = first_bit_low(wave_bit_mask);
+	//		const uint32 sorted_id = w * 32 + bit;
+	//		// wave_bit_mask			&= ~(1u << bit);
+	//		wave_bit_mask &= (wave_bit_mask - 1u);
 
-				++c;
-			}
-		}
-	}
+	//		if (bit_mask & (1u << bit))
+	//		{
+	//			const unified_light light = load_sorted_light(sorted_id);
+
+	//			lighting += calc_pbr_light(surface_data, light)
+	//					  * calc_unified_shadow_rt(light, v.world_pos, px_normal);
+
+	//			++c;
+	//		}
+	//	}
+	//}
+
+	///////////////////////////////////////
 
 	// return float4(world_face_normal, 1.f);
 	// return float4(vertex_normal, 1.f);

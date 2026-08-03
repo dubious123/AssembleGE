@@ -829,7 +829,7 @@ namespace age::editor
 			ui::widget::dropdown<uint8>(cmp.gibs_outer_layer_count, layer_count_option_arr);
 
 			ui::widget::text_label("gibs_cell_size");
-			ui::widget::numeric_field(cmp.gibs_cell_size, nullptr, 1.f, 10.f);
+			ui::widget::numeric_field(cmp.gibs_cell_size, nullptr, 1.f, 100.f);
 
 			ui::widget::text_label("outer_cell_size_factor");
 			ui::widget::numeric_field(cmp.outer_cell_size_factor, nullptr, 1.f + math::g::epsilon_1e4, 2.5f, ui::theme::text_label_color(), 0.01f);
@@ -850,22 +850,24 @@ namespace age::editor
 		}                                                                                 \
 	}
 
-			gibs_flag_checkbox(render_surfels);
+			gibs_flag_checkbox(freeze_spawn_kill);
+			gibs_flag_checkbox(render_tile);
+			gibs_flag_checkbox(render_cell);
+			gibs_flag_checkbox(render_tile_surfel_count);
+			gibs_flag_checkbox(render_cell_surfel_count);
+			gibs_flag_checkbox(render_surfel_probe_count);
+			gibs_flag_checkbox(render_tile_surfels);
+			gibs_flag_checkbox(render_cell_surfels);
+			gibs_flag_checkbox(render_surfel_probes);
+			gibs_flag_checkbox(render_id_hash);
 			gibs_flag_checkbox(render_radiance);
 			gibs_flag_checkbox(render_irradiance);
-			gibs_flag_checkbox(render_visibility);
-			gibs_flag_checkbox(render_instability);
-			gibs_flag_checkbox(render_ray_count);
-			gibs_flag_checkbox(render_msme);
-			gibs_flag_checkbox(render_id_hash);
 			gibs_flag_checkbox(render_normal);
-			gibs_flag_checkbox(render_coverage);
-			gibs_flag_checkbox(render_show_irradiance_atlas);
-			gibs_flag_checkbox(render_show_visibility_atlas);
-			gibs_flag_checkbox(freeze_spawn);
+			gibs_flag_checkbox(render_visibility);
+			gibs_flag_checkbox(render_near_coverage);
+			gibs_flag_checkbox(render_far_coverage);
+			gibs_flag_checkbox(render_ray_count);
 			gibs_flag_checkbox(render_age);
-			gibs_flag_checkbox(render_cell);
-			gibs_flag_checkbox(render_variance);
 
 #undef gibs_flag_checkbox
 

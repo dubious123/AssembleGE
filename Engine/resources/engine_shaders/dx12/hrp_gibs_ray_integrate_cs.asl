@@ -119,9 +119,26 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		vis_arr.store(idx, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 	}
 
-	if (opaque_back_face_count == ray_count)
+	if (opaque_back_face_count >= ray_count / 2)
 	{
 		// todo, kill?
+		if (is_tile)
+		{
+			rw_structured_buffer<gibs_tile_surfel> surfel_buffer = global_resource_buffer[data.h_tile_surfel_buffer_uav_id];
+
+			gibs_tile_surfel surfel = surfel_buffer[surfel_id];
+			surfel.kill();
+			surfel_buffer[surfel_id] = surfel;
+		}
+		else
+		{
+			rw_structured_buffer<gibs_cell_surfel> surfel_buffer = global_resource_buffer[data.h_cell_surfel_buffer_uav_id];
+
+			gibs_cell_surfel surfel = surfel_buffer[surfel_id];
+			surfel.kill();
+			surfel_buffer[surfel_id] = surfel;
+		}
+
 		return;
 	}
 

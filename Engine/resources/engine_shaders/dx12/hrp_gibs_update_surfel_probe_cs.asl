@@ -21,7 +21,9 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 	gibs_recycle_data				 probe_recycle = probe_recycle_buffer[probe_id];
 	const gibs_surfel_probe_geometry probe_geo	   = probe_geo_buffer[probe_id];
 
-	gibs::update_world_space_surfel<gibs_surfel_probe_geometry, gibs_surfel_probe>(probe_geo, probe);
+	probe.alive_id = alive_id;
+
+	gibs::update_world_space_surfel<gibs_surfel_probe_geometry, gibs_surfel_probe>(probe_geo, probe, probe_id);
 
 	probe.surfel_radius = gibs::calc_cell_surfel_radius(data, gibs::load_lut_data(), probe.position);
 

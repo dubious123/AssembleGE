@@ -565,7 +565,6 @@ calc_di(const pbr_surface_data surface_data, const float3 world_face_normal)
 
 	const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
-
 	for (uint32 d = 0; d < directional_light_count; ++d)
 	{
 		const directional_light light = load_directional_light(d);

@@ -222,6 +222,13 @@ namespace age::graphics::render_pipeline::shared_type
 		half			  radius;
 		gibs_recycle_data recycle_data;
 
+		void
+		kill()
+		{
+			radius = 0;
+			recycle_data.kill();
+		}
+
 		bool
 		is_new_born()
 		{
@@ -241,8 +248,8 @@ namespace age::graphics::render_pipeline::shared_type
 		half  surfel_radius;
 		half  coverage_near;
 		half4 coverage_far_sh;
-		half4 depth_sh;
 
+		uint32 alive_id;
 
 		// todo, radius?
 		// todo, prev_pos, normal?
@@ -473,6 +480,8 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_surfel_probe_recycle_buffer_uav_id;
 		uint32 h_surfel_probe_msme_buffer_srv_id;
 		uint32 h_surfel_probe_msme_buffer_uav_id;
+		uint32 h_surfel_probe_visibility_buffer_srv_id;
+		uint32 h_surfel_probe_visibility_buffer_uav_id;
 
 		uint32 h_tile_surfel_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
 		uint32 h_tile_surfel_id_stack_buffer_uav_id;
@@ -1592,23 +1601,21 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_TILE_SURFEL_SPAWN_COVERAGE 1.f
 #define GIBS_TILE_SURFEL_KILL_COVERAGE	3.f
 
-#define GIBS_PROBE_VIS_FADE_RATIO 1.2f
-
-#define GIBS_CELL_SURFEL_RADIUS_RATIO 0.1f
+#define GIBS_CELL_SURFEL_RADIUS_RATIO .5f
 
 // trust near 50% more than far
 #define GIBS_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
 
-#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR 1.f
-#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  3.f
-#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  1.f
+#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR 0.1f
+#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  3.0f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  0.1f
 #define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	  3.f
 
 // 1.f : full hemisphere cover
-#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR 0.33f
+#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR 0.1f
 #define GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR	 2.f
-#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR	 0.66f
-#define GIBS_CELL_SURFEL_KILL_COVERAGE_FAR	 3.f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR	 0.1f
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_FAR	 2.f
 
 
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
@@ -1630,21 +1637,25 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_GI_RESOLVE_SAMPLE_PER_TILE	 (GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK * GIBS_GI_RESOLVE_BLOCK_DIM * GIBS_GI_RESOLVE_BLOCK_DIM)
 
 
-#define GIBS_DEBUG_FLAGS_RENDER_RADIANCE			  (1u << 1u)
-#define GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE			  (1u << 2u)
-#define GIBS_DEBUG_FLAGS_RENDER_VISIBILITY			  (1u << 3u)
-#define GIBS_DEBUG_FLAGS_RENDER_INSTABILITY			  (1u << 4u)
-#define GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT			  (1u << 5u)
-#define GIBS_DEBUG_FLAGS_RENDER_MSME				  (1u << 6u)
-#define GIBS_DEBUG_FLAGS_RENDER_ID_HASH				  (1u << 7u)
-#define GIBS_DEBUG_FLAGS_RENDER_NORMAL				  (1u << 8u)
-#define GIBS_DEBUG_FLAGS_RENDER_COVERAGE			  (1u << 9u)
-#define GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS (1u << 10u)
-#define GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS (1u << 11u)
-#define GIBS_DEBUG_FLAGS_FREEZE_SPAWN				  (1u << 12u)
-#define GIBS_DEBUG_FLAGS_RENDER_AGE					  (1u << 13u)
-#define GIBS_DEBUG_FLAGS_RENDER_CELL				  (1u << 14u)
-#define GIBS_DEBUG_FLAGS_RENDER_VARIANCE			  (1u << 15u)
+#define GIBS_DEBUG_FLAGS_NONE					   0u
+#define GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL		   (1u << 0u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE			   (1u << 1u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL			   (1u << 2u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT  (1u << 3u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT  (1u << 4u)
+#define GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBE_COUNT (1u << 5u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS	   (1u << 6u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS	   (1u << 7u)
+#define GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBES	   (1u << 8u)
+#define GIBS_DEBUG_FLAGS_RENDER_ID_HASH			   (1u << 9u)
+#define GIBS_DEBUG_FLAGS_RENDER_RADIANCE		   (1u << 10u)	  // di (tile_surfel : black)
+#define GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE		   (1u << 11u)	  // gi
+#define GIBS_DEBUG_FLAGS_RENDER_NORMAL			   (1u << 12u)
+#define GIBS_DEBUG_FLAGS_RENDER_VISIBILITY		   (1u << 13u)
+#define GIBS_DEBUG_FLAGS_RENDER_NEAR_COVERAGE	   (1u << 14u)
+#define GIBS_DEBUG_FLAGS_RENDER_FAR_COVERAGE	   (1u << 15u)	  // tile_surfel : black
+#define GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT		   (1u << 16u)
+#define GIBS_DEBUG_FLAGS_RENDER_AGE				   (1u << 17u)
 
 
 #if !defined(AGE_SHADER)
@@ -1681,21 +1692,29 @@ namespace age::graphics::render_pipeline::g
 	static_assert(sizeof(shared_type::gibs_lut_data::cell_size_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 	static_assert(sizeof(shared_type::gibs_lut_data::layer_boundary_arr) == sizeof(float) * (GIBS_MAX_OUTER_LAYER_COUNT + 1));
 
+	static_assert(GIBS_DEBUG_FLAGS_NONE == to_idx(graphics::e::gibs_debug_flags::none));
+	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL == to_idx(graphics::e::gibs_debug_flags::freeze_spawn_kill));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_TILE == to_idx(graphics::e::gibs_debug_flags::render_tile));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL == to_idx(graphics::e::gibs_debug_flags::render_cell));
+
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT == to_idx(graphics::e::gibs_debug_flags::render_tile_surfel_count));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT == to_idx(graphics::e::gibs_debug_flags::render_cell_surfel_count));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBE_COUNT == to_idx(graphics::e::gibs_debug_flags::render_surfel_probe_count));
+
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS == to_idx(graphics::e::gibs_debug_flags::render_tile_surfels));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS == to_idx(graphics::e::gibs_debug_flags::render_cell_surfels));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBES == to_idx(graphics::e::gibs_debug_flags::render_surfel_probes));
+
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_ID_HASH == to_idx(graphics::e::gibs_debug_flags::render_id_hash));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_RADIANCE == to_idx(graphics::e::gibs_debug_flags::render_radiance));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE == to_idx(graphics::e::gibs_debug_flags::render_irradiance));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_VISIBILITY == to_idx(graphics::e::gibs_debug_flags::render_visibility));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_INSTABILITY == to_idx(graphics::e::gibs_debug_flags::render_instability));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT == to_idx(graphics::e::gibs_debug_flags::render_ray_count));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_MSME == to_idx(graphics::e::gibs_debug_flags::render_msme));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_ID_HASH == to_idx(graphics::e::gibs_debug_flags::render_id_hash));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_NORMAL == to_idx(graphics::e::gibs_debug_flags::render_normal));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_COVERAGE == to_idx(graphics::e::gibs_debug_flags::render_coverage));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_IRRADIANCE_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_irradiance_atlas));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_SHOW_VISIBILITY_ATLAS == to_idx(graphics::e::gibs_debug_flags::render_show_visibility_atlas));
-	static_assert(GIBS_DEBUG_FLAGS_FREEZE_SPAWN == to_idx(graphics::e::gibs_debug_flags::freeze_spawn));
+
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_VISIBILITY == to_idx(graphics::e::gibs_debug_flags::render_visibility));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_NEAR_COVERAGE == to_idx(graphics::e::gibs_debug_flags::render_near_coverage));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_FAR_COVERAGE == to_idx(graphics::e::gibs_debug_flags::render_far_coverage));
+	static_assert(GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT == to_idx(graphics::e::gibs_debug_flags::render_ray_count));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_AGE == to_idx(graphics::e::gibs_debug_flags::render_age));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL == to_idx(graphics::e::gibs_debug_flags::render_cell));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_VARIANCE == to_idx(graphics::e::gibs_debug_flags::render_variance));
 
 #endif
 //---[ segment and transparent ]------------------------------------------------------------------------------------------------------

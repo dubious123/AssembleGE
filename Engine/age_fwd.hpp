@@ -153,22 +153,29 @@ namespace age::graphics::e
 
 	AGE_DEFINE_ENUM_WITH_VALUE(gibs_debug_flags, uint32,
 							   (none, 0),
-							   (render_surfels, (1u << 0u)),
-							   (render_radiance, (1u << 1u)),
-							   (render_irradiance, (1u << 2u)),
-							   (render_visibility, (1u << 3u)),
-							   (render_instability, (1u << 4u)),
-							   (render_ray_count, (1u << 5u)),
-							   (render_msme, (1u << 6u)),
-							   (render_id_hash, (1u << 7u)),
-							   (render_normal, (1u << 8u)),
-							   (render_coverage, (1u << 9u)),
-							   (render_show_irradiance_atlas, (1u << 10u)),
-							   (render_show_visibility_atlas, (1u << 11u)),
-							   (freeze_spawn, (1u << 12u)),
-							   (render_age, (1u << 13u)),
-							   (render_cell, (1u << 14u)),
-							   (render_variance, (1u << 15u)));
+							   (freeze_spawn_kill, (1u << 0u)),
+
+							   (render_tile, (1u << 1u)),
+							   (render_cell, (1u << 2u)),
+
+							   (render_tile_surfel_count, (1u << 3u)),
+							   (render_cell_surfel_count, (1u << 4u)),
+							   (render_surfel_probe_count, (1u << 5u)),
+
+							   (render_tile_surfels, (1u << 6u)),
+							   (render_cell_surfels, (1u << 7u)),
+							   (render_surfel_probes, (1u << 8u)),
+							   (render_id_hash, (1u << 9u)),
+							   (render_radiance, (1u << 10u)),		  // di (tile_surfel : black)
+							   (render_irradiance, (1u << 11u)),	  // gi
+							   (render_normal, (1u << 12u)),
+
+							   (render_visibility, (1u << 13u)),
+							   (render_near_coverage, (1u << 14u)),
+							   (render_far_coverage, (1u << 15u)),	  // tile_surfel : black
+
+							   (render_ray_count, (1u << 16u)),
+							   (render_age, (1u << 17u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
 

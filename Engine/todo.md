@@ -248,3 +248,23 @@ cell 에 surfel, probe intersect를 좀더 촘촘하게 하면 최적화가 될�
 
 object_id -> object_render_data 조회시, mesh 가 있다가 없으면 오류날거임. 
 invalid id로 초기화 필요 
+
+
+
+
+
+
+
+far coverage 가 의미가 있으려면 near radius와 차이가 있어야함 
+near radius와 차이거 거의 없다면, corner의 부분에서 의미가 생김 (국소적)
+해당 차이가 성능이나 시각적인 향상이 있는지는 확인하지 못함 
+
+near radius를 줄이고 far를 늘린다면 cell크기가 커짐. 
+cell당 probe or cell_surfel의 수가 cell이 커지더라도 밀도가 일정하게 유지될거라고 예상했으나 (far coverage 때문에) 
+실제로는 그러지 못함. 아직 원인은 불명. 
+
+coverage를 극단적으로 줄이니 성능이나 cell당 할당된 probe나 cell surfel이 정상이 됨. 
+near 랑 far의 fatio를 한 0.5까지는 ㄱㅊ은데 
+0.1정도가면 성능이 박살남
+
+문제는 light leaking

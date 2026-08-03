@@ -480,6 +480,10 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_surfel_probe_msme_buffer_srv_desc;
 		uav_desc_handle h_surfel_probe_msme_buffer_uav_desc;
 
+		resource_handle h_surfel_probe_visibility_buffer;
+		srv_desc_handle h_surfel_probe_visibility_buffer_srv_desc;
+		uav_desc_handle h_surfel_probe_visibility_buffer_uav_desc;
+
 		resource_handle h_tile_surfel_id_stack_buffer;	   // dead, alive prev, alive curr
 		srv_desc_handle h_tile_surfel_id_stack_buffer_srv_desc;
 		uav_desc_handle h_tile_surfel_id_stack_buffer_uav_desc;

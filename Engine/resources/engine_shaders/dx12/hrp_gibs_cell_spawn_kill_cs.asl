@@ -122,7 +122,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 				// eval(depth_sh, any_dir) == 1.f
 				probe.coverage_far_sh = half4(0.h, 0.h, 0.h, 0.h);
-				probe.depth_sh		  = half4(half(1.f / 0.28209479177387814347403972578039f), 0.h, 0.h, 0.h);
 
 				const float3 dir_local	  = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(ray_hit.dir_oct_snorm8));
 				const float	 cos_theta	  = dir_local.y;
@@ -148,6 +147,12 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 				probe_geo_arr[probe_id] = geo;
 
 				probe_recycle_arr[probe_id] = zero<gibs_recycle_data>();
+
+				rw_byte_array<uint16> vis_arr = gibs::probe::visibility_rw_arr(data, probe_id);
+				for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
+				{
+					vis_arr.store(i, uint16(0xffffu));
+				}
 			}
 		}
 	}
@@ -209,7 +214,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 				rw_byte_array<half>	  lum_cdf_arr = gibs::cell::luminance_cdf_rw_arr(data, surfel_id);
 				for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
 				{
-					vis_arr.store(i, uint16(0xffffu));
+					vis_arr.store(i, uint16(0));
+					// vis_arr.store(i, uint16(0xffffu));
 					lum_arr.store(i, (1.h / half(data.atlas_texel_count())));
 					lum_cdf_arr.store(i, (half(i + 1) / half(data.atlas_texel_count())));
 				}

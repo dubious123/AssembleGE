@@ -83,7 +83,7 @@ main_cs(uint32 group_id		   sv_group_id,
 	{
 		kill_surfel = true;
 	}
-	else if (/*surfel_seen is_false and*/ surfel.recycle_data.frame_since_ref() >= 0xff)
+	else if (/*surfel_seen is_false and*/ surfel.recycle_data.frame_since_ref() >= 30)
 	{
 		kill_surfel = true;
 	}

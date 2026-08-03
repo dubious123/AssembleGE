@@ -2652,8 +2652,8 @@ namespace age::graphics::render_pipeline
 
 			// todo, add config
 			gibs_data_gpu.max_tile_surfel_count	 = uint32(tile_count_total * g::gibs_gi_resolve_sample_per_tile /*g::gibs_tile_kill_coverage * 2.f*/);
-			gibs_data_gpu.max_cell_surfel_count	 = uint32(gibs_data_gpu.max_tile_surfel_count * 0.3f);
-			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count * 0.5f);
+			gibs_data_gpu.max_cell_surfel_count	 = uint32(gibs_data_gpu.max_tile_surfel_count /** 0.3f*/);
+			gibs_data_gpu.max_surfel_probe_count = uint32(gibs_data_gpu.max_cell_surfel_count /** 0.5f*/);
 
 			gibs_data_gpu.max_tile_surfel_count	 += is_odd(gibs_data_gpu.max_tile_surfel_count) ? 1u : 0u;
 			gibs_data_gpu.max_cell_surfel_count	 += is_odd(gibs_data_gpu.max_cell_surfel_count) ? 1u : 0u;
@@ -2887,6 +2887,20 @@ namespace age::graphics::render_pipeline
 
 				gibs_data_gpu.h_surfel_probe_msme_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_msme_buffer_srv_desc);
 				gibs_data_gpu.h_surfel_probe_msme_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_msme_buffer_uav_desc);
+			}
+
+			{
+				c_auto buffer_size							   = sizeof(uint16) * (g::gibs_atlas_tile_size * g::gibs_atlas_tile_size) * gibs_data_gpu.max_surfel_probe_count;
+				gibs_data_cpu.h_surfel_probe_visibility_buffer = resource::create_committed_buf_uav(buffer_size);
+				gibs_data_cpu.h_surfel_probe_visibility_buffer->set_name(L"gibs_surfel_probe_visibility_buffer");
+
+				gibs_data_cpu.h_surfel_probe_visibility_buffer_srv_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_visibility_buffer,
+																								defaults::srv_view_desc::byte_address_buffer(buffer_size));
+				gibs_data_cpu.h_surfel_probe_visibility_buffer_uav_desc = resource::create_view(gibs_data_cpu.h_surfel_probe_visibility_buffer,
+																								defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+				gibs_data_gpu.h_surfel_probe_visibility_buffer_srv_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_visibility_buffer_srv_desc);
+				gibs_data_gpu.h_surfel_probe_visibility_buffer_uav_id = calc_desc_idx(gibs_data_cpu.h_surfel_probe_visibility_buffer_uav_desc);
 			}
 		}
 
@@ -3320,7 +3334,7 @@ namespace age::graphics::render_pipeline
 			gibs_data_cpu.origin = camera_data_vec[main_camera_id].pos;
 		}
 
-		gibs_data_cpu.render_surfels = has_all(desc.debug_flags, graphics::e::gibs_debug_flags::render_surfels);
+		gibs_data_cpu.render_surfels = desc.debug_flags != graphics::e::gibs_debug_flags::none;
 
 		gibs_data_cpu.enabled = true;
 
@@ -3387,6 +3401,10 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer_srv_desc);
 		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_msme_buffer_uav_desc);
+
+		resource::release_deferred(gibs_data_cpu.h_surfel_probe_visibility_buffer);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_visibility_buffer_srv_desc);
+		push_descriptor_deferred(gibs_data_cpu.h_surfel_probe_visibility_buffer_uav_desc);
 
 		resource::release_deferred(gibs_data_cpu.h_tile_surfel_id_stack_buffer);
 		push_descriptor_deferred(gibs_data_cpu.h_tile_surfel_id_stack_buffer_srv_desc);
@@ -3495,7 +3513,7 @@ namespace age::graphics::render_pipeline
 	{
 		AGE_ASSERT(gibs_enabled());
 		gibs_data_cpu.gibs_data_gpu.debug_flags = to_idx(e);
-		gibs_data_cpu.render_surfels			= has_all(e, graphics::e::gibs_debug_flags::render_surfels);
+		gibs_data_cpu.render_surfels			= e != graphics::e::gibs_debug_flags::none;
 	}
 
 	bool

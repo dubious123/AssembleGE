@@ -485,11 +485,111 @@ namespace gibs
 		bool
 		freeze_spawn_kill(const gibs_data data)
 		{
-			return data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN;
+			return data.debug_flags & GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL;
+		}
+
+		bool
+		render_tile(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_TILE;
+		}
+
+		bool
+		render_cell(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_CELL;
+		}
+
+		bool
+		render_tile_surfels(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS;
+		}
+
+		bool
+		render_cell_surfels(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS;
+		}
+
+		bool
+		render_tile_surfel_count(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT;
+		}
+
+		bool
+		render_cell_surfel_count(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT;
+		}
+
+		bool
+		render_surfel_probe_count(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBE_COUNT;
+		}
+
+		bool
+		render_surfel_probes(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBES;
+		}
+
+		bool
+		render_id_hash(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_ID_HASH;
+		}
+
+		bool
+		render_radiance(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RADIANCE;
+		}
+
+		bool
+		render_irradiance(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE;
+		}
+
+		bool
+		render_normal(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_NORMAL;
+		}
+
+		bool
+		render_visibility(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_VISIBILITY;
+		}
+
+		bool
+		render_near_coverage(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_NEAR_COVERAGE;
+		}
+
+		bool
+		render_far_coverage(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_FAR_COVERAGE;
+		}
+
+		bool
+		render_ray_count(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT;
+		}
+
+		bool
+		render_age(const gibs_data data)
+		{
+			return data.debug_flags & GIBS_DEBUG_FLAGS_RENDER_AGE;
 		}
 	}	 // namespace debug
-
-
 }	 // namespace gibs
 
 // indirect arg
@@ -906,6 +1006,21 @@ namespace gibs
 		}
 	}	 // namespace cell
 
+	namespace probe
+	{
+		rw_byte_array<uint16>
+		visibility_rw_arr(const gibs_data data, uint32 probe_id)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_surfel_probe_visibility_buffer_uav_id], sizeof(uint16) * data.atlas_texel_count() * probe_id, data.atlas_texel_count());
+		}
+
+		byte_array<uint16>
+		visibility_arr(const gibs_data data, uint32 probe_id)
+		{
+			return byte_array<uint16>::init(global_resource_buffer[data.h_surfel_probe_visibility_buffer_srv_id], sizeof(uint16) * data.atlas_texel_count() * probe_id, data.atlas_texel_count());
+		}
+	}	 // namespace probe
+
 
 }	 // namespace gibs
 
@@ -1305,7 +1420,7 @@ namespace gibs
 {
 	template <typename t_geo, typename t_surfel>
 	void
-	update_world_space_surfel(const in t_geo geo, inout t_surfel surfel)
+	update_world_space_surfel(const in t_geo geo, inout t_surfel surfel, uint32 id = invalid_id_uint32)
 	{
 		const object_data		 obj		 = load_object_data(geo.object_id);
 		const object_render_data render_data = load_object_render_data(geo.object_id);
@@ -1328,7 +1443,7 @@ namespace gibs
 		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj.scale), decode_quaternion(obj.quaternion)));
 
 		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_face_normal);
-		surfel.position			  = surface_offset(v.world_pos, v.normal);
+		surfel.position			  = surface_offset(v.world_pos, world_face_normal) + world_face_normal * 0.1f;
 		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(surface_data, world_face_normal) + calc_gi(surface_data, decode_r11g11b10(surfel.irradiance_r11g11b10)));
 	}
 
@@ -1866,18 +1981,17 @@ namespace gibs
 		return mean_long;
 	}
 
-	template <bool is_tile, typename t_surfel>
+	template <bool is_tile, bool is_cell, bool is_rw = false>
 	float
-	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, const t_surfel surfel, float3 world_pos, out float2 chebyshev)
+	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, float radius, float3 surfel_pos, float3 surfel_normal, float3 world_pos, out float2 chebyshev)
 	{
-		const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
-		const float3 rel		   = world_pos - surfel.position + surfel_normal * 0.01f;
-		const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
+		const float3 rel	   = world_pos - surfel_pos + surfel_normal * 0.01f;
+		const float3 rel_local = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
 
 		float3 dir_local = normalize(rel_local);
 
 		// if (dir_local.y < -0.2f) { return 0.f; }
-		if (all(world_pos == surfel.position)) { return 1.f; }
+		if (all(world_pos == surfel_pos)) { return 1.f; }
 
 		dir_local.y = max(dir_local.y, epsilon_1e4);
 		dir_local	= normalize(dir_local);
@@ -1886,11 +2000,15 @@ namespace gibs
 
 		const uint32 idx = gibs::calc_atlas_tile_local_idx(dir_local);
 
-		uint16 chebyshev_packed = is_tile ? gibs::tile::visibility_arr(data, surfel_id)[idx] : gibs::cell::visibility_arr(data, surfel_id)[idx];
+		const uint16 chebyshev_packed = is_tile
+										  ? (is_rw ? gibs::tile::visibility_rw_arr(data, surfel_id)[idx] : gibs::tile::visibility_arr(data, surfel_id)[idx])
+									  : is_cell
+										  ? (is_rw ? gibs::cell::visibility_rw_arr(data, surfel_id)[idx] : gibs::cell::visibility_arr(data, surfel_id)[idx])
+										  : (is_rw ? gibs::probe::visibility_rw_arr(data, surfel_id)[idx] : gibs::probe::visibility_arr(data, surfel_id)[idx]);
 
 		chebyshev = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)));
 
-		const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
+		const float dist_norm = saturate(length(rel) / (radius /* * GIBS_SURFEL_OUTER_RADIUS_FACTOR*/));
 		const float mean	  = chebyshev.x;
 		const float sq_mean	  = chebyshev.y;
 
@@ -1900,15 +2018,16 @@ namespace gibs
 
 		const float k	= dist_norm - mean;
 		const float vis = variance / (variance + k * k);	// p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
+		// return pow(vis, 100);
 		return pow_5(vis);
 	}
 
-	template <bool is_tile, typename t_surfel>
+	template <bool is_tile, bool is_cell, bool is_rw = false>
 	float
-	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, const t_surfel surfel, float3 world_pos)
+	calc_surfel_visibility(const gibs_data data, const uint32 surfel_id, float radius, float3 surfel_pos, float3 surfel_normal, float3 world_pos)
 	{
-		float2 chebyshev;
-		return calc_surfel_visibility<is_tile, t_surfel>(data, surfel_id, surfel, world_pos, chebyshev);
+		float2 chebyshev = float2(1.f, 1.f);
+		return calc_surfel_visibility<is_tile, is_cell, is_rw>(data, surfel_id, radius, surfel_pos, surfel_normal, world_pos, chebyshev);
 	}
 
 	float3
@@ -1942,7 +2061,7 @@ namespace gibs
 			if (surfel.radius < epsilon_1e4 or contribution == 0.f) { continue; }
 
 			// coverage += contribution;
-			const float visibility		 = gibs::calc_surfel_visibility<true, gibs_tile_surfel>(data, surfel_id, surfel, world_pos);
+			const float visibility		 = gibs::calc_surfel_visibility<true, false>(data, surfel_id, surfel.radius, surfel.position, decode_oct_snorm16(surfel.normal_oct_snorm16), world_pos);
 			const float contribution_vis = contribution * visibility;
 
 			irradiance_sum += float4(surfel_irradiance, 1.f)
@@ -2017,46 +2136,97 @@ namespace gibs
 
 namespace gibs
 {
+	// bool
+	// sample_screen_irradiance(const gibs_data data, const float3 world_pos, const float3 face_normal, out float3 irradiance)
+	//{
+	//	const float4   clip_pos		= mul(view_proj, float4(world_pos, 1.f));
+	//	const float3   ndc			= clip_pos.xyz / clip_pos.w;
+	//	const float2   screen_pos_f = ndc_xy_to_screen(ndc.xy, backbuffer_size);
+	//	const uint32_2 screen_pos	= uint32_2(screen_pos_f);
+	//	bool		   in_screen	= clip_pos.w > 0.f
+	//						   and all(ndc.xy >= -1.f)
+	//						   and all(ndc.xy <= 1.f)
+	//						   and ndc.z >= 0.f
+	//						   and ndc.z <= 1.f;
+
+	//	if (in_screen)
+	//	{
+	//		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
+	//		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+	//		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+	//		const float			 z_depth		   = load(depth_buffer, screen_pos);
+	//		const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
+
+	//		const float lin_hit = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+	//		const float lin_px	= calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+
+	//		in_screen = z_depth != 0.f
+	//				and lin_hit < lin_px * 1.02f
+	//				// and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
+
+	//				and dot(px_normal, face_normal) > 0.9f;
+
+
+	//		if (in_screen)
+	//		{
+	//			// todo, if in screen, skip di
+	//			irradiance = gi_resolve_buffer[screen_pos];
+
+	//			return true;
+	//		}
+	//	}
+
+	//	return false;
+	//}
+
 	bool
 	sample_screen_irradiance(const gibs_data data, const float3 world_pos, const float3 face_normal, out float3 irradiance)
 	{
-		const float4   clip_pos		= mul(view_proj, float4(world_pos, 1.f));
-		const float3   ndc			= clip_pos.xyz / clip_pos.w;
-		const float2   screen_pos_f = ndc_xy_to_screen(ndc.xy, backbuffer_size);
-		const uint32_2 screen_pos	= uint32_2(screen_pos_f);
-		bool		   in_screen	= clip_pos.w > 0.f
-							   and all(ndc.xy >= -1.f)
-							   and all(ndc.xy <= 1.f)
-							   and ndc.z >= 0.f
-							   and ndc.z <= 1.f;
+		irradiance = zero<float3>();
 
-		if (in_screen)
+		const float4 clip_pos = mul(view_proj, float4(world_pos, 1.f));
+		const float3 ndc	  = clip_pos.xyz / clip_pos.w;
+
+		const bool in_frustum = clip_pos.w > 0.f
+							and all(ndc.xy >= -1.f)
+							and all(ndc.xy <= 1.f)
+							and ndc.z >= 0.f
+							and ndc.z <= 1.f;
+
+		if (in_frustum is_false) { return false; }
+
+		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+
+		const int32_2 center_px = int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
+		const int32_2 extent	= int32_2(backbuffer_size);
+		const float	  lin_hit	= calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+
+		float4 irradiance_sum = zero<float4>();
+
+		for (int32 dy = -1; dy <= 1; ++dy)
 		{
-			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
-			texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
-			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-			const float			 z_depth		   = load(depth_buffer, screen_pos);
-			const float3		 px_normal		   = decode_oct_snorm16(gbuffer[screen_pos].y);
-
-			const float lin_hit = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
-			const float lin_px	= calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
-
-			in_screen = z_depth != 0.f
-					and lin_hit < lin_px * 1.02f
-					// and ndc.z >= (z_depth - epsilon_1e4)	// z_depth + 0.5f - surfel - z_depth - 0.f(far)
-					and dot(px_normal, face_normal) > 0.9f;
-
-
-			if (in_screen)
+			for (int32 dx = -1; dx <= 1; ++dx)
 			{
-				// todo, if in screen, skip di
-				irradiance = gi_resolve_buffer[screen_pos];
+				const int32_2 tap = clamp(center_px + int32_2(dx, dy), zero<int32_2>(), extent - 1);
 
-				return true;
+				const float z_depth = load(depth_buffer, tap);
+				if (z_depth == 0.f) { continue; }	 // sky
+
+				const float3 px_normal = decode_oct_snorm16(gbuffer[tap].y);
+				const float	 lin_px	   = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+
+				const float w = calc_bilateral_weight(lin_hit, face_normal, lin_px, px_normal);
+
+				irradiance_sum += float4(gi_resolve_buffer[tap], 1.f) * w;
 			}
 		}
 
-		return false;
+		if (irradiance_sum.w < 0.1f) { return false; }
+
+		irradiance = irradiance_sum.xyz / irradiance_sum.w;
+		return true;
 	}
 
 	float
@@ -2128,12 +2298,9 @@ namespace gibs
 			const float	 dist_sq = dot(rel, rel);
 			const float	 dist	 = sqrt(dist_sq);
 
-			const float sh_depth		= max(0.f, sh1_eval_scalar(probe.depth_sh, -dir));
 			const float sh_coverage_far = max(0.f, sh1_eval_scalar(probe.coverage_far_sh, -dir));
 
-			const float visibility = probe_radius * sh_depth > epsilon_1e4
-									   ? 1.f - smoothstep(probe_radius * sh_depth, probe_radius * sh_depth * GIBS_PROBE_VIS_FADE_RATIO, dist)
-									   : 1.f;
+			float visibility = gibs::calc_surfel_visibility<false, false>(data, probe_id, probe_radius, probe.position, probe_normal, world_pos);
 
 			const float near_contribution = gibs::calc_near_contribution(dist, probe.surfel_radius, probe_normal, normal)
 										  * visibility;
@@ -2193,7 +2360,7 @@ namespace gibs
 
 		if (gibs::debug::freeze_spawn_kill(data) is_false)
 		{
-			const bool probe_need_spawn = probe_near_coverage < GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR and probe_far_coverage < GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR;
+			const bool probe_need_spawn = probe_near_coverage <= GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR and probe_far_coverage <= GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR;
 
 			if (probe_need_spawn)
 			{
@@ -2220,7 +2387,7 @@ namespace gibs
 				}
 			}
 
-			if (probe_need_spawn is_false and surfel_near_coverage < GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR and surfel_far_coverage < GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR)
+			if (probe_need_spawn is_false and surfel_near_coverage <= GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR and surfel_far_coverage <= GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR)
 			{
 				const float spawn_prob_near = (GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR - surfel_near_coverage) / float(GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR);
 				const float spawn_prob_far	= (GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR - surfel_far_coverage) / float(GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR);
@@ -2266,12 +2433,9 @@ namespace gibs
 			const float	 dist_sq = dot(rel, rel);
 			const float	 dist	 = sqrt(dist_sq);
 
-			const float sh_depth		= max(0.f, sh1_eval_scalar(probe.depth_sh, -dir));
 			const float sh_coverage_far = max(0.f, sh1_eval_scalar(probe.coverage_far_sh, -dir));
 
-			const float visibility = probe_radius * sh_depth > epsilon_1e4
-									   ? 1.f - smoothstep(probe_radius * sh_depth, probe_radius * sh_depth * GIBS_PROBE_VIS_FADE_RATIO, dist)
-									   : 1.f;
+			float visibility = gibs::calc_surfel_visibility<false, false>(data, probe_id, probe_radius, probe.position, probe_normal, world_pos);
 
 			const float near_contribution = gibs::calc_near_contribution(dist, probe.surfel_radius, probe_normal, normal)
 										  * visibility;

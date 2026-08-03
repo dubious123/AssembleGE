@@ -38,7 +38,7 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	bool kill_probe = false;
 
-	if (probe_recycle.frame_since_ref() >= 0xff)
+	if (probe_recycle.frame_since_ref() >= 30)
 	{
 		kill_probe = true;
 	}
