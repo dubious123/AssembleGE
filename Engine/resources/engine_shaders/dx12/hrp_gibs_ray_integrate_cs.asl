@@ -119,7 +119,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		vis_arr.store(idx, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 	}
 
-	if (opaque_back_face_count >= ray_count / 2)
+	if (opaque_back_face_count >= ray_count / 4)
 	{
 		// todo, kill?
 		if (is_tile)

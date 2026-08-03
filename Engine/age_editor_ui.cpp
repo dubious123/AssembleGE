@@ -855,10 +855,8 @@ namespace age::editor
 			gibs_flag_checkbox(render_cell);
 			gibs_flag_checkbox(render_tile_surfel_count);
 			gibs_flag_checkbox(render_cell_surfel_count);
-			gibs_flag_checkbox(render_surfel_probe_count);
 			gibs_flag_checkbox(render_tile_surfels);
 			gibs_flag_checkbox(render_cell_surfels);
-			gibs_flag_checkbox(render_surfel_probes);
 			gibs_flag_checkbox(render_id_hash);
 			gibs_flag_checkbox(render_radiance);
 			gibs_flag_checkbox(render_irradiance);

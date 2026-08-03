@@ -940,7 +940,7 @@ namespace age::ecs
 	{
 		AGE_COMPONENT_VERSION(1);
 
-		bool  enabled	   = true;
+		bool  enabled	   = false;
 		uint8 slice_count  = 4;
 		uint8 offset_count = 6;
 		uint8 _;

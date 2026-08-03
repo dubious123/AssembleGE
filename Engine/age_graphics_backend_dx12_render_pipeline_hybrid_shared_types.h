@@ -375,6 +375,7 @@ namespace age::graphics::render_pipeline::shared_type
 	struct gibs_ray_lighting_result
 	{
 		uint32 radiance_r11g11b10;
+		uint32 irradiance_r11g11b10;
 	};
 
 	struct gibs_tile_surfel_entry
@@ -442,7 +443,6 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 debug_flags;
 		uint32 max_tile_surfel_count;
 		uint32 max_cell_surfel_count;
-		uint32 max_surfel_probe_count;
 		uint32 cell_count;	  // per axis, level 0, power of 2
 		uint32 cell_count_total;
 		uint32 outer_layer_count;
@@ -472,27 +472,13 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_cell_surfel_luminance_buffer_srv_id;
 		uint32 h_cell_surfel_luminance_buffer_uav_id;
 
-		uint32 h_surfel_probe_buffer_srv_id;
-		uint32 h_surfel_probe_buffer_uav_id;
-		uint32 h_surfel_probe_geo_buffer_srv_id;
-		uint32 h_surfel_probe_geo_buffer_uav_id;
-		uint32 h_surfel_probe_recycle_buffer_srv_id;
-		uint32 h_surfel_probe_recycle_buffer_uav_id;
-		uint32 h_surfel_probe_msme_buffer_srv_id;
-		uint32 h_surfel_probe_msme_buffer_uav_id;
-		uint32 h_surfel_probe_visibility_buffer_srv_id;
-		uint32 h_surfel_probe_visibility_buffer_uav_id;
-
-		uint32 h_tile_surfel_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
+		uint32 h_tile_surfel_id_stack_buffer_srv_id;	// no more swap, but do copy region instead
 		uint32 h_tile_surfel_id_stack_buffer_uav_id;
 
-		uint32 h_cell_surfel_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
+		uint32 h_cell_surfel_id_stack_buffer_srv_id;	// no more swap, but do copy region instead
 		uint32 h_cell_surfel_id_stack_buffer_uav_id;
 
-		uint32 h_surfel_probe_id_stack_buffer_srv_id;	 // no more swap, but do copy region instead
-		uint32 h_surfel_probe_id_stack_buffer_uav_id;
-
-		uint32 is_alt_and_extra;						 // 0 => dead - prev - curr,  1 => dead - curr - prev
+		uint32 is_alt_and_extra;						// 0 => dead - prev - curr,  1 => dead - curr - prev
 
 		uint32 h_scratch_buffer_uav_id;
 
@@ -598,30 +584,6 @@ namespace age::graphics::render_pipeline::shared_type
 			return cell_surfel_alive_id_stack_offset_curr() + sizeof(uint32);
 		}
 
-		uint32
-		probe_dead_id_stack_offset()
-		{
-			return 0u;
-		}
-
-		uint32
-		probe_alive_id_stack_offset_prev()
-		{
-			return sizeof(uint32) * (1 + max_surfel_probe_count) * (is_alt() ? 2u : 1u);
-		}
-
-		uint32
-		probe_alive_id_stack_offset_curr()
-		{
-			return sizeof(uint32) * (1 + max_surfel_probe_count) * (is_alt() ? 1u : 2u);
-		}
-
-		uint32
-		probe_alive_id_arr_offset_curr()
-		{
-			return probe_alive_id_stack_offset_curr() + sizeof(uint32);
-		}
-
 		//---[ scratch ]---
 
 		uint32
@@ -724,45 +686,21 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 
 		uint32
-		cell_probe_count_offset()
-		{
-			return sizeof(uint32);
-		}
-
-		uint32
 		cell_surfel_entry_block_offset()
 		{
-			return sizeof(uint32) * 2;
+			return sizeof(uint32) * 1;
 		}
 
 		uint32
 		cell_to_surfel_id_block_offset()
 		{
-			return sizeof(uint32) * 2 + sizeof(gibs_cell_surfel_entry) * cell_count_total;
+			return sizeof(uint32) * 1 + sizeof(gibs_cell_surfel_entry) * cell_count_total;
 		}
 
 		uint32
 		cell_to_surfel_id_capacity()
 		{
 			return max_cell_surfel_count * 27;
-		}
-
-		uint32
-		cell_probe_entry_block_offset()
-		{
-			return cell_to_surfel_id_block_offset() + sizeof(uint32) * max_cell_surfel_count * 27;
-		}
-
-		uint32
-		cell_to_probe_id_block_offset()
-		{
-			return cell_probe_entry_block_offset() + sizeof(gibs_cell_probe_entry) * cell_count_total;
-		}
-
-		uint32
-		cell_to_probe_id_capacity()
-		{
-			return max_surfel_probe_count * 27;
 		}
 
 		//---[ tile_spawn_kill_buffer : [spawn_data x tile_total x sample_per_tile] ]---
@@ -781,56 +719,23 @@ namespace age::graphics::render_pipeline::shared_type
 		//---[ cell_spawn_kill_buffer ]---
 
 		uint32
-		cell_probe_spawn_data_offset()
+		cell_surfel_spawn_data_offset()
 		{
 			return 0u;
 		}
 
 		uint32
-		cell_surfel_spawn_data_offset()
-		{
-			return cell_probe_spawn_data_offset()
-				 + sizeof(uint64) * cell_count_total;
-		}
-
-		uint32
-		cell_probe_kill_data_offset()
-		{
-			return cell_surfel_spawn_data_offset()
-				 + sizeof(uint64) * cell_count_total;
-		}
-
-		uint32
 		cell_surfel_kill_data_offset()
 		{
-			return cell_probe_kill_data_offset()
+			return cell_surfel_spawn_data_offset()
 				 + (sizeof(uint64)) * cell_count_total;
-		}
-
-		uint32
-		cell_probe_ref_offset()
-		{
-			return cell_surfel_kill_data_offset()
-				 + sizeof(uint64) * cell_count_total;
-		}
-
-		uint32
-		cell_probe_ref_word_offset(uint32 local_id)
-		{
-			return cell_probe_ref_offset() + sizeof(uint32) * (local_id / 32u);
-		}
-
-		uint32
-		cell_probe_ref_capacity()
-		{
-			return max_surfel_probe_count * 27u;
 		}
 
 		uint32
 		cell_surfel_ref_offset()
 		{
-			return cell_probe_ref_offset()
-				 + sizeof(uint32) * ((max_surfel_probe_count * 27 + 31) / 32);
+			return cell_surfel_kill_data_offset()
+				 + (sizeof(uint64)) * cell_count_total;
 		}
 
 		uint32
@@ -1601,28 +1506,24 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_TILE_SURFEL_SPAWN_COVERAGE 1.f
 #define GIBS_TILE_SURFEL_KILL_COVERAGE	3.f
 
-#define GIBS_CELL_SURFEL_RADIUS_RATIO .5f
+#define GIBS_CELL_SURFEL_RADIUS_RATIO 1.f
 
 // trust near 50% more than far
 #define GIBS_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
 
-#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR 0.1f
-#define GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR  3.0f
-#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR  0.1f
-#define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	  3.f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_NEAR 0.1f
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR	 3.f
 
 // 1.f : full hemisphere cover
-#define GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR 0.1f
-#define GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR	 2.f
-#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR	 0.1f
-#define GIBS_CELL_SURFEL_KILL_COVERAGE_FAR	 2.f
+#define GIBS_CELL_SURFEL_SPAWN_COVERAGE_FAR 0.1f
+#define GIBS_CELL_SURFEL_KILL_COVERAGE_FAR	2.f
 
 
 #define GIBS_SPAWN_PROB_FACTOR 0.3f
 #define GIBS_KILL_PROB_FACTOR  0.2f
 
 
-#define GIBS_RADIANCE_CACHE_DELAY 32
+#define GIBS_RADIANCE_CACHE_DELAY 8
 
 #define GIBS_MSME_SHORT_WINDOW_BLEND 0.06f
 #define GIBS_MSME_INCON_BLEND		 0.01f
@@ -1637,25 +1538,23 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_GI_RESOLVE_SAMPLE_PER_TILE	 (GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK * GIBS_GI_RESOLVE_BLOCK_DIM * GIBS_GI_RESOLVE_BLOCK_DIM)
 
 
-#define GIBS_DEBUG_FLAGS_NONE					   0u
-#define GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL		   (1u << 0u)
-#define GIBS_DEBUG_FLAGS_RENDER_TILE			   (1u << 1u)
-#define GIBS_DEBUG_FLAGS_RENDER_CELL			   (1u << 2u)
-#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT  (1u << 3u)
-#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT  (1u << 4u)
-#define GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBE_COUNT (1u << 5u)
-#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS	   (1u << 6u)
-#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS	   (1u << 7u)
-#define GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBES	   (1u << 8u)
-#define GIBS_DEBUG_FLAGS_RENDER_ID_HASH			   (1u << 9u)
-#define GIBS_DEBUG_FLAGS_RENDER_RADIANCE		   (1u << 10u)	  // di (tile_surfel : black)
-#define GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE		   (1u << 11u)	  // gi
-#define GIBS_DEBUG_FLAGS_RENDER_NORMAL			   (1u << 12u)
-#define GIBS_DEBUG_FLAGS_RENDER_VISIBILITY		   (1u << 13u)
-#define GIBS_DEBUG_FLAGS_RENDER_NEAR_COVERAGE	   (1u << 14u)
-#define GIBS_DEBUG_FLAGS_RENDER_FAR_COVERAGE	   (1u << 15u)	  // tile_surfel : black
-#define GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT		   (1u << 16u)
-#define GIBS_DEBUG_FLAGS_RENDER_AGE				   (1u << 17u)
+#define GIBS_DEBUG_FLAGS_NONE					  0u
+#define GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL		  (1u << 0u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE			  (1u << 1u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL			  (1u << 2u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT (1u << 3u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT (1u << 4u)
+#define GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS	  (1u << 6u)
+#define GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS	  (1u << 7u)
+#define GIBS_DEBUG_FLAGS_RENDER_ID_HASH			  (1u << 9u)
+#define GIBS_DEBUG_FLAGS_RENDER_RADIANCE		  (1u << 10u)	 // di (tile_surfel : black)
+#define GIBS_DEBUG_FLAGS_RENDER_IRRADIANCE		  (1u << 11u)	 // gi
+#define GIBS_DEBUG_FLAGS_RENDER_NORMAL			  (1u << 12u)
+#define GIBS_DEBUG_FLAGS_RENDER_VISIBILITY		  (1u << 13u)
+#define GIBS_DEBUG_FLAGS_RENDER_NEAR_COVERAGE	  (1u << 14u)
+#define GIBS_DEBUG_FLAGS_RENDER_FAR_COVERAGE	  (1u << 15u)	 // tile_surfel : black
+#define GIBS_DEBUG_FLAGS_RENDER_RAY_COUNT		  (1u << 16u)
+#define GIBS_DEBUG_FLAGS_RENDER_AGE				  (1u << 17u)
 
 
 #if !defined(AGE_SHADER)
@@ -1699,11 +1598,9 @@ namespace age::graphics::render_pipeline::g
 
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_TILE_SURFEL_COUNT == to_idx(graphics::e::gibs_debug_flags::render_tile_surfel_count));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT == to_idx(graphics::e::gibs_debug_flags::render_cell_surfel_count));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBE_COUNT == to_idx(graphics::e::gibs_debug_flags::render_surfel_probe_count));
 
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_TILE_SURFELS == to_idx(graphics::e::gibs_debug_flags::render_tile_surfels));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_CELL_SURFELS == to_idx(graphics::e::gibs_debug_flags::render_cell_surfels));
-	static_assert(GIBS_DEBUG_FLAGS_RENDER_SURFEL_PROBES == to_idx(graphics::e::gibs_debug_flags::render_surfel_probes));
 
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_ID_HASH == to_idx(graphics::e::gibs_debug_flags::render_id_hash));
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_RADIANCE == to_idx(graphics::e::gibs_debug_flags::render_radiance));

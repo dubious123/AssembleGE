@@ -160,11 +160,9 @@ namespace age::graphics::e
 
 							   (render_tile_surfel_count, (1u << 3u)),
 							   (render_cell_surfel_count, (1u << 4u)),
-							   (render_surfel_probe_count, (1u << 5u)),
 
 							   (render_tile_surfels, (1u << 6u)),
 							   (render_cell_surfels, (1u << 7u)),
-							   (render_surfel_probes, (1u << 8u)),
 							   (render_id_hash, (1u << 9u)),
 							   (render_radiance, (1u << 10u)),		  // di (tile_surfel : black)
 							   (render_irradiance, (1u << 11u)),	  // gi

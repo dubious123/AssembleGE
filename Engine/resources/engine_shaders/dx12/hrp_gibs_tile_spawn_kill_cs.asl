@@ -68,7 +68,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		rw_byte_array<half>	  lum_cdf_arr = gibs::tile::luminance_cdf_rw_arr(data, surfel_id);
 		for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
 		{
-			vis_arr.store(i, uint16(0xffffu));
+			// vis_arr.store(i, uint16(0xffffu));
+			vis_arr.store(i, uint16(0));
 			lum_arr.store(i, (1.h / half(data.atlas_texel_count())));
 			lum_cdf_arr.store(i, (half(i + 1) / half(data.atlas_texel_count())));
 		}

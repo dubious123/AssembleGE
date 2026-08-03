@@ -100,7 +100,7 @@ main_cs(uint32 group_id		   sv_group_id,
 	}
 
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);
-	surfel.position			  = world_pos + world_normal * surfel.radius * 0.001f;
+	surfel.position			  = surface_offset(world_pos, world_normal) + world_normal * surfel.radius * 0.001f;
 
 	attr_branch()
 

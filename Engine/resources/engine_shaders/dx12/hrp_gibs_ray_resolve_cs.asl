@@ -20,7 +20,7 @@ main_cs(uint32 ray_id sv_dispatch_thread_id)
 
 	float3 dir = decode_oct_snorm8(uint32_upper_to_uint16(ray_hit.dir_oct_snorm8));
 
-	gibs_ray_lighting_result res;
+	gibs_ray_lighting_result res = zero<gibs_ray_lighting_result>();
 
 	if (ray_hit.distance == float_max)
 	{
@@ -64,10 +64,11 @@ main_cs(uint32 ray_id sv_dispatch_thread_id)
 
 	const float3 di = calc_di<false>(surface_data, world_face_normal);
 
-	const float3 irradiance = gibs::sample_irradiance(data, ray_id, surface_data.world_pos, world_face_normal, ray_hit.primitive_id);
+	const float3 irradiance = gibs::sample_irradiance<true, true>(data, ray_id, surface_data.world_pos, world_face_normal, ray_hit.primitive_id).xyz;
 
 	const float3 gi = calc_gi(surface_data, irradiance);
 
 	res.radiance_r11g11b10		= encode_r11g11b10(di + gi);
+	res.irradiance_r11g11b10	= encode_r11g11b10(irradiance);
 	ray_lighting_buffer[ray_id] = res;
 }

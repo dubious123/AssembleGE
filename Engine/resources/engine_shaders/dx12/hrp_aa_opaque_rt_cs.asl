@@ -142,7 +142,13 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 		{
 			const float ao = sample_ao(px, surface_data.world_pos, world_face_normal);
 
-			const float3 irradiance = ao * gibs::sample_screen_irradiance(px, invalid_id_uint32, surface_data.world_pos, world_face_normal);
+			const float3 irradiance = ao * gibs::sample_screen_irradiance(px, render_data.object_id, surface_data.world_pos, world_face_normal);
+
+			// float3 irradiance = zero<float3>();
+
+			// bool succeed = gibs::sample_screen_irradiance(gibs::load_data(), surface_data.world_pos, world_face_normal, irradiance);
+
+			// assert(succeed, g::str_shader_name, line, surface_data.world_pos, world_face_normal, px);
 
 			ambient_light += calc_gi(surface_data, irradiance);
 		}

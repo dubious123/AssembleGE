@@ -20,13 +20,6 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id)
 		cell_surfel_dead_stack.set(dispatch_thread_id, dispatch_thread_id);
 	}
 
-	if (dispatch_thread_id < data.max_surfel_probe_count)
-	{
-		rw_stack<uint32> probe_dead_stack = gibs::probe::dead_id_stack(data);
-		probe_dead_stack.resize(data.max_surfel_probe_count);
-		probe_dead_stack.set(dispatch_thread_id, dispatch_thread_id);
-	}
-
 	if (dispatch_thread_id.x == 0)
 	{
 		gibs::tile::alive_id_stack_curr(data).resize(0u);
@@ -34,8 +27,5 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id)
 
 		gibs::cell::alive_id_stack_curr(data).resize(0u);
 		gibs::cell::alive_id_stack_prev(data).resize(0u);
-
-		gibs::probe::alive_id_stack_curr(data).resize(0u);
-		gibs::probe::alive_id_stack_prev(data).resize(0u);
 	}
 }

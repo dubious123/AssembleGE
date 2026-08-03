@@ -268,3 +268,14 @@ near 랑 far의 fatio를 한 0.5까지는 ㄱㅊ은데
 0.1정도가면 성능이 박살남
 
 문제는 light leaking
+
+
+
+
+
+
+
+
+probe를 삭제함 
+light leaking과 또 gi 에서의 anti aliasing 문제가 발생 
+해결해야함.

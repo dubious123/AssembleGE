@@ -86,7 +86,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 		if (contribution == 0.f) { continue; }
 
-		const float visibility = gibs::calc_surfel_visibility<true, false>(data, surfel_id, surfel.radius, surfel.position, decode_oct_snorm16(surfel.normal_oct_snorm16), world_pos);
+		const float visibility = gibs::calc_surfel_visibility<gibs_tile_surfel, true>(data, surfel_id, surfel, world_pos);
 
 		const float contribution_vis = contribution * visibility;
 

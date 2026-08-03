@@ -464,43 +464,19 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_cell_surfel_luminance_buffer_srv_desc;
 		uav_desc_handle h_cell_surfel_luminance_buffer_uav_desc;
 
-		resource_handle h_surfel_probe_buffer;
-		srv_desc_handle h_surfel_probe_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_buffer_uav_desc;
-
-		resource_handle h_surfel_probe_geo_buffer;
-		srv_desc_handle h_surfel_probe_geo_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_geo_buffer_uav_desc;
-
-		resource_handle h_surfel_probe_recycle_buffer;
-		srv_desc_handle h_surfel_probe_recycle_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_recycle_buffer_uav_desc;
-
-		resource_handle h_surfel_probe_msme_buffer;
-		srv_desc_handle h_surfel_probe_msme_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_msme_buffer_uav_desc;
-
-		resource_handle h_surfel_probe_visibility_buffer;
-		srv_desc_handle h_surfel_probe_visibility_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_visibility_buffer_uav_desc;
-
-		resource_handle h_tile_surfel_id_stack_buffer;	   // dead, alive prev, alive curr
+		resource_handle h_tile_surfel_id_stack_buffer;	  // dead, alive prev, alive curr
 		srv_desc_handle h_tile_surfel_id_stack_buffer_srv_desc;
 		uav_desc_handle h_tile_surfel_id_stack_buffer_uav_desc;
 
-		resource_handle h_cell_surfel_id_stack_buffer;	   // dead, alive prev, alive curr
+		resource_handle h_cell_surfel_id_stack_buffer;	  // dead, alive prev, alive curr
 		srv_desc_handle h_cell_surfel_id_stack_buffer_srv_desc;
 		uav_desc_handle h_cell_surfel_id_stack_buffer_uav_desc;
 
-		resource_handle h_surfel_probe_id_stack_buffer;	   // dead, alive prev, alive curr
-		srv_desc_handle h_surfel_probe_id_stack_buffer_srv_desc;
-		uav_desc_handle h_surfel_probe_id_stack_buffer_uav_desc;
-
-		resource_handle		  h_scratch_buffer;			   // prefix, sum, ...
+		resource_handle		  h_scratch_buffer;			  // prefix, sum, ...
 		uav_desc_handle		  h_scratch_buffer_uav_desc;
 		clear_uav_desc_handle h_scratch_buffer_clear_uav_desc;
 
-		resource_handle h_ray_entry_buffer;				   // ray count, ray entry
+		resource_handle h_ray_entry_buffer;				  // ray count, ray entry
 		srv_desc_handle h_ray_entry_buffer_srv_desc;
 		uav_desc_handle h_ray_entry_buffer_uav_desc;
 
@@ -561,7 +537,6 @@ namespace age::graphics::render_pipeline
 		resource_handle h_gi_resolve_sample_res_buffer;
 		srv_desc_handle h_gi_resolve_sample_res_buffer_srv_desc;
 		uav_desc_handle h_gi_resolve_sample_res_buffer_uav_desc;
-
 
 		resource_handle h_indirect_arg_buffer;
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;

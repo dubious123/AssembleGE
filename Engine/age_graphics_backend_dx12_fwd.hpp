@@ -74,16 +74,16 @@ namespace age::graphics::e
 
 					hrp_gibs_update_tile_surfel_id_stack_cs,
 					hrp_gibs_update_cell_surfel_id_stack_cs,
-					hrp_gibs_update_surfel_probe_id_stack_cs,
+					// hrp_gibs_update_surfel_probe_id_stack_cs,
 
 					hrp_gibs_set_indirect_arg_cs,
 
 					hrp_gibs_update_cell_surfel_cs,
-					hrp_gibs_update_surfel_probe_cs,
+					// hrp_gibs_update_surfel_probe_cs,
 
 					hrp_gibs_alloc_tile_surfel_cs,
 					hrp_gibs_alloc_cell_surfel_cs,
-					hrp_gibs_alloc_surfel_probe_cs,
+					// hrp_gibs_alloc_surfel_probe_cs,
 
 					hrp_gibs_tile_surfel_ideal_ray_count_reduce_cs,
 					hrp_gibs_cell_surfel_ideal_ray_count_reduce_cs,
@@ -98,9 +98,9 @@ namespace age::graphics::e
 
 					hrp_gibs_tile_surfel_scatter_cs,
 					hrp_gibs_cell_surfel_scatter_cs,
-					hrp_gibs_cell_probe_scatter_cs,
+					// hrp_gibs_cell_probe_scatter_cs,
 
-					hrp_gibs_surfel_probe_gather_cs,
+					// hrp_gibs_surfel_probe_gather_cs,
 
 					hrp_gibs_gi_reproject_cs,
 

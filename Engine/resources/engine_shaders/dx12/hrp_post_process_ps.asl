@@ -102,18 +102,6 @@ main_ps(float4 pos sv_position) sv_target_0
 				col = float3(ratio, 1 - ratio, 0);
 			}
 		}
-		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.28)
-		{
-			const float ratio = gibs::probe::alive_count_curr(data) / float(data.max_surfel_probe_count);
-			float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
-
-			assert(ratio <= 1.f, line, gibs::probe::alive_count_curr(data));
-
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-		}
 		else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
 		{
 			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
@@ -146,61 +134,61 @@ main_ps(float4 pos sv_position) sv_target_0
 
 	// else
 
-	if (gibs::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			const float2 uv = (debug_uv - float2(0.75f, 0.f)) * 4;
+	// if (gibs::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		const float2 uv = (debug_uv - float2(0.75f, 0.f)) * 4;
 
-			// const float2 uv = debug_uv;
+	//		// const float2 uv = debug_uv;
 
-			const int32_2 screen_pos = uv * backbuffer_size;
+	//		const int32_2 screen_pos = uv * backbuffer_size;
 
-			col	 = segment_is_opaque_edge(screen_pos) ? color_red.xyz : color_white.xyz;
-			col += segment_is_transparent_edge(screen_pos) ? color_green.xyz : color_black.xyz;
+	//		col	 = segment_is_opaque_edge(screen_pos) ? color_red.xyz : color_white.xyz;
+	//		col += segment_is_transparent_edge(screen_pos) ? color_green.xyz : color_black.xyz;
 
-			texture_2d<float4> aa_tex = global_resource_buffer[blend_buffer_srv_id];
+	//		texture_2d<float4> aa_tex = global_resource_buffer[blend_buffer_srv_id];
 
-			col += aa_tex[pos.xy].xyz;
-		}
-	}
-	if (gibs::enabled())
-	{
-		// float2 debug_uv = pos.xy * inv_backbuffer_size;
-		// if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		//{
-		//	float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-		//	int32_2 screen_pos = uv * backbuffer_size;
+	//		col += aa_tex[pos.xy].xyz;
+	//	}
+	//}
+	// if (gibs::enabled())
+	//{
+	//	// float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	// if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	//{
+	//	//	float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//	//	int32_2 screen_pos = uv * backbuffer_size;
 
-		//	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
-		//	texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
-		//	const float			 z_depth	  = load(depth_buffer, screen_pos);
-		//	const float3		 px_normal	  = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
+	//	//	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
+	//	//	texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+	//	//	const float			 z_depth	  = load(depth_buffer, screen_pos);
+	//	//	const float3		 px_normal	  = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
 
-		//	col = px_normal;
-		//}
-	}
-	if (gibs::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+	//	//	col = px_normal;
+	//	//}
+	//}
+	// if (gibs::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
 
-			const gibs_data	   data					 = gibs::load_data();
-			texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
+	//		const gibs_data	   data					 = gibs::load_data();
+	//		texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
 
-			// texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
-			// texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
-			// const float			 z_depth	  = load(depth_buffer, screen_pos);
+	//		// texture_2d<uint32_2> gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
+	//		// texture_2d<float>	 depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+	//		// const float			 z_depth	  = load(depth_buffer, screen_pos);
 
-			col = color_red.xyz * (gi_resolve_age_buffer[screen_pos] / 16.f);
+	//		col = color_red.xyz * (gi_resolve_age_buffer[screen_pos] / 16.f);
 
-			// col = ((geo.y >> 31u) & 1u) ? color_green.xyz : color_red.xyz;
-		}
-	}
+	//		// col = ((geo.y >> 31u) & 1u) ? color_green.xyz : color_red.xyz;
+	//	}
+	//}
 
 	//{
 	//	float2 debug_uv = pos.xy * inv_backbuffer_size;

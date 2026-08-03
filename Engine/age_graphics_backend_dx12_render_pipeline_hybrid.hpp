@@ -172,23 +172,23 @@ namespace age::graphics::render_pipeline
 		ID3D12PipelineState*  p_pso_update_tile_surfel_id_stack;
 		graphics::pso::handle h_pso_update_cell_surfel_id_stack;
 		ID3D12PipelineState*  p_pso_update_cell_surfel_id_stack;
-		graphics::pso::handle h_pso_update_surfel_probe_id_stack;
-		ID3D12PipelineState*  p_pso_update_surfel_probe_id_stack;
+		// graphics::pso::handle h_pso_update_surfel_probe_id_stack;
+		// ID3D12PipelineState*  p_pso_update_surfel_probe_id_stack;
 
 		graphics::pso::handle h_pso_set_indirect_arg;
 		ID3D12PipelineState*  p_pso_set_indirect_arg;
 
 		graphics::pso::handle h_pso_update_cell_surfel;
 		ID3D12PipelineState*  p_pso_update_cell_surfel;
-		graphics::pso::handle h_pso_update_surfel_probe;
-		ID3D12PipelineState*  p_pso_update_surfel_probe;
+		// graphics::pso::handle h_pso_update_surfel_probe;
+		// ID3D12PipelineState*  p_pso_update_surfel_probe;
 
 		graphics::pso::handle h_pso_alloc_tile_surfel;
 		ID3D12PipelineState*  p_pso_alloc_tile_surfel;
 		graphics::pso::handle h_pso_alloc_cell_surfel;
 		ID3D12PipelineState*  p_pso_alloc_cell_surfel;
-		graphics::pso::handle h_pso_alloc_surfel_probe;
-		ID3D12PipelineState*  p_pso_alloc_surfel_probe;
+		// graphics::pso::handle h_pso_alloc_surfel_probe;
+		// ID3D12PipelineState*  p_pso_alloc_surfel_probe;
 
 		graphics::pso::handle h_pso_tile_surfel_ideal_ray_count_reduce;
 		ID3D12PipelineState*  p_pso_tile_surfel_ideal_ray_count_reduce;
@@ -215,11 +215,11 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_cell_surfel_scatter;
 		ID3D12PipelineState*  p_pso_cell_surfel_scatter;
 
-		graphics::pso::handle h_pso_cell_probe_scatter;
-		ID3D12PipelineState*  p_pso_cell_probe_scatter;
+		// graphics::pso::handle h_pso_cell_probe_scatter;
+		// ID3D12PipelineState*  p_pso_cell_probe_scatter;
 
-		graphics::pso::handle h_pso_surfel_probe_gather;
-		ID3D12PipelineState*  p_pso_surfel_probe_gather;
+		// graphics::pso::handle h_pso_surfel_probe_gather;
+		// ID3D12PipelineState*  p_pso_surfel_probe_gather;
 
 		graphics::pso::handle h_pso_gi_reproject;
 		ID3D12PipelineState*  p_pso_gi_reproject;

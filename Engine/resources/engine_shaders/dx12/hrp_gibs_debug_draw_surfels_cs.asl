@@ -12,23 +12,6 @@ struct debug_query_data
 
 	float oldest_cell_surfel_visibility;
 
-	// probe
-	uint32 max_contribution_probe_id;
-	uint32 oldest_probe_id;
-
-	float3 cell_irradiance_near;
-	float3 cell_irradiance_far;
-	float3 cell_irradiance;
-	uint32 probe_count;
-
-	float probe_near_coverage;
-	float probe_far_coverage;
-	float cell_surfel_near_sh_coverage;
-	float cell_surfel_far_sh_coverage;
-
-	float max_contribution_probe_visibility;
-	float oldest_probe_visibility;
-
 	// tile
 	uint32 tile_id;
 
@@ -45,8 +28,6 @@ struct debug_query_data
 		debug_query_data res				= zero<debug_query_data>();
 		res.max_contribution_cell_surfel_id = invalid_id_uint32;
 		res.oldest_cell_surfel_id			= invalid_id_uint32;
-		res.max_contribution_probe_id		= invalid_id_uint32;
-		res.oldest_probe_id					= invalid_id_uint32;
 		res.max_contribution_tile_surfel_id = invalid_id_uint32;
 		res.oldest_tile_surfel_id			= invalid_id_uint32;
 		return res;
@@ -86,7 +67,7 @@ get_tile_surfel(const gibs_data data, const gibs_lut_data lut_data, int32_2 px, 
 
 		if (contribution == 0.f) { continue; }
 
-		const float visibility = gibs::calc_surfel_visibility<true, false>(data, surfel_id, surfel.radius, surfel.position, decode_oct_snorm16(surfel.normal_oct_snorm16), world_pos);
+		const float visibility = gibs::calc_surfel_visibility<gibs_tile_surfel, true>(data, surfel_id, surfel, world_pos);
 
 		const float contribution_vis = contribution * visibility;
 
@@ -162,7 +143,7 @@ get_cell_surfel(const gibs_data data, const gibs_lut_data lut_data, float3 world
 
 		const float contribution = gibs::calc_near_contribution(length(surfel.position - world_pos), surfel.radius, surfel_normal, normal);
 
-		const float surfel_visibility = gibs::calc_surfel_visibility<false, true>(data, surfel_id, surfel.radius, surfel.position, surfel_normal, world_pos);
+		const float surfel_visibility = gibs::calc_surfel_visibility<gibs_cell_surfel, false>(data, surfel_id, surfel, world_pos);
 
 		const float contribution_vis = contribution * surfel_visibility;
 
@@ -198,147 +179,6 @@ get_cell_surfel(const gibs_data data, const gibs_lut_data lut_data, float3 world
 	res.cell_surfel_count				= surfel_entry.surfel_count;
 	res.cell_surfel_coverage			= near_coverage;
 	res.oldest_cell_surfel_visibility	= oldest_surfel_visibility;
-};
-
-void
-get_surfel_probe(const gibs_data data, const gibs_lut_data lut_data, float3 world_pos, float3 normal, inout debug_query_data res)
-{
-	float3 irradiance = zero<float3>();
-
-	const uint32				cell_id		= gibs::cell::calc_id(data, lut_data, world_pos);
-	const gibs_cell_probe_entry probe_entry = gibs::cell::probe_entry_arr(data)[cell_id];
-
-	byte_array<uint32>					 probe_id_arr		  = gibs::cell::cell_to_probe_id_arr(data);
-	structured_buffer<gibs_surfel_probe> probe_buffer		  = global_resource_buffer[data.h_surfel_probe_buffer_srv_id];
-	structured_buffer<gibs_recycle_data> probe_recycle_buffer = global_resource_buffer[data.h_surfel_probe_recycle_buffer_srv_id];
-
-	float4 irradiance_sum = zero<float4>();
-	float4 radiance_sum	  = zero<float4>();
-
-	float  max_contribution_near		  = 0.f;
-	uint32 max_contribution_near_probe_id = invalid_id_uint32;
-	float  max_contribution_far			  = 0.f;
-	uint32 max_contribution_far_probe_id  = invalid_id_uint32;
-	uint32 probe_age_max				  = 0u;
-	float  contribution_oldest			  = 0.f;
-	uint32 probe_id_oldest				  = invalid_id_uint32;
-
-	float surfel_near_coverage_sum = 0.f;
-	float surfel_far_coverage_sum  = 0.f;
-
-	float max_contribution_probe_visibility = 0.f;
-	float oldest_probe_visibility			= 0.f;
-
-	for (uint32 i = 0; i < probe_entry.probe_count; ++i)
-	{
-		const uint32 probe_id = probe_id_arr[probe_entry.offset + i];
-
-		const gibs_surfel_probe probe		 = probe_buffer[probe_id];
-		const float3			probe_normal = decode_oct_snorm16(probe.normal_oct_snorm16);
-		const float				probe_radius = gibs::calc_cell_size(data, lut_data, probe.position);
-
-		const float3 rel	 = probe.position - world_pos;
-		const float3 dir	 = normalize(rel);
-		const float	 dist_sq = dot(rel, rel);
-		const float	 dist	 = sqrt(dist_sq);
-
-		const float sh_coverage_far = max(0.f, sh1_eval_scalar(probe.coverage_far_sh, -dir));
-
-		float visibility = gibs::calc_surfel_visibility<false, false>(data, probe_id, probe_radius, probe.position, probe_normal, world_pos);
-
-		const float near_contribution = gibs::calc_near_contribution(dist, probe.surfel_radius, probe_normal, normal)
-									  * visibility;
-
-		if (near_contribution > 0.f)
-		{
-			irradiance_sum += float4(decode_r11g11b10(probe.irradiance_r11g11b10), 1.f) * near_contribution;
-
-			surfel_near_coverage_sum += probe.coverage_near * near_contribution;
-		}
-
-		const float far_contribution = gibs::calc_far_contribution(rel, dir, probe_normal, probe.surfel_radius, probe_radius, normal)
-									 * visibility;
-
-		if (far_contribution > 0.f)
-		{
-			radiance_sum += float4(decode_r11g11b10(probe.radiance_r11g11b10), 1.f) * far_contribution;
-
-			surfel_far_coverage_sum += sh_coverage_far * far_contribution;
-		}
-
-
-		if (max_contribution_near < near_contribution)
-		{
-			max_contribution_near_probe_id = probe_id;
-			max_contribution_near		   = near_contribution;
-
-			max_contribution_probe_visibility = visibility;
-		}
-
-		if (max_contribution_far < far_contribution)
-		{
-			max_contribution_far_probe_id = probe_id;
-			max_contribution_far		  = far_contribution;
-		}
-
-		if (near_contribution > 0.f)
-		{
-			const gibs_recycle_data probe_recycle_data = probe_recycle_buffer[probe_id];
-			const uint32			probe_age		   = probe_recycle_data.frame_since_born();
-
-			// if (probe_age_max < frame_since_born)
-			//{
-			//	probe_id_oldest		= probe_id;
-			//	probe_age_max		= frame_since_born;
-			//	contribution_oldest = near_contribution;
-
-			//	oldest_probe_visibility = visibility;
-			//}
-
-			if (probe_age >= probe_age_max)
-			{
-				if (probe_age == probe_age_max and probe_id_oldest < probe_id)
-				{
-				}
-				else
-				{
-					probe_id_oldest = probe_id;
-
-					contribution_oldest		= near_contribution;
-					oldest_probe_visibility = visibility;
-				}
-
-				probe_age_max = probe_age;
-			}
-		}
-	}
-
-	const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
-	const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
-
-	const float near_conf = irradiance_sum.w / 1.f * GIBS_NEAR_CONTRIBUTION_TRUST_BIAS;
-	const float far_conf  = radiance_sum.w / 1.f;
-
-	irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
-
-	const float probe_near_coverage	 = irradiance_sum.w;
-	const float probe_far_coverage	 = radiance_sum.w;
-	const float surfel_near_coverage = irradiance_sum.w > 0.f ? surfel_near_coverage_sum / irradiance_sum.w : 0.f;
-	const float surfel_far_coverage	 = radiance_sum.w > 0.f ? surfel_far_coverage_sum / radiance_sum.w : 0.f;
-
-	res.max_contribution_probe_id	 = max_contribution_near_probe_id;
-	res.oldest_probe_id				 = probe_id_oldest;
-	res.cell_irradiance_near		 = irradiance_near;
-	res.cell_irradiance_far			 = irradiance_far;
-	res.cell_irradiance				 = irradiance;
-	res.probe_count					 = probe_entry.probe_count;
-	res.probe_near_coverage			 = probe_near_coverage;
-	res.probe_far_coverage			 = probe_far_coverage;
-	res.cell_surfel_near_sh_coverage = surfel_near_coverage;
-	res.cell_surfel_far_sh_coverage	 = surfel_far_coverage;
-
-	res.max_contribution_probe_visibility = max_contribution_probe_visibility;
-	res.oldest_probe_visibility			  = oldest_probe_visibility;
 };
 
 [numthreads(8, 8, 1)] void
@@ -423,7 +263,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			return;
 		}
 
-		get_surfel_probe(data, lut_data, world_pos, normal, debug_data);
 		get_cell_surfel(data, lut_data, world_pos, normal, debug_data);
 	}
 	else if (opaque_z_depth != 0.f)
@@ -432,16 +271,14 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		normal	  = decode_oct_snorm16(gbuffer[px].y);
 
 		get_tile_surfel(data, lut_data, px, world_pos, normal, debug_data);
-		get_surfel_probe(data, lut_data, world_pos, normal, debug_data);
 		get_cell_surfel(data, lut_data, world_pos, normal, debug_data);
 	}
 
 
 	float4 col = float4(0, 0, 0, 0.f);
 
-	bool tile_surfel_exists	 = false;
-	bool cell_surfel_exists	 = false;
-	bool surfel_probe_exists = false;
+	bool tile_surfel_exists = false;
+	bool cell_surfel_exists = false;
 
 
 	if (gibs::debug::render_tile(data))
@@ -575,7 +412,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			else if (gibs::debug::render_far_coverage(data))
 			{
 				// invalid if probe is null
-				col.rgb *= debug_data.cell_surfel_far_sh_coverage;
+				// col.rgb *= debug_data.cell_surfel_far_sh_coverage;
 			}
 
 			if (gibs::debug::render_ray_count(data))
@@ -590,95 +427,8 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 			}
 		}
 	}
-	if (tile_surfel_exists is_false and cell_surfel_exists is_false and gibs::debug::render_surfel_probes(data))
-	{
-		structured_buffer<gibs_surfel_probe> probe_buffer = global_resource_buffer[data.h_surfel_probe_buffer_srv_id];
 
-		const uint32 probe_id = debug_data.oldest_probe_id;
-
-		if (probe_id != invalid_id_uint32)
-		{
-			surfel_probe_exists = true;
-
-			const gibs_surfel_probe probe = probe_buffer[probe_id];
-
-			if (gibs::debug::render_id_hash(data))
-			{
-				col.rgb += random_color(probe_id);
-			}
-			else if (gibs::debug::render_radiance(data))
-			{
-				col.rgb += decode_r11g11b10(probe.radiance_r11g11b10);
-			}
-			else if (gibs::debug::render_irradiance(data))
-			{
-				col.rgb += decode_r11g11b10(probe.irradiance_r11g11b10);
-			}
-			else if (gibs::debug::render_normal(data))
-			{
-				col.rgb += (0.5f + decode_oct_snorm16(probe.normal_oct_snorm16) * 0.5f);
-			}
-
-			if (gibs::debug::render_visibility(data))
-			{
-				col.rgb *= debug_data.oldest_probe_visibility;
-			}
-			else if (gibs::debug::render_near_coverage(data))
-			{
-				const float coverage = debug_data.probe_near_coverage;
-
-				col.rgb *= coverage;
-
-				float ratio = max(0.f, coverage - GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR) / float(GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR - GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR);
-
-				if (coverage >= GIBS_SURFEL_PROBE_KILL_COVERAGE_NEAR)
-				{
-					col = color_red;
-				}
-				else if (coverage <= GIBS_SURFEL_PROBE_SPAWN_COVERAGE_NEAR)
-				{
-					col = color_blue;
-				}
-				else
-				{
-				}
-			}
-			else if (gibs::debug::render_far_coverage(data))
-			{
-				const float coverage = debug_data.probe_far_coverage;
-
-				col.rgb *= coverage;
-
-				float ratio = max(0.f, coverage - GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR) / float(GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR - GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR);
-
-				if (coverage >= GIBS_SURFEL_PROBE_KILL_COVERAGE_FAR)
-				{
-					col = color_red;
-				}
-				else if (coverage <= GIBS_SURFEL_PROBE_SPAWN_COVERAGE_FAR)
-				{
-					col = color_blue;
-				}
-				else
-				{
-				}
-			}
-
-			if (gibs::debug::render_ray_count(data))
-			{
-				// probe ray_count is 0
-			}
-			else if (gibs::debug::render_age(data))
-			{
-				structured_buffer<gibs_recycle_data> probe_recycle_buffer = global_resource_buffer[data.h_surfel_probe_recycle_buffer_srv_id];
-
-				const uint32 age = probe_recycle_buffer[probe_id].frame_since_born();
-				col				 = float4(age / float(0xff), age / float(0xf), age, 1.f);
-			}
-		}
-	}
-
-	if (tile_surfel_exists or cell_surfel_exists or surfel_probe_exists)
+	if (tile_surfel_exists or cell_surfel_exists)
 	{
 		col.a = 1.f;
 	}
@@ -712,21 +462,6 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		else
 		{
 			col = float4(0, 0, debug_data.cell_surfel_count / float(256), 1.f);
-		}
-	}
-	else if (gibs::debug::render_surfel_probe_count(data))
-	{
-		if (debug_data.probe_count <= 27)
-		{
-			col = float4(debug_data.probe_count / float(27), 0, 0, 1.f);
-		}
-		else if (debug_data.probe_count <= 128)
-		{
-			col = float4(0, debug_data.probe_count / float(128), 0, 1.f);
-		}
-		else
-		{
-			col = float4(0, 0, debug_data.probe_count / float(256), 1.f);
 		}
 	}
 
