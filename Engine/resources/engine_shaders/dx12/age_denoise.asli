@@ -2,19 +2,36 @@
 
 namespace denoise
 {
-	static const float disocclusion_threshold = 0.001f;
+	// static const float disocclusion_threshold = 0.001f;
+
+	// bool
+	// check_prev_valid(float3 pos_prev, float3 pos_curr, float3 normal_prev, float3 normal_curr, float px_z_lin)
+	//{
+	//	const float cos_theta	  = dot(normal_prev, normal_curr);
+	//	const float dist_to_plane = abs(dot(pos_curr - pos_prev, normal_curr));
+
+	//	const float3 view_dir  = normalize(camera_pos - pos_curr);
+	//	const float	 n_dot_v   = max(dot(normal_curr, view_dir), 0.1f);
+	//	const float	 threshold = disocclusion_threshold * px_z_lin / n_dot_v;
+
+	//	return cos_theta > (1.f - 0.1f) and dist_to_plane < threshold;
+	//}
 
 	bool
-	check_prev_valid(float3 pos_prev, float3 pos_curr, float3 normal_prev, float3 normal_curr, float px_z_lin)
+	check_prev_valid(float3 pos_prev, float3 pos_curr, float3 normal_prev, float3 normal_curr,
+					 float px_z_lin, float tolerance_px = 1.f)
 	{
-		const float cos_theta	  = dot(normal_prev, normal_curr);
-		const float dist_to_plane = abs(dot(pos_curr - pos_prev, normal_curr));
+		const float3 rel		= pos_curr - pos_prev;
+		const float	 plane_dist = max(abs(dot(rel, normal_curr)), abs(dot(rel, normal_prev)));
 
-		const float3 view_dir  = normalize(camera_pos - pos_curr);
-		const float	 n_dot_v   = max(dot(normal_curr, view_dir), 0.1f);
-		const float	 threshold = disocclusion_threshold * px_z_lin / n_dot_v;
+		const float3 view_dir = normalize(camera_pos - pos_curr);
+		const float	 n_dot_v  = max(dot(normal_curr, view_dir), 0.1f);
 
-		return cos_theta > (1.f - 0.1f) and dist_to_plane < threshold;
+		const float px_size_y_per_z = 2.f * tan_fov_y_half / backbuffer_size.y;
+		const float tolerance		= px_z_lin * px_size_y_per_z * tolerance_px / n_dot_v;
+
+		return dot(normal_prev, normal_curr) > 0.9f
+		   and plane_dist < tolerance;
 	}
 
 	float2
@@ -57,7 +74,7 @@ namespace denoise
 			 int32_2			  px,
 			 int32_2			  extent,
 			 float2				  motion,
-			 float				  px_depth,
+			 float3				  px_world_pos,
 			 float3				  px_normal,
 			 float				  px_z_lin)
 		{
@@ -68,17 +85,15 @@ namespace denoise
 
 			res.px_prev = clamp(int32_2(floor(screen_pos_f)), zero<int32_2>(), extent - 1);
 
-			const float3 world_pos_curr = ndc_to_world(view_proj_inv, screen_to_ndc(float2(px) + 0.5f, px_depth, inv_backbuffer_size));
-
 			const uint32_2 geo_nearest		 = geo_prev_buffer[res.px_prev];
 			const float	   depth_nearest	 = as_float(geo_nearest.x);
 			const float3   normal_nearest	 = decode_oct_snorm16(geo_nearest.y);
-			const float3   world_pos_nearest = ndc_to_world(view_proj_inv_prev, screen_to_ndc(float2(res.px_prev) + 0.5f, depth_nearest, inv_backbuffer_size));
+			const float3   world_pos_nearest = screen_px_to_world(res.px_prev, depth_nearest, inv_backbuffer_size, view_proj_inv_prev);
 
 			res.is_prev_valid = all(uv_prev >= 0.f)
 							and all(uv_prev < 1.f)
 							and (depth_nearest != 0.f)
-							and check_prev_valid(world_pos_nearest, world_pos_curr, normal_nearest, px_normal, px_z_lin);
+							and check_prev_valid(world_pos_nearest, px_world_pos, normal_nearest, px_normal, px_z_lin);
 
 			const float2  base_f = screen_pos_f - 0.5f;
 			const int32_2 base_i = int32_2(floor(base_f));
@@ -111,10 +126,12 @@ namespace denoise
 					continue;
 				}
 
-				const float	 tap_z_lin	= calc_linear_z_reversed(cam_near_z, cam_far_z, as_float(geo.x));
-				const float3 tap_normal = decode_oct_snorm16(geo.y);
+				const float	 tap_z_depth = as_float(geo.x);
+				const float3 tap_normal	 = decode_oct_snorm16(geo.y);
 
-				res.w[i] = calc_bilateral_weight(px_z_lin, px_normal, tap_z_lin, tap_normal, ratio[i]);
+				const float3 tap_world_pos = screen_px_to_world(res.px[i], tap_z_depth, inv_backbuffer_size, view_proj_inv_prev);
+
+				res.w[i] = calc_bilateral_weight(px_world_pos, px_normal, px_z_lin, tap_world_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size, ratio[i]);
 
 				if (res.w[i] > 0.f)
 				{

@@ -402,7 +402,7 @@ namespace age::graphics::render_pipeline::shared_type
 		uint16 sample_pos_lin;
 		half   coverage;
 		uint32 normal_oct_snorm16;
-		float  z_lin;
+		float  z_depth;
 	};
 
 	struct gibs_indirect_arg

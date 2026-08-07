@@ -74,10 +74,17 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 			const float dist_to_plane = abs(dot(px_world_pos_tap - px_world_pos, px_normal));
 			const float cos_theta	  = dot(px_normal, px_normal_tap);
 
+			const float3 rel  = px_world_pos_tap - px_world_pos;
+			const float	 asym = abs(dot(rel, px_normal + px_normal_tap)) * 0.5f;
+
+			const float px_size_y_per_z = 2 * tan_fov_y_half * inv_backbuffer_size.y;
+			const float tolerance		= px_z_lin * px_size_y_per_z * 2.f / n_dot_v;
+
 			const float w = kernel_w
 						  * connect_w
 						  * pow(max(cos_theta, 0.f), 32.f)
-						  * exp(-dist_to_plane / plane_threshold);
+						  * exp(-asym / tolerance);
+			//* exp(-dist_to_plane / plane_threshold);
 
 			res += float4(src.xyz, 1.f) * w;
 		}

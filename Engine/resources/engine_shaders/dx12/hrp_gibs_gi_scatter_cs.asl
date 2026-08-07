@@ -29,6 +29,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	texture_2d<uint32_2> opaque_gbuffer = global_resource_buffer[opaque_gbuffer_srv_id];
 	const float3		 px_normal_curr = decode_oct_snorm16(opaque_gbuffer[px].y);
 	const float			 z_depth		= depth_buffer[px];
+
 	// sky
 	if (z_depth == 0.f)
 	{
@@ -36,7 +37,8 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		return;
 	}
 
-	const float px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+	const float3 px_world_pos  = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
+	const float	 px_z_lin_curr = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
 
 	const float3 px_irradiance	= gi_resolve_buffer[px];
 	const float	 px_luminance	= luminance_rec709(px_irradiance);
@@ -69,16 +71,16 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 													+ int32_2(sample_res.sample_pos_lin % GIBS_GI_RESOLVE_BLOCK_SIZE, sample_res.sample_pos_lin / GIBS_GI_RESOLVE_BLOCK_SIZE);
 
 					const float pos_rel	   = length_sq(px - sample_px);
-					const float pos_weight = 1.f / (1.f + pos_rel * (1.f / GIBS_GI_RESOLVE_BLOCK_SIZE));
+					const float pos_weight = 1.f / (1.f + pos_rel * (1.f / (GIBS_GI_RESOLVE_BLOCK_SIZE * GIBS_GI_RESOLVE_BLOCK_SIZE)));
 
-					const float3 sample_normal = decode_oct_snorm16(sample_res.normal_oct_snorm16);
-					const float	 sample_z_lin  = sample_res.z_lin;
+					const float3 sample_normal	  = decode_oct_snorm16(sample_res.normal_oct_snorm16);
+					const float3 sample_world_pos = screen_px_to_world(sample_px, sample_res.z_depth, inv_backbuffer_size, view_proj_inv);
 
 					const float lum_diff   = abs(px_luminance - luminance_rec709(sample_irradiance));
 					const float lum_rel	   = lum_diff / (px_luminance + luminance_rec709(sample_irradiance) + epsilon_1e4);
 					const float lum_weight = 1.f / (1.f + lum_rel * GIBS_GI_SCATTER_LUM_SCALE);
 
-					const float w = calc_bilateral_weight(px_z_lin_curr, px_normal_curr, sample_z_lin, sample_normal, float2(1.f, 1.f))
+					const float w = calc_bilateral_weight(px_world_pos, px_normal_curr, px_z_lin_curr, sample_world_pos, sample_normal, tan_fov_y_half, inv_backbuffer_size)
 								  * pos_weight
 								  //* lum_weight
 								  * sample_res.coverage;
@@ -90,15 +92,13 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	}
 	gi_resolve_weight_buffer[px] = irradiance_sum.w;
 
-	if (irradiance_sum.w > 0.f)
+	if (irradiance_sum.w > 0.5f)
 	{
 		gi_resolve_buffer[px] = lerp(px_irradiance, irradiance_sum.xyz / irradiance_sum.w, 1.f / (age_curr + 1.f));
-		// gi_resolve_buffer[px] = lerp(px_irradiance, irradiance_sum.xyz / irradiance_sum.w, 1.f / (16 + 1.f));
-
-		// gi_resolve_buffer[px] = lerp(px_irradiance, irradiance_sum.xyz / irradiance_sum.w, 0.2f);
 	}
 	else
 	{
+		gi_resolve_buffer[px] = gibs::sample_screen_irradiance(px, /*render_data.object_id*/ invalid_id_uint32, px_world_pos, px_normal_curr);
 		// todo
 	}
 }

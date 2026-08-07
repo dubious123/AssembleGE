@@ -130,6 +130,23 @@ main_ps(float4 pos sv_position) sv_target_0
 			col = float3(ao_res.x, ao_res.x, ao_res.x);
 		}
 	}
+
+	if (gibs::enabled())
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2 screen_pos = uv * backbuffer_size;
+
+			texture_2d<float> weight_buffer = global_resource_buffer[gibs::load_data().h_gi_resolve_weight_buffer_srv_id];
+
+			float ao_res = weight_buffer[screen_pos];
+
+			col.xyz = color_red.xyz * weight_buffer[screen_pos];
+		}
+	}
+
 	// else
 
 	// else

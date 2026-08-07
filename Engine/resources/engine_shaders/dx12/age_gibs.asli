@@ -1229,7 +1229,8 @@ namespace gibs
 		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj.scale), decode_quaternion(obj.quaternion)));
 
 		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_face_normal);
-		surfel.position			  = surface_offset(v.world_pos, world_face_normal) + world_face_normal * 0.1f;
+		// surfel.position			  = surface_offset(v.world_pos, world_face_normal) + world_face_normal * 0.1f;
+		surfel.position			  = v.world_pos;
 		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(surface_data, world_face_normal) + calc_gi(surface_data, decode_r11g11b10(surfel.irradiance_r11g11b10)));
 	}
 
@@ -1640,16 +1641,16 @@ namespace gibs
 
 		const float cos_theta = dot(normal, surfel_normal);
 
-		// const float cos_weight = cos_theta > 0.f ? 1.f : 1 + cos_theta;
-		// return cos_weight * (1.f - sqrt(dist_sq) / effective_radius);
 		if (cos_theta < 0.5f) { return 0.f; }
 
-		// return abs(cos_theta) * (1.f - sqrt(dist_sq) / effective_radius);
 		const float distance = sqrt(dist_sq);
 
-		// return 1.f - smoothstep(0.25f * effective_radius, effective_radius, sqrt(dist_sq));
-		// return (1.f - sqrt(dist_sq) / effective_radius);
-		return smoothstep(0, 1, (1.f - sqrt(dist_sq) / effective_radius));
+		// todo, vertex normal => face normal
+		if (distance < 0.1f * surfel.radius) { return 1.f; }
+
+		if (abs(dot(rel, surfel_normal + normal)) > 0.25f * distance) { return 0.f; }
+
+		return smoothstep(0, 1, (1.f - distance / effective_radius));
 	}
 
 	// based on ray-tracing-gems ch25
@@ -1869,7 +1870,6 @@ namespace gibs
 		}
 		else
 		{
-			return color_red.xyz;
 			texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 
 			// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
@@ -1893,7 +1893,7 @@ namespace gibs
 	}
 
 	float4
-	gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float center_z_lin, float3 center_n, int32_2 extent)
+	gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float3 center_world_pos, float3 center_normal, float center_z_lin, int32_2 extent)
 	{
 		float4 res = zero<float4>();
 
@@ -1903,16 +1903,17 @@ namespace gibs
 		{
 			for (int32 dx = -r.x; dx <= r.x; ++dx)
 			{
-				const int32_2  tap			 = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
-				const uint32_2 geo_tap		 = geo_src[tap];
-				const float	   px_depth_tap	 = as_float(geo_tap.x);
-				const float3   px_normal_tap = decode_oct_snorm16(geo_tap.y);
+				const int32_2  tap	   = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+				const uint32_2 geo_tap = geo_src[tap];
 
 				if (geo_tap.x == 0) { continue; }
 
-				const float px_z_lin_tap = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth_tap);
+				const float	 tap_depth	= as_float(geo_tap.x);
+				const float3 tap_normal = decode_oct_snorm16(geo_tap.y);
 
-				const float w = calc_bilateral_weight(center_z_lin, center_n, px_z_lin_tap, px_normal_tap, float2(1.f, 1.f));
+				const float3 tap_world_pos = screen_px_to_world(tap, tap_depth, inv_backbuffer_size, view_proj_inv);
+
+				const float w = calc_bilateral_weight(center_world_pos, center_normal, center_z_lin, tap_world_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size);
 
 				res += float4(irr_src[tap], 1.f) * w;
 			}
@@ -1987,9 +1988,9 @@ namespace gibs
 		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
 		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
 
-		const int32_2 center_px = int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
-		const int32_2 extent	= int32_2(backbuffer_size);
-		const float	  lin_hit	= calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+		const int32_2 center_px	   = int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
+		const int32_2 extent	   = int32_2(backbuffer_size);
+		const float	  center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
 
 		float4 irradiance_sum = zero<float4>();
 
@@ -1999,19 +2000,19 @@ namespace gibs
 			{
 				const int32_2 tap = clamp(center_px + int32_2(dx, dy), zero<int32_2>(), extent - 1);
 
-				const float z_depth = load(depth_buffer, tap);
+				const float z_depth = depth_buffer[tap];
 				if (z_depth == 0.f) { continue; }	 // sky
 
-				const float3 px_normal = decode_oct_snorm16(gbuffer[tap].y);
-				const float	 lin_px	   = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+				const float3 tap_normal	   = decode_oct_snorm16(gbuffer[tap].y);
+				const float3 tap_world_pos = screen_px_to_world(tap, z_depth, inv_backbuffer_size, view_proj_inv);
 
-				const float w = calc_bilateral_weight(lin_hit, face_normal, lin_px, px_normal);
+				const float w = calc_bilateral_weight(world_pos, face_normal, center_z_lin, tap_world_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size);
 
 				irradiance_sum += float4(gi_resolve_buffer[tap], 1.f) * w;
 			}
 		}
 
-		if (irradiance_sum.w < 0.1f) { return false; }
+		if (irradiance_sum.w < 0.5f) { return false; }
 
 		irradiance = irradiance_sum.xyz / irradiance_sum.w;
 		return true;

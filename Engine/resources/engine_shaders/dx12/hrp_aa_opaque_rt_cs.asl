@@ -31,10 +31,10 @@ sample_ao(float2 px, float3 world_pos, float3 normal)
 
 	const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
 
-	const float z_lin_00 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_00]);
-	const float z_lin_01 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_01]);
-	const float z_lin_10 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_10]);
-	const float z_lin_11 = calc_linear_z_reversed(cam_near_z, cam_far_z, depth_buffer[px_11]);
+	const float3 world_pos_00 = screen_px_to_world(px_00, depth_buffer[px_00], inv_backbuffer_size, view_proj_inv);
+	const float3 world_pos_01 = screen_px_to_world(px_01, depth_buffer[px_01], inv_backbuffer_size, view_proj_inv);
+	const float3 world_pos_10 = screen_px_to_world(px_10, depth_buffer[px_10], inv_backbuffer_size, view_proj_inv);
+	const float3 world_pos_11 = screen_px_to_world(px_11, depth_buffer[px_11], inv_backbuffer_size, view_proj_inv);
 
 	const float3 normal_00 = decode_oct_snorm16(gbuffer[px_00].y);
 	const float3 normal_01 = decode_oct_snorm16(gbuffer[px_01].y);
@@ -42,10 +42,10 @@ sample_ao(float2 px, float3 world_pos, float3 normal)
 	const float3 normal_11 = decode_oct_snorm16(gbuffer[px_11].y);
 
 	float2 res	= zero<float2>();
-	res		   += float2(ao_buffer[px_00].x, 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_00, normal_00, ratio_00);
-	res		   += float2(ao_buffer[px_01].x, 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_01, normal_01, ratio_01);
-	res		   += float2(ao_buffer[px_10].x, 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_10, normal_10, ratio_10);
-	res		   += float2(ao_buffer[px_11].x, 1.f) * calc_bilateral_weight(center_z_lin, normal, z_lin_11, normal_11, ratio_11);
+	res		   += float2(ao_buffer[px_00].x, 1.f) * calc_bilateral_weight(world_pos, normal, center_z_lin, world_pos_00, normal_00, tan_fov_y_half, inv_backbuffer_size, ratio_00);
+	res		   += float2(ao_buffer[px_01].x, 1.f) * calc_bilateral_weight(world_pos, normal, center_z_lin, world_pos_01, normal_01, tan_fov_y_half, inv_backbuffer_size, ratio_01);
+	res		   += float2(ao_buffer[px_10].x, 1.f) * calc_bilateral_weight(world_pos, normal, center_z_lin, world_pos_10, normal_10, tan_fov_y_half, inv_backbuffer_size, ratio_10);
+	res		   += float2(ao_buffer[px_11].x, 1.f) * calc_bilateral_weight(world_pos, normal, center_z_lin, world_pos_11, normal_11, tan_fov_y_half, inv_backbuffer_size, ratio_11);
 
 	if (res.y > epsilon_1e4)
 	{
@@ -99,7 +99,6 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 
 		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
 
-
 		float3 ambient_light = float3(0, 0, 0);
 
 		attr_branch()
@@ -140,9 +139,10 @@ rt_trace(float2 px, ray_desc desc, inout ray_query<ray_flag> query)
 		//}
 		else if (gibs::enabled())
 		{
+			// todo, shading normal??
 			const float ao = sample_ao(px, surface_data.world_pos, world_face_normal);
 
-			const float3 irradiance = ao * gibs::sample_screen_irradiance(px, render_data.object_id, surface_data.world_pos, world_face_normal);
+			const float3 irradiance = ao * gibs::sample_screen_irradiance(px, /*render_data.object_id*/ invalid_id_uint32, surface_data.world_pos, world_face_normal);
 
 			// float3 irradiance = zero<float3>();
 

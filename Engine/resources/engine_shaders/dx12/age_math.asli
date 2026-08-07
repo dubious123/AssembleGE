@@ -1005,6 +1005,12 @@ screen_px_to_ndc(int32_2 px, float z_depth, float2 inv_backbuffer_size)
 	return float3(screen_to_ndc(float2(px) + 0.5f, inv_backbuffer_size), z_depth);
 }
 
+float3
+screen_px_to_world(int32_2 px, float z_depth, float2 inv_backbuffer_size, float4x4 view_proj_inv)
+{
+	return ndc_to_world(view_proj_inv, float3(screen_px_to_ndc(px, z_depth, inv_backbuffer_size)));
+}
+
 float2
 ndc_xy_to_screen_uv(float2 ndc_xy)
 {
@@ -1519,32 +1525,78 @@ morton_3d(float3 v)
 
 // from RT Gems Ch.6
 // A Fast and Robust Method for Avoiding Self-Intersection
+// float3
+// surface_offset(float3 p, float3 n)
+//{
+//	const float origin		= 1.0f / 32.0f;
+//	const float float_scale = 1.0f / 65536.0f;
+//	const float int_scale	= 256.0f;
+//
+//	int32_3 of_i = int32_3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
+//
+//	float3 p_i = float3(
+//		as_float(as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
+//		as_float(as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
+//		as_float(as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+//
+//	return float3(
+//		abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
+//		abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
+//		abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+//}
+
 float3
 surface_offset(float3 p, float3 n)
 {
 	const float origin		= 1.0f / 32.0f;
 	const float float_scale = 1.0f / 65536.0f;
 	const float int_scale	= 256.0f;
+	const float sys_scale	= 64.0f / 8388608.0f;
+
+	// const float	 max_comp = max(abs(p.x), max(abs(p.y), abs(p.z)));
+	const float3 p_sys = p + n * (max(abs(p)) * sys_scale);
 
 	int32_3 of_i = int32_3(int_scale * n.x, int_scale * n.y, int_scale * n.z);
 
 	float3 p_i = float3(
-		as_float(as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
-		as_float(as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
-		as_float(as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
+		as_float(as_int(p_sys.x) + ((p_sys.x < 0) ? -of_i.x : of_i.x)),
+		as_float(as_int(p_sys.y) + ((p_sys.y < 0) ? -of_i.y : of_i.y)),
+		as_float(as_int(p_sys.z) + ((p_sys.z < 0) ? -of_i.z : of_i.z)));
 
 	return float3(
-		abs(p.x) < origin ? p.x + float_scale * n.x : p_i.x,
-		abs(p.y) < origin ? p.y + float_scale * n.y : p_i.y,
-		abs(p.z) < origin ? p.z + float_scale * n.z : p_i.z);
+		abs(p_sys.x) < origin ? p_sys.x + float_scale * n.x : p_i.x,
+		abs(p_sys.y) < origin ? p_sys.y + float_scale * n.y : p_i.y,
+		abs(p_sys.z) < origin ? p_sys.z + float_scale * n.z : p_i.z);
 }
 
+// float
+// calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
+//{
+//	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
+//	const float w_depth	   = exp(-depth_diff * 100);
+//	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
+//
+//	return w_depth * w_normal * ratio.x * ratio.y;
+// }
+
 float
-calc_bilateral_weight(float center_z_lin, float3 center_normal, float target_z_lin, float3 target_normal, float2 ratio = float2(1.f, 1.f))
+calc_bilateral_weight(float3 center_pos, float3 center_normal, float center_z_lin,
+					  float3 target_pos, float3 target_normal,
+					  float	 tan_fov_y_half,
+					  float2 inv_backbuffer_size,
+					  float2 ratio		  = float2(1.f, 1.f),
+					  float	 tolerance_px = 3.f)
 {
-	const float depth_diff = abs(center_z_lin - target_z_lin) / max(center_z_lin, epsilon_1e4);
-	const float w_depth	   = exp(-depth_diff * 100);
-	const float w_normal   = pow(max(0.f, dot(center_normal, target_normal)), 8);
+	const float3 rel = target_pos - center_pos;
+
+	const float plane_dist = max(abs(dot(rel, center_normal)), abs(dot(rel, target_normal)));
+
+	const float px_size_y_per_z = 2 * tan_fov_y_half * inv_backbuffer_size.y;
+
+	const float tolerance = center_z_lin * px_size_y_per_z * tolerance_px;
+
+	const float w_depth	 = exp(-plane_dist / max(tolerance, epsilon_1e4));
+	const float w_normal = pow(max(0.f, dot(center_normal, target_normal)), 8);
 
 	return w_depth * w_normal * ratio.x * ratio.y;
 }

@@ -61,10 +61,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	const uint32 px_normal_oct_snorm16 = gbuffer[px].y;
 	const float3 px_normal			   = decode_oct_snorm16(px_normal_oct_snorm16);
 
-	const float2 screen_pos = float2(px + 0.5f);
-	const float2 ndc		= screen_to_ndc(screen_pos, inv_backbuffer_size);
-	const float4 clip_pos	= mul(view_proj_inv, float4(ndc, z_depth, 1.0));
-	const float3 world_pos	= clip_pos.xyz / clip_pos.w;
+	const float3 world_pos = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
 
 	const uint32				 tile_id	= gibs::tile::calc_id(data, group_id.xy);
 	const gibs_tile_surfel_entry tile_entry = tile_entry_arr[tile_id];
@@ -124,7 +121,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	sample_res.irradiance_r11g11b10 = encode_r11g11b10(new_born_irradiance);
 	sample_res.normal_oct_snorm16	= px_normal_oct_snorm16;
 	sample_res.sample_pos_lin		= sample_pos_lin;
-	sample_res.z_lin				= calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+	sample_res.z_depth				= z_depth;
 
 	gi_resolve_sample_res_rw_arr.store(sample_id, sample_res);
 

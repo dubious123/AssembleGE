@@ -61,10 +61,12 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	if (is_thread_valid)
 	{
-		const float3 px_normal = decode_oct_snorm16(gbuffer[px].y);
-		const float	 px_z_lin  = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth);
+		const float3 px_normal	  = decode_oct_snorm16(gbuffer[px].y);
+		const float3 px_world_pos = screen_px_to_world(px, px_depth, inv_backbuffer_size, view_proj_inv);
 
-		const denoise::reproject_taps rp_taps = denoise::reproject_taps::init(opaque_geo_prev_buffer, px, extent, motion, px_depth, px_normal, px_z_lin);
+		const float px_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth);
+
+		const denoise::reproject_taps rp_taps = denoise::reproject_taps::init(opaque_geo_prev_buffer, px, extent, motion, px_world_pos, px_normal, px_z_lin);
 
 		if (rp_taps.is_prev_valid)
 		{
@@ -104,7 +106,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		{
 			gi_resolve_age_curr_buffer[px] = 0u;
 
-			const float4 gi_irradiance_sum = gibs::gather_neighbor_gi(gi_resolve_prev_buffer, opaque_geo_prev_buffer, px, px_z_lin, px_normal, extent);
+			const float4 gi_irradiance_sum = gibs::gather_neighbor_gi(gi_resolve_prev_buffer, opaque_geo_prev_buffer, px, px_world_pos, px_normal, px_z_lin, extent);
 
 			gi_resolve_curr_buffer[px] = gi_irradiance_sum.w > 0.f
 										   ? gi_irradiance_sum.xyz / gi_irradiance_sum.w
@@ -112,9 +114,8 @@ main_cs(uint32_3 group_id	   sv_group_id,
 		}
 	}
 
-	const float gi_weight = gi_weight_sum;
-
-	const uint32 wave_idx = group_thread_id / AGE_WAVE_SIZE;
+	const float	 gi_weight = gi_weight_sum + random_pcg3d(uint32_3(frame_index, px.x, px.y)).x;
+	const uint32 wave_idx  = group_thread_id / AGE_WAVE_SIZE;
 
 	static_assert((GIBS_GI_RESOLVE_BLOCK_SIZE * GIBS_GI_RESOLVE_BLOCK_SIZE) < 0xffff);
 

@@ -279,3 +279,8 @@ near 랑 far의 fatio를 한 0.5까지는 ㄱㅊ은데
 probe를 삭제함 
 light leaking과 또 gi 에서의 anti aliasing 문제가 발생 
 해결해야함.
+
+
+surfel asym 검사할때 normal을 vertex normal대신 face normal로 변경해야함.
+
+shading normal vs geo_normal 통일

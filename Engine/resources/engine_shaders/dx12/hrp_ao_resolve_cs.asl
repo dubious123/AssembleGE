@@ -46,7 +46,6 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const float3 px_normal	 = decode_oct_snorm16(gbuffer[px].y);
 	const float3 view_normal = normalize(mul(cast<float3x3>(view), px_normal));
-	const float	 px_z_lin	 = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
 
 	const float3 rng	   = random_pcg3d(uint32_3(px.x, px.y, frame_index));
 	const float	 px_world  = px_world_size(z_depth, tan_fov_y_half, backbuffer_size.y);
@@ -188,7 +187,11 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const float2 motion = denoise::sample_motion(motion_buffer, depth_buffer, px, extent);
 
-	const denoise::reproject_taps rp_taps = denoise::reproject_taps::init(opaque_geo_prev_buffer, px, extent, motion, z_depth, px_normal, px_z_lin);
+	const float px_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, z_depth);
+
+	const float3 px_world_pos = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
+
+	const denoise::reproject_taps rp_taps = denoise::reproject_taps::init(opaque_geo_prev_buffer, px, extent, motion, px_world_pos, px_normal, px_z_lin);
 
 	if (rp_taps.is_prev_valid)
 	{

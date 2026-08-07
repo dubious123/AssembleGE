@@ -119,8 +119,26 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		vis_arr.store(idx, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 	}
 
-	if (opaque_back_face_count >= ray_count / 4)
+	const bool kill = (ray_count <= 8u and opaque_back_face_count >= 2)
+				   or (ray_count > 8u and opaque_back_face_count >= ray_count / 4);
+	// if (opaque_back_face_count >= ray_count / 4)
+	if (kill)
 	{
+		// if (thread_id % AGE_WAVE_SIZE == 0 and (is_tile is_false))
+		//{
+		//	debug_log(g::str_shader_name, line, surfel_id, ray_count, opaque_back_face_count, surfel_position, surfel_normal);
+
+		//	for (uint32 i = 0; i < ray_count; ++i)
+		//	{
+		//		gibs_ray_hit_result ray_hit = ray_hit_result_buffer[ray_offset + i];
+		//		if (ray_hit.distance < 0.f and ray_hit.object_id == invalid_id_uint32)
+		//		{
+		//			const float3 dir_local = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(ray_hit.dir_oct_snorm8));
+		//			debug_log(g::str_shader_name, line, surfel_id, i, abs(ray_hit.distance), dir_local.y);
+		//		}
+		//	}
+		//}
+
 		// todo, kill?
 		if (is_tile)
 		{

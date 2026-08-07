@@ -185,7 +185,7 @@ get_cell_surfel(const gibs_data data, const gibs_lut_data lut_data, float3 world
 main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 {
-	if (dispatch_thread_id.x >= (uint32)backbuffer_size.x || dispatch_thread_id.y >= (uint32)backbuffer_size.y)
+	if (dispatch_thread_id.x >= (uint32)backbuffer_size.x or dispatch_thread_id.y >= (uint32)backbuffer_size.y)
 	{
 		return;
 	}
