@@ -52,6 +52,7 @@ namespace age::graphics::e
 
 					hrp_light_zbin_cs,
 
+					// ddgi
 					hrp_ddgi_update_probe_state_cs,
 					hrp_ddgi_reduce_ray_sum_cs,
 					hrp_ddgi_prefix_group_cs,
@@ -66,6 +67,7 @@ namespace age::graphics::e
 					hrp_ddgi_render_probes_ms,
 					hrp_ddgi_render_probes_ps,
 
+					// gibs
 					hrp_gibs_cleanup_cs,
 					hrp_gibs_tile_spawn_kill_cs,
 					hrp_gibs_cell_spawn_kill_cs,
@@ -113,6 +115,39 @@ namespace age::graphics::e
 					hrp_gibs_gi_reconstruct_cs,
 					hrp_gibs_debug_draw_surfels_cs,
 					hrp_gibs_debug_resolve_ps,
+
+					// gist
+					hrp_gist_cleanup_cs,
+					hrp_gist_prepare_cs,
+					hrp_gist_cell_surfel_spawn_kill_cs,
+					hrp_gist_update_cell_surfel_id_stack_cs,
+					hrp_gist_set_indirect_arg_cs,
+					hrp_gist_update_cell_surfel_cs,
+					hrp_gist_alloc_cell_surfel_cs,
+					hrp_gist_cell_surfel_ideal_ray_count_reduce_cs,
+					hrp_gist_cell_surfel_ray_count_prefix_cs,
+					hrp_gist_ray_entry_cs,
+					hrp_gist_cell_prefix_cs,
+					hrp_gist_cell_surfel_scatter_cs,
+					hrp_gist_gi_reproject_cs,
+					hrp_gist_cell_surfel_ray_trace_cs,
+					hrp_gist_tile_ray_trace_cs,
+					hrp_gist_ray_resolve_cs,
+					hrp_gist_adaptive_ray_alloc_cs,
+					hrp_gist_adaptive_ray_entry_prepare_cs,
+					hrp_gist_adaptive_ray_entry_cs,
+					hrp_gist_adaptive_ray_trace_diffuse_cs,
+					hrp_gist_adaptive_ray_trace_specular_cs,
+					hrp_gist_cell_surfel_ray_integrate_cs,
+					hrp_gist_px_update_luminance_cs,
+					hrp_gist_cell_surfel_build_cdf_cs,
+					hrp_gist_px_build_cdf_cs,
+					hrp_gist_gi_resolve_cs,
+					hrp_gist_adaptive_gi_resolve_diffuse_cs,
+					hrp_gist_gi_reconstruct_cs,
+					hrp_gist_debug_view_cs,
+					hrp_gist_debug_resolve_ps,
+
 
 					hrp_opaque_ps,
 

@@ -154,7 +154,6 @@ namespace age::graphics::e
 	AGE_DEFINE_ENUM_WITH_VALUE(gibs_debug_flags, uint32,
 							   (none, 0),
 							   (freeze_spawn_kill, (1u << 0u)),
-
 							   (render_tile, (1u << 1u)),
 							   (render_cell, (1u << 2u)),
 
@@ -176,6 +175,14 @@ namespace age::graphics::e
 							   (render_age, (1u << 17u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
+
+	AGE_DEFINE_ENUM_WITH_VALUE(gist_debug_flags, uint32,
+							   (none, 0),
+							   (freeze_surfel_spawn, (1u << 0u)),
+							   (freeze_surfel_kill, (1u << 1u)),
+							   (freeze_surfel_radius, (1u << 2u)));
+
+	AGE_ENUM_FLAG_OPERATORS(gist_debug_flags);
 
 
 	AGE_DEFINE_ENUM_WITH_VALUE(ao_debug_flags, uint32,

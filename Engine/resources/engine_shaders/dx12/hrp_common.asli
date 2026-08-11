@@ -1,6 +1,7 @@
 #pragma once
 #include "age.asli"
 #include "age_math.asli"
+#include "age_util.asli"
 #include "age_graphics_backend_dx12_render_pipeline_hybrid_shared_types.h"
 
 // global
@@ -57,7 +58,7 @@ uint32			   directional_light_count_and_extra;
 t_unified_light_id unified_light_count;
 
 uint32 rc_scratch_0;	// pass_counter  (light),
-						// pass_counter  (gibs_reconstruct)
+						// pass_counter  (gibs_reconstruct, gist_reconstruct)
 						// srv mip level (bloom, target_mip == src_mip + 1 or src_mip - 1)
 						// ui_space_mode_and_extra, [ui_space_mode(8)][extra] (ui)
 						// debug_meshlet_render_data_offset (debug)
@@ -972,16 +973,17 @@ safe_dot_camera_forward(float3 dir)
 
 #include "age_data_structure.asli"
 #include "age_algorithm.asli"
-#include "age_mesh.asli"
 #include "age_color_space.asli"
+#include "age_tonemap.asli"
+#include "age_mesh.asli"
 #include "age_random.asli"
 #include "hrp_aa.asli"
 #include "hrp_ao.asli"
 #include "age_ddgi.asli"
 #include "age_gibs.asli"
+#include "age_gist.asli"
 #include "age_light.asli"
 #include "age_ui.asli"
-#include "age_tonemap.asli"
 #include "age_bloom.asli"
 #include "age_denoise.asli"
 

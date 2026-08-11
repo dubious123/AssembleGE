@@ -349,6 +349,10 @@ namespace age::editor::detail
 					{
 						renderer.disable_gibs();
 					}
+					if (renderer.gist_enabled())
+					{
+						renderer.disable_gist();
+					}
 					if (renderer.ddgi_enabled() is_false)
 					{
 						renderer.enable_ddgi({
@@ -367,6 +371,10 @@ namespace age::editor::detail
 					{
 						renderer.disable_ddgi();
 					}
+					if (renderer.gist_enabled())
+					{
+						renderer.disable_gist();
+					}
 					if (renderer.gibs_enabled() is_false)
 					{
 						renderer.enable_gibs({
@@ -377,6 +385,37 @@ namespace age::editor::detail
 							.outer_layer_count		= cmp.gibs_outer_layer_count,
 							.cell_size				= cmp.gibs_cell_size,
 							.outer_cell_size_factor = cmp.outer_cell_size_factor,
+						});
+					}
+
+					break;
+				}
+				else if (cmp.enable_gist)
+				{
+					update_storage_ctx.gi_active_found = true;
+					if (renderer.ddgi_enabled())
+					{
+						renderer.disable_ddgi();
+					}
+					if (renderer.gibs_enabled())
+					{
+						renderer.disable_gibs();
+					}
+					if (renderer.gist_enabled() is_false)
+					{
+						renderer.enable_gist({
+							.diffuse_ray_period			   = cmp.gist_diffuse_ray_period,
+							.specular_ray_period		   = cmp.gist_specular_ray_period,
+							.cell_surfel_ray_count_min	   = cmp.gist_cell_surfel_ray_count_min,
+							.cell_surfel_ray_count_max	   = cmp.gist_cell_surfel_ray_count_max,
+							.max_cell_surfel_count		   = cmp.gist_max_cell_surfel_count,
+							.cell_surfel_ray_budget_factor = cmp.gist_cell_surfel_ray_budget_factor,
+							.debug_flags				   = cmp.gist_debug_flags,
+							.lock_origin				   = cmp.gist_lock_origin,
+							.cell_count_per_axis		   = cmp.gist_cell_count_per_axis,
+							.outer_layer_count			   = cmp.gist_outer_layer_count,
+							.cell_size					   = cmp.gist_cell_size,
+							.outer_cell_size_factor		   = cmp.gist_outer_cell_size_factor,
 						});
 					}
 
@@ -843,6 +882,11 @@ namespace age::editor
 			if (renderer.gibs_enabled() is_true and update_storage_ctx.gi_active_found is_false)
 			{
 				renderer.disable_gibs();
+			}
+
+			if (renderer.gist_enabled() is_true and update_storage_ctx.gi_active_found is_false)
+			{
+				renderer.disable_gist();
 			}
 		}
 

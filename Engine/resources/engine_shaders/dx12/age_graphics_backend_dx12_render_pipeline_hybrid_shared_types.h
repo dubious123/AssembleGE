@@ -146,6 +146,406 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 	};
 
+	//---[ gist ]--------------------------------------------------------------------
+	struct gist_recycle_data
+	{
+		uint16 value;
+
+		void
+		kill()
+		{
+			value = 0xffff;
+		}
+
+		uint16
+		frame_since_born()
+		{
+			return value & 0xff;
+		}
+
+		uint16
+		frame_since_ref()
+		{
+			return (value & 0xff00) >> 8u;
+		}
+
+		void
+		set_ref()
+		{
+			value = uint16(frame_since_born());
+		}
+
+		void
+		next_frame()
+		{
+			uint16 since_born = frame_since_born();
+			uint16 since_ref  = frame_since_ref();
+
+			since_born = uint16(min(since_born, uint16(0x00fe)) + 1u);
+			since_ref  = uint16(min(since_ref, uint16(0x00fe)) + 1u);
+
+			value = uint16(since_born | (since_ref << 8));
+		}
+	};
+
+	struct gist_cell_surfel
+	{
+		float3 position;
+		uint32 normal_oct_snorm16;
+
+		uint32 radiance_r11g11b10;
+		uint32 irradiance_r11g11b10;
+
+		half			  radius;
+		gist_recycle_data recycle_data;
+
+		void
+		kill()
+		{
+			radius = 0;
+			recycle_data.kill();
+		}
+
+		bool
+		is_new_born()
+		{
+			return recycle_data.frame_since_born() <= 1;
+		}
+	};
+
+	struct gist_cell_surfel_geometry
+	{
+		uint32 object_id;	 // with generation
+		uint32 primitive_id;
+		uint32 barycentric_unorm16;
+
+		void
+		kill()
+		{
+			object_id = 0xffffffffu;
+		}
+	};
+
+	struct gist_surfel_msme
+	{
+		float3 mean_long;
+		float  inconsistency;
+		float3 mean_short;
+		float  vbbr;
+		float3 variance;
+
+		float incon_mean;	 // running mean of inconsistency
+		float incon_var;	 // running variance of inconsistency = spatial-freq signal
+	};
+
+	struct gist_ray_entry
+	{
+		uint32 surfel_id;
+	};
+
+	struct gist_ray_hit_result
+	{
+		float  pdf;
+		float  distance;		  // float_max : no hit, <0 : backface
+		uint32 dir_oct_snorm8;	  // [local_dir_world_hemi_oct_snomr8(16)] [world_dir_oct_snorm8(16)]
+
+		uint32 object_id;
+		uint32 primitive_id;
+		uint32 barycentric_unorm16;
+	};
+
+	struct gist_ray_lighting_result
+	{
+		uint32 radiance_r11g11b10;
+		uint32 irradiance_r11g11b10;
+	};
+
+	struct gist_cell_surfel_entry
+	{
+		uint32 offset;
+		uint32 surfel_count;
+	};
+
+	struct gist_indirect_arg
+	{
+		uint32_3 arg_update_cell_surfel_id_stack;
+		uint32_3 arg_update_cell_surfel;
+		uint32_3 arg_alloc_cell_surfel;
+		uint32_3 arg_cell_surfel_ideal_ray_count_reduce;
+		uint32_3 arg_cell_surfel_ray_count_prefix;
+		uint32_3 arg_ray_entry;
+		uint32_3 arg_cell_surfel_scatter;
+		uint32_3 arg_ray_trace;
+		uint32_3 arg_ray_resolve;
+		uint32_3 arg_ray_integrate;
+		uint32_3 arg_build_cdf;
+		uint32_3 arg_adaptive_ray_trace_diffuse;
+		uint32_3 arg_adaptive_ray_trace_specular;
+		uint32_3 age_adaptive_gi_resolve_diffuse;
+	};
+
+	struct gist_data
+	{
+		uint32 debug_flags;
+		uint32 max_cell_surfel_count;
+		uint32 cell_surfel_ray_budget;
+		uint32 adaptive_ray_budget;						   // specular_ray + extra;
+
+		uint32 cell_surfel_ray_count_min_max_and_extra;	   // [min][max]
+
+		uint32 tile_size_and_extra;						   // [tile_size][outer_layer_count][cell_count_per_axis]
+		uint16 tile_count_w;
+		uint16 tile_count_h;
+
+		uint32 h_cell_surfel_buffer_srv_id;
+		uint32 h_cell_surfel_buffer_uav_id;
+		uint32 h_cell_surfel_geo_buffer_srv_id;
+		uint32 h_cell_surfel_geo_buffer_uav_id;
+		uint32 h_cell_surfel_msme_buffer_srv_id;
+		uint32 h_cell_surfel_msme_buffer_uav_id;
+		uint32 h_cell_surfel_visibility_buffer_srv_id;
+		uint32 h_cell_surfel_visibility_buffer_uav_id;
+		uint32 h_cell_surfel_luminance_buffer_srv_id;
+		uint32 h_cell_surfel_luminance_buffer_uav_id;
+
+		uint32 h_px_luminance_buffer_srv_id;
+		uint32 h_px_luminance_buffer_uav_id;
+
+		uint32 h_cell_surfel_dead_id_stack_buffer_srv_id;
+		uint32 h_cell_surfel_dead_id_stack_buffer_uav_id;
+		uint32 h_cell_surfel_alive_id_stack_prev_buffer_srv_id;
+		uint32 h_cell_surfel_alive_id_stack_prev_buffer_uav_id;
+		uint32 h_cell_surfel_alive_id_stack_curr_buffer_srv_id;
+		uint32 h_cell_surfel_alive_id_stack_curr_buffer_uav_id;
+
+		uint32 h_scratch_buffer_uav_id;
+
+		uint32 h_ray_entry_buffer_srv_id;
+		uint32 h_ray_entry_buffer_uav_id;
+
+		uint32 h_ray_hit_buffer_srv_id;
+		uint32 h_ray_hit_buffer_uav_id;
+
+		uint32 h_ray_lighting_buffer_srv_id;
+		uint32 h_ray_lighting_buffer_uav_id;
+
+		uint32 h_cell_buffer_srv_id;
+		uint32 h_cell_buffer_uav_id;
+
+		uint32 h_cell_spawn_kill_buffer_srv_id;
+		uint32 h_cell_spawn_kill_buffer_uav_id;
+
+		uint32 h_gi_resolve_age_prev_buffer_srv_id;
+		uint32 h_gi_resolve_age_curr_buffer_srv_id;
+		uint32 h_gi_resolve_age_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_moments_prev_buffer_srv_id;
+		uint32 h_gi_resolve_moments_prev_buffer_uav_id;	   // reconstruct_pass variance buffer
+		uint32 h_gi_resolve_moments_curr_buffer_srv_id;
+		uint32 h_gi_resolve_moments_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_prev_buffer_srv_id;
+		uint32 h_gi_resolve_curr_buffer_srv_id;
+		uint32 h_gi_resolve_curr_buffer_uav_id;
+
+		uint32 h_adaptive_ray_type_buffer_srv_id;
+		uint32 h_adaptive_ray_type_buffer_uav_id;
+
+		uint32 h_adaptive_ray_entry_buffer_srv_id;
+		uint32 h_adaptive_ray_entry_buffer_uav_id;
+
+		uint32 h_indirect_arg_buffer_uav_id;
+
+		uint16
+		cell_surfel_ray_count_min() CONST
+		{
+			return uint16(cell_surfel_ray_count_min_max_and_extra & 0xff);
+		}
+
+		uint16
+		cell_surfel_ray_count_max() CONST
+		{
+			return uint16((cell_surfel_ray_count_min_max_and_extra >> 8u) & 0xff);
+		}
+
+		uint32
+		tile_size() CONST
+		{
+			return tile_size_and_extra & 0xff;
+		}
+
+		uint16
+		outer_layer_count() CONST
+		{
+			return uint16((tile_size_and_extra >> 8u) & 0xff);
+		}
+
+		uint16
+		cell_count_per_axis() CONST
+		{
+			return uint16((tile_size_and_extra >> 16u) & 0xff);
+		}
+
+		uint32
+		cell_count_total() CONST
+		{
+			const uint32 cell_count	 = cell_count_per_axis();
+			const uint32 layer_count = outer_layer_count();
+			return cell_count * cell_count * cell_count
+				 + 6 * cell_count * cell_count * layer_count;
+		}
+
+		uint32
+		tile_count_total() CONST
+		{
+			return uint32(tile_count_w) * uint32(tile_count_h);
+		}
+
+		uint32
+		max_ray_count() CONST
+		{
+			return tile_count_total() + cell_surfel_ray_budget + adaptive_ray_budget;
+		}
+
+		//---[ atlas helper ]---
+		uint32
+		atlas_texel_count() CONST
+		{
+			return 6 * 6;
+		}
+
+		//---[ scratch ]---
+		uint32
+		cell_surfel_ideal_ray_count_total_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		cell_surfel_ray_count_offset() CONST
+		{
+			return cell_surfel_ideal_ray_count_total_offset() + sizeof(uint32);
+		}
+
+		uint32
+		cell_surfel_ray_count_prefix_offset() CONST
+		{
+			return cell_surfel_ray_count_offset() + sizeof(uint16) * max_cell_surfel_count;
+		}
+
+		uint32
+		cell_surfel_ideal_ray_count_wave_sum_offset() CONST
+		{
+			return cell_surfel_ray_count_prefix_offset() + sizeof(uint32) * max_cell_surfel_count;
+		}
+
+		//---[ ray_entry_buffer : [cell_surfel_ray_count_total][ray_entry] ]---
+		uint32
+		cell_surfel_ray_count_total_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		ray_entry_buffer_offset() CONST
+		{
+			return sizeof(uint32);
+		}
+
+		//---[ cell_buffer : [surfel_count][surfel_entry x cell_total][to_surfel x count*27] ]---
+		uint32
+		cell_surfel_count_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		cell_surfel_entry_block_offset() CONST
+		{
+			return sizeof(uint32) * 1;
+		}
+
+		uint32
+		cell_to_surfel_id_block_offset() CONST
+		{
+			return sizeof(uint32) * 1 + sizeof(gist_cell_surfel_entry) * cell_count_total();
+		}
+
+		uint32
+		cell_to_surfel_id_capacity() CONST
+		{
+			return max_cell_surfel_count * 27;
+		}
+
+		//---[ cell_spawn_kill_buffer ]---
+
+		uint32
+		cell_surfel_spawn_data_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		cell_surfel_kill_data_offset() CONST
+		{
+			return cell_surfel_spawn_data_offset()
+				 + (sizeof(uint64)) * cell_count_total();
+		}
+
+		uint32
+		cell_surfel_ref_offset() CONST
+		{
+			return cell_surfel_kill_data_offset()
+				 + (sizeof(uint64)) * cell_count_total();
+		}
+
+		uint32
+		cell_surfel_ref_word_offset(uint32 local_id) CONST
+		{
+			return cell_surfel_ref_offset() + sizeof(uint32) * (local_id / 32u);
+		}
+
+		//---[ adaptive ]---
+		uint32
+		adaptive_ray_count_ideal_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		adaptive_ray_entry_cap_offset() CONST
+		{
+			return adaptive_ray_count_ideal_offset() + sizeof(uint32_3);
+		}
+
+		uint32
+		adaptive_ray_entry_prob_offset() CONST
+		{
+			return adaptive_ray_entry_cap_offset() + sizeof(uint32_2);
+		}
+
+		uint32
+		adaptive_ray_entry_alloc_counter_offset() CONST
+		{
+			return adaptive_ray_entry_prob_offset() + sizeof(float3);
+		}
+
+		uint32
+		adaptive_ray_entry_offset() CONST
+		{
+			return adaptive_ray_entry_alloc_counter_offset() + sizeof(uint32_2);
+		}
+	};
+
+	struct gist_lut_data
+	{
+		// cell_size_arr[0] : xyz size
+		// cell_size_arr[i > 0] : xy size
+		// z size = boundary[i] - boundary[i-1]
+		float cell_size_arr[16 + 1];
+		float layer_boundary_arr[16 + 1];
+	};
+
 	//---[ gibs, surfel ]------------------------------------------------------------
 
 	struct gibs_recycle_data
@@ -1038,7 +1438,7 @@ namespace age::graphics::render_pipeline::shared_type
 
 	struct material
 	{
-		float4	 base_color_factor;
+		float4	 base_color_factor;	   // [0,1]
 		float	 metallic_factor;
 		float	 roughness_factor;
 		float3	 emissive_factor;
@@ -1538,7 +1938,7 @@ namespace age::graphics::render_pipeline::g
 #define GIBS_GI_RESOLVE_SAMPLE_PER_TILE	 (GIBS_GI_RESOLVE_SAMPLE_PER_BLOCK * GIBS_GI_RESOLVE_BLOCK_DIM * GIBS_GI_RESOLVE_BLOCK_DIM)
 
 
-#define GIBS_DEBUG_FLAGS_NONE					  0u
+#define GIBS_DEBUG_FLAGS_NONE					  (0u)
 #define GIBS_DEBUG_FLAGS_FREEZE_SPAWN_KILL		  (1u << 0u)
 #define GIBS_DEBUG_FLAGS_RENDER_TILE			  (1u << 1u)
 #define GIBS_DEBUG_FLAGS_RENDER_CELL			  (1u << 2u)
@@ -1614,6 +2014,83 @@ namespace age::graphics::render_pipeline::g
 	static_assert(GIBS_DEBUG_FLAGS_RENDER_AGE == to_idx(graphics::e::gibs_debug_flags::render_age));
 
 #endif
+
+	//---[ gist ]------------------------------------------------------------------------------------------------------
+#define GIST_ATLAS_TILE_SIZE	   6u
+#define GIST_MAX_OUTER_LAYER_COUNT 16u
+#define GIST_MAX_CELL_SURFEL_COUNT (0xffffu * AGE_WAVE_SIZE)
+
+#define GIST_MSME_SHORT_WINDOW_BLEND  0.06f
+#define GIST_MSME_INCONSISTENCY_BLEND 0.01f
+
+#define GIST_CELL_SURFEL_NEW_BORN_DELAY 16
+
+#define GIST_CELL_SURFEL_RADIUS_RATIO 1.f
+
+	// trust near 50% more than far
+#define GIST_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
+
+#define GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR 0.1f
+#define GIST_CELL_SURFEL_KILL_COVERAGE_NEAR	 3.f
+
+// 1.f : full hemisphere cover
+#define GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR 0.1f
+#define GIST_CELL_SURFEL_KILL_COVERAGE_FAR	2.f
+
+#define GIST_CELL_SURFEL_SPAWN_PROB_FACTOR 0.3f
+#define GIST_CELL_SURFEL_KILL_PROB_FACTOR  0.2f
+
+#define GIST_GI_RESOLVE_MAX_AGE	   64u
+#define GIST_GI_RESOLVE_BLOCK_SIZE 16u
+
+#define GIST_GENERAL_EPT AGE_WAVE_SIZE
+#define GIST_GENERAL_TPG AGE_WAVE_SIZE
+#define GIST_GENERAL_EPG (GIST_GENERAL_TPG * GIST_GENERAL_EPT)
+
+
+#define GIST_MIN_LUMINANCE						0.01f
+#define GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE (GIST_MIN_LUMINANCE * GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE)
+
+#define GIST_PX_LUMINANCE_TILE_SIZE 64
+#define GIST_PX_RAY_GUIDE_PROB		0.5f
+
+
+#define GIST_ADAPTIVE_RAY_TYPE_SPECULAR 0
+#define GIST_ADAPTIVE_RAY_TYPE_NEW_BORN 1
+#define GIST_ADAPTIVE_RAY_TYPE_VARIANCE 2
+#define GIST_ADAPTIVE_RAY_TYPE_COUNT	3
+
+#define GIST_ADAPTIVE_RAY_SPECULAR_ROUGHNESS_MAX 0.4f	 // mask: roughness < this
+
+#define GIST_ADAPTIVE_RAY_TILE_SIZE 16
+
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN			  (1u << 0u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL				  (1u << 1u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS			  (1u << 2u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL					  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT		  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_ID_HASH		  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RADIANCE	  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_IRRADIANCE	  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NORMAL		  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_VISIBILITY	  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NEAR_COVERAGE (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_FAR_COVERAGE  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RAY_COUNT	  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_AGE			  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI			  (1u << 0u)
+#define GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI			  (1u << 0u)
+
+#if !defined(AGE_SHADER)
+	inline constexpr auto gist_atlas_tile_size		  = GIST_ATLAS_TILE_SIZE;
+	inline constexpr auto gist_max_outer_layer_count  = GIST_MAX_OUTER_LAYER_COUNT;
+	inline constexpr auto gist_max_cell_surfel_count  = GIST_MAX_CELL_SURFEL_COUNT;
+	inline constexpr auto gist_general_epg			  = GIST_GENERAL_EPG;
+	inline constexpr auto gist_gi_resolve_block_size  = GIST_GI_RESOLVE_BLOCK_SIZE;
+	inline constexpr auto gist_px_luminance_tile_size = GIST_PX_LUMINANCE_TILE_SIZE;
+	inline constexpr auto gist_adaptive_ray_tile_size = GIST_ADAPTIVE_RAY_TILE_SIZE;
+#endif
+
 //---[ segment and transparent ]------------------------------------------------------------------------------------------------------
 #define SEGMENT_TILE_SIZE 8u
 
@@ -1642,7 +2119,9 @@ namespace age::graphics::render_pipeline::g
 #define DDGI_DATA_OFFSET					 (BLOOM_OFFSET + sizeof(SHARED_TYPE bloom) * 1)
 #define GIBS_DATA_OFFSET					 (DDGI_DATA_OFFSET + sizeof(SHARED_TYPE ddgi_data) * 1)
 #define GIBS_LUT_DATA_OFFSET				 (GIBS_DATA_OFFSET + sizeof(SHARED_TYPE gibs_data) * 1)
-#define AO_DATA_OFFSET						 (GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
+#define GIST_DATA_OFFSET					 (GIBS_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gibs_lut_data) * 1)
+#define GIST_LUT_DATA_OFFSET				 (GIST_DATA_OFFSET + sizeof(SHARED_TYPE gist_data) * 1)
+#define AO_DATA_OFFSET						 (GIST_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gist_lut_data) * 1)
 #define SEGMENT_DATA_OFFSET					 (AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
 #define AA_DATA_OFFSET						 (SEGMENT_DATA_OFFSET + sizeof(SHARED_TYPE segment_data) * 1)
 #define STATIC_BUFFER_SIZE					 (AA_DATA_OFFSET + sizeof(SHARED_TYPE aa_data) * 1)
@@ -1661,6 +2140,8 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto ddgi_data_offset						  = DDGI_DATA_OFFSET;
 	inline constexpr auto gibs_data_offset						  = GIBS_DATA_OFFSET;
 	inline constexpr auto gibs_lut_data_offset					  = GIBS_LUT_DATA_OFFSET;
+	inline constexpr auto gist_data_offset						  = GIST_DATA_OFFSET;
+	inline constexpr auto gist_lut_data_offset					  = GIST_LUT_DATA_OFFSET;
 	inline constexpr auto ao_data_offset						  = AO_DATA_OFFSET;
 	inline constexpr auto segment_data_offset					  = SEGMENT_DATA_OFFSET;
 	inline constexpr auto aa_data_offset						  = AA_DATA_OFFSET;

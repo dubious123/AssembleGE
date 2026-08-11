@@ -1047,6 +1047,18 @@ sphere_aabb_intersect(float3 sphere_position, float sphere_range, float3 aabb_mi
 	return dot(diff, diff) <= sphere_range * sphere_range;
 }
 
+bool
+hemisphere_aabb_intersect(float3 hemisphere_position, float3 hemisphere_normal, float radius,
+						  float3 aabb_min, float3 aabb_max, float back_margin)
+{
+	if (sphere_aabb_intersect(hemisphere_position, radius, aabb_min, aabb_max) is_false) { return false; }
+
+	const float3 far_corner	  = lerp(aabb_min, aabb_max, step(0.f, hemisphere_normal));
+	const float3 plane_center = hemisphere_position - hemisphere_normal * back_margin;
+
+	return dot(far_corner - plane_center, hemisphere_normal) >= 0.f;
+}
+
 // (min_x, min_y, max_x, max_y)
 bool
 aabb_intersect(uint32_4 a, uint32_4 b)
@@ -1353,6 +1365,16 @@ sample_tbn_hemisphere_cosine_local(float2 xi)
 }
 
 float3
+sample_hemisphere_cosine_local_y_up(float2 xi)
+{
+	const float phi		  = pi_2 * xi.x;
+	const float cos_theta = sqrt(xi.y);
+	const float sin_theta = sqrt(1.f - xi.y);
+
+	return float3(sin_theta * cos(phi), cos_theta, sin_theta * sin(phi));
+}
+
+float3
 sample_tbn_hemisphere_cosine(float2 xi, float3 normal)
 {
 	const float3   dir_local		= sample_tbn_hemisphere_cosine_local(xi);
@@ -1599,4 +1621,28 @@ calc_bilateral_weight(float3 center_pos, float3 center_normal, float center_z_li
 	const float w_normal = pow(max(0.f, dot(center_normal, target_normal)), 8);
 
 	return w_depth * w_normal * ratio.x * ratio.y;
+}
+
+template <int32 n>
+vector<float, n>
+round_fp16_stochastic(vector<float, n> v, vector<float, n> rng)
+{
+	const vector<uint32, n> h = f32tof16(v);
+	const vector<float, n>	f = f16tof32(h);
+
+	const vector<uint32, n> h_lo = select(f <= v, h, h - 1u);
+	const vector<uint32, n> h_hi = select(f <= v, h + 1u, h);
+
+	const vector<float, n> lo = f16tof32(h_lo);
+	const vector<float, n> hi = f16tof32(h_hi);
+
+	const vector<float, n> t = (v - lo) / max(hi - lo, 1e-30f);
+
+	return select(rng < t, hi, lo);
+}
+
+float
+round_fp16_stochastic(float v, float rng)
+{
+	return round_fp16_stochastic<1>(vector<float, 1>(v), vector<float, 1>(rng));
 }

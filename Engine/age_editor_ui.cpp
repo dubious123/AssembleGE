@@ -536,7 +536,7 @@ namespace age::editor
 
 			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 			{
-				widget::color_field(entry.emissive_factor);
+				widget::color_field(entry.emissive_factor, 0.f, std::numeric_limits<float>::max());
 				tex_dropdown(entry.h_tex_emissive);
 			}
 		}
@@ -701,13 +701,13 @@ namespace age::editor
 	}
 
 	std::tuple<bool, bool>
-	ui_component(age::ecs::gi_config& cmp, uint32 gibs_max_surfel_count) noexcept
+	ui_component(age::ecs::gi_config& cmp, uint32 gibs_max_surfel_count, uint32 gist_max_cell_surfel_count) noexcept
 	{
 		auto update				= false;
 		auto update_debug_flags = false;
 		{
 			auto _ = ui::id_begin();
-			if (cmp.enable_ddgi or cmp.enable_gibs)
+			if (cmp.enable_ddgi or cmp.enable_gibs or cmp.enable_gist)
 			{
 				update = ui::widget::button2("update");
 			}
@@ -717,12 +717,21 @@ namespace age::editor
 		if (cmp.enable_ddgi)
 		{
 			cmp.enable_gibs = false;
+			cmp.enable_gist = false;
 		}
 
 		ui::widget::checkbox("enable gibs", cmp.enable_gibs);
 		if (cmp.enable_gibs)
 		{
 			cmp.enable_ddgi = false;
+			cmp.enable_gist = false;
+		}
+
+		ui::widget::checkbox("enable gist", cmp.enable_gist);
+		if (cmp.enable_gist)
+		{
+			cmp.enable_ddgi = false;
+			cmp.enable_gibs = false;
 		}
 
 		if (auto _ = ui::id_begin();
@@ -870,6 +879,108 @@ namespace age::editor
 #undef gibs_flag_checkbox
 
 			update_debug_flags = cmp.gibs_debug_flags != debug_flag_cached;
+		}
+		else if (auto _ = ui::id_begin();
+				 cmp.enable_gist)
+
+		{
+			ui::widget::checkbox("lock origin", cmp.gist_lock_origin);
+
+			constexpr c_auto ray_period_option_arr = std::array{
+				ui::widget::dropdown_option<uint8>{ .value = 1, .label = "1x1" },
+				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "2x2" },
+				ui::widget::dropdown_option<uint8>{ .value = 9, .label = "3x3" },
+				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "4x4" },
+				ui::widget::dropdown_option<uint8>{ .value = 25, .label = "5x5" },
+				ui::widget::dropdown_option<uint8>{ .value = 36, .label = "6x6" },
+				ui::widget::dropdown_option<uint8>{ .value = 49, .label = "7x7" },
+				ui::widget::dropdown_option<uint8>{ .value = 64, .label = "8x8" },
+			};
+
+			ui::widget::text_label("diffuse_ray_period");
+			ui::widget::dropdown<uint8>(cmp.gist_diffuse_ray_period, ray_period_option_arr);
+
+			ui::widget::text_label("specular_ray_period");
+			ui::widget::dropdown<uint8>(cmp.gist_specular_ray_period, ray_period_option_arr);
+
+
+			constexpr c_auto pow_of_2_option_arr = std::array{
+				ui::widget::dropdown_option<uint8>{ .value = 1, .label = "1" },
+				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
+				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
+				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
+				ui::widget::dropdown_option<uint8>{ .value = 32, .label = "32" },
+				ui::widget::dropdown_option<uint8>{ .value = 64, .label = "64" },
+			};
+
+			ui::widget::text_label("cell_surfel_ray_count_min");
+			ui::widget::dropdown<uint8>(cmp.gist_cell_surfel_ray_count_min, std::span{ pow_of_2_option_arr.begin(), log2_pow2(cmp.gist_cell_surfel_ray_count_max) + 1 });
+
+			ui::widget::text_label("cell_surfel_ray_count_max");
+			ui::widget::dropdown<uint8>(cmp.gist_cell_surfel_ray_count_max, std::span{ pow_of_2_option_arr.begin() + log2_pow2(cmp.gist_cell_surfel_ray_count_min),
+																					   pow_of_2_option_arr.end() });
+
+			ui::widget::text_label("cell_count_per_axis");
+			ui::widget::dropdown<uint8>(cmp.gist_cell_count_per_axis, pow_of_2_option_arr);
+
+			constexpr c_auto layer_count_option_arr = std::array{
+				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
+				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
+				ui::widget::dropdown_option<uint8>{ .value = 6, .label = "6" },
+				ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
+				ui::widget::dropdown_option<uint8>{ .value = 10, .label = "10" },
+				ui::widget::dropdown_option<uint8>{ .value = 12, .label = "12" },
+				ui::widget::dropdown_option<uint8>{ .value = 14, .label = "14" },
+				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
+			};
+
+			ui::widget::text_label("outer_layer_count");
+			ui::widget::dropdown<uint8>(cmp.gist_outer_layer_count, layer_count_option_arr);
+
+			ui::widget::text_label("max_cell_surfel_count");
+			ui::widget::numeric_field(cmp.gist_max_cell_surfel_count, nullptr, 10000u, gist_max_cell_surfel_count);
+
+			c_auto cell_count_total = cmp.gist_cell_count_per_axis * cmp.gist_cell_count_per_axis * cmp.gist_cell_count_per_axis
+									+ cmp.gist_cell_count_per_axis * cmp.gist_cell_count_per_axis * cmp.gist_outer_layer_count * 6;
+			ui::widget::text_label(std::format("surfel_per_cell : {}", float(cmp.gist_max_cell_surfel_count) / (cell_count_total)).c_str());
+
+			ui::widget::text_label("cell_surfel_ray_budget_factor");
+			ui::widget::numeric_field(cmp.gist_cell_surfel_ray_budget_factor, nullptr, 0.1f, 2.5f, ui::theme::text_label_color(), 0.01f);
+
+			ui::widget::text_label(std::format("cell_surfel_ray_budget : {}",
+											   cmp.gist_max_cell_surfel_count
+												   * cmp.gist_cell_surfel_ray_count_min
+												   * cmp.gist_cell_surfel_ray_budget_factor)
+									   .c_str());
+
+			ui::widget::text_label("cell_size");
+			ui::widget::numeric_field(cmp.gist_cell_size, nullptr, 1.f, 100.f);
+
+			ui::widget::text_label("outer_cell_size_factor");
+			ui::widget::numeric_field(cmp.gist_outer_cell_size_factor, nullptr, 1.f + math::g::epsilon_1e4, 2.5f, ui::theme::text_label_color(), 0.01f);
+
+			c_auto debug_flag_cached = cmp.gist_debug_flags;
+
+#define gist_flag_checkbox(enum_name)                                                     \
+	{                                                                                     \
+		bool b = has_any(cmp.gist_debug_flags, graphics::e::gist_debug_flags::enum_name); \
+		ui::widget::checkbox(#enum_name, b);                                              \
+		if (b)                                                                            \
+		{                                                                                 \
+			cmp.gist_debug_flags |= graphics::e::gist_debug_flags::enum_name;             \
+		}                                                                                 \
+		else                                                                              \
+		{                                                                                 \
+			cmp.gist_debug_flags &= ~graphics::e::gist_debug_flags::enum_name;            \
+		}                                                                                 \
+	}
+			gist_flag_checkbox(freeze_surfel_spawn);
+			gist_flag_checkbox(freeze_surfel_kill);
+			gist_flag_checkbox(freeze_surfel_radius);
+#undef gist_flag_checkbox
+
+			update_debug_flags = cmp.gist_debug_flags != debug_flag_cached;
 		}
 
 		return std::tuple{ update, update_debug_flags };

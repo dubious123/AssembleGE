@@ -207,26 +207,68 @@ main_ps(float4 pos sv_position) sv_target_0
 	//	}
 	//}
 
-	//{
-	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
-	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-	//	{
-	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-	//		int32_2 screen_pos = uv * backbuffer_size;
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2 screen_pos = uv * backbuffer_size;
 
-	//		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+			texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
 
-	//		float2 motion = motion_buffer[screen_pos];
+			float2 motion = motion_buffer[screen_pos];
 
-	//		float2 m = max(motion, 0.f);
-	//		col		 = float3(m * 10000000.f, 0);
+			// float2 m = max(motion, 0.f);
+			// col		 = float3(m * 100000.f, 0);
 
-	//		// col		 = float3(m * 0.5f + 0.5f, 0.5f);
-	//		// col = motion.xyz;
-	//		// col = float3(1.f - motion.x, 1.f - motion.x, 1.f - motion.x) * 10;
-	//		// col = float3(motion.x, motion.x, motion.x);
-	//	}
-	//}
+			col = float3(motion * 100000.f * 0.5f + 0.5f, 0.5f);
+		}
+	}
+
+	if (gist::enabled())
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			gist_data data		 = gist::load_data();
+			float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2	  screen_pos = uv * backbuffer_size;
+
+			texture_2d<uint32> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
+
+			col = color_red.xyz * (gi_resolve_buffer[screen_pos] / float(GIST_GI_RESOLVE_MAX_AGE));
+			col = color_red.xyz * (gi_resolve_buffer[screen_pos] < 2 ? 1.f : 0.f);
+		}
+	}
+
+	if (gist::enabled())
+	{
+		float2 debug_uv = pos.xy * inv_backbuffer_size;
+		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+		{
+			gist_data data		 = gist::load_data();
+			float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
+			int32_2	  screen_pos = uv * backbuffer_size;
+
+			texture_2d<uint32> type_buffer = global_resource_buffer[data.h_adaptive_ray_type_buffer_srv_id];
+			uint32			   mask		   = type_buffer[screen_pos];
+			col.rgb						   = color_black.rgb;
+
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_NEW_BORN>(mask))
+			{
+				col.rgb += color_red.rgb;
+			}
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_SPECULAR>(mask))
+			{
+				col.rgb += color_blue.rgb;
+			}
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_VARIANCE>(mask))
+			{
+				col.rgb += color_green.rgb;
+			}
+		}
+	}
+
 
 	// texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_age_curr_buffer_srv_id];
 

@@ -16,7 +16,7 @@ namespace age::graphics
 				AGE_HR_CHECK(::D3D12GetDebugInterface(IID_PPV_ARGS(&p_debug)));
 
 				p_debug->EnableDebugLayer();
-				p_debug->SetEnableSynchronizedCommandQueueValidation(TRUE);
+				p_debug->SetEnableSynchronizedCommandQueueValidation(true);
 
 				// p_debug->SetEnableGPUBasedValidation(true);
 

@@ -101,7 +101,7 @@ namespace age::graphics::shader
 		}
 
 		c_auto shader_name_def = std::wstring{ L"AGE_SHADER_NAME=" } + std::wstring{ wchar_buffer.data() };
-
+		c_auto shader_hash_def = std::wstring{ L"AGE_SHADER_HASH=" } + std::to_wstring(cast_to<uint32>(age::hash<std::wstring_view>{}(shader_name))) + L"u";
 		{
 			auto buffer = DxcBuffer{
 				.Ptr	  = p_file->GetBufferPointer(),
@@ -118,6 +118,7 @@ namespace age::graphics::shader
 				// L"-Qstrip_reflect",
 				// L"-Qstrip_debug",
 				L"-D", shader_name_def.c_str(),
+				L"-D", shader_hash_def.c_str(),
 				L"-enable-16bit-types",
 				L"-Zi",
 				L"-Qembed_debug",

@@ -37,6 +37,19 @@ namespace age::inline math
 		return (u & 0x1) == 1;
 	}
 
+	FORCE_INLINE bool
+	is_pow_of_2(std::unsigned_integral auto u) noexcept
+	{
+		return std::has_single_bit(u);
+	}
+
+	FORCE_INLINE uint32
+	isqrt(std::unsigned_integral auto u) noexcept
+		requires(sizeof(u) <= sizeof(uint32))
+	{
+		return static_cast<uint32>(std::sqrt(static_cast<double>(u)));
+	}
+
 	template <typename t_ret = uint32>
 	FORCE_INLINE t_ret
 	log2_pow2(uint32 u) noexcept

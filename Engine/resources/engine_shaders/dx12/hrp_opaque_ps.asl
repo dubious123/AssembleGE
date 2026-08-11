@@ -86,6 +86,12 @@ main_ps(float4 pos sv_position) sv_target_0
 
 		ambient_light += calc_gi(surface_data, gi_resolve_buffer[px]);
 	}
+	else if (gist::enabled())
+	{
+		texture_2d<float3> gi_resolve_buffer = global_resource_buffer[gist::load_data().h_gi_resolve_curr_buffer_srv_id];
+
+		ambient_light += calc_gi(surface_data, gi_resolve_buffer[px]);
+	}
 	else
 	{
 		expand(MAX_ENV_LIGHT)

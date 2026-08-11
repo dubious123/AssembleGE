@@ -5,6 +5,10 @@
 	#define AGE_SHADER_NAME '?', '?'
 #endif
 
+#ifndef AGE_SHADER_HASH
+	#define AGE_SHADER_HASH 0u
+#endif
+
 namespace g
 {
 	static const uint32 fmt_dispatch_thread_id[] = { 'd', 'i', 's', 'p', 'a', 't', 'c', 'h', '_', 't', 'h', 'r', 'e', 'a', 'd', '_', 'i', 'd', ' ', ':', ' ', '{', '}' };
@@ -28,6 +32,7 @@ namespace g
 	static const uint32 fmt_line[] = { 'l', 'i', 'n', 'e', ' ', ':', ' ', '{', '}' };
 
 	static const uint32 str_shader_name[] = { AGE_SHADER_NAME };
+	static const uint32 shader_hash		  = AGE_SHADER_HASH;
 
 	// file_only
 	static const uint32 fmt_default_assert_0[] = {

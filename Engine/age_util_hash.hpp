@@ -40,4 +40,23 @@ namespace age
 			return h;
 		}
 	};
+
+	template <>
+	struct hash<std::wstring_view>
+	{
+		constexpr std::size_t
+		operator()(std::wstring_view sv) const noexcept
+		{
+			constexpr std::size_t fnv_offset = 14695981039346656037ULL;
+			constexpr std::size_t fnv_prime	 = 1099511628211ULL;
+
+			std::size_t h = fnv_offset;
+			for (wchar_t c : sv)
+			{
+				h ^= static_cast<std::size_t>(static_cast<std::make_unsigned_t<wchar_t>>(c));
+				h *= fnv_prime;
+			}
+			return h;
+		}
+	};
 }	 // namespace age

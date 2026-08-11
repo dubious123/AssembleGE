@@ -19,7 +19,7 @@ namespace denoise
 
 	bool
 	check_prev_valid(float3 pos_prev, float3 pos_curr, float3 normal_prev, float3 normal_curr,
-					 float px_z_lin, float tolerance_px = 1.f)
+					 float px_z_lin, float tolerance_px = 3.f)
 	{
 		const float3 rel		= pos_curr - pos_prev;
 		const float	 plane_dist = max(abs(dot(rel, normal_curr)), abs(dot(rel, normal_prev)));

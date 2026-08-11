@@ -1295,7 +1295,7 @@ namespace age::ui::widget
 	namespace detail
 	{
 		inline bool
-		color_field_impl(auto& color, float* p_intensity) noexcept
+		color_field_impl(auto& color, float* p_intensity, float min, float max) noexcept
 		{
 			using enum input::e::key_kind;
 			using enum e::style_state;
@@ -1375,7 +1375,7 @@ namespace age::ui::widget
 			if (auto _ = widget::begin(set_height_fit() | set_padding(theme::frame_padding())))
 			{
 				auto srgb = age::linear_to_srgb(float3{ color.x, color.y, color.z });
-				widget::numeric_field(srgb, "sRGB");
+				widget::numeric_field(srgb, "sRGB", float3{ linear_to_srgb(min) }, float3{ linear_to_srgb(max) });
 
 				if (srgb != age::linear_to_srgb(float3{ color.x, color.y, color.z }))
 				{
@@ -1388,7 +1388,7 @@ namespace age::ui::widget
 			if (auto _ = widget::begin(set_height_fit() | set_padding(theme::frame_padding())))
 			{
 				auto linear = float3{ color.x, color.y, color.z };
-				widget::numeric_field(linear, "linear");
+				widget::numeric_field(linear, "linear", float3{ min }, float3{ max });
 				res_value_changed = linear != float3{ color.x, color.y, color.z };
 				(color.x = linear.x, color.y = linear.y, color.z = linear.z);
 			}
@@ -1438,16 +1438,16 @@ namespace age::ui::widget
 	}	 // namespace detail
 
 	bool
-	color_field(auto& color) noexcept
+	color_field(auto& color, float min = 0.f, float max = 1.f) noexcept
 		requires(meta::variadic_contains_v<BARE_OF(color), float3, float4>)
 	{
-		return detail::color_field_impl(color, nullptr);
+		return detail::color_field_impl(color, nullptr, min, max);
 	}
 
 	bool
-	color_field(auto& color, float& intensity) noexcept
+	color_field(auto& color, float& intensity, float min, float max) noexcept
 		requires(meta::variadic_contains_v<BARE_OF(color), float3, float4>)
 	{
-		return detail::color_field_impl(color, &intensity);
+		return detail::color_field_impl(color, &intensity, min, max);
 	}
 }	 // namespace age::ui::widget

@@ -1,0 +1,12 @@
+#pragma once
+#include "age.asli"
+
+namespace util
+{
+	template <uint32 n>
+	bool
+	is_mask_set(uint32 mask)
+	{
+		return ((mask & (1u << n)) != 0u);
+	}
+}	 // namespace util

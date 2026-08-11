@@ -542,6 +542,133 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle h_indirect_arg_buffer_uav_desc;
 	};
 
+	struct gist_desc
+	{
+		uint8						  diffuse_ray_period;				// pow_of_2
+		uint8						  specular_ray_period;				// pow_of_2
+		uint8						  cell_surfel_ray_count_min;
+		uint8						  cell_surfel_ray_count_max;
+		uint32						  max_cell_surfel_count;
+		float						  cell_surfel_ray_budget_factor;	// cell_surfel_ray_count : surfel_count * min_ray * factor
+		graphics::e::gist_debug_flags debug_flags;
+		bool						  lock_origin;
+		uint8						  cell_count_per_axis;				// base cell count per axis, pow of 2
+		uint8						  outer_layer_count;
+		uint8						  _;
+		float						  cell_size;
+		float						  outer_cell_size_factor;
+
+
+		// total cell count == cell_count ^ 3 + 6 *(cell_count ^ 2) * outer_layer_count
+		// inner extent == cell_count * cell_size
+		// outer cell size == cell_size * (outer_cell_size_factor ^ k)
+		// outer extent = inner extent + sum(outer cell size per k)
+	};
+
+	struct gist_data
+	{
+		shared_type::gist_data	   gpu_data;
+		shared_type::gist_lut_data gpu_lut_data;
+
+		bool enabled		   = false;
+		bool need_cleanup	   = false;
+		bool render_debug_view = false;
+		bool lock_origin	   = false;
+
+		bool  is_alt;
+		uint8 diffuse_ray_period;	  // pow_of_2
+		uint8 specular_ray_period;	  // pow_of_2
+		uint8 _;
+
+		float3 origin;
+		float  cell_surfel_ray_budget_factor;
+		float  outer_cell_size_factor;
+
+		resource_handle h_cell_surfel_buffer;
+		srv_desc_handle h_cell_surfel_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_geo_buffer;
+		srv_desc_handle h_cell_surfel_geo_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_geo_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_msme_buffer;
+		srv_desc_handle h_cell_surfel_msme_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_msme_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_visibility_buffer;
+		srv_desc_handle h_cell_surfel_visibility_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_visibility_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_luminance_buffer;
+		srv_desc_handle h_cell_surfel_luminance_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_luminance_buffer_uav_desc;
+
+		resource_handle h_px_luminance_buffer;
+		srv_desc_handle h_px_luminance_buffer_srv_desc;
+		uav_desc_handle h_px_luminance_buffer_uav_desc;
+
+		resource_handle h_cell_surfel_dead_id_stack_buffer;
+		srv_desc_handle h_cell_surfel_dead_id_stack_buffer_srv_desc;
+		uav_desc_handle h_cell_surfel_dead_id_stack_buffer_uav_desc;
+
+		AGE_DECL_PING_PONG_BUFFER(cell_surfel_alive_id_stack, is_alt, srv, uav)
+
+		resource_handle		  h_scratch_buffer;	   // prefix, sum, ...
+		uav_desc_handle		  h_scratch_buffer_uav_desc;
+		clear_uav_desc_handle h_scratch_buffer_clear_uav_desc;
+
+		resource_handle h_ray_entry_buffer;		   // ray count, ray entry
+		srv_desc_handle h_ray_entry_buffer_srv_desc;
+		uav_desc_handle h_ray_entry_buffer_uav_desc;
+
+		resource_handle h_ray_hit_buffer;
+		srv_desc_handle h_ray_hit_buffer_srv_desc;
+		uav_desc_handle h_ray_hit_buffer_uav_desc;
+
+		resource_handle h_ray_lighting_buffer;
+		srv_desc_handle h_ray_lighting_buffer_srv_desc;
+		uav_desc_handle h_ray_lighting_buffer_uav_desc;
+
+		resource_handle		  h_cell_buffer;	// cell -> surfel, surfel_gt_id,
+		srv_desc_handle		  h_cell_buffer_srv_desc;
+		uav_desc_handle		  h_cell_buffer_uav_desc;
+		clear_uav_desc_handle h_cell_buffer_clear_uav_desc;
+
+		resource_handle		  h_cell_spawn_kill_buffer;
+		srv_desc_handle		  h_cell_spawn_kill_buffer_srv_desc;
+		uav_desc_handle		  h_cell_spawn_kill_buffer_uav_desc;
+		clear_uav_desc_handle h_cell_spawn_kill_buffer_clear_uav_desc;
+
+		AGE_DECL_PING_PONG_BUFFER(gi_resolve_age, is_alt, srv, uav, clear_uav)
+		AGE_DECL_PING_PONG_BUFFER(gi_resolve_moments, is_alt, srv, uav, clear_uav)
+
+		resource_handle		  h_gi_resolve_prev_buffer;
+		srv_desc_handle		  h_gi_resolve_prev_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_prev_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_prev_buffer_clear_uav_desc;
+
+		resource_handle		  h_gi_resolve_curr_buffer;
+		srv_desc_handle		  h_gi_resolve_curr_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_curr_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_curr_buffer_clear_uav_desc;
+
+		resource_handle h_gi_resolve_scratch_buffer;
+		srv_desc_handle h_gi_resolve_scratch_buffer_srv_desc;
+		uav_desc_handle h_gi_resolve_scratch_buffer_uav_desc;
+
+		resource_handle h_adaptive_ray_type_buffer;
+		srv_desc_handle h_adaptive_ray_type_buffer_srv_desc;
+		uav_desc_handle h_adaptive_ray_type_buffer_uav_desc;
+
+		resource_handle h_adaptive_ray_entry_buffer;
+		srv_desc_handle h_adaptive_ray_entry_buffer_srv_desc;
+		uav_desc_handle h_adaptive_ray_entry_buffer_uav_desc;
+
+		resource_handle h_indirect_arg_buffer;
+		uav_desc_handle h_indirect_arg_buffer_uav_desc;
+	};
+
 	struct ao_desc
 	{
 		uint8	slice_count;

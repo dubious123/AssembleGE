@@ -750,10 +750,11 @@ namespace age::ecs
 		}
 	};
 
-	AGE_COMPONENT(gi_config, "ddgi", "ddgi_config")
+	AGE_COMPONENT(gi_config, "ddgi_config", "gibs_config", "gist_config")
 	{
-		AGE_COMPONENT_VERSION(5);
+		AGE_COMPONENT_VERSION(6);
 
+		// ddgi
 		bool	 enable_ddgi			   = false;
 		bool	 ddgi_lock_origin		   = false;
 		uint32_3 ddgi_probe_per_level_axis = uint32_3{ 32, 16, 32 };
@@ -762,7 +763,7 @@ namespace age::ecs
 
 		age::graphics::e::ddgi_debug_flags ddgi_debug_flags;
 
-
+		// gibs
 		bool enable_gibs	  = false;
 		bool gibs_lock_origin = false;
 
@@ -781,6 +782,23 @@ namespace age::ecs
 
 		age::graphics::e::gibs_debug_flags gibs_debug_flags;
 
+		// gist
+		bool  enable_gist			   = false;
+		bool  gist_lock_origin		   = false;
+		uint8 gist_diffuse_ray_period  = 4u;
+		uint8 gist_specular_ray_period = 1u;
+
+		uint8 gist_cell_surfel_ray_count_min = 1u;	   // pow_of_2
+		uint8 gist_cell_surfel_ray_count_max = 64u;	   // pow_of_2
+		uint8 gist_cell_count_per_axis		 = 32u;	   // pow_of_2
+		uint8 gist_outer_layer_count		 = 8u;
+
+		uint32 gist_max_cell_surfel_count		  = static_cast<uint32>((32 * 32 * 32 + 32 * 32 * 6 * 16) * 0.25f);
+		float  gist_cell_surfel_ray_budget_factor = 1.5f;
+
+		float							   gist_cell_size			   = 4.f;
+		float							   gist_outer_cell_size_factor = 1.5f;
+		age::graphics::e::gist_debug_flags gist_debug_flags			   = age::graphics::e::gist_debug_flags{ 0u };
 
 		AGE_CUSTOM_BYTE_SIZE(
 			enable_ddgi,
@@ -789,6 +807,7 @@ namespace age::ecs
 			ddgi_base_probe_spacing,
 			ddgi_level_count,
 			ddgi_debug_flags,
+
 			enable_gibs,
 			gibs_lock_origin,
 			gibs_cell_count,
@@ -796,7 +815,25 @@ namespace age::ecs
 			gibs_cell_size,
 			outer_cell_size_factor,
 			max_surfel_count,
-			gibs_debug_flags);
+			gibs_debug_flags,
+
+			enable_gist,
+			gist_lock_origin,
+			gist_diffuse_ray_period,
+			gist_specular_ray_period,
+			gist_cell_surfel_ray_count_min,
+			gist_cell_surfel_ray_count_max,
+			gist_cell_count_per_axis,
+			gist_outer_layer_count,
+
+			gist_max_cell_surfel_count,
+			gist_cell_surfel_ray_budget_factor,
+
+			gist_cell_size,
+			gist_outer_cell_size_factor,
+			gist_debug_flags
+
+		);
 
 		FORCE_INLINE static void
 		on_create(cmp_dispatch_key, gi_config & cmp, auto& ctx) noexcept
@@ -806,7 +843,8 @@ namespace age::ecs
 			if (cmp.enable_ddgi)
 			{
 				cmp.enable_gibs = false;
-				ctx.renderer.enable_ddgi({
+				cmp.enable_gist = false;
+				ctx.renderer.enable_or_update_ddgi({
 					.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
 					.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
 					.level_count		  = cmp.ddgi_level_count,
@@ -816,7 +854,9 @@ namespace age::ecs
 			}
 			else if (cmp.enable_gibs)
 			{
-				ctx.renderer.enable_gibs({
+				cmp.enable_ddgi = false;
+				cmp.enable_gist = false;
+				ctx.renderer.enable_or_update_gibs({
 					.max_surfel_count		= cmp.max_surfel_count,
 					.debug_flags			= cmp.gibs_debug_flags,
 					.lock_origin			= cmp.gibs_lock_origin,
@@ -824,6 +864,25 @@ namespace age::ecs
 					.outer_layer_count		= cmp.gibs_outer_layer_count,
 					.cell_size				= cmp.gibs_cell_size,
 					.outer_cell_size_factor = cmp.outer_cell_size_factor,
+				});
+			}
+			else if (cmp.enable_gist)
+			{
+				cmp.enable_ddgi = false;
+				cmp.enable_gibs = false;
+				ctx.renderer.enable_or_update_gist({
+					.diffuse_ray_period			   = cmp.gist_diffuse_ray_period,
+					.specular_ray_period		   = cmp.gist_specular_ray_period,
+					.cell_surfel_ray_count_min	   = cmp.gist_cell_surfel_ray_count_min,
+					.cell_surfel_ray_count_max	   = cmp.gist_cell_surfel_ray_count_max,
+					.max_cell_surfel_count		   = cmp.gist_max_cell_surfel_count,
+					.cell_surfel_ray_budget_factor = cmp.gist_cell_surfel_ray_budget_factor,
+					.debug_flags				   = cmp.gist_debug_flags,
+					.lock_origin				   = cmp.gist_lock_origin,
+					.cell_count_per_axis		   = cmp.gist_cell_count_per_axis,
+					.outer_layer_count			   = cmp.gist_outer_layer_count,
+					.cell_size					   = cmp.gist_cell_size,
+					.outer_cell_size_factor		   = cmp.gist_outer_cell_size_factor,
 				});
 			}
 		}
@@ -841,6 +900,11 @@ namespace age::ecs
 			if (cmp.enable_gibs)
 			{
 				ctx.renderer.disable_gibs();
+			}
+
+			if (cmp.enable_gist)
+			{
+				ctx.renderer.disable_gist();
 			}
 		}
 
@@ -870,6 +934,7 @@ namespace age::ecs
 					  cmp.ddgi_base_probe_spacing,
 					  cmp.ddgi_level_count,
 					  to_idx(cmp.ddgi_debug_flags),
+
 					  cmp.enable_gibs,
 					  cmp.gibs_lock_origin,
 					  cmp.gibs_cell_count,
@@ -877,7 +942,21 @@ namespace age::ecs
 					  cmp.gibs_cell_size,
 					  cmp.outer_cell_size_factor,
 					  cmp.max_surfel_count,
-					  to_idx(cmp.gibs_debug_flags));
+					  to_idx(cmp.gibs_debug_flags),
+
+					  cmp.enable_gist,
+					  cmp.gist_lock_origin,
+					  cmp.gist_diffuse_ray_period,
+					  cmp.gist_specular_ray_period,
+					  cmp.gist_cell_surfel_ray_count_min,
+					  cmp.gist_cell_surfel_ray_count_max,
+					  cmp.gist_cell_count_per_axis,
+					  cmp.gist_outer_layer_count,
+					  cmp.gist_max_cell_surfel_count,
+					  cmp.gist_cell_surfel_ray_budget_factor,
+					  cmp.gist_cell_size,
+					  cmp.gist_outer_cell_size_factor,
+					  to_idx(cmp.gist_debug_flags));
 			return;
 		}
 
@@ -915,6 +994,24 @@ namespace age::ecs
 
 					return;
 				}
+				else if (rw_ctx.version == 5)
+				{
+					buf.read(cmp.enable_ddgi,
+							 cmp.ddgi_lock_origin,
+							 cmp.ddgi_probe_per_level_axis,
+							 cmp.ddgi_base_probe_spacing,
+							 cmp.ddgi_level_count,
+							 cmp.ddgi_debug_flags,
+							 cmp.enable_gibs,
+							 cmp.gibs_lock_origin,
+							 cmp.gibs_cell_count,
+							 cmp.gibs_outer_layer_count,
+							 cmp.gibs_cell_size,
+							 cmp.outer_cell_size_factor,
+							 cmp.max_surfel_count,
+							 cmp.gibs_debug_flags);
+					return;
+				}
 				AGE_ASSERT(false);
 				return;
 			}
@@ -932,7 +1029,21 @@ namespace age::ecs
 					 cmp.gibs_cell_size,
 					 cmp.outer_cell_size_factor,
 					 cmp.max_surfel_count,
-					 cmp.gibs_debug_flags);
+					 cmp.gibs_debug_flags,
+
+					 cmp.enable_gist,
+					 cmp.gist_lock_origin,
+					 cmp.gist_diffuse_ray_period,
+					 cmp.gist_specular_ray_period,
+					 cmp.gist_cell_surfel_ray_count_min,
+					 cmp.gist_cell_surfel_ray_count_max,
+					 cmp.gist_cell_count_per_axis,
+					 cmp.gist_outer_layer_count,
+					 cmp.gist_max_cell_surfel_count,
+					 cmp.gist_cell_surfel_ray_budget_factor,
+					 cmp.gist_cell_size,
+					 cmp.gist_outer_cell_size_factor,
+					 cmp.gist_debug_flags);
 		}
 	};
 

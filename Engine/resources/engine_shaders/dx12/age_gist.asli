@@ -1,0 +1,1953 @@
+#pragma once
+#include "age.asli"
+
+namespace gist
+{
+	gist_data
+	load_data()
+	{
+		return load<gist_data>(static_buffer, GIST_DATA_OFFSET);
+	}
+
+	gist_lut_data
+	load_lut_data()
+	{
+		return load<gist_lut_data>(static_buffer, GIST_LUT_DATA_OFFSET);
+	}
+
+	bool
+	enabled()
+	{
+		return ddgi_enabled_and_extra & (1u << 2u);
+	}
+
+	float3
+	calc_cell_origin(const in gist_lut_data lut_data)
+	{
+		return round(gi_origin / lut_data.cell_size_arr[0]) * lut_data.cell_size_arr[0];
+	}
+
+	float3
+	calc_cube_min(const in gist_lut_data lut_data, uint32 layer)
+	{
+		return calc_cell_origin(lut_data) - lut_data.layer_boundary_arr[layer];
+	}
+
+	uint32
+	calc_layer(const in gist_data data, const in gist_lut_data lut_data, const float3 world_pos)
+	{
+		const float3 rel  = world_pos - calc_cell_origin(lut_data);
+		const float	 axis = max(abs(rel));
+
+		// expand_all()
+
+		for (uint32 i = 0; i < data.outer_layer_count(); ++i)
+		{
+			if (axis <= lut_data.layer_boundary_arr[i])
+			{
+				return i;
+			}
+		}
+
+		return data.outer_layer_count();
+	}
+
+	float
+	calc_cell_size(const in gist_data data, const in gist_lut_data lut_data, const float3 position)
+	{
+		return lut_data.cell_size_arr[calc_layer(data, lut_data, position)];
+	}
+
+	half
+	calc_cell_surfel_radius(const in gist_data data, const in gist_lut_data lut_data, const float3 position)
+	{
+		return cast<half>(calc_cell_size(data, lut_data, position) * GIST_CELL_SURFEL_RADIUS_RATIO);
+	}
+
+	float3
+	calc_region(float3 xyz, out int32 region)
+	{
+		const float3 xyz_abs = abs(xyz);
+		float3		 xyz_res = (float3)0;
+
+		if (xyz_abs.x >= xyz_abs.y and xyz_abs.x >= xyz_abs.z)
+		{
+			if (xyz.x > 0)
+			{
+				xyz_res.x = -xyz.z;
+				xyz_res.y = xyz.y;
+				xyz_res.z = xyz.x;
+				region	  = 1;
+			}
+			else
+			{
+				xyz_res.x = xyz.z;
+				xyz_res.y = xyz.y;
+				xyz_res.z = -xyz.x;
+				region	  = 2;
+			}
+		}
+		else if (xyz_abs.y >= xyz_abs.x and xyz_abs.y >= xyz_abs.z)
+		{
+			if (xyz.y > 0)
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = -xyz.z;
+				xyz_res.z = xyz.y;
+				region	  = 3;
+			}
+			else
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = xyz.z;
+				xyz_res.z = -xyz.y;
+				region	  = 4;
+			}
+		}
+		else
+		{
+			if (xyz.z > 0)
+			{
+				xyz_res.x = xyz.x;
+				xyz_res.y = xyz.y;
+				xyz_res.z = xyz.z;
+				region	  = 5;
+			}
+			else
+			{
+				xyz_res.x = -xyz.x;
+				xyz_res.y = xyz.y;
+				xyz_res.z = -xyz.z;
+				region	  = 6;
+			}
+		}
+
+		return xyz_res;
+	}
+
+	bool
+	calc_sphere_cell_intersect(const in gist_data data, const in gist_lut_data lut_data, float3 position, float3 normal, float radius, int32_4 cell_idx)
+	{
+		const float3 rel	= position - calc_cell_origin(lut_data);
+		const int32	 region = cell_idx.w;
+
+		if (region == 0)
+		{
+			const float	 cell_size = lut_data.cell_size_arr[0];
+			const float3 cell_min  = cell_idx.xyz * cell_size;
+			const float3 cell_max  = cell_min + cell_size;
+
+			return hemisphere_aabb_intersect(rel, normal, radius, cell_min, cell_max, radius * 0.1f);
+		}
+		else
+		{
+			const int32 layer = cell_idx.z;
+			const float min_z = lut_data.layer_boundary_arr[layer - 1];
+			const float max_z = lut_data.layer_boundary_arr[layer];
+
+			int32_3 cell_idx_world = cell_idx.xyz;
+
+			const float cell_size_near_uv = min_z * 2.f / data.cell_count_per_axis();
+			const float cell_size_far_uv  = max_z * 2.f / data.cell_count_per_axis();
+
+			float3 cell_near_low;
+			float3 cell_near_high;
+			float3 cell_far_low;
+			float3 cell_far_high;
+
+			// maybe there are better ways to do this, but i can't think of one
+			if (region == 1)
+			{
+				cell_near_low.yz = float2(cell_idx.y, -cell_idx.x) * cell_size_near_uv;
+				cell_near_low.x	 = min_z;
+				cell_far_low.yz	 = float2(cell_idx.y, -cell_idx.x) * cell_size_far_uv;
+				cell_far_low.x	 = max_z;
+
+				cell_near_high.yz = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_near_uv;
+				cell_near_high.x  = min_z;
+				cell_far_high.yz  = float2(cell_idx.y + 1, -cell_idx.x - 1) * cell_size_far_uv;
+				cell_far_high.x	  = max_z;
+			}
+			else if (region == 2)
+			{
+				cell_near_low.yz = float2(cell_idx.y, cell_idx.x) * cell_size_near_uv;
+				cell_near_low.x	 = -min_z;
+				cell_far_low.yz	 = float2(cell_idx.y, cell_idx.x) * cell_size_far_uv;
+				cell_far_low.x	 = -max_z;
+
+				cell_near_high.yz = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_near_uv;
+				cell_near_high.x  = -min_z;
+				cell_far_high.yz  = float2(cell_idx.y + 1, cell_idx.x + 1) * cell_size_far_uv;
+				cell_far_high.x	  = -max_z;
+			}
+			else if (region == 3)
+			{
+				cell_near_low.xz = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_near_uv;
+				cell_near_low.y	 = min_z;
+				cell_far_low.xz	 = float2(cell_idx.x, -cell_idx.y /*- 1*/) * cell_size_far_uv;
+				cell_far_low.y	 = max_z;
+
+				cell_near_high.xz = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_near_uv;
+				cell_near_high.y  = min_z;
+				cell_far_high.xz  = float2(cell_idx.x + 1, -cell_idx.y - 1) * cell_size_far_uv;
+				cell_far_high.y	  = max_z;
+			}
+			else if (region == 4)
+			{
+				cell_near_low.xz = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.y	 = -min_z;
+				cell_far_low.xz	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.y	 = -max_z;
+
+				cell_near_high.xz = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.y  = -min_z;
+				cell_far_high.xz  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.y	  = -max_z;
+			}
+			else if (region == 5)
+			{
+				cell_near_low.xy = float2(cell_idx.x, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.z	 = min_z;
+				cell_far_low.xy	 = float2(cell_idx.x, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.z	 = max_z;
+
+				cell_near_high.xy = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.z  = min_z;
+				cell_far_high.xy  = float2(cell_idx.x + 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.z	  = max_z;
+			}
+			else
+			{
+				// region == 6
+				cell_near_low.xy = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_near_uv;
+				cell_near_low.z	 = -min_z;
+				cell_far_low.xy	 = float2(-cell_idx.x /* - 1*/, cell_idx.y) * cell_size_far_uv;
+				cell_far_low.z	 = -max_z;
+
+				cell_near_high.xy = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_near_uv;
+				cell_near_high.z  = -min_z;
+				cell_far_high.xy  = float2(-cell_idx.x - 1, cell_idx.y + 1) * cell_size_far_uv;
+				cell_far_high.z	  = -max_z;
+			}
+
+			return hemisphere_aabb_intersect(rel, normal, radius,
+											 min(cell_near_low, cell_near_high, cell_far_low, cell_far_high),
+											 max(cell_near_low, cell_near_high, cell_far_low, cell_far_high),
+											 radius * 0.1f);
+		}
+	}
+
+	bool
+	calc_surfel_cell_intersect(const in gist_data data, const in gist_lut_data lut_data, const gist_cell_surfel surfel, int32_4 cell_idx)
+	{
+		return calc_sphere_cell_intersect(data, lut_data, surfel.position, decode_oct_snorm16(surfel.normal_oct_snorm16), surfel.radius, cell_idx);
+	}
+
+	uint32
+	calc_atlas_tile_local_idx(const float3 local_dir)
+	{
+		assert(local_dir.y >= 0.f, line, local_dir);
+		const float2 oct_uv = encode_world_hemi_octahedral(local_dir);							// [-1, 1]
+		int32_2		 idx	= int32_2(floor((oct_uv * 0.5f + 0.5f) * GIST_ATLAS_TILE_SIZE));	// [0, 6)
+		idx					= min(idx, GIST_ATLAS_TILE_SIZE - 1);
+		return idx.x + idx.y * GIST_ATLAS_TILE_SIZE;
+	}
+}	 // namespace gist
+
+// id_stack
+namespace gist
+{
+	namespace cell
+	{
+		rw_stack<uint32>
+		dead_id_stack(const in gist_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_dead_id_stack_buffer_uav_id], 0u, data.max_cell_surfel_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_prev(const in gist_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_alive_id_stack_prev_buffer_uav_id], 0u, data.max_cell_surfel_count);
+		}
+
+		rw_stack<uint32>
+		alive_id_stack_curr(const in gist_data data)
+		{
+			return rw_stack<uint32>::init(global_resource_buffer[data.h_cell_surfel_alive_id_stack_curr_buffer_uav_id], 0u, data.max_cell_surfel_count);
+		}
+
+		uint32
+		dead_count(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_dead_id_stack_buffer_srv_id];
+			return load<uint32>(buf, 0u);
+		}
+
+		uint32
+		alive_count_prev(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_alive_id_stack_prev_buffer_srv_id];
+			return load<uint32>(buf, 0u);
+		}
+
+		uint32
+		alive_count_curr(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_alive_id_stack_curr_buffer_srv_id];
+			return load<uint32>(buf, 0u);
+		}
+
+		byte_array<uint32>
+		alive_id_arr_prev(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_alive_id_stack_prev_buffer_srv_id];
+			return byte_array<uint32>::init(buf, sizeof(uint32), cell::alive_count_prev(data));
+		}
+
+		byte_array<uint32>
+		alive_id_arr_curr(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_surfel_alive_id_stack_curr_buffer_srv_id];
+			return byte_array<uint32>::init(buf, sizeof(uint32), cell::alive_count_curr(data));
+		}
+	}	 // namespace cell
+}	 // namespace gist
+
+// debug
+namespace gist
+{
+	namespace debug
+	{
+
+#define debug_flag_helper(name, NAME)   \
+	bool                                \
+	name(in const gist_data data)       \
+	{                                   \
+		return data.debug_flags & NAME; \
+	}
+		debug_flag_helper(freeze_cell_surfel_spawn, GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN);
+		debug_flag_helper(freeze_cell_surfel_kill, GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL);
+		debug_flag_helper(freeze_cell_surfel_radius, GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS);
+		debug_flag_helper(render_cell, GIST_DEBUG_FLAGS_RENDER_CELL);
+		debug_flag_helper(render_cell_surfel_count, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT);
+		debug_flag_helper(render_cell_surfel_id_hash, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_ID_HASH);
+		debug_flag_helper(render_cell_surfel_radiance, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RADIANCE);
+		debug_flag_helper(render_cell_surfel_irradiance, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_IRRADIANCE);
+		debug_flag_helper(render_cell_surfel_normal, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NORMAL);
+		debug_flag_helper(render_cell_surfel_visibility, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_VISIBILITY);
+		debug_flag_helper(render_cell_surfel_near_coverage, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NEAR_COVERAGE);
+		debug_flag_helper(render_cell_surfel_far_coverage, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_FAR_COVERAGE);
+		debug_flag_helper(render_cell_surfel_ray_count, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RAY_COUNT);
+		debug_flag_helper(render_cell_surfel_age, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_AGE);
+		debug_flag_helper(render_ray_count_ui, GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI);
+		debug_flag_helper(render_surfel_count_ui, GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI);
+#undef debug_flag_helper
+	}	 // namespace debug
+}	 // namespace gist
+
+// indirect arg
+namespace gist
+{
+	namespace indirect_arg
+	{
+#define gist_indirect_arg_func(name, nth)                                                       \
+	void                                                                                        \
+	name(in const gist_data data, uint32_3 arg)                                                 \
+	{                                                                                           \
+		rw_byte_address_buffer buf = global_resource_buffer[data.h_indirect_arg_buffer_uav_id]; \
+		store(buf, sizeof(uint32_3) * nth, arg);                                                \
+	}
+		// do not change
+		// clang-format off
+		static const int32 __do_not_change__ = __LINE__;
+		gist_indirect_arg_func(set_update_cell_surfel_id_stack, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_update_cell_surfel, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_alloc_cell_surfel, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_cell_surfel_ideal_ray_count_reduce, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_cell_surfel_ray_count_prefix, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_ray_entry, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_cell_surfel_scatter, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_ray_trace, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_ray_resolve, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_ray_integrate, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_build_cdf, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_adaptive_ray_trace_diffuse, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_adaptive_ray_trace_specular, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_adaptive_gi_resolve_diffuse, (__LINE__ - __do_not_change__ - 1));
+		// clang-format on
+#undef gist_indirect_arg_func
+	}	 // namespace indirect_arg
+
+
+}	 // namespace gist
+
+//---[ surfel ]------------------------------------------------------------------------------------------------------
+
+namespace gist
+{
+	void
+	set_cell_surfel_ref(const in gist_data data, uint32 surfel_id)
+	{
+		rw_structured_buffer<gist_cell_surfel> buf = global_resource_buffer[data.h_cell_surfel_buffer_uav_id];
+
+		gist_cell_surfel surfel = buf[surfel_id];
+		surfel.recycle_data.set_ref();
+		buf[surfel_id] = surfel;
+	}
+}	 // namespace gist
+
+// tile
+namespace gist
+{
+	namespace tile
+	{
+		uint32
+		calc_id(const in gist_data data, uint32_2 tile_idx)
+		{
+			return tile_idx.y * data.tile_count_w
+				 + tile_idx.x;
+		}
+
+		int32_2
+		calc_px(const in gist_data data, uint32_2 tile_idx, uint32 tile_id)
+		{
+			const uint32 tile_size = data.tile_size();
+
+			const int32_2 px_local = min(int32_2(random_r2_sequence(frame_index, random_r1_sequence(tile_id)) * float(tile_size)),
+										 int32_2(tile_size - 1, tile_size - 1));
+
+			return min(int32_2(tile_idx.xy * tile_size) + px_local,
+					   int32_2(backbuffer_size) - 1);
+		}
+
+		int32_2
+		calc_px(const in gist_data data, uint32_2 tile_idx)
+		{
+			return calc_px(data, tile_idx, calc_id(data, tile_idx));
+		}
+	}	 // namespace tile
+}	 // namespace gist
+
+// cell
+namespace gist
+{
+	namespace cell
+	{
+		uint32
+		allocated_surfel_count(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_count_offset());
+		}
+
+		byte_array<gist_cell_surfel_entry>
+		surfel_entry_arr(const in gist_data data)
+		{
+			return byte_array<gist_cell_surfel_entry>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_surfel_entry_block_offset(), data.cell_count_total());
+		}
+
+		rw_byte_array<gist_cell_surfel_entry>
+		surfel_entry_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<gist_cell_surfel_entry>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_entry_block_offset(), data.cell_count_total());
+		}
+
+		byte_array<uint32>
+		cell_to_surfel_id_arr(const in gist_data data)
+		{
+			return byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_srv_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+		}
+
+		rw_byte_array<uint32>
+		cell_to_surfel_id_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_to_surfel_id_block_offset(), data.cell_to_surfel_id_capacity());
+		}
+
+		bool
+		add_surfel(const in gist_data data, uint32 cell_id)
+		{
+			rw_byte_array<gist_cell_surfel_entry> arr = gist::cell::surfel_entry_rw_arr(data);
+
+			const uint32 count_original = arr.atomic_inc(cell_id, 1u, 1u);
+
+			return count_original < data.cell_to_surfel_id_capacity();
+		}
+
+		uint32
+		alloc_surfel(const in gist_data data, uint32 surfel_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_cell_buffer_uav_id], data.cell_surfel_count_offset());
+			return counter.inc(surfel_count);
+		}
+
+		void
+		set_cell_to_surfel_id(const in gist_data data, uint32 cell_id, uint32 surfel_id)
+		{
+			rw_byte_array<gist_cell_surfel_entry> entry_arr = gist::cell::surfel_entry_rw_arr(data);
+			const gist_cell_surfel_entry		  entry		= entry_arr[cell_id];
+
+			const uint32 local_offset = entry_arr.atomic_inc(cell_id, 1u, 1u);
+
+			cell_to_surfel_id_rw_arr(data).store(entry.offset + local_offset, surfel_id);
+		}
+
+		int32_4
+		calc_idx(const in gist_data data, const in gist_lut_data lut_data, const float3 world_pos)
+		{
+			const uint32 layer = calc_layer(data, lut_data, world_pos);
+
+			const float3 rel = world_pos - calc_cell_origin(lut_data);
+
+			const int32 half = data.cell_count_per_axis() >> 1u;
+
+			int32 region = 0;
+
+			if (layer == 0)
+			{
+				const float3 cell_idx_float = floor(rel / lut_data.cell_size_arr[0]);
+
+				return int32_4(clamp(int32_3(cell_idx_float), -half, half - 1), region);
+			}
+
+			const float3 region_xyz = calc_region(rel, region);
+
+			const float	 cell_size_xy	   = region_xyz.z * 2.f / data.cell_count_per_axis();
+			const float2 cell_idx_float_xy = floor(region_xyz.xy / cell_size_xy);
+
+			return int32_4(clamp(int32_2(cell_idx_float_xy), -half, half - 1), layer, region);
+		}
+
+		uint32
+		calc_id(const in gist_data data, int32_4 cell_idx)
+		{
+			const int32 region = cell_idx.w;
+			if (region == 0)
+			{
+				uint32_3 cell_idx_uint32 = cell_idx.xyz + (data.cell_count_per_axis() >> 1);
+
+				return cell_idx_uint32.x
+					 + cell_idx_uint32.y * data.cell_count_per_axis()
+					 + cell_idx_uint32.z * data.cell_count_per_axis() * data.cell_count_per_axis();
+			}
+
+			// layer >= 1
+			const uint32 layer = cell_idx.z;
+
+			const uint32 base_offset = data.cell_count_per_axis() * data.cell_count_per_axis() * data.cell_count_per_axis()
+									 + 6 * data.cell_count_per_axis() * data.cell_count_per_axis() * (layer - 1)
+									 + (region - 1) * data.cell_count_per_axis() * data.cell_count_per_axis();
+
+			const int32_2 cell_idx_xy = cell_idx.xy + int32(data.cell_count_per_axis() >> 1);
+			assert(all(cell_idx_xy >= 0), line);
+
+
+			const uint32 res = base_offset
+							 + cell_idx_xy.x
+							 + cell_idx_xy.y * data.cell_count_per_axis();
+
+			assert(res < data.cell_count_total(), line);
+			return res;
+		}
+
+		uint32
+		calc_id(const in gist_data data, const in gist_lut_data lut_data, const float3 world_pos)
+		{
+			return calc_id(data, calc_idx(data, lut_data, world_pos));
+		}
+
+		// cell_to_surfel[local_offset] = surfel_id
+
+		void
+		set_surfel_ref(const in gist_data data, uint32 local_offset)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			const uint32 offset = data.cell_surfel_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			buf_interlocked_and(buf, offset, ~flag);
+		}
+
+		bool
+		get_surfel_ref(const in gist_data data, uint32 local_offset)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			const uint32 offset = data.cell_surfel_ref_word_offset(local_offset);
+			const uint32 flag	= 1u << (local_offset % 32u);
+
+			return (~load<uint32>(buf, offset)) & flag;
+		}
+
+		uint32
+		get_surfel_ref_word(const in gist_data data, uint32 word_idx)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return load<uint32>(buf, data.cell_surfel_ref_offset() + sizeof(uint32) * word_idx);
+		}
+
+		void
+		set_surfel_spawn(const in gist_data data, uint32 cell_id, float spawn_prob, uint32 ray_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(spawn_prob)) << 32u) | ray_id);
+		}
+
+		void
+		set_surfel_kill(const in gist_data data, uint32 cell_id, float kill_prob, uint32 surfel_id)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
+
+			buf_interlocked_min(buf, data.cell_surfel_kill_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(kill_prob)) << 32u) | surfel_id);
+		}
+
+		uint32
+		load_surfel_spawn_data(const in gist_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+
+			return uint32(load<uint64>(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		uint32
+		load_surfel_kill_data(const in gist_data data, uint32 cell_id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+			return uint32(load<uint64>(buf, data.cell_surfel_kill_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+		}
+
+		rw_byte_array<uint16>
+		visibility_rw_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_cell_surfel_visibility_buffer_uav_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<uint16>
+		visibility_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return byte_array<uint16>::init(global_resource_buffer[data.h_cell_surfel_visibility_buffer_srv_id], sizeof(uint16) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_rw_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * surfel_id, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		luminance_cdf_rw_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_uav_id], sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		luminance_cdf_arr(const in gist_data data, uint32 surfel_id)
+		{
+			return byte_array<half>::init(global_resource_buffer[data.h_cell_surfel_luminance_buffer_srv_id], sizeof(half) * data.atlas_texel_count() * (data.max_cell_surfel_count + surfel_id), data.atlas_texel_count());
+		}
+	}	 // namespace cell
+}	 // namespace gist
+
+// scratch, ray_count reduce, alloc
+namespace gist
+{
+	namespace cell
+	{
+		rw_byte_array<uint16>
+		ray_count_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ray_count_offset(), data.max_cell_surfel_count);
+		}
+
+		rw_byte_array<uint32>
+		ray_count_prefix_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ray_count_prefix_offset(), data.max_cell_surfel_count);
+		}
+
+		atomic_counter
+		ray_count_total_atomic_counter(const in gist_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.cell_surfel_ray_count_total_offset());
+		}
+
+		void
+		set_ideal_ray_count(const in gist_data data, uint32 alive_id, uint16 ideal_ray_count)
+		{
+			ray_count_rw_arr(data).store(alive_id, ideal_ray_count);
+		}
+
+		rw_byte_array<uint16>
+		ideal_ray_count_wave_sum_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<uint16>::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_wave_sum_offset(), data.max_cell_surfel_count);
+		}
+
+		void
+		set_ideal_ray_count_wave_sum(const in gist_data data, uint32 group_id, uint16 ideal_ray_count)
+		{
+			ideal_ray_count_wave_sum_rw_arr(data).store(group_id, ideal_ray_count);
+		}
+
+		void
+		atomic_add_ideal_ray_count(const in gist_data data, uint32 ray_count)
+		{
+			atomic_counter counter = atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_total_offset());
+			counter.inc(ray_count);
+		}
+
+		uint32
+		ideal_ray_count_total(const in gist_data data)
+		{
+			return atomic_counter::init(global_resource_buffer[data.h_scratch_buffer_uav_id], data.cell_surfel_ideal_ray_count_total_offset()).value();
+		}
+
+		uint32
+		alloc_ray(const in gist_data data, uint32 ray_count)
+		{
+			return ray_count_total_atomic_counter(data).inc(ray_count);
+		}
+
+		uint32
+		ray_count_total(const in gist_data data)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+			return load<uint32>(buf, data.cell_surfel_ray_count_total_offset());
+		}
+	}	 // namespace cell
+
+	namespace ray
+	{
+		void
+		reset_alloc(const in gist_data data)
+		{
+			atomic_counter::init(global_resource_buffer[data.h_ray_entry_buffer_uav_id], data.cell_surfel_ray_count_total_offset()).set(0u);
+		}
+
+		void
+		store_ray_entry(const in gist_data data, uint32 id, gist_ray_entry entry)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_uav_id];
+
+			store<gist_ray_entry>(buf, data.ray_entry_buffer_offset() + sizeof(gist_ray_entry) * id, entry);
+		}
+
+		gist_ray_entry
+		load_ray_entry(const in gist_data data, uint32 id)
+		{
+			byte_address_buffer buf = global_resource_buffer[data.h_ray_entry_buffer_srv_id];
+
+			return load<gist_ray_entry>(buf, data.ray_entry_buffer_offset() + sizeof(gist_ray_entry) * id);
+		}
+	}	 // namespace ray
+}	 // namespace gist
+
+namespace gist
+{
+	namespace tile
+	{
+		namespace detail
+		{
+			template <bool is_cdf>
+			uint32
+			calc_offset(const in gist_data data, int32_2 px)
+			{
+				const int32_2 extent = ceil(int32_2(backbuffer_size), GIST_PX_LUMINANCE_TILE_SIZE);
+
+				const int32 id = (px.y / GIST_PX_LUMINANCE_TILE_SIZE) * extent.x
+							   + (px.x / GIST_PX_LUMINANCE_TILE_SIZE);
+
+				return sizeof(half) * data.atlas_texel_count() * ((is_cdf ? extent.x * extent.y : 0) + id);
+			}
+		}	 // namespace detail
+
+		rw_byte_array<half>
+		px_luminance_rw_arr(const in gist_data data, uint32 id)
+		{
+			const uint32 offset = sizeof(half) * data.atlas_texel_count() * id;
+
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_px_luminance_buffer_uav_id], offset, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		px_luminance_cdf_rw_arr(const in gist_data data, uint32 id)
+		{
+			const int32_2 extent = ceil(int32_2(backbuffer_size), GIST_PX_LUMINANCE_TILE_SIZE);
+			const uint32  offset = sizeof(half) * data.atlas_texel_count() * (extent.x * extent.y + id);
+
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_px_luminance_buffer_uav_id], offset, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		px_luminance_rw_arr(const in gist_data data, int32_2 px)
+		{
+			const uint32 offset = detail::calc_offset<false>(data, px);
+
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_px_luminance_buffer_uav_id], offset, data.atlas_texel_count());
+		}
+
+		rw_byte_array<half>
+		px_luminance_cdf_rw_arr(const in gist_data data, int32_2 px)
+		{
+			const uint32 offset = detail::calc_offset<true>(data, px);
+
+			return rw_byte_array<half>::init(global_resource_buffer[data.h_px_luminance_buffer_uav_id], offset, data.atlas_texel_count());
+		}
+
+		byte_array<half>
+		px_luminance_cdf_arr(const in gist_data data, int32_2 px)
+		{
+			const uint32 offset = detail::calc_offset<true>(data, px);
+
+			return byte_array<half>::init(global_resource_buffer[data.h_px_luminance_buffer_srv_id], offset, data.atlas_texel_count());
+		}
+	}	 // namespace tile
+}	 // namespace gist
+
+// adaptive
+namespace gist
+{
+#define buffer_uav_id data.h_adaptive_ray_entry_buffer_uav_id
+#define buffer_srv_id data.h_adaptive_ray_entry_buffer_srv_id
+#define helper_func(type, name)                                                 \
+	template <bool is_rw = false>                                               \
+	type                                                                        \
+	load_##name(const in gist_data data)                                        \
+	{                                                                           \
+		attr_branch()                                                           \
+                                                                                \
+		if (is_rw)                                                              \
+		{                                                                       \
+			rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id]; \
+			return load<type>(buf, data.adaptive_##name##_offset());            \
+		}                                                                       \
+		else                                                                    \
+		{                                                                       \
+			byte_address_buffer buf = global_resource_buffer[buffer_srv_id];    \
+			return load<type>(buf, data.adaptive_##name##_offset());            \
+		}                                                                       \
+	}                                                                           \
+	void                                                                        \
+	set_##name(const in gist_data data, type var)                               \
+	{                                                                           \
+		rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id];     \
+		store(buf, data.adaptive_##name##_offset(), var);                       \
+	}
+
+	namespace adaptive
+	{
+		helper_func(uint32_3, ray_count_ideal);
+		helper_func(uint32_2, ray_entry_cap);
+		helper_func(float3, ray_entry_prob);
+		helper_func(uint32_2, ray_entry_alloc_counter);
+
+		uint32
+		pack_ray_entry(int32_2 px, uint32 type)
+		{
+			return px.x | (px.y << 14u) | (type << 28u);
+		}
+
+		int32_2
+		unpack_ray_entry(uint32 packed, out uint32 type)
+		{
+			int32_2 px = int32_2((packed >> 0u) & ((1u << 14u) - 1u), (packed >> 14u) & ((1u << 14u) - 1u));
+			type	   = packed >> 28u;
+			return px;
+		}
+
+		uint32
+		ray_hit_diffuse_id(const in gist_data data, uint32 id)
+		{
+			return data.tile_count_total() + cell::ray_count_total(data) + id;
+		}
+
+		void
+		alloc_ray_ideal(const in gist_data data, uint32 new_born_count, uint32 specular_count, uint32 variance_count)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_adaptive_ray_entry_buffer_uav_id];
+			buf_interlocked_add(buf, data.adaptive_ray_count_ideal_offset() + sizeof(uint32) * GIST_ADAPTIVE_RAY_TYPE_NEW_BORN, new_born_count);
+			buf_interlocked_add(buf, data.adaptive_ray_count_ideal_offset() + sizeof(uint32) * GIST_ADAPTIVE_RAY_TYPE_SPECULAR, specular_count);
+			buf_interlocked_add(buf, data.adaptive_ray_count_ideal_offset() + sizeof(uint32) * GIST_ADAPTIVE_RAY_TYPE_VARIANCE, variance_count);
+		}
+
+		void
+		set_ray_entry_prob(const in gist_data data, float new_born_prob, float specular_prob, float variance_prob)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[data.h_adaptive_ray_entry_buffer_uav_id];
+			store(buf, data.adaptive_ray_entry_prob_offset(), float3(new_born_prob, specular_prob, variance_prob));
+		}
+
+		uint32
+		alloc_ray_entry_diffuse(const in gist_data data, uint32 ray_count)
+		{
+			uint32 original;
+			buf_interlocked_add(global_resource_buffer[data.h_adaptive_ray_entry_buffer_uav_id],
+								data.adaptive_ray_entry_alloc_counter_offset() + sizeof(uint32) * 0, ray_count, original);
+			return original;
+		}
+
+		uint32
+		alloc_ray_entry_specular(const in gist_data data, uint32 ray_count)
+		{
+			uint32 original;
+			buf_interlocked_add(global_resource_buffer[data.h_adaptive_ray_entry_buffer_uav_id],
+								data.adaptive_ray_entry_alloc_counter_offset() + sizeof(uint32) * 1, ray_count, original);
+			return original;
+		}
+
+		rw_byte_array<uint32>
+		ray_entry_rw_arr(const in gist_data data)
+		{
+			return rw_byte_array<uint32>::init(global_resource_buffer[data.h_adaptive_ray_entry_buffer_uav_id], data.adaptive_ray_entry_offset(), data.adaptive_ray_budget);
+		}
+
+		byte_array<uint32>
+		ray_entry_arr(const in gist_data data)
+		{
+			return byte_array<uint32>::init(global_resource_buffer[data.h_adaptive_ray_entry_buffer_srv_id], data.adaptive_ray_entry_offset(), data.adaptive_ray_budget);
+		}
+
+		uint32
+		diffuse_ray_count_total(const in gist_data data)
+		{
+			return min(gist::adaptive::load_ray_entry_alloc_counter(data).x, gist::adaptive::load_ray_entry_cap(data).x);
+		}
+
+		uint32
+		specular_ray_count_total(const in gist_data data)
+		{
+			return min(gist::adaptive::load_ray_entry_alloc_counter(data).y, gist::adaptive::load_ray_entry_cap(data).y);
+		}
+
+		uint32
+		ray_count_total(const in gist_data data)
+		{
+			return diffuse_ray_count_total(data) + specular_ray_count_total(data);
+		}
+	}	 // namespace adaptive
+
+#undef helper_func
+#undef buffer_uav_id
+#undef buffer_srv_id
+}	 // namespace gist
+
+//---[ logics ]------------------------------------------------------------------------------------------------------
+namespace gist
+{
+	template <typename t_func>
+	void
+	foreach_neighbor_cell(inout t_func fn, const in gist_data data, const in gist_lut_data lut_data, const float3 world_pos)
+	{
+		const int32_4 center_cell_idx = cell::calc_idx(data, lut_data, world_pos);
+
+		const int32 region = center_cell_idx.w;
+
+		const int32 half = data.cell_count_per_axis() >> 1u;
+
+		// static const int32_3 offset_arr[26] = {
+		//	int32_3(1, 1, 1),
+		//	int32_3(1, 1, -1),
+		//	int32_3(1, -1, 1),
+		//	int32_3(1, -1, -1),
+		//	int32_3(-1, 1, 1),
+		//	int32_3(-1, 1, -1),
+		//	int32_3(-1, -1, 1),
+		//	int32_3(-1, -1, -1),
+
+		//	int32_3(1, 1, 0),
+		//	int32_3(1, -1, 0),
+		//	int32_3(-1, 1, 0),
+		//	int32_3(-1, -1, 0),
+
+		//	int32_3(1, 0, 1),
+		//	int32_3(1, 0, -1),
+		//	int32_3(-1, 0, 1),
+		//	int32_3(-1, 0, -1),
+
+		//	int32_3(0, 1, 1),
+		//	int32_3(0, 1, -1),
+		//	int32_3(0, -1, 1),
+		//	int32_3(0, -1, -1),
+
+
+		//	int32_3(1, 0, 0),
+		//	int32_3(-1, 0, 0),
+		//	int32_3(0, 1, 0),
+		//	int32_3(0, -1, 0),
+		//	int32_3(0, 0, 1),
+		//	int32_3(0, 0, -1),
+		//};
+
+		fn(data, lut_data, center_cell_idx);
+		if (region == 0)
+		{
+			// expand_all()
+
+			for (uint32 i = 0; i < 26; ++i)
+			{
+				const uint32  idx	 = i < 13u ? i : i + 1u;
+				const int32_3 offset = int32_3(int32(idx / 9u), int32((idx / 3u) % 3u), int32(idx % 3u)) - 1;
+
+				// const int32_3 offset = offset_arr[i];
+				const int32_3 coord = center_cell_idx.xyz + offset;
+
+				const bool x_warp_neg = coord.x < -half;
+				const bool x_warp_pos = coord.x >= half;
+
+				const bool y_warp_neg = coord.y < -half;
+				const bool y_warp_pos = coord.y >= half;
+
+				const bool z_warp_neg = coord.z < -half;
+				const bool z_warp_pos = coord.z >= half;
+
+				if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (z_warp_neg or z_warp_pos) > 1) { continue; }
+
+				int32_4 res;
+				if (x_warp_pos)
+				{
+					res.x = -coord.z - 1;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 1;
+				}
+				else if (x_warp_neg)
+				{
+					res.x = coord.z;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 2;
+				}
+				else if (y_warp_pos)
+				{
+					res.x = coord.x;
+					res.y = -coord.z - 1;
+					res.z = 1;
+					res.w = 3;
+				}
+				else if (y_warp_neg)
+				{
+					res.x = coord.x;
+					res.y = coord.z;
+					res.z = 1;
+					res.w = 4;
+				}
+				else if (z_warp_pos)
+				{
+					res.x = coord.x;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 5;
+				}
+				else if (z_warp_neg)
+				{
+					res.x = -coord.x - 1;
+					res.y = coord.y;
+					res.z = 1;
+					res.w = 6;
+				}
+				else
+				{
+					res.xyz = coord;
+					res.w	= 0u;
+				}
+
+				fn(data, lut_data, res);
+			}
+		}
+		else
+		{
+			// expand_all()
+
+			for (uint32 i = 0; i < 26; ++i)
+			{
+				const uint32  idx	 = i < 13u ? i : i + 1u;
+				const int32_3 offset = int32_3(int32(idx / 9u), int32((idx / 3u) % 3u), int32(idx % 3u)) - 1;
+
+				const int32 layer = center_cell_idx.z;
+				// const int32_3 offset = offset_arr[i];
+				const int32_3 coord = center_cell_idx.xyz + offset;
+
+				const bool x_warp_neg = coord.x < -half;
+				const bool x_warp_pos = coord.x >= half;
+
+				const bool y_warp_neg = coord.y < -half;
+				const bool y_warp_pos = coord.y >= half;
+
+				const bool z_warp_neg = offset.z == -1;
+				const bool z_warp_pos = offset.z == 1;
+
+				if ((x_warp_neg or x_warp_pos) + (y_warp_neg or y_warp_pos) + (layer == 1 and z_warp_neg) > 1) { continue; }
+				if (layer == data.outer_layer_count() and z_warp_pos) { continue; }
+
+				int32_4 res;
+
+				res.z = coord.z;
+				res.w = center_cell_idx.w;	  // region
+
+				// axis flip => -x-1
+				// y = -half -> x = half - 1, y = half - 1 => x = - half
+				// y = -x-1
+				if (x_warp_pos)
+				{
+					if (region == 1)
+					{
+						// x_pos -> z_neg
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 6;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> z_pos
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 5;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> x_pos
+						res.x = coord.y;
+						res.y = half - 1;
+						res.w = 1;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> x_pos
+						res.x = -coord.y - 1;
+						res.y = -half;
+						res.w = 1;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> x_pos
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 1;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> x_neg
+						res.x = -half;
+						res.y = coord.y;
+						res.w = 2;
+					}
+				}
+				else if (x_warp_neg)
+				{
+					if (region == 1)
+					{
+						// x_pos -> z_pos
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 5;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> z_neg
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 6;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> x_neg
+						res.x = -coord.y - 1;
+						res.y = half - 1;
+						res.w = 2;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> x_neg
+						res.x = coord.y;
+						res.y = -half;
+						res.w = 2;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> x_neg
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 2;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> x_pos
+						res.x = half - 1;
+						res.y = coord.y;
+						res.w = 1;
+					}
+				}
+				else if (y_warp_pos)
+				{
+					if (region == 1)
+					{
+						// x_pos -> y_pos
+						res.x = half - 1;
+						res.y = coord.x;
+						res.w = 3;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> y_pos
+						res.x = -half;
+						res.y = -coord.x - 1;
+						res.w = 3;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> z_neg
+						res.x = -coord.x - 1;
+						res.y = half - 1;
+						res.w = 6;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> z_pos
+						res.x = coord.x;
+						res.y = -half;
+						res.w = 5;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> y_pos
+						res.x = coord.x;
+						res.y = -half;
+						res.w = 3;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> y_pos
+						res.x = -coord.x - 1;
+						res.y = half - 1;
+						res.w = 3;
+					}
+				}
+				else if (y_warp_neg)
+				{
+					if (region == 1)
+					{
+						// x_pos -> y_neg
+						res.x = half - 1;
+						res.y = -coord.x - 1;
+						res.w = 4;
+					}
+					else if (region == 2)
+					{
+						// x_neg -> y_neg
+						res.x = -half;
+						res.y = coord.x;
+						res.w = 4;
+					}
+					else if (region == 3)
+					{
+						// y_pos -> z_pos
+						res.x = coord.x;
+						res.y = half - 1;
+						res.w = 5;
+					}
+					else if (region == 4)
+					{
+						// y_neg -> z_neg
+						res.x = -coord.x - 1;
+						res.y = -half;
+						res.w = 6;
+					}
+					else if (region == 5)
+					{
+						// z_pos -> y_neg
+						res.x = coord.x;
+						res.y = half - 1;
+						res.w = 4;
+					}
+					else
+					{
+						// region == 6
+						// z_neg -> y_neg
+						res.x = -coord.x - 1;
+						res.y = -half;
+						res.w = 4;
+					}
+				}
+				else if (layer == 1 and z_warp_neg)
+				{
+					if (region == 1)
+					{
+						res.x = half - 1;
+						res.y = coord.y;
+						res.z = -coord.x - 1;
+					}
+					else if (region == 2)
+					{
+						res.x = -half;
+						res.y = coord.y;
+						res.z = coord.x;
+					}
+					else if (region == 3)
+					{
+						res.x = coord.x;
+						res.y = half - 1;
+						res.z = -coord.y - 1;
+					}
+					else if (region == 4)
+					{
+						res.x = coord.x;
+						res.y = -half;
+						res.z = coord.y;
+					}
+					else if (region == 5)
+					{
+						res.x = coord.x;
+						res.y = coord.y;
+						res.z = half - 1;
+					}
+					else
+					{
+						// region == 6
+						res.x = -coord.x - 1;
+						res.y = coord.y;
+						res.z = -half;
+					}
+
+					res.w = 0;
+				}
+				else
+				{
+					res.xy = coord.xy;
+				}
+
+				fn(data, lut_data, res);
+			}
+		}
+	}
+
+	// based on ray-tracing-gems ch25
+	// https://github.com/Apress/ray-tracing-gems/blob/master/Ch_25_Hybrid_Rendering_for_Real-Time_Ray_Tracing/MultiscaleMeanEstimator.hlsl
+	// returns blend factor (catch_up_blend)
+	float3
+	update_msme(float3 y, inout gist_surfel_msme msme, float blend_factor = GIST_MSME_SHORT_WINDOW_BLEND)
+	{
+		float3 mean_long	 = msme.mean_long;
+		float3 mean_short	 = msme.mean_short;
+		float3 variance		 = msme.variance;
+		float  inconsistency = msme.inconsistency;
+		float  vbbr			 = msme.vbbr;
+
+		// Suppress fireflies.
+		{
+			const float3 dev			 = sqrt(max(1e-5f, variance));
+			const float3 high_threshold	 = 0.1f + mean_short + dev * 8.f;
+			const float3 overflow		 = max(0.f, y - high_threshold);
+			y							-= overflow;
+		}
+
+		const float3 delta	= y - mean_short;
+		mean_short			= lerp(mean_short, y, blend_factor);
+		const float3 delta2 = y - mean_short;
+
+		// This should be a longer window than shortWindowBlend to avoid bias
+		// from the variance getting smaller when the short-term mean does.
+		const float variance_blend = blend_factor * 0.5f;
+		variance				   = lerp(variance, delta * delta2, variance_blend);
+		variance				   = max(1e-3, variance);
+		const float3 dev		   = sqrt(max(1e-5f, variance));
+
+		const float3 short_diff	   = mean_long - mean_short;
+		const float	 relative_diff = dot(float3(0.299f, 0.587f, 0.114f), abs(short_diff) / max(1e-5f, dev));
+		inconsistency			   = lerp(inconsistency, relative_diff, 0.08f);
+
+		const float vbbr_target = clamp(dot(float3(0.299f, 0.587f, 0.114f), 0.5f * mean_short / max(1e-5f, dev)), 1.f / 32.f, 1.f);
+
+		float catch_up_blend  = clamp(smoothstep(0.f, 1.f, relative_diff * max(0.02f, inconsistency - 0.2f)), 1.f / 256.f, 1.f);
+		catch_up_blend		 *= vbbr;
+
+		vbbr	  = lerp(vbbr, vbbr_target, 0.1f);
+		mean_long = lerp(mean_long, y, saturate(catch_up_blend));
+
+		{
+			const float incon_a	   = GIST_MSME_INCONSISTENCY_BLEND;	   // tune
+			float		incon_mean = msme.incon_mean;
+			float		incon_var  = msme.incon_var;
+			const float incon_d	   = inconsistency - incon_mean;
+			incon_mean			   = lerp(incon_mean, inconsistency, incon_a);
+			const float incon_d2   = inconsistency - incon_mean;
+			incon_var			   = lerp(incon_var, incon_d * incon_d2, incon_a);
+			msme.incon_mean		   = incon_mean;
+			msme.incon_var		   = incon_var;
+		}
+
+		// output
+		msme.mean_long	   = mean_long;
+		msme.mean_short	   = mean_short;
+		msme.vbbr		   = vbbr;
+		msme.variance	   = variance;
+		msme.inconsistency = inconsistency;
+
+		return mean_long;
+	}
+
+	template <bool is_rw = false>
+	float
+	calc_surfel_visibility(const in gist_data data, const uint32 surfel_id, const gist_cell_surfel surfel, float3 world_pos, out float2 chebyshev)
+	{
+		const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+		const float3 rel		   = world_pos - surfel.position + surfel_normal * 0.01f;
+		const float3 rel_local	   = mul(rel, gen_world_normal_transform(surfel_normal));	 // mul (rel, inv(gen_world_normal_transform_t) )
+
+		float3 dir_local = normalize(rel_local);
+
+		// if (dir_local.y < -0.2f) { return 0.f; }
+		if (all(world_pos == surfel.position)) { return 1.f; }
+
+		dir_local.y = max(dir_local.y, epsilon_1e4);
+		dir_local	= normalize(dir_local);
+
+		assert(dir_local.y >= 0.f, line);
+
+		const uint32 idx = gist::calc_atlas_tile_local_idx(dir_local);
+
+		const uint16 chebyshev_packed = is_rw ? gist::cell::visibility_rw_arr(data, surfel_id)[idx] : gist::cell::visibility_arr(data, surfel_id)[idx];
+
+		chebyshev = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)));
+
+		const float dist_norm = saturate(length(rel) / (surfel.radius /* * GIST_SURFEL_OUTER_RADIUS_FACTOR*/));
+		const float mean	  = chebyshev.x;
+		const float sq_mean	  = chebyshev.y;
+
+		const float variance = abs(sq_mean - mean * mean);
+
+		if (dist_norm <= mean) { return 1.f; }
+
+		const float k	= dist_norm - mean;
+		const float vis = variance / (variance + k * k);	// p(d >= mean + k) <= σ^2 / (σ^2 + k^2)
+
+		return pow_5(vis);
+	}
+
+	template <bool is_rw = false>
+	float
+	calc_surfel_visibility(const in gist_data data, const uint32 surfel_id, const gist_cell_surfel surfel, float3 world_pos)
+	{
+		float2 chebyshev = float2(1.f, 1.f);
+		return calc_surfel_visibility<is_rw>(data, surfel_id, surfel, world_pos, chebyshev);
+	}
+
+	float4
+	gather_neighbor_gi(texture_2d<float3> irr_src, texture_2d<uint32_2> geo_src, int32_2 center, float3 center_world_pos, float3 center_normal, float center_z_lin, int32_2 extent)
+	{
+		float4 res = zero<float4>();
+
+		const int32_2 r = int32_2(1, 1);
+
+		for (int32 dy = -r.y; dy <= r.y; ++dy)
+		{
+			for (int32 dx = -r.x; dx <= r.x; ++dx)
+			{
+				const int32_2  tap	   = clamp(center + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+				const uint32_2 geo_tap = geo_src[tap];
+
+				if (geo_tap.x == 0) { continue; }
+
+				const float	 tap_depth	= as_float(geo_tap.x);
+				const float3 tap_normal = decode_oct_snorm16(geo_tap.y);
+
+				const float3 tap_world_pos = screen_px_to_world(tap, tap_depth, inv_backbuffer_size, view_proj_inv);
+
+				const float w = calc_bilateral_weight(center_world_pos, center_normal, center_z_lin, tap_world_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size);
+
+				res += float4(irr_src[tap], 1.f) * w;
+			}
+		}
+
+		return res;
+	}
+}	 // namespace gist
+
+namespace gist
+{
+	bool
+	sample_screen_irradiance(const in gist_data data, const float3 world_pos, const float3 face_normal, out float3 irradiance)
+	{
+		irradiance = zero<float3>();
+
+		const float4 clip_pos = mul(view_proj, float4(world_pos, 1.f));
+		const float3 ndc	  = clip_pos.xyz / clip_pos.w;
+
+		const bool in_frustum = clip_pos.w > 0.f
+							and all(ndc.xy >= -1.f)
+							and all(ndc.xy <= 1.f)
+							and ndc.z >= 0.f
+							and ndc.z <= 1.f;
+
+		if (in_frustum is_false) { return false; }
+
+		texture_2d<uint32_2> gbuffer			   = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 depth_buffer		   = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<float3>	 gi_resolve_buffer	   = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+		texture_2d<uint32>	 gi_resolve_age_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
+
+		const int32_2 center_px	   = int32_2(ndc_xy_to_screen(ndc.xy, backbuffer_size));
+		const int32_2 extent	   = int32_2(backbuffer_size);
+		const float	  center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, ndc.z);
+
+		float4 irradiance_sum = zero<float4>();
+
+		for (int32 dy = -1; dy <= 1; ++dy)
+		{
+			for (int32 dx = -1; dx <= 1; ++dx)
+			{
+				const int32_2 tap = clamp(center_px + int32_2(dx, dy), zero<int32_2>(), extent - 1);
+
+				const float z_depth = depth_buffer[tap];
+				if (z_depth == 0.f) { continue; }					   // sky
+				if (gi_resolve_age_buffer[tap] == 0u) { continue; }	   // invalid
+
+				const float3 tap_normal	   = decode_oct_snorm16(gbuffer[tap].y);
+				const float3 tap_world_pos = screen_px_to_world(tap, z_depth, inv_backbuffer_size, view_proj_inv);
+
+				const float w = calc_bilateral_weight(world_pos, face_normal, center_z_lin, tap_world_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size);
+
+				irradiance_sum += float4(gi_resolve_buffer[tap], 1.f) * w;
+			}
+		}
+
+		if (irradiance_sum.w < 0.5f) { return false; }
+
+		irradiance = irradiance_sum.xyz / irradiance_sum.w;
+		return true;
+	}
+
+	float
+	calc_near_contribution(float dist, float radius, float3 surfel_normal, float3 normal)
+	{
+		const float cos_theta = dot(normal, surfel_normal);
+		if (cos_theta <= 0.f) { return 0.f; }
+
+		return cos_theta * smoothstep(0, 1, (1.f - dist / radius));
+	}
+
+	float
+	calc_far_contribution(float3 rel, float3 dir, float3 surfel_normal, float radius, float range, float3 normal)
+	{
+		const float n_dot_l = dot(normal, dir);
+
+		if (n_dot_l <= 0.f) { return 0.f; }
+
+		const float s_dot_l = dot(surfel_normal, -dir);
+
+		if (s_dot_l <= 0.f) { return 0.f; }
+
+		const float dist_sq = dot(rel, rel);
+		const float r_sq	= radius * radius;
+
+		const float range_fade = (1.f - smoothstep(range * 0.75f * range * 0.75f, range * range, dist_sq));
+
+		return n_dot_l * s_dot_l * r_sq / max(dist_sq, r_sq) * range_fade;
+	}
+
+	template <bool sample_screen = true, bool enable_spawn_kill = false>
+	float4
+	sample_irradiance(const in gist_data data, const uint32 ray_id, float3 world_pos, float3 normal, uint32 seed)
+	{
+		const gist_lut_data lut_data = gist::load_lut_data();
+
+		float3 irradiance = zero<float3>();
+		attr_branch()
+
+		if (sample_screen)
+		{
+			if (sample_screen_irradiance(data, world_pos, normal, irradiance))
+			{
+				return float4(irradiance, 1.f);
+			}
+		}
+
+		const uint32				 cell_id	  = gist::cell::calc_id(data, lut_data, world_pos);
+		const gist_cell_surfel_entry surfel_entry = gist::cell::surfel_entry_arr(data)[cell_id];
+
+		byte_array<uint32>					surfel_id_arr = gist::cell::cell_to_surfel_id_arr(data);
+		structured_buffer<gist_cell_surfel> surfel_buffer = global_resource_buffer[data.h_cell_surfel_buffer_srv_id];
+
+		float4 irradiance_sum = zero<float4>();
+		float4 radiance_sum	  = zero<float4>();
+
+		float  max_contribution_near		   = 0.f;
+		uint32 max_contribution_near_surfel_id = invalid_id_uint32;
+		float  max_contribution_far			   = 0.f;
+		uint32 max_contribution_far_surfel_id  = invalid_id_uint32;
+
+		float near_contribution_sum = 0.f;
+		float far_contribution_sum	= 0.f;
+
+		for (uint32 i = 0; i < min(surfel_entry.surfel_count, 256); ++i)
+		{
+			const uint32		   surfel_id	 = surfel_id_arr[surfel_entry.offset + i];
+			const gist_cell_surfel surfel		 = surfel_buffer[surfel_id];
+			const float3		   surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+
+			const float3 rel	 = surfel.position - world_pos;
+			const float3 dir	 = normalize(rel);
+			const float	 dist_sq = dot(rel, rel);
+			const float	 dist	 = sqrt(dist_sq);
+
+			float visibility = gist::calc_surfel_visibility(data, surfel_id, surfel, world_pos);
+
+			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, normal)
+										  * visibility;
+
+			if (near_contribution > 0.f)
+			{
+				near_contribution_sum += near_contribution;
+				irradiance_sum		  += float4(decode_r11g11b10(surfel.irradiance_r11g11b10), 1.f)
+									   * near_contribution
+									   * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+			}
+
+			const float far_contribution = gist::calc_far_contribution(rel, dir, surfel_normal, surfel.radius, surfel.radius, normal)
+										 * visibility;
+
+			if (far_contribution > 0.f)
+			{
+				far_contribution_sum += far_contribution;
+				radiance_sum		 += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
+									  * far_contribution
+									  * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+			}
+
+
+			if (max_contribution_near < near_contribution)
+			{
+				max_contribution_near_surfel_id = surfel_id;
+				max_contribution_near			= near_contribution;
+			}
+
+			if (max_contribution_far < far_contribution)
+			{
+				max_contribution_far_surfel_id = surfel_id;
+				max_contribution_far		   = far_contribution;
+			}
+
+			if (near_contribution > 0.f or far_contribution > 0.f)
+			{
+				gist::cell::set_surfel_ref(data, surfel_entry.offset + i);
+			}
+		}
+
+		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
+		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
+
+		const float near_conf = irradiance_sum.w / 1.f * GIST_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float far_conf  = radiance_sum.w / 1.f;
+
+		irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+		attr_branch()
+
+		if (enable_spawn_kill)
+		{
+			const float3 rng = random_pcg3d(uint32_3(ray_id, seed, frame_index));
+
+			const float surfel_near_coverage = near_contribution_sum;
+			const float surfel_far_coverage	 = far_contribution_sum;
+
+			const bool surfel_need_spawn = surfel_near_coverage <= GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR and surfel_far_coverage <= GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR;
+
+			if (surfel_need_spawn)
+			{
+				attr_branch()
+
+				if (debug::freeze_cell_surfel_spawn(data) is_false)
+				{
+					const float spawn_prob_near = (GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR - surfel_near_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR);
+					const float spawn_prob_far	= (GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR - surfel_far_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR);
+					const float spawn_prob		= min(spawn_prob_near, spawn_prob_far) * GIST_CELL_SURFEL_SPAWN_PROB_FACTOR;
+
+					if (rng.x < spawn_prob)
+					{
+						gist::cell::set_surfel_spawn(data, cell_id, spawn_prob, ray_id);
+					}
+				}
+			}
+			else if (surfel_near_coverage > GIST_CELL_SURFEL_KILL_COVERAGE_NEAR or surfel_far_coverage > GIST_CELL_SURFEL_KILL_COVERAGE_FAR)
+			{
+				attr_branch()
+
+				if (debug::freeze_cell_surfel_kill(data) is_false)
+				{
+					const float kill_prob_near = (surfel_near_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_NEAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_NEAR);
+					const float kill_prob_far  = (surfel_far_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_FAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_FAR);
+					const float kill_prob	   = max(kill_prob_near, kill_prob_far) * GIST_CELL_SURFEL_KILL_PROB_FACTOR;
+
+					const uint32 kill_surfel_id = kill_prob_near > kill_prob_far ? max_contribution_near_surfel_id : max_contribution_far_surfel_id;
+
+					if (rng.y < kill_prob)
+					{
+						gist::cell::set_surfel_kill(data, cell_id, kill_prob, kill_surfel_id);
+					}
+				}
+			}
+		}
+
+		return float4(irradiance, near_conf + far_conf);
+	}
+
+	float4
+	sample_irradiance(const in gist_data data, float3 world_pos, float3 normal)
+	{
+		return sample_irradiance<false, false>(data, invalid_id_uint32, world_pos, normal, invalid_id_uint32);
+	}
+}	 // namespace gist
+
+namespace gist
+{
+	template <typename t_ray_hit_res, uint32 rt_flags, bool is_opaque>
+	void
+	fill_hit_committed(inout t_ray_hit_res res, inout ray_query<rt_flags> query)
+	{
+		res.distance	 = rt_committed_ray_t(query);
+		res.object_id	 = load_rt_instance_render_data(rt_committed_instance_id(query)).object_id;
+		res.primitive_id = rt_committed_primitive_index(query);
+
+		const float2 bary = rt_committed_triangle_barycentrics(query);
+
+		res.barycentric_unorm16 = uint32(float_to_unorm16(bary.x))
+								| (uint32(float_to_unorm16(bary.y)) << 16u);
+
+		if (rt_committed_triangle_front_face(query) is_false)
+		{
+			res.distance = -res.distance;
+
+			if (is_opaque)
+			{
+				res.object_id = invalid_id_uint32;
+			}
+		}
+	}
+
+	template <typename t_ray_hit_res>
+	t_ray_hit_res
+	trace_ray(const uint32 seed, float3 pos, float3 dir)
+	{
+		t_ray_hit_res res = zero<t_ray_hit_res>();
+		res.object_id	  = invalid_id_uint32;
+		res.distance	  = float_max;
+
+		ray_desc desc;
+		desc.Origin	   = pos;
+		desc.Direction = dir;
+		desc.TMin	   = 0.0f;
+		desc.TMax	   = float_max;
+
+		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+		{
+			ray_query<RAY_FLAG_CULL_NON_OPAQUE> query;
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_CULL_NON_OPAQUE, RT_MASK_OPAQUE, desc);
+			rt_proceed(query);
+
+			if (rt_committed_status(query) == COMMITTED_NOTHING)
+			{
+				res.distance = float_max;
+			}
+			else
+			{
+				fill_hit_committed<t_ray_hit_res, RAY_FLAG_CULL_NON_OPAQUE, true>(res, query);
+			}
+		}
+
+		if (res.distance > 0.f)	   // not inside wall
+		{
+			desc.TMax = res.distance;
+
+			ray_query<RAY_FLAG_CULL_OPAQUE> query;
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_CULL_OPAQUE, RT_MASK_TRANSPARENT, desc);
+
+			while (rt_proceed(query))
+			{
+				const uint32				  rt_instance_render_data_id = rt_candidate_instance_id(query);
+				const uint32				  primitive_id				 = rt_candidate_primitive_index(query);
+				const float2				  barycentrics				 = rt_candidate_triangle_barycentrics(query);
+				const rt_instance_render_data render_data				 = load_rt_instance_render_data(rt_instance_render_data_id);
+				const material				  mat						 = load_material(render_data.material_id);
+
+				float4 base_color = mat.base_color_factor;
+				if (mat.base_color_texture_id != invalid_id_uint32)
+				{
+					const object_data obj		 = load_object_data(render_data.object_id);
+					const mesh_header msh_header = read_mesh_header<rt_instance_render_data>(render_data);
+					const uint32_3	  prim_index = load_rt_triangle_index(render_data, primitive_id);
+
+					const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+					const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+					const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+					const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+
+					const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj);
+
+					texture_2d<float4> base_color_tex  = global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
+					base_color						  *= sample(base_color_tex, get_linear_wrap_sampler(), v.uv_set[0]);
+				}
+
+				const float rng = random_pcg4d(uint32_4(seed, rt_instance_render_data_id, primitive_id, frame_index)).x;
+
+				if (rng < base_color.a)
+				{
+					rt_commit_non_opaque_triangle_hit(query);
+				}
+			}
+
+			if (rt_committed_status(query) != COMMITTED_NOTHING)
+			{
+				fill_hit_committed<t_ray_hit_res, RAY_FLAG_CULL_OPAQUE, false>(res, query);
+			}
+		}
+
+		return res;
+	}
+
+	// cdf[GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1] == lum_sum
+	float
+	calc_cdf_texel_prob(byte_array<half> cdf, uint32 idx)
+	{
+		return idx == 0
+				 ? cdf[idx]
+			 : idx == GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1
+				 ? 1.f - cdf[idx - 1]
+				 : max(0.f, cdf[idx] - cdf[idx - 1]);
+	}
+
+	float3
+	sample_guided_dir_local(byte_array<half> luminance_cdf, float guide_prob, float4 rand_4d, out float pdf)
+	{
+		const float luminance_sum = luminance_cdf[GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1];
+
+		float3 dir_local;
+
+		if (luminance_sum > GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE)
+		{
+			float pdf_guide = 0.f;
+			float pdf_cos	= 0.f;
+
+			if (rand_4d.w < guide_prob)
+			{
+				const uint32 idx	= upper_boundary(luminance_cdf, 0, GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1, rand_4d.x);
+				const float2 jitter = rand_4d.yz;
+				const float2 uv		= saturate((int32_2(idx % GIST_ATLAS_TILE_SIZE, idx / GIST_ATLAS_TILE_SIZE) + jitter) / float(GIST_ATLAS_TILE_SIZE));
+				dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
+
+				const float pdf_uv = max(calc_cdf_texel_prob(luminance_cdf, idx), epsilon_1e4) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
+				pdf_guide		   = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+				pdf_cos			   = max(epsilon_1e4, dir_local.y) * pi_inv;
+			}
+			else
+			{
+				dir_local = sample_hemisphere_cosine_local_y_up(rand_4d.xy);
+				pdf_cos	  = max(epsilon_1e4, dir_local.y) * pi_inv;
+
+				const float2  uv	= saturate(encode_world_hemi_octahedral(dir_local) * 0.5f + 0.5f);
+				const int32_2 texel = min(int32_2(uv * float(GIST_ATLAS_TILE_SIZE)), int32_2(GIST_ATLAS_TILE_SIZE - 1, GIST_ATLAS_TILE_SIZE - 1));
+
+				const float pdf_uv = calc_cdf_texel_prob(luminance_cdf, uint32(texel.y * GIST_ATLAS_TILE_SIZE + texel.x)) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
+				pdf_guide		   = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+			}
+
+			pdf = guide_prob * pdf_guide + (1.f - guide_prob) * pdf_cos;
+		}
+		else
+		{
+			dir_local = sample_hemisphere_cosine_local_y_up(rand_4d.xy);
+			pdf		  = max(epsilon_1e4, dir_local.y) * pi_inv;	   // dir_local.y == cos_theta
+		}
+
+		assert(pdf > 0.f, line, pdf);
+		return dir_local;
+	}
+
+	gist_ray_hit_result
+	trace_ray_diffuse(const in gist_data data, float3 world_pos, float3 normal, float4 rand_4d, byte_array<half> cdf_arr, float ray_guide_prob, uint32 seed)
+	{
+		float		 pdf;
+		const float3 dir_local = sample_guided_dir_local(cdf_arr, ray_guide_prob, rand_4d, pdf);
+		const float3 dir_world = mul(dir_local, gen_world_normal_transform_t(normal));
+
+		gist_ray_hit_result res = gist::trace_ray<gist_ray_hit_result>(seed, surface_offset(world_pos, normal), dir_world);
+		res.dir_oct_snorm8		= uint32(encode_world_hemi_oct_snorm8(dir_local)) | (uint32(encode_oct_snorm8(dir_world)) << 16u);
+		res.pdf					= pdf;
+		return res;
+	}
+
+	gist_ray_hit_result
+	px_trace_ray_diffuse(const in gist_data data, int32_2 px, float z_depth, float4 rand_4d)
+	{
+		texture_2d<uint32_2> gbuffer = global_resource_buffer[opaque_gbuffer_srv_id];
+
+		const float3 world_pos = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
+		const float3 normal	   = decode_oct_snorm16(gbuffer[px].y);
+		return trace_ray_diffuse(data, world_pos, normal, rand_4d, gist::tile::px_luminance_cdf_arr(data, px),
+								 GIST_PX_RAY_GUIDE_PROB, px.x + px.y * int32_2(backbuffer_size).x + frame_index + g::shader_hash);
+	}
+}	 // namespace gist
+
+namespace gist
+{
+	bool
+	is_valid_ray_hit(const in gist_ray_hit_result hit)
+	{
+		if (hit.pdf == 0.f) { return false; }												// invalid_px, sky, ...
+		if (hit.distance < 0.f and hit.object_id == invalid_id_uint32) { return false; }	// opaque back face
+		return true;
+	}
+
+	bool
+	calc_ray_irradiance(const in gist_ray_hit_result hit, const in gist_ray_lighting_result lighting, out float3 irradiance)
+	{
+		irradiance = zero<float3>();
+
+		if (is_valid_ray_hit(hit) is_false) { return false; }
+
+		const float3 dir_local = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(hit.dir_oct_snorm8));
+		irradiance			   = decode_r11g11b10(lighting.radiance_r11g11b10) * (dir_local.y / max(epsilon_1e6, hit.pdf));
+
+		// const float3 dir_world = decode_oct_snorm8(uint32_upper_to_uint16(hit.dir_oct_snorm8));
+		// const float	 cos_theta = max(0.f, dot(px_normal, dir_world));
+		// irradiance = decode_r11g11b10(lighting.radiance_r11g11b10)
+		//			 * (cos_theta / max(hit.pdf, cos_theta * pi_inv * (1.f - GIST_PX_RAY_GUIDE_PROB)));
+
+		return true;
+	}
+
+	void
+	accumulate_gi(const in gist_data data, int32_2 px, float3 irradiance_curr, bool advance_age)
+	{
+		rw_texture_2d<float3> gi_buffer		 = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
+		rw_texture_2d<float2> moments_buffer = global_resource_buffer[data.h_gi_resolve_moments_curr_buffer_uav_id];
+		rw_texture_2d<uint32> age_buffer	 = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_uav_id];
+
+		const uint32 age		  = age_buffer[px];
+		const float	 blend_factor = age == 0u ? 0.5f : 1.f / float(age + 1u);
+		const float	 lum		  = min(luminance_rec709(irradiance_curr), 256.f);
+
+		const float3 rng_gi = random_pcg3d(uint32_3(uint32(px.x), uint32(px.y), frame_index + g::shader_hash));
+		const float3 rng_m	= random_pcg3d(uint32_3(uint32(px.y), uint32(px.x), frame_index + g::shader_hash + 24680u));
+
+		gi_buffer[px]	   = round_fp16_stochastic(lerp(gi_buffer[px], irradiance_curr, blend_factor), rng_gi);
+		moments_buffer[px] = round_fp16_stochastic(lerp(moments_buffer[px], float2(lum, lum * lum), blend_factor), rng_m.xy);
+
+		if (advance_age)
+		{
+			age_buffer[px] = min(age + 1u, GIST_GI_RESOLVE_MAX_AGE);
+		}
+	}
+}	 // namespace gist

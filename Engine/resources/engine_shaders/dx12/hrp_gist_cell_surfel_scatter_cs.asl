@@ -1,0 +1,46 @@
+#include "hrp_common.asli"
+
+struct fn_fill_cell_to_surfel
+{
+	uint32			 surfel_id;
+	gist_cell_surfel surfel;
+
+	static fn_fill_cell_to_surfel
+	init(uint32 surfel_id, const gist_cell_surfel surfel)
+	{
+		fn_fill_cell_to_surfel res;
+		res.surfel_id = surfel_id;
+		res.surfel	  = surfel;
+		return res;
+	}
+
+	void
+	operator()(const gist_data data, const gist_lut_data lut_data, int32_4 cell_idx)
+	{
+		if (gist::calc_surfel_cell_intersect(data, lut_data, surfel, cell_idx) is_false) { return; }
+
+		const uint32 cell_id = gist::cell::calc_id(data, cell_idx);
+
+		gist::cell::set_cell_to_surfel_id(data, cell_id, surfel_id);
+	}
+};
+
+wave_size(AGE_WAVE_SIZE)
+[numthreads(AGE_WAVE_SIZE, 1, 1)] void
+main_cs(uint32 alive_id sv_dispatch_thread_id)
+
+{
+	const gist_data						data		   = gist::load_data();
+	const byte_array<uint32>			alive_arr_curr = gist::cell::alive_id_arr_curr(data);
+	structured_buffer<gist_cell_surfel> surfel_arr	   = global_resource_buffer[data.h_cell_surfel_buffer_srv_id];
+
+
+	if (alive_id >= alive_arr_curr.size()) { return; }
+
+	const uint32 surfel_id = alive_arr_curr[alive_id];
+
+	const gist_cell_surfel surfel = surfel_arr[surfel_id];
+
+	fn_fill_cell_to_surfel fn = fn_fill_cell_to_surfel::init(surfel_id, surfel);
+	gist::foreach_neighbor_cell(fn, data, gist::load_lut_data(), surfel.position);
+}

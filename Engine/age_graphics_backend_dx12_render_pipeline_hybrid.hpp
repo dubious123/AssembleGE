@@ -272,6 +272,119 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct gist_stage
+	{
+		graphics::pso::handle h_pso_cleanup;
+		ID3D12PipelineState*  p_pso_cleanup;
+
+		graphics::pso::handle h_pso_prepare;
+		ID3D12PipelineState*  p_pso_prepare;
+
+		graphics::pso::handle h_pso_cell_surfel_spawn_kill;
+		ID3D12PipelineState*  p_pso_cell_surfel_spawn_kill;
+
+		graphics::pso::handle h_pso_update_cell_surfel_id_stack;
+		ID3D12PipelineState*  p_pso_update_cell_surfel_id_stack;
+
+		graphics::pso::handle h_pso_set_indirect_arg;
+		ID3D12PipelineState*  p_pso_set_indirect_arg;
+
+		graphics::pso::handle h_pso_update_cell_surfel;
+		ID3D12PipelineState*  p_pso_update_cell_surfel;
+
+		graphics::pso::handle h_pso_alloc_cell_surfel;
+		ID3D12PipelineState*  p_pso_alloc_cell_surfel;
+
+		graphics::pso::handle h_pso_cell_surfel_ideal_ray_count_reduce;
+		ID3D12PipelineState*  p_pso_cell_surfel_ideal_ray_count_reduce;
+
+		graphics::pso::handle h_pso_cell_surfel_ray_count_prefix;
+		ID3D12PipelineState*  p_pso_cell_surfel_ray_count_prefix;
+
+		graphics::pso::handle h_pso_ray_entry;
+		ID3D12PipelineState*  p_pso_ray_entry;
+
+		graphics::pso::handle h_pso_cell_prefix;
+		ID3D12PipelineState*  p_pso_cell_prefix;
+
+		graphics::pso::handle h_pso_cell_surfel_scatter;
+		ID3D12PipelineState*  p_pso_cell_surfel_scatter;
+
+		graphics::pso::handle h_pso_gi_reproject;
+		ID3D12PipelineState*  p_pso_gi_reproject;
+
+		graphics::pso::handle h_pso_adaptive_ray_alloc;
+		ID3D12PipelineState*  p_pso_adaptive_ray_alloc;
+
+		graphics::pso::handle h_pso_adaptive_ray_entry_prepare;
+		ID3D12PipelineState*  p_pso_adaptive_ray_entry_prepare;
+
+		graphics::pso::handle h_pso_adaptive_ray_entry;
+		ID3D12PipelineState*  p_pso_adaptive_ray_entry;
+
+		graphics::pso::handle h_pso_adaptive_ray_trace_diffuse;
+		ID3D12PipelineState*  p_pso_adaptive_ray_trace_diffuse;
+
+		graphics::pso::handle h_pso_adaptive_ray_trace_specular;
+		ID3D12PipelineState*  p_pso_adaptive_ray_trace_specular;
+
+		graphics::pso::handle h_pso_cell_surfel_ray_trace;
+		ID3D12PipelineState*  p_pso_cell_surfel_ray_trace;
+
+		graphics::pso::handle h_pso_tile_ray_trace;
+		ID3D12PipelineState*  p_pso_tile_ray_trace;
+
+		graphics::pso::handle h_pso_ray_resolve;
+		ID3D12PipelineState*  p_pso_ray_resolve;
+
+		graphics::pso::handle h_pso_cell_surfel_ray_integrate;
+		ID3D12PipelineState*  p_pso_cell_surfel_ray_integrate;
+
+		graphics::pso::handle h_pso_px_update_luminance;
+		ID3D12PipelineState*  p_pso_px_update_luminance;
+
+		graphics::pso::handle h_pso_cell_surfel_build_cdf;
+		ID3D12PipelineState*  p_pso_cell_surfel_build_cdf;
+
+		graphics::pso::handle h_pso_px_build_cdf;
+		ID3D12PipelineState*  p_pso_px_build_cdf;
+
+		graphics::pso::handle h_pso_gi_resolve;
+		ID3D12PipelineState*  p_pso_gi_resolve;
+
+		graphics::pso::handle h_pso_adaptive_gi_resolve_diffuse;
+		ID3D12PipelineState*  p_pso_adaptive_gi_resolve_diffuse;
+
+		graphics::pso::handle h_pso_gi_reconstruct;
+		ID3D12PipelineState*  p_pso_gi_reconstruct;
+
+		graphics::pso::handle h_pso_debug_view;
+		ID3D12PipelineState*  p_pso_debug_view;
+
+		graphics::pso::handle h_pso_debug_resolve;
+		ID3D12PipelineState*  p_pso_debug_resolve;
+
+		graphics::command_signature::handle h_cmd_sig;
+		ID3D12CommandSignature*				p_cmd_sig;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const gist_data&			gist_data_cpu,
+				binding_config_t::reg_b<1>& constants,
+				extent_2d<uint16>			main_buffer_extent) const noexcept;
+
+
+		inline void
+		execute_render_surfels(const gist_data&	 gist_data_cpu,
+							   rtv_desc_handle	 h_main_buffer_rtv_desc,
+							   resource_handle	 h_blend_buffer,
+							   extent_2d<uint16> main_buffer_extent) const noexcept;
+		void
+		deinit() noexcept;
+	};
+
 	struct opaque_stage
 	{
 		graphics::pso::handle h_pso;
@@ -519,6 +632,7 @@ namespace age::graphics::render_pipeline
 		light_bin_stage			stage_light_bin;
 		ddgi_stage				stage_ddgi;
 		gibs_stage				stage_gibs;
+		gist_stage				stage_gist;
 		opaque_stage			stage_opaque;
 		aa_stage				stage_aa;
 		transparent_stage		stage_transparent;
@@ -717,6 +831,9 @@ namespace age::graphics::render_pipeline
 
 		// gibs
 		gibs_data gibs_data_cpu;
+
+		// gist
+		gist_data gist_data_cpu;
 
 		// ao
 		ao_data ao_data_cpu;
@@ -942,19 +1059,22 @@ namespace age::graphics::render_pipeline
 
 		// ddgi
 		void
-		enable_ddgi(const ddgi_desc& _) noexcept;
+		enable_ddgi(const ddgi_desc&) noexcept;
 
 		void
 		disable_ddgi() noexcept;
 
 		void
-		update_ddgi(const ddgi_desc& _) noexcept;
+		update_ddgi(const ddgi_desc&) noexcept;
 
 		void
 		update_ddgi_debug_flags(graphics::e::ddgi_debug_flags e) noexcept;
 
 		bool
 		ddgi_enabled() const noexcept;
+
+		void
+		enable_or_update_ddgi(const ddgi_desc&) noexcept;
 
 		// ddgi editor
 		void
@@ -979,8 +1099,33 @@ namespace age::graphics::render_pipeline
 		bool
 		gibs_enabled() const noexcept;
 
+		void
+		enable_or_update_gibs(const gibs_desc&) noexcept;
+
 		uint32
 		gibs_max_surfel_count() const noexcept;
+
+		// gist
+		void
+		enable_gist(const gist_desc&) noexcept;
+
+		void
+		disable_gist() noexcept;
+
+		void
+		update_gist(const gist_desc&) noexcept;
+
+		void
+		update_gist_debug_flags(graphics::e::gist_debug_flags _) noexcept;
+
+		bool
+		gist_enabled() const noexcept;
+
+		void
+		enable_or_update_gist(const gist_desc&) noexcept;
+
+		uint32
+		gist_max_cell_surfel_count() const noexcept;
 
 		// ao
 		void
