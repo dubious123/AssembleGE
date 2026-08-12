@@ -84,6 +84,8 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	static const float k_atrous[5] = { 0.0625f, 0.25f, 0.375f, 0.25f, 0.0625f };
 
+	const float px_size_y_per_z = 2 * tan_fov_y_half * inv_backbuffer_size.y;
+	const float tolerance		= px_z_lin * px_size_y_per_z * 2.f / n_dot_v;
 	for (int32 dy = -2; dy <= 2; ++dy)
 	{
 		for (int32 dx = -2; dx <= 2; ++dx)
@@ -91,9 +93,9 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 			const int32_2 px_tap	   = clamp(px + int32_2(dx, dy) * stride, zero<int32_2>(), extent - 1);
 			const float	  px_depth_tap = depth_buffer[px_tap];
 
-			const float kernel_w = k_atrous[dx + 2] * k_atrous[dy + 2];
+			const float w_kernel = k_atrous[dx + 2] * k_atrous[dy + 2];
 
-			kernel_sum += kernel_w;
+			kernel_sum += w_kernel;
 
 			if (px_depth_tap == 0.f) { continue; }
 
@@ -103,26 +105,20 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 			const float4 src	 = src_buffer[px_tap];
 			const float	 lum_tap = min(luminance_rec709(src.xyz), 256.f);
 
-			const int32_2 px_mid   = (px + px_tap) / 2;
-			const float	  conn_mid = src_buffer[px_mid].w;
+			const float conn_mid = src_buffer[(px + px_tap) / 2].w;
+			const float asym	 = abs(dot(px_world_pos_tap - px_world_pos, px_normal + px_normal_tap)) * 0.5f;
 
-			const float connect_w = is_first ? 1.f : src.w * conn_mid;
+			const float w_connect = is_first ? 1.f : src.w * conn_mid;
+			const float w_plane	  = exp(-asym / tolerance);
+			const float w_normal  = pow(max(dot(px_normal, px_normal_tap), 0.f), 32.f);
+			const float w_lum	  = lum_gate ? exp(-abs(lum_center - lum_tap) * inv_lum_sigma) : 1.f;
 
-			const float cos_theta = dot(px_normal, px_normal_tap);
 
-			const float3 rel  = px_world_pos_tap - px_world_pos;
-			const float	 asym = abs(dot(rel, px_normal + px_normal_tap)) * 0.5f;
-
-			const float px_size_y_per_z = 2 * tan_fov_y_half * inv_backbuffer_size.y;
-			const float tolerance		= px_z_lin * px_size_y_per_z * 2.f / n_dot_v;
-
-			const float lum_w = lum_gate ? exp(-abs(lum_center - lum_tap) * inv_lum_sigma) : 1.f;
-
-			const float w = kernel_w
-						  * connect_w
-						  * pow(max(cos_theta, 0.f), 32.f)
-						  * exp(-asym / tolerance)
-						  * lum_w;
+			const float w = w_kernel
+						  * w_connect
+						  * w_plane
+						  * w_normal
+						  * w_lum;
 
 			const float var_tap = is_first
 									? max(0.f, moments_buffer[px_tap].y - moments_buffer[px_tap].x * moments_buffer[px_tap].x)

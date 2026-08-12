@@ -21,6 +21,37 @@ namespace gist
 		return ddgi_enabled_and_extra & (1u << 2u);
 	}
 
+	// focal_px * (r / depth) => px
+	float
+	focal_px()
+	{
+		return float(backbuffer_size.y) * 0.5f / tan_fov_y_half;
+	}
+
+	float
+	specular_hit_dist_max(const in gist_data data)
+	{
+		// todo,
+		// px_threshold = (max_cam_speed(m/frame) / hit_dist_max) * focal_px
+		// hit_dist_max = max_cam_speed(m/frame) * focal_px / px_threshold
+		// focal_px = extent.height * 0.5f / tan(fov_y * 0.5f)
+		// focal_px * (r / depth) => px
+		return 10000.f;
+	}
+
+	float
+	specular_roughness_max(const in gist_data data)
+	{
+		// above this : split_sum fallback from diffuse irradiance
+		return 0.4f;
+	}
+
+	uint32
+	specular_age_max(const in gist_data data, float roughness)
+	{
+		return uint32(round(lerp(1.f, 32.f, saturate(roughness / specular_roughness_max(data)))));
+	}
+
 	float3
 	calc_cell_origin(const in gist_lut_data lut_data)
 	{
@@ -1984,7 +2015,7 @@ namespace gist
 	calc_opaque_gi(const in gist_data data, const in pbr_surface_data surface_data, int32_2 px)
 	{
 		texture_2d<float3> gi_resolve_buffer		  = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-		texture_2d<float3> gi_resolve_specular_buffer = global_resource_buffer[data.h_gi_resolve_specular_buffer_srv_id];
+		texture_2d<float3> gi_resolve_specular_buffer = global_resource_buffer[data.h_gi_resolve_specular_curr_buffer_srv_id];
 
 		const float3 diffuse_irradiance = gi_resolve_buffer[px];
 

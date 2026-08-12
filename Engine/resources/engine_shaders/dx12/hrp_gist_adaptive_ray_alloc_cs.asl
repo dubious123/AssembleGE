@@ -46,7 +46,7 @@ main_cs(uint32_3 group_idx sv_group_id,
 
 	const bool is_new_born = is_thread_valid and age < 4u;
 	const bool is_specular = is_thread_valid
-						 and roughness < 0.4f
+						 and roughness < gist::specular_roughness_max(data)
 						 and rng.x < data.specular_rpp;
 	const bool is_variance = is_thread_valid
 						 and age >= 4u

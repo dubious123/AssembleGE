@@ -657,10 +657,13 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_gi_resolve_scratch_buffer_srv_desc;
 		uav_desc_handle h_gi_resolve_scratch_buffer_uav_desc;
 
-		resource_handle		  h_gi_resolve_specular_buffer;
-		srv_desc_handle		  h_gi_resolve_specular_buffer_srv_desc;
-		uav_desc_handle		  h_gi_resolve_specular_buffer_uav_desc;
-		clear_uav_desc_handle h_gi_resolve_specular_buffer_clear_uav_desc;
+		AGE_DECL_PING_PONG_BUFFER(gi_resolve_specular, is_alt, srv, uav, clear_uav)
+		AGE_DECL_PING_PONG_BUFFER(gi_resolve_specular_age, is_alt, srv, uav, clear_uav)
+
+		resource_handle		  h_gi_resolve_specular_final_buffer;
+		srv_desc_handle		  h_gi_resolve_specular_final_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_specular_final_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_specular_final_buffer_clear_uav_desc;
 
 		resource_handle h_adaptive_ray_type_buffer;
 		srv_desc_handle h_adaptive_ray_type_buffer_srv_desc;

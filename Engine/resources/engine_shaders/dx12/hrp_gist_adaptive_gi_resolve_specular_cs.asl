@@ -21,10 +21,24 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 
 	float3 radiance_curr;
 
-	if (gist::calc_ray_radiance(ray_hit_result_buffer[id], ray_lighting_result_buffer[id], radiance_curr) is_false) { return; }
+	const gist_ray_hit_result hit_res = ray_hit_result_buffer[id];
 
-	rw_texture_2d<float3> specular_buffer = global_resource_buffer[data.h_gi_resolve_specular_buffer_uav_id];
+	if (gist::calc_ray_radiance(hit_res, ray_lighting_result_buffer[id], radiance_curr) is_false) { return; }
 
-	const float3 rng	= random_pcg3d(uint32_3(uint32_2(px), g::shader_hash + frame_index));
-	specular_buffer[px] = round_fp16_stochastic(lerp(specular_buffer[px], radiance_curr, 0.2f /*tune*/), rng);
+	rw_texture_2d<float4> specular_buffer	  = global_resource_buffer[data.h_gi_resolve_specular_curr_buffer_uav_id];
+	rw_texture_2d<uint32> specular_age_buffer = global_resource_buffer[data.h_gi_resolve_specular_age_curr_buffer_uav_id];
+	texture_2d<float2>	  mr_buffer			  = global_resource_buffer[opaque_mr_buffer_srv_id];
+
+	const float	 roughness = max(mr_buffer[px].g, brdf::ggx::roughness_min);
+	const uint32 age	   = specular_age_buffer[px];
+
+	const float blend_factor = 1.f / float(age + 1u);
+
+	const float4 rng	= random_pcg4d(uint32_4(uint32_2(px), frame_index, g::shader_hash));
+	specular_buffer[px] = round_fp16_stochastic(lerp(specular_buffer[px],
+													 float4(radiance_curr, min(abs(hit_res.distance), gist::specular_hit_dist_max(data))),
+													 blend_factor),
+												rng);
+
+	specular_age_buffer[px] = min(age + 1u, gist::specular_age_max(data, roughness));
 }

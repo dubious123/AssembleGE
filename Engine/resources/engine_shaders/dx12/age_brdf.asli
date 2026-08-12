@@ -42,6 +42,8 @@ namespace brdf
 	// y_up
 	namespace ggx
 	{
+		static const float roughness_min = 0.02f;
+
 		// D_ggx, ndf
 		// theta : [0, pi/2], cos_theta : n_dot_h
 		// phi : [0, 2pi], cos_phi : tangent_dot_h (disk)

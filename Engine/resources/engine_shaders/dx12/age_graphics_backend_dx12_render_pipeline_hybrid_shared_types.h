@@ -350,8 +350,16 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_gi_resolve_curr_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_uav_id;
 
-		uint32 h_gi_resolve_specular_buffer_srv_id;
-		uint32 h_gi_resolve_specular_buffer_uav_id;
+		uint32 h_gi_resolve_specular_prev_buffer_srv_id;
+		uint32 h_gi_resolve_specular_curr_buffer_srv_id;
+		uint32 h_gi_resolve_specular_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_specular_age_prev_buffer_srv_id;
+		uint32 h_gi_resolve_specular_age_curr_buffer_srv_id;
+		uint32 h_gi_resolve_specular_age_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_specular_final_buffer_srv_id;
+		uint32 h_gi_resolve_specular_final_buffer_uav_id;
 
 		uint32 h_adaptive_ray_type_buffer_srv_id;
 		uint32 h_adaptive_ray_type_buffer_uav_id;

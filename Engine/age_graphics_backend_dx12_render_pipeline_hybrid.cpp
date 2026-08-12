@@ -3986,9 +3986,57 @@ namespace age::graphics::render_pipeline
 																						 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 			cpu_data.h_gi_resolve_specular_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_buffer,
 																								   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+		}
 
-			gpu_data.h_gi_resolve_specular_buffer_srv_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_buffer_srv_desc);
-			gpu_data.h_gi_resolve_specular_buffer_uav_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_buffer_uav_desc);
+		{
+			cpu_data.h_gi_resolve_specular_alt_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_specular_alt_buffer->set_name(L"gist_gi_resolve_specular_alt_buffer");
+
+			cpu_data.h_gi_resolve_specular_alt_buffer_srv_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_alt_buffer,
+																							 defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_gi_resolve_specular_alt_buffer_uav_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_alt_buffer,
+																							 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_gi_resolve_specular_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_alt_buffer,
+																									   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+		}
+
+		{
+			cpu_data.h_gi_resolve_specular_age_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r8_uint, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_specular_age_buffer->set_name(L"gist_gi_resolve_specular_age_buffer");
+
+			cpu_data.h_gi_resolve_specular_age_buffer_srv_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_age_buffer,
+																							 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+			cpu_data.h_gi_resolve_specular_age_buffer_uav_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_age_buffer,
+																							 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+			cpu_data.h_gi_resolve_specular_age_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_age_buffer,
+																									   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+		}
+
+		{
+			cpu_data.h_gi_resolve_specular_age_alt_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r8_uint, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_specular_age_alt_buffer->set_name(L"gist_gi_resolve_specular_age_alt_buffer");
+
+			cpu_data.h_gi_resolve_specular_age_alt_buffer_srv_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_age_alt_buffer,
+																								 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+			cpu_data.h_gi_resolve_specular_age_alt_buffer_uav_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_age_alt_buffer,
+																								 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+			cpu_data.h_gi_resolve_specular_age_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_age_alt_buffer,
+																										   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8_uint));
+		}
+
+		{
+			cpu_data.h_gi_resolve_specular_final_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_specular_final_buffer->set_name(L"gist_gi_resolve_specular_final_buffer");
+
+			cpu_data.h_gi_resolve_specular_final_buffer_srv_desc	   = resource::create_view(cpu_data.h_gi_resolve_specular_final_buffer,
+																							   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			cpu_data.h_gi_resolve_specular_final_buffer_uav_desc	   = resource::create_view(cpu_data.h_gi_resolve_specular_final_buffer,
+																							   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			cpu_data.h_gi_resolve_specular_final_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_final_buffer,
+																										 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+
+			gpu_data.h_gi_resolve_specular_final_buffer_srv_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_final_buffer_srv_desc);
+			gpu_data.h_gi_resolve_specular_final_buffer_uav_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_final_buffer_uav_desc);
 		}
 
 		{
@@ -4188,6 +4236,26 @@ namespace age::graphics::render_pipeline
 		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_srv_desc);
 		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_uav_desc);
 		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_clear_uav_desc);
+
+		resource::release_deferred(gist_data_cpu.h_gi_resolve_specular_alt_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_alt_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_alt_buffer_uav_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_alt_buffer_clear_uav_desc);
+
+		resource::release_deferred(gist_data_cpu.h_gi_resolve_specular_age_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_buffer_uav_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_buffer_clear_uav_desc);
+
+		resource::release_deferred(gist_data_cpu.h_gi_resolve_specular_age_alt_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_alt_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_alt_buffer_uav_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_age_alt_buffer_clear_uav_desc);
+
+		resource::release_deferred(gist_data_cpu.h_gi_resolve_specular_final_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_final_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_final_buffer_uav_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_final_buffer_clear_uav_desc);
 
 		resource::release_deferred(gist_data_cpu.h_adaptive_ray_type_buffer);
 		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_type_buffer_srv_desc);
@@ -4786,6 +4854,14 @@ namespace age::graphics::render_pipeline
 			gpu_data.h_gi_resolve_moments_prev_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_moments_prev_buffer_srv_desc());
 			gpu_data.h_gi_resolve_moments_curr_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_moments_curr_buffer_srv_desc());
 			gpu_data.h_gi_resolve_moments_curr_buffer_uav_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_moments_curr_buffer_uav_desc());
+
+			gpu_data.h_gi_resolve_specular_prev_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_prev_buffer_srv_desc());
+			gpu_data.h_gi_resolve_specular_curr_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_curr_buffer_srv_desc());
+			gpu_data.h_gi_resolve_specular_curr_buffer_uav_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_curr_buffer_uav_desc());
+
+			gpu_data.h_gi_resolve_specular_age_prev_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_age_prev_buffer_srv_desc());
+			gpu_data.h_gi_resolve_specular_age_curr_buffer_srv_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_age_curr_buffer_srv_desc());
+			gpu_data.h_gi_resolve_specular_age_curr_buffer_uav_id = calc_desc_idx(gist_data_cpu.h_gi_resolve_specular_age_curr_buffer_uav_desc());
 
 			h_mapping_static_buffer->upload(&gpu_data, sizeof(shared_type::gist_data), g::gist_data_offset);
 			h_mapping_static_buffer->upload(&gpu_lut_data, sizeof(shared_type::gist_lut_data), g::gist_lut_data_offset);

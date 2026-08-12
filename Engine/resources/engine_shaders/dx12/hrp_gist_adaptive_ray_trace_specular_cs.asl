@@ -25,7 +25,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const float3 normal		   = decode_octahedral(shading_normal[px]);
 	const float3 vertex_normal = decode_oct_snorm16(gbuffer[px].y);
 	const float3 view		   = normalize(camera_pos - world_pos);
-	const float	 roughness	   = max(mr_buffer[px].g, 0.02f);
+	const float	 roughness	   = max(mr_buffer[px].g, brdf::ggx::roughness_min);
 	const float	 alpha		   = roughness * roughness;
 
 	const float3 rand_3d = random_pcg3d(uint32_3(px.x, px.y, g::shader_hash + frame_index));

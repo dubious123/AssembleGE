@@ -328,6 +328,9 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_gi_reproject;
 		ID3D12PipelineState*  p_pso_gi_reproject;
 
+		graphics::pso::handle h_pso_gi_reproject_specular;
+		ID3D12PipelineState*  p_pso_gi_reproject_specular;
+
 		graphics::pso::handle h_pso_adaptive_ray_alloc;
 		ID3D12PipelineState*  p_pso_adaptive_ray_alloc;
 
@@ -372,6 +375,9 @@ namespace age::graphics::render_pipeline
 
 		graphics::pso::handle h_pso_adaptive_gi_resolve_specular;
 		ID3D12PipelineState*  p_pso_adaptive_gi_resolve_specular;
+
+		graphics::pso::handle h_pso_gi_reconstruct_specular;
+		ID3D12PipelineState*  p_pso_gi_reconstruct_specular;
 
 		graphics::pso::handle h_pso_gi_reconstruct;
 		ID3D12PipelineState*  p_pso_gi_reconstruct;

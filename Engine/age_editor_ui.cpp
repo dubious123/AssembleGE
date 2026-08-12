@@ -570,7 +570,7 @@ namespace age::editor
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.direction, "direction");
 		ui::widget::text("color");
-		ui::widget::color_field(light.color, light.intensity);
+		ui::widget::color_field(light.color, light.intensity, 0.f, std::numeric_limits<float>::max());
 	}
 
 	void
