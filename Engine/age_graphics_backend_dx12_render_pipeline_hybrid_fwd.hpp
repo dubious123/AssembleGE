@@ -657,6 +657,11 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_gi_resolve_scratch_buffer_srv_desc;
 		uav_desc_handle h_gi_resolve_scratch_buffer_uav_desc;
 
+		resource_handle		  h_gi_resolve_specular_buffer;
+		srv_desc_handle		  h_gi_resolve_specular_buffer_srv_desc;
+		uav_desc_handle		  h_gi_resolve_specular_buffer_uav_desc;
+		clear_uav_desc_handle h_gi_resolve_specular_buffer_clear_uav_desc;
+
 		resource_handle h_adaptive_ray_type_buffer;
 		srv_desc_handle h_adaptive_ray_type_buffer_srv_desc;
 		uav_desc_handle h_adaptive_ray_type_buffer_uav_desc;

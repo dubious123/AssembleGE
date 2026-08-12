@@ -27,4 +27,5 @@ main_cs()
 	gist::indirect_arg::set_adaptive_ray_trace_diffuse(data, uint32_3(ceil(diffuse_ray_count, 64u), 1, 1));
 	gist::indirect_arg::set_adaptive_ray_trace_specular(data, uint32_3(ceil(specular_ray_count, 64u), 1, 1));
 	gist::indirect_arg::set_adaptive_gi_resolve_diffuse(data, uint32_3(ceil(diffuse_ray_count, 64u), 1, 1));
+	gist::indirect_arg::set_adaptive_gi_resolve_specular(data, uint32_3(ceil(specular_ray_count, 64u), 1, 1));
 }

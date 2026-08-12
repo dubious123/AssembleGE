@@ -375,6 +375,7 @@ namespace gist
 		gist_indirect_arg_func(set_adaptive_ray_trace_diffuse, (__LINE__ - __do_not_change__ - 1));
 		gist_indirect_arg_func(set_adaptive_ray_trace_specular, (__LINE__ - __do_not_change__ - 1));
 		gist_indirect_arg_func(set_adaptive_gi_resolve_diffuse, (__LINE__ - __do_not_change__ - 1));
+		gist_indirect_arg_func(set_adaptive_gi_resolve_specular, (__LINE__ - __do_not_change__ - 1));
 		// clang-format on
 #undef gist_indirect_arg_func
 	}	 // namespace indirect_arg
@@ -865,12 +866,6 @@ namespace gist
 			return px;
 		}
 
-		uint32
-		ray_hit_diffuse_id(const in gist_data data, uint32 id)
-		{
-			return data.tile_count_total() + cell::ray_count_total(data) + id;
-		}
-
 		void
 		alloc_ray_ideal(const in gist_data data, uint32 new_born_count, uint32 specular_count, uint32 variance_count)
 		{
@@ -927,6 +922,18 @@ namespace gist
 		specular_ray_count_total(const in gist_data data)
 		{
 			return min(gist::adaptive::load_ray_entry_alloc_counter(data).y, gist::adaptive::load_ray_entry_cap(data).y);
+		}
+
+		uint32
+		ray_hit_diffuse_id(const in gist_data data, uint32 id)
+		{
+			return data.tile_count_total() + cell::ray_count_total(data) + id;
+		}
+
+		uint32
+		ray_hit_specular_id(const in gist_data data, uint32 id)
+		{
+			return data.tile_count_total() + cell::ray_count_total(data) + diffuse_ray_count_total(data) + id;
 		}
 
 		uint32
@@ -1848,7 +1855,7 @@ namespace gist
 				dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
 
 				const float pdf_uv = max(calc_cdf_texel_prob(luminance_cdf, idx), epsilon_1e4) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
-				pdf_guide		   = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+				pdf_guide		   = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
 				pdf_cos			   = max(epsilon_1e4, dir_local.y) * pi_inv;
 			}
 			else
@@ -1860,7 +1867,7 @@ namespace gist
 				const int32_2 texel = min(int32_2(uv * float(GIST_ATLAS_TILE_SIZE)), int32_2(GIST_ATLAS_TILE_SIZE - 1, GIST_ATLAS_TILE_SIZE - 1));
 
 				const float pdf_uv = calc_cdf_texel_prob(luminance_cdf, uint32(texel.y * GIST_ATLAS_TILE_SIZE + texel.x)) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
-				pdf_guide		   = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+				pdf_guide		   = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
 			}
 
 			pdf = guide_prob * pdf_guide + (1.f - guide_prob) * pdf_cos;
@@ -1911,14 +1918,23 @@ namespace gist
 	}
 
 	bool
-	calc_ray_irradiance(const in gist_ray_hit_result hit, const in gist_ray_lighting_result lighting, out float3 irradiance)
+	calc_ray_radiance(const in gist_ray_hit_result hit, const in gist_ray_lighting_result lighting, out float3 radiance)
 	{
-		irradiance = zero<float3>();
+		radiance = zero<float3>();
 
 		if (is_valid_ray_hit(hit) is_false) { return false; }
 
-		const float3 dir_local = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(hit.dir_oct_snorm8));
-		irradiance			   = decode_r11g11b10(lighting.radiance_r11g11b10) * (dir_local.y / max(epsilon_1e6, hit.pdf));
+		radiance = decode_r11g11b10(lighting.radiance_r11g11b10);
+
+		return true;
+	}
+
+	bool
+	calc_ray_irradiance(const in gist_ray_hit_result hit, const in gist_ray_lighting_result lighting, out float3 irradiance)
+	{
+		if (calc_ray_radiance(hit, lighting, irradiance) is_false) { return false; }
+		const float3 dir_local	= decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(hit.dir_oct_snorm8));
+		irradiance			   *= (dir_local.y / max(epsilon_1e6, hit.pdf));
 
 		// const float3 dir_world = decode_oct_snorm8(uint32_upper_to_uint16(hit.dir_oct_snorm8));
 		// const float	 cos_theta = max(0.f, dot(px_normal, dir_world));
@@ -1949,5 +1965,48 @@ namespace gist
 		{
 			age_buffer[px] = min(age + 1u, GIST_GI_RESOLVE_MAX_AGE);
 		}
+	}
+}	 // namespace gist
+
+namespace gist
+{
+	// Lagarde et al.SIGGRAPH 2014
+	// "Moving Frostbite to Physically Based Rendering" p.77
+	// https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
+	// todo, use bent normal from vbao
+	float
+	calc_specular_occlusion_approx(float n_dot_v, float occlusion, float roughness)
+	{
+		return saturate(pow(n_dot_v + occlusion, exp2(-16.f * roughness - 1.f)) - 1.f + occlusion);
+	}
+
+	float3
+	calc_opaque_gi(const in gist_data data, const in pbr_surface_data surface_data, int32_2 px)
+	{
+		texture_2d<float3> gi_resolve_buffer		  = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+		texture_2d<float3> gi_resolve_specular_buffer = global_resource_buffer[data.h_gi_resolve_specular_buffer_srv_id];
+
+		const float3 diffuse_irradiance = gi_resolve_buffer[px];
+
+		const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21.f;
+
+		// ∫F·L·cos ≈ F·∫L·cos
+		float3 gi = (1.f - f_avg) * brdf::calc_diffuse_lambert(surface_data.c_diffuse) * diffuse_irradiance
+				  * surface_data.occlusion;
+
+		{
+			texture_2d<float2> brdf_lut_tex = global_resource_buffer[env_light_brdf_lut_id];
+
+			const float2 brdf_lut_val = sample_level(brdf_lut_tex, get_linear_clamp_sampler(), float2(surface_data.n_dot_v, surface_data.roughness), 0);
+
+			const float3 specular_radiance = surface_data.roughness < 0.4f
+											   ? gi_resolve_specular_buffer[px]
+											   : diffuse_irradiance * pi_inv;
+			// split_sum approx
+			gi += specular_radiance * (surface_data.f0 * brdf_lut_val.x + brdf_lut_val.y)
+				* calc_specular_occlusion_approx(surface_data.n_dot_v, surface_data.occlusion, surface_data.roughness);
+		}
+
+		return gi;
 	}
 }	 // namespace gist

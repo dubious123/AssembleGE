@@ -46,7 +46,6 @@ main_cs(uint32_3 group_idx sv_group_id,
 		diffuse_count = 1u;
 	}
 
-	// todo, (1/spec_period) * roughness
 	if (is_specular and rng.x < prob[GIST_ADAPTIVE_RAY_TYPE_SPECULAR])
 	{
 		spec_count = 1u;

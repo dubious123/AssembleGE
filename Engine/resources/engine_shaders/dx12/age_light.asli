@@ -368,34 +368,7 @@ calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal
 }
 
 float3
-calc_brdf(const pbr_surface_data surface_data, float3 world_to_light /* world to light */, float n_dot_l)
-{
-	const float3 h		 = normalize(surface_data.view + world_to_light);
-	const float	 n_dot_v = surface_data.n_dot_v;
-	const float	 n_dot_h = saturate(dot(surface_data.normal, h));
-	const float	 v_dot_h = saturate(dot(surface_data.view, h));
-
-	// D
-	const float d_denom = n_dot_h * n_dot_h * (surface_data.roughness_quad - 1.f) + 1.f;
-	const float d		= surface_data.roughness_quad / (pi * d_denom * d_denom);
-
-	// G
-	const float k = (surface_data.roughness_sqr + surface_data.roughness * 2.f + 1.f) / 8.f;
-	// const float g = (n_dot_v / (n_dot_v * (1.f - k) + k)) * (n_dot_l / (n_dot_l * (1.f - k) + k));
-	const float v = 0.25f / max((n_dot_v * (1.f - k) + k) * (n_dot_l * (1.f - k) + k), epsilon_1e4);
-
-	// F
-	const float3 f = surface_data.f0 + (1.f - surface_data.f0) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h) * (1.f - v_dot_h);
-
-	// const float3 specular = (d * g * f) / max(4.f * n_dot_v * n_dot_l, epsilon_1e4);
-	const float3 specular = (d * v * f);
-	const float3 diffuse  = (1.f - f) /** (1.f - surface_data.metallic)*/ * surface_data.c_diffuse / pi;
-
-	return (diffuse + specular) * n_dot_l;
-}
-
-float3
-calc_pbr_light(const pbr_surface_data surface_data, unified_light light)
+calc_pbr_light(const in pbr_surface_data surface_data, unified_light light)
 {
 	const float3 surface_to_light = light.position - surface_data.world_pos;
 	const float	 distance		  = length(surface_to_light);
@@ -419,11 +392,11 @@ calc_pbr_light(const pbr_surface_data surface_data, unified_light light)
 								* attenuation * cone_falloff * cone_falloff;
 
 	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
-	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
+	return brdf::eval_punctual(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
 }
 
 float3
-calc_pbr_light(const pbr_surface_data surface_data, directional_light light)
+calc_pbr_light(const in pbr_surface_data surface_data, directional_light light)
 {
 	const float3 world_to_light = -normalize(light.direction);
 
@@ -437,11 +410,11 @@ calc_pbr_light(const pbr_surface_data surface_data, directional_light light)
 	const float3 light_radiance = light.color * light.intensity;
 
 	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
-	return calc_brdf(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
+	return brdf::eval_punctual(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
 }
 
 float3
-calc_pbr_ibl_diffuse(const pbr_surface_data surface_data, const env_light env)
+calc_pbr_ibl_diffuse(const in pbr_surface_data surface_data, const env_light env)
 {
 	const float3 n = mul(env.rotation_mat, surface_data.normal);
 
@@ -461,7 +434,7 @@ calc_pbr_ibl_diffuse(const pbr_surface_data surface_data, const env_light env)
 }
 
 float3
-calc_pbr_ibl_specular(const pbr_surface_data surface_data, const env_light env)
+calc_pbr_ibl_specular(const in pbr_surface_data surface_data, const env_light env)
 {
 	const float3 r = mul(env.rotation_mat, reflect(-surface_data.view, surface_data.normal));
 
@@ -482,7 +455,7 @@ calc_pbr_ibl_specular(const pbr_surface_data surface_data, const env_light env)
 }
 
 float3
-calc_pbr_gibs_specular(const pbr_surface_data surface_data, const float3 gi_e)
+calc_pbr_gibs_specular(const in pbr_surface_data surface_data, const float3 gi_e)
 {
 	const float		   n_dot_v		= surface_data.n_dot_v;
 	texture_2d<float2> brdf_lut_tex = global_resource_buffer[env_light_brdf_lut_id];
@@ -494,7 +467,7 @@ calc_pbr_gibs_specular(const pbr_surface_data surface_data, const float3 gi_e)
 }
 
 float3
-calc_pbr_gist_specular(const pbr_surface_data surface_data, const float3 gi_e)
+calc_pbr_gist_specular(const in pbr_surface_data surface_data, const float3 gi_e)
 {
 	const float		   n_dot_v		= surface_data.n_dot_v;
 	texture_2d<float2> brdf_lut_tex = global_resource_buffer[env_light_brdf_lut_id];
@@ -506,7 +479,7 @@ calc_pbr_gist_specular(const pbr_surface_data surface_data, const float3 gi_e)
 }
 
 float3
-calc_pbr_ibl(const pbr_surface_data surface_data, const env_light env)
+calc_pbr_ibl(const in pbr_surface_data surface_data, const env_light env)
 {
 	const float3 diffuse  = calc_pbr_ibl_diffuse(surface_data, env);
 	const float3 specular = calc_pbr_ibl_specular(surface_data, env);
@@ -569,7 +542,7 @@ calc_pbr_ddgi(const in pbr_surface_data surface_data, const in float3 world_face
 
 template <bool enable_wave_inst>
 float3
-calc_di(const pbr_surface_data surface_data, const float3 world_face_normal)
+calc_di(const in pbr_surface_data surface_data, const float3 world_face_normal)
 {
 	float3 lighting = zero<float3>();
 
@@ -628,7 +601,7 @@ calc_di(const pbr_surface_data surface_data, const float3 world_face_normal)
 }
 
 float3
-calc_gi(const pbr_surface_data surface_data, float3 irradiance)
+calc_gi(const in pbr_surface_data surface_data, float3 irradiance)
 {
 	float3		 gi	   = zero<float3>();
 	const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
@@ -644,6 +617,27 @@ calc_gi(const pbr_surface_data surface_data, float3 irradiance)
 		const float3 gi_specular = (irradiance * pi_inv) * (surface_data.f0 * brdf_lut_val.x + brdf_lut_val.y);
 
 		gi += gi_specular;
+	}
+
+
+	return gi;
+}
+
+float3
+calc_gi(const in pbr_surface_data surface_data, float3 irradiance, float3 specular_radiance)
+{
+	float3		 gi	   = zero<float3>();
+	const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+	const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
+	gi						+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+	{
+		texture_2d<float2> brdf_lut_tex = global_resource_buffer[env_light_brdf_lut_id];
+
+		const float2 brdf_lut_val = sample_level(brdf_lut_tex, get_linear_clamp_sampler(), float2(surface_data.n_dot_v, surface_data.roughness), 0);
+
+		gi += specular_radiance * (surface_data.f0 * brdf_lut_val.x + brdf_lut_val.y);
 	}
 
 	return gi;

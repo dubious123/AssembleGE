@@ -20,4 +20,13 @@ main_cs()
 									   float(new_born_ray_count) / float(max(ray_count_ideal.x, 1u)),
 									   float(specular_ray_count) / float(max(ray_count_ideal.y, 1u)),
 									   float(variance_ray_count) / float(max(ray_count_ideal.z, 1u)));
+
+	// debug_log(g::str_shader_name,
+	//		  new_born_ray_count,
+	//		  specular_ray_count,
+	//		  variance_ray_count,
+
+	//		  float(new_born_ray_count) / float(max(ray_count_ideal.x, 1u)),
+	//		  float(specular_ray_count) / float(max(ray_count_ideal.y, 1u)),
+	//		  float(variance_ray_count) / float(max(ray_count_ideal.z, 1u)));
 }

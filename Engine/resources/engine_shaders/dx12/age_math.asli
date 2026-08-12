@@ -830,21 +830,6 @@ texel_id_to_world_hemi_octahedral_dir(uint32 texel_id, uint32 resolution)
 	return decode_world_hemi_octahedral(uv);
 }
 
-float
-calc_hemi_oct_jacobian(float2 uv)
-{
-	const float2 r = float2((uv.x + uv.y) * 0.5f, (uv.y - uv.x) * 0.5f);
-
-	float3 dir;
-	dir.x = r.x;
-	dir.z = r.y;
-	dir.y = 1.f - abs(r.x) - abs(r.y);
-
-	const float r_sqr_inv = rsqrt(max(epsilon_1e6, dot(dir, dir)));
-
-	return 0.5f * r_sqr_inv * r_sqr_inv * r_sqr_inv;
-}
-
 // Following R11G11B10 conversions taken from
 // https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Shaders/PixelPacking_R11G11B10.hlsli
 // Original license included:
@@ -1372,6 +1357,14 @@ sample_hemisphere_cosine_local_y_up(float2 xi)
 	const float sin_theta = sqrt(1.f - xi.y);
 
 	return float3(sin_theta * cos(phi), cos_theta, sin_theta * sin(phi));
+}
+
+float2
+sample_disk_uniform(float2 xi)
+{
+	const float r	= sqrt(xi.x);
+	const float phi = pi_2 * xi.y;
+	return r * float2(cos(phi), sin(phi));
 }
 
 float3

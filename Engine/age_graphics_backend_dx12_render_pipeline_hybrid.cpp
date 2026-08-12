@@ -3617,6 +3617,7 @@ namespace age::graphics::render_pipeline
 									   + gpu_data.cell_surfel_ray_budget;
 
 			gpu_data.adaptive_ray_budget = adaptive_ray_budget;
+			gpu_data.specular_rpp		 = specular_rpp;
 
 			c_auto rpp = float(max_ray_count_total) / (extent.width * extent.height);
 
@@ -3976,6 +3977,21 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
+			cpu_data.h_gi_resolve_specular_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_specular_buffer->set_name(L"gist_gi_resolve_specular_buffer");
+
+			cpu_data.h_gi_resolve_specular_buffer_srv_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_buffer,
+																						 defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_gi_resolve_specular_buffer_uav_desc		 = resource::create_view(cpu_data.h_gi_resolve_specular_buffer,
+																						 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_gi_resolve_specular_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_specular_buffer,
+																								   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+
+			gpu_data.h_gi_resolve_specular_buffer_srv_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_buffer_srv_desc);
+			gpu_data.h_gi_resolve_specular_buffer_uav_id = calc_desc_idx(cpu_data.h_gi_resolve_specular_buffer_uav_desc);
+		}
+
+		{
 			cpu_data.h_adaptive_ray_type_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r8_uint, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE);
 			cpu_data.h_adaptive_ray_type_buffer->set_name(L"gist_adaptive_ray_type_buffer");
 
@@ -4167,6 +4183,11 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(gist_data_cpu.h_gi_resolve_scratch_buffer);
 		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_scratch_buffer_srv_desc);
 		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_scratch_buffer_uav_desc);
+
+		resource::release_deferred(gist_data_cpu.h_gi_resolve_specular_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_uav_desc);
+		push_descriptor_deferred(gist_data_cpu.h_gi_resolve_specular_buffer_clear_uav_desc);
 
 		resource::release_deferred(gist_data_cpu.h_adaptive_ray_type_buffer);
 		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_type_buffer_srv_desc);

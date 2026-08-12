@@ -370,6 +370,9 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_adaptive_gi_resolve_diffuse;
 		ID3D12PipelineState*  p_pso_adaptive_gi_resolve_diffuse;
 
+		graphics::pso::handle h_pso_adaptive_gi_resolve_specular;
+		ID3D12PipelineState*  p_pso_adaptive_gi_resolve_specular;
+
 		graphics::pso::handle h_pso_gi_reconstruct;
 		ID3D12PipelineState*  p_pso_gi_reconstruct;
 

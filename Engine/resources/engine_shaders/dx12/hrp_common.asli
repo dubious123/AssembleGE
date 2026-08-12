@@ -1,6 +1,8 @@
 #pragma once
 #include "age.asli"
 #include "age_math.asli"
+#include "age_math_jacobian.asli"
+#include "age_brdf.asli"
 #include "age_util.asli"
 #include "age_graphics_backend_dx12_render_pipeline_hybrid_shared_types.h"
 

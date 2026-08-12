@@ -1,0 +1,59 @@
+#pragma once
+#include "age.asli"
+
+namespace math
+{
+	namespace jacobian
+	{
+		// pdf_reflect = pdf_half / jacobian(half -> reflect)
+		float
+		calc_reflect(float3 view_dir, float3 half_dir)
+		{
+			// l : reflected dir
+			// v + l = 2 * (v_dot_h) * h
+			// l = 2(v_dot_h)h - v = 2 * cosθ * h - v
+			//
+			// h = spherical_dir(v, θ, φ)
+			// l = spherical_dir(v, 2*θ, φ)
+			// θ = ∠(v, h)
+			// φ = ∠(t1, h − proj_v(h)) , (v⊥t1⊥t2)
+			//
+			// h(θ, φ) = cosθ * v + sinθ * (cosφ * t1 + sinφ * t2)
+			// ∂h/∂θ = −sinθ * v + cosθ * (cosφ * t1 + sinφ * t2), |∂h/∂θ| = 1
+			// ∂h/∂φ = sinθ * (−sinφ * t1 + cosφ * t2)             |∂h/∂φ| = sinθ
+			// dω_h = |∂h/∂θ x ∂h/∂φ| * dθ dφ
+			//      = |∂h/∂θ|*|∂h/∂φ| * dθ dφ
+			//      = 1 * sinθ * dθ dφ
+			//
+			// l(θ, φ) = h(2θ, φ)
+			// ∂l/∂θ = 2 * (−sin2θ * v + cos2θ * (cosφ * t1 + sinφ * t2)), |∂l/∂θ| = 2
+			// ∂l/∂φ = sin2θ * (−sinφ * t1 + cosφ * t2)                    |∂l/∂φ| = sin2θ
+			// dω_l = |∂l/∂θ x ∂l/∂φ| * dθ dφ
+			//      = |∂l/∂θ|*|∂l/∂φ| * dθ dφ
+			//      = 2 * sin2θ * dθ dφ
+			//      = 4 * sinθ * cosθ * dθ dφ
+			//
+			// reflect_jacobian = |dω_l / dω_h|
+			//                  = 4 * cosθ
+			//                  = 4 * v_dot_h
+			//
+			return 4.f * max(dot(view_dir, half_dir), epsilon_1e4);
+		}
+
+		// pdf_dir = pdf_uv / jacobian(uv -> dir)
+		float
+		calc_hemi_oct(float2 uv)
+		{
+			const float2 r = float2((uv.x + uv.y) * 0.5f, (uv.y - uv.x) * 0.5f);
+
+			float3 dir;
+			dir.x = r.x;
+			dir.z = r.y;
+			dir.y = 1.f - abs(r.x) - abs(r.y);
+
+			const float r_sqr_inv = rsqrt(max(epsilon_1e6, dot(dir, dir)));
+
+			return 0.5f * r_sqr_inv * r_sqr_inv * r_sqr_inv;
+		}
+	}	 // namespace jacobian
+}	 // namespace math

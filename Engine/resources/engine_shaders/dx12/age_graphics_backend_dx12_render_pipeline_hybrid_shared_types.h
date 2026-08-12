@@ -282,6 +282,7 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32_3 arg_adaptive_ray_trace_diffuse;
 		uint32_3 arg_adaptive_ray_trace_specular;
 		uint32_3 age_adaptive_gi_resolve_diffuse;
+		uint32_3 age_adaptive_gi_resolve_specular;
 	};
 
 	struct gist_data
@@ -290,6 +291,7 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 max_cell_surfel_count;
 		uint32 cell_surfel_ray_budget;
 		uint32 adaptive_ray_budget;						   // specular_ray + extra;
+		float  specular_rpp;
 
 		uint32 cell_surfel_ray_count_min_max_and_extra;	   // [min][max]
 
@@ -347,6 +349,9 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 h_gi_resolve_prev_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_srv_id;
 		uint32 h_gi_resolve_curr_buffer_uav_id;
+
+		uint32 h_gi_resolve_specular_buffer_srv_id;
+		uint32 h_gi_resolve_specular_buffer_uav_id;
 
 		uint32 h_adaptive_ray_type_buffer_srv_id;
 		uint32 h_adaptive_ray_type_buffer_uav_id;
@@ -2065,8 +2070,8 @@ namespace age::graphics::render_pipeline::g
 #define GIST_PX_RAY_GUIDE_PROB		0.5f
 
 
-#define GIST_ADAPTIVE_RAY_TYPE_SPECULAR 0
-#define GIST_ADAPTIVE_RAY_TYPE_NEW_BORN 1
+#define GIST_ADAPTIVE_RAY_TYPE_NEW_BORN 0
+#define GIST_ADAPTIVE_RAY_TYPE_SPECULAR 1
 #define GIST_ADAPTIVE_RAY_TYPE_VARIANCE 2
 #define GIST_ADAPTIVE_RAY_TYPE_COUNT	3
 

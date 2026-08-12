@@ -146,6 +146,7 @@ namespace age::graphics::e
 					hrp_gist_px_build_cdf_cs,
 					hrp_gist_gi_resolve_cs,
 					hrp_gist_adaptive_gi_resolve_diffuse_cs,
+					hrp_gist_adaptive_gi_resolve_specular_cs,
 					hrp_gist_gi_reconstruct_cs,
 					hrp_gist_debug_view_cs,
 					hrp_gist_debug_resolve_ps,

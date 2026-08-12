@@ -1,0 +1,217 @@
+#pragma once
+#include "age.asli"
+
+namespace brdf
+{
+	// F
+	float3
+	calc_fresnel_schlick(float3 f0, float v_dot_h)
+	{
+		const float t  = 1.f - v_dot_h;
+		const float t2 = t * t;
+		return f0 + (1.f - f0) * pow_5(1.f - v_dot_h);
+	}
+}	 // namespace brdf
+
+namespace brdf
+{
+	float3
+	calc_diffuse_lambert(float3 c_diffuse)
+	{
+		return c_diffuse * pi_inv;
+	}
+}	 // namespace brdf
+
+namespace brdf
+{
+	// references
+	// Walter et al. 2007
+	// "Microfacet Models for Refraction through Rough Surfaces"
+	// https://dl.acm.org/doi/10.5555/2383847.2383874
+	//
+	// Heitz 2014
+	// "Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs"
+	// https://jcgt.org/published/0003/02/03/
+	//
+	// Heitz 2018,
+	// "Sampling the GGX Distribution of Visible Normals"
+	// https://jcgt.org/published/0007/04/01/
+
+	// alpha : roughness^2
+	// GGX microfacet model, D_ggx
+	// y_up
+	namespace ggx
+	{
+		// D_ggx, ndf
+		// theta : [0, pi/2], cos_theta : n_dot_h
+		// phi : [0, 2pi], cos_phi : tangent_dot_h (disk)
+		// dw : sin_theta * d_theta d_phi
+		// hemi_integral( ndf * n_dot_h )dh == 1
+		// D = alpha * alpha / (pi * t * t), t = n_dot_h * n_dot_h * (alpha * alpha - 1.f) + 1.f
+		// 2pi * integral( ndf * cos_theta * sin_theta * d_theta ) == 1
+		// 2pi * integral( D * cos_theta * sin_theta * d_theta ) == 1 ( u = cos^2(theta) )
+		float
+		calc_ndf(float n_dot_h, float alpha)
+		{
+			const float t = n_dot_h * n_dot_h * (alpha * alpha - 1.f) + 1.f;
+			return alpha * alpha / (pi * t * t);
+		}
+
+		float
+		calc_smith_lambda(float n_dot_x, float alpha)
+		{
+			const float a2 = alpha * alpha;
+			const float c2 = n_dot_x * n_dot_x;
+			return 0.5f * (sqrt(a2 + c2 - a2 * c2) / n_dot_x - 1.f);
+		}
+
+		// G derived from D_GGX
+		float
+		calc_smith_g1(float n_dot_v, float alpha)
+		{
+			return 1.f / (1.f + calc_smith_lambda(n_dot_v, alpha));
+		}
+
+		float
+		calc_smith_g2(float n_dot_v, float n_dot_l, float alpha)
+		{
+			return 1.f / (1.f + calc_smith_lambda(n_dot_v, alpha) + calc_smith_lambda(n_dot_l, alpha));
+		}
+
+		// float
+		// calc_smith_g1(float n_dot_v, float alpha)
+		//{
+		//	return 2.f * n_dot_v / (n_dot_v + sqrt(alpha * alpha + (1.f - alpha * alpha) * n_dot_v * n_dot_v));
+		// }
+
+		// float
+		// calc_smith_g2(float n_dot_v, float n_dot_l, float alpha)
+		//{
+		//	const float a2 = alpha * alpha;
+		//	const float gv = n_dot_l * sqrt(a2 + (1.f - a2) * n_dot_v * n_dot_v);
+		//	const float gl = n_dot_v * sqrt(a2 + (1.f - a2) * n_dot_l * n_dot_l);
+		//	return 2.f * n_dot_v * n_dot_l / (gv + gl);
+		// }
+
+		// hemi_integral( vndf )dh == 1
+		float
+		calc_vndf(float3 view_local, float3 half_local, float alpha)
+		{
+			const float n_dot_v = max(view_local.y, epsilon_1e4);
+			const float n_dot_h = max(half_local.y, 0.f);
+			const float v_dot_h = max(dot(view_local, half_local), 0.f);
+			return calc_smith_g1(n_dot_v, alpha) * calc_ndf(n_dot_h, alpha) * v_dot_h / n_dot_v;
+		}
+
+		float3
+		sample_vndf_half(float3 view_local, float alpha, float2 xi)
+		{
+			const float3 view_stretch = normalize(float3(alpha * view_local.x, view_local.y, alpha * view_local.z));
+
+			const float	 len_sq	   = length_sq(view_stretch.xz);
+			const float3 tangent   = len_sq > 0.f ? float3(-view_stretch.z, 0.f, view_stretch.x) * rsqrt(len_sq) : float3(1.f, 0.f, 0.f);
+			const float3 bitangent = cross(tangent, view_stretch);
+
+			float2 disk_local = sample_disk_uniform(xi);
+
+			disk_local.y = lerp(sqrt(1.f - disk_local.x * disk_local.x), disk_local.y, 0.5f * (1.f + view_stretch.y));
+
+			const float3 half_stretch = disk_local.x * tangent
+									  + sqrt(max(0.f, 1.f - length_sq(disk_local))) * view_stretch
+									  + disk_local.y * bitangent;
+
+			return normalize(float3(alpha * half_stretch.x, max(0.f, half_stretch.y), alpha * half_stretch.z));
+		}
+
+		float3
+		sample_vndf_dir(float3 view_local, float alpha, float2 xi, out float pdf)
+		{
+			const float3 half_local = sample_vndf_half(view_local, alpha, xi);
+			const float3 dir_local	= reflect(-view_local, half_local);
+
+			pdf = calc_vndf(view_local, half_local, alpha) / math::jacobian::calc_reflect(view_local, half_local);
+
+			return dir_local;
+		}
+
+		float3
+		calc_specular(float3 f0, float3 view_local, float3 light_local, float alpha)
+		{
+			const float3 half_local = normalize(view_local + light_local);
+
+			const float n_dot_v = max(view_local.y, epsilon_1e4);
+			const float n_dot_l = max(light_local.y, epsilon_1e4);
+			const float v_dot_h = max(dot(view_local, half_local), 0.f);
+
+			return calc_fresnel_schlick(f0, v_dot_h)		  // F
+				 * calc_ndf(max(half_local.y, 0.f), alpha)	  // D
+				 * calc_smith_g2(n_dot_v, n_dot_l, alpha)	  // G
+				 / (4.f * n_dot_v * n_dot_l);
+		}
+
+		// brdf * cos / pdf = F * G2 / G1
+		// v2 path : bake this into spec history per sample
+		//           enable after spec reprojection implement, drop the F term at composite
+		// v1 path (current) : accumulate raw radiance, F * env_brdf_lut at composite
+		float3
+		calc_vndf_monte_carlo_weight(float3 f0, float3 view_local, float3 light_local, float3 half_local, float alpha)
+		{
+			const float n_dot_v = max(view_local.y, epsilon_1e4);
+			const float n_dot_l = max(light_local.y, epsilon_1e4);
+			return calc_fresnel_schlick(f0, max(dot(view_local, half_local), 0.f))
+				 * calc_smith_g2(n_dot_v, n_dot_l, alpha) / calc_smith_g1(n_dot_v, alpha);
+		}
+	}	 // namespace ggx
+}	 // namespace brdf
+
+namespace brdf
+{
+	// light = brdf::eval(...) * n_dot_l
+	float3
+	eval(const in pbr_surface_data surface_data, float3 light_dir /*world to light, normalized*/, float n_dot_l)
+	{
+		const float3 h = normalize(surface_data.view + light_dir);
+
+		const float n_dot_v = surface_data.n_dot_v;
+		const float n_dot_h = saturate(dot(surface_data.normal, h));
+		const float v_dot_h = saturate(dot(surface_data.view, h));
+
+		const float3 f = calc_fresnel_schlick(surface_data.f0, v_dot_h);
+
+		const float3 specular = f
+							  * ggx::calc_ndf(n_dot_h, surface_data.roughness_sqr)
+							  * ggx::calc_smith_g2(n_dot_v, n_dot_l, surface_data.roughness_sqr)
+							  / max((4.f * n_dot_v * n_dot_l), epsilon_1e4);
+
+		const float3 diffuse = (1.f - f) * calc_diffuse_lambert(surface_data.c_diffuse);
+
+		return diffuse + specular;
+	}
+
+	// brdf for punctual_light (directional, point, spot)
+	float3
+	eval_punctual(const in pbr_surface_data surface_data, float3 light_dir /*world to light, normalized*/, float n_dot_l)
+	{
+		const float3 h = normalize(surface_data.view + light_dir);
+
+		const float n_dot_v = surface_data.n_dot_v;
+		const float n_dot_h = saturate(dot(surface_data.normal, h));
+		const float v_dot_h = saturate(dot(surface_data.view, h));
+
+
+		const float3 f = calc_fresnel_schlick(surface_data.f0, v_dot_h);
+		const float	 d = ggx::calc_ndf(n_dot_h, surface_data.roughness_sqr);
+
+		const float k = (surface_data.roughness_sqr + surface_data.roughness * 2.f + 1.f) / 8.f;
+		// const float g = (n_dot_v / (n_dot_v * (1.f - k) + k)) * (n_dot_l / (n_dot_l * (1.f - k) + k));
+		const float v = 0.25f / max((n_dot_v * (1.f - k) + k) * (n_dot_l * (1.f - k) + k), epsilon_1e4);
+
+		const float3 specular = f
+							  * d
+							  * v;
+
+		const float3 diffuse = (1.f - f) * calc_diffuse_lambert(surface_data.c_diffuse);
+
+		return diffuse + specular;
+	}
+}	 // namespace brdf

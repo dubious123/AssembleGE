@@ -185,7 +185,7 @@ main_cs(uint32 group_id sv_group_id,
 									: max(0.f, luminance_cdf[idx] - luminance_cdf[idx - 1]);
 			// pdf_uv = p_texel / (4.f / float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE));
 			const float pdf_uv = max(p_texel, epsilon_1e4) * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
-			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+			const float pdf_w  = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
 			pdf_guide		   = pdf_w;
 
 			pdf_cos = max(epsilon_1e4, dir_local.y) * pi_inv;
@@ -213,7 +213,7 @@ main_cs(uint32 group_id sv_group_id,
 									: max(0.f, luminance_cdf[idx] - luminance_cdf[idx - 1]);
 
 			const float pdf_uv = p_texel * float(GIBS_ATLAS_TILE_SIZE * GIBS_ATLAS_TILE_SIZE) * 0.25f;
-			const float pdf_w  = pdf_uv / calc_hemi_oct_jacobian(uv * 2.f - 1.f);
+			const float pdf_w  = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
 			pdf_guide		   = pdf_w;
 		}
 

@@ -17,11 +17,11 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	structured_buffer<gist_ray_hit_result>		ray_hit_result_buffer	   = global_resource_buffer[data.h_ray_hit_buffer_srv_id];
 	structured_buffer<gist_ray_lighting_result> ray_lighting_result_buffer = global_resource_buffer[data.h_ray_lighting_buffer_srv_id];
 
-	const uint32 slot = gist::adaptive::ray_hit_diffuse_id(data, thread_id);
+	const uint32 id = gist::adaptive::ray_hit_diffuse_id(data, thread_id);
 
 	float3 irradiance_curr;
 
-	if (gist::calc_ray_irradiance(ray_hit_result_buffer[slot], ray_lighting_result_buffer[slot], irradiance_curr) is_false) { return; }
+	if (gist::calc_ray_irradiance(ray_hit_result_buffer[id], ray_lighting_result_buffer[id], irradiance_curr) is_false) { return; }
 
 	gist::accumulate_gi(data, px, irradiance_curr, true);
 }

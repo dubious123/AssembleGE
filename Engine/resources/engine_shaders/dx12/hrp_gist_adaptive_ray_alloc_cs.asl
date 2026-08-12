@@ -28,6 +28,8 @@ main_cs(uint32_3 group_idx sv_group_id,
 	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
 	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
 
+	texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
+
 	const float px_depth = is_thread_valid ? depth_buffer[px] : 0.f;
 
 	if (px_depth == 0.f)
@@ -39,8 +41,13 @@ main_cs(uint32_3 group_idx sv_group_id,
 	const float2 moments = is_thread_valid ? gi_resolve_moments_buffer[px] : zero<float2>();
 	const float	 var	 = moments.y - moments.x * moments.x;
 
+	const float	 roughness = is_thread_valid ? mr_buffer[px].g : 1.f;
+	const float3 rng	   = random_pcg3d(uint32_3(px.x, px.y, frame_index + g::shader_hash));
+
 	const bool is_new_born = is_thread_valid and age < 4u;
-	const bool is_specular = false;													  // todo (need roughness buffer)d
+	const bool is_specular = is_thread_valid
+						 and roughness < 0.4f
+						 and rng.x < data.specular_rpp;
 	const bool is_variance = is_thread_valid
 						 and age >= 4u
 						 and var > 16.f * (moments.x + 0.1f) * (moments.x + 0.1f);	  // todo, add auto exposure
