@@ -374,3 +374,38 @@ calc_pbr_surface(float3 view_to_vertex_dir /*normalized*/, const material mat, c
 
 	return res;
 }
+
+pbr_surface_data
+calc_pbr_surface_screen(int32_2 px, float z_depth)
+{
+	texture_2d<float4>	 base_color_buffer	   = global_resource_buffer[opaque_base_color_buffer_srv_id];
+	texture_2d<float2>	 mr_buffer			   = global_resource_buffer[opaque_mr_buffer_srv_id];
+	texture_2d<float2>	 shading_normal_buffer = global_resource_buffer[opaque_shading_normal_buffer_srv_id];
+	texture_2d<float3>	 emissive_buffer	   = global_resource_buffer[opaque_emissive_buffer_srv_id];
+	texture_2d<uint32_2> gbuffer			   = global_resource_buffer[opaque_gbuffer_srv_id];
+
+	pbr_surface_data res;
+
+	const float4 base_color = base_color_buffer[px];
+	const float2 mr			= mr_buffer[px];
+
+	res.world_pos	  = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
+	res.vertex_normal = decode_oct_snorm16(gbuffer[px].y);
+	res.normal		  = decode_octahedral(shading_normal_buffer[px]);
+	res.view		  = normalize(camera_pos - res.world_pos);
+	res.n_dot_v		  = saturate(dot(res.normal, res.view));
+
+	res.base_color.rgb = base_color.rgb;
+	res.base_color.a   = 1.f;
+	res.metallic	   = mr.r;
+	res.roughness	   = max(mr.g, 0.02f);
+	res.roughness_sqr  = res.roughness * res.roughness;
+	res.roughness_quad = res.roughness_sqr * res.roughness_sqr;
+	res.f0			   = lerp(float3(0.04f, 0.04f, 0.04f), res.base_color.rgb, res.metallic);
+	res.c_diffuse	   = res.base_color.rgb * (1.f - res.metallic);
+
+	res.emissive  = emissive_buffer[px];
+	res.occlusion = base_color.a;
+
+	return res;
+}

@@ -36,6 +36,8 @@ namespace age::graphics::e
 					hrp_gbuffer_prepass_transparent_ms,
 					hrp_gbuffer_prepass_transparent_ps,
 
+					hrp_material_resolve_cs,
+
 					hrp_segment_resolve_cs,
 
 					hrp_ao_resolve_cs,

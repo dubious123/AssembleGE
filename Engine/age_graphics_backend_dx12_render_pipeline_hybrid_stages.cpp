@@ -121,6 +121,36 @@ namespace age::graphics::render_pipeline
 	}
 }	 // namespace age::graphics::render_pipeline
 
+// material resolve
+namespace age::graphics::render_pipeline
+{
+	void
+	material_resolve_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		h_pso_resolve = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_material_resolve_cs) });
+
+		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
+		h_pso_resolve.set_name(L"p_pso_material_resolve");
+	}
+
+	inline void
+	material_resolve_stage::execute(const extent_2d<uint16>& extent) const noexcept
+	{
+		command::set_pso(p_pso_resolve);
+		command::dispatch(ceil(extent.width, 16), ceil(extent.height, 16), 1);
+	}
+
+	void
+	material_resolve_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_resolve);
+	}
+}	 // namespace age::graphics::render_pipeline
+
 // segment stage
 namespace age::graphics::render_pipeline
 {

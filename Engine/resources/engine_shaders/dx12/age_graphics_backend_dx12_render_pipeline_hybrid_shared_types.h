@@ -1537,14 +1537,24 @@ namespace age::graphics::render_pipeline::shared_type
 		float  tan_fov_y_half;	  // tan(fov_y * 0.5f)
 		uint32 opaque_gbuffer_srv_id;
 
-		uint32	 transparent_gbuffer_srv_id;
-		uint32	 transparent_depth_buffer_srv_id;
-		uint32	 motion_buffer_srv_id;
-		uint32	 opaque_geo_prev_buffer_srv_id;
-		uint32	 opaque_geo_prev_buffer_uav_id;
+		uint32 transparent_gbuffer_srv_id;
+		uint32 transparent_depth_buffer_srv_id;
+		uint32 motion_buffer_srv_id;
+		uint32 opaque_geo_prev_buffer_srv_id;
+		uint32 opaque_geo_prev_buffer_uav_id;
+
+		uint32 opaque_base_color_buffer_srv_id;
+		uint32 opaque_base_color_buffer_uav_id;
+		uint32 opaque_mr_buffer_srv_id;
+		uint32 opaque_mr_buffer_uav_id;
+		uint32 opaque_shading_normal_buffer_srv_id;
+		uint32 opaque_shading_normal_buffer_uav_id;
+		uint32 opaque_emissive_buffer_srv_id;
+		uint32 opaque_emissive_buffer_uav_id;
+
 		uint32_3 _;
 
-		uint32_4 extra[10];
+		uint32_4 extra[8];
 		// total: 256 * 3 bytes
 	};
 

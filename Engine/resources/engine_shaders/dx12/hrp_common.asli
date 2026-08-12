@@ -50,6 +50,14 @@ uint32 transparent_depth_buffer_srv_id;
 uint32 motion_buffer_srv_id;
 uint32 opaque_geo_prev_buffer_srv_id;
 uint32 opaque_geo_prev_buffer_uav_id;
+uint32 opaque_base_color_buffer_srv_id;
+uint32 opaque_base_color_buffer_uav_id;
+uint32 opaque_mr_buffer_srv_id;
+uint32 opaque_mr_buffer_uav_id;
+uint32 opaque_shading_normal_buffer_srv_id;
+uint32 opaque_shading_normal_buffer_uav_id;
+uint32 opaque_emissive_buffer_srv_id;
+uint32 opaque_emissive_buffer_uav_id;
 
 
 // cbuffer root_constants reg(b1)

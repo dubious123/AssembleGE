@@ -141,6 +141,7 @@ namespace age::graphics::render_pipeline
 		create_resolution_dependent_buffers();
 
 		stage_depth.init(h_root_sig);
+		stage_material_resolve.init(h_root_sig);
 		stage_segment.init(h_root_sig);
 		stage_ao.init(h_root_sig);
 		stage_skybox.init(h_root_sig);
@@ -243,6 +244,7 @@ namespace age::graphics::render_pipeline
 		stage_skybox.deinit();
 		stage_ao.deinit();
 		stage_segment.deinit();
+		stage_material_resolve.deinit();
 		stage_depth.deinit();
 
 		root_signature::destroy(h_root_sig);
@@ -326,6 +328,22 @@ namespace age::graphics::render_pipeline
 		resource::release(h_motion_buffer);
 		push_descriptor(h_motion_buffer_srv_desc);
 		push_descriptor(h_motion_buffer_rtv_desc);
+
+		resource::release(h_opaque_base_color_buffer);
+		push_descriptor(h_opaque_base_color_buffer_srv_desc);
+		push_descriptor(h_opaque_base_color_buffer_uav_desc);
+
+		resource::release(h_opaque_mr_buffer);
+		push_descriptor(h_opaque_mr_buffer_srv_desc);
+		push_descriptor(h_opaque_mr_buffer_uav_desc);
+
+		resource::release(h_opaque_shading_normal_buffer);
+		push_descriptor(h_opaque_shading_normal_buffer_srv_desc);
+		push_descriptor(h_opaque_shading_normal_buffer_uav_desc);
+
+		resource::release(h_opaque_emissive_buffer);
+		push_descriptor(h_opaque_emissive_buffer_srv_desc);
+		push_descriptor(h_opaque_emissive_buffer_uav_desc);
 
 		if (ddgi_data_cpu.enabled)
 		{
@@ -1046,11 +1064,26 @@ namespace age::graphics::render_pipeline
 																   D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ | D3D12_BARRIER_ACCESS_SHADER_RESOURCE),
 								barrier::rtv_to_srv(h_opaque_gbuffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 								barrier::rtv_to_srv(h_motion_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::rtv_to_srv(h_transparent_gbuffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+								barrier::rtv_to_srv(h_transparent_gbuffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 
+								barrier::tex_srv_to_uav(h_opaque_base_color_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(h_opaque_mr_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(h_opaque_shading_normal_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(h_opaque_emissive_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING)
+
+
+		);
+
+		stage_material_resolve.execute(extent);
 		stage_segment.execute(extent);
 
-		command::apply_barriers(barrier::buf_uav_to_srv(segment_data_cpu.h_segment_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
+		command::apply_barriers(barrier::tex_uav_to_srv(h_opaque_base_color_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_uav_to_srv(h_opaque_mr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_uav_to_srv(h_opaque_shading_normal_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_uav_to_srv(h_opaque_emissive_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+
+
+								barrier::buf_uav_to_srv(segment_data_cpu.h_segment_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 
 		if (ao_enabled())
 		{
@@ -1395,6 +1428,46 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
+			h_opaque_base_color_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba8_typeless);
+			h_opaque_base_color_buffer->set_name(L"opaque_base_color_buffer");
+
+			h_opaque_base_color_buffer_srv_desc = resource::create_view(h_opaque_base_color_buffer,
+																		defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba8_unorm_srgb));
+			h_opaque_base_color_buffer_uav_desc = resource::create_view(h_opaque_base_color_buffer,
+																		defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba8_unorm));
+		}
+
+		{
+			h_opaque_mr_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r8g8_unorm);
+			h_opaque_mr_buffer->set_name(L"opaque_mr_buffer");
+
+			h_opaque_mr_buffer_srv_desc = resource::create_view(h_opaque_mr_buffer,
+																defaults::srv_view_desc::tex2d(graphics::e::texture_format::r8g8_unorm));
+			h_opaque_mr_buffer_uav_desc = resource::create_view(h_opaque_mr_buffer,
+																defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8g8_unorm));
+		}
+
+		{
+			h_opaque_shading_normal_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_snorm);
+			h_opaque_shading_normal_buffer->set_name(L"opaque_shading_normal_buffer");
+
+			h_opaque_shading_normal_buffer_srv_desc = resource::create_view(h_opaque_shading_normal_buffer,
+																			defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+			h_opaque_shading_normal_buffer_uav_desc = resource::create_view(h_opaque_shading_normal_buffer,
+																			defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+		}
+
+		{
+			h_opaque_emissive_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r11g11b10_float);
+			h_opaque_emissive_buffer->set_name(L"opaque_emissive_buffer");
+
+			h_opaque_emissive_buffer_srv_desc = resource::create_view(h_opaque_emissive_buffer,
+																	  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+			h_opaque_emissive_buffer_uav_desc = resource::create_view(h_opaque_emissive_buffer,
+																	  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r11g11b10_float));
+		}
+
+		{
 			h_transparent_gbuffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r32g32_uint);
 			h_transparent_gbuffer->set_name(L"gbuffer_transparent");
 
@@ -1587,6 +1660,22 @@ namespace age::graphics::render_pipeline
 		resource::release_deferred(segment_data_cpu.h_segment_buffer);
 		push_descriptor_deferred(segment_data_cpu.h_segment_buffer_srv_desc);
 		push_descriptor_deferred(segment_data_cpu.h_segment_buffer_uav_desc);
+
+		resource::release_deferred(h_opaque_base_color_buffer);
+		push_descriptor_deferred(h_opaque_base_color_buffer_srv_desc);
+		push_descriptor_deferred(h_opaque_base_color_buffer_uav_desc);
+
+		resource::release_deferred(h_opaque_mr_buffer);
+		push_descriptor_deferred(h_opaque_mr_buffer_srv_desc);
+		push_descriptor_deferred(h_opaque_mr_buffer_uav_desc);
+
+		resource::release_deferred(h_opaque_shading_normal_buffer);
+		push_descriptor_deferred(h_opaque_shading_normal_buffer_srv_desc);
+		push_descriptor_deferred(h_opaque_shading_normal_buffer_uav_desc);
+
+		resource::release_deferred(h_opaque_emissive_buffer);
+		push_descriptor_deferred(h_opaque_emissive_buffer_srv_desc);
+		push_descriptor_deferred(h_opaque_emissive_buffer_uav_desc);
 
 		create_resolution_dependent_buffers();
 	}
@@ -4083,6 +4172,10 @@ namespace age::graphics::render_pipeline
 		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_type_buffer_srv_desc);
 		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_type_buffer_uav_desc);
 
+		resource::release_deferred(gist_data_cpu.h_adaptive_ray_entry_buffer);
+		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_entry_buffer_srv_desc);
+		push_descriptor_deferred(gist_data_cpu.h_adaptive_ray_entry_buffer_uav_desc);
+
 		resource::release_deferred(gist_data_cpu.h_indirect_arg_buffer);
 		push_descriptor_deferred(gist_data_cpu.h_indirect_arg_buffer_uav_desc);
 
@@ -4781,6 +4874,15 @@ namespace age::graphics::render_pipeline
 
 			.opaque_geo_prev_buffer_srv_id = calc_desc_idx(h_opaque_geo_prev_buffer_srv_desc),
 			.opaque_geo_prev_buffer_uav_id = calc_desc_idx(h_opaque_geo_prev_buffer_uav_desc),
+
+			.opaque_base_color_buffer_srv_id	 = calc_desc_idx(h_opaque_base_color_buffer_srv_desc),
+			.opaque_base_color_buffer_uav_id	 = calc_desc_idx(h_opaque_base_color_buffer_uav_desc),
+			.opaque_mr_buffer_srv_id			 = calc_desc_idx(h_opaque_mr_buffer_srv_desc),
+			.opaque_mr_buffer_uav_id			 = calc_desc_idx(h_opaque_mr_buffer_uav_desc),
+			.opaque_shading_normal_buffer_srv_id = calc_desc_idx(h_opaque_shading_normal_buffer_srv_desc),
+			.opaque_shading_normal_buffer_uav_id = calc_desc_idx(h_opaque_shading_normal_buffer_uav_desc),
+			.opaque_emissive_buffer_srv_id		 = calc_desc_idx(h_opaque_emissive_buffer_srv_desc),
+			.opaque_emissive_buffer_uav_id		 = calc_desc_idx(h_opaque_emissive_buffer_uav_desc),
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

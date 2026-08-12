@@ -520,6 +520,10 @@ namespace age::graphics
 		{
 			return DXGI_FORMAT_R16G16_SNORM;
 		}
+		case e::texture_format::rgba8_typeless:
+		{
+			return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		}
 		default:
 		{
 			AGE_UNREACHABLE();

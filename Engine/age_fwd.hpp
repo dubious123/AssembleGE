@@ -123,7 +123,8 @@ namespace age::graphics::e
 							   (d32_float, 25),
 							   (d16_unorm, 26),
 							   (r11g11b10_float, 27),
-							   (r16g16_snorm, 28));
+							   (r16g16_snorm, 28),
+							   (rgba8_typeless, 29));
 
 	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask_kind, uint8,
 							   (opaque, 0x01),

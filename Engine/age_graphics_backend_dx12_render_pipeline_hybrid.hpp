@@ -27,6 +27,21 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct material_resolve_stage
+	{
+		graphics::pso::handle h_pso_resolve = {};
+		ID3D12PipelineState*  p_pso_resolve = nullptr;
+
+		void
+		init(graphics::root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const extent_2d<uint16>& extent) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct segment_stage
 	{
 		graphics::pso::handle h_pso_resolve = {};
@@ -626,6 +641,7 @@ namespace age::graphics::render_pipeline
 		ID3D12RootSignature*			 p_root_sig;
 
 		depth_stage				stage_depth;
+		material_resolve_stage	stage_material_resolve;
 		segment_stage			stage_segment;
 		ao_stage				stage_ao;
 		skybox_stage			stage_skybox;
@@ -680,6 +696,24 @@ namespace age::graphics::render_pipeline
 		resource_handle h_opaque_gbuffer;
 		rtv_desc_handle h_opaque_gbuffer_rtv_desc;
 		srv_desc_handle h_opaque_gbuffer_srv_desc;
+
+		// rgb : color, a : occlusion
+		resource_handle h_opaque_base_color_buffer;
+		srv_desc_handle h_opaque_base_color_buffer_srv_desc;
+		uav_desc_handle h_opaque_base_color_buffer_uav_desc;
+
+		// r : metalic, g : roughness
+		resource_handle h_opaque_mr_buffer;
+		srv_desc_handle h_opaque_mr_buffer_srv_desc;
+		uav_desc_handle h_opaque_mr_buffer_uav_desc;
+
+		resource_handle h_opaque_shading_normal_buffer;
+		srv_desc_handle h_opaque_shading_normal_buffer_srv_desc;
+		uav_desc_handle h_opaque_shading_normal_buffer_uav_desc;
+
+		resource_handle h_opaque_emissive_buffer;
+		srv_desc_handle h_opaque_emissive_buffer_srv_desc;
+		uav_desc_handle h_opaque_emissive_buffer_uav_desc;
 
 		// x : depth, y : normal_snorm16
 		resource_handle h_opaque_geo_prev_buffer;
