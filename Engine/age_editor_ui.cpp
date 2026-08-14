@@ -1065,6 +1065,133 @@ namespace age::editor
 
 		return update;
 	}
+
+	bool
+	ui_component(age::ecs::debug_view_config& cmp, bool aa_enabled, bool ao_enabled, bool ddgi_enabled, bool gibs_enabled, bool gist_enabled) noexcept
+	{
+		ui::widget::checkbox("enable", cmp.enabled);
+
+		if (cmp.enabled is_false) { return false; }
+
+		auto update = false;
+		{
+			auto _ = ui::id_begin();
+			update = ui::widget::button2("update");
+		}
+
+		ui::widget::numeric_field(cmp.popup_view_size_uv, "popup_view_size_uv", float2::zero(), float2::one());
+		ui::widget::numeric_field(cmp.popup_border_thickness, "popup_border_thickness", 0u, 16u);
+
+		ui::widget::text("nan_color");
+		ui::widget::color_field(cmp.nan_color, 0.f, 1000.f);
+		ui::widget::text("pos_inf_color");
+		ui::widget::color_field(cmp.pos_inf_color, 0.f, 1000.f);
+		ui::widget::text("neg_inf_color");
+		ui::widget::color_field(cmp.neg_inf_color, 0.f, 1000.f);
+		ui::widget::text("zero_color");
+		ui::widget::color_field(cmp.zero_color, 0.f, 1000.f);
+		ui::widget::text("below_min_color");
+		ui::widget::color_field(cmp.below_min_color, 0.f, 1000.f);
+		ui::widget::text("above_max_color");
+		ui::widget::color_field(cmp.above_max_color, 0.f, 1000.f);
+
+		if (auto _ = ui::widget::begin(ui::style::horizontal() | ui::set_width_grow() | ui::set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(ui::set_width_grow()))
+			{
+				ui::widget::text(std::format("pip_count : {}", cmp.slot_count).c_str());
+			}
+
+			if (cmp.slot_count == 1)
+			{
+				ui::widget::text_button("-", false);
+			}
+			else
+			{
+				if (ui::widget::button2("-"))
+				{
+					--cmp.slot_count;
+				}
+			}
+
+			if (cmp.slot_count == cmp.slot_config_arr.size())
+			{
+				ui::widget::text_button("+", false);
+			}
+			else
+			{
+				if (ui::widget::button2("+"))
+				{
+					++cmp.slot_count;
+				}
+			}
+		}
+
+		cmp.slot_count = clamp(cmp.slot_count, 0u, cast_to<uint32>(cmp.slot_config_arr.size()));
+
+		auto slot_func = [&](bool is_fullscreen, age::ecs::debug_view_config::debug_view_slot_config& slot_config, uint32 idx = 0) {
+			auto id_ctx = ui::id_begin();
+			if (auto _ = ui::widget::collapsible_header2(is_fullscreen ? "fullscreen_config" : std::format("pip_config[{}]", idx).c_str(), is_fullscreen))
+			{
+				ui::widget::dropdown(slot_config.system_kind);
+
+				switch (slot_config.system_kind)
+				{
+				case age::graphics::e::hrp_debug_view_system_kind::common:
+				{
+					ui::widget::text("view_kind");
+					ui::widget::dropdown<age::graphics::e::hrp_debug_view_kind_sys_common>(slot_config.system_debug_view_kind);
+					ui::widget::text("overlay_flags");
+					auto buf = std::array<char, 64>{};
+					util::integral_to_str<2>(buf, slot_config.system_debug_view_overlay_flags);
+					ui::widget::dropdown_flags<age::graphics::e::hrp_debug_view_overlay_flags_sys_common>(slot_config.system_debug_view_overlay_flags, buf.data());
+					ui::widget::text("popup_kind");
+					ui::widget::dropdown<age::graphics::e::hrp_debug_view_sys_common_popup_kind>(slot_config.system_popup_view_kind);
+					break;
+				}
+				default:
+					break;
+				}
+
+				ui::widget::text("slot_option");
+				auto buf = std::array<char, 64>{};
+				util::integral_to_str<2>(buf, to_idx(slot_config.option_flags));
+				ui::widget::dropdown_flags<age::graphics::e::hrp_debug_view_slot_option_flags>(slot_config.option_flags, buf.data());
+
+				ui::widget::text("color_map");
+				ui::widget::dropdown<age::graphics::e::hrp_debug_view_color_map_kind>(slot_config.color_map_kind);
+				slot_config.system_popup_view_kind;
+
+				if (is_fullscreen is_false)
+				{
+					ui::widget::numeric_field(slot_config.size_uv, "size_uv", float2::zero(), float2::one());
+					ui::widget::numeric_field(slot_config.offset_uv, "offset_uv", float2{ -1.f }, float2::one());
+					ui::widget::numeric_field(slot_config.pos_uv, "pos_uv", float2{ -1.f }, float2::one());
+				}
+
+				ui::widget::numeric_field(slot_config.scalar_range_min, "scalar_range_min", float3::zero(), slot_config.scalar_range_max);
+				ui::widget::numeric_field(slot_config.scalar_range_max, "scalar_range_max", slot_config.scalar_range_min, float3::one());
+				ui::widget::numeric_field(slot_config.alpha, "alpha", 0.f, 1.f);
+				ui::widget::numeric_field(slot_config.popup_zoom, "popup_zoom", 0.f, 10.f);
+
+				ui::widget::text("background_color");
+				ui::widget::color_field(slot_config.background_color, 0.f, 10.f);
+
+				ui::widget::numeric_field(slot_config.border_thickness, "border_thickness", 0u, 16u);
+			}
+		};
+
+		slot_func(true, cmp.fullscreen_slot_config);
+
+		for (auto&& [i, slot_config] : cmp.slot_config_arr | std::views::take(cmp.slot_count - 1) | std::views::enumerate)
+		{
+			ui::widget::separator_v();
+			slot_func(false, slot_config, cast_to<uint32>(i));
+		}
+
+		return update;
+	}
+
 }	 // namespace age::editor
 
 namespace age::editor

@@ -1787,7 +1787,7 @@ namespace age::graphics::render_pipeline
 
 		h_pso_no_aa = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_ms) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_no_aa_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
@@ -1956,7 +1956,7 @@ namespace age::graphics::render_pipeline
 
 		h_pso = graphics::pso::create(
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_ms) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_post_process_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
@@ -2233,7 +2233,7 @@ namespace age::graphics::render_pipeline
 	{
 		using namespace graphics::pso;
 
-		auto ms_byte_code = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_ms);
+		auto ms_byte_code = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms);
 
 		auto&& [ps_byte_code, back_buffer_rt_format] = [&]() {
 			switch (graphics::i_color.get_display_color_space())
@@ -2378,6 +2378,75 @@ namespace age::graphics::render_pipeline
 	{
 		pso::destroy(h_pso_mesh);
 		pso::destroy(h_pso_mesh_always_on_top);
+	}
+}	 // namespace age::graphics::render_pipeline
+
+namespace age::graphics::render_pipeline
+{
+	void
+	debug_view_stage::init(root_signature::handle h_root_sig) noexcept
+	{
+		using namespace graphics::pso;
+
+		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(debug_view, prepare);
+		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(debug_view, resolve);
+
+		h_pso_blend = graphics::pso::create(
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_view_blend_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+			pss_blend{ .subobj = defaults::blend_desc::alpha },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_blend = graphics::g::pso_ptr_vec[h_pso_blend];
+		h_pso_blend.set_name(L"pso_debug_view_blend");
+	}
+
+	inline void
+	debug_view_stage::execute(const debug_view_data& data, extent_2d<uint16> extent, rtv_desc_handle rtv_desc) const noexcept
+	{
+		if (data.need_cleanup) [[unlikely]]
+		{
+			command::clear_uav(data.h_debug_view_buffer, data.h_debug_view_buffer_clear_uav_desc, uint32_4::zero());
+			command::clear_uav(data.h_debug_view_scratch_buffer, data.h_debug_view_scratch_buffer_clear_uav_desc, uint32_4::zero());
+
+			command::apply_barriers(barrier::tex_uav_to_srv(data.h_debug_view_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+									barrier::buf_uav_to_uav(data.h_debug_view_scratch_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		}
+
+		command::set_pso(p_pso_prepare);
+		command::dispatch(1, 1, 1);
+		command::apply_barriers(barrier::buf_uav_to_srv(data.h_debug_view_scratch_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(data.h_debug_view_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+		command::set_pso(p_pso_resolve);
+		command::dispatch(ceil(extent.width, 16), ceil(extent.height, 16), 1);
+		command::apply_barriers(barrier::tex_uav_to_srv(data.h_debug_view_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
+
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(rtv_desc);
+
+		command::begin_render_pass(
+			1,
+			&render_pass_rt_desc,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE);
+
+		command::set_pso(p_pso_blend);
+		command::dispatch_mesh(1, 1, 1);
+
+		command::end_render_pass();
+	}
+
+	void
+	debug_view_stage::deinit() noexcept
+	{
+		pso::destroy(h_pso_prepare);
+		pso::destroy(h_pso_resolve);
+		pso::destroy(h_pso_blend);
 	}
 }	 // namespace age::graphics::render_pipeline
 #endif

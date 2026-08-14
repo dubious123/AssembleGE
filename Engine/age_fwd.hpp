@@ -193,6 +193,51 @@ namespace age::graphics::e
 	AGE_ENUM_FLAG_OPERATORS(ao_debug_flags);
 }	 // namespace age::graphics::e
 
+// debug view
+namespace age::graphics::e
+{
+	AGE_DEFINE_ENUM(hrp_debug_view_system_kind, uint32, none, common, aa, ao, ddgi, gibs, gist);
+
+	AGE_DEFINE_ENUM_FLAGS(hrp_debug_view_slot_option_flags, uint32,
+						  (none, 0),
+						  (enabled, (1u << 0u)),
+						  (clear, (1u << 1u)),
+						  (freeze, (1u << 2u)),
+						  (enable_cursor_interact, (1u << 3u)),
+						  (mark_nan, (1u << 4u)),
+						  (mark_inf, (1u << 5u)),
+						  (mark_zero, (1u << 6u)),
+						  (mark_above_max, (1u << 7u)),
+						  (mark_below_min, (1u << 8u)));
+
+	AGE_DEFINE_ENUM(hrp_debug_view_color_map_kind, uint32, none, grayscale, turbo, viridis, plasma, magma, inferno);
+	AGE_DEFINE_ENUM(hrp_debug_view_sys_common_popup_kind, uint32, none, zoom, value);
+	AGE_DEFINE_ENUM(hrp_debug_view_kind_sys_common, uint32,
+					none,
+					depth,
+					visibility,
+					render_id,
+					meshlet_id,
+					prim_id,
+					material_id,
+					vertex_normal,
+					shading_normal,
+					base_color,
+					occlusion,
+					roughness,
+					metallic,
+					emissive,
+					motion);
+
+	AGE_DEFINE_ENUM_FLAGS(hrp_debug_view_overlay_flags_sys_common, uint32,
+						  (none, 0),
+						  (opaque, (1u << 0u)),
+						  (transparent, (1u << 1u)),
+						  (opaque_edge, (1u << 2u)),
+						  (transparent_edge, (1u << 3u)));
+
+}	 // namespace age::graphics::e
+
 namespace age::graphics
 {
 	using t_resource_id = uint32;

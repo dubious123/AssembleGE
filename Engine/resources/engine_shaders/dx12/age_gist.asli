@@ -18,7 +18,7 @@ namespace gist
 	bool
 	enabled()
 	{
-		return ddgi_enabled_and_extra & (1u << 2u);
+		return system_flags & AGE_SYSTEM_KIND_GIST;
 	}
 
 	// focal_px * (r / depth) => px

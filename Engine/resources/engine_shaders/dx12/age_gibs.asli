@@ -48,7 +48,7 @@ namespace gibs
 	bool
 	enabled()
 	{
-		return ddgi_enabled_and_extra & 2;
+		return system_flags & AGE_SYSTEM_KIND_GIBS;
 	}
 
 	uint32

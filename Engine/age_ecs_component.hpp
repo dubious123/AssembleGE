@@ -1133,6 +1133,63 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(debug_view_config, "debug_view")
+	{
+		struct debug_view_slot_config
+		{
+			age::graphics::e::hrp_debug_view_system_kind	   system_kind							  = age::graphics::e::hrp_debug_view_system_kind::none;
+			uint32											   system_debug_view_kind				  = 0u;
+			uint32											   system_debug_view_overlay_flags		  = 0u;
+			uint32											   system_debug_view_cursor_overlay_flags = 0u;
+			uint32											   system_popup_view_kind				  = 0u;
+			age::graphics::e::hrp_debug_view_slot_option_flags option_flags							  = age::graphics::e::hrp_debug_view_slot_option_flags::none;
+			age::graphics::e::hrp_debug_view_color_map_kind	   color_map_kind						  = age::graphics::e::hrp_debug_view_color_map_kind::none;
+			float2											   size_uv								  = float2{ 0.125f };
+			float2											   offset_uv							  = float2{ 0.f };	   // default : 0, 0
+			float2											   pos_uv								  = float2{ -1.f };	   // default : -1, -1, disabled
+			float3											   scalar_range_min						  = float3::zero();
+			float3											   scalar_range_max						  = float3::one();
+			float											   alpha								  = 1.f;
+			float											   popup_zoom							  = 4.f;
+			float3											   background_color						  = float3::zero();
+			uint32											   border_thickness						  = 1u;
+
+			uint32_4 payload[4] = { uint32_4::zero() };
+		};
+
+		AGE_COMPONENT_VERSION(1);
+
+		bool	enabled = false;
+		uint8_3 _;
+		uint32	slot_count = 1u;										   // min : 1, max : 16
+
+		debug_view_slot_config					fullscreen_slot_config;	   // ignores size_uv
+		std::array<debug_view_slot_config, 15u> slot_config_arr;
+
+		float2 popup_view_size_uv	  = float2{ 0.125f };
+		uint32 popup_border_thickness = 1u;
+
+		int32_2 cursor_px = int32_2::zero();
+
+		float3 nan_color	   = { 4.f, 0.f, 4.f };				// magenta
+		float3 pos_inf_color   = { 4.f, 4.f, 4.f };				// white
+		float3 neg_inf_color   = { 0.f, 4.f, 4.f };				// cyan
+		float3 zero_color	   = { 0.015f, 0.015f, 0.015f };	// dark gray
+		float3 below_min_color = { 0.f, 0.f, 4.f };				// blue
+		float3 above_max_color = { 4.f, 0.f, 0.f };				// red
+
+		uint32_4 payload[4];
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, debug_view_config & cmp, auto& ctx) noexcept
+		{
+			if (cmp.enabled and ctx.renderer.debug_view_enabled())
+			{
+				ctx.renderer.disable_debug_view();
+			}
+		}
+	};
+
 #undef AGE_COMPONENT
 #undef AGE_CUSTOM_BYTE_SIZE
 }	 // namespace age::ecs

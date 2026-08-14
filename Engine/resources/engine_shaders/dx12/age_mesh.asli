@@ -409,3 +409,15 @@ calc_pbr_surface_screen(int32_2 px, float z_depth)
 
 	return res;
 }
+
+uint32
+unpack_vis_render_id(uint32 vis_packed)
+{
+	return vis_packed & 0x01ffffff;
+}
+
+uint32
+unpack_vis_primitive_id(uint32 vis_packed)
+{
+	return (vis_packed & 0xfe000000) >> (32u - 7u);
+}

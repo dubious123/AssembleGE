@@ -188,7 +188,8 @@ namespace age_demo::scene_3
 															   age::ecs::gi_config,
 															   age::ecs::editor_cam_setting,
 															   age::ecs::ao_config,
-															   age::ecs::aa_config>;
+															   age::ecs::aa_config,
+															   age::ecs::debug_view_config>;
 
 	using t_ent_storage_sub = age::ecs::entity_storage::basic<uint32,
 															  age::ecs::position,

@@ -773,4 +773,63 @@ namespace age::graphics::render_pipeline
 		uav_desc_handle		  h_indirect_arg_buffer_uav_desc;
 		clear_uav_desc_handle h_indirect_arg_buffer_clear_uav_desc;
 	};
+
+	struct debug_view_slot_desc
+	{
+		graphics::e::hrp_debug_view_system_kind		  system_kind;
+		uint32										  system_debug_view_kind;
+		uint32										  system_debug_view_overlay_flags;
+		uint32										  system_debug_view_cursor_overlay_flags;
+		uint32										  system_popup_view_kind;
+		graphics::e::hrp_debug_view_slot_option_flags option_flags;		   // enabled/disabled, freeze, clear, enable_cursor_interact
+		graphics::e::hrp_debug_view_color_map_kind	  color_map_kind;	   // enabled/disabled, freeze, clear, enable_cursor_interact
+		float2										  size_uv;			   // default : 0.125, 0.125
+		float2										  offset_uv;		   // default : 0, 0
+		float2										  pos_uv;			   // default : -1, -1, disabled
+		float3										  scalar_range_min;	   // [0, 1)
+		float3										  scalar_range_max;	   // [0, 1)
+		float										  alpha;
+		float										  popup_zoom;
+		float3										  background_color;
+		uint32										  border_thickness;
+
+
+		uint32_4 payload[4];
+	};
+
+	struct debug_view_desc
+	{
+		debug_view_slot_desc			fullscreen_slot_desc;	 // ignores size_uv
+		std::span<debug_view_slot_desc> slot_descs;
+
+		float2	popup_view_size_uv;
+		uint32	popup_border_thickness;
+		int32_2 cursor_px;
+		float3	nan_color;
+		float3	pos_inf_color;
+		float3	neg_inf_color;
+		float3	zero_color;
+		float3	below_min_color;
+		float3	above_max_color;
+	};
+
+	struct debug_view_data
+	{
+		shared_type::debug_view_data												gpu_data;
+		std::array<shared_type::debug_view_slot_data, g::debug_view_slot_count_max> gpu_slot_data;
+
+		bool	enabled		 = false;
+		bool	need_cleanup = false;
+		uint8_2 _;
+
+		resource_handle		  h_debug_view_buffer;
+		srv_desc_handle		  h_debug_view_buffer_srv_desc;
+		uav_desc_handle		  h_debug_view_buffer_uav_desc;
+		clear_uav_desc_handle h_debug_view_buffer_clear_uav_desc;
+
+		resource_handle		  h_debug_view_scratch_buffer;
+		srv_desc_handle		  h_debug_view_scratch_buffer_srv_desc;
+		uav_desc_handle		  h_debug_view_scratch_buffer_uav_desc;
+		clear_uav_desc_handle h_debug_view_scratch_buffer_clear_uav_desc;
+	};
 }	 // namespace age::graphics::render_pipeline

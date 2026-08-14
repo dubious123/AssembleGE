@@ -23,8 +23,8 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	if (z_depth == 0.f) { return; }
 
 	const uint32 vis_packed = gbuffer[px].x;
-	const uint32 render_id	= vis_packed & 0x01ffffff;
-	const uint32 prim_id	= (vis_packed & 0xfe000000) >> (32u - 7u);
+	const uint32 render_id	= unpack_vis_render_id(vis_packed);
+	const uint32 prim_id	= unpack_vis_primitive_id(vis_packed);
 
 	const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
 	const material					 mat		 = load_material(render_data.material_id);

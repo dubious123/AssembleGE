@@ -108,6 +108,7 @@
     <ClInclude Include="age_math_sdf.hpp" />
     <ClInclude Include="age_graphics_backend_dx12_render_pipeline_hybrid_macro_guard.hpp" />
     <ClInclude Include="age_util_offset_calculator.hpp" />
+    <ClInclude Include="age_editor_cmp_to_desc.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -168,6 +169,7 @@
     <ClCompile Include="age_graphics_backend_dx12_bake.cpp" />
     <ClCompile Include="age_graphics_backend_dx12_root_signature.cpp" />
     <ClCompile Include="age_editor_gizmo.cpp" />
+    <ClCompile Include="age_editor_cmp_to_desc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

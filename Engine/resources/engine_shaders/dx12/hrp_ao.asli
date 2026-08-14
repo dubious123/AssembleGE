@@ -6,7 +6,7 @@ namespace ao
 	bool
 	enabled()
 	{
-		return ddgi_enabled_and_extra & 0x8;
+		return system_flags & AGE_SYSTEM_KIND_AO;
 	}
 
 	ao_data

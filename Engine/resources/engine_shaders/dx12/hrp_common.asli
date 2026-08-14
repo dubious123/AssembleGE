@@ -3,6 +3,7 @@
 #include "age_math.asli"
 #include "age_math_jacobian.asli"
 #include "age_brdf.asli"
+#include "age_color_map.asli"
 #include "age_util.asli"
 #include "age_graphics_backend_dx12_render_pipeline_hybrid_shared_types.h"
 
@@ -35,7 +36,7 @@ float  proj_11;
 float3 light_bin_cell_size_inv;
 float  cam_near_z;
 float  cam_far_z;
-uint32 ddgi_enabled_and_extra;
+uint32 system_flags;
 float2 ddgi_cranley_patterson_rotation;
 float3 gi_origin;
 float  object_count;
@@ -744,7 +745,7 @@ ddgi_load_ray_count_ideal(const ddgi_data ddgi_data, uint32 probe_id)
 bool
 ddgi_enabled()
 {
-	return ddgi_enabled_and_extra & 1;
+	return system_flags & AGE_SYSTEM_KIND_DDGI;
 }
 
 ddgi_data
@@ -996,6 +997,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_ui.asli"
 #include "age_bloom.asli"
 #include "age_denoise.asli"
+#include "age_debug_view.asli"
 
 struct opaque_as_to_ms
 {

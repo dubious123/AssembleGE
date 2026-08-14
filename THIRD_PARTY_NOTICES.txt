@@ -245,3 +245,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE
 
+
+// turbo colormap
+- source : https://gist.github.com/mikhailov-work/6a308c20e494d9e0ccc29036b28faa7a
+              https://gist.github.com/mikhailov-work/0d177465a8151eb6ede1768d51d476c7
+- copyright 2019 Google LLC, author Anton Mikhailov
+- license : Apache-2.0 (see LICENSE-Apache-2.0.txt)
+- used in : color_map.asli (color_map::turbo)
+- modified : ported to HLSL, renamed variables

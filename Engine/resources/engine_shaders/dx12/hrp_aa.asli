@@ -9,6 +9,12 @@ namespace aa
 		return load<aa_data>(static_buffer, AA_DATA_OFFSET);
 	}
 
+	bool
+	enabled()
+	{
+		return system_flags & AGE_SYSTEM_KIND_AA;
+	}
+
 	void
 	execute_ray_entry(bool is_opaque, uint32 group_id, uint32 group_thread_id)
 	{

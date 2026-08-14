@@ -516,6 +516,10 @@
 		return visit_all<enum_class_name>(FWD(func), FWD(arg)...);                             \
 	}
 
+#define AGE_DEFINE_ENUM_FLAGS(enum_class_name, underlying_type, ...)          \
+	AGE_DEFINE_ENUM_WITH_VALUE(enum_class_name, underlying_type, __VA_ARGS__) \
+	AGE_ENUM_FLAG_OPERATORS(enum_class_name)
+
 //---[ age_request.hpp ]------------------------------------------------------------
 #define __AGE_REQUEST_COMBINE_FLAGS__(x) age::subsystem::flags::x |
 

@@ -1,0 +1,654 @@
+#pragma once
+#include "age.asli"
+
+namespace debug_view
+{
+	debug_view_data
+	load_data()
+	{
+		return load<debug_view_data>(static_buffer, DEBUG_VIEW_DATA_OFFSET);
+	}
+
+	debug_view_slot_data
+	load_slot_data(const in debug_view_data data, uint32 idx)
+	{
+		assert(idx < data.slot_count);
+		return load<debug_view_slot_data>(static_buffer, DEBUG_VIEW_SLOT_DATA_OFFSET + sizeof(debug_view_slot_data) * idx);
+	}
+
+	bool
+	enabled()
+	{
+		return util::is_flag_set<AGE_SYSTEM_KIND_DEBUG_VIEW>(system_flags);
+	}
+
+
+}	 // namespace debug_view
+
+// scratch
+namespace debug_view
+{
+#define buffer_uav_id data.h_debug_view_scratch_buffer_uav_id
+#define buffer_srv_id data.h_debug_view_scratch_buffer_srv_id
+#define helper_func(type, name)                                                 \
+	template <bool is_rw = false>                                               \
+	type                                                                        \
+	load_##name(const in debug_view_data data, uint32 idx = 0u)                 \
+	{                                                                           \
+		attr_branch()                                                           \
+                                                                                \
+		if (is_rw)                                                              \
+		{                                                                       \
+			rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id]; \
+			return load<type>(buf, data.name##_offset() + sizeof(type) * idx);  \
+		}                                                                       \
+		else                                                                    \
+		{                                                                       \
+			byte_address_buffer buf = global_resource_buffer[buffer_srv_id];    \
+			return load<type>(buf, data.name##_offset() + sizeof(type) * idx);  \
+		}                                                                       \
+	}                                                                           \
+	void                                                                        \
+	set_##name(const in debug_view_data data, type var, uint32 idx = 0u)        \
+	{                                                                           \
+		rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id];     \
+		store(buf, data.name##_offset() + sizeof(type) * idx, var);             \
+	}
+
+	helper_func(uint32, cursor_data_count);
+	helper_func(debug_view_popup_data, popup_data);
+	helper_func(debug_view_cursor_data, cursor_data);
+	helper_func(int32_4, slot_rect);
+
+	debug_view_cursor_data
+	load_cursor_hover_data(const in debug_view_data data)
+	{
+		return load_cursor_data(data, 0u);
+	}
+
+	void
+	set_cursor_hover_data(const in debug_view_data data, const in debug_view_cursor_data cursor_data)
+	{
+		set_cursor_data(data, cursor_data, 0u);
+	}
+
+#undef buffer_uav_id
+#undef buffer_srv_id
+#undef helper_func
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	float2
+	calc_uv_local(int32_4 rect, int32_2 px)
+	{
+		const int32_2 rect_size = rect.zw - rect.xy;
+		return saturate(float2((px - rect.xy + 0.5f)) / float2(rect_size));
+	}
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	namespace slot
+	{
+		bool
+		enabled(const in debug_view_slot_data slot_data)
+		{
+			return util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLED>(slot_data.option_flags);
+		}
+
+		bool
+		cusor_interact_enabled(const in debug_view_slot_data slot_data)
+		{
+			return util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLE_CURSOR_INTERACT>(slot_data.option_flags);
+		}
+
+		bool
+		is_fullscreen(const in debug_view_slot_data slot_data, uint32 slot_id)
+		{
+			return slot_id == 0u;
+		}
+
+		int32_4
+		load_rect(const in debug_view_data data, uint32 slot_id)
+		{
+			return load_slot_rect(data, slot_id);
+		}
+	}	 // namespace slot
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	bool
+	is_cursor_hit(const in debug_view_data data, const in debug_view_cursor_data cursor_data)
+	{
+		return cursor_data.hit_layer_debug_view_kind != 0u
+			or cursor_data.hit_layer_debug_overlay_flag != 0u;
+	}
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	bool
+	calc_mark_color(const in debug_view_data data, const in debug_view_slot_data slot_data, float3 value, out float3 mark_color)
+	{
+		mark_color = zero<float3>();
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_NAN>(slot_data.option_flags) and any(isnan(value)))
+		{
+			mark_color = data.nan_color;
+			return true;
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_INF>(slot_data.option_flags) and any(isinf(value)))
+		{
+			mark_color = any(value < 0.f) ? data.neg_inf_color : data.pos_inf_color;
+			return true;
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ZERO>(slot_data.option_flags) and all(value == 0.f))
+		{
+			mark_color = data.zero_color;
+			return true;
+		}
+		return false;
+	}
+
+	bool
+	calc_mark_color(const in debug_view_data data, const in debug_view_slot_data slot_data, float value, out float3 mark_color)
+	{
+		mark_color = zero<float3>();
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_NAN>(slot_data.option_flags) and isnan(value))
+		{
+			mark_color = data.nan_color;
+			return true;
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_INF>(slot_data.option_flags) and isinf(value))
+		{
+			mark_color = value < 0.f ? data.neg_inf_color : data.pos_inf_color;
+			return true;
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ZERO>(slot_data.option_flags) and value == 0.f)
+		{
+			mark_color = data.zero_color;
+			return true;
+		}
+		return false;
+	}
+
+	float3
+	normalize_log_scale(float3 value, float3 low, float3 high, float knee_ratio = epsilon_1e4)
+	{
+		const float3 range = max(high - low, epsilon_1e6);
+		const float3 knee  = max(range * knee_ratio, epsilon_1e6);
+
+		// u = max(value - low, 0.f) / knee
+		// u => 0.xxx... (value - low << knee)
+		// log2(1 + u) / log2(1.f + range / knee)
+		// log2(1 + u) / c
+		// ln(1 + u) / (c * ln2)
+		// u / (c * ln2) (Taylor series, a = 0)
+		// value - low << knee : linear
+		// value - low >> knee : logarithmic
+		return saturate(log2(1.f + max(value - low, 0.f) / knee) / log2(1.f + range / knee));
+	}
+
+	float
+	normalize_log_scale(float value, float low, float high, float knee_ratio = epsilon_1e4)
+	{
+		const float range = max(high - low, epsilon_1e6);
+		const float knee  = max(range * knee_ratio, epsilon_1e6);
+
+		return saturate(log2(1.f + max(value - low, 0.f) / knee) / log2(1.f + range / knee));
+	}
+
+	template <int32 n>
+	vector<float, n>
+	normalize_linear(vector<float, n> value, vector<float, n> low, vector<float, n> high)
+	{
+		return saturate((value - low) / max(high - low, epsilon_1e6));
+	}
+
+	float
+	normalize_linear(float value, float low, float high)
+	{
+		return saturate((value - low) / max(high - low, epsilon_1e6));
+	}
+
+	bool
+	apply_slot_range(const in debug_view_data data, const in debug_view_slot_data slot_data, inout float3 value, out float3 mark_color)
+	{
+		mark_color = zero<float3>();
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ABOVE_MAX>(slot_data.option_flags))
+		{
+			if (any(value > slot_data.scalar_range_max))
+			{
+				mark_color = data.above_max_color;
+				return true;
+			}
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_BELOW_MIN>(slot_data.option_flags))
+		{
+			if (any(value < slot_data.scalar_range_min))
+			{
+				mark_color = data.below_min_color;
+				return true;
+			}
+		}
+
+		value = saturate((value - slot_data.scalar_range_min)
+						 / max(slot_data.scalar_range_max - slot_data.scalar_range_min, epsilon_1e6));
+
+		return false;
+	}
+
+	bool
+	apply_slot_range(const in debug_view_data data, const in debug_view_slot_data slot_data, inout float value, out float3 mark_color)
+	{
+		mark_color = zero<float3>();
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ABOVE_MAX>(slot_data.option_flags))
+		{
+			if (value > slot_data.scalar_range_max.r)
+			{
+				mark_color = data.above_max_color;
+				return true;
+			}
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_BELOW_MIN>(slot_data.option_flags))
+		{
+			if (value < slot_data.scalar_range_min.r)
+			{
+				mark_color = data.below_min_color;
+				return true;
+			}
+		}
+
+		value = saturate((value - slot_data.scalar_range_min.r)
+						 / max(slot_data.scalar_range_max.r - slot_data.scalar_range_min.r, epsilon_1e6));
+
+		return false;
+	}
+
+	float3
+	apply_color_map(const in debug_view_slot_data slot_data, float t)
+	{
+		switch (slot_data.color_map_kind)
+		{
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_GRAYSCALE:
+		{
+			return color_map::grayscale(t);
+		}
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_TURBO:
+		{
+			return color_map::turbo(t);
+		}
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_VIRIDIS:
+		{
+			return color_map::viridis(t);
+		}
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_PLASMA:
+		{
+			return color_map::plasma(t);
+		}
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_MAGMA:
+		{
+			return color_map::magma(t);
+		}
+		case AGE_DEBUG_VIEW_COLOR_MAP_KIND_INFERNO:
+		{
+			return color_map::inferno(t);
+		}
+		default:
+		{
+			return color_map::turbo(t);
+		}
+		}
+	}
+
+	// n < 4
+	// n > 1 and color_map != none => color_map(length(value))
+	template <bool apply_normalize = false, bool log_scale = false>
+	float3
+	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
+				  float3 value, float3 low, float3 high,
+				  out float3 raw_value, out float3 scaled_value,
+				  float log_scale_knee_ratio = epsilon_1e4)
+	{
+		raw_value	 = zero<float3>();
+		scaled_value = zero<float3>();
+
+		raw_value = value;
+
+		float3 mark_color;
+
+		if (calc_mark_color(data, slot_data, value, mark_color)) { return mark_color; }
+
+		float3 normalized = log_scale ? normalize_log_scale(value, low, high, log_scale_knee_ratio)
+									  : normalize_linear(value, low, high);
+
+		if (apply_slot_range(data, slot_data, normalized, mark_color)) { return mark_color; }
+
+		scaled_value = normalized;
+
+		if (apply_normalize) { value = normalized; }
+
+		if (slot_data.color_map_kind != AGE_DEBUG_VIEW_COLOR_MAP_KIND_NONE)
+		{
+			return apply_color_map(slot_data, length(value));
+		}
+
+		float3 res = zero<float3>();
+
+		res = value;
+
+		return res;
+	}
+
+	template <bool apply_normalize = false, bool log_scale = false>
+	float3
+	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
+				  float value, float low, float high,
+				  out float3 raw_value, out float3 scaled_value,
+				  float log_scale_knee_ratio = epsilon_1e4)
+	{
+		raw_value	 = zero<float3>();
+		scaled_value = zero<float3>();
+
+		raw_value.r = value;
+
+		float3 mark_color;
+
+		if (calc_mark_color(data, slot_data, value, mark_color)) { return mark_color; }
+
+		float normalized = log_scale ? normalize_log_scale(value, low, high, log_scale_knee_ratio)
+									 : normalize_linear(value, low, high);
+
+		if (apply_slot_range(data, slot_data, normalized, mark_color)) { return mark_color; }
+
+		scaled_value.r = normalized;
+
+		if (apply_normalize) { value = normalized; }
+
+		if (slot_data.color_map_kind != AGE_DEBUG_VIEW_COLOR_MAP_KIND_NONE)
+		{
+			return apply_color_map(slot_data, length(value));
+		}
+
+		float3 res = zero<float3>();
+
+		res.r = value;
+
+		return res;
+	}
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	float2
+	calc_zoom_uv(int32_4 src_rect, int32_4 dst_rect, int32_2 src_local_pos, int32_2 dst_local_pos, float zoom)
+	{
+		const int32_2 src_size = max(src_rect.zw - src_rect.xy, 1);
+		const int32_2 dst_size = max(dst_rect.zw - dst_rect.xy, 1);
+
+		const float2 src_uv = (float2(src_local_pos) + 0.5f) / float2(src_size);
+		const float2 dst_uv = (float2(dst_local_pos) + 0.5f) / float2(dst_size);
+
+		return saturate(src_uv + (dst_uv - 0.5f) * (float2(dst_size) / float2(src_size)) / max(zoom, 1.f));
+	}
+
+	float3
+	draw_value_bars(const in debug_view_cursor_data cursor_data, float2 uv_local)
+	{
+		const uint32 row_count = 4u;
+		const uint32 row	   = min(uint32(uv_local.y * float(row_count)), row_count - 1u);
+		const float	 row_frac  = frac(uv_local.y * float(row_count));
+
+		if (row_frac < 0.12f or row_frac > 0.88f) { return zero<float3>(); }
+
+		const float t = saturate(cursor_data.scaled_value[row]);
+
+		const float3 row_color = row == 0u ? float3(0.90f, 0.25f, 0.25f)
+							   : row == 1u ? float3(0.25f, 0.90f, 0.25f)
+							   : row == 2u ? float3(0.35f, 0.50f, 1.00f)
+										   : float3(0.85f, 0.85f, 0.85f);
+
+		const float grid = frac(uv_local.x * 4.f) < 0.015f ? 0.30f : 0.08f;
+
+		return uv_local.x <= t ? row_color : float3(grid, grid, grid);
+	}
+
+	float3
+	eval_base_common(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local,
+					 inout debug_view_cursor_data cursor_data)
+	{
+		cursor_data.raw_value				  = zero<float3>();
+		cursor_data.scaled_value			  = zero<float3>();
+		cursor_data.hit_layer_debug_view_kind = AGE_DEBUG_VIEW_KIND_SYS_COMMON_NONE;
+
+		const int32_2 px = int32_2(uv_local * float2(backbuffer_size));
+
+		texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+
+		const float px_depth = depth_buffer[px];
+
+		if (px_depth == 0.f) { return slot_data.background_color; }
+
+		cursor_data.hit_layer_debug_view_kind = slot_data.system_debug_view_kind;
+
+		const uint32 vis_packed = gbuffer[px].x;
+		const uint32 render_id	= unpack_vis_render_id(vis_packed);
+		const uint32 prim_id	= unpack_vis_primitive_id(vis_packed);
+
+		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
+		// const material					 mat		 = load_material(render_data.material_id);
+		// const object_data				 obj_data	 = load_object_data(render_data.object_id);
+		// const mesh_header				 mesh_header = read_mesh_header<opaque_meshlet_render_data>(render_data);
+		// const meshlet					 mshlt		 = read_meshlet(mesh_header, render_data.meshlet_id);
+
+		// uint32_3 meshlet_prim_idx = read_meshlet_primitive(mesh_header, mshlt, prim_id);
+
+		// const vertex_fat v0 = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, meshlet_prim_idx.x));
+		// const vertex_fat v1 = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, meshlet_prim_idx.y));
+		// const vertex_fat v2 = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, meshlet_prim_idx.z));
+
+		// const float3 world_pos	  = screen_px_to_world(px, px_depth, inv_backbuffer_size, view_proj_inv);
+		// const float3 local_pos	  = rotate_inv(obj_data.quaternion, world_pos - obj_data.pos) / obj_data.scale;
+		// const float3 barycentrics = calc_barycentric(local_pos, v0.pos.xyz, v1.pos.xyz, v2.pos.xyz);
+
+		// const vertex_fat v_local = interpolate_vertex_fat(v0, v1, v2, barycentrics);
+		// const vertex_fat v		 = transform_vertex_to_world(v_local, obj_data);
+
+		// const pbr_surface_data surface_data = calc_pbr_surface(normalize(v.world_pos - camera_pos), mat, v);
+
+		attr_branch()
+
+		switch (slot_data.system_debug_view_kind)
+		{
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_DEPTH:
+		{
+			const float z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth);
+			return resolve_value<true, true>(data, slot_data, z_lin, cam_near_z, cam_far_z, cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_VISIBILITY:
+		{
+			cursor_data.raw_value = float3(float(vis_packed), 0.f, 0.f);
+			return random_color(vis_packed);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_RENDER_ID:
+		{
+			cursor_data.raw_value = float3(float(render_id), 0.f, 0.f);
+			return random_color(render_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_PRIM_ID:
+		{
+			cursor_data.raw_value = float3(float(prim_id), 0.f, 0.f);
+			return random_color(prim_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MESHLET_ID:
+		{
+			const uint32 meshlet_id = render_data.meshlet_id;
+			cursor_data.raw_value	= float3(float(meshlet_id), 0.f, 0.f);
+			return random_color(meshlet_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MATERIAL_ID:
+		{
+			const uint32 material_id = render_data.material_id;
+			cursor_data.raw_value	 = float3(float(material_id), 0.f, 0.f);
+			return random_color(material_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_VERTEX_NORMAL:
+		{
+			const float3 n = decode_oct_snorm16(gbuffer[px].y);
+			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_SHADING_NORMAL:
+		{
+			texture_2d<float2> shading_normal_buffer = global_resource_buffer[opaque_shading_normal_buffer_srv_id];
+			const float3	   n					 = decode_octahedral(shading_normal_buffer[px]);
+			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_BASE_COLOR:
+		{
+			texture_2d<float4> base_color_buffer = global_resource_buffer[opaque_base_color_buffer_srv_id];
+			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].rgb, zero<float3>(), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_OCCLUSION:
+		{
+			texture_2d<float4> base_color_buffer = global_resource_buffer[opaque_base_color_buffer_srv_id];
+			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].a, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_ROUGHNESS:
+		{
+			texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
+			return resolve_value<true, false>(data, slot_data, mr_buffer[px].g, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_METALLIC:
+		{
+			texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
+			return resolve_value<true, false>(data, slot_data, mr_buffer[px].r, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_EMISSIVE:
+		{
+			texture_2d<float3> emissive_buffer = global_resource_buffer[opaque_emissive_buffer_srv_id];
+			return resolve_value<true, true>(data, slot_data, emissive_buffer[px], zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MOTION:
+		{
+			texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+			const float2	   m			 = motion_buffer[px];
+			return resolve_value<true, false>(data, slot_data, float3(m, 0.f),
+											  float3(-0.05f, -0.05f, 0.f), float3(0.05f, 0.05f, 1.f),
+											  cursor_data.raw_value, cursor_data.scaled_value);
+		}
+		default:
+			break;
+		}
+
+		return slot_data.background_color;
+	}
+
+	float3
+	eval_base_common(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
+		return eval_base_common(data, slot_data, uv_local, cursor_data);
+	}
+
+	float4
+	eval_overlay_common(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local, inout debug_view_cursor_data cursor_data)
+	{
+		const int32_2 px	= int32_2(uv_local * float2(backbuffer_size));
+		float4		  color = zero<float4>();
+
+		texture_2d<float> opaque_depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<float> transparent_depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+
+		const float px_opaque_depth		 = opaque_depth_buffer[px];
+		const float px_transparent_depth = transparent_depth_buffer[px];
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE>(slot_data.system_debug_view_overlay_flags) and px_opaque_depth > 0.f)
+		{
+			color = float4(color_red.rgb, 0.25f);
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT>(slot_data.system_debug_view_overlay_flags) and px_transparent_depth > 0.f)
+		{
+			color = float4(color_blue.rgb, 0.25f);
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE_EDGE>(slot_data.system_debug_view_overlay_flags) and segment_is_opaque_edge(px))
+		{
+			color = color_red;
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE>(slot_data.system_debug_view_overlay_flags) and segment_is_transparent_edge(px))
+		{
+			color = color_blue;
+		}
+
+		return color;
+	}
+
+	float4
+	eval_overlay_common(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
+		return eval_overlay_common(data, slot_data, uv_local, cursor_data);
+	}
+
+	float4
+	eval_cursor_overlay_common(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		return zero<float4>();
+	}
+
+	float3
+	eval_popup_common(const in debug_view_data data, const in debug_view_popup_data popup_data, const in debug_view_cursor_data cursor_data, float2 popup_uv_local)
+	{
+		const debug_view_slot_data slot_data = load_slot_data(data, cursor_data.slot_id);
+
+		attr_branch()
+
+		switch (slot_data.system_popup_view_kind)
+		{
+		case AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_ZOOM:
+		{
+			const int32_4 slot_rect		 = load_slot_rect(data, cursor_data.slot_id);
+			const int32_2 popup_px_local = int32_2(popup_uv_local * float2(max(popup_data.rect.zw - popup_data.rect.xy, 1)));
+
+			const float2 zoom_uv = calc_zoom_uv(slot_rect, popup_data.rect,
+												cursor_data.px_local, popup_px_local,
+												slot_data.popup_zoom);
+
+			return eval_base_common(data, slot_data, zoom_uv);
+		}
+		case AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_VALUE:
+		{
+			return draw_value_bars(cursor_data, popup_uv_local);
+		}
+		default:
+			break;
+		}
+
+		return zero<float3>();
+	}
+
+
+}	 // namespace debug_view
+
+namespace debug_view
+{
+	int32_4
+	calc_popup_rect(int32_2 anchor_px, float2 size_uv, int32_2 extent)
+	{
+		const int32_2 size	 = int32_2(size_uv * float2(extent));
+		const int32_2 margin = int32_2(16, 16);
+
+		int32_2 pos = anchor_px + margin;
+
+		if (pos.x + size.x > extent.x) { pos.x = anchor_px.x - margin.x - size.x; }
+		if (pos.y + size.y > extent.y) { pos.y = anchor_px.y - margin.y - size.y; }
+
+		pos = clamp(pos, zero<int32_2>(), max(extent - size, zero<int32_2>()));
+		return int32_4(pos, pos + size);
+	}
+}	 // namespace debug_view

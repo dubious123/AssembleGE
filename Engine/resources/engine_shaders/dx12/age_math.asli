@@ -997,6 +997,12 @@ screen_px_to_world(int32_2 px, float z_depth, float2 inv_backbuffer_size, float4
 }
 
 float2
+screen_px_to_screen_uv(int32_2 px, float2 inv_backbuffer_size)
+{
+	return (float2(px) + 0.5f) * inv_backbuffer_size;
+}
+
+float2
 ndc_xy_to_screen_uv(float2 ndc_xy)
 {
 	return float2(ndc_xy.x * 0.5 + 0.5, -ndc_xy.y * 0.5 + 0.5);
@@ -1638,4 +1644,27 @@ float
 round_fp16_stochastic(float v, float rng)
 {
 	return round_fp16_stochastic<1>(vector<float, 1>(v), vector<float, 1>(rng));
+}
+
+template <typename t>
+bool
+contains(vector<t, 4> rect, vector<t, 2> pos)
+{
+	return all(pos >= rect.xy) and all(pos < rect.zw);
+}
+
+// valid only if rect contains pos
+template <typename t>
+bool
+is_border_unchecked(vector<t, 4> rect, vector<t, 2> pos, t border_thickness)
+{
+	return any(pos - rect.xy < border_thickness) or any(rect.zw - pos <= border_thickness);
+}
+
+template <typename t>
+bool
+is_border(vector<t, 4> rect, vector<t, 2> pos, t border_thickness)
+{
+	return contains(rect, pos)
+	   and is_border_unchecked(rect, pos, border_thickness);
 }

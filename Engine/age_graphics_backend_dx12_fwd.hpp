@@ -190,6 +190,10 @@ namespace age::graphics::e
 					hrp_debug_mesh_ps,
 					hrp_debug_mesh_aot_ps,
 
+					hrp_debug_view_prepare_cs,
+					hrp_debug_view_resolve_cs,
+					hrp_debug_view_blend_ps,
+
 					hrp_presentation_ms,
 					hrp_presentation_hdr10_ps,
 					hrp_presentation_sdr_ps,

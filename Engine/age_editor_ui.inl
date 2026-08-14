@@ -218,6 +218,26 @@ namespace age::editor
 		}
 	}
 
+	bool
+	ui_component(age::ecs::debug_view_config& cmp, bool aa_enabled, bool ao_enabled, bool ddgi_enabled, bool gibs_enabled, bool gist_enabled) noexcept;
+
+	void
+	ui_component(age::ecs::debug_view_config& cmp, auto& renderer) noexcept
+	{
+		c_auto need_update = ui_component(cmp,
+										  renderer.aa_enabled(),
+										  renderer.ao_enabled(),
+										  renderer.ddgi_enabled(),
+										  renderer.gibs_enabled(),
+										  renderer.gist_enabled());
+
+		// todo
+		if (cmp.enabled)
+		{
+			renderer.update_debug_view(cmp_to_desc(cmp));
+		}
+	}
+
 	void
 	ui_component(auto&& cmp) noexcept
 	{

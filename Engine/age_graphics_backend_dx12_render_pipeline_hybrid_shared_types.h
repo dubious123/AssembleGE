@@ -49,6 +49,116 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32_3 dispatch_xyz;
 	};
 
+	//---[ debug view ]------------------------------------------------------------
+	struct debug_view_popup_data
+	{
+		uint32	pick_count;
+		int32_4 rect;
+	};
+
+	// idx 0 : hover, above : picked
+	struct debug_view_cursor_data
+	{
+		uint32	system_kind;
+		uint32	system_debug_view_kind;
+		uint32	system_debug_view_overlay_flags;
+		uint32	system_debug_view_cursor_overlay_flags;
+		uint32	hit_layer_debug_view_kind;
+		uint32	hit_layer_debug_overlay_flag;
+		uint32	slot_id;
+		uint32	frame_index;
+		int32_2 px_local;
+		float3	raw_value;
+		float3	scaled_value;
+		float3	world_pos;
+		float	z_lin;
+
+		uint32_4 system_scratch[4];
+	};
+
+	struct debug_view_data
+	{
+		uint32 slot_count;	  // slot + fullscreen
+
+		float2 popup_view_size_uv;
+
+		int32_2 cursor_px;
+		uint32	clicked_and_extra;
+
+		float3 nan_color;
+		float3 pos_inf_color;
+		float3 neg_inf_color;
+		float3 zero_color;
+		float3 below_min_color;
+		float3 above_max_color;
+		uint32 popup_border_thickness;
+
+
+		uint32 h_debug_view_buffer_srv_id;
+		uint32 h_debug_view_buffer_uav_id;
+
+		uint32 h_debug_view_scratch_buffer_srv_id;
+		uint32 h_debug_view_scratch_buffer_uav_id;
+
+		bool
+		clicked() CONST
+		{
+			return clicked_and_extra & (1u << 0u);
+		}
+
+		bool
+		release_focus() CONST
+		{
+			return clicked_and_extra & (1u << 1u);
+		}
+
+		uint32
+		cursor_data_count_offset() CONST
+		{
+			return 0u;
+		}
+
+		uint32
+		popup_data_offset() CONST
+		{
+			return cursor_data_count_offset() + sizeof(uint32);
+		}
+
+		uint32
+		cursor_data_offset() CONST
+		{
+			return popup_data_offset() + sizeof(debug_view_popup_data);
+		}
+
+		uint32
+		slot_rect_offset() CONST
+		{
+			return cursor_data_offset() + sizeof(debug_view_cursor_data) * 2;
+		}
+	};
+
+	struct debug_view_slot_data
+	{
+		uint32 system_kind;
+		uint32 system_debug_view_kind;
+		uint32 system_debug_view_overlay_flags;
+		uint32 system_debug_view_cursor_overlay_flags;
+		uint32 system_popup_view_kind;
+		uint32 option_flags;	// enabled/disabled, freeze, clear, enable_cursor_interact, nan, ...
+		uint32 color_map_kind;
+		float2 size_uv;			// default : 0.125, 0.125
+		float2 offset_uv;		// default : [0, 0]
+		float2 pos_uv;			// default : [-1, -1], disabled
+		float3 scalar_range_min;
+		float3 scalar_range_max;
+		float  alpha;
+		float  popup_zoom;
+		float3 background_color;
+		uint32 border_thickness;
+
+		uint32_4 payload[4];
+	};
+
 	//---[ debug assert ]------------------------------------------------------------
 
 	struct msg_header
@@ -1536,7 +1646,7 @@ namespace age::graphics::render_pipeline::shared_type
 		float  cam_far_z;
 
 		float3 light_bin_cell_size_inv;
-		uint32 ddgi_enabled_and_extra;	  // [ddgi_enabled(1)][gibs_enabled(1)]
+		uint32 system_flags;
 
 		float3 gi_origin;
 		uint32 object_count;
@@ -1606,8 +1716,23 @@ namespace age::graphics::render_pipeline::g
 #define MAX_RAY_HIT						8
 #define ENABLE_SHADER_DEBUG_ASSERT		true
 #define DEBUG_ASSERT_BUFFER_BYTE_SIZE	((1u << 20) * sizeof(uint32))
+
+#define AGE_SYSTEM_KIND_AO		   (1u << 0u)
+#define AGE_SYSTEM_KIND_AA		   (1u << 1u)
+#define AGE_SYSTEM_KIND_DDGI	   (1u << 2u)
+#define AGE_SYSTEM_KIND_GIBS	   (1u << 3u)
+#define AGE_SYSTEM_KIND_GIST	   (1u << 4u)
+#define AGE_SYSTEM_KIND_DEBUG_VIEW (1u << 5u)
+
 #if !defined(AGE_SHADER)
 	inline constexpr auto wave_size = AGE_WAVE_SIZE;
+
+	inline constexpr auto age_system_kind_ao		 = AGE_SYSTEM_KIND_AO;
+	inline constexpr auto age_system_kind_aa		 = AGE_SYSTEM_KIND_AA;
+	inline constexpr auto age_system_kind_ddgi		 = AGE_SYSTEM_KIND_DDGI;
+	inline constexpr auto age_system_kind_gibs		 = AGE_SYSTEM_KIND_GIBS;
+	inline constexpr auto age_system_kind_gist		 = AGE_SYSTEM_KIND_GIST;
+	inline constexpr auto age_system_kind_debug_view = AGE_SYSTEM_KIND_DEBUG_VIEW;
 
 	static_assert(wave_size % 16 == 0);
 #endif
@@ -2127,6 +2252,119 @@ namespace age::graphics::render_pipeline::g
 #if !defined(AGE_SHADER)
 	static_assert(AO_DEBUG_FLAGS_RENDER_AO_BUFFER == to_idx(graphics::e::ao_debug_flags::render_ao_buffer));
 #endif
+	//---[ debug view ]------------------------------------------------------------------------------------------------------
+#define DEBUG_VIEW_SLOT_COUNT_MAX		 16
+#define DEBUG_VIEW_CURSOR_DATA_COUNT_MAX 2
+
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_NONE	  0
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_COMMON 1
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_AA	  2
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_AO	  3
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_DDGI	  4
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_GIBS	  5
+#define AGE_DEBUG_VIEW_SYSTEM_KIND_GIST	  6
+
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLED				(1u << 0u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_CLEAR					(1u << 1u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_FREEZE					(1u << 2u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLE_CURSOR_INTERACT (1u << 3u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_NAN				(1u << 4u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_INF				(1u << 5u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ZERO				(1u << 6u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ABOVE_MAX			(1u << 7u)
+#define AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_BELOW_MIN			(1u << 8u)
+
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_NONE		0
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_GRAYSCALE 1
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_TURBO		2
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_VIRIDIS	3
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_PLASMA	4
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_MAGMA		5
+#define AGE_DEBUG_VIEW_COLOR_MAP_KIND_INFERNO	6
+
+#define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_NONE  0
+#define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_ZOOM  1
+#define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_VALUE 2
+
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_NONE			  0
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_DEPTH		  1
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_VISIBILITY	  2
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_RENDER_ID	  3
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_MESHLET_ID	  4
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_PRIM_ID		  5
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_MATERIAL_ID	  6
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_VERTEX_NORMAL  7
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_SHADING_NORMAL 8
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_BASE_COLOR	  9
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_OCCLUSION	  10
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_ROUGHNESS	  11
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_METALLIC		  12
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_EMISSIVE		  13
+#define AGE_DEBUG_VIEW_KIND_SYS_COMMON_MOTION		  14
+
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE			 (1u << 0u)
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT		 (1u << 1u)
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE_EDGE		 (1u << 2u)
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE (1u << 3u)
+
+
+#if !defined(AGE_SHADER)
+	inline constexpr auto debug_view_slot_count_max		   = DEBUG_VIEW_SLOT_COUNT_MAX;
+	inline constexpr auto debug_view_cursor_data_count_max = DEBUG_VIEW_CURSOR_DATA_COUNT_MAX;
+
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_NONE == to_idx(graphics::e::hrp_debug_view_system_kind::none));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_COMMON == to_idx(graphics::e::hrp_debug_view_system_kind::common));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_AA == to_idx(graphics::e::hrp_debug_view_system_kind::aa));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_AO == to_idx(graphics::e::hrp_debug_view_system_kind::ao));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_DDGI == to_idx(graphics::e::hrp_debug_view_system_kind::ddgi));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_GIBS == to_idx(graphics::e::hrp_debug_view_system_kind::gibs));
+	static_assert(AGE_DEBUG_VIEW_SYSTEM_KIND_GIST == to_idx(graphics::e::hrp_debug_view_system_kind::gist));
+
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLED == to_idx(graphics::e::hrp_debug_view_slot_option_flags::enabled));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_CLEAR == to_idx(graphics::e::hrp_debug_view_slot_option_flags::clear));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_FREEZE == to_idx(graphics::e::hrp_debug_view_slot_option_flags::freeze));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_ENABLE_CURSOR_INTERACT == to_idx(graphics::e::hrp_debug_view_slot_option_flags::enable_cursor_interact));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_NAN == to_idx(graphics::e::hrp_debug_view_slot_option_flags::mark_nan));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_INF == to_idx(graphics::e::hrp_debug_view_slot_option_flags::mark_inf));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ZERO == to_idx(graphics::e::hrp_debug_view_slot_option_flags::mark_zero));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_ABOVE_MAX == to_idx(graphics::e::hrp_debug_view_slot_option_flags::mark_above_max));
+	static_assert(AGE_DEBUG_VIEW_SLOT_OPTION_FLAGS_MARK_BELOW_MIN == to_idx(graphics::e::hrp_debug_view_slot_option_flags::mark_below_min));
+
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_NONE == to_idx(graphics::e::hrp_debug_view_color_map_kind::none));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_GRAYSCALE == to_idx(graphics::e::hrp_debug_view_color_map_kind::grayscale));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_TURBO == to_idx(graphics::e::hrp_debug_view_color_map_kind::turbo));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_VIRIDIS == to_idx(graphics::e::hrp_debug_view_color_map_kind::viridis));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_PLASMA == to_idx(graphics::e::hrp_debug_view_color_map_kind::plasma));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_MAGMA == to_idx(graphics::e::hrp_debug_view_color_map_kind::magma));
+	static_assert(AGE_DEBUG_VIEW_COLOR_MAP_KIND_INFERNO == to_idx(graphics::e::hrp_debug_view_color_map_kind::inferno));
+
+	static_assert(AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_NONE == to_idx(graphics::e::hrp_debug_view_sys_common_popup_kind::none));
+	static_assert(AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_ZOOM == to_idx(graphics::e::hrp_debug_view_sys_common_popup_kind::zoom));
+	static_assert(AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_VALUE == to_idx(graphics::e::hrp_debug_view_sys_common_popup_kind::value));
+
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_NONE == to_idx(graphics::e::hrp_debug_view_kind_sys_common::none));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_DEPTH == to_idx(graphics::e::hrp_debug_view_kind_sys_common::depth));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_VISIBILITY == to_idx(graphics::e::hrp_debug_view_kind_sys_common::visibility));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_RENDER_ID == to_idx(graphics::e::hrp_debug_view_kind_sys_common::render_id));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_MESHLET_ID == to_idx(graphics::e::hrp_debug_view_kind_sys_common::meshlet_id));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_PRIM_ID == to_idx(graphics::e::hrp_debug_view_kind_sys_common::prim_id));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_MATERIAL_ID == to_idx(graphics::e::hrp_debug_view_kind_sys_common::material_id));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_VERTEX_NORMAL == to_idx(graphics::e::hrp_debug_view_kind_sys_common::vertex_normal));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_SHADING_NORMAL == to_idx(graphics::e::hrp_debug_view_kind_sys_common::shading_normal));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_BASE_COLOR == to_idx(graphics::e::hrp_debug_view_kind_sys_common::base_color));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_OCCLUSION == to_idx(graphics::e::hrp_debug_view_kind_sys_common::occlusion));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_ROUGHNESS == to_idx(graphics::e::hrp_debug_view_kind_sys_common::roughness));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_METALLIC == to_idx(graphics::e::hrp_debug_view_kind_sys_common::metallic));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_EMISSIVE == to_idx(graphics::e::hrp_debug_view_kind_sys_common::emissive));
+	static_assert(AGE_DEBUG_VIEW_KIND_SYS_COMMON_MOTION == to_idx(graphics::e::hrp_debug_view_kind_sys_common::motion));
+
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::opaque));
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::transparent));
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE_EDGE == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::opaque_edge));
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::transparent_edge));
+
+
+#endif
 
 //---[ static buffer offset ]------------------------------------------------------------------------------------------------------
 
@@ -2147,7 +2385,9 @@ namespace age::graphics::render_pipeline::g
 #define AO_DATA_OFFSET						 (GIST_LUT_DATA_OFFSET + sizeof(SHARED_TYPE gist_lut_data) * 1)
 #define SEGMENT_DATA_OFFSET					 (AO_DATA_OFFSET + sizeof(SHARED_TYPE ao_data) * 1)
 #define AA_DATA_OFFSET						 (SEGMENT_DATA_OFFSET + sizeof(SHARED_TYPE segment_data) * 1)
-#define STATIC_BUFFER_SIZE					 (AA_DATA_OFFSET + sizeof(SHARED_TYPE aa_data) * 1)
+#define DEBUG_VIEW_DATA_OFFSET				 (AA_DATA_OFFSET + sizeof(SHARED_TYPE aa_data) * 1)
+#define DEBUG_VIEW_SLOT_DATA_OFFSET			 (DEBUG_VIEW_DATA_OFFSET + sizeof(SHARED_TYPE debug_view_data) * 1)
+#define STATIC_BUFFER_SIZE					 (DEBUG_VIEW_SLOT_DATA_OFFSET + sizeof(SHARED_TYPE debug_view_slot_data) * DEBUG_VIEW_SLOT_COUNT_MAX)
 
 #if !defined(AGE_SHADER)
 	inline constexpr auto max_opaque_mshlt_render_data_count	  = MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT;
@@ -2168,6 +2408,8 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto ao_data_offset						  = AO_DATA_OFFSET;
 	inline constexpr auto segment_data_offset					  = SEGMENT_DATA_OFFSET;
 	inline constexpr auto aa_data_offset						  = AA_DATA_OFFSET;
+	inline constexpr auto debug_view_data_offset				  = DEBUG_VIEW_DATA_OFFSET;
+	inline constexpr auto debug_view_slot_data_offset			  = DEBUG_VIEW_SLOT_DATA_OFFSET;
 	inline constexpr auto static_buffer_size					  = STATIC_BUFFER_SIZE;
 #endif
 

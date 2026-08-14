@@ -59,6 +59,7 @@
     <ClInclude Include="age_ecs_system_match.hpp" />
     <ClInclude Include="age_ecs_system_pipe.hpp" />
     <ClInclude Include="age_editor.hpp" />
+    <ClInclude Include="age_editor_cmp_to_desc.hpp" />
     <ClInclude Include="age_editor_fwd.hpp" />
     <ClInclude Include="age_external_adapter.hpp" />
     <ClInclude Include="age_extern_templates.hpp" />
@@ -209,6 +210,14 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="age_editor_ui.inl" />
+    <ClCompile Include="age_editor_cmp_to_desc.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DevEditor|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_editor_save_load.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Dev|x64'">true</ExcludedFromBuild>

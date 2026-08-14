@@ -482,6 +482,23 @@ namespace age::editor::detail
 				renderer.disable_aa();
 			}
 		}
+
+		for (auto&& [cmp] : ecs_storage | each_entity_soft<debug_view_config>())
+		{
+			if (cmp.enabled and (renderer.debug_view_enabled() is_false))
+			{
+				renderer.enable_debug_view(cmp_to_desc(cmp));
+			}
+			else if (cmp.enabled is_false and renderer.debug_view_enabled())
+			{
+				renderer.disable_debug_view();
+			}
+
+			if (renderer.debug_view_enabled())
+			{
+				renderer.update_debug_view(ui::g::p_input_ctx->mouse_pos, ui::g::p_input_ctx->is_released(input::e::key_kind::mouse_left), ui::g::p_input_ctx->is_released(input::e::key_kind::key_escape));
+			}
+		}
 	}
 }	 // namespace age::editor::detail
 

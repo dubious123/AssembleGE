@@ -21,131 +21,131 @@ main_ps(float4 pos sv_position) sv_target_0
 	}
 
 
-	if (gibs::enabled())
-	{
-		const gibs_data data	 = gibs::load_data();
-		float2			debug_uv = pos.xy * inv_backbuffer_size;
+	// if (gibs::enabled())
+	//{
+	//	const gibs_data data	 = gibs::load_data();
+	//	float2			debug_uv = pos.xy * inv_backbuffer_size;
 
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
 
-			texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
-			texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
-			texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-			const float			 z_depth		   = load(depth_buffer, screen_pos);
-			const float3		 px_normal		   = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
+	//		texture_2d<uint32_2> gbuffer		   = global_resource_buffer[opaque_gbuffer_srv_id];
+	//		texture_2d<float>	 depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+	//		texture_2d<float3>	 gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+	//		const float			 z_depth		   = load(depth_buffer, screen_pos);
+	//		const float3		 px_normal		   = max(float3(0, 0, 0), decode_oct_snorm16(load(gbuffer, screen_pos).y));
 
-			col = px_normal;
-		}
-		else if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
-		{
-			const float ratio = (gibs::tile::ray_count_total(data) + gibs::cell::ray_count_total(data)) / float(gibs::ray_budget(data));
-			float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
+	//		col = px_normal;
+	//	}
+	//	else if (debug_uv.x > 0.9 and debug_uv.y < 0.26)
+	//	{
+	//		const float ratio = (gibs::tile::ray_count_total(data) + gibs::cell::ray_count_total(data)) / float(gibs::ray_budget(data));
+	//		float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-			else
-			{
-			}
-		}
-		else if (debug_uv.x > 0.9 and debug_uv.y < 0.27)
-		{
-			const float ratio = gibs::tile::ray_count_total(data) / float(gibs::ray_budget(data));
-			float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
+	//		if (uv.x < ratio)
+	//		{
+	//			col = float3(ratio, 1 - ratio, 0);
+	//		}
+	//		else
+	//		{
+	//		}
+	//	}
+	//	else if (debug_uv.x > 0.9 and debug_uv.y < 0.27)
+	//	{
+	//		const float ratio = gibs::tile::ray_count_total(data) / float(gibs::ray_budget(data));
+	//		float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-			else
-			{
-			}
-		}
-		else if (debug_uv.x > 0.9 and debug_uv.y < 0.28)
-		{
-			const float ratio = gibs::cell::ray_count_total(data) / float(gibs::ray_budget(data));
-			float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
+	//		if (uv.x < ratio)
+	//		{
+	//			col = float3(ratio, 1 - ratio, 0);
+	//		}
+	//		else
+	//		{
+	//		}
+	//	}
+	//	else if (debug_uv.x > 0.9 and debug_uv.y < 0.28)
+	//	{
+	//		const float ratio = gibs::cell::ray_count_total(data) / float(gibs::ray_budget(data));
+	//		float2		uv	  = (debug_uv - float2(0.9f, 0.25f)) * 10;
 
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-			else
-			{
-			}
-		}
-		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.26)
-		{
-			const float ratio = gibs::tile::alive_count_curr(data) / float(data.max_tile_surfel_count);
-			float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
+	//		if (uv.x < ratio)
+	//		{
+	//			col = float3(ratio, 1 - ratio, 0);
+	//		}
+	//		else
+	//		{
+	//		}
+	//	}
+	//	else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.26)
+	//	{
+	//		const float ratio = gibs::tile::alive_count_curr(data) / float(data.max_tile_surfel_count);
+	//		float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
 
-			assert(ratio <= 1.f, line, gibs::tile::alive_count_curr(data));
+	//		assert(ratio <= 1.f, line, gibs::tile::alive_count_curr(data));
 
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-		}
-		else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.27)
-		{
-			const float ratio = gibs::cell::alive_count_curr(data) / float(data.max_cell_surfel_count);
-			float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
+	//		if (uv.x < ratio)
+	//		{
+	//			col = float3(ratio, 1 - ratio, 0);
+	//		}
+	//	}
+	//	else if (debug_uv.x > 0.8 and debug_uv.x < 0.9 and debug_uv.y < 0.27)
+	//	{
+	//		const float ratio = gibs::cell::alive_count_curr(data) / float(data.max_cell_surfel_count);
+	//		float2		uv	  = (debug_uv - float2(0.8f, 0.26f)) * 10;
 
-			assert(ratio <= 1.f, line, gibs::cell::alive_count_curr(data));
+	//		assert(ratio <= 1.f, line, gibs::cell::alive_count_curr(data));
 
-			if (uv.x < ratio)
-			{
-				col = float3(ratio, 1 - ratio, 0);
-			}
-		}
-		else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
-		{
-			texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
-			float2			   uv		  = (debug_uv - float2(0.5f, 0.f)) * 4;
-			// font_uv.y	   = 1.f - font_uv.y;
-			col = sample_level(gi_resolve, get_linear_clamp_sampler(), uv, 0);
-		}
-	}
+	//		if (uv.x < ratio)
+	//		{
+	//			col = float3(ratio, 1 - ratio, 0);
+	//		}
+	//	}
+	//	else if (debug_uv.x > 0.5 and debug_uv.x < 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		texture_2d<float3> gi_resolve = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+	//		float2			   uv		  = (debug_uv - float2(0.5f, 0.f)) * 4;
+	//		// font_uv.y	   = 1.f - font_uv.y;
+	//		col = sample_level(gi_resolve, get_linear_clamp_sampler(), uv, 0);
+	//	}
+	//}
 
-	if (ao::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+	// if (ao::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
 
-			texture_2d<float4> ao_buffer = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
+	//		texture_2d<float4> ao_buffer = global_resource_buffer[ao::load_data().h_ao_buffer_srv_id];
 
-			float4 ao_res = ao_buffer[screen_pos];
+	//		float4 ao_res = ao_buffer[screen_pos];
 
-			ao_res.yz = ao_res.yz * 2.f - 1.f;
+	//		ao_res.yz = ao_res.yz * 2.f - 1.f;
 
-			col = ao_res.xyz;
-			col = float3(1.f - ao_res.x, 1.f - ao_res.x, 1.f - ao_res.x) * 10;
-			col = float3(ao_res.x, ao_res.x, ao_res.x);
-		}
-	}
+	//		col = ao_res.xyz;
+	//		col = float3(1.f - ao_res.x, 1.f - ao_res.x, 1.f - ao_res.x) * 10;
+	//		col = float3(ao_res.x, ao_res.x, ao_res.x);
+	//	}
+	//}
 
-	if (gibs::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+	// if (gibs::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
 
-			texture_2d<float> weight_buffer = global_resource_buffer[gibs::load_data().h_gi_resolve_weight_buffer_srv_id];
+	//		texture_2d<float> weight_buffer = global_resource_buffer[gibs::load_data().h_gi_resolve_weight_buffer_srv_id];
 
-			float ao_res = weight_buffer[screen_pos];
+	//		float ao_res = weight_buffer[screen_pos];
 
-			col.xyz = color_red.xyz * weight_buffer[screen_pos];
-		}
-	}
+	//		col.xyz = color_red.xyz * weight_buffer[screen_pos];
+	//	}
+	//}
 
 	// else
 
@@ -207,67 +207,67 @@ main_ps(float4 pos sv_position) sv_target_0
 	//	}
 	//}
 
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2 screen_pos = uv * backbuffer_size;
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		float2	uv		   = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2 screen_pos = uv * backbuffer_size;
 
-			texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+	//		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
 
-			float2 motion = motion_buffer[screen_pos];
+	//		float2 motion = motion_buffer[screen_pos];
 
-			// float2 m = max(motion, 0.f);
-			// col		 = float3(m * 100000.f, 0);
+	//		// float2 m = max(motion, 0.f);
+	//		// col		 = float3(m * 100000.f, 0);
 
-			col = float3(motion * 100000.f * 0.5f + 0.5f, 0.5f);
-		}
-	}
+	//		col = float3(motion * 100000.f * 0.5f + 0.5f, 0.5f);
+	//	}
+	//}
 
-	if (gist::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			gist_data data		 = gist::load_data();
-			float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2	  screen_pos = uv * backbuffer_size;
+	// if (gist::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		gist_data data		 = gist::load_data();
+	//		float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2	  screen_pos = uv * backbuffer_size;
 
-			texture_2d<uint32> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
+	//		texture_2d<uint32> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
 
-			col = color_red.xyz * (gi_resolve_buffer[screen_pos] / float(GIST_GI_RESOLVE_MAX_AGE));
-			col = color_red.xyz * (gi_resolve_buffer[screen_pos] < 2 ? 1.f : 0.f);
-		}
-	}
+	//		col = color_red.xyz * (gi_resolve_buffer[screen_pos] / float(GIST_GI_RESOLVE_MAX_AGE));
+	//		col = color_red.xyz * (gi_resolve_buffer[screen_pos] < 2 ? 1.f : 0.f);
+	//	}
+	//}
 
-	if (gist::enabled())
-	{
-		float2 debug_uv = pos.xy * inv_backbuffer_size;
-		if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
-		{
-			gist_data data		 = gist::load_data();
-			float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
-			int32_2	  screen_pos = uv * backbuffer_size;
+	// if (gist::enabled())
+	//{
+	//	float2 debug_uv = pos.xy * inv_backbuffer_size;
+	//	if (debug_uv.x > 0.75 and debug_uv.y < 0.25)
+	//	{
+	//		gist_data data		 = gist::load_data();
+	//		float2	  uv		 = (debug_uv - float2(0.75f, 0.f)) * 4;
+	//		int32_2	  screen_pos = uv * backbuffer_size;
 
-			texture_2d<uint32> type_buffer = global_resource_buffer[data.h_adaptive_ray_type_buffer_srv_id];
-			uint32			   mask		   = type_buffer[screen_pos];
-			col.rgb						   = color_black.rgb;
+	//		texture_2d<uint32> type_buffer = global_resource_buffer[data.h_adaptive_ray_type_buffer_srv_id];
+	//		uint32			   mask		   = type_buffer[screen_pos];
+	//		col.rgb						   = color_black.rgb;
 
-			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_NEW_BORN>(mask))
-			{
-				col.rgb += color_red.rgb;
-			}
-			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_SPECULAR>(mask))
-			{
-				col.rgb += color_blue.rgb;
-			}
-			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_VARIANCE>(mask))
-			{
-				col.rgb += color_green.rgb;
-			}
-		}
-	}
+	//		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_NEW_BORN>(mask))
+	//		{
+	//			col.rgb += color_red.rgb;
+	//		}
+	//		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_SPECULAR>(mask))
+	//		{
+	//			col.rgb += color_blue.rgb;
+	//		}
+	//		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_VARIANCE>(mask))
+	//		{
+	//			col.rgb += color_green.rgb;
+	//		}
+	//	}
+	//}
 
 
 	// texture_2d<uint32> gi_resolve_age_buffer = global_resource_buffer[gibs_load_gibs_data().h_gi_resolve_age_curr_buffer_srv_id];

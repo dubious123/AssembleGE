@@ -644,6 +644,27 @@ namespace age::graphics::render_pipeline
 		deinit() noexcept;
 	};
 
+	struct debug_view_stage
+	{
+		pso::handle			 h_pso_prepare;
+		ID3D12PipelineState* p_pso_prepare;
+
+		pso::handle			 h_pso_resolve;
+		ID3D12PipelineState* p_pso_resolve;
+
+		pso::handle			 h_pso_blend;
+		ID3D12PipelineState* p_pso_blend;
+
+		void
+		init(root_signature::handle h_root_sig) noexcept;
+
+		inline void
+		execute(const debug_view_data&, extent_2d<uint16>, rtv_desc_handle _) const noexcept;
+
+		void
+		deinit() noexcept;
+	};
+
 	struct hybrid_pipeline
 	{
 		graphics::root_signature::handle h_root_sig;
@@ -668,7 +689,8 @@ namespace age::graphics::render_pipeline
 		selection_outline_stage stage_selection_outline;
 		ui_stage				stage_ui;
 		presentation_stage		stage_presentation;
-		debug_stage				stage_debug;
+		debug_stage				stage_debug;	// debug_mesh
+		debug_view_stage		stage_debug_view;
 
 		resource_handle h_main_buffer;
 		rtv_desc_handle h_main_buffer_rtv_desc;
@@ -886,6 +908,9 @@ namespace age::graphics::render_pipeline
 
 		// aa
 		aa_data aa_data_cpu;
+
+		// debug_view
+		debug_view_data debug_view_data_cpu;
 
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
@@ -1196,6 +1221,22 @@ namespace age::graphics::render_pipeline
 		bool
 		aa_enabled() const noexcept;
 
+		// debug_view
+		void
+		enable_debug_view(const debug_view_desc&) noexcept;
+
+		void
+		disable_debug_view() noexcept;
+
+		void
+		update_debug_view(const debug_view_desc&) noexcept;
+
+		void
+		update_debug_view(const int32_2 cursor_px, const bool clicked, const bool release_focus) noexcept;
+
+		bool
+		debug_view_enabled() const noexcept;
+
 	  private:
 		void
 		create_resolution_dependent_buffers() noexcept;
@@ -1205,5 +1246,8 @@ namespace age::graphics::render_pipeline
 
 		std::tuple<uint32, uint32>
 		upload_data() noexcept;
+
+		void
+		enable_debug_view() noexcept;
 	};
 }	 // namespace age::graphics::render_pipeline

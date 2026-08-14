@@ -24,6 +24,7 @@ namespace age::graphics::render_pipeline
 		AGE_ASSERT(gist_enabled() is_false);
 		AGE_ASSERT(ao_enabled() is_false);
 		AGE_ASSERT(aa_enabled() is_false);
+		AGE_ASSERT(debug_view_enabled() is_false);
 
 		h_env_light_brdf_lut = resource::create_view(graphics::g::h_brdf_lut, defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
 
@@ -160,6 +161,7 @@ namespace age::graphics::render_pipeline
 		stage_ui.init(h_root_sig);
 		stage_presentation.init(h_root_sig);
 		stage_debug.init(h_root_sig);
+		stage_debug_view.init(h_root_sig);
 
 
 		// default camera
@@ -226,6 +228,7 @@ namespace age::graphics::render_pipeline
 		debug_meshlet_render_data_vec.clear();
 		debug_aot_meshlet_render_data_vec.clear();
 
+		stage_debug_view.deinit();
 		stage_debug.deinit();
 		stage_presentation.deinit();
 		stage_ui.deinit();
@@ -250,7 +253,6 @@ namespace age::graphics::render_pipeline
 		root_signature::destroy(h_root_sig);
 
 		push_descriptor(h_env_light_brdf_lut);
-
 
 		// static
 		resource::unmap_and_release(h_mapping_static_ring_buffer_arr);
@@ -368,6 +370,11 @@ namespace age::graphics::render_pipeline
 		if (aa_enabled())
 		{
 			disable_aa();
+		}
+
+		if (debug_view_enabled())
+		{
+			disable_debug_view();
 		}
 
 		resource::release(h_rt_tlas_buffer);
@@ -1196,6 +1203,12 @@ namespace age::graphics::render_pipeline
 			stage_gibs.execute_render_surfels(gibs_data_cpu, h_main_buffer_rtv_desc, h_blend_buffer, extent);
 		}
 
+		if (debug_view_enabled())
+		{
+			stage_debug_view.execute(debug_view_data_cpu, extent, h_main_buffer_rtv_desc);
+			debug_view_data_cpu.need_cleanup = false;
+		}
+
 		if (AGE_IS_INVALID_ID(active_bloom_id))
 		{
 			command::apply_barriers(barrier::rtv_to_srv(h_main_buffer, D3D12_BARRIER_SYNC_PIXEL_SHADING));
@@ -1227,6 +1240,7 @@ namespace age::graphics::render_pipeline
 		{
 			// todo
 		}
+
 		stage_post_process.execute(h_post_buffer_rtv_desc);
 
 		command::apply_barriers(barrier::tex_srv_to_uav(h_opaque_geo_prev_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
@@ -1581,6 +1595,12 @@ namespace age::graphics::render_pipeline
 				.edge_normal_threshold	   = segment_data_cpu.segment_data_gpu.edge_normal_threshold
 
 			});
+		}
+
+		if (debug_view_enabled())
+		{
+			disable_debug_view();
+			enable_debug_view();
 		}
 	}
 
@@ -4576,6 +4596,165 @@ namespace age::graphics::render_pipeline
 
 namespace age::graphics::render_pipeline
 {
+	void
+	hybrid_pipeline::enable_debug_view() noexcept
+	{
+		auto& cpu_data = debug_view_data_cpu;
+		auto& gpu_data = debug_view_data_cpu.gpu_data;
+
+		cpu_data.enabled	  = true;
+		cpu_data.need_cleanup = true;
+
+		{
+			cpu_data.h_debug_view_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rgba16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_debug_view_buffer->set_name(L"debug_view_buffer");
+
+			cpu_data.h_debug_view_buffer_srv_desc		= resource::create_view(cpu_data.h_debug_view_buffer,
+																				defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_debug_view_buffer_uav_desc		= resource::create_view(cpu_data.h_debug_view_buffer,
+																				defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+			cpu_data.h_debug_view_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_debug_view_buffer,
+																						  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
+
+			gpu_data.h_debug_view_buffer_srv_id = calc_desc_idx(cpu_data.h_debug_view_buffer_srv_desc);
+			gpu_data.h_debug_view_buffer_uav_id = calc_desc_idx(cpu_data.h_debug_view_buffer_uav_desc);
+		}
+		{
+			auto   offset_calculator		= util::offset_calculator{};
+			c_auto cursor_data_count_offset = offset_calculator + sizeof(uint32);
+			c_auto popup_data_offset		= offset_calculator + sizeof(shared_type::debug_view_popup_data);
+			c_auto cursor_data_offset		= offset_calculator + sizeof(shared_type::debug_view_cursor_data) * g::debug_view_cursor_data_count_max;
+			c_auto slot_rect_offset			= offset_calculator + sizeof(int32_4) * g::debug_view_slot_count_max;
+			c_auto buffer_size				= offset_calculator.size();
+
+			AGE_ASSERT(gpu_data.cursor_data_count_offset() == cursor_data_count_offset);
+			AGE_ASSERT(gpu_data.popup_data_offset() == popup_data_offset);
+			AGE_ASSERT(gpu_data.cursor_data_offset() == cursor_data_offset);
+			AGE_ASSERT(gpu_data.slot_rect_offset() == slot_rect_offset);
+
+			cpu_data.h_debug_view_scratch_buffer = resource::create_committed_buf_uav(buffer_size);
+			cpu_data.h_debug_view_scratch_buffer->set_name(L"debug_view_scratch_buffer");
+
+			cpu_data.h_debug_view_scratch_buffer_srv_desc		= resource::create_view(cpu_data.h_debug_view_scratch_buffer,
+																						defaults::srv_view_desc::byte_address_buffer(buffer_size));
+			cpu_data.h_debug_view_scratch_buffer_uav_desc		= resource::create_view(cpu_data.h_debug_view_scratch_buffer,
+																						defaults::uav_view_desc::byte_address_buffer(buffer_size));
+			cpu_data.h_debug_view_scratch_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_debug_view_scratch_buffer,
+																								  defaults::uav_view_desc::byte_address_buffer(buffer_size));
+
+			gpu_data.h_debug_view_scratch_buffer_srv_id = calc_desc_idx(cpu_data.h_debug_view_scratch_buffer_srv_desc);
+			gpu_data.h_debug_view_scratch_buffer_uav_id = calc_desc_idx(cpu_data.h_debug_view_scratch_buffer_uav_desc);
+		}
+	}
+
+	void
+	hybrid_pipeline::enable_debug_view(const debug_view_desc& desc) noexcept
+	{
+		AGE_ASSERT(debug_view_enabled() is_false);
+		AGE_ASSERT(desc.slot_descs.size() + 1 /*fullscreen slot*/ <= g::debug_view_slot_count_max);
+
+		auto& cpu_data		= debug_view_data_cpu;
+		auto& gpu_data		= debug_view_data_cpu.gpu_data;
+		auto& gpu_slot_data = debug_view_data_cpu.gpu_slot_data;
+
+		cpu_data.enabled	  = true;
+		cpu_data.need_cleanup = true;
+
+		update_debug_view(desc);
+
+		enable_debug_view();
+	}
+
+	void
+	hybrid_pipeline::disable_debug_view() noexcept
+	{
+		AGE_ASSERT(debug_view_enabled() is_true);
+
+		debug_view_data_cpu.enabled = false;
+
+		resource::release_deferred(debug_view_data_cpu.h_debug_view_buffer);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_buffer_srv_desc);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_buffer_uav_desc);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_buffer_clear_uav_desc);
+
+		resource::release_deferred(debug_view_data_cpu.h_debug_view_scratch_buffer);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_scratch_buffer_srv_desc);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_scratch_buffer_uav_desc);
+		push_descriptor_deferred(debug_view_data_cpu.h_debug_view_scratch_buffer_clear_uav_desc);
+	}
+
+	void
+	hybrid_pipeline::update_debug_view(const debug_view_desc& desc) noexcept
+	{
+		auto& cpu_data		= debug_view_data_cpu;
+		auto& gpu_data		= debug_view_data_cpu.gpu_data;
+		auto& gpu_slot_data = debug_view_data_cpu.gpu_slot_data;
+
+		AGE_ASSERT(debug_view_enabled());
+		gpu_data.slot_count				= cast_to<uint32>(desc.slot_descs.size() + 1);
+		gpu_data.popup_view_size_uv		= desc.popup_view_size_uv;
+		gpu_data.cursor_px				= desc.cursor_px;
+		gpu_data.clicked_and_extra		= 0u;
+		gpu_data.nan_color				= desc.nan_color;
+		gpu_data.pos_inf_color			= desc.pos_inf_color;
+		gpu_data.neg_inf_color			= desc.neg_inf_color;
+		gpu_data.zero_color				= desc.zero_color;
+		gpu_data.below_min_color		= desc.below_min_color;
+		gpu_data.above_max_color		= desc.above_max_color;
+		gpu_data.popup_border_thickness = desc.popup_border_thickness;
+
+		auto set_slot_func = [&gpu_slot_data](auto i, c_auto& slot_desc) {
+			gpu_slot_data[i] = {
+				.system_kind							= to_idx(slot_desc.system_kind),
+				.system_debug_view_kind					= slot_desc.system_debug_view_kind,
+				.system_debug_view_overlay_flags		= slot_desc.system_debug_view_overlay_flags,
+				.system_debug_view_cursor_overlay_flags = slot_desc.system_debug_view_cursor_overlay_flags,
+				.system_popup_view_kind					= slot_desc.system_popup_view_kind,
+				.option_flags							= to_idx(slot_desc.option_flags),
+				.color_map_kind							= to_idx(slot_desc.color_map_kind),
+				.size_uv								= slot_desc.size_uv,
+				.offset_uv								= slot_desc.offset_uv,
+				.pos_uv									= slot_desc.pos_uv,
+				.scalar_range_min						= slot_desc.scalar_range_min,
+				.scalar_range_max						= slot_desc.scalar_range_max,
+				.alpha									= slot_desc.alpha,
+				.popup_zoom								= slot_desc.popup_zoom,
+				.background_color						= slot_desc.background_color,
+				.border_thickness						= slot_desc.border_thickness,
+			};
+
+			static_assert(sizeof(gpu_slot_data[i].payload) == sizeof(slot_desc.payload));
+			std::memcpy(gpu_slot_data[i].payload, slot_desc.payload, sizeof(gpu_slot_data[i].payload));
+		};
+
+		set_slot_func(0, desc.fullscreen_slot_desc);
+
+		for (auto&& [i, slot_desc] : desc.slot_descs | std::views::enumerate)
+		{
+			set_slot_func(i + 1, slot_desc);
+		}
+	}
+
+	void
+	hybrid_pipeline::update_debug_view(const int32_2 cursor_px, const bool clicked, const bool relase_focus) noexcept
+	{
+		debug_view_data_cpu.gpu_data.cursor_px		   = cursor_px;
+		debug_view_data_cpu.gpu_data.clicked_and_extra = util::set_bit(debug_view_data_cpu.gpu_data.clicked_and_extra, 0u, clicked);
+		debug_view_data_cpu.gpu_data.clicked_and_extra = util::set_bit(debug_view_data_cpu.gpu_data.clicked_and_extra, 1u, relase_focus);
+
+		AGE_ASSERT(debug_view_data_cpu.gpu_data.clicked() == clicked);
+		AGE_ASSERT(debug_view_data_cpu.gpu_data.release_focus() == relase_focus);
+	}
+
+	bool
+	hybrid_pipeline::debug_view_enabled() const noexcept
+	{
+		return debug_view_data_cpu.enabled;
+	}
+}	 // namespace age::graphics::render_pipeline
+
+namespace age::graphics::render_pipeline
+{
 	std::tuple<uint32, uint32>
 	hybrid_pipeline::upload_data() noexcept
 	{
@@ -4891,6 +5070,12 @@ namespace age::graphics::render_pipeline
 			h_mapping_static_buffer->upload(&aa_data_cpu.aa_data_gpu, sizeof(shared_type::aa_data), g::aa_data_offset);
 		}
 
+		if (debug_view_enabled())
+		{
+			h_mapping_static_buffer->upload(&debug_view_data_cpu.gpu_data, sizeof(shared_type::debug_view_data), g::debug_view_data_offset);
+			h_mapping_static_buffer->upload(debug_view_data_cpu.gpu_slot_data.data(), sizeof(shared_type::debug_view_slot_data) * debug_view_data_cpu.gpu_data.slot_count, g::debug_view_slot_data_offset);
+		}
+
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 		root_constants.bind(shared_type::root_constants{
 			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
@@ -4922,15 +5107,13 @@ namespace age::graphics::render_pipeline
 								 : main_cam_data.pos
 							 : float3::zero();
 
-		uint32 enabled_flag = ddgi_data_cpu.enabled
-								? (1u << 0u)
-							: gibs_enabled()
-								? (1u << 1u)
-							: gist_enabled()
-								? (1u << 2u)
-								: 0u;
-
-		enabled_flag |= ((ao_enabled() ? 1 : 0) << 3);
+		uint32 system_flags	 = 0u;
+		system_flags		|= ao_enabled() ? g::age_system_kind_ao : 0u;
+		system_flags		|= aa_enabled() ? g::age_system_kind_aa : 0u;
+		system_flags		|= ddgi_enabled() ? g::age_system_kind_ddgi : 0u;
+		system_flags		|= gibs_enabled() ? g::age_system_kind_gibs : 0u;
+		system_flags		|= gist_enabled() ? g::age_system_kind_gist : 0u;
+		system_flags		|= debug_view_enabled() ? g::age_system_kind_debug_view : 0u;
 
 		auto frame_d = shared_type::frame_data{
 			.view										  = main_cam_data.view,
@@ -4955,7 +5138,7 @@ namespace age::graphics::render_pipeline
 			.light_bin_origin							  = /*main_cam_data.pos*/ -float3{ 100.f },
 			.cam_far_z									  = main_cam_desc.far_z,
 			.light_bin_cell_size_inv					  = float3{ g::light_axis_slice_count_float } / float3{ 200.f },
-			.ddgi_enabled_and_extra						  = enabled_flag,
+			.system_flags								  = system_flags,
 			.gi_origin									  = gi_origin,
 			.object_count								  = object_data_vec.size<uint32>(),
 			.ddgi_cranley_patterson_rotation			  = float2{ ddgi_dist(ddgi_rng), ddgi_dist(ddgi_rng) },

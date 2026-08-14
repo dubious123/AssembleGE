@@ -284,3 +284,18 @@ light leaking과 또 gi 에서의 anti aliasing 문제가 발생
 surfel asym 검사할때 normal을 vertex normal대신 face normal로 변경해야함.
 
 shading normal vs geo_normal 통일
+
+
+gist 구현 완료 
+specular 추가 
+
+aa쪽에 specular를 추가하고 
+debug view 추가하고
+cell surfel leak 처리하고
+transparent + specular 어케할지 좀 생각하고 
+아마 layer 1만 처리하고, 이후 transparent는 주사위 굴려서 시간차원 누적하면 될듯
+
+NEE + ray 최적화 
+upload_data 최적화
+blend_buffer를 삭제하고 main_buffer와 통합
+skybox pass 통합?

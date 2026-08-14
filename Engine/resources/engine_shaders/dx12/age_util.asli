@@ -9,4 +9,11 @@ namespace util
 	{
 		return ((mask & (1u << n)) != 0u);
 	}
+
+	template <uint32 n>
+	bool
+	is_flag_set(uint32 flag)
+	{
+		return ((flag & n) != 0u);
+	}
 }	 // namespace util
