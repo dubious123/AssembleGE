@@ -126,13 +126,13 @@ namespace age::graphics
 
 		AGE_HR_CHECK(g::p_dxgi_factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)));
 
-		p_swap_chain->ResizeBuffers(
+		AGE_HR_CHECK(p_swap_chain->ResizeBuffers(
 			global::frame_buffer_count,
 			0,
 			0,
 			DXGI_FORMAT_UNKNOWN,
 			DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
-				| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 }));
+				| (allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : UINT{ 0 })));
 
 		rebuild_from_swapchain();
 	}

@@ -86,6 +86,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	const float px_size_y_per_z = 2 * tan_fov_y_half * inv_backbuffer_size.y;
 	const float tolerance		= px_z_lin * px_size_y_per_z * 2.f / n_dot_v;
+
 	for (int32 dy = -2; dy <= 2; ++dy)
 	{
 		for (int32 dx = -2; dx <= 2; ++dx)
@@ -120,9 +121,22 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 						  * w_normal
 						  * w_lum;
 
-			const float var_tap = is_first
-									? max(0.f, moments_buffer[px_tap].y - moments_buffer[px_tap].x * moments_buffer[px_tap].x)
-									: var_buffer[px_tap][var_read_idx];
+			float var_tap;
+			attr_branch()
+
+			if (is_first)
+			{
+				const float2 m = moments_buffer[px_tap];
+				var_tap		   = max(0.f, m.y - m.x * m.x);
+			}
+			else
+			{
+				var_tap = var_buffer[px_tap][var_read_idx];
+			}
+
+			// const float var_tap = is_first
+			//						? max(0.f, moments_buffer[px_tap].y - moments_buffer[px_tap].x * moments_buffer[px_tap].x)
+			//						: var_buffer[px_tap][var_read_idx];
 
 			var_sum	   += var_tap * w * w;
 			lum_m1_sum += lum_tap * w;

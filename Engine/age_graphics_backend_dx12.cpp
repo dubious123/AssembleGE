@@ -281,21 +281,13 @@ namespace age::graphics
 			case request::type::window_resized:
 			{
 				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
-
 				auto  h_window = req.req_param.as<platform::window_handle>();
 				auto  h_rs	   = graphics::find_render_surface(h_window);
 				auto& rs	   = g::render_surface_vec[h_rs];
 
 				rs.should_render = false;
 
-				auto wait_event = ::WaitForSingleObject(rs.present_waitable_obj, 0);
-				AGE_ASSERT((wait_event == WAIT_TIMEOUT) or (wait_event == WAIT_OBJECT_0));
-
-				auto is_pending =
-					wait_event == WAIT_TIMEOUT
-					or command::is_complete(e::queue_kind::direct, rs.present_fence_value) is_false;
-
-				if (is_pending is_false)
+				if (command::is_complete(e::queue_kind::direct, rs.present_fence_value))
 				{
 					if (platform::get_window_state(h_window) != platform::window_state::maximized
 						and is_tearing_allowed())
@@ -316,19 +308,18 @@ namespace age::graphics
 			case request::type::window_maximized:
 			{
 				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
-
 				auto  h_window = req.req_param.as<platform::window_handle>();
 				auto  h_rs	   = graphics::find_render_surface(h_window);
 				auto& rs	   = g::render_surface_vec[h_rs];
 
-				rs.present_flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+				// rs.present_flags &= ~DXGI_PRESENT_ALLOW_TEARING;
 
-				{
-					auto p_target = (IDXGIOutput*)nullptr;
-					AGE_HR_CHECK(rs.p_swap_chain->GetContainingOutput(&p_target));
-					rs.p_swap_chain->SetFullscreenState(true, p_target);
-					p_target->Release();
-				}
+				//{
+				//	auto p_target = (IDXGIOutput*)nullptr;
+				//	AGE_HR_CHECK(rs.p_swap_chain->GetContainingOutput(&p_target));
+				//	rs.p_swap_chain->SetFullscreenState(true, p_target);
+				//	p_target->Release();
+				//}
 
 				rs.should_render = false;
 				request::set_done<

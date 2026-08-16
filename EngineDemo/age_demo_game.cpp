@@ -138,6 +138,10 @@ namespace age_demo::game
 						{
 							i_loop.set_scene_id_next = 3;
 						}
+						else if (i_loop.get_h_input_ctx->is_pressed(age::input::e::key_kind::key_enter) and i_loop.get_h_input_ctx->is_alt_down())
+						{
+							age::platform::toggle_borderless(i_loop.get_h_window);
+						}
 					})
 
 				| cond_unlikely{

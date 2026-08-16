@@ -293,10 +293,7 @@ cell surfel leak 처리하고
 transparent + specular 어케할지 좀 생각하고 
 아마 layer 1만 처리하고, 이후 transparent는 주사위 굴려서 시간차원 누적하면 될듯
 
-NEE + ray 최적화 
-upload_data 최적화
-blend_buffer를 삭제하고 main_buffer와 통합
-skybox pass 통합?
+
 
 ## GIST
 leak 많이 줄임
@@ -308,3 +305,34 @@ specular의 reflect ray hit에서 cell surfel이 잘 안생기는 문제가 있�
 
 어두운 scene 기준 noise는 GIBS가 win 
 GIST는 specular 가 있음 
+
+GIBS가 SCREEN LEAK이 더 심함 
+특히 SCENE의 거리가 클때 더 큼. 
+적어도 GIST는 SCREEN만 따지면 LEAK이 거의 없음 
+
+screen space기준 수렴이 GIBS가 많이 빠름 
+
+2차 BOUNCE LEAK은 둘다 비슷함 (코드를 통일하면 거의 차이가 없어질듯) 
+
+성능은 대부분의 상황에서는 GIBS우위인것 같은데 잘 모르겠음. 근데 LOW FPS는 gist가 더 좋은듯 
+TILE SURFEL이 뭉치는 상황에서는 GIST가 더 좋은데 나머지는 GIBS 우위인듯 
+근데 GIBS에 SPECULAR가 아직 없다는 점을 반영해야함 
+
+aa에 specular를 추가 안했는데 필요한지는 모르겠음. 
+
+아직까지는 크게 거슬리지 않아서 그대로 둠. 
+나중에 문제가 생기면 추가함.
+
+GIST에서 성능 최적화 1순위가 
+GIBS에서는 surfel 들 이었는데 
+reconstruct 로 넘어간듯. tap이 3*3 에서 5x5로 늘면서 1pass당 0.4ms정도를 먹음. 그게 
+
+나중에 GIBS와 GIST의 두 장점을 모두 통함하는 다른 방법이 생길수도? 
+
+NEE + ray 최적화 
+upload_data 최적화
+blend_buffer를 삭제하고 main_buffer와 통합
+skybox pass 통합?
+
+
+

@@ -51,7 +51,20 @@ namespace age::platform::detail
 	LRESULT CALLBACK
 	window_proc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 	{
+		if (message == WM_NCCREATE) [[unlikely]]
+		{
+			c_auto* p_create_struct = reinterpret_cast<CREATESTRUCT*>(l_param);
+			::SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(p_create_struct->lpCreateParams));
+		}
+
 		auto h_window = get_handle(hwnd);
+
+		if (runtime::is_handle_invalid(h_window)) [[unlikely]]
+		{
+			// WM_GETMINMAXINFO arrives before WM_NCCREATE
+			AGE_ASSERT(message == WM_GETMINMAXINFO, "unowned message : {}", message);
+			return ::DefWindowProc(hwnd, message, w_param, l_param);
+		}
 
 		if (h_window->state == window_state::closing) [[unlikely]]
 		{
@@ -115,6 +128,7 @@ namespace age::platform::detail
 					age::extent_2d<uint32>{
 						.width	= static_cast<uint32>(rect.right - rect.left),
 						.height = static_cast<uint32>(rect.bottom - rect.top) });
+				AGE_LOG("platform window resize");
 				break;
 			}
 			case WM_WINDOWPOSCHANGED:
@@ -338,21 +352,20 @@ namespace age::platform
 		auto	   id			 = static_cast<t_window_id>(g::window_info_vec.emplace_back());
 
 		auto hwnd = ::CreateWindowEx(
-			WS_EX_LEFT,					   //[in] DWORD					dwExStyle,
-			wname.c_str(),				   //[ in, optional ] LPCWSTR		lpClassName,
-			w_window_name.c_str(),		   //[ in, optional ] LPCWSTR		lpWindowName,
-			WS_OVERLAPPEDWINDOW,		   //[in] DWORD					dwStyle,
-			CW_USEDEFAULT,				   //[in] int						X,
-			CW_USEDEFAULT,				   //[in] int						Y,
-			desc.width,					   //[in] int						nWidth,
-			desc.height,				   //[in] int						nHeight,
-			nullptr,					   //[ in, optional ] HWND		hWndParent,
-			nullptr,					   //[ in, optional ] HMENU		hMenu,
-			::GetModuleHandle(nullptr),	   //[ in, optional ] HINSTANCE	hInstance,
-			nullptr						   //[ in, optional ] LPVOID		lpParam
+			WS_EX_LEFT,												 //[in] DWORD					dwExStyle,
+			wname.c_str(),											 //[ in, optional ] LPCWSTR		lpClassName,
+			w_window_name.c_str(),									 //[ in, optional ] LPCWSTR		lpWindowName,
+			WS_OVERLAPPEDWINDOW,									 //[in] DWORD					dwStyle,
+			CW_USEDEFAULT,											 //[in] int						X,
+			CW_USEDEFAULT,											 //[in] int						Y,
+			desc.width,												 //[in] int						nWidth,
+			desc.height,											 //[in] int						nHeight,
+			nullptr,												 //[ in, optional ] HWND		hWndParent,
+			nullptr,												 //[ in, optional ] HMENU		hMenu,
+			::GetModuleHandle(nullptr),								 //[ in, optional ] HINSTANCE	hInstance,
+			reinterpret_cast<LPVOID>(static_cast<uint64>(id) + 1)	 //[ in, optional ] LPVOID		lpParam
 		);
 
-		::SetWindowLongPtr(hwnd, GWLP_USERDATA, static_cast<LONG_PTR>(id));
 		::UpdateWindow(hwnd);
 
 		{
@@ -445,6 +458,90 @@ namespace age::platform
 	disable_raw_input(window_handle h_window, age::input::e::source_kind source_kind_flag) noexcept
 	{
 		detail::set_raw_input_impl(h_window->hwnd, source_kind_flag, false, false);
+	}
+
+	void
+	toggle_borderless(window_handle h_window) noexcept
+	{
+		auto& w_info = g::window_info_vec[h_window];
+
+		if (w_info.mode == window_mode::borderless)
+		{
+			disable_borderless(h_window);
+		}
+		else
+		{
+			enable_borderless(h_window);
+		}
+	}
+
+	void
+	enable_borderless(window_handle h_window) noexcept
+	{
+		auto& w_info = g::window_info_vec[h_window];
+
+		if (w_info.mode == window_mode::borderless) { return; }
+
+		auto hwnd = w_info.hwnd;
+
+		w_info.saved_placement.length = sizeof(WINDOWPLACEMENT);
+		AGE_WIN32_CHECK(::GetWindowPlacement(hwnd, &w_info.saved_placement));
+
+		w_info.saved_style	  = ::GetWindowLongPtr(hwnd, GWL_STYLE);
+		w_info.saved_ex_style = ::GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+
+		::SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+		::SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+						   w_info.saved_ex_style & ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+
+		auto monitor_info = MONITORINFO{ .cbSize = sizeof(MONITORINFO) };
+		AGE_WIN32_CHECK(::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor_info));
+
+		c_auto& r = monitor_info.rcMonitor;
+
+		AGE_WIN32_CHECK(::SetWindowPos(hwnd, HWND_TOP,
+									   r.left, r.top, r.right - r.left, r.bottom - r.top,
+									   SWP_FRAMECHANGED | SWP_NOACTIVATE));
+
+		w_info.mode			= window_mode::borderless;
+		w_info.top_left_pos = POINT{ .x = r.left, .y = r.top };
+
+		auto cr = RECT{};
+		::GetClientRect(hwnd, &cr);
+
+		on_window_resized(h_window, extent_2d<uint32>{
+										.width	= static_cast<uint32>(cr.right - cr.left),
+										.height = static_cast<uint32>(cr.bottom - cr.top) });
+	}
+
+	void
+	disable_borderless(window_handle h_window) noexcept
+	{
+		auto& w_info = g::window_info_vec[h_window];
+
+		if (w_info.mode != window_mode::borderless) { return; }
+
+		auto hwnd = w_info.hwnd;
+
+		::SetWindowLongPtr(hwnd, GWL_STYLE, w_info.saved_style);
+		::SetWindowLongPtr(hwnd, GWL_EXSTYLE, w_info.saved_ex_style);
+
+		AGE_WIN32_CHECK(::SetWindowPlacement(hwnd, &w_info.saved_placement));
+		AGE_WIN32_CHECK(::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+									   SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+
+		w_info.mode = window_mode::windowed;
+
+		auto wr = RECT{};
+		::GetWindowRect(hwnd, &wr);
+		w_info.top_left_pos = POINT{ .x = wr.left, .y = wr.top };
+
+		auto cr = RECT{};
+		::GetClientRect(hwnd, &cr);
+
+		on_window_resized(h_window, extent_2d<uint32>{
+										.width	= static_cast<uint32>(cr.right - cr.left),
+										.height = static_cast<uint32>(cr.bottom - cr.top) });
 	}
 }	 // namespace age::platform
 
@@ -551,8 +648,15 @@ namespace age::platform
 	FORCE_INLINE window_handle
 	get_handle(HWND hwnd) noexcept
 	{
+		c_auto stored = ::GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+		if (stored == 0) [[unlikely]]
+		{
+			return window_handle{ .id = invalid_id_uint32 };
+		}
+
 		return window_handle{
-			.id = static_cast<t_window_id>(::GetWindowLongPtr(hwnd, GWLP_USERDATA))
+			.id = static_cast<t_window_id>(stored) - 1u
 		};
 	}
 }	 // namespace age::platform

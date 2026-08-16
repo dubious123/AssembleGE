@@ -5,9 +5,7 @@ namespace age::platform
 	enum class window_mode : uint8
 	{
 		windowed,
-		borderless_windowed,
-		fullscreen,
-		count
+		borderless,
 	};
 
 	AGE_DEFINE_ENUM(window_state, uint8, normal, maximized, minimized, closing, closed);
@@ -86,7 +84,16 @@ namespace age::platform
 	enable_raw_input(window_handle, age::input::e::source_kind flags) noexcept;
 
 	void
+	toggle_borderless(window_handle _) noexcept;
+
+	void
 	disable_raw_input(window_handle, age::input::e::source_kind flags) noexcept;
+
+	void
+	enable_borderless(window_handle _) noexcept;
+
+	void
+	disable_borderless(window_handle _) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform

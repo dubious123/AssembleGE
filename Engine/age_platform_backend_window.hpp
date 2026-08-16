@@ -8,10 +8,13 @@ namespace age::platform
 		HWND					   hwnd			   = {};
 		RECT					   client_rect	   = {};
 		POINT					   top_left_pos	   = {};
+		WINDOWPLACEMENT			   saved_placement = {};
 		window_mode				   mode			   = {};
 		window_state			   state		   = window_state::normal;
 		bool					   close_requested = false;
 		uint8					   padding;
+		LONG_PTR				   saved_style	  = {};
+		LONG_PTR				   saved_ex_style = {};
 		age::input::context_handle h_input;
 	};
 }	 // namespace age::platform
