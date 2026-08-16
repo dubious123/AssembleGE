@@ -1,0 +1,1103 @@
+#pragma once
+#include "age.asli"
+
+namespace gist_debug_view
+{
+	float3
+	eval_base(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local,
+			  inout debug_view_cursor_data cursor_data)
+	{
+		cursor_data.raw_value				  = zero<float3>();
+		cursor_data.scaled_value			  = zero<float3>();
+		cursor_data.hit_layer_debug_view_kind = AGE_DEBUG_VIEW_KIND_SYS_COMMON_NONE;
+
+		const int32_2 px = int32_2(uv_local * float2(backbuffer_size));
+
+		texture_2d<float>	 opaque_depth_buffer	  = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<uint32_2> opaque_gbuffer			  = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 transparent_depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+		texture_2d<uint32_2> transparent_gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
+
+		const float px_opaque_depth		 = opaque_depth_buffer[px];
+		const float px_transparent_depth = transparent_depth_buffer[px];
+
+		const float3 px_opaque_normal	   = decode_oct_snorm16(opaque_gbuffer[px].y);
+		const float3 px_transparent_normal = decode_oct_snorm16(transparent_gbuffer[px].y);
+
+		const bool is_opaque = px_opaque_depth > px_transparent_depth;
+
+		const gist_data gist_data = gist::load_data();
+
+		cursor_data.hit_layer_debug_view_kind = slot_data.system_debug_view_kind;
+
+		switch (slot_data.system_debug_view_kind)
+		{
+		case AGE_DEBUG_VIEW_KIND_GIST_STAT_CELL_SURFEL:
+		{
+			uint32_3 raw_val		 = uint32_3(gist::cell::alive_id_arr_curr(gist_data).size(),
+												gist::cell::allocated_surfel_count(gist_data),
+												gist::cell::ray_count_total(gist_data));
+			cursor_data.raw_value	 = as_float(raw_val);
+			cursor_data.scaled_value = float3(raw_val)
+									 / float3(float(gist_data.max_cell_surfel_count),
+											  gist_data.max_cell_surfel_count * 27.f,
+											  float(gist_data.cell_surfel_ray_budget));
+
+			return debug_view::draw_value_bars(cursor_data.scaled_value, uv_local);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_STAT_RAY_COUNT:
+		{
+			uint32_3 raw_val = uint32_3(gist::cell::ray_count_total(gist_data) + gist::adaptive::ray_count_total(gist_data),
+										gist::cell::ray_count_total(gist_data),
+										gist::adaptive::ray_count_total(gist_data));
+
+			cursor_data.raw_value	 = as_float(raw_val);
+			cursor_data.scaled_value = float3(raw_val)
+									 / float3(float(gist_data.cell_surfel_ray_budget + gist_data.adaptive_ray_budget),
+											  float(gist_data.cell_surfel_ray_budget),
+											  float(gist_data.adaptive_ray_budget));
+
+			return debug_view::draw_value_bars(cursor_data.scaled_value, uv_local);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_COUNT_CAP:
+		{
+			uint32_2 cap	 = gist::adaptive::load_ray_entry_cap(gist_data);
+			uint32_3 raw_val = uint32_3(cap.x,
+										cap.y,
+										cap.y);
+
+			cursor_data.raw_value	 = as_float(raw_val);
+			cursor_data.scaled_value = float3(raw_val)
+									 / float3(float(gist_data.adaptive_ray_budget),
+											  float(gist_data.adaptive_ray_budget),
+											  backbuffer_size.x * backbuffer_size.y * gist_data.specular_rpp);
+
+			return debug_view::draw_value_bars(cursor_data.scaled_value, uv_local);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_ENTRY_PROB:
+		{
+			cursor_data.raw_value	 = gist::adaptive::load_ray_entry_prob(gist_data);
+			cursor_data.scaled_value = cursor_data.raw_value;
+			return debug_view::draw_value_bars(cursor_data.raw_value, uv_local);
+		}
+		default:
+			break;
+		}
+
+		cursor_data.hit_layer_debug_view_kind = AGE_DEBUG_VIEW_KIND_GIST_NONE;
+
+		if (px_opaque_depth == 0.f and px_transparent_depth == 0.f) { return slot_data.background_color; }
+
+		cursor_data.hit_layer_debug_view_kind = slot_data.system_debug_view_kind;
+
+		const uint32  tile_size		  = gist_data.tile_size();
+		const int32_2 tile_idx_center = px / int32(tile_size);
+		const uint32  center_tile_id  = gist::tile::calc_id(gist_data, uint32_2(tile_idx_center));
+		const int32_2 center_tile_px  = gist::tile::calc_px(gist_data, uint32_2(tile_idx_center), center_tile_id);
+		const bool	  is_round_robin  = all(px == center_tile_px);
+
+		structured_buffer<gist_ray_hit_result>		ray_hit_result_buffer	   = global_resource_buffer[gist_data.h_ray_hit_buffer_srv_id];
+		structured_buffer<gist_ray_lighting_result> ray_lighting_result_buffer = global_resource_buffer[gist_data.h_ray_lighting_buffer_srv_id];
+
+		const gist_ray_hit_result	   px_diffuse_ray_hit	   = ray_hit_result_buffer[center_tile_id];
+		const gist_ray_lighting_result px_diffuse_ray_lighting = ray_lighting_result_buffer[center_tile_id];
+
+		const float3 px_diffuse_ray_dir_local = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(px_diffuse_ray_hit.dir_oct_snorm8));
+		const float3 px_diffuse_ray_dir_world = decode_world_hemi_oct_snorm8(uint32_upper_to_uint16(px_diffuse_ray_hit.dir_oct_snorm8));
+
+		byte_array<half> luminance_cdf = gist::tile::px_luminance_cdf_arr(gist_data, px);
+
+		const float3 world_pos = screen_px_to_world(px, is_opaque ? px_opaque_depth : px_transparent_depth, inv_backbuffer_size, view_proj_inv);
+		cursor_data.world_pos  = world_pos;
+
+		const float3 normal = is_opaque ? px_opaque_normal : px_transparent_normal;
+
+		float3 irradiance = zero<float3>();
+
+		const uint32				 cell_id	  = gist::cell::calc_id(gist_data, gist::load_lut_data(), world_pos);
+		const gist_cell_surfel_entry surfel_entry = gist::cell::surfel_entry_arr(gist_data)[cell_id];
+
+		byte_array<uint32>					surfel_id_arr = gist::cell::cell_to_surfel_id_arr(gist_data);
+		structured_buffer<gist_cell_surfel> surfel_buffer = global_resource_buffer[gist_data.h_cell_surfel_buffer_srv_id];
+
+		float4 irradiance_sum = zero<float4>();
+		float4 radiance_sum	  = zero<float4>();
+
+		float  max_contribution_near		   = 0.f;
+		uint32 max_contribution_near_surfel_id = invalid_id_uint32;
+		float  max_contribution_far			   = 0.f;
+		uint32 max_contribution_far_surfel_id  = invalid_id_uint32;
+
+		uint32 max_age			 = 0u;
+		uint32 oldest_surfel_id	 = invalid_id_uint32;
+		float  min_distance		 = float_max;
+		uint32 closest_surfel_id = invalid_id_uint32;
+
+		float near_contribution_sum = 0.f;
+		float far_contribution_sum	= 0.f;
+
+		uint32 surfel_ref_count	 = 0u;
+		uint32 near_surfel_count = 0u;
+		uint32 far_surfel_count	 = 0u;
+
+
+		for (uint32 i = 0; i < min(surfel_entry.surfel_count, 256); ++i)
+		{
+			const uint32		   surfel_id	 = surfel_id_arr[surfel_entry.offset + i];
+			const gist_cell_surfel surfel		 = surfel_buffer[surfel_id];
+			const float3		   surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+
+			const float3 rel	 = surfel.position - world_pos;
+			const float3 dir	 = normalize(rel);
+			const float	 dist_sq = dot(rel, rel);
+			const float	 dist	 = sqrt(dist_sq);
+
+			float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, world_pos);
+
+			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, normal)
+										  * visibility;
+
+			if (near_contribution > 0.f)
+			{
+				near_contribution_sum += near_contribution;
+				irradiance_sum		  += float4(decode_r11g11b10(surfel.irradiance_r11g11b10), 1.f)
+									   * near_contribution
+									   * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+
+				++near_surfel_count;
+			}
+
+			const float far_contribution = gist::calc_far_contribution(rel, dir, surfel_normal, surfel.radius, surfel.radius, normal)
+										 * visibility;
+
+			if (far_contribution > 0.f)
+			{
+				far_contribution_sum += far_contribution;
+				radiance_sum		 += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
+									  * far_contribution
+									  * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+
+				++far_surfel_count;
+			}
+
+
+			if (max_contribution_near <= near_contribution)
+			{
+				max_contribution_near_surfel_id = max_contribution_near == near_contribution
+													? max(surfel_id, max_contribution_near_surfel_id)
+													: surfel_id;
+
+				max_contribution_near = near_contribution;
+			}
+
+			if (max_contribution_far <= far_contribution)
+			{
+				max_contribution_far_surfel_id = max_contribution_far == far_contribution
+												   ? max(surfel_id, max_contribution_far_surfel_id)
+												   : surfel_id;
+
+				max_contribution_far = far_contribution;
+			}
+
+			if (max_age <= surfel.recycle_data.frame_since_born())
+			{
+				oldest_surfel_id = surfel.recycle_data.frame_since_born() == max_age
+									 ? max(surfel_id, oldest_surfel_id)
+									 : surfel_id;
+
+				max_age = surfel.recycle_data.frame_since_born();
+			}
+
+			if (dist <= min_distance)
+			{
+				closest_surfel_id = dist == min_distance
+									  ? max(surfel_id, closest_surfel_id)
+									  : surfel_id;
+
+				min_distance = dist;
+			}
+
+			if (near_contribution > 0.f or far_contribution > 0.f)
+			{
+				// gist::cell::set_surfel_ref(data, surfel_entry.offset + i);
+				++surfel_ref_count;
+			}
+		}
+
+		const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
+		const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
+
+		const float near_conf = irradiance_sum.w / 1.f * GIST_NEAR_CONTRIBUTION_TRUST_BIAS;
+		const float far_conf  = radiance_sum.w / 1.f;
+
+		irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+		const float surfel_near_coverage = near_contribution_sum;
+		const float surfel_far_coverage	 = far_contribution_sum;
+
+		const float spawn_prob_near = (GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR - surfel_near_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR);
+		const float spawn_prob_far	= (GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR - surfel_far_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR);
+		const float spawn_prob		= min(spawn_prob_near, spawn_prob_far) * GIST_CELL_SURFEL_SPAWN_PROB_FACTOR;
+
+		const float kill_prob_near = (surfel_near_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_NEAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_NEAR);
+		const float kill_prob_far  = (surfel_far_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_FAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_FAR);
+		const float kill_prob	   = max(kill_prob_near, kill_prob_far) * GIST_CELL_SURFEL_KILL_PROB_FACTOR;
+
+		const uint32 kill_surfel_id = kill_prob_near > kill_prob_far ? max_contribution_near_surfel_id : max_contribution_far_surfel_id;
+
+		const debug_view_slot_payload_data_gist payload_data = slot_data.payload_gist_data();
+
+		const uint32 far_surfel_id	= max_contribution_far_surfel_id;
+		const uint32 near_surfel_id = max_contribution_near_surfel_id;
+
+		// todo, surfel_select_mode
+		uint32			 surfel_id = kill_surfel_id;
+		gist_cell_surfel surfel	   = zero<gist_cell_surfel>();
+
+		attr_branch()
+
+		switch (payload_data.surfel_select_mode)
+		{
+		case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_NEAR_CONTRIBUTION:
+		{
+			surfel_id = max_contribution_near_surfel_id;
+			break;
+		}
+		case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_FAR_CONTRIBUTION:
+		{
+			surfel_id = max_contribution_far_surfel_id;
+			break;
+		}
+		case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_OLDEST:
+		{
+			surfel_id = oldest_surfel_id;
+			break;
+		}
+		case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_CLOSEST:
+		{
+			surfel_id = closest_surfel_id;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
+
+
+		if (surfel_id != invalid_id_uint32)
+		{
+			surfel = surfel_buffer[surfel_id];
+		}
+
+		byte_array<half> surfel_luminance_cdf = gist::cell::luminance_cdf_arr(gist_data, surfel_id);
+
+		texture_2d<float4> gi_resolve_buffer		 = global_resource_buffer[gist_data.h_gi_resolve_curr_buffer_srv_id];
+		texture_2d<float4> gi_resolve_prev_buffer	 = global_resource_buffer[gist_data.h_gi_resolve_prev_buffer_srv_id];
+		texture_2d<uint32> gi_resolve_age_buffer	 = global_resource_buffer[gist_data.h_gi_resolve_age_curr_buffer_srv_id];
+		texture_2d<float2> gi_resolve_moments_buffer = global_resource_buffer[gist_data.h_gi_resolve_moments_curr_buffer_srv_id];
+
+		texture_2d<float4> gi_resolve_specular_buffer	   = global_resource_buffer[gist_data.h_gi_resolve_specular_curr_buffer_srv_id];
+		texture_2d<float4> gi_resolve_specular_prev_buffer = global_resource_buffer[gist_data.h_gi_resolve_specular_prev_buffer_srv_id];
+		texture_2d<uint32> gi_resolve_specular_age_buffer  = global_resource_buffer[gist_data.h_gi_resolve_specular_age_curr_buffer_srv_id];
+
+		texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
+		texture_2d<float2> mr_buffer	 = global_resource_buffer[opaque_mr_buffer_srv_id];
+
+		const int32_2 extent = int32_2(backbuffer_size);
+
+		const float roughness		   = max(mr_buffer[px].g, brdf::ggx::roughness_min);
+		const bool	is_opaque_specular = px_opaque_depth != 0.f and roughness < gist::specular_roughness_max(gist_data);
+
+		const float specular_hit_dist = gi_resolve_specular_buffer[px].a;
+
+		const float3 opaque_world_pos = screen_px_to_world(px, px_opaque_depth, inv_backbuffer_size, view_proj_inv);
+
+		const float2 motion	 = denoise::sample_motion(motion_buffer, opaque_depth_buffer, px, extent);
+		const float2 uv_curr = (float2(px) + 0.5f) * inv_backbuffer_size;
+
+		// uv_surface with cam movement and obj movement (cam + obj)
+		const float2 uv_surface = uv_curr - motion;
+
+		const float3 view_ray = normalize(world_pos - camera_pos);
+
+		const float curvature = clamp(gist::calc_curvature(opaque_gbuffer, opaque_depth_buffer, px, extent, world_pos, px_opaque_normal), 0.f, 16.f);
+
+		// roughness up => specular_hit_dist down
+		const float3 virtual_pos = world_pos + view_ray * (specular_hit_dist / (1.f + 2.f * specular_hit_dist * curvature)) * (1.f - roughness / gist::specular_roughness_max(gist_data));
+		// uv_virtual when object did not move (cam only)
+		const float2 uv_virtual = ndc_xy_to_screen_uv(world_to_ndc(view_proj_prev, virtual_pos).xy);
+
+		// uv_surface when object did not move (cam only)
+		const float2 uv_cam_surface = ndc_xy_to_screen_uv(world_to_ndc(view_proj_prev, world_pos).xy);
+
+		// uv_prev = uv_virtual( cam ) + ( uv_surface( cam + obj ) - uv_surface ( cam ) )
+		const float2 uv_prev		 = uv_virtual + (uv_surface - uv_cam_surface);
+		const float2 motion_specular = uv_curr - uv_prev;
+
+
+		texture_2d<uint32> type_buffer		  = global_resource_buffer[gist_data.h_adaptive_ray_type_buffer_srv_id];
+		uint32			   adaptive_mask	  = type_buffer[px];
+		uint32			   adaptive_ray_count = countbits(adaptive_mask);
+		float3			   adaptive_ray_color = zero<float3>();
+
+		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_NEW_BORN>(adaptive_mask))
+		{
+			adaptive_ray_color += color_red.rgb;
+		}
+		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_SPECULAR>(adaptive_mask))
+		{
+			adaptive_ray_color += color_blue.rgb;
+		}
+		if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_VARIANCE>(adaptive_mask))
+		{
+			adaptive_ray_color += color_green.rgb;
+		}
+
+		// specular ray trace
+		float		   specular_pdf;
+		const float3x3 specular_world_to_local = gen_world_normal_transform_t(px_opaque_normal);
+		const float3   specular_view_local	   = mul(specular_world_to_local, normalize(camera_pos - opaque_world_pos));
+		const float3   specular_dir_local	   = brdf::ggx::sample_vndf_dir(specular_view_local, roughness * roughness, random_pcg3d(uint32_3(px.x, px.y, g::shader_hash + frame_index)).xy, specular_pdf);
+		const float3   specular_dir_world	   = mul(specular_dir_local, specular_world_to_local);
+
+		attr_branch()
+
+		switch (slot_data.system_debug_view_kind)
+		{
+		case AGE_DEBUG_VIEW_KIND_GIST_LUMINANCE_TILE:
+		{
+			const uint32_2 idx	  = ceil(uint32_2(px), GIST_PX_LUMINANCE_TILE_SIZE);
+			cursor_data.raw_value = float3(float2(idx), 0.f);
+			return float3(random_pcg2d(idx), 0.f);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE:
+		{
+			cursor_data.raw_value = float3(float(center_tile_id), 0.f, 0.f);
+			return random_color(center_tile_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, px_diffuse_ray_hit.pdf, 0.f, 8.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_RATIO:
+		{
+			// how many times more likely this direction was sampled than under cosine sampling.
+			const float rel = px_diffuse_ray_hit.pdf / gist::calc_cosine_pdf(px_diffuse_ray_dir_local);
+
+			return debug_view::resolve_value<true, false>(data, slot_data, rel, 0.f, 8.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_GUIDED_RATIO:
+		{
+			const float rel = gist::calc_guided_pdf(luminance_cdf, px_diffuse_ray_dir_local) / gist::calc_cosine_pdf(px_diffuse_ray_dir_local);
+
+			return debug_view::resolve_value<true, false>(data, slot_data, rel, 0.f, 8.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DISTANCE:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, abs(px_diffuse_ray_hit.distance), 0.f, cam_far_z * 2, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_LOCAL:
+		{
+			return debug_view::resolve_value<true, false>(
+				data, slot_data, px_diffuse_ray_dir_local, float3(-1.f, 0.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_WORLD:
+		{
+			return debug_view::resolve_value<true, false>(
+				data, slot_data, px_diffuse_ray_dir_world, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_RADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, decode_r11g11b10(px_diffuse_ray_lighting.radiance_r11g11b10), zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_IRRADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, decode_r11g11b10(px_diffuse_ray_lighting.irradiance_r11g11b10), zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_TILE_LUMIANCE_SUM:
+		{
+			const float lum_sum = float(luminance_cdf[GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1]);
+			const float rel		= lum_sum / GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE;
+			return debug_view::resolve_value<true, false>(data, slot_data, rel, 0.f, 4.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL:
+		{
+			cursor_data.raw_value = float3(float(cell_id), 0.f, 0.f);
+			return random_color(cell_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_RADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, irradiance_far * pi_inv, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, irradiance, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_NEAR:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, irradiance_near, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_FAR:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, irradiance_far, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, near_conf, 0.f, 16.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF_RATIO:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, near_conf / (near_conf + far_conf + epsilon_1e4), 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, far_conf, 0.f, 16.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF_RATIO:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, far_conf / (near_conf + far_conf + epsilon_1e4), 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_SURFEL_COUNT:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, near_surfel_count, 0.f, 512.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_SURFEL_COUNT:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, far_surfel_count, 0.f, 512.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_FAR_SURFEL_COUNT:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, surfel_ref_count, 0.f, 512.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_COUNT_TOTAL:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, surfel_entry.surfel_count, 0.f, 512.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_ID:
+		{
+			cursor_data.raw_value = float3(as_float(surfel_id), 0.f, 0.f);
+			return random_color(surfel_id);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, decode_r11g11b10(surfel.radiance_r11g11b10), zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_IRRADIANCE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, decode_r11g11b10(surfel.irradiance_r11g11b10), zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_VISIBILITY:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, gist::calc_surfel_visibility(gist_data, surfel_id, surfel, world_pos), 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RAY_COUNT:
+		{
+			break;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_COUNT:
+		{
+			break;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_RATIO:
+		{
+			break;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM:
+		{
+			const float lum_sum = float(surfel_luminance_cdf[GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1]);
+			return debug_view::resolve_value<true, false>(data, slot_data, lum_sum, 0.f, GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE * 4.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM_RATIO:
+		{
+			const float lum_sum = float(surfel_luminance_cdf[GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE - 1]);
+			return debug_view::resolve_value<true, false>(data, slot_data, lum_sum / GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE, 0.f, 4.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_NEAR_COVERAGE:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, surfel_near_coverage, GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR, GIST_CELL_SURFEL_KILL_COVERAGE_NEAR, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_FAR_COVERAGE:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, surfel_far_coverage, GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR, GIST_CELL_SURFEL_KILL_COVERAGE_FAR, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_NEAR:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, spawn_prob_near, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_FAR:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, spawn_prob_far, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, spawn_prob, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_NEAR:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, kill_prob_near, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_FAR:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, kill_prob_far, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, kill_prob, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, gi_resolve_buffer[px].rgb, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_RAW:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, gi_resolve_prev_buffer[px].rgb, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_AGE:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, gi_resolve_age_buffer[px], 0.f, float(GIST_GI_RESOLVE_MAX_AGE), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_MOMENTS:
+		{
+			const float2 moments = gi_resolve_moments_buffer[px];
+			const float	 var	 = moments.y - moments.x * moments.x;
+			if (var < 0.f)
+			{
+				cursor_data.raw_value	 = float3(moments.x, sqrt(max(moments.y, 0.f)), 0.f);
+				cursor_data.scaled_value = data.nan_color;
+				return data.nan_color;
+			}
+
+			return debug_view::resolve_value<true, true>(data, slot_data, float3(moments.x, sqrt(max(moments.y, 0.f)), 0.f),
+														 zero<float3>(), float3(16.f, 16.f, 1.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_CV:
+		{
+			const float2 moments = gi_resolve_moments_buffer[px];
+			const float	 var	 = moments.y - moments.x * moments.x;
+			if (var < 0.f or moments.x + 0.1f < 0.1f)
+			{
+				cursor_data.raw_value	 = zero<float3>();
+				cursor_data.scaled_value = data.nan_color;
+				return data.nan_color;
+			}
+
+			const float cv = sqrt(var) / (moments.x + 0.1f);
+
+			return debug_view::resolve_value<true, false>(data, slot_data, cv, 0.f, 8.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_VARIANCE:
+		{
+			const float2 moments = gi_resolve_moments_buffer[px];
+			const float	 var	 = moments.y - moments.x * moments.x;
+			if (var < 0.f)
+			{
+				cursor_data.raw_value	 = float3(var, 0.f, 0.f);
+				cursor_data.scaled_value = data.nan_color;
+				return data.nan_color;
+			}
+
+			return debug_view::resolve_value<true, true>(data, slot_data, var, 0.f, 256.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, gi_resolve_specular_buffer[px].rgb, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW:
+		{
+			return debug_view::resolve_value<false, false>(data, slot_data, gi_resolve_specular_prev_buffer[px].rgb, zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW_RADIANCE:
+		{
+			break;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_AGE:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, gi_resolve_specular_age_buffer[px], 0.f, float(gist::specular_age_max(gist_data, gist::specular_roughness_max(gist_data))), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_HIT_DIST:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, abs(specular_hit_dist), 0.f, cam_far_z * 2, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_CURVATURE:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, px_opaque_depth > 0.f ? curvature : 0.f, 0.f, 16.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_MOTION:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, float3(motion_specular, 0.f),
+														  float3(-0.05f, -0.05f, 0.f), float3(0.05f, 0.05f, 1.f),
+														  cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_FILTER_RADIUS:
+		{
+			const float alpha	  = roughness * roughness;
+			const float px_z_lin  = calc_linear_z_reversed(cam_near_z, cam_far_z, px_opaque_depth);
+			const float radius_px = clamp(gist::focal_px() * alpha * specular_hit_dist / px_z_lin, 0.f, 16.f);
+			return debug_view::resolve_value<true, true>(data, slot_data, radius_px, 0.f, 16.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_PDF:
+		{
+			return debug_view::resolve_value<true, true>(data, slot_data, specular_pdf, 0.f, 8.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_LOCAL:
+		{
+			return debug_view::resolve_value<true, false>(
+				data, slot_data, specular_dir_local, float3(-1.f, 0.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_WORLD:
+		{
+			return debug_view::resolve_value<true, false>(
+				data, slot_data, specular_dir_world, float3(-1.f, 0.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_COUNT:
+		{
+			return debug_view::resolve_value<true, false>(data, slot_data, float(adaptive_ray_count) / GIST_ADAPTIVE_RAY_TYPE_COUNT, 0.f, 1.f, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE:
+		{
+			cursor_data.raw_value = adaptive_mask;
+			return adaptive_ray_color;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_NEW_BORN:
+		{
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_NEW_BORN>(adaptive_mask))
+			{
+				cursor_data.raw_value = float3(as_float(1), 0, 0);
+				return color_red.rgb;
+			}
+			return color_black.rgb;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_SPECULAR:
+		{
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_SPECULAR>(adaptive_mask))
+			{
+				cursor_data.raw_value = float3(as_float(1), 0, 0);
+				return color_red.rgb;
+			}
+			return color_black.rgb;
+		}
+		case AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_VARIANCE:
+		{
+			if (util::is_mask_set<GIST_ADAPTIVE_RAY_TYPE_VARIANCE>(adaptive_mask))
+			{
+				cursor_data.raw_value = float3(as_float(1), 0, 0);
+				return color_red.rgb;
+			}
+			return color_black.rgb;
+		}
+		}
+
+		return slot_data.background_color;
+	}
+
+	float3
+	eval_base(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
+		return eval_base(data, slot_data, uv_local, cursor_data);
+	}
+
+	float4
+	eval_overlay(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local, inout debug_view_cursor_data cursor_data)
+	{
+		const int32_2 px	= int32_2(uv_local * float2(backbuffer_size));
+		float4		  color = zero<float4>();
+
+		texture_2d<float> opaque_depth_buffer	   = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<float> transparent_depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+
+		const float px_opaque_depth		 = opaque_depth_buffer[px];
+		const float px_transparent_depth = transparent_depth_buffer[px];
+
+		const gist_data		gist_data	  = gist::load_data();
+		const gist_lut_data gist_lut_data = gist::load_lut_data();
+
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_TILE_GRID>(slot_data.system_debug_view_overlay_flags))
+		{
+			const int32_2 local = px % int32_2(GIST_PX_LUMINANCE_TILE_SIZE, GIST_PX_LUMINANCE_TILE_SIZE);
+
+			if (any(local == zero<int32_2>()))
+			{
+				color = float4(0.35f, 0.35f, 0.35f, 0.5f);
+
+				cursor_data.hit_layer_debug_overlay_flag = AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_TILE_GRID;
+			}
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_LUMINANCE_TILE_GRID>(slot_data.system_debug_view_overlay_flags))
+		{
+			const int32_2 local = px % int32_2(gist_data.tile_size(), gist_data.tile_size());
+
+			if (any(local == zero<int32_2>()))
+			{
+				color = float4(0.35f, 0.35f, 0.35f, 0.5f);
+
+				cursor_data.hit_layer_debug_overlay_flag = AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_LUMINANCE_TILE_GRID;
+			}
+		}
+		if (util::is_flag_set<AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_CELL_GRID>(slot_data.system_debug_view_overlay_flags))
+		{
+			float3 world_pos = screen_px_to_world(px, max(px_opaque_depth, px_transparent_depth), inv_backbuffer_size, view_proj_inv);
+
+			const uint32 cell_id = gist::cell::calc_id(gist_data, gist_lut_data, world_pos);
+
+			bool is_edge = false;
+
+			for (int32 i = 0; i < 2; ++i)
+			{
+				const int32_2 px_next = min(px + (i == 0 ? int32_2(1, 0) : int32_2(0, 1)), int32_2(backbuffer_size) - 1);
+
+				const float px_next_opaque_depth	  = opaque_depth_buffer[px_next];
+				const float px_next_transparent_depth = transparent_depth_buffer[px_next];
+
+				float3 world_pos_next = screen_px_to_world(px_next, max(px_opaque_depth, px_transparent_depth), inv_backbuffer_size, view_proj_inv);
+
+				if (gist::cell::calc_id(gist_data, gist_lut_data, world_pos_next) != cell_id)
+				{
+					color = float4(random_color(cell_id), 0.85f);
+
+					cursor_data.hit_layer_debug_overlay_flag = AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_CELL_GRID;
+					cursor_data.world_pos					 = world_pos;
+					break;
+				}
+			}
+		}
+
+		return color;
+	}
+
+	float4
+	eval_overlay(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
+		return eval_overlay(data, slot_data, uv_local, cursor_data);
+	}
+
+	float4
+	eval_cursor_overlay(const in debug_view_data data, const uint32 slot_id, const in debug_view_slot_data slot_data, float2 uv_local)
+	{
+		const gist_data gist_data = gist::load_data();
+
+
+		const int32_2 px = int32_2(uv_local * float2(backbuffer_size));
+
+		texture_2d<float>	 opaque_depth_buffer	  = global_resource_buffer[opaque_depth_buffer_srv_id];
+		texture_2d<uint32_2> opaque_gbuffer			  = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 transparent_depth_buffer = global_resource_buffer[transparent_depth_buffer_srv_id];
+		texture_2d<uint32_2> transparent_gbuffer	  = global_resource_buffer[transparent_gbuffer_srv_id];
+
+		const float	 px_opaque_depth	   = opaque_depth_buffer[px];
+		const float	 px_transparent_depth  = transparent_depth_buffer[px];
+		const float3 px_opaque_normal	   = decode_oct_snorm16(opaque_gbuffer[px].y);
+		const float3 px_transparent_normal = decode_oct_snorm16(transparent_gbuffer[px].y);
+		const bool	 is_opaque			   = px_opaque_depth > px_transparent_depth;
+		const float3 px_world_pos		   = screen_px_to_world(px, is_opaque ? px_opaque_depth : px_transparent_depth, inv_backbuffer_size, view_proj_inv);
+		const float3 px_normal			   = is_opaque ? px_opaque_normal : px_transparent_normal;
+
+
+		const uint32 cursor_count = debug_view::load_cursor_data_count(data);
+
+		float4 color = zero<float4>();
+
+		for (uint32 i = 0; i < cursor_count; ++i)
+		{
+			const debug_view_cursor_data cursor_data = debug_view::load_cursor_data(data, i);
+
+			if (debug_view::is_cursor_hit(data, cursor_data) is_false or cursor_data.slot_id != slot_id) { continue; }
+
+			int32_2 cursor_px = world_to_screen(view_proj, cursor_data.world_pos, backbuffer_size);
+
+			const float	 cursor_px_opaque_depth		  = opaque_depth_buffer[cursor_px];
+			const float	 cursor_px_transparent_depth  = transparent_depth_buffer[cursor_px];
+			const float3 cursor_px_opaque_normal	  = decode_oct_snorm16(opaque_gbuffer[cursor_px].y);
+			const float3 cursor_px_transparent_normal = decode_oct_snorm16(transparent_gbuffer[cursor_px].y);
+			const bool	 cursor_is_opaque			  = cursor_px_opaque_depth > cursor_px_transparent_depth;
+			const float3 cursor_world_pos			  = screen_px_to_world(cursor_px, cursor_is_opaque ? cursor_px_opaque_depth : cursor_px_transparent_depth, inv_backbuffer_size, view_proj_inv);
+			const float3 cursor_normal				  = cursor_is_opaque ? cursor_px_opaque_normal : cursor_px_transparent_normal;
+
+			const uint32				 cell_id	  = gist::cell::calc_id(gist_data, gist::load_lut_data(), cursor_world_pos);
+			const gist_cell_surfel_entry surfel_entry = gist::cell::surfel_entry_arr(gist_data)[cell_id];
+
+			byte_array<uint32>					surfel_id_arr = gist::cell::cell_to_surfel_id_arr(gist_data);
+			structured_buffer<gist_cell_surfel> surfel_buffer = global_resource_buffer[gist_data.h_cell_surfel_buffer_srv_id];
+
+			float4 irradiance_sum = zero<float4>();
+			float4 radiance_sum	  = zero<float4>();
+
+			float  max_contribution_near		   = 0.f;
+			uint32 max_contribution_near_surfel_id = invalid_id_uint32;
+			float  max_contribution_far			   = 0.f;
+			uint32 max_contribution_far_surfel_id  = invalid_id_uint32;
+
+			uint32 max_age			 = 0u;
+			uint32 oldest_surfel_id	 = invalid_id_uint32;
+			float  min_distance		 = float_max;
+			uint32 closest_surfel_id = invalid_id_uint32;
+
+			float near_contribution_sum = 0.f;
+			float far_contribution_sum	= 0.f;
+
+			for (uint32 i = 0; i < min(surfel_entry.surfel_count, 256); ++i)
+			{
+				const uint32		   surfel_id	 = surfel_id_arr[surfel_entry.offset + i];
+				const gist_cell_surfel surfel		 = surfel_buffer[surfel_id];
+				const float3		   surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+
+				const float3 rel	 = surfel.position - cursor_world_pos;
+				const float3 dir	 = normalize(rel);
+				const float	 dist_sq = dot(rel, rel);
+				const float	 dist	 = sqrt(dist_sq);
+
+				float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, cursor_world_pos);
+
+				const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, cursor_normal)
+											  * visibility;
+
+				if (near_contribution > 0.f)
+				{
+					near_contribution_sum += near_contribution;
+					irradiance_sum		  += float4(decode_r11g11b10(surfel.irradiance_r11g11b10), 1.f)
+										   * near_contribution
+										   * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+				}
+
+				const float far_contribution = gist::calc_far_contribution(rel, dir, surfel_normal, surfel.radius, surfel.radius, cursor_normal)
+											 * visibility;
+
+				if (far_contribution > 0.f)
+				{
+					far_contribution_sum += far_contribution;
+					radiance_sum		 += float4(decode_r11g11b10(surfel.radiance_r11g11b10), 1.f)
+										  * far_contribution
+										  * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+				}
+
+
+				if (max_contribution_near <= near_contribution)
+				{
+					max_contribution_near_surfel_id = max_contribution_near == near_contribution
+														? max(surfel_id, max_contribution_near_surfel_id)
+														: surfel_id;
+
+					max_contribution_near = near_contribution;
+				}
+
+				if (max_contribution_far <= far_contribution)
+				{
+					max_contribution_far_surfel_id = max_contribution_far == far_contribution
+													   ? max(surfel_id, max_contribution_far_surfel_id)
+													   : surfel_id;
+
+					max_contribution_far = far_contribution;
+				}
+
+				if (max_age <= surfel.recycle_data.frame_since_born())
+				{
+					oldest_surfel_id = surfel.recycle_data.frame_since_born() == max_age
+										 ? max(surfel_id, oldest_surfel_id)
+										 : surfel_id;
+
+					max_age = surfel.recycle_data.frame_since_born();
+				}
+
+				if (dist <= min_distance)
+				{
+					closest_surfel_id = dist == min_distance
+										  ? max(surfel_id, closest_surfel_id)
+										  : surfel_id;
+
+					min_distance = dist;
+				}
+
+				if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ALL>(slot_data.system_debug_view_cursor_overlay_flags))
+				{
+					const int32_2 surfel_px = world_to_screen(view_proj, surfel.position, backbuffer_size);
+					if (calc_point_to_segment_distance(float2(px) + 0.5f, float2(cursor_px) + 0.5f, float2(surfel_px) + 0.5f) < 4.f)
+					{
+						color += color_red;
+					}
+				}
+			}
+
+			// const float3 irradiance_near = irradiance_sum.w > 0.f ? irradiance_sum.xyz / irradiance_sum.w : zero<float3>();
+			// const float3 irradiance_far	 = radiance_sum.w > 0.f ? pi * radiance_sum.xyz / radiance_sum.w : zero<float3>();
+
+			// const float near_conf = irradiance_sum.w / 1.f * GIST_NEAR_CONTRIBUTION_TRUST_BIAS;
+			// const float far_conf  = radiance_sum.w / 1.f;
+
+			// irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+			const float surfel_near_coverage = near_contribution_sum;
+			const float surfel_far_coverage	 = far_contribution_sum;
+
+			const float spawn_prob_near = (GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR - surfel_near_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR);
+			const float spawn_prob_far	= (GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR - surfel_far_coverage) / float(GIST_CELL_SURFEL_SPAWN_COVERAGE_FAR);
+			const float spawn_prob		= min(spawn_prob_near, spawn_prob_far) * GIST_CELL_SURFEL_SPAWN_PROB_FACTOR;
+
+			const float kill_prob_near = (surfel_near_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_NEAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_NEAR);
+			const float kill_prob_far  = (surfel_far_coverage - GIST_CELL_SURFEL_KILL_COVERAGE_FAR) / float(GIST_CELL_SURFEL_KILL_COVERAGE_FAR);
+			const float kill_prob	   = max(kill_prob_near, kill_prob_far) * GIST_CELL_SURFEL_KILL_PROB_FACTOR;
+
+			const uint32 kill_surfel_id = kill_prob_near > kill_prob_far ? max_contribution_near_surfel_id : max_contribution_far_surfel_id;
+
+			const debug_view_slot_payload_data_gist payload_data = slot_data.payload_gist_data();
+
+			const uint32 far_surfel_id	= max_contribution_far_surfel_id;
+			const uint32 near_surfel_id = max_contribution_near_surfel_id;
+
+			uint32			 surfel_id = kill_surfel_id;
+			gist_cell_surfel surfel	   = zero<gist_cell_surfel>();
+
+			attr_branch()
+
+			switch (payload_data.surfel_select_mode)
+			{
+			case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_NEAR_CONTRIBUTION:
+			{
+				surfel_id = max_contribution_near_surfel_id;
+				break;
+			}
+			case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_FAR_CONTRIBUTION:
+			{
+				surfel_id = max_contribution_far_surfel_id;
+				break;
+			}
+			case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_OLDEST:
+			{
+				surfel_id = oldest_surfel_id;
+				break;
+			}
+			case AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_CLOSEST:
+			{
+				surfel_id = closest_surfel_id;
+				break;
+			}
+			default:
+			{
+				break;
+			}
+			}
+
+
+			if (surfel_id != invalid_id_uint32)
+			{
+				surfel = surfel_buffer[surfel_id];
+
+				if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ONE>(slot_data.system_debug_view_cursor_overlay_flags))
+				{
+					const int32_2 surfel_px = world_to_screen(view_proj, surfel.position, backbuffer_size);
+
+					if (calc_point_to_segment_distance(float2(px) + 0.5f, float2(cursor_px) + 0.5f, float2(surfel_px) + 0.5f) < 4.f)
+					{
+						color += color_red;
+					}
+				}
+			}
+
+
+			const float3 surfel_normal = decode_oct_snorm16(surfel.normal_oct_snorm16);
+
+			const float3 rel	 = surfel.position - px_world_pos;
+			const float3 dir	 = normalize(rel);
+			const float	 dist_sq = dot(rel, rel);
+			const float	 dist	 = sqrt(dist_sq);
+
+			float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, px_world_pos);
+
+			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, cursor_normal)
+										  * visibility;
+
+			const float3 irradiance_near = decode_r11g11b10(surfel.irradiance_r11g11b10)
+										 * near_contribution
+										 * smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+
+			const float far_contribution = gist::calc_far_contribution(rel, dir, surfel_normal, surfel.radius, surfel.radius, cursor_normal)
+										 * visibility;
+
+			const float3 irradiance_far = pi * decode_r11g11b10(surfel.radiance_r11g11b10)
+										* far_contribution
+										* smoothstep(0.f, float(GIST_CELL_SURFEL_NEW_BORN_DELAY), float(surfel.recycle_data.frame_since_born()));
+
+			const float near_conf = near_contribution * GIST_NEAR_CONTRIBUTION_TRUST_BIAS;
+			const float far_conf  = far_contribution;
+
+			const float3 irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_VISIBILITY>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += color_red * visibility;
+			}
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_NEAR_CONTRIBUTION>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += color_green * near_contribution;
+			}
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_FAR_CONTRIBUTION>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += color_blue * far_contribution;
+			}
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += float4(irradiance, near_conf + far_conf);
+			}
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_NEAR>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += float4(irradiance_near, near_contribution);
+			}
+
+			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_FAR>(slot_data.system_debug_view_cursor_overlay_flags))
+			{
+				color += float4(irradiance_far, far_contribution);
+			}
+		}
+
+		if (color.a > 0.f)
+		{
+			color.rgb /= color.a;
+			return float4(color.rgb, 1.f);
+		}
+
+		return color;
+	}
+
+	float3
+	eval_popup(const in debug_view_data data, const in debug_view_popup_data popup_data, const in debug_view_cursor_data cursor_data, float2 popup_uv_local)
+	{
+		const debug_view_slot_data slot_data = debug_view::load_slot_data(data, cursor_data.slot_id);
+
+		attr_branch()
+
+		switch (slot_data.system_popup_view_kind)
+		{
+		case AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM:
+		{
+			const int32_4 slot_rect		 = debug_view::load_slot_rect(data, cursor_data.slot_id);
+			const int32_2 popup_px_local = int32_2(popup_uv_local * float2(max(popup_data.rect.zw - popup_data.rect.xy, 1)));
+
+			const float2 zoom_uv = debug_view::calc_zoom_uv(slot_rect, popup_data.rect,
+															cursor_data.px_local, popup_px_local,
+															slot_data.popup_zoom);
+
+			if (cursor_data.hit_layer_debug_overlay_flag != 0u)
+			{
+				return eval_overlay(data, slot_data, zoom_uv).rgb;
+			}
+			else
+			{
+				return eval_base(data, slot_data, zoom_uv);
+			}
+		}
+		case AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE:
+		{
+			return debug_view::draw_value_bars(cursor_data, popup_uv_local);
+		}
+		default:
+			break;
+		}
+
+		return zero<float3>();
+	}
+}	 // namespace gist_debug_view

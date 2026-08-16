@@ -348,14 +348,24 @@ namespace debug_view
 	template <bool apply_normalize = false, bool log_scale = false>
 	float3
 	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
+				  float3 value, float3 low, float3 high,
+				  inout debug_view_cursor_data cursor_data,
+				  float						   log_scale_knee_ratio = epsilon_1e4)
+	{
+		return resolve_value(data, slot_data, value, low, high, cursor_data.raw_value, cursor_data.scaled_value, log_scale_knee_ratio);
+	}
+
+	template <bool apply_normalize = false, bool log_scale = false>
+	float3
+	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
 				  float value, float low, float high,
-				  out float3 raw_value, out float3 scaled_value,
+				  out float raw_value, out float scaled_value,
 				  float log_scale_knee_ratio = epsilon_1e4)
 	{
-		raw_value	 = zero<float3>();
-		scaled_value = zero<float3>();
+		raw_value	 = 0.f;
+		scaled_value = 0.f;
 
-		raw_value.r = value;
+		raw_value = value;
 
 		float3 mark_color;
 
@@ -366,7 +376,7 @@ namespace debug_view
 
 		if (apply_slot_range(data, slot_data, normalized, mark_color)) { return mark_color; }
 
-		scaled_value.r = normalized;
+		scaled_value = normalized;
 
 		if (apply_normalize) { value = normalized; }
 
@@ -380,6 +390,16 @@ namespace debug_view
 		res.r = value;
 
 		return res;
+	}
+
+	template <bool apply_normalize = false, bool log_scale = false>
+	float3
+	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
+				  float value, float low, float high,
+				  inout debug_view_cursor_data cursor_data,
+				  float						   log_scale_knee_ratio = epsilon_1e4)
+	{
+		return resolve_value(data, slot_data, value, low, high, cursor_data.raw_value.r, cursor_data.scaled_value.r, log_scale_knee_ratio);
 	}
 }	 // namespace debug_view
 
@@ -398,7 +418,7 @@ namespace debug_view
 	}
 
 	float3
-	draw_value_bars(const in debug_view_cursor_data cursor_data, float2 uv_local)
+	draw_value_bars(float4 value, float2 uv_local)
 	{
 		const uint32 row_count = 4u;
 		const uint32 row	   = min(uint32(uv_local.y * float(row_count)), row_count - 1u);
@@ -406,7 +426,7 @@ namespace debug_view
 
 		if (row_frac < 0.12f or row_frac > 0.88f) { return zero<float3>(); }
 
-		const float t = saturate(cursor_data.scaled_value[row]);
+		const float t = saturate(value[row]);
 
 		const float3 row_color = row == 0u ? float3(0.90f, 0.25f, 0.25f)
 							   : row == 1u ? float3(0.25f, 0.90f, 0.25f)
@@ -416,6 +436,18 @@ namespace debug_view
 		const float grid = frac(uv_local.x * 4.f) < 0.015f ? 0.30f : 0.08f;
 
 		return uv_local.x <= t ? row_color : float3(grid, grid, grid);
+	}
+
+	float3
+	draw_value_bars(float3 value, float2 uv_local)
+	{
+		return draw_value_bars(float4(value, 0.f), uv_local);
+	}
+
+	float3
+	draw_value_bars(const in debug_view_cursor_data cursor_data, float2 uv_local)
+	{
+		return draw_value_bars(float4(cursor_data.scaled_value, 0.f), uv_local);
 	}
 
 	float3
@@ -469,7 +501,7 @@ namespace debug_view
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_DEPTH:
 		{
 			const float z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, px_depth);
-			return resolve_value<true, true>(data, slot_data, z_lin, cam_near_z, cam_far_z, cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, true>(data, slot_data, z_lin, cam_near_z, cam_far_z, cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_VISIBILITY:
 		{
@@ -501,38 +533,38 @@ namespace debug_view
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_VERTEX_NORMAL:
 		{
 			const float3 n = decode_oct_snorm16(gbuffer[px].y);
-			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_SHADING_NORMAL:
 		{
 			texture_2d<float2> shading_normal_buffer = global_resource_buffer[opaque_shading_normal_buffer_srv_id];
 			const float3	   n					 = decode_octahedral(shading_normal_buffer[px]);
-			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, n, float3(-1.f, -1.f, -1.f), float3(1.f, 1.f, 1.f), cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_BASE_COLOR:
 		{
 			texture_2d<float4> base_color_buffer = global_resource_buffer[opaque_base_color_buffer_srv_id];
-			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].rgb, zero<float3>(), float3(1.f, 1.f, 1.f), cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].rgb, zero<float3>(), float3(1.f, 1.f, 1.f), cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_OCCLUSION:
 		{
 			texture_2d<float4> base_color_buffer = global_resource_buffer[opaque_base_color_buffer_srv_id];
-			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].a, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, base_color_buffer[px].a, 0.f, 1.f, cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_ROUGHNESS:
 		{
 			texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
-			return resolve_value<true, false>(data, slot_data, mr_buffer[px].g, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, mr_buffer[px].g, 0.f, 1.f, cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_METALLIC:
 		{
 			texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
-			return resolve_value<true, false>(data, slot_data, mr_buffer[px].r, 0.f, 1.f, cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, false>(data, slot_data, mr_buffer[px].r, 0.f, 1.f, cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_EMISSIVE:
 		{
 			texture_2d<float3> emissive_buffer = global_resource_buffer[opaque_emissive_buffer_srv_id];
-			return resolve_value<true, true>(data, slot_data, emissive_buffer[px], zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data.raw_value, cursor_data.scaled_value);
+			return resolve_value<true, true>(data, slot_data, emissive_buffer[px], zero<float3>(), float3(16.f, 16.f, 16.f), cursor_data);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MOTION:
 		{
@@ -540,7 +572,7 @@ namespace debug_view
 			const float2	   m			 = motion_buffer[px];
 			return resolve_value<true, false>(data, slot_data, float3(m, 0.f),
 											  float3(-0.05f, -0.05f, 0.f), float3(0.05f, 0.05f, 1.f),
-											  cursor_data.raw_value, cursor_data.scaled_value);
+											  cursor_data);
 		}
 		default:
 			break;

@@ -1,43 +1,5 @@
 #include "hrp_common.asli"
 
-// based on Nathan Reed 2015
-// https://computergraphics.stackexchange.com/questions/1718/what-is-the-simplest-way-to-compute-principal-curvature-for-a-mesh-triangle
-float
-calc_curvature(texture_2d<uint32_2> gbuffer, texture_2d<float> depth_buffer,
-			   int32_2 px, int32_2 extent, float3 world_pos, float3 normal)
-{
-	const float px_size_y = length(world_pos - camera_pos) * 2.f * tan_fov_y_half * inv_backbuffer_size.y;
-
-	float  curvature_sum = 0.f;
-	uint32 count		 = 0u;
-
-	expand_all()
-
-	for (uint32 i = 0; i < 2; ++i)
-	{
-		const int32_2 px_tap = min(px + (i == 0 ? int32_2(1, 0) : int32_2(0, 1)), extent - 1);
-
-		const float z_depth = depth_buffer[px_tap];
-
-		// sky
-		if (z_depth == 0.f) { continue; }
-
-		const float3 dp	   = screen_px_to_world(px_tap, z_depth, inv_backbuffer_size, view_proj_inv) - world_pos;
-		const float	 dp_sq = dot(dp, dp);
-
-		if (dp_sq <= 0.f) { continue; }
-		if (dp_sq > px_size_y * px_size_y * 16.f) { continue; }
-
-		const float3 dn = decode_oct_snorm16(gbuffer[px_tap].y) - normal;
-
-		// curvature = dot(dn, dp) / |dp|^2
-		curvature_sum += dot(dn, dp) / dp_sq;
-		++count;
-	}
-
-	return count > 0u ? curvature_sum / float(count) : 0.f;
-};
-
 [numthreads(16, 16, 1)] void
 main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
@@ -93,10 +55,10 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 	const float3 view_ray = normalize(px_world_pos - camera_pos);
 
-	const float kappa = clamp(calc_curvature(gbuffer, depth_buffer, px, extent, px_world_pos, px_normal), 0.f, 16.f);
+	const float curvature = clamp(gist::calc_curvature(gbuffer, depth_buffer, px, extent, px_world_pos, px_normal), 0.f, 16.f);
 
 	// roughness up => hit_dist down
-	const float3 virtual_pos = px_world_pos + view_ray * (hit_dist / (1.f + 2.f * hit_dist * kappa)) * (1.f - roughness / gist::specular_roughness_max(data));
+	const float3 virtual_pos = px_world_pos + view_ray * (hit_dist / (1.f + 2.f * hit_dist * curvature)) * (1.f - roughness / gist::specular_roughness_max(data));
 	// uv_virtual when object did not move (cam only)
 	const float2 uv_virtual = ndc_xy_to_screen_uv(world_to_ndc(view_proj_prev, virtual_pos).xy);
 

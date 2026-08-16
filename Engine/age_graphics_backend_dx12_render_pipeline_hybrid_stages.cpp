@@ -1132,21 +1132,6 @@ namespace age::graphics::render_pipeline
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gist, adaptive_gi_resolve_specular);
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gist, gi_reconstruct_specular);
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gist, gi_reconstruct);
-		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gist, debug_view);
-		h_pso_debug_resolve = graphics::pso::create(
-			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gist_debug_resolve_ps) },
-			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
-			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
-			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
-			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
-			pss_blend{ .subobj = defaults::blend_desc::alpha },
-			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
-			pss_node_mask{ .subobj = 0 });
-
-		p_pso_debug_resolve = graphics::g::pso_ptr_vec[h_pso_debug_resolve];
-		h_pso_debug_resolve.set_name(L"pso_gist_debug_resolve");
 
 		h_cmd_sig = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
 		p_cmd_sig = h_cmd_sig.ptr();
@@ -1489,33 +1474,9 @@ namespace age::graphics::render_pipeline
 		}
 	}
 
-	inline void
-	gist_stage::execute_render_surfels(const gist_data&	 gist_data_cpu,
-									   rtv_desc_handle	 h_main_buffer_rtv_desc,
-									   resource_handle	 h_blend_buffer,
-									   extent_2d<uint16> main_buffer_extent) const noexcept
-	{
-		command::set_pso(p_pso_debug_view);
-		command::dispatch(ceil(main_buffer_extent.width, 8u), ceil(main_buffer_extent.width, 8u), 1);
-		command::apply_barriers(barrier::tex_uav_to_srv(h_blend_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING));
-
-		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::load_preserve(h_main_buffer_rtv_desc);
-
-		command::begin_render_pass(
-			1,
-			&render_pass_rt_desc,
-			nullptr,
-			D3D12_RENDER_PASS_FLAG_NONE);
-
-		command::set_pso(p_pso_debug_resolve);
-		command::dispatch_mesh(1, 1, 1);
-		command::end_render_pass();
-	}
-
 	void
 	gist_stage::deinit() noexcept
 	{
-		// todo
 		pso::destroy(h_pso_cleanup);
 		pso::destroy(h_pso_prepare);
 		pso::destroy(h_pso_cell_surfel_spawn_kill);
@@ -1547,8 +1508,6 @@ namespace age::graphics::render_pipeline
 		pso::destroy(h_pso_adaptive_gi_resolve_specular);
 		pso::destroy(h_pso_gi_reconstruct_specular);
 		pso::destroy(h_pso_gi_reconstruct);
-		pso::destroy(h_pso_debug_view);
-		pso::destroy(h_pso_debug_resolve);
 
 		command_signature::destroy(h_cmd_sig);
 	}

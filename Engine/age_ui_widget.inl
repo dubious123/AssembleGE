@@ -1454,6 +1454,53 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	bool
+	checkbox_flags(const char* p_label, auto& value, bool default_open = true) noexcept
+		requires(std::is_enum_v<BARE_OF(value)>)
+	{
+		using t_flags = BARE_OF(value);
+
+		auto temp = value;
+
+		if (auto _ = collapsible_header2(p_label, default_open))
+		{
+			e_visit_all(t_flags{}, [&]<t_flags e_flag> {
+				auto _id = id_begin();
+
+				auto b = has_any(temp, e_flag);
+				ui::widget::checkbox(to_string(e_flag).data(), b);
+				if (b)
+				{
+					temp |= e_flag;
+				}
+				else
+				{
+					temp &= ~e_flag;
+				}
+			});
+		}
+
+		c_auto modified = temp != value;
+
+		value = temp;
+		return modified;
+	}
+
+	template <typename t_enum>
+	bool
+	checkbox_flags(const char* p_label, auto& value, bool default_open = true) noexcept
+		requires(meta::is_not_same_v<std::remove_cvref_t<t_enum>, BARE_OF(value)>
+				 and std::is_same_v<std::underlying_type_t<t_enum>, BARE_OF(value)>)
+	{
+		auto   flags	= std::remove_cvref_t<t_enum>{ value };
+		c_auto modified = checkbox_flags<std::remove_cvref_t<t_enum>>(p_label, flags, default_open);
+		value			= to_idx(flags);
+		return modified;
+	}
+}	 // namespace age::ui::widget
+
+namespace age::ui::widget
+{
+	bool
 	path_picker(std::span<char> path) noexcept;
 }	 // namespace age::ui::widget
 

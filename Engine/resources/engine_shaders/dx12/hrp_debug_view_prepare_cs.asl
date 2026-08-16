@@ -83,8 +83,12 @@ main_cs()
 			debug_view::eval_overlay_common(data, slot_data, uv_local, hover);
 			break;
 		case AGE_DEBUG_VIEW_SYSTEM_KIND_GIST:
-			// gist::debug_view::eval_base(data, slot_data, uv_local, hover);
-			// gist::debug_view::eval_overlay(data, slot_data, uv_local, hover);
+			if (gist::enabled())
+			{
+				gist_debug_view::eval_base(data, slot_data, uv_local, hover);
+				gist_debug_view::eval_overlay(data, slot_data, uv_local, hover);
+			}
+
 			break;
 		}
 	}

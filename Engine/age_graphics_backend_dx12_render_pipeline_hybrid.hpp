@@ -382,12 +382,6 @@ namespace age::graphics::render_pipeline
 		graphics::pso::handle h_pso_gi_reconstruct;
 		ID3D12PipelineState*  p_pso_gi_reconstruct;
 
-		graphics::pso::handle h_pso_debug_view;
-		ID3D12PipelineState*  p_pso_debug_view;
-
-		graphics::pso::handle h_pso_debug_resolve;
-		ID3D12PipelineState*  p_pso_debug_resolve;
-
 		graphics::command_signature::handle h_cmd_sig;
 		ID3D12CommandSignature*				p_cmd_sig;
 
@@ -399,12 +393,6 @@ namespace age::graphics::render_pipeline
 				binding_config_t::reg_b<1>& constants,
 				extent_2d<uint16>			main_buffer_extent) const noexcept;
 
-
-		inline void
-		execute_render_surfels(const gist_data&	 gist_data_cpu,
-							   rtv_desc_handle	 h_main_buffer_rtv_desc,
-							   resource_handle	 h_blend_buffer,
-							   extent_2d<uint16> main_buffer_extent) const noexcept;
 		void
 		deinit() noexcept;
 	};

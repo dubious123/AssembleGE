@@ -48,21 +48,26 @@ main_cs(uint32 group_id		   sv_group_id,
 	fn_cell_alloc fn = fn_cell_alloc::init(surfel);
 	gist::foreach_neighbor_cell(fn, data, gist::load_lut_data(), surfel.position);
 
-	// uint32 ray_count_ideal = uint32(lerp(GIST_MIN_RAY_PER_SURFEL, GIST_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
-	// uint32 ray_count_ideal = uint32(lerp(GIST_MIN_RAY_PER_SURFEL, GIST_MAX_RAY_PER_SURFEL, saturate(sqrt(max(0.f, msme.incon_var)) * 10)));
-	uint16 ideal_ray_count = uint16(lerp(data.cell_surfel_ray_count_min(), data.cell_surfel_ray_count_max(), msme.incon_var * (1.f / GIST_MSME_INCONSISTENCY_BLEND)));
+	attr_branch()
 
-	if (surfel.recycle_data.frame_since_born() < GIST_CELL_SURFEL_NEW_BORN_DELAY)
+	if (gist::debug::freeze_cell_surfel_ray_trace(data) is_false)
 	{
-		ideal_ray_count = data.cell_surfel_ray_count_max();
-	}
+		// uint32 ray_count_ideal = uint32(lerp(GIST_MIN_RAY_PER_SURFEL, GIST_MAX_RAY_PER_SURFEL, msme.inconsistency * 4));
+		// uint32 ray_count_ideal = uint32(lerp(GIST_MIN_RAY_PER_SURFEL, GIST_MAX_RAY_PER_SURFEL, saturate(sqrt(max(0.f, msme.incon_var)) * 10)));
+		uint16 ideal_ray_count = uint16(lerp(data.cell_surfel_ray_count_min(), data.cell_surfel_ray_count_max(), msme.incon_var * (1.f / GIST_MSME_INCONSISTENCY_BLEND)));
 
-	gist::cell::set_ideal_ray_count(data, alive_id, ideal_ray_count);
+		if (surfel.recycle_data.frame_since_born() < GIST_CELL_SURFEL_NEW_BORN_DELAY)
+		{
+			ideal_ray_count = data.cell_surfel_ray_count_max();
+		}
 
-	const uint16 ideal_ray_count_wave_sum = wave_active_sum(ideal_ray_count);
+		gist::cell::set_ideal_ray_count(data, alive_id, ideal_ray_count);
 
-	if (wave_is_first_lane())
-	{
-		gist::cell::set_ideal_ray_count_wave_sum(data, group_id, ideal_ray_count_wave_sum);
+		const uint16 ideal_ray_count_wave_sum = wave_active_sum(ideal_ray_count);
+
+		if (wave_is_first_lane())
+		{
+			gist::cell::set_ideal_ray_count_wave_sum(data, group_id, ideal_ray_count_wave_sum);
+		}
 	}
 }

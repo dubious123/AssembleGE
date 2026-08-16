@@ -1079,6 +1079,29 @@ calc_point_to_plane_distance(float3 pos, float4 plane)
 	return dot(pos, plane.xyz) + plane.w;
 }
 
+template <int32 n>
+float
+calc_point_to_segment_distance(vector<float, n> p, vector<float, n> a, vector<float, n> b)
+{
+	const vector<float, n> ab	  = b - a;
+	const float			   len_sq = dot(ab, ab);
+
+	const float t = len_sq > epsilon_1e6 ? saturate(dot(p - a, ab) / len_sq) : 0.f;
+
+	return length(p - (a + ab * t));
+}
+
+template <int32 n>
+float
+calc_point_to_line_distance(vector<float, n> p, vector<float, n> a, vector<float, n> b)
+{
+	const vector<float, n> ab	  = b - a;
+	const float			   len_sq = dot(ab, ab);
+	const float			   t	  = len_sq > epsilon_1e6 ? dot(p - a, ab) / len_sq : 0.f;
+
+	return length(p - (a + ab * t));
+}
+
 float
 linearize_reverse_z(float z, float n, float f)
 {

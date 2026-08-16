@@ -998,6 +998,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_bloom.asli"
 #include "age_denoise.asli"
 #include "age_debug_view.asli"
+#include "age_gist_debug_view.asli"
 
 struct opaque_as_to_ms
 {

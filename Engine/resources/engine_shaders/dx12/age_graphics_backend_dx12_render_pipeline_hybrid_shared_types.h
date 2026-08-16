@@ -56,6 +56,11 @@ namespace age::graphics::render_pipeline::shared_type
 		int32_4 rect;
 	};
 
+	struct debug_view_cursor_data_gist
+	{
+		uint32 surfel_id;
+	};
+
 	// idx 0 : hover, above : picked
 	struct debug_view_cursor_data
 	{
@@ -74,6 +79,20 @@ namespace age::graphics::render_pipeline::shared_type
 		float	z_lin;
 
 		uint32_4 system_scratch[4];
+
+		debug_view_cursor_data_gist
+		load_gist_data() CONST
+		{
+			debug_view_cursor_data_gist res;
+			res.surfel_id = system_scratch[0].x;
+			return res;
+		}
+
+		void
+		set_gist_data(const debug_view_cursor_data_gist data)
+		{
+			system_scratch[0].x = data.surfel_id;
+		}
 	};
 
 	struct debug_view_data
@@ -137,6 +156,11 @@ namespace age::graphics::render_pipeline::shared_type
 		}
 	};
 
+	struct debug_view_slot_payload_data_gist
+	{
+		uint32 surfel_select_mode;
+	};
+
 	struct debug_view_slot_data
 	{
 		uint32 system_kind;
@@ -157,6 +181,14 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 border_thickness;
 
 		uint32_4 payload[4];
+
+		debug_view_slot_payload_data_gist
+		payload_gist_data() CONST
+		{
+			debug_view_slot_payload_data_gist res;
+			res.surfel_select_mode = payload[0].x;
+			return res;
+		}
 	};
 
 	//---[ debug assert ]------------------------------------------------------------
@@ -2212,22 +2244,10 @@ namespace age::graphics::render_pipeline::g
 
 #define GIST_ADAPTIVE_RAY_TILE_SIZE 16
 
-#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN			  (1u << 0u)
-#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL				  (1u << 1u)
-#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS			  (1u << 2u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL					  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT		  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_ID_HASH		  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RADIANCE	  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_IRRADIANCE	  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NORMAL		  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_VISIBILITY	  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NEAR_COVERAGE (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_FAR_COVERAGE  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RAY_COUNT	  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_AGE			  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI			  (1u << 0u)
-#define GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI			  (1u << 0u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN	 (1u << 0u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL		 (1u << 1u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS	 (1u << 2u)
+#define GIST_DEBUG_FLAGS_FREEZE_SURFEL_RAY_TRACE (1u << 3u)
 
 #if !defined(AGE_SHADER)
 	inline constexpr auto gist_atlas_tile_size		  = GIST_ATLAS_TILE_SIZE;
@@ -2237,6 +2257,12 @@ namespace age::graphics::render_pipeline::g
 	inline constexpr auto gist_gi_resolve_block_size  = GIST_GI_RESOLVE_BLOCK_SIZE;
 	inline constexpr auto gist_px_luminance_tile_size = GIST_PX_LUMINANCE_TILE_SIZE;
 	inline constexpr auto gist_adaptive_ray_tile_size = GIST_ADAPTIVE_RAY_TILE_SIZE;
+
+	static_assert(GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN == to_idx(graphics::e::gist_debug_flags::freeze_surfel_spawn));
+	static_assert(GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL == to_idx(graphics::e::gist_debug_flags::freeze_surfel_kill));
+	static_assert(GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS == to_idx(graphics::e::gist_debug_flags::freeze_surfel_radius));
+	static_assert(GIST_DEBUG_FLAGS_FREEZE_SURFEL_RAY_TRACE == to_idx(graphics::e::gist_debug_flags::freeze_surfel_ray_trace));
+
 #endif
 
 //---[ segment and transparent ]------------------------------------------------------------------------------------------------------
@@ -2282,6 +2308,7 @@ namespace age::graphics::render_pipeline::g
 #define AGE_DEBUG_VIEW_COLOR_MAP_KIND_MAGMA		5
 #define AGE_DEBUG_VIEW_COLOR_MAP_KIND_INFERNO	6
 
+// debug_view_common
 #define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_NONE  0
 #define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_ZOOM  1
 #define AGE_DEBUG_VIEW_SYS_COMMON_POPUP_KIND_VALUE 2
@@ -2307,6 +2334,106 @@ namespace age::graphics::render_pipeline::g
 #define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE_EDGE		 (1u << 2u)
 #define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE (1u << 3u)
 
+// debug_view_gist
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_NONE	 0
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM	 1
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE 2
+
+#define AGE_DEBUG_VIEW_KIND_GIST_NONE							 0
+#define AGE_DEBUG_VIEW_KIND_GIST_LUMINANCE_TILE					 1	  // tile_id
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE							 2	  // tile_id
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF					 3
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_RATIO				 4	  // pdf/pdf_cos
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_GUIDED_RATIO		 5	  // pdf_guide/pdf_cos
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DISTANCE				 6
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_LOCAL				 7
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_WORLD				 8
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_RADIANCE				 9
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_IRRADIANCE			 10
+#define AGE_DEBUG_VIEW_KIND_GIST_TILE_LUMIANCE_SUM				 11
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL							 12	   // cell_id
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_RADIANCE					 13	   // radiance_sum.rgb / w
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE				 14	   // sample_irradiance result
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_NEAR			 15
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_FAR			 16
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF					 17	   // irradiance lerp ratio
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF_RATIO			 18
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF					 19	   // irradiance lerp ratio
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF_RATIO			 20	   // irradiance lerp ratio
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_SURFEL_COUNT			 21
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_SURFEL_COUNT			 22
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_FAR_SURFEL_COUNT		 23
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_COUNT_TOTAL		 24	   // cell_entry.count
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_ID					 25
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RADIANCE			 26
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_IRRADIANCE			 27
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_VISIBILITY			 28
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RAY_COUNT			 29	   // need surfel_id -> ray_entry lut
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_COUNT	 30	   // need surfel_id -> ray_entry lut
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_RATIO	 31	   // need surfel_id -> ray_entry lut
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM		 32	   // raw
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM_RATIO 33	   // lum_sum / GIST_MIN_LUMINANCE_SUM_FOR_RAY_GUIDANCE
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_NEAR_COVERAGE		 34	   // cell_srufel_spawn_kill_factor
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_FAR_COVERAGE		 35	   // cell_srufel_spawn_kill_factor
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_NEAR	 36
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_FAR		 37
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB			 38
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_NEAR		 39
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_FAR		 40
+#define AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB			 41
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE						 42	   // final result, includes ao if enabled
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_RAW					 43	   // next_frame_input, 1pass blend
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_AGE					 44
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_MOMENTS				 45	   // float2(mean, sqrt(E[x^2])), yellow : converged, green : divergence
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_CV					 46	   // sigma / (mean + 0.1f)
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_VARIANCE			 47
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_IS_ROUND_ROBIN		 48
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR					 49	   // final result
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW				 50	   // without denoise, lerped
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW_RADIANCE		 51	   // raw ray radiance, need px -> ray_entry lut
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_AGE				 52
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_HIT_DIST			 53
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_CURVATURE			 54
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_MOTION				 55
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_FILTER_RADIUS		 56
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_PDF			 57	   // approximation, different hash, need px -> ray lut
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_LOCAL		 58	   // approximation, different hash, need px -> ray lut
+#define AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_WORLD		 59	   // approximation, different hash, need px -> ray lut
+#define AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_COUNT				 60
+#define AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE				 61
+#define AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_NEW_BORN	 62
+#define AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_SPECULAR	 63
+#define AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_VARIANCE	 64
+#define AGE_DEBUG_VIEW_KIND_GIST_STAT_CELL_SURFEL				 65	   // cell_surfel_ratio, alloc_cell_surfel_ratio, cell_surfel_ray_count_ratio
+#define AGE_DEBUG_VIEW_KIND_GIST_STAT_RAY_COUNT					 66	   // total, cell, adaptive
+#define AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_COUNT_CAP	 67	   // diffuse / adaptive_budget, specular/adaptive_budget, specular/(specular_rpp * px_count)
+#define AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_ENTRY_PROB	 68
+
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_TILE_GRID			  (1u << 0u)
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_LUMINANCE_TILE_GRID (1u << 1u)
+#define AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_CELL_GRID					  (1u << 2u)
+
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ALL			 (1u << 0u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ONE			 (1u << 1u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_VISIBILITY			 (1u << 2u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_NEAR_CONTRIBUTION		 (1u << 3u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_FAR_CONTRIBUTION		 (1u << 4u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_RAY			 (1u << 5u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE			 (1u << 6u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_NEAR		 (1u << 7u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_FAR		 (1u << 8u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_ADAPTIVE_RAY				 (1u << 9u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_DIFFUSE_RECONSTRUCT_TAP	 (1u << 10u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_DIFFUSE_REPROJECT_TAP	 (1u << 11u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_SPECULAR_RECONSTRUCT_TAP (1u << 12u)
+#define AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_SPECULAR_REPROJECT_TAP	 (1u << 13u)
+
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_NONE				  0
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_CONTRIBUTION	  1
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_NEAR_CONTRIBUTION 2
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_FAR_CONTRIBUTION  3
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_OLDEST				  4
+#define AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_CLOSEST				  5
 
 #if !defined(AGE_SHADER)
 	inline constexpr auto debug_view_slot_count_max		   = DEBUG_VIEW_SLOT_COUNT_MAX;
@@ -2363,6 +2490,107 @@ namespace age::graphics::render_pipeline::g
 	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_OPAQUE_EDGE == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::opaque_edge));
 	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE == to_idx(graphics::e::hrp_debug_view_overlay_flags_sys_common::transparent_edge));
 
+	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_NONE == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::none));
+	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::zoom));
+	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::value));
+
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_NONE == to_idx(graphics::e::hrp_debug_view_kind_gist::none));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_LUMINANCE_TILE == to_idx(graphics::e::hrp_debug_view_kind_gist::luminance_tile));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE == to_idx(graphics::e::hrp_debug_view_kind_gist::tile));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_pdf));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_pdf_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_PDF_GUIDED_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_pdf_guided_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DISTANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_distance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_LOCAL == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_dir_local));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_DIR_WORLD == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_dir_world));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_RADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_radiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_RAY_IRRADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_ray_irradiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_TILE_LUMIANCE_SUM == to_idx(graphics::e::hrp_debug_view_kind_gist::tile_lumiance_sum));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL == to_idx(graphics::e::hrp_debug_view_kind_gist::cell));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_RADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_radiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_irradiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_NEAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_irradiance_near));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_IRRADIANCE_FAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_irradiance_far));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_near_conf));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_CONF_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_near_conf_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_far_conf));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_CONF_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_far_conf_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_SURFEL_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_near_surfel_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_FAR_SURFEL_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_far_surfel_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_NEAR_FAR_SURFEL_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_near_far_surfel_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_COUNT_TOTAL == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_count_total));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_ID == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_id));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_radiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_IRRADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_irradiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_VISIBILITY == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_visibility));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_RAY_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_ray_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_invalid_ray_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_INVALID_RAY_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_invalid_ray_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_luminance_sum));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_LUMINANCE_SUM_RATIO == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_luminance_sum_ratio));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_NEAR_COVERAGE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_near_coverage));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_FAR_COVERAGE == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_far_coverage));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_NEAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_spawn_prob_near));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB_FAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_spawn_prob_far));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_SPAWN_PROB == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_spawn_prob));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_NEAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_kill_prob_near));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB_FAR == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_kill_prob_far));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_CELL_SURFEL_KILL_PROB == to_idx(graphics::e::hrp_debug_view_kind_gist::cell_surfel_kill_prob));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_RAW == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_raw));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_AGE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_age));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_MOMENTS == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_moments));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_CV == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_cv));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_VARIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_variance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_DIFFUSE_IS_ROUND_ROBIN == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_diffuse_is_round_robin));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_raw));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAW_RADIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_raw_radiance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_AGE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_age));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_HIT_DIST == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_hit_dist));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_CURVATURE == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_curvature));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_MOTION == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_motion));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_FILTER_RADIUS == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_filter_radius));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_PDF == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_ray_pdf));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_LOCAL == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_ray_dir_local));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_GI_SPECULAR_RAY_DIR_WORLD == to_idx(graphics::e::hrp_debug_view_kind_gist::gi_specular_ray_dir_world));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::adaptive_ray_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE == to_idx(graphics::e::hrp_debug_view_kind_gist::adaptive_ray_type));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_NEW_BORN == to_idx(graphics::e::hrp_debug_view_kind_gist::adaptive_ray_type_is_new_born));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_SPECULAR == to_idx(graphics::e::hrp_debug_view_kind_gist::adaptive_ray_type_is_specular));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_ADAPTIVE_RAY_TYPE_IS_VARIANCE == to_idx(graphics::e::hrp_debug_view_kind_gist::adaptive_ray_type_is_variance));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_STAT_CELL_SURFEL == to_idx(graphics::e::hrp_debug_view_kind_gist::stat_cell_surfel));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_STAT_RAY_COUNT == to_idx(graphics::e::hrp_debug_view_kind_gist::stat_ray_count));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_COUNT_CAP == to_idx(graphics::e::hrp_debug_view_kind_gist::stat_adaptive_ray_count_cap));
+	static_assert(AGE_DEBUG_VIEW_KIND_GIST_STAT_ADAPTIVE_RAY_ENTRY_PROB == to_idx(graphics::e::hrp_debug_view_kind_gist::stat_adaptive_ray_entry_prob));
+
+
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_TILE_GRID == to_idx(graphics::e::hrp_debug_view_overlay_flags_gist::diffuse_tile_grid));
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_DIFFUSE_LUMINANCE_TILE_GRID == to_idx(graphics::e::hrp_debug_view_overlay_flags_gist::diffuse_luminance_tile_grid));
+	static_assert(AGE_DEBUG_VIEW_OVERLAY_FLAGS_GIST_CELL_GRID == to_idx(graphics::e::hrp_debug_view_overlay_flags_gist::cell_grid));
+
+
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_NONE == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::none));
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_CONTRIBUTION == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::max_contribution));
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_NEAR_CONTRIBUTION == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::max_near_contribution));
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_MAX_FAR_CONTRIBUTION == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::max_far_contribution));
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_OLDEST == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::oldest));
+	static_assert(AGE_DEBUG_VIEW_GIST_CELL_SURFEL_SELECT_KIND_CLOSEST == to_idx(graphics::e::hrp_debug_view_gist_cell_surfel_select_kind::closest));
+
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ALL == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_surfel_all));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_ONE == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_surfel_one));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_VISIBILITY == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_visibility));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_NEAR_CONTRIBUTION == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_near_contribution));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_FAR_CONTRIBUTION == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_far_contribution));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_SURFEL_RAY == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_surfel_ray));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_irradiance));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_NEAR == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_irradiance_near));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_FAR == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::cell_irradiance_far));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_ADAPTIVE_RAY == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::adaptive_ray));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_DIFFUSE_RECONSTRUCT_TAP == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::gi_diffuse_reconstruct_tap));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_DIFFUSE_REPROJECT_TAP == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::gi_diffuse_reproject_tap));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_SPECULAR_RECONSTRUCT_TAP == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::gi_specular_reconstruct_tap));
+	static_assert(AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_GI_SPECULAR_REPROJECT_TAP == to_idx(graphics::e::hrp_debug_view_cursor_overlay_flags_gist::gi_specular_reproject_tap));
 
 #endif
 

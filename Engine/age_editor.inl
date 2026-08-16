@@ -496,7 +496,15 @@ namespace age::editor::detail
 
 			if (renderer.debug_view_enabled())
 			{
-				renderer.update_debug_view(ui::g::p_input_ctx->mouse_pos, ui::g::p_input_ctx->is_released(input::e::key_kind::mouse_left), ui::g::p_input_ctx->is_released(input::e::key_kind::key_escape));
+				if (ui::g::p_input_ctx->is_released(input::e::key_kind::key_i)
+					and ui::g::p_input_ctx->is_down(input::e::key_kind::key_ctrl)
+					and ui::g::p_input_ctx->is_down(input::e::key_kind::key_shift))
+				{
+					cmp.pick_enabled = not cmp.pick_enabled;
+				}
+
+				c_auto is_pick = cmp.pick_enabled and ui::g::p_input_ctx->is_released(input::e::key_kind::mouse_left);
+				renderer.update_debug_view(ui::g::p_input_ctx->mouse_pos, is_pick, ui::g::p_input_ctx->is_released(input::e::key_kind::key_escape));
 			}
 		}
 	}

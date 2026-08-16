@@ -36,6 +36,8 @@ namespace age::editor
 			desc.popup_zoom								= config.popup_zoom;
 			desc.background_color						= config.background_color;
 			desc.border_thickness						= config.border_thickness;
+
+			std::memcpy(desc.payload, config.payload, sizeof(config.payload));
 		};
 
 		slot_config_to_desc(debug_view_desc.fullscreen_slot_desc, cmp.fullscreen_slot_config, true);

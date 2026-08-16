@@ -39,7 +39,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		}
 		case AGE_DEBUG_VIEW_SYSTEM_KIND_GIST:
 		{
-			// color = gist::debug_view::eval_popup(data, popup_data, cursor_data, uv_local);
+			color = gist_debug_view::eval_popup(data, popup_data, cursor_data, uv_local);
 			break;
 		}
 		default:
@@ -84,9 +84,13 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		}
 		case AGE_DEBUG_VIEW_SYSTEM_KIND_GIST:
 		{
-			// color		   = gist::debug_view::eval_base(data, slot_data, uv_local);
-			// overlay		   = gist::debug_view::eval_overlay(data, slot_data, uv_local);
-			// cursor_overlay = gist::debug_view::eval_cursor_overlay(data, slot_data, uv_local);
+			if (gist::enabled())
+			{
+				color		   = gist_debug_view::eval_base(data, slot_data, uv_local);
+				overlay		   = gist_debug_view::eval_overlay(data, slot_data, uv_local);
+				cursor_overlay = gist_debug_view::eval_cursor_overlay(data, slot_idx, slot_data, uv_local);
+			}
+
 			break;
 		}
 		default:

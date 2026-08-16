@@ -1159,8 +1159,9 @@ namespace age::ecs
 
 		AGE_COMPONENT_VERSION(1);
 
-		bool	enabled = false;
-		uint8_3 _;
+		bool	enabled		 = false;
+		bool	pick_enabled = false;
+		uint8_2 _;
 		uint32	slot_count = 1u;										   // min : 1, max : 16
 
 		debug_view_slot_config					fullscreen_slot_config;	   // ignores size_uv

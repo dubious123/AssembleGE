@@ -360,19 +360,7 @@ namespace gist
 		debug_flag_helper(freeze_cell_surfel_spawn, GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN);
 		debug_flag_helper(freeze_cell_surfel_kill, GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL);
 		debug_flag_helper(freeze_cell_surfel_radius, GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS);
-		debug_flag_helper(render_cell, GIST_DEBUG_FLAGS_RENDER_CELL);
-		debug_flag_helper(render_cell_surfel_count, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT);
-		debug_flag_helper(render_cell_surfel_id_hash, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_ID_HASH);
-		debug_flag_helper(render_cell_surfel_radiance, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RADIANCE);
-		debug_flag_helper(render_cell_surfel_irradiance, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_IRRADIANCE);
-		debug_flag_helper(render_cell_surfel_normal, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NORMAL);
-		debug_flag_helper(render_cell_surfel_visibility, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_VISIBILITY);
-		debug_flag_helper(render_cell_surfel_near_coverage, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NEAR_COVERAGE);
-		debug_flag_helper(render_cell_surfel_far_coverage, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_FAR_COVERAGE);
-		debug_flag_helper(render_cell_surfel_ray_count, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RAY_COUNT);
-		debug_flag_helper(render_cell_surfel_age, GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_AGE);
-		debug_flag_helper(render_ray_count_ui, GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI);
-		debug_flag_helper(render_surfel_count_ui, GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI);
+		debug_flag_helper(freeze_cell_surfel_ray_trace, GIST_DEBUG_FLAGS_FREEZE_SURFEL_RAY_TRACE);
 #undef debug_flag_helper
 	}	 // namespace debug
 }	 // namespace gist
@@ -1866,6 +1854,24 @@ namespace gist
 				 : max(0.f, cdf[idx] - cdf[idx - 1]);
 	}
 
+	float
+	calc_guided_pdf(byte_array<half> luminance_cdf, float3 dir_local)
+	{
+		const float2  uv	= saturate(encode_world_hemi_octahedral(dir_local) * 0.5f + 0.5f);
+		const int32_2 texel = min(int32_2(uv * float(GIST_ATLAS_TILE_SIZE)), int32_2(GIST_ATLAS_TILE_SIZE - 1, GIST_ATLAS_TILE_SIZE - 1));
+
+		const float pdf_uv = max(calc_cdf_texel_prob(luminance_cdf, uint32(texel.y * GIST_ATLAS_TILE_SIZE + texel.x)), epsilon_1e4)
+						   * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
+
+		return pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
+	}
+
+	float
+	calc_cosine_pdf(float3 dir_local)
+	{
+		return max(epsilon_1e4, dir_local.y) * pi_inv;
+	}
+
 	float3
 	sample_guided_dir_local(byte_array<half> luminance_cdf, float guide_prob, float4 rand_4d, out float pdf)
 	{
@@ -1884,21 +1890,16 @@ namespace gist
 				const float2 jitter = rand_4d.yz;
 				const float2 uv		= saturate((int32_2(idx % GIST_ATLAS_TILE_SIZE, idx / GIST_ATLAS_TILE_SIZE) + jitter) / float(GIST_ATLAS_TILE_SIZE));
 				dir_local			= decode_world_hemi_octahedral(uv * 2.f - 1.f);
+				pdf_cos				= calc_cosine_pdf(dir_local);
 
 				const float pdf_uv = max(calc_cdf_texel_prob(luminance_cdf, idx), epsilon_1e4) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
 				pdf_guide		   = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
-				pdf_cos			   = max(epsilon_1e4, dir_local.y) * pi_inv;
 			}
 			else
 			{
 				dir_local = sample_hemisphere_cosine_local_y_up(rand_4d.xy);
-				pdf_cos	  = max(epsilon_1e4, dir_local.y) * pi_inv;
-
-				const float2  uv	= saturate(encode_world_hemi_octahedral(dir_local) * 0.5f + 0.5f);
-				const int32_2 texel = min(int32_2(uv * float(GIST_ATLAS_TILE_SIZE)), int32_2(GIST_ATLAS_TILE_SIZE - 1, GIST_ATLAS_TILE_SIZE - 1));
-
-				const float pdf_uv = calc_cdf_texel_prob(luminance_cdf, uint32(texel.y * GIST_ATLAS_TILE_SIZE + texel.x)) * float(GIST_ATLAS_TILE_SIZE * GIST_ATLAS_TILE_SIZE) * 0.25f;
-				pdf_guide		   = pdf_uv / math::jacobian::calc_hemi_oct(uv * 2.f - 1.f);
+				pdf_cos	  = calc_cosine_pdf(dir_local);
+				pdf_guide = calc_guided_pdf(luminance_cdf, dir_local);
 			}
 
 			pdf = guide_prob * pdf_guide + (1.f - guide_prob) * pdf_cos;
@@ -1906,7 +1907,7 @@ namespace gist
 		else
 		{
 			dir_local = sample_hemisphere_cosine_local_y_up(rand_4d.xy);
-			pdf		  = max(epsilon_1e4, dir_local.y) * pi_inv;	   // dir_local.y == cos_theta
+			pdf		  = calc_cosine_pdf(dir_local);	   // dir_local.y == cos_theta
 		}
 
 		assert(pdf > 0.f, line, pdf);
@@ -2001,6 +2002,44 @@ namespace gist
 
 namespace gist
 {
+	// based on Nathan Reed 2015
+	// https://computergraphics.stackexchange.com/questions/1718/what-is-the-simplest-way-to-compute-principal-curvature-for-a-mesh-triangle
+	float
+	calc_curvature(texture_2d<uint32_2> gbuffer, texture_2d<float> depth_buffer,
+				   int32_2 px, int32_2 extent, float3 world_pos, float3 normal)
+	{
+		const float px_size_y = length(world_pos - camera_pos) * 2.f * tan_fov_y_half * inv_backbuffer_size.y;
+
+		float  curvature_sum = 0.f;
+		uint32 count		 = 0u;
+
+		expand_all()
+
+		for (uint32 i = 0; i < 2; ++i)
+		{
+			const int32_2 px_tap = min(px + (i == 0 ? int32_2(1, 0) : int32_2(0, 1)), extent - 1);
+
+			const float z_depth = depth_buffer[px_tap];
+
+			// sky
+			if (z_depth == 0.f) { continue; }
+
+			const float3 dp	   = screen_px_to_world(px_tap, z_depth, inv_backbuffer_size, view_proj_inv) - world_pos;
+			const float	 dp_sq = dot(dp, dp);
+
+			if (dp_sq <= 0.f) { continue; }
+			if (dp_sq > px_size_y * px_size_y * 16.f) { continue; }
+
+			const float3 dn = decode_oct_snorm16(gbuffer[px_tap].y) - normal;
+
+			// curvature = dot(dn, dp) / |dp|^2
+			curvature_sum += dot(dn, dp) / dp_sq;
+			++count;
+		}
+
+		return count > 0u ? curvature_sum / float(count) : 0.f;
+	};
+
 	// Lagarde et al.SIGGRAPH 2014
 	// "Moving Frostbite to Physically Based Rendering" p.77
 	// https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf

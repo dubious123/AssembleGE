@@ -181,7 +181,8 @@ namespace age::graphics::e
 							   (none, 0),
 							   (freeze_surfel_spawn, (1u << 0u)),
 							   (freeze_surfel_kill, (1u << 1u)),
-							   (freeze_surfel_radius, (1u << 2u)));
+							   (freeze_surfel_radius, (1u << 2u)),
+							   (freeze_surfel_ray_trace, (1u << 3u)));
 
 	AGE_ENUM_FLAG_OPERATORS(gist_debug_flags);
 
@@ -235,6 +236,126 @@ namespace age::graphics::e
 						  (transparent, (1u << 1u)),
 						  (opaque_edge, (1u << 2u)),
 						  (transparent_edge, (1u << 3u)));
+
+
+	AGE_DEFINE_ENUM(hrp_debug_view_gist_popup_kind, uint32, none, zoom, value);
+	AGE_DEFINE_ENUM(hrp_debug_view_kind_gist, uint32,
+					none,
+					luminance_tile,
+					tile,
+					tile_ray_pdf,
+					tile_ray_pdf_ratio,
+					tile_ray_pdf_guided_ratio,
+					tile_ray_distance,
+					tile_ray_dir_local,
+					tile_ray_dir_world,
+					tile_ray_radiance,
+					tile_ray_irradiance,
+					tile_lumiance_sum,
+					cell,
+					cell_radiance,
+					cell_irradiance,
+					cell_irradiance_near,
+					cell_irradiance_far,
+					cell_near_conf,
+					cell_near_conf_ratio,
+					cell_far_conf,
+					cell_far_conf_ratio,
+					cell_near_surfel_count,
+					cell_far_surfel_count,
+					cell_near_far_surfel_count,
+					cell_surfel_count_total,
+					cell_surfel_id,
+					cell_surfel_radiance,
+					cell_surfel_irradiance,
+					cell_surfel_visibility,
+					cell_surfel_ray_count,
+					cell_surfel_invalid_ray_count,
+					cell_surfel_invalid_ray_ratio,
+					cell_surfel_luminance_sum,
+					cell_surfel_luminance_sum_ratio,
+					cell_surfel_near_coverage,
+					cell_surfel_far_coverage,
+					cell_surfel_spawn_prob_near,
+					cell_surfel_spawn_prob_far,
+					cell_surfel_spawn_prob,
+					cell_surfel_kill_prob_near,
+					cell_surfel_kill_prob_far,
+					cell_surfel_kill_prob,
+					gi_diffuse,
+					gi_diffuse_raw,
+					gi_diffuse_age,
+					gi_diffuse_moments,
+					gi_diffuse_cv,
+					gi_diffuse_variance,
+					gi_diffuse_is_round_robin,
+					gi_specular,
+					gi_specular_raw,
+					gi_specular_raw_radiance,
+					gi_specular_age,
+					gi_specular_hit_dist,
+					gi_specular_curvature,
+					gi_specular_motion,
+					gi_specular_filter_radius,
+					gi_specular_ray_pdf,
+					gi_specular_ray_dir_local,
+					gi_specular_ray_dir_world,
+					adaptive_ray_count,
+					adaptive_ray_type,
+					adaptive_ray_type_is_new_born,
+					adaptive_ray_type_is_specular,
+					adaptive_ray_type_is_variance,
+					stat_cell_surfel,
+					stat_ray_count,
+					stat_adaptive_ray_count_cap,
+					stat_adaptive_ray_entry_prob);
+
+	AGE_DEFINE_ENUM_FLAGS(hrp_debug_view_overlay_flags_gist, uint32,
+						  (none, 0),
+						  (diffuse_tile_grid, (1u << 0u)),
+						  (diffuse_luminance_tile_grid, (1u << 1u)),
+						  (cell_grid, (1u << 2u)));
+
+	AGE_DEFINE_ENUM(hrp_debug_view_gist_cell_surfel_select_kind, uint32,
+					none,
+					max_contribution,
+					max_near_contribution,
+					max_far_contribution,
+					oldest,
+					closest);
+
+	AGE_DEFINE_ENUM_FLAGS(hrp_debug_view_cursor_overlay_flags_gist, uint32,
+						  (none, 0),
+						  (cell_surfel_all, (1u << 0u)),
+						  (cell_surfel_one, (1u << 1u)),
+						  (cell_visibility, (1u << 2u)),
+						  (cell_near_contribution, (1u << 3u)),
+						  (cell_far_contribution, (1u << 4u)),
+						  (cell_surfel_ray, (1u << 5u)),
+						  (cell_irradiance, (1u << 6u)),
+						  (cell_irradiance_near, (1u << 7u)),
+						  (cell_irradiance_far, (1u << 8u)),
+						  (adaptive_ray, (1u << 9u)),
+						  (gi_diffuse_reconstruct_tap, (1u << 10u)),
+						  (gi_diffuse_reproject_tap, (1u << 11u)),
+						  (gi_specular_reconstruct_tap, (1u << 12u)),
+						  (gi_specular_reproject_tap, (1u << 13u))
+
+	);
+
+	AGE_DEFINE_ENUM(hrp_debug_view_gist_cell_surfel_render_flags, uint32,
+					none,
+					// brush
+					id,
+					normal,
+					radiance,
+					irradiance,
+					// color
+					normal_ray,
+					point,
+					disk,
+					sphere);
+
 
 }	 // namespace age::graphics::e
 

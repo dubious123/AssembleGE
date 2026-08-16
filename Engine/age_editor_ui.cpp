@@ -978,6 +978,7 @@ namespace age::editor
 			gist_flag_checkbox(freeze_surfel_spawn);
 			gist_flag_checkbox(freeze_surfel_kill);
 			gist_flag_checkbox(freeze_surfel_radius);
+			gist_flag_checkbox(freeze_surfel_ray_trace);
 #undef gist_flag_checkbox
 
 			update_debug_flags = cmp.gist_debug_flags != debug_flag_cached;
@@ -1070,6 +1071,7 @@ namespace age::editor
 	ui_component(age::ecs::debug_view_config& cmp, bool aa_enabled, bool ao_enabled, bool ddgi_enabled, bool gibs_enabled, bool gist_enabled) noexcept
 	{
 		ui::widget::checkbox("enable", cmp.enabled);
+		ui::widget::checkbox("enable_pick [ctrl shift I]", cmp.pick_enabled);
 
 		if (cmp.enabled is_false) { return false; }
 
@@ -1078,22 +1080,6 @@ namespace age::editor
 			auto _ = ui::id_begin();
 			update = ui::widget::button2("update");
 		}
-
-		ui::widget::numeric_field(cmp.popup_view_size_uv, "popup_view_size_uv", float2::zero(), float2::one());
-		ui::widget::numeric_field(cmp.popup_border_thickness, "popup_border_thickness", 0u, 16u);
-
-		ui::widget::text("nan_color");
-		ui::widget::color_field(cmp.nan_color, 0.f, 1000.f);
-		ui::widget::text("pos_inf_color");
-		ui::widget::color_field(cmp.pos_inf_color, 0.f, 1000.f);
-		ui::widget::text("neg_inf_color");
-		ui::widget::color_field(cmp.neg_inf_color, 0.f, 1000.f);
-		ui::widget::text("zero_color");
-		ui::widget::color_field(cmp.zero_color, 0.f, 1000.f);
-		ui::widget::text("below_min_color");
-		ui::widget::color_field(cmp.below_min_color, 0.f, 1000.f);
-		ui::widget::text("above_max_color");
-		ui::widget::color_field(cmp.above_max_color, 0.f, 1000.f);
 
 		if (auto _ = ui::widget::begin(ui::style::horizontal() | ui::set_width_grow() | ui::set_height_fit()))
 		{
@@ -1141,22 +1127,40 @@ namespace age::editor
 				{
 					ui::widget::text("view_kind");
 					ui::widget::dropdown<age::graphics::e::hrp_debug_view_kind_sys_common>(slot_config.system_debug_view_kind);
-					ui::widget::text("overlay_flags");
-					auto buf = std::array<char, 64>{};
-					util::integral_to_str<2>(buf, slot_config.system_debug_view_overlay_flags);
-					ui::widget::dropdown_flags<age::graphics::e::hrp_debug_view_overlay_flags_sys_common>(slot_config.system_debug_view_overlay_flags, buf.data());
+
 					ui::widget::text("popup_kind");
 					ui::widget::dropdown<age::graphics::e::hrp_debug_view_sys_common_popup_kind>(slot_config.system_popup_view_kind);
+
+					ui::widget::checkbox_flags<age::graphics::e::hrp_debug_view_overlay_flags_sys_common>("overlay_flags", slot_config.system_debug_view_overlay_flags, false);
+					break;
+				}
+				case age::graphics::e::hrp_debug_view_system_kind::gist:
+				{
+					if (gist_enabled is_false)
+					{
+						ui::widget::text("gist is disabled");
+						break;
+					}
+
+					ui::widget::text("surfel_select_mode");
+					ui::widget::dropdown<age::graphics::e::hrp_debug_view_gist_cell_surfel_select_kind>(slot_config.payload[0].x);
+
+					ui::widget::text("view_kind");
+					ui::widget::dropdown<age::graphics::e::hrp_debug_view_kind_gist>(slot_config.system_debug_view_kind);
+
+					ui::widget::text("popup_kind");
+					ui::widget::dropdown<age::graphics::e::hrp_debug_view_gist_popup_kind>(slot_config.system_popup_view_kind);
+
+					ui::widget::checkbox_flags<age::graphics::e::hrp_debug_view_overlay_flags_gist>("overlay_flags", slot_config.system_debug_view_overlay_flags, false);
+					ui::widget::checkbox_flags<age::graphics::e::hrp_debug_view_cursor_overlay_flags_gist>("overlay_cursor_flags", slot_config.system_debug_view_cursor_overlay_flags, false);
+
 					break;
 				}
 				default:
 					break;
 				}
 
-				ui::widget::text("slot_option");
-				auto buf = std::array<char, 64>{};
-				util::integral_to_str<2>(buf, to_idx(slot_config.option_flags));
-				ui::widget::dropdown_flags<age::graphics::e::hrp_debug_view_slot_option_flags>(slot_config.option_flags, buf.data());
+				ui::widget::checkbox_flags<age::graphics::e::hrp_debug_view_slot_option_flags>("slot_option_flags", slot_config.option_flags, false);
 
 				ui::widget::text("color_map");
 				ui::widget::dropdown<age::graphics::e::hrp_debug_view_color_map_kind>(slot_config.color_map_kind);
@@ -1188,6 +1192,23 @@ namespace age::editor
 			ui::widget::separator_v();
 			slot_func(false, slot_config, cast_to<uint32>(i));
 		}
+
+		ui::widget::separator_v();
+		ui::widget::numeric_field(cmp.popup_view_size_uv, "popup_view_size_uv", float2::zero(), float2::one());
+		ui::widget::numeric_field(cmp.popup_border_thickness, "popup_border_thickness", 0u, 16u);
+
+		ui::widget::text("nan_color");
+		ui::widget::color_field(cmp.nan_color, 0.f, 1000.f);
+		ui::widget::text("pos_inf_color");
+		ui::widget::color_field(cmp.pos_inf_color, 0.f, 1000.f);
+		ui::widget::text("neg_inf_color");
+		ui::widget::color_field(cmp.neg_inf_color, 0.f, 1000.f);
+		ui::widget::text("zero_color");
+		ui::widget::color_field(cmp.zero_color, 0.f, 1000.f);
+		ui::widget::text("below_min_color");
+		ui::widget::color_field(cmp.below_min_color, 0.f, 1000.f);
+		ui::widget::text("above_max_color");
+		ui::widget::color_field(cmp.above_max_color, 0.f, 1000.f);
 
 		return update;
 	}

@@ -1235,12 +1235,6 @@ namespace age::graphics::render_pipeline
 			stage_bloom.execute(root_constants, h_bloom_chain, bloom_mip_count, bloom_gpu);
 		}
 
-
-		if (gist_enabled() and gist_data_cpu.render_debug_view)
-		{
-			// todo
-		}
-
 		stage_post_process.execute(h_post_buffer_rtv_desc);
 
 		command::apply_barriers(barrier::tex_srv_to_uav(h_opaque_geo_prev_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));

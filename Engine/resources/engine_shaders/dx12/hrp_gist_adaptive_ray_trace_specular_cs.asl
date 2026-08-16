@@ -24,7 +24,6 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	const float3 world_pos	   = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
 	const float3 normal		   = decode_octahedral(shading_normal[px]);
 	const float3 vertex_normal = decode_oct_snorm16(gbuffer[px].y);
-	const float3 view		   = normalize(camera_pos - world_pos);
 	const float	 roughness	   = max(mr_buffer[px].g, brdf::ggx::roughness_min);
 	const float	 alpha		   = roughness * roughness;
 
@@ -33,7 +32,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	float pdf;
 
 	const float3x3 world_to_local = gen_world_normal_transform_t(normal);
-	const float3   view_local	  = mul(world_to_local, view);
+	const float3   view_local	  = mul(world_to_local, normalize(camera_pos - world_pos));
 	const float3   dir_local	  = brdf::ggx::sample_vndf_dir(view_local, alpha, rand_3d.xy, pdf);
 
 	gist_ray_hit_result res = zero<gist_ray_hit_result>();
