@@ -51,7 +51,33 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 
 	if (gist::debug::freeze_cell_surfel_radius(data) is_false)
 	{
-		surfel.radius = gist::calc_cell_surfel_radius(data, gist::load_lut_data(), surfel.position);
+		const half new_radius = gist::calc_cell_surfel_radius(data, gist::load_lut_data(), surfel.position);
+
+		if (surfel.is_new_born() is_false and surfel.radius != new_radius)
+		{
+			const float ratio	 = float(surfel.radius) / max(float(new_radius), epsilon_1e6);
+			const float ratio_sq = ratio * ratio;
+
+			rw_byte_array<uint16> vis_arr = gist::cell::visibility_rw_arr(data, surfel_id);
+			for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
+			{
+				const uint16 chebyshev_packed = gist::cell::visibility_rw_arr(data, surfel_id)[i];
+
+				const float2 chebyshev_res = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)))
+										   * surfel.radius
+										   / new_radius;
+
+				vis_arr.store(i, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
+
+				const float mean	= saturate(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)) * ratio);
+				const float sq_mean = saturate(unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)) * ratio_sq);
+
+				vis_arr.store(i, uint16(float_to_unorm8(mean) | (float_to_unorm8(sq_mean) << 8u)));
+			}
+		}
+
+		surfel.radius = new_radius;
+		// surfel.radius = gist::calc_cell_surfel_radius(data, gist::load_lut_data(), surfel.position);
 	}
 
 	surfel_buffer[surfel_id] = surfel;

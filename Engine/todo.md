@@ -286,8 +286,6 @@ surfel asym 검사할때 normal을 vertex normal대신 face normal로 변경해�
 shading normal vs geo_normal 통일
 
 
-gist 구현 완료 
-specular 추가 
 
 aa쪽에 specular를 추가하고 
 debug view 추가하고
@@ -299,3 +297,14 @@ NEE + ray 최적화
 upload_data 최적화
 blend_buffer를 삭제하고 main_buffer와 통합
 skybox pass 통합?
+
+## GIST
+leak 많이 줄임
+
+specular의 reflect ray hit에서 cell surfel이 잘 안생기는 문제가 있음. 
+
+그래서 GIST VS GIBS 뭐가 더 남? 
+잘 모르겠음. 
+
+어두운 scene 기준 noise는 GIBS가 win 
+GIST는 specular 가 있음 

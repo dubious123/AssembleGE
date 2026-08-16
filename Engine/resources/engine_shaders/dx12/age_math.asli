@@ -1368,6 +1368,40 @@ gen_world_normal_transform(float3 normal)
 	return transpose(gen_world_normal_transform_t(normal));
 }
 
+float
+calc_point_to_ellipse_distance(float2 p, float2 c, float2 a, float2 b)
+{
+	const float det = a.x * b.y - a.y * b.x;
+
+	if (abs(det) < epsilon_1e4) { return float_max; }
+
+	const float2 rel = p - c;
+
+	const float2 unit = float2(rel.x * b.y - rel.y * b.x,
+							   rel.y * a.x - rel.x * a.y)
+					  / det;
+
+	const float scale = 0.5f * (length(a) + length(b));
+
+	return (length(unit) - 1.f) * scale;
+}
+
+float
+calc_px_point_to_disk_distance(float4x4 view_proj, float2 backbuffer_size, float2 px,
+							   float3 center, float3 normal, float radius)
+{
+	const float3x3 transform = gen_world_normal_transform_t(normal);
+
+	const float3 t1 = transform[0];
+	const float3 t2 = transform[2];
+
+	const float2 c_px	  = world_to_screen(view_proj, center, backbuffer_size) + 0.5f;
+	const float2 a_end_px = world_to_screen(view_proj, center + t1 * radius, backbuffer_size) + 0.5f;
+	const float2 b_end_px = world_to_screen(view_proj, center + t2 * radius, backbuffer_size) + 0.5f;
+
+	return calc_point_to_ellipse_distance(px, c_px, a_end_px - c_px, b_end_px - c_px);
+}
+
 float3
 sample_tbn_hemisphere_cosine_local(float2 xi)
 {

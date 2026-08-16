@@ -72,6 +72,32 @@ namespace debug_view
 		set_cursor_data(data, cursor_data, 0u);
 	}
 
+	template <typename t_type, bool is_rw = false>
+	t_type
+	load_cursor_scratch_data(const in debug_view_data data, uint32 idx)
+	{
+		attr_branch()
+
+		if (is_rw)
+		{
+			rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id];
+			return load<t_type>(buf, data.cursor_scratch_data_offset() + data.cursor_scratch_data_size() * idx);
+		}
+		else
+		{
+			byte_address_buffer buf = global_resource_buffer[buffer_srv_id];
+			return load<t_type>(buf, data.cursor_scratch_data_offset() + data.cursor_scratch_data_size() * idx);
+		}
+	}
+
+	template <typename t_type>
+	void
+	set_cursor_scratch_data(const in debug_view_data data, const in t_type cursor_scratch_data, uint32 idx)
+	{
+		rw_byte_address_buffer buf = global_resource_buffer[buffer_uav_id];
+		store<t_type>(buf, data.cursor_scratch_data_offset() + data.cursor_scratch_data_size() * idx, cursor_scratch_data);
+	}
+
 #undef buffer_uav_id
 #undef buffer_srv_id
 #undef helper_func
@@ -400,6 +426,16 @@ namespace debug_view
 				  float						   log_scale_knee_ratio = epsilon_1e4)
 	{
 		return resolve_value(data, slot_data, value, low, high, cursor_data.raw_value.r, cursor_data.scaled_value.r, log_scale_knee_ratio);
+	}
+
+	template <typename t_type, bool apply_normalize = false, bool log_scale = false>
+	float3
+	resolve_value(const in debug_view_data data, const in debug_view_slot_data slot_data,
+				  t_type value, t_type low, t_type high,
+				  float log_scale_knee_ratio = epsilon_1e4)
+	{
+		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
+		return resolve_value(data, slot_data, value, low, high, cursor_data, log_scale_knee_ratio);
 	}
 }	 // namespace debug_view
 

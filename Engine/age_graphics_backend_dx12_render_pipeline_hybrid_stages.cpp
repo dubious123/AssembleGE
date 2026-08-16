@@ -1217,7 +1217,7 @@ namespace age::graphics::render_pipeline
 								barrier::buf_uav_to_uav(gist_data_cpu.h_cell_surfel_msme_buffer),
 
 								barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_geo_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_visibility_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								// barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_visibility_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_luminance_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 
@@ -1274,6 +1274,9 @@ namespace age::graphics::render_pipeline
 		command::execute_indirect(p_cmd_sig, gist_data_cpu.h_indirect_arg_buffer, offsetof(shared_type::gist_indirect_arg, arg_update_cell_surfel_id_stack));
 		command::apply_barriers(barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_dead_id_stack_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_alive_id_stack_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+
+								barrier::buf_uav_to_srv(gist_data_cpu.h_cell_surfel_visibility_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+
 
 								barrier::buf_indirect_to_uav(gist_data_cpu.h_indirect_arg_buffer));
 

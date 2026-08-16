@@ -1556,12 +1556,25 @@ namespace gist
 	}
 
 	float
-	calc_near_contribution(float dist, float radius, float3 surfel_normal, float3 normal)
+	calc_surfel_below_plane_tolerance(float3 surfel_normal, float3 normal)
+	{
+		// sin(θ/2) = sqrt((1 − cosθ)/2)
+		const float bend = sqrt(max(0.5f * (1.f - dot(surfel_normal, normal)), 0.f));
+
+		return min(bend, 0.5f) + 0.02f;
+	}
+
+	float
+	calc_near_contribution(float3 dir, float dist, float radius, float3 surfel_normal, float3 normal)
 	{
 		const float cos_theta = dot(normal, surfel_normal);
 		if (cos_theta <= 0.f) { return 0.f; }
 
-		return cos_theta * smoothstep(0, 1, (1.f - dist / radius));
+		const float s_dot_l			= dot(surfel_normal, -dir);
+		const float plane_tolerance = calc_surfel_below_plane_tolerance(surfel_normal, normal);
+		const float plane_fade		= smoothstep(-plane_tolerance, -plane_tolerance * 0.5f, s_dot_l);
+
+		return cos_theta * plane_fade * smoothstep(0, 1, (1.f - dist / radius));
 	}
 
 	float
@@ -1630,7 +1643,7 @@ namespace gist
 
 			float visibility = gist::calc_surfel_visibility(data, surfel_id, surfel, world_pos);
 
-			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, normal)
+			const float near_contribution = gist::calc_near_contribution(dir, dist, surfel.radius, surfel_normal, normal)
 										  * visibility;
 
 			if (near_contribution > 0.f)

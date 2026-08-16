@@ -5,7 +5,7 @@ namespace gist_debug_view
 {
 	float3
 	eval_base(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local,
-			  inout debug_view_cursor_data cursor_data)
+			  inout debug_view_cursor_data cursor_data, uint32 cursor_id)
 	{
 		cursor_data.raw_value				  = zero<float3>();
 		cursor_data.scaled_value			  = zero<float3>();
@@ -154,7 +154,7 @@ namespace gist_debug_view
 
 			float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, world_pos);
 
-			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, normal)
+			const float near_contribution = gist::calc_near_contribution(dir, dist, surfel.radius, surfel_normal, normal)
 										  * visibility;
 
 			if (near_contribution > 0.f)
@@ -288,6 +288,22 @@ namespace gist_debug_view
 		if (surfel_id != invalid_id_uint32)
 		{
 			surfel = surfel_buffer[surfel_id];
+
+
+			debug_view_cursor_scratch_data_gist cursor_gist_data = zero<debug_view_cursor_scratch_data_gist>();
+
+			cursor_gist_data.surfel_id			  = surfel_id;
+			cursor_gist_data.irradiance_near	  = irradiance_near;
+			cursor_gist_data.irradiance_far		  = irradiance_far;
+			cursor_gist_data.near_conf			  = near_conf;
+			cursor_gist_data.far_conf			  = far_conf;
+			cursor_gist_data.surfel_near_coverage = surfel_near_coverage;
+			cursor_gist_data.surfel_far_coverage  = surfel_far_coverage;
+			cursor_gist_data.kill_surfel_id		  = kill_surfel_id;
+			cursor_gist_data.far_surfel_id		  = far_surfel_id;
+			cursor_gist_data.near_surfel_id		  = near_surfel_id;
+
+			debug_view::set_cursor_scratch_data(data, cursor_gist_data, cursor_id);
 		}
 
 		byte_array<half> surfel_luminance_cdf = gist::cell::luminance_cdf_arr(gist_data, surfel_id);
@@ -695,7 +711,7 @@ namespace gist_debug_view
 	eval_base(const in debug_view_data data, const in debug_view_slot_data slot_data, float2 uv_local)
 	{
 		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
-		return eval_base(data, slot_data, uv_local, cursor_data);
+		return eval_base(data, slot_data, uv_local, cursor_data, invalid_id_uint32);
 	}
 
 	float4
@@ -850,7 +866,7 @@ namespace gist_debug_view
 
 				float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, cursor_world_pos);
 
-				const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, cursor_normal)
+				const float near_contribution = gist::calc_near_contribution(dir, dist, surfel.radius, surfel_normal, cursor_normal)
 											  * visibility;
 
 				if (near_contribution > 0.f)
@@ -914,7 +930,7 @@ namespace gist_debug_view
 					const int32_2 surfel_px = world_to_screen(view_proj, surfel.position, backbuffer_size);
 					if (calc_point_to_segment_distance(float2(px) + 0.5f, float2(cursor_px) + 0.5f, float2(surfel_px) + 0.5f) < 4.f)
 					{
-						color += color_red;
+						color = color_red;
 					}
 				}
 			}
@@ -987,10 +1003,24 @@ namespace gist_debug_view
 				{
 					const int32_2 surfel_px = world_to_screen(view_proj, surfel.position, backbuffer_size);
 
+					const int32_2 surfel_normal_px = world_to_screen(view_proj, surfel.position + decode_oct_snorm16(surfel.normal_oct_snorm16) * surfel.radius, backbuffer_size);
+
 					if (calc_point_to_segment_distance(float2(px) + 0.5f, float2(cursor_px) + 0.5f, float2(surfel_px) + 0.5f) < 4.f)
 					{
-						color += color_red;
+						color = color_red;
 					}
+
+					if (calc_point_to_segment_distance(float2(px) + 0.5f, float2(surfel_normal_px) + 0.5f, float2(surfel_px) + 0.5f) < 4.f)
+					{
+						color = color_green;
+					}
+
+					const float disc_dist = calc_px_point_to_disk_distance(
+						view_proj, backbuffer_size, float2(px) + 0.5f,
+						surfel.position, decode_oct_snorm16(surfel.normal_oct_snorm16), surfel.radius);
+
+					if (abs(disc_dist) < 2.f) { color = color_blue; }
+					else if (disc_dist < 0.f) { color = lerp(color, color_blue, 0.15f); }
 				}
 			}
 
@@ -1004,7 +1034,7 @@ namespace gist_debug_view
 
 			float visibility = gist::calc_surfel_visibility(gist_data, surfel_id, surfel, px_world_pos);
 
-			const float near_contribution = gist::calc_near_contribution(dist, surfel.radius, surfel_normal, cursor_normal)
+			const float near_contribution = gist::calc_near_contribution(dir, dist, surfel.radius, surfel_normal, cursor_normal)
 										  * visibility;
 
 			const float3 irradiance_near = decode_r11g11b10(surfel.irradiance_r11g11b10)
@@ -1025,48 +1055,46 @@ namespace gist_debug_view
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_VISIBILITY>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += color_red * visibility;
+				color = color_red * visibility;
 			}
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_NEAR_CONTRIBUTION>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += color_green * near_contribution;
+				color = color_green * near_contribution;
 			}
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_FAR_CONTRIBUTION>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += color_blue * far_contribution;
+				color = color_blue * far_contribution;
 			}
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += float4(irradiance, near_conf + far_conf);
+				color = float4(irradiance, near_conf + far_conf);
 			}
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_NEAR>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += float4(irradiance_near, near_contribution);
+				color = float4(irradiance_near, near_contribution);
 			}
 
 			if (util::is_flag_set<AGE_DEBUG_VIEW_CURSOR_OVERLAY_FLAGS_GIST_CELL_IRRADIANCE_FAR>(slot_data.system_debug_view_cursor_overlay_flags))
 			{
-				color += float4(irradiance_far, far_contribution);
+				color = float4(irradiance_far, far_contribution);
 			}
-		}
-
-		if (color.a > 0.f)
-		{
-			color.rgb /= color.a;
-			return float4(color.rgb, 1.f);
 		}
 
 		return color;
 	}
 
 	float3
-	eval_popup(const in debug_view_data data, const in debug_view_popup_data popup_data, const in debug_view_cursor_data cursor_data, float2 popup_uv_local)
+	eval_popup(const in debug_view_data data, const in debug_view_popup_data popup_data, const in debug_view_cursor_data cursor_data, const uint32 cursor_id, float2 popup_uv_local)
 	{
 		const debug_view_slot_data slot_data = debug_view::load_slot_data(data, cursor_data.slot_id);
+
+		const debug_view_cursor_scratch_data_gist scratch_data = debug_view::load_cursor_scratch_data<debug_view_cursor_scratch_data_gist>(data, cursor_id);
+
+		const gist_data gist_data = gist::load_data();
 
 		attr_branch()
 
@@ -1093,6 +1121,33 @@ namespace gist_debug_view
 		case AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE:
 		{
 			return debug_view::draw_value_bars(cursor_data, popup_uv_local);
+		}
+		case AGE_DEBUG_VIEW_GIST_POPUP_KIND_CELL_SURFEL_CHEBYSHEV:
+		{
+			const uint32 surfel_id = scratch_data.surfel_id;
+			if (surfel_id == invalid_id_uint32) { break; }
+
+			byte_array<uint16> visibility_arr = gist::cell::visibility_arr(gist_data, surfel_id);
+
+			const float3 dir_local = decode_world_hemi_octahedral(popup_uv_local * 2.f - 1.f);
+			const uint32 idx	   = gist::calc_atlas_tile_local_idx(dir_local);
+
+			const uint16 packed	 = visibility_arr[idx];
+			const float	 mean	 = unorm8_to_float(uint32_x_to_uint8(packed));
+			const float	 sq_mean = unorm8_to_float(uint32_y_to_uint8(packed));
+
+			const float stddev = sqrt(max(sq_mean - mean * mean, 0.f));
+
+			float3 color = debug_view::resolve_value<float3, true, false>(
+				data, slot_data, float3(mean, stddev, 0.f), zero<float3>(), float3(1.f, 1.f, 1.f));
+
+			const float2 texel_pos = popup_uv_local * float(GIST_ATLAS_TILE_SIZE);
+			const float2 to_border = abs(frac(texel_pos) - 0.5f);
+			const float	 border_d  = 0.5f - max(to_border.x, to_border.y);
+
+			if (border_d < 0.04f) { color = float3(0.15f, 0.15f, 0.15f); }
+
+			return color;
 		}
 		default:
 			break;

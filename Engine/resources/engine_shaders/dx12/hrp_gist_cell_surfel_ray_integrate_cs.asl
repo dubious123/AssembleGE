@@ -80,8 +80,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		vis_arr.store(idx, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 	}
 
-	const bool kill = (ray_count <= 8u and opaque_back_face_count >= 2)
-				   or (ray_count > 8u and opaque_back_face_count >= ray_count / 4);
+	const bool kill = (ray_count <= 8u and opaque_back_face_count >= 1)
+				   or (ray_count > 8u and opaque_back_face_count >= ray_count / 8);
 	if (kill)
 	{
 		surfel.kill();

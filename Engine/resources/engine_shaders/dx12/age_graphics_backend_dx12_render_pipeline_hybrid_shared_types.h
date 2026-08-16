@@ -56,9 +56,18 @@ namespace age::graphics::render_pipeline::shared_type
 		int32_4 rect;
 	};
 
-	struct debug_view_cursor_data_gist
+	struct debug_view_cursor_scratch_data_gist
 	{
 		uint32 surfel_id;
+		float3 irradiance_near;
+		float3 irradiance_far;
+		float  near_conf;
+		float  far_conf;
+		float  surfel_near_coverage;
+		float  surfel_far_coverage;
+		uint32 kill_surfel_id;
+		uint32 far_surfel_id;
+		uint32 near_surfel_id;
 	};
 
 	// idx 0 : hover, above : picked
@@ -79,20 +88,6 @@ namespace age::graphics::render_pipeline::shared_type
 		float	z_lin;
 
 		uint32_4 system_scratch[4];
-
-		debug_view_cursor_data_gist
-		load_gist_data() CONST
-		{
-			debug_view_cursor_data_gist res;
-			res.surfel_id = system_scratch[0].x;
-			return res;
-		}
-
-		void
-		set_gist_data(const debug_view_cursor_data_gist data)
-		{
-			system_scratch[0].x = data.surfel_id;
-		}
 	};
 
 	struct debug_view_data
@@ -153,6 +148,18 @@ namespace age::graphics::render_pipeline::shared_type
 		slot_rect_offset() CONST
 		{
 			return cursor_data_offset() + sizeof(debug_view_cursor_data) * 2;
+		}
+
+		uint32
+		cursor_scratch_data_offset() CONST
+		{
+			return slot_rect_offset() + sizeof(int32_4) * 16;
+		}
+
+		uint32
+		cursor_scratch_data_size() CONST
+		{
+			return sizeof(debug_view_cursor_scratch_data_gist);
 		}
 	};
 
@@ -2195,7 +2202,7 @@ namespace age::graphics::render_pipeline::g
 
 #endif
 
-	//---[ gist ]------------------------------------------------------------------------------------------------------
+//---[ gist ]------------------------------------------------------------------------------------------------------
 #define GIST_ATLAS_TILE_SIZE	   6u
 #define GIST_MAX_OUTER_LAYER_COUNT 16u
 #define GIST_MAX_CELL_SURFEL_COUNT (0xffffu * AGE_WAVE_SIZE)
@@ -2207,7 +2214,7 @@ namespace age::graphics::render_pipeline::g
 
 #define GIST_CELL_SURFEL_RADIUS_RATIO 1.f
 
-	// trust near 50% more than far
+// trust near 50% more than far
 #define GIST_NEAR_CONTRIBUTION_TRUST_BIAS 1.5f
 
 #define GIST_CELL_SURFEL_SPAWN_COVERAGE_NEAR 0.1f
@@ -2278,7 +2285,7 @@ namespace age::graphics::render_pipeline::g
 #if !defined(AGE_SHADER)
 	static_assert(AO_DEBUG_FLAGS_RENDER_AO_BUFFER == to_idx(graphics::e::ao_debug_flags::render_ao_buffer));
 #endif
-	//---[ debug view ]------------------------------------------------------------------------------------------------------
+//---[ debug view ]------------------------------------------------------------------------------------------------------
 #define DEBUG_VIEW_SLOT_COUNT_MAX		 16
 #define DEBUG_VIEW_CURSOR_DATA_COUNT_MAX 2
 
@@ -2335,9 +2342,10 @@ namespace age::graphics::render_pipeline::g
 #define AGE_DEBUG_VIEW_OVERLAY_FLAGS_SYS_COMMON_TRANSPARENT_EDGE (1u << 3u)
 
 // debug_view_gist
-#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_NONE	 0
-#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM	 1
-#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE 2
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_NONE					 0
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM					 1
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE				 2
+#define AGE_DEBUG_VIEW_GIST_POPUP_KIND_CELL_SURFEL_CHEBYSHEV 3
 
 #define AGE_DEBUG_VIEW_KIND_GIST_NONE							 0
 #define AGE_DEBUG_VIEW_KIND_GIST_LUMINANCE_TILE					 1	  // tile_id
@@ -2493,6 +2501,7 @@ namespace age::graphics::render_pipeline::g
 	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_NONE == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::none));
 	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_ZOOM == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::zoom));
 	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_VALUE == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::value));
+	static_assert(AGE_DEBUG_VIEW_GIST_POPUP_KIND_CELL_SURFEL_CHEBYSHEV == to_idx(graphics::e::hrp_debug_view_gist_popup_kind::cell_surfel_chebyshev));
 
 	static_assert(AGE_DEBUG_VIEW_KIND_GIST_NONE == to_idx(graphics::e::hrp_debug_view_kind_gist::none));
 	static_assert(AGE_DEBUG_VIEW_KIND_GIST_LUMINANCE_TILE == to_idx(graphics::e::hrp_debug_view_kind_gist::luminance_tile));

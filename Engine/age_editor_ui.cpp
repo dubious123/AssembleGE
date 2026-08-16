@@ -946,7 +946,7 @@ namespace age::editor
 			ui::widget::text_label(std::format("surfel_per_cell : {}", float(cmp.gist_max_cell_surfel_count) / (cell_count_total)).c_str());
 
 			ui::widget::text_label("cell_surfel_ray_budget_factor");
-			ui::widget::numeric_field(cmp.gist_cell_surfel_ray_budget_factor, nullptr, 0.1f, 2.5f, ui::theme::text_label_color(), 0.01f);
+			ui::widget::numeric_field(cmp.gist_cell_surfel_ray_budget_factor, nullptr, 0.1f, 100.f, ui::theme::text_label_color(), 0.01f);
 
 			ui::widget::text_label(std::format("cell_surfel_ray_budget : {}",
 											   cmp.gist_max_cell_surfel_count

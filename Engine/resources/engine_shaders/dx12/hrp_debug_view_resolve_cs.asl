@@ -26,7 +26,9 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		const float2 uv_local = debug_view::calc_uv_local(popup_rect, px);
 
-		const debug_view_cursor_data cursor_data = debug_view::load_cursor_data(data, popup_data.pick_count == 0u ? 0u : 1u);
+		const uint32 cursor_id = popup_data.pick_count == 0u ? 0u : 1u;
+
+		const debug_view_cursor_data cursor_data = debug_view::load_cursor_data(data, cursor_id);
 
 		float3 color = color_black.rgb;
 
@@ -39,7 +41,7 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		}
 		case AGE_DEBUG_VIEW_SYSTEM_KIND_GIST:
 		{
-			color = gist_debug_view::eval_popup(data, popup_data, cursor_data, uv_local);
+			color = gist_debug_view::eval_popup(data, popup_data, cursor_data, cursor_id, uv_local);
 			break;
 		}
 		default:

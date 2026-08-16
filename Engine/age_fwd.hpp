@@ -238,7 +238,7 @@ namespace age::graphics::e
 						  (transparent_edge, (1u << 3u)));
 
 
-	AGE_DEFINE_ENUM(hrp_debug_view_gist_popup_kind, uint32, none, zoom, value);
+	AGE_DEFINE_ENUM(hrp_debug_view_gist_popup_kind, uint32, none, zoom, value, cell_surfel_chebyshev);
 	AGE_DEFINE_ENUM(hrp_debug_view_kind_gist, uint32,
 					none,
 					luminance_tile,

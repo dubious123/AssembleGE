@@ -4614,17 +4614,19 @@ namespace age::graphics::render_pipeline
 			gpu_data.h_debug_view_buffer_uav_id = calc_desc_idx(cpu_data.h_debug_view_buffer_uav_desc);
 		}
 		{
-			auto   offset_calculator		= util::offset_calculator{};
-			c_auto cursor_data_count_offset = offset_calculator + sizeof(uint32);
-			c_auto popup_data_offset		= offset_calculator + sizeof(shared_type::debug_view_popup_data);
-			c_auto cursor_data_offset		= offset_calculator + sizeof(shared_type::debug_view_cursor_data) * g::debug_view_cursor_data_count_max;
-			c_auto slot_rect_offset			= offset_calculator + sizeof(int32_4) * g::debug_view_slot_count_max;
-			c_auto buffer_size				= offset_calculator.size();
+			auto   offset_calculator		  = util::offset_calculator{};
+			c_auto cursor_data_count_offset	  = offset_calculator + sizeof(uint32);
+			c_auto popup_data_offset		  = offset_calculator + sizeof(shared_type::debug_view_popup_data);
+			c_auto cursor_data_offset		  = offset_calculator + sizeof(shared_type::debug_view_cursor_data) * g::debug_view_cursor_data_count_max;
+			c_auto slot_rect_offset			  = offset_calculator + sizeof(int32_4) * g::debug_view_slot_count_max;
+			c_auto cursor_scratch_data_offset = offset_calculator + sizeof(shared_type::debug_view_cursor_scratch_data_gist) * g::debug_view_cursor_data_count_max;
+			c_auto buffer_size				  = offset_calculator.size();
 
 			AGE_ASSERT(gpu_data.cursor_data_count_offset() == cursor_data_count_offset);
 			AGE_ASSERT(gpu_data.popup_data_offset() == popup_data_offset);
 			AGE_ASSERT(gpu_data.cursor_data_offset() == cursor_data_offset);
 			AGE_ASSERT(gpu_data.slot_rect_offset() == slot_rect_offset);
+			AGE_ASSERT(gpu_data.cursor_scratch_data_offset() == cursor_scratch_data_offset);
 
 			cpu_data.h_debug_view_scratch_buffer = resource::create_committed_buf_uav(buffer_size);
 			cpu_data.h_debug_view_scratch_buffer->set_name(L"debug_view_scratch_buffer");

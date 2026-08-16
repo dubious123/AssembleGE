@@ -85,7 +85,7 @@ main_cs()
 		case AGE_DEBUG_VIEW_SYSTEM_KIND_GIST:
 			if (gist::enabled())
 			{
-				gist_debug_view::eval_base(data, slot_data, uv_local, hover);
+				gist_debug_view::eval_base(data, slot_data, uv_local, hover, 0u);
 				gist_debug_view::eval_overlay(data, slot_data, uv_local, hover);
 			}
 
