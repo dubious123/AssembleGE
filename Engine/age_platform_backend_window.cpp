@@ -368,6 +368,8 @@ namespace age::platform
 
 		::UpdateWindow(hwnd);
 
+		::ShowWindow(hwnd, SW_SHOW);
+
 		{
 			auto wr = RECT{};
 			::GetWindowRect(hwnd, &wr);
@@ -380,10 +382,11 @@ namespace age::platform
 				.top_left_pos = POINT{ .x = wr.left, .y = wr.top },
 				.mode		  = window_mode::windowed,
 				.state		  = window_state::normal,
+				.style		  = ::GetWindowLongPtr(hwnd, GWL_STYLE),
+				.ex_style	  = ::GetWindowLongPtr(hwnd, GWL_EXSTYLE),
 			};
 		}
 
-		::ShowWindow(hwnd, SW_SHOW);
 
 		return window_handle{ .id = id };
 	}
@@ -484,15 +487,12 @@ namespace age::platform
 
 		auto hwnd = w_info.hwnd;
 
-		w_info.saved_placement.length = sizeof(WINDOWPLACEMENT);
-		AGE_WIN32_CHECK(::GetWindowPlacement(hwnd, &w_info.saved_placement));
-
-		w_info.saved_style	  = ::GetWindowLongPtr(hwnd, GWL_STYLE);
-		w_info.saved_ex_style = ::GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+		w_info.placement.length = sizeof(WINDOWPLACEMENT);
+		AGE_WIN32_CHECK(::GetWindowPlacement(hwnd, &w_info.placement));
 
 		::SetWindowLongPtr(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 		::SetWindowLongPtr(hwnd, GWL_EXSTYLE,
-						   w_info.saved_ex_style & ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+						   w_info.ex_style & ~(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
 
 		auto monitor_info = MONITORINFO{ .cbSize = sizeof(MONITORINFO) };
 		AGE_WIN32_CHECK(::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor_info));
@@ -523,10 +523,10 @@ namespace age::platform
 
 		auto hwnd = w_info.hwnd;
 
-		::SetWindowLongPtr(hwnd, GWL_STYLE, w_info.saved_style);
-		::SetWindowLongPtr(hwnd, GWL_EXSTYLE, w_info.saved_ex_style);
+		::SetWindowLongPtr(hwnd, GWL_STYLE, w_info.style);
+		::SetWindowLongPtr(hwnd, GWL_EXSTYLE, w_info.ex_style);
 
-		AGE_WIN32_CHECK(::SetWindowPlacement(hwnd, &w_info.saved_placement));
+		AGE_WIN32_CHECK(::SetWindowPlacement(hwnd, &w_info.placement));
 		AGE_WIN32_CHECK(::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
 									   SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
 

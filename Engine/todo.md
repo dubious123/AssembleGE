@@ -335,4 +335,83 @@ blend_buffer를 삭제하고 main_buffer와 통합
 skybox pass 통합?
 
 
+## gltf load 
+1. material shading id 추가  
+2. submesh 지원 
+    1. blas 생성시 각 geo_desc가 submesh가 된다. 
+    1. rt_candidate_geometry_index 로 shader에서 얻는다
+    1. primitive가 전역이 아니라 geo의 local이 된다. 
+    1. meshlet build도 submesh당 build해야함, meshlet마다 submesh_idx가 있어야 할듯?
+1. mesh { submesh_count, submesh[], omm[], alpha_texture[] }
 
+3. double_face 가 mesh가 아니라 material에 붙어 있음... 
+    1. 
+4. alpha_mask 지원 필요함 
+    1. omm 굽기 해야함.
+    1. blas단계에서 구분이 필요해짐...
+    1. alpha_mask_mesh 가 필요해짐 
+    1. mesh + alpha_mask_texture + (파생된)omm_data 조합임. 
+
+
+
+### submesh 지원 
+기존 : 
+tlas 마다 
+		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
+			.InstanceID							 = rt_instance_id_temp,
+			.InstanceMask						 = to_idx(e::rt_mask_kind::transparent),
+			.InstanceContributionToHitGroupIndex = 0,
+			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
+			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
+		};
+
+Flags를 override했었음 
+그런데 이게 blas의 geometry마다의 flag로 변경되어야함. 
+
+blas는 여러개의 geometry의 집합임. 
+blas를 구울때 각 geometry마다 flag를 줄 수 있음. 
+그런데 tlas는 blas의 instance당 1개씩임. 
+tlas는 전체 instance에 flag를 override할수 있지, 각 개별 geometry당 flag를 줄수 없음. 
+그래서 transparent, opaque, omm 등은 tlas에서 설정할수 없음 
+
+사실 import시에 다 분해해서 각 submesh마다 mesh 1개씩 만들면 구조변화 없이 갈수는 있음. 
+대신 tlas 수가 늘어나고, 서로 다른 mesh를 같은 기준으로 lod를 관리해야 하는 시스템이 들어와야하고 
+그럴바에는 그냥 처음부터 submesh쪽으로 가는게 맞음. 
+
+대신 1mesh 1submesh모델을 유지하면 얻는게 있음 
+사망시 fade같은 opaque <-> transparent 전환이 자유로움. 매 프레임 tlas를 재빌드하고 tlas단위에서 flag를 override하니깐
+가능한 일임. 
+
+그래서 일반적일때는 tlas flag에 none을 넣지만, 
+obj 전체에 무언가를 적용하고 싶을때는 override할수 있게 해야하고 
+그것에 맞춰서 raster pipeline 도 변경되어야함. 
+
+그리고 obj 전체가 opaque -> transparent로 전환되면 gi가 한순간에 없어짐. 이를 어떻게 해결할지도 고민해야함. 
+
+
+기존의 rt 에서 material_id 경로가 
+geo -> submesh -> material로 indirection이 추가됨 
+
+mask를 omm으로 처리하면 trace shader 코드는 transparent rt_proceed loop에서 submesh 데이터를 읽고 
+mask인지 transparent인지만 구분해서 
+transparent는 확률론적으로, 
+mask면 material에서 alpha cutoff로 버리는식으로 처리해야함.
+이렇게 되면 opaque + mask가 hardcap 이 되고, 그 아래 transparent가 주사위를 굴리고 시간축으로 blend 하게됨. 
+
+어차피 non_opaque loop에서는 base_color sampling을 하고 
+여기서 mask면 alpha만 mat.alpha_cutoff로 비교해서 버리거나 commit하면 됨. 
+omm이 들어서도 shader code에서의 변경점은 거의 없음. 그냥 commit이 들 불리는거임 (UNKNOWN만 받음)
+
+## alpha_mask 추가 
+shader rt loop쪽은 거의 변경점이 없음. 
+raster 쪽은 meshlet + render_data에 mask 전용이 생기고, 
+opaque gbuffer 생성시에 다른 dispatch_mesh 단위에서 ps에서 alpha test후 discard해야함. 
+
+mask 이면서 transparent인것도 구현 가능. 
+mask이면서 어느 부분은 opauqe, 어느 부분은 transparent인것도 가능. 
+gbuffer mask ps에서 alpha가 1이면 opaque, alpha 가 1 미만 alphacutoff 이상이면 transparent로 보내는것도 가능은함. 
+다만 ps에서 uav가 비효율적이고 신경쓸게  있어서 
+그냥 pass를 2개로 나누는것도 방법이긴함. 
+두 방법중 무엇이 더 효율적일지는 몰?루? 아마 draw 2번이 단순하고 성능도 큰 차이 없어보일것 같긴함
+
+일단은 omm 없이 추가하고, 추후에 omm을 같이 굽는 옵션을 제공하면 될듯 

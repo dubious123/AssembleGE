@@ -408,6 +408,9 @@ namespace age::asset
 
 		uint32 ref_counter = 0u;
 
+		// todo, add shading model id
+		//
+
 		std::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
