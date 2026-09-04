@@ -18,7 +18,7 @@ namespace age::graphics
 				p_debug->EnableDebugLayer();
 				p_debug->SetEnableSynchronizedCommandQueueValidation(true);
 
-				// p_debug->SetEnableGPUBasedValidation(true);
+				p_debug->SetEnableGPUBasedValidation(config::enable_gpu_based_validation);
 
 				p_debug->Release();
 			}
@@ -42,6 +42,8 @@ namespace age::graphics
 			AGE_HR_CHECK(::CreateDXGIFactory2(0, IID_PPV_ARGS(&g::p_dxgi_factory)));
 		}
 
+		static_assert(config::enable_gpu_based_validation is_false or config::debug_mode,
+					  "gpu based validation requires the debug layer");
 
 		for (uint32 adapter_idx : std::views::iota(0))
 		{
@@ -97,6 +99,21 @@ namespace age::graphics
 				&cookie);
 
 			p_info_queue->Release();
+		}
+
+		if constexpr (config::enable_gpu_based_validation)
+		{
+			auto* p_debug_device = (ID3D12DebugDevice2*)nullptr;
+			AGE_HR_CHECK(g::p_main_device->QueryInterface(IID_PPV_ARGS(&p_debug_device)));
+
+			auto settings					   = D3D12_DEBUG_DEVICE_GPU_BASED_VALIDATION_SETTINGS{};
+			settings.MaxMessagesPerCommandList = 4096;
+			settings.DefaultShaderPatchMode	   = D3D12_GPU_BASED_VALIDATION_SHADER_PATCH_MODE_GUARDED_VALIDATION;
+			settings.PipelineStateCreateFlags  = D3D12_GPU_BASED_VALIDATION_PIPELINE_STATE_CREATE_FLAG_FRONT_LOAD_CREATE_GUARDED_VALIDATION_SHADERS;
+
+			AGE_HR_CHECK(p_debug_device->SetDebugParameter(D3D12_DEBUG_DEVICE_PARAMETER_GPU_BASED_VALIDATION_SETTINGS,
+														   &settings, sizeof(settings)));
+			p_debug_device->Release();
 		}
 
 		{

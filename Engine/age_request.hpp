@@ -34,7 +34,7 @@ namespace age::request
 		constexpr t
 		as() const noexcept
 		{
-			std::array<std::byte, sizeof(t)> tmp{};
+			age::array<std::byte, sizeof(t)> tmp{};
 			std::memcpy(tmp.data(), storage, sizeof(t));
 			return std::bit_cast<t>(tmp);
 		}
@@ -162,5 +162,5 @@ namespace age::request::detail
 namespace age::request::g
 {
 	inline auto sync_state_vec	 = data_structure::sparse_vector<request::detail::sync_state>{};
-	inline auto request_info_vec = std::array<data_structure::vector<request::info>, (std::size_t)subsystem::type::count>{};
+	inline auto request_info_vec = age::array<data_structure::vector<request::info>, (std::size_t)subsystem::type::count>{};
 }	 // namespace age::request::g

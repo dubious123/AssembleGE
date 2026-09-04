@@ -315,7 +315,7 @@ namespace age_demo::scene_2
 
 				if (auto _ = widget::panel_resizable_h(300, 1000))
 				{
-					c_auto opt = std::array{
+					c_auto opt = age::array{
 						widget::dropdown_option{ .value = 0u, .label = "A" },
 						widget::dropdown_option{ .value = 1u, .label = "B" },
 						widget::dropdown_option{ .value = 2u, .label = "C" },
@@ -564,12 +564,14 @@ namespace age_demo::scene_2
 
 		for (auto&& [i, obj_id] : i_update.get_opaque_obj_id_vec() | std::views::enumerate)
 		{
-			i_update.get_render_pipeline->render_mesh(obj_id % age::global::thread_count, obj_id, i_update.get_mesh_id_vec()[i % i_update.get_mesh_id_vec->size()]);
+			i_update.get_render_pipeline->render_mesh_default(obj_id % age::global::thread_count, obj_id,
+															  i_update.get_mesh_id_vec[i % i_update.get_mesh_id_vec->size()].get_entry<age::asset::e::kind::mesh_baked>().render_id);
 		}
 
 		for (auto&& [i, obj_id] : i_update.get_transparent_obj_id_vec() | std::views::enumerate)
 		{
-			i_update.get_render_pipeline->render_transparent_mesh(obj_id % age::global::thread_count, obj_id, i_update.get_mesh_id_vec[0]);
+			i_update.get_render_pipeline->render_mesh_default(obj_id % age::global::thread_count, obj_id,
+															  i_update.get_mesh_id_vec[0].get_entry<age::asset::e::kind::mesh_baked>().render_id, false);
 		}
 
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());

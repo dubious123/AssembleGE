@@ -1,10 +1,10 @@
 #pragma once
 
 template <std::size_t n_size>
-struct std::formatter<std::array<char, n_size>> : formatter<std::string_view>
+struct std::formatter<age::array<char, n_size>> : formatter<std::string_view>
 {
 	auto
-	format(const std::array<char, n_size>& arr, auto& ctx) const
+	format(const age::array<char, n_size>& arr, auto& ctx) const
 	{
 		return formatter<std::string_view>::format(
 			std::string_view{ arr.data() }, ctx);
@@ -157,3 +157,16 @@ struct std::formatter<t> : std::formatter<uint64>
 		return std::formatter<uint64>::format(h.id, ctx);
 	}
 };
+
+namespace age::util
+{
+	inline std::string
+	format_duration(std::chrono::steady_clock::duration d)
+	{
+		c_auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
+
+		if (ms < 1000) { return std::format("{} ms", ms); }
+		if (ms < 60'000) { return std::format("{:.1f} s", ms / 1000.0); }
+		return std::format("{:.1f} min", ms / 60'000.0);
+	}
+}	 // namespace age::util

@@ -270,7 +270,7 @@ struct rw_stack
 	push(const t value)
 	{
 		uint32 original;
-		buf_interlocked_add(buf, offset_counter(), 1, original);
+		buf_interlocked_add(buf, offset_counter(), 1u, original);
 		assert(original + 1 <= capacity, g::str_rw_stack, g::str_assert_fail_reason_overflow, line, original + 1, capacity);
 		store(buf, offset_value() + sizeof(t) * original, value);
 

@@ -634,11 +634,7 @@ namespace age::ecs::entity_block
 		FORCE_INLINE void
 		foreach_entity(t_sys&& sys)
 		{
-			// using t_arg_tpl		 = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::args_tuple;
-			// constexpr auto arity = age::meta::function_traits<&std::decay_t<t_sys>::operator()>::arity;
-
-			using t_arg_tpl		 = age::meta::function_traits<t_sys>::args_tuple;
-			constexpr auto arity = age::meta::function_traits<t_sys>::arity;
+			using t_arg_tpl = age::meta::function_traits<t_sys>::args_tuple;
 
 			for (t_local_entity_idx local_ent_idx : std::views::iota(0) | std::views::take(entity_count()))
 			{
@@ -662,14 +658,7 @@ namespace age::ecs::entity_block
 		FORCE_INLINE decltype(auto)
 		query_entity(t_query, t_local_entity_idx local_ent_idx) noexcept
 		{
-			if constexpr (meta::is_specialization_of_v<t_query, ecs::detail::query_desc>)
-			{
-				return detail::query_entity_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
-			}
-			else
-			{
-				return detail::query_entity_soft_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
-			}
+			return detail::query_entity_impl<t_query>(*this, local_ent_idx, typename t_query::t_select_list{});
 		}
 	};
 }	 // namespace age::ecs::entity_block

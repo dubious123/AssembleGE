@@ -23,7 +23,7 @@ namespace age::asset
 		return res;
 	}
 
-	std::array<char, config::max_asset_path_len>&
+	age::array<char, config::max_asset_path_len>&
 	entry<e::kind::texture>::get_path() const noexcept
 	{
 		return g::path_vec[path_id];
@@ -92,10 +92,16 @@ namespace age::asset::texture
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (auto file_data = asset::read_asset_file(entry.get_path());
+			file_data.is_valid())
 		{
-			entry.p_blob = buf.release();
+			if (file_data.header.asset_version < config::texture_asset_version)
+			{
+				AGE_ASSERT(false);
+				return;
+				// add migration
+			}
+			entry.p_blob = file_data.buf.release();
 			return;
 		}
 	}
@@ -108,22 +114,6 @@ namespace age::asset::texture
 		cpu_load(h_tex);
 
 		return h_tex;
-	}
-
-	void
-	add_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::texture>();
-		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
-		++entry.ref_counter;
-	}
-
-	void
-	remove_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::texture>();
-		AGE_ASSERT(entry.ref_counter > 0);
-		--entry.ref_counter;
 	}
 }	 // namespace age::asset::texture
 

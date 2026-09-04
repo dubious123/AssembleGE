@@ -936,20 +936,104 @@ namespace age::graphics::defaults::static_sampler_desc
 	linear_wrap(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
 	{
 		return D3D12_STATIC_SAMPLER_DESC1{
-			/*D3D12_FILTER                  */ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-			/*FLOAT                         */ .MipLODBias		 = 0.0f,
-			/*UINT                          */ .MaxAnisotropy	 = 1,
-			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
-			/*D3D12_STATIC_BORDER_COLOR     */ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
-			/*FLOAT                         */ .MinLOD			 = 0.f,
-			/*FLOAT                         */ .MaxLOD			 = D3D12_FLOAT32_MAX,
-			/*UINT                          */ .ShaderRegister	 = register_index,
-			/*UINT                          */ .RegisterSpace	 = register_space,
-			/*D3D12_SHADER_VISIBILITY       */ .ShaderVisibility = shader_visibility,
-			/*D3D12_SAMPLER_FLAGS           */ .Flags			 = sampler_flags
+			/*D3D12_FILTER					*/ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*FLOAT							*/ .MipLODBias		 = 0.0f,
+			/*UINT							*/ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC			*/ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR		*/ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT							*/ .MinLOD			 = 0.f,
+			/*FLOAT							*/ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT							*/ .ShaderRegister	 = register_index,
+			/*UINT							*/ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	linear_mirror(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER					*/ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*FLOAT							*/ .MipLODBias		 = 0.0f,
+			/*UINT							*/ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC			*/ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR		*/ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT							*/ .MinLOD			 = 0.f,
+			/*FLOAT							*/ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT							*/ .ShaderRegister	 = register_index,
+			/*UINT							*/ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	point_wrap(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER					*/ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_POINT,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+			/*FLOAT							*/ .MipLODBias		 = 0.0f,
+			/*UINT							*/ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC			*/ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR		*/ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT							*/ .MinLOD			 = 0.f,
+			/*FLOAT							*/ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT							*/ .ShaderRegister	 = register_index,
+			/*UINT							*/ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	point_clamp(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER					*/ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_POINT,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+			/*FLOAT							*/ .MipLODBias		 = 0.0f,
+			/*UINT							*/ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC			*/ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR		*/ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT							*/ .MinLOD			 = 0.f,
+			/*FLOAT							*/ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT							*/ .ShaderRegister	 = register_index,
+			/*UINT							*/ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	point_mirror(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
+	{
+		return D3D12_STATIC_SAMPLER_DESC1{
+			/*D3D12_FILTER					*/ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_POINT,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*D3D12_TEXTURE_ADDRESS_MODE	*/ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_MIRROR,
+			/*FLOAT							*/ .MipLODBias		 = 0.0f,
+			/*UINT							*/ .MaxAnisotropy	 = 1,
+			/*D3D12_COMPARISON_FUNC			*/ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
+			/*D3D12_STATIC_BORDER_COLOR		*/ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
+			/*FLOAT							*/ .MinLOD			 = 0.f,
+			/*FLOAT							*/ .MaxLOD			 = D3D12_FLOAT32_MAX,
+			/*UINT							*/ .ShaderRegister	 = register_index,
+			/*UINT							*/ .RegisterSpace	 = register_space,
+			/*D3D12_SHADER_VISIBILITY		*/ .ShaderVisibility = shader_visibility,
+			/*D3D12_SAMPLER_FLAGS			*/ .Flags			 = sampler_flags
 		};
 	}
 
@@ -965,27 +1049,6 @@ namespace age::graphics::defaults::static_sampler_desc
 			/*UINT                          */ .MaxAnisotropy	 = 1,
 			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
 			/*D3D12_STATIC_BORDER_COLOR     */ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK,
-			/*FLOAT                         */ .MinLOD			 = 0.f,
-			/*FLOAT                         */ .MaxLOD			 = D3D12_FLOAT32_MAX,
-			/*UINT                          */ .ShaderRegister	 = register_index,
-			/*UINT                          */ .RegisterSpace	 = register_space,
-			/*D3D12_SHADER_VISIBILITY       */ .ShaderVisibility = shader_visibility,
-			/*D3D12_SAMPLER_FLAGS           */ .Flags			 = sampler_flags
-		};
-	}
-
-	FORCE_INLINE decltype(auto)
-	point_clamp(uint32 register_index, uint32 register_space, D3D12_SHADER_VISIBILITY shader_visibility, D3D12_SAMPLER_FLAGS sampler_flags) noexcept
-	{
-		return D3D12_STATIC_SAMPLER_DESC1{
-			/*D3D12_FILTER                  */ .Filter			 = D3D12_FILTER_MIN_MAG_MIP_POINT,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressU		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressV		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-			/*D3D12_TEXTURE_ADDRESS_MODE    */ .AddressW		 = D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-			/*FLOAT                         */ .MipLODBias		 = 0.0f,
-			/*UINT                          */ .MaxAnisotropy	 = 1,
-			/*D3D12_COMPARISON_FUNC         */ .ComparisonFunc	 = D3D12_COMPARISON_FUNC_NEVER,
-			/*D3D12_STATIC_BORDER_COLOR     */ .BorderColor		 = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
 			/*FLOAT                         */ .MinLOD			 = 0.f,
 			/*FLOAT                         */ .MaxLOD			 = D3D12_FLOAT32_MAX,
 			/*UINT                          */ .ShaderRegister	 = register_index,
@@ -1044,14 +1107,15 @@ namespace age::graphics::defaults::cmd_sig
 namespace age::graphics::defaults::rt::geo_desc
 {
 	FORCE_INLINE decltype(auto)
-	triangles(uint32					index_count,
-			  uint32					vertex_count,
-			  D3D12_GPU_VIRTUAL_ADDRESS va_index_buffer,
-			  D3D12_GPU_VIRTUAL_ADDRESS va_vertex_buffer) noexcept
+	triangles(uint32						  index_count,
+			  uint32						  vertex_count,
+			  D3D12_GPU_VIRTUAL_ADDRESS		  va_index_buffer,
+			  D3D12_GPU_VIRTUAL_ADDRESS		  va_vertex_buffer,
+			  D3D12_RAYTRACING_GEOMETRY_FLAGS flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE) noexcept
 	{
 		return D3D12_RAYTRACING_GEOMETRY_DESC{
 			.Type  = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
-			.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+			.Flags = flags,
 
 			.Triangles = {
 				.Transform3x4 = 0,
@@ -1065,6 +1129,24 @@ namespace age::graphics::defaults::rt::geo_desc
 					.StrideInBytes = sizeof(float3),
 				},
 			}
+		};
+	}
+
+	FORCE_INLINE decltype(auto)
+	omm_triangles(uint32											index_count,
+				  uint32											vertex_count,
+				  const D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC*	p_triangle_desc,
+				  const D3D12_RAYTRACING_GEOMETRY_OMM_LINKAGE_DESC* p_omm_linkage_desc,
+				  D3D12_RAYTRACING_GEOMETRY_FLAGS					flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE) noexcept
+	{
+		return D3D12_RAYTRACING_GEOMETRY_DESC{
+			.Type  = D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES,
+			.Flags = flags,
+
+			.OmmTriangles = {
+				.pTriangles	 = p_triangle_desc,
+				.pOmmLinkage = p_omm_linkage_desc,
+			},
 		};
 	}
 }	 // namespace age::graphics::defaults::rt::geo_desc

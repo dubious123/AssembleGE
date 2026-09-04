@@ -21,9 +21,9 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 
 	ray_query<RAY_FLAG_FORCE_OPAQUE> query;
 
-	if ((req.mask_and_extra & RT_MASK_AOT) > 0)
+	if ((req.mask_and_extra & RT_MASK_ALWAYS_ON_TOP) > 0)
 	{
-		rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_AOT, desc);
+		rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_ALWAYS_ON_TOP, desc);
 
 		while (rt_proceed(query)) { }
 
@@ -34,7 +34,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 			const rt_instance_render_data render_data = load_rt_instance_render_data(rt_instance_id);
 
 			res.t_hit	  = rt_committed_ray_t(query);
-			res.object_id = render_data.object_id;
+			res.object_id = load_object_id_packed(render_data.object_render_id);
 			res.world_pos = req.origin + res.t_hit * req.dir;
 
 			store_rt_raycast_result(thread_id.x, res);
@@ -42,7 +42,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		}
 	}
 
-	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, req.mask_and_extra & (RT_MASK_ALL ^ RT_MASK_AOT), desc);
+	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, req.mask_and_extra & (RT_MASK_ALL ^ RT_MASK_ALWAYS_ON_TOP), desc);
 
 	while (rt_proceed(query)) { }
 
@@ -53,7 +53,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 		const rt_instance_render_data render_data = load_rt_instance_render_data(rt_instance_id);
 
 		res.t_hit	  = rt_committed_ray_t(query);
-		res.object_id = render_data.object_id;
+		res.object_id = load_object_id_packed(render_data.object_render_id);
 		res.world_pos = req.origin + res.t_hit * req.dir;
 	}
 

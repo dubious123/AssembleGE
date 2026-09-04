@@ -670,6 +670,94 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(model_render_option, "render_option")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		age::graphics::e::mesh_raster_override_kind		   raster_override_kind		   = age::graphics::e::mesh_raster_override_kind::none;
+		age::graphics::e::mesh_rt_alpha_test_override_kind rt_alpha_test_override_kind = age::graphics::e::mesh_rt_alpha_test_override_kind::none;
+		age::graphics::e::model_render_option_flags		   option_flags				   = age::graphics::e::model_render_option_flags::none;
+		uint8											   fade_unorm8				   = 255u;
+	};
+
+	AGE_COMPONENT(model, "model_renderer")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		asset::handle h_model = {};
+
+		FORCE_INLINE void
+		update_h_model(asset::handle h_model_new) noexcept
+		{
+			if (runtime::is_handle_invalid(h_model) is_false)
+			{
+				asset::model::remove_ref(h_model);
+			}
+			if (runtime::is_handle_invalid(h_model_new) is_false)
+			{
+				asset::model::add_ref(h_model_new);
+			}
+
+			h_model = h_model_new;
+		}
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, model & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model) is_false)
+			{
+				asset::model::add_ref(cmp.h_model);
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, model & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model) is_false)
+			{
+				asset::model::remove_ref(cmp.h_model);
+			}
+		}
+
+		static consteval uint32
+		byte_size() noexcept
+		{
+			return config::max_asset_path_len;
+		}
+
+		static void
+		write_to(cmp_dispatch_key, const model& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model))
+			{
+				char model_path[config::max_asset_path_len] = { "invalid model" };
+				buf.write(model_path);
+			}
+			else
+			{
+				buf.write(cmp.h_model.get_path());
+			}
+
+			return;
+		}
+
+		static void
+		read_from(cmp_dispatch_key, model & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != model::age_component_version())
+			{
+				AGE_ASSERT(false);
+				return;
+			}
+
+			char mat_path[config::max_asset_path_len] = {};
+			buf.read(mat_path);
+
+			cmp.update_h_model(asset::find(age::asset::e::kind::model, mat_path));
+		}
+	};
+
 	AGE_COMPONENT(env_light, "ibl")
 	{
 		AGE_COMPONENT_VERSION(1);
@@ -1117,8 +1205,8 @@ namespace age::ecs
 		// (1, 1/aa_px_cap]
 		float aa_px_headroom = 4.f;
 
-		// world unit
-		float edge_plane_dist_threshold = 0.05f;
+		// px
+		float edge_plane_dist_tolerance_px = 3.f;
 
 		// abs(cos), (0,1]
 		float edge_normal_threshold = 0.9f;
@@ -1165,7 +1253,7 @@ namespace age::ecs
 		uint32	slot_count = 1u;										   // min : 1, max : 16
 
 		debug_view_slot_config					fullscreen_slot_config;	   // ignores size_uv
-		std::array<debug_view_slot_config, 15u> slot_config_arr;
+		age::array<debug_view_slot_config, 15u> slot_config_arr;
 
 		float2 popup_view_size_uv	  = float2{ 0.125f };
 		uint32 popup_border_thickness = 1u;

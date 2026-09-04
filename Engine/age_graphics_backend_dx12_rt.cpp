@@ -57,18 +57,15 @@ namespace age::graphics::rt
 namespace age::graphics::rt
 {
 	resource_handle
-	build_blas(auto&&... rt_geo_desc) noexcept
+	build_blas(std::span<const D3D12_RAYTRACING_GEOMETRY_DESC> descs, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS flags) noexcept
 	{
-		c_auto arr = std::array<const D3D12_RAYTRACING_GEOMETRY_DESC, sizeof...(rt_geo_desc)>{
-			FWD(rt_geo_desc)...
-		};
-
+		AGE_ASSERT(descs.empty() is_false);
 		auto inputs = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS{
 			.Type			= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL,
 			.Flags			= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE,
-			.NumDescs		= static_cast<uint32>(arr.size()),
+			.NumDescs		= static_cast<uint32>(descs.size()),
 			.DescsLayout	= D3D12_ELEMENTS_LAYOUT_ARRAY,
-			.pGeometryDescs = arr.data()
+			.pGeometryDescs = descs.data()
 		};
 
 		auto prebuild = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO{};

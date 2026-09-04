@@ -39,7 +39,7 @@ float  cam_far_z;
 uint32 system_flags;
 float2 ddgi_cranley_patterson_rotation;
 float3 gi_origin;
-float  object_count;
+uint32 object_count;
 
 uint32 selection_outline_meshlet_render_data_count;
 uint32 selection_outline_mask_buffer_srv_texture_id;
@@ -62,9 +62,15 @@ uint32 opaque_shading_normal_buffer_uav_id;
 uint32 opaque_emissive_buffer_srv_id;
 uint32 opaque_emissive_buffer_uav_id;
 
+uint32 opaque_single_sided_meshlet_render_data_count;
+uint32 transparent_single_sided_meshlet_render_data_count;
+uint32 mask_single_sided_meshlet_render_data_count;
+uint32 opaque_double_sided_meshlet_render_data_count;
+
+uint32 transparent_double_sided_meshlet_render_data_count;
+uint32 mask_double_sided_meshlet_render_data_count;
 
 // cbuffer root_constants reg(b1)
-uint32			   opaque_meshlet_render_data_count;
 uint32			   directional_light_count_and_extra;
 t_unified_light_id unified_light_count;
 
@@ -87,74 +93,102 @@ load_directional_light_count()
 	return directional_light_count_and_extra & 0xff;
 }
 
+template <bool is_double_sided = false>
+uint32
+load_opaque_meshlet_render_data_count()
+{
+	if (is_double_sided)
+	{
+		return opaque_double_sided_meshlet_render_data_count;
+	}
+	else
+	{
+		return opaque_single_sided_meshlet_render_data_count;
+	}
+}
+
+template <bool is_double_sided = false>
 uint32
 load_transparent_meshlet_render_data_count()
 {
-	return directional_light_count_and_extra >> 8;
+	if (is_double_sided)
+	{
+		return transparent_double_sided_meshlet_render_data_count;
+	}
+	else
+	{
+		return transparent_single_sided_meshlet_render_data_count;
+	}
+}
+
+template <bool is_double_sided = false>
+uint32
+load_mask_meshlet_render_data_count()
+{
+	if (is_double_sided)
+	{
+		return mask_double_sided_meshlet_render_data_count;
+	}
+	else
+	{
+		return mask_single_sided_meshlet_render_data_count;
+	}
 }
 
 byte_address_buffer static_buffer reg(t0, space0);
 
-opaque_meshlet_render_data
-load_opaque_meshlet_render_data(uint32 idx)
+uint32
+calc_object_id_idx(uint32 object_id_packed)
 {
-	return load<opaque_meshlet_render_data>(static_buffer, OPAQUE_MSHLT_OBJECT_DATA_OFFSET + idx * sizeof(opaque_meshlet_render_data));
+	return object_id_packed & 0x0fffffff;
 }
 
-transparent_meshlet_render_data
-load_transparent_meshlet_render_data(uint32 idx)
+uint32
+load_object_id_packed(uint32 object_render_id)
 {
-	return load<transparent_meshlet_render_data>(static_buffer, TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET + idx * sizeof(transparent_meshlet_render_data));
+	return load<uint32>(static_buffer, OBJECT_ID_BUFFER_OFFSET + sizeof(uint32) * object_render_id);
 }
 
-uint16
-calc_object_gen(uint32 object_id)
+// without validation
+uint32
+load_object_render_id(uint32 object_id_packed)
 {
-	const uint16 gen = uint16((object_id & 0xf0000000) >> 28u);
-	return gen;
+	const uint32 idx = calc_object_id_idx(object_id_packed);
+	return load<uint32>(static_buffer, OBJECT_ID_BUFFER_OFFSET + sizeof(uint32) * (MAX_OBJECT_DATA_COUNT + idx));
 }
 
+// with validation
 bool
-is_object_id_valid(uint32 object_id)
+load_object_render_id(uint32 object_id_packed, out uint32 object_render_id)
 {
-	const uint32 gen = (object_id & 0xf0000000) >> 28u;
-	const uint32 idx = object_id & 0x0fffffff;
-
-	if (idx >= object_count)
-	{
-		return false;
-	}
-
-	const object_data obj = load<object_data>(static_buffer, OBJECT_DATA_OFFSET + idx * sizeof(object_data));
-
-	if (obj.gen() != gen)
-	{
-		return false;
-	}
-
-	return true;
+	object_render_id = load_object_render_id(object_id_packed);
+	return load_object_id_packed(object_render_id) == object_id_packed;
 }
 
 object_data
-load_object_data(uint32 object_id)
+load_object_data(uint32 object_render_id)
 {
-	const uint32 gen = (object_id & 0xf0000000) >> 28u;
-	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
+	const uint32 gen = (object_render_id & 0xf0000000) >> 28u;
+	return load<object_data>(static_buffer, OBJECT_DATA_OFFSET + (object_render_id & 0x0fffffff) * sizeof(object_data));
 }
 
-// if curr object_id is_valid, prev_object always exists
-object_data
-load_object_prev_data(uint32 object_id)
+// if curr object_render_id is_valid, prev_object always exists
+t_material_id
+load_instance_submesh_material_id(uint32 idx)
 {
-	const uint32 gen = (object_id & 0xf0000000) >> 28u;
-	return load<object_data>(static_buffer, OBJECT_PREV_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_data));
+	return load<t_material_id>(static_buffer, INSTANCE_SUBMESH_MATERIAL_OFFSET + sizeof(t_material_id) * idx);
+}
+
+object_data
+load_object_prev_data(uint32 object_render_id)
+{
+	return load<object_data>(static_buffer, OBJECT_PREV_DATA_OFFSET + object_render_id * sizeof(object_data));
 }
 
 object_render_data
-load_object_render_data(uint32 object_id)
+load_object_render_data(uint32 object_render_id)
 {
-	const uint32 gen = (object_id & 0xf0000000) >> 28u;
-	return load<object_render_data>(static_buffer, OBJECT_RENDER_DATA_OFFSET + (object_id & 0x0fffffff) * sizeof(object_render_data));
+	return load<object_render_data>(static_buffer, OBJECT_RENDER_DATA_OFFSET + object_render_id * sizeof(object_render_data));
 }
 
 directional_light
@@ -220,20 +254,149 @@ segment_is_transparent_edge(int32_2 px)
 
 byte_address_buffer mesh_data_buffer reg(t1, space0);
 
+structured_buffer<meshlet_render_data> meshlet_render_data_buffer reg(t0, space6);
+
+uint32
+load_opaque_single_sided_meshlet_render_data_offset()
+{
+	return 0u;
+}
+
+uint32
+load_transparent_single_sided_meshlet_render_data_offset()
+{
+	return load_opaque_single_sided_meshlet_render_data_offset()
+		 + opaque_single_sided_meshlet_render_data_count;
+}
+
+uint32
+load_mask_single_sided_meshlet_render_data_offset()
+{
+	return load_transparent_single_sided_meshlet_render_data_offset()
+		 + transparent_single_sided_meshlet_render_data_count;
+}
+
+uint32
+load_opaque_double_sided_meshlet_render_data_offset()
+{
+	return load_mask_single_sided_meshlet_render_data_offset()
+		 + mask_single_sided_meshlet_render_data_count;
+}
+
+uint32
+load_transparent_double_sided_meshlet_render_data_offset()
+{
+	return load_opaque_double_sided_meshlet_render_data_offset()
+		 + opaque_double_sided_meshlet_render_data_count;
+}
+
+uint32
+load_mask_double_sided_meshlet_render_data_offset()
+{
+	return load_transparent_double_sided_meshlet_render_data_offset()
+		 + transparent_double_sided_meshlet_render_data_count;
+}
+
+template <bool is_double_sided = false>
+uint32
+load_opaque_meshlet_render_data_offset()
+{
+	attr_branch()
+
+	if (is_double_sided)
+	{
+		return load_opaque_double_sided_meshlet_render_data_offset();
+	}
+	else
+	{
+		return load_opaque_single_sided_meshlet_render_data_offset();
+	}
+}
+
+template <bool is_double_sided = false>
+uint32
+load_transparent_meshlet_render_data_offset()
+{
+	attr_branch()
+
+	if (is_double_sided)
+	{
+		return load_transparent_double_sided_meshlet_render_data_offset();
+	}
+	else
+	{
+		return load_transparent_single_sided_meshlet_render_data_offset();
+	}
+}
+
+template <bool is_double_sided = false>
+uint32
+load_mask_meshlet_render_data_offset()
+{
+	attr_branch()
+
+	if (is_double_sided)
+	{
+		return load_mask_double_sided_meshlet_render_data_offset();
+	}
+	else
+	{
+		return load_mask_single_sided_meshlet_render_data_offset();
+	}
+}
+
+template <bool is_double_sided = false>
+meshlet_render_data
+load_opaque_meshlet_render_data(uint32 idx)
+{
+	return meshlet_render_data_buffer[load_opaque_meshlet_render_data_offset<is_double_sided>() + idx];
+}
+
+template <bool is_double_sided = false>
+meshlet_render_data
+load_transparent_meshlet_render_data(uint32 idx)
+{
+	return meshlet_render_data_buffer[load_transparent_meshlet_render_data_offset<is_double_sided>() + idx];
+}
+
+template <bool is_double_sided = false>
+meshlet_render_data
+load_mask_meshlet_render_data(uint32 idx)
+{
+	return meshlet_render_data_buffer[load_mask_meshlet_render_data_offset<is_double_sided>() + idx];
+}
+
 // uav only
 rw_byte_address_buffer scratch_buffer reg(u0, space0);
 
-// alt is uniform — compiler folds to branchless select or eliminates dead path
 uint32
 sort_key_offset(bool alt)
 {
-	return alt ? SORT_KEYS_ALT_OFFSET : SORT_KEYS_OFFSET;
+	attr_branch()
+
+	if (alt)
+	{
+		return SORT_KEYS_ALT_OFFSET;
+	}
+	else
+	{
+		return SORT_KEYS_OFFSET;
+	}
 }
 
 uint32
 sort_value_offset(bool alt)
 {
-	return alt ? SORT_VALUES_ALT_OFFSET : SORT_VALUES_OFFSET;
+	attr_branch()
+
+	if (alt)
+	{
+		return SORT_VALUES_ALT_OFFSET;
+	}
+	else
+	{
+		return SORT_VALUES_OFFSET;
+	}
 }
 
 void
@@ -469,30 +632,30 @@ world_to_light_bin_axis(float3 world)
 structured_buffer<material> material_buffer reg(t0, space2);
 
 material
-load_material(uint32 idx)
+load_material(uint16 idx)
 {
-	if (idx == invalid_id_uint32)
-	{
-		material m;
-		m.base_color_factor	   = float4(1.0, 1.0, 1.0, 1.0);
-		m.metallic_factor	   = 0.0;
-		m.roughness_factor	   = 0.5;
-		m.emissive_factor	   = float3(0.0, 0.0, 0.0);
-		m.normal_scale		   = 1.0;
-		m.occlusion_strength   = 1.0;
-		m.alpha_cutoff		   = 0.5;
-		m.alpha_mode_and_extra = 0;	   // alpha_mode = opaque(0), extra = 0
-		m._					   = uint2(0, 0);
+	// if (idx == invalid_id_uint32)
+	//{
+	//	material m;
+	//	m.base_color_factor						   = float4(1.0, 1.0, 1.0, 1.0);
+	//	m.metallic_factor						   = 0.0f;
+	//	m.roughness_factor						   = 0.5f;
+	//	m.emissive_factor						   = float3(0.0, 0.0, 0.0);
+	//	m.normal_scale							   = 1.0f;
+	//	m.occlusion_strength					   = 1.0f;
+	//	m.alpha_cutoff							   = 0.5f;
+	//	m.shading_model_and_sampler_kind_and_extra = uint32_2(0, 0);
+	//	m._										   = 0u;
 
-		m.base_color_texture_id			= invalid_id_uint32;
-		m.metallic_roughness_texture_id = invalid_id_uint32;
-		m.normal_texture_id				= invalid_id_uint32;
-		m.occlusion_texture_id			= invalid_id_uint32;
-		m.emissive_texture_id			= invalid_id_uint32;
+	//	m.base_color_texture_id			= invalid_id_uint32;
+	//	m.metallic_roughness_texture_id = invalid_id_uint32;
+	//	m.normal_texture_id				= invalid_id_uint32;
+	//	m.occlusion_texture_id			= invalid_id_uint32;
+	//	m.emissive_texture_id			= invalid_id_uint32;
 
-		return m;
-	}
-	else
+	//	return m;
+	//}
+	// else
 	{
 		return material_buffer[idx];
 	}
@@ -529,7 +692,7 @@ load_rt_triangle_index(uint32 rt_index_buffer_offset, uint32 triangle_idx)
 }
 
 uint32_3
-load_rt_triangle_index(rt_instance_render_data data, uint32 triangle_idx)
+load_rt_triangle_index(object_render_data data, uint32 triangle_idx)
 {
 	return load_rt_triangle_index(data.rt_index_buffer_offset, triangle_idx);
 }
@@ -943,14 +1106,86 @@ ddgi_store_probe_state_and_extra(const ddgi_data data, uint32 probe_id, uint16 p
 }
 
 // sampler
-sampler_state linear_clamp_sampler reg(s0);
-sampler_state linear_wrap_sampler reg(s1);
-sampler_state point_clamp_sampler reg(s2);
+sampler_state linear_wrap_sampler reg(s0);
+sampler_state linear_clamp_sampler reg(s1);
+sampler_state linear_mirror_sampler reg(s2);
+sampler_state point_wrap_sampler reg(s3);
+sampler_state point_clamp_sampler reg(s4);
+sampler_state point_mirror_sampler reg(s5);
 
 sampler_state
-get_linear_clamp_sampler()
+get_sampler(uint32 kind)
 {
-	return linear_clamp_sampler;
+	switch (kind)
+	{
+	case AGE_SAMPLER_KIND_LINEAR_WRAP:
+	{
+		return linear_wrap_sampler;
+	}
+	case AGE_SAMPLER_KIND_LINEAR_CLAMP:
+	{
+		return linear_clamp_sampler;
+	}
+	case AGE_SAMPLER_KIND_LINEAR_MIRROR:
+	{
+		return linear_mirror_sampler;
+	}
+	case AGE_SAMPLER_KIND_POINT_WRAP:
+	{
+		return point_wrap_sampler;
+	}
+	case AGE_SAMPLER_KIND_POINT_CLAMP:
+	{
+		return point_clamp_sampler;
+	}
+	case AGE_SAMPLER_KIND_POINT_MIRROR:
+	{
+		return point_mirror_sampler;
+	}
+	default:
+	{
+		// assert(false)
+		// default
+		return linear_wrap_sampler;
+	}
+	}
+}
+
+template <typename t>
+t
+sample_level_kind(texture_2d<t> tex, uint32 kind, float2 uv, uint32 mip = 0u)
+{
+	switch (kind)
+	{
+	case AGE_SAMPLER_KIND_LINEAR_WRAP:
+	{
+		return sample_level(tex, linear_wrap_sampler, uv, mip);
+	}
+	case AGE_SAMPLER_KIND_LINEAR_CLAMP:
+	{
+		return sample_level(tex, linear_clamp_sampler, uv, mip);
+	}
+	case AGE_SAMPLER_KIND_LINEAR_MIRROR:
+	{
+		return sample_level(tex, linear_mirror_sampler, uv, mip);
+	}
+	case AGE_SAMPLER_KIND_POINT_WRAP:
+	{
+		return sample_level(tex, point_wrap_sampler, uv, mip);
+	}
+	case AGE_SAMPLER_KIND_POINT_CLAMP:
+	{
+		return sample_level(tex, point_clamp_sampler, uv, mip);
+	}
+	case AGE_SAMPLER_KIND_POINT_MIRROR:
+	{
+		return sample_level(tex, point_mirror_sampler, uv, mip);
+	}
+	default:
+	{
+		return sample_level(tex, linear_wrap_sampler, uv, mip);
+	}
+	}
 }
 
 sampler_state
@@ -960,9 +1195,33 @@ get_linear_wrap_sampler()
 }
 
 sampler_state
+get_linear_clamp_sampler()
+{
+	return linear_clamp_sampler;
+}
+
+sampler_state
+get_linear_mirror_sampler()
+{
+	return linear_mirror_sampler;
+}
+
+sampler_state
+get_point_wrap_sampler()
+{
+	return point_wrap_sampler;
+}
+
+sampler_state
 get_point_clamp_sampler()
 {
 	return point_clamp_sampler;
+}
+
+sampler_state
+get_point_mirror_sampler()
+{
+	return point_mirror_sampler;
 }
 
 uint32
@@ -988,6 +1247,7 @@ safe_dot_camera_forward(float3 dir)
 #include "age_tonemap.asli"
 #include "age_mesh.asli"
 #include "age_random.asli"
+#include "age_rt.asli"
 #include "hrp_aa.asli"
 #include "hrp_ao.asli"
 #include "age_ddgi.asli"
@@ -1000,12 +1260,47 @@ safe_dot_camera_forward(float3 dir)
 #include "age_debug_view.asli"
 #include "age_gist_debug_view.asli"
 
+struct hrp_gbuffer_as_out
+{
+	uint32 meshlet_group_idx;
+	uint32 meshlet_alive_mask;
+};
+
+struct hrp_gbuffer_ms_vertex_out
+{
+	float4 pos										sv_position;
+	float3 normal									semantics(normal);
+	nointerpolation uint32 global_meshlet_render_id semantics(global_meshlet_render_id);
+};
+
+struct hrp_gbuffer_ms_mask_vertex_out
+{
+	float4 pos										sv_position;
+	float3 normal									semantics(normal);
+	float2 mask_uv									semantics(mask_uv);
+	nointerpolation uint32 global_meshlet_render_id semantics(global_meshlet_render_id);
+};
+
+struct hrp_gbuffer_ms_prim_out
+{
+	uint32 prim_id sv_primitive_id;
+};
+
+struct hrp_gbuffer_ms_mask_prim_out
+{
+	uint32 prim_id			   sv_primitive_id;
+	uint16 material_id		   semantics(material_id);
+	uint16 fade_and_alpha_test semantics(fade_and_alpha_test);
+};
+
+// lagacy
 struct opaque_as_to_ms
 {
 	uint32 meshlet_32_group_idx;
 	uint32 meshlet_alive_mask;
 };
 
+// lagacy
 struct transparent_as_to_ms
 {
 	uint32 meshlet_32_group_idx;

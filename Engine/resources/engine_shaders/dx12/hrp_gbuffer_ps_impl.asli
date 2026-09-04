@@ -1,0 +1,89 @@
+#ifndef AGE_GBUFFER_PS_IS_DOUBLE_SIDED
+	#error "AGE_GBUFFER_PS_IS_DOUBLE_SIDED must be defined before including hrp_gbuffer_ps_impl.asli"
+#endif
+
+#if (AGE_GBUFFER_PS_RASTER_MODE_OPAQUE + AGE_GBUFFER_PS_RASTER_MODE_TRANSPARENT + AGE_GBUFFER_PS_RASTER_MODE_MASK) != 1
+	#error "exactly one of AGE_GBUFFER_PS_RASTER_MODE_{OPAQUE|TRANSPARENT|MASK} must be defined to 1"
+#endif
+
+struct ps_out
+{
+	uint32_2 geo sv_target_0;
+
+#if AGE_GBUFFER_PS_RASTER_MODE_OPAQUE || AGE_GBUFFER_PS_RASTER_MODE_MASK
+	float2 motion sv_target_1;
+#endif
+};
+
+ps_out
+main_ps(
+	float4 pos						sv_position,
+	float3 normal					semantics(normal),
+	uint32 global_meshlet_render_id semantics(global_meshlet_render_id),
+	uint32 prim_id					sv_primitive_id
+#if AGE_GBUFFER_PS_RASTER_MODE_MASK
+	,
+	float2 mask_uv			   semantics(mask_uv),
+	uint16 material_id		   semantics(material_id),
+	uint16 fade_and_alpha_test semantics(fade_and_alpha_test)
+#endif
+#if AGE_GBUFFER_PS_IS_DOUBLE_SIDED
+		,
+	bool is_front_face sv_is_front_face
+#endif
+)
+{
+	ps_out res;
+
+#if AGE_GBUFFER_PS_RASTER_MODE_MASK
+
+	if (random::bayer_dither_8x8(uint32_2(pos.xy)) >= unorm8_to_float(uint32(fade_and_alpha_test)) /*&0xff is included*/)
+	{
+		discard;
+	}
+
+	const bool alpha_test = (uint32(fade_and_alpha_test) >> 8u) != 0u;
+
+	if (alpha_test)
+	{
+		const material mat = load_material(material_id);
+
+		const float alpha = mesh::sample_base_color<true>(mat, mask_uv).a;
+		if (alpha < mat.alpha_cutoff)
+		{
+			discard;
+		}
+	}
+#endif
+
+#if AGE_GBUFFER_PS_IS_DOUBLE_SIDED
+	normal = is_front_face ? normal : -normal;
+#endif
+
+	// geo
+	res.geo.x = (global_meshlet_render_id & 0x01ffffff) | (prim_id << (32u - 7u));
+	res.geo.y = encode_oct_snorm16(normalize(normal));
+
+	// motion
+#if AGE_GBUFFER_PS_RASTER_MODE_OPAQUE || AGE_GBUFFER_PS_RASTER_MODE_MASK
+	const meshlet_render_data mshlt_render_data = meshlet_render_data_buffer[global_meshlet_render_id];
+	const object_data		  obj_data_prev		= load_object_prev_data(mshlt_render_data.object_render_id);
+	const object_data		  obj_data_curr		= load_object_data(mshlt_render_data.object_render_id);
+
+	const float3 ndc	   = screen_to_ndc(pos.xy, pos.z, inv_backbuffer_size);
+	const float3 world_pos = ndc_to_world(view_proj_inv, ndc);
+	const float3 local_pos = rotate_inv(obj_data_curr.quaternion, world_pos - obj_data_curr.pos) / obj_data_curr.scale;
+
+	const float3 world_pos_prev = rotate(obj_data_prev.quaternion, local_pos * obj_data_prev.scale) + obj_data_prev.pos;
+
+	const float3 ndc_prev		= world_to_ndc(view_proj_prev, world_pos_prev);
+	const float2 screen_uv_prev = ndc_xy_to_screen_uv(ndc_prev.xy);
+
+	const float2 motion = pos.xy * inv_backbuffer_size - screen_uv_prev;
+
+	res.motion = motion;
+#endif
+
+
+	return res;
+}

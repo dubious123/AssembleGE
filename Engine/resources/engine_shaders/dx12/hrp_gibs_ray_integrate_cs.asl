@@ -76,16 +76,16 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	structured_buffer<gibs_ray_hit_result>		ray_hit_result_buffer	   = global_resource_buffer[data.h_ray_hit_buffer_srv_id];
 	structured_buffer<gibs_ray_lighting_result> ray_lighting_result_buffer = global_resource_buffer[data.h_ray_lighting_buffer_srv_id];
 
-	uint32 opaque_back_face_count = 0u;
+	uint32 invalid_back_face_count = 0u;
 	for (uint32 i = 0; i < ray_count; ++i)
 	{
 		gibs_ray_hit_result		 ray_hit	  = ray_hit_result_buffer[ray_offset + i];
 		gibs_ray_lighting_result ray_lighting = ray_lighting_result_buffer[ray_offset + i];
 
-		if (ray_hit.distance < 0.f and ray_hit.object_id == invalid_id_uint32)
+		if (ray_hit.distance != float_max and ray_hit.object_render_id == invalid_id_uint32)
 		{
-			// opaque back face
-			++opaque_back_face_count;
+			// opaque_ss or mask_ss back face
+			++invalid_back_face_count;
 			continue;
 		}
 
@@ -119,8 +119,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		vis_arr.store(idx, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
 	}
 
-	const bool kill = (ray_count <= 8u and opaque_back_face_count >= 2)
-				   or (ray_count > 8u and opaque_back_face_count >= ray_count / 4);
+	const bool kill = (ray_count <= 8u and invalid_back_face_count >= 2)
+				   or (ray_count > 8u and invalid_back_face_count >= ray_count / 4);
 	// if (opaque_back_face_count >= ray_count / 4)
 	if (kill)
 	{
@@ -160,7 +160,7 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		return;
 	}
 
-	radiance_sum /= (ray_count - opaque_back_face_count);
+	radiance_sum /= (ray_count - invalid_back_face_count);
 
 	// const float t = smoothstep(0.f, float(GIBS_RADIANCE_CACHE_DELAY), float(surfel.frame_since_born()));
 	gibs::update_msme(radiance_sum, msme /*, lerp(GIBS_MSME_SHORT_WINDOW_BLEND * 10, GIBS_MSME_SHORT_WINDOW_BLEND, t)*/);

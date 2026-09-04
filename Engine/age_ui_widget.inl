@@ -585,7 +585,7 @@ namespace age::ui::widget
 
 	template <auto n>
 	widget_ctx
-	text_input(std::array<char, n>& arr, auto&&... mod) noexcept
+	text_input(age::array<char, n>& arr, auto&&... mod) noexcept
 	{
 		return text_input(arr.data(), n, FWD(mod)...);
 	}
@@ -660,7 +660,7 @@ namespace age::ui::widget
 
 	template <auto n>
 	widget_ctx
-	text_input2(std::array<char, n>& arr) noexcept
+	text_input2(age::array<char, n>& arr) noexcept
 	{
 		return text_input2(arr.data(), n);
 	}
@@ -724,9 +724,9 @@ namespace age::ui::widget
 
 	template <auto n>
 	bool
-	text_input3(std::array<char, n>& arr, auto&&... mod) noexcept
+	text_input3(age::array<char, n>& arr, auto&&... mod) noexcept
 	{
-		return text_input(arr.data(), n, FWD(mod)...);
+		return text_input3(arr.data(), n, FWD(mod)...);
 	}
 
 	widget_ctx
@@ -785,7 +785,7 @@ namespace age::ui::widget
 
 	template <auto n>
 	widget_ctx
-	text_input4(std::array<char, n>& arr, auto&&... mod) noexcept
+	text_input4(age::array<char, n>& arr, auto&&... mod) noexcept
 	{
 		return text_input(arr.data(), n, FWD(mod)...);
 	}
@@ -1012,8 +1012,8 @@ namespace age::ui::widget
 				  float4		  text_label_color = theme::text_label_color(),
 				  float			  step			   = 0.1f) noexcept
 	{
-		static constexpr c_auto labels = std::array{ "X", "Y", "Z", "W" };
-		c_auto					colors = std::array{
+		static constexpr c_auto labels = age::array{ "X", "Y", "Z", "W" };
+		c_auto					colors = age::array{
 			theme::color_text_red(),
 			theme::color_text_green(),
 			theme::color_text_blue(),
@@ -1064,7 +1064,7 @@ namespace age::ui::widget
 				  float4	  text_label_color = theme::text_label_color(),
 				  float		  step			   = 0.1f) noexcept
 	{
-		static constexpr c_auto row_labels = std::array{ "Row 0", "Row 1", "Row 2", "Row 3" };
+		static constexpr c_auto row_labels = age::array{ "Row 0", "Row 1", "Row 2", "Row 3" };
 
 		if (auto col = widget::begin(style::vertical(size_mode::grow(), size_mode::fit())))
 		{
@@ -1134,7 +1134,7 @@ namespace age::ui::widget
 	consteval auto
 	make_dropdown_option_all()
 	{
-		auto res = std::array<dropdown_option<t_enum>, e_size(t_enum{})>{};
+		auto res = age::array<dropdown_option<t_enum>, e_size(t_enum{})>{};
 		auto i	 = 0;
 
 		e_visit_all(t_enum{}, [&]<t_enum e_kind> { res[i++] = dropdown_option<t_enum>{ .value = e_kind, .label = to_string(e_kind) }; });
@@ -1148,7 +1148,7 @@ namespace age::ui::widget
 	{
 		using t_type = BARE_OF(meta::variadic_auto_front_v<enums...>);
 		static_assert(std::is_enum_v<t_type>);
-		return std::array{ dropdown_option<t_type>{ .value = enums, .label = to_string(enums) }... };
+		return age::array{ dropdown_option<t_type>{ .value = enums, .label = to_string(enums) }... };
 	}
 
 	template <typename t_value>

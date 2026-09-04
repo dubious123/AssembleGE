@@ -29,7 +29,7 @@ namespace age::asset::detail
 	}
 
 	handle
-	handle_texture_load(const std::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
+	handle_texture_load(const age::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
 	{
 		c_auto h_tex = asset::find(e::kind::texture, full_path);
 
@@ -71,22 +71,62 @@ namespace age::asset::material
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (auto file_data = asset::read_asset_file(entry.get_path());
+			file_data.is_valid())
 		{
-			buf.read(
-				entry.base_color_factor,
-				entry.metallic_factor,
-				entry.roughness_factor,
-				entry.emissive_factor,
-				entry.normal_scale,
-				entry.occlusion_strength,
-				entry.alpha_cutoff,
-				entry.alpha_mode);
+			switch (file_data.header.asset_version)
+			{
+			case 0:
+			{
+				auto alpha_mode = uint8{};
+				file_data.buf.read(
+					entry.base_color_factor,
+					entry.metallic_factor,
+					entry.roughness_factor,
+					entry.emissive_factor,
+					entry.normal_scale,
+					entry.occlusion_strength,
+					entry.alpha_cutoff,
+					alpha_mode);
+				entry.double_sided					  = false;
+				entry.shading_model					  = graphics::e::material_shading_model_kind::pbr_default;
+				entry.base_color_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+				entry.metallic_roughness_sampler_kind = graphics::e::sampler_kind::linear_wrap;
+				entry.normal_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+				entry.occlusion_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+				entry.emissive_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+
+				break;
+			}
+			case config::material_asset_version:
+			{
+				file_data.buf.read(
+					entry.double_sided,
+					entry.base_color_factor,
+					entry.metallic_factor,
+					entry.roughness_factor,
+					entry.emissive_factor,
+					entry.normal_scale,
+					entry.occlusion_strength,
+					entry.alpha_cutoff,
+					entry.shading_model,
+					entry.base_color_sampler_kind,
+					entry.metallic_roughness_sampler_kind,
+					entry.normal_sampler_kind,
+					entry.occlusion_sampler_kind,
+					entry.emissive_sampler_kind);
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false);
+				return;
+			}
+			}
 
 			for (auto& h_tex : entry.all_textures() | views::deref)
 			{
-				h_tex = detail::handle_texture_load(buf.read<std::array<char, config::max_asset_path_len>>(), renderer);
+				h_tex = detail::handle_texture_load(file_data.buf.read<age::array<char, config::max_asset_path_len>>(), renderer);
 			}
 		}
 

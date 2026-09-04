@@ -17,7 +17,7 @@ namespace age::editor
 			.below_min_color		= cmp.below_min_color,
 			.above_max_color		= cmp.above_max_color,
 		};
-		auto slot_desc_arr = std::array<graphics::render_pipeline::debug_view_slot_desc, 16>{};
+		auto slot_desc_arr = age::array<graphics::render_pipeline::debug_view_slot_desc, 16>{};
 
 		c_auto slot_config_to_desc = [](auto& desc, auto& config, bool is_fullscreen = false) {
 			desc.system_kind							= config.system_kind;

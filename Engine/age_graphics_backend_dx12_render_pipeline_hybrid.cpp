@@ -3,6 +3,15 @@
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 
+namespace age::graphics::render_pipeline::detail
+{
+	uint32
+	pack_object_id(uint8 gen, uint32 object_id) noexcept
+	{
+		return (uint32{ gen } << 28u) | object_id;
+	}
+}	 // namespace age::graphics::render_pipeline::detail
+
 // main
 namespace age::graphics::render_pipeline
 {
@@ -31,6 +40,10 @@ namespace age::graphics::render_pipeline
 		h_mapping_static_ring_buffer_arr = resource::create_buffer_committed_arr(g::static_buffer_size);
 		resource::set_name(h_mapping_static_ring_buffer_arr, L"static_ring_buffer[{}]");
 		static_ring_buffer.bind_array(h_mapping_static_ring_buffer_arr);
+
+		h_mapping_meshlet_render_data_buffer_arr = resource::create_buffer_committed_arr(sizeof(shared_type::meshlet_render_data) * 1024);
+		resource::set_name(h_mapping_meshlet_render_data_buffer_arr, L"mapping_meshlet_render_data_buffer[{}]");
+		meshlet_render_data_buffer.bind_array(h_mapping_meshlet_render_data_buffer_arr);
 
 		h_mapping_frame_data = resource::create_buffer_committed(sizeof(shared_type::frame_data) * global::frame_buffer_count);
 		h_mapping_frame_data->h_resource->set_name(L"mapping_frame_data");
@@ -177,13 +190,59 @@ namespace age::graphics::render_pipeline
 
 		AGE_ASSERT(main_camera_id == 0);
 
+		// default invalid material
+		c_auto error_mat_id = upload_material(shared_type::material{
+			.base_color_factor						  = float4{ 1.f, 0.f, 1.f, 1.f },
+			.metallic_factor						  = 0.f,
+			.roughness_factor						  = 1.f,
+			.emissive_factor						  = float3{ 0.f, 0.f, 0.f },
+			.normal_scale							  = 1.f,
+			.occlusion_strength						  = 1.f,
+			.alpha_cutoff							  = 0.5f,
+			.shading_model_and_sampler_kind_and_extra = uint32_2(to_idx<uint32>(graphics::e::material_shading_model_kind::pbr_default)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 8u)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 16u)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 24u),
+																 to_idx<uint32>(graphics::e::sampler_kind::linear_wrap)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap)) << 8u),
+			.base_color_texture_id					  = age::get_invalid_id<uint32>(),
+			.metallic_roughness_texture_id			  = age::get_invalid_id<uint32>(),
+			.normal_texture_id						  = age::get_invalid_id<uint32>(),
+			.occlusion_texture_id					  = age::get_invalid_id<uint32>(),
+			.emissive_texture_id					  = age::get_invalid_id<uint32>(),
+		});
+
+		c_auto default_mat_id = upload_material(shared_type::material{
+			.base_color_factor						  = float4{ 1.f, 1.f, 1.f, 1.f },
+			.metallic_factor						  = 0.f,
+			.roughness_factor						  = 0.5f,
+			.emissive_factor						  = float3{ 0.f, 0.f, 0.f },
+			.normal_scale							  = 1.f,
+			.occlusion_strength						  = 1.f,
+			.alpha_cutoff							  = 0.5f,
+			.shading_model_and_sampler_kind_and_extra = uint32_2(to_idx<uint32>(graphics::e::material_shading_model_kind::pbr_default)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 8u)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 16u)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap) << 24u),
+																 to_idx<uint32>(graphics::e::sampler_kind::linear_wrap)
+																	 | (to_idx<uint32>(graphics::e::sampler_kind::linear_wrap)) << 8u),
+			.base_color_texture_id					  = age::get_invalid_id<uint32>(),
+			.metallic_roughness_texture_id			  = age::get_invalid_id<uint32>(),
+			.normal_texture_id						  = age::get_invalid_id<uint32>(),
+			.occlusion_texture_id					  = age::get_invalid_id<uint32>(),
+			.emissive_texture_id					  = age::get_invalid_id<uint32>(),
+		});
+
+		AGE_ASSERT(error_mat_id == g::error_material_id);
+		AGE_ASSERT(default_mat_id == g::default_material_id);
+
 		active_bloom_id			 = get_invalid_id<t_bloom_id>();
 		bloom_gpu.srv_texture_id = get_invalid_id<uint32>();
 
 		ao_data_cpu.enabled = false;
 
-		segment_data_cpu.segment_data_gpu.edge_plane_dist_threshold = 0.05f;
-		segment_data_cpu.segment_data_gpu.edge_normal_threshold		= 0.9f;
+		segment_data_cpu.segment_data_gpu.edge_plane_dist_tolerance_px = 0.05f;
+		segment_data_cpu.segment_data_gpu.edge_normal_threshold		   = 0.9f;
 	}
 
 	void
@@ -192,11 +251,7 @@ namespace age::graphics::render_pipeline
 		mesh_persistant_buffer_offset_pool.clear();
 		mesh_rt_index_buffer_offset_pool.clear();
 
-		for (auto& vec : opaque_meshlet_render_data_vec)
-		{
-			vec.clear();
-		}
-		for (auto& vec : transparent_meshlet_render_data_vec)
+		for (auto& vec : meshlet_render_data_vec | views::join_n<2>)
 		{
 			vec.clear();
 		}
@@ -256,6 +311,7 @@ namespace age::graphics::render_pipeline
 
 		// static
 		resource::unmap_and_release(h_mapping_static_ring_buffer_arr);
+		resource::unmap_and_release(h_mapping_meshlet_render_data_buffer_arr);
 		resource::unmap_and_release(h_mapping_frame_data);
 		resource::unmap_and_release(h_mapping_mesh_buffer);
 		resource::unmap_and_release(h_mapping_rt_index_buffer);
@@ -406,21 +462,31 @@ namespace age::graphics::render_pipeline
 		AGE_ASSERT(mesh_data_vec.size() == 0);
 		AGE_ASSERT(camera_data_vec.size() == 0);
 		AGE_ASSERT(camera_desc_vec.size() == 0);
+		AGE_ASSERT(material_vec.size() == 2);
+		AGE_ASSERT(runtime::is_handle_invalid(material_vec[g::error_material_id]));
+		AGE_ASSERT(runtime::is_handle_invalid(material_vec[g::default_material_id]));
 		AGE_ASSERT(directional_light_vec.size() == 0);
 		AGE_ASSERT(unified_light_vec.size() == 0);
 		AGE_ASSERT(texture_map.size() == 0);
 		AGE_ASSERT(env_light_cpu_data_vec.size() == 0);
 		AGE_ASSERT(bloom_desc_vec.size() == 0);
+		AGE_ASSERT(rt_geometry_desc_vec.size() == 0);
 
-		texture_map.clear();
 		object_data_vec.clear();
 		object_prev_data_vec.clear();
+		object_id_buffer.clear();
+		object_generation_buffer.clear();
 		object_transform_data_vec.clear();
-		object_generation_vec.clear();
-		object_render_data_vec.clear();
+		mesh_data_vec.clear();
+		camera_data_vec.clear();
+		camera_desc_vec.clear();
+		material_vec.clear();
 		directional_light_vec.clear();
 		unified_light_vec.clear();
+		texture_map.clear();
+		env_light_cpu_data_vec.clear();
 		bloom_desc_vec.clear();
+		rt_geometry_desc_vec.clear();
 	}
 
 	void
@@ -443,14 +509,14 @@ namespace age::graphics::render_pipeline
 
 		h_readback_rt_raycast_result_buffer_arr[global::i_graphics.get_frame_buffer_idx]->readback(raycast_result_vec[global::i_graphics.get_frame_buffer_idx].data(), raycast_result_vec[global::i_graphics.get_frame_buffer_idx].byte_size());
 
-		for (auto& res : raycast_result_vec[global::i_graphics.get_frame_buffer_idx])
-		{
-			if (AGE_IS_INVALID_IDX(res.object_id) is_false)
-			{
-				res.object_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_id & 0x0fffffff];
-				//  res.object_id = object_data_vec.nth_id(res.object_id);
-			}
-		}
+		// for (auto& res : raycast_result_vec[global::i_graphics.get_frame_buffer_idx])
+		//{
+		//	if (AGE_IS_INVALID_IDX(res.object_render_id) is_false)
+		//	{
+		//		res.object_render_id = object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx][res.object_render_id];
+		//		//  res.object_id = object_data_vec.nth_id(res.object_id);
+		//	}
+		// }
 
 		if constexpr (g::enable_shader_debug_assert)
 		{
@@ -652,14 +718,11 @@ namespace age::graphics::render_pipeline
 			remove_object(id);
 		}
 
-		for (auto& vec : opaque_meshlet_render_data_vec)
+		for (auto& vec : meshlet_render_data_vec | views::join_n<2>)
 		{
 			vec.clear();
 		}
-		for (auto& vec : transparent_meshlet_render_data_vec)
-		{
-			vec.clear();
-		}
+
 		for (auto& vec : rt_instance_render_data_vec)
 		{
 			vec.clear();
@@ -686,13 +749,14 @@ namespace age::graphics::render_pipeline
 			return false;
 		}
 
-
 		ui_render_data_vec.clear();
 		ui_render_data_z_range_vec.clear();
 		for (auto& v : ui_root_data_vec_arr)
 		{
 			v.clear();
 		}
+
+		std::memset(object_id_buffer.data(), 0xff, object_id_buffer.capacity() * sizeof(BARE_OF(object_id_buffer)::value_type));
 
 		c_auto new_extent = age::extent_2d<uint16>{
 			.width	= static_cast<uint16>(age::platform::get_client_width(rs.h_window)),
@@ -725,146 +789,276 @@ namespace age::graphics::render_pipeline
 	}
 
 	void
-	hybrid_pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, asset::handle h_mat) noexcept
+	hybrid_pipeline::render_model(uint8 thread_id, t_object_id object_id, asset::handle h_model, const model_render_option& option) noexcept
 	{
-		c_auto& mesh_entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-		c_auto& mat_entry  = h_mat.get_entry<asset::e::kind::material>();
+		static_assert(global::thread_count > 0u and std ::bit_width(global::thread_count - 1u) <= 5u);
 
-		// todo
-		if (mat_entry.alpha_mode == asset::e::alpha_mode_kind::opaque)
-		{
-			render_mesh(thread_id, object_id, mesh_entry.render_id, mat_entry.render_id);
-		}
-		else
-		{
-			render_transparent_mesh(thread_id, object_id, mesh_entry.render_id, mat_entry.render_id);
-		}
-	}
+		c_auto& model_entry = h_model.get_entry<asset::e::kind::model>();
+		c_auto& mesh_entry	= model_entry.h_mesh.get_entry<asset::e::kind::mesh_baked>();
 
-	void
-	hybrid_pipeline::render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id) noexcept
-	{
-		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-		render_mesh(thread_id, object_id, entry.render_id, mat_id);
-	}
+		AGE_ASSERT(model_entry.is_loaded());
+		AGE_ASSERT(object_id < g::max_object_count);
 
-	void
-	hybrid_pipeline::render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id) noexcept
-	{
-		auto& render_data_vec		  = opaque_meshlet_render_data_vec[thread_id];
+		c_auto mesh_id = mesh_entry.render_id;
+
 		auto& rt_instance_vec		  = rt_instance_data_vec[thread_id];
 		auto& rt_inst_render_data_vec = rt_instance_render_data_vec[thread_id];
+		auto& material_vec			  = instance_submesh_material_vec[thread_id];
 
 		c_auto rt_instance_id_temp = rt_inst_render_data_vec.size<uint32>();
 
 		c_auto& msh_data = mesh_data_vec[mesh_id];
 
-		c_auto object_id_gpu				  = object_data_vec.get_pos(object_id);
-		object_render_data_vec[object_id_gpu] = shared_type::object_render_data{
+		c_auto object_render_id = object_data_vec.get_pos(object_id);
+
+		c_auto force_double_sided = has_any(option.option_flags, graphics::e::model_render_option_flags::force_double_sided);
+		c_auto is_fade			  = has_any(option.option_flags, e::model_render_option_flags::fade) and option.fade_unorm8 != 0xff;
+
+		AGE_ASSERT(material_vec.size<uint32>() <= 0x07ff'ffffu);
+		object_render_data_vec[object_render_id] = shared_type::object_render_data{
 			.mesh_byte_offset		= msh_data.offset,
 			.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 			.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
 			.rt_index_buffer_size	= msh_data.rt_idx_size / 4,
-			.material_id			= mat_id
+			// .submesh_material_offset = material_vec.size<uint32>(),
+			.submesh_material_offset = (uint32{ thread_id } << 27u) | (material_vec.size<uint32>() & 0x07ff'ffffu),
+			.fade_unorm8_and_extra	 = (is_fade ? option.fade_unorm8 : uint32{ 0xff })
+									 | (to_idx<uint32>(option.raster_override_kind) << 8u)
+									 | (to_idx<uint32>(option.rt_alpha_test_override_kind) << 16u)
 		};
 
-		for (auto meshlet_id = 0u;
-			 auto _ : views::loop(msh_data.meshlet_count))
+		object_id_buffer[object_render_id] = detail::pack_object_id(object_generation_buffer[object_id], object_id);
+
+		auto rt_mask = e::rt_mask_kind::none;
+
+		auto double_sided_exists = false;
+		for (c_auto submesh_id : views::loop(mesh_entry.submesh_count()))
 		{
-			render_data_vec.emplace_back(
-				shared_type::opaque_meshlet_render_data{
-					.object_id		   = object_id_gpu | (object_generation_vec[object_id] << 28u),
-					.mesh_byte_offset  = msh_data.offset,
-					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
-					.meshlet_id		   = meshlet_id++,
-					.material_id	   = mat_id });
+			auto double_sided = force_double_sided;
+			auto mat_id_gpu	  = invalid_id_uint32;
+			if (submesh_id < model_entry.h_material_vec.size() and not runtime::is_handle_invalid(model_entry.h_material_vec[submesh_id]))
+			{
+				c_auto& mat_entry  = model_entry.h_material_vec[submesh_id].get_entry<asset::e::kind::material>();
+				mat_id_gpu		   = mat_entry.render_id;
+				double_sided	  |= mat_entry.double_sided;
+			}
+
+			double_sided_exists |= double_sided;
+
+			c_auto submesh_raster_mode = mesh_entry.submesh_raster_mode(submesh_id);
+
+			c_auto raster_mode = option.raster_override_kind == graphics::e::mesh_raster_override_kind::force_mask
+								   ? graphics::e::mesh_raster_mode_kind::mask
+							   : option.raster_override_kind == graphics::e::mesh_raster_override_kind::force_transparent
+								   ? graphics::e::mesh_raster_mode_kind::transparent
+							   : option.raster_override_kind == graphics::e::mesh_raster_override_kind::force_opaque
+										 or submesh_raster_mode == graphics::e::mesh_raster_mode_kind::opaque
+								   ? is_fade
+									   ? graphics::e::mesh_raster_mode_kind::mask
+									   : graphics::e::mesh_raster_mode_kind::opaque
+							   : submesh_raster_mode == graphics::e::mesh_raster_mode_kind::transparent
+								   ? graphics::e::mesh_raster_mode_kind::transparent
+							   : submesh_raster_mode == graphics::e::mesh_raster_mode_kind::mask
+								   ? graphics::e::mesh_raster_mode_kind::mask
+								   : cast_to<graphics::e::mesh_raster_mode_kind>(graphics::e::mesh_raster_mode_kind_size);
+
+			if (to_idx(raster_mode) >= graphics::e::mesh_raster_mode_kind_size)
+			{
+				AGE_UNREACHABLE("invalid raster render mode, {}", to_idx(submesh_raster_mode));
+			}
+
+			auto& meshlet_render_data_vec = get_meshlet_render_data_vec(thread_id, raster_mode, double_sided);
+
+			material_vec.emplace_back(cast_to<t_material_id>(mat_id_gpu == invalid_id_uint32
+																 ? g::error_material_id
+																 : cast_to<t_material_id>(mat_id_gpu)));
+
+			for (c_auto meshlet_id : std::views::iota(mesh_entry.submesh_meshlet_id_offset(submesh_id)) | std::views::take(mesh_entry.submesh_meshlet_count(submesh_id)))
+			{
+				meshlet_render_data_vec.emplace_back(shared_type::meshlet_render_data{
+					.object_render_id = object_render_id,
+					.meshlet_id		  = meshlet_id });
+			}
+
+			c_auto submesh_rt_bake_mode = mesh_entry.submesh_rt_bake_mode(submesh_id);
+			switch (submesh_rt_bake_mode)
+			{
+			case graphics::e::mesh_rt_bake_mode_kind::opaque:
+			{
+				rt_mask |= graphics::e::rt_mask_kind::opaque;
+				break;
+			}
+			case graphics::e::mesh_rt_bake_mode_kind::transparent:
+			{
+				rt_mask |= graphics::e::rt_mask_kind::transparent;
+				break;
+			}
+			case graphics::e::mesh_rt_bake_mode_kind::omm_opaque:
+			{
+				rt_mask |= graphics::e::rt_mask_kind::opaque;
+				rt_mask |= graphics::e::rt_mask_kind::omm;
+				break;
+			}
+			case graphics::e::mesh_rt_bake_mode_kind::omm_transparent:
+			{
+				rt_mask |= graphics::e::rt_mask_kind::transparent;
+				rt_mask |= graphics::e::rt_mask_kind::omm;
+				break;
+			}
+			default:
+			{
+				AGE_UNREACHABLE("invalid mesh_rt_bake_mode_kind, {}", to_idx(submesh_rt_bake_mode));
+				break;
+			}
+			}
 		}
 
-		rt_inst_render_data_vec.emplace_back(
-			shared_type::rt_instance_render_data{
-				.object_id				= object_id_gpu | (object_generation_vec[object_id] << 28u),
-				.mesh_byte_offset		= msh_data.offset,
-				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-				.material_id			= mat_id,
-				.rt_mask_and_extra		= to_idx(e::rt_mask_kind::opaque) });
+		auto rt_instance_flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 
-		c_auto& transform = object_transform_data_vec[object_id];
+		switch (option.rt_alpha_test_override_kind)
+		{
+		case graphics::e::mesh_rt_alpha_test_override_kind::none:
+		{
+			break;
+		}
+		case graphics::e::mesh_rt_alpha_test_override_kind::opaque:
+		{
+			rt_instance_flags  = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE;
+			rt_mask			  &= ~graphics::e::rt_mask_kind::transparent;
+			rt_mask			  |= graphics::e::rt_mask_kind::opaque;
+			break;
+		}
+		case graphics::e::mesh_rt_alpha_test_override_kind::blend:
+		{
+			rt_instance_flags  = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
+			rt_mask			  &= ~graphics::e::rt_mask_kind::opaque;
+			rt_mask			  |= graphics::e::rt_mask_kind::transparent;
+			break;
+		}
+		case graphics::e::mesh_rt_alpha_test_override_kind::mask:
+		{
+			rt_instance_flags  = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
+			rt_mask			  &= ~graphics::e::rt_mask_kind::opaque;
+			rt_mask			  |= graphics::e::rt_mask_kind::transparent;
+			break;
+		}
+		default:
+		{
+			AGE_UNREACHABLE("invalid mesh_rt_alpha_test_override_kind, {}", to_idx(option.rt_alpha_test_override_kind));
+			break;
+		}
+		}
+
+		if (has_any(option.option_flags, e::model_render_option_flags::fade)
+			and mesh_entry.submesh_count() == 1
+			and option.rt_alpha_test_override_kind == graphics::e::mesh_rt_alpha_test_override_kind::none)
+		{
+			rt_instance_flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
+			rt_mask			  |= graphics::e::rt_mask_kind::transparent;
+			rt_mask			  &= ~graphics::e::rt_mask_kind::opaque;
+		}
+
+		if (has_any(option.option_flags, graphics::e::model_render_option_flags::disable_omm)
+			and has_any(rt_mask, graphics::e::rt_mask_kind::omm))
+		{
+			AGE_ASSERT(mesh_entry.allow_disable_omm());
+
+			if (mesh_entry.allow_disable_omm())
+			{
+				rt_instance_flags |= D3D12_RAYTRACING_INSTANCE_FLAG_DISABLE_OMMS;
+				rt_mask			  &= ~graphics::e::rt_mask_kind::omm;
+			}
+		}
+
+		if (double_sided_exists)
+		{
+			rt_instance_flags |= D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
+		}
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = to_idx(e::rt_mask_kind::opaque),
+			.InstanceMask						 = to_idx(rt_mask),
 			.InstanceContributionToHitGroupIndex = 0,
-			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE,
+			.Flags								 = uint32(rt_instance_flags),
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
 		};
 
+		c_auto& transform = object_transform_data_vec[object_id];
 		std::memcpy(desc.Transform, &transform, sizeof(float3x4));
 
-		rt_instance_vec.emplace_back(desc);
+		rt_instance_vec.emplace_back(std::move(desc));
+
+		rt_inst_render_data_vec.emplace_back(
+			shared_type::rt_instance_render_data{
+				.object_render_id  = object_render_id,
+				.rt_mask_and_extra = to_idx<uint32>(rt_mask)
+								   | (to_idx<uint32>(option.rt_alpha_test_override_kind) << 8u)
+								   | ((is_fade ? uint32(option.fade_unorm8) : uint32(0xff)) << 16u)
+								   | (uint32(force_double_sided ? 1u : 0u) << 24u) });
 	}
 
 	void
-	hybrid_pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id) noexcept
+	hybrid_pipeline::render_mesh_default(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, bool is_opaque) noexcept
 	{
-		c_auto& entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
-		render_transparent_mesh(thread_id, object_id, entry.render_id, mat_id);
-	}
-
-	void
-	hybrid_pipeline::render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id) noexcept
-	{
-		c_auto& msh_data		= mesh_data_vec[mesh_id];
-		auto&	render_data_vec = transparent_meshlet_render_data_vec[thread_id];
-
-		auto& rt_inst_render_data_vec = rt_instance_render_data_vec[thread_id];
 		auto& rt_instance_vec		  = rt_instance_data_vec[thread_id];
+		auto& rt_inst_render_data_vec = rt_instance_render_data_vec[thread_id];
+		auto& material_vec			  = instance_submesh_material_vec[thread_id];
 
 		c_auto rt_instance_id_temp = rt_inst_render_data_vec.size<uint32>();
 
-		c_auto object_id_gpu				  = object_data_vec.get_pos(object_id);
-		object_render_data_vec[object_id_gpu] = shared_type::object_render_data{
+		c_auto& msh_data = mesh_data_vec[mesh_id];
+
+		c_auto object_render_id = object_data_vec.get_pos(object_id);
+
+		static_assert(global::thread_count > 0u and std ::bit_width(global::thread_count - 1u) <= 5u);
+		AGE_ASSERT(material_vec.size<uint32>() <= 0x07ff'ffffu);
+		object_render_data_vec[object_render_id] = shared_type::object_render_data{
 			.mesh_byte_offset		= msh_data.offset,
 			.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
 			.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
 			.rt_index_buffer_size	= msh_data.rt_idx_size / 4,
-			.material_id			= mat_id
+			// .submesh_material_offset = material_vec.size<uint32>(),
+			.submesh_material_offset = (uint32{ thread_id } << 27u) | (material_vec.size<uint32>() & 0x07ff'ffffu),
+			.fade_unorm8_and_extra	 = uint32{ 0x0000'00ff }
+									 | (to_idx<uint32>(graphics::e::mesh_raster_override_kind::none) << 8u)
 		};
 
-		for (auto meshlet_id = 0u;
-			 auto _ : views::loop(msh_data.meshlet_count))
+		object_id_buffer[object_render_id] = detail::pack_object_id(object_generation_buffer[object_id], object_id);
+
+		auto& meshlet_render_data_vec = get_meshlet_render_data_vec(
+			thread_id,
+			is_opaque ? graphics::e::mesh_raster_mode_kind::opaque : graphics::e::mesh_raster_mode_kind::transparent, false);
+
+		material_vec.emplace_back(cast_to<t_material_id>(g::default_material_id));
+
+		for (c_auto meshlet_id : views::loop(msh_data.meshlet_count))
 		{
-			render_data_vec.emplace_back(
-				shared_type::transparent_meshlet_render_data{
-					.object_id		   = object_id_gpu | (object_generation_vec[object_id] << 28u),
-					.mesh_byte_offset  = msh_data.offset,
-					.mesh_chunk_srv_id = msh_data.chunk_srv_id,
-					.meshlet_id		   = meshlet_id++,
-					.material_id	   = mat_id });
+			meshlet_render_data_vec.emplace_back(shared_type::meshlet_render_data{
+				.object_render_id = object_render_id,
+				.meshlet_id		  = meshlet_id });
 		}
 
-		rt_inst_render_data_vec.emplace_back(
-			shared_type::rt_instance_render_data{
-				.object_id				= object_id_gpu | (object_generation_vec[object_id] << 28u),
-				.mesh_byte_offset		= msh_data.offset,
-				.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-				.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-				.material_id			= mat_id,
-				.rt_mask_and_extra		= to_idx(e::rt_mask_kind::transparent) });
-
-		c_auto& transform = object_transform_data_vec[object_id];
+		c_auto rt_mask = is_opaque ? graphics::e::rt_mask_kind::opaque : graphics::e::rt_mask_kind::transparent;
 
 		auto desc = D3D12_RAYTRACING_INSTANCE_DESC{
 			.InstanceID							 = rt_instance_id_temp,
-			.InstanceMask						 = to_idx(e::rt_mask_kind::transparent),
+			.InstanceMask						 = to_idx(rt_mask),
 			.InstanceContributionToHitGroupIndex = 0,
-			.Flags								 = D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE,
+			.Flags								 = uint32(D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE),
 			.AccelerationStructure				 = mesh_data_vec[mesh_id].h_blas->get_va(),
 		};
 
+		c_auto& transform = object_transform_data_vec[object_id];
 		std::memcpy(desc.Transform, &transform, sizeof(float3x4));
 
-		rt_instance_vec.emplace_back(desc);
+		rt_instance_vec.emplace_back(std::move(desc));
+
+		rt_inst_render_data_vec.emplace_back(
+			shared_type::rt_instance_render_data{
+				.object_render_id  = object_render_id,
+				.rt_mask_and_extra = to_idx<uint32>(rt_mask)
+								   | (to_idx<uint32>(graphics::e::mesh_rt_alpha_test_override_kind::none) << 8u)
+								   | (uint32(0x0000'00ff) << 16u) });
 	}
 
 	void
@@ -884,7 +1078,7 @@ namespace age::graphics::render_pipeline
 		{
 			outline_render_data_vec.emplace_back(
 				shared_type::selection_outline_meshlet_render_data{
-					.object_id						= object_data_vec.get_pos(object_id) | (object_generation_vec[object_id] << 28u),
+					.object_render_id				= object_data_vec.get_pos(object_id),
 					.mesh_byte_offset				= msh_data.offset,
 					.mesh_chunk_srv_id				= msh_data.chunk_srv_id,
 					.meshlet_id						= meshlet_id++,
@@ -917,7 +1111,9 @@ namespace age::graphics::render_pipeline
 			c_auto& msh_entry = h_mesh.get_entry<asset::e::kind::mesh_baked>();
 			c_auto& msh_data  = self.mesh_data_vec[msh_entry.render_id];
 
-			c_auto object_id = self.add_object(pos, quat, scale);
+			c_auto object_id						= self.add_object(pos, quat, scale);
+			c_auto object_render_id					= self.object_data_vec.get_pos(object_id);
+			self.object_id_buffer[object_render_id] = detail::pack_object_id(self.object_generation_buffer[object_id], object_id);
 
 			if (draw)
 			{
@@ -926,10 +1122,10 @@ namespace age::graphics::render_pipeline
 				{
 					render_data_vec.emplace_back(
 						shared_type::debug_meshlet_render_data{
-							.debug_object_id   = self.debug_object_data_vec.size<uint32>(),
-							.mesh_byte_offset  = msh_data.offset,
-							.mesh_chunk_srv_id = msh_data.chunk_srv_id,
-							.meshlet_id		   = meshlet_id++ });
+							.debug_object_render_id = self.debug_object_data_vec.size<uint32>(),
+							.mesh_byte_offset		= msh_data.offset,
+							.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
+							.meshlet_id				= meshlet_id++ });
 				}
 
 				self.debug_object_data_vec.emplace_back(shared_type::debug_object_data{ self.object_data_vec.get_pos(object_id), color });
@@ -938,15 +1134,12 @@ namespace age::graphics::render_pipeline
 
 			if (enable_raycast)
 			{
-				c_auto rt_mask = is_aot ? e::rt_mask_kind::debug | e::rt_mask_kind::always_on_top : e::rt_mask_kind::debug;
+				c_auto rt_mask = is_aot ? e::rt_mask_kind::debug | e::rt_mask_kind::always_on_top
+										: e::rt_mask_kind::debug;
 				rt_inst_render_data_vec.emplace_back(
 					shared_type::rt_instance_render_data{
-						.object_id				= self.object_data_vec.get_pos(object_id) | (self.object_generation_vec[object_id] << 28u),
-						.mesh_byte_offset		= msh_data.offset,
-						.mesh_chunk_srv_id		= msh_data.chunk_srv_id,
-						.rt_index_buffer_offset = msh_data.rt_idx_offset / 4,
-						.material_id			= get_invalid_id<uint32>(),
-						.rt_mask_and_extra		= to_idx(rt_mask) });
+						.object_render_id  = object_render_id,
+						.rt_mask_and_extra = to_idx(rt_mask) });
 
 				c_auto& transform = self.object_transform_data_vec[object_id];
 
@@ -986,11 +1179,12 @@ namespace age::graphics::render_pipeline
 
 		auto& rs = graphics::g::render_surface_vec[h_rs];
 
-		auto&& [opaque_meshlet_render_data_count, transparent_meshlet_render_data_count] = upload_data();
-
-		object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx].resize(object_data_vec.size());
-		std::memcpy(object_pos_to_id_arr[global::i_graphics.get_frame_buffer_idx].data(), object_data_vec.pos_to_idx_arr(), object_data_vec.size() * sizeof(uint32));
-
+		auto&& [opaque_single_sided_meshlet_render_data_count,
+				transparent_single_sided_meshlet_render_data_count,
+				mask_single_sided_meshlet_render_data_count,
+				opaque_double_sided_meshlet_render_data_count,
+				transparent_double_sided_meshlet_render_data_count,
+				mask_double_sided_meshlet_render_data_count] = upload_data();
 
 		{
 			frame_data_buffer.apply();
@@ -998,6 +1192,9 @@ namespace age::graphics::render_pipeline
 
 			static_ring_buffer.apply();
 			static_ring_buffer.apply_compute();
+
+			meshlet_render_data_buffer.apply();
+			meshlet_render_data_buffer.apply_compute();
 
 			mesh_data_buffer.apply();
 			mesh_data_buffer.apply_compute();
@@ -1060,8 +1257,13 @@ namespace age::graphics::render_pipeline
 		sorted_light_buffer_srv.apply_compute();
 		light_bin_stage_buffer_srv.apply_compute();
 
-		stage_depth.execute(h_opaque_gbuffer_rtv_desc, h_motion_buffer_rtv_desc, h_opaque_depth_buffer_dsv_desc, opaque_meshlet_render_data_count,
-							h_transparent_gbuffer_rtv_desc, h_transparent_depth_buffer_dsv_desc, transparent_meshlet_render_data_count);
+		stage_depth.execute(h_opaque_gbuffer_rtv_desc, h_motion_buffer_rtv_desc, h_opaque_depth_buffer_dsv_desc, h_transparent_gbuffer_rtv_desc, h_transparent_depth_buffer_dsv_desc,
+							opaque_single_sided_meshlet_render_data_count,
+							opaque_double_sided_meshlet_render_data_count,
+							transparent_single_sided_meshlet_render_data_count,
+							transparent_double_sided_meshlet_render_data_count,
+							mask_single_sided_meshlet_render_data_count,
+							mask_double_sided_meshlet_render_data_count);
 
 		command::apply_barriers(barrier::dsv_write_to_generic_read(h_opaque_depth_buffer,
 																   D3D12_BARRIER_SYNC_DEPTH_STENCIL | D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING,
@@ -1082,8 +1284,9 @@ namespace age::graphics::render_pipeline
 		);
 
 		stage_material_resolve.execute(extent);
-		stage_segment.execute(extent);
+		command::apply_barriers(barrier::buf_uav_to_uav(segment_data_cpu.h_segment_buffer));
 
+		stage_segment.execute(extent);
 		command::apply_barriers(barrier::tex_uav_to_srv(h_opaque_base_color_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_uav_to_srv(h_opaque_mr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 								barrier::tex_uav_to_srv(h_opaque_shading_normal_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_PIXEL_SHADING | D3D12_BARRIER_SYNC_COMPUTE_SHADING),
@@ -1498,7 +1701,7 @@ namespace age::graphics::render_pipeline
 
 		{
 			c_auto tile_extent = extent_2d<uint16>{ cast_to<uint16>(ceil(extent.width, g::segment_tile_size)), cast_to<uint16>(ceil(extent.height, g::segment_tile_size)) };
-			c_auto buffer_size = tile_extent.width * tile_extent.height * (g::segment_tile_size * g::segment_tile_size * 1u) * 2;
+			c_auto buffer_size = tile_extent.width * tile_extent.height * (g::segment_tile_size * g::segment_tile_size * 1u) * 3;
 
 			segment_data_cpu.h_segment_buffer = resource::create_committed_buf_uav(buffer_size);
 			segment_data_cpu.h_segment_buffer->set_name(L"segment_buffer");
@@ -1580,13 +1783,13 @@ namespace age::graphics::render_pipeline
 		if (aa_enabled())
 		{
 			update_aa(aa_desc{
-				.fxaa_on_offscreen		   = aa_data_cpu.fxaa_on_offscreen,
-				.opaque_aa_ray_per_px	   = cast_to<uint8>(aa_data_cpu.aa_data_gpu.ray_per_px & 0xff),
-				.transparent_aa_ray_per_px = cast_to<uint8>(aa_data_cpu.aa_data_gpu.ray_per_px >> 8u),
-				.aa_px_cap				   = aa_data_cpu.aa_px_cap,
-				.aa_px_headroom			   = aa_data_cpu.aa_px_headroom,
-				.edge_plane_dist_threshold = segment_data_cpu.segment_data_gpu.edge_plane_dist_threshold,
-				.edge_normal_threshold	   = segment_data_cpu.segment_data_gpu.edge_normal_threshold
+				.fxaa_on_offscreen			  = aa_data_cpu.fxaa_on_offscreen,
+				.opaque_aa_ray_per_px		  = cast_to<uint8>(aa_data_cpu.aa_data_gpu.ray_per_px & 0xff),
+				.transparent_aa_ray_per_px	  = cast_to<uint8>(aa_data_cpu.aa_data_gpu.ray_per_px >> 8u),
+				.aa_px_cap					  = aa_data_cpu.aa_px_cap,
+				.aa_px_headroom				  = aa_data_cpu.aa_px_headroom,
+				.edge_plane_dist_tolerance_px = segment_data_cpu.segment_data_gpu.edge_plane_dist_tolerance_px,
+				.edge_normal_threshold		  = segment_data_cpu.segment_data_gpu.edge_normal_threshold
 
 			});
 		}
@@ -1823,24 +2026,41 @@ namespace age::graphics::render_pipeline
 	namespace detail
 	{
 		void
+		update_material_impl(hybrid_pipeline& renderer, t_material_id id, const shared_type::material& mat) noexcept
+		{
+			if (resource::resize_buffer_preserve(renderer.h_mapping_material_buffer, sizeof(mat) * (id + 1)))
+			{
+				renderer.material_buffer.bind(renderer.h_mapping_material_buffer);
+			}
+
+			renderer.h_mapping_material_buffer->upload(&mat, sizeof(mat), sizeof(mat) * id);
+		}
+
+		void
 		update_material_impl(hybrid_pipeline& renderer, t_material_id id, asset::handle h_mat) noexcept
 		{
 			c_auto& entry = h_mat.get_entry<asset::e::kind::material>();
 
 			auto mat = shared_type::material{
-				.base_color_factor			   = entry.base_color_factor,
-				.metallic_factor			   = entry.metallic_factor,
-				.roughness_factor			   = entry.roughness_factor,
-				.emissive_factor			   = entry.emissive_factor,
-				.normal_scale				   = entry.normal_scale,
-				.occlusion_strength			   = entry.occlusion_strength,
-				.alpha_cutoff				   = entry.alpha_cutoff,
-				.alpha_mode_and_extra		   = to_idx(entry.alpha_mode),
-				.base_color_texture_id		   = age::get_invalid_id<uint32>(),
-				.metallic_roughness_texture_id = age::get_invalid_id<uint32>(),
-				.normal_texture_id			   = age::get_invalid_id<uint32>(),
-				.occlusion_texture_id		   = age::get_invalid_id<uint32>(),
-				.emissive_texture_id		   = age::get_invalid_id<uint32>(),
+				.base_color_factor						  = entry.base_color_factor,
+				.metallic_factor						  = entry.metallic_factor,
+				.roughness_factor						  = entry.roughness_factor,
+				.emissive_factor						  = entry.emissive_factor,
+				.normal_scale							  = entry.normal_scale,
+				.occlusion_strength						  = entry.occlusion_strength,
+				.alpha_cutoff							  = entry.alpha_cutoff,
+				.shading_model_and_sampler_kind_and_extra = uint32_2(to_idx<uint32>(entry.shading_model)
+																		 | (to_idx<uint32>(entry.base_color_sampler_kind) << 8u)
+																		 | (to_idx<uint32>(entry.metallic_roughness_sampler_kind) << 16u)
+																		 | (to_idx<uint32>(entry.normal_sampler_kind) << 24u),
+																	 to_idx<uint32>(entry.occlusion_sampler_kind)
+																		 | (to_idx<uint32>(entry.emissive_sampler_kind) << 8u)
+																		 | (uint32{ entry.double_sided ? 1u : 0u } << 16u)),
+				.base_color_texture_id					  = age::get_invalid_id<uint32>(),
+				.metallic_roughness_texture_id			  = age::get_invalid_id<uint32>(),
+				.normal_texture_id						  = age::get_invalid_id<uint32>(),
+				.occlusion_texture_id					  = age::get_invalid_id<uint32>(),
+				.emissive_texture_id					  = age::get_invalid_id<uint32>(),
 			};
 
 			if (age::runtime::is_handle_invalid(entry.h_tex_base_color) is_false)
@@ -1864,21 +2084,37 @@ namespace age::graphics::render_pipeline
 				mat.emissive_texture_id = entry.h_tex_emissive.get_entry<asset::e::kind::texture>().render_id;
 			}
 
-			if (resource::resize_buffer_preserve(renderer.h_mapping_material_buffer, sizeof(mat) * (id + 1)))
-			{
-				renderer.material_buffer.bind(renderer.h_mapping_material_buffer);
-			}
+			AGE_ASSERT(mat.shading_model_kind() == to_idx<uint32>(entry.shading_model)
+					   and mat.base_color_sampler_kind() == to_idx<uint32>(entry.base_color_sampler_kind)
+					   and mat.mr_sampler_kind() == to_idx<uint32>(entry.metallic_roughness_sampler_kind)
+					   and mat.normal_sampler_kind() == to_idx<uint32>(entry.normal_sampler_kind)
+					   and mat.occlusion_sampler_kind() == to_idx<uint32>(entry.occlusion_sampler_kind)
+					   and mat.emissive_sampler_kind() == to_idx<uint32>(entry.emissive_sampler_kind)
+					   and mat.is_double_sided() == entry.double_sided);
 
-			renderer.h_mapping_material_buffer->upload(&mat, sizeof(mat), sizeof(mat) * id);
+			update_material_impl(renderer, id, mat);
 		}
 	}	 // namespace detail
 
 	t_material_id
 	hybrid_pipeline::upload_material(asset::handle h_mat) noexcept
 	{
+		AGE_ASSERT(material_vec.size() < std::numeric_limits<uint16>::max());
 		auto id = static_cast<t_material_id>(material_vec.emplace_back(h_mat));
 
 		detail::update_material_impl(*this, id, h_mat);
+
+		return id;
+	}
+
+	// private
+	t_material_id
+	hybrid_pipeline::upload_material(const shared_type::material& mat) noexcept
+	{
+		AGE_ASSERT(material_vec.size() < std::numeric_limits<uint16>::max());
+		auto id = static_cast<t_material_id>(material_vec.emplace_back(asset::handle{}));
+
+		detail::update_material_impl(*this, id, mat);
 
 		return id;
 	}
@@ -1911,6 +2147,8 @@ namespace age::graphics::render_pipeline
 		AGE_ASSERT(mesh_persistant_buffer_offset_pool.capacity() < std::numeric_limits<uint32>::max() - header.meshlet_buffer_byte_size);
 
 		AGE_ASSERT(header.meshlet_buffer_byte_size % 4 == 0);
+
+		AGE_ASSERT(entry.submesh_count() < std::numeric_limits<uint16>::max());
 
 		c_auto flat_index_arr = std::span<const uint32>{ reinterpret_cast<const uint32*>(entry.index_buffer_data()), header.index_count };
 		c_auto vertex_pos_arr = std::span<const float3>{ reinterpret_cast<const float3*>(entry.pos_buffer_data()), header.pos_count };
@@ -2010,12 +2248,26 @@ namespace age::graphics::render_pipeline
 		h_mapping_rt_vertex_scratch_buffer->upload(vertex_pos_arr.data(), vertex_pos_arr.size_bytes());
 		h_mapping_mesh_buffer->upload(entry.meshlet_buffer_data(), header.meshlet_buffer_byte_size, mesh_byte_offset);
 
-		auto h_blas = graphics::rt::build_blas(
-			defaults::rt::geo_desc::triangles(
-				static_cast<uint32>(flat_index_arr.size()),
-				static_cast<uint32>(vertex_pos_arr.size()),
-				h_mapping_rt_index_buffer->h_resource->get_va() + index_byte_offset,
-				h_mapping_rt_vertex_scratch_buffer->h_resource->get_va()));
+		for (auto	va_index_buffer_base	 = h_mapping_rt_index_buffer->h_resource->get_va() + index_byte_offset,
+					va_vertex_scratch_buffer = h_mapping_rt_vertex_scratch_buffer->h_resource->get_va();
+			 c_auto submesh_id : views::loop(entry.submesh_count()))
+		{
+			// todo, omm_triangle
+			c_auto flags = entry.submesh_rt_bake_mode(submesh_id) == graphics::e::mesh_rt_bake_mode_kind::opaque
+							 ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE
+							 : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+
+			rt_geometry_desc_vec.emplace_back(
+				defaults::rt::geo_desc::triangles(
+					entry.submesh_primitive_count(submesh_id) * 3u,
+					static_cast<uint32>(vertex_pos_arr.size()),
+					va_index_buffer_base + entry.submesh_primitive_id_offset(submesh_id) * 3u * sizeof(uint32),
+					va_vertex_scratch_buffer,
+					flags));
+		}
+
+		c_auto h_blas = graphics::rt::build_blas(rt_geometry_desc_vec);
+		rt_geometry_desc_vec.clear();
 
 		auto id = static_cast<t_mesh_id>(mesh_data_vec.emplace_back(
 			mesh_data{
@@ -2077,10 +2329,9 @@ namespace age::graphics::render_pipeline
 
 		object_transform_data_vec.emplace_back();
 
-		object_generation_vec.resize(max(object_generation_vec.capacity(), id + 1ull));
-		object_generation_vec[id] = (object_generation_vec[id] + 1) & 0xf;
-
-		object_render_data_vec.resize(max(object_render_data_vec.capacity(), id + 1ull));
+		object_id_buffer.resize(max(object_id_buffer.capacity(), object_data_vec.capacity(), id + 1ull));
+		object_generation_buffer.resize(max(object_generation_buffer.capacity(), object_data_vec.capacity(), id + 1ull));
+		object_render_data_vec.resize(max(object_render_data_vec.capacity(), object_data_vec.capacity(), id + 1ull));
 
 		update_object(id, pos, quat, scale);
 
@@ -2101,8 +2352,6 @@ namespace age::graphics::render_pipeline
 			//.scale		= scale_encode,
 			.scale = scale,
 			// .quaternion_debug = quat,
-
-			.gen_and_extra = object_generation_vec[id],
 		};
 
 		// mimic encode/decode error
@@ -2135,7 +2384,8 @@ namespace age::graphics::render_pipeline
 		object_data_vec.remove(id);
 		object_prev_data_vec.remove(id);
 		object_transform_data_vec.remove(id);
-		id = age::get_invalid_id<t_object_id>();
+		object_generation_buffer[id] = (object_generation_buffer[id] + 1) & 0xf;
+		id							 = age::get_invalid_id<t_object_id>();
 	}
 }	 // namespace age::graphics::render_pipeline
 
@@ -2172,7 +2422,7 @@ namespace age::graphics::render_pipeline
 			c_auto xm_view_proj		= xm_proj * xm_view;
 			c_auto xm_view_proj_inv = xm_view_proj | simd::mat_inv();
 
-			c_auto frustum_plane_arr = std::array{
+			c_auto frustum_plane_arr = age::array{
 				xm_view_proj.r[3] | simd::add(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// left
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[0]) | simd::plane_normalize() | simd::to<float4>(),	// right
 				xm_view_proj.r[3] | simd::sub(xm_view_proj.r[1]) | simd::plane_normalize() | simd::to<float4>(),	// top
@@ -2511,7 +2761,7 @@ namespace age::graphics::render_pipeline
 		return id;
 	}
 
-	shared_type::raycast_result
+	raycast_result
 	hybrid_pipeline::get_raycast_result(t_raycast_id id) noexcept
 	{
 		// AGE_ASSERT((id >> 24) % global::frame_buffer_count == global::i_graphics.get_frame_buffer_idx);
@@ -2519,16 +2769,28 @@ namespace age::graphics::render_pipeline
 		c_auto idx		 = id & 0x00ff'ffff;
 		c_auto frame_idx = (id & 0xff00'0000) >> 24u;
 
-		if (frame_idx < global::frame_buffer_count and idx < raycast_result_vec[frame_idx].size<uint32>())
+
+		if (AGE_IS_INVALID_IDX(id) is_false and frame_idx < global::frame_buffer_count and idx < raycast_result_vec[frame_idx].size<uint32>())
 		{
-			return raycast_result_vec[frame_idx][idx];
+			c_auto gpu_res = raycast_result_vec[frame_idx][idx];
+
+			if (AGE_IS_INVALID_IDX(gpu_res.object_id) is_false)
+			{
+				c_auto obj_id  = gpu_res.object_id & 0x0fffffff;
+				c_auto obj_gen = gpu_res.object_id >> 28u;
+
+				return raycast_result{
+					.object_id		= obj_id,
+					.t_hit			= gpu_res.t_hit,
+					.world_pos		= gpu_res.world_pos,
+					.object_deleted = (object_generation_buffer[obj_id] & 0xf) != obj_gen
+				};
+			}
 		}
-		else
-		{
-			return shared_type::raycast_result{
-				.object_id = get_invalid_idx<uint32>()
-			};
-		}
+
+		return raycast_result{
+			.object_id = get_invalid_idx<uint32>()
+		};
 	}
 }	 // namespace age::graphics::render_pipeline
 
@@ -3212,11 +3474,13 @@ namespace age::graphics::render_pipeline
 			c_auto cell_surfel_spawn_data_offset = offset_calculator + sizeof(uint64 /*coverage + surfel_id*/) * cell_count_total;
 			c_auto cell_surfel_kill_data_offset	 = offset_calculator + (sizeof(uint64 /*coverage + surfel_id*/)) * cell_count_total;
 			c_auto cell_surfel_ref_offset		 = offset_calculator + sizeof(uint32) * util::ceil(gibs_data_gpu.max_cell_surfel_count * 27, 32);
+			c_auto ray_id_to_object_id_offset	 = offset_calculator + sizeof(t_object_id) * (gibs_data_gpu.max_tile_surfel_count * g::gibs_max_ray_per_tile_surfel + gibs_data_gpu.max_cell_surfel_count * g::gibs_max_ray_per_cell_surfel);
 			c_auto buffer_size					 = offset_calculator.size();
 
 			AGE_ASSERT(cell_surfel_spawn_data_offset == gibs_data_gpu.cell_surfel_spawn_data_offset());
 			AGE_ASSERT(cell_surfel_kill_data_offset == gibs_data_gpu.cell_surfel_kill_data_offset());
 			AGE_ASSERT(cell_surfel_ref_offset == gibs_data_gpu.cell_surfel_ref_offset());
+			AGE_ASSERT(ray_id_to_object_id_offset == gibs_data_gpu.ray_id_to_object_id_offset());
 
 			gibs_data_cpu.h_cell_spawn_kill_buffer = resource::create_committed_buf_uav(buffer_size);
 			gibs_data_cpu.h_cell_spawn_kill_buffer->set_name(L"gibs_cell_spawn_kill_buffer");
@@ -3883,11 +4147,13 @@ namespace age::graphics::render_pipeline
 			c_auto cell_surfel_spawn_data_offset = offset_calculator + sizeof(uint64 /*coverage + surfel_id*/) * cell_count_total;
 			c_auto cell_surfel_kill_data_offset	 = offset_calculator + (sizeof(uint64 /*coverage + surfel_id*/)) * cell_count_total;
 			c_auto cell_surfel_ref_offset		 = offset_calculator + sizeof(uint32) * util::ceil(gpu_data.max_cell_surfel_count * 27, 32);
+			c_auto ray_id_to_object_id_offset	 = offset_calculator + sizeof(t_object_id) * gpu_data.max_ray_count();
 			c_auto buffer_size					 = offset_calculator.size();
 
 			AGE_ASSERT(cell_surfel_spawn_data_offset == gpu_data.cell_surfel_spawn_data_offset());
 			AGE_ASSERT(cell_surfel_kill_data_offset == gpu_data.cell_surfel_kill_data_offset());
 			AGE_ASSERT(cell_surfel_ref_offset == gpu_data.cell_surfel_ref_offset());
+			AGE_ASSERT(ray_id_to_object_id_offset == gpu_data.ray_id_to_object_id_offset());
 
 			cpu_data.h_cell_spawn_kill_buffer = resource::create_committed_buf_uav(buffer_size);
 			cpu_data.h_cell_spawn_kill_buffer->set_name(L"gist_cell_spawn_kill_buffer");
@@ -4499,6 +4765,7 @@ namespace age::graphics::render_pipeline
 
 		AGE_ASSERT(desc.opaque_aa_ray_per_px <= 32);
 		AGE_ASSERT(desc.transparent_aa_ray_per_px <= 32);
+		AGE_ASSERT(desc.aa_px_headroom >= 1.f);
 
 		c_auto aa_px_count			  = cast_to<uint32>(extent.width * extent.height * desc.aa_px_cap + 1.f);
 		c_auto aa_px_headroom		  = min(cast_to<uint32>(extent.width * extent.height), cast_to<uint32>(extent.width * extent.height * desc.aa_px_cap * desc.aa_px_headroom + 1.f));
@@ -4516,8 +4783,8 @@ namespace age::graphics::render_pipeline
 			aa_data_cpu.aa_px_cap	   = desc.aa_px_cap;
 			aa_data_cpu.aa_px_headroom = desc.aa_px_headroom;
 
-			segment_data_cpu.segment_data_gpu.edge_normal_threshold		= desc.edge_normal_threshold;
-			segment_data_cpu.segment_data_gpu.edge_plane_dist_threshold = desc.edge_plane_dist_threshold;
+			segment_data_cpu.segment_data_gpu.edge_normal_threshold		   = desc.edge_normal_threshold;
+			segment_data_cpu.segment_data_gpu.edge_plane_dist_tolerance_px = desc.edge_plane_dist_tolerance_px;
 		}
 
 		auto& aa_data_gpu = aa_data_cpu.aa_data_gpu;
@@ -4751,7 +5018,13 @@ namespace age::graphics::render_pipeline
 
 namespace age::graphics::render_pipeline
 {
-	std::tuple<uint32, uint32>
+	age::vector<shared_type::meshlet_render_data>&
+	hybrid_pipeline::get_meshlet_render_data_vec(uint32 thread_id, graphics::e::mesh_raster_mode_kind e_kind, bool is_double_sided) noexcept
+	{
+		return meshlet_render_data_vec[thread_id][to_idx(e_kind)][is_double_sided ? 1 : 0];
+	}
+
+	std::tuple<uint32, uint32, uint32, uint32, uint32, uint32>
 	hybrid_pipeline::upload_data() noexcept
 	{
 		c_auto frame_idx = global::i_graphics.get_frame_buffer_idx();
@@ -4760,78 +5033,176 @@ namespace age::graphics::render_pipeline
 		auto& h_mapping_rt_instance_buffer			   = h_mapping_rt_instance_buffer_arr[frame_idx];
 		auto& h_mapping_rt_instance_render_data_buffer = h_mapping_rt_instance_render_data_buffer_arr[frame_idx];
 		auto& h_mapping_env_light_buffer			   = h_mapping_env_light_buffer_arr[frame_idx];
+		auto& h_mapping_meshlet_render_data_buffer	   = h_mapping_meshlet_render_data_buffer_arr[frame_idx];
 
 		AGE_ASSERT(object_data_vec.size<uint32>() == object_prev_data_vec.size<uint32>());
+		// object_render_id -> object_id_packed
+		h_mapping_static_buffer->upload(object_id_buffer.data(), object_id_buffer.capacity() * sizeof(BARE_OF(object_id_buffer)::value_type), g::object_id_buffer_offset);
+		// object_id -> object_render_id
+		h_mapping_static_buffer->upload(object_data_vec.idx_to_pos_arr(), object_data_vec.capacity() * sizeof(BARE_OF(object_data_vec)::index_type), g::object_render_id_buffer_offset);
+
+		for (c_auto render_id : views::loop(object_data_vec.size()))
+		{
+			c_auto object_id = object_data_vec.pos_to_idx_arr()[render_id];
+			AGE_ASSERT(object_data_vec.idx_to_pos_arr()[object_id] == render_id);
+
+			AGE_ASSERT((object_id_buffer[render_id] & 0x0fffffff) == object_id
+					   // object exists, did not rendered
+					   or AGE_IS_INVALID_ID(object_id_buffer[render_id]));
+		}
+
 		h_mapping_static_buffer->upload(object_data_vec.data(), object_data_vec.byte_size<uint32>(), g::object_data_offset);
 		h_mapping_static_buffer->upload(object_prev_data_vec.data(), object_prev_data_vec.byte_size<uint32>(), g::object_prev_data_offset);
-		h_mapping_static_buffer->upload(object_render_data_vec.data(), object_render_data_vec.byte_size<uint32>(), g::object_render_data_offset);
 		h_mapping_static_buffer->upload(directional_light_vec.data(), directional_light_vec.byte_size<uint32>(), g::directional_light_offset);
 		h_mapping_static_buffer->upload(unified_light_vec.data(), unified_light_vec.byte_size<uint32>(), g::unified_light_offset);
 
 		h_mapping_static_buffer->upload(&segment_data_cpu.segment_data_gpu, sizeof(shared_type::segment_data), g::segment_data_offset);
 
-
-		auto opaque_mshlt_object_data_count		 = 0u;
-		auto transparent_mshlt_object_data_count = 0u;
 		{
-			auto opaque_offset		= g::opaque_mshlt_object_data_offset;
-			auto transparent_offset = g::transparent_mshlt_object_data_offset;
+			auto submesh_offset_arr = age::array<uint32, global::thread_count>{};
 
-			auto rt_instance_render_data_offset = 0ull;
-
-			auto rt_instance_count	= 0ul;
-			auto rt_instance_offset = 0ull;
+			auto submesh_mat_offset = 0u;
 			for (auto i : views::loop(global::thread_count))
 			{
-				auto& opaque_mshlt_render_data_vec		= opaque_meshlet_render_data_vec[i];
-				auto& transparent_mshlt_render_data_vec = transparent_meshlet_render_data_vec[i];
-				auto& rt_inst_render_data_vec			= rt_instance_render_data_vec[i];
-				auto& rt_instance_vec					= rt_instance_data_vec[i];
-
-				h_mapping_static_buffer->upload(opaque_mshlt_render_data_vec.data(), opaque_mshlt_render_data_vec.byte_size<uint32>(), opaque_offset);
-				h_mapping_static_buffer->upload(transparent_mshlt_render_data_vec.data(), transparent_mshlt_render_data_vec.byte_size<uint32>(), transparent_offset);
-
-				opaque_offset				   += opaque_mshlt_render_data_vec.byte_size<uint32>();
-				transparent_offset			   += transparent_mshlt_render_data_vec.byte_size<uint32>();
-				rt_instance_render_data_offset += rt_inst_render_data_vec.byte_size<uint32>();
-				rt_instance_offset			   += rt_instance_vec.byte_size<uint32>();
-
-				// prefix
-				for (auto& desc : rt_instance_vec)
-				{
-					desc.InstanceID += rt_instance_count;
-				}
-
-				opaque_mshlt_object_data_count		+= opaque_mshlt_render_data_vec.size<uint32>();
-				transparent_mshlt_object_data_count += transparent_mshlt_render_data_vec.size<uint32>();
-				rt_instance_count					+= rt_instance_vec.size<uint32>();
+				h_mapping_static_buffer->upload(instance_submesh_material_vec[i].data(), instance_submesh_material_vec[i].byte_size(), g::instance_submesh_material_offset + submesh_mat_offset * sizeof(t_material_id));
+				submesh_offset_arr[i]  = submesh_mat_offset;
+				submesh_mat_offset	  += instance_submesh_material_vec[i].size<uint32>();
 			}
 
-			AGE_ASSERT(opaque_mshlt_object_data_count < g::max_opaque_mshlt_render_data_count);
-			AGE_ASSERT(transparent_mshlt_object_data_count < g::max_transparent_mshlt_render_data_count);
+			AGE_ASSERT(g::instance_submesh_material_offset + submesh_mat_offset * sizeof(t_material_id) < g::object_prev_data_offset);
+			AGE_ASSERT(submesh_mat_offset <= 0x07ff'ffffu);
 
-			AGE_ASSERT(opaque_offset < g::object_data_offset);
-
-			resource::resize_buffer(h_mapping_rt_instance_buffer, rt_instance_offset);
-
-			if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_offset))
+			for (auto& render_data : object_render_data_vec)
 			{
-				rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, frame_idx);
+				c_auto packed						= render_data.submesh_material_offset;
+				c_auto thread_id					= min(packed >> 27u, global::thread_count - 1u);
+				render_data.submesh_material_offset = submesh_offset_arr[thread_id] + (packed & 0x07ff'ffffu);
 			}
 
-			rt_instance_offset			   = 0;
-			rt_instance_render_data_offset = 0;
+			h_mapping_static_buffer->upload(object_render_data_vec.data(), object_render_data_vec.byte_size<uint32>(), g::object_render_data_offset);
+		}
+
+		auto opaque_single_sided_meshlet_render_data_count		= 0u;
+		auto transparent_single_sided_meshlet_render_data_count = 0u;
+		auto mask_single_sided_meshlet_render_data_count		= 0u;
+		auto opaque_double_sided_meshlet_render_data_count		= 0u;
+		auto transparent_double_sided_meshlet_render_data_count = 0u;
+		auto mask_double_sided_meshlet_render_data_count		= 0u;
+
+		auto rt_instance_render_data_byte_offset = 0u;
+		auto rt_instance_byte_offset			 = 0u;
+		auto rt_instance_count					 = 0u;
+
+		for (auto i : views::loop(global::thread_count))
+		{
+			opaque_single_sided_meshlet_render_data_count	   += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::opaque, false).size<uint32>();
+			transparent_single_sided_meshlet_render_data_count += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::transparent, false).size<uint32>();
+			mask_single_sided_meshlet_render_data_count		   += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::mask, false).size<uint32>();
+			opaque_double_sided_meshlet_render_data_count	   += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::opaque, true).size<uint32>();
+			transparent_double_sided_meshlet_render_data_count += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::transparent, true).size<uint32>();
+			mask_double_sided_meshlet_render_data_count		   += get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::mask, true).size<uint32>();
+
+			auto& rt_inst_render_data_vec = rt_instance_render_data_vec[i];
+			auto& rt_instance_vec		  = rt_instance_data_vec[i];
+
+			rt_instance_render_data_byte_offset += rt_inst_render_data_vec.byte_size<uint32>();
+			rt_instance_byte_offset				+= rt_instance_vec.byte_size<uint32>();
+
+			// prefix
+			for (auto& desc : rt_instance_vec)
+			{
+				desc.InstanceID += rt_instance_count;
+			}
+
+			rt_instance_count += rt_instance_vec.size<uint32>();
+		}
+
+		resource::resize_buffer(h_mapping_rt_instance_buffer, rt_instance_byte_offset);
+
+		if (resource::resize_buffer(h_mapping_rt_instance_render_data_buffer, rt_instance_render_data_byte_offset))
+		{
+			rt_instance_render_data_buffer_srv.bind(h_mapping_rt_instance_render_data_buffer, frame_idx);
+		}
+
+		auto offset_calculator = util::offset_calculator{};
+
+		c_auto opaque_single_sided_meshlet_render_data_offset	   = offset_calculator + opaque_single_sided_meshlet_render_data_count;
+		c_auto transparent_single_sided_meshlet_render_data_offset = offset_calculator + transparent_single_sided_meshlet_render_data_count;
+		c_auto mask_single_sided_meshlet_render_data_offset		   = offset_calculator + mask_single_sided_meshlet_render_data_count;
+		c_auto opaque_double_sided_meshlet_render_data_offset	   = offset_calculator + opaque_double_sided_meshlet_render_data_count;
+		c_auto transparent_double_sided_meshlet_render_data_offset = offset_calculator + transparent_double_sided_meshlet_render_data_count;
+		c_auto mask_double_sided_meshlet_render_data_offset		   = offset_calculator + mask_double_sided_meshlet_render_data_count;
+
+		if (resource::resize_buffer(h_mapping_meshlet_render_data_buffer, offset_calculator.size() * sizeof(shared_type::meshlet_render_data)))
+		{
+			meshlet_render_data_buffer.bind(h_mapping_meshlet_render_data_buffer, frame_idx);
+		}
+
+		{
+			auto offset = 0u;
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::opaque, false);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::transparent, false);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::mask, false);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::opaque, true);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::transparent, true);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+			for (auto i : views::loop(global::thread_count))
+			{
+				auto& vec = get_meshlet_render_data_vec(i, graphics::e::mesh_raster_mode_kind::mask, true);
+				h_mapping_meshlet_render_data_buffer->upload(vec.data(), vec.byte_size(), offset);
+				offset += vec.byte_size<uint32>();
+			}
+
+			AGE_ASSERT(offset == offset_calculator.size() * sizeof(shared_type::meshlet_render_data));
+			AGE_ASSERT(offset_calculator.size() <= g::max_meshlet_render_data_count);
+		}
+
+		{
+			rt_instance_byte_offset				= 0;
+			rt_instance_render_data_byte_offset = 0;
 			for (auto i : views::loop(global::thread_count))
 			{
 				auto& rt_instance_vec		  = rt_instance_data_vec[i];
 				auto& rt_inst_render_data_vec = rt_instance_render_data_vec[i];
 
-				h_mapping_rt_instance_buffer->upload(rt_instance_vec.data(), rt_instance_vec.byte_size<uint32>(), rt_instance_offset);
-				h_mapping_rt_instance_render_data_buffer->upload(rt_inst_render_data_vec.data(), rt_inst_render_data_vec.byte_size<uint32>(), rt_instance_render_data_offset);
+				h_mapping_rt_instance_buffer->upload(rt_instance_vec.data(), rt_instance_vec.byte_size<uint32>(), rt_instance_byte_offset);
+				h_mapping_rt_instance_render_data_buffer->upload(rt_inst_render_data_vec.data(), rt_inst_render_data_vec.byte_size<uint32>(), rt_instance_render_data_byte_offset);
 
-				rt_instance_offset			   += rt_instance_vec.byte_size<uint32>();
-				rt_instance_render_data_offset += rt_inst_render_data_vec.byte_size<uint32>();
+				rt_instance_byte_offset				+= rt_instance_vec.byte_size<uint32>();
+				rt_instance_render_data_byte_offset += rt_inst_render_data_vec.byte_size<uint32>();
 			}
+
 
 			auto&& [tlas_buffer_size, tlas_scratch_buffer_size] = graphics::rt::query_tlas_size(rt_instance_count);
 
@@ -5074,8 +5445,7 @@ namespace age::graphics::render_pipeline
 
 		c_auto& main_cam_desc = camera_desc_vec[main_camera_id];
 		root_constants.bind(shared_type::root_constants{
-			.opaque_meshlet_render_data_count  = static_cast<uint32>(opaque_mshlt_object_data_count),
-			.directional_light_count_and_extra = static_cast<t_directional_light_id>(directional_light_vec.size()) | static_cast<uint32>(transparent_mshlt_object_data_count << 8u),
+			.directional_light_count_and_extra = directional_light_vec.size<t_directional_light_id>(),
 			.unified_light_count			   = unified_light_vec.size<t_unified_light_id>(),
 			.rc_scratch_0					   = 0u,
 			.rc_scratch_1					   = 0u,
@@ -5159,13 +5529,27 @@ namespace age::graphics::render_pipeline
 			.opaque_shading_normal_buffer_uav_id = calc_desc_idx(h_opaque_shading_normal_buffer_uav_desc),
 			.opaque_emissive_buffer_srv_id		 = calc_desc_idx(h_opaque_emissive_buffer_srv_desc),
 			.opaque_emissive_buffer_uav_id		 = calc_desc_idx(h_opaque_emissive_buffer_uav_desc),
+
+
+			.opaque_single_sided_meshlet_render_data_count		= opaque_single_sided_meshlet_render_data_count,
+			.transparent_single_sided_meshlet_render_data_count = transparent_single_sided_meshlet_render_data_count,
+			.mask_single_sided_meshlet_render_data_count		= mask_single_sided_meshlet_render_data_count,
+			.opaque_double_sided_meshlet_render_data_count		= opaque_double_sided_meshlet_render_data_count,
+			.transparent_double_sided_meshlet_render_data_count = transparent_double_sided_meshlet_render_data_count,
+			.mask_double_sided_meshlet_render_data_count		= mask_double_sided_meshlet_render_data_count,
+
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);
 
 		h_mapping_frame_data->upload(&frame_d, sizeof(shared_type::frame_data), sizeof(shared_type::frame_data) * frame_idx);
 
-		return { opaque_mshlt_object_data_count, transparent_mshlt_object_data_count };
+		return { opaque_single_sided_meshlet_render_data_count,
+				 transparent_single_sided_meshlet_render_data_count,
+				 mask_single_sided_meshlet_render_data_count,
+				 opaque_double_sided_meshlet_render_data_count,
+				 transparent_double_sided_meshlet_render_data_count,
+				 mask_double_sided_meshlet_render_data_count };
 	}
 }	 // namespace age::graphics::render_pipeline
 #endif

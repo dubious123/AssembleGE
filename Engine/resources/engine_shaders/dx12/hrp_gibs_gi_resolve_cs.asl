@@ -57,7 +57,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 	// }
 
 	const uint32 vis_packed			   = gbuffer[px].x;
-	const uint32 object_id			   = load_opaque_meshlet_render_data(vis_packed & 0x01ffffff).object_id;
+	const uint32 obj_render_id		   = meshlet_render_data_buffer[unpack_vis_mshlt_render_id(vis_packed)].object_render_id;
 	const uint32 px_normal_oct_snorm16 = gbuffer[px].y;
 	const float3 px_normal			   = decode_oct_snorm16(px_normal_oct_snorm16);
 
@@ -102,7 +102,7 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 	if (irradiance_sum.w < 0.1f)
 	{
-		const float4 fallback  = gibs::sample_irradiance(data, world_pos, px_normal);
+		const float4 fallback  = gibs::sample_irradiance<false, false>(data, world_pos, px_normal);
 		irradiance_sum		  += float4(fallback.xyz * fallback.w, fallback.w);
 	}
 
@@ -145,11 +145,11 @@ main_cs(uint32_3 group_id	   sv_group_id,
 
 		if (prob < spawn_prob)
 		{
-			const object_data obj = load_object_data(object_id);
+			const object_data obj = load_object_data(obj_render_id);
 
 			gibs::tile::set_surfel_spawn(data,
 										 sample_id,
-										 object_id,
+										 obj_render_id,
 										 rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
 										 encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, px_normal) * obj.scale)),
 										 encode_r11g11b10(new_born_irradiance));

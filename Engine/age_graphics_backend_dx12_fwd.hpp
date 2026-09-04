@@ -28,13 +28,25 @@ namespace age::graphics::e
 	AGE_DEFINE_ENUM(engine_shader_kind, uint8,
 					hrp_fullscreen_ms,
 
-					hrp_gbuffer_prepass_opaque_as,
-					hrp_gbuffer_prepass_opaque_ms,
-					hrp_gbuffer_prepass_opaque_ps,
+					hrp_gbuffer_opaque_ss_as,
+					hrp_gbuffer_opaque_ss_ms,
+					hrp_gbuffer_opaque_ss_ps,
+					hrp_gbuffer_transparent_ss_as,
+					hrp_gbuffer_transparent_ss_ms,
+					hrp_gbuffer_transparent_ss_ps,
+					hrp_gbuffer_mask_ss_as,
+					hrp_gbuffer_mask_ss_ms,
+					hrp_gbuffer_mask_ss_ps,
 
-					hrp_gbuffer_prepass_transparent_as,
-					hrp_gbuffer_prepass_transparent_ms,
-					hrp_gbuffer_prepass_transparent_ps,
+					hrp_gbuffer_opaque_ds_as,
+					hrp_gbuffer_opaque_ds_ms,
+					hrp_gbuffer_opaque_ds_ps,
+					hrp_gbuffer_transparent_ds_as,
+					hrp_gbuffer_transparent_ds_ms,
+					hrp_gbuffer_transparent_ds_ps,
+					hrp_gbuffer_mask_ds_as,
+					hrp_gbuffer_mask_ds_ms,
+					hrp_gbuffer_mask_ds_ps,
 
 					hrp_material_resolve_cs,
 
@@ -556,10 +568,10 @@ namespace age::graphics
 {
 	struct render_surface
 	{
-		std::array<rtv_desc_handle, global::frame_buffer_count>
+		age::array<rtv_desc_handle, global::frame_buffer_count>
 			rtv_desc_handle_arr;
 
-		std::array<ID3D12Resource*, global::frame_buffer_count>
+		age::array<ID3D12Resource*, global::frame_buffer_count>
 			back_buffer_ptr_arr;
 
 		IDXGISwapChain4* p_swap_chain = nullptr;

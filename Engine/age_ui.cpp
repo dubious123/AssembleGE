@@ -14,7 +14,7 @@ namespace age::ui
 		g::cam_world_pos	  = {};
 		g::mouse_ray_dir	  = {};
 
-		g::raycast_id_arr = { get_invalid_idx<uint32>() };
+		g::raycast_id_arr = age::make_filled_array<uint32, global::frame_buffer_count>(get_invalid_idx<uint32>());
 	}
 
 	namespace detail

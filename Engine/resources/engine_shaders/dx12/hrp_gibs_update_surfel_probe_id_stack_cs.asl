@@ -30,7 +30,7 @@ main_cs(uint32 group_id		   sv_group_id,
 	const gibs_recycle_data			 probe_recycle = probe_recycle_buffer[probe_id];
 	const gibs_surfel_probe_geometry probe_geo	   = probe_geo_buffer[probe_id];
 
-	if (is_object_id_valid(probe_geo.object_id) is_false /*or object_id == invalid_id*/)
+	if (is_object_render_id_valid(probe_geo.object_render_id) is_false /*or object_id == invalid_id*/)
 	{
 		handle_kill_probe(data, alive_idx_prev, probe_id);
 		return;
@@ -43,8 +43,8 @@ main_cs(uint32 group_id		   sv_group_id,
 		kill_probe = true;
 	}
 
-	const object_data		 obj		 = load_object_data(probe_geo.object_id);
-	const object_render_data render_data = load_object_render_data(probe_geo.object_id);
+	const object_data		 obj		 = load_object_data(probe_geo.object_render_id);
+	const object_render_data render_data = load_object_render_data(probe_geo.object_render_id);
 
 	if (probe_geo.primitive_id >= render_data.rt_index_buffer_size)
 	{

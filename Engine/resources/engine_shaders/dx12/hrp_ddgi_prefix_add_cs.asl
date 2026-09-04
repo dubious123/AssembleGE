@@ -11,8 +11,7 @@ main_cs(uint32 group_id			  sv_group_id,
 	const uint32	probe_count	 = ddgi_calc_probe_count(data);
 	const uint32	block_offset = ddgi_load_group_prefix(data, group_id);
 
-	expand_all()
-
+	// expand_all()
 	for (uint32 i = 0; i < DDGI_PREFIX_ELEMENT_PER_THREAD; ++i)
 	{
 		const uint32 probe_id = group_id * DDGI_PREFIX_ELEMENT_PER_GROUP

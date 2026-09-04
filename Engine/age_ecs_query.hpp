@@ -27,6 +27,9 @@ namespace age::ecs::detail
 	concept cx_query_sv = meta::variadic_contains_v<t, sv_entity_id, sv_block, sv_local_index, sv_archetype>;
 
 	template <typename t>
+	concept cx_entity_query_sv = meta::variadic_contains_v<t, sv_entity_id, sv_block, sv_local_index, sv_archetype>;
+
+	template <typename t>
 	struct is_query_sv : std::bool_constant<cx_query_sv<t>>
 	{
 	};
@@ -37,30 +40,6 @@ namespace age::ecs::detail
 		 and meta::is_specialization_of_v<t_exclude, meta::type_pack>
 		 and meta::is_specialization_of_v<t_any, meta::type_pack>
 	struct query_desc
-	{
-		using ecs_tag = ecs::query_tag;
-
-		using t_select_list	 = t_select;
-		using t_include_list = t_include;
-		using t_exclude_list = t_exclude;
-		using t_any_list	 = t_any;
-
-		// static_assert
-
-		using t_with = meta::make_unique_t<
-			meta::combine_t<
-				meta::transform_t<std::remove_const, meta::filter_not_t<is_query_sv, t_select>>,
-				t_include>>;
-
-		using t_without = meta::make_unique_t<t_exclude>;
-	};
-
-	template <typename t_select, typename t_include, typename t_exclude, typename t_any>
-	requires meta::is_specialization_of_v<t_select, meta::type_pack>
-		 and meta::is_specialization_of_v<t_include, meta::type_pack>
-		 and meta::is_specialization_of_v<t_exclude, meta::type_pack>
-		 and meta::is_specialization_of_v<t_any, meta::type_pack>
-	struct soft_query_desc
 	{
 		using ecs_tag = ecs::query_tag;
 
@@ -90,16 +69,6 @@ namespace age::ecs
 								  meta::type_pack<>,
 								  meta::type_pack<>,
 								  meta::type_pack<>>{};
-	}
-
-	template <typename... t_select>
-	consteval auto
-	soft_query()
-	{
-		return detail::soft_query_desc<meta::type_pack<t_select...>,
-									   meta::type_pack<>,
-									   meta::type_pack<>,
-									   meta::type_pack<>>{};
 	}
 
 	template <typename t_sel, typename t_inc, typename t_exc, typename t_any, typename... t>
@@ -237,6 +206,111 @@ namespace age::ecs
 
 namespace age::ecs::detail
 {
+	template <typename t_cmp, typename t_block>
+	FORCE_INLINE decltype(auto)
+	resolve_select(t_block& block, typename t_block::t_local_entity_idx local_ent_idx) noexcept
+	{
+		if constexpr (std::is_same_v<t_cmp, sv_entity_id>)
+		{
+			return block.ent_id(local_ent_idx);
+		}
+		else if constexpr (std::is_same_v<t_cmp, sv_block>)
+		{
+			return std::ref(block);
+		}
+		else if constexpr (std::is_same_v<t_cmp, sv_local_index>)
+		{
+			return local_ent_idx;
+		}
+		else if constexpr (std::is_same_v<t_cmp, sv_archetype>)
+		{
+			return block.local_archetype();
+		}
+		else if constexpr (t_block::t_archetype_traits::template contains_cmp<std::remove_const_t<t_cmp>>())
+		{
+			if constexpr (std::is_const_v<t_cmp>)
+			{
+				return std::as_const(*block.template cmp_ptr<std::remove_const_t<t_cmp>>(local_ent_idx));
+			}
+			else
+			{
+				return *block.template cmp_ptr<t_cmp>(local_ent_idx);
+			}
+		}
+		else
+		{
+			AGE_UNREACHABLE();
+			return t_cmp{};
+		}
+	}
+
+	template <typename t_query, typename... t_cmp>
+	FORCE_INLINE decltype(auto)
+	query_entity_impl(auto&& block, auto local_ent_idx, meta::type_pack<t_cmp...>) noexcept
+	{
+		// return std::forward_as_tuple(resolve_select<cx_soft_query<t_query>, t_cmp>(block, local_ent_idx)...);
+
+		return std::tuple<decltype(resolve_select<t_cmp>(block, local_ent_idx))...>{
+			resolve_select<t_cmp>(block, local_ent_idx)...
+		};
+	}
+}	 // namespace age::ecs::detail
+
+// ranges
+namespace age::ecs::detail
+{
+	template <typename t_block, typename t_query>
+	struct each_entity_empty_range
+	{
+		using t_local_ent_id = typename t_block::t_local_entity_idx;
+
+		using reference = decltype(detail::query_entity_impl<t_query>(
+			std::declval<t_block&>(), t_local_ent_id{}, typename t_query::t_select_list{}));
+
+		struct iterator
+		{
+			using iterator_concept = std::forward_iterator_tag;
+			using difference_type  = int32;
+			using value_type	   = std::remove_cvref_t<reference>;
+
+			constexpr bool
+			operator==(iterator) const noexcept
+			{
+				return true;
+			}
+
+			constexpr iterator&
+			operator++() noexcept
+			{
+				return *this;
+			}
+
+			constexpr iterator
+			operator++(int) noexcept
+			{
+				return *this;
+			}
+
+			reference
+			operator*() const noexcept
+			{
+				AGE_UNREACHABLE();
+			};
+		};
+
+		constexpr iterator
+		begin() const noexcept
+		{
+			return {};
+		}
+
+		constexpr iterator
+		end() const noexcept
+		{
+			return {};
+		}
+	};
+
 	template <cx_entity_block t_block, typename t_query>
 	struct each_entity_range
 	{
@@ -435,27 +509,101 @@ namespace age::ecs::detail
 			return {};
 		}
 	};
+}	 // namespace age::ecs::detail
 
-	template <typename t_query>
+namespace age::ecs::detail
+{
+	template <typename t_query_cmp, typename... t_cmp>
+	consteval bool
+	is_valid_query_helper()
+	{
+		if constexpr (age::ecs::detail::cx_query_sv<t_query_cmp>)
+		{
+			return true;
+		}
+		else
+		{
+			return meta::variadic_contains_v<std::remove_cvref_t<t_query_cmp>, t_cmp...>;
+		}
+	}
+
+	template <typename... t_cmp, template <typename...> typename t_archetype_traits, typename... t_query_cmp>
+	consteval bool
+	is_valid_query(t_archetype_traits<t_cmp...>, meta::type_pack<t_query_cmp...>)
+	{
+		return (is_valid_query_helper<std::remove_cvref_t<t_query_cmp>, t_cmp...>() and ...);
+		// return (meta::variadic_contains_v<std::remove_cvref_t<t_query_cmp>, t_cmp...> and ...);
+	}
+
+	template <typename t_archetype_traits, typename t_query>
+	requires ecs::cx_query<std::remove_cvref_t<t_query>>
+	consteval bool
+	is_valid_query()
+	{
+		return is_valid_query(t_archetype_traits{}, typename t_query::t_select_list{})
+		   and is_valid_query(t_archetype_traits{}, typename t_query::t_include_list{})
+		   and is_valid_query(t_archetype_traits{}, typename t_query::t_exclude_list{})
+		   and is_valid_query(t_archetype_traits{}, typename t_query::t_any_list{});
+	}
+}	 // namespace age::ecs::detail
+
+namespace age::ecs::detail
+{
+	template <typename t_query, bool soft>
 	class each_entity_adaptor { };
 
-	template <typename t_query>
+	template <typename t_query, bool is_soft>
 	FORCE_INLINE auto
-	operator|(auto&& lhs, each_entity_adaptor<t_query>)
+	operator|(auto&& lhs, each_entity_adaptor<t_query, is_soft>)
 	{
 		using t_lhs = BARE_OF(lhs);
+
 		if constexpr (cx_entity_storage<t_lhs>)
 		{
-			// storage | each_entity(query) = storage | each_block(query) | each_entity(query)
-			return lhs.each_block(t_query{}) | each_entity_adaptor<t_query>{};
+			if constexpr (ecs::detail::is_valid_query<typename t_lhs::t_archetype_traits, t_query>())
+			{
+				// storage | each_entity(query) = storage | each_block(query) | each_entity(query)
+				return lhs.each_block(t_query{}) | each_entity_adaptor<t_query, is_soft>{};
+			}
+			else if constexpr (is_soft)
+			{
+				return each_entity_empty_range<typename t_lhs::t_entity_block, t_query>{};
+			}
+			else
+			{
+				static_assert(false, "invalid query");
+			}
 		}
 		else if constexpr (cx_entity_block<t_lhs>)
 		{
-			return each_entity_range<t_lhs, t_query>{ lhs };
+			if constexpr (ecs::detail::is_valid_query<typename t_lhs::t_archetype_traits, t_query>())
+			{
+				return each_entity_range<t_lhs, t_query>{ lhs };
+			}
+			else if constexpr (is_soft)
+			{
+				return each_entity_empty_range<t_lhs, t_query>{};
+			}
+			else
+			{
+				static_assert(false, "invalid query");
+			}
 		}
 		else if constexpr (std::ranges::range<t_lhs> and cx_entity_block<std::remove_cvref_t<std::ranges::range_reference_t<t_lhs>>>)
 		{
-			return each_entity_joined_range<t_lhs, t_query>{ FWD(lhs) };
+			using t_block = std::remove_cvref_t<std::ranges::range_reference_t<t_lhs>>;
+			if constexpr (ecs::detail::is_valid_query<typename t_block::t_archetype_traits, t_query>())
+			{
+				return each_entity_joined_range<t_lhs, t_query>{ FWD(lhs) };
+			}
+			else if constexpr (is_soft)
+			{
+				return each_entity_empty_range<t_block, t_query>{};
+			}
+			else
+			{
+				static_assert(false, "invalid query");
+			}
 		}
 		else
 		{
@@ -463,14 +611,25 @@ namespace age::ecs::detail
 		}
 	}
 
-	template <typename t_query>
+	template <typename t_query, bool is_soft>
 	class each_block_adaptor { };
 
-	template <typename t_query>
+	template <typename t_query, bool is_soft>
 	FORCE_INLINE auto
-	operator|(cx_entity_storage auto&& storage, each_block_adaptor<t_query>)
+	operator|(cx_entity_storage auto&& storage, each_block_adaptor<t_query, is_soft>)
 	{
-		return storage.each_block(t_query{});
+		if constexpr (BARE_OF(storage)::t_archetype_traits::template is_valid_query<t_query>())
+		{
+			return storage.each_block(t_query{});
+		}
+		else if (is_soft)
+		{
+			return std::views::empty<typename BARE_OF(storage)::t_entity_block>;
+		}
+		else
+		{
+			static_assert(false, "invalid query");
+		}
 	}
 
 	struct each_block_archetype_adaptor
@@ -493,7 +652,7 @@ namespace age::ecs
 	constexpr decltype(auto)
 	each_entity(t_query)
 	{
-		return detail::each_entity_adaptor<t_query>{};
+		return detail::each_entity_adaptor<t_query, false>{};
 	}
 
 	template <typename... t_select>
@@ -506,15 +665,9 @@ namespace age::ecs
 
 	template <typename t_query>
 	constexpr decltype(auto)
-	each_block(t_query)
+	each_entity_soft(t_query)
 	{
-		return detail::each_block_adaptor<t_query>{};
-	}
-
-	constexpr decltype(auto)
-	each_block(uint64 archetype)
-	{
-		return detail::each_block_archetype_adaptor{ archetype };
+		return detail::each_entity_adaptor<t_query, true>{};
 	}
 
 	template <typename... t_select>
@@ -522,58 +675,42 @@ namespace age::ecs
 	constexpr decltype(auto)
 	each_entity_soft()
 	{
-		return each_entity(soft_query<t_select...>());
+		return each_entity_soft(query<t_select...>());
+	}
+
+	template <typename t_query>
+	constexpr decltype(auto)
+	each_block(t_query)
+	{
+		return detail::each_block_adaptor<t_query, false>{};
+	}
+
+	template <typename... t_select>
+	requires(sizeof...(t_select) > 0)
+	constexpr decltype(auto)
+	each_block()
+	{
+		return each_block(query<t_select...>());
+	}
+
+	template <typename t_query>
+	constexpr decltype(auto)
+	each_block_soft(t_query)
+	{
+		return detail::each_block_adaptor<t_query, true>{};
+	}
+
+	template <typename... t_select>
+	requires(sizeof...(t_select) > 0)
+	constexpr decltype(auto)
+	each_block_soft()
+	{
+		return each_block_soft(query<t_select...>());
+	}
+
+	constexpr decltype(auto)
+	each_block(uint64 archetype)
+	{
+		return detail::each_block_archetype_adaptor{ archetype };
 	}
 }	 // namespace age::ecs
-
-namespace age::ecs::detail
-{
-	template <bool soft, typename t_cmp, typename t_block>
-	FORCE_INLINE decltype(auto)
-	resolve_select(t_block& block, typename t_block::t_local_entity_idx local_ent_idx) noexcept
-	{
-		if constexpr (std::is_same_v<t_cmp, sv_entity_id>)
-		{
-			return block.ent_id(local_ent_idx);
-		}
-		else if constexpr (std::is_same_v<t_cmp, sv_block>)
-		{
-			return std::ref(block);
-		}
-		else if constexpr (std::is_same_v<t_cmp, sv_local_index>)
-		{
-			return local_ent_idx;
-		}
-		else if constexpr (std::is_same_v<t_cmp, sv_archetype>)
-		{
-			return block.local_archetype();
-		}
-		else if constexpr (std::is_const_v<t_cmp>)
-		{
-			return std::as_const(*block.template cmp_ptr<std::remove_const_t<t_cmp>>(local_ent_idx));
-		}
-		else if constexpr (soft is_false or t_block::t_archetype_traits::template contains_cmp<t_cmp>())
-		{
-			return *block.template cmp_ptr<t_cmp>(local_ent_idx);
-		}
-		else
-		{
-			AGE_UNREACHABLE();
-			return t_cmp{};
-		}
-	}
-
-	template <typename t_query, typename... t_cmp>
-	FORCE_INLINE decltype(auto)
-	query_entity_impl(auto&& block, auto local_ent_idx, meta::type_pack<t_cmp...>) noexcept
-	{
-		return std::forward_as_tuple(resolve_select<false, t_cmp>(block, local_ent_idx)...);
-	}
-
-	template <typename t_query, typename... t_cmp>
-	FORCE_INLINE decltype(auto)
-	query_entity_soft_impl(auto&& block, auto local_ent_idx, meta::type_pack<t_cmp...>) noexcept
-	{
-		return std::forward_as_tuple(resolve_select<true, t_cmp>(block, local_ent_idx)...);
-	}
-}	 // namespace age::ecs::detail

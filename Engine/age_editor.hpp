@@ -34,13 +34,58 @@ namespace age::editor
 	clear_select() noexcept;
 
 	void
-	load_game(auto& game, std::filesystem::path root_dir, auto& renderer) noexcept;
+	load_game(auto& ecs_game, std::filesystem::path root_dir, auto& renderer) noexcept;
 
 	void
-	save_game(auto& game, auto& renderer) noexcept;
+	save_game(auto& ecs_game, auto& renderer) noexcept;
 
 	void
 	update_game(auto& ecs_game, auto& renderer) noexcept;
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	age::array<char, config::max_asset_path_len>
+	get_asset_full_path(asset::e::kind e_kind, std::string_view asset_name) noexcept;
+}	 // namespace age::editor
+
+// ui
+namespace age::editor
+{
+	void
+	ui_inspector(auto& ecs_game, auto& renderer) noexcept;
+
+	void
+	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept;
+
+	void
+	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept;
+
+	void
+	ui_asset_list_panel() noexcept;
+
+	void
+	ui_modal() noexcept;
+
+	template <asset::e::kind>
+	bool /*is_dirty*/
+	ui_asset(asset::handle h) noexcept;
+
+	template <>
+	bool ui_asset<asset::e::kind::font>(asset::handle) noexcept;
+	template <>
+	bool ui_asset<asset::e::kind::mesh_baked>(asset::handle) noexcept;
+	template <>
+	bool ui_asset<asset::e::kind::material>(asset::handle) noexcept;
+	template <>
+	bool ui_asset<asset::e::kind::texture>(asset::handle) noexcept;
+	template <>
+	bool ui_asset<asset::e::kind::env_light>(asset::handle) noexcept;
+	template <>
+	bool ui_asset<asset::e::kind::model>(asset::handle) noexcept;
+
+	void
+	ui_asset(asset::e::kind, asset::handle h, auto& renderer) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor::gizmo
@@ -56,6 +101,15 @@ namespace age::editor::gizmo
 	std::tuple<float3, bool, bool>
 	scale(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
 }	 // namespace age::editor::gizmo
+
+namespace age::editor::detail
+{
+	scene_editor_data&
+	find_scene_editor_data(uint32 ecs_idx) noexcept;
+
+	storage_editor_data&
+	find_storage_editor_data(uint32 ecs_scene_idx, uint32 ecs_storage_idx) noexcept;
+}	 // namespace age::editor::detail
 
 namespace age::editor::detail
 {

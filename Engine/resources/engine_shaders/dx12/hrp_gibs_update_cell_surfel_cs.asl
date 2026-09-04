@@ -19,7 +19,18 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 	gibs_cell_surfel				surfel	   = surfel_buffer[surfel_id];
 	const gibs_cell_surfel_geometry surfel_geo = surfel_geo_buffer[surfel_id];
 
-	gibs::update_world_space_surfel<gibs_cell_surfel_geometry, gibs_cell_surfel>(surfel_geo, surfel);
+	{
+		const mesh::surface_point_data surface_point = mesh::calc_surface_point(load_object_render_id(surfel_geo.object_id),
+																				surfel_geo.primitive_id,
+																				unorm16_2_to_float2(surfel_geo.barycentric_unorm16),
+																				surfel.recycle_data.is_back_face());
+
+		const pbr_surface_data pbr_surface = calc_pbr_surface(-surface_point.v.normal, surface_point.mat, surface_point.v);
+
+		surfel.normal_oct_snorm16 = encode_oct_snorm16(surface_point.world_face_normal);
+		surfel.position			  = surface_point.v.world_pos;
+		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(pbr_surface, surface_point.world_face_normal) + calc_gi(pbr_surface, decode_r11g11b10(surfel.irradiance_r11g11b10)));
+	}
 
 	surfel.recycle_data.next_frame();
 

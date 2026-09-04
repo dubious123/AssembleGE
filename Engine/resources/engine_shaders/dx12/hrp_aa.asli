@@ -18,25 +18,25 @@ namespace aa
 	void
 	execute_ray_entry(bool is_opaque, uint32 group_id, uint32 group_thread_id)
 	{
-		static const uint32 word_per_tile = ceil(SEGMENT_TILE_SIZE * SEGMENT_TILE_SIZE, 32u);
-		static const uint32 ept			  = 32;
-		static const uint32 epg			  = ept * 32;
+		c_auto word_per_tile = ceil(SEGMENT_TILE_SIZE * SEGMENT_TILE_SIZE, 32u);
+		c_auto ept			 = AGE_WAVE_SIZE;
+		c_auto epg			 = ept * AGE_WAVE_SIZE;
 
-		const uint32_2 extent		  = cast<uint32_2>(backbuffer_size);
-		const uint32_2 tile_extent	  = ceil(extent, SEGMENT_TILE_SIZE);
-		const uint32   max_word_count = tile_extent.x * tile_extent.y * word_per_tile;
+		c_auto extent		  = cast<uint32_2>(backbuffer_size);
+		c_auto tile_extent	  = ceil(extent, SEGMENT_TILE_SIZE);
+		c_auto max_word_count = tile_extent.x * tile_extent.y * word_per_tile;
 
-		const uint32		offset		= is_opaque ? 0u : tile_extent.x * tile_extent.y * word_per_tile * sizeof(uint32);
+		c_auto				offset		= is_opaque ? 0u : tile_extent.x * tile_extent.y * word_per_tile * sizeof(uint32);
 		byte_address_buffer segment_buf = global_resource_buffer[load_segment_data().h_segment_buffer_srv_id];
 		uint32				segment_tile_word_arr[ept];
-		uint32				edge_px_local_count = 0u;
-		expand_all()
+		auto				edge_px_local_count = 0u;
 
-		for (uint32 i = 0; i < ept; ++i)
+		expand_all()
+		for (auto i = 0u; i < ept; ++i)
 		{
-			const uint32 word_idx = group_id * epg
-								  + group_thread_id
-								  + i * 32;
+			c_auto word_idx = group_id * epg
+							+ group_thread_id
+							+ i * AGE_WAVE_SIZE;
 
 			if (word_idx >= max_word_count) { break; }
 
@@ -45,44 +45,43 @@ namespace aa
 			edge_px_local_count += countbits(segment_tile_word_arr[i]);
 		}
 
-		const aa_data data = load_aa_data();
+		c_auto data = load_aa_data();
 
-		const uint32 edge_px_wave_prefix = wave_prefix_sum(edge_px_local_count);
-		uint32		 alloc;
-		if (wave_lane_index() == 32 - 1)
+		c_auto edge_px_wave_prefix = wave_prefix_sum(edge_px_local_count);
+		uint32 alloc;
+		if (wave_lane_index() == AGE_WAVE_SIZE - 1)
 		{
 			rw_byte_address_buffer indirect_arg_buf = global_resource_buffer[data.h_indirect_arg_uav_id];
 
 			buf_interlocked_add(indirect_arg_buf, is_opaque ? 0 : sizeof(uint32_3), edge_px_wave_prefix + edge_px_local_count, alloc);
 		}
 
-		alloc = wave_read_lane_at(alloc, 32 - 1);
+		alloc = wave_read_lane_at(alloc, AGE_WAVE_SIZE - 1);
 
-		uint32				   target_offset = alloc + edge_px_wave_prefix;
+		auto				   target_offset = alloc + edge_px_wave_prefix;
 		rw_byte_address_buffer ray_entry_buf = global_resource_buffer[data.h_ray_buffer_uav_id];
 
 		expand_all()
-
-		for (uint32 i = 0; i < ept; ++i)
+		for (auto i = 0u; i < ept; ++i)
 		{
-			const uint32 word_idx = group_id * epg
-								  + group_thread_id
-								  + i * 32;
+			c_auto word_idx = group_id * epg
+							+ group_thread_id
+							+ i * AGE_WAVE_SIZE;
 
 			if (word_idx >= max_word_count) { break; }
 
-			const uint32 word_px_idx_flat = (word_idx % word_per_tile) * 32;
+			c_auto word_px_idx_flat = (word_idx % word_per_tile) * 32;
 
-			const uint32   tile_idx = word_idx / word_per_tile;
-			const uint16_2 tile_px	= uint16_2(tile_idx % tile_extent.x, tile_idx / tile_extent.x);
+			c_auto tile_idx = word_idx / word_per_tile;
+			c_auto tile_px	= uint16_2(tile_idx % tile_extent.x, tile_idx / tile_extent.x);
 
-			uint32 segment_tile_word = segment_tile_word_arr[i];
-			for (uint32 j = 0; segment_tile_word > 0; segment_tile_word &= (segment_tile_word - 1))
+			auto segment_tile_word = segment_tile_word_arr[i];
+			for (; segment_tile_word > 0; segment_tile_word &= (segment_tile_word - 1))
 			{
-				const uint32   nth_bit		 = first_bit_low(segment_tile_word);
-				const uint32   local_px_flat = word_px_idx_flat + nth_bit;
-				const uint16_2 px_offset	 = uint16_2(local_px_flat % SEGMENT_TILE_SIZE, local_px_flat / SEGMENT_TILE_SIZE);
-				const uint16_2 px			 = tile_px * uint16(SEGMENT_TILE_SIZE) + px_offset;
+				c_auto nth_bit		 = first_bit_low(segment_tile_word);
+				c_auto local_px_flat = word_px_idx_flat + nth_bit;
+				c_auto px_offset	 = uint16_2(local_px_flat % SEGMENT_TILE_SIZE, local_px_flat / SEGMENT_TILE_SIZE);
+				c_auto px			 = tile_px * uint16(SEGMENT_TILE_SIZE) + px_offset;
 
 				if (target_offset >= data.px_headroom) { return; }
 

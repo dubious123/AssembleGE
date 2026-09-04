@@ -1,7 +1,7 @@
 #include "hrp_common.asli"
 
 void
-handle_kill_surfel(const gibs_data data, uint32 alive_idx, uint32 surfel_id)
+handle_kill_surfel(const gibs_data data, uint32 surfel_id)
 {
 	rw_stack<uint32> dead_stack = gibs::cell::dead_id_stack(data);
 	dead_stack.push(surfel_id);
@@ -30,31 +30,33 @@ main_cs(uint32 group_id		   sv_group_id,
 	const gibs_cell_surfel			surfel	   = surfel_buffer[surfel_id];
 	const gibs_cell_surfel_geometry surfel_geo = surfel_geo_buffer[surfel_id];
 
-	if (is_object_id_valid(surfel_geo.object_id) is_false /*or object_id == invalid_id*/)
+	uint32 object_render_id;
+	if (surfel_geo.object_id == invalid_id_uint32 or load_object_render_id(surfel_geo.object_id, object_render_id) is_false)
 	{
-		handle_kill_surfel(data, alive_idx_prev, surfel_id);
+		handle_kill_surfel(data, surfel_id);
+		return;
+	}
+	if (load_object_render_data(object_render_id).is_primitive_id_valid(surfel_geo.primitive_id) is_false)
+	{
+		handle_kill_surfel(data, surfel_id);
 		return;
 	}
 
-	bool kill_surfel = false;
+	attr_branch()
 
-	if (surfel.recycle_data.frame_since_ref() >= 30)
+	if (gibs::debug::freeze_spawn_kill(data) is_false)
 	{
-		kill_surfel = true;
-	}
+		bool kill_surfel = false;
+		if (surfel.recycle_data.frame_since_ref() >= 30)
+		{
+			kill_surfel = true;
+		}
 
-	const object_data		 obj		 = load_object_data(surfel_geo.object_id);
-	const object_render_data render_data = load_object_render_data(surfel_geo.object_id);
-
-	if (surfel_geo.primitive_id >= render_data.rt_index_buffer_size)
-	{
-		kill_surfel = true;
-	}
-
-	if (kill_surfel and (gibs::debug::freeze_spawn_kill(data) is_false))
-	{
-		handle_kill_surfel(data, alive_idx_prev, surfel_id);
-		return;
+		if (kill_surfel)
+		{
+			handle_kill_surfel(data, surfel_id);
+			return;
+		}
 	}
 
 	// alive stack prev -> alive stack curr

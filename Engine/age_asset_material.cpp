@@ -17,7 +17,7 @@ namespace age::asset
 		return res;
 	}
 
-	std::array<char, config::max_asset_path_len>&
+	age::array<char, config::max_asset_path_len>&
 	entry<e::kind::material>::get_path() const noexcept
 	{
 		return g::path_vec[path_id];
@@ -29,10 +29,10 @@ namespace age::asset
 		return AGE_IS_INVALID_ID(render_id) is_false;
 	}
 
-	std::array<const handle*, 5>
+	age::array<const handle*, 5>
 	entry<e::kind::material>::all_textures() const noexcept
 	{
-		return std::array<const handle*, 5>{
+		return age::array<const handle*, 5>{
 			&h_tex_base_color,
 			&h_tex_metallic_roughness,
 			&h_tex_normal,
@@ -41,10 +41,10 @@ namespace age::asset
 		};
 	}
 
-	std::array<handle*, 5>
+	age::array<handle*, 5>
 	entry<e::kind::material>::all_textures() noexcept
 	{
-		return std::array<handle*, 5>{
+		return age::array<handle*, 5>{
 			&h_tex_base_color,
 			&h_tex_metallic_roughness,
 			&h_tex_normal,
@@ -56,22 +56,6 @@ namespace age::asset
 
 namespace age::asset::material
 {
-	void
-	add_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::material>();
-		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
-		++entry.ref_counter;
-	}
-
-	void
-	remove_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::material>();
-		AGE_ASSERT(entry.ref_counter > 0);
-		--entry.ref_counter;
-	}
-
 	void
 	update_texture(asset::handle& h_tex_before, asset::handle h_tex_after) noexcept
 	{
@@ -93,12 +77,12 @@ namespace age::asset::material
 {
 	namespace detail
 	{
-		std::array<char, config::max_asset_path_len>
+		age::array<char, config::max_asset_path_len>
 		get_tex_path(asset::handle h_tex) noexcept
 		{
 			if (runtime::is_handle_invalid(h_tex))
 			{
-				return std::array<char, config::max_asset_path_len>{};
+				return age::array<char, config::max_asset_path_len>{};
 			}
 			else
 			{
@@ -113,6 +97,7 @@ namespace age::asset::material
 		auto buf = byte_buf::gen_reserved(config::max_asset_path_len * 5 + sizeof(entry<e::kind::material>));
 
 		buf.write(
+			desc.double_sided,
 			desc.base_color_factor,
 			desc.metallic_factor,
 			desc.roughness_factor,
@@ -120,7 +105,12 @@ namespace age::asset::material
 			desc.normal_scale,
 			desc.occlusion_strength,
 			desc.alpha_cutoff,
-			desc.alpha_mode,
+			desc.shading_model,
+			desc.base_color_sampler_kind,
+			desc.metallic_roughness_sampler_kind,
+			desc.normal_sampler_kind,
+			desc.occlusion_sampler_kind,
+			desc.emissive_sampler_kind,
 			detail::get_tex_path(desc.h_tex_base_color),
 			detail::get_tex_path(desc.h_tex_metallic_roughness),
 			detail::get_tex_path(desc.h_tex_normal),
@@ -145,6 +135,7 @@ namespace age::asset::material
 		auto buf = byte_buf::gen_reserved(config::max_asset_path_len * 5 + sizeof(entry));
 
 		buf.write(
+			entry.double_sided,
 			entry.base_color_factor,
 			entry.metallic_factor,
 			entry.roughness_factor,
@@ -152,7 +143,12 @@ namespace age::asset::material
 			entry.normal_scale,
 			entry.occlusion_strength,
 			entry.alpha_cutoff,
-			entry.alpha_mode,
+			entry.shading_model,
+			entry.base_color_sampler_kind,
+			entry.metallic_roughness_sampler_kind,
+			entry.normal_sampler_kind,
+			entry.occlusion_sampler_kind,
+			entry.emissive_sampler_kind,
 			detail::get_tex_path(entry.h_tex_base_color),
 			detail::get_tex_path(entry.h_tex_metallic_roughness),
 			detail::get_tex_path(entry.h_tex_normal),

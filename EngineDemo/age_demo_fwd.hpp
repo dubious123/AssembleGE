@@ -201,7 +201,9 @@ namespace age_demo::scene_3
 															  age::ecs::spot_light,
 															  age::ecs::render_object,
 															  age::ecs::mesh,
-															  age::ecs::material>;
+															  age::ecs::material,
+															  age::ecs::model,
+															  age::ecs::model_render_option>;
 
 	struct editor_demo_scene_0
 	{

@@ -49,11 +49,7 @@ main_cs(uint32 group_id	 sv_group_id,
 		const uint32			  tile_id = gist::tile::calc_id(data, tile_idx);
 		const gist_ray_hit_result ray_hit = ray_hit_result_buffer[tile_id];
 
-		// invalid px, sky...
-		if (ray_hit.pdf == 0.f) { continue; }
-
-		// opaque back face
-		if (ray_hit.distance < 0.f and ray_hit.object_id == invalid_id_uint32) { continue; }
+		if (gist::is_valid_ray_hit(ray_hit) is_false) { continue; }
 
 		const float3 dir_local = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(ray_hit.dir_oct_snorm8));
 		const uint32 idx	   = gist::calc_atlas_tile_local_idx(dir_local);

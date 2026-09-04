@@ -14,20 +14,21 @@ namespace age::asset::registry
 			return;
 		}
 
-		auto buf = read_asset_file(g::registry_path.string());
+		auto  file_data = read_asset_file(g::registry_path.string());
+		auto& buf		= file_data.buf;
 
 		auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
 
 		for (auto _ : views::loop(asset_kind_count))
 		{
-			auto&& [asset_kind_name, asset_count] = buf.read<std::array<char, config::max_enum_name_len>, uint32>();
+			auto&& [asset_kind_name, asset_count] = buf.read<age::array<char, config::max_enum_name_len>, uint32>();
 			auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
 
 			auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
 			registry_vec.reserve(asset_count);
 			for (auto _ : views::loop(asset_count))
 			{
-				auto asset_path = buf.read<std::array<char, config::max_asset_path_len>>();
+				auto asset_path = buf.read<age::array<char, config::max_asset_path_len>>();
 
 				auto h_asset = asset::find(asset_kind, asset_path);
 				if (runtime::is_handle_invalid(h_asset))
@@ -125,16 +126,22 @@ namespace age::asset::registry
 	void
 	clear() noexcept
 	{
-		for_each_kind(AGE_LAMBDA(
-			<e::kind e_kind>(),
-			{
+		if constexpr (config::debug_mode)
+		{
+			for_each_kind([]<e::kind e_kind> {
 				for (auto h : g::registry_map[to_idx(e_kind)])
 				{
-					destroy_entry<e_kind>(h);
+					AGE_ASSERT(is_any_loaded(h.get_entry<e_kind>()) is_false);
 				}
-			}
+			});
+		}
 
-			));
+		for_each_kind([]<e::kind e_kind> {
+			for (auto h : g::registry_map[to_idx(e_kind)])
+			{
+				destroy_entry<e_kind>(h);
+			}
+		});
 
 		for (auto& vec : g::registry_map)
 		{

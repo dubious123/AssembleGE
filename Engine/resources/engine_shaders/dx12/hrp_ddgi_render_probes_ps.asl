@@ -138,7 +138,7 @@ main_ps(ddgi_ms_to_ps fragment) sv_target_0
 	if (ddgi_debug_flags_render_state(ddgi_data))
 	{
 		const ddgi_probe probe		 = load_ddgi_probe_srv(probe_id);
-		const uint16	 probe_state = probe.state & 0x00ff;
+		const uint16	 probe_state = probe.state & uint16(0x00ff);
 
 		if (probe_state == DDGI_PROBE_STATE_OFF)
 		{

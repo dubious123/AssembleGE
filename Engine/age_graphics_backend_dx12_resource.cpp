@@ -196,10 +196,10 @@ namespace age::graphics::resource
 	}
 
 	template <auto n>
-	std::array<resource_handle, n>
+	age::array<resource_handle, n>
 	create_committed(const resource_create_desc& desc) noexcept
 	{
-		auto result = std::array<resource_handle, n>{};
+		auto result = age::array<resource_handle, n>{};
 		for (auto& h : result)
 		{
 			h = create_committed(desc);
@@ -684,14 +684,14 @@ namespace age::graphics::resource
 	}
 
 	template <auto n>
-	std::array<mapping_handle, n>
+	age::array<mapping_handle, n>
 	create_buffer_committed(uint32				 buffer_byte_size,
 							const void*			 p_data,
 							e::memory_kind		 kind,
 							D3D12_BARRIER_LAYOUT initial_layout,
 							D3D12_RESOURCE_FLAGS flags) noexcept
 	{
-		auto result = std::array<mapping_handle, n>{};
+		auto result = age::array<mapping_handle, n>{};
 		for (auto& h : result)
 		{
 			h = create_buffer_committed(buffer_byte_size, p_data, kind, initial_layout, flags);
@@ -699,7 +699,7 @@ namespace age::graphics::resource
 		return result;
 	}
 
-	std::array<mapping_handle, global::frame_buffer_count>
+	age::array<mapping_handle, global::frame_buffer_count>
 	create_buffer_committed_arr(uint32				 buffer_byte_size,
 								const void*			 p_data,
 								e::memory_kind		 kind,
@@ -709,7 +709,7 @@ namespace age::graphics::resource
 		return create_buffer_committed<global::frame_buffer_count>(buffer_byte_size, p_data, kind, initial_layout, flags);
 	}
 
-	std::array<mapping_handle, global::frame_buffer_count>
+	age::array<mapping_handle, global::frame_buffer_count>
 	create_buffer_committed_arr(const wchar_t*		 fmt,
 								uint32				 buffer_byte_size,
 								const void*			 p_data,

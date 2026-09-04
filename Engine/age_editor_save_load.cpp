@@ -7,7 +7,8 @@ namespace age::editor::detail
 	game_editor_data
 	read_game_proj(std::filesystem::path proj_path) noexcept
 	{
-		auto buf = asset::read_asset_file(proj_path.string());
+		auto  file_data = asset::read_asset_file(proj_path.string());
+		auto& buf		= file_data.buf;
 
 		auto res = game_editor_data{};
 
@@ -24,7 +25,7 @@ namespace age::editor::detail
 		res.names.reserve(game_name_count);
 		for (auto _ : views::loop(game_name_count))
 		{
-			res.names.emplace_back(buf.read<std::array<char, config::max_game_name_len>>());
+			res.names.emplace_back(buf.read<age::array<char, config::max_game_name_len>>());
 		}
 
 		res.scene_data_vec.reserve(game_scene_count);
@@ -72,7 +73,7 @@ namespace age::editor::detail
 			scene.names.reserve(scene_name_count);
 			for (auto _ : views::loop(scene_name_count))
 			{
-				scene.names.emplace_back(buf.read<std::array<char, config::max_scene_name_len>>());
+				scene.names.emplace_back(buf.read<age::array<char, config::max_scene_name_len>>());
 			}
 
 			scene.storage_data_vec.reserve(scene_ent_storage_count);
@@ -85,7 +86,7 @@ namespace age::editor::detail
 				storage.names.reserve(storage_name_count);
 				for (auto _ : views::loop(storage_name_count))
 				{
-					storage.names.emplace_back(buf.read<std::array<char, config::max_entity_storage_name_len>>());
+					storage.names.emplace_back(buf.read<age::array<char, config::max_entity_storage_name_len>>());
 				}
 
 				storage.component_data_vec.reserve(component_count);
@@ -100,7 +101,7 @@ namespace age::editor::detail
 
 					for (auto _ : views::loop(component_name_count))
 					{
-						cmp_data.names.emplace_back(buf.read<std::array<char, config::max_component_name_len>>());
+						cmp_data.names.emplace_back(buf.read<age::array<char, config::max_component_name_len>>());
 					}
 				}
 
@@ -110,7 +111,7 @@ namespace age::editor::detail
 				for (auto _ : views::loop(archetype_count))
 				{
 					auto&& [archetype_bits, arch_entity_count, archetype_name] =
-						buf.read<uint64, uint64, std::array<char, config::max_archetype_name_len>>();
+						buf.read<uint64, uint64, age::array<char, config::max_archetype_name_len>>();
 
 					arch_entity_sum += arch_entity_count;
 
@@ -123,7 +124,7 @@ namespace age::editor::detail
 					for (auto _ : views::loop(arch_entity_count))
 					{
 						arch.entity_data_vec.emplace_back(entity_editor_data{
-							.name = buf.read<std::array<char, config::max_entity_name_len>>() });
+							.name = buf.read<age::array<char, config::max_entity_name_len>>() });
 					}
 				}
 			}

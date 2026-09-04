@@ -20,29 +20,16 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 	const gist_cell_surfel_geometry surfel_geo = surfel_geo_buffer[surfel_id];
 
 	{
-		const object_data		 obj		 = load_object_data(surfel_geo.object_id);
-		const object_render_data render_data = load_object_render_data(surfel_geo.object_id);
-		const material			 mat		 = load_material(render_data.material_id);
-		const mesh_header		 msh_header	 = read_mesh_header<object_render_data>(render_data);
+		const mesh::surface_point_data surface_point = mesh::calc_surface_point(load_object_render_id(surfel_geo.object_id),
+																				surfel_geo.primitive_id,
+																				unorm16_2_to_float2(surfel_geo.barycentric_unorm16),
+																				surfel.recycle_data.is_back_face());
 
-		const uint32_3 primitive_idx = load_rt_triangle_index(render_data.rt_index_buffer_offset, surfel_geo.primitive_id);
-		const float2   barycentrics	 = float2(unorm16_to_float(surfel_geo.barycentric_unorm16 & 0xffff), unorm16_to_float((surfel_geo.barycentric_unorm16 >> 16u) & 0xffff));
-		const float3   bary_weights	 = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+		const pbr_surface_data pbr_surface = calc_pbr_surface(-surface_point.v.normal, surface_point.mat, surface_point.v);
 
-		const vertex_fat v0 = decode_vertex(msh_header, primitive_idx.x);
-		const vertex_fat v1 = decode_vertex(msh_header, primitive_idx.y);
-		const vertex_fat v2 = decode_vertex(msh_header, primitive_idx.z);
-
-		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj);
-
-		const pbr_surface_data surface_data = calc_pbr_surface(-v.normal, mat, v);
-
-		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
-		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj.scale), decode_quaternion(obj.quaternion)));
-
-		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_face_normal);
-		surfel.position			  = v.world_pos;
-		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(surface_data, world_face_normal) + calc_gi(surface_data, decode_r11g11b10(surfel.irradiance_r11g11b10)));
+		surfel.normal_oct_snorm16 = encode_oct_snorm16(surface_point.world_face_normal);
+		surfel.position			  = surface_point.v.world_pos;
+		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(pbr_surface, surface_point.world_face_normal) + calc_gi(pbr_surface, decode_r11g11b10(surfel.irradiance_r11g11b10)));
 	}
 
 	surfel.recycle_data.next_frame();
@@ -61,13 +48,7 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 			rw_byte_array<uint16> vis_arr = gist::cell::visibility_rw_arr(data, surfel_id);
 			for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
 			{
-				const uint16 chebyshev_packed = gist::cell::visibility_rw_arr(data, surfel_id)[i];
-
-				const float2 chebyshev_res = float2(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)), unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)))
-										   * surfel.radius
-										   / new_radius;
-
-				vis_arr.store(i, uint16(float_to_unorm8(chebyshev_res.x) | (float_to_unorm8(chebyshev_res.y) << 8u)));
+				const uint16 chebyshev_packed = vis_arr[i];
 
 				const float mean	= saturate(unorm8_to_float(uint32_x_to_uint8(chebyshev_packed)) * ratio);
 				const float sq_mean = saturate(unorm8_to_float(uint32_y_to_uint8(chebyshev_packed)) * ratio_sq);
@@ -77,7 +58,6 @@ main_cs(uint32 alive_id sv_dispatch_thread_id)
 		}
 
 		surfel.radius = new_radius;
-		// surfel.radius = gist::calc_cell_surfel_radius(data, gist::load_lut_data(), surfel.position);
 	}
 
 	surfel_buffer[surfel_id] = surfel;

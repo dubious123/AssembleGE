@@ -39,18 +39,11 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 	const float3 world_far = ndc_to_world(view_proj_inv, screen_to_ndc(screen_pos, opaque_z_depth, inv_backbuffer_size));
 
-	const float	 t_max	 = length(world_far - camera_pos);
-	const float3 ray_dir = (world_far - camera_pos) / t_max;
+	const float3 rel	 = world_far - camera_pos;
+	const float	 t_max	 = length(rel);
+	const float3 ray_dir = rel / t_max;
 
-	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
-
-	ray_desc desc;
-	desc.Origin	   = camera_pos;
-	desc.Direction = ray_dir;
-	desc.TMin	   = 0.f;
-	desc.TMax	   = t_max;
-
-	const float4 col = rt_calc_transparent_color(rt_arg::init_gibs(true), desc, query);
+	const float4 col = lighting::calc_transparent_color<false>(camera_pos, ray_dir, 0.f, t_max);
 
 	const float4 col_prefix = wave_prefix_sum(col);
 

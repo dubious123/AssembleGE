@@ -56,4 +56,7 @@ namespace age::meta::inline traits
 
 	template <typename t, typename t_target>
 	concept cx_bare_same = std::is_same_v<std::remove_cvref<t>, t_target>;
+
+	template <typename t>
+	concept cx_index_constant = meta::is_specialization_of_nttp_v<t, index_constant>;
 }	 // namespace age::meta::inline traits

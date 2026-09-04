@@ -264,6 +264,163 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+namespace age::editor::detail
+{
+	template <asset::e::kind e_kind>
+	bool
+	ui_component_asset_dropdown(asset::handle& h_asset, bool rebuild_options = true)
+	{
+		static auto option_vec = age::vector<ui::widget::dropdown_option<asset::handle>>{};
+		static auto label_vec  = age::vector<age::array<char, config::max_asset_display_name_len>>{};
+		if (rebuild_options)
+		{
+			option_vec.reserve(asset::registry::all(e_kind).size());
+			label_vec.reserve(asset::registry::all(e_kind).size());
+			option_vec.clear();
+			label_vec.clear();
+			for (auto h : asset::registry::all(e_kind))
+			{
+				label_vec.emplace_back(h.get_display_name<e_kind>());
+				option_vec.emplace_back(
+					ui::widget::dropdown_option<asset::handle>{ .value = h, .label = label_vec.back().data() });
+			}
+		}
+
+		return ui::widget::dropdown<asset::handle>(h_asset, option_vec);
+	}
+
+	bool
+	ui_component_index_dropdown(std::integral auto& n, uint32 count)
+	{
+		static auto option_vec = age::vector<ui::widget::dropdown_option<BARE_OF(n)>>{};
+		static auto label_vec  = age::vector<age::array<char, 22>>{};
+		if (option_vec.size() < count)
+		{
+			option_vec.reserve(count);
+			label_vec.reserve(count);
+			for (auto i : views::loop(label_vec.size()))
+			{
+				option_vec[i].label = label_vec[i].data();
+			}
+
+			for (auto i : std::views::iota(label_vec.size()) | std::views::take(count - option_vec.size()))
+			{
+				auto buf = age::array<char, 22>{};
+				util::integral_to_str(buf, i);
+				label_vec.emplace_back(std::move(buf));
+				option_vec.emplace_back(
+					ui::widget::dropdown_option<BARE_OF(n)>{ .value = cast_to<BARE_OF(n)>(i), .label = label_vec.back().data() });
+			}
+		}
+
+		return ui::widget::dropdown<BARE_OF(n)>(n, std::span{ option_vec.data(), count });
+	}
+
+	template <asset::e::kind e_kind>
+	std::tuple<bool, bool, asset::handle>
+	ui_component_asset_common_header(asset::handle h_asset)
+	{
+		using namespace ui;
+		auto handle_changed = false;
+		auto save			= false;
+
+		if (auto header = widget::begin(style::header_bar() | set_vertical() | set_width_grow() | set_height_fit()))
+		{
+			handle_changed = detail::ui_component_asset_dropdown<e_kind>(h_asset);
+
+			// todo, handle asset dirty
+			if (/*asset_mgr::is_dirty(h_model)*/ true)
+			{
+				save = widget::button("save").clicked();
+			}
+
+			ui::widget::separator_v();
+		}
+
+		return { handle_changed, save, h_asset };
+	}
+}	 // namespace age::editor::detail
+
+namespace age::editor
+{
+	template <>
+	bool
+	ui_asset<asset::e::kind::font>(asset::handle h_mesh) noexcept
+	{
+		AGE_UNREACHABLE("not implemented");
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::mesh_baked>(asset::handle h_mesh) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::material>(asset::handle h_mat) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::texture>(asset::handle h_tex) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::env_light>(asset::handle h_env_light) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::model>(asset::handle h_model) noexcept
+	{
+		if (runtime::is_handle_invalid(h_model)) { return false; }
+
+		auto& entry = h_model.get_entry<asset::e::kind::model>();
+
+		// todo. cleanup asset load system
+		// we don't need full load here.
+		if (entry.is_loaded() is_false)
+		{
+			ui::widget::text("asset not loded");
+			return false;
+		}
+
+		if (auto h_mesh = entry.h_mesh;
+			detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
+		{
+			asset::model::update_mesh(h_model, h_mesh);
+		}
+
+		ui::widget::separator_v();
+
+		for (auto [i, h_mat] : entry.h_material_vec | views::enumerate_copy<uint32>)
+		{
+			if (detail::ui_component_asset_dropdown<asset::e::kind::material>(h_mat, i == 0))
+			{
+				asset::model::update_material(h_model, i, h_mat);
+			}
+
+			if (runtime::is_handle_invalid(entry.h_material_vec[i]) is_false)
+			{
+				ui_component(entry.h_material_vec[i], entry.h_material_vec[i].get_entry<asset::e::kind::material>());
+			}
+		}
+
+		return false;
+	}
+}	 // namespace age::editor
+
+// ui component
 namespace age::editor
 {
 	ui::widget_ctx
@@ -348,216 +505,247 @@ namespace age::editor
 	}
 
 	void
-	ui_component(ecs::mesh& mesh) noexcept
+	ui_component(ecs::mesh& cmp_mesh) noexcept
 	{
-		using namespace ui;
-		using enum input::e::key_kind;
-		using enum ui::e::style_state;
-		using enum asset::e::kind;
-
-		static auto mesh_vec  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
-		static auto label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
-		mesh_vec.reserve(asset::registry::all(mesh_baked).size());
-		label_vec.reserve(asset::registry::all(mesh_baked).size());
-		mesh_vec.clear();
-		label_vec.clear();
-		for (auto h_mesh : asset::registry::all(mesh_baked))
+		auto h_mesh = cmp_mesh.h_mesh;
+		if (detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
 		{
-			label_vec.emplace_back(h_mesh.get_display_name<mesh_baked>());
-			mesh_vec.emplace_back(
-				ui::widget::dropdown_option<asset::handle>{ .value = h_mesh, .label = label_vec.back().data() });
+			cmp_mesh.update_h_mesh(h_mesh);
+		}
+	}
+
+	void
+	ui_component(asset::handle h_mat, asset::entry<asset::e::kind::material>& mat_entry) noexcept
+	{
+		using namespace age::ui;
+		using namespace age::ui::style;
+
+		c_auto tex_dropdown = [](asset::handle& h_tex, bool is_first = false) {
+			auto h_tex_after = h_tex;
+			if (detail::ui_component_asset_dropdown<age::asset::e::kind::texture>(h_tex_after, is_first))
+			{
+				asset::material::update_texture(h_tex, h_tex_after);
+			}
+		};
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Base color");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::color_field(mat_entry.base_color_factor);
+				tex_dropdown(mat_entry.h_tex_base_color, true);
+				ui::widget::dropdown(mat_entry.base_color_sampler_kind);
+			}
 		}
 
-		auto h_mesh = mesh.h_mesh;
-		if (widget::dropdown<asset::handle>(h_mesh, mesh_vec))
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 		{
-			mesh.update_h_mesh(h_mesh);
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Matallic");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::numeric_field(mat_entry.metallic_factor, nullptr, 0.f, 1.f);
+				ui::widget::slider(mat_entry.metallic_factor, 0.f, 1.f);
+			}
+		}
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Roughness");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::numeric_field(mat_entry.roughness_factor, nullptr, 0.f, 1.f);
+				ui::widget::slider(mat_entry.roughness_factor, 0.f, 1.f);
+			}
+		}
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("MR Texture");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				tex_dropdown(mat_entry.h_tex_metallic_roughness);
+				ui::widget::dropdown(mat_entry.metallic_roughness_sampler_kind);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Normal");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::numeric_field(mat_entry.normal_scale, nullptr, 0.f, 2.f);
+				ui::widget::slider(mat_entry.normal_scale, 0.f, 2.f);
+				tex_dropdown(mat_entry.h_tex_normal);
+				ui::widget::dropdown(mat_entry.normal_sampler_kind);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Occlusion");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::numeric_field(mat_entry.occlusion_strength, nullptr, 0.f, 1.f);
+				ui::widget::slider(mat_entry.occlusion_strength, 0.f, 1.f);
+				tex_dropdown(mat_entry.h_tex_occlusion);
+				ui::widget::dropdown(mat_entry.occlusion_sampler_kind);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Emissive");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::color_field(mat_entry.emissive_factor, 0.f, std::numeric_limits<float>::max());
+				tex_dropdown(mat_entry.h_tex_emissive);
+				ui::widget::dropdown(mat_entry.emissive_sampler_kind);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Shading Model");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::dropdown(mat_entry.shading_model);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (auto _ = ui::widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		{
+			if (auto _ = ui::widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			{
+				ui::widget::text("Double Sided");
+			}
+
+			if (auto _ = ui::widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+			{
+				ui::widget::checkbox(nullptr, mat_entry.double_sided);
+			}
+		}
+
+		ui::widget::separator_v();
+
+		if (mat_entry.is_loaded())
+		{
+			auto btn = ui::widget::button("save");
+
+			if (btn.clicked())
+			{
+				asset::material::save(h_mat);
+			}
 		}
 	}
 
 	void
 	ui_component(ecs::material& mat) noexcept
 	{
-		using namespace ui;
-		using enum input::e::key_kind;
-		using enum ui::e::style_state;
-		using enum asset::e::kind;
-
-		static auto mat_vec		  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
-		static auto mat_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
-		mat_vec.reserve(asset::registry::all(material).size());
-		mat_label_vec.reserve(asset::registry::all(material).size());
-		mat_vec.clear();
-		mat_label_vec.clear();
-		for (auto h_mat : asset::registry::all(material))
+		using namespace age::ui;
+		using namespace age::ui::style;
 		{
-			mat_label_vec.emplace_back(h_mat.get_display_name<material>());
-			mat_vec.emplace_back(
-				ui::widget::dropdown_option<asset::handle>{ .value = h_mat, .label = mat_label_vec.back().data() });
+			auto h_mat = mat.h_mat;
+
+			if (detail::ui_component_asset_dropdown<asset::e::kind::material>(h_mat))
+			{
+				mat.update_h_mat(h_mat);
+			}
+
+			if (runtime::is_handle_invalid(mat.h_mat)) { return; }
 		}
 
+		ui::widget::separator_v();
 
-		auto h_mat = mat.h_mat;
-		if (widget::dropdown<asset::handle>(h_mat, mat_vec))
+		ui_component(mat.h_mat, mat.h_mat.get_entry<age::asset::e::kind::material>());
+	}
+
+	void
+	ui_component(ecs::model_render_option& option) noexcept
+	{
+		ui::widget::text("mesh_raster_override_kind");
+		ui::widget::dropdown<age::graphics::e::mesh_raster_override_kind>(option.raster_override_kind);
+		ui::widget::text("mesh_rt_alpha_test_override_kind");
+		ui::widget::dropdown<age::graphics::e::mesh_rt_alpha_test_override_kind>(option.rt_alpha_test_override_kind);
+		ui::widget::checkbox_flags("model_render_option_flags", option.option_flags);
+
+		if (auto _ = ui::id_begin();
+			has_any(option.option_flags, age::graphics::e::model_render_option_flags::fade))
 		{
-			mat.update_h_mat(h_mat);
-		}
-
-		if (runtime::is_handle_invalid(h_mat)) { return; }
-
-		widget::separator_v();
-
-		static auto tex_label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
-		static auto tex_vec		  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
-		tex_vec.reserve(asset::registry::all(texture).size() + 1);
-		tex_label_vec.reserve(asset::registry::all(texture).size() + 1);
-		tex_vec.clear();
-		tex_label_vec.clear();
-
-		tex_label_vec.emplace_back(util::to_fixed_str<config::max_asset_display_name_len>("(none)"));
-		tex_vec.emplace_back(ui::widget::dropdown_option<asset::handle>{ .value = {}, .label = tex_label_vec.back().data() });
-
-		for (auto h_tex : asset::registry::all(texture))
-		{
-			tex_label_vec.emplace_back(h_tex.get_display_name<texture>());
-			tex_vec.emplace_back(
-				ui::widget::dropdown_option<asset::handle>{ .value = h_tex, .label = tex_label_vec.back().data() });
-		}
-
-		auto& entry = h_mat.get_entry<material>();
-
-		auto tex_dropdown = [](asset::handle& h_tex) {
-			auto h_tex_after = h_tex;
-			if (widget::dropdown<asset::handle>(h_tex_after, tex_vec))
+			auto fade_float = cvt_to<float>(option.fade_unorm8, cvt_unorm_tag{});
+			ui::widget::text("fade");
+			ui::widget::slider(fade_float, 0.f, 1.f);
+			if (abs(fade_float - 1.f) < age::g::epsilon_1e4)
 			{
-				asset::material::update_texture(h_tex, h_tex_after);
+				option.fade_unorm8 = 0xff;
 			}
-		};
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+			else
 			{
-				widget::text("Base color");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::color_field(entry.base_color_factor);
-				tex_dropdown(entry.h_tex_base_color);
+				option.fade_unorm8 = cvt_to<uint8>(fade_float, cvt_unorm_tag{});
 			}
 		}
+	}
 
-		widget::separator_v();
+	void
+	ui_component(ecs::model& cmp_model) noexcept
+	{
+		c_auto[handle_changed, save, new_handle] = detail::ui_component_asset_common_header<asset::e::kind::model>(cmp_model.h_model);
 
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		if (handle_changed)
 		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Matallic");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::numeric_field(entry.metallic_factor, nullptr, 0.f, 1.f);
-				widget::slider(entry.metallic_factor, 0.f, 1.f);
-			}
+			cmp_model.update_h_model(new_handle);
 		}
 
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+		ui_asset<asset::e::kind::model>(cmp_model.h_model);
+
+		if (save)
 		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Roughness");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::numeric_field(entry.roughness_factor, nullptr, 0.f, 1.f);
-				widget::slider(entry.roughness_factor, 0.f, 1.f);
-			}
+			asset::model::save(cmp_model.h_model);
 		}
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("MR Texture");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				tex_dropdown(entry.h_tex_metallic_roughness);
-			}
-		}
-
-		widget::separator_v();
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Occlusion");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::numeric_field(entry.occlusion_strength, nullptr, 0.f, 1.f);
-				widget::slider(entry.occlusion_strength, 0.f, 1.f);
-				tex_dropdown(entry.h_tex_occlusion);
-			}
-		}
-
-		widget::separator_v();
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Normal");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::numeric_field(entry.normal_scale, nullptr, 0.f, 2.f);
-				widget::slider(entry.normal_scale, 0.f, 2.f);
-				tex_dropdown(entry.h_tex_normal);
-			}
-		}
-
-		widget::separator_v();
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Emissive");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				widget::color_field(entry.emissive_factor, 0.f, std::numeric_limits<float>::max());
-				tex_dropdown(entry.h_tex_emissive);
-			}
-		}
-
-		widget::separator_v();
-
-		if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-		{
-			if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
-			{
-				widget::text("Alpha");
-			}
-
-			if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-			{
-				using enum asset::e::alpha_mode_kind;
-				widget::dropdown<asset::e::alpha_mode_kind>(entry.alpha_mode, widget::make_dropdown_option<opaque, mask, blend>());
-			}
-		}
-
-		widget::separator_v();
 	}
 
 	void
@@ -583,7 +771,7 @@ namespace age::editor
 		ui::widget::checkbox("cast shadow", light.cast_shadow);
 		ui::widget::numeric_field(light.range, "range");
 		ui::widget::text("color");
-		ui::widget::color_field(light.color, light.intensity);
+		ui::widget::color_field(light.color, light.intensity, 0.f, std::numeric_limits<float>::max());
 	}
 
 	void
@@ -597,7 +785,7 @@ namespace age::editor
 		ui::widget::numeric_field(light.range, "range");
 		ui::widget::numeric_field(light.direction, "direction");
 		ui::widget::text("color");
-		ui::widget::color_field(light.color, light.intensity);
+		ui::widget::color_field(light.color, light.intensity, 0.f, std::numeric_limits<float>::max());
 		ui::widget::numeric_field(light.cos_inner, "cos_inner", 0.f, 1.f);
 		ui::widget::numeric_field(light.cos_outer, "cos_outer", light.cos_inner, 1.f);
 	}
@@ -611,7 +799,7 @@ namespace age::editor
 		using enum asset::e::kind;
 
 		static auto env_light_vec = age::vector<widget::dropdown_option<asset::handle>>{};
-		static auto label_vec	  = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		static auto label_vec	  = age::vector<age::array<char, config::max_asset_display_name_len>>{};
 		env_light_vec.reserve(asset::registry::all(env_light).size() + 1);
 		label_vec.reserve(asset::registry::all(env_light).size() + 1);
 		env_light_vec.clear();
@@ -739,7 +927,7 @@ namespace age::editor
 		{
 			ui::widget::checkbox("lock origin", cmp.ddgi_lock_origin);
 
-			constexpr c_auto probe_count_option_arr = std::array{
+			constexpr c_auto probe_count_option_arr = age::array{
 				ui::widget::dropdown_option<uint32>{ .value = 4, .label = "4" },
 				ui::widget::dropdown_option<uint32>{ .value = 8, .label = "8" },
 				ui::widget::dropdown_option<uint32>{ .value = 16, .label = "16" },
@@ -759,7 +947,7 @@ namespace age::editor
 			ui::widget::numeric_field(cmp.ddgi_base_probe_spacing, "base_probe_spacing", float3::one(), float3{ 1000.f });
 
 			ui::widget::text_label("level_count");
-			constexpr c_auto level_count_option_arr = std::array{
+			constexpr c_auto level_count_option_arr = age::array{
 				ui::widget::dropdown_option<uint32>{ .value = 1, .label = "1" },
 				ui::widget::dropdown_option<uint32>{ .value = 2, .label = "2" },
 				ui::widget::dropdown_option<uint32>{ .value = 3, .label = "3" },
@@ -810,7 +998,7 @@ namespace age::editor
 			ui::widget::text_label("max_surfel_count");
 			ui::widget::numeric_field(cmp.max_surfel_count, nullptr, 10000u, gibs_max_surfel_count);
 
-			constexpr c_auto cell_count_option_arr = std::array{
+			constexpr c_auto cell_count_option_arr = age::array{
 				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
 				ui::widget::dropdown_option<uint8>{ .value = 8, .label = "8" },
 				ui::widget::dropdown_option<uint8>{ .value = 16, .label = "16" },
@@ -823,7 +1011,7 @@ namespace age::editor
 			ui::widget::dropdown<uint8>(cmp.gibs_cell_count, cell_count_option_arr);
 
 
-			constexpr c_auto layer_count_option_arr = std::array{
+			constexpr c_auto layer_count_option_arr = age::array{
 				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
 				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
 				ui::widget::dropdown_option<uint8>{ .value = 6, .label = "6" },
@@ -886,7 +1074,7 @@ namespace age::editor
 		{
 			ui::widget::checkbox("lock origin", cmp.gist_lock_origin);
 
-			constexpr c_auto ray_period_option_arr = std::array{
+			constexpr c_auto ray_period_option_arr = age::array{
 				ui::widget::dropdown_option<uint8>{ .value = 1, .label = "1x1" },
 				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "2x2" },
 				ui::widget::dropdown_option<uint8>{ .value = 9, .label = "3x3" },
@@ -904,7 +1092,7 @@ namespace age::editor
 			ui::widget::dropdown<uint8>(cmp.gist_specular_ray_period, ray_period_option_arr);
 
 
-			constexpr c_auto pow_of_2_option_arr = std::array{
+			constexpr c_auto pow_of_2_option_arr = age::array{
 				ui::widget::dropdown_option<uint8>{ .value = 1, .label = "1" },
 				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
 				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
@@ -924,7 +1112,7 @@ namespace age::editor
 			ui::widget::text_label("cell_count_per_axis");
 			ui::widget::dropdown<uint8>(cmp.gist_cell_count_per_axis, pow_of_2_option_arr);
 
-			constexpr c_auto layer_count_option_arr = std::array{
+			constexpr c_auto layer_count_option_arr = age::array{
 				ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
 				ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
 				ui::widget::dropdown_option<uint8>{ .value = 6, .label = "6" },
@@ -1042,7 +1230,7 @@ namespace age::editor
 	bool
 	ui_component(age::ecs::aa_config& cmp) noexcept
 	{
-		constexpr c_auto rpp_option = std::array{
+		constexpr c_auto rpp_option = age::array{
 			ui::widget::dropdown_option<uint8>{ .value = 0, .label = "disable" },
 			ui::widget::dropdown_option<uint8>{ .value = 2, .label = "2" },
 			ui::widget::dropdown_option<uint8>{ .value = 4, .label = "4" },
@@ -1061,7 +1249,7 @@ namespace age::editor
 
 		ui::widget::numeric_field(cmp.aa_px_cap, "aa_px_cap", math::g::epsilon_1e4, 1.f);
 		ui::widget::numeric_field(cmp.aa_px_headroom, "aa_px_headroom", 1.f, 4.f);
-		ui::widget::numeric_field(cmp.edge_plane_dist_threshold, "edge_plane_dist_threshold", 0.f, 2.f);
+		ui::widget::numeric_field(cmp.edge_plane_dist_tolerance_px, "edge_plane_dist_tolerance_px", 0.f, 8.f);
 		ui::widget::numeric_field(cmp.edge_normal_threshold, "edge_normal_threshold", 0.f, 1.f);
 
 		return update;
@@ -1215,6 +1403,118 @@ namespace age::editor
 
 }	 // namespace age::editor
 
+// ui asset
+namespace age::editor
+{
+	bool
+	ui_asset_header(asset::e::kind e_kind, asset::handle h_asset) noexcept
+	{
+		using enum asset::e::asset_path_error_kind;
+		using namespace ui;
+
+		static auto h_asset_prev	 = asset::handle{};
+		static auto display_name_buf = age::array<char, config::max_asset_display_name_len>{};
+		static auto show_rename_btn	 = false;
+		static auto last_error		 = none;
+
+		auto need_save = false;
+
+		AGE_ASSERT(h_asset.get_kind() == e_kind);
+		AGE_ASSERT(asset::registry::is_registered(h_asset));
+
+		if (h_asset != h_asset_prev)
+		{
+			h_asset_prev	 = h_asset;
+			display_name_buf = h_asset.get_display_name();
+			show_rename_btn	 = false;
+			last_error		 = none;
+		}
+
+		auto input_detected = false;
+		// auto asset_header	= widget::begin(style::layout(ui::e::widget_layout::vertical) | set_width_grow() | set_height_fit());
+		auto asset_header = widget::begin(style::header_bar() | set_vertical() | set_width_grow() | set_height_fit());
+
+		if (auto _ = widget::begin(style::header_bar()))
+		{
+			widget::text_heading(to_string(e_kind).data());
+
+			input_detected = widget::text_input3(display_name_buf);
+		}
+
+		widget::separator_v();
+
+		if (asset_header is_false) { return need_save; }
+
+		if (input_detected) { show_rename_btn = true; }
+
+		if (auto _ = ui::id_begin();
+			show_rename_btn)
+		{
+			auto btn_header = widget::begin(style::header_bar());
+
+			if (auto btn = widget::button("rename");
+				btn and (btn.clicked() /*or ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_enter)*/))
+			{
+				show_rename_btn = false;
+
+				c_auto path_arr = editor::get_asset_full_path(e_kind, std::string_view{ display_name_buf.data() });
+				last_error		= asset::validate_asset_path(e_kind, h_asset, path_arr);
+
+				if (last_error == none)
+				{
+					if (asset::visit(e_kind, [&]<asset::e::kind k> { return asset::update_asset_path<k>(h_asset, path_arr); }))
+					{
+						need_save		 = true;
+						display_name_buf = h_asset.get_display_name();
+					}
+					else
+					{
+						last_error = io_failed;
+					}
+				}
+			}
+
+			if (auto btn = widget::button("cancel");
+				btn and (btn.clicked() or ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_escape)))
+			{
+				show_rename_btn	 = false;
+				last_error		 = none;
+				display_name_buf = h_asset.get_display_name();
+			}
+
+			widget::separator_v();
+		}
+
+		auto _ = ui::id_begin();
+
+		if (to_idx(last_error) > to_idx(fixable_by_normalize_begin))
+		{
+			auto btn_header = widget::begin(style::header_bar());
+
+			if (auto btn = widget::button("normalize");
+				btn and btn.clicked())
+			{
+				auto path_arr = editor::get_asset_full_path(e_kind, std::string_view{ display_name_buf.data() });
+				asset::normalize_asset_path(e_kind, path_arr);
+
+				display_name_buf = asset::visit(e_kind, [&]<asset::e::kind k> { return asset::get_display_name<k>(path_arr); });
+				last_error		 = none;
+				show_rename_btn	 = true;	// the name changed - let the user commit it
+			}
+
+			widget::separator_v();
+		}
+
+		if (last_error != none)
+		{
+			widget::text(asset::get_path_error_msg(last_error).data());
+			need_save = false;
+		}
+
+		return need_save;
+	}
+}	 // namespace age::editor
+
 namespace age::editor
 {
 	namespace detail
@@ -1222,7 +1522,7 @@ namespace age::editor
 		auto&
 		ui_modal_asset_name() noexcept
 		{
-			static auto name = std::array<char, config::max_asset_path_len>{ "sample name" };
+			static auto name = age::array<char, config::max_asset_path_len>{ "sample name" };
 
 			return name;
 		}
@@ -1239,13 +1539,102 @@ namespace age::editor
 	ui_modal_new_asset_mesh_baked() noexcept
 	{
 		using namespace age::ui;
-		static auto size		= float3::one();
-		static auto seg_uv		= vec2<uint32>{ 30, 30 };
-		static auto mesh_kind	= age::asset::e::primitive_mesh_kind::cube;
-		static auto vertex_kind = age::asset::e::vertex_kind::pnt_uv1;
+		static auto desc_vec			= age::vector<asset::primitive_desc>{ asset::primitive_desc{} };
+		static auto vertex_format		= age::asset::e::vertex_kind::pnt_uv1;
+		static auto current_submesh_idx = 0u;
+
+		AGE_ASSERT(desc_vec.empty() is_false);
 
 		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
 		{
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+				{
+					widget::text("vertex layout");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					using enum age::asset::e::vertex_kind;
+					widget::dropdown<asset::e::vertex_kind>(vertex_format, widget::make_dropdown_option<pnt_uv0, p_uv1, pn_uv1, pnt_uv1>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal_inv() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_horizontal() | set_width_fixed(200) | set_height_fit()))
+				{
+					if (auto btn = widget::button("+"))
+					{
+						if (btn.clicked())
+						{
+							desc_vec.emplace_back(asset::primitive_desc{});
+						}
+					}
+					if (auto btn = widget::button("-"))
+					{
+						if (btn.clicked() and desc_vec.size<uint32>() > 1)
+						{
+							desc_vec.pop_back();
+						}
+					}
+				}
+
+				if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
+				{
+					detail::ui_component_index_dropdown(current_submesh_idx, desc_vec.size<uint32>());
+				}
+
+				widget::begin(set_width_fixed(200) | set_height_fit());
+			}
+
+			widget::separator_v();
+
+			current_submesh_idx = min(desc_vec.size<uint32>() - 1u, current_submesh_idx);
+			{
+				auto& desc = desc_vec[current_submesh_idx];
+
+				if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit() | set_align_center()))
+				{
+					widget::text_heading(std::format("submesh {}", current_submesh_idx).data());
+					if (auto btn = widget::button("duplicate"))
+					{
+						if (btn.clicked())
+						{
+							// self reference: safe, emplace_back constructs before relocation
+							desc_vec.emplace_back(desc);
+						}
+					}
+					if (auto btn = widget::button("    erase    "))
+					{
+						if (btn.clicked() and desc_vec.size<uint32>() > 1u)
+						{
+							ranges::erase_at(desc_vec, current_submesh_idx);
+						}
+					}
+				}
+			}
+
+			current_submesh_idx = min(desc_vec.size<uint32>() - 1u, current_submesh_idx);
+			auto& desc			= desc_vec[current_submesh_idx];
+
+			widget::separator_v();
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+				{
+					widget::text("pos");
+				}
+
+				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					widget::numeric_field(desc.pos);
+				}
+			}
+
 			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
 			{
 				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
@@ -1255,7 +1644,7 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
-					widget::numeric_field(size);
+					widget::numeric_field(desc.size);
 				}
 			}
 
@@ -1268,7 +1657,10 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
+					auto seg_uv = vec2<uint32>{ desc.seg_u, desc.seg_v };
 					widget::numeric_field(seg_uv);
+					desc.seg_u = seg_uv.x;
+					desc.seg_v = seg_uv.y;
 				}
 			}
 
@@ -1282,7 +1674,7 @@ namespace age::editor
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
 					using enum age::asset::e::primitive_mesh_kind;
-					widget::dropdown<asset::e::primitive_mesh_kind>(mesh_kind, widget::make_dropdown_option<cube, plane, cube_sphere, disk, cone>());
+					widget::dropdown<asset::e::primitive_mesh_kind>(desc.mesh_kind, widget::make_dropdown_option<cube, plane, cube_sphere, disk, cone>());
 				}
 			}
 
@@ -1290,15 +1682,42 @@ namespace age::editor
 			{
 				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
 				{
-					widget::text("vertex layout");
+					widget::text("raster mode");
 				}
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
-					using enum age::asset::e::vertex_kind;
-					widget::dropdown<asset::e::vertex_kind>(vertex_kind, widget::make_dropdown_option<pnt_uv0, p_uv1, pn_uv1, pnt_uv1>());
+					widget::dropdown(desc.raster_mode);
 				}
 			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+				{
+					widget::text("rt bake mode");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					widget::dropdown(desc.rt_bake_mode);
+				}
+			}
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100) | set_height_fit() | set_align_center()))
+				{
+					widget::text("rt alpha test");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
+				{
+					widget::dropdown(desc.rt_alpha_test_mode);
+				}
+			}
+
+			widget::separator_v();
 
 			if (auto _ = widget::begin(set_horizontal() | set_align_center()))
 			{
@@ -1323,15 +1742,9 @@ namespace age::editor
 
 						c_auto mesh_name = g::current_game.dir_path / "asset" / "mesh" / detail::ui_modal_asset_name().data();
 
-						auto h_mat = asset::mesh_baked::cpu_load(mesh_name.string(),
-																 age::asset::primitive_desc{
-																	 .size		= size,
-																	 .seg_u		= seg_uv.x,
-																	 .seg_v		= seg_uv.y,
-																	 .mesh_kind = mesh_kind },
-																 age::asset::e::vertex_kind::pnt_uv1);
-						asset::mesh_baked::cpu_unload(h_mat);
-						asset::registry::register_asset(h_mat);
+						auto h_mesh = asset::mesh_baked::cpu_load(mesh_name.string(), desc_vec, vertex_format);
+						asset::mesh_baked::cpu_unload(h_mesh);
+						asset::registry::register_asset(h_mesh);
 					}
 				}
 			}
@@ -1345,7 +1758,7 @@ namespace age::editor
 		using enum age::asset::e::kind;
 
 		static auto tex_desc = asset::texture_bake_option{};
-		static auto src_vec	 = age::vector<std::array<char, config::max_asset_display_name_len>>{};
+		static auto src_vec	 = age::vector<age::array<char, config::max_asset_display_name_len>>{};
 
 		auto		is_valid	 = true;
 		static auto bake_success = true;
@@ -1689,19 +2102,7 @@ namespace age::editor
 		using namespace age::ui;
 		using enum age::asset::e::kind;
 
-		static auto mat_desc  = asset::material_desc{};
-		static auto label_vec = age::vector<std::array<char, config::max_asset_display_name_len>>{};
-		static auto tex_vec	  = age::vector<ui::widget::dropdown_option<asset::handle>>{};
-		tex_vec.reserve(asset::registry::all(texture).size());
-		label_vec.reserve(asset::registry::all(texture).size());
-		tex_vec.clear();
-		label_vec.clear();
-		for (auto h_tex : asset::registry::all(texture))
-		{
-			label_vec.emplace_back(h_tex.get_display_name<texture>());
-			tex_vec.emplace_back(
-				ui::widget::dropdown_option<asset::handle>{ .value = h_tex, .label = label_vec.back().data() });
-		}
+		static auto mat_desc = asset::material_desc{};
 
 		if (asset::registry::is_registered(mat_desc.h_tex_base_color) is_false)
 		{
@@ -1736,7 +2137,8 @@ namespace age::editor
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
 					widget::color_field(mat_desc.base_color_factor);
-					widget::dropdown<asset::handle>(mat_desc.h_tex_base_color, tex_vec);
+					detail::ui_component_asset_dropdown<texture>(mat_desc.h_tex_base_color, true);
+					widget::dropdown<graphics::e::sampler_kind>(mat_desc.base_color_sampler_kind, widget::make_dropdown_option_all<graphics::e::sampler_kind>());
 				}
 			}
 
@@ -1780,24 +2182,8 @@ namespace age::editor
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
-					widget::dropdown<asset::handle>(mat_desc.h_tex_metallic_roughness, tex_vec);
-				}
-			}
-
-			widget::separator_v();
-
-			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
-			{
-				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
-				{
-					widget::text("Occlusion");
-				}
-
-				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
-				{
-					widget::numeric_field(mat_desc.occlusion_strength, nullptr, 0.f, 1.f);
-					widget::slider(mat_desc.occlusion_strength, 0.f, 1.f);
-					widget::dropdown<asset::handle>(mat_desc.h_tex_occlusion, tex_vec);
+					detail::ui_component_asset_dropdown<texture>(mat_desc.h_tex_metallic_roughness, false);
+					widget::dropdown<graphics::e::sampler_kind>(mat_desc.metallic_roughness_sampler_kind, widget::make_dropdown_option_all<graphics::e::sampler_kind>());
 				}
 			}
 
@@ -1814,7 +2200,26 @@ namespace age::editor
 				{
 					widget::numeric_field(mat_desc.normal_scale, nullptr, 0.f, 2.f);
 					widget::slider(mat_desc.normal_scale, 0.f, 2.f);
-					widget::dropdown<asset::handle>(mat_desc.h_tex_normal, tex_vec);
+					detail::ui_component_asset_dropdown<texture>(mat_desc.h_tex_normal, false);
+					widget::dropdown<graphics::e::sampler_kind>(mat_desc.normal_sampler_kind, widget::make_dropdown_option_all<graphics::e::sampler_kind>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Occlusion");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::numeric_field(mat_desc.occlusion_strength, nullptr, 0.f, 1.f);
+					widget::slider(mat_desc.occlusion_strength, 0.f, 1.f);
+					detail::ui_component_asset_dropdown<texture>(mat_desc.h_tex_occlusion, false);
+					widget::dropdown<graphics::e::sampler_kind>(mat_desc.occlusion_sampler_kind, widget::make_dropdown_option_all<graphics::e::sampler_kind>());
 				}
 			}
 
@@ -1830,7 +2235,8 @@ namespace age::editor
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
 					widget::color_field(mat_desc.emissive_factor);
-					widget::dropdown<asset::handle>(mat_desc.h_tex_emissive, tex_vec);
+					detail::ui_component_asset_dropdown<texture>(mat_desc.h_tex_emissive, false);
+					widget::dropdown<graphics::e::sampler_kind>(mat_desc.emissive_sampler_kind, widget::make_dropdown_option_all<graphics::e::sampler_kind>());
 				}
 			}
 
@@ -1840,13 +2246,27 @@ namespace age::editor
 			{
 				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
 				{
-					widget::text("Alpha");
+					widget::text("Shading Model");
 				}
 
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
 				{
-					using enum asset::e::alpha_mode_kind;
-					widget::dropdown<asset::e::alpha_mode_kind>(mat_desc.alpha_mode, widget::make_dropdown_option<opaque, mask, blend>());
+					widget::dropdown<graphics::e::material_shading_model_kind>(mat_desc.shading_model, widget::make_dropdown_option_all<graphics::e::material_shading_model_kind>());
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Double Sided");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::checkbox(nullptr, mat_desc.double_sided);
 				}
 			}
 
@@ -1890,7 +2310,7 @@ namespace age::editor
 		using enum age::asset::e::kind;
 
 		static auto asset_desc = asset::env_light_desc{};
-		static auto src_path   = std::array<char, config::max_asset_path_len>{};
+		static auto src_path   = age::array<char, config::max_asset_path_len>{};
 
 		auto		is_valid	 = true;
 		static auto bake_success = true;
@@ -2054,6 +2474,144 @@ namespace age::editor
 	}
 
 	void
+	ui_modal_new_asset_model() noexcept
+	{
+		using namespace age::ui;
+		using enum age::asset::e::kind;
+
+		static auto model_desc = asset::model_desc{};
+
+		// handle asset destroy while creating new model
+		if (asset::registry::is_registered(model_desc.h_mesh) is_false)
+		{
+			model_desc.h_mesh = {};
+		}
+		for (auto& h_mat : model_desc.h_materials)
+		{
+			if (asset::registry::is_registered(h_mat) is_false)
+			{
+				h_mat = {};
+			}
+		}
+
+		auto submesh_count = 0;
+
+		if (runtime::is_handle_invalid(model_desc.h_mesh) is_false)
+		{
+			auto& entry = model_desc.h_mesh.get_entry<mesh_baked>();
+
+			if (entry.is_cpu_loaded() is_false)
+			{
+				asset::mesh_baked::cpu_load(model_desc.h_mesh);
+				asset_mgr::add_asset_pin(asset::e::kind::mesh_baked, model_desc.h_mesh, 10);
+			}
+
+			submesh_count = model_desc.h_mesh.get_entry<mesh_baked>().submesh_count();
+		}
+
+		if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_grow()))
+		{
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Mesh");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					widget::text(std::format("submesh_count : {}", submesh_count).data());
+					detail::ui_component_asset_dropdown<mesh_baked>(model_desc.h_mesh);
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(200) | set_height_fit() | set_align_center()))
+				{
+					widget::text("Material");
+				}
+
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()))
+				{
+					if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit()))
+					{
+						if (auto btn = widget::button("+"))
+						{
+							if (btn.clicked())
+							{
+								model_desc.h_materials.emplace_back(asset::handle{});
+							}
+						}
+
+						if (auto btn = widget::button("-"))
+						{
+							if (btn.clicked())
+							{
+								model_desc.h_materials.pop_back();
+							}
+						}
+					}
+
+
+					{
+						auto _id = ui::id_begin();
+
+						if (submesh_count < model_desc.h_materials.size())
+						{
+							widget::begin(style::text("submesh_count < material_count, extra materials will be ignored") | set_body_brush_color(ui::theme::color_text_red()));
+						}
+						else if (submesh_count > model_desc.h_materials.size())
+						{
+							widget::begin(style::text("submesh_count > material_count, unassigned submeshes will fall back to the error material") | set_body_brush_color(ui::theme::color_text_red()));
+						}
+					}
+
+
+					for (auto& h_mat : model_desc.h_materials)
+					{
+						auto _id = ui::id_begin();
+						detail::ui_component_asset_dropdown<material>(h_mat);
+					}
+				}
+			}
+
+			widget::separator_v();
+
+			if (auto _ = widget::begin(set_horizontal() | set_align_center()))
+			{
+				if (auto _ = widget::begin(set_width_fixed(100 + 100) | set_height_fit()))
+				{
+					widget::text_input(detail::ui_modal_asset_name());
+				}
+
+				if (auto h_cancel = widget::button("cancel"))
+				{
+					if (h_cancel.clicked())
+					{
+						g::show_modal = false;
+					}
+				}
+
+				if (auto h_create = widget::button("create"))
+				{
+					if (h_create.clicked())
+					{
+						g::show_modal	 = false;
+						c_auto name		 = g::current_game.dir_path / "asset" / "model" / detail::ui_modal_asset_name().data();
+						c_auto full_path = asset::get_asset_full_path<model>(name.string());
+
+						asset::model::build(full_path.data(), model_desc);
+						asset::registry::register_asset(model, full_path.data());
+					}
+				}
+			}
+		}
+	}
+
+	void
 	ui_modal_new_asset() noexcept
 	{
 		using namespace age::ui;
@@ -2104,6 +2662,11 @@ namespace age::editor
 					ui_modal_new_asset_env_light();
 					break;
 				}
+				case model:
+				{
+					ui_modal_new_asset_model();
+					break;
+				}
 				default:
 				{
 					AGE_UNREACHABLE();
@@ -2134,7 +2697,7 @@ namespace age::editor
 namespace age::editor
 {
 	void
-	ui_asset() noexcept
+	ui_asset_list_panel() noexcept
 	{
 		using namespace ui;
 		if (auto _ = widget::panel(set_height_fit()))
@@ -2162,28 +2725,36 @@ namespace age::editor
 				AGE_LAMBDA(
 					<asset::e::kind e_kind>(),
 					{
-						auto id_0 = id_begin();
-						if (asset::registry::all(e_kind).size() > 0)
+						// auto id_0 = id_begin();
+						// if (asset::registry::all(e_kind).size() > 0)
+						//{
+						//	widget::text_heading(asset::e::to_string(e_kind).data());
+						// }
+
+						if (widget::collapsible_header2(asset::e::to_string(e_kind).data(), false))
 						{
-							widget::text_heading(asset::e::to_string(e_kind).data());
-						}
-
-						for (c_auto h : asset::registry::all(e_kind))
-						{
-							auto id_0 = id_begin();
-							// c_auto& display_name = h.get_display_name();
-							auto _0 = widget::begin(style::section() | set_padding_left(theme::padding_medium()) | set_horizontal() | set_width_grow() | set_height_fit());
-
-							c_auto display_name = h.get_display_name();
-							widget::begin(style::text(display_name.data()));
-
-							auto _1 = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_fit());
-							auto _2 = widget::begin(set_align_end() | set_width_fit() | set_height_fit());
-
-							auto btn_remove_asset = widget::button("X");
-							if (btn_remove_asset.clicked())
+							for (c_auto h : asset::registry::all(e_kind))
 							{
-								g::asset_to_delete[to_idx(e_kind)].emplace_back(h);
+								auto id_0 = id_begin();
+								// c_auto& display_name = h.get_display_name();
+								auto btn = widget::begin(style::section() | set_padding_left(theme::padding_medium()) | set_horizontal() | set_width_grow() | set_height_fit() | set_interact());
+								if (btn.clicked())
+								{
+									clear_select();
+									add_select(e::select_kind::asset, to_idx(e_kind), h.id);
+								}
+
+								c_auto display_name = h.get_display_name();
+								widget::begin(style::text(display_name.data()));
+
+								auto _1 = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_fit());
+								auto _2 = widget::begin(set_align_end() | set_width_fit() | set_height_fit());
+
+								auto btn_remove_asset = widget::button("X");
+								if (btn_remove_asset.clicked())
+								{
+									g::asset_to_delete[to_idx(e_kind)].emplace_back(h);
+								}
 							}
 						}
 					}));

@@ -24,19 +24,11 @@ main_ps(float4 pos sv_position)
 
 	const float3 world_far = ndc_to_world(view_proj_inv, screen_to_ndc(pos.xy, opaque_z_depth, inv_backbuffer_size));
 
-	const float3 ray_dir = normalize(world_far - camera_pos);
-
-	const float t_max = length(world_far - camera_pos);
-
-	ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
-
-	ray_desc desc;
-	desc.Origin	   = camera_pos;
-	desc.Direction = ray_dir;
-	desc.TMin	   = 0.f;
-	desc.TMax	   = t_max;
+	const float3 rel	 = world_far - camera_pos;
+	const float	 t_max	 = length(rel);
+	const float3 ray_dir = rel / t_max;
 
 	ps_out res;
-	res.color = rt_calc_transparent_color(rt_arg::init_gibs(true), desc, query);
+	res.color = lighting::calc_transparent_color<false>(camera_pos, ray_dir, 0.f, t_max);
 	return res;
 }

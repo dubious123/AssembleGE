@@ -327,32 +327,38 @@ unorm16_to_float(uint32 raw)
 	return (raw & 0xffffu) / 65535.f;
 }
 
+float2
+unorm16_2_to_float2(const uint32 raw)
+{
+	return float2(unorm16_to_float(raw & 0xffff), unorm16_to_float((raw >> 16u) & 0xffff));
+}
+
 uint16
 float_to_snorm8(float f)
 {
 	int32 v = int32(clamp(f, -1.f, 1.f) * 127.f + (f >= 0.f ? 0.5f : -0.5f));
-	return uint16(v) & 0xff;
+	return cast<uint16>(v & 0xff);
 }
 
 uint16
 float_to_snorm16(float f)
 {
 	int32 v = int32(clamp(f, -1.f, 1.f) * 32767.f + (f >= 0.f ? 0.5f : -0.5f));
-	return uint16(v) & 0xffff;
+	return cast<uint16>(v & 0xffff);
 }
 
 uint16
 float_to_unorm8(float f)
 {
 	uint32 v = uint32(saturate(f) * 255.f + 0.5f);
-	return uint16(v) & 0xff;
+	return cast<uint16>(v & 0xff);
 }
 
 uint16
 float_to_unorm16(float f)
 {
 	uint32 v = uint32(saturate(f) * 65535.f + 0.5f);
-	return uint16(v) & 0xffff;
+	return cast<uint16>(v & 0xffff);
 }
 
 template <typename t_ret = int32>
@@ -505,12 +511,6 @@ decode_quaternion(uint32_2 encoded_q)
 	default:	// case 3
 		return float4(c.x, c.y, c.z, missing);
 	}
-}
-
-float4
-decode_quaternion(float4 encoded_q)
-{
-	return encoded_q;
 }
 
 float3
@@ -1030,6 +1030,18 @@ world_to_screen(float4x4 view_proj, float3 world_pos, float2 screen_size)
 	return ndc_xy_to_screen(ndc.xy, screen_size);
 }
 
+float3
+local_to_world(float3 pos, float4 quat, float3 scale, float3 v)
+{
+	return rotate(quat, v * scale) + pos;
+}
+
+float3
+normal_local_to_world(float4 quat, float3 scale, float3 normal)
+{
+	return rotate(quat, normal / scale);
+}
+
 bool
 sphere_aabb_intersect(float3 sphere_position, float sphere_range, float3 aabb_min, float3 aabb_max)
 {
@@ -1215,30 +1227,31 @@ cube_face_uv_to_world_dir(float2 uv, uint face)
 	{
 	case 0:
 	{
-		dir = float3(1.0, -ndc.y, -ndc.x);	   // +x
+		dir = float3(1.0, -ndc.y, -ndc.x);	  // +x
 		break;
 	}
 	case 1:
 	{
-		dir = float3(-1.0, -ndc.y, ndc.x);	   // -x
+		dir = float3(-1.0, -ndc.y, ndc.x);	  // -x
 		break;
 	}
 	case 2:
 	{
-		dir = float3(ndc.x, 1.0, ndc.y);	   // +y
+		dir = float3(ndc.x, 1.0, ndc.y);	  // +y
 		break;
 	}
 	case 3:
 	{
-		dir = float3(ndc.x, -1.0, -ndc.y);	   // -y
+		dir = float3(ndc.x, -1.0, -ndc.y);	  // -y
 		break;
 	}
 	case 4:
 	{
-		dir = float3(ndc.x, -ndc.y, 1.0);	   // +z
+		dir = float3(ndc.x, -ndc.y, 1.0);	  // +z
 		break;
 	}
 	case 5:
+	default:
 	{
 		dir = float3(-ndc.x, -ndc.y, -1.0);	   // -z
 		break;

@@ -41,6 +41,11 @@ namespace age::meta
 		using type = t<ts...>;
 	};
 
+	template <std::unsigned_integral auto n>
+	struct index_constant : std::integral_constant<BARE_OF(n), n>
+	{
+	};
+
 	template <typename t, typename u>
 	concept not_same_as = (not std::same_as<std::remove_cvref_t<t>, std::remove_cvref_t<u>>);
 
@@ -1368,25 +1373,45 @@ namespace age::meta
 		}(std::make_index_sequence<std::tuple_size_v<std::remove_cvref_t<t_tpl>>>{}, FWD(tpl), FWD(arg)...);
 	}
 
+	// invokes func on the idx-th tuple element.
+	//   1. func(elem, arg...)
+	//   2. func(cx_index_constant<N>{}, elem, arg...)
+	//      recommended spelling: [](meta::cx_index_constant auto c_idx, auto& elem)
+	//        - decltype(c_idx)::value        for template args / if constexpr
+	//        - c_idx                         binds to uint32 parameters directly
+	//      [](uint32 i, auto& elem) also works
 	template <typename t_tpl>
 	requires meta::tuple_like<t_tpl>
 	FORCE_INLINE constexpr decltype(auto)
-	visit_at(t_tpl&& tpl, auto idx, auto&& func, auto&&... arg) noexcept
+	visit_at(t_tpl&& tpl, std::unsigned_integral auto idx, auto&& func, auto&&... arg) noexcept
 	{
+		using t_idx = BARE_OF(idx);
 		switch (idx)
 		{
-#define X(N)                                                      \
-	case N:                                                       \
-	{                                                             \
-		if constexpr (N < std::tuple_size_v<BARE_OF(tpl)>)        \
-		{                                                         \
-			return FWD(func)(std::get<N>(FWD(tpl)), FWD(arg)...); \
-			break;                                                \
-		}                                                         \
-		else                                                      \
-		{                                                         \
-			AGE_UNREACHABLE();                                    \
-		}                                                         \
+#define X(N)                                                                                                                                                        \
+	case N:                                                                                                                                                         \
+	{                                                                                                                                                               \
+		if constexpr (N < std::tuple_size_v<BARE_OF(tpl)>)                                                                                                          \
+		{                                                                                                                                                           \
+			if constexpr (std::is_invocable_v<decltype(func), decltype(std::get<N>(FWD(tpl))), decltype(arg)...>)                                                   \
+			{                                                                                                                                                       \
+				return FWD(func)(std::get<N>(FWD(tpl)), FWD(arg)...);                                                                                               \
+			}                                                                                                                                                       \
+			else if constexpr (std::is_invocable_v<decltype(func), meta::index_constant<static_cast<t_idx>(N)>, decltype(std::get<N>(FWD(tpl))), decltype(arg)...>) \
+			{                                                                                                                                                       \
+				return FWD(func)(meta::index_constant<static_cast<t_idx>(N)>{}, std::get<N>(FWD(tpl)), FWD(arg)...);                                                \
+			}                                                                                                                                                       \
+			else                                                                                                                                                    \
+			{                                                                                                                                                       \
+				static_assert(false,                                                                                                                                \
+							  "visit_at: func must be callable as (elem, arg...) "                                                                                  \
+							  "or (index_constant, elem, arg...)");                                                                                                 \
+			}                                                                                                                                                       \
+		}                                                                                                                                                           \
+		else                                                                                                                                                        \
+		{                                                                                                                                                           \
+			AGE_UNREACHABLE();                                                                                                                                      \
+		}                                                                                                                                                           \
 	}
 			__X_REPEAT_LIST_512
 #undef X
@@ -1394,7 +1419,7 @@ namespace age::meta
 		{
 			AGE_UNREACHABLE();
 		}
-		}
+		}	 // namespace age::meta
 	}	 // namespace age::meta
 
 	template <typename... t>

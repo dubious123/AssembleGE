@@ -242,7 +242,9 @@ namespace age_demo::scene_1
 		{
 			for (auto&& [i, obj_id] : i_update.get_obj_id_vec() | std::views::enumerate)
 			{
-				i_update.get_render_pipeline().render_mesh(obj_id % age::global::thread_count, obj_id, i_update.get_mesh_id_vec[i % i_update.get_mesh_id_vec->size()]);
+				i_update.get_render_pipeline().render_mesh_default(
+					obj_id % age::global::thread_count, obj_id,
+					i_update.get_mesh_id_vec[i % i_update.get_mesh_id_vec->size()].get_entry<age::asset::e::kind::mesh_baked>().render_id);
 			}
 
 			i_update.get_render_pipeline().end_render(i_update.get_h_render_surface());

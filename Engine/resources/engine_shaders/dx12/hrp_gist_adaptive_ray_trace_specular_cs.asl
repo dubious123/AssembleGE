@@ -40,8 +40,8 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 	if (view_local.y > 0.f and dir_local.y > 0.f)
 	{
 		const float3 dir_world = mul(dir_local, world_to_local);
-		res					   = gist::trace_ray<gist_ray_hit_result>(px.x + px.y * int32_2(backbuffer_size).x + frame_index + g::shader_hash,
-																	  surface_offset(world_pos, vertex_normal), dir_world);
+		res					   = rt::trace_ray<gist_ray_hit_result>(px.x + px.y * int32_2(backbuffer_size).x + frame_index + g::shader_hash,
+																	surface_offset(world_pos, vertex_normal), dir_world);
 		res.dir_oct_snorm8	   = uint32(encode_world_hemi_oct_snorm8(dir_local)) | (uint32(encode_oct_snorm8(dir_world)) << 16u);
 		res.pdf				   = pdf;
 	}

@@ -25,6 +25,34 @@
 #undef AGE_SYSTEM_KIND_GIST
 #undef AGE_SYSTEM_KIND_DEBUG_VIEW
 
+#undef AGE_RASTER_MODE_OPAQUE
+#undef AGE_RASTER_MODE_TRANSPARENT
+#undef AGE_RASTER_MODE_MASK
+
+#undef AGE_RASTER_OVERRIDE_KIND_NONE
+#undef AGE_RASTER_OVERRIDE_KIND_FORCE_OPAQUE
+#undef AGE_RASTER_OVERRIDE_KIND_FORCE_TRANSPARENT
+#undef AGE_RASTER_OVERRIDE_KIND_FORCE_MASK
+
+#undef AGE_SAMPLER_KIND_LINEAR_WRAP
+#undef AGE_SAMPLER_KIND_LINEAR_CLAMP
+#undef AGE_SAMPLER_KIND_LINEAR_MIRROR
+#undef AGE_SAMPLER_KIND_POINT_WRAP
+#undef AGE_SAMPLER_KIND_POINT_CLAMP
+#undef AGE_SAMPLER_KIND_POINT_MIRROR
+
+#undef AGE_MATERIAL_SHADING_MODEL_PBR_DEFAULT
+#undef AGE_MATERIAL_SHADING_MODEL_PBR_UNLIT
+
+#undef AGE_RT_ALPHA_TEST_OVERRIDE_KIND_NONE
+#undef AGE_RT_ALPHA_TEST_OVERRIDE_KIND_OPAQUE
+#undef AGE_RT_ALPHA_TEST_OVERRIDE_KIND_BLEND
+#undef AGE_RT_ALPHA_TEST_OVERRIDE_KIND_MASK
+
+#undef AGE_RT_ALPHA_TEST_MODE_OPAQUE
+#undef AGE_RT_ALPHA_TEST_MODE_BLEND
+#undef AGE_RT_ALPHA_TEST_MODE_MASK
+
 //---[ sort ]------------------------------------------------------------------------------------------------------
 #undef SORT_THREAD_COUNT
 #undef SORT_ELEMENT_COUNT_PER_THREAD
@@ -66,8 +94,8 @@
 #undef LIGHT_KIND_VOLUMN
 
 //---[ object, meshlet ]------------------------------------------------------------------------------------------------------
-#undef MAX_OPAQUE_MESHLET_RENDER_DATA_COUNT
-#undef MAX_TRANSPARENT_MESHLET_RENDER_DATA_COUNT
+#undef MAX_MESHLET_RENDER_DATA_COUNT
+#undef MAX_INSTANCE_SUBMESH_COUNT
 #undef MAX_OBJECT_DATA_COUNT
 #undef VERTEX_KIND_P_UV0
 #undef VERTEX_KIND_PN_UV0
@@ -96,8 +124,8 @@
 #undef VERTEX_SIZE_PNT_UV3
 
 //---[ static buffer offset ]------------------------------------------------------------------------------------------------------
-#undef OPAQUE_MSHLT_OBJECT_DATA_OFFSET
-#undef TRANSPARENT_MSHLT_OBJECT_DATA_OFFSET
+#undef INSTANCE_SUBMESH_MATERIAL_OFFSET
+#undef OBJECT_ID_BUFFER_OFFSET
 #undef OBJECT_PREV_DATA_OFFSET
 #undef OBJECT_DATA_OFFSET
 #undef OBJECT_RENDER_DATA_OFFSET
@@ -126,11 +154,12 @@
 
 
 //---[ rt ]------------------------------------------------------------------------------------------------------
+#undef RT_MASK_NONE
 #undef RT_MASK_OPAQUE
 #undef RT_MASK_TRANSPARENT
-#undef RT_MASK_MASK
+#undef RT_MASK_OMM
 #undef RT_MASK_DEBUG
-#undef RT_MASK_AOT
+#undef RT_MASK_ALWAYS_ON_TOP
 #undef RT_MASK_ALL
 
 
@@ -144,10 +173,6 @@
 
 
 //---[ material ]------------------------------------------------------------------------------------------------------
-#undef MATERIAL_ALPHA_BLEND_OPAQUE
-#undef MATERIAL_ALPHA_BLEND_MASK
-#undef MATERIAL_ALPHA_BLEND_BLEND
-
 
 //---[ ddgi ]------------------------------------------------------------------------------------------------------
 
@@ -279,6 +304,7 @@
 #undef GIST_MAX_CELL_SURFEL_COUNT
 #undef GIST_MSME_SHORT_WINDOW_BLEND
 #undef GIST_MSME_INCONSISTENCY_BLEND
+#undef GIST_CELL_SURFEL_FRAME_SINCE_REF_TO_KILL
 #undef GIST_CELL_SURFEL_NEW_BORN_DELAY
 #undef GIST_CELL_SURFEL_RADIUS_RATIO
 #undef GIST_NEAR_CONTRIBUTION_TRUST_BIAS
@@ -306,19 +332,6 @@
 #undef GIST_DEBUG_FLAGS_FREEZE_SURFEL_SPAWN
 #undef GIST_DEBUG_FLAGS_FREEZE_SURFEL_KILL
 #undef GIST_DEBUG_FLAGS_FREEZE_SURFEL_RADIUS
-#undef GIST_DEBUG_FLAGS_RENDER_CELL
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_COUNT
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_ID_HASH
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RADIANCE
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_IRRADIANCE
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NORMAL
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_VISIBILITY
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_NEAR_COVERAGE
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_FAR_COVERAGE
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_RAY_COUNT
-#undef GIST_DEBUG_FLAGS_RENDER_CELL_SURFEL_AGE
-#undef GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI
-#undef GIST_DEBUG_FLAGS_RENDER_RAY_COUNT_UI
 
 //---[ segment and transparent ]------------------------------------------------------------------------------------------------------
 #undef SEGMENT_TILE_SIZE

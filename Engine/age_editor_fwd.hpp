@@ -50,26 +50,26 @@ namespace age::editor
 	struct entity_editor_data
 	{
 		uint64										  id;
-		std::array<char, config::max_entity_name_len> name;
+		age::array<char, config::max_entity_name_len> name;
 	};
 
 	struct archetype_editor_data
 	{
-		std::array<char, config::max_archetype_name_len> name;	  // editor_only name
+		age::array<char, config::max_archetype_name_len> name;	  // editor_only name
 		uint64											 archetype;
 		age::vector<entity_editor_data>					 entity_data_vec;
 	};
 
 	struct component_editor_data
 	{
-		age::vector<std::array<char, config::max_component_name_len>> names;
+		age::vector<age::array<char, config::max_component_name_len>> names;
 		uint32														  version;
 		uint32														  byte_size;
 	};
 
 	struct storage_editor_data
 	{
-		age::vector<std::array<char, config::max_entity_storage_name_len>> names;
+		age::vector<age::array<char, config::max_entity_storage_name_len>> names;
 		uint32															   code_idx;
 		uint64															   entity_count;
 		age::vector<component_editor_data>								   component_data_vec;
@@ -80,7 +80,7 @@ namespace age::editor
 
 	struct scene_editor_data
 	{
-		age::vector<std::array<char, config::max_scene_name_len>> names;
+		age::vector<age::array<char, config::max_scene_name_len>> names;
 		uint32													  code_idx;
 		bool													  loaded = false;
 		uint8_3													  _;
@@ -101,12 +101,20 @@ namespace age::editor
 
 	struct game_editor_data
 	{
-		age::vector<std::array<char, config::max_game_name_len>> names;
+		age::vector<age::array<char, config::max_game_name_len>> names;
 		uint32													 default_active_scene_idx;
 		uint32													 current_active_scene_idx;
 		age::vector<scene_editor_data>							 scene_data_vec;
 
 		std::filesystem::path dir_path;
+
+		decltype(auto)
+		find_scene_data(this auto& self, uint32 scene_code_idx) noexcept
+		{
+			auto it = std::ranges::find(self.scene_data_vec, scene_code_idx, &scene_editor_data::code_idx);
+			AGE_ASSERT(it != self.scene_data_vec.end());
+			return *it;
+		}
 
 		auto&
 		get_current_scene(this auto&& self) noexcept
@@ -141,12 +149,25 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+// widget
 namespace age::editor
 {
 	struct rotation_snapshot
 	{
 		float3 position;
 		float4 rotation;
+	};
+}	 // namespace age::editor
+
+// asset_mgr
+namespace age::editor
+{
+	struct asset_pin_data
+	{
+		asset::e::kind kind;
+		uint8		   _;
+		uint16		   frames_to_live;
+		asset::handle  h_asset;
 	};
 }	 // namespace age::editor
 
@@ -158,7 +179,7 @@ namespace age::editor::g
 	// inline auto ui_new_entity_with_archetype_buffer = age::vector<uint64>{};
 	// inline auto command_buf							= ecs::command_buffer{};
 
-	inline auto asset_to_delete = std::array<age::vector<asset::handle>, asset::e::kind_size>{};
+	inline auto asset_to_delete = age::array<age::vector<asset::handle>, asset::e::kind_size>{};
 
 	inline auto current_game = game_editor_data{};
 
@@ -180,4 +201,12 @@ namespace age::editor::g
 	inline auto rotation_snapshot_vec = age::vector<age::unordered_map<uint64, rotation_snapshot>>{};
 
 	inline constexpr c_auto gizmo_rotation_trackball_sensitivity = 0.05f;
+}	 // namespace age::editor::g
+
+// asset_mgr
+namespace age::editor::g
+{
+	inline auto asset_pin_vec = age::vector<asset_pin_data>{};
+
+	inline constexpr c_auto asset_default_frames_to_live = uint16{ 10 };
 }	 // namespace age::editor::g

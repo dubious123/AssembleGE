@@ -40,7 +40,7 @@ main_cs(uint32_3 group_id		  sv_group_id,
 		const float3  probe_pos						= ddgi_calc_probe_pos(ddgi_data, probe_world_coord, level);
 		const float	  probe_weight_sum				= ddgi_load_probe_weight_sum(probe_id);
 		const bool	  probe_seen					= probe_weight_sum > 0.f;
-		const uint16  probe_state_prev				= probe.state & 0xff;
+		const uint16  probe_state_prev				= probe.state & uint16(0xff);
 		const uint32  probe_world_coord_packed_curr = (uint32(probe_world_coord.x) & 0x3ffu)
 													| ((uint32(probe_world_coord.y) & 0x3ffu) << 10u)
 													| ((uint32(probe_world_coord.z) & 0x3ffu) << 20u);

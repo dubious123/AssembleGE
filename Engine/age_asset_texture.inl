@@ -47,13 +47,15 @@ namespace age::asset::texture
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		cpu_load(h_tex);
+
+		if (entry.is_cpu_loaded())
 		{
-			entry.p_blob	= buf.release();
 			entry.render_id = renderer.upload_texture(h_tex);
 			return;
 		}
+
+		return;
 	}
 
 	handle

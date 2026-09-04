@@ -45,7 +45,7 @@ namespace age::graphics::shader
 					or newest_include_time > std::filesystem::last_write_time(compiled_blob_path)
 					or std::filesystem::file_size(compiled_blob_path) == 0)
 			{
-				compile_shader(shader_name, hlsl_path.c_str(), entry_point, target, compiled_blob_path);
+				compile_shader(std::wstring{ shader_name }, hlsl_path.c_str(), entry_point, target, compiled_blob_path);
 			}
 
 			load_shader(compiled_blob_path);
@@ -74,22 +74,22 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
-		std::wstring_view	  shader_name,
-		std::wstring_view	  hlsl_path,
-		std::wstring_view	  entry_point,
-		std::wstring_view	  target,
+		const std::wstring&	  shader_name,
+		const std::wstring&	  hlsl_path,
+		const std::wstring&	  entry_point,
+		const std::wstring&	  target,
 		std::filesystem::path save_path) noexcept
 	{
 		auto* p_file	 = (IDxcBlobEncoding*)nullptr;
 		auto* p_result	 = (IDxcResult*)nullptr;
 		auto* p_res_blob = (IDxcBlob*)nullptr;
 
-		auto dir_path = std::filesystem::path{ hlsl_path }.parent_path();
+		c_auto dir_path = std::wstring{ std::filesystem::path{ hlsl_path }.parent_path() };
 
 		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(hlsl_path.data(), nullptr, &p_file));
 
 		// ex) full_screen_ms => #define AGE_SHADER_NAME 'f', 'u', 'l', 'l', 's', 'c', 'r', 'e', 'e', 'n', '_', 'm', 's'
-		auto wchar_buffer = dynamic_array<wchar_t>::gen_sized_default(shader_name.size() * 4);
+		auto wchar_buffer = dynamic_array<wchar_t>::gen_sized_copy(shader_name.size() * 4, '\0');
 
 		for (auto&& [i, c] : shader_name | std::views::enumerate)
 		{
@@ -102,34 +102,50 @@ namespace age::graphics::shader
 
 		c_auto shader_name_def = std::wstring{ L"AGE_SHADER_NAME=" } + std::wstring{ wchar_buffer.data() };
 		c_auto shader_hash_def = std::wstring{ L"AGE_SHADER_HASH=" } + std::to_wstring(cast_to<uint32>(age::hash<std::wstring_view>{}(shader_name))) + L"u";
+
+		std::wcout << L"compiling " << shader_name << std::endl;
 		{
+			auto is_known  = FALSE;
+			auto code_page = UINT32{ 0 };
+			AGE_HR_CHECK(p_file->GetEncoding(&is_known, &code_page));
+
 			auto buffer = DxcBuffer{
 				.Ptr	  = p_file->GetBufferPointer(),
 				.Size	  = p_file->GetBufferSize(),
-				.Encoding = DXC_CP_UTF8
+				.Encoding = is_known ? code_page : DXC_CP_ACP
 			};
 
-			auto args = std::array{
+			auto args = age::array{
 				hlsl_path.data(),
-				L"-E", entry_point.data(),
-				L"-T", target.data(),
-				L"-I", dir_path.c_str(),
-				L"-HV", L"2021",
+				L"-E",
+				entry_point.data(),
+				L"-T",
+				target.data(),
+				L"-I",
+				dir_path.data(),
+				L"-HV",
+				L"202x",
 				// L"-Qstrip_reflect",
 				// L"-Qstrip_debug",
-				L"-D", shader_name_def.c_str(),
-				L"-D", shader_hash_def.c_str(),
+				L"-D",
+				shader_name_def.data(),
+				L"-D",
+				shader_hash_def.data(),
 				L"-enable-16bit-types",
 				L"-Zi",
-				L"-Qembed_debug",
+
 				DXC_ARG_WARNINGS_ARE_ERRORS,
 	#if defined(AGE_DEBUG)
 				L"-Qembed_debug",
 				DXC_ARG_DEBUG,
+		#if !AGE_ENABLE_GBV
 				DXC_ARG_SKIP_OPTIMIZATIONS
+		#endif
 	#elif defined(AGE_RELEASE)
+				L"-Qembed_debug",
 				DXC_ARG_ALL_RESOURCES_BOUND,
-				DXC_ARG_OPTIMIZATION_LEVEL3,
+				DXC_ARG_SKIP_OPTIMIZATIONS,
+				// DXC_ARG_OPTIMIZATION_LEVEL3,
 	#endif
 			};
 
@@ -142,15 +158,18 @@ namespace age::graphics::shader
 		}
 
 		{
-			auto* p_error = (IDxcBlobUtf8*)nullptr;
+			// #pragma warning(disable : 6387)
+			//		p_result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&p_error), nullptr);
+			// #pragma warning(default : 6387)
 
-	#pragma warning(disable : 6387)
-			p_result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&p_error), nullptr);
-	#pragma warning(default : 6387)
+			if (auto* p_error = (IDxcBlobUtf8*)nullptr;
 
-			if (p_error is_not_nullptr and p_error->GetBufferSize() > 0)
+				SUCCEEDED(p_result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&p_error), nullptr)) and p_error is_not_nullptr)
 			{
-				std::println("{}", p_error->GetStringPointer());
+				if (p_error->GetBufferSize() > 0)
+				{
+					std::println("{}", p_error->GetStringPointer());
+				}
 
 				p_error->Release();
 			}

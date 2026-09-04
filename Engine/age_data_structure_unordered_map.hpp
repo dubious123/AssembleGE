@@ -1,5 +1,15 @@
 #pragma once
-
+#ifdef USE_STL_UNORDERED_MAP
+namespace age::inline data_structure
+{
+	template <typename t_key,
+			  typename t_value,
+			  typename t_hash	   = age::hash<t_key>,
+			  typename t_key_equal = std::equal_to<t_key>,
+			  typename t_allocator = std::allocator<std::pair<const t_key, t_value>>>
+	using unordered_map = std::unordered_map<t_key, t_value, t_hash, t_key_equal, t_allocator>;
+}
+#else
 namespace age::inline data_structure
 {
 	template <typename t_key,
@@ -1198,3 +1208,4 @@ namespace age::inline data_structure
 		}
 	};
 }	 // namespace age::inline data_structure
+#endif

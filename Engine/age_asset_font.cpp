@@ -17,7 +17,7 @@ namespace age::asset
 		return res;
 	}
 
-	std::array<char, config::max_asset_path_len>&
+	age::array<char, config::max_asset_path_len>&
 	entry<e::kind::font>::get_path() const noexcept
 	{
 		return g::path_vec[path_id];
@@ -74,6 +74,22 @@ namespace age::asset
 
 		AGE_UNREACHABLE();	  // glyph not found
 		return glyphs[0];
+	}
+
+	void
+	add_ref(handle h) noexcept
+	{
+		auto& entry = h.get_entry<e::kind::font>();
+		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
+		++entry.ref_counter;
+	}
+
+	void
+	remove_ref(handle h) noexcept
+	{
+		auto& entry = h.get_entry<e::kind::font>();
+		AGE_ASSERT(entry.ref_counter > 0);
+		--entry.ref_counter;
 	}
 }	 // namespace age::asset
 

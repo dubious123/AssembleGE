@@ -5,15 +5,16 @@
 namespace age::graphics::render_pipeline
 {
 	void
-	depth_stage::init(graphics::root_signature::handle h_root_sig) noexcept
+	gbuffer_stage::init(graphics::root_signature::handle h_root_sig) noexcept
 	{
 		using namespace graphics::pso;
 
-		h_pso_opaque = graphics::pso::create(
+		h_pso_opaque_ss = graphics::pso::create(
+			L"pso_gbuffer_opaque_ss",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_opaque_as) },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_opaque_ms) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_opaque_ps) },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ss_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ss_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ss_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT, DXGI_FORMAT_R16G16_FLOAT }, .NumRenderTargets = 2 } },
 			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
@@ -22,16 +23,15 @@ namespace age::graphics::render_pipeline
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso_opaque = graphics::g::pso_ptr_vec[h_pso_opaque];
-
-		h_pso_opaque.set_name(L"pso_opaque_gbuffer_prepass");
+		p_pso_opaque_ss = graphics::g::pso_ptr_vec[h_pso_opaque_ss];
 
 
-		h_pso_transparent = graphics::pso::create(
+		h_pso_transparent_ss = graphics::pso::create(
+			L"pso_gbuffer_transparent_ss",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_transparent_as) },
-			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_transparent_ms) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_prepass_transparent_ps) },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ss_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ss_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ss_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT }, .NumRenderTargets = 1 } },
 			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
@@ -40,21 +40,91 @@ namespace age::graphics::render_pipeline
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso_transparent = graphics::g::pso_ptr_vec[h_pso_transparent];
+		p_pso_transparent_ss = graphics::g::pso_ptr_vec[h_pso_transparent_ss];
 
-		h_pso_transparent.set_name(L"pso_transparent_gbuffer_prepass");
+
+		h_pso_mask_ss = graphics::pso::create(
+			L"pso_gbuffer_mask_ss",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ss_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ss_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ss_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT, DXGI_FORMAT_R16G16_FLOAT }, .NumRenderTargets = 2 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::backface_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_mask_ss = graphics::g::pso_ptr_vec[h_pso_mask_ss];
+
+
+		h_pso_opaque_ds = graphics::pso::create(
+			L"pso_gbuffer_opaque_ds",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ds_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ds_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_opaque_ds_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT, DXGI_FORMAT_R16G16_FLOAT }, .NumRenderTargets = 2 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_opaque_ds = graphics::g::pso_ptr_vec[h_pso_opaque_ds];
+
+
+		h_pso_transparent_ds = graphics::pso::create(
+			L"pso_gbuffer_transparent_ds",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ds_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ds_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_transparent_ds_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_transparent_ds = graphics::g::pso_ptr_vec[h_pso_transparent_ds];
+
+
+		h_pso_mask_ds = graphics::pso::create(
+			L"pso_gbuffer_mask_ds",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ds_as) },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ds_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gbuffer_mask_ds_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R32G32_UINT, DXGI_FORMAT_R16G16_FLOAT }, .NumRenderTargets = 2 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_D32_FLOAT },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::depth_only_reversed },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_mask_ds = graphics::g::pso_ptr_vec[h_pso_mask_ds];
 	}
 
 	inline void
-	depth_stage::execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
-						 rtv_desc_handle h_motion_buffer_rtv_desc,
-						 dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
-						 uint32			 opaque_meshlet_count,
-						 rtv_desc_handle h_transparent_gbuffer_rtv_desc,
-						 dsv_desc_handle h_transparent_depth_buffer_dsv_desc,
-						 uint32			 transparent_meshlet_count) const noexcept
+	gbuffer_stage::execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
+						   rtv_desc_handle h_motion_buffer_rtv_desc,
+						   dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
+						   rtv_desc_handle h_transparent_gbuffer_rtv_desc,
+						   dsv_desc_handle h_transparent_depth_buffer_dsv_desc,
+						   uint32		   opaque_meshlet_ss_count,
+						   uint32		   opaque_meshlet_ds_count,
+						   uint32		   transparent_meshlet_ss_count,
+						   uint32		   transparent_meshlet_ds_count,
+						   uint32		   mask_meshlet_ss_count,
+						   uint32		   mask_meshlet_ds_count) const noexcept
 	{
-		if (opaque_meshlet_count == 0) [[unlikely]]
+		if ((opaque_meshlet_ss_count | opaque_meshlet_ds_count | mask_meshlet_ss_count | mask_meshlet_ds_count) == 0) [[unlikely]]
 		{
 			command::clear_dsv(h_opaque_depth_buffer_dsv_desc.h_cpu,
 							   D3D12_CLEAR_FLAG_DEPTH,
@@ -65,7 +135,7 @@ namespace age::graphics::render_pipeline
 		}
 		else
 		{
-			c_auto render_pass_rt_desc_arr = std::array{
+			c_auto render_pass_rt_desc_arr = age::array{
 				defaults::render_pass_rtv_desc::clear_preserve(h_opaque_gbuffer_rtv_desc, e::texture_format::r32g32_uint),
 				defaults::render_pass_rtv_desc::clear_preserve(h_motion_buffer_rtv_desc, graphics::e::texture_format::r16g16_float)
 			};
@@ -78,14 +148,34 @@ namespace age::graphics::render_pipeline
 				&render_pass_ds_desc,
 				D3D12_RENDER_PASS_FLAG_NONE);
 
-			command::set_pso(p_pso_opaque);
+			if (opaque_meshlet_ss_count > 0) [[likely]]
+			{
+				command::set_pso(p_pso_opaque_ss);
+				command::dispatch_mesh(util::ceil(opaque_meshlet_ss_count, g::wave_size), 1, 1);
+			}
 
-			command::dispatch_mesh(util::ceil(opaque_meshlet_count, 32u), 1, 1);
+			if (opaque_meshlet_ds_count > 0)
+			{
+				command::set_pso(p_pso_opaque_ds);
+				command::dispatch_mesh(util::ceil(opaque_meshlet_ds_count, g::wave_size), 1, 1);
+			}
+
+			if (mask_meshlet_ss_count > 0)
+			{
+				command::set_pso(p_pso_mask_ss);
+				command::dispatch_mesh(util::ceil(mask_meshlet_ss_count, g::wave_size), 1, 1);
+			}
+
+			if (mask_meshlet_ds_count > 0)
+			{
+				command::set_pso(p_pso_mask_ds);
+				command::dispatch_mesh(util::ceil(mask_meshlet_ds_count, g::wave_size), 1, 1);
+			}
 
 			command::end_render_pass();
 		}
 
-		if (transparent_meshlet_count == 0) [[unlikely]]
+		if (transparent_meshlet_ss_count == 0 and transparent_meshlet_ds_count == 0) [[unlikely]]
 		{
 			command::clear_dsv(h_transparent_depth_buffer_dsv_desc.h_cpu,
 							   D3D12_CLEAR_FLAG_DEPTH,
@@ -105,19 +195,31 @@ namespace age::graphics::render_pipeline
 				&render_pass_ds_desc,
 				D3D12_RENDER_PASS_FLAG_NONE);
 
-			command::set_pso(p_pso_transparent);
+			if (transparent_meshlet_ss_count > 0)
+			{
+				command::set_pso(p_pso_transparent_ss);
+				command::dispatch_mesh(util::ceil(transparent_meshlet_ss_count, g::wave_size), 1, 1);
+			}
 
-			command::dispatch_mesh(util::ceil(transparent_meshlet_count, 32u), 1, 1);
+			if (transparent_meshlet_ds_count > 0)
+			{
+				command::set_pso(p_pso_transparent_ds);
+				command::dispatch_mesh(util::ceil(transparent_meshlet_ds_count, g::wave_size), 1, 1);
+			}
 
 			command::end_render_pass();
 		}
 	}
 
 	void
-	depth_stage::deinit() noexcept
+	gbuffer_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso_opaque);
-		pso::destroy(h_pso_transparent);
+		pso::destroy(h_pso_opaque_ss);
+		pso::destroy(h_pso_opaque_ds);
+		pso::destroy(h_pso_transparent_ss);
+		pso::destroy(h_pso_transparent_ds);
+		pso::destroy(h_pso_mask_ss);
+		pso::destroy(h_pso_mask_ds);
 	}
 }	 // namespace age::graphics::render_pipeline
 
@@ -130,18 +232,18 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_resolve = graphics::pso::create(
+			L"pso_material_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_material_resolve_cs) });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"p_pso_material_resolve");
 	}
 
 	inline void
 	material_resolve_stage::execute(const extent_2d<uint16>& extent) const noexcept
 	{
 		command::set_pso(p_pso_resolve);
-		command::dispatch(ceil(extent.width, 16), ceil(extent.height, 16), 1);
+		command::dispatch(ceil(extent.width, g::segment_tile_size), ceil(extent.height, g::segment_tile_size), 1);
 	}
 
 	void
@@ -160,11 +262,11 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_resolve = graphics::pso::create(
+			L"pso_segment_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_segment_resolve_cs) });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"p_pso_segment");
 	}
 
 	inline void
@@ -190,11 +292,11 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_resolve = graphics::pso::create(
+			L"pso_ao_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ao_resolve_cs) });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"p_pso_ao");
 	}
 
 	inline void
@@ -247,6 +349,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso = graphics::pso::create(
+			L"pso_skybox",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_skybox_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_skybox_ps) },
@@ -260,7 +363,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_skybox");
 	}
 
 	inline void
@@ -306,46 +408,46 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_init = graphics::pso::create(
+			L"pso_light_init",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_light_init_cs) });
 
 		p_pso_init = graphics::g::pso_ptr_vec[h_pso_init];
-		h_pso_init.set_name(L"p_pso_light_init");
 
 		h_pso_light_sort_prepare = graphics::pso::create(
+			L"pso_sort_prepare",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_light_sort_prepare_cs) });
 
 		p_pso_light_sort_prepare = graphics::g::pso_ptr_vec[h_pso_light_sort_prepare];
-		h_pso_light_sort_prepare.set_name(L"pso_light_sort_prepare");
 
 		h_pso_sort_histogram = graphics::pso::create(
+			L"pso_sort_histogram",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_sort_histogram_cs) });
 
 		p_pso_sort_histogram = graphics::g::pso_ptr_vec[h_pso_sort_histogram];
-		h_pso_sort_histogram.set_name(L"p_pso_sort_histogram");
 
 		h_pso_sort_prefix = graphics::pso::create(
+			L"pso_sort_prefix",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_sort_prefix_cs) });
 
 		p_pso_sort_prefix = graphics::g::pso_ptr_vec[h_pso_sort_prefix];
-		h_pso_sort_prefix.set_name(L"p_pso_sort_prefix");
 
 		h_pso_sort_scatter = graphics::pso::create(
+			L"pso_sort_scatter",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_sort_scatter_cs) });
 
 		p_pso_sort_scatter = graphics::g::pso_ptr_vec[h_pso_sort_scatter];
-		h_pso_sort_scatter.set_name(L"p_pso_sort_scatter");
 
 		h_pso_zbin = graphics::pso::create(
+			L"pso_light_zbin",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_light_zbin_cs) });
 
 		p_pso_zbin = graphics::g::pso_ptr_vec[h_pso_zbin];
-		h_pso_zbin.set_name(L"p_pso_light_zbin");
 	}
 
 	inline void
@@ -421,70 +523,71 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_update_probe_state = graphics::pso::create(
+			L"pso_ddgi_update_probe_state",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_update_probe_state_cs) });
 
 		p_pso_update_probe_state = graphics::g::pso_ptr_vec[h_pso_update_probe_state];
-		h_pso_update_probe_state.set_name(L"pso_ddgi_update_probe_state");
 
 		h_pso_reduce_ray_sum = graphics::pso::create(
+			L"pso_ddgi_reduce_ray_sum",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_reduce_ray_sum_cs) });
 
 		p_pso_reduce_ray_sum = graphics::g::pso_ptr_vec[h_pso_reduce_ray_sum];
-		h_pso_reduce_ray_sum.set_name(L"pso_ddgi_reduce_ray_sum");
 
 
 		h_pso_prefix_group = graphics::pso::create(
+			L"pso_ddgi_prefix_group",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_prefix_group_cs) });
 
 		p_pso_prefix_group = graphics::g::pso_ptr_vec[h_pso_prefix_group];
-		h_pso_prefix_group.set_name(L"pso_ddgi_prefix_group");
 
 
 		h_pso_prefix_group_sum = graphics::pso::create(
+			L"pso_ddgi_prefix_group_sum",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_prefix_group_sum_cs) });
 
 		p_pso_prefix_group_sum = graphics::g::pso_ptr_vec[h_pso_prefix_group_sum];
-		h_pso_prefix_group_sum.set_name(L"pso_ddgi_prefix_group_sum");
 
 
 		h_pso_prefix_add = graphics::pso::create(
+			L"pso_ddgi_prefix_add",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_prefix_add_cs) });
 
 
 		p_pso_prefix_add = graphics::g::pso_ptr_vec[h_pso_prefix_add];
-		h_pso_prefix_add.set_name(L"pso_ddgi_prefix_add");
 
 		h_pso_probe_trace = graphics::pso::create(
+			L"pso_ddgi_probe_trace",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_probe_trace_cs) });
 
 		p_pso_probe_trace = graphics::g::pso_ptr_vec[h_pso_probe_trace];
-		h_pso_probe_trace.set_name(L"pso_ddgi_probe_trace");
 
 		h_cmd_sig_probe_trace = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
 		p_cmd_sig_probe_trace = h_cmd_sig_probe_trace.ptr();
 
 		h_pso_probe_blend = graphics::pso::create(
+			L"pso_ddgi_probe_blend",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_probe_blend_cs) });
 
 		p_pso_probe_blend = graphics::g::pso_ptr_vec[h_pso_probe_blend];
-		h_pso_probe_blend.set_name(L"pso_ddgi_probe_blend");
 
 		h_pso_copy_edge = graphics::pso::create(
+			L"pso_ddgi_copy_edge",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_copy_edge_cs) });
 
 		p_pso_copy_edge = graphics::g::pso_ptr_vec[h_pso_copy_edge];
-		h_pso_copy_edge.set_name(L"pso_ddgi_copy_edge");
 
 
 		h_pso_render_probes = graphics::pso::create(
+			L"pso_ddgi_render_probes",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_render_probes_as) },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ddgi_render_probes_ms) },
@@ -500,7 +603,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_render_probes = graphics::g::pso_ptr_vec[h_pso_render_probes];
-		h_pso_render_probes.set_name(L"pso_ddgi_render_probes");
 	}
 
 	inline void
@@ -678,6 +780,7 @@ namespace age::graphics::render_pipeline
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gibs, gi_reconstruct);
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(gibs, debug_draw_surfels);
 		h_pso_debug_resolve = graphics::pso::create(
+			L"pso_gibs_debug_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_gibs_debug_resolve_ps) },
@@ -690,7 +793,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_debug_resolve = graphics::g::pso_ptr_vec[h_pso_debug_resolve];
-		h_pso_debug_resolve.set_name(L"pso_gibs_debug_resolve");
 
 		h_cmd_sig = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
 		p_cmd_sig = h_cmd_sig.ptr();
@@ -1248,7 +1350,7 @@ namespace age::graphics::render_pipeline
 			command::dispatch(ceil(main_buffer_extent.width, g::gist_gi_resolve_block_size), ceil(main_buffer_extent.height, g::gist_gi_resolve_block_size), 1);
 			command::apply_barriers(barrier::tex_uav_to_srv(gist_data_cpu.h_gi_resolve_curr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 									barrier::tex_uav_to_srv(gist_data_cpu.h_gi_resolve_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-									barrier::tex_uav_to_uav(gist_data_cpu.h_gi_resolve_moments_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+									barrier::tex_uav_to_srv(gist_data_cpu.h_gi_resolve_moments_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
 
 									barrier::tex_uav_to_uav(gist_data_cpu.h_gi_resolve_specular_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING),
 									barrier::tex_uav_to_uav(gist_data_cpu.h_gi_resolve_specular_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
@@ -1357,7 +1459,8 @@ namespace age::graphics::render_pipeline
 								// barrier::buf_uav_to_uav(gist_data_cpu.h_px_luminance_buffer),
 
 								barrier::tex_srv_to_uav(gist_data_cpu.h_gi_resolve_curr_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
-								barrier::tex_srv_to_uav(gist_data_cpu.h_gi_resolve_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
+								barrier::tex_srv_to_uav(gist_data_cpu.h_gi_resolve_age_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING),
+								barrier::tex_srv_to_uav(gist_data_cpu.h_gi_resolve_moments_curr_buffer(), D3D12_BARRIER_SYNC_COMPUTE_SHADING, D3D12_BARRIER_SYNC_COMPUTE_SHADING));
 
 		command::set_pso(p_pso_gi_resolve);
 		// command::dispatch(ceil(gpu_data.tile_count_w, 16u), ceil(gpu_data.tile_count_h, 16u), 1);
@@ -1525,6 +1628,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso = graphics::pso::create(
+			L"pso_opaque_raster",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_opaque_ps) },
@@ -1538,7 +1642,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_opaque");
 	}
 
 	inline void
@@ -1575,41 +1678,42 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_opaque_ray_entry = graphics::pso::create(
+			L"pso_aa_opaque_ray_entry",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_opaque_ray_entry_cs) });
 
 		p_pso_opaque_ray_entry = graphics::g::pso_ptr_vec[h_pso_opaque_ray_entry];
-		h_pso_opaque_ray_entry.set_name(L"pso_aa_opaque_ray_entry");
 
 		h_pso_transparent_ray_entry = graphics::pso::create(
+			L"pso_aa_transparent_ray_entry",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_transparent_ray_entry_cs) });
 
 		p_pso_transparent_ray_entry = graphics::g::pso_ptr_vec[h_pso_transparent_ray_entry];
-		h_pso_transparent_ray_entry.set_name(L"pso_aa_transparent_ray_entry");
 
 		h_pso_indirect_arg = graphics::pso::create(
+			L"pso_aa_indirect_arg",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_indirect_arg_cs) });
 
 		p_pso_indirect_arg = graphics::g::pso_ptr_vec[h_pso_indirect_arg];
-		h_pso_indirect_arg.set_name(L"pso_aa_indirect_arg");
 
 		h_pso_opaque_rt = graphics::pso::create(
+			L"pso_aa_opaque_rt",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_opaque_rt_cs) });
 
 		p_pso_opaque_rt = graphics::g::pso_ptr_vec[h_pso_opaque_rt];
-		h_pso_opaque_rt.set_name(L"pso_aa_opaque_rt");
 
 		h_pso_transparent_rt = graphics::pso::create(
+			L"pso_aa_transparent_rt",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_transparent_rt_cs) });
 
 		p_pso_transparent_rt = graphics::g::pso_ptr_vec[h_pso_transparent_rt];
-		h_pso_transparent_rt.set_name(L"pso_aa_transparent_rt");
 
 		h_pso_resolve = graphics::pso::create(
+			L"pso_aa_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_aa_resolve_ps) },
@@ -1622,7 +1726,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"pso_aa_resolve");
 
 		h_cmd_sig = graphics::command_signature::create<uint32_3>(graphics::defaults::cmd_sig::dispatch_compute);
 		p_cmd_sig = h_cmd_sig.ptr();
@@ -1726,13 +1829,14 @@ namespace age::graphics::render_pipeline
 	{
 		using namespace graphics::pso;
 		h_pso_rt_with_aa = graphics::pso::create(
+			L"pso_transparent_rt_with_aa",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_rt_with_aa_cs) });
 
 		p_pso_rt_with_aa = graphics::g::pso_ptr_vec[h_pso_rt_with_aa];
-		h_pso_rt_with_aa.set_name(L"pso_transparent_rt_with_aa_cs");
 
 		h_pso_resolve = graphics::pso::create(
+			L"pso_transparent_resolve",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_resolve_ps) },
@@ -1745,9 +1849,9 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_resolve = graphics::g::pso_ptr_vec[h_pso_resolve];
-		h_pso_resolve.set_name(L"pso_transparent_resolve");
 
 		h_pso_no_aa = graphics::pso::create(
+			L"pso_transparent_no_aa",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_transparent_no_aa_ps) },
@@ -1760,7 +1864,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_no_aa = graphics::g::pso_ptr_vec[h_pso_no_aa];
-		h_pso_no_aa.set_name(L"pso_transparent_no_aa");
 	}
 
 	inline void
@@ -1805,11 +1908,11 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso = graphics::pso::create(
+			L"pso_raycast",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_raycast_cs) });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_raycast");
 	}
 
 	inline void
@@ -1834,25 +1937,25 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_prefilter = graphics::pso::create(
+			L"pso_bloom_prefilter",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_bloom_prefilter_cs) });
 
 		p_pso_prefilter = graphics::g::pso_ptr_vec[h_pso_prefilter];
-		h_pso_prefilter.set_name(L"pso_bloom_prefilter");
 
 		h_pso_downsample = graphics::pso::create(
+			L"pso_bloom_downsample",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_bloom_downsample_cs) });
 
 		p_pso_downsample = graphics::g::pso_ptr_vec[h_pso_downsample];
-		h_pso_downsample.set_name(L"pso_bloom_down_sample");
 
 		h_pso_upsample = graphics::pso::create(
+			L"pso_bloom_upsample",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_bloom_upsample_cs) });
 
 		p_pso_upsample = graphics::g::pso_ptr_vec[h_pso_upsample];
-		h_pso_upsample.set_name(L"pso_bloom_upsample");
 	}
 
 	inline void
@@ -1917,6 +2020,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso = graphics::pso::create(
+			L"pso_post_process",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_post_process_ps) },
@@ -1928,7 +2032,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_post_process");
 	}
 
 	inline void
@@ -1963,11 +2066,11 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso = graphics::pso::create(
+			L"pso_geo_prev_opaque",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_geo_prev_opaque_cs) });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_geo_prev_opaque");
 	}
 
 	inline void
@@ -1993,6 +2096,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_mask = graphics::pso::create(
+			L"pso_selection_outline_mask",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_selection_outline_mask_as) },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_selection_outline_mask_ms) },
@@ -2006,9 +2110,9 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_mask = graphics::g::pso_ptr_vec[h_pso_mask];
-		h_pso_mask.set_name(L"pso_selection_outline_mask");
 
 		h_pso_draw = graphics::pso::create(
+			L"pso_selection_outline_draw",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_selection_outline_draw_ps) },
@@ -2021,7 +2125,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_draw = graphics::g::pso_ptr_vec[h_pso_draw];
-		h_pso_draw.set_name(L"pso_selection_outline_draw");
 	}
 
 	inline void
@@ -2089,6 +2192,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_screen = graphics::pso::create(
+			L"pso_ui_screen",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ui_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ui_ps) },
@@ -2100,9 +2204,9 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_screen = graphics::g::pso_ptr_vec[h_pso_screen];
-		h_pso_screen.set_name(L"pso_ui_screen");
 
 		h_pso_world = graphics::pso::create(
+			L"pso_ui_world",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ui_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_ui_ps) },
@@ -2116,7 +2220,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_world = graphics::g::pso_ptr_vec[h_pso_world];
-		h_pso_world.set_name(L"pso_ui_world");
 	}
 
 	inline void
@@ -2217,6 +2320,7 @@ namespace age::graphics::render_pipeline
 		}();
 
 		h_pso = graphics::pso::create(
+			L"pso_presentation",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = ms_byte_code },
 			pss_ps{ .subobj = ps_byte_code },
@@ -2229,7 +2333,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso = graphics::g::pso_ptr_vec[h_pso];
-		h_pso.set_name(L"pso_presentation");
 	}
 
 	inline void
@@ -2264,6 +2367,7 @@ namespace age::graphics::render_pipeline
 		using namespace graphics::pso;
 
 		h_pso_mesh = graphics::pso::create(
+			L"pso_debug_mesh",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_mesh_as) },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_mesh_ms) },
@@ -2279,9 +2383,9 @@ namespace age::graphics::render_pipeline
 
 
 		p_pso_mesh = graphics::g::pso_ptr_vec[h_pso_mesh];
-		h_pso_mesh.set_name(L"pso_debug_mesh");
 
 		h_pso_mesh_always_on_top = graphics::pso::create(
+			L"pso_debug_mesh_always_on_top",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_as{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_mesh_as) },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_mesh_ms) },
@@ -2296,7 +2400,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_mesh_always_on_top = graphics::g::pso_ptr_vec[h_pso_mesh_always_on_top];
-		h_pso_mesh_always_on_top.set_name(L"pso_mesh_always_on_top");
 	}
 
 	inline void
@@ -2354,6 +2457,7 @@ namespace age::graphics::render_pipeline
 		AGE_CREATE_RENDER_STAGE_COMPUTE_PSO(debug_view, resolve);
 
 		h_pso_blend = graphics::pso::create(
+			L"pso_debug_view_blend",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
 			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_debug_view_blend_ps) },
@@ -2366,7 +2470,6 @@ namespace age::graphics::render_pipeline
 			pss_node_mask{ .subobj = 0 });
 
 		p_pso_blend = graphics::g::pso_ptr_vec[h_pso_blend];
-		h_pso_blend.set_name(L"pso_debug_view_blend");
 	}
 
 	inline void

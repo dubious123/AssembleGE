@@ -8,7 +8,7 @@ namespace age::asset::detail
 	{
 		uint16_3						pos{};
 		uint16							extra{};
-		std::array<half2, uv_set_count> uv_set{};
+		age::array<half2, uv_set_count> uv_set{};
 	};
 
 	template <std::size_t uv_set_count>
@@ -16,7 +16,7 @@ namespace age::asset::detail
 	{
 		uint16_3						pos{};
 		oct<int8>						normal_oct{};
-		std::array<half2, uv_set_count> uv_set{};
+		age::array<half2, uv_set_count> uv_set{};
 	};
 
 	template <std::size_t uv_set_count>
@@ -28,7 +28,7 @@ namespace age::asset::detail
 		oct<int8> tangent_oct{};
 		uint8_2	  extra{};
 
-		std::array<half2, uv_set_count> uv_set{};
+		age::array<half2, uv_set_count> uv_set{};
 	};
 
 	template <>

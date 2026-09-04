@@ -1,14 +1,14 @@
 #include "hrp_common.asli"
 
 void
-handle_kill_surfel(const gibs_data data, uint32 alive_idx, uint32 surfel_id)
+handle_kill_surfel(const gibs_data data, uint32 surfel_id)
 {
 	rw_stack<uint32> dead_stack = gibs::tile::dead_id_stack(data);
 	dead_stack.push(surfel_id);
 	return;
 };
 
-wave_size(32)
+wave_size(AGE_WAVE_SIZE)
 [numthreads(32, 1, 1)] void
 main_cs(uint32 group_id		   sv_group_id,
 		uint32 group_thread_id sv_group_thread_id,
@@ -33,18 +33,17 @@ main_cs(uint32 group_id		   sv_group_id,
 
 	// assert(surfel.alive_idx == alive_idx_prev, g::fmt_gibs_update_surfels);
 
-	const float3 local_normal = decode_oct_snorm16(surfel_geo.local_normal_oct_snorm16);
-
-	if (is_object_id_valid(surfel_geo.object_id) is_false)
+	uint32 object_render_id;
+	if (surfel_geo.object_id == invalid_id_uint32 or load_object_render_id(surfel_geo.object_id, object_render_id) is_false)
 	{
-		handle_kill_surfel(data, alive_idx_prev, surfel_id);
+		handle_kill_surfel(data, surfel_id);
 		return;
 	}
 
-	const object_data obj = load_object_data(surfel_geo.object_id);
+	const object_data obj = load_object_data(object_render_id);
 
-	const float3 world_pos	  = rotate(obj.quaternion, surfel_geo.local_pos * obj.scale) + obj.pos;
-	const float3 world_normal = normalize(rotate(obj.quaternion, local_normal / obj.scale));
+	const float3 world_pos	  = obj.local_to_world(surfel_geo.local_pos);
+	const float3 world_normal = normalize(obj.normal_local_to_world(decode_oct_snorm16(surfel_geo.local_normal_oct_snorm16)));
 	const float4 clip_pos	  = mul(view_proj, float4(world_pos, 1.f));
 	const float3 ndc		  = clip_pos.xyz / clip_pos.w;
 
@@ -60,7 +59,9 @@ main_cs(uint32 group_id		   sv_group_id,
 							? load(depth_buffer, screen_pos)
 							: 0.f;
 
-	const float3 px_normal = decode_oct_snorm16(load(gbuffer, screen_pos).y);
+	const uint32_2 geo = gbuffer[screen_pos];
+
+	const float3 px_normal = decode_oct_snorm16(geo.y);
 
 	const bool surfel_seen = in_screen
 						 and dot(px_normal, world_normal) > 0.9f
@@ -69,34 +70,37 @@ main_cs(uint32 group_id		   sv_group_id,
 						 and ndc.z < (z_depth + epsilon_1e4);	 // z_depth + 0.5f - surfel - z_depth - 0.f(far)
 
 	const uint32 obj_id = in_screen and z_depth != 0.f
-							? load_opaque_meshlet_render_data(gbuffer[screen_pos].x & 0x01ffffff).object_id
+							? load_object_id_packed(meshlet_render_data_buffer[unpack_vis_mshlt_render_id(geo.x)].object_render_id)
 							: invalid_id_uint32;
 
+	attr_branch()
+	if (gibs::debug::freeze_spawn_kill(data) is_false)
+	{
+		bool kill_surfel = false;
 
-	bool kill_surfel = false;
+		if (surfel.radius < epsilon_1e4)
+		{
+			kill_surfel = true;
+		}
+		else if (surfel_seen and surfel_geo.object_id != obj_id)
+		{
+			kill_surfel = true;
+		}
+		else if (/*surfel_seen is_false and*/ surfel.recycle_data.frame_since_ref() >= 30)
+		{
+			kill_surfel = true;
+		}
 
-	if (surfel.radius < epsilon_1e4)
-	{
-		kill_surfel = true;
-	}
-	else if (surfel_seen and surfel_geo.object_id != obj_id)
-	{
-		kill_surfel = true;
-	}
-	else if (/*surfel_seen is_false and*/ surfel.recycle_data.frame_since_ref() >= 30)
-	{
-		kill_surfel = true;
-	}
+		if (surfel.recycle_data.frame_since_born() == 0u)
+		{
+			kill_surfel = false;
+		}
 
-	if (surfel.recycle_data.frame_since_born() == 0u)
-	{
-		kill_surfel = false;
-	}
-
-	if (kill_surfel and (gibs::debug::freeze_spawn_kill(data) is_false))
-	{
-		handle_kill_surfel(data, alive_idx_prev, surfel_id);
-		return;
+		if (kill_surfel)
+		{
+			handle_kill_surfel(data, surfel_id);
+			return;
+		}
 	}
 
 	surfel.normal_oct_snorm16 = encode_oct_snorm16(world_normal);

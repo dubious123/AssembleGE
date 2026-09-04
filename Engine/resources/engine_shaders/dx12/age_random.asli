@@ -156,3 +156,25 @@ random_r3_sequence(uint32 n, float seed = 0.5f)
 	static const float a3 = 1.f / (g * g * g);
 	return float3(frac(seed + a1 * n), frac(seed + a2 * n), frac(seed + a3 * n));
 }
+
+namespace random
+{
+	// ordered dithering
+	// https://en.wikipedia.org/wiki/Ordered_dithering
+	// M(i, j) = bit_reverse(bit_interleave(bitwise_xor(i, j), i)) / n ^ 2
+	float
+	bayer_dither_8x8(uint32_2 px)
+	{
+		const uint32 x = px.x;
+		const uint32 y = px.y;
+
+		const uint32 b = (((x ^ y) & 1u) << 5u)
+					   | ((y & 1u) << 4u)
+					   | ((((x ^ y) >> 1u) & 1u) << 3u)
+					   | (((y >> 1u) & 1u) << 2u)
+					   | ((((x ^ y) >> 2u) & 1u) << 1u)
+					   | (((y >> 2u) & 1u) << 0u);
+
+		return (float(b) + 0.5f) * (1.0f / 64.0f);
+	}
+}	 // namespace random

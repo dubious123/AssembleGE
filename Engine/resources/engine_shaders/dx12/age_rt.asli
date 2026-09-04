@@ -1,0 +1,249 @@
+#pragma once
+#include "age.asli"
+
+namespace rt
+{
+	ray_desc
+	init_ray_desc(const in float3 origin, const in float3 dir /*normalized*/, float t_min, float t_max)
+	{
+		ray_desc desc;
+		desc.Origin	   = origin;
+		desc.Direction = dir;
+		desc.TMin	   = t_min;
+		desc.TMax	   = t_max;
+		return desc;
+	}
+}	 // namespace rt
+
+namespace rt
+{
+	namespace detail
+	{
+		float4
+		calc_alpha_tested_base_color(const in material mat, const uint32 rt_alpha_test_mode,
+									 const in mesh_header msh_header, const in object_render_data obj_render_data,
+									 const uint32 primitive_id, const float2 barycentrics)
+		{
+			float4 base_color = mat.base_color_factor;
+
+			attr_branch()
+			if (rt_alpha_test_mode != AGE_RT_ALPHA_TEST_MODE_OPAQUE and mat.base_color_texture_id != invalid_id_uint32)
+			{
+				const uint32_3	 prim_index = load_rt_triangle_index(obj_render_data, primitive_id);
+				const vertex_fat v0			= decode_vertex(msh_header, prim_index.x);
+				const vertex_fat v1			= decode_vertex(msh_header, prim_index.y);
+				const vertex_fat v2			= decode_vertex(msh_header, prim_index.z);
+
+				const float2 uv = v0.uv_set[0] * (1.f - barycentrics.x - barycentrics.y)
+								+ v1.uv_set[0] * barycentrics.x
+								+ v2.uv_set[0] * barycentrics.y;
+
+				base_color = mesh::sample_base_color<true>(mat, uv);
+			}
+
+			base_color.a = rt_alpha_test_mode == AGE_RT_ALPHA_TEST_MODE_OPAQUE
+							 ? 1.f
+						 : rt_alpha_test_mode == AGE_RT_ALPHA_TEST_MODE_MASK
+							 ? (base_color.a >= mat.alpha_cutoff ? 1.f : 0.f)
+							 : base_color.a;
+
+			return base_color;
+		}
+	}	 // namespace detail
+}	 // namespace rt
+
+namespace rt
+{
+	namespace detail
+	{
+		template <typename t_ray_hit_res, uint32 rt_flags, bool is_opaque>
+		void
+		fill_hit_committed(inout t_ray_hit_res res, inout ray_query<rt_flags> query)
+		{
+			const rt_instance_render_data rt_render_data  = load_rt_instance_render_data(rt_committed_instance_id(query));
+			const object_render_data	  obj_render_data = load_object_render_data(rt_render_data.object_render_id);
+			const mesh_header			  msh_header	  = read_mesh_header(obj_render_data);
+			const uint32				  submesh_id	  = rt_committed_geometry_index(query);
+
+			res.distance		 = rt_committed_ray_t(query);
+			res.object_render_id = rt_render_data.object_render_id;
+			res.primitive_id	 = msh_header.submesh_primitive_id_offset(submesh_id) + rt_committed_primitive_index(query);
+
+			const float2 bary = rt_committed_triangle_barycentrics(query);
+
+			res.barycentric_unorm16 = uint32(float_to_unorm16(bary.x))
+									| (uint32(float_to_unorm16(bary.y)) << 16u);
+
+			// back-face
+			attr_branch()
+			if (rt_committed_triangle_front_face(query) is_false)
+			{
+				res.distance = -res.distance;
+
+				const bool is_blend = is_opaque is_false
+								  and mesh::calc_rt_alpha_test_mode(msh_header, submesh_id, rt_render_data) == AGE_RT_ALPHA_TEST_MODE_BLEND;
+
+				attr_branch()
+				if (is_blend is_false)
+				{
+					const bool double_sided = rt_render_data.is_force_double_sided()
+										   or mesh::load_submesh_material_from_submesh_id(submesh_id, obj_render_data).is_double_sided();
+					if (double_sided is_false)
+					{
+						// invalid, ignore
+
+						res.object_render_id = invalid_id_uint32;
+					}
+				}
+			}
+		}
+	}	 // namespace detail
+
+	template <typename t_ray_hit_res, uint32 opaque_ray_flags = RAY_FLAG_NONE, bool trace_opaque = true, uint32 transparent_ray_flags = RAY_FLAG_NONE, bool trace_transparent = true>
+	t_ray_hit_res
+	trace_ray(const uint32 seed, float3 pos, float3 dir, float t_min = 0.f, float t_max = float_max)
+	{
+		t_ray_hit_res res	 = zero<t_ray_hit_res>();
+		res.object_render_id = invalid_id_uint32;
+		res.distance		 = float_max;
+
+		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+		attr_branch()
+		if (trace_opaque)
+		{
+			ray_query<RAY_FLAG_CULL_NON_OPAQUE | opaque_ray_flags> query;
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, init_ray_desc(pos, dir, t_min, t_max));
+			rt_proceed(query);
+
+			if (rt_committed_status(query) != COMMITTED_NOTHING)
+			{
+				detail::fill_hit_committed<t_ray_hit_res, RAY_FLAG_CULL_NON_OPAQUE, true>(res, query);
+			}
+		}
+
+		attr_branch()
+		if (trace_transparent)
+		{
+			if (res.distance > 0.f or res.object_render_id != invalid_id_uint32)	// not inside wall
+			{
+				ray_query<RAY_FLAG_CULL_OPAQUE | transparent_ray_flags> query;
+				rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT | RT_MASK_OMM, init_ray_desc(pos, dir, t_min, min(abs(res.distance), t_max)));
+
+				while (rt_proceed(query))
+				{
+					const uint32				  rt_instance_render_data_id = rt_candidate_instance_id(query);
+					const float2				  barycentrics				 = rt_candidate_triangle_barycentrics(query);
+					const rt_instance_render_data rt_render_data			 = load_rt_instance_render_data(rt_instance_render_data_id);
+
+					const float rng_fade = random_pcg3d(uint32_3(seed, rt_render_data.object_render_id, frame_index)).x;
+					if (rng_fade >= rt_render_data.fade_factor()) { continue; }
+
+					const object_render_data obj_render_data = load_object_render_data(rt_render_data.object_render_id);
+					const mesh_header		 msh_header		 = read_mesh_header(obj_render_data);
+
+					const uint32   submesh_id	= rt_candidate_geometry_index(query);
+					const uint32   primitive_id = msh_header.submesh_primitive_id_offset(submesh_id) + rt_candidate_primitive_index(query);
+					const material mat			= load_material(load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id));
+
+					const uint32 rt_alpha_test_mode = mesh::calc_rt_alpha_test_mode(msh_header, submesh_id, rt_render_data);
+
+					const float prob = detail::calc_alpha_tested_base_color(mat, rt_alpha_test_mode, msh_header, obj_render_data, primitive_id, barycentrics).a;
+
+					const float rng_alpha = random_pcg4d(uint32_4(seed, rt_instance_render_data_id, primitive_id, frame_index)).x;
+
+					if (rng_alpha < prob)
+					{
+						rt_commit_non_opaque_triangle_hit(query);
+					}
+				}
+
+				if (rt_committed_status(query) != COMMITTED_NOTHING)
+				{
+					detail::fill_hit_committed<t_ray_hit_res, RAY_FLAG_CULL_OPAQUE, false>(res, query);
+				}
+			}
+		}
+
+		return res;
+	}
+}	 // namespace rt
+
+namespace rt
+{
+	// shadow
+	// no ss/ds distinction
+	// ss will cast shdow
+	float3
+	trace_transmittance(const in ray_desc desc)
+	{
+		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+		// opaque
+		{
+			ray_query<RAY_FLAG_CULL_NON_OPAQUE | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
+			rt_proceed(query);
+
+			if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
+			{
+				return zero<float3>();
+			}
+		}
+
+		float3 transmittance = float3(1, 1, 1);
+
+		// transparent, mask
+		ray_query<RAY_FLAG_CULL_OPAQUE> query;
+		rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT | RT_MASK_OMM, desc);
+
+		uint32 hit_rt_instance_render_data_id_arr[MAX_RAY_HIT];
+		uint32 hit_primitive_id_arr[MAX_RAY_HIT];
+		uint32 hit_count = 0u;
+
+		while (rt_proceed(query))
+		{
+			if (hit_count >= MAX_RAY_HIT) { continue; }
+
+			const uint32				  rt_instance_render_data_id = rt_candidate_instance_id(query);
+			const uint32				  submesh_id				 = rt_candidate_geometry_index(query);
+			const rt_instance_render_data rt_render_data			 = load_rt_instance_render_data(rt_instance_render_data_id);
+			const object_render_data	  obj_render_data			 = load_object_render_data(rt_render_data.object_render_id);
+			const mesh_header			  msh_header				 = read_mesh_header(obj_render_data);
+
+			const uint32 primitive_id = msh_header.submesh_primitive_id_offset(submesh_id) + rt_candidate_primitive_index(query);
+
+			bool dup = false;
+
+			for (uint32 i = 0; i < hit_count; ++i)
+			{
+				if (hit_rt_instance_render_data_id_arr[i] == rt_instance_render_data_id and hit_primitive_id_arr[i] == primitive_id)
+				{
+					dup = true;
+					break;
+				}
+			}
+
+			if (dup) { continue; }
+
+			hit_rt_instance_render_data_id_arr[hit_count] = rt_instance_render_data_id;
+			hit_primitive_id_arr[hit_count]				  = primitive_id;
+			++hit_count;
+
+			const material mat				  = load_material(load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id));
+			const uint32   rt_alpha_test_mode = mesh::calc_rt_alpha_test_mode(msh_header, submesh_id, rt_render_data);
+
+			const float4 base_color = detail::calc_alpha_tested_base_color(mat, rt_alpha_test_mode, msh_header, obj_render_data, primitive_id, rt_candidate_triangle_barycentrics(query));
+			const float	 alpha		= base_color.a * rt_render_data.fade_factor();
+
+			transmittance *= lerp(float3(1, 1, 1), base_color.rgb, alpha) * (1.f - alpha);
+
+			if (all(transmittance <= 0.f))
+			{
+				return zero<float3>();
+			}
+		}
+
+		return transmittance;
+	}
+}	 // namespace rt

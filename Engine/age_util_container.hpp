@@ -6,7 +6,7 @@ namespace age::util
 	constexpr auto
 	iota_array() noexcept
 	{
-		auto arr = std::array<BARE_OF(base), size>{};
+		auto arr = age::array<BARE_OF(base), size>{};
 
 		auto it = std::ranges::begin(std::views::iota(base) | std::views::take(size));
 		for (auto& elem : arr)

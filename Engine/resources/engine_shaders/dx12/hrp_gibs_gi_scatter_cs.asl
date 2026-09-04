@@ -98,7 +98,7 @@ main_cs(uint32_3 thread_id sv_dispatch_thread_id)
 	}
 	else
 	{
-		gi_resolve_buffer[px] = gibs::sample_screen_irradiance(px, /*render_data.object_id*/ invalid_id_uint32, px_world_pos, px_normal_curr);
+		gi_resolve_buffer[px] = gibs::sample_screen_irradiance<true>(px, /*render_data.object_id*/ invalid_id_uint32, px_world_pos, px_normal_curr);
 		// todo
 	}
 }

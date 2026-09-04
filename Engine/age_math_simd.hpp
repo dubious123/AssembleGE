@@ -991,7 +991,7 @@ namespace age::math
 		{
 			if constexpr (std::is_same_v<t_dst, half>)
 			{
-				cvt_to_impl<half>(static_cast<float>(u) / std::numeric_limits<t_src>::max());
+				return cvt_to_impl<half>(static_cast<float>(u) / std::numeric_limits<t_src>::max());
 			}
 			else
 			{
@@ -1007,7 +1007,7 @@ namespace age::math
 		{
 			if constexpr (std::is_same_v<t_dst, half>)
 			{
-				cvt_to_impl<half>(static_cast<float>(i) / std::numeric_limits<t_src>::max());
+				return cvt_to_impl<half>(static_cast<float>(i) / std::numeric_limits<t_src>::max());
 			}
 			else
 			{

@@ -33,6 +33,28 @@ namespace age::ranges
 		}
 	}
 
+	constexpr void
+	erase_at(auto&& container, const std::size_t idx) noexcept
+	{
+		using t_container = BARE_OF(container);
+		if constexpr (meta::is_specialization_of_v<t_container, age::vector>)
+		{
+			using size_type = typename t_container::size_type;
+			AGE_ASSERT(idx < container.size());
+
+			for (auto i = static_cast<size_type>(idx); i + 1 < container.size(); ++i)
+			{
+				container[i] = std::move(container[i + 1]);
+			}
+
+			container.pop_back();
+		}
+		else
+		{
+			static_assert(false, "not implemented yet");
+		}
+	}
+
 	constexpr auto
 	erase(auto&& container, auto&& value) noexcept
 	{

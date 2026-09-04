@@ -37,9 +37,9 @@ main_cs(uint32_3 group_id  sv_group_id,
 		return;
 	}
 
-	ddgi_probe probe = load_ddgi_probe_uav(probe_id);
+	auto probe = load_ddgi_probe_uav(probe_id);
 	// const float3 probe_normal = decode_oct_snorm8(probe.normal_oct_snorm8);
-	const uint16 probe_state = probe.state & 0xff;
+	const uint16 probe_state = probe.state & uint16(0xff);
 
 	float luminance = 0.f;
 

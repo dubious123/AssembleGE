@@ -219,6 +219,13 @@ namespace age::inline data_structure
 		}
 
 		template <typename t_ret = std::size_t>
+		FORCE_INLINE decltype(auto)
+		capacity() const noexcept
+		{
+			return static_cast<t_ret>(cap);
+		}
+
+		template <typename t_ret = std::size_t>
 		FORCE_INLINE t_ret
 		byte_size() const noexcept
 		{

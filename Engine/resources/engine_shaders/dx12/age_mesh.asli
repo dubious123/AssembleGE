@@ -1,18 +1,91 @@
 #pragma once
 #include "age.asli"
 
-struct mesh_header_raw
+// raw, do not use directly
+struct mesh_baked_header
 {
-	uint32 vertex_kind_and_extra;				 // 4
-	uint32 global_vertex_index_buffer_offset;	 // 4
-	uint32 local_vertex_index_buffer_offset;	 // 4
-	uint32 meshlet_header_buffer_offset;		 // 4
-	uint32 meshlet_buffer_offset;				 // 4
-	uint32 meshlet_count;						 // 4
-	float3 aabb_min;							 // 12
-	float3 aabb_size;							 // 12
-	uint32 reserved[4];							 // 16
+	// uint32 vertex_offset = sizeof(mesh_baked_header)
+	uint32 vertex_kind_and_extra;	 // [0:7] kind, [8] allow_disable_omm
+
+	uint32 global_vertex_index_buffer_offset;
+	uint32 local_vertex_index_buffer_offset;
+	uint32 meshlet_header_buffer_offset;
+	uint32 meshlet_buffer_offset;
+	uint32 meshlet_count;
+	float3 aabb_min;
+	float3 aabb_size;
+
+	uint32 submesh_count;
+	uint32 submesh_data_offset;
+	uint32 reserved[2];
 };	  // total : 64
+
+struct mesh_header
+{
+	// uint32 vertex_offset = sizeof(mesh_baked_header)
+	uint32				vertex_buffer_offset;	  // not from gpu, calculated from read_mesh_header function
+	byte_address_buffer mesh_chunk_srv;
+	uint32				vertex_kind_and_extra;	  // [0:7] kind, [8] allow_disable_omm
+	uint32				global_vertex_index_buffer_offset;
+	uint32				local_vertex_index_buffer_offset;
+	uint32				meshlet_header_buffer_offset;
+	uint32				meshlet_buffer_offset;
+	uint32				meshlet_count;
+	float3				aabb_min;
+	float3				aabb_size;
+	uint32				submesh_count;
+	uint32				submesh_data_offset;
+
+	uint32
+	index_count_approx()
+	{
+		// [exact_count, exact_count + 3]
+		return (submesh_data_offset - local_vertex_index_buffer_offset);
+	}
+
+	uint32
+	vertex_kind()
+	{
+		return (vertex_kind_and_extra >> 0u) & 0xff;
+	}
+
+	uint32
+	submesh_meshlet_id_offset(uint32 submesh_id)
+	{
+		return load<uint32>(mesh_chunk_srv, submesh_data_offset + sizeof(uint32) * submesh_id);
+	}
+
+	uint32
+	submesh_primitive_id_offset(uint32 submesh_id)
+	{
+		return load<uint32>(mesh_chunk_srv, submesh_data_offset + sizeof(uint32) * (submesh_count + submesh_id));
+	}
+
+	uint32
+	calc_primitive_id(uint32 submesh_id, uint32 local_primitive_id)
+	{
+		return submesh_primitive_id_offset(submesh_id) + local_primitive_id;
+	}
+
+	uint32
+	submesh_mode_packed(uint32 submesh_id)
+	{
+		// [0:7] raster_mode, [8:15] rt_alpha_test_mode
+		return load<uint16>(mesh_chunk_srv, submesh_data_offset + sizeof(uint32) * 2u * submesh_count + sizeof(uint16) * submesh_id);
+	}
+
+	uint32
+	submesh_raster_mode(uint32 submesh_id)
+	{
+		return submesh_mode_packed(submesh_id) & 0xffu;
+	}
+
+	uint32
+	submesh_rt_alpha_test_mode(uint32 submesh_id)
+	{
+		return submesh_mode_packed(submesh_id) >> 8u;
+	}
+};
 
 struct vertex_fat
 {
@@ -25,9 +98,9 @@ struct vertex_fat
 };
 
 vertex_fat
-interpolate_vertex_fat(vertex_fat v0, vertex_fat v1, vertex_fat v2, float3 bary)
+interpolate_vertex_fat(const in vertex_fat v0, const in vertex_fat v1, const in vertex_fat v2, const in float3 bary)
 {
-	vertex_fat v;
+	auto v	  = zero<vertex_fat>();
 	v.pos.xyz = v0.pos.xyz * bary.x + v1.pos.xyz * bary.y + v2.pos.xyz * bary.z;
 	v.normal  = v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z;
 	v.tangent = v0.tangent * bary.x + v1.tangent * bary.y + v2.tangent * bary.z;
@@ -43,17 +116,14 @@ interpolate_vertex_fat(vertex_fat v0, vertex_fat v1, vertex_fat v2, float3 bary)
 }
 
 vertex_fat
-transform_vertex_to_world(vertex_fat v, object_data obj)
+transform_vertex_to_world(in vertex_fat v, const in object_data obj)
 {
-	const float4 quat  = decode_quaternion(obj.quaternion);
-	const float3 scale = cast<float3>(obj.scale);
+	v.world_pos = obj.local_to_world(v.pos.xyz);
+	v.normal	= normalize(obj.normal_local_to_world(v.normal));
 
-	v.world_pos = rotate(v.pos.xyz * scale, quat) + obj.pos;
-	v.normal	= normalize(rotate(v.normal / scale, quat));
-
-	const float3 t_world = normalize(rotate(v.tangent.xyz * scale, quat));
+	const float3 t_world = normalize(obj.dir_local_to_world(v.tangent.xyz));
 	const float3 t_ortho = normalize(t_world - v.normal * dot(t_world, v.normal));
-	v.tangent			 = float4(t_ortho, v.tangent.w * sign(scale.x * scale.y * scale.z));
+	v.tangent			 = float4(t_ortho, v.tangent.w * sign(obj.scale.x * obj.scale.y * obj.scale.z));
 
 	return v;
 }
@@ -75,17 +145,19 @@ mesh_header
 read_mesh_header_impl(uint32 mesh_chunk_srv_id, uint32 mesh_byte_offset)
 {
 	byte_address_buffer mesh_chunk_srv = get_mesh_chunk_srv(mesh_chunk_srv_id);
-	mesh_header_raw		raw			   = load<mesh_header_raw>(mesh_chunk_srv, mesh_byte_offset);
+	mesh_baked_header	raw			   = load<mesh_baked_header>(mesh_chunk_srv, mesh_byte_offset);
 
 	mesh_header res;
 	res.global_vertex_index_buffer_offset = mesh_byte_offset + raw.global_vertex_index_buffer_offset;
 	res.local_vertex_index_buffer_offset  = mesh_byte_offset + raw.local_vertex_index_buffer_offset;
 	res.meshlet_header_buffer_offset	  = mesh_byte_offset + raw.meshlet_header_buffer_offset;
 	res.meshlet_buffer_offset			  = mesh_byte_offset + raw.meshlet_buffer_offset;
-	res.vertex_buffer_offset			  = sizeof(mesh_header_raw) + mesh_byte_offset;
+	res.vertex_buffer_offset			  = sizeof(mesh_baked_header) + mesh_byte_offset;
 	res.meshlet_count					  = raw.meshlet_count;
 	res.aabb_min						  = raw.aabb_min;
 	res.aabb_size						  = raw.aabb_size;
+	res.submesh_count					  = raw.submesh_count;
+	res.submesh_data_offset				  = mesh_byte_offset + raw.submesh_data_offset;
 
 	res.mesh_chunk_srv		  = mesh_chunk_srv;
 	res.vertex_kind_and_extra = raw.vertex_kind_and_extra;
@@ -94,13 +166,13 @@ read_mesh_header_impl(uint32 mesh_chunk_srv_id, uint32 mesh_byte_offset)
 
 template <typename t>
 mesh_header
-read_mesh_header(t render_data)
+read_mesh_header(const in t render_data)
 {
 	return read_mesh_header_impl(render_data.mesh_chunk_srv_id, render_data.mesh_byte_offset);
 }
 
 meshlet_header
-read_meshlet_header(mesh_header header, uint32 meshlet_idx)
+read_meshlet_header(const in mesh_header header, uint32 meshlet_idx)
 {
 	meshlet_header res;
 
@@ -130,14 +202,14 @@ read_meshlet(mesh_header header, uint32 meshlet_idx)
 
 // meshlet local vertex_idx : 0 ~ 64
 uint32
-read_global_vertex_index(mesh_header header, meshlet mshlt, uint32 vertex_idx)
+read_global_vertex_index(const in mesh_header header, meshlet mshlt, uint32 vertex_idx)
 {
 	return load<uint32>(header.mesh_chunk_srv, header.global_vertex_index_buffer_offset + (mshlt.global_index_offset + vertex_idx) * sizeof(uint32));
 }
 
 template <uint32 uv_count, uint32 vertex_size>
 void
-decode_vertex_pnt(mesh_header header, uint32 global_vertex_idx, out vertex_fat res)
+decode_vertex_pnt(const in mesh_header header, uint32 global_vertex_idx, out vertex_fat res)
 {
 	uint32 offset = header.vertex_buffer_offset + global_vertex_idx * vertex_size;
 
@@ -177,7 +249,7 @@ decode_vertex_pnt(mesh_header header, uint32 global_vertex_idx, out vertex_fat r
 
 template <uint32 uv_count, uint32 vertex_size>
 void
-decode_vertex_pos_pnt(mesh_header header, uint32 global_vertex_idx, out float3 res)
+decode_vertex_pos_pnt(const in mesh_header header, uint32 global_vertex_idx, out float3 res)
 {
 	uint32 offset = header.vertex_buffer_offset + global_vertex_idx * vertex_size;
 
@@ -199,7 +271,7 @@ decode_vertex(mesh_header header, uint32 global_vertex_idx)
 {
 	vertex_fat res = (vertex_fat)0;
 
-	switch (header.vertex_kind_and_extra & 0xff)
+	switch (header.vertex_kind())
 	{
 	case VERTEX_KIND_PNT_UV0:
 	{
@@ -226,7 +298,7 @@ decode_vertex_pos(mesh_header header, uint32 global_vertex_idx)
 {
 	float3 pos = (float3)0;
 
-	switch (header.vertex_kind_and_extra & 0xff)
+	switch (header.vertex_kind())
 	{
 	case VERTEX_KIND_PNT_UV0:
 	{
@@ -250,7 +322,7 @@ decode_vertex_pos(mesh_header header, uint32 global_vertex_idx)
 
 // meshlet local primitive_idx : 0 ~ 126
 uint32_3
-read_meshlet_primitive(mesh_header header, meshlet mshlt, uint32 primitive_idx)
+read_meshlet_primitive(const in mesh_header header, const in meshlet mshlt, uint32 primitive_idx)
 {
 	const uint32 load_pos_1byte_aligned	 = header.local_vertex_index_buffer_offset + mshlt.primitive_offset + primitive_idx * 3;
 	const uint32 load_pos_4bytes_aligned = load_pos_1byte_aligned & ~0x3u;
@@ -265,19 +337,20 @@ read_meshlet_primitive(mesh_header header, meshlet mshlt, uint32 primitive_idx)
 		(raw64 >> (bit_shift_required + 16)) & 0xff);
 }
 
+template <bool is_double_sided = false>
 bool
-is_visible(const object_data obj_data, const meshlet_header m_header)
+is_meshlet_visible(const object_data obj_data, const meshlet_header m_header)
 {
-	const float4 quaternion = decode_quaternion(obj_data.quaternion);
+	const float4 quaternion = obj_data.quaternion;
 	const float3 scale		= cast<float3>(obj_data.scale);
 	const float3 pos		= obj_data.pos;
 
 	// 1. frustum culling using meshlet shpere
 	const float3 sphere_center =
-		rotate((cast<float3>(m_header.aabb_min) + cast<float3>(m_header.aabb_size) * 0.5f) * scale, quaternion)
+		rotate(quaternion, (cast<float3>(m_header.aabb_min) + cast<float3>(m_header.aabb_size) * 0.5f) * scale)
 		+ pos;
 
-	const float sphere_radius = length(m_header.aabb_size * 0.5f) * max(max(scale.x, scale.y), scale.z);
+	const float sphere_radius = length(cast<float3>(m_header.aabb_size) * 0.5f) * max(max(scale.x, scale.y), scale.z);
 
 	expand(6)
 
@@ -290,65 +363,186 @@ is_visible(const object_data obj_data, const meshlet_header m_header)
 	}
 
 	// 2. cone culling
-	const float3 cone_axis_world = rotate(decode_oct_snorm8(m_header.cone_axis_oct), quaternion);
-	const float	 cone_cutoff	 = snorm8_to_float(m_header.cone_cull_cutoff_and_extra & 0xffu);
-	const float3 center_to_cam	 = sphere_center - camera_pos;
-	const float	 dist			 = length(center_to_cam);
+	attr_branch()
 
-	if (dot(center_to_cam, cone_axis_world) >= cone_cutoff * dist + sphere_radius)
+	if (is_double_sided is_false)
 	{
-		return false;
+		const float3 cone_axis_world = rotate(quaternion, decode_oct_snorm8(m_header.cone_axis_oct));
+		const float	 cone_cutoff	 = snorm8_to_float(m_header.cone_cull_cutoff_and_extra & 0xffu);
+		const float3 center_to_cam	 = sphere_center - camera_pos;
+		const float	 dist			 = length(center_to_cam);
+
+		if (dot(center_to_cam, cone_axis_world) >= cone_cutoff * dist + sphere_radius)
+		{
+			return false;
+		}
 	}
 
 	return true;
 }
 
+namespace mesh
+{
+	template <bool is_non_uniform = true>
+	float3
+	sample_normal(const in material mat, float2 uv, float3 vertex_normal /*normalized*/, float4 vertex_tangent, uint32 mip = 0)
+	{
+		attr_branch()
+
+		if (mat.normal_texture_id != invalid_id_uint32)
+		{
+			float2 normal_xy;
+
+			if (is_non_uniform)
+			{
+				texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
+				normal_xy					  = sample_level_kind(normal_tex, mat.normal_sampler_kind(), uv, mip).rg * 2.f - 1.f;
+			}
+			else
+			{
+				texture_2d<float4> normal_tex = global_resource_buffer[mat.normal_texture_id];
+				normal_xy					  = sample_level_kind(normal_tex, mat.normal_sampler_kind(), uv, mip).rg * 2.f - 1.f;
+			}
+
+			const float normal_z	   = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
+			normal_xy				  *= mat.normal_scale;
+			const float3 normal_local  = normalize(float3(normal_xy, normal_z));
+
+			// gram-schmidt tangent frame
+			float3 t	   = normalize(vertex_tangent.xyz);
+			t			   = normalize(t - vertex_normal * dot(t, vertex_normal));
+			const float3 b = cross(vertex_normal, t) * vertex_tangent.w;
+
+			return normalize(mul(transpose(float3x3(t, b, vertex_normal)), normal_local));
+		}
+		else
+		{
+			return vertex_normal;
+		}
+	}
+
+	template <bool is_non_uniform = true>
+	float4
+	sample_base_color(const in material mat, float2 uv, uint32 mip = 0)
+	{
+		attr_branch()
+		if (mat.base_color_texture_id != invalid_id_uint32)
+		{
+			attr_branch()
+			if (is_non_uniform)
+			{
+				texture_2d<float4> base_color_tex = global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
+				return mat.base_color_factor * sample_level_kind(base_color_tex, mat.base_color_sampler_kind(), uv, mip);
+			}
+			else
+			{
+				texture_2d<float4> base_color_tex = global_resource_buffer[mat.base_color_texture_id];
+				return mat.base_color_factor * sample_level_kind(base_color_tex, mat.base_color_sampler_kind(), uv, mip);
+			}
+		}
+		else
+		{
+			return mat.base_color_factor;
+		}
+	}
+
+	template <bool is_non_uniform = true>
+	float2
+	sample_metallic_roughness(const in material mat, float2 uv, uint32 mip = 0)
+	{
+		attr_branch()
+		if (mat.metallic_roughness_texture_id != invalid_id_uint32)
+		{
+			// gltf spec: metallic in b, roughness in g
+			attr_branch()
+			if (is_non_uniform)
+			{
+				texture_2d<float4> mr_tex = global_resource_buffer[non_uniform_resource_idx(mat.metallic_roughness_texture_id)];
+				return float2(mat.metallic_factor, mat.roughness_factor) * sample_level_kind(mr_tex, mat.mr_sampler_kind(), uv, mip).bg;
+			}
+			else
+			{
+				texture_2d<float4> mr_tex = global_resource_buffer[mat.metallic_roughness_texture_id];
+				return float2(mat.metallic_factor, mat.roughness_factor) * sample_level_kind(mr_tex, mat.mr_sampler_kind(), uv, mip).bg;
+			}
+		}
+		else
+		{
+			return float2(mat.metallic_factor, mat.roughness_factor);
+		}
+	}
+
+	template <bool is_non_uniform = true>
+	float3
+	sample_emissive(const in material mat, float2 uv, uint32 mip = 0)
+	{
+		attr_branch()
+		if (mat.emissive_texture_id != invalid_id_uint32)
+		{
+			attr_branch()
+			if (is_non_uniform)
+			{
+				texture_2d<float4> emissive_tex = global_resource_buffer[non_uniform_resource_idx(mat.emissive_texture_id)];
+				return mat.emissive_factor * sample_level_kind(emissive_tex, mat.emissive_sampler_kind(), uv, mip).rgb;
+			}
+			else
+			{
+				texture_2d<float4> emissive_tex = global_resource_buffer[mat.emissive_texture_id];
+				return mat.emissive_factor * sample_level_kind(emissive_tex, mat.emissive_sampler_kind(), uv, mip).rgb;
+			}
+		}
+		else
+		{
+			return mat.emissive_factor;
+		}
+	}
+
+	template <bool is_non_uniform = true>
+	float
+	sample_occlusion(const in material mat, float2 uv, uint32 mip = 0)
+	{
+		attr_branch()
+		if (mat.occlusion_texture_id != invalid_id_uint32)
+		{
+			attr_branch()
+			if (is_non_uniform)
+			{
+				texture_2d<float4> occlusion_tex = global_resource_buffer[non_uniform_resource_idx(mat.occlusion_texture_id)];
+				return lerp(1.f, sample_level_kind(occlusion_tex, mat.occlusion_sampler_kind(), uv, mip).r, mat.occlusion_strength);
+			}
+			else
+			{
+				texture_2d<float4> occlusion_tex = global_resource_buffer[mat.occlusion_texture_id];
+				return lerp(1.f, sample_level_kind(occlusion_tex, mat.occlusion_sampler_kind(), uv, mip).r, mat.occlusion_strength);
+			}
+		}
+		else
+		{
+			return 1.f;
+		}
+	}
+}	 // namespace mesh
+
+template <bool is_non_uniform = true>
 pbr_surface_data
-calc_pbr_surface(float3 view_to_vertex_dir /*normalized*/, const material mat, const vertex_fat vertex)
+calc_pbr_surface(float3 view_to_vertex_dir /*normalized*/, const material mat, const vertex_fat vertex /*vertex.normal : normalized*/)
 {
 	pbr_surface_data res;
 
 	res.world_pos	  = vertex.world_pos;
-	res.normal		  = normalize(vertex.normal);
 	res.vertex_normal = vertex.normal;
-
-	if (mat.normal_texture_id != invalid_id_uint32)
-	{
-		texture_2d<float4> normal_tex = global_resource_buffer[non_uniform_resource_idx(mat.normal_texture_id)];
-
-		float2 normal_xy	 = sample(normal_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rg * 2.f - 1.f;
-		float  normal_z		 = sqrt(saturate(1.f - dot(normal_xy, normal_xy)));
-		normal_xy			*= mat.normal_scale;
-		float3 normal_local	 = normalize(float3(normal_xy, normal_z));
-
-		float3 t = normalize(vertex.tangent.xyz);
-		t		 = normalize(t - res.normal * dot(t, res.normal));
-		float3 b = cross(res.normal, t) * vertex.tangent.w;
-
-		res.normal = normalize(mul(transpose(float3x3(t, b, res.normal)), normal_local));
-	}
+	res.normal		  = mesh::sample_normal<is_non_uniform>(mat, vertex.uv_set[0], res.vertex_normal, vertex.tangent);
 
 	res.view = -view_to_vertex_dir;	   // normalize(view_pos - vertex.world_pos);
 
 	res.n_dot_v = saturate(dot(res.normal, res.view));
 
-	res.base_color = mat.base_color_factor;
-	if (mat.base_color_texture_id != invalid_id_uint32)
-	{
-		texture_2d<float4> base_color_tex  = global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
-		res.base_color					  *= sample(base_color_tex, get_linear_wrap_sampler(), vertex.uv_set[0]);
-	}
+	res.base_color = mesh::sample_base_color<is_non_uniform>(mat, vertex.uv_set[0]);
 
-	// metallic-roughness
-	res.metallic  = mat.metallic_factor;
-	res.roughness = mat.roughness_factor;
-	if (mat.metallic_roughness_texture_id != invalid_id_uint32)
-	{
-		texture_2d<float4> mr_tex	  = global_resource_buffer[non_uniform_resource_idx(mat.metallic_roughness_texture_id)];
-		float3			   mr_sample  = sample(mr_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
-		res.metallic				 *= mr_sample.b;	// glTF spec, metallic in b, roughness in g
-		res.roughness				 *= mr_sample.g;
-	}
+	const float2 mr = mesh::sample_metallic_roughness<is_non_uniform>(mat, vertex.uv_set[0]);
+
+	res.metallic  = mr.x;
+	res.roughness = mr.y;
 
 	res.roughness	   = max(res.roughness, 0.02f);
 	res.roughness_sqr  = res.roughness * res.roughness;
@@ -357,20 +551,8 @@ calc_pbr_surface(float3 view_to_vertex_dir /*normalized*/, const material mat, c
 	res.f0		  = lerp(float3(0.04f, 0.04f, 0.04f), res.base_color.rgb, res.metallic);
 	res.c_diffuse = res.base_color.rgb * (1.f - res.metallic);
 
-	res.emissive = mat.emissive_factor;
-	if (mat.emissive_texture_id != invalid_id_uint32)
-	{
-		texture_2d<float4> emissive_tex	 = global_resource_buffer[non_uniform_resource_idx(mat.emissive_texture_id)];
-		res.emissive					*= sample(emissive_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).rgb;
-	}
-
-	res.occlusion = 1.f;
-	if (mat.occlusion_texture_id != invalid_id_uint32)
-	{
-		texture_2d<float4> occlusion_tex = global_resource_buffer[non_uniform_resource_idx(mat.occlusion_texture_id)];
-		float			   occ_sample	 = sample(occlusion_tex, get_linear_wrap_sampler(), vertex.uv_set[0]).r;
-		res.occlusion					 = lerp(1.0, occ_sample, mat.occlusion_strength);
-	}
+	res.emissive  = mesh::sample_emissive<is_non_uniform>(mat, vertex.uv_set[0]);
+	res.occlusion = mesh::sample_occlusion<is_non_uniform>(mat, vertex.uv_set[0]);
 
 	return res;
 }
@@ -411,7 +593,7 @@ calc_pbr_surface_screen(int32_2 px, float z_depth)
 }
 
 uint32
-unpack_vis_render_id(uint32 vis_packed)
+unpack_vis_mshlt_render_id(uint32 vis_packed)
 {
 	return vis_packed & 0x01ffffff;
 }
@@ -421,3 +603,354 @@ unpack_vis_primitive_id(uint32 vis_packed)
 {
 	return (vis_packed & 0xfe000000) >> (32u - 7u);
 }
+
+namespace mesh
+{
+	enum raster_mode_kind
+	{
+		opaque,
+		transparent,
+		mask,
+	};
+
+	template <raster_mode_kind e_mode, bool is_double_sided>
+	uint32
+	load_meshlet_render_data_count()
+	{
+		attr_branch()
+
+		if (e_mode == raster_mode_kind::opaque)
+		{
+			return load_opaque_meshlet_render_data_count<is_double_sided>();
+		}
+		else if (e_mode == raster_mode_kind::transparent)
+		{
+			return load_transparent_meshlet_render_data_count<is_double_sided>();
+		}
+		else
+		{
+			return load_mask_meshlet_render_data_count<is_double_sided>();
+		}
+	}
+
+	template <raster_mode_kind e_mode, bool is_double_sided>
+	uint32
+	load_meshlet_render_data_offset()
+	{
+		attr_branch()
+
+		if (e_mode == raster_mode_kind::opaque)
+		{
+			return load_opaque_meshlet_render_data_offset<is_double_sided>();
+		}
+		else if (e_mode == raster_mode_kind::transparent)
+		{
+			return load_transparent_meshlet_render_data_offset<is_double_sided>();
+		}
+		else
+		{
+			return load_mask_meshlet_render_data_offset<is_double_sided>();
+		}
+	}
+
+	template <raster_mode_kind e_mode, bool is_double_sided>
+	meshlet_render_data
+	load_meshlet_render_data(const uint32 meshlet_render_id)
+	{
+		attr_branch()
+
+		if (e_mode == raster_mode_kind::opaque)
+		{
+			return load_opaque_meshlet_render_data<is_double_sided>(meshlet_render_id);
+		}
+		else if (e_mode == raster_mode_kind::transparent)
+		{
+			return load_transparent_meshlet_render_data<is_double_sided>(meshlet_render_id);
+		}
+		else
+		{
+			return load_mask_meshlet_render_data<is_double_sided>(meshlet_render_id);
+		}
+	}
+
+	template <raster_mode_kind e_mode, bool is_double_sided>
+	bool
+	is_meshlet_visible(const uint32 mshlt_render_id)
+	{
+		if (mshlt_render_id >= load_meshlet_render_data_count<e_mode, is_double_sided>())
+		{
+			return false;
+		}
+
+		const meshlet_render_data mshlt_render_data = load_meshlet_render_data<e_mode, is_double_sided>(mshlt_render_id);
+		const object_render_data  obj_render_data	= load_object_render_data(mshlt_render_data.object_render_id);
+		const object_data		  obj_data			= load_object_data(mshlt_render_data.object_render_id);
+		const mesh_header		  msh_header		= read_mesh_header(obj_render_data);
+		const meshlet_header	  mshlt_header		= read_meshlet_header(msh_header, mshlt_render_data.meshlet_id);
+
+		return is_meshlet_visible<is_double_sided>(obj_data, mshlt_header);
+	}
+}	 // namespace mesh
+
+namespace mesh
+{
+	uint32
+	calc_submesh_id_from_meshlet(mesh_header header, uint32 meshlet_id)
+	{
+		for (uint32 i = 1; i < header.submesh_count; ++i)
+		{
+			if (meshlet_id < header.submesh_meshlet_id_offset(i))
+			{
+				return i - 1u;
+			}
+		}
+
+		// assert(header.submesh_count > 0, g::str_shader_name, line);
+		return header.submesh_count - 1;
+	}
+
+	uint32
+	calc_submesh_id_from_primitive(mesh_header header, uint32 primitive_id)
+	{
+		for (uint32 i = 1; i < header.submesh_count; ++i)
+		{
+			if (primitive_id < header.submesh_primitive_id_offset(i))
+			{
+				return i - 1u;
+			}
+		}
+
+		// assert(header.submesh_count > 0, g::str_shader_name, line);
+		return header.submesh_count - 1;
+	}
+
+	material
+	load_submesh_material_from_meshlet(const in mesh_header header, const in meshlet_render_data mshlt_render_data, const in object_render_data obj_render_data)
+	{
+		const uint32 submesh_id	 = mesh::calc_submesh_id_from_meshlet(header, mshlt_render_data.meshlet_id);
+		const uint16 material_id = load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id);
+		return load_material(material_id);
+	}
+
+	material
+	load_submesh_material_from_primitive(const in mesh_header header, const uint32 primitive_id, const in object_render_data obj_render_data)
+	{
+		const uint32 submesh_id	 = mesh::calc_submesh_id_from_primitive(header, primitive_id);
+		const uint16 material_id = load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id);
+		return load_material(material_id);
+	}
+
+	material
+	load_submesh_material_from_submesh_id(const uint32 submesh_id, const in object_render_data obj_render_data)
+	{
+		const uint16 material_id = load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id);
+		return load_material(material_id);
+	}
+
+	uint32
+	rt_alpha_test_override_kind_to_alpha_test_mode(uint32 rt_alpha_test_override_kind)
+	{
+		return rt_alpha_test_override_kind - 1;
+	}
+
+	uint32
+	calc_rt_alpha_test_mode(const in mesh_header header, const uint32 submesh_id, const in rt_instance_render_data rt_render_data)
+	{
+		const uint32 override_kind		= rt_render_data.rt_alpha_test_override_kind();
+		const uint32 rt_alpha_test_mode = override_kind != AGE_RT_ALPHA_TEST_OVERRIDE_KIND_NONE
+											? mesh::rt_alpha_test_override_kind_to_alpha_test_mode(override_kind)
+											: header.submesh_rt_alpha_test_mode(submesh_id);
+		return rt_alpha_test_mode;
+	}
+
+	uint32
+	calc_rt_alpha_test_mode(const in mesh_header header, const uint32 submesh_id, const in object_render_data obj_render_data)
+	{
+		const uint32 override_kind		= obj_render_data.rt_alpha_test_override_kind();
+		const uint32 rt_alpha_test_mode = override_kind != AGE_RT_ALPHA_TEST_OVERRIDE_KIND_NONE
+											? mesh::rt_alpha_test_override_kind_to_alpha_test_mode(override_kind)
+											: header.submesh_rt_alpha_test_mode(submesh_id);
+		return rt_alpha_test_mode;
+	}
+}	 // namespace mesh
+
+namespace mesh
+{
+	struct surface_point_data
+	{
+		vertex_fat v;
+		float3	   world_face_normal;
+		material   mat;
+	};
+
+	surface_point_data
+	calc_surface_point(const in object_data		   obj_data,
+					   const in object_render_data obj_render_data,
+					   const in mesh_header		   msh_header,
+					   const in material		   mat,
+					   const uint32				   submesh_id,
+					   const uint32				   primitive_id,
+					   const float2				   barycentrics,
+					   const bool				   is_back_face)
+	{
+		const uint32_3 prim_index = load_rt_triangle_index(obj_render_data, primitive_id);
+
+		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+		const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+
+		surface_point_data res;
+		res.v	= transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
+		res.mat = mat;
+
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
+		res.world_face_normal		   = normalize(rotate(obj_data.quaternion, local_face_normal / cast<float3>(obj_data.scale)));
+
+		if (is_back_face)
+		{
+			res.v.normal		  = -res.v.normal;
+			res.world_face_normal = -res.world_face_normal;
+		}
+
+		return res;
+	}
+
+	surface_point_data
+	calc_surface_point(const in object_data		   obj_data,
+					   const in object_render_data obj_render_data,
+					   const in mesh_header		   msh_header,
+					   const uint32				   submesh_id,
+					   const uint32				   primitive_id,
+					   const float2				   barycentrics,
+					   const bool				   is_back_face)
+	{
+		const uint32_3 prim_index = load_rt_triangle_index(obj_render_data, primitive_id);
+
+		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+		const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+
+		surface_point_data res;
+		res.v	= transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
+		res.mat = load_submesh_material_from_submesh_id(submesh_id, obj_render_data);
+
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
+		res.world_face_normal		   = normalize(rotate(obj_data.quaternion, local_face_normal / cast<float3>(obj_data.scale)));
+
+		if (is_back_face)
+		{
+			res.v.normal		  = -res.v.normal;
+			res.world_face_normal = -res.world_face_normal;
+		}
+
+		return res;
+	}
+
+	surface_point_data
+	calc_surface_point(const in object_data		   obj_data,
+					   const in object_render_data obj_render_data,
+					   const in mesh_header		   msh_header,
+					   const uint32				   primitive_id,
+					   const float2				   barycentrics,
+					   const bool				   is_back_face)
+	{
+		const uint32_3 prim_index = load_rt_triangle_index(obj_render_data, primitive_id);
+
+		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
+		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
+		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
+
+		const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+
+		surface_point_data res;
+		res.v	= transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
+		res.mat = mesh::load_submesh_material_from_primitive(msh_header, primitive_id, obj_render_data);
+
+		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
+		res.world_face_normal		   = normalize(rotate(obj_data.quaternion, local_face_normal / cast<float3>(obj_data.scale)));
+
+		if (is_back_face)
+		{
+			res.v.normal		  = -res.v.normal;
+			res.world_face_normal = -res.world_face_normal;
+		}
+
+		return res;
+	}
+
+	surface_point_data
+	calc_surface_point(const uint32 object_render_id,
+					   const uint32 primitive_id,
+					   const float2 barycentrics,
+					   const bool	is_back_face)
+	{
+		const object_data		 obj		 = load_object_data(object_render_id);
+		const object_render_data render_data = load_object_render_data(object_render_id);
+		const mesh_header		 msh_header	 = read_mesh_header(render_data);
+		return calc_surface_point(obj,
+								  render_data,
+								  msh_header,
+								  primitive_id,
+								  barycentrics,
+								  is_back_face);
+	}
+
+	// px should be valid, not sky (z_depth > 0.f)
+	surface_point_data
+	calc_surface_point(texture_2d<uint32_2> gbuffer, uint32_2 px, float z_depth, out bool is_fade)
+	{
+		const uint32_2 geo			   = gbuffer[px];
+		const uint32   vis_packed	   = geo.x;
+		const uint32   mshlt_render_id = unpack_vis_mshlt_render_id(vis_packed);
+		const uint32   prim_id		   = unpack_vis_primitive_id(vis_packed);
+
+		const meshlet_render_data mshlt_render_data = meshlet_render_data_buffer[mshlt_render_id];
+		const object_render_data  obj_render_data	= load_object_render_data(mshlt_render_data.object_render_id);
+		const object_data		  obj_data			= load_object_data(mshlt_render_data.object_render_id);
+		const mesh_header		  msh_header		= read_mesh_header(obj_render_data);
+		const meshlet			  mshlt				= read_meshlet(msh_header, mshlt_render_data.meshlet_id);
+		const material			  mat				= mesh::load_submesh_material_from_meshlet(msh_header, mshlt_render_data, obj_render_data);
+
+		uint32_3 meshlet_prim_idx = read_meshlet_primitive(msh_header, mshlt, prim_id);
+
+		const vertex_fat v0 = decode_vertex(msh_header, read_global_vertex_index(msh_header, mshlt, meshlet_prim_idx.x));
+		const vertex_fat v1 = decode_vertex(msh_header, read_global_vertex_index(msh_header, mshlt, meshlet_prim_idx.y));
+		const vertex_fat v2 = decode_vertex(msh_header, read_global_vertex_index(msh_header, mshlt, meshlet_prim_idx.z));
+
+		const float3	 world_pos	  = screen_px_to_world(px, z_depth, inv_backbuffer_size, view_proj_inv);
+		const float3	 local_pos	  = rotate_inv(obj_data.quaternion, world_pos - obj_data.pos) / obj_data.scale;
+		const float3	 barycentrics = calc_barycentric(local_pos, v0.pos.xyz, v1.pos.xyz, v2.pos.xyz);
+		const vertex_fat v			  = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, barycentrics), obj_data);
+
+		surface_point_data res;
+		res.mat				  = mat;
+		res.v				  = v;
+		res.world_face_normal = normalize(obj_data.normal_local_to_world(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz)));
+
+		const bool is_back_face = dot(v.normal, decode_oct_snorm16(geo.y)) < 0.f;
+
+		if (is_back_face)
+		{
+			res.v.normal		  = -res.v.normal;
+			res.world_face_normal = -res.world_face_normal;
+		}
+
+		is_fade = obj_render_data.fade_unorm8() < 0xff;
+
+		return res;
+	}
+
+	// px should be valid, not sky (z_depth > 0.f)
+	surface_point_data
+	calc_surface_point(texture_2d<uint32_2> gbuffer, uint32_2 px, float z_depth)
+	{
+		bool is_fade;
+		return calc_surface_point(gbuffer, px, z_depth, is_fade);
+	}
+
+
+}	 // namespace mesh

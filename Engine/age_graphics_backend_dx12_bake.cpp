@@ -16,35 +16,34 @@ namespace age::graphics::bake
 			| D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS);
 
 		g::bake_pipeline.h_pso_env_light_radiance = graphics::pso::create(
+			L"pso_bake_env_light_radiance",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_env_light_radiance_cs) }) });
 
 		g::bake_pipeline.h_pso_env_light_irradiance = graphics::pso::create(
+			L"pso_bake_env_light_irradiance",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_env_light_irradiance_cs) }) });
 
 		g::bake_pipeline.h_pso_env_light_prefilter = graphics::pso::create(
+			L"pso_bake_env_light_prefilter",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_env_light_prefilter_cs) }) });
 
 		g::bake_pipeline.h_pso_env_light_build_marginal_cdf = graphics::pso::create(
+			L"pso_bake_env_light_build_marginal_cdf",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_env_light_build_marginal_cdf_cs) }) });
 
 		g::bake_pipeline.h_pso_env_light_build_conditional_cdf = graphics::pso::create(
+			L"pso_bake_env_light_build_conditional_cdf",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_env_light_build_conditional_cdf_cs) }) });
 
 		g::bake_pipeline.h_pso_down_sample_cube = graphics::pso::create(
+			L"pso_bake_down_sample_cube",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_down_sample_cube_cs) }) });
-
-		g::bake_pipeline.h_pso_env_light_radiance.set_name(L"pso_env_light_radiance");
-		g::bake_pipeline.h_pso_env_light_irradiance.set_name(L"pso_env_light_irradiance");
-		g::bake_pipeline.h_pso_env_light_prefilter.set_name(L"pso_env_light_prefilter");
-		g::bake_pipeline.h_pso_env_light_build_marginal_cdf.set_name(L"pso_env_light_build_marginal_cdf");
-		g::bake_pipeline.h_pso_env_light_build_conditional_cdf.set_name(L"pso_env_light_build_conditional_cdf");
-		g::bake_pipeline.h_pso_down_sample_cube.set_name(L"pso_down_sample_cube");
 
 		pop_descriptor(g::bake_pipeline.h_env_light_input_srv_desc);
 		pop_descriptor(g::bake_pipeline.h_env_light_radiance_srv_desc);
@@ -346,6 +345,7 @@ namespace age::graphics::bake
 		AGE_ASSERT(extent.width > 8 and extent.height > 8);
 
 		auto h_pso = graphics::pso::create(
+			L"pso_bake_brdf_lut",
 			pss_root_signature{ .subobj = g::bake_pipeline.h_root_sig.ptr() },
 			pss_cs{ .subobj = shader::get_d3d12_bytecode(shader::shader_handle{ to_idx(e::engine_shader_kind::bake_brdf_lut_cs) }) });
 

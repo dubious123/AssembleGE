@@ -5,7 +5,7 @@ namespace age::asset::detail
 {
 	template <e::kind e_kind>
 	std::string_view
-	extract_asset_name(const std::array<char, config::max_asset_path_len>& full_path) noexcept
+	extract_asset_name(const age::array<char, config::max_asset_path_len>& full_path) noexcept
 	{
 		auto full_name = std::string_view{ full_path.data() };
 		// "font_name.xxx.age_asset" -> "font_name"
@@ -34,7 +34,7 @@ namespace age::asset::detail
 
 	template <e::kind e_kind>
 	handle
-	load_common_from_path(const std::array<char, config::max_asset_path_len>& full_path) noexcept
+	load_common_from_path(const age::array<char, config::max_asset_path_len>& full_path) noexcept
 	{
 		auto h_asset = find(e_kind, full_path);
 
@@ -57,15 +57,13 @@ namespace age::asset::detail
 
 		return load_common_from_path<e_kind>(get_asset_full_path<e_kind>(asset_name));
 	}
-
-
 }	 // namespace age::asset::detail
 
 namespace age::asset
 {
 	template <e::kind e_kind>
 	handle
-	create_entry(const std::array<char, config::max_asset_path_len>& asset_path) noexcept
+	create_entry(const age::array<char, config::max_asset_path_len>& asset_path) noexcept
 	{
 		auto& path_to_handle = g::path_to_handle_map[to_idx(e_kind)];
 		if (auto it = path_to_handle.find(asset_path); it != path_to_handle.end())
@@ -100,21 +98,7 @@ namespace age::asset
 	destroy_entry(handle& h_asset) noexcept
 	{
 		auto& entry = h_asset.get_entry<e_kind>();
-
-		if constexpr (requires { entry.is_loaded(); })
-		{
-			AGE_ASSERT(entry.is_loaded() is_false);
-		}
-		else if constexpr (requires { entry.is_cpu_loaded(); })
-		{
-			AGE_ASSERT(entry.is_cpu_loaded() is_false);
-		}
-		else if constexpr (requires { entry.is_gpu_loaded(); })
-		{
-			AGE_ASSERT(entry.is_gpu_loaded() is_false);
-		}
-
-		auto& path = g::path_vec[entry.path_id];
+		auto& path	= g::path_vec[entry.path_id];
 		g::path_to_handle_map[to_idx(e_kind)].erase(path);
 
 		g::path_vec.remove(entry.path_id);
@@ -127,10 +111,10 @@ namespace age::asset
 	}
 
 	template <e::kind e_kind>
-	std::array<char, config::max_asset_display_name_len>
-	get_display_name(const std::array<char, config::max_asset_path_len>& path) noexcept
+	age::array<char, config::max_asset_display_name_len>
+	get_display_name(const age::array<char, config::max_asset_path_len>& path) noexcept
 	{
-		auto res = std::array<char, config::max_asset_display_name_len>{};
+		auto res = age::array<char, config::max_asset_display_name_len>{};
 		auto sv	 = std::string_view{ path.data() };
 
 		if (sv.ends_with(config::asset_extension))
@@ -157,5 +141,33 @@ namespace age::asset
 		// res[len] = '\0'; redundant
 
 		return res;
+	}
+
+	template <e::kind e_kind>
+	bool
+	update_asset_path(handle h_asset, const age::array<char, config::max_asset_path_len>& new_valid_path) noexcept
+	{
+		auto& path_to_handle = g::path_to_handle_map[to_idx(e_kind)];
+		auto& entry			 = h_asset.get_entry<e_kind>();
+
+		AGE_ASSERT(validate_asset_path(e_kind, h_asset, new_valid_path) == e::asset_path_error_kind::none);
+
+		auto	ec			  = std::error_code{};
+		c_auto& old_path_full = entry.get_path();
+
+		if (std::filesystem::exists(old_path_full.data(), ec))
+		{
+			std::filesystem::create_directories(std::filesystem::path{ new_valid_path.data() }.parent_path(), ec);
+			if (ec) { return false; }
+
+			std::filesystem::rename(old_path_full.data(), new_valid_path.data(), ec);
+			if (ec) { return false; }
+		}
+
+		path_to_handle.erase(entry.get_path());
+		path_to_handle[new_valid_path] = h_asset;
+		g::path_vec[entry.path_id]	   = new_valid_path;
+
+		return true;
 	}
 }	 // namespace age::asset

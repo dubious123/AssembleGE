@@ -16,14 +16,14 @@ main_as(
 	if (render_data_id < selection_outline_meshlet_render_data_count)
 	{
 		const selection_outline_meshlet_render_data render_data = load_selection_outline_meshlet_render_data(render_data_id);
-		const object_data							obj_data	= load_object_data(render_data.object_id);
+		const object_data							obj_data	= load_object_data(render_data.object_render_id);
 
 		const uint32 meshlet_idx = render_data.meshlet_id;
 
 		const mesh_header	 msh_header	  = read_mesh_header<selection_outline_meshlet_render_data>(render_data);
 		const meshlet_header mshlt_header = read_meshlet_header(msh_header, meshlet_idx);
 
-		visible = is_visible(obj_data, mshlt_header);
+		visible = is_meshlet_visible(obj_data, mshlt_header);
 	}
 
 	const uint32_4 ballot		= wave_active_ballot(visible);

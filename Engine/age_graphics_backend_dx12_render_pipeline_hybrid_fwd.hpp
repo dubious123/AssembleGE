@@ -38,6 +38,14 @@ namespace age::graphics::render_pipeline
 			where::t<0, 0>>,
 
 		binding_slot<
+			"meshlet_render_data_buffer",
+			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::structured_buffer_array<shared_type::meshlet_render_data>,
+			how::root_descriptor,
+			where::t<0, 6>>,
+
+		binding_slot<
 			"mesh_data_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC,
 			D3D12_SHADER_VISIBILITY_ALL,
@@ -206,7 +214,7 @@ namespace age::graphics::render_pipeline
 			where::t<1, 77>>,
 
 		binding_slot<
-			"crash_assert_buffer",
+			"debug_assert_buffer",
 			D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::rw_byte_address_buffer,
@@ -214,20 +222,36 @@ namespace age::graphics::render_pipeline
 			where::u<666, 666>>,
 
 		binding_slot<
-			"linear_clamp_sampler",
-			D3D12_SAMPLER_FLAG_NONE,
-			D3D12_SHADER_VISIBILITY_ALL,
-			what::sampler<defaults::static_sampler_desc::linear_clamp>,
-			how::static_sampler,
-			where::s<0>>,
-
-		binding_slot<
 			"linear_wrap_sampler",
 			D3D12_SAMPLER_FLAG_NONE,
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::sampler<defaults::static_sampler_desc::linear_wrap>,
 			how::static_sampler,
+			where::s<0>>,
+
+		binding_slot<
+			"linear_clamp_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::sampler<defaults::static_sampler_desc::linear_clamp>,
+			how::static_sampler,
 			where::s<1>>,
+
+		binding_slot<
+			"linear_mirror_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::sampler<defaults::static_sampler_desc::linear_mirror>,
+			how::static_sampler,
+			where::s<2>>,
+
+		binding_slot<
+			"point_wrap_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::sampler<defaults::static_sampler_desc::point_wrap>,
+			how::static_sampler,
+			where::s<3>>,
 
 		binding_slot<
 			"point_clamp_sampler",
@@ -235,7 +259,17 @@ namespace age::graphics::render_pipeline
 			D3D12_SHADER_VISIBILITY_ALL,
 			what::sampler<defaults::static_sampler_desc::point_clamp>,
 			how::static_sampler,
-			where::s<2>>>;
+			where::s<4>>,
+
+		binding_slot<
+			"point_mirror_sampler",
+			D3D12_SAMPLER_FLAG_NONE,
+			D3D12_SHADER_VISIBILITY_ALL,
+			what::sampler<defaults::static_sampler_desc::point_mirror>,
+			how::static_sampler,
+			where::s<5>>
+
+		>;
 }	 // namespace age::graphics::render_pipeline
 
 // descriptors
@@ -276,7 +310,7 @@ namespace age::graphics::render_pipeline
 		float4x4			  proj;
 		float4x4			  view_proj;
 		float4x4			  view_proj_inv;
-		std::array<float4, 6> frustum_plane_arr;
+		age::array<float4, 6> frustum_plane_arr;
 	};
 
 	struct mesh_data
@@ -347,6 +381,34 @@ namespace age::graphics::render_pipeline
 		srv_desc_handle h_irradiance_srv_desc;
 	};
 
+	struct model_render_option
+	{
+		graphics::e::mesh_raster_override_kind		  raster_override_kind		  = graphics::e::mesh_raster_override_kind::none;
+		graphics::e::mesh_rt_alpha_test_override_kind rt_alpha_test_override_kind = graphics::e::mesh_rt_alpha_test_override_kind::none;
+		graphics::e::model_render_option_flags		  option_flags				  = graphics::e::model_render_option_flags::none;
+		uint8										  fade_unorm8				  = 255u;
+	};
+}	 // namespace age::graphics::render_pipeline
+
+namespace age::graphics::render_pipeline
+{
+	struct raycast_result
+	{
+		uint32 object_id;	 // invalid_id == no hit
+		float  t_hit;
+		float3 world_pos;
+		// object_deleted == true means the ray did hit <frame_buffer_count> frames ago,
+		// but the object is gone now. whether to still use the result is up to the caller.
+		// one possible use case for using the result even when object_deleted is true:
+		// debug_mesh hit tests, where debug objects are cleared every frame
+		bool	object_deleted;
+		uint8_3 _;
+	};
+}	 // namespace age::graphics::render_pipeline
+
+// system desc, data
+namespace age::graphics::render_pipeline
+{
 	struct bloom_desc
 	{
 		float  threshold = 1.0f;
@@ -741,9 +803,9 @@ namespace age::graphics::render_pipeline
 
 		// max_aa_px_count = screen_px_count * aa_px_cap * aa_px_headroom;
 		// (1, 1/aa_px_cap]
-		float aa_px_headroom			= 4.f;
-		float edge_plane_dist_threshold = 0.05f;
-		float edge_normal_threshold		= 0.9f;
+		float aa_px_headroom			   = 4.f;
+		float edge_plane_dist_tolerance_px = 0.05f;
+		float edge_normal_threshold		   = 0.9f;
 	};
 
 	struct aa_data
@@ -816,7 +878,7 @@ namespace age::graphics::render_pipeline
 	struct debug_view_data
 	{
 		shared_type::debug_view_data												gpu_data;
-		std::array<shared_type::debug_view_slot_data, g::debug_view_slot_count_max> gpu_slot_data;
+		age::array<shared_type::debug_view_slot_data, g::debug_view_slot_count_max> gpu_slot_data;
 
 		bool	enabled		 = false;
 		bool	need_cleanup = false;

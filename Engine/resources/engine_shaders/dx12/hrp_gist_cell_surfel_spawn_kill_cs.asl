@@ -22,9 +22,12 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 		return;
 	}
 
+	do
 	{
 		const byte_array<uint32>	 cell_to_surfel_id_arr = gist::cell::cell_to_surfel_id_arr(data);
 		const gist_cell_surfel_entry entry				   = gist::cell::surfel_entry_arr(data)[cell_id];
+
+		if (entry.surfel_count == 0u) { break; }
 
 		const uint32 word_begin = entry.offset / 32;
 		const uint32 word_end	= (max(1u, entry.offset + entry.surfel_count) - 1) / 32;
@@ -57,64 +60,65 @@ main_cs(uint32 thread_id sv_dispatch_thread_id)
 			}
 		}
 	}
+	while (false);
 
 	// cell surfel spawn
+	do
 	{
-		const uint32 ray_id = gist::cell::load_surfel_spawn_data(data, cell_id);
+		attr_branch()
+		if (gist::debug::freeze_cell_surfel_spawn(data)) { break; }
 
-		if (ray_id != invalid_id_uint32)
+		gist::cell_surfel_spawn_data spawn_data;
+		if (gist::cell::load_surfel_spawn_data(data, cell_id, spawn_data) is_false) { break; }
+
+		const gist_ray_hit_result ray_hit		  = ray_hit_buffer[spawn_data.ray_id];
+		const object_render_data  obj_render_data = load_object_render_data(spawn_data.object_render_id);
+
+		if (obj_render_data.is_primitive_id_valid(ray_hit.primitive_id) is_false) { break; }
+
+		const mesh_header msh_header = read_mesh_header(obj_render_data);
+		const uint32	  submesh_id = mesh::calc_submesh_id_from_primitive(msh_header, ray_hit.primitive_id);
+
+		uint32 surfel_id;
+		if (surfel_dead_stack.try_pop(surfel_id) is_false) { break; }
+
+		surfel_alive_stack.push(surfel_id);
+
+		gist_cell_surfel surfel		= zero<gist_cell_surfel>();
+		surfel.irradiance_r11g11b10 = ray_lighting_buffer[spawn_data.ray_id].irradiance_r11g11b10;
+		surfel.recycle_data.set_back_face(ray_hit.distance < 0.f and mesh::calc_rt_alpha_test_mode(msh_header, submesh_id, obj_render_data) != AGE_RT_ALPHA_TEST_MODE_BLEND);
+		surfel_arr[surfel_id] = surfel;
+
+		gist_cell_surfel_geometry geo;
+		geo.object_id			  = spawn_data.object_id;
+		geo.primitive_id		  = ray_hit.primitive_id;
+		geo.barycentric_unorm16	  = ray_hit.barycentric_unorm16;
+		surfel_geo_arr[surfel_id] = geo;
+
+
+		gist_surfel_msme msme;
+		msme.mean_long	   = decode_r11g11b10(ray_lighting_buffer[spawn_data.ray_id].irradiance_r11g11b10);
+		msme.mean_short	   = msme.mean_long;
+		msme.vbbr		   = 0.f;
+		msme.variance	   = float3(1.f, 1.f, 1.f);
+		msme.inconsistency = 1.f;
+		msme.incon_mean	   = 0.f;
+		msme.incon_var	   = 0.f;
+
+		surfel_msme_arr[surfel_id] = msme;
+
+		rw_byte_array<uint16> vis_arr	  = gist::cell::visibility_rw_arr(data, surfel_id);
+		rw_byte_array<half>	  lum_arr	  = gist::cell::luminance_rw_arr(data, surfel_id);
+		rw_byte_array<half>	  lum_cdf_arr = gist::cell::luminance_cdf_rw_arr(data, surfel_id);
+		for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
 		{
-			attr_branch()
-
-			if (gist::debug::freeze_cell_surfel_spawn(data) is_false)
-			{
-				uint32 surfel_id;
-				if (surfel_dead_stack.try_pop(surfel_id))
-				{
-					surfel_alive_stack.push(surfel_id);
-
-					gist_ray_hit_result ray_hit = ray_hit_buffer[ray_id];
-
-					const float3 dir_local	  = decode_world_hemi_oct_snorm8(uint32_lower_to_uint16(ray_hit.dir_oct_snorm8));
-					const float	 cos_theta	  = dir_local.y;
-					const float	 contribution = cos_theta / max(epsilon_1e6, ray_hit.pdf);
-
-					gist_cell_surfel surfel		= zero<gist_cell_surfel>();
-					surfel.irradiance_r11g11b10 = ray_lighting_buffer[ray_id].irradiance_r11g11b10;
-					surfel_arr[surfel_id]		= surfel;
-
-					gist_cell_surfel_geometry geo;
-					geo.object_id			  = ray_hit.object_id;
-					geo.primitive_id		  = ray_hit.primitive_id;
-					geo.barycentric_unorm16	  = ray_hit.barycentric_unorm16;
-					surfel_geo_arr[surfel_id] = geo;
-
-
-					gist_surfel_msme msme;
-					msme.mean_long	   = decode_r11g11b10(ray_lighting_buffer[ray_id].irradiance_r11g11b10);
-					msme.mean_short	   = msme.mean_long;
-					msme.vbbr		   = 0.f;
-					msme.variance	   = float3(1.f, 1.f, 1.f);
-					msme.inconsistency = 1.f;
-					msme.incon_mean	   = 0.f;
-					msme.incon_var	   = 0.f;
-
-					surfel_msme_arr[surfel_id] = msme;
-
-					rw_byte_array<uint16> vis_arr	  = gist::cell::visibility_rw_arr(data, surfel_id);
-					rw_byte_array<half>	  lum_arr	  = gist::cell::luminance_rw_arr(data, surfel_id);
-					rw_byte_array<half>	  lum_cdf_arr = gist::cell::luminance_cdf_rw_arr(data, surfel_id);
-					for (uint32 i = 0; i < data.atlas_texel_count(); ++i)
-					{
-						vis_arr.store(i, uint16(0));
-						// vis_arr.store(i, uint16(0xffffu));
-						lum_arr.store(i, (1.h / half(data.atlas_texel_count())));
-						lum_cdf_arr.store(i, (half(i + 1) / half(data.atlas_texel_count())));
-					}
-				}
-			}
+			vis_arr.store(i, uint16(0));
+			// vis_arr.store(i, uint16(0xffffu));
+			lum_arr.store(i, (1.h / half(data.atlas_texel_count())));
+			lum_cdf_arr.store(i, (half(i + 1) / half(data.atlas_texel_count())));
 		}
 	}
+	while (false);
 
 	// surfel kill
 	{

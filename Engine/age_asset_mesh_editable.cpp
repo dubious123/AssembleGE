@@ -257,7 +257,7 @@ namespace age::asset
 			c_auto face_idx		= face_v_idx * desc.seg_u + face_u_idx;
 			c_auto boundary_idx = face_idx;
 
-			c_auto vertex_idx_arr = std::array{
+			c_auto vertex_idx_arr = age::array{
 				(face_v_idx + 0) * grid_u + (face_u_idx + 0),
 				(face_v_idx + 0) * grid_u + (face_u_idx + 1),
 				(face_v_idx + 1) * grid_u + (face_u_idx + 1),
@@ -265,7 +265,7 @@ namespace age::asset
 			};
 
 			// |-|-|-|  grid : 4, seg : 3  horizontal : vertical grid * seg_u + face_u
-			c_auto edge_idx_arr = std::array{
+			c_auto edge_idx_arr = age::array{
 				(face_v_idx + 0) * desc.seg_u + (face_u_idx + 0),						 // 0->1 (H)
 				(face_v_idx + 0) * grid_u + (face_u_idx + 1) + edge_horizontal_count,	 // 1->2 (V)
 				(face_v_idx + 1) * desc.seg_u + (face_u_idx + 0),						 // 3->2 (H)
@@ -449,7 +449,7 @@ namespace age::asset
 			.local_basis = float3x3{ -basis_r, basis_f, basis_u },
 		};
 
-		c_auto res = merge(std::array{ create_primitive_mesh_plane(desc_r),
+		c_auto res = merge(age::array{ create_primitive_mesh_plane(desc_r),
 									   create_primitive_mesh_plane(desc_l),
 									   create_primitive_mesh_plane(desc_u),
 									   create_primitive_mesh_plane(desc_d),
@@ -534,7 +534,7 @@ namespace age::asset
 			.seg_v		 = 1,
 			.local_basis = float3x3{ basis_r, -basis_u, -basis_f } });
 
-		c_auto res = merge(std::array{ std::move(side), std::move(base) });
+		c_auto res = merge(age::array{ std::move(side), std::move(base) });
 
 		if constexpr (age::config::debug_mode)
 		{

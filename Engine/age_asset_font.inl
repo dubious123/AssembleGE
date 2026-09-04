@@ -15,8 +15,6 @@ namespace age::asset::font::detail
 	rebuild_font(std::string_view	  font_name,
 				 e::font_charset_flag flag,
 				 std::span<uint16>	  extra_unicode_span) noexcept;
-
-
 }	 // namespace age::asset::font::detail
 
 namespace age::asset::font
@@ -52,9 +50,16 @@ namespace age::asset::font
 				full_unload(h_font, renderer);
 			}
 		}
-		else if (auto buf = asset::read_asset_file(entry.get_path());
-				 buf.empty() is_false)
+		else if (auto file_data = asset::read_asset_file(entry.get_path());
+				 file_data.is_valid())
 		{
+			if (file_data.header.asset_version != 0)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto& buf = file_data.buf;
+
 			detail::read_entry(entry, buf);
 
 			if (detail::need_rebuild(entry, flag, extra_unicode) is_false)
@@ -68,9 +73,16 @@ namespace age::asset::font
 
 		detail::rebuild_font(asset::detail::extract_asset_name<e::kind::font>(entry.get_path()), flag, extra_unicode);
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (auto file_data = asset::read_asset_file(entry.get_path());
+			file_data.is_valid())
 		{
+			if (file_data.header.asset_version != config::font_asset_version)
+			{
+				AGE_ASSERT(false);
+			}
+
+			auto& buf = file_data.buf;
+
 			detail::read_entry(entry, buf);
 
 			entry.atlas_id = renderer.upload_texture(buf.data() + buf.read_amount(),

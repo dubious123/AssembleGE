@@ -719,7 +719,7 @@ namespace age_test::data_structure::byte_buffer
 	{
 		age::byte_buffer buf;
 
-		c_auto vals = std::array<uint32, 4>{ 11, 22, 33, 44 };
+		c_auto vals = age::array<uint32, 4>{ 11, 22, 33, 44 };
 		buf.write_bytes(vals.data(), uint32{ sizeof(vals) });
 
 		AGE_ASSERT(buf.size() == sizeof(vals));

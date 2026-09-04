@@ -240,7 +240,7 @@ namespace age::graphics
 		static_assert(sizeof(t_data) <= 256, "root_constant data is too large");
 		static_assert(sizeof(t_data) % 4 == 0, "root_constant data size must be a multiple of 4");
 
-		std::array<t_data, t_what::array_size> constant_arr;
+		age::array<t_data, t_what::array_size> constant_arr;
 
 		void
 		bind(const t_data& data, uint8 ring_idx = global::i_graphics.get_frame_buffer_idx) noexcept
@@ -354,7 +354,7 @@ namespace age::graphics
 		static constexpr auto shader_visibility = visibility;
 		static constexpr auto slot_id			= slot_id_;
 
-		std::array<D3D12_GPU_VIRTUAL_ADDRESS, t_what::array_size> gpu_va_arr;
+		age::array<D3D12_GPU_VIRTUAL_ADDRESS, t_what::array_size> gpu_va_arr;
 
 		static_assert(not(detail::is_constant_buffer_v<t_what> or detail::is_constant_buffer_array_v<t_what>)
 					  or (sizeof(typename t_what::t_data) % 256 == 0));
@@ -398,7 +398,7 @@ namespace age::graphics
 
 		template <auto n>
 		void
-		bind_array(const std::array<resource_handle, n>& arr) noexcept
+		bind_array(const age::array<resource_handle, n>& arr) noexcept
 		{
 			for (auto i = 0; i < n; ++i)
 			{
@@ -408,7 +408,7 @@ namespace age::graphics
 
 		template <auto n>
 		void
-		bind_array(const std::array<mapping_handle, n>& arr) noexcept
+		bind_array(const age::array<mapping_handle, n>& arr) noexcept
 		{
 			for (auto i = 0; i < n; ++i)
 			{
@@ -714,11 +714,11 @@ namespace age::graphics
 		create_root_signature(D3D12_ROOT_SIGNATURE_FLAGS flags) noexcept
 		{
 			auto sampler_desc_arr = []<auto... i>(std::index_sequence<i...>) {
-				return std::array<D3D12_STATIC_SAMPLER_DESC1, sizeof...(i)>{ build_d3d12_root_parameter<meta::variadic_at_t<i, t...>>()... };
+				return age::array<D3D12_STATIC_SAMPLER_DESC1, sizeof...(i)>{ build_d3d12_root_parameter<meta::variadic_at_t<i, t...>>()... };
 			}(t_sampler_index_seq{});
 
 			auto root_param_desc_arr = []<auto... i>(std::index_sequence<i...>) {
-				return std::array<D3D12_ROOT_PARAMETER1, sizeof...(i)>{ build_d3d12_root_parameter<meta::variadic_at_t<i, t...>>()... };
+				return age::array<D3D12_ROOT_PARAMETER1, sizeof...(i)>{ build_d3d12_root_parameter<meta::variadic_at_t<i, t...>>()... };
 			}(t_root_param_index_seq{});
 
 			return root_signature::create(flags, root_param_desc_arr, sampler_desc_arr);

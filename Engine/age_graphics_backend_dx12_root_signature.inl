@@ -18,8 +18,8 @@ namespace age::graphics::root_signature
 	template <auto root_param_size, auto sampler_param_size>
 	handle
 	create(D3D12_ROOT_SIGNATURE_FLAGS										 flags,
-		   const std::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
-		   const std::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept
+		   const age::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
+		   const age::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept
 	{
 		auto root_signature_desc = D3D12_VERSIONED_ROOT_SIGNATURE_DESC{
 			.Version  = D3D_ROOT_SIGNATURE_VERSION_1_2,
@@ -71,7 +71,7 @@ namespace age::graphics::root_signature
 					  "invalid root parameter: expected constants/descriptor/descriptor_table");
 
 		return root_signature::create(flags,
-									  std::array<D3D12_ROOT_PARAMETER1, sizeof...(root_parameter)>{ root_parameter.build_d3d12_root_parameter()... },
-									  std::array<D3D12_STATIC_SAMPLER_DESC1, 0>{});
+									  age::array<D3D12_ROOT_PARAMETER1, sizeof...(root_parameter)>{ root_parameter.build_d3d12_root_parameter()... },
+									  age::array<D3D12_STATIC_SAMPLER_DESC1, 0>{});
 	}
 }	 // namespace age::graphics::root_signature

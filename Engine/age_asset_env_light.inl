@@ -47,12 +47,11 @@ namespace age::asset::env_light
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		cpu_load(h_env_light);
+
+		if (entry.is_cpu_loaded())
 		{
-			entry.p_blob	= buf.release();
 			entry.render_id = renderer.upload_env_light(h_env_light);
-			return;
 		}
 	}
 

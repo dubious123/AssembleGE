@@ -202,7 +202,7 @@ namespace age::graphics::resource
 	create_committed(const resource_create_desc& desc) noexcept;
 
 	template <auto n>
-	std::array<resource_handle, n>
+	age::array<resource_handle, n>
 	create_committed(const resource_create_desc& desc) noexcept;
 
 	resource_handle
@@ -255,21 +255,21 @@ namespace age::graphics::resource
 							D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
 	template <auto n>
-	std::array<mapping_handle, n>
+	age::array<mapping_handle, n>
 	create_buffer_committed(uint32				 buffer_byte_size,
 							const void*			 p_data			= nullptr,
 							e::memory_kind		 kind			= e::memory_kind::cpu_to_gpu_direct,
 							D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
 							D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
-	std::array<mapping_handle, global::frame_buffer_count>
+	age::array<mapping_handle, global::frame_buffer_count>
 	create_buffer_committed_arr(uint32				 buffer_byte_size,
 								const void*			 p_data			= nullptr,
 								e::memory_kind		 kind			= e::memory_kind::cpu_to_gpu_direct,
 								D3D12_BARRIER_LAYOUT initial_layout = D3D12_BARRIER_LAYOUT_UNDEFINED,
 								D3D12_RESOURCE_FLAGS flags			= D3D12_RESOURCE_FLAG_NONE) noexcept;
 
-	std::array<mapping_handle, global::frame_buffer_count>
+	age::array<mapping_handle, global::frame_buffer_count>
 	create_buffer_committed_arr(const wchar_t*		 fmt,
 								uint32				 buffer_byte_size,
 								const void*			 p_data			= nullptr,
@@ -418,10 +418,10 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
-		std::wstring_view	  shader_name,
-		std::wstring_view	  hlsl_path,
-		std::wstring_view	  entry_point,
-		std::wstring_view	  target,
+		const std::wstring&	  shader_name,
+		const std::wstring&	  hlsl_path,
+		const std::wstring&	  entry_point,
+		const std::wstring&	  target,
 		std::filesystem::path save_path) noexcept;
 
 	shader_handle
@@ -446,7 +446,8 @@ namespace age::graphics::rt
 	create_blas_buffer(std::size_t initial_size) noexcept;
 
 	resource_handle
-	build_blas(auto&&... rt_geo_desc) noexcept;
+	build_blas(std::span<const D3D12_RAYTRACING_GEOMETRY_DESC>	   descs,
+			   D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE) noexcept;
 
 	FORCE_INLINE
 	std::tuple<uint64, uint64>

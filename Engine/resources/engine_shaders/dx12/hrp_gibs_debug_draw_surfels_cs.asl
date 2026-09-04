@@ -104,7 +104,7 @@ get_tile_surfel(const gibs_data data, const gibs_lut_data lut_data, int32_2 px, 
 
 	if (irradiance_sum.w < 0.1f)
 	{
-		const float4 fallback  = gibs::sample_irradiance(data, world_pos, normal);
+		const float4 fallback  = gibs::sample_irradiance<false, false>(data, world_pos, normal);
 		irradiance_sum		  += float4(fallback.xyz * fallback.w, fallback.w);
 	}
 
@@ -217,16 +217,10 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 		const float	 t_max	 = length(rel);
 		const float3 ray_dir = rel / t_max;
 
-		ray_desc desc;
-		desc.Origin	   = camera_pos;
-		desc.Direction = ray_dir;
-		desc.TMin	   = 0.f;
-		desc.TMax	   = t_max;
-
 		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
 
 		ray_query<RAY_FLAG_CULL_OPAQUE> query;
-		rt_trace_ray_inline(query, tlas, RAY_FLAG_CULL_OPAQUE, RT_MASK_TRANSPARENT, desc);
+		rt_trace_ray_inline(query, tlas, RAY_FLAG_CULL_OPAQUE, RT_MASK_TRANSPARENT | RT_MASK_OMM, rt::init_ray_desc(camera_pos, ray_dir, 0.f, t_max));
 
 		while (rt_proceed(query))
 		{
@@ -235,28 +229,21 @@ main_cs(uint32_3 dispatch_thread_id sv_dispatch_thread_id)
 
 		if (rt_committed_status(query) != COMMITTED_NOTHING)
 		{
-			const rt_instance_render_data render_data = load_rt_instance_render_data(rt_committed_instance_id(query));
-			const material				  mat		  = load_material(render_data.material_id);
-			const object_data			  obj_data	  = load_object_data(render_data.object_id);
-			const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
-			const uint32_3				  prim_index  = load_rt_triangle_index(render_data, rt_committed_primitive_index(query));
+			const rt_instance_render_data  rt_render_data = load_rt_instance_render_data(rt_committed_instance_id(query));
+			const object_data			   obj			  = load_object_data(rt_render_data.object_render_id);
+			const object_render_data	   render_data	  = load_object_render_data(rt_render_data.object_render_id);
+			const mesh_header			   msh_header	  = read_mesh_header(render_data);
+			const uint32				   submesh_id	  = rt_committed_geometry_index(query);
+			const mesh::surface_point_data surface		  = mesh::calc_surface_point(obj,
+																					 render_data,
+																					 msh_header,
+																					 submesh_id,
+																					 msh_header.calc_primitive_id(submesh_id, rt_committed_primitive_index(query)),
+																					 rt_committed_triangle_barycentrics(query),
+																					 rt_committed_triangle_front_face(query) is_false);
 
-			const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
-			const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
-			const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
-
-			const float2 barycentrics = rt_committed_triangle_barycentrics(query);
-
-			const float3 bary_weights = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
-
-			const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
-
-			const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
-
-			const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
-
-			world_pos = v.world_pos;
-			normal	  = rt_committed_triangle_front_face(query) ? world_face_normal : -world_face_normal;
+			world_pos = surface.v.world_pos;
+			normal	  = surface.world_face_normal;
 		}
 		else
 		{

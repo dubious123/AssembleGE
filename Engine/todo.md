@@ -333,6 +333,12 @@ NEE + ray 최적화
 upload_data 최적화
 blend_buffer를 삭제하고 main_buffer와 통합
 skybox pass 통합?
+### transparent specular 지원
+### aa 리뉴얼, 그냥 opaque랑 transparent다 합치고, 시간축 blend하는게 나을듯?
+### transparent mesh의 내부 산란 같은거 만들수 있을것 같은데?
+
+## 망함. object_id 가 거짓말을 하고 있었음, 매 프레임 달라짐, surfel geo로 사용할수 없음
+## object_render_data에 id를 넣는건?
 
 
 ## gltf load 
@@ -415,3 +421,106 @@ gbuffer mask ps에서 alpha가 1이면 opaque, alpha 가 1 미만 alphacutoff �
 두 방법중 무엇이 더 효율적일지는 몰?루? 아마 draw 2번이 단순하고 성능도 큰 차이 없어보일것 같긴함
 
 일단은 omm 없이 추가하고, 추후에 omm을 같이 굽는 옵션을 제공하면 될듯 
+
+mesh render override kind랑 
+mesh render option flags랑 
+fade 등을 묶어서 
+mesh_render_option 이 추가로 필요해짐. 
+fade는 rt_instance_render_data에 rt_mask_and_extra에 들어가야하고 
+material_id를 uint16으로 내리고, object_render_data에 같이 넣어줘야함. 
+
+
+texture마다 sampler 방식이 다를수 있음 
+근데 어차피 개수가 정해져있어서 다 root sig에 박아두면 될듯 
+아니면 bindless로 가거나 
+그리고 material에서 texture마다 sampler type을 명시하면 될듯.
+
+## material에 per texture sampler type추가 
+
+## material_id를 uint32 에서 uint16 으로 변경
+
+## asset에 asset version 추가
+component와 다르게 asset의 경우 변경하면 기존 asset을 load할수가 없음. 
+급한대로 asset file_header의 reserve에 asset_version을 넣었고 
+
+		if (auto buf = asset::read_asset_file(entry.get_path());
+			buf.empty() is_false)
+
+이 부분이 buf대신 buf + header 조합을 return 해야함. 
+그리고 각 asset에서 version이 다르면 migrate하는 함수를 작성해야함.
+
+
+## meshlet render data 구조를 재검토하고, cpu 에서 gpu driven으로 변경하기
+지금 구조가 너무 안이쁨... 
+
+## Model 의 추가. 
+material개수가 1개로 고정일때는 문제가 없는데 
+이젠 mesh 1개당 material이 다수가 됨. 
+즉 material의 vector가 필요한데 그건 component로 못함. 
+asset화 해야한다는건데 
+그래서 등장한게 mesh + material array + etc 를 묶어서 
+model asset으로 만들자 라는 아이디어. 
+
+다만 model이 mesh bake option을 소유하게 되면, 
+mesh 하나를 관리하던게 
+mesh + option을 key로 관리해야함. 
+그보다는 그냥 mesh 가 bake option을 가지고 있는게 더 관리하기 쉬울것 같음
+variation이 많아지면, 그때가서 model을 변경하는게 나을듯.
+
+그리고 나중에 model을 확장해서 lod를 지원하게 할수 있을듯.
+
+struct entry<e::model> 
+{
+    h_mesh;
+    // material_slot_count == h_mesh.submesh_count
+    h_material* p_material;
+
+}
+
+
+## ui widget 정리하기 
+자기 완결성이 있는것들은 return bool로 통일하고 
+스타일 변경을 원하면 추가 desc를 받던 좀 정리를 해야할듯 
+그리고 return bool을 모아서 뭔가 변경이 되었는지 쉽게 알수 있어야 하고 
+그렇게 정리를 한 다음 editor component쪽에 비효율적으로 되어있는것을 정리해야함
+
+
+## container들 self reference 살피기 
+vector.emplace_back(vector[i]) 같은거 
+
+
+## fade dither 가 segment edge를 유발하는 것, feature인가 bug인가
+
+## gbuffer normal과 vis 를 분리?
+
+
+## age::array 구현
+
+
+## 엔진구조 
+engine은 자기 완결적으로, 유저의 type이 필요 없음 
+근데 editor만 유일하게 user renderer랑 ecs_game이 필요함 
+
+engine - user_game_core - editor 의 구조로 가면 editor가 직접 user type을 알수 있고, user type이 변경될때마다 engine 재빌드 할 필요 없음
+추후 ecs도 분리할수도 
+
+editor game asset 과 
+age_game asset 을 분리후 
+각각 asset system과 통합하기
+
+
+## ui 시스템 다듬기 
+text_input 통일하기 
+enter 막는 option 제공하기
+
+## asset system 다듬기
+cpu load, gpu load, 등등이 도메인마다 의미가 조금씩 다름 
+설계 의도에 부합하긴 하지만 
+editor 입장에서는 사용하기 힘들고 
+switch문으로 해결하기에는 새로운 asset kind가 들어올때마다 
+구현을 까먹을 여지가 있음 
+그리고 material이나 model, 그리고 env_light의 경우 
+가볍게 load하는 기능이 없음 
+즉 cpu load도 여러 버전이 있을수 있음. 
+
+asset dirty system 만들기

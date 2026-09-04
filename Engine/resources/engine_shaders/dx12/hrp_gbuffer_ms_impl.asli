@@ -1,0 +1,98 @@
+#ifndef AGE_GBUFFER_MS_IS_DOUBLE_SIDED
+	#error "AGE_GBUFFER_MS_IS_DOUBLE_SIDED must be defined before including hrp_gbuffer_ms_impl.asli"
+#endif
+
+#if (AGE_GBUFFER_MS_RASTER_MODE_OPAQUE + AGE_GBUFFER_MS_RASTER_MODE_TRANSPARENT + AGE_GBUFFER_MS_RASTER_MODE_MASK) != 1
+	#error "exactly one of AGE_GBUFFER_MS_RASTER_MODE_{OPAQUE|TRANSPARENT|MASK} must be defined to 1"
+#endif
+
+[numthreads(AGE_WAVE_SIZE, 1, 1)][output_topology("triangle")] void
+main_ms(in payload hrp_gbuffer_as_out ms_in,
+		uint32_3 group_id			  sv_group_id,
+		uint32_3 group_thread_id	  sv_group_thread_id,
+#if (AGE_GBUFFER_MS_RASTER_MODE_OPAQUE || AGE_GBUFFER_MS_RASTER_MODE_TRANSPARENT)
+		out vertices hrp_gbuffer_ms_vertex_out ms_out_vertex_arr[64],
+		out primitives hrp_gbuffer_ms_prim_out ms_out_prim_arr[126],
+#elif (AGE_GBUFFER_MS_RASTER_MODE_MASK)
+		out vertices hrp_gbuffer_ms_mask_vertex_out ms_out_vertex_arr[64],
+		out primitives hrp_gbuffer_ms_mask_prim_out ms_out_prim_arr[126],
+#else
+	#error "AGE_GBUFFER_MS_RASTER_MODE must be defined before including hrp_gbuffer_ms_impl.asli"
+#endif
+		out indices uint32_3 ms_out_triangle_arr[126])
+
+{
+	static const uint32 meshlet_count_per_group = AGE_WAVE_SIZE;
+
+	const uint32 not_culled_render_data_local_index = select32_nth_set_bit(ms_in.meshlet_alive_mask, group_id.x);
+
+#if AGE_GBUFFER_MS_RASTER_MODE_OPAQUE
+	const uint32 render_data_offset = mesh::load_meshlet_render_data_offset<mesh::raster_mode_kind::opaque, AGE_GBUFFER_MS_IS_DOUBLE_SIDED>();
+#elif AGE_GBUFFER_MS_RASTER_MODE_TRANSPARENT
+	const uint32 render_data_offset = mesh::load_meshlet_render_data_offset<mesh::raster_mode_kind::transparent, AGE_GBUFFER_MS_IS_DOUBLE_SIDED>();
+#elif AGE_GBUFFER_MS_RASTER_MODE_MASK
+	const uint32 render_data_offset = mesh::load_meshlet_render_data_offset<mesh::raster_mode_kind::mask, AGE_GBUFFER_MS_IS_DOUBLE_SIDED>();
+#else
+	#error "AGE_GBUFFER_MS_RASTER_MODE must be defined before including hrp_gbuffer_ms_impl.asli"
+#endif
+
+	const uint32 local_meshlet_render_id = ms_in.meshlet_group_idx * meshlet_count_per_group
+										 + not_culled_render_data_local_index;
+
+	const uint32 global_meshlet_render_id = render_data_offset
+										  + local_meshlet_render_id;
+
+	const meshlet_render_data mshlt_render_data = meshlet_render_data_buffer[global_meshlet_render_id];
+	const object_render_data  obj_render_data	= load_object_render_data(mshlt_render_data.object_render_id);
+	const mesh_header		  mesh_header		= read_mesh_header(obj_render_data);
+	const meshlet			  mshlt				= read_meshlet(mesh_header, mshlt_render_data.meshlet_id);
+	const object_data		  obj_data			= load_object_data(mshlt_render_data.object_render_id);
+
+	const uint32 vertex_count	 = mshlt.vertex_count_prim_count_extra & 0xffu;
+	const uint32 primitive_count = (mshlt.vertex_count_prim_count_extra >> 8u) & 0xffu;
+
+	set_mesh_output_counts(vertex_count, primitive_count);
+
+#if AGE_GBUFFER_MS_RASTER_MODE_MASK
+
+	const uint32 submesh_id			   = mesh::calc_submesh_id_from_meshlet(mesh_header, mshlt_render_data.meshlet_id);
+	const uint16 material_id		   = load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id);
+	const uint32 raster_override_mode  = obj_render_data.raster_override_kind();
+	const bool	 alpha_test			   = raster_override_mode == AGE_RASTER_OVERRIDE_KIND_FORCE_MASK
+									  or (raster_override_mode == AGE_RASTER_OVERRIDE_KIND_NONE
+										  and mesh_header.submesh_raster_mode(submesh_id) == AGE_RASTER_MODE_MASK);
+	const uint32 fade_unorm8		   = obj_render_data.fade_unorm8();
+	const uint32 prim_attribute_packed = fade_unorm8
+									   | (uint32(alpha_test) << 8u);
+#endif
+
+	expand(2)
+
+	for (uint32 nth_vertex = group_thread_id.x; nth_vertex < vertex_count; nth_vertex += AGE_WAVE_SIZE)
+	{
+		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
+
+		v.pos.xyz = obj_data.local_to_world(v.pos.xyz);
+
+		ms_out_vertex_arr[nth_vertex].pos					   = mul(view_proj, v.pos);
+		ms_out_vertex_arr[nth_vertex].normal				   = normalize(obj_data.normal_local_to_world(v.normal));
+		ms_out_vertex_arr[nth_vertex].global_meshlet_render_id = global_meshlet_render_id;
+
+#if AGE_GBUFFER_MS_RASTER_MODE_MASK
+		ms_out_vertex_arr[nth_vertex].mask_uv = v.uv_set[0];
+#endif
+	}
+
+	expand(4)
+
+	for (uint32 nth_primitive = group_thread_id.x; nth_primitive < primitive_count; nth_primitive += AGE_WAVE_SIZE)
+	{
+		ms_out_triangle_arr[nth_primitive]	   = read_meshlet_primitive(mesh_header, mshlt, nth_primitive);
+		ms_out_prim_arr[nth_primitive].prim_id = nth_primitive;
+
+#if AGE_GBUFFER_MS_RASTER_MODE_MASK
+		ms_out_prim_arr[nth_primitive].material_id		   = material_id;
+		ms_out_prim_arr[nth_primitive].fade_and_alpha_test = cast<uint16>(prim_attribute_packed);
+#endif
+	}
+}

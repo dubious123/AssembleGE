@@ -295,7 +295,7 @@ namespace age::graphics::command
 	void
 	init() noexcept
 	{
-		constexpr auto d3d12_type = std::array{
+		constexpr auto d3d12_type = age::array{
 			D3D12_COMMAND_LIST_TYPE_DIRECT,
 			D3D12_COMMAND_LIST_TYPE_COMPUTE,
 			D3D12_COMMAND_LIST_TYPE_COPY

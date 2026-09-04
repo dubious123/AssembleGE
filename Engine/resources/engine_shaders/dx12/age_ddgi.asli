@@ -211,7 +211,7 @@ ddgi_sample_probe_cage(const ddgi_data ddgi_data, uint32 level, float3 world_pos
 			continue;
 		}
 
-		uint16 probe_state = ddgi_load_probe_state_and_extra(ddgi_data, probe_id) & 0xff;
+		uint16 probe_state = ddgi_load_probe_state_and_extra(ddgi_data, probe_id) & uint16(0xff);
 
 
 		// const uint32 probe_id = local_to_probe_id(ddgi_data,

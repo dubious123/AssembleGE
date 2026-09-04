@@ -8,6 +8,14 @@ namespace age::inline data_structure
 	template <typename t, std::size_t size>
 	using array = std::array<t, size>;
 
+	template <typename t, std::size_t n>
+	constexpr std::array<t, n>
+	make_filled_array(const t& value)
+	{
+		array<t, n> arr{};
+		arr.fill(value);
+		return arr;
+	}
 }	 // namespace age::inline data_structure
 
 namespace age::inline data_structure
@@ -271,6 +279,28 @@ namespace age::inline data_structure
 			}
 
 			return dynamic_array{ p_data, n };
+		}
+
+		FORCE_INLINE constexpr void
+		reserve_uninitialized(const size_type n) noexcept
+			requires(std::is_trivially_destructible_v<t> and std::is_trivially_default_constructible_v<t>)
+		{
+			if (n <= count)
+			{
+				return;
+			}
+
+			_dealloc(alloc, p_data, count);
+			p_data = _alloc(alloc, n);
+			count  = n;
+
+			if consteval
+			{
+				for (size_type i = 0; i < n; ++i)
+				{
+					_construct(alloc, p_data + i);
+				}
+			}
 		}
 
 		FORCE_INLINE constexpr t&

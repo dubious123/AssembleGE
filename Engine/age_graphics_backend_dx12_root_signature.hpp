@@ -217,7 +217,7 @@ namespace age::graphics::root_signature
 	struct descriptor_table
 	{
 		D3D12_SHADER_VISIBILITY										 visibility;
-		std::array<D3D12_DESCRIPTOR_RANGE1, sizeof...(t_desc_range)> descriptor_range_arr;
+		age::array<D3D12_DESCRIPTOR_RANGE1, sizeof...(t_desc_range)> descriptor_range_arr;
 
 		static constexpr auto sampler_reg_count = age::meta::filter_count<age::meta::pred_is_same<s>::template type, typename std::remove_cvref_t<t_desc_range>::t_shader_register...>();
 		static_assert(
@@ -278,8 +278,8 @@ namespace age::graphics::root_signature
 	template <auto root_param_size, auto sampler_param_size>
 	handle
 	create(D3D12_ROOT_SIGNATURE_FLAGS										 flags,
-		   const std::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
-		   const std::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept;
+		   const age::array<D3D12_ROOT_PARAMETER1, root_param_size>&		 root_param_arr,
+		   const age::array<D3D12_STATIC_SAMPLER_DESC1, sampler_param_size>& sampler_arr) noexcept;
 
 	handle
 	create(D3D12_ROOT_SIGNATURE_FLAGS flags, auto&&... root_parameter) noexcept

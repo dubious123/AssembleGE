@@ -144,3 +144,71 @@ namespace denoise
 		}
 	};
 }	 // namespace denoise
+
+namespace denoise
+{
+	struct bilateral_taps
+	{
+		int32_2 px[4];
+		float	weight[4];
+		float	weight_sum;
+	};
+
+	bilateral_taps
+	calc_bilateral_taps(float2 screen_pos, float3 world_pos, float3 normal)
+	{
+		texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+		texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
+
+		const int32_2 extent = int32_2(backbuffer_size.x, backbuffer_size.y);
+		const int32_2 px_00	 = clamp(int32_2(floor(screen_pos)), zero<int32_2>(), extent - 1);
+
+		const float2 f = frac(screen_pos);
+
+		const float center_z_lin = calc_linear_z_reversed(cam_near_z, cam_far_z, world_to_ndc(view_proj, world_pos).z);
+
+		const int32_2 offset_arr[4] = { int32_2(0, 0), int32_2(1, 0), int32_2(0, 1), int32_2(1, 1) };
+		const float2  ratio_arr[4]	= { float2(1.f - f.x, 1.f - f.y), float2(f.x, 1.f - f.y), float2(1.f - f.x, f.y), float2(f.x, f.y) };
+
+		bilateral_taps res;
+		res.weight_sum = 0.f;
+
+		expand(4)
+
+		for (uint32 i = 0; i < 4; ++i)
+		{
+			const int32_2 tap_px	 = clamp(px_00 + offset_arr[i], zero<int32_2>(), extent - 1);
+			const float3  tap_pos	 = screen_px_to_world(tap_px, depth_buffer[tap_px], inv_backbuffer_size, view_proj_inv);
+			const float3  tap_normal = decode_oct_snorm16(gbuffer[tap_px].y);
+
+			res.px[i]		= tap_px;
+			res.weight[i]	= calc_bilateral_weight(world_pos, normal, center_z_lin, tap_pos, tap_normal, tan_fov_y_half, inv_backbuffer_size, ratio_arr[i]);
+			res.weight_sum += res.weight[i];
+		}
+
+		return res;
+	}
+
+	template <typename t_val>
+	t_val
+	sample_bilateral(texture_2d<t_val> tex, float2 screen_pos, float3 world_pos, float3 normal)
+	{
+		const bilateral_taps taps = calc_bilateral_taps(screen_pos, world_pos, normal);
+
+		if (taps.weight_sum > epsilon_1e4)
+		{
+			t_val res = zero<t_val>();
+
+			expand(4)
+
+			for (uint32 i = 0; i < 4; ++i)
+			{
+				res += tex[taps.px[i]] * taps.weight[i];
+			}
+
+			return res / taps.weight_sum;
+		}
+
+		return tex[int32_2(screen_pos)];
+	}
+}	 // namespace denoise

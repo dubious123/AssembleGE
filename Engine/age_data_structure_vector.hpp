@@ -1,5 +1,11 @@
 #pragma once
-
+#ifdef USE_STL_VECTOR
+namespace age::inline data_structure
+{
+	template <typename T>
+	using vector = std::vector<T>;
+}
+#else
 namespace age::inline data_structure
 {
 	template <typename t, typename t_allocator = std::allocator<t>>
@@ -434,10 +440,31 @@ namespace age::inline data_structure
 			if (_is_full())
 			{
 				reserve(cap * 2 + 1);
-			}
 
-			std::allocator_traits<allocator_type>::construct(alloc, p_data + count++, FWD(arg)...);
-			return back();
+
+				c_auto new_cap	  = cap * 2 + 1;
+				auto*  p_new_data = _alloc(alloc, new_cap, p_data);
+
+				// construct first: vector.emplace_back(vector[i])
+				std::allocator_traits<allocator_type>::construct(alloc, p_new_data + count, FWD(arg)...);
+
+				if (p_data is_not_nullptr)
+				{
+					_move_construct_n(alloc, p_new_data, p_data, count);
+					_dealloc(get_allocator(), p_data, cap);
+				}
+
+				p_data = p_new_data;
+				cap	   = new_cap;
+				++count;
+
+				return back();
+			}
+			else
+			{
+				std::allocator_traits<allocator_type>::construct(alloc, p_data + count++, FWD(arg)...);
+				return back();
+			}
 		}
 
 		template <typename r>
@@ -708,3 +735,4 @@ namespace age::inline data_structure
 			rhs.begin(), rhs.end());
 	}
 }	 // namespace age::inline data_structure
+#endif

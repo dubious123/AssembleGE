@@ -35,12 +35,15 @@ namespace age::editor
 
 		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
 		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
+
+		asset_mgr::init();
 	}
 
 	void
 	deinit(util::function_ref<void(asset::handle)> fn_mesh_full_unload) noexcept
 	{
 		g::select_vec.clear();
+		g::select_vec = {};
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -60,6 +63,8 @@ namespace age::editor
 
 		g::h_mesh_cone = {};
 		g::h_mesh_cube = {};
+
+		asset_mgr::deinit();
 	}
 
 	bool
@@ -137,6 +142,7 @@ namespace age::editor
 	add_select(e::select_kind kind, uint32 group_idx, uint64 id) noexcept
 	{
 		set_select_kind(kind);
+		g::select_vec.resize(max(g::select_vec.size<uint32>(), group_idx + 1));
 
 		if (is_selected(kind, group_idx, id) is_false)
 		{
@@ -203,3 +209,31 @@ namespace age::editor
 		g::current_select_kind = e::select_kind::none;
 	}
 }	 // namespace age::editor
+
+namespace age::editor
+{
+	age::array<char, config::max_asset_path_len>
+	get_asset_full_path(asset::e::kind kind, std::string_view asset_name) noexcept
+	{
+		return asset::e::visit(kind, [&]<asset::e::kind e_kind> {
+			c_auto name		 = (g::current_game.dir_path / "asset" / to_string(e_kind) / asset_name.data()).generic_string();
+			c_auto full_path = asset::get_asset_full_path<e_kind>(name);
+			return full_path;
+		});
+	}
+}	 // namespace age::editor
+
+namespace age::editor::detail
+{
+	scene_editor_data&
+	find_scene_editor_data(uint32 ecs_idx) noexcept
+	{
+		return g::current_game.find_scene_data(ecs_idx);
+	}
+
+	storage_editor_data&
+	find_storage_editor_data(uint32 ecs_scene_idx, uint32 ecs_storage_idx) noexcept
+	{
+		return g::current_game.find_scene_data(ecs_scene_idx).find_storage_data(ecs_storage_idx);
+	}
+}	 // namespace age::editor::detail

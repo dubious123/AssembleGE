@@ -156,6 +156,7 @@
     <VCToolsVersion>
     </VCToolsVersion>
     <MSVCPreviewEnabled>true</MSVCPreviewEnabled>
+    <EnableASAN>false</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <PlatformToolset>v145</PlatformToolset>

@@ -139,7 +139,7 @@ namespace age::util
 
 	template <uint32 precision = 2, std ::size_t n>
 	constexpr void
-	float_to_str(std::array<char, n>& buf, float value) noexcept
+	float_to_str(age::array<char, n>& buf, float value) noexcept
 	{
 		static_assert(n >= 12, "buffer too small for scientific notation");
 		detail::float_to_str_impl<precision, n>(buf.data(), value);
@@ -162,7 +162,7 @@ namespace age::util
 
 	template <uint32 base = 10, std ::size_t n>
 	constexpr void
-	integral_to_str(std::array<char, n>& buf, std::integral auto value) noexcept
+	integral_to_str(age::array<char, n>& buf, std::integral auto value) noexcept
 	{
 		if constexpr (sizeof(value) <= sizeof(uint32))
 		{
@@ -191,7 +191,7 @@ namespace age::util
 
 	template <typename t, std::size_t n>
 	constexpr void
-	to_str(std::array<char, n>& buf, t value) noexcept
+	to_str(age::array<char, n>& buf, t value) noexcept
 	{
 		if constexpr (std::is_floating_point_v<t>)
 		{
@@ -213,7 +213,7 @@ namespace age::util
 
 	template <uint32 base = 10, std::size_t digits = 0, typename t, std::size_t n, std::size_t p>
 	constexpr void
-	to_str(std::array<char, n>& buf, t value, const char (&prefix)[p]) noexcept
+	to_str(age::array<char, n>& buf, t value, const char (&prefix)[p]) noexcept
 	{
 		constexpr auto len = p - 1;
 		detail::to_str_with_prefix_impl<base, digits>(buf.data(), n, value, prefix, len);
@@ -228,7 +228,7 @@ namespace age::util
 
 	template <typename t, std::size_t n>
 	constexpr bool
-	from_str(std::array<char, n>& buf, t& value) noexcept
+	from_str(age::array<char, n>& buf, t& value) noexcept
 	{
 		return detail::from_str_impl(buf.data(), std::strlen(buf.data()), value);
 	}
@@ -478,7 +478,7 @@ namespace age::util
 	{
 		static_assert(n <= len, "string exceeds max length");
 
-		auto res = std::array<char, len>{};
+		auto res = age::array<char, len>{};
 
 		for (std::size_t i = 0; i < n; ++i)
 		{
@@ -493,7 +493,7 @@ namespace age::util
 	to_fixed_str(std::string_view sv) noexcept
 	{
 		AGE_ASSERT(sv.size() < len);
-		auto res = std::array<char, len>{};
+		auto res = age::array<char, len>{};
 		std::ranges::copy_n(sv.data(), sv.size(), res.begin());
 		res[sv.size()] = '\0';
 		return res;
@@ -503,14 +503,14 @@ namespace age::util
 	consteval auto
 	to_fixed_str_arr(const char (&... strs)[n])
 	{
-		return std::array{ to_fixed_str<len>(strs)... };
+		return age::array{ to_fixed_str<len>(strs)... };
 	}
 
 	template <std::size_t len>
 	consteval auto
 	to_fixed_str_arr()
 	{
-		return std::array<std::array<const char, len>, 0>{};
+		return age::array<age::array<const char, len>, 0>{};
 	}
 }	 // namespace age::util
 
@@ -607,4 +607,66 @@ namespace age::util
 			return false;	 // exhausted, no placeholder
 		}
 	};
+}	 // namespace age::util
+
+namespace age::util
+{
+	inline std::string
+	to_utf8(std::wstring_view wide)
+	{
+#ifdef AGE_PLATFORM_WINDOW
+		if (wide.empty()) { return {}; }
+
+		c_auto size = ::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
+											nullptr, 0, nullptr, nullptr);
+		auto   res	= std::string(size, '\0');
+		::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
+							  res.data(), size, nullptr, nullptr);
+		return res;
+#elif
+	#error "not implemented yet"
+#endif
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
+	[[nodiscard]] FORCE_INLINE constexpr bool
+	is_char_english(char c) noexcept
+	{
+		return ('A' <= c and c <= 'Z')
+			or ('a' <= c and c <= 'z');
+	}
+
+	[[nodiscard]] FORCE_INLINE constexpr bool
+	is_char_number(char c) noexcept
+	{
+		return ('0' <= c and c <= '9');
+	}
+
+	[[nodiscard]] FORCE_INLINE constexpr char
+	to_lower_ascii(char c) noexcept
+	{
+		return ('A' <= c and c <= 'Z') ? static_cast<char>(c + ('a' - 'A')) : c;
+	}
+
+	[[nodiscard]] FORCE_INLINE constexpr std::string_view
+	trim(std::string_view sv, std::string_view chars) noexcept
+	{
+		c_auto pos_l = sv.find_first_not_of(chars);
+		if (pos_l == std::string_view::npos) { return {}; }
+
+		c_auto pos_r = sv.find_last_not_of(chars);
+		return sv.substr(pos_l, pos_r - pos_l + 1);
+	}
+
+	[[nodiscard]] FORCE_INLINE constexpr std::string_view
+	trim(std::string_view sv, char c) noexcept
+	{
+		c_auto pos_l = sv.find_first_not_of(c);
+		if (pos_l == std::string_view::npos) { return {}; }
+
+		c_auto pos_r = sv.find_last_not_of(c);
+		return sv.substr(pos_l, pos_r - pos_l + 1);
+	}
 }	 // namespace age::util

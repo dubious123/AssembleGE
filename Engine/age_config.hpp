@@ -111,6 +111,7 @@
 	#endif
 #endif
 
+#define AGE_ENABLE_GBV false
 
 // #define USE_STL_VECTOR
 #define USE_STL_SET
@@ -140,8 +141,8 @@ namespace age::config
 	inline constexpr bool is_editor_build = false;
 #endif
 
-	inline constexpr unsigned short version_major = 0;
-	inline constexpr unsigned short version_minor = 0;
+	inline constexpr unsigned char version_major = 0;
+	inline constexpr unsigned char version_minor = 0;
 
 	inline constexpr auto min_fps = 60u;
 
@@ -160,6 +161,17 @@ namespace age::config
 	inline constexpr const char texture_asset_tag[]	   = ".texture";
 	inline constexpr const char material_asset_tag[]   = ".material";
 	inline constexpr const char env_light_asset_tag[]  = ".env_light";
+	inline constexpr const char model_asset_tag[]	   = ".model";
+
+	inline constexpr unsigned char asset_registry_asset_version		  = 0;
+	inline constexpr unsigned char editor_ent_storage_asset_version	  = 0;
+	inline constexpr unsigned char shipping_ent_storage_asset_version = 0;
+	inline constexpr unsigned char font_asset_version				  = 0;
+	inline constexpr unsigned char mesh_baked_asset_version			  = 1;
+	inline constexpr unsigned char texture_asset_version			  = 0;
+	inline constexpr unsigned char material_asset_version			  = 1;
+	inline constexpr unsigned char env_light_asset_version			  = 0;
+	inline constexpr unsigned char model_asset_version				  = 0;
 
 	inline constexpr auto max_game_name_len			  = 256u;
 	inline constexpr auto max_entity_name_len		  = 64u;
@@ -171,6 +183,8 @@ namespace age::config
 	inline constexpr auto max_asset_display_name_len  = 64u;
 
 	inline constexpr auto max_enum_name_len = 64u;
+
+	inline constexpr auto enable_gpu_based_validation = bool{ AGE_ENABLE_GBV };
 
 #if defined(AGE_EDITOR)
 

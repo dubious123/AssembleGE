@@ -30,6 +30,15 @@
 //	gibs_scratch_data gibs_scratch;
 // };
 
+namespace gibs
+{
+	struct cell_surfel_spawn_data
+	{
+		uint32 ray_id;
+		uint32 object_id;
+		uint32 object_render_id;
+	};
+}	 // namespace gibs
 
 namespace gibs
 {
@@ -742,11 +751,12 @@ namespace gibs
 		}
 
 		void
-		set_surfel_spawn(const gibs_data data, uint32 cell_id, float spawn_prob, uint32 ray_id)
+		set_surfel_spawn(const gibs_data data, uint32 cell_id, float spawn_prob, uint32 ray_id, uint32 object_id_packed)
 		{
 			rw_byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_uav_id];
 
 			buf_interlocked_min(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(spawn_prob)) << 32u) | ray_id);
+			store(buf, data.ray_id_to_object_id_offset(ray_id), object_id_packed);
 		}
 
 		void
@@ -757,12 +767,25 @@ namespace gibs
 			buf_interlocked_min(buf, data.cell_surfel_kill_data_offset() + sizeof(uint64) * cell_id, (uint64(~as_uint(kill_prob)) << 32u) | surfel_id);
 		}
 
-		uint32
-		load_surfel_spawn_data(const gibs_data data, uint32 cell_id)
+		bool
+		load_surfel_spawn_data(const in gibs_data data, uint32 cell_id, out cell_surfel_spawn_data spawn_data)
 		{
 			byte_address_buffer buf = global_resource_buffer[data.h_cell_spawn_kill_buffer_srv_id];
+			spawn_data				= zero<cell_surfel_spawn_data>();
 
-			return uint32(load<uint64>(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+			spawn_data.ray_id = uint32(load<uint64>(buf, data.cell_surfel_spawn_data_offset() + sizeof(uint64) * cell_id) & 0x00000000ffffffffu);
+			if (spawn_data.ray_id == invalid_id_uint32)
+			{
+				return false;
+			}
+
+			spawn_data.object_id = load<uint32>(buf, data.ray_id_to_object_id_offset(spawn_data.ray_id));
+			if (load_object_render_id(spawn_data.object_id, spawn_data.object_render_id) is_false)
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		uint32
@@ -881,11 +904,12 @@ namespace gibs
 		}
 
 		void
-		set_surfel_spawn(const gibs_data data, uint32 tile_sample_id, uint32 object_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 irradiance_packed)
+		set_surfel_spawn(const gibs_data data, uint32 tile_sample_id, uint32 object_render_id, float3 local_pos, uint32 local_normal_oct_snorm16, uint32 irradiance_packed)
 		{
 			rw_byte_address_buffer buf = global_resource_buffer[data.h_tile_spawn_kill_buffer_uav_id];
 
-			const uint32 offset = data.tile_spawn_kill_data_offset(tile_sample_id);
+			const uint32 offset	   = data.tile_spawn_kill_data_offset(tile_sample_id);
+			const uint32 object_id = load_object_id_packed(object_render_id);
 
 			uint32 original;
 			buf_interlocked_compare_exchange(buf, offset, invalid_id_uint32, object_id, original);
@@ -1201,41 +1225,6 @@ namespace gibs
 }	 // namespace gibs
 
 //---[ logics ]------------------------------------------------------------------------------------------------------
-
-namespace gibs
-{
-	template <typename t_geo, typename t_surfel>
-	void
-	update_world_space_surfel(const in t_geo geo, inout t_surfel surfel, uint32 id = invalid_id_uint32)
-	{
-		const object_data		 obj		 = load_object_data(geo.object_id);
-		const object_render_data render_data = load_object_render_data(geo.object_id);
-		const material			 mat		 = load_material(render_data.material_id);
-		const mesh_header		 msh_header	 = read_mesh_header<object_render_data>(render_data);
-
-		const uint32_3 primitive_idx = load_rt_triangle_index(render_data.rt_index_buffer_offset, geo.primitive_id);
-		const float2   barycentrics	 = float2(unorm16_to_float(geo.barycentric_unorm16 & 0xffff), unorm16_to_float((geo.barycentric_unorm16 >> 16u) & 0xffff));
-		const float3   bary_weights	 = float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
-
-		const vertex_fat v0 = decode_vertex(msh_header, primitive_idx.x);
-		const vertex_fat v1 = decode_vertex(msh_header, primitive_idx.y);
-		const vertex_fat v2 = decode_vertex(msh_header, primitive_idx.z);
-
-		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj);
-
-		const pbr_surface_data surface_data = calc_pbr_surface(-v.normal, mat, v);
-
-		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
-		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj.scale), decode_quaternion(obj.quaternion)));
-
-		surfel.normal_oct_snorm16 = encode_oct_snorm16(world_face_normal);
-		// surfel.position			  = surface_offset(v.world_pos, world_face_normal) + world_face_normal * 0.1f;
-		surfel.position			  = v.world_pos;
-		surfel.radiance_r11g11b10 = encode_r11g11b10(calc_di<false>(surface_data, world_face_normal) + calc_gi(surface_data, decode_r11g11b10(surfel.irradiance_r11g11b10)));
-	}
-
-}	 // namespace gibs
-
 namespace gibs
 {
 	template <typename t_func>
@@ -1818,8 +1807,9 @@ namespace gibs
 		return calc_surfel_visibility<t_surfel, is_tile, is_rw>(data, surfel_id, surfel, world_pos, chebyshev);
 	}
 
+	template <bool is_rw = false>
 	float3
-	sample_screen_irradiance(float2 px, uint32 object_id, float3 world_pos, float3 normal)
+	sample_screen_irradiance(float2 px, uint32 object_render_id, float3 world_pos, float3 normal)
 	{
 		const gibs_data						data				  = load_data();
 		byte_array<gibs_tile_surfel_entry>	tile_entry_arr		  = tile::surfel_entry_arr(data);
@@ -1870,20 +1860,32 @@ namespace gibs
 		}
 		else
 		{
-			texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+			float3 col_res;
+			attr_branch()
+			if (is_rw)
+			{
+				rw_texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_uav_id];
 
-			// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
-			const float3 col_res = gi_resolve_buffer[px];
+				// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
+				col_res = gi_resolve_buffer[px];
+			}
+			else
+			{
+				texture_2d<float3> gi_resolve_buffer = global_resource_buffer[data.h_gi_resolve_curr_buffer_srv_id];
+
+				// const float3 col_res = sample_level(gi_resolve_buffer, get_linear_clamp_sampler(), (float2(px) + 0.5f) * inv_backbuffer_size, 0);
+				col_res = gi_resolve_buffer[px];
+			}
+
 
 			attr_branch()
-
-			if ((debug::freeze_spawn_kill(data) is_false) and object_id != invalid_id_uint32)
+			if ((debug::freeze_spawn_kill(data) is_false) and object_render_id != invalid_id_uint32)
 			{
-				const object_data obj = load_object_data(object_id);
+				const object_data obj = load_object_data(object_render_id);
 
 				tile::set_surfel_spawn(data,
 									   tile_id * GIBS_GI_RESOLVE_SAMPLE_PER_TILE + (GIBS_GI_RESOLVE_SAMPLE_PER_TILE - 1),
-									   object_id,
+									   object_render_id,
 									   rotate_inv(obj.quaternion, world_pos - obj.pos) / obj.scale,
 									   encode_oct_snorm16(normalize(rotate_inv(obj.quaternion, normal) * obj.scale)),
 									   encode_r11g11b10(col_res));
@@ -2048,13 +2050,14 @@ namespace gibs
 
 	template <bool sample_screen = true, bool enable_spawn_kill = false>
 	float4
-	sample_irradiance(const gibs_data data, const uint32 ray_id, float3 world_pos, float3 normal, uint32 seed)
+	sample_irradiance(const gibs_data data, float3 world_pos, float3 normal,
+					  // spawn_kill args
+					  const uint32 ray_id = invalid_id_uint32, const uint32 object_render_id = invalid_id_uint32, uint32 seed = invalid_id_uint32)
 	{
 		const gibs_lut_data lut_data = gibs::load_lut_data();
 
 		float3 irradiance = zero<float3>();
 		attr_branch()
-
 		if (sample_screen)
 		{
 			if (sample_screen_irradiance(data, world_pos, normal, irradiance))
@@ -2143,7 +2146,6 @@ namespace gibs
 		irradiance = lerp(irradiance_near, irradiance_far, far_conf / (near_conf + far_conf + epsilon_1e4));
 
 		attr_branch()
-
 		if (enable_spawn_kill and (gibs::debug::freeze_spawn_kill(data) is_false))
 		{
 			const float3 rng = random_pcg3d(uint32_3(ray_id, seed, frame_index));
@@ -2161,7 +2163,7 @@ namespace gibs
 
 				if (rng.x < spawn_prob)
 				{
-					gibs::cell::set_surfel_spawn(data, cell_id, spawn_prob, ray_id);
+					gibs::cell::set_surfel_spawn(data, cell_id, spawn_prob, ray_id, load_object_id_packed(object_render_id));
 				}
 			}
 			else if (surfel_near_coverage > GIBS_CELL_SURFEL_KILL_COVERAGE_NEAR or surfel_far_coverage > GIBS_CELL_SURFEL_KILL_COVERAGE_FAR)
@@ -2180,11 +2182,5 @@ namespace gibs
 		}
 
 		return float4(irradiance, near_conf + far_conf);
-	}
-
-	float4
-	sample_irradiance(const gibs_data data, float3 world_pos, float3 normal)
-	{
-		return sample_irradiance<false, false>(data, invalid_id_uint32, world_pos, normal, invalid_id_uint32);
 	}
 }	 // namespace gibs

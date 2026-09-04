@@ -81,7 +81,7 @@ namespace age::util
 			calc_offset_arr(std::size_t soa_count)
 			{
 				return [soa_count]<std::size_t... i>(std::index_sequence<i...> _) {
-					std::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets{ mem_offset };
+					age::array<std::size_t, std::tuple_size_v<sorted_element_tpl> + 1> offsets{ mem_offset };
 					([&offsets, soa_count] {
 						using t_unit = std::tuple_element_t<i, sorted_element_tpl>;
 
@@ -246,7 +246,7 @@ namespace age::util
 			calc_offset_arr()
 			{
 				return []<std::size_t... i>(std::index_sequence<i...>) {
-					return std::array<std::size_t, sizeof...(t_layout_group) + 1>{
+					return age::array<std::size_t, sizeof...(t_layout_group) + 1>{
 						(std::tuple_element_t<i, layout_group_info_tpl>::offset)...,
 						std::tuple_element_t<sizeof...(t_layout_group) - 1, layout_group_info_tpl>::end_offset
 					};
@@ -627,13 +627,13 @@ namespace age::util
 			std::size_t offset;
 		};
 
-		std::array<slot_info, 10> with_n_buffer;
-		std::array<slot_info, 10> with_flex_buffer;
+		age::array<slot_info, 10> with_n_buffer;
+		age::array<slot_info, 10> with_flex_buffer;
 
-		std::array<uint32, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
+		age::array<uint32, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
 			key_lut;
 
-		std::array<std::pair<std::size_t, uint32>, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
+		age::array<std::pair<std::size_t, uint32>, age::meta::arr_size_v<decltype(with_n_buffer)> + age::meta::arr_size_v<decltype(with_flex_buffer)>>
 			result_arr;
 
 		uint32 runtime_key	 = known_type_count;
@@ -789,7 +789,7 @@ namespace age::util
 			constexpr int buffer_size = age::meta::arr_size_v<decltype(result_arr)>;
 			assert(age::meta::arr_size_v<decltype(result_arr)> >= with_n_idx + with_flex_idx);
 
-			auto slot_buffer = std::array<slot_info, buffer_size>{};
+			auto slot_buffer = age::array<slot_info, buffer_size>{};
 			//
 			auto idx_arr = age::meta::make_iota_array<0, buffer_size>();
 

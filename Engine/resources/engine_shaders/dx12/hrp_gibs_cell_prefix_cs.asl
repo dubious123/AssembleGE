@@ -15,10 +15,6 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 	rw_byte_array<gibs_cell_surfel_entry> cell_surfel_entry_arr = gibs::cell::surfel_entry_rw_arr(data);
 
-	uint32 local_surfel_prefix_arr[GIBS_CELL_PREFIX_EPT];
-
-	expand_all()
-
 	for (uint32 i = 0; i < GIBS_CELL_PREFIX_EPT; ++i)
 	{
 		const uint32 cell_id = cell_id_base
@@ -27,10 +23,7 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 		if (cell_id >= data.cell_count_total) { break; }
 
-		const gibs_cell_surfel_entry surfel_entry = cell_surfel_entry_arr[cell_id];
-
-		local_surfel_prefix_arr[i]	= local_surfel_sum;
-		local_surfel_sum		   += surfel_entry.surfel_count;
+		local_surfel_sum += cell_surfel_entry_arr[cell_id].surfel_count;
 	}
 
 	const uint32 local_surfel_offset = wave_prefix_sum(local_surfel_sum);
@@ -42,8 +35,7 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 	}
 	const uint32 group_surfel_offset = wave_read_lane_at(group_surfel_offset_tmp, GIBS_CELL_PREFIX_TPG - 1);
 
-	expand_all()
-
+	uint32 offset = group_surfel_offset + local_surfel_offset;
 	for (uint32 i = 0; i < GIBS_CELL_PREFIX_EPT; ++i)
 	{
 		const uint32 cell_id = cell_id_base
@@ -54,13 +46,12 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 		gibs_cell_surfel_entry surfel_entry = cell_surfel_entry_arr[cell_id];
 
-		surfel_entry.offset = group_surfel_offset
-							+ local_surfel_offset
-							+ local_surfel_prefix_arr[i];
-
+		c_auto count			  = surfel_entry.surfel_count;
+		surfel_entry.offset		  = offset;
 		surfel_entry.surfel_count = 0u;
 
 		cell_surfel_entry_arr.store(cell_id, surfel_entry);
+		offset += count;
 	}
 
 	if (dispatch_thread_id == 0)

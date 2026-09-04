@@ -712,7 +712,7 @@ namespace age::external::meshopt
 			index_buffer.size(),
 			remap_index_buffer.data());
 
-		return std::pair{ new_index_buffer, new_vertex_buffer };
+		return std::pair{ std::move(new_index_buffer), std::move(new_vertex_buffer) };
 	}
 
 	template <typename t_vertex>
@@ -819,7 +819,8 @@ namespace age::external::meshopt
 		auto meshlet_vec		= age::vector<asset::meshlet>::gen_sized(mashlet_fat_vec.size());
 		auto meshlet_header_vec = age::vector<asset::meshlet_header>::gen_sized(mashlet_fat_vec.size());
 
-		for (auto&& [idx, arg_tpl] : std::views::zip(mashlet_fat_vec, meshlet_bound_fat_vec) | std::views::enumerate)
+		for (auto expected_local_index_offset = 0u;	   // for debug_assert
+			 auto&& [idx, arg_tpl] : std::views::zip(mashlet_fat_vec, meshlet_bound_fat_vec) | std::views::enumerate)
 		{
 			auto&& [m_fat, b_fat] = arg_tpl;
 			detail::opt_meshlet(
@@ -861,7 +862,7 @@ namespace age::external::meshopt
 
 			meshlet_vec[idx] = asset::meshlet{
 				.global_index_offset = m_fat.vertex_offset,
-				.primitive_offset	 = m_fat.triangle_offset,
+				.local_index_offset	 = m_fat.triangle_offset,
 				.vertex_count		 = static_cast<uint8>(m_fat.vertex_count),
 				.primitive_count	 = static_cast<uint8>(m_fat.triangle_count),
 				.padding			 = { 0 },
@@ -885,9 +886,12 @@ namespace age::external::meshopt
 
 			AGE_ASSERT(m_fat.vertex_count < std::numeric_limits<uint8>::max());
 			AGE_ASSERT(m_fat.triangle_count < std::numeric_limits<uint8>::max());
+
+			AGE_ASSERT(m_fat.triangle_offset == expected_local_index_offset);	 // meshopt version 1.0 : meshlet builders no longer align local index data to 4 bytes
+			expected_local_index_offset += m_fat.triangle_count * 3u;
 		}
 
-		return std::tuple{ meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_vec, meshlet_vec };
+		return std::tuple{ std::move(meshlet_global_index_buffer), std::move(meshlet_local_index_buffer), std::move(meshlet_header_vec), std::move(meshlet_vec) };
 	}
 }	 // namespace age::external::meshopt
 

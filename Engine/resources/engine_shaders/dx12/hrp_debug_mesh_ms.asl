@@ -18,15 +18,15 @@ main_ms(
 	const mesh_header				mesh_header = read_mesh_header<debug_meshlet_render_data>(render_data);
 	const meshlet					mshlt		= read_meshlet(mesh_header, render_data.meshlet_id);
 
-	const debug_object_data debug_obj_data = load_debug_object_data(render_data.debug_object_id);
-	const object_data		obj_data	   = load_object_data(debug_obj_data.object_id);
+	const debug_object_data debug_obj_data = load_debug_object_data(render_data.debug_object_render_id);
+	const object_data		obj_data	   = load_object_data(debug_obj_data.object_render_id);
 
 	const uint32 vertex_count	 = mshlt.vertex_count_prim_count_extra & 0xffu;
 	const uint32 primitive_count = (mshlt.vertex_count_prim_count_extra >> 8u) & 0xffu;
 
 	set_mesh_output_counts(vertex_count, primitive_count);
 
-	const float4 quaternion = normalize(decode_quaternion(obj_data.quaternion));
+	const float4 quaternion = normalize(obj_data.quaternion);
 	const float3 scale		= cast<float3>(obj_data.scale);
 	const float3 pos		= obj_data.pos;
 
@@ -36,20 +36,20 @@ main_ms(
 	{
 		vertex_fat v = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, nth_vertex));
 
-		v.pos.xyz = rotate(v.pos.xyz * scale, quaternion) + pos;
+		v.pos.xyz = rotate(quaternion, v.pos.xyz * scale) + pos;
 
 		v.world_pos = v.pos.xyz;
 
 		v.pos = mul(view_proj, v.pos);
 
-		v.normal = normalize(rotate(v.normal / scale, quaternion));
+		v.normal = normalize(rotate(quaternion, v.normal / scale));
 
-		const float3 t = normalize(rotate(v.tangent.xyz * scale, quaternion));
+		const float3 t = normalize(rotate(quaternion, v.tangent.xyz * scale));
 
 		v.tangent = float4(normalize(t - v.normal * dot(t, v.normal)), v.tangent.w * sign(scale.x * scale.y * scale.z));
 
 		ms_out_vertex_arr[nth_vertex].v			   = v;
-		ms_out_vertex_arr[nth_vertex].debug_obj_id = render_data.debug_object_id;
+		ms_out_vertex_arr[nth_vertex].debug_obj_id = render_data.debug_object_render_id;
 	}
 
 	expand(4)

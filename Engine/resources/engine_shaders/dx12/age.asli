@@ -6,6 +6,7 @@
 #define and		 &&
 #define or		 ||
 #define not		 !
+#define c_auto	 const auto
 
 #ifdef __INTELLISENSE__
 	#include "../../../age.hpp"
@@ -944,10 +945,10 @@ cross(float3, float3)
 	#define indices
 	#define payload
 	#define set_mesh_output_counts(x, y)
-	#define expand(...)	  [[assume(true)]]
-	#define expand_all()  [[assume(true)]]
-	#define attr_branch() [[assume(true)]]
-	#define attr_loop()	  [[assume(true)]]
+	#define expand(...)	 [[assume(true)]]
+	#define expand_all() [[assume(true)]]
+	#define attr_branch()
+	#define attr_loop() [[assume(true)]]
 	#define groupshared
 
 	#define group_memory_barrier_with_sync()
@@ -1031,34 +1032,34 @@ cross(float3, float3)
 	#define interlocked_cmp_store(...)	  InterlockedCompareStore(__VA_ARGS__)
 	#define interlocked_cmp_exchange(...) InterlockedCompareExchange(__VA_ARGS__)
 
-	#define wave_is_first_lane()			WaveIsFirstLane()
-	#define wave_active_ballot(x)			WaveActiveBallot(x)
-	#define wave_active_min(x)				WaveActiveMin(x)
-	#define wave_active_max(x)				WaveActiveMax(x)
-	#define wave_active_bit_or(x)			WaveActiveBitOr(x)
-	#define wave_active_bit_and(x)			WaveActiveBitAnd(x)
-	#define wave_active_bit_xor(x)			WaveActiveBitXor(x)
-	#define wave_active_product(x)			WaveActiveProduct(x)
-	#define wave_active_sum(x)				WaveActiveSum(x)
-	#define wave_active_count_bits(x)		WaveActiveCountBits(x)
-	#define wave_active_all_true(x)			WaveActiveAllTrue(x)
-	#define wave_active_any_true(x)			WaveActiveAnyTrue(x)
-	#define wave_active_all_equal(x)		WaveActiveAllEqual(x)
-	#define wave_lane_count()				WaveGetLaneCount()
-	#define wave_lane_index()				WaveGetLaneIndex()
-	#define wave_is_lane_active()			WaveIsLaneActive()
-	#define wave_prefix_sum(x)				WavePrefixSum(x)
-	#define wave_prefix_product(x)			WavePrefixProduct(x)
-	#define wave_prefix_count_bits(x)		WavePrefixCountBits(x)
-	#define wave_read_lane_first(x)			WaveReadLaneFirst(x)
-	#define wave_read_lane_at(x, i)			WaveReadLaneAt(x, i)
-	#define wave_match(x)					WaveMatch(x)
-	#define wave_multi_prefix_sum(x, m)		WaveMultiPrefixSum(x, m)
-	#define wave_multi_prefix_count_bits(m) WaveMultiPrefixCountBits(m)
+	#define wave_is_first_lane()		 WaveIsFirstLane()
+	#define wave_active_ballot			 WaveActiveBallot
+	#define wave_active_min				 WaveActiveMin
+	#define wave_active_max				 WaveActiveMax
+	#define wave_active_bit_or			 WaveActiveBitOr
+	#define wave_active_bit_and			 WaveActiveBitAnd
+	#define wave_active_bit_xor			 WaveActiveBitXor
+	#define wave_active_product			 WaveActiveProduct
+	#define wave_active_sum				 WaveActiveSum
+	#define wave_active_count_bits		 WaveActiveCountBits
+	#define wave_active_all_true		 WaveActiveAllTrue
+	#define wave_active_any_true		 WaveActiveAnyTrue
+	#define wave_active_all_equal		 WaveActiveAllEqual
+	#define wave_lane_count()			 WaveGetLaneCount()
+	#define wave_lane_index()			 WaveGetLaneIndex()
+	#define wave_is_lane_active()		 WaveIsLaneActive()
+	#define wave_prefix_sum				 WavePrefixSum
+	#define wave_prefix_product			 WavePrefixProduct
+	#define wave_prefix_count_bits		 WavePrefixCountBits
+	#define wave_read_lane_first		 WaveReadLaneFirst
+	#define wave_read_lane_at			 WaveReadLaneAt
+	#define wave_match					 WaveMatch
+	#define wave_multi_prefix_sum		 WaveMultiPrefixSum
+	#define wave_multi_prefix_count_bits WaveMultiPrefixCountBits
 
 
-	#define first_bit_low(x)  firstbitlow(x)
-	#define first_bit_high(x) firstbithigh(x)
+	#define first_bit_low  firstbitlow
+	#define first_bit_high firstbithigh
 
 
 	#define dispatch_mesh(x, y, z, w) DispatchMesh(x, y, z, w)

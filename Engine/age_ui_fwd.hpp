@@ -116,7 +116,7 @@ namespace age::ui
 
 		e::size_mode_kind size_mode = e::size_mode_kind::grow;
 
-		std::array<uint8, 3> _;
+		age::array<uint8, 3> _;
 	};
 
 	struct widget_desc
@@ -536,7 +536,7 @@ namespace age::ui::g
 	inline float mouse_l_clicked_time;
 	inline uint8 mouse_l_clicked_count;
 
-	inline std::array<uint32, global::frame_buffer_count> raycast_id_arr;
+	inline age::array<uint32, global::frame_buffer_count> raycast_id_arr;
 
 	inline age::vector<id_scope> id_stack;
 
@@ -544,8 +544,8 @@ namespace age::ui::g
 	// use for raycast query
 	inline age::unordered_map<uint64, uint32[global::frame_buffer_count]> mesh_object_id_map;
 
-	inline std::array<age::vector<root_data>, e::space_mode_kind_size> root_data_vec_arr;
-	inline std::array<uint32, e::space_mode_kind_size>				   root_data_vec_size_arr;
+	inline age::array<age::vector<root_data>, e::space_mode_kind_size> root_data_vec_arr;
+	inline age::array<uint32, e::space_mode_kind_size>				   root_data_vec_size_arr;
 	inline age::vector<uint32>										   root_data_idx_stack;	   // [space_mode_kind(8)][idx(24)]
 
 	// layout stack
@@ -1009,6 +1009,12 @@ namespace age::ui
 			return hash_id != age::get_invalid_id<t_hash>();
 		}
 
+		FORCE_INLINE constexpr bool
+		operator==(bool v) const noexcept
+		{
+			return static_cast<bool>(*this) == v;
+		}
+
 		// WARNING: returned reference is invalidated when any new widget_state entry is inserted into the map.
 		// Do NOT hold this reference across widget::begin() or get_state() calls that may create new entries.
 
@@ -1210,6 +1216,12 @@ namespace age::ui
 		operator bool() const
 		{
 			return hash_id != age::get_invalid_id<t_hash>();
+		}
+
+		FORCE_INLINE constexpr bool
+		operator==(bool v) const noexcept
+		{
+			return static_cast<bool>(*this) == v;
 		}
 	};
 }	 // namespace age::ui

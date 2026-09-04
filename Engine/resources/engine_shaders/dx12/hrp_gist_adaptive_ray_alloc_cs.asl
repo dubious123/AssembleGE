@@ -25,8 +25,7 @@ main_cs(uint32_3 group_idx sv_group_id,
 	texture_2d<uint32> gi_resolve_age_buffer	 = global_resource_buffer[data.h_gi_resolve_age_curr_buffer_srv_id];
 	texture_2d<float2> gi_resolve_moments_buffer = global_resource_buffer[data.h_gi_resolve_moments_curr_buffer_srv_id];
 
-	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
-	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
+	texture_2d<float> depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
 
 	texture_2d<float2> mr_buffer = global_resource_buffer[opaque_mr_buffer_srv_id];
 

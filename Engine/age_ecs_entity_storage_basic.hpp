@@ -141,11 +141,11 @@ namespace age::ecs::entity_storage
 		get_sorted_arg_index_sequence()
 		{
 			constexpr auto arr = []<auto... i, auto... j>(std::index_sequence<i...>, std::index_sequence<j...>) constexpr {
-				auto arr = std::array<std::pair<std::size_t, std::size_t>, sizeof...(i)>{ std::pair{ i, j }... };
+				auto arr = age::array<std::pair<std::size_t, std::size_t>, sizeof...(i)>{ std::pair{ i, j }... };
 
 				std::ranges::sort(arr, std::less<>{}, &std::pair<std::size_t, std::size_t>::first);
 
-				return std::array<std::size_t, sizeof...(j)>{ arr[j].second... };
+				return age::array<std::size_t, sizeof...(j)>{ arr[j].second... };
 			}(std::index_sequence<age::meta::variadic_index_v<age::meta::pred_is_same<std::remove_cv_t<t>>::template type, t_cmp...>...>{}, std::index_sequence_for<t...>{});
 
 			return age::meta::arr_to_seq<arr>();
@@ -508,30 +508,23 @@ namespace age::ecs::entity_storage
 		FORCE_INLINE static constexpr bool
 		matches(t_query, t_archetype arch) noexcept
 		{
-			if constexpr (meta::is_specialization_of_v<t_query, ecs::detail::soft_query_desc> and t_archetype_traits::template is_valid_query<t_query>() is_false)
+			constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::t_with>();
+			constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::t_without>();
+			constexpr auto any_mask		= t_archetype_traits::template calc_mask<typename t_query::t_any_list>();
+
+			static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
+
+			if (((arch & with_mask) | (arch & without_mask)) != with_mask)
 			{
 				return false;
 			}
-			else
+
+			if constexpr (any_mask != 0)
 			{
-				constexpr auto with_mask	= t_archetype_traits::template calc_mask<typename t_query::t_with>();
-				constexpr auto without_mask = t_archetype_traits::template calc_mask<typename t_query::t_without>();
-				constexpr auto any_mask		= t_archetype_traits::template calc_mask<typename t_query::t_any_list>();
-
-				static_assert((with_mask ^ without_mask) == (with_mask | without_mask), "invalid query");
-
-				if (((arch & with_mask) | (arch & without_mask)) != with_mask)
-				{
-					return false;
-				}
-
-				if constexpr (any_mask != 0)
-				{
-					return (arch & any_mask) != 0;
-				}
-
-				return true;
+				return (arch & any_mask) != 0;
 			}
+
+			return true;
 		}
 
 		template <typename t_query>
@@ -560,45 +553,45 @@ namespace age::ecs::entity_storage
 			return std::ranges::subrange(iter_t{ nullptr }, iter_t{ nullptr }) | age::meta::deref_view;
 		}
 
-		template <typename t_query, typename t_sys>
-		FORCE_INLINE void
-		foreach_block(t_query&& block_query, t_sys&& sys) noexcept
-		{
-			for (auto& [arch, blocks] : entity_blocks_map)
-			{
-				if (matches(block_query, arch) is_false)
-				{
-					continue;
-				}
+		// template <typename t_query, typename t_sys>
+		// FORCE_INLINE void
+		// foreach_block(t_query&& block_query, t_sys&& sys) noexcept
+		//{
+		//	for (auto& [arch, blocks] : entity_blocks_map)
+		//	{
+		//		if (matches(block_query, arch) is_false)
+		//		{
+		//			continue;
+		//		}
 
-				for (auto& block : blocks.ent_block_vec
-									   | age::meta::deref_view
-									   | std::views::filter([](auto& block) { return block.is_empty() is_false; }))
-				{
-					age::ecs::system::run_sys(FWD(sys), block);
-				}
-			}
-		}
+		//		for (auto& block : blocks.ent_block_vec
+		//							   | age::meta::deref_view
+		//							   | std::views::filter([](auto& block) { return block.is_empty() is_false; }))
+		//		{
+		//			age::ecs::system::run_sys(FWD(sys), block);
+		//		}
+		//	}
+		//}
 
-		template <typename t_query, typename t_sys>
-		FORCE_INLINE void
-		foreach_entity(t_query&& block_query, t_sys&& sys) noexcept
-		{
-			for (auto& [arch, blocks] : entity_blocks_map)
-			{
-				if (matches(block_query, arch) is_false)
-				{
-					continue;
-				}
+		// template <typename t_query, typename t_sys>
+		// FORCE_INLINE void
+		// foreach_entity(t_query&& block_query, t_sys&& sys) noexcept
+		//{
+		//	for (auto& [arch, blocks] : entity_blocks_map)
+		//	{
+		//		if (matches(block_query, arch) is_false)
+		//		{
+		//			continue;
+		//		}
 
-				for (auto& block : blocks.ent_block_vec
-									   | age::meta::deref_view
-									   | std::views::filter([](auto& block) { return block.is_empty() is_false; }))
-				{
-					block.foreach_entity(FWD(sys));
-				}
-			}
-		}
+		//		for (auto& block : blocks.ent_block_vec
+		//							   | age::meta::deref_view
+		//							   | std::views::filter([](auto& block) { return block.is_empty() is_false; }))
+		//		{
+		//			block.foreach_entity(FWD(sys));
+		//		}
+		//	}
+		//}
 
 		void
 		init() noexcept

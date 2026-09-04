@@ -3,7 +3,7 @@
 namespace std
 {
 	template <>
-	struct hash<std::array<char, age::config::max_asset_path_len>>
+	struct hash<age::array<char, age::config::max_asset_path_len>>
 	{
 		size_t
 		operator()(c_auto& arr) const noexcept

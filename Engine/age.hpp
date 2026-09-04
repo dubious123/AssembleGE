@@ -69,6 +69,7 @@ namespace age
 	#include "age_macro.h"
 
 	#include "age_external.h"
+	#include "age_literal.hpp"
 
 	#include "age_math.hpp"
 
@@ -81,9 +82,11 @@ namespace age
 	#include "age_math_simd.hpp"
 	#include "age_math_transform.hpp"
 
-	#include "age_literal.hpp"
+	#include "age_data_structure.hpp"
+	#include "age_data_structure_array.hpp"
 
 	#include "age_util.hpp"
+	#include "age_util_hash.hpp"
 	#include "age_util_allocator.hpp"
 	#include "age_util_layout.hpp"
 	#include "age_util_string.hpp"
@@ -91,9 +94,14 @@ namespace age
 	#include "age_util_container.hpp"
 	#include "age_util_bits.hpp"
 	#include "age_util_bitset.hpp"
-	#include "age_util_hash.hpp"
 
-	#include "age_data_structure.hpp"
+	#include "age_data_structure_vector.hpp"
+	#include "age_data_structure_stable_dense_vector.hpp"
+	#include "age_data_structure_sparse_vector.hpp"
+	#include "age_data_structure_unordered_map.hpp"
+	#include "age_data_structure_byte_buffer.hpp"
+	#include "age_data_structure_offset_pool.hpp"
+
 	#include "age_util_ranges.hpp"
 	#include "age_util_functional.hpp"
 	#include "age_util_format.hpp"
@@ -106,7 +114,6 @@ namespace age
 	#include "age_asset_fwd.hpp"
 	#include "age_external_adapter.hpp"
 	#include "age_buffer.hpp"
-
 #endif
 //------------------------------------------------------------------------------
 
@@ -121,6 +128,7 @@ namespace age
 #include "age_asset_texture.inl"
 #include "age_asset_material.inl"
 #include "age_asset_env_light.inl"
+#include "age_asset_model.inl"
 
 #include "age_ecs_component.hpp"
 #include "age_ecs.hpp"
@@ -196,7 +204,10 @@ namespace age
 #if defined AGE_EDITOR
 	#include "age_editor_fwd.hpp"
 	#include "age_editor.hpp"
+	#include "age_editor_asset_mgr.hpp"
 	#include "age_editor_cmp_to_desc.hpp"
+
+	#include "age_editor_asset_mgr.inl"
 	#include "age_editor.inl"
 	#include "age_editor_ui.inl"
 	#include "age_editor_save_load.inl"

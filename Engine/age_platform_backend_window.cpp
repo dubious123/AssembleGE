@@ -16,7 +16,7 @@ namespace age::platform::detail
 	void
 	set_raw_input_impl(HWND hwnd, input::e::source_kind flags, bool receive_when_unfocused, bool disable_legacy) noexcept
 	{
-		auto rid_arr = std::array<RAWINPUTDEVICE, input::e::size<input::e::source_kind>()>{};
+		auto rid_arr = age::array<RAWINPUTDEVICE, input::e::size<input::e::source_kind>()>{};
 
 		c_auto base_flag   = DWORD{ receive_when_unfocused ? RIDEV_INPUTSINK : 0ul };
 		c_auto legacy_flag = DWORD{ disable_legacy ? RIDEV_NOLEGACY : 0ul };

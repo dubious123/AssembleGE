@@ -3,13 +3,25 @@
 
 namespace age::graphics::render_pipeline
 {
-	struct depth_stage
+	struct gbuffer_stage
 	{
-		graphics::pso::handle h_pso_opaque = {};
-		ID3D12PipelineState*  p_pso_opaque = nullptr;
+		graphics::pso::handle h_pso_opaque_ss = {};
+		ID3D12PipelineState*  p_pso_opaque_ss = nullptr;
 
-		graphics::pso::handle h_pso_transparent = {};
-		ID3D12PipelineState*  p_pso_transparent = nullptr;
+		graphics::pso::handle h_pso_opaque_ds = {};
+		ID3D12PipelineState*  p_pso_opaque_ds = nullptr;
+
+		graphics::pso::handle h_pso_transparent_ss = {};
+		ID3D12PipelineState*  p_pso_transparent_ss = nullptr;
+
+		graphics::pso::handle h_pso_transparent_ds = {};
+		ID3D12PipelineState*  p_pso_transparent_ds = nullptr;
+
+		graphics::pso::handle h_pso_mask_ss = {};
+		ID3D12PipelineState*  p_pso_mask_ss = nullptr;
+
+		graphics::pso::handle h_pso_mask_ds = {};
+		ID3D12PipelineState*  p_pso_mask_ds = nullptr;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
@@ -18,10 +30,14 @@ namespace age::graphics::render_pipeline
 		execute(rtv_desc_handle h_opaque_gbuffer_rtv_desc,
 				rtv_desc_handle h_motion_buffer_rtv_desc,
 				dsv_desc_handle h_opaque_depth_buffer_dsv_desc,
-				uint32			opaque_meshlet_count,
 				rtv_desc_handle h_transparent_gbuffer_rtv_desc,
 				dsv_desc_handle h_transparent_depth_buffer_dsv_desc,
-				uint32			transparent_meshlet_count) const noexcept;
+				uint32			opaque_meshlet_ss_count,
+				uint32			opaque_meshlet_ds_count,
+				uint32			transparent_meshlet_ss_count,
+				uint32			transparent_meshlet_ds_count,
+				uint32			mask_meshlet_ss_count,
+				uint32			mask_meshlet_ds_count) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -658,7 +674,7 @@ namespace age::graphics::render_pipeline
 		graphics::root_signature::handle h_root_sig;
 		ID3D12RootSignature*			 p_root_sig;
 
-		depth_stage				stage_depth;
+		gbuffer_stage			stage_depth;
 		material_resolve_stage	stage_material_resolve;
 		segment_stage			stage_segment;
 		ao_stage				stage_ao;
@@ -752,7 +768,8 @@ namespace age::graphics::render_pipeline
 		resource_handle h_sorted_light_buffer;
 		resource_handle h_indirect_arg_buffer;
 
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_static_ring_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_meshlet_render_data_buffer_arr;
 
 		mapping_handle h_mapping_frame_data;
 		mapping_handle h_mapping_mesh_buffer;
@@ -760,19 +777,19 @@ namespace age::graphics::render_pipeline
 		mapping_handle h_mapping_rt_vertex_scratch_buffer;
 		mapping_handle h_mapping_material_buffer;
 
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_env_light_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_env_light_buffer_arr;
 
 
 		// rt, not for binding
 		age::vector<D3D12_RAYTRACING_INSTANCE_DESC>		  rt_instance_data_vec[global::thread_count];
 		age::vector<shared_type::rt_instance_render_data> rt_instance_render_data_vec[global::thread_count];
+		age::vector<D3D12_RAYTRACING_GEOMETRY_DESC>		  rt_geometry_desc_vec;	   // scratch, blas build
 
-
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_raycast_request_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_instance_render_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_rt_raycast_request_buffer_arr;
 		resource_handle										   h_rt_raycast_result_buffer;
-		std::array<mapping_handle, global::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	   // readback
+		age::array<mapping_handle, global::frame_buffer_count> h_readback_rt_raycast_result_buffer_arr;	   // readback
 
 		resource_handle h_rt_tlas_buffer;
 		srv_desc_handle h_rt_tlas_buffer_srv_desc;
@@ -780,11 +797,13 @@ namespace age::graphics::render_pipeline
 		resource_handle h_rt_tlas_scratch_buffer;
 
 		// global
+		// todo, cleanup index
 		binding_config_t::reg_b<0, 0> frame_data_buffer;
 		binding_config_t::reg_b<1, 0> root_constants;
 		binding_config_t::reg_u<2, 0> indirect_arg_buffer_uav;
 
 		binding_config_t::reg_t<0, 0> static_ring_buffer;
+		binding_config_t::reg_t<0, 6> meshlet_render_data_buffer;
 		binding_config_t::reg_t<1, 0> mesh_data_buffer;
 
 		binding_config_t::reg_u<0, 0> scratch_buffer_uav;
@@ -804,14 +823,14 @@ namespace age::graphics::render_pipeline
 		// selection outline
 		binding_config_t::reg_t<0, 4>						   selection_outline_meshlet_render_data_buffer;
 		binding_config_t::reg_t<1, 4>						   selection_outline_data_buffer;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_meshlet_render_data_buffer_arr;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_meshlet_render_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_selection_outline_data_buffer_arr;
 
 		// ui
 		binding_config_t::reg_t<0, 5>						   ui_root_data_buffer;
 		binding_config_t::reg_t<1, 5>						   ui_data_buffer;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_root_data_buffer_arr;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_root_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_ui_data_buffer_arr;
 
 		// ui_root_data_idx_arr : prefix of root_data_vec.size()
 		// ui_root_data_idx_arr -> ui_root_data_vec_arr -> ui_render_data_z_range_of_range_vec -> ui_render_data_z_range_vec -> ui_render_data_vec
@@ -830,8 +849,8 @@ namespace age::graphics::render_pipeline
 		// debug
 		binding_config_t::reg_t<0, 77>						   debug_meshlet_render_data_buffer;
 		binding_config_t::reg_t<1, 77>						   debug_object_data_buffer;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
-		std::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_meshlet_render_data_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_mapping_debug_object_data_buffer_arr;
 
 		// details
 		extent_2d<uint16> extent{ .width = 100, .height = 100 };
@@ -848,12 +867,13 @@ namespace age::graphics::render_pipeline
 		age::stable_dense_vector<shared_type::object_data> object_data_vec;
 		// todo, save memory
 		age::stable_dense_vector<shared_type::object_data> object_prev_data_vec;
-		age::vector<BARE_OF(object_data_vec)::index_type>  object_pos_to_id_arr[global::frame_buffer_count];
-		age::vector<uint8>								   object_generation_vec;
+		age::vector<uint32>								   object_id_buffer;	// object_id_buffer[render_id] = {gen, object_id}
+		age::vector<uint8>								   object_generation_buffer;
 		age::vector<shared_type::object_render_data>	   object_render_data_vec;
 
 		// material
 		age::sparse_vector<asset::handle> material_vec;
+		age::vector<t_material_id>		  instance_submesh_material_vec[global::thread_count];
 
 		// camera
 		age::sparse_vector<camera_desc> camera_desc_vec;
@@ -903,8 +923,7 @@ namespace age::graphics::render_pipeline
 		// object & render_data
 		age::stable_dense_vector<float3x4> object_transform_data_vec;
 
-		age::vector<shared_type::opaque_meshlet_render_data>	  opaque_meshlet_render_data_vec[global::thread_count];
-		age::vector<shared_type::transparent_meshlet_render_data> transparent_meshlet_render_data_vec[global::thread_count];
+		age::vector<shared_type::meshlet_render_data> meshlet_render_data_vec[global::thread_count][graphics::e::mesh_raster_mode_kind_size][2 /*is_double_sided or not*/];
 
 		// light
 
@@ -933,7 +952,7 @@ namespace age::graphics::render_pipeline
 		resource_handle										   h_debug_assert_buffer;
 		clear_uav_desc_handle								   h_debug_assert_buffer_clear_uav_desc;
 		binding_config_t::reg_u<666, 666>					   debug_assert_buffer_uav;
-		std::array<mapping_handle, global::frame_buffer_count> h_readback_debug_assert_buffer_arr;
+		age::array<mapping_handle, global::frame_buffer_count> h_readback_debug_assert_buffer_arr;
 
 		byte_buf shader_debug_assert_result_buf_arr[global::frame_buffer_count];
 
@@ -947,30 +966,19 @@ namespace age::graphics::render_pipeline
 		void
 		begin_frame() noexcept;	   // optional
 
+		// do not add or remove obj/mat/... after this
 		bool
 		begin_render(render_surface_handle h_rs) noexcept;
 
 		void
-		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, asset::handle h_mat) noexcept;
+		render_model(uint8 thread_id, t_object_id object_id, asset::handle h_model, const model_render_option& option = {}) noexcept;
+
+		// lagacy
+		void
+		render_mesh_default(uint8 thread_id, t_object_id object_id, t_mesh_id, bool is_opaque = true) noexcept;
 
 		void
 		render_selection_outline(t_object_id, asset::handle h_mesh, const float4& rgba, float thickness, float softness) noexcept;
-
-		// legacy
-		void
-		render_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
-
-		// legacy
-		void
-		render_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
-
-		// legacy
-		void
-		render_transparent_mesh(uint8 thread_id, t_object_id object_id, asset::handle h_mesh, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
-
-		// legacy
-		void
-		render_transparent_mesh(uint8 thread_id, t_object_id object_id, t_mesh_id mesh_id, t_material_id mat_id = age::get_invalid_id<uint32>()) noexcept;
 
 		void
 		end_render(render_surface_handle h_rs) noexcept;
@@ -1087,7 +1095,7 @@ namespace age::graphics::render_pipeline
 		t_raycast_id
 		request_raycast(const float3& origin, const float3& dir, float max_t, e::rt_mask_kind mask = e::rt_mask_kind::all ^ e::rt_mask_kind::always_on_top) noexcept;
 
-		shared_type::raycast_result
+		raycast_result
 		get_raycast_result(t_raycast_id _) noexcept;
 
 		// debug
@@ -1232,7 +1240,13 @@ namespace age::graphics::render_pipeline
 		void
 		resize_resolution_dependent_buffers(const age::extent_2d<uint16>& new_extent) noexcept;
 
-		std::tuple<uint32, uint32>
+		age::vector<shared_type::meshlet_render_data>&
+		get_meshlet_render_data_vec(uint32 thread_id, graphics::e::mesh_raster_mode_kind, bool is_double_sided) noexcept;
+
+		t_material_id
+		upload_material(const shared_type::material&) noexcept;
+
+		std::tuple<uint32, uint32, uint32, uint32, uint32, uint32>
 		upload_data() noexcept;
 
 		void

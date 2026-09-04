@@ -378,7 +378,7 @@ namespace debug_view
 				  inout debug_view_cursor_data cursor_data,
 				  float						   log_scale_knee_ratio = epsilon_1e4)
 	{
-		return resolve_value(data, slot_data, value, low, high, cursor_data.raw_value, cursor_data.scaled_value, log_scale_knee_ratio);
+		return resolve_value<apply_normalize, log_scale>(data, slot_data, value, low, high, cursor_data.raw_value, cursor_data.scaled_value, log_scale_knee_ratio);
 	}
 
 	template <bool apply_normalize = false, bool log_scale = false>
@@ -425,7 +425,7 @@ namespace debug_view
 				  inout debug_view_cursor_data cursor_data,
 				  float						   log_scale_knee_ratio = epsilon_1e4)
 	{
-		return resolve_value(data, slot_data, value, low, high, cursor_data.raw_value.r, cursor_data.scaled_value.r, log_scale_knee_ratio);
+		return resolve_value<apply_normalize, log_scale>(data, slot_data, value, low, high, cursor_data.raw_value.r, cursor_data.scaled_value.r, log_scale_knee_ratio);
 	}
 
 	template <typename t_type, bool apply_normalize = false, bool log_scale = false>
@@ -435,7 +435,7 @@ namespace debug_view
 				  float log_scale_knee_ratio = epsilon_1e4)
 	{
 		debug_view_cursor_data cursor_data = zero<debug_view_cursor_data>();
-		return resolve_value(data, slot_data, value, low, high, cursor_data, log_scale_knee_ratio);
+		return resolve_value<apply_normalize, log_scale>(data, slot_data, value, low, high, cursor_data, log_scale_knee_ratio);
 	}
 }	 // namespace debug_view
 
@@ -505,11 +505,15 @@ namespace debug_view
 
 		cursor_data.hit_layer_debug_view_kind = slot_data.system_debug_view_kind;
 
+
 		const uint32 vis_packed = gbuffer[px].x;
-		const uint32 render_id	= unpack_vis_render_id(vis_packed);
+		const uint32 render_id	= unpack_vis_mshlt_render_id(vis_packed);
 		const uint32 prim_id	= unpack_vis_primitive_id(vis_packed);
 
-		const opaque_meshlet_render_data render_data = load_opaque_meshlet_render_data(render_id);
+		const meshlet_render_data mshlt_render_data = meshlet_render_data_buffer[render_id];
+		const object_render_data  obj_render_data	= load_object_render_data(mshlt_render_data.object_render_id);
+		const uint32			  submesh_id		= mesh::calc_submesh_id_from_meshlet(read_mesh_header(obj_render_data), mshlt_render_data.meshlet_id);
+		const uint16			  material_id		= load_instance_submesh_material_id(obj_render_data.submesh_material_offset + submesh_id);
 		// const material					 mat		 = load_material(render_data.material_id);
 		// const object_data				 obj_data	 = load_object_data(render_data.object_id);
 		// const mesh_header				 mesh_header = read_mesh_header<opaque_meshlet_render_data>(render_data);
@@ -521,7 +525,8 @@ namespace debug_view
 		// const vertex_fat v1 = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, meshlet_prim_idx.y));
 		// const vertex_fat v2 = decode_vertex(mesh_header, read_global_vertex_index(mesh_header, mshlt, meshlet_prim_idx.z));
 
-		// const float3 world_pos	  = screen_px_to_world(px, px_depth, inv_backbuffer_size, view_proj_inv);
+		const float3 px_world_pos = screen_px_to_world(px, px_depth, inv_backbuffer_size, view_proj_inv);
+		const float3 px_normal	  = decode_oct_snorm16(gbuffer[px].y);
 		// const float3 local_pos	  = rotate_inv(obj_data.quaternion, world_pos - obj_data.pos) / obj_data.scale;
 		// const float3 barycentrics = calc_barycentric(local_pos, v0.pos.xyz, v1.pos.xyz, v2.pos.xyz);
 
@@ -529,6 +534,9 @@ namespace debug_view
 		// const vertex_fat v		 = transform_vertex_to_world(v_local, obj_data);
 
 		// const pbr_surface_data surface_data = calc_pbr_surface(normalize(v.world_pos - camera_pos), mat, v);
+
+		c_auto surface_point = mesh::calc_surface_point(global_resource_buffer[opaque_gbuffer_srv_id], px, px_depth);
+		c_auto pbr_surface	 = calc_pbr_surface_screen(px, px_depth);
 
 		attr_branch()
 
@@ -556,14 +564,13 @@ namespace debug_view
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MESHLET_ID:
 		{
-			const uint32 meshlet_id = render_data.meshlet_id;
+			const uint32 meshlet_id = mshlt_render_data.meshlet_id;
 			cursor_data.raw_value	= float3(float(meshlet_id), 0.f, 0.f);
 			return random_color(meshlet_id);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_MATERIAL_ID:
 		{
-			const uint32 material_id = render_data.material_id;
-			cursor_data.raw_value	 = float3(float(material_id), 0.f, 0.f);
+			cursor_data.raw_value = float3(float(material_id), 0.f, 0.f);
 			return random_color(material_id);
 		}
 		case AGE_DEBUG_VIEW_KIND_SYS_COMMON_VERTEX_NORMAL:
@@ -607,8 +614,38 @@ namespace debug_view
 			texture_2d<float2> motion_buffer = global_resource_buffer[motion_buffer_srv_id];
 			const float2	   m			 = motion_buffer[px];
 			return resolve_value<true, false>(data, slot_data, float3(m, 0.f),
-											  float3(-0.05f, -0.05f, 0.f), float3(0.05f, 0.05f, 1.f),
+											  float3(-0.005f, -0.005f, 0.f), float3(0.005f, 0.005f, 1.f),
 											  cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_RT_SURFACE_GAP:
+		{
+			const float range = length(px_world_pos - surface_offset(px_world_pos, surface_point.world_face_normal));
+			const float lift  = range * 2;
+
+			rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+			ray_query<RAY_FLAG_NONE> query;
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE | RT_MASK_TRANSPARENT | RT_MASK_OMM,
+								rt::init_ray_desc(px_world_pos + surface_point.world_face_normal * lift, -surface_point.world_face_normal, 0.f, lift * 2.f));
+			rt_proceed(query);
+
+			if (rt_committed_status(query) != COMMITTED_TRIANGLE_HIT)
+			{
+				return float3(1.f, 0.f, 1.f);							  // miss marker
+			}
+
+
+			const float signed_gap = rt_committed_ray_t(query) - lift;	  // + : tlas below raster, - : above
+
+			return resolve_value<true, false>(data, slot_data, signed_gap, -range, range, cursor_data);
+		}
+		case AGE_DEBUG_VIEW_KIND_SYS_MESH_SURFACE_GAP:
+		{
+			c_auto range	  = length(px_world_pos - surface_offset(px_world_pos, surface_point.world_face_normal));
+			c_auto signed_gap = dot(surface_point.world_face_normal, px_world_pos - surface_point.v.world_pos);
+			// c_auto signed_gap = length(px_world_pos - surface_point.v.world_pos);
+
+			return resolve_value<true, false>(data, slot_data, signed_gap, -range, range, cursor_data);
 		}
 		default:
 			break;

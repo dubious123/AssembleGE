@@ -23,7 +23,7 @@ namespace age::asset
 		return res;
 	}
 
-	std::array<char, config::max_asset_path_len>&
+	age::array<char, config::max_asset_path_len>&
 	entry<e::kind::env_light>::get_path() const noexcept
 	{
 		return g::path_vec[path_id];
@@ -122,11 +122,19 @@ namespace age::asset::env_light
 			return;
 		}
 
-		if (auto buf = asset::read_asset_file(entry.get_path());
-			buf.empty() is_false)
+		if (auto file_data = asset::read_asset_file(entry.get_path());
+			file_data.is_valid())
 		{
-			entry.p_blob = buf.release();
-			return;
+			if (file_data.header.asset_version < config::env_light_asset_version)
+			{
+				AGE_ASSERT(false);
+				return;
+			}
+			else
+			{
+				entry.p_blob = file_data.buf.release();
+				return;
+			}
 		}
 	}
 
@@ -139,29 +147,13 @@ namespace age::asset::env_light
 
 		return h_env_light;
 	}
-
-	void
-	add_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::env_light>();
-		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
-		++entry.ref_counter;
-	}
-
-	void
-	remove_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::env_light>();
-		AGE_ASSERT(entry.ref_counter > 0);
-		--entry.ref_counter;
-	}
 }	 // namespace age::asset::env_light
 
 namespace age::asset::env_light
 {
 	bool
-	bake(const std::array<char, config::max_asset_path_len>& src,
-		 const std::array<char, config::max_asset_path_len>& dst,
+	bake(const age::array<char, config::max_asset_path_len>& src,
+		 const age::array<char, config::max_asset_path_len>& dst,
 		 const env_light_desc&								 desc) noexcept
 	{
 		constexpr decltype(auto) tmp_dir = "__env_light_temp__";
@@ -172,7 +164,7 @@ namespace age::asset::env_light
 		constexpr decltype(auto) tmp_tex_irradiance_dds = ".\\__env_light_temp__\\tmp_irradiance_tex.dds";
 
 		auto temp_dir	  = std::filesystem::create_directories(tmp_dir);
-		auto tex_bake_res = texture::bake(std::array{ src.data() },
+		auto tex_bake_res = texture::bake(age::array{ src.data() },
 										  asset::get_asset_full_path<e::kind::texture>(std::format("__env_light_temp__\\{}", tmp_tex).data()).data(),
 										  texture_bake_option{
 											  .format		   = graphics::e::texture_format::rgba16_float,

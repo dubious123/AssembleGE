@@ -1,20 +1,4 @@
 #pragma once
-
-#include "age_data_structure_array.hpp"
-
-#ifdef USE_STL_VECTOR
-namespace age::inline data_structure
-{
-	template <typename T>
-	using vector = std::vector<T>;
-}
-#else
-	#include "age_data_structure_vector.hpp"
-#endif
-
-#include "age_data_structure_stable_dense_vector.hpp"
-#include "age_data_structure_sparse_vector.hpp"
-
 #ifdef USE_STL_SET
 namespace age::inline data_structure
 {
@@ -236,20 +220,3 @@ namespace age::inline data_structure
 	};
 }	 // namespace age::inline data_structure
 #endif
-
-#ifdef USE_STL_UNORDERED_MAP
-namespace age::inline data_structure
-{
-	template <typename t_key,
-			  typename t_value,
-			  typename t_hash	   = std::hash<t_key>,
-			  typename t_key_equal = std::equal_to<t_key>,
-			  typename t_allocator = std::allocator<std::pair<const t_key, t_value>>>
-	using unordered_map = std::unordered_map<t_key, t_value, t_hash, t_key_equal, t_allocator>;
-}
-#else
-	#include "age_data_structure_unordered_map.hpp"
-#endif
-
-#include "age_data_structure_byte_buffer.hpp"
-#include "age_data_structure_offset_pool.hpp"

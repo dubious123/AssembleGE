@@ -126,72 +126,89 @@ namespace age::graphics::e
 							   (r16g16_snorm, 28),
 							   (rgba8_typeless, 29));
 
-	AGE_DEFINE_ENUM_WITH_VALUE(rt_mask_kind, uint8,
-							   (opaque, 0x01),
-							   (transparent, 0x02),
-							   (mask, 0x04),
-							   (debug, 0x08),
-							   (always_on_top, 0x80),
-							   (all, 0xff));
+	// todo, rename rt_instance_flags
+	AGE_DEFINE_ENUM_FLAGS(rt_mask_kind, uint8,
+						  (none, 0x00),
+						  (opaque, 0x01),
+						  (transparent, 0x02),
+						  (omm, 0x04),
+						  (debug, 0x08),
+						  (always_on_top, 0x80),
+						  (all, 0xff));
 
-	AGE_ENUM_FLAG_OPERATORS(rt_mask_kind);
+	AGE_DEFINE_ENUM(mesh_rt_bake_mode_kind, uint8, opaque, transparent, omm_opaque, omm_transparent);
+	AGE_DEFINE_ENUM(mesh_raster_mode_kind, uint8, opaque, transparent, mask);
+	AGE_DEFINE_ENUM(mesh_rt_alpha_test_mode_kind, uint8, opaque, blend, mask);
 
-	AGE_DEFINE_ENUM_WITH_VALUE(ddgi_debug_flags, uint32,
-							   (none, 0),
-							   (render_probe_in_hole, 0x1),
-							   (render_irradiance, 0x2),
-							   (render_visibility, 0x4),
-							   (render_front_back, 0x8),
-							   (render_level, 0x10),
-							   (render_weight_sum, 0x20),
-							   (render_ray_count, 0x40),
-							   (render_state, 0x80),
-							   (render_msme, (1u << 8u)),
-							   (render_ray_factor, (1u << 9u)),
-							   (render_probe, (1u << 31u)));
+	AGE_DEFINE_ENUM(mesh_raster_override_kind, uint8, none, force_opaque, force_transparent, force_mask);
+	AGE_DEFINE_ENUM(mesh_rt_alpha_test_override_kind, uint8, none, opaque, blend, mask);
 
-	AGE_ENUM_FLAG_OPERATORS(ddgi_debug_flags);
+	AGE_DEFINE_ENUM_FLAGS(model_render_option_flags, uint8,
+						  (none, uint8(0u << 0u)),
+						  (fade, uint8(1u << 0u)),			 // opaque : dither, mask : dither on survived, transparent : alpha * fade
+						  (disable_omm, uint8(1u << 1u)),	 // disable omm, use runtime alpha cutoff
+						  (force_double_sided, uint8(1u << 2u)));
 
-	AGE_DEFINE_ENUM_WITH_VALUE(gibs_debug_flags, uint32,
-							   (none, 0),
-							   (freeze_spawn_kill, (1u << 0u)),
-							   (render_tile, (1u << 1u)),
-							   (render_cell, (1u << 2u)),
+	AGE_DEFINE_ENUM(sampler_kind, uint8,
+					linear_wrap,
+					linear_clamp,
+					linear_mirror,
+					point_wrap,
+					point_clamp,
+					point_mirror);
 
-							   (render_tile_surfel_count, (1u << 3u)),
-							   (render_cell_surfel_count, (1u << 4u)),
+	AGE_DEFINE_ENUM(material_shading_model_kind, uint8,
+					pbr_default,
+					pbr_unlit);
 
-							   (render_tile_surfels, (1u << 6u)),
-							   (render_cell_surfels, (1u << 7u)),
-							   (render_id_hash, (1u << 9u)),
-							   (render_radiance, (1u << 10u)),		  // di (tile_surfel : black)
-							   (render_irradiance, (1u << 11u)),	  // gi
-							   (render_normal, (1u << 12u)),
+	AGE_DEFINE_ENUM_FLAGS(ddgi_debug_flags, uint32,
+						  (none, 0),
+						  (render_probe_in_hole, 0x1),
+						  (render_irradiance, 0x2),
+						  (render_visibility, 0x4),
+						  (render_front_back, 0x8),
+						  (render_level, 0x10),
+						  (render_weight_sum, 0x20),
+						  (render_ray_count, 0x40),
+						  (render_state, 0x80),
+						  (render_msme, (1u << 8u)),
+						  (render_ray_factor, (1u << 9u)),
+						  (render_probe, (1u << 31u)));
 
-							   (render_visibility, (1u << 13u)),
-							   (render_near_coverage, (1u << 14u)),
-							   (render_far_coverage, (1u << 15u)),	  // tile_surfel : black
+	AGE_DEFINE_ENUM_FLAGS(gibs_debug_flags, uint32,
+						  (none, 0),
+						  (freeze_spawn_kill, (1u << 0u)),
+						  (render_tile, (1u << 1u)),
+						  (render_cell, (1u << 2u)),
 
-							   (render_ray_count, (1u << 16u)),
-							   (render_age, (1u << 17u)));
+						  (render_tile_surfel_count, (1u << 3u)),
+						  (render_cell_surfel_count, (1u << 4u)),
 
-	AGE_ENUM_FLAG_OPERATORS(gibs_debug_flags);
+						  (render_tile_surfels, (1u << 6u)),
+						  (render_cell_surfels, (1u << 7u)),
+						  (render_id_hash, (1u << 9u)),
+						  (render_radiance, (1u << 10u)),		 // di (tile_surfel : black)
+						  (render_irradiance, (1u << 11u)),		 // gi
+						  (render_normal, (1u << 12u)),
 
-	AGE_DEFINE_ENUM_WITH_VALUE(gist_debug_flags, uint32,
-							   (none, 0),
-							   (freeze_surfel_spawn, (1u << 0u)),
-							   (freeze_surfel_kill, (1u << 1u)),
-							   (freeze_surfel_radius, (1u << 2u)),
-							   (freeze_surfel_ray_trace, (1u << 3u)));
+						  (render_visibility, (1u << 13u)),
+						  (render_near_coverage, (1u << 14u)),
+						  (render_far_coverage, (1u << 15u)),	 // tile_surfel : black
 
-	AGE_ENUM_FLAG_OPERATORS(gist_debug_flags);
+						  (render_ray_count, (1u << 16u)),
+						  (render_age, (1u << 17u)));
+
+	AGE_DEFINE_ENUM_FLAGS(gist_debug_flags, uint32,
+						  (none, 0),
+						  (freeze_surfel_spawn, (1u << 0u)),
+						  (freeze_surfel_kill, (1u << 1u)),
+						  (freeze_surfel_radius, (1u << 2u)),
+						  (freeze_surfel_ray_trace, (1u << 3u)));
 
 
-	AGE_DEFINE_ENUM_WITH_VALUE(ao_debug_flags, uint32,
-							   (none, 0),
-							   (render_ao_buffer, (1u << 0u)));
-
-	AGE_ENUM_FLAG_OPERATORS(ao_debug_flags);
+	AGE_DEFINE_ENUM_FLAGS(ao_debug_flags, uint32,
+						  (none, 0),
+						  (render_ao_buffer, (1u << 0u)));
 }	 // namespace age::graphics::e
 
 // debug view
@@ -228,7 +245,9 @@ namespace age::graphics::e
 					roughness,
 					metallic,
 					emissive,
-					motion);
+					motion,
+					rt_surface_gap, /*gap between px_world_pos, rt_world_pos*/
+					mesh_surface_gap /*gap between px_world_pos, vertex_world_pos*/);
 
 	AGE_DEFINE_ENUM_FLAGS(hrp_debug_view_overlay_flags_sys_common, uint32,
 						  (none, 0),

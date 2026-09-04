@@ -4,7 +4,10 @@
 namespace age::asset::mesh_baked::detail
 {
 	void
-	build_mesh_baked(const std::array<char, config::max_asset_path_len>& path, const primitive_desc&, e::vertex_kind) noexcept;
+	build_mesh_baked(const age::array<char, config::max_asset_path_len>& path, std::span<const primitive_desc>, e::vertex_kind) noexcept;
+
+	void
+	build_mesh_baked(const age::array<char, config::max_asset_path_len>& path, const primitive_desc&, e::vertex_kind) noexcept;
 
 	bool
 	cpu_load_helper(entry<e::kind::mesh_baked>& entry) noexcept;
@@ -12,21 +15,6 @@ namespace age::asset::mesh_baked::detail
 
 namespace age::asset::mesh_baked
 {
-	void
-	cpu_unload(handle h_mesh) noexcept;
-
-	void
-	cpu_load(handle h_mesh, const primitive_desc& desc, e::vertex_kind v_kind) noexcept;
-
-	void
-	cpu_load(handle h_mesh) noexcept;
-
-	handle
-	cpu_load(std::string_view mesh_name, const primitive_desc& desc, e::vertex_kind v_kind) noexcept;
-
-	handle
-	cpu_load(std::string_view mesh_name) noexcept;
-
 	void
 	gpu_unload(handle h_mesh, auto& renderer) noexcept
 	{
@@ -69,7 +57,7 @@ namespace age::asset::mesh_baked
 	}
 
 	void
-	gpu_load(handle h_mesh, auto& renderer, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
+	gpu_load(handle h_mesh, auto& renderer, std::span<const primitive_desc> descs, e::vertex_kind v_kind) noexcept
 	{
 		auto& entry = h_mesh.get_entry<e::kind::mesh_baked>();
 		if (entry.is_gpu_loaded())
@@ -90,7 +78,7 @@ namespace age::asset::mesh_baked
 			return;
 		}
 
-		detail::build_mesh_baked(entry.get_path(), desc, v_kind);
+		detail::build_mesh_baked(entry.get_path(), descs, v_kind);
 
 		if (detail::cpu_load_helper(entry))
 		{
@@ -104,12 +92,24 @@ namespace age::asset::mesh_baked
 		}
 	}
 
+	void
+	gpu_load(handle h_mesh, auto& renderer, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
+	{
+		gpu_load(h_mesh, renderer, { &desc, 1 }, v_kind);
+	}
+
+	handle
+	gpu_load(std::string_view mesh_name, auto& renderer, std::span<const primitive_desc> descs, e::vertex_kind v_kind) noexcept
+	{
+		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
+		gpu_load(h_mesh, renderer, descs, v_kind);
+		return h_mesh;
+	}
+
 	handle
 	gpu_load(std::string_view mesh_name, auto& renderer, const primitive_desc& desc, e::vertex_kind v_kind) noexcept
 	{
-		c_auto h_mesh = asset::detail::load_common<e::kind::mesh_baked>(mesh_name);
-		gpu_load(h_mesh, renderer, desc, v_kind);
-		return h_mesh;
+		return gpu_load(mesh_name, renderer, { &desc, 1 }, v_kind);
 	}
 
 	void

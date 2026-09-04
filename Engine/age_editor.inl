@@ -133,9 +133,9 @@ namespace age::editor
 	}	 // namespace detail
 
 	void
-	add_components(auto& storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id, auto archetype) noexcept
+	add_components(auto& ecs_storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id, auto archetype) noexcept
 	{
-		using t_storage			 = BARE_OF(storage);
+		using t_storage			 = BARE_OF(ecs_storage);
 		using t_ent_id			 = typename t_storage::t_ent_id;
 		using t_archetype		 = typename t_storage::t_archetype;
 		using t_archetype_traits = typename t_storage::t_archetype_traits;
@@ -146,12 +146,61 @@ namespace age::editor
 
 		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
 		{
-			t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ent_id, auto& renderer), { entities.add_component<t_cmp>(ent_id, get_ecs_context(renderer)); }), storage, ent_id, renderer);
+			t_archetype_traits::visit_component(storage_cmp_idx, AGE_LAMBDA(<typename t_cmp>(auto& ecs_storage, auto ent_id, auto& renderer), { ecs_storage.add_component<t_cmp>(ent_id, get_ecs_context(renderer)); }), ecs_storage, ent_id, renderer);
 		}
 
-		c_auto new_archetype = storage.get_archetype(ent_id);
+		detail::re_register_entity(editor_storage, ent_id, ecs_storage.get_archetype(ent_id));
+	}
 
-		detail::re_register_entity(editor_storage, ent_id, new_archetype);
+	template <typename... t_cmp>
+	void
+	add_components(auto& ecs_storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id) noexcept
+	{
+		using t_storage			 = BARE_OF(ecs_storage);
+		using t_ent_id			 = typename t_storage::t_ent_id;
+		using t_archetype		 = typename t_storage::t_archetype;
+		using t_archetype_traits = typename t_storage::t_archetype_traits;
+
+		static_assert(std::is_same_v<t_ent_id, BARE_OF(ent_id)>);
+
+
+		ecs_storage.add_component<t_cmp...>(ent_id, get_ecs_context(renderer));
+		detail::re_register_entity(editor_storage, ent_id, ecs_storage.get_archetype(ent_id));
+	}
+
+	void
+	remove_components(auto& ecs_storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id, auto archetype) noexcept
+	{
+		using t_storage			 = BARE_OF(ecs_storage);
+		using t_ent_id			 = typename t_storage::t_ent_id;
+		using t_archetype		 = typename t_storage::t_archetype;
+		using t_archetype_traits = typename t_storage::t_archetype_traits;
+
+		static_assert(std::is_same_v<t_ent_id, BARE_OF(ent_id)>);
+		static_assert(std::is_same_v<t_archetype, BARE_OF(archetype)>);
+
+		for (auto storage_cmp_idx : age::views::each_set_bit_idx(archetype))
+		{
+			t_archetype_traits::visit_component(storage_cmp_idx, [&]<typename t_cmp> {
+				ecs_storage.remove_component<t_cmp>(ent_id, get_ecs_context(renderer));
+			});
+		}
+
+		detail::re_register_entity(editor_storage, ent_id, ecs_storage.get_archetype(ent_id));
+	}
+
+	template <typename... t_cmp>
+	void
+	remove_components(auto& ecs_storage, auto& renderer, storage_editor_data& editor_storage, auto ent_id) noexcept
+	{
+		using t_storage			 = BARE_OF(ecs_storage);
+		using t_ent_id			 = typename t_storage::t_ent_id;
+		using t_archetype_traits = typename t_storage::t_archetype_traits;
+
+		static_assert(std::is_same_v<t_ent_id, BARE_OF(ent_id)>);
+
+		ecs_storage.remove_component<t_cmp...>(ent_id, get_ecs_context(renderer));
+		detail::re_register_entity(editor_storage, ent_id, ecs_storage.get_archetype(ent_id));
 	}
 
 	void
@@ -220,32 +269,45 @@ namespace age::editor
 
 		auto& arch_data = editor_storage.archetype_data_vec[src_arch_idx];
 
-		if (storage.has_component<ecs::render_object, ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id)))
+		do
 		{
-			auto&& [obj, mesh] = storage.get_component<const ecs::render_object, const ecs::mesh>(static_cast<t_ent_id>(ecs_ent_id));
-
-			if (runtime::is_handle_invalid(mesh.h_mesh) is_false)
+			if constexpr (storage.has_component<ecs::render_object, ecs::model>())
 			{
-				c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
+				if (storage.has_component<ecs::render_object, ecs::model>(static_cast<t_ent_id>(ecs_ent_id)) is_false) { break; }
 
-				auto&& [xm_aabb_min, xm_aabb_max, xm_trans] = simd::load(entry.aabb_min, entry.aabb_max, renderer.get_object_transform_matrix(obj.render_id));
+				auto&& [obj, model] = storage.get_component<const ecs::render_object, const ecs::model>(static_cast<t_ent_id>(ecs_ent_id));
+				AGE_ASSERT(AGE_IS_INVALID_ID(obj.render_id) is_false);
 
-				c_auto aabb_min = simd::transform3(xm_trans, xm_aabb_min) | simd::to<float3>();
-				c_auto aabb_max = simd::transform3(xm_trans, xm_aabb_max) | simd::to<float3>();
-				return std::pair{ age::min(aabb_min, aabb_max), age::max(aabb_min, aabb_max) };
-			}
-			else
-			{
-				c_auto pos = simd::transform3(simd::load(renderer.get_object_transform_matrix(obj.render_id)), simd::load(float3::zero()))
-						   | simd::to<float3>();
-				return std::pair{ pos, pos };
+				if (runtime::is_handle_invalid(model.h_model) is_false)
+				{
+					c_auto& entry = model.h_model.get_entry<asset::e::kind::model>();
+					if (entry.is_loaded() is_false) { break; }
+
+					c_auto& mesh_entry = entry.h_mesh.get_entry<asset::e::kind::mesh_baked>();
+
+					auto&& [xm_aabb_min, xm_aabb_max, xm_trans] = simd::load(mesh_entry.aabb_min, mesh_entry.aabb_max, renderer.get_object_transform_matrix(obj.render_id));
+
+					c_auto aabb_min = simd::transform3(xm_trans, xm_aabb_min) | simd::to<float3>();
+					c_auto aabb_max = simd::transform3(xm_trans, xm_aabb_max) | simd::to<float3>();
+					return std::pair{ age::min(aabb_min, aabb_max), age::max(aabb_min, aabb_max) };
+				}
+				else
+				{
+					c_auto pos = simd::transform3(simd::load(renderer.get_object_transform_matrix(obj.render_id)), simd::load(float3::zero()))
+							   | simd::to<float3>();
+					return std::pair{ pos, pos };
+				}
 			}
 		}
+		while (false);
 
-		if (storage.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
+		if constexpr (storage.has_component<ecs::position>())
 		{
-			auto&& [pos] = storage.get_component<const ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
-			return std::pair{ static_cast<float3>(pos), static_cast<float3>(pos) };
+			if (storage.has_component<ecs::position>(static_cast<t_ent_id>(ecs_ent_id)))
+			{
+				auto&& [pos] = storage.get_component<const ecs::position>(static_cast<t_ent_id>(ecs_ent_id));
+				return std::pair{ static_cast<float3>(pos), static_cast<float3>(pos) };
+			}
 		}
 
 		return std::pair{ float3{ std::numeric_limits<float>::max() }, float3{ std::numeric_limits<float>::lowest() } };
@@ -258,28 +320,23 @@ namespace age::editor::detail
 	update_storage(auto& ecs_storage, auto& renderer, auto& update_storage_ctx) noexcept
 	{
 		using namespace ecs;
-		// todo
-		for (auto&& [mesh] : ecs_storage | each_entity<mesh>())
+		for (auto&& [obj, model] : ecs_storage | each_entity_soft<render_object, model>())
 		{
-			if (runtime::is_handle_invalid(mesh.h_mesh)) { continue; }
-
-			if (asset::registry::is_registered<asset::e::kind::mesh_baked>(mesh.h_mesh) is_false)
+			if (AGE_IS_INVALID_ID(obj.render_id) is_false and runtime::is_handle_invalid(model.h_model) is_false)
 			{
-				mesh.update_h_mesh(asset::handle{});
+				asset::model::load(model.h_model, renderer);
 			}
 		}
 
-		for (auto&& [mat] : ecs_storage | each_entity<material>())
+		for (auto&& [env_light] : ecs_storage | each_entity_soft<env_light>())
 		{
-			if (runtime::is_handle_invalid(mat.h_mat)) { continue; }
-
-			if (asset::registry::is_registered<asset::e::kind::material>(mat.h_mat) is_false)
+			if (runtime::is_handle_invalid(env_light.h_env_light) is_false)
 			{
-				mat.update_h_mat(asset::handle{});
+				asset::env_light::gpu_load(env_light.h_env_light, renderer);
 			}
 		}
 
-		for (auto&& [light] : ecs_storage | each_entity<directional_light>())
+		for (auto&& [light] : ecs_storage | each_entity_soft<directional_light>())
 		{
 			renderer.update_directional_light(light.render_id,
 											  { .direction	 = age::math::normalize(light.direction),
@@ -289,7 +346,7 @@ namespace age::editor::detail
 		}
 
 
-		for (auto&& [light, pos] : ecs_storage | each_entity<point_light, position>())
+		for (auto&& [light, pos] : ecs_storage | each_entity_soft<point_light, position>())
 		{
 			renderer.update_point_light(
 				light.render_id,
@@ -300,7 +357,7 @@ namespace age::editor::detail
 				  .cast_shadow = light.cast_shadow });
 		}
 
-		for (auto&& [light, pos] : ecs_storage | each_entity<spot_light, position>())
+		for (auto&& [light, pos] : ecs_storage | each_entity_soft<spot_light, position>())
 		{
 			renderer.update_spot_light(
 				light.render_id,
@@ -312,16 +369,6 @@ namespace age::editor::detail
 				  .cos_inner   = light.cos_inner,
 				  .cos_outer   = light.cos_outer,
 				  .cast_shadow = light.cast_shadow });
-		}
-
-		for (auto&& [env_light] : ecs_storage | each_entity_soft<env_light>())
-		{
-			if (runtime::is_handle_invalid(env_light.h_env_light)) { continue; }
-
-			if (asset::registry::is_registered<asset::e::kind::env_light>(env_light.h_env_light) is_false)
-			{
-				env_light.update_h_env_light(asset::handle{});
-			}
 		}
 
 		for (auto&& [cmp] : ecs_storage | each_entity_soft<bloom>())
@@ -468,13 +515,13 @@ namespace age::editor::detail
 			if (cmp.enabled and (renderer.aa_enabled() is_false))
 			{
 				renderer.enable_aa({
-					.fxaa_on_offscreen		   = cmp.fxaa_on_offscreen,
-					.opaque_aa_ray_per_px	   = cmp.opaque_aa_ray_per_px,
-					.transparent_aa_ray_per_px = cmp.transparent_aa_ray_per_px,
-					.aa_px_cap				   = cmp.aa_px_cap,
-					.aa_px_headroom			   = cmp.aa_px_headroom,
-					.edge_plane_dist_threshold = cmp.edge_plane_dist_threshold,
-					.edge_normal_threshold	   = cmp.edge_normal_threshold,
+					.fxaa_on_offscreen			  = cmp.fxaa_on_offscreen,
+					.opaque_aa_ray_per_px		  = cmp.opaque_aa_ray_per_px,
+					.transparent_aa_ray_per_px	  = cmp.transparent_aa_ray_per_px,
+					.aa_px_cap					  = cmp.aa_px_cap,
+					.aa_px_headroom				  = cmp.aa_px_headroom,
+					.edge_plane_dist_tolerance_px = cmp.edge_plane_dist_tolerance_px,
+					.edge_normal_threshold		  = cmp.edge_normal_threshold,
 				});
 			}
 			else if ((cmp.enabled is_false) and renderer.aa_enabled())
@@ -669,63 +716,61 @@ namespace age::editor
 	update_game(auto& ecs_game, auto& renderer) noexcept
 	{
 		using enum age::asset::e::kind;
-
 		using enum age::input::e::key_kind;
+
+		asset_mgr::update(ecs_game, renderer);
 
 		auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-		static auto raycast_req_vec = std::array<uint32, global::frame_buffer_count>{};
+		static auto raycast_req_vec = age::make_filled_array<uint32, global::frame_buffer_count>(get_invalid_idx<uint32>());
 
 		c_auto raycast_res = renderer.get_raycast_result(raycast_req_vec[global::i_graphics.get_frame_buffer_idx]);
 
-		auto need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false and ui::g::p_input_ctx->is_released(mouse_left) and (ui::is_any_focused() is_false);
+		auto need_object_click = AGE_IS_INVALID_IDX(raycast_res.object_id) is_false
+							 and raycast_res.object_deleted is_false
+							 and ui::g::p_input_ctx->is_released(mouse_left)
+							 and (ui::is_any_focused() is_false);
 
+		do
 		{
 			c_auto target_world = math::ndc_to_world(renderer.get_camera_data(0).view_proj_inv, float3{ math::screen_to_ndc(float2{ ui::g::window_width, ui::g::window_height }, ui::g::p_input_ctx->mouse_pos), 0.f });
 
 			raycast_req_vec[global::i_graphics.get_frame_buffer_idx] = renderer.request_raycast(active_scene.cam.pos, math::normalize(target_world - active_scene.cam.pos), std::numeric_limits<float>::max());
 
-			if (ui::is_any_hovered() is_false)
-			{
-				ecs_game.visit_scene_at(
-					active_scene.code_idx,
-					[&](auto& scene) {
-						for (auto i = 0u; i < scene.storage_count(); ++i)
+			if (ui::is_any_hovered()) { break; }
+
+			ecs_game.visit_all_storages_at(
+				active_scene.code_idx,
+				[&](c_auto storage_idx, auto& entities) {
+					if (need_object_click is_false) { return; }
+
+					for (auto&& [obj, ent_id] : entities | ecs::each_entity_soft<ecs::render_object, ecs::sv_entity_id>())
+					{
+						if (obj.render_id != raycast_res.object_id) { continue; }
+
+						if (ui::g::p_input_ctx->is_shift_down())
 						{
-							scene.visit_storage_at(i, [&](auto& entities) {
-								if (need_object_click is_false) { return; }
-
-								if constexpr (entities.has_component<ecs::render_object>())
-								{
-									for (auto&& [obj, ent_id] : entities | ecs::each_entity<ecs::render_object, ecs::sv_entity_id>())
-									{
-										if (obj.render_id != raycast_res.object_id) { continue; }
-
-										if (ui::g::p_input_ctx->is_shift_down())
-										{
-											add_select(e::select_kind::entity, i, ent_id);
-										}
-										else
-										{
-											clear_select();
-											add_select(e::select_kind::entity, i, ent_id);
-										}
-
-										need_object_click = false;
-										return;
-									}
-								}
-							});
+							add_select(e::select_kind::entity, storage_idx, ent_id);
 						}
-					});
-			}
+						else
+						{
+							clear_select();
+							add_select(e::select_kind::entity, storage_idx, ent_id);
+						}
+
+						need_object_click = false;
+						return;
+					}
+				});
 		}
+		while (false);
 
 
 		c_auto need_copy = ui::g::p_input_ctx->is_ctrl_down() and ui::g::p_input_ctx->is_pressed(key_d);
 
-		if (g::current_select_kind == e::select_kind::entity)
-		{
+		[&] {
+			if (g::current_select_kind != e::select_kind::entity) { return; }
+
 			auto   aabb_min	  = float3::max();
 			auto   aabb_max	  = float3::lowest();
 			auto   quat_sum	  = float4::zero();
@@ -752,31 +797,28 @@ namespace age::editor
 							aabb_min		  = age::min(aabb_min, min);
 							aabb_max		  = age::max(aabb_max, max);
 
-							if (entities.has_component<ecs::render_object, ecs::mesh>(id))
+							if constexpr (entities.has_component<ecs::rotation>())
 							{
-								auto&& [obj, mesh] = entities.get_component<const ecs::render_object, const ecs::mesh>(id);
-
-								if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(mesh.h_mesh)) { continue; }
-
-								if (c_auto& entry = mesh.h_mesh.get_entry<asset::e::kind::mesh_baked>();
-									entry.is_gpu_loaded())
+								if (g::gizmo_space == e::transform_space_kind::local and entities.has_component<ecs::rotation>(id))
 								{
-									renderer.render_selection_outline(obj.render_id, mesh.h_mesh, math::srgb_to_linear(float4{ 1, 0, 0, 1 }), 2.f, 0.f);
+									auto&& [quat] = entities.get_component<const ecs::rotation>(id);
+
+									quat_sum += quat * std::copysign(1.f, math::dot(quat_sum, quat));
 								}
 							}
 
-							if (g::gizmo_space == e::transform_space_kind::local)
+							if constexpr (entities.has_component<ecs::render_object, ecs::model>())
 							{
-								if (entities.has_component<ecs::rotation>(id))
+								if (entities.has_component<ecs::render_object, ecs::model>(id))
 								{
-									auto&& [quat] = entities.get_component<const ecs::rotation>(id);
-									if (math::dot(quat_sum, quat) >= 0.f)
+									auto&& [obj, model] = entities.get_component<const ecs::render_object, const ecs::model>(id);
+
+									if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(model.h_model)) { continue; }
+
+									if (c_auto& entry = model.h_model.get_entry<asset::e::kind::model>();
+										entry.is_loaded())
 									{
-										quat_sum += quat;
-									}
-									else
-									{
-										quat_sum += quat;
+										renderer.render_selection_outline(obj.render_id, entry.h_mesh, math::srgb_to_linear(float4{ 1, 0, 0, 1 }), 2.f, 0.f);
 									}
 								}
 							}
@@ -787,106 +829,24 @@ namespace age::editor
 				// editor::command::copy(g::current_select_kind, ecs_game, renderer);
 			}
 
-			if (aabb_min <= aabb_max)
+			if (aabb_min > aabb_max) { return; }
+			if (need_focus)
 			{
-				if (need_focus)
-				{
-					focus_camera(renderer, aabb_min, aabb_max);
-				}
-
-				auto orientation = math::g::quaternion_identity;
-				if (g::gizmo_space == e::transform_space_kind::local)
-				{
-					AGE_ASSERT(quat_sum.x != 0.f or quat_sum.y != 0.f or quat_sum.z != 0.f or quat_sum.w != 0.f);
-
-					orientation = math::normalize(quat_sum);
-				}
-
-				widget_transform(ecs_game, renderer, (aabb_min + aabb_max) * 0.5f, orientation);
+				focus_camera(renderer, aabb_min, aabb_max);
 			}
-		}
+
+			auto orientation = math::g::quaternion_identity;
+			if (g::gizmo_space == e::transform_space_kind::local)
+			{
+				AGE_ASSERT(quat_sum.x != 0.f or quat_sum.y != 0.f or quat_sum.z != 0.f or quat_sum.w != 0.f);
+
+				orientation = math::normalize(quat_sum);
+			}
+
+			widget_transform(ecs_game, renderer, (aabb_min + aabb_max) * 0.5f, orientation);
+		}();
 
 		g::set_focus = false;
-
-		asset::for_each_kind([&renderer]<asset::e::kind e_kind> noexcept {
-			for (auto h : asset::each_handle_of<e_kind>())
-			{
-				if constexpr (e_kind == asset::e::kind::material)
-				{
-					auto& entry = h.get_entry<material>();
-
-					if (entry.ref_counter == 0)
-					{
-						asset::material::full_unload(h, renderer);
-					}
-
-					if (entry.ref_counter > 0)
-					{
-						asset::material::load(h, renderer);
-
-						auto need_update = false;
-
-						for (auto& h_tex : entry.all_textures() | views::deref)
-						{
-							if (runtime::is_handle_invalid(h_tex)) { continue; }
-
-							// handle texture delete
-							if (std::ranges::contains(g::asset_to_delete[to_idx(texture)], h_tex))
-							{
-								if (h_tex.get_entry<texture>().ref_counter == 1)
-								{
-									asset::texture::full_unload(h_tex, renderer);
-								}
-
-								asset::material::update_texture(h_tex, asset::handle{});
-
-								need_update = true;
-							}
-						}
-
-						if (need_update)
-						{
-							renderer.update_material(h);
-						}
-					}
-				}
-				else if constexpr (e_kind == asset::e::kind::font)
-				{
-					// skip;
-					AGE_ASSERT(asset::registry::is_registered(h) is_false);
-				}
-				else
-				{
-					auto& entry = h.get_entry<e_kind>();
-
-					if (entry.ref_counter == 0)
-					{
-						if constexpr (e_kind == texture)
-						{
-							if (entry.is_gpu_loaded())
-							{
-								std::println("unload : {}", entry.get_path());
-							}
-						}
-						asset::full_unload<e_kind>(h, renderer);
-					}
-
-					if (entry.ref_counter > 0)
-					{
-						asset::gpu_load<e_kind>(h, renderer);
-					}
-				}
-			}
-
-			for (auto h : g::asset_to_delete[to_idx(e_kind)])
-			{
-				AGE_ASSERT(asset::registry::is_registered(h));
-
-				asset::registry::unregister_asset(h);
-			}
-
-			g::asset_to_delete[to_idx(e_kind)].clear();
-		});
 
 		{
 			struct
@@ -915,10 +875,10 @@ namespace age::editor
 			}
 		}
 
-
-		if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_ctrl) and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_c))
+		if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_ctrl) and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_s))
 		{
 			editor::save_game(ecs_game, renderer);
+			std::println("game saved");
 		}
 	}
 }	 // namespace age::editor

@@ -23,7 +23,7 @@ namespace age::graphics::pso
 	}
 
 	handle
-	create(detail::cx_pss auto&&... arg) noexcept
+	create(std::wstring_view w_name, detail::cx_pss auto&&... arg) noexcept
 	{
 		auto stream = pss_stream{
 			FWD(arg)...
@@ -37,8 +37,31 @@ namespace age::graphics::pso
 			.pPipelineStateSubobjectStream = stream.storage
 		};
 
-		AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
+		if constexpr (config::enable_gpu_based_validation)
+		{
+			c_auto str_name = w_name.empty() ? std::string{ "(unnamed pso)" } : util::to_utf8(w_name);
+			std::println("[gbv] patching '{}' ...", str_name);
 
-		return handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
+			c_auto t0 = std::chrono::steady_clock::now();
+			AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
+			std::println("[gbv] patching '{}' done ({})", str_name, util::format_duration(std::chrono::steady_clock::now() - t0));
+		}
+		else
+		{
+			AGE_HR_CHECK(g::p_main_device->CreatePipelineState(&desc, IID_PPV_ARGS(&p_pso)));
+		}
+
+		c_auto h_pso = handle{ .id = g::pso_ptr_vec.emplace_back(p_pso) };
+		if (w_name.empty() is_false)
+		{
+			h_pso.set_name(w_name.data());
+		}
+		return h_pso;
+	}
+
+	handle
+	create(detail::cx_pss auto&&... arg) noexcept
+	{
+		return create(std::wstring_view{}, FWD(arg)...);
 	}
 }	 // namespace age::graphics::pso

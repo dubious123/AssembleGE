@@ -10,5 +10,8 @@
 #line 1 "age_test_data_structure_sparse_vector.cpp"
 #include "age_test_data_structure_sparse_vector.cpp"
 
+#line 1 "age_test_asset_path.cpp"
+#include "age_test_asset_path.cpp"
+
 #line 1 "age_test_main.cpp"
 #include "age_test_main.cpp"

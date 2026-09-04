@@ -33,7 +33,7 @@ calc_screen_space_contact_shadow(texture_2d<float> depth_buffer, vertex_fat v, f
 
 	expand_all()
 
-	for (uint32 i = 0; i < num_steps; i++)
+	for (auto i = 0u; i < num_steps; i++)
 	{
 		ray_pos += world_to_light_dir * step_size;
 
@@ -139,114 +139,23 @@ calc_directional_light(directional_light light, float3 vertex_normal, float3 wor
 float3
 calc_directional_shadow_rt(directional_light light, float3 world_pos, float3 face_normal)
 {
-	bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
+	const bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
 
-	float  opaque_shadow	  = 1.f;
-	float  contact			  = 1.f;
-	float3 transparent_shadow = float3(1, 1, 1);
-
-	if (cast_shadow)
+	if (cast_shadow is_false)
 	{
-		// float n_dot_l = saturate(dot(face_normal, -light.direction));
-
-		float n_dot_l = dot(face_normal, -light.direction);
-		if (n_dot_l <= 0.0f)
-		{
-			return float3(0, 0, 0);
-		}
-
-		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
-
-		ray_desc desc;
-		float	 slope			= sqrt(1.0 - n_dot_l * n_dot_l) / max(n_dot_l, 0.05);
-		float	 self_threshold = 0.01 + 0.05 * slope;
-		desc.Origin				= world_pos;
-
-		// desc.Origin = world_pos + face_normal * 0.1f - light.direction * 0.01f;
-		desc.Origin = world_pos + face_normal * 0.01f;
-
-		desc.Origin = surface_offset(world_pos, face_normal);
-		//    desc.Origin	   = world_pos + light.direction * 0.01f;
-		desc.Direction = -light.direction;
-		desc.TMin	   = 0.f;
-		desc.TMax	   = 1e5f;
-
-		{
-			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-
-			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
-			rt_proceed(query);
-
-			if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
-			{
-				opaque_shadow = 0.f;
-			}
-		}
-
-		if (opaque_shadow > 0.f)
-		{
-			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
-			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
-
-			uint32 hit_id_arr[MAX_RAY_HIT];
-			uint32 hit_tri_arr[MAX_RAY_HIT];
-			uint32 hit_count = 0u;
-
-			while (rt_proceed(query))
-			{
-				if (hit_count >= MAX_RAY_HIT) { continue; }
-				uint32 instance_id	  = rt_candidate_instance_id(query);
-				uint32 triangle_index = rt_candidate_primitive_index(query);
-
-				bool dup = false;
-
-				for (uint32 i = 0; i < hit_count; ++i)
-				{
-					if (hit_id_arr[i] == instance_id and hit_tri_arr[i] == triangle_index)
-					{
-						dup = true;
-						break;
-					}
-				}
-
-				if (dup) { continue; }
-
-				hit_id_arr[hit_count]  = instance_id;
-				hit_tri_arr[hit_count] = triangle_index;
-
-				hit_count++;
-
-				const rt_instance_render_data render_data = load_rt_instance_render_data(instance_id);
-				const material				  mat		  = load_material(render_data.material_id);
-
-				float4 obj_color = mat.base_color_factor;
-
-				if (mat.base_color_texture_id != invalid_id_uint32)
-				{
-					const mesh_header msh_header = read_mesh_header<rt_instance_render_data>(render_data);
-					const uint32_3	  prim_index = load_rt_triangle_index(render_data, rt_candidate_primitive_index(query));
-
-					const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
-					const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
-					const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
-
-					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
-					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
-
-					const float2 uv = v0.uv_set[0] * bary.x
-									+ v1.uv_set[0] * bary.y
-									+ v2.uv_set[0] * bary.z;
-
-					texture_2d<float4> tex	= global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
-					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
-				}
-
-				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
-			}
-		}
+		return float3(1, 1, 1);
 	}
 
-	return transparent_shadow * opaque_shadow * contact;
+	const float n_dot_l = dot(face_normal, -light.direction);
+	if (n_dot_l <= 0.0f)
+	{
+		return zero<float3>();
+	}
+
+	const float3 transmittance = rt::trace_transmittance(
+		rt::init_ray_desc(surface_offset(world_pos, face_normal), -light.direction, 0.f, float_max));
+
+	return transmittance;
 }
 
 float3
@@ -258,113 +167,27 @@ calc_unified_light(unified_light light, float3 world_pos, float3 vertex_normal, 
 float3
 calc_unified_shadow_rt(unified_light light, float3 world_pos, float3 face_normal)
 {
-	bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
+	const bool cast_shadow = get_bit(light.cast_shadow_and_extra, 0);
 
-	float opaque_shadow = 1.f;
-	float contact		= 1.f;
-
-	float3 transparent_shadow = float3(1, 1, 1);
-
-	if (cast_shadow)
+	if (cast_shadow is_false)
 	{
-		const float3 world_to_light		= light.position - world_pos;
-		const float3 world_to_light_dir = normalize(world_to_light);
-		const float	 world_to_light_len = length(world_to_light);
-
-		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
-
-		ray_desc desc;
-		desc.Origin = world_pos;
-		//  desc.Origin	   = world_pos - (face_normal + world_to_light_dir) * 0.5f;
-		desc.Origin = world_pos + face_normal * 0.01;
-
-		desc.Origin = surface_offset(world_pos, face_normal);
-		// desc.Origin	   = world_pos + face_normal * 0.01f - world_to_light_dir * 0.001f;
-		desc.Direction = world_to_light_dir;
-		desc.TMin	   = epsilon_1e6;
-		desc.TMax	   = world_to_light_len;
-
-		{
-			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> query;
-
-			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, desc);
-			rt_proceed(query);
-
-			if (rt_committed_status(query) == COMMITTED_TRIANGLE_HIT)
-			{
-				opaque_shadow = 0.f;
-			}
-		}
-
-		if (opaque_shadow > 0.f)
-		{
-			// opaque_shadow = min(opaque_shadow, calc_screen_space_contact_shadow(global_resource_buffer[depth_buffer_texture_id], v, desc.Origin, world_to_light_dir));
-		}
-
-		if (opaque_shadow > 0.f)
-		{
-			ray_query<RAY_FLAG_CULL_BACK_FACING_TRIANGLES> query;
-			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT, desc);
-
-			uint32 hit_id_arr[MAX_RAY_HIT];
-			uint32 hit_tri_arr[MAX_RAY_HIT];
-			uint32 hit_count = 0u;
-
-			while (rt_proceed(query))
-			{
-				if (hit_count >= MAX_RAY_HIT) { continue; }
-				uint32 instance_id	  = rt_candidate_instance_id(query);
-				uint32 triangle_index = rt_candidate_primitive_index(query);
-
-				bool dup = false;
-
-				for (uint32 i = 0; i < hit_count; ++i)
-				{
-					if (hit_id_arr[i] == instance_id and hit_tri_arr[i] == triangle_index)
-					{
-						dup = true;
-						break;
-					}
-				}
-
-				if (dup) { continue; }
-
-				hit_id_arr[hit_count]  = instance_id;
-				hit_tri_arr[hit_count] = triangle_index;
-
-				hit_count++;
-
-				const rt_instance_render_data render_data = load_rt_instance_render_data(instance_id);
-				const material				  mat		  = load_material(render_data.material_id);
-
-				float4 obj_color = mat.base_color_factor;
-
-				if (mat.base_color_texture_id != invalid_id_uint32)
-				{
-					const mesh_header msh_header = read_mesh_header<rt_instance_render_data>(render_data);
-					const uint32_3	  prim_index = load_rt_triangle_index(render_data, rt_candidate_primitive_index(query));
-
-					const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
-					const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
-					const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
-
-					const float2 bary_xy = rt_candidate_triangle_barycentrics(query);
-					const float3 bary	 = float3(1.f - bary_xy.x - bary_xy.y, bary_xy.x, bary_xy.y);
-
-					const float2 uv = v0.uv_set[0] * bary.x
-									+ v1.uv_set[0] * bary.y
-									+ v2.uv_set[0] * bary.z;
-
-					texture_2d<float4> tex	= global_resource_buffer[non_uniform_resource_idx(mat.base_color_texture_id)];
-					obj_color			   *= sample_level(tex, get_linear_wrap_sampler(), uv, 0);
-				}
-
-				transparent_shadow *= lerp(float3(1, 1, 1), obj_color.rgb, obj_color.a) * (1.0 - obj_color.a);
-			}
-		}
+		return float3(1, 1, 1);
 	}
 
-	return transparent_shadow * opaque_shadow * contact;
+	const float3 world_to_light = light.position - world_pos;
+	const float	 n_dot_l		= dot(face_normal, world_to_light);
+	if (n_dot_l <= 0.0f)
+	{
+		return zero<float3>();
+	}
+
+	const float	 world_to_light_len = length(world_to_light);
+	const float3 world_to_light_dir = world_to_light / max(world_to_light_len, epsilon_1e6);
+
+	const float3 transmittance = rt::trace_transmittance(
+		rt::init_ray_desc(surface_offset(world_pos, face_normal), world_to_light_dir, 0.f, world_to_light_len));
+
+	return transmittance;
 }
 
 float3
@@ -374,12 +197,11 @@ calc_pbr_light(const in pbr_surface_data surface_data, unified_light light)
 	const float	 distance		  = length(surface_to_light);
 	const float3 world_to_light	  = surface_to_light / distance;
 
-	float n_dot_l = dot(surface_data.normal, world_to_light);
+	const float n_dot_l = dot(surface_data.normal, world_to_light);
 	if (n_dot_l <= 0.f)
 	{
-		return float3(0.f, 0.f, 0.f);
+		return zero<float3>();
 	}
-	n_dot_l = saturate(n_dot_l);
 
 	const float distance_ratio = distance / light.range;
 	const float window		   = saturate(1.f - distance_ratio * distance_ratio);
@@ -391,26 +213,27 @@ calc_pbr_light(const in pbr_surface_data surface_data, unified_light light)
 	const float3 light_radiance = cast<float3>(light.color) * light.intensity
 								* attenuation * cone_falloff * cone_falloff;
 
-	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
-	return brdf::eval_punctual(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
+	// soft terminator: kill normal-mapped light where the geometry faces away
+	const float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
+	return brdf::eval_punctual(surface_data, world_to_light, saturate(n_dot_l)) * light_radiance * visibility;
 }
 
 float3
 calc_pbr_light(const in pbr_surface_data surface_data, directional_light light)
 {
-	const float3 world_to_light = -normalize(light.direction);
+	const float3 world_to_light = -light.direction;
 
-	float n_dot_l = dot(surface_data.normal, world_to_light);
+	const float n_dot_l = dot(surface_data.normal, world_to_light);
 	if (n_dot_l <= 0.f)
 	{
-		return float3(0.f, 0.f, 0.f);
+		return zero<float3>();
 	}
-	n_dot_l = saturate(n_dot_l);
 
 	const float3 light_radiance = light.color * light.intensity;
 
-	float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
-	return brdf::eval_punctual(surface_data, world_to_light, n_dot_l) * light_radiance * visibility;
+	// soft terminator: kill normal-mapped light where the geometry faces away
+	const float visibility = saturate(dot(surface_data.vertex_normal, world_to_light) * 10);
+	return brdf::eval_punctual(surface_data, world_to_light, saturate(n_dot_l)) * light_radiance * visibility;
 }
 
 float3
@@ -493,7 +316,7 @@ calc_skybox_color(float3 dir /*normalized*/)
 
 	expand(MAX_ENV_LIGHT)
 
-	for (uint32 i = 0; i < env_light_count; ++i)
+	for (auto i = 0u; i < env_light_count; ++i)
 	{
 		const env_light env = load_env_light(i);
 
@@ -504,34 +327,6 @@ calc_skybox_color(float3 dir /*normalized*/)
 
 	return res;
 }
-
-struct rt_arg
-{
-	uint32 arg_0;
-
-	static rt_arg
-	init_empty()
-	{
-		rt_arg res;
-		res.arg_0 = 0u;
-		return res;
-	}
-
-	static rt_arg
-	init_gibs(bool add_ref)
-	{
-		rt_arg res;
-		res.arg_0  = 0;
-		res.arg_0 |= add_ref ? 1 : 0;
-		return res;
-	}
-
-	bool
-	gibs_enable_spawn_kill()
-	{
-		return arg_0 & 1;
-	}
-};
 
 float3
 calc_pbr_ddgi(const in pbr_surface_data surface_data, const in float3 world_face_normal)
@@ -544,9 +339,9 @@ template <bool enable_wave_inst>
 float3
 calc_di(const in pbr_surface_data surface_data, const float3 world_face_normal)
 {
-	float3 lighting = zero<float3>();
+	float3 res = zero<float3>();
 
-	lighting += surface_data.emissive;
+	res += surface_data.emissive;
 
 	const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
 
@@ -554,8 +349,8 @@ calc_di(const in pbr_surface_data surface_data, const float3 world_face_normal)
 	{
 		const directional_light light = load_directional_light(d);
 
-		lighting += calc_pbr_light(surface_data, light)
-				  * calc_directional_shadow_rt(light, surface_data.world_pos, world_face_normal);
+		res += calc_pbr_light(surface_data, light)
+			 * calc_directional_shadow_rt(light, surface_data.world_pos, world_face_normal);
 	}
 
 
@@ -573,10 +368,10 @@ calc_di(const in pbr_surface_data surface_data, const float3 world_face_normal)
 
 	for (uint32 w = word_begin; w <= word_end; ++w)
 	{
-		uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
-		uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
-		uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
-		uint32 bit_mask = x_mask & y_mask & z_mask;
+		const uint32 x_mask	  = load_bin_mask_x(light_bin_axis.x, w);
+		const uint32 y_mask	  = load_bin_mask_y(light_bin_axis.y, w);
+		const uint32 z_mask	  = load_bin_mask_z(light_bin_axis.z, w);
+		const uint32 bit_mask = x_mask & y_mask & z_mask;
 
 		uint32 wave_bit_mask = enable_wave_inst ? wave_active_bit_or(bit_mask) : bit_mask;
 
@@ -591,13 +386,13 @@ calc_di(const in pbr_surface_data surface_data, const float3 world_face_normal)
 			{
 				const unified_light light = load_sorted_light(sorted_id);
 
-				lighting += calc_pbr_light(surface_data, light)
-						  * calc_unified_shadow_rt(light, surface_data.world_pos, world_face_normal);
+				res += calc_pbr_light(surface_data, light)
+					 * calc_unified_shadow_rt(light, surface_data.world_pos, world_face_normal);
 			}
 		}
 	}
 
-	return lighting;
+	return res;
 }
 
 float3
@@ -643,217 +438,282 @@ calc_gi(const in pbr_surface_data surface_data, float3 irradiance, float3 specul
 	return gi;
 }
 
-struct rt_hit_data
+namespace lighting
 {
-	uint32 rt_instance_render_data_id;
-	uint32 triangle_index;
-	float2 barycentrics;
-	float  t;
-};
-
-template <uint32 ray_flag>
-float4
-rt_calc_transparent_color(rt_arg arg, ray_desc desc, inout ray_query<ray_flag> query)
-{
-	rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
-
-	rt_hit_data hit_data_arr[MAX_RAY_HIT];
-	uint32		hit_count = 0;
-
-	rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT | RT_MASK_MASK, desc);
-
-	while (rt_proceed(query))
+	namespace detail
 	{
-		float t = rt_candidate_triangle_ray_t(query);
-
-		if (hit_count >= MAX_RAY_HIT && t >= hit_data_arr[hit_count - 1].t)
+		struct gi_func
 		{
-			continue;
-		}
-
-		uint32 instance_id	  = rt_candidate_instance_id(query);
-		uint32 triangle_index = rt_candidate_primitive_index(query);
-
-		uint32 end = hit_count < MAX_RAY_HIT ? hit_count : hit_count - 1;
-		uint32 pos = end;
-		bool   dup = false;
-
-		for (uint32 i = 0; i < end; ++i)
-		{
-			if (hit_data_arr[i].rt_instance_render_data_id == instance_id and hit_data_arr[i].triangle_index == triangle_index)
+			float3
+			operator()(const in pbr_surface_data surface_data, const in float3 face_normal)
 			{
-				dup = true;
+				float3 ambient_light = zero<float3>();
+
+				attr_branch()
+
+				if (ddgi_enabled())
+				{
+					// todo need fresnel?
+					// from https://google.github.io/filament/Filament.md.html
+					c_auto f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+					c_auto gi_diffuse  = calc_pbr_ddgi(surface_data, face_normal);
+					ambient_light	  += (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+					expand(MAX_ENV_LIGHT)
+
+					for (auto i = 0u; i < env_light_count; ++i)
+					{
+						ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
+					}
+				}
+				else if (gibs::enabled())
+				{
+					c_auto f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+					c_auto irradiance  = gibs::sample_irradiance<true, false>(gibs::load_data(), surface_data.world_pos, face_normal).xyz;
+					c_auto gi_diffuse  = surface_data.c_diffuse * irradiance * pi_inv;
+					ambient_light	  += (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+					ambient_light += calc_pbr_gibs_specular(surface_data, irradiance) * surface_data.occlusion;
+				}
+				else if (gist::enabled())
+				{
+					c_auto f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
+
+					c_auto irradiance  = gist::sample_irradiance<true, false>(gist::load_data(), surface_data.world_pos, face_normal).xyz;
+					c_auto gi_diffuse  = surface_data.c_diffuse * irradiance * pi_inv;
+					ambient_light	  += (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
+
+					ambient_light += calc_pbr_gist_specular(surface_data, irradiance) * surface_data.occlusion;
+				}
+				else
+				{
+					expand(MAX_ENV_LIGHT)
+
+					for (auto i = 0u; i < env_light_count; ++i)
+					{
+						ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
+					}
+				}
+
+				return ambient_light;
+			}
+		};
+	}	 // namespace detail
+
+	namespace detail
+	{
+		struct rt_hit_data
+		{
+			uint32 rt_instance_render_data_id;
+			uint16 submesh_id;
+			uint16 is_back_face_and_extra;
+			uint32 local_primitive_id;
+			float2 barycentrics;
+			float  t;
+		};
+	}	 // namespace detail
+
+	template <bool trace_opaque, uint32 opaque_ray_flags, bool trace_transparent, uint32 transparent_ray_flags, bool enable_wave_inst, typename t_gi_func>
+	float4
+	calc_ray_color(inout t_gi_func func, out float opaque_distance, float3 origin, float3 dir /*normalized*/, float t_min = 0.f, float t_max = float_max)
+	{
+		rt_acceleration_structure tlas = global_resource_buffer[rt_tlas_buffer_id];
+
+		auto res = zero<float4>();
+
+		opaque_distance = float_max;
+
+		do
+		{
+			attr_branch()
+			if (trace_opaque is_false) { break; }
+
+			auto query = ray_query<RAY_FLAG_CULL_NON_OPAQUE | opaque_ray_flags>();
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_OPAQUE, rt::init_ray_desc(origin, dir, t_min, t_max));
+			rt_proceed(query);
+
+			attr_branch()
+			if (rt_committed_status(query) == COMMITTED_NOTHING)
+			{
+				res = float4(calc_skybox_color(dir), 1.f);
 				break;
 			}
 
-			if (pos == end and t < hit_data_arr[i].t)
+			t_max			= rt_committed_ray_t(query);
+			opaque_distance = t_max;
+
+			c_auto submesh_id	   = rt_committed_geometry_index(query);
+			c_auto rt_render_data  = load_rt_instance_render_data(rt_committed_instance_id(query));
+			c_auto obj_render_data = load_object_render_data(rt_render_data.object_render_id);
+			c_auto is_back_face	   = rt_committed_triangle_front_face(query) is_false;
+			c_auto mat			   = mesh::load_submesh_material_from_submesh_id(submesh_id, obj_render_data);
+
+			attr_branch()
+			if (is_back_face)
 			{
-				pos = i;
-			}
-		}
+				const bool double_sided = rt_render_data.is_force_double_sided() or mat.is_double_sided();
 
-		if (dup) { continue; }
-
-		for (uint32 i = end; i > pos; --i)
-		{
-			hit_data_arr[i] = hit_data_arr[i - 1];
-		}
-
-
-		hit_data_arr[pos].t							 = t;
-		hit_data_arr[pos].rt_instance_render_data_id = instance_id;
-		hit_data_arr[pos].triangle_index			 = triangle_index;
-		hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
-
-		if (hit_count < MAX_RAY_HIT)
-		{
-			hit_count++;
-		}
-	}
-
-	float4 result = float4(0, 0, 0, 0);
-
-	for (int32 i = 0; i < hit_count; ++i)
-	{
-		const rt_hit_data hit = hit_data_arr[i];
-
-		const rt_instance_render_data render_data = load_rt_instance_render_data(hit.rt_instance_render_data_id);
-		const material				  mat		  = load_material(render_data.material_id);
-		const object_data			  obj_data	  = load_object_data(render_data.object_id);
-		const mesh_header			  msh_header  = read_mesh_header<rt_instance_render_data>(render_data);
-		const uint32_3				  prim_index  = load_rt_triangle_index(render_data, hit.triangle_index);
-
-		const vertex_fat v0 = decode_vertex(msh_header, prim_index.x);
-		const vertex_fat v1 = decode_vertex(msh_header, prim_index.y);
-		const vertex_fat v2 = decode_vertex(msh_header, prim_index.z);
-
-		const float3 bary_weights = float3(1.f - hit.barycentrics.x - hit.barycentrics.y, hit.barycentrics.x, hit.barycentrics.y);
-
-		const vertex_fat v = transform_vertex_to_world(interpolate_vertex_fat(v0, v1, v2, bary_weights), obj_data);
-
-		const pbr_surface_data surface_data = calc_pbr_surface(desc.Direction, mat, v);
-
-		const float3 local_face_normal = normalize(cross(v1.pos.xyz - v0.pos.xyz, v2.pos.xyz - v0.pos.xyz));
-
-		const float3 world_face_normal = normalize(rotate(local_face_normal / cast<float3>(obj_data.scale), decode_quaternion(obj_data.quaternion)));
-
-		float3 ambient_light = float3(0, 0, 0);
-
-		attr_branch()
-
-		if (ddgi_enabled())
-		{
-			// todo need fresnel?
-			// from https://google.github.io/filament/Filament.md.html
-			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-
-			const float3 gi_diffuse	 = calc_pbr_ddgi(surface_data, world_face_normal);
-			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
-
-			expand(MAX_ENV_LIGHT)
-
-			for (uint32 i = 0; i < env_light_count; ++i)
-			{
-				ambient_light += calc_pbr_ibl_specular(surface_data, load_env_light(i)) * surface_data.occlusion;
-			}
-		}
-		else if (gibs::enabled())
-		{
-			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-
-			const float3 irradiance	 = gibs::sample_irradiance(gibs::load_data(), surface_data.world_pos, world_face_normal).xyz;
-			const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
-			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
-
-			ambient_light += calc_pbr_gibs_specular(surface_data, irradiance) * surface_data.occlusion;
-		}
-		else if (gist::enabled())
-		{
-			const float3 f_avg = surface_data.f0 + (float3(1.f, 1.f, 1.f) - surface_data.f0) / 21;
-
-			const float3 irradiance	 = gist::sample_irradiance(gist::load_data(), surface_data.world_pos, world_face_normal).xyz;
-			const float3 gi_diffuse	 = surface_data.c_diffuse * irradiance * pi_inv;
-			ambient_light			+= (1.f - f_avg) * gi_diffuse * surface_data.occlusion;
-
-			ambient_light += calc_pbr_gist_specular(surface_data, irradiance) * surface_data.occlusion;
-		}
-		else
-		{
-			expand(MAX_ENV_LIGHT)
-
-			for (uint32 i = 0; i < env_light_count; ++i)
-			{
-				ambient_light += calc_pbr_ibl(surface_data, load_env_light(i));
-			}
-		}
-
-		float3 lighting = ambient_light;
-
-		lighting += surface_data.emissive;
-
-		const uint32 directional_light_count = directional_light_count_and_extra & 0xff;
-
-		for (uint32 d = 0; d < directional_light_count; ++d)
-		{
-			const directional_light light = load_directional_light(d);
-
-			lighting += calc_pbr_light(surface_data, light)
-					  * calc_directional_shadow_rt(light, v.world_pos, world_face_normal);
-		}
-
-		{
-			const uint32_3 light_bin_axis = world_to_light_bin_axis(v.world_pos);
-
-			const zbin_entry x_entry = load_bin_entry_x(light_bin_axis.x);
-			const zbin_entry y_entry = load_bin_entry_y(light_bin_axis.y);
-			const zbin_entry z_entry = load_bin_entry_z(light_bin_axis.z);
-
-			const uint32 min_id = max(x_entry.min_idx, max(y_entry.min_idx, z_entry.min_idx));
-			const uint32 max_id = min(x_entry.max_idx, min(y_entry.max_idx, z_entry.max_idx));
-
-			const uint32 wave_min = wave_active_min(min_id);
-			const uint32 wave_max = wave_active_max(max_id);
-
-			const uint32 word_begin = wave_min / 32;
-			const uint32 word_end	= wave_max / 32;
-
-			for (uint32 w = word_begin; w <= word_end; ++w)
-			{
-				uint32 x_mask	= load_bin_mask_x(light_bin_axis.x, w);
-				uint32 y_mask	= load_bin_mask_y(light_bin_axis.y, w);
-				uint32 z_mask	= load_bin_mask_z(light_bin_axis.z, w);
-				uint32 bit_mask = x_mask & y_mask & z_mask;
-
-				uint32 wave_bit_mask = wave_active_bit_or(bit_mask);
-
-				while (wave_bit_mask != 0)
+				if (double_sided is_false)
 				{
-					const uint32 bit	   = first_bit_low(wave_bit_mask);
-					const uint32 sorted_id = w * 32 + bit;
-					// wave_bit_mask		   &= ~(1u << bit);
-					wave_bit_mask &= (wave_bit_mask - 1u);
-
-					if (bit_mask & (1u << bit))
-					{
-						const unified_light light = load_sorted_light(sorted_id);
-
-						lighting += calc_pbr_light(surface_data, light)
-								  * calc_unified_shadow_rt(light, v.world_pos, world_face_normal);
-					}
+					res				= float4(0, 0, 0, 1.f);
+					opaque_distance = -t_max;
+					break;
 				}
 			}
+
+			c_auto msh_header	 = read_mesh_header(obj_render_data);
+			c_auto surface_point = mesh::calc_surface_point(load_object_data(rt_render_data.object_render_id),
+															obj_render_data,
+															msh_header,
+															mat,
+															submesh_id,
+															msh_header.calc_primitive_id(submesh_id, rt_committed_primitive_index(query)),
+															rt_committed_triangle_barycentrics(query),
+															is_back_face);
+
+			c_auto surface_data = calc_pbr_surface(dir, surface_point.mat, surface_point.v);
+
+			c_auto col = func(surface_data, surface_point.world_face_normal)
+					   + calc_di<enable_wave_inst>(surface_data, surface_point.world_face_normal);
+
+			res = float4(col, 1.f);
 		}
+		while (false);
 
-		const float alpha = surface_data.base_color.a;
-
-		result.rgb += lighting * alpha * (1.f - result.a);
-		result.a   += alpha * (1.f - result.a);
-
-		if (result.a >= 1.f)
+		attr_branch()
+		if (trace_transparent)
 		{
-			break;
+			detail::rt_hit_data hit_data_arr[MAX_RAY_HIT] = (detail::rt_hit_data[MAX_RAY_HIT])0;
+			auto				hit_count				  = 0u;
+
+			auto query = ray_query<RAY_FLAG_CULL_OPAQUE | transparent_ray_flags>();
+			rt_trace_ray_inline(query, tlas, RAY_FLAG_NONE, RT_MASK_TRANSPARENT | RT_MASK_OMM, rt::init_ray_desc(origin, dir, t_min, t_max));
+
+			while (rt_proceed(query))
+			{
+				c_auto t = rt_candidate_triangle_ray_t(query);
+
+				if (hit_count >= MAX_RAY_HIT and t >= hit_data_arr[hit_count - 1].t) { continue; }
+
+				c_auto rt_instance_render_data_id = rt_candidate_instance_id(query);
+				c_auto submesh_id				  = rt_candidate_geometry_index(query);
+				c_auto local_primitive_id		  = rt_candidate_primitive_index(query);
+
+				c_auto end = hit_count < MAX_RAY_HIT ? hit_count : hit_count - 1;
+				auto   pos = end;
+				auto   dup = false;
+
+				for (auto i = 0u; i < end; ++i)
+				{
+					if (hit_data_arr[i].rt_instance_render_data_id == rt_instance_render_data_id
+						and hit_data_arr[i].submesh_id == submesh_id
+						and hit_data_arr[i].local_primitive_id == local_primitive_id)
+					{
+						dup = true;
+						break;
+					}
+
+					if (pos == end and t < hit_data_arr[i].t)
+					{
+						pos = i;
+					}
+				}
+
+				if (dup) { continue; }
+
+				for (auto i = end; i > pos; --i)
+				{
+					hit_data_arr[i] = hit_data_arr[i - 1];
+				}
+
+				hit_data_arr[pos].t							 = t;
+				hit_data_arr[pos].rt_instance_render_data_id = rt_instance_render_data_id;
+				hit_data_arr[pos].submesh_id				 = cast<uint16>(submesh_id);
+				hit_data_arr[pos].is_back_face_and_extra	 = cast<uint16>(rt_candidate_triangle_front_face(query) is_false);
+				hit_data_arr[pos].local_primitive_id		 = local_primitive_id;
+				hit_data_arr[pos].barycentrics				 = rt_candidate_triangle_barycentrics(query);
+
+				if (hit_count < MAX_RAY_HIT)
+				{
+					hit_count++;
+				}
+			}
+
+			float4 transparent_color = zero<float4>();
+
+			attr_loop()
+			for (auto i = 0u; i < hit_count; ++i)
+			{
+				c_auto hit			   = hit_data_arr[i];
+				c_auto rt_render_data  = load_rt_instance_render_data(hit.rt_instance_render_data_id);
+				c_auto obj_render_data = load_object_render_data(rt_render_data.object_render_id);
+				c_auto msh_header	   = read_mesh_header(obj_render_data);
+				c_auto is_back_face	   = hit.is_back_face_and_extra & 1u;
+				c_auto mat			   = mesh::load_submesh_material_from_submesh_id(hit.submesh_id, obj_render_data);
+
+				attr_branch()
+				if (is_back_face)
+				{
+					const bool double_sided = rt_render_data.is_force_double_sided() or mat.is_double_sided();
+
+					if (double_sided is_false) { continue; }
+				}
+				c_auto surface_point = mesh::calc_surface_point(load_object_data(rt_render_data.object_render_id),
+																obj_render_data,
+																msh_header,
+																mat,
+																hit.submesh_id,
+																msh_header.calc_primitive_id(hit.submesh_id, hit.local_primitive_id),
+																hit.barycentrics,
+																is_back_face);
+
+				c_auto surface_data = calc_pbr_surface(dir, surface_point.mat, surface_point.v);
+
+				c_auto col = func(surface_data, surface_point.world_face_normal)
+						   + calc_di<enable_wave_inst>(surface_data, surface_point.world_face_normal);
+
+				c_auto rt_alpha_test_mode = mesh::calc_rt_alpha_test_mode(msh_header, hit.submesh_id, rt_render_data);
+
+				auto alpha = rt_alpha_test_mode == AGE_RT_ALPHA_TEST_MODE_OPAQUE
+							   ? 1.f
+						   : rt_alpha_test_mode == AGE_RT_ALPHA_TEST_MODE_MASK
+							   ? (surface_data.base_color.a >= surface_point.mat.alpha_cutoff ? 1.f : 0.f)
+							   : surface_data.base_color.a;
+
+				alpha *= rt_render_data.fade_factor();
+
+				transparent_color.rgb += col * alpha * (1.f - transparent_color.a);
+				transparent_color.a	  += alpha * (1.f - transparent_color.a);
+
+				if (transparent_color.a >= 1.f) { break; }
+			}
+
+			res.rgb = transparent_color.rgb + res.rgb * (1.f - transparent_color.a);
+			res.a	= transparent_color.a + res.a * (1.f - transparent_color.a);
 		}
+
+		return res;
 	}
 
-	return result;
-}
+	template <bool trace_opaque, uint32 opaque_ray_flags, bool trace_transparent, uint32 transparent_ray_flags, bool enable_wave_inst, typename t_gi_func>
+	float4
+	calc_ray_color(inout t_gi_func func, float3 origin, float3 dir /*normalized*/, float t_min = 0.f, float t_max = float_max)
+	{
+		float _;
+		return calc_ray_color<trace_opaque, opaque_ray_flags, trace_transparent, transparent_ray_flags, enable_wave_inst, t_gi_func>(func, _, origin, dir, t_min, t_max);
+	}
+
+	template <bool enable_wave_inst>
+	float4
+	calc_transparent_color(float3 origin, float3 dir /*normalized*/, float t_min = 0.f, float t_max = float_max)
+	{
+		detail::gi_func func = zero<detail::gi_func>();
+
+		const float4 res = calc_ray_color<false, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, true, RAY_FLAG_NONE, enable_wave_inst>(
+			func, origin, dir, t_min, t_max);
+
+		return res;
+	}
+}	 // namespace lighting

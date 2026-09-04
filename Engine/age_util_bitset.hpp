@@ -19,6 +19,12 @@ namespace age::util
 			{
 				return AGE_IS_INVALID_IDX(min) is_false;
 			}
+
+			FORCE_INLINE constexpr bool
+			operator==(bool v) const noexcept
+			{
+				return static_cast<bool>(*this) == v;
+			}
 		};
 
 		FORCE_INLINE bool

@@ -14,7 +14,7 @@ namespace age::editor::detail
 
 		[]<auto... i>(std::index_sequence<i...>, auto& storage_editor) {
 			((storage_editor.component_data_vec.emplace_back(component_editor_data{
-				 .names		= ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<std::array<char, config::max_component_name_len>>>(),
+				 .names		= ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<age::array<char, config::max_component_name_len>>>(),
 				 .version	= ecs::get_component_version<typename t_archetype_traits::template t_component<i>>(),
 				 .byte_size = ecs::get_byte_size<typename t_archetype_traits::template t_component<i>>(),
 			 })),
@@ -28,7 +28,7 @@ namespace age::editor::detail
 		scene_editor.storage_data_vec.reserve(scene.storage_count());
 		[]<auto... i>(std::index_sequence<i...>, auto& scene_editor, auto& scene, auto scene_idx) {
 			((scene_editor.storage_data_vec.emplace_back(storage_editor_data{
-				  .names	= std::get<i>(scene.storage_names()) | std::ranges::to<age::vector<std::array<char, config::max_entity_storage_name_len>>>(),
+				  .names	= std::get<i>(scene.storage_names()) | std::ranges::to<age::vector<age::array<char, config::max_entity_storage_name_len>>>(),
 				  .code_idx = i,
 			  }),
 
@@ -42,7 +42,7 @@ namespace age::editor::detail
 	{
 		auto res = game_editor_data{};
 
-		res.names					 = game.age_editor_name() | std::ranges::to<age::vector<std::array<char, config::max_game_name_len>>>();
+		res.names					 = game.age_editor_name() | std::ranges::to<age::vector<age::array<char, config::max_game_name_len>>>();
 		res.default_active_scene_idx = 0;
 
 		res.scene_data_vec.clear();
@@ -50,7 +50,7 @@ namespace age::editor::detail
 		res.scene_data_vec.reserve(game.scene_count());
 		[]<auto... i>(std::index_sequence<i...>, auto& res, auto& game) {
 			((res.scene_data_vec.emplace_back(scene_editor_data{
-				  .names	= std::get<i>(game.scene_names()) | std::ranges::to<age::vector<std::array<char, config::max_scene_name_len>>>(),
+				  .names	= std::get<i>(game.scene_names()) | std::ranges::to<age::vector<age::array<char, config::max_scene_name_len>>>(),
 				  .code_idx = i,
 				  .loaded	= false,
 			  }),
@@ -377,7 +377,7 @@ namespace age::editor::detail
 
 		for (auto&& [file_cmp_idx, cmp] : component_data_arr | std::views::enumerate)
 		{
-			cmp.names.emplace_back(buf.read<std::array<char, config::max_component_name_len>>());
+			cmp.names.emplace_back(buf.read<age::array<char, config::max_component_name_len>>());
 			buf.read(cmp.byte_size);
 			buf.read(cmp.version);
 
@@ -400,7 +400,7 @@ namespace age::editor::detail
 
 		for (auto _ : views::loop(archetype_count))
 		{
-			auto&& [arch_name, file_archetype, entity_count] = buf.read<std::array<char, config::max_archetype_name_len>, uint64, uint64>();
+			auto&& [arch_name, file_archetype, entity_count] = buf.read<age::array<char, config::max_archetype_name_len>, uint64, uint64>();
 
 			auto code_archetype = 0ull;
 
@@ -518,6 +518,7 @@ namespace age::editor
 		c_auto& names	 = game.age_editor_name();
 		c_auto	game_dir = detail::resolve_path_by_names(root_dir, names);
 
+		// todo, add asset game
 		auto proj_file_name = game_dir / std::format("{}{}", config::game_asset_tag, config::asset_extension);
 
 		if (std::filesystem::exists(proj_file_name))
@@ -552,7 +553,8 @@ namespace age::editor
 
 				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
-					auto buf = asset::read_asset_file(storage_path.string());
+					auto  file_data = asset::read_asset_file(storage_path.string());
+					auto& buf		= file_data.buf;
 
 					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), buf, storage, renderer);
 

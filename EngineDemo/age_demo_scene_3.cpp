@@ -11,7 +11,7 @@ namespace age_demo::scene_3
 
 		i_init.get_editor_game->init();
 
-		age::editor::load_game(i_init.get_editor_game(), "./resources/demo_game/", i_init.get_render_pipeline());
+		age::editor::load_game(i_init.get_editor_game(), "resources/demo_game/", i_init.get_render_pipeline());
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
 		i_init.set_smoothed_look = float2{ 0.f, 0.f };
@@ -27,11 +27,67 @@ namespace age_demo::scene_3
 
 		using enum age::input::e::key_kind;
 
+
 		i_update.get_render_pipeline->begin_frame();
 
 		{
 			c_auto& ui_main_cam = i_update.get_render_pipeline->get_camera_data(0);
 			age::ui::begin_frame(i_update.get_h_window, ui_main_cam.pos, ui_main_cam.view_proj_inv);
+		}
+
+		static bool first = false;
+
+		// sample editor script
+		if (first)
+		{
+			auto ent_vec = age::vector<uint32>{};
+			auto desc	 = age::asset::model_desc{};
+			desc.h_materials.resize(1);
+
+			auto& renderer	= i_update.get_render_pipeline();
+			auto  model_idx = 0u;
+
+			auto model_name_buf = age::array<char, age::config::max_asset_path_len>{};
+
+
+			for (c_auto scene_idx : age::views::loop(i_update.get_editor_game->scene_count()))
+			{
+				i_update.get_editor_game->visit_scene_at(scene_idx, [&](auto& scene) {
+					scene.visit_all_storages([&](c_auto storage_idx, auto& entities) {
+						if constexpr (entities.has_component<render_object, mesh, material, model>())
+						{
+							auto& editor_storage_data = age::editor::detail::find_storage_editor_data(scene_idx, storage_idx);
+							for (const auto&& [ent_id, obj, mesh, mat] :
+								 entities | each_entity<sv_entity_id, const render_object, const mesh, const material>())
+							{
+								ent_vec.emplace_back(ent_id);
+							}
+
+							for (auto ent_id : ent_vec)
+							{
+								auto&& [obj, msh, mat] = entities.get_component<const render_object, mesh, material>(ent_id);
+								desc.h_materials[0]	   = mat.h_mat;
+								desc.h_mesh			   = msh.h_mesh;
+
+								auto [out, len]	  = std::format_to_n(model_name_buf.data(), model_name_buf.size() - 1, "new_model_{}", model_idx++);
+								c_auto model_path = age::editor::get_asset_full_path(age::asset::e::kind::model, std::string_view{ model_name_buf.data(), static_cast<uint32>(len) });
+								age::asset::model::build({ model_path.data() }, desc);
+								c_auto h_model = age::asset::model::load_common_from_path(model_path, renderer);
+								age::asset::registry::register_asset(h_model);
+
+								age::editor::remove_components<mesh, material>(entities, renderer, editor_storage_data, ent_id);
+								age::editor::add_components<model>(entities, renderer, editor_storage_data, ent_id);
+
+								auto&& [mdl] = entities.get_component<model>(ent_id);
+								mdl.update_h_model(h_model);
+							}
+
+							ent_vec.clear();
+						}
+					});
+				});
+			}
+			first = false;
 		}
 
 
@@ -58,7 +114,7 @@ namespace age_demo::scene_3
 				if (auto _ = widget::begin(style::panel() | set_width_grow() | set_height_grow()))
 				{
 					auto h_scroll = widget::scroll_area_v();
-					age::editor::ui_asset();
+					age::editor::ui_asset_list_panel();
 				}
 			}
 
@@ -110,29 +166,38 @@ namespace age_demo::scene_3
 			AGE_LAMBDA(
 				(auto& entities),
 				{
-					for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
-																		| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
+					if constexpr (entities.has_component<position, rotation, scale, render_object, model, model_render_option>())
 					{
-						i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
-
-						if (age::runtime::is_handle_invalid(mesh.h_mesh) or age::runtime::is_handle_invalid(mat.h_mat))
+						for (auto&& [ent_id, pos, rot, scale, obj, model] :
+							 entities | each_entity<sv_entity_id, const position, const rotation, const scale, const render_object, const model>())
 						{
-							continue;
+							i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
+
+							if (age::runtime::is_handle_invalid(model.h_model)) { continue; }
+
+							if (c_auto& entry = model.h_model.get_entry<age::asset::e::kind::model>();
+								entry.is_loaded() is_false)
+							{
+								continue;
+							}
+
+							if (entities.has_component<model_render_option>(ent_id))
+							{
+								auto&& [option] = entities.get_component<const model_render_option>(ent_id);
+								i_update.get_render_pipeline->render_model(
+									0, obj.render_id, model.h_model,
+									{
+										.raster_override_kind		 = option.raster_override_kind,
+										.rt_alpha_test_override_kind = option.rt_alpha_test_override_kind,
+										.option_flags				 = option.option_flags,
+										.fade_unorm8				 = option.fade_unorm8,
+									});
+							}
+							else
+							{
+								i_update.get_render_pipeline->render_model(0, obj.render_id, model.h_model);
+							}
 						}
-
-						if (auto& entry = mesh.h_mesh.get_entry<age::asset::e::kind::mesh_baked>();
-							entry.is_gpu_loaded() is_false)
-						{
-							continue;
-						}
-
-						// if (auto& entry = mat.h_mat.get_entry<age::asset::e::kind::material>();
-						//	entry.is_gpu_loaded() is_false)
-						//{
-						//	continue;
-						// }
-
-						i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh, mat.h_mat);
 					}
 				}));
 		// auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
@@ -270,6 +335,16 @@ namespace age_demo::scene_3
 				continue;
 			}
 			age::asset::env_light::full_unload(h, i_deinit.get_render_pipeline());
+		}
+
+		for (auto h : age::asset::registry::all(age::asset::e::kind::model))
+		{
+			if (age::runtime::is_handle_invalid(h))
+			{
+				continue;
+			}
+
+			age::asset::model::full_unload(h, i_deinit.get_render_pipeline());
 		}
 
 		if (i_deinit.get_render_pipeline->ddgi_enabled())

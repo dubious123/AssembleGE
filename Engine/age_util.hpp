@@ -154,8 +154,8 @@ namespace age::util
 		// if allocated => pos[idx] == inv;
 		// if free : f_0, f_1, ... => free_dense[0], free_dense[1], ... free_dense[free_count - 1] = { f_0, f_1, ... }
 		// for k < free_count: pos[free_dense[k]] == k
-		std::array<t_idx, size> free_dense;
-		std::array<t_idx, size> pos;
+		age::array<t_idx, size> free_dense;
+		age::array<t_idx, size> pos;
 		t_idx					free_count;
 
 		static constexpr t_idx inv = -1;

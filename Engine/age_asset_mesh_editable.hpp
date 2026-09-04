@@ -17,7 +17,7 @@ namespace age::asset
 		{
 			float3							  normal;	  // normalized
 			float4							  tangent;	  // normalized
-			std::array<float2, g::uv_set_max> uv_set;
+			age::array<float2, g::uv_set_max> uv_set;
 			uint8							  uv_count;
 		};
 
@@ -153,13 +153,13 @@ namespace age::asset
 		decltype(auto)
 		vertex_view(const edge& e) const noexcept
 		{
-			return std::array{ e.v0_idx, e.v1_idx } | std::views::transform([this](auto idx) -> c_auto& { return vertex_vec[idx]; });
+			return age::array{ e.v0_idx, e.v1_idx } | std::views::transform([this](auto idx) -> c_auto& { return vertex_vec[idx]; });
 		}
 
 		decltype(auto)
 		vertex_view(edge& e) noexcept
 		{
-			return std::array{ e.v0_idx, e.v1_idx } | std::views::transform([this](auto idx) -> auto& { return vertex_vec[idx]; });
+			return age::array{ e.v0_idx, e.v1_idx } | std::views::transform([this](auto idx) -> auto& { return vertex_vec[idx]; });
 		}
 
 		decltype(auto)

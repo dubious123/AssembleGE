@@ -16,7 +16,9 @@ namespace age::asset::e
 		editor_entity_storage,
 		material,
 		texture,
-		env_light);
+		env_light,
+		model,
+		game);
 
 	// mesh editable
 	AGE_DEFINE_ENUM(
@@ -63,14 +65,12 @@ namespace age::asset::e
 		pn_uv3,
 		pnt_uv3);
 
-	AGE_DEFINE_ENUM_WITH_VALUE(
+	AGE_DEFINE_ENUM_FLAGS(
 		mesh_bake_flags, uint8,
 		(front_outer, 1 << 0),
 		(front_hole, 1 << 1),
 		(back_outer, 1 << 2),
 		(back_hole, 1 << 3))
-
-	AGE_ENUM_FLAG_OPERATORS(mesh_bake_flags);
 
 	AGE_DEFINE_ENUM(
 		topology_kind,
@@ -84,18 +84,34 @@ namespace age::asset::e
 		angle,
 		area_angle);
 
-	AGE_DEFINE_ENUM_WITH_VALUE(
+	AGE_DEFINE_ENUM_FLAGS(
 		font_charset_flag,
 		uint64,
 		(ascii, 1 << 0),
 		(hangul, 1 << 1));
 
-	AGE_ENUM_FLAG_OPERATORS(font_charset_flag);
-
-	AGE_DEFINE_ENUM(alpha_mode_kind, uint8, opaque, mask, blend);
-
 	AGE_DEFINE_ENUM(mip_filter_kind, uint8, point, linear, cubic, box, triangle);
 	AGE_DEFINE_ENUM(wrap_mode_kind, uint8, wrap, mirror, clamp);
+
+	AGE_DEFINE_ENUM(asset_path_error_kind, uint8,
+					none,	 // success
+
+					// context : not fixable by normalize_asset_path
+					empty,			   // nothing typed
+					parent_ref,		   // parent_ref is not allowed e.g. A/../../B.<ext>
+					asset_exists,	   // another asset already exists
+					file_exists,	   // another file already exists
+					path_unchanged,	   // identical to the asset's current path (no-op rename)
+					io_failed,
+
+					fixable_by_normalize_begin,
+
+									   // fixable : press normalize
+					not_null_terminated,
+					invalid_asset_extension,
+					invalid_asset_tag,
+					not_normalized,
+					too_long);	  // normalize would discard the whole path and use a placeholder
 }	 // namespace age::asset::e
 
 namespace age::asset
@@ -108,14 +124,27 @@ namespace age::asset
 {
 	struct file_header
 	{
-		uint32	  magic;
-		uint32	  header_size;
-		uint64	  file_size;
-		uint8	  version_major;
-		uint8	  version_minor;
-		e::kind	  asset_kind;
-		uint8	  blob_alignment_log2;
-		std::byte reserve[4];
+		uint32	magic;
+		uint32	header_size;
+		uint64	file_size;
+		uint8	version_major;
+		uint8	version_minor;
+		e::kind asset_kind;
+		uint8	blob_alignment_log2;
+		uint8	asset_version;
+		uint8	reserve[3];
+	};
+
+	struct file_data_aligned
+	{
+		file_header		 header;
+		aligned_byte_buf buf;
+
+		bool
+		is_valid() const noexcept
+		{
+			return buf.empty() is_false;
+		}
 	};
 
 	using t_asset_id = uint32;
@@ -150,17 +179,17 @@ namespace age::asset
 		get_entry() const noexcept;
 
 		template <e::kind>
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
-		inline std::array<char, config::max_asset_path_len>&
+		inline age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		template <e::kind>
-		std::array<char, config::max_asset_display_name_len>
+		age::array<char, config::max_asset_display_name_len>
 		get_display_name() const noexcept;
 
-		inline std::array<char, config::max_asset_display_name_len>
+		inline age::array<char, config::max_asset_display_name_len>
 		get_display_name() const noexcept;
 
 		bool
@@ -179,7 +208,10 @@ namespace age::asset
 		uint32				   seg_v{ 1 };
 		float3x3			   local_basis = float3x3::identity();
 		e::primitive_mesh_kind mesh_kind{};
-		uint8				   padding[3];
+
+		graphics::e::mesh_raster_mode_kind		  raster_mode		 = graphics::e::mesh_raster_mode_kind::opaque;
+		graphics::e::mesh_rt_alpha_test_mode_kind rt_alpha_test_mode = graphics::e::mesh_rt_alpha_test_mode_kind::blend;
+		graphics::e::mesh_rt_bake_mode_kind		  rt_bake_mode		 = graphics::e::mesh_rt_bake_mode_kind::opaque;
 	};
 
 	struct normal_calc_desc
@@ -202,7 +234,7 @@ namespace age::asset
 		float3				  pos	  = {};
 		float3				  normal  = {};
 		float4				  tangent = {};
-		std::array<float2, 4> uv_set  = {};
+		age::array<float2, 4> uv_set  = {};
 	};
 
 	template <typename t_vertex>
@@ -225,7 +257,10 @@ namespace age::asset
 	struct meshlet
 	{
 		uint32 global_index_offset{};
-		uint32 primitive_offset{};
+
+		// todo
+		// name is misleading, this is local_index_offset
+		uint32 local_index_offset{};
 
 		uint8  vertex_count{};
 		uint8  primitive_count{};
@@ -235,7 +270,7 @@ namespace age::asset
 	struct mesh_baked_header
 	{
 		// uint32 vertex_offset = sizeof(mesh_baked_header)
-		uint32 vertex_kind_and_extra;	 // [0:7] kind, [8:31] flags
+		uint32 vertex_kind_and_extra;	 // [0:7] kind, [8] allow_disable_omm
 
 		uint32 global_vertex_index_buffer_offset;
 		uint32 local_vertex_index_buffer_offset;
@@ -245,7 +280,9 @@ namespace age::asset
 		float3 aabb_min;
 		float3 aabb_size;
 
-		uint32 reserved[4];
+		uint32 submesh_count;
+		uint32 submesh_data_offset;
+		uint32 reserved[2];
 	};
 }	 // namespace age::asset
 
@@ -300,8 +337,10 @@ namespace age::asset
 		uint16 glyph_count;
 		uint16 extra_unicode_count;
 
-		uint8	atlas_channel_count;
-		uint8_3 _;
+		uint8 atlas_channel_count;
+		uint8 _;
+
+		uint16 ref_counter = 0u;
 
 		uint32 atlas_id = age::get_invalid_id<uint32>();
 		uint32 path_id;
@@ -315,7 +354,7 @@ namespace age::asset
 		const font::glyph_data&
 		get_glyph_data(uint16 unicode) const noexcept;
 
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		bool
@@ -353,7 +392,7 @@ namespace age::asset
 		uint32 ref_counter = 0u;
 		uint32 _;
 
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		bool
@@ -382,23 +421,65 @@ namespace age::asset
 
 		const void*
 		pos_buffer_data() const noexcept;
+
+		uint32
+		submesh_count() const noexcept;
+
+		uint32
+		submesh_meshlet_id_offset(uint32 submesh_id) const noexcept;
+
+		uint32
+		submesh_meshlet_count(uint32 submesh_id) const noexcept;
+
+		uint32
+		submesh_primitive_id_offset(uint32 submesh_id) const noexcept;
+
+		uint32
+		submesh_primitive_count(uint32 submesh_id) const noexcept;
+
+		graphics::e::mesh_raster_mode_kind
+		submesh_raster_mode(uint32 submesh_id) const noexcept;
+
+		graphics::e::mesh_rt_alpha_test_mode_kind
+		submesh_rt_alpha_test_mode(uint32 submesh_id) const noexcept;
+
+		graphics::e::mesh_rt_bake_mode_kind
+		submesh_rt_bake_mode(uint32 submesh_id) const noexcept;
+
+		bool
+		allow_disable_omm() const noexcept;
 	};
 
 	template <>
 	struct entry<e::kind::material>
 	{
 		uint32 path_id;
-		uint32 render_id = age::get_invalid_id<uint32>();
+		uint16 render_id = age::get_invalid_id<uint16>();
 
-		float4			   base_color_factor;
-		float			   metallic_factor;
-		float			   roughness_factor;
-		float3			   emissive_factor;
-		float			   normal_scale;
-		float			   occlusion_strength;
-		float			   alpha_cutoff;
-		e::alpha_mode_kind alpha_mode;
-		uint8_3			   _;
+		// if any of submesh's mat is double sided,
+		// all tlas has to disable backface cull.
+		bool  double_sided;
+		uint8 _;
+
+		float4 base_color_factor;
+		float  metallic_factor;
+		float  roughness_factor;
+		float3 emissive_factor;
+		float  normal_scale;
+		float  occlusion_strength;
+		float  alpha_cutoff;
+
+		// version 0
+		// e::alpha_mode_kind alpha_mode;
+		// uint8_3			   _;
+
+		graphics::e::material_shading_model_kind shading_model;
+
+		graphics::e::sampler_kind base_color_sampler_kind;
+		graphics::e::sampler_kind metallic_roughness_sampler_kind;
+		graphics::e::sampler_kind normal_sampler_kind;
+		graphics::e::sampler_kind occlusion_sampler_kind;
+		graphics::e::sampler_kind emissive_sampler_kind;
 
 		handle h_tex_base_color;
 		handle h_tex_metallic_roughness;
@@ -411,16 +492,16 @@ namespace age::asset
 		// todo, add shading model id
 		//
 
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		bool
 		is_loaded() const noexcept;
 
-		std::array<const handle*, 5>
+		age::array<const handle*, 5>
 		all_textures() const noexcept;
 
-		std::array<handle*, 5>
+		age::array<handle*, 5>
 		all_textures() noexcept;
 	};
 
@@ -451,7 +532,7 @@ namespace age::asset
 
 		uint32 ref_counter = 0u;
 
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		bool
@@ -522,7 +603,7 @@ namespace age::asset
 
 		uint32 ref_counter = 0u;
 
-		std::array<char, config::max_asset_path_len>&
+		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
 		bool
@@ -558,6 +639,21 @@ namespace age::asset
 		const void*
 		get_irradiance_texture_buffer() const noexcept;
 	};
+
+	template <>
+	struct entry<e::kind::model>
+	{
+		handle				h_mesh = handle{};
+		age::vector<handle> h_material_vec;
+		uint32				path_id;
+		uint32				ref_counter = 0u;
+
+		age::array<char, config::max_asset_path_len>&
+		get_path() const noexcept;
+
+		bool
+		is_loaded() const noexcept;
+	};
 }	 // namespace age::asset
 
 namespace age::asset
@@ -575,14 +671,25 @@ namespace age::asset
 
 	struct material_desc
 	{
-		float4			   base_color_factor  = float4::one();
-		float			   metallic_factor	  = 1.f;
-		float			   roughness_factor	  = 1.f;
-		float3			   emissive_factor	  = float3::zero();
-		float			   normal_scale		  = 1.f;
-		float			   occlusion_strength = 1.f;
-		float			   alpha_cutoff		  = 0.f;
-		e::alpha_mode_kind alpha_mode		  = e::alpha_mode_kind::opaque;
+		float4 base_color_factor  = float4::one();
+		float  metallic_factor	  = 1.f;
+		float  roughness_factor	  = 1.f;
+		float3 emissive_factor	  = float3::zero();
+		float  normal_scale		  = 1.f;
+		float  occlusion_strength = 1.f;
+		float  alpha_cutoff		  = 0.f;
+		// version 0
+		// e::alpha_mode_kind alpha_mode		  = e::alpha_mode_kind::opaque;
+
+		bool									 double_sided  = false;
+		graphics::e::material_shading_model_kind shading_model = graphics::e::material_shading_model_kind::pbr_default;
+
+		graphics::e::sampler_kind base_color_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind metallic_roughness_sampler_kind = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind normal_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind occlusion_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind emissive_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+		uint8					  _;
 
 		handle h_tex_base_color;
 		handle h_tex_metallic_roughness;
@@ -618,6 +725,12 @@ namespace age::asset
 		float alpha_threshold = -1.0f;	  // -1 = unset
 		float keep_coverage	  = -1.0f;
 	};
+
+	struct model_desc
+	{
+		handle				h_mesh;
+		age::vector<handle> h_materials;
+	};
 }	 // namespace age::asset
 
 namespace age::asset::g
@@ -629,15 +742,15 @@ namespace age::asset::g
 
 	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
 
-	inline auto path_vec = age::sparse_vector<std::array<char, config::max_asset_path_len>>{};
+	inline auto path_vec = age::sparse_vector<age::array<char, config::max_asset_path_len>>{};
 
 	template <e::kind e_kind>
 	inline auto entry_pool = age::sparse_vector<entry<e_kind>>{};
-	inline std::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
+	inline age::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
 		path_to_handle_map;
 
 	inline std::filesystem::path						 registry_path;
-	inline std::array<age::vector<handle>, e::kind_size> registry_map;
+	inline age::array<age::vector<handle>, e::kind_size> registry_map;
 }	 // namespace age::asset::g
 
 namespace age::asset

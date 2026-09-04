@@ -16,8 +16,7 @@ main_cs(uint32 dispatch_thread_id sv_dispatch_thread_id,
 
 	const rw_byte_array<uint16> ideal_ray_count_wave_sum_arr = gibs::cell::ideal_ray_count_wave_sum_rw_arr(data);
 
-	expand_all()
-
+	// expand_all()
 	for (uint32 i = 0; i < GIBS_RAY_COUNT_REDUCE_EPT; ++i)
 	{
 		const uint32 idx = base_offset

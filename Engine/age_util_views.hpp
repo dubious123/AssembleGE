@@ -9,6 +9,24 @@ namespace age::views
 		return std::views::iota(BARE_OF(n){ 0 }, n);
 	}
 
+	template <typename t = void>
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+	loop(std::integral auto a, std::integral auto n) noexcept
+	{
+		if constexpr (std::is_void_v<t>)
+		{
+			return std::views::iota(a) | std::views::take(n);
+		}
+		else if constexpr (std::is_integral_v<t>)
+		{
+			return std::views::iota(static_cast<t>(a)) | std::views::take(static_cast<t>(n));
+		}
+		else
+		{
+			static_assert(false, "invalid type");
+		}
+	}
+
 	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
 	loop(auto* ptr, auto count, auto stride) noexcept
 		requires(sizeof(BARE_OF(*ptr)) == sizeof(std::byte))
@@ -17,6 +35,84 @@ namespace age::views
 	}
 
 	inline constexpr auto deref = meta::deref_view;
+}	 // namespace age::views
+
+// enumerate
+namespace age::views
+{
+	namespace detail
+	{
+		template <typename t_idx>
+		struct enumerate_fn : std::ranges::range_adaptor_closure<enumerate_fn<t_idx>>
+		{
+			template <std::ranges::viewable_range t_rng>
+			[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+			operator()(t_rng&& rng) const noexcept
+			{
+				if constexpr (std::ranges::sized_range<t_rng>)
+				{
+					return std::views::zip(std::views::iota(t_idx{ 0 }, static_cast<t_idx>(std::ranges::size(rng))), std::forward<t_rng>(rng));
+				}
+				else
+				{
+					return std::views::zip(std::views::iota(t_idx{ 0 }), std::forward<t_rng>(rng));
+				}
+			}
+		};
+	}	 // namespace detail
+
+	template <typename t_idx = uint32>
+	inline constexpr detail::enumerate_fn<t_idx> enumerate{};
+}	 // namespace age::views
+
+namespace age::views
+{
+	namespace detail
+	{
+		template <typename t_idx>
+		struct enumerate_copy_fn : std::ranges::range_adaptor_closure<enumerate_copy_fn<t_idx>>
+		{
+			template <std::ranges::viewable_range t_rng>
+			[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+			operator()(t_rng&& rng) const noexcept
+			{
+				return std::views::zip(
+					std::views::iota(t_idx{ 0 }, static_cast<t_idx>(std::ranges::size(rng))),
+					std::forward<t_rng>(rng) | std::views::transform([](c_auto& v) { return v; }));
+			}
+		};
+	}	 // namespace detail
+
+	template <typename t_idx = uint32>
+	inline constexpr detail::enumerate_copy_fn<t_idx> enumerate_copy{};
+}	 // namespace age::views
+
+// join
+namespace age::views
+{
+	template <std::size_t n>
+	requires(n >= 1u)
+	struct join_fn : std::ranges::range_adaptor_closure<join_fn<n>>
+	{
+		template <std::ranges::viewable_range t_rng>
+		[[nodiscard]] FORCE_INLINE constexpr auto
+		operator()(t_rng&& rng) const noexcept
+		{
+			if constexpr (n == 1u)
+			{
+				return std::views::join(std::forward<t_rng>(rng));
+			}
+			else
+			{
+				return join_fn<n - 1u>{}(std::views::join(std::forward<t_rng>(rng)));
+			}
+		}
+	};
+
+	template <std::size_t n>
+	inline constexpr join_fn<n> join_n{};
+
+	inline constexpr join_fn<1> join = join_n<1>;
 }	 // namespace age::views
 
 // each_set_bit
@@ -195,7 +291,7 @@ namespace age::views
 			}
 
 			template <std::size_t... t_i>
-			[[nodiscard]] constexpr std::array<t_base_value, n>
+			[[nodiscard]] constexpr age::array<t_base_value, n>
 			window_(t_size i, std::index_sequence<t_i...>) const noexcept
 			{
 				const t_size sz = size_();
@@ -218,7 +314,7 @@ namespace age::views
 			  public:
 				using iterator_category = std::input_iterator_tag;
 				using difference_type	= std::ptrdiff_t;
-				using value_type		= std::array<t_base_value, n>;
+				using value_type		= age::array<t_base_value, n>;
 
 				constexpr iterator() noexcept = default;
 
@@ -316,9 +412,9 @@ namespace age::views
 	{
 		template <typename t_arr, typename t_fn, std::size_t... t_i>
 		constexpr auto
-		map_each_impl(t_arr&& arr, t_fn&& fn, std::index_sequence<t_i...>) noexcept(noexcept(std::array{ fn(arr[t_i])... }))
+		map_each_impl(t_arr&& arr, t_fn&& fn, std::index_sequence<t_i...>) noexcept(noexcept(age::array{ fn(arr[t_i])... }))
 		{
-			return std::array{ fn(arr[t_i])... };
+			return age::array{ fn(arr[t_i])... };
 		}
 
 		template <typename t_fn>
@@ -335,7 +431,7 @@ namespace age::views
 
 				static_assert(
 					requires { std::tuple_size<t_val>::value; },
-					"transform_each requires tuple-like value_type (std::array / tuple)");
+					"transform_each requires tuple-like value_type (age::array / tuple)");
 
 				constexpr std::size_t n = std::tuple_size_v<t_val>;
 
