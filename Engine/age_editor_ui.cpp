@@ -2717,6 +2717,15 @@ namespace age::editor
 						g::show_modal = !g::show_modal;
 					}
 				}
+
+				if (auto h_btn = widget::button("import...", set_align_center()))
+				{
+					if (h_btn.clicked())
+					{
+						g::modal_kind = e::modal_kind::new_asset;
+						g::show_modal = !g::show_modal;
+					}
+				}
 			}
 
 			widget::separator_v();

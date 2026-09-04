@@ -882,3 +882,43 @@ namespace age::editor
 		}
 	}
 }	 // namespace age::editor
+
+void
+age::editor::render_current_scene(auto& ecs_game, auto& renderer, age::platform::window_handle h_window) noexcept
+{
+	using namespace age::ecs;
+	auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+	editor::update_camera(renderer, ui::is_any_focused() is_false or ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right), h_window);
+
+	ecs_game.visit_all_storages_at(
+		active_scene.code_idx,
+		[&](auto& entities) {
+			if constexpr (entities.has_component<position, rotation, scale, render_object, model, model_render_option>())
+			{
+				for (auto&& [ent_id, pos, rot, scale, obj, model] :
+					 entities | each_entity<sv_entity_id, const position, const rotation, const scale, const render_object, const model>())
+				{
+					renderer.update_object(obj.render_id, pos, rot, scale);
+
+					if (age::runtime::is_handle_invalid(model.h_model)) { continue; }
+
+					if (c_auto& entry = model.h_model.get_entry<age::asset::e::kind::model>();
+						entry.is_loaded() is_false)
+					{
+						continue;
+					}
+
+					if (entities.has_component<model_render_option>(ent_id))
+					{
+						auto&& [option] = entities.get_component<const model_render_option>(ent_id);
+						renderer.render_model(0, obj.render_id, model.h_model, cmp_to_desc(option));
+					}
+					else
+					{
+						renderer.render_model(0, obj.render_id, model.h_model);
+					}
+				}
+			}
+		});
+}

@@ -654,7 +654,14 @@ namespace age::editor
 	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept
 	{
 		using namespace age::ui;
-		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
+		static auto scene_dropdown_option = age::array<widget::dropdown_option<uint32>, ecs_game.scene_count()>{};
+
+		for (auto&& [scene_idx, editor_scene_data] : g::current_game.scene_data_vec | views::enumerate<uint32>)
+		{
+			scene_dropdown_option[scene_idx].value = scene_idx;
+			scene_dropdown_option[scene_idx].label = std::string_view{ editor_scene_data.names[0].data() };
+		}
 
 		if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
 		{
@@ -662,9 +669,17 @@ namespace age::editor
 			{
 				widget::begin(style::text_title("hierarchy") | set_align_begin());
 			}
+
+			if (widget::dropdown(g::current_game.current_active_scene_idx, std::span<const widget::dropdown_option<uint32>>{ scene_dropdown_option.data(), scene_dropdown_option.size() }))
+			{
+				// deinit scene?
+			}
 		}
 
 		// widget::separator_v();
+
+		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
+
 
 		for (auto& storage_data : current_scene.storage_data_vec)
 		{
@@ -673,14 +688,12 @@ namespace age::editor
 	}
 
 	void
-	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept
+	ui_scene_view(auto& renderer) noexcept
 	{
 		using namespace ui;
 		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large())))
 		{
 			// g::scene_view_focused = h_game_scene.hovered_all();
-
-			editor::update_camera(renderer, ui::is_any_focused() is_false or ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right), h_window);
 
 			auto h_top_panel = widget::begin(style::horizontal() | set_align_center() | set_width_grow() | set_height_fit());
 			widget::begin(set_height_fixed(0) | set_width_fixed(200));

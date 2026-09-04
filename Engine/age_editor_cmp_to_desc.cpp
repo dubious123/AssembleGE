@@ -54,4 +54,14 @@ namespace age::editor
 		return debug_view_desc;
 	}
 
+	age::graphics::render_pipeline::model_render_option
+	cmp_to_desc(const age::ecs::model_render_option& cmp) noexcept
+	{
+		return {
+			.raster_override_kind		 = cmp.raster_override_kind,
+			.rt_alpha_test_override_kind = cmp.rt_alpha_test_override_kind,
+			.option_flags				 = cmp.option_flags,
+			.fade_unorm8				 = cmp.fade_unorm8,
+		};
+	}
 }	 // namespace age::editor

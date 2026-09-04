@@ -126,7 +126,7 @@ namespace age_demo::scene_3
 				}
 				else
 				{
-					age::editor::ui_scene_view(i_update.get_render_pipeline(), i_init.get_h_window());
+					age::editor::ui_scene_view(i_update.get_render_pipeline());
 				}
 			}
 
@@ -161,99 +161,54 @@ namespace age_demo::scene_3
 
 		age::ui::end_frame(i_update.get_render_pipeline());
 
+		if (age::editor::is_edit_mode())
+		{
+			age::editor::render_current_scene(i_update.get_editor_game(), i_update.get_render_pipeline(), i_init.get_h_window());
+		}
+		else
+		{
+			// user render loop begin
 
-		i_update.get_editor_game->visit_all_storages(
-			AGE_LAMBDA(
-				(auto& entities),
-				{
-					if constexpr (entities.has_component<position, rotation, scale, render_object, model, model_render_option>())
+			i_update.get_editor_game->visit_all_storages(
+				AGE_LAMBDA(
+					(auto& entities),
 					{
-						for (auto&& [ent_id, pos, rot, scale, obj, model] :
-							 entities | each_entity<sv_entity_id, const position, const rotation, const scale, const render_object, const model>())
+						if constexpr (entities.has_component<position, rotation, scale, render_object, model, model_render_option>())
 						{
-							i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
-
-							if (age::runtime::is_handle_invalid(model.h_model)) { continue; }
-
-							if (c_auto& entry = model.h_model.get_entry<age::asset::e::kind::model>();
-								entry.is_loaded() is_false)
+							for (auto&& [ent_id, pos, rot, scale, obj, model] :
+								 entities | each_entity<sv_entity_id, const position, const rotation, const scale, const render_object, const model>())
 							{
-								continue;
-							}
+								i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
 
-							if (entities.has_component<model_render_option>(ent_id))
-							{
-								auto&& [option] = entities.get_component<const model_render_option>(ent_id);
-								i_update.get_render_pipeline->render_model(
-									0, obj.render_id, model.h_model,
-									{
-										.raster_override_kind		 = option.raster_override_kind,
-										.rt_alpha_test_override_kind = option.rt_alpha_test_override_kind,
-										.option_flags				 = option.option_flags,
-										.fade_unorm8				 = option.fade_unorm8,
-									});
-							}
-							else
-							{
-								i_update.get_render_pipeline->render_model(0, obj.render_id, model.h_model);
+								if (age::runtime::is_handle_invalid(model.h_model)) { continue; }
+
+								if (c_auto& entry = model.h_model.get_entry<age::asset::e::kind::model>();
+									entry.is_loaded() is_false)
+								{
+									continue;
+								}
+
+								if (entities.has_component<model_render_option>(ent_id))
+								{
+									auto&& [option] = entities.get_component<const model_render_option>(ent_id);
+									i_update.get_render_pipeline->render_model(
+										0, obj.render_id, model.h_model,
+										{
+											.raster_override_kind		 = option.raster_override_kind,
+											.rt_alpha_test_override_kind = option.rt_alpha_test_override_kind,
+											.option_flags				 = option.option_flags,
+											.fade_unorm8				 = option.fade_unorm8,
+										});
+								}
+								else
+								{
+									i_update.get_render_pipeline->render_model(0, obj.render_id, model.h_model);
+								}
 							}
 						}
-					}
-				}));
-		// auto& entities = i_update.get_editor_game->editor_scene_0.ent_storage_main;
-		// for (auto&& [light] : entities | each_entity<directional_light>())
-		//{
-		//	i_update.get_render_pipeline->update_directional_light(light.render_id,
-		//														   { .direction	  = age::math::normalize(light.direction),
-		//															 .intensity	  = light.intensity,
-		//															 .color		  = light.color,
-		//															 .cast_shadow = light.cast_shadow });
-		//}
+					}));
+		}
 
-		// for (auto&& [light, pos] : entities | each_entity<point_light, position>())
-		//{
-		//	i_update.get_render_pipeline->update_point_light(
-		//		light.render_id,
-		//		{ .position	   = pos,
-		//		  .range	   = light.range,
-		//		  .color	   = light.color,
-		//		  .intensity   = light.intensity,
-		//		  .cast_shadow = light.cast_shadow });
-		// }
-
-		// for (auto&& [light, pos] : entities | each_entity<spot_light, position>())
-		//{
-		//	i_update.get_render_pipeline->update_spot_light(
-		//		light.render_id,
-		//		{ .position	   = pos,
-		//		  .range	   = light.range,
-		//		  .direction   = age::math::normalize(light.direction),
-		//		  .intensity   = light.intensity,
-		//		  .color	   = light.color,
-		//		  .cos_inner   = light.cos_inner,
-		//		  .cos_outer   = light.cos_outer,
-		//		  .cast_shadow = light.cast_shadow });
-		// }
-
-		// for (auto&& [pos, rot, scale, obj, mesh, mat] : entities
-		//													| each_entity<const position, const rotation, const scale, const render_object, const mesh, const material>())
-		//{
-		//	i_update.get_render_pipeline->update_object(obj.render_id, pos, rot, scale);
-
-		//	if (age::runtime::is_handle_invalid(mesh.h_mesh))
-		//	{
-		//		continue;
-		//	}
-
-		//	if (mat.is_opaque)
-		//	{
-		//		i_update.get_render_pipeline->render_mesh(0, obj.render_id, mesh.h_mesh);
-		//	}
-		//	else
-		//	{
-		//		i_update.get_render_pipeline->render_transparent_mesh(0, obj.render_id, mesh.h_mesh);
-		//	}
-		//}
 		i_update.get_render_pipeline->end_render(i_update.get_h_render_surface());
 	}
 

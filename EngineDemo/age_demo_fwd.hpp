@@ -205,6 +205,17 @@ namespace age_demo::scene_3
 															  age::ecs::model,
 															  age::ecs::model_render_option>;
 
+	using t_ent_storage_gltf_test = age::ecs::entity_storage::basic<uint32,
+																	age::ecs::position,
+																	age::ecs::rotation,
+																	age::ecs::scale,
+																	age::ecs::directional_light,
+																	age::ecs::point_light,
+																	age::ecs::spot_light,
+																	age::ecs::render_object,
+																	age::ecs::model,
+																	age::ecs::model_render_option>;
+
 	struct editor_demo_scene_0
 	{
 		// init, deinit, visit_storage_at, storages, storages_names, storage_count

@@ -41,6 +41,9 @@ namespace age::editor
 
 	void
 	update_game(auto& ecs_game, auto& renderer) noexcept;
+
+	void
+	render_current_scene(auto& ecs_game, auto& renderer, platform::window_handle h_window) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor
@@ -59,7 +62,7 @@ namespace age::editor
 	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept;
 
 	void
-	ui_scene_view(auto& renderer, platform::window_handle h_window) noexcept;
+	ui_scene_view(auto& renderer) noexcept;
 
 	void
 	ui_asset_list_panel() noexcept;

@@ -513,6 +513,9 @@ age_game asset 을 분리후
 text_input 통일하기 
 enter 막는 option 제공하기
 
+## editor 다듬기 
+default scene id 변경 가능하게 하기
+
 ## asset system 다듬기
 cpu load, gpu load, 등등이 도메인마다 의미가 조금씩 다름 
 설계 의도에 부합하긴 하지만 
