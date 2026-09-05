@@ -322,10 +322,9 @@ namespace age::editor::detail
 		using namespace ecs;
 		for (auto&& [obj, model] : ecs_storage | each_entity_soft<render_object, model>())
 		{
-			if (AGE_IS_INVALID_ID(obj.render_id) is_false and runtime::is_handle_invalid(model.h_model) is_false)
-			{
-				asset::model::load(model.h_model, renderer);
-			}
+			if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(model.h_model)) { continue; }
+
+			asset::model::load(model.h_model, renderer);
 		}
 
 		for (auto&& [env_light] : ecs_storage | each_entity_soft<env_light>())

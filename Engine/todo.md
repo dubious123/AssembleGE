@@ -527,3 +527,28 @@ switch문으로 해결하기에는 새로운 asset kind가 들어올때마다
 즉 cpu load도 여러 버전이 있을수 있음. 
 
 asset dirty system 만들기
+
+new asset과 import asset을 구분하기 
+new asset은 기존 asset들을 활용해서 1개의 age_asset을 만드는것, 
+
+import는 외부 file에서 1개 또는 그 이상의 age_asset을 생성하는것
+기존 new texture가 import texture로 옮겨가야함. 
+
+import는 editor 전용인가 아니면 asset system의 일종인가? 
+
+
+model load -> child를 돌면서 is_loaded를 check한다. 
+child가 바뀌었는데, handle만 있고 load가 아니라면 is_loaded가 false가 되면tj
+file을 다시 읽어버린다 
+그럼 model의 mat이 변화할때마다 renderer update할건가 
+model이 render의 대상이 아닐수도 있다 (asset modal) 
+
+model의 load를 
+is_cpu_loaded와 is_gpu_loaded로 변경하자 
+
+근데 is_cpu_loaded가 h_mesh의 is_cpu_loaded를 포함하는지 여부가 걸린다. 
+
+맨 처음 어떤 방식이라도 load 가 되었음을 표기해야하나? 
+is_file_loaded()? 
+
+if_header_loaded()? 

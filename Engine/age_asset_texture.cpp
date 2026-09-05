@@ -30,6 +30,12 @@ namespace age::asset
 	}
 
 	bool
+	entry<e::kind::texture>::is_any_loaded() const noexcept
+	{
+		return is_cpu_loaded() or is_gpu_loaded();
+	}
+
+	bool
 	entry<e::kind::texture>::is_cpu_loaded() const noexcept
 	{
 		return p_blob != nullptr;

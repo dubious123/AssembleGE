@@ -60,6 +60,27 @@ namespace age::editor
 	ui_component(ecs::model&) noexcept;
 
 	void
+	ui_component(ecs::model& cmp, auto& renderer) noexcept
+	{
+		ui_component(cmp);
+
+		if (runtime::is_handle_invalid(cmp.h_model)) { return; }
+
+		for (auto& entry = cmp.h_model.get_entry<asset::e::kind::model>();
+			 c_auto& h_mat : entry.h_material_vec)
+		{
+			if (runtime::is_handle_invalid(h_mat)) { continue; }
+
+			auto& mat_entry = h_mat.get_entry<asset::e::kind::material>();
+
+			if (mat_entry.is_loaded())
+			{
+				renderer.update_material(h_mat);
+			}
+		}
+	}
+
+	void
 	ui_component(ecs::directional_light& light) noexcept;
 
 	void

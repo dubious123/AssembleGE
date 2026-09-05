@@ -30,6 +30,18 @@ namespace age::asset
 	}
 
 	bool
+	entry<e::kind::mesh_baked>::is_meta_loaded() const noexcept
+	{
+		return meta_loaded;
+	}
+
+	bool
+	entry<e::kind::mesh_baked>::is_any_loaded() const noexcept
+	{
+		return is_cpu_loaded() or is_gpu_loaded();
+	}
+
+	bool
 	entry<e::kind::mesh_baked>::is_cpu_loaded() const noexcept
 	{
 		return p_blob != nullptr;
@@ -174,6 +186,8 @@ namespace age::asset::mesh_baked
 		bool
 		cpu_load_helper(entry<e::kind::mesh_baked>& entry) noexcept
 		{
+			entry.meta_loaded = false;
+			auto succeed	  = false;
 			if (auto file_data = asset::read_asset_file(entry.get_path());
 				file_data.is_valid())
 			{
@@ -206,9 +220,11 @@ namespace age::asset::mesh_baked
 
 					entry.p_blob = buf.release();
 
-					entry.aabb_min = mesh_header.aabb_min;
-					entry.aabb_max = mesh_header.aabb_min + mesh_header.aabb_size;
-					return true;
+					entry.aabb_min	  = mesh_header.aabb_min;
+					entry.aabb_max	  = mesh_header.aabb_min + mesh_header.aabb_size;
+					entry.meta_loaded = true;
+					succeed			  = true;
+					break;
 				}
 				case config::mesh_baked_asset_version:
 				{
@@ -216,19 +232,28 @@ namespace age::asset::mesh_baked
 					c_auto& mesh_header = entry.get_mesh_header();
 					entry.aabb_min		= mesh_header.aabb_min;
 					entry.aabb_max		= mesh_header.aabb_min + mesh_header.aabb_size;
-					return true;
+					entry.meta_loaded	= true;
+					succeed				= true;
+					break;
 				}
 				default:
 				{
-					AGE_ASSERT(false);
-					return false;
+					AGE_ASSERT(false, "invalid asset version");
+					break;
 				}
 				}
-
-				return true;
 			}
 
-			return false;
+			if (succeed)
+			{
+				AGE_ASSERT(entry.is_meta_loaded());
+			}
+			else
+			{
+				AGE_ASSERT(entry.is_meta_loaded() is_false);
+			}
+
+			return succeed;
 		}
 	}	 // namespace detail
 

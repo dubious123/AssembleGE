@@ -7,7 +7,7 @@ namespace age::editor::e
 
 	AGE_DEFINE_ENUM(select_kind, uint8, none, entity, asset);
 
-	AGE_DEFINE_ENUM(modal_kind, uint8, new_asset);
+	AGE_DEFINE_ENUM(modal_kind, uint8, new_asset, import_asset);
 
 	AGE_DEFINE_ENUM(transform_space_kind, uint8, world, local);
 

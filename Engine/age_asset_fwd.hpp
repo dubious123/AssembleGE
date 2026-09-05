@@ -112,6 +112,11 @@ namespace age::asset::e
 					invalid_asset_tag,
 					not_normalized,
 					too_long);	  // normalize would discard the whole path and use a placeholder
+
+	AGE_DEFINE_ENUM(import_kind, uint8,
+					texture,
+					mesh,
+					gltf);
 }	 // namespace age::asset::e
 
 namespace age::asset
@@ -192,8 +197,53 @@ namespace age::asset
 		inline age::array<char, config::max_asset_display_name_len>
 		get_display_name() const noexcept;
 
+		// it is often hard to tell whether a field in the entry holds a valid value.
+		// e.g. mesh's aabb, model's h_mesh, h_material_vec...
+		// meta_loaded records that. it becomes true once the asset has been loaded by any path and stays true even after the asset is unloaded.
+		// if meta_loaded is false, the caller must not read anything from the entry except the basic fields that exist without a load (e.g. path_id, ref_counter...)
+		//
+		// meta_loaded becomes false only when the asset file is modified through program while the entry is not updated.
+		// e.g. a rebuild that failed halfway, an asset being reimported...
+		// modifications to an asset file from outside of the program are not detected.
+		template <e::kind>
+		bool
+		is_meta_loaded() const noexcept;
+
+		inline bool
+		is_meta_loaded() const noexcept;
+
+		// is_any_loaded means this asset holds any resources.
+		// is_any_loaded == true once the asset has been loaded by any path
+		// is_any_loaded == false once all resources are released. (domain specific)
+		// if full_unload() is called, it is guaranteed that is_any_loaded() is_false
+		// if unload_xx is called individually, what is_any_loaded() returns is domain specific
+		// if is_any_loaded() false -> true, on_first_load is called
+		// if is_any_loaded() true -> false, on_last_unload is called
+		// what on_first_load, on_last_unload do is domain specific.
+		// one possible use is to manage child references: inc child ref_counter on_first_load and, dec child ref_counter on_last_unload.
+		// it is possible to not implement on_first_load or on_last_unload, it will do nothing without any compile error
+		// caller should not call on_first_load, on_last_unload directly
+		template <e::kind>
+		bool
+		is_any_loaded() const noexcept;
+
+		inline bool
+		is_any_loaded() const noexcept;
+
 		bool
 		operator==(const handle&) const noexcept = default;
+
+		FORCE_INLINE constexpr explicit
+		operator bool() const
+		{
+			return id != age::get_invalid_id<t_asset_id>();
+		}
+
+		FORCE_INLINE constexpr bool
+		operator==(bool v) const noexcept
+		{
+			return static_cast<bool>(*this) == v;
+		}
 	};
 }	 // namespace age::asset
 
@@ -338,7 +388,7 @@ namespace age::asset
 		uint16 extra_unicode_count;
 
 		uint8 atlas_channel_count;
-		uint8 _;
+		bool  meta_loaded = false;
 
 		uint16 ref_counter = 0u;
 
@@ -356,6 +406,12 @@ namespace age::asset
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		bool
+		is_meta_loaded() const noexcept;
+
+		bool
+		is_any_loaded() const noexcept;
 
 		bool
 		is_loaded() const noexcept;
@@ -387,13 +443,20 @@ namespace age::asset
 
 		std::byte* p_blob = nullptr;
 
-		float3 aabb_min;
-		float3 aabb_max;
-		uint32 ref_counter = 0u;
-		uint32 _;
+		float3	aabb_min;
+		float3	aabb_max;
+		uint32	ref_counter = 0u;
+		bool	meta_loaded = false;
+		uint8_3 _;
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		bool
+		is_meta_loaded() const noexcept;
+
+		bool
+		is_any_loaded() const noexcept;
 
 		bool
 		is_cpu_loaded() const noexcept;
@@ -458,8 +521,8 @@ namespace age::asset
 
 		// if any of submesh's mat is double sided,
 		// all tlas has to disable backface cull.
-		bool  double_sided;
-		uint8 _;
+		bool double_sided;
+		bool meta_loaded = false;
 
 		float4 base_color_factor;
 		float  metallic_factor;
@@ -496,6 +559,12 @@ namespace age::asset
 		get_path() const noexcept;
 
 		bool
+		is_meta_loaded() const noexcept;
+
+		bool
+		is_any_loaded() const noexcept;
+
+		bool
 		is_loaded() const noexcept;
 
 		age::array<const handle*, 5>
@@ -527,13 +596,20 @@ namespace age::asset
 		uint32 path_id;
 		uint32 render_id = age::get_invalid_id<uint32>();
 
-
 		std::byte* p_blob;
 
 		uint32 ref_counter = 0u;
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		// no meta data, always true
+		constexpr bool
+		is_meta_loaded() const noexcept
+		{ return true; }
+
+		bool
+		is_any_loaded() const noexcept;
 
 		bool
 		is_cpu_loaded() const noexcept;
@@ -598,13 +674,19 @@ namespace age::asset
 		uint32 path_id;
 		uint32 render_id = age::get_invalid_id<uint32>();
 
-
 		std::byte* p_blob;
 
 		uint32 ref_counter = 0u;
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		constexpr bool
+		is_meta_loaded() const noexcept
+		{ return true; }
+
+		bool
+		is_any_loaded() const noexcept;
 
 		bool
 		is_cpu_loaded() const noexcept;
@@ -646,10 +728,19 @@ namespace age::asset
 		handle				h_mesh = handle{};
 		age::vector<handle> h_material_vec;
 		uint32				path_id;
-		uint32				ref_counter = 0u;
+		bool				meta_loaded = false;
+		bool				any_loaded	= false;
+		uint16				ref_counter = 0u;
+
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
+
+		bool
+		is_meta_loaded() const noexcept;
+
+		bool
+		is_any_loaded() const noexcept;
 
 		bool
 		is_loaded() const noexcept;

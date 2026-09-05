@@ -984,17 +984,17 @@ namespace age::graphics::render_pipeline
 		end_render(render_surface_handle h_rs) noexcept;
 
 		// texture
-		t_texture_id
+		[[nodiscard]] t_texture_id
 		upload_texture(asset::handle _) noexcept;
 
-		t_texture_id
+		[[nodiscard]] t_texture_id
 		upload_texture(const void*, age::extent_2d<uint32>, graphics::e::texture_format) noexcept;
 
 		void
 		release_texture(t_texture_id& _) noexcept;
 
 		// material
-		t_material_id
+		[[nodiscard]] t_material_id
 		upload_material(asset::handle _) noexcept;
 
 		void
@@ -1004,39 +1004,39 @@ namespace age::graphics::render_pipeline
 		release_material(t_material_id&) noexcept;
 
 		// mesh
-		t_mesh_id
+		[[nodiscard]] t_mesh_id
 		upload_mesh(asset::handle _) noexcept;
 
 		void
 		release_mesh(t_mesh_id&) noexcept;
 
 		// object
-		t_object_id
+		[[nodiscard]] t_object_id
 		add_object(const float3& pos, const float4& quat, const float3& scale) noexcept;
 
 		void
 		update_object(t_object_id id, const float3& pos, const float4& quat, const float3& scale) noexcept;
 
-		shared_type::object_data
+		[[nodiscard]] shared_type::object_data
 		get_object_data(t_object_id id) noexcept;
 
-		float4x4
+		[[nodiscard]] float4x4
 		get_object_transform_matrix(t_object_id id) const noexcept;
 
 		void
 		remove_object(t_object_id& id) noexcept;
 
 		// camera
-		t_camera_id
+		[[nodiscard]] t_camera_id
 		add_camera(const camera_desc& desc) noexcept;
 
 		void
 		set_main_camera(t_camera_id id) noexcept;
 
-		camera_desc
+		[[nodiscard]] camera_desc
 		get_camera_desc(t_camera_id id) noexcept;
 
-		camera_data
+		[[nodiscard]] camera_data
 		get_camera_data(t_camera_id id) noexcept;
 
 		void
@@ -1049,19 +1049,19 @@ namespace age::graphics::render_pipeline
 		void
 		update_directional_light(t_directional_light_id id, const directional_light_desc& desc) noexcept;
 
-		t_directional_light_id
+		[[nodiscard]] t_directional_light_id
 		add_directional_light(const directional_light_desc& desc) noexcept;
 
 		void
 		remove_directional_light(t_directional_light_id& id) noexcept;
 
-		t_unified_light_id
+		[[nodiscard]] t_unified_light_id
 		add_point_light(const point_light_desc& desc) noexcept;
 
 		void
 		update_point_light(t_unified_light_id id, const point_light_desc& desc) noexcept;
 
-		t_unified_light_id
+		[[nodiscard]] t_unified_light_id
 		add_spot_light(const spot_light_desc& desc) noexcept;
 
 		void
@@ -1074,7 +1074,7 @@ namespace age::graphics::render_pipeline
 		remove_spot_light(t_unified_light_id& id) noexcept;
 
 		// env_light
-		t_env_light_id
+		[[nodiscard]] t_env_light_id
 		upload_env_light(asset::handle _) noexcept;
 
 		void
@@ -1092,10 +1092,10 @@ namespace age::graphics::render_pipeline
 		get_ui_sink() noexcept;
 
 		// raycast
-		t_raycast_id
+		[[nodiscard]] t_raycast_id
 		request_raycast(const float3& origin, const float3& dir, float max_t, e::rt_mask_kind mask = e::rt_mask_kind::all ^ e::rt_mask_kind::always_on_top) noexcept;
 
-		raycast_result
+		[[nodiscard]] raycast_result
 		get_raycast_result(t_raycast_id _) noexcept;
 
 		// debug
@@ -1109,7 +1109,7 @@ namespace age::graphics::render_pipeline
 		render_debug_line() noexcept;
 
 		// bloom
-		t_bloom_id
+		[[nodiscard]] t_bloom_id
 		add_bloom(const bloom_desc& desc, bool set_active = false) noexcept;
 
 		void

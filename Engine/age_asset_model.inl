@@ -19,19 +19,6 @@ namespace age::asset::detail
 		}
 	}
 
-	handle
-	handle_mesh_baked_load(const age::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
-	{
-		c_auto h_mesh = asset::find(e::kind::mesh_baked, full_path);
-
-		if (runtime::is_handle_invalid(h_mesh)) { return {}; }
-
-		mesh_baked::add_ref(h_mesh);
-		mesh_baked::gpu_load(h_mesh, renderer);
-
-		return h_mesh;
-	}
-
 	void
 	handle_material_unload(handle h_mat, auto& renderer) noexcept
 	{
@@ -46,19 +33,6 @@ namespace age::asset::detail
 				material::full_unload(h_mat, renderer);
 			}
 		}
-	}
-
-	handle
-	handle_material_load(const age::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept
-	{
-		c_auto h_mat = asset::find(e::kind::material, full_path);
-
-		if (runtime::is_handle_invalid(h_mat)) { return {}; }
-
-		material::add_ref(h_mat);
-		material::load(h_mat, renderer);
-
-		return h_mat;
 	}
 }	 // namespace age::asset::detail
 
@@ -78,7 +52,10 @@ namespace age::asset::model
 			}
 		}
 
+		entry.any_loaded = false;
+
 		AGE_ASSERT(entry.is_loaded() is_false);
+		AGE_ASSERT(entry.is_any_loaded() is_false);
 	}
 
 	void
@@ -86,35 +63,71 @@ namespace age::asset::model
 	{
 		auto& entry = h_model.get_entry<e::kind::model>();
 
-		if (entry.is_loaded())
+		if (entry.is_meta_loaded() and entry.is_loaded())
 		{
 			return;
 		}
 
-		if (auto file_data = asset::read_asset_file(entry.get_path());
-			file_data.is_valid())
+		if (entry.is_meta_loaded() is_false and entry.is_any_loaded())
 		{
-			auto& buf = file_data.buf;
-			switch (file_data.header.asset_version)
+			full_unload(h_model, renderer);
+		}
+
+		if (entry.is_meta_loaded() is_false)
+		{
+			if (auto file_data = asset::read_asset_file(entry.get_path());
+				file_data.is_valid())
 			{
-			case config::model_asset_version:
-			{
-				entry.h_mesh = detail::handle_mesh_baked_load(buf.read<age::array<char, config::max_asset_path_len>>(), renderer);
-				entry.h_material_vec.resize(buf.read<uint32>());
-				break;
+				auto& buf = file_data.buf;
+				switch (file_data.header.asset_version)
+				{
+				case config::model_asset_version:
+				{
+					entry.h_mesh = asset::find(e::kind::mesh_baked, buf.read<age::array<char, config::max_asset_path_len>>());
+					entry.h_material_vec.resize(buf.read<uint32>());
+					break;
+				}
+				default:
+				{
+					AGE_ASSERT(false);
+					return;
+				}
+				}
+
+				for (auto& h_mat : entry.h_material_vec)
+				{
+					h_mat = asset::find(e::kind::material, buf.read<age::array<char, config::max_asset_path_len>>());
+				}
 			}
-			default:
+			else
 			{
 				AGE_ASSERT(false);
 				return;
 			}
-			}
+		}
 
+		entry.meta_loaded = true;
+
+		if (entry.h_mesh) { mesh_baked::gpu_load(entry.h_mesh, renderer); }
+		for (auto& h_mat : entry.h_material_vec)
+		{
+			if (h_mat) { material::load(h_mat, renderer); }
+		}
+
+		if (entry.is_any_loaded() is_false)
+		{
+			if (entry.h_mesh) { mesh_baked::add_ref(entry.h_mesh); }
 			for (auto& h_mat : entry.h_material_vec)
 			{
-				h_mat = detail::handle_material_load(buf.read<age::array<char, config::max_asset_path_len>>(), renderer);
+				if (h_mat) { material::add_ref(h_mat); }
 			}
 		}
+
+		entry.any_loaded = true;
+
+		AGE_ASSERT(entry.is_meta_loaded());
+		AGE_ASSERT(entry.is_any_loaded());
+		AGE_ASSERT(entry.is_loaded());
 	}
 
 	handle

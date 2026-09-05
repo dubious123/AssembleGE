@@ -52,9 +52,11 @@ namespace age::asset::texture
 		if (entry.is_cpu_loaded())
 		{
 			entry.render_id = renderer.upload_texture(h_tex);
+			cpu_unload(h_tex);
 			return;
 		}
 
+		cpu_unload(h_tex);
 		return;
 	}
 

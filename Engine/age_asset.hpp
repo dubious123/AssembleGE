@@ -285,6 +285,9 @@ namespace age::asset::model
 	handle
 	load_common_from_path(const age::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept;
 
+	bool
+	renderable(handle h_model) noexcept;
+
 	void
 	update_mesh(handle h_model, handle h_mesh) noexcept;
 
@@ -353,22 +356,12 @@ namespace age::asset
 		};
 	}
 
-	template <typename t_entry>
-	FORCE_INLINE constexpr bool
-	is_any_loaded(const t_entry& entry) noexcept
-	{
-		bool loaded = false;
-		if constexpr (requires { entry.is_loaded(); }) loaded |= entry.is_loaded();
-		if constexpr (requires { entry.is_cpu_loaded(); }) loaded |= entry.is_cpu_loaded();
-		if constexpr (requires { entry.is_gpu_loaded(); }) loaded |= entry.is_gpu_loaded();
-		return loaded;
-	}
-
 	template <e::kind e_kind>
 	void
 	add_ref(handle h) noexcept
 	{
 		auto& entry = h.get_entry<e_kind>();
+		AGE_DEBUG_LOG("asset add_ref {}, {}", to_string(e_kind), h.get_path<e_kind>());
 		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
 		++entry.ref_counter;
 	}
@@ -378,6 +371,7 @@ namespace age::asset
 	remove_ref(handle h) noexcept
 	{
 		auto& entry = h.get_entry<e_kind>();
+		AGE_DEBUG_LOG("asset remove_ref {}, {}", to_string(e_kind), h.get_path<e_kind>());
 		AGE_ASSERT(entry.ref_counter > 0);
 		--entry.ref_counter;
 	}

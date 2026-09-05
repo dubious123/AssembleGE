@@ -24,15 +24,33 @@ namespace age::asset
 	}
 
 	bool
+	entry<e::kind::model>::is_meta_loaded() const noexcept
+	{
+		return meta_loaded;
+	}
+
+	bool
+	entry<e::kind::model>::is_any_loaded() const noexcept
+	{
+		return any_loaded;
+	}
+
+	bool
 	entry<e::kind::model>::is_loaded() const noexcept
 	{
-		if (runtime::is_handle_invalid(h_mesh)) { return false; }
+		if (is_any_loaded() is_false) { return false; }
+		if (is_meta_loaded() is_false) { return false; }
 
-		auto loaded = h_mesh.get_entry<e::kind::mesh_baked>().is_gpu_loaded();
+		auto loaded = true;
+
+		if (h_mesh)
+		{
+			loaded &= h_mesh.get_entry<e::kind::mesh_baked>().is_gpu_loaded();
+		}
 
 		for (c_auto& h_mat : h_material_vec)
 		{
-			if (runtime::is_handle_invalid(h_mat) is_false)
+			if (h_mat)
 			{
 				loaded &= h_mat.get_entry<e::kind::material>().is_loaded();
 			}
@@ -78,6 +96,13 @@ namespace age::asset::model
 		}
 
 		entry.h_material_vec[idx] = h_mat;
+	}
+
+	bool
+	renderable(handle h_model) noexcept
+	{
+		auto& entry = model::get_entry(h_model);
+		return entry.h_mesh and entry.is_loaded();
 	}
 }	 // namespace age::asset::model
 

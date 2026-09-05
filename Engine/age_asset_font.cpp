@@ -24,6 +24,18 @@ namespace age::asset
 	}
 
 	bool
+	entry<e::kind::font>::is_meta_loaded() const noexcept
+	{
+		return meta_loaded;
+	}
+
+	bool
+	entry<e::kind::font>::is_any_loaded() const noexcept
+	{
+		return is_loaded();
+	}
+
+	bool
 	entry<e::kind::font>::is_loaded() const noexcept
 	{
 		return AGE_IS_INVALID_ID(atlas_id) is_false;
@@ -74,22 +86,6 @@ namespace age::asset
 
 		AGE_UNREACHABLE();	  // glyph not found
 		return glyphs[0];
-	}
-
-	void
-	add_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::font>();
-		AGE_ASSERT(entry.ref_counter < std::numeric_limits<BARE_OF(entry.ref_counter)>::max());
-		++entry.ref_counter;
-	}
-
-	void
-	remove_ref(handle h) noexcept
-	{
-		auto& entry = h.get_entry<e::kind::font>();
-		AGE_ASSERT(entry.ref_counter > 0);
-		--entry.ref_counter;
 	}
 }	 // namespace age::asset
 
@@ -166,6 +162,8 @@ namespace age::asset::font::detail
 	read_entry(asset::entry<e::kind::font>& ntry, aligned_byte_buf& buf) noexcept
 	{
 		static_assert(alignof(glyph_data) >= alignof(uint16));
+		ntry.meta_loaded = false;
+
 		buf.read(
 			ntry.glyph_count,
 			ntry.charset_flag,
@@ -185,6 +183,8 @@ namespace age::asset::font::detail
 
 		buf.read<glyph_data>(ntry.p_blob, ntry.glyph_count);
 		buf.read<uint16>(ntry.p_blob + ntry.glyph_count * sizeof(glyph_data), ntry.extra_unicode_count);
+
+		ntry.meta_loaded = true;
 	}
 
 	bool

@@ -345,7 +345,7 @@ namespace age::editor
 {
 	template <>
 	bool
-	ui_asset<asset::e::kind::font>(asset::handle h_mesh) noexcept
+	ui_asset<asset::e::kind::font>(asset::handle h_font) noexcept
 	{
 		AGE_UNREACHABLE("not implemented");
 		return false;
@@ -362,163 +362,25 @@ namespace age::editor
 	bool
 	ui_asset<asset::e::kind::material>(asset::handle h_mat) noexcept
 	{
-		return false;
-	}
+		using namespace age::ui;
+		using namespace age::ui::style;
 
-	template <>
-	bool
-	ui_asset<asset::e::kind::texture>(asset::handle h_tex) noexcept
-	{
-		return false;
-	}
+		auto is_dirty = false;
 
-	template <>
-	bool
-	ui_asset<asset::e::kind::env_light>(asset::handle h_env_light) noexcept
-	{
-		return false;
-	}
+		if (runtime::is_handle_invalid(h_mat)) { return is_dirty; }
 
-	template <>
-	bool
-	ui_asset<asset::e::kind::model>(asset::handle h_model) noexcept
-	{
-		if (runtime::is_handle_invalid(h_model)) { return false; }
+		auto& mat_entry = h_mat.get_entry<asset::e::kind::material>();
 
-		auto& entry = h_model.get_entry<asset::e::kind::model>();
 
 		// todo. cleanup asset load system
 		// we don't need full load here.
-		if (entry.is_loaded() is_false)
+		if (mat_entry.is_loaded() is_false)
 		{
 			ui::widget::text("asset not loded");
-			return false;
+			return is_dirty;
 		}
 
-		if (auto h_mesh = entry.h_mesh;
-			detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
-		{
-			asset::model::update_mesh(h_model, h_mesh);
-		}
-
-		ui::widget::separator_v();
-
-		for (auto [i, h_mat] : entry.h_material_vec | views::enumerate_copy<uint32>)
-		{
-			if (detail::ui_component_asset_dropdown<asset::e::kind::material>(h_mat, i == 0))
-			{
-				asset::model::update_material(h_model, i, h_mat);
-			}
-
-			if (runtime::is_handle_invalid(entry.h_material_vec[i]) is_false)
-			{
-				ui_component(entry.h_material_vec[i], entry.h_material_vec[i].get_entry<asset::e::kind::material>());
-			}
-		}
-
-		return false;
-	}
-}	 // namespace age::editor
-
-// ui component
-namespace age::editor
-{
-	ui::widget_ctx
-	ui_component_header(const char* p_name, bool& close_out) noexcept
-	{
-		using enum input::e::key_kind;
-		using namespace ui;
-
-		if (auto res = widget::begin(style::layout(ui::e::widget_layout::vertical)
-									 | set_size(size_mode::grow(), size_mode::fit())))
-		{
-			auto is_open = false;
-
-			if (auto header = widget::begin(style::header_bar() | set_save_state(true) | set_interact(true)))
-			{
-				if (header.clicked<mouse_left>())
-				{
-					header.toggle();
-				}
-
-				is_open = header.is_toggled() is_false;
-
-				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
-				widget::disclosure_indicator(is_open, disclosure_indicator_size);
-
-				widget::text_heading(p_name);
-
-				if (auto _ = widget::vertical())
-				{
-					if (auto close_btn = widget::begin(style::vertical()
-													   | set_interact(true)
-													   | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size))
-													   | set_padding(theme::padding_small() + 1.f)
-													   | set_align_end()))
-					{
-						close_out = close_btn.clicked();
-
-						widget::begin(set_align(ui::e::widget_align::center)
-									  | set_draw(header.contains_mouse())
-									  | set_size(size_mode::grow(), size_mode::grow())
-									  | set_border_thickness(0.f)
-									  | set_shape_kind(ui::e::shape_kind::cross)
-									  | set_body_brush_data(theme::color_text_gray_dark()));
-					}
-				}
-			}
-
-			if (is_open)
-			{
-				widget::separator_v();
-				return res;
-			}
-		}
-
-		return {};
-	}
-
-	void
-	ui_component(ecs::position& pos) noexcept
-	{
-		ui::widget::numeric_field(pos, "possition");
-	}
-
-	void
-	ui_component(ecs::render_object& obj) noexcept
-	{
-		char c_buf[12];
-		age::util::to_str(c_buf, obj.render_id);
-		ui::widget::text_heading(c_buf);
-	}
-
-	void
-	ui_component(ecs::rotation& rot) noexcept
-	{
-		ui::widget::rotation_field(rot, "rotation");
-	}
-
-	void
-	ui_component(ecs::scale& scale) noexcept
-	{
-		ui::widget::numeric_field(scale, "scale");
-	}
-
-	void
-	ui_component(ecs::mesh& cmp_mesh) noexcept
-	{
-		auto h_mesh = cmp_mesh.h_mesh;
-		if (detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
-		{
-			cmp_mesh.update_h_mesh(h_mesh);
-		}
-	}
-
-	void
-	ui_component(asset::handle h_mat, asset::entry<asset::e::kind::material>& mat_entry) noexcept
-	{
-		using namespace age::ui;
-		using namespace age::ui::style;
+		is_dirty = true;
 
 		c_auto tex_dropdown = [](asset::handle& h_tex, bool is_first = false) {
 			auto h_tex_after = h_tex;
@@ -681,6 +543,154 @@ namespace age::editor
 				asset::material::save(h_mat);
 			}
 		}
+
+		return is_dirty;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::texture>(asset::handle h_tex) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::env_light>(asset::handle h_env_light) noexcept
+	{
+		return false;
+	}
+
+	template <>
+	bool
+	ui_asset<asset::e::kind::model>(asset::handle h_model) noexcept
+	{
+		if (runtime::is_handle_invalid(h_model)) { return false; }
+
+		auto& entry = h_model.get_entry<asset::e::kind::model>();
+
+		// todo. cleanup asset load system
+		// we don't need full load here.
+		if (entry.is_loaded() is_false)
+		{
+			ui::widget::text("asset not loded");
+			return false;
+		}
+
+		if (auto h_mesh = entry.h_mesh;
+			detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
+		{
+			asset::model::update_mesh(h_model, h_mesh);
+		}
+
+		ui::widget::separator_v();
+
+		for (auto [i, h_mat] : entry.h_material_vec | views::enumerate_copy<uint32>)
+		{
+			if (detail::ui_component_asset_dropdown<asset::e::kind::material>(h_mat, i == 0))
+			{
+				asset::model::update_material(h_model, i, h_mat);
+			}
+
+			ui_asset<asset::e::kind::material>(h_mat);
+		}
+
+		return false;
+	}
+}	 // namespace age::editor
+
+// ui component
+namespace age::editor
+{
+	ui::widget_ctx
+	ui_component_header(const char* p_name, bool& close_out) noexcept
+	{
+		using enum input::e::key_kind;
+		using namespace ui;
+
+		if (auto res = widget::begin(style::layout(ui::e::widget_layout::vertical)
+									 | set_size(size_mode::grow(), size_mode::fit())))
+		{
+			auto is_open = false;
+
+			if (auto header = widget::begin(style::header_bar() | set_save_state(true) | set_interact(true)))
+			{
+				if (header.clicked<mouse_left>())
+				{
+					header.toggle();
+				}
+
+				is_open = header.is_toggled() is_false;
+
+				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
+				widget::disclosure_indicator(is_open, disclosure_indicator_size);
+
+				widget::text_heading(p_name);
+
+				if (auto _ = widget::vertical())
+				{
+					if (auto close_btn = widget::begin(style::vertical()
+													   | set_interact(true)
+													   | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size))
+													   | set_padding(theme::padding_small() + 1.f)
+													   | set_align_end()))
+					{
+						close_out = close_btn.clicked();
+
+						widget::begin(set_align(ui::e::widget_align::center)
+									  | set_draw(header.contains_mouse())
+									  | set_size(size_mode::grow(), size_mode::grow())
+									  | set_border_thickness(0.f)
+									  | set_shape_kind(ui::e::shape_kind::cross)
+									  | set_body_brush_data(theme::color_text_gray_dark()));
+					}
+				}
+			}
+
+			if (is_open)
+			{
+				widget::separator_v();
+				return res;
+			}
+		}
+
+		return {};
+	}
+
+	void
+	ui_component(ecs::position& pos) noexcept
+	{
+		ui::widget::numeric_field(pos, "possition");
+	}
+
+	void
+	ui_component(ecs::render_object& obj) noexcept
+	{
+		char c_buf[12];
+		age::util::to_str(c_buf, obj.render_id);
+		ui::widget::text_heading(c_buf);
+	}
+
+	void
+	ui_component(ecs::rotation& rot) noexcept
+	{
+		ui::widget::rotation_field(rot, "rotation");
+	}
+
+	void
+	ui_component(ecs::scale& scale) noexcept
+	{
+		ui::widget::numeric_field(scale, "scale");
+	}
+
+	void
+	ui_component(ecs::mesh& cmp_mesh) noexcept
+	{
+		auto h_mesh = cmp_mesh.h_mesh;
+		if (detail::ui_component_asset_dropdown<asset::e::kind::mesh_baked>(h_mesh))
+		{
+			cmp_mesh.update_h_mesh(h_mesh);
+		}
 	}
 
 	void
@@ -701,7 +711,7 @@ namespace age::editor
 
 		ui::widget::separator_v();
 
-		ui_component(mat.h_mat, mat.h_mat.get_entry<age::asset::e::kind::material>());
+		ui_asset<asset::e::kind::material>(mat.h_mat);
 	}
 
 	void
@@ -2676,6 +2686,80 @@ namespace age::editor
 		}
 	}
 
+
+}	 // namespace age::editor
+
+// modal import_asset
+namespace age::editor
+{
+	void
+	ui_modal_import_asset_texture() noexcept
+	{
+		ui::widget::text("ui_import_asset_texture not implemented yet");
+	}
+
+	void
+	ui_modal_import_asset_mesh() noexcept
+	{
+		ui::widget::text("ui_import_asset_mesh not implemented yet");
+	}
+
+	void
+	ui_modal_import_asset_gltf() noexcept
+	{
+		ui::widget::text("ui_import_asset_gltf not implemented yet");
+	}
+
+	void
+	ui_modal_import_asset() noexcept
+	{
+		using namespace age::ui;
+		using enum age::asset::e::import_kind;
+
+		static auto selected = age::asset::e::import_kind::texture;
+		if (auto _ = widget::begin(style::panel() | set_horizontal() | set_width_grow() | set_height_grow()))
+		{
+			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_fit() | set_height_grow()))
+			{
+				asset::e::visit_all<asset::e::import_kind>([]<asset::e::import_kind e_kind> {
+					auto asset_btn = widget::button(to_string(e_kind).data());
+					if (asset_btn.clicked())
+					{
+						selected = e_kind;
+					} });
+			}
+
+			if (auto _ = widget::begin(style::section() | set_vertical() | set_width_grow() | set_height_grow()))
+			{
+				switch (selected)
+				{
+				case texture:
+				{
+					ui_modal_import_asset_texture();
+					break;
+				}
+				case mesh:
+				{
+					ui_modal_import_asset_mesh();
+					break;
+				}
+				case gltf:
+				{
+					ui_modal_import_asset_gltf();
+					break;
+				}
+				default:
+				{
+					AGE_UNREACHABLE();
+				}
+				}
+			}
+		}
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
 	void
 	ui_modal() noexcept
 	{
@@ -2684,6 +2768,11 @@ namespace age::editor
 		case e::modal_kind::new_asset:
 		{
 			ui_modal_new_asset();
+			break;
+		}
+		case e::modal_kind::import_asset:
+		{
+			ui_modal_import_asset();
 			break;
 		}
 		default:
@@ -2713,8 +2802,16 @@ namespace age::editor
 				{
 					if (h_btn.clicked())
 					{
+						if (g::modal_kind == e::modal_kind::new_asset)
+						{
+							g::show_modal = !g::show_modal;
+						}
+						else
+						{
+							g::show_modal = true;
+						}
+
 						g::modal_kind = e::modal_kind::new_asset;
-						g::show_modal = !g::show_modal;
 					}
 				}
 
@@ -2722,8 +2819,16 @@ namespace age::editor
 				{
 					if (h_btn.clicked())
 					{
-						g::modal_kind = e::modal_kind::new_asset;
-						g::show_modal = !g::show_modal;
+						if (g::modal_kind == e::modal_kind::import_asset)
+						{
+							g::show_modal = !g::show_modal;
+						}
+						else
+						{
+							g::show_modal = true;
+						}
+
+						g::modal_kind = e::modal_kind::import_asset;
 					}
 				}
 			}

@@ -131,7 +131,7 @@ namespace age::asset::registry
 			for_each_kind([]<e::kind e_kind> {
 				for (auto h : g::registry_map[to_idx(e_kind)])
 				{
-					AGE_ASSERT(is_any_loaded(h.get_entry<e_kind>()) is_false);
+					AGE_ASSERT(h.is_any_loaded<e_kind>() is_false);
 				}
 			});
 		}

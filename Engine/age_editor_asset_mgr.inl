@@ -97,17 +97,12 @@ namespace age::editor::asset_mgr
 
 					if (entry.ref_counter == 0)
 					{
+						if (entry.is_any_loaded())
+						{
+							AGE_DEBUG_LOG("editor asset_mgr asset full_unload {}, {}", to_string(e_kind), entry.get_path());
+						}
 						asset::full_unload<e_kind>(h, renderer);	// cascades
 					}
-					// else
-					//{
-					//	if constexpr (e_kind == material) { asset::material::load(h, renderer); }
-					//	else if constexpr (e_kind == model) { asset::model::load(h, renderer); }
-					//	else
-					//	{
-					//		asset::gpu_load<e_kind>(h, renderer);
-					//	}
-					// }
 				}
 			}
 		});
@@ -120,6 +115,7 @@ namespace age::editor::asset_mgr
 			}
 			g::asset_to_delete[to_idx(e_kind)].clear();
 		});
+
 
 		// update ecs components
 		ecs_game.visit_all_storages([&](auto& ecs_storage) {

@@ -737,6 +737,7 @@
 			AGE_UNREACHABLE();                                                                                                                                  \
 		}                                                                                                                                                       \
 	}                                                                                                                                                           \
+	FOR_EACH_SEP(AGE_DEFINE_GET_ENTRY_FUNCTION_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                                \
 	template <e::kind e_kind>                                                                                                                                   \
 	age::array<char, config::max_asset_path_len>&                                                                                                               \
 	handle::get_path() const noexcept                                                                                                                           \
@@ -777,6 +778,52 @@
 		switch (get_kind())                                                                                                                                     \
 		{                                                                                                                                                       \
 			FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_DISPLAY_NAME_CASE, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                   \
+		default:                                                                                                                                                \
+		{                                                                                                                                                       \
+			AGE_UNREACHABLE();                                                                                                                                  \
+		}                                                                                                                                                       \
+		}                                                                                                                                                       \
+	}                                                                                                                                                           \
+	template <e::kind e_kind>                                                                                                                                   \
+	bool                                                                                                                                                        \
+	handle::is_meta_loaded() const noexcept                                                                                                                     \
+	{                                                                                                                                                           \
+		if constexpr (false) { }                                                                                                                                \
+		FOR_EACH_SEP(AGE_DEFINE_IS_META_LOADED_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                           \
+		else                                                                                                                                                    \
+		{                                                                                                                                                       \
+			AGE_UNREACHABLE();                                                                                                                                  \
+		}                                                                                                                                                       \
+	}                                                                                                                                                           \
+	bool                                                                                                                                                        \
+	handle::is_meta_loaded() const noexcept                                                                                                                     \
+	{                                                                                                                                                           \
+		switch (get_kind())                                                                                                                                     \
+		{                                                                                                                                                       \
+			FOR_EACH_SEP(AGE_DEFINE_IS_META_LOADED_CASE, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                           \
+		default:                                                                                                                                                \
+		{                                                                                                                                                       \
+			AGE_UNREACHABLE();                                                                                                                                  \
+		}                                                                                                                                                       \
+		}                                                                                                                                                       \
+	}                                                                                                                                                           \
+	template <e::kind e_kind>                                                                                                                                   \
+	bool                                                                                                                                                        \
+	handle::is_any_loaded() const noexcept                                                                                                                      \
+	{                                                                                                                                                           \
+		if constexpr (false) { }                                                                                                                                \
+		FOR_EACH_SEP(AGE_DEFINE_IS_ANY_LOADED_NTTP_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                            \
+		else                                                                                                                                                    \
+		{                                                                                                                                                       \
+			AGE_UNREACHABLE();                                                                                                                                  \
+		}                                                                                                                                                       \
+	}                                                                                                                                                           \
+	bool                                                                                                                                                        \
+	handle::is_any_loaded() const noexcept                                                                                                                      \
+	{                                                                                                                                                           \
+		switch (get_kind())                                                                                                                                     \
+		{                                                                                                                                                       \
+			FOR_EACH_SEP(AGE_DEFINE_IS_ANY_LOADED_CASE, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                            \
 		default:                                                                                                                                                \
 		{                                                                                                                                                       \
 			AGE_UNREACHABLE();                                                                                                                                  \
@@ -854,6 +901,14 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 		return asset::create_entry<e::kind::name>(asset_path); \
 	}
 
+#define AGE_DEFINE_GET_ENTRY_FUNCTION_MAP(name)                    \
+	namespace name                                                 \
+	{                                                              \
+		inline entry<age::asset::e::kind::name>&                   \
+		get_entry(age::asset::handle h_asset) noexcept             \
+		{ return h_asset.get_entry<age::asset::e::kind::name>(); } \
+	}
+
 #define AGE_DEFINE_GET_ENTRY_MAP(name)                  \
 	else if constexpr (e_kind == e::kind::name)         \
 	{                                                   \
@@ -908,6 +963,30 @@ void destroy_entry<e::kind::name>(handle&) noexcept;
 	case e::kind::name:                                                                            \
 	{                                                                                              \
 		return age::asset::get_display_name<e::kind::name>(get_entry<e::kind::name>().get_path()); \
+	}
+
+#define AGE_DEFINE_IS_META_LOADED_NTTP_MAP(name)            \
+	else if constexpr (e_kind == e::kind::name)             \
+	{                                                       \
+		return get_entry<e::kind::name>().is_meta_loaded(); \
+	}
+
+#define AGE_DEFINE_IS_META_LOADED_CASE(name)                \
+	case e::kind::name:                                     \
+	{                                                       \
+		return get_entry<e::kind::name>().is_meta_loaded(); \
+	}
+
+#define AGE_DEFINE_IS_ANY_LOADED_NTTP_MAP(name)            \
+	else if constexpr (e_kind == e::kind::name)            \
+	{                                                      \
+		return get_entry<e::kind::name>().is_any_loaded(); \
+	}
+
+#define AGE_DEFINE_IS_ANY_LOADED_CASE(name)                \
+	case e::kind::name:                                    \
+	{                                                      \
+		return get_entry<e::kind::name>().is_any_loaded(); \
 	}
 
 #define AGE_DEFINE_ASSET_FUNC(function_name, ...)                                              \

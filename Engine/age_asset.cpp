@@ -412,7 +412,7 @@ namespace age::asset
 					auto& pool = pool_of<e_kind>();
 					for (auto it = pool.begin(); it != pool.end(); ++it)
 					{
-						AGE_ASSERT(is_any_loaded(*it) is_false);
+						AGE_ASSERT(it->is_any_loaded() is_false);
 					}
 				}));
 		}

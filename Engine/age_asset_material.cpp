@@ -24,9 +24,34 @@ namespace age::asset
 	}
 
 	bool
-	entry<e::kind::material>::is_loaded() const noexcept
+	entry<e::kind::material>::is_meta_loaded() const noexcept
+	{
+		return meta_loaded;
+	}
+
+	bool
+	entry<e::kind::material>::is_any_loaded() const noexcept
 	{
 		return AGE_IS_INVALID_ID(render_id) is_false;
+	}
+
+	bool
+	entry<e::kind::material>::is_loaded() const noexcept
+	{
+		if (AGE_IS_INVALID_ID(render_id))
+		{
+			return false;
+		}
+
+		for (auto h_tex : all_textures() | views::deref)
+		{
+			if (runtime::is_handle_invalid(h_tex) is_false
+				and h_tex.get_entry<e::kind::texture>().is_gpu_loaded() is_false)
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	age::array<const handle*, 5>

@@ -43,10 +43,12 @@ namespace age::asset::font
 		{
 			if (detail::need_rebuild(entry, flag, extra_unicode) is_false)
 			{
+				AGE_ASSERT(entry.is_meta_loaded());
 				return;
 			}
 			else
 			{
+				entry.meta_loaded = false;
 				full_unload(h_font, renderer);
 			}
 		}
@@ -67,10 +69,12 @@ namespace age::asset::font
 				entry.atlas_id = renderer.upload_texture(buf.data() + buf.read_amount(),
 														 { .width = entry.atlas_width, .height = entry.atlas_height },
 														 age::graphics::e::texture_format::rgba8_unorm);
+				AGE_ASSERT(entry.is_meta_loaded());
 				return;
 			}
 		}
 
+		entry.meta_loaded = false;
 		detail::rebuild_font(asset::detail::extract_asset_name<e::kind::font>(entry.get_path()), flag, extra_unicode);
 
 		if (auto file_data = asset::read_asset_file(entry.get_path());
@@ -88,6 +92,8 @@ namespace age::asset::font
 			entry.atlas_id = renderer.upload_texture(buf.data() + buf.read_amount(),
 													 { .width = entry.atlas_width, .height = entry.atlas_height },
 													 age::graphics::e::texture_format::rgba8_unorm);
+			AGE_ASSERT(entry.is_meta_loaded());
+			return;
 		}
 		else
 		{
