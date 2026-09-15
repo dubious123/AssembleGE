@@ -7,10 +7,11 @@ namespace age_demo::scene_1
 	init() noexcept
 	{
 		using namespace age::ecs::system;
+		age::asset::set_root_dir("./resources/demo_game/");
 
 		age::asset::registry::register_asset(
 			i_init.get_mesh_id_vec->emplace_back(
-				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube",
+				age::asset::mesh_baked::gpu_load("assets/mesh/primitive_cube",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
 													 .size		= { 0.5, 0.5, 0.5 },
@@ -21,7 +22,7 @@ namespace age_demo::scene_1
 
 		age::asset::registry::register_asset(
 			i_init.get_mesh_id_vec->emplace_back(
-				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_plane",
+				age::asset::mesh_baked::gpu_load("assets/mesh/primitive_plane",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
 													 .size		= { 0.5, 0.5, 0.5 },
@@ -32,7 +33,7 @@ namespace age_demo::scene_1
 
 		age::asset::registry::register_asset(
 			i_init.get_mesh_id_vec->emplace_back(
-				age::asset::mesh_baked::gpu_load("./resources/demo_game/assets/mesh/primitive_cube_sphere",
+				age::asset::mesh_baked::gpu_load("assets/mesh/primitive_cube_sphere",
 												 i_init.get_render_pipeline(),
 												 age::asset::primitive_desc{
 													 .size		= { 0.5, 0.5, 0.5 },

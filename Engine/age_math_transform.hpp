@@ -25,25 +25,25 @@ namespace age::inline math
 		}                                                                                          \
 	}
 
-	FORCE_INLINE bool
+	FORCE_INLINE constexpr bool
 	is_even(std::integral auto u) noexcept
 	{
 		return (u & 0x1) == 0;
 	}
 
-	FORCE_INLINE bool
+	FORCE_INLINE constexpr bool
 	is_odd(std::integral auto u) noexcept
 	{
 		return (u & 0x1) == 1;
 	}
 
-	FORCE_INLINE bool
+	FORCE_INLINE constexpr bool
 	is_pow_of_2(std::unsigned_integral auto u) noexcept
 	{
 		return std::has_single_bit(u);
 	}
 
-	FORCE_INLINE uint32
+	FORCE_INLINE constexpr uint32
 	isqrt(std::unsigned_integral auto u) noexcept
 		requires(sizeof(u) <= sizeof(uint32))
 	{
@@ -51,7 +51,7 @@ namespace age::inline math
 	}
 
 	template <typename t_ret = uint32>
-	FORCE_INLINE t_ret
+	FORCE_INLINE constexpr t_ret
 	log2_pow2(uint32 u) noexcept
 	{
 		AGE_ASSERT(std::has_single_bit(u));
@@ -59,7 +59,7 @@ namespace age::inline math
 	}
 
 	template <typename t_ret = uint32>
-	FORCE_INLINE t_ret
+	FORCE_INLINE constexpr t_ret
 	log2(uint32 u) noexcept
 	{
 		AGE_ASSERT(u > 0);
@@ -67,13 +67,13 @@ namespace age::inline math
 	}
 
 	template <typename t_to>
-	FORCE_INLINE t_to
+	FORCE_INLINE constexpr t_to
 	cast_to(auto&& x) noexcept
 	{
 		return static_cast<t_to>(FWD(x));
 	}
 
-	FORCE_INLINE float
+	FORCE_INLINE constexpr float
 	as_float(auto&& x) noexcept
 	{
 		return std::bit_cast<float>(FWD(x));
@@ -115,19 +115,19 @@ namespace age::inline math
 		return simd::transform4(simd::load(mat), simd::load(v)) | simd::to<float4>();
 	}
 
-	FORCE_INLINE float
+	FORCE_INLINE constexpr float
 	dot(const float3& lhs, const float3& rhs) noexcept
 	{
 		return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 	}
 
-	FORCE_INLINE float
+	FORCE_INLINE constexpr float
 	dot(const float4& lhs, const float4& rhs) noexcept
 	{
 		return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	cross(const float3& lhs, const float3& rhs) noexcept
 	{
 		return float3{
@@ -137,61 +137,61 @@ namespace age::inline math
 		};
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	abs(auto f) noexcept
 	{
 		return std::abs(f);
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	abs(const float2& v) noexcept
 	{
 		return float2{ std::abs(v.x), std::abs(v.y) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	abs(const float3& v) noexcept
 	{
 		return float3{ std::abs(v.x), std::abs(v.y), std::abs(v.z) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	abs(const float4& v) noexcept
 	{
 		return float4{ std::abs(v.x), std::abs(v.y), std::abs(v.z), std::abs(v.w) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length_sq(const float2& v) noexcept
 	{
 		return v.x * v.x + v.y * v.y;
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length_sq(const float3& v) noexcept
 	{
 		return v.x * v.x + v.y * v.y + v.z * v.z;
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length_sq(const float4& v) noexcept
 	{
 		return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length(const float2& v) noexcept
 	{
 		return std::sqrt(length_sq(v));
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length(const float3& v) noexcept
 	{
 		return std::sqrt(length_sq(v));
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	length(const float4& v) noexcept
 	{
 		return std::sqrt(length_sq(v));
@@ -490,25 +490,25 @@ namespace age::inline math
 		return std::clamp(x, min, max);
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	clamp(const float2& v, auto min, auto max) noexcept
 	{
 		return float2{ std::clamp(v.x, min, max), std::clamp(v.y, min, max) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	clamp(const float3& v, auto min, auto max) noexcept
 	{
 		return float3{ std::clamp(v.x, min, max), std::clamp(v.y, min, max), std::clamp(v.z, min, max) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	clamp(const float4& v, auto min, auto max) noexcept
 	{
 		return float4{ std::clamp(v.x, min, max), std::clamp(v.y, min, max), std::clamp(v.z, min, max), std::clamp(v.w, min, max) };
 	}
 
-	FORCE_INLINE decltype(auto)
+	FORCE_INLINE constexpr decltype(auto)
 	saturate(auto&& f) noexcept
 	{
 		return clamp(FWD(f), 0.f, 1.f);
@@ -540,13 +540,13 @@ namespace age::inline math
 
 namespace age::inline math
 {
-	FORCE_INLINE float2
+	FORCE_INLINE constexpr float2
 	screen_to_ndc(const float2& screen_size, const float2& screen_pos) noexcept
 	{
 		return float2{ screen_pos.x / screen_size.x * 2.f - 1.f, 1.f - screen_pos.y / screen_size.y * 2.f };
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	ndc_to_world(const float4x4& view_proj_inv, const float3& ndc) noexcept
 	{
 		c_auto temp = mul(view_proj_inv, float4(ndc, 1.f));
@@ -554,12 +554,34 @@ namespace age::inline math
 		return temp.xyz / temp.w;
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	ndc_to_world(const float4x4& view_proj_inv, const float4& ndc) noexcept
 	{
 		c_auto temp = mul(view_proj_inv, ndc);
 
 		return temp.xyz / temp.w;
+	}
+}	 // namespace age::inline math
+
+// affine transform
+namespace age::inline math
+{
+	FORCE_INLINE float3x4
+	compose_trs(const float3& translation, const float4& rotation, const float3& scale) noexcept
+	{
+		return simd::compose_trs(simd::load(translation), simd::load(rotation), simd::load(scale)) | simd::to<float3x4>();
+	}
+
+	FORCE_INLINE float3x4
+	affine_mul(const float3x4& mat_l, const float3x4& mat_r) noexcept
+	{
+		return simd::mat_mul(simd::load(mat_l), simd::load(mat_r)) | simd::to<float3x4>();
+	}
+
+	FORCE_INLINE float3x4
+	affine_inv(const float3x4& mat) noexcept
+	{
+		return simd::mat_inv(simd::load(mat)) | simd::to<float3x4>();
 	}
 }	 // namespace age::inline math
 
@@ -572,13 +594,13 @@ namespace age::inline math
 		return simd::rotate3(simd::load(quaternion), simd::load(v)) | simd::to<float3>();
 	}
 
-	FORCE_INLINE float2
+	FORCE_INLINE constexpr float2
 	rotate(const float2& v, float radian)
 	{
 		return float2((v.x * cos(radian) - v.y * sin(radian)), v.x * sin(radian) + v.y * cos(radian));
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	rotate_around(const float4& quat, const float3& point, const float3& pivot) noexcept
 	{
 		return pivot + math::rotate(quat, point - pivot);
@@ -653,7 +675,7 @@ namespace age::inline math
 		return euler_deg | simd::load() | simd::mul(simd::replicate(g::degree_to_radian)) | simd::euler_to_quat() | simd::to<float4>();
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	quat_to_euler_rad(float4 quat) noexcept
 	{
 		c_auto x = quat.x, y = quat.y, z = quat.z, w = quat.w;
@@ -678,7 +700,7 @@ namespace age::inline math
 		return float3(pitch, yaw, roll);
 	}
 
-	FORCE_INLINE float3
+	FORCE_INLINE constexpr float3
 	quat_to_euler_deg(float4 quat) noexcept
 	{
 		return quat_to_euler_rad(quat) * float3{ g::radian_to_degree };
@@ -762,7 +784,7 @@ namespace age::inline math
 	//		 | ((quantized_u4[perm_table[missing_idx][0]] & 0x3ffu) << 0);
 	//}
 
-	FORCE_INLINE float4
+	FORCE_INLINE constexpr float4
 	quaternion_decode(uint32 encoded_q) noexcept
 	{
 		auto index = (encoded_q >> 30) & 0x3;
@@ -844,7 +866,7 @@ namespace age::inline math
 		};
 	}
 
-	FORCE_INLINE float4
+	FORCE_INLINE constexpr float4
 	quaternion_decode(uint32_2 encoded_q) noexcept
 	{
 		auto index = (encoded_q.y >> 16) & 0x3;

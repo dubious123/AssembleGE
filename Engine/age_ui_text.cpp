@@ -111,8 +111,17 @@ namespace age::ui::detail
 		c_auto height_min = (line_offset + 1u) * text_data.line_height;
 		c_auto height_max = (line_offset + 1u + word_count) * text_data.line_height;
 
-		desc.width_min	= word_width_min + padding_sum_h;
-		desc.width_max	= max_width + padding_sum_h;
+		// this fix begin(style::text(...) | set_width_fixed())
+		if (desc.width_size_mode == e::size_mode_kind::fixed)
+		{
+		}
+		else
+		{
+			desc.width_min = word_width_min + padding_sum_h;
+			desc.width_max = max_width + padding_sum_h;
+		}
+
+
 		desc.height_min = height_min + padding_sum_v;
 		desc.height_max = height_max + padding_sum_v;
 

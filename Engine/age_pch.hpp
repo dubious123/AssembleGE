@@ -42,6 +42,7 @@
 #include "age_util_functional.hpp"
 #include "age_util_format.hpp"
 #include "age_util_offset_calculator.hpp"
+#include "age_util_algorithm.hpp"
 
 #include "age_fwd.hpp"
 #include "age_math_sdf.hpp"	   // shader shared

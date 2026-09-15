@@ -10,3 +10,5 @@
 #include "age_engine_external_msdfgen.cpp"
 #line 1 "age_engine_external_texconv.cpp"
 #include "age_engine_external_texconv.cpp"
+#line 1 "age_engine_external_cgltf.cpp"
+#include "age_engine_external_cgltf.cpp"

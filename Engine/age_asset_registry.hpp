@@ -3,8 +3,9 @@
 
 namespace age::asset::registry
 {
+	// relative to asset_root_dir
 	void
-	load(const char* root_dir) noexcept;
+	load(std::string_view dir) noexcept;
 
 	void
 	save() noexcept;

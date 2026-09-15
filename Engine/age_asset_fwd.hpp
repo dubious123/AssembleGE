@@ -585,11 +585,12 @@ namespace age::asset
 			uint8						mip_count;
 			uint8						flags;	  // [0] is_cubemap, [1] is_3d,
 			uint16						extra;
+			float						alpha_cutoff;
 		};
 
 		static_assert(std::is_implicit_lifetime_v<header>);
 		static_assert(std::is_trivially_copyable_v<header>);
-		static_assert(sizeof(header) == 16);
+		static_assert(sizeof(header) == 20);
 
 		using allocator_type = aligned_byte_allocator;
 
@@ -598,15 +599,19 @@ namespace age::asset
 
 		std::byte* p_blob;
 
-		uint32 ref_counter = 0u;
+		extent_2d<uint32>			extent;
+		uint16						tex_depth_or_array_size;
+		graphics::e::texture_format format;
+		uint8						mip_count;
+		uint8						flags		= 0u;	 // [0] is_cubemap, [1] is_3d, [7] meta_loaded
+		uint16						ref_counter = 0u;
+		float						alpha_cutoff;		 // -1.f : disabled
 
 		age::array<char, config::max_asset_path_len>&
 		get_path() const noexcept;
 
-		// no meta data, always true
-		constexpr bool
-		is_meta_loaded() const noexcept
-		{ return true; }
+		bool
+		is_meta_loaded() const noexcept;
 
 		bool
 		is_any_loaded() const noexcept;
@@ -628,6 +633,9 @@ namespace age::asset
 
 		bool
 		is_tex3d() const noexcept;
+
+		bool
+		has_alpha() const noexcept;
 	};
 
 	template <>
@@ -751,7 +759,7 @@ namespace age::asset
 {
 	struct env_light_desc
 	{
-		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_uf16;	 // all format
+		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_ufloat16;	 // all format
 		uint32						cubemap_size		= 4096;
 		uint16						prefilter_size		= 512;
 		uint16						prefilter_mip_count = 7;
@@ -810,11 +818,18 @@ namespace age::asset
 		bool hflip = false;
 		bool vflip = false;
 
-		bool invert_y = false;			  // for gltf normal map
+		bool invert_y = false;	  // for gltf normal map
 
-		bool  separate_alpha  = false;
+		bool separate_alpha = false;
+
+		// bc1 only, 1-bit alpha-cutoff used by the encoder,
 		float alpha_threshold = -1.0f;	  // -1 = unset
-		float keep_coverage	  = -1.0f;
+
+		// alpha mask + mip_count > 0 only
+		// alpha test reference for coverage-preserving mips
+		// set to the referencing material's alpha_cutoff
+		// todo: record in import meta, rebake when the material's cutoff changes
+		float keep_coverage = -1.0f;
 	};
 
 	struct model_desc
@@ -833,6 +848,8 @@ namespace age::asset::g
 
 	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
 
+	inline auto root_dir_path = std::filesystem::path{};
+
 	inline auto path_vec = age::sparse_vector<age::array<char, config::max_asset_path_len>>{};
 
 	template <e::kind e_kind>
@@ -840,6 +857,7 @@ namespace age::asset::g
 	inline age::array<age::unordered_map<age::array<char, config::max_asset_path_len>, handle>, e::kind_size>
 		path_to_handle_map;
 
+	// relative to root_dir_path
 	inline std::filesystem::path						 registry_path;
 	inline age::array<age::vector<handle>, e::kind_size> registry_map;
 }	 // namespace age::asset::g

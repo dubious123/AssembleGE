@@ -462,6 +462,7 @@ namespace age::editor::detail
 // file name
 namespace age::editor::detail
 {
+	// return relative to .exe
 	template <bool is_dir = true>
 	std::filesystem::path
 	resolve_path_by_names(const std::filesystem::path& parent,
@@ -511,19 +512,18 @@ namespace age::editor::detail
 namespace age::editor
 {
 	void
-	load_game(auto& game, std::filesystem::path root_dir, auto& renderer) noexcept
+	load_game(auto& game, std::filesystem::path root_parent_dir, auto& renderer) noexcept
 	{
 		auto code_game_data = detail::gen_game_data(game);
 
 		c_auto& names	 = game.age_editor_name();
-		c_auto	game_dir = detail::resolve_path_by_names(root_dir, names);
+		c_auto	game_dir = detail::resolve_path_by_names(root_parent_dir, names);
 
 		// todo, add asset game
-		auto proj_file_name = game_dir / std::format("{}{}", config::game_asset_tag, config::asset_extension);
 
-		if (std::filesystem::exists(proj_file_name))
+		if (std::filesystem::exists(game_dir / std::format("{}{}", config::game_asset_tag, config::asset_extension)))
 		{
-			auto file_game_data = detail::read_game_proj(proj_file_name);
+			auto file_game_data = detail::read_game_proj(std::format("{}{}", config::game_asset_tag, config::asset_extension));
 
 			g::current_game = detail::merge_game_data(code_game_data, file_game_data);
 		}
@@ -532,9 +532,10 @@ namespace age::editor
 			g::current_game = std::move(code_game_data);
 		}
 
-		g::current_game.dir_path = std::move(game_dir);
+		g::current_game.dir_path			= std::move(game_dir);
+		g::current_game.asset_root_dir_path = g::current_game.dir_path / "asset";
 
-		age::asset::registry::load(g::current_game.dir_path.string().data());
+		age::asset::registry::load({});
 
 		for (auto&& [scene_idx, scene] : g::current_game.scene_data_vec | std::views::enumerate)
 		{
@@ -547,13 +548,13 @@ namespace age::editor
 				if (std::filesystem::exists(storage_path) is_false)
 				{
 					c_auto buf				 = game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::serialize_storage_data), storage, renderer);
-					c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-					asset::write_asset_file(storage_path, asset_file_header, buf.data());
+					c_auto asset_file_header = asset::get_default_file_header(asset::e::kind::editor_entity_storage, buf.size(), config::editor_ent_storage_asset_version);
+					asset::write_asset_file(asset::to_root_relative(storage_path), asset_file_header, buf.data());
 				}
 
 				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
-					auto  file_data = asset::read_asset_file(storage_path.string());
+					auto  file_data = asset::read_asset_file(asset::to_root_relative(storage_path));
 					auto& buf		= file_data.buf;
 
 					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), buf, storage, renderer);
@@ -601,8 +602,8 @@ namespace age::editor
 		{
 			c_auto storage_path		 = detail::resolve_path_by_names<false>(active_scene.dir_path, editor_storage.names, std::format("{}{}", config::editor_ent_storage_asset_tag, config::asset_extension));
 			c_auto buf				 = game.visit_storage_at(active_scene.code_idx, editor_storage.code_idx, AGE_FUNC(detail::serialize_storage_data), editor_storage, renderer);
-			c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-			asset::write_asset_file(storage_path, asset_file_header, buf.data());
+			c_auto asset_file_header = asset::get_default_file_header(asset::e::kind::editor_entity_storage, buf.size(), config::editor_ent_storage_asset_version);
+			asset::write_asset_file(asset::to_root_relative(storage_path), asset_file_header, buf.data());
 		}
 	}
 }	 // namespace age::editor

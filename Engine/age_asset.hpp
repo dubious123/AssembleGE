@@ -3,6 +3,19 @@
 
 namespace age::asset
 {
+	void
+	set_root_dir(std::string_view path) noexcept;
+
+	const std::filesystem::path&
+	get_root_dir() noexcept;
+
+	// relative to .exe or abs -> relative to root dir
+	std::string
+	to_root_relative(const std::filesystem::path& p) noexcept;
+
+	std::optional<std::string>
+	try_to_root_relative(const std::filesystem::path& p) noexcept;
+
 	inline bool
 	validate_header(const e::kind, file_header& header) noexcept;
 
@@ -10,20 +23,27 @@ namespace age::asset
 	bool
 	validate_header(const file_header& header) noexcept;
 
+	// relative to asset_root_dir
+	file_data_aligned
+	read_asset_file(const std::filesystem::path&) noexcept;
 	file_data_aligned
 	read_asset_file(std::string_view file_path) noexcept;
-
+	file_data_aligned
+	read_asset_file(const std::string& file_path) noexcept;
 	file_data_aligned
 	read_asset_file(const age::array<char, config::max_asset_path_len>& full_path) noexcept;
 
+	// relative to .exe
 	byte_buf
-	read_raw_file(std::string_view full_path) noexcept;
+	read_raw_file(std::string_view raw_full_path) noexcept;
 
+	// relative to asset_root_dir
 	void
 	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept;
 
+	// relative to .exe
 	bool
-	write_raw_file(std::string_view full_path, const byte_buf& buf) noexcept;
+	write_raw_file(std::string_view raw_full_path, const byte_buf& buf) noexcept;
 
 	inline handle
 	create_entry(e::kind asset_kind, std::string_view asset_path) noexcept;
@@ -286,7 +306,7 @@ namespace age::asset::model
 	load_common_from_path(const age::array<char, config::max_asset_path_len>& full_path, auto& renderer) noexcept;
 
 	bool
-	renderable(handle h_model) noexcept;
+	is_renderable(handle h_model) noexcept;
 
 	void
 	update_mesh(handle h_model, handle h_mesh) noexcept;
@@ -356,6 +376,21 @@ namespace age::asset
 		};
 	}
 
+	inline constexpr file_header
+	get_default_file_header(e::kind e_asset_kind, uint64 payload_size, uint8 asset_version, uint8 blob_alignment_log2 = 4) noexcept
+	{
+		return file_header{
+			.magic				 = g::asset_header_magic,
+			.header_size		 = sizeof(file_header),
+			.file_size			 = payload_size + sizeof(file_header),
+			.version_major		 = config::version_major,
+			.version_minor		 = config::version_minor,
+			.asset_kind			 = e_asset_kind,
+			.blob_alignment_log2 = blob_alignment_log2,
+			.asset_version		 = asset_version,
+		};
+	}
+
 	template <e::kind e_kind>
 	void
 	add_ref(handle h) noexcept
@@ -376,3 +411,10 @@ namespace age::asset
 		--entry.ref_counter;
 	}
 }	 // namespace age::asset
+
+// migrate
+namespace age::asset
+{
+	graphics::e::texture_format
+	migrate_texture_format(uint16 prev_format) noexcept;
+}

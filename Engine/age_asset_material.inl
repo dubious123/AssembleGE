@@ -81,6 +81,42 @@ namespace age::asset::material
 					entry.occlusion_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
 					entry.emissive_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
 
+					for (auto& h_tex : entry.all_textures() | views::deref)
+					{
+						if (h_tex	 = {};
+							auto rel = try_to_root_relative(file_data.buf.read<age::array<char, config::max_asset_path_len>>().data()))
+						{
+							h_tex = asset::find(e::kind::texture, *rel);
+						}
+					}
+					break;
+				}
+				case 1:
+				{
+					file_data.buf.read(
+						entry.double_sided,
+						entry.base_color_factor,
+						entry.metallic_factor,
+						entry.roughness_factor,
+						entry.emissive_factor,
+						entry.normal_scale,
+						entry.occlusion_strength,
+						entry.alpha_cutoff,
+						entry.shading_model,
+						entry.base_color_sampler_kind,
+						entry.metallic_roughness_sampler_kind,
+						entry.normal_sampler_kind,
+						entry.occlusion_sampler_kind,
+						entry.emissive_sampler_kind);
+
+					for (auto& h_tex : entry.all_textures() | views::deref)
+					{
+						if (h_tex	 = {};
+							auto rel = try_to_root_relative(file_data.buf.read<age::array<char, config::max_asset_path_len>>().data()))
+						{
+							h_tex = asset::find(e::kind::texture, *rel);
+						}
+					}
 					break;
 				}
 				case config::material_asset_version:
@@ -100,6 +136,11 @@ namespace age::asset::material
 						entry.normal_sampler_kind,
 						entry.occlusion_sampler_kind,
 						entry.emissive_sampler_kind);
+
+					for (auto& h_tex : entry.all_textures() | views::deref)
+					{
+						h_tex = asset::find(e::kind::texture, file_data.buf.read<age::array<char, config::max_asset_path_len>>());
+					}
 					break;
 				}
 				default:
@@ -107,11 +148,6 @@ namespace age::asset::material
 					AGE_ASSERT(false);
 					return;
 				}
-				}
-
-				for (auto& h_tex : entry.all_textures() | views::deref)
-				{
-					h_tex = asset::find(e::kind::texture, file_data.buf.read<age::array<char, config::max_asset_path_len>>());
 				}
 			}
 			else

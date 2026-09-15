@@ -99,7 +99,7 @@ namespace age::asset::model
 	}
 
 	bool
-	renderable(handle h_model) noexcept
+	is_renderable(handle h_model) noexcept
 	{
 		auto& entry = model::get_entry(h_model);
 		return entry.h_mesh and entry.is_loaded();

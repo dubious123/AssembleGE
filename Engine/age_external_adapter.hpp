@@ -933,3 +933,9 @@ namespace age::external::texconv
 	bool
 	bake_texture(const char* const p_src, const char* output_dir, const asset::texture_bake_option& opt) noexcept;
 }	 // namespace age::external::texconv
+
+namespace age::external::cgltf
+{
+	void
+	load(const std::filesystem::path& path, AGE_OUT asset::importer::gltf_parse_data& res) noexcept;
+}	 // namespace age::external::cgltf

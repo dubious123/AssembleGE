@@ -31,19 +31,86 @@ namespace age::asset
 		}
 	}	 // namespace detail
 
+	void
+	set_root_dir(std::string_view sv) noexcept
+	{
+		g::root_dir_path = std::filesystem::path{ sv }.lexically_normal().make_preferred();
+		if (auto ec = std::error_code{};
+			std::filesystem::is_directory(g::root_dir_path, ec) is_false)
+		{
+			AGE_ASSERT(false, "asset root is not a directory");
+			std::abort();
+		}
+	}
+
+	const std::filesystem::path&
+	get_root_dir() noexcept
+	{
+		return g::root_dir_path;
+	}
+
+	bool
+	is_root_relative(const std::filesystem::path& p) noexcept
+	{
+		c_auto root_dir_str = util::to_utf8(asset::get_root_dir());
+		c_auto path_str		= util::to_utf8(p.lexically_normal().make_preferred());
+		c_auto path_sv		= std::string_view{ path_str };
+		if (path_sv.starts_with(root_dir_str) is_false
+			or path_sv.size() <= root_dir_str.size()
+			or path_sv[root_dir_str.size()] != std::filesystem::path::preferred_separator)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	std::string
+	to_root_relative(const std::filesystem::path& p) noexcept
+	{
+		c_auto root_dir_str = util::to_utf8(asset::get_root_dir());
+		c_auto path_str		= util::to_utf8(p.lexically_normal().make_preferred());
+
+		c_auto under_root = path_str.size() > root_dir_str.size()
+						and path_str.starts_with(root_dir_str)
+						and path_str[root_dir_str.size()] == std::filesystem::path::preferred_separator;
+
+		if (under_root is_false)
+		{
+			AGE_ASSERT(false, "path is not under the asset root, input : {}, current asset root dir : {}", path_str, root_dir_str);
+			std::abort();
+		}
+
+		return path_str.substr(root_dir_str.size() + 1);
+	}
+
+	std::optional<std::string>
+	try_to_root_relative(const std::filesystem::path& p) noexcept
+	{
+		c_auto root_dir_str = util::to_utf8(asset::get_root_dir());
+		auto   path_str		= util::to_utf8(p.lexically_normal().make_preferred());
+
+		c_auto under_root = path_str.size() > root_dir_str.size()
+						and path_str.starts_with(root_dir_str)
+						and path_str[root_dir_str.size()] == std::filesystem::path::preferred_separator;
+
+		return under_root ? std::optional<std::string>{ path_str.substr(root_dir_str.size() + 1) } : std::nullopt;
+	}
+
 	file_data_aligned
-	read_asset_file(std::string_view full_path) noexcept
+	read_asset_file(const std::filesystem::path& full_path) noexcept
 	{
 		auto file_data = file_data_aligned{ asset::file_header{}, aligned_byte_buf{ aligned_byte_allocator{} } };
 
+		c_auto file_path = get_root_dir() / full_path;
 		auto   ec		 = std::error_code{};
-		c_auto file_size = std::filesystem::file_size(full_path, ec);
+		c_auto file_size = std::filesystem::file_size(file_path, ec);
 		if (ec or file_size == 0)
 		{
 			return file_data;
 		}
 
-		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
+		auto file = std::ifstream{ file_path, std::ios::in | std::ios::binary };
 		if (file.is_open() is_false)
 		{
 			return file_data;
@@ -73,24 +140,36 @@ namespace age::asset
 	}
 
 	file_data_aligned
+	read_asset_file(std::string_view full_path) noexcept
+	{
+		return read_asset_file(std::filesystem::path{ full_path });
+	}
+
+	file_data_aligned
+	read_asset_file(const std::string& full_path) noexcept
+	{
+		return read_asset_file(std::filesystem::path{ full_path });
+	}
+
+	file_data_aligned
 	read_asset_file(const age::array<char, config::max_asset_path_len>& full_path) noexcept
 	{
-		return read_asset_file(full_path.data());
+		return read_asset_file(std::string_view{ full_path.data() });
 	}
 
 	byte_buf
-	read_raw_file(std::string_view full_path) noexcept
+	read_raw_file(std::string_view raw_full_path) noexcept
 	{
 		auto buf = byte_buf{};
 
 		auto   ec		 = std::error_code{};
-		c_auto file_size = std::filesystem::file_size(full_path, ec);
+		c_auto file_size = std::filesystem::file_size(raw_full_path, ec);
 		if (ec or file_size == 0)
 		{
 			return buf;
 		}
 
-		auto file = std::ifstream{ std::filesystem::path{ full_path }, std::ios::in | std::ios::binary };
+		auto file = std::ifstream{ std::filesystem::path{ raw_full_path }, std::ios::in | std::ios::binary };
 		if (file.is_open() is_false)
 		{
 			return buf;
@@ -106,17 +185,19 @@ namespace age::asset
 	}
 
 	void
-	write_asset_file(const std::filesystem::path& file_path, const file_header& header, const void* p_src) noexcept
+	write_asset_file(const std::filesystem::path& rel_to_root_path, const file_header& header, const void* p_src) noexcept
 	{
-		auto   ec	  = std::error_code{};
-		c_auto parent = file_path.parent_path();
+		auto   ec		 = std::error_code{};
+		c_auto full_path = get_root_dir() / rel_to_root_path;
+
+		c_auto parent = full_path.parent_path();
 		if (parent.empty() is_false)
 		{
 			std::filesystem::create_directories(parent, ec);
 			AGE_ASSERT(!ec);
 		}
 
-		auto file = std::ofstream(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
+		auto file = std::ofstream(full_path, std::ios::out | std::ios::binary | std::ios::trunc);
 		AGE_ASSERT(file.is_open());
 		AGE_ASSERT(header.file_size > header.header_size);
 
@@ -127,9 +208,9 @@ namespace age::asset
 	}
 
 	bool
-	write_raw_file(std::string_view full_path, const byte_buf& buf) noexcept
+	write_raw_file(std::string_view raw_full_path, const byte_buf& buf) noexcept
 	{
-		auto file_path = std::filesystem::path{ full_path };
+		auto file_path = std::filesystem::path{ raw_full_path };
 		auto ec		   = std::error_code{};
 
 		if (c_auto parent = file_path.parent_path();
@@ -400,6 +481,7 @@ namespace age::asset
 	void
 	deinit() noexcept
 	{
+		g::root_dir_path = std::filesystem::path{};
 		// Known hole: once an entry is gone (registry clear or manual erase),
 		// child handles to it cannot be validated. Most assets are registered,
 		// and unregistered ones rarely reference other assets, so this should

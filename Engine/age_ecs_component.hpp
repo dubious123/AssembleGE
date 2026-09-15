@@ -115,11 +115,80 @@ namespace age::ecs
 	{ return get_component_name<name>()[i]; }                                                                      \
 	struct name
 
+#define AGE_COMPONENT_TEMPLATE(name, t_param_tpl, ...)                                                             \
+	template <AGE_PP_IDENTITY_I t_param_tpl>                                                                       \
+	struct name;                                                                                                   \
+	template <template <AGE_PP_IDENTITY_I t_param_tpl> typename tmpl>                                              \
+	class __is_template_##name : public std::false_type { };                                                       \
+	template <>                                                                                                    \
+	class __is_template_##name<name> : public std::true_type { };                                                  \
+	template <typename t>                                                                                          \
+	requires meta::is_specialization_of_v<t, name>                                                                 \
+	consteval bool is_ecs_component()                                                                              \
+	{ return true; }                                                                                               \
+	template <typename t>                                                                                          \
+	requires meta::is_specialization_of_v<t, name>                                                                 \
+	consteval auto get_component_name()                                                                            \
+	{ return age::util::to_fixed_str_arr<age::config::max_component_name_len>(#name __VA_OPT__(, ) __VA_ARGS__); } \
+	template <typename t, std::size_t i>                                                                           \
+	requires meta::is_specialization_of_v<t, name>                                                                 \
+	consteval auto get_component_name_at()                                                                         \
+	{ return get_component_name<t>()[i]; }                                                                         \
+	template <template <AGE_PP_IDENTITY_I t_param_tpl> typename tmpl>                                              \
+	requires __is_template_                                                                                        \
+	##name<tmpl>::value consteval auto get_component_name()                                                        \
+	{ return age::util::to_fixed_str_arr<age::config::max_component_name_len>(#name __VA_OPT__(, ) __VA_ARGS__); } \
+	template <template <AGE_PP_IDENTITY_I t_param_tpl> typename tmpl, std::size_t i>                               \
+	requires __is_template_                                                                                        \
+	##name<tmpl>::value consteval auto get_component_name_at()                                                     \
+	{ return get_component_name<tmpl>()[i]; }                                                                      \
+	template <AGE_PP_IDENTITY_I t_param_tpl>                                                                       \
+	struct name
+
 #define AGE_COMPONENT_VERSION(version) \
 	static consteval auto age_component_version() { return version; }
 
 #define AGE_CUSTOM_BYTE_SIZE(...) \
 	static consteval uint32 byte_size() { return static_cast<uint32>(FOR_EACH_SEP(sizeof, AGE_PP_PLUS_I, __VA_ARGS__)); };
+
+	// todo
+	AGE_COMPONENT_TEMPLATE(parent_id, (std::unsigned_integral t_id), "parent")
+	{
+		AGE_COMPONENT_VERSION(1);
+		t_id value;
+
+		constexpr parent_id() noexcept : value{ age::get_invalid_id<t_id>() } { }
+		constexpr parent_id(t_id v) noexcept : value{ v } { }
+
+		FORCE_INLINE constexpr operator t_id() const noexcept { return value; }
+	};
+
+	AGE_COMPONENT_TEMPLATE(joint_attach, (std::unsigned_integral t_id), "joint")
+	{
+		AGE_COMPONENT_VERSION(1);
+		age::array<char, config::max_joint_name_len> joint_name;
+		uint32										 joint_idx_cached;
+		uint32										 skeleton_id_cached;
+
+		static void
+		write_to(cmp_dispatch_key, const joint_attach& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			buf.write(cmp.joint_name);
+			return;
+		}
+
+		static void
+		read_from(cmp_dispatch_key, joint_attach & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			if (rw_ctx.version != joint_attach::age_component_version())
+			{
+				// handle migrate
+				AGE_ASSERT(false);
+			}
+
+			buf.read(cmp.joint_name);
+		}
+	};
 
 	AGE_COMPONENT(transform_3d, "transform")
 	{
@@ -506,7 +575,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(mesh, "msh", "meshlet mesh")
 	{
-		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_VERSION(2);
 
 		asset::handle h_mesh = {};
 
@@ -569,22 +638,32 @@ namespace age::ecs
 		static void
 		read_from(cmp_dispatch_key, mesh & cmp, auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != mesh::age_component_version())
+			switch (rw_ctx.version)
 			{
-				// handle migrate
-				AGE_ASSERT(false);
+			case 1:
+			{
+				cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked,
+											  asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+				break;
 			}
-
-			char mesh_path[config::max_asset_path_len] = {};
-			buf.read(mesh_path);
-
-			cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked, mesh_path));
+			case mesh::age_component_version():
+			{
+				cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked,
+											  buf.read<age::array<char, config::max_asset_path_len>>()));
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid mesh component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
 		}
 	};
 
 	AGE_COMPONENT(material, "mat", "pbr_mat", "material_3d")
 	{
-		AGE_COMPONENT_VERSION(2);
+		AGE_COMPONENT_VERSION(3);
 
 		uint32 render_id = 0;
 
@@ -649,24 +728,31 @@ namespace age::ecs
 		static void
 		read_from(cmp_dispatch_key, material & cmp, auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != material::age_component_version())
+			switch (rw_ctx.version)
 			{
-				if (rw_ctx.version == 1)
-				{
-					buf.read<bool>();
-				}
-				else
-				{
-					AGE_ASSERT(false);
-				}
-
-				return;
+			case 1:
+			{
+				buf.read<bool>();
+				[[fallthrough]];
 			}
-
-			char mat_path[config::max_asset_path_len] = {};
-			buf.read(mat_path);
-
-			cmp.update_h_mat(asset::find(age::asset::e::kind::material, mat_path));
+			case 2:
+			{
+				cmp.update_h_mat(asset::find(age::asset::e::kind::material,
+											 asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+				break;
+			}
+			case material::age_component_version():
+			{
+				cmp.update_h_mat(asset::find(age::asset::e::kind::material,
+											 buf.read<age::array<char, config::max_asset_path_len>>()));
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid material component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
 		}
 	};
 
@@ -682,7 +768,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(model, "model_renderer")
 	{
-		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_VERSION(2);
 
 		asset::handle h_model = {};
 
@@ -745,22 +831,127 @@ namespace age::ecs
 		static void
 		read_from(cmp_dispatch_key, model & cmp, auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != model::age_component_version())
+			switch (rw_ctx.version)
 			{
-				AGE_ASSERT(false);
-				return;
+			case 1:
+			{
+				cmp.update_h_model(asset::find(age::asset::e::kind::model,
+											   asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+				break;
+			}
+			case model::age_component_version():
+			{
+				cmp.update_h_model(asset::find(age::asset::e::kind::model,
+											   buf.read<age::array<char, config::max_asset_path_len>>()));
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid model component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
+		}
+	};
+
+	// todo
+	AGE_COMPONENT(skinned_model, "skinned_model_renderer")
+	{
+		AGE_COMPONENT_VERSION(1);
+
+		asset::handle h_model = {};
+
+		FORCE_INLINE void
+		update_h_model(asset::handle h_model_new) noexcept
+		{
+			if (runtime::is_handle_invalid(h_model) is_false)
+			{
+				asset::model::remove_ref(h_model);
+			}
+			if (runtime::is_handle_invalid(h_model_new) is_false)
+			{
+				asset::model::add_ref(h_model_new);
 			}
 
-			char mat_path[config::max_asset_path_len] = {};
-			buf.read(mat_path);
-
-			cmp.update_h_model(asset::find(age::asset::e::kind::model, mat_path));
+			h_model = h_model_new;
 		}
+
+		FORCE_INLINE static void
+		on_create(cmp_dispatch_key, skinned_model & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model) is_false)
+			{
+				asset::model::add_ref(cmp.h_model);
+			}
+		}
+
+
+		FORCE_INLINE static void
+		on_destroy(cmp_dispatch_key, skinned_model & cmp, auto& ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model) is_false)
+			{
+				asset::model::remove_ref(cmp.h_model);
+			}
+		}
+
+		static consteval uint32
+		byte_size() noexcept
+		{
+			return config::max_asset_path_len;
+		}
+
+		static void
+		write_to(cmp_dispatch_key, const skinned_model& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			if (runtime::is_handle_invalid(cmp.h_model))
+			{
+				char model_path[config::max_asset_path_len] = { "invalid model" };
+				buf.write(model_path);
+			}
+			else
+			{
+				buf.write(cmp.h_model.get_path());
+			}
+
+			return;
+		}
+
+		static void
+		read_from(cmp_dispatch_key, skinned_model & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			switch (rw_ctx.version)
+			{
+			case model::age_component_version():
+			{
+				cmp.update_h_model(asset::find(age::asset::e::kind::model,
+											   buf.read<age::array<char, config::max_asset_path_len>>()));
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid model component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
+		}
+	};
+
+	// todo
+	AGE_COMPONENT(skeleton, "skin")
+	{
+		AGE_COMPONENT_VERSION(1);
+	};
+
+	// todo
+	AGE_COMPONENT(blend_shape_weight_override, "blend_shape_weight")
+	{
+		AGE_COMPONENT_VERSION(1);
 	};
 
 	AGE_COMPONENT(env_light, "ibl")
 	{
-		AGE_COMPONENT_VERSION(1);
+		AGE_COMPONENT_VERSION(2);
 
 		uint32 render_id = 0;
 
@@ -825,16 +1016,26 @@ namespace age::ecs
 		static void
 		read_from(cmp_dispatch_key, env_light & cmp, auto& buf, auto&& rw_ctx) noexcept
 		{
-			if (rw_ctx.version != env_light::age_component_version())
+			switch (rw_ctx.version)
 			{
-				AGE_ASSERT(false);
-				return;
+			case 1:
+			{
+				cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light,
+												   asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+				break;
 			}
-
-			char env_light_path[config::max_asset_path_len] = {};
-			buf.read(env_light_path);
-
-			cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light, env_light_path));
+			case env_light::age_component_version():
+			{
+				cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light,
+												   buf.read<age::array<char, config::max_asset_path_len>>()));
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid env_light component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
 		}
 	};
 
@@ -1280,5 +1481,6 @@ namespace age::ecs
 	};
 
 #undef AGE_COMPONENT
+#undef AGE_COMPONENT_TEMPLATE
 #undef AGE_CUSTOM_BYTE_SIZE
 }	 // namespace age::ecs

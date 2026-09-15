@@ -81,10 +81,35 @@ namespace age::asset::model
 				auto& buf = file_data.buf;
 				switch (file_data.header.asset_version)
 				{
+				case 0:
+				{
+					if (entry.h_mesh = {};
+						auto rel	 = try_to_root_relative(file_data.buf.read<age::array<char, config::max_asset_path_len>>().data()))
+					{
+						entry.h_mesh = asset::find(e::kind::mesh_baked, *rel);
+					}
+
+					entry.h_material_vec.resize(buf.read<uint32>());
+
+					for (auto& h_mat : entry.h_material_vec)
+					{
+						if (h_mat	 = {};
+							auto rel = try_to_root_relative(file_data.buf.read<age::array<char, config::max_asset_path_len>>().data()))
+						{
+							h_mat = asset::find(e::kind::material, *rel);
+						}
+					}
+					break;
+				}
 				case config::model_asset_version:
 				{
 					entry.h_mesh = asset::find(e::kind::mesh_baked, buf.read<age::array<char, config::max_asset_path_len>>());
 					entry.h_material_vec.resize(buf.read<uint32>());
+
+					for (auto& h_mat : entry.h_material_vec)
+					{
+						h_mat = asset::find(e::kind::material, buf.read<age::array<char, config::max_asset_path_len>>());
+					}
 					break;
 				}
 				default:
@@ -92,11 +117,6 @@ namespace age::asset::model
 					AGE_ASSERT(false);
 					return;
 				}
-				}
-
-				for (auto& h_mat : entry.h_material_vec)
-				{
-					h_mat = asset::find(e::kind::material, buf.read<age::array<char, config::max_asset_path_len>>());
 				}
 			}
 			else

@@ -106,7 +106,9 @@ namespace age::editor
 		uint32													 current_active_scene_idx;
 		age::vector<scene_editor_data>							 scene_data_vec;
 
+		// relative to .exe
 		std::filesystem::path dir_path;
+		std::filesystem::path asset_root_dir_path;
 
 		decltype(auto)
 		find_scene_data(this auto& self, uint32 scene_code_idx) noexcept

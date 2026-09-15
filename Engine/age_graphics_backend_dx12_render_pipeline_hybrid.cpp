@@ -35,7 +35,7 @@ namespace age::graphics::render_pipeline
 		AGE_ASSERT(aa_enabled() is_false);
 		AGE_ASSERT(debug_view_enabled() is_false);
 
-		h_env_light_brdf_lut = resource::create_view(graphics::g::h_brdf_lut, defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+		h_env_light_brdf_lut = resource::create_view(graphics::g::h_brdf_lut, defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 
 		h_mapping_static_ring_buffer_arr = resource::create_buffer_committed_arr(g::static_buffer_size);
 		resource::set_name(h_mapping_static_ring_buffer_arr, L"static_ring_buffer[{}]");
@@ -793,6 +793,8 @@ namespace age::graphics::render_pipeline
 	{
 		static_assert(global::thread_count > 0u and std ::bit_width(global::thread_count - 1u) <= 5u);
 
+		AGE_ASSERT(asset::model::is_renderable(h_model), "valid mesh is required");
+
 		c_auto& model_entry = h_model.get_entry<asset::e::kind::model>();
 		c_auto& mesh_entry	= model_entry.h_mesh.get_entry<asset::e::kind::mesh_baked>();
 
@@ -1507,12 +1509,12 @@ namespace age::graphics::render_pipeline
 	{
 		{
 			h_main_buffer = resource::create_committed_tex2d_rtv(extent,
-																 graphics::e::texture_format::r16g16b16a16_float,
+																 graphics::e::texture_format::rgba16_float,
 																 float4{ 0.5f });
 			h_main_buffer->set_name(L"main_buffer");
 
 			h_main_buffer_srv_desc = resource::create_view(h_main_buffer,
-														   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16b16a16_float));
+														   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			h_main_buffer_rtv_desc = resource::create_view(h_main_buffer,
 														   defaults::rtv_view_desc::hdr_rgba16_2d);
@@ -1520,12 +1522,12 @@ namespace age::graphics::render_pipeline
 
 		{
 			h_post_buffer = resource::create_committed_tex2d_rtv(extent,
-																 graphics::e::texture_format::r16g16b16a16_float,
+																 graphics::e::texture_format::rgba16_float,
 																 float4{ 0.5f });
 			h_post_buffer->set_name(L"post_buffer");
 
 			h_post_buffer_srv_desc = resource::create_view(h_post_buffer,
-														   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16b16a16_float));
+														   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			h_post_buffer_rtv_desc = resource::create_view(h_post_buffer,
 														   defaults::rtv_view_desc::hdr_rgba16_2d);
@@ -1591,17 +1593,17 @@ namespace age::graphics::render_pipeline
 
 		{
 			h_blend_buffer = resource::create_committed_tex2d_uav(extent,
-																  graphics::e::texture_format::r16g16b16a16_float,
+																  graphics::e::texture_format::rgba16_float,
 																  D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_SHADER_RESOURCE);
 
 			h_blend_buffer_srv_desc = resource::create_view(h_blend_buffer,
-															defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16b16a16_float));
+															defaults::srv_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			h_blend_buffer_uav_desc = resource::create_view(h_blend_buffer,
-															defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16b16a16_float));
+															defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			h_blend_buffer_clear_uav_desc = resource::create_clear_uav_view(h_blend_buffer,
-																			defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16b16a16_float));
+																			defaults::uav_view_desc::tex2d(graphics::e::texture_format::rgba16_float));
 
 			h_blend_buffer->set_name(L"blend_buffer");
 		}
@@ -1629,13 +1631,13 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			h_opaque_gbuffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r32g32_uint);
+			h_opaque_gbuffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::rg32_uint);
 			h_opaque_gbuffer->set_name(L"gbuffer_opaque");
 
 			h_opaque_gbuffer_srv_desc = resource::create_view(h_opaque_gbuffer,
-															  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+															  defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 			h_opaque_gbuffer_rtv_desc = resource::create_view(h_opaque_gbuffer,
-															  defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+															  defaults::rtv_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 		}
 
 		{
@@ -1649,23 +1651,23 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			h_opaque_mr_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r8g8_unorm);
+			h_opaque_mr_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg8_unorm);
 			h_opaque_mr_buffer->set_name(L"opaque_mr_buffer");
 
 			h_opaque_mr_buffer_srv_desc = resource::create_view(h_opaque_mr_buffer,
-																defaults::srv_view_desc::tex2d(graphics::e::texture_format::r8g8_unorm));
+																defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg8_unorm));
 			h_opaque_mr_buffer_uav_desc = resource::create_view(h_opaque_mr_buffer,
-																defaults::uav_view_desc::tex2d(graphics::e::texture_format::r8g8_unorm));
+																defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg8_unorm));
 		}
 
 		{
-			h_opaque_shading_normal_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_snorm);
+			h_opaque_shading_normal_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg16_snorm);
 			h_opaque_shading_normal_buffer->set_name(L"opaque_shading_normal_buffer");
 
 			h_opaque_shading_normal_buffer_srv_desc = resource::create_view(h_opaque_shading_normal_buffer,
-																			defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																			defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 			h_opaque_shading_normal_buffer_uav_desc = resource::create_view(h_opaque_shading_normal_buffer,
-																			defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																			defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 		}
 
 		{
@@ -1679,23 +1681,23 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			h_transparent_gbuffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r32g32_uint);
+			h_transparent_gbuffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::rg32_uint);
 			h_transparent_gbuffer->set_name(L"gbuffer_transparent");
 
 			h_transparent_gbuffer_srv_desc = resource::create_view(h_transparent_gbuffer,
-																   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+																   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 			h_transparent_gbuffer_rtv_desc = resource::create_view(h_transparent_gbuffer,
-																   defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+																   defaults::rtv_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 		}
 
 		{
-			h_opaque_geo_prev_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r32g32_uint);
+			h_opaque_geo_prev_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg32_uint);
 			h_opaque_geo_prev_buffer->set_name(L"opaque_geo_prev_buffer");
 
 			h_opaque_geo_prev_buffer_srv_desc = resource::create_view(h_opaque_geo_prev_buffer,
-																	  defaults::srv_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+																	  defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 			h_opaque_geo_prev_buffer_uav_desc = resource::create_view(h_opaque_geo_prev_buffer,
-																	  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r32g32_uint));
+																	  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg32_uint));
 		}
 
 
@@ -1716,13 +1718,13 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			h_motion_buffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::r16g16_float);
+			h_motion_buffer = resource::create_committed_tex2d_rtv(extent, graphics::e::texture_format::rg16_float);
 			h_motion_buffer->set_name(L"motion buffer");
 
 			h_motion_buffer_srv_desc = resource::create_view(h_motion_buffer,
-															 defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+															 defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 			h_motion_buffer_rtv_desc = resource::create_view(h_motion_buffer,
-															 defaults::rtv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+															 defaults::rtv_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 		}
 
 		if (gibs_enabled())
@@ -2359,7 +2361,7 @@ namespace age::graphics::render_pipeline
 		//							  | simd::mat_transpose()
 		//							  | simd::to<float3x4>();
 
-		object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
+		object_transform_data_vec[id] = math::compose_trs(pos, quat, scale);
 		// object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
 		//  object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(cvt_to<float3>(scale_encode)), simd::g::xm_zero_f4, simd::load(quaternion_decode(quat_encode)), simd::load(pos));
 		//   object_transform_data_vec[id] = simd::transformation_mat3x4(simd::load(scale), simd::g::xm_zero_f4, simd::load(quat), simd::load(pos));
@@ -4194,27 +4196,27 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			cpu_data.h_gi_resolve_moments_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_moments_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			cpu_data.h_gi_resolve_moments_buffer->set_name(L"gist_gi_resolve_moments_buffer");
 
 			cpu_data.h_gi_resolve_moments_buffer_srv_desc		= resource::create_view(cpu_data.h_gi_resolve_moments_buffer,
-																						defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																						defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 			cpu_data.h_gi_resolve_moments_buffer_uav_desc		= resource::create_view(cpu_data.h_gi_resolve_moments_buffer,
-																						defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																						defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 			cpu_data.h_gi_resolve_moments_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_moments_buffer,
-																								  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																								  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 		}
 
 		{
-			cpu_data.h_gi_resolve_moments_alt_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			cpu_data.h_gi_resolve_moments_alt_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg16_float, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			cpu_data.h_gi_resolve_moments_alt_buffer->set_name(L"gist_gi_resolve_moments_alt_buffer");
 
 			cpu_data.h_gi_resolve_moments_alt_buffer_srv_desc		= resource::create_view(cpu_data.h_gi_resolve_moments_alt_buffer,
-																							defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																							defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 			cpu_data.h_gi_resolve_moments_alt_buffer_uav_desc		= resource::create_view(cpu_data.h_gi_resolve_moments_alt_buffer,
-																							defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																							defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 			cpu_data.h_gi_resolve_moments_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(cpu_data.h_gi_resolve_moments_alt_buffer,
-																									  defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_float));
+																									  defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_float));
 		}
 
 		{
@@ -4653,24 +4655,24 @@ namespace age::graphics::render_pipeline
 		}
 
 		{
-			ao_data_cpu.h_ao_bent_normal_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_snorm, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+			ao_data_cpu.h_ao_bent_normal_buffer = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg16_snorm, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			ao_data_cpu.h_ao_bent_normal_buffer->set_name(L"ao_bent_normal_buffer");
 
 			ao_data_cpu.h_ao_bent_normal_buffer_srv_desc	   = resource::create_view(ao_data_cpu.h_ao_bent_normal_buffer,
-																					   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																					   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 			ao_data_cpu.h_ao_bent_normal_buffer_uav_desc	   = resource::create_view(ao_data_cpu.h_ao_bent_normal_buffer,
-																					   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																					   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 			ao_data_cpu.h_ao_bent_normal_buffer_clear_uav_desc = resource::create_clear_uav_view(ao_data_cpu.h_ao_bent_normal_buffer,
-																								 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
-			ao_data_cpu.h_ao_bent_normal_alt_buffer			   = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::r16g16_snorm, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
+																								 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
+			ao_data_cpu.h_ao_bent_normal_alt_buffer			   = resource::create_committed_tex2d_uav(extent, graphics::e::texture_format::rg16_snorm, D3D12_BARRIER_LAYOUT_DIRECT_QUEUE_UNORDERED_ACCESS);
 			ao_data_cpu.h_ao_bent_normal_alt_buffer->set_name(L"ao_bent_normal_alt_buffer");
 
 			ao_data_cpu.h_ao_bent_normal_alt_buffer_srv_desc	   = resource::create_view(ao_data_cpu.h_ao_bent_normal_alt_buffer,
-																						   defaults::srv_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																						   defaults::srv_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 			ao_data_cpu.h_ao_bent_normal_alt_buffer_uav_desc	   = resource::create_view(ao_data_cpu.h_ao_bent_normal_alt_buffer,
-																						   defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																						   defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 			ao_data_cpu.h_ao_bent_normal_alt_buffer_clear_uav_desc = resource::create_clear_uav_view(ao_data_cpu.h_ao_bent_normal_alt_buffer,
-																									 defaults::uav_view_desc::tex2d(graphics::e::texture_format::r16g16_snorm));
+																									 defaults::uav_view_desc::tex2d(graphics::e::texture_format::rg16_snorm));
 		}
 
 		{

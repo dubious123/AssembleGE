@@ -103,7 +103,7 @@
 		{                                                                             \
 			if constexpr (age::meta::cx_has_arrow<BARE_OF(global::detail::ctx.path)>) \
 			{                                                                         \
-				return global::detail::ctx.path;                                      \
+				return (global::detail::ctx.path);                                    \
 			}                                                                         \
 			else                                                                      \
 			{                                                                         \
@@ -841,6 +841,7 @@
 		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_VERSION_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                             \
 		else                                                                                                                                                    \
 		{                                                                                                                                                       \
+			static_assert(false);                                                                                                                               \
 			return static_cast<unsigned char>(0);                                                                                                               \
 		}                                                                                                                                                       \
 	}                                                                                                                                                           \

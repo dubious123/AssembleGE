@@ -374,6 +374,10 @@ namespace age::inline data_structure
 			{
 				p_new_buckets[i].next_hole_idx() = i + 1;
 			}
+
+			// last hole's hole_idx (next_hole_idx) is invalid if count == cap (no hole)
+			// this is safe because reading hole_idx means there are at least one hole (count < cap)
+			// hole_idx will not be used when there are no holes
 			p_new_buckets[new_cap - 1].next_hole_idx() = hole_idx;
 			hole_idx								   = cap;
 
@@ -454,6 +458,12 @@ namespace age::inline data_structure
 		is_empty() const noexcept
 		{
 			return count == 0;
+		}
+
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
 		}
 
 		FORCE_INLINE constexpr bool

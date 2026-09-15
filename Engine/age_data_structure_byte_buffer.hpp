@@ -281,6 +281,12 @@ namespace age::inline data_structure
 			return write_pos == 0;
 		}
 
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return write_pos > 0;
+		}
+
 		// modifiers
 		FORCE_INLINE constexpr void
 		clear() noexcept

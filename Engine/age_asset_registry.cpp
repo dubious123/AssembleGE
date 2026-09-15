@@ -4,43 +4,93 @@
 namespace age::asset::registry
 {
 	void
-	load(const char* root_dir) noexcept
+	load(std::string_view dir) noexcept
 	{
-		g::registry_path = std::filesystem::path{ root_dir } / std::string_view{ std::format("{}{}", config::asset_registry_asset_tag, config::asset_extension) };
+		g::registry_path = std::filesystem::path{ dir } / std::format("{}{}", config::asset_registry_asset_tag, config::asset_extension);
 
-		if (std::filesystem::exists(g::registry_path) is_false)
+		if (auto ec = std::error_code{};
+			std::filesystem::exists(asset::get_root_dir() / g::registry_path, ec) is_false)
 		{
-			std::filesystem::create_directories(root_dir);
+			std::filesystem::create_directories((asset::get_root_dir() / g::registry_path).parent_path(), ec);
 			return;
 		}
 
-		auto  file_data = read_asset_file(g::registry_path.string());
-		auto& buf		= file_data.buf;
-
-		auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
-
-		for (auto _ : views::loop(asset_kind_count))
+		if (auto file_data = asset::read_asset_file(g::registry_path);
+			file_data.is_valid())
 		{
-			auto&& [asset_kind_name, asset_count] = buf.read<age::array<char, config::max_enum_name_len>, uint32>();
-			auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
-
-			auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
-			registry_vec.reserve(asset_count);
-			for (auto _ : views::loop(asset_count))
+			auto& buf = file_data.buf;
+			switch (file_data.header.asset_version)
 			{
-				auto asset_path = buf.read<age::array<char, config::max_asset_path_len>>();
+			case 0u:
+			{
+				c_auto root_dir			= asset::get_root_dir();
+				c_auto root_dir_str		= root_dir.string();
+				auto   asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
 
-				auto h_asset = asset::find(asset_kind, asset_path);
-				if (runtime::is_handle_invalid(h_asset))
+				for (auto _ : views::loop(asset_kind_count))
 				{
-					h_asset = create_entry(asset_kind, asset_path);
+					auto&& [asset_kind_name, asset_count] = buf.read<age::array<char, config::max_enum_name_len>, uint32>();
+					auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
+
+					auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
+					registry_vec.reserve(asset_count);
+					for (auto _ : views::loop(asset_count))
+					{
+						c_auto asset_path = util::to_fixed_str<config::max_asset_path_len>(asset::to_root_relative(
+							std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() }));
+
+						auto h_asset = asset::find(asset_kind, asset_path);
+						if (runtime::is_handle_invalid(h_asset))
+						{
+							h_asset = create_entry(asset_kind, asset_path);
+						}
+
+						registry_vec.emplace_back(h_asset);
+					}
 				}
 
-				registry_vec.emplace_back(h_asset);
+				AGE_ASSERT(buf.has_remaining() is_false);
+				break;
 			}
+			case config::asset_registry_asset_version:
+			{
+				auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
+
+				for (auto _ : views::loop(asset_kind_count))
+				{
+					auto&& [asset_kind_name, asset_count] = buf.read<age::array<char, config::max_enum_name_len>, uint32>();
+					auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
+
+					auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
+					registry_vec.reserve(asset_count);
+					for (auto _ : views::loop(asset_count))
+					{
+						auto asset_path = buf.read<age::array<char, config::max_asset_path_len>>();
+
+						auto h_asset = asset::find(asset_kind, asset_path);
+						if (runtime::is_handle_invalid(h_asset))
+						{
+							h_asset = create_entry(asset_kind, asset_path);
+						}
+
+						registry_vec.emplace_back(h_asset);
+					}
+				}
+
+				AGE_ASSERT(buf.has_remaining() is_false);
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid asset version");
+				break;
+			}
+			}
+
+			return;
 		}
 
-		AGE_ASSERT(buf.has_remaining() is_false);
+		AGE_ASSERT(false, "invalid registry file");
 	}
 
 	void
@@ -70,7 +120,7 @@ namespace age::asset::registry
 
 		buf.write_at(0, asset_kind_count);
 
-		write_asset_file(g::registry_path, get_default_file_header<e::kind::asset_registry>(buf.size()), buf.data());
+		write_asset_file(g::registry_path, get_default_file_header(e::kind::asset_registry, buf.size(), config::asset_registry_asset_version), buf.data());
 	}
 
 	void

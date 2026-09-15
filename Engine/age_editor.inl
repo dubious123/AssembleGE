@@ -283,6 +283,8 @@ namespace age::editor
 					c_auto& entry = model.h_model.get_entry<asset::e::kind::model>();
 					if (entry.is_loaded() is_false) { break; }
 
+					if (runtime::is_handle_invalid(entry.h_mesh)) { break; }
+
 					c_auto& mesh_entry = entry.h_mesh.get_entry<asset::e::kind::mesh_baked>();
 
 					auto&& [xm_aabb_min, xm_aabb_max, xm_trans] = simd::load(mesh_entry.aabb_min, mesh_entry.aabb_max, renderer.get_object_transform_matrix(obj.render_id));
@@ -907,6 +909,8 @@ age::editor::render_current_scene(auto& ecs_game, auto& renderer, age::platform:
 					{
 						continue;
 					}
+
+					if (asset::model::is_renderable(model.h_model) is_false) { continue; }
 
 					if (entities.has_component<model_render_option>(ent_id))
 					{

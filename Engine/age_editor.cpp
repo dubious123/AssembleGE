@@ -14,7 +14,7 @@ namespace age::editor
 		g::show_modal = false;
 		g::set_focus  = false;
 
-		g::h_mesh_cone = fn_mesh_gpu_load("editor_mesh_cone",
+		g::h_mesh_cone = fn_mesh_gpu_load("editor_asset/editor_mesh_cone",
 										  asset::primitive_desc{
 											  .seg_u	 = 30,
 											  .seg_v	 = 1,
@@ -22,7 +22,7 @@ namespace age::editor
 										  },
 										  asset::e::vertex_kind::pnt_uv0);
 
-		g::h_mesh_cube = fn_mesh_gpu_load("editor_mesh_cube",
+		g::h_mesh_cube = fn_mesh_gpu_load("editor_asset/editor_mesh_cube",
 										  asset::primitive_desc{
 											  .seg_u	 = 1,
 											  .seg_v	 = 1,
@@ -42,8 +42,7 @@ namespace age::editor
 	void
 	deinit(util::function_ref<void(asset::handle)> fn_mesh_full_unload) noexcept
 	{
-		g::select_vec.clear();
-		g::select_vec = {};
+		g::select_vec.reset();
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -212,11 +211,23 @@ namespace age::editor
 
 namespace age::editor
 {
+	std::filesystem::path
+	get_asset_root_dir_path() noexcept
+	{
+		return g::current_game.asset_root_dir_path;
+	}
+
+	std::filesystem::path
+	get_asset_dir_path(asset::e::kind kind) noexcept
+	{
+		return g::current_game.asset_root_dir_path / to_string(kind);
+	}
+
 	age::array<char, config::max_asset_path_len>
 	get_asset_full_path(asset::e::kind kind, std::string_view asset_name) noexcept
 	{
 		return asset::e::visit(kind, [&]<asset::e::kind e_kind> {
-			c_auto name		 = (g::current_game.dir_path / "asset" / to_string(e_kind) / asset_name.data()).generic_string();
+			c_auto name		 = (get_asset_dir_path(e_kind) / asset_name.data()).generic_string();
 			c_auto full_path = asset::get_asset_full_path<e_kind>(name);
 			return full_path;
 		});

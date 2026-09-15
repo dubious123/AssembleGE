@@ -492,10 +492,10 @@ namespace age::util
 	constexpr auto
 	to_fixed_str(std::string_view sv) noexcept
 	{
-		AGE_ASSERT(sv.size() < len);
-		auto res = age::array<char, len>{};
-		std::ranges::copy_n(sv.data(), sv.size(), res.begin());
-		res[sv.size()] = '\0';
+		c_auto n   = std::min(sv.size(), len - 1);
+		auto   res = age::array<char, len>{};
+		std::ranges::copy_n(sv.data(), n, res.begin());
+		res[n] = '\0';
 		return res;
 	}
 
@@ -627,6 +627,16 @@ namespace age::util
 	#error "not implemented yet"
 #endif
 	}
+
+	inline std::string
+	to_utf8(const std::filesystem::path& p)
+	{
+#if defined(AGE_PLATFORM_WINDOW)
+		return to_utf8(std::wstring_view{ p.native() });	// native is wstring, convert
+#else
+		return p.native();	  // native is already a utf-8 string
+#endif
+	}
 }	 // namespace age::util
 
 namespace age::util
@@ -668,5 +678,30 @@ namespace age::util
 
 		c_auto pos_r = sv.find_last_not_of(c);
 		return sv.substr(pos_l, pos_r - pos_l + 1);
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
+	inline constexpr auto is_equal_ascii_ci = [](c_auto a, c_auto b) { return to_lower_ascii(cast_to<char>(a)) == to_lower_ascii(cast_to<char>(b)); };
+	inline constexpr auto is_less_ascii_ci	= [](c_auto a, c_auto b) { return to_lower_ascii(cast_to<char>(a)) < to_lower_ascii(cast_to<char>(b)); };
+
+	// 0 prefix, 1 substring, 2 subsequence, uint32_max no match. lower means better
+	template <std::ranges::forward_range t_name, std::ranges::forward_range t_pattern, typename t_eq = decltype(is_equal_ascii_ci)>
+	constexpr uint32
+	match_rank(const t_name& name, const t_pattern& pattern, t_eq is_equal = {}) noexcept
+	{
+		if (std::ranges::empty(pattern)) { return 0u; }
+		if (std::ranges::starts_with(name, pattern, is_equal)) { return 0u; }
+		if (std::ranges::search(name, pattern, is_equal).empty() is_false) { return 1u; }
+
+		for (auto	it = std::ranges::begin(name);
+			 c_auto pc : pattern)
+		{
+			it = std::ranges::find_if(it, std::ranges::end(name), [&](c_auto nc) { return is_equal(nc, pc); });
+			if (it == std::ranges::end(name)) { return math::g::uint32_max; }
+			++it;
+		}
+		return 2u;
 	}
 }	 // namespace age::util

@@ -34,7 +34,7 @@ namespace age::editor
 	clear_select() noexcept;
 
 	void
-	load_game(auto& ecs_game, std::filesystem::path root_dir, auto& renderer) noexcept;
+	load_game(auto& ecs_game, std::filesystem::path root_parent_dir, auto& renderer) noexcept;
 
 	void
 	save_game(auto& ecs_game, auto& renderer) noexcept;
@@ -48,6 +48,12 @@ namespace age::editor
 
 namespace age::editor
 {
+	std::filesystem::path
+	get_asset_root_dir_path() noexcept;
+
+	std::filesystem::path
+	get_asset_dir_path(asset::e::kind kind) noexcept;
+
 	age::array<char, config::max_asset_path_len>
 	get_asset_full_path(asset::e::kind e_kind, std::string_view asset_name) noexcept;
 }	 // namespace age::editor
@@ -89,6 +95,12 @@ namespace age::editor
 
 	void
 	ui_asset(asset::e::kind, asset::handle h, auto& renderer) noexcept;
+
+	void
+	ui_modal_new_asset() noexcept;
+
+	void
+	ui_modal_import_asset() noexcept;
 }	 // namespace age::editor
 
 namespace age::editor::gizmo

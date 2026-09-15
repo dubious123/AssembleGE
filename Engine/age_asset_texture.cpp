@@ -30,6 +30,12 @@ namespace age::asset
 	}
 
 	bool
+	entry<e::kind::texture>::is_meta_loaded() const noexcept
+	{
+		return (flags >> 7u) & 1u;
+	}
+
+	bool
 	entry<e::kind::texture>::is_any_loaded() const noexcept
 	{
 		return is_cpu_loaded() or is_gpu_loaded();
@@ -101,13 +107,58 @@ namespace age::asset::texture
 		if (auto file_data = asset::read_asset_file(entry.get_path());
 			file_data.is_valid())
 		{
-			if (file_data.header.asset_version < config::texture_asset_version)
+			switch (file_data.header.asset_version)
 			{
-				AGE_ASSERT(false);
-				return;
-				// add migration
+			case 0u:
+			{
+				struct header_v0
+				{
+					extent_2d<uint32> extent;
+					uint16			  tex_depth_or_array_size;
+					uint16			  format;
+					uint8			  mip_count;
+					uint8			  flags;	// [0] is_cubemap, [1] is_3d,
+					uint16			  extra;
+				};
+
+				auto&  buf		   = file_data.buf;
+				c_auto size_before = buf.size();
+
+				auto& header  = *reinterpret_cast<header_v0*>(buf.data());
+				header.format = to_idx(asset::migrate_texture_format(header.format));
+
+				buf.resize(buf.size() + sizeof(float) /*alpha_threshold*/);
+				std::memmove(buf.data() + sizeof(header_v0) + sizeof(float),
+							 buf.data() + sizeof(header_v0),
+							 size_before - sizeof(header_v0));
+
+
+				// set alpha_cutoff to -1.f (disabled)
+				*reinterpret_cast<float*>(buf.data() + sizeof(header_v0)) = -1.f;
+				[[fallthrough]];
 			}
-			entry.p_blob = file_data.buf.release();
+			case config::texture_asset_version:
+			{
+				entry.p_blob				  = file_data.buf.release();
+				c_auto& header				  = entry.get_header();
+				entry.extent				  = header.extent;
+				entry.tex_depth_or_array_size = header.tex_depth_or_array_size;
+				entry.format				  = header.format;
+				entry.mip_count				  = header.mip_count;
+				entry.flags					  = header.flags;
+				entry.alpha_cutoff			  = header.alpha_cutoff;
+
+				// set meta is loaded
+				entry.flags |= uint8(1u << 7u);
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid asset version");
+				break;
+			}
+			}
+
 			return;
 		}
 	}
@@ -172,94 +223,9 @@ namespace age::asset::texture::detail
 	graphics::e::texture_format
 	dxgi_to_engine_format(uint32 dxgi) noexcept
 	{
-		switch (dxgi)
-		{
-		case 28:
-		{
-			return graphics::e::texture_format::rgba8_unorm;
-		}
-		case 29:
-		{
-			return graphics::e::texture_format::rgba8_unorm_srgb;
-		}
-		case 10:
-		{
-			return graphics::e::texture_format::rgba16_float;
-		}
-		case 11:
-		{
-			return graphics::e::texture_format::rgba16_unorm;
-		}
-		case 2:
-		{
-			return graphics::e::texture_format::rgba32_float;
-		}
-		case 61:
-		{
-			return graphics::e::texture_format::r8_unorm;
-		}
-		case 49:
-		{
-			return graphics::e::texture_format::r8g8_unorm;
-		}
-		case 54:
-		{
-			return graphics::e::texture_format::r16_float;
-		}
-		case 34:
-		{
-			return graphics::e::texture_format::r16g16_float;
-		}
-		case 71:
-		{
-			return graphics::e::texture_format::bc1_unorm;
-		}
-		case 72:
-		{
-			return graphics::e::texture_format::bc1_unorm_srgb;
-		}
-		case 77:
-		{
-			return graphics::e::texture_format::bc3_unorm;
-		}
-		case 78:
-		{
-			return graphics::e::texture_format::bc3_unorm_srgb;
-		}
-		case 80:
-		{
-			return graphics::e::texture_format::bc4_unorm;
-		}
-		case 81:
-		{
-			return graphics::e::texture_format::bc4_snorm;
-		}
-		case 83:
-		{
-			return graphics::e::texture_format::bc5_unorm;
-		}
-		case 84:
-		{
-			return graphics::e::texture_format::bc5_snorm;
-		}
-		case 95:
-		{
-			return graphics::e::texture_format::bc6h_uf16;
-		}
-		case 96:
-		{
-			return graphics::e::texture_format::bc6h_sf16;
-		}
-		case 98:
-		{
-			return graphics::e::texture_format::bc7_unorm;
-		}
-		case 99:
-		{
-			return graphics::e::texture_format::bc7_unorm_srgb;
-		}
-		}
-		AGE_UNREACHABLE();
+		return (dxgi <= 99u or dxgi == 115 or (dxgi >= 189u and dxgi <= 191u))
+				 ? static_cast<graphics::e::texture_format>(dxgi)
+				 : graphics::e::texture_format::unknown;
 	}
 
 	consteval uint32

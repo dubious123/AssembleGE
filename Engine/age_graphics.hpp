@@ -74,3 +74,16 @@ namespace age::graphics::bake
 	resource_handle
 	bake_brdf_lut(extent_2d<uint32> _) noexcept;
 }	 // namespace age::graphics::bake
+
+// utils
+namespace age::graphics
+{
+	bool
+	texture_format_is_srgb(e::texture_format format) noexcept;
+
+	uint32
+	get_texture_format_channel_count(e::texture_format format) noexcept;
+
+	bool
+	texture_format_has_alpha(e::texture_format format) noexcept;
+}	 // namespace age::graphics

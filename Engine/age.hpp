@@ -106,6 +106,7 @@ namespace age
 	#include "age_util_functional.hpp"
 	#include "age_util_format.hpp"
 	#include "age_util_offset_calculator.hpp"
+	#include "age_util_algorithm.hpp"
 
 	#include "age_fwd.hpp"
 	#include "age_math_sdf.hpp"	   // shader shared
@@ -122,6 +123,10 @@ namespace age
 #include "age_asset_mesh_editable.hpp"
 #include "age_asset_mesh_baked.hpp"
 #include "age_asset_registry.hpp"
+
+#include "age_asset_importer_fwd.hpp"
+#include "age_asset_importer.hpp"
+
 #include "age_asset.inl"
 #include "age_asset_font.inl"
 #include "age_asset_mesh_baked.inl"

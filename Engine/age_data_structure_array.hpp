@@ -393,6 +393,18 @@ namespace age::inline data_structure
 			return count == 0;
 		}
 
+		FORCE_INLINE constexpr bool
+		is_empty() const noexcept
+		{
+			return count == 0;
+		}
+
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
+		}
+
 		FORCE_INLINE constexpr iterator
 		begin() noexcept
 		{
@@ -469,6 +481,12 @@ namespace age::inline data_structure
 		get_allocator() const
 		{
 			return alloc;
+		}
+
+		FORCE_INLINE constexpr std::pair<t*, size_type>
+		release() noexcept
+		{
+			return { std::exchange(p_data, nullptr), std::exchange(count, 0) };
 		}
 
 	  private:

@@ -499,6 +499,14 @@ namespace age::ui::widget
 		return {};
 	}
 
+	// with_offset
+	widget_ctx_impl<2>
+	collapsible_header3(const char* p_name, bool default_open = false) noexcept;
+
+	// with_offset_and_input
+	widget_ctx_impl<2>
+	collapsible_header4(char* p_name, uint32 buf_size, bool default_open = false) noexcept;
+
 	widget_ctx_impl<2>
 	tree_node(const char* p_str) noexcept;
 }	 // namespace age::ui::widget
@@ -1153,7 +1161,7 @@ namespace age::ui::widget
 
 	template <typename t_value>
 	bool
-	dropdown(t_value& value, std::span<const dropdown_option<t_value>> options, dropdown_style style_option = {}) noexcept
+	dropdown(t_value& value, std::span<const dropdown_option<std::type_identity_t<t_value>>> options, dropdown_style style_option = {}) noexcept
 	{
 		using enum input::e::key_kind;
 		using enum e::style_state;
@@ -1281,6 +1289,16 @@ namespace age::ui::widget
 		}
 
 		return res_value_changed;
+	}
+
+	template <typename t_value, std::ranges::contiguous_range t_range>
+	requires(std::same_as<std::ranges::range_value_t<t_range>, dropdown_option<t_value>>
+			 and (meta::is_specialization_of_v<std::remove_cvref_t<t_range>, std::span> is_false))
+
+	bool
+	dropdown(t_value& value, const t_range& options, dropdown_style style_option = {})
+	{
+		return dropdown(value, std::span{ options }, style_option);
 	}
 
 	template <typename t_value>
@@ -1501,7 +1519,7 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	bool
-	path_picker(std::span<char> path) noexcept;
+	path_picker(std::span<char> path, uint32 max_item_to_show = age::g::uint32_max) noexcept;
 }	 // namespace age::ui::widget
 
 namespace age::ui::widget

@@ -16,8 +16,14 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_external_wrapper_earcut.cpp"
 #include "age_external_wrapper_earcut.cpp"
 
+#line 1 "age_external_wrapper_cgltf.cpp"
+#include "age_external_wrapper_cgltf.cpp"
+
 #line 1 "age_asset.cpp"
 #include "age_asset.cpp"
+
+#line 1 "age_asset_migrate.cpp"
+#include "age_asset_migrate.cpp"
 
 #line 1 "age_asset_mesh_editable.cpp"
 #include "age_asset_mesh_editable.cpp"
@@ -42,6 +48,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 
 #line 1 "age_asset_registry.cpp"
 #include "age_asset_registry.cpp"
+
+#line 1 "age_asset_importer.cpp"
+#include "age_asset_importer.cpp"
 
 #line 1 "age_request.cpp"
 #include "age_request.cpp"
@@ -69,6 +78,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 
 #line 1 "age_ui.cpp"
 #include "age_ui.cpp"
+
+#line 1 "age_graphics.cpp"
+#include "age_graphics.cpp"
 
 // graphics
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
@@ -127,6 +139,12 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 
 	#line 1 "age_editor_ui.cpp"
 	#include "age_editor_ui.cpp"
+
+	#line 1 "age_editor_ui_modal_new_asset.cpp"
+	#include "age_editor_ui_modal_new_asset.cpp"
+
+	#line 1 "age_editor_ui_modal_import_asset.cpp"
+	#include "age_editor_ui_modal_import_asset.cpp"
 
 	#line 1 "age_editor_save_load.cpp"
 	#include "age_editor_save_load.cpp"
