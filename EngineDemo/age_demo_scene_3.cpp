@@ -9,9 +9,9 @@ namespace age_demo::scene_3
 		using namespace age::ecs::system;
 
 		age::asset::set_root_dir(std::string_view{ (std::filesystem::path{ "./resources/demo_game" } / std::string_view{ i_init.get_editor_game->age_editor_name()[0].data() }).string() });
-		age::editor::init(AGE_LAMBDA((auto&& path, auto&&... arg), { return age::asset::mesh_baked::gpu_load(FWD(path), i_init.get_render_pipeline(), FWD(arg)...); }));
 		i_init.get_editor_game->init();
 
+		age::editor::init(i_init.get_editor_game(), i_init.get_render_pipeline());
 		age::editor::load_game(i_init.get_editor_game(), age::asset::get_root_dir().parent_path(), i_init.get_render_pipeline());
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
@@ -253,7 +253,7 @@ namespace age_demo::scene_3
 		age::graphics::command::signal();
 		age::graphics::command::cpu_wait();
 		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
-		age::editor::deinit(AGE_LAMBDA((age::asset::handle h_mesh), { return age::asset::mesh_baked::full_unload(h_mesh, i_init.get_render_pipeline()); }));
+		age::editor::deinit();
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
 

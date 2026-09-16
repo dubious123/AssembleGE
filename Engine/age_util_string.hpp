@@ -434,6 +434,8 @@ namespace age::util
 		return written;
 	}
 
+	// [byte_count, code_point]
+	// todo, check fs::detail::unicode::decode_utf8
 	FORCE_INLINE constexpr std::tuple<uint8, uint16>
 	decode_utf8(const char* p)
 	{

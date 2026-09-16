@@ -10,8 +10,8 @@ namespace age::asset::importer
 	void
 	resolve_import(import_data&) noexcept;
 
-	gltf_commit_result
-	commit_import(import_data&) noexcept;
+	commit_result
+	commit_import(const import_data&) noexcept;
 }	 // namespace age::asset::importer
 
 namespace age::asset::importer

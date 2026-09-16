@@ -114,6 +114,7 @@
     <ClInclude Include="age_asset_importer_fwd.hpp" />
     <ClInclude Include="age_util_algorithm.hpp" />
     <ClInclude Include="age_editor_ui.inl" />
+    <ClInclude Include="age_fs.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="age_platform_backend_window.cpp" />
@@ -181,8 +182,9 @@
     <ClCompile Include="age_graphics.cpp" />
     <ClCompile Include="age_asset_model.cpp" />
     <ClCompile Include="age_asset_migrate.cpp" />
-    <ClCompile Include="age_editor_ui_modal_new_asset.cpp" />
     <ClCompile Include="age_editor_ui_modal_import_asset.cpp" />
+    <ClCompile Include="age_editor_ui_modal_new_asset.cpp" />
+    <ClCompile Include="age_fs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

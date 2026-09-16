@@ -682,38 +682,76 @@ namespace age::external::meshopt
 
 namespace age::external::meshopt
 {
-	template <typename t_vertex>
-	std::pair<age::vector<uint32>, age::vector<t_vertex>>
-	gen_remap(
-		const age::vector<uint32>&	 index_buffer,
-		const age::vector<t_vertex>& vertex_buffer,
-		const std::size_t			 vertex_size_and_stride = sizeof(t_vertex)) noexcept
+	//[new_index_buffer, new_vertex_buffer]
+	decltype(auto)
+	gen_remap(const std::ranges::contiguous_range auto& index_buffer, const std::ranges::contiguous_range auto& vertex_buffer) noexcept
+		requires std::is_same_v<std::ranges::range_value_t<BARE_OF(index_buffer)>, uint32>
 	{
-		auto remap_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
-		auto new_index_buffer	= age::vector<uint32>::gen_sized(index_buffer.size());
+		using t_vertex = std::ranges::range_value_t<BARE_OF(vertex_buffer)>;
+
+		c_auto* p_index		 = std::ranges::data(index_buffer);
+		c_auto* p_vertex	 = std::ranges::data(vertex_buffer);
+		c_auto	index_count	 = std::ranges::size(index_buffer);
+		c_auto	vertex_count = std::ranges::size(vertex_buffer);
+
+		auto remap_index_buffer = age::vector<uint32>::gen_sized(index_count);
+		auto new_index_buffer	= age::vector<uint32>::gen_sized(index_count);
 		auto new_vertex_buffer	= age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
 			remap_index_buffer.data(),
-			index_buffer.data(),
-			index_buffer.size(),
-			vertex_buffer.data(),
-			vertex_buffer.size(),
-			vertex_size_and_stride));
+			p_index,
+			index_count,
+			p_vertex,
+			vertex_count,
+			sizeof(t_vertex)));
 
 		detail::gen_remapped_vertex_buffer(
 			new_vertex_buffer.data(),
-			vertex_buffer.data(),
-			vertex_buffer.size(),
-			vertex_size_and_stride,
+			p_vertex,
+			vertex_count,
+			sizeof(t_vertex),
 			remap_index_buffer.data());
 
 		detail::gen_remapped_index_buffer(
 			new_index_buffer.data(),
-			index_buffer.data(),
-			index_buffer.size(),
+			p_index,
+			index_count,
 			remap_index_buffer.data());
 
 		return std::pair{ std::move(new_index_buffer), std::move(new_vertex_buffer) };
 	}
+
+	// template <typename t_vertex>
+	// std::pair<age::vector<uint32>, age::vector<t_vertex>>
+	// gen_remap(
+	//	const age::vector<uint32>&	 index_buffer,
+	//	const age::vector<t_vertex>& vertex_buffer,
+	//	const std::size_t			 vertex_size_and_stride = sizeof(t_vertex)) noexcept
+	//{
+	//	auto remap_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
+	//	auto new_index_buffer	= age::vector<uint32>::gen_sized(index_buffer.size());
+	//	auto new_vertex_buffer	= age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
+	//		remap_index_buffer.data(),
+	//		index_buffer.data(),
+	//		index_buffer.size(),
+	//		vertex_buffer.data(),
+	//		vertex_buffer.size(),
+	//		vertex_size_and_stride));
+
+	//	detail::gen_remapped_vertex_buffer(
+	//		new_vertex_buffer.data(),
+	//		vertex_buffer.data(),
+	//		vertex_buffer.size(),
+	//		vertex_size_and_stride,
+	//		remap_index_buffer.data());
+
+	//	detail::gen_remapped_index_buffer(
+	//		new_index_buffer.data(),
+	//		index_buffer.data(),
+	//		index_buffer.size(),
+	//		remap_index_buffer.data());
+
+	//	return std::pair{ std::move(new_index_buffer), std::move(new_vertex_buffer) };
+	//}
 
 	template <typename t_vertex>
 	void

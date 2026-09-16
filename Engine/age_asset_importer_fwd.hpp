@@ -228,8 +228,6 @@ namespace age::asset::importer
 		age::array<char, config::max_asset_display_name_len> name;			 // never empty
 		texture_bake_option									 bake_option;	 // defaults from usage, user overrides on top
 	};
-
-
 }	 // namespace age::asset::importer
 
 namespace age::asset::importer::e
@@ -483,7 +481,10 @@ namespace age::asset::importer
 		dynamic_array<vertex_skin_data>		  vertex_skin_buffer;	 // empty = none
 		dynamic_array<blend_shape_parse_data> blend_shape_vec;		 // size == mesh.blend_shape_name_vec.size()
 
-		asset::e::vertex_kind					  vertex_kind;
+		bool has_normal;
+		bool has_tangent;
+		bool has_uv;
+
 		graphics::e::mesh_raster_mode_kind		  raster_mode		 = graphics::e::mesh_raster_mode_kind::opaque;
 		graphics::e::mesh_rt_alpha_test_mode_kind rt_alpha_test_mode = graphics::e::mesh_rt_alpha_test_mode_kind::blend;
 		graphics::e::mesh_rt_bake_mode_kind		  rt_bake_mode		 = graphics::e::mesh_rt_bake_mode_kind::opaque;
@@ -512,7 +513,10 @@ namespace age::asset::importer
 		age::vector<vertex_skin_data>		vertex_skin_buffer;	   // empty = none
 		age::vector<blend_shape_parse_data> blend_shape_vec;	   // size == mesh.blend_shape_name_vec.size()
 
-		asset::e::vertex_kind					  vertex_kind;
+		bool has_normal;
+		bool has_tangent;
+		bool has_uv;
+
 		graphics::e::mesh_raster_mode_kind		  raster_mode		 = graphics::e::mesh_raster_mode_kind::opaque;
 		graphics::e::mesh_rt_alpha_test_mode_kind rt_alpha_test_mode = graphics::e::mesh_rt_alpha_test_mode_kind::blend;
 		graphics::e::mesh_rt_bake_mode_kind		  rt_bake_mode		 = graphics::e::mesh_rt_bake_mode_kind::opaque;
@@ -874,6 +878,9 @@ namespace age::asset::importer
 		importer::e::import_warning_flags warning_flags;
 		importer::e::import_error_flags	  error_flags;
 
+		bool	has_error;
+		uint8_3 _;
+
 		std::string											 src_full_path;
 		age::array<char, config::max_asset_display_name_len> asset_name;
 
@@ -892,7 +899,35 @@ namespace age::asset::importer
 		age::vector<scene_import_data>		scene_import_data_vec;
 	};
 
-	struct gltf_commit_result
+
+}	 // namespace age::asset::importer
+
+namespace age::asset::importer::e
+{
+	AGE_DEFINE_ENUM(commit_error_kind, uint8,
+					none,
+					commit_temporary_dir_not_empty,
+					commit_temporary_dir_create_failed,
+					create_target_dir_failed,
+					tex_temporary_file_create_failed,
+					tex_bake_failed,
+					temp_file_cleanup_failed,
+					temp_dir_cleanup_failed,
+					target_path_cannot_be_overwritten,
+					backup_failed_and_rollback_failed,
+					backup_failed,
+					move_failed_and_rollback_failed,
+					move_failed);
+}
+
+namespace age::asset::importer
+{
+	struct commit_result
 	{
+		e::commit_error_kind error;
+		asset::e::kind		 asset_kind;
+		uint32				 idx_0;
+		uint32				 idx_1;
+		std::string			 message;
 	};
 }	 // namespace age::asset::importer

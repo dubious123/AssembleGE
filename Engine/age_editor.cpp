@@ -3,44 +3,45 @@
 
 namespace age::editor
 {
-	void
-	init(util::function_ref<asset::handle(std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)> fn_mesh_gpu_load) noexcept
+	namespace detail
 	{
-		// g::command_buf.clear();
+		void
+		init_impl() noexcept
+		{
+			g::current_mode = e::mode_kind::edit;
+			g::current_game = game_editor_data{};
 
-		g::current_mode = e::mode_kind::edit;
-		g::current_game = game_editor_data{};
+			g::show_modal = false;
+			g::set_focus  = false;
 
-		g::show_modal = false;
-		g::set_focus  = false;
+			g::h_mesh_cone = g::host_ops.p_mesh_gpu_load("editor_asset/editor_mesh_cone",
+														 asset::primitive_desc{
+															 .seg_u		= 30,
+															 .seg_v		= 1,
+															 .mesh_kind = asset::e::primitive_mesh_kind::cone,
+														 },
+														 asset::e::vertex_kind::pnt_uv0);
 
-		g::h_mesh_cone = fn_mesh_gpu_load("editor_asset/editor_mesh_cone",
-										  asset::primitive_desc{
-											  .seg_u	 = 30,
-											  .seg_v	 = 1,
-											  .mesh_kind = asset::e::primitive_mesh_kind::cone,
-										  },
-										  asset::e::vertex_kind::pnt_uv0);
+			g::h_mesh_cube = g::host_ops.p_mesh_gpu_load("editor_asset/editor_mesh_cube",
+														 asset::primitive_desc{
+															 .seg_u		= 1,
+															 .seg_v		= 1,
+															 .mesh_kind = asset::e::primitive_mesh_kind::cube,
+														 },
+														 asset::e::vertex_kind::pnt_uv0);
 
-		g::h_mesh_cube = fn_mesh_gpu_load("editor_asset/editor_mesh_cube",
-										  asset::primitive_desc{
-											  .seg_u	 = 1,
-											  .seg_v	 = 1,
-											  .mesh_kind = asset::e::primitive_mesh_kind::cube,
-										  },
-										  asset::e::vertex_kind::pnt_uv0);
+			asset::mesh_baked::add_ref(g::h_mesh_cone);
+			asset::mesh_baked::add_ref(g::h_mesh_cube);
 
-		asset::mesh_baked::add_ref(g::h_mesh_cone);
-		asset::mesh_baked::add_ref(g::h_mesh_cube);
+			AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
+			AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
 
-		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
-		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
-
-		asset_mgr::init();
-	}
+			asset_mgr::init();
+		}
+	}	 // namespace detail
 
 	void
-	deinit(util::function_ref<void(asset::handle)> fn_mesh_full_unload) noexcept
+	deinit() noexcept
 	{
 		g::select_vec.reset();
 
@@ -54,8 +55,8 @@ namespace age::editor
 		asset::mesh_baked::remove_ref(g::h_mesh_cone);
 		asset::mesh_baked::remove_ref(g::h_mesh_cube);
 
-		fn_mesh_full_unload(g::h_mesh_cone);
-		fn_mesh_full_unload(g::h_mesh_cube);
+		g::host_ops.p_mesh_full_unload(g::h_mesh_cone);
+		g::host_ops.p_mesh_full_unload(g::h_mesh_cube);
 
 		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);
 		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);

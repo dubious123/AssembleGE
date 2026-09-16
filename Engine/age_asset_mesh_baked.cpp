@@ -345,6 +345,16 @@ namespace age::asset::mesh_baked
 	}
 }	 // namespace age::asset::mesh_baked
 
+namespace age::asset::mesh_baked
+{
+	bool
+	build(std::string_view dst, const mesh_baked_desc& desc) noexcept
+	{
+		auto&& [index_buffer, vertex_buffer] = external::meshopt::gen_remap(desc.index_buffer, desc.vertex_buffer);
+		return false;
+	}
+}	 // namespace age::asset::mesh_baked
+
 namespace age::asset::mesh_baked::detail
 {
 	void

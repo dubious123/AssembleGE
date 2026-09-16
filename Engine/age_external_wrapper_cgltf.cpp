@@ -743,9 +743,10 @@ namespace age::external::cgltf::detail
 			vertex.tangent	 = has_tangent ? float4{ p_tangent[i * 4], p_tangent[i * 4 + 1], -p_tangent[i * 4 + 2], -p_tangent[i * 4 + 3] } : float4{ 1.f, 0.f, 0.f, 1.f };
 			vertex.uv_set[0] = has_uv ? float2{ p_uv[i * 2], p_uv[i * 2 + 1] } : float2::zero();
 		}
-		// todo, implement vertex_count
-		// has_tangent is_false -> gen tangent
-		res.vertex_kind = has_tangent ? asset::e::vertex_kind::pnt_uv0 : asset::e::vertex_kind::pn_uv0;
+
+		res.has_normal	= has_normal;
+		res.has_tangent = has_tangent;
+		res.has_uv		= has_uv;
 
 		return error::none;
 	}

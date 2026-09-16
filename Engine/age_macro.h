@@ -14,6 +14,9 @@
 
 #define AGE_OUT
 
+#define AGE_FN_PTR(name, ret, args)			 AGE_PP_IDENTITY_I ret(*name) args noexcept
+#define AGE_FN_PTR_THROWING(name, ret, args) AGE_PP_IDENTITY_I ret(*name) args
+
 // reference will be removed in most cases anyway so perfect forwarding is not necessary
 #define BARE_OF(expr) std::remove_cvref_t<decltype((expr))>
 

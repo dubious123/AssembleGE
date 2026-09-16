@@ -3,6 +3,32 @@
 
 namespace age::editor
 {
+	namespace detail
+	{
+		void
+		init_impl() noexcept;
+	}
+
+	void
+	init(auto& ecs_game, auto& renderer) noexcept
+	{
+		g::host_ops.p_ecs_game = std::addressof(ecs_game);
+		g::host_ops.p_renderer = std::addressof(renderer);
+
+		g::host_ops.p_mesh_gpu_load = [](std::string_view mesh_name, const asset::primitive_desc& desc, asset::e::vertex_kind v_kind) noexcept -> asset::handle {
+			return asset::mesh_baked::gpu_load(mesh_name, *static_cast<BARE_OF(renderer)*>(g::host_ops.p_renderer), desc, v_kind);
+		};
+
+		g::host_ops.p_mesh_full_unload = [](asset::handle h_mesh) noexcept {
+			age::asset::mesh_baked::full_unload(h_mesh, *static_cast<BARE_OF(renderer)*>(g::host_ops.p_renderer));
+		};
+
+		detail::init_impl();
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
 	void
 	update_camera(auto& renderer, bool update, platform::window_handle h_window) noexcept
 	{

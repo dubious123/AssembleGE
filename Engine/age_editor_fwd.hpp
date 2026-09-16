@@ -14,6 +14,19 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(transform_mode_kind, uint8, select, translation, rotation, scale);
 }	 // namespace age::editor::e
 
+// host operations
+namespace age::editor
+{
+	struct host_operations
+	{
+		void* p_ecs_game = nullptr;
+		void* p_renderer = nullptr;
+
+		AGE_FN_PTR(p_mesh_gpu_load, (asset::handle), (std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)) = nullptr;
+		AGE_FN_PTR(p_mesh_full_unload, (void), (asset::handle))																  = nullptr;
+	};
+}	 // namespace age::editor
+
 namespace age::editor
 {
 	struct camera_data
@@ -175,6 +188,8 @@ namespace age::editor
 
 namespace age::editor::g
 {
+	inline auto host_ops = host_operations{};
+
 	inline auto current_select_kind = editor::e::select_kind::none;
 	inline auto select_vec			= age::vector<age::vector<uint64>>{};
 	// inline auto ui_new_entity_buffer				= age::vector<uint64>{};

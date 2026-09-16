@@ -127,6 +127,8 @@ namespace age::asset
 
 namespace age::asset
 {
+	using path_buf = age::array<char, config::max_asset_path_len>;
+
 	struct file_header
 	{
 		uint32	magic;
@@ -757,6 +759,13 @@ namespace age::asset
 
 namespace age::asset
 {
+	struct mesh_baked_desc
+	{
+		e::vertex_kind		  v_kind;
+		std::span<vertex_fat> vertex_buffer;
+		std::span<uint32>	  index_buffer;
+	};
+
 	struct env_light_desc
 	{
 		graphics::e::texture_format format				= graphics::e::texture_format::bc6h_ufloat16;	 // all format
@@ -795,6 +804,35 @@ namespace age::asset
 		handle h_tex_normal;
 		handle h_tex_occlusion;
 		handle h_tex_emissive;
+	};
+
+	struct material_file_desc
+	{
+		float4 base_color_factor  = float4::one();
+		float  metallic_factor	  = 1.f;
+		float  roughness_factor	  = 1.f;
+		float3 emissive_factor	  = float3::zero();
+		float  normal_scale		  = 1.f;
+		float  occlusion_strength = 1.f;
+		float  alpha_cutoff		  = 0.f;
+		// version 0
+		// e::alpha_mode_kind alpha_mode		  = e::alpha_mode_kind::opaque;
+
+		bool									 double_sided  = false;
+		graphics::e::material_shading_model_kind shading_model = graphics::e::material_shading_model_kind::pbr_default;
+
+		graphics::e::sampler_kind base_color_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind metallic_roughness_sampler_kind = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind normal_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind occlusion_sampler_kind		  = graphics::e::sampler_kind::linear_wrap;
+		graphics::e::sampler_kind emissive_sampler_kind			  = graphics::e::sampler_kind::linear_wrap;
+		uint8					  _;
+
+		path_buf tex_base_color_path;
+		path_buf tex_metallic_roughness_path;
+		path_buf tex_normal_path;
+		path_buf tex_occlusion_path;
+		path_buf tex_emissive_path;
 	};
 
 	struct texture_bake_option
@@ -836,6 +874,12 @@ namespace age::asset
 	{
 		handle				h_mesh;
 		age::vector<handle> h_materials;
+	};
+
+	struct model_file_desc
+	{
+		path_buf			  mesh_path_buf;
+		age::vector<path_buf> material_path_buf_vec;
 	};
 }	 // namespace age::asset
 

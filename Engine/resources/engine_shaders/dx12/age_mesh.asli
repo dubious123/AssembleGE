@@ -285,7 +285,7 @@ decode_vertex(mesh_header header, uint32 global_vertex_idx)
 	}
 	default:
 	{
-		// todo shader assert
+		assert(false, g::str_shader_name, header.vertex_kind());
 		break;
 	}
 	}

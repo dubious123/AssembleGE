@@ -25,6 +25,8 @@ namespace age
 
 	namespace buffer {}
 
+	namespace fs {}
+
 	namespace asset {}
 
 	namespace ecs {}
@@ -47,13 +49,13 @@ namespace age
 
 	namespace ui {}
 
-	namespace graphics::render_pipeline::forward_plus {}
+	namespace graphics::render_pipeline {}
 
 	namespace runtime {}
 
 	namespace request {}
 
-	namespace editor{}
+	namespace editor {}
 }	 // namespace age
 
 // clang-format on
@@ -118,6 +120,7 @@ namespace age
 #endif
 //------------------------------------------------------------------------------
 
+#include "age_fs.hpp"
 
 #include "age_asset.hpp"
 #include "age_asset_mesh_editable.hpp"

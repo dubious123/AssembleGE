@@ -488,7 +488,9 @@ namespace age::asset::importer
 				.vertex_buffer		= std::move(submesh.vertex_buffer),
 				.vertex_skin_buffer = std::move(submesh.vertex_skin_buffer),
 				.blend_shape_vec	= std::move(submesh.blend_shape_vec),
-				.vertex_kind		= submesh.vertex_kind,
+				.has_normal			= submesh.has_normal,
+				.has_tangent		= submesh.has_tangent,
+				.has_uv				= submesh.has_uv,
 				.raster_mode		= submesh.raster_mode,
 				.rt_alpha_test_mode = submesh.rt_alpha_test_mode,
 				.rt_bake_mode		= submesh.rt_bake_mode,
@@ -1623,5 +1625,524 @@ namespace age::asset::importer
 				}
 			}
 		}
+
+		data.has_error = data.error_flags != e::import_error_flags::none;
+		if (data.has_error) { return; }
+		if (data.has_error = std::ranges::any_of(data.texture_import_data_vec, [](c_auto& tex) { return tex.error_flags != tex_error::none; })) { return; }
+		if (data.has_error = std::ranges::any_of(data.material_import_data_vec, [](c_auto& mat) { return mat.error_flags != mat_error::none; })) { return; }
+		if (data.has_error = std::ranges::any_of(data.mesh_import_data_vec, [](c_auto& mesh) { return mesh.error_flags != mesh_error::none; })) { return; }
+		if (data.has_error = std::ranges::any_of(data.model_import_data_vec, [](c_auto& model) { return model.error_flags != model_error::none; })) { return; }
+		if (data.has_error = std::ranges::any_of(data.skeleton_import_data_vec, [](c_auto& skeleton) { return skeleton.error_flags != skeleton_error::none; })) { return; }
+		for (c_auto& scene : data.scene_import_data_vec)
+		{
+			if (data.has_error = scene.error_flags != scene_error::none) { return; }
+
+			for (c_auto& entity : scene.entity_vec)
+			{
+				if (data.has_error = entity.error_flags != entity_error::none) { return; }
+			}
+		}
+	}
+}	 // namespace age::asset::importer
+
+namespace age::asset::importer::detail
+{
+	std::string
+	get_commit_error_message(e::commit_error_kind error_kind, auto&&... arg)
+	{
+		switch (error_kind)
+		{
+		case age::asset::importer::e::commit_error_kind::commit_temporary_dir_not_empty:
+		{
+			return std::format("directory {} should be left empty or deleted", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::commit_temporary_dir_create_failed:
+		{
+			return std::format("commit_temporary_dir_create_failed, directory path : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::create_target_dir_failed:
+		{
+			return std::format("create_target_dir_failed, target dir : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::tex_temporary_file_create_failed:
+		{
+			return std::format("tex_temporary_file_create_failed, tex_name : {}, temporary file name : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::tex_bake_failed:
+		{
+			return std::format("tex_bake_failed, tex_name : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::temp_file_cleanup_failed:
+		{
+			return std::format("temp_file_cleanup_failed, temporary file name : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::temp_dir_cleanup_failed:
+		{
+			return std::format("temp_dir_cleanup_failed, temporary dir name : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::target_path_cannot_be_overwritten:
+		{
+			return std::format("target_path_cannot_be_overwritten, target_path : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::backup_failed:
+		{
+			return std::format("backup of the existing file failed, failed file [original, backup] : {}", FWD(arg)...);
+		}
+		case age::asset::importer::e::commit_error_kind::move_failed:
+		{
+			return std::format("failed to move the new file to its target path, failed file [original, backup] : {}", FWD(arg)...);
+		}
+		default:
+		{
+			AGE_UNREACHABLE("invalid error_kind : {}", to_idx(error_kind));
+		}
+		}
+	}
+}	 // namespace age::asset::importer::detail
+
+namespace age::asset::importer
+{
+	commit_result
+	commit_import(const import_data& data) noexcept
+	{
+		using error = e::commit_error_kind;
+		auto res	= commit_result{};
+
+		constexpr auto temp_dir_name	   = ".__import_commit_temp__/";
+		c_auto		   root_dir_path	   = util::to_utf8(asset::get_root_dir());
+		c_auto		   temp_directory_path = std::format("{}/{}", root_dir_path, temp_dir_name);
+
+		if (fs::dir_exists(temp_directory_path))
+		{
+			if (fs::is_dir_empty(temp_directory_path) is_false)
+			{
+				res.error	= error::commit_temporary_dir_not_empty;
+				res.message = detail::get_commit_error_message(res.error, std::move(temp_directory_path));
+				return res;
+			}
+		}
+		else if (fs::create_dir(temp_directory_path) is_false)
+		{
+			res.error	= error::commit_temporary_dir_create_failed;
+			res.message = detail::get_commit_error_message(res.error, std::move(temp_directory_path));
+			return res;
+		}
+
+		auto tex_temp_path_vec		= age::vector<std::string>::gen_reserved(data.texture_import_data_vec.size());
+		auto material_temp_path_vec = age::vector<std::string>::gen_reserved(data.material_import_data_vec.size());
+		auto mesh_temp_path_vec		= age::vector<std::string>::gen_reserved(data.mesh_import_data_vec.size());
+		auto model_temp_path_vec	= age::vector<std::string>::gen_reserved(data.model_import_data_vec.size());
+		auto skeleton_temp_path_vec = age::vector<std::string>::gen_reserved(data.skeleton_import_data_vec.size());
+		auto scene_temp_path_vec	= age::vector<std::string>::gen_reserved(data.scene_import_data_vec.size());
+
+		auto tex_target_path_vec	  = age::vector<std::string>::gen_reserved(data.texture_import_data_vec.size());
+		auto material_target_path_vec = age::vector<std::string>::gen_reserved(data.material_import_data_vec.size());
+		auto mesh_target_path_vec	  = age::vector<std::string>::gen_reserved(data.mesh_import_data_vec.size());
+		auto model_target_path_vec	  = age::vector<std::string>::gen_reserved(data.model_import_data_vec.size());
+		auto skeleton_target_path_vec = age::vector<std::string>::gen_reserved(data.skeleton_import_data_vec.size());
+		auto scene_target_path_vec	  = age::vector<std::string>::gen_reserved(data.scene_import_data_vec.size());
+
+		// full_path
+		c_auto target_tex_dir	   = std::format("{}/{}", root_dir_path, data.texture_dir);
+		c_auto target_material_dir = std::format("{}/{}", root_dir_path, data.material_dir);
+		c_auto target_mesh_dir	   = std::format("{}/{}", root_dir_path, data.mesh_dir);
+		c_auto target_model_dir	   = std::format("{}/{}", root_dir_path, data.model_dir);
+		c_auto target_skeleton_dir = std::format("{}/{}", root_dir_path, data.skeleton_dir);
+		c_auto target_scene_dir	   = std::format("{}/{}", root_dir_path, data.scene_dir);
+
+		bool has_texture_enabled  = false;
+		bool has_material_enabled = false;
+		bool has_mesh_enabled	  = false;
+		bool has_model_enabled	  = false;
+		bool has_skeleton_enabled = false;
+		bool has_scene_enabled	  = false;
+
+		for (c_auto& tex : data.texture_import_data_vec | std::views::filter(&texture_import_data::enabled))
+		{
+			has_texture_enabled = true;
+			tex_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::texture>(std::format("{}/{}/{}", root_dir_path, data.texture_dir, tex.name)).data()));
+		}
+		for (c_auto& mat : data.material_import_data_vec | std::views::filter(&material_import_data::enabled))
+		{
+			has_material_enabled = true;
+			material_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::material>(std::format("{}/{}/{}", root_dir_path, data.material_dir, mat.name)).data()));
+		}
+		for (c_auto& mesh : data.mesh_import_data_vec | std::views::filter(&mesh_baked_import_data::enabled))
+		{
+			has_mesh_enabled = true;
+			mesh_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::mesh_baked>(std::format("{}/{}/{}", root_dir_path, data.mesh_dir, mesh.name)).data()));
+		}
+		for (c_auto& model : data.model_import_data_vec | std::views::filter(&model_import_data::enabled))
+		{
+			has_model_enabled = true;
+			model_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::model>(std::format("{}/{}/{}", root_dir_path, data.model_dir, model.name)).data()));
+		}
+		for (c_auto& skeleton : data.skeleton_import_data_vec | std::views::filter(&skeleton_import_data::enabled))
+		{
+			has_skeleton_enabled = true;
+			// skeleton_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::skeleton>(std::format("{}/{}/{}",root_dir_path, data.skeleton_dir, tex.name)).data()));
+		}
+		for (c_auto& scene : data.scene_import_data_vec | std::views::filter(&scene_import_data::enabled))
+		{
+			has_scene_enabled = true;
+			// scene_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::scene>(std::format("{}/{}/{}",root_dir_path, data.scene_dir, tex.name)).data()));
+		}
+
+		// create target directories
+		{
+			if (has_texture_enabled and fs::create_dir(target_tex_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_tex_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+			if (has_material_enabled and fs::create_dir(target_material_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_material_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+			if (has_mesh_enabled and fs::create_dir(target_mesh_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_mesh_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+			if (has_model_enabled and fs::create_dir(target_model_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_model_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+			if (has_skeleton_enabled and fs::create_dir(target_skeleton_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_skeleton_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+			if (has_scene_enabled and fs::create_dir(target_scene_dir) is_false)
+			{
+				res.error	= error::create_target_dir_failed;
+				res.message = detail::get_commit_error_message(res.error, target_scene_dir);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+		}
+
+
+		// texture
+		{
+			auto tmp_file_path_vec	   = age::vector<std::string>{};
+			auto tmp_file_path_ptr_vec = age::vector<const char*>{};
+
+
+			for (const auto&& [i, tex] : data.texture_import_data_vec | views::enumerate<uint32>)
+			{
+				if (tex.enabled is_false) { continue; }
+
+				tmp_file_path_vec.clear();
+				tmp_file_path_ptr_vec.clear();
+				tmp_file_path_vec.reserve(tex.source_bytes_vec.size());
+				tmp_file_path_ptr_vec.reserve(tex.source_bytes_vec.size());
+
+				for (const auto&& [j, bytes] : tex.source_bytes_vec | views::enumerate<uint32>)
+				{
+					tmp_file_path_vec.emplace_back(std::format("{}/__temp_tex__[{}][{}].{}", temp_directory_path, i, j, to_string(tex.file_kind)));
+					tmp_file_path_ptr_vec.emplace_back(tmp_file_path_vec.back().data());
+
+					if (fs::write_file(tmp_file_path_vec.back(), bytes) is_false)
+					{
+						res.error	= error::tex_temporary_file_create_failed;
+						res.message = detail::get_commit_error_message(res.error, tex.name, tmp_file_path_vec.back());
+						fs::remove_dir(temp_directory_path);
+						return res;
+					}
+				}
+
+				c_auto rel_path		= std::format("{}/texture/{}", temp_dir_name, tex.name);
+				c_auto bake_success = asset::texture::bake(tmp_file_path_ptr_vec, rel_path, tex.bake_option);
+				tex_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+
+				if (bake_success is_false)
+				{
+					res.error	= error::tex_bake_failed;
+					res.message = detail::get_commit_error_message(res.error, tex.name);
+					fs::remove_dir(temp_directory_path);
+					return res;
+				}
+				else
+				{
+					for (c_auto& temp_file : tmp_file_path_vec)
+					{
+						if (fs::remove_file(temp_file) is_false)
+						{
+							res.error	= error::temp_file_cleanup_failed;
+							res.message = detail::get_commit_error_message(res.error, temp_file);
+							fs::remove_dir(temp_directory_path);
+							return res;
+						}
+					}
+				}
+			}
+		}
+		// material
+		{
+			c_auto get_texture_path_buf = [&](auto tex_idx) {
+				if (runtime::is_invalid_idx(tex_idx))
+				{
+					return asset::path_buf{};
+				}
+				else
+				{
+					return asset::get_asset_full_path<asset::e::kind::texture>(std::format("{}/{}", data.texture_dir, data.texture_import_data_vec[tex_idx].name));
+				}
+			};
+
+			for (c_auto& mat : data.material_import_data_vec)
+			{
+				if (mat.enabled is_false) { continue; }
+
+				auto mat_desc = asset::material_file_desc{
+					.base_color_factor				 = mat.base_color_factor,
+					.metallic_factor				 = mat.metallic_factor,
+					.roughness_factor				 = mat.roughness_factor,
+					.emissive_factor				 = mat.emissive_factor,
+					.normal_scale					 = mat.normal_scale,
+					.occlusion_strength				 = mat.occlusion_strength,
+					.alpha_cutoff					 = mat.alpha_cutoff,
+					.double_sided					 = mat.double_sided,
+					.shading_model					 = mat.shading_model,
+					.base_color_sampler_kind		 = mat.base_color_sampler_kind,
+					.metallic_roughness_sampler_kind = mat.metallic_roughness_sampler_kind,
+					.normal_sampler_kind			 = mat.normal_sampler_kind,
+					.occlusion_sampler_kind			 = mat.occlusion_sampler_kind,
+					.emissive_sampler_kind			 = mat.emissive_sampler_kind,
+					.tex_base_color_path			 = get_texture_path_buf(mat.base_color_texture_idx),
+					.tex_metallic_roughness_path	 = get_texture_path_buf(mat.metallic_roughness_texture_idx),
+					.tex_normal_path				 = get_texture_path_buf(mat.normal_texture_idx),
+					.tex_occlusion_path				 = get_texture_path_buf(mat.occlusion_texture_idx),
+					.tex_emissive_path				 = get_texture_path_buf(mat.emissive_texture_idx),
+				};
+
+				c_auto rel_path = std::format("{}/material/{}", temp_dir_name, mat.name);
+				asset::material::build(rel_path, mat_desc);
+				material_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+			}
+		}
+		// mesh
+		{
+			for (c_auto& mesh : data.mesh_import_data_vec)
+			{
+				if (mesh.enabled is_false) { continue; }
+
+				for (c_auto& submesh : mesh.submesh_vec)
+				{
+				}
+
+				auto desc = asset::mesh_baked_desc{
+
+				};
+
+				c_auto rel_path = std::format("{}/mesh/{}", temp_dir_name, mesh.name);
+				asset::mesh_baked::build(rel_path, desc);
+				mesh_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+			}
+		}
+		// model
+		{
+			c_auto get_mesh_path_buf = [&](auto mesh_idx) {
+				if (runtime::is_invalid_idx(mesh_idx))
+				{
+					return asset::path_buf{};
+				}
+				else
+				{
+					return asset::get_asset_full_path<asset::e::kind::mesh_baked>(std::format("{}/{}", data.mesh_dir, data.mesh_import_data_vec[mesh_idx].name));
+				}
+			};
+
+
+			c_auto get_material_path_buf = [&](auto mat_idx) {
+				if (runtime::is_invalid_idx(mat_idx))
+				{
+					return asset::path_buf{};
+				}
+				else
+				{
+					return asset::get_asset_full_path<asset::e::kind::material>(std::format("{}/{}", data.material_dir, data.material_import_data_vec[mat_idx].name));
+				}
+			};
+
+			for (c_auto& model : data.model_import_data_vec)
+			{
+				if (model.enabled is_false) { continue; }
+
+				auto desc = asset::model_file_desc{
+					.mesh_path_buf		   = get_mesh_path_buf(model.mesh_idx),
+					.material_path_buf_vec = model.submesh_material_idx_vec | std::views::transform(get_material_path_buf) | std::ranges::to<age::vector<asset::path_buf>>()
+				};
+
+				c_auto rel_path = std::format("{}/model/{}", temp_dir_name, model.name);
+				asset::model::build(rel_path, desc);
+				model_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+			}
+		}
+
+		// skeleton
+		// scene, entity (scene_import_file?)
+
+		// move each file, if failed, unroll each file
+		{
+			// [original, backup]
+			auto backup_file_path_vec = age::vector<std::tuple<std::string, std::string>>::gen_reserved(
+				tex_target_path_vec.size()
+				+ material_target_path_vec.size()
+				+ mesh_target_path_vec.size()
+				+ model_target_path_vec.size()
+				+ skeleton_target_path_vec.size()
+				+ scene_target_path_vec.size());
+			// auto backup_file_path_vec = std::vector<std::tuple<std::string, std::string>>{};
+
+			auto target_path_span_arr = std::array{ std::span{ tex_target_path_vec },
+													std::span{ material_target_path_vec },
+													std::span{ mesh_target_path_vec },
+													std::span{ model_target_path_vec },
+													std::span{ skeleton_target_path_vec },
+													std::span{ scene_target_path_vec } };
+
+			for (c_auto& path : target_path_span_arr | std::views::join)
+			{
+				if (fs::file_exists(path))
+				{
+					backup_file_path_vec.emplace_back(std::string{ path }, std::format("{}__backup__{}", temp_directory_path, fs::get_file_name(path)));
+				}
+			}
+
+			// backup
+			auto backup_count = 0u;
+			for (const auto& [original, backup] : backup_file_path_vec)
+			{
+				if (fs::rename(original, backup) is_false) { break; }
+				++backup_count;
+			}
+
+			// check backup failed
+			if (backup_count != backup_file_path_vec.size<uint32>())
+			{
+				// backup failed
+				auto rollback_failed_vec = age::vector<std::tuple<std::string, std::string>>::gen_reserved(backup_count);
+				for (const auto& [original, backup] : backup_file_path_vec | std::views::take(backup_count))
+				{
+					if (fs::rename(backup, original) is_false)
+					{
+						rollback_failed_vec.emplace_back(std::string{ backup }, std::string{ original });
+					}
+				}
+
+				if (rollback_failed_vec.is_not_empty())
+				{
+					res.error	 = error::backup_failed_and_rollback_failed;
+					res.message	 = "backup failed and rollback also failed."
+								   "the temp dir is kept so you can restore the backups to their original paths by hand.\n";
+					res.message += std::format("backup failed file [original, backup] : {}\n", backup_file_path_vec[backup_count]);
+					for (const auto& [backup, original] : rollback_failed_vec)
+					{
+						res.message += std::format("backup path : {}, original path : {}\n");
+					}
+					return res;
+				}
+
+				res.error	= error::backup_failed;
+				res.message = detail::get_commit_error_message(res.error, backup_file_path_vec[backup_count]);
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+
+			// move each files
+			auto temp_path_span_arr = std::array{ std::span{ tex_temp_path_vec },
+												  std::span{ material_temp_path_vec },
+												  std::span{ mesh_temp_path_vec },
+												  std::span{ model_temp_path_vec },
+												  std::span{ skeleton_temp_path_vec },
+												  std::span{ scene_temp_path_vec } };
+
+			auto move_count				 = 0u;
+			auto move_success			 = true;
+			auto move_failed_temp_path	 = std::string{};
+			auto move_failed_target_path = std::string{};
+			for (const auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join))
+			{
+				if (fs::rename(from, to) is_false)
+				{
+					move_success			= false;
+					move_failed_temp_path	= from;
+					move_failed_target_path = to;
+					break;
+				}
+				++move_count;
+			}
+
+			if (move_success is_false)
+			{
+				// rollback rename
+				for (auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join) | std::views::take(move_count))
+				{
+					if (fs::rename(to, from) is_false)
+					{
+						fs::remove_file(to);
+					}
+				}
+
+				// get backup and restore original
+
+				auto rollback_failed_vec = age::vector<std::tuple<std::string, std::string>>::gen_reserved(backup_count);
+				for (const auto& [original, backup] : backup_file_path_vec | std::views::take(backup_count))
+				{
+					if (fs::rename(backup, original) is_false)
+					{
+						rollback_failed_vec.emplace_back(std::string{ backup }, std::string{ original });
+					}
+				}
+
+				if (rollback_failed_vec.is_not_empty())
+				{
+					res.error	 = error::move_failed_and_rollback_failed;
+					res.message	 = "move failed and rollback also failed."
+								   "the temp dir is kept so you can restore the backups to their original paths by hand. some new files may already be in place.\n";
+					res.message += std::format("move failed temp file path : {}, target file path : {}\n", std::move(move_failed_temp_path), std::move(move_failed_target_path));
+					for (const auto& [backup, original] : rollback_failed_vec)
+					{
+						res.message += std::format("backup path : {}, original path : {}\n", backup, original);
+					}
+					return res;
+				}
+
+				res.error	= error::move_failed;
+				res.message = detail::get_commit_error_message(res.error, std::move(move_failed_temp_path), std::move(move_failed_target_path));
+				fs::remove_dir(temp_directory_path);
+				return res;
+			}
+		}
+
+		// clear temp directory
+		if (fs::remove_dir(temp_directory_path) is_false)
+		{
+			res.error	= error::temp_dir_cleanup_failed;
+			res.message = detail::get_commit_error_message(res.error, temp_directory_path);
+		}
+		fs::remove_dir(target_tex_dir);
+		fs::remove_dir(target_material_dir);
+		fs::remove_dir(target_mesh_dir);
+		fs::remove_dir(target_model_dir);
+		fs::remove_dir(target_skeleton_dir);
+		fs::remove_dir(target_scene_dir);
+
+
+		return res;
 	}
 }	 // namespace age::asset::importer

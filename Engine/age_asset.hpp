@@ -197,6 +197,9 @@ namespace age::asset::mesh_baked
 
 	handle
 	full_load(std::string_view mesh_name, auto& renderer) noexcept;
+
+	bool
+	build(std::string_view dst, const mesh_baked_desc&) noexcept;
 }	 // namespace age::asset::mesh_baked
 
 namespace age::asset::texture
@@ -248,6 +251,9 @@ namespace age::asset::material
 
 	void
 	build(std::string_view mat_path, const material_desc&) noexcept;
+
+	void
+	build(std::string_view mat_path, const material_file_desc&) noexcept;
 
 	void
 	save(handle _) noexcept;
@@ -316,6 +322,9 @@ namespace age::asset::model
 
 	void
 	build(std::string_view model_path, const model_desc&) noexcept;
+
+	void
+	build(std::string_view model_path, const model_file_desc&) noexcept;
 
 	void
 	save(handle _) noexcept;

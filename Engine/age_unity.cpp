@@ -19,6 +19,9 @@ __declspec(dllexport) extern const char*	D3D12SDKPath	= ".\\D3D12\\";
 #line 1 "age_external_wrapper_cgltf.cpp"
 #include "age_external_wrapper_cgltf.cpp"
 
+#line 1 "age_fs.cpp"
+#include "age_fs.cpp"
+
 #line 1 "age_asset.cpp"
 #include "age_asset.cpp"
 
