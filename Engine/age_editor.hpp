@@ -46,6 +46,16 @@ namespace age::editor
 	render_current_scene(auto& ecs_game, auto& renderer, platform::window_handle h_window) noexcept;
 }	 // namespace age::editor
 
+// ecs
+namespace age::editor
+{
+	uint64
+	add_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, std::string_view name) noexcept;
+
+	void
+	remove_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
+}	 // namespace age::editor
+
 namespace age::editor
 {
 	const std::string&
@@ -59,6 +69,9 @@ namespace age::editor
 
 	age::array<char, config::max_asset_path_len>
 	get_asset_full_path(asset::e::kind e_kind, std::string_view asset_name) noexcept;
+
+	void
+	asset_full_unload(asset::e::kind asset_kind, asset::handle h_asset) noexcept;
 }	 // namespace age::editor
 
 // ui

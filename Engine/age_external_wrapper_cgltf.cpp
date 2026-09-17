@@ -750,7 +750,6 @@ namespace age::external::cgltf::detail
 	}
 
 	// indices -> triangle list. absent = 0..n-1 (spec), strip / fan unrolled, tail not a multiple of 3 dropped.
-	// winding kept: z mirror turns glTF CCW into CW, the D3D default front face.
 	// value >= vertex_count -> vertex_idx_out_of_range, bake would read past the vertex buffer
 	asset::importer::e::gltf_mesh_parse_error_flags
 	fill_index_buffer(const submesh_data& submsh_data, asset::importer::gltf_submesh_parse_data& res) noexcept
@@ -773,6 +772,13 @@ namespace age::external::cgltf::detail
 		res.index_buffer			= triangle_index_count == src_arr.size()
 										? std::move(src_arr)
 										: age::dynamic_array<uint32>{ src_arr.begin(), src_arr.begin() + triangle_index_count };
+
+		// gltf is ccw front, engine is cw front. z mirror does not change on-screen winding
+		for (auto tri : res.index_buffer | std::views::chunk(3))
+		{
+			std::swap(tri[1], tri[2]);
+		}
+
 		return error::none;
 	}
 

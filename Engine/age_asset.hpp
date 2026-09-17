@@ -11,10 +11,15 @@ namespace age::asset
 
 	// relative to .exe or abs -> relative to root dir
 	// return value is normalized
+	void
+	to_root_relative(std::string_view not_normalized_path, AGE_OUT std::string& res) noexcept;
 	std::string
 	to_root_relative(std::string_view not_normalized_path) noexcept;
+	bool
+	try_to_root_relative(std::string_view not_normalized_path, AGE_OUT std::string& res) noexcept;
 	std::optional<std::string>
 	try_to_root_relative(std::string_view not_normalized_path) noexcept;
+
 
 	inline bool
 	validate_header(const e::kind, file_header& header) noexcept;
@@ -34,7 +39,7 @@ namespace age::asset
 	read_raw_file(std::string_view raw_full_path) noexcept;
 
 	// relative to asset_root_dir
-	void
+	bool
 	write_asset_file(std::string_view file_path, const file_header& header, const void* p_src) noexcept;
 
 	// relative to .exe

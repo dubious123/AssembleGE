@@ -210,6 +210,7 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+// asset
 namespace age::editor
 {
 	const std::string&
@@ -238,6 +239,50 @@ namespace age::editor
 			c_auto full_path = asset::get_asset_full_path<e_kind>(name);
 			return full_path;
 		});
+	}
+
+	void
+	asset_full_unload(asset::e::kind asset_kind, asset::handle h_asset) noexcept
+	{
+		if (h_asset is_false) { return; }
+		if (h_asset.is_any_loaded()) { return; }
+
+		switch (asset_kind)
+		{
+		case asset::e::kind::font:
+		{
+			AGE_UNREACHABLE("invalid asset type font");
+			break;
+		}
+		case asset::e::kind::mesh_baked:
+		{
+			g::host_ops.p_mesh_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::material:
+		{
+			g::host_ops.p_material_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::texture:
+		{
+			g::host_ops.p_texture_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::env_light:
+		{
+			g::host_ops.p_env_light_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::model:
+		{
+			g::host_ops.p_model_full_unload(h_asset);
+			break;
+		}
+		default:
+			AGE_UNREACHABLE("invalid asset type {}", to_idx(asset_kind));
+			break;
+		}
 	}
 }	 // namespace age::editor
 

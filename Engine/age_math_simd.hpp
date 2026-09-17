@@ -397,6 +397,7 @@ namespace age::math::simd
 namespace age::math::simd
 {
 	AGE_SIMD_VEC_UNARY_OP(abs, XMVectorAbs);
+	// normalize should return zero vector if nan
 	AGE_SIMD_VEC_UNARY_OP(normalize2, XMVector2Normalize);
 	AGE_SIMD_VEC_UNARY_OP(normalize3, XMVector3Normalize);
 	AGE_SIMD_VEC_UNARY_OP(normalize4, XMVector4Normalize);

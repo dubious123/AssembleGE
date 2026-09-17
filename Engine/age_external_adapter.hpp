@@ -682,22 +682,65 @@ namespace age::external::meshopt
 
 namespace age::external::meshopt
 {
+	template <typename t_vertex>
+	void
+	gen_tangents(
+		std::span<const uint32>	  index_buffer,	   // empty = unindexed, nth_vertex's index == n
+		std::span<const t_vertex> vertex_buffer,
+		std::size_t				  position_offset,
+		std::size_t				  normal_offset,
+		std::size_t				  uv_offset,
+		bool					  mikktspace_compatible,
+		AGE_OUT age::vector<float4>& res) noexcept
+	{
+		static_assert(std::is_standard_layout_v<t_vertex>, "offsetof requires standard layout");
+		AGE_ASSERT(position_offset + sizeof(float3) <= sizeof(t_vertex));
+		AGE_ASSERT(normal_offset + sizeof(float3) <= sizeof(t_vertex));
+		AGE_ASSERT(uv_offset + sizeof(float2) <= sizeof(t_vertex));
+
+		c_auto	is_indexed	= index_buffer.empty() is_false;
+		c_auto* p_index		= is_indexed ? index_buffer.data() : nullptr;
+		c_auto	index_count = is_indexed ? index_buffer.size() : vertex_buffer.size();
+		AGE_ASSERT(index_count % 3 == 0);
+
+		res.resize(index_count);
+
+		c_auto* p_base = reinterpret_cast<const char*>(vertex_buffer.data());
+
+		detail::gen_tangents(
+			reinterpret_cast<float*>(res.data()),
+			p_index,
+			index_count,
+			reinterpret_cast<const float*>(p_base + position_offset),
+			vertex_buffer.size(),
+			sizeof(t_vertex),
+			reinterpret_cast<const float*>(p_base + normal_offset),
+			sizeof(t_vertex),
+			reinterpret_cast<const float*>(p_base + uv_offset),
+			sizeof(t_vertex),
+			mikktspace_compatible);
+	}
+
 	//[new_index_buffer, new_vertex_buffer]
+	// empty index buffer => unindexed, corner i is vertex i
 	decltype(auto)
 	gen_remap(const std::ranges::contiguous_range auto& index_buffer, const std::ranges::contiguous_range auto& vertex_buffer) noexcept
 		requires std::is_same_v<std::ranges::range_value_t<BARE_OF(index_buffer)>, uint32>
 	{
 		using t_vertex = std::ranges::range_value_t<BARE_OF(vertex_buffer)>;
 
-		c_auto* p_index		 = std::ranges::data(index_buffer);
 		c_auto* p_vertex	 = std::ranges::data(vertex_buffer);
-		c_auto	index_count	 = std::ranges::size(index_buffer);
 		c_auto	vertex_count = std::ranges::size(vertex_buffer);
 
-		auto remap_index_buffer = age::vector<uint32>::gen_sized(index_count);
-		auto new_index_buffer	= age::vector<uint32>::gen_sized(index_count);
-		auto new_vertex_buffer	= age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
-			remap_index_buffer.data(),
+		c_auto	is_indexed	= std::ranges::empty(index_buffer) is_false;
+		c_auto* p_index		= is_indexed ? std::ranges::data(index_buffer) : nullptr;
+		c_auto	index_count = is_indexed ? std::ranges::size(index_buffer) : vertex_count;
+
+		// remap_buffer[nth_vertex] == new_index
+		auto remap_buffer	   = age::vector<uint32>::gen_sized(vertex_count);
+		auto new_index_buffer  = age::vector<uint32>::gen_sized(index_count);
+		auto new_vertex_buffer = age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
+			remap_buffer.data(),
 			p_index,
 			index_count,
 			p_vertex,
@@ -709,49 +752,16 @@ namespace age::external::meshopt
 			p_vertex,
 			vertex_count,
 			sizeof(t_vertex),
-			remap_index_buffer.data());
+			remap_buffer.data());
 
 		detail::gen_remapped_index_buffer(
 			new_index_buffer.data(),
 			p_index,
 			index_count,
-			remap_index_buffer.data());
+			remap_buffer.data());
 
 		return std::pair{ std::move(new_index_buffer), std::move(new_vertex_buffer) };
 	}
-
-	// template <typename t_vertex>
-	// std::pair<age::vector<uint32>, age::vector<t_vertex>>
-	// gen_remap(
-	//	const age::vector<uint32>&	 index_buffer,
-	//	const age::vector<t_vertex>& vertex_buffer,
-	//	const std::size_t			 vertex_size_and_stride = sizeof(t_vertex)) noexcept
-	//{
-	//	auto remap_index_buffer = age::vector<uint32>::gen_sized(index_buffer.size());
-	//	auto new_index_buffer	= age::vector<uint32>::gen_sized(index_buffer.size());
-	//	auto new_vertex_buffer	= age::vector<t_vertex>::gen_sized(detail::gen_vertex_remap(
-	//		remap_index_buffer.data(),
-	//		index_buffer.data(),
-	//		index_buffer.size(),
-	//		vertex_buffer.data(),
-	//		vertex_buffer.size(),
-	//		vertex_size_and_stride));
-
-	//	detail::gen_remapped_vertex_buffer(
-	//		new_vertex_buffer.data(),
-	//		vertex_buffer.data(),
-	//		vertex_buffer.size(),
-	//		vertex_size_and_stride,
-	//		remap_index_buffer.data());
-
-	//	detail::gen_remapped_index_buffer(
-	//		new_index_buffer.data(),
-	//		index_buffer.data(),
-	//		index_buffer.size(),
-	//		remap_index_buffer.data());
-
-	//	return std::pair{ std::move(new_index_buffer), std::move(new_vertex_buffer) };
-	//}
 
 	template <typename t_vertex>
 	void

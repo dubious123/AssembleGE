@@ -490,14 +490,25 @@ namespace age::util
 		return res;
 	}
 
-	template <std::size_t len>
+	template <std::size_t n>
+	constexpr void
+	to_fixed_str(std::string_view sv, AGE_OUT age::array<char, n>& res) noexcept
+	{
+		static_assert(n > 0);
+
+		c_auto len = age::min(sv.size(), n - 1);
+		std::ranges::copy_n(sv.data(), len, res.begin());
+		// safe_version
+		// std::char_traits<char>::assign(res.data() + len, n - len, '\0');
+		res[len] = '\0';
+	}
+
+	template <std::size_t n>
 	constexpr auto
 	to_fixed_str(std::string_view sv) noexcept
 	{
-		c_auto n   = std::min(sv.size(), len - 1);
-		auto   res = age::array<char, len>{};
-		std::ranges::copy_n(sv.data(), n, res.begin());
-		res[n] = '\0';
+		auto res = age::array<char, n>{};
+		to_fixed_str(sv, res);
 		return res;
 	}
 
@@ -513,6 +524,18 @@ namespace age::util
 	to_fixed_str_arr()
 	{
 		return age::array<age::array<const char, len>, 0>{};
+	}
+
+	std::string_view
+	to_string_view(auto&&... arg) noexcept
+	{
+		return std::string_view{ FWD(arg)... };
+	}
+
+	std::string_view
+	to_string_view(cx_char_array auto&& arr) noexcept
+	{
+		return std::string_view{ arr.data() };
 	}
 }	 // namespace age::util
 

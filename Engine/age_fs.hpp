@@ -31,6 +31,12 @@ namespace age::fs
 	write_file(std::string_view path, std::span<const std::byte> bytes) noexcept;
 
 	bool
+	write_file(std::string_view path, std::span<const std::span<const std::byte>> chunks) noexcept;
+
+	bool
+	write_file(std::string_view path, std::initializer_list<std::span<const std::byte>> chunks) noexcept;
+
+	bool
 	write_file(std::string_view path, const age::byte_buf& buf) noexcept;
 
 	byte_buf
@@ -101,6 +107,8 @@ namespace age::fs::detail
 // util
 namespace age::fs
 {
+	void
+	normalize_path(std::string_view path, AGE_OUT std::string& res) noexcept;
 	std::string
 	normalize_path(std::string_view path) noexcept;
 
@@ -108,15 +116,12 @@ namespace age::fs
 	is_absolute(std::string_view path) noexcept;
 
 	std::string
-	join(std::string_view lhs, std::string_view rhs) noexcept;
-
-	std::string
 	join(auto&&... args) noexcept
-		requires(sizeof...(args) > 2)
+		requires(sizeof...(args) >= 2)
 	{
 		auto res = std::string{};
-		res.reserve((std::string_view{ args }.size() + ...) + sizeof...(args));
-		(detail::append_path(AGE_INOUT res, std::string_view{ args }), ...);
+		res.reserve((util::to_string_view(args).size() + ...) + sizeof...(args));
+		(detail::append_path(AGE_INOUT res, util::to_string_view(args)), ...);
 		return res;
 	}
 
@@ -132,12 +137,6 @@ namespace age::fs
 	constexpr std::string_view
 	get_parent_path(std::string_view path) noexcept
 	{
-		// ignore one trailing separator, "a/b/" -> "a/b"
-		if (path.size() > 1 and (path.back() == '/' or path.back() == '\\'))
-		{
-			path.remove_suffix(1);
-		}
-
 		c_auto sep = path.find_last_of("/\\");
 		if (sep == std::string_view::npos)
 		{
@@ -149,21 +148,23 @@ namespace age::fs
 		return path.substr(0, is_root ? sep + 1 : sep);
 	}
 
-	// "a/b/name.exe" -> "name",  "a/b/.hidden" -> ".hidden",  "a/b/name" -> "name"
+	// "a/b/name.exe" -> "name",  "a/b/.hidden" -> ".hidden",  "a/b/name" -> "name", "../.." -> "", "a/b/.." -> ""
 	constexpr std::string_view
 	get_file_stem(std::string_view path) noexcept
 	{
 		c_auto name = get_file_name(path);
-		c_auto dot	= name.find_last_of('.');
+		if (name == "..") { return name; }
+		c_auto dot = name.find_last_of('.');
 		return dot == std::string_view::npos or dot == 0 ? name : name.substr(0, dot);
 	}
 
-	// "a/b/name.exe" -> ".exe",  "a/b/name" -> "",  "a/b/.hidden" -> ""
+	// "a/b/name.exe" -> ".exe",  "a/b/name" -> "",  "a/b/.hidden" -> "", "../.." -> "", "a/b/.." -> ""
 	constexpr std::string_view
 	get_file_extension(std::string_view path) noexcept
 	{
 		c_auto name = get_file_name(path);
-		c_auto dot	= name.find_last_of('.');
+		if (name == "..") { return {}; }
+		c_auto dot = name.find_last_of('.');
 		return dot == std::string_view::npos or dot == 0 ? std::string_view{} : name.substr(dot);
 	}
 }	 // namespace age::fs

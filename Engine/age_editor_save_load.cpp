@@ -532,9 +532,9 @@ namespace age::editor::detail
 	void
 	register_entity(storage_editor_data& editor_storage, uint32 editor_arch_idx, uint64 editor_ent_idx, uint64 ecs_entity_id) noexcept
 	{
-		auto& editor_arch_data									= editor_storage.archetype_data_vec[editor_arch_idx];
-		editor_arch_data.entity_data_vec[editor_ent_idx].id		= ecs_entity_id;
-		editor_storage.id_to_editor_location_map[ecs_entity_id] = { editor_arch_idx, editor_ent_idx };
+		auto& editor_arch_data											= editor_storage.archetype_data_vec[editor_arch_idx];
+		editor_arch_data.entity_data_vec[editor_ent_idx].id				= ecs_entity_id;
+		editor_storage.ecs_ent_id_to_editor_location_map[ecs_entity_id] = { editor_arch_idx, editor_ent_idx };
 		++editor_storage.entity_count;
 	}
 
@@ -545,18 +545,18 @@ namespace age::editor::detail
 
 		for (auto i = editor_ent_idx + 1; i < arch_data.entity_data_vec.size(); ++i)
 		{
-			arch_data.entity_data_vec[i - 1]													 = std::move(arch_data.entity_data_vec[i]);
-			editor_storage.id_to_editor_location_map[arch_data.entity_data_vec[i - 1].id].second = i - 1;
+			arch_data.entity_data_vec[i - 1]															 = std::move(arch_data.entity_data_vec[i]);
+			editor_storage.ecs_ent_id_to_editor_location_map[arch_data.entity_data_vec[i - 1].id].second = i - 1;
 		}
 		arch_data.entity_data_vec.pop_back();
-		editor_storage.id_to_editor_location_map.erase(ecs_entity_id);
+		editor_storage.ecs_ent_id_to_editor_location_map.erase(ecs_entity_id);
 		--editor_storage.entity_count;
 	}
 
 	void
 	re_register_entity(storage_editor_data& editor_storage, uint64 ecs_entity_id, uint64 new_archetype) noexcept
 	{
-		auto&& [old_arch_idx, old_ent_idx] = editor_storage.id_to_editor_location_map[ecs_entity_id];
+		auto&& [old_arch_idx, old_ent_idx] = editor_storage.ecs_ent_id_to_editor_location_map[ecs_entity_id];
 		auto& old_arch_data				   = editor_storage.archetype_data_vec[old_arch_idx];
 
 		if (old_arch_data.archetype == new_archetype) { return; }
@@ -565,8 +565,8 @@ namespace age::editor::detail
 
 		for (auto i = old_ent_idx + 1; i < old_arch_data.entity_data_vec.size(); ++i)
 		{
-			old_arch_data.entity_data_vec[i - 1]													 = std::move(old_arch_data.entity_data_vec[i]);
-			editor_storage.id_to_editor_location_map[old_arch_data.entity_data_vec[i - 1].id].second = i - 1;
+			old_arch_data.entity_data_vec[i - 1]															 = std::move(old_arch_data.entity_data_vec[i]);
+			editor_storage.ecs_ent_id_to_editor_location_map[old_arch_data.entity_data_vec[i - 1].id].second = i - 1;
 		}
 		old_arch_data.entity_data_vec.pop_back();
 
@@ -574,15 +574,15 @@ namespace age::editor::detail
 		{
 			if (arch_data.archetype == new_archetype)
 			{
-				editor_storage.id_to_editor_location_map[ecs_entity_id] = { static_cast<uint32>(arch_idx), arch_data.entity_data_vec.size<uint64>() };
+				editor_storage.ecs_ent_id_to_editor_location_map[ecs_entity_id] = { static_cast<uint32>(arch_idx), arch_data.entity_data_vec.size<uint64>() };
 				arch_data.entity_data_vec.emplace_back(std::move(ent_data));
 				return;
 			}
 		}
 
-		editor_storage.id_to_editor_location_map[ecs_entity_id] = { editor_storage.archetype_data_vec.size<uint32>(), 0ull };
-		auto& new_arch_data										= editor_storage.archetype_data_vec.emplace_back();
-		new_arch_data.archetype									= new_archetype;
+		editor_storage.ecs_ent_id_to_editor_location_map[ecs_entity_id] = { editor_storage.archetype_data_vec.size<uint32>(), 0ull };
+		auto& new_arch_data												= editor_storage.archetype_data_vec.emplace_back();
+		new_arch_data.archetype											= new_archetype;
 		new_arch_data.entity_data_vec.emplace_back(std::move(ent_data));
 	}
 }	 // namespace age::editor::detail

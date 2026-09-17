@@ -24,6 +24,12 @@ namespace age::editor
 
 		AGE_FN_PTR(p_mesh_gpu_load, (asset::handle), (std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)) = nullptr;
 		AGE_FN_PTR(p_mesh_full_unload, (void), (asset::handle))																  = nullptr;
+		AGE_FN_PTR(p_material_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_texture_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_env_light_full_unload, (void), (asset::handle))														  = nullptr;
+		AGE_FN_PTR(p_model_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_add_entity, (uint64), (uint32, uint32))																  = nullptr;
+		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64))														  = nullptr;
 	};
 }	 // namespace age::editor
 
@@ -62,6 +68,7 @@ namespace age::editor
 
 	struct entity_editor_data
 	{
+		// ecs_entity_id
 		uint64										  id;
 		age::array<char, config::max_entity_name_len> name;
 	};
@@ -88,7 +95,7 @@ namespace age::editor
 		age::vector<component_editor_data>								   component_data_vec;
 		age::vector<archetype_editor_data>								   archetype_data_vec;
 
-		age::unordered_map<uint64, std::pair<uint32, uint64>> id_to_editor_location_map;	// editor_only map
+		age::unordered_map<uint64, std::pair<uint32, uint64>> ecs_ent_id_to_editor_location_map;	// editor_only map
 	};
 
 	struct scene_editor_data

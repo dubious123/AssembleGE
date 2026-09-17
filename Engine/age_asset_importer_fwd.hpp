@@ -774,6 +774,7 @@ namespace age::asset::importer::e
 					create_target_dir_failed,
 					tex_temporary_file_create_failed,
 					tex_bake_failed,
+					mesh_build_failed,
 					temp_file_cleanup_failed,
 					temp_dir_cleanup_failed,
 					target_path_cannot_be_overwritten,
@@ -792,5 +793,16 @@ namespace age::asset::importer
 		uint32				 idx_0;
 		uint32				 idx_1;
 		std::string			 message;
+
+		// root relative
+		age::vector<asset::handle> overwritten_asset_handle_vec;
+
+		// asset root relative buf
+		age::vector<std::string> tex_path_vec;
+		age::vector<std::string> material_path_vec;
+		age::vector<std::string> mesh_path_vec;
+		age::vector<std::string> model_path_vec;
+		age::vector<std::string> skeleton_path_vec;
+		age::vector<std::string> scene_path_vec;
 	};
 }	 // namespace age::asset::importer

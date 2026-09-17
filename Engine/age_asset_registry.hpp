@@ -14,13 +14,13 @@ namespace age::asset::registry
 	register_asset(asset::handle _) noexcept;
 
 	void
-	register_asset(e::kind, const char* path) noexcept;
+	register_asset(e::kind, std::string_view path) noexcept;
 
 	void
 	unregister_asset(asset::handle _) noexcept;
 
 	void
-	unregister_asset(e::kind, const char* path) noexcept;
+	unregister_asset(e::kind, std::string_view path) noexcept;
 
 	bool
 	is_registered(asset::handle _) noexcept;

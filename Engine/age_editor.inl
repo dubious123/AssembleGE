@@ -15,12 +15,49 @@ namespace age::editor
 		g::host_ops.p_ecs_game = std::addressof(ecs_game);
 		g::host_ops.p_renderer = std::addressof(renderer);
 
+		using t_ecs_game = BARE_OF(ecs_game);
+		using t_renderer = BARE_OF(renderer);
+
 		g::host_ops.p_mesh_gpu_load = [](std::string_view mesh_name, const asset::primitive_desc& desc, asset::e::vertex_kind v_kind) noexcept -> asset::handle {
-			return asset::mesh_baked::gpu_load(mesh_name, *static_cast<BARE_OF(renderer)*>(g::host_ops.p_renderer), desc, v_kind);
+			return asset::mesh_baked::gpu_load(mesh_name, *static_cast<t_renderer*>(g::host_ops.p_renderer), desc, v_kind);
 		};
 
 		g::host_ops.p_mesh_full_unload = [](asset::handle h_mesh) noexcept {
-			age::asset::mesh_baked::full_unload(h_mesh, *static_cast<BARE_OF(renderer)*>(g::host_ops.p_renderer));
+			age::asset::mesh_baked::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
+		};
+
+		g::host_ops.p_material_full_unload = [](asset::handle h_mesh) noexcept {
+			age::asset::material::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
+		};
+
+		g::host_ops.p_texture_full_unload = [](asset::handle h_mesh) noexcept {
+			age::asset::texture::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
+		};
+
+		g::host_ops.p_env_light_full_unload = [](asset::handle h_mesh) noexcept {
+			age::asset::env_light::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
+		};
+
+		g::host_ops.p_model_full_unload = [](asset::handle h_mesh) noexcept {
+			age::asset::model::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
+		};
+
+		g::host_ops.p_add_entity = [](uint32 ecs_scene_idx, uint32 ecs_storage_ecs) noexcept -> uint64 {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			return ecs_game.visit_storage_at(ecs_scene_idx, ecs_storage_ecs, [](auto& entities) {
+				return entities.new_entity(get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
+			});
+		};
+
+		g::host_ops.p_remove_entity = [](uint32 ecs_scene_idx, uint32 ecs_storage_ecs, uint64 ecs_entity_id) noexcept {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			ecs_game.visit_storage_at(
+				ecs_scene_idx,
+				ecs_storage_ecs,
+				[](auto& entities, uint64 ecs_entity_id) {
+					entities.remove_entity(static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id), get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
+				},
+				ecs_entity_id);
 		};
 
 		detail::init_impl();
@@ -239,7 +276,7 @@ namespace age::editor
 
 		auto& arch_data = editor_storage.archetype_data_vec[arch_editor_idx];
 
-		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
+		editor_storage.ecs_ent_id_to_editor_location_map[new_ent_id] = std::pair{ arch_editor_idx, arch_data.entity_data_vec.size() };
 
 		arch_data.entity_data_vec.emplace_back(entity_editor_data{
 			.id	  = new_ent_id,
@@ -268,13 +305,13 @@ namespace age::editor
 		using t_storage = BARE_OF(storage);
 		using t_ent_id	= typename t_storage::t_ent_id;
 
-		auto&& [src_arch_idx, src_ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
+		auto&& [src_arch_idx, src_ent_idx] = editor_storage.ecs_ent_id_to_editor_location_map[ecs_ent_id];
 
 		auto new_ent_id = storage.copy_entity(static_cast<t_ent_id>(ecs_ent_id), get_ecs_context(renderer));
 
 		auto& arch_data = editor_storage.archetype_data_vec[src_arch_idx];
 
-		editor_storage.id_to_editor_location_map[new_ent_id] = std::pair{ src_arch_idx, arch_data.entity_data_vec.size() };
+		editor_storage.ecs_ent_id_to_editor_location_map[new_ent_id] = std::pair{ src_arch_idx, arch_data.entity_data_vec.size() };
 
 		arch_data.entity_data_vec.emplace_back(entity_editor_data{
 			.id	  = new_ent_id,
@@ -291,7 +328,7 @@ namespace age::editor
 		using t_storage = BARE_OF(storage);
 		using t_ent_id	= typename t_storage::t_ent_id;
 
-		auto&& [src_arch_idx, src_ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
+		auto&& [src_arch_idx, src_ent_idx] = editor_storage.ecs_ent_id_to_editor_location_map[ecs_ent_id];
 
 		auto& arch_data = editor_storage.archetype_data_vec[src_arch_idx];
 
@@ -916,7 +953,7 @@ age::editor::render_current_scene(auto& ecs_game, auto& renderer, age::platform:
 	using namespace age::ecs;
 	auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-	editor::update_camera(renderer, ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right) and ui::is_any_focused() is_false, h_window);
+	editor::update_camera(renderer, ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right), h_window);
 
 	ecs_game.visit_all_storages_at(
 		active_scene.code_idx,

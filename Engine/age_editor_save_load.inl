@@ -341,8 +341,8 @@ namespace age::editor::detail
 				{
 					c_auto ent_id = block.ent_id(local_ent_id);
 
-					auto it = storage.id_to_editor_location_map.find(ent_id);
-					AGE_ASSERT(it != storage.id_to_editor_location_map.end());
+					auto it = storage.ecs_ent_id_to_editor_location_map.find(ent_id);
+					AGE_ASSERT(it != storage.ecs_ent_id_to_editor_location_map.end());
 					AGE_ASSERT(arch.archetype == storage.archetype_data_vec[it->second.first].archetype);
 					c_auto editor_idx = it->second.second;
 

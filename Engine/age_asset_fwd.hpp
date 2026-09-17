@@ -80,6 +80,7 @@ namespace age::asset::e
 	AGE_DEFINE_ENUM(
 		normal_calc_mode_kind,
 		uint8,
+		flat,
 		area,
 		angle,
 		area_angle);
@@ -759,11 +760,25 @@ namespace age::asset
 
 namespace age::asset
 {
+	struct submesh_desc
+	{
+		std::span<const vertex_fat> vertex_buffer;
+		std::span<const uint32>		index_buffer;
+
+		graphics::e::mesh_raster_mode_kind		  raster_mode		 = graphics::e::mesh_raster_mode_kind::opaque;
+		graphics::e::mesh_rt_alpha_test_mode_kind rt_alpha_test_mode = graphics::e::mesh_rt_alpha_test_mode_kind::blend;
+		graphics::e::mesh_rt_bake_mode_kind		  rt_bake_mode		 = graphics::e::mesh_rt_bake_mode_kind::opaque;
+
+		bool	gen_normal;
+		bool	gen_tangent;
+		uint8_3 _;
+	};
+
 	struct mesh_baked_desc
 	{
-		e::vertex_kind		  v_kind;
-		std::span<vertex_fat> vertex_buffer;
-		std::span<uint32>	  index_buffer;
+		e::vertex_kind				  v_kind;
+		e::normal_calc_mode_kind	  normal_calc_mode;
+		std::span<const submesh_desc> submesh_span;
 	};
 
 	struct env_light_desc

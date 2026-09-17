@@ -185,6 +185,7 @@
     <ClCompile Include="age_editor_ui_modal_import_asset.cpp" />
     <ClCompile Include="age_editor_ui_modal_new_asset.cpp" />
     <ClCompile Include="age_fs.cpp" />
+    <ClCompile Include="age_editor_ecs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

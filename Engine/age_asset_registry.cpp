@@ -164,7 +164,7 @@ namespace age::asset::registry
 	}
 
 	void
-	register_asset(e::kind e_kind, const char* path) noexcept
+	register_asset(e::kind e_kind, std::string_view path) noexcept
 	{
 		register_asset(create_entry(e_kind, path));
 	}
@@ -178,7 +178,7 @@ namespace age::asset::registry
 	}
 
 	void
-	unregister_asset(e::kind asset_kind, const char* path) noexcept
+	unregister_asset(e::kind asset_kind, std::string_view path) noexcept
 	{
 		c_auto h = find(asset_kind, path);
 

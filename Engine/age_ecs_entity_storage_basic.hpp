@@ -301,7 +301,7 @@ namespace age::ecs::entity_storage
 		{
 			if constexpr (sizeof...(t_arg) == 0)
 			{
-				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
+				return [this]<auto... i> INLINE_LAMBDA_FRONT(std::index_sequence<i...>, auto&& ctx) noexcept INLINE_LAMBDA_BACK -> decltype(auto) {
 					return this->new_entity_impl<meta::variadic_at_t<i, t...>...>(FWD(ctx));
 				}(get_sorted_arg_index_sequence<t...>(), FWD(ctx));
 			}

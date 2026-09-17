@@ -51,34 +51,54 @@ namespace age::asset
 		return g::root_dir_path;
 	}
 
+	bool
+	try_to_root_relative(std::string_view not_normalized_path, AGE_OUT std::string& res) noexcept
+	{
+		fs::normalize_path(not_normalized_path, AGE_OUT res);
+
+		c_auto under_root = res.size() > g::root_dir_path.size()
+						and res.starts_with(g::root_dir_path)
+						and res[g::root_dir_path.size()] == '/';
+
+		if (under_root is_false)
+		{
+			res.clear();
+			return false;
+		}
+
+		res.erase(0, g::root_dir_path.size() + 1);	  // memmove
+		return true;
+	}
+
 	std::optional<std::string>
 	try_to_root_relative(std::string_view not_normalized_path) noexcept
 	{
-		auto path_norm = fs::normalize_path(not_normalized_path);
+		auto res = std::string{};
 
-		c_auto under_root = path_norm.size() > g::root_dir_path.size()
-						and path_norm.starts_with(g::root_dir_path)
-						and path_norm[g::root_dir_path.size()] == '/';
-
-		if (under_root is_false)
+		if (try_to_root_relative(not_normalized_path, AGE_OUT res) is_false)
 		{
 			return std::nullopt;
 		}
 
-		path_norm.erase(0, g::root_dir_path.size() + 1);	// memmove
-		return path_norm;
+		return res;
+	}
+
+	void
+	to_root_relative(std::string_view not_normalized_path, AGE_OUT std::string& res) noexcept
+	{
+		if (try_to_root_relative(not_normalized_path, AGE_OUT res) is_false)
+		{
+			AGE_ASSERT(false, "path is not under the asset root, input : {}, current asset root dir : {}", not_normalized_path, g::root_dir_path);
+			std::abort();
+		}
 	}
 
 	std::string
 	to_root_relative(std::string_view not_normalized_path) noexcept
 	{
-		auto res = try_to_root_relative(not_normalized_path);
-		if (res.has_value() is_false)
-		{
-			AGE_ASSERT(false, "path is not under the asset root, input : {}, current asset root dir : {}", not_normalized_path, g::root_dir_path);
-			std::abort();
-		}
-		return std::move(*res);
+		auto res = std::string{};
+		to_root_relative(not_normalized_path, AGE_OUT res);
+		return res;
 	}
 
 	file_data_aligned
@@ -136,31 +156,23 @@ namespace age::asset
 		return fs::read_file(raw_full_path);
 	}
 
-	void
+	bool
 	write_asset_file(std::string_view rel_to_root_path, const file_header& header, const void* p_src) noexcept
 	{
-		auto   ec		 = std::error_code{};
+		AGE_ASSERT(header.file_size > header.header_size);
 		c_auto full_path = fs::join(get_root_dir(), rel_to_root_path);
 
-		c_auto parent = fs::get_parent_path(full_path);
-		if (parent.empty() is_false)
+		c_auto success = fs::write_file(full_path, { { reinterpret_cast<const std::byte*>(&header), header.header_size },
+													 { reinterpret_cast<const std::byte*>(p_src), header.file_size - header.header_size } });
+
+		if (success is_false)
 		{
-			if (fs::create_dir(parent) is_false)
-			{
-				AGE_ASSERT(false, "asset parent dir create failed, dir : {}", parent);
-				AGE_ASSERT(false, "implement error handling");
-				std::abort();
-			}
+			AGE_ASSERT(false, "asset write_file failed, path : {}", full_path);
+			AGE_ASSERT(false, "implement error handling");
+			std::abort();
 		}
 
-		auto file = std::ofstream(full_path, std::ios::out | std::ios::binary | std::ios::trunc);
-		AGE_ASSERT(file.is_open());
-		AGE_ASSERT(header.file_size > header.header_size);
-
-		file.write(reinterpret_cast<const char*>(&header), header.header_size);
-		file.write(reinterpret_cast<const char*>(p_src), header.file_size - header.header_size);
-
-		file.close();
+		return success;
 	}
 
 	bool

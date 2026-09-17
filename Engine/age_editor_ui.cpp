@@ -12,7 +12,7 @@ namespace age::editor
 		c_auto child_padidng_left = theme::thickness_thick() + theme::item_child_gap() + theme::thickness_thick() + theme::item_child_gap();
 		auto   is_opened		  = false;
 
-		auto&& [arch_idx, ent_idx] = editor_storage.id_to_editor_location_map[ecs_ent_id];
+		auto&& [arch_idx, ent_idx] = editor_storage.ecs_ent_id_to_editor_location_map[ecs_ent_id];
 
 		if (auto interact = widget::begin(style::vertical() | set_interact(true) | set_save_state(true)))
 		{
@@ -48,7 +48,7 @@ namespace age::editor
 				{
 					if (c_auto p_ecs_ent_id_last = editor::last_selected(e::select_kind::entity, editor_storage.code_idx))
 					{
-						auto&& [last_arch_idx, last_ent_idx] = editor_storage.id_to_editor_location_map[*p_ecs_ent_id_last];
+						auto&& [last_arch_idx, last_ent_idx] = editor_storage.ecs_ent_id_to_editor_location_map[*p_ecs_ent_id_last];
 						c_auto& arch_data					 = editor_storage.archetype_data_vec[last_arch_idx];
 
 						if (archetype == arch_data.archetype)

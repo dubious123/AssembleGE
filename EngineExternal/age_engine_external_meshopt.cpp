@@ -1,10 +1,11 @@
-#include "meshoptimizer/meshoptimizer.h"
 #include "meshoptimizer/allocator.cpp"
 #include "meshoptimizer/clusterizer.cpp"
 #include "meshoptimizer/indexanalyzer.cpp"
 #include "meshoptimizer/indexcodec.cpp"
 #include "meshoptimizer/indexgenerator.cpp"
 #include "meshoptimizer/meshletcodec.cpp"
+#include "meshoptimizer/meshletutils.cpp"
+#include "meshoptimizer/opacitymap.cpp"
 #include "meshoptimizer/overdrawoptimizer.cpp"
 #include "meshoptimizer/partition.cpp"
 #include "meshoptimizer/quantization.cpp"
@@ -12,13 +13,41 @@
 #include "meshoptimizer/simplifier.cpp"
 #include "meshoptimizer/spatialorder.cpp"
 #include "meshoptimizer/stripifier.cpp"
+#include "meshoptimizer/tangentspace.cpp"
 #include "meshoptimizer/vcacheoptimizer.cpp"
-#include "meshoptimizer/vertexcodec.cpp"	
-#include "meshoptimizer/vfetchoptimizer.cpp"
+#include "meshoptimizer/vertexcodec.cpp"
 #include "meshoptimizer/vertexfilter.cpp"
+#include "meshoptimizer/vfetchoptimizer.cpp"
 
 namespace age::external::meshopt::detail
 {
+	void
+	gen_tangents(
+		float* result,
+		const unsigned int* indices,
+		unsigned long long index_count,
+		const float*	   vertex_positions,
+		unsigned long long vertex_count,
+		unsigned long long vertex_positions_stride,
+		const float*	   vertex_normals,
+		unsigned long long vertex_normals_stride,
+		const float*	   vertex_uvs,
+		unsigned long long vertex_uvs_stride,
+		bool			   mikktspace_compatible) noexcept
+	{
+		meshopt_generateTangents(result,
+								 indices,
+								 index_count,
+								 vertex_positions,
+								 vertex_count,
+								 vertex_positions_stride,
+								 vertex_normals,
+								 vertex_normals_stride,
+								 vertex_uvs,
+								 vertex_uvs_stride,
+								 mikktspace_compatible ? meshopt_TangentCompatible : 0u);
+	}
+
 	unsigned long long
 	gen_vertex_remap(
 		unsigned int*		p_remap_idx_arr_out,

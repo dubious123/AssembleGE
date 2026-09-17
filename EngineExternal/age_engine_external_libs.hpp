@@ -47,6 +47,20 @@ namespace age::external::earcut::detail
 
 namespace age::external::meshopt::detail
 {
+	void
+	gen_tangents(
+		float* result,
+		const unsigned int* indices,
+		unsigned long long index_count,
+		const float*	   vertex_positions,
+		unsigned long long vertex_count,
+		unsigned long long vertex_positions_stride,
+		const float*	   vertex_normals,
+		unsigned long long vertex_normals_stride,
+		const float*	   vertex_uvs,
+		unsigned long long vertex_uvs_stride,
+		bool			   mikktspace_compatible) noexcept;
+
 	// Vertex remap
 
 	// out : p_remap (size == index_count)

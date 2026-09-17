@@ -373,21 +373,48 @@ namespace age::fs
 	bool
 	write_file(std::string_view path, std::span<const std::byte> bytes) noexcept
 	{
-		if (c_auto sep = path.find_last_of("/\\");
-			sep != std::string_view::npos and sep > 0)
+		if (c_auto parent = get_parent_path(path); parent.empty() is_false)
 		{
 			auto ec = std::error_code{};
-			std::filesystem::create_directories(detail::get_scratch_path<1>(path.substr(0, sep)), ec);
+			std::filesystem::create_directories(detail::get_scratch_path<1>(parent), ec);
 			if (ec) { return false; }
 		}
 
 		auto file = std::ofstream{ detail::get_scratch_path<0>(path), std::ios::binary | std::ios::trunc };
 		if (file.is_open() is_false) { return false; }
 
-		file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+		file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 
 		file.close();
 		return file.good();
+	}
+
+	bool
+	write_file(std::string_view path, std::span<const std::span<const std::byte>> chunks) noexcept
+	{
+		if (c_auto parent = get_parent_path(path); parent.empty() is_false)
+		{
+			auto ec = std::error_code{};
+			std::filesystem::create_directories(detail::get_scratch_path<1>(parent), ec);
+			if (ec) { return false; }
+		}
+
+		auto file = std::ofstream{ detail::get_scratch_path<0>(path), std::ios::binary | std::ios::trunc };
+		if (file.is_open() is_false) { return false; }
+
+		for (c_auto& chunk : chunks)
+		{
+			file.write(reinterpret_cast<const char*>(chunk.data()), static_cast<std::streamsize>(chunk.size()));
+		}
+
+		file.close();
+		return file.good();
+	}
+
+	bool
+	write_file(std::string_view path, std::initializer_list<std::span<const std::byte>> chunks) noexcept
+	{
+		return write_file(path, std::span{ chunks.begin(), chunks.size() });
 	}
 
 	bool
@@ -611,27 +638,25 @@ namespace age::fs
 // util
 namespace age::fs
 {
-	std::string
-	normalize_path(std::string_view path) noexcept
+	void
+	normalize_path(std::string_view path, AGE_OUT std::string& res) noexcept
 	{
 		c_auto normalized = detail::get_scratch_path<0>(path).lexically_normal();
 
-		return detail::to_utf8_generic(normalized);
+		detail::to_utf8_generic(normalized, AGE_OUT res);
+	}
+
+	std::string
+	normalize_path(std::string_view path) noexcept
+	{
+		auto res = std::string{};
+		normalize_path(path, AGE_OUT res);
+		return res;
 	}
 
 	bool
 	is_absolute(std::string_view path) noexcept
 	{
 		return detail::get_scratch_path<0>(path).is_absolute();
-	}
-
-	std::string
-	join(std::string_view lhs, std::string_view rhs) noexcept
-	{
-		auto res = std::string{};
-		res.reserve(lhs.size() + 1 + rhs.size());
-		res.assign(lhs);
-		detail::append_path(AGE_INOUT res, rhs);
-		return res;
 	}
 }	 // namespace age::fs

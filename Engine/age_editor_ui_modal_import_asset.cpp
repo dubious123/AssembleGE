@@ -327,6 +327,12 @@ namespace age::editor
 							}
 						}
 					}
+
+					if (gltf_import_data.has_error)
+					{
+						widget::separator_v();
+						widget::begin(style::text("has error items") | set_body_brush_color(theme::color_text_red()));
+					}
 				}
 
 				if (widget::separator_v();
@@ -797,6 +803,88 @@ namespace age::editor
 				}
 			}
 
+			// check if scene has_component
+			for (auto& scene_import : gltf_import_data.scene_import_data_vec)
+			{
+				scene_import.error_flags &= ~(BARE_OF(scene_import.error_flags)::target_storage_missing_component);
+				if (scene_import.enabled is_false or scene_import.instantiate is_false) { continue; }
+
+				c_auto name_count = [&]() {
+					auto res = 0u;
+					for (c_auto& cmp_data : g::current_game.scene_data_vec[scene_import.instantiate_target_scene_idx].storage_data_vec[scene_import.instantiate_target_storage_idx].component_data_vec)
+					{
+						res += cmp_data.names.size<uint32>();
+					}
+					return res;
+				}();
+
+				auto editor_cmp_names = age::vector<std::string_view>::gen_reserved(name_count);
+
+				for (c_auto& cmp_data : g::current_game.scene_data_vec[scene_import.instantiate_target_scene_idx].storage_data_vec[scene_import.instantiate_target_storage_idx].component_data_vec)
+				{
+					for (c_auto& name : cmp_data.names)
+					{
+						editor_cmp_names.emplace_back(std::string_view{ name.data() });
+					}
+				}
+
+				c_auto contains_component = [](c_auto& editor_cmp_names, c_auto& ecs_cmp_names) {
+					for (c_auto& editor_cmp_name : editor_cmp_names)
+					{
+						for (c_auto& ecs_cmp_name : ecs_cmp_names)
+						{
+							if (editor_cmp_name == std::string_view{ ecs_cmp_name.data() })
+							{
+								return true;
+							}
+						}
+					}
+
+					return false;
+				};
+
+				if (scene_import.has_hierarchy and contains_component(editor_cmp_names, ecs::get_component_name<ecs::parent_id>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_model and contains_component(editor_cmp_names, ecs::get_component_name<ecs::model>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_skinned_model and contains_component(editor_cmp_names, ecs::get_component_name<ecs::skinned_model>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_skeleton and contains_component(editor_cmp_names, ecs::get_component_name<ecs::skeleton>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_directional_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::directional_light>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_point_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::point_light>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_spot_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::spot_light>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.camera_data_vec.is_not_empty() and contains_component(editor_cmp_names, ecs::get_component_name<ecs::camera>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.joint_attach_data_vec.is_not_empty() and contains_component(editor_cmp_names, ecs::get_component_name<ecs::joint_attach>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+				if (scene_import.has_blend_shape_weight_override and contains_component(editor_cmp_names, ecs::get_component_name<ecs::blend_shape_weight_override>()) is_false)
+				{
+					scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
+				}
+			}
+
 			// scene, entities, light, camera
 			if (widget::separator_v();
 				auto _ = widget::collapsible_header3(std::format("scene [{}]", gltf_import_data.scene_import_data_vec.size()).data()))
@@ -820,83 +908,6 @@ namespace age::editor
 						widget::dropdown(pair, storage_dropdown_option_vec);
 						scene_import.instantiate_target_scene_idx	= pair.first;
 						scene_import.instantiate_target_storage_idx = pair.second;
-
-						c_auto name_count = [&]() {
-							auto res = 0u;
-							for (c_auto& cmp_data : g::current_game.scene_data_vec[pair.first].storage_data_vec[pair.second].component_data_vec)
-							{
-								res += cmp_data.names.size<uint32>();
-							}
-							return res;
-						}();
-
-						auto editor_cmp_names = age::vector<std::string_view>::gen_reserved(name_count);
-
-						for (c_auto& cmp_data : g::current_game.scene_data_vec[pair.first].storage_data_vec[pair.second].component_data_vec)
-						{
-							for (c_auto& name : cmp_data.names)
-							{
-								editor_cmp_names.emplace_back(std::string_view{ name.data() });
-							}
-						}
-
-						c_auto contains_component = [](c_auto& editor_cmp_names, c_auto& ecs_cmp_names) {
-							for (c_auto& editor_cmp_name : editor_cmp_names)
-							{
-								for (c_auto& ecs_cmp_name : ecs_cmp_names)
-								{
-									if (editor_cmp_name == std::string_view{ ecs_cmp_name.data() })
-									{
-										return true;
-									}
-								}
-							}
-
-							return false;
-						};
-
-						scene_import.error_flags &= ~(BARE_OF(scene_import.error_flags)::target_storage_missing_component);
-
-						if (scene_import.has_hierarchy and contains_component(editor_cmp_names, ecs::get_component_name<ecs::parent_id>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_model and contains_component(editor_cmp_names, ecs::get_component_name<ecs::model>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_skinned_model and contains_component(editor_cmp_names, ecs::get_component_name<ecs::skinned_model>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_skeleton and contains_component(editor_cmp_names, ecs::get_component_name<ecs::skeleton>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_directional_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::directional_light>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_point_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::point_light>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_spot_light and contains_component(editor_cmp_names, ecs::get_component_name<ecs::spot_light>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.camera_data_vec.is_not_empty() and contains_component(editor_cmp_names, ecs::get_component_name<ecs::camera>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.joint_attach_data_vec.is_not_empty() and contains_component(editor_cmp_names, ecs::get_component_name<ecs::joint_attach>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
-						if (scene_import.has_blend_shape_weight_override and contains_component(editor_cmp_names, ecs::get_component_name<ecs::blend_shape_weight_override>()) is_false)
-						{
-							scene_import.error_flags |= BARE_OF(scene_import.error_flags)::target_storage_missing_component;
-						}
 
 						widget::separator_v();
 					}
@@ -1157,9 +1168,123 @@ namespace age::editor
 					{
 						c_auto commit_res = asset::importer::commit_import(gltf_import_data);
 
+						c_auto has_error = commit_res.error != asset::importer::e::commit_error_kind::none;
+
+						if (auto _ = ui::id_begin(); has_error)
+						{
+							auto _section = widget::panel(set_width_grow() | set_height_fit() | set_vertical());
+							widget::begin(style::text(commit_res.message.data()) | set_body_brush_color(theme::color_text_red()));
+							return;
+						}
+
+						// unload all overwritten assets
+						for (c_auto& h_asset : commit_res.overwritten_asset_handle_vec)
+						{
+							AGE_ASSERT(h_asset is_true, "invalid asset handle should not exist here");
+							asset_full_unload(h_asset.get_kind(), h_asset);
+						}
+
+						// register all assets
+						for (c_auto& tex_path : commit_res.tex_path_vec)
+						{
+							asset::registry::register_asset(asset::e::kind::texture, tex_path);
+						}
+						for (c_auto& mat_path : commit_res.material_path_vec)
+						{
+							asset::registry::register_asset(asset::e::kind::material, mat_path);
+						}
+						for (c_auto& mesh_path : commit_res.mesh_path_vec)
+						{
+							asset::registry::register_asset(asset::e::kind::mesh_baked, mesh_path);
+						}
+						for (c_auto& model_path : commit_res.model_path_vec)
+						{
+							asset::registry::register_asset(asset::e::kind::model, model_path);
+						}
+						for (c_auto& skeleton_path : commit_res.skeleton_path_vec)
+						{
+						}
+						for (c_auto& scene_path : commit_res.scene_path_vec)
+						{
+						}
+
 						// instantiate scene and entity
 
+						// entity_remap[entity_import_idx] == ecs_entity_id
+						for (auto entity_remap = age::vector<uint64>{};
+							 c_auto& scene_import : gltf_import_data.scene_import_data_vec)
+						{
+							if (scene_import.enabled is_false or scene_import.instantiate is_false) { continue; }
+							entity_remap.resize(scene_import.entity_vec.size());
+							if constexpr (config::debug_mode)
+							{
+								std::ranges::fill(entity_remap, age::get_invalid_idx<uint64>());
+							}
+
+							for (const auto&& [ent_idx, entity_import] : scene_import.entity_vec | views::enumerate<uint32>)
+							{
+								if (entity_import.enabled is_false) { continue; }
+								c_auto scene_idx   = scene_import.instantiate_target_scene_idx;
+								c_auto storage_idx = scene_import.instantiate_target_storage_idx;
+
+								c_auto ecs_ent_id	  = add_entity(scene_idx, storage_idx, entity_import.name.data());
+								entity_remap[ent_idx] = ecs_ent_id;
+
+								//// add_cmp_light
+								// if (runtime::is_invalid_idx(entity_import.light_idx) is_false)
+								//{
+								//	c_auto& light = scene_import.light_data_vec[entity_import.light_idx];
+
+								//	if (light.kind == graphics::e::light_kind::directional)
+								//	{
+								//		add_cmp_directional_light(scene_idx,
+								//								  storage_idx,
+								//								  ecs::directional_light{
+								//									  .cast_shadow = light.cast_shadow,
+								//									  .direction   = light.direction,
+								//									  .intensity   = light.intensity,
+								//									  .color	   = light.color,
+								//								  });
+								//	}
+								//	else if (light.kind == graphics::e::light_kind::point)
+								//	{
+								//		add_cmp_point_light(scene_idx,
+								//							storage_idx,
+								//							ecs::point_light{
+								//								.range		 = light.range,
+								//								.color		 = light.color,
+								//								.intensity	 = light.intensity,
+								//								.cast_shadow = light.cast_shadow,
+								//							});
+								//	}
+								//	else if (light.kind == graphics::e::light_kind::spot)
+								//	{
+								//		add_cmp_spot_light(scene_idx,
+								//						   storage_idx,
+								//						   ecs::spot_light{
+								//							   .range		= light.range,
+								//							   .direction	= light.direction,
+								//							   .intensity	= light.intensity,
+								//							   .color		= light.color,
+								//							   .cos_inner	= light.cos_inner,
+								//							   .cos_outer	= light.cos_outer,
+								//							   .cast_shadow = light.cast_shadow,
+								//						   });
+								//	}
+								//	else
+								//	{
+								//		AGE_UNREACHABLE("invalid light_kind : {}", to_idx(light.kind));
+								//	}
+								//}
+							}
+						}
+
 						// editor::command::add_instantiate_import_data_cmd(std::move(gltf_import_data));
+
+						AGE_DEBUG_LOG("commit import success, import name : {}", gltf_import_data.asset_name);
+						g::show_modal	   = false;
+						import_data_loaded = false;
+						gltf_import_data   = {};
 					}
 				}
 			}
