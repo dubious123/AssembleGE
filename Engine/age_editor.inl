@@ -916,7 +916,7 @@ age::editor::render_current_scene(auto& ecs_game, auto& renderer, age::platform:
 	using namespace age::ecs;
 	auto& active_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
 
-	editor::update_camera(renderer, ui::is_any_focused() is_false or ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right), h_window);
+	editor::update_camera(renderer, ui::g::p_input_ctx->is_down(input::e::key_kind::mouse_right) and ui::is_any_focused() is_false, h_window);
 
 	ecs_game.visit_all_storages_at(
 		active_scene.code_idx,

@@ -12,40 +12,54 @@ namespace age::graphics::shader
 		AGE_HR_CHECK(::DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&g::p_dxc_utils)));
 		AGE_HR_CHECK(g::p_dxc_utils->CreateDefaultIncludeHandler(&g::p_dxc_include_handler));
 
-		util::ensure_dir_exists(g::engine_shaders_dir_path);
-		util::ensure_dir_exists(g::engine_shaders_compiled_blob_dir_path);
+		if (fs::create_dir(g::engine_shaders_dir_path) is_false)
+		{
+			AGE_ASSERT(false, "g::engine_shaders_dir_path create failed, g::engine_shaders_dir_path : {}", g::engine_shaders_dir_path);
+			std::abort();
+		}
+		if (fs::create_dir(g::engine_shaders_compiled_blob_dir_path) is_false)
+		{
+			AGE_ASSERT(false, "g::engine_shaders_compiled_blob_dir_path create failed, g::engine_shaders_compiled_blob_dir_path : {}", g::engine_shaders_compiled_blob_dir_path);
+			std::abort();
+		}
 
 		for (const auto&& shader_name : std::views::iota(0ul)
 											| std::views::take(e::size<e::engine_shader_kind>())
-											| std::views::transform([](auto i) { return e::to_wstring(static_cast<e::engine_shader_kind>(i)); }))
+											| std::views::transform([](auto i) { return e::to_string(static_cast<e::engine_shader_kind>(i)); }))
 		{
-			c_auto hlsl_path = g::engine_shaders_dir_path / std::filesystem::path{ shader_name }.concat(config::shader_extension);
-			AGE_ASSERT(std::filesystem::exists(hlsl_path));
+			c_auto hlsl_path = fs::join(g::engine_shaders_dir_path, std::format("{}{}", shader_name, config::shader_extension));
 
-			c_auto compiled_blob_path = g::engine_shaders_compiled_blob_dir_path / std::filesystem::path{ shader_name }.concat(".bin");
+			AGE_ASSERT(fs::file_exists(hlsl_path));
+
+			c_auto compiled_blob_path = std::format("{}{}.bin", g::engine_shaders_compiled_blob_dir_path, shader_name);
 
 			AGE_ASSERT(shader_name.find_last_of('_') != std::wstring_view::npos);
 
-			c_auto stage	   = std::wstring{ shader_name.substr(shader_name.find_last_of('_') + 1) };
-			c_auto target	   = stage + L"_6_8";
-			c_auto entry_point = L"main_" + stage;
+			c_auto stage	   = shader_name.substr(shader_name.find_last_of('_') + 1);
+			c_auto target	   = std::format("{}{}", stage, "_6_8");
+			c_auto entry_point = std::format("{}{}", "main_", stage);
 
-			auto newest_include_time = std::filesystem::last_write_time(hlsl_path);
-			for (auto& entry : std::filesystem::directory_iterator(hlsl_path.parent_path()))
-			{
-				c_auto ext = entry.path().extension();
+			auto [success, newest_include_time] = fs::get_last_write_time(hlsl_path);
+			AGE_ASSERT(success, "get shader last write time failed, shader name : {}", shader_name);
+
+			fs::for_each_file(fs::get_parent_path(hlsl_path), [&](const fs::file_entry& entry) {
+				c_auto ext = fs::get_file_extension(entry.name);
 				if (ext == ".h" or ext == config::shader_include_extension)
 				{
-					newest_include_time = std::max(newest_include_time, entry.last_write_time());
+					newest_include_time = std::max(newest_include_time, entry.last_write_time);
 				}
-			}
+			});
+
+			c_auto[file_size_ok, file_size]				= fs::get_file_size(compiled_blob_path);
+			c_auto[last_write_time_ok, last_write_time] = fs::get_last_write_time(compiled_blob_path);
 
 			if (c_auto need_recompile =
-					std::filesystem::exists(compiled_blob_path) is_false
-					or newest_include_time > std::filesystem::last_write_time(compiled_blob_path)
-					or std::filesystem::file_size(compiled_blob_path) == 0)
+					fs::exists(compiled_blob_path) is_false
+					or (last_write_time_ok and newest_include_time > last_write_time)
+					or file_size_ok is_false
+					or file_size == 0)
 			{
-				compile_shader(std::wstring{ shader_name }, hlsl_path.c_str(), entry_point, target, compiled_blob_path);
+				compile_shader(shader_name, hlsl_path, entry_point, target, compiled_blob_path);
 			}
 
 			load_shader(compiled_blob_path);
@@ -74,19 +88,22 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
-		const std::wstring&	  shader_name,
-		const std::wstring&	  hlsl_path,
-		const std::wstring&	  entry_point,
-		const std::wstring&	  target,
-		std::filesystem::path save_path) noexcept
+		std::string_view shader_name,
+		std::string_view hlsl_path,
+		std::string_view entry_point,
+		std::string_view target,
+		std::string_view save_path) noexcept
 	{
 		auto* p_file	 = (IDxcBlobEncoding*)nullptr;
 		auto* p_result	 = (IDxcResult*)nullptr;
 		auto* p_res_blob = (IDxcBlob*)nullptr;
 
-		c_auto dir_path = std::wstring{ std::filesystem::path{ hlsl_path }.parent_path() };
+		c_auto w_hlsl_path	 = fs::detail::to_utf16(hlsl_path);
+		c_auto w_dir_path	 = fs::detail::to_utf16(fs::get_parent_path(hlsl_path));
+		c_auto w_entry_point = fs::detail::to_utf16(entry_point);
+		c_auto w_target		 = fs::detail::to_utf16(target);
 
-		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(hlsl_path.data(), nullptr, &p_file));
+		AGE_HR_CHECK(g::p_dxc_utils->LoadFile(w_hlsl_path.data(), nullptr, &p_file));
 
 		// ex) full_screen_ms => #define AGE_SHADER_NAME 'f', 'u', 'l', 'l', 's', 'c', 'r', 'e', 'e', 'n', '_', 'm', 's'
 		auto wchar_buffer = dynamic_array<wchar_t>::gen_sized_copy(shader_name.size() * 4, '\0');
@@ -101,9 +118,9 @@ namespace age::graphics::shader
 		}
 
 		c_auto shader_name_def = std::wstring{ L"AGE_SHADER_NAME=" } + std::wstring{ wchar_buffer.data() };
-		c_auto shader_hash_def = std::wstring{ L"AGE_SHADER_HASH=" } + std::to_wstring(cast_to<uint32>(age::hash<std::wstring_view>{}(shader_name))) + L"u";
+		c_auto shader_hash_def = std::wstring{ L"AGE_SHADER_HASH=" } + std::to_wstring(cast_to<uint32>(age::hash<std::string_view>{}(shader_name))) + L"u";
 
-		std::wcout << L"compiling " << shader_name << std::endl;
+		std::println("compiling {}", shader_name);
 		{
 			auto is_known  = FALSE;
 			auto code_page = UINT32{ 0 };
@@ -116,13 +133,13 @@ namespace age::graphics::shader
 			};
 
 			auto args = age::array{
-				hlsl_path.data(),
+				w_hlsl_path.data(),
 				L"-E",
-				entry_point.data(),
+				w_entry_point.data(),
 				L"-T",
-				target.data(),
+				w_target.data(),
 				L"-I",
-				dir_path.data(),
+				w_dir_path.data(),
 				L"-HV",
 				L"202x",
 				// L"-Qstrip_reflect",
@@ -207,36 +224,32 @@ namespace age::graphics::shader
 			p_result->Release();
 		}
 
-		auto blob_file = std::ofstream{ save_path, std::ios::out | std::ios::binary };
+		c_auto blob = std::span{ static_cast<const std::byte*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize() };
+		if (fs::write_file(save_path, blob) is_false)
 		{
-			blob_file.clear();
-
-			auto& stream = blob_file.write(static_cast<const char*>(p_res_blob->GetBufferPointer()), p_res_blob->GetBufferSize());
-
-			AGE_ASSERT(stream.good());
-
-			blob_file.close();
+			AGE_ASSERT(false, "failed to write shader blob : {}", save_path);
 		}
-
 		p_res_blob->Release();
 	}
 
 	shader_handle
-	load_shader(std::filesystem::path shader_path) noexcept
+	load_shader(std::string_view shader_blob_path) noexcept
 	{
-		AGE_ASSERT(std::filesystem::exists(shader_path));
-		AGE_ASSERT(std::filesystem::file_size(shader_path) > 0);
+		AGE_ASSERT(fs::file_exists(shader_blob_path));
+		c_auto[ok, file_size] = fs::get_file_size(shader_blob_path);
+		AGE_ASSERT(ok and file_size > 0);
 
-		auto size	= std::filesystem::file_size(shader_path);
-		auto p_blob = ::operator new(size, std::align_val_t{ alignof(char) });
+		auto p_blob = ::operator new(file_size, std::align_val_t{ alignof(char) });
 
-		std::ifstream file{ shader_path, std::ios::in | std::ios::binary };
+		c_auto[read_ok, read_size] = fs::read_file(shader_blob_path, std::span<std::byte>{ static_cast<std::byte*>(p_blob), file_size }, file_size);
 
-		file.read((char*)p_blob, size);
+		if (read_ok is_false or read_size != file_size)
+		{
+			AGE_ASSERT(false, "read shader blob failed, shader_blob_path : {}", shader_blob_path);
+			std::abort();
+		}
 
-		file.close();
-
-		return { .id = g::shader_blob_vec.emplace_back(shader_blob{ .p_blob = p_blob, .size = size }) };
+		return { .id = g::shader_blob_vec.emplace_back(shader_blob{ .p_blob = p_blob, .size = file_size }) };
 	}
 
 	D3D12_SHADER_BYTECODE

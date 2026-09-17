@@ -152,16 +152,12 @@ namespace age::asset
 
 		AGE_ASSERT(validate_asset_path(e_kind, h_asset, new_valid_path) == e::asset_path_error_kind::none);
 
-		auto	ec			  = std::error_code{};
 		c_auto& old_path_full = entry.get_path();
 
-		if (std::filesystem::exists(old_path_full.data(), ec))
+		if (fs::file_exists(old_path_full.data()))
 		{
-			std::filesystem::create_directories(std::filesystem::path{ new_valid_path.data() }.parent_path(), ec);
-			if (ec) { return false; }
-
-			std::filesystem::rename(old_path_full.data(), new_valid_path.data(), ec);
-			if (ec) { return false; }
+			if (fs::create_dir(fs::get_parent_path(new_valid_path.data())) is_false) { return false; }
+			if (fs::rename(old_path_full.data(), new_valid_path.data()) is_false) { return false; }
 		}
 
 		path_to_handle.erase(entry.get_path());

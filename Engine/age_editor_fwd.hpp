@@ -99,7 +99,7 @@ namespace age::editor
 		uint8_3													  _;
 		age::vector<storage_editor_data>						  storage_data_vec;
 
-		std::filesystem::path dir_path;
+		std::string dir_path;
 
 		camera_data cam;
 
@@ -120,8 +120,10 @@ namespace age::editor
 		age::vector<scene_editor_data>							 scene_data_vec;
 
 		// relative to .exe
-		std::filesystem::path dir_path;
-		std::filesystem::path asset_root_dir_path;
+		std::string dir_path;
+		std::string asset_root_dir_path;
+
+		age::array<std::string, asset::e::kind_size> asset_dir_path_arr;
 
 		decltype(auto)
 		find_scene_data(this auto& self, uint32 scene_code_idx) noexcept

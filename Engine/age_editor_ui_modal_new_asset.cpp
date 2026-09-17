@@ -215,9 +215,9 @@ namespace age::editor
 					{
 						g::show_modal = false;
 
-						c_auto mesh_name = std::filesystem::path{ "asset" } / "mesh" / detail::ui_modal_asset_name_input_scratch_buf().data();
+						c_auto mesh_name = fs::join("asset/mesh", detail::ui_modal_asset_name_input_scratch_buf().data());
 
-						auto h_mesh = asset::mesh_baked::cpu_load(mesh_name.string(), desc_vec, vertex_format);
+						auto h_mesh = asset::mesh_baked::cpu_load(mesh_name, desc_vec, vertex_format);
 						asset::mesh_baked::cpu_unload(h_mesh);
 						asset::registry::register_asset(h_mesh);
 					}
@@ -544,8 +544,8 @@ namespace age::editor
 					if (h_create.clicked())
 					{
 						// g::show_modal	 = false;
-						c_auto name		 = std::filesystem::path{ "asset" } / to_string(asset::e::kind::texture) / detail::ui_modal_asset_name_input_scratch_buf().data();
-						c_auto full_path = asset::get_asset_full_path<texture>(name.string());
+						c_auto name		 = fs::join(std::format("asset/{}", to_string(asset::e::kind::texture)), detail::ui_modal_asset_name_input_scratch_buf().data());
+						c_auto full_path = asset::get_asset_full_path<texture>(name);
 
 						auto src = age::vector<const char*>::gen_reserved(src_vec.size());
 
@@ -767,8 +767,8 @@ namespace age::editor
 					if (h_create.clicked())
 					{
 						g::show_modal	 = false;
-						c_auto name		 = std::filesystem::path{ "asset" } / "material" / detail::ui_modal_asset_name_input_scratch_buf().data();
-						c_auto full_path = asset::get_asset_full_path<material>(name.string());
+						c_auto name		 = fs::join(std::format("asset/{}", to_string(asset::e::kind::material)), detail::ui_modal_asset_name_input_scratch_buf().data());
+						c_auto full_path = asset::get_asset_full_path<material>(name);
 
 						asset::material::build(full_path.data(), mat_desc);
 						asset::registry::register_asset(material, full_path.data());
@@ -929,8 +929,8 @@ namespace age::editor
 				{
 					if (h_create.clicked())
 					{
-						c_auto name		 = std::filesystem::path{ "asset" } / "env_light" / detail::ui_modal_asset_name_input_scratch_buf().data();
-						c_auto full_path = asset::get_asset_full_path<env_light>(name.string());
+						c_auto name		 = fs::join(std::format("asset/{}", to_string(asset::e::kind::env_light)), detail::ui_modal_asset_name_input_scratch_buf().data());
+						c_auto full_path = asset::get_asset_full_path<env_light>(name);
 
 						if (bake_success = asset::env_light::bake(src_path, full_path, asset_desc))
 						{
@@ -1075,8 +1075,8 @@ namespace age::editor
 					if (h_create.clicked())
 					{
 						g::show_modal	 = false;
-						c_auto name		 = std::filesystem::path{ "asset" } / "model" / detail::ui_modal_asset_name_input_scratch_buf().data();
-						c_auto full_path = asset::get_asset_full_path<model>(name.string());
+						c_auto name		 = fs::join(std::format("asset/{}", to_string(asset::e::kind::model)), detail::ui_modal_asset_name_input_scratch_buf().data());
+						c_auto full_path = asset::get_asset_full_path<model>(name);
 
 						asset::model::build(full_path.data(), model_desc);
 						asset::registry::register_asset(model, full_path.data());

@@ -83,17 +83,6 @@ namespace age::util
 
 namespace age::util
 {
-	inline void
-	ensure_dir_exists(const std::filesystem::path& dir_path) noexcept
-	{
-		auto ec = std::error_code{};
-		std::filesystem::create_directories(dir_path, ec);
-		AGE_ASSERT(not ec, "Error : {} \nValue : {} \nCategory:", ec.message(), ec.value(), ec.category().name());
-	}
-}	 // namespace age::util
-
-namespace age::util
-{
 	template <typename t_func>
 	struct scope_guard
 	{

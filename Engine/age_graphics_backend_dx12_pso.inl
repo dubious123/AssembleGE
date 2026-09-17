@@ -39,7 +39,7 @@ namespace age::graphics::pso
 
 		if constexpr (config::enable_gpu_based_validation)
 		{
-			c_auto str_name = w_name.empty() ? std::string{ "(unnamed pso)" } : util::to_utf8(w_name);
+			c_auto str_name = w_name.empty() ? std::string{ "(unnamed pso)" } : fs::detail::to_utf8(w_name);
 			std::println("[gbv] patching '{}' ...", str_name);
 
 			c_auto t0 = std::chrono::steady_clock::now();

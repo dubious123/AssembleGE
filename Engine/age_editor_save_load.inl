@@ -67,7 +67,7 @@ namespace age::editor::detail
 namespace age::editor::detail
 {
 	game_editor_data
-	read_game_proj(std::filesystem::path proj_path) noexcept;
+	read_game_proj(std::string_view proj_path) noexcept;
 }	 // namespace age::editor::detail
 
 // merge code_data, file_data
@@ -464,31 +464,31 @@ namespace age::editor::detail
 {
 	// return relative to .exe
 	template <bool is_dir = true>
-	std::filesystem::path
-	resolve_path_by_names(const std::filesystem::path& parent,
-						  c_auto&					   names,
-						  std::string_view			   suffix = {}) noexcept
+	std::string
+	resolve_path_by_names(std::string_view parent,
+						  c_auto&		   names,
+						  std::string_view suffix = {}) noexcept
 	{
-		auto make_path = [](c_auto& parent, c_auto& n, c_auto& suffix) {
+		auto make_path = [](c_auto& parent, c_auto& name, c_auto& suffix) {
 			if constexpr (is_dir)
 			{
-				return parent / n.data();
+				return fs::join(parent, name.data());
 			}
 			else
 			{
-				return parent / std::format("{}{}", n.data(), suffix);
+				return fs::join(parent, std::format("{}{}", name.data(), suffix));
 			}
 		};
 
 		auto primary = make_path(parent, names[0], suffix);
-		auto found	 = std::filesystem::path{};
+		auto found	 = std::string{};
 
-		for (c_auto& n : names)
+		for (c_auto& name : names)
 		{
-			auto candidate = make_path(parent, n, suffix);
-			if (std::filesystem::exists(candidate))
+			auto candidate = make_path(parent, name, suffix);
+			if (fs::exists(candidate))
 			{
-				found = candidate;
+				found = std::move(candidate);
 				break;
 			}
 		}
@@ -497,12 +497,12 @@ namespace age::editor::detail
 		{
 			if constexpr (is_dir)
 			{
-				std::filesystem::create_directories(primary);
+				fs::create_dir(primary);
 			}
 		}
 		else if (found != primary)
 		{
-			std::filesystem::rename(found, primary);
+			fs::rename(found, primary);
 		}
 
 		return primary;
@@ -512,7 +512,7 @@ namespace age::editor::detail
 namespace age::editor
 {
 	void
-	load_game(auto& game, std::filesystem::path root_parent_dir, auto& renderer) noexcept
+	load_game(auto& game, std::string_view root_parent_dir, auto& renderer) noexcept
 	{
 		auto code_game_data = detail::gen_game_data(game);
 
@@ -521,7 +521,7 @@ namespace age::editor
 
 		// todo, add asset game
 
-		if (std::filesystem::exists(game_dir / std::format("{}{}", config::game_asset_tag, config::asset_extension)))
+		if (fs::file_exists(fs::join(game_dir, std::format("{}{}", config::game_asset_tag, config::asset_extension))))
 		{
 			auto file_game_data = detail::read_game_proj(std::format("{}{}", config::game_asset_tag, config::asset_extension));
 
@@ -532,10 +532,21 @@ namespace age::editor
 			g::current_game = std::move(code_game_data);
 		}
 
-		g::current_game.dir_path			= std::move(game_dir);
-		g::current_game.asset_root_dir_path = g::current_game.dir_path / "asset";
+		g::current_game.dir_path			= fs::normalize_path(game_dir);
+		g::current_game.asset_root_dir_path = fs::join(g::current_game.dir_path, "asset");
+		e_visit_all(asset::e::kind{}, [&]<asset::e::kind e_kind> {
+			// todo. mesh_baked -> mesh?
+			if constexpr (e_kind == asset::e::kind::mesh_baked)
+			{
+				g::current_game.asset_dir_path_arr[to_idx(e_kind)] = fs::join(g::current_game.asset_root_dir_path, "mesh");
+			}
+			else
+			{
+				g::current_game.asset_dir_path_arr[to_idx(e_kind)] = fs::join(g::current_game.asset_root_dir_path, to_string(e_kind));
+			}
+		});
 
-		age::asset::registry::load({});
+		age::asset::registry::load(std::string{});
 
 		for (auto&& [scene_idx, scene] : g::current_game.scene_data_vec | std::views::enumerate)
 		{
@@ -545,7 +556,7 @@ namespace age::editor
 			{
 				c_auto storage_path = detail::resolve_path_by_names<false>(scene.dir_path, storage.names, std::format("{}{}", config::editor_ent_storage_asset_tag, config::asset_extension));
 
-				if (std::filesystem::exists(storage_path) is_false)
+				if (fs::exists(storage_path) is_false)
 				{
 					c_auto buf				 = game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::serialize_storage_data), storage, renderer);
 					c_auto asset_file_header = asset::get_default_file_header(asset::e::kind::editor_entity_storage, buf.size(), config::editor_ent_storage_asset_version);

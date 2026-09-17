@@ -575,7 +575,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(mesh, "msh", "meshlet mesh")
 	{
-		AGE_COMPONENT_VERSION(2);
+		AGE_COMPONENT_VERSION(3);
 
 		asset::handle h_mesh = {};
 
@@ -643,9 +643,17 @@ namespace age::ecs
 			case 1:
 			{
 				cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked,
-											  asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+											  asset::to_root_relative(buf.read<age::array<char, config::max_asset_path_len>>().data())));
 				break;
 			}
+			// ^^^ path not root relative
+			case 2:
+			{
+				cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked,
+											  fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data())));
+				break;
+			}
+			// ^^^ path not normalized
 			case mesh::age_component_version():
 			{
 				cmp.update_h_mesh(asset::find(age::asset::e::kind::mesh_baked,
@@ -663,7 +671,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(material, "mat", "pbr_mat", "material_3d")
 	{
-		AGE_COMPONENT_VERSION(3);
+		AGE_COMPONENT_VERSION(4);
 
 		uint32 render_id = 0;
 
@@ -735,12 +743,21 @@ namespace age::ecs
 				buf.read<bool>();
 				[[fallthrough]];
 			}
+			// ^^^ has bool
 			case 2:
 			{
 				cmp.update_h_mat(asset::find(age::asset::e::kind::material,
-											 asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+											 asset::to_root_relative(buf.read<age::array<char, config::max_asset_path_len>>().data())));
 				break;
 			}
+			// ^^^ path not root relative
+			case 3:
+			{
+				cmp.update_h_mat(asset::find(age::asset::e::kind::material,
+											 fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data())));
+				break;
+			}
+			// ^^^ path not normalized
 			case material::age_component_version():
 			{
 				cmp.update_h_mat(asset::find(age::asset::e::kind::material,
@@ -768,7 +785,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(model, "model_renderer")
 	{
-		AGE_COMPONENT_VERSION(2);
+		AGE_COMPONENT_VERSION(3);
 
 		asset::handle h_model = {};
 
@@ -836,9 +853,17 @@ namespace age::ecs
 			case 1:
 			{
 				cmp.update_h_model(asset::find(age::asset::e::kind::model,
-											   asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+											   asset::to_root_relative(buf.read<age::array<char, config::max_asset_path_len>>().data())));
 				break;
 			}
+			// ^^^ path not root relative
+			case 2:
+			{
+				cmp.update_h_model(asset::find(age::asset::e::kind::model,
+											   fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data())));
+				break;
+			}
+			// ^^^ path not normalized
 			case model::age_component_version():
 			{
 				cmp.update_h_model(asset::find(age::asset::e::kind::model,
@@ -951,7 +976,7 @@ namespace age::ecs
 
 	AGE_COMPONENT(env_light, "ibl")
 	{
-		AGE_COMPONENT_VERSION(2);
+		AGE_COMPONENT_VERSION(3);
 
 		uint32 render_id = 0;
 
@@ -1021,9 +1046,17 @@ namespace age::ecs
 			case 1:
 			{
 				cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light,
-												   asset::to_root_relative(std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() })));
+												   asset::to_root_relative(buf.read<age::array<char, config::max_asset_path_len>>().data())));
 				break;
 			}
+			// ^^^ not root relative
+			case 2:
+			{
+				cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light,
+												   fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data())));
+				break;
+			}
+			// ^^^ path not normalized
 			case env_light::age_component_version():
 			{
 				cmp.update_h_env_light(asset::find(age::asset::e::kind::env_light,

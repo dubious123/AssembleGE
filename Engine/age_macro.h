@@ -13,6 +13,7 @@
 #define FWD(x) std::forward<decltype(x)>((x))
 
 #define AGE_OUT
+#define AGE_INOUT
 
 #define AGE_FN_PTR(name, ret, args)			 AGE_PP_IDENTITY_I ret(*name) args noexcept
 #define AGE_FN_PTR_THROWING(name, ret, args) AGE_PP_IDENTITY_I ret(*name) args

@@ -8,11 +8,12 @@ namespace age_demo::scene_3
 	{
 		using namespace age::ecs::system;
 
-		age::asset::set_root_dir(std::string_view{ (std::filesystem::path{ "./resources/demo_game" } / std::string_view{ i_init.get_editor_game->age_editor_name()[0].data() }).string() });
+		c_auto proj_dir = age::fs::join("./resources/demo_game", i_init.get_editor_game->age_editor_name()[0].data());
+		age::asset::set_root_dir(proj_dir);
 		i_init.get_editor_game->init();
 
 		age::editor::init(i_init.get_editor_game(), i_init.get_render_pipeline());
-		age::editor::load_game(i_init.get_editor_game(), age::asset::get_root_dir().parent_path(), i_init.get_render_pipeline());
+		age::editor::load_game(i_init.get_editor_game(), age::fs::get_parent_path(proj_dir), i_init.get_render_pipeline());
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
 		i_init.set_smoothed_look = float2{ 0.f, 0.f };

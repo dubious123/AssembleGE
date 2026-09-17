@@ -255,9 +255,7 @@ namespace age::asset::texture
 			return false;
 		}
 
-		c_auto dds_path = std::filesystem::path{ tmp_dir } / opt.output_filename;
-
-		auto buf = asset::read_raw_file(dds_path.string());
+		auto buf = asset::read_raw_file(fs::join(tmp_dir, opt.output_filename));
 
 		if (buf.size() < detail::dds_header_size())				 // sizeof(magic) + sizeof(dds_legacy_header) + sizeof(dds_dx10_header)
 		{

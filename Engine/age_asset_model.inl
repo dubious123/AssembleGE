@@ -101,6 +101,19 @@ namespace age::asset::model
 					}
 					break;
 				}
+				// ^^^ path not root relative
+				case 1:
+				{
+					entry.h_mesh = asset::find(e::kind::mesh_baked, fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data()));
+					entry.h_material_vec.resize(buf.read<uint32>());
+
+					for (auto& h_mat : entry.h_material_vec)
+					{
+						h_mat = asset::find(e::kind::material, fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data()));
+					}
+					break;
+				}
+				// ^^^ path not normalized
 				case config::model_asset_version:
 				{
 					entry.h_mesh = asset::find(e::kind::mesh_baked, buf.read<age::array<char, config::max_asset_path_len>>());

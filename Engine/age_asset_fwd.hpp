@@ -892,7 +892,7 @@ namespace age::asset::g
 
 	inline constexpr auto asset_header_magic = uint32{ 'AGEA' };
 
-	inline auto root_dir_path = std::filesystem::path{};
+	inline std::string root_dir_path;
 
 	inline auto path_vec = age::sparse_vector<age::array<char, config::max_asset_path_len>>{};
 
@@ -902,7 +902,7 @@ namespace age::asset::g
 		path_to_handle_map;
 
 	// relative to root_dir_path
-	inline std::filesystem::path						 registry_path;
+	inline std::string									 registry_path;
 	inline age::array<age::vector<handle>, e::kind_size> registry_map;
 }	 // namespace age::asset::g
 

@@ -91,6 +91,7 @@ namespace age::asset::material
 					}
 					break;
 				}
+				// ^^^ no sampler kind
 				case 1:
 				{
 					file_data.buf.read(
@@ -119,6 +120,32 @@ namespace age::asset::material
 					}
 					break;
 				}
+				// ^^^ path not root relative
+				case 2:
+				{
+					file_data.buf.read(
+						entry.double_sided,
+						entry.base_color_factor,
+						entry.metallic_factor,
+						entry.roughness_factor,
+						entry.emissive_factor,
+						entry.normal_scale,
+						entry.occlusion_strength,
+						entry.alpha_cutoff,
+						entry.shading_model,
+						entry.base_color_sampler_kind,
+						entry.metallic_roughness_sampler_kind,
+						entry.normal_sampler_kind,
+						entry.occlusion_sampler_kind,
+						entry.emissive_sampler_kind);
+
+					for (auto& h_tex : entry.all_textures() | views::deref)
+					{
+						h_tex = asset::find(e::kind::texture, fs::normalize_path(file_data.buf.read<age::array<char, config::max_asset_path_len>>().data()));
+					}
+					break;
+				}
+				// ^^^ path not normalized
 				case config::material_asset_version:
 				{
 					file_data.buf.read(

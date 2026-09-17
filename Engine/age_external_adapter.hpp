@@ -975,5 +975,5 @@ namespace age::external::texconv
 namespace age::external::cgltf
 {
 	void
-	load(const std::filesystem::path& path, AGE_OUT asset::importer::gltf_parse_data& res) noexcept;
+	load(std::string_view path, AGE_OUT asset::importer::gltf_parse_data& res) noexcept;
 }	 // namespace age::external::cgltf

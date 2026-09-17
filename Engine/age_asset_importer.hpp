@@ -4,7 +4,7 @@
 namespace age::asset::importer
 {
 	gltf_parse_data
-	parse_gltf(const std::filesystem::path& gltf_full_path) noexcept;
+	parse_gltf(std::string_view gltf_full_path) noexcept;
 
 	// asset_root_dir : root relative
 	void
@@ -38,7 +38,7 @@ namespace age::asset::importer
 	generate_scene_import_data(gltf_scene_parse_data&& parse, const std::string& name) noexcept;
 
 	import_data
-	generate_gltf_import_data(gltf_parse_data&& gltf_parse, std::string_view asset_name, const std::filesystem::path& target_dir) noexcept;
+	generate_gltf_import_data(gltf_parse_data&& gltf_parse, std::string_view asset_name, std::string_view target_dir) noexcept;
 }	 // namespace age::asset::importer
 
 // helpers

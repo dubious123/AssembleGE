@@ -553,12 +553,11 @@ namespace age::asset::importer
 	}
 
 	gltf_parse_data
-	parse_gltf(const std::filesystem::path& gltf_full_path) noexcept
+	parse_gltf(std::string_view gltf_full_path) noexcept
 	{
 		auto res = gltf_parse_data{};
 
-		if (auto ec = std::error_code{};
-			std::filesystem::is_regular_file(gltf_full_path, ec) is_false)
+		if (fs::file_exists(gltf_full_path) is_false)
 		{
 			res.src_full_path = gltf_full_path;
 			res.error		  = e::gltf_parse_error_kind::file_not_found;
@@ -1080,7 +1079,7 @@ namespace age::asset::importer::detail
 
 	template <asset::e::kind asset_kind, typename t_item>
 	void
-	resolve_common(import_data& data, age::vector<t_item>& import_data_vec, age::vector<uint32>& scratch_idx_vec, const std::filesystem::path& target_dir) noexcept
+	resolve_common(import_data& data, age::vector<t_item>& import_data_vec, age::vector<uint32>& scratch_idx_vec, std::string_view target_dir) noexcept
 	{
 		scratch_idx_vec.clear();
 		c_auto suffix_size = std::strlen(config::asset_extension) + std::strlen(asset::get_asset_tag<asset_kind>());
@@ -1088,7 +1087,7 @@ namespace age::asset::importer::detail
 		{
 			if (item.enabled is_false) { continue; }
 
-			c_auto name_str = util::to_utf8(target_dir / std::string_view{ item.name.data() });
+			c_auto name_str = fs::join(target_dir, item.name.data());
 			if (name_str.size() + suffix_size >= config::max_asset_path_len)
 			{
 				item.error_flags |= BARE_OF(item.error_flags)::name_too_long;
@@ -1126,23 +1125,23 @@ namespace age::asset::importer::detail
 namespace age::asset::importer
 {
 	import_data
-	generate_gltf_import_data(gltf_parse_data&& gltf_parse, std::string_view asset_name, const std::filesystem::path& target_dir) noexcept
+	generate_gltf_import_data(gltf_parse_data&& gltf_parse, std::string_view asset_name, std::string_view target_dir) noexcept
 	{
 		auto res = import_data{};
 
 		// file, asset_name first because item name fallbacks use it
-		res.src_full_path = gltf_parse.src_full_path.string();
+		res.src_full_path = std::move(gltf_parse.src_full_path);
 		res.asset_name	  = util::to_fixed_str<config::max_asset_display_name_len>(asset_name);
 		res.warning_flags = detail::get_import_flags(gltf_parse.warning_flags);
 		res.error_flags	  = detail::get_import_flags(gltf_parse.error);
 
 		// default dir
-		res.texture_dir	 = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / to_string(asset::e::kind::texture) / res.asset_name.data()));
-		res.material_dir = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / to_string(asset::e::kind::material) / res.asset_name.data()));
-		res.mesh_dir	 = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / "mesh" / res.asset_name.data()));
-		res.skeleton_dir = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / "skeleton" / res.asset_name.data()));
-		res.model_dir	 = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / to_string(asset::e::kind::model) / res.asset_name.data()));
-		res.scene_dir	 = util::to_fixed_str<config::max_asset_path_len>(util::to_utf8(target_dir / "scene" / res.asset_name.data()));
+		res.texture_dir	 = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join(to_string(asset::e::kind::texture), res.asset_name.data())));
+		res.material_dir = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join(to_string(asset::e::kind::material), res.asset_name.data())));
+		res.mesh_dir	 = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join("mesh", res.asset_name.data())));
+		res.skeleton_dir = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join("skeleton", res.asset_name.data())));
+		res.model_dir	 = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join(to_string(asset::e::kind::model), res.asset_name.data())));
+		res.scene_dir	 = util::to_fixed_str<config::max_asset_path_len>(fs::join(target_dir, fs::join("scene", res.asset_name.data())));
 
 		detail::import_gltf_textures(res, std::move(gltf_parse.gltf_texture_parse_data_vec));
 		detail::import_gltf_materials(res, std::move(gltf_parse.gltf_material_parse_data_vec));
@@ -1709,8 +1708,7 @@ namespace age::asset::importer
 		auto res	= commit_result{};
 
 		constexpr auto temp_dir_name	   = ".__import_commit_temp__/";
-		c_auto		   root_dir_path	   = util::to_utf8(asset::get_root_dir());
-		c_auto		   temp_directory_path = std::format("{}/{}", root_dir_path, temp_dir_name);
+		c_auto		   temp_directory_path = fs::join(asset::get_root_dir(), temp_dir_name);
 
 		if (fs::dir_exists(temp_directory_path))
 		{
@@ -1743,12 +1741,12 @@ namespace age::asset::importer
 		auto scene_target_path_vec	  = age::vector<std::string>::gen_reserved(data.scene_import_data_vec.size());
 
 		// full_path
-		c_auto target_tex_dir	   = std::format("{}/{}", root_dir_path, data.texture_dir);
-		c_auto target_material_dir = std::format("{}/{}", root_dir_path, data.material_dir);
-		c_auto target_mesh_dir	   = std::format("{}/{}", root_dir_path, data.mesh_dir);
-		c_auto target_model_dir	   = std::format("{}/{}", root_dir_path, data.model_dir);
-		c_auto target_skeleton_dir = std::format("{}/{}", root_dir_path, data.skeleton_dir);
-		c_auto target_scene_dir	   = std::format("{}/{}", root_dir_path, data.scene_dir);
+		c_auto target_tex_dir	   = fs::join(asset::get_root_dir(), data.texture_dir.data());
+		c_auto target_material_dir = fs::join(asset::get_root_dir(), data.material_dir.data());
+		c_auto target_mesh_dir	   = fs::join(asset::get_root_dir(), data.mesh_dir.data());
+		c_auto target_model_dir	   = fs::join(asset::get_root_dir(), data.model_dir.data());
+		c_auto target_skeleton_dir = fs::join(asset::get_root_dir(), data.skeleton_dir.data());
+		c_auto target_scene_dir	   = fs::join(asset::get_root_dir(), data.scene_dir.data());
 
 		bool has_texture_enabled  = false;
 		bool has_material_enabled = false;
@@ -1760,32 +1758,32 @@ namespace age::asset::importer
 		for (c_auto& tex : data.texture_import_data_vec | std::views::filter(&texture_import_data::enabled))
 		{
 			has_texture_enabled = true;
-			tex_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::texture>(std::format("{}/{}/{}", root_dir_path, data.texture_dir, tex.name)).data()));
+			tex_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::texture>(fs::join(asset::get_root_dir(), data.texture_dir, tex.name)).data()));
 		}
 		for (c_auto& mat : data.material_import_data_vec | std::views::filter(&material_import_data::enabled))
 		{
 			has_material_enabled = true;
-			material_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::material>(std::format("{}/{}/{}", root_dir_path, data.material_dir, mat.name)).data()));
+			material_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::material>(fs::join(asset::get_root_dir(), data.material_dir, mat.name)).data()));
 		}
 		for (c_auto& mesh : data.mesh_import_data_vec | std::views::filter(&mesh_baked_import_data::enabled))
 		{
 			has_mesh_enabled = true;
-			mesh_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::mesh_baked>(std::format("{}/{}/{}", root_dir_path, data.mesh_dir, mesh.name)).data()));
+			mesh_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::mesh_baked>(fs::join(asset::get_root_dir(), data.mesh_dir, mesh.name)).data()));
 		}
 		for (c_auto& model : data.model_import_data_vec | std::views::filter(&model_import_data::enabled))
 		{
 			has_model_enabled = true;
-			model_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::model>(std::format("{}/{}/{}", root_dir_path, data.model_dir, model.name)).data()));
+			model_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::model>(fs::join(asset::get_root_dir(), data.model_dir, model.name)).data()));
 		}
 		for (c_auto& skeleton : data.skeleton_import_data_vec | std::views::filter(&skeleton_import_data::enabled))
 		{
 			has_skeleton_enabled = true;
-			// skeleton_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::skeleton>(std::format("{}/{}/{}",root_dir_path, data.skeleton_dir, tex.name)).data()));
+			// skeleton_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::skeleton>(fs::join( asset::get_root_dir(), data.skeleton_dir, tex.name)).data()));
 		}
 		for (c_auto& scene : data.scene_import_data_vec | std::views::filter(&scene_import_data::enabled))
 		{
 			has_scene_enabled = true;
-			// scene_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::scene>(std::format("{}/{}/{}",root_dir_path, data.scene_dir, tex.name)).data()));
+			// scene_target_path_vec.emplace_back(std::string(asset::get_asset_full_path<asset::e::kind::scene>(fs::join( asset::get_root_dir(), data.scene_dir, tex.name)).data()));
 		}
 
 		// create target directories
@@ -1864,9 +1862,9 @@ namespace age::asset::importer
 					}
 				}
 
-				c_auto rel_path		= std::format("{}/texture/{}", temp_dir_name, tex.name);
+				c_auto rel_path		= fs::join(temp_dir_name, "texture", tex.name);
 				c_auto bake_success = asset::texture::bake(tmp_file_path_ptr_vec, rel_path, tex.bake_option);
-				tex_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+				tex_temp_path_vec.emplace_back(fs::join(asset::get_root_dir(), std::move(rel_path)));
 
 				if (bake_success is_false)
 				{
@@ -1931,7 +1929,7 @@ namespace age::asset::importer
 
 				c_auto rel_path = std::format("{}/material/{}", temp_dir_name, mat.name);
 				asset::material::build(rel_path, mat_desc);
-				material_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+				material_temp_path_vec.emplace_back(fs::join(asset::get_root_dir(), std::move(rel_path)));
 			}
 		}
 		// mesh
@@ -1950,7 +1948,7 @@ namespace age::asset::importer
 
 				c_auto rel_path = std::format("{}/mesh/{}", temp_dir_name, mesh.name);
 				asset::mesh_baked::build(rel_path, desc);
-				mesh_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+				mesh_temp_path_vec.emplace_back(fs::join(asset::get_root_dir(), std::move(rel_path)));
 			}
 		}
 		// model
@@ -1989,7 +1987,7 @@ namespace age::asset::importer
 
 				c_auto rel_path = std::format("{}/model/{}", temp_dir_name, model.name);
 				asset::model::build(rel_path, desc);
-				model_temp_path_vec.emplace_back(std::format("{}/{}", root_dir_path, std::move(rel_path)));
+				model_temp_path_vec.emplace_back(fs::join(asset::get_root_dir(), std::move(rel_path)));
 			}
 		}
 

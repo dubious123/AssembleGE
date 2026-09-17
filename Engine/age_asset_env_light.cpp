@@ -134,6 +134,7 @@ namespace age::asset::env_light
 		{
 			switch (file_data.header.asset_version)
 			{
+				// texture format v0
 			case 0u:
 			{
 				entry.p_blob			= file_data.buf.release();

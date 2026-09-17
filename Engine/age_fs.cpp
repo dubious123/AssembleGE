@@ -20,6 +20,14 @@ namespace age::fs::detail
 			bool   is_valid;
 		};
 
+		struct utf16_char
+		{
+			uint32 code_point;
+			uint32 unit_count;	  // count of char16_t
+			bool   is_valid;
+		};
+
+		// utf8 -> code_point
 		// safer version than util::decode_utf8, also support len 4
 		constexpr utf8_char
 		decode_utf8(std::string_view sv) noexcept
@@ -85,6 +93,84 @@ namespace age::fs::detail
 			return { code_point, byte_count, true };
 		}
 
+		// utf16 -> code_point
+		// lone or reversed surrogates -> replacement
+		constexpr utf16_char
+		decode_utf16(std::u16string_view sv) noexcept
+		{
+			c_auto res_failed = utf16_char{ replacement, 1, false };
+
+			if (sv.empty()) { return res_failed; }
+
+			c_auto c = static_cast<uint32>(sv[0]);
+
+			// not a surrogate
+			if (c < surrogate_begin or c > surrogate_end)
+			{
+				return { c, 1, true };
+			}
+
+			// low surrogate without a preceding high surrogate
+			if (c >= low_surrogate_base)
+			{
+				return res_failed;
+			}
+
+			if (sv.size() < 2)
+			{
+				return res_failed;
+			}
+
+			c_auto c_lo = static_cast<uint32>(sv[1]);
+			if (c_lo < low_surrogate_base or c_lo > surrogate_end)
+			{
+				return res_failed;
+			}
+
+			return { bmp_end + ((c - high_surrogate_base) << 10) + (c_lo - low_surrogate_base), 2, true };
+		}
+
+		// safer version than util::encode_utf8
+		void
+		encode_utf8(uint32 code_point, AGE_OUT std::string& res) noexcept
+		{
+			// 1 byte : 0xxxxxxx
+			if (code_point < 0x80)
+			{
+				res.push_back(static_cast<char>(code_point));
+				return;
+			}
+
+			// 2 bytes : 110xxxxx 10xxxxxx
+			if (code_point < 0x800)
+			{
+				res.push_back(static_cast<char>(0b1100'0000 | (code_point >> 6)));
+				res.push_back(static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111)));
+				return;
+			}
+
+			// surrogate or out of range code point -> replacement
+			if ((code_point >= surrogate_begin and code_point <= surrogate_end) or code_point > max_code_point)
+			{
+				code_point = replacement;
+			}
+
+			// 3 bytes : 1110xxxx 10xxxxxx 10xxxxxx
+			if (code_point < bmp_end)
+			{
+				res.push_back(static_cast<char>(0b1110'0000 | (code_point >> 12)));
+				res.push_back(static_cast<char>(0b1000'0000 | ((code_point >> 6) & 0b0011'1111)));
+				res.push_back(static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111)));
+				return;
+			}
+
+			// 4 bytes : 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+			res.push_back(static_cast<char>(0b1111'0000 | (code_point >> 18)));
+			res.push_back(static_cast<char>(0b1000'0000 | ((code_point >> 12) & 0b0011'1111)));
+			res.push_back(static_cast<char>(0b1000'0000 | ((code_point >> 6) & 0b0011'1111)));
+			res.push_back(static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111)));
+		}
+
 		void
 		encode_utf16(uint32 code_point, AGE_OUT std::wstring& res) noexcept
 		{
@@ -102,7 +188,7 @@ namespace age::fs::detail
 
 #if defined(AGE_PLATFORM_WINDOW)
 	void
-	to_utf16(std::string_view sv, std::wstring& res) noexcept
+	to_utf16(std::string_view sv, AGE_OUT std::wstring& res) noexcept
 	{
 		static_assert(sizeof(wchar_t) == 2, "utf16 wchar_t expected");
 
@@ -112,11 +198,73 @@ namespace age::fs::detail
 		while (sv.empty() is_false)
 		{
 			c_auto ch = unicode::decode_utf8(sv);
-			unicode::encode_utf16(ch.code_point, AGE_OUT res);
 			sv.remove_prefix(ch.byte_count);
+			unicode::encode_utf16(ch.code_point, AGE_OUT res);
 		}
 	}
+
+	std::wstring
+	to_utf16(std::string_view sv) noexcept
+	{
+		auto res = std::wstring{};
+		to_utf16(sv, AGE_OUT res);
+		return res;
+	}
+
+	void
+	to_utf8(std::wstring_view wide, bool to_generic, AGE_OUT std::string& res) noexcept
+	{
+		static_assert(sizeof(wchar_t) == 2, "utf16 wchar_t expected");
+
+		res.clear();
+		res.reserve(wide.size() * 3);	 // worst case, 1 utf16 -> 3 utf8
+
+		for (auto sv_u16 = std::u16string_view{ reinterpret_cast<const char16_t*>(wide.data()), wide.size() };
+			 sv_u16.empty() is_false;)
+		{
+			c_auto ch = unicode::decode_utf16(sv_u16);
+			sv_u16.remove_prefix(ch.unit_count);
+			if (to_generic and ch.code_point == U'\\')
+			{
+				res.push_back('/');
+			}
+			else
+			{
+				unicode::encode_utf8(ch.code_point, res);
+			}
+		}
+	}
+
+	std::string
+	to_utf8(std::wstring_view wide, bool to_generic) noexcept
+	{
+		auto res = std::string{};
+		to_utf8(wide, to_generic, AGE_OUT res);
+		return res;
+	}
 #endif
+
+	// path -> utf8 with '/' separators, into a reused string
+	void
+	to_utf8_generic(const std::filesystem::path& p, AGE_OUT std::string& res) noexcept
+	{
+#if defined(AGE_PLATFORM_WINDOW)
+		to_utf8(p.native(), true, AGE_OUT res);
+#else
+		res = p.native();
+#endif
+	}
+
+	// path -> utf8 with '/' separators, into a reused string
+	std::string
+	to_utf8_generic(const std::filesystem::path& p) noexcept
+	{
+#if defined(AGE_PLATFORM_WINDOW)
+		return to_utf8(p.native(), true);
+#else
+		return p.native();
+#endif
+	}
 
 	template <std::size_t slot>
 	const std::filesystem::path&
@@ -132,10 +280,36 @@ namespace age::fs::detail
 #endif
 		return p;
 	}
+
+	void
+	append_path(AGE_INOUT std::string& res, std::string_view rhs) noexcept
+	{
+		if (rhs.empty())
+		{
+			return;
+		}
+		if (res.empty())
+		{
+			res.assign(rhs);
+			return;
+		}
+		if (res.back() != '/' and res.back() != '\\')
+		{
+			res += '/';
+		}
+		res += rhs;
+	}
 }	 // namespace age::fs::detail
 
 namespace age::fs
 {
+	bool
+	exists(std::string_view path) noexcept
+	{
+		auto ec = std::error_code{};
+		return std::filesystem::exists(detail::get_scratch_path<0>(path), ec);
+	}
+
 	bool
 	dir_exists(std::string_view path) noexcept
 	{
@@ -165,6 +339,19 @@ namespace age::fs
 		if (ec) { return false; }
 
 		return empty;
+	}
+
+	// size in bytes of a regular file. nullopt if path is missing, a dir, or the query fails
+	std::tuple<bool, uint64>
+	get_file_size(std::string_view path) noexcept
+	{
+		auto   ec	= std::error_code{};
+		c_auto size = std::filesystem::file_size(detail::get_scratch_path<0>(path), ec);
+		if (ec)
+		{
+			return { false, 0uz };
+		}
+		return { true, static_cast<uint64>(size) };
 	}
 
 	bool
@@ -207,6 +394,58 @@ namespace age::fs
 	write_file(std::string_view path, const age::byte_buf& buf) noexcept
 	{
 		return write_file(path, std::span<const std::byte>{ buf.data(), buf.size() });
+	}
+
+	byte_buf
+	read_file(std::string_view path) noexcept
+	{
+		auto buf = byte_buf{};
+
+		c_auto[success, file_size] = fs::get_file_size(path);
+
+		if (success is_false or file_size == 0)
+		{
+			return buf;
+		}
+
+		auto file = std::ifstream{ detail::get_scratch_path<0>(path), std::ios::in | std::ios::binary };
+		if (file.is_open() is_false)
+		{
+			return buf;
+		}
+
+		buf.resize(file_size);
+
+		file.read(reinterpret_cast<char*>(buf.data()), file_size);
+		if (static_cast<uint64>(file.gcount()) != file_size)
+		{
+			buf.clear();
+			return buf;	   // nrvo
+		}
+
+		buf.move_write_pos(file_size);
+
+		return buf;		   // nrvo
+	}
+
+	std::tuple<bool, uint64>
+	read_file(std::string_view path, std::span<std::byte> buf, uint64 file_size) noexcept
+	{
+		AGE_ASSERT(file_size > 0);
+
+		auto file = std::ifstream{ detail::get_scratch_path<0>(path), std::ios::binary };
+		if (file.is_open() is_false)
+		{
+			return { false, 0 };
+		}
+
+		file.read(reinterpret_cast<char*>(buf.data()), static_cast<std::streamsize>(file_size));
+		if (static_cast<uint64>(file.gcount()) != file_size)
+		{
+			return { false, 0 };
+		}
+
+		return { true, file_size };
 	}
 
 	bool
@@ -277,5 +516,122 @@ namespace age::fs
 		if (std::filesystem::is_directory(st)) { return false; }
 
 		return detail::can_replace_file(path);
+	}
+
+	std::tuple<bool, std::chrono::file_clock::time_point>
+	get_last_write_time(std::string_view path) noexcept
+	{
+		auto   ec = std::error_code{};
+		c_auto t  = std::filesystem::last_write_time(detail::get_scratch_path<0>(path), ec);
+		if (ec)
+		{
+			return { false, std::move(t) };
+		}
+		return { true, std::move(t) };
+	}
+
+	namespace detail
+	{
+		// shared body. t_iterator : directory_iterator or recursive_directory_iterator
+		template <typename t_iterator>
+		void
+		for_each_file_impl(std::string_view dir, util::function_ref<void(const file_entry&)> fn) noexcept
+		{
+			auto path_utf8 = std::string{};	   // reused for every entry, one allocation total
+			auto ec		   = std::error_code{};
+
+			for (auto it = t_iterator{ get_scratch_path<0>(dir), ec }; ec.value() == 0 and it != t_iterator{}; it.increment(ec))
+			{
+				c_auto& entry = *it;
+
+				auto entry_ec = std::error_code{};
+				if (entry.is_regular_file(entry_ec) is_false)
+				{
+					continue;
+				}
+
+				detail::to_utf8_generic(entry.path(), path_utf8);
+				fn(file_entry{
+					.path			 = path_utf8,
+					.name			 = get_file_name(path_utf8),
+					.last_write_time = entry.last_write_time(entry_ec),
+					.size			 = static_cast<uint64>(entry.file_size(entry_ec)) });
+			}
+		}
+	}	 // namespace detail
+
+	void
+	for_each_file(std::string_view dir, util::function_ref<void(const file_entry&)> fn) noexcept
+	{
+		detail::for_each_file_impl<std::filesystem::directory_iterator>(dir, fn);
+	}
+
+	void
+	for_each_file_recursive(std::string_view dir, util::function_ref<void(const file_entry&)> fn) noexcept
+	{
+		detail::for_each_file_impl<std::filesystem::recursive_directory_iterator>(dir, fn);
+	}
+
+	// files and dirs directly under dir. not recursive
+	void
+	for_each_entry(std::string_view dir, util::function_ref<void(const entry&)> fn) noexcept
+	{
+		auto path_utf8 = std::string{};	   // reused for every entry, one allocation total
+		auto ec		   = std::error_code{};
+
+		for (auto it = std::filesystem::directory_iterator{ detail::get_scratch_path<0>(dir), ec };
+			 ec.value() == 0 and it != std::filesystem::directory_iterator{};
+			 it.increment(ec))
+		{
+			auto entry_ec = std::error_code{};
+			detail::to_utf8_generic(it->path(), path_utf8);
+
+			fn(entry{
+				.path	= path_utf8,
+				.name	= get_file_name(path_utf8),
+				.is_dir = it->is_directory(entry_ec) });
+		}
+	}
+
+	// utf8, '/' separators, no trailing '/'. empty on failure
+	std::string
+	get_current_dir() noexcept
+	{
+		auto   ec = std::error_code{};
+		c_auto p  = std::filesystem::current_path(ec);
+		if (ec)
+		{
+			return {};
+		}
+
+		return detail::to_utf8_generic(p);
+	}
+}	 // namespace age::fs
+
+// util
+namespace age::fs
+{
+	std::string
+	normalize_path(std::string_view path) noexcept
+	{
+		c_auto normalized = detail::get_scratch_path<0>(path).lexically_normal();
+
+		return detail::to_utf8_generic(normalized);
+	}
+
+	bool
+	is_absolute(std::string_view path) noexcept
+	{
+		return detail::get_scratch_path<0>(path).is_absolute();
+	}
+
+	std::string
+	join(std::string_view lhs, std::string_view rhs) noexcept
+	{
+		auto res = std::string{};
+		res.reserve(lhs.size() + 1 + rhs.size());
+		res.assign(lhs);
+		detail::append_path(AGE_INOUT res, rhs);
+		return res;
 	}
 }	 // namespace age::fs

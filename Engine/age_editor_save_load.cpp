@@ -5,7 +5,7 @@
 namespace age::editor::detail
 {
 	game_editor_data
-	read_game_proj(std::filesystem::path proj_path) noexcept
+	read_game_proj(std::string_view proj_path) noexcept
 	{
 		auto  file_data = asset::read_asset_file(proj_path);
 		auto& buf		= file_data.buf;
@@ -201,7 +201,7 @@ namespace age::editor::detail
 			}
 		}
 
-		asset::write_asset_file(asset::to_root_relative(game.dir_path / std::format("{}{}", config::game_asset_tag, config::asset_extension)),
+		asset::write_asset_file(asset::to_root_relative(fs::join(game.dir_path, std::format("{}{}", config::game_asset_tag, config::asset_extension))),
 								asset::get_default_file_header(asset::e::kind::editor_game, buf.size(), config::editor_game_proj_version),
 								buf.data());
 	}

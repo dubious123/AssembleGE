@@ -6,12 +6,16 @@ namespace age::asset::registry
 	void
 	load(std::string_view dir) noexcept
 	{
-		g::registry_path = std::filesystem::path{ dir } / std::format("{}{}", config::asset_registry_asset_tag, config::asset_extension);
+		g::registry_path = fs::join(dir, std::format("{}{}", config::asset_registry_asset_tag, config::asset_extension));
 
-		if (auto ec = std::error_code{};
-			std::filesystem::exists(asset::get_root_dir() / g::registry_path, ec) is_false)
+		if (c_auto registry_full_path = fs::join(asset::get_root_dir(), g::registry_path);
+			fs::exists(registry_full_path) is_false)
 		{
-			std::filesystem::create_directories((asset::get_root_dir() / g::registry_path).parent_path(), ec);
+			if (fs::create_dir(fs::get_parent_path(registry_full_path)) is_false)
+			{
+				AGE_ASSERT(false, "registry dir create failed, target path : {}", fs::get_parent_path(registry_full_path));
+				std::abort();
+			}
 			return;
 		}
 
@@ -23,9 +27,7 @@ namespace age::asset::registry
 			{
 			case 0u:
 			{
-				c_auto root_dir			= asset::get_root_dir();
-				c_auto root_dir_str		= root_dir.string();
-				auto   asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
+				auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
 
 				for (auto _ : views::loop(asset_kind_count))
 				{
@@ -36,8 +38,8 @@ namespace age::asset::registry
 					registry_vec.reserve(asset_count);
 					for (auto _ : views::loop(asset_count))
 					{
-						c_auto asset_path = util::to_fixed_str<config::max_asset_path_len>(asset::to_root_relative(
-							std::filesystem::path{ buf.read<age::array<char, config::max_asset_path_len>>().data() }));
+						c_auto asset_path = util::to_fixed_str<config::max_asset_path_len>(fs::normalize_path(asset::to_root_relative(
+							buf.read<age::array<char, config::max_asset_path_len>>().data())));
 
 						auto h_asset = asset::find(asset_kind, asset_path);
 						if (runtime::is_handle_invalid(h_asset))
@@ -52,6 +54,36 @@ namespace age::asset::registry
 				AGE_ASSERT(buf.has_remaining() is_false);
 				break;
 			}
+			// ^^^ path not root relative
+			case 1:
+			{
+				auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();
+
+				for (auto _ : views::loop(asset_kind_count))
+				{
+					auto&& [asset_kind_name, asset_count] = buf.read<age::array<char, config::max_enum_name_len>, uint32>();
+					auto asset_kind						  = e::str_to_enum<e::kind>(asset_kind_name);
+
+					auto& registry_vec = g::registry_map[e::to_idx(asset_kind)];
+					registry_vec.reserve(asset_count);
+					for (auto _ : views::loop(asset_count))
+					{
+						c_auto asset_path = fs::normalize_path(buf.read<age::array<char, config::max_asset_path_len>>().data());
+
+						auto h_asset = asset::find(asset_kind, asset_path);
+						if (runtime::is_handle_invalid(h_asset))
+						{
+							h_asset = create_entry(asset_kind, asset_path);
+						}
+
+						registry_vec.emplace_back(h_asset);
+					}
+				}
+
+				AGE_ASSERT(buf.has_remaining() is_false);
+				break;
+			}
+			// ^^^ path not normalized
 			case config::asset_registry_asset_version:
 			{
 				auto asset_kind_count = buf.read<std::underlying_type_t<e::kind>>();

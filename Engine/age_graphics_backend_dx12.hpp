@@ -418,14 +418,14 @@ namespace age::graphics::shader
 
 	void
 	compile_shader(
-		const std::wstring&	  shader_name,
-		const std::wstring&	  hlsl_path,
-		const std::wstring&	  entry_point,
-		const std::wstring&	  target,
-		std::filesystem::path save_path) noexcept;
+		std::string_view shader_name,
+		std::string_view hlsl_path,
+		std::string_view entry_point,
+		std::string_view target,
+		std::string_view save_path) noexcept;
 
 	shader_handle
-	load_shader(std::filesystem::path shader_path) noexcept;
+	load_shader(std::string_view shader_blob_path) noexcept;
 
 	D3D12_SHADER_BYTECODE
 	get_d3d12_bytecode(shader_handle) noexcept;

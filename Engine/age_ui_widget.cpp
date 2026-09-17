@@ -1354,42 +1354,31 @@ namespace age::ui::widget
 		// collect candidates, rank sorted (lower is better)
 		struct candidate
 		{
-			uint32		  rank;
-			std::u8string full_path;	// trailing separator for directories
-			std::u8string filename;
+			uint32		rank;
+			std::string full_path;	  // trailing '/' for directories
+			std::string filename;
 		};
 
 		auto candidate_vec = age::vector<candidate>::gen_reserved(32);
 		{
-			auto ec			= std::error_code{};
-			auto input_path = std::filesystem::path(path.data());
-			auto parent		= input_path.parent_path();
+			c_auto input_path = std::string_view{ path.data() };
 			if (input_path.empty()) { return false; }
-			if (parent.empty()) { parent = std::filesystem::current_path(ec); }
-			if (ec) { return false; }
 
-			c_auto pattern = input_path.filename().u8string();
+			c_auto pattern = fs::get_file_name(input_path);
+			auto   parent  = std::string{ fs::get_parent_path(input_path) };
+			if (parent.empty()) { parent = fs::get_current_dir(); }
+			if (parent.empty()) { return false; }
 
-			for (ec = std::error_code{};
-				 c_auto& entry : std::filesystem::directory_iterator(parent, ec))
-			{
-				if (ec) { break; }
+			fs::for_each_entry(parent, [&](const fs::entry& e) {
+				c_auto rank = util::match_rank(e.name, pattern);
+				if (AGE_IS_INVALID_IDX(rank)) { return; }
+				if (e.is_dir is_false and rank == 0 and e.name.size() == pattern.size()) { return; }	// fully typed file, nothing to complete
 
-				auto   filename = entry.path().filename().u8string();
-				c_auto rank		= util::match_rank(filename, pattern);
-				if (AGE_IS_INVALID_IDX(rank)) { continue; }
+				auto full_path = std::string{ e.path };
+				if (e.is_dir) { full_path += '/'; }
+				candidate_vec.emplace_back(rank, std::move(full_path), std::string{ e.name });
+			});
 
-				auto   dir_ec = std::error_code{};
-				c_auto is_dir = entry.is_directory(dir_ec);
-				if (is_dir is_false and rank == 0 and filename.size() == pattern.size()) { continue; }	  // fully typed file, nothing to complete
-
-				auto full_path = entry.path().u8string();
-				if (is_dir)
-				{
-					full_path += static_cast<char8_t>(std::filesystem::path::preferred_separator);
-				}
-				candidate_vec.emplace_back(rank, std::move(full_path), std::move(filename));
-			}
 			std::ranges::stable_sort(candidate_vec, {}, &candidate::rank);
 		}
 
@@ -1441,7 +1430,7 @@ namespace age::ui::widget
 					}
 
 					auto _ = widget::begin(style::item(false, state) | set_border_thickness(0.f) | set_padding(theme::frame_padding()));
-					widget::text(reinterpret_cast<const char*>(path_candidate.filename.data()), state);
+					widget::text(path_candidate.filename.data(), state);
 				}
 			}
 		}

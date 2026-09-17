@@ -613,36 +613,6 @@ namespace age::util
 
 namespace age::util
 {
-	inline std::string
-	to_utf8(std::wstring_view wide)
-	{
-#ifdef AGE_PLATFORM_WINDOW
-		if (wide.empty()) { return {}; }
-
-		c_auto size = ::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
-											nullptr, 0, nullptr, nullptr);
-		auto   res	= std::string(size, '\0');
-		::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
-							  res.data(), size, nullptr, nullptr);
-		return res;
-#elif
-	#error "not implemented yet"
-#endif
-	}
-
-	inline std::string
-	to_utf8(const std::filesystem::path& p)
-	{
-#if defined(AGE_PLATFORM_WINDOW)
-		return to_utf8(std::wstring_view{ p.native() });	// native is wstring, convert
-#else
-		return p.native();	  // native is already a utf-8 string
-#endif
-	}
-}	 // namespace age::util
-
-namespace age::util
-{
 	[[nodiscard]] FORCE_INLINE constexpr bool
 	is_char_english(char c) noexcept
 	{

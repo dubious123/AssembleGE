@@ -123,11 +123,12 @@ namespace age::editor
 	ui_modal_import_asset_gltf() noexcept
 	{
 		using namespace ui;
-		static auto gltf_path_arr	   = age::array<char, config::max_asset_path_len>{};
+		static auto gltf_path_buf	   = age::array<char, config::max_asset_path_len>{};
 		static auto gltf_import_data   = asset::importer::import_data{};
 		static auto import_data_loaded = false;
 
 		// pick path and load panel
+		c_auto gltf_path_sv = std::string_view{ gltf_path_buf.data() };
 
 		if (auto _ = widget::begin(style::header_bar()))
 		{
@@ -137,8 +138,8 @@ namespace age::editor
 
 		widget::text_heading("file path");
 		widget::separator_v();
-		widget::path_picker(gltf_path_arr, 10);
-		if (std::filesystem::is_regular_file(gltf_path_arr.data()) is_false)
+		widget::path_picker(gltf_path_buf, 10);
+		if (fs::file_exists(gltf_path_sv) is_false)
 		{
 			widget::begin(style::text("path does not exists") | set_body_brush_data(theme::color_text_red()));
 			return;
@@ -146,7 +147,7 @@ namespace age::editor
 
 		widget::separator_v();
 
-		if (gltf_import_data.src_full_path != std::filesystem::path{ gltf_path_arr.data() })
+		if (gltf_import_data.src_full_path != gltf_path_sv)
 		{
 			import_data_loaded = false;
 			gltf_import_data   = {};
@@ -171,7 +172,7 @@ namespace age::editor
 				h_load is_true and h_load.clicked())
 			{
 				gltf_import_data = asset::importer::generate_gltf_import_data(
-					asset::importer::parse_gltf(std::filesystem::path{ gltf_path_arr.data() }),
+					asset::importer::parse_gltf(gltf_path_sv),
 					detail::ui_modal_asset_name_input_scratch_buf().data(),
 					asset::to_root_relative(get_asset_root_dir_path()));
 				import_data_loaded = true;

@@ -212,23 +212,29 @@ namespace age::editor
 
 namespace age::editor
 {
-	std::filesystem::path
+	const std::string&
 	get_asset_root_dir_path() noexcept
 	{
 		return g::current_game.asset_root_dir_path;
 	}
 
-	std::filesystem::path
+	const std::string&
 	get_asset_dir_path(asset::e::kind kind) noexcept
 	{
-		return g::current_game.asset_root_dir_path / to_string(kind);
+		return g::current_game.asset_dir_path_arr[to_idx(kind)];
+	}
+
+	std::string
+	get_asset_path(asset::e::kind kind, std::string_view asset_name) noexcept
+	{
+		return fs::join(get_asset_dir_path(kind), asset_name);
 	}
 
 	age::array<char, config::max_asset_path_len>
 	get_asset_full_path(asset::e::kind kind, std::string_view asset_name) noexcept
 	{
 		return asset::e::visit(kind, [&]<asset::e::kind e_kind> {
-			c_auto name		 = (get_asset_dir_path(e_kind) / asset_name.data()).generic_string();
+			c_auto name		 = get_asset_path(e_kind, asset_name);
 			c_auto full_path = asset::get_asset_full_path<e_kind>(name);
 			return full_path;
 		});

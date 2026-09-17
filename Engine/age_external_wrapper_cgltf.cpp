@@ -69,7 +69,7 @@ namespace age::external::cgltf::detail
 	{
 		using error = asset::importer::e::gltf_texture_parse_error_flags;
 
-		c_auto dir = res.src_full_path.parent_path();
+		c_auto dir = fs::get_parent_path(res.src_full_path);
 		res.gltf_texture_parse_data_vec.resize(data.image_count);
 
 		for (auto&& [img_data, parse_data] : std::views::zip(std::span(data.p_image, data.image_count), res.gltf_texture_parse_data_vec))
@@ -77,8 +77,7 @@ namespace age::external::cgltf::detail
 			c_auto uri_stem = [](name_view uri) {
 				c_auto sv = make_string_view(uri);
 				if (sv.empty() or sv.starts_with("data:")) { return std::string{}; }
-				c_auto u8_string = std::filesystem::path(std::u8string_view{ reinterpret_cast<const char8_t*>(sv.data()), sv.size() }).stem().u8string();
-				return std::string{ reinterpret_cast<const char*>(u8_string.data()), u8_string.size() };
+				return std::string{ fs::get_file_stem(sv) };
 			};
 
 			parse_data.name = img_data.name.count > 0 ? make_string(img_data.name) : uri_stem(img_data.uri);
@@ -89,16 +88,15 @@ namespace age::external::cgltf::detail
 			}
 			else if (img_data.uri.p)
 			{
-				c_auto path = dir / std::filesystem::path{ img_data.uri.p };
+				c_auto path = fs::join(dir, img_data.uri.p);
 
-				if (auto ec = std::error_code{};
-					std::filesystem::is_regular_file(path, ec) is_false)
+				if (fs::file_exists(path) is_false)
 				{
 					parse_data.error_flags |= error::image_file_not_found;
 					continue;
 				}
 
-				auto buf = asset::read_raw_file(path.string());
+				auto buf = fs::read_file(path);
 
 				if (buf.is_empty())
 				{
@@ -1349,13 +1347,13 @@ namespace age::external::cgltf::detail
 namespace age::external::cgltf
 {
 	void
-	load(const std::filesystem::path& path, asset::importer::gltf_parse_data& res) noexcept
+	load(std::string_view path, asset::importer::gltf_parse_data& res) noexcept
 	{
 		using namespace detail;
 
-		res.src_full_path = path;
+		res.src_full_path = std::string{ path };
 
-		auto data = load_gltf(path.string().c_str());
+		auto data = load_gltf(path.data());
 		if (data.error != load_error::none)
 		{
 			switch (data.error)
