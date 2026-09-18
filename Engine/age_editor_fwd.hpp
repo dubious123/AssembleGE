@@ -28,8 +28,18 @@ namespace age::editor
 		AGE_FN_PTR(p_texture_full_unload, (void), (asset::handle))															  = nullptr;
 		AGE_FN_PTR(p_env_light_full_unload, (void), (asset::handle))														  = nullptr;
 		AGE_FN_PTR(p_model_full_unload, (void), (asset::handle))															  = nullptr;
-		AGE_FN_PTR(p_add_entity, (uint64), (uint32, uint32))																  = nullptr;
-		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64))														  = nullptr;
+		// (ecs_entity_id)(ecs_scene_id, ecs_storage_id)
+		AGE_FN_PTR(p_add_entity, (uint64), (uint32, uint32)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id)
+		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64)) = nullptr;
+		// (ecs_archetype)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_get_archetype, (uint64), (uint32, uint32, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_add_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_remove)
+		AGE_FN_PTR(p_remove_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void* component_ptr)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_component_id)
+		AGE_FN_PTR(p_get_component_ptr, (void*), (uint32, uint32, uint64, uint32)) = nullptr;
 	};
 }	 // namespace age::editor
 
@@ -85,6 +95,13 @@ namespace age::editor
 		age::vector<age::array<char, config::max_component_name_len>> names;
 		uint32														  version;
 		uint32														  byte_size;
+
+		// ideally, indexof(self) == ecs_component_id,
+		// in case the order of component_editor_data changes
+		uint32 ecs_component_id;
+		uint32 _;
+		// a key to find ecs_component_id by name
+		uint64 ecs_component_name_hash;
 	};
 
 	struct storage_editor_data

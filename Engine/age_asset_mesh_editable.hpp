@@ -101,6 +101,10 @@ namespace age::asset
 			}
 		};
 
+		bool	tangent_calculated;
+		uint8_3 _0;
+		uint32	_1;
+
 		data_structure::vector<float3>			 position_vec{};
 		data_structure::vector<vertex_attribute> vertex_attr_vec{};
 

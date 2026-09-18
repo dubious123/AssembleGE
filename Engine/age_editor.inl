@@ -42,25 +42,132 @@ namespace age::editor
 			age::asset::model::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
 		};
 
-		g::host_ops.p_add_entity = [](uint32 ecs_scene_idx, uint32 ecs_storage_ecs) noexcept -> uint64 {
+		g::host_ops.p_add_entity = [](uint32 ecs_scene_id, uint32 ecs_storage_id) noexcept -> uint64 {
 			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
-			return ecs_game.visit_storage_at(ecs_scene_idx, ecs_storage_ecs, [](auto& entities) {
+			return ecs_game.visit_storage_at(ecs_scene_id, ecs_storage_id, [](auto& entities) noexcept -> uint64 {
 				return entities.new_entity(get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
 			});
 		};
 
-		g::host_ops.p_remove_entity = [](uint32 ecs_scene_idx, uint32 ecs_storage_ecs, uint64 ecs_entity_id) noexcept {
+		g::host_ops.p_remove_entity = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id) noexcept {
 			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
 			ecs_game.visit_storage_at(
-				ecs_scene_idx,
-				ecs_storage_ecs,
-				[](auto& entities, uint64 ecs_entity_id) {
+				ecs_scene_id,
+				ecs_storage_id,
+				[](auto& entities, uint64 ecs_entity_id) noexcept {
 					entities.remove_entity(static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id), get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
 				},
 				ecs_entity_id);
 		};
 
+		g::host_ops.p_get_archetype = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id) noexcept -> uint64 {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			return ecs_game.visit_storage_at(
+				ecs_scene_id,
+				ecs_storage_id,
+				[](c_auto& entities, uint64 ecs_entity_id) noexcept -> uint64 {
+					return entities.get_archetype(static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id));
+				},
+				ecs_entity_id);
+		};
+
+		g::host_ops.p_add_components = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint64 ecs_archetype_to_add) noexcept {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			ecs_game.visit_storage_at(
+				ecs_scene_id,
+				ecs_storage_id,
+				[](auto& entities, uint64 ecs_entity_id, uint64 ecs_archetype_to_add) noexcept {
+					for (c_auto ecs_cmp_idx : age::views::each_set_bit_idx(ecs_archetype_to_add))
+					{
+						BARE_OF(entities)::t_archetype_traits::visit_component(
+							ecs_cmp_idx,
+							AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ecs_entity_id, auto&& ctx), {
+								entities.template add_component<t_cmp>(ecs_entity_id, FWD(ctx));
+							}),
+							entities, static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id), get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
+					}
+				},
+				ecs_entity_id, ecs_archetype_to_add);
+		};
+
+		g::host_ops.p_remove_components = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint64 ecs_archetype_to_remove) noexcept {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			ecs_game.visit_storage_at(
+				ecs_scene_id,
+				ecs_storage_id,
+				[](auto& entities, uint64 ecs_entity_id, uint64 ecs_archetype_to_remove) noexcept {
+					for (c_auto ecs_cmp_idx : age::views::each_set_bit_idx(ecs_archetype_to_remove))
+					{
+						BARE_OF(entities)::t_archetype_traits::visit_component(
+							ecs_cmp_idx,
+							AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ecs_entity_id, auto&& ctx), {
+								entities.template remove_component<t_cmp>(ecs_entity_id, FWD(ctx));
+							}),
+							entities, static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id), get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
+					}
+				},
+				ecs_entity_id, ecs_archetype_to_remove);
+		};
+
+		g::host_ops.p_get_component_ptr = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint32 ecs_component_id) noexcept -> void* {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			return ecs_game.visit_storage_at(
+				ecs_scene_id,
+				ecs_storage_id,
+				[](auto& entities, uint64 ecs_entity_id, uint32 ecs_component_id) noexcept -> void* {
+					return BARE_OF(entities)::t_archetype_traits::visit_component(
+						ecs_component_id,
+						AGE_LAMBDA(<typename t_cmp>(auto& entities, auto ecs_entity_id), {
+							auto&& [cmp] = entities.template get_component<t_cmp>(ecs_entity_id);
+							return static_cast<void*>(std::addressof(cmp));
+						}),
+						entities, static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id));
+				},
+				ecs_entity_id, ecs_component_id);
+		};
+
 		detail::init_impl();
+	}
+
+	template <typename... t_cmp>
+	requires(sizeof...(t_cmp) >= 2)
+	std::tuple<t_cmp&...>
+	get_components(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept
+	{
+		static_assert((std::is_reference_v<t_cmp> or ...) is_false, "don't call get_component<position&>, call get_component<position> instead. gen_components always return tuple of references");
+		constexpr auto hash_id_arr = array{ ecs::get_component_name_hash<std::remove_cvref_t<t_cmp>>()... };
+		auto		   cmp_ptr_arr = age::array<void*, sizeof...(t_cmp)>{};
+
+		get_component_ptrs(editor_scene_idx, editor_storage_idx, ecs_entity_id, hash_id_arr, AGE_OUT cmp_ptr_arr);
+
+		return AGE_LAMBDA(
+			<auto... i>(std::index_sequence<i...>, c_auto & cmp_ptr_arr), {
+				return std::tuple<t_cmp&...>{ *static_cast<t_cmp*>(cmp_ptr_arr[i])... };
+			})(std::index_sequence_for<t_cmp...>{}, cmp_ptr_arr);
+	}
+
+	template <typename t_cmp>
+	t_cmp&
+	get_components(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept
+	{
+		static_assert(std::is_reference_v<t_cmp> is_false, "don't call get_component<position&>, call get_component<position> instead. gen_components always return tuple of references");
+
+		c_auto ecs_component_id = get_ecs_component_id(editor_scene_idx, editor_storage_idx, ecs::get_component_name_hash<std::remove_cvref_t<t_cmp>>());
+
+		AGE_ASSERT(runtime::is_invalid_idx(ecs_component_id) is_false, "component not fount, cmp : {}, hash : {}", ecs::get_component_name<std::remove_cvref_t<t_cmp>>(), ecs::get_component_name_hash<std::remove_cvref_t<t_cmp>>());
+
+		return *static_cast<t_cmp*>(get_component_ptr(editor_scene_idx, editor_storage_idx, ecs_entity_id, ecs_component_id));
+	}
+
+	template <typename... t_cmp>
+	decltype(auto)
+	add_components(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept
+	{
+		c_auto ecs_archetype = ((1uz << get_ecs_component_id(editor_scene_idx, editor_storage_idx, ecs::get_component_name_hash<std::remove_cvref_t<t_cmp>>())) | ... | 0uz);
+
+		add_components(editor_scene_idx, editor_storage_idx, ecs_entity_id, ecs_archetype);
+
+		return get_components<t_cmp...>(editor_scene_idx, editor_storage_idx, ecs_entity_id);
 	}
 }	 // namespace age::editor
 

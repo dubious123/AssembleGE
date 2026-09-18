@@ -365,9 +365,10 @@ namespace age::asset::mesh_baked::detail
 	}
 
 	void
-	calc_tangent(AGE_INOUT std::span<vertex_fat> corner_buffer, age::vector<float4>& tangent_scratch_buffer) noexcept
+	calc_tangent(AGE_INOUT std::span<vertex_fat> corner_buffer, std::span<float4> tangent_scratch_buffer) noexcept
 	{
 		AGE_ASSERT(corner_buffer.size() % 3 == 0);
+		AGE_ASSERT(tangent_scratch_buffer.size() == corner_buffer.size());
 
 		external::meshopt::gen_tangents(
 			std::span<const uint32>{},		 // unindexed
@@ -384,17 +385,51 @@ namespace age::asset::mesh_baked::detail
 		}
 	}
 
+	void
+	calc_tangent(std::span<const uint32> index_buffer, AGE_INOUT std::span<vertex_fat> vertex_buffer, std::span<float4> tangent_scratch_buffer) noexcept
+	{
+		AGE_ASSERT(index_buffer.size() % 3 == 0);
+		AGE_ASSERT(tangent_scratch_buffer.size() == index_buffer.size());
+
+		external::meshopt::gen_tangents(
+			index_buffer,
+			std::span<const vertex_fat>{ vertex_buffer },
+			offsetof(vertex_fat, pos),
+			offsetof(vertex_fat, normal),
+			offsetof(vertex_fat, uv_set),	 // uv0
+			true,							 // mikktspace compatible
+			AGE_OUT tangent_scratch_buffer);
+
+		if constexpr (age::config::debug_mode)
+		{
+			for (auto& v : vertex_buffer)
+			{
+				v.tangent = float4::zero();
+			}
+		}
+
+		for (auto&& [idx, tangent] : std::views::zip(index_buffer, tangent_scratch_buffer))
+		{
+			auto& dst = vertex_buffer[idx].tangent;
+			AGE_ASSERT(dst == float4::zero() or dst == tangent, "tangent seam, unweld and use unindexed version");
+			dst = tangent;
+		}
+	}
+
 	struct submesh_baked
 	{
-		age::vector<vertex_fat>		vertex_buffer;
-		age::vector<uint32>			meshlet_global_index_buffer;
-		age::vector<uint8>			meshlet_local_index_buffer;
-		age::vector<meshlet_header> meshlet_header_buffer;
-		age::vector<meshlet>		meshlet_buffer;
+		age::vector<vertex_fat>					  vertex_buffer;
+		age::vector<uint32>						  meshlet_global_index_buffer;
+		age::vector<uint8>						  meshlet_local_index_buffer;
+		age::vector<meshlet_header>				  meshlet_header_buffer;
+		age::vector<meshlet>					  meshlet_buffer;
+		graphics::e::mesh_raster_mode_kind		  raster_mode;
+		graphics::e::mesh_rt_alpha_test_mode_kind rt_alpha_test_mode;
+		graphics::e::mesh_rt_bake_mode_kind		  rt_bake_mode;
 	};
 
 	bool
-	build_and_write_asset_file(std::string_view mesh_path, const mesh_baked_desc& desc, age::dynamic_array<detail::submesh_baked>&& submesh_baked_arr) noexcept
+	build_and_write_asset_file(std::string_view mesh_path, age::dynamic_array<detail::submesh_baked>&& submesh_baked_arr, e::vertex_kind v_kind) noexcept
 	{
 		auto asset_header					 = entry<e::kind::mesh_baked>::header{};
 		auto mesh_header					 = mesh_baked_header{};
@@ -407,24 +442,24 @@ namespace age::asset::mesh_baked::detail
 		auto meshlet_count					 = 0u;
 		auto meshlet_buffer_byte_size		 = 0u;
 
-		for (auto&& [vertex_buffer, meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_buffer, meshlet_buffer] : submesh_baked_arr)
+		for (c_auto& submesh : submesh_baked_arr)
 		{
-			for (c_auto& v : vertex_buffer)
+			for (c_auto& v : submesh.vertex_buffer)
 			{
 				aabb_min = min(aabb_min, v.pos);
 				aabb_max = max(aabb_max, v.pos);
 			}
-			vertex_count					+= vertex_buffer.size<uint32>();
-			global_index_buffer_size		+= meshlet_global_index_buffer.size<uint32>();
-			local_index_buffer_size			+= meshlet_local_index_buffer.size<uint32>();
-			meshlet_header_buffer_byte_size += meshlet_header_buffer.byte_size<uint32>();
-			meshlet_count					+= meshlet_buffer.size<uint32>();
-			meshlet_buffer_byte_size		+= meshlet_buffer.byte_size<uint32>();
+			vertex_count					+= submesh.vertex_buffer.size<uint32>();
+			global_index_buffer_size		+= submesh.meshlet_global_index_buffer.size<uint32>();
+			local_index_buffer_size			+= submesh.meshlet_local_index_buffer.size<uint32>();
+			meshlet_header_buffer_byte_size += submesh.meshlet_header_buffer.byte_size<uint32>();
+			meshlet_count					+= submesh.meshlet_buffer.size<uint32>();
+			meshlet_buffer_byte_size		+= submesh.meshlet_buffer.byte_size<uint32>();
 		}
 
 		c_auto aabb_size	 = age::max(aabb_max - aabb_min, float3{ age::g::epsilon_1e6 });
 		c_auto submesh_count = static_cast<uint32>(submesh_baked_arr.size());
-		c_auto vertex_stride = e::visit(desc.v_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(), { return static_cast<uint32>(sizeof(t_vertex_kind<e_kind>)); }));
+		c_auto vertex_stride = e::visit(v_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(), { return static_cast<uint32>(sizeof(t_vertex_kind<e_kind>)); }));
 
 		static_assert(sizeof(uint16) == sizeof(graphics::e::mesh_raster_mode_kind) + sizeof(graphics::e::mesh_rt_alpha_test_mode_kind));
 
@@ -450,9 +485,9 @@ namespace age::asset::mesh_baked::detail
 
 			// vertex
 			AGE_ASSERT((buf.size<uint32>() - base) % 4 == 0);	 // vertex_quantized_buffer_offset
-			for (const auto& [vertex_buffer, _1, _2, _3, _4] : submesh_baked_arr)
+			for (c_auto& submesh : submesh_baked_arr)
 			{
-				std::ranges::for_each(vertex_buffer, [aabb_min, aabb_size, v_kind = desc.v_kind, &buf](c_auto& v) {
+				std::ranges::for_each(submesh.vertex_buffer, [aabb_min, aabb_size, v_kind, &buf](c_auto& v) {
 					e::visit(v_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto&&... arg), { return buf.write(cvt_vertex_to<e_kind>(FWD(arg)...)); }), buf, v, aabb_min, aabb_size);
 				});
 			}
@@ -460,51 +495,51 @@ namespace age::asset::mesh_baked::detail
 			// meshlet header
 			mesh_header.meshlet_header_buffer_offset = buf.size<uint32>() - base;
 			AGE_ASSERT(mesh_header.meshlet_header_buffer_offset % 4 == 0);
-			for (const auto& [_0, _1, _2, meshlet_header_buffer, _4] : submesh_baked_arr)
+			for (c_auto& submesh : submesh_baked_arr)
 			{
-				buf.write_bytes(meshlet_header_buffer.data(), meshlet_header_buffer.byte_size());
+				buf.write_bytes(submesh.meshlet_header_buffer.data(), submesh.meshlet_header_buffer.byte_size());
 			}
 
 			// meshlet
 			mesh_header.meshlet_buffer_offset = buf.size<uint32>() - base;
 			AGE_ASSERT(mesh_header.meshlet_buffer_offset % 4 == 0);
-			for (auto global_index_offset_base = 0u, local_index_offset_base = 0u;
-				 auto& [_0, meshlet_global_index_buffer, meshlet_local_index_buffer, _3, meshlet_buffer] : submesh_baked_arr)
+			for (auto  global_index_offset_base = 0u, local_index_offset_base = 0u;
+				 auto& submesh : submesh_baked_arr)
 			{
-				for (auto& mshlt : meshlet_buffer)
+				for (auto& mshlt : submesh.meshlet_buffer)
 				{
 					mshlt.global_index_offset += global_index_offset_base;
 					mshlt.local_index_offset  += local_index_offset_base;
 				}
 
-				global_index_offset_base += meshlet_global_index_buffer.size<uint32>();
-				local_index_offset_base	 += meshlet_local_index_buffer.size<uint32>();
+				global_index_offset_base += submesh.meshlet_global_index_buffer.size<uint32>();
+				local_index_offset_base	 += submesh.meshlet_local_index_buffer.size<uint32>();
 
-				buf.write_bytes(meshlet_buffer.data(), meshlet_buffer.byte_size());
+				buf.write_bytes(submesh.meshlet_buffer.data(), submesh.meshlet_buffer.byte_size());
 			}
 
 			// global index
 			mesh_header.global_vertex_index_buffer_offset = buf.size<uint32>() - base;
 			AGE_ASSERT(mesh_header.global_vertex_index_buffer_offset % 4 == 0);
-			for (auto vertex_offset = 0u;
-				 auto& [vertex_buffer, meshlet_global_index_buffer, _2, _3, _4] : submesh_baked_arr)
+			for (auto  vertex_offset = 0u;
+				 auto& submesh : submesh_baked_arr)
 			{
-				for (auto& mshlt_global_idx : meshlet_global_index_buffer)
+				for (auto& mshlt_global_idx : submesh.meshlet_global_index_buffer)
 				{
 					mshlt_global_idx += vertex_offset;
 				}
 
-				vertex_offset += vertex_buffer.size<uint32>();
+				vertex_offset += submesh.vertex_buffer.size<uint32>();
 
-				buf.write_bytes(meshlet_global_index_buffer.data(), meshlet_global_index_buffer.byte_size());
+				buf.write_bytes(submesh.meshlet_global_index_buffer.data(), submesh.meshlet_global_index_buffer.byte_size());
 			}
 
 			// local index
 			mesh_header.local_vertex_index_buffer_offset = buf.size<uint32>() - base;
 			AGE_ASSERT(mesh_header.local_vertex_index_buffer_offset % 4 == 0);
-			for (const auto& [_0, _1, meshlet_local_index_buffer, _3, _4] : submesh_baked_arr)
+			for (c_auto& submesh : submesh_baked_arr)
 			{
-				buf.write_bytes(meshlet_local_index_buffer.data(), meshlet_local_index_buffer.byte_size());
+				buf.write_bytes(submesh.meshlet_local_index_buffer.data(), submesh.meshlet_local_index_buffer.byte_size());
 			}
 
 			// align_up, typeof local_index : uint8
@@ -519,26 +554,26 @@ namespace age::asset::mesh_baked::detail
 
 			// submesh_meshlet_id_offset
 			for (auto meshlet_id_offset = 0u;
-				 const auto& [_0, _1, _2, _3, meshlet_buffer] : submesh_baked_arr)
+				 c_auto& submesh : submesh_baked_arr)
 			{
 				buf.write(uint32{ meshlet_id_offset });
-				meshlet_id_offset += meshlet_buffer.size<uint32>();
+				meshlet_id_offset += submesh.meshlet_buffer.size<uint32>();
 			}
 
 			// submesh_primitive_id_offset
 			for (auto primitive_id_offset = 0u;
-				 const auto& [_0, _1, meshlet_local_index_buffer, _3, _4] : submesh_baked_arr)
+				 c_auto& submesh : submesh_baked_arr)
 			{
 				buf.write(uint32{ primitive_id_offset });
-				primitive_id_offset += meshlet_local_index_buffer.size<uint32>() / 3;
+				primitive_id_offset += submesh.meshlet_local_index_buffer.size<uint32>() / 3;
 
-				AGE_ASSERT(meshlet_local_index_buffer.size<uint32>() % 3 == 0u);
+				AGE_ASSERT(submesh.meshlet_local_index_buffer.size<uint32>() % 3 == 0u);
 			}
 
 			// submesh_flags
-			for (c_auto& submsh_desc : desc.submesh_span)
+			for (c_auto& submesh : submesh_baked_arr)
 			{
-				buf.write(cast_to<uint16>(to_idx<uint16>(submsh_desc.raster_mode) | (to_idx<uint16>(submsh_desc.rt_alpha_test_mode) << 8u)));
+				buf.write(cast_to<uint16>(to_idx<uint16>(submesh.raster_mode) | (to_idx<uint16>(submesh.rt_alpha_test_mode) << 8u)));
 			}
 			if (is_odd(submesh_count))
 			{
@@ -549,7 +584,7 @@ namespace age::asset::mesh_baked::detail
 			mesh_header.submesh_count		  = submesh_count;
 			mesh_header.aabb_min			  = aabb_min;
 			mesh_header.aabb_size			  = aabb_size;
-			mesh_header.vertex_kind_and_extra = to_idx(desc.v_kind);	// omm is disabled
+			mesh_header.vertex_kind_and_extra = to_idx(v_kind);	   // omm is disabled
 
 			AGE_ASSERT((buf.size() - base) % 4u == 0u);
 
@@ -561,28 +596,28 @@ namespace age::asset::mesh_baked::detail
 			c_auto idx_buffer_offset = buf.size();
 
 			for (auto global_index_offset = 0u, local_index_offset = 0u;
-				 const auto& [_0, meshlet_global_index_buffer, meshlet_local_index_buffer, _3, meshlet_buffer] : submesh_baked_arr)
+				 c_auto& submesh : submesh_baked_arr)
 			{
-				for (c_auto& mshlt : meshlet_buffer)
+				for (c_auto& mshlt : submesh.meshlet_buffer)
 				{
 					for (c_auto i : std::views::iota(mshlt.local_index_offset) | std::views::take(mshlt.primitive_count * 3))
 					{
 						buf.write_at(idx_buffer_offset + i * sizeof(uint32),
-									 meshlet_global_index_buffer[mshlt.global_index_offset - global_index_offset + meshlet_local_index_buffer[i - local_index_offset]]);
+									 submesh.meshlet_global_index_buffer[mshlt.global_index_offset - global_index_offset + submesh.meshlet_local_index_buffer[i - local_index_offset]]);
 					}
 				}
 
-				global_index_offset += meshlet_global_index_buffer.size<uint32>();
-				local_index_offset	+= meshlet_local_index_buffer.size<uint32>();
+				global_index_offset += submesh.meshlet_global_index_buffer.size<uint32>();
+				local_index_offset	+= submesh.meshlet_local_index_buffer.size<uint32>();
 			}
 
 
 			buf.move_write_pos(idx_buffer_offset + sizeof(uint32) * local_index_buffer_size);
 
 			// pos buffer for blas build
-			for (auto i : views::loop(vertex_count))
+			for (c_auto i : views::loop(vertex_count))
 			{
-				e::visit(desc.v_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto i, /*const vertex_fat& v_ref,*/ const float3& aabb_min, const float3& aabb_size), {
+				e::visit(v_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto i, /*const vertex_fat& v_ref,*/ const float3& aabb_min, const float3& aabb_size), {
 							 using t_vertex = t_vertex_kind<e_kind>;
 							 auto v			= t_vertex{};
 							 std::memcpy(&v, buf.data() + sizeof(asset_header) + sizeof(mesh_header) + sizeof(t_vertex) * i, sizeof(t_vertex));
@@ -601,9 +636,9 @@ namespace age::asset::mesh_baked::detail
 			// }
 
 			// rt_bake_mode
-			for (c_auto& submsh_desc : desc.submesh_span)
+			for (c_auto& submesh : submesh_baked_arr)
 			{
-				buf.write(submsh_desc.rt_bake_mode);
+				buf.write(submesh.rt_bake_mode);
 			}
 		}
 
@@ -629,7 +664,7 @@ namespace age::asset::mesh_baked
 		auto corner_scratch_buffer	= age::vector<vertex_fat>{};
 		auto tangent_scratch_buffer = age::vector<float4>{};
 
-		auto baked_arr = age::dynamic_array<detail::submesh_baked>::gen_sized_default(desc.submesh_span.size());
+		auto baked_arr = age::dynamic_array<detail::submesh_baked>::gen_sized_copy(desc.submesh_span.size(), detail::submesh_baked{});
 
 		for (const auto&& [i, submesh] : desc.submesh_span | views::enumerate<uint32>)
 		{
@@ -667,7 +702,7 @@ namespace age::asset::mesh_baked
 				if (submesh.gen_tangent)
 				{
 					tangent_scratch_buffer.clear();
-					tangent_scratch_buffer.reserve(corner_scratch_buffer.size());
+					tangent_scratch_buffer.resize(corner_scratch_buffer.size());
 					detail::calc_tangent(AGE_INOUT corner_scratch_buffer, tangent_scratch_buffer);
 				}
 
@@ -686,41 +721,50 @@ namespace age::asset::mesh_baked
 				.meshlet_local_index_buffer	 = std::move(meshlet_local_index_buffer),
 				.meshlet_header_buffer		 = std::move(meshlet_header_buffer),
 				.meshlet_buffer				 = std::move(meshlet_buffer),
+				.raster_mode				 = submesh.raster_mode,
+				.rt_alpha_test_mode			 = submesh.rt_alpha_test_mode,
+				.rt_bake_mode				 = submesh.rt_bake_mode,
 			};
 		}
 
-		return detail::build_and_write_asset_file(dst, desc, std::move(baked_arr));
+		return detail::build_and_write_asset_file(dst, std::move(baked_arr), desc.v_kind);
 	}
 }	 // namespace age::asset::mesh_baked
 
 namespace age::asset::mesh_baked::detail
 {
-	void
+	bool
 	build_mesh_baked(const age::array<char, config::max_asset_path_len>& mesh_path, std::span<const primitive_desc> descs, e::vertex_kind e_kind) noexcept
 	{
 		AGE_ASSERT(descs.empty() is_false);
+		if (e_kind != e::vertex_kind::pnt_uv0 and e_kind != e::vertex_kind::pnt_uv1)
+		{
+			// todo, support multiple vertex kind
+			return false;
+		}
 
-		auto asset_header = entry<e::kind::mesh_baked>::header{};
-		auto mesh_header  = mesh_baked_header{};
-
-		auto vertex_buffer_arr				 = age::dynamic_array<age::vector<vertex_fat>>::gen_sized_default(descs.size());
-		auto meshlet_global_index_buffer_arr = age::dynamic_array<age::vector<uint32>>::gen_sized_default(descs.size());
-		auto meshlet_local_index_buffer_arr	 = age::dynamic_array<age::vector<uint8>>::gen_sized_default(descs.size());
-		auto meshlet_header_buffer_arr		 = age::dynamic_array<age::vector<meshlet_header>>::gen_sized_default(descs.size());
-		auto meshlet_buffer_arr				 = age::dynamic_array<age::vector<meshlet>>::gen_sized_default(descs.size());
+		auto baked_arr				= age::dynamic_array<detail::submesh_baked>::gen_sized_copy(descs.size(), detail::submesh_baked{});
+		auto tangent_scratch_buffer = age::vector<float4>{};
 
 		for (auto&& [idx, desc] : descs | views::enumerate<uint32>)
 		{
 			// not supported yet
 			AGE_ASSERT(desc.rt_bake_mode != graphics::e::mesh_rt_bake_mode_kind::omm_opaque and desc.rt_bake_mode != graphics::e::mesh_rt_bake_mode_kind::omm_transparent);
 
-			c_auto& mesh_edit = create_primitive_mesh(desc);
+			c_auto mesh_edit = create_primitive_mesh(desc);
 
 			auto mesh_fat = asset::triangulate<vertex_fat>(mesh_edit);
 			AGE_ASSERT(mesh_fat.v_idx_vec.size() % 3 == 0);
-			for (auto [nth, idx] : mesh_fat.v_idx_vec | std::views::enumerate)
+			for (auto [nth, i] : mesh_fat.v_idx_vec | std::views::enumerate)
 			{
-				AGE_ASSERT(idx < mesh_fat.vertex_vec.size());
+				AGE_ASSERT(i < mesh_fat.vertex_vec.size());
+			}
+
+			if (mesh_edit.tangent_calculated is_false)
+			{
+				tangent_scratch_buffer.clear();
+				tangent_scratch_buffer.resize(mesh_fat.v_idx_vec.size());
+				detail::calc_tangent(mesh_fat.v_idx_vec, AGE_INOUT mesh_fat.vertex_vec, tangent_scratch_buffer);
 			}
 
 			auto&& [index_buffer, vertex_buffer] = external::meshopt::gen_remap(mesh_fat.v_idx_vec, mesh_fat.vertex_vec);
@@ -729,235 +773,22 @@ namespace age::asset::mesh_baked::detail
 			auto&& [meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_buffer, meshlet_buffer] =
 				external::meshopt::gen_meshlets(index_buffer, vertex_buffer);
 
-			vertex_buffer_arr[idx]				 = std::move(vertex_buffer);
-			meshlet_global_index_buffer_arr[idx] = std::move(meshlet_global_index_buffer);
-			meshlet_local_index_buffer_arr[idx]	 = std::move(meshlet_local_index_buffer);
-			meshlet_header_buffer_arr[idx]		 = std::move(meshlet_header_buffer);
-			meshlet_buffer_arr[idx]				 = std::move(meshlet_buffer);
+			baked_arr[idx] = detail::submesh_baked{
+				.vertex_buffer				 = std::move(vertex_buffer),
+				.meshlet_global_index_buffer = std::move(meshlet_global_index_buffer),
+				.meshlet_local_index_buffer	 = std::move(meshlet_local_index_buffer),
+				.meshlet_header_buffer		 = std::move(meshlet_header_buffer),
+				.meshlet_buffer				 = std::move(meshlet_buffer),
+				.raster_mode				 = desc.raster_mode,
+				.rt_alpha_test_mode			 = desc.rt_alpha_test_mode,
+				.rt_bake_mode				 = desc.rt_bake_mode,
+			};
 		}
 
-		auto aabb_min						 = float3{ std::numeric_limits<float>::max() };
-		auto aabb_max						 = float3{ std::numeric_limits<float>::lowest() };
-		auto vertex_count					 = 0u;
-		auto global_index_buffer_size		 = 0u;
-		auto local_index_buffer_size		 = 0u;	  // == flat index entry count
-		auto meshlet_header_buffer_byte_size = 0u;
-		auto meshlet_count					 = 0u;
-		auto meshlet_buffer_byte_size		 = 0u;
-
-		for (auto&& [vertex_buffer, meshlet_global_index_buffer, meshlet_local_index_buffer, meshlet_header_buffer, meshlet_buffer] :
-			 std::views::zip(vertex_buffer_arr, meshlet_global_index_buffer_arr, meshlet_local_index_buffer_arr, meshlet_header_buffer_arr, meshlet_buffer_arr))
-		{
-			for (c_auto& v : vertex_buffer)
-			{
-				aabb_min = min(aabb_min, v.pos);
-				aabb_max = max(aabb_max, v.pos);
-			}
-			vertex_count					+= vertex_buffer.size<uint32>();
-			global_index_buffer_size		+= meshlet_global_index_buffer.size<uint32>();
-			local_index_buffer_size			+= meshlet_local_index_buffer.size<uint32>();
-			meshlet_header_buffer_byte_size += meshlet_header_buffer.byte_size<uint32>();
-			meshlet_count					+= meshlet_buffer.size<uint32>();
-			meshlet_buffer_byte_size		+= meshlet_buffer.byte_size<uint32>();
-		}
-
-		c_auto aabb_size	 = age::max(aabb_max - aabb_min, float3{ age::g::epsilon_1e6 });
-		c_auto submesh_count = static_cast<uint32>(descs.size());
-		c_auto vertex_stride = e::visit(e_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(), { return static_cast<uint32>(sizeof(t_vertex_kind<e_kind>)); }));
-
-		static_assert(sizeof(uint16) == sizeof(graphics::e::mesh_raster_mode_kind) + sizeof(graphics::e::mesh_rt_alpha_test_mode_kind));
-
-		auto buf = byte_buf::gen_reserved(
-			sizeof(asset_header)
-			+ sizeof(mesh_header)
-			+ vertex_stride * vertex_count
-			+ meshlet_header_buffer_byte_size
-			+ meshlet_buffer_byte_size
-			+ global_index_buffer_size * sizeof(uint32)
-			+ util::align_up(local_index_buffer_size * sizeof(uint8), 4u)
-			+ submesh_count * sizeof(uint32_2)								 // submesh meshlet_id_offset, primitive_id_offset
-			+ util::align_up(submesh_count * sizeof(uint16), 4u)			 // submesh flags
-			+ local_index_buffer_size * sizeof(uint32)						 // flat index buffer
-			+ vertex_count * sizeof(float3)									 // pos buffer
-			+ submesh_count * sizeof(graphics::e::mesh_rt_bake_mode_kind)	 // rt_bake_mode tail
-		);
-
-		buf.move_write_pos(sizeof(asset_header) + sizeof(mesh_header));
-
-		{
-			c_auto base = static_cast<uint32>(sizeof(asset_header));
-
-			// vertex
-			AGE_ASSERT((buf.size<uint32>() - base) % 4 == 0);	 // vertex_quantized_buffer_offset
-			for (c_auto& vertex_buffer : vertex_buffer_arr)
-			{
-				std::ranges::for_each(vertex_buffer, [aabb_min, aabb_size, e_kind, &buf](c_auto& v) {
-					e::visit(e_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto&&... arg), { return buf.write(cvt_vertex_to<e_kind>(FWD(arg)...)); }), buf, v, aabb_min, aabb_size);
-				});
-			}
-
-			// meshlet header
-			mesh_header.meshlet_header_buffer_offset = buf.size<uint32>() - base;
-			AGE_ASSERT(mesh_header.meshlet_header_buffer_offset % 4 == 0);
-			for (c_auto& meshlet_header_buffer : meshlet_header_buffer_arr)
-			{
-				buf.write_bytes(meshlet_header_buffer.data(), meshlet_header_buffer.byte_size());
-			}
-
-			// meshlet
-			mesh_header.meshlet_buffer_offset = buf.size<uint32>() - base;
-			AGE_ASSERT(mesh_header.meshlet_buffer_offset % 4 == 0);
-			for (auto global_index_offset_base = 0u, local_index_offset_base = 0u;
-				 auto&& [meshlet_buffer, meshlet_global_index_buffer, meshlet_local_index_buffer] :
-				 std::views::zip(meshlet_buffer_arr, meshlet_global_index_buffer_arr, meshlet_local_index_buffer_arr))
-			{
-				for (auto& mshlt : meshlet_buffer)
-				{
-					mshlt.global_index_offset += global_index_offset_base;
-					mshlt.local_index_offset  += local_index_offset_base;
-				}
-
-				global_index_offset_base += meshlet_global_index_buffer.size<uint32>();
-				local_index_offset_base	 += meshlet_local_index_buffer.size<uint32>();
-
-				buf.write_bytes(meshlet_buffer.data(), meshlet_buffer.byte_size());
-			}
-
-			// global index
-			mesh_header.global_vertex_index_buffer_offset = buf.size<uint32>() - base;
-			AGE_ASSERT(mesh_header.global_vertex_index_buffer_offset % 4 == 0);
-			for (auto vertex_offset = 0u;
-				 auto&& [meshlet_global_index_buffer, vertex_buffer] :
-				 std::views::zip(meshlet_global_index_buffer_arr, vertex_buffer_arr))
-			{
-				for (auto& mshlt_global_idx : meshlet_global_index_buffer)
-				{
-					mshlt_global_idx += vertex_offset;
-				}
-
-				vertex_offset += vertex_buffer.size<uint32>();
-
-				buf.write_bytes(meshlet_global_index_buffer.data(), meshlet_global_index_buffer.byte_size());
-			}
-
-			// local index
-			mesh_header.local_vertex_index_buffer_offset = buf.size<uint32>() - base;
-			AGE_ASSERT(mesh_header.local_vertex_index_buffer_offset % 4 == 0);
-			for (c_auto& meshlet_local_index_buffer : meshlet_local_index_buffer_arr)
-			{
-				buf.write_bytes(meshlet_local_index_buffer.data(), meshlet_local_index_buffer.byte_size());
-			}
-
-			// align_up, typeof local_index : uint8
-			while ((buf.size() - base) % 4 != 0u)
-			{
-				buf.write(uint8{});
-			}
-
-			// submesh data
-			mesh_header.submesh_data_offset = buf.size<uint32>() - base;
-			AGE_ASSERT(mesh_header.submesh_data_offset % 4 == 0);
-
-			// submesh_meshlet_id_offset
-			for (auto meshlet_id_offset = 0u;
-				 c_auto& meshlet_buffer : meshlet_buffer_arr)
-			{
-				buf.write(uint32{ meshlet_id_offset });
-				meshlet_id_offset += meshlet_buffer.size<uint32>();
-			}
-
-			// submesh_primitive_id_offset
-			for (auto primitive_id_offset = 0u;
-				 c_auto& meshlet_local_index_buffer : meshlet_local_index_buffer_arr)
-			{
-				buf.write(uint32{ primitive_id_offset });
-				primitive_id_offset += meshlet_local_index_buffer.size<uint32>() / 3;
-
-				AGE_ASSERT(meshlet_local_index_buffer.size<uint32>() % 3 == 0u);
-			}
-
-			// submesh_flags
-			for (c_auto& desc : descs)
-			{
-				buf.write(cast_to<uint16>(to_idx<uint16>(desc.raster_mode) | (to_idx<uint16>(desc.rt_alpha_test_mode) << 8u)));
-			}
-			if (is_odd(submesh_count))
-			{
-				buf.write(uint16{});
-			}
-
-			mesh_header.meshlet_count		  = meshlet_count;
-			mesh_header.submesh_count		  = submesh_count;
-			mesh_header.aabb_min			  = aabb_min;
-			mesh_header.aabb_size			  = aabb_size;
-			mesh_header.vertex_kind_and_extra = to_idx(e_kind);	   // omm is disabled
-
-			AGE_ASSERT((buf.size() - base) % 4u == 0u);
-
-			asset_header.meshlet_buffer_byte_size = buf.size() - base;
-			asset_header.index_count			  = local_index_buffer_size;
-			asset_header.pos_count				  = vertex_count;
-
-			// rt index buffer
-			c_auto idx_buffer_offset = buf.size();
-
-			for (auto global_index_offset = 0u, local_index_offset = 0u;
-				 const auto&& [meshlet_buffer, meshlet_global_index_buffer, meshlet_local_index_buffer] :
-				 std::views::zip(meshlet_buffer_arr, meshlet_global_index_buffer_arr, meshlet_local_index_buffer_arr))
-			{
-				for (c_auto& mshlt : meshlet_buffer)
-				{
-					for (c_auto i : std::views::iota(mshlt.local_index_offset) | std::views::take(mshlt.primitive_count * 3))
-					{
-						buf.write_at(idx_buffer_offset + i * sizeof(uint32),
-									 meshlet_global_index_buffer[mshlt.global_index_offset - global_index_offset + meshlet_local_index_buffer[i - local_index_offset]]);
-					}
-				}
-
-				global_index_offset += meshlet_global_index_buffer.size<uint32>();
-				local_index_offset	+= meshlet_local_index_buffer.size<uint32>();
-			}
-
-
-			buf.move_write_pos(idx_buffer_offset + sizeof(uint32) * local_index_buffer_size);
-
-			// pos buffer for blas build
-			for (auto i : views::loop(vertex_count))
-			{
-				e::visit(e_kind, AGE_LAMBDA(<e::vertex_kind e_kind>(auto& buf, auto i, /*const vertex_fat& v_ref,*/ const float3& aabb_min, const float3& aabb_size), {
-							 using t_vertex = t_vertex_kind<e_kind>;
-							 auto v			= t_vertex{};
-							 std::memcpy(&v, buf.data() + sizeof(asset_header) + sizeof(mesh_header) + sizeof(t_vertex) * i, sizeof(t_vertex));
-
-							 c_auto v_fat = cvt_vertex_to<vertex_fat>(v, aabb_min, aabb_size);
-
-							 // std::println("diff v_ref - v_meshlet : {}", v_ref.pos - v_fat.pos);
-							 return buf.write(v_fat.pos);
-						 }),
-						 buf, i, aabb_min, aabb_size);
-			}
-
-			// for (c_auto& v : vertex_buffer)
-			//{
-			//	buf.write(v.pos);
-			// }
-
-			// rt_bake_mode
-			for (c_auto& desc : descs)
-			{
-				buf.write(desc.rt_bake_mode);
-			}
-		}
-
-		AGE_ASSERT(buf.capacity() == buf.size());
-
-		buf.write_at(0, asset_header, mesh_header);
-		c_auto f_header = get_default_file_header<e::kind::mesh_baked>(buf.size(), static_cast<uint8>(std::countr_zero(alignof(decltype(asset_header)))));
-		write_asset_file(mesh_path.data(), f_header, buf.data());
-		return;
+		return detail::build_and_write_asset_file(mesh_path.data(), std::move(baked_arr), e_kind);
 	}
 
-	void
+	bool
 	build_mesh_baked(const age::array<char, config::max_asset_path_len>& mesh_path, const primitive_desc& desc, e::vertex_kind e_kind) noexcept
 	{
 		return build_mesh_baked(mesh_path, { &desc, 1 }, e_kind);

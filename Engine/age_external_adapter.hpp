@@ -682,6 +682,8 @@ namespace age::external::meshopt
 
 namespace age::external::meshopt
 {
+	// if unindexed, res.size() == vertex_buffer.size();
+	// if indexed,   res.size() == index_buffer.size();
 	template <typename t_vertex>
 	void
 	gen_tangents(
@@ -691,7 +693,7 @@ namespace age::external::meshopt
 		std::size_t				  normal_offset,
 		std::size_t				  uv_offset,
 		bool					  mikktspace_compatible,
-		AGE_OUT age::vector<float4>& res) noexcept
+		AGE_OUT std::span<float4> tangent_res) noexcept
 	{
 		static_assert(std::is_standard_layout_v<t_vertex>, "offsetof requires standard layout");
 		AGE_ASSERT(position_offset + sizeof(float3) <= sizeof(t_vertex));
@@ -702,13 +704,16 @@ namespace age::external::meshopt
 		c_auto* p_index		= is_indexed ? index_buffer.data() : nullptr;
 		c_auto	index_count = is_indexed ? index_buffer.size() : vertex_buffer.size();
 		AGE_ASSERT(index_count % 3 == 0);
-
-		res.resize(index_count);
+		if (tangent_res.size() < std::size_t{ index_count })
+		{
+			AGE_ASSERT(false, "invalid res span size, required : {}, input : {}", index_count, tangent_res.size());
+			std::abort();
+		}
 
 		c_auto* p_base = reinterpret_cast<const char*>(vertex_buffer.data());
 
 		detail::gen_tangents(
-			reinterpret_cast<float*>(res.data()),
+			reinterpret_cast<float*>(tangent_res.data()),
 			p_index,
 			index_count,
 			reinterpret_cast<const float*>(p_base + position_offset),

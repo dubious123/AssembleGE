@@ -330,14 +330,6 @@ namespace age::editor
 	bool
 	ui_asset_header(asset::e::kind e_kind, asset::handle h_asset) noexcept;
 
-	// template <asset::e::kind e_kind>
-	// bool /*is_dirty*/
-	// ui_asset(asset::handle) noexcept
-	//{
-	//	AGE_UNREACHABLE(std::format("no inspector for {}", to_string(e_kind)).data());
-	//	return false;
-	// }
-
 	void
 	ui_asset(asset::e::kind e_kind, asset::handle h_asset, auto& renderer) noexcept
 	{
@@ -632,7 +624,7 @@ namespace age::editor::detail
 					}
 				}
 
-				for (auto ent_idx : remove_vec)
+				for (auto ent_idx : remove_vec | std::views::reverse)
 				{
 					auto& ent = arch.entity_data_vec[ent_idx];
 					detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent_idx, ent.id);

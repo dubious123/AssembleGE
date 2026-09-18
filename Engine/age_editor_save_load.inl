@@ -14,9 +14,11 @@ namespace age::editor::detail
 
 		[]<auto... i>(std::index_sequence<i...>, auto& storage_editor) {
 			((storage_editor.component_data_vec.emplace_back(component_editor_data{
-				 .names		= ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<age::array<char, config::max_component_name_len>>>(),
-				 .version	= ecs::get_component_version<typename t_archetype_traits::template t_component<i>>(),
-				 .byte_size = ecs::get_byte_size<typename t_archetype_traits::template t_component<i>>(),
+				 .names					  = ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<age::array<char, config::max_component_name_len>>>(),
+				 .version				  = ecs::get_component_version<typename t_archetype_traits::template t_component<i>>(),
+				 .byte_size				  = ecs::get_byte_size<typename t_archetype_traits::template t_component<i>>(),
+				 .ecs_component_id		  = cast_to<uint32>(i),
+				 .ecs_component_name_hash = ecs::get_component_name_hash<typename t_archetype_traits::template t_component<i>>(),
 			 })),
 			 ...);
 		}(std::make_index_sequence<t_archetype_traits::cmp_count()>{}, storage_editor);

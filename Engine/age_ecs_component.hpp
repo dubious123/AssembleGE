@@ -109,10 +109,6 @@ namespace age::ecs
 	template <>                                                                                                    \
 	consteval auto get_component_name<name>()                                                                      \
 	{ return age::util::to_fixed_str_arr<age::config::max_component_name_len>(#name __VA_OPT__(, ) __VA_ARGS__); } \
-	template <typename t, std::size_t i>                                                                           \
-	requires std::is_same_v<t, name>                                                                               \
-	consteval auto get_component_name_at()                                                                         \
-	{ return get_component_name<name>()[i]; }                                                                      \
 	struct name
 
 #define AGE_COMPONENT_TEMPLATE(name, t_param_tpl, ...)                                                             \
@@ -130,10 +126,6 @@ namespace age::ecs
 	requires meta::is_specialization_of_v<t, name>                                                                 \
 	consteval auto get_component_name()                                                                            \
 	{ return age::util::to_fixed_str_arr<age::config::max_component_name_len>(#name __VA_OPT__(, ) __VA_ARGS__); } \
-	template <typename t, std::size_t i>                                                                           \
-	requires meta::is_specialization_of_v<t, name>                                                                 \
-	consteval auto get_component_name_at()                                                                         \
-	{ return get_component_name<t>()[i]; }                                                                         \
 	template <template <AGE_PP_IDENTITY_I t_param_tpl> typename tmpl>                                              \
 	requires __is_template_                                                                                        \
 	##name<tmpl>::value consteval auto get_component_name()                                                        \
@@ -150,6 +142,24 @@ namespace age::ecs
 
 #define AGE_CUSTOM_BYTE_SIZE(...) \
 	static consteval uint32 byte_size() { return static_cast<uint32>(FOR_EACH_SEP(sizeof, AGE_PP_PLUS_I, __VA_ARGS__)); };
+
+	template <typename t_component, std::size_t i>
+	requires(is_ecs_component<t_component>())
+	consteval auto
+	get_component_name_at()
+	{
+		return get_component_name<t_component>()[i];
+	}
+
+	// a hash id
+	// Do not save this value to a file or use it as a global ID that spans execution units.
+	template <typename t_component>
+	requires(is_ecs_component<t_component>())
+	consteval uint64
+	get_component_name_hash()
+	{
+		return age::hash<std::string_view>{}(get_component_name_at<t_component, 0>().data());
+	}
 
 	// todo
 	AGE_COMPONENT_TEMPLATE(parent_id, (std::unsigned_integral t_id), "parent")

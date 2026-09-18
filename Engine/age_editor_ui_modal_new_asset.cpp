@@ -32,7 +32,7 @@ namespace age::editor
 				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_padding_left(100)))
 				{
 					using enum age::asset::e::vertex_kind;
-					widget::dropdown<asset::e::vertex_kind>(vertex_format, widget::make_dropdown_option<pnt_uv0, p_uv1, pn_uv1, pnt_uv1>());
+					widget::dropdown<asset::e::vertex_kind>(vertex_format, widget::make_dropdown_option<pnt_uv0, pnt_uv1>());
 				}
 			}
 

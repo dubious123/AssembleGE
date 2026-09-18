@@ -127,6 +127,10 @@ namespace age::editor
 		static auto gltf_import_data   = asset::importer::import_data{};
 		static auto import_data_loaded = false;
 
+		// commit
+		static auto commit_failed  = false;
+		static auto commit_message = std::string{};
+
 		// pick path and load panel
 		c_auto gltf_path_sv = std::string_view{ gltf_path_buf.data() };
 
@@ -142,6 +146,8 @@ namespace age::editor
 		if (fs::file_exists(gltf_path_sv) is_false)
 		{
 			widget::begin(style::text("path does not exists") | set_body_brush_data(theme::color_text_red()));
+			commit_failed  = false;
+			commit_message = std::string{};
 			return;
 		}
 
@@ -179,7 +185,12 @@ namespace age::editor
 			}
 		}
 
-		if (import_data_loaded is_false) { return; }
+		if (import_data_loaded is_false)
+		{
+			commit_failed  = false;
+			commit_message = std::string{};
+			return;
+		}
 
 		resolve_import(gltf_import_data);
 
@@ -392,8 +403,23 @@ namespace age::editor
 			}
 
 			// texture
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("texture [{}]", gltf_import_data.texture_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_tex_error or gltf_import_data.has_tex_warning)
+			{
+				if (widget::separator_v();
+					auto _ = widget::panel(set_width_grow() | set_height_fit() | set_vertical()))
+				{
+					if (gltf_import_data.has_tex_error)
+					{
+						widget::begin(style::text("has_error") | set_body_brush_color(theme::color_text_red()));
+					}
+					if (gltf_import_data.has_tex_warning)
+					{
+						widget::begin(style::text("has_warning") | set_body_brush_color(theme::color_text_amber()));
+					}
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("texture [{}]", gltf_import_data.texture_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, texture_import] : gltf_import_data.texture_import_data_vec | views::enumerate<uint32>)
@@ -499,8 +525,23 @@ namespace age::editor
 			}
 
 			// material
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("material [{}]", gltf_import_data.material_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_mat_error or gltf_import_data.has_mat_warning)
+			{
+				if (widget::separator_v();
+					auto _ = widget::panel(set_width_grow() | set_height_fit() | set_vertical()))
+				{
+					if (gltf_import_data.has_mat_error)
+					{
+						widget::begin(style::text("has_error") | set_body_brush_color(theme::color_text_red()));
+					}
+					if (gltf_import_data.has_mat_warning)
+					{
+						widget::begin(style::text("has_warning") | set_body_brush_color(theme::color_text_amber()));
+					}
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("material [{}]", gltf_import_data.material_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, material_import] : gltf_import_data.material_import_data_vec | views::enumerate<uint32>)
@@ -614,8 +655,23 @@ namespace age::editor
 			}
 
 			// mesh
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("mesh [{}]", gltf_import_data.mesh_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_mesh_error or gltf_import_data.has_mesh_warning)
+			{
+				if (widget::separator_v();
+					auto _ = widget::panel(set_width_grow() | set_height_fit() | set_vertical()))
+				{
+					if (gltf_import_data.has_mesh_error)
+					{
+						widget::begin(style::text("has_error") | set_body_brush_color(theme::color_text_red()));
+					}
+					if (gltf_import_data.has_mesh_warning)
+					{
+						widget::begin(style::text("has_warning") | set_body_brush_color(theme::color_text_amber()));
+					}
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("mesh [{}]", gltf_import_data.mesh_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, mesh_import] : gltf_import_data.mesh_import_data_vec | views::enumerate<uint32>)
@@ -738,8 +794,23 @@ namespace age::editor
 			}
 
 			// skeleton
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("skeleton [{}]", gltf_import_data.skeleton_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_skeleton_error or gltf_import_data.has_skeleton_warning)
+			{
+				if (widget::separator_v();
+					auto _ = widget::panel(set_width_grow() | set_height_fit() | set_vertical()))
+				{
+					if (gltf_import_data.has_skeleton_error)
+					{
+						widget::begin(style::text("has_error") | set_body_brush_color(theme::color_text_red()));
+					}
+					if (gltf_import_data.has_skeleton_warning)
+					{
+						widget::begin(style::text("has_warning") | set_body_brush_color(theme::color_text_amber()));
+					}
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("skeleton [{}]", gltf_import_data.skeleton_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, skeleton_import] : gltf_import_data.skeleton_import_data_vec | views::enumerate<uint32>)
@@ -757,8 +828,23 @@ namespace age::editor
 			}
 
 			// model
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("model [{}]", gltf_import_data.model_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_model_error or gltf_import_data.has_model_warning)
+			{
+				if (widget::separator_v();
+					auto _ = widget::panel(set_width_grow() | set_height_fit() | set_vertical()))
+				{
+					if (gltf_import_data.has_model_error)
+					{
+						widget::begin(style::text("has_error") | set_body_brush_color(theme::color_text_red()));
+					}
+					if (gltf_import_data.has_model_warning)
+					{
+						widget::begin(style::text("has_warning") | set_body_brush_color(theme::color_text_amber()));
+					}
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("model [{}]", gltf_import_data.model_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, model_import] : gltf_import_data.model_import_data_vec | views::enumerate<uint32>)
@@ -886,8 +972,29 @@ namespace age::editor
 			}
 
 			// scene, entities, light, camera
-			if (widget::separator_v();
-				auto _ = widget::collapsible_header3(std::format("scene [{}]", gltf_import_data.scene_import_data_vec.size()).data()))
+			if (auto _ = ui::id_begin();
+				gltf_import_data.has_scene_error or gltf_import_data.has_scene_warning
+				or gltf_import_data.has_entity_error or gltf_import_data.has_entity_warning)
+			{
+				widget::separator_v();
+				if (gltf_import_data.has_scene_error)
+				{
+					widget::begin(style::text("has_scene_error") | set_body_brush_color(theme::color_text_red()));
+				}
+				if (gltf_import_data.has_scene_warning)
+				{
+					widget::begin(style::text("has_scene_warning") | set_body_brush_color(theme::color_text_amber()));
+				}
+				if (gltf_import_data.has_entity_error)
+				{
+					widget::begin(style::text("has_entity_error") | set_body_brush_color(theme::color_text_red()));
+				}
+				if (gltf_import_data.has_entity_warning)
+				{
+					widget::begin(style::text("has_entity_warning") | set_body_brush_color(theme::color_text_amber()));
+				}
+			}
+			if (auto _ = widget::collapsible_header3(std::format("scene [{}]", gltf_import_data.scene_import_data_vec.size()).data()))
 			{
 				for (auto h_child_section = widget::begin(set_vertical() | set_width_grow() | set_height_fit() | set_align_begin());
 					 auto&& [i, scene_import] : gltf_import_data.scene_import_data_vec | views::enumerate<uint32>)
@@ -1159,22 +1266,30 @@ namespace age::editor
 			{
 				widget::separator_v();
 
-				if (auto _ = widget::begin(set_horizontal() | set_width_grow() | set_height_fit());
-
-					gltf_import_data.has_error is_false)
+				if (auto _ = widget::begin(set_vertical() | set_width_grow() | set_height_fit()); gltf_import_data.has_error is_false)
 				{
+					if (auto _ = ui::id_begin();
+						commit_failed)
+					{
+						auto _section = widget::panel(set_width_grow() | set_height_fit() | set_vertical());
+						widget::begin(style::text(commit_message.data()) | set_body_brush_color(theme::color_text_red()));
+					}
+
 					if (auto commit = widget::button("commit import");
 						commit and commit.clicked())
 					{
 						c_auto commit_res = asset::importer::commit_import(gltf_import_data);
 
-						c_auto has_error = commit_res.error != asset::importer::e::commit_error_kind::none;
+						commit_failed = commit_res.error != asset::importer::e::commit_error_kind::none;
 
-						if (auto _ = ui::id_begin(); has_error)
+						if (commit_failed)
 						{
-							auto _section = widget::panel(set_width_grow() | set_height_fit() | set_vertical());
-							widget::begin(style::text(commit_res.message.data()) | set_body_brush_color(theme::color_text_red()));
+							commit_message = std::move(commit_res.message);
 							return;
+						}
+						else
+						{
+							commit_message = std::string{};
 						}
 
 						// unload all overwritten assets
@@ -1230,52 +1345,141 @@ namespace age::editor
 								c_auto ecs_ent_id	  = add_entity(scene_idx, storage_idx, entity_import.name.data());
 								entity_remap[ent_idx] = ecs_ent_id;
 
-								//// add_cmp_light
-								// if (runtime::is_invalid_idx(entity_import.light_idx) is_false)
-								//{
-								//	c_auto& light = scene_import.light_data_vec[entity_import.light_idx];
+								// add pos, rotation, scale
+								// todo implement hierarchy
+								{
+									if (runtime::is_invalid_idx(entity_import.parent_idx) is_false)
+									{
+										AGE_ASSERT(runtime::is_invalid_idx(entity_remap[entity_import.parent_idx]) is_false, "parent always comes first");
 
-								//	if (light.kind == graphics::e::light_kind::directional)
-								//	{
-								//		add_cmp_directional_light(scene_idx,
-								//								  storage_idx,
-								//								  ecs::directional_light{
-								//									  .cast_shadow = light.cast_shadow,
-								//									  .direction   = light.direction,
-								//									  .intensity   = light.intensity,
-								//									  .color	   = light.color,
-								//								  });
-								//	}
-								//	else if (light.kind == graphics::e::light_kind::point)
-								//	{
-								//		add_cmp_point_light(scene_idx,
-								//							storage_idx,
-								//							ecs::point_light{
-								//								.range		 = light.range,
-								//								.color		 = light.color,
-								//								.intensity	 = light.intensity,
-								//								.cast_shadow = light.cast_shadow,
-								//							});
-								//	}
-								//	else if (light.kind == graphics::e::light_kind::spot)
-								//	{
-								//		add_cmp_spot_light(scene_idx,
-								//						   storage_idx,
-								//						   ecs::spot_light{
-								//							   .range		= light.range,
-								//							   .direction	= light.direction,
-								//							   .intensity	= light.intensity,
-								//							   .color		= light.color,
-								//							   .cos_inner	= light.cos_inner,
-								//							   .cos_outer	= light.cos_outer,
-								//							   .cast_shadow = light.cast_shadow,
-								//						   });
-								//	}
-								//	else
-								//	{
-								//		AGE_UNREACHABLE("invalid light_kind : {}", to_idx(light.kind));
-								//	}
-								//}
+										c_auto ecs_parent_ent_id					  = entity_remap[entity_import.parent_idx];
+										auto&& [pos, rot, scale]					  = add_components<ecs::position, ecs::rotation, ecs::scale>(scene_idx, storage_idx, ecs_ent_id);
+										auto&& [parent_pos, parent_rot, parent_scale] = get_components<ecs::position, ecs::rotation, ecs::scale>(scene_idx, storage_idx, ecs_parent_ent_id);
+
+										auto&& [xm_p_pos, xm_p_rot, xm_p_scale, xm_c_pos, xm_c_rot, xm_c_scale] = simd::load(parent_pos, parent_rot, parent_scale, pos, rot, scale);
+
+										auto&& [success, t, r, s] = simd::compose_trs(xm_p_pos, xm_p_rot, xm_p_scale)
+																  | simd::mat_mul(simd::compose_trs(xm_c_pos, xm_c_rot, xm_c_scale))
+																  | simd::decompose_trs();
+
+										AGE_ASSERT(success, "entity decompose failed");
+
+										pos	  = t | simd::to<float3>();
+										rot	  = r | simd::to<float4>();
+										scale = s | simd::to<float3>();
+									}
+									else
+									{
+										auto&& [pos, rot, scale] = add_components<ecs::position, ecs::rotation, ecs::scale>(scene_idx, storage_idx, ecs_ent_id);
+										pos						 = entity_import.translation;
+										rot						 = entity_import.rotation;
+										scale					 = entity_import.scale;
+									}
+								}
+								// add_cmp_light
+								if (runtime::is_invalid_idx(entity_import.light_idx) is_false)
+								{
+									c_auto& light = scene_import.light_data_vec[entity_import.light_idx];
+
+									if (light.kind == graphics::e::light_kind::directional)
+									{
+										auto& cmp_light = add_components<ecs::directional_light>(scene_idx, storage_idx, ecs_ent_id);
+
+										cmp_light = ecs::directional_light{
+											.cast_shadow = light.cast_shadow,
+											.direction	 = light.direction,
+											.intensity	 = light.intensity,
+											.color		 = light.color,
+										};
+									}
+									else if (light.kind == graphics::e::light_kind::point)
+									{
+										auto& cmp_light = add_components<ecs::point_light>(scene_idx, storage_idx, ecs_ent_id);
+
+										cmp_light = ecs::point_light{
+											.range		 = light.range,
+											.color		 = light.color,
+											.intensity	 = light.intensity,
+											.cast_shadow = light.cast_shadow,
+										};
+									}
+									else if (light.kind == graphics::e::light_kind::spot)
+									{
+										auto& cmp_light = add_components<ecs::spot_light>(scene_idx, storage_idx, ecs_ent_id);
+										cmp_light		= ecs::spot_light{
+											.range		 = light.range,
+											.direction	 = light.direction,
+											.intensity	 = light.intensity,
+											.color		 = light.color,
+											.cos_inner	 = light.cos_inner,
+											.cos_outer	 = light.cos_outer,
+											.cast_shadow = light.cast_shadow,
+										};
+									}
+									else
+									{
+										AGE_UNREACHABLE("invalid light_kind : {}", to_idx(light.kind));
+									}
+								}
+
+								// add_cmp_camera
+								if (runtime::is_invalid_idx(entity_import.camera_idx) is_false)
+								{
+									c_auto& camera	   = scene_import.camera_data_vec[entity_import.camera_idx];
+									auto&	cmp_camera = add_components<ecs::camera>(scene_idx, storage_idx, ecs_ent_id);
+									cmp_camera		   = ecs::camera{
+										.kind		  = camera.kind,
+										.euler_deg	  = camera.euler_deg,
+										.near_z		  = camera.near_z,
+										.far_z		  = camera.far_z,
+										.fov_y		  = camera.fov_y,
+										.aspect_ratio = camera.aspect_ratio,
+										.view_width	  = camera.view_width,
+										.view_height  = camera.view_height,
+									};
+								}
+
+								// add_cmp_model
+								if (runtime::is_invalid_idx(entity_import.model_idx) is_false)
+								{
+									c_auto& model = gltf_import_data.model_import_data_vec[entity_import.model_idx];
+
+									auto&& [cmp_obj, cmp_model] = add_components<ecs::render_object, ecs::model>(scene_idx, storage_idx, ecs_ent_id);
+									cmp_model.update_h_model(asset::find(asset::e::kind::model, asset::get_asset_full_path<asset::e::kind::model>(fs::join(gltf_import_data.model_dir, model.name)).data()));
+								}
+
+								// add_cmp_parent, todo
+								if (runtime::is_invalid_idx(entity_import.parent_idx) is_false)
+								{
+									AGE_ASSERT(runtime::is_invalid_idx(entity_remap[entity_import.parent_idx]) is_false, "parent always comes first");
+
+									c_auto parent_ecs_entity_id = entity_remap[entity_import.parent_idx];
+								}
+
+								// add_cmp_skeleton, todo
+								if (runtime::is_invalid_idx(entity_import.skeleton_idx) is_false)
+								{
+									c_auto& skeleton = gltf_import_data.skeleton_import_data_vec[entity_import.skeleton_idx];
+
+									// auto& cmp_skeleton = add_components<ecs::skeleton>(scene_idx, storage_idx, ecs_ent_id);
+									// cmp_skeleton.update_h_skeleton(asset::find(asset::e::kind::skeleton, asset::get_asset_full_path<asset::e::kind::skeleton>(fs::join(gltf_import_data.skeleton_dir, skeleton.name)).data()));
+								}
+
+								// add_cmp_joint_attach, todo
+								if (runtime::is_invalid_idx(entity_import.joint_attach_idx) is_false)
+								{
+									c_auto& joint_attach = scene_import.joint_attach_data_vec[entity_import.joint_attach_idx];
+									// auto& cmp_joint_attach = add_components<ecs::joint_attach>(scene_idx, storage_idx, ecs_ent_id);
+									// cmp_joint_attach.update_h_joint_attach(asset::find(asset::e::kind::joint_attach, asset::get_asset_full_path<asset::e::kind::joint_attach>(fs::join(gltf_import_data.joint_attach_dir, joint_attach.name)).data()));
+								}
+
+								// add cmp_blend_shape_override, todo
+								if (runtime::is_invalid_idx(entity_import.blend_shape_weight_override_arr_idx) is_false)
+								{
+									c_auto& blend_shape_weight_override = scene_import.blend_shape_weight_override_arr_vec[entity_import.blend_shape_weight_override_arr_idx];
+									// auto& cmp_blend_shape_weight_override = add_components<ecs::blend_shape_weight_override>(scene_idx, storage_idx, ecs_ent_id);
+									// cmp_blend_shape_weight_override.update_h_blend_shape_weight_override(asset::find(asset::e::kind::blend_shape_weight_override, asset::get_asset_full_path<asset::e::kind::blend_shape_weight_override>(fs::join(gltf_import_data.blend_shape_weight_override_dir, blend_shape_weight_override.name)).data()));
+								}
 							}
 						}
 

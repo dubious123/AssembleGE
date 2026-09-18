@@ -516,14 +516,14 @@ namespace age::util
 	consteval auto
 	to_fixed_str_arr(const char (&... strs)[n])
 	{
-		return age::array{ to_fixed_str<len>(strs)... };
+		return age::array<age::array<char, len>, sizeof...(n)>{ to_fixed_str<len>(strs)... };
 	}
 
 	template <std::size_t len>
 	consteval auto
 	to_fixed_str_arr()
 	{
-		return age::array<age::array<const char, len>, 0>{};
+		return age::array<age::array<char, len>, 0>{};
 	}
 
 	std::string_view

@@ -740,9 +740,25 @@ namespace age::asset::importer
 	{
 		importer::e::import_warning_flags warning_flags;
 		importer::e::import_error_flags	  error_flags;
+		uint8_2							  _;
 
-		bool	has_error;
-		uint8_3 _;
+		bool has_error;
+		bool has_tex_error;
+		bool has_mat_error;
+		bool has_mesh_error;
+		bool has_model_error;
+		bool has_skeleton_error;
+		bool has_scene_error;
+		bool has_entity_error;
+
+		bool has_warning;
+		bool has_tex_warning;
+		bool has_mat_warning;
+		bool has_mesh_warning;
+		bool has_model_warning;
+		bool has_skeleton_warning;
+		bool has_scene_warning;
+		bool has_entity_warning;
 
 		std::string											 src_full_path;
 		age::array<char, config::max_asset_display_name_len> asset_name;

@@ -94,9 +94,6 @@ namespace age::asset
 	mesh_editable
 	create_primitive_mesh_plane(const primitive_desc& desc) noexcept
 	{
-		AGE_ASSERT(age::math::simd::is_orthogonal_basis(desc.local_basis));
-		AGE_ASSERT(desc.seg_u > 0);
-		AGE_ASSERT(desc.seg_v > 0);
 		AGE_ASSERT(desc.size[0] > 0.f);
 		AGE_ASSERT(desc.size[2] > 0.f);
 
@@ -345,13 +342,12 @@ namespace age::asset
 							 .calc_mode = e::normal_calc_mode_kind::angle,
 						 });
 
-		// todo, fix
-		// calculate_tangent(res, tangent_calc_desc{});
-
 		for (auto& v_attr : res.vertex_attr_vec)
 		{
 			v_attr.tangent = float4{ u_basis, 1 };
 		}
+
+		res.tangent_calculated = true;
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -386,6 +382,8 @@ namespace age::asset
 			attr.tangent.xyz = normalize(attr.tangent.xyz);
 			attr.tangent.w	 = 1.f;
 		}
+
+		res.tangent_calculated = true;
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -476,10 +474,12 @@ namespace age::asset
 			attr.normal = normalize(p - desc.pos);
 
 			p = desc.pos + attr.normal * radius;
+
+			c_auto u		 = attr.tangent.xyz;
+			attr.tangent.xyz = normalize(u - attr.normal * dot(attr.normal, u));	// w unchanged, same handedness
 		}
 
-		// todo : reduce vertex
-		// todo : calc tangent
+		res.tangent_calculated = true;
 
 		return res;
 	}
@@ -525,7 +525,7 @@ namespace age::asset
 							: normalize(basis_u * size_u + normalize(pos - basis_u * size_u) * dot(normalize(pos - basis_u * size_u), -basis_u * size_u));
 		}
 
-		// calculate_normal(side, normal_calc_desc{ .calc_mode = e::normal_calc_mode_kind::angle });
+		side.tangent_calculated = true;
 
 		auto base = create_primitive_mesh_disk(age::asset::primitive_desc{
 			.pos		 = float3::zero(),
@@ -550,6 +550,10 @@ namespace age::asset
 	mesh_editable
 	create_primitive_mesh(const primitive_desc& desc) noexcept
 	{
+		AGE_ASSERT(age::math::simd::is_orthogonal_basis(desc.local_basis));
+		AGE_ASSERT(dot(cross(desc.local_basis[0], desc.local_basis[1]), desc.local_basis[2]) > 0.f, "basis must be lh");
+		AGE_ASSERT(desc.seg_u > 0);
+		AGE_ASSERT(desc.seg_v > 0);
 		switch (desc.mesh_kind)
 		{
 		case e::primitive_mesh_kind::plane:
@@ -969,6 +973,8 @@ namespace age::asset
 				result.face_to_boundary_idx_free_range_vec.emplace_back(r);
 			}
 		}
+
+		result.tangent_calculated = std::ranges::all_of(meshes, &mesh_editable::tangent_calculated);
 
 		return result;
 	}

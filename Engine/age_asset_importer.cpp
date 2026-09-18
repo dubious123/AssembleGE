@@ -1094,8 +1094,7 @@ namespace age::asset::importer::detail
 				continue;
 			}
 
-			if (auto ec = std::error_code{};
-				std::filesystem::exists(std::string_view{ asset::get_asset_full_path<asset_kind>(name_str) }, ec))
+			if (fs::file_exists(fs::join(asset::get_root_dir(), asset::get_asset_full_path<asset_kind>(name_str))))
 			{
 				item.warning_flags |= BARE_OF(item.warning_flags)::file_already_exists;
 			}
@@ -1625,21 +1624,61 @@ namespace age::asset::importer
 			}
 		}
 
-		data.has_error = data.error_flags != e::import_error_flags::none;
-		if (data.has_error) { return; }
-		if (data.has_error = std::ranges::any_of(data.texture_import_data_vec, [](c_auto& tex) { return tex.error_flags != tex_error::none; })) { return; }
-		if (data.has_error = std::ranges::any_of(data.material_import_data_vec, [](c_auto& mat) { return mat.error_flags != mat_error::none; })) { return; }
-		if (data.has_error = std::ranges::any_of(data.mesh_import_data_vec, [](c_auto& mesh) { return mesh.error_flags != mesh_error::none; })) { return; }
-		if (data.has_error = std::ranges::any_of(data.model_import_data_vec, [](c_auto& model) { return model.error_flags != model_error::none; })) { return; }
-		if (data.has_error = std::ranges::any_of(data.skeleton_import_data_vec, [](c_auto& skeleton) { return skeleton.error_flags != skeleton_error::none; })) { return; }
-		for (c_auto& scene : data.scene_import_data_vec)
 		{
-			if (data.has_error = scene.error_flags != scene_error::none) { return; }
-
-			for (c_auto& entity : scene.entity_vec)
+			data.has_warning		  = data.warning_flags != e::import_warning_flags::none;
+			data.has_tex_warning	  = std::ranges::any_of(data.texture_import_data_vec, [](c_auto& tex) { return tex.warning_flags != tex_warning::none; });
+			data.has_mat_warning	  = std::ranges::any_of(data.material_import_data_vec, [](c_auto& mat) { return mat.warning_flags != mat_warning::none; });
+			data.has_mesh_warning	  = std::ranges::any_of(data.mesh_import_data_vec, [](c_auto& mesh) { return mesh.warning_flags != mesh_warning::none; });
+			data.has_model_warning	  = std::ranges::any_of(data.model_import_data_vec, [](c_auto& model) { return model.warning_flags != model_warning::none; });
+			data.has_skeleton_warning = std::ranges::any_of(data.skeleton_import_data_vec, [](c_auto& skeleton) { return skeleton.warning_flags != skeleton_warning::none; });
+			data.has_scene_warning	  = false;
+			data.has_entity_warning	  = false;
+			for (c_auto& scene : data.scene_import_data_vec)
 			{
-				if (data.has_error = entity.error_flags != entity_error::none) { return; }
+				data.has_scene_warning |= scene.warning_flags != scene_warning::none;
+
+				for (c_auto& entity : scene.entity_vec)
+				{
+					if (data.has_entity_warning = entity.warning_flags != entity_warning::none) { break; }
+				}
 			}
+
+			data.has_warning = data.warning_flags != e::import_warning_flags::none
+							or data.has_tex_warning
+							or data.has_mat_warning
+							or data.has_mesh_warning
+							or data.has_model_warning
+							or data.has_skeleton_warning
+							or data.has_scene_warning
+							or data.has_entity_warning;
+		}
+
+		{
+			data.has_tex_error		= std::ranges::any_of(data.texture_import_data_vec, [](c_auto& tex) { return tex.error_flags != tex_error::none; });
+			data.has_mat_error		= std::ranges::any_of(data.material_import_data_vec, [](c_auto& mat) { return mat.error_flags != mat_error::none; });
+			data.has_mesh_error		= std::ranges::any_of(data.mesh_import_data_vec, [](c_auto& mesh) { return mesh.error_flags != mesh_error::none; });
+			data.has_model_error	= std::ranges::any_of(data.model_import_data_vec, [](c_auto& model) { return model.error_flags != model_error::none; });
+			data.has_skeleton_error = std::ranges::any_of(data.skeleton_import_data_vec, [](c_auto& skeleton) { return skeleton.error_flags != skeleton_error::none; });
+			data.has_scene_error	= false;
+			data.has_entity_error	= false;
+			for (c_auto& scene : data.scene_import_data_vec)
+			{
+				data.has_scene_error |= scene.error_flags != scene_error::none;
+
+				for (c_auto& entity : scene.entity_vec)
+				{
+					if (data.has_entity_error = entity.error_flags != entity_error::none) { break; }
+				}
+			}
+
+			data.has_error = data.error_flags != e::import_error_flags::none
+						  or data.has_tex_error
+						  or data.has_mat_error
+						  or data.has_mesh_error
+						  or data.has_model_error
+						  or data.has_skeleton_error
+						  or data.has_scene_error
+						  or data.has_entity_error;
 		}
 	}
 }	 // namespace age::asset::importer
