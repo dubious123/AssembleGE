@@ -33,6 +33,9 @@
     <ClCompile Include="age_engine_external_texconv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="age_engine_external_cgltf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="age_engine_external_libs.hpp">

@@ -257,6 +257,12 @@ namespace age::ui
 			{
 				uint32 storage[6];
 			};
+
+			struct
+			{
+				float  height_per_item;
+				uint32 prev_item_count;
+			} path_picker_item_panel;
 		};
 	};
 
@@ -995,6 +1001,7 @@ namespace age::ui
 			: hash_id(id){};
 
 		template <std::size_t... m>
+		requires((m + ... + 0) == n)
 		FORCE_INLINE constexpr widget_ctx_impl(widget_ctx_impl<m>&&... other) noexcept
 			: hash_id((other.hash_id, ...))
 		{

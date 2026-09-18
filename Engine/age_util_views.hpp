@@ -34,7 +34,29 @@ namespace age::views
 		return std::views::iota(ptr) | std::views::stride(stride) | std::views::take(count);
 	}
 
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+	loop(auto* ptr, auto count) noexcept
+	{
+		return std::views::iota(ptr) | std::views::take(count);
+	}
+
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+	loop(std::integral auto count, auto* h, auto*... t) noexcept
+	{
+		return std::views::zip(std::span(h, count), std::span(t, count)...);
+	}
+
 	inline constexpr auto deref = meta::deref_view;
+}	 // namespace age::views
+
+// idx_to
+namespace age::views
+{
+	[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
+	idx_to(auto& vec) noexcept
+	{
+		return std::views::transform(AGE_LAMBDA((std::integral auto idx), { return vec[idx]; }));
+	}
 }	 // namespace age::views
 
 // enumerate
@@ -252,6 +274,69 @@ namespace age::views
 	{
 		// returns std::pair{ bit_idx, bit }
 		return detail::set_bit_range<detail::set_bit_pair_iterator<std::remove_cvref_t<decltype(FWD(arg))>>>{ FWD(arg) };
+	}
+}	 // namespace age::views
+
+namespace age::views
+{
+	template <typename t_flags>
+	requires std::is_enum_v<t_flags>
+	struct each_flags_view : std::ranges::view_interface<each_flags_view<t_flags>>
+	{
+		using t_bits = std::underlying_type_t<t_flags>;
+
+		static_assert(std::is_unsigned_v<t_bits>);
+
+		struct iterator
+		{
+			using iterator_category = std::forward_iterator_tag;
+			using value_type		= t_flags;
+			using difference_type	= std::ptrdiff_t;
+
+			t_bits bits = 0;
+
+			t_flags
+			operator*() const noexcept
+			{ return static_cast<t_flags>(bits & (~bits + 1)); }
+
+			iterator&
+			operator++() noexcept
+			{
+				bits &= bits - 1;
+				return *this;
+			}
+
+			iterator
+			operator++(int) noexcept
+			{
+				auto r = *this;
+				++*this;
+				return r;
+			}
+
+			bool
+			operator==(const iterator&) const noexcept = default;
+		};
+
+		t_bits bits = 0;
+
+		iterator
+		begin() const noexcept
+		{ return { bits }; }
+
+		iterator
+		end() const noexcept
+		{ return {}; }
+
+		size_t
+		size() const noexcept
+		{ return std::popcount(bits); }
+	};
+
+	constexpr auto
+	each_flags(const auto flags) noexcept
+	{
+		return each_flags_view<BARE_OF(flags)>{ {}, static_cast<std::underlying_type_t<BARE_OF(flags)>>(flags) };
 	}
 }	 // namespace age::views
 

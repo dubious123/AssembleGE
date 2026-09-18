@@ -37,7 +37,7 @@ namespace age::ui::detail
 					line_offset = word_data.line_offset + wrap_count;
 					cursor.x	= 0.f;
 				}
-				else if (cursor.x > 0.f and cursor.x + leading_space + word_data.width > pos_data.width + math::g::epsilon_1e4)
+				else if (cursor.x > 0.f and cursor.x + leading_space + word_data.width > pos_data.width + /*math::g::epsilon_1e4*/ 0.01f)
 				{
 					++line_offset;
 					++wrap_count;
@@ -434,6 +434,14 @@ namespace age::ui::detail
 
 		c_auto is_root = size_data.pos_data_idx == 0;
 
+		// this block fix age::ui::widget::begin(age::ui::style::text("hi") | age::ui::set_width_fixed(400)) crash in debug build;
+		// submit_size AGE_ASSERT(size_data.height_final < 0.f); fails
+		// so set height_final to -1 before finalize width
+		if ((can_finalize_width and can_finalize_height) is_false)
+		{
+			size_data.height_final = -1.f;
+		}
+
 		if (can_finalize_width)
 		{
 			finalize_fit<true>(size_data, g::layout_size_data_current_idx);
@@ -456,7 +464,8 @@ namespace age::ui::detail
 		}
 		else
 		{
-			size_data.height_final = -1.f;
+			// age::ui::widget::begin(age::ui::style::text("hi") | age::ui::set_width_fixed(400)); => break;
+			// size_data.height_final = -1.f;
 			if (is_root is_false)
 			{
 				size_data_parent.child_subtree_size += size_data.child_subtree_size + 1;
@@ -1046,6 +1055,126 @@ namespace age::ui::widget
 
 namespace age::ui::widget
 {
+	// with_offset
+	widget_ctx_impl<2>
+	collapsible_header3(const char* p_name, bool default_open) noexcept
+	{
+		using enum input::e::key_kind;
+		using namespace ui;
+		if (auto h_header_section = widget::begin(style::layout(ui::e::widget_layout::vertical)
+												  | set_size(size_mode::grow(), size_mode::fit())))
+		{
+			auto is_open = false;
+
+			if (auto header = widget::begin(style::header_bar() | set_save_state(true) | set_interact(true)))
+			{
+				if (header.clicked<mouse_left>())
+				{
+					header.toggle();
+				}
+
+				is_open = header.is_toggled() != default_open;
+
+				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
+				widget::disclosure_indicator(is_open, disclosure_indicator_size);
+
+				widget::text_heading(p_name);
+
+				// if (auto _ = widget::vertical())
+				//{
+				//	if (auto close_btn = widget::begin(style::vertical()
+				//									   | set_interact(true)
+				//									   | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size))
+				//									   | set_padding(theme::padding_small() + 1.f)
+				//									   | set_align_end()))
+				//	{
+				//		close_out = close_btn.clicked();
+
+				//		widget::begin(set_align(ui::e::widget_align::center)
+				//					  | set_draw(header.contains_mouse())
+				//					  | set_size(size_mode::grow(), size_mode::grow())
+				//					  | set_border_thickness(0.f)
+				//					  | set_shape_kind(ui::e::shape_kind::cross)
+				//					  | set_body_brush_data(theme::color_text_gray_dark()));
+				//	}
+				//}
+			}
+
+			if (is_open)
+			{
+				widget::separator_v();
+
+				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
+				c_auto gap			   = theme::header_bar_child_gap();
+				c_auto padding_l	   = theme::header_bar_padding().x;
+
+				return widget_ctx_impl{ std::move(h_header_section), widget::vertical(set_padding_left(disclosure_size + padding_l + gap)) };
+			}
+		}
+
+		return {};
+	}
+
+	// with_offset_and_input
+	widget_ctx_impl<2>
+	collapsible_header4(char* p_name, uint32 buf_size, bool default_open) noexcept
+	{
+		using enum input::e::key_kind;
+		using namespace ui;
+		if (auto h_header_section = widget::begin(style::layout(ui::e::widget_layout::vertical)
+												  | set_size(size_mode::grow(), size_mode::fit())))
+		{
+			auto is_open = false;
+
+			if (auto header = widget::begin(style::header_bar() | set_save_state(true) | set_interact(true)))
+			{
+				if (header.clicked<mouse_left>())
+				{
+					header.toggle();
+				}
+
+				is_open = header.is_toggled() != default_open;
+
+				c_auto disclosure_indicator_size = font::get_line_height(theme::text_heading_font_size());
+				widget::disclosure_indicator(is_open, disclosure_indicator_size);
+
+				widget::text_input(p_name, buf_size);
+
+				// if (auto _ = widget::vertical())
+				//{
+				//	if (auto close_btn = widget::begin(style::vertical()
+				//									   | set_interact(true)
+				//									   | set_size(size_mode::fixed(disclosure_indicator_size), size_mode::fixed(disclosure_indicator_size))
+				//									   | set_padding(theme::padding_small() + 1.f)
+				//									   | set_align_end()))
+				//	{
+				//		close_out = close_btn.clicked();
+
+				//		widget::begin(set_align(ui::e::widget_align::center)
+				//					  | set_draw(header.contains_mouse())
+				//					  | set_size(size_mode::grow(), size_mode::grow())
+				//					  | set_border_thickness(0.f)
+				//					  | set_shape_kind(ui::e::shape_kind::cross)
+				//					  | set_body_brush_data(theme::color_text_gray_dark()));
+				//	}
+				//}
+			}
+
+			if (is_open)
+			{
+				widget::separator_v();
+
+				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
+				c_auto gap			   = theme::header_bar_child_gap();
+				c_auto padding_l	   = theme::header_bar_padding().x;
+
+				return widget_ctx_impl{ std::move(h_header_section), widget::vertical(set_padding_left(disclosure_size + padding_l + gap)) };
+			}
+		}
+
+		return {};
+	}
+
 	widget_ctx_impl<2>
 	tree_node(const char* p_str) noexcept
 
@@ -1212,7 +1341,7 @@ namespace age::ui::widget
 namespace age::ui::widget
 {
 	bool
-	path_picker(std::span<char> path) noexcept
+	path_picker(std::span<char> path, uint32 max_item_to_show) noexcept
 	{
 		AGE_ASSERT(path.size() > 0);
 		auto _0		 = widget::begin(style::frame() | set_vertical() | set_padding(theme::frame_border_thickness()) | set_child_gap(0) | set_width_grow() | set_height_fit());
@@ -1222,32 +1351,60 @@ namespace age::ui::widget
 		using enum e::style_state;
 		bool res_value_changed = false;
 
-		auto idx = get_invalid_idx<uint32>();
-
+		// collect candidates, rank sorted (lower is better)
+		struct candidate
 		{
-			auto ec			= std::error_code{};
-			auto input_path = /*std::filesystem::current_path(ec) / */ std::filesystem::path(path.data());
-			auto parent		= input_path.parent_path();
-			if (parent.empty()) { parent = std::filesystem::current_path(ec); }
-			if (ec) { return false; }
+			uint32		rank;
+			std::string full_path;	  // trailing '/' for directories
+			std::string filename;
+		};
 
-			auto stem_prefix = input_path.filename().u8string();
+		auto candidate_vec = age::vector<candidate>::gen_reserved(32);
+		{
+			c_auto input_path = std::string_view{ path.data() };
+			if (input_path.empty()) { return false; }
 
-			for (ec = std::error_code{};
-				 c_auto& entry : std::filesystem::directory_iterator(input_path.parent_path(), ec))
+			c_auto pattern = fs::get_file_name(input_path);
+			auto   parent  = std::string{ fs::get_parent_path(input_path) };
+			if (parent.empty()) { parent = fs::get_current_dir(); }
+			if (parent.empty()) { return false; }
+
+			fs::for_each_entry(parent, [&](const fs::entry& e) {
+				c_auto rank = util::match_rank(e.name, pattern);
+				if (AGE_IS_INVALID_IDX(rank)) { return; }
+				if (e.is_dir is_false and rank == 0 and e.name.size() == pattern.size()) { return; }	// fully typed file, nothing to complete
+
+				auto full_path = std::string{ e.path };
+				if (e.is_dir) { full_path += '/'; }
+				candidate_vec.emplace_back(rank, std::move(full_path), std::string{ e.name });
+			});
+
+			std::ranges::stable_sort(candidate_vec, {}, &candidate::rank);
+		}
+
+		if (auto item_panel = widget::begin(set_save_state() | set_padding_zero() | set_vertical() | set_width_grow() | set_height_fit()))
+		{
+			auto& item_panel_state = item_panel.get_state().path_picker_item_panel;
+
+			c_auto max_scroll_height = max_item_to_show * item_panel_state.height_per_item
+									 + (max(max_item_to_show, 1u) - 1u) * theme::item_child_gap()
+									 + theme::frame_padding().z + theme::frame_padding().w;
+
+			c_auto need_scroll			  = candidate_vec.size() > max_item_to_show;
+			auto   scroll_panel_outer_box = need_scroll ? widget::begin(set_padding_zero() | set_width_grow() | set_height_fixed(max_scroll_height)) : widget_ctx{};
+			auto   scroll_panel			  = need_scroll ? widget::scroll_area_v() : BARE_OF(widget::scroll_area_v()){};
+			auto   item_draw_panel		  = widget::begin(set_child_gap(theme::panel_child_gap()) | set_padding_zero() | set_vertical() | set_width_grow() | set_height_fit());
+
+			for (auto _id = id_begin();
+				 auto&& [item_idx, path_candidate] : candidate_vec | views::enumerate<uint32>)
 			{
-				if (ec) break;
-				// if (entry.is_regular_file(ec) is_false) { continue; }
-
-				c_auto filename = entry.path().filename().u8string();
-
-				if (filename.size() <= stem_prefix.size()) { continue; }
-				if (filename.compare(0, stem_prefix.size(), stem_prefix) != 0) { continue; }
-
-				auto _id = id_begin();
-
-				if (auto btn = widget::begin(set_interact() | set_padding(0) | set_width_grow() | set_height_fit()))
+				if (auto btn = widget::begin(set_save_state(item_idx == 0u) | set_interact() | set_padding(0) | set_width_grow() | set_height_fit()))
 				{
+					if (item_idx == 0u)
+					{
+						item_panel_state.height_per_item = btn.get_height();
+					}
+
 					auto state = idle;
 					if (btn.pressed<mouse_left>())
 					{
@@ -1261,18 +1418,19 @@ namespace age::ui::widget
 					if (btn.clicked() or g::p_input_ctx->is_pressed(key_tab))
 					{
 						res_value_changed = true;
-						std::memcpy(path.data(), entry.path().u8string().data(), std::min(entry.path().u8string().size(), path.size() - 1));
+						c_auto copy_len	  = std::min(path_candidate.full_path.size(), path.size() - 1);
+						std::memcpy(path.data(), path_candidate.full_path.data(), copy_len);
+						path[copy_len] = '\0';
 
 						auto& text_state				  = g::widget_state_map[text_id];
-						text_state.cursor.byte_pos		  = static_cast<uint32>(std::min(entry.path().u8string().size(), path.size() - 1));
+						text_state.cursor.byte_pos		  = static_cast<uint32>(copy_len);
 						text_state.cursor.anchor_byte_pos = text_state.cursor.byte_pos;
 
 						break;
 					}
 
-
 					auto _ = widget::begin(style::item(false, state) | set_border_thickness(0.f) | set_padding(theme::frame_padding()));
-					widget::text(reinterpret_cast<const char*>(filename.data()), state);
+					widget::text(path_candidate.filename.data(), state);
 				}
 			}
 		}

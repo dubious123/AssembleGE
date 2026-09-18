@@ -340,7 +340,7 @@ namespace age::asset::font::detail
 			std::remove("font_bake_temp.csv");
 			std::remove("font_bake_temp.json");
 
-			c_auto f_header = get_default_file_header<e::kind::font>(buf.size());
+			c_auto f_header = get_default_file_header(e::kind::font, buf.size(), config::font_asset_version);
 
 			write_asset_file(std::format("{}{}{}", font_name, config::font_asset_tag, config::asset_extension), f_header, buf.data());
 			return;

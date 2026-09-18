@@ -13,6 +13,10 @@
 #define FWD(x) std::forward<decltype(x)>((x))
 
 #define AGE_OUT
+#define AGE_INOUT
+
+#define AGE_FN_PTR(name, ret, args)			 AGE_PP_IDENTITY_I ret(*name) args noexcept
+#define AGE_FN_PTR_THROWING(name, ret, args) AGE_PP_IDENTITY_I ret(*name) args
 
 // reference will be removed in most cases anyway so perfect forwarding is not necessary
 #define BARE_OF(expr) std::remove_cvref_t<decltype((expr))>
@@ -103,7 +107,7 @@
 		{                                                                             \
 			if constexpr (age::meta::cx_has_arrow<BARE_OF(global::detail::ctx.path)>) \
 			{                                                                         \
-				return global::detail::ctx.path;                                      \
+				return (global::detail::ctx.path);                                    \
 			}                                                                         \
 			else                                                                      \
 			{                                                                         \
@@ -841,6 +845,7 @@
 		FOR_EACH_SEP(AGE_DEFINE_GET_ASSET_VERSION_MAP, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                             \
 		else                                                                                                                                                    \
 		{                                                                                                                                                       \
+			static_assert(false);                                                                                                                               \
 			return static_cast<unsigned char>(0);                                                                                                               \
 		}                                                                                                                                                       \
 	}                                                                                                                                                           \

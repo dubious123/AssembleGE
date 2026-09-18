@@ -211,6 +211,12 @@ namespace age::inline data_structure
 			return count == 0;
 		}
 
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
+		}
+
 		template <typename t_ret = std::size_t>
 		FORCE_INLINE decltype(auto)
 		size() const noexcept
@@ -290,7 +296,6 @@ namespace age::inline data_structure
 
 			if constexpr (age::config::debug_mode)
 			{
-				auto ptr = data_ptr(back_pos);
 				std::memset(data_ptr(back_pos), static_cast<uint8>(0xcc), sizeof(value_type));
 			}
 

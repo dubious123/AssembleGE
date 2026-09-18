@@ -1,37 +1,5 @@
 #include "hrp_common.asli"
 
-// wave_size(AGE_WAVE_SIZE)
-//[numthreads(16, 16, 1)] void
-// main_cs(uint32_3 thread_id sv_dispatch_thread_id)
-//
-//{
-//	const int32_2 extent = cast<int32_2>(backbuffer_size);
-//	const int32_2 px	 = int32_2(thread_id.xy);
-//
-//	if (any(thread_id.xy >= extent)) { return; }
-//
-//	texture_2d<float>	 depth_buffer = global_resource_buffer[opaque_depth_buffer_srv_id];
-//	texture_2d<uint32_2> gbuffer	  = global_resource_buffer[opaque_gbuffer_srv_id];
-//
-//	rw_texture_2d<float4> base_color_buffer		= global_resource_buffer[opaque_base_color_buffer_uav_id];
-//	rw_texture_2d<float2> mr_buffer				= global_resource_buffer[opaque_mr_buffer_uav_id];
-//	rw_texture_2d<float2> shading_normal_buffer = global_resource_buffer[opaque_shading_normal_buffer_uav_id];
-//	rw_texture_2d<float3> emissive_buffer		= global_resource_buffer[opaque_emissive_buffer_uav_id];
-//
-//	const float z_depth = depth_buffer[px];
-//
-//	if (z_depth == 0.f) { return; }
-//
-//	const mesh::surface_point_data surface_point = mesh::calc_surface_point(gbuffer, px, z_depth);
-//
-//	const pbr_surface_data pbr_surface = calc_pbr_surface<true>(normalize(surface_point.v.world_pos - camera_pos), surface_point.mat, surface_point.v);
-//
-//	base_color_buffer[px]	  = float4(linear_to_srgb(pbr_surface.base_color.rgb), pbr_surface.occlusion);
-//	mr_buffer[px]			  = float2(pbr_surface.metallic, pbr_surface.roughness);
-//	shading_normal_buffer[px] = encode_octahedral(pbr_surface.normal);
-//	emissive_buffer[px]		  = pbr_surface.emissive;
-// }
-
 wave_size(AGE_WAVE_SIZE)
 [numthreads(SEGMENT_TILE_SIZE * SEGMENT_TILE_SIZE, 1, 1)] void
 main_cs(uint32_3 group_id	   sv_group_id,

@@ -163,15 +163,15 @@ namespace age::config
 	inline constexpr const char env_light_asset_tag[]  = ".env_light";
 	inline constexpr const char model_asset_tag[]	   = ".model";
 
-	inline constexpr unsigned char asset_registry_asset_version		  = 0;
+	inline constexpr unsigned char asset_registry_asset_version		  = 2;
 	inline constexpr unsigned char editor_ent_storage_asset_version	  = 0;
 	inline constexpr unsigned char shipping_ent_storage_asset_version = 0;
 	inline constexpr unsigned char font_asset_version				  = 0;
 	inline constexpr unsigned char mesh_baked_asset_version			  = 1;
-	inline constexpr unsigned char texture_asset_version			  = 0;
-	inline constexpr unsigned char material_asset_version			  = 1;
-	inline constexpr unsigned char env_light_asset_version			  = 0;
-	inline constexpr unsigned char model_asset_version				  = 0;
+	inline constexpr unsigned char texture_asset_version			  = 1;
+	inline constexpr unsigned char material_asset_version			  = 3;
+	inline constexpr unsigned char env_light_asset_version			  = 1;
+	inline constexpr unsigned char model_asset_version				  = 2;
 
 	inline constexpr auto max_game_name_len			  = 256u;
 	inline constexpr auto max_entity_name_len		  = 64u;
@@ -181,6 +181,8 @@ namespace age::config
 	inline constexpr auto max_component_name_len	  = 64u;
 	inline constexpr auto max_asset_path_len		  = 108u;
 	inline constexpr auto max_asset_display_name_len  = 64u;
+	inline constexpr auto max_joint_name_len		  = 64u;
+	inline constexpr auto max_blend_shape_name_len	  = 64u;
 
 	inline constexpr auto max_enum_name_len = 64u;
 

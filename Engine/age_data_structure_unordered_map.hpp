@@ -1109,6 +1109,12 @@ namespace age::inline data_structure
 			return empty();
 		}
 
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
+		}
+
 
 	  private:
 		FORCE_INLINE static constexpr size_type

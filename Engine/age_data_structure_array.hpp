@@ -16,6 +16,20 @@ namespace age::inline data_structure
 		arr.fill(value);
 		return arr;
 	}
+
+	template <typename t>
+	struct is_array : std::false_type
+	{ };
+
+	template <typename t, std::size_t n>
+	struct is_array<age::array<t, n>> : std::true_type
+	{ };
+
+	template <typename t>
+	constexpr bool is_array_v = is_array<std::remove_cvref_t<t>>::value;
+
+	template <typename t>
+	concept cx_char_array = is_array_v<t> and std::same_as<typename std::remove_cvref_t<t>::value_type, char>;
 }	 // namespace age::inline data_structure
 
 namespace age::inline data_structure
@@ -393,6 +407,18 @@ namespace age::inline data_structure
 			return count == 0;
 		}
 
+		FORCE_INLINE constexpr bool
+		is_empty() const noexcept
+		{
+			return count == 0;
+		}
+
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
+		}
+
 		FORCE_INLINE constexpr iterator
 		begin() noexcept
 		{
@@ -469,6 +495,12 @@ namespace age::inline data_structure
 		get_allocator() const
 		{
 			return alloc;
+		}
+
+		FORCE_INLINE constexpr std::pair<t*, size_type>
+		release() noexcept
+		{
+			return { std::exchange(p_data, nullptr), std::exchange(count, 0) };
 		}
 
 	  private:

@@ -3,10 +3,10 @@
 
 namespace age::asset::mesh_baked::detail
 {
-	void
+	bool
 	build_mesh_baked(const age::array<char, config::max_asset_path_len>& path, std::span<const primitive_desc>, e::vertex_kind) noexcept;
 
-	void
+	bool
 	build_mesh_baked(const age::array<char, config::max_asset_path_len>& path, const primitive_desc&, e::vertex_kind) noexcept;
 
 	bool

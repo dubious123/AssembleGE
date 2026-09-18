@@ -14,6 +14,35 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(transform_mode_kind, uint8, select, translation, rotation, scale);
 }	 // namespace age::editor::e
 
+// host operations
+namespace age::editor
+{
+	struct host_operations
+	{
+		void* p_ecs_game = nullptr;
+		void* p_renderer = nullptr;
+
+		AGE_FN_PTR(p_mesh_gpu_load, (asset::handle), (std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)) = nullptr;
+		AGE_FN_PTR(p_mesh_full_unload, (void), (asset::handle))																  = nullptr;
+		AGE_FN_PTR(p_material_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_texture_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_env_light_full_unload, (void), (asset::handle))														  = nullptr;
+		AGE_FN_PTR(p_model_full_unload, (void), (asset::handle))															  = nullptr;
+		// (ecs_entity_id)(ecs_scene_id, ecs_storage_id)
+		AGE_FN_PTR(p_add_entity, (uint64), (uint32, uint32)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id)
+		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64)) = nullptr;
+		// (ecs_archetype)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_get_archetype, (uint64), (uint32, uint32, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_add_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_remove)
+		AGE_FN_PTR(p_remove_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void* component_ptr)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_component_id)
+		AGE_FN_PTR(p_get_component_ptr, (void*), (uint32, uint32, uint64, uint32)) = nullptr;
+	};
+}	 // namespace age::editor
+
 namespace age::editor
 {
 	struct camera_data
@@ -49,6 +78,7 @@ namespace age::editor
 
 	struct entity_editor_data
 	{
+		// ecs_entity_id
 		uint64										  id;
 		age::array<char, config::max_entity_name_len> name;
 	};
@@ -65,6 +95,13 @@ namespace age::editor
 		age::vector<age::array<char, config::max_component_name_len>> names;
 		uint32														  version;
 		uint32														  byte_size;
+
+		// ideally, indexof(self) == ecs_component_id,
+		// in case the order of component_editor_data changes
+		uint32 ecs_component_id;
+		uint32 _;
+		// a key to find ecs_component_id by name
+		uint64 ecs_component_name_hash;
 	};
 
 	struct storage_editor_data
@@ -75,7 +112,7 @@ namespace age::editor
 		age::vector<component_editor_data>								   component_data_vec;
 		age::vector<archetype_editor_data>								   archetype_data_vec;
 
-		age::unordered_map<uint64, std::pair<uint32, uint64>> id_to_editor_location_map;	// editor_only map
+		age::unordered_map<uint64, std::pair<uint32, uint64>> ecs_ent_id_to_editor_location_map;	// editor_only map
 	};
 
 	struct scene_editor_data
@@ -86,7 +123,7 @@ namespace age::editor
 		uint8_3													  _;
 		age::vector<storage_editor_data>						  storage_data_vec;
 
-		std::filesystem::path dir_path;
+		std::string dir_path;
 
 		camera_data cam;
 
@@ -106,7 +143,11 @@ namespace age::editor
 		uint32													 current_active_scene_idx;
 		age::vector<scene_editor_data>							 scene_data_vec;
 
-		std::filesystem::path dir_path;
+		// relative to .exe
+		std::string dir_path;
+		std::string asset_root_dir_path;
+
+		age::array<std::string, asset::e::kind_size> asset_dir_path_arr;
 
 		decltype(auto)
 		find_scene_data(this auto& self, uint32 scene_code_idx) noexcept
@@ -173,6 +214,8 @@ namespace age::editor
 
 namespace age::editor::g
 {
+	inline auto host_ops = host_operations{};
+
 	inline auto current_select_kind = editor::e::select_kind::none;
 	inline auto select_vec			= age::vector<age::vector<uint64>>{};
 	// inline auto ui_new_entity_buffer				= age::vector<uint64>{};

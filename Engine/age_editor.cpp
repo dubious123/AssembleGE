@@ -3,47 +3,47 @@
 
 namespace age::editor
 {
-	void
-	init(util::function_ref<asset::handle(std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)> fn_mesh_gpu_load) noexcept
+	namespace detail
 	{
-		// g::command_buf.clear();
+		void
+		init_impl() noexcept
+		{
+			g::current_mode = e::mode_kind::edit;
+			g::current_game = game_editor_data{};
 
-		g::current_mode = e::mode_kind::edit;
-		g::current_game = game_editor_data{};
+			g::show_modal = false;
+			g::set_focus  = false;
 
-		g::show_modal = false;
-		g::set_focus  = false;
+			g::h_mesh_cone = g::host_ops.p_mesh_gpu_load("editor_asset/editor_mesh_cone",
+														 asset::primitive_desc{
+															 .seg_u		= 30,
+															 .seg_v		= 1,
+															 .mesh_kind = asset::e::primitive_mesh_kind::cone,
+														 },
+														 asset::e::vertex_kind::pnt_uv0);
 
-		g::h_mesh_cone = fn_mesh_gpu_load("editor_mesh_cone",
-										  asset::primitive_desc{
-											  .seg_u	 = 30,
-											  .seg_v	 = 1,
-											  .mesh_kind = asset::e::primitive_mesh_kind::cone,
-										  },
-										  asset::e::vertex_kind::pnt_uv0);
+			g::h_mesh_cube = g::host_ops.p_mesh_gpu_load("editor_asset/editor_mesh_cube",
+														 asset::primitive_desc{
+															 .seg_u		= 1,
+															 .seg_v		= 1,
+															 .mesh_kind = asset::e::primitive_mesh_kind::cube,
+														 },
+														 asset::e::vertex_kind::pnt_uv0);
 
-		g::h_mesh_cube = fn_mesh_gpu_load("editor_mesh_cube",
-										  asset::primitive_desc{
-											  .seg_u	 = 1,
-											  .seg_v	 = 1,
-											  .mesh_kind = asset::e::primitive_mesh_kind::cube,
-										  },
-										  asset::e::vertex_kind::pnt_uv0);
+			asset::mesh_baked::add_ref(g::h_mesh_cone);
+			asset::mesh_baked::add_ref(g::h_mesh_cube);
 
-		asset::mesh_baked::add_ref(g::h_mesh_cone);
-		asset::mesh_baked::add_ref(g::h_mesh_cube);
+			AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
+			AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
 
-		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
-		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded());
-
-		asset_mgr::init();
-	}
+			asset_mgr::init();
+		}
+	}	 // namespace detail
 
 	void
-	deinit(util::function_ref<void(asset::handle)> fn_mesh_full_unload) noexcept
+	deinit() noexcept
 	{
-		g::select_vec.clear();
-		g::select_vec = {};
+		g::select_vec.reset();
 
 		if constexpr (age::config::debug_mode)
 		{
@@ -55,8 +55,8 @@ namespace age::editor
 		asset::mesh_baked::remove_ref(g::h_mesh_cone);
 		asset::mesh_baked::remove_ref(g::h_mesh_cube);
 
-		fn_mesh_full_unload(g::h_mesh_cone);
-		fn_mesh_full_unload(g::h_mesh_cube);
+		g::host_ops.p_mesh_full_unload(g::h_mesh_cone);
+		g::host_ops.p_mesh_full_unload(g::h_mesh_cube);
 
 		AGE_ASSERT(g::h_mesh_cone.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);
 		AGE_ASSERT(g::h_mesh_cube.get_entry<asset::e::kind::mesh_baked>().is_gpu_loaded() is_false);
@@ -210,16 +210,79 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
+// asset
 namespace age::editor
 {
+	const std::string&
+	get_asset_root_dir_path() noexcept
+	{
+		return g::current_game.asset_root_dir_path;
+	}
+
+	const std::string&
+	get_asset_dir_path(asset::e::kind kind) noexcept
+	{
+		return g::current_game.asset_dir_path_arr[to_idx(kind)];
+	}
+
+	std::string
+	get_asset_path(asset::e::kind kind, std::string_view asset_name) noexcept
+	{
+		return fs::join(get_asset_dir_path(kind), asset_name);
+	}
+
 	age::array<char, config::max_asset_path_len>
 	get_asset_full_path(asset::e::kind kind, std::string_view asset_name) noexcept
 	{
 		return asset::e::visit(kind, [&]<asset::e::kind e_kind> {
-			c_auto name		 = (g::current_game.dir_path / "asset" / to_string(e_kind) / asset_name.data()).generic_string();
+			c_auto name		 = get_asset_path(e_kind, asset_name);
 			c_auto full_path = asset::get_asset_full_path<e_kind>(name);
 			return full_path;
 		});
+	}
+
+	void
+	asset_full_unload(asset::e::kind asset_kind, asset::handle h_asset) noexcept
+	{
+		if (h_asset is_false) { return; }
+		if (h_asset.is_any_loaded()) { return; }
+
+		switch (asset_kind)
+		{
+		case asset::e::kind::font:
+		{
+			AGE_UNREACHABLE("invalid asset type font");
+			break;
+		}
+		case asset::e::kind::mesh_baked:
+		{
+			g::host_ops.p_mesh_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::material:
+		{
+			g::host_ops.p_material_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::texture:
+		{
+			g::host_ops.p_texture_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::env_light:
+		{
+			g::host_ops.p_env_light_full_unload(h_asset);
+			break;
+		}
+		case asset::e::kind::model:
+		{
+			g::host_ops.p_model_full_unload(h_asset);
+			break;
+		}
+		default:
+			AGE_UNREACHABLE("invalid asset type {}", to_idx(asset_kind));
+			break;
+		}
 	}
 }	 // namespace age::editor
 

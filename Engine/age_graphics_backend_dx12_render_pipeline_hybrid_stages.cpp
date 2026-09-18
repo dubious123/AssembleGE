@@ -136,8 +136,8 @@ namespace age::graphics::render_pipeline
 		else
 		{
 			c_auto render_pass_rt_desc_arr = age::array{
-				defaults::render_pass_rtv_desc::clear_preserve(h_opaque_gbuffer_rtv_desc, e::texture_format::r32g32_uint),
-				defaults::render_pass_rtv_desc::clear_preserve(h_motion_buffer_rtv_desc, graphics::e::texture_format::r16g16_float)
+				defaults::render_pass_rtv_desc::clear_preserve(h_opaque_gbuffer_rtv_desc, e::texture_format::rg32_uint),
+				defaults::render_pass_rtv_desc::clear_preserve(h_motion_buffer_rtv_desc, graphics::e::texture_format::rg16_float)
 			};
 
 			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_opaque_depth_buffer_dsv_desc, 0.f);
@@ -186,7 +186,7 @@ namespace age::graphics::render_pipeline
 		}
 		else
 		{
-			c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_transparent_gbuffer_rtv_desc, e::texture_format::r32g32_uint);
+			c_auto render_pass_rt_desc = defaults::render_pass_rtv_desc::clear_preserve(h_transparent_gbuffer_rtv_desc, e::texture_format::rg32_uint);
 			c_auto render_pass_ds_desc = defaults::render_pass_ds_desc::depth_clear_preserve(h_transparent_depth_buffer_dsv_desc, 0.f);
 
 			command::begin_render_pass(

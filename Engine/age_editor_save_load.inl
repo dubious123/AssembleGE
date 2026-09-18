@@ -14,9 +14,11 @@ namespace age::editor::detail
 
 		[]<auto... i>(std::index_sequence<i...>, auto& storage_editor) {
 			((storage_editor.component_data_vec.emplace_back(component_editor_data{
-				 .names		= ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<age::array<char, config::max_component_name_len>>>(),
-				 .version	= ecs::get_component_version<typename t_archetype_traits::template t_component<i>>(),
-				 .byte_size = ecs::get_byte_size<typename t_archetype_traits::template t_component<i>>(),
+				 .names					  = ecs::get_component_name<typename t_archetype_traits::template t_component<i>>() | std::ranges::to<age::vector<age::array<char, config::max_component_name_len>>>(),
+				 .version				  = ecs::get_component_version<typename t_archetype_traits::template t_component<i>>(),
+				 .byte_size				  = ecs::get_byte_size<typename t_archetype_traits::template t_component<i>>(),
+				 .ecs_component_id		  = cast_to<uint32>(i),
+				 .ecs_component_name_hash = ecs::get_component_name_hash<typename t_archetype_traits::template t_component<i>>(),
 			 })),
 			 ...);
 		}(std::make_index_sequence<t_archetype_traits::cmp_count()>{}, storage_editor);
@@ -67,7 +69,7 @@ namespace age::editor::detail
 namespace age::editor::detail
 {
 	game_editor_data
-	read_game_proj(std::filesystem::path proj_path) noexcept;
+	read_game_proj(std::string_view proj_path) noexcept;
 }	 // namespace age::editor::detail
 
 // merge code_data, file_data
@@ -341,8 +343,8 @@ namespace age::editor::detail
 				{
 					c_auto ent_id = block.ent_id(local_ent_id);
 
-					auto it = storage.id_to_editor_location_map.find(ent_id);
-					AGE_ASSERT(it != storage.id_to_editor_location_map.end());
+					auto it = storage.ecs_ent_id_to_editor_location_map.find(ent_id);
+					AGE_ASSERT(it != storage.ecs_ent_id_to_editor_location_map.end());
 					AGE_ASSERT(arch.archetype == storage.archetype_data_vec[it->second.first].archetype);
 					c_auto editor_idx = it->second.second;
 
@@ -462,32 +464,33 @@ namespace age::editor::detail
 // file name
 namespace age::editor::detail
 {
+	// return relative to .exe
 	template <bool is_dir = true>
-	std::filesystem::path
-	resolve_path_by_names(const std::filesystem::path& parent,
-						  c_auto&					   names,
-						  std::string_view			   suffix = {}) noexcept
+	std::string
+	resolve_path_by_names(std::string_view parent,
+						  c_auto&		   names,
+						  std::string_view suffix = {}) noexcept
 	{
-		auto make_path = [](c_auto& parent, c_auto& n, c_auto& suffix) {
+		auto make_path = [](c_auto& parent, c_auto& name, c_auto& suffix) {
 			if constexpr (is_dir)
 			{
-				return parent / n.data();
+				return fs::join(parent, name.data());
 			}
 			else
 			{
-				return parent / std::format("{}{}", n.data(), suffix);
+				return fs::join(parent, std::format("{}{}", name.data(), suffix));
 			}
 		};
 
 		auto primary = make_path(parent, names[0], suffix);
-		auto found	 = std::filesystem::path{};
+		auto found	 = std::string{};
 
-		for (c_auto& n : names)
+		for (c_auto& name : names)
 		{
-			auto candidate = make_path(parent, n, suffix);
-			if (std::filesystem::exists(candidate))
+			auto candidate = make_path(parent, name, suffix);
+			if (fs::exists(candidate))
 			{
-				found = candidate;
+				found = std::move(candidate);
 				break;
 			}
 		}
@@ -496,12 +499,12 @@ namespace age::editor::detail
 		{
 			if constexpr (is_dir)
 			{
-				std::filesystem::create_directories(primary);
+				fs::create_dir(primary);
 			}
 		}
 		else if (found != primary)
 		{
-			std::filesystem::rename(found, primary);
+			fs::rename(found, primary);
 		}
 
 		return primary;
@@ -511,19 +514,18 @@ namespace age::editor::detail
 namespace age::editor
 {
 	void
-	load_game(auto& game, std::filesystem::path root_dir, auto& renderer) noexcept
+	load_game(auto& game, std::string_view root_parent_dir, auto& renderer) noexcept
 	{
 		auto code_game_data = detail::gen_game_data(game);
 
 		c_auto& names	 = game.age_editor_name();
-		c_auto	game_dir = detail::resolve_path_by_names(root_dir, names);
+		c_auto	game_dir = detail::resolve_path_by_names(root_parent_dir, names);
 
 		// todo, add asset game
-		auto proj_file_name = game_dir / std::format("{}{}", config::game_asset_tag, config::asset_extension);
 
-		if (std::filesystem::exists(proj_file_name))
+		if (fs::file_exists(fs::join(game_dir, std::format("{}{}", config::game_asset_tag, config::asset_extension))))
 		{
-			auto file_game_data = detail::read_game_proj(proj_file_name);
+			auto file_game_data = detail::read_game_proj(std::format("{}{}", config::game_asset_tag, config::asset_extension));
 
 			g::current_game = detail::merge_game_data(code_game_data, file_game_data);
 		}
@@ -532,9 +534,21 @@ namespace age::editor
 			g::current_game = std::move(code_game_data);
 		}
 
-		g::current_game.dir_path = std::move(game_dir);
+		g::current_game.dir_path			= fs::normalize_path(game_dir);
+		g::current_game.asset_root_dir_path = fs::join(g::current_game.dir_path, "asset");
+		e_visit_all(asset::e::kind{}, [&]<asset::e::kind e_kind> {
+			// todo. mesh_baked -> mesh?
+			if constexpr (e_kind == asset::e::kind::mesh_baked)
+			{
+				g::current_game.asset_dir_path_arr[to_idx(e_kind)] = fs::join(g::current_game.asset_root_dir_path, "mesh");
+			}
+			else
+			{
+				g::current_game.asset_dir_path_arr[to_idx(e_kind)] = fs::join(g::current_game.asset_root_dir_path, to_string(e_kind));
+			}
+		});
 
-		age::asset::registry::load(g::current_game.dir_path.string().data());
+		age::asset::registry::load(std::string{});
 
 		for (auto&& [scene_idx, scene] : g::current_game.scene_data_vec | std::views::enumerate)
 		{
@@ -544,16 +558,16 @@ namespace age::editor
 			{
 				c_auto storage_path = detail::resolve_path_by_names<false>(scene.dir_path, storage.names, std::format("{}{}", config::editor_ent_storage_asset_tag, config::asset_extension));
 
-				if (std::filesystem::exists(storage_path) is_false)
+				if (fs::exists(storage_path) is_false)
 				{
 					c_auto buf				 = game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::serialize_storage_data), storage, renderer);
-					c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-					asset::write_asset_file(storage_path, asset_file_header, buf.data());
+					c_auto asset_file_header = asset::get_default_file_header(asset::e::kind::editor_entity_storage, buf.size(), config::editor_ent_storage_asset_version);
+					asset::write_asset_file(asset::to_root_relative(storage_path), asset_file_header, buf.data());
 				}
 
 				if (g::current_game.default_active_scene_idx == scene_idx)
 				{
-					auto  file_data = asset::read_asset_file(storage_path.string());
+					auto  file_data = asset::read_asset_file(asset::to_root_relative(storage_path));
 					auto& buf		= file_data.buf;
 
 					game.visit_storage_at(scene.code_idx, storage.code_idx, AGE_FUNC(detail::deserialize_storage_data), buf, storage, renderer);
@@ -601,8 +615,8 @@ namespace age::editor
 		{
 			c_auto storage_path		 = detail::resolve_path_by_names<false>(active_scene.dir_path, editor_storage.names, std::format("{}{}", config::editor_ent_storage_asset_tag, config::asset_extension));
 			c_auto buf				 = game.visit_storage_at(active_scene.code_idx, editor_storage.code_idx, AGE_FUNC(detail::serialize_storage_data), editor_storage, renderer);
-			c_auto asset_file_header = asset::get_default_file_header<asset::e::kind::editor_entity_storage>(buf.size());
-			asset::write_asset_file(storage_path, asset_file_header, buf.data());
+			c_auto asset_file_header = asset::get_default_file_header(asset::e::kind::editor_entity_storage, buf.size(), config::editor_ent_storage_asset_version);
+			asset::write_asset_file(asset::to_root_relative(storage_path), asset_file_header, buf.data());
 		}
 	}
 }	 // namespace age::editor

@@ -13,7 +13,7 @@
 #endif
 
 // MSVC supports compiling SSE4.1 code regardless of compile options; we use a cpuid-based scalar fallback
-#if !defined(SIMD_SSE) && defined(_MSC_VER) && !defined(__clang__) && (defined(_M_IX86) || defined(_M_X64))
+#if !defined(SIMD_SSE) && defined(_MSC_VER) && !defined(__clang__) && (defined(_M_IX86) || (defined(_M_X64) && !defined(_M_ARM64EC)))
 #define SIMD_SSE
 #define SIMD_FALLBACK
 #endif
@@ -26,11 +26,11 @@
 #endif
 
 // When targeting AArch64, enable NEON SIMD unconditionally; we do not support SIMD decoding for 32-bit ARM
-#if defined(__aarch64__) || (defined(_MSC_VER) && defined(_M_ARM64) && _MSC_VER >= 1922)
+#if defined(__aarch64__) || (defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM64EC)) && _MSC_VER >= 1922)
 #define SIMD_NEON
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER > 1930
+#if defined(_MSC_VER) && !defined(__clang__) && _MSC_VER > 1930
 #define SIMD_FLATTEN [[msvc::flatten]]
 #elif defined(__GNUC__) || defined(__clang__)
 #define SIMD_FLATTEN __attribute__((flatten))
@@ -325,8 +325,6 @@ static const unsigned char* decodeVertices(V* vertices, const unsigned char* ctr
 {
 	unsigned int last = ~0u;
 
-	static const unsigned int masks[] = {0, 0xff, 0xffff, 0xffffff, 0xffffffff};
-
 	for (size_t i = 0; i < vertex_count; i += 4)
 	{
 		if (data > bound)
@@ -340,7 +338,8 @@ static const unsigned char* decodeVertices(V* vertices, const unsigned char* ctr
 			int length = code4 == 0xff ? 4 : code;
 
 			// branchlessly read up to 4 bytes
-			unsigned int v = (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24)) & masks[length];
+			unsigned int mask = (length == 4) ? ~0u : (1 << (8 * length)) - 1;
+			unsigned int v = (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24)) & mask;
 
 			// unzigzag + 1
 			unsigned int d = (v >> 1) ^ -int(v & 1);

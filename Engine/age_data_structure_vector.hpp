@@ -60,6 +60,15 @@ namespace age::inline data_structure
 		{
 		}
 
+		FORCE_INLINE constexpr vector(age::dynamic_array<t, t_allocator>&& arr) noexcept
+			: alloc{ arr.get_allocator() }
+		{
+			auto [p, n] = arr.release();
+			p_data		= p;
+			count		= n;
+			cap			= n;
+		}
+
 		template <typename t_input_it>
 		FORCE_INLINE constexpr vector(t_input_it first, t_input_it last) noexcept
 			: alloc{ allocator_type{} }
@@ -149,6 +158,7 @@ namespace age::inline data_structure
 			{
 				_dealloc(alloc, p_data, cap);
 				p_data = _alloc(alloc, other.count);
+				cap	   = other.count;
 			}
 
 			_copy_construct_n(alloc, p_data, other.p_data, other.count);
@@ -176,6 +186,55 @@ namespace age::inline data_structure
 			other.p_data = nullptr;
 			other.count	 = 0;
 			other.cap	 = 0;
+
+			return *this;
+		}
+
+		constexpr vector&
+		operator=(age::dynamic_array<t, t_allocator>&& other) noexcept
+		{
+			using t_allocator_traits = std::allocator_traits<t_allocator>;
+			clear();
+
+			if constexpr (t_allocator_traits::is_always_equal::value)
+			{
+				_dealloc(alloc, p_data, cap);
+
+				auto [p, n] = other.release();
+				p_data		= p;
+				count		= n;
+				cap			= n;
+			}
+			else if (alloc == other.get_allocator())
+			{
+				_dealloc(alloc, p_data, cap);
+				auto [p, n] = other.release();
+				p_data		= p;
+				count		= n;
+				cap			= n;
+			}
+			else if constexpr (t_allocator_traits::propagate_on_container_move_assignment::value)
+			{
+				_dealloc(alloc, p_data, cap);
+				alloc = other.get_allocator();
+
+				auto [p, n] = other.release();
+				p_data		= p;
+				count		= n;
+				cap			= n;
+			}
+			else
+			{
+				if (cap < other.size())
+				{
+					_dealloc(alloc, p_data, cap);
+					p_data = _alloc(alloc, other.size());
+					cap	   = other.size();
+				}
+
+				append_range(other | std::views::as_rvalue);
+				other = {};
+			}
 
 			return *this;
 		}
@@ -274,7 +333,7 @@ namespace age::inline data_structure
 			return p_data[i];
 		}
 
-		FORCE_INLINE constexpr reference
+		FORCE_INLINE constexpr const reference
 		operator[](size_type i) const noexcept
 		{
 			AGE_ASSERT(i < count);
@@ -325,6 +384,12 @@ namespace age::inline data_structure
 		is_empty() const noexcept
 		{
 			return count == 0;
+		}
+
+		FORCE_INLINE constexpr bool
+		is_not_empty() const noexcept
+		{
+			return count > 0;
 		}
 
 		FORCE_INLINE constexpr iterator
@@ -418,6 +483,7 @@ namespace age::inline data_structure
 			if (p_data is_not_nullptr)
 			{
 				_move_construct_n(alloc, p_new_data, p_data, count);
+				_destroy_n(alloc, p_data, count);
 				_dealloc(get_allocator(), p_data, cap);
 			}
 
@@ -432,6 +498,18 @@ namespace age::inline data_structure
 			count = 0;
 		}
 
+		FORCE_INLINE constexpr void
+		reset() noexcept
+		{
+			if (p_data)
+			{
+				clear();
+				_dealloc(alloc, p_data, cap);
+				p_data = nullptr;
+				cap	   = 0u;
+			}
+		}
+
 		FORCE_INLINE constexpr reference
 		emplace_back(auto&&... arg) noexcept
 		{
@@ -439,9 +517,6 @@ namespace age::inline data_structure
 
 			if (_is_full())
 			{
-				reserve(cap * 2 + 1);
-
-
 				c_auto new_cap	  = cap * 2 + 1;
 				auto*  p_new_data = _alloc(alloc, new_cap, p_data);
 
@@ -451,6 +526,7 @@ namespace age::inline data_structure
 				if (p_data is_not_nullptr)
 				{
 					_move_construct_n(alloc, p_new_data, p_data, count);
+					_destroy_n(alloc, p_data, count);
 					_dealloc(get_allocator(), p_data, cap);
 				}
 
@@ -475,10 +551,10 @@ namespace age::inline data_structure
 			static_assert(std::is_same_v<decltype(*std::ranges::begin(rg)), std::ranges::range_reference_t<r>>);
 			static_assert(meta::emplace_constructible<t, vector<t, t_allocator>, allocator_type, std::ranges::range_reference_t<r>>);
 
-			if constexpr (std::ranges::sized_range<t> or std::ranges::forward_range<r>)
+			if constexpr (std::ranges::sized_range<r> or std::ranges::forward_range<r>)
 			{
 				auto range_size = 0ull;
-				if constexpr (std::ranges::sized_range<t>)
+				if constexpr (std::ranges::sized_range<r>)
 				{
 					range_size = std::ranges::size(rg);
 					reserve(static_cast<size_type>(count + range_size));

@@ -6,8 +6,8 @@ namespace age::graphics::g
 {
 	constexpr auto minimum_feature_level = D3D_FEATURE_LEVEL_12_1;
 
-	inline const auto engine_shaders_dir_path				= std::filesystem::path{ "./resources/engine_shaders/dx12/" };
-	inline const auto engine_shaders_compiled_blob_dir_path = std::filesystem::path{ "./resources/engine_shaders/dx12/bin/" };
+	inline const auto engine_shaders_dir_path				= "./resources/engine_shaders/dx12/";
+	inline const auto engine_shaders_compiled_blob_dir_path = "./resources/engine_shaders/dx12/bin/";
 }	 // namespace age::graphics::g
 
 namespace age::graphics::e

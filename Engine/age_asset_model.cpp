@@ -99,7 +99,7 @@ namespace age::asset::model
 	}
 
 	bool
-	renderable(handle h_model) noexcept
+	is_renderable(handle h_model) noexcept
 	{
 		auto& entry = model::get_entry(h_model);
 		return entry.h_mesh and entry.is_loaded();
@@ -121,6 +121,25 @@ namespace age::asset::model
 		for (c_auto& h_mat : desc.h_materials)
 		{
 			buf.write(get_path_safe<e::kind::material>(h_mat));
+		}
+
+		c_auto f_header = get_default_file_header<e::kind::model>(buf.size());
+		write_asset_file(model_path.data(), f_header, buf.data());
+	}
+
+	void
+	build(std::string_view model_path, const model_file_desc& desc) noexcept
+	{
+		auto buf = byte_buf::gen_reserved(config::max_asset_path_len * 1
+										  + sizeof(uint32)
+										  + config::max_asset_path_len * desc.material_path_buf_vec.size());
+
+		buf.write(desc.mesh_path_buf,
+				  cast_to<uint32>(desc.material_path_buf_vec.size()));
+
+		for (c_auto& mat_path_buf : desc.material_path_buf_vec)
+		{
+			buf.write(mat_path_buf);
 		}
 
 		c_auto f_header = get_default_file_header<e::kind::model>(buf.size());

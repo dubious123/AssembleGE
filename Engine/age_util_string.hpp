@@ -434,6 +434,8 @@ namespace age::util
 		return written;
 	}
 
+	// [byte_count, code_point]
+	// todo, check fs::detail::unicode::decode_utf8
 	FORCE_INLINE constexpr std::tuple<uint8, uint16>
 	decode_utf8(const char* p)
 	{
@@ -488,14 +490,25 @@ namespace age::util
 		return res;
 	}
 
-	template <std::size_t len>
+	template <std::size_t n>
+	constexpr void
+	to_fixed_str(std::string_view sv, AGE_OUT age::array<char, n>& res) noexcept
+	{
+		static_assert(n > 0);
+
+		c_auto len = age::min(sv.size(), n - 1);
+		std::ranges::copy_n(sv.data(), len, res.begin());
+		// safe_version
+		// std::char_traits<char>::assign(res.data() + len, n - len, '\0');
+		res[len] = '\0';
+	}
+
+	template <std::size_t n>
 	constexpr auto
 	to_fixed_str(std::string_view sv) noexcept
 	{
-		AGE_ASSERT(sv.size() < len);
-		auto res = age::array<char, len>{};
-		std::ranges::copy_n(sv.data(), sv.size(), res.begin());
-		res[sv.size()] = '\0';
+		auto res = age::array<char, n>{};
+		to_fixed_str(sv, res);
 		return res;
 	}
 
@@ -503,14 +516,26 @@ namespace age::util
 	consteval auto
 	to_fixed_str_arr(const char (&... strs)[n])
 	{
-		return age::array{ to_fixed_str<len>(strs)... };
+		return age::array<age::array<char, len>, sizeof...(n)>{ to_fixed_str<len>(strs)... };
 	}
 
 	template <std::size_t len>
 	consteval auto
 	to_fixed_str_arr()
 	{
-		return age::array<age::array<const char, len>, 0>{};
+		return age::array<age::array<char, len>, 0>{};
+	}
+
+	std::string_view
+	to_string_view(auto&&... arg) noexcept
+	{
+		return std::string_view{ FWD(arg)... };
+	}
+
+	std::string_view
+	to_string_view(cx_char_array auto&& arr) noexcept
+	{
+		return std::string_view{ arr.data() };
 	}
 }	 // namespace age::util
 
@@ -611,26 +636,6 @@ namespace age::util
 
 namespace age::util
 {
-	inline std::string
-	to_utf8(std::wstring_view wide)
-	{
-#ifdef AGE_PLATFORM_WINDOW
-		if (wide.empty()) { return {}; }
-
-		c_auto size = ::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
-											nullptr, 0, nullptr, nullptr);
-		auto   res	= std::string(size, '\0');
-		::WideCharToMultiByte(CP_UTF8, 0, wide.data(), (int)wide.size(),
-							  res.data(), size, nullptr, nullptr);
-		return res;
-#elif
-	#error "not implemented yet"
-#endif
-	}
-}	 // namespace age::util
-
-namespace age::util
-{
 	[[nodiscard]] FORCE_INLINE constexpr bool
 	is_char_english(char c) noexcept
 	{
@@ -668,5 +673,30 @@ namespace age::util
 
 		c_auto pos_r = sv.find_last_not_of(c);
 		return sv.substr(pos_l, pos_r - pos_l + 1);
+	}
+}	 // namespace age::util
+
+namespace age::util
+{
+	inline constexpr auto is_equal_ascii_ci = [](c_auto a, c_auto b) { return to_lower_ascii(cast_to<char>(a)) == to_lower_ascii(cast_to<char>(b)); };
+	inline constexpr auto is_less_ascii_ci	= [](c_auto a, c_auto b) { return to_lower_ascii(cast_to<char>(a)) < to_lower_ascii(cast_to<char>(b)); };
+
+	// 0 prefix, 1 substring, 2 subsequence, uint32_max no match. lower means better
+	template <std::ranges::forward_range t_name, std::ranges::forward_range t_pattern, typename t_eq = decltype(is_equal_ascii_ci)>
+	constexpr uint32
+	match_rank(const t_name& name, const t_pattern& pattern, t_eq is_equal = {}) noexcept
+	{
+		if (std::ranges::empty(pattern)) { return 0u; }
+		if (std::ranges::starts_with(name, pattern, is_equal)) { return 0u; }
+		if (std::ranges::search(name, pattern, is_equal).empty() is_false) { return 1u; }
+
+		for (auto	it = std::ranges::begin(name);
+			 c_auto pc : pattern)
+		{
+			it = std::ranges::find_if(it, std::ranges::end(name), [&](c_auto nc) { return is_equal(nc, pc); });
+			if (it == std::ranges::end(name)) { return math::g::uint32_max; }
+			++it;
+		}
+		return 2u;
 	}
 }	 // namespace age::util

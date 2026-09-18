@@ -84,47 +84,177 @@ namespace age::graphics::e
 							   (spot, 2),
 							   (area, 3),
 							   (volumn, 4));
+	// lagacy
+	// AGE_DEFINE_ENUM_WITH_VALUE(texture_format, uint16,
+	//						   (rgba8_unorm, 0),
+	//						   (rgba8_unorm_srgb, 1),
+
+	//						   (rgba16_float, 2),
+	//						   (rgba16_unorm, 3),
+
+	//						   (rgba32_float, 4),
+
+	//						   (r8_unorm, 5),
+	//						   (r8g8_unorm, 6),
+	//						   (r16_float, 7),
+	//						   (r16g16_float, 8),
+
+	//						   (bc1_unorm, 9),	   // 4 bpp, RGB(+1bit alpha)
+	//						   (bc1_unorm_srgb, 10),
+
+	//						   (bc3_unorm, 11),	   // 8 bpp, RGBA legacy
+	//						   (bc3_unorm_srgb, 12),
+
+	//						   (bc4_unorm, 13),	   // 4 bpp, single channel - occlusion
+	//						   (bc4_snorm, 14),
+
+	//						   (bc5_unorm, 15),	   // 8 bpp, two channel (RG) - normal
+	//						   (bc5_snorm, 16),
+
+	//						   (bc6h_uf16, 17),	   // 8 bpp, RGB float - HDR
+	//						   (bc6h_sf16, 18),
+
+	//						   (bc7_unorm, 19),	   // 8 bpp, high quality LDR, ORM (gltf)
+	//						   (bc7_unorm_srgb, 20),
+
+	//						   (r32_float, 21),
+	//						   (r32g32_uint, 22),
+	//						   (r16g16b16a16_float, 23),
+	//						   (r8_uint, 24),
+	//						   (d32_float, 25),
+	//						   (d16_unorm, 26),
+	//						   (r11g11b10_float, 27),
+	//						   (r16g16_snorm, 28),
+	//						   (rgba8_typeless, 29));
 
 	AGE_DEFINE_ENUM_WITH_VALUE(texture_format, uint16,
-							   (rgba8_unorm, 0),
-							   (rgba8_unorm_srgb, 1),
+							   (unknown, 0),
 
-							   (rgba16_float, 2),
-							   (rgba16_unorm, 3),
+							   // 128 bit
+							   (rgba32_typeless, 1),
+							   (rgba32_float, 2),
+							   (rgba32_uint, 3),
+							   (rgba32_sint, 4),
 
-							   (rgba32_float, 4),
+							   // 96 bit
+							   (rgb32_typeless, 5),
+							   (rgb32_float, 6),
+							   (rgb32_uint, 7),
+							   (rgb32_sint, 8),
 
-							   (r8_unorm, 5),
-							   (r8g8_unorm, 6),
-							   (r16_float, 7),
-							   (r16g16_float, 8),
+							   // 64 bit
+							   (rgba16_typeless, 9),
+							   (rgba16_float, 10),
+							   (rgba16_unorm, 11),
+							   (rgba16_uint, 12),
+							   (rgba16_snorm, 13),
+							   (rgba16_sint, 14),
+							   (rg32_typeless, 15),
+							   (rg32_float, 16),
+							   (rg32_uint, 17),
+							   (rg32_sint, 18),
+							   (r32g8x24_typeless, 19),
+							   (d32_float_s8x24_uint, 20),
+							   (r32_float_x8x24_typeless, 21),
+							   (x32_typeless_g8x24_uint, 22),
 
-							   (bc1_unorm, 9),	   // 4 bpp, RGB(+1bit alpha)
-							   (bc1_unorm_srgb, 10),
+							   // 32 bit
+							   (rgb10a2_typeless, 23),
+							   (rgb10a2_unorm, 24),
+							   (rgb10a2_uint, 25),
+							   (r11g11b10_float, 26),
+							   (rgba8_typeless, 27),
+							   (rgba8_unorm, 28),
+							   (rgba8_unorm_srgb, 29),
+							   (rgba8_uint, 30),
+							   (rgba8_snorm, 31),
+							   (rgba8_sint, 32),
+							   (rg16_typeless, 33),
+							   (rg16_float, 34),
+							   (rg16_unorm, 35),
+							   (rg16_uint, 36),
+							   (rg16_snorm, 37),
+							   (rg16_sint, 38),
+							   (r32_typeless, 39),
+							   (d32_float, 40),
+							   (r32_float, 41),
+							   (r32_uint, 42),
+							   (r32_sint, 43),
+							   (r24g8_typeless, 44),
+							   (d24_unorm_s8_uint, 45),
+							   (r24_unorm_x8_typeless, 46),
+							   (x24_typeless_g8_uint, 47),
 
-							   (bc3_unorm, 11),	   // 8 bpp, RGBA legacy
-							   (bc3_unorm_srgb, 12),
+							   // 16 bit
+							   (rg8_typeless, 48),
+							   (rg8_unorm, 49),
+							   (rg8_uint, 50),
+							   (rg8_snorm, 51),
+							   (rg8_sint, 52),
+							   (r16_typeless, 53),
+							   (r16_float, 54),
+							   (d16_unorm, 55),
+							   (r16_unorm, 56),
+							   (r16_uint, 57),
+							   (r16_snorm, 58),
+							   (r16_sint, 59),
 
-							   (bc4_unorm, 13),	   // 4 bpp, single channel - occlusion
-							   (bc4_snorm, 14),
+							   // 8 bit
+							   (r8_typeless, 60),
+							   (r8_unorm, 61),
+							   (r8_uint, 62),
+							   (r8_snorm, 63),
+							   (r8_sint, 64),
+							   (a8_unorm, 65),
+							   (r1_unorm, 66),
 
-							   (bc5_unorm, 15),	   // 8 bpp, two channel (RG) - normal
-							   (bc5_snorm, 16),
+							   // packed
+							   (rgb9e5_sharedexp, 67),
+							   (rg8_bg8_unorm, 68),
+							   (gr8_gb8_unorm, 69),
 
-							   (bc6h_uf16, 17),	   // 8 bpp, RGB float - HDR
-							   (bc6h_sf16, 18),
+							   // block compressed, 4 bpp: bc1 / bc4, 8 bpp: the rest
+							   (bc1_typeless, 70),
+							   (bc1_unorm, 71),	   // RGB + 1 bit alpha
+							   (bc1_unorm_srgb, 72),
+							   (bc2_typeless, 73),
+							   (bc2_unorm, 74),	   // RGBA, 4 bit explicit alpha, legacy
+							   (bc2_unorm_srgb, 75),
+							   (bc3_typeless, 76),
+							   (bc3_unorm, 77),	   // RGBA, 8 bit interpolated alpha, legacy
+							   (bc3_unorm_srgb, 78),
+							   (bc4_typeless, 79),
+							   (bc4_unorm, 80),	   // R, standalone occlusion / roughness / height / mask
+							   (bc4_snorm, 81),
+							   (bc5_typeless, 82),
+							   (bc5_unorm, 83),	   // RG, normal map
+							   (bc5_snorm, 84),
 
-							   (bc7_unorm, 19),	   // 8 bpp, high quality LDR
-							   (bc7_unorm_srgb, 20),
-							   (r32_float, 21),
-							   (r32g32_uint, 22),
-							   (r16g16b16a16_float, 23),
-							   (r8_uint, 24),
-							   (d32_float, 25),
-							   (d16_unorm, 26),
-							   (r11g11b10_float, 27),
-							   (r16g16_snorm, 28),
-							   (rgba8_typeless, 29));
+							   // legacy 16 / 32 bit bgra
+							   (b5g6r5_unorm, 85),
+							   (b5g5r5a1_unorm, 86),
+							   (bgra8_unorm, 87),
+							   (bgrx8_unorm, 88),
+							   (rgb10_xr_bias_a2_unorm, 89),
+							   (bgra8_typeless, 90),
+							   (bgra8_unorm_srgb, 91),
+							   (bgrx8_typeless, 92),
+							   (bgrx8_unorm_srgb, 93),
+
+							   // block compressed, d3d11
+							   (bc6h_typeless, 94),
+							   (bc6h_ufloat16, 95),	   // RGB half float, HDR
+							   (bc6h_sfloat16, 96),
+							   (bc7_typeless, 97),
+							   (bc7_unorm, 98),		   // RGBA high quality LDR, ORM (gltf)
+							   (bc7_unorm_srgb, 99),
+
+
+													   // 4 bit bgra, sampler feedback / newest
+							   (bgra4_unorm, 115),
+							   (sampler_feedback_min_mip_opaque, 189),
+							   (sampler_feedback_mip_region_used, 190),
+							   (abgr4_unorm, 191));
 
 	// todo, rename rt_instance_flags
 	AGE_DEFINE_ENUM_FLAGS(rt_mask_kind, uint8,
@@ -397,9 +527,21 @@ namespace age::graphics
 namespace age::asset
 {
 	struct mesh_editable;
-
-
 }	 // namespace age::asset
+
+namespace age::asset::importer
+{
+	struct gltf_parse_data;
+}
+
+namespace age::external::e
+{
+	AGE_DEFINE_ENUM(cgltf_load_error_kind, uint8,
+					none,
+					invalid_format,
+					buffer_not_found,
+					internal_error);
+}	 // namespace age::external::e
 
 namespace age::runtime
 {
@@ -427,5 +569,11 @@ namespace age::runtime
 		{
 			static_assert(false);
 		}
+	}
+
+	FORCE_INLINE bool
+	is_invalid_idx(auto&& any_idx) noexcept
+	{
+		return any_idx == age::get_invalid_idx<BARE_OF(any_idx)>();
 	}
 }	 // namespace age::runtime

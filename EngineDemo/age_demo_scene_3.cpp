@@ -7,11 +7,13 @@ namespace age_demo::scene_3
 	init() noexcept
 	{
 		using namespace age::ecs::system;
-		age::editor::init(AGE_LAMBDA((auto&& _1, auto&&... arg), { return age::asset::mesh_baked::gpu_load(FWD(_1), i_init.get_render_pipeline(), FWD(arg)...); }));
 
+		c_auto proj_dir = age::fs::join("./resources/demo_game", i_init.get_editor_game->age_editor_name()[0].data());
+		age::asset::set_root_dir(proj_dir);
 		i_init.get_editor_game->init();
 
-		age::editor::load_game(i_init.get_editor_game(), "resources/demo_game/", i_init.get_render_pipeline());
+		age::editor::init(i_init.get_editor_game(), i_init.get_render_pipeline());
+		age::editor::load_game(i_init.get_editor_game(), age::fs::get_parent_path(proj_dir), i_init.get_render_pipeline());
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
 		i_init.set_smoothed_look = float2{ 0.f, 0.f };
@@ -252,7 +254,7 @@ namespace age_demo::scene_3
 		age::graphics::command::signal();
 		age::graphics::command::cpu_wait();
 		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
-		age::editor::deinit(AGE_LAMBDA((age::asset::handle h_mesh), { return age::asset::mesh_baked::full_unload(h_mesh, i_init.get_render_pipeline()); }));
+		age::editor::deinit();
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));
 

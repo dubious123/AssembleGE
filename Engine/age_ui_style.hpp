@@ -339,6 +339,12 @@ namespace age::ui
 		return set_padding(padding, padding, padding, padding);
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	set_padding_zero() noexcept
+	{
+		return set_padding(0.f);
+	}
+
 	namespace detail
 	{
 		struct mod_size

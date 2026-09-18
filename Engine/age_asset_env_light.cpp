@@ -128,18 +128,30 @@ namespace age::asset::env_light
 			return;
 		}
 
+
 		if (auto file_data = asset::read_asset_file(entry.get_path());
 			file_data.is_valid())
 		{
-			if (file_data.header.asset_version < config::env_light_asset_version)
+			switch (file_data.header.asset_version)
 			{
-				AGE_ASSERT(false);
+				// texture format v0
+			case 0u:
+			{
+				entry.p_blob			= file_data.buf.release();
+				auto& header			= entry.get_header();
+				header.bake_info.format = asset::migrate_texture_format(to_idx(header.bake_info.format));
 				return;
 			}
-			else
+			case config::env_light_asset_version:
 			{
 				entry.p_blob = file_data.buf.release();
 				return;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid asset version");
+				break;
+			}
 			}
 		}
 	}

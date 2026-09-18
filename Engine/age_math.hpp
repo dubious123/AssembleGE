@@ -279,6 +279,12 @@ struct vec2
 		return x == t{ 0 } && y == t{ 0 };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	is_any_zero() noexcept
+	{
+		return x == t{ 0 } or y == t{ 0 };
+	}
+
 	FORCE_INLINE constexpr t
 	area() const noexcept
 	{
@@ -557,6 +563,12 @@ struct vec3
 	is_zero() const noexcept
 	{
 		return x == t{ 0 } && y == t{ 0 } && z == t{ 0 };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
+	is_any_zero() noexcept
+	{
+		return x == t{ 0 } or y == t{ 0 } or z == t{ 0 };
 	}
 
 	FORCE_INLINE constexpr t
@@ -855,6 +867,12 @@ struct vec4
 		return x == t{ 0 } && y == t{ 0 } && z == t{ 0 } && w == t{ 0 };
 	}
 
+	FORCE_INLINE constexpr decltype(auto)
+	is_any_zero() noexcept
+	{
+		return x == t{ 0 } or y == t{ 0 } or z == t{ 0 } or w == t{ 0 };
+	}
+
 	FORCE_INLINE constexpr t
 	manhattan() const noexcept
 		requires(std::is_integral_v<t> && std::is_signed_v<t>)
@@ -992,6 +1010,14 @@ struct mat22
 	{
 	}
 
+	template <typename u>
+	FORCE_INLINE constexpr mat22(const u (&other)[4]) noexcept
+		requires(std::convertible_to<u, t>)
+		: r0{ static_cast<t>(other[0]), static_cast<t>(other[1]) },
+		  r1{ static_cast<t>(other[2]), static_cast<t>(other[3]) }
+	{
+	}
+
 	FORCE_INLINE constexpr t*
 	data() noexcept
 	{
@@ -1103,6 +1129,15 @@ struct mat33
 				 and std::convertible_to<decltype(other2), t_row>
 				 and std::convertible_to<decltype(other3), t_row>)
 		: r0{ FWD(other1) }, r1{ FWD(other2) }, r2{ FWD(other3) }
+	{
+	}
+
+	template <typename u>
+	FORCE_INLINE constexpr mat33(const u (&other)[9]) noexcept
+		requires(std::convertible_to<u, t>)
+		: r0{ static_cast<t>(other[0]), static_cast<t>(other[1]), static_cast<t>(other[2]) },
+		  r1{ static_cast<t>(other[3]), static_cast<t>(other[4]), static_cast<t>(other[5]) },
+		  r2{ static_cast<t>(other[6]), static_cast<t>(other[7]), static_cast<t>(other[8]) }
 	{
 	}
 
@@ -1241,6 +1276,15 @@ struct mat34
 	{
 	}
 
+	template <typename u>
+	FORCE_INLINE constexpr mat34(const u (&other)[12]) noexcept
+		requires(std::convertible_to<u, t>)
+		: r0{ static_cast<t>(other[0]), static_cast<t>(other[1]), static_cast<t>(other[2]), static_cast<t>(other[3]) },
+		  r1{ static_cast<t>(other[4]), static_cast<t>(other[5]), static_cast<t>(other[6]), static_cast<t>(other[7]) },
+		  r2{ static_cast<t>(other[8]), static_cast<t>(other[9]), static_cast<t>(other[10]), static_cast<t>(other[11]) }
+	{
+	}
+
 	FORCE_INLINE constexpr t*
 	data() noexcept
 	{
@@ -1344,6 +1388,16 @@ struct mat44
 				 and std::convertible_to<decltype(other_mat3x4.r2), t_row>
 				 and std::convertible_to<decltype(other_vec4), t_row>)
 		: r0{ FWD(other_mat3x4).r0 }, r1{ FWD(other_mat3x4).r1 }, r2{ FWD(other_mat3x4).r2 }, r3{ FWD(other_vec4) }
+	{
+	}
+
+	template <typename u>
+	FORCE_INLINE constexpr mat44(const u (&other)[16]) noexcept
+		requires(std::convertible_to<u, t>)
+		: r0{ static_cast<t>(other[0]), static_cast<t>(other[1]), static_cast<t>(other[2]), static_cast<t>(other[3]) },
+		  r1{ static_cast<t>(other[4]), static_cast<t>(other[5]), static_cast<t>(other[6]), static_cast<t>(other[7]) },
+		  r2{ static_cast<t>(other[8]), static_cast<t>(other[9]), static_cast<t>(other[10]), static_cast<t>(other[11]) },
+		  r3{ static_cast<t>(other[12]), static_cast<t>(other[13]), static_cast<t>(other[14]), static_cast<t>(other[15]) }
 	{
 	}
 
@@ -1777,21 +1831,23 @@ namespace age::inline math::g
 	inline constexpr auto degree_to_radian = pi / 180.f;
 	inline constexpr auto radian_to_degree = 180.f / pi;
 
-	inline const auto forward  = float3{ +0.f, +0.f, +1.f };
-	inline const auto backward = float3{ +0.f, +0.f, -1.f };
-	inline const auto up	   = float3{ +0.f, +1.f, +0.f };
-	inline const auto down	   = float3{ +0.f, -1.f, +0.f };
-	inline const auto right	   = float3{ +1.f, +0.f, +0.f };
-	inline const auto left	   = float3{ -1.f, +0.f, +0.f };
+	inline constexpr auto forward  = float3{ +0.f, +0.f, +1.f };
+	inline constexpr auto backward = float3{ +0.f, +0.f, -1.f };
+	inline constexpr auto up	   = float3{ +0.f, +1.f, +0.f };
+	inline constexpr auto down	   = float3{ +0.f, -1.f, +0.f };
+	inline constexpr auto right	   = float3{ +1.f, +0.f, +0.f };
+	inline constexpr auto left	   = float3{ -1.f, +0.f, +0.f };
 
 
-	inline const auto uint8_max	 = std::numeric_limits<uint8>::max();
-	inline const auto uint16_max = std::numeric_limits<uint16>::max();
-	inline const auto uint32_max = std::numeric_limits<uint32>::max();
-	inline const auto uint64_max = std::numeric_limits<uint64>::max();
+	inline constexpr auto uint8_max	 = std::numeric_limits<uint8>::max();
+	inline constexpr auto uint16_max = std::numeric_limits<uint16>::max();
+	inline constexpr auto uint32_max = std::numeric_limits<uint32>::max();
+	inline constexpr auto uint64_max = std::numeric_limits<uint64>::max();
 
-	inline const auto uint8_min	 = std::numeric_limits<uint8>::min();
-	inline const auto uint16_min = std::numeric_limits<uint16>::min();
-	inline const auto uint32_min = std::numeric_limits<uint32>::min();
-	inline const auto uint64_min = std::numeric_limits<uint64>::min();
+	inline constexpr auto uint8_min	 = std::numeric_limits<uint8>::min();
+	inline constexpr auto uint16_min = std::numeric_limits<uint16>::min();
+	inline constexpr auto uint32_min = std::numeric_limits<uint32>::min();
+	inline constexpr auto uint64_min = std::numeric_limits<uint64>::min();
+
+	inline constexpr auto float_max = std::numeric_limits<float>::max();
 }	 // namespace age::inline math::g

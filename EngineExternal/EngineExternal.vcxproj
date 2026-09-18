@@ -128,6 +128,10 @@ xcopy /Y /E /I "$(ProjectDir)texconv\*" "$(SolutionDir)\$(Platform)\$(Configurat
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="age_engine_external_cgltf.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="age_engine_external_msdfgen.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

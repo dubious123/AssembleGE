@@ -527,6 +527,7 @@ switch문으로 해결하기에는 새로운 asset kind가 들어올때마다
 즉 cpu load도 여러 버전이 있을수 있음. 
 
 asset dirty system 만들기
+asset inspector에서 변경된 asset이 실시간으로 scene에 적용되지 못함.
 
 new asset과 import asset을 구분하기 
 new asset은 기존 asset들을 활용해서 1개의 age_asset을 만드는것, 
@@ -537,18 +538,56 @@ import는 외부 file에서 1개 또는 그 이상의 age_asset을 생성하는�
 import는 editor 전용인가 아니면 asset system의 일종인가? 
 
 
-model load -> child를 돌면서 is_loaded를 check한다. 
-child가 바뀌었는데, handle만 있고 load가 아니라면 is_loaded가 false가 되면tj
-file을 다시 읽어버린다 
-그럼 model의 mat이 변화할때마다 renderer update할건가 
-model이 render의 대상이 아닐수도 있다 (asset modal) 
 
-model의 load를 
-is_cpu_loaded와 is_gpu_loaded로 변경하자 
+## 계층 
 
-근데 is_cpu_loaded가 h_mesh의 is_cpu_loaded를 포함하는지 여부가 걸린다. 
+아무런 계층이 없을때 : optional pos, rot, scale 
 
-맨 처음 어떤 방식이라도 load 가 되었음을 표기해야하나? 
-is_file_loaded()? 
+계층이 필요할때 : parent_id, subtree_count(child_count) => storage가 global preorder 로 tree를 만듬 
 
-if_header_loaded()? 
+계층 + transform 계산이 필요할때, but static : parent_id + world_transform (float3x4) 
+
+계층 + transform 계산이 필요할때, but runtime : parent_id + world_transform + local_trs
+
+tree를 2개 생성 
+1개는 계층이 있는 entity들 
+다른 1개는 계층이 있으면서 transform 알고리즘 계산의 대상이 되는 tree 
+둘다 crud일때 update되며, 어차피 구조적 변경은 single thread에서만 발생이 되어야하니 상관없음
+ 
+
+ ## texture에 alpha 가 없을 수 있음 
+ texture meta에 alpha_kind (none, one_bit (bc1), full) 이 있어야함. none이면 강제 opaque 
+ material에 binding할때 alpha_cutoff
+
+ submesh meta에도 omm으로 굽는다면 alpha_cutoff를 넣어줘야함. 
+ 그후에 editor에서 model을 읽을때 submesh랑 material의 base_color texture에서 alpha_cutoff가 다르면 warning을 주면 됨. 
+ 그런데 render_model에서 alpha channel이 필요한데 이를 제공 안했다면 이건 오류임. 
+ error mat로 fallback하거나 아니면 opaque로 render하거나 둘중 하나를 해야할듯. 
+
+
+ ## skeleton animation 
+ asset skeleton을 instantiate해야함. 
+ renderer에게 주는건 좀 이상함. cpu contents에서도 많이 사용되는데 그때마다 renderer에게 질의하는 모습이 좋진 않음 
+
+ 여러 옵션중 animation이라는 subsystem을 만들고 (namespace) skeleton asset을 input 받고 instantiate후 
+ handle을 받는 방식이 나을것 같음. 
+
+ asset::animation은 그대신 (namespace 충돌) asset::animation_clip, asset::animation_graph가 되어야 할듯. 
+
+ 필요한 추가 component : 
+ skeleton, blend_shape_weight_override (override), joint_attach 
+ skinned_model의 mesh render는 해당 entity의 trs와 관련이 없음 
+ skinned_model와 joint_attach는 skeleton이 필요함. 
+ skinned_model은 먼저 자기 자신에 skeleton이 있는지 검사하고, 없다면 부모를 봄.
+ joint_attach는 언제나 부모에 skeleton을 따라감.
+ 이 이외는 모두 UB 
+ skeleton과 blend_shape_weight_override는 모두 원본 asset이 있고, animation subsystem에서 instantiate를 함. 
+
+ model이나 mesh등과 다르게 asset을 변경한다고 instantiate된 모든 component에 그것에 적용되기 힘들기 때문에 
+ 어떻게 해야할지는 그때가서 고려해야할듯. 
+
+ ## 프로젝트 전체에서 age::fs를 제외하면 std::filesystem::path를 지우기 
+일단 이미 있는 filesystem::path는 util::to_utf8을 돌려서 age::fs로 전달
+age::fs안에서는 std::filesystem을 사용할수 있음.
+
+## todo ,remove mikktspace, 

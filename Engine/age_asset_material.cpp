@@ -147,6 +147,36 @@ namespace age::asset::material
 	}
 
 	void
+	build(std::string_view mat_path, const material_file_desc& desc) noexcept
+	{
+		auto buf = byte_buf::gen_reserved(config::max_asset_path_len * 5 + sizeof(entry<e::kind::material>));
+
+		buf.write(
+			desc.double_sided,
+			desc.base_color_factor,
+			desc.metallic_factor,
+			desc.roughness_factor,
+			desc.emissive_factor,
+			desc.normal_scale,
+			desc.occlusion_strength,
+			desc.alpha_cutoff,
+			desc.shading_model,
+			desc.base_color_sampler_kind,
+			desc.metallic_roughness_sampler_kind,
+			desc.normal_sampler_kind,
+			desc.occlusion_sampler_kind,
+			desc.emissive_sampler_kind,
+			desc.tex_base_color_path,
+			desc.tex_metallic_roughness_path,
+			desc.tex_normal_path,
+			desc.tex_occlusion_path,
+			desc.tex_emissive_path);
+
+		c_auto f_header = get_default_file_header<e::kind::material>(buf.size());
+		write_asset_file(mat_path.data(), f_header, buf.data());
+	}
+
+	void
 	save(handle h_mat) noexcept
 	{
 		if (runtime::is_handle_invalid(h_mat))
