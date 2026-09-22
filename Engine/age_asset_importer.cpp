@@ -681,9 +681,7 @@ namespace age::asset::importer::detail
 
 			if (runtime::is_invalid_idx(model.mesh_idx) or model.submesh_material_idx_vec.is_empty()) { continue; }
 
-			for (auto&& [submesh_idx, submesh, mat] : std::views::zip(views::loop(res.mesh_import_data_vec[model.mesh_idx].submesh_vec.size<uint32>()),
-																	  res.mesh_import_data_vec[model.mesh_idx].submesh_vec,
-																	  model.submesh_material_idx_vec | views::idx_to(res.material_import_data_vec)))
+			for (auto&& [submesh_idx, mat] : model.submesh_material_idx_vec | views::idx_to(res.material_import_data_vec) | views::enumerate<uint32>)
 			{
 				if (runtime::is_invalid_idx(mat.base_color_texture_idx)) { continue; }
 				auto& tex = res.texture_import_data_vec[mat.base_color_texture_idx];
@@ -1365,10 +1363,9 @@ namespace age::asset::importer
 			if (runtime::is_invalid_idx(model.mesh_idx) is_false)
 			{
 				auto& mesh_import = data.mesh_import_data_vec[model.mesh_idx];
-				for (auto&& [submesh_idx, submesh, mat_idx] : std::views::zip(views::loop(mesh_import.submesh_vec.size<uint32>()),
-																			  mesh_import.submesh_vec,
-																			  model.submesh_material_idx_vec))
+				for (c_auto submesh_idx : views::loop(min<uint32>(mesh_import.submesh_vec.size(), model.submesh_material_idx_vec.size())))
 				{
+					c_auto mat_idx = model.submesh_material_idx_vec[submesh_idx];
 					if (runtime::is_invalid_idx(mat_idx)) { continue; }
 					c_auto& mat = data.material_import_data_vec[mat_idx];
 
@@ -2148,27 +2145,75 @@ namespace age::asset::importer
 			auto move_success			 = true;
 			auto move_failed_temp_path	 = std::string{};
 			auto move_failed_target_path = std::string{};
-			for (const auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join))
+			// compile time cost...
+			// for (const auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join))
+			//{
+			//	if (fs::rename(from, to) is_false)
+			//	{
+			//		move_success			= false;
+			//		move_failed_temp_path	= from;
+			//		move_failed_target_path = to;
+			//		break;
+			//	}
+			//	++move_count;
+			// }
+
+			for (c_auto kind_idx : views::loop(temp_path_span_arr.size()))
 			{
-				if (fs::rename(from, to) is_false)
+				c_auto temp_span   = temp_path_span_arr[kind_idx];
+				c_auto target_span = target_path_span_arr[kind_idx];
+				AGE_ASSERT(temp_span.size() == target_span.size());
+
+				for (c_auto i : views::loop(temp_span.size()))
 				{
-					move_success			= false;
-					move_failed_temp_path	= from;
-					move_failed_target_path = to;
-					break;
+					c_auto& from = temp_span[i];
+					c_auto& to	 = target_span[i];
+
+					if (fs::rename(from, to) is_false)
+					{
+						move_success			= false;
+						move_failed_temp_path	= from;
+						move_failed_target_path = to;
+						break;
+					}
+					++move_count;
 				}
-				++move_count;
+
+				if (move_success is_false) { break; }
 			}
 
 			if (move_success is_false)
 			{
+				// compile time cost...
+				// for (auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join) | std::views::take(move_count))
+				//{
+				//	if (fs::rename(to, from) is_false)
+				//	{
+				//		fs::remove_file(to);
+				//	}
+				//}
+
 				// rollback rename
-				for (auto&& [from, to] : std::views::zip(temp_path_span_arr | std::views::join, target_path_span_arr | std::views::join) | std::views::take(move_count))
+				for (auto remaining = move_count;
+					 auto kind_idx : views::loop(temp_path_span_arr.size()))
 				{
-					if (fs::rename(to, from) is_false)
+					c_auto temp_span   = temp_path_span_arr[kind_idx];
+					c_auto target_span = target_path_span_arr[kind_idx];
+
+					c_auto n = min(remaining, static_cast<uint32>(temp_span.size()));
+					for (auto i : views::loop(n))
 					{
-						fs::remove_file(to);
+						c_auto& from = temp_span[i];
+						c_auto& to	 = target_span[i];
+
+						if (fs::rename(to, from) is_false)
+						{
+							fs::remove_file(to);
+						}
 					}
+
+					remaining -= n;
+					if (remaining == 0) { break; }
 				}
 
 				// get backup and restore original

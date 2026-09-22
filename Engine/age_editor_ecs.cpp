@@ -89,7 +89,7 @@ namespace age::editor
 			arch_data.entity_data_vec.pop_back();
 		}
 
-		for (auto&& [i, ent] : arch_data.entity_data_vec | views::enumerate<uint32> | std::views::drop(editor_ent_idx))
+		for (auto&& [i, ent] : arch_data.entity_data_vec | views::enumerate_rng<uint32> | std::views::drop(editor_ent_idx))
 		{
 			editor_storage.ecs_ent_id_to_editor_location_map[ent.id].second = i;
 		}

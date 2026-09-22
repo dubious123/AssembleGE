@@ -59,13 +59,13 @@ namespace age::views
 	}
 }	 // namespace age::views
 
-// enumerate
+// enumerate range
 namespace age::views
 {
 	namespace detail
 	{
 		template <typename t_idx>
-		struct enumerate_fn : std::ranges::range_adaptor_closure<enumerate_fn<t_idx>>
+		struct enumerate_rng_fn : std::ranges::range_adaptor_closure<enumerate_rng_fn<t_idx>>
 		{
 			template <std::ranges::viewable_range t_rng>
 			[[nodiscard]] FORCE_INLINE constexpr decltype(auto)
@@ -84,7 +84,84 @@ namespace age::views
 	}	 // namespace detail
 
 	template <typename t_idx = uint32>
-	inline constexpr detail::enumerate_fn<t_idx> enumerate{};
+	inline constexpr detail::enumerate_rng_fn<t_idx> enumerate_rng{};
+}	 // namespace age::views
+
+// enumerate iterator (less build time cost)
+namespace age::views
+{
+	namespace detail
+	{
+		template <typename t_idx, typename t_it, typename t_sentinel>
+		struct enumerate_iter
+		{
+			t_it  it;
+			t_idx idx;
+
+			struct ref
+			{
+				t_idx							 idx;
+				decltype(*std::declval<t_it&>()) value;
+			};
+
+			[[nodiscard]] FORCE_INLINE constexpr ref
+			operator*() const noexcept
+			{
+				return { idx, *it };
+			}
+
+			FORCE_INLINE constexpr enumerate_iter&
+			operator++() noexcept
+			{
+				++it;
+				++idx;
+				return *this;
+			}
+
+			[[nodiscard]] FORCE_INLINE constexpr bool
+			operator!=(const t_sentinel& sentinel) const noexcept
+			{
+				return it != sentinel;
+			}
+		};
+
+		template <typename t_idx, typename t_rng>
+		struct enumerate_view
+		{
+			t_rng rng;
+
+			[[nodiscard]] FORCE_INLINE constexpr auto
+			begin(this auto&& self) noexcept
+			{
+				return enumerate_iter<t_idx, decltype(std::begin(self.rng)), decltype(std::end(self.rng))>{ std::begin(self.rng), t_idx{ 0 } };
+			}
+
+			[[nodiscard]] FORCE_INLINE constexpr auto
+			end(this auto&& self) noexcept
+			{
+				return std::end(self.rng);
+			}
+		};
+	}	 // namespace detail
+
+	template <typename t_idx = uint32>
+	struct enumerate_fn
+	{
+		template <typename t_rng>
+		[[nodiscard]] FORCE_INLINE constexpr auto
+		operator()(t_rng&& rng) const noexcept
+		{
+			return detail::enumerate_view<t_idx, t_rng>{ FWD(rng) };
+		}
+
+		template <typename t_rng>
+		[[nodiscard]] friend FORCE_INLINE constexpr auto
+		operator|(t_rng&& rng, enumerate_fn) noexcept
+		{ return enumerate_fn{}(FWD(rng)); }
+	};
+
+	template <typename t_idx = uint32>
+	inline constexpr enumerate_fn<t_idx> enumerate{};
 }	 // namespace age::views
 
 namespace age::views

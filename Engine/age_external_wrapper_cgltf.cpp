@@ -72,8 +72,12 @@ namespace age::external::cgltf::detail
 		c_auto dir = fs::get_parent_path(res.src_full_path);
 		res.gltf_texture_parse_data_vec.resize(data.image_count);
 
-		for (auto&& [img_data, parse_data] : std::views::zip(std::span(data.p_image, data.image_count), res.gltf_texture_parse_data_vec))
+
+		for (c_auto image_idx : views::loop<uint32>(data.image_count))
 		{
+			c_auto& img_data   = data.p_image[image_idx];
+			auto&	parse_data = res.gltf_texture_parse_data_vec[image_idx];
+
 			c_auto uri_stem = [](name_view uri) {
 				c_auto sv = make_string_view(uri);
 				if (sv.empty() or sv.starts_with("data:")) { return std::string{}; }
@@ -126,9 +130,11 @@ namespace age::external::cgltf::detail
 
 		res.gltf_material_parse_data_vec.resize(data.material_count);
 
-		for (auto&& [mat_data, parse_data] : std::views::zip(std::span(data.p_material, data.material_count), res.gltf_material_parse_data_vec))
+		for (c_auto mat_idx : views::loop(data.material_count))
 		{
-			parse_data.name = make_string(mat_data.name);
+			c_auto& mat_data   = data.p_material[mat_idx];
+			auto&	parse_data = res.gltf_material_parse_data_vec[mat_idx];
+			parse_data.name	   = make_string(mat_data.name);
 
 			c_auto has_spec_gloss = (mat_data.feature_mask & material_feature_specular_glossiness) != 0;
 			c_auto use_spec_gloss = has_spec_gloss and mat_data.has_pbr_metallic_roughness is_false;
@@ -243,9 +249,11 @@ namespace age::external::cgltf::detail
 	fill_lights(const gltf_data& data, asset::importer::gltf_parse_data& res) noexcept
 	{
 		res.gltf_light_parse_data_vec.resize(data.light_count);
-
-		for (auto&& [light_data, parse_data] : std::views::zip(std::span(data.p_light, data.light_count), res.gltf_light_parse_data_vec))
+		for (c_auto light_idx : views::loop(data.light_count))
 		{
+			c_auto& light_data = data.p_light[light_idx];
+			auto&	parse_data = res.gltf_light_parse_data_vec[light_idx];
+
 			parse_data.kind				= cvt_light_kind(light_data.kind);
 			parse_data.color			= float3{ light_data.color };
 			parse_data.intensity		= light_data.intensity;
@@ -264,8 +272,11 @@ namespace age::external::cgltf::detail
 	{
 		res.gltf_camera_parse_data_vec.resize(data.camera_count);
 
-		for (auto&& [camera_data, parse_data] : std::views::zip(std::span(data.p_camera, data.camera_count), res.gltf_camera_parse_data_vec))
+		for (c_auto cam_idx : views::loop(data.camera_count))
 		{
+			c_auto& camera_data = data.p_camera[cam_idx];
+			auto&	parse_data	= res.gltf_camera_parse_data_vec[cam_idx];
+
 			parse_data.is_perspective = camera_data.kind == camera_kind::perspective;
 			parse_data.z_near		  = camera_data.znear;
 
@@ -306,7 +317,7 @@ namespace age::external::cgltf::detail
 		// node idx -> skin_joint_idx , invalid when not a joint of this skin
 		auto node_to_skin_joint = age::dynamic_array<uint32>::gen_sized_default(data.node_count);
 		std::ranges::fill(node_to_skin_joint, age::get_invalid_id<uint32>());
-		for (auto&& [skin_joint_idx, node_idx] : joint_node_idx_span | views::enumerate<uint32>)
+		for (const auto&& [skin_joint_idx, node_idx] : joint_node_idx_span | views::enumerate<uint32>)
 		{
 			node_to_skin_joint[node_idx] = skin_joint_idx;
 		}
@@ -314,7 +325,7 @@ namespace age::external::cgltf::detail
 		auto parent_node_idx_arr	   = age::dynamic_array<int>::gen_sized_default(data.node_count);
 		auto children_node_idx_vec_arr = age::dynamic_array<age::vector<uint32>>::gen_sized_default(data.node_count);
 		auto root_node_idx_vec		   = age::vector<uint32>{};
-		for (auto node_idx : joint_node_idx_span)
+		for (c_auto node_idx : joint_node_idx_span)
 		{
 			// nearest joint ancestor, non-joint nodes skipped. -1 = root.
 			// skipping above the root joint is normal. skipping between two joints
@@ -488,16 +499,20 @@ namespace age::external::cgltf::detail
 
 		auto skeleton_joint_data_vec = age::vector<age::vector<skeleton_joint_data>>::gen_sized(skeleton_joint_node_idx_vec.size<uint32>());
 
-		for (auto&& [joint_data_arr, joint_node_idx_vec] : std::views::zip(skeleton_joint_data_vec, skeleton_joint_node_idx_vec))
+		for (c_auto i : views::loop(skeleton_joint_node_idx_vec.size()))
 		{
-			joint_data_arr = gen_skeleton_joint_arr(data, joint_node_idx_vec);
+			skeleton_joint_data_vec[i] = gen_skeleton_joint_arr(data, skeleton_joint_node_idx_vec[i]);
 		}
 
 		// from now on, if skeleton_joint_node_idx_vec[skeleton_idx] is_empty means it is merged
 		auto skeleton_unmerged_to_merged_lut = views::loop(skeleton_joint_data_vec.size<uint32>()) | std::ranges::to<age::dynamic_array<uint32>>();
 		auto skeleton_count					 = 0u;
-		for (auto&& [skeleton_idx_l, joint_data_vec_l, joint_node_idx_vec_l] : std::views::zip(views::loop(skeleton_joint_data_vec.size<uint32>()), skeleton_joint_data_vec, skeleton_joint_node_idx_vec))
+
+		for (c_auto skeleton_idx_l : views::loop(skeleton_joint_data_vec.size<uint32>()))
 		{
+			c_auto& joint_data_vec_l	 = skeleton_joint_data_vec[skeleton_idx_l];
+			auto&	joint_node_idx_vec_l = skeleton_joint_node_idx_vec[skeleton_idx_l];
+
 			if (joint_node_idx_vec_l.is_empty()) { continue; }
 
 			++skeleton_count;
@@ -505,8 +520,11 @@ namespace age::external::cgltf::detail
 
 			if (skeleton_owner_l < 0) { continue; }
 
-			for (auto&& [skeleton_idx_r, joint_data_vec_r, joint_node_idx_vec_r] : std::views::zip(views::loop(skeleton_joint_data_vec.size<uint32>()), skeleton_joint_data_vec, skeleton_joint_node_idx_vec) | std::views::drop(skeleton_idx_l + 1))
+			for (c_auto skeleton_idx_r : views::loop(skeleton_joint_data_vec.size<uint32>()) | std::views::drop(skeleton_idx_l + 1))
 			{
+				c_auto& joint_data_vec_r	 = skeleton_joint_data_vec[skeleton_idx_r];
+				auto&	joint_node_idx_vec_r = skeleton_joint_node_idx_vec[skeleton_idx_r];
+
 				if (joint_node_idx_vec_r.is_empty()) { continue; }
 
 				c_auto skeleton_owner_r = joint_data_vec_r[0].parent_node_idx;
@@ -525,9 +543,12 @@ namespace age::external::cgltf::detail
 		// skeleton_idx_remap[unmerged_skeleton_idx] == real (compacked) skeleton_idx
 		auto skeleton_idx_remap = age::dynamic_array<uint32>::gen_sized_default(skeleton_unmerged_to_merged_lut.size<uint32>());
 
-		for (auto skeleton_idx = 0u;
-			 auto&& [unmerged_idx, merged_idx, skeleton_idx_res] : std::views::zip(views::loop(skeleton_unmerged_to_merged_lut.size<uint32>()), skeleton_unmerged_to_merged_lut, skeleton_idx_remap))
+		for (auto	skeleton_idx = 0u;
+			 c_auto unmerged_idx : views::loop(skeleton_unmerged_to_merged_lut.size<uint32>()))
 		{
+			c_auto merged_idx		= skeleton_unmerged_to_merged_lut[unmerged_idx];
+			auto&  skeleton_idx_res = skeleton_idx_remap[unmerged_idx];
+
 			if (unmerged_idx != merged_idx)
 			{
 				skeleton_idx_res = skeleton_idx_remap[merged_idx];
@@ -571,8 +592,11 @@ namespace age::external::cgltf::detail
 
 		res.gltf_skeleton_parse_data_vec.resize(skeleton_joint_arr_span.size());
 
-		for (auto&& [skeleton_idx, joint_arr, parse_data] : std::views::zip(views::loop(skeleton_joint_arr_span.size()), skeleton_joint_arr_span, res.gltf_skeleton_parse_data_vec))
+		for (c_auto skeleton_idx : views::loop(skeleton_joint_arr_span.size()))
 		{
+			c_auto& joint_arr  = skeleton_joint_arr_span[skeleton_idx];
+			auto&	parse_data = res.gltf_skeleton_parse_data_vec[skeleton_idx];
+
 			c_auto	skin_idx = *std::ranges::find_if(views::loop(data.skin_count), [&](auto s) { return skin_to_skeleton[s] == skeleton_idx; });
 			c_auto& skin	 = data.p_skin[skin_idx];
 
@@ -586,8 +610,12 @@ namespace age::external::cgltf::detail
 			parse_data.joint_vec	  = age::dynamic_array<asset::importer::gltf_skeleton_joint_parse_data>::gen_sized_default(joint_arr.size());
 			parse_data.joint_name_vec = age::dynamic_array<std::string>::gen_sized_default(joint_arr.size());
 
-			for (auto&& [joint_data, joint, joint_name] : std::views::zip(joint_arr, parse_data.joint_vec, parse_data.joint_name_vec))
+			for (c_auto joint_idx : views::loop(joint_arr.size()))
 			{
+				c_auto& joint_data = joint_arr[joint_idx];
+				auto&	joint	   = parse_data.joint_vec[joint_idx];
+				auto&	joint_name = parse_data.joint_name_vec[joint_idx];
+
 				c_auto& node = data.p_node[joint_data.node_idx];
 
 				if (joint_data.parent_node_idx != node.parent_idx)
@@ -703,7 +731,7 @@ namespace age::external::cgltf::detail
 	gen_float3_array_lh(const float_view& view) noexcept
 	{
 		auto res = age::dynamic_array<float3>::gen_sized_default(view.count / 3);
-		for (auto&& [i, v] : std::views::zip(views::loop(res.size()), res))
+		for (auto&& [i, v] : res | views::enumerate<uint32>)
 		{
 			v = float3{ view.p[i * 3], view.p[i * 3 + 1], -view.p[i * 3 + 2] };
 		}
@@ -734,7 +762,7 @@ namespace age::external::cgltf::detail
 		c_auto p_uv			= has_uv ? submsh_data.p_uv[0].view.p : nullptr;
 
 		res.vertex_buffer = age::dynamic_array<asset::vertex_fat>::gen_sized_default(vertex_count);
-		for (auto&& [i, vertex] : std::views::zip(views::loop(vertex_count), res.vertex_buffer))
+		for (auto&& [i, vertex] : res.vertex_buffer | views::enumerate<uint32>)
 		{
 			vertex.pos		 = position_arr[i];
 			vertex.normal	 = has_normal ? normal_arr[i] : float3{ 0.f, 0.f, 1.f };
@@ -806,28 +834,50 @@ namespace age::external::cgltf::detail
 		auto   weight_arr	   = age::dynamic_array<float>::gen_sized_default(influence_count);
 
 		res.vertex_skin_buffer = age::dynamic_array<asset::importer::vertex_skin_data>::gen_sized_default(vertex_count);
-		for (auto&& [v, skin] : std::views::zip(views::loop(vertex_count), res.vertex_skin_buffer))
+		for (auto&& [vertex_skin_idx, vertex_skin] : res.vertex_skin_buffer | views::enumerate<uint32>)
 		{
-			for (auto&& [s, joints, weights] : std::views::zip(views::loop(set_count), joints_span, weights_span))
+			for (c_auto set_idx : views::loop<uint32>(set_count))
 			{
-				for (auto k : views::loop(4))
+				c_auto& joints	= joints_span[set_idx];
+				c_auto& weights = weights_span[set_idx];
+				for (c_auto k : views::loop(4))
 				{
-					c_auto joint_idx = joints.view.p[v * 4 + k];
+					c_auto joint_idx = joints.view.p[vertex_skin_idx * 4 + k];
 					if (joint_idx >= mesh_joint_count)
 					{
 						return { warning_flags, error::joint_idx_out_of_range };
 					}
-					joint_arr[s * 4 + k]  = joint_idx;
-					weight_arr[s * 4 + k] = weights.view.p[v * 4 + k];
+					joint_arr[set_idx * 4 + k]	= joint_idx;
+					weight_arr[set_idx * 4 + k] = weights.view.p[vertex_skin_idx * 4 + k];
 				}
 			}
 
 			// top 4 by weight, normalized to sum 1. all zero stays all zero = rigid
-			skin = [&] {
+			vertex_skin = [&] {
+				// if (influence_count > 4)
+				//{
+				//	auto influence_view = std::views::zip(weight_arr, joint_arr);
+				//	std::ranges::partial_sort(influence_view, influence_view.begin() + 4, std::ranges::greater{}, [](c_auto& t) { return std::get<0>(t); });
+				// }
 				if (influence_count > 4)
 				{
-					auto influence_view = std::views::zip(weight_arr, joint_arr);
-					std::ranges::partial_sort(influence_view, influence_view.begin() + 4, std::ranges::greater{}, [](c_auto& t) { return std::get<0>(t); });
+					for (c_auto i : views::loop(4))
+					{
+						auto max_weight_idx = i;
+						for (auto j = i + 1; j < influence_count; ++j)
+						{
+							if (weight_arr[j] > weight_arr[max_weight_idx])
+							{
+								max_weight_idx = j;
+							}
+						}
+
+						if (max_weight_idx != i)
+						{
+							std::swap(weight_arr[i], weight_arr[max_weight_idx]);
+							std::swap(joint_arr[i], joint_arr[max_weight_idx]);
+						}
+					}
 				}
 
 				auto   res = asset::importer::vertex_skin_data{};
@@ -836,15 +886,15 @@ namespace age::external::cgltf::detail
 				{
 					return res;
 				}
-				for (auto a : views::loop(4))
+				for (c_auto i : views::loop(4))
 				{
-					res.joint_idx[a] = joint_arr[a];
-					res.weight[a]	 = weight_arr[a] / sum;
+					res.joint_idx[i] = joint_arr[i];
+					res.weight[i]	 = weight_arr[i] / sum;
 				}
 				return res;
 			}();
 
-			if (skin.weight == float4::zero())
+			if (vertex_skin.weight == float4::zero())
 			{
 				warning_flags |= warning::vertex_skin_zero_weight;
 			}
@@ -863,8 +913,10 @@ namespace age::external::cgltf::detail
 		c_auto target_span	= std::span(submsh_data.p_morph_target, submsh_data.morph_target_count);
 		res.blend_shape_vec = age::dynamic_array<asset::importer::blend_shape_parse_data>::gen_sized_default(submsh_data.morph_target_count);
 
-		for (auto&& [target, blend_shape] : std::views::zip(target_span, res.blend_shape_vec))
+		for (c_auto i : views::loop(submsh_data.morph_target_count))
 		{
+			c_auto& target					  = target_span[i];
+			auto&	blend_shape				  = res.blend_shape_vec[i];
 			blend_shape.position_delta_buffer = gen_float3_array_lh(target.position_delta.view);
 			blend_shape.normal_delta_buffer	  = gen_float3_array_lh(target.normal_delta.view);
 			blend_shape.tangent_delta_buffer  = gen_float3_array_lh(target.tangent_delta.view);
@@ -958,10 +1010,10 @@ namespace age::external::cgltf::detail
 		res.blend_shape_name_vec   = age::dynamic_array<std::string>::gen_sized_default(blend_shape_count);
 		res.blend_shape_weight_vec = age::dynamic_array<float>::gen_sized_default(blend_shape_count);
 
-		for (auto&& [i, name, weight] : std::views::zip(views::loop(blend_shape_count), res.blend_shape_name_vec, res.blend_shape_weight_vec))
+		for (c_auto i : views::loop(blend_shape_count))
 		{
-			name   = i < name_span.size() and name_span[i].count > 0 ? make_string(name_span[i]) : "blend_shape_" + std::to_string(i);
-			weight = i < weight_span.size() ? weight_span[i] : 0.f;
+			res.blend_shape_name_vec[i]	  = i < name_span.size() and name_span[i].count > 0 ? make_string(name_span[i]) : "blend_shape_" + std::to_string(i);
+			res.blend_shape_weight_vec[i] = i < weight_span.size() ? weight_span[i] : 0.f;
 		}
 	}
 
@@ -986,8 +1038,12 @@ namespace age::external::cgltf::detail
 		res.joint_name_vec	  = age::dynamic_array<std::string>::gen_sized_default(skin.joint_count);
 		res.mesh_to_joint_vec = age::dynamic_array<float4x4>::gen_sized_default(skin.joint_count);
 
-		for (auto&& [skin_joint_idx, node_idx, joint_name, mesh_to_joint] : std::views::zip(views::loop(skin.joint_count), joint_node_idx_span, res.joint_name_vec, res.mesh_to_joint_vec))
+		for (c_auto skin_joint_idx : views::loop(skin.joint_count))
 		{
+			c_auto node_idx		 = joint_node_idx_span[skin_joint_idx];
+			auto&  joint_name	 = res.joint_name_vec[skin_joint_idx];
+			auto&  mesh_to_joint = res.mesh_to_joint_vec[skin_joint_idx];
+
 			if (data.p_node[node_idx].name.count == 0)
 			{
 				res.warning_flags |= warning::empty_joint_name;
@@ -1046,9 +1102,11 @@ namespace age::external::cgltf::detail
 			}
 		}
 
-		for (auto&& [mesh_idx, msh_data, parse_data] : std::views::zip(views::loop(data.mesh_count), std::span(data.p_mesh, data.mesh_count), res.gltf_mesh_parse_data_vec))
+		for (c_auto mesh_idx : views::loop(data.mesh_count))
 		{
-			parse_data.name = make_string(msh_data.name);
+			c_auto& msh_data   = data.p_mesh[mesh_idx];
+			auto&	parse_data = res.gltf_mesh_parse_data_vec[mesh_idx];
+			parse_data.name	   = make_string(msh_data.name);
 
 			c_auto submesh_span = std::span(msh_data.p_submesh, msh_data.submesh_count);
 
@@ -1069,8 +1127,10 @@ namespace age::external::cgltf::detail
 			}
 
 			parse_data.submesh_vec = age::dynamic_array<asset::importer::gltf_submesh_parse_data>::gen_sized_default(msh_data.submesh_count);
-			for (auto&& [submsh_data, submsh_parse] : std::views::zip(submesh_span, parse_data.submesh_vec))
+			for (c_auto i : views::loop(msh_data.submesh_count))
 			{
+				c_auto& submsh_data					= submesh_span[i];
+				auto&	submsh_parse				= parse_data.submesh_vec[i];
 				c_auto[warning_flags, error_flags]	= fill_submesh(data, submsh_data, joint_count, submsh_parse);
 				parse_data.warning_flags		   |= warning_flags;
 				parse_data.error_flags			   |= error_flags;
@@ -1198,8 +1258,11 @@ namespace age::external::cgltf::detail
 		// entity_owner_skeleton_idx_vec[entity_idx] == entity skeleton owner's skeleton idx
 		auto entity_owner_skeleton_idx_vec = age::vector<uint32>{};
 
-		for (auto&& [gltf_scene, scene_parse] : std::views::zip(std::span(data.p_scene, data.scene_count), res.gltf_scene_parse_data_vec))
+		for (c_auto scene_idx : views::loop(data.scene_count))
 		{
+			c_auto& gltf_scene	= data.p_scene[scene_idx];
+			auto&	scene_parse = res.gltf_scene_parse_data_vec[scene_idx];
+
 			scene_parse.name		 = make_string(gltf_scene.name);
 			scene_parse.entity_begin = res.gltf_entity_parse_data_vec.size<uint32>();
 			std::ranges::fill(node_to_entity_lut, age::get_invalid_idx<uint32>());
