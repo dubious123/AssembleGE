@@ -600,7 +600,7 @@
 
 
 #define AGE_EDITOR_GAME_NAME(...) \
-	static consteval decltype(auto) age_editor_name() { return age::util::to_fixed_str_arr<age::config::max_game_name_len>(__VA_ARGS__); }
+	static constexpr decltype(age::util::to_fixed_str_arr<age::config::max_game_name_len>(__VA_ARGS__)) age_editor_name_arr = age::util::to_fixed_str_arr<age::config::max_game_name_len>(__VA_ARGS__);
 
 #define AGE_EDITOR_GAME_SCENES(...)                                                                                                                                                                               \
 	FOR_EACH_SEP(AGE_EDITOR_GAME_SCENES_MAP_DECL, AGE_PP_EMPTY_I, __VA_ARGS__)                                                                                                                                    \

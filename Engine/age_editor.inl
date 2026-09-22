@@ -42,11 +42,19 @@ namespace age::editor
 			age::asset::model::full_unload(h_mesh, *static_cast<t_renderer*>(g::host_ops.p_renderer));
 		};
 
-		g::host_ops.p_add_entity = [](uint32 ecs_scene_id, uint32 ecs_storage_id) noexcept -> uint64 {
+		g::host_ops.p_new_entity = [](uint32 ecs_scene_id, uint32 ecs_storage_id) noexcept -> uint64 {
 			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
 			return ecs_game.visit_storage_at(ecs_scene_id, ecs_storage_id, [](auto& entities) noexcept -> uint64 {
 				return entities.new_entity(get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
 			});
+		};
+
+		g::host_ops.p_new_entity_with_archetype = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 archetype) noexcept -> uint64 {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			return ecs_game.visit_storage_at(ecs_scene_id, ecs_storage_id, AGE_LAMBDA((auto& entities, uint64 archetype), {
+												 return entities.new_entity(static_cast<BARE_OF(entities)::t_archetype>(archetype), get_ecs_context(*static_cast<t_renderer*>(g::host_ops.p_renderer)));
+											 }),
+											 archetype);
 		};
 
 		g::host_ops.p_remove_entity = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id) noexcept {
@@ -109,7 +117,7 @@ namespace age::editor
 				ecs_entity_id, ecs_archetype_to_remove);
 		};
 
-		g::host_ops.p_get_component_ptr = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint32 ecs_component_id) noexcept -> void* {
+		g::host_ops.p_get_components = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint32 ecs_component_id) noexcept -> void* {
 			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
 			return ecs_game.visit_storage_at(
 				ecs_scene_id,
@@ -125,6 +133,193 @@ namespace age::editor
 				},
 				ecs_entity_id, ecs_component_id);
 		};
+
+		g::host_ops.p_deserialize_component = [](uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 ecs_entity_id, uint32 ecs_component_id, uint32 cmp_version, aligned_byte_buf& buf) noexcept -> void {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+			auto& renderer = *static_cast<t_renderer*>(g::host_ops.p_renderer);
+
+			ecs_game.visit_storage_at(
+				ecs_scene_id,
+				ecs_storage_id,
+				[](auto& entities, uint64 ecs_entity_id, uint32 ecs_component_id, aligned_byte_buf& buf, auto&& rw_ctx) noexcept -> void {
+					BARE_OF(entities)::t_archetype_traits::visit_component(
+						ecs_component_id,
+						AGE_LAMBDA(<typename t_cmp>(auto& entities, c_auto ecs_entity_id, aligned_byte_buf& buf, auto&& rw_ctx), {
+							auto&& [cmp] = entities.template get_component<t_cmp>(ecs_entity_id);
+							ecs::deserialize_component<t_cmp>(cmp, buf, FWD(rw_ctx));
+						}),
+						entities, static_cast<BARE_OF(entities)::t_ent_id>(ecs_entity_id), buf, FWD(rw_ctx));
+				},
+				ecs_entity_id, ecs_component_id, buf, get_rw_context(cmp_version, renderer));
+		};
+
+		g::host_ops.p_serialize_entity_storage = [](const storage_editor_data& editor_storage, uint32 ecs_scene_id, uint32 ecs_storage_id, uint64 archetype, std::size_t archetype_byte_size, AGE_INOUT byte_buf& buf) noexcept -> void {
+			auto& ecs_game = *static_cast<t_ecs_game*>(g::host_ops.p_ecs_game);
+
+			ecs_game.visit_storage_at(ecs_scene_id,
+									  ecs_storage_id,
+									  AGE_LAMBDA((c_auto & entities, const storage_editor_data& editor_storage, uint64 archetype, std::size_t archetype_byte_size, AGE_INOUT byte_buf& buf), {
+										  using t_archetype_traits = BARE_OF(entities)::t_archetype_traits;
+										  using t_local_cmp_idx	   = BARE_OF(entities)::t_local_cmp_idx;
+										  using t_archetype		   = BARE_OF(entities)::t_archetype;
+
+										  c_auto buf_base_pos = buf.size();
+										  for (c_auto& block : entities | ecs::each_block(archetype))
+										  {
+											  AGE_ASSERT(cast_to<t_archetype>(archetype) == block.local_archetype());
+
+											  for (c_auto local_ent_id : views::loop(block.entity_count()))
+											  {
+												  c_auto ent_id = block.ent_id(local_ent_id);
+
+												  c_auto it = editor_storage.ecs_ent_id_to_editor_location_map.find(ent_id);
+												  AGE_ASSERT(it != editor_storage.ecs_ent_id_to_editor_location_map.end());
+												  AGE_ASSERT(archetype == editor_storage.archetype_data_vec[it->second.first].archetype);
+												  c_auto editor_entity_idx = it->second.second;
+
+												  buf.move_write_pos(buf_base_pos + editor_entity_idx * archetype_byte_size);
+
+												  for (const auto&& [local_cmp_idx, storage_cmp_idx] : views::each_set_bit_idx(cast_to<t_archetype>(archetype)) | views::enumerate<t_local_cmp_idx>)
+												  {
+													  c_auto* p_cmp = block.cmp_ptr(local_cmp_idx, local_ent_id);
+													  t_archetype_traits::visit_component(
+														  storage_cmp_idx,
+														  []<typename t_cmp>(c_auto* p_cmp, byte_buf& buf) {
+															  ecs::serialize_component_from_ptr<t_cmp>(p_cmp, buf, get_rw_context(ecs::get_component_version<t_cmp>(), *static_cast<t_renderer*>(g::host_ops.p_renderer)));
+														  },
+														  p_cmp, buf);
+												  }
+											  }
+										  }
+									  }),
+									  editor_storage, archetype, archetype_byte_size, buf);
+		};
+		g::host_ops.p_renderer_init_main_cam = [](const editor::camera_data& cam) noexcept -> void {
+			auto& renderer = *static_cast<t_renderer*>(g::host_ops.p_renderer);
+
+			auto cam_desc					  = renderer.get_camera_desc(0);
+			cam_desc.pos					  = cam.pos;
+			cam_desc.quaternion				  = age::euler_deg_to_quat(cam.euler_deg);
+			cam_desc.perspective.aspect_ratio = cam.aspect_ratio;
+			renderer.update_camera(0, cam_desc);
+			renderer.set_main_camera(0);
+		};
+
+
+		g::host_ops.p_renderer_update_material = [](asset::handle h_mat) noexcept -> void {
+			static_cast<t_renderer*>(g::host_ops.p_renderer)->update_material(h_mat);
+		};
+		g::host_ops.p_renderer_update_env_light_runtime = [](asset::handle h_env_light) noexcept -> void {
+			static_cast<t_renderer*>(g::host_ops.p_renderer)->update_env_light_runtime(h_env_light);
+		};
+		g::host_ops.p_renderer_update_gi = [](const ecs::gi_config& cmp, bool update_debug_flags) noexcept -> void {
+			auto& renderer = *static_cast<t_renderer*>(g::host_ops.p_renderer);
+			if (cmp.enable_ddgi)
+			{
+				renderer.update_ddgi({
+					.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
+					.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
+					.level_count		  = cmp.ddgi_level_count,
+					.debug_flags		  = cmp.ddgi_debug_flags,
+					.lock_origin		  = cmp.ddgi_lock_origin,
+				});
+				if (update_debug_flags)
+				{
+					renderer.update_ddgi_debug_flags(cmp.ddgi_debug_flags);
+				}
+			}
+			else if (cmp.enable_gibs)
+			{
+				renderer.update_gibs({
+					.max_surfel_count		= cmp.max_surfel_count,
+					.debug_flags			= cmp.gibs_debug_flags,
+					.lock_origin			= cmp.gibs_lock_origin,
+					.cell_count				= cmp.gibs_cell_count,
+					.outer_layer_count		= cmp.gibs_outer_layer_count,
+					.cell_size				= cmp.gibs_cell_size,
+					.outer_cell_size_factor = cmp.outer_cell_size_factor,
+				});
+				if (update_debug_flags)
+				{
+					renderer.update_gibs_debug_flags(cmp.gibs_debug_flags);
+				}
+			}
+			else if (cmp.enable_gist)
+			{
+				renderer.update_gist({
+					.diffuse_ray_period			   = cmp.gist_diffuse_ray_period,
+					.specular_ray_period		   = cmp.gist_specular_ray_period,
+					.cell_surfel_ray_count_min	   = cmp.gist_cell_surfel_ray_count_min,
+					.cell_surfel_ray_count_max	   = cmp.gist_cell_surfel_ray_count_max,
+					.max_cell_surfel_count		   = cmp.gist_max_cell_surfel_count,
+					.cell_surfel_ray_budget_factor = cmp.gist_cell_surfel_ray_budget_factor,
+					.debug_flags				   = cmp.gist_debug_flags,
+					.lock_origin				   = cmp.gist_lock_origin,
+					.cell_count_per_axis		   = cmp.gist_cell_count_per_axis,
+					.outer_layer_count			   = cmp.gist_outer_layer_count,
+					.cell_size					   = cmp.gist_cell_size,
+					.outer_cell_size_factor		   = cmp.gist_outer_cell_size_factor,
+				});
+				if (update_debug_flags)
+				{
+					renderer.update_gist_debug_flags(cmp.gist_debug_flags);
+				}
+			}
+		};
+		g::host_ops.p_renderer_update_ao = [](const age::ecs::ao_config& cmp) noexcept -> void {
+			static_cast<t_renderer*>(g::host_ops.p_renderer)->update_ao({
+				.slice_count   = cmp.slice_count,
+				.offset_count  = cmp.offset_count,
+				.radius		   = cmp.radius,
+				.max_px_radius = cmp.max_px_radius,
+				.intensity	   = cmp.intensity,
+				.power		   = cmp.power,
+				.thickness	   = cmp.thickness,
+				.fade_distance = cmp.fade_distance,
+				.fade_range	   = cmp.fade_range,
+				.debug_flags   = cmp.debug_flags,
+			});
+		};
+		g::host_ops.p_renderer_update_aa = [](const age::ecs::aa_config& cmp) noexcept -> void {
+			static_cast<t_renderer*>(g::host_ops.p_renderer)->update_aa({
+				.fxaa_on_offscreen			  = cmp.fxaa_on_offscreen,
+				.opaque_aa_ray_per_px		  = cmp.opaque_aa_ray_per_px,
+				.transparent_aa_ray_per_px	  = cmp.transparent_aa_ray_per_px,
+				.aa_px_cap					  = cmp.aa_px_cap,
+				.aa_px_headroom				  = cmp.aa_px_headroom,
+				.edge_plane_dist_tolerance_px = cmp.edge_plane_dist_tolerance_px,
+				.edge_normal_threshold		  = cmp.edge_normal_threshold,
+			});
+		};
+		g::host_ops.p_renderer_update_debug_view = [](const age::ecs::debug_view_config& cmp) noexcept -> void {
+			static_cast<t_renderer*>(g::host_ops.p_renderer)->update_debug_view(cmp_to_desc(cmp));
+		};
+
+		g::host_ops.p_renderer_gibs_max_surfel_count = []() noexcept -> uint32 {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->gibs_max_surfel_count();
+		};
+		g::host_ops.p_renderer_gist_max_cell_surfel_count = []() noexcept -> uint32 {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->gist_max_cell_surfel_count();
+		};
+		g::host_ops.p_renderer_aa_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->aa_enabled();
+		};
+		g::host_ops.p_renderer_ao_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->ao_enabled();
+		};
+		g::host_ops.p_renderer_ddgi_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->ddgi_enabled();
+		};
+		g::host_ops.p_renderer_gibs_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->gibs_enabled();
+		};
+		g::host_ops.p_renderer_gist_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->gist_enabled();
+		};
+		g::host_ops.p_renderer_debug_view_enabled = []() noexcept -> bool {
+			return static_cast<const t_renderer*>(g::host_ops.p_renderer)->debug_view_enabled();
+		};
+
 
 		detail::init_impl();
 	}
@@ -1048,7 +1243,7 @@ namespace age::editor
 
 		if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_ctrl) and ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_s))
 		{
-			editor::save_game(ecs_game, renderer);
+			editor::save_game();
 			std::println("game saved");
 		}
 	}

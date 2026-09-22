@@ -36,7 +36,7 @@ namespace age::editor
 		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
 		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
 
-		c_auto ecs_entity_id = g::host_ops.p_add_entity(editor_scene.code_idx, editor_storage.code_idx);
+		c_auto ecs_entity_id = g::host_ops.p_new_entity(editor_scene.code_idx, editor_storage.code_idx);
 
 		c_auto editor_arch_idx = detail::find_or_get_editor_archetype_idx(editor_storage, 0);
 
@@ -51,6 +51,14 @@ namespace age::editor
 			++editor_storage.entity_count;
 		}
 
+		return ecs_entity_id;
+	}
+
+	uint64
+	add_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, std::string_view name, uint64 new_ecs_archetype) noexcept
+	{
+		c_auto ecs_entity_id = add_entity(editor_scene_idx, editor_storage_idx, name);
+		add_components(editor_scene_idx, editor_storage_idx, ecs_entity_id, new_ecs_archetype);
 		return ecs_entity_id;
 	}
 
@@ -197,7 +205,7 @@ namespace age::editor
 		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
 		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
 
-		return g::host_ops.p_get_component_ptr(editor_scene.code_idx, editor_storage.code_idx, ecs_entity_id, ecs_cmponent_id);
+		return g::host_ops.p_get_components(editor_scene.code_idx, editor_storage.code_idx, ecs_entity_id, ecs_cmponent_id);
 	}
 
 	void

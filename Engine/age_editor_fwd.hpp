@@ -14,35 +14,6 @@ namespace age::editor::e
 	AGE_DEFINE_ENUM(transform_mode_kind, uint8, select, translation, rotation, scale);
 }	 // namespace age::editor::e
 
-// host operations
-namespace age::editor
-{
-	struct host_operations
-	{
-		void* p_ecs_game = nullptr;
-		void* p_renderer = nullptr;
-
-		AGE_FN_PTR(p_mesh_gpu_load, (asset::handle), (std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)) = nullptr;
-		AGE_FN_PTR(p_mesh_full_unload, (void), (asset::handle))																  = nullptr;
-		AGE_FN_PTR(p_material_full_unload, (void), (asset::handle))															  = nullptr;
-		AGE_FN_PTR(p_texture_full_unload, (void), (asset::handle))															  = nullptr;
-		AGE_FN_PTR(p_env_light_full_unload, (void), (asset::handle))														  = nullptr;
-		AGE_FN_PTR(p_model_full_unload, (void), (asset::handle))															  = nullptr;
-		// (ecs_entity_id)(ecs_scene_id, ecs_storage_id)
-		AGE_FN_PTR(p_add_entity, (uint64), (uint32, uint32)) = nullptr;
-		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id)
-		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64)) = nullptr;
-		// (ecs_archetype)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
-		AGE_FN_PTR(p_get_archetype, (uint64), (uint32, uint32, uint64)) = nullptr;
-		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
-		AGE_FN_PTR(p_add_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
-		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_remove)
-		AGE_FN_PTR(p_remove_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
-		// (void* component_ptr)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_component_id)
-		AGE_FN_PTR(p_get_component_ptr, (void*), (uint32, uint32, uint64, uint32)) = nullptr;
-	};
-}	 // namespace age::editor
-
 namespace age::editor
 {
 	struct camera_data
@@ -162,6 +133,12 @@ namespace age::editor
 		{
 			return self.scene_data_vec[self.current_active_scene_idx];
 		}
+
+		auto&
+		get_editor_storage(this auto&& self, uint32 editor_scene_idx, uint32 editor_storage_idx) noexcept
+		{
+			return self.scene_data_vec[editor_scene_idx].storage_data_vec[editor_storage_idx];
+		}
 	};
 
 	template <typename t_renderer>
@@ -209,6 +186,62 @@ namespace age::editor
 		uint8		   _;
 		uint16		   frames_to_live;
 		asset::handle  h_asset;
+	};
+}	 // namespace age::editor
+
+// host operations
+namespace age::editor
+{
+	struct host_operations
+	{
+		void* p_ecs_game = nullptr;
+		void* p_renderer = nullptr;
+
+		// asset
+		AGE_FN_PTR(p_mesh_gpu_load, (asset::handle), (std::string_view, const asset::primitive_desc&, asset::e::vertex_kind)) = nullptr;
+		AGE_FN_PTR(p_mesh_full_unload, (void), (asset::handle))																  = nullptr;
+		AGE_FN_PTR(p_material_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_texture_full_unload, (void), (asset::handle))															  = nullptr;
+		AGE_FN_PTR(p_env_light_full_unload, (void), (asset::handle))														  = nullptr;
+		AGE_FN_PTR(p_model_full_unload, (void), (asset::handle))															  = nullptr;
+		// (ecs_entity_id)(ecs_scene_id, ecs_storage_id)
+		AGE_FN_PTR(p_new_entity, (uint64), (uint32, uint32)) = nullptr;
+		// (ecs_entity_id)(ecs_scene_id, ecs_storage_id, archetype)
+		AGE_FN_PTR(p_new_entity_with_archetype, (uint64), (uint32, uint32, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id)
+		AGE_FN_PTR(p_remove_entity, (void), (uint32, uint32, uint64)) = nullptr;
+		// (ecs_archetype)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_get_archetype, (uint64), (uint32, uint32, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_add)
+		AGE_FN_PTR(p_add_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_archetype_to_remove)
+		AGE_FN_PTR(p_remove_components, (void), (uint32, uint32, uint64, uint64)) = nullptr;
+		// (void* component_ptr)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_component_id)
+		AGE_FN_PTR(p_get_components, (void*), (uint32, uint32, uint64, uint32)) = nullptr;
+		// (void)(ecs_scene_id, ecs_storage_id, ecs_entity_id, ecs_component_id, uint32 file_cmp_version, aligned_byte_buf& buf)
+		AGE_FN_PTR(p_deserialize_component, (void), (uint32, uint32, uint64, uint32, uint32, aligned_byte_buf&)) = nullptr;
+		// (void)(editor_storage, ecs_scene_id, ecs_storage_id, archetype, archetype_byte_size, byte_buf& buf)
+		AGE_FN_PTR(p_serialize_entity_storage, (void), (const storage_editor_data&, uint32, uint32, uint64, std::size_t, AGE_INOUT byte_buf&)) = nullptr;
+
+		// renderer
+		AGE_FN_PTR(p_renderer_init_main_cam, (void), (const editor::camera_data&)) = nullptr;
+		AGE_FN_PTR(p_renderer_update_material, (void), (asset::handle))			   = nullptr;
+		AGE_FN_PTR(p_renderer_update_env_light_runtime, (void), (asset::handle))   = nullptr;
+		// (void)(const ecs::gi_config& cmp_gi_config, bool update_debug_flags)
+		AGE_FN_PTR(p_renderer_update_gi, (void), (const ecs::gi_config&, bool))				   = nullptr;
+		AGE_FN_PTR(p_renderer_update_ao, (void), (const age::ecs::ao_config&))				   = nullptr;
+		AGE_FN_PTR(p_renderer_update_aa, (void), (const age::ecs::aa_config&))				   = nullptr;
+		AGE_FN_PTR(p_renderer_update_debug_view, (void), (const age::ecs::debug_view_config&)) = nullptr;
+
+		// renderer const member functions
+		AGE_FN_PTR(p_renderer_gibs_max_surfel_count, (uint32), ())		= nullptr;
+		AGE_FN_PTR(p_renderer_gist_max_cell_surfel_count, (uint32), ()) = nullptr;
+		AGE_FN_PTR(p_renderer_aa_enabled, (bool), ())					= nullptr;
+		AGE_FN_PTR(p_renderer_ao_enabled, (bool), ())					= nullptr;
+		AGE_FN_PTR(p_renderer_ddgi_enabled, (bool), ())					= nullptr;
+		AGE_FN_PTR(p_renderer_gibs_enabled, (bool), ())					= nullptr;
+		AGE_FN_PTR(p_renderer_gist_enabled, (bool), ())					= nullptr;
+		AGE_FN_PTR(p_renderer_debug_view_enabled, (bool), ())			= nullptr;
 	};
 }	 // namespace age::editor
 

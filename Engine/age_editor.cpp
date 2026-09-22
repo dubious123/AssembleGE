@@ -64,6 +64,8 @@ namespace age::editor
 		g::h_mesh_cone = {};
 		g::h_mesh_cube = {};
 
+		g::host_ops = {};
+
 		asset_mgr::deinit();
 	}
 
@@ -80,7 +82,7 @@ namespace age::editor
 	}
 }	 // namespace age::editor
 
-// selete
+// select
 namespace age::editor
 {
 	// void

@@ -8,12 +8,12 @@ namespace age_demo::scene_3
 	{
 		using namespace age::ecs::system;
 
-		c_auto proj_dir = age::fs::join("./resources/demo_game", i_init.get_editor_game->age_editor_name()[0].data());
+		c_auto proj_dir = age::fs::join("./resources/demo_game", i_init.get_editor_game->age_editor_name_arr[0].data());
 		age::asset::set_root_dir(proj_dir);
 		i_init.get_editor_game->init();
 
 		age::editor::init(i_init.get_editor_game(), i_init.get_render_pipeline());
-		age::editor::load_game(i_init.get_editor_game(), age::fs::get_parent_path(proj_dir), i_init.get_render_pipeline());
+		age::editor::load_game(i_init.get_editor_game(), age::fs::get_parent_path(proj_dir));
 
 		i_init.set_smoothed_move = float2{ 0.f, 0.f };
 		i_init.set_smoothed_look = float2{ 0.f, 0.f };
@@ -99,7 +99,7 @@ namespace age_demo::scene_3
 			{
 				if (auto _ = widget::scroll_area_v())
 				{
-					age::editor::ui_entity_hierarchy(i_update.get_editor_game(), i_update.get_render_pipeline());
+					age::editor::ui_entity_hierarchy();
 				}
 			}
 
@@ -253,7 +253,7 @@ namespace age_demo::scene_3
 	{
 		age::graphics::command::signal();
 		age::graphics::command::cpu_wait();
-		age::editor::save_game(i_deinit.get_editor_game(), i_deinit.get_render_pipeline());
+		age::editor::save_game();
 		age::editor::deinit();
 
 		i_deinit.get_editor_game->visit_all_storages(AGE_FUNC(deinit_storage));

@@ -15,7 +15,7 @@ namespace age::editor
 namespace age::editor
 {
 	ui::widget_ctx
-	ui_component_header(const char* p_name, bool& close_out) noexcept;
+	ui_component_header(const char* p_name, AGE_OUT bool& close_out) noexcept;
 
 	void
 	ui_component(ecs::position& pos) noexcept;
@@ -39,46 +39,10 @@ namespace age::editor
 	ui_component(ecs::material& mat) noexcept;
 
 	void
-	ui_component(ecs::material& mat, auto& renderer) noexcept
-	{
-		ui_component(mat);
-
-		if (runtime::is_handle_invalid(mat.h_mat) is_false)
-		{
-			auto& entry = mat.h_mat.get_entry<asset::e::kind::material>();
-			if (entry.is_loaded())
-			{
-				renderer.update_material(mat.h_mat);
-			}
-		}
-	}
-
-	void
 	ui_component(ecs::model_render_option&) noexcept;
 
 	void
 	ui_component(ecs::model&) noexcept;
-
-	void
-	ui_component(ecs::model& cmp, auto& renderer) noexcept
-	{
-		ui_component(cmp);
-
-		if (runtime::is_handle_invalid(cmp.h_model)) { return; }
-
-		for (auto& entry = cmp.h_model.get_entry<asset::e::kind::model>();
-			 c_auto& h_mat : entry.h_material_vec)
-		{
-			if (runtime::is_handle_invalid(h_mat)) { continue; }
-
-			auto& mat_entry = h_mat.get_entry<asset::e::kind::material>();
-
-			if (mat_entry.is_loaded())
-			{
-				renderer.update_material(h_mat);
-			}
-		}
-	}
 
 	void
 	ui_component(ecs::directional_light& light) noexcept;
@@ -93,173 +57,25 @@ namespace age::editor
 	ui_component(ecs::env_light& env_light) noexcept;
 
 	void
-	ui_component(ecs::env_light& env_light, auto& renderer) noexcept
-	{
-		ui_component(env_light);
-
-		if (runtime::is_handle_invalid(env_light.h_env_light) is_false)
-		{
-			auto& entry = env_light.h_env_light.get_entry<asset::e::kind::env_light>();
-
-			if (entry.is_cpu_loaded())
-			{
-				auto btn = ui::widget::button("save");
-
-				if (btn.clicked())
-				{
-					asset::env_light::save(env_light.h_env_light);
-				}
-
-				if (entry.is_gpu_loaded())
-				{
-					renderer.update_env_light_runtime(env_light.h_env_light);
-				}
-			}
-		}
-	}
-
-	void
 	ui_component(ecs::camera& cam) noexcept;
 
 	void
 	ui_component(ecs::bloom& cmp) noexcept;
 
-	// return : need update
-	std::tuple<bool, bool>
-	ui_component(ecs::gi_config& _, uint32 gibs_max_surfel_count, uint32 gist_max_cell_surfel_count) noexcept;
-
 	void
-	ui_component(ecs::gi_config& cmp, auto& renderer) noexcept
-	{
-		auto&& [update, update_debug_flags] = ui_component(cmp, renderer.gibs_max_surfel_count(), renderer.gist_max_cell_surfel_count());
-		if (update)
-		{
-			if (cmp.enable_ddgi)
-			{
-				renderer.update_ddgi({
-					.probe_per_level_axis = cmp.ddgi_probe_per_level_axis,
-					.base_probe_spacing	  = cmp.ddgi_base_probe_spacing,
-					.level_count		  = cmp.ddgi_level_count,
-					.debug_flags		  = cmp.ddgi_debug_flags,
-					.lock_origin		  = cmp.ddgi_lock_origin,
-				});
-			}
-			else if (cmp.enable_gibs)
-			{
-				renderer.update_gibs({
-					.max_surfel_count		= cmp.max_surfel_count,
-					.debug_flags			= cmp.gibs_debug_flags,
-					.lock_origin			= cmp.gibs_lock_origin,
-					.cell_count				= cmp.gibs_cell_count,
-					.outer_layer_count		= cmp.gibs_outer_layer_count,
-					.cell_size				= cmp.gibs_cell_size,
-					.outer_cell_size_factor = cmp.outer_cell_size_factor,
-				});
-			}
-			else if (cmp.enable_gist)
-			{
-				renderer.update_gist({
-					.diffuse_ray_period			   = cmp.gist_diffuse_ray_period,
-					.specular_ray_period		   = cmp.gist_specular_ray_period,
-					.cell_surfel_ray_count_min	   = cmp.gist_cell_surfel_ray_count_min,
-					.cell_surfel_ray_count_max	   = cmp.gist_cell_surfel_ray_count_max,
-					.max_cell_surfel_count		   = cmp.gist_max_cell_surfel_count,
-					.cell_surfel_ray_budget_factor = cmp.gist_cell_surfel_ray_budget_factor,
-					.debug_flags				   = cmp.gist_debug_flags,
-					.lock_origin				   = cmp.gist_lock_origin,
-					.cell_count_per_axis		   = cmp.gist_cell_count_per_axis,
-					.outer_layer_count			   = cmp.gist_outer_layer_count,
-					.cell_size					   = cmp.gist_cell_size,
-					.outer_cell_size_factor		   = cmp.gist_outer_cell_size_factor,
-				});
-			}
-		}
-		else if (update_debug_flags)
-		{
-			if (cmp.enable_ddgi)
-			{
-				renderer.update_ddgi_debug_flags(cmp.ddgi_debug_flags);
-			}
-			else if (cmp.enable_gibs)
-			{
-				renderer.update_gibs_debug_flags(cmp.gibs_debug_flags);
-			}
-			else if (cmp.enable_gist)
-			{
-				renderer.update_gist_debug_flags(cmp.gist_debug_flags);
-			}
-		}
-	}
+	ui_component(ecs::gi_config& cmp) noexcept;
 
 	void
 	ui_component(age::ecs::editor_cam_setting& cmp) noexcept;
 
-	bool
+	void
 	ui_component(age::ecs::ao_config& cmp) noexcept;
 
 	void
-	ui_component(age::ecs::ao_config& cmp, auto& renderer) noexcept
-	{
-		const bool need_update = ui_component(cmp);
-
-		if (cmp.enabled and need_update)
-		{
-			renderer.update_ao({
-				.slice_count   = cmp.slice_count,
-				.offset_count  = cmp.offset_count,
-				.radius		   = cmp.radius,
-				.max_px_radius = cmp.max_px_radius,
-				.intensity	   = cmp.intensity,
-				.power		   = cmp.power,
-				.thickness	   = cmp.thickness,
-				.fade_distance = cmp.fade_distance,
-				.fade_range	   = cmp.fade_range,
-				.debug_flags   = cmp.debug_flags,
-			});
-		}
-	}
-
-	bool
 	ui_component(age::ecs::aa_config& cmp) noexcept;
 
 	void
-	ui_component(age::ecs::aa_config& cmp, auto& renderer) noexcept
-	{
-		const bool need_update = ui_component(cmp);
-
-		if (cmp.enabled and need_update)
-		{
-			renderer.update_aa({
-				.fxaa_on_offscreen			  = cmp.fxaa_on_offscreen,
-				.opaque_aa_ray_per_px		  = cmp.opaque_aa_ray_per_px,
-				.transparent_aa_ray_per_px	  = cmp.transparent_aa_ray_per_px,
-				.aa_px_cap					  = cmp.aa_px_cap,
-				.aa_px_headroom				  = cmp.aa_px_headroom,
-				.edge_plane_dist_tolerance_px = cmp.edge_plane_dist_tolerance_px,
-				.edge_normal_threshold		  = cmp.edge_normal_threshold,
-			});
-		}
-	}
-
-	bool
-	ui_component(age::ecs::debug_view_config& cmp, bool aa_enabled, bool ao_enabled, bool ddgi_enabled, bool gibs_enabled, bool gist_enabled) noexcept;
-
-	void
-	ui_component(age::ecs::debug_view_config& cmp, auto& renderer) noexcept
-	{
-		c_auto need_update = ui_component(cmp,
-										  renderer.aa_enabled(),
-										  renderer.ao_enabled(),
-										  renderer.ddgi_enabled(),
-										  renderer.gibs_enabled(),
-										  renderer.gist_enabled());
-
-		// todo
-		if (cmp.enabled and renderer.debug_view_enabled())
-		{
-			renderer.update_debug_view(cmp_to_desc(cmp));
-		}
-	}
+	ui_component(age::ecs::debug_view_config& cmp) noexcept;
 
 	void
 	ui_component(auto&& cmp) noexcept
@@ -285,7 +101,7 @@ namespace age::editor
 	}
 
 	void
-	ui_component_section(ecs::cx_entity_storage auto&& storage, auto&& ent_id, auto&& cmp, uint32 cmp_idx, auto& renderer) noexcept
+	ui_component_section(ecs::cx_entity_storage auto&& storage, auto&& ecs_entity_id, auto&& cmp, const uint32 ecs_component_id, auto& renderer) noexcept
 	{
 		using namespace age::ui;
 
@@ -293,10 +109,10 @@ namespace age::editor
 
 		if (auto _ = widget::begin(style::section() | set_horizontal() | set_height_fit() | set_width_grow()))
 		{
-			widget::separator_h(set_body_brush_data(get_component_color(cmp_idx), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
+			widget::separator_h(set_body_brush_data(get_component_color(ecs_component_id), theme::opacity_medium()), set_width_fixed(theme::thickness_thick()));
 
 			auto remove_cmp = false;
-			if (auto _ = ui_component_header(ecs::get_component_name_at<t_cmp, 0>().data(), remove_cmp))
+			if (auto _ = ui_component_header(ecs::get_component_name_at<t_cmp, 0>().data(), AGE_OUT remove_cmp))
 			{
 				c_auto disclosure_size = font::get_line_height(theme::text_heading_font_size());
 				c_auto gap			   = theme::header_bar_child_gap();
@@ -317,12 +133,10 @@ namespace age::editor
 
 			if (remove_cmp)
 			{
-				storage.remove_component<t_cmp>(ent_id, get_ecs_context(renderer));
+				storage.remove_component<t_cmp>(ecs_entity_id, get_ecs_context(renderer));
 			}
 		}
 	}
-
-
 }	 // namespace age::editor
 
 namespace age::editor
@@ -361,9 +175,9 @@ namespace age::editor::detail
 		c_auto ent_id = static_cast<t_ent_id>(g::select_vec[editor_storage.code_idx][0]);
 
 		for (c_auto archetype = entities.get_archetype(ent_id);
-			 auto	storage_cmp_idx : age::views::each_set_bit_idx(archetype))
+			 c_auto ecs_component_id : age::views::each_set_bit_idx(archetype))
 		{
-			t_archetype_traits::visit_component(entities, ent_id, storage_cmp_idx, AGE_FUNC(ui_component_section), renderer);
+			t_archetype_traits::visit_component(entities, ent_id, ecs_component_id, AGE_FUNC(ui_component_section), renderer);
 		}
 
 		c_auto archetype = entities.get_archetype(ent_id);
@@ -510,128 +324,11 @@ namespace age::editor::detail
 		if (ui_asset_header(e_kind, h_asset))
 		{
 			// todo, implement partial saving
-			editor::save_game(ecs_game, renderer);
+			editor::save_game();
 		}
 
 		ui_asset(e_kind, h_asset, renderer);
 	}
-
-	void
-	ui_entity_hierarchy_impl(auto& entities, auto& renderer, storage_editor_data& editor_storage) noexcept
-	{
-		using namespace age::ui;
-		using enum age::ui::e::style_state;
-		using enum input::e::key_kind;
-
-		using t_ent_id = typename BARE_OF(entities)::t_ent_id;
-
-		if (auto _ = widget::vertical(set_child_gap(0)))
-		{
-			auto is_open = false;
-
-			if (auto header = widget::begin(style::header_bar() | set_interact() | set_save_state()))
-			{
-				if (header.clicked<mouse_left>())
-				{
-					header.toggle();
-				}
-
-				// is_open = header.is_toggled() != editor_storage.default_open;
-				is_open = header.is_toggled() is_false;
-
-				widget::disclosure_indicator(is_open);
-
-				if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
-				{
-					widget::text_input2(editor_storage.names[0]);
-				}
-
-				// if (auto _ = widget::begin(set_padding(theme::frame_padding())))
-				//{
-				//	widget::text_heading(editor_storage.names[0].data());
-				// }
-
-				if (header.contains_mouse())
-				{
-					auto _			 = widget::horizontal_inv();
-					auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact() | set_align_center());
-					widget::text_button("+");
-					if (new_ent_btn.clicked())
-					{
-						new_entity(entities, renderer, editor_storage, 0);
-					}
-				}
-			}
-
-			if (is_open is_false) { return; }
-
-			auto h_panel = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x));
-
-			for (const auto&& [arch_idx, arch] : editor_storage.archetype_data_vec | std::views::enumerate)
-			{
-				if (arch.entity_data_vec.empty()) { continue; }
-
-				auto arch_open = false;
-
-				if (auto header = widget::begin(style::header_bar() | set_interact() | set_save_state()))
-				{
-					if (header.clicked<mouse_left>())
-					{
-						header.toggle();
-					}
-
-					// is_open = header.is_toggled() != arch.default_open;
-					arch_open = header.is_toggled() is_false;
-
-					widget::disclosure_indicator(arch_open);
-
-					if (auto _ = widget::begin(set_width_grow() | set_height_fit()))
-					{
-						widget::text_input2(arch.name);
-					}
-
-					if (auto _ = widget::horizontal_inv())
-					{
-						auto new_ent_btn = widget::begin(style::vertical() | set_width_fit() | set_height_fit() | set_interact() | set_align_center());
-						widget::begin(style::text_button("+") | set_draw(header.contains_mouse()));
-						if (new_ent_btn.clicked())
-						{
-							new_entity(entities, renderer, editor_storage, static_cast<uint32>(arch_idx), arch.archetype);
-						}
-					}
-				}
-
-				if (arch_open is_false) { continue; }
-
-				auto h_inner_panel = widget::panel(set_vertical() | set_height_fit() | set_padding_left(theme::frame_padding().x));
-
-				auto remove_vec = age::vector<uint64>{};
-				auto add_vec	= age::vector<uint64>{};
-				for (const auto&& [ent_idx, ent] : arch.entity_data_vec | std::views::enumerate)
-				{
-					c_auto selected = is_selected(e::select_kind::entity, editor_storage.code_idx, ent.id);
-					ui_entity_tree_node(editor_storage, ent.id, arch.archetype, selected);
-
-					if (selected is_false) { continue; }
-
-					if (ui::g::p_input_ctx->is_pressed(input::e::key_kind::key_delete))
-					{
-						entities.remove_entity(static_cast<t_ent_id>(ent.id), get_ecs_context(renderer));
-
-						remove_select(e::select_kind::entity, editor_storage.code_idx, ent.id);
-
-						remove_vec.emplace_back(ent_idx);
-					}
-				}
-
-				for (auto ent_idx : remove_vec | std::views::reverse)
-				{
-					auto& ent = arch.entity_data_vec[ent_idx];
-					detail::unregister_entity(editor_storage, static_cast<uint32>(arch_idx), ent_idx, ent.id);
-				}
-			}
-		}
-	}	 // namespace detail
 }	 // namespace age::editor::detail
 
 namespace age::editor
@@ -660,43 +357,6 @@ namespace age::editor
 		{
 			break;
 		}
-		}
-	}
-
-	void
-	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept
-	{
-		using namespace age::ui;
-
-		static auto scene_dropdown_option = age::array<widget::dropdown_option<uint32>, ecs_game.scene_count()>{};
-
-		for (auto&& [scene_idx, editor_scene_data] : g::current_game.scene_data_vec | views::enumerate<uint32>)
-		{
-			scene_dropdown_option[scene_idx].value = scene_idx;
-			scene_dropdown_option[scene_idx].label = std::string_view{ editor_scene_data.names[0].data() };
-		}
-
-		if (auto _ = widget::horizontal(set_width_grow(), set_height_fit(), set_padding(theme::frame_padding())))
-		{
-			if (auto _ = widget::vertical(set_width_grow(), set_height_fit(), set_align_center()))
-			{
-				widget::begin(style::text_title("hierarchy") | set_align_begin());
-			}
-
-			if (widget::dropdown(g::current_game.current_active_scene_idx, std::span<const widget::dropdown_option<uint32>>{ scene_dropdown_option.data(), scene_dropdown_option.size() }))
-			{
-				// deinit scene?
-			}
-		}
-
-		// widget::separator_v();
-
-		auto& current_scene = g::current_game.scene_data_vec[g::current_game.current_active_scene_idx];
-
-
-		for (auto& storage_data : current_scene.storage_data_vec)
-		{
-			ecs_game.visit_storage_at(current_scene.code_idx, storage_data.code_idx, AGE_FUNC(detail::ui_entity_hierarchy_impl), renderer, storage_data);
 		}
 	}
 

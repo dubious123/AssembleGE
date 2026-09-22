@@ -37,7 +37,7 @@ namespace age::editor
 	load_game(auto& ecs_game, std::string_view root_parent_dir, auto& renderer) noexcept;
 
 	void
-	save_game(auto& ecs_game, auto& renderer) noexcept;
+	save_game() noexcept;
 
 	void
 	update_game(auto& ecs_game, auto& renderer) noexcept;
@@ -51,6 +51,9 @@ namespace age::editor
 {
 	uint64
 	add_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, std::string_view name) noexcept;
+
+	uint64
+	add_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, std::string_view name, uint64 new_ecs_archetype) noexcept;
 
 	void
 	remove_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
@@ -116,7 +119,7 @@ namespace age::editor
 	ui_inspector(auto& ecs_game, auto& renderer) noexcept;
 
 	void
-	ui_entity_hierarchy(auto& ecs_game, auto& renderer) noexcept;
+	ui_entity_hierarchy() noexcept;
 
 	void
 	ui_scene_view(auto& renderer) noexcept;
@@ -179,18 +182,6 @@ namespace age::editor::detail
 
 namespace age::editor::detail
 {
-	void
-	register_entity(storage_editor_data& editor_storage,
-					uint32				 editor_arch_idx,
-					uint64				 editor_ent_idx,
-					uint64				 ecs_entity_id) noexcept;
-
-	void
-	unregister_entity(storage_editor_data& editor_storage,
-					  uint32			   editor_arch_idx,
-					  uint64			   editor_ent_idx,
-					  uint64			   ecs_entity_id) noexcept;
-
 	void
 	re_register_entity(storage_editor_data& editor_storage, uint64 ecs_entity_id, uint64 new_archetype) noexcept;
 }	 // namespace age::editor::detail
