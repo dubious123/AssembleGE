@@ -62,6 +62,35 @@ namespace age::editor
 		return ecs_entity_id;
 	}
 
+	uint64
+	copy_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept
+	{
+		AGE_ASSERT(editor_scene_idx < g::current_game.scene_data_vec.size<uint32>());
+		AGE_ASSERT(editor_storage_idx < g::current_game.scene_data_vec[editor_scene_idx].storage_data_vec.size<uint32>());
+
+		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
+		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
+
+		AGE_ASSERT(editor_storage.ecs_ent_id_to_editor_location_map.contains(ecs_entity_id));
+
+		c_auto[editor_archetype_idx, editor_entity_idx] = editor_storage.ecs_ent_id_to_editor_location_map[ecs_entity_id];
+
+		c_auto new_ecs_entity_id = g::host_ops.p_copy_entity(editor_scene.code_idx, editor_storage.code_idx, ecs_entity_id);
+
+		auto& arch_data = editor_storage.archetype_data_vec[editor_archetype_idx];
+
+		editor_storage.ecs_ent_id_to_editor_location_map[new_ecs_entity_id] = std::pair{ editor_archetype_idx, arch_data.entity_data_vec.size() };
+
+		auto& ent_data = arch_data.entity_data_vec.emplace_back(entity_editor_data{
+			.id	  = new_ecs_entity_id,
+			.name = util::fixed_format<config::max_entity_name_len>("{}_clone", arch_data.entity_data_vec[editor_entity_idx].name),
+		});
+
+		++editor_storage.entity_count;
+
+		return new_ecs_entity_id;
+	}
+
 	void
 	remove_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept
 	{
@@ -108,6 +137,35 @@ namespace age::editor
 		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
 
 		return g::host_ops.p_get_archetype(editor_scene.code_idx, editor_storage.code_idx, ecs_entity_id);
+	}
+
+	uint32
+	get_component_count(uint32 editor_scene_idx, uint32 editor_storage_idx) noexcept
+	{
+		AGE_ASSERT(editor_scene_idx < g::current_game.scene_data_vec.size<uint32>());
+		AGE_ASSERT(editor_storage_idx < g::current_game.scene_data_vec[editor_scene_idx].storage_data_vec.size<uint32>());
+
+		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
+		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
+
+		return g::host_ops.p_get_component_count(editor_scene.code_idx, editor_storage.code_idx);
+	}
+
+	std::string_view
+	get_component_name(uint32 editor_scene_idx, uint32 editor_storage_idx, uint32 ecs_component_id) noexcept
+	{
+		AGE_ASSERT(editor_scene_idx < g::current_game.scene_data_vec.size<uint32>());
+		AGE_ASSERT(editor_storage_idx < g::current_game.scene_data_vec[editor_scene_idx].storage_data_vec.size<uint32>());
+
+		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
+		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
+
+		c_auto it = std::ranges::find(editor_storage.component_data_vec, ecs_component_id, &component_editor_data::ecs_component_id);
+
+		AGE_ASSERT(ecs_component_id < editor_storage.component_data_vec.size<uint32>());
+		AGE_ASSERT(it != editor_storage.component_data_vec.end());
+
+		return util::to_string_view(it->names[0]);
 	}
 
 	namespace detail
@@ -224,5 +282,17 @@ namespace age::editor
 			c_auto& ecs_component_data = *std::ranges::find(editor_storage.component_data_vec, cmp_name_hash, &component_editor_data::ecs_component_name_hash);
 			cmp_ptr					   = get_component_ptr(editor_scene_idx, editor_storage_idx, ecs_entity_id, ecs_component_data.ecs_component_id);
 		}
+	}
+
+	void
+	relocate_editor_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id, uint64 new_archetype) noexcept
+	{
+		AGE_ASSERT(editor_scene_idx < g::current_game.scene_data_vec.size<uint32>());
+		AGE_ASSERT(editor_storage_idx < g::current_game.scene_data_vec[editor_scene_idx].storage_data_vec.size<uint32>());
+
+		auto& editor_scene	 = g::current_game.scene_data_vec[editor_scene_idx];
+		auto& editor_storage = editor_scene.storage_data_vec[editor_storage_idx];
+
+		detail::modify_entity_archetype(editor_storage, ecs_entity_id, new_archetype);
 	}
 }	 // namespace age::editor

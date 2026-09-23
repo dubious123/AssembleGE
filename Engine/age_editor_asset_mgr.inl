@@ -9,7 +9,7 @@ namespace age::editor::asset_mgr
 	// asset entries are meant to be light, so keeping them throughout the game will (probably) cost little
 	// therefore we don't destroy an asset entry here (except for the deinit phases)
 	void
-	update(auto& ecs_game, auto& renderer) noexcept
+	update(auto& ecs_game) noexcept
 	{
 		using namespace age::asset;
 		using enum age::asset::e::kind;
@@ -51,9 +51,9 @@ namespace age::editor::asset_mgr
 					}
 				}
 
-				if (need_update and entry.is_loaded())
+				if (need_update and entry.is_loaded()) [[unlikely]]
 				{
-					renderer.update_material(h);
+					g::host_ops.p_renderer_update_material(h);
 				}
 			}
 
@@ -81,7 +81,7 @@ namespace age::editor::asset_mgr
 		}
 
 		// handle asset unload
-		asset::for_each_kind([&renderer]<asset::e::kind e_kind> noexcept {
+		asset::for_each_kind([]<asset::e::kind e_kind> noexcept {
 			if constexpr (e_kind == font)
 			{
 				for (auto h : asset::each_handle_of<e_kind>())
@@ -95,13 +95,13 @@ namespace age::editor::asset_mgr
 				{
 					auto& entry = h.get_entry<e_kind>();
 
-					if (entry.ref_counter == 0)
+					if (entry.ref_counter == 0) [[unlikely]]
 					{
 						if (entry.is_any_loaded())
 						{
 							AGE_DEBUG_LOG("editor asset_mgr asset full_unload {}, {}", to_string(e_kind), entry.get_path());
 						}
-						asset::full_unload<e_kind>(h, renderer);	// cascades
+						asset_full_unload(e_kind, h);	 // cascades
 					}
 				}
 			}

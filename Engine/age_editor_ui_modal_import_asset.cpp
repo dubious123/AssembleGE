@@ -1287,10 +1287,8 @@ namespace age::editor
 							commit_message = std::move(commit_res.message);
 							return;
 						}
-						else
-						{
-							commit_message = std::string{};
-						}
+
+						commit_message = std::string{};
 
 						// unload all overwritten assets
 						for (c_auto& h_asset : commit_res.overwritten_asset_handle_vec)

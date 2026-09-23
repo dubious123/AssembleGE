@@ -246,7 +246,8 @@ namespace age::editor
 	void
 	asset_full_unload(asset::e::kind asset_kind, asset::handle h_asset) noexcept
 	{
-		if (h_asset is_false) { return; }
+		AGE_ASSERT(h_asset is_true, "invalid asset handle should not exist here");
+
 		if (h_asset.is_any_loaded()) { return; }
 
 		switch (asset_kind)
@@ -287,18 +288,3 @@ namespace age::editor
 		}
 	}
 }	 // namespace age::editor
-
-namespace age::editor::detail
-{
-	scene_editor_data&
-	find_scene_editor_data(uint32 ecs_idx) noexcept
-	{
-		return g::current_game.find_scene_data(ecs_idx);
-	}
-
-	storage_editor_data&
-	find_storage_editor_data(uint32 ecs_scene_idx, uint32 ecs_storage_idx) noexcept
-	{
-		return g::current_game.find_scene_data(ecs_scene_idx).find_storage_data(ecs_storage_idx);
-	}
-}	 // namespace age::editor::detail

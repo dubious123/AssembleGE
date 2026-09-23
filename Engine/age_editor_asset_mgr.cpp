@@ -43,3 +43,8 @@ namespace age::editor::asset_mgr
 		g::asset_pin_vec.clear();
 	}
 }	 // namespace age::editor::asset_mgr
+
+namespace age::editor::asset_mgr
+{
+
+}

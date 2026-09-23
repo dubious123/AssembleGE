@@ -10,7 +10,7 @@ namespace age::editor::asset_mgr
 	deinit() noexcept;
 
 	void
-	update(auto& ecs_game, auto& renderer) noexcept;
+	update(auto& ecs_game) noexcept;
 
 	void
 	add_asset_pin(asset::e::kind, asset::handle, uint16 frames_to_live = g::asset_default_frames_to_live) noexcept;

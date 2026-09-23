@@ -41,6 +41,7 @@
 #include "age_util_ranges.hpp"
 #include "age_util_functional.hpp"
 #include "age_util_format.hpp"
+#include "age_util_fixed_format.hpp"
 #include "age_util_offset_calculator.hpp"
 #include "age_util_algorithm.hpp"
 

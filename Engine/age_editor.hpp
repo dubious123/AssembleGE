@@ -55,11 +55,21 @@ namespace age::editor
 	uint64
 	add_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, std::string_view name, uint64 new_ecs_archetype) noexcept;
 
+	uint64
+	copy_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
+
 	void
 	remove_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
 
 	uint64
 	get_archetype(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
+
+	// returns string_view {editor_storage_data::names[0].data()}
+	std::string_view
+	get_component_name(uint32 editor_scene_idx, uint32 editor_storage_idx, uint32 ecs_component_id) noexcept;
+
+	uint32
+	get_component_count(uint32 editor_scene_idx, uint32 editor_storage_idx) noexcept;
 
 	void
 	add_components(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id, uint64 ecs_archetype_to_add) noexcept;
@@ -92,6 +102,10 @@ namespace age::editor
 	template <typename... t_cmp>
 	decltype(auto)
 	add_components(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id) noexcept;
+
+	// change editor entity location
+	void
+	relocate_editor_entity(uint32 editor_scene_idx, uint32 editor_storage_idx, uint64 ecs_entity_id, uint64 new_archetype) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor
@@ -116,7 +130,7 @@ namespace age::editor
 namespace age::editor
 {
 	void
-	ui_inspector(auto& ecs_game, auto& renderer) noexcept;
+	ui_inspector() noexcept;
 
 	void
 	ui_entity_hierarchy() noexcept;
@@ -126,9 +140,6 @@ namespace age::editor
 
 	void
 	ui_asset_list_panel() noexcept;
-
-	void
-	ui_modal() noexcept;
 
 	template <asset::e::kind>
 	bool /*is_dirty*/
@@ -148,13 +159,63 @@ namespace age::editor
 	bool ui_asset<asset::e::kind::model>(asset::handle) noexcept;
 
 	void
-	ui_asset(asset::e::kind, asset::handle h, auto& renderer) noexcept;
+	ui_modal() noexcept;
 
 	void
 	ui_modal_new_asset() noexcept;
 
 	void
 	ui_modal_import_asset() noexcept;
+
+	float3
+	get_component_color(uint32 cmp_idx) noexcept;
+
+	ui::widget_ctx
+	ui_component_header(const char* p_name, AGE_OUT bool& close_out) noexcept;
+
+	void
+	ui_component(auto&& cmp) noexcept;
+
+	void
+	ui_component(ecs::position& pos) noexcept;
+	void
+	ui_component(ecs::render_object& obj) noexcept;
+	void
+	ui_component(ecs::rotation& rot) noexcept;
+	void
+	ui_component(ecs::scale& scale) noexcept;
+	void
+	ui_component(ecs::mesh& mesh) noexcept;
+	void
+	ui_component(asset::handle h_mat, asset::entry<asset::e::kind::material>& mat_entry) noexcept;
+	void
+	ui_component(ecs::material& mat) noexcept;
+	void
+	ui_component(ecs::model_render_option&) noexcept;
+	void
+	ui_component(ecs::model&) noexcept;
+	void
+	ui_component(ecs::directional_light& light) noexcept;
+	void
+	ui_component(ecs::point_light& light) noexcept;
+	void
+	ui_component(ecs::spot_light& light) noexcept;
+	void
+	ui_component(ecs::env_light& env_light) noexcept;
+	void
+	ui_component(ecs::camera& cam) noexcept;
+	void
+	ui_component(ecs::bloom& cmp) noexcept;
+	void
+	ui_component(ecs::gi_config& cmp) noexcept;
+	void
+	ui_component(age::ecs::editor_cam_setting& cmp) noexcept;
+	void
+	ui_component(age::ecs::ao_config& cmp) noexcept;
+	void
+	ui_component(age::ecs::aa_config& cmp) noexcept;
+	void
+	ui_component(age::ecs::debug_view_config& cmp) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor::gizmo
@@ -170,18 +231,3 @@ namespace age::editor::gizmo
 	std::tuple<float3, bool, bool>
 	scale(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept;
 }	 // namespace age::editor::gizmo
-
-namespace age::editor::detail
-{
-	scene_editor_data&
-	find_scene_editor_data(uint32 ecs_idx) noexcept;
-
-	storage_editor_data&
-	find_storage_editor_data(uint32 ecs_scene_idx, uint32 ecs_storage_idx) noexcept;
-}	 // namespace age::editor::detail
-
-namespace age::editor::detail
-{
-	void
-	re_register_entity(storage_editor_data& editor_storage, uint64 ecs_entity_id, uint64 new_archetype) noexcept;
-}	 // namespace age::editor::detail

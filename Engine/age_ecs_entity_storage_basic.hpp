@@ -281,6 +281,12 @@ namespace age::ecs::entity_storage
 			return entity_info_vec.size();
 		}
 
+		static consteval uint32
+		component_count() noexcept
+		{
+			return t_archetype_traits::cmp_count();
+		}
+
 		FORCE_INLINE bool
 		is_valid(t_ent_id id) const noexcept
 		{
@@ -336,13 +342,12 @@ namespace age::ecs::entity_storage
 		t_ent_id
 		copy_entity(t_ent_id id, auto&& ctx) noexcept
 		{
-			auto& ent_info = entity_info_vec[id];
+			c_auto	ent_info  = entity_info_vec[id];
+			c_auto& archetype = ent_info.archetype;
 
-			c_auto archetype = ent_info.archetype;
-
-			auto& ent_block_collection = entity_blocks_map[archetype];
-			auto& entity_block		   = ent_block_collection.free_block(archetype);
-			auto  entity_id			   = static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
+			auto&  ent_block_collection = entity_blocks_map[archetype];
+			auto&  entity_block			= ent_block_collection.free_block(archetype);
+			c_auto entity_id			= static_cast<t_ent_id>(entity_info_vec.emplace_back(entity_info{ archetype, 0, &entity_block }));
 
 			entity_info_vec[entity_id].local_idx = entity_block.copy_entity(*ent_info.p_block, ent_info.local_idx, entity_id, archetype, FWD(ctx));
 
