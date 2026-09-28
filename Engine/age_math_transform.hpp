@@ -491,6 +491,12 @@ namespace age::inline math
 	}
 
 	FORCE_INLINE constexpr decltype(auto)
+	clamp(const float2& v, const float2& min, const float2& max) noexcept
+	{
+		return float2{ std::clamp(v.x, min.x, max.x), std::clamp(v.y, min.y, max.y) };
+	}
+
+	FORCE_INLINE constexpr decltype(auto)
 	clamp(const float2& v, auto min, auto max) noexcept
 	{
 		return float2{ std::clamp(v.x, min, max), std::clamp(v.y, min, max) };

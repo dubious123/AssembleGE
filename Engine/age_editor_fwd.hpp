@@ -301,10 +301,11 @@ namespace age::editor::g
 	inline auto h_mesh_cone = asset::handle{};
 	inline auto h_mesh_cube = asset::handle{};
 
-	inline auto gizmo_space			  = e::transform_space_kind::world;
-	inline auto gizmo_transform_mode  = e::transform_mode_kind::select;
-	inline auto scale_snapshot_vec	  = age::vector<age::unordered_map<uint64, float3>>{};
-	inline auto rotation_snapshot_vec = age::vector<age::unordered_map<uint64, rotation_snapshot>>{};
+	inline auto gizmo_space				 = e::transform_space_kind::world;
+	inline auto gizmo_transform_mode	 = e::transform_mode_kind::select;
+	inline auto translation_snapshot_vec = age::vector<age::unordered_map<uint64, float3>>{};
+	inline auto scale_snapshot_vec		 = age::vector<age::unordered_map<uint64, float3>>{};
+	inline auto rotation_snapshot_vec	 = age::vector<age::unordered_map<uint64, rotation_snapshot>>{};
 
 	inline constexpr c_auto gizmo_rotation_trackball_sensitivity = 0.05f;
 }	 // namespace age::editor::g

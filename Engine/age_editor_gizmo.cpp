@@ -3,22 +3,123 @@
 
 namespace age::editor::gizmo
 {
-	float3
+	namespace detail
+	{
+		std::optional<float3>
+		closest_point_on_axis(float3 axis_origin, float3 axis_dir, float3 ray_origin, float3 ray_dir) noexcept
+		{
+			// v = (axis_origin + t * axis_dir) - (ray_origin + s * ray_dir)
+			// v dot axis_dir == 0 => dot(origin_delta, axis_dir) + t - s * dot(axis_dir, ray_dir) == 0
+			// v dot ray_dir == 0  => dot(origin_delta, ray_dir) + t * dot(axis_dir, ray_dir) - s == 0
+			// s == dot(origin_delta, ray_dir) + t * dot(axis_dir, ray_dir)
+			// delta_on_axis + t - (delta_on_ray + t * cos_theta) * cos_theta == 0;
+			// delta_on_axis - delta_on_ray * cos_thata == - sin_sq_theta * t;
+			// t == (cos_thata * delta_on_ray - delta_on_axis) / sin_sq_theta;
+
+			c_auto origin_delta	 = axis_origin - ray_origin;
+			c_auto cos_theta	 = math::dot(axis_dir, ray_dir);
+			c_auto delta_on_axis = math::dot(axis_dir, origin_delta);
+			c_auto delta_on_ray	 = math::dot(ray_dir, origin_delta);
+			c_auto sin_sq_theta	 = 1.f - cos_theta * cos_theta;
+
+			if (sin_sq_theta < 0.01f)
+			{
+				return std::nullopt;
+			}
+
+			c_auto t = (cos_theta * delta_on_ray - delta_on_axis) / sin_sq_theta;
+			c_auto s = delta_on_ray + t * cos_theta;
+
+			if (s <= 0.f)
+			{
+				return std::nullopt;
+			}
+
+			return axis_origin + axis_dir * t;
+		}
+
+		std::optional<float3>
+		ray_plane_intersection(
+			const float3& ray_origin,
+			const float3& ray_dir,
+			const float3& plane_point,
+			const float3& plane_normal) noexcept
+		{
+			c_auto denom = math::dot(ray_dir, plane_normal);
+
+			if (std::abs(denom) < math::g::epsilon_1e6)
+			{
+				return std::nullopt;
+			}
+
+			c_auto t = math::dot(plane_point - ray_origin, plane_normal) / denom;
+
+			if (t <= 0.f)
+			{
+				return std::nullopt;
+			}
+
+			return ray_origin + ray_dir * t;
+		}
+
+		// translation axis drag hit
+		std::optional<float3>
+		axis_drag_hit(const float3& axis_origin, const float3& axis_dir, const float3& cam_pos, const float3& cam_forward, const float3& mouse_ray_dir) noexcept
+		{
+			c_auto hit_on_cam_plane = ray_plane_intersection(cam_pos, mouse_ray_dir, axis_origin, cam_forward);
+			if (hit_on_cam_plane.has_value() is_false)
+			{
+				return std::nullopt;
+			}
+
+			c_auto axis_plane_normal	 = math::cross(axis_dir, axis_origin - cam_pos);
+			c_auto axis_plane_normal_len = math::length(axis_plane_normal);
+			if (axis_plane_normal_len < math::g::epsilon_1e4)
+			{
+				return std::nullopt;
+			}
+
+			c_auto axis_line_dir = math::cross(axis_plane_normal / axis_plane_normal_len, cam_forward);
+			c_auto axis_line_len = math::length(axis_line_dir);
+			if (axis_line_len < 0.1f)
+			{
+				return std::nullopt;
+			}
+
+			c_auto mouse_delta		  = *hit_on_cam_plane - axis_origin;
+			c_auto mouse_on_axis_line = axis_origin + (axis_line_dir / axis_line_len) * math::dot(mouse_delta, axis_line_dir / axis_line_len);
+
+			c_auto ray_dir = math::normalize(mouse_on_axis_line - cam_pos);
+			return closest_point_on_axis(axis_origin, axis_dir, cam_pos, ray_dir);
+		}
+	}	 // namespace detail
+
+	// translation, drag_started, dragging
+	std::tuple<float3, bool, bool>
 	translation(const float cam_fov_y, const float3& cam_pos, const float3& cam_forward, const float3& world_pos, const float4& quat, const float screen_size) noexcept
 	{
 		using namespace ui;
 		using namespace ui::widget;
 		using enum input::e::key_kind;
 
+		static auto is_any_pressed_prev			   = false;
+		static auto object_world_pos_on_drag_start = float3::zero();
+		static auto hit_world_pos_on_drag_start	   = float3::zero();
+		static auto hit_world_pos_prev			   = float3::zero();
+
+		auto is_any_pressed = false;
+		auto hit_world_pos	= float3::zero();
+
+		c_auto anchor_pos = is_any_pressed_prev ? object_world_pos_on_drag_start : world_pos;
+
 		c_auto view_z			= std::max(math::dot(world_pos - cam_pos, cam_forward), 0.5f);
 		c_auto world_size_scale = (screen_size / ui::g::window_height) * 2.0f * std::tanf(cam_fov_y * 0.5f);
 		c_auto world_size		= world_size_scale * view_z;
 
-		auto res_translation = float3::zero();
-
-		c_auto drag_color		 = theme::color_amber();
-		c_auto disabled_color	 = theme::palette_cool_gray();
-		c_auto disable_threshold = 0.15f;
+		c_auto drag_color			   = theme::color_amber();
+		c_auto disabled_color		   = theme::palette_cool_gray();
+		c_auto axis_disable_threshold  = 0.15;
+		c_auto plane_disable_threshold = 0.3f;
 
 		// xy, normal = (0,0,-1)
 		{
@@ -43,7 +144,7 @@ namespace age::editor::gizmo
 				c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 				c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_u)) > (1.f - disable_threshold));
+				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_u)) > (1.f - axis_disable_threshold));
 
 				c_auto color = is_drag_prev
 								 ? drag_color
@@ -101,12 +202,23 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					res_translation.x += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
+					c_auto& current_root = ui::detail::get_current_root();
+					if (c_auto res = detail::axis_drag_hit(anchor_pos, current_root.world_basis_u, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir);
+						res.has_value())
+					{
+						hit_world_pos = *res;
+					}
+					else
+					{
+						hit_world_pos = hit_world_pos_prev;
+					}
 				}
 
 				auto& state_	  = h_translation_x.get_state();
 				state_.storage[0] = is_drag ? 1 : 0;
 				state_.storage[1] = is_hover ? 1 : 0;
+
+				is_any_pressed |= is_drag;
 			}
 
 			auto h = widget::horizontal(set_width_grow() | set_height_grow());
@@ -121,7 +233,7 @@ namespace age::editor::gizmo
 					c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 					c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-					c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_v)) > (1.f - disable_threshold));
+					c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_v)) > (1.f - axis_disable_threshold));
 
 					c_auto color = is_drag_prev
 									 ? drag_color
@@ -164,12 +276,23 @@ namespace age::editor::gizmo
 
 					if (is_drag)
 					{
-						res_translation.y -= ui::detail::get_current_root().mouse_delta_uv.y * world_size / screen_size;
+						c_auto& current_root = ui::detail::get_current_root();
+						if (c_auto res = detail::axis_drag_hit(anchor_pos, current_root.world_basis_v, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir);
+							res.has_value())
+						{
+							hit_world_pos = *res;
+						}
+						else
+						{
+							hit_world_pos = hit_world_pos_prev;
+						}
 					}
 
 					auto& state_	  = h_translation_y.get_state();
 					state_.storage[0] = is_drag ? 1 : 0;
 					state_.storage[1] = is_hover ? 1 : 0;
+
+					is_any_pressed |= is_drag;
 				}
 			}
 
@@ -182,7 +305,7 @@ namespace age::editor::gizmo
 				c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 				c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < disable_threshold);
+				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < plane_disable_threshold);
 				c_auto color	   = is_drag_prev
 									   ? drag_color
 								   : is_disabled
@@ -207,15 +330,14 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					c_auto delta_uv	   = ui::detail::get_current_root().mouse_delta_uv;
-					res_translation.x += delta_uv.x * world_size / screen_size;
-					res_translation.z -= delta_uv.y * world_size / screen_size;
+					hit_world_pos = ui::detail::get_current_root().mouse_world_pos();
 				}
-
 
 				auto& state_	  = h_translation_xy.get_state();
 				state_.storage[0] = is_drag ? 1 : 0;
 				state_.storage[1] = is_hover ? 1 : 0;
+
+				is_any_pressed |= is_drag;
 			}
 		}
 
@@ -242,7 +364,7 @@ namespace age::editor::gizmo
 				c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 				c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_u)) > (1.f - disable_threshold));
+				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_basis_u)) > (1.f - axis_disable_threshold));
 
 				c_auto color = is_drag_prev
 								 ? drag_color
@@ -286,12 +408,23 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					res_translation.z += ui::detail::get_current_root().mouse_delta_uv.x * world_size / screen_size;
+					c_auto& current_root = ui::detail::get_current_root();
+					if (c_auto res = detail::axis_drag_hit(anchor_pos, current_root.world_basis_u, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir);
+						res.has_value())
+					{
+						hit_world_pos = *res;
+					}
+					else
+					{
+						hit_world_pos = hit_world_pos_prev;
+					}
 				}
 
 				auto& state_	  = h_translation_z.get_state();
 				state_.storage[0] = is_drag ? 1 : 0;
 				state_.storage[1] = is_hover ? 1 : 0;
+
+				is_any_pressed |= is_drag;
 			}
 
 			auto _ = widget::horizontal(set_offset(screen_size * 0.1f /*- screen_size * 0.08f*/, 0 /*+ screen_size * 0.08f*/) | set_fit() | set_align_begin() | set_clip(false));
@@ -302,7 +435,7 @@ namespace age::editor::gizmo
 				c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 				c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < disable_threshold);
+				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < plane_disable_threshold);
 				c_auto color	   = is_drag_prev
 									   ? drag_color
 								   : is_disabled
@@ -327,15 +460,14 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					c_auto delta_uv	   = ui::detail::get_current_root().mouse_delta_uv;
-					res_translation.z += delta_uv.x * world_size / screen_size;
-					res_translation.y -= delta_uv.y * world_size / screen_size;
+					hit_world_pos = ui::detail::get_current_root().mouse_world_pos();
 				}
-
 
 				auto& state_	  = h_translation_yz.get_state();
 				state_.storage[0] = is_drag ? 1 : 0;
 				state_.storage[1] = is_hover ? 1 : 0;
+
+				is_any_pressed |= is_drag;
 			}
 		}
 
@@ -361,7 +493,7 @@ namespace age::editor::gizmo
 				c_auto is_drag_prev	   = static_cast<bool>(state.storage[0]);
 				c_auto is_hovered_prev = static_cast<bool>(state.storage[1]);
 
-				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < disable_threshold);
+				c_auto is_disabled = is_drag_prev is_false and (std::abs(math::dot(cam_forward, ui::detail::get_current_root().world_normal)) < plane_disable_threshold);
 				c_auto color	   = is_drag_prev
 									   ? drag_color
 								   : is_disabled
@@ -386,19 +518,35 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					c_auto delta_uv	   = ui::detail::get_current_root().mouse_delta_uv;
-					res_translation.x += delta_uv.x * world_size / screen_size;
-					res_translation.z -= delta_uv.y * world_size / screen_size;
+					hit_world_pos = ui::detail::get_current_root().mouse_world_pos();
 				}
 
 
 				auto& state_	  = h_translation_xz.get_state();
 				state_.storage[0] = is_drag ? 1 : 0;
 				state_.storage[1] = is_hover ? 1 : 0;
+
+				is_any_pressed |= is_drag;
 			}
 		}
 
-		return math::rotate(quat, res_translation);
+		if (is_any_pressed is_false)
+		{
+			hit_world_pos_on_drag_start = hit_world_pos;
+		}
+
+		c_auto is_drag_start = is_any_pressed_prev is_false and is_any_pressed is_true;
+		is_any_pressed_prev	 = is_any_pressed;
+
+		if (is_drag_start)
+		{
+			object_world_pos_on_drag_start = world_pos;
+			hit_world_pos_on_drag_start	   = hit_world_pos;
+		}
+
+		hit_world_pos_prev = hit_world_pos;
+
+		return { hit_world_pos - hit_world_pos_on_drag_start, is_drag_start, is_any_pressed };
 	}
 
 	std::tuple<float3, bool, bool>
@@ -408,9 +556,15 @@ namespace age::editor::gizmo
 		using namespace ui::widget;
 		using enum input::e::key_kind;
 
-		static auto res_scale_ratio		= float3::one();
-		static auto is_any_pressed_prev = false;
-		static auto anchor_pos_prev		= float3::zero();
+		static auto res_scale_ratio				= float3::one();
+		static auto is_any_pressed_prev			= false;
+		static auto anchor_pos_prev				= float3::zero();
+		static auto hit_world_pos_on_drag_start = float3::zero();
+
+		auto hit_world_pos = float3::zero();
+		auto hit_axis_dir  = float3::zero();
+		// 0 : x, 1 : y, 2 : z
+		auto dragged_axis_idx = -1;
 
 		auto is_any_pressed = false;
 
@@ -476,26 +630,16 @@ namespace age::editor::gizmo
 
 						if (is_drag)
 						{
-							c_auto normal = cam_forward;
-							c_auto denorm = math::dot(ui::g::mouse_ray_dir, normal);
-
-							if (std::abs(denorm) > math::g::epsilon_1e6)
+							if (c_auto hit = detail::ray_plane_intersection(ui::g::cam_world_pos, ui::g::mouse_ray_dir, anchor_pos, cam_forward))
 							{
-								c_auto t = math::dot(anchor_pos - ui::g::cam_world_pos, normal) / denorm;
-								if (t > 0.f)
-								{
-									c_auto hit_world	   = ui::g::cam_world_pos + t * ui::g::mouse_ray_dir;
-									c_auto hit_world_delta = hit_world - anchor_pos;
+								c_auto hit_world_delta = *hit - anchor_pos;
+								c_auto cam_right	   = math::normalize(math::cross(math::g::up, cam_forward));
+								c_auto cam_up		   = math::cross(cam_forward, cam_right);
 
-									c_auto cam_right = math::normalize(math::cross(math::g::up, cam_forward));
-									c_auto cam_up	 = math::cross(cam_forward, cam_right);
+								c_auto mouse_world_delta  = float2{ math::dot(cam_right, hit_world_delta), math::dot(cam_up, hit_world_delta) };
+								c_auto mouse_screen_delta = mouse_world_delta * screen_size / world_size;
 
-									c_auto mouse_world_delta  = float2{ math::dot(cam_up, hit_world_delta), math::dot(cam_right, hit_world_delta) };
-									c_auto mouse_screen_delta = mouse_world_delta * screen_size / world_size;
-
-									res_scale_ratio = (screen_size * 0.5f * 2 + mouse_screen_delta.x + mouse_screen_delta.y) / (screen_size * 0.5f * 2);
-									AGE_LOG(res_scale_ratio, mouse_screen_delta.x + mouse_screen_delta.y, screen_size);
-								}
+								res_scale_ratio = (screen_size * 0.5f * 2 + mouse_screen_delta.x + mouse_screen_delta.y) / (screen_size * 0.5f * 2);
 							}
 						}
 
@@ -561,12 +705,13 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					state_.drag_x	  += ui::detail::get_current_root().mouse_delta_uv.x;
-					res_scale_ratio.x  = (screen_size + state_.drag_x) / screen_size;
-				}
-				else
-				{
-					state.drag_x = 0.f;
+					c_auto& current_root = ui::detail::get_current_root();
+					if (c_auto hit = detail::axis_drag_hit(anchor_pos, current_root.world_basis_u, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir))
+					{
+						hit_world_pos	 = *hit;
+						hit_axis_dir	 = current_root.world_basis_u;
+						dragged_axis_idx = 0;
+					}
 				}
 
 				state_.storage[0] = is_drag ? 1 : 0;
@@ -634,12 +779,13 @@ namespace age::editor::gizmo
 
 					if (is_drag)
 					{
-						state_.drag_y	  -= ui::detail::get_current_root().mouse_delta_uv.y;
-						res_scale_ratio.y  = (screen_size + state_.drag_y) / screen_size;
-					}
-					else
-					{
-						state.drag_y = 0.f;
+						c_auto& current_root = ui::detail::get_current_root();
+						if (c_auto hit = detail::axis_drag_hit(anchor_pos, current_root.world_basis_v, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir))
+						{
+							hit_world_pos	 = *hit;
+							hit_axis_dir	 = current_root.world_basis_v;
+							dragged_axis_idx = 1;
+						}
 					}
 
 					state_.storage[0] = is_drag ? 1 : 0;
@@ -723,12 +869,13 @@ namespace age::editor::gizmo
 
 				if (is_drag)
 				{
-					state_.drag_z	  += ui::detail::get_current_root().mouse_delta_uv.x;
-					res_scale_ratio.z  = (screen_size + state_.drag_z) / screen_size;
-				}
-				else
-				{
-					state.drag_z = 0.f;
+					c_auto& current_root = ui::detail::get_current_root();
+					if (c_auto hit = detail::axis_drag_hit(anchor_pos, current_root.world_basis_u, ui::g::cam_world_pos, cam_forward, ui::g::mouse_ray_dir))
+					{
+						hit_world_pos	 = *hit;
+						hit_axis_dir	 = current_root.world_basis_u;
+						dragged_axis_idx = 2;
+					}
 				}
 
 				state_.storage[0] = is_drag ? 1 : 0;
@@ -762,7 +909,19 @@ namespace age::editor::gizmo
 
 		if (is_drag_start)
 		{
-			anchor_pos_prev = world_pos;
+			anchor_pos_prev				= world_pos;
+			hit_world_pos_on_drag_start = hit_world_pos;
+		}
+
+		if (dragged_axis_idx >= 0)
+		{
+			c_auto drag_start_dist = math::dot(hit_world_pos_on_drag_start - anchor_pos, hit_axis_dir);
+			c_auto current_dist	   = math::dot(hit_world_pos - anchor_pos, hit_axis_dir);
+
+			if (std::abs(drag_start_dist) > math::g::epsilon_1e4)
+			{
+				res_scale_ratio[dragged_axis_idx] = current_dist / drag_start_dist;
+			}
 		}
 
 		return std::tuple{ res_scale_ratio, is_drag_start, is_any_pressed };
@@ -788,8 +947,8 @@ namespace age::editor::gizmo
 		static auto prev_hover = mode_kind::none;
 		static auto prev_drag  = mode_kind::none;
 
-		static auto prev_mouse_sc		= float2{ 1, 0 };
-		static auto drag_start_mouse_sc = float2{ 1, 0 };
+		static auto prev_mouse_sin_cos		 = float2{ 1, 0 };
+		static auto drag_start_mouse_sin_cos = float2{ 1, 0 };
 
 		static auto drag_angle = 0.f;
 
@@ -860,7 +1019,7 @@ namespace age::editor::gizmo
 		c_auto& root = ui::detail::get_current_root();
 
 		c_auto mouse_center_offset = root.mouse_uv - float2{ screen_size } * 0.5f;
-		c_auto mouse_sc			   = normalize(float2{ mouse_center_offset.x, -mouse_center_offset.y });
+		c_auto mouse_sin_cos	   = normalize(float2{ mouse_center_offset.x, -mouse_center_offset.y });
 
 		c_auto h_outer_circle = widget::horizontal(set_grow()
 												   | set_child_gap(0)
@@ -914,7 +1073,7 @@ namespace age::editor::gizmo
 								  | set_offset(-theme::padding_large(), -theme::padding_large())
 								  | set_clip(false)
 								  | set_align_begin()
-								  | set_shape_pie_range(drag_start_mouse_sc, mouse_sc, std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_shape_pie_range(drag_start_mouse_sin_cos, mouse_sin_cos, std::fmod(drag_angle, 2.f * math::g::pi))
 								  | set_body_brush_color(theme::color_white() * 3.f, theme::opacity_mild()));
 				}
 			}
@@ -1000,7 +1159,7 @@ namespace age::editor::gizmo
 								  | set_clip(false)
 								  | set_align_begin()
 								  | set_rotation(rot)
-								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sin_cos), rotate_sc(mouse_sin_cos), std::fmod(drag_angle, 2.f * math::g::pi))
 								  | set_body_brush_color(theme::palette_green_bright(), theme::opacity_mild()));
 				}
 			}
@@ -1100,7 +1259,7 @@ namespace age::editor::gizmo
 								  | set_clip(false)
 								  | set_align_begin()
 								  | set_rotation(rot)
-								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sin_cos), rotate_sc(mouse_sin_cos), std::fmod(drag_angle, 2.f * math::g::pi))
 								  | set_body_brush_color(theme::palette_blue_bright(), theme::opacity_mild()));
 				}
 			}
@@ -1200,7 +1359,7 @@ namespace age::editor::gizmo
 								  | set_clip(false)
 								  | set_align_begin()
 								  | set_rotation(rot)
-								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sc), rotate_sc(mouse_sc), std::fmod(drag_angle, 2.f * math::g::pi))
+								  | set_shape_pie_range(rotate_sc(drag_start_mouse_sin_cos), rotate_sc(mouse_sin_cos), std::fmod(drag_angle, 2.f * math::g::pi))
 								  | set_body_brush_color(theme::palette_red_bright(), theme::opacity_mild()));
 				}
 			}
@@ -1261,8 +1420,8 @@ namespace age::editor::gizmo
 
 			if (prev_drag != mode_kind::trackball)
 			{
-				c_auto delta_sin = mouse_sc.x * prev_mouse_sc.y - mouse_sc.y * prev_mouse_sc.x;
-				c_auto delta_cos = mouse_sc.y * prev_mouse_sc.y + mouse_sc.x * prev_mouse_sc.x;
+				c_auto delta_sin = mouse_sin_cos.x * prev_mouse_sin_cos.y - mouse_sin_cos.y * prev_mouse_sin_cos.x;
+				c_auto delta_cos = mouse_sin_cos.y * prev_mouse_sin_cos.y + mouse_sin_cos.x * prev_mouse_sin_cos.x;
 
 				drag_angle += std::atan2(delta_sin, delta_cos);
 
@@ -1281,6 +1440,11 @@ namespace age::editor::gizmo
 				else if (prev_drag == mode_kind::axis_z)
 				{
 					axis_world = obj_z;
+				}
+
+				if (math::dot(axis_world, cam_forward) > 0.f)
+				{
+					axis_world = -axis_world;
 				}
 
 				res_quat = math::quat_rotation_normal(axis_world, drag_angle);
@@ -1307,12 +1471,12 @@ namespace age::editor::gizmo
 
 		if (is_drag_start)
 		{
-			drag_start_mouse_sc			  = mouse_sc;
+			drag_start_mouse_sin_cos	  = mouse_sin_cos;
 			gizmo_world_pos_on_drag_start = world_pos;
 			quat_on_drag_start			  = quat;
 		}
 
-		prev_mouse_sc = mouse_sc;
+		prev_mouse_sin_cos = mouse_sin_cos;
 
 
 		prev_hover = current_hover;

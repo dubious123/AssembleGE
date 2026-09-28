@@ -165,9 +165,8 @@ namespace age::ui
 
 		g::cam_world_pos = cam_world_pos;
 
-		c_auto target_world = math::ndc_to_world(cam_view_proj_inv, float3{ math::screen_to_ndc(float2{ g::window_width, g::window_height }, g::p_input_ctx->mouse_pos), 0.f });
-
-		g::mouse_ray_dir = math::normalize(target_world - cam_world_pos);
+		c_auto target_world = math::ndc_to_world(cam_view_proj_inv, float3{ math::screen_to_ndc(float2{ g::window_width, g::window_height }, clamp(g::p_input_ctx->mouse_pos, float2::zero(), float2{ g::window_width, g::window_height })), 0.f });
+		g::mouse_ray_dir	= math::normalize(target_world - cam_world_pos);
 
 		detail::root_begin_impl(root_desc{
 			.width	= g::window_width,
@@ -700,5 +699,11 @@ namespace age::ui
 		return world_pos
 			 + pos.x * (world_width / width) * world_basis_u
 			 + pos.y * (world_height / height) * world_basis_v;
+	}
+
+	float3
+	root_data::mouse_world_pos() const
+	{
+		return screen_to_world(mouse_uv);
 	}
 }	 // namespace age::ui

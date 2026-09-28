@@ -949,10 +949,10 @@ namespace age::editor
 			}
 		}
 
-		c_auto mode		   = g::gizmo_transform_mode;
-		c_auto translation = mode == e::transform_mode_kind::translation
-							   ? gizmo::translation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
-							   : float3::zero();
+		c_auto mode																	= g::gizmo_transform_mode;
+		c_auto && [ translation_res, translation_drag_start, translation_dragging ] = mode == e::transform_mode_kind::translation
+																						? gizmo::translation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
+																						: std::tuple{ float3::zero(), false, false };
 
 		c_auto && [ rotation_res, pivot_pos, rotation_drag_start, rotation_dragging ] = mode == e::transform_mode_kind::rotation
 																						  ? gizmo::rotation(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
@@ -961,6 +961,14 @@ namespace age::editor
 		c_auto && [ scale_res, scale_drag_start, scale_dragging ] = mode == e::transform_mode_kind::scale
 																	  ? gizmo::scale(cam.fov_y, cam.pos, cam_forward, world_pos, quat, screen_size)
 																	  : std::tuple{ float3::one(), false, false };
+
+		if (translation_dragging is_false)
+		{
+			for (auto& map : g::translation_snapshot_vec)
+			{
+				map.clear();
+			}
+		}
 
 		if (rotation_dragging is_false)
 		{
@@ -978,6 +986,7 @@ namespace age::editor
 			}
 		}
 
+		g::translation_snapshot_vec.resize(g::select_vec.size());
 		g::scale_snapshot_vec.resize(g::select_vec.size());
 		g::rotation_snapshot_vec.resize(g::select_vec.size());
 
@@ -997,8 +1006,16 @@ namespace age::editor
 						{
 							if (entities.has_component<ecs::position>(id))
 							{
-								auto&& [pos]  = entities.get_component<ecs::position>(id);
-								pos			 += translation;
+								auto&& [pos] = entities.get_component<ecs::position>(id);
+								if (translation_drag_start)
+								{
+									g::translation_snapshot_vec[active_scene.code_idx][ecs_ent_id] = pos;
+								}
+								else if (translation_dragging)
+								{
+									AGE_ASSERT(g::translation_snapshot_vec[active_scene.code_idx].contains(ecs_ent_id));
+									pos = g::translation_snapshot_vec[active_scene.code_idx][ecs_ent_id] + translation_res;
+								}
 							}
 						}
 						else if (mode == e::transform_mode_kind::rotation)

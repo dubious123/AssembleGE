@@ -435,6 +435,9 @@ namespace age::ui
 
 		float3
 		screen_to_world(float2 _) const;
+
+		float3
+		mouse_world_pos() const;
 	};
 
 	struct root_graphics_data
