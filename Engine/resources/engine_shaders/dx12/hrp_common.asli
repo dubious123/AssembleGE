@@ -69,6 +69,8 @@ uint32 opaque_double_sided_meshlet_render_data_count;
 
 uint32 transparent_double_sided_meshlet_render_data_count;
 uint32 mask_double_sided_meshlet_render_data_count;
+float  hdr_headroom;
+float  sdr_to_pq_scale;
 
 // cbuffer root_constants reg(b1)
 uint32			   directional_light_count_and_extra;

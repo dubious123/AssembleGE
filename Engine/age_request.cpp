@@ -31,7 +31,7 @@ namespace age::request
 
 		for (auto subsystem_type_idx : age::views::each_set_bit_idx(req_meta.get_listeners(v_phase)))
 		{
-			g::request_info_vec[std::to_underlying(subsystem_type_idx)].emplace_back(request::info{
+			g::request_info_vec[to_idx(subsystem_type_idx)].emplace_back(request::info{
 				.req_param		= req_param,
 				.sync_state_idx = sync_state_idx,
 				.phase			= v_phase,
@@ -44,9 +44,9 @@ namespace age::request
 	for_each() noexcept
 	{
 		return std::views::iota(0)
-			 | std::views::take(g::request_info_vec[std::to_underlying(sys_type)].size())
+			 | std::views::take(g::request_info_vec[to_idx(sys_type)].size())
 			 | std::views::reverse
-			 | std::views::transform([](auto idx) -> auto& { return g::request_info_vec[std::to_underlying(sys_type)][idx]; });
+			 | std::views::transform([](auto idx) -> auto& { return g::request_info_vec[to_idx(sys_type)][idx]; });
 	}
 
 	template <subsystem::type sys_type, request::type req_type, request::t_phase v_phase>
@@ -57,7 +57,7 @@ namespace age::request
 		constexpr auto next_listeners = req_meta.get_listeners(v_phase + 1);
 		constexpr auto has_next_phase = next_listeners != subsystem::flags{ 0 };
 
-		auto& vec		 = g::request_info_vec[std::to_underlying(sys_type)];
+		auto& vec		 = g::request_info_vec[to_idx(sys_type)];
 		auto  backup_req = req;
 		req				 = vec.back();
 		vec.pop_back();

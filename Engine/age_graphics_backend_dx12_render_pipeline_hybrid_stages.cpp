@@ -2019,11 +2019,11 @@ namespace age::graphics::render_pipeline
 	{
 		using namespace graphics::pso;
 
-		h_pso = graphics::pso::create(
+		h_pso_srgb = graphics::pso::create(
 			L"pso_post_process",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
 			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
-			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_post_process_ps) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_post_process_srgb_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
 			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
 			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
@@ -2031,11 +2031,25 @@ namespace age::graphics::render_pipeline
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		p_pso_srgb = graphics::g::pso_ptr_vec[h_pso_srgb];
+
+		h_pso_hdr10 = graphics::pso::create(
+			L"pso_post_process",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_post_process_hdr10_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ DXGI_FORMAT_R16G16B16A16_FLOAT }, .NumRenderTargets = 1 } },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_blend{ .subobj = defaults::blend_desc::opaque },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_hdr10 = graphics::g::pso_ptr_vec[h_pso_hdr10];
 	}
 
 	inline void
-	post_process_stage::execute(rtv_desc_handle h_post_buffer_rtv_desc) const noexcept
+	post_process_stage::execute(rtv_desc_handle h_post_buffer_rtv_desc, e::color_space_kind color_space) const noexcept
 	{
 		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(h_post_buffer_rtv_desc);
 
@@ -2045,7 +2059,25 @@ namespace age::graphics::render_pipeline
 			nullptr,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		command::set_pso(p_pso);
+		switch (color_space)
+		{
+		case e::color_space_kind::srgb:
+		{
+			command::set_pso(p_pso_srgb);
+			break;
+		}
+		case e::color_space_kind::hdr10:
+		{
+			command::set_pso(p_pso_hdr10);
+			break;
+		}
+		default:
+		{
+			AGE_UNREACHABLE("invalid color_space : {}", to_idx(color_space));
+			break;
+		}
+		}
+
 		command::dispatch_mesh(1, 1, 1);
 
 		command::end_render_pass();
@@ -2054,7 +2086,8 @@ namespace age::graphics::render_pipeline
 	void
 	post_process_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso);
+		pso::destroy(h_pso_srgb);
+		pso::destroy(h_pso_hdr10);
 	}
 }	 // namespace age::graphics::render_pipeline
 
@@ -2298,47 +2331,41 @@ namespace age::graphics::render_pipeline
 	{
 		using namespace graphics::pso;
 
-		auto ms_byte_code = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms);
-
-		auto&& [ps_byte_code, back_buffer_rt_format] = [&]() {
-			switch (graphics::i_color.get_display_color_space())
-			{
-			case color_space::srgb:
-				return std::tuple{
-					shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_sdr_ps),
-					DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
-
-				};
-			case color_space::hdr:
-				return std::tuple{
-					shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_hdr10_ps),
-					DXGI_FORMAT_R10G10B10A2_UNORM
-				};
-			default:
-				AGE_UNREACHABLE("invalid color space");
-			}
-		}();
-
-		h_pso = graphics::pso::create(
-			L"pso_presentation",
+		h_pso_srgb = graphics::pso::create(
+			L"pso_presentation_srgb",
 			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
-			pss_ms{ .subobj = ms_byte_code },
-			pss_ps{ .subobj = ps_byte_code },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_sdr_ps) },
 			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
-			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ back_buffer_rt_format }, .NumRenderTargets = 1 } },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ defaults::rtv_view_desc::srgb_2d.Format }, .NumRenderTargets = 1 } },
 			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_UNKNOWN },
 			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
 			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
 			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
 			pss_node_mask{ .subobj = 0 });
 
-		p_pso = graphics::g::pso_ptr_vec[h_pso];
+		p_pso_srgb = graphics::g::pso_ptr_vec[h_pso_srgb];
+
+		h_pso_hdr10 = graphics::pso::create(
+			L"pso_presentation_hdr10",
+			pss_root_signature{ .subobj = graphics::g::root_signature_ptr_vec[h_root_sig] },
+			pss_ms{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_fullscreen_ms) },
+			pss_ps{ .subobj = shader::get_d3d12_bytecode(e::engine_shader_kind::hrp_presentation_hdr10_ps) },
+			pss_primitive_topology{ .subobj = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE },
+			pss_render_target_formats{ .subobj = D3D12_RT_FORMAT_ARRAY{ .RTFormats{ defaults::rtv_view_desc::hdr10_2d.Format }, .NumRenderTargets = 1 } },
+			pss_depth_stencil_format{ .subobj = DXGI_FORMAT_UNKNOWN },
+			pss_rasterizer{ .subobj = defaults::rasterizer_desc::no_cull },
+			pss_depth_stencil1{ .subobj = defaults::depth_stencil_desc1::disabled },
+			pss_sample_desc{ .subobj = DXGI_SAMPLE_DESC{ .Count = 1, .Quality = 0 } },
+			pss_node_mask{ .subobj = 0 });
+
+		p_pso_hdr10 = graphics::g::pso_ptr_vec[h_pso_hdr10];
 	}
 
 	inline void
 	presentation_stage::execute(render_surface& rs) const noexcept
 	{
-		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(rs.h_rtv_desc());
+		auto render_pass_rt_desc = defaults::render_pass_rtv_desc::overwrite_preserve(rs.get_h_rtv_desc());
 
 		command::begin_render_pass(
 			1,
@@ -2346,7 +2373,25 @@ namespace age::graphics::render_pipeline
 			nullptr,
 			D3D12_RENDER_PASS_FLAG_NONE);
 
-		command::set_pso(p_pso);
+		switch (rs.color_space)
+		{
+		case e::color_space_kind::srgb:
+		{
+			command::set_pso(p_pso_srgb);
+			break;
+		}
+		case e::color_space_kind::hdr10:
+		{
+			command::set_pso(p_pso_hdr10);
+			break;
+		}
+		default:
+		{
+			AGE_UNREACHABLE("invalid color_space : {}", to_idx(rs.color_space));
+			break;
+		}
+		}
+
 		command::dispatch_mesh(1, 1, 1);
 
 		command::end_render_pass();
@@ -2355,7 +2400,8 @@ namespace age::graphics::render_pipeline
 	void
 	presentation_stage::deinit() noexcept
 	{
-		pso::destroy(h_pso);
+		pso::destroy(h_pso_srgb);
+		pso::destroy(h_pso_hdr10);
 	}
 }	 // namespace age::graphics::render_pipeline
 

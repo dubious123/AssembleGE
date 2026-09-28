@@ -1235,6 +1235,7 @@ namespace age::ui::widget
 	slider(float& value, float min, float max) noexcept
 	{
 		using enum input::e::key_kind;
+		value = clamp(value, min, max);
 
 		c_auto max_thumb_size = std::max(std::max(theme::slider_thumb_size(), theme::slider_thumb_size_hover()), theme::slider_thumb_size_active());
 
@@ -1258,14 +1259,14 @@ namespace age::ui::widget
 
 				c_auto new_ratio = (std::clamp(ui::detail::get_current_root().mouse_uv.x, x_min, x_max) - x_min) / width;
 
-				value = (max - min) * new_ratio;
+				value = min + (max - min) * new_ratio;
 			}
 			else if (h_slider.hovered())
 			{
 				slider_style_state = e::style_state::hover;
 			}
 
-			c_auto ratio = std::clamp(value, min, max) / (max - min);
+			c_auto ratio = std::clamp(value - min, 0.f, max - min) / (max - min);
 
 			c_auto thumb_size = slider_style_state == e::style_state::idle
 								  ? theme::slider_thumb_size()

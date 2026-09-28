@@ -114,16 +114,16 @@ namespace age::platform
 	get_client_height(window_handle _) noexcept;
 
 	FORCE_INLINE window_state
-		get_window_state(window_handle) noexcept;
+	get_window_state(window_handle _) noexcept;
 }	 // namespace age::platform
 
 namespace age::platform
 {
 #if defined(AGE_PLATFORM_WINDOW)
 	FORCE_INLINE HWND
-		get_hwnd(window_handle) noexcept;
+	get_hwnd(window_handle _) noexcept;
 
 	FORCE_INLINE window_handle
-		get_handle(HWND) noexcept;
+	get_handle(HWND _) noexcept;
 #endif
 }	 // namespace age::platform

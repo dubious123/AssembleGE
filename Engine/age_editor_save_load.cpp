@@ -493,6 +493,8 @@ namespace age::editor::detail
 			if (available_count == 0)
 			{
 				std::println("  (no file data available - will be created fresh)");
+				new_unmatched_code.emplace_back(code_idx);
+				continue;
 			}
 
 			std::println("  [-1] Create fresh (no pairing)");

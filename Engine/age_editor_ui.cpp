@@ -1141,23 +1141,24 @@ namespace age::editor
 		ui::widget::numeric_field(cmp.fade_range, "fade_range", 0.f, cmp.fade_distance);
 
 		c_auto debug_flag_cached = cmp.debug_flags;
-#define ao_debug_flag_checkbox(enum_name)                                          \
-	{                                                                              \
-		bool b = has_any(cmp.debug_flags, graphics::e::ao_debug_flags::enum_name); \
-		ui::widget::checkbox(#enum_name, b);                                       \
-		if (b)                                                                     \
-		{                                                                          \
-			cmp.debug_flags |= graphics::e::ao_debug_flags::enum_name;             \
-		}                                                                          \
-		else                                                                       \
-		{                                                                          \
-			cmp.debug_flags &= ~graphics::e::ao_debug_flags::enum_name;            \
-		}                                                                          \
-	}
-
-		ao_debug_flag_checkbox(render_ao_buffer);
-
-#undef ao_debug_flag_checkbox
+		//#define ao_debug_flag_checkbox(enum_name)                                          \
+//	{                                                                              \
+//		bool b = has_any(cmp.debug_flags, graphics::e::ao_debug_flags::enum_name); \
+//		ui::widget::checkbox(#enum_name, b);                                       \
+//		if (b)                                                                     \
+//		{                                                                          \
+//			cmp.debug_flags |= graphics::e::ao_debug_flags::enum_name;             \
+//		}                                                                          \
+//		else                                                                       \
+//		{                                                                          \
+//			cmp.debug_flags &= ~graphics::e::ao_debug_flags::enum_name;            \
+//		}                                                                          \
+//	}
+		//
+		//		ao_debug_flag_checkbox(render_ao_buffer);
+		//
+		// #undef ao_debug_flag_checkbox
+		ui::widget::checkbox_flags("ao_debug_flags", cmp.debug_flags);
 
 		if (cmp.enabled and update)
 		{
@@ -1346,6 +1347,40 @@ namespace age::editor
 		}
 	}
 
+	void
+	ui_component(age::ecs::user_display_settings& cmp) noexcept
+	{
+		if (auto _ = ui::widget::begin(ui::set_horizontal() | ui::set_width_grow() | ui::set_height_fit()))
+		{
+			if (auto update_btn = ui::widget::button("update");
+				update_btn.clicked())
+			{
+				cmp.color_space_change_requested = true;
+			}
+
+			if (auto read_btn = ui::widget::button("read");
+				read_btn.clicked())
+			{
+				cmp.read_requested = true;
+			}
+		}
+
+		ui::widget::text("preference_color_space");
+		ui::widget::dropdown(cmp.preference_color_space);
+		ui::widget::text(std::format("hdr_peak_luminance : {}", cmp.hdr_peak_luminance).data());
+		ui::widget::slider(cmp.hdr_peak_luminance, cmp.hdr_min_luminance, cmp.hdr_max_luminance);
+		ui::widget::numeric_field(cmp.hdr_paper_white_luminance, "hdr_paper_white_luminance", config::srgb_reference_white_luminance, min(cmp.hdr_max_full_frame_luminance > 0.f ? cmp.hdr_max_full_frame_luminance : 500.f, 500.f));
+		ui::widget::slider(cmp.hdr_paper_white_luminance, config::srgb_reference_white_luminance, min(cmp.hdr_max_full_frame_luminance > 0.f ? cmp.hdr_max_full_frame_luminance : 500.f, 500.f));
+
+
+		ui::widget::separator_v();
+
+		ui::widget::text(std::format("current_color_space : {}", to_string(cmp.current_color_space)).data());
+		ui::widget::text(std::format("hdr_min_luminance : {}", cmp.hdr_min_luminance).data());
+		ui::widget::text(std::format("hdr_max_luminance : {}", cmp.hdr_max_luminance).data());
+		ui::widget::text(std::format("hdr_max_full_frame_luminance : {}", cmp.hdr_max_full_frame_luminance).data());
+		ui::widget::text(std::format("display_name : {}", cmp.display_name).data());
+	}
 }	 // namespace age::editor
 
 namespace age::editor
@@ -1473,6 +1508,44 @@ namespace age::editor
 							}
 						}
 					}));
+		}
+	}
+}	 // namespace age::editor
+
+namespace age::editor
+{
+	void
+	ui_scene_view() noexcept
+	{
+		using namespace ui;
+		if (auto h_game_scene = widget::begin(style::vertical() | set_width_grow() | set_height_grow() | set_padding_top(theme::padding_large())))
+		{
+			// g::scene_view_focused = h_game_scene.hovered_all();
+
+			auto h_top_panel = widget::begin(style::horizontal() | set_align_center() | set_width_grow() | set_height_fit());
+			widget::begin(set_height_fixed(0) | set_width_fixed(200));
+			if (auto h_top_center = widget::begin(style::vertical() | set_width_grow() | set_height_fit()))
+			{
+				auto h_play_pause_stop = widget::begin(style::horizontal() | set_align_center() | set_width_fit() | set_height_fit());
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::triangle, 30, theme::color_text_green(), theme::palette_light_green(), theme::palette_green(), set_rotation(age::cvt_to_radian(30.f))))
+				{
+				}
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::circle, 30, theme::color_text_amber(), theme::palette_light_gold(), theme::palette_amber()))
+				{
+				}
+				if (auto _ = widget::toggle_button(ui::e::shape_kind::rounded_rect, 30, theme::color_text_red(), theme::palette_light_red(), theme::palette_red(), set_shape_data(theme::roundness_small())))
+				{
+				}
+			}
+
+			if (auto h_top_right_panel = widget::begin(set_width_fixed(200) | set_height_fit()))
+			{
+				auto is_world = g::gizmo_space == e::transform_space_kind::world;
+
+				widget::checkbox("world", is_world);
+
+				g::gizmo_space = is_world ? e::transform_space_kind::world : e::transform_space_kind::local;
+			}
 		}
 	}
 }	 // namespace age::editor

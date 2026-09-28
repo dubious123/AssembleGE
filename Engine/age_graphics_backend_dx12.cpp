@@ -3,6 +3,101 @@
 
 #if defined(AGE_GRAPHICS_BACKEND_DX12)
 
+namespace age::graphics
+{
+	void
+	recreate_dxgi_factory_if_stale(AGE_INOUT BARE_OF(g::p_dxgi_factory) & p_dxgi_factory) noexcept
+	{
+		if (p_dxgi_factory is_not_nullptr and p_dxgi_factory->IsCurrent())
+		{
+			return;
+		}
+
+		if (p_dxgi_factory is_not_nullptr)
+		{
+			p_dxgi_factory->Release();
+		}
+
+		if constexpr (config::debug_mode)
+		{
+			AGE_HR_CHECK(::CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&p_dxgi_factory)));
+		}
+		else
+		{
+			AGE_HR_CHECK(::CreateDXGIFactory2(0, IID_PPV_ARGS(&p_dxgi_factory)));
+		}
+	}
+
+	graphics::monitor_data
+	get_monitor_data(platform::window_handle h_window) noexcept
+	{
+		auto res = graphics::monitor_data{};
+
+		c_auto h_monitor = ::MonitorFromWindow(platform::get_hwnd(h_window), MONITOR_DEFAULTTONEAREST);
+		if (h_monitor is_nullptr)
+		{
+			return res;
+		}
+
+		recreate_dxgi_factory_if_stale(g::p_dxgi_factory);
+
+
+		for (auto*	p_adapter = (IDXGIAdapter1*)nullptr;
+			 c_auto adapter_idx : std::views::iota(0u))
+		{
+			if (g::p_dxgi_factory->EnumAdapterByGpuPreference(adapter_idx, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&p_adapter)) == DXGI_ERROR_NOT_FOUND)
+			{
+				break;
+			}
+
+			auto found = false;
+
+			for (auto*	p_output = (IDXGIOutput*)nullptr;
+				 c_auto output_idx : std::views::iota(0u))
+			{
+				if (p_adapter->EnumOutputs(output_idx, &p_output) == DXGI_ERROR_NOT_FOUND)
+				{
+					break;
+				}
+
+				auto* p_output6 = (IDXGIOutput6*)nullptr;
+
+				if (SUCCEEDED(p_output->QueryInterface(IID_PPV_ARGS(&p_output6))) is_false)
+				{
+					p_output->Release();
+					continue;
+				}
+
+
+				auto output_desc = DXGI_OUTPUT_DESC1{};
+
+				if (SUCCEEDED(p_output6->GetDesc1(&output_desc)) and output_desc.Monitor == h_monitor)
+				{
+					found = true;
+
+					res.hdr_enabled				 = output_desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+					res.min_luminance			 = output_desc.MinLuminance;
+					res.max_luminance			 = output_desc.MaxLuminance;
+					res.max_full_frame_luminance = output_desc.MaxFullFrameLuminance;
+
+					fs::detail::to_utf8(std::wstring_view{ output_desc.DeviceName }, false, AGE_OUT std::span<char>{ res.monitor_name });
+				}
+
+				p_output6->Release();
+				p_output->Release();
+
+				if (found) { break; }
+			}
+
+			p_adapter->Release();
+
+			if (found) { break; }
+		}
+
+		return res;
+	}
+}	 // namespace age::graphics
+
 // main
 namespace age::graphics
 {
@@ -33,14 +128,7 @@ namespace age::graphics
 			}
 		}
 
-		if constexpr (config::debug_mode)
-		{
-			AGE_HR_CHECK(::CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&g::p_dxgi_factory)));
-		}
-		else
-		{
-			AGE_HR_CHECK(::CreateDXGIFactory2(0, IID_PPV_ARGS(&g::p_dxgi_factory)));
-		}
+		recreate_dxgi_factory_if_stale(g::p_dxgi_factory);
 
 		static_assert(config::enable_gpu_based_validation is_false or config::debug_mode,
 					  "gpu based validation requires the debug layer");
@@ -51,11 +139,11 @@ namespace age::graphics
 			auto* p_device	= (ID3D12Device11*)nullptr;
 			if (g::p_dxgi_factory->EnumAdapterByGpuPreference(adapter_idx, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&p_adapter)) == DXGI_ERROR_NOT_FOUND)
 			{
-				assert(false);
+				AGE_ASSERT(false);
 				break;
 			}
 
-			assert(p_adapter is_not_nullptr);
+			AGE_ASSERT(p_adapter is_not_nullptr);
 			if (FAILED(::D3D12CreateDevice(p_adapter, g::minimum_feature_level, IID_PPV_ARGS(&p_device))))
 			{
 				p_adapter->Release();
@@ -322,21 +410,31 @@ namespace age::graphics
 
 				break;
 			}
+			case request::type::change_color_space:
+			{
+				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
+				auto& rs = g::render_surface_vec[req.req_param.as<graphics::render_surface_handle>()];
+
+				rs.should_render = false;
+
+				if (command::is_complete(e::queue_kind::direct, rs.present_fence_value))
+				{
+					rs.rebuild(rs.preference_color_space);
+					rs.should_render = true;
+
+					request::set_done<
+						subsystem::type::graphics,
+						request::type::change_color_space, 0>(req);
+				}
+
+				break;
+			}
 			case request::type::window_maximized:
 			{
 				AGE_ASSERT(req.phase == 0, "[{}] : invalid phase : {}", to_string(req.type), req.phase);
 				auto  h_window = req.req_param.as<platform::window_handle>();
 				auto  h_rs	   = graphics::find_render_surface(h_window);
 				auto& rs	   = g::render_surface_vec[h_rs];
-
-				// rs.present_flags &= ~DXGI_PRESENT_ALLOW_TEARING;
-
-				//{
-				//	auto p_target = (IDXGIOutput*)nullptr;
-				//	AGE_HR_CHECK(rs.p_swap_chain->GetContainingOutput(&p_target));
-				//	rs.p_swap_chain->SetFullscreenState(true, p_target);
-				//	p_target->Release();
-				//}
 
 				rs.should_render = false;
 				request::set_done<

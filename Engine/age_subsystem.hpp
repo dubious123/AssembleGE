@@ -2,19 +2,9 @@
 
 namespace age::subsystem
 {
-	enum class type : uint8
-	{
-		platform = 0,
-		graphics,
+	AGE_DEFINE_ENUM(type, uint8, platform, graphics);
 
-		count,
-	};
-
-	enum class flags : uint8
-	{
-		platform = 1ul << std::to_underlying(type::platform),
-		graphics = 1ul << std::to_underlying(type::graphics),
-	};
-
-	AGE_ENUM_FLAG_OPERATORS(flags)
+	AGE_DEFINE_ENUM_FLAGS(flags, uint8,
+						  (platform, (1ul << to_idx(type::platform))),
+						  (graphics, (1ul << to_idx(type::graphics))));
 }	 // namespace age::subsystem

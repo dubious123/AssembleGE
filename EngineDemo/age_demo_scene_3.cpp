@@ -72,13 +72,13 @@ namespace age_demo::scene_3
 				}
 				else
 				{
-					age::editor::ui_scene_view(i_update.get_render_pipeline());
+					age::editor::ui_scene_view();
 				}
 			}
 
 			if (age::editor::is_edit_mode())
 			{
-				age::editor::update_game(i_update.get_editor_game(), i_update.get_render_pipeline());
+				age::editor::update_game(i_update.get_editor_game(), i_update.get_render_pipeline(), i_update.get_h_render_surface);
 			}
 			else if (age::editor::is_play_mode())
 			{

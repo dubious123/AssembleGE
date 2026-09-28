@@ -1,14 +1,6 @@
 #pragma once
 #include "age.hpp"
 
-namespace age::graphics
-{
-	struct
-	{
-		AGE_GET(display_color_space, display_color_space);
-	} i_color;
-}	 // namespace age::graphics
-
 // handle
 namespace age::graphics
 {
@@ -78,6 +70,17 @@ namespace age::graphics::bake
 // utils
 namespace age::graphics
 {
+	struct monitor_data
+	{
+		bool	hdr_enabled;
+		uint8_3 _;
+		float	min_luminance;
+		float	max_luminance;
+		float	max_full_frame_luminance;
+
+		age::array<char, 192> monitor_name;
+	};
+
 	bool
 	texture_format_is_srgb(e::texture_format format) noexcept;
 
@@ -86,4 +89,16 @@ namespace age::graphics
 
 	bool
 	texture_format_has_alpha(e::texture_format format) noexcept;
+
+	monitor_data
+	get_monitor_data(platform::window_handle h_window) noexcept;
+
+	monitor_data
+	get_monitor_data(render_surface_handle h_render_surface) noexcept;
+
+	e::color_space_kind
+	get_color_space(render_surface_handle h_render_surface) noexcept;
+
+	void
+	request_change_color_space(render_surface_handle, e::color_space_kind preference_color_space) noexcept;
 }	 // namespace age::graphics

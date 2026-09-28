@@ -218,6 +218,5 @@ namespace age
 
 	#include "age_editor_asset_mgr.inl"
 	#include "age_editor.inl"
-	#include "age_editor_ui.inl"
 	#include "age_editor_save_load.inl"
 #endif

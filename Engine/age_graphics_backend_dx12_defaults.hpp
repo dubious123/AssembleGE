@@ -280,14 +280,14 @@ namespace age::graphics::defaults
 {
 	namespace rtv_view_desc
 	{
-		// main buffer format for hdr rendering
+		// main buffer format for hdr10 rendering
 		inline constexpr auto hdr_rgba16_2d = D3D12_RENDER_TARGET_VIEW_DESC{
 			.Format		   = DXGI_FORMAT_R16G16B16A16_FLOAT,
 			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 			.Texture2D	   = { .MipSlice = 0, .PlaneSlice = 0 },
 		};
 
-		// back buffer format for hdr rendering (for swap chain buffers with hdr support)
+		// back buffer format for hdr10 rendering (for swap chain buffers with hdr support)
 		inline constexpr auto hdr10_2d = D3D12_RENDER_TARGET_VIEW_DESC{
 			.Format		   = DXGI_FORMAT_R10G10B10A2_UNORM,
 			.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,

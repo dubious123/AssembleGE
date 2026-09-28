@@ -188,6 +188,10 @@ namespace age::config
 
 	inline constexpr auto enable_gpu_based_validation = bool{ AGE_ENABLE_GBV };
 
+	// graphics
+	inline constexpr auto default_hdr_enabled			 = true;
+	inline constexpr auto srgb_reference_white_luminance = 80.f;
+
 #if defined(AGE_EDITOR)
 
 	// 2 : add per scene camera

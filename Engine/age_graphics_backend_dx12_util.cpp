@@ -410,5 +410,41 @@ namespace age::graphics
 	{
 		return format_size(dx12_format(format));
 	}
+
+	constexpr DXGI_COLOR_SPACE_TYPE
+	dx12_color_space(e::color_space_kind color_space) noexcept
+	{
+		switch (color_space)
+		{
+		case graphics::e::color_space_kind::srgb:
+		{
+			return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+		}
+		case graphics::e::color_space_kind::hdr10:
+		{
+			return DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+		}
+		default:
+			AGE_UNREACHABLE("invalid color_space_kind: {}", to_idx(color_space));
+		}
+	}
+
+	constexpr DXGI_FORMAT
+	dx12_format(e::color_space_kind color_space) noexcept
+	{
+		switch (color_space)
+		{
+		case graphics::e::color_space_kind::srgb:
+		{
+			return DXGI_FORMAT_R8G8B8A8_UNORM;
+		}
+		case graphics::e::color_space_kind::hdr10:
+		{
+			return DXGI_FORMAT_R10G10B10A2_UNORM;
+		}
+		default:
+			AGE_UNREACHABLE("invalid color_space_kind: {}", to_idx(color_space));
+		}
+	}
 }	 // namespace age::graphics
 #endif

@@ -487,6 +487,9 @@ namespace age::graphics::render_pipeline
 		env_light_cpu_data_vec.clear();
 		bloom_desc_vec.clear();
 		rt_geometry_desc_vec.clear();
+
+		hdr_peak_luminance		  = 0.f;
+		hdr_paper_white_luminance = 0.f;
 	}
 
 	void
@@ -1186,7 +1189,7 @@ namespace age::graphics::render_pipeline
 				mask_single_sided_meshlet_render_data_count,
 				opaque_double_sided_meshlet_render_data_count,
 				transparent_double_sided_meshlet_render_data_count,
-				mask_double_sided_meshlet_render_data_count] = upload_data();
+				mask_double_sided_meshlet_render_data_count] = upload_data(rs);
 
 		{
 			frame_data_buffer.apply();
@@ -1440,7 +1443,7 @@ namespace age::graphics::render_pipeline
 			stage_bloom.execute(root_constants, h_bloom_chain, bloom_mip_count, bloom_gpu);
 		}
 
-		stage_post_process.execute(h_post_buffer_rtv_desc);
+		stage_post_process.execute(h_post_buffer_rtv_desc, rs.color_space);
 
 		command::apply_barriers(barrier::tex_srv_to_uav(h_opaque_geo_prev_buffer, D3D12_BARRIER_SYNC_COMPUTE_SHADING | D3D12_BARRIER_SYNC_PIXEL_SHADING));
 		stage_geo_prev.execute(extent);
@@ -4860,6 +4863,16 @@ namespace age::graphics::render_pipeline
 namespace age::graphics::render_pipeline
 {
 	void
+	hybrid_pipeline::set_hdr_luminance(float hdr_peak_luminance, float hdr_paper_white_luminance) noexcept
+	{
+		this->hdr_peak_luminance		= hdr_peak_luminance;
+		this->hdr_paper_white_luminance = hdr_paper_white_luminance;
+	}
+}	 // namespace age::graphics::render_pipeline
+
+namespace age::graphics::render_pipeline
+{
+	void
 	hybrid_pipeline::enable_debug_view() noexcept
 	{
 		auto& cpu_data = debug_view_data_cpu;
@@ -5027,7 +5040,7 @@ namespace age::graphics::render_pipeline
 	}
 
 	std::tuple<uint32, uint32, uint32, uint32, uint32, uint32>
-	hybrid_pipeline::upload_data() noexcept
+	hybrid_pipeline::upload_data(const graphics::render_surface& rs) noexcept
 	{
 		c_auto frame_idx = global::i_graphics.get_frame_buffer_idx();
 
@@ -5483,6 +5496,14 @@ namespace age::graphics::render_pipeline
 		system_flags		|= gist_enabled() ? g::age_system_kind_gist : 0u;
 		system_flags		|= debug_view_enabled() ? g::age_system_kind_debug_view : 0u;
 
+		c_auto effective_peak_luminance =
+			hdr_peak_luminance > 0
+				? hdr_peak_luminance
+			: rs.max_luminance > 0
+				? rs.max_luminance
+				: 1000;
+		c_auto effective_paper_white_luminance = hdr_paper_white_luminance > 0.f ? hdr_paper_white_luminance : config::srgb_reference_white_luminance;
+
 		auto frame_d = shared_type::frame_data{
 			.view										  = main_cam_data.view,
 			.view_proj									  = main_cam_data.view_proj,
@@ -5540,6 +5561,8 @@ namespace age::graphics::render_pipeline
 			.transparent_double_sided_meshlet_render_data_count = transparent_double_sided_meshlet_render_data_count,
 			.mask_double_sided_meshlet_render_data_count		= mask_double_sided_meshlet_render_data_count,
 
+			.hdr_headroom	 = effective_peak_luminance / effective_paper_white_luminance,
+			.sdr_to_pq_scale = effective_paper_white_luminance / 10000.f,
 			// todo, light bin config
 		};
 		std::ranges::copy(main_cam_data.frustum_plane_arr, frame_d.frustum_planes);

@@ -536,14 +536,17 @@ namespace age::graphics::render_pipeline
 
 	struct post_process_stage
 	{
-		pso::handle			 h_pso = {};
-		ID3D12PipelineState* p_pso = nullptr;
+		pso::handle			 h_pso_srgb = {};
+		ID3D12PipelineState* p_pso_srgb = nullptr;
+
+		pso::handle			 h_pso_hdr10 = {};
+		ID3D12PipelineState* p_pso_hdr10 = nullptr;
 
 		void
 		init(graphics::root_signature::handle h_root_sig) noexcept;
 
 		inline void
-		execute(rtv_desc_handle _) const noexcept;
+		execute(rtv_desc_handle, e::color_space_kind _) const noexcept;
 
 		void
 		deinit() noexcept;
@@ -612,8 +615,11 @@ namespace age::graphics::render_pipeline
 
 	struct presentation_stage
 	{
-		pso::handle			 h_pso = {};
-		ID3D12PipelineState* p_pso = nullptr;
+		pso::handle			 h_pso_srgb = {};
+		ID3D12PipelineState* p_pso_srgb = nullptr;
+
+		pso::handle			 h_pso_hdr10 = {};
+		ID3D12PipelineState* p_pso_hdr10 = nullptr;
 
 		void
 		init(root_signature::handle h_root_sig) noexcept;
@@ -956,6 +962,10 @@ namespace age::graphics::render_pipeline
 
 		byte_buf shader_debug_assert_result_buf_arr[global::frame_buffer_count];
 
+		// hdr_settings
+		float hdr_peak_luminance		= 0.f;
+		float hdr_paper_white_luminance = 0.f;
+
 		// main
 		void
 		init() noexcept;
@@ -1217,6 +1227,10 @@ namespace age::graphics::render_pipeline
 		bool
 		aa_enabled() const noexcept;
 
+		// hdr
+		void
+		set_hdr_luminance(float hdr_peak_luminance, float hdr_paper_white_luminance) noexcept;
+
 		// debug_view
 		void
 		enable_debug_view(const debug_view_desc&) noexcept;
@@ -1247,7 +1261,7 @@ namespace age::graphics::render_pipeline
 		upload_material(const shared_type::material&) noexcept;
 
 		std::tuple<uint32, uint32, uint32, uint32, uint32, uint32>
-		upload_data() noexcept;
+		upload_data(const graphics::render_surface& rs) noexcept;
 
 		void
 		enable_debug_view() noexcept;

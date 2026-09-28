@@ -347,11 +347,11 @@ namespace age::platform
 	window_handle
 	create_window(const window_desc& desc) noexcept
 	{
-		const auto wname		 = std::wstring{ i_window.get_name->begin(), i_window.get_name->end() };
-		const auto w_window_name = std::wstring{ desc.name.begin(), desc.name.end() };
-		auto	   id			 = static_cast<t_window_id>(g::window_info_vec.emplace_back());
+		c_auto wname		 = std::wstring{ i_window.get_name->begin(), i_window.get_name->end() };
+		c_auto w_window_name = std::wstring{ desc.name.begin(), desc.name.end() };
+		c_auto id			 = static_cast<t_window_id>(g::window_info_vec.emplace_back());
 
-		auto hwnd = ::CreateWindowEx(
+		c_auto hwnd = ::CreateWindowEx(
 			WS_EX_LEFT,												 //[in] DWORD					dwExStyle,
 			wname.c_str(),											 //[ in, optional ] LPCWSTR		lpClassName,
 			w_window_name.c_str(),									 //[ in, optional ] LPCWSTR		lpWindowName,
@@ -435,7 +435,7 @@ namespace age::platform
 		AGE_ASSERT(g::window_info_vec[h_window].state == window_state::closed);
 		g::window_info_vec.remove(h_window);
 
-		h_window.id = invalid_id_uint32;
+		h_window.id = get_invalid_id<t_window_id>();
 	}
 
 	uint32
@@ -652,11 +652,11 @@ namespace age::platform
 
 		if (stored == 0) [[unlikely]]
 		{
-			return window_handle{ .id = invalid_id_uint32 };
+			return window_handle{ .id = get_invalid_id<t_window_id>() };
 		}
 
 		return window_handle{
-			.id = static_cast<t_window_id>(stored) - 1u
+			.id = static_cast<t_window_id>(stored - 1)
 		};
 	}
 }	 // namespace age::platform

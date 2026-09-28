@@ -40,7 +40,7 @@ namespace age::editor
 	save_game() noexcept;
 
 	void
-	update_game(auto& ecs_game, auto& renderer) noexcept;
+	update_game(auto& ecs_game, auto& renderer, graphics::render_surface_handle) noexcept;
 
 	void
 	render_current_scene(auto& ecs_game, auto& renderer, platform::window_handle h_window) noexcept;
@@ -136,7 +136,7 @@ namespace age::editor
 	ui_entity_hierarchy() noexcept;
 
 	void
-	ui_scene_view(auto& renderer) noexcept;
+	ui_scene_view() noexcept;
 
 	void
 	ui_asset_list_panel() noexcept;
@@ -174,7 +174,10 @@ namespace age::editor
 	ui_component_header(const char* p_name, AGE_OUT bool& close_out) noexcept;
 
 	void
-	ui_component(auto&& cmp) noexcept;
+	ui_component(auto&& cmp) noexcept
+	{
+		ui::widget::text_heading("ui for component ?? not implemented yet");
+	}
 
 	void
 	ui_component(ecs::position& pos) noexcept;
@@ -216,6 +219,8 @@ namespace age::editor
 	ui_component(age::ecs::aa_config& cmp) noexcept;
 	void
 	ui_component(age::ecs::debug_view_config& cmp) noexcept;
+	void
+	ui_component(age::ecs::user_display_settings& cmp) noexcept;
 }	 // namespace age::editor
 
 namespace age::editor::gizmo

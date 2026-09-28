@@ -88,7 +88,6 @@ namespace age::fs
 namespace age::fs::detail
 {
 #if defined(AGE_PLATFORM_WINDOW)
-
 	void
 	to_utf16(std::string_view sv, AGE_OUT std::wstring& res) noexcept;
 	std::wstring
@@ -97,6 +96,9 @@ namespace age::fs::detail
 	to_utf8(std::wstring_view wide, bool to_generic, AGE_OUT std::string& res) noexcept;
 	std::string
 	to_utf8(std::wstring_view wide, bool to_generic = true) noexcept;
+	// return written char count
+	uint32
+	to_utf8(std::wstring_view wide, bool to_generic, AGE_OUT std::span<char> buf) noexcept;
 #endif
 
 	// appends rhs to res with one '/' between. same rules as join(lhs, rhs)

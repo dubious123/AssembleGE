@@ -1,13 +1,17 @@
 #pragma once
 #include "age.hpp"
 
-// constants
+// using, constants
 namespace age::graphics::g
 {
-	constexpr auto minimum_feature_level = D3D_FEATURE_LEVEL_12_1;
+	using dxgi_factory_type = IDXGIFactory7;
+	using main_adapter_type = IDXGIAdapter4;
+	using main_device_type	= ID3D12Device11;
+	using dxc_compiler_type = IDxcCompiler3;
 
-	inline const auto engine_shaders_dir_path				= "./resources/engine_shaders/dx12/";
-	inline const auto engine_shaders_compiled_blob_dir_path = "./resources/engine_shaders/dx12/bin/";
+	inline constexpr auto minimum_feature_level					= D3D_FEATURE_LEVEL_12_1;
+	inline constexpr auto engine_shaders_dir_path				= "./resources/engine_shaders/dx12/";
+	inline constexpr auto engine_shaders_compiled_blob_dir_path = "./resources/engine_shaders/dx12/bin/";
 }	 // namespace age::graphics::g
 
 namespace age::graphics::e
@@ -183,7 +187,8 @@ namespace age::graphics::e
 					hrp_bloom_downsample_cs,
 					hrp_bloom_upsample_cs,
 
-					hrp_post_process_ps,
+					hrp_post_process_srgb_ps,
+					hrp_post_process_hdr10_ps,
 
 					hrp_geo_prev_opaque_cs,
 
@@ -390,7 +395,7 @@ namespace age::graphics
 	};
 
 	void
-	pop_descriptor(auto& h_descriptor_out) noexcept;
+	pop_descriptor(AGE_OUT auto& h_descriptor_out) noexcept;
 
 	template <typename t_desc>
 	t_desc
@@ -581,7 +586,18 @@ namespace age::graphics
 		DXGI_FORMAT rtv_format;
 
 		UINT present_flags = 0;
-		bool should_render = true;
+
+		bool				should_render = true;
+		e::color_space_kind color_space;
+		bool				hdr_enabled;
+		e::color_space_kind preference_color_space;
+		UINT				swap_chain_flags;
+
+		float min_luminance;
+		float max_luminance;
+		float max_full_frame_luminance;
+
+		age::array<char, 192> monitor_name;
 
 		D3D12_VIEWPORT default_viewport;
 		D3D12_RECT	   default_scissor_rect;
@@ -594,14 +610,14 @@ namespace age::graphics
 
 		uint32 back_buffer_idx = 0;
 
-		FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE
-		get_h_cpu_desc() const noexcept
-		{
-			return rtv_desc_handle_arr[back_buffer_idx].h_cpu;
-		}
+		// FORCE_INLINE D3D12_CPU_DESCRIPTOR_HANDLE
+		// get_h_cpu_desc() const noexcept
+		//{
+		//	return rtv_desc_handle_arr[back_buffer_idx].h_cpu;
+		// }
 
 		FORCE_INLINE rtv_desc_handle
-		h_rtv_desc() const noexcept
+		get_h_rtv_desc() const noexcept
 		{
 			return rtv_desc_handle_arr[back_buffer_idx];
 		}
@@ -613,7 +629,10 @@ namespace age::graphics
 		}
 
 		void
-		init(age::platform::window_handle w_handle) noexcept;
+		init(age::platform::window_handle h_window) noexcept;
+
+		void
+		rebuild(e::color_space_kind new_color_space) noexcept;
 
 		void
 		resize() noexcept;

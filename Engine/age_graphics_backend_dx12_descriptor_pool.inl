@@ -141,7 +141,7 @@ namespace age::graphics
 namespace age::graphics
 {
 	void
-	pop_descriptor(auto& h_descriptor_out) noexcept
+	pop_descriptor(AGE_OUT auto& h_descriptor_out) noexcept
 	{
 		using t_descriptor_handle = BARE_OF(h_descriptor_out);
 

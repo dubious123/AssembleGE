@@ -17,10 +17,19 @@ namespace age::graphics
 	format_size(DXGI_FORMAT format) noexcept;
 
 	constexpr DXGI_FORMAT
-	dx12_format(e::texture_format _) noexcept;
+	dx12_format(e::color_space_kind _) noexcept;
 
 	constexpr uint32
 	format_size(e::texture_format format) noexcept;
+
+	constexpr DXGI_COLOR_SPACE_TYPE
+	dx12_color_space(e::color_space_kind _) noexcept;
+
+	constexpr DXGI_FORMAT
+	dx12_format(e::texture_format _) noexcept;
+
+	void
+	recreate_dxgi_factory_if_stale(AGE_INOUT g::dxgi_factory_type*&) noexcept;
 }	 // namespace age::graphics
 
 namespace age::graphics::command

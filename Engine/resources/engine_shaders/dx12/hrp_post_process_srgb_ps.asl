@@ -20,7 +20,7 @@ main_ps(float4 pos sv_position) sv_target_0
 		col							   += bloom_color * bloom.intensity * bloom.tint;
 	}
 
-	col = tonemap_aces_hill_hdr(col, hdr_headroom);
+	col = tonemap_aces_hill(col);
 
 	return float4(col, 1.0);
 }

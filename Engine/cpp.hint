@@ -213,7 +213,7 @@
 				HRESULT __hr__ = (expression);                                                       \
 				if (FAILED(__hr__))                                                                  \
 				{                                                                                    \
-					std::println("HRESULT failed: {:x}", (unsigned)__hr__);                          \
+					std::println("HRESULT failed: {:08x}", (unsigned)__hr__);                        \
 					std::println("  expr : {}", #expression);                                        \
 					std::println("  file : {}", __FILE__);                                           \
 					std::println("  line : {}", __LINE__);                                           \

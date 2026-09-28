@@ -18,9 +18,7 @@ namespace age::global
 
 		bool running = true;
 
-		// graphics
-		graphics::color_space display_color_space = graphics::color_space::hdr;
-		uint8				  frame_buffer_idx	  = uint8{ 0 };
+		uint8 frame_buffer_idx = uint8{ 0 };
 	};
 
 	namespace detail
@@ -30,7 +28,6 @@ namespace age::global
 
 	struct
 	{
-		AGE_GET(display_color_space, display_color_space);
 		AGE_GETSET(frame_buffer_idx, frame_buffer_idx);
 	} i_graphics;
 }	 // namespace age::global

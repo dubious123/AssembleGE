@@ -113,7 +113,6 @@
     <ClInclude Include="age_asset_importer.hpp" />
     <ClInclude Include="age_asset_importer_fwd.hpp" />
     <ClInclude Include="age_util_algorithm.hpp" />
-    <ClInclude Include="age_editor_ui.inl" />
     <ClInclude Include="age_fs.hpp" />
     <ClInclude Include="age_util_fixed_format.hpp" />
   </ItemGroup>

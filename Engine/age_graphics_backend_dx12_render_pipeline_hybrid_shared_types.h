@@ -1863,12 +1863,13 @@ namespace age::graphics::render_pipeline::shared_type
 		uint32 mask_single_sided_meshlet_render_data_count;
 		uint32 opaque_double_sided_meshlet_render_data_count;
 
-		uint32 transparent_double_sided_meshlet_render_data_count;
-		uint32 mask_double_sided_meshlet_render_data_count;
+		uint32	 transparent_double_sided_meshlet_render_data_count;
+		uint32	 mask_double_sided_meshlet_render_data_count;
+		float	 hdr_headroom;
+		float	 sdr_to_pq_scale;
+		uint32_3 _;
 
-		uint32 _;
-
-		uint32_4 extra[7];
+		uint32_4 extra[6];
 		// total: 256 * 3 bytes
 	};
 

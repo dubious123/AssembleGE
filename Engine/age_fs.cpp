@@ -131,6 +131,52 @@ namespace age::fs::detail
 		}
 
 		// safer version than util::encode_utf8
+		uint32
+		encode_utf8(uint32 code_point, AGE_OUT std::span<char> res) noexcept
+		{
+			// surrogate or out of range code point -> replacement
+			if ((code_point >= surrogate_begin and code_point <= surrogate_end) or code_point > max_code_point)
+			{
+				code_point = replacement;
+			}
+
+			// 1 byte : 0xxxxxxx
+			if (code_point < 0x80)
+			{
+				if (res.size() < 1) { return 0u; }
+				res[0] = static_cast<char>(code_point);
+				return 1u;
+			}
+
+			// 2 bytes : 110xxxxx 10xxxxxx
+			if (code_point < 0x800)
+			{
+				if (res.size() < 2) { return 0u; }
+				res[0] = static_cast<char>(0b1100'0000 | (code_point >> 6));
+				res[1] = static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111));
+				return 2u;
+			}
+
+			// 3 bytes : 1110xxxx 10xxxxxx 10xxxxxx
+			if (code_point < bmp_end)
+			{
+				if (res.size() < 3) { return 0u; }
+				res[0] = static_cast<char>(0b1110'0000 | (code_point >> 12));
+				res[1] = static_cast<char>(0b1000'0000 | ((code_point >> 6) & 0b0011'1111));
+				res[2] = static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111));
+				return 3u;
+			}
+
+			// 4 bytes : 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+			if (res.size() < 4) { return 0u; }
+			res[0] = static_cast<char>(0b1111'0000 | (code_point >> 18));
+			res[1] = static_cast<char>(0b1000'0000 | ((code_point >> 12) & 0b0011'1111));
+			res[2] = static_cast<char>(0b1000'0000 | ((code_point >> 6) & 0b0011'1111));
+			res[3] = static_cast<char>(0b1000'0000 | (code_point & 0b0011'1111));
+			return 4u;
+		}
+
+		// safer version than util::encode_utf8
 		void
 		encode_utf8(uint32 code_point, AGE_OUT std::string& res) noexcept
 		{
@@ -241,6 +287,44 @@ namespace age::fs::detail
 		auto res = std::string{};
 		to_utf8(wide, to_generic, AGE_OUT res);
 		return res;
+	}
+
+	uint32
+	to_utf8(std::wstring_view wide, bool to_generic, AGE_OUT std::span<char> buf) noexcept
+	{
+		static_assert(sizeof(wchar_t) == 2, "utf16 wchar_t expected");
+
+		if (buf.empty()) { return 0; }
+
+		auto   res_written = 0u;
+		c_auto capacity	   = buf.size() - 1;
+
+		for (auto sv_u16 = std::u16string_view{ reinterpret_cast<const char16_t*>(wide.data()), wide.size() };
+			 sv_u16.empty() is_false;)
+		{
+			c_auto ch = unicode::decode_utf16(sv_u16);
+			sv_u16.remove_prefix(ch.unit_count);
+
+			if (to_generic and ch.code_point == U'\\')
+			{
+				if (res_written == capacity) { break; }
+				buf[res_written++] = '/';
+				continue;
+			}
+
+			auto   tmp = age::array<char, 4>{};
+			c_auto len = unicode::encode_utf8(ch.code_point, AGE_OUT buf.subspan(res_written, capacity - res_written));
+
+			if (len == 0)
+			{
+				break;
+			}
+
+			res_written += len;
+		}
+
+		buf[res_written] = '\0';
+		return res_written;
 	}
 #endif
 

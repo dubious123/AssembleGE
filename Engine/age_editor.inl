@@ -646,6 +646,30 @@ namespace age::editor::detail
 	update_storage(auto& ecs_storage, auto& renderer, auto& update_storage_ctx) noexcept
 	{
 		using namespace ecs;
+		for (auto&& [display_settings] : ecs_storage | each_entity_soft<ecs::user_display_settings>())
+		{
+			if (display_settings.color_space_change_requested)
+			{
+				display_settings.color_space_change_requested = false;
+				display_settings.read_requested				  = true;
+				graphics::request_change_color_space(update_storage_ctx.h_render_surface, display_settings.preference_color_space);
+			}
+			if (display_settings.read_requested)
+			{
+				display_settings.read_requested = false;
+				c_auto& data					= graphics::get_monitor_data(update_storage_ctx.h_render_surface);
+
+				display_settings.hdr_min_luminance			  = data.min_luminance;
+				display_settings.hdr_max_luminance			  = data.max_luminance;
+				display_settings.hdr_max_full_frame_luminance = data.max_full_frame_luminance;
+				display_settings.display_name				  = data.monitor_name;
+
+				display_settings.current_color_space = graphics::get_color_space(update_storage_ctx.h_render_surface);
+			}
+
+			renderer.set_hdr_luminance(display_settings.hdr_peak_luminance, display_settings.hdr_paper_white_luminance);
+		}
+
 		for (auto&& [obj, model] : ecs_storage | each_entity_soft<render_object, model>())
 		{
 			if (AGE_IS_INVALID_ID(obj.render_id) or runtime::is_handle_invalid(model.h_model)) { continue; }
@@ -1038,7 +1062,7 @@ namespace age::editor
 namespace age::editor
 {
 	void
-	update_game(auto& ecs_game, auto& renderer) noexcept
+	update_game(auto& ecs_game, auto& renderer, graphics::render_surface_handle h_render_surface) noexcept
 	{
 		using enum age::asset::e::kind;
 		using enum age::input::e::key_kind;
@@ -1177,8 +1201,13 @@ namespace age::editor
 		{
 			struct
 			{
-				bool gi_active_found;
-			} update_storage_ctx{ false };
+				bool								  gi_active_found;
+				uint8_3								  _;
+				const graphics::render_surface_handle h_render_surface;
+			} update_storage_ctx{
+				.gi_active_found  = false,
+				.h_render_surface = h_render_surface,
+			};
 
 			for (c_auto& editor_storage : active_scene.storage_data_vec)
 			{

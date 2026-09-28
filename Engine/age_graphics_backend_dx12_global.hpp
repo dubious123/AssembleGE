@@ -3,15 +3,15 @@
 
 namespace age::graphics::g
 {
-	inline auto* p_dxgi_factory = (IDXGIFactory7*)nullptr;
-	inline auto* p_main_adapter = (IDXGIAdapter4*)nullptr;
-	inline auto* p_main_device	= (ID3D12Device11*)nullptr;
+	inline auto* p_dxgi_factory = (dxgi_factory_type*)nullptr;
+	inline auto* p_main_adapter = (main_adapter_type*)nullptr;
+	inline auto* p_main_device	= (main_device_type*)nullptr;
 
 	//---[ command ]------------------------------------------------------------
 	inline queue_context queue_ctx[e::queue_kind_size];
 
 	//---[ shader ]------------------------------------------------------------
-	inline auto* p_dxc_compiler		   = (IDxcCompiler3*)nullptr;
+	inline auto* p_dxc_compiler		   = (dxc_compiler_type*)nullptr;
 	inline auto* p_dxc_utils		   = (IDxcUtils*)nullptr;
 	inline auto* p_dxc_include_handler = (IDxcIncludeHandler*)nullptr;
 

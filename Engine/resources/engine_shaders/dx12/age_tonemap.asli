@@ -85,14 +85,15 @@ tonemap_aces_hill(float3 c)
 	return saturate(c);
 }
 
-// peak: 1.0 = SDR (100 nits), 4.0 = HDR400, 10.0 = HDR1000
+// hdr_headroom = peak_luminance / paper_white_luminance. 1.0 = SDR.
+// HDR400 monitor, paper white 100 -> 4.0
 float3
-tonemap_aces_hill_hdr(float3 c, float peak)
+tonemap_aces_hill_hdr(float3 c, float hdr_headroom)
 {
 	c = mul(aces_input_mat, c);
-	c = c / peak;
+	c = c / hdr_headroom;
 	c = rrt_and_odt_fit(c);
-	c = c * peak;
+	c = c * hdr_headroom;
 	c = mul(aces_output_mat, c);
 	return c;
 }

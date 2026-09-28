@@ -6,8 +6,12 @@ namespace age::request
 					window_closed,
 					window_resized,
 					window_maximized,
-					window_minimized)
+					window_minimized,
+					change_color_space);
+}
 
+namespace age::request
+{
 	using t_phase		   = uint8;
 	using t_sync_state_idx = uint16;
 
@@ -120,6 +124,9 @@ namespace age::request::detail
 	AGE_DEFINE_REQUEST(window_maximized,
 					   platform::window_handle,
 					   AGE_REQUEST_PHASE(graphics))
+	AGE_DEFINE_REQUEST(change_color_space,
+					   graphics::render_surface_handle,
+					   AGE_REQUEST_PHASE(graphics))
 
 	AGE_DEFINE_REQUEST_END
 }	 // namespace age::request::detail
@@ -162,5 +169,5 @@ namespace age::request::detail
 namespace age::request::g
 {
 	inline auto sync_state_vec	 = data_structure::sparse_vector<request::detail::sync_state>{};
-	inline auto request_info_vec = age::array<data_structure::vector<request::info>, (std::size_t)subsystem::type::count>{};
+	inline auto request_info_vec = age::array<data_structure::vector<request::info>, subsystem::type_size>{};
 }	 // namespace age::request::g

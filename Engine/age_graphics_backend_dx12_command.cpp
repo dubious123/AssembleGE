@@ -13,7 +13,7 @@ namespace age::graphics::command
 	void
 	cpu_wait(e::queue_kind kind) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 
 		if (ctx.p_fence->GetCompletedValue() < ctx.fence_value)
 		{
@@ -26,8 +26,8 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	gpu_wait(e::queue_kind who, e::queue_kind what) noexcept
 	{
-		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
-		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
+		auto& ctx_who  = g::queue_ctx[to_idx(who)];
+		auto& ctx_what = g::queue_ctx[to_idx(what)];
 
 		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.fence_value));
 	}
@@ -35,8 +35,8 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	gpu_wait_frame(e::queue_kind who, e::queue_kind what) noexcept
 	{
-		auto& ctx_who  = g::queue_ctx[std::to_underlying(who)];
-		auto& ctx_what = g::queue_ctx[std::to_underlying(what)];
+		auto& ctx_who  = g::queue_ctx[to_idx(who)];
+		auto& ctx_what = g::queue_ctx[to_idx(what)];
 
 		AGE_HR_CHECK(ctx_who.p_queue->Wait(ctx_what.p_fence, ctx_what.frame_fence_value[(global::i_graphics.get_frame_buffer_idx - 1 + global::frame_buffer_count) % global::frame_buffer_count]));
 	}
@@ -49,7 +49,7 @@ namespace age::graphics::command
 		FORCE_INLINE void
 		begin(e::queue_kind kind, uint8 frame_idx, uint8 thread_idx) noexcept
 		{
-			auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+			auto& ctx = g::queue_ctx[to_idx(kind)];
 			AGE_HR_CHECK(ctx.p_allocator[frame_idx][thread_idx]->Reset());
 			AGE_HR_CHECK(ctx.p_cmd_list[thread_idx]->Reset(ctx.p_allocator[frame_idx][thread_idx], nullptr));
 		}
@@ -70,7 +70,7 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	wait_current_frame(e::queue_kind kind) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 
 		if (ctx.p_fence->GetCompletedValue() < ctx.frame_fence_value[global::i_graphics.get_frame_buffer_idx])
 		{
@@ -98,7 +98,7 @@ namespace age::graphics::command
 	uint64
 	signal(e::queue_kind kind) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 		++ctx.fence_value;
 		AGE_HR_CHECK(ctx.p_queue->Signal(ctx.p_fence, ctx.fence_value));
 		return ctx.fence_value;
@@ -107,7 +107,7 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	execute(e::queue_kind kind, auto... thread_idx) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 
 		((ctx.p_cmd_list[thread_idx]->Close()), ...);
 
@@ -144,7 +144,7 @@ namespace age::graphics::command
 		FORCE_INLINE void
 		resume(e::queue_kind kind, uint8 thread_idx) noexcept
 		{
-			auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+			auto& ctx = g::queue_ctx[to_idx(kind)];
 
 			AGE_HR_CHECK(ctx.p_cmd_list[thread_idx]->Reset(
 				ctx.p_allocator[global::i_graphics.get_frame_buffer_idx][thread_idx], nullptr));
@@ -168,7 +168,7 @@ namespace age::graphics::command
 	FORCE_INLINE void
 	end_frame(e::queue_kind kind, auto... thread_idx) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 
 		execute(kind, thread_idx...);
 
@@ -187,19 +187,19 @@ namespace age::graphics::command
 	uint64
 	current_fence_value(e::queue_kind kind) noexcept
 	{
-		return g::queue_ctx[std::to_underlying(kind)].fence_value;
+		return g::queue_ctx[to_idx(kind)].fence_value;
 	}
 
 	bool
 	is_complete(e::queue_kind kind, uint64 fence_value) noexcept
 	{
-		return g::queue_ctx[std::to_underlying(kind)].p_fence->GetCompletedValue() >= fence_value;
+		return g::queue_ctx[to_idx(kind)].p_fence->GetCompletedValue() >= fence_value;
 	}
 
 	bool
 	is_idle(e::queue_kind kind) noexcept
 	{
-		auto& ctx = g::queue_ctx[std::to_underlying(kind)];
+		auto& ctx = g::queue_ctx[to_idx(kind)];
 
 		// >= instead of == to handle UINT64_MAX on device lost
 		return ctx.p_fence->GetCompletedValue() >= ctx.fence_value;
@@ -306,9 +306,9 @@ namespace age::graphics::command
 				 e::queue_kind::compute,
 				 e::queue_kind::copy })
 		{
-			auto& ctx  = g::queue_ctx[std::to_underlying(kind)];
+			auto& ctx  = g::queue_ctx[to_idx(kind)];
 			auto  desc = D3D12_COMMAND_QUEUE_DESC{
-				.Type	  = d3d12_type[std::to_underlying(kind)],
+				.Type	  = d3d12_type[to_idx(kind)],
 				.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
 				.Flags	  = D3D12_COMMAND_QUEUE_FLAG_NONE,
 				.NodeMask = 0

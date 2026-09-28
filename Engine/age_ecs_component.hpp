@@ -1523,6 +1523,54 @@ namespace age::ecs
 		}
 	};
 
+	AGE_COMPONENT(user_display_settings, "display_settings")
+	{
+		graphics::e::color_space_kind current_color_space	 = graphics::e::color_space_kind::hdr10;
+		graphics::e::color_space_kind preference_color_space = graphics::e::color_space_kind::hdr10;
+
+		bool  read_requested			   = true;
+		bool  color_space_change_requested = true;
+		float hdr_peak_luminance		   = 0.f;
+		float hdr_paper_white_luminance	   = 0.f;
+
+		// read from render_surface
+		float				  hdr_min_luminance			   = 0.f;
+		float				  hdr_max_luminance			   = 0.f;
+		float				  hdr_max_full_frame_luminance = 0.f;
+		age::array<char, 192> display_name;
+
+		AGE_COMPONENT_VERSION(1);
+
+		AGE_CUSTOM_BYTE_SIZE(
+			preference_color_space,
+			hdr_peak_luminance,
+			hdr_paper_white_luminance);
+
+		static void
+		write_to(cmp_dispatch_key, const user_display_settings& cmp, byte_buf& buf, auto&& rw_ctx) noexcept
+		{
+			buf.write(cmp.preference_color_space, cmp.hdr_peak_luminance, cmp.hdr_paper_white_luminance);
+		}
+
+		static void
+		read_from(cmp_dispatch_key, user_display_settings & cmp, auto& buf, auto&& rw_ctx) noexcept
+		{
+			switch (rw_ctx.version)
+			{
+			case user_display_settings::age_component_version():
+			{
+				buf.read(cmp.preference_color_space, cmp.hdr_peak_luminance, cmp.hdr_paper_white_luminance);
+				break;
+			}
+			default:
+			{
+				AGE_ASSERT(false, "invalid user_display_settings component version : {}", rw_ctx.version);
+				std::abort();
+			}
+			}
+		}
+	};
+
 #undef AGE_COMPONENT
 #undef AGE_COMPONENT_TEMPLATE
 #undef AGE_CUSTOM_BYTE_SIZE

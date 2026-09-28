@@ -69,13 +69,10 @@ namespace age::ui::e
 					mesh);
 }	 // namespace age::ui::e
 
-namespace age::graphics
-{
-	AGE_DEFINE_ENUM(color_space, uint8, srgb, hdr);
-}	 // namespace age::graphics
-
 namespace age::graphics::e
 {
+	AGE_DEFINE_ENUM(color_space_kind, uint8, srgb, hdr10);
+
 	AGE_DEFINE_ENUM(camera_kind, uint8, perspective, orthographic);
 
 	AGE_DEFINE_ENUM_WITH_VALUE(light_kind, uint16,
